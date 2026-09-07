@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#04060a" />
+<title>foam — dungeon crawl</title>
+<meta name="description" content="Room's-eye crawl through a foam dungeon: step tile by tile (grid or hex), pass certified doors, light up the map, find every endpoint. Loads exported foam-dungeon .json files." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpolygon points='16,3 28,10 28,22 16,29 4,22 4,10' fill='none' stroke='%23ffce78' stroke-width='2.5'/%3E%3Ccircle cx='16' cy='18' r='3.4' fill='%237fd8d0'/%3E%3C/svg%3E" />
+<script type="importmap">{ "imports": { "three": "../../vendor/three.module.min.js" } }</script>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: #04060a; color: #cfe8e4; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow: hidden; }
+  #c { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+  #hud { position: fixed; top: max(8px, env(safe-area-inset-top)); left: 10px; pointer-events: none; text-shadow: 0 1px 3px #000; }
+  #hud b { color: #cffff8; letter-spacing: .04em; }
+  #hud .dim { color: #5f7a80; font-size: 11px; }
+  #hud a { color: #7fd8d0; pointer-events: auto; }
+  #roomline { margin-top: 4px; font-size: 12px; color: #9fc9c4; }
+  #roomline .tag { color: #ffce78; }
+  #ends { margin-top: 2px; font-size: 11px; }
+  #ends .pip { display: inline-block; width: 9px; height: 9px; border-radius: 50%; border: 1px solid #1c2b31; margin-right: 4px; vertical-align: middle; opacity: .3; pointer-events: auto; cursor: pointer; }
+  #ends .pip.lit { opacity: 1; box-shadow: 0 0 6px currentColor; }
+  #ends .pip.way { outline: 2px solid #cffff8; outline-offset: 1px; opacity: .85; }
+  #wayline { font-size: 11px; color: #8fd3ff; margin-top: 1px; }
+  #doorbar button.suggested { border-color: #cffff8; box-shadow: 0 0 10px rgba(159,240,230,.5); }
+  .chip.on { border-color: #7fd8d0; color: #cffff8; background: rgba(127,216,208,.16); }
+
+  #topright { position: fixed; top: max(8px, env(safe-area-inset-top)); right: 10px; display: flex; gap: 8px; }
+  .chip { background: rgba(127,216,208,.08); border: 1px solid #1c2b31; border-radius: 8px; color: #9fc9c4; padding: 6px 10px; font: 12px ui-monospace, monospace; cursor: pointer; user-select: none; }
+  .chip:hover { border-color: #7fd8d0; }
+
+  #doorbar { position: fixed; bottom: max(120px, calc(env(safe-area-inset-bottom) + 120px)); left: 50%; transform: translateX(-50%); display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 90vw; }
+  #doorbar button { background: rgba(255,206,120,.14); border: 1px solid #ffce78; border-radius: 10px; color: #ffe9c0; padding: 9px 14px; font: 13px ui-monospace, monospace; cursor: pointer; }
+  #doorbar button:hover { background: rgba(255,206,120,.26); }
+
+  #mini { position: fixed; bottom: max(10px, env(safe-area-inset-bottom)); left: 10px; width: 190px; height: 190px; background: rgba(6,10,14,.85); border: 1px solid #1c2b31; border-radius: 10px; }
+  #steps { position: fixed; bottom: max(12px, env(safe-area-inset-bottom)); right: 12px; font-size: 11px; color: #5f7a80; text-align: right; text-shadow: 0 1px 3px #000; }
+
+  /* movement budget */
+  #movebox { position: fixed; bottom: max(64px, calc(env(safe-area-inset-bottom) + 64px)); right: 12px; width: 190px;
+    background: rgba(6,10,14,.88); border: 1px solid #1c2b31; border-radius: 10px; padding: 10px 12px; }
+  #movebox .mrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12px; color: #9fc9c4; }
+  #movebox input[type=range] { width: 74px; min-width: 0; accent-color: #7fd8d0; }
+  #movebox .mval { color: #ffce78; min-width: 20px; text-align: right; }
+  #moveLeft { margin-top: 6px; font-size: 12px; }
+  #moveLeft b { color: #9ff0e6; font-size: 14px; }
+  #moveLeft.spent b { color: #ff9e6e; }
+  #endTurn { margin-top: 7px; width: 100%; padding: 6px; font: 12px ui-monospace, monospace; background: rgba(127,216,208,.12); color: #cffff8; border: 1px solid #2b6a72; border-radius: 8px; cursor: pointer; }
+  #endTurn:hover { border-color: #7fd8d0; }
+  #doorbar button:disabled { opacity: .35; cursor: default; }
+
+  #note { position: fixed; left: 50%; bottom: 30vh; transform: translateX(-50%); background: rgba(6,10,14,.85); border: 1px solid #1c2b31; border-radius: 8px; padding: 6px 14px; color: #ffce78; opacity: 0; transition: opacity .25s; pointer-events: none; font-size: 13px; max-width: 86vw; text-align: center; }
+  #hpline { margin-top: 3px; font-size: 12px; }
+  #hpline b.hp { color: #ff9e6e; } #hpline b.gp { color: #ffdf9e; }
+
+  /* mobile: controls consolidate into a full-width bottom bar; minimap and
+     door buttons stack above it */
+  @media (max-width: 720px) {
+    #hud { max-width: 54vw; }
+    #hud .dim { font-size: 10px; }
+    #movebox { left: 0; right: 0; bottom: 0; width: 100%; border-radius: 14px 14px 0 0;
+      border-bottom: none; padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+      display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; z-index: 5; }
+    #movebox .mrow { flex: 1 1 100%; }
+    #movebox input[type=range] { width: 52vw; height: 26px; }
+    #moveLeft { margin: 0; flex: 1 1 auto; }
+    #endTurn { margin: 0; flex: 0 0 auto; width: auto; padding: 11px 18px; font-size: 13px; }
+    #mini { left: 10px; bottom: calc(104px + env(safe-area-inset-bottom));
+      width: 118px; height: 118px; }
+    #steps { right: 10px; bottom: calc(104px + env(safe-area-inset-bottom)); }
+    #doorbar { left: 50%; bottom: calc(150px + env(safe-area-inset-bottom)); max-width: 96vw; }
+    #doorbar button { padding: 11px 14px; font-size: 13px; }
+    #note { bottom: 38vh; }
+    #topright .chip { padding: 8px 12px; }
+  }
+
+  .overlay { position: fixed; inset: 0; background: rgba(4,6,10,.88); display: none; align-items: center; justify-content: center; z-index: 10; }
+  .overlay.on { display: flex; }
+  .card { max-width: 480px; margin: 16px; background: #070c12; border: 1px solid #1c2b31; border-radius: 14px; padding: 22px 26px; }
+  .card h1 { font-size: 18px; margin: 0 0 6px; color: #cffff8; }
+  .card p { margin: 8px 0; color: #9fc9c4; font-size: 13px; }
+  .card b { color: #ffce78; }
+  .card button { margin-top: 12px; width: 100%; padding: 11px; font: 13px ui-monospace, monospace; background: rgba(127,216,208,.14); color: #cffff8; border: 1px solid #7fd8d0; border-radius: 10px; cursor: pointer; }
+  #file { display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <b>foam · crawl</b> <span class="dim">— <a href="../" id="backlink">← generator</a></span>
+  <div id="roomline"></div>
+  <div id="hpline"></div>
+  <div id="ends"></div>
+  <div id="wayline"></div>
+</div>
+
+<div id="topright">
+  <span class="chip on" id="guideChip" title="waypoint guidance — the next door on the route pulses">◎ guide</span>
+  <span class="chip" id="rollChip" title="reroll loot, traps and enemies — same map">⚄ roll 1</span>
+  <span class="chip" id="sideChip" style="display:none;color:#e2b8ff" title="twin dungeon — crawl the other side">⧉ side A</span>
+  <span class="chip" id="loadChip" title="load an exported foam-dungeon .json">⤒ load .json</span>
+  <input id="file" type="file" accept=".json,application/json">
+</div>
+
+<div id="doorbar"></div>
+<canvas id="mini" width="380" height="380"></canvas>
+<div id="movebox">
+  <div class="mrow"><span>movement</span><input id="moveSlider" type="range" min="1" max="20" step="1" value="10"><span class="mval" id="moveMaxV">10</span></div>
+  <div id="moveLeft"><b>10</b> tiles left this turn</div>
+  <button id="endTurn">↻ end turn</button>
+</div>
+<div id="steps"></div>
+<div id="note"></div>
+
+<div class="overlay" id="death">
+  <div class="card">
+    <h1>the foam takes you</h1>
+    <p id="deathText"></p>
+    <button onclick="location.reload()">crawl again</button>
+  </div>
+</div>
+
+<div class="overlay on" id="intro">
+  <div class="card">
+    <h1>the dungeon crawl</h1>
+    <p>You stand at the <b>entrance</b>, on the foam's top surface. Somewhere
+    below, beacons mark the endpoints — each holds a treasure, and each has a
+    guardian. Caches glitter, traps wait unseen, rubble blocks tiles, and
+    things move in the deep when you end your turn. Bump an enemy to strike
+    it. Every door was proven walkable before this dungeon shipped.</p>
+    <p><b>click / tap</b> any lit tile to walk there — the lit squares are your
+    movement range for this turn (set it with the <b>movement</b> slider,
+    <b>↻ end turn</b> refreshes it) · <b>WASD / arrows</b> step one tile ·
+    <b>drag</b> to orbit · doorways are open gaps in the walls — walk (or
+    click) straight through them; adjacent chambers come into view as you
+    approach.</p>
+    <p class="dim" id="introMeta"></p>
+    <button id="begin">descend</button>
+  </div>
+</div>
+
+<div class="overlay" id="win">
+  <div class="card">
+    <h1>dungeon cleared</h1>
+    <p id="winText"></p>
+    <button onclick="location.reload()">crawl it again</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from '../../vendor/OrbitControls.js';
+import { generateDungeon, DUNGEON_VERSION, SIZES, TILE_SHAPES } from '../../dungeon.mjs';
+import { dungeonToJSON } from '../../dungeon-export.mjs';
+import { buildCrawl, reachableWithin } from '../../dungeon-crawl.mjs';
+import { rollContent, contentBlocked, ENEMY_TYPES, tuningFromParam, tuningToParam } from '../../dungeon-content.mjs';
+
+const PATH_COLORS = ['#ff9e6e', '#9ff0e6', '#c8a5ff', '#ffd166', '#8fd3ff', '#ffa5c0'];
+const css = (c) => new THREE.Color(c);
+const $ = (id) => document.getElementById(id);
+
+// ------------------------------------------------------------- params ------
+const params = { seed: 1, n: 3, shape: 'grid', scale: 0.35, size: 'm', roll: 1, twin: false, side: 0, starts: 1, party: 0 };
+{
+  const h = new URLSearchParams(location.hash.slice(1));
+  params.twin = h.get('twin') === '1';
+  params.side = h.get('side') === 'b' ? 1 : 0;
+  if (h.get('starts')) params.starts = Math.min(4, Math.max(1, parseInt(h.get('starts'), 10) || 1));
+  if (h.get('party')) params.party = Math.max(0, parseInt(h.get('party'), 10) || 0);
+  if (params.starts > 1 && !h.get('size')) params.size = 'l';
+  if (h.get('seed')) params.seed = Math.max(1, parseInt(h.get('seed'), 10) || 1);
+  if (h.get('n')) params.n = Math.min(6, Math.max(1, parseInt(h.get('n'), 10) || 3));
+  if (TILE_SHAPES.includes(h.get('shape'))) params.shape = h.get('shape');
+  if (h.get('scale')) params.scale = Math.min(1, Math.max(0.08, parseFloat(h.get('scale')) || 0.35));
+  if (SIZES[h.get('size')]) params.size = h.get('size');
+  if (h.get('roll')) params.roll = Math.max(1, parseInt(h.get('roll'), 10) || 1);
+  params.tuning = tuningFromParam(h.get('tune'));
+  const v = h.get('v');
+  if (v && parseInt(v, 10) !== DUNGEON_VERSION) {
+    console.warn('permalink generator v' + v + ' ≠ current v' + DUNGEON_VERSION + ' — layout may differ');
+  }
+}
+{
+  const tune = tuningToParam(params.tuning);
+  $('backlink').href = '../#seed=' + params.seed + '&n=' + params.n + '&shape=' + params.shape +
+    '&scale=' + params.scale + '&size=' + params.size + '&roll=' + params.roll +
+    (params.twin ? '&twin=1' : '') + (params.starts > 1 ? '&starts=' + params.starts : '') +
+    (tune ? '&tune=' + tune : '') + '&v=' + DUNGEON_VERSION;
+}
+
+// -------------------------------------------------------------- state ------
+let J = null, crawl = null;            // canonical document + crawl graph
+let curRoom = -1, curTile = null;
+let discovered = new Set();            // room ids entered
+let found = new Set();                 // endpoint room ids reached
+let steps = 0;
+let loadedFromFile = false;
+let moveMax = 10, moveLeft = 10;       // the movement budget (tiles per turn)
+let walkQueue = [];                    // multi-step walk in progress
+let content = null;                    // the content roll (loot/traps/obstacles/enemies)
+let fx = new Map();                    // 'room:tile' -> live effect record
+let mobs = [];                         // live agents: {id,type,hp,room,tile}
+let hp = 12, gold = 0, dead = false;   // the crawler
+let sprungTd = new Set();              // revealed trapdoors ('room:tile')
+let spinners = [];                     // marker meshes rotating in the loop
+let guide = true, waypoint = null;     // waypoint tek: null = nearest unfound endpoint
+let guideRooms = [], guideFace = null; // current route + suggested door face
+let suggestedMeshes = [];              // door columns pulsing in the loop
+let myEnds = [];                       // endpoints on MY side (all, in single mode)
+let seamsByRoom = new Map();           // twin: room id -> [{other, at, passable}]
+let seenTiles = new Map();             // fog of war: 'room:tile' -> 'live' | 'stale'
+let mode = 'explore';                  // 'explore' (free movement) | 'encounter' (budgeted)
+let alert = false;                     // the heist alarm: the dungeon is awake
+let treasures = 0;                     // treasures carried (the heist prize)
+
+// -------------------------------------------------------------- three ------
+const canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const scene = new THREE.Scene();
+scene.background = css('#04060a');
+scene.fog = new THREE.Fog(css('#04060a'), 18, 60);
+const camera = new THREE.PerspectiveCamera(58, 1, 0.05, 300);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.dampingFactor = 0.1;
+controls.maxPolarAngle = Math.PI * 0.62;
+controls.minDistance = 2.5; controls.maxDistance = 30;
+function resize() {
+  renderer.setSize(innerWidth, innerHeight, false);
+  camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize); resize();
+
+let roomGroup = null;      // rebuilt on room entry
+let tileMesh = null;       // merged tiles (picking → nearest centre)
+let edgeLines = null;      // tile edges (known tiles only)
+let hiliteMesh = null;     // reachable-neighbour overlay
+let token = null;
+let neighborGroups = new Map();  // adjacent rooms rendered continuously: id → {grp, mesh, info}
+
+// the CONTINUOUS dungeon: no door props — a doorway is a 1–2 tile GAP in
+// the wall. Wall segments within this radius of a certified door station
+// are simply not built, on both sides of the membrane.
+const DOOR_GAP = () => J.tile.size * 1.15;
+const nearDoorGap = (info, x, z) =>
+  info.doors.some((d) => (d.at[0] - x) ** 2 + (d.at[2] - z) ** 2 < DOOR_GAP() ** 2);
+
+// tile color through the fog — the single source for build + recolor
+function colorOf(r, t) {
+  const know = knowledge(r.id, t.key);
+  if (know === 'unknown') return [0.016, 0.024, 0.04];
+  let y0 = Infinity, y1 = -Infinity;
+  for (const tt of r.tiles) { y0 = Math.min(y0, tt.y); y1 = Math.max(y1, tt.y); }
+  const h = y1 - y0 > 1e-6 ? (t.y - y0) / (y1 - y0) : 0.5;
+  let c = r.secret
+    ? [0.10 + h * 0.10, 0.14 + h * 0.14, 0.26 + h * 0.18]
+    : [0.10 + h * 0.16, 0.22 + h * 0.22, 0.24 + h * 0.20];
+  const fxT = fx.get(r.id + ':' + t.key);
+  if (fxT?.type === 'obstacle') c = [0.24, 0.30, 0.33];
+  else if (fxT?.type === 'trap' && fxT.sprung) c = [0.38, 0.14, 0.11];
+  else if (t.kind === 'door') c = [0.72, 0.58, 0.34];
+  else if (t.kind === 'entrance') c = [0.45, 0.72, 0.40];
+  else if (t.kind === 'trapdoor') { if (sprungTd.has(r.id + ':' + t.key)) c = [0.03, 0.06, 0.08]; }
+  else if (t.kind === 'hatch') c = [0.16, 0.38, 0.36];
+  else if (t.kind === 'goal') {
+    const pc = css(PATH_COLORS[(r.endpointIndex ?? 0) % PATH_COLORS.length]);
+    c = [pc.r * 0.8, pc.g * 0.8, pc.b * 0.8];
+  }
+  return know === 'stale' ? c.map((v) => v * 0.42) : c;
+}
+
+// recolor tiles + rebuild known edges + marker/mob visibility, in place —
+// the current room AND every rendered neighbor, each per its own fog
+function refreshFog() {
+  if (!tileMesh) return;
+  const r = roomInfo(curRoom);
+  const attr = tileMesh.geometry.getAttribute('color');
+  for (const t of r.tiles) {
+    const [start, count] = tileMesh.userData.ranges.get(t.key);
+    const c = colorOf(r, t);
+    for (let i = 0; i < count; i++) attr.setXYZ(start + i, c[0], c[1], c[2]);
+  }
+  attr.needsUpdate = true;
+  for (const [, nb] of neighborGroups) {
+    const na = nb.mesh.geometry.getAttribute('color');
+    for (const t of nb.info.tiles) {
+      const [start, count] = nb.mesh.userData.ranges.get(t.key);
+      const c = colorOf(nb.info, t);
+      for (let i = 0; i < count; i++) na.setXYZ(start + i, c[0], c[1], c[2]);
+    }
+    na.needsUpdate = true;
+  }
+  const ep = [];
+  for (const t of r.tiles) {
+    if (knowledge(curRoom, t.key) === 'unknown') continue;
+    const cs = tileCorners2D(t);
+    for (let i = 0; i < cs.length; i++) {
+      const a = cs[i], b = cs[(i + 1) % cs.length];
+      ep.push(a[0], t.y + 0.035, a[1], b[0], t.y + 0.035, b[1]);
+    }
+  }
+  edgeLines.geometry.dispose();
+  edgeLines.geometry = new THREE.BufferGeometry();
+  edgeLines.geometry.setAttribute('position', new THREE.Float32BufferAttribute(ep, 3));
+  roomGroup.traverse((o) => {
+    if (o.userData.fogTile === undefined) return;
+    const k = knowledge(o.userData.fogRoom ?? curRoom, o.userData.fogTile);
+    o.visible = o.userData.isMob ? k === 'live' : k !== 'unknown';
+  });
+}
+const tokenTarget = new THREE.Vector3();
+
+function disposeGroup(g) {
+  if (!g) return;
+  g.traverse((o) => { o.geometry?.dispose(); o.material?.dispose?.(); });
+  scene.remove(g);
+}
+
+function hexCorner(x, z, R, k) {
+  const a = Math.PI / 180 * (60 * k - 30);
+  return [x + R * Math.cos(a), z + R * Math.sin(a)];
+}
+function tileCorners2D(t, inset = 1) {
+  const s = J.tile.size;
+  if (t.poly) {
+    const f = 0.94 * inset;
+    return t.poly.map(([px, pz]) => [t.x + (px - t.x) * f, t.z + (pz - t.z) * f]);
+  }
+  if (J.tile.shape === 'hex') {
+    const R = (s / Math.sqrt(3)) * 0.96 * inset;
+    return [0, 1, 2, 3, 4, 5].map((k) => hexCorner(t.x, t.z, R, k));
+  }
+  const h = s * 0.47 * inset;
+  return [[t.x - h, t.z - h], [t.x + h, t.z - h], [t.x + h, t.z + h], [t.x - h, t.z + h]];
+}
+function pushTile(pos, col, t, c, lift = 0.03) {
+  const corners = tileCorners2D(t);
+  for (let i = 1; i + 1 < corners.length; i++) {
+    for (const [cx, cz] of [corners[0], corners[i], corners[i + 1]]) {
+      pos.push(cx, t.y + lift, cz); col.push(c[0], c[1], c[2]);
+    }
+  }
+}
+
+function roomInfo(id) { return crawl.rooms.get(id).info; }
+function roleLabel(r) {
+  if (r.role === 'entrance') return 'ENTRANCE';
+  if (r.role === 'endpoint') return 'ENDPOINT ' + (r.endpointIndex + 1);
+  if (r.secret) return 'SECRET room ' + r.id;
+  return 'room ' + r.id;
+}
+function pyramid(size, h, color, down, wire = false) {
+  const g = new THREE.ConeGeometry(size, h, 4);
+  const m = wire
+    ? new THREE.LineSegments(new THREE.WireframeGeometry(g), new THREE.LineBasicMaterial({ color: css(color) }))
+    : new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: css(color) }));
+  if (down) m.rotation.z = Math.PI;
+  return m;
+}
+
+function buildRoom(id) {
+  disposeGroup(roomGroup);
+  spinners = [];
+  neighborGroups = new Map();
+  roomGroup = new THREE.Group();
+  const R = crawl.rooms.get(id);
+  const r = R.info;
+  let y0 = Infinity, y1 = -Infinity;
+  for (const t of r.tiles) { y0 = Math.min(y0, t.y); y1 = Math.max(y1, t.y); }
+
+  // -- tiles, colored through the fog: unknown tiles paint as background
+  //    (invisible), stale dimmed, live full. Colors live in one attribute
+  //    per room so the fog can recolor in place without rebuilding.
+  {
+    const pos = [], col = [];
+    const ranges = new Map();
+    for (const t of r.tiles) {
+      const start = pos.length / 3;
+      pushTile(pos, col, t, colorOf(r, t));
+      ranges.set(t.key, [start, pos.length / 3 - start]);
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+    tileMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+    tileMesh.userData.ranges = ranges;
+    roomGroup.add(tileMesh);
+    edgeLines = new THREE.LineSegments(new THREE.BufferGeometry(),
+      new THREE.LineBasicMaterial({ color: css('#04060a'), transparent: true, opacity: 0.6 }));
+    roomGroup.add(edgeLines);
+  }
+
+  // -- walls: outline loops extruded up, base following the nearest tile
+  {
+    const yNear = (x, z) => {
+      let best = y0, bd = Infinity;
+      for (const t of r.tiles) {
+        const d = (t.x - x) ** 2 + (t.z - z) ** 2;
+        if (d < bd) { bd = d; best = t.y; }
+      }
+      return best;
+    };
+    const H = 2.6;
+    const pos = [];
+    const lp = [];
+    for (const loop of r.outline) {
+      for (let i = 0; i + 1 < loop.length; i++) {
+        const [ax, az] = loop[i], [bx, bz] = loop[i + 1];
+        // a doorway is a GAP: segments near a certified door station are
+        // simply not walled — the rooms connect continuously
+        if (nearDoorGap(r, (ax + bx) / 2, (az + bz) / 2)) continue;
+        const ay = yNear(ax, az), by = yNear(bx, bz);
+        pos.push(ax, ay, az, bx, by, bz, bx, by + H, bz);
+        pos.push(ax, ay, az, bx, by + H, bz, ax, ay + H, az);
+        lp.push(ax, ay + H, az, bx, by + H, bz);
+        lp.push(ax, ay, az, ax, ay + H, az);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    // FrontSide only — the dollhouse cull: walls facing away from the
+    // camera (the near side of the room) simply don't draw, so the room
+    // interior is never hidden behind its own wall. Edge lines stay for
+    // silhouette.
+    roomGroup.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: css('#0d2126'), transparent: true, opacity: 0.55, side: THREE.FrontSide, depthWrite: false,
+    })));
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+    roomGroup.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: css('#2b6a72'), transparent: true, opacity: 0.8 })));
+  }
+
+  // -- doorways: no props, the wall gap IS the door. A flat threshold ring
+  //    on the floor marks the opening (and pulses when the guide suggests it)
+  for (const d of R.doors) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.05, 8, 28),
+      new THREE.MeshBasicMaterial({ color: css('#ffce78'), transparent: true, opacity: 0.45 }));
+    ring.rotation.x = Math.PI / 2;
+    ring.position.set(d.at[0], d.at[1] + 0.12, d.at[2]);
+    ring.userData.doorFace = d.face;
+    ring.userData.fogTile = d.tile;
+    roomGroup.add(ring);
+  }
+
+  // -- endpoint beacon in its room
+  if (r.role === 'endpoint') {
+    const pc = PATH_COLORS[(r.endpointIndex ?? 0) % PATH_COLORS.length];
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.2, 7, 10),
+      new THREE.MeshBasicMaterial({ color: css(pc), transparent: true, opacity: 0.55 }));
+    beam.position.set(r.centroid[0], r.centroid[1] + 3.4, r.centroid[2]);
+    roomGroup.add(beam);
+  }
+
+  // -- twin ghosts: through every sealed seam of this room, the OTHER
+  //    dungeon's chamber renders as violet ghost geometry — floor tiles at
+  //    true heights, a dim outline, and a spinning pink gem on a passable
+  //    seam (a certified crossing that will never open). You can see it;
+  //    you can never stand in it.
+  for (const sm of seamsByRoom.get(id) ?? []) {
+    const gr = J.rooms.find((x) => x.id === sm.other);
+    if (!gr) continue;
+    const pos = [];
+    for (const t of gr.tiles) {
+      const corners = tileCorners2D(t, 0.9);
+      for (let i = 1; i + 1 < corners.length; i++) {
+        for (const [cx, cz] of [corners[0], corners[i], corners[i + 1]]) pos.push(cx, t.y + 0.03, cz);
+      }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    roomGroup.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+      color: css('#8a5fd8'), transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false,
+    })));
+    const lp = [];
+    for (const loop of gr.outline) {
+      for (let i = 0; i + 1 < loop.length; i++) {
+        const [ax, az] = loop[i], [bx, bz] = loop[i + 1];
+        lp.push(ax, gr.floorY + 0.05, az, bx, gr.floorY + 0.05, bz);
+      }
+    }
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+    roomGroup.add(new THREE.LineSegments(lg,
+      new THREE.LineBasicMaterial({ color: css('#b18fff'), transparent: true, opacity: 0.35 })));
+    if (sm.passable) {
+      const gem = new THREE.LineSegments(
+        new THREE.WireframeGeometry(new THREE.OctahedronGeometry(0.4)),
+        new THREE.LineBasicMaterial({ color: css('#ff9ef2'), transparent: true, opacity: 0.9 }));
+      gem.position.set(sm.at[0], sm.at[1] + 1.1, sm.at[2]);
+      spinners.push(gem);
+      roomGroup.add(gem);
+    }
+  }
+
+  // -- content: effects + agents living in this room
+  for (const [k, e] of fx) {
+    if (Number(k.split(':')[0]) !== id || e.done) continue;
+    const t = crawl.rooms.get(id).byKey.get(e.tile);
+    if (e.type === 'obstacle') {
+      const m = new THREE.Mesh(new THREE.OctahedronGeometry(J.tile.size * 0.34, 0),
+        new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
+      m.position.set(t.x, t.y + J.tile.size * 0.3, t.z);
+      m.rotation.y = (t.x * 7 + t.z * 3) % 1;
+      m.userData.fogTile = e.tile;
+      roomGroup.add(m);
+      const w = new THREE.LineSegments(new THREE.WireframeGeometry(m.geometry),
+        new THREE.LineBasicMaterial({ color: css('#5f7a80') }));
+      w.position.copy(m.position); w.rotation.copy(m.rotation);
+      w.userData.fogTile = e.tile;
+      roomGroup.add(w);
+    } else if (e.type === 'loot' || e.type === 'treasure') {
+      const big = e.type === 'treasure';
+      const m = pyramid(J.tile.size * (big ? 0.3 : 0.18), J.tile.size * (big ? 0.5 : 0.3),
+        big ? '#ffdf9e' : '#d8a94e', false);
+      m.position.set(t.x, t.y + J.tile.size * (big ? 0.3 : 0.2), t.z);
+      spinners.push(m);
+      m.userData.fogTile = e.tile;
+      e.mesh = m; roomGroup.add(m);
+      if (e.type === 'treasure') {
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(J.tile.size * 0.34, 0.03, 8, 24),
+          new THREE.MeshBasicMaterial({ color: css('#ffdf9e'), transparent: true, opacity: 0.6 }));
+        halo.rotation.x = Math.PI / 2; halo.position.set(t.x, t.y + 0.08, t.z);
+        halo.userData.fogTile = e.tile;
+        e.halo = halo; roomGroup.add(halo);
+      }
+    } else if (e.type === 'trap' && e.sprung) {
+      const m = pyramid(J.tile.size * 0.2, J.tile.size * 0.4, '#ff6e5a', true);
+      m.position.set(t.x, t.y + J.tile.size * 0.55, t.z);
+      m.userData.fogTile = e.tile;
+      spinners.push(m); roomGroup.add(m);
+    }
+  }
+  // trapdoor passage mouths in this room: sprung trapdoors show as dark
+  // wells; hatches wear a spinning wireframe up-pyramid
+  for (const ln of R.links) {
+    const t = R.byKey.get(ln.tile);
+    if (!t) continue;
+    if (ln.kind === 'trapdoor' && sprungTd.has(id + ':' + ln.tile)) {
+      const m = pyramid(J.tile.size * 0.3, J.tile.size * 0.5, '#173238', true);
+      m.position.set(t.x, t.y - J.tile.size * 0.1, t.z);
+      m.userData.fogTile = ln.tile;
+      roomGroup.add(m);
+    } else if (ln.kind === 'hatch') {
+      const m = pyramid(J.tile.size * 0.26, J.tile.size * 0.5, '#7fd8d0', false, true);
+      m.position.set(t.x, t.y + J.tile.size * 0.3, t.z);
+      m.userData.fogTile = ln.tile;
+      spinners.push(m); roomGroup.add(m);
+    }
+  }
+  for (const a of mobs) {
+    if (a.room !== id || a.hp <= 0) continue;
+    const t = crawl.rooms.get(id).byKey.get(a.tile);
+    const spec = ENEMY_TYPES[a.type];
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(J.tile.size * (0.2 + a.hp * 0.05), 0),
+      new THREE.MeshBasicMaterial({ color: css(spec.color) }));
+    m.position.set(t.x, t.y + 0.55, t.z);
+    m.userData.isMob = true;
+    m.userData.fogTile = a.tile;
+    a.mesh = m; roomGroup.add(m);
+    const w = new THREE.LineSegments(new THREE.WireframeGeometry(m.geometry),
+      new THREE.LineBasicMaterial({ color: css('#04060a'), transparent: true, opacity: 0.5 }));
+    m.add(w);
+  }
+
+  // -- token
+  token = new THREE.Group();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.85, 12),
+    new THREE.MeshBasicMaterial({ color: css('#cffff8') }));
+  cone.position.y = 0.55;
+  token.add(cone);
+  const tring = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.045, 8, 28),
+    new THREE.MeshBasicMaterial({ color: css('#7fd8d0') }));
+  tring.rotation.x = Math.PI / 2; tring.position.y = 0.06;
+  token.add(tring);
+  roomGroup.add(token);
+
+  // -- the CONTINUOUS neighborhood: every room a doorway opens into is
+  //    rendered too — its own fog, its own gapped walls — so spinning the
+  //    camera shows the adjacent chambers through the openings. Rooms
+  //    further than one doorway stay unbuilt: the dungeon reveals itself
+  //    one opening at a time.
+  for (const d of R.doors) {
+    if (d.farTile === null || neighborGroups.has(d.to) || d.to === id) continue;
+    buildNeighbor(d.to);
+  }
+
+  hiliteMesh = null;
+  scene.add(roomGroup);
+}
+
+// a door-adjacent room, rendered continuously: fog-colored tiles (with
+// recolor ranges), gapped walls a shade dimmer, and whatever content the
+// fog admits. Tagged with fogRoom so refreshFog governs it per ITS tiles.
+function buildNeighbor(id) {
+  const R = crawl.rooms.get(id);
+  const r = R.info;
+  const grp = new THREE.Group();
+  const pos = [], col = [];
+  const ranges = new Map();
+  for (const t of r.tiles) {
+    const start = pos.length / 3;
+    pushTile(pos, col, t, colorOf(r, t));
+    ranges.set(t.key, [start, pos.length / 3 - start]);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  const mesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide }));
+  mesh.userData.ranges = ranges;
+  mesh.userData.roomId = id;
+  grp.add(mesh);
+  {
+    const yNear = (x, z) => {
+      let best = r.floorY, bd = Infinity;
+      for (const t of r.tiles) {
+        const d = (t.x - x) ** 2 + (t.z - z) ** 2;
+        if (d < bd) { bd = d; best = t.y; }
+      }
+      return best;
+    };
+    const H = 2.6;
+    const wp = [], lp = [];
+    for (const loop of r.outline) {
+      for (let i = 0; i + 1 < loop.length; i++) {
+        const [ax, az] = loop[i], [bx, bz] = loop[i + 1];
+        if (nearDoorGap(r, (ax + bx) / 2, (az + bz) / 2)) continue;
+        const ay = yNear(ax, az), by = yNear(bx, bz);
+        wp.push(ax, ay, az, bx, by, bz, bx, by + H, bz);
+        wp.push(ax, ay, az, bx, by + H, bz, ax, ay + H, az);
+        lp.push(ax, ay + H, az, bx, by + H, bz);
+      }
+    }
+    const wg = new THREE.BufferGeometry();
+    wg.setAttribute('position', new THREE.Float32BufferAttribute(wp, 3));
+    grp.add(new THREE.Mesh(wg, new THREE.MeshBasicMaterial({
+      color: css('#0d2126'), transparent: true, opacity: 0.4, side: THREE.FrontSide, depthWrite: false,
+    })));
+    const lg = new THREE.BufferGeometry();
+    lg.setAttribute('position', new THREE.Float32BufferAttribute(lp, 3));
+    grp.add(new THREE.LineSegments(lg, new THREE.LineBasicMaterial({ color: css('#2b6a72'), transparent: true, opacity: 0.5 })));
+  }
+  // content the fog may admit (visibility is set by refreshFog per tile)
+  for (const [k, e] of fx) {
+    if (Number(k.split(':')[0]) !== id || e.done) continue;
+    const t = R.byKey.get(e.tile);
+    if (!t) continue;
+    let m = null;
+    if (e.type === 'obstacle') {
+      m = new THREE.Mesh(new THREE.OctahedronGeometry(J.tile.size * 0.34, 0),
+        new THREE.MeshBasicMaterial({ color: css('#3a4a52') }));
+      m.position.set(t.x, t.y + J.tile.size * 0.3, t.z);
+    } else if (e.type === 'loot' || e.type === 'treasure') {
+      const big = e.type === 'treasure';
+      m = pyramid(J.tile.size * (big ? 0.3 : 0.18), J.tile.size * (big ? 0.5 : 0.3),
+        big ? '#ffdf9e' : '#d8a94e', false);
+      m.position.set(t.x, t.y + J.tile.size * (big ? 0.3 : 0.2), t.z);
+      spinners.push(m);
+    } else if (e.type === 'trap' && e.sprung) {
+      m = pyramid(J.tile.size * 0.2, J.tile.size * 0.4, '#ff6e5a', true);
+      m.position.set(t.x, t.y + J.tile.size * 0.55, t.z);
+      spinners.push(m);
+    }
+    if (m) { m.userData.fogTile = e.tile; m.userData.fogRoom = id; grp.add(m); }
+  }
+  for (const a of mobs) {
+    if (a.room !== id || a.hp <= 0) continue;
+    const t = R.byKey.get(a.tile);
+    if (!t) continue;
+    const m = new THREE.Mesh(new THREE.IcosahedronGeometry(J.tile.size * (0.2 + a.hp * 0.05), 0),
+      new THREE.MeshBasicMaterial({ color: css(ENEMY_TYPES[a.type].color) }));
+    m.position.set(t.x, t.y + 0.55, t.z);
+    m.userData.isMob = true;
+    m.userData.fogTile = a.tile;
+    m.userData.fogRoom = id;
+    grp.add(m);
+  }
+  roomGroup.add(grp);
+  neighborGroups.set(id, { grp, mesh, info: r });
+}
+
+// the LEGAL SQUARES: everything within the remaining movement budget,
+// shaded by cost — bright close in, fading toward the edge of the range
+let rangeMap = new Map();   // 'room:tile' -> cost, refreshed with the token
+function refreshHilites() {
+  if (hiliteMesh) { roomGroup.remove(hiliteMesh); hiliteMesh.geometry.dispose(); hiliteMesh.material.dispose(); }
+  rangeMap = mode === 'encounter'
+    ? reachableWithin(crawl, curRoom, curTile, moveLeft, mobTiles())
+    : new Map();
+  const R = crawl.rooms.get(curRoom);
+  const pos = [], col = [];
+  for (const [k, cost] of rangeMap) {
+    if (cost === 0) continue;
+    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+    // the dungeon is continuous: range lights up through doorways into any
+    // rendered neighbor too (the fog still keeps its secrets)
+    if (ri !== curRoom && !neighborGroups.has(ri)) continue;
+    if (knowledge(ri, tk) === 'unknown') continue;
+    const t = crawl.rooms.get(ri).byKey.get(tk);
+    if (!t) continue;
+    const f = 1 - (cost - 1) / Math.max(1, moveLeft); // 1 near → 0 at range edge
+    pushTile(pos, col, t, [0.10 + 0.28 * f, 0.30 + 0.48 * f, 0.30 + 0.44 * f], 0.06);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  hiliteMesh = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
+    vertexColors: true, transparent: true, opacity: 0.45, depthWrite: false,
+  }));
+  roomGroup.add(hiliteMesh);
+  // doors whose transit fits the budget glow brighter
+  roomGroup.traverse((o) => {
+    if (o.userData.doorFace === undefined) return;
+    const d = R.doors.find((x) => x.face === o.userData.doorFace);
+    const inReach = mode === 'explore' ||
+      (d && d.farTile !== null && rangeMap.has(d.to + ':' + d.farTile));
+    o.material.opacity = inReach ? 0.95 : 0.35;
+  });
+}
+
+// ------------------------------------------------------------ fog of war ---
+// Three knowledge states per tile: UNKNOWN (never seen — not rendered),
+// LIVE (currently visible — full color, enemies shown), STALE (remembered —
+// dimmed terrain, nothing that moves). Visibility is a radius from the
+// token with line-of-sight: rubble blocks sight, which is what makes it
+// COVER. Walls occlude by construction (vision is per-room).
+const VISION_R = () => J.tile.size * 4.5;
+function losClear(rid, R, from, to) {
+  // sight is blocked when the segment passes over an obstacle tile
+  for (const [k, e] of fx) {
+    if (e.type !== 'obstacle' || Number(k.split(':')[0]) !== rid) continue;
+    const o = R.byKey.get(e.tile);
+    if (!o || o === from || o === to) continue;
+    // distance from obstacle centre to the segment
+    const dx = to.x - from.x, dz = to.z - from.z;
+    const L2 = dx * dx + dz * dz;
+    if (L2 < 1e-9) continue;
+    let t = ((o.x - from.x) * dx + (o.z - from.z) * dz) / L2;
+    t = Math.max(0, Math.min(1, t));
+    const px = from.x + dx * t, pz = from.z + dz * t;
+    if ((o.x - px) ** 2 + (o.z - pz) ** 2 < (J.tile.size * 0.42) ** 2) return false;
+  }
+  return true;
+}
+// visibility as 'room:tile' keys — the room you stand in, plus PORTAL
+// vision: a doorway you can see acts as a light source into its neighbor,
+// spending whatever sight radius remains past the opening (walls occlude
+// by construction; only the gap lets sight through). Rubble in the far
+// room blocks the far leg the same way it blocks the near one.
+function visibleNow() {
+  const R = crawl.rooms.get(curRoom);
+  const me = R.byKey.get(curTile);
+  const out = new Set();
+  const r = VISION_R();
+  for (const t of roomInfo(curRoom).tiles) {
+    if ((t.x - me.x) ** 2 + (t.z - me.z) ** 2 > r * r) continue;
+    if (!losClear(curRoom, R, me, t)) continue;
+    out.add(curRoom + ':' + t.key);
+  }
+  for (const d of R.doors) {
+    if (d.farTile === null) continue;
+    const gate = { x: d.at[0], z: d.at[2] };
+    const dd = Math.hypot(gate.x - me.x, gate.z - me.z);
+    if (dd > r || !losClear(curRoom, R, me, gate)) continue;
+    const left = r - dd + J.tile.size * 0.5;
+    const NR = crawl.rooms.get(d.to);
+    for (const t of roomInfo(d.to).tiles) {
+      if ((t.x - gate.x) ** 2 + (t.z - gate.z) ** 2 > left * left) continue;
+      if (!losClear(d.to, NR, gate, t)) continue;
+      out.add(d.to + ':' + t.key);
+    }
+  }
+  return out;
+}
+function recomputeVision() {
+  const vis = visibleNow();
+  let changed = false;
+  for (const [k, st] of seenTiles) {
+    if (st === 'live' && !vis.has(k)) { seenTiles.set(k, 'stale'); changed = true; }
+  }
+  for (const k of vis) {
+    if (seenTiles.get(k) !== 'live') { seenTiles.set(k, 'live'); changed = true; }
+  }
+  return changed;
+}
+function knowledge(rid, tk) { return seenTiles.get(rid + ':' + tk) ?? 'unknown'; }
+
+// ------------------------------------------------------ modes + the alarm --
+// EXPLORE: free movement; the dungeon drifts — enemies wander a step as you
+// move, and spot you by the same line-of-sight you see them by. ENCOUNTER:
+// the movement budget and end-turn cadence, entered when something sees or
+// is seen. The HEIST ALARM: lifting a treasure wakes the whole dungeon —
+// every enemy in discovered rooms hunts you cross-room; escape by reaching
+// the entrance alive.
+function enemiesAware() {
+  const R = crawl.rooms.get(curRoom);
+  const me = R.byKey.get(curTile);
+  const r2 = VISION_R() ** 2;
+  return mobs.some((m) => {
+    if (m.hp <= 0 || m.room !== curRoom) return false;
+    if (alert) return true;
+    const t = R.byKey.get(m.tile);
+    return t && (t.x - me.x) ** 2 + (t.z - me.z) ** 2 <= r2 && losClear(curRoom, R, me, t);
+  });
+}
+function updateMode() {
+  const aware = enemiesAware();
+  if (mode === 'explore' && aware) {
+    mode = 'encounter'; moveLeft = moveMax;
+    note('encounter!', '#ff9e6e');
+  } else if (mode === 'encounter' && !aware) {
+    mode = 'explore';
+    note('the foam settles', '#7fd8d0');
+  }
+}
+
+// one enemy step: chase when hunting (alert or sees the player), else drift
+function enemyStep(mob) {
+  const R = crawl.rooms.get(mob.room);
+  const here = mob.room === curRoom;
+  if (here && (R.adj.get(mob.tile) ?? []).includes(curTile)) {
+    hurt(ENEMY_TYPES[mob.type].dmg, 'the ' + mob.type + ' strikes');
+    return;
+  }
+  const me = here ? R.byKey.get(curTile) : null;
+  const mt = R.byKey.get(mob.tile);
+  const hunting = alert || (here && me && mt &&
+    (mt.x - me.x) ** 2 + (mt.z - me.z) ** 2 <= VISION_R() ** 2 && losClear(mob.room, R, me, mt));
+  const blocked = mobTiles();
+  const stepOk = (nk) => R.byKey.get(nk).kind === 'floor' && !blocked.has(mob.room + ':' + nk) &&
+    !(here && nk === curTile);
+  let next = null;
+  if (hunting) {
+    // toward the player: in-room BFS, or (alert, other room) toward the door
+    // whose room is nearer the player on the room graph
+    let goal = null;
+    if (here) goal = curTile;
+    else if (alert && discovered.has(mob.room)) {
+      let bestD = Infinity;
+      for (const d of R.doors) {
+        const dd = roomDistTo(d.to, curRoom);
+        if (dd < bestD) { bestD = dd; goal = d.tile; }
+      }
+      if (goal === mob.tile) {
+        // standing on the door: cross it
+        const d = R.doors.find((x) => x.tile === mob.tile && x.farTile !== null);
+        if (d && !mobAt(d.to, d.farTile) && d.farTile !== (d.to === curRoom ? curTile : null)) {
+          mob.room = d.to; mob.tile = d.farTile;
+          if (mob.mesh) mob.mesh.visible = false;
+          if (d.to === curRoom) { buildRoom(curRoom); placeToken(false); }
+          return;
+        }
+      }
+    }
+    if (goal !== null) {
+      const prev = new Map([[goal, null]]);
+      const q = [goal];
+      for (let h = 0; h < q.length && !prev.has(mob.tile); h++) {
+        for (const nk of R.adj.get(q[h]) ?? []) {
+          if (!prev.has(nk) && (stepOk(nk) || nk === mob.tile || nk === goal)) { prev.set(nk, q[h]); q.push(nk); }
+        }
+      }
+      next = prev.get(mob.tile) ?? null;
+    }
+  } else if (Math.random() < 0.4) {
+    const opts = (R.adj.get(mob.tile) ?? []).filter(stepOk);
+    if (opts.length) next = opts[Math.floor(Math.random() * opts.length)];
+  }
+  if (next && stepOk(next)) {
+    mob.tile = next;
+    const t = R.byKey.get(next);
+    if (mob.mesh && here) {
+      mob.mesh.position.set(t.x, t.y + 0.55, t.z);
+      mob.mesh.userData.fogTile = next;
+    }
+  }
+}
+function roomDistTo(from, to) {
+  if (from === to) return 0;
+  const dist = new Map([[from, 0]]);
+  const q = [from];
+  for (let h = 0; h < q.length; h++) {
+    if (q[h] === to) return dist.get(to);
+    for (const d of crawl.rooms.get(q[h]).doors) {
+      if (d.farTile !== null && !dist.has(d.to)) { dist.set(d.to, dist.get(q[h]) + 1); q.push(d.to); }
+    }
+  }
+  return Infinity;
+}
+// the world moves between your moves: mobs in discovered rooms take a step
+function worldStep() {
+  for (const m of mobs) {
+    if (m.hp <= 0 || dead) continue;
+    if (!discovered.has(m.room)) continue;
+    if (m.room !== curRoom && !alert) continue;   // only the alarm moves far rooms
+    enemyStep(m);
+    if (dead) return;
+  }
+}
+
+// ---------------------------------------------------------- waypoint tek ---
+// Room-level BFS over the KNOWN topology: doors, hatches, and only sprung
+// trapdoors (an unsprung one is a secret — the guide must not spoil it).
+function knownExits(rid) {
+  const R = crawl.rooms.get(rid);
+  const out = [];
+  for (const d of R.doors) if (d.farTile !== null) out.push({ to: d.to, face: d.face });
+  for (const ln of R.links) {
+    if (ln.kind === 'trapdoor' && !sprungTd.has(rid + ':' + ln.tile)) continue;
+    out.push({ to: ln.to, face: null, link: ln.kind });
+  }
+  return out;
+}
+function refreshGuide() {
+  guideRooms = []; guideFace = null;
+  if (!guide || dead) return;
+  // target: explicit waypoint, else the nearest unfound endpoint
+  const prev = new Map([[curRoom, null]]);
+  const q = [curRoom];
+  for (let h = 0; h < q.length; h++) {
+    for (const x of knownExits(q[h])) {
+      if (!prev.has(x.to)) { prev.set(x.to, { from: q[h], face: x.face }); q.push(x.to); }
+    }
+  }
+  let target = null;
+  if (waypoint !== null && waypoint !== curRoom && prev.has(waypoint)) target = waypoint;
+  else {
+    for (const rid of q) {   // q is BFS order — first unfound endpoint is nearest
+      if (roomInfo(rid).role === 'endpoint' && !found.has(rid)) { target = rid; break; }
+    }
+  }
+  if (target === null || target === curRoom) return;
+  const route = [];
+  for (let u = target; u !== null; u = prev.get(u)?.from ?? null) route.push(u);
+  route.reverse();
+  guideRooms = route;
+  guideFace = prev.get(route[1])?.face ?? null;   // door out of the current room
+  // pulse the suggested door's column in the 3D room
+  suggestedMeshes = [];
+  roomGroup?.traverse((o) => {
+    if (o.userData.doorFace !== undefined && o.userData.doorFace === guideFace) suggestedMeshes.push(o);
+  });
+}
+
+// ---------------------------------------------------------------- HUD ------
+function refreshHUD() {
+  refreshGuide();
+  const r = roomInfo(curRoom);
+  const sms = seamsByRoom.get(curRoom) ?? [];
+  $('roomline').innerHTML = '<span class="tag">' + roleLabel(r) + '</span> · ' +
+    r.depth + ' door' + (r.depth === 1 ? '' : 's') + ' deep · floor ' + r.floorY.toFixed(1) + ' m' +
+    (sms.length ? ' · <span style="color:#e2b8ff">⧉ the twin beyond ' + sms.length + ' sealed wall' + (sms.length === 1 ? '' : 's') + '</span>' : '');
+  $('ends').innerHTML = myEnds.map((e) => {
+    const i = J.endpoints.indexOf(e);          // global index — colors match the map
+    const lit = found.has(e);
+    return '<span class="pip' + (lit ? ' lit' : '') + (waypoint === e ? ' way' : '') +
+      '" data-e="' + e + '" title="set waypoint" style="color:' + PATH_COLORS[i % PATH_COLORS.length] +
+      ';background:' + (lit ? PATH_COLORS[i % PATH_COLORS.length] : 'transparent') + '"></span>';
+  }).join('') + ' <span class="dim">' + found.size + '/' + myEnds.length + ' endpoints</span>';
+  for (const pip of document.querySelectorAll('#ends .pip')) {
+    pip.onclick = () => {
+      const e = Number(pip.dataset.e);
+      waypoint = waypoint === e ? null : e;
+      refreshHUD(); drawMini();
+    };
+  }
+  const tgt = guideRooms.length ? guideRooms[guideRooms.length - 1] : null;
+  $('wayline').textContent = !guide ? '' : tgt === null ? '◎ no route to guide' :
+    '◎ ' + roleLabel(roomInfo(tgt)).toLowerCase() + ' · ' + (guideRooms.length - 1) + ' room' + (guideRooms.length === 2 ? '' : 's') + ' out';
+  $('steps').innerHTML = steps + ' steps · ' + discovered.size + '/' + J.rooms.length + ' rooms<br>' +
+    '<span style="color:#48606a">' + (loadedFromFile ? 'loaded file' : 'seed ' + params.seed + ' · ' + params.shape + ' @ ' + params.scale) + '</span>';
+  // door buttons when standing on a door tile
+  const R = crawl.rooms.get(curRoom);
+  const here = R.doors.filter((d) => d.tile === curTile && d.farTile !== null);
+  $('doorbar').innerHTML = '';
+  for (const d of here) {
+    const b = document.createElement('button');
+    const far = roomInfo(d.to);
+    b.textContent = (d.face === guideFace ? '◎ ' : '') + '⟶ through the door · ' + roleLabel(far).toLowerCase();
+    if (d.face === guideFace) b.classList.add('suggested');
+    b.disabled = mode === 'encounter' && moveLeft <= 0;
+    b.onclick = () => transit(d);
+    $('doorbar').appendChild(b);
+  }
+  // hatches offer a climb (both directions); sprung trapdoors a re-descent
+  for (const ln of R.links) {
+    if (ln.tile !== curTile) continue;
+    if (ln.kind === 'trapdoor' && !sprungTd.has(curRoom + ':' + curTile)) continue;
+    const b = document.createElement('button');
+    const far = roomInfo(ln.to);
+    const up = far.floorY > roomInfo(curRoom).floorY;
+    b.textContent = (ln.kind === 'hatch' ? (up ? '⇧ climb the hatch · ' : '⇩ descend the hatch · ') : '⇩ drop again · ')
+      + roleLabel(far).toLowerCase();
+    b.disabled = mode === 'encounter' && moveLeft <= 0;
+    b.onclick = () => {
+      if (mode === 'encounter') { if (moveLeft <= 0) return; moveLeft--; }
+      steps++; takeLink(ln);
+    };
+    $('doorbar').appendChild(b);
+  }
+  $('hpline').innerHTML = '♥ <b class="hp">' + hp + '</b> · <b class="gp">' + gold + '</b> gold';
+  // the movement meter — explore is free, encounter is budgeted
+  $('moveMaxV').textContent = moveMax;
+  if (mode === 'explore') {
+    $('moveLeft').classList.remove('spent');
+    $('moveLeft').innerHTML = '<b>∞</b> explore' + (alert ? ' — <span style=\"color:#ff6e5a\">the foam hunts you</span>' : ' — free movement');
+    $('endTurn').textContent = '⧗ wait';
+  } else {
+    $('endTurn').textContent = '↻ end turn';
+    $('moveLeft').classList.toggle('spent', moveLeft === 0);
+    $('moveLeft').innerHTML = '<b>' + moveLeft + '</b> tile' + (moveLeft === 1 ? '' : 's') +
+      (moveLeft === 0 ? ' — end the turn to move' : ' left this turn');
+  }
+}
+
+// ------------------------------------------------------------- minimap -----
+const mini = $('mini');
+function drawMini() {
+  const ctx = mini.getContext('2d');
+  const W = mini.width, H = mini.height;
+  ctx.clearRect(0, 0, W, H);
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const r of J.rooms) for (const t of r.tiles) {
+    x0 = Math.min(x0, t.x); x1 = Math.max(x1, t.x);
+    z0 = Math.min(z0, t.z); z1 = Math.max(z1, t.z);
+  }
+  const pad = J.tile.size * 2;
+  x0 -= pad; x1 += pad; z0 -= pad; z1 += pad;
+  const k = Math.min(W / (x1 - x0), H / (z1 - z0));
+  const mx = (x) => (x - x0) * k + (W - (x1 - x0) * k) / 2;
+  const mz = (z) => (z - z0) * k + (H - (z1 - z0) * k) / 2;
+  for (const r of J.rooms) {
+    if (!discovered.has(r.id)) continue;
+    ctx.save();
+    ctx.fillStyle = r.secret
+      ? (r.id === curRoom ? 'rgba(143,160,255,.30)' : 'rgba(143,160,255,.12)')
+      : (r.id === curRoom ? 'rgba(127,216,208,.30)' : 'rgba(127,216,208,.12)');
+    ctx.strokeStyle = r.secret ? '#8fa0ff' : (r.id === curRoom ? '#7fd8d0' : '#2b6a72');
+    ctx.lineWidth = 1;
+    if (r.secret) ctx.setLineDash([3, 2]);
+    for (const loop of r.outline) {
+      ctx.beginPath();
+      loop.forEach(([x, z], i) => i ? ctx.lineTo(mx(x), mz(z)) : ctx.moveTo(mx(x), mz(z)));
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+    ctx.restore();
+    if (r.role === 'endpoint' && found.has(r.id)) {
+      ctx.fillStyle = PATH_COLORS[r.endpointIndex % PATH_COLORS.length];
+      ctx.beginPath(); ctx.arc(mx(r.centroid[0]), mz(r.centroid[2]), 3.5, 0, Math.PI * 2); ctx.fill();
+    }
+    if (r.role === 'entrance') {
+      ctx.strokeStyle = '#b8ff9e';
+      ctx.beginPath(); ctx.arc(mx(r.centroid[0]), mz(r.centroid[2]), 4, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+  // twin ghosts on the map: rooms of the OTHER dungeon glimpsed through a
+  // seam of any discovered room — hatched violet, memory not territory
+  if (J.twin) {
+    const ghosts = new Set();
+    for (const rid of discovered) for (const sm of seamsByRoom.get(rid) ?? []) ghosts.add(sm.other);
+    for (const gid of ghosts) {
+      const r = J.rooms.find((x) => x.id === gid);
+      if (!r) continue;
+      ctx.save();
+      ctx.fillStyle = 'rgba(177,143,255,.10)';
+      ctx.strokeStyle = 'rgba(177,143,255,.55)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([2, 3]);
+      for (const loop of r.outline) {
+        ctx.beginPath();
+        loop.forEach(([x, z], i) => i ? ctx.lineTo(mx(x), mz(z)) : ctx.moveTo(mx(x), mz(z)));
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+      }
+      ctx.restore();
+    }
+  }
+  // the guide's route: a dashed thread through the rooms toward the waypoint
+  if (guide && guideRooms.length > 1) {
+    ctx.save();
+    ctx.strokeStyle = '#8fd3ff'; ctx.lineWidth = 1.4; ctx.setLineDash([4, 3]);
+    ctx.globalAlpha = 0.85;
+    ctx.beginPath();
+    guideRooms.forEach((rid, i) => {
+      const c = roomInfo(rid).centroid;
+      i ? ctx.lineTo(mx(c[0]), mz(c[2])) : ctx.moveTo(mx(c[0]), mz(c[2]));
+    });
+    ctx.stroke();
+    ctx.restore();
+  }
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  ctx.fillStyle = '#cffff8';
+  ctx.beginPath(); ctx.arc(mx(t.x), mz(t.z), 3, 0, Math.PI * 2); ctx.fill();
+}
+
+// ------------------------------------------------------------ movement -----
+function placeToken(animate = true) {
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  tokenTarget.set(t.x, t.y, t.z);
+  if (!animate) token.position.copy(tokenTarget);
+  refreshHilites(); refreshHUD(); drawMini();
+}
+
+// ------------------------------------------------------------- gameplay ----
+let noteT = null;
+function note(msg, color = '#ffce78') {
+  const el = $('note');
+  el.textContent = msg; el.style.color = color; el.style.opacity = 1;
+  clearTimeout(noteT); noteT = setTimeout(() => { el.style.opacity = 0; }, 1600);
+}
+
+const mobAt = (room, tile) => mobs.find((a) => a.hp > 0 && a.room === room && a.tile === tile);
+const mobTiles = () => new Set(mobs.filter((a) => a.hp > 0).map((a) => a.room + ':' + a.tile));
+
+function hurt(dmg, why) {
+  hp -= dmg;
+  note(why + ' — ' + dmg + ' damage', '#ff6e5a');
+  if (hp <= 0 && !dead) {
+    dead = true; hp = 0;
+    $('deathText').innerHTML = 'You made it <b>' + steps + '</b> steps and ' + gold +
+      ' gold deep, with ' + found.size + ' of ' + myEnds.length + ' endpoints found.';
+    $('death').classList.add('on');
+  }
+  refreshHUD();
+}
+
+function attack(mob) {
+  if (dead) return false;
+  if (mode === 'encounter' && moveLeft <= 0) return false;
+  if (mode === 'encounter') moveLeft--;
+  steps++;
+  mob.hp--;
+  const spec = ENEMY_TYPES[mob.type];
+  if (mob.hp <= 0) {
+    gold += spec.gold;
+    note(mob.type + ' slain · +' + spec.gold + ' gold', '#9fd86e');
+    mob.mesh?.parent?.remove(mob.mesh);
+  } else {
+    if (mob.mesh) mob.mesh.scale.setScalar(0.75 + mob.hp * 0.12);
+    hurt(spec.dmg, 'the ' + mob.type + ' strikes back');
+    if (dead) return true;
+  }
+  placeToken();
+  recomputeVision(); updateMode(); refreshFog();
+  return true;
+}
+
+// falling through a trapdoor / climbing a hatch — the passage transits
+function takeLink(ln) {
+  const drop = ln.kind === 'trapdoor';
+  curRoom = ln.to; curTile = ln.toTile;
+  discovered.add(curRoom);
+  const r = roomInfo(curRoom);
+  if (r.role === 'endpoint') found.add(curRoom);
+  buildRoom(curRoom);
+  placeToken(false);
+  recomputeVision(); refreshFog(); updateMode();
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  controls.target.set(t.x, t.y + 0.6, t.z);
+  camera.position.set(t.x + 6, t.y + 6.5, t.z + 6);
+  if (drop && ln.drop > 4) { hurt(1, 'a ' + ln.drop + ' m fall'); }
+  refreshHUD(); drawMini();
+}
+
+function resolveTile() {
+  // the floor opens: an unsprung trapdoor underfoot fires before anything else
+  const R = crawl.rooms.get(curRoom);
+  const td = R.links.find((ln) => ln.kind === 'trapdoor' && ln.tile === curTile);
+  if (td && !sprungTd.has(curRoom + ':' + curTile)) {
+    sprungTd.add(curRoom + ':' + curTile);
+    walkQueue = [];
+    note('the floor opens beneath you!', '#8fa0ff');
+    takeLink(td);
+    return;
+  }
+  const e = fx.get(curRoom + ':' + curTile);
+  if (!e || e.done) return;
+  if (e.type === 'loot' || e.type === 'treasure') {
+    e.done = true; gold += e.gold;
+    note((e.type === 'treasure' ? 'the treasure!' : 'a cache') + ' +' + e.gold + ' gold', '#ffdf9e');
+    e.mesh?.parent?.remove(e.mesh); e.halo?.parent?.remove(e.halo);
+    if (e.type === 'treasure') {
+      treasures++;
+      if (!alert) {
+        alert = true;
+        note('the dungeon WAKES — run for the entrance', '#ff6e5a');
+      }
+    }
+  } else if (e.type === 'trap' && !e.sprung) {
+    e.sprung = true;
+    if (e.trap === 'snare') {
+      // mode-aware: in an encounter the snare ends your turn; exploring, it
+      // roots you while the dungeon takes two free steps — never a lockout
+      if (mode === 'encounter') { moveLeft = 0; note('a snare! your turn ends here', '#ff9e6e'); }
+      else {
+        note('a snare! you wrench free as things move', '#ff9e6e');
+        walkQueue = [];
+        worldStep(); if (!dead) worldStep();
+      }
+    } else hurt(e.dmg, 'spike trap');
+    if (dead) return;
+    buildRoom(curRoom); placeToken(false);   // reveal the sprung trap
+  }
+}
+
+function stepTo(key) {
+  if (dead) return false;
+  if (mode === 'encounter' && moveLeft <= 0) return false;
+  const R = crawl.rooms.get(curRoom);
+  if (!(R.adj.get(curTile) ?? []).includes(key)) return false;
+  const mob = mobAt(curRoom, key);
+  if (mob) return attack(mob);               // a bump is an attack
+  curTile = key; steps++;
+  if (mode === 'encounter') moveLeft--;
+  placeToken();
+  resolveTile();
+  if (dead) return true;
+  if (mode === 'explore') worldStep();       // the dungeon drifts as you move
+  if (dead) return true;
+  recomputeVision(); updateMode(); refreshFog();
+  return true;
+}
+
+// walk TOWARD any tile of any rendered room — the dungeon is continuous,
+// so the path may pass through doorways. Forgiving movement: if the intent
+// is out of range or unreachable, take the shortest path to the reachable
+// tile nearest it and go as far as this turn's budget allows.
+// walkQueue holds [room, tile] pairs; a room change consumes the doorway.
+function walkTo(key, room = curRoom) {
+  if (walkQueue.length || dead || moveLeft <= 0) return false;
+  const target = crawl.rooms.get(room)?.byKey.get(key);
+  if (!target) return false;
+  const blocked = mobTiles();
+  const sk = curRoom + ':' + curTile;
+  const prev = new Map([[sk, null]]);
+  const q = [[curRoom, curTile]];
+  for (let h = 0; h < q.length; h++) {
+    const [ri, tk] = q[h];
+    const R = crawl.rooms.get(ri);
+    const grow = (nr, nk) => {
+      const k = nr + ':' + nk;
+      if (!prev.has(k) && !blocked.has(k)) { prev.set(k, [ri, tk]); q.push([nr, nk]); }
+    };
+    for (const nk of R.adj.get(tk) ?? []) grow(ri, nk);
+    for (const d of R.doors) if (d.tile === tk && d.farTile !== null) grow(d.to, d.farTile);
+  }
+  let best = null, bd = Infinity;
+  for (const k of prev.keys()) {
+    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+    if (ri !== room) continue;                       // land in the intended room
+    const t = crawl.rooms.get(ri).byKey.get(tk);
+    const d2 = (t.x - target.x) ** 2 + (t.z - target.z) ** 2;
+    if (d2 < bd - 1e-9) { bd = d2; best = k; }
+  }
+  if (best === null) {                               // room unreachable — go anywhere nearer
+    for (const k of prev.keys()) {
+      const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+      const t = crawl.rooms.get(ri).byKey.get(tk);
+      const d2 = (t.x - target.x) ** 2 + (t.z - target.z) ** 2;
+      if (d2 < bd - 1e-9) { bd = d2; best = k; }
+    }
+  }
+  if (!best || best === sk) return false;
+  const path = [];
+  for (let k = best; k !== sk; ) {
+    const [ri, tk] = [Number(k.split(':')[0]), k.slice(k.indexOf(':') + 1)];
+    path.push([ri, tk]);
+    const p = prev.get(k);
+    k = p[0] + ':' + p[1];
+  }
+  path.reverse();
+  walkQueue = mode === 'encounter' ? path.slice(0, moveLeft) : path;
+  return walkQueue.length > 0;
+}
+
+function transit(door) {
+  if (dead) return;
+  if (mode === 'encounter' && moveLeft <= 0) return;
+  const guard = mobAt(door.to, door.farTile);
+  if (guard) { note('something waits on the far side — it blocks the door', '#ff9e6e'); return; }
+  curRoom = door.to; curTile = door.farTile; steps++;
+  if (mode === 'encounter') moveLeft--;
+  discovered.add(curRoom);
+  const r = roomInfo(curRoom);
+  if (r.role === 'endpoint') found.add(curRoom);
+  buildRoom(curRoom);
+  placeToken(false);
+  recomputeVision(); refreshFog(); updateMode();
+  // NO camera snap: the dungeon is continuous — the camera keeps orbiting
+  // and the controls target lerps after the token through the doorway
+  // the heist exit: reach the entrance carrying treasure and slip out
+  if (roomInfo(curRoom).role === 'entrance' && treasures > 0 && !$('win').classList.contains('on')) {
+    $('win').querySelector('h1').textContent = 'escaped the foam';
+    $('winText').innerHTML = 'Out with <b>' + gold + '</b> gold and ' + treasures + ' treasure' +
+      (treasures > 1 ? 's' : '') + ' — ' + found.size + '/' + myEnds.length + ' endpoints, ' +
+      steps + ' steps.' + (alert ? ' The foam howls behind you.' : '');
+    $('win').classList.add('on');
+  }
+  if (J.confluence && curRoom === J.confluence.chamber && !$('win').classList.contains('on')) {
+    $('win').querySelector('h1').textContent = 'the confluence';
+    $('winText').innerHTML = 'You came down alone and arrived where all <b>' +
+      J.confluence.entrances.length + '</b> descents meet — <b>' + steps + '</b> steps, ' +
+      discovered.size + ' rooms, ' + gold + ' gold. No other party\'s ground was ever underfoot.';
+    $('win').classList.add('on');
+  }
+  if (found.size === myEnds.length && myEnds.length > 0 && !$('win').classList.contains('on')) {
+    $('winText').innerHTML = 'All <b>' + myEnds.length + '</b> endpoints found in <b>' + steps +
+      '</b> steps, ' + discovered.size + ' of ' + J.rooms.length + ' rooms explored.';
+    $('win').classList.add('on');
+  }
+}
+
+// picking: click a highlighted neighbour (or any tile → nearest reachable)
+const ray = new THREE.Raycaster();
+let downAt = null;
+canvas.addEventListener('pointerdown', (e) => { downAt = [e.clientX, e.clientY]; });
+canvas.addEventListener('pointerup', (e) => {
+  if (!downAt) return;
+  const moved = Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]);
+  downAt = null;
+  if (moved > 6 || !crawl) return;
+  const ndc = new THREE.Vector2((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  // the dungeon is continuous: pick against the current room AND every
+  // rendered neighbor — clicking through a doorway walks through it
+  const pickables = [tileMesh, ...[...neighborGroups.values()].map((n) => n.mesh)];
+  const hits = ray.intersectObjects(pickables, false);
+  let p = hits[0]?.point ?? null;
+  let pickRoom = hits[0] ? (hits[0].object.userData.roomId ?? curRoom) : curRoom;
+  if (!p) {
+    // walls (and empty air) are transparent to clicks: fall back to the
+    // room's median floor plane and take the nearest tile to that point
+    const t0 = crawl.rooms.get(curRoom).byKey.get(curTile);
+    const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -t0.y);
+    p = new THREE.Vector3();
+    if (!ray.ray.intersectPlane(plane, p)) return;
+  }
+  const R = crawl.rooms.get(curRoom);
+  // an adjacent enemy first: clicking it is a bump attack
+  for (const nk of R.adj.get(curTile) ?? []) {
+    const mob = mobAt(curRoom, nk);
+    if (!mob) continue;
+    const t = R.byKey.get(nk);
+    if ((t.x - p.x) ** 2 + (t.z - p.z) ** 2 < (J.tile.size * 0.8) ** 2) { attack(mob); return; }
+  }
+  // otherwise walk TOWARD the nearest tile of the picked room — even out
+  // of range or through a doorway, the token goes as far as it can
+  let best = null, bd = Infinity;
+  for (const t of roomInfo(pickRoom).tiles) {
+    const d = (t.x - p.x) ** 2 + (t.z - p.z) ** 2;
+    if (d < bd) { bd = d; best = t.key; }
+  }
+  if (best && bd < (J.tile.size * 1.6) ** 2) walkTo(best, pickRoom);
+});
+
+// keys: pick the neighbour best aligned with the camera-relative direction
+addEventListener('keydown', (e) => {
+  const dirmap = { ArrowUp: [0, -1], KeyW: [0, -1], ArrowDown: [0, 1], KeyS: [0, 1], ArrowLeft: [-1, 0], KeyA: [-1, 0], ArrowRight: [1, 0], KeyD: [1, 0] };
+  const d = dirmap[e.code];
+  if (!d || !crawl) return;
+  const fwd = new THREE.Vector3(); camera.getWorldDirection(fwd);
+  fwd.y = 0; fwd.normalize();
+  const right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+  const want = new THREE.Vector3().addScaledVector(right, d[0]).addScaledVector(fwd, -d[1]);
+  const R = crawl.rooms.get(curRoom);
+  const cur = R.byKey.get(curTile);
+  let best = null, bs = 0.25, bestDoor = null;
+  for (const nk of R.adj.get(curTile) ?? []) {
+    const t = R.byKey.get(nk);
+    const v = new THREE.Vector3(t.x - cur.x, 0, t.z - cur.z).normalize();
+    const s = v.dot(want.clone().normalize());
+    if (s > bs) { bs = s; best = nk; bestDoor = null; }
+  }
+  // standing in a doorway, stepping onward continues into the next room
+  for (const d of R.doors) {
+    if (d.tile !== curTile || d.farTile === null) continue;
+    const ft = crawl.rooms.get(d.to).byKey.get(d.farTile);
+    const v = new THREE.Vector3(ft.x - cur.x, 0, ft.z - cur.z).normalize();
+    const s = v.dot(want.clone().normalize());
+    if (s > bs) { bs = s; best = null; bestDoor = d; }
+  }
+  if (bestDoor) { transit(bestDoor); e.preventDefault(); }
+  else if (best) { stepTo(best); e.preventDefault(); }
+});
+
+// -------------------------------------------------------------- loading ----
+function start(doc, fromFile) {
+  J = doc;
+  // the content roll is a SEPARATE pass on the same map — reroll it and the
+  // geometry (and its permalink) stays put
+  content = rollContent(J, { roll: params.roll, tuning: params.tuning });
+  fx = new Map(content.effects.map((e) => [e.room + ':' + e.tile, { ...e }]));
+  mobs = content.agents.map((a) => ({ ...a }));
+  // twin documents: crawl from MY side's entrance; the other dungeon is
+  // ghost geometry behind sealed seams, never a place this token can stand
+  // confluence: you are ONE of the parties. You start at your own mouth of
+  // the foam and your goal is the shared chamber — the other parties'
+  // approaches are ground you cannot reach until you get there.
+  const myParty = J.confluence ? Math.min(params.party, J.confluence.entrances.length - 1) : null;
+  const mySide = J.twin ? params.side : J.confluence ? myParty : null;
+  myEnds = (J.twin || J.confluence)
+    ? J.endpoints.filter((e) => J.confluence ? true : J.rooms.find((r) => r.id === e)?.side === mySide)
+    : J.endpoints.slice();
+  seamsByRoom = new Map();
+  if (J.twin || J.confluence) {
+    for (const sm of (J.twin ?? J.confluence).seams) {
+      const [a, b] = sm.rooms;
+      if (!seamsByRoom.has(a)) seamsByRoom.set(a, []);
+      if (!seamsByRoom.has(b)) seamsByRoom.set(b, []);
+      seamsByRoom.get(a).push({ other: b, at: sm.at, passable: !!sm.passable });
+      seamsByRoom.get(b).push({ other: a, at: sm.at, passable: !!sm.passable });
+    }
+    $('sideChip').style.display = '';
+    $('sideChip').textContent = J.confluence
+      ? '⋔ party ' + (myParty + 1) + '/' + J.confluence.entrances.length
+      : '⧉ side ' + (mySide === 1 ? 'B' : 'A');
+  } else $('sideChip').style.display = 'none';
+  crawl = buildCrawl(J, {
+    blocked: contentBlocked(content),
+    ...(J.twin ? { startRoom: J.twin.entrances[mySide] }
+      : J.confluence ? { startRoom: J.confluence.entrances[myParty] } : {}),
+  });
+  loadedFromFile = fromFile;
+  curRoom = crawl.startRoom; curTile = crawl.startTile;
+  discovered = new Set([curRoom]); found = new Set(); steps = 0;
+  moveLeft = moveMax; walkQueue = [];
+  hp = 12; gold = 0; dead = false;
+  waypoint = null; guideRooms = []; guideFace = null; suggestedMeshes = []; sprungTd = new Set();
+  seenTiles = new Map(); mode = 'explore'; alert = false; treasures = 0;
+  $('death').classList.remove('on');
+  $('rollChip').textContent = '⚄ roll ' + params.roll;
+  buildRoom(curRoom);
+  placeToken(false);
+  recomputeVision(); refreshFog();
+  const t = crawl.rooms.get(curRoom).byKey.get(curTile);
+  controls.target.set(t.x, t.y + 0.6, t.z);
+  camera.position.set(t.x + 6, t.y + 7, t.z + 6);
+  $('introMeta').textContent = (fromFile ? 'loaded document' : 'seed ' + params.seed) +
+    ' · ' + J.tile.shape + ' tiles @ ' + J.tile.size.toFixed(2) + ' m · ' +
+    J.rooms.length + ' rooms · ' + myEnds.length + ' endpoints' +
+    (J.twin ? ' · twin dungeon, side ' + (params.side === 1 ? 'B' : 'A') : '') +
+    (J.confluence ? ' · party ' + (myParty + 1) + ' of ' + J.confluence.entrances.length +
+      ', descending alone to the shared chamber' : '');
+  window.__crawl.ready = true;
+}
+
+$('guideChip').onclick = () => {
+  guide = !guide;
+  $('guideChip').classList.toggle('on', guide);
+  suggestedMeshes = [];
+  refreshHUD(); drawMini();
+};
+// twin: hop the frontier — same map, the other entrance
+$('sideChip').onclick = () => {
+  if (!J?.twin && !J?.confluence) return;
+  const h = new URLSearchParams(location.hash.slice(1));
+  if (J.confluence) {
+    params.party = (params.party + 1) % J.confluence.entrances.length;   // next party's descent
+    if (params.party) h.set('party', params.party); else h.delete('party');
+  } else {
+    params.side = params.side === 1 ? 0 : 1;
+    if (params.side === 1) h.set('side', 'b'); else h.delete('side');
+  }
+  if (!loadedFromFile) history.replaceState(null, '', '#' + h.toString());
+  start(J, loadedFromFile);
+};
+$('rollChip').onclick = () => {
+  if (loadedFromFile) { params.roll = 1 + Math.floor(Math.random() * 9998); start(J, true); return; }
+  params.roll = 1 + Math.floor(Math.random() * 9998);
+  const h = new URLSearchParams(location.hash.slice(1));
+  h.set('roll', params.roll);
+  history.replaceState(null, '', '#' + h.toString());
+  start(J, false);
+};
+
+$('moveSlider').oninput = () => {
+  moveMax = parseInt($('moveSlider').value, 10);
+  moveLeft = Math.min(moveLeft, moveMax);
+  refreshHilites(); refreshHUD();
+};
+// always available: in an encounter it ends the turn; exploring it is a
+// WAIT — the world takes a step around you. Whatever state a trap or mode
+// flip leaves behind, this button always restores the budget.
+$('endTurn').onclick = () => {
+  if (dead) return;
+  worldStep();
+  if (dead) return;
+  moveLeft = moveMax;
+  recomputeVision(); updateMode(); refreshFog();
+  refreshHilites(); refreshHUD(); drawMini();
+};
+
+$('loadChip').onclick = () => $('file').click();
+$('file').onchange = async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try {
+    const doc = JSON.parse(await f.text());
+    if (doc.format !== 'foam-dungeon') throw new Error('not a foam-dungeon file');
+    $('win').classList.remove('on'); $('intro').classList.add('on');
+    start(doc, true);
+  } catch (err) { alert('could not load: ' + err.message); }
+};
+$('begin').onclick = () => $('intro').classList.remove('on');
+
+// -------------------------------------------------------------- debug ------
+window.__crawl = {
+  ready: false,
+  get state() { return { room: curRoom, tile: curTile, steps, found: [...found], discovered: discovered.size, moveLeft, moveMax, hp, gold, dead, mode, alert, treasures }; },
+  vision: () => { const out = { live: 0, stale: 0, unknown: 0 }; for (const t of roomInfo(curRoom).tiles) out[knowledge(curRoom, t.key)]++; return out; },
+  setMode: (m) => { mode = m; if (m === 'encounter') moveLeft = Math.min(moveLeft, moveMax); refreshHilites(); refreshHUD(); },  // harness/debug only
+  mobPositions: () => mobs.filter((m) => m.hp > 0).map((m) => m.room + ':' + m.tile),
+  get content() { return content; },
+  effectAt: (r, t) => { const e = fx.get(r + ':' + t); return e ? { ...e, mesh: undefined, halo: undefined } : null; },
+  mobAt: (r, t) => { const m = mobAt(r, t); return m ? { id: m.id, type: m.type, hp: m.hp, tile: m.tile } : null; },
+  mobs: () => mobs.filter((m) => m.hp > 0).map((m) => ({ id: m.id, type: m.type, hp: m.hp, room: m.room, tile: m.tile })),
+  reroll: (n) => { params.roll = n; start(J, loadedFromFile); },
+  setHp: (n) => { hp = n; refreshHUD(); },       // harness/debug only
+  goto: (r, t) => {                              // harness/debug only
+    curRoom = r; curTile = t ?? crawl.rooms.get(r).info.tiles[0].key;
+    discovered.add(r); buildRoom(r); placeToken(false); recomputeVision(); refreshFog();
+  },
+  get guide() { return { on: guide, waypoint, route: [...guideRooms], face: guideFace }; },
+  setWaypoint: (r) => { waypoint = r; refreshHUD(); drawMini(); },
+  get range() { return Object.fromEntries(rangeMap); },
+  setMove: (n) => { $('moveSlider').value = n; $('moveSlider').oninput(); },
+  endTurn: () => $('endTurn').click(),
+  walkTo: (k, r) => walkTo(k, r ?? curRoom),
+  walking: () => walkQueue.length,
+  get doc() { return J; },
+  neighbors: () => [...(crawl.rooms.get(curRoom).adj.get(curTile) ?? [])],
+  step: (k) => stepTo(k),
+  doorsHere: () => crawl.rooms.get(curRoom).doors.filter((d) => d.tile === curTile),
+  adjOf: (room, tile) => [...(crawl.rooms.get(room).adj.get(tile) ?? [])],
+  doorsOf: (room) => crawl.rooms.get(room).doors.map((d) => ({ to: d.to, face: d.face, tile: d.tile, farTile: d.farTile })),
+  neighborsBuilt: () => [...neighborGroups.keys()],
+  knowledgeOf: (room, tile) => knowledge(room, tile),
+  linksOf: (room) => crawl.rooms.get(room).links.map((l) => ({ ...l })),
+  transit: (face) => {
+    const d = crawl.rooms.get(curRoom).doors.find((x) => x.face === face && x.tile === curTile);
+    if (d) transit(d);
+    return !!d;
+  },
+  begin: () => $('begin').click(),
+};
+
+// --------------------------------------------------------------- boot ------
+start(dungeonToJSON(generateDungeon({
+  seed: params.seed, endpoints: params.n, tileShape: params.shape, tileScale: params.scale, size: params.size,
+  twin: params.twin, starts: params.starts,
+})), false);
+
+(function loop() {
+  requestAnimationFrame(loop);
+  for (const m of spinners) m.rotation.y += 0.02;
+  const pulse = 1 + 0.18 * Math.sin(performance.now() / 220);
+  for (const m of suggestedMeshes) m.scale.set(pulse, 1, pulse);
+  if (token) {
+    token.position.lerp(tokenTarget, 0.22);
+    controls.target.lerp(new THREE.Vector3(tokenTarget.x, tokenTarget.y + 0.6, tokenTarget.z), 0.12);
+    // consume a queued multi-step walk one tile at a time, visibly —
+    // a room change in the queue walks straight through the doorway
+    if (walkQueue.length && token.position.distanceTo(tokenTarget) < 0.25) {
+      const [nr, nk] = walkQueue.shift();
+      let okStep = false;
+      if (nr === curRoom) okStep = stepTo(nk);
+      else {
+        const d = crawl.rooms.get(curRoom).doors.find((x) => x.tile === curTile && x.to === nr && x.farTile === nk);
+        if (d) { transit(d); okStep = curRoom === nr; }
+      }
+      if (!okStep) walkQueue = [];
+    }
+  }
+  controls.update();
+  renderer.render(scene, camera);
+})();
+</script>
+</body>
+</html>

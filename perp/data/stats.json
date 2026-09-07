@@ -1,0 +1,125 @@
+{
+ "generated": "2026-09-07T05:00:40.670Z",
+ "span": {
+  "from": 1683849600000,
+  "to": 1788757200000,
+  "hours": 28572,
+  "years": 3.262
+ },
+ "parameters": {
+  "baseline": 0.0000125,
+  "clamp": 0.0005,
+  "note": "Hyperliquid, per hour"
+ },
+ "premium": {
+  "mean": 0.00005537,
+  "distribution": {
+   "0": -0.0016246,
+   "1": 0.00528466,
+   "0.01": -0.00067272,
+   "0.05": -0.00055181,
+   "0.25": -0.00038865,
+   "0.5": -0.0000626,
+   "0.75": 0.00043133,
+   "0.95": 0.00099548,
+   "0.99": 0.00144898
+  },
+  "sharePositive": 0.4611
+ },
+ "clamp": {
+  "sharePinnedAtBaseline": 0.5138,
+  "shareOutsideBand": 0.3157,
+  "modelErrorMedian": 0.000001235,
+  "modelErrorP99": 0.0008307362,
+  "modelErrorMax": 0.00418658,
+  "pinRateByDepth": [
+   {
+    "withinBp": 5,
+    "hours": 19223,
+    "pinned": 0.7213
+   },
+   {
+    "withinBp": 3.5,
+    "hours": 11957,
+    "pinned": 0.9018
+   },
+   {
+    "withinBp": 2.5,
+    "hours": 8187,
+    "pinned": 0.9408
+   },
+   {
+    "withinBp": 1.5,
+    "hours": 4943,
+    "pinned": 0.9601
+   }
+  ]
+ },
+ "carry": {
+  "cumulative": 0.467483,
+  "annualised": 0.143327,
+  "shareLongsPaid": 0.8715
+ },
+ "correlation": {
+  "note": "premium_t vs log return. lag<0 = past, lag>0 = future.",
+  "lags": {
+   "0": 0.0024,
+   "1": 0.0037,
+   "3": -0.0001,
+   "6": 0.0041,
+   "24": 0.0062,
+   "-6": 0.007,
+   "-3": 0.0252,
+   "-1": 0.0526
+  },
+  "trailing": {
+   "1": 0.0024,
+   "6": 0.0645,
+   "24": 0.0821,
+   "72": 0.2023,
+   "168": 0.3368
+  },
+  "forward": {
+   "1": 0.0041,
+   "6": 0.0075,
+   "24": 0.0199,
+   "72": 0.0157,
+   "168": 0.0274
+  },
+  "samples": 28562
+ },
+ "regimes": [
+  {
+   "year": 2023,
+   "hours": 5047,
+   "meanPremium": 0.00015054,
+   "fundingPaid": 0.086794,
+   "annualised": 0.150648,
+   "sharePositive": 0.5936
+  },
+  {
+   "year": 2024,
+   "hours": 8783,
+   "meanPremium": 0.00038713,
+   "fundingPaid": 0.24203,
+   "annualised": 0.241397,
+   "sharePositive": 0.7272
+  },
+  {
+   "year": 2025,
+   "hours": 8760,
+   "meanPremium": -0.00004045,
+   "fundingPaid": 0.106342,
+   "annualised": 0.106342,
+   "sharePositive": 0.3967
+  },
+  {
+   "year": 2026,
+   "hours": 5982,
+   "meanPremium": -0.00037173,
+   "fundingPaid": 0.032316,
+   "annualised": 0.047323,
+   "sharePositive": 0.0528
+  }
+ ]
+}

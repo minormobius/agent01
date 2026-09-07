@@ -1,0 +1,10 @@
+{
+  "rkey": "txt-for-airports",
+  "publisher": "morphyx",
+  "source": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.feed.generator/aaaovosdgiz2e",
+  "displayName": "txt for airports",
+  "description": "Ambient text posts — no images, no video, no quotes, no replies. The SkyFeed original, rehosted on hose.mino.mobi with the video filter SkyFeed never shipped.",
+  "addFilters": [
+    { "type": "media", "has": ["video"], "mode": "none" }
+  ]
+}

@@ -1,0 +1,14 @@
+# Not part of the site: internal instructions for whoever works on this
+# surface. assets.directory is this dir, so without this line the file is
+# served at the surface's public URL.
+CLAUDE.md
+
+# The selftests and the node packaging. `npm install wrangler` in the deploy
+# job drops node_modules/ and a lockfile into this directory, and Workers
+# Static Assets uploads whatever it finds in `assets.directory` — so without
+# these lines a deploy ships several megabytes of wrangler's dependency tree
+# as part of the website.
+test/
+node_modules/
+package.json
+package-lock.json

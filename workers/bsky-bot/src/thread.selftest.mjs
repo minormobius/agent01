@@ -16,6 +16,7 @@ import assert from 'node:assert/strict';
 import {
   stripMention, requesterPosts, ancestorChain, ancestorUris, roomPosts,
   quotedUri, quotedLine, formatHistory, isIdeasPost, linkUris, threadLinks,
+  portraitRequest, dossierRequest, addressesBot,
 } from './thread.js';
 // Imported statically, NOT inside the test: `t` calls its callback without
 // awaiting, so an async test reports a tick before it can fail. Exit code still
@@ -32,6 +33,107 @@ const withParent = (node, parent) => ({ ...node, parent });
 
 let n = 0;
 const t = (name, fn) => { fn(); n++; console.log(`  ✓ ${name}`); };
+
+// A PORTRAIT AND A BUILD COST DIFFERENT THINGS AND PRODUCE DIFFERENT OUTPUT, and
+// the matcher that tells them apart runs before anything claims a slot. The
+// asymmetry is the whole design: a build misread as a portrait costs somebody
+// the site they asked for, so every ambiguous phrasing must fall through to the
+// build path. "draw me a poker game" is the case this exists for.
+t('portraitRequest recognises an ask for a portrait', () => {
+  for (const yes of [
+    'portrait: go on then', 'portrait:', 'portrait me',
+    'draw me', 'sketch me', 'draw my account', 'paint my posts', 'draw my vibe.',
+    'draw me a portrait', 'draw me a picture of me', 'a portrait of my account',
+  ]) assert.equal(portraitRequest(yes), true, `should be a portrait: ${yes}`);
+});
+
+t('portraitRequest lets every ambiguous phrasing fall through to a build', () => {
+  for (const no of [
+    'draw me a poker game',            // the obvious one, and the reason for the trailing anchor
+    'draw me a chart of tube lines',
+    'draw me a picture of a dog',      // "picture" is there, the subject is not them
+    'build me a site about portraits',
+    'make a portrait gallery site',
+    'paint me a landing page',
+    'a site where you draw pictures',
+    'portraits are cool',
+    'sketch my account then build me a site',  // a build is named, so it is a build
+    '', '   ',
+  ]) assert.equal(portraitRequest(no), false, `should NOT be a portrait: ${no}`);
+});
+
+// A DM IS A DIFFERENT ROOM FROM A MENTION, and the matcher is shaped for it:
+// loose about grammar, strict about the two things it cannot get wrong. There
+// is nobody else in a DM, so "was this meant for me" is not the risk — "did I
+// understand it" is, and an account has to be named before anything is read.
+t('dossierRequest finds the subject in however somebody phrased it', () => {
+  const cases = [
+    ['hey write me up a dossier on everything @alice.bsky.social has said on trams', 'alice.bsky.social'],
+    ['dossier on bob.example.com re: housing', 'bob.example.com'],
+    ['what has @carol.bsky.social said about the merger?', 'carol.bsky.social'],
+    ['dig into dave.bsky.social on open source', 'dave.bsky.social'],
+    ['research @eve.bsky.social, everything about pottery', 'eve.bsky.social'],
+    ['DEEP-DIVE @frank.bsky.social on rail policy', 'frank.bsky.social'],
+  ];
+  for (const [text, handle] of cases) {
+    assert.equal(dossierRequest(text)?.handle, handle, text);
+  }
+  assert.equal(dossierRequest('dossier on @UPPER.BSKY.SOCIAL now please')?.handle, 'upper.bsky.social',
+    'handles are lowercased — they are case-insensitive and the runner resolves them');
+});
+
+t('dossierRequest refuses anything that names no account', () => {
+  for (const no of [
+    'hey how are you',
+    'dossier please',                  // intent, no subject
+    'build me a website',              // that is the other channel
+    'what has been going on lately',
+    'hi',
+    '',
+  ]) assert.equal(dossierRequest(no), null, `should not be a dossier: ${no}`);
+});
+
+// bsky.app is domain-shaped and appears in every pasted post link, so without
+// the exclusion this researches the Bluesky client itself — and does it under
+// a request that named a real person the bot then never looked at.
+t('dossierRequest does not mistake a pasted URL for the subject', () => {
+  assert.equal(dossierRequest('dossier on what she said, see bsky.app/profile/x'), null);
+  assert.equal(
+    dossierRequest('dossier on @real.bsky.social — context at bsky.app/profile/x')?.handle,
+    'real.bsky.social',
+    'AN EXPLICIT @-HANDLE WINS over a bare domain elsewhere in the message');
+});
+
+// IN A GROUP CHAT ALMOST NOTHING IS ADDRESSED TO THE BOT. A 1-1 has nobody else
+// in it, so every message is a message to the bot; a room does not work that way
+// and a bot that answers everything gets removed from the room. There is no
+// per-message signal in the protocol, so the summons has to be in the text.
+t('addressesBot needs an explicit tag, not a passing mention of the domain', () => {
+  const me = { handles: ['minomobi.com'], dids: ['did:plc:bot'] };
+
+  assert.equal(addressesBot('@minomobi.com dossier on @x.bsky.social about trams', undefined, me), true);
+  assert.equal(addressesBot('hey @MinoMobi.com can you look at this', undefined, me), true,
+    'case-insensitive — nobody types a handle carefully');
+
+  // THE CASE THAT MAKES THE at-sign NON-NEGOTIABLE: this bot links a site on
+  // its own domain in every announcement, so a bare-handle match would treat
+  // anyone pasting one of those URLs as having summoned it.
+  assert.equal(addressesBot('have you seen minomobi.com/tube-stacker', undefined, me), false);
+  assert.equal(addressesBot('lol', undefined, me), false);
+  assert.equal(addressesBot('', undefined, me), false);
+
+  // A client that DID build a mention facet counts, matched on DID.
+  const facets = [{ features: [{ $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:bot' }] }];
+  assert.equal(addressesBot('look at this', facets, me), true);
+  assert.equal(addressesBot('look at this',
+    [{ features: [{ $type: 'app.bsky.richtext.facet#mention', did: 'did:plc:someone-else' }] }], me), false,
+    'somebody else being tagged is not us being tagged');
+
+  // A renamed account still answers to what people learned to call it.
+  assert.equal(addressesBot('@old.example are you there', undefined,
+    { handles: ['minomobi.com', 'old.example'], dids: ['did:plc:bot'] }), true);
+  assert.equal(addressesBot('anything', undefined, {}), false, 'no identity configured admits nothing');
+});
 
 t('stripMention removes the handle, case-insensitively, and trims', () => {
   assert.equal(stripMention('@MinoMobi.com build me a clock', BOT), 'build me a clock');

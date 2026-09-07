@@ -3,7 +3,7 @@ name: Deploy Games
 on:
   push:
     branches:
-      - 'claude/zombie-horde-defense-game-trsujp'
+      - 'claude/tempest-procgen-game-vwj0f1'
     paths:
       - 'games/**'
       - 'packages/oauth-client/**'

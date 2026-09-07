@@ -15,7 +15,7 @@ Hub for the extremal-geometry pack. Family-resemblance table sortable by era, te
 | Dir | `geometry/` |
 | Endpoint | `math.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/conway-voronoi-procgen-wens91` |
+| Owning branch | `claude/holder-continuous-procgen-arqnj4` |
 | Deploy | `.github/workflows/deploy-math.yml` |
 | Uses | — |
 | Provides | — |
@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -107,9 +107,28 @@ tagged at the cut rather than matched by distance afterwards, and **Σdeg = 6n
 exactly** (Euler on a torus with trivalent vertices) is the invariant that
 catches everything else.
 
+## `/arnold/` — the third engine module: a square filling a cube
+
+`arnold/` follows the same rule as `cohomology/` and `voronoi/`: the maths is
+**`arnold/surface.js`**, an ES module the page loads, and
+**`arnold/surface.selftest.mjs` imports the exact file the browser runs**.
+
+```bash
+node arnold/surface.selftest.mjs   # ~1 s, ~1670 checks
+```
+
+Badger–Palmer's (2/3)-Hölder surjection from the square onto the cube
+(arXiv:2608.21246, Arnold's problem 1988–5) rendered as a colour image, with the
+paper's clipping replaced by a fold that makes the colour histogram flat — exactly
+flat, to the pixel, at lattice-aligned sizes, which the selftest asserts. The page
+draws it on the GPU from a GLSL port of the same tables, and a *GPU = CPU?*
+button compares the two. Seeds vary the image only through area-preserving maps
+of the torus and cube symmetries, so the flatness is never lost. Full notes and
+the four things not to break in [`../arnold/CLAUDE.md`](../arnold/CLAUDE.md).
+
 ## Deploying
 
-Pushes to `claude/conway-voronoi-procgen-wens91` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
+Pushes to `claude/holder-continuous-procgen-arqnj4` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

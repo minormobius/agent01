@@ -419,17 +419,27 @@ async function handlePdsProxy(
   if (!token) return errorResponse('Not authenticated', 401, origin);
 
   // Map proxy paths to XRPC methods
-  const proxyRoutes: Record<string, { xrpc: string; method: string; needsAuth: boolean }> = {
-    '/pds/repo/createRecord':  { xrpc: 'com.atproto.repo.createRecord', method: 'POST', needsAuth: true },
-    '/pds/repo/putRecord':     { xrpc: 'com.atproto.repo.putRecord', method: 'POST', needsAuth: true },
-    '/pds/repo/deleteRecord':  { xrpc: 'com.atproto.repo.deleteRecord', method: 'POST', needsAuth: true },
-    '/pds/repo/getRecord':     { xrpc: 'com.atproto.repo.getRecord', method: 'GET', needsAuth: true },
-    '/pds/repo/listRecords':   { xrpc: 'com.atproto.repo.listRecords', method: 'GET', needsAuth: true },
-    '/pds/repo/uploadBlob':    { xrpc: 'com.atproto.repo.uploadBlob', method: 'POST', needsAuth: true },
-    '/pds/sync/getBlob':       { xrpc: 'com.atproto.sync.getBlob', method: 'GET', needsAuth: true },
-    // Mints a short-lived service-auth JWT (e.g. aud=did:web:video.bsky.app)
-    // so the browser can talk to the Bluesky video service for video posts.
-    '/pds/server/getServiceAuth': { xrpc: 'com.atproto.server.getServiceAuth', method: 'GET', needsAuth: true },
+  // `repoScoped` says whether the method actually TAKES a `repo` parameter. It
+  // used to be assumed: every GET without one had `repo=<did>` injected, and
+  // every JSON POST too. Right for the repo.* methods, wrong for the other two
+  // — `com.atproto.sync.getBlob` takes `did`, and
+  // `com.atproto.server.getServiceAuth` takes `aud`/`lxm`/`exp` and no repo at
+  // all. Sending a parameter a lexicon does not declare is at best noise and at
+  // worst a validation failure on a strict PDS — the kind of fault that
+  // surfaces as an unexplained "cannot mint a service token".
+  const proxyRoutes: Record<string, { xrpc: string; method: string; needsAuth: boolean; repoScoped: boolean }> = {
+    '/pds/repo/createRecord':  { xrpc: 'com.atproto.repo.createRecord', method: 'POST', needsAuth: true, repoScoped: true },
+    '/pds/repo/putRecord':     { xrpc: 'com.atproto.repo.putRecord', method: 'POST', needsAuth: true, repoScoped: true },
+    '/pds/repo/deleteRecord':  { xrpc: 'com.atproto.repo.deleteRecord', method: 'POST', needsAuth: true, repoScoped: true },
+    '/pds/repo/getRecord':     { xrpc: 'com.atproto.repo.getRecord', method: 'GET', needsAuth: true, repoScoped: true },
+    '/pds/repo/listRecords':   { xrpc: 'com.atproto.repo.listRecords', method: 'GET', needsAuth: true, repoScoped: true },
+    '/pds/repo/uploadBlob':    { xrpc: 'com.atproto.repo.uploadBlob', method: 'POST', needsAuth: true, repoScoped: false },
+    // Takes `did`, not `repo`.
+    '/pds/sync/getBlob':       { xrpc: 'com.atproto.sync.getBlob', method: 'GET', needsAuth: true, repoScoped: false },
+    // Mints a short-lived service-auth JWT — `aud` + `lxm`, no repo. Used for
+    // the Bluesky video service, and by bsky.mino.mobi to identify a reader to
+    // a third-party feed generator.
+    '/pds/server/getServiceAuth': { xrpc: 'com.atproto.server.getServiceAuth', method: 'GET', needsAuth: true, repoScoped: false },
   };
 
   const route = proxyRoutes[path];
@@ -461,9 +471,9 @@ async function handlePdsProxy(
       pdsHeaders['Content-Type'] = contentType;
       pdsBody = await request.arrayBuffer();
     } else {
-      // JSON body: read from client, inject repo=did if missing
+      // JSON body: read from client, inject repo=did only where it belongs
       const clientBody = await request.json() as Record<string, unknown>;
-      if (!clientBody.repo) clientBody.repo = auth.did;
+      if (route.repoScoped && !clientBody.repo) clientBody.repo = auth.did;
       pdsHeaders['Content-Type'] = 'application/json';
       pdsBody = JSON.stringify(clientBody);
     }
@@ -474,8 +484,8 @@ async function handlePdsProxy(
     // Forward query params from the client request
     const clientUrl = new URL(request.url);
     const params = new URLSearchParams(clientUrl.search);
-    // Inject repo=did if it's a repo-scoped read and repo isn't set
-    if (!params.has('repo')) params.set('repo', auth.did);
+    // Only where the method declares one — see repoScoped above.
+    if (route.repoScoped && !params.has('repo')) params.set('repo', auth.did);
     pdsUrl = `${pdsXrpcUrl}?${params.toString()}`;
   }
 

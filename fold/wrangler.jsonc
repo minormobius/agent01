@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "fold",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // Golden rule (docs/DEPLOYS.md §4): the worker name must be the one that owns
+  // the live custom domain, and the domain must be declared here — otherwise
+  // `wrangler deploy` goes green against a stray fold.workers.dev and the live
+  // site never changes. fold.mino.mobi had no worker before this surface, so
+  // the first deploy provisions the custom domain from this block.
+  "routes": [
+    { "pattern": "fold.mino.mobi", "custom_domain": true }
+  ]
+}

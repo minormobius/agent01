@@ -1,0 +1,16 @@
+[package]
+name = "pong-solver"
+version = "0.1.0"
+edition = "2021"
+description = "D2Q9 TRT lattice Boltzmann solver for flow past a rotating cylinder. Measures the lift and drag coefficients that make a spinning ball curve, for the table-tennis page at poke.mino.mobi/pong."
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1
+strip = true

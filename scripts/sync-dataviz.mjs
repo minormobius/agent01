@@ -40,6 +40,42 @@ const EXTRA = [
   // picture straight to Bluesky; a stale copy would post through last month's
   // token handling.
   ["packages/oauth-client/auth.js", "photo/public/shop/js/vendor/auth.js"],
+  // bismuth grows crystals on the plane tilings in packages/tilings/ (the
+  // same generators the foam dungeon draws rooms with). Its page and worker
+  // import /js/tilings.js from the site's own asset root.
+  ["packages/tilings/tilings.js", "packages/bismuth/tilings.js"],
+  // The bismuth growth engine (masons, substrates, the thin-film renderer)
+  // is a package too: packages/bismuth/ is the source, and each site that
+  // runs it serves a byte-identical copy from its own asset root — bismuth
+  // (the specimens and the playground) and hopper (the platformer built on
+  // the same engine). tilings.js rides along so prism.js can import
+  // ./tilings.js wherever the copy lands.
+  // hopper publishes runs to the player's own PDS through the shared OAuth
+  // worker, so it links the client like every other static site does.
+  ["packages/oauth-client/auth.js", "hopper/js/auth.js"],
+  ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
+    [`packages/bismuth/${f}`, `bismuth/js/${f}`],
+    [`packages/bismuth/${f}`, `hopper/js/${f}`],
+  ]),
+  // atlas/ serves packages/geoviz + packages/geohier as plain <script> assets:
+  // the county map, the projections, the colour scales, the hierarchy rollups
+  // and the regionaliser all run in the browser, and a static origin cannot
+  // import across directories. Drift here is the dangerous kind — the ETL and
+  // the page share the geometry codec, so a stale copy would decode last
+  // month's arcs against this month's index and draw a map that is subtly,
+  // silently wrong rather than broken.
+  ["packages/geoviz/codec.js", "atlas/lib/codec.js"],
+  ["packages/geoviz/projection.js", "atlas/lib/projection.js"],
+  ["packages/geoviz/scale.js", "atlas/lib/scale.js"],
+  ["packages/geoviz/triangulate.js", "atlas/lib/triangulate.js"],
+  ["packages/geoviz/mesh.js", "atlas/lib/mesh.js"],
+  ["packages/geoviz/gl-fill.js", "atlas/lib/gl-fill.js"],
+  // The worker importScripts()es triangulate.js and mesh.js RELATIVE TO ITSELF,
+  // so it has to land beside them in atlas/lib/ or it resolves to nothing.
+  ["packages/geoviz/mesh-worker.js", "atlas/lib/mesh-worker.js"],
+  ["packages/geoviz/atlas-map.js", "atlas/lib/atlas-map.js"],
+  ["packages/geohier/hier.js", "atlas/lib/hier.js"],
+  ["packages/geohier/regionalize.js", "atlas/lib/regionalize.js"],
 ];
 
 const args = process.argv.slice(2);

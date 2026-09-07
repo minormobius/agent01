@@ -9,23 +9,19 @@
 // Run after the project list changes so the card stays in sync with the site.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { loadCatalogue } from './lib/landing.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { Resvg } from '@resvg/resvg-js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const html = readFileSync(join(root, 'index.html'), 'utf8');
-
-// ── Parse the PROJECTS array (var P) — name, url, category, commits, age ──
-const projects = [];
-for (const m of html.matchAll(/\{\s*n:'([^']+)'[^}]*\}/g)) {
-  const lit = m[0];
-  const n = (lit.match(/n:'([^']+)'/) || [])[1];
-  const c = (lit.match(/c:'([^']+)'/) || [])[1];
-  const k = parseInt((lit.match(/k:(\d+)/) || [])[1] || '1', 10);
-  const a = (lit.match(/a:'([^']+)'/) || [])[1] || 'cold';
-  if (n && c) projects.push({ n, c, k, a });
-}
+// ── The catalogue — name, category, commits, age ──
+// Read from catalogue.json, the source of truth. The regex this replaced
+// scanned the WHOLE of index.html for any `{ n:'…' }` literal, so it would
+// have silently absorbed any unrelated object literal added to the page.
+const projects = loadCatalogue(root).entries
+  .filter((e) => e.n && e.c)
+  .map((e) => ({ n: e.n, c: e.c, k: e.k ?? 1, a: e.a || 'cold' }));
 
 // Category palette + order — must match CATS in index.html.
 const CATS = {

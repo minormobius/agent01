@@ -1,0 +1,242 @@
+/* pf_board.c - see pf_board.h.
+ *
+ * The body is a parallel bank of second-order resonators, each one a single mode
+ *
+ *     H_k(z) = 1 / (1 - 2 R cos(w) z^-1 + R^2 z^-2)
+ *
+ * whose impulse response is a decaying sinusoid at frequency w with per-sample
+ * decay R. Summing the modes gives a coded modal impulse response; adding it on
+ * top of a dry path makes the bank a parallel resonant EQ that colors the string
+ * tone with the wooden body instead of replacing it.
+ *
+ * Mode frequencies are log-spaced (constant modes-per-octave, matching how plate
+ * modal density grows) with a deterministic jitter so the bank doesn't ring like
+ * a comb. Low modes ring longer than high ones, and a spectral tilt darkens the
+ * top. Everything is generated from the handful of pf_board_params constants -
+ * no tables, no samples - so it compresses to almost nothing.
+ */
+#include "pf_board.h"
+#include <math.h>
+#include <string.h>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+/* deterministic LCG -> [0,1); keeps the body reproducible and table-free */
+static double rnd01(unsigned *s)
+{
+    *s = *s * 1664525u + 1013904223u;
+    return (*s >> 8) / 16777216.0;   /* top 24 bits */
+}
+
+void pf_board_defaults(pf_board_params *p, double sample_rate)
+{
+    (void)sample_rate;
+    p->modes = 40;       /* denser bank reads as a richer, more solid body */
+    p->f_lo  = 85.0;     /* lowest body resonance */
+    p->f_hi  = 6000.0;   /* top of the radiating range */
+    /* SHORT modes: the body is a fast resonant coloration that follows the
+     * string, not a ringing resonance. Long modes ring *up* over ~60 ms and
+     * smear the percussive attack into a swell; short ones keep the strike sharp.
+     * Sustain/space comes from the reverb, not the body. */
+    p->t_lo  = 0.010;
+    p->t_hi  = 0.004;
+    p->tilt  = -1.2;     /* dB/oct: gently darker toward the top, like radiation */
+    p->color = 0.6;      /* gain irregularity so it reads as wood, not a formant */
+    p->dry   = 1.0;      /* keep the full string tone present */
+    p->mix   = 0.8;      /* body coloration level (audition knob in the host) */
+    p->stereo_width = 0.20; /* musical width (corr ~0.5): wide body, image still holds */
+    p->seed  = 0x51A4E3u;
+}
+
+void pf_board_init(pf_board *b, const pf_board_params *p, double sample_rate)
+{
+    int N = p->modes;
+    if (N > PF_BOARD_MAXMODES) N = PF_BOARD_MAXMODES;
+    if (N < 0) N = 0;
+    b->n   = N;
+    b->dry = p->dry;
+    b->mix = p->mix;
+
+    unsigned s = p->seed ? p->seed : 1u;
+    const double fref = 400.0;
+
+    for (int k = 0; k < N; k++) {
+        double u   = (k + 0.5) / N;                      /* 0..1 across the bank */
+        double jit = (rnd01(&s) - 0.5) * (1.2 / N);      /* break exact log spacing */
+        double e   = u + jit;
+        if (e < 0.0) e = 0.0;
+        if (e > 1.0) e = 1.0;
+
+        double f = p->f_lo * pow(p->f_hi / p->f_lo, e);
+        if (f < 20.0)          f = 20.0;
+        if (f > 0.45 * sample_rate) f = 0.45 * sample_rate;
+
+        double tau = p->t_lo * pow(p->t_hi / p->t_lo, u);
+        double R   = exp(-1.0 / (tau * sample_rate));    /* per-sample mode decay */
+        double w   = 2.0 * M_PI * f / sample_rate;
+
+        b->a1[k] = 2.0 * R * cos(w);
+        b->a2[k] = R * R;
+
+        /* Mode gain: spectral tilt (dB/oct) + per-mode random color. The (1-R)
+         * factor cancels the resonator's own 1/(1-R) resonant gain, so each
+         * mode contributes ~env*x at its peak - i.e. the whole bank is a roughly
+         * unity-gain coloring filter, comparable in level to the dry path, not a
+         * runaway amplifier. (No vector normalization - that was the level bug.) */
+        double tiltdb = p->tilt * (log(f / fref) / log(2.0));
+        double env    = pow(10.0, tiltdb / 20.0);
+        double col    = 1.0 + p->color * (rnd01(&s) - 0.5) * 2.0;
+        if (col < 0.05) col = 0.05;
+
+        b->g[k]  = (1.0 - R) * env * col;
+        b->y1[k] = b->y2[k] = 0.0;
+    }
+}
+
+void pf_board_reset(pf_board *b)
+{
+    for (int k = 0; k < b->n; k++) b->y1[k] = b->y2[k] = 0.0;
+}
+
+double pf_board_tick(pf_board *b, double x)
+{
+    double modal = 0.0;
+    for (int k = 0; k < b->n; k++) {
+        double y = x + b->a1[k] * b->y1[k] - b->a2[k] * b->y2[k];
+        b->y2[k] = b->y1[k];
+        b->y1[k] = y;
+        modal += b->g[k] * y;
+    }
+    return b->dry * x + b->mix * modal;
+}
+
+void pf_board_process(pf_board *b, float *buf, int n)
+{
+    for (int i = 0; i < n; i++)
+        buf[i] = (float)pf_board_tick(b, buf[i]);
+}
+
+/* ---------------- stereo body ---------------- */
+
+/* RBJ biquad coefficients (a0-normalized). type: 0 low-shelf, 1 high-shelf,
+ * 2 peaking. db = gain, Q used for peaking (shelves use S=1). */
+static void biquad(int type, double f0, double db, double Q, double fs,
+                   double *b0o, double *b1o, double *b2o, double *a1o, double *a2o)
+{
+    double A  = pow(10.0, db / 40.0);
+    double w0 = 2.0 * M_PI * f0 / fs, cw = cos(w0), sw = sin(w0);
+    double alpha = (type < 2) ? sw * 0.5 * 1.41421356 : sw / (2.0 * Q);
+    double sa = 2.0 * sqrt(A) * alpha;
+    double b0, b1, b2, a0, a1, a2;
+    if (type == 2) {                                   /* peaking */
+        b0 = 1 + alpha * A; b1 = -2 * cw; b2 = 1 - alpha * A;
+        a0 = 1 + alpha / A; a1 = -2 * cw; a2 = 1 - alpha / A;
+    } else if (type == 0) {                            /* low shelf */
+        b0 =     A * ((A + 1) - (A - 1) * cw + sa);
+        b1 = 2 * A * ((A - 1) - (A + 1) * cw);
+        b2 =     A * ((A + 1) - (A - 1) * cw - sa);
+        a0 =         (A + 1) + (A - 1) * cw + sa;
+        a1 =    -2 * ((A - 1) + (A + 1) * cw);
+        a2 =         (A + 1) + (A - 1) * cw - sa;
+    } else {                                           /* high shelf */
+        b0 =      A * ((A + 1) + (A - 1) * cw + sa);
+        b1 = -2 * A * ((A - 1) + (A + 1) * cw);
+        b2 =      A * ((A + 1) + (A - 1) * cw - sa);
+        a0 =          (A + 1) - (A - 1) * cw + sa;
+        a1 =      2 * ((A - 1) - (A + 1) * cw);
+        a2 =          (A + 1) - (A - 1) * cw - sa;
+    }
+    *b0o = b0 / a0; *b1o = b1 / a0; *b2o = b2 / a0; *a1o = a1 / a0; *a2o = a2 / a0;
+}
+
+void pf_board_stereo_init(pf_board_stereo *b, const pf_board_params *p, double sample_rate)
+{
+    pf_board_params pm = *p;
+    pm.dry = 0.0;                          /* the wrapper owns the centered dry path */
+    pf_board_init(&b->bank, &pm, sample_rate);
+    b->dry = p->dry;
+
+    /* Two Schroeder-allpass chains with different delays. Both are allpass (flat
+     * magnitude -> L and R stay perfectly balanced); the different delays give a
+     * different phase per channel, decorrelating the body down into the low-mids.
+     * stereo_width scales the delay lengths; 0 collapses to ~mono. */
+    double w = p->stereo_width;
+    if (w < 0.0) w = 0.0;
+    if (w > 1.0) w = 1.0;
+
+    /* coprime base delays, distinct L vs R, so the two phase responses diverge */
+    static const int base_l[PF_BOARD_DECORR] = { 53, 127, 211, 17 };
+    static const int base_r[PF_BOARD_DECORR] = { 97,  31, 163, 241 };
+    b->nap = PF_BOARD_DECORR;
+    b->g   = 0.6;
+    for (int i = 0; i < b->nap; i++) {
+        int dl = (int)(base_l[i] * w + 0.5); if (dl < 1) dl = 1;
+        int dr = (int)(base_r[i] * w + 0.5); if (dr < 1) dr = 1;
+        if (dl >= PF_BOARD_DECORR_MAXD) dl = PF_BOARD_DECORR_MAXD - 1;
+        if (dr >= PF_BOARD_DECORR_MAXD) dr = PF_BOARD_DECORR_MAXD - 1;
+        b->dl[i] = dl; b->dr[i] = dr;
+        b->pl[i] = b->pr[i] = 0;
+    }
+    memset(b->bl, 0, sizeof b->bl);
+    memset(b->br, 0, sizeof b->br);
+
+    /* Voicing EQ (soundboard radiation response), fit to the measured Salamander/
+     * maestro LTAS: cut the boomy low end, push up the 500-2000 Hz presence so the
+     * radiated spectrum peaks in the midrange like a real grand, not in the bass. */
+    biquad(0, 320.0, -8.0,  1.0, sample_rate,                       /* low-shelf: tame boom */
+           &b->eq_b0[0], &b->eq_b1[0], &b->eq_b2[0], &b->eq_a1[0], &b->eq_a2[0]);
+    biquad(2, 700.0, 13.0,  0.7, sample_rate,                       /* soundboard presence peak */
+           &b->eq_b0[1], &b->eq_b1[1], &b->eq_b2[1], &b->eq_a1[1], &b->eq_a2[1]);
+    for (int i = 0; i < 2; i++) b->eq_x1[i] = b->eq_x2[i] = b->eq_y1[i] = b->eq_y2[i] = 0.0;
+}
+
+void pf_board_stereo_reset(pf_board_stereo *b)
+{
+    pf_board_reset(&b->bank);
+    for (int i = 0; i < b->nap; i++) b->pl[i] = b->pr[i] = 0;
+    memset(b->bl, 0, sizeof b->bl);
+    memset(b->br, 0, sizeof b->br);
+    for (int i = 0; i < 2; i++) b->eq_x1[i] = b->eq_x2[i] = b->eq_y1[i] = b->eq_y2[i] = 0.0;
+}
+
+void pf_board_stereo_set_mix(pf_board_stereo *b, double mix)
+{
+    b->bank.mix = mix;
+}
+
+/* one Schroeder allpass: w[n]=x-g*w[n-D]; y[n]=g*w[n]+w[n-D]. Flat magnitude,
+ * delay-dispersed phase (decorrelates down to low frequencies). */
+static double schroeder(double x, double g, int D, float *buf, int *pos)
+{
+    int rp = *pos - D;
+    if (rp < 0) rp += PF_BOARD_DECORR_MAXD;
+    double wD = buf[rp];
+    double wn = x - g * wD;
+    buf[*pos] = (float)wn;
+    if (++(*pos) >= PF_BOARD_DECORR_MAXD) *pos = 0;
+    return g * wn + wD;
+}
+
+void pf_board_stereo_tick(pf_board_stereo *b, double x, double *outl, double *outr)
+{
+    /* voicing EQ first (shapes the whole radiated tone, dry + body) */
+    for (int i = 0; i < 2; i++) {
+        double y = b->eq_b0[i] * x + b->eq_b1[i] * b->eq_x1[i] + b->eq_b2[i] * b->eq_x2[i]
+                 - b->eq_a1[i] * b->eq_y1[i] - b->eq_a2[i] * b->eq_y2[i];
+        b->eq_x2[i] = b->eq_x1[i]; b->eq_x1[i] = x;
+        b->eq_y2[i] = b->eq_y1[i]; b->eq_y1[i] = y;
+        x = y;
+    }
+
+    double dryx = b->dry * x;                       /* centered direct string tone */
+    double m    = pf_board_tick(&b->bank, x);       /* mono modal layer (mix applied) */
+    double l = m, r = m;
+    for (int i = 0; i < b->nap; i++) {
+        l = schroeder(l, b->g, b->dl[i], b->bl[i], &b->pl[i]);
+        r = schroeder(r, b->g, b->dr[i], b->br[i], &b->pr[i]);
+    }
+    *outl = dryx + l;
+    *outr = dryx + r;
+}

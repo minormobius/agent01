@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GRAZE — four cilia, one bucket, and the whole food web</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #04080c;
+    --panel: #0a1119;
+    --fg: #d8dde2;
+    --dim: #6a727b;
+    --border: #16202b;
+    --q: #f0655a; --w: #f0b03c; --o: #4fc6a0; --p: #6aa8f0;
+  }
+  * { box-sizing: border-box; }
+
+  /* No highlights anywhere. On a touch screen every tap of a cilium key would
+     otherwise flash a grey box over it, and hammering four buttons in rhythm
+     drag-selects the labels and pops the long-press callout. `manipulation`
+     also kills the 300 ms double-tap-to-zoom delay, which on a rhythm game is
+     the difference between the beat landing and not. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  /* The prose below the game stays selectable — killing that would be
+     user-hostile, and nobody rhythm-taps a paragraph. */
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;   /* no pull-to-refresh mid-run */
+  }
+  a { color: #78e6bc; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #78e6bc;
+  }
+  header .sub { color: var(--dim); font-size: 11px; }
+
+  #stage {
+    position: relative; margin: 12px auto 0; max-width: 1200px;
+    padding: 0 18px;
+  }
+  #wrap {
+    position: relative; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #050d14;
+  }
+  canvas { display: block; width: 100%; height: min(58vh, 560px); touch-action: none; }
+
+  /* ---- touch pad -------------------------------------------------------
+     Four real buttons, one per cilium, colour-matched to the filaments they
+     drive. Shown when the pointer is coarse or the viewport is narrow; on a
+     mouse the keyboard is better and the on-canvas badges already cover it.
+
+     `touch-action: none` on each button is what makes multi-touch work: the
+     game needs two to four cilia held at once, and without it the browser
+     claims the second finger for panning. */
+  #pad { display: none; }
+  @media (pointer: coarse), (max-width: 820px) {
+    #pad {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      margin-top: 10px;
+    }
+    /* Shorter canvas to make room for the pad; the on-canvas letter
+       badges also drop out (see compactKeys in draw.js). */
+    canvas { height: min(46vh, 460px); }
+  }
+  #pad button {
+    touch-action: none;
+    height: 78px; margin: 0; padding: 0;
+    border-radius: 8px; border: 2px solid;
+    background: #0d1620; font-size: 20px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    transition: background 60ms linear, transform 60ms linear;
+  }
+  #pad button.q { color: var(--q); border-color: var(--q); }
+  #pad button.w { color: var(--w); border-color: var(--w); }
+  #pad button.o { color: var(--o); border-color: var(--o); }
+  #pad button.p { color: var(--p); border-color: var(--p); }
+  #pad button[data-on="1"] { color: #06101a; transform: translateY(2px); }
+  #pad button.q[data-on="1"] { background: var(--q); }
+  #pad button.w[data-on="1"] { background: var(--w); }
+  #pad button.o[data-on="1"] { background: var(--o); }
+  #pad button.p[data-on="1"] { background: var(--p); }
+  #pad .sub { display: block; font-size: 9px; opacity: 0.75; font-weight: 400; }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; text-align: center;
+    background: rgba(4, 10, 16, 0.86); padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 {
+    margin: 0; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #78e6bc;
+  }
+  .overlay p { margin: 2px 0; color: var(--dim); max-width: 62ch; }
+  .overlay .big { font-size: 26px; color: var(--fg); letter-spacing: 0.04em; }
+  .keys { display: flex; gap: 10px; margin: 6px 0 2px; }
+  .keycap {
+    width: 40px; height: 40px; border-radius: 5px; display: grid; place-items: center;
+    font-size: 15px; font-weight: 600; border: 1.5px solid;
+  }
+  .keycap.q { color: var(--q); border-color: var(--q); }
+  .keycap.w { color: var(--w); border-color: var(--w); }
+  .keycap.o { color: var(--o); border-color: var(--o); }
+  .keycap.p { color: var(--p); border-color: var(--p); }
+  button {
+    background: #14202b; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font: inherit;
+    margin-top: 6px;
+  }
+  button:hover { background: #1c2b39; }
+
+  #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
+  #notes h3 {
+    color: var(--fg); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    margin: 22px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  #notes p { margin: 7px 0; }
+  #notes code { color: #78e6bc; background: #14202b; padding: 1px 4px; border-radius: 2px; }
+  #notes table { border-collapse: collapse; margin: 8px 0; font-size: 11px; width: 100%; }
+  #notes th, #notes td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #notes th { color: var(--fg); font-weight: 600; }
+  .k { font-weight: 600; }
+  .k.q { color: var(--q); } .k.w { color: var(--w); }
+  .k.o { color: var(--o); } .k.p { color: var(--p); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GRAZE</h1>
+  <span class="sub">eat, divide, and try not to be eaten doing it</span>
+</header>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="c"></canvas>
+
+    <div class="overlay" id="intro">
+      <h2>Eat. Divide. Do not be eaten.</h2>
+      <div class="keys">
+        <div class="keycap q">Q</div><div class="keycap w">W</div>
+        <div class="keycap o">O</div><div class="keycap p">P</div>
+      </div>
+      <p>Same four cilia as <a href="../qwop/">/qwop/</a> — hold to beat, tap in
+      rhythm to bundle, drive one side to turn. What is new is that it
+      <strong>costs</strong>.</p>
+      <p>Beating burns ATP. ATP is what you are out here to collect, and beating
+      is the only way to collect it. You start <strong>below the compensation
+      depth</strong>, where holding still slowly starves you — so you have to
+      move, and moving is heard.</p>
+      <p>Fill the bucket to divide. That is the score.</p>
+      <button id="start">press any key to begin</button>
+    </div>
+
+    <div class="overlay" id="dead" hidden>
+      <h2 id="dead-title">Eaten</h2>
+      <div class="big" id="dead-dist">0 divisions</div>
+      <p id="dead-best"></p>
+      <p id="dead-tip"></p>
+      <button id="again">press SPACE to try again</button>
+    </div>
+  </div>
+
+  <div id="pad" role="group" aria-label="cilia controls">
+    <button class="q" data-cilium="0" type="button" aria-label="outer left cilium">Q<span class="sub">outer L</span></button>
+    <button class="w" data-cilium="1" type="button" aria-label="inner left cilium">W<span class="sub">inner L</span></button>
+    <button class="o" data-cilium="2" type="button" aria-label="inner right cilium">O<span class="sub">inner R</span></button>
+    <button class="p" data-cilium="3" type="button" aria-label="outer right cilium">P<span class="sub">outer R</span></button>
+  </div>
+</div>
+
+<div id="notes">
+  <h3>What is different</h3>
+  <p>The cell is the same one from <a href="../qwop/">/qwop/</a>, imported
+  rather than copied: four detuned cilia on <strong>Q W O P</strong>, hold to
+  beat, tap in rhythm to bundle, drive one side to turn. What is new is a
+  <strong>bucket</strong>. Beating burns ATP, ATP is what you are out here to
+  collect, and beating is the only way to collect it. Fill the bucket and you
+  divide, which is the score and also the only thing a cell is actually for.</p>
+
+  <h3>The map is a water column</h3>
+  <p>Light falls off exponentially with depth — Beer-Lambert, and the one piece
+  of environment here that is not invented. The depth where the light you can
+  photosynthesise exactly cancels what it costs to stay alive is the
+  <strong>compensation depth</strong>, a real quantity in ocean biology, drawn
+  on screen as a dashed line. Above it a motionless cell slowly gains. Below it
+  a motionless cell slowly dies, however patient it is.</p>
+  <p><strong>You start below it.</strong> That is the whole design: moving is
+  not an optional flourish for the greedy, it is how you get to the light at
+  all. An earlier build started the cell above the line, and a rock — a cell
+  that never pressed a key — out-grew every strategy I could write. That is the
+  paper's 96.6% arrived at for entirely the wrong reason, and a game with
+  nothing in it.</p>
+
+  <h3>Three pressures, one lever</h3>
+  <p>Everything pushes on how much you beat.</p>
+  <table>
+    <tr><th>Beating…</th><th>costs you</th></tr>
+    <tr><td>burns ATP</td><td>the dominant term in the budget; idling is nearly free</td></tr>
+    <tr><td>is heard</td><td>the dashed ring is how far. Predators concentrate in the lit water near the surface, which is exactly where the food is</td></tr>
+    <tr><td>scatters your dinner</td><td>swarmers feel the flow of a hunting cell and bolt — the louder you are, the further out they start running</td></tr>
+  </table>
+  <p>Which means you cannot run a swarmer down. It flees at almost your own
+  speed, so a pursuit closes at a crawl and costs more than the meal is worth.
+  They have to be <strong>ambushed</strong>: sit quiet until one drifts inside
+  burst range, because they only start running when they hear you. Motes do not
+  flee and can simply be collected.</p>
+
+  <h3>The thing this variant is for</h3>
+  <p>In <a href="../qwop/">/qwop/</a> the paper's headline — a real
+  <em>Pterosperma</em> is stopped 96.6% of the time — is a fact printed on a
+  panel. Here nothing sets it. The selftest runs a family of scripted
+  strategies against the same oceans, sweeping how long each rests after a
+  dash, and reports which one banks the most growth. The answer it finds:</p>
+  <table>
+    <tr><th>strategy</th><th>grew</th><th>divisions</th><th>quiet</th><th>lived</th></tr>
+    <tr><td>never moves</td><td>−0.55</td><td>0</td><td>100%</td><td>126 s</td></tr>
+    <tr><td>sprints constantly</td><td>−0.31</td><td>0.25</td><td>25%</td><td>31 s</td></tr>
+    <tr><td>rest 4 s between dashes</td><td>−0.26</td><td>0</td><td>39%</td><td>105 s</td></tr>
+    <tr><td>rest 12 s</td><td>+0.07</td><td>0</td><td>62%</td><td>135 s</td></tr>
+    <tr><td><strong>rest 96 s</strong></td><td><strong>+0.30</strong></td><td><strong>0.25</strong></td><td><strong>87.5%</strong></td><td>150 s</td></tr>
+  </table>
+  <p>Sit-and-wait wins, at 87.5% quiet against the paper's 96.6% — the right
+  shape, not the same number, and I have not pretended otherwise. Growth rises
+  monotonically with rest and then flattens; both extremes lose badly, the
+  motionless cell because it can never climb to the light and the sprinter
+  because it is eaten and broke. I expected the curve to turn over at the quiet
+  end and asserted that it would; it does not, it plateaus, and the test now
+  says what the data says instead.</p>
+  <p>The scripted forager is a floor, not a ceiling — it is a crude thing that
+  cannot really ambush. A player who parks in the light and waits for a swarmer
+  to drift into burst range should do considerably better than a quarter of a
+  division per run.</p>
+
+  <h3>What is invented</h3>
+  <p>The cell is measured; see <a href="../qwop/">/qwop/</a> and
+  <a href="../flag/">/flag/</a> for which parts. The ocean around it is not.
+  <em>Pterosperma</em> is a prasinophyte — an alga, a phototroph — so the
+  photosynthesis half of the budget is in character and the light curve is
+  real, but grazing is a what-if: mixotrophy is common among flagellates and is
+  not something this paper, or as far as I know anyone, has shown for this
+  genus. The prey, the predators, and every number in the energy budget are the
+  game's. The budget constants in particular were not chosen, they were
+  <em>searched</em> — tuned until the experiment above produced an interior
+  optimum instead of a dominant rock.</p>
+  <p>The four keys turn up twice more with no biology at all, just the same
+  question of what four buttons should mean:
+  <a href="../qgol/">/qgol/</a> on a cellular automaton, and
+  <a href="../griddle/">/griddle/</a> on a pancake griddle.</p>
+  <p>Source for everything about the swimmer itself:
+  <a href="https://doi.org/10.1038/s41467-026-75076-8" target="_blank" rel="noopener">
+  <em>Embodied behavioural complexity in a ciliated microorganism</em></a>,
+  <em>Nature Communications</em> <strong>17</strong>, 8445 (2026).</p>
+</div>
+
+<script type="module">
+  import { createGame, tickGame, KEYS, compensationDepth, BUDGET } from './game.js';
+  import { drawGame } from './draw.js';
+  const COMP_Y = compensationDepth();
+
+  const cnv = document.getElementById('c');
+  const intro = document.getElementById('intro');
+  const dead = document.getElementById('dead');
+
+  let game = createGame({ seed: 7 });
+  let started = false;
+  let best = 0;
+  // Debug handle: lets a headless browser drive the real page with real key
+  // events and real timing, and read back what the cell actually did. The
+  // scripted players in graze.selftest.mjs never touch the DOM, so without this
+  // nothing checks that the page and the model agree.
+  window.__graze = () => game;
+
+  const TIPS = [
+    'You start below the compensation depth. Down there, holding still is slow starvation — climb.',
+    'Swarmers flee at almost your own speed. You cannot run one down; wait for one to drift close, then burst.',
+    'Beating is heard by everything. The dashed ring is how far.',
+    'The light is at the surface. So are the predators. That is the whole decision.',
+    'Going quiet makes hunters lose you — but only if you do it before they are on top of you.',
+    'A fat cell divides. Watch the body swell as the bucket fills.',
+  ];
+
+  function reset() {
+    for (let i = 0; i < 4; i++) held[i] = false;
+    game = createGame({ seed: (Math.random() * 1e9) | 0, best });
+    started = true;
+    dead.hidden = true;
+    intro.hidden = true;
+    last = performance.now();
+  }
+
+  function onDeath() {
+    best = Math.max(best, game.divisions);
+    const d = game.divisions;
+    document.getElementById('dead-dist').textContent =
+      `${d} ${d === 1 ? 'division' : 'divisions'}`;
+    const NAME = { arrow: 'Eaten by an arrow worm', copepod: 'Eaten by a copepod',
+      medusa: 'Eaten by a medusa', starved: 'Starved' };
+    document.getElementById('dead-title').textContent = NAME[game.cause] || 'Gone';
+    document.getElementById('dead-best').textContent =
+      `best ${best}   ·   ${game.elapsed.toFixed(0)}s alive   ·   quiet ${(100 * game.quietSecs / Math.max(0.001, game.elapsed)).toFixed(0)}% of the time`;
+    document.getElementById('dead-tip').textContent =
+      TIPS[(Math.random() * TIPS.length) | 0];
+    dead.hidden = false;
+  }
+
+  const held = [false, false, false, false];
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (!started) {
+      if (k === ' ' || KEYS.includes(k) || e.key.length === 1) { reset(); e.preventDefault(); }
+      return;
+    }
+    if (game.over) {
+      if (k === ' ' || k === 'enter') { reset(); e.preventDefault(); }
+      return;
+    }
+    const i = KEYS.indexOf(k);
+    if (i >= 0) {
+      e.preventDefault();
+      if (!held[i]) { held[i] = true; paintPad(); }
+    }
+  });
+  addEventListener('keyup', (e) => {
+    const i = KEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { held[i] = false; paintPad(); }
+  });
+  // A key or finger stuck down through a tab switch would be an unfair death.
+  const letGo = () => {
+    for (let i = 0; i < 4; i++) held[i] = false;
+    paintPad();
+  };
+  addEventListener('blur', letGo);
+  addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
+
+  // ---- touch controls --------------------------------------------------
+  // One handler per button rather than one on the pad, and pointer capture on
+  // each, so that four fingers down at once are four independent presses. The
+  // game genuinely needs that: two to four cilia are held simultaneously most
+  // of the time, and a shared handler would let a second finger cancel the
+  // first. `touch-action: none` in the CSS is the other half — without it the
+  // browser claims the second touch for panning before it ever reaches here.
+  const pad = document.getElementById('pad');
+  for (const btn of pad.querySelectorAll('button')) {
+    const i = +btn.dataset.cilium;
+    const press = (e) => {
+      e.preventDefault();
+      if (!started || game.over) { reset(); return; }
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (!held[i]) { held[i] = true; btn.dataset.on = '1'; }
+    };
+    const release = (e) => {
+      if (e) e.preventDefault();
+      if (held[i]) held[i] = false;
+      btn.dataset.on = '0';
+    };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    // A finger that slides off the button has to let go, or the cilium sticks
+    // on — drag a thumb away to scroll and you would swim off with a key
+    // jammed down. pointerleave cannot do this job: setPointerCapture
+    // deliberately suppresses boundary events, which is exactly why the
+    // capture is worth keeping (it guarantees the pointerup comes back to this
+    // button even if the finger lifts somewhere else). So hit-test by hand.
+    btn.addEventListener('pointermove', (e) => {
+      if (!held[i]) return;
+      const r = btn.getBoundingClientRect();
+      const out = e.clientX < r.left || e.clientX > r.right
+        || e.clientY < r.top || e.clientY > r.bottom;
+      if (out) release(e);
+    });
+    // Suppress the synthetic mouse/context events a long press would produce.
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  // Mirror keyboard presses onto the pad so the two never disagree on screen.
+  function paintPad() {
+    const btns = pad.querySelectorAll('button');
+    for (let i = 0; i < btns.length; i++) btns[i].dataset.on = held[i] ? '1' : '0';
+  }
+
+  // Tapping anywhere on an overlay starts or restarts — on a phone there is no
+  // key to press, and hunting for a small button between runs is friction the
+  // game does not need.
+  for (const el of [intro, dead]) {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); reset(); });
+  }
+
+  // Wording follows the input the device actually has.
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('start').textContent = 'tap to begin';
+    document.getElementById('again').textContent = 'tap to try again';
+  }
+
+  const STEP = 1 / 240;
+  let last = performance.now();
+  let acc = 0;
+  let wasOver = false;
+
+  function frame(t) {
+    const wall = Math.min(100, t - last) / 1000;
+    last = t;
+    if (started && !game.over) {
+      acc += wall;
+      let guard = 0;
+      // `held` goes in every frame rather than on key events, because the
+      // energy gate has to be able to refuse it — an empty cell cannot drive
+      // its cilia no matter what the player is pressing, and has to pick
+      // straight back up when a mouthful lands.
+      while (acc >= STEP && guard++ < 400) { tickGame(game, STEP, held); acc -= STEP; }
+    }
+    if (game.over && !wasOver) { wasOver = true; onDeath(); }
+    if (!game.over) wasOver = false;
+    // The touch pad is what CSS decides to show; ask the DOM rather than
+    // re-deriving the media query here, so the two can never disagree.
+    drawGame(cnv, game, {
+      compactKeys: pad.offsetParent !== null,
+      compensationY: COMP_Y,
+      starveSecs: BUDGET.STARVE_SECS,
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

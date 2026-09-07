@@ -1,0 +1,927 @@
+// tjs/brut/blueprint.js — THE DRAWING OFFICE. Pure SVG-string renderers over a
+// building from arch.js. No DOM, no measurement, no fetch: every function takes
+// a building and returns a string, which is what makes them node-testable and
+// what lets /brut/plan/ be a static page that draws a whole set on load.
+//
+// The drawings are not illustrations OF the model — they are the same data,
+// projected. A plan is `levels[i].rooms`; an elevation is `facades` filtered by
+// side; a section is `arch.section()`. If a bay moves in the 3D bench it moves
+// here, because neither of them owns the bay.
+//
+// Conventions, the ones a drawing office would hold you to:
+//   • Plans are drawn NORTH UP. North is −z, so screen-y grows with z.
+//   • Elevations are named for the side you STAND ON, and handed correctly:
+//     N reads right-to-left in x, S left-to-right, W in +z, E in −z.
+//   • Nothing is dated. A seeded building has no issue date — the revision mark
+//     is a hash of its parameters, which is the only thing that can change it.
+
+import { rect as R, MODULES, section as archSection, schedule as archSchedule } from './arch.js';
+import { stairPlan } from './stair.js';
+import { plantElevation, plantSection } from './plant.js';
+
+export const PALETTES = {
+  blueprint: {
+    bg: '#0a1b2e', paper: '#0d2542', ink: '#cfe8ff', line: '#7fb4e0', faint: '#2d5a8a',
+    accent: '#39d6c8', glass: '#4fd0e8', poche: '#173d63', core: '#20527f', text: '#9dc4e6',
+  },
+  print: {
+    bg: '#ffffff', paper: '#ffffff', ink: '#111318', line: '#333940', faint: '#c2c8d0',
+    accent: '#0d6f8f', glass: '#5aa9c4', poche: '#d9dee4', core: '#aeb6bf', text: '#4a525c',
+  },
+};
+
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const n2 = (v) => Math.round(v * 100) / 100;
+
+/* A world→sheet mapping that always fits, keeps the aspect, and centres. */
+function fitter(x0, x1, y0, y1, W, H, pad) {
+  const sw = (W - 2 * pad) / Math.max(1e-6, x1 - x0);
+  const sh = (H - 2 * pad) / Math.max(1e-6, y1 - y0);
+  const s = Math.min(sw, sh);
+  const ox = pad + ((W - 2 * pad) - (x1 - x0) * s) / 2;
+  const oy = pad + ((H - 2 * pad) - (y1 - y0) * s) / 2;
+  return {
+    s,
+    X: (x) => n2(ox + (x - x0) * s),
+    Y: (y) => n2(oy + (y - y0) * s),   // caller pre-flips for elevations
+    L: (v) => n2(v * s),
+  };
+}
+
+// A drawing scale a human recognises: 1:50, 1:100, 1:200, 1:500, 1:1000.
+function nominalScale(pxPerMetre) {
+  const mmPerMetre = pxPerMetre * (25.4 / 96);      // treat 1 px as 1/96 in
+  const denom = 1000 / mmPerMetre;
+  const ladder = [20, 50, 100, 200, 250, 500, 1000, 2000];
+  let best = ladder[0];
+  for (const c of ladder) if (Math.abs(Math.log(c / denom)) < Math.abs(Math.log(best / denom))) best = c;
+  return '1:' + best;
+}
+
+// The revision mark: a short, stable hash of everything that defines the building.
+export function revision(b) {
+  const s = JSON.stringify(b.params);
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0).toString(36).toUpperCase().padStart(6, '0').slice(-6);
+}
+
+function defs(id, P) {
+  return `<defs>
+  <pattern id="${id}-hatch" width="6" height="6" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <line x1="0" y1="0" x2="0" y2="6" stroke="${P.line}" stroke-width="1.1" opacity=".65"/>
+  </pattern>
+  <pattern id="${id}-poche" width="4" height="4" patternTransform="rotate(45)" patternUnits="userSpaceOnUse">
+    <rect width="4" height="4" fill="${P.poche}"/>
+    <line x1="0" y1="0" x2="0" y2="4" stroke="${P.core}" stroke-width="1.4"/>
+  </pattern>
+  <marker id="${id}-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M0 0 L10 5 L0 10 z" fill="${P.line}"/>
+  </marker>
+</defs>`;
+}
+
+const frame = (W, H, P, id, body, cls = '') =>
+  `<svg class="bp ${cls}" viewBox="0 0 ${W} ${H}" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,SFMono-Regular,Menlo,monospace">
+${defs(id, P)}<rect width="${W}" height="${H}" fill="${P.paper}"/>
+${body}
+</svg>`;
+
+/* ─────────────────────────────── the stair ───────────────────────────────── */
+//
+// A stair in plan is NOT a picture of a stair. The convention carries real
+// information and every part of it means something:
+//
+//   · treads are drawn as nosing lines across the width, one per riser;
+//   · a BREAK LINE cuts the flight where the plan's cut plane passes through it
+//     (about 1.4 m above the floor), and NOTHING above that line is drawn,
+//     because you cannot see it from inside the room;
+//   · an arrow runs from the bottom riser in the direction of travel, with a
+//     dot at its tail, and it says UP — so the reader knows which of the two
+//     flights in the shaft is the one they are standing on.
+//
+// Drawing the whole flight, both flights, and no break is the giveaway of a
+// plan that was rendered rather than drawn.
+
+function stairSVG(F, st, P, cutAbove = 1.4) {
+  const out = [];
+  const pl = stairPlan(st, cutAbove);
+
+  // only what is below the cut: the arrival landing belongs to the storey above
+  for (const l of pl.landings) {
+    if (l.y > st.y0 + cutAbove) continue;
+    out.push(box(F, l, `fill="none" stroke="${P.ink}" stroke-width="1.1"`));
+  }
+
+  // every tread below the cut, as a nosing line across the stair
+  let broke = false;
+  for (const n of pl.nosings) {
+    if (n.above) { broke = true; continue; }
+    const c = Math.cos(n.ry), si = Math.sin(n.ry);
+    // the tread's width axis, turned into the sheet
+    const hx = (n.w / 2) * c, hz = -(n.w / 2) * si;
+    out.push(`<line x1="${n2(F.X(n.x - hx))}" y1="${n2(F.Y(n.z - hz))}" ` +
+      `x2="${n2(F.X(n.x + hx))}" y2="${n2(F.Y(n.z + hz))}" stroke="${P.ink}" stroke-width=".8"/>`);
+  }
+
+  // the break line, drawn across the flight where the cut passes it
+  if (broke) {
+    const b = pl.nosings.find((n) => n.above);
+    if (b) {
+      const c = Math.cos(b.ry), si = Math.sin(b.ry);
+      const hx = (b.w * 0.62) * c, hz = -(b.w * 0.62) * si;
+      const ax = -si * F.L(0.35), az = -c * F.L(0.35);
+      const x0 = F.X(b.x - hx), y0 = F.Y(b.z - hz), x1 = F.X(b.x + hx), y1 = F.Y(b.z + hz);
+      for (const k of [-1, 1]) {
+        out.push(`<path d="M${n2(x0 + ax * k)} ${n2(y0 + az * k)} L${n2((x0 + x1) / 2 - ax * k * 0.7)} ` +
+          `${n2((y0 + y1) / 2 - az * k * 0.7)} L${n2(x1 + ax * k)} ${n2(y1 + az * k)}" ` +
+          `fill="none" stroke="${P.ink}" stroke-width="1"/>`);
+      }
+    }
+  }
+
+  // UP, from the bottom riser
+  if (pl.arrow) {
+    const a = pl.arrow;
+    const len = F.L(Math.min(2.2, st.footprint.d * 0.4));
+    const x0 = F.X(a.x), y0 = F.Y(a.z);
+    const x1 = x0 + a.dx * len, y1 = y0 + a.dz * len;
+    out.push(`<circle cx="${n2(x0)}" cy="${n2(y0)}" r="2" fill="${P.accent}"/>`);
+    out.push(`<line x1="${n2(x0)}" y1="${n2(y0)}" x2="${n2(x1)}" y2="${n2(y1)}" stroke="${P.accent}" stroke-width="1.2"/>`);
+    const ang = Math.atan2(y1 - y0, x1 - x0);
+    for (const s2 of [2.5, -2.5]) {
+      out.push(`<line x1="${n2(x1)}" y1="${n2(y1)}" x2="${n2(x1 - 6 * Math.cos(ang - s2 * 0.12))}" ` +
+        `y2="${n2(y1 - 6 * Math.sin(ang - s2 * 0.12))}" stroke="${P.accent}" stroke-width="1.2"/>`);
+    }
+    out.push(label(n2(x1 + a.dx * 7), n2(y1 + a.dz * 7 + 3), 'UP', P, 6.5, 'middle', P.accent));
+  }
+
+  if (pl.newel) {
+    out.push(`<circle cx="${n2(F.X(pl.newel.x))}" cy="${n2(F.Y(pl.newel.z))}" r="${n2(F.L(pl.newel.r))}" ` +
+      `fill="${P.core}" stroke="${P.ink}" stroke-width="1.2"/>`);
+  }
+  return out.join('');
+}
+
+const label = (x, y, t, P, size = 10, anchor = 'start', fill) =>
+  `<text x="${n2(x)}" y="${n2(y)}" font-size="${size}" fill="${fill || P.text}" text-anchor="${anchor}">${esc(t)}</text>`;
+
+/* ─────────────────────────────────  PLAN  ───────────────────────────────── */
+
+export function planSVG(b, levelIndex, opts = {}) {
+  const P = opts.palette || PALETTES.blueprint;
+  const W = opts.width || 640, H = opts.height || 460, pad = opts.pad || 34;
+  const id = (opts.id || 'p') + levelIndex;
+  const L = b.levels[Math.max(0, Math.min(b.levels.length - 1, levelIndex))];
+  const bx = plateBounds(b);
+  const F = fitter(bx.x0, bx.x1, bx.z0, bx.z1, W, H - 26, pad);
+  const out = [];
+
+  // site / grid — the structural grid drawn faintly under everything, because a
+  // brutalist plan is unreadable without the frame it obeys
+  const bay = b.params.bay;
+  for (let x = Math.ceil(bx.x0 / bay) * bay; x <= bx.x1; x += bay)
+    out.push(`<line x1="${F.X(x)}" y1="${F.Y(bx.z0)}" x2="${F.X(x)}" y2="${F.Y(bx.z1)}" stroke="${P.faint}" stroke-width=".5" stroke-dasharray="2 4"/>`);
+  for (let z = Math.ceil(bx.z0 / bay) * bay; z <= bx.z1; z += bay)
+    out.push(`<line x1="${F.X(bx.x0)}" y1="${F.Y(z)}" x2="${F.X(bx.x1)}" y2="${F.Y(z)}" stroke="${P.faint}" stroke-width=".5" stroke-dasharray="2 4"/>`);
+
+  // the plate outline — the cut line, drawn heaviest
+  for (const wg of L.wings)
+    out.push(box(F, wg, `fill="${P.bg}" fill-opacity=".55" stroke="${P.ink}" stroke-width="2.2"`));
+
+  // circulation, tinted rather than outlined
+  for (const c of L.corridors)
+    out.push(box(F, c, `fill="${P.accent}" fill-opacity=".10" stroke="${P.accent}" stroke-width=".7" stroke-dasharray="5 3"`));
+
+  // light wells: hatched holes in the slab
+  for (const v of L.voids)
+    out.push(box(F, v, `fill="url(#${id}-hatch)" stroke="${P.line}" stroke-width="1"`));
+
+  // rooms
+  const showRefs = opts.refs !== false;
+  for (const r of L.rooms) {
+    out.push(box(F, r, `fill="none" stroke="${P.line}" stroke-width="1.1"`));
+    const w = F.L(r.w), h = F.L(r.d);
+    if (showRefs && w > 30 && h > 15) {
+      const size = Math.min(9, Math.max(6, h / 3.4));
+      out.push(label(F.X(r.x), F.Y(r.z) - 1, fitText(r.program, w - 4, size), P, size, 'middle', P.ink));
+      if (h > 27) out.push(label(F.X(r.x), F.Y(r.z) + 9, fitText(`${r.ref} · ${Math.round(r.area)}m²`, w - 4, 6.6), P, 6.6, 'middle'));
+    }
+  }
+
+  // cores — poché, the way a real plan marks what you cannot walk through
+  for (const c of L.cores) {
+    out.push(box(F, c, `fill="url(#${id}-poche)" stroke="${P.ink}" stroke-width="1.6"`));
+    const hasStair = (b.stairs || []).some((q) => q.level === L.index && R.overlaps(c, q.box));
+    if (!hasStair && F.L(c.w) > 26) out.push(label(F.X(c.x), F.Y(c.z) + 3, 'CORE', P, 7, 'middle', P.ink));
+  }
+
+  // THE PLANTING, by the landscape convention: the canopy as a circle at its
+  // MATURE spread, a ragged edge for anything deciduous, the trunk at its real
+  // diameter, and a centre cross. The circle is the dimension that matters —
+  // a tree drawn at anything other than its mature spread is a tree that gets
+  // cut down in ten years — and it comes off the allometry rather than off a
+  // pen. The planter itself is drawn as the bed it is.
+  for (const q of (b.planting || [])) {
+    if (Math.abs(q.level - L.index) > 0.5) continue;
+    out.push(box(F, q, `fill="none" stroke="${P.accent}" stroke-width="1.1" stroke-dasharray="5 3" opacity=".8"`));
+    if (F.L(q.w) > 40) {
+      out.push(label(F.X(q.x), F.Y(R.z0(q)) - 4,
+        `${q.label.toUpperCase()} · ${Math.round(q.depth * 1000)} mm`, P, 6, 'middle', P.accent));
+    }
+    for (const pl of q.plants) {
+      const r = F.L(Math.max(0.4, pl.spread / 2));
+      const cx = F.X(pl.x), cy = F.Y(pl.z);
+      if (r < 2.5) { out.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="1.6" fill="${P.accent}" opacity=".55"/>`); continue; }
+      const evergreen = pl.tree ? pl.tree.evergreen : true;
+      if (evergreen) {
+        out.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(r)}" fill="none" stroke="${P.accent}" stroke-width=".9" opacity=".85"/>`);
+      } else {
+        // the ragged canopy every landscape drawing uses for a deciduous tree
+        const pts = [];
+        for (let i = 0; i < 16; i++) {
+          const th = (i / 16) * Math.PI * 2;
+          const rr = r * (i % 2 ? 0.82 : 1);
+          pts.push(`${n2(cx + rr * Math.cos(th))} ${n2(cy + rr * Math.sin(th))}`);
+        }
+        out.push(`<polygon points="${pts.join(' ')}" fill="none" stroke="${P.accent}" stroke-width=".9" opacity=".85"/>`);
+      }
+      const tr = Math.max(1, F.L(pl.tree ? pl.tree.dbh / 2 : 0.05));
+      out.push(`<circle cx="${n2(cx)}" cy="${n2(cy)}" r="${n2(tr)}" fill="${P.accent}" opacity=".7"/>`);
+      out.push(`<path d="M${n2(cx - r)} ${n2(cy)} H${n2(cx + r)} M${n2(cx)} ${n2(cy - r)} V${n2(cy + r)}" stroke="${P.accent}" stroke-width=".4" opacity=".4"/>`);
+    }
+  }
+
+  // THE LIFTS. Drawn by the convention every set uses — the shaft outlined, an
+  // X across it, and the car dashed inside — because that mark says two things
+  // at once: this is a hole through the slab, and there is a machine in it. A
+  // shaft the car only PASSES on this level gets the X and no doors, which is
+  // exactly what an express run looks like in plan.
+  for (const lf of (b.lifts || [])) {
+    if (!lf.passes.includes(L.index)) continue;
+    const opens = lf.opens.includes(L.index);
+    const x0 = F.X(R.x0(lf)), x1 = F.X(R.x1(lf));
+    const y0 = F.Y(R.z0(lf)), y1 = F.Y(R.z1(lf));
+    out.push(box(F, lf, `fill="none" stroke="${P.ink}" stroke-width="1.4"`));
+    out.push(`<path d="M${n2(x0)} ${n2(y0)} L${n2(x1)} ${n2(y1)} M${n2(x1)} ${n2(y0)} L${n2(x0)} ${n2(y1)}" stroke="${P.ink}" stroke-width=".7" fill="none" opacity=".75"/>`);
+    out.push(box(F, { x: lf.x, z: lf.z, w: lf.car.w, d: lf.car.d },
+      `fill="none" stroke="${P.ink}" stroke-width=".6" stroke-dasharray="3 2" opacity=".8"`));
+    // the door line, on the levels it actually opens at
+    if (opens) {
+      out.push(`<line x1="${n2(x0 + 3)}" y1="${n2(y1)}" x2="${n2(x1 - 3)}" y2="${n2(y1)}" stroke="${P.accent}" stroke-width="2"/>`);
+    }
+    if (F.L(lf.w) > 24) {
+      out.push(label(F.X(lf.x), F.Y(lf.z) - F.L(lf.d) / 2 - 3,
+        lf.scenic ? 'SCENIC' : lf.firefighting ? 'FF' : `L${lf.id + 1}`, P, 6, 'middle', P.ink));
+    }
+  }
+
+  // the stairs inside them — drawn from the same objects the model builds, so
+  // a step in the drawing is a step in the building
+  for (const st of (b.stairs || [])) {
+    if (st.level !== L.index) continue;
+    out.push(stairSVG(F, st, P));
+    if (F.L(st.footprint.w) > 30) {
+      out.push(label(F.X(st.box.x), F.Y(st.box.z) - F.L(st.footprint.d) / 2 + 9,
+        `${st.risers}R @ ${Math.round(st.rise * 1000)}`, P, 6.2, 'middle', P.ink));
+    }
+  }
+
+  // columns
+  for (const c of L.columns)
+    out.push(`<rect x="${F.X(c.x) - 2.2}" y="${F.Y(c.z) - 2.2}" width="4.4" height="4.4" fill="${P.ink}"/>`);
+
+  // section cut line A–A through z = 0
+  const cz = opts.cutZ != null ? opts.cutZ : 0;
+  out.push(`<line x1="${F.X(bx.x0) - 14}" y1="${F.Y(cz)}" x2="${F.X(bx.x1) + 14}" y2="${F.Y(cz)}" stroke="${P.accent}" stroke-width="1" stroke-dasharray="12 4 3 4"/>`);
+  out.push(label(F.X(bx.x0) - 16, F.Y(cz) - 4, 'A', P, 9, 'end', P.accent));
+  out.push(label(F.X(bx.x1) + 16, F.Y(cz) - 4, 'A', P, 9, 'start', P.accent));
+
+  // north arrow (north is −z, so it points up the sheet) + overall dimension
+  const nx = W - 26, ny = 40;
+  out.push(`<line x1="${nx}" y1="${ny + 16}" x2="${nx}" y2="${ny - 14}" stroke="${P.line}" stroke-width="1.2" marker-end="url(#${id}-arrow)"/>`);
+  out.push(label(nx, ny + 27, 'N', P, 9, 'middle', P.line));
+  out.push(dimH(F, bx.x0, bx.x1, F.Y(bx.z1) + 16, P));
+  out.push(dimV(F, bx.z0, bx.z1, F.X(bx.x0) - 16, P));
+
+  out.push(label(pad - 12, H - 8, `${L.label}  ·  ${Math.round(L.gfa || 0)} m² GIA  ·  ${L.rooms.length} spaces`, P, 10, 'start', P.ink));
+  out.push(label(W - pad + 12, H - 8, nominalScale(F.s) + ' @ sheet', P, 9, 'end'));
+  return frame(W, H, P, id, out.join('\n'));
+}
+
+// Monospace, so a character is ~0.6 em: truncate to what the room can actually
+// hold rather than letting a label bleed across the partition next door.
+function fitText(t, px, size) {
+  const max = Math.floor(px / (size * 0.6));
+  if (max < 2) return '';
+  return t.length <= max ? t : t.slice(0, Math.max(1, max - 1)) + '…';
+}
+
+function box(F, r, attrs) {
+  return `<rect x="${F.X(R.x0(r))}" y="${F.Y(R.z0(r))}" width="${F.L(r.w)}" height="${F.L(r.d)}" ${attrs}/>`;
+}
+
+function plateBounds(b) {
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const L of b.levels) for (const wg of L.wings) {
+    x0 = Math.min(x0, R.x0(wg)); x1 = Math.max(x1, R.x1(wg));
+    z0 = Math.min(z0, R.z0(wg)); z1 = Math.max(z1, R.z1(wg));
+  }
+  const m = Math.max(2, (x1 - x0) * 0.04);
+  return { x0: x0 - m, x1: x1 + m, z0: z0 - m, z1: z1 + m };
+}
+
+function dimH(F, a, b, y, P) {
+  return `<g><line x1="${F.X(a)}" y1="${y}" x2="${F.X(b)}" y2="${y}" stroke="${P.faint}" stroke-width=".8"/>` +
+    `<line x1="${F.X(a)}" y1="${y - 4}" x2="${F.X(a)}" y2="${y + 4}" stroke="${P.faint}"/>` +
+    `<line x1="${F.X(b)}" y1="${y - 4}" x2="${F.X(b)}" y2="${y + 4}" stroke="${P.faint}"/>` +
+    label((F.X(a) + F.X(b)) / 2, y - 5, `${(b - a).toFixed(1)} m`, P, 8, 'middle') + '</g>';
+}
+function dimV(F, a, b, x, P) {
+  return `<g><line x1="${x}" y1="${F.Y(a)}" x2="${x}" y2="${F.Y(b)}" stroke="${P.faint}" stroke-width=".8"/>` +
+    `<line x1="${x - 4}" y1="${F.Y(a)}" x2="${x + 4}" y2="${F.Y(a)}" stroke="${P.faint}"/>` +
+    `<line x1="${x - 4}" y1="${F.Y(b)}" x2="${x + 4}" y2="${F.Y(b)}" stroke="${P.faint}"/>` +
+    `<text x="${x - 5}" y="${(F.Y(a) + F.Y(b)) / 2}" font-size="8" fill="${P.text}" text-anchor="middle" transform="rotate(-90 ${x - 5} ${(F.Y(a) + F.Y(b)) / 2})">${(b - a).toFixed(1)} m</text></g>`;
+}
+
+/* ──────────────────────────────  ELEVATION  ─────────────────────────────── */
+
+// Which world axis runs left→right on each elevation, handed for a viewer
+// standing on that side and looking at the building.
+const HAND = {
+  N: { axis: 'x', sign: -1, from: 'north' },
+  S: { axis: 'x', sign: 1, from: 'south' },
+  W: { axis: 'z', sign: 1, from: 'west' },
+  E: { axis: 'z', sign: -1, from: 'east' },
+};
+
+export function elevationSVG(b, side, opts = {}) {
+  const P = opts.palette || PALETTES.blueprint;
+  const W = opts.width || 640, H = opts.height || 460, pad = opts.pad || 34;
+  const id = (opts.id || 'e') + side;
+  const hand = HAND[side];
+  const bx = plateBounds(b);
+  const uMin = hand.axis === 'x' ? bx.x0 : bx.z0, uMax = hand.axis === 'x' ? bx.x1 : bx.z1;
+  // A PLANTED BUILDING IS TALLER THAN ITS PARAPET. The frame used to fit
+  // `b.height` and nothing else, so the roof garden's crowns were guillotined
+  // by the top of the sheet — a drawing that says the trees end at the handrail.
+  const topY = Math.max(b.height * 1.06, plantedTop(b) * 1.02);
+  const F = fitter(0, uMax - uMin, 0, topY, W, H - 26, pad);
+  // u (world) → sheet x, with the handedness applied
+  const U = (v) => F.X(hand.sign > 0 ? v - uMin : uMax - v);
+  const V = (y) => F.Y(topY - y);   // y=0 is the ground line, at the bottom of the sheet
+  const out = [];
+
+  // ground line
+  out.push(`<line x1="${pad - 12}" y1="${V(0)}" x2="${W - pad + 12}" y2="${V(0)}" stroke="${P.ink}" stroke-width="2"/>`);
+
+  // the plate silhouettes, level by level, so setbacks and cantilevers read
+  for (const L of b.levels) {
+    for (const wg of L.wings) {
+      const a = hand.axis === 'x' ? R.x0(wg) : R.z0(wg), c = hand.axis === 'x' ? R.x1(wg) : R.z1(wg);
+      const x0 = Math.min(U(a), U(c)), x1 = Math.max(U(a), U(c));
+      out.push(`<rect x="${x0}" y="${V(L.y + L.h)}" width="${n2(x1 - x0)}" height="${n2(F.L(L.h))}" fill="${P.bg}" fill-opacity=".5" stroke="${P.faint}" stroke-width=".7"/>`);
+    }
+  }
+
+  // the bays — the elevation proper. Only facades on this side, sorted so the
+  // nearest plane draws last and reads on top.
+  const faces = b.facades.filter((f) => f.side === side)
+    .sort((a, c) => (a.level - c.level));
+  for (const f of faces) {
+    for (const bay of f.bays) {
+      const u = hand.axis === 'x' ? bay.x : bay.z;
+      const cxa = U(u - bay.w / 2), cxb = U(u + bay.w / 2);
+      const x0 = Math.min(cxa, cxb), bw = Math.abs(cxb - cxa);
+      out.push(bayGlyph(bay.module, x0, V(f.y + f.h), bw, F.L(f.h), P, id));
+    }
+  }
+
+  // towers
+  for (const t of b.towers) {
+    const a = hand.axis === 'x' ? t.x - t.w / 2 : t.z - t.d / 2;
+    const c = hand.axis === 'x' ? t.x + t.w / 2 : t.z + t.d / 2;
+    const x0 = Math.min(U(a), U(c)), x1 = Math.max(U(a), U(c));
+    out.push(`<rect x="${x0}" y="${V(t.h)}" width="${n2(x1 - x0)}" height="${n2(F.L(t.h))}" fill="${P.core}" fill-opacity=".55" stroke="${P.ink}" stroke-width="1.6"/>`);
+  }
+
+  // level datums, the storey heights spelled out down the left margin
+  for (const L of b.levels) {
+    out.push(`<line x1="${pad - 20}" y1="${V(L.y)}" x2="${W - pad + 6}" y2="${V(L.y)}" stroke="${P.faint}" stroke-width=".5" stroke-dasharray="3 5"/>`);
+    if (F.L(L.h) > 9) out.push(label(pad - 22, V(L.y) - 2, `+${L.y.toFixed(1)}`, P, 7, 'end'));
+  }
+
+  // THE PLANTING, over the top of everything, because that is where it is: a
+  // terrace garden stands in front of the storey behind it. Painted back to
+  // front by depth into the page, so a grove reads as a grove and not as a
+  // stack of decals — which is the whole reason `plantElevation` hands back v.
+  const treesE = [];
+  for (const q of (b.planting || [])) {
+    for (const pl of q.plants) {
+      if (!pl.tree) continue;
+      treesE.push(plantElevation(pl.tree, { x: pl.x, y: soilTop(q), z: pl.z, axis: hand.axis }));
+    }
+  }
+  const depthOf = (t) => (t.stems[0] ? t.stems[0].v : 0);
+  treesE.sort((a, c) => (hand.sign > 0 ? depthOf(a) - depthOf(c) : depthOf(c) - depthOf(a)));
+  for (const t of treesE) out.push(treeGlyph(t, U, V, F, P));
+
+  out.push(label(pad - 12, H - 8, `Elevation from the ${hand.from}  ·  ${b.height.toFixed(1)} m to parapet`, P, 10, 'start', P.ink));
+  out.push(label(W - pad + 12, H - 8, nominalScale(F.s) + ' @ sheet', P, 9, 'end'));
+  return frame(W, H, P, id, out.join('\n'));
+}
+
+// One bay, drawn as the module it is. `y` is the TOP of the bay in sheet coords.
+function bayGlyph(mod, x, y, w, h, P, id) {
+  const M = MODULES[mod];
+  const g = [];
+  const solid = `fill="${P.bg}" fill-opacity=".85" stroke="${P.line}" stroke-width=".9"`;
+  const relief = M.depth > 0.5 ? 1 : 0;
+  switch (mod) {
+    case 'open':
+      g.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${P.faint}" stroke-width=".6" stroke-dasharray="3 3"/>`);
+      break;
+    case 'pier':
+    case 'buttress': {
+      const pw = Math.min(w, Math.max(3, w * 0.55));
+      g.push(`<rect x="${n2(x + (w - pw) / 2)}" y="${y}" width="${n2(pw)}" height="${h}" fill="${P.poche}" stroke="${P.ink}" stroke-width="1.2"/>`);
+      break;
+    }
+    case 'blank':
+      g.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${solid}/>`);
+      // board-marking: the shuttering lines that are the whole point of béton brut
+      for (let i = 1; i * 6 < h; i++)
+        g.push(`<line x1="${x}" y1="${n2(y + i * 6)}" x2="${n2(x + w)}" y2="${n2(y + i * 6)}" stroke="${P.faint}" stroke-width=".4"/>`);
+      break;
+    case 'recess':
+      g.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${P.poche}" fill-opacity=".8" stroke="${P.line}" stroke-width=".8"/>`);
+      g.push(`<rect x="${n2(x + w * 0.14)}" y="${n2(y + h * 0.1)}" width="${n2(w * 0.72)}" height="${n2(h * 0.8)}" fill="${P.bg}" fill-opacity=".7" stroke="none"/>`);
+      break;
+    case 'vent': {
+      g.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${solid}/>`);
+      const n = Math.max(2, Math.floor(h / 5));
+      for (let i = 1; i < n; i++)
+        g.push(`<line x1="${n2(x + w * 0.12)}" y1="${n2(y + (i * h) / n)}" x2="${n2(x + w * 0.88)}" y2="${n2(y + (i * h) / n)}" stroke="${P.line}" stroke-width="1.1"/>`);
+      break;
+    }
+    case 'brise': {
+      g.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${P.glass}" fill-opacity=".18" stroke="${P.line}" stroke-width=".8"/>`);
+      const nv = Math.max(2, Math.round(w / 9)), nh = Math.max(2, Math.round(h / 9));
+      for (let i = 1; i < nv; i++) g.push(`<line x1="${n2(x + (i * w) / nv)}" y1="${y}" x2="${n2(x + (i * w) / nv)}" y2="${n2(y + h)}" stroke="${P.line}" stroke-width=".8"/>`);
+      for (let i = 1; i < nh; i++) g.push(`<line x1="${x}" y1="${n2(y + (i * h) / nh)}" x2="${n2(x + w)}" y2="${n2(y + (i * h) / nh)}" stroke="${P.line}" stroke-width=".8"/>`);
+      break;
+    }
+    case 'oriel':
+      g.push(`<rect x="${n2(x + w * 0.1)}" y="${n2(y + h * 0.07)}" width="${n2(w * 0.8)}" height="${n2(h * 0.86)}" fill="${P.bg}" fill-opacity=".9" stroke="${P.ink}" stroke-width="1.3"/>`);
+      g.push(`<rect x="${n2(x + w * 0.2)}" y="${n2(y + h * 0.2)}" width="${n2(w * 0.6)}" height="${n2(h * 0.6)}" fill="${P.glass}" fill-opacity=".45" stroke="none"/>`);
+      break;
+    case 'balcony':
+      g.push(`<rect x="${x}" y="${n2(y + h * 0.44)}" width="${w}" height="${n2(h * 0.56)}" ${solid}/>`);
+      g.push(`<rect x="${x}" y="${n2(y + h * 0.12)}" width="${w}" height="${n2(h * 0.3)}" fill="${P.glass}" fill-opacity=".35" stroke="${P.line}" stroke-width=".7"/>`);
+      g.push(`<line x1="${x}" y1="${n2(y + h * 0.44)}" x2="${n2(x + w)}" y2="${n2(y + h * 0.44)}" stroke="${P.ink}" stroke-width="1.6"/>`);
+      break;
+    case 'rose': {
+      g.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${solid}/>`);
+      const r = Math.min(w, h) * 0.3;
+      g.push(`<circle cx="${n2(x + w / 2)}" cy="${n2(y + h * 0.42)}" r="${n2(r)}" fill="${P.glass}" fill-opacity=".4" stroke="${P.ink}" stroke-width="1.2"/>`);
+      for (let i = 0; i < 8; i++) {
+        const a = (i / 8) * Math.PI * 2;
+        g.push(`<line x1="${n2(x + w / 2)}" y1="${n2(y + h * 0.42)}" x2="${n2(x + w / 2 + Math.cos(a) * r)}" y2="${n2(y + h * 0.42 + Math.sin(a) * r)}" stroke="${P.line}" stroke-width=".6"/>`);
+      }
+      break;
+    }
+    case 'lancet':
+    case 'slit':
+    case 'band':
+    default: {
+      const gw = mod === 'band' ? w * 0.9 : w * (mod === 'lancet' ? 0.24 : 0.36);
+      const gh = mod === 'band' ? h * 0.46 : h * 0.68;
+      g.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" ${solid}/>`);
+      g.push(`<rect x="${n2(x + (w - gw) / 2)}" y="${n2(y + (h - gh) * 0.38)}" width="${n2(gw)}" height="${n2(gh)}" fill="${P.glass}" fill-opacity=".42" stroke="${P.ink}" stroke-width=".9"/>`);
+      break;
+    }
+  }
+  if (relief) g.push(`<line x1="${x}" y1="${y}" x2="${x}" y2="${n2(y + h)}" stroke="${P.ink}" stroke-width=".6" opacity=".7"/>`);
+  return `<g data-module="${mod}">${g.join('')}</g>`;
+}
+
+/* ─────────────────────────  PLANTING, IN ELEVATION  ─────────────────────── */
+
+// Where the soil surface actually is. A planter is filled to 60 mm below its
+// rim — otherwise watering it washes the substrate over the edge — and `parts()`
+// stands the tree on exactly that. The drawing has to use the same number or
+// the sheet and the bench disagree about where the ground is, which is the kind
+// of discrepancy nobody notices until a section is dimensioned off it.
+const soilTop = (q) => q.y + Math.max(0.05, q.depth - 0.06);
+
+// The highest thing on the building, planting included. A twelve-metre plane on
+// a roof garden puts the top of the drawing twelve metres above the parapet,
+// and the elevation frame has to know that or it crops it off.
+function plantedTop(b) {
+  let top = 0;
+  for (const q of (b.planting || [])) {
+    for (const pl of q.plants) top = Math.max(top, soilTop(q) + (pl.tree ? pl.tree.height : 0));
+  }
+  return top;
+}
+
+// A tree in PLAN is a circle, and every species gets the same circle. A tree in
+// ELEVATION is where the habit shows, which is the entire reason there are
+// nineteen species instead of one scaled three ways: a poplar and a willow of
+// the same height and spread are an identical plan symbol and two completely
+// different drawings.
+//
+// Two outlines, meaning two different things. The dashed line is the design
+// envelope — the habit's own profile at this tree's mature dimensions, what a
+// landscape architect dimensions and what the tree WILL be. The solid mass is
+// the tree that actually grew inside whatever envelope the architecture handed
+// it. Where the building clipped the crown, the mass pulls away from the dashed
+// line, and that gap is the coupling this subsystem exists for, drawn.
+//
+// `U` takes a world u to a sheet x (the caller owns handedness); `V` takes a
+// world y to a sheet y; `F.L` is a world length in sheet units.
+const bark0 = (P, o) => o.bark || P.line;
+
+function treeGlyph(el, U, V, F, P, o = {}) {
+  const g = [];
+  const rSheet = F.L(el.spread / 2), hSheet = F.L(el.height);
+  if (hSheet < 3) return '';
+  const green = o.colour || P.accent;
+
+  // WHAT A TREE IS ON A SHEET DEPENDS ON THE SCALE OF THE SHEET, and this is
+  // the thing the first version of this got wrong. Projecting the full skeleton
+  // at every size drew a forty-pixel tree as three hundred radiating hairs with
+  // a scatter of dots over them — a firework, not a tree. No drawing office has
+  // ever done that, because at 1:500 a tree is a SYMBOL and at 1:100 it is a
+  // drawing, and the difference is not a style choice.
+  //
+  // Three tiers, chosen by how big the tree lands on this particular sheet.
+  const env = el.envelope.map((p, i) => `${i ? 'L' : 'M'}${U(p.u)} ${V(p.y)}`).join(' ');
+
+  // 1:1000 and below — a stick and a blob. Anything more is ink pretending.
+  if (hSheet < 11) {
+    g.push(`<line x1="${U(el.u)}" y1="${V(el.y)}" x2="${U(el.u)}" y2="${V(el.y + el.height)}" stroke="${green}" stroke-width=".8" opacity=".8"/>`);
+    g.push(`<circle cx="${U(el.u)}" cy="${V(el.y + el.height * 0.75)}" r="${n2(Math.max(1.5, rSheet))}" fill="${green}" opacity=".4"/>`);
+    return `<g data-plant="${el.label}">${g.join('')}</g>`;
+  }
+
+  // The middle tier, and the one that carries most sheets: THE HABIT AS A
+  // SILHOUETTE. Filled, with the clear stem drawn under it — so a poplar is a
+  // column, a pine is a cone and a willow is a broad weeper at a size where the
+  // branch structure would be illegible anyway. This is the drawing where the
+  // nineteen species pay for themselves.
+  // The test is on the SPREAD as well as the height, and it has to be: a
+  // climber is fifteen metres of plant in six hundred millimetres of width, so
+  // height alone sent it to the full skeleton and drew a green wall as one bare
+  // wiggling line. Anything narrower than about a centimetre and a half on the
+  // sheet has no room for a branch structure whatever its height.
+  if (hSheet < 46 || rSheet < 7) {
+    const stem = Math.max(0.6, F.L(el.trunk * 2));
+    g.push(`<line x1="${U(el.u)}" y1="${V(el.y)}" x2="${U(el.u)}" y2="${V(el.y + el.crownBase + 0.4)}" stroke="${bark0(P, o)}" stroke-width="${n2(stem)}" opacity=".8"/>`);
+    g.push(`<path d="${env} Z" fill="${green}" fill-opacity="${el.evergreen ? 0.42 : 0.28}" stroke="${green}" stroke-width=".8" opacity=".9"/>`);
+    // deciduous gets a broken edge, the same convention the plan symbol uses
+    if (!el.evergreen && rSheet > 6) {
+      const nick = [];
+      for (let i = 2; i < el.envelope.length - 2; i += 3) {
+        const p = el.envelope[i];
+        nick.push(`<circle cx="${U(p.u)}" cy="${V(p.y)}" r="${n2(Math.max(1, rSheet * 0.13))}"/>`);
+      }
+      g.push(`<g fill="${green}" opacity=".3">${nick.join('')}</g>`);
+    }
+    return `<g data-plant="${el.label}" data-habit="${el.habit}">${g.join('')}</g>`;
+  }
+
+  // 1:100 and up — the tree that actually grew. The design envelope goes in
+  // dashed behind it, and the gap between the two is the architecture's
+  // clipping made visible.
+  g.push(`<path d="${env} Z" fill="none" stroke="${green}" stroke-width=".7" stroke-dasharray="4 3" opacity=".45"/>`);
+
+  // THE BRANCH STRUCTURE, ON A BUDGET SET BY THE SHEET. A mature poplar carries
+  // seven hundred segments and a sheet carries four elevations and a section,
+  // so drawing all of them produced a half-megabyte SVG for one drawing — the
+  // "trees cost more frame time than the building" kill criterion, arriving in
+  // the drawing office instead of the bench.
+  //
+  // The budget is a function of how big the tree IS on the sheet rather than a
+  // constant, because that is the honest version of the same cut: a tree twenty
+  // pixels tall has twenty pixels of detail available and a constant budget
+  // spends four hundred strokes rendering them on top of each other. The
+  // thickest survive, so what gets dropped is what was invisible anyway.
+  // Two cuts, both of them about what is actually visible. A segment shorter
+  // than a pixel on the sheet cannot be seen at all, so it goes first; then the
+  // thickest of what is left, up to a budget that scales with the drawing.
+  const budget = Math.max(6, Math.min(180, Math.round(hSheet * 1.1)));
+  const visible = el.stems.filter((s) => Math.hypot(U(s.u1) - U(s.u0), V(s.y1) - V(s.y0)) > 1.1);
+  const keep = visible.length > budget
+    ? [...visible].sort((a, c) => c.r - a.r).slice(0, budget)
+    : visible;
+
+  // Grouped into three pen weights and emitted as three paths. A plotter has
+  // three pens; one `stroke-width` per segment is markup nobody reads. And the
+  // coordinates are rounded to a TENTH of a pixel — two decimals of a sheet
+  // coordinate is precision below what any screen or plotter resolves, and at
+  // three thousand segments a drawing it is the largest single thing in the file.
+  //
+  // The weights come off the radii in each BUCKET, not off the trunk: scaling
+  // all three from the trunk drew a mature plane's twigs at a fifth of a
+  // 500 mm stem, which is 50 mm of twig — a tree made of scaffolding poles.
+  const p1 = (v) => Math.round(v * 10) / 10;
+  const maxR = keep.reduce((m, s) => Math.max(m, s.r), 0) || 1;
+  const pens = [[], [], []], pw = [0, 0, 0];
+  for (const s of keep) {
+    const k = s.r > maxR * 0.5 ? 0 : s.r > maxR * 0.18 ? 1 : 2;
+    pens[k].push(`M${p1(U(s.u0))} ${p1(V(s.y0))}L${p1(U(s.u1))} ${p1(V(s.y1))}`);
+    pw[k] += s.r;
+  }
+  // A tree is drawn in ONE pen colour, the way a landscape elevation is drawn.
+  // Using the building's ink made a canopy read as a bright thicket of sticks
+  // in front of the facade rather than as a tree behind its own leaves.
+  pens.forEach((d, k) => {
+    if (!d.length) return;
+    const w = Math.max(0.35, F.L((pw[k] / d.length) * 2));
+    g.push(`<path d="${d.join('')}" fill="none" stroke="${bark0(P, o)}" stroke-width="${n2(w)}" stroke-linecap="round" opacity=".7"/>`);
+  });
+
+  // THE CANOPY, capped by the area it covers on the sheet rather than by count
+  // — a blob is worth drawing when it is a visible fraction of the crown, and
+  // 190 of them inside a 30-pixel circle is ink for its own sake.
+  //
+  // Evergreen reads as a mass you cannot see through; deciduous is drawn open,
+  // so the branch structure shows. That is the same distinction the plan symbol
+  // makes with a ragged edge, made the way an elevation makes it.
+  // The blobs are drawn SMALLER than the model's leaf clusters and there are
+  // MORE of them. In the 3D bench a cluster is a sphere sized to overlap its
+  // neighbours into one mass; flattened onto a sheet at the same radius it
+  // becomes a grape, and a crown of thirty grapes on bare sticks is a lollipop.
+  // Two thirds the radius and three times the count is the same leaf area
+  // reading as foliage rather than as fruit.
+  // How many blobs is a COVERAGE question, so the cap comes off the area the
+  // crown projects onto the sheet divided by the area one blob covers. Sizing
+  // it off the crown radius squared was the ball-shaped assumption in disguise
+  // and it drew a climber — twelve metres of plant in 1.26 m of width — as
+  // thirty dots on a bare whip, because a green wall's crown has almost no
+  // radius and almost all of the area.
+  if (!el.foliage.length) return `<g data-plant="${el.label}" data-habit="${el.habit}">${g.join('')}</g>`;
+  const op = el.evergreen ? 0.5 : 0.32;
+  const rBlob = Math.max(0.7, F.L(el.foliage[Math.floor(el.foliage.length / 2)].r) * 0.66);
+  const crownSheet = Math.max(4, F.L(el.height - el.crownBase));
+  const fCap = Math.max(3, Math.min(150,
+    Math.round((2 * rSheet * crownSheet * 0.55) / (Math.PI * rBlob * rBlob))));
+  const stride = Math.max(1, Math.ceil(el.foliage.length / fCap));
+  const blobs = [];
+  for (let i = 0; i < el.foliage.length; i += stride) {
+    const f = el.foliage[i];
+    const r = F.L(f.r) * 0.66;
+    if (r < 0.7) continue;
+    blobs.push(`<circle cx="${U(f.u)}" cy="${V(f.y)}" r="${n2(r)}"/>`);
+  }
+  // fill and opacity hoisted onto the group — the same paint applies to all of
+  // them, and repeating it per circle was a third of the file
+  if (blobs.length) g.push(`<g fill="${green}" opacity="${op}">${blobs.join('')}</g>`);
+  return `<g data-plant="${el.label}" data-habit="${el.habit}">${g.join('')}</g>`;
+}
+
+/* ───────────────────────────────  SECTION  ──────────────────────────────── */
+
+export function sectionSVG(b, opts = {}) {
+  const P = opts.palette || PALETTES.blueprint;
+  const W = opts.width || 640, H = opts.height || 460, pad = opts.pad || 34;
+  const id = opts.id || 'sec';
+  const cutZ = opts.cutZ != null ? opts.cutZ : 0;
+  const S = archSection(b, cutZ);
+  const bx = plateBounds(b);
+  const topY = Math.max(b.height * 1.06, plantedTop(b) * 1.02);
+  const F = fitter(bx.x0, bx.x1, 0, topY, W, H - 26, pad);
+  const V = (y) => F.Y(topY - y);   // y=0 is the ground line, at the bottom of the sheet
+  const out = [];
+
+  out.push(`<line x1="${pad - 14}" y1="${V(0)}" x2="${W - pad + 14}" y2="${V(0)}" stroke="${P.ink}" stroke-width="2"/>`);
+  // ground poché
+  out.push(`<rect x="${pad - 14}" y="${V(0)}" width="${n2(W - 2 * pad + 28)}" height="10" fill="url(#${id}-hatch)" opacity=".6"/>`);
+  // A building does not end at the ground. Where the report knows what the
+  // foundation is, the section cuts it — that is the half of the drawing that
+  // used to be missing.
+  const fnd = opts.foundation;
+  if (fnd) {
+    const bw = fnd.B, x0f = -bw / 2;
+    if (fnd.type === 'pads') {
+      const n = Math.max(2, Math.round(bw / (opts.bay || 8)));
+      for (let i = 0; i <= n; i++) {
+        const cxp = x0f + (i * bw) / n;
+        out.push(`<rect x="${F.X(cxp - fnd.padB / 2)}" y="${V(0)}" width="${n2(F.L(fnd.padB))}" height="${n2(Math.max(3, F.L(fnd.depth)))}" fill="${P.core}" stroke="${P.ink}" stroke-width="1.1"/>`);
+      }
+    } else {
+      out.push(`<rect x="${F.X(x0f)}" y="${V(0)}" width="${n2(F.L(bw))}" height="${n2(Math.max(4, F.L(fnd.depth)))}" fill="${P.core}" stroke="${P.ink}" stroke-width="1.4"/>`);
+      if (fnd.type === 'piled raft') {
+        const n = Math.max(3, Math.min(14, Math.round(Math.sqrt(fnd.nPiles))));
+        const top = V(0) + Math.max(4, F.L(fnd.depth));
+        // the piles are drawn to whatever depth is left on the sheet, not to
+        // their true 18 m, so they never run off the bottom of the drawing
+        const len = Math.max(8, Math.min(F.L(18), H - 26 - top));
+        for (let i = 0; i < n; i++) {
+          const cxp = x0f + ((i + 0.5) * bw) / n;
+          out.push(`<rect x="${F.X(cxp) - 2}" y="${n2(top)}" width="4" height="${n2(len)}" fill="${P.core}" stroke="${P.ink}" stroke-width=".7"/>`);
+        }
+      }
+    }
+    out.push(label(W - pad + 12, H - 22, fnd.note, P, 7.5, 'end'));
+  }
+
+  for (let i = 0; i < S.rows.length; i++) {
+    const row = S.rows[i];
+    const aboveSpans = S.rows[i + 1] ? S.rows[i + 1].spans : [];
+    for (const [x0, x1] of row.spans) {
+      // the storey volume, then the slab cut heavy — that is what a section IS
+      out.push(`<rect x="${F.X(x0)}" y="${V(row.y + row.h)}" width="${n2(F.L(x1 - x0))}" height="${n2(F.L(row.h))}" fill="${P.bg}" fill-opacity=".8" stroke="${P.line}" stroke-width=".9"/>`);
+      out.push(`<rect x="${F.X(x0)}" y="${V(row.y + 0.42)}" width="${n2(F.L(x1 - x0))}" height="${n2(Math.max(2, F.L(0.42)))}" fill="${P.ink}"/>`);
+      // and the ROOF over whatever the storey above does not stand on — the top
+      // storey and every setback terrace. The model decks exactly these, so the
+      // section has to cut them too or the drawing shows an open building.
+      for (const [r0, r1] of gaps([x0, x1], aboveSpans)) {
+        out.push(`<rect x="${F.X(r0)}" y="${V(row.y + row.h + 0.42)}" width="${n2(F.L(r1 - r0))}" height="${n2(Math.max(2, F.L(0.42)))}" fill="${P.ink}"/>`);
+        out.push(`<rect x="${F.X(r0)}" y="${V(row.y + row.h + 1.5)}" width="${n2(Math.max(1, F.L(0.3)))}" height="${n2(F.L(1.1))}" fill="${P.ink}"/>`);
+        out.push(`<rect x="${F.X(r1) - Math.max(1, F.L(0.3))}" y="${V(row.y + row.h + 1.5)}" width="${n2(Math.max(1, F.L(0.3)))}" height="${n2(F.L(1.1))}" fill="${P.ink}"/>`);
+      }
+    }
+    out.push(`<line x1="${pad - 22}" y1="${V(row.y)}" x2="${W - pad + 8}" y2="${V(row.y)}" stroke="${P.faint}" stroke-width=".4" stroke-dasharray="3 5"/>`);
+    if (F.L(row.h) > 10) out.push(label(pad - 24, V(row.y) - 2, `+${row.y.toFixed(1)}`, P, 7, 'end'));
+  }
+
+  // cores cut through — the shaft that makes the section legible
+  for (const c of b.cores) {
+    if (cutZ < c.z - c.d / 2 || cutZ > c.z + c.d / 2) continue;
+    const top = b.levels[b.levels.length - 1];
+    out.push(`<rect x="${F.X(c.x - c.w / 2)}" y="${V(top.y + top.h)}" width="${n2(F.L(c.w))}" height="${n2(F.L(top.y + top.h))}" fill="url(#${id}-poche)" fill-opacity=".55" stroke="${P.ink}" stroke-width="1.4"/>`);
+  }
+  for (const t of S.towers) {
+    out.push(`<rect x="${F.X(t.x0)}" y="${V(t.h)}" width="${n2(F.L(t.x1 - t.x0))}" height="${n2(F.L(t.h))}" fill="${P.core}" fill-opacity=".6" stroke="${P.ink}" stroke-width="1.5"/>`);
+  }
+
+  // THE PLANTING, CUT. This is the drawing the whole subsystem is for: a
+  // section is where the substrate depth, the drainage layer and the root plate
+  // become visible, and those three are what the slab is being asked to carry.
+  // An elevation shows a tree on a terrace; a section shows the metre of wet
+  // soil under it, which is seven times an office floor's live load.
+  //
+  // Only planters the cut actually passes through — a section that draws
+  // everything is a perspective.
+  for (const q of (b.planting || [])) {
+    if (cutZ < q.z - q.d / 2 || cutZ > q.z + q.d / 2) continue;
+    const top = soilTop(q), yb = q.y;
+    const x0 = F.X(q.x - q.w / 2), wS = F.L(q.w);
+    if (wS < 2) continue;
+    // the substrate, hatched as the soil it is, and the drainage layer under it
+    const dS = Math.max(1.5, F.L(top - yb));
+    out.push(`<rect x="${x0}" y="${V(top)}" width="${n2(wS)}" height="${n2(dS)}" fill="url(#${id}-hatch)" opacity=".55"/>`);
+    out.push(`<rect x="${x0}" y="${V(top)}" width="${n2(wS)}" height="${n2(dS)}" fill="none" stroke="${P.accent}" stroke-width="1.1"/>`);
+    out.push(`<line x1="${x0}" y1="${V(yb) - 1}" x2="${n2(x0 + wS)}" y2="${V(yb) - 1}" stroke="${P.accent}" stroke-width="1.6" stroke-dasharray="2 2" opacity=".8"/>`);
+    if (wS > 44) {
+      out.push(label(F.X(q.x), V(top) - 4, `${Math.round(q.depth * 1000)} mm ${q.label.toLowerCase()}`, P, 6.5, 'middle', P.accent));
+    }
+    for (const pl of q.plants) {
+      if (!pl.tree) continue;
+      const sec = plantSection(pl.tree, {
+        x: pl.x, y: top, z: pl.z, axis: 'x',
+        depth: top - yb, halfWidth: Math.min(q.w, q.d) / 2,
+      });
+      // the root plate, clipped to the planter it is in — wide and shallow,
+      // because that is what a mature root system is and what takes the
+      // overturning moment. `confined` is the planter saying it is not enough.
+      const pr = F.L(sec.rootPlate.r), pd = Math.max(1.5, F.L(sec.rootPlate.depth));
+      if (pr > 1.5) {
+        out.push(`<path d="M${n2(F.X(pl.x) - pr)} ${V(top)} A ${n2(pr)} ${n2(pd)} 0 0 0 ${n2(F.X(pl.x) + pr)} ${V(top)}" fill="none" stroke="${P.accent}" stroke-width="${sec.rootPlate.confined ? 1.3 : 0.8}" stroke-dasharray="${sec.rootPlate.confined ? '3 2' : '1 2'}" opacity=".85"/>`);
+      }
+      out.push(treeGlyph(sec, F.X, V, F, P));
+    }
+  }
+
+  out.push(dimV2(F, V, 0, b.height, W - pad + 16, P));
+  out.push(label(pad - 12, H - 8, `Section A–A  ·  cut at z = ${S.cutZ.toFixed(1)} m`, P, 10, 'start', P.ink));
+  out.push(label(W - pad + 12, H - 8, nominalScale(F.s) + ' @ sheet', P, 9, 'end'));
+  return frame(W, H, P, id, out.join('\n'));
+}
+
+// [a,b] minus a set of intervals — the 1D twin of rect.subtract, used to find
+// the part of a storey's span that nothing stands on, i.e. its roof.
+function gaps([a, b], covers) {
+  let out = [[a, b]];
+  for (const [c0, c1] of covers) {
+    const next = [];
+    for (const [s0, s1] of out) {
+      if (c1 <= s0 || c0 >= s1) { next.push([s0, s1]); continue; }
+      if (c0 > s0) next.push([s0, c0]);
+      if (c1 < s1) next.push([c1, s1]);
+    }
+    out = next;
+  }
+  return out.filter(([s0, s1]) => s1 - s0 > 0.05);
+}
+
+function dimV2(F, V, a, b, x, P) {
+  return `<g><line x1="${x}" y1="${V(a)}" x2="${x}" y2="${V(b)}" stroke="${P.faint}" stroke-width=".8"/>` +
+    `<line x1="${x - 4}" y1="${V(a)}" x2="${x + 4}" y2="${V(a)}" stroke="${P.faint}"/>` +
+    `<line x1="${x - 4}" y1="${V(b)}" x2="${x + 4}" y2="${V(b)}" stroke="${P.faint}"/>` +
+    `<text x="${x + 9}" y="${(V(a) + V(b)) / 2}" font-size="8" fill="${P.text}" text-anchor="middle" transform="rotate(-90 ${x + 9} ${(V(a) + V(b)) / 2})">${(b - a).toFixed(1)} m overall</text></g>`;
+}
+
+/* ────────────────────────────  TITLE BLOCK  ─────────────────────────────── */
+
+// The one line a lift group deserves in a title block: what is installed, how
+// fast, and the number a client actually feels — the interval. Capacity is the
+// design criterion; the wait is the experience.
+function liftLine(b) {
+  const g = b.liftGroup;
+  if (!g || !g.needed) return 'none — one storey';
+  const zone = g.zones > 1 ? ` in ${g.zones} zones` : '';
+  return `${g.built} × ${g.car.kg} kg @ ${g.speed} m/s${zone} · ${g.interval.toFixed(0)} s INT`;
+}
+
+// What a title block owes the planting: how much of it there is, and — the
+// number that decides whether it can be there at all — what the frame carries.
+function greenLine(b) {
+  const g = b.plantingStats;
+  if (!g || !g.plants) return 'none';
+  return `${g.plants} plants · ${Math.round(g.area)} m² · ${Math.round(g.carried)} t carried`;
+}
+
+export function titleBlockSVG(b, opts = {}) {
+  const P = opts.palette || PALETTES.blueprint;
+  const W = opts.width || 640, H = opts.height || 250;
+  const id = opts.id || 'tb';
+  const p = b.params, S = b.stats;
+  const out = [];
+  const rows = [
+    ['SEED', p.seed],
+    ['TYPE', b.typologyLabel],
+    // The parti belongs in a title block for the same reason a drawing has one
+    // at all: the set is read by someone who was not in the room, and the idea
+    // the scheme is a consequence of is the first thing they need.
+    ['PARTI', (b.parti && b.parti.note) || 'none declared'],
+    ['MASSING', `${p.massing} · ${p.shape}${p.symmetric ? ' · symmetric' : ''}`],
+    ['GRID', `${p.bay.toFixed(2)} m · ${p.bx}×${p.bz} bays`],
+    ['STOREYS', `${S.levels} @ ${p.floorH.toFixed(2)} m`],
+    ['HEIGHT', `${S.height.toFixed(1)} m`],
+    ['FOOTPRINT', `${Math.round(S.footprint)} m²`],
+    ['GIA', `${Math.round(S.gfa).toLocaleString('en-GB')} m²`],
+    ['PLOT RATIO', S.plotRatio.toFixed(2)],
+    ['SPACES', String(S.rooms)],
+    ['GLAZED', `${S.glazedRatio.toFixed(1)} % of envelope`],
+    ['RHYTHM', p.rhythm.map((m) => MODULES[m].label).join(' · ')],
+    ['CORES', `${S.cores} core${S.cores === 1 ? '' : 's'} · ${S.towers} tower${S.towers === 1 ? '' : 's'}`],
+    ['LIFTS', liftLine(b)],
+    ['PLANTING', greenLine(b)],
+    ['REV', revision(b)],
+  ];
+  out.push(`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" fill="none" stroke="${P.ink}" stroke-width="1.6"/>`);
+  out.push(label(14, 26, 'BRUT · PROCEDURAL ARCHITECTURE', P, 12, 'start', P.accent));
+  out.push(`<line x1="8" y1="36" x2="${W - 8}" y2="36" stroke="${P.line}" stroke-width=".9"/>`);
+  const colW = (W - 24) / 2;
+  rows.forEach((r, i) => {
+    const col = i < Math.ceil(rows.length / 2) ? 0 : 1;
+    const k = i - col * Math.ceil(rows.length / 2);
+    const y = 56 + k * 17, x = 14 + col * colW;
+    out.push(label(x, y, r[0], P, 8, 'start', P.text));
+    out.push(label(x + 78, y, r[1], P, 9.5, 'start', P.ink));
+  });
+  return frame(W, H, P, id, out.join('\n'), 'title');
+}
+
+/* ─────────────────────────  ROOM SCHEDULE (table)  ──────────────────────── */
+
+export function scheduleSVG(b, opts = {}) {
+  const P = opts.palette || PALETTES.blueprint;
+  const rowsIn = archSchedule(b);
+  const W = opts.width || 640;
+  const H = 44 + rowsIn.length * 16 + 10;
+  const id = opts.id || 'sch';
+  const total = rowsIn.reduce((s, r) => s + r.area, 0) || 1;
+  const out = [`<rect x="1" y="1" width="${W - 2}" height="${H - 2}" fill="none" stroke="${P.ink}" stroke-width="1.6"/>`];
+  out.push(label(14, 24, 'SCHEDULE OF ACCOMMODATION', P, 10, 'start', P.accent));
+  out.push(`<line x1="8" y1="32" x2="${W - 8}" y2="32" stroke="${P.line}" stroke-width=".9"/>`);
+  rowsIn.forEach((r, i) => {
+    const y = 48 + i * 16;
+    out.push(label(14, y, r.program, P, 9, 'start', P.ink));
+    out.push(label(W * 0.56, y, String(r.count), P, 9, 'end'));
+    out.push(label(W * 0.72, y, `${Math.round(r.area).toLocaleString('en-GB')} m²`, P, 9, 'end'));
+    const bw = (W * 0.24) * (r.area / total);
+    out.push(`<rect x="${n2(W * 0.74)}" y="${n2(y - 7)}" width="${n2(Math.max(1, bw))}" height="8" fill="${P.accent}" opacity=".55"/>`);
+  });
+  return frame(W, H, P, id, out.join('\n'), 'schedule');
+}
+
+/* ──────────────────────────────  FULL SHEET  ────────────────────────────── */
+//
+// Everything a set needs, in one string: the general arrangement plans, four
+// elevations, the section, the schedule and the title block. The page uses the
+// pieces; this exists so a whole set can be produced (and tested) headless.
+
+export function sheetSVG(b, opts = {}) {
+  const P = opts.palette || PALETTES.blueprint;
+  const w = opts.width || 640;
+  const parts = [titleBlockSVG(b, { ...opts, palette: P, width: w, height: 260 })];
+  for (let i = 0; i < b.levels.length; i++) parts.push(planSVG(b, i, { ...opts, palette: P, width: w }));
+  for (const s of ['N', 'E', 'S', 'W']) parts.push(elevationSVG(b, s, { ...opts, palette: P, width: w }));
+  parts.push(sectionSVG(b, { ...opts, palette: P, width: w }));
+  parts.push(scheduleSVG(b, { ...opts, palette: P, width: w }));
+  return parts.join('\n');
+}

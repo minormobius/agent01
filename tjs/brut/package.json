@@ -1,0 +1,7 @@
+{
+  "name": "tjs-brut",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Seeded procedural brutalism for tjs.mino.mobi — one generator (arch.js), two sites: the 3D model at /brut/ and the blueprint set at /brut/plan/. Pure ESM, zero dependencies, runs in node and the browser."
+}

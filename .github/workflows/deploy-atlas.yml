@@ -1,0 +1,59 @@
+name: Deploy atlas (county-level North America)
+
+on:
+  push:
+    branches: ['claude/county-level-data-maps-s9u3qx']
+    paths:
+      - 'atlas/**'
+      - 'packages/geoviz/**'
+      - 'packages/geohier/**'
+      - '.github/workflows/deploy-atlas.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # atlas/lib holds byte-identical copies of packages/geoviz and
+      # packages/geohier, because a static origin cannot import across
+      # directories. The ETL and the page share the geometry codec, so a stale
+      # copy would decode last month's arcs against this month's index and draw
+      # a map that is subtly wrong rather than broken. Fail before deploying.
+      - name: Vendored library copies are in sync
+        run: node scripts/sync-dataviz.mjs --check
+
+      - name: Selftest the geometry and hierarchy libraries
+        run: node atlas/etl/atlas.selftest.mjs
+
+      - name: Install wrangler
+        working-directory: atlas
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: atlas
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Green is not proof: verify the page, and verify that the geometry and
+      # data the page depends on are actually being served.
+      - name: Verify the atlas is live
+        continue-on-error: true
+        run: |
+          ok=0
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS https://atlas.mino.mobi/ | grep -qi 'thirteen superstates'; then ok=1; break; fi
+            echo "  attempt $attempt: page not up yet, sleeping…"; sleep 5
+          done
+          if [ "$ok" != 1 ]; then echo "⚠️ atlas.mino.mobi did not serve the page within 30s"; exit 0; fi
+          echo "✓ page is live"
+          for path in /geo/us-counties.json /data/us-counties.json /data/sources.json /sources /method; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://atlas.mino.mobi$path")
+            echo "  $path → $code"
+          done

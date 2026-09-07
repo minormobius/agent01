@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="bsky">
+<!-- `default`, not `black-translucent`: the translucent style slides the
+     topbar under the iOS clock (nothing here pads for safe-area-inset-TOP),
+     and a hardcoded black bar is wrong for the Paper and Sepia palettes.
+     `default` lets iOS tint the bar from theme-color, which theme.js keeps
+     in step with whichever palette is chosen. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>bsky — an AppView with no database</title>
+<script>
+/* Palette before first paint. Duplicating a few lines of lib/theme.js here is
+   deliberate: a module import resolves after the first paint, which is exactly
+   long enough to flash a white screen at someone who chose Midnight. */
+(function () {
+  var P = {
+    midnight:['#0b0d12','#11141c','#1e2330','#171b25','#e6eaf1','#8590a8','#5c95ff','dark'],
+    paper:['#fbfaf8','#ffffff','#e2e0da','#eeece7','#1b1e24','#5f6672','#1d5fd6','light'],
+    sepia:['#f5edda','#fdf8ec','#ddd0b4','#eae0c8','#33291b','#6b5c46','#9a4c1a','light'],
+    forest:['#0a1310','#0f1a16','#1d2f27','#16241e','#dfeae1','#7e9689','#4ade80','dark'],
+    plum:['#120f1a','#191426','#2a2140','#201933','#e9e3f4','#948aae','#c084fc','dark'],
+    ember:['#140f0c','#1c1512','#33251d','#261c17','#f0e6de','#a08d7e','#ff9448','dark'],
+    mono:['#000000','#0c0c0c','#3a3a3a','#242424','#ffffff','#c2c2c2','#ffd400','dark']
+  };
+  var want; try { want = localStorage.getItem('bsky:palette'); } catch (e) {}
+  if (!want || want === 'auto' || !P[want]) {
+    want = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'midnight' : 'paper';
+  }
+  var p = P[want], r = document.documentElement, k = ['--bg','--panel','--line','--line-soft','--text','--muted','--accent'];
+  for (var i = 0; i < k.length; i++) r.style.setProperty(k[i], p[i]);
+  r.style.colorScheme = p[7];
+  r.dataset.palette = want;
+  document.addEventListener('DOMContentLoaded', function () {
+    var m = document.querySelector('meta[name="theme-color"]');
+    if (m) m.setAttribute('content', p[0]);
+  });
+})();
+</script>
+<meta name="description" content="A Bluesky client that runs entirely in your browser. Algorithmic feeds, a live timeline with no backend, notifications from a public backlink index, and an archive that grows every visit.">
+<style>
+:root{
+  --bg:#0b0d12; --panel:#11141c; --line:#1e2330; --line-soft:#171b25;
+  --text:#e6eaf1; --muted:#79839a; --accent:#4c8dff; --live:#3ddc84; --dead:#e0576a;
+  --tabbar:64px;
+  --safe-b:env(safe-area-inset-bottom,0px);
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+/* An explicit display: rule beats the UA stylesheet's [hidden]{display:none},
+   so .chips (display:flex) stayed visible on other tabs. Make hidden win. */
+[hidden]{display:none!important}
+html,body{overscroll-behavior-y:none}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:15px;line-height:1.45;
+  -webkit-font-smoothing:antialiased;padding-bottom:calc(var(--tabbar) + var(--safe-b))}
+a{color:var(--accent);text-decoration:none}
+img{display:block}
+.muted{color:var(--muted)}
+button{font-family:inherit;font-size:15px;border:0;background:none;color:inherit;cursor:pointer}
+input,textarea,select{font-family:inherit;font-size:16px;/* 16px stops iOS zooming on focus */
+  background:#0a0c11;border:1px solid var(--line);border-radius:9px;color:var(--text);padding:11px 12px;width:100%}
+textarea{resize:none;line-height:1.4}
+
+/* ── top bar ───────────────────────────────────────── */
+.topbar{position:sticky;top:0;z-index:30;background:rgba(11,13,18,.92);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.tbrow{display:flex;align-items:center;gap:10px;padding:11px 14px;min-height:52px}
+.brand{font-weight:700;font-size:16px;letter-spacing:-.01em}
+.brand small{font-weight:400;color:var(--muted);font-size:11px;margin-left:6px}
+.tbrow .spacer{margin-left:auto}
+.pill{border:1px solid var(--line);border-radius:999px;padding:7px 14px;font-size:13px;
+  color:var(--muted);min-height:36px;display:inline-flex;align-items:center;gap:6px}
+.pill.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.avatar-btn{width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--line);flex:none}
+.avatar-btn img{width:100%;height:100%;object-fit:cover}
+
+/* horizontally scrolling feed chips — never wraps, never scrolls the page */
+.chips{display:flex;gap:8px;padding:0 14px 11px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.chips::-webkit-scrollbar{display:none}
+.chips .pill{flex:none;white-space:nowrap}
+
+/* ── posts ─────────────────────────────────────────── */
+.post{display:flex;gap:11px;padding:13px 14px;border-bottom:1px solid var(--line-soft);
+  cursor:pointer;position:relative}
+.post:active{background:var(--panel)}
+/* The whole card opens the thread, including the empty margin under the avatar.
+   Interactive children stop the bubble themselves — see app.js. */
+.post .pacts,.post .media,.post .card,.post .quote{cursor:auto}
+.pav{width:42px;height:42px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
+.pbody{flex:1;min-width:0}
+.phead{display:flex;align-items:baseline;gap:6px;font-size:14px;margin-bottom:2px}
+.pname{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:46%}
+.phandle{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ptime{color:var(--muted);font-size:13px;margin-left:auto;flex:none}
+.ptext{white-space:pre-wrap;overflow-wrap:anywhere;font-size:15px}
+.pembed{margin-top:7px;font-size:12px;color:var(--muted);border:1px solid var(--line);
+  border-radius:8px;padding:7px 10px;display:inline-block}
+.pacts{display:flex;gap:26px;margin-top:9px;color:var(--muted);font-size:13px}
+.pacts button{color:var(--muted);font-size:13px;display:inline-flex;align-items:center;gap:5px;
+  min-height:32px;min-width:44px}
+.pacts button:active{color:var(--accent)}
+
+/* ── media ─────────────────────────────────────────── */
+.media{margin-top:9px;border-radius:11px;overflow:hidden;display:grid;gap:2px;background:var(--line)}
+.media.grid-1{grid-template-columns:1fr}
+.media.grid-2{grid-template-columns:1fr 1fr}
+.media.grid-3,.media.grid-4{grid-template-columns:1fr 1fr}
+.imgcell{display:block;background:var(--line);overflow:hidden;max-height:420px}
+.imgcell img{width:100%;height:100%;object-fit:cover;display:block}
+.media.video{position:relative;background:#000;max-height:460px}
+.media.video video{width:100%;height:100%;object-fit:contain;background:#000;display:block}
+/* The tap target that loads hls.js. Big, centred and obviously a play button —
+   this is the ONLY control on a non-Safari browser until the library lands. */
+.vplay{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:64px;height:64px;border-radius:50%;border:0;cursor:pointer;
+  background:rgba(0,0,0,.62);color:#fff;font-size:24px;line-height:64px;padding:0 0 0 4px;
+  backdrop-filter:blur(2px);transition:background .15s}
+.vplay:hover{background:rgba(0,0,0,.78)}
+.vplay.loading{width:auto;height:auto;border-radius:14px;padding:8px 14px;
+  font-size:12.5px;line-height:1.3;cursor:default}
+.vfallback{position:absolute;left:10px;bottom:10px;font-size:12px;background:rgba(0,0,0,.66);
+  padding:5px 10px;border-radius:999px;color:#fff}
+.card{display:flex;flex-direction:column;margin-top:9px;border:1px solid var(--line);
+  border-radius:11px;overflow:hidden;color:inherit}
+.cardimg{width:100%;max-height:190px;object-fit:cover}
+.cardtext{padding:10px 12px}
+.cardhost{font-size:11.5px;color:var(--muted);margin-bottom:3px}
+.cardtitle{font-size:14px;font-weight:600;line-height:1.3}
+.carddesc{font-size:13px;color:var(--muted);margin-top:4px;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.quote{margin-top:9px;border:1px solid var(--line);border-radius:11px;padding:10px 12px}
+.qhead{display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:5px}
+.qav{width:20px;height:20px;border-radius:50%;background:var(--line);object-fit:cover}
+.qtext{font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted)}
+
+/* ── search results ────────────────────────────────── */
+.actor{display:flex;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line-soft);align-items:flex-start}
+.actor:active{background:#0e1118}
+.aav{width:44px;height:44px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
+.abody{flex:1;min-width:0}
+.aname{font-weight:600;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ahandle{color:var(--muted);font-size:13px}
+.adesc{color:var(--muted);font-size:13px;margin-top:3px;display:-webkit-box;
+  -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.searchbar{padding:11px 14px;border-bottom:1px solid var(--line)}
+
+/* ── notifications ─────────────────────────────────── */
+.notif{display:flex;gap:11px;padding:12px 14px;border-bottom:1px solid var(--line-soft);align-items:flex-start}
+.nicon{width:24px;flex:none;text-align:center;font-size:15px;padding-top:2px}
+.nbody{flex:1;min-width:0;font-size:14px}
+.nsub{color:var(--muted);font-size:13px;margin-top:3px;overflow:hidden;text-overflow:ellipsis;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ntime{color:var(--muted);font-size:12.5px;margin-left:6px}
+.notif{cursor:pointer}
+.notif:active{background:var(--panel)}
+
+/* ── profile ───────────────────────────────────────── */
+.pbanner{width:100%;height:118px;object-fit:cover;background:var(--line);display:block}
+.backbar{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line)}
+
+/* ── profile / me ──────────────────────────────────── */
+.phead-big{padding:16px 14px;border-bottom:1px solid var(--line)}
+.pbig{width:66px;height:66px;border-radius:50%;background:var(--line);object-fit:cover;margin-bottom:10px}
+.pdisp{font-size:19px;font-weight:700}
+.phand{color:var(--muted);font-size:14px}
+.pdesc{margin-top:9px;font-size:14px;white-space:pre-wrap;overflow-wrap:anywhere}
+.pstats{display:flex;gap:16px;margin-top:11px;font-size:13px;color:var(--muted)}
+.pstats b{color:var(--text)}
+.section{padding:14px;border-bottom:1px solid var(--line)}
+.section h3{font-size:13px;font-weight:600;margin-bottom:9px;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em}
+.section .row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.section p{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:9px}
+.btn{background:var(--accent);color:#fff;border-radius:9px;padding:11px 16px;min-height:44px;
+  font-weight:600;font-size:14px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.btn.ghost{background:transparent;border:1px solid var(--line);color:var(--muted);font-weight:400}
+.btn:disabled{opacity:.42}
+
+/* ── compose sheet ─────────────────────────────────── */
+.fab{position:fixed;right:16px;bottom:calc(var(--tabbar) + var(--safe-b) + 16px);z-index:40;
+  width:56px;height:56px;border-radius:50%;background:var(--accent);color:#fff;font-size:23px;
+  display:flex;align-items:center;justify-content:center;box-shadow:0 6px 22px rgba(0,0,0,.5)}
+.sheet{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;
+  padding-bottom:var(--safe-b)}
+.sheet[hidden]{display:none}
+.sheethead{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line)}
+.sheetbody{flex:1;padding:14px;overflow-y:auto}
+.sheetbody textarea{min-height:180px;border:0;background:transparent;padding:0;font-size:17px}
+/* Rule feeds — the header above a feed this browser generates for itself.
+   The meter is load-bearing copy, not decoration: an unfiltered post firehose
+   is real bandwidth, so it says what it is spending. */
+.quote{cursor:pointer}
+.quote-bare{color:var(--muted);font-size:13.5px;padding:9px 11px}
+/* Read the paper. The overlay is its own scroll container so the feed behind
+   it does not move, and `touch-action:none` on the scroller is required or the
+   browser claims the pinch before the handler sees it — the same lesson as
+   lib/lightbox.js. */
+.paperbtn{display:inline-flex;align-items:center;gap:6px;margin:8px 0 2px;padding:7px 11px;
+  min-height:36px;border:1px solid var(--line);border-radius:9px;background:var(--panel);
+  color:var(--accent);font-size:13px;font-weight:500;cursor:pointer}
+.paper{position:fixed;inset:0;z-index:70;background:var(--bg);display:flex;flex-direction:column}
+.paper-bar{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top,0px) + 9px) 12px 9px;
+  border-bottom:1px solid var(--line);flex:none;flex-wrap:nowrap;overflow-x:auto}
+.paper-title{font-size:13px;color:var(--muted);white-space:nowrap}
+.paper-zoom{font-size:12.5px;color:var(--muted);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+.paper-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y pinch-zoom;
+  background:var(--line-soft)}
+/* The pages are centred by this TRACK, never by the scroller itself. A flex or
+   grid container that centres a child WIDER than itself puts the overflow on
+   both sides, and the leading side is not scrollable — scrollLeft cannot go
+   below 0 — so zooming in made the left of every page permanently unreachable.
+   Measured at a 390px viewport with a 900px page: scrollWidth 647 instead of
+   904, and the page's left edge stuck at -257px however far you panned.
+   width:max-content makes the track as wide as the widest page, so the page is
+   never wider than its own container and there is no leading overflow to lose;
+   min-width:100% keeps it full-bleed so a narrow page still centres. */
+.paper-track{width:max-content;min-width:100%;display:flex;flex-direction:column;
+  align-items:center;gap:12px;padding:10px 0 calc(env(safe-area-inset-bottom,0px) + 20px);
+  will-change:transform}
+.paper-page{position:relative;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.35);flex:none}
+.paper-page canvas{display:block;width:100%;height:100%}
+.paper-link{position:absolute;display:block;background:rgba(76,141,255,.10);border-radius:2px}
+.paper-link:hover{background:rgba(76,141,255,.22)}
+.paper-status{margin:40px auto;color:var(--muted);font-size:14px;text-align:center;line-height:1.7;padding:0 24px}
+.repostmenu{position:absolute;z-index:65;background:var(--panel);border:1px solid var(--line);
+  border-radius:11px;padding:5px;box-shadow:0 8px 26px rgba(0,0,0,.4);display:flex;flex-direction:column;min-width:180px}
+.repostmenu button{background:0;border:0;color:var(--text);text-align:left;padding:11px 13px;font-size:14.5px;
+  border-radius:8px;cursor:pointer;min-height:44px}
+.repostmenu button:active{background:var(--line-soft)}
+#postmenu button.danger{color:var(--dead)}
+/* A quoted post's media sits inside an already-inset card, so it is capped
+   shorter than a top-level embed — a full-height picture makes the quote read
+   as the post. */
+/* A quoted post's pictures, capped so the quote does not read as the post.
+   Two things had to change together:
+
+   Cap the CELL, not the img. Each cell carries an inline `aspect-ratio`, so
+   capping the IMAGE's height left the cell at its full aspect height with its
+   grey background showing beneath — half a picture, half a slab.
+
+   Then override the aspect-ratio outright. `aspect-ratio` plus `max-height`
+   does not crop, it SHRINKS THE WIDTH to preserve the ratio: a portrait image
+   became a 143px strip in a 358px card. A fixed height with the ratio released
+   lets the cell fill its column and `object-fit:cover` do the cropping.
+
+   `!important` is load-bearing and not laziness: renderEmbed writes the ratio
+   as an INLINE style on each cell, and an inline style beats any selector. */
+.quote .media.grid-1 .imgcell{aspect-ratio:auto!important;height:190px;max-height:190px}
+.quote .media:not(.grid-1) .imgcell{aspect-ratio:auto!important;height:104px;max-height:104px}
+.quote .media{margin-top:7px}
+.quote .card{margin-top:7px}
+.quote video{max-height:220px}
+.nfilter{display:flex;gap:7px;padding:9px 12px;flex-wrap:wrap;border-bottom:1px solid var(--line)}
+.nfilter .pill{opacity:.45}
+.nfilter .pill.on{opacity:1;border-color:var(--accent);color:var(--accent)}
+.nfilter .pill b{font-weight:600;opacity:.75}
+.nreply{margin-top:5px;font-size:14.5px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.nsub{margin-top:4px;font-size:12.5px;color:var(--muted)}
+.nacts{margin-top:7px}
+.pref{display:flex;align-items:center;gap:9px;padding:9px 0;font-size:14.5px;cursor:pointer;min-height:40px}
+.pref input{width:19px;height:19px;accent-color:var(--accent)}
+body.compact .topbar .tbrow{padding-top:6px;padding-bottom:6px}
+body.compact .brand small{display:none}
+.ccard{margin-top:10px;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+.ccard img{width:100%;max-height:150px;object-fit:cover;display:block}
+.ccard .cch{padding:9px 11px}
+.ccard .cct{font-size:13.5px;font-weight:600;line-height:1.35}
+.ccard .ccd{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.4}
+.ccard .cchost{font-size:11.5px;color:var(--muted);text-transform:lowercase}
+.ccard .ccx{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:50%;border:0;
+  background:rgba(0,0,0,.66);color:#fff;font-size:15px;line-height:1;cursor:pointer;padding:0}
+.ccard.loading{opacity:.6}
+.cthumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.cthumb{position:relative;width:84px;height:84px;border-radius:9px;overflow:hidden;border:1px solid var(--line)}
+.cthumb img{width:100%;height:100%;object-fit:cover;display:block}
+.cthumb button{position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;border:0;
+  background:rgba(0,0,0,.65);color:#fff;font-size:14px;line-height:1;cursor:pointer;padding:0}
+.cthumb input{position:absolute;left:0;right:0;bottom:0;width:100%;border:0;font-size:10.5px;padding:3px 4px;
+  background:rgba(0,0,0,.6);color:#fff}
+#cquote{border:1px solid var(--line);border-radius:9px;padding:9px 11px;margin-bottom:10px;font-size:13px;color:var(--muted)}
+.rulebudget{display:inline-flex;align-items:center;gap:6px;color:var(--muted);font-size:12.5px}
+.rulebudget select{background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font-size:13px;min-height:34px}
+.rulehead{border:1px solid var(--line);border-radius:11px;padding:12px 13px;margin:10px 12px 4px;
+  background:var(--panel);display:flex;flex-direction:column;gap:7px}
+.rulemeta{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.rulenote{color:var(--muted);font-size:12.5px}
+.rulemeter{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+.rulebtns{display:flex;gap:8px;flex-wrap:wrap}
+.btn.small{min-height:34px;padding:6px 12px;font-size:13px;align-self:flex-start}
+.rulehelp{color:var(--muted);font-size:13px;line-height:1.6;margin:0 0 10px}
+.rulehelp code{background:var(--line-soft);border-radius:4px;padding:1px 5px;font-size:12.5px}
+#ruletext{min-height:280px;width:100%;border:1px solid var(--line);border-radius:9px;
+  background:var(--bg);color:var(--text);padding:11px;font:15px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
+.sheetfoot{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--line)}
+#cc{font-size:13px;color:var(--muted);margin-left:auto}
+#cc.over{color:var(--dead)}
+
+/* ── tab bar ───────────────────────────────────────── */
+.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;
+  background:rgba(11,13,18,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  padding-bottom:var(--safe-b)}
+.tab{flex:1;height:var(--tabbar);display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:3px;color:var(--muted);font-size:10.5px;letter-spacing:.02em}
+.tab .ic{font-size:19px;line-height:1}
+.tab.on{color:var(--accent)}
+
+/* ── thread ────────────────────────────────────────── */
+.post.focus{background:var(--panel);border-bottom:1px solid var(--line)}
+.post.focus .ptext{font-size:17px}
+.post.ancestor{opacity:.82}
+/* Reply depth. Capped at 4 so a 30-deep argument does not slide off a phone. */
+.post[data-level="1"]{padding-left:26px}
+.post[data-level="2"]{padding-left:38px}
+.post[data-level="3"]{padding-left:50px}
+.post[data-level="4"]{padding-left:60px}
+.post[data-level]:not([data-level="0"]){border-left:1px solid var(--line);margin-left:14px}
+.replybox{padding:12px 14px;border-bottom:1px solid var(--line);background:var(--panel)}
+.replybox textarea{min-height:74px;margin-bottom:9px}
+.replyrow{display:flex;align-items:center;gap:10px}
+.replyrow .cc{margin-left:auto;font-size:13px;color:var(--muted)}
+.replyrow .cc.over{color:var(--dead)}
+.threadnote{padding:10px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line-soft)}
+
+/* ── profile tabs + media masonry ──────────────────── */
+.ptabs{display:flex;border-bottom:1px solid var(--line)}
+.ptab{flex:1;padding:12px;font-size:14px;color:var(--muted);border-bottom:2px solid transparent}
+.ptab.on{color:var(--text);border-bottom-color:var(--accent);font-weight:600}
+/* CSS columns give a true masonry with no measuring and no reflow jank; the
+   trade is column-order rather than row-order, which for a photo wall is fine. */
+.masonry{columns:2;column-gap:3px;padding:3px}
+@media (min-width:520px){ .masonry{columns:3} }
+.mtile{break-inside:avoid;margin-bottom:3px;display:block;position:relative;background:var(--line);
+  border-radius:3px;overflow:hidden}
+/* height:auto is load-bearing. The tiles carry width/height ATTRIBUTES from
+   the post's aspectRatio so the browser can reserve space before the image
+   loads — but without height:auto the attribute becomes the used height, and a
+   3300x1968 photo renders 1968px tall in a 212px column. With it, the
+   attributes only set the aspect ratio and the width constraint drives it. */
+.mtile img{width:100%;height:auto;display:block}
+.mtile .vbadge{position:absolute;right:6px;top:6px;font-size:11px;background:rgba(0,0,0,.62);
+  color:#fff;border-radius:999px;padding:2px 7px}
+.sentinel{height:1px}
+
+/* ── lightbox ──────────────────────────────────────── */
+.lb{position:fixed;inset:0;z-index:80;background:rgba(0,0,0,.95);display:flex;
+  flex-direction:column;transition:opacity .12s}
+.lb-bar{display:flex;align-items:center;gap:12px;padding:calc(env(safe-area-inset-top,0px) + 10px) 14px 10px;
+  color:#fff;flex:none}
+.lb-bar button,.lb-bar a{color:#fff;font-size:17px;min-width:44px;min-height:44px;
+  display:flex;align-items:center;justify-content:center}
+.lb-count{margin-left:auto;margin-right:auto;font-size:13px;color:rgba(255,255,255,.75)}
+/* touch-action:none is required — otherwise the browser claims the pinch. */
+.lb-stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  touch-action:none;user-select:none}
+.lb-img{max-width:100%;max-height:100%;object-fit:contain;transform-origin:0 0;
+  will-change:transform;-webkit-user-drag:none}
+.lb-img.zoomed{cursor:grab}
+.lb-alt{color:rgba(255,255,255,.8);font-size:13px;padding:10px 16px;max-height:22vh;overflow-y:auto;flex:none}
+.lb-dots{display:flex;gap:6px;justify-content:center;padding:8px 0 calc(env(safe-area-inset-bottom,0px) + 14px);flex:none}
+.lb-dots i{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.34)}
+.lb-dots i.on{background:#fff}
+
+/* ── post menu ─────────────────────────────────────── */
+.menu{position:fixed;z-index:70;background:var(--panel);border:1px solid var(--line);
+  border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(0,0,0,.55);min-width:212px}
+.menu button{display:flex;align-items:center;gap:10px;width:100%;padding:13px 15px;
+  font-size:14px;color:var(--text);text-align:left;min-height:46px}
+.menu button:active{background:rgba(128,128,128,.16)}
+.menu button+button{border-top:1px solid var(--line-soft)}
+.menu .ic{width:18px;text-align:center;color:var(--muted)}
+.menu-back{position:fixed;inset:0;z-index:69}
+
+/* ── palette picker ────────────────────────────────── */
+.palettes{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
+.pal{border:1px solid var(--line);border-radius:10px;padding:9px;text-align:left;min-height:62px}
+.pal.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.pal .sw{display:flex;gap:4px;margin-bottom:7px}
+.pal .sw i{width:15px;height:15px;border-radius:4px;display:block;border:1px solid rgba(128,128,128,.28)}
+.pal .nm{font-size:12px;color:var(--muted)}
+.pal.on .nm{color:var(--text)}
+
+/* liked / reposted states */
+.pacts button.on[data-act="like"]{color:var(--dead)}
+.pacts button.on[data-act="repost"]{color:var(--live)}
+.pacts button.busy{opacity:.5}
+
+/* ── misc ──────────────────────────────────────────── */
+.bar{padding:9px 14px;font-size:12.5px;color:var(--muted);border-bottom:1px solid var(--line-soft);
+  display:flex;align-items:center;gap:8px;min-height:38px}
+.bar .dot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex:none}
+.bar .dot.live{background:var(--live)}
+.empty{padding:36px 22px;text-align:center;color:var(--muted);font-size:14px;line-height:1.6}
+.empty strong{color:var(--text);display:block;margin-bottom:7px;font-size:15px}
+.more{display:block;width:100%;padding:16px;color:var(--accent);font-size:14px;text-align:center}
+.ta-wrap{position:relative;width:100%}
+.ta-menu{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:70;list-style:none;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);max-height:52vh;overflow-y:auto}
+.ta-menu li{display:flex;align-items:center;gap:9px;padding:11px 13px;font-size:14px;min-height:46px}
+.ta-menu li.on{background:rgba(76,141,255,.15)}
+.ta-menu img{width:26px;height:26px;border-radius:50%;background:var(--line);flex:none;object-fit:cover}
+.ta-menu .d{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (min-width:640px){ body{max-width:600px;margin:0 auto;border-inline:1px solid var(--line)}
+  .tabbar{max-width:600px;left:50%;transform:translateX(-50%)}
+  .fab{right:calc(50% - 300px + 16px)} }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="tbrow">
+    <span class="brand">bsky<small id="brand-note">no database</small></span>
+    <span class="spacer"></span>
+    <button id="authbtn" class="pill">sign in</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<div class="bar" id="statusbar"><span class="dot" id="dot"></span><span id="statustext">ready</span></div>
+
+<main>
+  <section id="v-home"></section>
+  <section id="v-search" hidden></section>
+  <section id="v-notifs" hidden></section>
+  <section id="v-profile" hidden></section>
+  <section id="v-thread" hidden></section>
+  <section id="v-me" hidden></section>
+</main>
+
+<button class="fab" id="fab" aria-label="write a post">✎</button>
+
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-label="Write a post">
+  <div class="sheethead">
+    <button id="sheet-cancel" class="pill">cancel</button>
+    <span class="spacer"></span>
+    <button id="sheet-post" class="btn" disabled>post</button>
+  </div>
+  <div class="sheetbody">
+    <div id="cquote" hidden></div>
+    <textarea id="ct" placeholder="What's up?" maxlength="3000"></textarea>
+    <div id="cthumbs" class="cthumbs"></div>
+    <div id="ccard" class="ccard" hidden></div>
+    <div id="cs" class="muted" style="font-size:13px;margin-top:10px"></div>
+  </div>
+  <div class="sheetfoot">
+    <label class="pill" for="cfile">🖼 add</label>
+    <input id="cfile" type="file" accept="image/*" multiple hidden>
+    <span class="muted" style="font-size:12.5px">posts to your own repo</span>
+    <span class="spacer"></span>
+    <span id="cc">0/300</span>
+  </div>
+</div>
+
+<div class="sheet" id="signin" hidden role="dialog" aria-modal="true" aria-label="Sign in">
+  <div class="sheethead">
+    <button id="signin-cancel" class="pill">cancel</button>
+    <span class="spacer"></span>
+    <button id="signin-go" class="btn" disabled>sign in</button>
+  </div>
+  <div class="sheetbody">
+    <p class="muted" style="font-size:13px;margin-bottom:12px;line-height:1.5">
+      Reading needs no account. Signing in is for posting, replying, liking and reposting —
+      one consent screen covers all four. The shared OAuth worker holds the token, so this
+      page never does.
+    </p>
+    <input type="text" id="signin-handle" placeholder="your handle, e.g. alice.bsky.social">
+    <div id="signin-status" class="muted" style="font-size:13px;margin-top:10px"></div>
+  </div>
+</div>
+
+<div class="menu" id="postmenu" hidden role="menu"></div>
+
+<nav class="tabbar">
+  <button class="tab on" data-tab="home"><span class="ic">⌂</span>Home</button>
+  <button class="tab" data-tab="search"><span class="ic">⌕</span>Search</button>
+  <button class="tab" data-tab="notifs"><span class="ic">♡</span>Notifs</button>
+  <button class="tab" data-tab="me"><span class="ic">☰</span>Me</button>
+</nav>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

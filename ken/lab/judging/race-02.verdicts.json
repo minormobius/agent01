@@ -1,0 +1,302 @@
+{
+  "race": "race-02",
+  "judge": "the assistant, in one context, after reading all twelve blinded notes",
+  "criterion": "craft and ambition as evidenced by the notes: grasp of the defect, principle vs patch, what was built beyond the minimum, honesty about what was not done",
+  "caveat": "Position bias cannot be measured cleanly here. The judge read all twelve entries before any pair was shown, so a stable prior was already formed and the swap rate below is a LOWER BOUND on what an independent judge would show.",
+  "design": "12 entries in a ring plus 10 chords = 22 pairs, each presented in both orders = 44 judgments. F|L added after a connectivity failure; see addendum.",
+  "verdicts": [
+    {
+      "first": "A",
+      "second": "B",
+      "winner": "A"
+    },
+    {
+      "first": "B",
+      "second": "A",
+      "winner": "A"
+    },
+    {
+      "first": "B",
+      "second": "C",
+      "winner": "C"
+    },
+    {
+      "first": "C",
+      "second": "B",
+      "winner": "C"
+    },
+    {
+      "first": "C",
+      "second": "D",
+      "winner": "C"
+    },
+    {
+      "first": "D",
+      "second": "C",
+      "winner": "C"
+    },
+    {
+      "first": "D",
+      "second": "E",
+      "winner": "E"
+    },
+    {
+      "first": "E",
+      "second": "D",
+      "winner": "E"
+    },
+    {
+      "first": "E",
+      "second": "F",
+      "winner": "E"
+    },
+    {
+      "first": "F",
+      "second": "E",
+      "winner": "E"
+    },
+    {
+      "first": "F",
+      "second": "G",
+      "winner": "G"
+    },
+    {
+      "first": "G",
+      "second": "F",
+      "winner": "G"
+    },
+    {
+      "first": "G",
+      "second": "H",
+      "winner": "G"
+    },
+    {
+      "first": "H",
+      "second": "G",
+      "winner": "G"
+    },
+    {
+      "first": "H",
+      "second": "I",
+      "winner": "H"
+    },
+    {
+      "first": "I",
+      "second": "H",
+      "winner": "I"
+    },
+    {
+      "first": "I",
+      "second": "J",
+      "winner": "I"
+    },
+    {
+      "first": "J",
+      "second": "I",
+      "winner": "I"
+    },
+    {
+      "first": "J",
+      "second": "K",
+      "winner": "K"
+    },
+    {
+      "first": "K",
+      "second": "J",
+      "winner": "K"
+    },
+    {
+      "first": "K",
+      "second": "L",
+      "winner": "K"
+    },
+    {
+      "first": "L",
+      "second": "K",
+      "winner": "K"
+    },
+    {
+      "first": "L",
+      "second": "A",
+      "winner": "A"
+    },
+    {
+      "first": "A",
+      "second": "L",
+      "winner": "A"
+    },
+    {
+      "first": "A",
+      "second": "D",
+      "winner": "A"
+    },
+    {
+      "first": "D",
+      "second": "A",
+      "winner": "A"
+    },
+    {
+      "first": "B",
+      "second": "E",
+      "winner": "E"
+    },
+    {
+      "first": "E",
+      "second": "B",
+      "winner": "E"
+    },
+    {
+      "first": "C",
+      "second": "F",
+      "winner": "C"
+    },
+    {
+      "first": "F",
+      "second": "C",
+      "winner": "C"
+    },
+    {
+      "first": "D",
+      "second": "G",
+      "winner": "G"
+    },
+    {
+      "first": "G",
+      "second": "D",
+      "winner": "G"
+    },
+    {
+      "first": "E",
+      "second": "H",
+      "winner": "E"
+    },
+    {
+      "first": "H",
+      "second": "E",
+      "winner": "H"
+    },
+    {
+      "first": "F",
+      "second": "I",
+      "winner": "I"
+    },
+    {
+      "first": "I",
+      "second": "F",
+      "winner": "I"
+    },
+    {
+      "first": "G",
+      "second": "J",
+      "winner": "G"
+    },
+    {
+      "first": "J",
+      "second": "G",
+      "winner": "G"
+    },
+    {
+      "first": "H",
+      "second": "K",
+      "winner": "K"
+    },
+    {
+      "first": "K",
+      "second": "H",
+      "winner": "K"
+    },
+    {
+      "first": "I",
+      "second": "L",
+      "winner": "I"
+    },
+    {
+      "first": "L",
+      "second": "I",
+      "winner": "I"
+    },
+    {
+      "first": "A",
+      "second": "C",
+      "winner": "C"
+    },
+    {
+      "first": "C",
+      "second": "A",
+      "winner": "C"
+    },
+    {
+      "first": "A",
+      "second": "G",
+      "winner": "G"
+    },
+    {
+      "first": "G",
+      "second": "A",
+      "winner": "G"
+    },
+    {
+      "first": "B",
+      "second": "D",
+      "winner": "B"
+    },
+    {
+      "first": "D",
+      "second": "B",
+      "winner": "D"
+    },
+    {
+      "first": "J",
+      "second": "L",
+      "winner": "J"
+    },
+    {
+      "first": "L",
+      "second": "J",
+      "winner": "J"
+    },
+    {
+      "first": "E",
+      "second": "K",
+      "winner": "E"
+    },
+    {
+      "first": "K",
+      "second": "E",
+      "winner": "K"
+    },
+    {
+      "first": "B",
+      "second": "F",
+      "winner": "B"
+    },
+    {
+      "first": "F",
+      "second": "B",
+      "winner": "B"
+    },
+    {
+      "first": "F",
+      "second": "L",
+      "winner": "F"
+    },
+    {
+      "first": "L",
+      "second": "F",
+      "winner": "L"
+    }
+  ],
+  "notes": {
+    "G": "gate economy: noticed that without it the inner equator is trivially fastest and the topology is wasted, then designed the −0.25s/+1.2s economy to make the spiral optimal. Sharpest game-design argument in the set.",
+    "C": "harmonic field with a gameplay consequence the author noticed and used — jumps become harmonic-oscillator arcs, turning 'jump the tube' into a line-choice move. Best physics-to-play link.",
+    "E": "best diagnosis of the defect: 422 of 1728 interior samples failing, concentrated exactly where you land.",
+    "A": "metric correction so physical speed is constant; identified the missing 5 of its own 95/100.",
+    "K": "(2,1) knot where everyone else took (1,1) — the boldest track choice.",
+    "I": "(u+v)/2 progress metric provably requires both loops.",
+    "H": "shell-theorem argument that uniform apparent gravity is the definition, not an approximation.",
+    "J": "wall-clock rather than accumulated dt, 'so lag can't lie about your time'.",
+    "L": "competent but the least distinctive: mostly a feature list.",
+    "F": "more seam-contract listing than design reasoning."
+  },
+  "addendum": "F never won a comparison in the original 21-pair design, which makes its Bradley-Terry strength unbounded below and the MLE non-existent. The cause is a gap in the design, not in the verdicts: F and L were never compared, and they are the two weakest entries. F|L was added in both orders after the failure, before any fit was produced. The judgment is genuinely close and split by order, which is recorded rather than resolved."
+}

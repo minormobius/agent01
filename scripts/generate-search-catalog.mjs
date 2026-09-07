@@ -7,15 +7,18 @@
 // Rewrites only the region between /*CATALOG_START*/ and /*CATALOG_END*/.
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { loadCatalogue } from './lib/landing.mjs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const html = readFileSync(join(root, 'index.html'), 'utf8');
 
-// 1. Parse the PROJECTS array entries: { n:'..', u:'..', c:'..', k:N, a:'..', p:'..' }
-const entries = [...html.matchAll(/\{\s*n:'([^']+)',\s*u:'([^']+)',\s*c:'([^']+)'[^}]*?(?:p:'([^']+)')?\s*\}/g)]
-  .map(m => ({ name: m[1], url: m[2], category: m[3], parent: m[4] || null }));
+// 1. The catalogue entries. Read from catalogue.json, the source of truth.
+// The regex this replaced matched entries positionally and never captured
+// `parent` at all, because the optional p: group sat behind a lazy [^}]*?.
+const entries = loadCatalogue(root).entries
+  .map(e => ({ name: e.n, url: e.u, category: e.c, parent: e.p || null }));
 
 // 2. Parse the curated <li> blocks: name-row anchor + tags + desc.
 const descMap = new Map();

@@ -2,12 +2,18 @@
 //
 // The site is static (index.html + reference.html + /lib/*.js). Routing:
 //   /reference, /tables         → reference.html
+//   /color[/<nm>], /light, …    → color.html (wavelength ↔ color)
+//   /chroma[/<nm>], /sound, …   → chroma.html (color ↔ pitch)
 //   /<category>[/<from>/<to>]   → index.html (client reads state from the path)
 //   /lib/*, /data/*, *.ext, /   → assets
 //
 // We fetch the detail asset by its canonical extensionless path ('/reference') —
 // the assets layer 307-redirects '/reference.html' to '/reference', so fetching
 // the .html directly would pass that redirect through to the browser.
+
+// Both spellings, plus the two things people actually search for.
+const COLOR_ALIASES = new Set(['color', 'colour', 'light', 'wavelength']);
+const CHROMA_ALIASES = new Set(['chroma', 'sound', 'hear', 'synesthesia', 'synaesthesia']);
 
 export default {
   async fetch(request, env) {
@@ -18,6 +24,18 @@ export default {
     // reference page
     if (p === '/reference' || p === '/reference/' || p === '/tables' || p === '/tables/') {
       return html(await env.ASSETS.fetch(new Request(new URL('/reference', url.origin), request)));
+    }
+
+    // wavelength ↔ color. Takes an optional wavelength: /color/589.3.
+    // Checked BEFORE the converter deep links below, which would otherwise
+    // swallow '/color' as an unknown category and render the converter.
+    if (COLOR_ALIASES.has(seg[0]) && seg.length <= 2) {
+      return html(await env.ASSETS.fetch(new Request(new URL('/color', url.origin), request)));
+    }
+
+    // colour as sound. Same shape as /color: an optional wavelength tail.
+    if (CHROMA_ALIASES.has(seg[0]) && seg.length <= 2) {
+      return html(await env.ASSETS.fetch(new Request(new URL('/chroma', url.origin), request)));
     }
 
     // converter deep links: /<category> or /<category>/<from>/<to>

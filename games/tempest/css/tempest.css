@@ -1,0 +1,419 @@
+/* tempest.css — a vector arcade cabinet, committed to the dark.
+   No build step, no framework: one stylesheet, custom properties at the top. */
+
+:root {
+  --bg: #04070d;
+  --ink: #cfe9f5;
+  --dim: #6f93a6;
+  --rim: #39d0ff;
+  --hot: #ffd23f;
+  --bad: #ff4d6d;
+  --good: #8bd450;
+  --panel: rgba(6, 16, 26, 0.92);
+  --line: rgba(57, 208, 255, 0.24);
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font: 500 15px/1.5 var(--mono);
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  display: grid;
+  /* hud · web · touch controls · footer. The controls row collapses to nothing
+     when it is display:none, so pointer devices lose no height to it. */
+  grid-template-rows: auto 1fr auto auto;
+  /* The web is the thing; nothing else should ever scroll it off screen. */
+  overflow: hidden;
+  /* A game is not a document: a long-press should not offer to select the
+     score, and a double-tap should not zoom the cabinet. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+/* ------------------------------------------------------------------ hud -- */
+
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.hud-left, .hud-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+}
+/* Wrap between items, never inside one. On a phone the first attempt broke
+   "level 6" across two lines, which reads as a layout bug rather than a HUD. */
+.hud span { white-space: nowrap; }
+.hud-left span { color: var(--dim); }
+#hud-level { color: var(--rim); }
+.lives { color: var(--hot); letter-spacing: 2px; }
+
+/* The signature numbers, always visible. The full panel is behind P, but a
+   game whose whole point is a measurement should not hide the measurement. */
+.cert-strip {
+  color: var(--dim) !important;
+  border-left: 1px solid var(--line);
+  padding-left: 12px;
+  white-space: nowrap;
+}
+.cert-strip b { color: var(--hot); font-weight: 600; }
+.cert-strip .decides { color: var(--rim); }
+/* Two versions of the same fact: the readable one, and the one that fits on a
+   phone. Dropping it entirely on small screens was the first attempt, and it
+   threw away the only thing that makes this game worth looking at twice. */
+.cert-short { display: none; }
+@media (max-width: 720px) {
+  .cert-strip { display: none; }
+  .cert-short { display: inline; padding-left: 10px; letter-spacing: 0; }
+}
+.score { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+.hud button {
+  font: inherit;
+  font-size: 12px;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.hud button:hover { color: var(--ink); border-color: var(--rim); }
+.hud button[aria-pressed="true"] { color: var(--bg); background: var(--rim); border-color: var(--rim); }
+
+/* ---------------------------------------------------------------- stage -- */
+
+.frame { position: relative; min-height: 0; }
+
+#stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.oracle {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 14px;
+  border-radius: 999px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  border: 1px solid currentColor;
+  background: var(--panel);
+  pointer-events: none;
+}
+.oracle[data-state="live"] { color: var(--good); }
+.oracle[data-state="lost"] { color: var(--bad); }
+
+/* ---------------------------------------------------------------- proof -- */
+
+.proof {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: min(330px, calc(100% - 24px));
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  font-size: 12.5px;
+  display: none;
+}
+.proof.open { display: block; }
+
+.proof h2 {
+  margin: 0 0 2px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--rim);
+}
+.web-name { margin: 0 0 12px; color: var(--dim); }
+.proof dl { margin: 0; }
+.proof dl > div { margin-bottom: 12px; }
+.proof dt {
+  color: var(--dim);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+.proof dd { margin: 2px 0 0; font-size: 15px; }
+.proof dd b { color: var(--hot); font-size: 20px; }
+.note { margin: 3px 0 0; color: var(--dim); font-size: 11px; line-height: 1.45; }
+.fine { opacity: 0.8; }
+
+.openings { display: flex; gap: 10px; flex-wrap: wrap; }
+.op {
+  font-size: 11.5px;
+  color: var(--dim);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.op b { color: var(--rim); font-size: 13px; }
+.op.dead { border-color: rgba(255, 77, 109, 0.4); }
+.op.dead b { color: var(--bad); }
+
+.verdict-line {
+  margin: 12px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+}
+.verdict-line.hot { color: var(--hot); }
+
+/* ------------------------------------------------------- touch controls -- */
+
+/* The cabinet had a rotary spinner under the left hand and a fire button under
+   the right, and that division is the reason it felt good: one hand owns all
+   the movement, the other only shoots. The first touch build split the two
+   directions across two buttons at opposite ends of the screen, which made
+   walking a two-thumb job and every change of direction a hand-off. */
+.touch {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 18px calc(12px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  background: #060c14;
+}
+
+/* --- the spinner --- */
+
+.dial {
+  position: relative;
+  flex: 0 0 auto;
+  width: 132px;
+  height: 132px;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Knurling. It rotates exactly as far as the thumb does, which is the whole
+   feedback loop — you can see the spinner spinning. */
+.dial-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(57, 208, 255, 0.5);
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(57, 208, 255, 0.34) 0deg 5deg,
+    rgba(57, 208, 255, 0.04) 5deg 15deg
+  );
+  will-change: transform;
+}
+
+.dial-hub {
+  position: absolute;
+  inset: 24%;
+  border-radius: 50%;
+  background: #081320;
+  border: 1px solid rgba(57, 208, 255, 0.34);
+  box-shadow: inset 0 0 14px rgba(57, 208, 255, 0.16);
+}
+
+/* Where the thumb is. Springs back to the middle on release; the knurling does
+   not, because a spinner stays where you left it. */
+.dial-nub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  border-radius: 50%;
+  background: var(--rim);
+  box-shadow: 0 0 14px rgba(57, 208, 255, 0.6);
+  transition: transform 0.09s ease-out;
+}
+.dial.live .dial-nub { transition: none; }
+.dial.live .dial-ring { border-color: var(--rim); }
+
+/* --- the fire button --- */
+
+.fire {
+  flex: 0 0 auto;
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--hot);
+  border: 2px solid rgba(255, 210, 63, 0.55);
+  background: radial-gradient(
+    circle at 38% 30%,
+    rgba(255, 210, 63, 0.34),
+    rgba(255, 210, 63, 0.1) 62%,
+    rgba(255, 210, 63, 0.04)
+  );
+  box-shadow: 0 0 18px rgba(255, 210, 63, 0.12);
+  cursor: pointer;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.05s ease-out;
+}
+.fire.down {
+  background: radial-gradient(
+    circle at 38% 30%,
+    rgba(255, 210, 63, 0.62),
+    rgba(255, 210, 63, 0.28)
+  );
+  transform: scale(0.95);
+}
+
+@media (pointer: coarse) {
+  .touch { display: flex; }
+}
+
+/* Landscape on a phone.
+
+   The web is drawn to its own aspect ratio and never stretched — the polygon
+   IS the travel-cost table, so distorting it would be drawing a different
+   game. On a short wide screen that leaves big empty margins either side and
+   almost no height, which is the worst possible place to spend a row on
+   controls. So in landscape they float in the empty corners instead: the web
+   gets the whole frame, and each thumb lands on its own control. */
+@media (pointer: coarse) and (max-height: 560px) {
+  .touch {
+    position: absolute;
+    /* Above the footer, which stays reachable between the two thumbs. */
+    inset: 0 0 30px 0;
+    z-index: 2;
+    align-items: flex-end;
+    padding: 0 16px calc(8px + env(safe-area-inset-bottom));
+    background: none;
+    border-top: 0;
+    /* Only the controls take taps; everything between them is still web, so
+       dragging the middle of the screen keeps working. */
+    pointer-events: none;
+  }
+  .dial, .fire { pointer-events: auto; }
+  .dial { width: 118px; height: 118px; }
+  .fire { width: 100px; height: 100px; font-size: 14px; }
+}
+
+/* -------------------------------------------------------------- overlay -- */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(ellipse at center, rgba(4, 7, 13, 0.72), rgba(4, 7, 13, 0.94));
+  padding: 20px;
+}
+body[data-phase="playing"] .overlay { display: none; }
+
+.card {
+  max-width: 46ch;
+  text-align: center;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 26px 28px;
+}
+.card h1 {
+  margin: 0 0 10px;
+  font-size: 26px;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  color: var(--rim);
+}
+.card p { margin: 0 0 10px; font-size: 13.5px; line-height: 1.6; color: var(--ink); }
+.card b { color: var(--hot); }
+.card .verdict {
+  color: var(--bad);
+  border-left: 2px solid var(--bad);
+  padding-left: 12px;
+  text-align: left;
+}
+.cta {
+  margin: 16px 0 0 !important;
+  color: var(--dim) !important;
+  font-size: 12px !important;
+  letter-spacing: 0.1em;
+}
+body[data-phase="error"] .cta { display: none; }
+
+/* ----------------------------------------------------------------- foot -- */
+
+.foot {
+  padding: 8px 14px calc(8px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--line);
+  font-size: 11.5px;
+  color: var(--dim);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.foot a { color: var(--dim); }
+.foot a:hover { color: var(--rim); }
+
+@media (max-width: 720px) {
+  .hud { font-size: 11.5px; gap: 8px; padding: 8px 10px; flex-wrap: nowrap; }
+  .hud-left, .hud-right { gap: 9px; flex-wrap: nowrap; }
+  .hud button { padding: 5px 10px; }
+  /* Keep the numbers, drop the words, and let the overlay carry the score. */
+  .hud .lbl { display: none; }
+  .hud .score { display: none; }
+  .foot { font-size: 10.5px; }
+  .card { padding: 20px 18px; }
+  .card h1 { font-size: 22px; }
+  /* A bottom sheet: it can be read and dismissed without the web scrolling
+     away underneath, and it never covers the rim you are defending. */
+  .proof {
+    top: auto;
+    right: 8px;
+    left: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 62%;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    font-size: 12px;
+  }
+}
+
+/* Short and wide — a phone on its side. Nothing may push the web off screen. */
+@media (max-height: 520px) {
+  .hud { padding: 5px 10px; font-size: 11px; }
+  .proof { max-height: 78%; }
+  .foot { padding-top: 4px; padding-bottom: calc(4px + env(safe-area-inset-bottom)); }
+}
+
+/* On a touch screen the footer is the only way back out of the game, so it
+   stays — just narrower, and out of the way of the controls above it. */
+@media (pointer: coarse) {
+  .foot { padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); font-size: 10.5px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}

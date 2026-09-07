@@ -1,0 +1,13 @@
+{
+  "slug": "but-grid",
+  "task": "tetris but the grid is a bit taller than usual but also it keeps dropping additional tetrominos before the one you're currently placing has actually landed, and your inputs affect every currently-falling tetromino at once",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3munb6rz6md2k",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3munb6rz6md2k",
+  "root_cid": "bafyreihdym6nxh3n4dvugf4j4buzjy6yoerm3t2nya57zmtjmazvqiuwmu",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3munb6rz6md2k",
+  "parent_cid": "bafyreihdym6nxh3n4dvugf4j4buzjy6yoerm3t2nya57zmtjmazvqiuwmu",
+  "refs_from": "tetris but the grid is a bit taller than usual but also it keeps dropping additional tetrominos before the one you're currently placing has actually landed, and your inputs affect every currently-falling tetromino at once",
+  "requestedAt": "2026-09-03T20:13:58.033Z"
+}

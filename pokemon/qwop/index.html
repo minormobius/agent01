@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>QWOP — four cilia, four keys, one ocean</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #04080c;
+    --panel: #0a1119;
+    --fg: #d8dde2;
+    --dim: #6a727b;
+    --border: #16202b;
+    --q: #f0655a; --w: #f0b03c; --o: #4fc6a0; --p: #6aa8f0;
+  }
+  * { box-sizing: border-box; }
+
+  /* No highlights anywhere. On a touch screen every tap of a cilium key would
+     otherwise flash a grey box over it, and hammering four buttons in rhythm
+     drag-selects the labels and pops the long-press callout. `manipulation`
+     also kills the 300 ms double-tap-to-zoom delay, which on a rhythm game is
+     the difference between the beat landing and not. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  html { touch-action: manipulation; }
+  /* The prose below the game stays selectable — killing that would be
+     user-hostile, and nobody rhythm-taps a paragraph. */
+  #notes, #notes * { user-select: text; -webkit-user-select: text; }
+
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    background: var(--bg); color: var(--fg);
+    font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior-y: contain;   /* no pull-to-refresh mid-run */
+  }
+  a { color: #78e6bc; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 12px 18px 10px; border-bottom: 1px solid var(--border);
+  }
+  header h1 {
+    margin: 0; font-size: 13px; font-weight: 600;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #78e6bc;
+  }
+  header .sub { color: var(--dim); font-size: 11px; }
+
+  #stage {
+    position: relative; margin: 12px auto 0; max-width: 1200px;
+    padding: 0 18px;
+  }
+  #wrap {
+    position: relative; border: 1px solid var(--border); border-radius: 8px;
+    overflow: hidden; background: #050d14;
+  }
+  canvas { display: block; width: 100%; height: min(58vh, 560px); touch-action: none; }
+
+  /* ---- touch pad -------------------------------------------------------
+     Four real buttons, one per cilium, colour-matched to the filaments they
+     drive. Shown when the pointer is coarse or the viewport is narrow; on a
+     mouse the keyboard is better and the on-canvas badges already cover it.
+
+     `touch-action: none` on each button is what makes multi-touch work: the
+     game needs two to four cilia held at once, and without it the browser
+     claims the second finger for panning. */
+  #pad { display: none; }
+  @media (pointer: coarse), (max-width: 820px) {
+    #pad {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+      margin-top: 10px;
+    }
+    /* Shorter canvas to make room for the pad; the on-canvas letter
+       badges also drop out (see compactKeys in draw.js). */
+    canvas { height: min(46vh, 460px); }
+  }
+  #pad button {
+    touch-action: none;
+    height: 78px; margin: 0; padding: 0;
+    border-radius: 8px; border: 2px solid;
+    background: #0d1620; font-size: 20px; font-weight: 600;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    transition: background 60ms linear, transform 60ms linear;
+  }
+  #pad button.q { color: var(--q); border-color: var(--q); }
+  #pad button.w { color: var(--w); border-color: var(--w); }
+  #pad button.o { color: var(--o); border-color: var(--o); }
+  #pad button.p { color: var(--p); border-color: var(--p); }
+  #pad button[data-on="1"] { color: #06101a; transform: translateY(2px); }
+  #pad button.q[data-on="1"] { background: var(--q); }
+  #pad button.w[data-on="1"] { background: var(--w); }
+  #pad button.o[data-on="1"] { background: var(--o); }
+  #pad button.p[data-on="1"] { background: var(--p); }
+  #pad .sub { display: block; font-size: 9px; opacity: 0.75; font-weight: 400; }
+
+  .overlay {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 10px; text-align: center;
+    background: rgba(4, 10, 16, 0.86); padding: 24px;
+  }
+  .overlay[hidden] { display: none; }
+  .overlay h2 {
+    margin: 0; font-size: 15px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: #78e6bc;
+  }
+  .overlay p { margin: 2px 0; color: var(--dim); max-width: 62ch; }
+  .overlay .big { font-size: 26px; color: var(--fg); letter-spacing: 0.04em; }
+  .keys { display: flex; gap: 10px; margin: 6px 0 2px; }
+  .keycap {
+    width: 40px; height: 40px; border-radius: 5px; display: grid; place-items: center;
+    font-size: 15px; font-weight: 600; border: 1.5px solid;
+  }
+  .keycap.q { color: var(--q); border-color: var(--q); }
+  .keycap.w { color: var(--w); border-color: var(--w); }
+  .keycap.o { color: var(--o); border-color: var(--o); }
+  .keycap.p { color: var(--p); border-color: var(--p); }
+  button {
+    background: #14202b; color: var(--fg); border: 1px solid var(--border);
+    padding: 7px 18px; border-radius: 4px; cursor: pointer; font: inherit;
+    margin-top: 6px;
+  }
+  button:hover { background: #1c2b39; }
+
+  #notes { padding: 18px 18px 48px; max-width: 78ch; margin: 0 auto; color: var(--dim); }
+  #notes h3 {
+    color: var(--fg); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+    margin: 22px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  #notes p { margin: 7px 0; }
+  #notes code { color: #78e6bc; background: #14202b; padding: 1px 4px; border-radius: 2px; }
+  #notes table { border-collapse: collapse; margin: 8px 0; font-size: 11px; width: 100%; }
+  #notes th, #notes td { text-align: left; padding: 4px 10px 4px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  #notes th { color: var(--fg); font-weight: 600; }
+  .k { font-weight: 600; }
+  .k.q { color: var(--q); } .k.w { color: var(--w); }
+  .k.o { color: var(--o); } .k.p { color: var(--p); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>QWOP</h1>
+  <span class="sub">four cilia, four keys, and something eating you</span>
+</header>
+
+<div id="stage">
+  <div id="wrap">
+    <canvas id="c"></canvas>
+
+    <div class="overlay" id="intro">
+      <h2>You are a cell with four cilia</h2>
+      <div class="keys">
+        <div class="keycap q">Q</div><div class="keycap w">W</div>
+        <div class="keycap o">O</div><div class="keycap p">P</div>
+      </div>
+      <p>One key per cilium, left to right. <strong>Hold</strong> to make it beat.
+      <strong>Tap</strong> to restart its stroke.</p>
+      <p>They are slightly detuned, so holding all four just lets them drift
+      apart and saw at each other. Tap in rhythm to drag them back into phase —
+      in phase they <strong>bundle</strong>, and a bundle is fast.</p>
+      <p>Drive one side to turn. Swim quietly or things will hear you.</p>
+      <button id="start">press any key to begin</button>
+    </div>
+
+    <div class="overlay" id="dead" hidden>
+      <h2 id="dead-title">Eaten</h2>
+      <div class="big" id="dead-dist">0.00 mm</div>
+      <p id="dead-best"></p>
+      <p id="dead-tip"></p>
+      <button id="again">press SPACE to try again</button>
+    </div>
+  </div>
+
+  <div id="pad" role="group" aria-label="cilia controls">
+    <button class="q" data-cilium="0" type="button" aria-label="outer left cilium">Q<span class="sub">outer L</span></button>
+    <button class="w" data-cilium="1" type="button" aria-label="inner left cilium">W<span class="sub">inner L</span></button>
+    <button class="o" data-cilium="2" type="button" aria-label="inner right cilium">O<span class="sub">inner R</span></button>
+    <button class="p" data-cilium="3" type="button" aria-label="outer right cilium">P<span class="sub">outer R</span></button>
+  </div>
+</div>
+
+<div id="notes">
+  <h3>What the four keys do</h3>
+  <p>QWOP's real idea was never "hard controls" — it was taking away the verb
+  you expected. You asked to <em>run</em> and it handed you the layer
+  underneath, so locomotion stopped being a button and became a skill. The
+  flagella model already had that layer, and the organism came with a gift:
+  <em>Pterosperma</em> has <strong>four cilia</strong>. One per key.</p>
+  <table>
+    <tr><th>Key</th><th>Cilium</th><th>What it does</th></tr>
+    <tr><td class="k q">Q</td><td>outer left</td><td rowspan="4">Hold and dynein engages — that cilium beats, ramping from its idle 10 Hz up to a 95 Hz power stroke. Release and it unfurls and slows again.</td></tr>
+    <tr><td class="k w">W</td><td>inner left</td></tr>
+    <tr><td class="k o">O</td><td>inner right</td></tr>
+    <tr><td class="k p">P</td><td>outer right</td></tr>
+  </table>
+  <p><strong>Tapping is different from holding.</strong> A key press resets that
+  cilium to the start of its power stroke. That is the whole game, because of
+  the thing sitting between hold and tap:</p>
+  <p><strong>The cilia are detuned.</strong> Each runs at a slightly different
+  intrinsic frequency, as real cilia do. Hold all four down and within a second
+  or two they have drifted out of phase, their thrust vectors start pointing in
+  different directions, they partly cancel, and the leftover torque spins you.
+  Four cilia in phase pull together into one <strong>compound cilium</strong> —
+  which is the thing the real organism does to swim — and that is far faster
+  than four filaments arguing.</p>
+  <p>So you cannot just hold everything down. You have to re-tap, in rhythm, to
+  drag them back into phase. Watch the four phase dials under the keys: when
+  they converge you are bundled, and the cell glows. Roughly a quarter of a
+  second between taps is a good place to start.</p>
+
+  <h3>On a phone</h3>
+  <p>Four buttons appear under the game, one per cilium, in the same colours as
+  the filaments they drive. They are real multi-touch — press two, three or all
+  four at once, which you will need to, because that is the game. Tap anywhere
+  on the title or the death screen to start a run. The on-canvas letter badges
+  drop out when the buttons are showing, leaving just the four phase dials,
+  since those are the part the buttons cannot tell you.</p>
+
+  <h3>Turning, and why it costs you</h3>
+  <p>Steering falls out of the same mechanic. Drive only the left pair and the
+  thrust acts off-centre at the front of the cell, so you turn — and because you
+  have stopped driving the other two, your bundle collapses while you do it.
+  Every dodge is paid for in the speed you spent effort building. That is the
+  decision the game is made of.</p>
+
+  <h3>Why staying still is a strategy</h3>
+  <p>This part is straight out of the paper. A real <em>Pterosperma</em> is
+  stopped <strong>96.6%</strong> of the time, and the authors read it as a
+  sit-and-wait animal. Here that statistic becomes a tactic: a beating cell
+  pushes a flow signature that predators feel from a long way off, and a stopped
+  one is nearly invisible. The dashed ring around you is how far you can
+  currently be heard. Sprinting is how you make distance and how you get eaten.</p>
+  <table>
+    <tr><th></th><th>Hunts by</th><th>Counterplay</th></tr>
+    <tr><td style="color:#c8708a">copepod</td><td>Patrols, hears a moderate distance, gives up quickly</td><td>You can outswim it. Just go.</td></tr>
+    <tr><td style="color:#8a7ad0">medusa</td><td>Sits still, hears a very long way, slow to start</td><td>Go quiet early and drift past. Do not sprint near one.</td></tr>
+    <tr><td style="color:#d08a4a">arrow worm</td><td>Short-sighted but faster than you, and relentless</td><td>It must not hear you at all. Once it has you, it has you.</td></tr>
+  </table>
+
+  <h3>What is real and what is not</h3>
+  <p>The cilia are not animation. Each one is a full instance of the model in
+  <code>../proteus/flagella.js</code> — the Chebyshev waveform, the linear
+  dispersion relation setting its wavelength from its frequency, and Gray &amp;
+  Hancock resistive force theory turning its travelling wave into thrust. The
+  body is overdamped, as anything this small must be: there is no inertia and
+  nothing coasts, so velocity is force over drag and releasing every key stops
+  you almost at once. Everything comes from
+  <a href="https://doi.org/10.1038/s41467-026-75076-8" target="_blank" rel="noopener">
+  <em>Embodied behavioural complexity in a ciliated microorganism</em></a>,
+  <em>Nature Communications</em> <strong>17</strong>, 8445 (2026).</p>
+  <p>Four things are the game's and not the paper's, and are marked as such in
+  <code>game.js</code>: how much a bundle helps (set by the skill gradient it
+  produces), how readily the cell turns (the true value is far too sluggish to
+  dodge with), a symmetric four-cilium arrangement in place of the real 3+1 one
+  so that left and right steer alike, and the predators, which are invented
+  entirely. The detune, the mirrored left/right beating, and the phase-reset are
+  all real ciliary behaviour — <em>Chlamydomonas</em> swims straight precisely
+  because its flagella beat as a mirrored pair.</p>
+  <p>There is a variant at <a href="../graze/">/graze/</a> where the beating
+  costs ATP and there is prey as well as predators — and where the paper's
+  96.6% is left to emerge from the economics instead of being quoted at you.</p>
+  <p>The instrument at <a href="../flag/">/flag/</a> shows the same model with
+  every measurement it came from; the amoeba at <a href="../proteus/">/proteus/</a>
+  hangs it off a crawling cell instead.</p>
+  <p>And two more keep the four keys but throw the biology away:
+  <a href="../qgol/">/qgol/</a> is Conway's Life with a generation split across
+  Q W O P, three keys that mark and one that commits;
+  <a href="../griddle/">/griddle/</a> is a pancake station where the face that
+  is cooking is the one you cannot see.</p>
+</div>
+
+<script type="module">
+  import { createGame, tickGame, setKey, KEYS } from './game.js';
+  import { drawGame } from './draw.js';
+
+  const cnv = document.getElementById('c');
+  const intro = document.getElementById('intro');
+  const dead = document.getElementById('dead');
+
+  let game = createGame({ seed: 7 });
+  let started = false;
+  let best = 0;
+  // Debug handle: lets a headless browser drive the real page with real key
+  // events and real timing, and read back what the cell actually did. The
+  // scripted players in qwop.selftest.mjs never touch the DOM, so without this
+  // nothing checks that the page and the model agree.
+  window.__qwop = () => game;
+
+  const TIPS = [
+    'Tapping all four together is the fastest thing you can do. Holding them is not.',
+    'Watch the phase dials — when they line up, you are bundled.',
+    'A medusa hears you from much further than you think. Go quiet before you are close.',
+    'You cannot outrun an arrow worm. Make sure it never hears you.',
+    'Turning breaks your bundle. Plan the dodge early rather than sharply.',
+    'Releasing everything stops you almost instantly. There is no coasting down here.',
+  ];
+
+  function reset() {
+    for (let i = 0; i < 4; i++) held[i] = false;
+    game = createGame({ seed: (Math.random() * 1e9) | 0, best });
+    started = true;
+    dead.hidden = true;
+    intro.hidden = true;
+    last = performance.now();
+  }
+
+  function onDeath() {
+    best = Math.max(best, game.cell.progressUm);
+    document.getElementById('dead-dist').textContent =
+      (game.cell.progressUm / 1000).toFixed(2) + ' mm';
+    const NAME = { arrow: 'an arrow worm', copepod: 'a copepod', medusa: 'a medusa' };
+    document.getElementById('dead-title').textContent =
+      NAME[game.cell.killedBy] ? `Eaten by ${NAME[game.cell.killedBy]}` : 'Eaten';
+    document.getElementById('dead-best').textContent = `best ${(best / 1000).toFixed(2)} mm`;
+    document.getElementById('dead-tip').textContent =
+      TIPS[(Math.random() * TIPS.length) | 0];
+    dead.hidden = false;
+  }
+
+  const held = [false, false, false, false];
+
+  addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (!started) {
+      if (k === ' ' || KEYS.includes(k) || e.key.length === 1) { reset(); e.preventDefault(); }
+      return;
+    }
+    if (game.over) {
+      if (k === ' ' || k === 'enter') { reset(); e.preventDefault(); }
+      return;
+    }
+    const i = KEYS.indexOf(k);
+    if (i >= 0) {
+      e.preventDefault();
+      if (!held[i]) { held[i] = true; setKey(game.cell, i, true); paintPad(); }
+    }
+  });
+  addEventListener('keyup', (e) => {
+    const i = KEYS.indexOf(e.key.toLowerCase());
+    if (i >= 0) { held[i] = false; setKey(game.cell, i, false); paintPad(); }
+  });
+  // A key or finger stuck down through a tab switch would be an unfair death.
+  const letGo = () => {
+    for (let i = 0; i < 4; i++) { held[i] = false; if (game) setKey(game.cell, i, false); }
+    paintPad();
+  };
+  addEventListener('blur', letGo);
+  addEventListener('visibilitychange', () => { if (document.hidden) letGo(); });
+
+  // ---- touch controls --------------------------------------------------
+  // One handler per button rather than one on the pad, and pointer capture on
+  // each, so that four fingers down at once are four independent presses. The
+  // game genuinely needs that: two to four cilia are held simultaneously most
+  // of the time, and a shared handler would let a second finger cancel the
+  // first. `touch-action: none` in the CSS is the other half — without it the
+  // browser claims the second touch for panning before it ever reaches here.
+  const pad = document.getElementById('pad');
+  for (const btn of pad.querySelectorAll('button')) {
+    const i = +btn.dataset.cilium;
+    const press = (e) => {
+      e.preventDefault();
+      if (!started || game.over) { reset(); return; }
+      try { btn.setPointerCapture(e.pointerId); } catch (_) {}
+      if (!held[i]) { held[i] = true; setKey(game.cell, i, true); btn.dataset.on = '1'; }
+    };
+    const release = (e) => {
+      if (e) e.preventDefault();
+      if (held[i]) { held[i] = false; setKey(game.cell, i, false); }
+      btn.dataset.on = '0';
+    };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointercancel', release);
+    // A finger that slides off the button has to let go, or the cilium sticks
+    // on — drag a thumb away to scroll and you would swim off with a key
+    // jammed down. pointerleave cannot do this job: setPointerCapture
+    // deliberately suppresses boundary events, which is exactly why the
+    // capture is worth keeping (it guarantees the pointerup comes back to this
+    // button even if the finger lifts somewhere else). So hit-test by hand.
+    btn.addEventListener('pointermove', (e) => {
+      if (!held[i]) return;
+      const r = btn.getBoundingClientRect();
+      const out = e.clientX < r.left || e.clientX > r.right
+        || e.clientY < r.top || e.clientY > r.bottom;
+      if (out) release(e);
+    });
+    // Suppress the synthetic mouse/context events a long press would produce.
+    btn.addEventListener('contextmenu', (e) => e.preventDefault());
+  }
+  // Mirror keyboard presses onto the pad so the two never disagree on screen.
+  function paintPad() {
+    const btns = pad.querySelectorAll('button');
+    for (let i = 0; i < btns.length; i++) btns[i].dataset.on = held[i] ? '1' : '0';
+  }
+
+  // Tapping anywhere on an overlay starts or restarts — on a phone there is no
+  // key to press, and hunting for a small button between runs is friction the
+  // game does not need.
+  for (const el of [intro, dead]) {
+    el.addEventListener('pointerdown', (e) => { e.preventDefault(); reset(); });
+  }
+
+  // Wording follows the input the device actually has.
+  if (matchMedia('(pointer: coarse)').matches) {
+    document.getElementById('start').textContent = 'tap to begin';
+    document.getElementById('again').textContent = 'tap to try again';
+  }
+
+  const STEP = 1 / 240;
+  let last = performance.now();
+  let acc = 0;
+  let wasOver = false;
+
+  function frame(t) {
+    const wall = Math.min(100, t - last) / 1000;
+    last = t;
+    if (started && !game.over) {
+      acc += wall;
+      let guard = 0;
+      while (acc >= STEP && guard++ < 400) { tickGame(game, STEP); acc -= STEP; }
+    }
+    if (game.over && !wasOver) { wasOver = true; onDeath(); }
+    if (!game.over) wasOver = false;
+    // The touch pad is what CSS decides to show; ask the DOM rather than
+    // re-deriving the media query here, so the two can never disagree.
+    drawGame(cnv, game, { compactKeys: pad.offsetParent !== null });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+</script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+QAT		The leaves of the shrub Catha edulis which are chewed like tobacco or used to make tea
+QUACK		An untrained person who pretends to be a physician and who dispenses medical advice
+QUACKERY		Medical practice and advice based on observation and experience in ignorance of…
+QUACKS	pl	An untrained person who pretends to be a physician and who dispenses medical advice
+QUAD		One of four children born at the same time from the same pregnancy
+QUADRANGLE		A four-sided polygon
+QUADRANGLES	pl	A four-sided polygon
+QUADRANT		A quarter of the circumference of a circle
+QUADRANTS	pl	A quarter of the circumference of a circle
+QUADRATE		A cubelike object
+QUADRATIC		An equation in which the highest power of an unknown quantity is a square
+QUADRATURE		The construction of a square having the same area as some other figure
+QUADRIC		A curve or surface whose equation is of the second degree
+QUADRICEPS		A muscle of the thigh that extends the leg
+QUADRILATERAL		A four-sided polygon
+QUADRILATERALS	pl	A four-sided polygon
+QUADRILLE		A square dance of 5 or more figures for 4 or more couples
+QUADRILLION		The number that is represented as a one followed by 24 zeros
+QUADRIPLEGIA		Paralysis of both arms and both legs
+QUADRIPLEGIC		A person who is paralyzed in both arms and both legs
+QUADRUPLE		A set of four similar things considered as a unit
+QUADS	pl	One of four children born at the same time from the same pregnancy
+QUAGGA		Mammal of South Africa that resembled a zebra
+QUAGMIRE		A soft wet area of low-lying land that sinks underfoot
+QUAIL		Draw back, as with fear or pain
+QUAILS	pl	Small gallinaceous game birds
+QUAINT		Strange in an interesting or pleasing way
+QUAKE		Shaking and vibration at the surface of the earth resulting from underground movement…
+QUAKER		A member of the Religious Society of Friends founded by George Fox
+QUAKERS		A Christian sect founded by George Fox about 1660
+QUAKES	pl	Shaking and vibration at the surface of the earth resulting from underground movement…
+QUAKING	ing	Shake with fast, tremulous movements
+QUALIFICATION		An attribute that must be met or complied with and that fits a person for something
+QUALIFICATIONS	pl	An attribute that must be met or complied with and that fits a person for something
+QUALIFIED		Meeting the proper standards and requirements and training for an office or position or…
+QUALIFIER		A contestant who meets certain requirements and so ___ to take part in the next…
+QUALIFIERS	pl	A contestant who meets certain requirements and so ___ to take part in the next…
+QUALIFIES	3sg	Prove capable or fit
+QUALIFY		Prove capable or fit
+QUALIFYING		The grammatical relation that exists when a word qualifies the meaning of the phrase
+QUALITATIVE		Involving distinctions based on qualities
+QUALITATIVELY		In a ___ manner
+QUALITIES	pl	An essential and distinguishing attribute of something or someone
+QUALITY		An essential and distinguishing attribute of something or someone
+QUALMS	pl	Uneasiness about the fitness of an action
+QUANDARY		A situation from which extrication is difficult especially an unpleasant or trying one
+QUANTA	irr	A discrete amount of something that is analogous to the ___ in ___ theory
+QUANTAL		Of or relating to a ___ or capable of existing in only one of two states
+QUANTIC		A homogeneous polynomial having at least two variables
+QUANTIFIABLE		Capable of being quantified
+QUANTIFICATION		A limitation imposed on the variables of a proposition
+QUANTIFIED	irr	Use as a ___
+QUANTIFIER		A word that binds the variables in a logical proposition
+QUANTIFIERS	pl	A word that binds the variables in a logical proposition
+QUANTIFIES	3sg	Use as a ___
+QUANTIFY		Use as a ___
+QUANTIFYING	ing	Use as a ___
+QUANTITATIVE		Expressible as a quantity or relating to or susceptible of measurement
+QUANTITATIVELY		In a ___ manner
+QUANTITIES	pl	An adequate or large amount
+QUANTITY		An adequate or large amount
+QUANTIZATION		The act of dividing into quanta or expressing in terms of quantum theory
+QUANTIZE		Approximate by one whose amplitude is restricted to a prescribed set of discrete values
+QUANTIZED		Of or relating to a quantum or capable of existing in only one of two states
+QUANTUM		A discrete amount of something that is analogous to the ___ in ___ theory
+QUARANTINE		Enforced isolation of patients suffering from a contagious disease in order to prevent…
+QUARANTINED		Under forced isolation especially for health reasons
+QUARANTINES	pl	Enforced isolation of patients suffering from a contagious disease in order to prevent…
+QUARK		Hypothetical truly fundamental particle in mesons and baryons
+QUARKS	pl	Hypothetical truly fundamental particle in mesons and baryons
+QUARREL		Have a disagreement over something
+QUARRELING	ing	Have a disagreement over something
+QUARRELLING	irr	Have a disagreement over something
+QUARRELS	pl	An angry dispute
+QUARRELSOME		Given to quarreling
+QUARRIED	irr	Extract from or as if from a ___
+QUARRIES	pl	A person who is the aim of an attack by some hostile person or influence
+QUARRY		A person who is the aim of an attack by some hostile person or influence
+QUARRYING		The extraction of building stone or slate from an open surface quarry
+QUART		A United States liquid unit equal to 32 fluid ounces
+QUARTER		One of four equal parts
+QUARTERBACK		The position of the football player in the backfield who directs the offensive play of…
+QUARTERBACKS	pl	The position of the football player in the backfield who directs the offensive play of…
+QUARTERDECK		The stern area of a ship's upper deck
+QUARTERED	past	Provide housing for
+QUARTERFINAL		One of the four competitions in an elimination tournament whose winners go on to play in…
+QUARTERFINALS	pl	One of the four competitions in an elimination tournament whose winners go on to play in…
+QUARTERING		Dividing into four equal parts
+QUARTERLY		In three month intervals
+QUARTERMASTER		An army officer who provides clothing and subsistence for troops
+QUARTERMASTERS	pl	An army officer who provides clothing and subsistence for troops
+QUARTERS		Housing available for people to live in
+QUARTET		The cardinal number that is the sum of three and one
+QUARTETS	pl	The cardinal number that is the sum of three and one
+QUARTIC		An algebraic equation or function of the fourth degree
+QUARTILE		Any of three points that divide an ordered distribution into four parts each containing…
+QUARTILES	pl	Any of three points that divide an ordered distribution into four parts each containing…
+QUARTO		The size of a book whose pages are made by folding a sheet of paper twice to form four…
+QUARTS	pl	A United States liquid unit equal to 32 fluid ounces
+QUARTZ		Colorless glass made of almost pure silica
+QUARTZITE		Hard metamorphic rock consisting essentially of interlocking quartz crystals
+QUASAR		A starlike object that may send out radio waves and other forms of energy
+QUASARS	pl	A starlike object that may send out radio waves and other forms of energy
+QUASH		Put down by force or intimidation
+QUASHED	past	Put down by force or intimidation
+QUASI		Having some resemblance
+QUASIPARTICLE		A quantum of energy that has position and momentum and can in some respects be regarded…
+QUATERNARY		Last 2 million years
+QUATERNION		The cardinal number that is the sum of three and one
+QUATERNIONS	pl	The cardinal number that is the sum of three and one
+QUATRAIN		A stanza of four lines
+QUAY		Wharf usually built parallel to the shoreline
+QUAYS	pl	Wharf usually built parallel to the shoreline
+QUEASY		Causing or able to cause nausea
+QUEENS		A borough of New York City
+QUELL		Suppress or crush completely
+QUELLED		Subdued or overcome
+QUENCH		Put out, as of fires, flames, or lights
+QUENCHED		Subdued or overcome
+QUENCHING		The act of extinguishing
+QUERIED	irr	Pose a question
+QUERIES	pl	An instance of questioning
+QUERY		Pose a question
+QUERYING	ing	Pose a question
+QUESADILLA		A tortilla that is filled with cheese and heated
+QUESADILLAS	pl	A tortilla that is filled with cheese and heated
+QUEST		A search for an alternative that meets cognitive criteria
+QUESTED	past	Make a search
+QUESTER		Someone making a search or inquiry
+QUESTING	ing	Make a search
+QUESTION		The subject matter at issue
+QUESTIONABLE		Subject to question
+QUESTIONED	past	Challenge the accuracy, probity, or propriety of
+QUESTIONER		Someone who asks a ___
+QUESTIONING		A request for information
+QUESTIONNAIRE		A form containing a set of questions
+QUESTIONNAIRES	pl	A form containing a set of questions
+QUESTIONS	pl	The subject matter at issue
+QUESTS	pl	A search for an alternative that meets cognitive criteria
+QUETZAL		The basic unit of money in Guatemala
+QUEUE		A line of people or vehicles waiting for something
+QUEUED	past	Form a ___, form a line, stand in line
+QUEUEING	ing	Form a ___, form a line, stand in line
+QUEUES	pl	A line of people or vehicles waiting for something
+QUEUING	ing	Form a ___, form a line, stand in line
+QUIBBLE		An evasion of the point of an argument by raising irrelevant distinctions or objections
+QUIBBLES	pl	An evasion of the point of an argument by raising irrelevant distinctions or objections
+QUICHE		A member of the Mayan people of south central Guatemala
+QUICK		Accomplished rapidly and without delay
+QUICKEN		Make keen or more acute
+QUICKENED	past	Make keen or more acute
+QUICKENING		The process of showing signs of life
+QUICKENS	3sg	Make keen or more acute
+QUICKER	comp	Accomplished rapidly and without delay
+QUICKEST	sup	Accomplished rapidly and without delay
+QUICKLY		With little or no delay
+QUICKNESS		Skillful performance or ability without difficulty
+QUICKSAND		A treacherous situation that tends to entrap and destroy
+QUICKSILVER		Liable to sudden unpredictable change
+QUICKSTEP		Military march accompanying quick time
+QUID		The basic unit of money in Great Britain and Northern Ireland
+QUIESCENCE		A state of quiet inaction
+QUIESCENT		Not active or activated
+QUIET		Characterized by an absence or near absence of agitation or activity
+QUIETED	past	Make calm or still
+QUIETER	comp	Characterized by an absence or near absence of agitation or activity
+QUIETEST	sup	Characterized by an absence or near absence of agitation or activity
+QUIETING	ing	Make calm or still
+QUIETLY		With low volume
+QUIETNESS		The property of making no sound
+QUIETUDE		A state of peace and quiet
+QUILL		Pen made from a bird's feather
+QUILLS	pl	Pen made from a bird's feather
+QUILT		Bedding made of two layers of cloth filled with stuffing and stitched together
+QUILTED		Made of layers of fabric held together by patterned stitching
+QUILTING		Stitching through layers of fabric and a filling so as to create a design
+QUILTS	pl	Bedding made of two layers of cloth filled with stuffing and stitched together
+QUIN		One of five children born at the same time from the same pregnancy
+QUINCE		Small Asian tree with pinkish flowers and pear-shaped fruit
+QUINIDINE		Cardiac drug used to treat certain heart arrhythmias
+QUININE		A bitter alkaloid extracted from chinchona bark
+QUINONE		Any of a class of aromatic yellow compounds including several that are biologically…
+QUINONES	pl	Any of a class of aromatic yellow compounds including several that are biologically…
+QUINS	pl	One of five children born at the same time from the same pregnancy
+QUINT		The cardinal number that is the sum of four and one
+QUINTAL		A unit of weight equal to 100 kilograms
+QUINTESSENCE		The fifth and highest element after air and earth and fire and water
+QUINTESSENTIAL		Representing the perfect example of a class or quality
+QUINTET		A musical composition for five performers
+QUINTETS	pl	A musical composition for five performers
+QUINTUPLE		A set of five similar things considered as a unit
+QUIP		A witty saying
+QUIPPED	irr	Make jokes or ___
+QUIPS	pl	A witty saying
+QUIRE		A quantity of paper
+QUIRES	pl	A quantity of paper
+QUIRK		A strange attitude or habit
+QUIRKS	pl	A strange attitude or habit
+QUIT		Put an end to a state or an activity
+QUITCLAIM		Document transferring title or right or claim to another
+QUITE		To a degree
+QUITS		On equal terms by payment or requital
+QUITTED	irr	Put an end to a state or an activity
+QUITTER		A person who gives up too easily
+QUITTERS	pl	A person who gives up too easily
+QUITTING	irr	Put an end to a state or an activity
+QUIVER		Shake with fast, tremulous movements
+QUIVERED	past	Shake with fast, tremulous movements
+QUIVERING		A shaky motion
+QUIVERS	pl	An almost pleasurable sensation of fright
+QUIXOTIC		Not sensible about practical matters
+QUIZ		An examination consisting of a few short questions
+QUIZZED	irr	Examine someone's knowledge of something
+QUIZZES	irr	An examination consisting of a few short questions
+QUIZZING	irr	Examine someone's knowledge of something
+QUOIN		Expandable metal or wooden wedge used by printers to lock up a form within a chase
+QUORUM		A gathering of the minimal number of members of an organization to conduct business
+QUOTA		A prescribed number
+QUOTABLE		Able or fit to be repeated or quoted
+QUOTAS	pl	A prescribed number
+QUOTATION		A short note recognizing a source of information or of a quoted passage
+QUOTATIONS	pl	A short note recognizing a source of information or of a quoted passage
+QUOTE		Repeat a passage from
+QUOTED	past	Repeat a passage from
+QUOTES	pl	A punctuation mark used to attribute the enclosed text to someone else
+QUOTIDIAN		Found in the ordinary course of events
+QUOTIENT		The ratio of two quantities to be divided
+QUOTIENTS	pl	The ratio of two quantities to be divided
+QUOTING	ing	Repeat a passage from

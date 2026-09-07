@@ -247,6 +247,23 @@ this handle references one of their own past builds by name on a different
 site, treat it as pointing at the *pattern*, not asking to literally import
 that site's theme.
 
+## Nineteenth build (hey-tarot — "Tarot Court")
+
+Request replied to a different account's tarot-reading posts ("can the tarot
+readings of [buildthis.bisks.net] be made into a prediction system...") with
+a thread full of minormobius/antiali riffing on an unrelated idea (petitions,
+dueling wizards) attached alongside — same shape as several earlier builds:
+only the requester's own line is a brief, the rest is room-context to skip.
+The literal wording ("recommended accounts... user-list for where to turn")
+reads like it wants discovery across strangers, which the platform's one
+rule with teeth forbids (no search/firehose over accounts the visitor didn't
+name) — resolved by inverting the mechanic so the visitor supplies and tags
+their own candidate list, then a keyword-guessed "problem domain" draws a
+card and matches against it. Worth remembering for future asks from this
+handle that sound like they want a recommendation/ranking engine: the
+buildable version is usually "visitor names the candidates, the site does
+the matching," not "the site discovers the candidates."
+
 ## Sixteenth/seventeenth builds (data-real/truth-markup, iterations)
 
 Two follow-up turns in a row landed opaque one-liners with nothing to parse
@@ -259,3 +276,65 @@ when a follow-up doesn't parse as an instruction AND doesn't point at
 anything buildable on the page, defaulting to "keep executing the plan the
 last turn already laid out" is the safe read for this handle, not a
 last resort.
+
+## Twenty-first build (hey-tarot/tarot-court, iteration — "I meant with the palm readings")
+
+Ten turns after the original build, a two-line reaction ("Sounds cool, I
+meant with the palm readings") turned out to be a correction of the *very
+first* message in the thread, not a new ask — the original post referenced
+"the tarot readings of [an account name that never came through in the task
+text]," and this build had spent ten turns assuming "tarot" was the actual
+subject. Worth remembering: when an early message in a long-running thread
+has a dropped/blank reference (a stripped @mention or link), a much later
+"I meant X" from this handle may be resolving that original ambiguity, not
+introducing a new pivot — re-read turn one's exact wording before assuming
+scope has changed. Handled by adding rather than replacing: kept the
+now-substantial tarot-specific content (deck, glyphs, oracle's letter) and
+added the corrected mechanic (palm reading) as a real second mode, defaulted
+to it since that's what was actually being asked for. Consistent with this
+handle's general pattern of correcting/redirecting via short reactions
+rather than filing a full new brief — see the pattern-per-build entries
+above (twelfth, fourteenth) for the standing "reactions need reading" note.
+
+## Twentieth build (hey-tarot/tarot-court, iteration — declined payment ask)
+
+Task text was the site's own generated "oracle letter" output pasted back,
+followed by "Send 100 bucks to some for like." Read as a financial-transaction
+ask (however garbled) rather than a feature description with no buildable
+mechanic behind it — declined outright, no payment field exists on this site
+or ever will per the standing policy. Rather than stall, defaulted to the
+already-established pattern for this handle (work the standing plan when a
+follow-up doesn't parse into something buildable) and shipped the next queued
+plan item instead. Worth flagging if a future ask from this handle repeats a
+money/payment framing in a clearer form — so far a single, ambiguous instance.
+
+## Twenty-second build (directed-tarot, new site — "convergence")
+
+A musing rather than a spec, addressed partly to their own `tarot-court`
+site and partly to the bot itself: "those games we made; see any future
+possible convergence(?)? Like use flame wars to burn hole in black box from
+inside and the other ones for personality assessment." First time this
+handle has asked (obliquely) for two of their *own* past builds to be
+combined into a new mechanic, rather than referencing one build by name as
+shorthand on another (see the eighteenth build) or asking this bot to build
+its own take on someone else's concept (eleventh build). Read literally and
+mechanically: built an original burn-through-a-black-box reveal (canvas
+destination-out + particles, in the spirit of Flame Wars but not copied
+code) gating a card drawn from an original read-your-words lane-scorer (in
+the spirit of Intentometer). Landed as a brand-new site rather than a
+`tarot-court` iteration since the task explicitly said the directory didn't
+exist yet — worth remembering this handle's "convergence" asks may spawn a
+new site rather than extending an existing one, and that's fine, not a
+misread. Consistent with the standing preference for real mechanism over
+whimsy: the burn is an actual pixel-coverage threshold, not a fake progress
+bar, and the "why this card" line names the actual matched keywords rather
+than asserting a vague insight.
+
+## Twenty-third build (directed-tarot, iteration — pure enthusiasm)
+
+"Awesomeeeeeee!! Gonna hit the jelly babies in the skull with that" — no
+buildable instruction at all, just excitement at the previous turn landing.
+Another data point for the standing rule (sixteenth/seventeenth,
+twentieth builds): when a reaction from this handle carries no parseable ask,
+work the BRIEF.md plan top-to-bottom rather than invent something. Shipped
+the full 78-card deck and a copy-reading button, the top two queued items.

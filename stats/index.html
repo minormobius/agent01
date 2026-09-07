@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>stats — how this repo actually got built</title>
+<meta name="description" content="Self-analytics over the full git history of minomobi: commits per day, the year grid, time-of-day rhythm, and which sites got the work.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="minomobi /stats — how this repo actually got built">
+<meta property="og:description" content="Five thousand commits, 160 sessions, 77 surfaces. Split by who made them, because only some of them had a person behind them.">
+<meta property="og:url" content="https://mino.mobi/stats/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --link: #8b0000; --accent: #8b0000;
+  --accent-faint: rgba(139,0,0,0.06); --card: #fff;
+  --agent: #8b0000; --loop: #3a6ea5; --bot: #a08030; --human: #2a7a2a;
+  --grid0: #e8e6e0;
+  --mono: 'SF Mono','Cascadia Code','Fira Code',Menlo,monospace;
+  --serif: 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
+    --link: #c45; --accent: #c45;
+    --accent-faint: rgba(204,68,85,0.08); --card: #161616;
+    --agent: #c45; --loop: #5d9bd8; --bot: #d4a355; --human: #55b070;
+    --grid0: #1e1e1e;
+  }
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--serif); line-height:1.55; }
+.wrap { max-width:1060px; margin:0 auto; padding:2rem 1.2rem 5rem; }
+a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
+header .crumb { font-family:var(--mono); font-size:.8rem; }
+h1 { font-size:1.9rem; margin:.4rem 0 .2rem; }
+.sub { color:var(--muted); max-width:64ch; }
+.stamp { font-family:var(--mono); font-size:.72rem; color:var(--muted); margin-top:.5rem; }
+h2 { font-size:1.25rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.25rem; }
+h2 + .note { color:var(--muted); font-size:.92rem; margin:.5rem 0 1rem; max-width:66ch; }
+.counts { display:flex; flex-wrap:wrap; gap:1.6rem; margin-top:1.2rem; }
+.counts div { min-width:96px; }
+.counts b { display:block; font-family:var(--mono); font-size:1.5rem; font-weight:600; line-height:1.1; }
+.counts span { font-family:var(--mono); font-size:.68rem; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); }
+.caveat { background:var(--accent-faint); border-left:3px solid var(--accent); padding:.85rem 1.1rem; margin:1.4rem 0 0; font-size:.94rem; max-width:70ch; }
+.caveat b { font-family:var(--mono); font-size:.85rem; }
+.scroll { overflow-x:auto; padding-bottom:.4rem; }
+svg { display:block; }
+.legend { display:flex; flex-wrap:wrap; gap:1rem; font-family:var(--mono); font-size:.72rem; color:var(--muted); margin-top:.7rem; align-items:center; }
+.legend i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:.35rem; vertical-align:-1px; }
+.toggles { display:flex; gap:.4rem; flex-wrap:wrap; margin:.9rem 0 .2rem; }
+.toggles button { font-family:var(--mono); font-size:.72rem; padding:.3rem .7rem; border:1px solid var(--rule); background:transparent; color:var(--muted); cursor:pointer; border-radius:3px; }
+.toggles button[aria-pressed="true"] { border-color:var(--accent); color:var(--accent); background:var(--accent-faint); }
+table { border-collapse:collapse; width:100%; font-size:.86rem; margin-top:.9rem; }
+th { font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); text-align:left; padding:.5rem .6rem; border-bottom:1px solid var(--rule); font-weight:600; white-space:nowrap; }
+td { padding:.45rem .6rem; border-bottom:1px solid var(--rule); vertical-align:middle; }
+td.n { font-family:var(--mono); text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; }
+td.s { font-family:var(--mono); }
+.bar { height:9px; background:var(--agent); border-radius:1px; min-width:1px; }
+tbody tr:hover { background:var(--accent-faint); }
+.tip { position:fixed; pointer-events:none; background:var(--card); border:1px solid var(--rule); padding:.4rem .6rem; font-family:var(--mono); font-size:.72rem; border-radius:3px; opacity:0; transition:opacity .1s; z-index:9; white-space:nowrap; }
+footer { margin-top:3.5rem; padding-top:1rem; border-top:1px solid var(--rule); font-family:var(--mono); font-size:.72rem; color:var(--muted); line-height:1.8; }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="crumb"><a href="/">mino.mobi</a> / stats</div>
+  <h1>How this repo actually got built</h1>
+  <p class="sub">Self-analytics over the whole git history — every commit on every branch, split by who made it. Companion to <a href="/spec/">/spec</a> (what exists) and <a href="/office/">/office</a> (how it's arranged).</p>
+  <p class="stamp" id="stamp">loading…</p>
+</header>
+
+<div class="counts" id="counts"></div>
+
+<div class="caveat">
+  <b>What a number here means.</b> A <b>commit</b> is one committed turn — a prompt can produce
+  several commits or none, so these are a <em>floor</em> on prompts, not a count of them. A
+  <b>session</b> is one Claude Code conversation, read from the commit trailer. And only
+  <b>agent</b> commits had a person prompting them: the loop and the bots commit on a schedule,
+  and folding them in would roughly triple every number while meaning nothing.
+</div>
+
+<h2>The year</h2>
+<p class="note">One cell per day, GitHub-style. Darker is more commits. Use the toggles to see who was working.</p>
+<div class="toggles" id="grid-toggles"></div>
+<div class="scroll"><svg id="grid" role="img" aria-label="Commit calendar"></svg></div>
+<div class="legend" id="grid-legend"></div>
+
+<h2>Commits per day</h2>
+<p class="note">Oldest to newest. Defaults to agent commits, because the total is dominated by a
+single day of loop activity — 356 commits against a median day of 20 — which flattens everything
+else to a hairline. Switch to <em>everything</em> to see that for yourself.</p>
+<div class="toggles" id="daily-toggles"></div>
+<div class="scroll"><svg id="daily" role="img" aria-label="Commits per day"></svg></div>
+<div class="legend" id="daily-legend"></div>
+
+<h2>Time of day</h2>
+<p class="note">Agent commits only, in local time. Weekday down, hour across — the rhythm of when the work actually happened.</p>
+<div class="scroll"><svg id="heat" role="img" aria-label="Commits by weekday and hour"></svg></div>
+<div class="scroll" style="margin-top:1.4rem"><svg id="hours" role="img" aria-label="Commits by hour of day"></svg></div>
+
+<h2>Where the work went</h2>
+<p class="note">Per surface, not per directory — <code>answers/</code> serves ask.mino.mobi, and <code>clock/</code> belongs to the <code>torus</code> surface. A commit touching three surfaces counts once for each, so these are touches, not a partition.</p>
+<div class="scroll"><table id="surfaces"><thead><tr>
+  <th>Surface</th><th>Agent</th><th>Loop</th><th>Bot</th><th>Total</th><th>Sessions</th><th style="width:26%"></th><th>Active</th>
+</tr></thead><tbody></tbody></table></div>
+
+<h2>Sessions and models</h2>
+<p class="note">Session length is the shape of a conversation: how many committed turns before the work was done.</p>
+<div class="counts" id="session-counts"></div>
+<div class="scroll" style="margin-top:1.2rem"><svg id="sessions" role="img" aria-label="Session length distribution"></svg></div>
+<div class="scroll"><table id="models"><thead><tr><th>Model</th><th>Commits</th><th style="width:40%"></th></tr></thead><tbody></tbody></table></div>
+
+<footer id="foot"></footer>
+</div>
+<div class="tip" id="tip"></div>
+
+<script>
+(function () {
+  'use strict';
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var ACTORS = ['agent', 'loop', 'bot', 'human'];
+  var LABEL = { agent: 'agent (prompted)', loop: 'loop (autonomous)', bot: 'bots + CI', human: 'human direct' };
+  var tip = document.getElementById('tip');
+
+  function el(n, a) {
+    var e = document.createElementNS(SVGNS, n);
+    for (var k in a) if (a[k] != null) e.setAttribute(k, a[k]);
+    return e;
+  }
+  function css(v) { return getComputedStyle(document.documentElement).getPropertyValue('--' + v).trim(); }
+  function showTip(evt, html) {
+    tip.innerHTML = html; tip.style.opacity = '1';
+    var x = evt.clientX + 12, y = evt.clientY + 12;
+    if (x + tip.offsetWidth > innerWidth - 8) x = evt.clientX - tip.offsetWidth - 12;
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function hideTip() { tip.style.opacity = '0'; }
+  function hookTip(node, html) {
+    node.addEventListener('mousemove', function (e) { showTip(e, html); });
+    node.addEventListener('mouseleave', hideTip);
+  }
+  function fmtDate(d) {
+    var p = d.split('-');
+    return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+p[1] - 1] + ' ' + (+p[2]) + ', ' + p[0];
+  }
+
+  fetch('data.json').then(function (r) { return r.json(); }).then(render).catch(function (e) {
+    document.getElementById('stamp').textContent = 'could not load data.json — ' + e.message;
+  });
+
+  function render(D) {
+    document.getElementById('stamp').textContent =
+      D.window.start + ' → ' + D.window.end + ' · ' + D.daily.length + ' active days · times in ' + D.timezone + ' · generated ' + D.generated;
+
+    // ---- headline counts ----
+    var c = document.getElementById('counts');
+    [['agent', D.totals.agent, 'agent commits'], ['sessions', D.sessions.count, 'sessions'],
+     ['loop', D.totals.loop, 'loop commits'], ['bot', D.totals.bot, 'bot + CI commits'],
+     ['', D.coverage.commits, 'commits total'], ['', D.surfaces.length, 'surfaces touched']]
+      .forEach(function (row) {
+        var d = document.createElement('div');
+        d.innerHTML = '<b style="color:' + (row[0] ? css(row[0]) : 'inherit') + '">' + row[1].toLocaleString() + '</b><span>' + row[2] + '</span>';
+        c.appendChild(d);
+      });
+
+    drawGrid(D); drawDaily(D); drawHeat(D); drawHours(D); drawSurfaces(D); drawSessions(D);
+
+    document.getElementById('foot').innerHTML =
+      'Generated by <code>scripts/build-git-stats.mjs</code> from the full history — merges excluded, '
+      + D.coverage.excludedPreProject + ' pre-project commit excluded.<br>'
+      + 'Session ids appear on ' + D.coverage.sessionPct + '% of commits (' + D.coverage.withSession.toLocaleString()
+      + ' of ' + D.coverage.commits.toLocaleString() + '); the remainder is loop and bot volume, which carries none.<br>'
+      + 'A commit is a committed turn, not a prompt.';
+  }
+
+  // ---------------------------------------------------------------- year grid
+  function drawGrid(D) {
+    var mode = 'agent';
+    var byDate = {}; D.daily.forEach(function (d) { byDate[d.d] = d; });
+    var start = new Date(D.window.start + 'T00:00:00Z');
+    var end = new Date(D.window.end + 'T00:00:00Z');
+    // back up to the Sunday on or before the first day, so columns are weeks
+    var first = new Date(start); first.setUTCDate(first.getUTCDate() - first.getUTCDay());
+
+    var CELL = 13, GAP = 3, TOP = 20, LEFT = 30;
+    var weeks = Math.ceil((end - first) / (7 * 864e5)) + 1;
+    var svg = document.getElementById('grid');
+    var tog = document.getElementById('grid-toggles');
+
+    ACTORS.concat(['all']).forEach(function (a) {
+      var b = document.createElement('button');
+      b.textContent = a === 'all' ? 'everything' : a;
+      b.setAttribute('aria-pressed', a === mode);
+      b.onclick = function () {
+        mode = a;
+        [].forEach.call(tog.children, function (x) { x.setAttribute('aria-pressed', x === b); });
+        paint();
+      };
+      tog.appendChild(b);
+    });
+
+    function val(d) {
+      if (!d) return 0;
+      return mode === 'all' ? ACTORS.reduce(function (s, a) { return s + d[a]; }, 0) : d[mode];
+    }
+
+    function paint() {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      svg.setAttribute('width', LEFT + weeks * (CELL + GAP) + 10);
+      svg.setAttribute('height', TOP + 7 * (CELL + GAP) + 8);
+
+      var max = 0;
+      D.daily.forEach(function (d) { max = Math.max(max, val(d)); });
+      var colour = mode === 'all' ? css('agent') : css(mode);
+
+      ['Mon', 'Wed', 'Fri'].forEach(function (lbl, i) {
+        var row = [1, 3, 5][i];
+        var t = el('text', { x: 0, y: TOP + row * (CELL + GAP) + CELL - 2, fill: css('muted'),
+          'font-size': 9, 'font-family': css('mono') });
+        t.textContent = lbl; svg.appendChild(t);
+      });
+
+      var lastMonth = null;
+      for (var w = 0; w < weeks; w++) {
+        for (var dow = 0; dow < 7; dow++) {
+          var day = new Date(first); day.setUTCDate(day.getUTCDate() + w * 7 + dow);
+          if (day < start || day > end) continue;
+          var key = day.toISOString().slice(0, 10);
+          var v = val(byDate[key]);
+          var x = LEFT + w * (CELL + GAP), y = TOP + dow * (CELL + GAP);
+
+          if (dow === 0) {
+            var mo = day.getUTCMonth();
+            if (mo !== lastMonth) {
+              lastMonth = mo;
+              var mt = el('text', { x: x, y: TOP - 7, fill: css('muted'), 'font-size': 9, 'font-family': css('mono') });
+              mt.textContent = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo];
+              svg.appendChild(mt);
+            }
+          }
+          var op = v === 0 ? 0 : 0.18 + 0.82 * Math.sqrt(v / max);
+          var rect = el('rect', { x: x, y: y, width: CELL, height: CELL, rx: 2,
+            fill: v === 0 ? css('grid0') : colour, 'fill-opacity': v === 0 ? 1 : op.toFixed(3) });
+          var d = byDate[key];
+          hookTip(rect, '<b>' + fmtDate(key) + '</b><br>' + v + (mode === 'all' ? ' commits' : ' ' + mode + ' commits')
+            + (d && d.s ? '<br>' + d.s + ' session' + (d.s === 1 ? '' : 's') : ''));
+          svg.appendChild(rect);
+        }
+      }
+
+      var lg = document.getElementById('grid-legend');
+      lg.innerHTML = '<span>less</span>';
+      [0, 0.25, 0.5, 0.75, 1].forEach(function (f) {
+        var s = document.createElement('span');
+        s.innerHTML = '<i style="background:' + (f === 0 ? css('grid0') : colour) + ';opacity:' + (f === 0 ? 1 : 0.18 + 0.82 * f) + '"></i>';
+        lg.appendChild(s);
+      });
+      var more = document.createElement('span'); more.textContent = 'more · peak ' + max + '/day';
+      lg.appendChild(more);
+    }
+    paint();
+  }
+
+  // ------------------------------------------------------------ commits/day
+  function drawDaily(D) {
+    var svg = document.getElementById('daily');
+    var tog = document.getElementById('daily-toggles');
+    // Agent-only by default: the stacked total is dominated by one 356-commit
+    // loop day against a median of 20, which renders every other day invisible.
+    var shown = ['agent'];
+
+    [['agent', 'agent'], ['everything', null]].concat(ACTORS.slice(1).map(function (a) { return [a, a]; }))
+      .forEach(function (opt) {
+        var b = document.createElement('button');
+        b.textContent = opt[0];
+        b.onclick = function () {
+          shown = opt[1] ? [opt[1]] : ACTORS.slice();
+          [].forEach.call(tog.children, function (x) { x.setAttribute('aria-pressed', x === b); });
+          paint();
+        };
+        b.setAttribute('aria-pressed', opt[0] === 'agent');
+        tog.appendChild(b);
+      });
+
+    function paint() {
+      while (svg.firstChild) svg.removeChild(svg.firstChild);
+      var W = Math.max(900, D.daily.length * 5), H = 210, PAD = 30;
+      svg.setAttribute('width', W); svg.setAttribute('height', H);
+      var bw = (W - PAD - 8) / D.daily.length;
+      var sum = function (d) { return shown.reduce(function (s, a) { return s + d[a]; }, 0); };
+      var max = 1;
+      D.daily.forEach(function (d) { max = Math.max(max, sum(d)); });
+
+      [0, 0.5, 1].forEach(function (f) {
+        var y = H - 18 - f * (H - 40);
+        svg.appendChild(el('line', { x1: PAD, y1: y, x2: W - 8, y2: y, stroke: css('rule'),
+          'stroke-width': 1, 'stroke-dasharray': f ? '2 3' : null }));
+        var t = el('text', { x: 0, y: y + 3, fill: css('muted'), 'font-size': 9, 'font-family': css('mono') });
+        t.textContent = Math.round(f * max); svg.appendChild(t);
+      });
+
+      D.daily.forEach(function (d, i) {
+        var y = H - 18, x = PAD + i * bw;
+        shown.forEach(function (a) {
+          if (!d[a]) return;
+          var h = d[a] / max * (H - 40);
+          y -= h;
+          svg.appendChild(el('rect', { x: x, y: y, width: Math.max(1, bw - 0.6), height: h, fill: css(a) }));
+        });
+        var hit = el('rect', { x: x, y: 0, width: Math.max(1, bw), height: H - 18, fill: 'transparent' });
+        hookTip(hit, '<b>' + fmtDate(d.d) + '</b><br>'
+          + ACTORS.filter(function (a) { return d[a]; }).map(function (a) { return a + ' ' + d[a]; }).join('<br>')
+          + (d.s ? '<br>' + d.s + ' session' + (d.s === 1 ? '' : 's') : ''));
+        svg.appendChild(hit);
+      });
+    }
+    paint();
+
+    var lg = document.getElementById('daily-legend');
+    ACTORS.forEach(function (a) {
+      var s = document.createElement('span');
+      s.innerHTML = '<i style="background:' + css(a) + '"></i>' + LABEL[a] + ' · ' + D.totals[a].toLocaleString();
+      lg.appendChild(s);
+    });
+  }
+
+  // -------------------------------------------------------------- heatmap
+  function drawHeat(D) {
+    var svg = document.getElementById('heat');
+    var CELL = 26, GAP = 3, LEFT = 34, TOP = 18;
+    var DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    svg.setAttribute('width', LEFT + 24 * (CELL + GAP)); svg.setAttribute('height', TOP + 7 * (CELL + GAP) + 6);
+    var max = 0; D.heatmap.forEach(function (r) { r.forEach(function (v) { max = Math.max(max, v); }); });
+
+    for (var h = 0; h < 24; h += 3) {
+      var t = el('text', { x: LEFT + h * (CELL + GAP), y: TOP - 6, fill: css('muted'), 'font-size': 9, 'font-family': css('mono') });
+      t.textContent = String(h).padStart(2, '0'); svg.appendChild(t);
+    }
+    D.heatmap.forEach(function (row, dow) {
+      var lt = el('text', { x: 0, y: TOP + dow * (CELL + GAP) + CELL / 2 + 3, fill: css('muted'), 'font-size': 9, 'font-family': css('mono') });
+      lt.textContent = DOW[dow]; svg.appendChild(lt);
+      row.forEach(function (v, h) {
+        var op = v === 0 ? 0 : 0.15 + 0.85 * Math.sqrt(v / max);
+        var r = el('rect', { x: LEFT + h * (CELL + GAP), y: TOP + dow * (CELL + GAP), width: CELL, height: CELL, rx: 2,
+          fill: v === 0 ? css('grid0') : css('agent'), 'fill-opacity': v === 0 ? 1 : op.toFixed(3) });
+        hookTip(r, '<b>' + DOW[dow] + ' ' + String(h).padStart(2, '0') + ':00</b><br>' + v + ' agent commits');
+        svg.appendChild(r);
+      });
+    });
+  }
+
+  // ---------------------------------------------------------- hour histogram
+  function drawHours(D) {
+    var svg = document.getElementById('hours');
+    var W = 760, H = 150, PAD = 30, BASE = H - 22;
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    var bw = (W - PAD - 10) / 24;
+    var max = 0;
+    for (var h = 0; h < 24; h++) max = Math.max(max, ACTORS.reduce(function (s, a) { return s + D.hourly[a][h]; }, 0));
+
+    for (var i = 0; i < 24; i++) {
+      var x = PAD + i * bw, y = BASE;
+      ACTORS.forEach(function (a) {
+        var v = D.hourly[a][i]; if (!v) return;
+        var hh = v / max * (BASE - 10);
+        y -= hh;
+        svg.appendChild(el('rect', { x: x, y: y, width: bw - 3, height: hh, fill: css(a), rx: 1 }));
+      });
+      if (i % 2 === 0) {
+        var t = el('text', { x: x + (bw - 3) / 2, y: H - 8, fill: css('muted'), 'font-size': 9,
+          'font-family': css('mono'), 'text-anchor': 'middle' });
+        t.textContent = String(i).padStart(2, '0'); svg.appendChild(t);
+      }
+      (function (i, x) {
+        var hit = el('rect', { x: x, y: 0, width: bw, height: BASE, fill: 'transparent' });
+        hookTip(hit, '<b>' + String(i).padStart(2, '0') + ':00 local</b><br>'
+          + ACTORS.filter(function (a) { return D.hourly[a][i]; }).map(function (a) { return a + ' ' + D.hourly[a][i]; }).join('<br>'));
+        svg.appendChild(hit);
+      })(i, x);
+    }
+    svg.appendChild(el('line', { x1: PAD, y1: BASE, x2: W - 10, y2: BASE, stroke: css('rule') }));
+  }
+
+  // -------------------------------------------------------------- surfaces
+  function drawSurfaces(D) {
+    var tb = document.querySelector('#surfaces tbody');
+    var max = D.surfaces[0] ? D.surfaces[0].total : 1;
+    D.surfaces.forEach(function (s) {
+      var tr = document.createElement('tr');
+      var name = s.url ? '<a href="' + s.url + '">' + s.surface + '</a>' : s.surface;
+      tr.innerHTML = '<td class="s">' + name + '</td>'
+        + '<td class="n">' + (s.agent || '') + '</td>'
+        + '<td class="n">' + (s.loop || '') + '</td>'
+        + '<td class="n">' + (s.bot || '') + '</td>'
+        + '<td class="n"><b>' + s.total + '</b></td>'
+        + '<td class="n">' + (s.sessions || '') + '</td>'
+        + '<td><div class="bar" style="width:' + (s.total / max * 100).toFixed(1) + '%"></div></td>'
+        + '<td class="n" style="color:var(--muted);font-size:.76rem">' + s.first.slice(5) + ' → ' + s.last.slice(5) + '</td>';
+      tb.appendChild(tr);
+    });
+  }
+
+  // -------------------------------------------------------------- sessions
+  function drawSessions(D) {
+    var c = document.getElementById('session-counts');
+    [[D.sessions.count, 'sessions'], [D.sessions.medianCommits, 'median commits'],
+     [D.sessions.maxCommits, 'longest session'], [D.coverage.sessionPct + '%', 'commits with a session id']]
+      .forEach(function (r) {
+        var d = document.createElement('div');
+        d.innerHTML = '<b>' + r[0] + '</b><span>' + r[1] + '</span>';
+        c.appendChild(d);
+      });
+
+    var hist = D.sessions.sizeHistogram;
+    var sizes = Object.keys(hist).map(Number).sort(function (a, b) { return a - b; });
+    var svg = document.getElementById('sessions');
+    var W = 760, H = 140, PAD = 26, BASE = H - 22;
+    svg.setAttribute('width', W); svg.setAttribute('height', H);
+    var maxSize = sizes[sizes.length - 1];
+    var bw = (W - PAD - 10) / (maxSize + 1);
+    var maxN = Math.max.apply(null, sizes.map(function (s) { return hist[s]; }));
+    sizes.forEach(function (s) {
+      var h = hist[s] / maxN * (BASE - 10);
+      var x = PAD + s * bw;
+      var r = el('rect', { x: x, y: BASE - h, width: Math.max(1.5, bw - 1), height: h, fill: css('agent'), rx: 1 });
+      hookTip(r, '<b>' + hist[s] + ' session' + (hist[s] === 1 ? '' : 's') + '</b><br>with ' + s + ' commit' + (s === 1 ? '' : 's'));
+      svg.appendChild(r);
+    });
+    [0, 25, 50, 75, 100, 125].filter(function (v) { return v <= maxSize; }).forEach(function (v) {
+      var t = el('text', { x: PAD + v * bw, y: H - 8, fill: css('muted'), 'font-size': 9, 'font-family': css('mono'), 'text-anchor': 'middle' });
+      t.textContent = v; svg.appendChild(t);
+    });
+    svg.appendChild(el('line', { x1: PAD, y1: BASE, x2: W - 10, y2: BASE, stroke: css('rule') }));
+
+    var tb = document.querySelector('#models tbody');
+    var entries = Object.keys(D.models).map(function (k) { return [k, D.models[k]]; }).sort(function (a, b) { return b[1] - a[1]; });
+    var mx = entries.length ? entries[0][1] : 1;
+    entries.forEach(function (e) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td class="s">' + e[0] + '</td><td class="n">' + e[1] + '</td>'
+        + '<td><div class="bar" style="width:' + (e[1] / mx * 100).toFixed(1) + '%"></div></td>';
+      tb.appendChild(tr);
+    });
+  }
+})();
+</script>
+</body>
+</html>

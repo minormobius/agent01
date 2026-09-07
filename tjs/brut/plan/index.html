@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brut · the drawing office — blueprints · tjs</title>
+<meta name="description" content="The blueprint set for a seeded procedural brutalist building: general arrangement plans for every storey, four elevations, section A–A, a schedule of accommodation and a title block — generated from the same seed the 3D model at /brut/ reads, so the drawings and the model are the same building.">
+<style>
+  :root{ --bg:#07070c; --panel:#0f0f18ee; --line:#23232e; --ink:#e6e6f0; --soft:#8a8aa0; --accent:#39d6c8; }
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%}
+  body{background:#07070c;color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       -webkit-font-smoothing:antialiased}
+  .crumb{position:fixed;top:14px;left:18px;z-index:7;font-size:12px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft)}
+  .crumb a{color:var(--soft);text-decoration:none}
+  .crumb a:hover{color:var(--accent)}
+  #panel{position:fixed;top:42px;left:14px;z-index:6;width:308px;max-height:calc(100vh - 58px);overflow:auto;
+    background:var(--panel);border:1px solid var(--line);border-radius:14px;backdrop-filter:blur(9px);
+    padding:13px 13px 12px;box-shadow:0 18px 50px #0009}
+  #panel h1{font-size:16px;margin:0 0 2px;font-weight:700}
+  #panel .sub{font-size:11.5px;color:var(--soft);margin:0 0 11px}
+  main{margin:0 0 0 344px;padding:20px 24px 80px;max-width:1180px}
+  .sheetbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 16px}
+  .sheetbar button{background:#12121c;border:1px solid var(--line);color:var(--soft);border-radius:8px;
+    padding:6px 11px;font-size:12px;cursor:pointer}
+  .sheetbar button.on,.sheetbar button:hover{border-color:var(--accent);color:var(--accent)}
+  .sheetbar .sp{flex:1 1 auto}
+  h2.dw{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--soft);margin:26px 0 8px;
+    border-bottom:1px solid var(--line);padding-bottom:6px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:16px}
+  .grid.two{grid-template-columns:repeat(auto-fit,minmax(420px,1fr))}
+  .card{background:#0d2542;border:1px solid var(--line);border-radius:10px;overflow:hidden;position:relative}
+  .card svg{display:block}
+  .card .tag{position:absolute;top:7px;left:9px;font:10px/1 ui-monospace,Menlo,monospace;letter-spacing:.08em;
+    text-transform:uppercase;color:#9dc4e6;pointer-events:none}
+  .wide{grid-column:1/-1}
+  .hazbar{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 14px;padding:10px 12px;
+    background:#0d0d16;border:1px solid var(--line);border-radius:10px}
+  .hazbar label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--soft);
+    letter-spacing:.04em;text-transform:uppercase}
+  .hazbar select{background:#05050a;border:1px solid var(--line);color:var(--ink);border-radius:7px;
+    padding:5px 7px;font:12px/1.2 ui-monospace,Menlo,monospace}
+  .hazbar select:focus{outline:none;border-color:var(--accent)}
+  body.print-theme .hazbar{background:#eef0f3;border-color:#c8ccd2}
+  footer{margin-top:40px;font-size:12px;color:var(--soft);border-top:1px solid var(--line);padding-top:14px}
+  footer a{color:var(--accent)}
+  #err{position:fixed;inset:auto 14px 14px 14px;z-index:9;background:#2b0f14;border:1px solid #7a2230;color:#ffd9de;
+    border-radius:10px;padding:10px 12px;font:12px/1.5 ui-monospace,Menlo,monospace;display:none;white-space:pre-wrap}
+  body.print-theme{background:#f2f3f5;color:#111318}
+  body.print-theme .card{background:#fff;border-color:#c8ccd2}
+  body.print-theme .card .tag{color:#4a525c}
+  body.print-theme h2.dw{color:#4a525c;border-color:#c8ccd2}
+  @media (max-width:900px) and (min-width:761px){ #panel{position:static;width:auto;margin:44px 14px 0;max-height:none} main{margin:0;padding:16px} }
+  /* phone: the panel and the hazard strip move into the bottom sheet, and the
+     drawings get the whole screen in one column */
+  @media (max-width:760px){
+    .crumb{font-size:11px;top:10px;left:12px}
+    main{margin:0;padding:38px 12px 96px;max-width:none}
+    #panel{position:static;width:auto;max-height:none;border:0;background:none;
+      box-shadow:none;padding:0;backdrop-filter:none;border-radius:0}
+    .grid,.grid.two{grid-template-columns:1fr}
+    .sheetbar button{padding:9px 12px;font-size:13px}
+    .hazbar{flex-direction:column;align-items:stretch;gap:8px}
+    .hazbar label{justify-content:space-between}
+    .hazbar select{flex:1 1 auto;padding:8px;font-size:13px}
+    .panel select,.panel input[type=text]{padding:8px;font-size:13px}
+    .panel input[type=range]{height:18px;background:transparent}
+    .panel input[type=range]::-webkit-slider-thumb{width:20px;height:20px}
+  }
+  @media print{
+    body{background:#fff;color:#000}
+    .crumb,#panel,.sheetbar,#err,.hazbar{display:none!important}
+    main{margin:0;padding:0;max-width:none}
+    .grid{grid-template-columns:1fr 1fr}
+    .card{break-inside:avoid;border-color:#999;background:#fff}
+    h2.dw{color:#333;border-color:#999}
+  }
+</style>
+</head>
+<body>
+<div class="crumb"><a href="https://mino.mobi/">mino.mobi</a> / <a href="../../">tjs</a> / <a href="../">brut</a> / plan</div>
+
+<div id="panel" class="panel">
+  <h1>The drawing office</h1>
+  <p class="sub">The same seed as the <a href="../" style="color:var(--accent)">model</a>, drawn instead of rendered. Plans, elevations, section, schedule — projected from the generator, not traced off a render.</p>
+  <div id="controls"></div>
+</div>
+
+<main>
+  <div class="sheetbar">
+    <button id="themeBtn">print theme</button>
+    <button id="printBtn">print / save PDF</button>
+    <span class="sp"></span>
+    <button id="svgBtn">download SVG set</button>
+  </div>
+  <div id="hazwrap"><div class="hazbar" id="hazbar"></div></div>
+  <div id="sheet"></div>
+  <footer>
+    Every drawing on this page is a projection of the generator in
+    <code>arch.js</code> — the plan is <code>levels[i].rooms</code>, the elevation is
+    <code>facades</code> filtered by side, the section is <code>section()</code>. Nothing here is
+    drawn by hand and nothing is traced off the render, which is why the
+    <a href="../">3D model</a> of this seed agrees with it bay for bay. Drawings carry no
+    date: a seeded building has no issue date, so the revision mark is a hash of its parameters.
+  </footer>
+</main>
+
+<div id="err"></div>
+
+<script type="module">
+import { generate } from '../arch.js';
+import { planSVG, elevationSVG, sectionSVG, titleBlockSVG, scheduleSVG, sheetSVG, PALETTES, revision } from '../blueprint.js';
+import { verify, SEISMIC_SCENARIOS, WIND_SCENARIOS, SITE_CLASSES, EXPOSURES } from '../struct.js';
+import { verificationSVG, storeySVG, modesSVG, spectrumSVG, framingSVG } from '../structdraw.js';
+import { buildPanel, readURL, PANEL_CSS, mountSheet, SHEET_CSS } from '../ui.js';
+import { rollWorkable } from '../roller.js';
+
+const errEl = document.getElementById('err');
+const fail = (e) => { errEl.style.display = 'block'; errEl.textContent = String(e && e.stack || e); console.error(e); };
+window.addEventListener('error', (e) => fail(e.error || e.message));
+document.head.appendChild(Object.assign(document.createElement('style'), { textContent: PANEL_CSS + SHEET_CSS }));
+
+const sheet = document.getElementById('sheet');
+let theme = 'blueprint';
+let building = null, report = null;
+// The hazard is a VIEW of the building, not part of it — the same concrete
+// stands in Kent and in Kobe — so it lives in its own control strip rather than
+// in the seed's permalink.
+const hazard = { seismicScenario: 'high', siteClass: 'D', windScenario: 'cat3', exposure: 'C' };
+
+const card = (svg, tag, wide) =>
+  `<div class="card${wide ? ' wide' : ''}">${svg}${tag ? `<div class="tag">${tag}</div>` : ''}</div>`;
+
+function draw(p) {
+  // `plantGeometry` grows the crowns. The 3D bench has always asked for it; the
+  // drawing set did not, which is why the trees were only ever circles in plan
+  // — the elevations and the section had no skeleton to project.
+  building = generate({ ...p, plantGeometry: true });
+  const P = PALETTES[theme];
+  const opt = { palette: P, width: 640, height: 460 };
+  const html = [];
+
+  // the title block and the schedule carry their own headings — no tag over them
+  html.push(`<div class="grid two">`);
+  html.push(card(titleBlockSVG(building, { ...opt, height: 260, id: 'tb' }), ''));
+  html.push(card(scheduleSVG(building, { ...opt, id: 'sch' }), ''));
+  html.push(`</div>`);
+
+  html.push(`<h2 class="dw">General arrangement plans — ${building.levels.length} storey${building.levels.length === 1 ? '' : 's'}, north up</h2><div class="grid">`);
+  for (let i = 0; i < building.levels.length; i++) {
+    html.push(card(planSVG(building, i, { ...opt, id: 'pl' }), `GA plan · ${building.levels[i].label}`));
+  }
+  html.push(`</div>`);
+
+  html.push(`<h2 class="dw">Elevations</h2><div class="grid">`);
+  for (const [s, name] of [['N', 'north'], ['E', 'east'], ['S', 'south'], ['W', 'west']]) {
+    html.push(card(elevationSVG(building, s, { ...opt, id: 'el' }), `elevation · ${name}`));
+  }
+  html.push(`</div>`);
+
+  html.push(`<h2 class="dw">Section</h2><div class="grid">`);
+  html.push(card(sectionSVG(building, {
+    ...opt, width: 980, height: 520, id: 'se',
+    foundation: verify(building, hazard).foundation, bay: building.params.bay,
+  }), 'section A–A', true));
+  html.push(`</div>`);
+
+  // ── the engineer's set ────────────────────────────────────────────────────
+  report = verify(building, hazard);
+  html.push(`<h2 class="dw">Structural verification — ASCE 7-16 / ACI 318-19</h2>`);
+  html.push(`<div class="grid">`);
+  html.push(card(verificationSVG(report, { palette: P, width: 980 }), '', true));
+  html.push(`</div><div class="grid">`);
+  // every engineering drawing titles itself, so none of them wants a tag on top
+  html.push(card(spectrumSVG(report, { ...opt, height: 300 }), ''));
+  html.push(card(framingSVG(building, report, 0, opt), ''));
+  html.push(card(storeySVG(report, 'x', opt), ''));
+  html.push(card(modesSVG(report, 'x', opt), ''));
+  html.push(card(storeySVG(report, 'z', opt), ''));
+  html.push(card(modesSVG(report, 'z', opt), ''));
+  html.push(`</div>`);
+
+  sheet.innerHTML = html.join('\n');
+  paintHazardBar();
+  if (typeof paintSummary === 'function') paintSummary();
+  panel.setParti(building.parti, (building.stairs || []).filter((q) => q.feature));
+  panel.setLifts(building.liftGroup);
+  panel.setPlanting(building.planting, building.plantingStats, building.plantingLoads);
+  panel.setStats([
+    ['storeys', building.stats.levels],
+    ['height', building.stats.height.toFixed(0) + ' m'],
+    ['GIA', Math.round(building.stats.gfa).toLocaleString('en-GB') + ' m²'],
+    ['spaces', building.stats.rooms],
+    ['glazed', building.stats.glazedRatio.toFixed(0) + '%'],
+    ['rev', revision(building)],
+  ]);
+}
+
+// The hazard strip: change the earthquake or the hurricane and the whole
+// engineering set re-solves. The architecture does not move — only the demand.
+function paintHazardBar() {
+  const bar = document.getElementById('hazbar');
+  if (!bar) return;
+  const sel = (key, opts2, labelFor) =>
+    `<label>${key === 'seismicScenario' ? 'earthquake' : key === 'windScenario' ? 'wind' : key === 'siteClass' ? 'site class' : 'exposure'}
+      <select data-h="${key}">${opts2.map((o) => `<option value="${o}"${o === hazard[key] ? ' selected' : ''}>${labelFor(o)}</option>`).join('')}</select></label>`;
+  bar.innerHTML =
+    sel('seismicScenario', Object.keys(SEISMIC_SCENARIOS), (o) => SEISMIC_SCENARIOS[o].label) +
+    sel('siteClass', SITE_CLASSES, (o) => o) +
+    sel('windScenario', Object.keys(WIND_SCENARIOS), (o) => WIND_SCENARIOS[o].label) +
+    sel('exposure', EXPOSURES, (o) => o);
+  for (const el of bar.querySelectorAll('select')) {
+    el.addEventListener('change', () => { hazard[el.dataset.h] = el.value; draw(panel.params); });
+  }
+}
+
+document.getElementById('themeBtn').addEventListener('click', (e) => {
+  theme = theme === 'blueprint' ? 'print' : 'blueprint';
+  document.body.classList.toggle('print-theme', theme === 'print');
+  e.target.textContent = theme === 'blueprint' ? 'print theme' : 'blueprint theme';
+  draw(panel.params);
+});
+document.getElementById('printBtn').addEventListener('click', () => window.print());
+
+// The whole set as one SVG file — the drawings leave the site the way drawings
+// should, as vectors, not as a screenshot of a canvas.
+document.getElementById('svgBtn').addEventListener('click', () => {
+  const set = sheetSVG(building, { palette: PALETTES[theme], width: 640, height: 460 });
+  // Each drawing is nested as its own <svg> with an explicit x/y/width/height —
+  // its viewBox then does the scaling, so nothing has to be unwrapped or
+  // re-transformed and no pattern id can collide with a neighbour's.
+  const PAGE = 680, INNER = 640, GAP = 24;
+  const items = set.split('</svg>').map((s) => s.trim()).filter(Boolean).map((s) => s + '</svg>');
+  let y = GAP;
+  const body = items.map((s) => {
+    const m = s.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/);
+    const vw = m ? Number(m[1]) : 640, vh = m ? Number(m[2]) : 460;
+    const hh = vh * (INNER / vw);
+    const el = s.replace(/\swidth="100%"/, '')
+                .replace(/^<svg/, `<svg x="${(PAGE - INNER) / 2}" y="${y}" width="${INNER}" height="${hh.toFixed(2)}"`);
+    y += hh + GAP;
+    return el;
+  }).join('\n');
+  const doc = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${PAGE} ${y.toFixed(2)}" width="${PAGE}" height="${y.toFixed(2)}" font-family="ui-monospace,Menlo,monospace"><rect width="100%" height="100%" fill="${PALETTES[theme].bg}"/>${body}</svg>`;
+  const url = URL.createObjectURL(new Blob([doc], { type: 'image/svg+xml' }));
+  const a = document.createElement('a');
+  a.href = url; a.download = `brut-${building.seed}-${revision(building)}.svg`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+});
+
+let sheetApi = null;
+let params = readURL();
+const panel = buildPanel(document.getElementById('controls'), params, (p) => {
+  params = p;
+  try { draw(p); } catch (e) { fail(e); }
+}, {
+  siblingPath: '../', siblingLabel: '↤ open the 3D model of this seed',
+  // THE ROLLER IS HANDED THE LIVE HAZARD, not a fixed one. Workability is a
+  // property of the building AND the place, so a roll is only meaningful
+  // against the earthquake and the wind currently selected — and changing
+  // them afterwards is allowed to turn the same building red again.
+  rollWorkable: (key) => rollWorkable({
+    rollKey: key, hazard: { ...hazard }, budget: 20, repairs: 5,
+  }),
+});
+
+try { draw(params); } catch (e) { fail(e); }
+
+/* The same bottom sheet the model wears, with the panes this site has. */
+sheetApi = mountSheet([
+  { id: 'design', label: 'Design', el: document.getElementById('panel') },
+  { id: 'hazard', label: 'Hazard', el: document.getElementById('hazwrap') },
+]);
+function paintSummary() {
+  if (!building || !sheetApi) return;
+  const v = report;
+  const vc = !v ? 'var(--soft)' : v.verdict === 'pass' ? '#3fbf7f' : v.verdict === 'marginal' ? '#e8c341' : '#e2564a';
+  sheetApi.setSummary(`<b>${building.seed}</b> · ${building.typologyLabel} · ${building.levels.length} storeys`
+    + (v ? ` · <b style="color:${vc}">${v.verdict}</b>` : ''));
+}
+paintSummary();
+</script>
+</body>
+</html>

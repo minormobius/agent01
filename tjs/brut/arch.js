@@ -1,0 +1,2466 @@
+// tjs/brut/arch.js — THE BRUTALIST KERNEL. Pure, DOM-free, three.js-free.
+//
+// One seed → one building, for ever, on any machine. Everything downstream is a
+// VIEW of the same object: the 3D bench at /brut/ renders `parts()`, the drawing
+// office at /brut/plan/ draws `levels[].rooms` and `facades[]`. They are two
+// sites over one generator, so a permalink is meaningful in both:
+//
+//     /brut/?s=barbican-7          ← the model
+//     /brut/plan/?s=barbican-7     ← its blueprints
+//
+// and the two agree, bay for bay, because neither of them generates anything.
+//
+// House rules (borges/js/prng.js lineage, same as swarm3d.js):
+//   • xmur3 → mulberry32, seeded from a STRING, salted per sub-stream so the
+//     massing draw can't correlate with the facade draw. No Date.now(), no bare
+//     Math.random() anywhere in the generator — the only unseeded roll in the
+//     whole surface is the "roll" button choosing WHICH deterministic seed to open.
+//   • Zero dependencies, no build step: the tjs deploy stages this dir's own
+//     files, so everything the kernel needs is inlined here.
+//   • Metres, throughout. x = east/west, z = north/south, y = up. Rects are
+//     CENTRE-based: {x, z, w, d} — the form three.js wants, converted to
+//     min/max by the helpers below wherever the plan solver wants corners.
+//
+// The generator is a pipeline, each stage a pure function of the last:
+//
+//   params ─ massing ─→ levels[].wings ─ cores ─→ shafts ─ plan ─→ rooms
+//                            │                                      │
+//                            └──────── facade ─→ bays ──────────────┴─→ parts
+//
+// so a floor plan is not decoration on a mass, and a mass is not a box drawn
+// around a plan: both fall out of the same plate polygons.
+
+import { STAIR_TYPES, STAIR_IDS, stairFootprint, layout as stairLayout, chooseStair, stairParts, RULES as STAIR_RULES } from './stair.js';
+import { liftsFor, populationFromSchedule, RULES as LIFT_RULES, CARS } from './lift.js';
+import { placePlanting, plantingLoads, plantingSchedule } from './planting.js';
+import { plantParts } from './plant.js';
+import {
+  deriveParti, heightAt, voidsAt, hallAt, terraceAt, openGround, corridorEvery, roomScaleAt,
+  features as partiFeatures, PARTIS,
+} from './parti.js';
+
+export const VERSION = 'brut/1';
+
+/* ───────────────────────────────── PRNG ─────────────────────────────────── */
+
+import { Rand } from './rand.js';
+export { Rand };
+
+/* ────────────────────────────── rect helpers ────────────────────────────── */
+
+const R = {
+  make: (x, z, w, d) => ({ x, z, w, d }),
+  fromMinMax: (x0, z0, x1, z1) => ({ x: (x0 + x1) / 2, z: (z0 + z1) / 2, w: x1 - x0, d: z1 - z0 }),
+  x0: (r) => r.x - r.w / 2, x1: (r) => r.x + r.w / 2,
+  z0: (r) => r.z - r.d / 2, z1: (r) => r.z + r.d / 2,
+  area: (r) => r.w * r.d,
+  contains: (outer, inner, eps = 1e-6) =>
+    R.x0(inner) >= R.x0(outer) - eps && R.x1(inner) <= R.x1(outer) + eps &&
+    R.z0(inner) >= R.z0(outer) - eps && R.z1(inner) <= R.z1(outer) + eps,
+  overlaps: (a, b, eps = 1e-6) =>
+    R.x0(a) < R.x1(b) - eps && R.x1(a) > R.x0(b) + eps &&
+    R.z0(a) < R.z1(b) - eps && R.z1(a) > R.z0(b) + eps,
+  // a minus b along x only (b spans a's full depth or is ignored) → 0..2 pieces
+  splitX: (a, x0, x1) => {
+    const out = [];
+    if (x0 > R.x0(a) + 1e-6) out.push(R.fromMinMax(R.x0(a), R.z0(a), Math.min(x0, R.x1(a)), R.z1(a)));
+    if (x1 < R.x1(a) - 1e-6) out.push(R.fromMinMax(Math.max(x1, R.x0(a)), R.z0(a), R.x1(a), R.z1(a)));
+    return out.filter((r) => r.w > 1e-6);
+  },
+  // a MINUS a list of rects, as a set of disjoint rects. Cut the combined
+  // coordinate lines into a grid, drop the covered cells, then merge each column
+  // back down its z-run so the result is a handful of pieces, not a mosaic.
+  // This is what makes a roof possible: the exposed part of a plate is exactly
+  // the part the level above does not stand on.
+  subtract: (a, list) => {
+    const bs = list.filter((b) => R.overlaps(a, b, 1e-6));
+    if (!bs.length) return [{ x: a.x, z: a.z, w: a.w, d: a.d }];
+    const xs = new Set([R.x0(a), R.x1(a)]), zs = new Set([R.z0(a), R.z1(a)]);
+    for (const b of bs) {
+      for (const v of [R.x0(b), R.x1(b)]) if (v > R.x0(a) + 1e-9 && v < R.x1(a) - 1e-9) xs.add(v);
+      for (const v of [R.z0(b), R.z1(b)]) if (v > R.z0(a) + 1e-9 && v < R.z1(a) - 1e-9) zs.add(v);
+    }
+    const X = [...xs].sort((p, q) => p - q), Z = [...zs].sort((p, q) => p - q);
+    const keep = [];
+    for (let i = 0; i < X.length - 1; i++) {
+      keep.push([]);
+      for (let k = 0; k < Z.length - 1; k++) {
+        const cx = (X[i] + X[i + 1]) / 2, cz = (Z[k] + Z[k + 1]) / 2;
+        keep[i].push(!bs.some((b) => cx > R.x0(b) && cx < R.x1(b) && cz > R.z0(b) && cz < R.z1(b)));
+      }
+    }
+    const out = [];
+    for (let i = 0; i < X.length - 1; i++) {
+      let k = 0;
+      while (k < Z.length - 1) {
+        if (!keep[i][k]) { k++; continue; }
+        let e = k;
+        while (e + 1 < Z.length - 1 && keep[i][e + 1]) e++;
+        out.push(R.fromMinMax(X[i], Z[k], X[i + 1], Z[e + 1]));
+        k = e + 1;
+      }
+    }
+    // Slivers below ~20 mm are floating-point residue from grid snapping, not
+    // roofs; keeping them would emit a slab that rounds to zero extent.
+    return out.filter((r) => r.w > 0.02 && r.d > 0.02);
+  },
+  splitZ: (a, z0, z1) => {
+    const out = [];
+    if (z0 > R.z0(a) + 1e-6) out.push(R.fromMinMax(R.x0(a), R.z0(a), R.x1(a), Math.min(z0, R.z1(a))));
+    if (z1 < R.z1(a) - 1e-6) out.push(R.fromMinMax(R.x0(a), Math.max(z1, R.z0(a)), R.x1(a), R.z1(a)));
+    return out.filter((r) => r.d > 1e-6);
+  },
+};
+export { R as rect };
+
+const round2 = (v) => Math.round(v * 100) / 100;
+
+/* ──────────────────────────── the module alphabet ───────────────────────── */
+//
+// A facade bay is one letter of this alphabet. The 3D bench turns each into
+// boxes; the drawing office turns each into an elevation glyph. Depth is how far
+// it stands proud of (+) or is set back into (−) the structural line — the single
+// number that makes a brutalist elevation read as relief rather than pattern.
+
+export const MODULES = {
+  pier:    { label: 'pier',            depth:  0.75, glass: 0.00, note: 'full-height structural pier, board-marked' },
+  slit:    { label: 'slit',            depth: -0.55, glass: 0.22, note: 'narrow vertical slot between piers' },
+  band:    { label: 'ribbon',          depth: -0.40, glass: 0.62, note: 'recessed horizontal ribbon + spandrel' },
+  brise:   { label: 'brise-soleil',    depth:  1.05, glass: 0.55, note: 'deep egg-crate shading grid' },
+  oriel:   { label: 'oriel',           depth:  1.35, glass: 0.48, note: 'projecting study box, glazed on three faces' },
+  blank:   { label: 'blank',           depth:  0.00, glass: 0.00, note: 'blank in-situ wall, board-marked' },
+  recess:  { label: 'recess',          depth: -0.85, glass: 0.10, note: 'deep shadow panel' },
+  vent:    { label: 'louvre',          depth:  0.25, glass: 0.00, note: 'plant louvre, cast fins' },
+  balcony: { label: 'balcony',         depth:  1.80, glass: 0.35, note: 'cantilevered access deck / balcony' },
+  lancet:  { label: 'lancet',          depth: -0.95, glass: 0.30, note: 'tall narrow light-slot' },
+  rose:    { label: 'rose',            depth: -0.65, glass: 0.55, note: 'rose light — deep-splayed circular opening' },
+  open:    { label: 'open',            depth: -0.20, glass: 0.00, note: 'open to air (pilotis / deck edge)' },
+  buttress:{ label: 'buttress',        depth:  1.90, glass: 0.00, note: 'raking buttress fin' },
+};
+export const MODULE_IDS = Object.keys(MODULES);
+
+/* ─────────────────────────── the floor systems ──────────────────────────── */
+//
+// A floor is not a thickness — it is a SYSTEM, and which one you pick is the
+// single biggest decision in the building. It sets the self-weight (which is
+// most of the seismic mass), the structural depth (which sets the storey height
+// you need for a given clear height), how far you can span (which sets the
+// column grid), and whether there are downstand beams (which sets how much the
+// frame can rack).
+//
+// Modelling every floor as 420 mm of solid concrete made every building here
+// roughly twice as heavy as it should be, and that mass went straight into the
+// earthquake. A post-tensioned plate or a composite deck is not a detail — it
+// halves the base shear.
+//
+// `depth(bay)` is the structural depth in metres; `weight(bay)` the self-weight
+// in Pa (N·m⁻², already including g, because RHO_C is a WEIGHT density). Both
+// are functions of the bay because that is how a floor is really sized:
+// span/28, span/42, and so on.
+
+const RHO_C = 24e3;              // N·m⁻³ — reinforced concrete, weight not mass
+
+export const FLOOR_SYSTEMS = {
+  'flat-slab': {
+    label: 'RC flat slab', short: 'flat slab', maxSpan: 9.0, services: 0.25,
+    depth: (bay) => Math.max(0.18, bay / 28),
+    weight: (bay) => Math.max(0.18, bay / 28) * RHO_C,
+    beamD: 0,
+    note: 'two-way in-situ slab with drop panels; no downstands, so a flat soffit and a soft frame',
+  },
+  'pt-flat': {
+    label: 'post-tensioned flat plate', short: 'PT plate', maxSpan: 12.5, services: 0.25,
+    depth: (bay) => Math.max(0.16, bay / 42),
+    weight: (bay) => Math.max(0.16, bay / 42) * RHO_C,
+    beamD: 0,
+    note: 'prestressed: thinner, longer-spanning and much lighter than the same slab in reinforced concrete',
+  },
+  'one-way': {
+    label: 'one-way slab on beams', short: 'slab + beams', maxSpan: 14.0, services: 0.15,
+    depth: (bay) => 0.15 + Math.min(0.9, Math.max(0.45, bay / 12)),
+    weight: (bay) => 0.15 * RHO_C + (0.4 * Math.min(0.9, Math.max(0.45, bay / 12)) * RHO_C) / 3.5,
+    beamD: (bay) => Math.min(0.9, Math.max(0.45, bay / 12)),
+    note: 'a thin slab spanning 3.5 m to downstand beams, the beams spanning the bay — deep, but the beams stiffen the frame',
+  },
+  ribbed: {
+    label: 'ribbed / waffle slab', short: 'waffle', maxSpan: 14.0, services: 0.2,
+    depth: (bay) => Math.max(0.25, bay / 22),
+    weight: (bay) => 0.55 * Math.max(0.25, bay / 22) * RHO_C,
+    beamD: 0,
+    note: 'voided between the ribs: the depth of a deep slab at a little over half the weight',
+  },
+  'hollow-core': {
+    label: 'precast hollow-core', short: 'hollow-core', maxSpan: 12.0, services: 0.2,
+    depth: (bay) => Math.max(0.2, bay / 34) + 0.6,
+    weight: (bay) => 0.68 * Math.max(0.2, bay / 34) * RHO_C + (0.4 * 0.6 * RHO_C) / bay,
+    beamD: () => 0.6,
+    note: 'precast planks dropped on beams; the voids take about a third of the weight out',
+  },
+  'double-tee': {
+    label: 'precast double-tee', short: 'double-tee', maxSpan: 18.0, services: 0.1,
+    depth: (bay) => Math.max(0.4, bay / 24) + 0.8,
+    weight: (bay) => 0.45 * Math.max(0.4, bay / 24) * RHO_C + (0.4 * 0.8 * RHO_C) / bay,
+    beamD: () => 0.8,
+    note: 'long-span precast units on spandrel beams — what a car park deck is actually made of',
+  },
+  composite: {
+    label: 'composite metal deck', short: 'composite deck', maxSpan: 15.0, services: 0.35,
+    depth: () => 0.13 + 0.55,
+    weight: (bay) => 0.85 * 0.13 * RHO_C + 0.15e3 + 0.5e3,
+    beamD: () => 0.55, steel: true,
+    note: 'thin concrete on profiled steel deck spanning ~3 m to steel secondary beams, the beams spanning the bay — by far the lightest floor here, and the reason tall buildings are framed in steel',
+  },
+};
+export const FLOOR_IDS = Object.keys(FLOOR_SYSTEMS);
+
+// Depth, weight and clear height for a given set of params — the three numbers
+// everything downstream wants, in one place so they cannot drift apart.
+export function floorSystem(p) {
+  const F = FLOOR_SYSTEMS[p.floor] || FLOOR_SYSTEMS['flat-slab'];
+  const depth = round2(F.depth(p.bay));
+  const beamD = typeof F.beamD === 'function' ? round2(F.beamD(p.bay)) : F.beamD || 0;
+  // the slab itself, as opposed to the whole structural zone including downstands
+  const slab = round2(beamD ? Math.max(0.12, depth - beamD) : depth);
+  return {
+    id: p.floor, ...F, depth, slab, beamD,
+    weight: round2(F.weight(p.bay)),
+    zone: round2(depth + F.services),
+    clear: round2(p.floorH - depth - F.services),
+    spanUtil: p.bay / F.maxSpan,
+  };
+}
+
+/* ───────────────────────── the lateral systems ──────────────────────────── */
+//
+// How a tall building resists sideways load is a design choice with a name, and
+// the names are the history of the skyscraper. Each one changes the finite
+// element model in struct.js AND puts visible members into the building here —
+// an outrigger is a two-storey truss you can see, a diagrid IS the elevation.
+
+export const LATERAL_SYSTEMS = {
+  frame: {
+    label: 'moment frame', maxH: 40,
+    note: 'columns and beams alone: it racks, it is soft, and above about ten storeys it stops being sensible',
+  },
+  'core-frame': {
+    label: 'core + frame', maxH: 160,
+    note: 'a concrete core takes the shear, the frame takes the gravity — the ordinary answer, and the default here',
+  },
+  outrigger: {
+    label: 'core + outriggers', maxH: 400,
+    note: 'stiff two-storey trusses tie the core to the perimeter columns, so the columns fight the overturning as a couple; the single most effective move in a tall concrete building',
+  },
+  'framed-tube': {
+    label: 'framed tube', maxH: 350,
+    note: 'columns crowded onto the perimeter with deep spandrels, so the whole envelope works as one hollow cantilever',
+  },
+  diagrid: {
+    label: 'diagrid', maxH: 500,
+    note: 'perimeter diagonals carry shear AXIALLY instead of in bending, which is why a diagrid needs no columns and is stiffer than anything else per kilo of steel',
+  },
+};
+export const LATERAL_IDS = Object.keys(LATERAL_SYSTEMS);
+
+/* ───────────────────────────────  typologies  ───────────────────────────── */
+//
+// Each typology is a *bias*, not a template: it names the ranges the seed draws
+// inside, the massing moves it is allowed, its facade alphabet, and its room
+// programme. Two seeds of the same typology are siblings, not twins.
+
+export const TYPOLOGIES = {
+  cathedral: {
+    label: 'Cathedral',
+    blurb: 'Nave, aisles, transept, apse — a béton-brut basilica with a detached campanile.',
+    plan: 'sacred',
+    levels: [1, 1], floorH: [22, 30], bay: [5.4, 7.2],
+    stairs: ['spiral', 'helical', 'double-helix', 'triple-helix', 'flying', 'winder', 'three'],
+    bx: [4, 6], bz: [9, 15],
+    massing: ['basilica'],
+    shapes: ['basilica'],
+    alphabet: [['buttress', 3], ['lancet', 3], ['blank', 2], ['recess', 1.4], ['pier', 1.2]],
+    programs: [],
+    floors: ['one-way'], laterals: ['frame'],
+    clearTarget: 2.4,
+    pilotisP: 0, plantP: 0, towerP: 1,
+  },
+  civic: {
+    label: 'Civic hall',
+    blurb: 'A city hall / library in the inverted-ziggurat manner: heavy above, undercut below.',
+    plan: 'cellular',
+    levels: [5, 9], floorH: [4.2, 5.4], bay: [7.2, 9.0],
+    stairs: ['open-well', 'three', 'quarter', 'winder', 'dogleg', 'helical', 'flying'],
+    bx: [7, 11], bz: [6, 9],
+    massing: ['inverted', 'setback', 'ziggurat'],
+    shapes: ['bar', 'cross', 'court'],
+    alphabet: [['pier', 3.2], ['slit', 2.6], ['recess', 1.8], ['brise', 1.4], ['blank', 1.6], ['band', 1.0]],
+    programs: [['council chamber', 0.6], ['committee', 1.4], ['reading room', 1.6], ['stacks', 1.4],
+               ['registry', 1.0], ['office', 2.4], ['exhibition', 0.8], ['store', 1.0], ['WC', 0.9]],
+    floors: ['flat-slab', 'ribbed', 'one-way'], laterals: ['core-frame', 'outrigger'],
+    clearTarget: 2.7,
+    pilotisP: 0.7, plantP: 0.8, towerP: 0.5,
+  },
+  office: {
+    label: 'Office block',
+    blurb: 'Deep-plan speculative floors, service core, a grid you could set your watch by.',
+    plan: 'cellular',
+    levels: [8, 18], floorH: [3.5, 4.1], bay: [6.0, 8.1],
+    stairs: ['dogleg', 'scissor', 'three', 'open-well', 'winder'],
+    bx: [6, 10], bz: [5, 8],
+    massing: ['slab', 'setback', 'inverted', 'stagger'],
+    shapes: ['bar', 'L', 'T'],
+    alphabet: [['band', 3.4], ['pier', 2.6], ['brise', 2.0], ['slit', 1.6], ['blank', 1.2], ['recess', 1.0]],
+    programs: [['open office', 3.0], ['office', 2.6], ['meeting', 1.8], ['breakout', 1.0],
+               ['print', 0.7], ['server', 0.5], ['store', 1.0], ['WC', 0.9]],
+    floors: ['pt-flat', 'composite', 'flat-slab'], laterals: ['core-frame', 'outrigger', 'framed-tube', 'diagrid'],
+    clearTarget: 2.6,
+    pilotisP: 0.5, plantP: 0.9, towerP: 0.7,
+  },
+  housing: {
+    label: 'Housing slab',
+    blurb: 'Deck access, cross-over maisonettes, balconies hung off the frame.',
+    plan: 'cellular',
+    levels: [6, 14], floorH: [2.9, 3.3], bay: [5.4, 6.6],
+    stairs: ['dogleg', 'open-well', 'scissor', 'three', 'winder', 'ladder'],
+    bx: [10, 16], bz: [3, 5],
+    massing: ['slab', 'stagger', 'setback'],
+    shapes: ['bar', 'L'],
+    alphabet: [['balcony', 3.6], ['pier', 2.2], ['slit', 1.8], ['blank', 1.6], ['recess', 1.2], ['band', 1.0]],
+    programs: [['2-bed flat', 3.0], ['1-bed flat', 2.2], ['3-bed flat', 1.4], ['studio', 1.0],
+               ['store', 0.9], ['refuse', 0.5], ['drying room', 0.5]],
+    floors: ['flat-slab', 'pt-flat', 'hollow-core'], laterals: ['core-frame', 'frame'],
+    clearTarget: 2.4,
+    pilotisP: 0.75, plantP: 0.3, towerP: 0.9,
+  },
+  lab: {
+    label: 'Research block',
+    blurb: 'Served and servant spaces: a blank plant tower strapped to a glazed working floor.',
+    plan: 'cellular',
+    levels: [5, 10], floorH: [4.0, 4.8], bay: [6.6, 8.4],
+    stairs: ['scissor', 'dogleg', 'three', 'quarter', 'winder', 'ladder'],
+    bx: [6, 9], bz: [5, 7],
+    massing: ['slab', 'setback', 'stagger'],
+    shapes: ['bar', 'T', 'cross'],
+    alphabet: [['vent', 2.4], ['band', 2.6], ['pier', 2.4], ['blank', 2.2], ['brise', 1.4], ['recess', 1.0]],
+    programs: [['wet lab', 2.6], ['dry lab', 1.8], ['write-up', 1.8], ['tissue culture', 0.8],
+               ['cold room', 0.6], ['plant', 1.0], ['store', 1.0], ['WC', 0.8]],
+    floors: ['one-way', 'flat-slab', 'composite'], laterals: ['core-frame', 'outrigger'],
+    clearTarget: 2.7,
+    pilotisP: 0.25, plantP: 1.0, towerP: 1.0,
+  },
+  carpark: {
+    label: 'Car park',
+    blurb: 'The purest brutalism there is: slab, upstand, ramp, nothing else.',
+    plan: 'deck',
+    levels: [4, 8], floorH: [2.8, 3.2], bay: [7.5, 8.4],
+    stairs: ['straight', 'spiral', 'dogleg', 'three', 'winder'],
+    bx: [6, 9], bz: [5, 8],
+    massing: ['slab', 'stagger'],
+    shapes: ['bar'],
+    alphabet: [['open', 4.0], ['pier', 2.6], ['blank', 1.4], ['recess', 1.0]],
+    programs: [],
+    floors: ['double-tee', 'pt-flat'], laterals: ['frame', 'core-frame'],
+    clearTarget: 2.1,
+    pilotisP: 0.2, plantP: 0.2, towerP: 0.9,
+  },
+};
+export const TYPOLOGY_IDS = Object.keys(TYPOLOGIES);
+
+/* ─────────────────────────── params & permalinks ────────────────────────── */
+//
+// `deriveParams(seed)` is the full, deterministic reading of a seed. A permalink
+// carries the seed plus ONLY the fields a human has since overridden, so the
+// canonical link stays short and every knob is still addressable.
+
+const P_KEYS = ['t', 'n', 'bay', 'bx', 'bz', 'h', 'm', 'sh', 'cw', 'sym', 'pil', 'pl', 'tw', 'rh', 'fl', 'lat', 'tmd'];
+
+export function deriveParams(seed, typology) {
+  const s = String(seed);
+  const rt = Rand(s, 'typology');
+  const t = (typology && TYPOLOGIES[typology]) ? typology : rt.pick(TYPOLOGY_IDS);
+  const T = TYPOLOGIES[t];
+  const r = Rand(s, 'params/' + t);
+
+  const bay = round2(r.range(T.bay[0], T.bay[1]));
+  const p = {
+    seed: s,
+    typology: t,
+    levels: r.int(T.levels[0], T.levels[1]),
+    bay,
+    bx: r.int(T.bx[0], T.bx[1]),
+    bz: r.int(T.bz[0], T.bz[1]),
+    floorH: round2(r.range(T.floorH[0], T.floorH[1])),
+    massing: r.pick(T.massing),
+    shape: r.pick(T.shapes),
+    corridorW: round2(r.range(2.1, 2.9)),
+    symmetric: r.chance(0.55),
+    pilotis: r.chance(T.pilotisP),
+    plant: r.chance(T.plantP),
+    towers: r.chance(T.towerP) ? (r.chance(0.25) ? 2 : 1) : 0,
+    // The floor system and the lateral system are design decisions with names,
+    // and both are seeded: they belong to the building, not to the site.
+    floor: r.pick(T.floors || ['flat-slab']),
+    lateral: r.pick(T.laterals || ['core-frame']),
+    tmd: false,
+    // THE PLANTING AMBITION, as a multiplier on every substrate depth. 1 is
+    // what the site type asks for; 0 is a building with nothing growing on it.
+    // It is a parameter rather than a constant because it is the one knob the
+    // roller can turn when a planted terrace is what made the slab fail —
+    // "shallower substrate" is a real answer an engineer gives, and the
+    // alternative is a generator that quietly shaves the soil until nothing is
+    // ever heavy enough to matter.
+    green: 1,
+    rhythm: null, // filled below
+  };
+  // THE STOREY HEIGHT FOLLOWS THE FLOOR, not the other way round. You choose a
+  // floor system, it has a depth, services go under it, and the storey height is
+  // whatever gives you the clear height you need. A 1.2 m double-tee simply does
+  // not fit in a 2.9 m storey — which is what the model was asserting before the
+  // clear-height check caught it.
+  const fs0 = floorSystem({ ...p, floorH: 99 });
+  p.floorH = round2(Math.max(p.floorH, (T.clearTarget || 2.5) + fs0.depth + fs0.services));
+  // a tuned mass damper is only a real proposition on something tall and slender
+  p.tmd = (p.levels * p.floorH > 90) && r.chance(0.35);
+  // The facade rhythm: a repeating cell of 2..5 letters drawn from the typology's
+  // alphabet. This is the single most legible thing about a brutalist elevation,
+  // so it gets its own sub-stream and its own permalink field.
+  const rr = Rand(s, 'rhythm/' + t);
+  const period = rr.int(2, 5);
+  const cell = [];
+  for (let i = 0; i < period; i++) cell.push(rr.pickW(T.alphabet));
+  // a rhythm of one repeated letter reads as no rhythm at all — force contrast
+  if (cell.every((c) => c === cell[0])) cell[cell.length - 1] = rr.pickW(T.alphabet.filter((a) => a[0] !== cell[0]));
+  p.rhythm = cell;
+  return p;
+}
+
+// Query → canonical params. Accepts a query string, a URLSearchParams, or a
+// plain object. Unknown/invalid overrides are dropped rather than throwing: a
+// mangled permalink still opens the seed's building.
+export function resolveParams(query) {
+  const q = toMap(query);
+  const seed = (q.s != null && String(q.s).length) ? String(q.s) : 'brut';
+  const p = deriveParams(seed, q.t);
+  const T = TYPOLOGIES[p.typology];
+  const num = (k, lo, hi, dp = 2) => {
+    if (q[k] == null || q[k] === '') return null;
+    const v = Number(q[k]);
+    if (!isFinite(v)) return null;
+    return Math.round(Math.min(hi, Math.max(lo, v)) * 10 ** dp) / 10 ** dp;
+  };
+  const int = (k, lo, hi) => { const v = num(k, lo, hi, 0); return v == null ? null : Math.round(v); };
+  const set = (k, v) => { if (v != null) p[k] = v; };
+
+  set('levels', int('n', 1, 40));
+  set('bay', num('bay', 3.6, 12));
+  set('bx', int('bx', 2, 24));
+  set('bz', int('bz', 2, 24));
+  set('floorH', num('h', 2.4, 34));
+  set('corridorW', num('cw', 1.6, 4.5));
+  if (q.m && T.massing.concat(['slab', 'setback', 'inverted', 'ziggurat', 'stagger', 'basilica']).includes(q.m)) p.massing = q.m;
+  if (q.sh && ['bar', 'L', 'T', 'cross', 'court', 'basilica'].includes(q.sh)) p.shape = q.sh;
+  if (q.sym != null && q.sym !== '') p.symmetric = q.sym === '1' || q.sym === 'true';
+  if (q.pil != null && q.pil !== '') p.pilotis = q.pil === '1' || q.pil === 'true';
+  if (q.pl != null && q.pl !== '') p.plant = q.pl === '1' || q.pl === 'true';
+  set('towers', int('tw', 0, 2));
+  set('green', num('gr', 0, 2));
+  if (q.fl && FLOOR_SYSTEMS[q.fl]) p.floor = q.fl;
+  if (q.lat && LATERAL_SYSTEMS[q.lat]) p.lateral = q.lat;
+  if (q.tmd != null && q.tmd !== '') p.tmd = q.tmd === '1' || q.tmd === 'true';
+  if (q.rh) {
+    const cell = String(q.rh).split(',').map((c) => c.trim()).filter((c) => MODULES[c]);
+    if (cell.length) p.rhythm = cell.slice(0, 8);
+  }
+  // the sacred plan is a different beast — keep it coherent whatever the query says
+  if (p.typology === 'cathedral') { p.massing = 'basilica'; p.shape = 'basilica'; p.levels = 1; }
+  return p;
+}
+
+// Canonical permalink: seed first, then only what differs from the seed's own
+// reading. Same params ⇒ same string, so the two sites' links compare equal.
+export function paramsToQuery(p) {
+  const base = deriveParams(p.seed, p.typology);
+  const out = ['s=' + encodeURIComponent(p.seed)];
+  if (p.typology !== deriveParams(p.seed).typology) out.push('t=' + p.typology);
+  const add = (k, v, bv) => { if (v !== bv) out.push(k + '=' + v); };
+  add('n', p.levels, base.levels);
+  add('bay', p.bay, base.bay);
+  add('bx', p.bx, base.bx);
+  add('bz', p.bz, base.bz);
+  add('h', p.floorH, base.floorH);
+  add('cw', p.corridorW, base.corridorW);
+  add('m', p.massing, base.massing);
+  add('sh', p.shape, base.shape);
+  add('tw', p.towers, base.towers);
+  add('gr', p.green, base.green);
+  add('fl', p.floor, base.floor);
+  add('lat', p.lateral, base.lateral);
+  if (p.tmd !== base.tmd) out.push('tmd=' + (p.tmd ? 1 : 0));
+  if (p.symmetric !== base.symmetric) out.push('sym=' + (p.symmetric ? 1 : 0));
+  if (p.pilotis !== base.pilotis) out.push('pil=' + (p.pilotis ? 1 : 0));
+  if (p.plant !== base.plant) out.push('pl=' + (p.plant ? 1 : 0));
+  if (p.rhythm.join(',') !== base.rhythm.join(',')) out.push('rh=' + p.rhythm.join(','));
+  return out.join('&');
+}
+
+function toMap(query) {
+  if (!query) return {};
+  if (typeof query === 'string') {
+    const out = {};
+    const s = query.replace(/^[?#]/, '');
+    if (!s) return out;
+    for (const part of s.split('&')) {
+      if (!part) continue;
+      const i = part.indexOf('=');
+      const k = decodeURIComponent(i < 0 ? part : part.slice(0, i));
+      out[k] = i < 0 ? '' : decodeURIComponent(part.slice(i + 1).replace(/\+/g, ' '));
+    }
+    return out;
+  }
+  if (typeof query.get === 'function') { const out = {}; for (const [k, v] of query) out[k] = v; return out; }
+  return query;
+}
+
+// The one place an unseeded roll is legal — and it only chooses WHICH
+// deterministic building to open. Pass your own rnd to keep even this pure.
+const SEED_A = ['bunker', 'barbican', 'tribune', 'ziggurat', 'cast', 'shutter', 'raker', 'plinth', 'brut',
+  'monolith', 'undercroft', 'buttress', 'clerestory', 'aggregate', 'formwork', 'pylon', 'nave', 'silo'];
+const SEED_B = ['ash', 'gull', 'flint', 'moss', 'slate', 'rook', 'sump', 'lark', 'iron', 'brine', 'quarry', 'fern'];
+export function rollSeed(rnd = Math.random) {
+  const a = SEED_A[Math.floor(rnd() * SEED_A.length)];
+  const b = SEED_B[Math.floor(rnd() * SEED_B.length)];
+  return a + '-' + b + '-' + (100 + Math.floor(rnd() * 900));
+}
+
+/* ────────────────────────────────  massing  ─────────────────────────────── */
+//
+// A plate is a set of disjoint rects ("wings"). The massing schedule is a
+// per-level transform of the base plate: brutalism's characteristic moves are
+// nearly all schedules — the inverted ziggurat (each floor larger than the one
+// below), the setback, the stagger, the undercut plinth.
+
+// Wings must be DISJOINT — a plan solver run twice over the same square would
+// otherwise put two rooms in it, and the drawings and the model would both be
+// lying. So the non-rectangular shapes are cut as complements, not overlaid
+// bars, and every part dimension is snapped to whole structural bays.
+function baseShape(shape, w, d, bay) {
+  const sn = (v, lo, hi) => Math.min(hi, Math.max(lo, Math.round(v / bay) * bay));
+  switch (shape) {
+    case 'L': {
+      const aw = sn(w * 0.55, bay, w - bay);
+      const bd = sn(d * 0.5, bay, d - bay);
+      return [R.make(-w / 2 + aw / 2, 0, aw, d),
+              R.make(-w / 2 + aw + (w - aw) / 2, -d / 2 + bd / 2, w - aw, bd)];
+    }
+    case 'T': {
+      const sd = sn(d * 0.5, bay, d - bay);
+      const tw = sn(w * 0.46, bay, w);
+      return [R.make(0, -d / 2 + sd / 2, w, sd),
+              R.make(0, -d / 2 + sd + (d - sd) / 2, tw, d - sd)];
+    }
+    case 'cross': {
+      const armD = sn(d * 0.42, bay, d - bay);
+      const armW = sn(w * 0.36, bay, w);
+      const stub = (d - armD) / 2;
+      return [R.make(0, 0, w, armD),
+              R.make(0, -armD / 2 - stub / 2, armW, stub),
+              R.make(0, armD / 2 + stub / 2, armW, stub)];
+    }
+    case 'court': {
+      // four bars around a courtyard, cut so no two share a square metre
+      const t = sn(Math.min(w, d) * 0.26, bay, Math.min(w, d) / 2 - bay / 2);
+      return [
+        R.make(0, -d / 2 + t / 2, w, t),
+        R.make(0, d / 2 - t / 2, w, t),
+        R.make(-w / 2 + t / 2, 0, t, d - 2 * t),
+        R.make(w / 2 - t / 2, 0, t, d - 2 * t),
+      ];
+    }
+    case 'bar':
+    default: return [R.make(0, 0, w, d)];
+  }
+}
+
+// scale + offset factors for level i of n under a schedule
+function scheduleAt(massing, i, n, rnd) {
+  const f = n <= 1 ? 0 : i / (n - 1);
+  switch (massing) {
+    case 'inverted': {
+      // grows upward in discrete steps of a bay — the Boston-City-Hall move
+      const steps = Math.min(4, Math.max(2, Math.round(n / 3)));
+      const k = Math.floor(f * steps);
+      return { sx: 0.78 + 0.075 * k, sz: 0.80 + 0.070 * k, dx: 0, dz: 0 };
+    }
+    case 'ziggurat': {
+      const steps = Math.min(4, Math.max(2, Math.round(n / 3)));
+      const k = Math.floor(f * steps);
+      return { sx: 1.02 - 0.075 * k, sz: 1.02 - 0.070 * k, dx: 0, dz: 0 };
+    }
+    case 'setback': {
+      const cut = i / n >= 0.6;
+      return { sx: cut ? 0.74 : 1, sz: cut ? 0.86 : 1, dx: cut ? -0.06 : 0, dz: 0 };
+    }
+    case 'stagger': {
+      const odd = i % 2 === 1;
+      return { sx: 1, sz: odd ? 0.86 : 1, dx: 0, dz: odd ? (rnd > 0.5 ? 0.07 : -0.07) : 0 };
+    }
+    case 'slab':
+    default: return { sx: 1, sz: 1, dx: 0, dz: 0 };
+  }
+}
+
+function massing(p, parti) {
+  const T = TYPOLOGIES[p.typology];
+  const rm = Rand(p.seed, 'massing');
+  const w = p.bx * p.bay, d = p.bz * p.bay;
+  const stagJitter = rm.f();
+  const levels = [];
+  let y = 0;
+  const podium = (p.massing === 'inverted' || p.massing === 'ziggurat') ? 1 : 0;
+
+  for (let i = 0; i < p.levels; i++) {
+    // the parti decides which storey is the important one, and the important
+    // one is taller. Everything downstream — the stair's riser count, the
+    // shaft it needs — then follows from that rather than from a uniform grid.
+    const h = (i === 0 && podium ? p.floorH * 1.25 : p.floorH) * heightAt(parti, i, p.levels);
+    const s = (i === 0 && podium) ? { sx: 1, sz: 1, dx: 0, dz: 0 } : scheduleAt(p.massing, i, p.levels, stagJitter);
+    // Snap the scaled plate back onto the structural grid — a brutalist frame does
+    // not do fractional bays — then RE-CUT the shape at that size, rather than
+    // scaling the pieces individually, so the wings stay disjoint at every level.
+    const lw = Math.max(p.bay * 2, Math.round((w * s.sx) / p.bay) * p.bay);
+    const ld = Math.max(p.bay * 2, Math.round((d * s.sz) / p.bay) * p.bay);
+    const wings = baseShape(p.shape, lw, ld, p.bay)
+      .map((r) => R.make(round2(r.x + s.dx * w), round2(r.z + s.dz * d), round2(r.w), round2(r.d)))
+      .filter((r) => r.w > 0.5 && r.d > 0.5);
+    levels.push({ index: i, y: round2(y), h: round2(h), wings, rooms: [], corridors: [], cores: [], columns: [], voids: [], label: '' });
+    y += h;
+  }
+  return { levels, height: round2(y), site: { w: round2(w * 1.35), d: round2(d * 1.35) } };
+}
+
+/* ───────────────────────────────── cores ───────────────────────────────── */
+//
+// Cores are the one thing that must be true on EVERY level, so they are sized
+// against the SMALLEST plate the building ever has. Anything else and the top
+// floor's stair lands in mid-air — which is exactly the class of bug a shared
+// kernel is meant to make impossible for the plan and the model to disagree on.
+
+// The plate the building ALWAYS has: wing 0 intersected across every level.
+// Anything that must be true on every storey — a core, and an external stair
+// tower that has to stay attached — is placed against this and nothing else.
+function persistentSpine(mass) {
+  let x0 = -1e9, x1 = 1e9, z0 = -1e9, z1 = 1e9;
+  for (const L of mass.levels) {
+    const wg = L.wings[0];
+    x0 = Math.max(x0, R.x0(wg)); x1 = Math.min(x1, R.x1(wg));
+    z0 = Math.max(z0, R.z0(wg)); z1 = Math.min(z1, R.z1(wg));
+  }
+  return R.fromMinMax(x0, z0, x1, z1);
+}
+
+function placeCores(p, mass, group) {
+  const rc = Rand(p.seed, 'cores');
+  const spine = persistentSpine(mass);
+
+  // THE CORE IS SIZED BY THE STAIR, not the other way round. A core drawn as a
+  // fraction of the bay is a box with a label on it; ask the stair how much room
+  // it needs and the shaft becomes the consequence of something real. The
+  // candidates are laid out and measured, and only ones that FIT the plate the
+  // building always has are allowed — which is the same rule that already keeps
+  // a core from walking off the top floor.
+  // Size against the ENVELOPE over every storey height the building has — not
+  // the typical one, and not the tallest either. The footprint is not monotonic
+  // in storey height, because the flight cap is a step function: a 5.6 m storey
+  // takes 34 risers and splits into three flights of twelve, while a 4.5 m
+  // storey takes 27 and splits into two of fourteen — so the SHORTER storey
+  // needs the longer shaft.
+  const T = TYPOLOGIES[p.typology];
+  const heights = [...new Set(mass.levels.map((L) => L.h))];
+  const maxW = Math.min(p.bay * 2.4, spine.w * 0.44);
+  const maxD = Math.min(p.bay * 2.2, spine.d * 0.62);
+  const prefer = (T.stairs || ['dogleg', 'open-well', 'three', 'scissor', 'quarter', 'spiral', 'helical', 'straight'])
+    .filter((k) => STAIR_TYPES[k]);
+
+  let pick = null;
+  for (const width of [1.35, 1.2, 1.1, 1.0]) {
+    const type = chooseStair({ w: maxW, d: maxD }, heights, rc, { width, prefer });
+    if (type) { pick = { type, width, fp: stairFootprint(type, heights, { width }) }; break; }
+  }
+  // Nothing fits: fall back to the tightest stair the code still allows and let
+  // the checks report it, rather than silently drawing a shaft with no stair.
+  if (!pick) {
+    const width = STAIR_RULES.width.escape;
+    pick = { type: 'three', width, fp: stairFootprint('three', heights, { width }) };
+  }
+
+  // THE CORE IS SIZED BY THE LIFTS AS WELL AS BY THE STAIR, and the lifts are
+  // the half that scales: a stair is one shaft however tall the building is,
+  // and the lift group grows with the population it serves. Shafts go in rows
+  // of at most four, two rows facing across a lobby, because past four doors
+  // nobody can watch them all and the car you want opens behind you.
+  const BANK_ROW = 4, LOBBY = 2.4;
+  const cars = group && group.needed ? group.carsTotal : 0;
+  const shaft = group && group.shaft ? group.shaft : { w: 1.75, d: 1.8 };
+  const along = spine.w >= spine.d;                   // cores march along the long axis
+
+  // How many cores, and how wide. THE CLAMP HERE WAS A LIE: capping the core at
+  // a fraction of the plate and then asking whether a lift still fitted meant a
+  // traffic study could ask for four cars and get none, silently, on exactly
+  // the buildings that needed them most. A core is as big as what has to happen
+  // inside it. If that does not fit the plate, the answer is another core, and
+  // if THAT does not fit, the answer is that this building cannot be served at
+  // this footprint — which is a real finding about deep-plan buildings and is
+  // reported rather than absorbed.
+  const bankFor = (howMany, nn) => {
+    const pc = howMany ? Math.ceil(howMany / nn) : 0;
+    const rw = pc > BANK_ROW ? 2 : 1;
+    const pr = pc ? Math.ceil(pc / rw) : 0;
+    return { perCore: pc, rows: rw, perRow: pr, w: pr * shaft.w, d: rw * shaft.d + (rw > 1 ? LOBBY : 0) };
+  };
+  // the stair's LONG side runs along the content axis, whichever of w/d that
+  // is — using `fp.w` here understated the core by the difference between the
+  // two, which is exactly enough to bury the last shaft in the bank
+  const sLongFP = Math.max(pick.fp.w, pick.fp.d), sShortFP = Math.min(pick.fp.w, pick.fp.d);
+  const fitsIn = (howMany, nn) => sLongFP + bankFor(howMany, nn).w + 0.6 <= maxW + 1e-6;
+
+  let n = Math.max(spine.w * spine.d > 900 ? 2 : 1, 1);
+  while (n < 4 && cars && !fitsIn(cars, n)) n++;
+
+  // WHAT THE PLATE WILL ACTUALLY HOLD. A core hanging off the edge of the floor
+  // it stands on is not a finding, it is nonsense — so when even four cores
+  // will not take the group, the shafts are CAPPED at what the plate holds and
+  // the shortfall comes out as a number. That IS the finding, and it is one of
+  // the real constraints on a deep plan: past a certain population the core
+  // eats the building it serves, which is why floorplate depth is a lift
+  // decision as much as a daylight one.
+  let fitCars = cars;
+  while (fitCars > 0 && !fitsIn(fitCars, n)) fitCars--;
+
+  const bank = bankFor(fitCars, n);
+  const perCore = bank.perCore, rows = bank.rows, perRow = bank.perRow;
+  const bankW = bank.w, bankD = bank.d;
+
+  const cw = sLongFP + (fitCars ? bankW + 0.6 : 0);
+  const cd = Math.max(sShortFP + 0.4, bankD);
+  const coreFits = fitCars === cars;
+  const shortBy = cars - fitCars;
+  // ONE AXIS CARRIES THE CONTENT. The stair and the lift bank sit end to end
+  // along `cw`, and `cd` is across both of them — so whichever way the core is
+  // turned on the plate, the layout has to follow the SAME axis it was sized
+  // on. Sizing the bank along one axis and then laying the shafts out along the
+  // other is how eight lifts end up stacked on top of each other in a 2.8 m
+  // slot: every rect passes its own check and the building has one lift.
+  const cores = [];
+  for (let k = 0; k < n; k++) {
+    const t = n === 1 ? (p.symmetric ? 0.5 : rc.range(0.34, 0.66))
+      : 0.18 + (k * 0.64) / Math.max(1, n - 1);
+    const cx = along ? R.x0(spine) + t * spine.w : spine.x;
+    const cz = along ? spine.z : R.z0(spine) + t * spine.d;
+    const w = round2(along ? cw : cd), d = round2(along ? cd : cw);
+
+    // the stair's own footprint, turned to match: its long side runs along cw
+    const sLong = Math.max(pick.fp.w, pick.fp.d), sShort = Math.min(pick.fp.w, pick.fp.d);
+    const sw = round2(along ? sLong : sShort), sd = round2(along ? sShort : sLong);
+
+    // how many of the group land in THIS core — the remainder goes to the last
+    const mine = perCore ? Math.max(0, k === n - 1 ? fitCars - perCore * (n - 1) : perCore) : 0;
+    const hasLift = mine > 0;
+
+    // the stair takes the low end of the cw axis; the bank takes the rest
+    const cwExtent = along ? w : d;                 // the core's cw-axis size
+    const sExtent = along ? sw : sd;                // the stair's, on that axis
+    const bExtent = round2(Math.max(0, cwExtent - sExtent));
+    const half = (cwExtent - sExtent) / 2;
+
+    cores.push({
+      coreFits, shortBy, groupCars: fitCars,
+      x: round2(cx), z: round2(cz), w, d,
+      kind: hasLift ? (mine > 1 ? `stair + ${mine} lifts` : 'stair + lift') : 'stair',
+      stair: { type: pick.type, width: pick.width, label: STAIR_TYPES[pick.type].label },
+      stairBox: along
+        ? { x: round2(cx - half * (hasLift ? 1 : 0)), z: round2(cz), w: sw, d: sd }
+        : { x: round2(cx), z: round2(cz - half * (hasLift ? 1 : 0)), w: sw, d: sd },
+      cars: mine, rows: mine > BANK_ROW ? 2 : 1,
+      // the lift zone: everything on the cw axis the stair does not take
+      lift: hasLift
+        ? (along
+          ? { x: round2(cx + sExtent / 2), z: round2(cz), w: bExtent, d }
+          : { x: round2(cx), z: round2(cz + sExtent / 2), w, d: bExtent })
+        : null,
+      liftAlong: along,
+    });
+  }
+  return cores;
+}
+
+/* ────────────────────────── the shafts themselves ───────────────────────── */
+//
+// A LIFT IS NOT A ROOM, IT IS A HOLE — one rectangle repeated at every level it
+// passes, whether it opens there or not, plus a pit below the lowest and an
+// overrun above the highest. That is why it is laid out here rather than by the
+// plan solver: the plan is cut per level and a shaft is the one thing that must
+// be identical on all of them.
+//
+// And it is why a tall building's core TAPERS. In a zoned building every shaft
+// starts at the terminal, so the ground floor carries all of them; the upper
+// zones' shafts run express past the lower floors and the lower zones' shafts
+// stop and are gone. The core is widest where it is least wanted and narrowest
+// where the rent is highest, and that is arithmetic rather than styling.
+
+function placeLifts(p, mass, cores, group, parti) {
+  if (!group || !group.needed) return [];
+  const out = [];
+  const topM = mass.height;
+  const nLevels = mass.levels.length;
+  const perZone = group.cars, zones = group.zones;
+  // the floors each zone opens at, above the terminal it always opens at
+  const zoneSize = Math.ceil(Math.max(1, nLevels - 1) / zones);
+
+  let id = 0;
+  for (const c of cores) {
+    if (!c.lift || !c.cars) continue;
+    const rows = c.rows;
+    const perRow = Math.ceil(c.cars / rows);
+    for (let i = 0; i < c.cars; i++) {
+      const zone = zones > 1 ? Math.min(zones - 1, Math.floor(id / perZone)) : 0;
+      const lo = zones > 1 ? 1 + zone * zoneSize : 1;
+      const hi = zones > 1 ? Math.min(nLevels - 1, lo + zoneSize - 1) : nLevels - 1;
+      const row = Math.floor(i / perRow), col = i % perRow;
+      // NOT clamped to the lift zone. A shaft shrunk to fit the space left over
+      // is not a smaller lift, it is a lift that does not exist — the same
+      // failure as a ramp shortened to fit its shaft and arriving below the
+      // floor it serves. The shaft is the size the car is; whether the core
+      // holds it is `coreFits`, and that is a finding rather than a fix.
+      // laid along the SAME axis the bank was sized on, rows facing each other
+      // across the lobby between them
+      const alongX = c.liftAlong;
+      const sw = alongX ? group.shaft.w : group.shaft.d;
+      const sd = alongX ? group.shaft.d : group.shaft.w;
+      const x = alongX
+        ? R.x0(c.lift) + (col + 0.5) * (c.lift.w / perRow)
+        : (rows === 1 ? c.lift.x : R.x0(c.lift) + (row + 0.5) * (c.lift.w / rows));
+      const z = alongX
+        ? (rows === 1 ? c.lift.z : R.z0(c.lift) + (row + 0.5) * (c.lift.d / rows))
+        : R.z0(c.lift) + (col + 0.5) * (c.lift.d / perRow);
+      out.push({
+        id: id++, core: cores.indexOf(c), zone,
+        x: round2(x), z: round2(z), w: round2(sw), d: round2(sd),
+        car: { w: group.carBox.w, d: group.carBox.d },
+        // it PASSES every level from the terminal to the top of its zone, and
+        // OPENS at only some of them — which is the whole of the skip-stop idea
+        // and the whole of the express idea, in one pair of lists
+        passes: Array.from({ length: hi + 1 }, (_, k) => k),
+        opens: Array.from({ length: hi + 1 }, (_, k) => k)
+          .filter((k) => k === 0 || (k >= lo && k <= hi))
+          .filter((k) => !mass.levels[k] || !mass.levels[k].viaDeck),
+        express: zones > 1 && zone > 0 ? lo : 0,
+        top: round2(mass.levels[Math.min(hi, nLevels - 1)].y),
+        pit: group.pit, overrun: group.overrun, speed: group.speed,
+        kg: group.car.kg, persons: group.car.persons,
+        // one car is the firefighting lift where the height asks for one, and
+        // one is scenic where the parti does
+        firefighting: id === 1 && !!group.firefighting,
+        scenic: id === 2 && !!group.scenic,
+      });
+    }
+  }
+  // the scenic car does not belong in the core at all — it climbs the void it
+  // serves, which is the only time a lift is the view rather than the wait
+  if (group.scenic) {
+    const av = mass.levels.map((L) => (L.voids || []).find((v) => v.parti)).find(Boolean);
+    const sc = out.find((q) => q.scenic);
+    if (av && sc) {
+      sc.x = round2(av.x + av.w / 2 - sc.w / 2);
+      sc.z = round2(av.z);
+      sc.inVoid = true;
+    }
+  }
+  return out;
+}
+
+/* ──────────────────────── the spine, derived once ───────────────────────── */
+//
+// Where the corridor runs is a property of the WING, not of whichever stage
+// happens to be drawing at the time. The plan solver needs it to cut its bands;
+// the hall needs it because a room that does not front the spine is a room with
+// no door. Two stages guessing it separately is how a great hall ends up
+// stranded a metre and a half short of the only corridor on the floor.
+
+function spineFor(p, wing, minRoom) {
+  const along = wing.w >= wing.d;                 // corridor runs along the long axis
+  const span = along ? wing.d : wing.w;           // cross-wing dimension
+  const corW = p.corridorW;
+  const doubleLoaded = span >= 2 * minRoom + corW + 1.2;
+  const cor = doubleLoaded
+    ? (along ? R.make(wing.x, wing.z, wing.w, corW) : R.make(wing.x, wing.z, corW, wing.d))
+    // single-loaded: hug the north / west edge
+    : (along ? R.make(wing.x, R.z1(wing) - corW / 2, wing.w, corW)
+             : R.make(R.x0(wing) + corW / 2, wing.z, corW, wing.d));
+  return { along, cor, doubleLoaded, span };
+}
+
+/* ────────────────────── the atrium, before anyone needs it ──────────────── */
+//
+// The parti's atrium is claimed by the plan solver, but the HALL has to know
+// where it is in order to keep out of it — and the hall is placed first. Two
+// stages deriving the same rect from the same wing by eye is exactly how a
+// great hall ends up with a hole in the floor, so it is derived ONCE, here,
+// from geometry alone (no rng), and both stages call it.
+
+// AN ATRIUM THAT MOVES IS NOT AN ATRIUM. Sizing it off each level's own plate
+// looks right until the massing steps: a setback shrinks the wing, the void
+// re-derives smaller and off-centre, and what reads in section is a stack of
+// unrelated holes rather than one room the height of the building. So it is
+// solved ONCE, against the INTERSECTION of the plates it passes through — the
+// same discipline that sizes a core against the smallest plate, for the same
+// reason. Then every level cuts the identical rect, or none of them do.
+function partiAtriumFor(p, mass, parti) {
+  if (!parti) return null;
+  const lv = mass.levels.filter((L) => voidsAt(parti, L.index, p.levels) > 0 && L.wings.length);
+  if (lv.length < 2) return null;
+  const frac = voidsAt(parti, lv[0].index, p.levels);
+
+  let x0 = -Infinity, z0 = -Infinity, x1 = Infinity, z1 = Infinity;
+  for (const L of lv) {
+    const w = L.wings[0];
+    x0 = Math.max(x0, R.x0(w)); x1 = Math.min(x1, R.x1(w));
+    z0 = Math.max(z0, R.z0(w)); z1 = Math.min(z1, R.z1(w));
+  }
+  if (!(x1 - x0 > 0 && z1 - z0 > 0)) return null;
+  const core2 = R.fromMinMax(x0, z0, x1, z1);
+
+  const aw = Math.max(p.bay * 1.5, Math.round(Math.sqrt(R.area(core2) * frac) / p.bay) * p.bay);
+  const ad = Math.min(aw, core2.d - p.bay * 1.4);
+  if (!(aw < core2.w - p.bay && ad > p.bay)) return null;
+  return {
+    x: round2(core2.x), z: round2(core2.z),
+    w: round2(Math.min(aw, core2.w - p.bay)), d: round2(ad),
+    kind: 'atrium', parti: true,
+  };
+}
+
+// and on a given level it is either cut or it is not — never a different one
+function atriumOn(atrium, p, level, parti) {
+  if (!atrium || !parti) return null;
+  if (!(voidsAt(parti, level.index, p.levels) > 0)) return null;
+  if (!level.wings.length || !R.contains(level.wings[0], atrium, 0.05)) return null;
+  return atrium;
+}
+
+/* ─────────────────────── the hall, and the stair in it ──────────────────── */
+//
+// A hall is not a big room the BSP happened to leave. It is claimed BEFORE the
+// plan is cut, out of the biggest wing the level has — and then the plan is
+// solved around it, which is what "the rest is arranged about it" actually
+// means in code.
+//
+// "Clear of the cores" used to be a nudge in z, which is a hope rather than a
+// guarantee: the nudge is then clamped back inside the wing, and on a tight
+// plate that puts it straight back where it started. And a rect centred in the
+// leftover ground is worse than useless — it can sit a metre off the corridor
+// with nothing but a strip of dead plan between them.
+//
+// So the hall is claimed the way a ROOM is claimed, out of the same bands the
+// plan solver will cut: full depth from the spine to the outside face, and only
+// its length along the corridor is negotiable. That makes three things true at
+// once — the hall fronts the circulation, the plan either side of it still
+// fronts the circulation, and nothing has to be moved afterwards.
+
+function placeHalls(p, mass, parti, cores, atrium) {
+  const out = [];
+  const minRoom = Math.max(3.0, p.bay * 0.45);
+  for (const L of mass.levels) {
+    const spec = hallAt(parti, L.index, p.levels);
+    if (!spec) continue;
+    // biggest wing first, but not ONLY the biggest: a courtyard parti voids the
+    // middle of wing 0, and refusing to look at wing 1 loses the hall entirely
+    let placed = null;
+    for (const wing of L.wings.slice().sort((a, b) => R.area(b) - R.area(a))) {
+      const target = R.area(wing) * spec.frac;
+      const { along, cor } = spineFor(p, wing, minRoom);
+
+      // the bands, cut exactly as planCellular will cut them
+      let bands = along ? R.splitZ(wing, R.z0(cor), R.z1(cor)) : R.splitX(wing, R.x0(cor), R.x1(cor));
+      const av = atriumOn(atrium, p, L, parti);
+      const blockers = cores.filter((c) => R.overlaps(c, wing));
+      if (av && R.overlaps(av, wing)) blockers.push(av);
+      for (const c of blockers) {
+        const next = [];
+        for (const b of bands) {
+          if (!R.overlaps(b, c)) { next.push(b); continue; }
+          for (const q of (along ? R.splitX(b, R.x0(c), R.x1(c)) : R.splitZ(b, R.z0(c), R.z1(c)))) next.push(q);
+        }
+        bands = next;
+      }
+
+      // the biggest band wins; the hall takes its full depth and as much of its
+      // length as the parti asked for, snapped to the grid so the hall lands on
+      // columns rather than having them through it. Depth is whatever the band
+      // is — a 6 m band off a shallow plate still makes a hall, and demanding a
+      // bay and a bit of it silently drops the parti on every slab block.
+      const cand = bands
+        .filter((b) => Math.min(b.w, b.d) >= Math.max(minRoom, 3.5))
+        .sort((a, b) => R.area(b) - R.area(a));
+      for (const b of cand) {
+        const depth = along ? b.d : b.w;              // spine → outside face
+        const run = along ? b.w : b.d;                // along the spine
+        let len = Math.max(p.bay * 2, Math.round((target / depth) / p.bay) * p.bay);
+        len = Math.min(len, run);
+        if (len < Math.max(p.bay * 1.5, minRoom * 1.4)) continue;
+        placed = along ? { x: b.x, z: b.z, w: len, d: depth } : { x: b.x, z: b.z, w: depth, d: len };
+        break;
+      }
+      if (placed) break;
+    }
+    if (!placed) continue;
+
+    out.push({
+      level: L.index, x: round2(placed.x), z: round2(placed.z),
+      w: round2(placed.w), d: round2(placed.d),
+      program: spec.program, doubleHeight: !!spec.doubleHeight, meme: spec.meme,
+      ref: 'HALL', area: round2(placed.w * placed.d),
+    });
+  }
+  return out;
+}
+
+// THE CEREMONIAL STAIR. Not circulation — the reason the room is there. It is
+// placed in whatever the parti says it belongs to (the hall, the atrium void,
+// the open undercroft, or a dwelling), it is wide, and its type is drawn from
+// a set the parti names rather than from whatever fits a leftover shaft.
+//
+// It is also the one stair allowed to be strange. A dog-leg is what you use
+// when the stair has a job; an imperial, a crossed pair or a helix is what you
+// use when the stair IS the job.
+
+function featureStairs(p, mass, parti, halls, cores) {
+  const rf = Rand(p.seed, 'feature');
+  const out = [];
+  for (const F of partiFeatures(parti, p.levels)) {
+    const from = Math.max(0, Math.min(p.levels - 1, F.from));
+    const to = Math.max(0, Math.min(p.levels - 1, F.to));
+    if (to <= from) continue;
+
+    // where it stands, and therefore how much room it has
+    let host = null;
+    if (F.where === 'hall') host = halls.find((h) => h.level === from) || halls[0];
+    if (!host) {
+      // no hall: take the middle of the biggest wing on the level it starts from
+      const wing = mass.levels[from].wings.slice().sort((a, b) => R.area(b) - R.area(a))[0];
+      if (!wing) continue;
+      const side = Math.min(wing.w, wing.d) * (F.where === 'atrium' ? 0.5 : 0.42);
+      host = { x: wing.x, z: wing.z, w: Math.min(wing.w * 0.8, side * 1.6), d: Math.min(wing.d * 0.8, side * 1.6) };
+    }
+    const box = { x: host.x, z: host.z, w: host.w * 0.86, d: host.d * 0.86 };
+
+    // Height is not one storey: a feature stair spans the levels the parti
+    // named, and every one of them may be a different height — the piano nobile
+    // is taller than the plinth under it.
+    const heights = [];
+    for (let i = from; i < to; i++) heights.push(mass.levels[i].h);
+
+    let type = null, width = F.width;
+    for (const w of [F.width, F.width * 0.8, STAIR_RULES.width.public]) {
+      type = chooseStair(box, heights, rf, { width: w, grand: !F.private, prefer: F.prefer });
+      if (type) { width = w; break; }
+    }
+    if (!type) continue;
+
+    for (let i = from; i < to; i++) {
+      const L = mass.levels[i];
+      out.push({
+        core: 'feature/' + F.meme, feature: true, meme: F.meme, where: F.where,
+        level: i,
+        // NOT `note`. The layout spreads the stair TYPE's note over this object,
+        // so the parti's reason for the stair has to have a name of its own —
+        // otherwise the panel quotes what a helix is instead of why this one is
+        // here, which is the only interesting half.
+        featureNote: F.note, partiLabel: F.label, fromLevel: from, toLevel: to,
+        ...stairLayout(type, L.h, box, { width, y0: L.y, grand: !F.private, private: !!F.private }),
+      });
+    }
+  }
+  return out;
+}
+
+/* ──────────────────────────── STAIRS TO GROUND ──────────────────────────── */
+//
+// One stair per core per level, each climbing that level's own floor-to-floor
+// height from that level's floor. Because level 0 starts at y = 0, the flights
+// tile the whole height of the building with no gap — the stair reaches the
+// ground by construction rather than by hoping, and the selftest asserts the
+// tiling closes.
+//
+// Storey heights are NOT all equal (a podium ground floor is taller), so the
+// stair is re-solved per level rather than stamped: a taller storey gets more
+// risers, and every riser inside that flight is still exactly equal.
+
+function placeStairs(p, mass, cores) {
+  const out = [];
+  for (let ci = 0; ci < cores.length; ci++) {
+    const c = cores[ci];
+    for (const L of mass.levels) {
+      if (!L.wings.some((w) => R.overlaps(w, c))) continue;   // no plate, no stair
+      const st = stairLayout(c.stair.type, L.h, c.stairBox, {
+        width: c.stair.width, y0: L.y, private: p.typology === 'housing',
+      });
+      out.push({ core: ci, level: L.index, ...st });
+    }
+  }
+  return out;
+}
+/* ─────────────────────────── the cellular floor plan ────────────────────── */
+//
+// A corridor spine, cores subtracted, then a BSP over what is left. Rooms snap
+// to the structural grid where they can — a plan whose partitions land on
+// columns is the difference between a drawing and a *drawing*.
+
+function planCellular(p, level, cores, rnd, parti, atrium) {
+  const T = TYPOLOGIES[p.typology];
+  const rooms = [], corridors = [], voids = [];
+  const isGround = level.index === 0;
+  const isTop = level.index === p.levels - 1;
+  const minRoom = Math.max(3.0, p.bay * 0.45);
+
+  // ── WHAT THE PARTI DOES TO THE PLAN, rather than to the section ─────────
+  //
+  // SKIP-STOP. The Unité's move, and it is a plan move: a rue intérieure every
+  // third floor and NOTHING on the two between, because the dwellings are
+  // maisonettes that cross over the rue and are entered from it. So on a level
+  // that is not a deck there is no corridor to cut the plate about, the rooms
+  // run the full depth of the wing, and they are reached by the stair inside
+  // the dwelling. That is not a plan with landlocked rooms — it is a section.
+  //
+  // ROOM SCALE. A penthouse is not a taller top floor, it is a top floor with
+  // FEWER rooms in it, so the BSP's step grows and its minimum with it.
+  // The Unité is itself on pilotis: its first rue is not at grade, because
+  // grade was given away. So when the parti opens the ground, the deck sequence
+  // starts a level up — otherwise every maisonette above would name a deck that
+  // has no corridor in it to be entered from.
+  const every = parti ? corridorEvery(parti) : 1;
+  const base = parti && openGround(parti) ? 1 : 0;
+  const deck = every > 1
+    ? base + Math.max(0, Math.floor((level.index - base) / every)) * every
+    : level.index;
+  const isDeck = every === 1 || level.index === deck;
+  const scale = parti ? roomScaleAt(parti, level.index, p.levels) : 1;
+  const minR = minRoom * Math.max(1, Math.min(scale, 2));
+
+  for (const wing of level.wings) {
+    const { along, cor, doubleLoaded, span } = spineFor(p, wing, minRoom);
+    if (isDeck) corridors.push(cor);
+
+    // the bands left over either side of the corridor — or, with no corridor,
+    // the whole plate, cut the same way and so still fronting the same axis
+    let bands = isDeck
+      ? (along ? R.splitZ(wing, R.z0(cor), R.z1(cor)) : R.splitX(wing, R.x0(cor), R.x1(cor)))
+      : [{ x: wing.x, z: wing.z, w: wing.w, d: wing.d }];
+
+    const wingVoids = [];
+
+    // THE PARTI'S ATRIUM, if it asked for one. This is not the opportunistic
+    // light well below it: it is the same void in the same place on every level
+    // the parti names, so it reads as one room the whole height of the building
+    // and the gallery round it is the circulation. It is claimed first, and the
+    // plan is cut around it.
+    if (wing === level.wings[0]) {
+      const av = atriumOn(atrium, p, level, parti);
+      if (av) { wingVoids.push(av); voids.push(av); }
+    }
+
+    // an opportunistic light-well on the deepest plates — the one that makes a
+    // deep plan legal, rather than the one that makes it about something. It is
+    // drawn AFTER the hall was claimed, so it has to be told about it: a hall
+    // does not need a light well cut out of it, it is already the light.
+    if (!wingVoids.length && doubleLoaded && span > p.bay * 4.5 && !isGround && rnd.chance(0.22)) {
+      const av = along
+        ? R.make(round2(wing.x + rnd.range(-wing.w * 0.2, wing.w * 0.2)), wing.z, round2(p.bay * 1.5), round2(span * 0.3))
+        : R.make(wing.x, round2(wing.z + rnd.range(-wing.d * 0.2, wing.d * 0.2)), round2(span * 0.3), round2(p.bay * 1.5));
+      const hallHere = cores.find((q) => q.ref === 'HALL');
+      if (!(hallHere && R.overlaps(av, hallHere))) {
+        wingVoids.push({ ...av, kind: 'light well' });
+        voids.push(wingVoids[0]);
+      }
+    }
+
+    // Subtract everything the plan solver may not build in: the cores (served OFF
+    // the corridor, so they eat into a band) and the light well.
+    for (const c of cores.filter((q) => R.overlaps(q, wing)).concat(wingVoids)) {
+      const next = [];
+      for (const b of bands) {
+        if (!R.overlaps(b, c)) { next.push(b); continue; }
+        const pieces = along ? R.splitX(b, R.x0(c), R.x1(c)) : R.splitZ(b, R.z0(c), R.z1(c));
+        for (const q of pieces) next.push(q);
+      }
+      bands = next;
+    }
+
+    // Subdivide each band ALONG THE CORRIDOR, never across it. Cutting across
+    // would stack a second rank of rooms behind the first with no way in, which
+    // is the one thing a plan may not do — this way every room fronts the spine.
+    for (const band of bands) {
+      const cut = along ? 'x' : 'z';
+      const len = cut === 'x' ? band.w : band.d;
+      if (len < minR || Math.min(band.w, band.d) < 2.2) continue;
+      const offs = [0];
+      let at = 0;
+      while (len - at > minR * 1.6) {
+        const stepBays = rnd.pickW([[1, 3], [1.5, 2], [2, 2.4], [3, 1.0]]);
+        let step = stepBays * p.bay * scale;
+        if (step < minR) step = minR;
+        if (len - (at + step) < minR) break;
+        at += step; offs.push(round2(at));
+      }
+      offs.push(round2(len));
+      for (let k = 0; k < offs.length - 1; k++) {
+        const a = offs[k], b = offs[k + 1];
+        if (b - a < minR * 0.8) continue;
+        const r = cut === 'x'
+          ? R.fromMinMax(R.x0(band) + a, R.z0(band), R.x0(band) + b, R.z1(band))
+          : R.fromMinMax(R.x0(band), R.z0(band) + a, R.x1(band), R.z0(band) + b);
+        rooms.push(isDeck ? { ...r, program: null }
+          : { ...r, program: null, viaLevel: deck, access: 'internal stair' });
+      }
+    }
+  }
+
+  // programme assignment — deterministic, order-stable, with the fixed points
+  // (lobby on the ground, plant at the top, WCs beside a core) placed first.
+  const table = T.programs.length ? T.programs : [['space', 1]];
+  // What sits on the ground is not what sits on floor six: the entrance hall is
+  // ONE room (the biggest one next to a core), and the rest of the ground floor
+  // is the servant stuff a plinth actually holds.
+  const groundTable = [['plant', 1.4], ['store', 1.6], ['cycle store', 1.0], ['refuse', 0.9],
+                       ['loading', 0.8], ['café', 0.7], ['reception', 0.8]];
+  let wcDone = false, lobbyDone = false;
+  rooms.sort((a, b) => (a.z - b.z) || (a.x - b.x));
+  const biggestNearCore = isGround
+    ? rooms.filter((r) => cores.some((c) => Math.hypot(c.x - r.x, c.z - r.z) < p.bay * 2.6))
+        .sort((a, b) => R.area(b) - R.area(a))[0]
+    : null;
+  for (const r of rooms) {
+    const nearCore = cores.some((c) => Math.hypot(c.x - r.x, c.z - r.z) < p.bay * 1.9);
+    if (isGround && !lobbyDone && (r === biggestNearCore || (!biggestNearCore && R.area(r) > p.bay * p.bay * 2.2))) {
+      r.program = 'entrance hall'; lobbyDone = true;
+    } else if (isTop && p.plant && R.area(r) > p.bay * p.bay * 1.6 && rnd.chance(0.35)) r.program = 'plant';
+    else if (nearCore && !wcDone) { r.program = 'WC'; wcDone = true; }
+    else r.program = rnd.pickW(isGround ? groundTable.concat(table.map(([k, w]) => [k, w * 0.45])) : table);
+  }
+  // number them: level-prefixed, reading order — the label a schedule can cite
+  const counts = {};
+  rooms.forEach((r, i) => {
+    counts[r.program] = (counts[r.program] || 0) + 1;
+    r.ref = `${level.index}.${String(i + 1).padStart(2, '0')}`;
+    r.area = round2(R.area(r));
+  });
+  return { rooms, corridors, voids };
+}
+
+/* ──────────────────────── the deck plan (car park) ──────────────────────── */
+
+function planDeck(p, level, cores) {
+  const rooms = [], corridors = [];
+  const wing = level.wings[0];
+  const aisle = 6.2, stall = 2.5, maxDepth = 5.4;
+  const along = wing.w >= wing.d;
+  // One aisle down the middle, ONE rank of stalls each side of it — a second
+  // rank would be parked in behind the first, which is the deck equivalent of a
+  // room with no door. Whatever depth is left over is a perimeter upstand.
+  const cor = along ? R.make(wing.x, wing.z, wing.w, aisle) : R.make(wing.x, wing.z, aisle, wing.d);
+  corridors.push(cor);
+  const bands = along ? R.splitZ(wing, R.z0(cor), R.z1(cor)) : R.splitX(wing, R.x0(cor), R.x1(cor));
+  let n = 0;
+  for (const band of bands) {
+    const depth = Math.min(along ? band.d : band.w, maxDepth);
+    const run = along ? band.w : band.d;
+    const cols = Math.floor(run / stall);
+    // stalls hang off the aisle edge of the band, not its outer edge
+    const nearCor = along
+      ? (band.z < cor.z ? R.z1(band) - depth : R.z0(band))
+      : (band.x < cor.x ? R.x1(band) - depth : R.x0(band));
+    for (let cI = 0; cI < cols; cI++) {
+      const r = along
+        ? R.fromMinMax(R.x0(band) + cI * stall, nearCor, R.x0(band) + (cI + 1) * stall, nearCor + depth)
+        : R.fromMinMax(nearCor, R.z0(band) + cI * stall, nearCor + depth, R.z0(band) + (cI + 1) * stall);
+      if (cores.some((c) => R.overlaps(c, r))) continue;
+      n++;
+      rooms.push({ ...r, program: 'stall', ref: `${level.index}.${String(n).padStart(3, '0')}`, area: round2(R.area(r)) });
+    }
+  }
+  return { rooms, corridors, voids: [] };
+}
+
+/* ─────────────────────────── the sacred plan ────────────────────────────── */
+//
+// Not a corridor-and-cells plan at all: a basilica is a longitudinal hierarchy —
+// narthex, nave flanked by aisles, a crossing where the transept cuts it, chancel,
+// apse — and the seed sets the proportions, the bay count, and where the crossing
+// falls, not whether the parts exist. The campanile stands off the mass.
+
+function planSacred(p, level, rnd) {
+  const rooms = [], corridors = [], voids = [];
+  const bay = p.bay;
+  const bays = p.bz;                       // nave bays, along z
+  const naveW = Math.max(bay * 2.2, p.bx * bay * 0.46);
+  const aisleW = Math.max(bay * 0.9, naveW * 0.34);
+  const naveL = bays * bay;
+  const narthexD = bay * 0.9;
+  const chancelD = bay * 1.6;
+  const apseD = bay * 1.1;
+
+  const z0 = -naveL / 2;
+  const nave = R.fromMinMax(-naveW / 2, z0 + narthexD, naveW / 2, z0 + naveL - chancelD);
+  rooms.push({ ...nave, program: 'nave', ref: 'A', area: round2(R.area(nave)) });
+  corridors.push(nave);                    // the nave IS the circulation
+
+  const narthex = R.fromMinMax(-naveW / 2 - aisleW, z0, naveW / 2 + aisleW, z0 + narthexD);
+  rooms.push({ ...narthex, program: 'narthex', ref: 'B', area: round2(R.area(narthex)) });
+
+  for (const side of [-1, 1]) {
+    const a = R.fromMinMax(side < 0 ? -naveW / 2 - aisleW : naveW / 2, R.z0(nave),
+                           side < 0 ? -naveW / 2 : naveW / 2 + aisleW, R.z1(nave));
+    rooms.push({ ...a, program: side < 0 ? 'north aisle' : 'south aisle', ref: side < 0 ? 'C' : 'D', area: round2(R.area(a)) });
+  }
+
+  // the crossing: a transept at a seeded fraction along the nave
+  const tf = rnd.range(0.55, 0.74);
+  const tz = R.z0(nave) + tf * nave.d;
+  const transeptD = bay * 1.7;
+  const armW = Math.max(bay * 1.4, aisleW * 1.9);
+  for (const side of [-1, 1]) {
+    const t = R.fromMinMax(side < 0 ? -naveW / 2 - aisleW - armW : naveW / 2 + aisleW, tz - transeptD / 2,
+                           side < 0 ? -naveW / 2 - aisleW : naveW / 2 + aisleW + armW, tz + transeptD / 2);
+    rooms.push({ ...t, program: side < 0 ? 'north transept' : 'south transept', ref: side < 0 ? 'E' : 'F', area: round2(R.area(t)) });
+  }
+
+  const chancel = R.fromMinMax(-naveW / 2, R.z1(nave), naveW / 2, R.z1(nave) + chancelD);
+  rooms.push({ ...chancel, program: 'chancel', ref: 'G', area: round2(R.area(chancel)) });
+  const apse = R.fromMinMax(-naveW * 0.34, R.z1(chancel), naveW * 0.34, R.z1(chancel) + apseD);
+  rooms.push({ ...apse, program: 'apse', ref: 'H', area: round2(R.area(apse)), faceted: true });
+
+  // chapels hung off the aisles between the buttresses — count and side are seeded
+  const nCh = rnd.int(2, Math.max(2, Math.floor(bays / 3)));
+  let ref = 0;
+  for (let i = 0; i < nCh; i++) {
+    const side = rnd.chance(0.5) ? -1 : 1;
+    const k = rnd.int(0, Math.max(0, bays - 4));
+    const cz = R.z0(nave) + (k + 0.5) * bay;
+    if (Math.abs(cz - tz) < transeptD) continue;    // don't collide with the crossing
+    const depth = bay * 0.8;
+    const c = R.fromMinMax(side < 0 ? -naveW / 2 - aisleW - depth : naveW / 2 + aisleW, cz - bay * 0.42,
+                           side < 0 ? -naveW / 2 - aisleW : naveW / 2 + aisleW + depth, cz + bay * 0.42);
+    if (rooms.some((r) => r.program.startsWith('chapel') && R.overlaps(r, c))) continue;
+    rooms.push({ ...c, program: 'chapel ' + String.fromCharCode(97 + ref++), ref: 'J' + ref, area: round2(R.area(c)) });
+  }
+
+  // the void the whole thing is for: the nave is open to the roof, the aisles are not
+  voids.push({ ...nave, kind: 'nave volume' });
+  // `rib` is how deep the folded-plate roof stands above the wall head; it is
+  // stored here rather than recomputed in parts() so the overall height, the
+  // section and the model all quote the same number.
+  const rib = Math.max(1.6, naveW * 0.16);
+  return { rooms, corridors, voids, geometry: { naveW, aisleW, naveL, narthexD, chancelD, apseD, tz, transeptD, armW, bays, rib: round2(rib) } };
+}
+
+/* ─────────────────────────────  facade grammar  ─────────────────────────── */
+//
+// Bays are cut from each exposed plate edge, then the rhythm cell is stamped
+// along them. Two operators make the difference between wallpaper and
+// architecture: MIRROR (about the centre of the elevation — brutalism is
+// overwhelmingly symmetric about its entrance) and PUNCTUATION (a rare
+// substitution that breaks the repeat exactly where a person would notice).
+
+function facadeFor(p, mass, cores) {
+  const T = TYPOLOGIES[p.typology];
+  const rf = Rand(p.seed, 'facade');
+  const punct = rf.pickW(T.alphabet);
+  const facades = [];
+  const SIDES = [
+    { id: 'N', nx: 0, nz: -1 }, { id: 'S', nx: 0, nz: 1 },
+    { id: 'W', nx: -1, nz: 0 }, { id: 'E', nx: 1, nz: 0 },
+  ];
+
+  for (const L of mass.levels) {
+    for (let wi = 0; wi < L.wings.length; wi++) {
+      const wing = L.wings[wi];
+      for (const side of SIDES) {
+        const horizontal = side.nz !== 0;            // edge runs along x
+        const len = horizontal ? wing.w : wing.d;
+        const n = Math.max(1, Math.round(len / p.bay));
+        const bw = len / n;
+        // the ground floor of a pilotis building is open between the piers
+        const groundOpen = p.pilotis && L.index === 0;
+        const bays = [];
+        for (let i = 0; i < n; i++) {
+          let mod;
+          if (groundOpen) mod = (i % 2 === 0) ? 'pier' : 'open';
+          else {
+            const k = p.symmetric ? Math.min(i, n - 1 - i) : i;
+            mod = p.rhythm[k % p.rhythm.length];
+            // punctuation: same draw for the same (level, wing, side, bay) for ever
+            const rp = Rand(p.seed, `punct/${L.index}/${wi}/${side.id}/${i}`);
+            if (rp.chance(0.07)) mod = punct;
+            // the top level of a plant-crowned building wears its louvres
+            if (p.plant && L.index === p.levels - 1 && rp.chance(0.45)) mod = 'vent';
+          }
+          const t0 = -len / 2 + i * bw;
+          bays.push({
+            i, module: mod, w: round2(bw),
+            // centre of the bay in world coords
+            x: round2(horizontal ? wing.x + t0 + bw / 2 : (side.nx < 0 ? R.x0(wing) : R.x1(wing))),
+            z: round2(horizontal ? (side.nz < 0 ? R.z0(wing) : R.z1(wing)) : wing.z + t0 + bw / 2),
+          });
+        }
+        facades.push({ level: L.index, wing: wi, side: side.id, nx: side.nx, nz: side.nz, y: L.y, h: L.h, len: round2(len), bays });
+      }
+    }
+  }
+  return facades;
+}
+
+// The cathedral wears a different alphabet on a different geometry, so it gets
+// its own elevation pass: buttresses on the bay lines, lancets between, a rose
+// over the west door, a clerestory band riding above the aisle roof.
+function facadeSacred(p, geo, mass) {
+  const rf = Rand(p.seed, 'facade/sacred');
+  const facades = [];
+  const L = mass.levels[0];
+  const bays = geo.bays;
+  const push = (side, nx, nz, len, list, y, h, tag) =>
+    facades.push({ level: 0, wing: 0, side, nx, nz, y, h, len: round2(len), tag, bays: list });
+
+  // A bay that falls in the crossing is not a wall — it is the arch into the
+  // transept, so it is left out of the elevation entirely rather than drawn and
+  // then contradicted by the arm standing in front of it.
+  const inCrossing = (cz) => Math.abs(cz - geo.tz) < geo.transeptD / 2;
+  for (const side of [['W', -1, 0], ['E', 1, 0]]) {
+    const list = [];
+    const half = (geo.naveW / 2 + geo.aisleW);
+    for (let i = 0; i < bays; i++) {
+      const cz = -geo.naveL / 2 + (i + 0.5) * (geo.naveL / bays);
+      if (inCrossing(cz)) continue;
+      list.push({ i, module: i % 2 === 0 ? 'buttress' : 'lancet', w: round2(geo.naveL / bays),
+                  x: round2(side[1] * half), z: round2(cz) });
+    }
+    push(side[0], side[1], 0, geo.naveL, list, 0, L.h * 0.42, 'aisle');
+    // clerestory above the aisle roof — the light that makes the nave
+    const cl = [];
+    for (let i = 0; i < bays; i++) {
+      const cz = -geo.naveL / 2 + (i + 0.5) * (geo.naveL / bays);
+      cl.push({ i, module: rf.chance(0.85) ? 'lancet' : 'recess', w: round2(geo.naveL / bays),
+                x: round2(side[1] * geo.naveW / 2), z: round2(cz) });
+    }
+    push(side[0], side[1], 0, geo.naveL, cl, round2(L.h * 0.42), round2(L.h * 0.58), 'clerestory');
+  }
+  // the west front (entrance end, −z) — rose over the door, flanked blank
+  const front = [];
+  const fw = geo.naveW + 2 * geo.aisleW;
+  const nf = Math.max(3, Math.round(fw / p.bay));
+  for (let i = 0; i < nf; i++) {
+    const mid = (nf % 2 === 1) ? i === (nf - 1) / 2 : (i === nf / 2 - 1 || i === nf / 2);
+    front.push({ i, module: mid ? 'rose' : (i === 0 || i === nf - 1 ? 'buttress' : 'blank'),
+                 w: round2(fw / nf), x: round2(-fw / 2 + (i + 0.5) * (fw / nf)), z: round2(-geo.naveL / 2) });
+  }
+  push('N', 0, -1, fw, front, 0, L.h, 'west front');
+  return facades;
+}
+
+/* ────────────────────────────────  generate  ────────────────────────────── */
+
+export function generate(paramsOrQuery) {
+  const p = (paramsOrQuery && paramsOrQuery.seed && paramsOrQuery.rhythm)
+    ? paramsOrQuery : resolveParams(paramsOrQuery);
+  const T = TYPOLOGIES[p.typology];
+
+  if (p.typology === 'cathedral') return generateSacred(p);
+
+  // THE PARTI RUNS FIRST. Everything after it is a consequence rather than an
+  // independent draw, which is the whole difference between a building with an
+  // idea and a set of correct parts that have never met.
+  const parti = deriveParti(p, Rand(p.seed, 'parti'));
+  const mass = massing(p, parti);
+
+  // THE LIFTS ARE SIZED BEFORE THE CORE THEY GO IN, because that is the order
+  // the constraint actually runs: how many shafts a building needs is a
+  // property of its population and its height, and the core is whatever has to
+  // be built to hold them. Sizing the core first and then asking what fits is
+  // how a building ends up with three lifts because that is what was left over.
+  //
+  // At this point there is no room schedule — the plan cannot be cut until the
+  // cores are set out — so the population comes off an AREA TAKE, which is
+  // exactly what a real concept-stage lift study does. It is verified against
+  // the schedule at the bottom of this function, and the two are meant to
+  // disagree: the gap between them is what a verification is for.
+  const giaEst = mass.levels.reduce((s, L) => s + L.wings.reduce((a, w) => a + R.area(w), 0), 0);
+  const liftGroup = liftsFor({
+    typology: p.typology, levels: p.levels, floorH: p.floorH,
+    height: mass.height, gia: giaEst, parti: parti.memes,
+    stops: skipStops(p, parti),
+    topOccupiedM: mass.levels[mass.levels.length - 1].y,
+  });
+
+  const cores = placeCores(p, mass, liftGroup);
+  const lifts = placeLifts(p, mass, cores, liftGroup, parti);
+
+  // THE PLATE MAY REFUSE THE GROUP. `placeCores` caps the shafts at what the
+  // floorplate will actually hold, and when it does, that is a finding about
+  // the building rather than a quiet adjustment to it — so it comes back as a
+  // failing check with the shortfall in it, and `built` becomes the number of
+  // lifts this building HAS as opposed to the number it needs.
+  if (cores.length && liftGroup.needed) {
+    liftGroup.built = cores[0].groupCars;
+    liftGroup.plateShort = cores[0].shortBy || 0;
+    if (liftGroup.plateShort > 0) {
+      liftGroup.pass = false;
+      const c = {
+        id: 'plate', label: 'The plate holds the group', pass: false,
+        value: `${liftGroup.built} of ${liftGroup.carsTotal} shafts`,
+        note: `${liftGroup.plateShort} more shaft${liftGroup.plateShort === 1 ? '' : 's'} than this floorplate will take beside the stair. Past a certain population the core eats the building it serves — which is why floorplate depth is a lift decision as much as a daylight one, and why the answer here is a wider plate or a second core position, not a smaller lift`,
+      };
+      liftGroup.checks = [...(liftGroup.checks || []), c];
+      liftGroup.governing = liftGroup.governing || c;
+    }
+  }
+  const atrium = partiAtriumFor(p, mass, parti);
+  const halls = placeHalls(p, mass, parti, cores, atrium);
+  const stairs = placeStairs(p, mass, cores);
+  stairs.push(...featureStairs(p, mass, parti, halls, cores));
+  const rp = Rand(p.seed, 'plan');
+
+  for (const L of mass.levels) {
+    L.cores = cores.filter((c) => L.wings.some((w) => R.overlaps(w, c)));
+    L.hall = halls.find((h) => h.level === L.index) || null;
+    L.terrace = terraceAt(parti, L.index, p.levels);
+    // the hall and the atrium are things the plan solver must work AROUND, the
+    // same way it works around a core
+    const block = L.cores.concat(L.hall ? [L.hall] : []);
+    // THE UNDERCROFT gives the ground back. Not "mostly": a level on pilotis
+    // has no plan at all — columns, the cores that have to land, and the one
+    // stair standing in the open. Generating rooms and then hiding them would
+    // leave the drawing saying one thing and the model another, so the plan is
+    // simply not cut here.
+    const pilotis = L.index === 0 && openGround(parti);
+    const out = pilotis ? { rooms: [], corridors: [], voids: [] }
+      : T.plan === 'deck' ? planDeck(p, L, block) : planCellular(p, L, block, rp, parti, atrium);
+    L.pilotis = pilotis;
+    L.rooms = out.rooms; L.corridors = out.corridors; L.voids = out.voids;
+    // A HALL IS THE CIRCULATION. Both plan solvers lay their spine down the
+    // middle of the plate before anything is subtracted, so it drives straight
+    // through the hall — and the answer is not to move the hall but to stop
+    // pretending you need a corridor inside it. You walk THROUGH a great hall;
+    // that is what it is for. Done here rather than in each solver so the
+    // guarantee is one line and holds for the deck as well as the cells.
+    if (L.hall) {
+      L.corridors = L.corridors
+        .flatMap((c) => (R.overlaps(c, L.hall) ? R.subtract(c, [L.hall]) : [c]))
+        .filter((c) => c.w > 0.4 && c.d > 0.4);
+      L.rooms = L.rooms.flatMap((r) => (R.overlaps(r, L.hall)
+        ? R.subtract(r, [L.hall]).filter((q) => q.w > 1.2 && q.d > 1.2).map((q) => ({ ...r, ...q, area: round2(R.area(q)) }))
+        : [r]));
+      L.rooms.push({ ...L.hall, program: L.hall.program, hall: true });
+    }
+    // a skip-stop section has two kinds of level and the drawing has to say
+    // which is which: the one with the rue in it, and the two that reach it
+    if (corridorEvery(parti) > 1 && !pilotis) {
+      const via = L.rooms.find((r) => r.viaLevel != null);
+      if (via) L.viaDeck = via.viaLevel; else L.deck = true;
+    }
+    L.columns = columnsFor(p, L);
+    L.label = levelLabel(p, L);
+    L.gfa = round2(L.wings.reduce((s, w) => s + R.area(w), 0));
+  }
+
+  const facades = facadeFor(p, mass, cores);
+  const towers = serviceTowers(p, mass);
+  stairs.push(...towerStairs(p, mass, towers));
+  // THE VERIFICATION, against the building that actually got made. The group
+  // was sized off an area take before the plan existed; now the schedule does
+  // exist, so the same arithmetic is re-run over a population counted room by
+  // room. It is deliberately NOT allowed to resize anything — the shafts are
+  // built, and a verification that quietly moves the thing it is checking is
+  // not a verification. What it produces is a verdict and, when the two counts
+  // disagree enough to matter, the fact that they do.
+  const scheduled = populationFromSchedule(mass.levels, 1);
+  const verified = liftsFor({
+    typology: p.typology, levels: p.levels, floorH: p.floorH,
+    height: mass.height, gia: giaEst, parti: parti.memes,
+    stops: skipStops(p, parti), population: scheduled,
+    topOccupiedM: mass.levels[mass.levels.length - 1].y,
+  });
+  liftGroup.verified = {
+    population: round2(scheduled * 0.8),
+    designPopulation: round2(scheduled),
+    pctPop: verified.pctPop, interval: verified.interval,
+    pass: verified.pass, governing: verified.governing,
+    wouldNeed: verified.carsTotal,
+    // the honest headline: does the building we drew still work with the lifts
+    // we sized for the building we assumed?
+    short: Math.max(0, verified.carsTotal - liftGroup.carsTotal),
+  };
+
+  const b = {
+    version: VERSION, params: p, seed: p.seed, typology: p.typology, typologyLabel: T.label,
+    site: mass.site, levels: mass.levels, cores, stairs, facades, towers, parti, halls,
+    lifts, liftGroup,
+    height: round2(mass.height + (p.plant ? 3.2 : 1.1)),
+    roof: { parapet: 1.1, plant: p.plant },
+    geometry: null,
+  };
+  b.stats = statsFor(b);
+
+  // THE PLANTING, and the load it puts on the frame. Sited off the terraces the
+  // massing has already left and the memes the parti has already named, so it
+  // needs no siting stage of its own — but it needs the finished building, so
+  // it runs last.
+  //
+  // `geometry` is off by default because growing a crown costs a hundred
+  // milliseconds and the roller generates forty buildings a roll. The LOAD is
+  // allometric and costs a millisecond; the skeleton is only wanted by
+  // something that is going to draw it, and the bench asks for it explicitly.
+  b.planting = placePlanting(p, b, parti, { geometry: !!p.plantGeometry });
+  b.plantingLoads = plantingLoads(b.planting);
+  b.plantingStats = plantingSchedule(b.planting);
+  return b;
+}
+
+// How many floors the lift actually STOPS at. Normally every one above the
+// terminal; in a skip-stop section only the decks — which is where the round
+// trip gets its saving, and the reason the Unité's section pays for itself in
+// lifts as well as in corridors.
+function skipStops(p, parti) {
+  const every = corridorEvery(parti);
+  if (every <= 1) return null;
+  const base = openGround(parti) ? 1 : 0;
+  let n = 0;
+  for (let i = Math.max(1, base); i < p.levels; i++) if ((i - base) % every === 0) n++;
+  return Math.max(1, n);
+}
+
+function generateSacred(p) {
+  // the basilica has its own plan generator, but it still takes a position:
+  // a cloister is the one meme a single-volume church can wear
+  const parti = deriveParti(p, Rand(p.seed, 'parti'));
+  const mass = massing({ ...p, levels: 1 }, parti);
+  const rs = Rand(p.seed, 'sacred');
+  const L = mass.levels[0];
+  const out = planSacred(p, L, rs);
+  L.rooms = out.rooms; L.corridors = out.corridors; L.voids = out.voids;
+  L.label = 'Main floor';
+  const geo = out.geometry;
+  // The plate IS the plan's outline. A basilica's footprint is not one rect: the
+  // body (narthex + nave + aisles + chancel + apse) plus every arm and chapel
+  // that projects off it. Wings are what the slabs, the section and the bounds
+  // are all cut from, so anything a room occupies has to be a wing.
+  // Wings carry their own height and roof kind here, because a basilica is not
+  // one extrusion: the body runs to the nave head under folded plates, the
+  // transept arms match it, and the chapels stop at the aisle. `opensTo` names
+  // the face that is an arch into the church rather than a wall.
+  L.wings = [
+    { ...R.fromMinMax(-geo.naveW / 2 - geo.aisleW, -geo.naveL / 2,
+                       geo.naveW / 2 + geo.aisleW, -geo.naveL / 2 + geo.naveL + geo.apseD),
+      wingH: L.h, roof: 'folded' },
+    ...out.rooms.filter((r) => /transept|chapel/.test(r.program)).map((r) => ({
+      ...R.make(r.x, r.z, r.w, r.d),
+      wingH: round2(/transept/.test(r.program) ? L.h : L.h * 0.42),
+      roof: 'flat',
+      opensTo: r.x < 0 ? 'x+' : 'x-',      // the arm opens back toward the nave
+    })),
+  ];
+  L.gfa = round2(out.rooms.reduce((s, r) => s + R.area(r), 0));
+  L.columns = sacredColumns(p, geo);
+
+  const facades = facadeSacred(p, geo, mass);
+  // THE CAMPANILE IS A TURRET STAIR, which is what a bell tower is for: the
+  // bells are at the top and somebody has to get to them. A cathedral storey is
+  // 20-30 m, far too tall for one flight, so the tower is climbed in landings
+  // a storey apart and the stair is re-solved for each — and a helix is the
+  // only type that spends its length in rotation rather than in plan, which is
+  // why every real bell tower has one.
+  const campH = p.towers ? round2(L.h * rs.range(1.5, 2.2)) : 0;
+  const turret = p.towers
+    ? (chooseStair({ w: p.bay * 1.3, d: p.bay * 1.3 }, [3.6], rs,
+      { width: 1.0, prefer: ['spiral', 'helical', 'double-helix', 'three', 'dogleg'] }) || 'spiral')
+    : null;
+  const towers = p.towers ? [{
+    x: round2(-geo.naveW / 2 - geo.aisleW - p.bay * 1.4), z: round2(-geo.naveL / 2 + p.bay * 1.2),
+    w: round2(p.bay * 1.3), d: round2(p.bay * 1.3),
+    h: campH, kind: 'campanile',
+    stair: { type: turret, width: 1.0, label: STAIR_TYPES[turret].label },
+  }] : [];
+
+  // climb it a storey at a time, all the way from the ground to the bells
+  const stairs = [];
+  if (towers.length) {
+    const t = towers[0];
+    const flights = Math.max(1, Math.round(t.h / 3.6));
+    const fh = t.h / flights;
+    for (let i = 0; i < flights; i++) {
+      stairs.push({
+        core: 'campanile', tower: 0, level: 0, turret: true,
+        ...stairLayout(t.stair.type, fh, { x: t.x, z: t.z, w: t.w, d: t.d },
+          { width: 1.0, y0: round2(i * fh), private: true }),
+      });
+    }
+  }
+
+  const b = {
+    version: VERSION, params: p, seed: p.seed, typology: 'cathedral', typologyLabel: TYPOLOGIES.cathedral.label,
+    site: mass.site, levels: mass.levels, cores: [], stairs, facades, towers, parti, halls: [],
+    // A BASILICA IS ONE VOLUME, so the answer is no lift and the reason for it
+    // — which is a real answer rather than an omission. The campanile is
+    // climbed on its own turret helix; nobody has ever put a lift in one.
+    lifts: [],
+    liftGroup: liftsFor({
+      typology: 'cathedral', levels: 1, floorH: L.h, height: L.h,
+      gia: mass.levels.reduce((s, q) => s + q.wings.reduce((a, w) => a + R.area(w), 0), 0),
+      parti: parti.memes,
+    }),
+    height: round2(L.h + geo.rib * 1.6 + 0.5), roof: { parapet: 0.9, plant: false, folded: true },
+    geometry: geo,
+  };
+  b.stats = statsFor(b);
+  // A BASILICA HAS A ROOF TOO, and a cloister is one of the memes it can wear,
+  // so the sacred path runs the same planting stage rather than leaving the
+  // field undefined. A "planting is optional" branch quietly becomes a
+  // "planting does not exist here" bug the moment anything downstream reads it.
+  b.planting = placePlanting(p, b, parti, { geometry: !!p.plantGeometry });
+  b.plantingLoads = plantingLoads(b.planting);
+  b.plantingStats = plantingSchedule(b.planting);
+  return b;
+}
+
+// A LEVEL IS NAMED BY WHAT THE PARTI DID TO IT. "Level 3" is a number; "Level 3
+// (rue intérieure)" is the reason the two floors above it have no corridor, and
+// the drawing is the only place the reader ever sees that.
+function levelLabel(p, L) {
+  const base = L.index === 0 ? 'Ground' : `Level ${L.index}`;
+  const tags = [];
+  if (L.pilotis) tags.push('undercroft');
+  // the pilotis TOGGLE only sets the perimeter back onto columns; saying so
+  // beside a hall that fills the plate would be a contradiction on the drawing
+  else if (L.index === 0 && p.pilotis && !L.hall) tags.push('pilotis');
+  if (L.hall) tags.push(L.hall.program);
+  if (L.deck) tags.push('rue intérieure');
+  if (L.viaDeck != null) tags.push('maisonette');
+  if (L.terrace) tags.push('terrace');
+  if (L.index === p.levels - 1 && p.plant) tags.push('plant');
+  return tags.length ? `${base} (${tags.join(', ')})` : base;
+}
+
+// Columns sit on the grid intersections, and each carries the floor halfway to
+// its neighbours — so every column records its TRIBUTARY size as well as its
+// position. That is what a load takedown needs, and computing it here (where the
+// grid is defined) keeps struct.js from having to re-derive the grid and get a
+// slightly different answer.
+function columnsFor(p, L) {
+  const cols = [];
+  for (const wing of L.wings) {
+    const nx = Math.max(1, Math.round(wing.w / p.bay));
+    const nz = Math.max(1, Math.round(wing.d / p.bay));
+    const dx = wing.w / nx, dz = wing.d / nz;
+    for (let i = 0; i <= nx; i++) {
+      for (let k = 0; k <= nz; k++) {
+        const x = round2(R.x0(wing) + i * dx);
+        const z = round2(R.z0(wing) + k * dz);
+        if (L.cores.some((c) => x > R.x0(c) - 0.3 && x < R.x1(c) + 0.3 && z > R.z0(c) - 0.3 && z < R.z1(c) + 0.3)) continue;
+        const edge = (i === 0 || i === nx ? 1 : 0) + (k === 0 || k === nz ? 1 : 0);
+        const tw = round2(dx * (i === 0 || i === nx ? 0.5 : 1));
+        const td = round2(dz * (k === 0 || k === nz ? 0.5 : 1));
+        const hit = cols.find((q) => Math.abs(q.x - x) < 0.05 && Math.abs(q.z - z) < 0.05);
+        // a column shared by two wings picks up both tributaries
+        if (hit) { hit.trib = round2(hit.trib + tw * td); continue; }
+        cols.push({ x, z, tw, td, trib: round2(tw * td), edge });
+      }
+    }
+  }
+  return cols;
+}
+
+function sacredColumns(p, geo) {
+  // The nave arcade: a pier per bay each side, between nave and aisle. Each one
+  // carries half the nave and half its aisle, which is the tributary a load
+  // takedown needs — and every pier is on the perimeter of the nave volume, so
+  // they all count as edge columns for the frame's axial couple.
+  const cols = [];
+  const n = geo.bays;
+  const bay = geo.naveL / n;
+  for (let i = 0; i <= n; i++) {
+    const z = round2(-geo.naveL / 2 + i * bay);
+    const tw = round2(geo.naveW / 2 + geo.aisleW / 2);
+    const td = round2(bay * (i === 0 || i === n ? 0.5 : 1));
+    for (const s of [-1, 1]) {
+      cols.push({ x: round2(s * geo.naveW / 2), z, tw, td, trib: round2(tw * td), edge: 1 });
+    }
+  }
+  return cols;
+}
+
+function serviceTowers(p, mass) {
+  if (!p.towers) return [];
+  const rt = Rand(p.seed, 'towers');
+  const out = [];
+  const top = mass.levels[mass.levels.length - 1];
+  const T = TYPOLOGIES[p.typology];
+  const heights = [...new Set(mass.levels.map((L) => L.h))];
+
+  // AN EXTERNAL STAIR TOWER MUST STAY ATTACHED ALL THE WAY UP. It was placed
+  // against level 0's wing, which is fine on a slab and wrong on anything
+  // stepped: a ziggurat's upper plates shrink away from it, so the tower served
+  // nine of fifteen floors and then carried on past thin air. Place it against
+  // the plate the building ALWAYS has and it touches every storey by
+  // construction — which is the same rule the cores already lived by.
+  const spine = persistentSpine(mass);
+
+  for (let k = 0; k < p.towers; k++) {
+    const isStair = k === 0;
+    // a stair tower is sized by its stair, like a core; a service tower is not
+    let stair = null, w = round2(p.bay * rt.range(0.85, 1.3)), d = round2(p.bay * rt.range(0.85, 1.3));
+    if (isStair) {
+      const prefer = (T.stairs || ['dogleg', 'three', 'spiral', 'helical']).filter((q) => STAIR_TYPES[q]);
+      for (const width of [1.2, 1.1, 1.0]) {
+        const type = chooseStair({ w: p.bay * 2.2, d: p.bay * 2.2 }, heights, rt, { width, prefer });
+        if (type) { stair = { type, width, fp: stairFootprint(type, heights, { width }) }; break; }
+      }
+      if (stair) { w = round2(Math.max(w, stair.fp.w)); d = round2(Math.max(d, stair.fp.d)); }
+    }
+    const onX = rt.chance(0.5);
+    const sx = rt.chance(0.5) ? -1 : 1, sz = rt.chance(0.5) ? -1 : 1;
+    // tangent to the persistent plate, and centred within its extent on the
+    // other axis so it never slides past a corner
+    const x = onX ? (sx < 0 ? R.x0(spine) - w / 2 : R.x1(spine) + w / 2)
+      : spine.x + rt.range(-Math.max(0, spine.w / 2 - w / 2), Math.max(0, spine.w / 2 - w / 2));
+    const z = onX ? spine.z + rt.range(-Math.max(0, spine.d / 2 - d / 2), Math.max(0, spine.d / 2 - d / 2))
+      : (sz < 0 ? R.z0(spine) - d / 2 : R.z1(spine) + d / 2);
+    out.push({
+      x: round2(x), z: round2(z), w, d,
+      h: round2((top.y + top.h) * rt.range(1.02, 1.22)),
+      kind: isStair ? 'stair tower' : 'service tower',
+      stair: stair ? { type: stair.type, width: stair.width, label: STAIR_TYPES[stair.type].label } : null,
+    });
+  }
+  return out;
+}
+
+// The tower stair is the literal answer to "drive it to ground": an external
+// escape running the whole height of the building and landing at grade, outside
+// the envelope, where a brutalist one becomes the event of the elevation.
+function towerStairs(p, mass, towers) {
+  const out = [];
+  for (let ti = 0; ti < towers.length; ti++) {
+    const t = towers[ti];
+    if (!t.stair) continue;
+    let y = 0, i = 0;
+    for (const L of mass.levels) {
+      out.push({
+        core: 'tower' + ti, tower: ti, level: L.index,
+        ...stairLayout(t.stair.type, L.h, { x: t.x, z: t.z, w: t.w, d: t.d },
+          { width: t.stair.width, y0: L.y }),
+      });
+      y = L.y + L.h; i++;
+    }
+    // and one more flight to get out onto the roof, which is what the overrun is
+    if (t.h > y + 2) {
+      out.push({
+        core: 'tower' + ti, tower: ti, level: mass.levels.length - 1, roof: true,
+        ...stairLayout(t.stair.type, Math.min(t.h - y, 4.5), { x: t.x, z: t.z, w: t.w, d: t.d },
+          { width: t.stair.width, y0: y }),
+      });
+    }
+  }
+  return out;
+}
+
+function statsFor(b) {
+  const gfa = b.levels.reduce((s, L) => s + (L.gfa || 0), 0);
+  const rooms = b.levels.reduce((s, L) => s + L.rooms.length, 0);
+  const glazed = b.facades.reduce((s, f) => s + f.bays.reduce((q, y) => q + (MODULES[y.module]?.glass || 0) * y.w * f.h, 0), 0);
+  const wall = b.facades.reduce((s, f) => s + f.len * f.h, 0);
+  const foot = b.levels[0].wings.reduce((s, w) => s + R.area(w), 0);
+  return {
+    gfa: round2(gfa), footprint: round2(foot), levels: b.levels.length,
+    height: b.height, rooms,
+    glazedRatio: wall > 0 ? Math.round((glazed / wall) * 1000) / 10 : 0,
+    plotRatio: Math.round((gfa / (b.site.w * b.site.d)) * 100) / 100,
+    cores: b.cores.length, towers: b.towers.length,
+  };
+}
+
+// A room schedule, the way a drawing set carries one: grouped by programme.
+export function schedule(b) {
+  const byProg = new Map();
+  for (const L of b.levels) {
+    for (const r of L.rooms) {
+      const e = byProg.get(r.program) || { program: r.program, count: 0, area: 0 };
+      e.count++; e.area += R.area(r);
+      byProg.set(r.program, e);
+    }
+  }
+  return [...byProg.values()]
+    .map((e) => ({ ...e, area: round2(e.area) }))
+    .sort((a, b2) => b2.area - a.area);
+}
+
+/* ──────────────────────────── the exposed plates ────────────────────────── */
+//
+// EVERY TERRACE THIS BUILDING HAS, derived once. A plate is only roofed by what
+// stands on it, so the exposed part of a level is the level minus the wings of
+// the level above — which is simultaneously where the roof slab goes, where the
+// parapet goes, and where anything can be PLANTED. Computing it inside `parts()`
+// meant the planting stage could not see the terraces the massing had just
+// made, which is the same mistake `spineFor` exists to prevent: two stages
+// deriving the same rect by eye.
+
+export function roofDecks(b) {
+  const out = [];
+  for (let i = 0; i < b.levels.length; i++) {
+    const L = b.levels[i];
+    const above = b.levels[i + 1] ? b.levels[i + 1].wings : [];
+    for (const wg of L.wings) {
+      if (wg.roof === 'folded') continue;              // the cathedral nave brings its own
+      const roofY = round2(L.y + (wg.wingH != null ? wg.wingH : L.h));
+      const exposed = R.subtract(wg, above);
+      if (!exposed.length) continue;
+      out.push({
+        level: i, L, wg, roofY, exposed, above,
+        top: i === b.levels.length - 1,
+        area: round2(exposed.reduce((a, r) => a + R.area(r), 0)),
+      });
+    }
+  }
+  return out;
+}
+
+/* ────────────────────────────────  parts  ───────────────────────────────── */
+//
+// The 3D bench's whole job is to instance THIS list. Every part is an axis-
+// aligned box with an optional tilt, so the renderer needs one geometry and a
+// handful of materials — and the model can never drift from the drawings,
+// because the boxes are cut from the same rooms, bays and plates the drawings
+// dimension. `mat` is a role, not a colour: the page owns the palette.
+
+export function parts(b) {
+  const stairs = b.stairs || [];
+  const out = [];
+  const p = b.params;
+  const push = (o) => { out.push(o); return o; };
+  // The slab is as thick as the floor system says it is — not a constant. A
+  // post-tensioned plate really is 190 mm where a flat slab is 290 and a
+  // double-tee is 400 over an 800 mm spandrel, and that difference is most of
+  // the seismic mass.
+  const FS = floorSystem(p);
+  const SLAB = FS.slab;
+
+  // ground plane / plinth
+  const plinth = b.typology === 'carpark' ? 0.15 : 0.6;
+  push({ mat: 'ground', kind: 'plinth', x: 0, y: -plinth / 2, z: 0, w: b.site.w, h: plinth, d: b.site.d });
+
+  for (const L of b.levels) {
+    // floor slabs, one per wing, oversailing the frame by 150 mm (the drip)
+    for (const wg of L.wings) {
+      push({ mat: 'concrete', kind: 'slab', x: wg.x, y: round2(L.y + SLAB / 2), z: wg.z,
+             w: round2(wg.w + 0.3), h: SLAB, d: round2(wg.d + 0.3), level: L.index });
+    }
+    // downstand beams, where the floor system has them. They are what a
+    // section and an x-ray actually show, and they are why a beamed frame racks
+    // less than a flat-slab one.
+    if (FS.beamD > 0.05) {
+      for (const wg of L.wings) {
+        const nx = Math.max(1, Math.round(wg.w / p.bay));
+        for (let i = 0; i <= nx; i++) {
+          const x = round2(R.x0(wg) + (i * wg.w) / nx);
+          push({ mat: 'concrete', kind: 'beam', x, y: round2(L.y + SLAB + FS.beamD / 2), z: wg.z,
+                 w: 0.4, h: FS.beamD, d: round2(wg.d), level: L.index });
+        }
+      }
+    }
+    // columns
+    for (const c of L.columns) {
+      push({ mat: 'concrete', kind: 'column', x: c.x, y: round2(L.y + L.h / 2), z: c.z,
+             w: 0.62, h: round2(L.h), d: 0.62, level: L.index });
+    }
+    // interior partitions — invisible from outside, but the X-ray view is exactly
+    // "the blueprint, extruded", which is the point of the two sites sharing a kernel
+    for (const r of L.rooms) {
+      const h = Math.max(0.1, L.h - SLAB - 0.35);
+      const y = round2(L.y + SLAB + h / 2);
+      const t = 0.16;
+      push({ mat: 'partition', kind: 'partition', x: r.x, y, z: round2(R.z0(r) + t / 2), w: r.w, h, d: t, level: L.index, ref: r.ref });
+      push({ mat: 'partition', kind: 'partition', x: round2(R.x0(r) + t / 2), y, z: r.z, w: t, h, d: r.d, level: L.index, ref: r.ref });
+    }
+    // A CORE IS WALLS AROUND A SHAFT, not a solid block. It was a solid block,
+    // which was fine while there was nothing inside it — now there is a stair
+    // in there, and a solid core would bury it. The rect is unchanged, so the
+    // structural model still reads the same shear walls.
+    for (const c of L.cores) {
+      const t = 0.25, cy = round2(L.y + L.h / 2), ch = round2(L.h);
+      push({ mat: 'core', kind: 'core-wall', x: c.x, y: cy, z: round2(R.z0(c) + t / 2), w: c.w, h: ch, d: t, level: L.index });
+      push({ mat: 'core', kind: 'core-wall', x: c.x, y: cy, z: round2(R.z1(c) - t / 2), w: c.w, h: ch, d: t, level: L.index });
+      const side = round2(Math.max(0.1, c.d - 2 * t));
+      push({ mat: 'core', kind: 'core-wall', x: round2(R.x0(c) + t / 2), y: cy, z: c.z, w: t, h: ch, d: side, level: L.index });
+      push({ mat: 'core', kind: 'core-wall', x: round2(R.x1(c) - t / 2), y: cy, z: c.z, w: t, h: ch, d: side, level: L.index });
+      // the lift is its own shaft, separated from the stair by a wall
+      if (c.lift) {
+        push({ mat: 'core', kind: 'core-wall', x: round2(R.x0(c.lift)), y: cy, z: c.z, w: t, h: ch, d: side, level: L.index });
+      }
+    }
+
+    // THE SHAFTS. A lift is a hole, so what is built is the four walls round it
+    // — at EVERY level the shaft passes, not only the ones it opens at. A shaft
+    // that stops being drawn where the doors stop is a shaft with nothing
+    // holding it up, and on a zoned building that is most of its height.
+    for (const lf of (b.lifts || [])) {
+      if (!lf.passes.includes(L.index) || lf.inVoid) continue;
+      const t = 0.2, cy = round2(L.y + L.h / 2), ch = round2(L.h);
+      const opens = lf.opens.includes(L.index);
+      push({ mat: 'core', kind: 'shaft-wall', x: lf.x, y: cy, z: round2(R.z0(lf) + t / 2), w: lf.w, h: ch, d: t, level: L.index, lift: lf.id });
+      if (!opens) {
+        // a floor the car runs past has a wall where its doors would be — which
+        // is what an express run looks like from inside the building
+        push({ mat: 'core', kind: 'shaft-wall', x: lf.x, y: cy, z: round2(R.z1(lf) - t / 2), w: lf.w, h: ch, d: t, level: L.index, lift: lf.id, express: true });
+      }
+    }
+    // and the cars, each parked at a level the seed put it at rather than all
+    // sitting at the ground, because a bank of lifts is never all in one place
+    for (const lf of (b.lifts || [])) {
+      const park = lf.opens[(lf.id * 3 + 1) % lf.opens.length];
+      if (park !== L.index) continue;
+      push({
+        mat: lf.scenic ? 'glass' : 'stair', kind: 'car', lift: lf.id,
+        x: lf.x, y: round2(L.y + 1.1), z: lf.z,
+        w: lf.car.w, h: 2.2, d: lf.car.d, level: L.index,
+      });
+    }
+
+    // the stairs inside them
+    for (const st of stairs) {
+      if (st.level !== L.index) continue;
+      for (const q of stairParts(st, L.index)) push(q);
+    }
+    // light wells: punched out of the slab (drawn as an outline, not a solid)
+    for (const v of L.voids) {
+      push({ mat: 'void', kind: 'void', x: v.x, y: round2(L.y + SLAB / 2), z: v.z, w: v.w, h: SLAB + 0.02, d: v.d, level: L.index });
+    }
+  }
+
+  // facade bays
+  for (const f of b.facades) {
+    const horiz = f.nz !== 0;
+    for (const bay of f.bays) {
+      const M = MODULES[bay.module];
+      const dep = Math.abs(M.depth) < 0.02 ? 0.32 : Math.abs(M.depth);
+      const outward = M.depth >= 0;
+      // wall plane sits ON the plate edge; relief pushes out or cuts in
+      const off = (outward ? dep / 2 : -dep / 2) * (horiz ? f.nz : f.nx);
+      const cx = horiz ? bay.x : round2(bay.x + off);
+      const cz = horiz ? round2(bay.z + off) : bay.z;
+      const thick = Math.max(0.3, dep);
+      const bw = horiz ? bay.w : thick;
+      const bd = horiz ? thick : bay.w;
+      const yMid = round2(f.y + f.h / 2);
+
+      switch (bay.module) {
+        case 'open':
+          break;                                            // literally nothing: air
+        case 'pier':
+        case 'buttress':
+          push({ mat: 'concrete', kind: 'pier', x: cx, y: yMid, z: cz,
+                 w: horiz ? Math.min(bay.w, 1.15) : thick, h: round2(f.h),
+                 d: horiz ? thick : Math.min(bay.w, 1.15), level: f.level, side: f.side, module: bay.module });
+          break;
+        case 'blank':
+        case 'recess':
+          push({ mat: 'concrete', kind: 'wall', x: cx, y: yMid, z: cz, w: bw, h: round2(f.h), d: bd,
+                 level: f.level, side: f.side, module: bay.module });
+          break;
+        case 'vent': {
+          push({ mat: 'concrete', kind: 'wall', x: cx, y: yMid, z: cz, w: bw, h: round2(f.h), d: bd, level: f.level, side: f.side, module: bay.module });
+          const fins = Math.max(3, Math.floor(f.h / 0.55));
+          for (let i = 0; i < fins; i++) {
+            const fy = round2(f.y + ((i + 0.5) * f.h) / fins);
+            push({ mat: 'metal', kind: 'louvre', x: cx, y: fy, z: cz,
+                   w: horiz ? bay.w * 0.82 : thick + 0.22, h: 0.16, d: horiz ? thick + 0.22 : bay.w * 0.82,
+                   level: f.level, side: f.side, module: bay.module });
+          }
+          break;
+        }
+        case 'band':
+        case 'slit':
+        case 'lancet':
+        case 'rose': {
+          // spandrel below + head above, glass in the gap
+          const gH = bay.module === 'band' ? f.h * 0.46 : f.h * (bay.module === 'rose' ? 0.5 : 0.68);
+          const gW = bay.module === 'band' ? bay.w * 0.92 : bay.w * (bay.module === 'lancet' ? 0.24 : bay.module === 'rose' ? 0.62 : 0.34);
+          const sillH = (f.h - gH) * 0.62, headH = f.h - gH - sillH;
+          push({ mat: 'concrete', kind: 'spandrel', x: cx, y: round2(f.y + sillH / 2), z: cz, w: bw, h: round2(sillH), d: bd, level: f.level, side: f.side, module: bay.module });
+          push({ mat: 'concrete', kind: 'head', x: cx, y: round2(f.y + f.h - headH / 2), z: cz, w: bw, h: round2(headH), d: bd, level: f.level, side: f.side, module: bay.module });
+          // reveals either side of the opening
+          const jamb = (bay.w - gW) / 2;
+          if (jamb > 0.05) {
+            for (const s of [-1, 1]) {
+              push({ mat: 'concrete', kind: 'jamb',
+                     x: horiz ? round2(bay.x + s * (bay.w - jamb) / 2) : cx,
+                     y: round2(f.y + sillH + gH / 2),
+                     z: horiz ? cz : round2(bay.z + s * (bay.w - jamb) / 2),
+                     w: horiz ? round2(jamb) : bw, h: round2(gH), d: horiz ? bd : round2(jamb),
+                     level: f.level, side: f.side, module: bay.module });
+            }
+          }
+          push({ mat: 'glass', kind: 'glazing',
+                 x: horiz ? bay.x : round2(bay.x + (horiz ? 0 : f.nx * 0.06)),
+                 y: round2(f.y + sillH + gH / 2),
+                 z: horiz ? round2(bay.z + f.nz * 0.06) : bay.z,
+                 w: horiz ? round2(gW) : 0.1, h: round2(gH), d: horiz ? 0.1 : round2(gW),
+                 level: f.level, side: f.side, module: bay.module });
+          break;
+        }
+        case 'brise': {
+          push({ mat: 'glass', kind: 'glazing', x: horiz ? bay.x : round2(bay.x + f.nx * 0.05), y: yMid,
+                 z: horiz ? round2(bay.z + f.nz * 0.05) : bay.z,
+                 w: horiz ? round2(bay.w * 0.94) : 0.1, h: round2(f.h * 0.9), d: horiz ? 0.1 : round2(bay.w * 0.94),
+                 level: f.level, side: f.side, module: bay.module });
+          // the egg-crate: verticals × horizontals standing off the glass
+          const nv = Math.max(2, Math.round(bay.w / 1.2)), nh = Math.max(2, Math.round(f.h / 1.1));
+          for (let i = 0; i <= nv; i++) {
+            const t = -bay.w / 2 + (i * bay.w) / nv;
+            push({ mat: 'concrete', kind: 'fin', x: horiz ? round2(bay.x + t) : cx, y: yMid,
+                   z: horiz ? cz : round2(bay.z + t),
+                   w: horiz ? 0.17 : thick, h: round2(f.h), d: horiz ? thick : 0.17,
+                   level: f.level, side: f.side, module: bay.module });
+          }
+          for (let i = 0; i <= nh; i++) {
+            const fy = round2(f.y + (i * f.h) / nh);
+            push({ mat: 'concrete', kind: 'fin', x: cx, y: fy, z: cz,
+                   w: horiz ? bay.w : thick, h: 0.17, d: horiz ? thick : bay.w,
+                   level: f.level, side: f.side, module: bay.module });
+          }
+          break;
+        }
+        case 'oriel': {
+          const oy = round2(f.y + f.h * 0.5);
+          push({ mat: 'concrete', kind: 'oriel', x: cx, y: oy, z: cz,
+                 w: horiz ? round2(bay.w * 0.8) : thick, h: round2(f.h * 0.86), d: horiz ? thick : round2(bay.w * 0.8),
+                 level: f.level, side: f.side, module: bay.module });
+          push({ mat: 'glass', kind: 'glazing',
+                 x: horiz ? bay.x : round2(bay.x + f.nx * (dep + 0.06)), y: oy,
+                 z: horiz ? round2(bay.z + f.nz * (dep + 0.06)) : bay.z,
+                 w: horiz ? round2(bay.w * 0.6) : 0.1, h: round2(f.h * 0.6), d: horiz ? 0.1 : round2(bay.w * 0.6),
+                 level: f.level, side: f.side, module: bay.module });
+          break;
+        }
+        case 'balcony': {
+          push({ mat: 'concrete', kind: 'spandrel', x: cx, y: round2(f.y + f.h * 0.28), z: cz,
+                 w: bw, h: round2(f.h * 0.56), d: bd, level: f.level, side: f.side, module: bay.module });
+          // the deck slab and its upstand
+          const dOff = (horiz ? f.nz : f.nx) * (dep / 2);
+          push({ mat: 'concrete', kind: 'deck',
+                 x: horiz ? bay.x : round2(bay.x + dOff), y: round2(f.y + 0.12),
+                 z: horiz ? round2(bay.z + dOff) : bay.z,
+                 w: horiz ? bay.w : round2(dep), h: 0.24, d: horiz ? round2(dep) : bay.w,
+                 level: f.level, side: f.side, module: bay.module });
+          push({ mat: 'concrete', kind: 'upstand',
+                 x: horiz ? bay.x : round2(bay.x + (horiz ? 0 : (f.nx * dep))),
+                 y: round2(f.y + 0.62),
+                 z: horiz ? round2(bay.z + f.nz * dep) : bay.z,
+                 w: horiz ? bay.w : 0.2, h: 1.0, d: horiz ? 0.2 : bay.w,
+                 level: f.level, side: f.side, module: bay.module });
+          push({ mat: 'glass', kind: 'glazing',
+                 x: horiz ? bay.x : round2(bay.x + f.nx * 0.05), y: round2(f.y + f.h * 0.74),
+                 z: horiz ? round2(bay.z + f.nz * 0.05) : bay.z,
+                 w: horiz ? round2(bay.w * 0.7) : 0.1, h: round2(f.h * 0.34), d: horiz ? 0.1 : round2(bay.w * 0.7),
+                 level: f.level, side: f.side, module: bay.module });
+          break;
+        }
+        default:
+          push({ mat: 'concrete', kind: 'wall', x: cx, y: yMid, z: cz, w: bw, h: round2(f.h), d: bd, level: f.level, side: f.side, module: bay.module });
+      }
+    }
+  }
+
+  // ── THE LATERAL SYSTEM, as visible structure ─────────────────────────────
+  // Each of these is a real member in the model AND a real term in struct.js's
+  // stiffness. Drawing one without modelling it, or modelling one without
+  // drawing it, is the same divergence the facade rule already forbids.
+  const topL = b.levels[b.levels.length - 1];
+  const H = topL.y + topL.h;
+  if (p.lateral === 'outrigger' && b.cores.length && b.levels.length > 5) {
+    // Two-storey trusses tying the core out to the perimeter. Placed near
+    // mid-height and just under the roof, which is where they do most good.
+    for (const frac of [0.55, 0.92]) {
+      const li = Math.min(b.levels.length - 1, Math.max(1, Math.round(frac * b.levels.length) - 1));
+      const L = b.levels[li];
+      const depth = Math.min(L.h * 1.8, 6.5);
+      for (const c of L.cores) {
+        for (const wg of L.wings) {
+          if (!R.overlaps(wg, c)) continue;
+          push({ mat: 'core', kind: 'outrigger', x: wg.x, y: round2(L.y + depth / 2), z: c.z,
+                 w: round2(wg.w), h: round2(depth), d: 0.6, level: li });
+          push({ mat: 'core', kind: 'outrigger', x: c.x, y: round2(L.y + depth / 2), z: wg.z,
+                 w: 0.6, h: round2(depth), d: round2(wg.d), level: li });
+        }
+      }
+    }
+  }
+  if (p.lateral === 'framed-tube') {
+    // The tube is made by crowding the perimeter and tying it with deep
+    // spandrels — so the spandrel band at every floor is the system.
+    for (const L of b.levels) {
+      for (const wg of L.wings) {
+        const band = Math.min(1.2, L.h * 0.32);
+        for (const [dx, dz, w2, d2] of [
+          [0, -wg.d / 2, wg.w + 0.5, 0.45], [0, wg.d / 2, wg.w + 0.5, 0.45],
+          [-wg.w / 2, 0, 0.45, wg.d + 0.5], [wg.w / 2, 0, 0.45, wg.d + 0.5],
+        ]) {
+          push({ mat: 'concrete', kind: 'spandrel-band', x: round2(wg.x + dx),
+                 y: round2(L.y + SLAB + band / 2), z: round2(wg.z + dz),
+                 w: round2(w2), h: round2(band), d: round2(d2), level: L.index });
+        }
+      }
+    }
+  }
+  if (p.lateral === 'diagrid' && b.levels.length > 3) {
+    // A diagrid IS the elevation: diagonals over a two-storey module, carrying
+    // the shear axially instead of in bending. Members are boxes rotated into
+    // the plane of the facade, so the renderer needs rx/rz as well as ry.
+    const mod = 2;
+    for (let i = 0; i + mod <= b.levels.length; i += mod) {
+      const L0 = b.levels[i], L1 = b.levels[i + mod - 1];
+      const y0 = L0.y, y1 = L1.y + L1.h, dy = y1 - y0;
+      for (const wg of L0.wings) {
+        for (const [along, half, fixed] of [
+          ['x', wg.w / 2, R.z0(wg)], ['x', wg.w / 2, R.z1(wg)],
+          ['z', wg.d / 2, R.x0(wg)], ['z', wg.d / 2, R.x1(wg)],
+        ]) {
+          const span = along === 'x' ? wg.w : wg.d;
+          const cells = Math.max(1, Math.round(span / (p.bay * 2)));
+          const cw = span / cells;
+          const len = Math.hypot(cw, dy);
+          const ang = Math.atan2(dy, cw);
+          for (let c = 0; c < cells; c++) {
+            const t0 = -half + c * cw + cw / 2;
+            for (const sgn of [1, -1]) {
+              const cx = along === 'x' ? round2(wg.x + t0) : round2(fixed);
+              const cz = along === 'x' ? round2(fixed) : round2(wg.z + t0);
+              push({
+                mat: 'metal', kind: 'diagrid', x: cx, y: round2(y0 + dy / 2), z: cz,
+                w: along === 'x' ? round2(len) : 0.45, h: 0.45,
+                d: along === 'x' ? 0.45 : round2(len),
+                rz: along === 'x' ? round2(sgn * ang) : 0,
+                rx: along === 'z' ? round2(-sgn * ang) : 0,
+                level: i,
+              });
+            }
+          }
+        }
+      }
+    }
+  }
+  if (p.tmd) {
+    // A tuned mass damper: a few hundred tonnes hung near the top, tuned to the
+    // building's own first mode so it swings against it.
+    const wg = topL.wings[0];
+    const side = Math.min(wg.w, wg.d) * 0.3;
+    push({ mat: 'core', kind: 'tmd-mass', x: wg.x, y: round2(H - topL.h * 0.55), z: wg.z,
+           w: round2(side), h: round2(side * 0.75), d: round2(side), level: topL.index });
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      push({ mat: 'metal', kind: 'tmd-stay', x: round2(wg.x + dx * side * 0.5),
+             y: round2(H - topL.h * 0.2), z: round2(wg.z + dz * side * 0.5),
+             w: 0.2, h: round2(topL.h * 0.7), d: 0.2, level: topL.index });
+    }
+  }
+
+  // service / stair towers
+  for (const t of b.towers) {
+    push({ mat: 'core', kind: 'tower', x: t.x, y: round2(t.h / 2), z: t.z, w: t.w, h: t.h, d: t.d });
+    push({ mat: 'concrete', kind: 'tower-cap', x: t.x, y: round2(t.h + 0.35), z: t.z, w: round2(t.w + 0.5), h: 0.7, d: round2(t.d + 0.5) });
+  }
+
+  // ── ROOFS ────────────────────────────────────────────────────────────────
+  // Slabs are cast at each level's FLOOR, so a plate is only roofed by whatever
+  // stands on it. Every square metre the level above does NOT build on is a
+  // roof: the whole top plate, and — on a ziggurat, a setback or a stagger —
+  // the terrace each step leaves behind. Those terraces are half of what makes
+  // a stepped mass read as inhabited rather than as a stack of trays.
+  const topLevel = b.levels[b.levels.length - 1];
+  let biggestDeck = null;
+  for (const dk of roofDecks(b)) {
+    const { level: i, wg, roofY, exposed, above } = dk;
+    {
+      for (const r of exposed) {
+        push({ mat: 'concrete', kind: 'roof', x: r.x, y: round2(roofY + SLAB / 2), z: r.z,
+               w: round2(r.w), h: SLAB, d: round2(r.d), level: i });
+        if (i === b.levels.length - 1 && (!biggestDeck || R.area(r) > R.area(biggestDeck.r))) biggestDeck = { r, roofY };
+      }
+      // Parapet round the wing's own perimeter, but only on the edges the level
+      // above does not stand on — where it does, its facade is already the wall.
+      const par = b.roof.parapet;
+      const edges = [
+        [0, -wg.d / 2, wg.w + 0.3, 0.3, 0, 1],
+        [0, wg.d / 2, wg.w + 0.3, 0.3, 0, -1],
+        [-wg.w / 2, 0, 0.3, wg.d + 0.3, 1, 0],
+        [wg.w / 2, 0, 0.3, wg.d + 0.3, -1, 0],
+      ];
+      for (const [dx, dz, w2, d2, ix, iz] of edges) {
+        const px = wg.x + dx + ix * 0.3, pz = wg.z + dz + iz * 0.3;   // just inside the edge
+        if (above.some((u) => px > R.x0(u) && px < R.x1(u) && pz > R.z0(u) && pz < R.z1(u))) continue;
+        push({ mat: 'concrete', kind: 'parapet', x: round2(wg.x + dx), y: round2(roofY + SLAB + par / 2),
+               z: round2(wg.z + dz), w: round2(w2), h: par, d: round2(d2), level: i });
+      }
+    }
+  }
+  // the plant enclosure stands on the biggest piece of the top deck, not in mid-air
+  if (b.roof.plant && biggestDeck) {
+    const { r, roofY } = biggestDeck;
+    const pw = Math.min(r.w * 0.55, r.w - 1.6), pd = Math.min(r.d * 0.55, r.d - 1.6);
+    // a deck too small to walk round is too small to put plant on
+    if (pw > 1 && pd > 1) {
+      push({ mat: 'concrete', kind: 'plant', x: r.x, y: round2(roofY + SLAB + 1.7), z: r.z,
+             w: round2(pw), h: 3.4, d: round2(pd), level: topLevel.index });
+    }
+  }
+
+  // the cathedral's folded-plate roof and apse facets
+  if (b.typology === 'cathedral' && b.geometry) {
+    const g = b.geometry, L = b.levels[0];
+    // A folded-plate roof: alternating deep ribs, the concrete answer to a vault.
+    // Shallow ribs read as a comb from any distance, so they are sized against the
+    // nave width rather than a fixed depth.
+    // The roof runs the whole body, apse included — the apse is the one bay of a
+    // basilica people forget to cover, and an open one reads as a bomb site.
+    const bodyL = g.naveL + g.apseD;
+    const bodyZ = -g.naveL / 2 + bodyL / 2;
+    const nFolds = Math.max(6, Math.round((g.bays * 2 * bodyL) / g.naveL));
+    const rib = g.rib;
+    for (let i = 0; i < nFolds; i++) {
+      const z = round2(-g.naveL / 2 + ((i + 0.5) * bodyL) / nFolds);
+      const up = i % 2 === 0;
+      push({ mat: 'concrete', kind: 'fold', x: 0, y: round2(L.h + (up ? rib * 0.75 : rib * 0.25)), z,
+             w: round2(g.naveW + 0.7), h: round2(up ? rib * 1.5 : rib * 0.5), d: round2((bodyL / nFolds) * 0.94) });
+    }
+    // the deck the folds sit on: without it the nave is a colander
+    push({ mat: 'concrete', kind: 'roof', x: 0, y: round2(L.h + SLAB / 2), z: round2(bodyZ),
+           w: round2(g.naveW + 0.7), h: SLAB, d: round2(bodyL), level: 0 });
+    // the ridge beam the folds hang from, so the roof reads as one thing
+    push({ mat: 'concrete', kind: 'ridge', x: 0, y: round2(L.h + rib * 1.55), z: 0,
+           w: round2(g.naveW * 0.22), h: round2(rib * 0.5), d: round2(g.naveL + 0.7) });
+    // aisle roofs, lower — this is what makes the clerestory possible
+    for (const s of [-1, 1]) {
+      push({ mat: 'concrete', kind: 'aisle-roof',
+             x: round2(s * (g.naveW / 2 + g.aisleW / 2)), y: round2(L.h * 0.42), z: round2(bodyZ),
+             w: round2(g.aisleW + 0.4), h: 0.4, d: round2(bodyL) });
+    }
+    // TRANSEPT ARMS AND CHAPELS. The plan has drawn these all along; without a
+    // volume they were rooms the model simply never built. Each is a walled box
+    // to its own height — the arms to the nave, the chapels to the aisle — and
+    // the general roof pass above decks them, because they are wings like any
+    // other. The face that opens into the church is left out: that is the arch.
+    for (const wg of L.wings) {
+      if (!wg.opensTo) continue;
+      const hh = wg.wingH, t = 0.55;
+      const skip = wg.opensTo;                              // 'x-' | 'x+' | 'z-' | 'z+'
+      const faces = [
+        ['z-', wg.x, R.z0(wg) + t / 2, wg.w, t],
+        ['z+', wg.x, R.z1(wg) - t / 2, wg.w, t],
+        ['x-', R.x0(wg) + t / 2, wg.z, t, wg.d],
+        ['x+', R.x1(wg) - t / 2, wg.z, t, wg.d],
+      ];
+      for (const [id, wx, wz, ww, wd] of faces) {
+        if (id === skip) continue;
+        push({ mat: 'concrete', kind: 'wall', x: round2(wx), y: round2(hh / 2), z: round2(wz),
+               w: round2(ww), h: round2(hh), d: round2(wd), level: 0 });
+      }
+      // one deep light slot in the end wall, so an arm is not a blind box
+      const endIsX = skip.startsWith('x');
+      const sgn = skip === 'x-' ? 1 : skip === 'x+' ? -1 : skip === 'z-' ? 1 : -1;
+      push({ mat: 'glass', kind: 'glazing',
+             x: round2(endIsX ? wg.x + sgn * (wg.w / 2 - t) : wg.x),
+             y: round2(hh * 0.55),
+             z: round2(endIsX ? wg.z : wg.z + sgn * (wg.d / 2 - t)),
+             w: round2(endIsX ? 0.12 : Math.min(wg.w * 0.3, 2.4)), h: round2(hh * 0.5),
+             d: round2(endIsX ? Math.min(wg.d * 0.3, 2.4) : 0.12), level: 0 });
+    }
+    // the apse, faceted rather than curved — concrete does not do a true hemicycle
+    const apse = L.rooms.find((r) => r.program === 'apse');
+    if (apse) {
+      const facets = 7, rad = apse.w / 2;
+      for (let i = 0; i < facets; i++) {
+        const a = -Math.PI / 2 + (Math.PI * (i + 0.5)) / facets;
+        push({ mat: 'concrete', kind: 'apse-facet',
+               x: round2(apse.x + Math.sin(a) * rad), y: round2(L.h * 0.5), z: round2(R.z0(apse) + Math.cos(a) * rad),
+               w: 1.2, h: round2(L.h), d: 1.2, ry: round2(a) });
+      }
+    }
+  }
+  // THE PLANTING. Only when the geometry was actually grown — the load path
+  // does not need a crown and the roller would pay a hundred milliseconds a
+  // building for one it never draws.
+  for (const q of (b.planting || [])) {
+    // the planter itself is a real thing: an upstand holding a depth of soil,
+    // and at the depths involved it is a wall rather than a kerb
+    // FOUR SIDES, and the soil recessed inside them. Two rims and a full-depth
+    // fill made the planter read as a dark hole in the terrace rather than as
+    // something holding soil up — which is what an upstand is for, and at these
+    // depths it is a wall rather than a kerb.
+    const rim = 0.25, cy = round2(q.y + q.depth / 2), h = round2(q.depth);
+    for (const [dx, dz, w2, d2] of [
+      [0, -q.d / 2 + rim / 2, q.w, rim], [0, q.d / 2 - rim / 2, q.w, rim],
+      [-q.w / 2 + rim / 2, 0, rim, q.d], [q.w / 2 - rim / 2, 0, rim, q.d],
+    ]) {
+      push({ mat: 'concrete', kind: 'planter', x: round2(q.x + dx), y: cy, z: round2(q.z + dz),
+             w: round2(w2), h, d: round2(d2), level: q.level });
+    }
+    // filled to 60 mm below the rim, the way a planter is actually filled so
+    // that watering it does not wash the substrate over the edge
+    const fill = round2(Math.max(0.05, q.depth - 0.06));
+    push({ mat: 'soil', kind: 'substrate', x: q.x, y: round2(q.y + fill / 2), z: q.z,
+           w: round2(Math.max(0.1, q.w - 2 * rim)), h: fill,
+           d: round2(Math.max(0.1, q.d - 2 * rim)), level: q.level });
+    for (const pl of q.plants) {
+      if (!pl.tree) continue;
+      for (const part of plantParts(pl.tree, { x: pl.x, y: round2(q.y + fill), z: pl.z, level: q.level })) {
+        push(part);
+      }
+    }
+  }
+
+  return out;
+}
+
+/* ─────────────────────────── section (shared) ───────────────────────────── */
+//
+// A vertical cut at z = `cutZ`: for every level, the x-intervals its plate covers.
+// Used by the drawing office for the section, and by the 3D bench's clip plane —
+// same numbers, so the section line in the plan really is where the model cuts.
+
+export function section(b, cutZ = 0) {
+  const rows = [];
+  for (const L of b.levels) {
+    const spans = [];
+    for (const wg of L.wings) {
+      if (cutZ >= R.z0(wg) - 1e-6 && cutZ <= R.z1(wg) + 1e-6) spans.push([round2(R.x0(wg)), round2(R.x1(wg))]);
+    }
+    spans.sort((a, c) => a[0] - c[0]);
+    rows.push({ level: L.index, y: L.y, h: L.h, spans, label: L.label });
+  }
+  const towers = b.towers.filter((t) => cutZ >= t.z - t.d / 2 && cutZ <= t.z + t.d / 2)
+    .map((t) => ({ x0: round2(t.x - t.w / 2), x1: round2(t.x + t.w / 2), h: t.h, kind: t.kind }));
+  return { cutZ: round2(cutZ), rows, towers, height: b.height };
+}
+
+/* ───────────────────────────── bounds helper ────────────────────────────── */
+
+export function bounds(b) {
+  let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+  for (const L of b.levels) for (const wg of L.wings) {
+    x0 = Math.min(x0, R.x0(wg)); x1 = Math.max(x1, R.x1(wg));
+    z0 = Math.min(z0, R.z0(wg)); z1 = Math.max(z1, R.z1(wg));
+  }
+  // `height` is the figure the drawings quote — to parapet. The bounding box has
+  // to cover what is actually built above it: stair towers overrun the parapet by
+  // design, which is half of why brutalism reads as a skyline rather than a box.
+  let y1 = b.height;
+  for (const t of b.towers) {
+    x0 = Math.min(x0, t.x - t.w / 2); x1 = Math.max(x1, t.x + t.w / 2);
+    z0 = Math.min(z0, t.z - t.d / 2); z1 = Math.max(z1, t.z + t.d / 2);
+    y1 = Math.max(y1, t.h + 0.7);
+  }
+  return { x0: round2(x0), x1: round2(x1), z0: round2(z0), z1: round2(z1), y1: round2(y1) };
+}

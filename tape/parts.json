@@ -1,0 +1,609 @@
+{
+  "$comment": "The bill of materials, as data. /hardware/ renders this; check-links.mjs verifies every url and writes back the `checked` block. Prices are approximate single-unit hobbyist figures and are NOT verified — only the links are. Edit here, never in the HTML. `usd` is the named part linked here; `usdGeneric` is the same chip on an unbranded module. `tools` is the bench, ordered by priority for someone starting with only a soldering iron. A tool is on the shopping list when owned === false and optional !== true; priority is display order only and must not be overloaded to mean anything else. `enclosure` holds the routes rendered on /hardware/#enclosure; its sources go through the same link check. `wave` splits the order: 1 is everything that runs off USB and answers the read-range question; 2 is what that answer can change — power, connectors, enclosure.",
+  "schemaVersion": 1,
+  "checked": {
+    "at": "2026-08-31",
+    "how": "tape/check-links.mjs — GET each url, follow redirects, match `expect` against the page title",
+    "verdicts": {
+      "ok": "200, and the page identified itself as the right part",
+      "resolves": "200, but the title is JS-rendered or bot-walled so identity could not be machine-checked",
+      "blocked": "the vendor refuses automated requests (403/503). Works in a browser; open it yourself"
+    }
+  },
+  "parts": [
+    {
+      "id": "mcu",
+      "block": "Brain",
+      "name": "ESP32-S3-DevKitC-1",
+      "spec": "ESP32-S3-WROOM-1, 8 MB flash, 8 MB PSRAM (N8R8). N16R8 also fine — the audio lives on the SD card, so flash size is not the constraint.",
+      "qty": 1,
+      "usd": 15,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "5312",
+          "url": "https://www.adafruit.com/product/5312",
+          "expect": "ESP32-S3-DevKitC-1",
+          "status": "ok"
+        },
+        {
+          "vendor": "Espressif",
+          "sku": "devkits",
+          "url": "https://www.espressif.com/en/products/devkits",
+          "expect": "devkit",
+          "status": "ok",
+          "note": "the official page, for finding a local distributor"
+        },
+        {
+          "vendor": "Mouser",
+          "sku": "ESP32-S3-DevKitC-1-N16R8",
+          "url": "https://www.mouser.com/ProductDetail/Espressif-Systems/ESP32-S3-DevKitC-1-N16R8",
+          "expect": "ESP32-S3",
+          "status": "resolves",
+          "note": "the 16 MB variant; Mouser renders in JS so identity is unverified"
+        }
+      ],
+      "usdGeneric": 8,
+      "wave": 1
+    },
+    {
+      "id": "nfc",
+      "block": "NFC reader",
+      "name": "PN532 NFC/RFID breakout v1.6",
+      "spec": "13.56 MHz, I²C. Reads and writes NDEF on NTAG213. Ships with a tuned stripline antenna, which is the part that decides read range.",
+      "qty": 1,
+      "usd": 40,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "364",
+          "url": "https://www.adafruit.com/product/364",
+          "expect": "PN532",
+          "status": "ok"
+        }
+      ],
+      "note": "Adafruit's is the expensive one. Generic red 'PN532 V3' modules are $6 and use the same chip; the antenna tuning is where they differ, and this project spends its read range on a four-year-old's aim.",
+      "usdGeneric": 6,
+      "wave": 1
+    },
+    {
+      "id": "amp",
+      "block": "Audio",
+      "name": "MAX98357A I²S class-D amp",
+      "spec": "DAC and 3.2 W mono amp in one part, straight off the S3's I²S. 2.4 mA quiescent.",
+      "qty": 1,
+      "usd": 6,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "3006",
+          "url": "https://www.adafruit.com/product/3006",
+          "expect": "MAX98357A",
+          "status": "ok"
+        },
+        {
+          "vendor": "SparkFun",
+          "sku": "BOB-14809",
+          "url": "https://www.sparkfun.com/sparkfun-i2s-audio-breakout-max98357a.html",
+          "expect": "MAX98357A",
+          "status": "ok"
+        },
+        {
+          "vendor": "Analog Devices",
+          "sku": "datasheet",
+          "url": "https://www.analog.com/media/en/technical-documentation/data-sheets/max98357a-max98357b.pdf",
+          "expect": "",
+          "status": "blocked",
+          "note": "datasheet, not a shop"
+        }
+      ],
+      "usdGeneric": 3,
+      "wave": 1
+    },
+    {
+      "id": "speaker",
+      "block": "Audio",
+      "name": "Speaker, 40 mm, 4Ω 5 W",
+      "spec": "Full-range. Speech in a bedroom; a bigger driver buys bass nobody needs and a bigger box.",
+      "qty": 1,
+      "usd": 3,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "3968",
+          "url": "https://www.adafruit.com/product/3968",
+          "expect": "Speaker",
+          "status": "ok"
+        }
+      ],
+      "usdGeneric": 3,
+      "wave": 1
+    },
+    {
+      "id": "sd",
+      "block": "Storage",
+      "name": "microSD breakout, 3 V only",
+      "spec": "SPI or SDIO. The 3 V-only version is right here — the S3 is a 3.3 V part and the level-shifted board just adds parts.",
+      "qty": 1,
+      "usd": 4,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "4682",
+          "url": "https://www.adafruit.com/product/4682",
+          "expect": "Micro SD",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "254",
+          "url": "https://www.adafruit.com/product/254",
+          "expect": "MicroSD",
+          "status": "ok",
+          "note": "the level-shifted one, if you want 5 V tolerance"
+        }
+      ],
+      "usdGeneric": 2,
+      "wave": 1
+    },
+    {
+      "id": "card",
+      "block": "Storage",
+      "name": "microSD card, 32 GB",
+      "spec": "Any class-10 card. ~1,200 hours at MP3 64 kbps mono.",
+      "qty": 1,
+      "usd": 8,
+      "sources": [],
+      "usdGeneric": 6,
+      "wave": 1
+    },
+    {
+      "id": "charger",
+      "block": "Power",
+      "name": "MCP73871 USB / DC / solar Li-ion charger",
+      "spec": "True power path: runs the box and charges the cell at the same time. JST connectors for cell and load.",
+      "qty": 1,
+      "usd": 18,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "390",
+          "url": "https://www.adafruit.com/product/390",
+          "expect": "Lithium Ion/Polymer charger",
+          "status": "ok"
+        }
+      ],
+      "usdGeneric": 8,
+      "wave": 2
+    },
+    {
+      "id": "cell",
+      "block": "Power",
+      "name": "Li-ion pack, 2500 mAh, 3.7 V, protected, JST",
+      "spec": "A packaged pack rather than a loose 18650 — no holder, no exposed cell, and it plugs straight into the charger.",
+      "qty": 1,
+      "usd": 15,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "328",
+          "url": "https://www.adafruit.com/product/328",
+          "expect": "2500mAh",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "2011",
+          "url": "https://www.adafruit.com/product/2011",
+          "expect": "2000mAh",
+          "status": "ok",
+          "note": "smaller and cheaper"
+        }
+      ],
+      "note": "A protected 18650 in a holder is cheaper per mAh and replaceable, but it needs a screwed compartment and a JST pigtail you make yourself.",
+      "usdGeneric": 8,
+      "wave": 2
+    },
+    {
+      "id": "boost",
+      "block": "Power",
+      "name": "5 V buck-boost (VERTER, TPS63060)",
+      "spec": "Holds 5 V across the whole discharge curve, so the volume does not sag as the cell empties.",
+      "qty": 1,
+      "usd": 10,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "2190",
+          "url": "https://www.adafruit.com/product/2190",
+          "expect": "VERTER",
+          "status": "ok"
+        }
+      ],
+      "note": "See the power chain below — this is choice A, and it is the reason the budget assumes an 18% conversion loss rather than 5%.",
+      "usdGeneric": 3,
+      "wave": 2
+    },
+    {
+      "id": "pot",
+      "block": "Controls",
+      "name": "Panel-mount 10 kΩ linear potentiometer",
+      "spec": "The safety part. A physical end stop, trimmed once at build time, that a child cannot get past.",
+      "qty": 1,
+      "usd": 1,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "562",
+          "url": "https://www.adafruit.com/product/562",
+          "expect": "potentiometer",
+          "status": "ok"
+        },
+        {
+          "vendor": "SparkFun",
+          "sku": "COM-09806",
+          "url": "https://www.sparkfun.com/trimpot-10k-ohm-with-knob.html",
+          "expect": "Trimpot",
+          "status": "ok"
+        }
+      ],
+      "usdGeneric": 1,
+      "wave": 1
+    },
+    {
+      "id": "buttons",
+      "block": "Controls",
+      "name": "Arcade button, 30 mm",
+      "spec": "Back and next. Big enough to hit without looking, which is the whole specification.",
+      "qty": 2,
+      "usd": 3,
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "476",
+          "url": "https://www.adafruit.com/product/476",
+          "expect": "Arcade Button",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "3487",
+          "url": "https://www.adafruit.com/product/3487",
+          "expect": "Arcade Button",
+          "status": "ok",
+          "note": "the LED version, if you want the back button lit"
+        }
+      ],
+      "usdGeneric": 3,
+      "wave": 1
+    },
+    {
+      "id": "tags",
+      "block": "Cards",
+      "name": "NTAG213 stickers, 25 mm round",
+      "spec": "144 bytes. A tape card uses 96 of them.",
+      "qty": 100,
+      "usd": 12,
+      "sources": [
+        {
+          "vendor": "Tagstand",
+          "sku": "25-25-25",
+          "url": "https://www.tagstand.com/products/1000-count-25-25-25-stickers/",
+          "expect": "NTAG213",
+          "status": "ok",
+          "note": "1000-count reel; they sell smaller counts too"
+        },
+        {
+          "vendor": "Amazon",
+          "sku": "B07K6FKXT3",
+          "url": "https://www.amazon.com/TimesKey-Stickers-Programmable-Compatible-Devices-100/dp/B07K6FKXT3",
+          "expect": "NTAG213",
+          "status": "ok",
+          "note": "100-pack; Amazon does not answer automated identity checks"
+        }
+      ],
+      "usdGeneric": 10,
+      "wave": 1
+    },
+    {
+      "id": "deck",
+      "block": "Cards",
+      "name": "A deck of playing cards",
+      "spec": "63×88 mm, paper or PVC. NOT foil or metallic-backed — a metal layer detunes the antenna and the card will not read at all. Test one before you sticker fifty.",
+      "qty": 1,
+      "usd": 2,
+      "sources": [],
+      "usdGeneric": 2,
+      "wave": 1
+    },
+    {
+      "id": "misc",
+      "block": "Misc",
+      "name": "Perfboard, hookup wire, LED + resistor, SPDT switch, screws",
+      "spec": "",
+      "qty": 1,
+      "usd": 8,
+      "sources": [],
+      "usdGeneric": 6,
+      "wave": 1
+    }
+  ],
+  "tools": [
+    {
+      "id": "iron",
+      "priority": 0,
+      "owned": true,
+      "name": "Soldering iron, solder, tip cleaner",
+      "usd": 0,
+      "why": "Owned, and known how to use — which is the part that cannot be bought.",
+      "sources": [],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "dmm",
+      "priority": 0,
+      "owned": true,
+      "name": "Fluke multimeter",
+      "usd": 0,
+      "why": "Owned, and better than anything that would have been recommended. This is not just a nicety: it is what lets every crimp and every joint be verified individually, which is what removes the case against buying a crimper.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "2034",
+          "url": "https://www.adafruit.com/product/2034",
+          "expect": "Multimeter",
+          "status": "ok"
+        }
+      ],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "ziptie",
+      "priority": 0,
+      "owned": true,
+      "name": "Zip ties, assorted",
+      "usd": 0,
+      "why": "Strain relief, solved. Every cable leaving the board gets one through two holes so a tug pulls on the board and not on a solder joint.",
+      "sources": [],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "strippers",
+      "priority": 0,
+      "owned": "partial",
+      "name": "Wire strippers (old, cheap)",
+      "usd": 15,
+      "why": "Serviceable. The failure mode to watch for: cheap strippers with imprecise gauge slots nick strands on 24–26 AWG, and a nicked strand breaks months later inside a closed box. If a stripped end looks ragged or loses a strand, that is the signal to spend $15. Not a blocker.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "527",
+          "url": "https://www.adafruit.com/product/527",
+          "expect": "Wire Stripper",
+          "status": "ok"
+        }
+      ],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "headers",
+      "priority": 1,
+      "owned": false,
+      "name": "0.1\" FEMALE header sockets, 36-pin strips",
+      "usd": 6,
+      "why": "The single highest-value thing on this list, and the half nobody includes. Modules ship with MALE pins loose in the bag for you to solder on; the Perma-Proto is a bare board with no pins at all. These sockets are what goes in the board so the modules plug in — which makes a dead module a swap rather than a desoldering job. A five-pack of 36-pin strips is ~180 positions; this build needs about 66.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "598",
+          "url": "https://www.adafruit.com/product/598",
+          "expect": "Female header",
+          "status": "ok"
+        }
+      ],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "protoboard",
+      "priority": 2,
+      "owned": false,
+      "name": "Perma-Proto half-size board",
+      "usd": 5,
+      "why": "A PCB wired exactly like a solderless breadboard — 30 double 5-hole rows and 4 power rails, same silkscreen. Breadboard the circuit, then transfer it hole-for-hole with no transcription step. Buy two; the second one is for when you want to change the layout.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "1609",
+          "url": "https://www.adafruit.com/product/1609",
+          "expect": "Perma-Proto",
+          "status": "ok"
+        }
+      ],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "jstxh",
+      "priority": 5,
+      "owned": false,
+      "name": "JST-XH connector kit — housings, loose contacts, AND board headers",
+      "usd": 25,
+      "why": "Three parts, not one, which is easy to under-order: the plastic HOUSING and the loose female CRIMP CONTACTS go on the cable, and a shrouded MALE HEADER (JST part family B2B-XH-A) solders into the board. A kit that omits the third one leaves you with cables and nowhere to plug them. This 560-piece kit has all three — 200 loose contacts and 20 each of 2/3/4/5-pin housings and headers.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "4423",
+          "url": "https://www.adafruit.com/product/4423",
+          "expect": "JST XH",
+          "status": "ok"
+        }
+      ],
+      "optional": false,
+      "wave": 2
+    },
+    {
+      "id": "cutters",
+      "priority": 7,
+      "owned": false,
+      "name": "Flush diagonal cutters",
+      "usd": 7,
+      "why": "Specifically for trimming header pins flat to the board; ordinary cutters leave a spike that shorts to whatever sits above it, and with modules on headers something always does. Skip this line if you buy the crimper bundled with cutters.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "152",
+          "url": "https://www.adafruit.com/product/152",
+          "expect": "cutters",
+          "status": "ok"
+        }
+      ],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "crimper",
+      "priority": 6,
+      "owned": false,
+      "name": "Crimper for open-barrel contacts, 28–20 AWG",
+      "usd": 35,
+      "why": "XH contacts are JST SXH-001T-P0.6 open-barrel, so the die has to wrap two wings separately — insulation crimp and conductor crimp. The IWS-2820M is 0.08–0.5 mm² (28–20 AWG), six die widths, double-hinged so the jaws stay parallel. Correction to what this page said last week: it is 0.08–0.5, not 0.08–1.0. The SN-28B is the one to skip — its anvil is wide enough to bite the insulation rather than wrap it.",
+      "sources": [
+        {
+          "vendor": "IWISS",
+          "sku": "IWS-2820M",
+          "url": "https://www.iwiss.com/products/iws-2820m-mini-micro-open-barrel-crimping-tools-works-on-awg28-20-jam-molex-tyco-jst-terminals-and-connectors",
+          "expect": "Open Barrel Crimping",
+          "status": "ok",
+          "note": "the manufacturer's own page — the stable link"
+        },
+        {
+          "vendor": "Amazon",
+          "sku": "B08ZSD1QXK",
+          "url": "https://www.amazon.com/IWISS-IWS-2820M-Crimping-AWG28-20-Cutters/dp/B08ZSD1QXK",
+          "expect": "IWS-2820M",
+          "status": "ok",
+          "note": "bundled with 6-inch flush cutters — buy this and skip the cutters line below"
+        }
+      ],
+      "optional": false,
+      "wave": 2
+    },
+    {
+      "id": "hands",
+      "priority": 99,
+      "owned": false,
+      "name": "Helping hands — skippable",
+      "usd": 12,
+      "why": "Nice, not needed. A header can be held square by plugging it into a breadboard and setting the board on top; a wire can be held by a zip tie and a heavy mug. Buy it when the workarounds start to annoy, not before.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "291",
+          "url": "https://www.adafruit.com/product/291",
+          "expect": "Helping",
+          "status": "ok"
+        }
+      ],
+      "optional": true,
+      "wave": 2
+    },
+    {
+      "id": "wire",
+      "priority": 3,
+      "owned": false,
+      "name": "Hook-up wire, 22 AWG STRANDED, 6 × 25 ft",
+      "usd": 20,
+      "why": "Stranded, not solid — solid core work-hardens and snaps inside a thing that gets carried, and it is wrong in a crimp barrel. Adafruit sells a near-identically-named solid-core twin (1311); the stranded one is 3111. 22 AWG sits at the fat end of XH's 22–28 range, so one gauge covers the speaker's ~0.9 A RMS and the signal runs both. Six colours covers the four-colour convention with two spare.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "3111",
+          "url": "https://www.adafruit.com/product/3111",
+          "expect": "Stranded-Core",
+          "status": "ok"
+        },
+        {
+          "vendor": "Adafruit",
+          "sku": "3175",
+          "url": "https://www.adafruit.com/product/3175",
+          "expect": "Stranded-Core",
+          "status": "ok",
+          "note": "same thing in ten colours"
+        }
+      ],
+      "optional": false,
+      "wave": 1
+    },
+    {
+      "id": "heatshrink",
+      "priority": 4,
+      "owned": false,
+      "name": "Heat shrink, 3/32 + 1/8 + 3/16",
+      "usd": 5,
+      "why": "For the SOLDERED joints only — wire to speaker tabs, switch lugs, pot lugs, LED legs. Crimped contacts get none: they seat inside a housing and shrink on the barrel stops them going in. Those three diameters cover 22 AWG single wires up to a small twisted pair.",
+      "sources": [
+        {
+          "vendor": "Adafruit",
+          "sku": "1649",
+          "url": "https://www.adafruit.com/product/1649",
+          "expect": "Heat Shrink",
+          "status": "ok"
+        }
+      ],
+      "optional": false,
+      "wave": 1
+    }
+  ],
+  "enclosure": [
+    {
+      "route": "A · wooden box",
+      "note": "Search any general retailer for an unfinished pine or bamboo box with a hinged lid, ~150×100×80 mm inside. Stock turns over constantly so no single listing is worth linking — buy on the spec, not the SKU. Solid wood, not foil-wrapped MDF.",
+      "sources": []
+    },
+    {
+      "route": "B · Hammond 1599",
+      "note": "Hand-held ABS, stocked by every distributor. Pick the variant with the battery compartment. 1591 is the plain box family if you want a simpler shape.",
+      "sources": [
+        {
+          "vendor": "Hammond 1599 series",
+          "sku": "1599",
+          "url": "https://www.hammfg.com/electronics/small-case/plastic/1599",
+          "expect": "Hand Held Enclosures",
+          "status": "ok"
+        },
+        {
+          "vendor": "Hammond 1591 series",
+          "sku": "1591",
+          "url": "https://www.hammfg.com/electronics/small-case/plastic/1591",
+          "expect": "1591",
+          "status": "ok"
+        }
+      ]
+    },
+    {
+      "route": "C · laser-cut panel",
+      "note": "Upload a DXF, get one panel back. Order acrylic or plywood — NEVER metal, which kills the reader. Both services quote online without an account.",
+      "sources": [
+        {
+          "vendor": "Ponoko",
+          "sku": "laser",
+          "url": "https://www.ponoko.com/",
+          "expect": "laser cutting",
+          "status": "ok"
+        },
+        {
+          "vendor": "SendCutSend",
+          "sku": "laser",
+          "url": "https://sendcutsend.com/",
+          "expect": "SendCutSend",
+          "status": "ok"
+        }
+      ]
+    }
+  ]
+}

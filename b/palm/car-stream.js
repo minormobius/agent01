@@ -21,6 +21,11 @@
 // record blocks, and join at the end. No roots, no recursion, no block index.
 //
 // Runs unchanged in node and the browser. No dependencies.
+//
+// THE CANONICAL COPY IS packages/atproto/car.js. This one exists because a
+// static site cannot import across directories — same arrangement as
+// packages/dataviz/ and the sites that use it. Fix the canonical one and copy
+// it here; a fix made only here is a fix the servers do not get.
 
 const TD = new TextDecoder('utf-8', { fatal: false });
 

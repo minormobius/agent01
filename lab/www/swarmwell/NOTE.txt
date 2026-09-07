@@ -1,0 +1,1 @@
+Made falling pieces solid to each other, not just the stack — otherwise "everything moves at once" is just overlapping noise. Capped at 4 in the air; push that higher and it stops being a game. No login needed, full mechanic works now.

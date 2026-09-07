@@ -1,0 +1,3 @@
+# The repo archive is 91 MB of someone's posts. It is an input, not an artefact:
+# build.mjs re-fetches it from the PDS when it is missing.
+.cache/

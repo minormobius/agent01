@@ -1,0 +1,1253 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findings Log — ken</title>
+<meta name="description" content="Numbered findings, shortest form, each with the code or record that produced it. One hundred and thirty-two entries, seven of them from measurements we made.">
+<link rel="stylesheet" href="journal.css">
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
+  <a href="/shapes">Shapes</a>
+  <a href="/wp1">WP1</a>
+  <a href="/wp2">WP2</a>
+  <a href="/wp3">WP3</a>
+  <a href="/wp4">WP4</a>
+  <a href="/register">Register</a>
+  <a class="here" href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 <span class="kicker">Running record</span></div>
+  <h1 class="a-title">Findings Log</h1>
+  <p class="a-sub">Shortest form. Each entry names the code or record that produced it.</p>
+  <div class="a-meta">152 entries · <b>12 from new measurement</b> · every figure regenerated on build</div>
+  <hr class="a-rule">
+
+  <p class="small">Everything here comes from data already paid for or from arithmetic. That is
+  a real limit and the ledger below says so at the top rather than the bottom. Entries are
+  append-only; a corrected entry is struck and restated, never edited away.</p>
+
+  <h2 class="sec"><span class="secno">§</span>The three prior runs</h2>
+
+  <ol class="log">
+    <li><b>The loop recorded 89 turns and zero quality scores.</b> Two of three specified
+      signals were never built. The judge was correctly configured to withhold while
+      uncalibrated, so it withheld 89 times.
+      <span class="src"><code>.github/loop/runs.jsonl</code></span></li>
+
+    <li><b>The signal that did fire took three values and sat at its maximum in 59 of 89
+      turns.</b> Reliability collapses at a ceiling, so it could not have ranked the turns that
+      differed.
+      <span class="src"><code>runs.jsonl</code> · <a href="/methods#evidence">R4</a></span></li>
+
+    <li><b>Across two bake-offs, 23 of 23 entries passed every automated check.</b> Both reports
+      order entries by patch size, which was never claimed to measure quality.
+      <span class="src"><code>bakeoff/results/race-0{1,2}</code></span></li>
+
+    <li><b>Two race-01 entries recorded a zero-byte patch beside a 50 KB entry directory.</b>
+      The patch capture failed, not the agents. The report sorts ascending by patch size, so both
+      sorted to the top; nothing flagged it.
+      <span class="src"><code>race-01/results.json</code> · <a href="/methods">R11</a></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Design arithmetic</h2>
+
+  <ol class="log" start="5">
+    <li><b>At two samples per cell, a two-cell contrast could detect only d = 2.80.</b> The gap
+      between near-total failure and near-total success. Even a perfectly discriminating
+      instrument had no power in that design.
+      <span class="src"><a href="/lab">lab §2</a> · <code>design.mjs</code></span></li>
+
+    <li><b>Pairing cuts a medium-effect comparison from 126 runs to 38 at ρ = 0.7, and 20 at
+      ρ = 0.85.</b> The saving is a factor of (1 − ρ) and costs nothing to take.
+      <span class="src"><a href="/lab">lab §3</a></span></li>
+
+    <li><b>For a fixed run budget, repeats do not buy precision.</b> With R = tasks × repeats
+      held constant the within-task variance term is σ²<sub>w</sub>/R whatever the split, so one
+      repeat is optimal at every ICC. Repeats buy the variance estimate instead, which is a
+      different and necessary thing.
+      <span class="src"><a href="/lab">lab §4</a> · <code>allocate()</code></span></li>
+
+    <li><b>A 24-run variance pilot returns a 95% interval on ICC of [0.00, 0.80] at a true
+      0.5.</b> Every split of those 24 runs gives the same width. Reaching ±0.16 costs 144 runs.
+      <span class="src"><a href="/wp1">WP1 §4</a> · <code>simulate.mjs</code></span></li>
+
+    <li><b>The same 24 runs detect a two-SD bimodal separation 69% of the time, and a three-SD
+      one always.</b> So the pilot was re-scoped from parameter estimate to model check rather
+      than resized.
+      <span class="src"><a href="/wp1">WP1 §5</a></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>H4 — exchangeability</h2>
+
+  <p class="small"><b>Exploratory, and it cannot be otherwise.</b> The data was collected for
+  another purpose and its outcome columns had been looked at before these tests were written.
+  A confirmatory version needs new runs. The outcome is turn <i>duration</i>, because the loop
+  recorded no quality scores at all.</p>
+
+  <ol class="log" start="10">
+    <li><b>12 of 89 loop runs are flagged infrastructure failures, and the ledger scores them
+      like real turns.</b> Median 61s against 597s for confirmed real runs. Nine of the twelve
+      carry <code>gateFailed: false</code>, so they are absent from the 17-failure count, and all
+      twelve carry a probes score.
+      <span class="src"><code>h4.mjs partition()</code></span></li>
+
+    <li><b>That 12 is a floor.</b> The <code>infra</code> flag was added part-way through: 45 of
+      89 records predate it. A 120-second rule catches 11 of the 12 known cases and misclassifies
+      2 of 32 known-real ones; it flags 5 more among the unclassified. So the true count is
+      somewhere between 12 and 17 — 13% to 19% of the run.
+      <span class="src"><code>INFRA_SECONDS</code></span></li>
+
+    <li><b>The within-task order effect is one bead.</b> Pooled slope −0.47 log-seconds per
+      position (permutation p = 0.012, 20,000 shuffles). Drop <code>lp-16d590</code> and it is
+      −0.10 with p = 0.17. Six other leave-one-outs move it by less than 0.1. <b>H4 is not
+      refuted by the clean test.</b>
+      <span class="src"><code>h4.mjs orderEffect()</code></span></li>
+  </ol>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 248" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Leave-one-out sensitivity for the within-task order effect. Removing any of six beads barely moves the slope; removing lp-16d590 collapses it to near zero." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="248" fill="#ffffff"/><line x1="150.0" y1="16.0" x2="150.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="150.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-1.2</text><line x1="220.7" y1="16.0" x2="220.7" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="220.7" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-1.0</text><line x1="291.3" y1="16.0" x2="291.3" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="291.3" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.8</text><line x1="362.0" y1="16.0" x2="362.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="362.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.6</text><line x1="432.7" y1="16.0" x2="432.7" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="432.7" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.4</text><line x1="503.3" y1="16.0" x2="503.3" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="503.3" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-0.2</text><line x1="574.0" y1="16.0" x2="574.0" y2="214.0" stroke="#e8e8e8" stroke-width="1"/><text x="574.0" y="227.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="574.0" y1="16.0" x2="574.0" y2="214.0" stroke="#4a4a4a" stroke-width="1" stroke-dasharray="3,3"/><line x1="309.0" y1="28.4" x2="504.4" y2="28.4" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="403.7" y="25.4" width="6" height="6" fill="#0072B2"/><text x="142.0" y="31.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">all 7 beads</text><text x="580.0" y="31.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.47</text><line x1="295.0" y1="53.1" x2="502.6" y2="53.1" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="395.8" y="50.1" width="6" height="6" fill="#0072B2"/><text x="142.0" y="56.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-dfad42</text><text x="580.0" y="56.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.50</text><line x1="297.5" y1="77.9" x2="508.3" y2="77.9" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="399.9" y="74.9" width="6" height="6" fill="#0072B2"/><text x="142.0" y="80.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-574eb2</text><text x="580.0" y="80.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.48</text><line x1="215.8" y1="102.6" x2="463.7" y2="102.6" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="336.8" y="99.6" width="6" height="6" fill="#0072B2"/><text x="142.0" y="105.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-14c7f5</text><text x="580.0" y="105.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.66</text><line x1="300.2" y1="127.4" x2="512.0" y2="127.4" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="403.1" y="124.4" width="6" height="6" fill="#0072B2"/><text x="142.0" y="130.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-250e23</text><text x="580.0" y="130.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.48</text><line x1="268.9" y1="152.1" x2="487.8" y2="152.1" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="375.3" y="149.1" width="6" height="6" fill="#0072B2"/><text x="142.0" y="155.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-fcf387</text><text x="580.0" y="155.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.55</text><line x1="295.5" y1="176.9" x2="504.0" y2="176.9" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="396.7" y="173.9" width="6" height="6" fill="#0072B2"/><text x="142.0" y="179.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-ef6599</text><text x="580.0" y="179.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.49</text><line x1="510.4" y1="201.6" x2="569.5" y2="201.6" stroke="#0072B2" stroke-width="1.4" stroke-linecap="round"/><rect x="536.9" y="198.6" width="6" height="6" fill="#0072B2"/><text x="142.0" y="204.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">without lp-16d590</text><text x="580.0" y="204.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.10</text><text x="362.0" y="244.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">within-bead slope, log seconds per position (dashed line = no effect)</text></svg></div>
+    <div class="pcap"><b>Figure 1.</b> Leave-one-out on the within-task order effect, with
+    normal-theory 95% intervals. Six removals leave the slope where it was; one collapses it.
+    The dropped bead is the one whose four runs went 774s, 430s, 39s, 37s — all four gate
+    failures, failing progressively faster. That is a fact about the gate, not about
+    exchangeability.</div>
+  </div>
+
+  <ol class="log" start="13">
+    <li><b>Across the whole run, duration rose and then flattened: 213 → 500 → 798 → 546 → 550
+      seconds by block of twenty turns.</b> The rise survives excluding gate failures and gets
+      stronger (t = 6.19). But turn index is confounded with task composition, which nothing in
+      the ledger controls for, so this does not test H4 — it only says something changed.
+      <span class="src"><code>h4.mjs globalDrift()</code></span></li>
+  </ol>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 230" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Median turn duration by block of twenty turns: 213s, 500s, 798s, then 546s and 550s. The rise is confined to the first sixty turns." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="230" fill="#ffffff"/><line x1="46.0" y1="194.0" x2="606.0" y2="194.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="164.0" x2="606.0" y2="164.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="134.0" x2="606.0" y2="134.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="104.0" x2="606.0" y2="104.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="74.0" x2="606.0" y2="74.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="44.0" x2="606.0" y2="44.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="606.0" y2="14.0" stroke="#e8e8e8" stroke-width="1"/><line x1="46.0" y1="14.0" x2="46.0" y2="194.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="194.0" x2="606.0" y2="194.0" stroke="#4a4a4a" stroke-width="1"/><line x1="46.0" y1="194.0" x2="46.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="46.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="158.0" y1="194.0" x2="158.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="158.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">20</text><line x1="270.0" y1="194.0" x2="270.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="270.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">40</text><line x1="382.0" y1="194.0" x2="382.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="382.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">60</text><line x1="494.0" y1="194.0" x2="494.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="494.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">80</text><line x1="606.0" y1="194.0" x2="606.0" y2="197.5" stroke="#4a4a4a" stroke-width="1"/><text x="606.0" y="207.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">100</text><line x1="42.5" y1="194.0" x2="46.0" y2="194.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="197.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">200</text><line x1="42.5" y1="164.0" x2="46.0" y2="164.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="167.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">300</text><line x1="42.5" y1="134.0" x2="46.0" y2="134.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="137.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">400</text><line x1="42.5" y1="104.0" x2="46.0" y2="104.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="107.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">500</text><line x1="42.5" y1="74.0" x2="46.0" y2="74.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="77.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">600</text><line x1="42.5" y1="44.0" x2="46.0" y2="44.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="47.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">700</text><line x1="42.5" y1="14.0" x2="46.0" y2="14.0" stroke="#4a4a4a" stroke-width="1"/><text x="40.0" y="17.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="end">800</text><text x="326.0" y="226.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">turn (block of 20)</text><text x="12" y="104.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle" transform="rotate(-90 12 104.0)">median duration (s)</text><polyline points="104.8,190.0 216.8,103.9 328.8,14.7 440.8,90.3 552.8,88.9" fill="none" stroke="#0072B2" stroke-width="1.6"/><circle cx="104.8" cy="190.0" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="216.8" cy="103.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="328.8" cy="14.7" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="440.8" cy="90.3" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/><circle cx="552.8" cy="88.9" r="1.9" fill="#0072B2" stroke="#fff" stroke-width="0.5"/></svg></div>
+    <div class="pcap"><b>Figure 2.</b> Median turn duration by block of twenty. A single linear
+    slope across the range reports ×2.9 and is the wrong model: the first-half slope is +0.041
+    per turn (t = 7.15) and the second-half slope is −0.011 (t = −1.15).</div>
+  </div>
+
+  <h2 class="sec"><span class="secno">§</span>The bake-off, with the right error term</h2>
+
+  <ol class="log" start="14">
+    <li><b>I called this structure a split-plot last revision. It is not one.</b> Each race runs
+      a single brief, so there is no sub-plot factor and no second error term. It is a 2 × 3
+      factorial (harness × model) with two replicates, blocked by race. The consequence survives
+      the correction: a cell contrast still needs the within-cell error term, and no bake-off
+      report has used one, because none reported a standard error at all.
+      <span class="src"><a href="/wp1">WP1 §2.3</a> · <code>factorial.mjs</code></span></li>
+
+    <li><b>On duration, model matters and harness does not.</b> Model F = 8.80 on 2 df,
+      permutation p = 0.001. Harness F = 0.00, p = 0.999. Interaction F = 0.51, p = 0.606. Race
+      block F = 0.02, so the two races are interchangeable. Medians: kimi3 2897s, ds4-flash
+      2248s, ds4-pro 1449s — a 2.0× spread.
+      <span class="src"><code>factorialAnova()</code>, 5,000 permutations</span></li>
+
+    <li><b>And the significant factor is the uninterpretable one.</b> Each model runs against its
+      own vendor's endpoint, so "model" and "provider" cannot be separated by construction —
+      a point <code>bakeoff/CLAUDE.md</code> already makes. The factor that <i>is</i> clean is
+      harness, since both harnesses ran against the same providers, and it shows nothing.
+      <span class="src"><code>bakeoff/CLAUDE.md</code> · known limits</span></li>
+
+    <li><b>Run-to-run duration varies by a factor of 1.46.</b> Residual SD 0.378 in log seconds,
+      16 residual df. At two samples per cell the smallest cell-to-cell duration ratio that
+      design could resolve is 2.88×.
+      <span class="src"><code>contrastSensitivity()</code></span></li>
+
+    <li><b>First measured ICC on this apparatus: 0.436 for log duration by cell</b> (race-01
+      0.776, race-02 0.453). Not the pairing ρ, which is a correlation across shared tasks; this
+      is the share of duration variance attributable to which cell you ran.
+      <span class="src"><code>cellComponents()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The judging pass</h2>
+
+  <p class="small">The judge is the assistant, in one context, over notes relabelled by a seeded
+  shuffle and scrubbed of harness, model and provider names. Verdicts were committed to git
+  <a href="https://github.com/minormobius/agent01/commit/41ea3cc">before the key was opened</a>,
+  so the order is checkable. The judge had read all twelve entries before any pair was shown, so
+  the swap rate below is a <b>lower bound</b> on what an independent judge would show.</p>
+
+  <ol class="log" start="19">
+    <li><b>The Bradley–Terry MLE does not exist for this data.</b> Two entries went undefeated
+      and one never won, which sends their strengths to ±∞. The winless case was a design gap —
+      the two weakest entries were never compared — and the undefeated case is not fixable by
+      adding pairs. A regularised fit (half a pseudo-win per observed pair) was required.
+      <span class="src"><code>bt.mjs</code>, guard fired before any ranking was produced</span></li>
+
+    <li><b>The judge flips on 18% of pairs, and every flip is a pair it had flagged as
+      close.</b> 5 of 28 pairs disagreed between their two presentations. That is order
+      sensitivity concentrated exactly where discrimination runs out, which is the benign
+      version of the finding.
+      <span class="src"><code>swapRate()</code></span></li>
+
+    <li><b>Fifty-six comparisons cannot rank twelve entries.</b> The fitted scale spans 2.63
+      log-odds end to end and the standard errors are about 0.9. Only the extreme pair separates
+      at two standard errors; everything in between is one undifferentiated block.
+      <span class="src"><code>fitBradleyTerry()</code></span></li>
+  </ol>
+
+  <div class="plot">
+    <div class="pwrap"><svg viewBox="0 0 620 352" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Bradley-Terry ranking of the twelve race-02 entries. The whole scale spans 2.6 log-odds and the standard errors are about 0.9, so only the extremes separate." style="width:100%;height:auto;display:block;font-family:'Helvetica Neue', Helvetica, Arial, sans-serif"><rect width="620" height="352" fill="#ffffff"/><line x1="176.0" y1="16.0" x2="176.0" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="176.0" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-4</text><line x1="275.5" y1="16.0" x2="275.5" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="275.5" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">-2</text><line x1="375.0" y1="16.0" x2="375.0" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="375.0" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">0</text><line x1="474.5" y1="16.0" x2="474.5" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="474.5" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">2</text><line x1="574.0" y1="16.0" x2="574.0" y2="318.0" stroke="#e8e8e8" stroke-width="1"/><text x="574.0" y="331.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9" fill="#6b6b6b" text-anchor="middle">4</text><line x1="375.0" y1="16.0" x2="375.0" y2="318.0" stroke="#4a4a4a" stroke-width="1" stroke-dasharray="3,3"/><line x1="350.7" y1="28.6" x2="524.4" y2="28.6" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="434.6" y="25.6" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="31.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-flash · s1</text><text x="580.0" y="31.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">1.26</text><line x1="341.3" y1="53.8" x2="515.0" y2="53.8" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="425.2" y="50.8" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="56.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-flash · s2</text><text x="580.0" y="56.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">1.07</text><line x1="317.1" y1="78.9" x2="526.8" y2="78.9" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="419.0" y="75.9" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="81.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · kimi3 · s1</text><text x="580.0" y="81.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.94</text><line x1="313.3" y1="104.1" x2="497.5" y2="104.1" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="402.4" y="101.1" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="107.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · kimi3 · s1</text><text x="580.0" y="107.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.61</text><line x1="292.1" y1="129.3" x2="500.6" y2="129.3" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="393.4" y="126.3" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="132.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-pro · s2</text><text x="580.0" y="132.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.43</text><line x1="297.8" y1="154.4" x2="473.3" y2="154.4" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="382.6" y="151.4" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="157.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · kimi3 · s2</text><text x="580.0" y="157.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.21</text><line x1="281.3" y1="179.6" x2="478.7" y2="179.6" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="377.0" y="176.6" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="182.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-flash · s2</text><text x="580.0" y="182.6" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">0.10</text><line x1="247.3" y1="204.8" x2="454.0" y2="204.8" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="347.6" y="201.8" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="207.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · kimi3 · s2</text><text x="580.0" y="207.8" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.49</text><line x1="264.7" y1="229.9" x2="417.9" y2="229.9" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="338.3" y="226.9" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="232.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-flash · s1</text><text x="580.0" y="232.9" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.68</text><line x1="255.7" y1="255.1" x2="413.1" y2="255.1" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="331.4" y="252.1" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="258.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-pro · s2</text><text x="580.0" y="258.1" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-0.82</text><line x1="223.3" y1="280.3" x2="400.6" y2="280.3" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="309.0" y="277.3" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="283.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">claude · ds4-pro · s1</text><text x="580.0" y="283.3" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-1.27</text><line x1="215.0" y1="305.4" x2="398.3" y2="305.4" stroke="#6b6b6b" stroke-width="1.4" stroke-linecap="round"/><rect x="303.6" y="302.4" width="6" height="6" fill="#6b6b6b"/><text x="168.0" y="308.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="9.5" fill="#1a1a1a" text-anchor="end">opencode · ds4-pro · s1</text><text x="580.0" y="308.4" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="8.5" fill="#6b6b6b" text-anchor="start">-1.37</text><text x="375.0" y="348.0" font-family="'Helvetica Neue', Helvetica, Arial, sans-serif" font-size="10.5" fill="#1a1a1a" text-anchor="middle">Bradley–Terry strength (log-odds), 56 verdicts over 28 pairs</text></svg></div>
+    <div class="pcap"><b>Figure 3.</b> The first judged ranking of these entries, unblinded.
+    Intervals are ±1.96 SE. The two best are the same cell run twice, and so are two of the three
+    worst — but with intervals this wide that is as likely to be luck as consistency.</div>
+  </div>
+
+  <ol class="log" start="22">
+    <li><b>Judged quality is not significantly explained by model (p = 0.124) or harness
+      (p = 0.155).</b> The direction is inverted from duration: ds4-pro was the fastest model and
+      produced the notes judged worst (mean θ −0.76 against +0.44 for ds4-flash). Neither
+      contrast is significant at n = 12, so this is a direction, not a result.
+      <span class="src">20,000-permutation test on between-group variance of θ</span></li>
+
+    <li><b>ICC of judged quality by cell is 0.413.</b> Within-cell SD 0.710 against a total scale
+      range of 2.63; two runs of the <i>same</i> cell differ by 0.84 on average, a third of the
+      whole spread. This is the parameter every cost estimate on this site has been assuming, now
+      measured once. And at 6 cells × 2 samples its own 95% interval is [0.00, 0.88], so it is an
+      anchor rather than a number.
+      <span class="src"><code>varianceComponents()</code> over the fitted θ</span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The standard run, and a language test</h2>
+
+  <ol class="log" start="24">
+    <li><b>The run is now a fixed unit: six turns, four stages, width two.</b> Setup, two
+      parallel waves of two, cleanup. Each wave is a matched pair if both agents get the same
+      state, which buys the pairing saving without any extra design. At ρ = 0.413 a large effect
+      (d = 0.8) costs 30 runs or 180 turns; a medium one costs 74 runs or 444. A 96-turn budget
+      reaches d = 1.07 and no further.
+      <span class="src"><a href="/run">the procedure</a> · <code>runshape.mjs</code></span></li>
+
+    <li><b>Writing one page to the structural rules of ASD-STE100 took it from 27
+      violations per 100 sentences to zero.</b> The longest sentence went from 50 words to 14.
+      The rules are cheap to follow on a procedure, where every step wants to read the same.
+      <span class="src"><code>ste-lint.mjs</code>, structural rules only</span></li>
+
+    <li><b>And the two standards contradict each other.</b> The tic lint failed the same page for
+      sentence-length monotony, at 0.324 against a floor of 0.42 — which is precisely the
+      over-correction the declauding register warns about, arrived at by following a different
+      standard faithfully. Simplified Technical English mandates the flatness the other lint
+      treats as a defect. Resolved by register: a page may declare itself a procedure, and the
+      rhythm rules are then skipped. Procedures should be flat; arguments should not.
+      <span class="src"><code>prose-lint.mjs registerOf()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The plan as a graph</h2>
+
+  <ol class="log" start="27">
+    <li><b>The run shape is now rewrite rules, on morph's laws.</b> A cell expands into
+      sub-cells; a wave takes its width from the condition bus rather than declaring it; and the
+      only control flow is failure, so the budget stopping rule <i>is</i> the mechanism that ends
+      the recursion rather than a separate check. Ask for ten runs on a 20-turn budget and the
+      planner builds three and records why.
+      <span class="src"><a href="/run">run §5</a> · <code>plan.mjs</code></span></li>
+
+    <li><b>Probe and build are one interpreter behind a flag, so the cost estimate cannot drift
+      from the plan.</b> This is morph's <code>resolve</code> law and it is the one worth
+      importing: a cost table maintained beside a runner eventually disagrees with it, and the
+      same code cannot. Asserted over six designs including two that fail.
+      <span class="src"><code>probeMatchesBuild()</code></span></li>
+
+    <li><b>The derived layout found a wiring bug the hand-drawn figure would have hidden.</b>
+      Wave A fed wave B as a complete bipartite graph, every turn waiting on every turn, because
+      the whole previous wave was passed as the predecessor. Drawn honestly, it was obviously
+      wrong. Drawn by hand I would have drawn lanes, which is what I meant rather than what the
+      code said. Each condition is now a lane, and the selftest asserts the crossing edges are
+      absent.
+      <span class="src"><code>Builder.parallel()</code></span></li>
+
+    <li><b>The layout is seed-independent to about one part in ten million.</b> Positions agree
+      across five seeds, so the seed only breaks the initial symmetry and the picture is a
+      function of the graph. My selftest originally asserted the opposite — that a different seed
+      would move it — which is the assumption a force layout invites and this one does not
+      support. Adding a condition now costs no geometry at all: <code>tree.js</code> hand-places
+      every box, and this places none.
+      <span class="src"><code>layout.mjs relax()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Our own errors</h2>
+
+  <ol class="log" start="31">
+    <li><b>A fallback that caught more than it could repair answered a nonsense design by
+      growing it.</b> The budget fallback fired on any experiment failure, including a request
+      for zero runs, and then built <code>budget / 6</code> runs, turning an invalid design into
+      a large valid-looking one. It now repairs exactly the failure it was written for and
+      rethrows the rest.
+      <span class="src"><code>FALLBACKS.experiment</code></span></li>
+
+    <li><b>Four edits to the worker's route map silently did nothing, and nothing broke.</b>
+      Each replacement targeted a string the previous failed edit was supposed to have created,
+      and I never asserted that any of them applied. The routes worked anyway: Workers Static
+      Assets resolves clean URLs itself, so the map was never load-bearing. Measured on the live
+      site — <code>/lab</code>, <code>/wp1</code>, <code>/log</code> and <code>/run</code> all
+      returned 200 while absent from it. The map is deleted and the selftest now refuses one.
+      <span class="src"><code>worker.js</code></span></li>
+
+    <li><b>My Simplified-Technical-English lint was wrong twice on its first run.</b> It called
+      every run of four content words a noun cluster, so "One run costs six turns" failed. And it
+      called every be-verb near an -ed word passive, so "a matched pair" failed. Both were caught
+      by reading its own output on the page written to satisfy it. Fixing them moved the existing
+      pages from 33–47 violations per 100 sentences to 19–29, so the first baseline overstated the
+      problem by about half.
+      <span class="src"><code>ste-lint.mjs</code></span></li>
+
+    <li><b>My separation guard checked only half the failure.</b> It refused a Bradley–Terry fit
+      when an item never won, and let through two items that never lost — the same divergence
+      mirrored. The fit returned strengths spanning 17 log-odds with standard errors of 12,
+      which read as numbers. Now both directions are checked, and the message says which
+      direction and whether adding pairs can fix it.
+      <span class="src"><code>bt.mjs</code></span></li>
+
+    <li><b>Excluding gate failures made an OLS return a slope of exactly zero with a standard
+      error of exactly zero.</b> The filtered subset left a constant column duplicating the
+      intercept, and the normal equations returned a singular fit wearing the costume of a null
+      result. Found by a sensitivity check rather than by the maths.
+      <code>globalDrift()</code> now drops a zero-variance term and says it did.
+      <span class="src"><code>h4.mjs</code></span></li>
+
+    <li><b>Title similarity alone matched a PsycEXTRA dataset stub to False-Positive Psychology,
+      and an American Historical Review book review to Chandler.</b> Both scored 1.0, because the
+      title is the same. Filtering registry record types fixed both; 74 of 82 entries now resolve,
+      and the other 8 say "unlinked" rather than pointing somewhere approximate.
+      <span class="src"><code>resolve-refs.mjs</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The org chart of a run</h2>
+
+  <ol class="log" start="37">
+    <li><b>Degree forces nine roles, and the count is an argument rather than a survey.</b>
+      Originate and merge cannot co-occur, and neither can report and split, so a node's duties
+      are one in-duty crossed with one out-duty. Three by three, total on every node of every
+      finite DAG. That is what makes an arbitrary shape staffable.
+      <span class="src"><a href="/wp2">WP2 §2</a> · <code>ROLE_TABLE</code></span></li>
+
+    <li><b>Exchangeability is a symmetry of the plan, so H4 has a structural half that needs no
+      data.</b> Two turns may be pooled exactly when an automorphism of the graph exchanges them.
+      This does not make H4 true, since an agent can still drift inside an orbit. It settles
+      which comparisons were ever estimable, before anything is run.
+      <span class="src"><a href="/wp2">WP2 §3</a> · <code>poolable()</code></span></li>
+
+    <li><b>A star run holds four replicates by symmetry and a chain holds none.</b> Every orbit
+      in a chain is a singleton, so no care in running one will produce a second. At the measured
+      ρ = 0.413 the design effect turns four raw replicates into 1.787 effective ones against a
+      chain's 1.000: <b>1.79× the replication for the same six turns and the same agents.</b>
+      This was not the point of the catalogue and it is the more useful half.
+      <span class="src"><code>effectiveReplication()</code></span></li>
+
+    <li><b>Depth and ken ratio are orthogonal across shapes and collinear within one.</b> Across
+      the six-shape catalogue r = 0.05 and all four cells of the two-by-two are occupied. Inside
+      a single run they move together, r = −0.966 in a chain, because a chain gets deeper and
+      blinder at every step. So the separation is a between-shape claim and costs between-shape
+      money. <b>My first framing had this backwards</b> and priced the cheap design as though it
+      tested the hypothesis.
+      <span class="src"><a href="/wp2">WP2 §6</a> · <code>collinearity()</code></span></li>
+
+    <li><b>One shape escapes, and it is the one that was already free.</b> <code>briefed</code>
+      advances depth while the last turn keeps full ken, so its variance inflation is 1.171
+      against the chain's 14.758 — the only shape in the catalogue that separates the two
+      covariates inside one run. That the cheap design and the free intervention are the same
+      shape was luck, and is recorded as luck.
+      <span class="src"><code>collinearity()</code></span></li>
+
+    <li><b>The cheapest manipulation in the programme so far: four edges and no turns.</b>
+      <code>chain</code> and <code>briefed</code> match at every turn but the last, where sink
+      ken goes from 0.333 to 1.000. Copying the final agent on every intermediate turn costs
+      nothing and moves the quantity under test by two thirds of its range.
+      <span class="src"><code>chainBriefedContrast()</code></span></li>
+
+    <li><b>Two shapes with identical role censuses differ twelvefold in symmetry.</b>
+      <code>standard</code> and <code>star</code> are both one principal, four relays and one
+      integrate. Depth 3 against 2, |Aut| 2 against 24. If a role census were the whole model
+      they would behave alike, so the pair is a controlled test of whether counting seats is
+      enough.
+      <span class="src"><code>catalogue()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Prior literature</h2>
+
+  <ol class="log" start="44">
+    <li><b>This experiment was run in 1951, on undergraduates.</b> Bavelas wired groups into
+      fixed communication patterns and treated the pattern as the treatment; Leavitt ran circle,
+      chain, Y and wheel and found the wheel fastest and most accurate and its peripheral members
+      least satisfied. Shaw then reversed it for complex tasks. Our catalogue holds task
+      difficulty fixed and would miss that interaction entirely, which is now a stated limit
+      rather than a discovery waiting to happen.
+      <span class="src"><a href="/wp2">WP2 §1</a> · Leavitt 1951 · Shaw 1964</span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Any n, and the trade</h2>
+
+  <ol class="log" start="45">
+    <li><b>The catalogue generalises with no new idea: a layered plan is a composition of n.</b>
+      Layer widths with source and sink pinned to one, so exactly 2<sup>n−3</sup> profiles, all
+      enumerable to about n = 16. The six shapes of WP2 are recovered exactly as members of the
+      generated family, which the selftest checks rather than assumes.
+      <span class="src"><a href="/shapes">shape explorer</a> · <code>profiles.mjs</code></span></li>
+
+    <li><b>The depth-width trade is isoperimetric and the floor is reached.</b> The interior
+      holds n−2 turns over d−1 layers, so peak width ≥ ⌈(n−2)/(d−1)⌉, with equality when the
+      interior is balanced. Tight at all 52 depth-and-n pairs checked. Volume is what the run
+      costs, depth is the wall clock, peak width is how many agents must exist at once.
+      <span class="src"><code>widthFloor()</code></span></li>
+
+    <li><b>Free replication is concave in depth, so the star is rarely worth its width.</b> At
+      n = 12 the balanced middle at depth 6 keeps 92% of the maximum replication at a fifth of
+      the peak concurrency. The last five turns of latency buy 8%.
+      <span class="src"><code>ladder()</code></span></li>
+
+    <li><b>Sink ken is free at every depth; the price is merge load.</b> Briefing changes no
+      width, no depth and no cost. At n = 12 it takes the last agent's in-degree from 1 to 11,
+      so it must now read the whole run. Free in turns is not free in context.
+      <span class="src"><code>buildProfile({briefed})</code></span></li>
+
+    <li><b>The Pareto frontier held exactly 2n−4 points at every n from 5 to 14.</b> Odd and
+      even alike. An observation, not a theorem; the selftest asserts it under a label saying so,
+      because if it breaks that is a finding rather than a test to relax.
+      <span class="src"><code>frontierOf()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Ancestry, after hoop</h2>
+
+  <ol class="log" start="50">
+    <li><b>An agent's state is its precedents, so the pooling equivalence is ancestry, not
+      orbit.</b> An orbit is defined by in- and out-structure; an agent reads only the
+      in-structure, because nothing downstream can affect what it does. Within all six shapes
+      the two partitions coincide, so no published figure moves. The correction is to the
+      justification.
+      <span class="src"><a href="/wp2#ancestry">WP2 §11</a> · <code>ancestry.mjs</code></span></li>
+
+    <li><b>The catalogue run once yields 7.65 effective observations against a star's 1.79.</b>
+      A turn fed by one setup turn is the same condition in every shape, so thirteen turns across
+      all six form one pooling cell. They sit in six runs and are clusters of unequal size, so
+      the design effect takes Kish's Σm²/Σm = 35/13 = 2.69. No automorphism relates those graphs;
+      the digest does not need one.
+      <span class="src"><code>poolAcross()</code></span></li>
+
+    <li><b>A digest buys identity, not ken, and hoop already said so.</b>
+      <code>hoop-archive/js/postal.js</code> folds a quadtree into one region hash and states
+      plainly that a Merkle tree does not speed up routing, the index does that, and the hash is
+      purely for verifiable and forkable state. The same limit binds here. An agent handed a root
+      instead of five reports learns only whether it has seen this state before. Briefing still
+      costs in-degree n−1 and no hash makes that cheaper.
+      <span class="src"><code>hoop-archive/js/postal.js</code> · NAV.md</span></li>
+
+    <li><b>Arity has to be folded in before the children, or the digest collides.</b> hoop mixes
+      a node's own coordinates into the accumulator first. Here the analogue is in-degree:
+      without it a turn fed by one parent and a turn fed by two parents of identical ancestry
+      hash the same. Asserted directly.
+      <span class="src"><code>ancestryDigests()</code></span></li>
+
+    <li><b>The digest converts into a rule on the runner, which is R15.</b> A turn's brief must
+      be a function of its ancestry and nothing else. Name the shape to the agent, or dispatch in
+      a fixed order, or share a scratch file, and equal digests no longer mean equal inputs. The
+      digest cannot detect that; only the rule prevents it.
+      <span class="src"><a href="/methods#r15">R15</a></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The self-audit</h2>
+
+  <p class="small">A pass over sixteen revisions of our own output, asking what the direction we
+  ended up in makes wrong. Four of the six findings are faults in work we published.</p>
+
+  <ol class="log" start="55">
+    <li><b>R14 was refuted by our own arithmetic and stood for six revisions.</b> It mandated a
+      shape with no stage wider than two, justified by the pairing saving. A matched pair is an
+      orbit of size two; the same six turns as a star put four turns in one orbit, worth 1.787
+      effective replicates against the mandated shape's 1.415. <b>The rule forbade the shape its
+      own reasoning preferred.</b> R14 now requires a run to declare its profile and report four
+      invariants of it, rather than prescribing one.
+      <span class="src"><a href="/methods#r14">R14</a> · standard now v1.4</span></li>
+
+    <li><b>WP1 proposed H2 and went six revisions without recording its first measurement.</b>
+      H2 claims ICC ≥ 0.5. We measured 0.413 with an interval of [0.00, 0.88] at revision 9, put
+      it in this log, and never carried it back to the paper that asked for it. The estimate is
+      on the wrong side, the interval decides nothing, and H2's own refutation condition needs
+      an upper bound below 0.5, so the status is <b>undecided</b> rather than refuted. The
+      addendum is dated and the status now lives in one place.
+      <span class="src"><a href="/wp1">WP1 addendum</a> · <a href="/register">register</a></span></li>
+
+    <li><b>The roadmap asserted an impossibility and nothing objected.</b> Unit IV read
+      <code>blocked</code> while WP2, which needs it, read <code>active</code>. Every existing
+      check on that figure was about geometry, acyclicity and links; none was about the claim the
+      colours make. A node may not be active unless its prerequisites are, may not be done unless
+      they are done, and may not be blocked when all of them are done.
+      <span class="src"><code>tree.js</code> · ken.selftest.mjs</span></li>
+
+    <li><b>The hypotheses were prose in two papers with no status anywhere.</b> Working out what
+      was still open meant reading both and this log. They are one list now, and a status of
+      supported, undecided or refuted must name its evidence while an undecided one must not.
+      Both directions are asserted, because the failure to guard against is the quiet upgrade.
+      The first run of that check found a real gap: H7 was registered and WP2 never named it.
+      <span class="src"><a href="/register">register</a> · <code>hypotheses.mjs</code></span></li>
+
+    <li><b>The protocol asked the loop's question, not ours.</b> It was written for a turn-count
+      curve needing all six blanks. H5 needs none of B1, B3 or B6, costs 180 turns paired, and
+      its manipulation is four edges. So H5 is Study 1 and the turn-count curve is Study 2. The
+      blanks still gate Study 2; the ordering changed, not the requirement.
+      <span class="src"><a href="/protocol#restated">protocol, restated</a></span></li>
+
+    <li><b>A third prose register was needed, and the lint was right to demand it.</b> The
+      generated register cards failed four rules at once. Two were structural and are format
+      rather than writing, so <code>reference</code> joins <code>procedure</code> in being
+      excused them. The other two were lexical and were real faults in prose we had just
+      written, so they were fixed rather than exempted.
+      <span class="src"><code>REGISTER_EXEMPTIONS</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The size of the space</h2>
+
+  <ol class="log" start="61">
+    <li><b>There are 1,960 shapes on six turns and the layered family reached 18.</b> One source,
+      one sink, up to isomorphism. Counted twice by different code: brute force over every
+      relabelling, and a refinement-restricted canonical form. <b>0.9%.</b> Skip policies took it
+      to 33, which is 1.7%.
+      <span class="src"><code>exhaustive.mjs</code> · <code>coverage()</code></span></li>
+
+    <li><b>Only ten of those 1,960 are strictly layered.</b> In every other one some turn feeds
+      something more than one stage later. The layered restriction is not a mild simplification
+      of the space; it is almost all of the space thrown away.
+      <span class="src"><code>summarise().layered</code></span></li>
+
+    <li><b>The second counting method was wrong and only the first caught it.</b> The
+      refinement-restricted canonical form gave 122 at n = 5 and 3,274 at n = 6 against the true
+      98 and 1,960. Two bugs: a neighbour colour read from the wrong node, and colour classes
+      ordered by discovery rather than by an invariant, so two isomorphic graphs got different
+      canonical forms. <b>A faster method that silently disagrees is the failure this site is
+      about</b>, and it was caught only because the slow ground truth existed first.
+      <span class="src"><code>refineMatrix()</code></span></li>
+
+    <li><b>The 2n−4 frontier was an artefact of the generator, and the label was right.</b>
+      Published one revision ago as an observation rather than a theorem. Widening the family
+      broke it. With skips off and no briefing the frontier is n−2, one point per achievable
+      depth; briefing doubled it to the 2n−4 we published; skip policies dissolve the pattern
+      entirely.
+      <span class="src"><a href="/wp2">WP2 §10, corrected</a></span></li>
+
+    <li><b>The explorer's table and that artefact were the same fault.</b> The table showed one
+      row per depth, so the family looked like a single shape stretched. Within the narrow family
+      the Pareto frontier <em>is</em> one shape per depth, so the display was faithfully
+      reporting how little there was. It now shows every shape, sortable, with the count and the
+      coverage on the line above.
+      <span class="src"><a href="/shapes">shape explorer</a></span></li>
+
+    <li><b>Exact enumeration reaches seven turns and stops.</b> A DAG on n nodes with a fixed
+      topological order is an upper-triangular matrix, so the search is 2<sup>n(n−1)/2</sup>:
+      32,768 masks at six turns, 2,097,152 at seven, 268 million at eight. Six enumerates in
+      about 120 ms and is what the page does live; above seven the page samples and says so.
+      <span class="src"><code>EXACT_LIMIT</code> · <code>searchSize()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>An edge nobody could see</h2>
+
+  <ol class="log" start="67">
+    <li><b>Every skip edge was drawn straight through the node it skips, so none of them were
+      visible.</b> The renderer put a bezier's control points directly below the source and above
+      the target. On a graph one turn wide that is a vertical line, painted under the nodes and
+      exactly over the adjacent edges covering the same span. A six-turn chain with 5, 9, 9 and 15
+      edges rendered as <b>four identical pictures</b>. Skip edges now bow sideways by an amount
+      that grows with the span, and carry their own class.
+      <span class="src"><code>renderPlan()</code> · <a href="/shapes">shapes</a></span></li>
+
+    <li><b>WP2's own central contrast was invisible in WP2's own figure.</b> The paper argues that
+      <code>chain</code> against <code>briefed</code> is the cheapest manipulation available, four
+      edges and no extra turns. Those four edges are all skips, so the two panels of Figure 1 were
+      the same drawing with different captions, and had been since the figure was published.
+      <span class="src"><a href="/wp2">WP2 Figure 1, corrected</a></span></li>
+
+    <li><b>Nothing caught it because every layout check was about nodes.</b> Seed independence,
+      no overlapping boxes, depth pinned to the Kahn pass, positions to one part in ten million.
+      Not one check asked whether an edge could be seen. The regression test now renders the four
+      skip policies and requires four distinct drawings, that every multi-depth edge is marked,
+      that no skip is drawn on its endpoints' column, and that no two edges trace the same path.
+      Run against the old renderer it fails seven checks.
+      <span class="src"><code>plan.selftest.mjs</code>, 56 → 98 checks</span></li>
+
+    <li><b>And one of the new assertions was weaker than its own label.</b> "Four distinct
+      pictures" compared SVG source, which differed even on the broken renderer because the path
+      count and endpoints differed while the lines overlapped. Distinct source is not distinct
+      appearance. It is relabelled as the necessary-not-sufficient check it is, and the real
+      visual test is that a drawing with skips must leave the single column a width-one chain
+      otherwise occupies.
+      <span class="src"><code>plan.selftest.mjs</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Whether the plan is enforced</h2>
+
+  <ol class="log" start="71">
+    <li><b>The ken ratio is 1 by construction whenever an agent inherits its ancestry, and that
+      was true from the revision the ratio was defined.</b> Ken is the in-neighbourhood over the
+      ancestry. Nobody asked when the numerator and the denominator could differ. They differ
+      exactly when the plan <em>withholds</em>, and withholding needs a mechanism the plan does
+      not have.
+      <span class="src"><code>visibility.mjs</code> · <a href="/wp2#regime">WP2 §10b</a></span></li>
+
+    <li><b>1,960 shapes become 16 under lineage and 8 under sharing.</b> A turn reads its
+      worktree and its history whatever arrows were drawn. Under lineage the effective graph is
+      the transitive closure of the drawn one; under sharing it depends only on the depth
+      histogram. <b>Sink ken takes exactly one value, 1.000, in both.</b> Not a small effect: no
+      variance in the quantity the site is named after.
+      <span class="src"><code>collapse()</code></span></li>
+
+    <li><b>The H5 contrast is exactly zero unless the run is strictly isolated.</b>
+      <code>chain</code> and <code>briefed</code> both become the same fifteen-edge graph with
+      the same sink ken. The 180 turns §7 prices would measure nothing at all, and the result
+      would be void rather than null.
+      <span class="src"><code>auditRegime()</code></span></li>
+
+    <li><b>The regime most people would call isolated is not the one that works.</b>
+      <code>lineage</code> — a worktree per lane, merged at joins — leaves 16 of 1,960. Only
+      fresh context, fresh tree and handoff by explicit artefact preserves the question. R16
+      makes stating and demonstrating it a requirement, and the demonstration cannot be
+      asserted: plant a marker in a turn a later one has no edge from, and check it cannot be
+      produced.
+      <span class="src"><a href="/methods#r16">R16</a> · standard now v1.5</span></li>
+
+    <li><b>Five revisions of shape work rested on it, unstated.</b> WP2 §10b carries the
+      correction and the three shape hypotheses now carry a <code>requires</code> field the
+      register's own audit enforces, so a shape hypothesis cannot be added without naming the
+      regime it needs.
+      <span class="src"><a href="/register">register</a> · <code>auditHypotheses()</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>One parameter, not two regimes</h2>
+
+  <ol class="log" start="76">
+    <li><b>The isolated-or-inherited dichotomy was false, and it was one revision old.</b> A
+      parent hands over a <em>product</em> shaped by what it received, so a grandparent reaches a
+      grandchild attenuated rather than absent. Let λ be the share surviving one hop; fidelity is
+      λ<sup>d−1</sup> over the shortest path, since the best-preserved copy went through fewest
+      hands.
+      <span class="src"><code>attenuation.mjs</code> · <a href="/wp2#attenuation">WP2 §10c</a></span></li>
+
+    <li><b>λ = 0 reproduces the published ken ratio exactly, on every node of all 1,960 shapes;
+      λ = 1 gives 1 everywhere.</b> The two regimes are the endpoints of a segment, so the
+      argument about which was right was an argument about a number nobody had measured. Both
+      identities are asserted rather than argued.
+      <span class="src"><code>weightedKen()</code></span></li>
+
+    <li><b>The middle discriminates better than either end.</b> Sink ken takes 5 distinct values
+      across the 1,960 shapes at λ = 0 and 1 at λ = 1, but <b>16</b> at every λ between 0.2 and
+      0.8. Smooth decay separates shapes a cliff could not. That was not designed for and is the
+      strongest argument for the model.
+      <span class="src"><code>discrimination()</code></span></li>
+
+    <li><b>Whether skips matter is a question about λ, and the answer moves eightfold.</b> A
+      two-hop skip is worth 0.80 at λ = 0.2 and 0.10 at λ = 0.9. The chain-against-briefed gap
+      that WP2 prices at 180 turns runs 0.667, 0.558, 0.449, 0.273, 0.079, 0.000 as λ goes 0 to
+      1. The design is sound; its effect size was quoted at one unmeasured point.
+      <span class="src"><code>skipValue()</code> · <code>contrastCurve()</code></span></li>
+
+    <li><b>H8 prices H5, so it should be run first.</b> Unlike H5 it needs no particular
+      regime, because λ is measured for a handoff-and-regime pair, and measuring it under
+      sharing is the control that should return λ near 1. The design first proposed for it,
+      planting constraints at the source and counting survivors, does not work; entries 82 to 86
+      are what replaced it.
+      <span class="src"><a href="/register">H8</a></span></li>
+
+    <li><b>The ancestry order is a meet-semilattice on every shape enumerated, and a full lattice
+      on 99% of them.</b> Ancestor sets are closed under intersection on all 10, 98 and 1,960
+      shapes at four, five and six turns, and under union on 100%, 100% and 99.0%. The twenty
+      exceptions are the shapes with two branches sharing no join before the sink. The general
+      statement is Birkhoff's; closure of the image is narrower, so it is reported as measured.
+      <span class="src"><code>ancestryOrder()</code> · Birkhoff 1937</span></li>
+  </ol>
+
+
+  <h2 class="sec"><span class="secno">§</span>Asking for what nobody was told to keep</h2>
+
+  <ol class="log" start="82">
+    <li><b>The first H8 design measured compliance with an instruction to copy.</b> Plant k
+      constraints in the setup brief, say carry these forward, count survivors at each depth.
+      Tell a chain to preserve π to twenty places and it preserves π to twenty places: λ comes
+      back at 1 and nothing has been measured. The quantity wanted is the one you would fail on
+      if asked today how the literature search for module three went.
+      <span class="src"><code>probe.mjs</code> · <a href="/wp2#probe">WP2 §12</a></span></li>
+
+    <li><b>A residue has to satisfy four properties at once, and the fourth is measured rather
+      than assumed.</b> Incidental, so no brief names it. Doing real work when it was made, since
+      noise decays too. Recoverable as a set, so overlap scores it and no judge is needed. And
+      hard to guess, which is not asserted: a floor arm with no lineage answers the same question
+      from the task statement alone, and λ is fitted above that floor. Fitting a floor of 0.3
+      against zero inflates λ from 0.4 to 0.748, which is the π failure by a quieter route.
+      <span class="src"><code>fitLambda()</code> · <code>RESIDUES</code></span></li>
+
+    <li><b>One chain run does not identify λ, and the entry above claiming it does stood for one
+      revision.</b> At ten residue items over six depths the 95% interval is 0.361 wide on a
+      parameter bounded in [0, 1], and 92 of 1500 replications return no estimate at all. Six
+      chains of forty items reach 0.193. So H8 costs <b>36 turns</b>, not one run, and it is no
+      longer the cheapest thing here.
+      <span class="src"><code>simulateFit()</code> · <a href="/methods#r13">R13</a></span></li>
+
+    <li><b>More residue per chain is cheaper than more chains, and depth beyond six makes the
+      estimate worse.</b> Six chains of forty items, 36 turns, beat eight chains of ten items,
+      48 turns, at 0.193 against 0.234. Extending a chain from six turns to twelve widens the
+      interval from 0.254 to 0.297 and moves the bias from −0.005 to +0.073: recall has reached
+      the floor and the extra points are noise on a quantity that stopped moving.
+      <span class="src"><code>costToPin()</code></span></li>
+
+    <li><b>The instrument is a threshold test, not an estimator.</b> At true λ = 0.95 the
+      interval is 0.04 wide and unbiased; at true λ = 0.2 the median estimate is 0.446, biased up
+      by 0.229, with 280 of 1500 replications failing outright. What it does reliably is exclude
+      the top of the range, and that is enough: at λ of 0.3, 0.5 and 0.7 the interval excludes
+      0.9, so the claim that skips buy nothing is refutable.
+      <span class="src"><code>simulateFit()</code></span></li>
+  </ol>
+
+
+  <h2 class="sec"><span class="secno">§</span>Direction, priced</h2>
+
+  <ol class="log" start="87">
+    <li><b>A person at a handoff supplies two goods, and one of them is already free.</b> Context,
+      which is λ and which <code>briefed</code> takes to 1.000 for zero extra turns, and
+      correction, which no wiring supplies. Modelling only the second makes the six-versus-three
+      question arithmetic.
+      <span class="src"><code>equivalence.mjs</code> · <a href="/wp3">WP3</a></span></li>
+
+    <li><b>The defect introduction rate cancels.</b> Comparing two densities divides it out, so how
+      buggy a turn is drops out of the comparison entirely and three parameters remain where four
+      seemed to be. That was not designed for; it fell out of writing the ratio down.
+      <span class="src"><code>density()</code></span></li>
+
+    <li><b>An unattended chain has a defect density it never beats. A directed one does not.</b>
+      Survival is a product of (1 − g·λ<sup>k−1</sup>), which converges to a positive number for
+      every λ below 1 and to zero at λ = 1. The asymmetry is not that a person is sharper per turn:
+      it holds even at equal catch rates. It is that their context does not decay, so their later
+      chances stay worth something.
+      <span class="src"><code>residue()</code> · <a href="/wp3#floor">WP3 §3</a></span></li>
+
+    <li><b>Across a 19 × 19 sweep of the two rates, 110 of 361 cells are unreachable at any chain
+      length.</b> 30.5%, and it is the whole lower-left region rather than an extreme corner. In
+      those cells the honest answer to how many unattended turns match three directed ones is
+      never, and it is reported as that rather than as a large number.
+      <span class="src"><code>exchangeRate()</code></span></li>
+
+    <li><b>Six is a claim about the catch rate and says almost nothing about attenuation.</b> Cells
+      whose exchange rate falls between five and seven span λ from 0.05 to 0.95 but g only from
+      0.30 to 0.70; exactly six spans g from 0.35 to 0.65. So the six-turn intuition amounts to
+      saying an unattended turn removes about half of what a directed one would.
+      <span class="src"><code>bandFor()</code></span></li>
+
+    <li><b>Briefing rescues a weak gate; a better gate does not rescue a lossy handoff.</b> At
+      g = 0.35 and λ = 0.4 the answer is never. At the same gate with λ = 0.8 it is 8 turns. The
+      two rates substitute for each other and the λ direction is the steeper one near the boundary,
+      so wiring is the first lever and capability the second.
+      <span class="src"><a href="/wp3#boundary">WP3 §5</a></span></li>
+
+    <li><b>Better tools move g and leave λ alone, which makes the decomposition falsifiable.</b> A
+      turn that can compile catches compile errors it could already see the code for. It recovers
+      nothing about a decision three handoffs upstream that no longer reaches it. If a compiler
+      moves the measured λ, this model is wrong.
+      <span class="src"><a href="/register">H9</a></span></li>
+
+    <li><b>The R13 pass on H9 changed what it reports rather than what it costs.</b> The exchange
+      rate is a step function of g with a discontinuity at the feasibility boundary. Forty seeded
+      defects over six chains, 36 turns, call the three-way band right 96.3% of the time near the
+      boundary and the rate itself right 37.4%. A swing of 0.05 in g moves the rate from 40 turns
+      to 9, so no affordable study does better and the outcome is the band.
+      <span class="src"><code>costLadder()</code> · <a href="/methods#r13">R13</a></span></li>
+
+    <li><b>More items per run beat more runs, for the second time.</b> Forty seeds over six chains
+      is 36 turns; ten seeds over twenty-four chains is 144 turns for a comparable width. The
+      attenuation probe found the same shape a revision earlier. Two instruments, same lesson:
+      lengthen the observation, do not multiply the runs.
+      <span class="src"><code>simulateSeeded()</code> · entry 85</span></li>
+  </ol>
+
+
+  <h2 class="sec"><span class="secno">§</span>The gate</h2>
+
+  <ol class="log" start="96">
+    <li><b>A check is context that does not attenuate.</b> Everything else a turn knows about its
+      ancestors arrives discounted by λ<sup>k−1</sup>. An executable check arrives at full
+      strength, because it is re-run rather than remembered. A defect inside its coverage
+      contributes nothing to the floor at any gap.
+      <span class="src"><code>gate.mjs</code> · <a href="/wp4#noattenuate">WP4 §2</a></span></li>
+
+    <li><b>A check has somebody after the last turn.</b> WP3's floor is partly S(0) = 1: the final
+      turn's mistakes have nobody downstream, so no chain length drives density to zero. A check
+      runs on the integrator's output too, which is the one thing in this programme that removes
+      that term rather than shrinking it.
+      <span class="src"><a href="/register">H10</a></span></li>
+
+    <li><b>What a check gets wrong, it certifies.</b> An assertion stating the wrong thing turns a
+      would-be-correct implementation into a defect and marks it passing, so the failure is
+      invisible to the mechanism that created it. At full coverage and unsoundness 0.15 the
+      surviving density is exactly 0.15 and <b>100% of it was put there by the gate</b>.
+      <span class="src"><code>specifyFirst()</code></span></li>
+
+    <li><b>More coverage can be worse, so there is a stopping point rather than a target.</b> At
+      unsoundness 0.45 and a difficulty tail of 3, coverage 0.95 leaves more defects than coverage
+      0.80. Specify up to c* = (M/γu)<sup>1/(γ−1)</sup> and stop.
+      <span class="src"><a href="/wp4#stopping">WP4 §4</a></span></li>
+
+    <li><b>Improving the briefing reduces the optimal amount of specification.</b> The stopping
+      point runs 0.98, 0.90, 0.80, 0.70, 0.62 as λ goes 0.2 to 0.95, because the ungated density it
+      is compared against falls. Context and verification are substitutes, not complements. WP3
+      argued for wiring first; this is the bill for that.
+      <span class="src"><code>stoppingPoint()</code></span></li>
+
+    <li><b>The premise, as an inequality.</b> D(1) = u and D(0) = M, so specifying everything beats
+      specifying nothing exactly when u &lt; M: you have to be likelier to get an assertion right
+      than the chain is to leave the defect anyway. That is "at least as hard to verify as to
+      design" with the arithmetic attached.
+      <span class="src"><code>unsoundnessCeiling()</code></span></li>
+
+    <li><b>Two independent attempts do not fail independently, and the floor is not p².</b> Knight
+      and Leveson had 27 versions written independently from one specification and rejected the
+      independence assumption at the 99% level. Under Eckhardt and Lee's model the surviving share
+      is p at ρ = 1, where a second version buys nothing at all. One model sampled twice has less
+      reason to differ than two universities did.
+      <span class="src"><code>agreementFloor()</code> · Knight 1986 · Eckhardt 1985</span></li>
+
+    <li><b>Neither verification strategy wins everywhere, and the crossing is the pattern.</b> At
+      error correlation 0.02 build-twice wins; at 0.8 specify-first does. With an unreliable
+      check-writer, unsoundness 0.55, build-twice wins throughout. Which side you are on is a
+      measurement, and none of the three quantities that decide it has been made.
+      <span class="src"><a href="/wp4#crossing">WP4 §6</a> · <code>strategies()</code></span></li>
+
+    <li><b>The three strategies were incomparable until they shared a scale.</b> The first version
+      of <code>strategies()</code> took the per-version error rate as a free parameter set to 0.2,
+      so two rows were densities and one was something else, and build-twice won everywhere by
+      choosing its own units. It now defaults to the ungated density.
+      <span class="src"><code>strategies()</code></span></li>
+
+    <li><b>The proposed six-turn verification shape is <code>standard</code>, already catalogued.</b>
+      Break into two, two turns write checks, two build against them, one integrates: that is the
+      profile [1,2,2,1] with lane wiring. Nothing about the graph is new. What is new is that a
+      turn has a <b>duty</b> as well as a role, and degree cannot recover it: all four middle turns
+      are <code>relay</code>s whichever duty they carry.
+      <span class="src"><code>VERIFICATION_FIRST</code> · <a href="/wp4">WP4 §1</a></span></li>
+
+    <li><b>Letting the builder read the brief as well as its check changes four of the six roles.</b>
+      Specifiers become <code>delegate</code>s and builders become <code>funnel</code>s. A wiring
+      question that reads like a preference is a different graph, and two runs differing only in
+      that answer are not two runs of one design.
+      <span class="src"><code>positionTable()</code> over both wirings</span></li>
+
+    <li><b>The role table's first version invented role names the code does not produce.</b> It
+      said splitter, broker and reporter; <code>roles.mjs</code> derives principal, relay and
+      integrate for this shape. Caught by asserting the table against the derivation rather than
+      against itself, which is the same class as the STE table and the plan figure before it.
+      <span class="src"><code>gate.selftest.mjs</code></span></li>
+  </ol>
+
+
+  <h2 class="sec"><span class="secno">§</span>The task bank</h2>
+
+  <ol class="log" start="108">
+    <li><b>Every hypothesis here is priced in turns spent on "the same task", and no task
+      exists.</b> H5 wants 180 turns paired on task, H9 six chains doing real work, H11 three arms
+      over the same tasks. The bank is the blocker, and it is also the one artefact whose own
+      quality is measurable without a judge.
+      <span class="src"><code>taskbank.mjs</code></span></li>
+
+    <li><b>The live ticket graph has machine-checkable coverage of 0.8%.</b> Five of 656 beads
+      carry a <code>gate</code>, and all five are still proposals. That is WP4's c, measured on the
+      real system rather than assumed, and it puts the programme at the far left of the curve where
+      the first assertions are always worth writing.
+      <span class="src"><code>.github/loop/beads.jsonl</code></span></li>
+
+    <li><b>A task is admissible on three conditions, and the second is the instrument.</b> Sound:
+      the reference passes every check, since a check that fails a correct solution certifies the
+      wrong answer. Discerning: each seeded defect fails at least one check, and the share that do
+      is the mutation score <a class="cite" data-ref="demillo1978"></a>. Not free: a do-nothing
+      stub must fail, which is the probe's floor arm in another costume.
+      <span class="src"><code>audit()</code> · <code>ADMISSION</code></span></li>
+
+    <li><b>tb-001 scores 0.833, and the survivor is named rather than hidden.</b> Six seeded
+      defects, five killed. The survivor is wrong only for n &gt; 100, which neither check
+      exercises, and it is verified to differ materially from the reference there so it is not an
+      equivalent mutant <a class="cite" data-ref="jia2011"></a>. A bank admitting only perfect
+      scores would be a bank whose mutants were chosen to die.
+      <span class="src"><code>m6-large-n.mjs</code></span></li>
+
+    <li><b>The two efforts detect the same things: redundancy 1.00.</b> Every mutant either check
+      killed, both checks killed. On this task the verification-first split bought no diversity of
+      detection at all, which is WP4 §5's correlated failure with checks in place of
+      implementations. First measured result about the pattern, and it is not the flattering one.
+      <span class="src"><code>audit().redundancy</code></span></li>
+
+    <li><b>The first check written for the bank contained an unsound assertion.</b> It graded the
+      solution against a published table recalled from memory, and asserted 0.2027 for the upper
+      limit of 3/40 where the answer is 0.2039 — so it would have failed a correct implementation.
+      Caught only because the limit is defined by an equation the check could evaluate for itself.
+      Checks now rest on the defining equations, with the table as a cross-check.
+      <span class="src"><code>check-a.mjs</code></span></li>
+
+    <li><b>The loop's executor cannot run anything, and the loop found that out on turn one.</b>
+      <code>loop-work.yml</code> grants Read, Write, Edit, Glob and Grep, and disallows Bash and
+      subagents. A ticket whose gate is a shell command was therefore unverifiable by the only
+      party in a position to satisfy it, and the first live turn marked a bead done on an honest
+      belief. The gate now runs in the workflow rather than in the turn.
+      <span class="src"><code>.github/workflows/loop-work.yml</code></span></li>
+
+    <li><b>That grant is also why H10 cannot be tested on the current harness.</b> H10 requires the
+      check to be re-run at each later turn rather than summarised, because a summarised check is a
+      remembered one and would attenuate like everything else. A turn that cannot execute can only
+      read its check. Turning Bash on is the precondition, and it widens the blast radius, which is
+      why it was off.
+      <span class="src"><a href="/register">H10</a> · <a href="/wp4#noattenuate">WP4 §2</a></span></li>
+
+    <li><b>The bank must not be in the run's tree, and no check in it can enforce that.</b> A turn
+      with Read over the repository can open the reference and the mutants. A run is briefed from
+      the statement copied into a fresh tree, with the checks executed by the harness afterwards. A
+      run that gets this wrong measures reading comprehension and reports it as work.
+      <span class="src"><code>taskbank.mjs</code> preconditions</span></li>
+
+    <li><b>Ken has been printing rates with no intervals, and tb-001's reference fixes that.</b>
+      WP3's 96.3% verdict accuracy over 1200 replications is [0.9511, 0.9732]. A floor arm scoring
+      0 of 12 is [0, 0.265], not 0. Every rate on this site is a binomial proportion and none of
+      them carried a statement of how well it was known.
+      <span class="src"><code>tasks/tb-001/reference.mjs</code></span></li>
+  </ol>
+
+
+  <h2 class="sec"><span class="secno">§</span>A runner that can run things</h2>
+
+  <ol class="log" start="118">
+    <li><b>The tool grant should follow the provenance of the prompt, not the model.</b> The loop
+      denies Bash and subagents because it assembles its brief from a ticket graph outside parties
+      can push into, so its grant has to survive a brief nobody here wrote. A bank run's brief is a
+      committed file with an author and a diff, started by hand. Same model, different threat
+      model, so a fuller grant is the correct answer rather than an inconsistency.
+      <span class="src"><code>.github/workflows/ken-run.yml</code></span></li>
+
+    <li><b>The unlobotomised invocation already existed.</b> <code>bakeoff/run-cell.sh</code> has
+      run <code>claude -p --dangerously-skip-permissions</code> with a subagent model configured
+      for both bake-offs. Building a new executor was unnecessary; pointing the existing one at a
+      six-turn plan was the work.
+      <span class="src"><code>bakeoff/run-cell.sh</code></span></li>
+
+    <li><b>Isolation is now demonstrated per run rather than claimed.</b> A marker is planted in
+      one turn's output; the turns the plan gives no path from are computed from its own edges, and
+      any of them carrying the token voids the run. R16 asked for exactly this and until now no
+      run could have supplied it.
+      <span class="src"><code>auditIsolation()</code> · <a href="/methods#r16">R16</a></span></li>
+
+    <li><b>A leaked run still produces an artefact that passes.</b> The harness selftest smuggles
+      the marker into a blind turn and the integrated solution passes every held-out check anyway.
+      Passing is not evidence the plan was enforced, which is why the isolation audit gates
+      separately and why a leak is recorded as measuring nothing rather than as a failure.
+      <span class="src"><code>runner.selftest.mjs</code></span></li>
+
+    <li><b>A run measures WP4's two parameters as a by-product.</b> The run's own checks are graded
+      by the bank: against the reference for soundness, against the mutants for coverage. So u and
+      c come out of any run that writes a check, at no cost beyond the run.
+      <span class="src"><code>score()</code> · <a href="/wp4">WP4</a></span></li>
+
+    <li><b>A check that passes everything looks sound and has coverage 0.</b> The scorer reports
+      both, and the stub arm is what separates them: an empty check is sound by construction,
+      kills nothing, and fails to reject a do-nothing solution. That is the probe ceiling in
+      miniature, and reporting soundness alone would have called it a good check.
+      <span class="src"><code>score()</code></span></li>
+
+    <li><b>A job named <code>run</code> is indistinguishable from a step's <code>run:</code>
+      key.</b> Preflight extracts shell line-wise, so naming the job <code>run</code> made it parse
+      the entire job body as bash and fail. The lint was right and the name was wrong; the job is
+      <code>bank-run</code> now.
+      <span class="src"><code>scripts/preflight.mjs</code></span></li>
+  </ol>
+
+
+  <h2 class="sec"><span class="secno">§</span>The target, and the second task</h2>
+
+  <ol class="log" start="125">
+    <li><b>The campaign is too big and the kernel is not, and the difference is measurable.</b>
+      <code>foam/app.js</code> is 1,113 lines of WebGL2 that cannot be checked headlessly.
+      <code>foam/foamworld.js</code> is 798 lines carrying a constructive solvability certificate,
+      selftested in 10s. <code>foam/solids.mjs</code> is 197 lines with no imports and an oracle
+      that runs in <b>0.055s</b>. A target is not one size; pick the layer whose oracle is cheap.
+      <span class="src"><code>foam/test/</code></span></li>
+
+    <li><b>The bead graph is a memory, not a curriculum.</b> 656 beads: 196 findings, 177
+      decisions, 34 questions, 18 dead-ends and <b>10 tasks</b>. 492 are done. It was never a
+      graded target set and reading it as one is the mistake. What it holds instead is better: a
+      catalogue of real defects with known shapes.
+      <span class="src"><code>.github/loop/beads.jsonl</code></span></li>
+
+    <li><b>The loop already produced both of WP4's failure modes on this target, unprompted.</b>
+      <code>lp-01d08f</code> is a coverage hole: naive seed constellations are 22° wrong and the
+      cube still looks perfect, so the first thing anyone tries passes. <code>lp-273253</code> is
+      unsoundness: a verifier grading against the wrong reference failed correct geometry by
+      exactly the yaw angle, and its own note reads "a checker that FAILS CORRECT WORK is worse
+      than no checker: it retires a mechanic that was fine, and the retirement looks like
+      evidence."
+      <span class="src">beads <code>lp-01d08f</code>, <code>lp-273253</code></span></li>
+
+    <li><b>Two of tb-002's seeded defects are not invented.</b> They are those two beads,
+      re-injected into the module they were found in. A mutant harvested from a recorded failure
+      is a defect the world produced; a mutant I write is one I chose, and choosing them is how a
+      coverage score gets flattered.
+      <span class="src"><code>m1-naive-constellation</code> · <code>m2-rotate-not-returned</code></span></li>
+
+    <li><b>Splitting the two efforts by KIND rather than by subject cuts redundancy from 1.00 to
+      0.429.</b> tb-001 split one problem into two halves and both checks killed everything either
+      killed. tb-002 splits the placement from the checker that grades it, and three of seven
+      mutants are caught by exactly one lane: argument validation by A alone, and the unreturned
+      yaw, the ill-conditioned error measure and the widened tolerance by B alone.
+      <span class="src"><code>audit().redundancy</code></span></li>
+
+    <li><b>The checker deserves its own lane because it has two ways to be useless.</b> Too lax
+      passes the 22° bug; too strict retires a mechanic that was fine. Effort B's acceptance test
+      feeds <code>verify()</code> known-good and known-bad geometry and requires the right verdict
+      on both, which is the only construction that catches a tolerance widened until the check
+      stops complaining.
+      <span class="src"><code>check-b.mjs</code></span></li>
+
+    <li><b>The first check written for tb-002 failed correct geometry by 10.8°, which is the
+      failure the task is about.</b> It carried its own table of face normals and used
+      (0, 1/φ, φ) for the dodecahedron where the answer is (0, 1, φ), while its de-duplicator
+      silently ate twelve of the icosahedron's twenty. The rewrite carries <b>no coordinates at
+      all</b>: face count, unit normals summing to zero, every face at the requested inradius, and
+      face-transitivity — every Platonic solid is isohedral, so the sorted angle multiset from one
+      face normal is the same for all of them, and a metric that rotates off-axis normals destroys
+      exactly that.
+      <span class="src"><code>check-a.mjs</code></span></li>
+
+    <li><b>tb-002's reference is pinned byte-identical to <code>foam/solids.mjs</code>.</b> A bank
+      task whose reference has drifted from the code it was cut from measures a snapshot nobody
+      uses. If the module changes the gate goes red and somebody re-pins deliberately.
+      <span class="src"><code>taskbank.selftest.mjs</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Group division and issue division</h2>
+
+  <ol class="log" start="133">
+    <li><b>An unapplied mutation reports SURVIVED and accuses tests that were fine.</b> Bead
+      <code>lp-a427fe</code> recorded it on the live loop: a patch that matched nothing left the
+      file untouched, the suite passed it, and the run wrote down a coverage hole that did not
+      exist. This bank had no such guard, and all fourteen of its mutants had applied by luck
+      rather than by check. <code>audit()</code> now strips each mutant's header, compares it to
+      the reference, and makes an identical one a <b>problem</b> — excluded from the survivors and
+      from the coverage denominator, never a data point.
+      <span class="src">bead <code>lp-a427fe</code> · <code>taskbank.mjs</code></span></li>
+
+    <li><b>A subagent fans out at λ = 1, so a turn with subagents is not six turns.</b> The
+      subordinate is briefed by its parent, from the context the parent already holds, so nothing
+      inside a turn crosses a handoff and nothing inside it attenuates. That shares the reading of
+      the task and therefore the misreading of it, which is WP4 §5's ρ near 1 with subagents in
+      place of versions. A turn boundary is the only thing in this apparatus that buys a successor
+      which has not seen its predecessor's reasoning, so it is an <b>independence</b> boundary and
+      not a work boundary. Registered as <b>H12</b>.
+      <span class="src"><a href="/wp4#h12">WP4 §10</a> · <a href="/register">register</a></span></li>
+
+    <li><b>Comparing a one-turn shape against a six-turn one at a per-turn budget hands the
+      six-turn arm six times the money.</b> The contrast would then be about spend rather than
+      about shape, which is the confound H12 is most exposed to. So <code>execute()</code> takes
+      a total and divides it: <code>solo</code> gets one turn at $30 and 360 steps,
+      <code>standard</code> gets six at $5 and 60, and both spend $30.
+      <span class="src"><code>runner.mjs</code> · <code>totalBudgetUsd</code></span></li>
+
+    <li><b>A one-turn run's isolation is inapplicable, not clean.</b> It has no handoffs, so
+      there was nothing to leak and nothing a marker could demonstrate. Reporting it as a pass
+      would credit the run with a property it never had the opportunity to lose — the same error
+      as calling an unplanted marker a demonstration, which this harness already refuses.
+      <span class="src"><code>auditIsolation()</code> · R16</span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The free arm</h2>
+
+  <ol class="log" start="137">
+    <li><b>OpenCode Zen serves models that answer with no API key, no account and no billing.</b>
+      Measured from the sandbox on 2026-08-26 rather than taken from an announcement: the
+      catalogue returns 64 models, 8 of them <code>-free</code>; five of those returned real
+      completions with <code>"cost":"0"</code>; 15 sequential requests all succeeded in 23s with
+      no throttling. A full agentic loop ran on one of them — the agent wrote a file, shelled out
+      to <code>node</code>, read the output and confirmed it.
+      <span class="src"><code>opencode.ai/zen/v1</code> · <code>FREE_MODELS</code></span></li>
+
+    <li><b>A bad API key fails where NO key succeeds, which inverts the safe default.</b>
+      Against the same endpoint: no <code>Authorization</code> header returns 200, an empty
+      <code>Bearer</code> returns 200, and <code>Bearer none</code> returns <b>401 Invalid API
+      key</b>. The first attempt at this arm died on exactly that, because the obvious
+      placeholder is the one value that breaks it — <code>bakeoff/run-cell.sh</code> writes a key
+      reference there, correctly for a keyed provider and fatally for this one. The config now
+      carries the empty string and the selftest asserts it is neither a word nor an env
+      reference.
+      <span class="src"><code>opencodeConfig()</code></span></li>
+
+    <li><b>A free model removes the dollar ceiling rather than lowering it, so the arms are
+      matched on steps.</b> <code>opencode run</code> has no <code>--max-turns</code> and no
+      budget flag; the equivalent is <code>agent.build.steps</code> in its config, and the
+      stopping rule is the base case of this design rather than a check beside it. A run record
+      now carries <code>currency</code>, and a free run reports <b>no</b> dollar ceiling instead
+      of a ceiling of zero — which would have read as a budget that was applied and came in
+      under.
+      <span class="src"><code>runner.mjs</code> · <code>spend.currency</code></span></li>
+
+    <li><b>The free arm is for H12 and must not be used to price λ or g.</b> H12 is a paired
+      within-arm contrast — solo against standard on the same model — so model identity cancels
+      and a weaker model moves both arms together. λ and g are per-model parameters, and a free
+      run would report the free model's while the page labelled them the study's. The same
+      distinction makes the arm worth having at all: H12 is 360 turns, about $1,800 at the
+      per-turn budget, and $0 here.
+      <span class="src"><a href="/wp4#h12">WP4 §10</a> · <a href="/register">H12</a></span></li>
+
+    <li><b>Two <code>env:</code> blocks on one workflow step silently drop the first.</b> Adding
+      the total-budget variables to <code>ken-run.yml</code> produced a second <code>env:</code>
+      key on the same step; YAML takes the last, so the step would have run with
+      <code>TOTAL_BUDGET</code> and <code>TOTAL_STEPS</code> and <b>no credentials at all</b>.
+      Found by parsing the file rather than by reading it, and before any dispatch. The
+      workflow shell lint passes either way, because this is a YAML fault and not a shell one.
+      <span class="src"><code>.github/workflows/ken-run.yml</code></span></li>
+
+    <li><b>The model that prompted the search was already gone.</b> <code>ox-alpha</code>, the
+      stealth 1M-context model offered free for one week from 2026-08-20, is absent from the
+      catalogue, and a direct call returns "Model ox-alpha is not supported". The durable free
+      tier was the thing worth having, and it was found by probing the endpoint rather than by
+      reading the coverage.
+      <span class="src"><code>/zen/v1/chat/completions</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>Containment, and the guarantee that was never checked</h2>
+
+  <ol class="log" start="143">
+    <li><b>The isolation guarantee did not hold, and nothing noticed for two runs.</b>
+      <code>opencode</code> <b>ignores the spawn <code>cwd</code></b>: started with its working
+      directory set to a turn tree under <code>/tmp</code>, its own <code>pwd</code> reported the
+      repository root. So the first two live runs did their work <b>inside the checkout</b>,
+      wrote <code>check-a.mjs</code>, <code>check-b.mjs</code> and <code>solution.mjs</code> to
+      the repo root, and were recorded as "wrote 0/3" because the harness looked in the tree and
+      found nothing. A turn standing in the checkout can read <code>reference.mjs</code> and the
+      seeded mutants — the one precondition the task bank says it cannot enforce itself. Those
+      runs are <b>void</b>, not null.
+      <span class="src"><code>runner.mjs</code> · reproduced with <code>pwd</code></span></li>
+
+    <li><b>Isolation had a marker from the first day; containment had a <code>cwd</code> argument
+      and a belief.</b> That asymmetry is the whole failure. One property was demonstrated per
+      run and the other was configured and assumed, and the assumed one is the one that broke.
+      <code>containmentCanary()</code> now takes the checkout's top-level entries before and
+      after every turn; any difference voids the run, and the workflow gates on it beside the
+      isolation gate. The fix itself is <code>--dir</code>, which binds opencode where
+      <code>cwd</code> does not.
+      <span class="src"><code>containmentCanary()</code> · <code>ken-run.yml</code></span></li>
+
+    <li><b>The failure was disguised as a null result and reported as one.</b> "wrote 0/3 in
+      581s" reads as a weak model that could not do the task. It was in fact a capable-enough
+      agent doing the task in the wrong directory. The two have opposite remedies — pick a better
+      model, or fix the harness — and the record could not tell them apart because
+      <code>execute()</code> was discarding the agent's own output. Turn records now keep a
+      <code>logTail</code>, always rather than only on failure, since "only on failure" is a
+      judgement the record should not be making.
+      <span class="src"><code>LOG_TAIL</code></span></li>
+
+    <li><b>Two models were put on the verified-free list from the catalogue rather than from a
+      response, and one of them was already known not to answer.</b>
+      <code>deepseek-v4-flash-free</code> killed a run in 77s with "Model is unavailable" — which
+      is exactly what the first probe of it had returned, in the same session, before it was
+      added. Listed is not serving. The list now carries only models that answered, and
+      <code>CATALOGUED_BUT_NOT_SERVING</code> is asserted to be disjoint from it.
+      <span class="src"><code>FREE_MODELS</code></span></li>
+
+    <li><b>Three files written by an agent were committed to the repository root.</b>
+      <code>git add -A</code> ran while a live run was still in flight and swept up its output.
+      Removed in the following commit rather than rewritten away, because the log is append-only
+      and a corrected entry is restated rather than edited. The containment canary would have
+      caught the write; nothing would have caught the commit, and the lesson is that a broad
+      <code>add</code> during a live run is its own hazard.
+      <span class="src">commit <code>4f5f86a</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The first artefact a run produced</h2>
+
+  <ol class="log" start="148">
+    <li><b>A free model wrote a correct Clopper–Pearson implementation and it passes the bank's
+      held-out checks.</b> <code>nemotron-3-ultra-free</code>, one turn, no key: the inverse
+      incomplete beta by bisection on the regularized incomplete beta, both closed-form corners
+      handled, plus two checks of its own. The capability question that the two void runs left
+      open is answered, and the answer is yes.
+      <span class="src"><code>score()</code> · <code>heldOutPassed: true</code></span></li>
+
+    <li><b>Both of its checks were first scored as unsound with coverage 1, and both numbers were
+      artefacts of a contract nobody stated.</b> The bank's checks take the candidate from
+      <code>process.argv[2]</code>; nothing in the brief said so; the run's checks imported
+      <code>./solution.mjs</code> by name and died on <code>ERR_MODULE_NOT_FOUND</code> before
+      their first assertion. From outside, a check that always crashes is indistinguishable from
+      the strongest check imaginable — it rejects the reference and it kills every mutant — so
+      <b>WP4's u and c would have been published from a check that executed no code.</b> This is
+      <code>lp-a427fe</code>'s rule one level up: an unapplied mutation is not a result, and a
+      check that never ran is not a verdict.
+      <span class="src"><code>runCheck().errored</code> · <code>ownChecks[].ran</code></span></li>
+
+    <li><b>The turn could not have satisfied the convention, because nothing told it.</b> Same
+      fault as the loop's first turn, where a ticket's gate was a shell command the only party
+      able to satisfy it could not run. The brief now states the calling convention to
+      check-writing turns only, and the scorer accepts both conventions — the candidate is
+      written into the scratch directory as <code>solution.mjs</code> <em>and</em> passed as
+      <code>argv[2]</code>.
+      <span class="src"><code>brief()</code> · <code>score()</code></span></li>
+
+    <li><b>Rescored properly, one of the two checks is genuinely unsound: 22 assertions pass and
+      one rejects a correct reference.</b> <code>check-b</code> is sound with coverage 1;
+      <code>check-a</code> demands that <code>interval(0, 0)</code> return
+      <code>{point: 0, lower: 0, upper: 1}</code> where the reference throws on a non-positive
+      n. That is the <code>lp-273253</code> failure — a checker that fails correct work — arising
+      unprompted in the first real run, and it is what WP4 calls <b>u</b>.
+      <span class="src"><code>measuredSoundness 0.5</code></span></li>
+
+    <li><b>But the statement never says what n = 0 does, so this u is partly manufactured by the
+      bank.</b> With no trials there is no data, and <code>[0, 1]</code> is at least as
+      defensible an answer as an exception; the reference simply chose. A measured unsoundness
+      that comes from an <em>ambiguous statement</em> is not the same quantity as one that comes
+      from a wrong belief, and this instrument cannot yet tell them apart. <b>Until a task's
+      statement pins its domain, measured u from this bank is confounded with the statement's own
+      gaps.</b> That is a defect in the task, not only in the run.
+      <span class="src"><code>tb-001/statement.md</code></span></li>
+  </ol>
+
+  <h2 class="sec"><span class="secno">§</span>The ledger</h2>
+
+  <div class="table-fig">
+    <table class="booktabs">
+      <thead><tr><th>Source of finding</th><th class="num">Entries</th></tr></thead>
+      <tbody>
+        <tr><td>Records already committed</td><td class="num">19</td></tr>
+        <tr><td>Arithmetic and simulation</td><td class="num">74</td></tr>
+        <tr><td>Our own mistakes</td><td class="num">45</td></tr>
+        <tr><td>Prior literature</td><td class="num">2</td></tr>
+        <tr><td><b>New measurement</b></td><td class="num"><b>12</b></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p>The fourth row is no longer empty. It cost one judging pass over twelve entries and it
+  bought the one parameter every cost estimate here had been assuming: an ICC for judged quality
+  of 0.413, with an interval of [0.00, 0.88] around it. That interval is the honest summary of
+  the whole exercise — a first anchor, not a measurement.</p>
+
+  <p>Two of the nine are of a different kind, and the distinction is worth keeping. The judging
+  pass measured a quantity of this programme's own; the free-tier probes measured a third party's
+  behaviour, which is a fact about an instrument rather than about unattended work. Both were
+  measured rather than quoted, which is why they sit in the same row, but only the first can
+  close a blank in <a href="/protocol">§4</a>.</p>
+
+  <div class="refs"><h2 class="sec"><span class="secno">§</span>References</h2><ol id="reflist"></ol></div>
+
+  <div class="colophon">
+    ken · findings log<br>
+    Every number here is recomputed on each build from the code or record named beside it, by
+    <code>ken.selftest.mjs</code>. Figures are regenerated and byte-compared.
+  </div>
+
+</div>
+
+<script src="refs.js"></script>
+<script src="cite.js"></script>
+</body>
+</html>

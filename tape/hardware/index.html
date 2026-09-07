@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — hardware</title>
+<meta name="description" content="The bill of materials, why each part beat the alternatives, and a live power budget that answers whether the box can run on a battery.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .bars { display:grid; gap:6px; margin:14px 0; }
+  .bars .b { display:grid; grid-template-columns: 150px 1fr 74px; gap:10px; align-items:center; font-size:13.5px; }
+  .bars .t { height:16px; border-radius:5px; background:var(--accent); min-width:2px; }
+  .bars .t.dim { background:var(--accent-soft); }
+  .big { font-size:30px; font-weight:700; letter-spacing:-.02em; }
+  .big small { display:block; font-size:12px; font-weight:600; color:var(--faint); text-transform:uppercase; letter-spacing:.06em; }
+  .four { display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); }
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/" aria-current="page">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/build/">build</a><a href="/system/">system</a><a href="/thousand/">&times;1000</a>
+    <a href="/first-story/">first story</a><a href="/studio/">studio</a><a href="/sim/">simulator</a>
+  </nav>
+</div></div>
+
+<main>
+  <h1>Hardware</h1>
+  <p class="lede">Parts chosen, with the losing candidates and why they lost. Dropping the Bluetooth
+  speaker unlocked the modern ESP32 line, and doing the power budget before buying anything
+  disqualified the charger everyone reaches for first.</p>
+
+  <div class="note">
+    <strong>Yes, it can be portable.</strong> About <strong id="hero-play">20 hours</strong> of
+    stories on the 2500&nbsp;mAh pack in the parts list, and roughly
+    <strong id="hero-days">6 days</strong> between charges on an hour a day. A bigger cell buys
+    proportionally more. The budget is <a href="#power">live below</a> — change the cell and watch it move.
+  </div>
+
+  <h2 id="bom">The bill of materials</h2>
+  <p>Rendered from <a href="/parts.json"><code>parts.json</code></a>, which is the only place it is
+  written down. Every link is checked by <code>tape/check-links.mjs</code> &mdash; and the check is
+  not &ldquo;does it return 200&rdquo;, because vendors retire and reuse product ids, so a dead link
+  resolves cheerfully to something else. The check is <strong>does the page still say the part&rsquo;s
+  name</strong>.</p>
+
+  <div class="row" style="margin:18px 0 6px">
+    <label style="margin:0"><input type="radio" name="tier" value="usd" checked> the parts linked here</label>
+    <label style="margin:0"><input type="radio" name="tier" value="usdGeneric"> unbranded modules, same chips</label>
+    <span id="bom-total" style="margin-left:auto;font-size:14px;white-space:nowrap"></span>
+  </div>
+
+  <div class="scroll-x"><table id="bom-table"></table></div>
+  <div id="bom-checked" style="font-size:13px;color:var(--faint);margin-top:6px"></div>
+
+  <div class="note" id="tier-note"></div>
+
+  <h2>What lost, and why</h2>
+  <p>The useful half of a parts list.</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Rejected</th><th>For</th><th>Because</th></tr></thead>
+    <tbody>
+      <tr><td><strong>IP5306</strong> charge/boost module</td><td>MCP73871</td><td><strong>The one the power budget caught.</strong> It is cheaper and more integrated, and its boost converter shuts down when the load falls below roughly 45 mA. Waiting-for-a-card draws 13 mA. The box would switch itself off every time a story ended. You cannot find this by reading a parts list; you find it by writing the budget first.</td></tr>
+      <tr><td><strong>TP4056</strong> charger</td><td>MCP73871</td><td>No power path. Running the box off the cell while it charges puts the load across the charger&rsquo;s sense circuit, which is bad for the cell and worse for the charge termination. It is the module everyone reaches for and it is wrong for anything that runs while plugged in.</td></tr>
+      <tr><td><strong>ESP32</strong> (classic WROOM)</td><td>ESP32-S3</td><td>Its one advantage over the S3 was Bluetooth Classic, i.e. A2DP to a wireless speaker. That requirement is gone, so what remains is older silicon, less RAM and a library ecosystem drifting away from it.</td></tr>
+      <tr><td><strong>Raspberry Pi Zero 2 W</strong></td><td>ESP32-S3</td><td>Twenty-five seconds to boot against about one, an SD filesystem a toddler corrupts by pulling the plug, and an idle draw around ten times higher &mdash; which on its own ends the portable version.</td></tr>
+      <tr><td><strong>MFRC522</strong> reader</td><td>PN532</td><td>$4 cheaper and a bare ISO 14443A front end: you implement the NDEF layer yourself, including writing, which is the part we actually depend on. Smaller antenna, shorter range, and range is what a four-year-old&rsquo;s aim spends.</td></tr>
+      <tr><td><strong>PN5180</strong> reader</td><td>PN532</td><td>Genuinely better &mdash; longer range and hardware low-power card detection that would improve standby. Also ~$15, two supply rails, and thinner library support. Worth revisiting if standby ever matters more than it does.</td></tr>
+      <tr><td><strong>DFPlayer Mini</strong></td><td>SD + software decode</td><td>The TonUINO choice, and the reason TonUINO cannot do what we want: it is a sealed MP3 player that owns its own SD card. The firmware cannot see the filesystem, so there is no manifest, no upload, no playlists &mdash; the entire ingest story dies with it.</td></tr>
+      <tr><td><strong>PCM5102 DAC + PAM8302 amp</strong></td><td>MAX98357A</td><td>Two parts, two board areas, and an analogue link between them that picks up switching noise on hand-wired perfboard. The MAX98357A takes I&sup2;S straight in.</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h2 id="wiring">Electrical</h2>
+
+  <h3>Power chain</h3>
+  <p>The one non-obvious choice. A 3.7 V cell sags to 3.0 V when flat, so a 3.3 V rail taken
+  straight off it browns out before the cell is empty, and an amplifier fed from it gets quieter as
+  the evening goes on. Boosting to a steady 5 V costs about 13% of the runtime and removes both
+  problems &mdash; the budget below assumes it.</p>
+
+  <figure class="scroll-x">
+  <svg viewBox="0 0 880 210" width="880" style="max-width:100%;height:auto" role="img"
+       aria-label="Power chain: USB-C and cell into the MCP73871 power path, out to a 5V buck-boost, feeding the dev board's own 3.3V regulator and the amplifier.">
+    <rect class="box" x="10" y="20" width="112" height="46" rx="9"/>
+    <text class="lbl" x="26" y="41">USB-C 5 V</text><text class="sub" x="26" y="58">charge + run</text>
+    <rect class="box" x="10" y="104" width="112" height="52" rx="9"/>
+    <text class="lbl" x="26" y="126">Li-ion cell 3.0–4.2 V</text><text class="sub" x="26" y="143">2500 mAh</text>
+
+    <rect class="box hot" x="162" y="52" width="160" height="72" rx="11"/>
+    <text class="lbl" x="178" y="76">MCP73871</text>
+    <text class="sub" x="178" y="94">power path:</text>
+    <text class="sub" x="178" y="110">runs AND charges</text>
+
+    <path class="wire" d="M122 43 H 142 V 78 H 161"/>
+    <path class="wire" d="M122 130 H 142 V 100 H 161"/>
+
+    <rect class="box hot" x="362" y="52" width="150" height="72" rx="11"/>
+    <text class="lbl" x="378" y="76">5 V buck-boost</text>
+    <text class="sub" x="378" y="94">TPS63060</text>
+    <text class="sub" x="378" y="110">steady across 3.0–4.2</text>
+    <path class="wire hot" d="M322 88 H 361"/>
+    <text class="sub" x="326" y="80">VSYS</text>
+
+    <rect class="box" x="562" y="14" width="180" height="58" rx="10"/>
+    <text class="lbl" x="578" y="36">MAX98357A</text><text class="sub" x="578" y="54">at 5 V → 3.2 W into 4Ω</text>
+    <rect class="box" x="562" y="96" width="180" height="58" rx="10"/>
+    <text class="lbl" x="578" y="118">DevKitC 3V3 regulator</text><text class="sub" x="578" y="136">→ S3, PN532, microSD</text>
+    <path class="wire hot" d="M512 88 H 540 V 43 H 561"/>
+    <path class="wire hot" d="M512 88 H 540 V 125 H 561"/>
+
+    <rect class="box" x="162" y="160" width="160" height="38" rx="9"/>
+    <text class="sub" x="178" y="184" style="fill:var(--ink)">2:1 divider → GPIO2</text>
+    <path class="wire" d="M242 124 V 160"/>
+    <text class="sub" x="336" y="184">the cell can reach 4.2 V; the ADC cannot</text>
+  </svg>
+  <figcaption>Choice A, which the BOM buys. Choice B &mdash; amp straight off the cell, LDO for the
+  logic &mdash; is one conversion and ~13% more runtime, but the volume sags and the logic browns out
+  at about 3.45 V, which gives most of that back. Switch the chain in the calculator below.</figcaption>
+  </figure>
+
+  <h3>Schematic</h3>
+  <p>Every net, drawn from <code>tape/lib/pinmap.js</code> &mdash; so this picture and the firmware
+  cannot disagree about a pin number.</p>
+
+  <figure class="scroll-x">
+  <svg viewBox="0 0 880 470" width="880" style="max-width:100%;height:auto" id="schematic" role="img"
+       aria-label="Schematic: the ESP32-S3 module with I2S to the amplifier, I2C to the PN532, SPI to the microSD card, and the controls."></svg>
+  <figcaption>3V3 and GND go to every part and are left off for legibility. The amplifier&rsquo;s
+  GAIN pin is left floating for 9 dB; the PN532&rsquo;s two DIP switches must be set to I&sup2;C.</figcaption>
+  </figure>
+
+  <h3>Connections</h3>
+  <div class="scroll-x"><table id="pin-table"></table></div>
+
+  <div class="note">
+    <strong>The pins you may not have.</strong> The ESP32-S3 looks like it has 45 free GPIOs and it
+    does not. The costly one: <strong>GPIO33&ndash;37 carry the octal PSRAM</strong> on any
+    &ldquo;R8&rdquo; module, and they look completely free on the pinout drawing. GPIO22&ndash;25 do
+    not exist at all &mdash; the numbering jumps from 21 to 26. The full list is in
+    <code>pinmap.js</code> and the selftest fails if an assignment lands on one, which is cheaper
+    than finding out with a multimeter.
+    <div id="reserved" style="margin-top:10px"></div>
+    <p style="margin:10px 0 0;font-size:14px">Left over for whoever adds a screen or a third button:
+    <code id="spare"></code></p>
+  </div>
+
+  <h2 id="power">The power budget</h2>
+  <p>Every figure below comes from <code>tape/lib/power.js</code> and is pinned by the selftest, so
+  the prose cannot drift away from the arithmetic. Change the cell and the numbers move:</p>
+
+  <div class="card">
+    <div class="row">
+      <div style="flex:1;min-width:200px">
+        <label for="cell">Cell</label>
+        <select id="cell"></select>
+      </div>
+      <div style="flex:1;min-width:180px">
+        <label for="play">Stories per day: <b id="play-v">1</b> h</label>
+        <input type="range" id="play" min="0.5" max="6" step="0.5" value="1" style="width:100%">
+      </div>
+      <div style="min-width:150px">
+        <label style="margin-top:26px"><input type="checkbox" id="loud"> volume at the end stop</label>
+      </div>
+      <div style="flex:1;min-width:220px">
+        <label for="chain">Power chain</label>
+        <select id="chain"></select>
+      </div>
+    </div>
+
+    <div class="four" style="margin-top:22px">
+      <div class="big" id="o-play">&mdash;<small>continuous play</small></div>
+      <div class="big" id="o-days">&mdash;<small>between charges</small></div>
+      <div class="big" id="o-idle">&mdash;<small>waiting for a card</small></div>
+      <div class="big" id="o-draw">&mdash;<small>draw while playing</small></div>
+    </div>
+
+    <p id="chain-why" style="font-size:13px;color:var(--muted);margin:10px 0 0"></p>
+    <h3 style="margin:30px 0 4px;padding-top:16px;border-top:1px solid var(--line-soft)">Where it goes while a story plays</h3>
+    <div class="bars" id="breakdown"></div>
+  </div>
+
+  <div class="note" id="nfc-note"></div>
+
+  <h2 id="cards">The cards</h2>
+  <p>A deck of playing cards, a sheet of NFC stickers, and a biro. <strong>The card lives in the
+  book</strong> &mdash; that is the whole idea, and it is better than anything a product designer
+  would have arrived at: the pairing between the physical book and the recording is maintained by
+  the object itself, in the place you will next look for it.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>The stack</h3>
+      <ul style="margin:0">
+        <li>A standard poker deck, 63&times;88 mm. About $2.</li>
+        <li>An NTAG213 25 mm round sticker on the back. ~12&cent; in hundreds.</li>
+        <li>The 13-character id written on it in biro. The alphabet has no I, L, O or U precisely so that a hand-written id reads back unambiguously.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Two things that will bite</h3>
+      <ul style="margin:0">
+        <li><strong>Cards get stacked.</strong> A deck is a stack by nature, and two tags in the field is an anticollision event, not a read. The firmware counts targets and refuses to act on more than one &mdash; the box blinks rather than guessing. <a href="/firmware/">In the state machine</a>.</li>
+        <li><strong>Not every deck works.</strong> Paper, linen-finish and PVC are all fine. A foil or metallic-backed deck detunes the antenna and will not read at all. Test one card before you sticker fifty.</li>
+      </ul>
+    </div>
+  </div>
+  <p>Treating the cards as consumable is the right instinct, and it is what the architecture already
+  assumes: the recordings are the asset and they live on the SD card, backed up wherever you like. A
+  chewed card is a 12&cent; problem &mdash; write a new sticker, bind it to the same book, and the
+  audio never moved.</p>
+
+  <h2 id="enclosure">The enclosure</h2>
+  <p>Two constraints arrive from elsewhere in the design and rule out most of what looks suitable.
+  Get these right and the rest is carpentry.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>It must be RF-transparent over the reader</h3>
+      <p>No metal tin, no metallised or foil-lined finish, no steel lid, no magnetic catch anywhere
+      near the nest. A conductive layer over the antenna detunes it and the card simply never reads
+      &mdash; the same physics that <a href="#cards">kills foil-backed playing cards</a>. Wood,
+      plywood, ABS and acrylic are all fine.</p>
+      <p>Lid thickness eats read range directly. Measure yours at
+      <a href="/build/">assembly stage 4</a>, through the material you actually intend to use,
+      before you commit to a design.</p>
+    </div>
+    <div class="card">
+      <h3>A speaker needs a box, not a hole</h3>
+      <p>This is the part that is not trivial. A driver radiates from both faces in antiphase; if
+      front and back air can meet around the rim, the bass cancels and it sounds like a telephone.
+      Two rules fix it:</p>
+      <ul style="margin:0">
+        <li><strong>Seal the driver to its baffle.</strong> A ring of self-adhesive foam
+          draught-excluder, compressed by the screws. This one step is most of the difference.</li>
+        <li><strong>Leave enclosed air behind it.</strong> Even 200&ndash;500&nbsp;cm&sup3; is
+          plenty for a 40&nbsp;mm driver, and the box is that anyway &mdash; just do not leave the
+          back open or shared with a vented battery bay.</li>
+      </ul>
+      <p>Grille: many small holes rather than few large. Total open area at least the cone area,
+      each hole under 4&nbsp;mm so a child cannot get a finger or a crumb to the cone.</p>
+    </div>
+  </div>
+
+  <h3>Three routes, none of which need a printer</h3>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Route</th><th>Good for</th><th>The catch</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>A &middot; A wooden box</strong><br><span style="color:var(--faint);font-size:13px">craft shop, ~$8&ndash;20</span></td>
+        <td><strong>The recommendation for build one.</strong> RF-transparent by nature, acoustically
+          better than thin plastic, drills with hand tools, a hinged lid gives you access forever, and
+          it looks like something that belongs in a child&rsquo;s room rather than a gadget that
+          wandered in. Unfinished pine and bamboo boxes are stocked by every craft retailer and
+          general online store.</td>
+        <td>Not precise. Buy solid wood, not MDF with a printed foil wrap. Check the catch and hinges
+          are away from the card nest, or replace them with wooden ones. Sizes vary, so measure
+          before ordering: you want roughly 150&times;100&times;80&nbsp;mm inside.</td>
+      </tr>
+      <tr>
+        <td><strong>B &middot; Hammond 1599</strong><br><span style="color:var(--faint);font-size:13px">hand-held ABS, widely stocked</span></td>
+        <td>Precise, repeatable, moulded for hand-held use, and available from every distributor
+          rather than depending on what a shop happens to have. Some variants have an integral
+          battery compartment, which solves the screwed-shut requirement for you.</td>
+        <td>Thin ABS is a poor speaker baffle &mdash; it will need bracing or the panel resonates.
+          And drilling a tidy grille pattern in a moulded face by hand is fiddlier than it sounds.</td>
+      </tr>
+      <tr>
+        <td><strong>C &middot; A laser-cut front panel</strong><br><span style="color:var(--faint);font-size:13px">~$25&ndash;40, no machine of your own</span></td>
+        <td><strong>Best combined with A.</strong> Send a 2D drawing to a cutting service and get back
+          one precise panel: the speaker grille, the card nest, the button and pot holes, all exactly
+          where the schematic says. The box supplies the volume and the charm; the panel supplies the
+          precision. No printer, no machine, and a DXF is a morning&rsquo;s work.</td>
+        <td>Order it in <strong>acrylic or plywood, never metal</strong> &mdash; a metal panel over
+          the reader is exactly the failure mode above. And you will want two, because the first
+          panel is where you discover a hole is 2&nbsp;mm out.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="scroll-x">
+  <table id="enclosure-links"></table>
+  </div>
+
+  <div class="note">
+    <strong>Requirements checklist, for whichever route.</strong> A card nest that positions a
+    63&times;88&nbsp;mm card by geometry, with nothing conductive between it and the reader &middot;
+    a battery compartment that needs a tool to open &middot; the speaker sealed to its baffle with
+    enclosed air behind &middot; the volume pot&rsquo;s end stop reachable once at build time
+    &middot; the speaker firing up or forward, never into a table &middot; and small enough that a
+    four-year-old carries it with two hands, which is the actual size specification.
+  </div>
+
+  <h2>Still open</h2>
+  <ol>
+    <li><strong>MP3 or WAV as the studio&rsquo;s output.</strong> Both play. MP3 at 64 kbps mono gives ~1,200 hours on the card and needs an encoder in the browser; WAV needs nothing but <code>AudioContext</code> and gives ~220 hours. Both are far more than a childhood.</li>
+    <li><strong>Enclosure material</strong>, above.</li>
+    <li><strong>Whether standby is worth more silicon.</strong> The PN532&rsquo;s duty-cycled field is the largest idle load. A PN5180 with hardware card detection would roughly triple standby. At eight days it does not feel worth $9 and a harder build.</li>
+  </ol>
+
+  <script type="module">
+  import * as power from '/lib/power.js';
+  import * as pinmap from '/lib/pinmap.js';
+  const $ = (id) => document.getElementById(id);
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+
+  // ------------------------------------------------------------------- BOM --
+  const bom = await (await fetch('/parts.json')).json();
+  const PILL = { ok: 'yes', resolves: '', blocked: 'no' };
+  const TIP = bom.checked.verdicts;
+  const PHASE_TIP = {
+    1: 'Phase one — runs off USB, and answers the read-range question everything else waits on',
+    2: 'Phase two — order after phase one has been measured, because its answer can change these',
+  };
+  const phasePill = (w) =>
+    `<span class="pill ${w === 1 ? 'on' : ''}" title="${PHASE_TIP[w]}">${w}</span>`;
+
+  function renderBom() {
+    const tier = document.querySelector('[name=tier]:checked').value;
+    const total = bom.parts.reduce((n, p) => n + p[tier], 0);
+    const ph = (w) => bom.parts.filter((p) => p.wave === w).reduce((n, p) => n + p[tier], 0);
+    $('bom-total').innerHTML =
+      `<span title="${PHASE_TIP[1]}">phase 1 &middot; $${ph(1)}</span>`
+      + ` &nbsp;+&nbsp; <span title="${PHASE_TIP[2]}" style="opacity:.7">phase 2 &middot; $${ph(2)}</span>`
+      + ` &nbsp;=&nbsp; <strong>$${total}</strong>`;
+    $('bom-table').innerHTML =
+      '<thead><tr><th>Block</th><th>Part</th><th>Phase</th><th>Qty</th><th>~$</th><th>Buy</th><th>Why this one</th></tr></thead><tbody>' +
+      bom.parts.map((p) => `<tr>
+        <td>${esc(p.block)}</td>
+        <td><strong>${esc(p.name)}</strong></td>
+        <td>${phasePill(p.wave)}</td>
+        <td class="num">${p.qty}</td>
+        <td class="num">${p[tier]}</td>
+        <td>${p.sources.length
+          ? p.sources.map((src) => `<div style="margin:2px 0;white-space:nowrap">
+              <a href="${src.url}" rel="noopener">${esc(src.vendor)} ${esc(src.sku)}</a>
+              <span class="pill ${PILL[src.status]}" title="${esc(TIP[src.status])}">${src.status}</span></div>`).join('')
+          : '<span style="color:var(--faint)">any</span>'}</td>
+        <td>${esc(p.spec)}${p.note ? `<div style="margin-top:6px;color:var(--muted)">${esc(p.note)}</div>` : ''}
+          ${p.sources.filter((x) => x.note).map((x) => `<div style="font-size:12.5px;color:var(--faint)">${esc(x.vendor)}: ${esc(x.note)}</div>`).join('')}</td>
+      </tr>`).join('') + '</tbody>';
+
+    const tally = bom.parts.flatMap((p) => p.sources).reduce((a, x) => ((a[x.status] = (a[x.status] || 0) + 1), a), {});
+    $('bom-checked').innerHTML = `Links checked ${bom.checked.at}: `
+      + Object.entries(tally).map(([k, v]) => `${v} ${k}`).join(', ')
+      + `. <em>${esc(TIP.resolves)}</em>`;
+
+    $('tier-note').innerHTML = tier === 'usd'
+      ? `<strong>$${total} of named parts, every link verified.</strong> That is a lot more than the `
+        + `&ldquo;~$56&rdquo; this page carried last round, and the difference is almost all Adafruit`
+        + ` retail — their PN532 breakout alone is $40. Switch to unbranded modules above and it is `
+        + `$${bom.parts.reduce((n, p) => n + p.usdGeneric, 0)} for the same chips.`
+      : `<strong>$${total} of unbranded modules.</strong> Same silicon, and for most of these lines `
+        + `that is genuinely all that differs. The one place it might not be: the <strong>PN532 `
+        + `antenna</strong>. Read range is what a four-year-old's aim spends, and a well-tuned `
+        + `stripline is the difference between a card that reads and one that reads sometimes. If `
+        + `you buy one branded part, buy that one.`;
+  }
+  for (const el of document.querySelectorAll('[name=tier]')) el.addEventListener('change', renderBom);
+  renderBom();
+
+  // ------------------------------------------------------------- schematic --
+  const bad = pinmap.problems();
+  if (bad.length) console.error('pinmap problems', bad);
+
+  const COLW = 250, X0 = 40, XM = 330, X1 = 600;
+  const groups = pinmap.byGroup();
+  let y = 20;
+  const parts = [];
+  for (const g of groups) {
+    const h = 33 + g.pins.length * 19;
+    parts.push({ ...g, x: X1, y, h });
+    y += h + 14;
+  }
+  const mcuH = y - 34;
+  const rows = pinmap.PINS;
+
+  const svg = [
+    `<rect class="box hot" x="${XM - 150}" y="20" width="150" height="${mcuH}" rx="12"/>`,
+    `<text class="lbl" x="${XM - 134}" y="44">ESP32-S3</text>`,
+    `<text class="sub" x="${XM - 134}" y="62">WROOM-1 N8R8</text>`,
+  ];
+  rows.forEach((pin, i) => {
+    const py = 84 + i * ((mcuH - 80) / rows.length);
+    svg.push(`<text class="sub" x="${XM - 134}" y="${py + 4}" style="fill:var(--accent-2);font-weight:700">${pin.gpio}</text>`);
+    svg.push(`<text class="sub" x="${XM - 110}" y="${py + 4}">${pin.net}</text>`);
+    const tgt = parts.find((p) => p.id === pin.group);
+    const ti = tgt.pins.indexOf(pin);
+    const ty = tgt.y + 38 + ti * 19;
+    svg.push(`<path class="wire${pin.group === 'audio' || pin.group === 'nfc' ? ' hot' : ''}" d="M${XM} ${py} H ${XM + 40} V ${ty} H ${X1}"/>`);
+  });
+  for (const g of parts) {
+    svg.push(`<rect class="box" x="${g.x}" y="${g.y}" width="${COLW}" height="${g.h}" rx="10"/>`);
+    svg.push(`<text class="lbl" x="${g.x + 14}" y="${g.y + 20}">${g.label} <tspan class="sub">${g.part}</tspan></text>`);
+    g.pins.forEach((pin, i) => {
+      svg.push(`<text class="sub" x="${g.x + 14}" y="${g.y + 42 + i * 19}">${pin.to}</text>`);
+    });
+  }
+  const el = $('schematic');
+  el.setAttribute('viewBox', `0 0 ${X1 + COLW + 20} ${y + 4}`);
+  el.innerHTML = svg.join('');
+
+  $('pin-table').innerHTML =
+    '<thead><tr><th>GPIO</th><th>Net</th><th>Goes to</th><th>Notes</th></tr></thead><tbody>' +
+    rows.map((p) => `<tr><td class="num"><strong>${p.gpio}</strong></td><td><code>${p.net}</code></td>
+      <td>${esc(p.to)}</td><td style="color:var(--muted)">${esc(p.note || '')}</td></tr>`).join('') + '</tbody>';
+
+  $('reserved').innerHTML = '<div class="scroll-x"><table style="margin:0"><tbody>'
+    + pinmap.RESERVED.map((r) => `<tr><td class="num" style="white-space:nowrap"><code>${r.pins.length > 3
+        ? `${r.pins[0]}–${r.pins[r.pins.length - 1]}` : r.pins.join(', ')}</code></td>
+      <td style="color:var(--muted)">${esc(r.why)}</td></tr>`).join('') + '</tbody></table></div>';
+  $('spare').textContent = pinmap.spare().join(', ');
+
+  // ------------------------------------------------------------- enclosure --
+  const encl = bom.enclosure || [];
+  $('enclosure-links').innerHTML = encl.length
+    ? '<thead><tr><th>Route</th><th>Phase</th><th>Where</th><th>Note</th></tr></thead><tbody>'
+      + encl.map((e) => `<tr><td><strong>${esc(e.route)}</strong></td>
+          <td>${phasePill(2)}</td>
+          <td>${e.sources.map((src) => `<div style="white-space:nowrap"><a href="${src.url}" rel="noopener">${esc(src.vendor)}</a>
+              <span class="pill ${PILL[src.status]}" title="${esc(TIP[src.status])}">${src.status}</span></div>`).join('')}</td>
+          <td>${esc(e.note)}</td></tr>`).join('') + '</tbody>'
+    : '';
+
+
+  $('cell').innerHTML = power.CELLS
+    .map((c) => `<option value="${c.mAh}"${c.id === power.BOM_CELL ? ' selected' : ''}>${c.name} — ${c.mAh} mAh</option>`).join('');
+
+  function render() {
+    const mAh = +$('cell').value;
+    const loud = $('loud').checked;
+    const chain = $('chain').value;
+    const playHours = +$('play').value;
+    $('play-v').textContent = playHours;
+
+    const b = power.budget(mAh, { loud, chain, playHours, idleHours: 15 });
+    $('o-play').innerHTML = `${b.hours.play} h<small>continuous play</small>`;
+    $('o-days').innerHTML = `${b.daysPerCharge} days<small>between charges</small>`;
+    $('o-idle').innerHTML = `${Math.round(b.hours.idle / 24)} days<small>waiting for a card</small>`;
+    $('o-draw').innerHTML = `${b.draw.play} mA<small>draw while playing</small>`;
+
+    $('chain-why').textContent = power.CHAINS[chain].why;
+    const rows = power.LOADS.map((l) => ({
+      name: l.name,
+      ma: l.id === 'amp' && loud ? power.LOUD_AMP_MA : l.ma.play,
+      note: l.note,
+    }));
+    rows.push({ name: 'regulator + housekeeping', ma: +(b.draw.play - rows.reduce((n, r) => n + r.ma, 0)).toFixed(1), note: '' });
+    const max = Math.max(...rows.map((r) => r.ma));
+    $('breakdown').innerHTML = rows.map((r) => `<div class="b" title="${r.note.replace(/"/g, '&quot;')}">
+        <span>${r.name}</span>
+        <span class="t${r.ma < max / 4 ? ' dim' : ''}" style="width:${Math.max(2, (r.ma / max) * 100)}%"></span>
+        <span style="font-family:var(--mono);text-align:right">${r.ma} mA</span>
+      </div>`).join('');
+
+    const nfc = power.LOADS.find((l) => l.id === 'nfc');
+    void 0;
+    $('nfc-note').innerHTML = `<strong>The decision that makes the battery possible.</strong> `
+      + `The PN532's RF field costs 50–80 mA whenever it is on. Left running continuously it would `
+      + `swamp everything else and cut standby from `
+      + `<strong>${Math.round(power.hours(mAh, 'idle') / 24)} days to well under one</strong>. `
+      + `So the firmware pulses it — 10 ms on every 125 ms — which still reads a card the instant `
+      + `it lands but costs ${nfc.ma.idle} mA instead of 65. It is the single most important line `
+      + `in the poll loop, and the selftest fails if someone simplifies it away.`;
+  }
+
+  $('chain').innerHTML = Object.entries(power.CHAINS)
+    .map(([id, c]) => `<option value="${id}"${id === power.DEFAULT_CHAIN ? ' selected' : ''}>${c.label}</option>`).join('');
+  for (const el of ['cell', 'play', 'loud', 'chain']) $(el).addEventListener('input', render);
+  render();
+
+  // The lede quotes the default configuration; keep it honest.
+  const d = power.budget(2500);
+  $('hero-play').textContent = `${Math.round(d.hours.play)} hours`;
+  $('hero-days').textContent = `${Math.round(d.daysPerCharge)} days`;
+  </script>
+</main>
+
+<footer><div class="inner">
+  <strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot;
+  <a href="/">home</a> &middot; <a href="/design/">design record</a>
+</div></footer>
+
+</body>
+</html>

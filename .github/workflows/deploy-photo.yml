@@ -2,7 +2,7 @@ name: Deploy ATPhoto
 
 on:
   push:
-    branches: ['claude/image-manipulation-platform-g5puxy']
+    branches: ['claude/usda-fruit-paintings-dashboard-kxn1c1']
     paths:
       - 'photo/**'
       - '.github/workflows/deploy-photo.yml'

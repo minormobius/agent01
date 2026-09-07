@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>bismuth · playground</title>
+<meta name="description" content="The bismuth growth engine with the lid off: paint the initial condition, rewrite the laws of the mason brain, breed or thin the colony. Every state is a permalink.">
+<meta name="theme-color" content="#07070c">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='2' y='18' width='28' height='12' fill='%23d7a24a'/%3E%3Crect x='6' y='12' width='20' height='6' fill='%23b64a9c'/%3E%3Crect x='10' y='6' width='12' height='6' fill='%234c6fd6'/%3E%3Crect x='13' y='2' width='6' height='4' fill='%2360c8b8'/%3E%3C/svg%3E">
+<style>
+  :root { --ink: #e8e4dc; --dim: #8f8a80; --faint: #4a4741; --gold: #e0b35a; --line: rgba(232, 228, 220, 0.14); color-scheme: dark; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    color: var(--ink); background: radial-gradient(120% 80% at 62% 45%, #171821 0%, #0c0d14 45%, #050508 100%);
+    overflow: hidden; -webkit-font-smoothing: antialiased;
+  }
+  #gl { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+  #gl:active { cursor: grabbing; }
+  #panel {
+    position: fixed; z-index: 2; top: 0; left: 0; bottom: 0; width: min(380px, 100vw);
+    background: rgba(9, 9, 14, 0.82); border-right: 1px solid var(--line);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); overflow-y: auto; overscroll-behavior: contain;
+    padding: 18px 20px 28px; transition: transform 0.25s cubic-bezier(.2,.8,.2,1);
+  }
+  #panel.hidden { transform: translateX(-102%); }
+  h1 { margin: 0 0 2px; font-weight: 300; font-size: 22px; letter-spacing: 0.2em; text-transform: lowercase; line-height: 1.1; }
+  h1 a { color: var(--ink); text-decoration: none; }
+  h1 .bi { color: var(--gold); }
+  h1 small { font-size: 13px; letter-spacing: 0.12em; color: var(--dim); margin-left: 8px; }
+  #lede { color: var(--dim); font-size: 12.5px; margin: 6px 0 12px; }
+  #lede a { color: var(--gold); }
+  details { border-top: 1px solid var(--line); padding: 8px 0 6px; }
+  details:last-of-type { border-bottom: 1px solid var(--line); }
+  summary { cursor: pointer; list-style: none; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); padding: 6px 0; user-select: none; display: flex; justify-content: space-between; align-items: center; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--faint); font-size: 14px; }
+  details[open] summary::after { content: "–"; }
+  summary .hint { color: var(--faint); text-transform: none; letter-spacing: 0; font-size: 11.5px; margin-left: 8px; flex: 1; }
+  .row { display: grid; grid-template-columns: 112px 1fr 52px; align-items: center; gap: 8px; padding: 3px 0; }
+  .row label { color: #cdc8be; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row label[title] { cursor: help; border-bottom: 1px dotted var(--faint); }
+  .row output { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--dim); text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--gold); height: 22px; margin: 0; }
+  input[type=checkbox] { accent-color: var(--gold); }
+  .toggles { display: flex; gap: 14px; flex-wrap: wrap; padding: 4px 0 2px; color: #cdc8be; font-size: 12.5px; }
+  .toggles label { display: flex; align-items: center; gap: 6px; }
+  .note { color: var(--faint); font-size: 11.5px; margin: 4px 0 6px; }
+  .chips { display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0 8px; }
+  .chips button, .btns button, .btns a { font: inherit; font-size: 12px; letter-spacing: 0.06em; text-transform: lowercase; color: var(--ink);
+    background: rgba(20, 20, 28, 0.6); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; cursor: pointer; text-decoration: none; }
+  .chips button:hover, .btns button:hover, .btns a:hover { border-color: var(--gold); }
+  .chips button.on { border-color: var(--gold); color: var(--gold); }
+  .btns { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+  .btns button.primary { border-color: rgba(224, 179, 90, 0.7); color: var(--gold); }
+  #paint { display: block; width: 100%; aspect-ratio: 1; border: 1px solid var(--line); border-radius: 6px; touch-action: none; cursor: crosshair; background: #0a0a10; image-rendering: pixelated; }
+  #painttools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 4px; }
+  #painttools .row { grid-template-columns: 58px 1fr 34px; }
+  #hud { position: fixed; z-index: 2; right: 22px; bottom: 18px; left: calc(min(380px, 100vw) + 22px); display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; pointer-events: none; }
+  #hud > * { pointer-events: auto; }
+  #progress { width: min(320px, 40vw); }
+  #track { height: 2px; background: var(--line); overflow: hidden; border-radius: 1px; }
+  #bar { height: 100%; width: 100%; background: linear-gradient(90deg, #e0b35a, #d95fa8 45%, #5d7fe0 80%, #62d0bd); transform-origin: left; transform: scaleX(0); transition: transform 0.25s linear; }
+  #count { margin-top: 8px; color: var(--dim); font-size: 13px; font-variant-numeric: tabular-nums; }
+  #stats { margin-top: 3px; color: var(--faint); font-size: 12px; font-variant-numeric: tabular-nums; max-width: 62ch; }
+  #actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+  #actions button { font: inherit; font-size: 13px; letter-spacing: 0.08em; text-transform: lowercase; color: var(--ink);
+    background: rgba(20, 20, 28, 0.55); border: 1px solid var(--line); border-radius: 999px; padding: 7px 14px; cursor: pointer;
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  #actions button:hover { border-color: var(--gold); }
+  #actions button.primary { border-color: rgba(224, 179, 90, 0.6); }
+  #paneltoggle { position: fixed; z-index: 3; top: 14px; left: 14px; display: none; }
+  kbd { font: inherit; font-size: 11px; color: var(--dim); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; margin-left: 4px; }
+  #toast { position: fixed; z-index: 4; left: 50%; bottom: 84px; transform: translate(-50%, 12px); opacity: 0; background: rgba(20, 20, 28, 0.85); border: 1px solid var(--line); border-radius: 999px; padding: 8px 16px; font-size: 13px; transition: opacity 0.2s, transform 0.2s; pointer-events: none; max-width: 90vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #toast.show { opacity: 1; transform: translate(-50%, 0); }
+  #err { position: fixed; z-index: 5; inset: auto 20px 20px 20px; background: #2a1414; color: #f3d0d0; padding: 14px 18px; border-radius: 8px; }
+  #err[hidden] { display: none; }
+  #seedrow { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+  #seedrow input { width: 110px; background: transparent; border: 0; border-bottom: 1px solid var(--line); color: var(--ink); font: inherit; font-size: 13px; padding: 3px 2px; outline: none; }
+  #seedrow input:focus { border-color: var(--gold); }
+  #handle { display: none; }
+  /* phones: the laws are a sheet across the bottom third, dragged taller or away; the crystal keeps the window above */
+  @media (max-width: 760px) {
+    :root { --sheet: 36vh; }
+    #gl { bottom: auto; height: calc(100% - var(--sheet)); }
+    #panel {
+      top: auto; bottom: 0; left: 0; right: 0; width: 100vw; height: var(--sheet);
+      border-right: 0; border-top: 1px solid var(--line); border-radius: 16px 16px 0 0;
+      padding: 0 16px; transition: none;
+    }
+    #panel > :first-child { margin-top: 34px; }
+    #panel > :last-child { margin-bottom: calc(24px + env(safe-area-inset-bottom)); }
+    #panel.hidden { transform: none; }
+    #panel.dragging { overflow: hidden; }
+    #handle {
+      display: flex; align-items: center; justify-content: center; position: fixed; z-index: 3; left: 0; right: 0;
+      bottom: calc(var(--sheet) - 30px); height: 30px; touch-action: none; cursor: ns-resize; user-select: none; -webkit-user-select: none;
+    }
+    #handle::before { content: ""; width: 44px; height: 5px; border-radius: 3px; background: var(--faint); }
+    #handle span { position: absolute; right: 14px; top: 7px; font-size: 11px; letter-spacing: 0.1em; text-transform: lowercase; color: var(--dim); }
+    #hud { left: 12px; right: 12px; bottom: calc(var(--sheet) + 12px); gap: 8px; }
+    #progress { width: 100%; }
+    #stats { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    #actions { width: 100%; justify-content: flex-start; }
+    #actions button { padding: 6px 11px; font-size: 12px; }
+    #actions kbd { display: none; }
+    #toast { bottom: calc(var(--sheet) + 96px); }
+    body.sheet-tall #stats, body.sheet-tall #actions kbd { display: none; }
+    body.sheet-tall #hud { bottom: calc(var(--sheet) + 6px); }
+    h1 { font-size: 18px; }
+    #lede { display: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<button id="paneltoggle" class="chip">laws</button>
+<div id="handle" title="drag: more or less of the laws; tap: put them away"><span>laws</span></div>
+
+<aside id="panel">
+  <h1><a href="/"><span class="bi">bi</span>smuth</a><small>playground</small></h1>
+  <div id="lede">The engine with the lid off. Pick the <b>substrate</b> — a cubic lattice, any plane tiling stacked straight, staggered into a close packing or twisted, or the icosahedral quasicrystal itself — paint the <b>initial condition</b>, rewrite the <b>laws</b> of the mason brain, breed or thin the <b>colony</b>. Every state here is a permalink — <a href="#" id="share2">share</a> copies it. Edits mid-growth apply live; <em>reset</em> replays the whole thing from scratch, which is what the link reproduces.</div>
+
+  <details open id="sec-sub">
+    <summary>substrate <span class="hint">the geometry the masons build on, and how many grains of it</span></summary>
+    <div class="chips" id="shapes"></div>
+    <div class="row" id="grainrow"><label title="how many grains: one is a single crystal; more are this tiling turned and set down at separate places, each with its own nucleus, growing from one melt until they meet — a polycrystal, with grain boundaries where they do">grains</label><input type="range" id="grains" min="1" max="6" step="1" value="1"><output id="grains-out">1</output></div>
+    <div class="row" id="spreadrow"><label title="the most a grain may be turned from the first, in degrees (capped at the tiling's own symmetry: 90 for the square grid, 60 for hexagons, 36 for Penrose)">misorientation</label><input type="range" id="spread" min="0" max="90" step="5" value="30"><output id="spread-out">30°</output></div>
+    <div class="row" id="mixrow"><label title="every grain a different tiling, drawn by the seed: square, hexagonal, Penrose, Ammann–Beenker, 7-fold, rhombille, snub, kagome">mixed tilings</label><input type="checkbox" id="mix"><output></output></div>
+    <div class="note" id="shapenote"></div>
+    <div class="row" id="rrow"><label title="radius of the tiling disk, in edge lengths">radius</label><input type="range" id="tileR" min="12" max="44" step="2" value="30"><output id="tileR-out">30</output></div>
+    <div class="row" id="stackrow"><label title="how the layers sit on each other: straight (a prism, one brick over one), AB (every layer in the hollows of the last), ABC (three positions before it repeats)">stacking</label><div class="chips" id="stacks"></div></div>
+    <div class="row" id="staggerrow"><label title="how far each layer slides toward the hollow: 1 is the close-packed position, less is a partial stagger">stagger</label><input type="range" id="stagger" min="0.05" max="1" step="0.05" value="1"><output id="stagger-out">1</output></div>
+    <div class="row" id="twistrow"><label title="degrees each layer turns about the axis; the vertical bonds become a moiré">twist</label><input type="range" id="twist" min="-6" max="6" step="0.25" value="0"><output id="twist-out">0°</output></div>
+    <div class="note">Straight, a tiling stacks into prisms: one bond down, one up. <b>AB</b> hexagons are hexagonal close packing; <b>ABC</b> hexagons the rhombohedral family (bismuth's own lattice is one); the <b>AB</b> square grid is face-centred cubic. A <b>twist</b> turns every layer a little, so the bonds are wherever the tiles happen to overlap. Twelve bonds a brick where the courses line up, and the crystal facets in the new lattice's habit. <b>Icosahedral</b> is the real three-dimensional quasicrystal: golden rhombohedra, no lattice at all, and the painted columns become its nucleus. <b>Grains</b> make a polycrystal: the tiling turned by a different angle for each grain and set down at a different place, all sharing the layers, so where two grains' tiles overlap only one can hold a brick. Each grain grows from its own nucleus disk (the painted footprint is not used), the melt strikes every grain in proportion to the surface it shows, and where they meet is a grain boundary — the tiles that would straddle it stay empty, and a foreign wall shelters the terrace rule the way an own wall does. <b>Mixed</b> gives every grain its own tiling.</div>
+  </details>
+
+  <details open id="sec-ic">
+    <summary>initial condition <span class="hint">paint heights; the crystal grows on what you draw</span></summary>
+    <canvas id="paint" width="384" height="384"></canvas>
+    <div id="painttools">
+      <div class="row"><label>brush</label><input type="range" id="brush" min="0" max="12" step="1" value="2"><output id="brush-out">2</output></div>
+      <div class="row" id="gridrow"><label>grid</label><input type="range" id="gridn" min="12" max="40" step="4" value="24"><output id="gridn-out">24</output></div>
+    </div>
+    <div class="note">left-drag paints columns of <em>brush</em> bricks; right-drag or brush 0 erases. Heights are the initial condition: plates, bars, rings, pillars, walls.</div>
+    <div class="chips" id="presets">
+      <button data-preset="plate">plate</button>
+      <button data-preset="wide">wide plate</button>
+      <button data-preset="ring">ring</button>
+      <button data-preset="cross">cross</button>
+      <button data-preset="bar">bar</button>
+      <button data-preset="twins">twins</button>
+      <button data-preset="pillar">pillar</button>
+      <button data-preset="walls">walled yard</button>
+      <button data-preset="clear">clear</button>
+    </div>
+  </details>
+
+  <details open id="sec-brain">
+    <summary>brain <span class="hint">the laws every mason obeys</span></summary>
+    <div class="note">Kossel rates: the chance per visit of laying a brick that would touch 1, 2, or 3+ faces.</div>
+    <div class="row"><label title="terrace nucleation: a brick touching one face. The 2D nucleation barrier">k1 · terrace</label><input type="range" data-k="k1" min="0" max="0.06" step="0.001"><output></output></div>
+    <div class="row"><label title="ledge advance: a brick touching two faces">k2 · ledge</label><input type="range" data-k="k2" min="0" max="1" step="0.01"><output></output></div>
+    <div class="row"><label title="kink fill: three or more faces">k3 · kink</label><input type="range" data-k="k3" min="0" max="1" step="0.01"><output></output></div>
+    <div class="row"><label title="the Berg effect: how far in from a face's outline the melt still feeds — the width of every terrace">rim</label><input type="range" data-k="rim" min="1" max="8" step="1"><output></output></div>
+    <div class="note">anisotropy — growth-rate weight per face normal.</div>
+    <div class="row"><label>+x</label><input type="range" data-axis="0" min="0" max="1.25" step="0.01"><output></output></div>
+    <div class="row"><label>−x</label><input type="range" data-axis="1" min="0" max="1.25" step="0.01"><output></output></div>
+    <div class="row"><label>+y</label><input type="range" data-axis="2" min="0" max="1.25" step="0.01"><output></output></div>
+    <div class="row"><label>−y</label><input type="range" data-axis="3" min="0" max="1.25" step="0.01"><output></output></div>
+    <div class="row"><label>+z · up</label><input type="range" data-axis="4" min="0" max="1.25" step="0.01"><output></output></div>
+    <div class="note">the walk and the melt.</div>
+    <div class="row"><label title="surface-diffusion steps before a mason gives up and returns to the melt">patience</label><input type="range" data-k="patience" min="2" max="300" step="1"><output></output></div>
+    <div class="row"><label title="how hard bonds pull the walk: weight = 1 + nb^bondPull × mobility">mobility</label><input type="range" data-k="mobility" min="0" max="4" step="0.05"><output></output></div>
+    <div class="row"><label title="ticks spent in the melt between bricks">flight</label><input type="range" data-k="flight" min="1" max="12" step="1"><output></output></div>
+    <div class="row"><label title="fraction of arrivals that come down from above rather than in from the sides">arrive from above</label><input type="range" data-brain="arriveFromAbove" min="0" max="0.99" step="0.01"><output></output></div>
+    <div class="row"><label title="walk weight multiplier for cells with open sky over them">sky pull</label><input type="range" data-brain="skyPull" min="0" max="8" step="0.1"><output></output></div>
+    <div class="row"><label title="exponent on the bond count in the walk weight">bond pull</label><input type="range" data-brain="bondPull" min="0" max="3" step="1"><output></output></div>
+    <div class="note">the two nucleation gates.</div>
+    <div class="row"><label title="in-plane neighbours a terrace must have under a new layer">patch min</label><input type="range" data-brain="patchMin" min="0" max="8" step="1"><output></output></div>
+    <div class="row"><label title="…and how many for the full rate">patch full</label><input type="range" data-brain="patchFull" min="0" max="8" step="1"><output></output></div>
+    <div class="row"><label title="the rate between patch min and patch full">patch part</label><input type="range" data-brain="patchPart" min="0" max="1" step="0.01"><output></output></div>
+    <div class="row"><label title="lip nucleation weight when only one neighbour continues the lip">lip along</label><input type="range" data-brain="lipAlong" min="0" max="1" step="0.01"><output></output></div>
+    <div class="row"><label title="lip nucleation × depth^n: 0 lets a skirt spread from the foot of the crystal">lip depth ^</label><input type="range" data-brain="lipDepth" min="0" max="4" step="1"><output></output></div>
+    <div class="row"><label title="how many extra bricks the cool-down may add, as a fraction of the budget">cool-down</label><input type="range" data-brain="coolExtra" min="0" max="0.6" step="0.01"><output></output></div>
+    <div class="toggles">
+      <label><input type="checkbox" data-brain="skyRule"> the melt is above (nothing laid under a brick)</label>
+      <label><input type="checkbox" data-brain="lipRule"> lateral nucleation only at a top lip</label>
+    </div>
+    <div class="btns">
+      <button id="brain-default">default brain</button>
+      <button id="brain-random">random specimen's brain</button>
+    </div>
+    <div id="seedrow"><span class="note" style="margin:0">or specimen №</span><input id="seedload" type="number" min="1" placeholder="48112"><button id="seedload-btn" class="chip">load</button></div>
+  </details>
+
+  <details open id="sec-packs">
+    <summary>packs <span class="hint">reseed from this plane · demolish</span></summary>
+    <div class="note">The platformer primitives. <b>Reseed</b>: click a brick and a pack lands on the plane above it with the brain and colony above — its own budget, its own dice — and everything that was growing <em>freezes</em>: the old crystal is terrain now, the chosen plane is the new floor, and the pack builds only on and above it. <b>Demolish</b> takes bricks away with a click; masons standing on them fall back into the melt. Both are live edits: the link replays the base crystal, not your interventions.</div>
+    <div class="row"><label title="plate width of a deployed pack, in cells">plate</label><input type="range" id="packsize" min="1" max="9" step="1" value="3"><output id="packsize-out">3</output></div>
+    <div class="btns">
+      <button id="reseed" class="primary">reseed: click a brick</button>
+      <button id="deploy">reseed on the summit</button>
+      <button id="demolish">demolish: off</button>
+    </div>
+    <div class="note" id="packnote"></div>
+  </details>
+
+  <details open id="sec-worms">
+    <summary>worms <span class="hint">ghosts of the masonry</span></summary>
+    <div class="note">A second wave, released <em>into</em> the crystal: worms tunnel from brick to brick along the bonds the masons made, never turning straight back, and now and then the brick they leave goes with them. A small effect by design &mdash; a wave of three eats an order of magnitude slower than a colony lays. With <b>recycle</b> on, every bitten brick returns to the melt as one more brick of budget for the colony still growing, so the system eats its own tail: not perpetual (a colony past its cool-down is past feeding), but a steady state of laying and erosion while it lives. Deterministic: same seed, same worms.</div>
+    <div class="row"><label title="worms per release">worms</label><input type="range" data-worm="count" min="1" max="16" step="1"><output></output></div>
+    <div class="row"><label title="sites per tick">speed</label><input type="range" data-worm="speed" min="0.01" max="0.6" step="0.01"><output></output></div>
+    <div class="row"><label title="chance the brick a worm leaves goes with it">bite</label><input type="range" data-worm="bite" min="0" max="1" step="0.005"><output></output></div>
+    <div class="row"><label title="segments drawn behind the head">length</label><input type="range" data-worm="length" min="1" max="24" step="1"><output></output></div>
+    <div class="toggles">
+      <label><input type="checkbox" data-worm="recycle"> recycle: a bitten brick feeds the live colony</label>
+    </div>
+    <div class="note">The worm brain. <b>depth</b> is where it likes to be: &minus;1 grazes the skin (bricks with one bond), +1 mines (bricks buried six deep), 0 wanders. <b>reverse</b> is how often it may turn back along its own trail. <b>spawn after</b> and <b>starve</b> make it a predator: a worm that has eaten that many bricks splits, and one that goes that many moves without a bite fades &mdash; set both and the population is a variable, not a dial. <b>exposed</b> makes only bricks with that few bonds edible: a grazer that cannot eat the interior, whose intake is bounded by the crystal&rsquo;s surface. <b>lost after</b> is how long a ghost drifts in open void before sinking into the masonry elsewhere.</div>
+    <div class="row"><label title="−1 grazes the surface, +1 tunnels deep, 0 wanders">depth</label><input type="range" data-worm="depth" min="-1" max="1" step="0.05"><output></output></div>
+    <div class="row"><label title="chance a worm may turn straight back">reverse</label><input type="range" data-worm="reverse" min="0" max="1" step="0.05"><output></output></div>
+    <div class="row"><label title="a worm splits after eating this many bricks (0 = never)">spawn after</label><input type="range" data-worm="spawnAfter" min="0" max="40" step="1"><output></output></div>
+    <div class="row"><label title="moves without a bite before a worm fades (0 = never)">starve</label><input type="range" data-worm="starve" min="0" max="1000" step="10"><output></output></div>
+    <div class="row"><label title="only bricks with at most this many bonds are edible (0 = any brick): a grazer that cannot eat the interior">exposed ≤</label><input type="range" data-worm="exposed" min="0" max="6" step="1"><output></output></div>
+    <div class="row"><label title="moves in open void before a lost ghost sinks into the masonry elsewhere">lost after</label><input type="range" data-worm="lostAfter" min="1" max="200" step="1"><output></output></div>
+    <div class="btns">
+      <button id="worms-release" class="primary">release a wave</button>
+      <button id="worms-clear">clear worms</button>
+    </div>
+    <div class="note" id="wormnote"></div>
+  </details>
+
+  <details open id="sec-flux">
+    <summary>magnetism <span class="hint">the crystal as a magnet: the flux lines of the whole</span></summary>
+    <div class="chips" id="materials"></div>
+    <div class="note" id="fluxnote"></div>
+    <div class="row"><label title="the applied field: on, or switched off — a ferromagnet then keeps the magnetization it was given (remanence) and the lines are its own; an induced magnet has nothing left">applied field</label><div class="chips" id="applied"></div></div>
+    <div class="row"><label title="flux: the lines in three dimensions. field: a section through the crystal facing the camera, the near half cut away, the field's strength as colour and its direction as texture. both.">view</label><div class="chips" id="views"></div></div>
+    <div class="row"><label title="where the section lies: facing the camera, on an axis through the centre, or locked where it is now">section</label><div class="chips" id="planes"></div></div>
+    <div class="row"><label title="slide the section along its normal, from one side of the crystal to the other">section offset</label><input type="range" data-flux="offset" min="-1" max="1" step="0.05"><output></output></div>
+    <div class="row"><label title="how strongly each brick answers the field; bismuth's real answer is 10⁴ times weaker than the lowest setting">strength</label><input type="range" data-flux="strength" min="0.2" max="4" step="0.1"><output></output></div>
+    <div class="row"><label title="where the applied field comes from, around the axis">field azimuth</label><input type="range" data-flux="az" min="0" max="360" step="5"><output></output></div>
+    <div class="row"><label title="how steeply the applied field points up (90 = straight up the growth axis)">field elevation</label><input type="range" data-flux="el" min="-90" max="90" step="5"><output></output></div>
+    <div class="row"><label title="flux lines traced, seeded upstream and downstream of the crystal">lines</label><input type="range" data-flux="lines" min="40" max="400" step="20"><output></output></div>
+    <div class="note">Every brick is a dipole and the crystal's field is the applied field plus all of them; the lines are streamlines through that field, stopped where they meet a brick. <b>Diamagnet</b> is what bismuth actually is — the strongest diamagnet among the metals, a slab of it floats a magnet — exaggerated here by four orders of magnitude, so the crystal expels the flux and the lines crowd into its hollow. <b>Paramagnet</b> draws it in. <b>Ferromagnet</b> gives every colony its own domain, magnetized along an easy axis of the substrate that its growth anisotropy favours, so a crystal with deployed packs is a magnet of several domains and the lines read them out. First order: the dipoles do not feel each other. The field is retraced a few seconds apart while the crystal grows. Switch the <b>applied field</b> off and a ferromagnet keeps its magnetization — <b>remanence</b> — so what is drawn is the crystal's own field, seeded where it leaves the surface; the <b>field</b> view cuts the crystal on a plane and paints the field's strength on it, cold to warm on a log scale, with its direction as grain and the cut in the domains' colours.</div>
+  </details>
+
+  <details open id="sec-pop">
+    <summary>colony <span class="hint">population control</span></summary>
+    <div class="row"><label title="masons at the start">masons</label><input type="range" data-k="masons" min="1" max="64" step="1"><output></output></div>
+    <div class="row"><label title="a new mason is born every N bricks laid (0 = never)">birth every</label><input type="range" data-pop="birthEvery" min="0" max="1500" step="10"><output></output></div>
+    <div class="row"><label title="a mason retires after laying N bricks (0 = never)">retire after</label><input type="range" data-pop="retireAfter" min="0" max="1500" step="10"><output></output></div>
+    <div class="row"><label title="never retire below">min</label><input type="range" data-pop="min" min="1" max="64" step="1"><output></output></div>
+    <div class="row"><label title="never breed above">max</label><input type="range" data-pop="max" min="1" max="64" step="1"><output></output></div>
+    <div class="note" id="popnote"></div>
+  </details>
+
+  <details id="sec-oxide">
+    <summary>oxide <span class="hint">the interference palette</span></summary>
+    <div class="row"><label title="thinnest film, nm — the youngest bricks">base nm</label><input type="range" data-ox="base" min="20" max="420" step="1"><output></output></div>
+    <div class="row"><label title="film added over the crystal's age, nm">ramp nm</label><input type="range" data-ox="ramp" min="0" max="400" step="1"><output></output></div>
+    <div class="row"><label title="per-brick jitter, nm">grain nm</label><input type="range" data-ox="grain" min="0" max="30" step="0.5"><output></output></div>
+    <div class="row"><label title="strength of the slow spatial drift">warp</label><input type="range" data-ox="warp" min="0" max="2" step="0.05"><output></output></div>
+    <div class="row"><label title="period of that drift, bricks">wavelength</label><input type="range" data-ox="wavelength" min="3" max="60" step="0.5"><output></output></div>
+  </details>
+
+  <details open id="sec-run">
+    <summary>run <span class="hint">budget and pace</span></summary>
+    <div class="row"><label title="bricks the masons will lay before the melt cools">budget</label><input type="range" data-k="budget" min="200" max="16000" step="100"><output></output></div>
+    <div class="row"><label title="growth PRNG seed — the same state with a different seed is a different dice roll">seed</label><input type="range" data-k="seed" min="1" max="99999" step="1"><output></output></div>
+    <div class="row"><label title="bricks per second while watching">pace</label><input type="range" id="pace" min="20" max="3000" step="10" value="240"><output id="pace-out">240</output></div>
+    <div class="toggles"><label><input type="checkbox" id="turbo"> turbo (as fast as the frame allows)</label></div>
+  </details>
+</aside>
+
+<div id="hud">
+  <div id="progress">
+    <div id="track"><div id="bar"></div></div>
+    <div id="count">—</div>
+    <div id="stats"></div>
+  </div>
+  <div id="actions">
+    <button id="pause">pause<kbd>space</kbd></button>
+    <button id="step">+100 ticks<kbd>.</kbd></button>
+    <button id="skip">skip<kbd>s</kbd></button>
+    <button id="reset" class="primary">reset<kbd>r</kbd></button>
+    <button id="share">share</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="err" hidden></div>
+<script type="module" src="/js/lab.js"></script>
+</body>
+</html>

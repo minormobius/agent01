@@ -1,0 +1,18 @@
+{
+  "race": "race-02",
+  "seed": 31337,
+  "map": {
+    "A": "claude__kimi3__s2",
+    "B": "opencode__ds4-flash__s1",
+    "C": "claude__ds4-flash__s2",
+    "D": "opencode__ds4-pro__s2",
+    "E": "claude__kimi3__s1",
+    "F": "claude__ds4-pro__s1",
+    "G": "claude__ds4-flash__s1",
+    "H": "opencode__ds4-flash__s2",
+    "I": "claude__ds4-pro__s2",
+    "J": "opencode__kimi3__s2",
+    "K": "opencode__kimi3__s1",
+    "L": "opencode__ds4-pro__s1"
+  }
+}

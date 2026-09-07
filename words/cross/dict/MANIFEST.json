@@ -1,0 +1,77 @@
+{
+  "generator": "cross/tools/build-lexicon.mjs",
+  "lexiconId": "cb5d27c9a4b0",
+  "answers": 50000,
+  "refused": 199,
+  "byLength": {
+    "3": 711,
+    "4": 2628,
+    "5": 4573,
+    "6": 6521,
+    "7": 7879,
+    "8": 7778,
+    "9": 6717,
+    "10": 5275,
+    "11": 3507,
+    "12": 2191,
+    "13": 1301,
+    "14": 610,
+    "15": 309
+  },
+  "tagged": {
+    "ing": 1853,
+    "pl": 10664,
+    "past": 2339,
+    "irr": 969,
+    "3sg": 975,
+    "sup": 100,
+    "comp": 124
+  },
+  "inputs": {
+    "enable": {
+      "path": "words/dict/enable1.txt",
+      "sha256": "3f16130220645692ed49c7134e24a18504c2ca55b3c012f7290e3e77c63b1a89",
+      "words": 172823
+    },
+    "frequency": {
+      "source": "https://norvig.com/ngrams/count_1w.txt",
+      "sha256": "51df159fd3de12b20e403c108f526e96dbd723d9cabdd5f17955cdc16059e690",
+      "entries": 333333
+    },
+    "wordnet": {
+      "source": "https://wordnetcode.princeton.edu/wn3.1.dict.tar.gz",
+      "synsets": 117791,
+      "lemmas": 77568,
+      "sha256": "683b94010b1debdc86e5724ad58a9cea4589b7acfc462866e0fca756b484bf13"
+    }
+  },
+  "outputs": {
+    "answers.txt": "cb5d27c9a4b03448f5380552c04bc576e2c543f550ff504abde4c16cd37378cb",
+    "clues/A.txt": "37dae3ab5786a906ace10fd0b24c28b409dbfe7f153d4b7e1295186b1d6b1516",
+    "clues/B.txt": "cd376e49644ff1c11f5a7fa883962a7044de2633083b3ab68d514fe1c2616f0f",
+    "clues/C.txt": "913d7d963427daafb0fe61d51c4fe642a95e5430f238008c9adaba785e6a98fe",
+    "clues/D.txt": "5e275814891d615931a0aa55834f3a6ddd2d655512dada76ec4af6df0712c7b0",
+    "clues/E.txt": "be989834b9b3882656276e1f7a71f515b8ddca1bd2c9ed053175f0dd893b487b",
+    "clues/F.txt": "5797b7e75345aa1b675c12fe0840ab77cecdd904b96f2463f9bc383428963684",
+    "clues/G.txt": "849678f149155c683a8993b00322df3aa6fde99bafe408261456766088542d1b",
+    "clues/H.txt": "7cc2ecb06a7fefd8fb7867c86b24174581f40a982e1f5c2a87bbf6bf006f6766",
+    "clues/I.txt": "1b22bbafd5d3febfd504c095b153525febcad17a1b8e374bec2a871975a63dec",
+    "clues/J.txt": "82809316a5a4a43879893d4c131f99e0b81529c0ca0526bff3c9de49d6084db5",
+    "clues/K.txt": "19e30739f7057cbc1c56af704a07f63ccbb968025329f94dffcdaad5e3b6ea15",
+    "clues/L.txt": "fe408cc9dc798e9fda1e51fda8cbe2cc0a5d3a235b72dc9a754599db5c85b74b",
+    "clues/M.txt": "5b6949950090d3b5d8e398d2d71f0e48814972686f3943df8436dc5718bf32fc",
+    "clues/N.txt": "197da517031aacb6d616d5f4a1bdcd72bd75d08ec6fb414f4abf91bf6eee943f",
+    "clues/O.txt": "e461556db76f7db9e28829f7db8e3e63585fd4b1b9e34e058f5a962abe85e1ee",
+    "clues/P.txt": "5bb6267ecab108e9915c2d94c0c1404bd62e9a11773b5f9d3f04d2b480d7fb59",
+    "clues/Q.txt": "26bed316c46e4c1ec6dd5cad5cc10830f79e75115994e5b6c02472191a27b2d0",
+    "clues/R.txt": "41d9024e68973b943c5457757ec94acde4e65ce9b65c5f93c78a16b5809ae74f",
+    "clues/S.txt": "85cb8fb77dfb8a49ce9d64a34dc47676dedfb9dd3457c5aa91a4f93c7b88a461",
+    "clues/T.txt": "a64bf9ed2f9dda469218388e05d125f165c666eae16a76915b19b2f944f25d08",
+    "clues/U.txt": "06043f2c2b987afd786ece5bc1781f8b83cc83b11d25920e742d4594c25714c1",
+    "clues/V.txt": "ab5b2d743130a4a09a0001be1b0d9ac3fa679e9779ee4264496fca518902d659",
+    "clues/W.txt": "69fcd1d09199527c7c0d09c0903ad6215b716fbf519aec78f2ee868c122f4987",
+    "clues/X.txt": "9b0523beb7ae8a027502a4db905753152af6b83e097626c83428ca0b9a07dce5",
+    "clues/Y.txt": "497fbfe308d7a3d43785f45fa42f486f8c0d73f644440a7bd21230b8eb63a1a4",
+    "clues/Z.txt": "9910b4abd01031ecf5a8721f85edae291f5125513e5228f88b6efa2ac1c74a72"
+  }
+}

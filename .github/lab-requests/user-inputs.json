@@ -1,0 +1,13 @@
+{
+  "slug": "user-inputs",
+  "task": "user inputs:\ncoefs of fourier basis of fns f: S^1 -> R satisfying f(θ+pi) = -f(θ)\nt \\in [0,1]\n\nfor every {x,y} in the plane, convert to polar {r,θ}, then update to {r+t*f(θ),θ} & convert back to cartesian. do this for a whole canvas to visualize w/ a checkerboard domain coloring",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mtuwquvukc2q",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mtuwquvukc2q",
+  "root_cid": "bafyreigq5qmrzmtexrfjbfq77d4gqx5k7o67gkywz6gixkzwoltvtjoxu4",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mtuwquvukc2q",
+  "parent_cid": "bafyreigq5qmrzmtexrfjbfq77d4gqx5k7o67gkywz6gixkzwoltvtjoxu4",
+  "refs_from": "user inputs:\ncoefs of fourier basis of fns f: S^1 -> R satisfying f(θ+pi) = -f(θ)\nt \\in [0,1]\n\nfor every {x,y} in the plane, convert to polar {r,θ}, then update to {r+t*f(θ),θ} & convert back to cartesian. do this for a whole canvas to visualize w/ a checkerboard domain coloring",
+  "requestedAt": "2026-08-25T04:05:33.989Z"
+}

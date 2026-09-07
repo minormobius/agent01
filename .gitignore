@@ -26,6 +26,11 @@ data/yum-compounds.json
 
 # j/ (ImageJ in the browser) — Rust build artifacts; pkg/ is rebuilt in CI
 j/wasm/target/
+fold/engine/target/
+
+# pokemon/pong — the lattice Boltzmann solver's Rust build artifacts. The
+# committed product is pokemon/pong/solver.wasm, not this.
+pokemon/pong/solver/target/
 j/pkg/
 golem/js/vendor/
 # board/ — deploy-time copy of packages/oauth-client/auth.js (scripts/vendor-board.sh)
@@ -36,6 +41,10 @@ board/vendor/
 # staged at deploy time by deploy-b.yml (see the staging steps) — never commit
 b/lib/atproto/
 b/packages/
+
+# bsky/ — deploy-time copy of packages/atproto/{jetstream,constellation,bsky}.js
+# staged by deploy-bsky.yml (see the staging step) — never commit
+bsky/packages/
 
 # lab tenant manifests are build artefacts (scripts/gen-lab-tenants.mjs)
 lab/*/tenants.json
@@ -52,3 +61,19 @@ packages/homunculus/log/
 # Recovery-pass transcripts: force-added onto feature branches by the snippet,
 # collected at merge time, and asserted absent before the repo goes public.
 homunculus/inbox/
+
+# staging dir built by deploy-root.yml (never committed, never served)
+.deploy-stage/
+# DOI resolution cache (scripts/check-dois.mjs) — local, and the repo root is served
+.doi-cache.json
+# The SRD 5.2.1 PDF is 6MB and freely redistributable, but there is no reason
+# to carry it: table/srd5/tools/scrape-srd.py fetches it on demand.
+table/srd5/tools/*.pdf
+# games/tempest — Rust build artefacts. tempest.wasm is built from core/ and
+# committed on purpose (the games surface has no build step on its deploy
+# path); the target dir is not.
+games/tempest/core/target/
+.pdb-cache/
+# bsky/ — browser bundles built by deploy-bsky.yml (SDK + zstd wasm).
+# Built, never committed: no WASM binary in git.
+bsky/lib/vendor/

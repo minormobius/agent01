@@ -115,6 +115,16 @@
   @media (min-width: 900px) {
     body.panopen #toasts { right:auto; left:14px; }
   }
+  /* CALM MODE (?ui=calm): progressive disclosure — chrome appears as play earns it. The g-*
+     classes are toggled by applyCalmGates() from the same counters that pace the game. */
+  body.calmui #craftbar { display:none; }
+  body.calmui.g-craft #craftbar { display:flex; }
+  body.calmui #pantryrow { display:none; }
+  body.calmui.g-pantry #pantryrow { display:block; }
+  body.calmui #biome { display:none; }
+  body.calmui.g-biome #biome { display:inline; }
+  body.calmui .hint { font-size:11.5px; opacity:.8; }
+  body.calmui .pane.on { line-height:1.55; }
   /* fat-finger dignity: real tap targets and no double-tap page zoom on controls */
   button, .chip, summary, select, .toast { touch-action:manipulation; }
   @media (pointer: coarse) {

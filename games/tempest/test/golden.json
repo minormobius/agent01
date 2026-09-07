@@ -1,0 +1,11 @@
+{
+  "epoch": 1,
+  "script": "cw,cw,fire,ccw,ccw,fire,hold",
+  "ticks": 600,
+  "cases": [
+    {"name":"ring: a flipper walking, and a spiker opposite","lanes":12,"closed":true,"startLane":0,"wire":[12,1,3,14,14,14,14,14,14,14,14,14,14,14,14,0,3,19,0,1,2,850,0,-1,2,2,4,0,2,1,8,700,24,-1,2,0,3,26,1,1,5,640,40,-1,2],"replay":"breached@199:1","kills":[],"slack":110,"openSlack":[80,110,-1],"wrongWayCost":30,"lostAt":141,"doomedFor":58},
+    {"name":"star: the long lanes cost what they look like they cost","lanes":13,"closed":true,"startLane":0,"wire":[13,1,4,13,7,13,7,13,7,13,7,13,7,13,12,12,2,3,0,2,1,0,900,0,-1,2,0,4,14,0,1,6,780,15,-1,2,2,3,0,2,1,11,660,30,-1,2,0,3,22,1,1,3,820,55,-1,2],"replay":"breached@210:1","kills":[0,154,0,438],"slack":153,"openSlack":[111,153,153],"wrongWayCost":42,"lostAt":134,"doomedFor":76},
+    {"name":"strip: no way round the back","lanes":11,"closed":false,"startLane":0,"wire":[11,0,3,2,2,3,3,4,5,6,7,8,9,22,0,3,17,0,1,9,800,0,-1,2,2,4,0,2,1,1,720,20,-1,2,0,3,25,1,1,5,900,45,-1,2],"replay":"cleared@175","kills":[1,20,1,720,2,146,1,597,0,175,1,275],"slack":180,"openSlack":[180,-1,30],"wrongWayCost":181,"lostAt":-1,"doomedFor":0},
+    {"name":"tanker: when it dies is part of the state","lanes":12,"closed":true,"startLane":0,"wire":[12,1,4,17,14,17,14,17,14,17,14,17,14,17,14,1,3,0,2,1,3,900,0,-1,2,0,6,24,0,0,0,0,0,0,0,0,6,24,1,0,0,0,0,0,1,2,4,0,2,1,9,780,30,-1,2],"replay":"breached@225:3","kills":[],"slack":49,"openSlack":[49,6,-1],"wrongWayCost":43,"lostAt":53,"doomedFor":172}
+  ]
+}

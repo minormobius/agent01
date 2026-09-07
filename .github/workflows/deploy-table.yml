@@ -1,0 +1,94 @@
+name: Deploy table (open-system character rollers)
+
+# table.mino.mobi — procedural character sheets built on openly licensed TTRPG
+# rules text. Static assets behind a thin Worker; no build, no D1, no secrets
+# beyond the shared Cloudflare credentials.
+#
+# FIRST DEPLOY: table.mino.mobi does not exist yet. Wrangler provisions it from
+# the routes[] declaration in table/wrangler.jsonc — expect DNS to miss for a
+# few seconds and Cloudflare error 1104 for up to a minute while the
+# certificate issues (see the `plant` entry in deploy-registry.json, which went
+# through exactly this). The verify step below tolerates that; a green run with
+# a failed verify on the FIRST deploy only means the edge was still catching up.
+# On any later run, confirm the deploy log binds `table.mino.mobi (custom
+# domain)` — green alone is not proof (docs/DEPLOYS.md, the golden rule).
+
+on:
+  push:
+    branches: ['claude/ttrpg-character-sheet-gen-886np4']
+    paths:
+      - 'table/**'
+      - '.github/workflows/deploy-table.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: table
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Every generated data file here is scraped from an SRD, and every model
+      # on top of it returns plausible numbers whether or not it is right. The
+      # selftests are the only thing standing between a bad scrape and a wrong
+      # character sheet or a wrong verdict, so ALL of them run before anything
+      # ships. (This step used to run only the roller's, while the registry
+      # claimed the deploy was gated — it now does what was claimed.)
+      - name: Selftests
+        run: |
+          node cairn/roll.selftest.mjs
+          node cairn/formation.selftest.mjs
+          node cairn/combat.selftest.mjs
+          node cairn/condition.selftest.mjs
+          node cairn/trials.selftest.mjs
+          node cairn/run.selftest.mjs
+          node cairn/delve.selftest.mjs
+          node cairn/effects.selftest.mjs
+          node srd5/srd5.selftest.mjs
+          node srd5/roll.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        # --var stamps the commit into the worker so the verification below can
+        # prove it is looking at THIS build and not the previous one.
+        run: npx wrangler deploy --var COMMIT:"$GITHUB_SHA"
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify the surface is live
+        # GREEN IS NOT PROOF. This used to grep the health endpoint for
+        # '"ok":true' — which was equally true of the deployment before it, so
+        # a run could print the OLD payload and still declare success. It did
+        # exactly that on the run that shipped /srd5. Match on the commit
+        # instead: only this build can answer with this SHA.
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8; do
+            HEALTH=$(curl -fsS https://table.mino.mobi/api/health || true)
+            if echo "$HEALTH" | grep -q "\"version\":\"$GITHUB_SHA\""; then
+              echo "$HEALTH"
+              echo "✓ table is live and serving $GITHUB_SHA"
+              LIVE=yes
+              break
+            fi
+            echo "  attempt $attempt: not this build yet, sleeping…"
+            echo "    saw: ${HEALTH:-<no response>}"
+            sleep 8
+          done
+          if [ "${LIVE:-no}" != yes ]; then
+            echo "::error::deploy reported success but https://table.mino.mobi/api/health never served $GITHUB_SHA"
+            exit 1
+          fi
+          for path in /cairn/ /cairn/kit/ /cairn/trials/ /cairn/run/ /cairn/encounter/ /cairn/arena/ /cairn/items/ /srd5/ /srd5/corpus/; do
+            STATUS=$(curl -fsS -o /dev/null -w "%{http_code}" "https://table.mino.mobi$path" || echo fail)
+            echo "  $path -> $STATUS"
+            [ "$STATUS" = 200 ] || { echo "::error::$path is $STATUS"; exit 1; }
+          done

@@ -189,6 +189,11 @@
     <span class="what">You can only be doing one thing, and everything else keeps moving.</span>
     <span class="who">Switchboard</span>
   </button>
+  <button class="tax" data-tax="geometry" data-built="yes" aria-pressed="false" type="button">
+    <span class="name">GEOMETRY</span>
+    <span class="what">Two ways round, and one of them is the wrong one.</span>
+    <span class="who">Tempest</span>
+  </button>
   <button class="tax" data-tax="knowing" data-built="no" aria-pressed="false" type="button">
     <span class="name">THE COST OF KNOWING</span>
     <span class="what">Certainty is purchasable, and you cannot afford all of it.</span>
@@ -203,8 +208,8 @@
 
 <h2><span class="n">02</span> Playable now</h2>
 <p class="section-note">
-  Two games, built from opposite ends of the space. Every number below came out
-  of that game's own analysis tool, not out of a feeling.
+  Built from opposite ends of the space. Every number below came out of that
+  game's own analysis tool, not out of a feeling.
 </p>
 
 <div class="cards" id="shipped">
@@ -362,6 +367,43 @@
     </div>
     <span class="go">play →</span>
   </a>
+
+  <a class="card shipped" href="/tempest/" data-tax="geometry">
+    <div class="card-top">
+      <h3>Tempest</h3>
+      <span class="badge live">live · rust/wasm</span>
+    </div>
+    <p class="pitch">
+      A web of lanes, things climbing them toward the rim you stand on, and a
+      gun that only fires down your own lane. On a ring there are two ways round
+      to anything — and on these webs the two ways cost <b>different amounts</b>,
+      because the polygon you can see is literally the travel-cost table.
+    </p>
+    <p class="detail">
+      The arcade original drew its webs by hand and every lane was about as wide
+      as every other, so the shape was scenery. Here it is the difficulty, and
+      the generator refuses to ship a web that does not earn it. Three shape
+      families were caught drawing convincingly and costing exactly like a
+      circle before that check existed — a symmetric zigzag most memorably,
+      because the player stands at edge <em>midpoints</em>, and the midpoints of
+      a symmetric zigzag are evenly spaced along a straight line however jagged
+      the outline looks.
+    </p>
+    <div class="measures">
+      <span class="k">what it measures about your decision</span>
+      A <em>direction</em>, priced in ticks: <em>"the web turned against you at
+      tick 214. You went clockwise. Every play that still held the rim went the
+      other way."</em>
+    </div>
+    <div class="meta">
+      <span class="chip">every wave proved holdable from <b>every lane</b></span>
+      <span class="chip">the web decides <b>82%</b> of waves</span>
+      <span class="chip">slack curve <b>143 → 9</b> ticks</span>
+      <span class="chip">wrong way costs <b>42 ticks</b> (median)</span>
+      <span class="chip">exact solver, <b>64 KB</b> of wasm</span>
+    </div>
+    <span class="go">play →</span>
+  </a>
 </div>
 
 <h2><span class="n">03</span> The actual generalization</h2>
@@ -378,6 +420,17 @@
     choice you just made?
   </p>
 </blockquote>
+
+<p class="section-note">
+  Tempest is the clearest case of that rule doing work, because it caught its
+  own first draft. That draft measured a <em>binary</em>: does exactly one way
+  round the web survive? Genuinely a new shape — and a bad question, because on
+  a web 66 ticks across a wave with 80 ticks of slack survives both ways
+  whatever you do to it. The generator ground through 167 repairs to place four
+  waves. Making the same question quantitative — <em>what does the wrong way
+  cost, in ticks</em> — converged at once and reads better besides. The shape of
+  the answer was right; the type of it was wrong.
+</p>
 
 <p class="section-note">
   Hold the Line can only ever say "a better player would have got further".

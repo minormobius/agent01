@@ -1,0 +1,765 @@
+VAC		Informal term for ___
+VACANCIES	pl	An empty area or space
+VACANCY		An empty area or space
+VACANT		Void of intelligence or thought
+VACATE		Leave behind empty
+VACATED	past	Leave behind empty
+VACATING	ing	Leave behind empty
+VACATION		Leisure time away from work devoted to rest or pleasure
+VACATIONING		The act of taking a ___
+VACATIONS	pl	Leisure time away from work devoted to rest or pleasure
+VACCINATE		Perform ___ or produce immunity in by inoculation
+VACCINATED		Having been rendered unsusceptible to a disease
+VACCINATING		The act of protecting against disease by introducing a vaccine into the body to induce…
+VACCINATION		Taking a vaccine as a precaution against contracting a disease
+VACCINATIONS	pl	Taking a vaccine as a precaution against contracting a disease
+VACCINE		Immunogen consisting of a suspension of weakened or dead pathogenic cells injected in…
+VACCINES	pl	Immunogen consisting of a suspension of weakened or dead pathogenic cells injected in…
+VACCINIA		A local infection induced in humans by inoculation with the virus causing cowpox in order…
+VACS	pl	Informal term for ___
+VACUA	irr	The absence of matter
+VACUOLE		A tiny cavity filled with fluid in the cytoplasm of a cell
+VACUOLES	pl	A tiny cavity filled with fluid in the cytoplasm of a cell
+VACUOUS		Devoid of intelligence or thought
+VACUUM		The absence of matter
+VACUUMED	past	Clean with a ___ cleaner
+VACUUMING	ing	Clean with a ___ cleaner
+VACUUMS	pl	The absence of matter
+VAGABOND		A wanderer who has no established residence or visible means of support
+VAGABONDS	pl	A wanderer who has no established residence or visible means of support
+VAGAL		Of or relating to the vagus nerve
+VAGARIES	pl	An unexpected and inexplicable change in something
+VAGINAL		Of or relating to the ___
+VAGINITIS		Inflammation of the vagina
+VAGRANCY		The state of wandering from place to place
+VAGRANT		A wanderer who has no established residence or visible means of support
+VAGRANTS	pl	A wanderer who has no established residence or visible means of support
+VAGUE		Not clearly expressed or understood
+VAGUELY		In a ___ way
+VAGUENESS		Unclearness by virtue of being poorly expressed or not coherent in meaning
+VAGUS		A mixed nerve that supplies the pharynx and larynx and lungs and heart and esophagus and…
+VAIN		Characteristic of false pride
+VAINLY		To no avail
+VALANCE		A decorative framework to conceal curtain fixtures at the top of a window casing
+VALANCES	pl	A decorative framework to conceal curtain fixtures at the top of a window casing
+VALE		A long depression in the surface of the land that usually contains a river
+VALEDICTORIAN		The student with the best grades who usually delivers the ___ address at…
+VALEDICTORY		A farewell oration
+VALENCE		A relative capacity to unite or react or interact as with antigens or a biological…
+VALENCIA		An industrial city in northern Venezuela
+VALENCY		The phenomenon of forming chemical bonds
+VALENTINE		A sweetheart chosen to receive a greeting on Saint ___'s Day
+VALENTINES	pl	A sweetheart chosen to receive a greeting on Saint ___'s Day
+VALERIAN		A plant of the genus ___ having lobed or dissected leaves and cymose white or pink…
+VALES	pl	A long depression in the surface of the land that usually contains a river
+VALET		A manservant who acts as a personal attendant to his employer
+VALETING	ing	Serve as a personal attendant to
+VALETS	pl	A manservant who acts as a personal attendant to his employer
+VALGUS		A deformity in which there is an abnormal displacement of part of a limb away from the…
+VALIANT		Having or showing valor
+VALID		Well grounded in logic or truth or having legal force
+VALIDATE		Declare or make legally valid
+VALIDATED		Declared or made legally valid
+VALIDATES	3sg	Declare or make legally valid
+VALIDATING		Serving to support or corroborate
+VALIDATION		The cognitive process of establishing a valid proof
+VALIDATIONS	pl	The cognitive process of establishing a valid proof
+VALIDITY		The quality of being valid and rigorous
+VALINE		An essential amino acid found in proteins
+VALISE		A small overnight bag for short trips
+VALKYRIE		One of the maidens of Odin who chose heroes to be slain in battle and conducted them to…
+VALKYRIES	pl	One of the maidens of Odin who chose heroes to be slain in battle and conducted them to…
+VALLEY		A long depression in the surface of the land that usually contains a river
+VALLEYS	pl	A long depression in the surface of the land that usually contains a river
+VALOR		The qualities of a hero or heroine
+VALOUR		The qualities of a hero or heroine
+VALSE		A ballroom dance in triple time with a strong accent on the first beat
+VALUABLE		Having great material or monetary value especially for use or exchange
+VALUABLES	pl	Something of value
+VALUATION		An appraisal of the value of something
+VALUATIONS	pl	An appraisal of the value of something
+VALUE		A numerical quantity measured or assigned or computed
+VALUED		Held in great esteem for admirable qualities especially of an intrinsic nature
+VALUELESS		Of no value
+VALUER		Someone who assesses the monetary worth of possessions
+VALUERS	pl	Someone who assesses the monetary worth of possessions
+VALUES		Beliefs of a person or social group in which they have an emotional investment
+VALUING	ing	Evaluate or estimate the nature, quality, ability, extent, or significance of
+VALVE		A structure in a hollow organ with a flap to insure one-way flow of fluid through it
+VALVES	pl	A structure in a hollow organ with a flap to insure one-way flow of fluid through it
+VALVULAR		Relating to or operating by means of valves
+VAMP		A seductive woman who uses her sex appeal to exploit men
+VAMPIRE		A corpse that rises at night to drink the blood of the living
+VAMPIRES	pl	A corpse that rises at night to drink the blood of the living
+VAMPIRISM		Belief in the existence of vampires
+VAMPS	pl	A seductive woman who uses her sex appeal to exploit men
+VAN		Any creative group active in the innovation and application of new concepts and…
+VANADIUM		A soft silvery white toxic metallic element used in steel alloys
+VANDA		Any of numerous showy orchids of the genus ___ having many large flowers in loose…
+VANDAL		Someone who willfully destroys or defaces property
+VANDALISED	past	Destroy wantonly, as through acts of ___
+VANDALISM		Willful wanton and malicious destruction of the property of others
+VANDALIZED	past	Destroy wantonly, as through acts of ___
+VANDALS	pl	Someone who willfully destroys or defaces property
+VANDYKE		Flemish painter of numerous portraits
+VANE		Mechanical device attached to an elevated structure
+VANES	pl	Any creative group active in the innovation and application of new concepts and…
+VANGUARD		The leading units moving at the head of an army
+VANGUARDS	pl	The leading units moving at the head of an army
+VANILLA		Plain and without any extras or adornments
+VANISH		Get lost, as without warning or explanation
+VANISHED		Having passed out of existence
+VANISHES	3sg	Get lost, as without warning or explanation
+VANISHING		A sudden or mysterious disappearance
+VANITIES	pl	Feelings of excessive pride
+VANITY		Feelings of excessive pride
+VANQUISH		Come out better in a competition, race, or conflict
+VANQUISHED	past	Come out better in a competition, race, or conflict
+VANS	pl	Any creative group active in the innovation and application of new concepts and…
+VANTAGE		Place or situation affording some advantage
+VAPID		Lacking taste or flavor or tang
+VAPOR		A visible suspension in the air of particles of some substance
+VAPORIZATION		Annihilation by vaporizing something
+VAPORIZE		Kill with or as if with a burst of gunfire or electric current or as if by shooting
+VAPORIZED		Converted into a gas or vapor
+VAPORIZER		A device that puts out a substance in the form of a vapor
+VAPORIZERS	pl	A device that puts out a substance in the form of a vapor
+VAPORS		A state of depression
+VAPOUR		A visible suspension in the air of particles of some substance
+VAPOURS		A state of depression
+VAQUERO		Local names for a cowboy
+VAR		A unit of electrical power in an AC circuit equal to the power dissipated when 1 volt…
+VARA		A Spanish unit of length having different values in different localities
+VARIABILITY		The quality of being subject to variation
+VARIABLE		Liable to or capable of change
+VARIABLES	pl	Something that is likely to vary
+VARIANCE		An event that departs from expectations
+VARIANCES	pl	An event that departs from expectations
+VARIANT		An event that departs from expectations
+VARIANTS	pl	An event that departs from expectations
+VARIATE		A ___ quantity that is random
+VARIATION		An instance of change
+VARIATIONS	pl	An instance of change
+VARICELLA		An acute contagious disease caused by herpes ___ zoster virus
+VARICES	irr	Abnormally enlarged or twisted blood vessel or lymphatic vessel
+VARICOCELE		Dilatation of the veins associated with the spermatic cord in the testes
+VARICOSE		Abnormally swollen or knotty
+VARIED		Broken away from sameness or identity or duplication
+VARIEGATED		Having a variety of colors
+VARIES	3sg	Become different in some particular way, without permanently losing one's or its former…
+VARIETAL		A wine made principally from one grape and carrying the name of that grape
+VARIETALS	pl	A wine made principally from one grape and carrying the name of that grape
+VARIETIES	pl	A taxonomic category consisting of members of a species that differ from others of the…
+VARIETY		A taxonomic category consisting of members of a species that differ from others of the…
+VARIOLA		A highly contagious viral disease characterized by fever and weakness and skin eruption…
+VARIOUS		Of many different kinds purposefully arranged but lacking any uniformity
+VARIOUSLY		In diverse ways
+VARMINT		An irritating or obnoxious person
+VARNA		A port city in northeastern Bulgaria on the Black Sea
+VARNISH		A coating that provides a hard, lustrous, transparent finish to a surface
+VARNISHED		Having a coating of stain or ___
+VARNISHES	pl	A coating that provides a hard, lustrous, transparent finish to a surface
+VARS	pl	A unit of electrical power in an AC circuit equal to the power dissipated when 1 volt…
+VARSITY		A British abbreviation of `university'
+VARUS		A deformity in which part of a limb is turned inward to an abnormal degree
+VARY		Become different in some particular way, without permanently losing one's or its former…
+VARYING		Marked by diversity or difference
+VAS		A tube in which a body fluid circulates
+VASA	irr	A tube in which a body fluid circulates
+VASCULAR		Of or relating to or having vessels that conduct and circulate fluids
+VASCULITIS		Inflammation of a blood vessel
+VASE		An open jar of glass or porcelain used as an ornament or to hold flowers
+VASECTOMY		Surgical procedure that removes all or part of the vas deferens
+VASES	pl	An open jar of glass or porcelain used as an ornament or to hold flowers
+VASOCONSTRICTOR		Any agent that causes a narrowing of an opening of a blood vessel: cold or stress or…
+VASODILATION		Dilation of blood vessels
+VASODILATOR		A drug that causes dilation of blood vessels
+VASOMOTOR		Relating to the nerves and muscles that cause the blood vessels to constrict or dilate
+VASOPRESSIN		Hormone secreted by the posterior pituitary gland and also by nerve endings in the…
+VASSAL		A person holding a fief
+VASSALS	pl	A person holding a fief
+VAST		Unusually great in size or amount or degree or especially extent or scope
+VASTLY		To an exceedingly great extent or degree
+VASTNESS		Unusual largeness in size or extent or number
+VAT		A tax levied on the difference between a commodity's price before taxes and its cost of…
+VATS	pl	A tax levied on the difference between a commodity's price before taxes and its cost of…
+VAUDEVILLE		A variety show with songs and comic acts etc
+VAULT		A burial chamber
+VAULTED		Having a hemispherical ___ or dome
+VAULTING		A vaulted structure
+VAULTS	pl	A burial chamber
+VEAL		Meat from a calf
+VECTOR		A variable quantity that can be resolved into components
+VECTORS	pl	A variable quantity that can be resolved into components
+VEER		Shift to a clockwise direction
+VEERED	past	Shift to a clockwise direction
+VEERING		The act of turning aside suddenly
+VEERS	3sg	Shift to a clockwise direction
+VEG		Edible seeds or roots or stems or leaves or bulbs or tubers or nonsweet fruits of any of…
+VEGAN		A strict vegetarian
+VEGANS	pl	A strict vegetarian
+VEGETABLE		Edible seeds or roots or stems or leaves or bulbs or tubers or nonsweet fruits of any of…
+VEGETABLES	pl	Edible seeds or roots or stems or leaves or bulbs or tubers or nonsweet fruits of any of…
+VEGETAL		Characterized by asexual processes
+VEGETARIAN		Eater of fruits and grains and nuts
+VEGETARIANISM		A diet excluding all meat and fish
+VEGETARIANS	pl	Eater of fruits and grains and nuts
+VEGETATED	past	Lead a passive existence without using one's body or mind
+VEGETATION		All the plant life in a particular region or period
+VEGETATIVE		Of or relating to an activity that is passive and monotonous
+VEGGIE		Edible seeds or roots or stems or leaves or bulbs or tubers or nonsweet fruits of any of…
+VEGGIES	pl	Edible seeds or roots or stems or leaves or bulbs or tubers or nonsweet fruits of any of…
+VEHEMENCE		Intensity or forcefulness of expression
+VEHEMENT		Marked by extreme intensity of emotions or convictions
+VEHEMENTLY		In a ___ manner
+VEHICLE		A conveyance that transports people or objects
+VEHICLES	pl	A conveyance that transports people or objects
+VEHICULAR		Of or relating to or intended for vehicles
+VEIL		A garment that covers the head and face
+VEILED		Having or as if having a veil or concealing cover
+VEILING		A net of transparent fabric with a loose open weave
+VEILS	pl	A garment that covers the head and face
+VEIN		A blood vessel that carries blood from the capillaries toward the heart
+VEINED		Having or showing markings that resemble veins
+VEINS	pl	A blood vessel that carries blood from the capillaries toward the heart
+VELA		A constellation in the southern hemisphere between Carina and Pyxis
+VELAR		A consonant produced with the back of the tongue touching or near the soft palate
+VELD		Elevated open grassland in southern Africa
+VELLUM		A heavy creamy-colored paper resembling parchment
+VELOCITIES	pl	Distance travelled per unit time
+VELOCITY		Distance travelled per unit time
+VELODROME		A banked oval track for bicycle or motorcycle racing
+VELOUR		Heavy fabric that resembles velvet
+VELVET		A silky densely piled fabric with a plain back
+VELVETEEN		A usually cotton fabric with a short pile imitating velvet
+VELVETS	pl	A silky densely piled fabric with a plain back
+VELVETY		Smooth and soft to sight or hearing or touch or taste
+VENA		A blood vessel that carries blood from the capillaries toward the heart
+VENAL		Capable of being corrupted
+VEND		Sell or offer for sale from place to place
+VENDEE		A person who buys
+VENDER		Someone who promotes or exchanges goods or services for money
+VENDERS	pl	Someone who promotes or exchanges goods or services for money
+VENDETTA		A feud in which members of the opposing parties murder each other
+VENDING		The act of selling goods for a living
+VENDOR		Someone who promotes or exchanges goods or services for money
+VENDORS	pl	Someone who promotes or exchanges goods or services for money
+VENEER		Coating consisting of a thin layer of superior wood glued to a base of inferior wood
+VENEERS	pl	Coating consisting of a thin layer of superior wood glued to a base of inferior wood
+VENERABLE		Impressive by reason of age
+VENERATE		Regard with feelings of respect and reverence
+VENERATED	past	Regard with feelings of respect and reverence
+VENERATION		A feeling of profound respect for someone or something
+VENEREAL		Of or relating to the external sex organs
+VENETIAN		A resident of Venice
+VENETIANS	pl	A resident of Venice
+VENGEANCE		The act of taking revenge especially in the next life
+VENGEFUL		Disposed to seek revenge or intended for revenge
+VENIPUNCTURE		Puncture of a vein through the skin in order to withdraw blood for analysis or to start…
+VENISON		Meat from a deer used as food
+VENOM		Toxin secreted by animals
+VENOMOUS		Extremely poisonous or injurious
+VENOMS	pl	Toxin secreted by animals
+VENOUS		Of or contained in or performing the function of the veins
+VENT		Give expression or utterance to
+VENTED		Supplied with a vent or vents for intake of air or discharge of gases
+VENTER		A speaker who expresses or gives vent to a personal opinion or grievance
+VENTILATE		Expose to cool or cold air so as to cool or freshen
+VENTILATED		Exposed to air
+VENTILATING	ing	Expose to cool or cold air so as to cool or freshen
+VENTILATION		The act of supplying fresh air and getting rid of foul air
+VENTILATOR		A device that introduces fresh air or expels foul air
+VENTILATORS	pl	A device that introduces fresh air or expels foul air
+VENTILATORY		Provided with ___ or involving pulmonary ___
+VENTING		The act of ___
+VENTRAL		Toward or on or near the belly
+VENTRICLE		One of four connected cavities in the brain
+VENTRICLES	pl	One of four connected cavities in the brain
+VENTRICULAR		Of or relating to a ventricle
+VENTRILOQUIST		A performer who projects the voice into a wooden dummy
+VENTS	pl	A hole for the escape of gas or air
+VENTURE		Proceed somewhere despite the risk of possible dangers
+VENTURED	past	Proceed somewhere despite the risk of possible dangers
+VENTURER		A person who enjoys taking risks
+VENTURERS	pl	A person who enjoys taking risks
+VENTURES	pl	An investment that is very risky but could yield great profits
+VENTURI		United States architect
+VENTURING	ing	Proceed somewhere despite the risk of possible dangers
+VENUE		The scene of any event or action
+VENUES	pl	The scene of any event or action
+VERACITY		Unwillingness to tell lies
+VERANDA		A porch along the outside of a building
+VERANDAH		A porch along the outside of a building
+VERANDAHS	pl	A porch along the outside of a building
+VERANDAS	pl	A porch along the outside of a building
+VERAPAMIL		A drug used as an oral or parenteral calcium blocker in cases of hypertension or…
+VERB		The word class that serves as the predicate of a sentence
+VERBAL		Communicated in the form of words
+VERBALIZE		Express in speech
+VERBALLY		As a verb
+VERBATIM		In precisely the same words used by a writer or speaker
+VERBENA		Any of numerous tropical or subtropical American plants of the genus ___ grown for…
+VERBIAGE		Overabundance of words
+VERBOSE		Using or containing too many words
+VERBOSITY		An expressive style that uses excessive or empty words
+VERBOTEN		Excluded from use or mention
+VERBS	pl	The word class that serves as the predicate of a sentence
+VERDANT		Characterized by abundance of verdure
+VERDICT		The findings of a jury on issues of fact submitted to it for decision
+VERDICTS	pl	The findings of a jury on issues of fact submitted to it for decision
+VERDIGRIS		A blue or green powder used as a paint pigment
+VERDURE		The lush appearance of flourishing vegetation
+VERGE		A region marking a boundary
+VERGER		A church officer who takes care of the interior of the building and acts as an attendant…
+VERGES	pl	A region marking a boundary
+VERIFIABLE		Capable of being verified
+VERIFICATION		Additional proof that something that was believed is correct
+VERIFICATIONS	pl	Additional proof that something that was believed is correct
+VERIFIED		Proved to be true
+VERIFIER		Someone who vouches for another or for the correctness of a statement
+VERIFIERS	pl	Someone who vouches for another or for the correctness of a statement
+VERIFIES	3sg	Confirm the truth of
+VERIFY		Confirm the truth of
+VERIFYING		Serving to support or corroborate
+VERISIMILITUDE		The appearance of truth
+VERITABLE		Often used as intensifiers
+VERITY		Conformity to reality or actuality
+VERMICELLI		Pasta in strings thinner than spaghetti
+VERMICULITE		Any of a group of yellow or brown hydrous silicate minerals having a micaceous structure
+VERMILION		Of a vivid red to reddish-orange color
+VERMILLION		Of a vivid red to reddish-orange color
+VERMIN		An irritating or obnoxious person
+VERMOUTH		Any of several white wines flavored with aromatic herbs
+VERNACULAR		A characteristic language of a particular group
+VERNAL		Suggestive of youth
+VERNIER		A small movable scale that slides along a main scale
+VERONICA		Any plant of the genus ___
+VERONICAS	pl	Any plant of the genus ___
+VERSANT		The side or slope of a mountain
+VERSATILE		Having great diversity or variety
+VERSATILITY		Having a wide variety of skills
+VERSE		Literature in metrical form
+VERSED		An injectable form of benzodiazepine useful for sedation and for reducing pain during…
+VERSES	pl	Literature in metrical form
+VERSION		An interpretation of a matter from a particular viewpoint
+VERSIONS	pl	An interpretation of a matter from a particular viewpoint
+VERSO		The side of a coin or medal that does not bear the principal design
+VERTEBRA		One of the bony segments of the spinal column
+VERTEBRAE	irr	One of the bony segments of the spinal column
+VERTEBRAL		Of or relating to or constituting ___
+VERTEBRATE		Animals having a bony or cartilaginous skeleton with a segmented spinal column and a…
+VERTEBRATES	pl	Animals having a bony or cartilaginous skeleton with a segmented spinal column and a…
+VERTEX		The point of intersection of lines or the point opposite the base of a figure
+VERTICAL		At right angles to the plane of the horizon or a base line
+VERTICALLY		In a ___ direction
+VERTICALS	pl	Something that is oriented ___
+VERTICES	irr	The point of intersection of lines or the point opposite the base of a figure
+VERTIGO		A reeling sensation
+VERTU		Love of or taste for fine objects of art
+VERVAIN		Any of numerous tropical or subtropical American plants of the genus Verbena grown for…
+VERVE		An energetic style
+VERY		Used as intensifiers
+VESICLE		A small anatomically normal sac or bladderlike structure
+VESICLES	pl	A small anatomically normal sac or bladderlike structure
+VESICULAR		Of or relating to or involving vesicles
+VESPER		A planet seen at sunset in the western sky
+VESPERS		The sixth of the seven canonical hours of the divine office
+VESSEL		A tube in which a body fluid circulates
+VESSELS	pl	A tube in which a body fluid circulates
+VEST		Provide with power and authority
+VESTA		The brightest asteroid but the fourth to be discovered
+VESTAL		A chaste woman
+VESTAS	pl	The brightest asteroid but the fourth to be discovered
+VESTED		Fixed and absolute and without contingency
+VESTIBULAR		Relating to the sense of equilibrium
+VESTIBULE		A large entrance or reception room or area
+VESTIGE		An indication that something has been present
+VESTIGES	pl	An indication that something has been present
+VESTIGIAL		Not fully developed in mature animals
+VESTING	ing	Provide with power and authority
+VESTMENT		Gown worn by the clergy
+VESTMENTS	pl	Gown worn by the clergy
+VESTRY		In the Protestant Episcopal Church: a committee elected by the congregation to work with…
+VESTS	pl	A man's sleeveless garment worn underneath a coat
+VET		A person who has served in the armed forces
+VETCH		Any of various climbing plants of the genus Vicia having pinnately compound leaves that…
+VETERAN		Rendered competent through trial and experience
+VETERANS	pl	A serviceman who has seen considerable active service
+VETERINARIAN		A doctor who practices ___ medicine
+VETERINARIANS	pl	A doctor who practices ___ medicine
+VETERINARY		Of or relating to ___ or ___ medicine
+VETO		A vote that blocks a decision
+VETOES	irr	A vote that blocks a decision
+VETS	pl	A person who has served in the armed forces
+VETTED	irr	Provide with medical care
+VETTING	irr	Provide with medical care
+VEX		Cause annoyance in
+VEXATION		Anger produced by some annoying irritation
+VEXATIOUS		Causing irritation or annoyance
+VEXED		Troubled persistently especially with petty annoyances
+VEXING		Extremely annoying or displeasing
+VIABILITY		Capable of normal growth and development
+VIABLE		Capable of being done with means at hand and circumstances as they are
+VIADUCT		Bridge consisting of a series of arches supported by piers used to carry a road over a…
+VIAL		A small bottle that contains a drug
+VIALS	pl	A small bottle that contains a drug
+VIATICAL		Pertaining to the purchase of insurance policies from terminally ill policy holders
+VIBE		A distinctive emotional aura experienced instinctively
+VIBES		A percussion instrument similar to a xylophone but having metal bars and rotating disks…
+VIBRANCY		Having the character of a loud deep sound
+VIBRANT		Vigorous and animated
+VIBRAPHONE		A percussion instrument similar to a xylophone but having metal bars and rotating disks…
+VIBRATE		Shake, quiver, or throb
+VIBRATED	past	Shake, quiver, or throb
+VIBRATES	3sg	Shake, quiver, or throb
+VIBRATING	ing	Shake, quiver, or throb
+VIBRATION		A shaky motion
+VIBRATIONAL		Of or relating to or characterized by ___
+VIBRATIONS	pl	A shaky motion
+VIBRATO		A pulsating effect in an instrumental or vocal tone produced by slight and rapid…
+VIBRATOR		A mechanical device that ___
+VIBRATORS	pl	A mechanical device that ___
+VIBRATORY		Moving very rapidly to and fro or up and down
+VIBRIO		Curved rodlike motile bacterium
+VIBURNUM		Deciduous or evergreen shrubs or small trees: arrow-wood
+VICAR		A Roman Catholic priest who acts for another higher-ranking clergyman
+VICARAGE		An official residence provided by a church for its parson or vicar or rector
+VICARIOUS		Experienced at secondhand
+VICARIOUSLY		Indirectly, as, by, or through a substitute
+VICARS	pl	A Roman Catholic priest who acts for another higher-ranking clergyman
+VICE		A specific form of evildoing
+VICEROY		Governor of a country or province who rules as the representative of his or her king or…
+VICES	pl	A specific form of evildoing
+VICHY		A town in central France noted for hot mineral springs
+VICINITY		A surrounding or nearby region
+VICIOUS		Able or disposed to inflict pain or suffering
+VICIOUSLY		In a ___ manner
+VICIOUSNESS		The trait of extreme cruelty
+VICISSITUDES	pl	A variation in circumstances or fortune at different times in your life or in the…
+VICTIM		An unfortunate person who suffers from some adverse circumstance
+VICTIMISED		Taken advantage of
+VICTIMIZATION		Adversity resulting from being made a victim
+VICTIMIZED		Taken advantage of
+VICTIMS	pl	An unfortunate person who suffers from some adverse circumstance
+VICTOR		A combatant who is able to defeat rivals
+VICTORIA		Queen of Great Britain and Ireland and empress of India from 1837 to 1901
+VICTORIAS	pl	Queen of Great Britain and Ireland and empress of India from 1837 to 1901
+VICTORIES	pl	A successful ending of a struggle or contest
+VICTORIOUSLY		In a ___ manner
+VICTORS	pl	A combatant who is able to defeat rivals
+VICTORY		A successful ending of a struggle or contest
+VICTUALS		A stock or supply of foods
+VIDEO		The visible part of a television transmission
+VIDEOCASSETTE		A cassette for videotape
+VIDEOCASSETTES	pl	A cassette for videotape
+VIDEODISC		A digital recording on an optical disk that can be played on a computer or a television…
+VIDEOS	pl	The visible part of a television transmission
+VIDEOTAPE		A video recording made on magnetic tape
+VIDEOTAPES	pl	A video recording made on magnetic tape
+VIE		Compete for something
+VIED	past	Compete for something
+VIER	comp	Denoting a quantity consisting of six items or units
+VIES	pl	The cardinal number that is the sum of five and one
+VIEW		A way of regarding situations or topics etc
+VIEWABLE		Capable of being viewed
+VIEWED	past	Deem to be
+VIEWER		A close observer
+VIEWERS		The audience reached by television
+VIEWFINDER		Optical device that helps a user to find the target of interest
+VIEWING		The display of a motion picture
+VIEWINGS	pl	The display of a motion picture
+VIEWPOINT		A mental position from which things are viewed
+VIEWPOINTS	pl	A mental position from which things are viewed
+VIEWS	pl	A way of regarding situations or topics etc
+VIGIL		A period of sleeplessness
+VIGILANCE		The process of paying close and continuous attention
+VIGILANT		Carefully observant or attentive
+VIGILANTE		Member of a ___ committee
+VIGILANTES	pl	Member of a ___ committee
+VIGILS	pl	A period of sleeplessness
+VIGNETTE		A brief literary description
+VIGNETTES	pl	A brief literary description
+VIGOR		Active strength of body or mind
+VIGORISH		An exorbitant or unlawful rate of interest
+VIGOROUS		Characterized by forceful and energetic action or activity
+VIGOUR		Active strength of body or mind
+VIKING		Any of the Scandinavian people who raided the coasts of Europe from the 8th to the 11th…
+VIKINGS	pl	Any of the Scandinavian people who raided the coasts of Europe from the 8th to the 11th…
+VILE		Causing or able to cause nausea
+VILEST	sup	Causing or able to cause nausea
+VILIFICATION		A rude expression intended to offend or hurt
+VILIFIED	irr	Spread negative information about
+VILIFY		Spread negative information about
+VILLA		Mexican revolutionary leader
+VILLAGE		A community of people smaller than a town
+VILLAGER		One who has lived in a ___ most of their life
+VILLAGERS	pl	One who has lived in a ___ most of their life
+VILLAGES	pl	A community of people smaller than a town
+VILLAIN		A wicked or evil person
+VILLAINS	pl	A wicked or evil person
+VILLAINY		A criminal or vicious act
+VILLAS	pl	Mexican revolutionary leader
+VILLI	irr	A minute hairlike projection on mucous membrane
+VILLUS		A minute hairlike projection on mucous membrane
+VIM		A healthy capacity for vigorous activity
+VIMS	pl	A healthy capacity for vigorous activity
+VINAIGRETTE		Oil and vinegar with mustard and garlic
+VINBLASTINE		Periwinkle plant derivative used as an antineoplastic drug that disrupts cell division
+VINCA		Periwinkles: low creeping evergreen perennials
+VINCRISTINE		Periwinkle plant derivative used as an antineoplastic drug
+VINDICATE		Show to be right by providing justification or proof
+VINDICATED		Freed from any question of guilt
+VINDICATION		The justification for some act or belief
+VINDICATOR		A person who argues to defend or justify some policy or institution
+VINDICTIVE		Disposed to seek revenge or intended for revenge
+VINE		A plant with a weak stem that derives support from climbing, twining, or creeping along a…
+VINEGAR		Sour-tasting liquid produced usually by oxidation of the alcohol in wine or cider and…
+VINEGARS	pl	Sour-tasting liquid produced usually by oxidation of the alcohol in wine or cider and…
+VINES	pl	A plant with a weak stem that derives support from climbing, twining, or creeping along a…
+VINEYARD		A farm of grapevines where wine grapes are produced
+VINEYARDS	pl	A farm of grapevines where wine grapes are produced
+VINIFERA		Common European grape cultivated in many varieties
+VINTAGE		A season's yield of wine from a vineyard
+VINTAGES	pl	A season's yield of wine from a vineyard
+VINTNER		Someone who sells wine
+VINTNERS	pl	Someone who sells wine
+VINYL		A univalent chemical radical derived from ethylene
+VINYLS	pl	A univalent chemical radical derived from ethylene
+VIOL		Any of a family of bowed stringed instruments that preceded the ___ family
+VIOLA		Large genus of flowering herbs of temperate regions
+VIOLAS	pl	Large genus of flowering herbs of temperate regions
+VIOLATE		Fail to agree with
+VIOLATED		Treated irreverently or sacrilegiously
+VIOLATES	3sg	Fail to agree with
+VIOLATING	ing	Fail to agree with
+VIOLATION		A crime less serious than a felony
+VIOLATIONS	pl	A crime less serious than a felony
+VIOLATIVE		___ or tending to violate or offend against
+VIOLATOR		Someone who assaults others sexually
+VIOLATORS	pl	Someone who assaults others sexually
+VIOLENCE		An act of aggression
+VIOLENT		Acting with or marked by or resulting from great force or energy or emotional intensity
+VIOLENTLY		In a ___ manner
+VIOLET		Any of numerous low-growing violas with small flowers
+VIOLETS	pl	Any of numerous low-growing violas with small flowers
+VIOLIN		Bowed stringed instrument that is the highest member of the ___ family
+VIOLINIST		A musician who plays the violin
+VIOLINISTS	pl	A musician who plays the violin
+VIOLINS	pl	Bowed stringed instrument that is the highest member of the ___ family
+VIOLIST		A musician who plays the viola
+VIOLONCELLO		A large stringed instrument
+VIPER		Venomous Old World snakes characterized by hollow venom-conducting fangs in the upper jaw
+VIPERS	pl	Venomous Old World snakes characterized by hollow venom-conducting fangs in the upper jaw
+VIRAGO		A noisy or scolding or domineering woman
+VIRAL		Relating to or caused by a virus
+VIREMIA		The presence of a virus in the blood stream
+VIREO		Any of various small insectivorous American birds chiefly olive-grey in color
+VIRGIN		A person who has never had sex
+VIRGINAL		A legless rectangular harpsichord
+VIRGINITY		The condition or quality of being a virgin
+VIRGINS	pl	A person who has never had sex
+VIRILE		Characterized by energy and vigor
+VIRILITY		The masculine property of being capable of copulation and procreation
+VIRION		A complete viral particle
+VIRIONS	pl	A complete viral particle
+VIROLOGICAL		Of or relating to the science of virology
+VIROLOGY		The branch of medical science that studies viruses and viral diseases
+VIRTUAL		Being actually such in almost every respect
+VIRTUALLY		In essence or effect but not in fact
+VIRTUE		The quality of doing what is right and avoiding what is wrong
+VIRTUES	pl	The quality of doing what is right and avoiding what is wrong
+VIRTUOSITY		Technical skill or fluency or style exhibited by a ___
+VIRTUOSO		Someone who is dazzlingly skilled in any field
+VIRTUOUS		In a state of sexual virginity
+VIRTUS	pl	Love of or taste for fine objects of art
+VIRULENT		Extremely poisonous or injurious
+VIRUS		Ultramicroscopic infectious agent that replicates itself only within cells of living hosts
+VIRUSES	pl	Ultramicroscopic infectious agent that replicates itself only within cells of living hosts
+VIS	pl	The cardinal number that is the sum of five and one
+VISA		An endorsement made in a passport that allows the bearer to enter the country issuing it
+VISAGE		The human face
+VISAS	pl	An endorsement made in a passport that allows the bearer to enter the country issuing it
+VISCERA		Internal organs collectively
+VISCERAL		Obtained through intuition rather than from reasoning or observation
+VISCOELASTIC		Having viscous as well as elastic properties
+VISCOSE		A cellulose ester obtained by treating cellulose with caustic soda
+VISCOSITIES	pl	Resistance of a liquid to shear forces
+VISCOSITY		Resistance of a liquid to shear forces
+VISCOUNT		A son or younger brother or a count
+VISCOUS		Having a relatively high resistance to flow
+VISE		A holding device attached to a workbench
+VISES	pl	A holding device attached to a workbench
+VISIBILITIES	pl	Quality or fact or degree of being visible
+VISIBILITY		Quality or fact or degree of being visible
+VISIBLE		Capable of being seen
+VISIBLY		In a ___ manner
+VISION		A vivid mental image
+VISIONARIES	pl	A person given to fanciful speculations and enthusiasms with little regard for what is…
+VISIONARY		A person given to fanciful speculations and enthusiasms with little regard for what is…
+VISIONS	pl	A vivid mental image
+VISIT		Go to see a place, as for entertainment
+VISITATION		An annoying or frustrating or catastrophic event
+VISITATIONS	pl	An annoying or frustrating or catastrophic event
+VISITED	past	Go to see a place, as for entertainment
+VISITING		The activity of making visits
+VISITS	pl	The act of going to see some person or place or thing for a short time
+VISOR		A piece of armor plate fixed or hinged to a medieval helmet to protect the face
+VISORS	pl	A piece of armor plate fixed or hinged to a medieval helmet to protect the face
+VISTA		The visual percept of a region
+VISTAS	pl	The visual percept of a region
+VISUAL		Relating to or using sight
+VISUALISE		View the outline of by means of an X-ray
+VISUALISED		Seen in the mind as a mental image
+VISUALISING	ing	View the outline of by means of an X-ray
+VISUALIZATION		A mental image that is similar to a visual perception
+VISUALIZATIONS	pl	A mental image that is similar to a visual perception
+VISUALIZE		View the outline of by means of an X-ray
+VISUALIZED		Seen in the mind as a mental image
+VISUALIZER		One whose prevailing mental imagery is visual
+VISUALIZES	3sg	View the outline of by means of an X-ray
+VISUALIZING	ing	View the outline of by means of an X-ray
+VISUALLY		With respect to vision
+VITAL		Performing an essential function in the living body
+VITALITY		An energetic style
+VITALLY		To a ___ degree
+VITALS		A bodily organ that is essential for life
+VITAMIN		Any of a group of organic substances essential in small quantities to normal metabolism
+VITAMINS	pl	Any of a group of organic substances essential in small quantities to normal metabolism
+VITIATE		Corrupt morally or by intemperance or sensuality
+VITICULTURE		The cultivation of grapes and grape vines
+VITILIGO		An acquired skin disease characterized by patches of unpigmented skin
+VITRECTOMY		A surgical procedure that removes the vitreous humor and replace it with saline solution
+VITREOUS		Relating to or resembling or derived from or containing glass
+VITRIFICATION		A vitrified substance
+VITRIFIED		Having the surface made shiny and nonporous by fusing a vitreous solution to it
+VITRIOL		A highly corrosive acid made from sulfur dioxide
+VITRIOLIC		Harsh or corrosive in tone
+VIVA		An examination conducted by spoken communication
+VIVACE		Very fast and lively
+VIVACIOUS		Vigorous and animated
+VIVACITY		Characterized by high spirits and animation
+VIVARIUM		An indoor enclosure for keeping and raising living animals and plants and observing them…
+VIVAS	pl	An examination conducted by spoken communication
+VIVID		Evoking lifelike images within the mind
+VIVIDLY		In a ___ manner
+VIVIDNESS		Interest and variety and intensity
+VIVISECT		Cut open while still alive
+VIVISECTION		The act of operating on living animals
+VIXEN		A malicious woman with a fierce temper
+VIXENS	pl	A malicious woman with a fierce temper
+VIZIER		A high official in a Muslim government
+VIZSLA		Hungarian hunting dog resembling the Weimaraner but having a rich deep red coat
+VOCABULARIES	pl	A listing of the words used in some enterprise
+VOCABULARY		A listing of the words used in some enterprise
+VOCAL		Relating to or designed for or using the singing voice
+VOCALIST		A person who sings
+VOCALISTS	pl	A person who sings
+VOCALIZATION		The sound made by the vibration of vocal folds modified by the resonance of the vocal…
+VOCALIZATIONS	pl	The sound made by the vibration of vocal folds modified by the resonance of the vocal…
+VOCALLY		In a ___ manner
+VOCALS	pl	Music intended to be performed by one or more singers, usually with instrumental…
+VOCATION		The particular occupation for which you are trained
+VOCATIONAL		Of or relating to a ___ or occupation
+VOCATIONALLY		Affecting the pursuit of a vocation or occupation
+VOCATIONS	pl	The particular occupation for which you are trained
+VOCES	irr	The sound made by the vibration of vocal folds modified by the resonance of the vocal…
+VOCIFEROUS		Conspicuously and offensively loud
+VOCIFEROUSLY		In a ___ manner
+VODKA		Unaged colorless liquor originating in Russia
+VODKAS	pl	Unaged colorless liquor originating in Russia
+VOGUE		The popular taste at a given time
+VOICE		The distinctive quality or pitch or condition of a person's speech
+VOICED		Produced with vibration of the vocal cords
+VOICELESS		Produced without vibration of the vocal cords
+VOICEPRINT		Biometric identification by electronically recording and graphically representing a…
+VOICES	pl	The distinctive quality or pitch or condition of a person's speech
+VOICING		The act of adjusting an organ pipe so that it conforms to the standards of tone and pitch…
+VOID		Lacking any legal or binding force
+VOIDABLE		Capable of being rescinded or voided
+VOIDED	past	Clear of occupants or empty or clear of something
+VOIDING		The bodily process of discharging waste matter
+VOIDS	pl	The state of nonexistence
+VOILE		A light semitransparent fabric
+VOLANT		With wings extended in a flying position
+VOLATILE		Evaporating readily at normal temperatures and pressures
+VOLATILITIES	pl	The property of changing readily from a solid or liquid to a vapor
+VOLATILITY		The property of changing readily from a solid or liquid to a vapor
+VOLCANIC		Igneous rock produced by eruption and solidified on or near the earth's surface
+VOLCANISM		The phenomena associated with ___ activity
+VOLCANO		A fissure in the earth's crust through which molten lava and gases erupt
+VOLCANOES	irr	A fissure in the earth's crust through which molten lava and gases erupt
+VOLCANOLOGY		The branch of geology that studies volcanoes
+VOLCANOS	pl	A fissure in the earth's crust through which molten lava and gases erupt
+VOLE		Any of various small mouselike rodents of the family Cricetidae having a stout…
+VOLES	pl	Any of various small mouselike rodents of the family Cricetidae having a stout…
+VOLITION		The capability of conscious choice and decision and intention
+VOLITIONAL		With deliberate intention
+VOLLEY		Rapid simultaneous discharge of firearms
+VOLLEYBALL		A game in which two teams hit an inflated ball over a high net using their hands
+VOLLEYBALLS	pl	A game in which two teams hit an inflated ball over a high net using their hands
+VOLLEYS	pl	Rapid simultaneous discharge of firearms
+VOLT		A unit of potential equal to the potential difference between two points on a conductor…
+VOLTA		A river in Ghana that flows south to the Bight of Benin
+VOLTAGE		The rate at which energy is drawn from a source that produces a flow of electricity in a…
+VOLTAGES	pl	The rate at which energy is drawn from a source that produces a flow of electricity in a…
+VOLTAIC		Pertaining to or producing electric current by chemical action
+VOLTE	irr	A river in Ghana that flows south to the Bight of Benin
+VOLTMETER		Meter that measures the potential difference between two points
+VOLTS	pl	A unit of potential equal to the potential difference between two points on a conductor…
+VOLUME		The amount of 3-dimensional space occupied by an object
+VOLUMES	pl	The amount of 3-dimensional space occupied by an object
+VOLUMETRIC		Of or relating to measurement by volume
+VOLUMINOUS		Large in volume or bulk
+VOLUNTARILY		Out of your own free will
+VOLUNTARY		Of your own free will or design
+VOLUNTEER		A person who freely enlists for service
+VOLUNTEERS	pl	A person who freely enlists for service
+VOLUPTUOUS		Having strong sexual appeal
+VOLUTION		A rolling or revolving motion
+VOLVULUS		Abnormal twisting of the intestines resulting in intestinal obstruction
+VOMIT		Eject the contents of the stomach through the mouth
+VOMITED	past	Eject the contents of the stomach through the mouth
+VOMITING		The reflex act of ejecting the contents of the stomach through the mouth
+VOODOO		A charm superstitiously believed to embody magical powers
+VORACIOUS		Excessively greedy and grasping
+VORTEX		The shape of something rotating rapidly
+VORTICES	irr	The shape of something rotating rapidly
+VOTE		Express one's preference for a candidate or for a measure or resolution
+VOTED	past	Express one's preference for a candidate or for a measure or resolution
+VOTER		A citizen who has a legal right to ___
+VOTERS	pl	A citizen who has a legal right to ___
+VOTES	pl	A choice that is made by counting the number of people in favor of each alternative
+VOTING		A choice that is made by counting the number of people in favor of each alternative
+VOTIVE		Dedicated in fulfillment of a vow
+VOUCH		Give personal assurance
+VOUCHER		A document that serves as evidence of some expenditure
+VOUCHERS	pl	A document that serves as evidence of some expenditure
+VOW		A solemn pledge to do something or to behave in a certain manner
+VOWED	past	Dedicate to a deity by a ___
+VOWEL		A speech sound made with the vocal tract open
+VOWELS	pl	A speech sound made with the vocal tract open
+VOWING	ing	Dedicate to a deity by a ___
+VOWS	pl	A solemn pledge to do something or to behave in a certain manner
+VOX		The sound made by the vibration of vocal folds modified by the resonance of the vocal…
+VOYAGE		An act of traveling by water
+VOYAGER		A traveler to a distant land
+VOYAGERS	pl	A traveler to a distant land
+VOYAGES	pl	An act of traveling by water
+VOYAGING	ing	Travel on water propelled by wind or by other means
+VOYEUR		A viewer who enjoys seeing the sex acts or sex organs of others
+VOYEURISM		A perversion in which a person receives sexual gratification from seeing the genitalia of…
+VOYEURISTIC		Of or relating to voyeurs or ___
+VOYEURS	pl	A viewer who enjoys seeing the sex acts or sex organs of others
+VROOM		The roaring sound made by a motor that is running at high speed
+VULCANIZED		Treated by a chemical or physical process to improve its properties
+VULGAR		Lacking refinement or cultivation or taste
+VULGARITY		The quality of lacking taste and refinement
+VULGATE		The Latin edition of the Bible translated from Hebrew and Greek mainly by St. Jerome at…
+VULNERABILITIES	pl	The state of being vulnerable or exposed
+VULNERABILITY		The state of being vulnerable or exposed
+VULNERABLE		Susceptible to attack
+VULTURE		Any of various large diurnal birds of prey having naked heads and weak claws and feeding…
+VULTURES	pl	Any of various large diurnal birds of prey having naked heads and weak claws and feeding…
+VULVA		External parts of the female genitalia
+VULVAR		Of or relating to the ___
+VYING	irr	Compete for something

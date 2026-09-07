@@ -150,6 +150,7 @@
   .sw-light    { background: #f8f0a8; }
   .sw-chem     { background: #70d088; }
   .sw-tension  { background: #d870c8; }
+  .sw-cilia    { background: #f0c85a; }
   /* Docs panel */
   #docs-btn {
     background: #1a1f26;
@@ -257,6 +258,10 @@
       <label>γ <input type="range" id="bendK" min="0" max="2" step="0.01" value="0.5"></label>
     </div>
     <div class="group">
+      <label><input type="checkbox" id="cilia" checked><span class="swatch sw-cilia"></span>cilia</label>
+      <label>beat÷ <input type="range" id="beatScale" min="2" max="40" step="1" value="12"></label>
+    </div>
+    <div class="group">
       <label><input type="checkbox" id="show-debug"> debug</label>
       <button id="reset-btn" style="background:#1a1f26;color:var(--fg);border:1px solid var(--border);padding:3px 9px;border-radius:3px;cursor:pointer;font:inherit;">reset</button>
       <button id="docs-btn">docs</button>
@@ -332,6 +337,39 @@
     <div class="row"><span class="k">fed</span><span class="v">Total food engulfments since reset.</span></div>
     <div class="row"><span class="k">DETACHED</span><span class="v">Appears if sum of node adhesion drops below the threshold. Input is suppressed in this state — the cell drifts passively until contact is re-established.</span></div>
 
+    <h3>Cilia — the second way to move</h3>
+    <p>The cell also carries a <em>compound cilium</em>: four cilia at one point
+    on the membrane that bundle together to swim and unfurl to stop. Crawling is
+    paid for in cortex and needs the substrate; swimming is paid for in beat and
+    does not. They are on the same cell at the same time and they do not
+    cooperate — that is the interesting part.</p>
+    <p>Every number in it is measured, from <em>Embodied behavioural complexity
+    in a ciliated microorganism</em>, Nat. Commun. <strong>17</strong>, 8445
+    (2026), which filmed 125 <em>Pterosperma</em> cells and 219,368 ciliary
+    waveforms. Details in <code>flagella.js</code>; the selftest re-derives the
+    paper's own reported values from the constants.</p>
+    <div class="row"><span class="k">Stop</span><span class="v">Cilia unfurled, oscillating at about 10 Hz, cell stationary. Mean 58 s in the wild — the cell spends 96.6% of its life here.</span></div>
+    <div class="row"><span class="k">Swim</span><span class="v">Cilia bundled, a travelling wave running down the compound cilium at 12–304 Hz. Mean 1.42 s. This is where all the thrust comes from.</span></div>
+    <div class="row"><span class="k">Reorient</span><span class="v">A 41-millisecond tumble that swings the apparatus through 130° ± 30°. Rare: three parts in ten thousand.</span></div>
+    <p>The three are wired in a line: Stop and Reorient both hang off Swim, so a
+    stopped cell must swim before it can turn. Nothing you do changes that.</p>
+
+    <h3>Steering the cilia</h3>
+    <p>Brush the map at the ciliary band (the tinted vertical strip) and the
+    same extend/retract gesture that grows a pseudopod elsewhere does something
+    different here: <strong>extend urges the cell to swim</strong>,
+    <strong>retract urges it to stop</strong>. It leans on the transition rates
+    — up to about five-fold — it never sets the state. A tumble in progress
+    ignores you entirely.</p>
+    <div class="row"><span class="k">cilia</span><span class="v">Toggle the apparatus off; the cell reverts to a pure crawler.</span></div>
+    <div class="row"><span class="k">beat÷</span><span class="v">Display divisor for the beat. A 95 Hz beat cannot be drawn at 30 fps, so the rendered phase is slowed by this factor. The model frequency — the one that sets the wavelength, the thrust and the µm/s readout — is untouched.</span></div>
+    <p>Two departures from the data, stated plainly. The state machine runs 8×
+    faster than measured, because a faithful cell would sit motionless for 58
+    seconds at a time; that deliberately destroys the four-orders-of-magnitude
+    timescale separation the paper is partly about. And the cilium is drawn at
+    2.2 cell radii instead of its true ~15, because a faithful one would be a
+    900-pixel whip in an 800-pixel world.</p>
+
     <h3>Notes on emergent behavior</h3>
     <p><strong>Double walls / stable involutions:</strong> at low γ, bending can't blunt sharp curvature fast enough, so a fold can tuck inside and persist. Both shell and fold feel outward pressure but are already separated, so nothing actively unfolds them. Raising γ usually melts them. With arc-length mapU you can also target the inner fold's surface position directly and press extend to push it back out.</p>
     <p><strong>Wandering frame:</strong> mapU is anchored to the south pole, which is itself the adhesion-weighted centroid. As the cell crawls over the substrate, the south pole shifts and the entire map rotates. This is the cell's actual frame — there's no fixed north star inside an amoeba.</p>
@@ -341,6 +379,7 @@
 <script type="module">
   import { createWorld } from './world.js';
   import { createSim, tick } from './sim.js';
+  import { createFlagellation, STATE_NAMES } from './flagella.js';
   import { createRenderer, render } from './render.js';
   import { attachInput, tickInput } from './input.js';
 
@@ -369,14 +408,25 @@
   // wraps the food, engulfment dumps material into sim.budget.
   const world = createWorld({ w: 800, h: 800, seed: 1729, level: 1 });
 
+  const ciliaToggle = document.getElementById('cilia');
+  const beatSlider = document.getElementById('beatScale');
+
   function makeCell() {
-    return createSim({
+    const s = createSim({
       world,
       N: 256,
       radius: 60,
       cx: world.suggestedStart.x,
       cy: world.suggestedStart.y,
     });
+    // The ciliary apparatus. Numbers inside are Pterosperma's, from
+    // Nat. Commun. 17, 8445 (2026); the two scale factors are this
+    // prototype's, and are the only knobs on the toolbar.
+    s.flagella = createFlagellation(s, {
+      seed: 20260818,
+      beatScale: parseFloat(beatSlider.value),
+    });
+    return s;
   }
   let sim = makeCell();
   function applyTuning() {
@@ -384,7 +434,13 @@
     sim.basePressure = parseFloat(baseSlider.value);
     sim.springK = parseFloat(springSlider.value);
     sim.bendK = parseFloat(bendSlider.value);
+    if (sim.flagella) {
+      sim.flagella.enabled = ciliaToggle.checked;
+      sim.flagella.beatScale = parseFloat(beatSlider.value);
+    }
   }
+  ciliaToggle.addEventListener('change', applyTuning);
+  beatSlider.addEventListener('input', applyTuning);
   applyTuning();
   pushSlider.addEventListener('input', applyTuning);
   baseSlider.addEventListener('input', applyTuning);
@@ -501,6 +557,11 @@
       ' vmax=' + vmax.toFixed(2) +
       ' dir±=' + ddev.toFixed(2) +
       ' fed=' + sim.engulfedCount +
+      (sim.flagella && sim.flagella.enabled
+        ? '  ‖ ' + STATE_NAMES[sim.flagella.ctl.state] +
+          ' ' + sim.flagella.freqHz.toFixed(0) + 'Hz' +
+          ' ' + sim.flagella.speedUmS.toFixed(0) + 'µm/s'
+        : '') +
       (sim.detached ? ' DETACHED' : '');
     requestAnimationFrame(frame);
   }

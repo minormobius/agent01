@@ -1,0 +1,40 @@
+name: Deploy perp (perpetual futures learning surface)
+
+on:
+  push:
+    branches: ['claude/futures-finance-learning-r7p47e']
+    paths:
+      - 'perp/**'
+      - '.github/workflows/deploy-perp.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: perp
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Selftest (series integrity + the clamp identity)
+        run: node test/perp.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the surface is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://perp.mino.mobi/ | grep -qi 'perpetual future'; then
+              echo "✓ perp.mino.mobi is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ no response within 25s — a FIRST deploy also creates the custom domain, which can take a few minutes to propagate."

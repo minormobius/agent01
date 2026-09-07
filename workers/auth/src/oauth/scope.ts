@@ -58,6 +58,11 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.cal.event',
   // cards
   'com.minomobi.cards.catalog',
+  // clef (clef.mino.mobi) — one sheet-music score, stored as its NOTATION
+  // SOURCE rather than as a rendering. That is the point of the collection:
+  // a record any tool can engrave, and that stays legible after every program
+  // that produced it is gone.
+  'com.minomobi.clef.piece',
   // crm / org (cleartext contact/deal/expense types, written inside sealed)
   'com.minomobi.crm.contact',
   'com.minomobi.crm.deal',
@@ -66,6 +71,11 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
   'com.minomobi.fluoddity.rubric',
+  // hopper (hopper.mino.mobi) — a run: the level's numbers, the events with
+  // their clocks, and the player's path. A world is a seed plus an event log,
+  // so the record replays the whole crystal anywhere; written to the player's
+  // own repo, and anyone can watch it or continue it from the public read.
+  'com.minomobi.hopper.run',
   // lab factory (minomobi.com) — TWO collections for EVERY agent-built tenant
   // site, not two per site. A lab site is written by an agent from a stranger's
   // Bluesky mention, so its lexicon name is not known when this file is
@@ -155,9 +165,30 @@ const WRITE_COLLECTIONS = [
   'exchange.recipe.recipe',
   // poll + wave post to Bluesky proper
   'app.bsky.feed.post',
+  // bsky (bsky.mino.mobi) — the frontend-only AppView. A client that can read a
+  // timeline but not like a post is a reader, not a client; these are the two
+  // writes that make it one. Both are ordinary app.bsky records in the user's
+  // own repo, and bsky.mino.mobi requests them as a NARROW scope alongside
+  // feed.post rather than taking the union.
+  'app.bsky.feed.like',
+  'app.bsky.feed.repost',
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
+  // groom (b.mino.mobi/groom) — the follow-grooming pass DELETES follow records
+  // in the signed-in person's own repo, which is the only write it makes. The
+  // scope is a write on the collection either way: `deleteRecord` needs the
+  // same `repo:` token `createRecord` does.
+  //
+  // Note the namespace: this is Bluesky's OWN lexicon, not a com.minomobi.* one
+  // we mint. That is the point — grooming edits the real follow graph, so there
+  // is no private collection to hide behind, and the site asks for exactly this
+  // one token and nothing else. Until the deploy that carries this line reaches
+  // auth.mino.mobi, /groom reads the live ceiling and falls back to
+  // transition:generic rather than failing its sign-in at PAR; it tightens to
+  // the narrow ask on its own once this ships (b/groom/groom.js,
+  // `pickUnfollowScope`).
+  'app.bsky.graph.follow',
   // (com.minomobi.lab.doc / lab.score already appear above with the lab block —
   // the duplicate pair that used to sit here trips check-auth-scope's dedupe
   // gate; removing a duplicate is not a narrowing, the set is unchanged.)
