@@ -275,6 +275,34 @@ export class SiteRegistry {
       return json({ cursor: (await this.ctx.storage.get<string>('cursor')) ?? null });
     }
 
+    // The DM log cursor, kept apart from the notification one because they are
+    // two independent streams with two different failure modes. chat.bsky.convo
+    // .getLog is an APPEND-ONLY EVENT LOG and its cursor moves FORWARD — unlike
+    // listNotifications, whose cursor pages backwards in time and cannot be used
+    // as a "since last time" marker at all (see the note in pollOnce). So this
+    // one is fed straight back, which is the ordinary thing to do with a cursor
+    // and the opposite of what the other one needs.
+    if (url.pathname === '/dm-cursor') {
+      if (request.method === 'PUT') {
+        const { cursor } = (await request.json()) as { cursor: string };
+        await this.ctx.storage.put('dm-cursor', cursor);
+        return json({ ok: true });
+      }
+      return json({ cursor: (await this.ctx.storage.get<string>('dm-cursor')) ?? null });
+    }
+
+    // The account's real PDS host. chat.bsky.* is reached by proxying THROUGH
+    // it, and bsky.social is an entryway rather than a host, so the DID document
+    // has to be resolved — once, not every poll.
+    if (url.pathname === '/pds') {
+      if (request.method === 'PUT') {
+        const { pds } = (await request.json()) as { pds: string };
+        await this.ctx.storage.put('pds', pds);
+        return json({ ok: true });
+      }
+      return json({ pds: (await this.ctx.storage.get<string>('pds')) ?? null });
+    }
+
     // The mutual-follow allowlist, cached. Refreshed by the worker on a schedule
     // because it is many paginated requests; kept here so a cold start or a
     // failed refresh does not silently open or close the door.

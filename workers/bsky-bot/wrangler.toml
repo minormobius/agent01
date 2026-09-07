@@ -59,6 +59,24 @@ WHITELIST = "minormobius.bsky.social,morphyxmino.bsky.social"
 # do not depend on social-graph state. A follow lapsing, or the mutual refresh
 # failing, should not take out the accounts used to test the thing.
 
+# A THIRD DOOR, NARROWER THAN BOTH, AND ONLY FOR RESEARCH.
+#
+# The two lists above admit people to the BUILD factory, where the cost of a bad
+# request is a page nobody wanted and the output is the requester's own site.
+# A dossier is not that: it costs a full CAR download and two agent passes, and
+# its output is a reading of a THIRD PARTY's posts. "Everyone I follow back" is
+# the right answer to the first question and not obviously the right answer to
+# the second, so it gets its own list rather than inheriting one.
+#
+# FAIL-CLOSED, LIKE EVERYTHING ELSE HERE: empty admits NOBODY to research, and
+# the build factory is unaffected either way. Widening this is a one-line change
+# and a 40-second deploy; widening it by accident should not be possible.
+#
+# Handles, comma-separated, matched case-insensitively — the same shape as
+# WHITELIST. Everyone here must also pass the ordinary door above; this narrows,
+# it never grants.
+RESEARCH_WHITELIST = "minormobius.bsky.social"
+
 # IDENTITIES THIS BOT HAS POSTED UNDER, before the current one.
 #
 # A reply counts as a request when its PARENT IS ONE OF THE BOT'S OWN POSTS, and
