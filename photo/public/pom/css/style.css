@@ -1,0 +1,223 @@
+/* Pom — the plates are bright watercolour on cream rag paper, so the page is
+   dark and gets out of their way. Nothing on the chrome is more saturated than
+   the pictures; the one accent is a muted apricot. */
+
+:root {
+  --bg: #0c0b0a;
+  --panel: #131211;
+  --raise: #1b1918;
+  --line: rgba(255, 255, 255, 0.10);
+  --ink: #efe9e2;
+  --dim: #9b938a;
+  --faint: #6a635c;
+  --accent: #e2a45c;
+  --accent-dim: rgba(226, 164, 92, 0.18);
+  --bar: 52px;
+  --side: 268px;
+  --gap: 10px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0; height: 100%;
+  background: var(--bg); color: var(--ink);
+  font: 14px/1.5 -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  -webkit-text-size-adjust: 100%;
+  overflow: hidden;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h2, h3 { font-weight: 600; }
+
+button, select, input { font: inherit; color: inherit; }
+.ghost {
+  background: transparent; border: 1px solid var(--line); color: var(--dim);
+  border-radius: 7px; padding: 4px 9px; cursor: pointer; line-height: 1.2;
+}
+.ghost:hover { color: var(--ink); border-color: var(--dim); }
+.linky { background: none; border: 0; color: var(--accent); cursor: pointer; padding: 0; text-decoration: underline; }
+
+/* ── top bar ───────────────────────────────────────────────────────────── */
+
+.bar {
+  position: fixed; inset: 0 0 auto 0; height: var(--bar); z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 12px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.brand { color: var(--ink); font-size: 15px; letter-spacing: 0.02em; white-space: nowrap; }
+.brand b { font-weight: 650; }
+.brand:hover { text-decoration: none; color: var(--accent); }
+
+.find { position: relative; flex: 1 1 auto; max-width: 460px; }
+.find input {
+  width: 100%; background: var(--raise); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 30px 6px 10px;
+}
+.find input:focus { outline: none; border-color: var(--accent); }
+.find input::-webkit-search-cancel-button { display: none; }
+#q-clear { position: absolute; right: 4px; top: 4px; border: 0; padding: 2px 7px; }
+
+.sortwrap { color: var(--dim); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.sortwrap select {
+  background: var(--raise); border: 1px solid var(--line); border-radius: 7px; padding: 5px 7px;
+}
+
+/* ── shell ─────────────────────────────────────────────────────────────── */
+
+.shell { position: fixed; inset: var(--bar) 0 0 0; display: flex; }
+
+.facets {
+  width: var(--side); flex: 0 0 var(--side); height: 100%;
+  overflow-y: auto; overscroll-behavior: contain;
+  padding: 12px 12px 40px;
+  border-right: 1px solid var(--line); background: var(--panel);
+}
+.facets .grp { margin: 0 0 18px; }
+.facets h2 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--faint); margin: 0 0 7px;
+}
+.facets h2 .hint { text-transform: none; letter-spacing: 0; float: right; font-weight: 400; }
+.tip { color: var(--faint); font-size: 11px; margin: 6px 0 0; }
+
+.stat { display: flex; align-items: baseline; gap: 7px; margin: 0 0 16px; }
+.stat b { font-size: 26px; font-weight: 600; letter-spacing: -0.01em; }
+.stat span { color: var(--dim); font-size: 12px; }
+
+/* facet lists */
+.opt {
+  display: flex; width: 100%; align-items: baseline; gap: 8px;
+  background: none; border: 0; padding: 3px 6px; margin: 0 -6px;
+  border-radius: 6px; cursor: pointer; text-align: left; color: var(--ink);
+}
+.opt:hover { background: var(--raise); }
+.opt[aria-pressed="true"] { background: var(--accent-dim); color: var(--accent); }
+.opt .lab { flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt .n { color: var(--faint); font-variant-numeric: tabular-nums; font-size: 12px; }
+.opt[aria-pressed="true"] .n { color: var(--accent); }
+/* The bar is the count, drawn behind the label — a facet list is a ranked
+   distribution and reads far faster as one. */
+.opt .lab { position: relative; }
+.opt .lab::before {
+  content: ''; position: absolute; inset: 0 auto 0 -4px; z-index: -1;
+  width: calc(var(--w) * 100%); background: rgba(255, 255, 255, 0.055); border-radius: 3px;
+}
+.opt .lab { z-index: 0; }
+.more { color: var(--dim); font-size: 12px; margin-top: 4px; }
+
+/* year histogram */
+.hist { display: flex; align-items: flex-end; gap: 1px; height: 54px; user-select: none; touch-action: pan-y; }
+.hist .yb {
+  flex: 1 1 0; min-width: 0; background: var(--faint); border-radius: 1px 1px 0 0;
+  cursor: pointer; position: relative; min-height: 1px;
+}
+.hist .yb.on { background: var(--accent); }
+.hist .yb.zero { background: rgba(255, 255, 255, 0.07); }
+.hist .yb:hover { background: var(--ink); }
+
+.src { color: var(--faint); font-size: 11px; line-height: 1.5; border-top: 1px solid var(--line); padding-top: 10px; }
+
+/* ── grid ──────────────────────────────────────────────────────────────── */
+
+.scroller { flex: 1 1 auto; height: 100%; overflow-y: auto; padding: 12px; outline: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; min-height: 0; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--accent-dim); color: var(--accent);
+  border: 1px solid rgba(226, 164, 92, 0.3); border-radius: 999px;
+  padding: 3px 6px 3px 10px; font-size: 12px; cursor: pointer;
+}
+.chip b { font-weight: 500; }
+.chip .x { opacity: 0.7; }
+.chip:hover .x { opacity: 1; }
+
+.grid { position: relative; width: 100%; }
+.tile {
+  position: absolute; display: block; padding: 0; border: 0; cursor: zoom-in;
+  background: #191715; border-radius: 3px; overflow: hidden;
+}
+/* `contain`, never `cover`. The tile is already cut to the plate's true aspect
+   ratio, so the two agree — but if a dimension is ever wrong the failure should
+   be a hairline of background, not a painting with its edges cropped off by a
+   stylesheet. */
+.tile img { width: 100%; height: 100%; object-fit: contain; display: block; opacity: 0; transition: opacity .25s; }
+.tile img.on { opacity: 1; }
+.tile .cap {
+  position: absolute; inset: auto 0 0 0; padding: 14px 6px 5px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.78));
+  color: #fff; font-size: 11px; line-height: 1.25; text-align: left;
+  opacity: 0; transition: opacity .15s;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.tile:hover .cap, .tile:focus-visible .cap { opacity: 1; }
+/* Both archives refused it. Say so rather than showing an empty box that reads
+   as the page still loading. */
+.tile.broken { border: 1px dashed rgba(255, 255, 255, 0.16); }
+.tile.broken .cap { opacity: 1; background: none; color: var(--faint); white-space: normal; }
+.tile:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.empty { color: var(--dim); padding: 40px 0; text-align: center; }
+.foot { color: var(--faint); font-size: 12px; max-width: 62ch; margin: 40px auto 60px; line-height: 1.6; }
+.foot b { color: var(--dim); font-weight: 600; }
+
+/* ── lightbox ──────────────────────────────────────────────────────────── */
+
+.lightbox {
+  position: fixed; inset: 0; z-index: 50; background: rgba(6, 5, 5, 0.96);
+  display: flex; align-items: center; justify-content: center; padding: 40px 64px;
+}
+.lightbox[hidden] { display: none; }
+.lb-fig { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 12px; max-height: 100%; min-height: 0; }
+.lb-fig img {
+  max-width: 100%; min-height: 0; flex: 0 1 auto; object-fit: contain;
+  border-radius: 2px; background: #1a1816;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.6);
+}
+.lb-fig figcaption { color: var(--dim); font-size: 13px; text-align: center; max-width: 74ch; flex: 0 0 auto; }
+.lb-fig figcaption .title { color: var(--ink); font-size: 16px; display: block; margin-bottom: 3px; }
+.lb-fig figcaption .title em { color: var(--dim); font-style: italic; font-size: 14px; }
+.lb-fig figcaption .meta { display: block; margin-bottom: 8px; }
+.lb-fig figcaption .doors { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; font-size: 12px; }
+.lb-fig figcaption .doors a { border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; color: var(--dim); }
+.lb-fig figcaption .doors a:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
+.lb-fig figcaption .doors a.hi { color: var(--accent); border-color: rgba(226, 164, 92, 0.35); }
+.lb-close { position: absolute; top: 12px; right: 14px; font-size: 20px; padding: 2px 11px; z-index: 2; }
+.lb-nav {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  background: none; border: 0; color: var(--dim); font-size: 44px; cursor: pointer;
+  padding: 0 16px; line-height: 1;
+}
+.lb-nav:hover { color: var(--ink); }
+.lb-prev { left: 4px; } .lb-next { right: 4px; }
+
+/* ── about ─────────────────────────────────────────────────────────────── */
+
+.modal { position: fixed; inset: 0; z-index: 60; background: rgba(6, 5, 5, 0.9); overflow-y: auto; padding: 40px 16px; }
+.modal[hidden] { display: none; }
+.modal-inner {
+  position: relative; max-width: 62ch; margin: 0 auto; background: var(--panel);
+  border: 1px solid var(--line); border-radius: 12px; padding: 26px 28px 32px;
+}
+.modal-inner h2 { margin-top: 0; }
+.modal-inner h3 { margin: 22px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--faint); }
+.modal-inner p { color: var(--dim); }
+.modal-inner b { color: var(--ink); font-weight: 600; }
+.modal-close { position: absolute; top: 12px; right: 12px; font-size: 18px; }
+
+/* ── narrow ────────────────────────────────────────────────────────────── */
+
+@media (max-width: 780px) {
+  .wide-only-hide { display: inline-block; }
+  .sortwrap { display: none; }
+  .facets {
+    position: fixed; inset: var(--bar) auto 0 0; z-index: 25;
+    transform: translateX(-100%); transition: transform .18s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  }
+  .facets.open { transform: none; }
+  .lightbox { padding: 12px; }
+  .lb-nav { font-size: 34px; padding: 0 6px; }
+}
+@media (min-width: 781px) { .wide-only-hide { display: none; } }
