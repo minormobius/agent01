@@ -52,3 +52,6 @@ packages/homunculus/log/
 # Recovery-pass transcripts: force-added onto feature branches by the snippet,
 # collected at merge time, and asserted absent before the repo goes public.
 homunculus/inbox/
+
+# staging dir built by deploy-root.yml (never committed, never served)
+.deploy-stage/

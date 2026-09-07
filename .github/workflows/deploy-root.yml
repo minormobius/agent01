@@ -15,12 +15,22 @@ name: Deploy Root (landing)
 # (<branch>.agent01.pages.dev) and never seize the custom domain — that was the
 # "builds didn't deploy" symptom. Production branch stays `main`.
 #
+# WHAT GETS PUBLISHED: not the repo — a staged copy of it, built below with the
+# .assetsignore exclusions applied by hand. `wrangler pages deploy` does not
+# read .assetsignore (that is a Workers Static Assets mechanism; this is a Pages
+# project), so relying on it to keep lab/ and the prompt corpus off the apex was
+# relying on nothing. Stage, assert, then deploy.
+#
+# This is defence in depth, and it is now provable rather than assumed. It is
+# NOT, however, what was putting lab pages on the apex — see the note on the
+# final assertion step. That is a Cloudflare route, and no deploy can fix it.
+#
 # As static subsites encapsulate into their own surfaces (math, canvas, …),
 # remove their dirs from the paths list below so root stops shipping them.
 
 on:
   push:
-    branches: ['claude/root-deploy-spec-doc-f3ucht']
+    branches: ['claude/root-directory-audit-0tk7r7']
     paths:
       - 'index.html'
       - 'styles.css'
@@ -32,6 +42,21 @@ on:
       # spec: the site-wide technical spec sheet served at mino.mobi/spec/
       - 'spec/**'
       - 'scripts/build-spec.mjs'
+      # stats: self-analytics over the git history, served at mino.mobi/stats/
+      - 'stats/**'
+      - 'scripts/build-git-stats.mjs'
+      # catalogue.json is the source of truth for the landing catalogue; var P,
+      # search, office, mappa and orrery are all projections of it, so a change
+      # here must reach the apex.
+      - 'catalogue.json'
+      - 'scripts/gen-landing-catalogue.mjs'
+      - 'scripts/catalogue-coverage.mjs'
+      - 'git-graph.json'
+      # the shared reading layer every generator above goes through
+      - 'scripts/lib/**'
+      # the exclusion list the staging step reads — a change here changes what
+      # is published, so it must trigger a redeploy
+      - '.assetsignore'
       # geometry-pack page under active development on this branch — keep the
       # canonical mino.mobi/meander/ in sync with edits (also ships via
       # deploy-math to math.mino.mobi). Carve back out once it stabilizes.
@@ -98,12 +123,82 @@ jobs:
           echo "name=$PROJECT" >> "$GITHUB_OUTPUT"
           echo "Deploying Pages project: $PROJECT"
 
+      # Build the tree we actually publish, rather than uploading the repo and
+      # hoping an ignore file is honoured.
+      #
+      # `wrangler pages deploy .` does not apply .assetsignore — that file is a
+      # Workers Static Assets mechanism, and root is a Pages project. So the
+      # only thing keeping lab/ and packages/homunculus/log/ (the personal
+      # prompt corpus) off the apex was a file Pages never reads.
+      #
+      # Stage, exclude, assert, THEN deploy. Excludes are read from
+      # .assetsignore so there is one list, not two that drift. Verified after
+      # the first run: /lab/www/which-enumerates/probe-worker.js is 73 bytes in
+      # the repo and now returns the 230 KB landing fallback, i.e. the published
+      # bundle genuinely does not contain it.
+      # tar, not rsync: tar is present everywhere, including the agent sandboxes
+      # where this logic gets developed and tested before it is trusted here.
+      - name: Stage the publishable tree
+        run: |
+          set -euo pipefail
+          rm -rf .deploy-stage && mkdir -p .deploy-stage
+          EXCLUDES=(--exclude=./.git --exclude=./.deploy-stage)
+          while IFS= read -r line; do
+            line="${line%%#*}"
+            line="$(printf '%s' "$line" | tr -d '[:space:]')"
+            [ -z "$line" ] && continue
+            EXCLUDES+=(--exclude="./${line%/}")
+            echo "excluding ./${line%/}"
+          done < .assetsignore
+          tar -cf - "${EXCLUDES[@]}" . | tar -xf - -C .deploy-stage
+          echo "staged $(find .deploy-stage -type f | wc -l) files"
+
+      # Fail BEFORE the upload, not after it — deterministic, no network needed.
+      # Checked BOTH ways on purpose: an absence-only assertion passes happily on
+      # an empty directory, which would publish nothing and read as success.
+      - name: Assert the staged tree is complete and excludes what it must
+        run: |
+          set -euo pipefail
+          fail=0
+          while IFS= read -r line; do
+            line="${line%%#*}"
+            line="$(printf '%s' "$line" | tr -d '[:space:]')"
+            [ -z "$line" ] && continue
+            if [ -e ".deploy-stage/${line%/}" ]; then
+              echo "::error::${line} survived staging and would be published to the apex"
+              fail=1
+            else
+              echo "✓ excluded: ${line}"
+            fi
+          done < .assetsignore
+
+          # Landmarks: the landing page, a Pages Function, and one file from each
+          # generated site map. If staging silently produced a partial tree, this
+          # is what catches it.
+          for must in index.html catalogue.json functions/search.js spec/data.js \
+                      office/surfaces.json stats/index.html stats/data.json; do
+            if [ -s ".deploy-stage/$must" ]; then
+              echo "✓ present: $must"
+            else
+              echo "::error::$must is missing or empty in the staged tree"
+              fail=1
+            fi
+          done
+
+          n=$(find .deploy-stage -type f | wc -l)
+          if [ "$n" -lt 5000 ]; then
+            echo "::error::staged only $n files — the repo has thousands; staging is broken"
+            fail=1
+          fi
+          echo "staged $n files"
+          [ "$fail" = 0 ] || exit 1
+
       - name: Deploy to Cloudflare Pages (production branch)
         # --commit-message is forced to an ASCII string (the SHA). Wrangler would
         # otherwise forward the git HEAD message to the Pages deployments API, which
         # rejects multibyte chars (em-dashes etc.) with a misleading
         # "Invalid commit message, it must be a valid UTF-8 string [8000111]".
-        run: npx wrangler pages deploy . --project-name="${{ steps.proj.outputs.name }}" --branch=main --commit-dirty=true --commit-hash="${{ github.sha }}" --commit-message="root deploy ${{ github.sha }}"
+        run: npx wrangler pages deploy .deploy-stage --project-name="${{ steps.proj.outputs.name }}" --branch=main --commit-dirty=true --commit-hash="${{ github.sha }}" --commit-message="root deploy ${{ github.sha }}"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -116,9 +211,26 @@ jobs:
       #
       # This MUST compare content, never status codes: Pages answers unknown
       # paths with the apex landing page at HTTP 200, so a status check passes
-      # whether the exclusion works or not. Root's own index.html is ~200 KB and
-      # says "personal tooling"; a leaked lab page is ~4 KB and says
+      # whether the exclusion works or not. Root's own index.html is ~230 KB and
+      # says "personal tooling"; a leaked lab page is ~3 KB and says
       # "the site factory".
+      #
+      # KNOWN RED, 2026-08-15 — and the cause is NOT this deploy. Excluding lab/
+      # from the Pages upload (the staging step above) is done and verified:
+      # a plain lab asset such as /lab/www/which-enumerates/probe-worker.js now
+      # returns the 230 KB landing fallback instead of its 73-byte self.
+      #
+      # The apex still serves lab pages because a Cloudflare ROUTE sends
+      # mino.mobi/lab/* to the `lab` worker, ahead of Pages. Proof: /lab/www/
+      # tzclock/ on mino.mobi, lab.minomobi.com and minomobi.com all return the
+      # same 3,118 bytes, md5 d7b294852ed1, identical to lab/www/tzclock/
+      # index.html in the repo. That route is not in lab/www/wrangler.jsonc,
+      # which declares only minomobi.com and lab.minomobi.com — so it was added
+      # in the dashboard, and only the dashboard can remove it (DEPLOYS.md §7).
+      #
+      # Do NOT make this step pass to get a green run. The exposure it reports
+      # is real: mino.mobi is inside the SSO cookie's domain. Detach the route,
+      # then this goes green on its own.
       - name: Assert lab/ is excluded from the apex bundle
         run: |
           set -uo pipefail
@@ -141,7 +253,12 @@ jobs:
             fi
           done
           if [ "$fail" = 1 ]; then
-            echo "::error::Fix before merging: stage a clean copy of the repo (minus lab/) and deploy that,"
-            echo "::error::rather than relying on .assetsignore, which Pages may not honour."
+            echo "::error::Lab pages are live on the apex, inside the SSO cookie's domain."
+            echo "::error::This is NOT the Pages bundle — the staging step above already"
+            echo "::error::excluded lab/, and a plain lab asset returns the landing fallback."
+            echo "::error::A Cloudflare route sends mino.mobi/lab/* to the \`lab\` worker ahead"
+            echo "::error::of Pages. Remove that route in the dashboard (DEPLOYS.md 7); it is"
+            echo "::error::not in lab/www/wrangler.jsonc, so no deploy can remove it."
+            echo "::error::Do not weaken this check to get a green run."
             exit 1
           fi

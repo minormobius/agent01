@@ -9,6 +9,13 @@ generated from the registry, one row per surface, with a link to each
 surface's own `CLAUDE.md`. This memo covers the *shape* of the repo; that
 index covers *what is in it*.
 
+Two hand-written files sit under all of it, answering different questions:
+[`deploy-registry.json`](../deploy-registry.json) says **what deploys**, and
+[`catalogue.json`](../catalogue.json) says **what a person can visit**. Every
+other map in the repo is generated from one of them. A catalogue entry's
+`surface` field is a foreign key into the registry — the registry never
+depends on the catalogue.
+
 ## How to navigate to anything
 
 For a surface named `X` (see [`SURFACES.md`](SURFACES.md) for the canonical list):
@@ -26,7 +33,8 @@ For a surface named `X` (see [`SURFACES.md`](SURFACES.md) for the canonical list
 
 ```
 deploy-registry.json     ← SOURCE OF TRUTH: surface → resource → branch (see docs/DEPLOYS.md)
-index.html               ← root landing page (the `var P` site catalogue + generated surface-map table)
+catalogue.json           ← SOURCE OF TRUTH: what a person can visit (see docs/DEPLOYS.md for what deploys)
+index.html               ← root landing page (`var P` + surface-map table, BOTH generated)
 wrangler.jsonc           ← root Pages project config (the ONLY Pages project; serves "." )
 functions/               ← root Pages Functions (search.js, novelty.js, …)
 
@@ -79,8 +87,12 @@ src/ time/posts/                ← Bluesky post pipeline (post_thread.py; pushi
   (`scripts/gen-surface-index.mjs --write`).
 - **The surface-map table in `index.html`** — from the registry
   (`scripts/gen-surface-map.mjs --write`).
-- **`functions/search.js`** catalogue — from the `var P` array in `index.html`
-  (`scripts/generate-search-catalog.mjs`).
+- **The `var P` catalogue in `index.html`** — from `catalogue.json`
+  (`scripts/gen-landing-catalogue.mjs --write`). Do not hand-edit it.
+- **`functions/search.js`**, **`io/sites.json`**, **`office/surfaces.json`**,
+  **`mappa/sites.js`** and **`orrery/index.html`** — all from `catalogue.json`
+  (`generate-search-catalog`, `generate-sites-json`, `build-office --write`,
+  `build-mappa`, `build-orrery`).
 - **`spec/data.js`** — from registry + landing + wrangler configs + per-surface
   docs (`scripts/build-spec.mjs --write`).
 - **Workflow `branches:` triggers** — from the registry

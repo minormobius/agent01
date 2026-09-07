@@ -12,12 +12,30 @@
 // Exports:
 //   REDACT, PUBLIC_HOST, publicHosts, scrubText, scrubEndpoint  — redaction
 //   loadRegistry(root)                                          — parsed registry
-//   loadLanding(root)  -> { P, descMap, norm }                  — index.html taxonomy
+//   loadCatalogue(root) / saveCatalogue(root, cat)              — catalogue.json
+//   loadLanding(root)  -> { P, descMap, html, norm }            — catalogue + <li> prose
 //   surfaceResolver(reg) -> { ownerOf, hostToSurface, dirToSurface }
 //   describe(surface, {reg, landing})                           — best one-line blurb
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+
+// ------------------------------------------------------------- emit/check ---
+// Compare-or-write, so every generator can answer "is the artefact on disk
+// what I would produce right now?" without writing. preflight needs that
+// answer; generators that could only write were the ones nothing could gate,
+// which is how io/sites.json, office/surfaces.json, mappa/sites.js and
+// orrery/index.html all drifted at once.
+//
+// `volatile` is a regex for content that legitimately changes every run (a
+// generation timestamp) and must be excluded from the comparison.
+export function emit(absPath, content, { write = false, volatile: vol = null } = {}) {
+  const strip = (s) => (vol ? s.replace(vol, '') : s);
+  const current = existsSync(absPath) ? readFileSync(absPath, 'utf8') : null;
+  const same = current !== null && strip(current) === strip(content);
+  if (write) writeFileSync(absPath, content);
+  return { same, existed: current !== null };
+}
 
 // ------------------------------------------------------------- redaction ----
 // The generated artefacts are INTERNET-FACING and cover the minomobi
@@ -65,23 +83,61 @@ function decode(s) {
     .replace(/&nbsp;/g, ' ');
 }
 
-// Parse index.html's `var P = [...]` catalogue plus the curated <li> blocks.
-// This is "the index the landing page uses" — the freshest description of what
-// each site actually is, because it's what ships to visitors.
+// ------------------------------------------------------------- catalogue ----
+// catalogue.json is the SOURCE OF TRUTH for the site catalogue. index.html's
+// `var P` is generated from it (scripts/gen-landing-catalogue.mjs), so read
+// this rather than regex-parsing the HTML — which is what nine scripts each
+// used to do, with their own copy of the parser and their own bugs.
+export function loadCatalogue(root) {
+  return JSON.parse(readFileSync(join(root, 'catalogue.json'), 'utf8'));
+}
+
+// Canonical field order for a catalogue entry, so a script that adds a field
+// to an existing entry doesn't leave the file in a different shape than one
+// that wrote it from scratch.
+export const CATALOGUE_KEYS = ['n', 'u', 'c', 'k', 'a', 't', 'b', 'p', 'surface'];
+
+export function orderEntry(e) {
+  const out = {};
+  for (const k of CATALOGUE_KEYS) if (e[k] !== undefined) out[k] = e[k];
+  for (const k of Object.keys(e)) if (!(k in out)) out[k] = e[k]; // keep anything new
+  return out;
+}
+
+export function saveCatalogue(root, cat) {
+  const next = { ...cat, entries: cat.entries.map(orderEntry) };
+  writeFileSync(join(root, 'catalogue.json'), JSON.stringify(next, null, 2) + '\n');
+}
+
+// Path glob for catalogue.json's `notListed` rules. `*` matches inside one
+// path segment; `**` matches one or more whole segments when it ends a
+// pattern, and zero or more in the middle.
+//
+// Built segment-wise on purpose. The first version of this did a flat string
+// replace and silently matched NOTHING for the common trailing-`**` case,
+// which made the coverage gate report success while checking nothing — the
+// exact failure mode the gate exists to prevent.
+export function pathGlob(glob) {
+  const segs = glob.split('/');
+  let re = '';
+  segs.forEach((s, i) => {
+    const last = i === segs.length - 1;
+    if (s === '**') {
+      re += last ? '[^/]+(?:/[^/]+)*' : '(?:[^/]+/)*';
+      return;
+    }
+    re += s.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[^/]*');
+    if (!last) re += '/';
+  });
+  return new RegExp('^' + re.replace(/\/{2,}/g, '/') + '$');
+}
+
+// The landing-page view: the catalogue entries plus the curated <li> blocks.
+// The <li> descriptions are still hand-written in index.html — they are prose
+// about each site, not catalogue data — so those are still read from the HTML.
 export function loadLanding(root) {
   const html = readFileSync(join(root, 'index.html'), 'utf8');
-  const marker = html.indexOf('var P = [');
-  if (marker < 0) throw new Error('could not find `var P = [` in index.html');
-  const arrStart = html.indexOf('[', marker);
-  let depth = 0, arrEnd = -1;
-  for (let i = arrStart; i < html.length; i++) {
-    const ch = html[i];
-    if (ch === '[') depth++;
-    else if (ch === ']') { depth--; if (depth === 0) { arrEnd = i; break; } }
-  }
-  if (arrEnd < 0) throw new Error('unbalanced brackets parsing P array');
-  // eslint-disable-next-line no-new-func
-  const P = Function(`"use strict"; return (${html.slice(arrStart, arrEnd + 1)});`)();
+  const P = loadCatalogue(root).entries;
 
   const descMap = new Map();
   for (const m of html.matchAll(/<li>\s*<div class="name-row">([\s\S]*?)<\/div>\s*<div class="desc">([\s\S]*?)<\/div>\s*<\/li>/g)) {
