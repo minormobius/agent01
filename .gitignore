@@ -60,3 +60,7 @@ homunculus/inbox/
 # The SRD 5.2.1 PDF is 6MB and freely redistributable, but there is no reason
 # to carry it: table/srd5/tools/scrape-srd.py fetches it on demand.
 table/srd5/tools/*.pdf
+# games/tempest — Rust build artefacts. tempest.wasm is built from core/ and
+# committed on purpose (the games surface has no build step on its deploy
+# path); the target dir is not.
+games/tempest/core/target/

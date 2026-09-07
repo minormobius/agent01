@@ -4,8 +4,11 @@ The hub for the decisions-under-pressure games, and the design brief for what
 comes next. A single hand-written page, no build step, served through the
 assets fallback in `games/worker.js` like the games it indexes.
 
-Shipped so far: [Hold the Line](../horde/) (`/horde/`) and
-[Telegraph](../telegraph/) (`/telegraph/`).
+Shipped so far: [Hold the Line](../horde/) (`/horde/`),
+[Telegraph](../telegraph/) (`/telegraph/`), [The Ratchet](../ratchet/)
+(`/ratchet/`), [Switchboard](../switchboard/) (`/switchboard/`),
+[Outbound](../outbound/) (`/outbound/`) and [Tempest](../tempest/)
+(`/tempest/`).
 
 ---
 
@@ -35,8 +38,19 @@ Once you see it that way the space opens up, because "correct" can be:
 | better or worse, no ground truth | Hold the Line |
 | a countable set | Telegraph |
 | whether a future still exists | The Ratchet |
-| a timing — when to stop | Cold Read |
-| a probability distribution | Standoff |
+| a distance from a computable optimum | Switchboard |
+| **a direction, priced in ticks** | **Tempest** |
+| a timing — when to stop | Cold Read *(unbuilt)* |
+| a probability distribution | Standoff *(unbuilt)* |
+
+Tempest is worth reading as the clearest case of the rule working. Its first
+draft measured the *binary* question "does exactly one way round the web
+survive", which is a genuinely different shape from anything above — and it was
+a bad question, because on a web 66 ticks across a wave with 80 ticks of slack
+survives both ways whatever you do to it. The generator ground through 167
+repairs to place four waves. Making the same question quantitative — *what does
+the wrong way round cost, in ticks* — converged immediately and gave a better
+readout. **The shape of the answer was right; the type of it was wrong.**
 
 Everything below is chosen to fill a row nothing else fills.
 

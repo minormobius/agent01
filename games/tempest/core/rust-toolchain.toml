@@ -1,0 +1,16 @@
+# Pin the toolchain.
+#
+# This crate's CI runs `cargo fmt --check` and `cargo clippy -D warnings`, and
+# both are moving targets on a floating `stable`: the first CI run on this
+# workflow failed on `clippy::manual_checked_ops`, a lint that did not exist in
+# the version the code was written and verified against. Denying warnings is
+# worth keeping, but only if "warnings" means a fixed set — otherwise a rustc
+# release turns a green branch red with no commit in between.
+#
+# Bumping this is a deliberate act: change the channel, run `cargo clippy
+# --all-targets`, fix what the new version has learned to see, and commit the
+# two together.
+[toolchain]
+channel = "1.94"
+components = ["rustfmt", "clippy"]
+targets = ["wasm32-unknown-unknown"]
