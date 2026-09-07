@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tape — build it</title>
+<meta name="description" content="Assembly, stage by stage. The structure is here; the photographs and the gotchas arrive when the first box is built.">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/styles.css">
+<style>
+  .stage { border-left: 3px solid var(--line); padding: 2px 0 2px 18px; margin: 0 0 26px; }
+  .stage.done { border-color: var(--accent); }
+  .stage h3 { margin: 0 0 4px; font-size: 17px; }
+  .stage .meta { font-size: 12.5px; color: var(--faint); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+  .gate { background: var(--accent-bg); border: 1px solid var(--accent-soft); border-radius: 10px; padding: 10px 14px; margin: 10px 0 0; font-size: 14.5px; }
+  .gate strong { color: var(--accent-2); }
+</style>
+</head>
+<body>
+<div class="topbar"><div class="topbar-inner">
+  <a class="brand" href="/">tape<span class="dot">.</span><small>card audio player</small></a>
+  <nav class="navlinks">
+    <a href="/design/">design</a><a href="/hardware/">hardware</a><a href="/firmware/">firmware</a>
+    <a href="/build/" aria-current="page">build</a><a href="/system/">system</a><a href="/thousand/">&times;1000</a>
+    <a href="/first-story/">first story</a><a href="/studio/">studio</a><a href="/sim/">simulator</a>
+  </nav>
+</div></div>
+<main class="narrow">
+  <h1>Build it</h1>
+  <p class="lede">Eight stages, each ending at a test you can actually fail. The order exists so
+  that when something does not work you know which one thing you just changed.</p>
+
+  <div class="note">
+    <strong>Status: structure written, steps not.</strong> Every stage below is real and in the
+    right order, and the parts and pin assignments it refers to are
+    <a href="/hardware/">chosen and linked</a>. What is missing is what only building one produces:
+    photographs, torque-and-fit details, and the list of things that went wrong the first time.
+    <strong>No box has been built yet.</strong> Saying so is more useful than a confident guide to
+    an assembly nobody has performed.
+  </div>
+
+  <h2 id="order">Order in two waves</h2>
+  <p>Not to spread the cost &mdash; because <strong>the expensive half of the list is exactly the
+  half that depends on a question nothing has answered yet.</strong> Read range through your actual
+  lid material, with a sticker on an actual playing card, aimed by an actual four-year-old. That
+  number decides the enclosure; the enclosure decides the panel layout; the panel layout decides
+  what you crimp. Buying all of it now means guessing three times.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Wave one <span class="pill on" id="w1-total">&mdash;</span></h3>
+      <p>Everything that runs off USB. Gets you through <a href="#stages">stages 0&ndash;5</a>:
+      headers on, board flashing, card reading, sound coming out, buttons and volume working. And it
+      answers the range question on the bench, with a ruler, before anything is committed.</p>
+      <div id="w1-list" style="font-size:13.5px;color:var(--muted)"></div>
+    </div>
+    <div class="card">
+      <h3>Wave two <span class="pill" id="w2-total">&mdash;</span></h3>
+      <p>The power chain, the connector kit, the crimper, and the enclosure. Every one of these is
+      cheaper to buy <em>after</em> wave one than before it &mdash; and if range disappoints, at
+      least two of them change.</p>
+      <div id="w2-list" style="font-size:13.5px;color:var(--muted)"></div>
+    </div>
+  </div>
+
+  <h2 id="risks">What I would expect to go wrong</h2>
+  <p>Written down now so that when one of them happens it is a known unknown rather than a bad
+  evening. Ordered by how much I would bet on it.</p>
+
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>#</th><th>Risk</th><th>Cheapest test</th><th>If it fails</th></tr></thead>
+    <tbody>
+      <tr>
+        <td class="num">1</td>
+        <td><strong>Read range is short and fussy.</strong> A 25&nbsp;mm sticker is a small antenna,
+          and it has to work through a lid, off-axis, aimed badly.</td>
+        <td>Stage 4, with a ruler, through each candidate material. Fifteen minutes and it is the
+          highest-information fifteen minutes in the project.</td>
+        <td>A card-format tag has a far bigger antenna and reads much further &mdash; but printed PVC
+          cards cost more and lose the deck-of-cards charm. Or: thinner panel, deeper nest.</td>
+      </tr>
+      <tr>
+        <td class="num">2</td>
+        <td><strong>Writing NDEF to NTAG213 from the PN532.</strong> Libraries are stronger at
+          reading than writing, and stronger on MIFARE Classic than on NTAG2xx. This path is
+          load-bearing &mdash; box-side enrolment is the entire reason an iPhone works.</td>
+        <td>Immediately after stage 4. Write a card, read it back on a phone.</td>
+        <td>Write the pages directly. A Type 2 tag is a TLV and some records from page 4 onward, and
+          <code>lib/tag.js</code> already produces the exact bytes &mdash; perhaps a hundred lines.</td>
+      </tr>
+      <tr>
+        <td class="num">3</td>
+        <td><strong>ESP-ADF is heavier than it looks.</strong> Its build system is fussier than
+          Arduino-style development, and it is the thing that makes &ldquo;upload whatever your phone
+          recorded&rdquo; true.</td>
+        <td>Stage 3, playing a real <code>.m4a</code> off the card &mdash; not a test tone.</td>
+        <td>Fall back to a single-format decoder and constrain uploads to MP3. That weakens the
+          voice-memo story rather than breaking it, and the studio can transcode.</td>
+      </tr>
+      <tr>
+        <td class="num">4</td>
+        <td><strong>The captive portal misbehaves</strong> on one platform or the other. This is
+          famously fiddly and every OS probes differently.</td>
+        <td>Both phones in the house, at stage 7.</td>
+        <td>Print the IP on the bottom of the box and tell people to type it. Uglier, always works.</td>
+      </tr>
+      <tr>
+        <td class="num">5</td>
+        <td><strong>The power chain.</strong> Genuinely the least worrying thing here, which is why
+          it is deliberately last.</td>
+        <td>Stage 6, meter in series.</td>
+        <td>Measured draw far above <a href="/hardware/#power">the budget</a> means something is not
+          sleeping &mdash; almost certainly a continuous NFC field.</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <strong>The honest shape of it: the hardware risk is read range, and the schedule risk is all
+    firmware.</strong> Not one line of it is written. Nothing on the parts list unblocks that, and
+    nothing about it blocks the parts list either &mdash; the two proceed in parallel, and having a
+    board on the desk is what makes the firmware get written.
+  </div>
+
+  <h2>Before you order</h2>
+  <ul>
+    <li>Read <a href="/design/">the design record</a>, or at least &sect;3. It is short and it will
+      stop you buying a 125&nbsp;kHz reader or a foil-backed deck of cards.</li>
+    <li>Decide branded or unbranded on <a href="/hardware/#bom">the bill of materials</a>. If you buy
+      one branded part, buy the PN532 &mdash; the antenna is what risk&nbsp;1 is about.</li>
+    <li>Buy one deck of cards and <strong>test a single sticker on it before you sticker fifty.</strong></li>
+  </ul>
+
+  <h2 id="bench">The bench</h2>
+  <p>What you need on the table, what you probably already have, and the four tricks that replace
+  the tools you do not: <strong><a href="/system/#bench">the system page</a></strong>. It is kept
+  there rather than here because it outlives this project &mdash; the bench is bought once and every
+  build after this one is just parts.</p>
+  <p id="bench-short"></p>
+
+  <h2 id="interconnect">How things connect</h2>
+
+  <h3>Most of the wiring is not wiring</h3>
+  <p>Every module in the parts list &mdash; the ESP32 board, the PN532, the amplifier, the SD
+  breakout &mdash; comes on 0.1&Prime; pins. <strong>Solder female headers to the board and plug them
+  in.</strong> The four fiddliest interconnects stop being cables at all, a dead module becomes a
+  swap rather than a desoldering job, and you can lift the PN532 out to test read range through
+  different lid thicknesses without unwiring anything.</p>
+
+  <p>What is genuinely left as cable, once the modules plug in:</p>
+  <div class="scroll-x">
+  <table>
+    <thead><tr><th>Run</th><th>Conductors</th><th>Terminate with</th></tr></thead>
+    <tbody>
+      <tr><td>Board → speaker</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → back button</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → next button</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → volume pot</td><td class="num">3</td><td>JST-XH 3-pin</td></tr>
+      <tr><td>Board → LED</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Board → power switch</td><td class="num">2</td><td>JST-XH 2-pin</td></tr>
+      <tr><td>Charger → cell, charger → board</td><td class="num">2 each</td><td><strong>already done</strong> — both ends ship with JST-PH</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <p>Six short runs. That is not a harness, it is an afternoon &mdash; and the highest-current
+  connection in the box, the battery, arrives already connectorised.</p>
+
+  <h3>JST-XH, and whether to crimp</h3>
+  <p><strong>JST-XH rather than Dupont</strong>, because Dupont is friction-fit only and is
+  explicitly not for anything that moves. This is a toy a four-year-old will shake, drop and carry
+  by the wrong end. JST-XH latches and is polarised.</p>
+
+  <p><strong>Order all three parts.</strong> A JST-XH connection is a plastic housing plus loose
+  female crimp contacts on the cable, and a <em>shrouded male header</em> on the board &mdash; JST's
+  <code>B2B-XH-A</code> family. Kits sold as &ldquo;JST-XH connectors&rdquo; are frequently cable-end
+  only. <a href="/system/#interconnect">The three parts.</a></p>
+
+  <p><strong>Contacts are SXH-001T-P0.6, 22&ndash;28 AWG</strong>, so any ratcheting crimper with a
+  0.08&ndash;1.0&nbsp;mm&sup2; die will do them. And the pitch is really 2.5&nbsp;mm despite every
+  listing saying 2.54 &mdash; fine on an 0.1&Prime; grid up to about 6 ways, and our longest run is
+  three.</p>
+
+  <h3>Strain relief is the part people skip</h3>
+  <p>Every cable that leaves the board gets anchored before it reaches its connector, so a tug pulls
+  on the board and not on a solder joint. A zip tie through two holes in the protoboard costs
+  nothing and is most of the difference between a box that survives a four-year-old and one that
+  comes back in pieces.</p>
+
+  <h2 id="stages">The stages</h2>
+  <p style="color:var(--muted);font-size:14.5px">Nine, counting the one before the first.</p>
+
+  <div class="stage">
+    <h3>0 &middot; Solder the headers on</h3>
+    <div class="meta">~40 min &middot; every module, before anything else</div>
+    <p>Breakouts ship their pin strips <em>loose in the bag</em>. Solder male pins to the PN532,
+    the amplifier and the SD breakout; solder female sockets into the Perma-Proto where each one
+    will sit. The dev board already has its pins on. <a href="/system/#pins">The two sets of pins,
+    and which is which.</a></p>
+    <p>Hold each strip square by plugging it into a solderless breadboard and setting the module on
+    top &mdash; then tack <strong>one</strong> corner pin and check it is flush before doing the
+    rest. Correcting one joint is easy; correcting a whole crooked strip is a new module.</p>
+    <div class="gate"><strong>Gate:</strong> every module seats in its socket without force and sits
+    parallel to the board. Beep a few pins through to the socket while you are here.</div>
+  </div>
+
+  <div class="stage">
+    <h3>1 &middot; Flash the board on its own</h3>
+    <div class="meta">~15 min &middot; nothing but the dev board and a USB cable</div>
+    <p>Before anything is soldered. Confirm the board enumerates, takes firmware, and prints to the
+    serial console.</p>
+    <div class="gate"><strong>Gate:</strong> the box says hello over serial. If this does not work,
+    nothing after it will, and you will not be able to tell why.</div>
+  </div>
+
+  <div class="stage">
+    <h3>2 &middot; SD card</h3>
+    <div class="meta">~20 min &middot; + microSD breakout</div>
+    <p>Four wires and power. Format a card, put a file on it, read it back.</p>
+    <div class="gate"><strong>Gate:</strong> the firmware lists the card&rsquo;s contents over serial.</div>
+  </div>
+
+  <div class="stage">
+    <h3>3 &middot; Sound</h3>
+    <div class="meta">~20 min &middot; + amplifier and speaker</div>
+    <p>Three I&sup2;S wires plus the mute line. Play a file off the card. Do this before the NFC
+    reader, because audio working is what makes every later stage debuggable by ear.</p>
+    <div class="gate"><strong>Gate:</strong> a story plays, at a sensible volume, with no hiss when
+    it stops. Hiss when idle means the amplifier&rsquo;s mute line is not wired or not being used.</div>
+  </div>
+
+  <div class="stage">
+    <h3>4 &middot; The reader</h3>
+    <div class="meta">~30 min &middot; + PN532</div>
+    <p>Two I&sup2;C wires and the interrupt. <strong>Set the module&rsquo;s DIP switches to
+    I&sup2;C</strong> &mdash; this is the step everyone misses and it looks exactly like a dead
+    board. Then read a card, then write one.</p>
+    <div class="gate"><strong>Gate:</strong> reads a card at the range you actually need, through
+    whatever thickness your enclosure lid will be. Measure it now, with a ruler. This number decides
+    the enclosure.</div>
+  </div>
+
+  <div class="stage">
+    <h3>5 &middot; Controls</h3>
+    <div class="meta">~20 min &middot; + two buttons, pot, LED</div>
+    <p>Buttons to ground with internal pull-ups. The pot across 3V3 and GND, wiper to the ADC.
+    <strong>Set the volume ceiling here</strong>, with the pot at maximum and a child in the room,
+    and then leave it.</p>
+    <div class="gate"><strong>Gate:</strong> the pot at its end stop is loud enough to hear across a
+    bedroom and not loud enough to be unpleasant close up.</div>
+  </div>
+
+  <div class="stage">
+    <h3>6 &middot; Power</h3>
+    <div class="meta">~40 min &middot; + charger, cell, buck-boost</div>
+    <p>Last, and on purpose: everything before this ran off USB, so a fault here cannot be confused
+    with a fault anywhere else. Follow <a href="/hardware/#wiring">the power chain</a> exactly.</p>
+    <div class="gate"><strong>Gate:</strong> it plays on the cell, it plays while charging, and the
+    measured current while playing is somewhere near
+    <a href="/hardware/#power">the budget&rsquo;s figure</a>. If it is double, something is not
+    sleeping &mdash; most likely the NFC field is on continuously.</div>
+  </div>
+
+  <div class="stage">
+    <h3>7 &middot; Bench test the whole thing, before it goes in a box</h3>
+    <div class="meta">~30 min &middot; all of it, still loose on the bench</div>
+    <p>Record a real story, upload it, write a card, play it, take the card off mid-sentence, put it
+    back. Leave it idle for an hour and confirm it went to sleep and wakes on a button.</p>
+    <div class="gate"><strong>Gate:</strong> everything on
+    <a href="/first-story/">the first-story page</a> works, start to finish, with wires everywhere.
+    Do not close a box around a system you have not seen work.</div>
+  </div>
+
+  <div class="stage">
+    <h3>8 &middot; The enclosure</h3>
+    <div class="meta">unknown &middot; not yet designed</div>
+    <p>Requirements have accumulated from the electronics and are
+    <a href="/hardware/#enclosure">listed</a>: the card nest sized by the range you measured at
+    stage 4, a screwed battery compartment, the speaker firing up or forward, and small enough that
+    a four-year-old can carry it with two hands.</p>
+    <div class="gate"><strong>Gate:</strong> a four-year-old picks it up and puts a card on it
+    without being shown how.</div>
+  </div>
+
+  <h2>What this page still owes you</h2>
+  <ul>
+    <li>A photograph of each stage, which is worth more than the schematic for anyone who has not
+      soldered before</li>
+    <li>Wire colours and lengths, and where the ground rail goes</li>
+    <li>Browser flashing, so no toolchain has to be installed &mdash; the S3&rsquo;s native USB
+      makes this possible and it is not yet built</li>
+    <li>The enclosure files</li>
+    <li>The section that decides whether anyone else finishes one: <strong>what went wrong, and what
+      it looked like when it did</strong></li>
+  </ul>
+
+  <p style="color:var(--muted);font-size:14.5px;margin-top:30px">Meanwhile the
+  <a href="/sim/">simulator</a> is the whole interaction in a tab, and the
+  <a href="/studio/">studio</a> already records books. Everything except the box is real.</p>
+  <script type="module">
+  const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  const bom = await (await fetch('/parts.json')).json();
+  const buy = (t) => t.owned === false && !t.optional;
+  const wave = (n) => [...bom.parts.filter((p) => p.wave === n),
+                       ...bom.tools.filter((t) => t.wave === n && buy(t))];
+  for (const n of [1, 2]) {
+    const items = wave(n);
+    document.getElementById(`w${n}-total`).textContent =
+      `$${items.reduce((a, x) => a + x.usd, 0)}`;
+    document.getElementById(`w${n}-list`).textContent =
+      items.map((x) => x.name.split(' — ')[0].split(' (')[0].split(',')[0]).join(' · ')
+      + (n === 2 ? ' · the enclosure' : '');
+  }
+  const need = bom.tools.filter(buy);
+  document.getElementById('bench-short').innerHTML =
+    `Short version: <strong>$${need.reduce((n, t) => n + t.usd, 0)}</strong> of things not already `
+    + `on the bench — ${need.map((t) => esc(t.name.split(' — ')[0].split(' (')[0].split(',')[0])).join(', ')}. `
+    + `Everything else is bought once and lasts for every project after this one.`;
+  </script>
+</main>
+<footer><div class="inner"><strong>tape</strong> &middot; part of <a href="https://mino.mobi">mino.mobi</a> &middot; <a href="/">home</a> &middot; <a href="/design/">design record</a></div></footer>
+</body></html>
