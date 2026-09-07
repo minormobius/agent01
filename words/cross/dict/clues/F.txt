@@ -1,0 +1,2159 @@
+FABLE		A deliberately false or improbable account
+FABLED		Celebrated in ___ or legend
+FABLES	pl	A deliberately false or improbable account
+FABRIC		Artifact made by weaving or felting or knitting or crocheting natural or synthetic fibers
+FABRICATE		Put together out of artificial or natural components or parts
+FABRICATED		Formed or conceived by the imagination
+FABRICATING	ing	Put together out of artificial or natural components or parts
+FABRICATION		A deliberately false or improbable account
+FABRICATIONS	pl	A deliberately false or improbable account
+FABRICATOR		Someone who tells lies
+FABRICATORS	pl	Someone who tells lies
+FABRICS	pl	Artifact made by weaving or felting or knitting or crocheting natural or synthetic fibers
+FABULOUS		Based on or told of in traditional stories
+FACADE		The face or front of a building
+FACADES	pl	The face or front of a building
+FACE		The front of the human head from the forehead to the chin and ear to ear
+FACED		Having a ___ or facing especially of a specified kind or number
+FACELESS		Without a face or identity
+FACEPLATE		A protective covering for the front of a machine or device
+FACEPLATES	pl	A protective covering for the front of a machine or device
+FACER		A serious difficulty with which one is suddenly ___
+FACES	pl	The front of the human head from the forehead to the chin and ear to ear
+FACET		A distinct feature or element in a problem
+FACETIOUS		Cleverly amusing in tone
+FACETS	pl	A distinct feature or element in a problem
+FACIA		A sheet or band of fibrous connective tissue separating or binding together muscles and…
+FACIAL		Care for the face that usually involves cleansing and massage and the application of…
+FACIALLY		With respect to the face
+FACIALS	pl	Care for the face that usually involves cleansing and massage and the application of…
+FACIAS	pl	A sheet or band of fibrous connective tissue separating or binding together muscles and…
+FACILE		Superficially impressive, but lacking depth and attention to the true complexities of a…
+FACILITATE		Be of use
+FACILITATED	past	Be of use
+FACILITATES	3sg	Be of use
+FACILITATING	ing	Be of use
+FACILITATION		The condition of being made easy
+FACILITATIVE		Freeing from difficulty or impediment
+FACILITATOR		Someone who makes progress easier
+FACILITATORS	pl	Someone who makes progress easier
+FACILITIES	pl	A building or place that provides a particular service or is used for a particular…
+FACILITY		A building or place that provides a particular service or is used for a particular…
+FACING		A lining applied to the edge of a garment for ornamentation or strengthening
+FACINGS	pl	A lining applied to the edge of a garment for ornamentation or strengthening
+FACSIMILE		An exact copy or reproduction
+FACSIMILES	pl	An exact copy or reproduction
+FACT		A piece of information about circumstances that exist or events that have occurred
+FACTION		A clique that seeks power usually through intrigue
+FACTIONS	pl	A clique that seeks power usually through intrigue
+FACTOID		Something resembling a fact
+FACTOIDS	pl	Something resembling a fact
+FACTOR		Anything that contributes causally to a result
+FACTORED	past	Consider as relevant when making a decision
+FACTORIAL		The product of all the integers up to and including a given integer
+FACTORIES	pl	A plant consisting of one or more buildings with facilities for manufacturing
+FACTORING		The resolution of an expression into factors such that when multiplied together they give…
+FACTORIZATION		The resolution of an expression into factors such that when multiplied together they give…
+FACTORIZATIONS	pl	The resolution of an expression into factors such that when multiplied together they give…
+FACTORS	pl	Anything that contributes causally to a result
+FACTORY		A plant consisting of one or more buildings with facilities for manufacturing
+FACTOTUM		A servant employed to do a variety of jobs
+FACTS	pl	A piece of information about circumstances that exist or events that have occurred
+FACTUAL		Existing in act or fact
+FACTUALLY		As a fact or based on fact
+FACULTATIVE		Of or relating to the mental faculties
+FACULTIES	pl	One of the inherent cognitive or perceptual powers of the mind
+FACULTY		One of the inherent cognitive or perceptual powers of the mind
+FAD		An interest followed with exaggerated zeal
+FADE		Become less clearly visible or distinguishable
+FADED		Having lost freshness or brilliance of color
+FADES	pl	A golf shot that curves to the right for a right-handed golfer
+FADING		Weakening in force or intensity
+FADO		A sad Portuguese folksong
+FADS	pl	An interest followed with exaggerated zeal
+FAECAL		Of or relating to feces
+FAECES		Solid excretory product evacuated from the bowels
+FAERIE		A small being, human in form, playful and having magical powers
+FAERIES	pl	A small being, human in form, playful and having magical powers
+FAERY		A small being, human in form, playful and having magical powers
+FAGIN		A villainous Jew in a novel by Charles Dickens
+FAIENCE		Glazed earthenware decorated with opaque colors
+FAIL		Disappoint, prove undependable to
+FAILED	past	Disappoint, prove undependable to
+FAILING		A flaw or weak point
+FAILINGS	pl	A flaw or weak point
+FAILLE		A ribbed woven fabric of silk or rayon or cotton
+FAILS	3sg	Disappoint, prove undependable to
+FAILURE		An act that fails
+FAILURES	pl	An act that fails
+FAIN		Having made preparations
+FAINT		Deficient in magnitude
+FAINTED	past	Pass out from weakness, physical or emotional distress due to a loss of blood supply to…
+FAINTER	comp	Deficient in magnitude
+FAINTEST	sup	Deficient in magnitude
+FAINTING	ing	Pass out from weakness, physical or emotional distress due to a loss of blood supply to…
+FAINTLY		To a ___ degree or weakly perceived
+FAINTNESS		The property of being without strength
+FAINTS	pl	A spontaneous loss of consciousness caused by insufficient blood to the brain
+FAIR		Free from favoritism or self-interest or bias or deception
+FAIRED	past	Join so that the external surfaces blend smoothly
+FAIRER	comp	Free from favoritism or self-interest or bias or deception
+FAIREST	sup	Free from favoritism or self-interest or bias or deception
+FAIRGROUND		An open area for holding fairs or exhibitions or circuses
+FAIRGROUNDS	pl	An open area for holding fairs or exhibitions or circuses
+FAIRING	ing	Join so that the external surfaces blend smoothly
+FAIRLY		To certain extent or degree
+FAIRNESS		Conformity with rules or standards
+FAIRS	pl	A traveling show
+FAIRWAY		The area between the tee and putting green where the grass is cut short
+FAIRWAYS	pl	The area between the tee and putting green where the grass is cut short
+FAIRYLAND		Something existing solely in the imagination
+FAITH		A strong belief in a supernatural power or powers that control human destiny
+FAITHFUL		Steadfast in affection or allegiance
+FAITHFULLY		In a ___ manner
+FAITHFULNESS		The quality of being faithful
+FAITHLESS		Having the character of, or characteristic of, a traitor
+FAITHS	pl	A strong belief in a supernatural power or powers that control human destiny
+FAKE		Something that is a counterfeit
+FAKED	past	Make a copy of with the intent to deceive
+FAKER		A person who makes deceitful pretenses
+FAKES	pl	Something that is a counterfeit
+FAKING	ing	Make a copy of with the intent to deceive
+FAKIR		A Muslim or Hindu mendicant monk who is regarded as a holy man
+FALAFEL		Small croquette of mashed chick peas or fava beans seasoned with sesame seeds
+FALCON		Diurnal birds of prey having long pointed powerful wings adapted for swift flight
+FALCONER		A person who breeds and trains hawks and who follows the sport of ___
+FALCONRY		The art of training ___ to hunt and return
+FALCONS	pl	Diurnal birds of prey having long pointed powerful wings adapted for swift flight
+FALL		Move downward and lower, but not necessarily all the way
+FALLACIES	pl	A misconception resulting from incorrect reasoning
+FALLACIOUS		Containing or based on a fallacy
+FALLACY		A misconception resulting from incorrect reasoning
+FALLBACK		To break off a military action with an enemy
+FALLEN		Having dropped by the force of gravity
+FALLER		A person who fells trees
+FALLERS	pl	A person who fells trees
+FALLIBILITY		The likelihood of making errors
+FALLIBLE		Likely to fail or make errors
+FALLING		Decreasing in amount or degree
+FALLOUT		The radioactive particles that settle to the ground after a nuclear explosion
+FALLOW		Left unplowed and unseeded during a growing season
+FALLOWS	pl	Cultivated land that is not seeded for one or more growing seasons
+FALLS		The petals or sepals of a flower that bend downward
+FALSE		Not in accordance with the fact or reality or actuality
+FALSEHOOD		A false statement
+FALSEHOODS	pl	A false statement
+FALSELY		In an incorrect manner
+FALSETTO		A male singing voice with artificially high tones in an upper register
+FALSIFIABLE		Capable of being tested by experiment or observation
+FALSIFICATION		Any evidence that helps to establish the falsity of something
+FALSIFIED	irr	Make false by mutilation or addition
+FALSIFY		Make false by mutilation or addition
+FALSIFYING		The act of determining that something is false
+FALSITY		The state of being false or untrue
+FALTER		Be unsure or weak
+FALTERED	past	Be unsure or weak
+FALTERING		The act of pausing uncertainly
+FALTERS	pl	The act of pausing uncertainly
+FAME		The state or quality of being widely honored and acclaimed
+FAMED		Widely known and esteemed
+FAMES	pl	The state or quality of being widely honored and acclaimed
+FAMILIAL		Relating to or having the characteristics of a family
+FAMILIAR		Well known or easily recognized
+FAMILIARISE		Make ___ or conversant with
+FAMILIARITY		Personal knowledge or information about someone or something
+FAMILIARIZATION		The experience of becoming familiar with something
+FAMILIARIZE		Make ___ or conversant with
+FAMILIARIZED		Having achieved a comfortable relation with your environment
+FAMILIARIZING		Serving to make familiar
+FAMILIARLY		In an intimately ___ manner
+FAMILIARS	pl	A person attached to the household of a high official who renders service in return for…
+FAMILIES	pl	A social unit living together
+FAMILY		A social unit living together
+FAMINE		An acute insufficiency
+FAMINES	pl	An acute insufficiency
+FAMISHED	past	Deprive of food
+FAMOUS		Widely known and esteemed
+FAMOUSLY		In a manner or to an extent that is well known
+FAN		A device for creating a current of air by movement of a surface or surfaces
+FANATIC		A person motivated by irrational enthusiasm
+FANATICAL		Marked by excessive enthusiasm for and intense devotion to a cause or idea
+FANATICISM		Excessive intolerance of opposing views
+FANATICS	pl	A person motivated by irrational enthusiasm
+FANCIED		Formed or conceived by the imagination
+FANCIER		A person having a strong liking for something
+FANCIERS	pl	A person having a strong liking for something
+FANCIES	pl	Something many people believe that is false
+FANCIFUL		Indulging in or influenced by fancy
+FANCY		Something many people believe that is false
+FANDANGO		A provocative Spanish courtship dance in triple time
+FANDOM		The fans of a sport or famous person
+FANFARE		A gaudy outward display
+FANG		A Bantu language spoken in Cameroon
+FANGS	pl	A Bantu language spoken in Cameroon
+FANNED		Especially spread in a fan shape
+FANNIES	pl	The fleshy part of the human body that you sit on
+FANNING	irr	Agitate the air
+FANNY		The fleshy part of the human body that you sit on
+FANS	pl	A device for creating a current of air by movement of a surface or surfaces
+FANTAIL		An overhang consisting of the fan-shaped part of the deck extending aft of the sternpost…
+FANTASIA		A musical composition of a free form usually incorporating several familiar themes
+FANTASIES	pl	Imagination unrestricted by reality
+FANTASIZE		Portray in the mind
+FANTASIZED	past	Portray in the mind
+FANTASIZING	ing	Portray in the mind
+FANTASTIC		Extraordinarily good or great
+FANTASTICAL		Existing in fancy only
+FANTASY		Imagination unrestricted by reality
+FAR		To a considerable degree
+FARAD		The capacitance of a capacitor that has an equal and opposite charge of 1 coulomb on each…
+FARADAY		The English physicist and chemist who discovered electromagnetic induction
+FARAWAY		Very far away in space or time
+FARCE		A comedy characterized by broad satire and improbable situations
+FARCICAL		Broadly or extravagantly humorous
+FARE		An agenda of things to do
+FARED	past	Proceed or get along
+FARES	pl	A terrorist organization that seeks to overthrow the government dominated by Tutsi and to…
+FAREWELL		An acknowledgment or expression of goodwill at parting
+FAREWELLS	pl	An acknowledgment or expression of goodwill at parting
+FARINA		Fine meal made from cereal grain especially wheat
+FARING	ing	Proceed or get along
+FARM		Collect fees or profits
+FARMED	past	Collect fees or profits
+FARMER		A person who operates a farm
+FARMERS	pl	A person who operates a farm
+FARMHOUSE		House for a farmer and family
+FARMHOUSES	pl	House for a farmer and family
+FARMING		The practice of cultivating the land or raising stock
+FARMLAND		A rural area where farming is practiced
+FARMLANDS	pl	A rural area where farming is practiced
+FARMS	pl	Workplace consisting of ___ buildings and cultivated land as a unit
+FARMSTEAD		The buildings and adjacent grounds of a farm
+FARMYARD		An area adjacent to farm buildings
+FARO		A card game in which players bet against the dealer on the cards he will draw from a…
+FARRIER		A person who shoes horses
+FARRIERS	pl	A person who shoes horses
+FARROW		The production of a litter of pigs
+FARROWING		The production of a litter of pigs
+FARSIGHTED		Able to see distant objects clearly
+FARSIGHTEDNESS		A reduced ability to focus on near objects caused by loss of elasticity of the…
+FART		A reflex that expels intestinal gas through the anus
+FARTED	past	Expel intestinal gases through the anus
+FARTHER		To or at a greater extent or degree or a more advanced stage
+FARTHEST		To the greatest distance in space or time
+FARTHING		A former British bronze coin worth a quarter of a penny
+FARTING		A reflex that expels intestinal gas through the anus
+FARTS	pl	A reflex that expels intestinal gas through the anus
+FAS		A congenital medical condition in which body deformation occurs or facial development or…
+FASCIA		A sheet or band of fibrous connective tissue separating or binding together muscles and…
+FASCIAS	pl	A sheet or band of fibrous connective tissue separating or binding together muscles and…
+FASCICLE		An installment of a printed work
+FASCINATE		Cause to be interested or curious
+FASCINATED		Having your attention fixated as though by a spell
+FASCINATES	3sg	Cause to be interested or curious
+FASCINATING		Capable of arousing and holding the attention
+FASCINATION		The state of being intensely interested
+FASCISM		A political theory advocating an authoritarian hierarchical government
+FASCIST		Relating to or characteristic of ___
+FASCISTS	pl	An adherent of ___ or other authoritarian views
+FASHION		How something is done or how it happens
+FASHIONABLE		Being or in accordance with current social fashions
+FASHIONABLY		In a ___ manner
+FASHIONED		Planned and made or ___ artistically
+FASHIONING		The act that results in something coming to be
+FASHIONS	pl	How something is done or how it happens
+FAST		Acting or moving or capable of acting or moving quickly
+FASTBALL		A pitch thrown with maximum velocity
+FASTED	past	Abstain from certain foods, as for religious or medical reasons
+FASTEN		Cause to be firmly attached
+FASTENED		Firmly closed or secured
+FASTENER		Restraint that attaches to something or holds something in place
+FASTENERS	pl	Restraint that attaches to something or holds something in place
+FASTENING		Restraint that attaches to something or holds something in place
+FASTENINGS	pl	Restraint that attaches to something or holds something in place
+FASTENS	3sg	Cause to be firmly attached
+FASTER	comp	Acting or moving or capable of acting or moving quickly
+FASTEST	sup	Acting or moving or capable of acting or moving quickly
+FASTIDIOUS		Giving careful attention to detail
+FASTING		Abstaining from food
+FASTNESS		A rate at which something happens
+FASTS	pl	Abstaining from food
+FAT		Having an abundance of flesh
+FATAL		Having momentous consequences
+FATALISM		A submissive mental attitude resulting from acceptance of the doctrine that everything…
+FATALISTIC		Of or relating to ___
+FATALITIES	pl	A death resulting from an accident or a disaster
+FATALITY		A death resulting from an accident or a disaster
+FATALLY		With ___ consequences or implications
+FATE		An event that will inevitably happen in the future
+FATED		Determined by tragic ___
+FATEFUL		Having momentous consequences
+FATES	pl	A soft greasy substance occurring in organic tissue and consisting of a mixture of lipids
+FATHEAD		A man who is a stupid incompetent fool
+FATHER		A male parent
+FATHERED	past	Make by reproduction
+FATHERHOOD		The kinship relation between an offspring and the father
+FATHERING	ing	Make by reproduction
+FATHERLAND		The country where you were born
+FATHERLESS		Having no living father
+FATHERLY		Like or befitting a ___ or ___
+FATHERS	pl	A male parent
+FATHOM		Come to understand
+FATHOMS	pl	A linear unit of measurement for water depth
+FATIGUE		Temporary loss of strength and energy resulting from hard physical or mental work
+FATIGUED		Drained of energy or effectiveness
+FATIGUES		Military uniform worn by military personnel when doing menial labor
+FATIGUING	ing	Lose interest or become bored with something or somebody
+FATNESS		Excess bodily weight
+FATS	pl	A soft greasy substance occurring in organic tissue and consisting of a mixture of lipids
+FATSO		A rotund individual
+FATTEN		Make fat or plump
+FATTENED		Made ready for market
+FATTENING		Subject to or used in the process of finishing or ___ up for slaughter
+FATTER	irr	Having an abundance of flesh
+FATTEST	irr	Having an abundance of flesh
+FATTIES	pl	A rotund individual
+FATTY		Containing or composed of fat
+FATUOUS		Extremely silly or stupid
+FATWA		A ruling on a point of Islamic law that is given by a recognized authority
+FATWAS	pl	A ruling on a point of Islamic law that is given by a recognized authority
+FAUBOURG		A New Orleans district lying outside the original city limits
+FAUCET		A regulator for controlling the flow of a liquid from a reservoir
+FAUCETS	pl	A regulator for controlling the flow of a liquid from a reservoir
+FAULDS	pl	A piece of armor plate below the breastplate
+FAULT		A wrong action attributable to bad judgment or ignorance or inattention
+FAULTED	past	Put or pin the blame on
+FAULTING		A crack in the earth's crust resulting from the displacement of one side with respect to…
+FAULTLESS		Without fault or error
+FAULTS	pl	A wrong action attributable to bad judgment or ignorance or inattention
+FAULTY		Having a defect
+FAUN		Ancient Italian deity in human shape, with horns, pointed ears and a goat's tail
+FAUNA		All the animal life in a particular region or period
+FAUNAS	pl	All the animal life in a particular region or period
+FAUNS	pl	Ancient Italian deity in human shape, with horns, pointed ears and a goat's tail
+FAUX		Not genuine or real
+FAVOR		Promote over another
+FAVORABLE		Encouraging or approving or pleasing
+FAVORED		Preferred above all others and treated with partiality
+FAVORING	ing	Promote over another
+FAVORITE		Something regarded with special favor or liking
+FAVORITES	pl	Something regarded with special favor or liking
+FAVORITISM		An inclination to favor some person or group
+FAVORS	pl	An act of gracious kindness
+FAVOUR		A feeling of favorable regard
+FAVOURED	past	Treat gently or carefully
+FAVOURING	ing	Treat gently or carefully
+FAVOURS	pl	A feeling of favorable regard
+FAWN		A color or pigment varying around a light grey-brown color
+FAWNING		Attempting to win favor from influential people by flattery
+FAWNS	pl	A color or pigment varying around a light grey-brown color
+FAX		Duplicator that transmits the copy by wire or radio
+FAXED	past	Send something via a facsimile machine
+FAXES	pl	Duplicator that transmits the copy by wire or radio
+FAXING	ing	Send something via a facsimile machine
+FAY		A small being, human in form, playful and having magical powers
+FAZE		Disturb the composure of
+FAZED		Caused to show discomposure
+FEALTY		The loyalty that citizens owe to their country
+FEAR		An emotion experienced in anticipation of some specific pain or danger
+FEARED	past	Be afraid or feel anxious or apprehensive about a possible or probable situation or event
+FEARFUL		Timid by nature or revealing timidity
+FEARFULLY		In an alarming manner
+FEARING	ing	Be afraid or feel anxious or apprehensive about a possible or probable situation or event
+FEARLESS		Oblivious of dangers or perils or calmly resolute in facing them
+FEARLESSNESS		Feeling no fear
+FEARS	pl	An emotion experienced in anticipation of some specific pain or danger
+FEARSOME		Causing fear or dread or terror
+FEASIBILITY		The quality of being doable
+FEASIBLE		Capable of being done with means at hand and circumstances as they are
+FEASIBLY		In a practicable manner
+FEAST		A ceremonial dinner party for many people
+FEASTED	past	Partake in a ___ or banquet
+FEASTING		Eating an elaborate meal
+FEASTS	pl	A ceremonial dinner party for many people
+FEAT		A notable achievement
+FEATHER		The light horny waterproof structure forming the external covering of birds
+FEATHERBED		Treat with excessive indulgence
+FEATHERED		Adorned with ___ or plumes
+FEATHERING		Turning an oar parallel to the water between pulls
+FEATHERS	pl	The light horny waterproof structure forming the external covering of birds
+FEATHERWEIGHT		An amateur boxer who weighs no more than 126 pounds
+FEATHERY		Resembling or suggesting a ___ or ___
+FEATS	pl	A notable achievement
+FEATURE		A prominent attribute or aspect of something
+FEATURED		Made a ___ or highlight
+FEATURELESS		Lacking distinguishing characteristics or features
+FEATURES	pl	A prominent attribute or aspect of something
+FEATURING	ing	Wear or display in an ostentatious or proud manner
+FEBRILE		Of or relating to or characterized by fever
+FECAL		Of or relating to feces
+FECES		Solid excretory product evacuated from the bowels
+FECKLESS		Not fit to assume responsibility
+FECUND		Capable of producing offspring or vegetation
+FECUNDITY		The intellectual productivity of a creative imagination
+FED		The central bank of the United States
+FEDERAL		Being of or having to do with the northern United States and those loyal to the Union…
+FEDERALISM		The idea of a ___ organization of more or less self-governing units
+FEDERALIST		A member of a former political party in the United States that favored a strong…
+FEDERALISTS	pl	A member of a former political party in the United States that favored a strong…
+FEDERALS	pl	A member of the Union Army during the American Civil War
+FEDERATE		Enter into a league for a common purpose
+FEDERATED		United under a central government
+FEDERATION		An organization formed by merging several groups or parties
+FEDERATIONS	pl	An organization formed by merging several groups or parties
+FEDORA		A hat made of felt with a creased crown
+FEDS	pl	The central bank of the United States
+FEE		A fixed charge for a privilege or for professional services
+FEEBLE		Pathetically lacking in force or effectiveness
+FEEBLY		In a faint and ___ manner
+FEED		Provide as food
+FEEDBACK		The process in which part of the output of a system is returned to its input in order to…
+FEEDBACKS	pl	The process in which part of the output of a system is returned to its input in order to…
+FEEDER		An animal being fattened or suitable for fattening
+FEEDERS	pl	An animal being fattened or suitable for fattening
+FEEDING		The act of consuming food
+FEEDLOT		A building where livestock are fattened for market
+FEEDLOTS	pl	A building where livestock are fattened for market
+FEEDS	pl	Food for domestic livestock
+FEEDSTOCK		The raw material that is required for some industrial process
+FEEDSTOCKS	pl	The raw material that is required for some industrial process
+FEEL		Undergo an emotional sensation or be in a particular state of mind
+FEELER		One of a pair of mobile appendages on the head of e.g. insects and crustaceans
+FEELERS	pl	One of a pair of mobile appendages on the head of e.g. insects and crustaceans
+FEELING		The experiencing of affective and emotional states
+FEELINGS		Emotional or moral sensitivity
+FEELS	pl	An intuitive awareness
+FEES	pl	A fixed charge for a privilege or for professional services
+FEET	irr	The part of the leg of a human being below the ankle joint
+FEIGN		Make believe with the intent to deceive
+FEIGNED	past	Make believe with the intent to deceive
+FEIGNING		Pretending with intention to deceive
+FEINT		Deceive by a mock action
+FEIST		A nervous belligerent little mongrel dog
+FEISTY		Quick to take offense
+FELDSPAR		Any of a group of hard crystalline minerals that consist of aluminum silicates of…
+FELICITOUS		Exhibiting an agreeably appropriate manner or style
+FELICITY		Pleasing and appropriate manner or style
+FELINE		Of or relating to cats
+FELINES	pl	Any of various lithe-bodied roundheaded fissiped mammals, many with retractile claws
+FELL		Cause to fall by or as if by delivering a blow
+FELLA		A boy or man
+FELLAS	pl	A boy or man
+FELLATION		Oral stimulation of the penis
+FELLED	past	Cause to fall by or as if by delivering a blow
+FELLER		A person who fells trees
+FELLERS	pl	A person who fells trees
+FELLING	ing	Cause to fall by or as if by delivering a blow
+FELLOW		A boy or man
+FELLOWS	pl	A boy or man
+FELLOWSHIP		An association of people who share common beliefs or activities
+FELLOWSHIPS	pl	An association of people who share common beliefs or activities
+FELLS	pl	The dressed skin of an animal
+FELLY		Rim into which spokes are inserted
+FELON		Someone who has committed a crime or has been legally convicted of a crime
+FELONIES	pl	A serious crime
+FELONIOUS		Involving or being or having the nature of a crime
+FELONS	pl	Someone who has committed a crime or has been legally convicted of a crime
+FELONY		A serious crime
+FELT		A fabric made of compressed matted animal fibers
+FELTED		Made by combining fibers with a binder using heat and pressure
+FELTING	ing	Mat together and make ___-like
+FELTS	pl	A fabric made of compressed matted animal fibers
+FEMALE		An animal that produces gametes that can be fertilized by male gametes
+FEMALES	pl	An animal that produces gametes that can be fertilized by male gametes
+FEMININE		Associated with women and not with men
+FEMININITY		The trait of behaving in ways considered typical for women
+FEMINISED	past	To give a ___, effeminate, or womanly quality or appearance to
+FEMINISM		A doctrine that advocates equal rights for women
+FEMINIST		Of or relating to or advocating equal rights for women
+FEMINISTS	pl	A supporter of ___
+FEMINIZATION		The process of becoming feminized
+FEMINIZED	past	To give a ___, effeminate, or womanly quality or appearance to
+FEMORAL		Of or relating to or near the femur or thigh
+FEMTOSECOND		One quadrillionth of a second
+FEMUR		The longest and thickest bone of the human skeleton
+FEN		Low-lying wet land with grassy vegetation
+FENCE		A barrier that serves to enclose an area
+FENCED	past	Receive stolen goods
+FENCER		Someone skilled at fencing
+FENCERS	pl	Someone skilled at fencing
+FENCES	pl	A barrier that serves to enclose an area
+FENCING		A barrier that serves to enclose an area
+FEND		Try to manage without help
+FENDER		A barrier that surrounds the wheels of a vehicle to block splashing water or mud
+FENDERS	pl	A barrier that surrounds the wheels of a vehicle to block splashing water or mud
+FENDING	ing	Try to manage without help
+FENESTRATION		The arrangement of windows in a building
+FENLAND		Low-lying wet land with grassy vegetation
+FENNEL		Any of several aromatic herbs having edible seeds and leaves and stems
+FENS	pl	Low-lying wet land with grassy vegetation
+FENUGREEK		Annual herb or southern Europe and eastern Asia having off-white flowers and aromatic…
+FERAL		Wild and menacing
+FERIA		A weekday on which no festival or holiday is celebrated
+FERMENT		A state of agitation or turbulent change or development
+FERMENTATION		A state of agitation or turbulent change or development
+FERMENTATIONS	pl	A state of agitation or turbulent change or development
+FERMENTED	past	Be in an agitated or excited state
+FERMENTING		A process in which an agent causes an organic substance to break down into simpler…
+FERMI		A metric unit of length equal to one quadrillionth of a meter
+FERMION		Any particle that obeys ___-Dirac statistics and is subject to the Pauli exclusion…
+FERMIONS	pl	Any particle that obeys ___-Dirac statistics and is subject to the Pauli exclusion…
+FERN		Any of numerous flowerless and seedless vascular plants having true roots from a rhizome…
+FERNS	pl	Any of numerous flowerless and seedless vascular plants having true roots from a rhizome…
+FERNY		Abounding in or covered with ___
+FEROCIOUS		Marked by extreme and violent energy
+FEROCIOUSLY		In a physically fierce manner
+FEROCITY		The property of being wild or turbulent
+FERRET		Musteline mammal of prairie regions of United States
+FERRETS	pl	Musteline mammal of prairie regions of United States
+FERRIC		Of or relating to or containing iron
+FERRIED	irr	Transport from one place to another
+FERRIES	pl	A boat that transports people or vehicles across a body of water and operates on a…
+FERRITE		A solid solution in which alpha iron is the solvent
+FERRITES	pl	A solid solution in which alpha iron is the solvent
+FERRITIN		A protein containing 20% iron that is found in the intestines and liver and spleen
+FERROMAGNETIC		Relating to or demonstrating ___
+FERROUS		Of or relating to or containing iron
+FERRULE		A metal cap or band placed on a wooden pole to prevent splitting
+FERRULES	pl	A metal cap or band placed on a wooden pole to prevent splitting
+FERRY		Transport from one place to another
+FERRYBOAT		A boat that transports people or vehicles across a body of water and operates on a…
+FERRYING		Transport by boat or aircraft
+FERRYMAN		A man who operates a ferry
+FERTILE		Capable of reproducing
+FERTILITY		The ratio of live births in an area to the population of that area
+FERTILIZATION		Creation by the physical union of male and female gametes
+FERTILIZE		Make fertile or productive
+FERTILIZED	past	Make fertile or productive
+FERTILIZER		Any substance such as manure or a mixture of nitrates used to make soil more fertile
+FERTILIZERS	pl	Any substance such as manure or a mixture of nitrates used to make soil more fertile
+FERTILIZING	ing	Make fertile or productive
+FERVENT		Characterized by intense emotion
+FERVENTLY		With passionate fervor
+FERVOR		Feelings of great warmth and intensity
+FERVOUR		The state of being emotionally aroused and worked up
+FESCUE		Grass with wide flat leaves cultivated in Europe and America for permanent pasture and…
+FESS		An ordinary consisting of a broad horizontal band across a shield
+FESTER		A sore that has become inflamed and formed pus
+FESTERING		The formation of morbific matter in an abscess or a vesicle and the discharge of pus
+FESTIVAL		A day or period of time set aside for feasting and celebration
+FESTIVALS	pl	A day or period of time set aside for feasting and celebration
+FESTIVE		Offering fun and gaiety
+FESTIVITIES	pl	Any joyous diversion
+FESTIVITY		Any joyous diversion
+FESTOON		A curtain of fabric draped and bound at intervals to form graceful curves
+FESTOONED	past	Decorate with strings of flowers
+FET		A transistor in which most current flows in a channel whose effective resistance can be…
+FETAL		Of or relating to a fetus
+FETCH		Go or come after and bring or take back
+FETCHED	past	Go or come after and bring or take back
+FETCHES	pl	The action of ___
+FETCHING	ing	Go or come after and bring or take back
+FETE		Have a celebration
+FETED	past	Have a celebration
+FETES	pl	A transistor in which most current flows in a channel whose effective resistance can be…
+FETISH		A form of sexual desire in which gratification depends to an abnormal degree on some…
+FETISHES	pl	A form of sexual desire in which gratification depends to an abnormal degree on some…
+FETISHISM		A belief in the magical power of fetishes
+FETISHIST		One who engages in ___
+FETOPROTEIN		Any of several antigens that occur naturally in the fetus and sometimes in adults with…
+FETS	pl	A transistor in which most current flows in a channel whose effective resistance can be…
+FETTER		A shackle for the ankles or feet
+FETTERS	pl	A shackle for the ankles or feet
+FETTUCCINE		Pasta in flat strips wider than linguine
+FETTUCCINI		Pasta in flat strips wider than linguine
+FETUS		An unborn or unhatched vertebrate in the later stages of development showing the main…
+FETUSES	pl	An unborn or unhatched vertebrate in the later stages of development showing the main…
+FEUD		A bitter quarrel between two parties
+FEUDAL		Of or relating to or characteristic of ___
+FEUDALISM		The social system that developed in Europe in the 8th century
+FEUDING	ing	Carry out a ___
+FEUDS	pl	A bitter quarrel between two parties
+FEVER		A rise in the temperature of the body
+FEVERED		Highly or nervously excited
+FEVERFEW		Bushy aromatic European perennial herb having clusters of buttonlike white-rayed flower…
+FEVERISH		Marked by intense agitation or emotion
+FEVERISHLY		In a ___ manner
+FEVERS	pl	A rise in the temperature of the body
+FEW		A quantifier that can be used with count nouns and is often preceded by `a'
+FEWER		Quantifier meaning a smaller number of
+FEWEST		Quantifier meaning the smallest in number
+FEY		Suggestive of an elf in strangeness and otherworldliness
+FEZ		A city in north central Morocco
+FIANCE		A man who is engaged to be married
+FIANCEE		A woman who is engaged to be married
+FIASCO		A sudden and violent collapse
+FIAT		A legally binding command or decision entered on the court record
+FIB		A trivial lie
+FIBER		A slender and greatly elongated substance capable of being spun into yarn
+FIBERBOARD		Wallboard composed of wood chips or shavings bonded together with resin and compressed…
+FIBERGLASS		A covering material made of glass fibers in resins
+FIBERS	pl	A slender and greatly elongated substance capable of being spun into yarn
+FIBRE		A slender and greatly elongated substance capable of being spun into yarn
+FIBREBOARD		Wallboard composed of wood chips or shavings bonded together with resin and compressed…
+FIBREGLASS		A covering material made of glass fibers in resins
+FIBRES	pl	A slender and greatly elongated substance capable of being spun into yarn
+FIBRILLATION		Muscular twitching involving individual muscle fibers acting without coordination
+FIBRILS	pl	A very slender natural or synthetic fiber
+FIBRIN		A white insoluble fibrous protein formed by the action of thrombin on ___ when…
+FIBRINOGEN		A protein present in blood plasma
+FIBRINOLYSIS		A normal ongoing process that dissolves fibrin and results in the removal of small blood…
+FIBROBLAST		A cell from which connective tissue develops
+FIBROBLASTS	pl	A cell from which connective tissue develops
+FIBROID		Benign tumor containing ___ tissue
+FIBROIDS	pl	Benign tumor containing ___ tissue
+FIBROSIS		Development of excess fibrous connective tissue in an organ
+FIBROUS		Having or resembling fibers especially fibers used in making cordage such as those of jute
+FIBS	pl	A trivial lie
+FIBULA		The outer and thinner of the two bones of the human leg between the knee and ankle
+FICE		A nervous belligerent little mongrel dog
+FICKLE		Marked by erratic changeableness in affections or attachments
+FICTION		A literary work based on the imagination and not necessarily on fact
+FICTIONAL		Formed or conceived by the imagination
+FICTIONALIZED	past	Make into fiction
+FICTIONS	pl	A literary work based on the imagination and not necessarily on fact
+FICTITIOUS		Formed or conceived by the imagination
+FICTIVE		Adopted in order to deceive
+FICUS		Large genus of tropical trees or shrubs or climbers including fig trees
+FIDDLE		Bowed stringed instrument that is the highest member of the violin family
+FIDDLED	past	Commit fraud and steal from one's employer
+FIDDLER		A musician who plays the violin
+FIDDLERS	pl	A musician who plays the violin
+FIDDLES	pl	Bowed stringed instrument that is the highest member of the violin family
+FIDDLING		Small and of little importance
+FIDELITY		Accuracy with which an electronic system reproduces the sound or image of its input signal
+FIDGET		A feeling of agitation expressed in continual motion
+FIDGETY		Nervous and unable to relax
+FIDUCIAL		Relating to or of the nature of a legal trust
+FIDUCIARIES	pl	A person who holds assets in trust for a beneficiary
+FIDUCIARY		A person who holds assets in trust for a beneficiary
+FIEF		A piece of land held under the feudal system
+FIELD		A piece of land cleared of trees and usually enclosed
+FIELDED	past	Catch or pick up in baseball or cricket
+FIELDER		A member of the baseball team that is in the ___ instead of at bat
+FIELDERS	pl	A member of the baseball team that is in the ___ instead of at bat
+FIELDING		Handling the ball while playing in the field
+FIELDS		United States comedian and film actor
+FIELDSTONE		Stone that occurs naturally in fields
+FIELDWORK		A temporary fortification built by troops in the field
+FIEND		A cruel wicked and inhuman person
+FIENDISH		Extremely evil or cruel
+FIENDS	pl	A cruel wicked and inhuman person
+FIERCE		Marked by extreme and violent energy
+FIERCELY		In a physically ___ manner
+FIERCENESS		The property of being wild or turbulent
+FIERCER	comp	Marked by extreme and violent energy
+FIERCEST	sup	Marked by extreme and violent energy
+FIERY		Characterized by intense emotion
+FIESTA		An elaborate party
+FIESTAS	pl	An elaborate party
+FIFE		A small high-pitched flute similar to a piccolo
+FIFTEEN		Being one more than fourteen
+FIFTEENTH		Coming next after the fourteenth and just before the sixteenth in position
+FIFTH		Coming next after the fourth and just before the sixth in position
+FIFTHS	pl	Position five in a countable series of things
+FIFTIES		The decade from 1950 to 1959
+FIFTIETH		The ordinal number of fifty in counting order
+FIFTY		Being ten more than forty
+FIG		A diagram or picture illustrating textual material
+FIGHT		A hostile meeting of opposing military forces in the course of a war
+FIGHTER		A high-speed military or naval airplane designed to destroy enemy aircraft in the air
+FIGHTERS	pl	A high-speed military or naval airplane designed to destroy enemy aircraft in the air
+FIGHTING		Engaged in or ready for military or naval operations
+FIGHTS	pl	A hostile meeting of opposing military forces in the course of a war
+FIGMENT		A contrived or fantastic idea
+FIGS	pl	A diagram or picture illustrating textual material
+FIGURAL		Consisting of or forming human or animal ___
+FIGURATION		Decorating with a design
+FIGURATIVE		Consisting of or forming human or animal figures
+FIGURATIVELY		In a ___ sense
+FIGURE		A diagram or picture illustrating textual material
+FIGURED		Adorned with patterns
+FIGUREHEAD		A person used as a cover for some questionable activity
+FIGURES	pl	A diagram or picture illustrating textual material
+FIGURINE		A small carved or molded figure
+FIGURINES	pl	A small carved or molded figure
+FIGURING		Problem solving that involves numbers or quantities
+FILA	irr	A threadlike structure
+FILAMENT		A very slender natural or synthetic fiber
+FILAMENTOUS		Thin in diameter
+FILAMENTS	pl	A very slender natural or synthetic fiber
+FILARIASIS		A disease caused by nematodes in the blood or tissues of the body causing blockage of…
+FILBERT		Small nut-bearing tree much grown in Europe
+FILE		Record in a public office or in a court of law
+FILED	past	Record in a public office or in a court of law
+FILER		A party who ___ a notice with a law court
+FILERS	pl	A party who ___ a notice with a law court
+FILES	pl	A set of related records kept together
+FILET		A boneless steak cut from the tenderloin of beef
+FILETS	pl	A boneless steak cut from the tenderloin of beef
+FILIAL		Designating the generation or the sequence of generations following the parental…
+FILIBUSTER		A legislator who gives long speeches in an effort to delay or obstruct legislation that…
+FILIBUSTERING	ing	Obstruct deliberately by delaying
+FILIBUSTERS	pl	A legislator who gives long speeches in an effort to delay or obstruct legislation that…
+FILIGREE		Delicate and intricate ornamentation
+FILING		The entering of a legal document into the public record
+FILINGS	pl	The entering of a legal document into the public record
+FILL		Make full, also in a metaphorical sense
+FILLE		A young female
+FILLED		Generously supplied with
+FILLER		Used for filling cracks or holes in a surface
+FILLERS	pl	Used for filling cracks or holes in a surface
+FILLES	pl	A quantity sufficient to satisfy
+FILLET		A boneless steak cut from the tenderloin of beef
+FILLETS	pl	A boneless steak cut from the tenderloin of beef
+FILLIES	pl	A young female horse under the age of four
+FILLING		Any material that fills a space or container
+FILLINGS	pl	Any material that fills a space or container
+FILLIP		Anything that tends to arouse
+FILLS	pl	A quantity sufficient to satisfy
+FILLY		A young female horse under the age of four
+FILM		A form of entertainment that enacts a story by sound and a sequence of images giving the…
+FILMED		Recorded on film
+FILMING		The act of making a film
+FILMMAKER		A producer of motion pictures
+FILMMAKERS	pl	A producer of motion pictures
+FILMS	pl	A form of entertainment that enacts a story by sound and a sequence of images giving the…
+FILMY		So thin as to transmit light
+FILS		A fractional monetary unit in Bahrain and Iraq and Jordan and Kuwait
+FILTER		Device that removes something from whatever passes through it
+FILTERED	past	Run or flow slowly, as in drops or in an unsteady stream
+FILTERING	ing	Run or flow slowly, as in drops or in an unsteady stream
+FILTERS	pl	Device that removes something from whatever passes through it
+FILTH		Any substance considered disgustingly foul or unpleasant
+FILTHY		Characterized by obscenity
+FILTRATE		Remove by passing through a filter
+FILTRATION		The process whereby fluids pass through a filter or a filtering medium
+FIN		The cardinal number that is the sum of four and one
+FINAL		Occurring at or forming an end or termination
+FINALE		The closing section of a musical composition
+FINALES	pl	An examination administered at the end of an academic term
+FINALIST		A contestant who reaches the final stages of a competition
+FINALISTS	pl	A contestant who reaches the final stages of a competition
+FINALITY		The quality of being final or definitely settled
+FINALIZATION		The act of finalizing
+FINALLY		After an unspecified period of time or an especially long delay
+FINALS	pl	An examination administered at the end of an academic term
+FINANCE		Obtain or provide money for
+FINANCED	past	Obtain or provide money for
+FINANCES		Assets in the form of money
+FINANCIALLY		From a ___ point of view
+FINANCIER		A person skilled in large scale ___ transactions
+FINANCIERS	pl	A person skilled in large scale ___ transactions
+FINANCING		The act of ___
+FINANCINGS	pl	The act of ___
+FINCH		Any of numerous small songbirds with short stout bills adapted for crushing seeds
+FINCHES	pl	Any of numerous small songbirds with short stout bills adapted for crushing seeds
+FIND		Come upon, as if by accident
+FINDER		Someone who comes upon something after searching
+FINDERS	pl	Someone who comes upon something after searching
+FINDING		The act of determining the properties of something, usually by research or calculation
+FINDINGS		A collection of tools and other articles used by an artisan to make jewelry or clothing…
+FINDS	pl	A productive insight
+FINE		Being satisfactory or in satisfactory condition
+FINED	past	Issue a ticket or a ___ to as a penalty
+FINELY		In tiny pieces
+FINENESS		The quality of being very good indeed
+FINER		Greater in quality or excellence
+FINERY		Elaborate or showy attire and accessories
+FINES	pl	Money extracted as a penalty
+FINESSE		Subtly skillful handling of a situation
+FINEST	sup	Being satisfactory or in satisfactory condition
+FINGER		Any of the terminal members of the hand
+FINGERBOARD		A guidepost resembling a hand with a pointing index finger
+FINGERED		Having or resembling a ___ or ___
+FINGERING		The placement of the fingers for playing different notes on a musical instrument
+FINGERINGS	pl	The placement of the fingers for playing different notes on a musical instrument
+FINGERLING		A young or small fish
+FINGERLINGS	pl	A young or small fish
+FINGERNAIL		The nail at the end of a finger
+FINGERNAILS	pl	The nail at the end of a finger
+FINGERPRINT		A print made by an impression of the ridges in the skin of a finger
+FINGERPRINTED	past	Take an impression of a person's ___
+FINGERPRINTING		The procedure of taking inked impressions of a person's ___ for the purpose of…
+FINGERPRINTS	pl	A print made by an impression of the ridges in the skin of a finger
+FINGERS	pl	Any of the terminal members of the hand
+FINGERTIP		The end of a finger
+FINGERTIPS	pl	The end of a finger
+FINIAL		An ornament at the top of a spire or gable
+FINIALS	pl	An ornament at the top of a spire or gable
+FINICKY		Exacting especially about details
+FINING	ing	Issue a ticket or a ___ to as a penalty
+FINIS		The temporal end
+FINISH		Finally be or do something
+FINISHED		Brought to the desired final state
+FINISHER		A relief pitcher who can protect a lead in the last inning or two of the game
+FINISHERS	pl	A relief pitcher who can protect a lead in the last inning or two of the game
+FINISHES	pl	A decorative texture or appearance of a surface
+FINISHING		A decorative texture or appearance of a surface
+FINITE		Bounded or limited in magnitude or spatial or temporal extent
+FINITELY		With a ___ limit
+FINITENESS		The quality of being finite
+FINK		Someone acting as an informer or decoy for the police
+FINNED	irr	Propel oneself through the water in a ___ motion
+FINNING	irr	Propel oneself through the water in a ___ motion
+FINS	pl	The cardinal number that is the sum of four and one
+FIORD		A long narrow inlet of the sea between steep cliffs
+FIR		Any of various evergreen trees of the genus Abies
+FIRE		The event of something burning
+FIREARM		A portable gun
+FIREARMS	pl	A portable gun
+FIREBALL		An especially luminous meteor
+FIREBALLS	pl	An especially luminous meteor
+FIREBIRD		The male is bright red with black wings and tail
+FIREBIRDS	pl	The male is bright red with black wings and tail
+FIREBOMBING	ing	Attack with incendiary bombs
+FIREBOX		A furnace in which fuel is burned
+FIREBRAND		A piece of wood that has been burned or is burning
+FIREBRICK		Brick made of fire clay
+FIREBUG		A criminal who illegally sets fire to property
+FIRECRACKER		Firework consisting of a small explosive charge and fuse in a heavy paper casing
+FIRECRACKERS	pl	Firework consisting of a small explosive charge and fuse in a heavy paper casing
+FIRED		Having lost your job
+FIREFIGHTER		A member of a fire department who tries to extinguish fires
+FIREFIGHTERS	pl	A member of a fire department who tries to extinguish fires
+FIREFLIES	pl	Tropical American click beetle having bright luminous spots
+FIREFLY		Tropical American click beetle having bright luminous spots
+FIREHOUSE		A station housing fire apparatus and firemen
+FIRELIGHT		The light of a fire
+FIREMAN		Play in which children pretend to put out a fire
+FIREMEN	pl	Play in which children pretend to put out a fire
+FIREPLACE		An open recess in a wall at the base of a chimney where a fire can be built
+FIREPLACES	pl	An open recess in a wall at the base of a chimney where a fire can be built
+FIREPOWER		The relative capacity for delivering fire on a target
+FIREPROOF		Make resistant to fire
+FIREPROOFING	ing	Make resistant to fire
+FIRES	pl	The event of something burning
+FIRESIDE		An area near a fireplace
+FIRESTONE		A piece of flint that is struck to light a fire
+FIRESTORM		A storm in which violent winds are drawn into the column of hot air rising over a…
+FIRETRAP		A building that would be hard to escape from if it were to catch fire
+FIREWATER		Any strong spirits
+FIREWEED		Tall North American perennial with creeping rootstocks and narrow leaves and spikes of…
+FIREWOOD		Wood used for fuel
+FIREWORK		A device with an explosive that burns at a low rate and with colored flames
+FIREWORKS	pl	A device with an explosive that burns at a low rate and with colored flames
+FIRING		The act of discharging a gun
+FIRINGS	pl	The act of discharging a gun
+FIRKIN		A British unit of capacity equal to 9 imperial gallons
+FIRM		The members of a business organization that owns or operates one or more establishments
+FIRMAMENT		The apparent surface of the imaginary sphere on which celestial bodies appear to be…
+FIRMED	past	Become taut or tauter
+FIRMER	comp	Not soft or yielding to pressure
+FIRMING	ing	Become taut or tauter
+FIRMLY		With resolute determination
+FIRMNESS		The muscle tone of healthy tissue
+FIRMS	pl	The members of a business organization that owns or operates one or more establishments
+FIRMWARE		Coded instructions that are stored permanently in read-only memory
+FIRMWARES	pl	Coded instructions that are stored permanently in read-only memory
+FIRS	pl	Any of various evergreen trees of the genus Abies
+FIRST		Preceding all others in time or space or degree
+FIRSTBORN		The offspring who came first in the order of birth
+FIRSTHAND		Received directly from a source
+FIRSTLY		Before anything else
+FIRSTS	pl	The time at which something is supposed to begin
+FIRTH		English linguist who contributed to linguistic semantics and to prosodic phonology and…
+FISC		A state treasury or exchequer or a royal treasury
+FISCAL		Involving financial matters
+FISCALLY		In financial matters
+FISH		Any of various mostly cold-blooded aquatic vertebrates usually having scales and…
+FISHBONE		A bone of a fish
+FISHBOWL		A state of affairs in which you have no privacy
+FISHED	past	Catch or try to catch ___ or shellfish
+FISHER		Someone whose occupation is catching fish
+FISHERIES	pl	A workplace where fish are caught and processed and sold
+FISHERMAN		Someone whose occupation is catching fish
+FISHERMEN	pl	Someone whose occupation is catching fish
+FISHERS	pl	Someone whose occupation is catching fish
+FISHERY		A workplace where fish are caught and processed and sold
+FISHES	irr	Any of various mostly cold-blooded aquatic vertebrates usually having scales and…
+FISHEYE		Of or relating to a ___ lens
+FISHHOOKS	pl	A sharp barbed hook for catching fish
+FISHING		The act of someone who fishes as a diversion
+FISHMONGER		Someone who sells fish
+FISHMONGERS	pl	Someone who sells fish
+FISHNET		A net that will enclose fish when it is pulled in
+FISHNETS	pl	A net that will enclose fish when it is pulled in
+FISHPOND		A freshwater pond with fish
+FISHPONDS	pl	A freshwater pond with fish
+FISHTAIL		Slow down by moving the tail sideways
+FISHY		Not as expected
+FISSILE		Capable of being split or cleft or divided in the direction of the grain
+FISSION		Reproduction of some unicellular organisms by division of the cell into two more or less…
+FISSURE		A long narrow depression in a surface
+FISSURES	pl	A long narrow depression in a surface
+FIST		A hand with the fingers clenched in the palm
+FISTFUL		The quantity that can be held in the hand
+FISTICUFFS		A fight with bare fists
+FISTS	pl	A hand with the fingers clenched in the palm
+FISTULA		A chronic inflammation of the withers of a horse
+FISTULAS	pl	A chronic inflammation of the withers of a horse
+FIT		Be agreeable or acceptable to
+FITCH		Dark brown mustelid of woodlands of Eurasia that gives off an unpleasant odor when…
+FITFUL		Occurring in spells and often abruptly
+FITMENT		Any of the items furnishing or equipping a room
+FITNESS		The quality of being suitable
+FITS	pl	A display of bad temper
+FITTED		Being the right size and shape to fit as desired
+FITTER		Someone who fits a garment to a particular person
+FITTERS	pl	Someone who fits a garment to a particular person
+FITTEST	irr	Meeting adequate standards for a purpose
+FITTING		In harmony with the spirit of particular persons or occasion
+FITTINGLY		In accordance with what is appropriate or suitable for the circumstances
+FITTINGS	pl	Making or becoming suitable
+FIVE		Being one more than four
+FIVEFOLD		Having five units or components
+FIVER		A United States bill worth 5 dollars
+FIVES		A game resembling handball
+FIX		Restore by replacing a part or putting together what is torn or broken
+FIXATE		Attach to a person or thing in a neurotic way
+FIXATED	past	Attach to a person or thing in a neurotic way
+FIXATION		An abnormal state in which development has stopped prematurely
+FIXATIONS	pl	An abnormal state in which development has stopped prematurely
+FIXATIVE		A compound that fixes tissues and cells for microscopic study
+FIXED		Securely placed or fastened or set
+FIXEDLY		In a ___ manner
+FIXER		Someone who intervenes with authorities for a person in trouble
+FIXERS	pl	Someone who intervenes with authorities for a person in trouble
+FIXES	pl	Informal terms for a difficult situation
+FIXING		The act of putting something in working order again
+FIXINGS		Food that is a component of a mixture in cooking
+FIXTURE		An object firmly fixed in place
+FIXTURES	pl	An object firmly fixed in place
+FIZZ		An effervescent beverage
+FIZZING		Hissing and bubbling
+FIZZLE		A fricative sound
+FIZZLES	pl	A fricative sound
+FIZZY		Hissing and bubbling
+FJORD		A long narrow inlet of the sea between steep cliffs
+FJORDS	pl	A long narrow inlet of the sea between steep cliffs
+FLAB		Loose or flaccid body fat
+FLABBERGASTED		As if struck dumb with astonishment and surprise
+FLABBY		Out of condition
+FLACCID		Drooping without elasticity
+FLACK		A slick spokesperson who can turn any criticism to the advantage of their employer
+FLAG		Emblem usually consisting of a rectangular piece of cloth of distinctive design
+FLAGELLA	irr	A whip used to inflict punishment
+FLAGELLATION		Beating as a source of erotic or religious stimulation
+FLAGELLUM		A whip used to inflict punishment
+FLAGGED	irr	Droop, sink, or settle from or as if from pressure or loss of tautness
+FLAGGING		A walk of flagstones
+FLAGPOLE		Surveying instrument consisting of a straight rod painted in bands of alternate red and…
+FLAGPOLES	pl	Surveying instrument consisting of a straight rod painted in bands of alternate red and…
+FLAGRANT		Conspicuously and outrageously bad or reprehensible
+FLAGRANTLY		In a ___ manner
+FLAGS	pl	Emblem usually consisting of a rectangular piece of cloth of distinctive design
+FLAGSHIP		The chief one of a related group
+FLAGSTAFF		A town in north central Arizona
+FLAGSTONE		Stratified stone that splits into pieces suitable as paving stones
+FLAGSTONES	pl	Stratified stone that splits into pieces suitable as paving stones
+FLAIL		An implement consisting of handle with a free swinging stick at the end
+FLAILING	ing	Give a thrashing to
+FLAIR		A natural talent
+FLAK		A slick spokesperson who can turn any criticism to the advantage of their employer
+FLAKE		A crystal of snow
+FLAKED	past	Cover with ___ or as if with ___
+FLAKES	pl	A crystal of snow
+FLAKEY		Conspicuously or grossly unconventional or unusual
+FLAKING	ing	Cover with ___ or as if with ___
+FLAKY		Conspicuously or grossly unconventional or unusual
+FLAMBEAU		A flaming torch
+FLAMBOYANT		Showy tropical tree or shrub native to Madagascar
+FLAME		The process of combustion of inflammable materials producing heat and light and smoke
+FLAMED	past	Shine with a sudden light
+FLAMENCO		A style of dancing characteristic of the Andalusian Gypsies
+FLAMEPROOF		Resistant to catching fire
+FLAMES	pl	The process of combustion of inflammable materials producing heat and light and smoke
+FLAMETHROWER		A weapon that squirts ignited fuel for several yards
+FLAMING		The process of combustion of inflammable materials producing heat and light and smoke
+FLAMINGO		Large pink to scarlet web-footed wading bird with down-bent bill
+FLAMINGOS	pl	Large pink to scarlet web-footed wading bird with down-bent bill
+FLAMMABILITY		The quality of being easily ignited and burning rapidly
+FLAN		Open pastry filled with fruit or custard
+FLANGE		A projection used for strength or for attaching to another object
+FLANGES	pl	A projection used for strength or for attaching to another object
+FLANK		Be located at the sides of something or somebody
+FLANKED	past	Be located at the sides of something or somebody
+FLANKER		A back stationed wide of the scrimmage line
+FLANKING	ing	Be located at the sides of something or somebody
+FLANKS	pl	The side of military or naval formation
+FLANNEL		A soft light woolen fabric
+FLANNELS	pl	A soft light woolen fabric
+FLAP		Move in a wavy pattern or with a rising and falling motion
+FLAPPED	irr	Move in a wavy pattern or with a rising and falling motion
+FLAPPER		A young woman in the 1920s who flaunted her unconventional conduct and dress
+FLAPPING		The motion made by ___ up and down
+FLAPS		A movable airfoil that is part of an aircraft wing
+FLARE		A shape that spreads outward
+FLARED	past	Shine with a sudden light
+FLARES	pl	A shape that spreads outward
+FLARING		Streaming or flapping or spreading wide as if in a current of air
+FLASH		Gleam or glow intermittently
+FLASHBACK		A transition to an earlier event or scene that interrupts the normal chronological…
+FLASHBACKS	pl	A transition to an earlier event or scene that interrupts the normal chronological…
+FLASHCARD		A card with words or numbers or pictures that is flashed to a class by the teacher
+FLASHCARDS	pl	A card with words or numbers or pictures that is flashed to a class by the teacher
+FLASHED	past	Gleam or glow intermittently
+FLASHER		Someone with a compulsive desire to expose the genitals
+FLASHERS	pl	Someone with a compulsive desire to expose the genitals
+FLASHES	pl	A sudden intense burst of radiant energy
+FLASHING		A short vivid experience
+FLASHINGS	pl	A short vivid experience
+FLASHLIGHT		A small portable battery-powered electric lamp
+FLASHLIGHTS	pl	A small portable battery-powered electric lamp
+FLASHY		Marked by conspicuous display
+FLASK		Bottle that has a narrow neck
+FLASKS	pl	Bottle that has a narrow neck
+FLAT		Having a surface without slope, tilt in which no part is higher or lower than another
+FLATBED		Freight car without permanent sides or roof
+FLATFISH		Sweet lean whitish flesh of any of numerous thin-bodied fish
+FLATHEAD		Food fish of the Indonesian region of the Pacific
+FLATIRON		An iron that was heated by placing it on a stove
+FLATLY		In an unqualified manner
+FLATMATE		An associate who shares an apartment with you
+FLATMATES	pl	An associate who shares an apartment with you
+FLATNESS		The property of having two dimensions
+FLATS		Footwear with no heel
+FLATTEN		Lower the pitch of
+FLATTENED	past	Lower the pitch of
+FLATTENING	ing	Lower the pitch of
+FLATTENS	3sg	Lower the pitch of
+FLATTER		Praise somewhat dishonestly
+FLATTERED	past	Praise somewhat dishonestly
+FLATTERING		Showing or representing to advantage
+FLATTERS	3sg	Praise somewhat dishonestly
+FLATTERY		Excessive or insincere praise
+FLATTOP		A closely cropped haircut
+FLATULENCE		A state of excessive gas in the alimentary canal
+FLATWARE		Tableware that is relatively flat and fashioned as a single piece
+FLATWORM		Parasitic or free-living worms having a flattened body
+FLAUNT		The act of displaying something ostentatiously
+FLAVIN		A ketone that forms the nucleus of certain natural yellow pigments like riboflavin
+FLAVONOID		Any of a large class of plant pigments having a chemical structure based on or similar to…
+FLAVONOIDS	pl	Any of a large class of plant pigments having a chemical structure based on or similar to…
+FLAVOR		The general atmosphere of a place or situation and the effect that it has on people
+FLAVORFUL		Full of flavor
+FLAVORING		Something added to food primarily for the savor it imparts
+FLAVORINGS	pl	Something added to food primarily for the savor it imparts
+FLAVORS	pl	The general atmosphere of a place or situation and the effect that it has on people
+FLAVOUR		The general atmosphere of a place or situation and the effect that it has on people
+FLAVOURING		Something added to food primarily for the savor it imparts
+FLAVOURS	pl	The general atmosphere of a place or situation and the effect that it has on people
+FLAW		An imperfection in an object or machine
+FLAWED		Having a blemish or flaw
+FLAWLESS		Without a flaw
+FLAWLESSLY		Smoothly and without difficulty
+FLAWS	pl	An imperfection in an object or machine
+FLAX		Plant of the genus Linum that is cultivated for its seeds and for the fibers of its stem
+FLAXEN		Of hair color
+FLAXSEED		The seed of flax used as a source of oil
+FLAY		Strip the skin off
+FLAYED	past	Strip the skin off
+FLEA		Any wingless bloodsucking parasitic insect noted for ability to leap
+FLEAS	pl	Any wingless bloodsucking parasitic insect noted for ability to leap
+FLECK		A small fragment of something broken off from the whole
+FLECKED		Having a pattern of dots
+FLECKS	pl	A small fragment of something broken off from the whole
+FLED	irr	Run away quickly
+FLEDGED		Having developed feathers or plumage
+FLEDGING	ing	Feed, care for, and rear young birds for flight
+FLEDGLING		Any new participant in some activity
+FLEDGLINGS	pl	Any new participant in some activity
+FLEE		Run away quickly
+FLEECE		The wool of a sheep or similar animal
+FLEECED	past	Shear the wool from
+FLEECES	pl	The wool of a sheep or similar animal
+FLEECY		Having soft nap produced by brushing
+FLEEING	ing	Run away quickly
+FLEER		Contempt expressed by mockery in looks or words
+FLEES	3sg	Run away quickly
+FLEET		Moving very fast
+FLEETING		Lasting for a markedly brief time
+FLEETS	pl	Group of aircraft operating together under the same ownership
+FLEMISH		One of two official languages of Belgium
+FLESH		The soft tissue of the body of a vertebrate: mainly muscle tissue and fat
+FLESHED	past	Remove adhering ___ from when preparing leather manufacture
+FLESHING	ing	Remove adhering ___ from when preparing leather manufacture
+FLESHLY		Marked by the appetites and passions of the body
+FLESHY		Usually describes a large person who is fat but has a large frame to carry it
+FLETCHER		Prolific English dramatist who collaborated with Francis Beaumont and many other…
+FLETCHERS	pl	Prolific English dramatist who collaborated with Francis Beaumont and many other…
+FLEW	irr	Travel through the air
+FLEX		Exhibit the strength of
+FLEXED	past	Exhibit the strength of
+FLEXES	pl	The act of ___
+FLEXIBILITIES	pl	The property of being flexible
+FLEXIBILITY		The property of being flexible
+FLEXIBLE		Capable of being changed
+FLEXING	ing	Exhibit the strength of
+FLEXION		The state of being flexed
+FLEXOR		A skeletal muscle whose contraction bends a joint
+FLEXURE		The state of being flexed
+FLICK		A light sharp contact
+FLICKED	past	Look through a book or other written material
+FLICKER		Move back and forth very rapidly
+FLICKERED	past	Move back and forth very rapidly
+FLICKERING	ing	Move back and forth very rapidly
+FLICKERS	pl	A momentary flash of light
+FLICKING	ing	Look through a book or other written material
+FLICKS	pl	A light sharp contact
+FLIED	past	Travel through the air
+FLIER		Someone who travels by air
+FLIERS	pl	Someone who travels by air
+FLIES		The space over the stage used to store scenery
+FLIGHT		An instance of traveling by air
+FLIGHTLESS		Incapable of flying
+FLIGHTS	pl	An instance of traveling by air
+FLIGHTY		Guided by whim and fancy
+FLIMSY		Lacking solidity or strength
+FLINCH		Draw back, as with fear or pain
+FLINCHED	past	Draw back, as with fear or pain
+FLINDERS		British explorer who mapped the Australian coast
+FLING		Throw with force or recklessness
+FLINGING	ing	Throw with force or recklessness
+FLINGS	pl	A usually brief attempt
+FLINT		A hard kind of stone
+FLINTLOCK		An obsolete gunlock that has flint embedded in the hammer
+FLINTS	pl	A hard kind of stone
+FLIP		Lightly throw to see which side comes up
+FLIPPANT		Showing inappropriate levity
+FLIPPED	irr	Lightly throw to see which side comes up
+FLIPPER		A shoe for swimming
+FLIPPERS	pl	A shoe for swimming
+FLIPPING	irr	Lightly throw to see which side comes up
+FLIPS	pl	An acrobatic feat in which the feet roll over the head and return
+FLIRT		Talk or behave amorously, without serious intentions
+FLIRTATION		Playful behavior intended to arouse sexual interest
+FLIRTATIOUS		Like a coquette
+FLIRTED	past	Talk or behave amorously, without serious intentions
+FLIRTING		Playful behavior intended to arouse sexual interest
+FLIRTS	pl	A seductive woman who uses her sex appeal to exploit men
+FLIT		Move along rapidly and lightly
+FLITTED	irr	Move along rapidly and lightly
+FLITTING	irr	Move along rapidly and lightly
+FLOAT		Be in motion due to some air or water current
+FLOATATION		The phenomenon of floating
+FLOATED	past	Be in motion due to some air or water current
+FLOATER		Spots before the eyes caused by opaque cell fragments in the vitreous humor and lens
+FLOATERS	pl	Spots before the eyes caused by opaque cell fragments in the vitreous humor and lens
+FLOATING		Borne up by or suspended in a liquid
+FLOATPLANE		A seaplane equipped with pontoons for landing or taking off from water
+FLOATS	pl	The time interval between the deposit of a check in a bank and its payment
+FLOATY		Tending to ___ on a liquid or rise in air or gas
+FLOC		A small loosely aggregated mass of ___ material suspended in or precipitated from…
+FLOCCULATION		The process of ___
+FLOCK		A church congregation guided by a pastor
+FLOCKED	past	Move as a crowd or in a group
+FLOCKING	ing	Move as a crowd or in a group
+FLOCKS	pl	A church congregation guided by a pastor
+FLOE		A flat mass of ice floating at sea
+FLOG		Beat severely with a whip or rod
+FLOGGED	irr	Beat severely with a whip or rod
+FLOGGER		A torturer who flogs or scourges
+FLOGGING		Beating with a whip or strap or rope as a form of punishment
+FLOOD		Fill quickly beyond capacity
+FLOODED		Covered with water
+FLOODGATE		Something that restrains a flood or outpouring
+FLOODGATES	pl	Something that restrains a flood or outpouring
+FLOODING		A technique used in behavior therapy
+FLOODLIGHT		Light that is a source of artificial illumination having a broad beam
+FLOODLIGHTS	pl	Light that is a source of artificial illumination having a broad beam
+FLOODLIT		Illuminated by means of ___
+FLOODPLAIN		A low plain adjacent to a river that is formed chiefly of river sediment and is subject…
+FLOODPLAINS	pl	A low plain adjacent to a river that is formed chiefly of river sediment and is subject…
+FLOODS	pl	The rising of a body of water and its overflowing onto normally dry land
+FLOOR		The inside lower horizontal surface
+FLOORBOARD		A board in the floor
+FLOORBOARDS	pl	A board in the floor
+FLOORED		Provided with a ___
+FLOORING		The inside lower horizontal surface
+FLOORINGS	pl	The inside lower horizontal surface
+FLOORS	pl	The inside lower horizontal surface
+FLOP		Fall suddenly and abruptly
+FLOPPED	irr	Fall suddenly and abruptly
+FLOPPIES	pl	A small plastic magnetic disk enclosed in a stiff envelope with a radial slit
+FLOPPING	irr	Fall suddenly and abruptly
+FLOPPY		A small plastic magnetic disk enclosed in a stiff envelope with a radial slit
+FLOPS	pl	An arithmetic operation performed on floating-point numbers
+FLORA		All the plant life in a particular region or period
+FLORAL		Resembling or made of or suggestive of flowers
+FLORAS	pl	All the plant life in a particular region or period
+FLORENCE		A city in central Italy on the Arno
+FLORET		A diminutive flower
+FLORETS	pl	A diminutive flower
+FLORICULTURE		The cultivation of flowering plants
+FLORID		Elaborately or excessively ornamented
+FLORIN		The basic unit of money in Suriname
+FLORIST		Someone who grows and deals in flowers
+FLORISTS	pl	Someone who grows and deals in flowers
+FLOSS		A soft loosely twisted thread used in embroidery
+FLOSSING	ing	Use dental ___ to clean
+FLOTATION		The phenomenon of floating
+FLOTILLA		A United States Navy fleet consisting of two or more squadrons of small warships
+FLOTSAM		The floating wreckage of a ship
+FLOUNDER		Walk with great difficulty
+FLOUNDERED	past	Walk with great difficulty
+FLOUNDERING	ing	Walk with great difficulty
+FLOUNDERS	pl	Flesh of any of various American and European flatfish
+FLOUR		Fine powdery foodstuff obtained by grinding and sifting the meal of a cereal grain
+FLOURED	past	Convert grain into ___
+FLOURISH		A showy gesture
+FLOURISHED	past	Make steady progress
+FLOURISHES	pl	A showy gesture
+FLOURISHING		Very lively and profitable
+FLOURS	pl	Fine powdery foodstuff obtained by grinding and sifting the meal of a cereal grain
+FLOUT		Treat with contemptuous disregard
+FLOUTED	past	Treat with contemptuous disregard
+FLOUTING	ing	Treat with contemptuous disregard
+FLOW		The motion characteristic of fluids
+FLOWAGE		Gradual internal motion or deformation of a solid body
+FLOWCHART		A diagram of the sequence of operations in a computer program or an accounting system
+FLOWCHARTS	pl	A diagram of the sequence of operations in a computer program or an accounting system
+FLOWED	past	Move or progress freely as if in a stream
+FLOWER		A plant cultivated for its blooms or blossoms
+FLOWERED		Resembling or made of or suggestive of ___
+FLOWERING		The time and process of budding and unfolding of blossoms
+FLOWERPOT		A container in which plants are cultivated
+FLOWERS	pl	A plant cultivated for its blooms or blossoms
+FLOWERY		Marked by elaborate rhetoric and elaborated with decorative details
+FLOWING		Designed or arranged to offer the least resistant to fluid flow
+FLOWN	irr	Travel through the air
+FLOWS	pl	The motion characteristic of fluids
+FLU		An acute febrile highly contagious viral disease
+FLUBS	pl	An embarrassing mistake
+FLUCTUATE		Move or sway in a rising and falling or wavelike pattern
+FLUCTUATED	past	Move or sway in a rising and falling or wavelike pattern
+FLUCTUATES	3sg	Move or sway in a rising and falling or wavelike pattern
+FLUCTUATING		Having unpredictable ups and downs
+FLUCTUATION		A wave motion
+FLUCTUATIONS	pl	A wave motion
+FLUE		Flat bladelike projection on the arm of an anchor
+FLUENCY		Powerful and effective language
+FLUENT		Smooth and unconstrained in movement
+FLUENTLY		In a ___ manner
+FLUES	pl	An acute febrile highly contagious viral disease
+FLUFF		Any light downy material
+FLUFFY		Like down or as soft as down
+FLUGELHORN		A brass instrument resembling a cornet but with a wider bore
+FLUID		Continuous amorphous matter that tends to flow and to conform to the outline of its…
+FLUIDITY		The property of flowing easily
+FLUIDS	pl	Continuous amorphous matter that tends to flow and to conform to the outline of its…
+FLUKE		A stroke of luck
+FLUKES	pl	A stroke of luck
+FLUME		A narrow gorge with a stream running through it
+FLUNG	irr	Throw with force or recklessness
+FLUNK		Failure to reach a minimum required performance
+FLUNKED	past	Fail to get a passing grade
+FLUOR		A soft mineral that is ___ in ultraviolet light
+FLUORESCEIN		A yellow dye that is visible even when highly diluted
+FLUORESCENCE		Light emitted during absorption of radiation of some other wavelength
+FLUORESCENT		Emitting light during exposure to radiation from an external source
+FLUORESCENTS	pl	A lighting fixture that uses a ___ lamp
+FLUORIDATION		The addition of a fluoride to the water supply
+FLUORIDE		A salt of hydrofluoric acid
+FLUORIDES	pl	A salt of hydrofluoric acid
+FLUORINE		A nonmetallic univalent element belonging to the halogens
+FLUORITE		A soft mineral that is fluorescent in ultraviolet light
+FLUOROCARBON		A halocarbon in which some hydrogen atoms have been replaced by fluorine
+FLUOROSCOPY		Examination of body structures using a ___
+FLUOROSIS		A pathological condition resulting from an excessive intake of fluorine
+FLUOROURACIL		An antimetabolite used to treat certain cancers
+FLUPHENAZINE		Tranquilizer used to treat psychotic disorders
+FLURRIES	pl	A rapid active commotion
+FLURRY		A rapid active commotion
+FLUSH		Turn red, as if in embarrassment or shame
+FLUSHED		Reddened or suffused with or as if with blood from emotion or exertion
+FLUSHES	pl	The period of greatest prosperity or productivity
+FLUSHING	ing	Turn red, as if in embarrassment or shame
+FLUSTERED		Thrown into a state of agitated confusion
+FLUTE		A high-pitched woodwind instrument
+FLUTES	pl	A high-pitched woodwind instrument
+FLUTIST		Someone who plays the flute
+FLUTTER		The act of moving back and forth
+FLUTTERED	past	Move along rapidly and lightly
+FLUTTERING		The motion made by flapping up and down
+FLUTTERS	pl	The act of moving back and forth
+FLUVIAL		Of or relating to or happening in a river
+FLUX		The rate of flow of energy or particles across a given surface
+FLUXES	pl	The rate of flow of energy or particles across a given surface
+FLY		Travel through the air
+FLYAWAY		Guided by whim and fancy
+FLYBRIDGE		The highest navigational bridge on a ship
+FLYCATCHER		Any of a large group of small songbirds that feed on insects taken on the wing
+FLYCATCHERS	pl	Any of a large group of small songbirds that feed on insects taken on the wing
+FLYER		An advertisement intended for wide distribution
+FLYERS	pl	An advertisement intended for wide distribution
+FLYING		Hurried and brief
+FLYLEAF		A blank leaf in the front or back of a book
+FLYOVER		Bridge formed by the upper level of a crossing of two highways at different levels
+FLYPAPER		Paper that is poisoned or coated with a sticky substance to kill flies
+FLYTRAP		A trap for catching flies
+FLYWAY		The geographic route along which birds customarily migrate
+FLYWEIGHT		Weighs no more than 115 pounds
+FLYWHEEL		Regulator consisting of a heavy wheel that stores kinetic energy and smooths the…
+FLYWHEELS	pl	Regulator consisting of a heavy wheel that stores kinetic energy and smooths the…
+FOAL		A young horse
+FOALED	past	Give birth to a ___
+FOALS	pl	A young horse
+FOAM		A mass of small bubbles formed in or on a liquid
+FOAMED	past	Become bubbly or frothy or ___
+FOAMING		Emitting or filled with bubbles as from carbonation or fermentation
+FOAMS	pl	A mass of small bubbles formed in or on a liquid
+FOAMY		Producing or covered with lathery sweat or saliva from exhaustion or disease
+FOB		A vest pocket to hold a pocket watch
+FOBS	pl	A vest pocket to hold a pocket watch
+FOCAL		Having or localized centrally at a focus
+FOCI	irr	The concentration of attention or energy on something
+FOCUS		The concentration of attention or energy on something
+FOCUSED		Converging on a point
+FOCUSES	pl	The concentration of attention or energy on something
+FOCUSING		The concentration of attention or energy on something
+FOCUSSED		Being in focus or brought into focus
+FOCUSSES	pl	The concentration of attention or energy on something
+FOCUSSING		The concentration of attention or energy on something
+FODDER		Soldiers who are regarded as expendable in the face of artillery fire
+FOE		An armed adversary
+FOES	pl	An officer holding the rank of major or lieutenant colonel or colonel
+FOETAL		Of or relating to a fetus
+FOETUS		An unborn or unhatched vertebrate in the later stages of development showing the main…
+FOG		Droplets of water vapor suspended in the air near the ground
+FOGEY		Someone whose style is out of fashion
+FOGGED		Obscured by fog
+FOGGING	irr	Make less visible or unclear
+FOGGY		Stunned or confused and slow to react
+FOGHORN		A loud low warning signal that can be heard by fogbound ships
+FOGS	pl	Droplets of water vapor suspended in the air near the ground
+FOIBLES	pl	A behavioral attribute that is distinctive and peculiar to an individual
+FOIL		A piece of thin and flexible sheet metal
+FOILED	past	Enhance by contrast
+FOILING		An act of hindering someone's plans or efforts
+FOILS	pl	A piece of thin and flexible sheet metal
+FOIST		To force onto another
+FOISTED	past	To force onto another
+FOLATE		A B vitamin that is essential for cell growth and reproduction
+FOLD		Bend or lay so that one part covers the other
+FOLDABLE		Capable of being folded up and stored
+FOLDAWAY		Capable of being folded up and stored
+FOLDED	past	Bend or lay so that one part covers the other
+FOLDER		A small book usually having a paper cover
+FOLDERS	pl	A small book usually having a paper cover
+FOLDING		The process whereby a protein molecule assumes its intricate three-dimensional shape
+FOLDOUT		An oversize page that is folded in to a book or magazine
+FOLDS	pl	A group of people who adhere to a common faith and habitually attend a given church
+FOLIA	irr	A thin layer or stratum of rock
+FOLIAGE		The main organ of photosynthesis and transpiration in higher plants
+FOLIATION		The process of forming leaves
+FOLIO		The system of numbering pages
+FOLIOS	pl	The system of numbering pages
+FOLK		People in general
+FOLKLORE		The unwritten lore of a culture
+FOLKS		People in general
+FOLKSY		Belonging to the common people, especially in regard to speech patterns, attitudes, etc
+FOLKTALE		A tale circulated by word of mouth among the common folk
+FOLKTALES	pl	A tale circulated by word of mouth among the common folk
+FOLLICLE		Any small spherical group of cells containing a cavity
+FOLLICLES	pl	Any small spherical group of cells containing a cavity
+FOLLICULAR		Of or relating to or constituting a follicle
+FOLLICULITIS		Inflammation of a hair follicle
+FOLLIES		A revue with elaborate costuming
+FOLLOW		To travel behind, go after, come after
+FOLLOWED	past	To travel behind, go after, come after
+FOLLOWER		A person who accepts the leadership of another
+FOLLOWERS		A group of ___ or enthusiasts
+FOLLOWING		In the desired direction
+FOLLOWINGS	pl	A group of followers or enthusiasts
+FOLLOWS	3sg	To travel behind, go after, come after
+FOLLY		The trait of acting stupidly or rashly
+FOMENT		Try to stir up public opinion
+FOMENTING	ing	Try to stir up public opinion
+FOND		Having or displaying warmth or affection
+FONDANT		Candy made of a thick creamy sugar paste
+FONDER	comp	Having or displaying warmth or affection
+FONDEST	sup	Having or displaying warmth or affection
+FONDLE		Touch or stroke lightly in a loving or endearing manner
+FONDLED	past	Touch or stroke lightly in a loving or endearing manner
+FONDLING	ing	Touch or stroke lightly in a loving or endearing manner
+FONDNESS		A predisposition to like something
+FONDUE		Cubes of meat or seafood cooked in hot oil and then dipped in any of various sauces
+FONT		A specific size and style of type within a type family
+FONTS	pl	A specific size and style of type within a type family
+FOOD		Any substance that can be metabolized by an animal to give energy and build tissue
+FOODIE		A person devoted to refined sensuous enjoyment
+FOODIES	pl	A person devoted to refined sensuous enjoyment
+FOODS	pl	Any substance that can be metabolized by an animal to give energy and build tissue
+FOODSTUFF		Consumer goods sold by a grocer
+FOODSTUFFS	pl	Consumer goods sold by a grocer
+FOOL		A person who lacks good judgment
+FOOLED	past	Spend frivolously and unwisely
+FOOLHARDY		Marked by defiant disregard for danger or consequences
+FOOLING		Characterized by a feeling of irresponsibility
+FOOLISH		Devoid of good sense or judgment
+FOOLISHLY		Without good sense or judgment
+FOOLISHNESS		The trait of acting stupidly or rashly
+FOOLPROOF		Not liable to failure
+FOOLS	pl	A person who lacks good judgment
+FOOLSCAP		A size of paper used especially in Britain
+FOOT		The part of the leg of a human being below the ankle joint
+FOOTAGE		Film that has been shot
+FOOTAGES	pl	Film that has been shot
+FOOTBALL		Any of various games played with a ball in which two teams try to kick or carry or propel…
+FOOTBALLER		An athlete who plays American ___
+FOOTBALLERS	pl	An athlete who plays American ___
+FOOTBALLS	pl	Any of various games played with a ball in which two teams try to kick or carry or propel…
+FOOTBOARD		A narrow platform on which to stand or brace the feet
+FOOTBOARDS	pl	A narrow platform on which to stand or brace the feet
+FOOTBRIDGE		A bridge designed for pedestrians
+FOOTED	past	Pay for something
+FOOTER		The height or length of something in feet
+FOOTERS	pl	The height or length of something in feet
+FOOTHILL		A relatively low hill on the lower slope of a mountain
+FOOTHILLS	pl	A relatively low hill on the lower slope of a mountain
+FOOTHOLD		An area in hostile territory that has been captured and is held awaiting further troops…
+FOOTING		Status with respect to the relations between people or groups
+FOOTINGS	pl	Status with respect to the relations between people or groups
+FOOTLIGHTS		Theater light at the front of a stage that illuminate the set and actors
+FOOTLOCKER		A trunk for storing personal possessions
+FOOTLOOSE		Free to go or do as one pleases
+FOOTMAN		A man employed as a servant in a large establishment to run errands and do chores
+FOOTNOTE		A printed note placed below the text on a printed page
+FOOTNOTES	pl	A printed note placed below the text on a printed page
+FOOTPATH		A trodden path
+FOOTPATHS	pl	A trodden path
+FOOTPRINT		A mark of a foot or shoe on a surface
+FOOTPRINTS	pl	A mark of a foot or shoe on a surface
+FOOTREST		A low seat or a stool to rest the feet of a seated person
+FOOTRESTS	pl	A low seat or a stool to rest the feet of a seated person
+FOOTS	pl	The part of the leg of a human being below the ankle joint
+FOOTSTEP		The sound of a step of someone walking
+FOOTSTEPS	pl	The sound of a step of someone walking
+FOOTSTOOL		A low seat or a stool to rest the feet of a seated person
+FOOTSTOOLS	pl	A low seat or a stool to rest the feet of a seated person
+FOOTWEAR		Clothing worn on a person's feet
+FOOTWORK		The manner of using the feet
+FOP		A man who is much concerned with his dress and appearance
+FORA	irr	A public meeting or assembly for open discussion
+FORAGE		Bulky food like grass or hay for browsing or grazing horses or cattle
+FORAGERS	pl	Someone who hunts for food and provisions
+FORAGES	pl	Bulky food like grass or hay for browsing or grazing horses or cattle
+FORAGING		The act of searching for food and provisions
+FORAM		Marine microorganism having a calcareous shell with openings where pseudopods protrude
+FORAMEN		A natural opening or perforation through a bone or a membranous structure
+FORAMS	pl	Marine microorganism having a calcareous shell with openings where pseudopods protrude
+FORAY		A sudden short attack
+FORAYS	pl	A sudden short attack
+FORBADE	irr	Keep from happening or arising
+FORBEAR		A person from whom you are descended
+FORBEARANCE		Good-natured tolerance of delay or incompetence
+FORBID		Keep from happening or arising
+FORBIDDEN		Excluded from use or mention
+FORBIDDING		An official prohibition or edict against something
+FORBIDS	3sg	Keep from happening or arising
+FORCE		To cause to do through pressure or necessity, by physical, moral or intellectual means
+FORCED		Produced by or subjected to forcing
+FORCEFUL		Characterized by or full of force or strength
+FORCEFULLY		With full force
+FORCEPS		An extractor consisting of a pair of pincers used in medical treatment
+FORCES	pl	A powerful effect or influence
+FORCIBLE		Impelled by physical force especially against resistance
+FORCIBLY		In a ___ manner
+FORCING	ing	To cause to do through pressure or necessity, by physical, moral or intellectual means
+FORD		United States film maker
+FORDING		The act of crossing a stream or river by wading or in a car or on a horse
+FORDS	pl	United States film maker
+FORE		Front part of a vessel or aircraft
+FOREARM		The part of the superior limb between the elbow and the wrist
+FOREARMS	pl	The part of the superior limb between the elbow and the wrist
+FOREBEARS	pl	A person from whom you are descended
+FOREBODING		A feeling of evil to come
+FOREBRAIN		The anterior portion of the brain
+FORECAST		Predict in advance
+FORECASTED	past	Predict in advance
+FORECASTER		Someone who makes predictions of the future
+FORECASTERS	pl	Someone who makes predictions of the future
+FORECASTING		A statement made about the future
+FORECASTLE		Living quarters consisting of a superstructure in the bow of a merchant ship where the…
+FORECASTS	pl	A prediction about how something will develop
+FORECLOSE		Keep from happening or arising
+FORECLOSED	past	Keep from happening or arising
+FORECLOSURE		The legal proceedings initiated by a creditor to repossess the collateral for loan that…
+FORECLOSURES	pl	The legal proceedings initiated by a creditor to repossess the collateral for loan that…
+FORECOURT		The outer or front court of a building or of a group of buildings
+FOREFATHERS	pl	The founder of a family
+FOREFINGER		The finger next to the thumb
+FOREFOOT		A front foot of a quadruped
+FOREFRONT		The part in the front or nearest the viewer
+FOREGO		Be earlier in time
+FOREGOING		Especially of writing or speech
+FOREGONE		Well in the past
+FOREGROUND		The part of a scene that is near the viewer
+FOREHAND		A return made with the palm of the hand facing the direction of the stroke
+FOREHEAD		The part of the face above the eyes
+FOREHEADS	pl	The part of the face above the eyes
+FOREIGN		Of concern to or concerning the affairs of other nations
+FOREIGNER		Someone who is excluded from or is not a member of a group
+FOREIGNERS	pl	Someone who is excluded from or is not a member of a group
+FOREKNOWLEDGE		Knowledge of an event before it occurs
+FORELAND		A natural elevation
+FORELIMB		The front limb
+FOREMAN		A person who exercises control over workers
+FOREMEN	pl	A person who exercises control over workers
+FOREMOST		Ranking above all others
+FORENAME		The name that precedes the surname
+FORENOON		The time period between dawn and noon
+FORENSIC		Of, relating to, or used in public debate or argument
+FORENSICS		Scientific tests or techniques used in the investigation of crimes
+FOREPLAY		Mutual sexual fondling prior to sexual intercourse
+FORERUNNER		A person who goes before or announces the coming of another
+FORERUNNERS	pl	A person who goes before or announces the coming of another
+FORES	pl	Front part of a vessel or aircraft
+FORESAW	irr	Picture to oneself
+FORESEE		Picture to oneself
+FORESEEABLE		Capable of being anticipated
+FORESEEING	ing	Picture to oneself
+FORESEEN	irr	Picture to oneself
+FORESEES	3sg	Picture to oneself
+FORESHADOW		Indicate, as with a sign or an omen
+FORESHADOWED	past	Indicate, as with a sign or an omen
+FORESHADOWING		The act of providing vague advance indications
+FORESHADOWS	3sg	Indicate, as with a sign or an omen
+FORESHORE		The part of the seashore between the highwater mark and the low-water mark
+FORESIGHT		Providence by virtue of planning prudently for the future
+FORESKIN		A fold of skin covering the tip of the clitoris
+FOREST		The trees and other plants in a large densely wooded area
+FORESTALL		Keep from happening or arising
+FORESTED	past	Establish a ___ on previously unforested land
+FORESTER		English writer of adventure novels featuring Captain Horatio Hornblower
+FORESTERS	pl	English writer of adventure novels featuring Captain Horatio Hornblower
+FORESTRY		The science of planting and caring for ___ and the management of growing timber
+FORESTS	pl	The trees and other plants in a large densely wooded area
+FORETASTE		An early limited awareness of something yet to occur
+FORETELL		Foreshadow or presage
+FORETELLING		A statement made about the future
+FORETELLS	3sg	Foreshadow or presage
+FORETHOUGHT		Planning or plotting in advance of acting
+FORETOLD	irr	Foreshadow or presage
+FOREVER		For a limitless time
+FOREVERMORE		At any future time
+FOREWARNED	past	Warn in advance or beforehand
+FOREWORD		A short introductory essay preceding the text of a book
+FORFEIT		Lose or lose the right to by some error, offense, or crime
+FORFEITED		Surrendered as a penalty
+FORFEITING	ing	Lose or lose the right to by some error, offense, or crime
+FORFEITS	pl	Something that is lost or surrendered as a penalty
+FORFEITURE		Something that is lost or surrendered as a penalty
+FORFEITURES	pl	Something that is lost or surrendered as a penalty
+FORGAVE	irr	Absolve from payment
+FORGE		Create by hammering
+FORGED	past	Create by hammering
+FORGER		Someone who makes copies illegally
+FORGERIES	pl	A copy that is represented as the original
+FORGERY		A copy that is represented as the original
+FORGES	pl	Furnace consisting of a special hearth where metal is heated before shaping
+FORGET		Dismiss from the mind
+FORGETFUL		Deficient in retentiveness or range
+FORGETFULNESS		Tendency to forget
+FORGETS	3sg	Dismiss from the mind
+FORGETTING	irr	Dismiss from the mind
+FORGING		Shaping metal by heating and hammering
+FORGINGS	pl	Shaping metal by heating and hammering
+FORGIVABLE		Easily excused or forgiven
+FORGIVE		Absolve from payment
+FORGIVEN	irr	Absolve from payment
+FORGIVENESS		Compassionate feelings that support a willingness to forgive
+FORGIVES	3sg	Absolve from payment
+FORGIVING		Inclined or able to forgive and show mercy
+FORGO		Do without or cease to hold or adhere to
+FORGOING		The act of renouncing
+FORGONE	irr	Do without or cease to hold or adhere to
+FORGOT	irr	Dismiss from the mind
+FORGOTTEN		Not noticed inadvertently
+FORINT		The basic unit of money in Hungary
+FORINTS	pl	The basic unit of money in Hungary
+FORK		Cutlery used for serving and eating food
+FORKED		Resembling a fork
+FORKING		The place where something divides into branches
+FORKLIFT		A small industrial vehicle with a power operated forked platform in front that can be…
+FORKLIFTS	pl	A small industrial vehicle with a power operated forked platform in front that can be…
+FORKS	pl	Cutlery used for serving and eating food
+FORLORN		Marked by or showing hopelessness
+FORM		The phonological or orthographic sound or appearance of a word that can be used to…
+FORMAL		Being in accord with established forms and conventions and requirements
+FORMALDEHYDE		A colorless poisonous gas
+FORMALIN		A 10% solution of ___ in water
+FORMALISE		Make formal or official
+FORMALISED		Concerned with or characterized by rigorous adherence to recognized forms
+FORMALISM		The doctrine that formal structure rather than content is what should be represented
+FORMALISMS	pl	The doctrine that formal structure rather than content is what should be represented
+FORMALITIES		A requirement of etiquette or custom
+FORMALITY		A requirement of etiquette or custom
+FORMALIZATION		The act of making formal
+FORMALIZE		Make formal or official
+FORMALIZED		Concerned with or characterized by rigorous adherence to recognized forms
+FORMALIZES	3sg	Make formal or official
+FORMALIZING	ing	Make formal or official
+FORMALLY		With official authorization
+FORMALS	pl	A gown for evening wear
+FORMAT		The organization of information according to preset specifications
+FORMATION		An arrangement of people or things acting as a unit
+FORMATIONS	pl	An arrangement of people or things acting as a unit
+FORMATIVE		Minimal language unit that has a syntactic function
+FORMATS	pl	The organization of information according to preset specifications
+FORMATTED	irr	Determine the arrangement of for storage and display
+FORMATTING		The organization of information according to preset specifications
+FORMED		Having or given a form or shape
+FORMER		Referring to the first of two things or persons mentioned
+FORMERLY		At a previous time
+FORMERS	pl	The first of two or the first mentioned of two
+FORMES	pl	The phonological or orthographic sound or appearance of a word that can be used to…
+FORMIC		Of or relating to or derived from ants
+FORMIDABLE		Extremely impressive in strength or excellence
+FORMING	ing	To compose or represent
+FORMLESS		Having no definite form or distinct shape
+FORMS	pl	The phonological or orthographic sound or appearance of a word that can be used to…
+FORMULA		A group of symbols that make a mathematical statement
+FORMULAE	irr	A group of symbols that make a mathematical statement
+FORMULAIC		Characterized by or in accordance with some ___
+FORMULARIES	pl	A book containing a compilation of pharmaceutical products with their ___ and…
+FORMULARY		A book containing a compilation of pharmaceutical products with their ___ and…
+FORMULAS	pl	A group of symbols that make a mathematical statement
+FORMULATE		Elaborate, as of theories and hypotheses
+FORMULATED	past	Elaborate, as of theories and hypotheses
+FORMULATES	3sg	Elaborate, as of theories and hypotheses
+FORMULATING	ing	Elaborate, as of theories and hypotheses
+FORMULATION		A substance prepared according to a formula
+FORMULATIONS	pl	A substance prepared according to a formula
+FORNICATION		Voluntary sexual intercourse between persons not married to each other
+FORSAKE		Leave someone who needs or counts on you
+FORSAKEN	irr	Leave someone who needs or counts on you
+FORSAKING		The act of giving something up
+FORSOOK	irr	Leave someone who needs or counts on you
+FORSOOTH		An archaic word originally meaning `in truth' but now usually used to express disbelief
+FORSYTHIA		Any of various early blooming oleaceous shrubs of the genus ___
+FORT		A ___ military post where troops are stationed
+FORTE		An asset of special worth or utility
+FORTES	pl	A ___ military post where troops are stationed
+FORTH		From a particular thing or place or position
+FORTHCOMING		At ease in talking to others
+FORTHRIGHT		Characterized by directness in manner or speech
+FORTHWITH		Without delay or hesitation
+FORTIES		The time of life between 40 and 50
+FORTIETH		Position 40 in a countable series of things
+FORTIFICATION		Defensive structure consisting of walls or mounds built around a stronghold to strengthen…
+FORTIFICATIONS	pl	Defensive structure consisting of walls or mounds built around a stronghold to strengthen…
+FORTIFIED		Having something added to increase the strength
+FORTIFY		Make strong or stronger
+FORTIFYING	ing	Make strong or stronger
+FORTITUDE		Strength of mind that enables one to endure adversity with courage
+FORTNIGHT		A period of fourteen consecutive days
+FORTNIGHTLY		Occurring every two weeks
+FORTNIGHTS	pl	A period of fourteen consecutive days
+FORTRESS		A fortified defensive structure
+FORTRESSES	pl	A fortified defensive structure
+FORTS	pl	A ___ military post where troops are stationed
+FORTUITOUS		Having no cause or apparent cause
+FORTUNATE		Having unexpected good fortune
+FORTUNATELY		By good fortune
+FORTUNE		An unknown and unpredictable phenomenon that causes an event to result one way rather…
+FORTUNES	pl	An unknown and unpredictable phenomenon that causes an event to result one way rather…
+FORTY		Being ten more than thirty
+FORUM		A public meeting or assembly for open discussion
+FORUMS	pl	A public meeting or assembly for open discussion
+FORWARD		At or to or toward the front
+FORWARDED	past	Send or ship onward from an intermediate post or station in transit
+FORWARDER	comp	At or near or directed toward the front
+FORWARDING		The act of sending on to another destination
+FORWARDS		At or to or toward the front
+FOSSA		A concavity in a surface
+FOSSE		Ditch dug as a fortification and usually filled with water
+FOSSIL		Someone whose style is out of fashion
+FOSSILIZED		Set in a rigidly conventional pattern of behavior, habits, or beliefs
+FOSSILS	pl	Someone whose style is out of fashion
+FOSTER		Promote the growth of
+FOSTERED	past	Promote the growth of
+FOSTERING		Helping someone grow up to be an accepted member of the community
+FOSTERS	pl	United States songwriter whose songs embody the sentiment of the South before the…
+FOUGHT	irr	Make a strenuous or labored effort
+FOUL		Violating accepted standards or rules
+FOULED		Made dirty or foul
+FOULING	ing	Become or cause to become obstructed
+FOULS	pl	An act that violates the rules of a sport
+FOUND		Set up or lay the groundwork for
+FOUNDATION		The basis on which something is grounded
+FOUNDATIONS	pl	The basis on which something is grounded
+FOUNDED	past	Set up or lay the groundwork for
+FOUNDER		Inflammation of the laminated tissue that attaches the hoof to the foot of a horse
+FOUNDERED	past	Sink below the surface
+FOUNDERS	pl	Inflammation of the laminated tissue that attaches the hoof to the foot of a horse
+FOUNDING		The act of starting something for the first time
+FOUNDLING		A child who has been abandoned and whose parents are unknown
+FOUNDRIES	pl	Factory where metal castings are produced
+FOUNDRY		Factory where metal castings are produced
+FOUNDS	pl	Food and lodging provided in addition to money
+FOUNT		A specific size and style of type within a type family
+FOUNTAIN		A structure from which an artificially produced jet of water arises
+FOUNTAINHEAD		An abundant source
+FOUNTAINS	pl	A structure from which an artificially produced jet of water arises
+FOUR		Being one more than three
+FOURFOLD		Four times as great or many
+FOURS	pl	The cardinal number that is the sum of three and one
+FOURSOME		Four people considered as a unit
+FOURSOMES	pl	Four people considered as a unit
+FOURSQUARE		A plane rectangle with four equal sides and four right angles
+FOURTEEN		Being one more than thirteen
+FOURTEENTH		Coming next after the thirteenth in position
+FOURTH		Coming next after the third and just before the fifth in position or time or degree or…
+FOURTHLY		In the ___ place
+FOURTHS	pl	Following the third position
+FOVEA		Area consisting of a small depression in the retina containing cones and where vision is…
+FOWL		A domesticated gallinaceous bird thought to be descended from the red jungle ___
+FOWLER		English lexicographer who wrote a well-known book on English usage
+FOWLS	pl	A domesticated gallinaceous bird thought to be descended from the red jungle ___
+FOX		Alert carnivorous mammal with pointed muzzle and ears and a bushy tail
+FOXED	past	Be confusing or perplexing to
+FOXES	pl	Alert carnivorous mammal with pointed muzzle and ears and a bushy tail
+FOXGLOVE		Any of several plants of the genus Digitalis
+FOXHOLE		A small dugout with a pit for individual shelter against enemy fire
+FOXHOLES	pl	A small dugout with a pit for individual shelter against enemy fire
+FOXHOUND		Medium-sized glossy-coated hounds developed for hunting foxes
+FOXING	ing	Be confusing or perplexing to
+FOXTAIL		Grasses of the genera Alopecurus and Setaria having dense silky or bristly brushlike…
+FOXTROT		A ballroom dance in quadruple time
+FOXY		Marked by skill in deception
+FOYER		A large entrance or reception room or area
+FOYERS	pl	A large entrance or reception room or area
+FRACTAL		A geometric pattern that is repeated at every scale and so cannot be represented by…
+FRACTALS	pl	A geometric pattern that is repeated at every scale and so cannot be represented by…
+FRACTION		A small part or item forming a piece of a whole
+FRACTIONAL		Constituting or comprising a part or ___ of a possible whole or entirety
+FRACTIONATED	past	Separate into constituents or ___ containing concentrated constituents
+FRACTIONATION		A process that uses heat to separate a substance into its components
+FRACTIONS	pl	A small part or item forming a piece of a whole
+FRACTIOUS		Stubbornly resistant to authority or control
+FRACTURE		Violate or abuse
+FRACTURED	past	Violate or abuse
+FRACTURES	pl	Breaking of hard tissue such as bone
+FRACTURING	ing	Violate or abuse
+FRAGILE		Easily broken or damaged or destroyed
+FRAGILITY		Quality of being easily damaged or destroyed
+FRAGMENT		A piece broken off or cut off of something else
+FRAGMENTARY		Consisting of small disconnected parts
+FRAGMENTATION		Separating something into fine particles
+FRAGMENTED		Having been divided
+FRAGMENTING	ing	Break or cause to break into pieces
+FRAGMENTS	pl	A piece broken off or cut off of something else
+FRAGRANCE		A distinctive odor that is pleasant
+FRAGRANCES	pl	A distinctive odor that is pleasant
+FRAIL		A basket for holding dried fruit
+FRAILTIES	pl	The state of being weak in health or body
+FRAILTY		The state of being weak in health or body
+FRAISE		A ruff for the neck worn in the 16th century
+FRAME		A single one of a series of still transparent pictures forming a cinema, television or…
+FRAMED		Provided with a ___
+FRAMER		Someone who writes a new law or plan
+FRAMERS	pl	Someone who writes a new law or plan
+FRAMES	pl	A single one of a series of still transparent pictures forming a cinema, television or…
+FRAMEWORK		A hypothetical description of a complex entity or process
+FRAMEWORKS	pl	A hypothetical description of a complex entity or process
+FRAMING		Formulation of the plans and important details
+FRANC		The basic monetary unit in many countries
+FRANCHISE		An authorization to sell a company's goods or services in a particular place
+FRANCHISED	past	Grant a ___ to
+FRANCHISEES	pl	An authorization to sell a company's goods or services in a particular place
+FRANCHISES	pl	An authorization to sell a company's goods or services in a particular place
+FRANCHISING	ing	Grant a ___ to
+FRANCS	pl	The basic monetary unit in many countries
+FRANGIPANI		Any of various tropical American deciduous shrubs or trees of the genus Plumeria having…
+FRANK		Characterized by directness in manner or speech
+FRANKED	past	Stamp with a postmark to indicate date and time of mailing
+FRANKFURT		A German city
+FRANKFURTER		A smooth-textured sausage of minced beef or pork usually smoked
+FRANKINCENSE		An aromatic gum resin obtained from various Arabian or East African trees
+FRANKING	ing	Stamp with a postmark to indicate date and time of mailing
+FRANKLIN		United States historian noted for studies of Black American history
+FRANKLY		It is sincerely the case that
+FRANKNESS		The quality of being honest and straightforward in attitude and speech
+FRANKS	pl	A member of the ancient Germanic peoples who spread from the Rhine into the Roman Empire…
+FRANTIC		Marked by uncontrolled excitement or emotion
+FRANTICALLY		In an uncontrolled manner
+FRAP		Make secure by lashing
+FRAPPE		Liqueur poured over shaved ice
+FRAPS	3sg	Make secure by lashing
+FRAT		A social club for male undergraduates
+FRATERNAL		Derived from two separate fertilized ova
+FRATERNITIES	pl	A social club for male undergraduates
+FRATERNITY		A social club for male undergraduates
+FRAUD		Intentional deception resulting in injury to another person
+FRAUDS	pl	Intentional deception resulting in injury to another person
+FRAUDULENT		Intended to deceive
+FRAUDULENTLY		In a dishonest and ___ manner
+FRAUGHT		Marked by distress
+FRAULEIN		A German courtesy title or form of address for an unmarried woman
+FRAY		A noisy fight
+FRAYED		Worn away or tattered along the edges
+FRAYING	ing	Wear away by rubbing
+FRAZZLED	past	Wear away by rubbing
+FREAK		A person or animal that is markedly unusual or deformed
+FREAKED	past	Lose one's nerve
+FREAKING	ing	Lose one's nerve
+FREAKISH		Characteristic of a freak
+FREAKS	pl	A person or animal that is markedly unusual or deformed
+FREAKY		Strange and somewhat frightening
+FRECKLE		A small brownish spot on the skin
+FRECKLED		Relating to or covered with or resembling ___
+FRECKLES	pl	A small brownish spot on the skin
+FREE		Not limited or hampered
+FREEBIE		Something that is free
+FREEBIES	pl	Something that is free
+FREEBORN		Born free of free parents
+FREED	past	Remove or force out from a position
+FREEDMAN		A person who has been freed from slavery
+FREEDMEN	pl	A person who has been freed from slavery
+FREEDOM		The condition of being free
+FREEDOMS	pl	The condition of being free
+FREEHAND		Done by hand without mechanical aids or devices
+FREEHOLD		An estate held in fee simple or for life
+FREEHOLDER		The owner of a ___
+FREEHOLDERS	pl	The owner of a ___
+FREEING		The act of liberating someone or something
+FREELANCE		Working for yourself
+FREELANCER		A writer or artist who sells services to different employers without a long-term contract…
+FREELANCERS	pl	A writer or artist who sells services to different employers without a long-term contract…
+FREELANCING	ing	Work independently and on temporary contracts rather than for a long-term employer
+FREELOADER		Someone who takes advantage of the generosity of others
+FREELY		In a free manner
+FREEMAN		A person who is not a serf or a slave
+FREEMASONRY		A natural or instinctive fellowship between people of similar interests
+FREEMEN	pl	A person who is not a serf or a slave
+FREER	irr	Not limited or hampered
+FREES	pl	People who are ___
+FREESIA		Any of several plants of the genus ___ valued for their one-sided clusters of usually…
+FREEST	irr	Not limited or hampered
+FREESTONE		Fruit whose flesh does not adhere to the pit
+FREESTYLE		A race in which each contestant has a free choice of the style to use
+FREESTYLES	pl	A race in which each contestant has a free choice of the style to use
+FREETHINKER		A person who rejects religion
+FREETHINKERS	pl	A person who rejects religion
+FREEWAY		A broad highway designed for high-speed traffic
+FREEWAYS	pl	A broad highway designed for high-speed traffic
+FREEWHEEL		A clutch that allows wheels to turn freely
+FREEWHEELING		Free of restraints or rules
+FREEWHEELS	pl	A clutch that allows wheels to turn freely
+FREEWILL		Done of your own accord
+FREEZE		Stop moving or become immobilized
+FREEZER		Electric refrigerator in which food is frozen and stored for long periods of time
+FREEZERS	pl	Electric refrigerator in which food is frozen and stored for long periods of time
+FREEZES	pl	The withdrawal of heat to change something from a liquid to a solid
+FREEZING		The withdrawal of heat to change something from a liquid to a solid
+FREIGHT		Goods carried by a large vehicle
+FREIGHTER		A cargo ship
+FREIGHTERS	pl	A cargo ship
+FRENCH		Of or pertaining to France or the people of France
+FRENZIED		Affected with or marked by frenzy or mania uncontrolled by reason
+FRENZY		State of violent mental agitation
+FREQUENCIES	pl	The number of occurrences within a given time period
+FREQUENCY		The number of occurrences within a given time period
+FREQUENT		Coming at short intervals or habitually
+FREQUENTED	past	Do one's shopping at
+FREQUENTING	ing	Do one's shopping at
+FREQUENTLY		Many times at short intervals
+FREQUENTS	3sg	Do one's shopping at
+FRESCO		A mural done with watercolors on wet plaster
+FRESCOES	irr	A mural done with watercolors on wet plaster
+FRESCOS	pl	A mural done with watercolors on wet plaster
+FRESH		Recently made, produced, or harvested
+FRESHEN		Become or make oneself ___ again
+FRESHENED	past	Become or make oneself ___ again
+FRESHENING	ing	Become or make oneself ___ again
+FRESHER		A first-year undergraduate
+FRESHEST	sup	Recently made, produced, or harvested
+FRESHLY		In an impudent or impertinent manner
+FRESHMAN		A first-year undergraduate
+FRESHMEN	pl	A first-year undergraduate
+FRESHNESS		The property of being pure and fresh
+FRESHWATER		Water that is not salty
+FRESNEL		French physicist who invented polarized light and invented the ___ lens
+FRET		Worry unnecessarily or excessively
+FRETS	pl	Agitation resulting from active worry
+FRETTED		Having a pattern of fretwork or latticework
+FRETTING	irr	Worry unnecessarily or excessively
+FRETWORK		Framework consisting of an ornamental design made of strips of wood or metal
+FRIABLE		Easily broken into small fragments or reduced to powder
+FRIAR		A male member of a religious order that originally relied solely on alms
+FRIARS	pl	A male member of a religious order that originally relied solely on alms
+FRIARY		A monastery of ___
+FRICATIVE		A continuant consonant produced by breath moving against a narrowing of the vocal tract
+FRICTION		A state of conflict between persons
+FRICTIONAL		Pertaining to or worked or produced by ___
+FRICTIONLESS		Lacking all friction
+FRICTIONS	pl	A state of conflict between persons
+FRIDGE		A refrigerator in which the coolant is pumped around by an electric motor
+FRIDGES	pl	A refrigerator in which the coolant is pumped around by an electric motor
+FRIED		Cooked by frying in fat
+FRIEND		A person you know well and regard with affection and trust
+FRIENDLESS		Excluded from a society
+FRIENDLIER	irr	Inclined to help or support
+FRIENDLIES	pl	Troops belonging to or allied with your own military forces
+FRIENDLIEST	irr	Inclined to help or support
+FRIENDLINESS		A feeling of liking for another person
+FRIENDLY		Inclined to help or support
+FRIENDS	pl	A person you know well and regard with affection and trust
+FRIENDSHIP		The state of being ___
+FRIENDSHIPS	pl	The state of being ___
+FRIES		Strips of potato ___ in deep fat
+FRIEZE		An architectural ornament consisting of a horizontal sculptured band between the…
+FRIGATE		A medium size square-rigged warship of the 18th and 19th centuries
+FRIGATES	pl	A medium size square-rigged warship of the 18th and 19th centuries
+FRIGHT		An emotion experienced in anticipation of some specific pain or danger
+FRIGHTEN		Cause fear in
+FRIGHTENED		Thrown into a state of intense fear or desperation
+FRIGHTENING		Causing fear or dread or terror
+FRIGHTENINGLY		In an alarming manner
+FRIGHTENS	3sg	Cause fear in
+FRIGHTFUL		Extreme in degree or extent or amount or impact
+FRIGHTFULLY		Used as intensifiers
+FRIGHTS	pl	An emotion experienced in anticipation of some specific pain or danger
+FRIGID		Devoid of warmth and cordiality
+FRILL		A bony plate that curves upward behind the skull of many ceratopsian dinosaurs
+FRILLS	pl	A bony plate that curves upward behind the skull of many ceratopsian dinosaurs
+FRILLY		Having decorative ruffles or ___
+FRINGE		The outside boundary or surface of something
+FRINGED		Having a decorative edging of hanging cords or strips
+FRINGES	pl	The outside boundary or surface of something
+FRINGING	ing	Adorn with a ___
+FRISK		The act of searching someone for concealed weapons or illegal drugs
+FRISKY		Playful like a lively kitten
+FRITILLARY		Butterfly with brownish wings marked with black and silver
+FRITTATA		Italian omelet with diced vegetables and meats
+FRITTATAS	pl	Italian omelet with diced vegetables and meats
+FRITTER		Small quantity of fried batter containing fruit or meat or vegetables
+FRITTERS	pl	Small quantity of fried batter containing fruit or meat or vegetables
+FRIVOLITY		The trait of being frivolous
+FRIVOLOUS		Not serious in content or attitude or behavior
+FRIZZ		The condition of being formed into small tight curls
+FRIZZLE		Fry something until it curls and becomes crisp
+FRIZZLED	past	Fry something until it curls and becomes crisp
+FRIZZY		In small tight curls
+FROCK		A long, loose outer garment
+FROCKS	pl	A long, loose outer garment
+FROG		Any of various tailless stout-bodied amphibians with long hind limbs for leaping
+FROGMAN		Someone who works underwater
+FROGS	pl	Any of various tailless stout-bodied amphibians with long hind limbs for leaping
+FROLIC		Gay or light-hearted recreational activity for diversion or amusement
+FROLICS	pl	Gay or light-hearted recreational activity for diversion or amusement
+FROND		Compound leaf of a fern or palm or cycad
+FRONDS	pl	Compound leaf of a fern or palm or cycad
+FRONT		The side that is forward or prominent
+FRONTAGE		The extent of land abutting on a street or water
+FRONTAGES	pl	The extent of land abutting on a street or water
+FRONTAL		An adornment worn on the forehead
+FRONTED	past	Be oriented in a certain direction, often with respect to another reference point
+FRONTIER		A wilderness at the edge of a settled area of a country
+FRONTIERS	pl	A wilderness at the edge of a settled area of a country
+FRONTING	ing	Be oriented in a certain direction, often with respect to another reference point
+FRONTISPIECE		An ornamental facade
+FRONTS	pl	The side that is forward or prominent
+FROST		Ice crystals forming a white deposit
+FROSTBITE		Destruction of tissue by freezing and characterized by tingling, blistering and possibly…
+FROSTED		Having a roughened coating resembling ___
+FROSTING		A flavored sugar topping used to coat and decorate cakes
+FROSTINGS	pl	A flavored sugar topping used to coat and decorate cakes
+FROSTS	pl	Ice crystals forming a white deposit
+FROSTY		Devoid of warmth and cordiality
+FROTH		A mass of small bubbles formed in or on a liquid
+FROTHING		Producing or covered with lathery sweat or saliva from exhaustion or disease
+FROTHY		Emitting or filled with bubbles as from carbonation or fermentation
+FROWN		Look angry or sullen, wrinkle one's forehead, as if to signal disapproval
+FROWNED	past	Look angry or sullen, wrinkle one's forehead, as if to signal disapproval
+FROWNING		Showing displeasure or anger
+FROWNS	pl	A facial expression of dislike or displeasure
+FROZE	irr	Stop moving or become immobilized
+FROZEN		Turned into ice
+FRUCTOSE		A simple sugar found in honey and in many ripe fruits
+FRUGALITY		Prudence in avoiding waste
+FRUIT		The ripened reproductive body of a seed plant
+FRUITCAKE		A whimsically eccentric person
+FRUITED	past	Cause to bear ___
+FRUITFUL		Productive or conducive to producing in abundance
+FRUITFULLY		In a productive way
+FRUITFULNESS		The quality of something that causes or assists healthy growth
+FRUITING		Capable of bearing fruit
+FRUITION		The condition of bearing fruit
+FRUITLESS		Unproductive of success
+FRUITS	pl	The ripened reproductive body of a seed plant
+FRUITY		Informal or slang terms for mentally irregular
+FRUMPY		Primly out of date
+FRUSTRATE		Hinder or prevent of
+FRUSTRATED	past	Hinder or prevent of
+FRUSTRATES	3sg	Hinder or prevent of
+FRUSTRATING		Discouraging by hindering
+FRUSTRATION		The feeling that accompanies an experience of being thwarted in attaining your goals
+FRUSTRATIONS	pl	The feeling that accompanies an experience of being thwarted in attaining your goals
+FRY		Be excessively hot
+FRYER		Flesh of a medium-sized young chicken suitable for frying
+FRYERS	pl	Flesh of a medium-sized young chicken suitable for frying
+FRYING		Cooking in fat or oil in a pan or griddle
+FRYPAN		A pan used for frying foods
+FUCHSIA		Any of various tropical shrubs widely cultivated for their showy drooping purplish or…
+FUCKER		A stupid despised man
+FUCKERS	pl	A stupid despised man
+FUCUS		Any member of the genus ___
+FUDGE		Soft creamy candy
+FUEL		A substance that can be consumed to produce energy
+FUELED		Heated, driven, or produced by burning fuel
+FUELING		The activity of supplying or taking on fuel
+FUELLED	irr	Provide with a combustible substance that provides energy
+FUELLING	irr	Provide with a combustible substance that provides energy
+FUELS	pl	A substance that can be consumed to produce energy
+FUG		An airless smoky smelly atmosphere
+FUGITIVE		Someone who flees from an uncongenial situation
+FUGITIVES	pl	Someone who flees from an uncongenial situation
+FUGU		A blowfish highly prized as a delicacy in Japan but highly dangerous because the skin and…
+FUGUE		Dissociative disorder in which a person forgets who they are and leaves home to create a…
+FUGUES	pl	Dissociative disorder in which a person forgets who they are and leaves home to create a…
+FUJI		Shrubby Japanese cherry tree having pale pink blossoms
+FULCRUM		The pivot about which a lever turns
+FULFIL		Put in effect
+FULFILL		Put in effect
+FULFILLED		Completed to perfection
+FULFILLING	irr	Put in effect
+FULFILLMENT		A feeling of satisfaction at having achieved your desires
+FULFILLS	3sg	Put in effect
+FULFILS	3sg	Put in effect
+FULL		Containing as much or as many as is possible or normal
+FULLBACK		An offensive position in the backfield
+FULLER		United States jurist and chief justice of the United States Supreme Court
+FULLERENE		A form of carbon having a large molecule consisting of an empty cage of sixty or more…
+FULLERENES	pl	A form of carbon having a large molecule consisting of an empty cage of sixty or more…
+FULLERS	pl	United States jurist and chief justice of the United States Supreme Court
+FULLEST	sup	Containing as much or as many as is possible or normal
+FULLING	ing	Beat for the purpose of cleaning and thickening
+FULLNESS		Completeness over a broad scope
+FULLY		To the greatest degree or extent
+FULMINANT		Sudden and severe
+FUMBLE		Feel about uncertainly or blindly
+FUMBLED	past	Feel about uncertainly or blindly
+FUMBLES	pl	Dropping the ball
+FUMBLING		Showing lack of skill or aptitude
+FUME		Be mad, angry, or furious
+FUMED		Darkened or colored by exposure to ammonia ___
+FUMES		Gases ejected from an engine as waste products
+FUMIGANT		A chemical substance used in ___
+FUMIGATION		The application of a gas or smoke to something for the purpose of disinfecting it
+FUMING	ing	Be mad, angry, or furious
+FUN		Activities that are enjoyable or amusing
+FUNCTION		A mathematical relation such that each element of a given set is associated with an…
+FUNCTIONAL		Fit or ready for use or service
+FUNCTIONALISM		A psychology based on the assumption that all mental process are useful to an organism in…
+FUNCTIONALIST		An adherent of ___
+FUNCTIONALITIES	pl	Capable of serving a purpose well
+FUNCTIONALITY		Capable of serving a purpose well
+FUNCTIONALLY		With respect to function
+FUNCTIONARIES	pl	A worker who holds or is invested with an office
+FUNCTIONARY		A worker who holds or is invested with an office
+FUNCTIONED	past	Perform as expected when applied
+FUNCTIONING		Process or manner of ___ or operating
+FUNCTIONS	pl	A mathematical relation such that each element of a given set is associated with an…
+FUND		A reserve of money set aside for some purpose
+FUNDAMENTAL		Serving as an essential component
+FUNDAMENTALISM		A form of Protestantism that takes the interpretation of every word in the sacred texts…
+FUNDAMENTALIST		Of or relating to or characteristic of Protestant ___ or its adherents
+FUNDAMENTALISTS	pl	An adherent of ___ principles
+FUNDAMENTALS		Principles from which other truths can be derived
+FUNDED		Furnished with funds
+FUNDING		Financial resources provided to make some project possible
+FUNDRAISER		Someone who solicits financial contributions
+FUNDRAISERS	pl	Someone who solicits financial contributions
+FUNDRAISING	ing	Raise money for a cause or project
+FUNDS		Assets in the form of money
+FUNDUS		The base of a hollow organ or that part of the organ farthest from its opening
+FUNERAL		A ceremony at which a dead person is buried or cremated
+FUNERALS	pl	A ceremony at which a dead person is buried or cremated
+FUNERARY		Of or for or relating to a ___
+FUNEREAL		Suited to or suggestive of a grave or burial
+FUNGAL		Of or relating to fungi
+FUNGI		The taxonomic kingdom including yeast, molds, smuts, mushrooms, and toadstools
+FUNGIBLE		A commodity that is freely interchangeable with another in satisfying an obligation
+FUNGICIDE		Any agent that destroys or prevents the growth of fungi
+FUNGICIDES	pl	Any agent that destroys or prevents the growth of fungi
+FUNGUS		An organism of the kingdom Fungi lacking chlorophyll and feeding on organic matter
+FUNICULAR		A railway up the side of a mountain pulled by a moving cable and having counterbalancing…
+FUNK		A state of nervous depression
+FUNKY		Having the soulful feeling of early blues
+FUNNEL		A conical shape with a wider and a narrower opening at the two ends
+FUNNELED	past	Move or pour through a ___
+FUNNELING	ing	Move or pour through a ___
+FUNNELS	pl	A conical shape with a wider and a narrower opening at the two ends
+FUNNIER	irr	Arousing or provoking laughter
+FUNNIES		A sequence of drawings telling a story in a newspaper or comic book
+FUNNIEST	irr	Arousing or provoking laughter
+FUNNILY		In a strange manner
+FUNNY		Arousing or provoking laughter
+FUNS	pl	Activities that are enjoyable or amusing
+FUR		The dressed hairy coat of a mammal
+FURAN		A colorless toxic flammable liquid used in the synthesis of nylon
+FURANS	pl	A colorless toxic flammable liquid used in the synthesis of nylon
+FURIES	pl	A feeling of intense anger
+FURIOUS		Marked by extreme and violent energy
+FURIOUSLY		In a wild and stormy manner
+FURL		Form into a cylinder by rolling
+FURLED		Rolled up and secured
+FURLING	ing	Form into a cylinder by rolling
+FURLONG		A unit of length equal to 220 yards
+FURLONGS	pl	A unit of length equal to 220 yards
+FURLOUGH		A temporary leave of absence from military duty
+FURNACE		An enclosed chamber in which heat is produced to heat buildings, destroy refuse, smelt or…
+FURNACES	pl	An enclosed chamber in which heat is produced to heat buildings, destroy refuse, smelt or…
+FURNISH		Give something useful or necessary to
+FURNISHED		Provided with whatever is necessary for a purpose
+FURNISHES	3sg	Give something useful or necessary to
+FURNISHING		Accessory wearing apparel
+FURNISHINGS	pl	Accessory wearing apparel
+FURNITURE		Furnishings that make a room or other area ready for occupancy
+FURNITURES	pl	Furnishings that make a room or other area ready for occupancy
+FUROR		An interest followed with exaggerated zeal
+FURORE		An interest followed with exaggerated zeal
+FUROSEMIDE		Commonly used diuretic used to treat hypertension and edema
+FURRED		Covered with a dense coat of fine silky hairs
+FURROW		A long shallow trench in the ground
+FURROWED		Having long narrow shallow depressions in the surface
+FURROWS	pl	A long shallow trench in the ground
+FURRY		Covered with a dense coat of fine silky hairs
+FURS	pl	The dressed hairy coat of a mammal
+FURTHER		More distant in especially degree
+FURTHERANCE		Encouragement of the progress or growth or acceptance of something
+FURTHERED	past	Promote the growth of
+FURTHERING	ing	Promote the growth of
+FURTHERS	3sg	Promote the growth of
+FURTHEST		Most remote in space or time or order
+FURTIVE		Marked by quiet and caution and secrecy
+FURTIVELY		In a ___ manner
+FURY		A feeling of intense anger
+FUSE		Mix together different elements
+FUSED		Joined together into a whole
+FUSELAGE		The central body of an airplane that is designed to accommodate the crew and passengers
+FUSES	pl	An electrical device that can interrupt the flow of electrical current when it is…
+FUSIBLE		Capable of being melted and fused
+FUSIFORM		Tapering at each end
+FUSILIERS	pl	A British infantryman armed with a light flintlock musket
+FUSING	ing	Mix together different elements
+FUSION		An occurrence that involves the production of a union
+FUSIONS	pl	An occurrence that involves the production of a union
+FUSS		Worry unnecessarily or excessively
+FUSSED	past	Worry unnecessarily or excessively
+FUSSING	ing	Worry unnecessarily or excessively
+FUSSY		Annoyed and irritable
+FUTILE		Producing no result or effect
+FUTILITY		Uselessness as a consequence of having no practical result
+FUTON		Mattress consisting of a pad of cotton batting that is used for sleeping on the floor or…
+FUTONS	pl	Mattress consisting of a pad of cotton batting that is used for sleeping on the floor or…
+FUTURE		The time yet to come
+FUTURES	pl	The time yet to come
+FUTURISM		An artistic movement in Italy around 1910 that tried to express the energy and values of…
+FUTURIST		A theologian who believes that the Scripture prophecies of the Apocalypse will be…
+FUTURISTIC		Of or relating to ___
+FUTURISTS	pl	A theologian who believes that the Scripture prophecies of the Apocalypse will be…
+FUTURITY		The time yet to come
+FUZE		Any igniter that is used to initiate the burning of a propellant
+FUZZ		Filamentous hairlike growth on a plant
+FUZZINESS		The quality of being indistinct and without sharp outlines
+FUZZY		Covering with fine light hairs

@@ -7,6 +7,7 @@
 //   POST /api/games/:code/move           play / pass / exchange / resign
 //   GET  /api/games/:code/hint?token=    the best plays for YOUR rack
 //   GET  /api/lexicon?word=              is it a word
+//   GET  /api/cross/clues?w=A,B,C        clues for a crossword's answers
 //   GET  /api/push/key                   the VAPID public key to subscribe with
 //   POST /api/games/:code/subscribe      register this browser for turn pushes
 //   POST /api/games/:code/unsubscribe    stop them
@@ -38,6 +39,7 @@ import {
 import { takeTurn, topMoves } from './engine/ai.js';
 import { rngFrom, makeCode } from './engine/rng.js';
 import * as webpush from './lib/webpush.js';
+import { parseShard, renderClue } from './cross/gen/clues.js';
 
 const MAX_BODY = 64 * 1024;
 /** Who a push service should complain to about our notifications. */
@@ -46,6 +48,8 @@ const VAPID_SUBJECT = 'mailto:tips@minomobi.com';
 const MAX_BOT_TURNS = 12;
 
 let DAWG = null;
+/** Parsed crossword clue shards, by first letter. One parse per isolate. */
+const CLUE_SHARDS = new Map();
 
 /** Load the lexicon once per isolate and keep it — it is ~475 KiB of Uint32. */
 async function lexicon(env) {
@@ -54,6 +58,55 @@ async function lexicon(env) {
   if (!res.ok) throw new Error(`lexicon asset missing (${res.status})`);
   DAWG = new Dawg(new Uint8Array(await res.arrayBuffer()));
   return DAWG;
+}
+
+/**
+ * Clues for a crossword's answers.
+ *
+ * WHY THE SERVER DOES THIS AT ALL, when the puzzle itself is generated in the
+ * browser: the clue store is about three megabytes and a puzzle needs seventy
+ * clues. Shipping the store to the client to answer seventy questions is the
+ * wrong shape. The shards stay here, are parsed once per isolate, and a whole
+ * 15x15's worth of clues comes back in about six kilobytes.
+ *
+ * The consequence, stated plainly: OFFLINE PLAY GENERATES A PUZZLE BUT CANNOT
+ * CLUE IT. The obvious fix is to precache the shards in the service worker;
+ * that is a 2.7 MB decision nobody has made yet.
+ */
+async function crossClues(env, url) {
+  const asked = String(url.searchParams.get('w') || '')
+    .toUpperCase()
+    .split(',')
+    .map((w) => w.replace(/[^A-Z]/g, ''))
+    .filter((w) => w.length >= 3 && w.length <= 15);
+  // A 15x15 has ~78 entries; the cap is a bound on work, not a real limit.
+  const words = [...new Set(asked)].slice(0, 200);
+
+  const needed = [...new Set(words.map((w) => w[0]))];
+  await Promise.all(needed.map(async (letter) => {
+    if (CLUE_SHARDS.has(letter)) return;
+    const res = await env.ASSETS.fetch(
+      new Request(`https://words.mino.mobi/cross/dict/clues/${letter}.txt`)
+    );
+    CLUE_SHARDS.set(letter, res.ok ? parseShard(await res.text()) : new Map());
+  }));
+
+  const clues = {};
+  let missing = 0;
+  for (const w of words) {
+    const rendered = renderClue(CLUE_SHARDS.get(w[0])?.get(w));
+    if (rendered) clues[w] = rendered;
+    else missing++;
+  }
+  return new Response(JSON.stringify({ clues, missing }), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json; charset=utf-8',
+      // Clues for a word never change without a deploy, and a deploy replaces
+      // the whole asset manifest anyway.
+      'cache-control': 'public, max-age=86400',
+    },
+  });
 }
 
 const json = (body, status = 200) =>
@@ -461,6 +514,7 @@ export default {
         });
       }
       if (path === '/api/lexicon') return checkWord(env, url);
+      if (path === '/api/cross/clues') return crossClues(env, url);
       if (path === '/api/games' && request.method === 'POST') return createGame(request, env);
 
       // The public key a browser needs before it can subscribe. Generating it

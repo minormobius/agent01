@@ -1,0 +1,982 @@
+NAAN		Leavened bread baked in a clay oven in India
+NAB		Tag the base runner to get him out
+NABBED	irr	Tag the base runner to get him out
+NABS	3sg	Tag the base runner to get him out
+NACELLE		A streamlined enclosure for an aircraft engine
+NACHO		A tortilla chip topped with cheese and chili-pepper and broiled
+NACHOS	pl	A tortilla chip topped with cheese and chili-pepper and broiled
+NACRE		The iridescent internal layer of a mollusk shell
+NADA		A quantity of no importance
+NADIR		An extreme state of adversity
+NAG		Bother persistently with trivial complaints
+NAGGING		Continually complaining or faultfinding
+NAGS	pl	Someone who annoys people by constantly finding fault
+NAIAD		Submerged aquatic plant having narrow leaves and small flowers
+NAIF		A naive or inexperienced person
+NAIL		Horny plate covering and protecting part of the dorsal surface of the digits
+NAILED	past	Take into custody
+NAILER		A worker who attaches something by nailing it
+NAILERS	pl	A worker who attaches something by nailing it
+NAILING	ing	Take into custody
+NAILS	pl	Horny plate covering and protecting part of the dorsal surface of the digits
+NAIRA		The basic unit of money in Nigeria
+NAIVE		Marked by or showing unaffected simplicity and lack of guile or worldly experience
+NAIVELY		In a ___ manner
+NAIVETE		Lack of sophistication or worldliness
+NAIVETY		Lack of sophistication or worldliness
+NAKED		Having no protecting or concealing cover
+NAKEDNESS		The state of being without clothing or covering of any kind
+NALOXONE		A potent narcotic antagonist especially effective with morphine
+NALTREXONE		An oral antagonist against the action of opiates
+NAME		A language unit by which a person or thing is known
+NAMED	past	Charge with a function
+NAMELESS		Being or having an unknown or unnamed source
+NAMEPLATE		A plate bearing a name
+NAMEPLATES	pl	A plate bearing a name
+NAMER		A person who gives a ___ or ___
+NAMES	pl	A language unit by which a person or thing is known
+NAMESAKE		A person with the same name as another
+NAMESAKES	pl	A person with the same name as another
+NAMING		The act of putting a person into a non-elective position
+NAN		The mother of your father or mother
+NANCY		A city in northeastern France in Lorraine
+NANNIES	pl	A woman who is the custodian of children
+NANNY		A woman who is the custodian of children
+NANOGRAM		One billionth gram
+NANOMETER		A metric unit of length equal to one billionth of a meter
+NANOMETERS	pl	A metric unit of length equal to one billionth of a meter
+NANOSECOND		One billionth of a second
+NANOSECONDS	pl	One billionth of a second
+NANOTECHNOLOGY		The branch of engineering that deals with things smaller than 100 nanometers
+NANS	pl	The mother of your father or mother
+NAP		A period of time spent sleeping
+NAPALM		Gasoline jelled with aluminum soaps
+NAPE		The back side of the neck
+NAPHTHA		Any of various volatile flammable liquid hydrocarbon mixtures
+NAPHTHALENE		A white crystalline strong-smelling hydrocarbon made from coal tar or petroleum and used…
+NAPHTHOL		Either of two phenols derived from ___
+NAPKIN		A small piece of table linen that is used to wipe the mouth and to cover the lap in order…
+NAPKINS	pl	A small piece of table linen that is used to wipe the mouth and to cover the lap in order…
+NAPOLEON		French general who became emperor of the French
+NAPPED		Having soft nap produced by brushing
+NAPPIES	pl	Garment consisting of a folded cloth drawn up between the legs and fastened at the waist
+NAPPING		Not prepared or vigilant
+NAPPY		Garment consisting of a folded cloth drawn up between the legs and fastened at the waist
+NAPS	pl	A period of time spent sleeping
+NARC		A lawman concerned with ___ violations
+NARCISSISM		An exceptional interest in and admiration for yourself
+NARCISSIST		Someone in love with themselves
+NARCISSISTIC		Characteristic of those having an inflated idea of their own importance
+NARCISSISTS	pl	Someone in love with themselves
+NARCISSUS		Bulbous plant having erect linear leaves and showy yellow or white flowers either…
+NARCOLEPSY		A sleep disorder characterized by sudden and uncontrollable episodes of deep sleep
+NARCOSIS		Unconsciousness induced by narcotics or anesthesia
+NARCOTIC		A drug that produces numbness or stupor
+NARCOTICS	pl	A drug that produces numbness or stupor
+NARES	irr	Any of the openings to the nasal cavities that allow air to flow through the cavities to…
+NARRATE		Provide commentary for a film, for example
+NARRATED	past	Provide commentary for a film, for example
+NARRATES	3sg	Provide commentary for a film, for example
+NARRATING	ing	Provide commentary for a film, for example
+NARRATION		A message that tells the particulars of an act or occurrence or course of events
+NARRATIONS	pl	A message that tells the particulars of an act or occurrence or course of events
+NARRATIVE		A message that tells the particulars of an act or occurrence or course of events
+NARRATIVES	pl	A message that tells the particulars of an act or occurrence or course of events
+NARRATOR		Someone who tells a story
+NARRATORS	pl	Someone who tells a story
+NARROW		Limited in size or scope
+NARROWED		Reduced in size as by squeezing together
+NARROWER	comp	Limited in size or scope
+NARROWEST	sup	Limited in size or scope
+NARROWING		An instance of becoming narrow
+NARROWLY		In a ___ manner
+NARROWNESS		The property of being narrow
+NARROWS	pl	A ___ strait connecting two bodies of water
+NARTHEX		Portico at the west end of an early Christian basilica or church
+NARWHAL		Small Arctic whale the male having a long spiral ivory tusk
+NARY		Colloquial for `not a' or `not one' or `never a'
+NASAL		Of or in or relating to the nose
+NASCENT		Being born or beginning
+NASOPHARYNGEAL		Of or relating to or located near the ___
+NASOPHARYNX		Cavity forming the upper part of the pharynx
+NASTIER	irr	Offensive or even malicious
+NASTIEST	irr	Offensive or even malicious
+NASTINESS		A state characterized by foul or disgusting dirt and refuse
+NASTURTIUM		Any tropical American plant of the genus Tropaeolum having pungent juice and long-spurred…
+NASTY		Offensive or even malicious
+NATAL		Relating to or accompanying birth
+NATATORIUM		Pool that provides a facility for swimming
+NATES		The fleshy part of the human body that you sit on
+NATION		A politically organized body of people under a single government
+NATIONAL		Inside the country
+NATIONALISED	past	Put under state control or ownership
+NATIONALISM		Love of country and willingness to sacrifice for it
+NATIONALIST		One who loves and defends his or her country
+NATIONALISTIC		Devotion to the interests or culture of a particular nation including promoting the…
+NATIONALISTS	pl	One who loves and defends his or her country
+NATIONALITIES	pl	People having common origins or traditions and often comprising a nation
+NATIONALITY		People having common origins or traditions and often comprising a nation
+NATIONALIZATION		The action of forming or becoming a nation
+NATIONALIZED	past	Put under state control or ownership
+NATIONALLY		With regard to a nation taken as a whole
+NATIONALS	pl	A person who owes allegiance to that ___
+NATIONHOOD		The state of being a nation
+NATIONS	pl	A politically organized body of people under a single government
+NATIONWIDE		Occurring or extending throughout a country or nation
+NATIVE		Characteristic of or existing by virtue of geographic origin
+NATIVES	pl	An indigenous person who was born in a particular place
+NATIVITIES	pl	The event of being born
+NATIVITY		The event of being born
+NATRIURETIC		Of or relating to ___
+NATTER		Talk socially without exchanging too much information
+NATTY		Marked by up-to-dateness in dress and manners
+NATURAL		Functioning or occurring in a normal way
+NATURALISED		Planted so as to give an effect of wild growth
+NATURALISM		The doctrine that the world can be understood in scientific terms without recourse to…
+NATURALIST		An advocate of the doctrine that the world can be understood in scientific terms
+NATURALISTIC		Representing what is real
+NATURALISTS	pl	An advocate of the doctrine that the world can be understood in scientific terms
+NATURALIZATION		The quality of being brought into conformity with nature
+NATURALIZED		Introduced from another region and persisting without cultivation
+NATURALLY		As might be expected
+NATURALNESS		The quality of being natural or based on natural principles
+NATURALS	pl	Someone regarded as certain to succeed
+NATURE		The essential qualities or characteristics by which something is recognized
+NATURES	pl	The essential qualities or characteristics by which something is recognized
+NATURISM		Going without clothes as a social practice
+NATURIST		A person who practices nudity for reasons of health or religion
+NATURISTS	pl	A person who practices nudity for reasons of health or religion
+NATUROPATH		A therapist who practices ___
+NATUROPATHS	pl	A therapist who practices ___
+NATUROPATHY		A method of treating disease using food and exercise and heat to assist the natural…
+NAUGHT		A quantity of no importance
+NAUGHTY		Suggestive of sexual impropriety
+NAUSEA		The state that precedes vomiting
+NAUSEATED	past	Cause aversion in
+NAUSEATING		Causing or able to cause nausea
+NAUSEOUS		Causing or able to cause nausea
+NAUTICAL		Relating to or involving ships or shipping or navigation or seamen
+NAUTILUS		A submarine that is propelled by nuclear power
+NAVAL		Connected with or belonging to or used in a navy
+NAVE		The central area of a church
+NAVEL		A scar where the umbilical cord was attached
+NAVES	pl	The central area of a church
+NAVIES	pl	An organization of military vessels belonging to a country and available for sea warfare
+NAVIGABILITY		The quality of being suitable for the passage of a ship or aircraft
+NAVIGABLE		Able to be sailed on or through safely
+NAVIGATE		Travel on water propelled by wind or by other means
+NAVIGATED	past	Travel on water propelled by wind or by other means
+NAVIGATES	3sg	Travel on water propelled by wind or by other means
+NAVIGATING	ing	Travel on water propelled by wind or by other means
+NAVIGATION		The guidance of ships or airplanes from place to place
+NAVIGATIONAL		Of or relating to ___
+NAVIGATIONS	pl	The guidance of ships or airplanes from place to place
+NAVIGATOR		The member of an aircrew who is responsible for the aircraft's course
+NAVIGATORS	pl	The member of an aircrew who is responsible for the aircraft's course
+NAVY		An organization of military vessels belonging to a country and available for sea warfare
+NAWAB		A governor in India during the Mogul empire
+NAY		Not this merely but also
+NAYSAYERS	pl	Someone with an aggressively negative attitude
+NAZI		A German member of Adolf Hitler's political party
+NAZIS	pl	A German member of Adolf Hitler's political party
+NEAP		A less than average tide occurring at the first and third quarters of the moon
+NEAR		Not far distant in time or space or degree or circumstances
+NEARBY		Close at hand
+NEARER		Within a shorter distance
+NEAREST		Within the shortest distance
+NEARLY		Slightly short of or not quite accomplished
+NEARNESS		The spatial property resulting from a relatively small distance
+NEARSIGHTEDNESS		Eyesight abnormality resulting from the eye's faulty refractive ability
+NEAT		Clean or organized
+NEATER	comp	Clean or organized
+NEATEST	sup	Clean or organized
+NEATNESS		The state of being neat and smart and trim
+NEB		A long projecting or anterior elongation of an animal's head
+NEBS	pl	A long projecting or anterior elongation of an animal's head
+NEBULA		A medicinal liquid preparation intended for use in an atomizer
+NEBULAE	irr	A medicinal liquid preparation intended for use in an atomizer
+NEBULAR		Resembling a cloud
+NEBULIZER		A dispenser that turns a liquid into a fine mist
+NEBULIZERS	pl	A dispenser that turns a liquid into a fine mist
+NEBULOUS		Lacking definite form or limits
+NECESSARILY		In an essential manner
+NECESSARY		Unavoidably determined by prior circumstances
+NECESSITATE		Require as useful, just, or proper
+NECESSITATED	past	Require as useful, just, or proper
+NECESSITATES	3sg	Require as useful, just, or proper
+NECESSITATING	ing	Require as useful, just, or proper
+NECESSITIES	pl	The condition of being essential or indispensable
+NECESSITY		The condition of being essential or indispensable
+NECK		The part of an organism that connects the head to the rest of the body
+NECKBAND		A band around the collar of a garment
+NECKED		Having a neck or having a neck especially as specified
+NECKER		A lover who necks
+NECKLACE		Jewelry consisting of a cord or chain worn about the neck as an ornament
+NECKLACES	pl	Jewelry consisting of a cord or chain worn about the neck as an ornament
+NECKLINE		The line formed by the edge of a garment around the neck
+NECKS	pl	The part of an organism that connects the head to the rest of the body
+NECKTIE		Neckwear consisting of a long narrow piece of material worn under a collar and tied in…
+NECKTIES	pl	Neckwear consisting of a long narrow piece of material worn under a collar and tied in…
+NECKWEAR		Articles of clothing worn about the neck
+NECROLOGY		A notice of someone's death
+NECROMANCER		One who practices magic or sorcery
+NECROMANCY		The belief in magical spells that harness occult forces or evil spirits to produce…
+NECROPHILIA		An irresistible sexual attraction to dead bodies
+NECROPOLIS		A tract of land used for burials
+NECROPSY		An examination and dissection of a dead body to determine cause of death or the changes…
+NECROSIS		The localized death of living cells
+NECROTIC		Relating to or affected by necrosis
+NECTAR		A sweet liquid secretion that is attractive to pollinators
+NECTARINE		Variety or mutation of the peach bearing fruit with smooth skin and yellow flesh
+NECTARINES	pl	Variety or mutation of the peach bearing fruit with smooth skin and yellow flesh
+NEE		Used to indicate the maiden or family name of a married woman
+NEED		Require as useful, just, or proper
+NEEDED		Necessary for relief or supply
+NEEDFUL		Necessary for relief or supply
+NEEDIEST	irr	Poor enough to ___ help from others
+NEEDING	ing	Require as useful, just, or proper
+NEEDLE		The leaf of a conifer
+NEEDLED		Of trees whose leaves are acerate
+NEEDLEPOINT		Lace worked with a needle in a buttonhole stitch on a paper pattern
+NEEDLES	pl	The leaf of a conifer
+NEEDLESS		Unnecessary and unwarranted
+NEEDLEWORK		A creation created or assembled by needle and thread
+NEEDLING	ing	Annoy or provoke, as by constant criticism
+NEEDS		In such a manner as could not be otherwise
+NEEDY		Poor enough to ___ help from others
+NEEM		Large semi-evergreen tree of the East Indies
+NEGATE		Be in contradiction with
+NEGATED	past	Be in contradiction with
+NEGATES	3sg	Be in contradiction with
+NEGATING	ing	Be in contradiction with
+NEGATION		A proposition that is true if and only if another proposition is false
+NEGATIONS	pl	A proposition that is true if and only if another proposition is false
+NEGATIVE		Having the quality of something harmful or unpleasant
+NEGATIVELY		In a harmful manner
+NEGATIVES	pl	A reply of denial
+NEGATIVITY		Characterized by habitual skepticism and a disagreeable tendency to deny or oppose or…
+NEGLECT		Leave undone or leave out
+NEGLECTED		Lacking a caretaker
+NEGLECTFUL		Not showing due care or attention
+NEGLECTING	ing	Leave undone or leave out
+NEGLECTS	pl	Lack of attention and due care
+NEGLIGENCE		Failure to act with the prudence that a reasonable person would exercise under the same…
+NEGLIGENT		Characterized by neglect and undue lack of concern
+NEGLIGENTLY		In a ___ manner
+NEGLIGIBLE		So small as to be meaningless
+NEGOTIABLE		Legally transferable to the ownership of another
+NEGOTIATE		Discuss the terms of an arrangement
+NEGOTIATED	past	Discuss the terms of an arrangement
+NEGOTIATES	3sg	Discuss the terms of an arrangement
+NEGOTIATING	ing	Discuss the terms of an arrangement
+NEGOTIATION		A discussion intended to produce an agreement
+NEGOTIATIONS	pl	A discussion intended to produce an agreement
+NEGUS		Wine and hot water with sugar and lemon juice and nutmeg
+NEIGH		The characteristic sounds made by a horse
+NEIGHBOR		A person who lives near another
+NEIGHBORHOOD		A surrounding or nearby region
+NEIGHBORHOODS	pl	A surrounding or nearby region
+NEIGHBORING		Having a common boundary or edge
+NEIGHBORLY		Exhibiting the qualities expected in a friendly ___
+NEIGHBORS	pl	A person who lives near another
+NEIGHBOUR		A person who lives near another
+NEIGHBOURING	ing	Be located near or adjacent to
+NEIGHBOURS	pl	A person who lives near another
+NELSON		English admiral who defeated the French fleets of Napoleon but was mortally wounded at…
+NELSONS	pl	English admiral who defeated the French fleets of Napoleon but was mortally wounded at…
+NEMATODE		Unsegmented worms with elongated rounded body pointed at both ends
+NEMATODES	pl	Unsegmented worms with elongated rounded body pointed at both ends
+NEMESIS		The goddess of divine retribution and vengeance
+NEOCLASSICAL		Characteristic of a revival of an earlier classical style
+NEOCONSERVATIVE		A conservative who subscribes to ___
+NEOCORTEX		The cortical part of the neencephalon
+NEOCORTICAL		Of or relating to the neocortex of the cerebrum
+NEODYMIUM		A yellow trivalent metallic element of the rare earth group
+NEOLIBERAL		Having or showing belief in the need for economic growth in addition to traditional…
+NEOLIBERALISM		A political orientation originating in the 1960s
+NEOLITHIC		Latest part of the Stone Age beginning about 10,000 BC in the Middle East
+NEOLOGISM		A newly invented word or phrase
+NEOLOGISMS	pl	A newly invented word or phrase
+NEOMYCIN		An antibiotic obtained from an actinomycete and used as an intestinal antiseptic in…
+NEON		A colorless odorless gaseous element that give a red glow in a vacuum tube
+NEONATAL		Relating to or affecting the infant during the first month after birth
+NEONATE		A baby from birth to four weeks
+NEONATES	pl	A baby from birth to four weeks
+NEONATOLOGY		That branch of pediatric medicine concerned with the newborn
+NEONS	pl	A colorless odorless gaseous element that give a red glow in a vacuum tube
+NEOPHYTE		A plant that is found in an area where it had not been recorded previously
+NEOPHYTES	pl	A plant that is found in an area where it had not been recorded previously
+NEOPLASIA		The pathological process that results in the formation and growth of a tumor
+NEOPLASM		An abnormal new mass of tissue that serves no purpose
+NEOPLASMS	pl	An abnormal new mass of tissue that serves no purpose
+NEOPLASTIC		Of or related to or having the properties of a ___
+NEOPRENE		A synthetic rubber that is resistant to oils and aging
+NEPHEW		A son of your brother or sister
+NEPHEWS	pl	A son of your brother or sister
+NEPHRECTOMY		Surgical removal of a kidney
+NEPHRITIS		An inflammation of the kidney
+NEPHROLOGY		The branch of medicine concerned with the kidney - its development and anatomy and…
+NEPHRON		Any of the small tubules that are the excretory units of the vertebrate kidney
+NEPHROPATHY		A disease affecting the kidneys
+NEPOTISM		Favoritism shown to relatives or close friends by those in power
+NERD		An insignificant student who is ridiculed as being affected or boringly studious
+NERDS	pl	An insignificant student who is ridiculed as being affected or boringly studious
+NERVE		The courage to carry on
+NERVES		An uneasy psychological state
+NERVOUS		Causing or fraught with or showing anxiety
+NERVOUSLY		In an anxiously ___ manner
+NERVOUSNESS		The anxious feeling you have when you have the jitters
+NESS		A strip of land projecting into a body of water
+NESSES	pl	A strip of land projecting into a body of water
+NEST		A structure in which animals lay eggs or give birth to their young
+NESTED	past	Fit together or fit inside
+NESTER		Someone who settles lawfully on government land with the intent to acquire title to it
+NESTERS	pl	Someone who settles lawfully on government land with the intent to acquire title to it
+NESTING	ing	Fit together or fit inside
+NESTLE		Move or arrange oneself in a comfortable and cozy position
+NESTLED		Drawn or pressed close to someone or something for or as if for affection or protection
+NESTLES	pl	A close and affectionate embrace
+NESTLING		Young bird not yet fledged
+NESTLINGS	pl	Young bird not yet fledged
+NESTOR		A wise old counselor to the Greeks at Troy
+NESTS	pl	A structure in which animals lay eggs or give birth to their young
+NET		Remaining after all deductions
+NETHER		Dwelling beneath the surface of the earth
+NETHERWORLD		The world of the dead
+NETMINDER		The soccer or hockey player assigned to protect the goal
+NETS	pl	The excess of revenues over outlays in a given period of time
+NETT		Catch with a net
+NETTED		Having open interstices or resembling a web
+NETTER	comp	Remaining after all deductions
+NETTING		A net of transparent fabric with a loose open weave
+NETTLE		Any of numerous plants having stinging hairs that cause skin irritation on contact
+NETTLES	pl	Any of numerous plants having stinging hairs that cause skin irritation on contact
+NETWORK		An interconnected system of things or people
+NETWORKED	past	Communicate with and within a group
+NETWORKING	ing	Communicate with and within a group
+NETWORKS	pl	An interconnected system of things or people
+NEURAL		Of or relating to the nervous system
+NEURALGIA		Acute spasmodic pain along the course of one or more nerves
+NEURITIS		Inflammation of a nerve accompanied by pain and sometimes loss of function
+NEUROANATOMY		The anatomy of the nervous system
+NEUROBIOLOGICAL		Of or relating to the biological study of the nervous system
+NEUROBIOLOGY		The branch of biology that deals with the anatomy and physiology and pathology of the…
+NEUROBLASTOMA		Malignant tumor containing embryonic nerve cells
+NEUROCHEMICAL		Any organic substance that occurs in neural activity
+NEUROENDOCRINE		Of or relating to the nervous and endocrine systems
+NEUROGENIC		Arising in or stimulated by nerve tissues
+NEUROLEPTIC		Tranquilizer used to treat psychotic conditions when a calming effect is desired
+NEUROLEPTICS	pl	Tranquilizer used to treat psychotic conditions when a calming effect is desired
+NEUROLOGIC		Of or relating to or used in or practicing ___
+NEUROLOGICAL		Of or relating to or used in or practicing neurology
+NEUROLOGIST		A medical specialist in the nervous system and the disorders affecting it
+NEUROLOGISTS	pl	A medical specialist in the nervous system and the disorders affecting it
+NEUROLOGY		The branch of medical science that deals with the nervous system
+NEUROMA		Any tumor derived from cells of the nervous system
+NEUROMUSCULAR		Affecting or characteristic of both neural and muscular tissue
+NEURON		A cell that is specialized to conduct nerve impulses
+NEURONAL		Of or relating to ___
+NEURONES	pl	A cell that is specialized to conduct nerve impulses
+NEURONS	pl	A cell that is specialized to conduct nerve impulses
+NEUROPATHIES	pl	Any pathology of the peripheral nerves
+NEUROPATHY		Any pathology of the peripheral nerves
+NEUROPHYSIOLOGY		The branch of neuroscience that studies the physiology of the nervous system
+NEUROPSYCHIATRY		The branch of medicine dealing with mental disorders attributable to diseases of the…
+NEUROPSYCHOLOGY		The branch of psychology that is concerned with the physiological bases of psychological…
+NEUROSCIENCE		The scientific study of the nervous system
+NEUROSCIENCES	pl	The scientific study of the nervous system
+NEUROSCIENTIST		A neurobiologist who specializes in the study of the brain
+NEUROSCIENTISTS	pl	A neurobiologist who specializes in the study of the brain
+NEUROSES	irr	A mental or personality disturbance not attributable to any known neurological or organic…
+NEUROSIS		A mental or personality disturbance not attributable to any known neurological or organic…
+NEUROSPORA		Genus of fungi with black perithecia used extensively in genetic research
+NEUROSURGEON		Someone who does surgery on the nervous system
+NEUROSURGEONS	pl	Someone who does surgery on the nervous system
+NEUROSURGERY		Any surgery that involves the nervous system
+NEUROTIC		Characteristic of or affected by neurosis
+NEUROTOXIC		Poisonous to nerves or nerve cells
+NEUROTOXIN		Any toxin that affects neural tissues
+NEUROTOXINS	pl	Any toxin that affects neural tissues
+NEUTER		A gender that refers chiefly to inanimate objects
+NEUTERED		Having testicles or ovaries removed
+NEUTERING		The sterilization of an animal
+NEUTRAL		Having no personal preference
+NEUTRALISE		Get rid of by killing
+NEUTRALITY		Nonparticipation in a dispute or war
+NEUTRALIZATION		Action intended to keep a country politically neutral or exclude it from a possible war
+NEUTRALIZE		Make ineffective by counterbalancing the effect of
+NEUTRALIZED		Made neutral in some respect
+NEUTRALIZES	3sg	Make ineffective by counterbalancing the effect of
+NEUTRALIZING	ing	Make ineffective by counterbalancing the effect of
+NEUTRALS	pl	One who does not side with any party in a war or dispute
+NEUTRINO		An elementary, electrically neutral particle with a very small mass
+NEUTRINOS	pl	An elementary, electrically neutral particle with a very small mass
+NEUTRON		An elementary particle with 0 charge and mass about equal to a proton
+NEUTRONS	pl	An elementary particle with 0 charge and mass about equal to a proton
+NEUTROPHIL		The chief phagocytic leukocyte
+NEUTROPHILS	pl	The chief phagocytic leukocyte
+NEVE		The upper part of a glacier where the snow turns to ice
+NEVER		Not at all
+NEVERMORE		At no time hereafter
+NEVERTHELESS		Despite anything to the contrary
+NEVES	pl	The upper part of a glacier where the snow turns to ice
+NEVI	irr	A blemish on the skin that is formed before birth
+NEVUS		A blemish on the skin that is formed before birth
+NEW		Not of long duration
+NEWBORN		Having just or recently arisen or come into existence
+NEWBORNS	pl	A baby from birth to four weeks
+NEWCOMER		Any new participant in some activity
+NEWCOMERS	pl	Any new participant in some activity
+NEWEL		The post at the top or bottom of a flight of stairs
+NEWER	comp	Not of long duration
+NEWEST	sup	Not of long duration
+NEWLYWED		Someone recently married
+NEWLYWEDS	pl	Someone recently married
+NEWMARKET		A long close-fitting coat worn for riding in the 19th century
+NEWNESS		The quality of being new
+NEWS		Information about recent and important events
+NEWSAGENT		Someone who sells newspapers
+NEWSAGENTS	pl	Someone who sells newspapers
+NEWSBOY		A boy who delivers newspapers
+NEWSBOYS	pl	A boy who delivers newspapers
+NEWSBREAK		A short news announcement concerning some on-going news story
+NEWSCAST		A broadcast of news or commentary on the news
+NEWSCASTER		Someone who broadcasts the news
+NEWSCASTS	pl	A broadcast of news or commentary on the news
+NEWSLETTER		Report or open letter giving informal or confidential news of interest to a special group
+NEWSLETTERS	pl	Report or open letter giving informal or confidential news of interest to a special group
+NEWSMAN		A person who investigates and reports or edits news stories
+NEWSMEN	pl	A person who investigates and reports or edits news stories
+NEWSPAPER		A daily or weekly publication on folded sheets
+NEWSPAPERS	pl	A daily or weekly publication on folded sheets
+NEWSPEAK		Deliberately ambiguous and contradictory language used to mislead and manipulate the…
+NEWSPRINT		Cheap paper made from wood pulp and used for printing newspapers
+NEWSREADER		Someone who reads out broadcast news bulletin
+NEWSREADERS	pl	Someone who reads out broadcast news bulletin
+NEWSREEL		A short film and commentary about current events
+NEWSREELS	pl	A short film and commentary about current events
+NEWSROOM		The staff of a newspaper or the news department of a periodical
+NEWSROOMS	pl	The staff of a newspaper or the news department of a periodical
+NEWSSTAND		A stall where newspapers and other periodicals are sold
+NEWSSTANDS	pl	A stall where newspapers and other periodicals are sold
+NEWSWORTHY		Sufficiently interesting to be reported in a newspaper
+NEWSY		Prone to friendly informal communication
+NEWT		Small usually bright-colored semiaquatic salamanders of North America and Europe and…
+NEWTON		English mathematician and physicist
+NEWTONS	pl	English mathematician and physicist
+NEWTS	pl	Small usually bright-colored semiaquatic salamanders of North America and Europe and…
+NEXT		Elected but not yet serving
+NEXUS		The means of connection between things linked in series
+NGULTRUM		The basic unit of money in Bhutan
+NIACIN		A B vitamin essential for the normal function of the nervous system and the…
+NIB		The writing point of a pen
+NIBBLE		A small byte
+NIBBLED	past	Bite off very small pieces
+NIBBLER		A biter who takes dainty repeated bites
+NIBBLERS	pl	A biter who takes dainty repeated bites
+NIBBLES	pl	A small byte
+NIBBLING	ing	Bite off very small pieces
+NIBS	pl	The writing point of a pen
+NICAD		A rechargeable battery with a nickel cathode and a cadmium anode
+NICE		Pleasant or pleasing or agreeable in nature or appearance
+NICELY		In a nice way
+NICENESS		A courteous manner that respects accepted social usage
+NICER	comp	Pleasant or pleasing or agreeable in nature or appearance
+NICEST	sup	Pleasant or pleasing or agreeable in nature or appearance
+NICETIES	pl	Conformity with some esthetic standard of correctness or propriety
+NICHE		A position particularly well suited to the person who occupies it
+NICHES	pl	A position particularly well suited to the person who occupies it
+NICK		An impression in a surface
+NICKED	past	Cut slightly, with a razor
+NICKEL		A hard malleable ductile silvery metallic element that is resistant to corrosion
+NICKELODEON		A cabinet containing an automatic record player
+NICKELS	pl	A hard malleable ductile silvery metallic element that is resistant to corrosion
+NICKING	ing	Cut slightly, with a razor
+NICKNAME		A familiar name for a person
+NICKNAMED	past	Give a ___ to
+NICKNAMES	pl	A familiar name for a person
+NICKS	pl	An impression in a surface
+NICOTIANA		American and Asiatic aromatic herbs and shrubs with viscid foliage
+NICOTINE		An alkaloid poison that occurs in tobacco
+NIECE		A daughter of your brother or sister
+NIECES	pl	A daughter of your brother or sister
+NIGGLING		Small and of little importance
+NIGH		Not far distant in time or space or degree or circumstances
+NIGHT		The time after sunset and before sunrise while it is dark outside
+NIGHTCAP		An alcoholic drink taken at bedtime
+NIGHTCLUB		A spot that is open late at night and that provides entertainment as well as dancing and…
+NIGHTCLUBS	pl	A spot that is open late at night and that provides entertainment as well as dancing and…
+NIGHTDRESS		Lingerie consisting of a loose dress designed to be worn in bed by women
+NIGHTFALL		The time of day immediately following sunset
+NIGHTGOWN		Lingerie consisting of a loose dress designed to be worn in bed by women
+NIGHTGOWNS	pl	Lingerie consisting of a loose dress designed to be worn in bed by women
+NIGHTHAWK		A person who likes to be active late at night
+NIGHTHAWKS	pl	A person who likes to be active late at night
+NIGHTIE		Lingerie consisting of a loose dress designed to be worn in bed by women
+NIGHTINGALE		European songbird noted for its melodious nocturnal song
+NIGHTINGALES	pl	European songbird noted for its melodious nocturnal song
+NIGHTJAR		Mainly crepuscular or nocturnal nonpasserine birds with mottled greyish-brown plumage and…
+NIGHTLIFE		The entertainment available to people seeking nighttime diversion
+NIGHTLY		At the end of each day
+NIGHTMARE		A situation resembling a terrifying dream
+NIGHTMARES	pl	A situation resembling a terrifying dream
+NIGHTS	pl	The time after sunset and before sunrise while it is dark outside
+NIGHTSHADE		Any of numerous shrubs or herbs or vines of the genus Solanum
+NIGHTSHIRT		Nightclothes worn by men
+NIGHTSHIRTS	pl	Nightclothes worn by men
+NIGHTSPOT		A spot that is open late at night and that provides entertainment as well as dancing and…
+NIGHTSPOTS	pl	A spot that is open late at night and that provides entertainment as well as dancing and…
+NIGHTTIME		The time after sunset and before sunrise while it is dark outside
+NIHILISM		A revolutionary doctrine that advocates destruction of the social system for its own sake
+NIHILIST		Someone who rejects all theories of morality or religious belief
+NIHILISTIC		Of or relating to ___
+NIL		A quantity of no importance
+NILPOTENT		Equal to zero when raised to a certain power
+NILS	pl	A quantity of no importance
+NIM		Game in which matchsticks are arranged in rows and players alternately remove one or more…
+NIMBLE		Moving quickly and lightly
+NIMBLY		In a ___ or agile manner
+NIMBUS		A dark grey cloud bearing rain
+NIMROD		A famous hunter
+NIMS	pl	Game in which matchsticks are arranged in rows and players alternately remove one or more…
+NINE		Denoting a quantity consisting of one more than eight and one less than ten
+NINES	pl	The cardinal number that is the sum of eight and one
+NINETEEN		Being one more than eighteen
+NINETEENTH		Coming next after the eighteenth in position
+NINETIES		The decade from 1890 to 1899
+NINETIETH		Position 90 in a countable series of things
+NINETY		Being ten more than eighty
+NINJA		A class of 14th century Japanese who were trained in martial arts and were hired for…
+NINJAS	pl	A class of 14th century Japanese who were trained in martial arts and were hired for…
+NINTH		Coming next after the eighth and just before the tenth in position
+NIOBIUM		A soft grey ductile metallic element used in alloys
+NIPA		Monotypic genus of palms of Australasia
+NIPPED	irr	Squeeze tightly between the fingers
+NIPPER		A young person of either sex
+NIPPERS	pl	A young person of either sex
+NIPPING		Capable of wounding
+NIPPLE		The small projection of a mammary gland
+NIPPLES	pl	The small projection of a mammary gland
+NIPPY		A sharp biting taste
+NIPS	3sg	Squeeze tightly between the fingers
+NIRVANA		The beatitude that transcends the cycle of reincarnation
+NISI		Not final or absolute
+NISUS		An effortful attempt to attain a goal
+NIT		A luminance unit equal to 1 candle per square meter measured perpendicular to the rays…
+NITES	pl	A luminance unit equal to 1 candle per square meter measured perpendicular to the rays…
+NITPICK		Be overly critical
+NITPICKER		Someone who makes small and unjustified criticisms
+NITPICKING	ing	Be overly critical
+NITRATE		Any compound containing the ___ group
+NITRATES	pl	Any compound containing the ___ group
+NITRIC		Of or containing nitrogen
+NITRIDE		A compound containing nitrogen and a more electropositive element
+NITRIDES	pl	A compound containing nitrogen and a more electropositive element
+NITRIFICATION		The chemical process in which a nitro group is added to an organic compound
+NITRILE		Any of a class of organic compounds containing the cyano radical -CN
+NITRITE		The radical -NO2 or any compound containing it
+NITRITES	pl	The radical -NO2 or any compound containing it
+NITROBENZENE		A poisonous oily water-soluble liquid used as a solvent and in the manufacture of aniline
+NITROCELLULOSE		A nitric acid ester
+NITROGEN		A common nonmetallic element that is normally a colorless odorless tasteless inert…
+NITROGENASE		An enzyme of ___-fixing microorganisms that catalyzes the conversion of ___ to…
+NITROGENOUS		Of or relating to or containing ___
+NITROGLYCERIN		A heavy yellow poisonous oily explosive liquid obtained by nitrating glycerol
+NITROUS		Of or containing ___
+NITS	pl	A luminance unit equal to 1 candle per square meter measured perpendicular to the rays…
+NIX		A quantity of no importance
+NIXES	pl	A quantity of no importance
+NOB		Informal term for an upper-class or wealthy person
+NOBILITY		A privileged class holding hereditary titles
+NOBLE		Impressive in appearance
+NOBLEMAN		A titled peer of the realm
+NOBLEMEN	pl	A titled peer of the realm
+NOBLER	comp	Impressive in appearance
+NOBLES	pl	A titled peer of the realm
+NOBLESSE		The state of being of noble birth
+NOBLEST	sup	Impressive in appearance
+NOBLY		In a ___ manner
+NOBODIES	pl	A person of no influence
+NOBODY		A person of no influence
+NOBS	pl	Informal term for an upper-class or wealthy person
+NOCICEPTIVE		Caused by or in response to pain
+NOCK		Make small marks into the surface of
+NOCTURNAL		Belonging to or active during the night
+NOCTURNE		A pensive lyrical piece of music
+NOCTURNES	pl	A pensive lyrical piece of music
+NOD		Lower and raise the head, as to indicate assent or agreement or confirmation
+NODDED	irr	Lower and raise the head, as to indicate assent or agreement or confirmation
+NODDING		Having branches or flower heads that bend downward
+NODE		A connecting point at which several lines come together
+NODES	pl	A connecting point at which several lines come together
+NODS	pl	A sign of assent or salutation or command
+NODULAR		Relating to or characterized by or having ___
+NODULE		A small node
+NODULES	pl	A small node
+NOEL		Period extending from Dec. 24 to Jan. 6
+NOES	irr	A radioactive transuranic element synthesized by bombarding curium with carbon ions
+NOETIC		Of or associated with or requiring the use of the mind
+NOG		A wooden pin pushed or driven into a surface
+NOGGIN		Informal terms for a human head
+NOISE		Sound of any kind
+NOISELESS		Making no sound
+NOISELESSLY		Without a sound
+NOISEMAKERS	pl	A device used to make a loud noise at a celebration
+NOISES	pl	Sound of any kind
+NOISIER	irr	Full of or characterized by loud and nonmusical sounds
+NOISILY		With much noise or loud and unpleasant sound
+NOISY		Full of or characterized by loud and nonmusical sounds
+NOMA		Acute ulceration of the mucous membranes of the mouth or genitals
+NOMAD		A member of a people who have no permanent home but move about according to the seasons
+NOMADS	pl	A member of a people who have no permanent home but move about according to the seasons
+NOME		A town in western Alaska on the southern coast of the Seward Peninsula
+NOMENCLATURE		A system of words used to name things in a particular discipline
+NOMES	pl	A town in western Alaska on the southern coast of the Seward Peninsula
+NOMINAL		Relating to or constituting or bearing or giving a name
+NOMINALLY		In name only
+NOMINATE		Propose as a candidate for some honor
+NOMINATED	past	Propose as a candidate for some honor
+NOMINATES	3sg	Propose as a candidate for some honor
+NOMINATING	ing	Propose as a candidate for some honor
+NOMINATION		The act of officially naming a candidate
+NOMINATIONS	pl	The act of officially naming a candidate
+NOMINATIVE		The category of nouns serving as the grammatical subject of a verb
+NOMINATOR		Someone who proposes a candidate for appointment or election
+NOMINEE		A politician who is running for public office
+NOMINEES	pl	A politician who is running for public office
+NONALCOHOLIC		Characterized by the absence of alcohol
+NONCE		The present occasion
+NONCHALANT		Marked by blithe unconcern
+NONCHALANTLY		In a composed and unconcerned manner
+NONCITIZENS	pl	A person who comes from a foreign country
+NONCOMMERCIAL		Not connected with or engaged in commercial enterprises
+NONCOMPETITIVE		Not involving competition or competitiveness
+NONCOMPLIANCE		The failure to obey
+NONCOMPLIANT		A person who refuses to comply
+NONCONFORMING		Not conforming to established customs or doctrines especially in religion
+NONCONFORMIST		A Protestant in England who is not a member of the Church of England
+NONCONFORMITY		Lack of harmony or correspondence
+NONCURRENT		Not current or belonging to the present time
+NONDEDUCTIBLE		Not allowable as a deduction
+NONDESCRIPT		Lacking distinct or individual characteristics
+NONE		Not at all or in no way
+NONESSENTIAL		Anything that is not essential
+NONESUCH		Model of excellence or perfection of a kind
+NONETHELESS		Despite anything to the contrary
+NONEXEMPT		Subject to taxation
+NONEXISTENCE		The state of not existing
+NONEXISTENT		Not having existence or being or actuality
+NONFAT		Without fat or fat solids
+NONFATAL		Not bringing death
+NONFICTION		Prose writing that is not fictional
+NONFINANCIAL		Not involving financial matters
+NONFUNCTIONAL		Not having or performing a function
+NONINVASIVE		Relating to a technique that does not involve puncturing the skin or entering a body…
+NONIONIC		Not converted into ions
+NONLETHAL		Not capable of causing death
+NONLINEAR		Designating or involving an equation whose terms are not of the first degree
+NONMEMBER		A person who is not a member
+NONMEMBERS	pl	A person who is not a member
+NONMETAL		A chemical element lacking typical metallic properties
+NONMETALLIC		Not containing or resembling or characteristic of a metal
+NONMILITARY		Not associated with soldiers or the military
+NONNATIVE		Not being or composed of aborigines
+NONNEGATIVE		Either positive or zero
+NONPARAMETRIC		Not involving an estimation of the parameters of a statistic
+NONPARTISAN		Free from party affiliation or bias
+NONPAYMENT		Act of failing to meet a financial obligation
+NONPLUSSED		Filled with bewilderment
+NONPRESCRIPTION		Purchasable without a doctor's prescription
+NONPROFIT		An organization chartered for other than profit-making activities
+NONPROFITS	pl	An organization chartered for other than profit-making activities
+NONPROPRIETARY		Not protected by trademark or patent or copyright
+NONPUBLIC		Not invested with or related to prominent position or status etc
+NONRENEWABLE		That can not be renewed
+NONRESIDENT		Not living in a particular place or owned by permanent residents
+NONRESIDENTS	pl	Someone who does not live in a particular place
+NONSECTARIAN		Not restricted to one sect or school or party
+NONSENSE		A message that seems to convey no meaning
+NONSENSICAL		So unreasonable as to invite derision
+NONSIGNIFICANT		Attributable to chance
+NONSMOKERS	pl	A person who does not smoke tobacco
+NONSPECIFIC		Not caused by a specific agent
+NONSTANDARD		Not conforming to the language usage of a prestige group within a community
+NONSTEROIDAL		An organic compound that does no contain a steroid
+NONSTICK		Permitting easy removal of adherent food particles
+NONSTOP		A flight made without intermediate stops between source and destination
+NONSUCH		Model of excellence or perfection of a kind
+NONTAXABLE		Not subject to taxation
+NONTECHNICAL		Not characteristic of or skilled in applied arts and sciences
+NONTOXIC		Not producing or resulting from poison
+NONTRADITIONAL		Not conforming to or in accord with tradition
+NONTRANSFERABLE		Incapable of being transferred
+NONUNION		Not belonging to or not allowing affiliation with a trade union
+NONVERBAL		Being other than verbal communication
+NONVIOLENCE		Peaceful resistance to a government by fasting or refusing to cooperate
+NONVIOLENT		Abstaining from the use of violence
+NONVOLATILE		Not volatilizing readily
+NOODLE		A ribbonlike strip of pasta
+NOODLES	pl	A ribbonlike strip of pasta
+NOOK		A sheltered and secluded place
+NOOKS	pl	A sheltered and secluded place
+NOON		The middle of the day
+NOONDAY		The middle of the day
+NOOSE		A trap for birds or small mammals
+NORADRENALINE		A catecholamine precursor of epinephrine that is secreted by the adrenal medulla and also…
+NORDIC		The northern family of Germanic languages that are spoken in Scandinavia and Iceland
+NOREPINEPHRINE		A catecholamine precursor of epinephrine that is secreted by the adrenal medulla and also…
+NORETHINDRONE		A synthetic progestational hormone used in oral contraceptives and to treat endometriosis
+NORM		A standard or model or pattern regarded as typical
+NORMAL		Conforming with or constituting a norm or standard or level or type or social norm
+NORMALCY		Expectedness as a consequence of being usual or regular or common
+NORMALISE		Become normal or return to its normal state
+NORMALISED	past	Become normal or return to its normal state
+NORMALITY		Being within certain limits that define the range of normal functioning
+NORMALIZATION		The imposition of standards or regulations
+NORMALIZE		Become normal or return to its normal state
+NORMALIZED	past	Become normal or return to its normal state
+NORMALIZES	3sg	Become normal or return to its normal state
+NORMALIZING	ing	Become normal or return to its normal state
+NORMALS	pl	Something regarded as a ___ example
+NORMATIVE		Relating to or dealing with norms
+NORMOTENSIVE		Having normal blood pressure
+NORMS	pl	A standard or model or pattern regarded as typical
+NORTH		The United States
+NORTHBOUND		Moving toward the north
+NORTHEAST		The compass point midway between north and east
+NORTHEASTERLY		Coming from the northeast
+NORTHEASTERN		Of a region of the United States generally including the New England states
+NORTHEASTWARD		The compass point midway between north and east
+NORTHER		A wind that blows from the ___
+NORTHERLY		Situated in or oriented toward the north
+NORTHERN		In or characteristic of a region of the United States north of the Mason-Dixon line
+NORTHERNER		An inhabitant of the North
+NORTHERNERS	pl	An inhabitant of the North
+NORTHERNMOST		Situated farthest north
+NORTHLAND		Any region lying in or toward the north
+NORTHLANDS	pl	Any region lying in or toward the north
+NORTHWARD		In a northern direction
+NORTHWARDS		In a northern direction
+NORTHWEST		The compass point midway between north and west
+NORTHWESTERLY		Coming from the northwest
+NORTHWESTERN		Of a region of the United States generally including Washington
+NORTRIPTYLINE		A tricyclic antidepressant drug used along with psychotherapy to treat dysthymic…
+NOS	pl	A radioactive transuranic element synthesized by bombarding curium with carbon ions
+NOSE		The organ of smell and entrance to the respiratory tract
+NOSEBLEED		Bleeding from the nose
+NOSEBLEEDS	pl	Bleeding from the nose
+NOSED		Having a ___ especially of a specified kind
+NOSEDIVE		A sudden sharp drop or rapid decline
+NOSES	pl	The organ of smell and entrance to the respiratory tract
+NOSEY		Offensively curious or inquisitive
+NOSH		A snack or light meal
+NOSING	ing	Search or inquire in a meddlesome way
+NOSOCOMIAL		Taking place or originating in a hospital
+NOSTALGIA		Longing for something past
+NOSTALGIC		Unhappy about being away and longing for familiar things or persons
+NOSTOC		Found in moist places as rounded jellylike colonies
+NOSTRIL		Either one of the two external openings to the nasal cavity in the nose
+NOSTRILS	pl	Either one of the two external openings to the nasal cavity in the nose
+NOSTRUM		Hypothetical remedy for all ills or diseases
+NOSY		Offensively curious or inquisitive
+NOT		Negation of a word or group of words
+NOTABILITY		A celebrity who is an inspiration to others
+NOTABLE		Widely known and esteemed
+NOTABLES	pl	A celebrity who is an inspiration to others
+NOTABLY		To a remarkable degree or extent
+NOTARIES	pl	Someone legally empowered to witness signatures and certify a document's validity and to…
+NOTARIZED	past	Authenticate as a notary
+NOTARY		Someone legally empowered to witness signatures and certify a document's validity and to…
+NOTATED	past	Put into ___, as of music or choreography
+NOTATION		A technical system of symbols used to represent special things
+NOTATIONS	pl	A technical system of symbols used to represent special things
+NOTCH		A V-shaped indentation
+NOTCHED		___ like a saw with teeth pointing toward the apex
+NOTCHES	pl	A V-shaped indentation
+NOTCHING	ing	Cut or make a ___ into
+NOTE		Make mention of
+NOTEBOOK		A book with blank pages for recording notes or memoranda
+NOTEBOOKS	pl	A book with blank pages for recording notes or memoranda
+NOTED		Widely known and esteemed
+NOTEPAD		A pad of paper for keeping notes
+NOTEPADS	pl	A pad of paper for keeping notes
+NOTES	pl	A brief written record
+NOTEWORTHY		Worthy of attention because interesting, significant, or unusual
+NOTHING		A quantity of no importance
+NOTHINGNESS		The state of nonexistence
+NOTHINGS	pl	A quantity of no importance
+NOTICE		Discover or determine the existence, presence, or fact of
+NOTICEABLE		Capable or worthy of being noticed
+NOTICEABLY		In a ___ manner
+NOTICED		Being perceived or observed
+NOTICES	pl	An announcement containing information about an event
+NOTICING	ing	Discover or determine the existence, presence, or fact of
+NOTIFIABLE		Requiring that official notification be given
+NOTIFICATION		An accusation of crime made by a grand jury on its own initiative
+NOTIFICATIONS	pl	An accusation of crime made by a grand jury on its own initiative
+NOTIFIED	irr	Inform of something
+NOTIFIES	3sg	Inform of something
+NOTIFY		Inform of something
+NOTIFYING	ing	Inform of something
+NOTING	ing	Make mention of
+NOTION		A vague idea in which some confidence is placed
+NOTIONAL		Not based on fact
+NOTIONS	pl	A vague idea in which some confidence is placed
+NOTORIETY		The state of being known for some unfavorable act or quality
+NOTORIOUS		Known widely and usually unfavorably
+NOTORIOUSLY		To a ___ degree
+NOTWITHSTANDING		Despite anything to the contrary
+NOUGAT		Nuts or fruit pieces in a sugar paste
+NOUGHT		A mathematical element that when added to another number yields the same number
+NOUGHTS	pl	A mathematical element that when added to another number yields the same number
+NOUN		A content word that can be used to refer to a person, place, thing, quality, or action
+NOUNS	pl	A content word that can be used to refer to a person, place, thing, quality, or action
+NOURISHED		Being provided with adequate ___
+NOURISHING		Of or providing ___
+NOURISHMENT		A source of materials to nourish the body
+NOUS		That which is responsible for one's thoughts, feelings, and conscious brain functions
+NOVA		A star that ejects some of its material in the form of a cloud and becomes more luminous…
+NOVAE	irr	A star that ejects some of its material in the form of a cloud and becomes more luminous…
+NOVAS	pl	A star that ejects some of its material in the form of a cloud and becomes more luminous…
+NOVATION		The replacement of one obligation by another by mutual agreement of both parties
+NOVEL		An extended fictional work in prose
+NOVELETTE		A short novel
+NOVELIST		One who writes novels
+NOVELISTS	pl	One who writes novels
+NOVELIZATION		Converting something into the form of a novel
+NOVELS	pl	An extended fictional work in prose
+NOVELTIES	pl	Originality by virtue of being new and surprising
+NOVELTY		Originality by virtue of being new and surprising
+NOVENA		A Roman Catholic devotion consisting of prayers on nine consecutive days
+NOVICE		Someone who has entered a religious order but has not taken final vows
+NOVICES	pl	Someone who has entered a religious order but has not taken final vows
+NOVITIATE		The period during which you are a novice
+NOVOCAINE		Procaine administered as a hydrochloride
+NOW		In the historical present
+NOWADAYS		The period of time that is happening now
+NOWHERE		An insignificant place
+NOWS	pl	The momentary present
+NOXIOUS		Injurious to physical or mental health
+NOZZLE		A projecting spout from which a fluid is discharged
+NOZZLES	pl	A projecting spout from which a fluid is discharged
+NTH		Last or greatest in an indefinitely large series
+NUANCE		A subtle difference in meaning or opinion or attitude
+NUANCES	pl	A subtle difference in meaning or opinion or attitude
+NUB		A small lump or protuberance
+NUBIA		An ancient region of northeastern Africa on the Nile
+NUBILE		Of girls or women who are eligible to marry
+NUBS	pl	A small lump or protuberance
+NUCLEAR		Deriving destructive energy from the release of atomic energy
+NUCLEASE		General term for enzymes that catalyze the hydrolysis of nucleic acid by cleaving chains…
+NUCLEATED		Having a nucleus or occurring in the nucleus
+NUCLEI	irr	A part of the cell containing DNA and RNA and responsible for growth and reproduction
+NUCLEOLUS		A small round body of protein in a cell nucleus
+NUCLEON		A constituent of an atomic ___
+NUCLEONS	pl	A constituent of an atomic ___
+NUCLEOPLASM		The protoplasm that constitutes the nucleus of a cell
+NUCLEOSIDE		A glycoside formed by partial hydrolysis of a nucleic acid
+NUCLEOSIDES	pl	A glycoside formed by partial hydrolysis of a nucleic acid
+NUCLEOSYNTHESIS		The cosmic synthesis of atoms more complex than the hydrogen atom
+NUCLEOTIDE		A phosphoric ester of a nucleoside
+NUCLEOTIDES	pl	A phosphoric ester of a nucleoside
+NUCLEUS		A part of the cell containing DNA and RNA and responsible for growth and reproduction
+NUDE		A painting of a naked human figure
+NUDES	pl	A painting of a naked human figure
+NUDGE		To push against gently
+NUDGED	past	To push against gently
+NUDGES	pl	A slight push or shake
+NUDGING	ing	To push against gently
+NUDIBRANCH		Any of various marine gastropods of the suborder ___ having a shell-less and…
+NUDISM		Going without clothes as a social practice
+NUDIST		A person who practices nudity for reasons of health or religion
+NUDISTS	pl	A person who practices nudity for reasons of health or religion
+NUDITIES	pl	The state of being without clothing or covering of any kind
+NUDITY		The state of being without clothing or covering of any kind
+NUGGET		A solid lump of a precious metal as found in the earth
+NUGGETS	pl	A solid lump of a precious metal as found in the earth
+NUISANCE		A broad legal concept including anything that disturbs the reasonable use of your…
+NUISANCES	pl	A broad legal concept including anything that disturbs the reasonable use of your…
+NUKE		The warhead of a missile designed to deliver an atom bomb
+NUKED	past	Strike at with firepower or bombs
+NUKES	pl	The warhead of a missile designed to deliver an atom bomb
+NUKING	ing	Strike at with firepower or bombs
+NULL		Lacking any legal or binding force
+NULLIFICATION		The states'-rights doctrine that a state can refuse to recognize or to enforce a federal…
+NULLIFIED		Deprived of legal force
+NULLIFY		Show to be invalid
+NULLIFYING	ing	Show to be invalid
+NULLITY		The state of nonexistence
+NULLS	pl	A quantity of no importance
+NUMB		Not showing human feeling or sensitivity
+NUMBED	past	Make ___ or insensitive
+NUMBER		The property possessed by a sum or total or indefinite quantity of units or individuals
+NUMBERED	past	Put into a group
+NUMBERING		A numbered list
+NUMBERLESS		Too numerous to be counted
+NUMBERS		The fourth book of the Old Testament
+NUMBING		Causing numbness or insensitivity
+NUMBNESS		Partial or total lack of sensation in a part of the body
+NUMERACY		Skill with numbers and mathematics
+NUMERAL		A symbol used to represent a number
+NUMERALS	pl	A symbol used to represent a number
+NUMERATION		The act of counting
+NUMERATOR		The dividend of a fraction
+NUMERATORS	pl	The dividend of a fraction
+NUMERIC		Of or relating to or denoting numbers
+NUMERICAL		Measured or expressed in numbers
+NUMEROLOGY		The study of the supposed occult influence of numbers on human affairs
+NUMEROUS		Amounting to a large indefinite number
+NUMINOUS		Evincing the presence of a deity
+NUMISMATICS		The collection and study of money
+NUN		A woman religious
+NUNCIO		A diplomatic representative of the Pope having ambassadorial status
+NUNNERY		The convent of a community of nuns
+NUNS	pl	A woman religious
+NUPTIAL		Of or relating to a wedding
+NUPTIALS		The social event at which the ceremony of marriage is performed
+NURSE		One skilled in caring for young children or the sick
+NURSED	past	Try to cure by special care of treatment, of an illness or injury
+NURSERIES	pl	A child's room for a baby
+NURSERY		A child's room for a baby
+NURSES	pl	One skilled in caring for young children or the sick
+NURSING		The work of caring for the sick or injured or infirm
+NURTURE		Help develop, help grow
+NURTURED	past	Help develop, help grow
+NURTURES	pl	The properties acquired as a consequence of the way you were treated as a child
+NURTURING	ing	Help develop, help grow
+NUS	pl	The 13th letter of the Greek alphabet
+NUT		Usually large hard-shelled seed
+NUTCASE		Someone deranged and possibly dangerous
+NUTCRACKER		A compound lever used to crack nuts open
+NUTCRACKERS	pl	A compound lever used to crack nuts open
+NUTHATCH		Any of various small short-tailed songbirds with strong feet and a sharp beak that feed…
+NUTHOUSE		Pejorative terms for an insane asylum
+NUTMEG		East Indian tree widely cultivated in the tropics for its aromatic seed
+NUTRIA		Aquatic South American rodent resembling a small beaver
+NUTRIENT		Any substance that can be metabolized by an animal to give energy and build tissue
+NUTRIENTS	pl	Any substance that can be metabolized by an animal to give energy and build tissue
+NUTRITION		The organic process of nourishing or being nourished
+NUTRITIONAL		Of or relating to or providing ___
+NUTRITIONALLY		With regard to nutrition
+NUTRITIONIST		A specialist in the study of ___
+NUTRITIONISTS	pl	A specialist in the study of ___
+NUTRITIOUS		Of or providing nourishment
+NUTRITIVE		Of or providing nourishment
+NUTS		Informal or slang terms for mentally irregular
+NUTSEDGE		A widely distributed perennial sedge having small edible nutlike tubers
+NUTSHELL		The shell around the kernel of a nut
+NUTTER		A person who is regarded as eccentric or mad
+NUTTERS	pl	A person who is regarded as eccentric or mad
+NUTTY		Having the flavor of nuts
+NYALA		City in Sudan
+NYLON		A thermoplastic polyamide
+NYLONS		Women's stockings made from a sheer material
+NYMPH		A minor nature goddess usually depicted as a beautiful maiden
+NYMPHET		A sexually attractive young woman
+NYMPHETS	pl	A sexually attractive young woman
+NYMPHO		A woman with abnormal sexual desires
+NYMPHOMANIAC		A woman with abnormal sexual desires
+NYMPHOS	pl	A woman with abnormal sexual desires
+NYMPHS	pl	A minor nature goddess usually depicted as a beautiful maiden
+NYSTAGMUS		Involuntary movements of the eyeballs
+NYSTATIN		An antifungal and antibiotic discovered in New York State
