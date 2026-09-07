@@ -903,7 +903,7 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/dragonfly-pursuit-sim-pv3e8p",
+      "branch": "claude/threejs-procgen-buildings-mprgs6",
       "uses": [],
       "provides": null,
       "status": "MANAGED \u2014 new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/dragonfly-pursuit-sim-pv3e8p (dragonfly aerial-combat sim take-over; the /dragon bench adds a Rust\u2192wasm two-body visual-bearing pursuit solver + a head-cam POV).",
