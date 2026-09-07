@@ -13,6 +13,7 @@ const BEES = [
   { n:"empathy", u:"https://empath.mino.mobi" },
   { n:"photo", u:"https://photo.mino.mobi" },
   { n:"thread", u:"https://b.mino.mobi/thread/" },
+  { n:"groom", u:"https://b.mino.mobi/groom/" },
   { n:"astro", u:"https://photo.mino.mobi/astro/" },
   { n:"prism", u:"https://photo.mino.mobi/prism/" },
   { n:"ternary", u:"https://mino.mobi/ternary/" },

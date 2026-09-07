@@ -158,6 +158,20 @@ const WRITE_COLLECTIONS = [
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',
+  // groom (b.mino.mobi/groom) — the follow-grooming pass DELETES follow records
+  // in the signed-in person's own repo, which is the only write it makes. The
+  // scope is a write on the collection either way: `deleteRecord` needs the
+  // same `repo:` token `createRecord` does.
+  //
+  // Note the namespace: this is Bluesky's OWN lexicon, not a com.minomobi.* one
+  // we mint. That is the point — grooming edits the real follow graph, so there
+  // is no private collection to hide behind, and the site asks for exactly this
+  // one token and nothing else. Until the deploy that carries this line reaches
+  // auth.mino.mobi, /groom reads the live ceiling and falls back to
+  // transition:generic rather than failing its sign-in at PAR; it tightens to
+  // the narrow ask on its own once this ships (b/groom/groom.js,
+  // `pickUnfollowScope`).
+  'app.bsky.graph.follow',
   // (com.minomobi.lab.doc / lab.score already appear above with the lab block —
   // the duplicate pair that used to sit here trips check-auth-scope's dedupe
   // gate; removing a duplicate is not a narrowing, the set is unchanged.)
