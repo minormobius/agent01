@@ -1,0 +1,54 @@
+name: Deploy fold (protein folding engine)
+
+on:
+  push:
+    branches: ['claude/protein-folding-rust-wasm-dyceu3']
+    paths:
+      - 'fold/**'
+      - '.github/workflows/deploy-fold.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # fold.wasm is committed (engine/build.sh produces it) because the deploy
+      # is a plain static push and there is no wasm toolchain in this job. So the
+      # one thing worth checking before shipping is that the committed artefact
+      # and the JS that talks to it still agree — the ABI is hand-written, and a
+      # mismatch renders plausible garbage rather than failing.
+      - name: Selftest the committed wasm
+        working-directory: fold
+        run: node fold.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: fold
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSL https://fold.mino.mobi/ | grep -qi 'folding engine'; then
+              echo "✓ fold is live"
+              curl -fsSI https://fold.mino.mobi/fold.wasm | grep -i 'content-type' || true
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ fold.mino.mobi didn't answer. This is a NEW hostname, so on the"
+          echo "   first deploy check the log above for 'fold.mino.mobi (custom domain)'."
+          echo "   Green alone is not proof (docs/DEPLOYS.md §4): if it only bound a"
+          echo "   workers.dev host, the custom domain did not attach and the live"
+          echo "   site is unchanged."

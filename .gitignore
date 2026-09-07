@@ -26,6 +26,7 @@ data/yum-compounds.json
 
 # j/ (ImageJ in the browser) — Rust build artifacts; pkg/ is rebuilt in CI
 j/wasm/target/
+fold/engine/target/
 j/pkg/
 golem/js/vendor/
 # board/ — deploy-time copy of packages/oauth-client/auth.js (scripts/vendor-board.sh)
@@ -64,3 +65,4 @@ table/srd5/tools/*.pdf
 # committed on purpose (the games surface has no build step on its deploy
 # path); the target dir is not.
 games/tempest/core/target/
+.pdb-cache/
