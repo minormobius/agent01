@@ -1,0 +1,104 @@
+name: Publish hose feed
+
+# Puts a hose-backed feed on the network under a SERVICE ACCOUNT, so it can be
+# opened in the Bluesky app and iterated on without anyone hand-writing records
+# to their own PDS.
+#
+# WRITES TO A REAL PDS. Both halves are putRecord at a fixed rkey, so a re-run
+# converges rather than piling up feeds. The conversion is validated with
+# --dry-run first, so a source feed that stopped converting never reaches the
+# publish step.
+#
+# The feed's filters are NOT in this repo — the config names a `source` feed and
+# the definition is read off that record live. See scripts/publish-hose-feed.mjs
+# for why.
+#
+# NOTE: workflow_dispatch does not resolve for workflows off the DEFAULT branch,
+# so while this lives on a feature branch there is no UI button — a push that
+# touches one of the paths below is what publishes. Bump the marker to republish
+# without otherwise changing anything.
+# marker: 2026-08-22b
+
+on:
+  push:
+    branches: ['claude/txt-airports-bluesky-feed-pu4pbh']
+    paths:
+      - 'workers/hose/feeds/**'
+      - 'scripts/publish-hose-feed.mjs'
+      - 'packages/feedgen/**'
+      - '.github/workflows/publish-hose-feed.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-hose-feed
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The converter is shared with the worker; if it regressed, nothing should
+      # be published.
+      - name: Selftest the converter
+        run: node packages/feedgen/feedgen.selftest.mjs
+
+      # Convert every configured feed with no credentials in scope at all. A
+      # source that stopped converting fails here, before any write.
+      - name: Validate every feed config
+        run: |
+          shopt -s nullglob
+          for f in workers/hose/feeds/*.json; do
+            echo "── $f"
+            node scripts/publish-hose-feed.mjs "$f" --dry-run
+          done
+
+      - name: Publish
+        env:
+          BLUESKY_MORPHYX_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          BLUESKY_MORPHYX_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: |
+          if [ -z "$BLUESKY_MORPHYX_APP_PASSWORD" ]; then
+            echo "::error::BLUESKY_MORPHYX_APP_PASSWORD is not set — nothing published"
+            exit 1
+          fi
+          shopt -s nullglob
+          : > "$RUNNER_TEMP/published.txt"
+          for f in workers/hose/feeds/*.json; do
+            echo "── $f"
+            PUBLISHED_URIS_FILE="$RUNNER_TEMP/published.txt" node scripts/publish-hose-feed.mjs "$f"
+          done
+
+      # Verify against the URIs the publisher REPORTED, never a DID derived here.
+      # The publishing account is only knowable after the login — a DID guessed
+      # from a public handle lookup was wrong, and this step happily passed a
+      # feed that did not exist at the address it checked.
+      #
+      # Reads the PDS, which is authoritative and immediate, rather than the
+      # AppView, which lags indexing by long enough to make a fresh publish look
+      # like a failure.
+      - name: Verify each published record points at the hose service
+        run: |
+          test -s "$RUNNER_TEMP/published.txt" || { echo "::error::nothing was published"; exit 1; }
+          while read -r URI; do
+            DID=$(echo "$URI" | cut -d/ -f3)
+            RKEY=$(echo "$URI" | awk -F/ '{print $NF}')
+            PDS=$(curl -fsS "https://plc.directory/$DID" | node -e "
+              let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{
+                const doc=JSON.parse(s);
+                process.stdout.write((doc.service||[]).find(x=>x.id==='#atproto_pds').serviceEndpoint);
+              });")
+            REC=$(curl -fsS "$PDS/xrpc/com.atproto.repo.getRecord?repo=$DID&collection=app.bsky.feed.generator&rkey=$RKEY")
+            echo "$REC"
+            echo "$REC" | grep -q '"did":"did:web:hose.mino.mobi"' \
+              || { echo "::error::$URI does not point at did:web:hose.mino.mobi"; exit 1; }
+            echo "✓ $URI is served by hose.mino.mobi"
+            grep -Fq "$URI" workers/hose/wrangler.jsonc \
+              && echo "✓ and SEED_FEEDS warms it" \
+              || echo "::warning::$URI is not in SEED_FEEDS — it will only start filling once someone opens it"
+          done < "$RUNNER_TEMP/published.txt"

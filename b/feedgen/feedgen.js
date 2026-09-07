@@ -34,18 +34,29 @@ const def = {
 };
 
 const INPUT_DEFAULTS = {
-  search: () => ({ type: 'search', q: '', sort: 'latest' }),
-  list:   () => ({ type: 'list', uri: '' }),
-  author: () => ({ type: 'author', actor: '', filter: 'posts_no_replies' }),
+  search:   () => ({ type: 'search', q: '', sort: 'latest' }),
+  list:     () => ({ type: 'list', uri: '' }),
+  author:   () => ({ type: 'author', actor: '', filter: 'posts_no_replies' }),
+  firehose: () => ({ type: 'firehose', seconds: 86400 }),
 };
 const FILTER_DEFAULTS = {
-  regex:         () => ({ type: 'regex', mode: 'include', pattern: '' }),
+  regex:         () => ({ type: 'regex', mode: 'include', pattern: '', target: 'text' }),
   media:         () => ({ type: 'media', has: ['image'], mode: 'any' }),
   lang:          () => ({ type: 'lang', code: 'en' }),
+  noLang:        () => ({ type: 'noLang' }),
+  list:          () => ({ type: 'list', uri: '', mode: 'exclude' }),
   removeReplies: () => ({ type: 'removeReplies' }),
   removeReposts: () => ({ type: 'removeReposts' }),
   minLikes:      () => ({ type: 'minLikes', n: 5 }),
+  minReposts:    () => ({ type: 'minReposts', n: 5 }),
 };
+
+// A feed taking the firehose cannot be served from here — there is no query for
+// "every post" — so it is published against the ingester instead. See
+// workers/hose/CLAUDE.md.
+const HOSE_HOST = 'hose.mino.mobi';
+const usesFirehose = () => (def.inputs || []).some((i) => i.type === 'firehose');
+const serviceDid = () => (usesFirehose() ? `did:web:${HOSE_HOST}` : 'did:web:b.mino.mobi');
 
 // ── auth (shared mino.mobi OAuth worker, auth.mino.mobi) ─────────────────────
 async function initAuth() {
@@ -90,7 +101,7 @@ async function publish() {
     const rkey = (defRes.uri || '').split('/').pop();
     await auth.pds.putRecord('app.bsky.feed.generator', rkey, {
       $type: 'app.bsky.feed.generator',
-      did: 'did:web:b.mino.mobi',
+      did: serviceDid(),
       displayName: (def.name || 'feedgen feed').slice(0, 240),
       description: ((def.description ? def.description + '\n\n' : '') + 'built with b.mino.mobi/feedgen').slice(0, 300),
       createdAt: now,
@@ -161,6 +172,51 @@ function card(title, body, onRemove) {
   return c;
 }
 
+// ── import an existing SkyFeed feed ─────────────────────────────────────────
+// SkyFeed went unmaintained, but the feeds built in it are still records on
+// their owners' PDSs. hose.mino.mobi/api/import reads one and converts its
+// `skyfeedBuilder` blocks into a definition this editor can open — publishing
+// nothing, so you can see what the port drops before committing to it.
+async function importFromSkyfeed() {
+  const input = $('fg-import-uri'), msg = $('fg-import-msg');
+  const ref = (input.value || '').trim();
+  if (!ref) { msg.textContent = 'paste a feed URL first'; return; }
+  msg.textContent = 'reading…';
+  try {
+    const r = await fetch(`https://${HOSE_HOST}/api/import?feed=` + encodeURIComponent(ref));
+    const d = await r.json();
+    if (!r.ok) { msg.textContent = d.error || `import failed (HTTP ${r.status})`; return; }
+
+    Object.assign(def, {
+      name: d.def.name, description: d.def.description,
+      inputs: d.def.inputs, filters: d.def.filters, sort: d.def.sort, limit: d.def.limit,
+    });
+
+    // SkyFeed had no video filter — its absence is the reason most people are
+    // porting. Offer it rather than adding it silently: it is a change to what
+    // their feed does, and it should be theirs to make.
+    const hasVideoFilter = def.filters.some((f) => f.type === 'media' && f.mode === 'none' && (f.has || []).includes('video'));
+    renderAll();
+    runPreview();
+
+    const bits = [`imported ${def.filters.length} filters`];
+    if (d.warnings && d.warnings.length) bits.push(`${d.warnings.length} warning(s): ${d.warnings.join('; ')}`);
+    msg.textContent = bits.join(' · ');
+    if (!hasVideoFilter) {
+      const add = el('button', 'fg-add', '+ add “no video” filter');
+      add.type = 'button';
+      add.addEventListener('click', () => {
+        def.filters.push({ type: 'media', has: ['video'], mode: 'none' });
+        renderFilters(); renderMeta(); runPreview();
+        add.remove();
+      });
+      msg.append(' ', add);
+    }
+  } catch (e) {
+    msg.textContent = 'import failed: ' + ((e && e.message) || e);
+  }
+}
+
 // ── render the editor from `def` ────────────────────────────────────────────
 function renderInputs() {
   const host = $('fg-inputs'); host.textContent = '';
@@ -176,6 +232,12 @@ function renderInputs() {
       );
     } else if (inp.type === 'list') {
       body.append(field('list', textInput(inp.uri, (v) => inp.uri = v, 'paste a bsky.app list URL')));
+    } else if (inp.type === 'firehose') {
+      body.append(
+        field('window (hours)', numInput(Math.round((inp.seconds || 86400) / 3600), (v) => inp.seconds = Math.max(1, v || 24) * 3600)),
+        el('div', 'fg-note', '🌊 every post on the network, then filtered below — served by ' + HOSE_HOST
+          + '. Preview here is a SAMPLE, not the firehose: good enough to check your filters, not to judge how full the feed will be.'),
+      );
     } else if (inp.type === 'author') {
       const actorInput = textInput(inp.actor, (v) => inp.actor = v, 'handle.bsky.social or did:…');
       actorInput.setAttribute('data-bsky-typeahead', '');
@@ -200,6 +262,12 @@ function renderFilters() {
       body.append(
         field('mode', select([['include', 'keep if matches'], ['exclude', 'drop if matches']], f.mode, (v) => f.mode = v)),
         field('pattern', textInput(f.pattern, (v) => f.pattern = v, 'e.g. \\b(art|sketch)\\b')),
+        field('match against', select([
+          ['text', 'post text'],
+          ['text|alt_text', 'text + image alt text'],
+          ['text|alt_text|link', 'text + alt text + links'],
+          ['link', 'links only'],
+        ], f.target || 'text', (v) => f.target = v)),
       );
     } else if (f.type === 'media') {
       if (!Array.isArray(f.has)) f.has = f.has ? [f.has] : [];
@@ -219,9 +287,23 @@ function renderFilters() {
         field('media', toggles),
       );
     } else if (f.type === 'lang') {
-      body.append(field('language', textInput(f.code, (v) => f.code = v, 'en, ja, pt …')));
+      body.append(
+        field('mode', select([['include', 'keep only this'], ['exclude', 'drop this one']], f.mode || 'include', (v) => f.mode = v === 'exclude' ? 'exclude' : undefined)),
+        field('language', textInput(f.code, (v) => f.code = v, 'en, ja, pt …')),
+      );
+    } else if (f.type === 'noLang') {
+      body.append(el('div', 'fg-note', 'drops posts that declare no language at all — often bots and glyph spam'));
+    } else if (f.type === 'list') {
+      title = 'filter · author list';
+      body.append(
+        field('mode', select([['exclude', 'drop members'], ['include', 'keep only members']], f.mode || 'exclude', (v) => f.mode = v)),
+        field('list', textInput(f.uri, (v) => f.uri = v, 'paste a bsky.app list URL')),
+        el('div', 'fg-note', 'a list that fails to load is skipped, not treated as empty'),
+      );
     } else if (f.type === 'minLikes') {
       body.append(field('min likes', numInput(f.n, (v) => f.n = v)));
+    } else if (f.type === 'minReposts') {
+      body.append(field('min reposts', numInput(f.n, (v) => f.n = v)));
     } else if (f.type === 'removeReplies') {
       body.append(el('div', 'fg-note', 'drops replies — top-level posts only'));
     } else if (f.type === 'removeReposts') {
@@ -272,8 +354,8 @@ async function runPreview() {
   try {
     const res = await fetch('/api/feedgen/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ def }) });
     if (!res.ok) throw new Error('preview HTTP ' + res.status);
-    const { posts, errors, candidateCount } = await res.json();
-    let head = `<div class="fg-status">preview: ${posts.length} shown · ${candidateCount} matched · published feed serves up to ${def.limit}`;
+    const { posts, errors, candidateCount, approximated } = await res.json();
+    let head = `<div class="fg-status">preview: ${posts.length} shown · ${candidateCount} matched · published feed serves up to ${def.limit}${approximated ? ' · <b>sampled</b>, not the real firehose — the published feed sees every post' : ''}`;
     if (errors.length) head += ` · <span class="fg-err">${esc(errors.join('; '))}</span>`;
     head += '</div>';
     out.innerHTML = head + (posts.length ? posts.map(renderPost).join('') : '<div class="fg-status">no posts — loosen the filters or change the input</div>');
@@ -327,6 +409,8 @@ function init() {
   $('fg-sort').addEventListener('change', (e) => def.sort.type = e.target.value);
   $('fg-limit').addEventListener('input', (e) => def.limit = Math.max(1, Math.min(1000, parseInt(e.target.value || '500', 10))));
   $('fg-run').addEventListener('click', runPreview);
+  $('fg-import-go').addEventListener('click', importFromSkyfeed);
+  $('fg-import-uri').addEventListener('keydown', (e) => { if (e.key === 'Enter') importFromSkyfeed(); });
   $('fg-def-toggle').addEventListener('click', () => $('fg-def-wrap').classList.toggle('open'));
   renderAll();
   runPreview();

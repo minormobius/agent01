@@ -1496,6 +1496,20 @@
         ".github/workflows/deploy-silk.yml"
       ],
       "note": "The stigmergic orb-web weaver. An agent with no plan and no map builds a web from local rules and the silk it has already laid; the page then measures what it produced\u2014 one boundary admits a FAMILY of webs, tight in the numbers a field biologist takes off a photograph and uncorrelated in geometry, and the spread is construction order rather than noise. Static assets worker, no build, no backends. Two node selftests gate the deploy because they are the page's claims (full description: silk/CLAUDE.md)."
+    },
+    {
+      "surface": "hose",
+      "dir": "workers/hose",
+      "endpoint": "hose.mino.mobi",
+      "type": "backend",
+      "branch": "claude/txt-airports-bluesky-feed-pu4pbh",
+      "uses": [],
+      "provides": "hose.mino.mobi",
+      "paths": [
+        "workers/hose/**",
+        "packages/feedgen/**"
+      ],
+      "note": "Bluesky feed-generator service whose input is the firehose itself — the other half of b.mino.mobi/feedgen. A feed defined only by what it excludes (\"not politics, not porn, not video, not a reply, not in this bot list\") has no query you can ask the AppView for, so a single Durable Object SAMPLES Jetstream: it wakes hourly, holds the socket open 20s, runs every post create through each registered feed's filters as it arrives, and appends matches to a chunked ring that getFeedSkeleton pages. Sampling not streaming is deliberate — the firehose measures 38.8 creates/sec, and holding it open permanently costs ~84% of the account-wide duration allowance to observe posts nobody reads; at 20s/hour it still collects ~680 matches a day and stays inside the free allowances. The ring is keyed by absolute chunk index, so an append writes ONE key and ageing out is a delete. Definitions come off the owner's PDS as a native com.minomobi.feedgen.def record OR a SkyFeed-era skyfeedBuilder, so a SkyFeed feed moves here by repointing one field. The filter predicate is shared with b/ via packages/feedgen/match.js, so b's preview cannot drift from what hose serves."
     }
   ],
   "unmanaged": {
