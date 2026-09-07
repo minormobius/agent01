@@ -20,6 +20,10 @@ import { generateSidequest } from './story/sidequest.js';
 import { resolveHandle, resolvePds } from '../packages/atproto/pds.js';
 import { PULSE_NSID, readSummary } from './story/director.js';
 import { worldExternal } from './story/import.js';
+// The stat-block roller is the LIVE version's (v110), not a worker-lane copy: hoopy's tool and the
+// game must roll the same person, and a second copy here would drift the way the two import.js
+// have. statblock.js keeps its own hash32 precisely so this import stays cheap.
+import { rollStatBlock, resolveReactions } from './v110/story/statblock.js';
 
 let _bible = null;   // module-cached bible text (fetched once from ASSETS)
 async function getBible(env, origin) {
@@ -83,6 +87,51 @@ async function handleStory(request, env, url) {
     });
     return json(result, result.ok ? 200 : 200);   // a clean BLOCK is a 200 with verdict — not an error
   }
+
+  // ── THE STAT-BLOCK ROLLER — for hoopy's authoring tool ────────────────────────────────────────
+  // Rolls an NPC their FLESH·CHASSIS·ANIMA character and resolves the twelve-slot reaction table:
+  // whatever he has authored comes back verbatim, every empty slot comes back derived from the
+  // rolled cast. So he can see, while writing, exactly which reactions are worth his hand.
+  //
+  // Pure and inference-free — no GEMINI_API_KEY, no model call, no cost. Deterministic from
+  // (worldSeed, id): the same request returns the same person for ever, which is what makes the
+  // GET form a permalink in the way `table.mino.mobi/cairn` means it.
+  //
+  //   GET  /api/story/statblock?id=shaban-hosubara&verb=grow&name=Shaban%20Hosubara&seed=0
+  //   POST /api/story/statblock   { worldSeed, npcs: [{ id, name, verb, reactions?, stats? }] }
+  //
+  // The POST form takes a batch (his tool has hundreds) and echoes each block with its resolved
+  // table. `reactions` in ⇒ authored slots are preserved in the response; omit it to see the fully
+  // derived table. `stats: {triad, vocation, power, quirks}` pins a roll that fights his voice.
+  if (url.pathname === '/api/story/statblock') {
+    const shape = (id, name, verb, reactions, stats) => ({
+      id: String(id || ''), type: 'npc', verb: verb || null,
+      content: { name: name || String(id || ''), ...(reactions ? { reactions } : {}), ...(stats ? { stats } : {}) },
+    });
+    const emit = (item, worldSeed, peers) => {
+      const block = rollStatBlock(item, { worldSeed, peers });
+      return block ? { ...block, reactions: resolveReactions(block, item.content.reactions) } : null;
+    };
+
+    if (request.method === 'POST') {
+      const body = await request.json().catch(() => ({}));
+      const worldSeed = body.worldSeed ?? body.seed ?? 0;
+      const list = Array.isArray(body.npcs) ? body.npcs : [];
+      if (!list.length) return json({ ok: false, error: 'POST { npcs: [{id, name, verb}] }' }, 400);
+      if (list.length > 500) return json({ ok: false, error: 'batch limit is 500 npcs' }, 413);
+      // Bonds point INTO the batch, so a whole pass posted at once gets a connected bond graph.
+      const items = list.map((r) => shape(r.id, r.name, r.verb, r.reactions, r.stats));
+      const blocks = items.map((it) => emit(it, worldSeed, items)).filter(Boolean);
+      return json({ ok: true, worldSeed, count: blocks.length, blocks });
+    }
+
+    const id = url.searchParams.get('id');
+    if (!id) return json({ ok: false, error: 'GET needs ?id=<npc-id>; optional &name= &verb= &seed=' }, 400);
+    const item = shape(id, url.searchParams.get('name'), url.searchParams.get('verb'));
+    const worldSeed = url.searchParams.get('seed') ?? 0;
+    return json({ ok: true, worldSeed, block: emit(item, worldSeed, null) });
+  }
+
   return json({ error: 'unknown story route' }, 404);
 }
 
