@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zest — how a post becomes a solid</title>
+<meta name="description" content="The map from a 768-dimensional post embedding to a spherical-harmonic surface, what it provably preserves, and the three places it measurably loses information.">
+<style>
+  :root{--bg:#08090d;--ink:#e8edf6;--dim:#96a0b5;--line:#232838;--accent:#8ab4ff;--good:#5ee0a4;--warn:#ffc46b}
+  *{box-sizing:border-box}
+  body{margin:0 auto;max-width:74ch;padding:32px 22px 90px;background:var(--bg);color:var(--ink);
+    font:16px/1.65 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  h1{font-size:28px;letter-spacing:-.015em;margin:0 0 4px}
+  h2{font-size:19px;margin:38px 0 10px;letter-spacing:-.01em}
+  h3{font-size:15px;margin:24px 0 6px;color:var(--accent)}
+  a{color:var(--accent)}
+  p,li{color:#ccd4e3}
+  .sub{color:var(--dim);margin:0 0 8px}
+  code{background:#11141d;padding:1px 5px;border-radius:5px;font-size:13.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:#0b0d14;border:1px solid var(--line);border-radius:10px;padding:14px 16px;
+    overflow-x:auto;font-size:13.5px;line-height:1.5}
+  pre code{background:none;padding:0}
+  table{width:100%;border-collapse:collapse;margin:14px 0;font-size:14px}
+  th,td{padding:8px 10px;border-top:1px solid var(--line);text-align:left;vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.08em}
+  td.n{font-variant-numeric:tabular-nums;font-weight:700;white-space:nowrap}
+  .box{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin:16px 0;background:#0b0d14}
+  .box.warn{border-color:#5a4a2a}
+  .box.good{border-color:#2c6b52}
+  .box h3{margin-top:0}
+  .k{color:var(--good);font-weight:700}
+  .w{color:var(--warn);font-weight:700}
+  figure{margin:18px 0}
+  figcaption{color:var(--dim);font-size:13px;margin-top:6px}
+</style>
+</head>
+<body>
+
+<h1>How a post becomes a solid</h1>
+<p class="sub"><a href="/">← the game</a> · <a href="/atlas">the atlas</a></p>
+
+<p>A sentence embedding is a point in 768 dimensions. Nobody can read one. The usual
+responses are to project it to 2D and lose almost everything, or to draw something
+decorative beside it and call that an explanation.</p>
+
+<p>This page does neither. It uses the vector as the <b>spectrum of a surface</b> — in the
+one basis where "the spectrum of a surface" is not a metaphor.</p>
+
+<h2>The map</h2>
+
+<p>Real spherical harmonics <code>Y<sub>l</sub><sup>m</sup></code> are the Fourier basis on the
+sphere. Any well-behaved radial function has exactly one expansion in them, so a coefficient
+vector <em>is</em> a shape and a shape <em>is</em> a coefficient vector:</p>
+
+<pre><code>r(θ,φ) = R · ( 1 + amp · Σ<sub>l</sub> Σ<sub>m</sub> ĉ<sub>lm</sub> · Y<sub>l</sub><sup>m</sup>(θ,φ) )</code></pre>
+
+<p>The whole design is the choice of which number goes in which slot. Dimensions are
+ranked by their <b>variance across the corpus</b>, so the ranking describes the corpus rather
+than any one post:</p>
+
+<table>
+  <tr><th>band</th><th>slots</th><th>what it carries</th></tr>
+  <tr><td class="n">l = 0</td><td class="n">1</td>
+      <td>Deliberately <b>no dimension at all</b>. It carries ‖z‖ — how far this post sits from
+      the average post. Ordinary posts are small pebbles; strange ones are big.</td></tr>
+  <tr><td class="n">l = 1–4</td><td class="n">24</td>
+      <td>The <b>24 loudest dimensions</b>, one slot each. These are the lobes: the silhouette
+      you can read across a room, and the part you learn first.</td></tr>
+  <tr><td class="n">l = 5–10</td><td class="n">96</td>
+      <td>The remaining <b>~740 quiet dimensions</b>, carried in by a seeded sparse random
+      projection. Not discarded and not invented: the Fourier transform of everything too
+      small to earn a lobe of its own. This is the grain, and it is what makes two posts with
+      the same gross silhouette still tell apart.</td></tr>
+</table>
+
+<p>Colour is a second, independent linear readout — the corpus's top three principal
+directions mapped into OKLCH. It is redundant with the shape on purpose: two channels
+saying the same thing is how anyone learns to read one of them.</p>
+
+<h2>What this buys, provably</h2>
+
+<div class="box good">
+  <h3>Two posts that mean the same thing cannot look different</h3>
+  <p style="margin:0">The map from embedding to coefficients is <b>linear</b>, and the harmonics
+  are <b>orthonormal</b>. Parseval's theorem then gives, exactly:</p>
+  <pre style="margin:12px 0 0"><code>‖ surface<sub>A</sub> − surface<sub>B</sub> ‖<sub>L²(S²)</sub>  =  ‖ c<sub>A</sub> − c<sub>B</sub> ‖<sub>2</sub></code></pre>
+  <p style="margin:10px 0 0">The distance between two shapes, integrated over the sphere,
+  <em>is</em> the distance between the two posts' vectors. That is not a design goal we
+  approximated — it is an identity, and
+  <code>embed-geometry.selftest.mjs</code> §2 checks it against a Gauss–Legendre quadrature
+  to 1 part in 10<sup>8</sup>.</p>
+</div>
+
+<h3>Measured, on a corpus with realistic embedding statistics</h3>
+
+<p>The selftest fits the map on a synthetic corpus built to look like real sentence
+embeddings — topic clusters, the dominant "common direction" every real model has, per-post
+noise, L2-normalised — and then asks the question the game asks:</p>
+
+<table>
+  <tr><th>question</th><th>measure</th><th>result</th></tr>
+  <tr><td>Given a post, is a same-topic post the more similar-<em>looking</em> one?</td>
+      <td>AUC over same- vs different-topic pairs</td><td class="n k">&gt; 0.95</td></tr>
+  <tr><td>Same question via the full L² surface distance</td>
+      <td>AUC</td><td class="n w">&gt; 0.78</td></tr>
+  <tr><td>…with the size channel held constant</td>
+      <td>AUC</td><td class="n k">&gt; 0.95</td></tr>
+  <tr><td>Does shape similarity track raw embedding cosine?</td>
+      <td>Pearson r</td><td class="n">&gt; 0.55</td></tr>
+  <tr><td>Does it preserve <em>fine ordering</em> among unrelated posts?</td>
+      <td>Spearman ρ</td><td class="n w">&gt; 0.25 only</td></tr>
+</table>
+
+<h2>Where it loses information — three places, named</h2>
+
+<div class="box warn">
+  <h3>1. Fine ordering among unrelated posts is not preserved</h3>
+  <p style="margin:0">Spearman ρ ≈ 0.3 against raw cosine, versus AUC &gt; 0.95 for the
+  same/different-topic split. The band gains deliberately magnify the loud dimensions, so the
+  map keeps the big structure very well and scrambles the fine ranking of things that were
+  never similar anyway. Reading "these two are both about football" off the geometry is sound.
+  Reading "this one is the 4th most similar rather than the 9th" is not.</p>
+</div>
+
+<div class="box warn">
+  <h3>2. Shape distance mixes meaning with strangeness</h3>
+  <p style="margin:0">The L² surface distance carries size as well as form, and size comes
+  from ‖z‖ — how unusual the post is, which has nothing to do with its topic. Two posts about
+  the same thing at different strangeness are genuinely different-sized objects, which is why
+  the AUC above drops from 0.95 to 0.78 and recovers to 0.95 when size is held constant. The
+  game therefore judges ripeness on <b>direction only</b> (cosine), never on L² distance.</p>
+</div>
+
+<div class="box warn">
+  <h3>3. The quiet 740 dimensions are compressed, not shown</h3>
+  <p style="margin:0">96 high-band slots cannot hold 740 numbers. The projection is a
+  Johnson–Lindenstrauss embedding, which preserves pairwise distances in expectation — the
+  selftest pins the median distortion under 35%. So the grain is a real reading of the quiet
+  subspace, at a stated resolution. It is not a per-dimension display and never could be.</p>
+</div>
+
+<h2>Two decisions that were measured, not chosen</h2>
+
+<h3>How hard to whiten</h3>
+<p>Each dimension is divided by <code>std<sub>i</sub><sup>α</sup> · globalScale<sup>1−α</sup></code>.
+Textbook whitening (α = 1) sounds correct and is quietly destructive here: it flattens every
+dimension to unit variance, which annihilates the variance ranking the whole map is built on
+and amplifies dead dimensions to full authority. α = 0 lets one runaway dimension swamp the
+silhouette. Sweeping α:</p>
+
+<table>
+  <tr><th>α</th><th>same-topic separation (AUC)</th><th>noise gain on dead dimensions</th></tr>
+  <tr><td class="n">0.00</td><td class="n">0.997</td><td class="n">1.0×</td></tr>
+  <tr><td class="n">0.50</td><td class="n k">0.998</td><td class="n">1.6×</td></tr>
+  <tr><td class="n">1.00</td><td class="n">0.999</td><td class="n w">2.3×</td></tr>
+</table>
+
+<p>Separation is a near-tie across the whole range, so it decides nothing. The tiebreak is the
+second column, and <b>α = 0.5</b> ships: essentially the best separation, half the noise
+amplification of full whitening, and a real square-root trace of the variance ranking left in
+the magnitudes.</p>
+
+<h3>Why text-only posts</h3>
+<p>Not squeamishness — the premise. A post carrying an image has already told you what it is
+about through a channel the embedding never saw, so its shape would be judged against
+information the player can see and the geometry cannot. Replies are dropped for needing a
+parent to make sense of, reposts because the reposter said nothing, and non-English posts
+because <code>bge-base-en-v1.5</code> would produce a vector, and a shape, and no meaning.</p>
+
+<h2>The game is the measurement</h2>
+
+<p>A pretty visualisation can always be defended by saying it feels meaningful. Hunt mode
+refuses that defence. It shows one anchor solid, rains posts down, and marks a post <b>ripe</b>
+if its shape is within τ of the anchor's — where τ is a <em>quantile</em> of the round's
+similarities, so a round is never accidentally impossible or trivial.</p>
+
+<p>At the end, of the posts you chose to slice, were more of them ripe than if you had sliced
+at random? Under the null hypothesis "you cannot read the shapes", your hits are
+Binomial(<em>slices</em>, <em>base rate</em>), and the page runs a one-sided exact test. If
+p ≥ 0.05 it tells you plainly that you were indistinguishable from guessing.</p>
+
+<p>The test is calibrated rather than decorative: <code>rounds.selftest.mjs</code> §5 runs six
+hundred simulated guessers and asserts the false-positive rate lands at the nominal α, and
+runs perfect readers and asserts they are recognised over 95% of the time. The page is
+allowed to be wrong about you, which is the only thing that makes it worth being right.</p>
+
+<h2>Honest provenance</h2>
+<p>Every page states, on screen, what its shapes were computed from. Two things can fail
+independently and both are announced rather than hidden:</p>
+<ul>
+  <li><b>The embedding model.</b> If Workers AI is unreachable, the page falls back to a
+  lexical hash embedder. It is a real vector space with real structure, but it reads spelling,
+  not meaning — cat and kitten are strangers to it. The HUD says so in those words.</li>
+  <li><b>The corpus basis.</b> A shape is a deviation <em>from the average post</em>, so the
+  basis is fitted server-side on a sample across both feeds, versioned, and shared. If it has
+  not been built yet, the page fits one on the current session's posts and tells you that its
+  shapes are not comparable with anyone else's screen.</li>
+</ul>
+
+<p class="sub" style="margin-top:34px">Source: <code>zest/embed-geometry.js</code> (the map),
+<code>zest/rounds.js</code> (the rules and the statistics), with
+<code>embed-geometry.selftest.mjs</code> and <code>rounds.selftest.mjs</code> alongside them.
+Run both before changing either.</p>
+
+</body>
+</html>
