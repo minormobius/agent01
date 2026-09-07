@@ -1,0 +1,8 @@
+# Regenerable analysis inputs — see lab/README.md. These are large (tens of MB)
+# and rebuildable from the public archives, so they stay out of the repo.
+lab/tensor.json
+lab/cb-1h-ohlcv.json
+lab/micro.json
+lab/*.log
+lab/.*.log
+lab/.tmp/

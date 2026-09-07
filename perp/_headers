@@ -1,0 +1,4 @@
+# Workers Static Assets serves an existing asset WITHOUT invoking worker.js, so
+# response headers for these paths have to be declared here, not in the worker.
+/data/*
+  Cache-Control: public, max-age=1800, stale-while-revalidate=86400

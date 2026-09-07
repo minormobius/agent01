@@ -1,0 +1,71 @@
+name: Refresh perp data (daily)
+
+# COMMITS DATA BACK TO THE REPO. Runs the incremental backfill, regenerates the
+# derived statistics, commits any new hours to the surface's owning branch, and
+# deploys. It deploys inline rather than relying on deploy-perp.yml, because a
+# push made with GITHUB_TOKEN does not fire other workflows.
+#
+# Schedule only — no push trigger — so a commit can never wake this.
+
+on:
+  schedule:
+    - cron: '20 5 * * *'   # 05:20 UTC daily, after the hour has closed everywhere
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-perp-data
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/futures-finance-learning-r7p47e
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch new hours from Hyperliquid and Coinbase
+        working-directory: perp
+        run: node scripts/backfill.mjs
+
+      - name: Recompute derived statistics
+        working-directory: perp
+        run: node scripts/analyse.mjs
+
+      - name: Selftest before anything is committed
+        working-directory: perp
+        run: node test/perp.selftest.mjs
+
+      - name: Commit if the series moved
+        id: commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- perp/data; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "no new hours"
+          else
+            git add perp/data
+            git commit -m "perp: refresh BTC spot and Hyperliquid funding series"
+            git push origin claude/futures-finance-learning-r7p47e
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install wrangler
+        if: steps.commit.outputs.changed == 'true'
+        working-directory: perp
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        if: steps.commit.outputs.changed == 'true'
+        working-directory: perp
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
