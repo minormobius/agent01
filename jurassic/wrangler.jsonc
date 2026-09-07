@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "jurassic",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-27",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // Golden rule: the worker name owns the live custom domain, declared here so
+  // `wrangler deploy` binds jurassic.mino.mobi rather than a stray
+  // *.workers.dev. This subdomain did not exist before this surface — the
+  // first deploy provisions the custom domain and its DNS record. Confirm the
+  // run's log says `jurassic.mino.mobi (custom domain)`; green is not proof.
+  "routes": [
+    { "pattern": "jurassic.mino.mobi", "custom_domain": true }
+  ]
+}

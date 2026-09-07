@@ -1,0 +1,9 @@
+# Keep the deployed bundle to the website itself — not the Rust crate, the test
+# harness, or node bookkeeping. (README.md stays; index.html links to it.)
+engine-rs/
+test/
+node_modules/
+package.json
+package-lock.json
+.assetsignore
+CLAUDE.md
