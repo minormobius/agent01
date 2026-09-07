@@ -1,0 +1,6 @@
+{
+  "name": "clef",
+  "private": true,
+  "type": "module",
+  "description": "Sheet music viewer and composer for clef.mino.mobi. `type: module` is here so the selftests can import the browser sources directly, with no build step and no duplicated copies."
+}

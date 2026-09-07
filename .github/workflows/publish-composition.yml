@@ -1,0 +1,78 @@
+name: Publish a composition
+
+# Pushing a score into clef/compositions/ publishes it to the modulo account's
+# own ATProto repository, and posts the link.
+#
+# THIS WRITES TO A REAL ACCOUNT. It belongs in the danger-zone list in the root
+# CLAUDE.md alongside post-to-bluesky and the other publish-* workflows: it
+# creates records on a live PDS and a public Bluesky post. Two guards make that
+# safe to live with:
+#
+#   • The trigger NAMES ITS BRANCH. A merge candidate carrying clef/compositions/
+#     for the first time cannot fire it, and neither can main. That is the trap
+#     the two bake-off sentinels fell into; see the preflight check that now
+#     enforces it.
+#   • Publishing is IDEMPOTENT BY TITLE. The script updates the record that
+#     already carries the piece's title rather than creating a second one, so a
+#     re-run edits rather than duplicates. A workflow that duplicates its output
+#     on every run is one nobody dares re-run.
+#
+# The script refuses outright to publish a score whose bars do not satisfy its
+# own bar checks — the record IS the score, and a mistake published to somebody
+# else's repository is not something we can reach back into.
+
+on:
+  push:
+    branches: ['claude/sheet-music-viewer-composer-qb4ljl']
+    paths:
+      - 'clef/compositions/**'
+      - 'clef/tools/publish-composition.mjs'
+      - '.github/workflows/publish-composition.yml'
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: clef
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The publish step diffs against the previous commit to find which
+          # scores actually changed, and a depth-1 clone has no previous commit
+          # to diff against — it reports "nothing changed" and publishes
+          # nothing, green.
+          fetch-depth: 2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: The score must pass its own checks first
+        run: node test/notation.selftest.mjs
+
+      - name: Publish each composition
+        env:
+          BLUESKY_MODULO_HANDLE: ${{ secrets.BLUESKY_MODULO_HANDLE }}
+          BLUESKY_MODULO_APP_PASSWORD: ${{ secrets.BLUESKY_MODULO_APP_PASSWORD }}
+        run: |
+          set -uo pipefail
+          if [ -z "${BLUESKY_MODULO_HANDLE:-}" ]; then
+            echo "::error::BLUESKY_MODULO_HANDLE is not set — nothing published."
+            exit 1
+          fi
+          status=0
+          for f in compositions/*.ly; do
+            [ -e "$f" ] || continue
+            echo "::group::$f"
+            set +e
+            node tools/publish-composition.mjs "$f" --post
+            rc=$?
+            set -e
+            if [ $rc -ne 0 ]; then
+              echo "::error::$f was not published (exit $rc)"
+              status=1
+            fi
+            echo "::endgroup::"
+          done
+          exit $status
