@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>unit — chroma · what a color sounds like</title>
+<meta name="description" content="Drop light by forty octaves and the whole visible spectrum lands between F4 and F5 — the entire rainbow is one octave. Hear a wavelength as a tone, a screen colour as a chord, and daylight as the cluster it really is. Ad-free, no accounts.">
+<meta property="og:title" content="unit — chroma · what a color sounds like">
+<meta property="og:description" content="The whole rainbow is one octave. Listen to it.">
+<meta name="theme-color" content="#0e9f7e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='84'%3E%F0%9F%8E%B9%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="brand" href="/">unit<span class="dot">.</span><small>converter</small></a>
+    <nav class="nav">
+      <a href="/">Convert</a>
+      <a href="/color">Color</a>
+      <a href="/chroma" class="active">Chroma</a>
+      <a href="/reference">Reference</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="lite-hero">
+    <h1>What a color sounds like</h1>
+    <p>Visible light runs 384–789&nbsp;THz. That is a ratio of 2.05 — <b>the entire rainbow is one octave.</b>
+       Drop it by forty octaves and it lands almost exactly on F4&nbsp;→&nbsp;F5, close enough to play.</p>
+  </section>
+
+  <div class="rig">
+    <div class="sources" id="sources"></div>
+    <div class="rig-body">
+      <div class="rig-ctl" id="ctl"></div>
+      <div class="rig-play">
+        <button class="playbtn" id="play" aria-label="Play">▶</button>
+        <label class="vol"><span>vol</span>
+          <input type="range" class="nmslide" id="vol" min="0" max="100" value="55" aria-label="Volume">
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-h"><b>The light</b><span id="spdNote">spectral power, 380–780 nm</span></div>
+      <canvas id="spdC" width="1040" height="150" aria-label="Spectral power distribution"></canvas>
+    </div>
+    <div class="panel">
+      <div class="panel-h"><b>The sound</b><span id="keyNote">the same axis, as piano keys</span></div>
+      <canvas id="keyC" width="1040" height="150" aria-label="The same spectrum as pitches on a keyboard"></canvas>
+    </div>
+  </div>
+
+  <div class="chordbar" id="chordbar"></div>
+
+  <div class="gamut">
+    <span>Roughness</span>
+    <span class="bar"><i id="rbar" style="width:0%"></i></span>
+    <span id="rtext"></span>
+  </div>
+
+  <div class="knobs">
+    <label class="knob"><span>Drop by <b id="shiftV">2<sup>40</sup></b></span>
+      <input type="range" class="nmslide" id="shift" min="37" max="43" step="1" value="40" aria-label="Octave shift">
+      <small id="shiftHint"></small>
+    </label>
+    <label class="knob"><span>Stretch <b id="stretchV">1×</b></span>
+      <input type="range" class="nmslide" id="stretch" min="10" max="40" step="1" value="10" aria-label="Stretch">
+      <small>1× is the true mapping. Anything more is a lie that lets you hear inside it.</small>
+    </label>
+    <label class="knob"><span>Oscillators <b id="countV">48</b></span>
+      <input type="range" class="nmslide" id="count" min="12" max="96" step="12" value="48" aria-label="Oscillator count">
+      <small>How finely the spectrum is chopped. The instrument, not the physics.</small>
+    </label>
+    <label class="knob check"><span>
+      <input type="checkbox" id="lobesOnly"> Humps only</span>
+      <small>Play one tone per hump instead of the whole band — the tidy version.</small>
+    </label>
+  </div>
+
+  <div class="sec-h">
+    <h2>Two whites</h2>
+    <span>identical to the eye, nothing alike to the ear</span>
+  </div>
+  <p class="lede">Your screen makes white from three narrow emitters. The second spectrum below is one smooth hill —
+     and it is not <em>nearly</em> the same colour, it is <b>exactly</b> the same colour: three broad humps solved so
+     their XYZ matches the screen's to the last decimal place. Your eye reduces any spectrum to three numbers and
+     discards the rest, which is the whole trick that lets screens work at all. Your ear discards nothing. Play them.</p>
+  <div class="meta-ab" id="metaAB"></div>
+
+  <footer>
+    <p><b>What is honest here.</b> The pitch really is the light's own frequency, divided by 2<sup>40</sup> — nothing is
+       transposed to taste. What is <em>not</em> honest is any claim that this is what a color "is": the ear and the eye
+       do not work alike. The eye integrates a whole spectrum into three numbers and throws the rest away, which is why
+       metamers exist; the ear resolves partials and keeps them, which is why the two whites above sound different.
+       Mapping one onto the other is a choice, not a discovery.</p>
+    <p><b>Why it sounds rough.</b> One octave is 1200 cents, and the visible band is 1245. Chop that into 48 and the
+       partials sit 26 cents apart — a quarter of a semitone, well inside the range where the ear hears beating rather
+       than separate notes. A broad spectrum therefore arrives as a cluster, not a chord, and no amount of care in the
+       mapping avoids it. The stretch control buys resolution by lying about the frequency; the roughness meter is
+       Plomp &amp; Levelt's dissonance curve, computed over a fixed bank so it measures the colour and not the setting.</p>
+    <p><a href="/color">← wavelength ↔ color</a> · <a href="/">converter</a> · <a href="/reference">reference</a> · <a href="https://mino.mobi">mino.mobi</a></p>
+  </footer>
+</main>
+
+<div class="toast" id="toast">Copied</div>
+
+<script type="module">
+import S from '/lib/spectrum.js';
+import K from '/lib/chroma.js';
+
+const $ = id => document.getElementById(id);
+const V = S.VISIBLE;
+
+// ── state ──
+const st = {
+  source: 'laser',
+  nm: 532,
+  hex: '#ffffff',
+  kelvin: 5500,
+  shift: 40,
+  stretch: 1,
+  count: 48,
+  metamer: null,
+  lobesOnly: false,
+  playing: false,
+  vol: 0.55,
+};
+
+const spdOf = (s = st) => {
+  if (s.source === 'metamer' && s.metamer) return s.metamer;
+  if (s.source === 'laser') return K.spdLaser(s.nm);
+  if (s.source === 'blackbody') return K.spdBlackbody(s.kelvin);
+  if (s.source === 'equal') return K.spdEqual();
+  const c = S.parseHex(s.hex) || { r: 255, g: 255, b: 255 };
+  return K.spdDisplay({ r: S.decode(c.r / 255), g: S.decode(c.g / 255), b: S.decode(c.b / 255) });
+};
+
+// the colour a source actually looks like, via the CIE round trip
+const lookOf = (spd) => {
+  const c = K.chromaticityOf(spd, 2);
+  if (!(c.y > 0)) return '#000000';
+  return S.toHex(S.xyToRgb(c.x, c.y, { mode: 'vivid' }));
+};
+
+// ── source picker ──
+$('sources').innerHTML = K.SOURCES.map(s =>
+  `<button class="src" data-id="${s.id}"><b>${s.name}</b><small>${s.hint}</small></button>`).join('');
+$('sources').querySelectorAll('.src').forEach(b => b.addEventListener('click', () => {
+  st.source = b.dataset.id; renderCtl(); render();
+}));
+
+function renderCtl() {
+  const c = $('ctl');
+  if (st.source === 'laser') {
+    c.innerHTML = `<div class="strip" id="cstrip" tabindex="0" role="slider" aria-label="Wavelength"
+        aria-valuemin="380" aria-valuemax="780" aria-valuenow="${Math.round(st.nm)}"><div class="needle" id="cneedle"></div></div>
+      <div class="ctl-row"><div class="field"><input id="nmIn" type="text" inputmode="decimal" value="${st.nm}" aria-label="Wavelength in nanometres"><span class="usym">nm</span></div></div>`;
+    const stops = [];
+    for (let w = V.min; w <= V.max; w += 5) stops.push(`${S.hex(w)} ${((w - V.min) / (V.max - V.min) * 100).toFixed(2)}%`);
+    $('cstrip').style.background = `linear-gradient(90deg, ${stops.join(',')})`;
+    wireStrip($('cstrip'));
+    $('nmIn').addEventListener('input', e => { const v = parseFloat(e.target.value); if (v >= 200 && v <= 2000) { st.nm = v; render({ skip: 'nm' }); } });
+  } else if (st.source === 'display') {
+    c.innerHTML = `<div class="ctl-row wide">
+        <input class="swatchin" id="pick" type="color" value="${st.hex}" aria-label="Pick a colour">
+        <div class="field"><span class="usym">#</span><input id="hexIn" value="${st.hex.slice(1)}" aria-label="Hex colour"></div>
+        <div class="swatches" id="quick"></div></div>`;
+    $('pick').addEventListener('input', e => { st.hex = e.target.value; render({ skip: 'hex' }); });
+    $('hexIn').addEventListener('input', e => { const p = S.parseHex(e.target.value); if (p) { st.hex = S.toHex(p); render({ skip: 'hex' }); } });
+    $('quick').innerHTML = ['#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ff00ff', '#ffff00', '#00ffff', '#ff8800']
+      .map(h => `<button class="qs" style="background:${h}" data-h="${h}" aria-label="${h}"></button>`).join('');
+    $('quick').querySelectorAll('.qs').forEach(b => b.addEventListener('click', () => { st.hex = b.dataset.h; render(); }));
+  } else if (st.source === 'blackbody') {
+    c.innerHTML = `<div class="ctl-row wide"><label class="knob grow"><span>Temperature <b id="kV">${st.kelvin} K</b></span>
+        <input type="range" class="nmslide" id="kIn" min="1200" max="12000" step="50" value="${st.kelvin}" aria-label="Temperature in kelvin">
+        <small id="kHint"></small></label></div>`;
+    $('kIn').addEventListener('input', e => { st.kelvin = +e.target.value; render(); });
+  } else if (st.source === 'metamer') {
+    c.innerHTML = `<p class="ctl-note">A smooth spectrum solved to have <b>exactly</b> the same XYZ as your screen's
+      white — the same colour to your eye, to the last decimal place, out of one hill instead of three spikes.
+      Switch to <b>Your screen</b> at #ffffff and back to hear what your eye is throwing away.</p>`;
+  } else {
+    c.innerHTML = `<p class="ctl-note">Illuminant E — every wavelength at exactly the same power. Nothing in nature
+      emits this; it is the flat spectrum, and it is the roughest thing here.</p>`;
+  }
+}
+
+function wireStrip(strip) {
+  const at = e => {
+    const r = strip.getBoundingClientRect();
+    const f = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+    st.nm = Math.round((V.min + f * (V.max - V.min)) * 10) / 10;
+    render();
+  };
+  let down = false;
+  strip.addEventListener('pointerdown', e => { down = true; strip.setPointerCapture(e.pointerId); at(e); });
+  strip.addEventListener('pointermove', e => { if (down) at(e); });
+  strip.addEventListener('pointerup', () => { down = false; });
+  strip.addEventListener('keydown', e => {
+    const s = e.shiftKey ? 10 : 1;
+    if (e.key === 'ArrowLeft') { st.nm = Math.max(V.min, st.nm - s); render(); e.preventDefault(); }
+    if (e.key === 'ArrowRight') { st.nm = Math.min(V.max, st.nm + s); render(); e.preventDefault(); }
+  });
+}
+
+// ── audio ──
+// One bank of oscillators, built once per frequency set. A colour change is a
+// gain change, never a rebuild — that is what makes dragging the wavelength
+// slider sound like a slide instead of a stutter.
+let ctx = null, master = null, voices = [], voiceKey = '';
+
+function ensureCtx() {
+  if (!ctx) {
+    ctx = new (window.AudioContext || window.webkitAudioContext)();
+    master = ctx.createGain();
+    master.gain.value = 0;
+    master.connect(ctx.destination);
+  }
+  return ctx;
+}
+
+function freqSet() {
+  if (st.lobesOnly) return K.chord(spdOf(), { shift: st.shift, stretch: st.stretch }).map(c => c.hz);
+  return K.bank({ count: st.count, shift: st.shift, stretch: st.stretch }).map(b => b.hz);
+}
+
+function buildVoices(freqs) {
+  const key = st.lobesOnly + '|' + freqs.length + '|' + freqs.map(f => f.toFixed(2)).join(',');
+  if (key === voiceKey) return;
+  voiceKey = key;
+  for (const v of voices) { try { v.osc.stop(); } catch {} v.osc.disconnect(); v.gain.disconnect(); }
+  voices = freqs.map(f => {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = f;
+    gain.gain.value = 0;
+    osc.connect(gain); gain.connect(master); osc.start();
+    return { osc, gain };
+  });
+}
+
+function applyGains(gains) {
+  if (!voices.length) return;
+  const t = ctx.currentTime;
+  // equal-power-ish: a cluster of 48 partials must not be 48× louder than one
+  const sum = gains.reduce((a, g) => a + g, 0) || 1;
+  const k = 1 / Math.sqrt(sum);
+  voices.forEach((v, i) => v.gain.gain.setTargetAtTime((gains[i] || 0) * k, t, 0.03));
+}
+
+function audioUpdate() {
+  if (!ctx || !st.playing) return;
+  const freqs = freqSet();
+  buildVoices(freqs);
+  if (st.lobesOnly) {
+    const ch = K.chord(spdOf(), { shift: st.shift, stretch: st.stretch });
+    applyGains(ch.map(c => c.strength));
+  } else {
+    applyGains(K.gains(spdOf(), K.bank({ count: st.count, shift: st.shift, stretch: st.stretch })));
+  }
+}
+
+async function togglePlay() {
+  ensureCtx();
+  if (ctx.state === 'suspended') await ctx.resume();
+  st.playing = !st.playing;
+  $('play').textContent = st.playing ? '■' : '▶';
+  $('play').classList.toggle('on', st.playing);
+  if (st.playing) { audioUpdate(); master.gain.setTargetAtTime(st.vol * 0.35, ctx.currentTime, 0.05); }
+  else {
+    master.gain.setTargetAtTime(0, ctx.currentTime, 0.05);
+    setTimeout(() => { if (!st.playing && ctx && ctx.state === 'running') ctx.suspend(); }, 400);
+  }
+}
+$('play').addEventListener('click', togglePlay);
+$('vol').addEventListener('input', e => {
+  st.vol = e.target.value / 100;
+  if (ctx && st.playing) master.gain.setTargetAtTime(st.vol * 0.35, ctx.currentTime, 0.05);
+});
+
+// ── drawing ──
+const dpr = () => Math.min(2, window.devicePixelRatio || 1);
+function fitCanvas(c) {
+  // Read the CSS box, never the width/height ATTRIBUTES — assigning to them
+  // below overwrites them with device pixels, so reading them back would
+  // multiply by the pixel ratio again on every single render until the canvas
+  // exceeded its maximum size and went blank.
+  const w = c.clientWidth || 1040, h = c.clientHeight || 150;
+  c.width = w * dpr(); c.height = h * dpr();
+  const g = c.getContext('2d');
+  g.setTransform(dpr(), 0, 0, dpr(), 0, 0);
+  return { g, w, h };
+}
+const xOf = (nm, w) => ((nm - V.min) / (V.max - V.min)) * w;
+
+function drawSpd(spd) {
+  const { g, w, h } = fitCanvas($('spdC'));
+  g.clearRect(0, 0, w, h);
+  const pad = 8, base = h - 16;
+  let peak = 0;
+  const pts = [];
+  for (let nm = V.min; nm <= V.max; nm += 2) { const p = Math.max(0, spd(nm)); pts.push({ nm, p }); peak = Math.max(peak, p); }
+  if (!(peak > 0)) peak = 1;
+
+  // fill under the curve with the actual colour of each wavelength
+  for (const pt of pts) {
+    const x = xOf(pt.nm, w), y = base - (pt.p / peak) * (base - pad);
+    g.fillStyle = S.hex(pt.nm, { fade: false });
+    g.globalAlpha = 0.9;
+    g.fillRect(x, y, Math.ceil(w / pts.length) + 1, base - y);
+  }
+  g.globalAlpha = 1;
+  const ink = getComputedStyle(document.body).color;
+  g.strokeStyle = ink; g.lineWidth = 1.4;
+  g.beginPath();
+  pts.forEach((pt, i) => { const x = xOf(pt.nm, w), y = base - (pt.p / peak) * (base - pad); i ? g.lineTo(x, y) : g.moveTo(x, y); });
+  g.stroke();
+  g.strokeStyle = ink; g.globalAlpha = .25;
+  g.beginPath(); g.moveTo(0, base); g.lineTo(w, base); g.stroke(); g.globalAlpha = 1;
+  g.fillStyle = getComputedStyle($('rtext')).color;
+  g.font = '10px ui-monospace, monospace'; g.textAlign = 'center';
+  for (let nm = 400; nm <= 780; nm += 50) g.fillText(String(nm), xOf(nm, w), h - 3);
+}
+
+function drawKeys(partials, chord) {
+  const { g, w, h } = fitCanvas($('keyC'));
+  g.clearRect(0, 0, w, h);
+  const base = h - 16, pad = 20;
+  const ink = getComputedStyle(document.body).color;
+  const faint = getComputedStyle($('rtext')).color;
+  const hzAt = (nm) => K.stretch(K.toAudio(nm, st.shift), st.stretch, st.shift);
+  const midiAt = (nm) => 12 * Math.log2(hzAt(nm) / 440) + 69;
+  const mHi = midiAt(V.min), mLo = midiAt(V.max);
+
+  // piano keys, drawn where their pitch falls on the WAVELENGTH axis — so a
+  // vertical line through both panels is one wavelength and one note
+  const BLACK = [1, 3, 6, 8, 10];
+  for (let m = Math.floor(mLo); m <= Math.ceil(mHi); m++) {
+    const loNm = K.fromAudio(K.stretch(440 * Math.pow(2, (m - 0.5 - 69) / 12), 1 / st.stretch, st.shift), st.shift);
+    const hiNm = K.fromAudio(K.stretch(440 * Math.pow(2, (m + 0.5 - 69) / 12), 1 / st.stretch, st.shift), st.shift);
+    const x1 = xOf(Math.min(loNm, hiNm), w), x2 = xOf(Math.max(loNm, hiNm), w);
+    const isBlack = BLACK.includes(((m % 12) + 12) % 12);
+    g.fillStyle = isBlack ? 'rgba(0,0,0,0.20)' : 'rgba(255,255,255,0.06)';
+    g.fillRect(Math.max(0, x1), pad, Math.min(w, x2) - Math.max(0, x1), base - pad);
+    if (((m % 12) + 12) % 12 === 0 && x2 > 0 && x1 < w) {
+      g.fillStyle = faint; g.font = '10px ui-monospace, monospace'; g.textAlign = 'center';
+      g.fillText('C' + (Math.floor(m / 12) - 1), (Math.max(0, x1) + Math.min(w, x2)) / 2, h - 3);
+    }
+  }
+
+  // the partials actually sounding
+  // Width comes from the BANK, not from how many partials cleared the floor:
+  // a laser leaves two of them standing, and sizing by that would draw two
+  // slabs a fifth of the panel wide.
+  const slot = w / (st.lobesOnly ? Math.max(3, partials.length) : st.count);
+  for (const p of partials) {
+    if (p.nm < V.min || p.nm > V.max) continue;
+    const x = xOf(p.nm, w), hgt = p.gain * (base - pad);
+    g.strokeStyle = S.hex(p.nm, { fade: false });
+    g.lineWidth = Math.max(2, Math.min(18, slot * 0.62));
+    g.beginPath(); g.moveTo(x, base); g.lineTo(x, base - hgt); g.stroke();
+  }
+
+  // name the humps
+  g.textAlign = 'center'; g.font = '600 11px ui-monospace, monospace';
+  for (const c of chord) {
+    if (c.nm < V.min || c.nm > V.max) continue;
+    const x = xOf(c.nm, w);
+    g.fillStyle = ink;
+    g.fillText(c.note.name + c.note.octave, x, 13);
+  }
+  g.strokeStyle = ink; g.globalAlpha = .25;
+  g.beginPath(); g.moveTo(0, base); g.lineTo(w, base); g.stroke(); g.globalAlpha = 1;
+}
+
+// ── render ──
+function render(opts = {}) {
+  const spd = spdOf();
+  const bank = K.bank({ count: st.count, shift: st.shift, stretch: st.stretch });
+  const partials = K.partials(spd, bank);
+  const chord = K.chord(spd, { shift: st.shift, stretch: st.stretch });
+
+  $('sources').querySelectorAll('.src').forEach(b => b.classList.toggle('on', b.dataset.id === st.source));
+  if (st.source === 'laser') {
+    const n = $('cneedle'); if (n) n.style.left = ((st.nm - V.min) / (V.max - V.min) * 100) + '%';
+    if (opts.skip !== 'nm' && $('nmIn')) $('nmIn').value = st.nm;
+    $('spdNote').textContent = `${st.nm} nm · ${S.band(st.nm).name}`;
+  } else if (st.source === 'display') {
+    if (opts.skip !== 'hex' && $('hexIn')) $('hexIn').value = st.hex.slice(1);
+    if ($('pick')) $('pick').value = st.hex;
+    $('spdNote').textContent = `three emitters, mixed for ${st.hex}`;
+  } else if (st.source === 'blackbody') {
+    if ($('kV')) $('kV').textContent = st.kelvin + ' K';
+    if ($('kHint')) $('kHint').textContent =
+      `peaks at ${K.wienPeak(st.kelvin).toFixed(0)} nm ${K.wienPeak(st.kelvin) < V.min ? '(ultraviolet — you see the tail)' : K.wienPeak(st.kelvin) > V.max ? '(infrared — you see the tail)' : ''}`;
+    $('spdNote').textContent = `Planck at ${st.kelvin} K`;
+  } else if (st.source === 'metamer') $('spdNote').textContent = 'a solved metamer of screen white';
+  else $('spdNote').textContent = 'flat — illuminant E';
+
+  const rng = K.range(st.shift);
+  $('keyNote').textContent = st.lobesOnly
+    ? `${chord.length} tone${chord.length === 1 ? '' : 's'}, one per hump`
+    : `${partials.length} partials, ${K.cents(bank[0].hz, bank[1].hz).toFixed(0)}¢ apart`;
+
+  // the chord readout
+  $('chordbar').innerHTML = chord.length
+    ? chord.map((c, i) => `<span class="cn">
+        <i style="background:${c.color}"></i>
+        <b>${c.note.name}${c.note.octave}</b><small>${c.note.cents >= 0 ? '+' : '−'}${Math.abs(c.note.cents)}¢</small>
+        <em>${c.nm.toFixed(0)} nm${c.edge ? ' · edge' : ''}</em>
+      </span>${i < chord.length - 1 ? `<span class="iv">${Math.round(K.cents(chord[i].hz, chord[i + 1].hz))}¢</span>` : ''}`).join('')
+    : `<span class="cn none">No hump anywhere — this spectrum has no note in it, only a band.</span>`;
+
+  const rough = K.roughness(partials);
+  $('rbar').style.width = Math.min(100, rough / 0.06 * 100) + '%';
+  $('rtext').textContent = `${rough.toFixed(3)} — ${rough < 0.012 ? 'a clean tone' : rough < 0.028 ? 'mild beating' : rough < 0.045 ? 'audibly rough' : 'a dense cluster'}`;
+
+  $('shiftV').innerHTML = `2<sup>${st.shift}</sup>`;
+  $('shiftHint').textContent = `${rng.lo.toFixed(0)}–${rng.hi.toFixed(0)} Hz` +
+    (rng.lo < 40 ? ' — near the bottom of hearing' : rng.hi > 12000 ? ' — piercing' : '');
+  $('stretchV').textContent = st.stretch.toFixed(1) + '×';
+  $('countV').textContent = st.count;
+
+  drawSpd(spd);
+  drawKeys(partials, chord);
+  audioUpdate();
+}
+
+// ── knobs ──
+$('shift').addEventListener('input', e => { st.shift = +e.target.value; voiceKey = ''; render(); });
+$('stretch').addEventListener('input', e => { st.stretch = +e.target.value / 10; voiceKey = ''; render(); });
+$('count').addEventListener('input', e => { st.count = +e.target.value; voiceKey = ''; render(); });
+$('lobesOnly').addEventListener('change', e => { st.lobesOnly = e.target.checked; voiceKey = ''; render(); });
+
+// ── the metamer pair ──
+(() => {
+  const m = K.metamers();
+  const el = $('metaAB');
+  el.innerHTML = Object.entries(m).map(([k, v]) => {
+    const look = lookOf(v.spd);
+    const lobes = K.lobes(v.spd).length;
+    return `<div class="ab">
+      <div class="ab-sw" style="background:${look}"></div>
+      <div class="ab-b"><b>${v.label}</b>
+        <small>${v.sub}</small>
+        <small>${lobes} hump${lobes === 1 ? '' : 's'} · roughness ${K.roughness(K.partials(v.spd, K.bank({ count: 48 }))).toFixed(3)}</small>
+        <button class="abplay" data-k="${k}">▶ play</button></div>
+    </div>`;
+  }).join('');
+  el.querySelectorAll('.abplay').forEach(b => b.addEventListener('click', () => {
+    if (b.dataset.k === 'screen') { st.source = 'display'; st.hex = '#ffffff'; st.metamer = null; }
+    else { st.source = 'metamer'; st.metamer = m.smooth.spd; }
+    renderCtl(); render();
+    if (!st.playing) togglePlay();
+    $('play').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }));
+})();
+
+// ── boot ──
+(() => {
+  const parts = location.pathname.split('/').filter(Boolean);
+  const q = new URLSearchParams(location.search);
+  const nm = parseFloat(q.get('nm') || parts[1] || '');
+  const hex = S.parseHex(q.get('hex') || '');
+  if (hex) { st.source = 'display'; st.hex = S.toHex(hex); }
+  else if (Number.isFinite(nm)) { st.source = 'laser'; st.nm = nm; }
+  renderCtl(); render();
+})();
+window.addEventListener('resize', () => render());
+</script>
+</body>
+</html>

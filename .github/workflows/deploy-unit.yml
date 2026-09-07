@@ -2,7 +2,7 @@ name: Deploy unit (converter)
 
 on:
   push:
-    branches: ['claude/emoji-wiki-platform-support-v6ubju']
+    branches: ['claude/wavelength-color-calc-nsew9x']
     paths:
       - 'unit/**'
       - '.github/workflows/deploy-unit.yml'
