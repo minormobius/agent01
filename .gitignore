@@ -55,3 +55,5 @@ homunculus/inbox/
 
 # staging dir built by deploy-root.yml (never committed, never served)
 .deploy-stage/
+# DOI resolution cache (scripts/check-dois.mjs) — local, and the repo root is served
+.doi-cache.json
