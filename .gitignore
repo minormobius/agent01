@@ -57,3 +57,6 @@ homunculus/inbox/
 .deploy-stage/
 # DOI resolution cache (scripts/check-dois.mjs) — local, and the repo root is served
 .doi-cache.json
+# The SRD 5.2.1 PDF is 6MB and freely redistributable, but there is no reason
+# to carry it: table/srd5/tools/scrape-srd.py fetches it on demand.
+table/srd5/tools/*.pdf
