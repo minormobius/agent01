@@ -191,7 +191,7 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/farmville-atproto-game-745mcr",
+      "branch": "claude/bsky-app-view-feasibility-8sdflz",
       "uses": [
         "mino-auth-db"
       ],
@@ -552,7 +552,7 @@
       "dir": "fluoddity",
       "endpoint": "fluoddity.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/fluoddity-param-space-viz-9d5g4b",
       "uses": [],
       "provides": null,
       "paths": [
@@ -1106,7 +1106,7 @@
       "dir": "pokemon",
       "endpoint": "poke.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/microbial-locomotion-flagellation-uj0l09",
       "uses": [],
       "provides": null,
       "status": "MANAGED \u2014 FIXED (zoom-bucket): config renamed mino-poke -> poke + custom_domain route, so wrangler deploy updates the worker that owns poke.mino.mobi. Was deploying stray worker mino-poke. CLEANUP: delete the orphan `mino-poke` worker in the dashboard.",
@@ -1607,6 +1607,83 @@
         "packages/feedgen/**"
       ],
       "note": "Bluesky feed-generator service whose input is the firehose itself — the other half of b.mino.mobi/feedgen. A feed defined only by what it excludes (\"not politics, not porn, not video, not a reply, not in this bot list\") has no query you can ask the AppView for, so a single Durable Object SAMPLES Jetstream: it wakes hourly, holds the socket open 20s, runs every post create through each registered feed's filters as it arrives, and appends matches to a chunked ring that getFeedSkeleton pages. Sampling not streaming is deliberate — the firehose measures 38.8 creates/sec, and holding it open permanently costs ~84% of the account-wide duration allowance to observe posts nobody reads; at 20s/hour it still collects ~680 matches a day and stays inside the free allowances. The ring is keyed by absolute chunk index, so an append writes ONE key and ageing out is a delete. Definitions come off the owner's PDS as a native com.minomobi.feedgen.def record OR a SkyFeed-era skyfeedBuilder, so a SkyFeed feed moves here by repointing one field. The filter predicate is shared with b/ via packages/feedgen/match.js, so b's preview cannot drift from what hose serves."
+    },
+    {
+      "surface": "bsky",
+      "dir": "bsky",
+      "endpoint": "bsky.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/bsky-app-view-feasibility-8sdflz",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "bsky/**",
+        "packages/atproto/jetstream.js",
+        "packages/atproto/constellation.js",
+        "packages/atproto/bsky.js"
+      ],
+      "note": "An AppView with no database… (full description: bsky/CLAUDE.md)",
+      "status": "NEW 2026-09-05 — scaffold. Domain bsky.mino.mobi did not resolve before this branch; the custom-domain route is attached by the first wrangler deploy. VERIFY the run log binds `bsky.mino.mobi (custom domain)` before believing it (golden rule)."
+    },
+    {
+      "surface": "atlas",
+      "dir": "atlas",
+      "endpoint": "atlas.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/county-level-data-maps-s9u3qx",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "atlas/**",
+        "packages/geoviz/**",
+        "packages/geohier/**",
+        ".github/workflows/deploy-atlas.yml"
+      ],
+      "note": "County-level North America (worker `atlas`, custom_domain atlas.mino.mobi). Thin routing worker over static assets — no build, no D1, no secrets. Geometry is a real topology (shared arcs) built from Census, StatCan, CONABIO/INEGI and Natural Earth by atlas/etl; data comes from BEA, Census PEP, USDA ERS, IRS SOI, StatCan and INEGI, all keyless. Only stocks are stored; every rate is recomputed at the level on screen. Imports packages/geoviz + packages/geohier, vendored into atlas/lib by scripts/sync-dataviz.mjs."
+    },
+    {
+      "surface": "fold",
+      "dir": "fold",
+      "endpoint": "fold.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/protein-folding-rust-wasm-dyceu3",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — first deploy. fold.mino.mobi did not resolve beforehand; wrangler is expected to create the custom domain itself, as it did for neuro (mino.mobi is a zone on this account). Confirm the run binds `fold.mino.mobi (custom domain)` — green alone is not proof.",
+      "note": "Watch a protein fold. A Clementi–Onuchic structure-based (Gō) C-alpha model under Langevin dynamics, written in Rust and compiled to wasm32-unknown-unknown with no wasm-bindgen; hand-written WebGL2 renderer with an HDR bloom pass. Nine deposited structures ship with the site… (full description: fold/CLAUDE.md)",
+      "paths": [
+        "fold/**"
+      ]
+    },
+    {
+      "surface": "tape",
+      "dir": "tape",
+      "endpoint": "tape.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/rfid-book-reader-design-ainq0k",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "tape/**"
+      ],
+      "note": "The open-source NFC card audio player — a Toniebox you build for the price of the tags. Thin assets Worker (worker `tape`, custom_domain tape.mino.mobi) — no build/D1/AI/secrets… (full description: tape/CLAUDE.md)"
+    },
+    {
+      "surface": "clef",
+      "dir": "clef",
+      "endpoint": "clef.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/sheet-music-viewer-composer-qb4ljl",
+      "uses": [
+        "auth.mino.mobi"
+      ],
+      "provides": "sheet-music",
+      "status": "MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
+      "note": "Sheet-music viewer and composer. Reads a working subset of LilyPond notation (Dutch/English/German note names, \\transpose, ornaments), engraves it as classical notation in SVG with its own glyph outlines and no music font, plays it back through a small WebAudio patch bank, and exports .ly/.mid/.svg/.wav. Browse opens the Mutopia Project's ~2,300 LilyPond-source scores through a narrow read proxy in this surface's own worker at /mutopia/* (one origin, GET only, two path shapes, edge-cached) — Mutopia sends no CORS header. Publishing writes one com.minomobi.clef.piece record to the reader's own PDS; the site stores nothing. Full notes in clef/CLAUDE.md.",
+      "paths": [
+        "clef/**",
+        ".github/workflows/deploy-clef.yml"
+      ]
     }
   ],
   "unmanaged": {

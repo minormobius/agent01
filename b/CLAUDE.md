@@ -400,7 +400,7 @@ else's behalf — and `unfollowOne` re-checks that at click time, because a
 session can change between render and click.
 
 `app.bsky.graph.follow` is in `workers/auth`'s `WRITE_COLLECTIONS` on this
-branch, but **`workers/auth` is owned by `claude/farmville-atproto-game-745mcr`**
+branch, but **`workers/auth` is owned by `claude/bsky-app-view-feasibility-8sdflz`**
 — so the collection only enters the live ceiling in `client-metadata.json` on a
 deploy this surface does not control. Asking for a scope the ceiling does not
 declare fails the whole sign-in at PAR with `invalid_scope`. So

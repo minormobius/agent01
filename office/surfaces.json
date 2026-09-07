@@ -2624,6 +2624,16 @@
    "discovered": true
   },
   {
+   "id": "atmosphere/groom",
+   "name": "groom",
+   "url": "https://b.mino.mobi/groom/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "atmosphere",
+   "discovered": true
+  },
+  {
    "id": "atmosphere/knot",
    "name": "knot",
    "url": "https://b.mino.mobi/knot/",
@@ -2997,6 +3007,16 @@
    "id": "hoop/v110/quests.html",
    "name": "quests",
    "url": "https://hoop.mino.mobi/v110/quests.html",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "hoop/v110",
+   "discovered": true
+  },
+  {
+   "id": "hoop/v110/reactions.html",
+   "name": "reactions",
+   "url": "https://hoop.mino.mobi/v110/reactions.html",
    "cat": "bluesky",
    "commits": 0,
    "age": "hot",
@@ -5484,9 +5504,39 @@
    "discovered": true
   },
   {
+   "id": "tjs/brut",
+   "name": "brut",
+   "url": "https://tjs.mino.mobi/brut/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "tjs",
+   "discovered": true
+  },
+  {
+   "id": "tjs/brut/plan",
+   "name": "plan",
+   "url": "https://tjs.mino.mobi/brut/plan/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "tjs/brut",
+   "discovered": true
+  },
+  {
    "id": "tjs/docs.html",
    "name": "docs",
    "url": "https://tjs.mino.mobi/docs.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "tjs",
+   "discovered": true
+  },
+  {
+   "id": "tjs/manifold",
+   "name": "manifold",
+   "url": "https://tjs.mino.mobi/manifold/",
    "cat": "tools",
    "commits": 0,
    "age": "hot",
@@ -5561,6 +5611,26 @@
    "commits": 0,
    "age": "hot",
    "parent": "uni",
+   "discovered": true
+  },
+  {
+   "id": "unit/chroma.html",
+   "name": "chroma",
+   "url": "https://unit.mino.mobi/chroma.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "unit",
+   "discovered": true
+  },
+  {
+   "id": "unit/color.html",
+   "name": "color",
+   "url": "https://unit.mino.mobi/color.html",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "unit",
    "discovered": true
   },
   {
@@ -5731,6 +5801,46 @@
    "commits": 0,
    "age": "hot",
    "parent": "ai-edu",
+   "discovered": true
+  },
+  {
+   "id": "words/cross",
+   "name": "cross",
+   "url": "https://words.mino.mobi/cross/",
+   "cat": "games",
+   "commits": 0,
+   "age": "hot",
+   "parent": "words",
+   "discovered": true
+  },
+  {
+   "id": "foam/dungeon",
+   "name": "dungeon",
+   "url": "https://foam.mino.mobi/dungeon/",
+   "cat": "games",
+   "commits": 0,
+   "age": "hot",
+   "parent": "foam",
+   "discovered": true
+  },
+  {
+   "id": "foam/dungeon/content",
+   "name": "content",
+   "url": "https://foam.mino.mobi/dungeon/content/",
+   "cat": "games",
+   "commits": 0,
+   "age": "hot",
+   "parent": "foam/dungeon",
+   "discovered": true
+  },
+  {
+   "id": "foam/dungeon/crawl",
+   "name": "crawl",
+   "url": "https://foam.mino.mobi/dungeon/crawl/",
+   "cat": "games",
+   "commits": 0,
+   "age": "hot",
+   "parent": "foam/dungeon",
    "discovered": true
   },
   {
@@ -6154,6 +6264,86 @@
    "discovered": true
   },
   {
+   "id": "pokemon/armline",
+   "name": "armline",
+   "url": "https://mino.mobi/pokemon/armline/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
+   "id": "pokemon/flag",
+   "name": "flag",
+   "url": "https://mino.mobi/pokemon/flag/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
+   "id": "pokemon/graze",
+   "name": "graze",
+   "url": "https://mino.mobi/pokemon/graze/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
+   "id": "pokemon/griddle",
+   "name": "griddle",
+   "url": "https://mino.mobi/pokemon/griddle/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
+   "id": "pokemon/mimic",
+   "name": "mimic",
+   "url": "https://mino.mobi/pokemon/mimic/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
+   "id": "pokemon/pong",
+   "name": "pong",
+   "url": "https://mino.mobi/pokemon/pong/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
+   "id": "pokemon/qgol",
+   "name": "qgol",
+   "url": "https://mino.mobi/pokemon/qgol/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
+   "id": "pokemon/qwop",
+   "name": "qwop",
+   "url": "https://mino.mobi/pokemon/qwop/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "pokemon",
+   "discovered": true
+  },
+  {
    "id": "draw/leaderboard.html",
    "name": "leaderboard",
    "url": "https://mino.mobi/draw/leaderboard.html",
@@ -6274,6 +6464,16 @@
    "discovered": true
   },
   {
+   "id": "games/tempest",
+   "name": "tempest",
+   "url": "https://games.mino.mobi/tempest/",
+   "cat": "games",
+   "commits": 0,
+   "age": "warm",
+   "parent": "games",
+   "discovered": true
+  },
+  {
    "id": "golf/play.html",
    "name": "play",
    "url": "https://duck.mino.mobi/golf/play.html",
@@ -6351,6 +6551,16 @@
    "commits": 0,
    "age": "warm",
    "parent": "canvas",
+   "discovered": true
+  },
+  {
+   "id": "fluoddity/space.html",
+   "name": "space",
+   "url": "https://fluoddity.mino.mobi/space.html",
+   "cat": "games",
+   "commits": 0,
+   "age": "hot",
+   "parent": "fluoddity",
    "discovered": true
   },
   {
