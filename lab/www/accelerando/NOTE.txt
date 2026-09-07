@@ -1,0 +1,1 @@
+Read "steady acceleration" as constant angular acceleration, not a shrinking-delay list — keeps the swing smooth instead of drifting out of sync. It resets once a swing would take under ~220ms; faster than that reads as flicker, not zoom.

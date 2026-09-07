@@ -1,0 +1,1 @@
+Heads up: this page can't check live availability — the lab CSP only reaches Bluesky's API, not WHOIS/RDAP. So it validates instantly and links out to IANA + a live RDAP lookup instead of guessing.

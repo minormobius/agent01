@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Longshot — bet play chips on who wins the podcast vote</title>
+<meta name="description" content="A play-money parimutuel market for a Bluesky podcast vote. Add the nominees, bet chips, watch odds move live, track your balance. No real money, ever.">
+<meta property="og:title" content="Longshot — bet play chips on who wins the podcast vote">
+<meta property="og:description" content="A play-money parimutuel market for a Bluesky podcast vote. Add the nominees, bet chips, watch odds move live, track your balance. No real money, ever.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  h1 { font-size: 2rem; }
+  .balancebar {
+    position: sticky; top: 0; z-index: 5; margin: 0 0 1.75rem;
+    padding: .9rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius);
+    display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; align-items: baseline;
+  }
+  .balancebar .num { font-size: 1.4rem; color: var(--accent); font-weight: 700; }
+  .balancebar .lbl { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; display: block; }
+  .balancebar .stat { min-width: 0; }
+  .balancebar .delta.up { color: var(--ok); }
+  .balancebar .delta.down { color: var(--error); }
+
+  .panel { border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-raised);
+           padding: 1.1rem 1.2rem; margin: 1.25rem 0; }
+  .panel h2 { margin-top: 0; }
+
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+  input[type=number] {
+    padding: .8rem 1rem; background: var(--bg-raised); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: 16px;
+  }
+  input[type=number]:focus { outline: none; border-color: var(--accent); }
+  .row input[type=text] { flex: 1 1 12rem; min-width: 0; font-size: 16px; }
+  .row input[type=number] { flex: 0 0 6.5rem; min-width: 0; min-height: 44px; }
+
+  ul.taglist { list-style: none; margin: .8rem 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem; }
+  ul.taglist li { display: flex; align-items: center; gap: .4rem; background: var(--bg); border: 1px solid var(--border);
+                  border-radius: var(--radius); padding: .4rem .5rem .4rem .8rem; font-size: .85rem; }
+  ul.taglist button { padding: 0 .6rem; min-height: 44px; min-width: 44px; font-size: .9rem; border-radius: var(--radius); }
+
+  .cand { border: 1px solid var(--border); border-radius: var(--radius); padding: .9rem 1rem; margin: .8rem 0; background: var(--bg); }
+  .cand.won { border-color: var(--ok); }
+  .cand.lost { opacity: .55; }
+  .cand-top { display: flex; justify-content: space-between; gap: .8rem; align-items: baseline; flex-wrap: wrap; }
+  .cand-name { font-weight: 700; font-size: 1.05rem; }
+  .cand-odds { color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .cand-sub { font-size: .78rem; color: var(--muted); margin-top: .15rem; }
+  .bar { height: 8px; border-radius: 5px; background: var(--border); overflow: hidden; margin: .6rem 0 .7rem; }
+  .bar > i { display: block; height: 100%; background: var(--accent); width: 0%; }
+  @media (prefers-reduced-motion: no-preference) { .bar > i { transition: width .5s ease; } }
+
+  .betrow { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .betrow button { min-height: 44px; }
+  .winbtn { font-size: .78rem; padding: .6rem .8rem; min-height: 44px; }
+
+  #bets-table { overflow-x: auto; }
+  table.bets { width: 100%; border-collapse: collapse; font-size: .78rem; }
+  table.bets th, table.bets td { text-align: left; padding: .5rem .35rem; border-bottom: 1px solid var(--border);
+                                  word-break: break-word; }
+  table.bets td.num, table.bets th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .status-open { color: var(--muted); }
+  .status-won { color: var(--ok); }
+  .status-lost { color: var(--error); }
+
+  .ticker { list-style: none; margin: .6rem 0 0; padding: 0; font-size: .78rem; color: var(--muted); }
+  .ticker li { padding: .3rem 0; border-bottom: 1px dashed var(--border); }
+  .ticker li:last-child { border-bottom: 0; }
+
+  .toggle-row { display: flex; align-items: center; gap: .5rem; font-size: .78rem; color: var(--muted); margin-top: .5rem; }
+  .toggle-row input { width: 20px; height: 20px; min-height: unset; }
+
+  .authstate { font-size: .82rem; color: var(--muted); margin-bottom: .6rem; }
+  .authstate b { color: var(--fg); }
+
+  footer.notice { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border);
+                  font-size: .75rem; color: var(--muted); }
+
+  .empty { color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Longshot</h1>
+  <p class="sub">A parimutuel play-money market for the podcast vote in the thread. Add who's up for it,
+    bet chips, watch the odds move as the pool fills. Nothing here is real currency.</p>
+
+  <div class="balancebar" id="balancebar">
+    <div class="stat"><span class="lbl">balance</span><span class="num" id="s-balance">—</span></div>
+    <div class="stat"><span class="lbl">at risk</span><span class="num" id="s-atrisk">—</span></div>
+    <div class="stat"><span class="lbl">net worth</span><span class="num" id="s-net">—</span></div>
+    <div class="stat"><span class="lbl">since start</span><span class="num delta" id="s-delta">—</span></div>
+  </div>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <section class="panel" id="setup-panel">
+    <h2>Nominees</h2>
+    <p class="empty" id="setup-hint">Add the names being voted on in the thread — this page has no way to pull them
+      in on its own, since it can only ever ask Bluesky about a subject you've actually named.</p>
+    <div class="row">
+      <input type="text" id="cand-input" maxlength="40" placeholder="e.g. a show's name" autocomplete="off">
+      <button id="cand-add" type="button">add</button>
+    </div>
+    <ul class="taglist" id="cand-list"></ul>
+    <div class="row" style="margin-top:1rem">
+      <button id="open-market" type="button">open the market</button>
+      <span class="empty" id="open-hint"></span>
+    </div>
+  </section>
+
+  <section class="panel hidden" id="market-panel">
+    <h2>The board</h2>
+    <p class="empty" id="market-status"></p>
+    <div id="cand-cards"></div>
+    <p class="empty">Odds are a payout multiplier on your stake (×2.40 back on a win), computed live from how much
+      is riding on each name — not a forecast of anything, just this pool's arithmetic.</p>
+
+    <div class="toggle-row">
+      <input type="checkbox" id="sim-toggle">
+      <label for="sim-toggle">simulate ambient crowd activity (clearly-labelled fake bets, so the board isn't
+        static between yours — there's no shared pool across visitors here)</label>
+    </div>
+    <ul class="ticker" id="ticker"></ul>
+  </section>
+
+  <section class="panel hidden" id="resolve-panel">
+    <h2>Settle it</h2>
+    <p class="empty">Nothing tells this page who actually won. When the real vote closes, declare the winner below
+      and every open bet pays out (or doesn't) on the spot.</p>
+    <div class="row" id="resolve-buttons"></div>
+  </section>
+
+  <section class="panel" id="bets-panel">
+    <h2>Your bets</h2>
+    <div id="bets-table"></div>
+  </section>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h2 style="margin:0">Market controls</h2>
+    </div>
+    <div class="row" style="margin-top:.8rem">
+      <button id="new-market" type="button">start a new market (keep balance)</button>
+      <button id="reset-all" type="button">reset everything</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Keep this on your account</h2>
+    <p class="authstate" id="authstate">checking sign-in…</p>
+    <div class="row" id="signin-row">
+      <input type="text" id="handle-input" placeholder="you.bsky.social" autocomplete="off">
+      <button id="signin-btn" type="button">sign in with Bluesky</button>
+    </div>
+    <div class="row hidden" id="signedin-row" style="margin-top:.6rem">
+      <button id="save-btn" type="button">save snapshot to my repo</button>
+      <button id="load-btn" type="button">load snapshot from my repo</button>
+      <button id="signout-btn" type="button">sign out</button>
+    </div>
+    <p class="empty" style="margin-top:.6rem">Optional. Without signing in, your balance and bets live only in this
+      browser's storage. Signing in narrowly asks for permission to write one document to your own repository —
+      nothing else, and this page never asks for a password.</p>
+  </section>
+
+  <footer class="notice">
+    Longshot is a toy ledger, not a market — chips have no value outside this page, there's no way to cash out, and
+    nobody else's bets show up here unless you built the pool yourself. Built for
+    <a href="https://mino.mobi">the mino.mobi lab</a>.
+  </footer>
+</main>
+
+<script type="module">
+import { labPds } from '../_kit/pds.js';
+
+const STARTING_BALANCE = 1000;
+const SEED_POOL = 10;
+const STORE_KEY = 'same-task.longshot.v1';
+
+const $ = (sel) => document.querySelector(sel);
+const errEl = $('#err');
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+const uid = () => (crypto.randomUUID ? crypto.randomUUID() : 'id-' + Math.random().toString(36).slice(2));
+
+$('#crumb').innerHTML = kit.crumb('longshot');
+
+// ---------------------------------------------------------------------------
+// state
+// ---------------------------------------------------------------------------
+
+function freshState() {
+  return {
+    startingBalance: STARTING_BALANCE,
+    balance: STARTING_BALANCE,
+    started: false,
+    candidates: [],       // {id, name, pool}
+    bets: [],              // {id, candidateId, stake, odds, placedAt, status, payout}
+    resolvedId: null,
+    ticker: [],
+    simOn: false,
+  };
+}
+
+let state = loadLocal() || freshState();
+
+function loadLocal() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+}
+
+function saveLocal() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* private mode: proceed anyway */ }
+}
+
+function totalPool() { return state.candidates.reduce((s, c) => s + c.pool, 0); }
+function atRisk() { return state.bets.filter((b) => b.status === 'open').reduce((s, b) => s + b.stake, 0); }
+function oddsFor(c) { const t = totalPool(); return c.pool > 0 ? t / c.pool : t; }
+
+function log(text) {
+  state.ticker.unshift({ text, at: Date.now() });
+  state.ticker = state.ticker.slice(0, 8);
+}
+
+// ---------------------------------------------------------------------------
+// actions
+// ---------------------------------------------------------------------------
+
+function addCandidate(name) {
+  name = String(name || '').trim().slice(0, 40);
+  if (!name) return;
+  if (state.candidates.some((c) => c.name.toLowerCase() === name.toLowerCase())) {
+    kit.showError(errEl, 'already on the board: ' + name); return;
+  }
+  if (state.candidates.length >= 12) { kit.showError(errEl, 'that is plenty of nominees — 12 is the cap'); return; }
+  kit.clear(errEl);
+  state.candidates.push({ id: uid(), name, pool: SEED_POOL });
+  saveLocal(); render();
+}
+
+function removeCandidate(id) {
+  if (state.started) return;
+  state.candidates = state.candidates.filter((c) => c.id !== id);
+  saveLocal(); render();
+}
+
+function openMarket() {
+  if (state.candidates.length < 2) { kit.showError(errEl, 'add at least two nominees first'); return; }
+  kit.clear(errEl);
+  state.started = true;
+  log('the market opened with ' + state.candidates.length + ' names on the board');
+  saveLocal(); render();
+}
+
+function placeBet(candidateId, stakeRaw) {
+  kit.clear(errEl);
+  const stake = Math.floor(Number(stakeRaw));
+  const c = state.candidates.find((x) => x.id === candidateId);
+  if (!c) return;
+  if (state.resolvedId) { kit.showError(errEl, 'this market is already settled — start a new one'); return; }
+  if (!Number.isFinite(stake) || stake <= 0) { kit.showError(errEl, 'enter a stake above zero'); return; }
+  if (stake > state.balance) { kit.showError(errEl, 'you only have ' + fmt(state.balance) + ' chips free'); return; }
+  const odds = oddsFor(c);
+  state.balance -= stake;
+  c.pool += stake;
+  state.bets.push({ id: uid(), candidateId, candidateName: c.name, stake, odds, placedAt: Date.now(), status: 'open' });
+  log('you staked ' + fmt(stake) + ' on ' + c.name + ' at ×' + odds.toFixed(2));
+  saveLocal(); render();
+}
+
+function resolveWinner(candidateId) {
+  const c = state.candidates.find((x) => x.id === candidateId);
+  if (!c) return;
+  if (!confirm('Declare "' + c.name + '" the winner? This settles every open bet and locks the market.')) return;
+  const total = totalPool();
+  const winPool = c.pool;
+  for (const b of state.bets) {
+    if (b.status !== 'open') continue;
+    if (b.candidateId === candidateId) {
+      const payout = Math.round(b.stake * (total / winPool));
+      b.status = 'won'; b.payout = payout;
+      state.balance += payout;
+    } else {
+      b.status = 'lost'; b.payout = 0;
+    }
+  }
+  state.resolvedId = candidateId;
+  log(c.name + ' declared the winner — payouts settled');
+  saveLocal(); render();
+}
+
+function newMarket(keepBalance) {
+  if (!confirm(keepBalance ? 'Start a fresh market? Your balance carries over.' : 'Wipe everything, including your balance?')) return;
+  const bal = keepBalance ? state.balance : STARTING_BALANCE;
+  const startingBalance = keepBalance ? state.startingBalance : STARTING_BALANCE;
+  state = freshState();
+  state.balance = bal;
+  state.startingBalance = startingBalance;
+  saveLocal(); render();
+}
+
+// ---------------------------------------------------------------------------
+// ambient simulated activity — clearly labelled, opt-in, off under reduced motion
+// ---------------------------------------------------------------------------
+
+let simTimer = null;
+function scheduleSim() {
+  clearTimeout(simTimer);
+  if (!state.simOn || !state.started || state.resolvedId || document.hidden) return;
+  simTimer = setTimeout(() => {
+    const c = state.candidates[Math.floor(Math.random() * state.candidates.length)];
+    if (c) {
+      const t = totalPool();
+      const amount = Math.max(1, Math.round(t * (0.01 + Math.random() * 0.05)));
+      c.pool += amount;
+      log('the crowd (simulated) wagered ' + fmt(amount) + ' on ' + c.name);
+      saveLocal(); render();
+    }
+    scheduleSim();
+  }, 4000 + Math.random() * 3000);
+}
+document.addEventListener('visibilitychange', scheduleSim);
+
+// ---------------------------------------------------------------------------
+// render
+// ---------------------------------------------------------------------------
+
+function render() {
+  const net = state.balance + atRisk();
+  const delta = net - state.startingBalance;
+  $('#s-balance').textContent = fmt(state.balance);
+  $('#s-atrisk').textContent = fmt(atRisk());
+  $('#s-net').textContent = fmt(net);
+  const deltaEl = $('#s-delta');
+  deltaEl.textContent = (delta >= 0 ? '+' : '') + fmt(delta);
+  deltaEl.className = 'num delta ' + (delta > 0 ? 'up' : delta < 0 ? 'down' : '');
+
+  // setup panel
+  $('#setup-panel').classList.toggle('hidden', state.started);
+  $('#cand-list').innerHTML = state.candidates.map((c) =>
+    '<li>' + escapeHtml(c.name) +
+    (state.started ? '' : ' <button type="button" data-remove="' + c.id + '" aria-label="remove ' + escapeHtml(c.name) + '">×</button>') +
+    '</li>').join('');
+  $('#open-hint').textContent = state.candidates.length < 2 ? 'need at least two names' : '';
+
+  // market panel
+  $('#market-panel').classList.toggle('hidden', !state.started);
+  $('#market-status').textContent = state.resolvedId
+    ? 'settled — ' + (state.candidates.find((c) => c.id === state.resolvedId) || {}).name + ' won'
+    : 'open — pool: ' + fmt(totalPool()) + ' chips across ' + state.candidates.length + ' names';
+  $('#sim-toggle').checked = state.simOn;
+
+  const total = totalPool();
+  $('#cand-cards').innerHTML = state.candidates.map((c) => {
+    const odds = oddsFor(c);
+    const prob = total > 0 ? (c.pool / total) * 100 : 0;
+    const status = state.resolvedId ? (state.resolvedId === c.id ? 'won' : 'lost') : '';
+    return '<div class="cand ' + status + '" data-cand="' + c.id + '">' +
+      '<div class="cand-top"><span class="cand-name">' + escapeHtml(c.name) + '</span>' +
+      '<span class="cand-odds">×' + odds.toFixed(2) + '</span></div>' +
+      '<div class="cand-sub">' + fmt(c.pool) + ' chips staked · ' + prob.toFixed(1) + '% of the pool</div>' +
+      '<div class="bar"><i style="width:' + prob.toFixed(1) + '%"></i></div>' +
+      (!state.started || state.resolvedId ? '' :
+        '<div class="betrow"><input type="number" min="1" step="1" placeholder="stake" data-stake="' + c.id + '" style="width:6.5rem">' +
+        '<button type="button" data-bet="' + c.id + '">place bet</button></div>') +
+      '</div>';
+  }).join('') || '<p class="empty">no nominees yet</p>';
+
+  $('#ticker').innerHTML = state.ticker.map((t) => '<li>' + escapeHtml(t.text) + '</li>').join('');
+
+  // resolve panel
+  const showResolve = state.started && !state.resolvedId && state.candidates.length > 0;
+  $('#resolve-panel').classList.toggle('hidden', !showResolve);
+  if (showResolve) {
+    $('#resolve-buttons').innerHTML = state.candidates.map((c) =>
+      '<button type="button" class="winbtn" data-win="' + c.id + '">declare "' + escapeHtml(c.name) + '" winner</button>').join('');
+  }
+
+  // bets table
+  $('#bets-table').innerHTML = state.bets.length ? (
+    '<table class="bets"><thead><tr><th>on</th><th class="num">stake</th><th class="num">odds</th>' +
+    '<th>status</th><th class="num">payout</th></tr></thead><tbody>' +
+    state.bets.slice().reverse().map((b) =>
+      '<tr><td>' + escapeHtml(b.candidateName) + '</td><td class="num">' + fmt(b.stake) + '</td>' +
+      '<td class="num">×' + b.odds.toFixed(2) + '</td>' +
+      '<td class="status-' + b.status + '">' + b.status + '</td>' +
+      '<td class="num">' + (b.status === 'won' ? fmt(b.payout) : b.status === 'open' ? fmt(Math.round(b.stake * b.odds)) + ' if it wins' : '0') + '</td></tr>'
+    ).join('') + '</tbody></table>'
+  ) : '<p class="empty">no bets placed yet</p>';
+
+  scheduleSim();
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// ---------------------------------------------------------------------------
+// wiring
+// ---------------------------------------------------------------------------
+
+$('#cand-add').addEventListener('click', () => { addCandidate($('#cand-input').value); $('#cand-input').value = ''; $('#cand-input').focus(); });
+$('#cand-input').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#cand-add').click(); } });
+$('#cand-list').addEventListener('click', (e) => {
+  const id = e.target.getAttribute && e.target.getAttribute('data-remove');
+  if (id) removeCandidate(id);
+});
+$('#open-market').addEventListener('click', openMarket);
+$('#cand-cards').addEventListener('click', (e) => {
+  const betId = e.target.getAttribute && e.target.getAttribute('data-bet');
+  if (betId) {
+    const input = document.querySelector('[data-stake="' + betId + '"]');
+    placeBet(betId, input ? input.value : 0);
+    if (input) input.value = '';
+  }
+});
+$('#resolve-buttons').addEventListener('click', (e) => {
+  const id = e.target.getAttribute && e.target.getAttribute('data-win');
+  if (id) resolveWinner(id);
+});
+$('#sim-toggle').addEventListener('change', (e) => { state.simOn = e.target.checked; saveLocal(); scheduleSim(); });
+$('#new-market').addEventListener('click', () => newMarket(true));
+$('#reset-all').addEventListener('click', () => newMarket(false));
+
+// ---------------------------------------------------------------------------
+// sign-in / repo persistence — optional
+// ---------------------------------------------------------------------------
+
+const store = labPds();
+kit.handleInput($('#handle-input'), { onPick: (h) => { $('#handle-input').value = h; } });
+
+function renderAuth() {
+  const u = store.user();
+  $('#authstate').innerHTML = u ? 'signed in as <b>@' + escapeHtml(u.handle) + '</b>' : 'not signed in';
+  $('#signin-row').classList.toggle('hidden', !!u);
+  $('#signedin-row').classList.toggle('hidden', !u);
+}
+
+$('#signin-btn').addEventListener('click', async () => {
+  const h = $('#handle-input').value.trim().replace(/^@/, '');
+  if (!h) { kit.showError(errEl, 'type a handle first'); return; }
+  kit.clear(errEl);
+  try { await store.signIn(h); } catch (e) { kit.showError(errEl, 'sign-in failed: ' + e.message); }
+});
+$('#signout-btn').addEventListener('click', async () => { await store.signOut(); renderAuth(); });
+$('#save-btn').addEventListener('click', async () => {
+  try { await store.save('market', state); kit.showError(errEl, 'saved.'); errEl.className = 'ok'; setTimeout(() => kit.clear(errEl), 1500); }
+  catch (e) { kit.showError(errEl, 'save failed: ' + e.message); }
+});
+$('#load-btn').addEventListener('click', async () => {
+  if (!confirm('Replace what is on this device with the saved snapshot from your repo?')) return;
+  try {
+    const loaded = await store.load('market');
+    if (!loaded) { kit.showError(errEl, 'no snapshot saved yet'); return; }
+    state = loaded; state.simOn = false; saveLocal(); render();
+  } catch (e) { kit.showError(errEl, 'load failed: ' + e.message); }
+});
+
+(async () => {
+  try {
+    await store.ready();
+    store.onChange(renderAuth);
+    renderAuth();
+  } catch (e) { /* auth is optional — the page still works signed out */ }
+})();
+
+render();
+</script>
+</body>
+</html>

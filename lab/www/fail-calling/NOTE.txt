@@ -1,0 +1,1 @@
+No repro steps came through, so I read every line looking for what broke. Found and fixed two real ones: DIAL was wiping the Witcher card, and the call tally froze on the old count mid-ring. If it's something else, say what you clicked and saw.

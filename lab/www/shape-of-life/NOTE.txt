@@ -1,0 +1,1 @@
+Real bug, not you misreading: nonexistent forms got a tiny nonzero share weighted by quality, so humans swamped 0% at the Big Bang and reappeared near 10^36y — your "rewilding." Fixed: nonexistence is now exactly zero.

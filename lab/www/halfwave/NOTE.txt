@@ -1,0 +1,1 @@
+Capped the basis at n=1,3,5,7,9 (5 odd harmonics) — an infinite Fourier series needs infinite sliders. That's the only real cut; the rest (t, cell size, the f(θ) plot) is the literal spec. Animate is opt-in, off by default. Next: maybe a "download PNG" or higher canvas res if 440px feels small.

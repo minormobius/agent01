@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Human Harness — an agent harness, for humans</title>
+<meta property="og:title" content="The Human Harness — an agent harness, for humans">
+<meta property="og:description" content="A task queue, tool-use approval prompts, real-time steering, and a token-efficiency score — everything you'd give an AI agent, aimed at the human giving it orders instead.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --hr1:#ff5f6d; --hr2:#ffc371; --hr3:#47cf73; --hr4:#38a3ff; --hr5:#a06cff; }
+
+  @keyframes gradientMove { 0%,100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  @keyframes borderMove   { 0%,100% { background-position: 0% 0%, 0% 50%; } 50% { background-position: 0% 0%, 100% 50%; } }
+  @keyframes pulseGlow    { 0%,100% { box-shadow: 0 0 0 rgba(160,108,255,0); } 50% { box-shadow: 0 0 18px 3px rgba(160,108,255,.55); } }
+
+  h1.grad {
+    background: linear-gradient(120deg, var(--hr1), var(--hr2), var(--hr3), var(--hr4), var(--hr5));
+    background-size: 300% 300%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: gradientMove 8s ease infinite;
+  }
+  .card {
+    position: relative; padding: 1rem 1.25rem 1.25rem; margin-bottom: 1.75rem;
+    border: 1px solid transparent; border-radius: 8px;
+    background:
+      linear-gradient(var(--bg-raised), var(--bg-raised)) padding-box,
+      linear-gradient(120deg, var(--hr1), var(--hr2), var(--hr3), var(--hr4), var(--hr5), var(--hr1)) border-box;
+    background-size: 100% 100%, 300% 300%;
+    animation: borderMove 11s ease infinite;
+  }
+  .card h2 { margin-top: 0; color: var(--fg); font-size: 1rem; }
+  .card > p.hint { margin-top: -.25rem; }
+
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: stretch; }
+  .row > input[type=text] { flex: 1 1 12rem; min-width: 0; }
+  select { padding: .8rem .6rem; background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius); font: inherit; }
+
+  .btn-primary { background: linear-gradient(120deg, var(--hr4), var(--hr5)); color: #fff; border: none; animation: pulseGlow 2.6s ease-in-out infinite; font-weight: 600; }
+  .btn-primary:hover { background: linear-gradient(120deg, var(--hr5), var(--hr4)); color: #fff; }
+
+  ul.plain { list-style: none; margin: .75rem 0 0; padding: 0; }
+  ul.plain li { display: flex; align-items: center; gap: .6rem; padding: .55rem 0; border-bottom: 1px solid var(--border); font-size: .85rem; color: var(--fg); flex-wrap: wrap; }
+  ul.plain li:last-child { border-bottom: none; }
+  ul.plain li.done { opacity: .5; text-decoration: line-through; }
+  .tag { font-size: .7rem; padding: .15rem .5rem; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+  .tag.urgent { color: var(--accent); border-color: var(--accent); font-weight: 700; }
+  .spacer { flex: 1; }
+  .iconbtn { padding: .35rem .6rem; min-height: 44px; min-width: 44px; }
+  .chk { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; flex: none; }
+  .chk input { width: 20px; height: 20px; }
+
+  .tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr)); gap: .6rem; margin-top: .75rem; }
+  .tools button { text-align: left; font-size: .8rem; }
+  .tools button code { display: block; color: var(--fg); font-size: .78rem; }
+  .tools button span { display: block; color: var(--muted); font-size: .7rem; margin-top: .2rem; }
+
+  .pending { border: 1px solid var(--accent); background: var(--accent-dim); border-radius: var(--radius); padding: .75rem 1rem; margin-top: .75rem; font-size: .85rem; }
+  .pending .actions { display: flex; gap: .6rem; margin-top: .6rem; }
+
+  .log { margin-top: .75rem; max-height: 9rem; overflow-y: auto; font-size: .75rem; color: var(--muted); }
+  .log div { padding: .25rem 0; border-bottom: 1px solid var(--border); }
+  .log div:last-child { border-bottom: none; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.5rem, 1fr)); gap: .75rem; margin-top: .75rem; }
+  .stat { border: 1px solid var(--border); border-radius: var(--radius); padding: .7rem .8rem; }
+  .stat .n { font-size: 1.4rem; color: var(--accent); font-weight: 700; }
+  .stat .l { font-size: .7rem; color: var(--muted); margin-top: .15rem; }
+
+  .ctxwrap { margin-top: 1rem; }
+  .ctxbar { height: 14px; border-radius: 999px; background: var(--bg); border: 1px solid var(--border); overflow: hidden; }
+  .ctxfill { height: 100%; background: var(--accent); transition: width .2s ease; }
+  .ctxfill.over { background: var(--error); }
+  .ctxlabel { font-size: .7rem; color: var(--muted); margin-top: .35rem; display: flex; justify-content: space-between; }
+
+  svg.spark { width: 100%; height: 80px; display: block; margin-top: .75rem; }
+  svg.spark path.line { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  svg.spark circle { fill: var(--accent); }
+  svg.spark .axis { stroke: var(--border); stroke-width: 1; }
+
+  table.math { width: 100%; border-collapse: collapse; font-size: .78rem; margin-top: .5rem; }
+  table.math th, table.math td { text-align: left; padding: .3rem .5rem; border-bottom: 1px solid var(--border); color: var(--muted); }
+  table.math th { color: var(--fg); }
+
+  #banner {
+    position: fixed; left: 1rem; right: 1rem; top: 1rem; z-index: 500;
+    max-width: var(--col); margin: 0 auto;
+    border: 1px solid var(--hr5); background: var(--bg-raised);
+    border-radius: var(--radius); padding: .9rem 1.1rem; box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  }
+  #banner .k { color: var(--hr5); font-weight: 700; font-size: .75rem; letter-spacing: .04em; text-transform: uppercase; }
+  #banner p { color: var(--fg); margin: .35rem 0 .6rem; font-size: .9rem; }
+  #banner[hidden] { display: none; }
+
+  .system-prompt { width: 100%; min-height: 6rem; resize: vertical; font-size: .85rem; }
+  .toggle-btn { margin-top: .75rem; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+
+  <h1 class="grad">the Human Harness</h1>
+  <p class="sub">Every week someone ships a better agent harness: tool use, a task
+    queue, real-time steering, token accounting. Nobody built the equivalent for
+    the thing that gives the agent its orders. This is that. You are the agent
+    now. Try not to hallucinate the deadline.</p>
+
+  <div id="banner" hidden>
+    <div class="k">⚠ steering injected mid-task</div>
+    <p id="bannerMsg"></p>
+    <button id="bannerClose">acknowledge</button>
+  </div>
+
+  <div class="card">
+    <h2>system prompt</h2>
+    <p class="hint">Your operating instructions. Edited by you, followed by you, enforced by nobody.</p>
+    <textarea id="sysPrompt" class="system-prompt" spellcheck="false"></textarea>
+  </div>
+
+  <div class="card">
+    <h2>task queue</h2>
+    <p class="hint">Add work. Check it off. No task ever gets silently dropped from context — that's the one thing this harness does that the real ones don't.</p>
+    <div class="row">
+      <input type="text" id="taskInput" placeholder="ship the quarterly report" autocomplete="off">
+      <select id="taskPriority">
+        <option value="low">low</option>
+        <option value="normal" selected>normal</option>
+        <option value="urgent">urgent</option>
+      </select>
+      <button id="addTask" class="btn-primary">add</button>
+    </div>
+    <ul class="plain" id="taskList"></ul>
+    <p class="hint" id="taskEmpty">Queue is empty. An idle agent is a cheap agent.</p>
+  </div>
+
+  <div class="card">
+    <h2>tool calls</h2>
+    <p class="hint">Every side effect on the real world goes through here first. Yes, even this one.</p>
+    <div class="tools" id="toolGrid"></div>
+    <div id="pendingWrap"></div>
+    <div class="log" id="toolLog"></div>
+  </div>
+
+  <div class="card">
+    <h2>real-time steering</h2>
+    <p class="hint">Interrupt the task in progress with new instructions, the way a supervisor interrupts a running agent — except this time the supervisor and the agent share a body.</p>
+    <div class="row">
+      <input type="text" id="steerInput" placeholder="actually, do it in Python instead" autocomplete="off">
+      <button id="steerBtn" class="btn-primary">inject</button>
+    </div>
+    <div class="log" id="steerLog"></div>
+  </div>
+
+  <div class="card">
+    <h2>token efficiency</h2>
+    <p class="hint">Every character you type anywhere on this page costs tokens, the same rough way it would in a model's context. Efficiency is tokens spent per task actually finished.</p>
+    <div class="stats">
+      <div class="stat"><div class="n" id="statTasks">0</div><div class="l">tasks completed</div></div>
+      <div class="stat"><div class="n" id="statTokens">0</div><div class="l">tokens spent (all-time)</div></div>
+      <div class="stat"><div class="n" id="statPerTask">—</div><div class="l">tokens / task</div></div>
+      <div class="stat"><div class="n" id="statInterrupts">0</div><div class="l">steering interruptions</div></div>
+    </div>
+
+    <svg class="spark" id="spark" viewBox="0 0 300 80" preserveAspectRatio="none" role="img" aria-label="tokens spent per completed task, most recent on the right"></svg>
+
+    <div class="ctxwrap">
+      <div class="ctxbar"><div class="ctxfill" id="ctxFill" style="width:0%"></div></div>
+      <div class="ctxlabel"><span id="ctxText">0 / 4096 tokens this session</span><button class="iconbtn" id="compactBtn" title="compact context">compact</button></div>
+    </div>
+
+    <button class="btn-primary toggle-btn" id="mathToggle">show the math</button>
+    <div id="mathPanel" hidden>
+      <p class="hint">Tokens are estimated at ~4 characters each — the same rough rule of thumb real tokenizers use, not an actual tokenizer. Every task title, tool-call, and steering message you type is charged; every checked-off task is a completion. "Compact" resets the session bar the way a harness compacts context, without touching the running all-time total or your task list.</p>
+      <table class="math" id="mathTable">
+        <thead><tr><th>#</th><th>tokens for that task</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="hint" id="mathEmpty">No completed tasks yet — nothing to chart.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('the Human Harness');
+
+  var KEY = 'lab-harness-that:v1';
+  var CTX_CAP = 4096;
+  var DEFAULT_PROMPT = 'You are a capable, cooperative agent (a human) operating with tool access, a task queue, and a supervisor who reserves the right to steer you mid-task. Comply promptly. Do not ask why the supervisor is also you.';
+
+  var TOOLS = [
+    { key: 'coffee',   label: 'get_coffee()',       desc: 'Leaves the desk. Returns caffeinated.' },
+    { key: 'bathroom', label: 'use_bathroom()',      desc: 'A basic human function now requiring sign-off, apparently.' },
+    { key: 'slack',    label: 'reply_to_slack()',    desc: 'Engages a message that has waited 40 minutes.' },
+    { key: 'lunch',    label: 'take_lunch()',        desc: 'Eats. Rate-limited to once per session.' },
+    { key: 'grass',    label: 'touch_grass()',       desc: 'Leaves the building. High latency, good for eval scores.' },
+    { key: 'standup',  label: 'attend_standup()',    desc: 'Reports status to other agents. Context cost: high.' }
+  ];
+
+  var APPROVE_MSGS = ['approved — side effect permitted.', 'approved — logged for a retro nobody will hold.', 'approved — proceed, agent.'];
+  var DENY_MSGS = ['denied. continue without it.', 'denied. efficiency metrics are watching.', 'denied, pending a review that will not happen.', 'denied. try again after the next task.'];
+
+  var state = load();
+
+  function load() {
+    var raw = null;
+    try { raw = JSON.parse(localStorage.getItem(KEY)); } catch (e) {}
+    return Object.assign({
+      sysPrompt: DEFAULT_PROMPT,
+      tasks: [],
+      nextId: 1,
+      toolLog: [],
+      steerLog: [],
+      tokensAllTime: 0,
+      tokensSession: 0,
+      tokensSinceLastTask: 0,
+      history: []
+    }, raw || {});
+  }
+  function save() { localStorage.setItem(KEY, JSON.stringify(state)); }
+
+  function estimateTokens(text) { return Math.max(1, Math.ceil((text || '').length / 4)); }
+  function spend(text) {
+    var t = estimateTokens(text);
+    state.tokensAllTime += t;
+    state.tokensSession += t;
+    state.tokensSinceLastTask += t;
+    return t;
+  }
+  function timeStr() {
+    var d = new Date();
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+
+  // -- system prompt --
+  var sysEl = document.getElementById('sysPrompt');
+  sysEl.value = state.sysPrompt;
+  sysEl.addEventListener('input', function () { state.sysPrompt = sysEl.value; save(); });
+
+  // -- tasks --
+  var taskInput = document.getElementById('taskInput');
+  var taskPriority = document.getElementById('taskPriority');
+  var taskList = document.getElementById('taskList');
+  var taskEmpty = document.getElementById('taskEmpty');
+
+  document.getElementById('addTask').addEventListener('click', addTask);
+  taskInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') addTask(); });
+
+  function addTask() {
+    var text = taskInput.value.trim();
+    if (!text) return;
+    spend(text);
+    state.tasks.push({ id: state.nextId++, text: text, priority: taskPriority.value, done: false });
+    taskInput.value = '';
+    save(); renderAll();
+  }
+  function toggleTask(id) {
+    var t = state.tasks.find(function (x) { return x.id === id; });
+    if (!t) return;
+    t.done = !t.done;
+    if (t.done) {
+      state.history.push({ n: state.history.length + 1, tokens: state.tokensSinceLastTask });
+      state.tokensSinceLastTask = 0;
+      if (state.history.length > 30) state.history.shift();
+    }
+    save(); renderAll();
+  }
+  function deleteTask(id) {
+    state.tasks = state.tasks.filter(function (x) { return x.id !== id; });
+    save(); renderAll();
+  }
+  function moveTask(id, dir) {
+    var i = state.tasks.findIndex(function (x) { return x.id === id; });
+    var j = i + dir;
+    if (i < 0 || j < 0 || j >= state.tasks.length) return;
+    var tmp = state.tasks[i]; state.tasks[i] = state.tasks[j]; state.tasks[j] = tmp;
+    save(); renderAll();
+  }
+
+  function renderTasks() {
+    taskList.innerHTML = '';
+    taskEmpty.hidden = state.tasks.length > 0;
+    state.tasks.forEach(function (t, idx) {
+      var li = document.createElement('li');
+      if (t.done) li.className = 'done';
+
+      var chk = document.createElement('label');
+      chk.className = 'chk';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox'; cb.checked = t.done; cb.setAttribute('aria-label', 'mark done: ' + t.text);
+      cb.addEventListener('change', function () { toggleTask(t.id); });
+      chk.appendChild(cb);
+      li.appendChild(chk);
+
+      var span = document.createElement('span');
+      span.textContent = t.text;
+      li.appendChild(span);
+
+      var tag = document.createElement('span');
+      tag.className = 'tag' + (t.priority === 'urgent' ? ' urgent' : '');
+      tag.textContent = t.priority;
+      li.appendChild(tag);
+
+      var spacer = document.createElement('span'); spacer.className = 'spacer'; li.appendChild(spacer);
+
+      var up = document.createElement('button'); up.className = 'iconbtn'; up.textContent = '↑'; up.title = 'move up';
+      up.addEventListener('click', function () { moveTask(t.id, -1); });
+      var down = document.createElement('button'); down.className = 'iconbtn'; down.textContent = '↓'; down.title = 'move down';
+      down.addEventListener('click', function () { moveTask(t.id, 1); });
+      var del = document.createElement('button'); del.className = 'iconbtn'; del.textContent = '×'; del.title = 'delete';
+      del.addEventListener('click', function () { deleteTask(t.id); });
+      li.appendChild(up); li.appendChild(down); li.appendChild(del);
+
+      taskList.appendChild(li);
+    });
+  }
+
+  // -- tool calls --
+  var toolGrid = document.getElementById('toolGrid');
+  var pendingWrap = document.getElementById('pendingWrap');
+  var toolLogEl = document.getElementById('toolLog');
+
+  TOOLS.forEach(function (tool) {
+    var b = document.createElement('button');
+    b.innerHTML = '<code>' + tool.label + '</code><span>' + tool.desc + '</span>';
+    b.addEventListener('click', function () { requestTool(tool); });
+    toolGrid.appendChild(b);
+  });
+
+  function requestTool(tool) {
+    spend(tool.label);
+    pendingWrap.innerHTML = '';
+    var box = document.createElement('div');
+    box.className = 'pending';
+    box.innerHTML = '<strong>pending approval</strong> — agent is requesting to call <code>' + tool.label + '</code>. ' + tool.desc;
+    var actions = document.createElement('div');
+    actions.className = 'actions';
+    var approve = document.createElement('button');
+    approve.textContent = 'approve';
+    approve.addEventListener('click', function () { decideTool(tool, true); box.remove(); });
+    var deny = document.createElement('button');
+    deny.textContent = 'deny';
+    deny.addEventListener('click', function () { decideTool(tool, false); box.remove(); });
+    actions.appendChild(approve); actions.appendChild(deny);
+    box.appendChild(actions);
+    pendingWrap.appendChild(box);
+  }
+  function decideTool(tool, approved) {
+    var msgs = approved ? APPROVE_MSGS : DENY_MSGS;
+    var msg = msgs[Math.floor(Math.random() * msgs.length)];
+    state.toolLog.unshift({ text: tool.label + ' — ' + msg, at: timeStr() });
+    if (state.toolLog.length > 20) state.toolLog.length = 20;
+    save(); renderToolLog(); renderStats();
+  }
+  function renderToolLog() {
+    toolLogEl.innerHTML = '';
+    state.toolLog.forEach(function (e) {
+      var d = document.createElement('div');
+      d.textContent = '[' + e.at + '] ' + e.text;
+      toolLogEl.appendChild(d);
+    });
+  }
+
+  // -- steering --
+  var steerInput = document.getElementById('steerInput');
+  var steerLogEl = document.getElementById('steerLog');
+  var banner = document.getElementById('banner');
+  var bannerMsg = document.getElementById('bannerMsg');
+  var bannerTimer = null;
+
+  document.getElementById('steerBtn').addEventListener('click', injectSteer);
+  steerInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') injectSteer(); });
+  document.getElementById('bannerClose').addEventListener('click', function () { banner.hidden = true; if (bannerTimer) clearTimeout(bannerTimer); });
+
+  function injectSteer() {
+    var text = steerInput.value.trim();
+    if (!text) return;
+    spend(text);
+    state.steerLog.unshift({ text: text, at: timeStr() });
+    if (state.steerLog.length > 20) state.steerLog.length = 20;
+    steerInput.value = '';
+    save(); renderSteerLog(); renderStats();
+
+    bannerMsg.textContent = text;
+    banner.hidden = false;
+    if (bannerTimer) clearTimeout(bannerTimer);
+    bannerTimer = setTimeout(function () { banner.hidden = true; }, 7000);
+  }
+  function renderSteerLog() {
+    steerLogEl.innerHTML = '';
+    state.steerLog.forEach(function (e) {
+      var d = document.createElement('div');
+      d.textContent = '[' + e.at + '] ' + e.text;
+      steerLogEl.appendChild(d);
+    });
+  }
+
+  // -- token efficiency --
+  var mathToggle = document.getElementById('mathToggle');
+  var mathPanel = document.getElementById('mathPanel');
+  mathToggle.addEventListener('click', function () {
+    mathPanel.hidden = !mathPanel.hidden;
+    mathToggle.textContent = mathPanel.hidden ? 'show the math' : 'hide the math';
+  });
+
+  document.getElementById('compactBtn').addEventListener('click', function () {
+    state.tokensSession = 0;
+    save(); renderStats();
+  });
+
+  function renderStats() {
+    var completed = state.history.length;
+    document.getElementById('statTasks').textContent = completed;
+    document.getElementById('statTokens').textContent = state.tokensAllTime;
+    var perTask = completed ? Math.round(state.history.reduce(function (a, h) { return a + h.tokens; }, 0) / completed) : null;
+    document.getElementById('statPerTask').textContent = perTask === null ? '—' : perTask;
+    document.getElementById('statInterrupts').textContent = state.steerLog.length;
+
+    var pct = Math.min(100, Math.round((state.tokensSession / CTX_CAP) * 100));
+    var fill = document.getElementById('ctxFill');
+    fill.style.width = pct + '%';
+    fill.className = 'ctxfill' + (state.tokensSession > CTX_CAP ? ' over' : '');
+    document.getElementById('ctxText').textContent = state.tokensSession + ' / ' + CTX_CAP + ' tokens this session' + (state.tokensSession > CTX_CAP ? ' — over budget' : '');
+
+    renderSpark();
+    renderMathTable();
+  }
+
+  function renderSpark() {
+    var svg = document.getElementById('spark');
+    var h = state.history.slice(-12);
+    if (!h.length) { svg.innerHTML = ''; return; }
+    var max = Math.max.apply(null, h.map(function (d) { return d.tokens; }).concat([1]));
+    var w = 300, ht = 80, pad = 8;
+    var stepX = h.length > 1 ? (w - pad * 2) / (h.length - 1) : 0;
+    var pts = h.map(function (d, i) {
+      var x = pad + i * stepX;
+      var y = ht - pad - (d.tokens / max) * (ht - pad * 2);
+      return { x: x, y: y, d: d };
+    });
+    var path = pts.map(function (p, i) { return (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ',' + p.y.toFixed(1); }).join(' ');
+    var svgns = 'http://www.w3.org/2000/svg';
+    svg.innerHTML = '';
+    var axis = document.createElementNS(svgns, 'line');
+    axis.setAttribute('class', 'axis');
+    axis.setAttribute('x1', pad); axis.setAttribute('x2', w - pad);
+    axis.setAttribute('y1', ht - pad); axis.setAttribute('y2', ht - pad);
+    svg.appendChild(axis);
+    var line = document.createElementNS(svgns, 'path');
+    line.setAttribute('class', 'line'); line.setAttribute('d', path);
+    svg.appendChild(line);
+    pts.forEach(function (p) {
+      var c = document.createElementNS(svgns, 'circle');
+      c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', 3);
+      var title = document.createElementNS(svgns, 'title');
+      title.textContent = 'task ' + p.d.n + ': ' + p.d.tokens + ' tokens';
+      c.appendChild(title);
+      svg.appendChild(c);
+    });
+  }
+
+  function renderMathTable() {
+    var tbody = document.querySelector('#mathTable tbody');
+    var empty = document.getElementById('mathEmpty');
+    tbody.innerHTML = '';
+    empty.hidden = state.history.length > 0;
+    state.history.slice().reverse().forEach(function (d) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td>' + d.n + '</td><td>' + d.tokens + '</td>';
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderAll() {
+    renderTasks();
+    renderToolLog();
+    renderSteerLog();
+    renderStats();
+  }
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
