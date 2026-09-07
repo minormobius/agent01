@@ -15,7 +15,7 @@ The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + pr
 | Dir | `workers/auth/` |
 | Endpoint | `auth.mino.mobi` |
 | Type | backend |
-| Owning branch | `claude/farmville-atproto-game-745mcr` (contested — see below) |
+| Owning branch | `claude/bsky-app-view-feasibility-8sdflz` (handed over 2026-09-06 — see below) |
 | Deploy | `.github/workflows/deploy-auth.yml` |
 | Uses | `mino-auth-db` |
 | Provides | `auth.mino.mobi` |
@@ -33,7 +33,8 @@ repo — a bad push signs everyone out of every site.
 | `claude/feature-merge-candidate-l4dkwq` | what `main`'s registry still names, and **stale**: 2509 commits ahead / 216 behind, and its `workers/auth` diff against `main` is a net *deletion* of 65 lines. Deploying auth from it would strip collections other live sites depend on. Do not. |
 | `claude/standard-site-blog-page-319rod` | claims `auth` on its own branch; carries the `rant.mino.mobi` origin plus the four `site.standard.*` collections, not yet on `main`. |
 | `claude/atproto-infinite-whiteboard-usdpzx` | claimed `auth` back on its own branch and carries the `loop.mino.mobi` origin plus `com.minomobi.loop.answer`. Its collection list is **70 of the 75** below: it does not have the five `com.minomobi.farm.*` entries, so deploying auth from it would strip farm's writes. |
-| `claude/farmville-atproto-game-745mcr` | **current claimant, and the one this merge candidate kept.** Its tree carries all 75 collections — the only claimant that does — plus the `farm.mino.mobi` and `farm-next.mino.mobi` origins and the dedupe of the doubled `lab.doc`/`lab.score` pair that tripped `check-auth-scope`'s gate. |
+| `claude/farmville-atproto-game-745mcr` | **previous claimant**, handed over 2026-09-06. Its tree carried all 75 collections plus the `farm.mino.mobi` and `farm-next.mino.mobi` origins and the `lab.doc`/`lab.score` dedupe — but it was still missing `loop.mino.mobi`, exactly as the 2026-08-15 note warned, so deploying it as-is would have signed loop out. |
+| `claude/bsky-app-view-feasibility-8sdflz` | **current owner.** Took the surface at the principal's instruction to ship `app.bsky.feed.like` and `app.bsky.feed.repost` for bsky.mino.mobi, and now carries `com.minomobi.clef.piece` for clef.mino.mobi on request from `claude/sheet-music-viewer-composer-qb4ljl`. It satisfies the union rule the handover requires: **78 collections, adding only those three and dropping none**, and it carries all four of the `farm`, `farm-next`, `loop` and `rant` origins. `node scripts/check-auth-scope.mjs` green before every deploy. |
 
 ### What the 2026-08-15 merge candidate reconciled
 
@@ -100,6 +101,34 @@ It fails open if production is unreachable (a network blip should not wedge
 deploys) and closed on a real narrowing. It lives in the workflow, which is
 per-branch like every trigger list — so it protects this branch and `main`, and
 protects everyone once the merge candidate lands.
+
+### Requests from other branches
+
+Other branches add a collection to `WRITE_COLLECTIONS` on their own tree and
+then ask the owner to deploy, because **only the owning branch's push deploys**
+and `METADATA_SCOPE` is served live from `/client-metadata.json` — there is no
+static file to edit, and the authorization server grants nothing the metadata
+did not declare.
+
+Handling one (2026-09-05, `com.minomobi.clef.piece` from
+`claude/sheet-music-viewer-composer-qb4ljl`):
+
+1. **Take the hunk, not the commit.** `git show <sha> -- workers/auth/src/oauth/scope.ts
+   | git apply --3way`. Cherry-picking the whole commit drags in their entire
+   surface.
+2. **Read the diff yourself.** Confirm it only inserts. `git show --stat <sha> --
+   workers/auth` should name one file.
+3. **`git diff origin/main -- workers/auth`** must be additive.
+4. **`node scripts/check-auth-scope.mjs`** must be green — it compares this tree
+   against the LIVE ceiling, which is the check that matters.
+5. Push, then verify with a cache-busted `client-metadata.json` and a real PAR.
+
+**A collection is not the whole story: check the ORIGIN too.** A requester
+asking for a collection usually has not thought about whether their host can
+even talk to this worker. `isAllowedOrigin` has a `*.mino.mobi` wildcard behind
+the explicit list, so any `*.mino.mobi` subdomain is fine without an entry —
+which is why clef needed nothing here. A site on some other domain would need
+adding, and the collection alone would not have made its sign-in work.
 
 ### client-metadata.json is cached — deploying is not the same as propagating
 

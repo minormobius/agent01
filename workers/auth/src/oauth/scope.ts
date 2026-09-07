@@ -58,6 +58,11 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.cal.event',
   // cards
   'com.minomobi.cards.catalog',
+  // clef (clef.mino.mobi) — one sheet-music score, stored as its NOTATION
+  // SOURCE rather than as a rendering. That is the point of the collection:
+  // a record any tool can engrave, and that stays legible after every program
+  // that produced it is gone.
+  'com.minomobi.clef.piece',
   // crm / org (cleartext contact/deal/expense types, written inside sealed)
   'com.minomobi.crm.contact',
   'com.minomobi.crm.deal',
@@ -160,6 +165,13 @@ const WRITE_COLLECTIONS = [
   'exchange.recipe.recipe',
   // poll + wave post to Bluesky proper
   'app.bsky.feed.post',
+  // bsky (bsky.mino.mobi) — the frontend-only AppView. A client that can read a
+  // timeline but not like a post is a reader, not a client; these are the two
+  // writes that make it one. Both are ordinary app.bsky records in the user's
+  // own repo, and bsky.mino.mobi requests them as a NARROW scope alongside
+  // feed.post rather than taking the union.
+  'app.bsky.feed.like',
+  'app.bsky.feed.repost',
   // feedgen (b.mino.mobi/feedgen) — the feed definition record + the published feed generator
   'com.minomobi.feedgen.def',
   'app.bsky.feed.generator',

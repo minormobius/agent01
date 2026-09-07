@@ -1,0 +1,149 @@
+name: Deploy bsky (frontend-only AppView)
+
+on:
+  push:
+    branches: ['claude/bsky-app-view-feasibility-8sdflz']
+    paths:
+      - 'bsky/**'
+      - 'packages/atproto/jetstream.js'
+      - 'packages/atproto/constellation.js'
+      - 'packages/atproto/bsky.js'
+      - 'packages/oauth-client/auth.js'
+      - '.github/workflows/deploy-bsky.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bsky
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The assets root is bsky/, so `../packages/` is outside it and a
+      # cross-directory import would 404 in the browser. Stage the three
+      # dep-free modules in rather than vendoring copies that can drift —
+      # the b/ and mappa pattern. bsky/packages/ is gitignored.
+      - name: Stage shared libs
+        run: |
+          mkdir -p packages/atproto packages/oauth-client
+          cp ../packages/atproto/jetstream.js     packages/atproto/
+          cp ../packages/atproto/constellation.js packages/atproto/
+          cp ../packages/atproto/bsky.js          packages/atproto/
+          # compose.js posts through the shared OAuth worker.
+          cp ../packages/oauth-client/auth.js     packages/oauth-client/
+          ls -la packages/atproto packages/oauth-client
+
+      # no-undef, as a hard gate. Two shipped bugs in a row were an identifier
+      # that did not exist (`signOut`, then `why`); neither is a syntax error,
+      # so node --check passes both and they only fail when the line runs.
+      # eslint is not a repo dependency, so it is installed here rather than
+      # letting the selftest skip.
+      - name: Scope-check the browser modules (no-undef)
+        run: |
+          npm install --no-save --no-package-lock eslint >/dev/null 2>&1
+          node lib/undef.selftest.mjs
+
+      # The archive path (deep history, the visitor's own key) needs two things
+      # a plain static page cannot have: the Jetstream SDK, which ships bare
+      # specifiers and deps, and a dictionary-capable zstd. Both are BUILT here
+      # rather than committed, so no WASM binary or vendored bundle lives in git.
+      #
+      # Built in RUNNER_TEMP, never in bsky/: assets.directory is "." for this
+      # surface, so an npm install inside it would publish node_modules to the
+      # live site. Only the three built files are copied back in.
+      - name: Build browser bundles (deep-history path)
+        run: |
+          BUILD="$RUNNER_TEMP/bsky-bundles"
+          mkdir -p "$BUILD" && cd "$BUILD"
+          npm init -y >/dev/null
+          npm install --no-save @bsky/jetstream @bokuweb/zstd-wasm esbuild
+          printf 'export { Jetstream } from "@bsky/jetstream";\n' > entry.js
+          # --conditions=browser resolves the SDK's #runtime import to its
+          # browser branch, which has no node:zlib / node:crypto defaults and
+          # takes our injected decompressor + sha256 instead.
+          npx esbuild entry.js --bundle --format=esm --platform=browser \
+            --conditions=browser --target=es2022 --outfile=jetstream.browser.js
+          npx esbuild node_modules/@bokuweb/zstd-wasm/dist/web/index.web.js \
+            --bundle --format=esm --platform=browser --target=es2022 --outfile=zstd.index.js
+          cd "$GITHUB_WORKSPACE/bsky"
+          mkdir -p lib/vendor/zstd
+          cp "$BUILD/jetstream.browser.js" lib/vendor/
+          cp "$BUILD/zstd.index.js"        lib/vendor/zstd/index.js
+          cp "$BUILD/node_modules/@bokuweb/zstd-wasm/dist/web/zstd.wasm" lib/vendor/zstd/
+          # Fail loudly rather than deploying a page whose imports 404.
+          test -s lib/vendor/jetstream.browser.js
+          test -s lib/vendor/zstd/index.js
+          test -s lib/vendor/zstd/zstd.wasm
+          grep -q "no default zstd support" lib/vendor/jetstream.browser.js \
+            || { echo "::error::bundled the NODE runtime branch, not the browser one"; exit 1; }
+          ls -la lib/vendor lib/vendor/zstd
+
+      # pdf.js, for reading a paper in the feed. ~448 KB + a 1.3 MB worker, so
+      # it is NOT in the app shell and is dynamically imported only when a
+      # reader opens a paper. Copied rather than bundled: the distribution is
+      # already a browser ESM build with its own worker file, and re-bundling it
+      # only risks breaking the worker's own module boundary.
+      - name: Stage pdf.js (lazy, not shell)
+        run: |
+          BUILD="$RUNNER_TEMP/pdfjs"
+          mkdir -p "$BUILD" && cd "$BUILD"
+          npm init -y >/dev/null
+          npm install --no-save pdfjs-dist
+          cd - >/dev/null
+          mkdir -p lib/vendor/pdfjs
+          # The LEGACY build, not the modern one. pdfjs 6's modern bundle calls
+          # Map.prototype.getOrInsertComputed — a proposal so new that Chromium
+          # 1194 does not have it, and rendering fails with
+          # "getOrInsertComputed is not a function": pages size correctly and
+          # draw nothing. Measured, not guessed. The legacy bundle ships the
+          # core-js polyfill for it and costs ~50 KB more.
+          cp "$BUILD/node_modules/pdfjs-dist/legacy/build/pdf.min.mjs"        lib/vendor/pdfjs/
+          cp "$BUILD/node_modules/pdfjs-dist/legacy/build/pdf.worker.min.mjs" lib/vendor/pdfjs/
+          ls -la lib/vendor/pdfjs
+
+      # hls.js, for playing a video anywhere that is not Safari. Bluesky serves
+      # HLS, which only Safari/iOS play from a bare <video src> — everywhere
+      # else the play button did nothing at all. Same terms as pdf.js: never in
+      # the shell, dynamically imported on the tap, and Safari never fetches it.
+      #
+      # The LIGHT build: it drops the alternate-audio and subtitle demuxers,
+      # which a Bluesky clip does not carry, for roughly a third of the size.
+      - name: Stage hls.js (lazy, not shell)
+        run: |
+          BUILD="$RUNNER_TEMP/hlsjs"
+          mkdir -p "$BUILD" && cd "$BUILD"
+          npm init -y >/dev/null
+          npm install --no-save hls.js
+          cd - >/dev/null
+          mkdir -p lib/vendor/hls
+          cp "$BUILD/node_modules/hls.js/dist/hls.light.min.js" lib/vendor/hls/hls.min.js
+          # Fail loudly rather than deploying a play button whose import 404s.
+          test -s lib/vendor/hls/hls.min.js
+          ls -la lib/vendor/hls
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Jetstream's live tail needs no key. Its ARCHIVE REPLAY does, and is
+      # metered in bytes — which is the whole reason this surface has a worker
+      # at all. Absent the secret the /api/replay/* route answers 503 with a
+      # reason and the page stays in live-only mode; it does not break.
+      - name: Set Jetstream replay key (optional — history stays off without it)
+        env:
+          # Repo secret is JETSTREAM_KEY; the worker binding is JETSTREAM_API_KEY.
+          JETSTREAM_API_KEY: ${{ secrets.JETSTREAM_KEY }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$JETSTREAM_API_KEY" ]; then
+            printf '%s' "$JETSTREAM_API_KEY" | npx wrangler secret put JETSTREAM_API_KEY
+            echo "✓ JETSTREAM_KEY set — archive metadata routes on"
+          else
+            echo "· JETSTREAM_KEY empty — the ~36h live window still works; archive returns 503"
+          fi
