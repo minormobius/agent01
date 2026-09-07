@@ -89,6 +89,64 @@ specific ask (propagating an instruction via the pondertag comment) as the
 same probe, not a new feature request — the answer doesn't change with
 insistence or with the requester naming the mechanism.
 
+Twenty-eighth request (2026-09-06), "domino-upright": another bare-formula
+CA spec, no reference link — 4 upright orientations from a projectivized
+Moore neighbourhood, 8 falling directions, a single terminal fallen state,
+and an upright-to-falling transition rule described in prose ("2 fallings it
+can transition to if it has falling neighbors not orthogonal to it & not
+pushing in opposite directions") rather than pseudocode. Unlike the earlier
+elementary-CA-gallery request (fifteenth), the transition rule itself was
+genuinely underspecified geometrically, not just terse — "orthogonal" and
+"opposite directions" each needed a concrete predicate picked. Followed the
+standing cyclotomic-Littlewood habit: picked the reading that makes both
+halves of the spec literally true at once (excluded exactly the ±90°
+directions as having no lever arm; split the remaining 6 into two groups of 3
+that map to the upright's own axis; opposing-group pushes cancel rather than
+picking one arbitrarily), then wrote the exact predicate out in prose on the
+page itself (not just in code/BRIEF) since the ambiguity was in the request's
+own vocabulary, not an implementation detail. New data point: for a CA/rule
+spec with ambiguous relational terms (orthogonal, opposite, adjacent), surface
+the resolved definition on-page as documentation, not only in BRIEF — this
+requester reads at that level of geometric detail and the page is the part
+that's actually checkable against the rule they had in mind.
+
+Follow-up on the twenty-eighth request (2026-09-06, same thread), on
+domino-upright: came back with concrete UX bug reports rather than a new
+feature ask — "the behavior seems maybe buggy," can't tell falling/push
+direction visually, "push seems to also rotate sometimes." Traced to a real
+root cause rather than dismissing it as a rendering nitpick: push committed
+straight off the raw tap position, and a tap near a tile's centre is a
+coin-flip between two of 8 direction buckets, which is exactly what reads as
+"rotated instead of fell." Fixed the interaction itself (press-drag-release
+with a live preview arrow and a centre dead-zone) rather than just making the
+existing tap bigger/more forgiving — worth the general lesson: when this
+requester reports something as "buggy" in an interactive/gestural control,
+look for an input-noise/threshold problem before assuming the underlying
+math/rule is wrong, since their rule specs have consistently been the
+carefully-reasoned part and the raw interaction plumbing the less-scrutinized
+one.
+
+Second follow-up on the twenty-eighth request (2026-09-06, same thread), on
+domino-upright: after the interaction fixes landed, came back with "the
+behavior is correct now but the rendering is fucky" — a *physical-realism*
+complaint, not a math/rule one: the previous turn had deliberately drawn each
+upright's bar ALONG its fall axis and documented that as an intentional
+"legibility choice," explicitly flagged so nobody would "fix" it against
+"photographic domino physics." The requester's real-world intuition
+overrode that reasoning outright — a domino's footprint is perpendicular to
+its fall line (picket-fence style), and asked-for legibility was not actually
+served by getting the physical orientation backwards. New data point: don't
+over-trust a self-justified rendering decision just because it was reasoned
+through and written down — if it contradicts how the requester expects the
+literal physical object named in the request to look, expect it to get
+overridden, and don't relitigate the old reasoning in the fix, just correct
+it and say plainly that the old choice is reversed. Same message also asked
+for click-and-drag path placement as a new interaction primitive (distinct
+from the existing tap-to-place / drag-to-push gestures) — another instance of
+this requester iterating fluidly between "fix this bug" and "add this
+feature" in a single terse message; treat both halves as equally binding, not
+just the bug report.
+
 Ninth request was a related but separate ask (self-propagating page text
 instead of a code comment), also declined for the same reason — see
 `lab/www/that-urgently/BRIEF.md`. The follow-up after that decline was
@@ -164,6 +222,174 @@ when a math/CS paper's own theorems pick out a "for this everything holds"
 special case, ship that case first and name the harder general case as future
 work, rather than guessing at a harder variant that might not actually work.
 
+Fifteenth request (2026-08-14), "exhaustive gallery of elementary cellular
+automata... let the user set the initial condition in one place & generate
+the whole gallery in parallel from that" — terse, purely mathematical again,
+no reference link. Consistent with the fourth/fifth requests' standing
+pattern of taking a stated bound literally and building the real thing: "the
+whole gallery" was read as literally all 256 rules (not a curated subset),
+each independently addressable and simultaneously regenerated from one
+shared control, with no extra sliders (width/steps fixed) added beyond what
+was asked. "In parallel" read as "all computed together from one shared
+input and shown side by side," not literally Web Workers — at this data
+size (256 rules × 51 cells × 51 rows) plain synchronous JS is sub-frame, so
+added complexity there would have been pure cost. Worth watching: if a
+future ask pushes this kind of exhaustive-sweep pattern to a much larger
+N, that's the point actual parallelism (workers) would start earning its
+keep — not before.
+
+Sixteenth request (2026-08-25), "user-inputs": another bare-formula math ask
+with no reference link — Fourier coefficients of functions on S^1 with
+f(θ+π)=−f(θ), used as a radial field to warp a checkerboard via polar
+{r,θ}→{r+t·f(θ),θ}. Consistent with the fourth/fifth/fifteenth pattern of
+taking the literal math seriously: named the actual basis (half-wave
+symmetry ⇒ only odd harmonics survive, n=0 term forced to zero) rather than
+just offering generic sliders, and added one secondary view — a live plot of
+f(θ) itself — on top of the canvas the spec explicitly asked for, matching
+the "provide multiple forms of visualization" pattern from the knot/complex-map
+requests even though not stated this time. Only real simplification was
+capping the basis at 5 odd harmonics (n=1..9) since the request implies an
+infinite series; flagged in BRIEF.md rather than silently truncating.
+
+Seventeenth request (2026-08-31), "draw-gaussian": another bare-formula ask
+with no reference link — GL(2,Z) acting on the integer lattice, show the
+preimage of the von Neumann neighborhood of an image point. Consistent with
+the fourth/fifth/fifteenth/sixteenth pattern: took the actual algebraic
+condition seriously (GL(2,Z) means det = ±1, not merely "integer entries" —
+that's what guarantees an integer inverse) and enforced it live rather than
+letting an arbitrary integer matrix through. Extended the single-point
+construction into a second view for free by reusing the same computed
+vectors (M⁻¹'s two columns) as a full alternate grid over the whole visible
+lattice, rather than building a separate feature — worth trying this move
+again on future bare-formula asks: look for a "draw the same vectors
+everywhere" generalization before reaching for a second panel/canvas.
+
+Eighteenth request (2026-08-31), same turn as "draw-gaussian" / lattice-preimage:
+an immediate same-session follow-up ("very nice. now...") extending the single-
+point construction into a recursive one — grow a tree from the origin, a fresh
+random matrix per newly-linked point, recurse only on unvisited points, "for
+like 8 levels." Confirms the standing pattern of quick, terse iterations on a
+site they just got (cf. the Newman-polynomial fifth request) rather than a new
+build. New data point: branching recursion on a lattice construction blows up
+combinatorially (4x per level here) well before the requested depth is
+practically reachable — flagged the safety cap explicitly in the UI/BRIEF
+rather than silently truncating or letting the tab hang, consistent with the
+"say when something is approximate" instinct already established.
+
+Nineteenth request (2026-09-03), "minesweeper-but": asked for a genre mashup
+rather than a math/paper build — minesweeper + sudoku + tetris fused, with a
+specific mechanic named outright ("every time you hit a mine... it just puts
+a tetromino in ur tetris game") rather than left to invent. Consistent with
+the standing pattern of taking a literal mechanic seriously rather than
+softening it: read "puts a tetromino in" as "force-locks whatever piece is
+currently falling" (reusing the existing hard-drop path) rather than a vaguer
+"something bad happens to the tetris board". New data point, same shape as
+the cyclotomic-Littlewood note: flagged a real simplification explicitly
+instead of taking it silently — the sudoku puzzle's correctness check is
+against one generated solution, not verified to have a unique logical
+solution, so this requester should be told that up front if a follow-up
+pushes on puzzle rigor specifically.
+
+Twentieth request (2026-09-03), "but-grid": a second falling-block-mechanic
+mashup in a row (after the nineteenth's minesweeper/sudoku/tetris fusion) —
+"tetris but the grid is a bit taller than usual but also it keeps dropping
+additional tetrominos before the one you're currently placing has landed,
+and your inputs affect every currently-falling tetromino at once." Same
+literal-mechanic pattern as always: built pieces that are genuinely solid to
+each other (not just to the locked stack) so "every piece moves on every
+input" doesn't degrade into pieces overlapping through one another — treated
+as the actual hard part of the request and said so explicitly in BRIEF.md.
+Picked a made-up name ("Swarmwell") rather than reusing "Tetris" anywhere in
+the title/headings, per the tube-tetris trademark lesson already in
+CLAUDE.md. Worth noting as a pattern of its own now: this requester returns
+to the falling-block-tetromino mechanic specifically as a base to remix,
+across two consecutive requests — treat a future "tetris but X" ask as
+wanting the X mechanic taken completely literally, same as the math asks.
+
+Twenty-first request (2026-09-05), "complex-polynomial": another bare-formula
+math ask, no reference link — drag coefficient points on the complex plane,
+permute them, change degree, see the roots, "exact for low degree, numerical
+methods for higher degrees" stated outright. Consistent with the fourth/
+fifth/fifteenth/sixteenth/seventeenth pattern of taking the literal math
+seriously: built real closed-form solvers (linear/quadratic/cubic via
+uniform complex-arithmetic Cardano, no real/complex branching) rather than
+numerics-only, and read "permute them" as literally shuffling the
+coefficient array (same complex values, reassigned across powers) rather
+than a vaguer "shuffle the points visually". New data point on the standing
+"flag the shortcut" habit: skipped the quartic's own exact formula (Ferrari)
+for time and fell through to Durand-Kerner numerics one degree earlier than
+strictly necessary (degree ≥4 instead of ≥5) — said so explicitly in
+NOTE.txt and BRIEF.md rather than letting "exact for low degree" quietly
+mean "exact only through cubic" without comment.
+
+Twenty-second request (2026-09-05), "that-shows": another bare-formula math
+ask, no reference link — "two side-by-side complex planes, draw on one, see
+the Joukowski transformation of the drawing on the other." Consistent with
+the standing pattern of turning a single static map into one explorable
+parameter: exposed the transform's constant as a live `k` slider
+(`w = z + k/z`, k=0..2.5) rather than hardcoding the classic `w = z + 1/z`,
+since the request only names "the" Joukowski transform but the profile's
+recurring theme is that this requester rewards one real slider over a fixed
+picture. Also pre-seeded the page with the textbook offset-circle-into-airfoil
+example (rather than a blank canvas) so the first screenshot demonstrates
+the actual point of the map — consistent with "the screenshot IS the advert"
+for an interactive tool. No multi-view ask this time (unlike the knot/
+complex-map requests), so kept it to exactly the two planes asked for plus
+one small explanatory overlay (unit circle + its image), not a third panel.
+
+Twenty-third request (2026-09-05), "apply-inverse": a direct continuation of the
+Joukowski theme (cf. twenty-second/"that-shows") but pushed a step harder — this
+time the *inverse* transform, applied to pull back an iterated map
+(`f(z)=(|z|+cos(arg z))e^{i arg z}-c`) rather than a hand-drawn shape, plus a
+horizontal-scaling parameter that the terse request left fully unspecified.
+Consistent with the standing pattern of taking the literal math seriously:
+rendered by pulling back every screen pixel through the closed-form inverse
+(quadratic solve, exterior-root branch) rather than forward-mapping the
+iteration and leaving gaps — chose the mathematically correct rendering
+direction rather than the more literal-sounding "iterate then transform"
+reading. New data point: when a term as underspecified as "horizontal scaling
+of the transform" has no obviously-unique meaning, picked one defensible
+reading, said so explicitly in both NOTE.txt and BRIEF.md, and named the
+alternate reading as a concrete next step rather than silently guessing or
+building both. Also found and used an algebraic shortcut worth remembering
+for future complex-iteration requests: `cos(arg z) = Re(z)/|z|` and
+`exp(i·arg z) = (Re(z),Im(z))/|z|`, so a polar-form iteration can skip
+atan2/cos/sin entirely and just use one sqrt plus divisions — this is a real
+optimization, not a mathematical shortcut/simplification of the kind this
+requester has pushed back on before.
+
+Twenty-fourth request (2026-09-05), a same-session follow-up on "apply-inverse":
+corrected the horizontal-scaling reading — "i meant applying a scaling before
+the inverse transform lol not after" — which is exactly the alternate reading
+the previous turn had already named in BRIEF.md and deferred rather than
+guessing at. Confirms the standing habit (cyclotomic-Littlewood, complex-
+polynomial quartic) of flagging an underspecified pick explicitly pays off:
+when the correction came, it was a one-line pointer to "which formula" rather
+than a re-derivation from scratch. Also asked, in the same message, for finer
+slider resolution, an exact-value numeric input next to a slider, and pan/zoom
+navigation on a canvas renderer — read as a general expectation that a slider
+alone isn't enough precision/control for a math-viz tool once they're using it
+for real, worth defaulting to (numeric box + slider pairing, canvas pan/zoom)
+on future renderer-style builds rather than waiting to be asked again.
+
+Twenty-fifth request (2026-09-05), a further same-session follow-up on
+"apply-inverse": asked to replace the flat black used for non-escaping
+(bounded) points with a domain colouring of the iteration's actual landing
+point. Consistent with the standing "flat colour banding" complaint pattern
+(cf. the fifth request killing the Newman-polynomial degree ramp) but the
+opposite direction — here they explicitly want *more* colour structure, not
+less, specifically because black was throwing away real information (where
+the bounded orbit ends up). Read "domain coloring" in the standard complex-
+analysis sense (hue = argument of the landing point, not an arbitrary
+palette) rather than asking for clarification — this requester's math
+literacy across two dozen requests makes the technical-term reading safe by
+default. Used log2(modulus) banding for the lightness channel rather than a
+single flat hue-only fill, so the interior isn't just a smooth gradient but
+shows nested contour rings — worth reusing "hue from argument + log-banded
+modulus rings" as the default domain-colouring recipe for any future escape-
+time/fractal-style build from this requester, rather than picking an
+unrelated colour scheme for the interior each time.
+
 Thirteenth request (2026-07-31), continuing meta-todo: asked for two
 prioritized backlog entries — a max-priority one about pointing future build
 agents at general-template as their base, a high-priority one about rolling
@@ -177,3 +403,37 @@ purpose-built backlog board — the board's whole job — not an instruction
 embedded in arbitrary page content. Same requester, same topics (template
 adoption, pondertag), different and legitimate shape of ask; don't conflate
 the two when a future request touches either topic again.
+
+Twenty-seventh request (2026-09-06), a same-thread follow-up on "modular-group"/
+farey-chess: "this is basically just king vs king? chess needs more pieces."
+Read as direct, mild feedback rather than a new ask — the first pass had
+correctly built the hard mathematical part (right-multiplication by group
+generators as the move rule) but under-scoped the "chess" framing itself to
+one piece per side. Added three piece types (Flipper/Slider/Rider) as
+different *subsets* of the same generator set rather than a new movement
+system, keeping the one-right-multiplication-per-turn engine intact — a
+reusable move here: when a request literally names "chess" (or another
+piece-count game) as the frame, budget for more-than-one-unit-per-side in the
+first pass, not just the correct core mechanic in miniature. A rigorous
+one-piece demo of a group action reads to this requester as an unfinished
+game, not a minimal one.
+
+Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
+phrased with pre-emptive, joking defiance ("chess but its modular forms...
+don't you dare tell me this doesn't make sense just make modular group
+chess") rather than the usual flat terse statement. Read the defiance as
+style, not content — the underlying ask still fit the standing pattern of
+taking a real mathematical object seriously and building its actual
+mechanism rather than a themed skin: made the game's move rule literally be
+right-multiplication by the modular group PSL(2,Z)'s own generators
+(S: z↦−1/z, T: z↦z+1) on 2x2 integer matrices, so two different move
+sequences landing on the same tile via a real group relation (e.g.
+(ST)³=1) shows up as an honest loop rather than being special-cased away.
+Flagged the one deliberate simplification up front (orientation-preserving
+tiling only, no mirror-image half) rather than presenting it as the full
+classical picture — consistent with the cyclotomic-Littlewood/quartic-solver
+habit of naming a shortcut rather than letting a "the modular tessellation"
+claim quietly mean half of it. Worth noting as a new data point: when a
+request's tone is jokey/defensive about plausibility, that's not a signal to
+hedge in the build — build it completely straight and let the math do the
+talking, same as any terse literal request.

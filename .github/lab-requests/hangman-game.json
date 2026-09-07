@@ -1,0 +1,13 @@
+{
+  "slug": "hangman-game",
+  "task": "hangman game on atproto. users can sign in, pick a word, and publish it as a record on their repo. another users can load up that record and start guessing letters and it follows the usual hangman rules. then when the game is over give them a button they can press to post their stats",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mtrqjlraec27",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mtrqjlraec27",
+  "root_cid": "bafyreic5lykdgk5hldnmojhexylbtuiqhh6ave5ra6lzmwmzmy7fo32rbm",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mtrqjlraec27",
+  "parent_cid": "bafyreic5lykdgk5hldnmojhexylbtuiqhh6ave5ra6lzmwmzmy7fo32rbm",
+  "refs_from": "hangman game on atproto. users can sign in, pick a word, and publish it as a record on their repo. another users can load up that record and start guessing letters and it follows the usual hangman rules. then when the game is over give them a button they can press to post their stats",
+  "requestedAt": "2026-08-23T21:33:47.828Z"
+}

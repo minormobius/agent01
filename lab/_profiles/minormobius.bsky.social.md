@@ -656,6 +656,61 @@ wiring up `pds.js` scores for a re-simulation-verified leaderboard on *any*
 site needs to swap in a seeded PRNG first, or claimed scores are
 unverifiable by construction.
 
+## `one-hand` (2026-08-19): a self-initiated math/social request grown from watching a thread, not a "build that" reply to a factory advert
+Unlike the recurring "build that" pattern on factory-posted concept adverts
+(physics/graph-theory/geometry/economics pitches), this request was
+self-devised from a thread the requester was participating in, referencing a
+specific idea floated by someone else in the thread ("linear combination of
+your mufos") and rating it themselves as "beyond the buildabots" — read as
+license to attempt the actual hard math for real rather than defaulting to a
+cosmetic version, consistent with the `that-2`/Sixfold "go for it baby" and
+`honeyflow-chess` "can't cheat the flow, it's gotta be solved not guessed"
+pattern: this requester distinguishes a solver that actually minimizes an
+objective from one that only looks like it does, even in a single-turn build
+with no chance to correct it yet. Also notable: the thread contained a
+pointed complaint (a different person's "imitation guide" had been used to
+doxx a thread participant), and the requester's own phrasing had picked the
+non-doxxing framing ("linear combination" blend across many mutuals) over the
+adjacent "which one tweet was written by someone else" framing that had just
+been criticized in the same thread — worth reading a requester's specific
+word choice in a socially-loaded thread as a deliberate design constraint,
+not just flavor, when an adjacent framing in the same conversation was just
+called out as harmful. No correction received yet to confirm any of this
+lands well.
+
+## `one-hand` (2026-08-19), turn 2: a scale complaint comes with the actual replacement mechanism named, not just "do more"
+Follow-up after turn 1's follow-graph mutuals (capped at 8, one page of
+follows/followers): "no way is this gonna work with 100 follows. you gotta
+parse the full follow graph. youd be better suited to use an interaction
+chart, say your top 100 most interacted with accounts (that might not fill
+up, that's ok)." Same pattern as `take-escher` turn 5 ("build a buffer,
+retire tiles exceeding threshold") — this requester's terse critique often
+names the actual replacement data structure/algorithm, not just the symptom,
+and it's meant literally: built exactly "an interaction chart" (tally who
+the visitor replies to and quotes in their own paginated post history, rank
+by count, cap at 100) rather than the more conservative fix of merely
+paginating the old follows/followers intersection, since the message reads
+as "use a different mechanism," not "make the old one bigger." Also notable:
+"that might not fill up, that's ok" pre-empts a defensive design choice
+(don't force the cap) — worth taking a stated tolerance for an undersized
+result at face value rather than second-guessing it into a forced minimum.
+
+## `testing-this` (2026-08-23): the "always" preferences generalize to a pure reference/content page, not just games and sims
+Reply to a "good prompt" template floated by a third party in a thread (summarize
+your town's history in detail — timeline, demographics, population, economic
+stats, main events), filled in with "Kansas City" — a self-initiated content
+request, not a "build that" reply to a factory pitch, and not interactive in the
+game/sim sense at all. No back-and-forth to draw a correction from. Confirms the
+standing "always" rules (`want-pairwise`, second pass) apply even here: the one
+chart on the page (population by decade) got the big-shiny-copy-image-button
+treatment and was drawn straight to canvas rather than SVG/DOM specifically so
+mobile long-press "copy image" works natively, per the established mobile-testing
+pattern — worth defaulting to on any future chart for this requester regardless
+of whether the site is a game, a sim, or (as here) a plain informational page.
+No handle-entry field existed on this page (nothing here needs a Bluesky
+identity), so the typeahead half of the "always" rule didn't apply — not a
+deviation, just not applicable.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

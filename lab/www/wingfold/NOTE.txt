@@ -1,0 +1,1 @@
+w = z + k/z, k is a slider. Seeded with the offset-circle-into-airfoil demo so it isn't blank. w-plane view auto-fits your strokes since points near the z=0 pole blow up. Next: drag the circle's center to sculpt it live — in BRIEF.md.
