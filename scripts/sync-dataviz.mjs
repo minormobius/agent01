@@ -57,6 +57,25 @@ const EXTRA = [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],
   ]),
+  // atlas/ serves packages/geoviz + packages/geohier as plain <script> assets:
+  // the county map, the projections, the colour scales, the hierarchy rollups
+  // and the regionaliser all run in the browser, and a static origin cannot
+  // import across directories. Drift here is the dangerous kind — the ETL and
+  // the page share the geometry codec, so a stale copy would decode last
+  // month's arcs against this month's index and draw a map that is subtly,
+  // silently wrong rather than broken.
+  ["packages/geoviz/codec.js", "atlas/lib/codec.js"],
+  ["packages/geoviz/projection.js", "atlas/lib/projection.js"],
+  ["packages/geoviz/scale.js", "atlas/lib/scale.js"],
+  ["packages/geoviz/triangulate.js", "atlas/lib/triangulate.js"],
+  ["packages/geoviz/mesh.js", "atlas/lib/mesh.js"],
+  ["packages/geoviz/gl-fill.js", "atlas/lib/gl-fill.js"],
+  // The worker importScripts()es triangulate.js and mesh.js RELATIVE TO ITSELF,
+  // so it has to land beside them in atlas/lib/ or it resolves to nothing.
+  ["packages/geoviz/mesh-worker.js", "atlas/lib/mesh-worker.js"],
+  ["packages/geoviz/atlas-map.js", "atlas/lib/atlas-map.js"],
+  ["packages/geohier/hier.js", "atlas/lib/hier.js"],
+  ["packages/geohier/regionalize.js", "atlas/lib/regionalize.js"],
 ];
 
 const args = process.argv.slice(2);

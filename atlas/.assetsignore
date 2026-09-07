@@ -1,0 +1,6 @@
+# The ETL is the build, not the site. It is committed so the artefacts in /geo
+# and /data are reproducible from their primary sources, but nothing under it
+# is ever fetched by the page.
+etl/
+CLAUDE.md
+wrangler.jsonc
