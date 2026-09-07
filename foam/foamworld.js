@@ -166,8 +166,16 @@ export function generatePocket(opts = {}) {
     daisR: 1.9,                     // radius of the start dais disk
     parMin: 5, parTarget: 9,        // puzzle length: min / preferred breaches
     maxSalt: 24,
+    saltFrom: 0,                    // start the search here (0 = the first
+                                    // solvable pocket, the default forever).
+                                    // A caller that needs a pocket with MORE
+                                    // than solvability — the dungeon layer
+                                    // proving a k-way confluence exists —
+                                    // walks this forward to enumerate
+                                    // successive certified pockets. Every
+                                    // pocket returned is certified either way.
   }, opts);
-  for (let salt = 0; salt < o.maxSalt; salt++) {
+  for (let salt = o.saltFrom; salt < o.maxSalt; salt++) {
     const p = buildPocket(o, salt);
     if (p) return p;
   }
