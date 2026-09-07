@@ -33,10 +33,10 @@ _Regenerated 2026-09-07 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 84, bluesky 75, tools 66, data 63, work 8.
 
-**Neighborhood spark** (bisk 2026-09-07, 98 members / 243 posts):
+**Neighborhood spark** (bisk 2026-09-07, 98 members / 246 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: astra, gpt, idk
-- Top post: "you want an unironic "woke 1 was crazy" see the ancient texts (tumblr being weirdly racist in the name of wokeness)" — @segyges.bsky.social
+- Distinctive words: astra, gpt, openai
+- Top post: "me: i think you should eat a little slower. my cat, sitting in front of a pool of her own throw up: i think you should s" — @goose.art
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
