@@ -56,6 +56,7 @@ window.SPEC_CURATED = {
     polis: 'generative', mappa: 'generative', fipo: 'generative',
     wormhole: 'generative', idol: 'generative', table: 'generative',
     g: 'games', torus: 'games', canvas: 'games', pokemon: 'games',
+    ink: 'generative',
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
     foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
