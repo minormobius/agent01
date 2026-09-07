@@ -1,0 +1,76 @@
+name: Deploy ken (the measurement of delegated work)
+
+on:
+  push:
+    branches: ['claude/repo-study-fields-0ftd34']
+    paths:
+      - 'ken/**'
+      - '.github/workflows/deploy-ken.yml'
+      # The selftest recomputes every figure the site quotes from these two
+      # sources. If the record changes and the prose does not, the gate must
+      # run and go red, so a change to either has to wake this workflow.
+      - '.github/loop/turns.jsonl'
+      - '.github/loop/runs.jsonl'
+      - 'bakeoff/results/**'
+      - 'os/public/arena/**'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ken
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Design calculator (92 known-answer checks)
+        run: node lab/design.selftest.mjs
+      - name: Design simulator (32 known-answer checks)
+        run: node lab/simulate.selftest.mjs
+      - name: H4 analysis (37 checks, pinned to the committed ledger)
+        run: node lab/h4.selftest.mjs
+      - name: Factorial + Bradley-Terry (36 checks)
+        run: node lab/factorial.selftest.mjs
+      - name: Run shape + the STE language test (39 checks)
+        run: node lab/runshape.selftest.mjs
+      - name: Plan rewrite rules, derived layout + skip visibility (98 checks)
+        run: node lab/plan.selftest.mjs
+      - name: Role algebra + the shape catalogue (189 checks)
+        run: node lab/roles.selftest.mjs
+      - name: Profiles, the space, ancestry, regimes + attenuation (627 checks)
+        run: node lab/profiles.selftest.mjs
+      - name: The attenuation probe, and the R13 simulation that priced it (66 checks)
+        run: node lab/probe.selftest.mjs
+      - name: The exchange rate, the floor, and the seeded-defect price of H9 (81 checks)
+        run: node lab/equivalence.selftest.mjs
+      - name: "The gate: coverage, unsoundness, and the agreement floor (72 checks)"
+        run: node lab/gate.selftest.mjs
+      - name: The task bank's admission gate (70 checks, including a mutation that never applied)
+        run: node lab/taskbank.selftest.mjs
+      - name: The run harness, including a leak and a containment breach it must catch (127 checks)
+        run: node lab/runner.selftest.mjs
+      - name: Selftest (citations, prose lint, tables, roadmap graph, quoted figures)
+        run: node ken.selftest.mjs
+      - name: Install wrangler
+        run: npm install wrangler
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Verify the custom domain is bound and the site is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://ken.mino.mobi/ | grep -qi 'measurement of delegated work'; then
+              echo "✓ ken is live on its custom domain"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 4
+          done
+          echo "⚠️ ken.mino.mobi did not respond. If this is the FIRST deploy, the domain is"
+          echo "   probably not attached yet — that is dashboard-only (docs/DEPLOYS.md §7)."
+          echo "   Check the deploy log above for 'ken.mino.mobi (custom domain)'. If it is"
+          echo "   absent, this run published to a stray worker and the golden rule has bitten."

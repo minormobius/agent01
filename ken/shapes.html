@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shape Explorer — ken</title>
+<meta name="description" content="Enter a turn budget and see every org chart it admits: the depth against width trade, what each shape buys in free replication, and the graph drawn from itself.">
+<link rel="stylesheet" href="journal.css">
+<style>
+  .ctl { display: flex; gap: 18px; align-items: center; flex-wrap: wrap;
+    border: 1px solid #e6e1d6; background: #fbfaf6; padding: 10px 12px; margin: 14px 0; }
+  .ctl label { font-family: var(--sans); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--ink-faint); display: flex; gap: 7px; align-items: center; }
+  .ctl input[type=number] { font: inherit; font-size: 15px; width: 62px; padding: 2px 5px;
+    border: 1px solid #ccc; }
+  .ctl input[type=range] { width: 150px; }
+  .ctl .big { font-family: var(--sans); font-size: 12px; color: #1a1a1a; }
+  .ctl .big b { font-size: 15px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 300px; gap: 16px; align-items: start; }
+  @media (max-width: 700px) { .grid2 { grid-template-columns: 1fr; } }
+  table.picker { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  table.picker th { font-family: var(--sans); font-size: 9.5px; text-transform: uppercase;
+    letter-spacing: .04em; color: var(--ink-faint); text-align: right; padding: 3px 5px;
+    border-bottom: 1px solid #4a4a4a; }
+  table.picker th:first-child { text-align: left; }
+  table.picker td { padding: 3px 5px; text-align: right; border-bottom: 1px solid #eee; }
+  table.picker td:first-child { text-align: left; font-family: var(--mono, monospace); }
+  table.picker tr { cursor: pointer; }
+  table.picker tr:hover td { background: #f2efe6; }
+  table.picker tr.on td { background: #e8eef7; }
+  table.picker tr.named td:first-child::after { content: attr(data-name);
+    font-family: var(--sans); font-size: 9px; text-transform: uppercase; letter-spacing: .05em;
+    color: var(--accent); margin-left: 6px; }
+  /* sticky, because the table runs to hundreds of rows and clicking one
+     near the bottom otherwise draws the shape far off the top of the screen */
+  .peek { border: 1px solid #e6e1d6; background: #fbfaf6; padding: 6px;
+    position: sticky; top: 10px; }
+  .peek svg { display: block; width: 100%; height: auto; }
+  .peek dl { font-family: var(--sans); font-size: 10.5px; margin: 6px 2px 2px;
+    display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; }
+  .peek dt { color: var(--ink-faint); }
+  .peek dd { margin: 0; text-align: right; }
+  .warn { font-family: var(--sans); font-size: 11px; color: #8a5a00; }
+  #tradeplot svg { display: block; width: 100%; height: auto; }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <span class="brand"><a href="/">ken</a></span>
+  <a href="/">Front matter</a>
+  <a href="/syllabus">I · Curriculum</a>
+  <a href="/methods">II · Methods</a>
+  <a href="/lab">Instrument</a>
+  <a href="/run">Procedure</a>
+  <a href="/wp1">WP1</a>
+  <a href="/wp2">WP2</a>
+  <a href="/wp3">WP3</a>
+  <a href="/wp4">WP4</a>
+  <a href="/register">Register</a>
+  <a class="here" href="/shapes">Shapes</a>
+  <a href="/log">Log</a>
+  <a href="/protocol">III · Protocol</a>
+  <span class="grow"></span>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+
+<div class="sheet">
+
+  <div class="a-venue">ken · volume 1 <span class="kicker">Instrument</span></div>
+  <h1 class="a-title">Shape Explorer</h1>
+  <p class="a-sub">Every org chart a turn budget admits, and what each one costs</p>
+  <div class="a-meta">Runs <code>ken/graph/*.mjs</code> in the page — the same modules the selftests gate, not a copy</div>
+  <hr class="a-rule">
+
+  <p><a href="/wp2">WP2</a> catalogued six shapes by hand at six turns, then generalised them to
+  <b>layered</b> plans: a composition of n, wired between adjacent layers. That family is real
+  and so is the trade below. It is also a sliver.</p>
+
+  <p><b>There are 1,960 distinct shapes on six turns with one source and one sink, and the
+  layered family reaches 33 of them.</b> Two per cent. Only ten of the 1,960 are strictly
+  layered at all: in every other one, some turn feeds something more than one stage later.
+  <code>briefed</code> was the first such shape we wanted and it had to be special-cased into the
+  generator, which was the signal that skip edges belonged inside the family rather than beside
+  it. They are inside it now, and it is still two per cent.</p>
+
+  <p>So there are three modes. <b>Exact</b> enumerates every shape up to isomorphism and stops at
+  seven turns, because eight is 268 million adjacency matrices. <b>Layered</b> is the structured
+  family at any n, and states what fraction of the real space it covers wherever that is known.
+  <b>Sampled</b> draws random plans for the sizes enumeration cannot reach, and is not a uniform
+  sample of anything: it shows the shapes its own construction favours.</p>
+
+  <p>The trade below is isoperimetric and holds in every mode. The interior holds n−2 turns over
+  d−1 layers, so <b>peak width ≥ ⌈(n−2) / (d−1)⌉</b>, with equality when the interior is
+  balanced. Read it as volume against surface with the output in time: <b>n is what the run
+  costs</b>, <b>depth is the wall clock</b> if a layer runs at once, and <b>peak width is how many
+  agents must exist simultaneously</b>.</p>
+
+  <div class="ctl">
+    <label>mode
+      <select id="mode">
+        <option value="exact">exact — every shape</option>
+        <option value="layered" selected>layered — the structured family</option>
+        <option value="sampled">sampled — random plans</option>
+      </select>
+    </label>
+    <label>turns (n)
+      <input id="n" type="number" min="3" max="16" step="1" value="6">
+      <input id="nr" type="range" min="3" max="16" step="1" value="6">
+    </label>
+    <label id="skipwrap">skip edges
+      <select id="skip">
+        <option value="all-policies" selected>every policy</option>
+        <option value="none">none</option>
+        <option value="sink">to the sink</option>
+        <option value="one">one layer ahead</option>
+        <option value="all">transitive closure</option>
+      </select>
+    </label>
+    <label id="lanewrap"><input id="lanes" type="checkbox" checked> lane wiring</label>
+    <label>regime
+      <select id="regime">
+        <option value="isolated" selected>isolated — the plan is enforced</option>
+        <option value="lineage">lineage — worktree inherited</option>
+        <option value="shared">shared — one worktree</option>
+      </select>
+    </label>
+    <span class="big" id="counts"></span>
+    <span class="warn" id="warn"></span>
+  </div>
+
+  <p class="small"><b>Reading the drawings.</b> A solid line joins one depth to the next. A
+  <span class="skipkey">dashed arc</span> spans more than one depth: a turn feeding something
+  further ahead than the next stage. The arcs bow sideways because they have to. Drawn straight
+  they run through the node they skip and vanish, which is what they did until this revision, so
+  a chain and a briefed chain were the same picture.</p>
+
+  <div id="tradeplot"></div>
+  <div class="pcap"><b>Figure 1.</b> Peak width against depth. The line is the isoperimetric
+  floor; every point sits on or above it. Filled points are the Pareto frontier.</div>
+
+  <h2 class="sec"><span class="secno">1</span>Every shape, not one per depth</h2>
+
+  <p>An earlier version of this table showed one row per depth, which made the family look like
+  a single shape stretched. It is not. Click a column to sort by it and a row to draw it.</p>
+
+  <div class="grid2">
+    <div>
+      <table class="picker" id="ladder">
+        <thead><tr>
+          <th data-k="profile">layer census</th>
+          <th data-k="depth">depth</th><th data-k="width">width</th>
+          <th data-k="edges">edges</th><th data-k="maxInDeg">peak in</th>
+          <th data-k="sinkKen">sink ken</th><th data-k="replicates">repl</th>
+          <th data-k="effective">effective</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+      <p class="small" id="showing"></p>
+    </div>
+    <div class="peek" id="peek"></div>
+  </div>
+
+  <h2 class="sec"><span class="secno">2</span>Whether any of this is enforced</h2>
+
+  <p>An edge is a permission and the absence of one is a prohibition. A prohibition nobody
+  enforces is a drawing. Set the regime above to <code>shared</code> and watch the count: the
+  1,960 shapes on six turns become <b>8</b>, because a turn in one worktree reads anything that
+  finished before it started and the effective graph depends only on the depth histogram.</p>
+
+  <p><code>lineage</code> is the one to look at, because it is what a per-lane worktree with
+  merges at joins actually gives, and it is the version most people would call isolated. It
+  leaves 16. <b>Under either, the sink ken ratio is 1.000 for every shape.</b> Not a small
+  effect: no variance at all in the quantity the programme is named after.</p>
+
+  <p>The reason is definitional and it sat unnoticed in the definition. Ken is the
+  in-neighbourhood over the ancestry, and a turn that inherits its ancestry has an
+  in-neighbourhood equal to it. The ratio has content only where the plan <em>withholds</em>,
+  and withholding needs a mechanism. <a href="/methods#r16">R16</a> makes stating and
+  demonstrating the regime a requirement, and the three shape hypotheses in
+  <a href="/register">the register</a> now carry it as a precondition rather than a caveat.</p>
+
+  <h2 class="sec"><span class="secno">3</span>Ken and replication, which the trade leaves free</h2>
+
+  <p>Two quantities move independently of depth and width, which is why the table is worth
+  reading rather than eyeballing. Both assume the isolated regime.</p>
+
+  <p><b>Sink ken is free at every depth.</b> Briefing the last turn adds an edge from every
+  other turn to it. That changes no width, no depth and no cost, and it takes sink ken to 1.
+  What it does cost is merge load: at n = 12 the last agent's in-degree goes from 1 to 11, and
+  it must now read the whole run. Free in turns is not free in context, and
+  <a href="/wp2#ancestry">no digest fixes that</a>.</p>
+
+  <p><b>Free replication is concave in depth.</b> The largest orbit is the number of turns a run
+  contains that are replicates by symmetry. It falls off slowly at first and then sharply: at
+  n = 12 the balanced middle at depth 6 keeps 92% of the maximum replication at a fifth of the
+  peak concurrency. The star is rarely worth its width.</p>
+
+  <div class="colophon">
+    ken · shape explorer<br>
+    <code>ken/graph/profiles.mjs</code> · <code>roles.mjs</code> · <code>layout.mjs</code>.
+    Node-only code lives in <code>ken/lab/</code> and is not served; these modules are, so the
+    page and the selftest cannot disagree.
+  </div>
+
+</div>
+
+<script type="module">
+import { family, frontierOf, buildProfile, summarise, widthFloor, NAMED } from '/graph/profiles.mjs';
+import { allShapes, sampleShapes, coverage, EXACT_LIMIT, KNOWN_COUNTS, canonicalOf } from '/graph/exhaustive.mjs';
+import { effectiveGraph, collapse } from '/graph/visibility.mjs';
+import { renderPlan } from '/graph/layout.mjs';
+
+const $ = (s) => document.querySelector(s);
+const nEl = $('#n'), nr = $('#nr'), mode = $('#mode'), skipSel = $('#skip'), lanes = $('#lanes');
+const regimeSel = $('#regime');
+let rows = [], sortKey = 'depth', sortDir = 1, chosen = null;
+const LIMIT = 400;                       // rows drawn; the count line says how many exist
+
+const namedBy = new Map(Object.entries(NAMED).map(([name, sp]) =>
+  [`${sp.profile.join('·')}|${sp.wiring}|${sp.briefed}`, name]));
+
+function build() {
+  const n = Math.max(3, Math.min(16, +nEl.value || 6));
+  nr.value = nEl.value = n;
+  const m = mode.value;
+  $('#skipwrap').style.display = m === 'layered' ? '' : 'none';
+  $('#lanewrap').style.display = m === 'layered' ? '' : 'none';
+
+  let note = '';
+  if (m === 'exact') {
+    if (n > EXACT_LIMIT) { note = `exact enumeration stops at ${EXACT_LIMIT} turns`; return { rows: [], note }; }
+    if (n === EXACT_LIMIT) note = 'n = 7 is 2,097,152 masks and takes a few seconds';
+    return { rows: allShapes(n).map((g) => ({ ...summarise(g), graph: g })), note };
+  }
+  if (m === 'sampled') {
+    note = 'NOT a uniform sample of the space: these are the shapes this construction favours';
+    return { rows: sampleShapes(n, 300, { seed: 7 }).map((g) => ({ ...summarise(g), graph: g })), note };
+  }
+  if (n >= 15) note = `${2 ** (n - 3)} profiles — this may take a moment`;
+  return {
+    rows: family(n, {
+      wirings: lanes.checked ? ['complete', 'lanes'] : ['complete'],
+      brief: [false],
+      skips: skipSel.value === 'all-policies' ? undefined : [skipSel.value],
+    }),
+    note,
+  };
+}
+
+function recompute() {
+  const t0 = performance.now();
+  const { rows: r, note } = build();
+  const regime = regimeSel.value;
+  // the environment adds edges the plan never declared; re-summarise on
+  // what the turn actually experiences rather than on what was drawn
+  rows = regime === 'isolated' ? r : r.map((x) => {
+    const eff = effectiveGraph(x.graph, regime);
+    return { ...summarise(eff), graph: eff, profile: x.profile, layerCensus: x.layerCensus };
+  });
+  const ms = Math.round(performance.now() - t0);
+  $('#warn').textContent = note;
+
+  const n = +nEl.value;
+  let cov = '';
+  if (mode.value === 'layered' && KNOWN_COUNTS[n]) {
+    const c = coverage(n, rows.map((x) => x.graph));
+    cov = ` · <b>${c.percent}%</b> of the ${c.space} shapes that exist`;
+  } else if (mode.value === 'exact' && KNOWN_COUNTS[n]) {
+    cov = ' · the whole space';
+  }
+  let collapsed = '';
+  if (regimeSel.value !== 'isolated' && rows.length) {
+    const c = collapse(r.map((x) => x.graph), regimeSel.value, canonicalOf);
+    collapsed = ` · <b style="color:#96331f">${c.shapesDrawn} → ${c.shapesEffective}</b> once the `
+      + `environment is counted, sink ken taking ${c.distinctSinkKen} distinct value`
+      + `${c.distinctSinkKen === 1 ? '' : 's'}`;
+  }
+  $('#counts').innerHTML = rows.length
+    ? `<b>${rows.length}</b> shapes${cov}${collapsed} · ${ms} ms`
+    : 'nothing to show';
+
+  drawTrade(n, rows);
+  drawTable();
+  pick(rows[0]);
+}
+
+function drawTrade(n, rows) {
+  if (!rows.length) { $('#tradeplot').innerHTML = ''; return; }
+  const W = 620, H = 250, m = { l: 44, r: 12, t: 12, b: 34 };
+  const front = new Set(frontierOf(rows).map(key));
+  const maxD = Math.max(...rows.map((r) => r.depth));
+  const maxW = Math.max(...rows.map((r) => r.width));
+  const sx = (d) => m.l + ((d - 1) / Math.max(1, maxD - 1)) * (W - m.l - m.r);
+  const sy = (w) => H - m.b - ((w - 1) / Math.max(1, maxW - 1)) * (H - m.t - m.b);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Peak width against depth for every shape shown at n equals ${n}. All points lie on or above the isoperimetric floor.">`;
+  s += `<rect width="${W}" height="${H}" fill="#fbfaf6"/>`;
+  const pts = [];
+  for (let d = 2; d <= maxD; d++) pts.push(`${sx(d).toFixed(1)},${sy(widthFloor(n, d)).toFixed(1)}`);
+  s += `<polyline points="${pts.join(' ')}" fill="none" stroke="#D55E00" stroke-width="1.6" stroke-dasharray="4,3"/>`;
+  s += `<line x1="${m.l}" y1="${H - m.b}" x2="${W - m.r}" y2="${H - m.b}" stroke="#4a4a4a"/>`;
+  s += `<line x1="${m.l}" y1="${m.t}" x2="${m.l}" y2="${H - m.b}" stroke="#4a4a4a"/>`;
+  for (let d = 1; d <= maxD; d++) if (maxD < 12 || d % 2 === 1) {
+    s += `<text x="${sx(d).toFixed(1)}" y="${H - m.b + 13}" font-size="9" fill="#6b6b6b" text-anchor="middle" font-family="sans-serif">${d}</text>`;
+  }
+  for (let w = 1; w <= maxW; w++) if (maxW < 12 || w % 2 === 1) {
+    s += `<text x="${m.l - 6}" y="${(sy(w) + 3).toFixed(1)}" font-size="9" fill="#6b6b6b" text-anchor="end" font-family="sans-serif">${w}</text>`;
+  }
+  s += `<text x="${(W + m.l) / 2}" y="${H - 4}" font-size="10.5" fill="#1a1a1a" text-anchor="middle" font-family="sans-serif">depth — wall clock, in turn-times</text>`;
+  s += `<text x="12" y="${(H - m.b + m.t) / 2}" font-size="10.5" fill="#1a1a1a" text-anchor="middle" font-family="sans-serif" transform="rotate(-90 12 ${(H - m.b + m.t) / 2})">peak width — agents at once</text>`;
+  // jitter identical points so a dense cloud reads as dense
+  const seenAt = new Map();
+  for (const r of rows) {
+    const k = `${r.depth}|${r.width}`;
+    const c = seenAt.get(k) ?? 0; seenAt.set(k, c + 1);
+    const a = c * 2.399963;                        // golden-angle spiral, deterministic
+    const rad = c === 0 ? 0 : Math.min(9, 1.3 * Math.sqrt(c));
+    const on = front.has(key(r));
+    s += `<circle cx="${(sx(r.depth) + rad * Math.cos(a)).toFixed(1)}" cy="${(sy(r.width) + rad * Math.sin(a)).toFixed(1)}"`
+      + ` r="${on ? 3.4 : 1.9}" fill="${on ? '#0072B2' : '#999'}" fill-opacity="${on ? 0.95 : 0.4}">`
+      + `<title>${r.profile} · depth ${r.depth} · width ${r.width}</title></circle>`;
+  }
+  s += '</svg>';
+  $('#tradeplot').innerHTML = s;
+}
+
+const key = (r) => `${r.depth}|${r.width}|${r.maxInDeg}|${r.sinkKen}|${r.effective}`;
+
+function drawTable() {
+  const sorted = [...rows].sort((a, b) => {
+    const x = a[sortKey], y = b[sortKey];
+    const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+    return c * sortDir || a.depth - b.depth;
+  });
+  const shown = sorted.slice(0, LIMIT);
+  const tb = $('#ladder').querySelector('tbody');
+  tb.innerHTML = '';
+  for (const r of shown) {
+    const tr = document.createElement('tr');
+    const nm = namedBy.get(`${r.profile}|${r.wiring}|${r.briefed}`);
+    if (nm) tr.classList.add('named');
+    tr.innerHTML = `<td${nm ? ` data-name="${nm}"` : ''}>${r.layerCensus}${r.layered ? '' : ' <span class="muted">+skips</span>'}</td>`
+      + [r.depth, r.width, r.edges, r.maxInDeg, r.sinkKen, r.replicates, r.effective]
+        .map((v) => `<td>${v}</td>`).join('');
+    tr.onclick = () => pick(r);
+    tr._row = r;
+    tb.appendChild(tr);
+  }
+  $('#showing').textContent = rows.length > LIMIT
+    ? `showing ${LIMIT} of ${rows.length}, sorted by ${sortKey}`
+    : `all ${rows.length}, sorted by ${sortKey}`;
+  if (chosen) markChosen();
+}
+
+function markChosen() {
+  for (const tr of $('#ladder').querySelectorAll('tbody tr')) tr.classList.toggle('on', tr._row === chosen);
+}
+
+function pick(row) {
+  if (!row) { $('#peek').innerHTML = ''; return; }
+  chosen = row;
+  markChosen();
+  const g = row.graph;
+  const svg = renderPlan(g, {
+    width: 280,
+    rowHeight: Math.max(26, Math.min(56, 300 / Math.max(1, g.depth))),
+    title: row.layerCensus,
+  });
+  const roleList = Object.entries(row.roles).sort((a, b) => b[1] - a[1])
+    .map(([k, v]) => `${v}×${k}`).join(', ');
+  $('#peek').innerHTML = svg + `<dl>
+    <dt>layer census</dt><dd>${row.layerCensus}</dd>
+    <dt>layered</dt><dd>${row.layered ? 'yes' : 'no, it has skip edges'}</dd>
+    <dt>turns</dt><dd>${row.turns}</dd>
+    <dt>depth · width</dt><dd>${row.depth} · ${row.width}${row.balanced ? ' (balanced)' : ''}</dd>
+    <dt>edges</dt><dd>${row.edges}</dd>
+    <dt>peak in-degree</dt><dd>${row.maxInDeg}</dd>
+    <dt>sink ken</dt><dd>${row.sinkKen}</dd>
+    <dt>mean ken</dt><dd>${row.meanKen}</dd>
+    <dt>replicates</dt><dd>${row.replicates}${row.orbitsAreBounds ? ' (bound)' : ''}</dd>
+    <dt>effective</dt><dd>${row.effective}</dd>
+    </dl><div class="muted" style="padding:2px">${roleList}</div>`;
+}
+
+for (const th of $('#ladder').querySelectorAll('th[data-k]')) {
+  th.style.cursor = 'pointer';
+  th.onclick = () => {
+    const k = th.dataset.k;
+    sortDir = k === sortKey ? -sortDir : 1;
+    sortKey = k;
+    drawTable();
+  };
+}
+for (const el of [nEl, mode, skipSel, lanes, regimeSel]) el.addEventListener('change', recompute);
+nr.addEventListener('input', () => { nEl.value = nr.value; recompute(); });
+recompute();
+</script>
+
+</body>
+</html>

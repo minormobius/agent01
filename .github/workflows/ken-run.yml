@@ -1,0 +1,263 @@
+name: ken run (one six-turn verification-first run)
+
+# ── DISPATCH ONLY, AND THAT IS THE POINT ───────────────────────────────
+#
+# No push trigger, no schedule, no repository_dispatch, nothing in
+# `mayWake`. This workflow starts when a person presses the button and at
+# no other time. It is not part of the loop and cannot be woken by it.
+#
+# ── WHY THIS GRANT DIFFERS FROM loop-work.yml's ────────────────────────
+#
+# loop-work.yml denies Bash, WebSearch, WebFetch and subagents. That is
+# not caution about the model, it is about WHERE THE PROMPT COMES FROM:
+# the loop assembles its brief from a ticket graph outside parties can
+# push into, so its grant has to survive a brief nobody here wrote.
+#
+# A bank run's brief is `ken/lab/tasks/<id>/statement.md` — a committed
+# file with an author and a diff, started by hand. Same model, different
+# provenance, so a fuller grant is the correct answer rather than an
+# inconsistency. The invocation below is the one bakeoff/run-cell.sh has
+# used for both bake-offs.
+#
+# THE GRANT IS ALSO REQUIRED, not merely convenient. H10 asks whether a
+# check attenuates, and answering it needs a turn that can RE-RUN one. A
+# turn that cannot execute can only read its check, and a read check is a
+# remembered check, which attenuates like everything else.
+#
+# ── WHAT CONTAINS IT ───────────────────────────────────────────────────
+#
+# The turn never sees this repository. Each turn runs in a fresh scratch
+# directory holding exactly what its in-edges hand it, built by
+# ken/lab/runner.mjs. In particular THE BANK IS NOT IN THE TREE: the
+# reference solution, the seeded mutants and the bank's own checks stay
+# in the checkout, which the turn has no path to. Scoring happens here,
+# afterwards, exactly as loop-work.yml runs a ticket's gate outside the
+# turn rather than inside it.
+#
+# Isolation is demonstrated rather than asserted: a marker is planted in
+# one turn's output, and a turn the plan gives no path from must not be
+# able to produce it. A leak voids the run.
+#
+# ── TWO SHAPES, AND THE BUDGET GOES WITH THE RUN ───────────────────────
+#
+# `shape: solo` is one turn told it may delegate freely; `standard` is
+# the six-turn verification-first plan. They are H12's two arms, so the
+# comparison is only meaningful at EQUAL TOTAL SPEND: set
+# total_budget_usd and total_max_turns, which the runner divides across
+# whatever turns the shape has. Leaving them empty falls back to the
+# per-turn figures, which is right for running one shape on its own and
+# wrong for comparing them.
+#
+# A solo run reports isolation as INAPPLICABLE rather than clean. One
+# turn has no handoffs, so it never had the opportunity to leak, and
+# recording it as a pass would credit it with a property it could not
+# have lost.
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Task id from ken/lab/tasks/'
+        required: true
+        default: 'tb-001-binomial-interval'
+      shape:
+        description: 'standard (six turns, isolation demonstrated) or solo (one turn, told to delegate) — the two arms of H12'
+        type: choice
+        options: [standard, solo]
+        default: standard
+      brief_builder:
+        description: 'Give the builder the original brief as well as its check (changes 4 of 6 roles)'
+        type: boolean
+        default: false
+      total_budget_usd:
+        description: 'Budget for the WHOLE run, split across its turns. Set this, not budget_usd, when comparing shapes'
+        required: false
+        default: ''
+      total_max_turns:
+        description: 'Agent steps for the WHOLE run, split across its turns. Same reason'
+        required: false
+        default: ''
+      engine:
+        description: 'claude (paid, per-turn dollar budget) or opencode (OpenCode Zen free tier, no key, matched on steps)'
+        type: choice
+        options: [claude, opencode]
+        default: claude
+      model:
+        description: 'Model id. For engine=opencode this must be a verified free model, e.g. nemotron-3-ultra-free'
+        required: true
+        default: 'claude-opus-5'
+      budget_usd:
+        description: 'Hard budget per turn, in dollars'
+        required: true
+        default: '5'
+      max_turns:
+        description: 'Agent steps per turn'
+        required: true
+        default: '60'
+      commit_ledger:
+        description: 'Commit the run record back to the branch'
+        type: boolean
+        default: true
+
+concurrency:
+  group: ken-run
+  cancel-in-progress: false
+
+jobs:
+  # NOT named `run`. scripts/preflight.mjs extracts shell by matching
+  # `run:` line-wise, so a JOB called `run` is indistinguishable from a
+  # step's `run:` key and the whole job body gets parsed as bash. The
+  # lint is right and the name was wrong.
+  bank-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The bank must be admissible before a turn is briefed from it. A
+      # task whose checks are unsound would grade a correct solution
+      # wrong, and the run would measure that instead of the agents.
+      - name: The task is admissible
+        run: node ken/lab/taskbank.mjs
+
+      # The harness itself, exercised with a scripted agent. If the plan,
+      # the isolation or the scoring is broken, that is cheaper to find
+      # here than after six paid turns.
+      - name: Harness dry run
+        run: node ken/lab/runner.mjs --task "${{ inputs.task }}" --shape "${{ inputs.shape }}" --dry-run --run-id "dry-$GITHUB_RUN_ID"
+
+      # The free arm needs opencode; the paid arm needs the Claude CLI.
+      # Installing only what the chosen engine uses keeps a free run from
+      # depending on a credential it does not have.
+      - name: Install the CLI
+        run: |
+          if [ "${{ inputs.engine }}" = "opencode" ]; then
+            npm install -g opencode-ai
+          else
+            npm install -g @anthropic-ai/claude-code
+          fi
+
+      - name: Execute the run
+        id: exec
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TOTAL_BUDGET: ${{ inputs.total_budget_usd }}
+          TOTAL_STEPS: ${{ inputs.total_max_turns }}
+        run: |
+          set -uo pipefail
+          EXTRA=""
+          [ -n "$TOTAL_BUDGET" ] && EXTRA="$EXTRA --total-budget $TOTAL_BUDGET"
+          [ -n "$TOTAL_STEPS" ] && EXTRA="$EXTRA --total-steps $TOTAL_STEPS"
+          node ken/lab/runner.mjs \
+            --task "${{ inputs.task }}" \
+            --shape "${{ inputs.shape }}" \
+            --engine "${{ inputs.engine }}" \
+            --run-id "$GITHUB_RUN_ID" \
+            --model "${{ inputs.model }}" \
+            --budget "${{ inputs.budget_usd }}" \
+            --max-turns "${{ inputs.max_turns }}" \
+            ${{ inputs.brief_builder && '--brief-builder' || '' }} \
+            $EXTRA \
+            --ledger ken/lab/runs/run-$GITHUB_RUN_ID.json
+          echo "rc=$?" >> "$GITHUB_OUTPUT"
+
+      # Guarded by an early exit rather than an if/then around a quoted
+      # heredoc-ish script: the repo's workflow shell lint parses every
+      # run block, and the wrapped form did not survive it.
+      - name: Show the record
+        if: always()
+        run: |
+          F="ken/lab/runs/run-$GITHUB_RUN_ID.json"
+          if [ ! -f "$F" ]; then
+            echo "::warning::no ledger written — the run did not reach the end"
+            exit 0
+          fi
+          node -e '
+            const r = require("./" + process.argv[1]);
+            console.log(JSON.stringify({
+              task: r.taskId,
+              shape: r.shape,
+              spend: r.spend,
+              isolation: r.isolation.applicable === false ? "inapplicable (one turn)"
+                : r.isolation.demonstrated ? "demonstrated" : (r.isolation.clean ? "clean" : "LEAKED"),
+              heldOut: r.scores.heldOutPassed,
+              soundness: r.scores.measuredSoundness,
+              coverage: r.scores.measuredCoverage,
+              turns: r.turns.map((t) => t.turn + ":" + t.wrote + "/" + t.writes.length),
+            }, null, 2));
+          ' "$F"
+
+      # A turn that worked inside the checkout could have read the
+      # reference and the mutants. Same class of failure as a leak, and
+      # it is the one that actually happened on the first live runs.
+      - name: Containment must have held
+        if: always()
+        run: |
+          F="ken/lab/runs/run-$GITHUB_RUN_ID.json"
+          [ -f "$F" ] || exit 0
+          node -e '
+            const r = require("./" + process.argv[1]);
+            const c = r.containment;
+            if (!c || c.contained) { console.log("contained"); process.exit(0); }
+            console.error("::error::CONTAINMENT BREACHED — " + c.note);
+            for (const b of c.breaches) console.error("  " + b.turn + " changed the checkout");
+            process.exit(1);
+          ' "$F"
+
+      # A leaked run is not a failed run, it is a run that measured
+      # nothing, and the two must not be recorded the same way.
+      - name: Isolation must have held
+        if: always()
+        run: |
+          F="ken/lab/runs/run-$GITHUB_RUN_ID.json"
+          [ -f "$F" ] || exit 0
+          node -e '
+            const r = require("./" + process.argv[1]);
+            // A one-turn shape has no handoffs, so there was nothing to
+            // leak and nothing a marker could demonstrate. Neither a
+            // pass nor a warning: the regime does not apply.
+            if (r.isolation.applicable === false) {
+              console.log("isolation INAPPLICABLE — " + r.shape + " has one turn and no handoffs");
+              process.exit(0);
+            }
+            if (!r.isolation.clean) {
+              console.error("::error::ISOLATION LEAKED — this run measured nothing and its numbers are void.");
+              for (const l of r.isolation.leaks) console.error("  " + l.artefact + " produced by " + l.producedBy + " carries the marker");
+              process.exit(1);
+            }
+            if (!r.isolation.demonstrated) console.error("::warning::isolation clean but UNDEMONSTRATED — the marker was never planted");
+          ' "$F"
+
+      # The exec step is deliberately not fatal, so the record is written
+      # and the isolation audit runs even on a bad run. The verdict is
+      # here, after both.
+      - name: Verdict
+        if: always()
+        run: |
+          RC="${{ steps.exec.outputs.rc }}"
+          if [ "${RC:-1}" != "0" ]; then
+            echo "::error::the run exited ${RC:-unknown}"; exit 1
+          fi
+          echo "run complete"
+
+      - name: Commit the record
+        if: always() && inputs.commit_ledger
+        run: |
+          F="ken/lab/runs/run-$GITHUB_RUN_ID.json"
+          [ -f "$F" ] || exit 0
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "$F"
+          git diff --cached --quiet && exit 0
+          git commit -m "ken: run record $GITHUB_RUN_ID (${{ inputs.task }}, ${{ inputs.shape }}, ${{ inputs.engine }})"
+          for i in 1 2 3 4; do
+            git pull --rebase origin "$GITHUB_REF_NAME" && git push origin "HEAD:$GITHUB_REF_NAME" && exit 0
+            sleep $((2 ** i))
+          done
+          echo "::warning::could not push the run record"
