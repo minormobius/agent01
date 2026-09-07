@@ -6,7 +6,7 @@ name: Deploy torus (toroidal games)
 
 on:
   push:
-    branches: ['claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/fractal-torus-webgpu-97gxv4']
     paths:
       - 'clock/corn/**'
       - 'clock/emsim/**'
@@ -33,6 +33,16 @@ jobs:
           for d in corn emsim inpac knotpac pac torpac toruschess; do
             mkdir -p "dist/$d"
             cp -r "../clock/$d/." "dist/$d/"
+          done
+          # Sites that live in torus/ itself rather than being staged from clock/.
+          for d in fortress; do
+            mkdir -p "dist/$d"
+            cp -r "./$d/." "dist/$d/"
+          done
+          # Workers Static Assets replaces the whole manifest rather than
+          # merging, so a missing dir here silently unpublishes a live site.
+          for d in corn emsim inpac knotpac pac torpac toruschess fortress; do
+            test -f "dist/$d/index.html" || { echo "MISSING dist/$d/index.html"; exit 1; }
           done
           ls -la dist/
 
