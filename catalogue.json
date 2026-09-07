@@ -18,19 +18,19 @@
       "label": "bluesky"
     },
     {
-      "before": 72,
+      "before": 74,
       "label": "work"
     },
     {
-      "before": 82,
+      "before": 84,
       "label": "data"
     },
     {
-      "before": 140,
+      "before": 147,
       "label": "tools"
     },
     {
-      "before": 198,
+      "before": 212,
       "label": "games"
     }
   ],
@@ -779,6 +779,26 @@
       "surface": "root"
     },
     {
+      "n": "bsky",
+      "u": "https://bsky.mino.mobi",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-05",
+      "b": "2026-09-05",
+      "surface": "bsky"
+    },
+    {
+      "n": "zest",
+      "u": "https://zest.mino.mobi",
+      "c": "bluesky",
+      "k": 6,
+      "a": "hot",
+      "t": "2026-08-16",
+      "b": "2026-08-16",
+      "surface": "zest"
+    },
+    {
       "n": "org",
       "u": "https://org.mino.mobi",
       "c": "work",
@@ -1495,6 +1515,57 @@
       "surface": "cards"
     },
     {
+      "n": "atlas",
+      "u": "https://atlas.mino.mobi",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-04",
+      "b": "2026-09-04",
+      "surface": "atlas"
+    },
+    {
+      "n": "jurassic",
+      "u": "https://jurassic.mino.mobi",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-27",
+      "b": "2026-08-27",
+      "surface": "jurassic"
+    },
+    {
+      "n": "perp",
+      "u": "https://perp.mino.mobi",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-26",
+      "b": "2026-08-26",
+      "surface": "perp"
+    },
+    {
+      "n": "silk",
+      "u": "https://silk.mino.mobi",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-20",
+      "b": "2026-08-20",
+      "surface": "silk"
+    },
+    {
+      "n": "arnold",
+      "u": "https://mino.mobi/arnold/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-02",
+      "b": "2026-09-02",
+      "p": "geometry",
+      "surface": "math"
+    },
+    {
       "n": "loop",
       "u": "https://loop.mino.mobi",
       "c": "tools",
@@ -2102,6 +2173,76 @@
       "t": "2026-05-30",
       "b": "2026-05-25",
       "surface": "ai-edu"
+    },
+    {
+      "n": "bismuth",
+      "u": "https://bismuth.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-02",
+      "b": "2026-09-02",
+      "surface": "bismuth"
+    },
+    {
+      "n": "clef",
+      "u": "https://clef.mino.mobi",
+      "c": "tools",
+      "k": 9,
+      "a": "hot",
+      "t": "2026-09-05",
+      "b": "2026-09-05",
+      "surface": "clef"
+    },
+    {
+      "n": "fold",
+      "u": "https://fold.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-26",
+      "b": "2026-08-26",
+      "surface": "fold"
+    },
+    {
+      "n": "hopper",
+      "u": "https://hopper.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-02",
+      "b": "2026-09-02",
+      "surface": "hopper"
+    },
+    {
+      "n": "ken",
+      "u": "https://ken.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-22",
+      "b": "2026-08-22",
+      "surface": "ken"
+    },
+    {
+      "n": "sci",
+      "u": "https://sci.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-15",
+      "b": "2026-08-15",
+      "surface": "sci"
+    },
+    {
+      "n": "tape",
+      "u": "https://tape.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-31",
+      "b": "2026-08-31",
+      "surface": "tape"
     },
     {
       "n": "g",
@@ -2987,6 +3128,26 @@
       "t": "2026-07-18",
       "b": "2026-07-18",
       "surface": "human"
+    },
+    {
+      "n": "ink",
+      "u": "https://ink.mino.mobi",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-25",
+      "b": "2026-08-25",
+      "surface": "ink"
+    },
+    {
+      "n": "table",
+      "u": "https://table.mino.mobi",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-08-15",
+      "b": "2026-08-15",
+      "surface": "table"
     }
   ],
   "notListed": [
@@ -3524,6 +3685,101 @@
       "glob": "splice/table",
       "kind": "pending",
       "reason": "sub-sites of other listed surfaces"
+    },
+    {
+      "glob": "b/groom",
+      "kind": "content",
+      "reason": "the follow-grooming pass inside the already-listed b site"
+    },
+    {
+      "glob": "foam/dungeon",
+      "kind": "content",
+      "reason": "the dungeon generator inside the already-listed foam site"
+    },
+    {
+      "glob": "foam/dungeon/**",
+      "kind": "content",
+      "reason": "generator sub-pages inside the already-listed foam site"
+    },
+    {
+      "glob": "games/tempest",
+      "kind": "content",
+      "reason": "one game inside the already-listed games site"
+    },
+    {
+      "glob": "pokemon/*",
+      "kind": "content",
+      "reason": "individual toys inside the already-listed pokemon site"
+    },
+    {
+      "glob": "sci/mri",
+      "kind": "content",
+      "reason": "the MRI instrument inside the already-listed sci site"
+    },
+    {
+      "glob": "sci/mri/*",
+      "kind": "content",
+      "reason": "panels of the MRI instrument inside the already-listed sci site"
+    },
+    {
+      "glob": "silk/word",
+      "kind": "content",
+      "reason": "the word-frequency companion inside the already-listed silk site"
+    },
+    {
+      "glob": "table/cairn",
+      "kind": "content",
+      "reason": "the Cairn 2e generator inside the already-listed table site"
+    },
+    {
+      "glob": "table/cairn/*",
+      "kind": "content",
+      "reason": "Cairn tools inside the already-listed table site"
+    },
+    {
+      "glob": "table/srd5",
+      "kind": "content",
+      "reason": "the SRD 5.2.1 stat blocks inside the already-listed table site"
+    },
+    {
+      "glob": "table/srd5/*",
+      "kind": "content",
+      "reason": "SRD corpus pages inside the already-listed table site"
+    },
+    {
+      "glob": "tape/*",
+      "kind": "content",
+      "reason": "chapters of the already-listed tape design site"
+    },
+    {
+      "glob": "astra",
+      "kind": "pending",
+      "reason": "a one-off hype-video page; its branch never catalogued it"
+    },
+    {
+      "glob": "tjs/brut",
+      "kind": "content",
+      "reason": "the brutalist-shell study inside the already-listed tjs site"
+    },
+    {
+      "glob": "tjs/brut/*",
+      "kind": "content",
+      "reason": "brut sub-pages inside the already-listed tjs site"
+    },
+    {
+      "glob": "tjs/manifold",
+      "kind": "content",
+      "reason": "the manifold shell/struct solver inside the already-listed tjs site"
+    },
+    {
+      "glob": "torus/fortress",
+      "kind": "content",
+      "reason": "the fortress scene inside the already-listed torus site"
+    },
+    {
+      "glob": "words/cross",
+      "kind": "content",
+      "reason": "the procedural crossword — the second app on the already-listed words surface"
     }
   ],
   "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."
