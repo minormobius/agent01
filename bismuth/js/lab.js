@@ -1,0 +1,772 @@
+// bismuth — the playground (/lab). The same engine and renderer as the
+// specimen page, with every knob on the outside:
+//   · the SUBSTRATE is the geometry: the cubic lattice, or any plane tiling
+//     from packages/tilings stacked into prisms — Penrose included — or
+//     STACKED with each layer staggered (AB, ABC: the close packings) or
+//     twisted against the last (moiré bonds);
+//   · the INITIAL CONDITION is a painted height map over that substrate —
+//     what the masons build on (a plate, a ring, walls, whatever you draw);
+//   · the BRAIN is every law the masons obey: Kossel rates, the rim, the
+//     anisotropy, the walk, the two nucleation gates, the melt-is-above rule;
+//   · the COLONY has births and retirements on top of its starting size.
+// The whole state serialises into the URL hash, so a playground is a
+// permalink like a specimen is. Edits mid-growth apply live (the engine reads
+// its laws every tick); reset replays from scratch, which is what the link
+// reproduces.
+
+import { Growth } from "./crystal.js";
+import { genome, normalizeSeed, GRID, DEFAULT_BRAIN, DEFAULT_POPULATION } from "./genome.js";
+import { Renderer } from "./render.js";
+import { Worms, DEFAULT_WORMS } from "./worms.js";
+import { SHAPES, SHAPE_INFO, tiling, FIX } from "./tilings.js";
+import { isStacked, normalizeStack } from "./stack.js";
+import { ICO_R_MIN, ICO_R_MAX, ICO_R_DEFAULT } from "./ico.js";
+import { FluxDriver, MATERIALS, MATERIAL_INFO, DEFAULT_FLUX, VIEWS, PLANES } from "./flux.js";
+import { GRAINS_MAX } from "./poly.js";
+
+const ICO = "ico";
+const ICO_INFO = { label: "icosahedral", note: "golden rhombohedra: the Ammann–Kramer tiling, no lattice in any direction", family: "aperiodic", symmetry: 5 };
+
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => [...document.querySelectorAll(s)];
+const fmt = (n) => n.toLocaleString("en-US");
+
+// ------------------------------------------------------------- state ----
+// Everything the URL carries. Numbers only; the height maps are packed.
+function defaultState() {
+  const g = genome(48112);
+  return {
+    v: 2,
+    seed: 48112,
+    budget: 6000,
+    masons: 12,
+    rim: 3, k1: 0.007, k2: 0.75, k3: 0.96,
+    patience: 90, mobility: 1.2, flight: 3,
+    axis: [0.62, 0.62, 0.62, 0.62, 1.0],
+    oxide: { base: Math.round(g.oxide.base), ramp: Math.round(g.oxide.ramp), grain: 3, warp: 0.6, wavelength: 16 },
+    brain: Object.assign({}, DEFAULT_BRAIN),
+    pop: Object.assign({}, DEFAULT_POPULATION),
+    worms: Object.assign({}, DEFAULT_WORMS),
+    flux: Object.assign({}, DEFAULT_FLUX),
+    sub: { shape: "grid", R: 30, stack: "", stagger: 1, twist: 0, icoR: ICO_R_DEFAULT, grains: 1, spread: 30, mix: false },
+    ic: { n: 24, z: 0, h: null },     // cubic: h Uint8Array n*n, heights 0..15
+    tic: { z: 0, cells: new Map() },  // tilings: tile index → height
+  };
+}
+
+const b64 = (bytes) => { let s = ""; for (const b of bytes) s += String.fromCharCode(b); return btoa(s).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); };
+const unb64 = (str) => { try { return atob(str.replace(/-/g, "+").replace(/_/g, "/")); } catch (e) { return ""; } };
+
+function packHeights(h) {
+  const bytes = new Uint8Array(Math.ceil(h.length / 2));
+  for (let i = 0; i < h.length; i++) bytes[i >> 1] |= (h[i] & 15) << ((i & 1) * 4);
+  return b64(bytes);
+}
+function unpackHeights(str, n) {
+  const h = new Uint8Array(n * n);
+  const bin = unb64(str);
+  for (let i = 0; i < h.length; i++) { const b = bin.charCodeAt(i >> 1) || 0; h[i] = (b >> ((i & 1) * 4)) & 15; }
+  return h;
+}
+function packCells(cells) {
+  const bytes = new Uint8Array(cells.size * 3);
+  let i = 0;
+  for (const [t, h] of cells) { if (!h) continue; bytes[i++] = t >> 8; bytes[i++] = t & 255; bytes[i++] = h & 15; }
+  return b64(bytes.subarray(0, i));
+}
+function unpackCells(str) {
+  const bin = unb64(str), m = new Map();
+  for (let i = 0; i + 2 < bin.length; i += 3) m.set((bin.charCodeAt(i) << 8) | bin.charCodeAt(i + 1), bin.charCodeAt(i + 2) & 15);
+  return m;
+}
+function encodeState(st) {
+  const o = Object.assign({}, st, {
+    ic: { n: st.ic.n, z: st.ic.z, h: packHeights(st.ic.h) },
+    tic: { z: st.tic.z, c: packCells(st.tic.cells) },
+  });
+  return btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+function decodeState(str) {
+  try {
+    const o = JSON.parse(decodeURIComponent(escape(atob(str.replace(/-/g, "+").replace(/_/g, "/")))));
+    if (!o || (o.v !== 1 && o.v !== 2)) return null;
+    const st = defaultState();
+    for (const k of ["seed", "budget", "masons", "rim", "k1", "k2", "k3", "patience", "mobility", "flight"]) if (typeof o[k] === "number") st[k] = o[k];
+    if (Array.isArray(o.axis)) st.axis = o.axis.slice(0, 5).map(Number);
+    Object.assign(st.oxide, o.oxide || {});
+    Object.assign(st.brain, o.brain || {});
+    Object.assign(st.pop, o.pop || {});
+    Object.assign(st.worms, o.worms || {});
+    if (o.flux) {
+      Object.assign(st.flux, o.flux);
+      if (!MATERIALS.includes(st.flux.material)) st.flux.material = "off";
+      if (!VIEWS.includes(st.flux.view)) st.flux.view = "flux";
+      if (!PLANES.includes(st.flux.plane)) st.flux.plane = "facing";
+      st.flux.applied = st.flux.applied !== false;
+      st.flux.offset = Math.max(-1, Math.min(1, +st.flux.offset || 0));
+      if (!(Array.isArray(st.flux.pn) && st.flux.pn.length === 3 && st.flux.pn.every(Number.isFinite))) st.flux.pn = null;
+    }
+    if (o.sub && (SHAPES.includes(o.sub.shape) || o.sub.shape === ICO)) st.sub = Object.assign({ shape: o.sub.shape, R: Math.max(12, Math.min(44, +o.sub.R || 30)), icoR: Math.max(ICO_R_MIN, Math.min(ICO_R_MAX, Math.round(+o.sub.icoR || ICO_R_DEFAULT))), grains: Math.max(1, Math.min(GRAINS_MAX, Math.round(+o.sub.grains || 1))), spread: Math.max(0, Math.min(90, Math.round(+o.sub.spread || 0))), mix: !!o.sub.mix }, normalizeStack(Object.assign({ stagger: 1 }, o.sub)));
+    const n = Math.max(4, Math.min(48, o.ic && o.ic.n || 24));
+    st.ic = { n, z: (o.ic && o.ic.z) || 0, h: unpackHeights((o.ic && o.ic.h) || "", n) };
+    st.tic = { z: (o.tic && o.tic.z) || 0, cells: unpackCells((o.tic && o.tic.c) || "") };
+    return st;
+  } catch (e) { return null; }
+}
+
+// The engine's genome for a playground state. `habit: "lab"` so nothing
+// downstream mistakes it for a specimen.
+function toGenome(st) {
+  const g = {
+    seed: normalizeSeed(st.seed), habit: "lab", habitDesc: "playground", label: "playground", grid: GRID,
+    masons: st.masons, budget: st.budget, rim: st.rim,
+    k1: st.k1, k2: st.k2, k3: st.k3,
+    patience: st.patience, mobility: st.mobility, flight: st.flight,
+    axis: st.axis.concat([0]),
+    nuclei: [],
+    oxide: Object.assign({}, st.oxide),
+    brain: Object.assign({}, st.brain),
+    population: Object.assign({}, st.pop),
+  };
+  if (!isTilingState(st)) {
+    const voxels = [];
+    const n = st.ic.n, half = n >> 1;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const h = st.ic.h[j * n + i];
+      for (let k = 0; k < h; k++) voxels.push([i - half, j - half, st.ic.z + k]);
+    }
+    // the icosahedral quasicrystal takes the same painted columns, as unit cubes on its melt floor
+    if (st.sub.shape === ICO) g.substrate = { shape: ICO, R: st.sub.icoR, ic: { voxels } };
+    else g.voxels = voxels;
+  } else {
+    const cells = [];
+    for (const [t, h] of st.tic.cells) if (h) cells.push([t, h]);
+    // a polycrystal: each grain grows from its own nucleus disk, straight-stacked; the painted footprint is not used
+    if (isPoly(st.sub)) g.substrate = { shape: st.sub.shape, R: st.sub.R, grains: st.sub.grains, spread: st.sub.spread, mix: st.sub.mix, ic: { disk: 2.5, thickness: 2 }, z0: 6 + st.tic.z };
+    else g.substrate = Object.assign({ shape: st.sub.shape, R: st.sub.R, ic: { cells }, z0: 6 + st.tic.z }, normalizeStack(st.sub));
+  }
+  return g;
+}
+// several grains are a polycrystal, whatever the tiling
+function isPoly(sub) { return sub.shape !== ICO && (sub.grains || 1) > 1; }
+// the cubic lattice is the square grid stacked straight; staggered, twisted or in grains it is a tiling like any other
+function isTilingState(st) { return st.sub.shape !== "grid" && st.sub.shape !== ICO || (st.sub.shape === "grid" && (isStacked(st.sub) || isPoly(st.sub))); }
+
+// What a stacking is, for the note under the chips.
+function stackName(sub) {
+  const ns = normalizeStack(sub), sh = sub.shape;
+  const parts = [];
+  if (ns.stack && ns.stagger > 0) {
+    const full = ns.stagger === 1;
+    if (sh === "hex" && ns.stack === "ab") parts.push(full ? "hexagonal close packing — every layer in the hollows of the last, the third over the first" : "hexagons sliding toward the hollows, part way — AB");
+    else if (sh === "hex") parts.push(full ? "ABC: the rhombohedral family — face-centred cubic at the ideal spacing, seen along [111]; bismuth's own lattice is a distorted member" : "hexagons sliding toward the hollows, part way — ABC");
+    else if (sh === "grid") parts.push(full ? `face-centred cubic along [001]: each square over the corner of four${ns.stack === "abc" ? " (ABC closes at two layers here)" : ""}` : `squares sliding toward the corners, part way — ${ns.stack.toUpperCase()}`);
+    else parts.push(`${ns.stack.toUpperCase()} running bond over ${SHAPE_INFO[sh].label}: the stagger closes only on a lattice, so it faults every ${ns.stack === "abc" ? "third" : "second"} layer`);
+  }
+  if (Math.abs(ns.twist) > 0) parts.push(`a twist of ${ns.twist}° a layer: the vertical bonds are a moiré that turns with height — quasiperiodic along z`);
+  return parts.join(" · ");
+}
+
+// ------------------------------------------------------------ presets ----
+// On the cubic grid, presets paint the height map; on a tiling they paint
+// every tile whose centroid falls in the same footprint.
+const PRESETS = {
+  clear: () => [],
+  plate: () => [[-3, -3, 3, 3, 2]],
+  wide: () => [[-8, -8, 8, 8, 1]],
+  ring: () => [[-7, -7, 7, 7, 2], [-4, -4, 4, 4, 0]],
+  cross: () => [[-9, -1, 9, 1, 2], [-1, -9, 1, 9, 2]],
+  bar: () => [[-10, -2, 10, 2, 2]],
+  twins: () => [[-9, -3, -3, 3, 2], [3, -3, 9, 3, 2]],
+  pillar: () => [[-2, -2, 2, 2, 10]],
+  walls: () => [[-3, -3, 3, 3, 1], [-10, -10, 10, -9, 8], [-10, 9, 10, 10, 8], [-10, -10, -9, 10, 8]],
+};
+function paintBoxesGrid(h, n, boxes) {
+  const half = n >> 1;
+  for (const [x0, y0, x1, y1, v] of boxes) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    const i = x + half, j = y + half;
+    if (i >= 0 && j >= 0 && i < n && j < n) h[j * n + i] = v;
+  }
+}
+function paintBoxesTiling(cells, T, boxes) {
+  for (const [x0, y0, x1, y1, v] of boxes) {
+    for (let t = 0; t < T.n; t++) {
+      const x = T.cx[t] / FIX, y = T.cy[t] / FIX;
+      if (x >= x0 - 0.5 && x <= x1 + 0.5 && y >= y0 - 0.5 && y <= y1 + 0.5) { if (v) cells.set(t, v); else cells.delete(t); }
+    }
+  }
+}
+
+// ---------------------------------------------------------------- app ----
+class Lab {
+  constructor() {
+    this.canvas = $("#gl");
+    this.renderer = new Renderer(this.canvas);
+    this.renderer.autoSpin = 0.08;
+    this.fluxDriver = null;                        // made with the first growth
+    this.paused = false;
+    this.turbo = false;
+    this.pace = 240;
+    this.last = performance.now();
+    this.debt = 0;
+    this.edited = false;
+    this.tilingCache = new Map();
+    const fromHash = location.hash.startsWith("#s=") ? decodeState(location.hash.slice(3)) : null;
+    this.state = fromHash || defaultState();
+    if (!fromHash) { this.state.ic.h = new Uint8Array(24 * 24); paintBoxesGrid(this.state.ic.h, 24, PRESETS.plate()); }
+    this.bindPanel();
+    this.bindPaint();
+    this.bindActions();
+    this.syncPanel();
+    this.reset();
+    requestAnimationFrame((t) => this.loop(t));
+  }
+
+  // the tiling the painter draws (built once per shape and radius)
+  tilingFor(shape, R) {
+    const key = shape + ":" + R;
+    let T = this.tilingCache.get(key);
+    if (!T) { T = tiling(shape, R); this.tilingCache.set(key, T); if (this.tilingCache.size > 6) this.tilingCache.delete(this.tilingCache.keys().next().value); }
+    return T;
+  }
+  isTiling() { return isTilingState(this.state); }
+
+  // --------------------------------------------------------- growth ----
+  reset() {
+    this.growth = new Growth(toGenome(this.state));
+    this.worms = new Worms(this.growth, this.state.worms);
+    this.renderer.worms = null;
+    this.renderer.setGrowth(this.growth);
+    if (!this.fluxDriver) this.fluxDriver = new FluxDriver(this.growth, this.renderer); else this.fluxDriver.setGrowth(this.growth);
+    this.fluxDriver.set(this.state.flux);
+    this.renderer.sync(true);
+    this.renderer.snapCamera();
+    this.renderer.cool = 1.6;
+    this.debt = 0;
+    this.finished = false;
+    this.edited = false;
+    window.__done = false;
+    this.writeHash();
+    this.updateHUD();
+  }
+
+  // Push the current laws into the running engine without restarting it.
+  applyLive() {
+    const g = this.growth, st = this.state;
+    const gen = toGenome(st);
+    // colony 0 follows the panel; deployed packs keep the laws they were deployed with
+    Object.assign(g.genome, { budget: gen.budget, patience: gen.patience, mobility: gen.mobility, flight: gen.flight, oxide: gen.oxide });
+    g.brain = Object.assign({}, DEFAULT_BRAIN, gen.brain);
+    g.pop = Object.assign({}, DEFAULT_POPULATION, gen.population);
+    g.axis = gen.axis.slice();
+    g.rim = gen.rim;
+    Object.assign(this.worms.opts, st.worms);
+    this.fluxDriver.set(st.flux);
+    if (!g.cooling) g.K = [0, gen.k1, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
+    else g.K = [0, 0, gen.k2, gen.k3, 1, 1, 1, 1, 1, 1, 1];
+    const c0 = g.colonies[0];
+    if (c0.done && c0.laid < gen.budget) { c0.done = false; c0.cooling = false; c0.stalled = 0; this.finished = false; }
+    this.edited = true;
+    this.writeHash();
+    this.updateHUD();
+  }
+
+  skip() { this.growth.run(); this.renderer.sync(true); this.renderer.snapCamera(); this.finish(); }
+
+  // reseed from this plane: a new colony on the summit, with the current laws
+  deployPack(at) {
+    const st = this.state, gen = toGenome(st);
+    const pack = { masons: gen.masons, budget: gen.budget, rim: gen.rim, k1: gen.k1, k2: gen.k2, k3: gen.k3, patience: gen.patience, mobility: gen.mobility, flight: gen.flight,
+      axis: gen.axis, brain: gen.brain, population: gen.population, oxide: gen.oxide, size: +$("#packsize").value, thick: 1 };
+    const idx = this.growth.deploy(pack, at);
+    if (idx < 0) { this.toast("nowhere to reseed"); return; }
+    this.finished = false;
+    this.edited = true;
+    this.renderer.sync(false);
+    const col = this.growth.colonies[idx];
+    this.toast(`pack ${idx} on the plane at z ${col.floor} — ${gen.masons} masons, budget ${fmt(gen.budget)}; everything else froze`);
+    this.updateHUD();
+  }
+
+  finish() {
+    if (this.finished) return;
+    this.finished = true;
+    const st = this.growth.stats();
+    $("#stats").textContent =
+      `${fmt(st.bricks)} bricks · ${st.terraces} terraces on the midline · pit ${fmt(st.pit)} cells · hollowness ${st.hollowness.toFixed(2)} · ` +
+      `${st.box.map((v) => Math.round(v)).join("×")} · ${fmt(st.ticks)} ticks · ${st.masons} masons alive, ${st.retired} retired` +
+      (st.tiling === ICO ? ` · ${fmt(st.tiles)} golden rhombohedra (${fmt(st.prolate)} prolate, ${fmt(st.tiles - st.prolate)} oblate)` : st.tiling === "poly" ? ` · ${fmt(st.tiles)} tiles over the grains` : st.tiling ? ` · ${fmt(st.tiles)} ${SHAPE_INFO[st.tiling].label} tiles` : "") + (st.coordination ? ` · ${st.coordination} bonds a brick` : "") +
+      (st.grains ? ` · ${st.grains.length} grains (${st.grains.map((gr) => `${SHAPE_INFO[gr.shape].label} ${gr.angle}°: ${fmt(gr.bricks)}`).join(", ")}) · ${fmt(st.boundary)} bricks on a grain boundary` : "") +
+      (st.stalled ? (st.reach >= 0.9 ? ` · STALLED short of its budget: the crystal reached the edge of its domain (radius ${st.radius}) — raise the radius or lower the budget` : " · stalled short of its budget: nowhere left to grow") : "");
+    window.__done = true;
+    this.updateHUD();
+  }
+
+  updateHUD() {
+    const g = this.growth, gen = g.genome;
+    const laid = g.bricks.length - g.nucleusBricks;
+    $("#bar").style.transform = `scaleX(${Math.min(1, laid / Math.max(1, gen.budget))})`;
+    const alive = g.masons.length, onSurf = g.masons.filter((m) => m.state === "surface").length;
+    $("#count").textContent = g.done
+      ? `${fmt(g.bricks.length)} bricks · ${g.colonies.some((c) => !c.cooling && !c.frozen && c.laid < c.genome.budget) ? "stalled — out of room" : "grown"}${this.edited ? " · edited live — reset to replay from the link" : ""}`
+      : `${fmt(g.bricks.length)} bricks · ${onSurf}/${alive} masons on the surface${g.retired ? ` · ${g.retired} retired` : ""}${g.cooling ? " · cooling" : ""}${this.paused ? " · paused" : ""}${this.edited ? " · edited live" : ""}`;
+    if (!g.done && this.finished === false) $("#stats").textContent = "";
+    $("#pause").textContent = this.paused ? "resume" : "pause";
+    $("#pause").hidden = g.done; $("#step").hidden = g.done; $("#skip").hidden = g.done;
+    const ev = g.events.length, cols = g.colonies.length;
+    const growing = g.colonies.filter((c) => !c.done).length, frozen = g.colonies.filter((c) => c.frozen).length;
+    $("#packnote").textContent = cols > 1 || ev ? `${cols} colonies (${growing} growing, ${frozen} frozen) · floor z ${g.colonies[cols - 1].floor} · ${ev} events (${g.events.filter((e) => e.kind === "deploy").length} deployed, ${g.events.filter((e) => e.kind === "remove").length} removed)` : "one colony, no interventions yet";
+    const ws = this.worms.stats();
+    $("#wormnote").textContent = ws.released
+      ? `${ws.worms} worm${ws.worms === 1 ? "" : "s"} loose · ${fmt(ws.eaten)} bricks eaten${this.state.worms.recycle ? ` · ${fmt(ws.recycled)} recycled into the melt` : ""}${ws.births || ws.deaths ? ` · ${ws.births} born, ${ws.deaths} faded` : ""}${g.done ? " · the crystal is done; the worms are not" : ""}`
+      : "no worms yet — release a wave into the crystal";
+    const fx = this.state.flux;
+    $("#fluxnote").textContent = MATERIAL_INFO[fx.material] + (this.fluxDriver && this.fluxDriver.status ? " · " + this.fluxDriver.status : "");
+    const P = this.state.pop;
+    $("#popnote").textContent = P.birthEvery || P.retireAfter
+      ? `${P.birthEvery ? "a birth every " + P.birthEvery + " bricks" : "no births"}, ${P.retireAfter ? "retire after " + P.retireAfter : "nobody retires"}; ${P.min}–${P.max} alive`
+      : "a fixed colony — what the specimens use";
+  }
+
+  loop(t) {
+    const dt = Math.min(0.1, (t - this.last) / 1000);
+    this.last = t;
+    const g = this.growth, W = this.worms;
+    if (!g.done && !this.paused) {
+      this.debt += this.pace * dt;
+      const deadline = performance.now() + 7;
+      const before = g.bricks.length, tick0 = g.tick;
+      let steps = 0;
+      while (!g.done && (this.turbo || g.bricks.length - before < this.debt)) {
+        g.step();
+        W.step();                                   // the worms keep the engine's clock
+        if ((++steps & 63) === 0 && performance.now() > deadline) break;
+      }
+      this.debt -= g.bricks.length - before;
+      if (this.debt > 40) this.debt = 40;
+      this.renderer.sync(false);
+      if (g.done) this.finish();
+      this.updateHUD();
+      this.wormClock = g.tick - tick0;
+    } else if (W.worms.length && !this.paused) {
+      // the crystal is done; the worms are not — they keep tunnelling at the engine's pace
+      W.step(Math.max(1, Math.round(dt * 240)));
+      if (g.removed.length > this.renderer.syncedRemoved) this.renderer.sync(false);
+      if ((this.wormHud = (this.wormHud || 0) + dt) > 0.25) { this.wormHud = 0; this.updateHUD(); }
+    }
+    this.renderer.worms = W.worms.length ? W.positions() : null;
+    if (this.fluxDriver) { const was = this.fluxDriver.busy; this.fluxDriver.tick(dt); if (was || this.fluxDriver.busy) $("#fluxnote").textContent = MATERIAL_INFO[this.state.flux.material] + (this.fluxDriver.status ? " · " + this.fluxDriver.status : ""); }
+    this.renderer.frame(dt, g.done ? null : g.masons);
+    requestAnimationFrame((tt) => this.loop(tt));
+  }
+
+  // ---------------------------------------------------------- panel ----
+  bindPanel() {
+    const st = this.state;
+    const wire = (input, get, set) => {
+      const out = input.parentElement.querySelector("output");
+      const show = () => { if (out) out.textContent = String(get()); };
+      input._show = show;
+      input.addEventListener("input", () => {
+        set(input.type === "checkbox" ? input.checked : parseFloat(input.value));
+        show();
+        this.onEdit(input);
+      });
+    };
+    for (const el of $$("[data-k]")) { const k = el.dataset.k; wire(el, () => st[k], (v) => { st[k] = v; }); }
+    for (const el of $$("[data-axis]")) { const i = +el.dataset.axis; wire(el, () => st.axis[i].toFixed(2), (v) => { st.axis[i] = v; }); }
+    for (const el of $$("[data-brain]")) { const k = el.dataset.brain; wire(el, () => st.brain[k], (v) => { st.brain[k] = v; }); }
+    for (const el of $$("[data-pop]")) { const k = el.dataset.pop; wire(el, () => st.pop[k], (v) => { st.pop[k] = v; }); }
+    for (const el of $$("[data-worm]")) { const k = el.dataset.worm; wire(el, () => st.worms[k], (v) => { st.worms[k] = v; }); }
+    for (const el of $$("[data-flux]")) { const k = el.dataset.flux; wire(el, () => st.flux[k], (v) => { st.flux[k] = v; }); }
+    const chipRow = (sel, values, key, label, set) => {
+      const box = $(sel);
+      for (const v of values) {
+        const b = document.createElement("button");
+        b.textContent = label(v);
+        b.dataset[key] = String(v);
+        b.addEventListener("click", () => { set(v); this.applyLive(); this.syncPanel(); });
+        box.appendChild(b);
+      }
+    };
+    chipRow("#materials", MATERIALS, "material", (m) => m === "off" ? "off" : m === "dia" ? "diamagnet" : m === "para" ? "paramagnet" : "ferromagnet", (m) => { st.flux.material = m; });
+    chipRow("#applied", [true, false], "applied", (v) => v ? "on" : "off", (v) => { st.flux.applied = v; });
+    chipRow("#views", VIEWS, "view", (v) => v, (v) => { st.flux.view = v; });
+    chipRow("#planes", PLANES, "plane", (v) => v === "lock" ? "locked" : v, (v) => { st.flux.plane = v; st.flux.pn = v === "lock" && this.fluxDriver ? this.fluxDriver.facing() : null; });
+    for (const el of $$("[data-ox]")) { const k = el.dataset.ox; wire(el, () => st.oxide[k], (v) => { st.oxide[k] = v; }); }
+    $("#pace").addEventListener("input", (e) => { this.pace = +e.target.value; $("#pace-out").textContent = this.pace; });
+    $("#packsize").addEventListener("input", (e) => { $("#packsize-out").textContent = e.target.value; });
+    $("#deploy").addEventListener("click", () => this.deployPack(null));
+    $("#worms-release").addEventListener("click", () => {
+      const n = this.worms.release();
+      if (!n) { this.toast("no crystal to release them into"); return; }
+      this.edited = true;
+      this.toast(`${n} worm${n === 1 ? "" : "s"} loose in the crystal`);
+      this.updateHUD();
+    });
+    $("#worms-clear").addEventListener("click", () => { this.worms.clear(); this.renderer.worms = null; this.updateHUD(); });
+    const setMode = (mode) => {
+      this.mode = this.mode === mode ? null : mode;
+      $("#reseed").textContent = this.mode === "reseed" ? "reseed: click a brick — on" : "reseed: click a brick";
+      $("#reseed").classList.toggle("primary", this.mode === "reseed");
+      $("#demolish").textContent = "demolish: " + (this.mode === "demolish" ? "on — click bricks" : "off");
+      $("#demolish").classList.toggle("primary", this.mode === "demolish");
+      this.canvas.style.cursor = this.mode ? "crosshair" : "grab";
+    };
+    $("#reseed").addEventListener("click", () => setMode("reseed"));
+    $("#demolish").addEventListener("click", () => setMode("demolish"));
+    this.canvas.addEventListener("pointerdown", (e) => {
+      if (!this.mode || e.button !== 0) return;
+      const r = this.canvas.getBoundingClientRect();
+      const s = this.renderer.pick(e.clientX - r.left, e.clientY - r.top);
+      if (s < 0) return;
+      e.stopImmediatePropagation();
+      if (this.mode === "demolish") { if (this.growth.remove(s)) { this.edited = true; this.renderer.sync(false); this.updateHUD(); } }
+      else { const at = this.growth.sub.describe(s); at.z += 1; this.deployPack(at); }
+    }, true);
+    $("#turbo").addEventListener("change", (e) => { this.turbo = e.target.checked; });
+    $("#brain-default").addEventListener("click", () => { this.loadBrain(genome(48112), true); });
+    $("#brain-random").addEventListener("click", () => { this.loadBrain(genome(1 + Math.floor(Math.random() * 900000))); });
+    $("#seedload-btn").addEventListener("click", () => { const v = parseInt($("#seedload").value, 10); if (v > 0) this.loadBrain(genome(v)); });
+    $("#seedload").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#seedload-btn").click(); } });
+    // substrate chips
+    const chips = $("#shapes");
+    for (const sh of SHAPES.concat([ICO])) {
+      const b = document.createElement("button");
+      b.textContent = sh === ICO ? ICO_INFO.label : SHAPE_INFO[sh].label;
+      b.dataset.shape = sh;
+      b.addEventListener("click", () => this.setShape(sh));
+      chips.appendChild(b);
+    }
+    const stacks = $("#stacks");
+    for (const [k, label] of [["", "straight"], ["ab", "AB"], ["abc", "ABC"]]) {
+      const b = document.createElement("button");
+      b.textContent = label; b.dataset.stack = k;
+      b.addEventListener("click", () => this.setStack({ stack: k }));
+      stacks.appendChild(b);
+    }
+    $("#stagger").addEventListener("input", (e) => { $("#stagger-out").textContent = e.target.value; });
+    $("#stagger").addEventListener("change", (e) => this.setStack({ stagger: +e.target.value }));
+    $("#twist").addEventListener("input", (e) => { $("#twist-out").textContent = (+e.target.value).toFixed(2).replace(/\.?0+$/, "") + "°"; });
+    $("#twist").addEventListener("change", (e) => this.setStack({ twist: +e.target.value }));
+    $("#grains").addEventListener("input", (e) => { st.sub.grains = +e.target.value; $("#grains-out").textContent = st.sub.grains; this.syncPanel(); this.reset(); });
+    $("#spread").addEventListener("input", (e) => { st.sub.spread = +e.target.value; $("#spread-out").textContent = st.sub.spread + "°"; if (isPoly(st.sub)) this.reset(); });
+    $("#mix").addEventListener("change", (e) => { st.sub.mix = e.target.checked; if (isPoly(st.sub)) this.reset(); });
+    $("#tileR").addEventListener("input", (e) => {
+      if (st.sub.shape === ICO) { st.sub.icoR = +e.target.value; $("#tileR-out").textContent = st.sub.icoR; this.fitBudget(); this.syncPanel(); this.reset(); return; }
+      st.sub.R = +e.target.value; $("#tileR-out").textContent = st.sub.R;
+      // keep painted tiles that still exist; heights are by tile index, which
+      // changes with the radius, so re-paint the same footprint by position
+      const old = this.tilingFor(this.prevShape || st.sub.shape, this.prevR || st.sub.R);
+      const T = this.tilingFor(st.sub.shape, st.sub.R);
+      const cells = new Map();
+      for (const [t, h] of st.tic.cells) { if (t < old.n) { const u = T.locate(old.cx[t], old.cy[t]); if (u >= 0) cells.set(u, h); } }
+      st.tic.cells = cells; this.prevR = st.sub.R;
+      this.drawPaint(); this.reset();
+    });
+  }
+
+  setShape(sh) {
+    const st = this.state;
+    if (sh === st.sub.shape) return;
+    const wasCubic = !this.isTiling();
+    st.sub.shape = sh;
+    this.prevShape = sh; this.prevR = st.sub.R;
+    if (this.isTiling() && (wasCubic || st.tic.cells.size === 0)) this.carryFootprint();
+    this.fitBudget();
+    this.syncPanel();
+    this.reset();
+  }
+  // the icosahedral cylinder holds only so many bricks before the crystal
+  // meets its wall (it grows as tall as it is wide): about 0.9·R³
+  fitBudget() {
+    const st = this.state;
+    if (st.sub.shape !== ICO) return;
+    const cap = Math.round((0.9 * st.sub.icoR ** 3) / 100) * 100;
+    if (st.budget > cap) { st.budget = cap; this.toast(`radius ${st.sub.icoR} holds about ${fmt(cap)} bricks — budget lowered to fit`); }
+  }
+  // the stacking: which pattern, how far each layer slides, how far it turns
+  setStack(patch) {
+    const st = this.state, wasCubic = !this.isTiling();
+    Object.assign(st.sub, patch);
+    Object.assign(st.sub, normalizeStack(st.sub));
+    if (patch.stack && st.sub.stagger === 0) st.sub.stagger = 1;
+    if (this.isTiling() && (wasCubic || st.tic.cells.size === 0)) this.carryFootprint();
+    this.syncPanel();
+    this.reset();
+  }
+  // carry the painted footprint over from the cubic grid, by position
+  carryFootprint() {
+    const st = this.state;
+    const T = this.tilingFor(st.sub.shape, st.sub.R), cells = new Map();
+    const n = st.ic.n, half = n >> 1;
+    for (let t = 0; t < T.n; t++) {
+      const i = Math.floor(T.cx[t] / FIX + half + 0.5), j = Math.floor(T.cy[t] / FIX + half + 0.5);
+      if (i >= 0 && j >= 0 && i < n && j < n && st.ic.h[j * n + i]) cells.set(t, st.ic.h[j * n + i]);
+    }
+    if (cells.size === 0) paintBoxesTiling(cells, T, PRESETS.plate());
+    st.tic.cells = cells;
+  }
+
+  // Which edits restart the growth (the substrate, initial condition and the
+  // colony's starting size cannot change under a running crystal) and which
+  // apply live.
+  onEdit(input) {
+    const restart = input.dataset.k === "masons" || input.dataset.k === "seed";
+    if (restart) this.reset(); else this.applyLive();
+  }
+
+  // Import a specimen's laws (kinetics, anisotropy, oxide, colony size), and
+  // with `defaults` the default brain too. The substrate and the painted
+  // initial condition stay.
+  loadBrain(g, defaults = false) {
+    const st = this.state;
+    Object.assign(st, { masons: g.masons, rim: g.rim, k1: g.k1, k2: g.k2, k3: g.k3, patience: g.patience, mobility: g.mobility, flight: g.flight });
+    st.axis = g.axis.slice(0, 5);
+    st.oxide = { base: Math.round(g.oxide.base), ramp: Math.round(g.oxide.ramp), grain: +g.oxide.grain.toFixed(1), warp: +g.oxide.warp.toFixed(2), wavelength: +g.oxide.wavelength.toFixed(1) };
+    if (defaults) { st.brain = Object.assign({}, DEFAULT_BRAIN); st.pop = Object.assign({}, DEFAULT_POPULATION); }
+    this.syncPanel();
+    this.reset();
+    this.toast(defaults ? "default brain" : `brain of specimen № ${fmt(g.seed)} — ${g.label}`);
+  }
+
+  syncPanel() {
+    const st = this.state;
+    const put = (el, v) => { if (el.type === "checkbox") el.checked = !!v; else el.value = v; if (el._show) el._show(); };
+    for (const el of $$("[data-k]")) put(el, st[el.dataset.k]);
+    for (const el of $$("[data-axis]")) put(el, st.axis[+el.dataset.axis]);
+    for (const el of $$("[data-brain]")) put(el, st.brain[el.dataset.brain]);
+    for (const el of $$("[data-pop]")) put(el, st.pop[el.dataset.pop]);
+    for (const el of $$("[data-worm]")) put(el, st.worms[el.dataset.worm]);
+    for (const el of $$("[data-flux]")) put(el, st.flux[el.dataset.flux]);
+    for (const b of $$("#materials button")) b.classList.toggle("on", b.dataset.material === st.flux.material);
+    for (const b of $$("#applied button")) b.classList.toggle("on", b.dataset.applied === String(st.flux.applied !== false));
+    for (const b of $$("#views button")) b.classList.toggle("on", b.dataset.view === st.flux.view);
+    for (const b of $$("#planes button")) b.classList.toggle("on", b.dataset.plane === st.flux.plane);
+    for (const el of $$("[data-ox]")) put(el, st.oxide[el.dataset.ox]);
+    $("#gridn").value = st.ic.n; $("#gridn-out").textContent = st.ic.n;
+    const ico = st.sub.shape === ICO, tr = $("#tileR");
+    if (ico) { tr.min = ICO_R_MIN; tr.max = ICO_R_MAX; tr.step = 1; tr.value = st.sub.icoR; $("#tileR-out").textContent = st.sub.icoR; }
+    else { tr.min = 12; tr.max = 44; tr.step = 2; tr.value = st.sub.R; $("#tileR-out").textContent = st.sub.R; }
+    for (const b of $$("#shapes button")) b.classList.toggle("on", b.dataset.shape === st.sub.shape);
+    for (const b of $$("#stacks button")) b.classList.toggle("on", b.dataset.stack === (st.sub.stack || ""));
+    $("#stagger").value = st.sub.stagger; $("#stagger-out").textContent = st.sub.stagger;
+    $("#twist").value = st.sub.twist; $("#twist-out").textContent = String(st.sub.twist).replace(/\.?0+$/, "") + "°";
+    const poly = isPoly(st.sub);
+    $("#grains").value = st.sub.grains; $("#grains-out").textContent = st.sub.grains;
+    $("#spread").value = st.sub.spread; $("#spread-out").textContent = st.sub.spread + "°";
+    $("#mix").checked = !!st.sub.mix;
+    // the grains row is always there; on the icosahedral tiling it is disabled, since that one has no grains yet
+    $("#grains").disabled = ico; $("#grainrow").style.opacity = ico ? 0.45 : 1; $("#grainrow").title = ico ? "the icosahedral quasicrystal grows as one grain" : "";
+    $("#spreadrow").style.display = poly ? "" : "none"; $("#mixrow").style.display = poly ? "" : "none";
+    $("#staggerrow").style.display = st.sub.stack && !ico && !poly ? "" : "none";
+    $("#stackrow").style.display = ico || poly ? "none" : ""; $("#twistrow").style.display = ico || poly ? "none" : "";
+    const info = ico ? ICO_INFO : SHAPE_INFO[st.sub.shape], stacked = !ico && !poly && isStacked(st.sub);
+    $("#shapenote").textContent = poly
+      ? `a polycrystal of ${st.sub.grains} grains — ${st.sub.mix ? "each its own tiling" : info.label + ", each turned its own way"} (up to ${Math.min(st.sub.spread, ico ? 0 : (SHAPE_INFO[st.sub.shape].symmetry ? 360 / SHAPE_INFO[st.sub.shape].symmetry : 90))}°), set down apart and grown from one melt; where two meet, a grain boundary. The painted footprint is not used: every grain starts from its own disk`
+      : ico
+      ? "the icosahedral quasicrystal — space tiled by prolate and oblate golden rhombohedra, the three-dimensional Penrose tiling; no lattice, no period in any direction, five-fold axes. Six faces a brick; the melt is above along a two-fold axis, so the terraces are the faces of a rhombic triacontahedron. Slower to build (a few seconds) and to grow; it grows as tall as it is wide, so a big budget wants a big radius — at 14 about 3,000 bricks fit before it meets the wall"
+      : st.sub.shape === "grid" && !stacked
+      ? "the cubic lattice — what the specimens grow on; right angles come from here, not from the brain"
+      : stacked ? `${info.note} · ${info.family}, ${info.symmetry}-fold · stacked: ${stackName(st.sub)}`
+      : `${info.note} · ${info.family}, ${info.symmetry}-fold · stacked into prisms: a ${info.family === "aperiodic" ? "quasicrystal" : "columnar crystal"}, periodic along z`;
+    $("#gridrow").style.display = this.isTiling() ? "none" : "";
+    $("#rrow").style.display = this.isTiling() || ico ? "" : "none";
+    this.drawPaint();
+  }
+
+  // ------------------------------------------------------------ sheet ----
+  // On a phone the laws are a sheet across the bottom of the screen: drag
+  // its handle for more or less of it, tap to put it away and bring it back.
+  // The canvas is the window above it, and the renderer reframes to that.
+  bindSheet() {
+    const h = $("#handle"), root = document.documentElement, panel = $("#panel");
+    const HANDLE = 30, third = () => Math.round(window.innerHeight * 0.36), tall = () => Math.round(window.innerHeight * 0.82);
+    let px = null;                                     // current sheet height in px, or null for the stylesheet's own
+    const set = (v) => { px = v; root.style.setProperty("--sheet", v + "px"); document.body.classList.toggle("sheet-tall", v > window.innerHeight * 0.6); };
+    const snap = (v) => { const stops = [HANDLE, third(), tall()]; let best = stops[0]; for (const s of stops) if (Math.abs(s - v) < Math.abs(best - v)) best = s; return best; };
+    let drag = null;
+    h.addEventListener("pointerdown", (e) => {
+      drag = { y: e.clientY, h: px === null ? h.getBoundingClientRect().bottom > 0 ? window.innerHeight - h.getBoundingClientRect().bottom + HANDLE : third() : px, moved: false };
+      panel.classList.add("dragging");
+      try { h.setPointerCapture(e.pointerId); } catch (err) { /* synthetic */ }
+    });
+    h.addEventListener("pointermove", (e) => {
+      if (!drag) return;
+      const dy = drag.y - e.clientY;
+      if (Math.abs(dy) > 4) drag.moved = true;
+      set(Math.max(HANDLE, Math.min(Math.round(window.innerHeight * 0.92), drag.h + dy)));
+    });
+    const up = () => {
+      if (!drag) return;
+      panel.classList.remove("dragging");
+      if (drag.moved) set(snap(px));
+      else set(px !== null && px <= HANDLE + 1 ? third() : HANDLE);   // a tap: away, or back to a third
+      drag = null;
+    };
+    h.addEventListener("pointerup", up); h.addEventListener("pointercancel", up);
+    window.addEventListener("resize", () => { if (px !== null && px > HANDLE + 1) set(snap(px)); });
+  }
+
+  // ---------------------------------------------------------- paint ----
+  bindPaint() {
+    const cv = this.paintCanvas = $("#paint");
+    const ctx = cv.getContext("2d");
+    this.pctx = ctx;
+    let painting = false, value = 0;
+    const cellGrid = (e) => {
+      const r = cv.getBoundingClientRect();
+      const n = this.state.ic.n;
+      const i = Math.floor((e.clientX - r.left) / r.width * n), j = Math.floor((e.clientY - r.top) / r.height * n);
+      return i >= 0 && j >= 0 && i < n && j < n ? j * n + i : -1;
+    };
+    const tileAt = (e) => {
+      const r = cv.getBoundingClientRect();
+      const R = this.state.sub.R + 1;
+      const x = ((e.clientX - r.left) / r.width * 2 - 1) * R, y = ((e.clientY - r.top) / r.height * 2 - 1) * R;
+      return this.tilingFor(this.state.sub.shape, this.state.sub.R).locate(Math.round(x * FIX), Math.round(y * FIX));
+    };
+    const apply = (e) => {
+      const st = this.state;
+      if (this.isTiling()) {
+        const t = tileAt(e);
+        if (t < 0) return;
+        const cur = st.tic.cells.get(t) || 0;
+        if (cur !== value) { if (value) st.tic.cells.set(t, value); else st.tic.cells.delete(t); this.drawPaint(); this.paintDirty = true; }
+        return;
+      }
+      const k = cellGrid(e);
+      if (k < 0) return;
+      const h = st.ic.h;
+      if (h[k] !== value) { h[k] = value; this.drawPaint(); this.paintDirty = true; }
+    };
+    cv.addEventListener("contextmenu", (e) => e.preventDefault());
+    cv.addEventListener("pointerdown", (e) => {
+      painting = true;
+      value = (e.button === 2 || e.shiftKey) ? 0 : +$("#brush").value;
+      cv.setPointerCapture(e.pointerId);
+      apply(e);
+    });
+    cv.addEventListener("pointermove", (e) => { if (painting) apply(e); });
+    const up = () => { if (painting && this.paintDirty) { this.paintDirty = false; this.reset(); } painting = false; };
+    cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+    $("#brush").addEventListener("input", (e) => { $("#brush-out").textContent = e.target.value; });
+    $("#gridn").addEventListener("input", (e) => {
+      const n = +e.target.value, old = this.state.ic;
+      const h = new Uint8Array(n * n), oh = old.n >> 1, nh = n >> 1;
+      for (let j = 0; j < old.n; j++) for (let i = 0; i < old.n; i++) {
+        const x = i - oh + nh, y = j - oh + nh;
+        if (x >= 0 && y >= 0 && x < n && y < n) h[y * n + x] = old.h[j * old.n + i];
+      }
+      this.state.ic = { n, z: old.z, h };
+      $("#gridn-out").textContent = n;
+      this.drawPaint();
+      this.reset();
+    });
+    for (const b of $$("#presets button")) b.addEventListener("click", () => {
+      const st = this.state, boxes = PRESETS[b.dataset.preset]();
+      if (this.isTiling()) { st.tic.cells = new Map(); paintBoxesTiling(st.tic.cells, this.tilingFor(st.sub.shape, st.sub.R), boxes); }
+      else { st.ic.h = new Uint8Array(st.ic.n * st.ic.n); paintBoxesGrid(st.ic.h, st.ic.n, boxes); }
+      this.drawPaint();
+      this.reset();
+    });
+  }
+
+  heightColour(v) {
+    const t = Math.min(1, v / 12);
+    // dark bronze → gold → pale, the same climb the crystal makes
+    return `rgb(${Math.round(90 + 150 * t)},${Math.round(60 + 130 * t)},${Math.round(30 + 90 * t * t)})`;
+  }
+
+  drawPaint() {
+    const ctx = this.pctx, cv = this.paintCanvas, W = cv.width;
+    ctx.fillStyle = "#0a0a10"; ctx.fillRect(0, 0, W, W);
+    if (this.isTiling()) {
+      const st = this.state, T = this.tilingFor(st.sub.shape, st.sub.R), R = st.sub.R + 1;
+      const sx = (x) => (x / R + 1) * W / 2, sy = (y) => (y / R + 1) * W / 2;
+      ctx.lineWidth = 0.6;
+      for (let t = 0; t < T.n; t++) {
+        const poly = T.polygon(t), h = st.tic.cells.get(t) || 0;
+        ctx.beginPath();
+        ctx.moveTo(sx(poly[0][0]), sy(poly[0][1]));
+        for (let i = 1; i < poly.length; i++) ctx.lineTo(sx(poly[i][0]), sy(poly[i][1]));
+        ctx.closePath();
+        if (h) { ctx.fillStyle = this.heightColour(h); ctx.fill(); }
+        ctx.strokeStyle = T.deep[t] ? "rgba(232,228,220,0.10)" : "rgba(232,228,220,0.035)";
+        ctx.stroke();
+      }
+      ctx.strokeStyle = "rgba(224,179,90,0.5)";
+      ctx.beginPath(); ctx.moveTo(W / 2 - 6, W / 2); ctx.lineTo(W / 2 + 6, W / 2); ctx.moveTo(W / 2, W / 2 - 6); ctx.lineTo(W / 2, W / 2 + 6); ctx.stroke();
+      return;
+    }
+    const n = this.state.ic.n, h = this.state.ic.h, s = W / n;
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const v = h[j * n + i];
+      if (!v) continue;
+      ctx.fillStyle = this.heightColour(v);
+      ctx.fillRect(i * s + 0.5, j * s + 0.5, s - 1, s - 1);
+      if (s >= 12) { ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.font = `${Math.floor(s * 0.55)}px sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(String(v), i * s + s / 2, j * s + s / 2 + 1); }
+    }
+    ctx.strokeStyle = "rgba(232,228,220,0.07)";
+    ctx.lineWidth = 1;
+    for (let k = 0; k <= n; k++) { ctx.beginPath(); ctx.moveTo(k * s, 0); ctx.lineTo(k * s, W); ctx.moveTo(0, k * s); ctx.lineTo(W, k * s); ctx.stroke(); }
+    const c = (n >> 1) * s;
+    ctx.strokeStyle = "rgba(224,179,90,0.5)";
+    ctx.beginPath(); ctx.moveTo(c - 6, c); ctx.lineTo(c + 6, c); ctx.moveTo(c, c - 6); ctx.lineTo(c, c + 6); ctx.stroke();
+  }
+
+  // -------------------------------------------------------- actions ----
+  bindActions() {
+    $("#pause").addEventListener("click", () => { this.paused = !this.paused; this.updateHUD(); });
+    $("#step").addEventListener("click", () => { for (let i = 0; i < 100 && !this.growth.done; i++) this.growth.step(); this.renderer.sync(false); if (this.growth.done) this.finish(); this.updateHUD(); });
+    $("#skip").addEventListener("click", () => this.skip());
+    $("#reset").addEventListener("click", () => this.reset());
+    const share = async (e) => {
+      if (e) e.preventDefault();
+      this.writeHash();
+      const url = location.href;
+      try { await navigator.clipboard.writeText(url); this.toast("link copied — this playground, exactly"); }
+      catch (err) { this.toast(url); }
+    };
+    $("#share").addEventListener("click", share);
+    $("#share2").addEventListener("click", share);
+    $("#paneltoggle").addEventListener("click", () => $("#panel").classList.toggle("hidden"));
+    this.bindSheet();
+    window.addEventListener("keydown", (e) => {
+      const tag = e.target && e.target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      if (e.key === " ") { e.preventDefault(); this.paused = !this.paused; this.updateHUD(); }
+      else if (e.key === "r") this.reset();
+      else if (e.key === "s") this.skip();
+      else if (e.key === ".") $("#step").click();
+      else if (e.key === "l") $("#panel").classList.toggle("hidden");
+    });
+    window.addEventListener("hashchange", () => {
+      const st = location.hash.startsWith("#s=") ? decodeState(location.hash.slice(3)) : null;
+      if (st && encodeState(st) !== encodeState(this.state)) { this.state = st; this.syncPanel(); this.reset(); }
+    });
+  }
+
+  writeHash() {
+    const enc = "#s=" + encodeState(this.state);
+    if (location.hash !== enc) history.replaceState(null, "", enc);
+  }
+
+  toast(msg) {
+    const el = $("#toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(this._toast);
+    this._toast = setTimeout(() => el.classList.remove("show"), 2400);
+  }
+}
+
+try {
+  window.__lab = new Lab();
+} catch (err) {
+  const el = $("#err");
+  el.hidden = false;
+  el.textContent = "the playground needs WebGL — " + (err && err.message ? err.message : err);
+  console.error(err);
+}
+export { toGenome, encodeState, decodeState };

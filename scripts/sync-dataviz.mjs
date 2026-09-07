@@ -40,6 +40,23 @@ const EXTRA = [
   // picture straight to Bluesky; a stale copy would post through last month's
   // token handling.
   ["packages/oauth-client/auth.js", "photo/public/shop/js/vendor/auth.js"],
+  // bismuth grows crystals on the plane tilings in packages/tilings/ (the
+  // same generators the foam dungeon draws rooms with). Its page and worker
+  // import /js/tilings.js from the site's own asset root.
+  ["packages/tilings/tilings.js", "packages/bismuth/tilings.js"],
+  // The bismuth growth engine (masons, substrates, the thin-film renderer)
+  // is a package too: packages/bismuth/ is the source, and each site that
+  // runs it serves a byte-identical copy from its own asset root — bismuth
+  // (the specimens and the playground) and hopper (the platformer built on
+  // the same engine). tilings.js rides along so prism.js can import
+  // ./tilings.js wherever the copy lands.
+  // hopper publishes runs to the player's own PDS through the shared OAuth
+  // worker, so it links the client like every other static site does.
+  ["packages/oauth-client/auth.js", "hopper/js/auth.js"],
+  ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
+    [`packages/bismuth/${f}`, `bismuth/js/${f}`],
+    [`packages/bismuth/${f}`, `hopper/js/${f}`],
+  ]),
 ];
 
 const args = process.argv.slice(2);
