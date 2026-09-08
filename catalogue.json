@@ -1,5 +1,5 @@
 {
-  "$comment": "SOURCE OF TRUTH for the public site catalogue — what a person can visit. Hand-edited. index.html's `var P` is GENERATED from this file by scripts/gen-landing-catalogue.mjs --write; do not edit var P directly. Deploy ownership is NOT defined here: deploy-registry.json owns that, and each entry's `surface` field is a foreign key into it.",
+  "$comment": "SOURCE OF TRUTH for the public site catalogue — what a person can visit. Hand-edited. The landing (index.html) reads it through rethink/data.js (scripts/build-rethink.mjs); search, the stumble portal, office, mappa and orrery are projections of it. Deploy ownership is NOT defined here: deploy-registry.json owns that, and each entry's `surface` field is a foreign key into it.",
   "$fields": {
     "n": "display name",
     "u": "canonical URL",
@@ -9,9 +9,11 @@
     "t": "last-touched date (YYYY-MM-DD)",
     "b": "birth date, first commit (YYYY-MM-DD)",
     "p": "parent entry name, when this is a sub-site",
-    "surface": "foreign key -> deploy-registry.json surfaces[].surface"
+    "surface": "foreign key -> deploy-registry.json surfaces[].surface",
+    "d": "curated one-line description (moved here from the old landing's <li> list in 2026-09)",
+    "tags": "stack tags shown with the description (canvas, atproto, wasm, …)"
   },
-  "$order": "entries[] order is the on-screen order of the landing page — preserve it. sections[] records the section comments emitted into var P, by entry index.",
+  "$order": "entries[] order is a legacy of the old landing's on-screen order; sections[] recorded its section boundaries by entry index and is kept for the archived page only.",
   "sections": [
     {
       "before": 0,
@@ -43,7 +45,13 @@
       "a": "warm",
       "t": "2026-05-30",
       "b": "2026-03-07",
-      "surface": "poll"
+      "surface": "poll",
+      "d": "Anonymous polling with RSA blind signatures. The poll host can’t link your identity to your vote.",
+      "tags": [
+        "workers",
+        "d1",
+        "do"
+      ]
     },
     {
       "n": "airchat",
@@ -53,7 +61,13 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-05-20",
-      "surface": "airchat"
+      "surface": "airchat",
+      "d": "Voice-first social on ATProto. Browser records, Whisper transcribes, PDS holds the audio. Identity via Bluesky OAuth.",
+      "tags": [
+        "workers",
+        "atproto",
+        "whisper"
+      ]
     },
     {
       "n": "zoom",
@@ -63,7 +77,12 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-26",
-      "surface": "zoom"
+      "surface": "zoom",
+      "d": "SimCluster community viewer. Infinite-canvas visualization of feed communities with hex-packed profile pictures.",
+      "tags": [
+        "react",
+        "canvas"
+      ]
     },
     {
       "n": "weft",
@@ -73,7 +92,12 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-04-24",
-      "surface": "root"
+      "surface": "root",
+      "d": "Thread analysis. Tidy-tree canvas view of any Bluesky conversation with contributor weighting and YAML export for LLMs.",
+      "tags": [
+        "canvas",
+        "atproto"
+      ]
     },
     {
       "n": "bisk",
@@ -83,7 +107,12 @@
       "a": "hot",
       "t": "2026-06-02",
       "b": "2026-05-24",
-      "surface": "bisk"
+      "surface": "bisk",
+      "d": "The SimCluster Daily. A deterministic digest of a Bluesky neighborhood, recomputed each morning: top chickens (most-liked posts), delvers (deepest thread, rendered with weft's threadbeast), and a sentiment weather report. A fork of the mino times; morphyx and modulo will edit once the personas wake up.",
+      "tags": [
+        "worker",
+        "atproto"
+      ]
     },
     {
       "n": "monthly",
@@ -104,7 +133,11 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-05-28",
-      "surface": "empathy"
+      "surface": "empathy",
+      "d": "See Bluesky as anyone sees it. Type a handle and get their reconstructed timeline, public network, public blocks, and the feeds they've built — with an honest note on what's protocol-private (mutes, pinned-feed list).",
+      "tags": [
+        "atproto"
+      ]
     },
     {
       "n": "photo",
@@ -114,7 +147,13 @@
       "a": "hot",
       "t": "2026-05-30",
       "b": "2026-03-16",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "The index of the image surface — fourteen tools sharing one origin: a layered editor, projections and warps, optical instruments, and an explorer that renders every image from any Bluesky account as a filterable masonry grid.",
+      "tags": [
+        "react",
+        "duckdb",
+        "wasm"
+      ]
     },
     {
       "n": "thread",
@@ -123,7 +162,11 @@
       "k": 3,
       "a": "hot",
       "p": "photo",
-      "surface": "b"
+      "surface": "b",
+      "d": "Threaded post viewer. Full conversation tree rendering with quote-post expansion.",
+      "tags": [
+        "react"
+      ]
     },
     {
       "n": "astro",
@@ -132,7 +175,11 @@
       "k": 4,
       "a": "hot",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Astrology photo analyzer. EXIF timestamp + GPS coordinates feed an ephemeris that paints a chart for the moment the photo was taken.",
+      "tags": [
+        "react"
+      ]
     },
     {
       "n": "prism",
@@ -141,7 +188,11 @@
       "k": 3,
       "a": "hot",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Photo prism. Keratoconic global effect, hex toggle, EXIF-aware chromatic dispersion.",
+      "tags": [
+        "react"
+      ]
     },
     {
       "n": "ternary",
@@ -151,7 +202,11 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-05",
-      "surface": "root"
+      "surface": "root",
+      "d": "Three lusts, one chart. Ternary plot of posting temperament—flesh, knowledge, and argument.",
+      "tags": [
+        "embeddings"
+      ]
     },
     {
       "n": "judge",
@@ -161,7 +216,11 @@
       "a": "cold",
       "t": "2026-05-31",
       "b": "2026-03-04",
-      "surface": "root"
+      "surface": "root",
+      "d": "Posting profile. Personality traits and valence from post embeddings, topics via k-means clustering.",
+      "tags": [
+        "embeddings"
+      ]
     },
     {
       "n": "novelty",
@@ -171,7 +230,11 @@
       "a": "cold",
       "t": "2026-05-31",
       "b": "2026-03-04",
-      "surface": "root"
+      "surface": "root",
+      "d": "Semantic novelty trajectory. Track how an account’s posting content drifts or repeats over time.",
+      "tags": [
+        "embeddings"
+      ]
     },
     {
       "n": "echo",
@@ -181,7 +244,8 @@
       "a": "cold",
       "t": "2026-05-31",
       "b": "2026-03-05",
-      "surface": "root"
+      "surface": "root",
+      "d": "Post density, head to head. Compare two handles side by side on posting volume and patterns."
     },
     {
       "n": "density",
@@ -191,7 +255,8 @@
       "a": "cold",
       "t": "2026-05-31",
       "b": "2026-02-28",
-      "surface": "root"
+      "surface": "root",
+      "d": "Post brevity, measured. Filter posts by exact word count, ranked by character length."
     },
     {
       "n": "seek",
@@ -201,7 +266,8 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-28",
-      "surface": "root"
+      "surface": "root",
+      "d": "Find a friend. Discover follows-of-follows you don’t yet follow, ranked by network density."
     },
     {
       "n": "cluster",
@@ -211,7 +277,8 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-28",
-      "surface": "root"
+      "surface": "root",
+      "d": "Find your tightest circle. The largest group of your follows who all mutually follow each other."
     },
     {
       "n": "wild",
@@ -221,7 +288,11 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-04-23",
-      "surface": "root"
+      "surface": "root",
+      "d": "Group novelty on Bluesky. How wild is your corner? Semantic novelty analysis across a whole list.",
+      "tags": [
+        "embeddings"
+      ]
     },
     {
       "n": "disk",
@@ -231,7 +302,11 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-04-10",
-      "surface": "b"
+      "surface": "b",
+      "d": "Poincaré interaction map. Hyperbolic-disk view of account interactions with more room at the edge.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "answers",
@@ -241,7 +316,12 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-04-18",
-      "surface": "answers"
+      "surface": "answers",
+      "d": "Ask anything. Answered by the ATmosphere—questions, answers, votes, and best-answer picks stored on PDS.",
+      "tags": [
+        "atproto",
+        "oauth"
+      ]
     },
     {
       "n": "rite",
@@ -251,7 +331,13 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-05-20",
-      "surface": "rite"
+      "surface": "rite",
+      "d": "Sentence editing drill plus nine surfaces over Bluesky prose—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, and signal mapping.",
+      "tags": [
+        "workers",
+        "d1",
+        "ai"
+      ]
     },
     {
       "n": "rant",
@@ -261,7 +347,14 @@
       "a": "hot",
       "t": "2026-07-28",
       "b": "2026-07-28",
-      "surface": "rant"
+      "surface": "rant",
+      "d": "A box to rant into, and the words end up in your own repo as standard.site records—so any reader on the network can index them. Written entirely in Rust: a workers-rs edge worker and a wasm-bindgen browser module over one shared engine, which is why the preview and the published page cannot disagree. Eleven predicate views give every post alternate readings with real URLs—skeleton strips the function words, spine keeps one sentence per paragraph, cadence draws the shape instead of the text, reverse starts at the conclusion—descended from read's reading modes and composable (?view=skeleton+bionic). Link cards are rasterised at the edge and drawn from the post's own cadence. Subscribe writes a record to your repo; there is no subscriber list here. Agents get MCP, llms.txt and JSON—read and draft, never publish.",
+      "tags": [
+        "rust",
+        "wasm",
+        "standard.site",
+        "mcp"
+      ]
     },
     {
       "n": "fodder",
@@ -398,7 +491,12 @@
       "a": "hot",
       "t": "2026-05-31",
       "b": "2026-05-30",
-      "surface": "b"
+      "surface": "b",
+      "d": "Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place.",
+      "tags": [
+        "atproto",
+        "hub"
+      ]
     },
     {
       "n": "feedgen",
@@ -639,7 +737,12 @@
       "t": "2026-07-28",
       "b": "2026-07-28",
       "p": "hoop",
-      "surface": "hoop-archive"
+      "surface": "hoop-archive",
+      "d": "The hoop museum. The original first-pass @-room forum game, the early engine passes, and every frozen version snapshot from v090 to v108 — each still independently served, with its own copies of the shared code it imported. Mainline hoop redirects archived paths here. Serving fixes only; no new work.",
+      "tags": [
+        "museum",
+        "frozen"
+      ]
     },
     {
       "n": "pod",
@@ -659,7 +762,12 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-04-10",
-      "surface": "root"
+      "surface": "root",
+      "d": "Interaction metro. A 2D transit-map view of a Bluesky account’s interaction patterns, powered by Apache Arrow.",
+      "tags": [
+        "arrow",
+        "canvas"
+      ]
     },
     {
       "n": "orb",
@@ -668,7 +776,11 @@
       "k": 5,
       "a": "hot",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Thread on a sphere. Wraps a Bluesky thread’s images onto a glowing, auto-scrolling WebGPU orb.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "fractal",
@@ -677,7 +789,11 @@
       "k": 7,
       "a": "hot",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Fractalize. Turn any Bluesky photo into an endlessly zooming fractal of itself, rendered on the GPU.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "juice",
@@ -699,7 +815,11 @@
       "t": "2026-07-26",
       "b": "2026-07-26",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Stained glass of best fit. Drop a photo and get the closest window that can be built from flat pieces and lead — least-squares colour per piece, real cathedral palettes, and the residual reported honestly. Exports a cutting plan as SVG.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "glitch",
@@ -710,7 +830,11 @@
       "t": "2026-07-27",
       "b": "2026-07-27",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Steerable damage. Thirteen glitch operators — pixel sort, PNG predictors, real JPEG databending, composite video, datamosh — each aimed by a mask you paint or derive from the photo. Seeded, so every result is reproducible, and every PNG carries the recipe that made it.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "lens",
@@ -721,7 +845,11 @@
       "t": "2026-07-28",
       "b": "2026-07-28",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Conformal warps. Tiny planets, Droste spirals, Möbius bulges and funhouse mirrors, built as complex functions — so most of them preserve angles exactly. Measures the quasiconformal dilatation of whatever you compose and shows where the shape is being lost.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "shop",
@@ -732,7 +860,11 @@
       "t": "2026-07-31",
       "b": "2026-07-31",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "The whole workbench, stackable. A layered editor where fifty-seven manipulations — levels, curves, blurs, halftones, dithers, plus every warp from lens, every operator from glitch and the projection from glass — go into one non-destructive stack, each aimed by a lasso, a wand or a field derived from the picture. Layer masks, blend modes, undo; the recipe rides inside the exported PNG.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "explore",
@@ -743,7 +875,13 @@
       "t": "2026-08-01",
       "b": "2026-08-01",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "Every image a Bluesky account has ever posted. Downloads the whole repo as a CAR, parses it with Rust/WASM and queries it with DuckDB, all in the tab — filter by ratio, colour, alt text or date; the view is shareable as a URL.",
+      "tags": [
+        "react",
+        "duckdb",
+        "wasm"
+      ]
     },
     {
       "n": "bloom",
@@ -754,7 +892,11 @@
       "t": "2026-08-03",
       "b": "2026-08-02",
       "p": "photo",
-      "surface": "photo"
+      "surface": "photo",
+      "d": "One picture, then every direction it could go. Each tile is a recipe from shop applied to its parent, so the graph grows outward as a web of permutations rather than a single edit history — steer a fan toward what you liked, reroll the ones you didn’t, and let an arc close back into a cycle. Pinch to zoom; the whole graph is retained, so nothing you passed through is lost.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "ternary2",
@@ -765,7 +907,11 @@
       "t": "2026-05-31",
       "b": "2026-05-31",
       "p": "ternary",
-      "surface": "root"
+      "surface": "root",
+      "d": "Ternary, server-embedded. The flesh/knowledge/argument temperament plot with embeddings computed edge-side via a Pages Function.",
+      "tags": [
+        "embeddings"
+      ]
     },
     {
       "n": "ternary3",
@@ -776,7 +922,11 @@
       "t": "2026-06-02",
       "b": "2026-06-02",
       "p": "ternary",
-      "surface": "root"
+      "surface": "root",
+      "d": "Ternary, iterated. A third cut at the posting-temperament chart.",
+      "tags": [
+        "embeddings"
+      ]
     },
     {
       "n": "bsky",
@@ -786,7 +936,11 @@
       "a": "hot",
       "t": "2026-09-05",
       "b": "2026-09-05",
-      "surface": "bsky"
+      "surface": "bsky",
+      "d": "An AppView with no database. Jetstream v2 filters the firehose to your follow graph server-side, so a live timeline needs no backend and no fan-out — and Constellation, the network-wide backlink index, answers the like/repost/reply counts a client normally has to ask an AppView for. Starts empty and fills as the network posts; nothing is stored anywhere.",
+      "tags": [
+        "atproto"
+      ]
     },
     {
       "n": "zest",
@@ -796,7 +950,13 @@
       "a": "hot",
       "t": "2026-08-16",
       "b": "2026-08-16",
-      "surface": "zest"
+      "surface": "zest",
+      "d": "Posts as solids. A post embedding is used as the harmonic spectrum of a surface — the loudest corpus dimensions become lobes, the ~740 quiet ones become grain — so two posts that mean the same thing cannot look different. Then they rain down and you slice them, and a binomial test says whether you actually learned to read the geometry.",
+      "tags": [
+        "embeddings",
+        "three.js",
+        "game"
+      ]
     },
     {
       "n": "org",
@@ -806,7 +966,12 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-03-25",
-      "surface": "org"
+      "surface": "org",
+      "d": "Organization hub. Create orgs, manage members and tiers, with calendar, CRM, PM, and Wave apps built in.",
+      "tags": [
+        "react",
+        "atproto"
+      ]
     },
     {
       "n": "pm",
@@ -817,7 +982,12 @@
       "t": "2026-05-29",
       "b": "2026-03-25",
       "p": "org",
-      "surface": "pm"
+      "surface": "pm",
+      "d": "Earned value project management. Gantt charts, S-curves, resource tracking, and Kanban—synced to PDS.",
+      "tags": [
+        "pwa",
+        "atproto"
+      ]
     },
     {
       "n": "wave",
@@ -828,7 +998,12 @@
       "t": "2026-05-29",
       "b": "2026-03-25",
       "p": "org",
-      "surface": "wave"
+      "surface": "wave",
+      "d": "Team messaging. Channels, threads, and collaborative documents with real-time Jetstream sync.",
+      "tags": [
+        "react",
+        "atproto"
+      ]
     },
     {
       "n": "board",
@@ -838,7 +1013,12 @@
       "a": "hot",
       "t": "2026-07-28",
       "b": "2026-07-28",
-      "surface": "board"
+      "surface": "board",
+      "d": "An infinite whiteboard that contains infinite whiteboards. Pictures, voice notes, links and text snips placed in space and wired together with arrows; fold a crowded corner into a child board and the arrows that crossed the boundary re-point at the portal. One board is one record in your own repo.",
+      "tags": [
+        "atproto",
+        "canvas"
+      ]
     },
     {
       "n": "farm",
@@ -848,7 +1028,12 @@
       "a": "hot",
       "t": "2026-08-11",
       "b": "2026-08-11",
-      "surface": "farm"
+      "surface": "farm",
+      "d": "Harvestople — farming on ATProto. Plant real organisms that grow on the wall clock, mine the seven planetary metals, brew Galenic alchemy from what you harvest, and post your deeds to Bluesky. Friends who water your plants grow them 10% faster each — every boost a public record either side can verify. Your whole farm is one record in your own repo; no database anywhere.",
+      "tags": [
+        "atproto",
+        "game"
+      ]
     },
     {
       "n": "farm-next",
@@ -858,7 +1043,12 @@
       "a": "hot",
       "t": "2026-08-13",
       "b": "2026-08-13",
-      "surface": "farm-next"
+      "surface": "farm-next",
+      "d": "Harvestople's testing table. Petition a change from inside the farm and the town council builds it here — live within the hour, playable with your real save. The good experiments graduate to the mainline farm at the weekly merge party; the save covenant keeps one plot record honest across both worlds.",
+      "tags": [
+        "atproto",
+        "game"
+      ]
     },
     {
       "n": "wiki",
@@ -869,7 +1059,12 @@
       "t": "2026-05-29",
       "b": "2026-04-15",
       "p": "org",
-      "surface": "root"
+      "surface": "root",
+      "d": "Obsidian-like knowledge graph on ATProto. Rust/WASM markdown engine, WYSIWYG canvas editor, PDS-backed notes.",
+      "tags": [
+        "atproto",
+        "wasm"
+      ]
     },
     {
       "n": "crm",
@@ -880,7 +1075,12 @@
       "t": "2026-05-29",
       "b": "2026-03-25",
       "p": "org",
-      "surface": "crm"
+      "surface": "crm",
+      "d": "Vault CRM. Encrypted contact records sealed to PDS with ECDH + AES-GCM; tiered sharing for team members.",
+      "tags": [
+        "atproto",
+        "vault"
+      ]
     },
     {
       "n": "bounty",
@@ -890,7 +1090,12 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-03-18",
-      "surface": "bounty"
+      "surface": "bounty",
+      "d": "Anonymous bounty marketplace. Reputation-based ecash tokens with blind-signed denominations.",
+      "tags": [
+        "workers",
+        "d1"
+      ]
     },
     {
       "n": "io",
@@ -900,7 +1105,12 @@
       "a": "hot",
       "t": "2026-06-03",
       "b": "2026-05-30",
-      "surface": "io"
+      "surface": "io",
+      "d": "ATProto issue tracker. Bug reports and feature requests live on your own PDS; doubles as a StumbleUpon-style portal across the mino.mobi sites.",
+      "tags": [
+        "atproto",
+        "pds"
+      ]
     },
     {
       "n": "time",
@@ -910,7 +1120,12 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-25",
-      "surface": "time"
+      "surface": "time",
+      "d": "The Mino Times—agentic biotech intelligence. Research, articles, editorial panels, and podcast.",
+      "tags": [
+        "atproto",
+        "podcast"
+      ]
     },
     {
       "n": "mega",
@@ -920,11 +1135,16 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-03-17",
-      "surface": "mega"
+      "surface": "mega",
+      "d": "Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe.",
+      "tags": [
+        "maplibre",
+        "deck.gl"
+      ]
     },
     {
       "n": "finance",
-      "u": "https://mino.mobi/finance/",
+      "u": "https://fin.mino.mobi/pm/",
       "c": "data",
       "k": 28,
       "a": "hot",
@@ -934,7 +1154,7 @@
     },
     {
       "n": "bogo",
-      "u": "https://mino.mobi/finance/bogo/",
+      "u": "https://fin.mino.mobi/bogo/",
       "c": "data",
       "k": 2,
       "a": "hot",
@@ -945,7 +1165,7 @@
     },
     {
       "n": "agimet",
-      "u": "https://mino.mobi/finance/agimet/",
+      "u": "https://fin.mino.mobi/agimet/",
       "c": "data",
       "k": 2,
       "a": "hot",
@@ -954,7 +1174,7 @@
     },
     {
       "n": "stocks",
-      "u": "https://mino.mobi/finance/stocks/",
+      "u": "https://fin.mino.mobi/stocks/",
       "c": "data",
       "k": 2,
       "a": "hot",
@@ -979,7 +1199,8 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-03-17",
-      "surface": "wars"
+      "surface": "wars",
+      "d": "War factor analysis. Correlates of War dataset visualized by type, region, duration, and casualties."
     },
     {
       "n": "cult",
@@ -990,7 +1211,12 @@
       "t": "2026-05-29",
       "b": "2026-04-25",
       "p": "wars",
-      "surface": "wars"
+      "surface": "wars",
+      "d": "Cultural decomposition. Decompose any text into culture-shaped axes using precomputed sentence embeddings of historical religious / philosophical / scientific corpora.",
+      "tags": [
+        "embeddings",
+        "wasm"
+      ]
     },
     {
       "n": "ink",
@@ -1011,7 +1237,11 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-03-01",
-      "surface": "root"
+      "surface": "root",
+      "d": "Commodity flow maps. Geographic trade and movement data rendered as directional arcs.",
+      "tags": [
+        "maplibre"
+      ]
     },
     {
       "n": "phylo",
@@ -1021,7 +1251,12 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-22",
-      "surface": "root"
+      "surface": "root",
+      "d": "Interactive phylogenetic tree explorer. Open Tree of Life data synced to ATProto PDS records.",
+      "tags": [
+        "atproto",
+        "canvas"
+      ]
     },
     {
       "n": "cards",
@@ -1031,7 +1266,11 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-03-08",
-      "surface": "cards"
+      "surface": "cards",
+      "d": "Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings.",
+      "tags": [
+        "atproto"
+      ]
     },
     {
       "n": "geometry",
@@ -1041,7 +1280,12 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-05-23",
-      "surface": "math"
+      "surface": "math",
+      "d": "Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status — and an explicit roadmap of next entries (szemerédi–trotter, heilbronn, borsuk, viazovska, ...). Read this first if you want the lay of the series.",
+      "tags": [
+        "index",
+        "math"
+      ]
     },
     {
       "n": "conjectures",
@@ -1250,7 +1494,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Unit distance, disproven. Interactive visualization of Erdős's 1946 construction, in light of OpenAI's May 2026 disproof of the unit-distance conjecture.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "guthkatz",
@@ -1261,7 +1510,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Distinct distances, almost-resolved. Sister page to erdős — the 1946 dual problem, climbed slowly from √n to n/log n by the polynomial method (Guth–Katz, 2015).",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "hadwiger",
@@ -1272,7 +1526,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Chromatic number of the plane. Interactive Moser-spindle 4-colouring puzzle plus Isbell's 7-colour hexagonal tiling. The 1950 question whose lower bound an amateur biogerontologist nudged from 4 to 5 in 2018.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "runner",
@@ -1283,7 +1542,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Lonely runner conjecture. k runners on a circular track at distinct integer speeds; at some moment each is at distance ≥ 1/k from every other. Proven for k ≤ 7, open since 1967. Animation-native.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "meander",
@@ -1294,7 +1558,12 @@
       "t": "2026-06-06",
       "b": "2026-06-06",
       "p": "geometry",
-      "surface": "root"
+      "surface": "root",
+      "d": "Meanders — a closed loop crossing a line at 2n points. Superpose two non-crossing arch systems and watch them fuse into one loop. The counts 1, 2, 8, 42, 262, 1828, … have no known formula; their growth exponent (29+√145)/12 was pulled from 2D quantum gravity. Brute-force counter, ratio chart, stamp-folding bijection.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "temperley-lieb",
@@ -1305,7 +1574,12 @@
       "t": "2026-06-06",
       "b": "2026-06-06",
       "p": "geometry",
-      "surface": "root"
+      "surface": "root",
+      "d": "The Temperley–Lieb algebra as tiles: fill a grid with the two non-crossing tiles, watch loops form, weight each by δ. Wrap the grid onto a cylinder or torus and loops start winding — the affine algebra — shown on a real 3D donut. Plus a diagram calculator for the generators eᵢ, the defining relations, and the Markov trace back to meanders. Sibling of /meander/.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "aztec",
@@ -1316,7 +1590,12 @@
       "t": "2026-06-06",
       "b": "2026-06-06",
       "p": "geometry",
-      "surface": "root"
+      "surface": "root",
+      "d": "The Arctic Circle theorem. Sample a uniform random domino tiling of the Aztec diamond by domino shuffling and watch four frozen corners and a roiling centre separate along a perfect circle. Grow it order by order to see the circle sharpen. The dimer-model cousin of /meander/ and /temperley-lieb/.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "markov",
@@ -1327,7 +1606,12 @@
       "t": "2026-06-06",
       "b": "2026-06-06",
       "p": "geometry",
-      "surface": "root"
+      "surface": "root",
+      "d": "Two unrelated gems from one Andrey Markov. Markov chains & MCMC — watch a chain converge to its stationary distribution, sample a density with Metropolis, see random-walk recurrence (Pólya), generate n-gram text: the engine room behind /temperley-lieb/ and /aztec/. Then the Markov numbers — the Vieta-jumping tree 1, 2, 5, 13, 29, … and the Lagrange spectrum of worst-approximable numbers below 3.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "descent",
@@ -1338,7 +1622,12 @@
       "t": "2026-06-06",
       "b": "2026-06-06",
       "p": "geometry",
-      "surface": "root"
+      "surface": "root",
+      "d": "The boundary of neural-network trainability is a fractal (Sohl-Dickstein 2024). One gradient-descent step is an iterated map, so whether a tiny net's training converges or explodes — as a function of its two learning rates — is the Mandelbrot escape-time algorithm with \"one training step\" in place of z²+c. Pan/zoom the boundary (measured fractal dimension ≈ 1.7); click a pixel to watch that run converge or detonate.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "traffic",
@@ -1349,7 +1638,12 @@
       "t": "2026-06-07",
       "b": "2026-06-07",
       "p": "geometry",
-      "surface": "root"
+      "surface": "root",
+      "d": "The Biham–Middleton–Levine traffic model (1992): a two-colour cellular automaton on a torus where red cars go east and blue cars go south, one cell per turn if the way is clear. From a random scatter the cars self-organize — diagonal free-flowing bands below a critical density, total gridlock above it — a sharp phase transition with no in-between. Slide the density across ρc, or sweep it for the velocity cliff.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "kakeya",
@@ -1360,7 +1654,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Finite-field Kakeya conjecture (Dvir 2008). Build a Besicovitch set in 𝔽q2 by clicking cells; watch q+1 directions get covered. Five-page polynomial-method proof that birthed the technique behind guthkatz.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "capset",
@@ -1371,7 +1670,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Cap-set problem in 𝔽3n. Find the largest subset with no three-term arithmetic progression — the game SET writ small. Ellenberg–Gijswijt 2016 crushed the bound from 3n/n to 2.756n. Closes the polynomial-method trilogy.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "szemeredi-trotter",
@@ -1382,7 +1686,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Point-line incidence bound (1983): m points + n lines in the plane share at most O((mn)2/3 + m + n) incidences. Build the Erdős tight construction — a thin K × 2K2 grid plus K3 lines — and watch the ratio I/(mn)2/3 sit flat at 2−2/3. The seed crystal that the polynomial-method trilogy grew out of.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "heilbronn",
@@ -1393,7 +1702,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Heilbronn's triangle problem (~1950, open). Place n points in the unit square; your score is the smallest of the C(n, 3) triangles they form. Heilbronn conjectured the optimum is Θ(1/n2); Komlós–Pintz–Szemerédi disproved him in 1981 with c·log(n)/n2. Drag points, run the in-page annealer, beat your own record (saved per n in localStorage).",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "borsuk",
@@ -1404,7 +1718,12 @@
       "t": "2026-05-29",
       "b": "2026-05-23",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Borsuk's 1933 partition conjecture. Every bounded subset of ℝd splits into d+1 pieces of strictly smaller diameter — easy in 2D and 3D, false in dim 1325 (Kahn–Kalai 1993), and still false in dim 64 (Jenrich 2014). 2D demo + the dimension-race timeline showing the threshold shrinking over 21 years.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "viazovska",
@@ -1415,7 +1734,12 @@
       "t": "2026-05-29",
       "b": "2026-05-24",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Sphere packing in dimension 8 and 24. The E8 and Leech lattices are the densest possible — proven exactly by Viazovska (2016) and CKMRV (2017) with magic functions built from modular forms. Scrub the iconic E8 Coxeter projection (240 roots → 8 rings of 30), pack circles in 2D, and watch density crater with dimension.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "cohomology",
@@ -1426,7 +1750,12 @@
       "t": "2026-07-28",
       "b": "2026-07-28",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "art #1148. Discrete Hodge decomposition on a triangulated sheet with holes: split a random 1-form into exact + coexact + harmonic, and watch the harmonic remainder turn out to be pure topology — one independent circulation per void, amber one way and teal the other. Draw loops by hand and check that ∮h depends on nothing but which holes you went round; the ledger tab prints the residuals that prove it.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
     },
     {
       "n": "voronoi",
@@ -1437,7 +1766,13 @@
       "t": "2026-08-06",
       "b": "2026-08-06",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "Conway's Game of Life on a Voronoi mesh of a torus. B3/S23 is really a fact about squares having eight neighbours, so here the rule is a fraction of whatever neighbourhood a cell drew — four to eight sides, six on average, exactly six on average because Euler says so. Roll sites, relax the mesh, then roll soups until one refuses to settle: the hunt scores every trajectory and shows you the duds it rejected. Six found specimens ship with the page, including one that never repeated in 5000 generations and one whose period-210 attractor is just lcm(2,3,5,6,14) of oscillators ignoring each other. Every universe is a seed, so every good one is a URL.",
+      "tags": [
+        "canvas",
+        "math",
+        "procgen"
+      ]
     },
     {
       "n": "elements",
@@ -1447,7 +1782,12 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-05-23",
-      "surface": "math"
+      "surface": "math",
+      "d": "Periodic table as a mandala. Concentric rings for the seven electron shells, angular sectors for the s/p/d/f orbital blocks sized by capacity. 118 element nodes coloured by category; hover for details, click out to the Wikipedia article.",
+      "tags": [
+        "canvas",
+        "chem"
+      ]
     },
     {
       "n": "prop",
@@ -1457,7 +1797,12 @@
       "a": "hot",
       "t": "2026-06-15",
       "b": "2026-06-15",
-      "surface": "math"
+      "surface": "math",
+      "d": "Graph-rewriting playground. Grow graphs by local rewrite rules — sandpile avalanches, interaction-net cascades, and a chemistry mode — each with live per-mode observable readouts. The conduct tab turns the substrate into a human-steered instrument you can play.",
+      "tags": [
+        "canvas",
+        "graphs"
+      ]
     },
     {
       "n": "techtree",
@@ -1468,7 +1813,11 @@
       "t": "2026-05-29",
       "b": "2026-04-13",
       "p": "cards",
-      "surface": "cards"
+      "surface": "cards",
+      "d": "Tech tree. 179 technologies from stone tools to agentic LLMs, laid out as an infinite-canvas polar fan with sector-bound layout.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "grow",
@@ -1479,7 +1828,11 @@
       "t": "2026-05-29",
       "b": "2026-04-13",
       "p": "cards",
-      "surface": "cards"
+      "surface": "cards",
+      "d": "Grow. Generative plant simulation—children inherit grain lattice rotation; a stand-alone visual independent of the cards game.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "recipe",
@@ -1490,7 +1843,11 @@
       "t": "2026-05-29",
       "b": "2026-04-13",
       "p": "cards",
-      "surface": "cards"
+      "surface": "cards",
+      "d": "Recipe builder. Combine cards into recipes scored against the yum complementarity model.",
+      "tags": [
+        "embeddings"
+      ]
     },
     {
       "n": "yum",
@@ -1501,7 +1858,11 @@
       "t": "2026-05-29",
       "b": "2026-04-13",
       "p": "cards",
-      "surface": "cards"
+      "surface": "cards",
+      "d": "Flavor pairing explorer. Neural embeddings of food compounds, complementarity scores, and recipe builder.",
+      "tags": [
+        "atproto"
+      ]
     },
     {
       "n": "diffract",
@@ -1522,7 +1883,13 @@
       "a": "hot",
       "t": "2026-09-04",
       "b": "2026-09-04",
-      "surface": "atlas"
+      "surface": "atlas",
+      "d": "Every county in the United States, every Canadian census division and every Mexican municipio, drawn from the statistical agencies’ own boundary files onto a watertight equal-area map—then redrawn into thirteen contiguous superstates grown from whichever econometric axes you pick. Only totals are stored; every rate is recomputed at the level you are looking at, so a superstate’s per-capita income is its income over its population rather than the average of its counties.",
+      "tags": [
+        "choropleth",
+        "topology",
+        "skater"
+      ]
     },
     {
       "n": "jurassic",
@@ -1532,7 +1899,13 @@
       "a": "hot",
       "t": "2026-08-27",
       "b": "2026-08-27",
-      "surface": "jurassic"
+      "surface": "jurassic",
+      "d": "A Middle Jurassic forest floor in the dark, walked by ear. The nine ensiferans of Gu et al. 2026 sing, and the sound changes as you move because the physics says it should — ISO 9613 atmospheric absorption and dense-foliage scattering over spherical spreading, inverted by bisection to draw each singer’s audible radius on the map. The synthesiser is the animal: a bandlimited impulse train at the tooth-strike rate driving a two-pole resonator at the mirror-cell frequency, so syllable length is not a parameter but falls out of teeth × spacing / strike rate. The file is a shape rather than a number — the published inter-tooth spacing curves are the paper’s actual argument, so Archaboilus warbles and Allaboilus clicks-then-bursts on their own. The Rust kernel holds no palaeontology and the palaeontology holds no physics; every value carries a provenance tag rendered beside it, and the selftest fails if a carrier stops claiming published. The pitch is theirs; the rhythm is ours, and the page says so.",
+      "tags": [
+        "wasm",
+        "rust",
+        "webaudio"
+      ]
     },
     {
       "n": "perp",
@@ -1542,7 +1915,13 @@
       "a": "hot",
       "t": "2026-08-26",
       "b": "2026-08-26",
-      "surface": "perp"
+      "surface": "perp",
+      "d": "A perpetual future never expires, so nothing forces it to converge on spot — instead it pays funding, an hourly cash transfer between longs and shorts. Two linked charts: eleven years of BTC-USD spot, and the Hyperliquid perp’s hourly premium since 2023 drawn against the ±5bp clamp corridor, inside which funding is mathematically blind to premium and so nothing pulls the perp back toward spot. The funding line is flat as a table until the premium escapes the band. Every figure in the prose is derived from the series rather than typed, and the page shows its own null result: premium tracks the integral of past returns over several days and predicts the future at a correlation of about 0.03.",
+      "tags": [
+        "canvas",
+        "market-data",
+        "hyperliquid"
+      ]
     },
     {
       "n": "silk",
@@ -1552,7 +1931,13 @@
       "a": "hot",
       "t": "2026-08-20",
       "b": "2026-08-20",
-      "surface": "silk"
+      "surface": "silk",
+      "d": "An agent that weaves orb webs with no plan and no map — it holds eight numbers about its own body and reads everything else off the silk it has already hung, which makes the half-built web its scaffolding, its ruler and its memory at once. That is Physarum’s trick with a different medium, and the difference is the whole point: a chemical trail evaporates, so a slime mould can forget a bad early commitment; silk cannot be un-laid. So one set of boundary conditions admits not a web but a family — sixteen seeds agree on capture area and spiral turns to within two percent while sharing no thread position at all — and nudging one decision does damage in proportion to how early it was, two orders of magnitude from the bridge line down to the four-hundredth spiral attachment. Turn gravity off and the hub centres, which is the control that makes the rest a result. word is the same shape asked a different question: all 39,554 word types from a 50,000-post Bluesky archive, placed by topic, rank and date — and honest about being a bad chart, with the Zipf and Heaps plots that actually work sitting underneath it.",
+      "tags": [
+        "agents",
+        "stigmergy",
+        "measured"
+      ]
     },
     {
       "n": "arnold",
@@ -1563,7 +1948,13 @@
       "t": "2026-09-02",
       "b": "2026-09-02",
       "p": "geometry",
-      "surface": "math"
+      "surface": "math",
+      "d": "A square filling a cube. Pixel (x, y) is coloured by a continuous map from the square onto the RGB cube, which cannot be smoother than Hölder 2/3 and, since August 2026, need not be worse (Arnold’s problem 1988–5, solved by Badger–Palmer). Rendered on the GPU: every colour appears equally often — exactly, to the pixel, at the lattice sizes — and no two neighbours differ by more than two levels, with no seams and the same surface at every zoom. A seed bends it with area-preserving maps of the torus, so the histogram stays flat and every image is a URL; the census tab counts the claims and the print tab hands you a 4096² PNG that is the census.",
+      "tags": [
+        "canvas",
+        "math",
+        "procgen"
+      ]
     },
     {
       "n": "loop",
@@ -1573,7 +1964,13 @@
       "a": "hot",
       "t": "2026-08-04",
       "b": "2026-08-04",
-      "surface": "loop"
+      "surface": "loop",
+      "d": "The apparatus for a budget-governed agent loop, shown while it runs: the ticket graph it reasons over (dependencies, findings, and the dead ends that stop turn 30 repeating turn 4), the ready queue, the stop conditions, and the quality-against-turn-count curve the whole programme exists to measure. The deliverable is the curve, not the artifacts.",
+      "tags": [
+        "beads",
+        "actions",
+        "agents"
+      ]
     },
     {
       "n": "plant",
@@ -1583,7 +1980,13 @@
       "a": "hot",
       "t": "2026-08-04",
       "b": "2026-08-04",
-      "surface": "plant"
+      "surface": "plant",
+      "d": "What the loop next door actually built, published so it can be judged by someone who is not the machine that made it. A cell in a foam is the intersection of half-spaces, so its faces are its bisectors — put a seed in the middle and one along each face normal and the foam grows a Platonic solid. Drag to orbit; push the anisotropy up and watch the space stretch while the shape stays exact; tick naive placement to see the 22° the correction exists to remove, and then try it on a cube, which is fine, which is why the bug is dangerous.",
+      "tags": [
+        "voronoi",
+        "platonic",
+        "agents"
+      ]
     },
     {
       "n": "labglass",
@@ -1593,7 +1996,12 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-25",
-      "surface": "labglass"
+      "surface": "labglass",
+      "d": "Peer-to-peer biotech data workbench. SQL and Python running entirely in the browser.",
+      "tags": [
+        "duckdb",
+        "pyodide"
+      ]
     },
     {
       "n": "neuro",
@@ -1603,7 +2011,13 @@
       "a": "hot",
       "t": "2026-07-25",
       "b": "2026-07-25",
-      "surface": "neuro"
+      "surface": "neuro",
+      "d": "Cognitive-science models rebuilt from their papers in Rust, compiled to WASM, and made runnable in a tab — each shown against the published result it replicates.",
+      "tags": [
+        "wasm",
+        "rust",
+        "cogsci"
+      ]
     },
     {
       "n": "homeostasis",
@@ -1614,7 +2028,12 @@
       "t": "2026-07-25",
       "b": "2026-07-25",
       "p": "neuro",
-      "surface": "neuro"
+      "surface": "neuro",
+      "d": "A hundred neurons that only ever hold their own activation near a private target — no teaching signal, nothing representing a prediction. Cut the input off mid-sentence and the fading activity completes the likely next word anyway. Falandays, Nguyen & Spivey 2021, Table 2 replicated in your browser.",
+      "tags": [
+        "wasm",
+        "neural net"
+      ]
     },
     {
       "n": "os",
@@ -1624,7 +2043,13 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-15",
-      "surface": "os"
+      "surface": "os",
+      "d": "Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container.",
+      "tags": [
+        "react",
+        "wasm",
+        "atproto"
+      ]
     },
     {
       "n": "arena",
@@ -1635,7 +2060,12 @@
       "t": "2026-08-03",
       "b": "2026-08-02",
       "p": "os",
-      "surface": "os"
+      "surface": "os",
+      "d": "Eleven agents, one brief — “turn INPAC into a race, make it look good” — two harnesses across three models, each given the same clean checkout and no sight of the others. Every entry is playable here beside its filmstrip and the agent’s own notes. There is deliberately no score: nothing headless can watch a WebGPU game render, so the ranking is taste, done by a human looking at all eleven. Entries are model-written HTML and run framed in an opaque origin.",
+      "tags": [
+        "bake-off",
+        "webgpu"
+      ]
     },
     {
       "n": "portrait",
@@ -1646,7 +2076,11 @@
       "t": "2026-08-02",
       "b": "2026-08-02",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Joyce’s Portrait of the Artist under the same deep-read apparatus with every folkloric instrument swapped out—Genette for Propp, a measured leitmotif index for Thompson, and a style curve computed off the text.",
+      "tags": [
+        "modernist"
+      ]
     },
     {
       "n": "ocr",
@@ -1806,7 +2240,12 @@
       "a": "hot",
       "t": "2026-07-28",
       "b": "2026-07-28",
-      "surface": "fifty"
+      "surface": "fifty",
+      "d": "Fifty ATProto app concepts on one surface — an index at the root and a page per concept. Thirty are working tools rather than pitches, which is the point: the distance from “someone should build this” to a live URL is short enough to walk.",
+      "tags": [
+        "atproto",
+        "catalogue"
+      ]
     },
     {
       "n": "uni",
@@ -1866,7 +2305,12 @@
       "a": "hot",
       "t": "2026-07-16",
       "b": "2026-07-16",
-      "surface": "root"
+      "surface": "root",
+      "d": "The site-wide technical spec sheet. Every surface’s features, stack, deploy wiring, and live status — generated from the deploy registry, probed from your browser.",
+      "tags": [
+        "registry",
+        "status"
+      ]
     },
     {
       "n": "stats",
@@ -1886,7 +2330,11 @@
       "a": "hot",
       "t": "2026-06-03",
       "b": "2026-03-14",
-      "surface": "read"
+      "surface": "read",
+      "d": "Adaptive speed reader for Project Gutenberg texts and poetry. Bionic formatting, memorize mode, and eye-tracking pacing.",
+      "tags": [
+        "workers"
+      ]
     },
     {
       "n": "flow",
@@ -1897,7 +2345,11 @@
       "t": "2026-05-29",
       "b": "2026-04-05",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Visualize reading. Text flowing through a curved path on the canvas with Project Gutenberg integration.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "post01",
@@ -1908,7 +2360,8 @@
       "t": "2026-05-29",
       "b": "2026-04-27",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Story pitch generator. Drafts, outlines, sharpening, and process notes for the first long-form essay in the read/ family."
     },
     {
       "n": "pendragon",
@@ -1919,7 +2372,11 @@
       "t": "2026-06-03",
       "b": "2026-05-29",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "The comparative hub. Fifteen centuries of the Arthur legend as a timeline, evolutionary tree, wiki, and cross-tale motif crosswalk.",
+      "tags": [
+        "arthuriana"
+      ]
     },
     {
       "n": "mabinogi",
@@ -1930,7 +2387,11 @@
       "t": "2026-06-01",
       "b": "2026-06-01",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "The Four Branches, gathered. Hub for Pwyll, Branwen, Manawydan, and Math with shared historiography and character webs.",
+      "tags": [
+        "welsh"
+      ]
     },
     {
       "n": "pwyll",
@@ -1941,7 +2402,11 @@
       "t": "2026-06-02",
       "b": "2026-05-29",
       "p": "mabinogi",
-      "surface": "read"
+      "surface": "read",
+      "d": "First Branch of the Mabinogi. Pwyll, Lord of Dyfed—the otherworld bargain and the courtship of Rhiannon.",
+      "tags": [
+        "welsh"
+      ]
     },
     {
       "n": "branwen",
@@ -1952,7 +2417,11 @@
       "t": "2026-06-02",
       "b": "2026-05-31",
       "p": "mabinogi",
-      "surface": "read"
+      "surface": "read",
+      "d": "Second Branch—the great Welsh tragedy of Branwen, the starling, and the ruinous war with Ireland.",
+      "tags": [
+        "welsh"
+      ]
     },
     {
       "n": "manawydan",
@@ -1963,7 +2432,11 @@
       "t": "2026-06-02",
       "b": "2026-06-01",
       "p": "mabinogi",
-      "surface": "read"
+      "surface": "read",
+      "d": "Third Branch—the enchanted wasteland of Dyfed and a quiet comedy of restoration.",
+      "tags": [
+        "welsh"
+      ]
     },
     {
       "n": "math",
@@ -1974,7 +2447,11 @@
       "t": "2026-06-02",
       "b": "2026-06-01",
       "p": "mabinogi",
-      "surface": "read"
+      "surface": "read",
+      "d": "Fourth Branch—the branch of transformation: the flower-wife Blodeuwedd, the eagle, and the magician’s wand.",
+      "tags": [
+        "welsh"
+      ]
     },
     {
       "n": "gawain",
@@ -1985,7 +2462,11 @@
       "t": "2026-06-02",
       "b": "2026-05-29",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Sir Gawain and the Green Knight—the beheading game, set beside its Middle English across all four fitts.",
+      "tags": [
+        "middle-english"
+      ]
     },
     {
       "n": "culhwch",
@@ -1996,7 +2477,11 @@
       "t": "2026-06-02",
       "b": "2026-05-29",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Culhwch ac Olwen—the oldest Arthurian tale, and the giant’s list of impossible tasks.",
+      "tags": [
+        "welsh"
+      ]
     },
     {
       "n": "orfeo",
@@ -2007,7 +2492,11 @@
       "t": "2026-06-02",
       "b": "2026-05-29",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Sir Orfeo—the medieval English Orpheus, harping his queen back from the fairy king.",
+      "tags": [
+        "middle-english"
+      ]
     },
     {
       "n": "owain",
@@ -2018,7 +2507,11 @@
       "t": "2026-06-02",
       "b": "2026-05-30",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Owain, or the Lady of the Fountain—one of the Three Welsh Romances, a knight against the fountain’s storm.",
+      "tags": [
+        "welsh"
+      ]
     },
     {
       "n": "vitamerlini",
@@ -2029,7 +2522,11 @@
       "t": "2026-06-02",
       "b": "2026-06-02",
       "p": "read",
-      "surface": "read"
+      "surface": "read",
+      "d": "Geoffrey of Monmouth’s Life of Merlin—the wild prophet of the woods, translated in full from the Latin.",
+      "tags": [
+        "latin"
+      ]
     },
     {
       "n": "geomancy",
@@ -2072,7 +2569,11 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-03-09",
-      "surface": "root"
+      "surface": "root",
+      "d": "Binaural beats, Shepard tones, harmonic overtones, and noise generator. Keeps playing when your phone sleeps.",
+      "tags": [
+        "pwa"
+      ]
     },
     {
       "n": "music",
@@ -2082,7 +2583,12 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-23",
-      "surface": "root"
+      "surface": "root",
+      "d": "Browser-based sequencer that stores compositions as records on the personal data server.",
+      "tags": [
+        "pwa",
+        "atproto"
+      ]
     },
     {
       "n": "bakery",
@@ -2092,7 +2598,12 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-21",
-      "surface": "bakery"
+      "surface": "bakery",
+      "d": "Flour blend calculator—protein math, hydration targets, blend ratios.",
+      "tags": [
+        "pwa",
+        "atproto"
+      ]
     },
     {
       "n": "sweat",
@@ -2102,7 +2613,12 @@
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-02-22",
-      "surface": "root"
+      "surface": "root",
+      "d": "Workout logging with charts, progressive overload tracking, offline-first.",
+      "tags": [
+        "pwa",
+        "atproto"
+      ]
     },
     {
       "n": "j",
@@ -2112,7 +2628,12 @@
       "a": "warm",
       "t": "2026-06-02",
       "b": "2026-06-02",
-      "surface": "j"
+      "surface": "j",
+      "d": "ImageJ in the browser. Confocal analysis, edge detection, circle fitting, and radial sampling compiled to WASM—every pixel stays client-side.",
+      "tags": [
+        "rust",
+        "wasm"
+      ]
     },
     {
       "n": "borges",
@@ -2122,7 +2643,11 @@
       "a": "hot",
       "t": "2026-06-02",
       "b": "2026-06-01",
-      "surface": "borges"
+      "surface": "borges",
+      "d": "The Book of Sand. Seven robot crew aboard the Tabard tell an endless, deterministically-generated tale—each annotated with a full mythograph before the telling.",
+      "tags": [
+        "generative"
+      ]
     },
     {
       "n": "idol",
@@ -2162,7 +2687,13 @@
       "a": "hot",
       "t": "2026-07-26",
       "b": "2026-07-26",
-      "surface": "lab"
+      "surface": "lab",
+      "d": "The site factory. Ask for a website in a Bluesky mention and an agent builds it, then replies with the link; it lives at minomobi.com under a name you pick, and asking again on the same thread iterates that same site rather than starting a new one. Deliberately off *.mino.mobi: that domain carries the shared SSO cookie, so agent-written pages are kept where they cannot inherit a signed-in visitor's session.",
+      "tags": [
+        "atproto",
+        "agent",
+        "bluesky"
+      ]
     },
     {
       "n": "ai-edu",
@@ -2182,7 +2713,13 @@
       "a": "hot",
       "t": "2026-09-02",
       "b": "2026-09-02",
-      "surface": "bismuth"
+      "surface": "bismuth",
+      "d": "Bismuth hopper crystals, grown rather than drawn. A seeded colony of mason agents lays one brick at a time under three rules from real crystal growth — Kossel kinetics, the Berg effect, anisotropy — and a stepped, hollow, right-angled hopper emerges. The iridescence is thin-film interference computed per pixel. Same seed, same crystal, forever. Every specimen has a quasicrystal cousin grown on a Penrose or other plane tiling and an icosahedral cousin grown on golden rhombohedra, the three-dimensional quasicrystal; /lab is the playground: pick the substrate, paint the initial condition, rewrite the brain's laws, breed or thin the colony, release worms. /study is the two-agent phase space, measured.",
+      "tags": [
+        "generative",
+        "webgl",
+        "agents"
+      ]
     },
     {
       "n": "clef",
@@ -2192,7 +2729,11 @@
       "a": "hot",
       "t": "2026-09-05",
       "b": "2026-09-05",
-      "surface": "clef"
+      "surface": "clef",
+      "d": "Sheet music in plain text: reads LilyPond notation, engraves it as classical notation, plays it back, and publishes the score to your own repository.",
+      "tags": [
+        "atproto"
+      ]
     },
     {
       "n": "fold",
@@ -2202,7 +2743,13 @@
       "a": "hot",
       "t": "2026-08-26",
       "b": "2026-08-26",
-      "surface": "fold"
+      "surface": "fold",
+      "d": "Watch a protein fold. A structure-based Cα model under Langevin dynamics, in Rust compiled to WASM, rendered live in WebGL—with the contact map, the RMSD, and the folding funnel drawn from the trajectory in front of you.",
+      "tags": [
+        "wasm",
+        "biology",
+        "webgl"
+      ]
     },
     {
       "n": "hopper",
@@ -2212,7 +2759,13 @@
       "a": "hot",
       "t": "2026-09-02",
       "b": "2026-09-02",
-      "surface": "hopper"
+      "surface": "hopper",
+      "d": "A puzzle platformer on the bismuth engine. You wake on a slab in the void; look up and there is a bucket. In your pocket, a few packs of mason agents: lay one on a plane and it grows a hopper crystal from there, brick by brick, freezing whatever was still growing — the plane you choose is the platform for the next growth. Climb it as it grows, deploy again from higher up, get above the bucket and drop in. Two layers tall, jumps one; every brick breakable. Every level is a permalink, and the bucket hangs exactly where the engine's own survey says a stack of your packs can reach — on the cubic lattice, or the same level on Penrose rhombs, hexagons, kagome, any of the ten tilings, or the icosahedral quasicrystal itself, where the faces slope and you walk them.",
+      "tags": [
+        "game",
+        "webgl",
+        "agents"
+      ]
     },
     {
       "n": "ken",
@@ -2222,7 +2775,13 @@
       "a": "hot",
       "t": "2026-08-22",
       "b": "2026-08-22",
-      "surface": "ken"
+      "surface": "ken",
+      "d": "The study programme behind the loop next door: how do you know whether work you did not supervise was any good? A six-unit curriculum with real primary sources — construct validity, the design of experiments, the economics of delegation, Goodhart made quantitative, comparative judgment, scalable oversight — each with one model to derive and one foundational experiment to reproduce. Plus a registered-report skeleton for the turn-count study, published with its six holes still in it, because each hole is a quantity a unit has to produce first. Every citation is checked against the bibliography at build time, which is the one thing distinguishing it from the fabricated literatures at wormhole.",
+      "tags": [
+        "curriculum",
+        "measurement",
+        "agents"
+      ]
     },
     {
       "n": "sci",
@@ -2232,7 +2791,13 @@
       "a": "hot",
       "t": "2026-08-15",
       "b": "2026-08-15",
-      "surface": "sci"
+      "surface": "sci",
+      "d": "Scientific instruments taken apart, one page each, built around a solver you drive rather than an analogy that falls apart. Every mechanism claim traces to a primary source and every number is computed in front of you.",
+      "tags": [
+        "wasm",
+        "rust",
+        "instruments"
+      ]
     },
     {
       "n": "tape",
@@ -2242,7 +2807,13 @@
       "a": "hot",
       "t": "2026-08-31",
       "b": "2026-08-31",
-      "surface": "tape"
+      "surface": "tape",
+      "d": "The open-source card audio player, designed in the open. A Toniebox charges $19.99 a story and a Yoto card $9.99; the tag inside one costs about 20¢, because the tag holds no audio at all — NTAG213 has 144 bytes of user memory and a minute of speech is 180,000. It holds a 64-bit pointer, which is why one card can carry six books and why re-pointing a card never touches the card. Here: the product and site architecture, a browser studio that records a parent reading and writes the tag over Web NFC, and a simulator of the box so the whole thing can be got wrong before any solder is bought.",
+      "tags": [
+        "nfc",
+        "hardware",
+        "webnfc"
+      ]
     },
     {
       "n": "g",
@@ -2252,7 +2823,12 @@
       "a": "hot",
       "t": "2026-06-02",
       "b": "2026-03-22",
-      "surface": "g"
+      "surface": "g",
+      "d": "The WebGPU gallery — a shelf of simulations, one canvas each: the Helix Calendar it grew out of, grain-scale sand, molecular dynamics, self-assembling bearings, fractal zooms.",
+      "tags": [
+        "webgpu",
+        "canvas"
+      ]
     },
     {
       "n": "bearings",
@@ -2263,7 +2839,12 @@
       "t": "2026-07-25",
       "b": "2026-07-25",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Steel bearings loose in mineral oil between a live pin and a grounded cup. Turn the supply up and they roll themselves into a wire — chains grow along the field lines, branch, reach ground, and the circuit closes. Rust solver: contact mechanics plus a Kirchhoff solve over the whole pile, every frame.",
+      "tags": [
+        "webgpu",
+        "rust"
+      ]
     },
     {
       "n": "morph",
@@ -2274,7 +2855,13 @@
       "t": "2026-07-31",
       "b": "2026-07-30",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "A circuit written as a rewrite rule, grown one cell at a time, playing itself as it goes. Each cell is a signal node, so the structure is the score — you hear the topology, not a soundtrack laid over it. Cells die when the population hits its ceiling, which turns an unbounded bloom into a carrying capacity and gives the piece a shape. Rust/wasm rewrite engine and Barnes–Hut layout; compositions are scored for variety and harmony, and the showcase holds the ones that pass.",
+      "tags": [
+        "wasm",
+        "rust",
+        "audio"
+      ]
     },
     {
       "n": "words",
@@ -2284,7 +2871,13 @@
       "a": "hot",
       "t": "2026-08-05",
       "b": "2026-08-05",
-      "surface": "words"
+      "surface": "words",
+      "d": "Words with friends, without the ads or the accounts. One to four seats, any of them a deterministic bot that reads a 168,551-word lexicon through a DAWG. The board is the new part: beside the usual double and triple squares there are quad letters, mires that pay nothing, halves that cut a word in two after every multiplier, tolls that tax the filler move, and stones — holes that words break on like the edge of the board. Installs as a PWA and plays offline against the bots.",
+      "tags": [
+        "d1",
+        "pwa",
+        "game"
+      ]
     },
     {
       "n": "foam",
@@ -2294,7 +2887,13 @@
       "a": "hot",
       "t": "2026-07-31",
       "b": "2026-07-30",
-      "surface": "foam"
+      "surface": "foam",
+      "d": "First person inside the rind’s voronoi foam. From a lone flat dais in the froth, shatter and re-weave the membranes with the shiva tools — up close — and climb to the beacon chamber, walking only: no jumps, max grade 46°. Every seeded pocket ships with a solvability oracle that proves its route. In macro, the halls are ~10× the volume and the third tool unlocks: plant a voronoi node and the whole lattice reforms around it.",
+      "tags": [
+        "webgl2",
+        "first-person",
+        "certified"
+      ]
     },
     {
       "n": "macro",
@@ -2378,7 +2977,11 @@
       "t": "2026-05-29",
       "b": "2026-04-03",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Multi-physics torus field simulator. Position tori with gravity, magnetic, and force field interactions.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "stretch",
@@ -2389,7 +2992,11 @@
       "t": "2026-05-29",
       "b": "2026-03-27",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Interactive 3D deformable blob geometry rendered with GPU acceleration.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "globe",
@@ -2400,7 +3007,11 @@
       "t": "2026-05-29",
       "b": "2026-04-11",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Earth globe with analytical ocean currents. Land-masked particle drift, no visible mesh bands.",
+      "tags": [
+        "webgl"
+      ]
     },
     {
       "n": "hand",
@@ -2411,7 +3022,11 @@
       "t": "2026-05-29",
       "b": "2026-04-13",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Articulated hand rig for clock-family demos.",
+      "tags": [
+        "webgl"
+      ]
     },
     {
       "n": "scope",
@@ -2422,7 +3037,11 @@
       "t": "2026-05-29",
       "b": "2026-04-11",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Telescoping scope visualization inside the clock family.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "mole",
@@ -2433,7 +3052,11 @@
       "t": "2026-05-29",
       "b": "2026-05-15",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "WebGPU molecular dynamics. Twelve molecules including C60 and exotic elements rendered at interactive frame rates.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "ship",
@@ -2444,7 +3067,11 @@
       "t": "2026-05-29",
       "b": "2026-04-28",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Sail simulator. Wind-driven physics on the clock’s family of curved surfaces.",
+      "tags": [
+        "webgl"
+      ]
     },
     {
       "n": "helix",
@@ -2488,7 +3115,11 @@
       "t": "2026-05-30",
       "b": "2026-05-30",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Antoine’s Necklace—an infinite GPU zoom into interlocking torus beads, each chain opening onto another.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "basket",
@@ -2499,7 +3130,11 @@
       "t": "2026-06-02",
       "b": "2026-06-02",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Basket Star—a furling, five-fold fractal brittle star rendered on the GPU.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "garden",
@@ -2510,7 +3145,11 @@
       "t": "2026-05-27",
       "b": "2026-05-27",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Fluoddity Garden—a branching, ATProto-backed gallery of organisms; fork one to grow a new branch.",
+      "tags": [
+        "atproto"
+      ]
     },
     {
       "n": "horned",
@@ -2521,7 +3160,11 @@
       "t": "2026-05-31",
       "b": "2026-05-30",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Alexander’s Horned Sphere—an endless zoom into open horns bifurcating toward a Cantor limit.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "lattice",
@@ -2532,7 +3175,11 @@
       "t": "2026-05-31",
       "b": "2026-05-31",
       "p": "g",
-      "surface": "g"
+      "surface": "g",
+      "d": "Horned Sphere, latticed—a recursive, ray-marched lattice of interlocking horns.",
+      "tags": [
+        "webgpu"
+      ]
     },
     {
       "n": "sticks",
@@ -2608,7 +3255,12 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-29",
-      "surface": "torus"
+      "surface": "torus",
+      "d": "Explorable 3D landscape with first-person controls. Local and networked multiplayer.",
+      "tags": [
+        "canvas",
+        "webrtc"
+      ]
     },
     {
       "n": "pac",
@@ -2619,7 +3271,11 @@
       "t": "2026-05-29",
       "b": "2026-04-02",
       "p": "torus",
-      "surface": "torus"
+      "surface": "torus",
+      "d": "First-person Pac-Man on a torus. FPV view with physics simulation on a curved surface.",
+      "tags": [
+        "webgl"
+      ]
     },
     {
       "n": "torpac",
@@ -2630,7 +3286,11 @@
       "t": "2026-05-29",
       "b": "2026-04-03",
       "p": "torus",
-      "surface": "torus"
+      "surface": "torus",
+      "d": "Multi-torus Pac-Man. Play across multiple toroidal worlds with customizable configurations.",
+      "tags": [
+        "webgl"
+      ]
     },
     {
       "n": "knotpac",
@@ -2641,7 +3301,11 @@
       "t": "2026-05-29",
       "b": "2026-04-02",
       "p": "torus",
-      "surface": "torus"
+      "surface": "torus",
+      "d": "Pac-Man on torus knots. Topological shapes—Hopf Link, Borromean Rings, and beyond.",
+      "tags": [
+        "webgl"
+      ]
     },
     {
       "n": "inpac",
@@ -2652,7 +3316,11 @@
       "t": "2026-05-29",
       "b": "2026-04-02",
       "p": "torus",
-      "surface": "torus"
+      "surface": "torus",
+      "d": "Interior Pac-Man. First-person gameplay inside the hollow interior of a large torus.",
+      "tags": [
+        "webgl"
+      ]
     },
     {
       "n": "chess",
@@ -2663,7 +3331,12 @@
       "t": "2026-05-29",
       "b": "2026-03-30",
       "p": "torus",
-      "surface": "torus"
+      "surface": "torus",
+      "d": "16×16 toroidal chess. Edges wrap, pieces move through the topology. Local and networked play.",
+      "tags": [
+        "canvas",
+        "webrtc"
+      ]
     },
     {
       "n": "pokemon",
@@ -2673,7 +3346,11 @@
       "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-14",
-      "surface": "pokemon"
+      "surface": "pokemon",
+      "d": "Critter Red. A browser-native monster RPG in the classic turn-based vein.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "proteus",
@@ -2684,7 +3361,11 @@
       "t": "2026-05-29",
       "b": "2026-05-17",
       "p": "pokemon",
-      "surface": "pokemon"
+      "surface": "pokemon",
+      "d": "Amoeba qualia prototype. Pressure-driven membrane simulation with cortex control, food engulfment, and live channel tuning.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "mmo",
@@ -2694,7 +3375,13 @@
       "a": "hot",
       "t": "2026-05-29",
       "b": "2026-05-14",
-      "surface": "canvas"
+      "surface": "canvas",
+      "d": "Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating.",
+      "tags": [
+        "workers",
+        "atproto",
+        "do"
+      ]
     },
     {
       "n": "draw",
@@ -2705,7 +3392,11 @@
       "t": "2026-05-29",
       "b": "2026-05-14",
       "p": "mmo",
-      "surface": "canvas"
+      "surface": "canvas",
+      "d": "Polygon drawing game. Trace a target shape; closer guesses score higher. Identity-only OAuth, scores on a public leaderboard.",
+      "tags": [
+        "atproto"
+      ]
     },
     {
       "n": "paint",
@@ -2716,7 +3407,11 @@
       "t": "2026-05-29",
       "b": "2026-05-14",
       "p": "mmo",
-      "surface": "canvas"
+      "surface": "canvas",
+      "d": "Single-player paint with the same stroke engine that powers mmo. Local canvas, no auth required.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "range",
@@ -2727,7 +3422,11 @@
       "t": "2026-05-29",
       "b": "2026-05-14",
       "p": "mmo",
-      "surface": "root"
+      "surface": "root",
+      "d": "Practice range for the polygon drawing game. Try shapes, iterate, no scores recorded.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "curve",
@@ -2738,7 +3437,11 @@
       "t": "2026-05-30",
       "b": "2026-05-30",
       "p": "mmo",
-      "surface": "canvas"
+      "surface": "canvas",
+      "d": "Hand-drawn graph scorer. A procedurally generated target curve is the product of 2–5 hidden lines — draw lines whose product fits. Three scores: segment count, linearity, fit.",
+      "tags": [
+        "canvas"
+      ]
     },
     {
       "n": "splice",
@@ -2748,7 +3451,12 @@
       "a": "hot",
       "t": "2026-05-30",
       "b": "2026-05-29",
-      "surface": "splice"
+      "surface": "splice",
+      "d": "Molecular-biology workbench—restriction mapping, PCR, and cloning compiled to WASM and wrapped as a campaign puzzle game.",
+      "tags": [
+        "wasm",
+        "biology"
+      ]
     },
     {
       "n": "games",
@@ -2758,7 +3466,12 @@
       "a": "warm",
       "t": "2026-05-23",
       "b": "2026-05-22",
-      "surface": "games"
+      "surface": "games",
+      "d": "Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durable Objects.",
+      "tags": [
+        "workers",
+        "do"
+      ]
     },
     {
       "n": "gen",
@@ -2780,7 +3493,12 @@
       "t": "2026-07-25",
       "b": "2026-07-25",
       "p": "games",
-      "surface": "games"
+      "surface": "games",
+      "d": "The hub for a family of small games about deciding under pressure — each one built to make a different thing measurable about the decision, and each one able to tell you afterwards exactly what your choices cost.",
+      "tags": [
+        "games",
+        "decision"
+      ]
     },
     {
       "n": "outbound",
@@ -2791,7 +3509,12 @@
       "t": "2026-07-25",
       "b": "2026-07-25",
       "p": "games",
-      "surface": "games"
+      "surface": "games",
+      "d": "A convoy run across the Europan ice in the twenty-fourth century, with a crew you will not get back. Spending a tool means sending a named person out into Jupiter's radiation belt, and two trips is all anyone has in them. When the run ends it shows you the exact crossing where it became unwinnable.",
+      "tags": [
+        "games",
+        "roguelike"
+      ]
     },
     {
       "n": "switchboard",
@@ -2802,7 +3525,12 @@
       "t": "2026-07-25",
       "b": "2026-07-25",
       "p": "games",
-      "surface": "games"
+      "surface": "games",
+      "d": "Six lines, one operator, and a shift you can see in full before the clock starts. The family's real-time game with an exact optimum — the shift is a scheduling problem, so a bitmask DP knows the best possible board and prices your shortfall in points.",
+      "tags": [
+        "games",
+        "real-time"
+      ]
     },
     {
       "n": "ratchet",
@@ -2813,7 +3541,12 @@
       "t": "2026-07-25",
       "b": "2026-07-24",
       "p": "games",
-      "surface": "games"
+      "surface": "games",
+      "d": "A road you cross once, with tools you can spend only once. When it ends it names the exact move where the run became unwinnable — usually several stages before you found out.",
+      "tags": [
+        "games",
+        "roguelike"
+      ]
     },
     {
       "n": "telegraph",
@@ -2824,7 +3557,12 @@
       "t": "2026-07-25",
       "b": "2026-07-24",
       "p": "games",
-      "surface": "games"
+      "surface": "games",
+      "d": "Every enemy shows you exactly where it will strike, and you never have enough actions. A perfect-information tactics puzzle that counts how many of your options were the right ones.",
+      "tags": [
+        "games",
+        "tactics"
+      ]
     },
     {
       "n": "horde",
@@ -2835,7 +3573,12 @@
       "t": "2026-07-25",
       "b": "2026-07-24",
       "p": "games",
-      "surface": "games"
+      "surface": "games",
+      "d": "Hold the Line: you are surrounded, the gun overheats, and every wave ends with a six-second choice. One-thumb horde defence.",
+      "tags": [
+        "games",
+        "one-thumb"
+      ]
     },
     {
       "n": "duck",
@@ -2974,7 +3717,12 @@
       "a": "hot",
       "t": "2026-06-02",
       "b": "2026-05-27",
-      "surface": "fluoddity"
+      "surface": "fluoddity",
+      "d": "Breed and fork emergent vector-trail organisms as deterministic genomes saved to your PDS, with an interactive phylogeny.",
+      "tags": [
+        "atproto",
+        "canvas"
+      ]
     },
     {
       "n": "flogame",
@@ -3127,7 +3875,12 @@
       "a": "hot",
       "t": "2026-07-18",
       "b": "2026-07-18",
-      "surface": "human"
+      "surface": "human",
+      "d": "Human Machinery — an arcade of user error. Six playable cognitive-bias exhibits (Stroop, change blindness, anchoring, framing, sunk cost, plus a contested wing for failed replications), live anonymous crowd stats, replication badges and primary sources on every claim.",
+      "tags": [
+        "d1",
+        "edutainment"
+      ]
     },
     {
       "n": "ink",
@@ -3137,7 +3890,12 @@
       "a": "hot",
       "t": "2026-08-25",
       "b": "2026-08-25",
-      "surface": "ink"
+      "surface": "ink",
+      "d": "A roller for fluoddity organisms, painted rather than lit. Two populations share one sheet and one trail field, drawn as pen strokes in real pigment — and only genomes that clear fluoddity’s own interestingness rubric ever reach the paper.",
+      "tags": [
+        "canvas",
+        "generative"
+      ]
     },
     {
       "n": "table",
@@ -3147,10 +3905,36 @@
       "a": "hot",
       "t": "2026-08-15",
       "b": "2026-08-15",
-      "surface": "table"
+      "surface": "table",
+      "d": "Procedural character sheets for tabletop RPGs, built only on systems whose rules text is openly licensed — because a generator has to reproduce the tables, and that is the part copyright actually covers. First up is Cairn (CC BY-SA 4.0), whose own pitch is that character generation is quick and random: d20 background, 3d6 attributes, starting gear packed into the ten inventory slots by the game’s own bulk and petty rules, two background tables, a bond, an omen. The seed is the character — #s=oak-fen-317 rolls the same Kettlewright for everyone, forever — and every sheet carries the roll log that made it. Roll a party of six, and the youngest reads the omen aloud.",
+      "tags": [
+        "ttrpg",
+        "generator",
+        "seeded"
+      ]
     }
   ],
   "notListed": [
+    {
+      "glob": "archive/**",
+      "kind": "content",
+      "reason": "the landing page as it stood before the 2026-09 upgrade, kept frozen for nostalgia and linked from the new landing's footer"
+    },
+    {
+      "glob": "rethink",
+      "kind": "content",
+      "reason": "operator document inside the landing surface: the catalogue rethink (audit + content pass); data.js is built by scripts/build-rethink.mjs from rethink/proposal.json"
+    },
+    {
+      "glob": "procgen",
+      "kind": "content",
+      "reason": "the procgen pack's own door inside the landing surface; listed as an entry when the rethink content pass is applied (rethink/proposal.json)"
+    },
+    {
+      "glob": "next",
+      "kind": "content",
+      "reason": "the prototype of the new landing page, inside the landing surface; reads rethink/data.js"
+    },
     {
       "glob": "**/public",
       "kind": "internal",
@@ -3603,11 +4387,6 @@
     },
     {
       "glob": "farm/trailer",
-      "kind": "pending",
-      "reason": "sub-sites of other listed surfaces"
-    },
-    {
-      "glob": "finance/pm",
       "kind": "pending",
       "reason": "sub-sites of other listed surfaces"
     },

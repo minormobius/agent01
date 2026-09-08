@@ -790,7 +790,7 @@
   {
    "id": "finance",
    "name": "finance",
-   "url": "https://mino.mobi/finance/",
+   "url": "https://fin.mino.mobi/pm/",
    "cat": "data",
    "commits": 28,
    "age": "hot",
@@ -799,7 +799,7 @@
   {
    "id": "bogo",
    "name": "bogo",
-   "url": "https://mino.mobi/finance/bogo/",
+   "url": "https://fin.mino.mobi/bogo/",
    "cat": "data",
    "commits": 2,
    "age": "hot",
@@ -808,7 +808,7 @@
   {
    "id": "agimet",
    "name": "agimet",
-   "url": "https://mino.mobi/finance/agimet/",
+   "url": "https://fin.mino.mobi/agimet/",
    "cat": "data",
    "commits": 2,
    "age": "hot",
@@ -817,7 +817,7 @@
   {
    "id": "stocks",
    "name": "stocks",
-   "url": "https://mino.mobi/finance/stocks/",
+   "url": "https://fin.mino.mobi/stocks/",
    "cat": "data",
    "commits": 2,
    "age": "hot",
@@ -5145,26 +5145,6 @@
    "commits": 0,
    "age": "cold",
    "parent": "mega/v093",
-   "discovered": true
-  },
-  {
-   "id": "finance/pm",
-   "name": "pm",
-   "url": "https://mino.mobi/finance/pm/",
-   "cat": "data",
-   "commits": 0,
-   "age": "hot",
-   "parent": "finance",
-   "discovered": true
-  },
-  {
-   "id": "speclab/pm",
-   "name": "pm",
-   "url": "https://fin.mino.mobi/pm/",
-   "cat": "data",
-   "commits": 0,
-   "age": "hot",
-   "parent": "speclab",
    "discovered": true
   },
   {

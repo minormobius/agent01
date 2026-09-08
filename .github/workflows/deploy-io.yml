@@ -3,7 +3,7 @@ name: Deploy io
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/landing-page-architecture-1igui5'
     paths:
       - 'io/**'
       - 'packages/oauth-client/**'

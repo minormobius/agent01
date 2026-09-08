@@ -1,0 +1,2306 @@
+{
+  "$comment": "HAND-EDITED. The content-level pass over catalogue.json: what collapses, what splits, what moves, what gets retired. Every catalogue entry must appear exactly once, keyed by its URL without scheme or trailing slash; scripts/build-rethink.mjs refuses to build otherwise. Entries prefixed '+' are not in the catalogue yet (from the coverage backlog). Actions: keep (unchanged) · fold (was top-level, becomes a page inside a hub) · regroup (a page moved to a different hub) · merge (retired as an entry; its URL stays, its content is covered by the target) · retire (frozen versions and scaffolding: drop from the catalogue, declare as content) · promote (a page becomes a top-level site) · new (listed for the first time) · decide (a human has to choose) · look (nobody has written down what this is yet; placement is a guess). A top group may carry pinned:true — a category the landing shows first. Members may carry tech[] (seed · genome · certify · judge · grow · measure): the shared procgen vocabulary the /procgen/ page is organised by; and domain:'procgen' cross-lists a member that lives in another pack. A top group may carry blurb: the one-line visitor-facing description the landing uses when its door has none. wings[] is the level above hubs — the landing's first ring and the shelf's sections; each top group and each standalone site carries wing.",
+  "kinds": {
+    "app": "something you use, usually with your PDS behind it",
+    "lens": "reads a feed, an account, a corpus and shows you something",
+    "toy": "a simulation or a generative thing you play with",
+    "game": "has rules and an end",
+    "explainer": "a single page that teaches one result",
+    "reading": "a text and an apparatus for reading it",
+    "engine": "a modelling project with several faces",
+    "meta": "about this site, its repo, or the loop that builds it"
+  },
+  "top": [
+    {
+      "id": "atmosphere",
+      "label": "atmosphere",
+      "u": "b.mino.mobi",
+      "kind": "lens",
+      "domain": "bluesky",
+      "action": "collapse",
+      "why": "Twenty-odd account and network lenses, each built in its own session and given its own root directory, while b.mino.mobi already describes itself as the portal to all of them. One hub, four rooms. The rooms are groups on the hub page, not new entries.",
+      "members": [
+        {
+          "u": "b.mino.mobi",
+          "action": "keep",
+          "note": "the door"
+        },
+        {
+          "u": "mino.mobi/judge",
+          "action": "fold",
+          "group": "one account"
+        },
+        {
+          "u": "mino.mobi/novelty",
+          "action": "fold",
+          "group": "one account"
+        },
+        {
+          "u": "mino.mobi/ternary",
+          "action": "fold",
+          "group": "one account"
+        },
+        {
+          "u": "mino.mobi/ternary2",
+          "action": "merge",
+          "into": "mino.mobi/ternary",
+          "group": "one account",
+          "note": "an iteration, not a sibling; keep the best cut, link the others from its page"
+        },
+        {
+          "u": "mino.mobi/ternary3",
+          "action": "merge",
+          "into": "mino.mobi/ternary",
+          "group": "one account"
+        },
+        {
+          "u": "mino.mobi/echo",
+          "action": "fold",
+          "group": "one account"
+        },
+        {
+          "u": "mino.mobi/density",
+          "action": "fold",
+          "group": "one account"
+        },
+        {
+          "u": "empath.mino.mobi",
+          "action": "fold",
+          "group": "one account",
+          "note": "a reconstructed timeline is a lens, not an app; it has its own subdomain only because it was built that week"
+        },
+        {
+          "u": "mino.mobi/track",
+          "action": "fold",
+          "group": "one account"
+        },
+        {
+          "u": "zest.mino.mobi",
+          "action": "fold",
+          "group": "one account",
+          "note": "posts as solids: a lens with a subdomain"
+        },
+        {
+          "u": "mino.mobi/seek",
+          "action": "fold",
+          "group": "network"
+        },
+        {
+          "u": "mino.mobi/cluster",
+          "action": "fold",
+          "group": "network"
+        },
+        {
+          "u": "mino.mobi/wild",
+          "action": "fold",
+          "group": "network"
+        },
+        {
+          "u": "b.mino.mobi/disk",
+          "action": "fold",
+          "group": "network"
+        },
+        {
+          "u": "mino.mobi/weft",
+          "action": "fold",
+          "group": "threads"
+        },
+        {
+          "u": "b.mino.mobi/thread",
+          "action": "regroup",
+          "from": "photo",
+          "group": "threads",
+          "note": "lives on b, was parented to photo"
+        },
+        {
+          "u": "b.mino.mobi/feedgen",
+          "action": "keep",
+          "group": "feeds"
+        },
+        {
+          "u": "b.mino.mobi/tetr",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/spark",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/dyad",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/gc",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/squares",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/map",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/unique",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/meme",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/coin",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/lathe",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "+b.mino.mobi/knot",
+          "action": "new",
+          "group": "b tools"
+        },
+        {
+          "u": "+b.mino.mobi/palm",
+          "action": "new",
+          "group": "b tools"
+        },
+        {
+          "u": "+b.mino.mobi/sleuth",
+          "action": "new",
+          "group": "b tools"
+        }
+      ],
+      "wing": "bluesky"
+    },
+    {
+      "id": "simcluster",
+      "label": "simcluster",
+      "u": "bisk.mino.mobi",
+      "kind": "lens",
+      "domain": "bluesky",
+      "action": "new-hub",
+      "why": "Three surfaces over one dataset: the community viewer, the daily digest, the monthly. They got three subdomains because they were three sessions.",
+      "members": [
+        {
+          "u": "zoom.mino.mobi",
+          "action": "fold"
+        },
+        {
+          "u": "bisk.mino.mobi",
+          "action": "keep",
+          "note": "the door; 158 commits at k:1"
+        },
+        {
+          "u": "bisk.mino.mobi/monthly",
+          "action": "keep"
+        }
+      ],
+      "blurb": "Three views of one Bluesky neighbourhood: the community map, the daily digest, and the monthly.",
+      "wing": "bluesky"
+    },
+    {
+      "id": "photo",
+      "label": "photo",
+      "u": "photo.mino.mobi",
+      "kind": "app",
+      "domain": "bluesky",
+      "action": "keep",
+      "why": "Already a real hub with its own index. Loses thread (which lives on b) and nothing else.",
+      "members": [
+        {
+          "u": "photo.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/#/explore",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/shop",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/bloom",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/lens",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/glass",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/glitch",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/juice",
+          "action": "look"
+        },
+        {
+          "u": "photo.mino.mobi/astro",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/prism",
+          "action": "keep"
+        },
+        {
+          "u": "photo.mino.mobi/orb",
+          "action": "keep",
+          "note": "id photo/orb; the name collides with tjs/orb"
+        },
+        {
+          "u": "photo.mino.mobi/fractal",
+          "action": "keep"
+        },
+        {
+          "u": "+photo.mino.mobi/dm",
+          "action": "new"
+        }
+      ],
+      "wing": "bluesky"
+    },
+    {
+      "id": "rite",
+      "label": "rite",
+      "u": "rite.mino.mobi",
+      "kind": "app",
+      "domain": "bluesky",
+      "action": "keep",
+      "why": "Coherent: one drill and a dozen tools over Bluesky prose. Two names collide with standalone sites (atlas, org); ids fix that without renaming anything visible. name and names are one tool twice.",
+      "members": [
+        {
+          "u": "rite.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/fodder",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/redact",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/ask",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/atlas",
+          "action": "keep",
+          "note": "id rite/atlas"
+        },
+        {
+          "u": "rite.mino.mobi/lexicon",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/list",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/web",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/signal",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/wc",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/font",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/name",
+          "action": "keep"
+        },
+        {
+          "u": "rite.mino.mobi/names",
+          "action": "merge",
+          "into": "rite.mino.mobi/name",
+          "note": "name and names: pick one"
+        },
+        {
+          "u": "rite.mino.mobi/org",
+          "action": "keep",
+          "note": "id rite/org"
+        }
+      ],
+      "wing": "bluesky"
+    },
+    {
+      "id": "oneill",
+      "label": "the O'Neill cylinder",
+      "u": "hoop.mino.mobi",
+      "kind": "engine",
+      "domain": "oneill",
+      "action": "new-hub",
+      "why": "The spec already says it: one modelling project split across eight surfaces, which the catalogue files under bluesky, data and games depending on the week each was born. One pack at the top; the surfaces are its chapters. Inside hoop, six frozen versions are catalogue entries; they become one archive page.",
+      "members": [
+        {
+          "u": "hoop.mino.mobi",
+          "action": "fold",
+          "note": "the game",
+          "pages": [
+            {
+              "u": "hoop.mino.mobi/econ",
+              "action": "keep"
+            },
+            {
+              "u": "hoop.mino.mobi/forge",
+              "action": "keep"
+            },
+            {
+              "u": "hoop.mino.mobi/paint",
+              "action": "keep",
+              "note": "was listed as “voronoi”, colliding with math/voronoi; call it paint, which is its path"
+            },
+            {
+              "u": "hoop-archive.mino.mobi",
+              "action": "keep",
+              "note": "the museum: one page for every frozen version"
+            },
+            {
+              "u": "hoop-archive.mino.mobi/v095",
+              "action": "retire",
+              "into": "hoop-archive.mino.mobi",
+              "note": "tabard, v095"
+            },
+            {
+              "u": "hoop-archive.mino.mobi/v096",
+              "action": "retire",
+              "into": "hoop-archive.mino.mobi",
+              "note": "story, v096"
+            },
+            {
+              "u": "hoop.mino.mobi/v099",
+              "action": "retire",
+              "into": "hoop-archive.mino.mobi",
+              "note": "chapter, v099"
+            },
+            {
+              "u": "hoop.mino.mobi/v099/arena",
+              "action": "retire",
+              "into": "hoop-archive.mino.mobi",
+              "note": "arena, v099"
+            },
+            {
+              "u": "hoop-archive.mino.mobi/v100",
+              "action": "retire",
+              "into": "hoop-archive.mino.mobi",
+              "note": "trainer, v100"
+            },
+            {
+              "u": "mino.mobi/hoop-history",
+              "action": "retire",
+              "into": "hoop-archive.mino.mobi",
+              "note": "a root directory holding hoop's history; content of the archive"
+            },
+            {
+              "u": "+hoop.mino.mobi/nave",
+              "action": "new"
+            },
+            {
+              "u": "+hoop.mino.mobi/chunkroller",
+              "action": "new"
+            }
+          ]
+        },
+        {
+          "u": "rind.mino.mobi",
+          "action": "fold",
+          "note": "structure",
+          "pages": [
+            {
+              "u": "rind.mino.mobi/brawl",
+              "action": "keep"
+            },
+            {
+              "u": "rind.mino.mobi/ops",
+              "action": "keep"
+            },
+            {
+              "u": "+rind.mino.mobi/upperrind",
+              "action": "new"
+            }
+          ]
+        },
+        {
+          "u": "tide.mino.mobi",
+          "action": "fold",
+          "note": "thermodynamics",
+          "pages": [
+            {
+              "u": "tide.mino.mobi/goss",
+              "action": "keep"
+            },
+            {
+              "u": "+tide.mino.mobi/atmosphere",
+              "action": "new",
+              "note": "collides with the b.mino.mobi hub name; id tide/atmosphere"
+            },
+            {
+              "u": "+tide.mino.mobi/case",
+              "action": "new"
+            },
+            {
+              "u": "+tide.mino.mobi/fountain",
+              "action": "new"
+            },
+            {
+              "u": "+tide.mino.mobi/profile",
+              "action": "new"
+            },
+            {
+              "u": "+tide.mino.mobi/ratchet",
+              "action": "new",
+              "note": "collides with pressure/ratchet; id tide/ratchet"
+            }
+          ]
+        },
+        {
+          "u": "iris.mino.mobi",
+          "action": "fold",
+          "note": "end-cap"
+        },
+        {
+          "u": "biome.mino.mobi",
+          "action": "fold",
+          "note": "ecosystem",
+          "pages": [
+            {
+              "u": "biome.mino.mobi/graph",
+              "action": "keep"
+            },
+            {
+              "u": "biome.mino.mobi/gacha",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed"
+              ]
+            },
+            {
+              "u": "biome.mino.mobi/sprite",
+              "action": "decide",
+              "note": "two sprite tools exist: biome/sprite (k19) and mega/sprite (k9, seven sub-pages). One should survive as the sprite workshop; the other becomes its history"
+            },
+            {
+              "u": "biome.mino.mobi/inat",
+              "action": "keep"
+            },
+            {
+              "u": "biome.mino.mobi/over",
+              "action": "keep"
+            },
+            {
+              "u": "+biome.mino.mobi/balance",
+              "action": "new"
+            },
+            {
+              "u": "+biome.mino.mobi/cycles",
+              "action": "new"
+            }
+          ]
+        },
+        {
+          "u": "duck.mino.mobi",
+          "action": "fold",
+          "note": "flight",
+          "pages": [
+            {
+              "u": "duck.mino.mobi/golf",
+              "action": "keep"
+            }
+          ]
+        },
+        {
+          "u": "mino.mobi/mega",
+          "action": "fold",
+          "note": "megaprojects and world dashboards; the entry points at mino.mobi/mega while the sprite workshop sits on mega.mino.mobi",
+          "pages": [
+            {
+              "u": "mega.mino.mobi/sprite",
+              "action": "decide",
+              "note": "see biome/sprite",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "mega.mino.mobi/sprite/item",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "mega.mino.mobi/sprite/fixture",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "mega.mino.mobi/sprite/radial",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "mega.mino.mobi/sprite/quad",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "mega.mino.mobi/sprite/poly",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "mega.mino.mobi/sprite/axial",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "mega.mino.mobi/sprite/isopod",
+              "action": "keep",
+              "domain": "procgen",
+              "tech": [
+                "seed",
+                "genome"
+              ]
+            },
+            {
+              "u": "+mega.mino.mobi/bees",
+              "action": "new"
+            }
+          ]
+        },
+        {
+          "u": "foam.mino.mobi",
+          "action": "fold",
+          "note": "first person inside the rind's foam; was filed under games",
+          "pages": [
+            {
+              "u": "foam.mino.mobi/macro",
+              "action": "look"
+            }
+          ]
+        }
+      ],
+      "blurb": "One modelling project with eight faces: the game (hoop), the structure (rind), the thermodynamics (tide), the end-cap (iris), the closed ecology (biome), flight (duck), the megaprojects (mega) and the foam you can walk through. Can the life-support loop close at all?",
+      "wing": "oneill"
+    },
+    {
+      "id": "procgen",
+      "label": "procgen",
+      "u": "mino.mobi/procgen",
+      "kind": "toy",
+      "domain": "procgen",
+      "action": "new-hub",
+      "pinned": true,
+      "why": "Pinned. Two dozen generators scattered across games, tools and data, with nothing on the landing page saying they are one genre. They share a vocabulary — a seed is a permalink, a genome is a grammar, a solver certifies, a rubric judges, local rules grow, and the output is measured against the real thing — and a trick invented in one is usable in the next. The hoop pack has its own generators and stays where it is; this is everything else. mino.mobi/procgen/ is its door.",
+      "members": [
+        {
+          "u": "+mino.mobi/procgen",
+          "action": "new",
+          "note": "the door: the generators by technique, so an innovation in one is visible to the rest",
+          "tech": []
+        },
+        {
+          "u": "fable.mino.mobi",
+          "action": "look",
+          "note": "games no one wrote: nine wings, each a generator — puzz certifies uniqueness with a real solver, morph is a generator of puzzle generators",
+          "tech": [
+            "seed",
+            "certify",
+            "judge"
+          ],
+          "label": "fable",
+          "pages": [
+            {
+              "u": "fable.mino.mobi/tetro",
+              "action": "look"
+            },
+            {
+              "u": "+fable.mino.mobi/deal",
+              "action": "new"
+            },
+            {
+              "u": "+fable.mino.mobi/drift",
+              "action": "new"
+            },
+            {
+              "u": "+fable.mino.mobi/flux",
+              "action": "new"
+            },
+            {
+              "u": "+fable.mino.mobi/forge",
+              "action": "new"
+            },
+            {
+              "u": "+fable.mino.mobi/gyre",
+              "action": "new"
+            },
+            {
+              "u": "+fable.mino.mobi/knack",
+              "action": "new"
+            },
+            {
+              "u": "+fable.mino.mobi/morph",
+              "action": "new"
+            },
+            {
+              "u": "+fable.mino.mobi/puzz",
+              "action": "new"
+            }
+          ]
+        },
+        {
+          "u": "borges.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "tech": [
+            "seed",
+            "genome"
+          ],
+          "note": "the Book of Sand: an endless deterministic tale, each chapter annotated with its mythograph before the telling"
+        },
+        {
+          "u": "games.mino.mobi/gen",
+          "action": "regroup",
+          "from": "games",
+          "tech": [
+            "seed",
+            "judge"
+          ],
+          "note": "the Ludographer: an endless catalogue of board games, under the party-games site by accident of directory"
+        },
+        {
+          "u": "phylofiction.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "tech": [
+            "seed",
+            "genome",
+            "grow"
+          ],
+          "note": "a seeded tree of life: a Rust/WASM evolution engine that any page seed reproduces identically"
+        },
+        {
+          "u": "reef.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "pages": [
+            {
+              "u": "+reef.mino.mobi/model",
+              "action": "new"
+            }
+          ],
+          "tech": [
+            "seed",
+            "genome",
+            "judge"
+          ],
+          "note": "seeded voxel sea creatures, crowd-judged Tinder-style; the judging is the point"
+        },
+        {
+          "u": "golem.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "tech": [
+            "grow"
+          ],
+          "note": "a builder world over smart cellular bricks: build a swarm, wake it up"
+        },
+        {
+          "u": "idol.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "tech": [
+            "seed",
+            "genome"
+          ],
+          "note": "one integer seed, one whole character: an AI-safety piece about beguilement built as the thing it is about"
+        },
+        {
+          "u": "fipo.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "pages": [
+            {
+              "u": "+fipo.mino.mobi/pitch",
+              "action": "new"
+            }
+          ],
+          "tech": [
+            "seed",
+            "genome"
+          ],
+          "note": "the bad sci-fi pitch archive; /pitch is a pitch-genome sampler where a seed is a permalink"
+        },
+        {
+          "u": "wormhole.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "tech": [
+            "seed"
+          ],
+          "note": "academic wormhole roulette"
+        },
+        {
+          "u": "table.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "generative",
+          "tech": [
+            "seed",
+            "certify",
+            "measure"
+          ],
+          "note": "procedural RPG character sheets from a seed, on openly licensed rules only; the encounter oracle simulates the fight because Cairn has no challenge rating"
+        },
+        {
+          "u": "bismuth.mino.mobi",
+          "action": "fold",
+          "note": "crystals grown brick by brick by mason agents under real growth kinetics; hopper makes the growth a platformer where every level number is a permalink",
+          "tech": [
+            "seed",
+            "grow",
+            "measure"
+          ],
+          "label": "bismuth",
+          "pages": [
+            {
+              "u": "hopper.mino.mobi",
+              "action": "fold"
+            }
+          ]
+        },
+        {
+          "u": "silk.mino.mobi",
+          "action": "fold",
+          "kind": "toy",
+          "domain": "agents",
+          "tech": [
+            "grow",
+            "measure"
+          ],
+          "note": "an orb-web weaver with no plan and no map; the page measures the family of webs against the numbers a field biologist takes off a photograph"
+        },
+        {
+          "u": "fluoddity.mino.mobi",
+          "action": "fold",
+          "note": "deterministic genomes bred and forked on your PDS, gated by an interestingness rubric; ink paints only what clears the rubric",
+          "tech": [
+            "seed",
+            "genome",
+            "judge",
+            "grow"
+          ],
+          "label": "fluoddity",
+          "pages": [
+            {
+              "u": "ink.mino.mobi",
+              "action": "regroup",
+              "from": "top-level",
+              "note": "id fluoddity/ink; the name also exists at wars/ink"
+            },
+            {
+              "u": "g.mino.mobi/garden",
+              "action": "regroup",
+              "from": "g"
+            },
+            {
+              "u": "fluoddity.mino.mobi/game",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/play",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/text",
+              "action": "decide",
+              "note": "swarmtext, swarmread, swarmclip: three variants of one idea?"
+            },
+            {
+              "u": "fluoddity.mino.mobi/read",
+              "action": "decide"
+            },
+            {
+              "u": "fluoddity.mino.mobi/clip",
+              "action": "decide"
+            },
+            {
+              "u": "fluoddity.mino.mobi/gallery.html",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/map.html",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/forest.html",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/hot.html",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/select.html",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/arena.html",
+              "action": "keep",
+              "note": "id fluoddity/arena"
+            },
+            {
+              "u": "fluoddity.mino.mobi/breed.html",
+              "action": "keep"
+            },
+            {
+              "u": "fluoddity.mino.mobi/torus.html",
+              "action": "keep"
+            }
+          ]
+        },
+        {
+          "u": "mino.mobi/cards/collection/grow.html",
+          "action": "promote",
+          "kind": "toy",
+          "domain": "generative",
+          "note": "generative plant simulation: children inherit their parent's lattice rotation; born in the cards directory",
+          "tech": [
+            "seed",
+            "grow"
+          ]
+        },
+        {
+          "u": "mino.mobi/crucible",
+          "action": "regroup",
+          "group": "other",
+          "note": "“overgenerate, then judge”: the judging half of the genre as its own page",
+          "from": "math",
+          "tech": [
+            "judge"
+          ]
+        },
+        {
+          "u": "civ.mino.mobi",
+          "action": "look",
+          "label": "world engine",
+          "tech": [
+            "seed",
+            "grow",
+            "measure"
+          ],
+          "note": "the world-engine suite the registry deploys together: mappa generates the world, civ runs civilisations on it, polis cascades cities out of them",
+          "pages": [
+            {
+              "u": "+civ.mino.mobi/claims",
+              "action": "new"
+            },
+            {
+              "u": "+civ.mino.mobi/dash",
+              "action": "new"
+            },
+            {
+              "u": "mino.mobi/polis",
+              "action": "look"
+            },
+            {
+              "u": "+mino.mobi/polis/city",
+              "action": "new"
+            },
+            {
+              "u": "+mino.mobi/polis/hinterland",
+              "action": "new"
+            },
+            {
+              "u": "mino.mobi/mappa",
+              "action": "look",
+              "note": "84 commits at k:1; the entry still points at the old root path, the surface is mappa.mino.mobi"
+            }
+          ]
+        }
+      ],
+      "blurb": "Things no one wrote. Two dozen generators sharing one way of working: a seed is a permalink, a genome is a grammar, a solver certifies, a rubric judges, local rules grow the thing, and the output is measured against the real world.",
+      "wing": "procgen"
+    },
+    {
+      "id": "math",
+      "label": "math",
+      "u": "math.mino.mobi",
+      "kind": "explainer",
+      "domain": "math",
+      "action": "keep",
+      "why": "Twenty-two single-page explainers, each a root directory at mino.mobi/<name>/ because it was built before math.mino.mobi existed, parented to “geometry” by hand afterwards. Keep the hub, name it after its domain, and give it rooms: the extremal-geometry pack it started as, tilings and loops, dynamics. elements, prop, conjectures and arnold were top-level for no reason.",
+      "members": [
+        {
+          "u": "mino.mobi/geometry",
+          "action": "keep",
+          "note": "the door; rename the entry math to match math.mino.mobi"
+        },
+        {
+          "u": "mino.mobi/erdos",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/guthkatz",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/hadwiger",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/kakeya",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/capset",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/szemeredi-trotter",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/heilbronn",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/borsuk",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/viazovska",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/runner",
+          "action": "keep",
+          "group": "extremal geometry"
+        },
+        {
+          "u": "mino.mobi/meander",
+          "action": "keep",
+          "group": "tilings and loops"
+        },
+        {
+          "u": "mino.mobi/temperley-lieb",
+          "action": "keep",
+          "group": "tilings and loops"
+        },
+        {
+          "u": "mino.mobi/aztec",
+          "action": "keep",
+          "group": "tilings and loops"
+        },
+        {
+          "u": "mino.mobi/cohomology",
+          "action": "keep",
+          "group": "tilings and loops"
+        },
+        {
+          "u": "mino.mobi/markov",
+          "action": "keep",
+          "group": "dynamics"
+        },
+        {
+          "u": "mino.mobi/descent",
+          "action": "keep",
+          "group": "dynamics"
+        },
+        {
+          "u": "mino.mobi/traffic",
+          "action": "keep",
+          "group": "dynamics"
+        },
+        {
+          "u": "mino.mobi/voronoi",
+          "action": "keep",
+          "group": "dynamics",
+          "note": "Life on a Voronoi torus; id math/voronoi"
+        },
+        {
+          "u": "mino.mobi/arnold",
+          "action": "keep",
+          "group": "dynamics"
+        },
+        {
+          "u": "mino.mobi/prop",
+          "action": "fold",
+          "group": "dynamics",
+          "note": "graph rewriting; was top-level"
+        },
+        {
+          "u": "mino.mobi/elements",
+          "action": "fold",
+          "group": "other",
+          "note": "the periodic mandala; was top-level under data"
+        },
+        {
+          "u": "math.mino.mobi/conjectures",
+          "action": "fold",
+          "group": "other"
+        }
+      ],
+      "blurb": "Interactive single-page explainers, one result each: the extremal-geometry pack, tilings and loops, and a room of dynamics.",
+      "wing": "study"
+    },
+    {
+      "id": "read",
+      "label": "read",
+      "u": "mino.mobi/read",
+      "kind": "app",
+      "domain": "reading",
+      "action": "split",
+      "why": "The read/ directory holds three unrelated things because they all read text: a speed reader, a medieval library with a deep-reading apparatus, and three divination toys. Split into read, tales and oracle.",
+      "members": [
+        {
+          "u": "mino.mobi/read",
+          "action": "keep",
+          "note": "the speed reader"
+        },
+        {
+          "u": "mino.mobi/read/flow",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/read/post01",
+          "action": "look",
+          "note": "a story-pitch generator for one essay; possibly content of time, possibly nothing"
+        }
+      ],
+      "blurb": "An adaptive speed reader for Project Gutenberg texts and poetry, with a flow view.",
+      "wing": "study"
+    },
+    {
+      "id": "tales",
+      "label": "tales",
+      "u": "mino.mobi/read/pendragon",
+      "kind": "reading",
+      "domain": "medieval",
+      "action": "split-from",
+      "from": "read",
+      "why": "Twelve texts with the same apparatus: the Four Branches, the Welsh romances, two Middle English poems, a Latin life, and Joyce as the control. It is the largest coherent body of work on the site and it is currently invisible under a speed reader in the tools bucket.",
+      "members": [
+        {
+          "u": "mino.mobi/read/pendragon",
+          "action": "promote",
+          "note": "the comparative hub; the natural door"
+        },
+        {
+          "u": "mino.mobi/read/mabinogi",
+          "action": "keep",
+          "group": "the four branches"
+        },
+        {
+          "u": "mino.mobi/read/pwyll",
+          "action": "keep",
+          "group": "the four branches"
+        },
+        {
+          "u": "mino.mobi/read/branwen",
+          "action": "keep",
+          "group": "the four branches"
+        },
+        {
+          "u": "mino.mobi/read/manawydan",
+          "action": "keep",
+          "group": "the four branches"
+        },
+        {
+          "u": "mino.mobi/read/math",
+          "action": "keep",
+          "group": "the four branches",
+          "note": "the fourth branch; id tales/math, not the math hub"
+        },
+        {
+          "u": "mino.mobi/read/culhwch",
+          "action": "keep",
+          "group": "welsh romances"
+        },
+        {
+          "u": "mino.mobi/read/owain",
+          "action": "keep",
+          "group": "welsh romances"
+        },
+        {
+          "u": "mino.mobi/read/gawain",
+          "action": "keep",
+          "group": "middle english"
+        },
+        {
+          "u": "mino.mobi/read/orfeo",
+          "action": "keep",
+          "group": "middle english"
+        },
+        {
+          "u": "mino.mobi/read/vitamerlini",
+          "action": "keep",
+          "group": "latin"
+        },
+        {
+          "u": "mino.mobi/read/portrait",
+          "action": "keep",
+          "group": "modernist"
+        }
+      ],
+      "blurb": "Twelve texts under one deep-reading apparatus: the Four Branches of the Mabinogi, the Welsh romances, two Middle English poems, the Life of Merlin from the Latin, and Joyce as the control.",
+      "wing": "study"
+    },
+    {
+      "id": "oracle",
+      "label": "oracle",
+      "u": "mino.mobi/read/iching",
+      "kind": "toy",
+      "domain": "divination",
+      "action": "new-hub",
+      "why": "Five divination toys in two unrelated places: three under the speed reader, two on the WebGPU shelf. Tentative: it is a small hub, but it is a real one. If it feels thin, fold it into tales.",
+      "members": [
+        {
+          "u": "mino.mobi/read/iching",
+          "action": "regroup",
+          "from": "read"
+        },
+        {
+          "u": "mino.mobi/read/geomancy",
+          "action": "regroup",
+          "from": "read"
+        },
+        {
+          "u": "mino.mobi/read/alch",
+          "action": "regroup",
+          "from": "read"
+        },
+        {
+          "u": "g.mino.mobi/yarrow",
+          "action": "regroup",
+          "from": "g"
+        },
+        {
+          "u": "g.mino.mobi/yijing",
+          "action": "regroup",
+          "from": "g",
+          "note": "yijing and iching are the same book; decide whether both stay"
+        }
+      ],
+      "blurb": "Five ways of asking a question you cannot answer: the I Ching twice, geomancy, alchemy and the yarrow stalks.",
+      "wing": "study"
+    },
+    {
+      "id": "g",
+      "label": "g",
+      "u": "g.mino.mobi",
+      "kind": "toy",
+      "domain": "simulation",
+      "action": "keep",
+      "why": "The shelf works as a hub; what it lacks is rooms. Twenty-four toys are three families: the infinite zooms, the clock family it grew out of, and the physics sims. Garden leaves for fluoddity, the two I Ching toys leave for oracle, and three toys the coverage backlog knows about get listed.",
+      "members": [
+        {
+          "u": "g.mino.mobi",
+          "action": "keep",
+          "note": "the shelf"
+        },
+        {
+          "u": "g.mino.mobi/antoine",
+          "action": "keep",
+          "group": "zooms"
+        },
+        {
+          "u": "g.mino.mobi/horned",
+          "action": "keep",
+          "group": "zooms"
+        },
+        {
+          "u": "g.mino.mobi/lattice",
+          "action": "keep",
+          "group": "zooms"
+        },
+        {
+          "u": "g.mino.mobi/basket",
+          "action": "keep",
+          "group": "zooms"
+        },
+        {
+          "u": "g.mino.mobi/helix",
+          "action": "keep",
+          "group": "clock family"
+        },
+        {
+          "u": "g.mino.mobi/hand",
+          "action": "keep",
+          "group": "clock family"
+        },
+        {
+          "u": "g.mino.mobi/scope",
+          "action": "keep",
+          "group": "clock family"
+        },
+        {
+          "u": "g.mino.mobi/ship",
+          "action": "keep",
+          "group": "clock family"
+        },
+        {
+          "u": "g.mino.mobi/hourglass",
+          "action": "keep",
+          "group": "clock family"
+        },
+        {
+          "u": "g.mino.mobi/sticks",
+          "action": "keep",
+          "group": "clock family"
+        },
+        {
+          "u": "g.mino.mobi/tablet",
+          "action": "keep",
+          "group": "clock family"
+        },
+        {
+          "u": "g.mino.mobi/tabletilt",
+          "action": "merge",
+          "into": "g.mino.mobi/tablet",
+          "group": "clock family",
+          "note": "a variant of tablet; one entry"
+        },
+        {
+          "u": "g.mino.mobi/bearings",
+          "action": "keep",
+          "group": "physics"
+        },
+        {
+          "u": "g.mino.mobi/emsim",
+          "action": "keep",
+          "group": "physics"
+        },
+        {
+          "u": "g.mino.mobi/stretch",
+          "action": "keep",
+          "group": "physics"
+        },
+        {
+          "u": "g.mino.mobi/globe",
+          "action": "keep",
+          "group": "physics"
+        },
+        {
+          "u": "g.mino.mobi/mole",
+          "action": "keep",
+          "group": "physics"
+        },
+        {
+          "u": "g.mino.mobi/mol",
+          "action": "merge",
+          "into": "g.mino.mobi/mole",
+          "group": "physics",
+          "note": "mol and mole: both molecular; decide which is the door"
+        },
+        {
+          "u": "g.mino.mobi/corn",
+          "action": "keep",
+          "group": "physics"
+        },
+        {
+          "u": "g.mino.mobi/soil",
+          "action": "keep",
+          "group": "physics"
+        },
+        {
+          "u": "g.mino.mobi/morph",
+          "action": "keep",
+          "group": "sound"
+        },
+        {
+          "u": "+g.mino.mobi/geocast",
+          "action": "new"
+        },
+        {
+          "u": "+g.mino.mobi/scape",
+          "action": "new"
+        },
+        {
+          "u": "+g.mino.mobi/syllis",
+          "action": "new"
+        },
+        {
+          "u": "+g.mino.mobi/fluoddity",
+          "action": "new",
+          "group": "physics",
+          "note": "the vector-trail slime playground the fluoddity site grew out of; lives in clock/ and ships with g"
+        }
+      ],
+      "wing": "play"
+    },
+    {
+      "id": "torus",
+      "label": "torus",
+      "u": "torus.mino.mobi",
+      "kind": "game",
+      "domain": "simulation",
+      "action": "keep",
+      "why": "Coherent. Note for the registry, not the catalogue: its sources live in clock/, the dir that also ships g.",
+      "members": [
+        {
+          "u": "torus.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "torus.mino.mobi/pac",
+          "action": "keep"
+        },
+        {
+          "u": "torus.mino.mobi/torpac",
+          "action": "keep"
+        },
+        {
+          "u": "torus.mino.mobi/knotpac",
+          "action": "keep"
+        },
+        {
+          "u": "torus.mino.mobi/inpac",
+          "action": "keep"
+        },
+        {
+          "u": "torus.mino.mobi/toruschess",
+          "action": "keep"
+        }
+      ],
+      "wing": "play"
+    },
+    {
+      "id": "pressure",
+      "label": "pressure",
+      "u": "games.mino.mobi/pressure",
+      "kind": "game",
+      "domain": "games",
+      "action": "split-from",
+      "from": "games",
+      "why": "Its own description says “the hub for a family of small games about deciding under pressure”. It is a hub filed as a page of a party-games site it has nothing to do with.",
+      "members": [
+        {
+          "u": "games.mino.mobi/pressure",
+          "action": "promote"
+        },
+        {
+          "u": "games.mino.mobi/outbound",
+          "action": "keep"
+        },
+        {
+          "u": "games.mino.mobi/switchboard",
+          "action": "keep"
+        },
+        {
+          "u": "games.mino.mobi/ratchet",
+          "action": "keep"
+        },
+        {
+          "u": "games.mino.mobi/telegraph",
+          "action": "keep"
+        },
+        {
+          "u": "games.mino.mobi/horde",
+          "action": "keep"
+        },
+        {
+          "u": "+games.mino.mobi/tempest",
+          "action": "new",
+          "domain": "procgen",
+          "tech": [
+            "seed",
+            "certify"
+          ],
+          "note": "the newest pressure game: a Rust core proves every procedural wave holdable before it ships"
+        }
+      ],
+      "blurb": "A family of small games about deciding under pressure, each built to make a different thing mean something.",
+      "wing": "play"
+    },
+    {
+      "id": "games",
+      "label": "games",
+      "u": "games.mino.mobi",
+      "kind": "game",
+      "domain": "bluesky",
+      "action": "split",
+      "why": "What remains after pressure leaves: the multiplayer party-games site.",
+      "members": [
+        {
+          "u": "games.mino.mobi",
+          "action": "keep"
+        }
+      ],
+      "wing": "bluesky"
+    },
+    {
+      "id": "canvas",
+      "label": "canvas",
+      "u": "canvas.mino.mobi",
+      "kind": "game",
+      "domain": "drawing",
+      "action": "collapse",
+      "why": "One stroke engine, six doors: mmo, draw, paint, range, curve and a canvas.mino.mobi with no description that the registry says is draw's subdomain. mmo is the hub by k, canvas.mino.mobi is the hub by name. One hub.",
+      "members": [
+        {
+          "u": "canvas.mino.mobi",
+          "action": "decide",
+          "note": "either this or mino.mobi/mmo is the door; the other becomes a page"
+        },
+        {
+          "u": "mino.mobi/mmo",
+          "action": "decide"
+        },
+        {
+          "u": "mino.mobi/draw",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/paint",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/range",
+          "action": "merge",
+          "into": "mino.mobi/draw",
+          "note": "the practice range for draw; a mode, not a site"
+        },
+        {
+          "u": "mino.mobi/curve",
+          "action": "keep"
+        },
+        {
+          "u": "canvas.mino.mobi/pizza",
+          "action": "look"
+        },
+        {
+          "u": "+mino.mobi/canvas",
+          "action": "look",
+          "note": "a root canvas/ directory with its own wrangler.jsonc, distinct from canvas.mino.mobi (which the registry says is draw/). Two things called canvas; the door decision above covers only one"
+        }
+      ],
+      "blurb": "One stroke engine, several doors: massively multiplayer paint, a polygon drawing game, single-player paint, and a hand-drawn curve scorer.",
+      "wing": "play"
+    },
+    {
+      "id": "org",
+      "label": "org",
+      "u": "org.mino.mobi",
+      "kind": "app",
+      "domain": "work",
+      "action": "keep",
+      "why": "The one hub the work bucket got right.",
+      "members": [
+        {
+          "u": "org.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/pm",
+          "action": "keep"
+        },
+        {
+          "u": "wave.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/wiki",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/crm",
+          "action": "keep"
+        }
+      ],
+      "wing": "bench"
+    },
+    {
+      "id": "finance",
+      "label": "finance",
+      "u": "fin.mino.mobi",
+      "kind": "app",
+      "domain": "finance",
+      "action": "regroup",
+      "why": "fin.mino.mobi is the finance surface. The catalogue still pointed at mino.mobi/finance/…, which the root serves as the landing page: stocks, agimet and bogo were dead by URL, not by code. The dashboard itself moved under /pm when the surface was taken over for the speculative-feedback playground (speclab).",
+      "members": [
+        {
+          "u": "fin.mino.mobi/pm",
+          "action": "keep",
+          "note": "the personal-finance dashboard, relocated under /pm"
+        },
+        {
+          "u": "fin.mino.mobi/stocks",
+          "action": "keep"
+        },
+        {
+          "u": "fin.mino.mobi/agimet",
+          "action": "look"
+        },
+        {
+          "u": "fin.mino.mobi",
+          "action": "keep",
+          "note": "speclab: the speculative-feedback playground that took over the surface; the door"
+        },
+        {
+          "u": "perp.mino.mobi",
+          "action": "fold"
+        }
+      ],
+      "wing": "bench"
+    },
+    {
+      "id": "cards",
+      "label": "cards",
+      "u": "mino.mobi/cards",
+      "kind": "game",
+      "domain": "food",
+      "action": "split",
+      "why": "The cards/ directory is a Wikipedia card game, a flavour-pairing model that the game's recipe mode scores against, a 179-node tech tree and a plant simulator. The food family stays together; techtree and grow are standalone things that happened to be born in this directory.",
+      "members": [
+        {
+          "u": "mino.mobi/cards",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/cards/games/yum.html",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/cards/games/recipe.html",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/cards/collection/diffract.html",
+          "action": "look"
+        }
+      ],
+      "wing": "play"
+    },
+    {
+      "id": "tjs",
+      "label": "tjs",
+      "u": "tjs.mino.mobi",
+      "kind": "toy",
+      "domain": "simulation",
+      "action": "keep",
+      "why": "A Three.js shelf with ten toys and not one description. Structurally fine; editorially empty.",
+      "members": [
+        {
+          "u": "tjs.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "tjs.mino.mobi/gantry",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/deck",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/orb",
+          "action": "look",
+          "note": "id tjs/orb"
+        },
+        {
+          "u": "tjs.mino.mobi/infill",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/swarm",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/beelix",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/cube",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/geb",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/kite",
+          "action": "look"
+        },
+        {
+          "u": "tjs.mino.mobi/dragon",
+          "action": "look"
+        }
+      ],
+      "wing": "play"
+    },
+    {
+      "id": "loop",
+      "label": "the loop",
+      "u": "loop.mino.mobi",
+      "kind": "meta",
+      "domain": "agents",
+      "action": "new-hub",
+      "why": "loop is the apparatus, plant is what it built, ken is the study programme judging it. Three subdomains for one programme, currently three tools entries. The os/arena bake-off belongs to the same story.",
+      "members": [
+        {
+          "u": "loop.mino.mobi",
+          "action": "fold",
+          "note": "338 commits at k:1"
+        },
+        {
+          "u": "plant.minomobi.com",
+          "action": "fold"
+        },
+        {
+          "u": "ken.mino.mobi",
+          "action": "fold"
+        },
+        {
+          "u": "os.mino.mobi/arena/race-01",
+          "action": "regroup",
+          "from": "os",
+          "note": "eleven agents, one brief: a bake-off, not a terminal feature"
+        }
+      ],
+      "blurb": "A budget-governed agent loop, shown while it runs: the apparatus, what it built, and the study programme that judges whether unsupervised work was any good.",
+      "wing": "about"
+    },
+    {
+      "id": "meta",
+      "label": "about this site",
+      "u": "mino.mobi/spec",
+      "kind": "meta",
+      "domain": "meta",
+      "action": "new-hub",
+      "why": "The pages about the site itself are scattered through the tools bucket with no descriptions. They are one small hub, and the landing's own maps belong in it rather than above the fold.",
+      "members": [
+        {
+          "u": "mino.mobi/spec",
+          "action": "fold"
+        },
+        {
+          "u": "mino.mobi/office",
+          "action": "fold"
+        },
+        {
+          "u": "mino.mobi/stats",
+          "action": "fold"
+        },
+        {
+          "u": "+mino.mobi/orrery",
+          "action": "new",
+          "note": "in the backlog since it was built"
+        },
+        {
+          "u": "+mino.mobi/rethink",
+          "action": "new",
+          "note": "this page"
+        },
+        {
+          "u": "io.mino.mobi",
+          "action": "fold",
+          "note": "the issue tracker and the stumble portal; it is about the site"
+        }
+      ],
+      "blurb": "The site about itself: the spec sheet, the office map, the repo's own statistics, the orrery, and the audit that produced this page.",
+      "wing": "about"
+    },
+    {
+      "id": "lab",
+      "label": "lab",
+      "u": "minomobi.com",
+      "kind": "meta",
+      "domain": "agents",
+      "action": "keep",
+      "why": "The site factory. 349 commits at k:0. Its tenant sites have their own index and stay out of the catalogue by design; that is the model for every hub.",
+      "members": [
+        {
+          "u": "minomobi.com",
+          "action": "keep"
+        }
+      ],
+      "blurb": "The site factory. Ask for a website in a Bluesky mention and an agent builds it and replies with the link.",
+      "wing": "about"
+    },
+    {
+      "id": "fifty",
+      "label": "fifty",
+      "u": "fifty.mino.mobi",
+      "kind": "app",
+      "domain": "bluesky",
+      "action": "keep",
+      "why": "Fifty concepts with their own index. A hub that already behaves the way this proposal wants every hub to behave.",
+      "members": [
+        {
+          "u": "fifty.mino.mobi",
+          "action": "keep",
+          "note": "filed under tools with c:bluesky; the facets fix that"
+        }
+      ],
+      "wing": "bluesky"
+    },
+    {
+      "id": "farm",
+      "label": "farm",
+      "u": "farm.mino.mobi",
+      "kind": "game",
+      "domain": "bluesky",
+      "action": "collapse",
+      "why": "farm-next is farm's testing table. One entry.",
+      "members": [
+        {
+          "u": "farm.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "farm-next.mino.mobi",
+          "action": "merge",
+          "into": "farm.mino.mobi",
+          "pages": [
+            {
+              "u": "+farm.mino.mobi/trailer",
+              "action": "new"
+            }
+          ]
+        }
+      ],
+      "wing": "bluesky"
+    },
+    {
+      "id": "splice",
+      "label": "splice",
+      "u": "splice.mino.mobi",
+      "kind": "app",
+      "domain": "science",
+      "action": "expand",
+      "why": "One entry; four sub-sites in the backlog.",
+      "members": [
+        {
+          "u": "splice.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "+splice.mino.mobi/game",
+          "action": "new"
+        },
+        {
+          "u": "+splice.mino.mobi/lab",
+          "action": "new"
+        },
+        {
+          "u": "+splice.mino.mobi/roadmap",
+          "action": "new"
+        },
+        {
+          "u": "+splice.mino.mobi/table",
+          "action": "new"
+        }
+      ],
+      "wing": "bench"
+    },
+    {
+      "id": "j",
+      "label": "j",
+      "u": "j.mino.mobi",
+      "kind": "app",
+      "domain": "science",
+      "action": "expand",
+      "why": "ImageJ in the browser, with a model page and a playground the backlog knows about.",
+      "members": [
+        {
+          "u": "j.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "+j.mino.mobi/model",
+          "action": "new"
+        },
+        {
+          "u": "+j.mino.mobi/playground",
+          "action": "new"
+        }
+      ],
+      "wing": "bench"
+    },
+    {
+      "id": "neuro",
+      "label": "neuro",
+      "u": "neuro.mino.mobi",
+      "kind": "toy",
+      "domain": "science",
+      "action": "keep",
+      "members": [
+        {
+          "u": "neuro.mino.mobi",
+          "action": "keep"
+        },
+        {
+          "u": "neuro.mino.mobi/homeostasis",
+          "action": "keep"
+        }
+      ],
+      "wing": "bench"
+    },
+    {
+      "id": "pod",
+      "label": "pod",
+      "u": "pod.mino.mobi",
+      "kind": "app",
+      "domain": "bluesky",
+      "action": "look",
+      "why": "k:9, no description, four sub-sites in the backlog. Possibly the podcast half of time.",
+      "members": [
+        {
+          "u": "pod.mino.mobi",
+          "action": "look"
+        },
+        {
+          "u": "+pod.mino.mobi/app",
+          "action": "new"
+        },
+        {
+          "u": "+pod.mino.mobi/listen",
+          "action": "new"
+        },
+        {
+          "u": "+pod.mino.mobi/prod",
+          "action": "new"
+        },
+        {
+          "u": "+pod.mino.mobi/room",
+          "action": "new"
+        }
+      ],
+      "wing": "bluesky"
+    },
+    {
+      "id": "wars",
+      "label": "wars",
+      "u": "mino.mobi/wars",
+      "kind": "lens",
+      "domain": "data",
+      "action": "split",
+      "why": "cult decomposes any text into cultural axes. It is not about war; it lives under wars/ because that is where the embeddings were.",
+      "members": [
+        {
+          "u": "mino.mobi/wars",
+          "action": "keep"
+        },
+        {
+          "u": "mino.mobi/wars/ink",
+          "action": "look",
+          "note": "no description; the name collides with ink.mino.mobi"
+        }
+      ],
+      "wing": "bench"
+    },
+    {
+      "id": "sites",
+      "label": "standalone sites",
+      "u": "",
+      "kind": "mixed",
+      "domain": "mixed",
+      "action": "list",
+      "why": "Everything that is genuinely one thing. These are not a hub; they are the sites the facets will sort. Kind and domain are proposed per row.",
+      "members": [
+        {
+          "u": "poll.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "wing": "bluesky"
+        },
+        {
+          "u": "airchat.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "wing": "bluesky"
+        },
+        {
+          "u": "mino.mobi/answers",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "wing": "bluesky"
+        },
+        {
+          "u": "rant.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "wing": "bluesky"
+        },
+        {
+          "u": "bsky.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "note": "an AppView; infrastructure you can visit",
+          "wing": "bluesky"
+        },
+        {
+          "u": "words.mino.mobi",
+          "action": "keep",
+          "kind": "game",
+          "domain": "games",
+          "wing": "play"
+        },
+        {
+          "u": "human.mino.mobi",
+          "action": "keep",
+          "kind": "game",
+          "domain": "cognition",
+          "wing": "play"
+        },
+        {
+          "u": "aub.mino.mobi",
+          "action": "look",
+          "kind": "game",
+          "domain": "games",
+          "wing": "play"
+        },
+        {
+          "u": "mino.mobi/pokemon",
+          "action": "keep",
+          "kind": "game",
+          "domain": "games",
+          "pages": [
+            {
+              "u": "mino.mobi/pokemon/proteus",
+              "action": "keep",
+              "note": "an amoeba prototype under a monster RPG; possibly its own toy"
+            }
+          ],
+          "wing": "play"
+        },
+        {
+          "u": "mino.mobi/labglass",
+          "action": "keep",
+          "kind": "app",
+          "domain": "science",
+          "note": "catalogue points at mino.mobi/labglass; the surface is glass.mino.mobi",
+          "wing": "bench"
+        },
+        {
+          "u": "sci.mino.mobi",
+          "action": "keep",
+          "kind": "explainer",
+          "domain": "science",
+          "note": "instruments one page each, with their own index",
+          "wing": "study"
+        },
+        {
+          "u": "ocr.mino.mobi",
+          "action": "look",
+          "kind": "app",
+          "domain": "science",
+          "wing": "bench"
+        },
+        {
+          "u": "cable.mino.mobi",
+          "action": "look",
+          "kind": "app",
+          "domain": "science",
+          "wing": "bench"
+        },
+        {
+          "u": "ar.mino.mobi",
+          "action": "look",
+          "kind": "app",
+          "domain": "science",
+          "wing": "bench"
+        },
+        {
+          "u": "jurassic.mino.mobi",
+          "action": "keep",
+          "kind": "toy",
+          "domain": "science",
+          "wing": "play"
+        },
+        {
+          "u": "fold.mino.mobi",
+          "action": "keep",
+          "kind": "toy",
+          "domain": "science",
+          "wing": "play"
+        },
+        {
+          "u": "mino.mobi/phylo",
+          "action": "keep",
+          "kind": "app",
+          "domain": "science",
+          "wing": "bench"
+        },
+        {
+          "u": "atlas.mino.mobi",
+          "action": "keep",
+          "kind": "lens",
+          "domain": "data",
+          "note": "id atlas; rite/atlas is the other one",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/flows",
+          "action": "keep",
+          "kind": "lens",
+          "domain": "data",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/wars/cult",
+          "action": "promote",
+          "kind": "lens",
+          "domain": "text",
+          "note": "out of wars",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/cards/collection/techtree.html",
+          "action": "promote",
+          "kind": "lens",
+          "domain": "data",
+          "note": "out of cards",
+          "wing": "bench"
+        },
+        {
+          "u": "fin.mino.mobi/bogo",
+          "action": "promote",
+          "kind": "app",
+          "domain": "personal",
+          "note": "ice cream deals, out of finance",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/time",
+          "action": "keep",
+          "kind": "app",
+          "domain": "biotech",
+          "wing": "bench"
+        },
+        {
+          "u": "bake.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "personal",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/sweat",
+          "action": "keep",
+          "kind": "app",
+          "domain": "personal",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/music",
+          "action": "keep",
+          "kind": "app",
+          "domain": "sound",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/noise",
+          "action": "keep",
+          "kind": "app",
+          "domain": "sound",
+          "wing": "bench"
+        },
+        {
+          "u": "clef.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "sound",
+          "wing": "bench"
+        },
+        {
+          "u": "tape.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "hardware",
+          "wing": "bench"
+        },
+        {
+          "u": "board.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "work",
+          "wing": "bench"
+        },
+        {
+          "u": "mino.mobi/bounty",
+          "action": "decide",
+          "kind": "app",
+          "domain": "work",
+          "note": "dead: the worker (bounty-minomobi) was never finished — its D1 id is still a placeholder — so mino.mobi/bounty/ is the landing fallback. Finish the backend, or retire the entry",
+          "wing": "bench"
+        },
+        {
+          "u": "os.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "note": "the PDS terminal, minus the arena",
+          "wing": "bluesky"
+        },
+        {
+          "u": "ai.mino.mobi",
+          "action": "look",
+          "kind": "app",
+          "domain": "education",
+          "note": "26 commits, no description",
+          "wing": "study"
+        },
+        {
+          "u": "moji.mino.mobi",
+          "action": "look",
+          "wing": "bench"
+        },
+        {
+          "u": "uni.mino.mobi",
+          "action": "look",
+          "wing": "bench"
+        },
+        {
+          "u": "unit.mino.mobi",
+          "action": "look",
+          "wing": "bench"
+        },
+        {
+          "u": "fix.mino.mobi",
+          "action": "look",
+          "wing": "bench"
+        },
+        {
+          "u": "chat.mino.mobi",
+          "action": "look",
+          "pages": [
+            {
+              "u": "+chat.mino.mobi/robo",
+              "action": "new"
+            }
+          ],
+          "wing": "study"
+        },
+        {
+          "u": "+mino.mobi/conjectures",
+          "action": "look",
+          "note": "a root directory in the backlog, distinct from math/conjectures",
+          "wing": "study"
+        },
+        {
+          "u": "+mino.mobi/ising",
+          "action": "look",
+          "note": "root directory in the backlog; sounds like a math explainer",
+          "wing": "study"
+        },
+        {
+          "u": "+mino.mobi/torus",
+          "action": "look",
+          "note": "root directory in the backlog; torus.mino.mobi exists",
+          "wing": "bench"
+        }
+      ]
+    }
+  ],
+  "wings": [
+    {
+      "id": "bluesky",
+      "label": "The social layer",
+      "blurb": "Apps and lenses on Bluesky and the ATProto network: your data on your own server, the feed as a corpus."
+    },
+    {
+      "id": "procgen",
+      "label": "Things no one wrote",
+      "blurb": "Generators sharing one way of working: seed, genome, certify, judge, grow, measure.",
+      "pinned": true
+    },
+    {
+      "id": "oneill",
+      "label": "The O'Neill cylinder",
+      "blurb": "One modelling project with eight faces. Can the life-support loop close at all?"
+    },
+    {
+      "id": "play",
+      "label": "Toys and games",
+      "blurb": "Simulations that own a canvas, arcade games on a torus, a stroke engine, decisions under pressure."
+    },
+    {
+      "id": "study",
+      "label": "Reading and math",
+      "blurb": "Medieval texts under a deep-reading apparatus, single-page explainers, a speed reader, a few oracles."
+    },
+    {
+      "id": "bench",
+      "label": "Tools and science",
+      "blurb": "Workbenches that run in the tab: molecular biology, imaging, data, money, music, and the daily tools."
+    },
+    {
+      "id": "about",
+      "label": "About this site",
+      "blurb": "The site about itself: the spec, the stats, the loop that builds it, and the audit that produced this page."
+    }
+  ]
+}

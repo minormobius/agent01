@@ -114,8 +114,7 @@ Generated — never edit by hand; `preflight --fix` rebuilds them all:
 | Artefact | Script |
 |---|---|
 | `docs/SURFACES.md` | `gen-surface-index.mjs --write` |
-| surface-map table in `index.html` | `gen-surface-map.mjs --write` |
-| **`var P` catalogue in `index.html`** | `gen-landing-catalogue.mjs --write` |
+| **`rethink/data.js`** (what the landing renders) | `build-rethink.mjs --write` |
 | `functions/search.js` catalogue | `generate-search-catalog.mjs` |
 | `io/sites.json` (stumble portal) | `generate-sites-json.mjs` |
 | `office/surfaces.json` | `build-office.mjs --write` |
@@ -128,7 +127,7 @@ Generated — never edit by hand; `preflight --fix` rebuilds them all:
 | `stats/data.json` | `build-git-stats.mjs --write` — **needs a full clone** |
 | missing `<dir>/CLAUDE.md` | `gen-surface-docs.mjs --write` |
 
-Hand-edited: **`catalogue.json`**; `index.html`'s curated `<li>` descriptions;
+Hand-edited: **`catalogue.json`** (including each entry's `d` description); `rethink/proposal.json` (the content pass: hubs, wings, actions);
 `spec/curated.js` (families, capsules); every `<dir>/CLAUDE.md` after it is
 seeded; the registry's machine fields.
 
@@ -146,10 +145,12 @@ Each catalogue entry carries a `surface` key — a foreign key **into** the
 registry, never the reverse. The registry alone owns deploy ownership;
 preflight fails if a catalogue entry names a surface that doesn't exist.
 
-**Never hand-edit `var P` in `index.html`.** It is generated from
-`catalogue.json`, and the generator refuses to write if the rewrite would
-change the catalogue semantically — it only ever reformats. Edit
-`catalogue.json` and run `preflight --fix`.
+**The landing (`index.html`) carries no data of its own.** It renders
+`rethink/data.js`, which `build-rethink.mjs` bakes from `catalogue.json`,
+`rethink/proposal.json`, `stats/data.json` and the last probe
+(`rethink/health.json`). Edit the catalogue or the proposal and run
+`preflight --fix`. The pre-2026-09 landing, with its inline `var P`, is
+frozen at `archive/landing-2026-09/`.
 
 ### Every reachable endpoint is accounted for
 

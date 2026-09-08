@@ -14,7 +14,12 @@
     font-family: var(--mono);
   }
   .sb-bar .brand { font-size: 0.95rem; }
-  .sb-bar .dest { color: var(--muted); font-size: 0.78rem; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sb-bar .dest { display: flex; align-items: baseline; gap: 0.5rem; max-width: 46vw; overflow: hidden; white-space: nowrap; }
+  .sb-bar .dest b { color: var(--ink); font-size: 0.95rem; }
+  .sb-bar .dest .host { color: var(--muted); font-size: 0.74rem; overflow: hidden; text-overflow: ellipsis; }
+  .sb-bar .dest .kin { color: var(--muted); font-size: 0.72rem; }
+  .sb-bar .dead { color: #d46a5c; font-size: 0.74rem; }
+  .sb-bar .deck { color: var(--muted); font-size: 0.74rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
   .sb-bar .spacer { flex: 1; }
   .sb-bar .btn { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
   .frame-host { position: fixed; top: 52px; left: 0; right: 0; bottom: 0; }
@@ -32,8 +37,10 @@
 <body>
 <div class="sb-bar">
   <a class="brand" href="/" title="io.mino.mobi">io<span class="dot">.</span></a>
-  <span class="dest" id="dest"></span>
+  <span class="dest" id="dest" title="where you are"></span>
   <span class="spacer"></span>
+  <span class="deck" id="deck" title="the deck"></span>
+  <button class="btn ghost" id="shuffle" title="Reshuffle the deck (starts over)">⇄</button>
   <button class="btn" id="next">🎲 Next</button>
   <button class="btn ghost" id="bug" title="Report a bug on this site">🐞</button>
   <button class="btn ghost" id="feature" title="Request a feature for this site">💡</button>
@@ -43,8 +50,9 @@
 <div class="frame-host">
   <iframe id="frame" referrerpolicy="no-referrer"></iframe>
   <div class="blocked" id="blocked">
-    <div class="brand" style="font-size:1.1rem;">This site blocks embedding</div>
-    <div class="mono">Some sites refuse to load inside a frame (strict CSP / X-Frame-Options).
+    <div class="brand" style="font-size:1.1rem;" id="blocked-title">This site blocks embedding</div>
+    <div class="mono" id="blocked-name"></div>
+    <div class="mono" id="blocked-why">Some sites refuse to load inside a frame (strict CSP / X-Frame-Options).
       Open it directly — the bar's bug & idea buttons still work for it.</div>
     <a class="btn lg" id="blocked-open" target="_blank" rel="noopener">↗ Open the site</a>
     <button class="btn lg ghost" id="blocked-next">🎲 Stumble somewhere else</button>
@@ -65,9 +73,61 @@ async function loadSites() {
     SITES = [];
     for (const c of doc.constellations || []) for (const s of c.sites || []) SITES.push({ ...s, domain: c.domain });
   } catch { SITES = []; }
+  DEAD = SITES.filter((s) => s.dead);
+  // never stumble onto a page the last probe found dead; keep them findable by ?to=
+  SITES = SITES.filter((s) => !s.dead);
 }
+let DEAD = [];
+function describe(site) {
+  const name = site.name || siteHost(site.url);
+  const kin = site.parent ? `in ${site.parent}` : (site.tags && site.tags[0]) || '';
+  return `<b>${escapeHtml(name)}</b><span class="host">${escapeHtml(siteHost(site.url) + new URL(site.url).pathname.replace(/\/$/, ''))}</span>` +
+    (kin ? `<span class="kin">${escapeHtml(kin)}</span>` : '') +
+    (site.dead ? `<span class="dead">✕ dead (${escapeHtml(site.dead)})</span>` : '');
+}
+function escapeHtml(x) { return String(x).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
+// ---- the deck ---------------------------------------------------------------
+// Stumbling used to be a weighted random pick, which revisits sites long
+// before it has shown you everything. Now it is a deck: every site once,
+// shuffled with the heavier sites biased toward the top, drawn without
+// replacement, reshuffled only when it runs out. The deck lives in
+// localStorage so it survives the round trips through the sites themselves.
+const DECK_KEY = 'mino_stumble_deck_v1';
+let deck = null; // { order: [url...], drawn: n, total: N }
+function weightedShuffle(list) {
+  // Efraimidis–Spirakis: key = u^(1/w); sort descending → sampling without replacement ∝ weight
+  return list.map((s) => ({ s, k: Math.pow(Math.random(), 1 / Math.max(1, s.weight || 1)) }))
+    .sort((a, b) => b.k - a.k).map((x) => x.s);
+}
+function loadDeck() {
+  try { deck = JSON.parse(localStorage.getItem(DECK_KEY) || 'null'); } catch { deck = null; }
+  const urls = new Set(SITES.map((s) => s.url));
+  if (deck && Array.isArray(deck.order)) {
+    // sites that left the registry leave the deck; sites that joined go into the undrawn part, shuffled in
+    const kept = deck.order.filter((u) => urls.has(u));
+    const drawnKept = deck.order.slice(0, deck.drawn).filter((u) => urls.has(u)).length;
+    const have = new Set(kept);
+    const fresh = weightedShuffle(SITES.filter((s) => !have.has(s.url))).map((s) => s.url);
+    const rest = weightedShuffle(kept.slice(drawnKept).concat(fresh).map((u) => SITES.find((s) => s.url === u)).filter(Boolean)).map((s) => s.url);
+    deck = { order: kept.slice(0, drawnKept).concat(rest), drawn: drawnKept, total: kept.length + fresh.length };
+    if (deck.drawn >= deck.order.length) deck = null;
+  }
+  if (!deck) deck = { order: weightedShuffle(SITES).map((s) => s.url), drawn: 0, total: SITES.length };
+  saveDeck();
+}
+function saveDeck() { try { localStorage.setItem(DECK_KEY, JSON.stringify(deck)); } catch {} }
+function reshuffle() { deck = null; try { localStorage.removeItem(DECK_KEY); } catch {} loadDeck(); }
+function draw() {
+  if (!deck) loadDeck();
+  if (deck.drawn >= deck.order.length) reshuffle();
+  const url = deck.order[deck.drawn++];
+  saveDeck();
+  return SITES.find((s) => s.url === url) || SITES[0];
+}
+function deckLabel() { return deck ? `${deck.drawn} of ${deck.order.length}` : ''; }
 function weightedPick(exclude) {
+  // kept for deep links that want "something else"; the bar draws from the deck
   const pool = exclude ? SITES.filter((s) => s.url !== exclude) : SITES;
   const list = pool.length ? pool : SITES;
   const total = list.reduce((a, s) => a + Math.max(1, s.weight || 1), 0);
@@ -95,10 +155,21 @@ function composeUrl(kind) {
 let loadTimer = null;
 function go(site) {
   current = site;
-  $('dest').textContent = siteHost(site.url);
+  $('dest').innerHTML = describe(site);
+  document.title = `${site.name || siteHost(site.url)} — stumble — mino.mobi`;
   $('open').href = site.url;
   $('blocked-open').href = site.url;
+  $('blocked-name').textContent = `${site.name || ''} · ${site.url}`;
   $('blocked').classList.remove('show');
+  if (site.dead) {
+    // a known-dead page: say so instead of framing a 404 or the apex fallback
+    $('blocked-title').textContent = 'This page is dead';
+    $('blocked-why').textContent = `The last probe (${site.dead}) found nothing here. The bug button files it against ${site.name || siteHost(site.url)}.`;
+    $('blocked').classList.add('show');
+    return;
+  }
+  $('blocked-title').textContent = 'This site blocks embedding';
+  $('blocked-why').textContent = 'Some sites refuse to load inside a frame (strict CSP / X-Frame-Options). Open it directly — the bar\'s bug & idea buttons still work for it.';
   // Detect embedding failure: if onload never fires within a window, assume blocked.
   clearTimeout(loadTimer);
   let loaded = false;
@@ -110,16 +181,19 @@ function go(site) {
   history.replaceState({}, '', u.toString());
 }
 
-function next() { go(weightedPick(current && current.url)); }
+function next() { go(draw()); $('deck').textContent = deckLabel(); $('deck').title = `${deckLabel()} sites drawn from this deck; it reshuffles when it runs out`; }
 
 $('next').addEventListener('click', next);
+$('shuffle').addEventListener('click', () => { reshuffle(); next(); });
 $('blocked-next').addEventListener('click', next);
 $('bug').addEventListener('click', () => window.open(composeUrl('bug'), '_blank', 'noopener'));
 $('feature').addEventListener('click', () => window.open(composeUrl('feature'), '_blank', 'noopener'));
 
 await loadSites();
+loadDeck();
+$('deck').textContent = deckLabel();
 const to = new URLSearchParams(location.search).get('to');
-if (to) { const found = SITES.find((s) => s.url === to); go(found || { url: to, domain: siteHost(to) }); }
+if (to) { const found = SITES.find((s) => s.url === to) || DEAD.find((s) => s.url === to); go(found || { url: to, domain: siteHost(to) }); }
 else next();
 </script>
 </body>

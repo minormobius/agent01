@@ -56,7 +56,7 @@
     bar.innerHTML =
       '<a href="' + ORIGIN + '" title="io.mino.mobi">io<span class="bd">.</span></a>' +
       '<span class="sp"></span>' +
-      '<button class="gold" id="msb-next">🎲 Next</button>' +
+      '<button class="gold" id="msb-next" title="Draw the next site from the deck">🎲 Next</button>' +
       '<a id="msb-bug" title="Report a bug">🐞</a>' +
       '<a id="msb-feat" title="Request a feature">💡</a>' +
       '<button id="msb-stop" title="End stumbling">✕</button>';

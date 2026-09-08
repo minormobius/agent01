@@ -30,7 +30,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: ['claude/root-directory-audit-0tk7r7']
+    branches: ['claude/landing-page-architecture-1igui5']
     paths:
       - 'index.html'
       - 'styles.css'
@@ -45,11 +45,20 @@ on:
       # stats: self-analytics over the git history, served at mino.mobi/stats/
       - 'stats/**'
       - 'scripts/build-git-stats.mjs'
+      # rethink: the landing catalogue audit + content pass, served at mino.mobi/rethink/
+      - 'rethink/**'
+      - 'scripts/build-rethink.mjs'
+      # procgen: the pinned generators category's own landing, served at mino.mobi/procgen/
+      - 'procgen/**'
+      # next: the prototype of the new landing, served at mino.mobi/next/
+      - 'next/**'
+      # the old landing, frozen for nostalgia, and the shared stylesheet
+      - 'archive/**'
+      - 'mino.css'
       # catalogue.json is the source of truth for the landing catalogue; var P,
       # search, office, mappa and orrery are all projections of it, so a change
       # here must reach the apex.
       - 'catalogue.json'
-      - 'scripts/gen-landing-catalogue.mjs'
       - 'scripts/catalogue-coverage.mjs'
       - 'git-graph.json'
       # the shared reading layer every generator above goes through

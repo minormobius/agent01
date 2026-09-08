@@ -50,6 +50,16 @@ const SUPPLEMENTAL = []; // folded into index.html var P (2026-06-04); empty to 
 // regex-scraped out of index.html. The regex this replaced required the five
 // fields in a fixed order and had already silently dropped every dated entry
 // once; that class of bug is why this is data now.
+// The last probe of every endpoint (scripts/probe-endpoints.mjs). A site the
+// probe found dead is still listed — with `dead` set — so the portal can skip
+// it and still name it when someone deep-links to it.
+function loadHealth() {
+  try {
+    const h = JSON.parse(readFileSync(join(ROOT, 'rethink', 'health.json'), 'utf8'));
+    return (u) => { const r = h.results[u] || h.results[u.replace(/\/$/, '')] || h.results[u + '/']; return r && r.dead ? r.dead : ''; };
+  } catch { return () => ''; }
+}
+const deadOf = loadHealth();
 function parseProjects() {
   return loadCatalogue(ROOT).entries.map((e) => ({
     name: e.n,
@@ -75,6 +85,7 @@ function buildMinoConstellation(projects) {
       weight: p.weight,
       heat: p.heat,
       ...(p.parent ? { parent: p.parent } : {}),
+      ...(deadOf(p.url) ? { dead: deadOf(p.url) } : {}),
     }));
   return { domain: MINO_DOMAIN, repo: MINO_REPO, sites };
 }

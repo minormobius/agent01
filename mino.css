@@ -1,0 +1,91 @@
+/* mino.css — the design language shared by the landing and the pages about the
+   site (/spec, /stats, /rethink, /procgen). Tokens, base type, the top bar and
+   the small components. A page adds its own rules after this; it never
+   redefines these names.
+
+   Light is the default; dark follows the system unless the root element is
+   stamped data-theme="light" or "dark". */
+:root{
+  --bg:#F2F4F8; --paper:#FFFFFF; --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+  --line:#D8DCE6; --line-2:#E9ECF2; --accent:#237E7A; --accent-ink:#FFFFFF; --accent-soft:#DDEFEE;
+  --bad:#C0392B; --bad-soft:#F8E1DE; --warn:#B8720C; --warn-soft:#F8ECD6; --ok:#3B8A4A; --ok-soft:#DFEFE2;
+  --w-bluesky:#3E9AC2; --w-procgen:#4E9C2E; --w-oneill:#237E7A; --w-play:#D64C77; --w-study:#C77F16; --w-bench:#7B5FD6; --w-about:#6B7280;
+  --shadow:0 1px 2px rgba(22,25,35,.06),0 8px 24px -12px rgba(22,25,35,.18);
+  --radius:6px;
+  --display:"Bricolage Grotesque","Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Sans 3","Source Sans Pro","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+    --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-ink:#0F1219; --accent-soft:#183634;
+    --bad:#E8776A; --bad-soft:#3A1F1C; --warn:#E0A64A; --warn-soft:#3A2D14; --ok:#6CC282; --ok-soft:#173523;
+    --w-bluesky:#6EC1E4; --w-procgen:#67C23A; --w-oneill:#4FC3BE; --w-play:#F56991; --w-study:#E6A23C; --w-bench:#A880FF; --w-about:#9AA0AE;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+  --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-ink:#0F1219; --accent-soft:#183634;
+  --bad:#E8776A; --bad-soft:#3A1F1C; --warn:#E0A64A; --warn-soft:#3A2D14; --ok:#6CC282; --ok-soft:#173523;
+  --w-bluesky:#6EC1E4; --w-procgen:#67C23A; --w-oneill:#4FC3BE; --w-play:#F56991; --w-study:#E6A23C; --w-bench:#A880FF; --w-about:#9AA0AE;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+a:hover,a:focus-visible{border-bottom-color:currentColor}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em;line-height:1.15}
+h1{font-size:clamp(1.9rem,4vw,2.6rem);font-weight:750}
+h2{font-size:1.5rem;font-weight:700}
+h3{font-size:1.12rem;font-weight:700}
+p{margin:0 0 1rem}
+code,kbd,pre,.mono{font-family:var(--mono);font-size:.88em}
+code{background:var(--line-2);padding:.08em .35em;border-radius:3px;color:var(--ink)}
+pre{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;overflow-x:auto}
+hr{border:0;border-top:1px solid var(--line);margin:24px 0}
+table{border-collapse:collapse}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(14px,3vw,32px)}
+.wrap.narrow{max-width:960px}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.6rem}
+.num,.tabular{font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-3)}
+.prose{max-width:70ch;color:var(--ink-2)}
+
+/* the top bar: wordmark, an optional search, the three links */
+.topbar{display:flex;align-items:center;gap:16px;padding:16px 0 10px;flex-wrap:wrap}
+.topbar .brand{font-family:var(--display);font-size:1.5rem;font-weight:750;letter-spacing:-.02em;margin-right:4px}
+.topbar .brand a{color:var(--ink);border:0}
+.topbar .brand small{font-family:var(--mono);font-size:.78rem;font-weight:400;color:var(--ink-3);letter-spacing:.04em;margin-left:8px}
+.topbar .q{flex:1 1 260px;position:relative}
+.topbar .q input{width:100%;font:inherit;font-size:.95rem;padding:9px 12px 9px 36px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+.topbar .q input::placeholder{color:var(--ink-3)}
+.topbar .q svg{position:absolute;left:13px;top:50%;transform:translateY(-50%);width:15px;height:15px;stroke:var(--ink-3);fill:none;stroke-width:2}
+.topbar .links{display:flex;gap:4px 14px;font-size:.9rem;flex-wrap:wrap;margin-left:auto}
+.topbar .links a{color:var(--ink-2)}
+.topbar .links a.stumble,.topbar .links a.here{color:var(--ink);font-weight:600}
+
+/* small components */
+.chip{font-family:var(--mono);font-size:.7rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);background:var(--bg);white-space:nowrap;display:inline-block;line-height:1.6}
+.chip:hover{border-color:var(--accent);color:var(--accent)}
+.chip.new{border-color:var(--ok);color:var(--ok)}
+.chip.dead{text-decoration:line-through;color:var(--ink-3);border-color:var(--line-2)}
+.chip.dead::after{content:" ✕";color:var(--bad)}
+.pill{font-family:var(--mono);font-size:.68rem;letter-spacing:.05em;padding:2px 7px;border-radius:3px;white-space:nowrap;line-height:1.5}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.bad{background:var(--bad-soft);color:var(--bad)}
+.pill.accent{background:var(--accent-soft);color:var(--accent)}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.stat-row > div{background:var(--paper);padding:14px 16px 12px}
+.stat-row .v{font-family:var(--display);font-size:2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.stat-row .l{font-size:.82rem;color:var(--ink-3);margin-top:6px;line-height:1.3}
+.page-foot{padding:28px 0 56px;border-top:1px solid var(--line);color:var(--ink-3);font-size:.86rem;display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:40px}
+.page-foot a{color:var(--ink-2)}
+.hidden{display:none!important}
