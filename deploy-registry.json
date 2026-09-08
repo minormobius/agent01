@@ -1689,6 +1689,19 @@
         "clef/**",
         ".github/workflows/deploy-clef.yml"
       ]
+    },
+    {
+      "surface": "ns",
+      "dir": "ns",
+      "endpoint": "ns.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/navier-stokes-website-rl8aox",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "ns/**"
+      ],
+      "note": "Explainer pack on the 2026 forced Navier\u2013Stokes finite-time blowup paper (OpenAI). Thin assets Worker (worker `ns`, custom_domain ns.mino.mobi) \u2014 no build, no D1, no secrets. Hub + six single-file interactive sub-pages, each implementing one piece of the construction in the browser\u2026 (full description: ns/CLAUDE.md)"
     }
   ],
   "unmanaged": {

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ns/exterior — the heat exterior</title>
+<meta name="description" content="The exterior of the 2026 Navier–Stokes blowup construction is an exact solution: a pure swirl K(r,τ) = c·(r²/2)^(−½−h)·H(4τ/r²) solving the radial heat equation. Computed here by quadrature, checked against the PDE to machine precision, marched by a finite-difference solver, and shown to have smooth limits at the singular time at every fixed radius.">
+<link rel="stylesheet" href="../ns.css">
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="../">← ns</a><a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>exterior <span class="thin">— an exact solution wrapped around the singularity</span></h1>
+  <p class="subtitle">the swirl heat equation · H(Z) by quadrature · a finite-difference check · why cutoffs are safe</p>
+  <p class="crossref"><a href="../core/">core</a> · <a href="../pulse/">pulse</a> · <a href="../stress/">stress</a> · <a class="here" href="./">exterior</a> · <a href="../bands/">bands</a> · <a href="../solver/">solver</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="swirl" role="tab">the swirl</button>
+  <button class="tab" data-tab="march" role="tab">march it</button>
+  <button class="tab" data-tab="where" role="tab">where it applies</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- SWIRL ────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-swirl">
+<p class="lede">Beyond the annulus the flow is purely azimuthal and independent of height: fluid circles the axis, pressure supplies the centripetal force, and the swirl evolves by viscous diffusion alone. The paper chooses it to solve the radial heat equation for the azimuthal velocity <em>exactly</em>, so its momentum residual is identically zero and no force is needed there. This computes that solution from the paper's integral formula and checks the equation numerically at every point drawn.</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="kr" class="chart"></canvas>
+    <canvas id="kt" class="chart" style="aspect-ratio:5/2"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">exponent h</span>
+      <div class="slider-row"><input type="range" id="h" min="0.002" max="0.2" step="0.002" value="0.01"><span class="val" id="h-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">highlight τ</span>
+      <div class="slider-row"><input type="range" id="tau" min="0" max="1" step="0.005" value="0.3"><span class="val" id="tau-val"></span></div>
+    </div>
+    <div class="stats" id="swirl-stats"></div>
+    <div class="verdict" id="swirl-verdict"></div>
+  </div>
+</div>
+<div class="eq boxed">K(r,τ) = c<sub>∞</sub>·(r²/2)<sup>−A</sup>·H(4τ/r²), &nbsp; H(Z) = Γ(1+h)<sup>−1</sup>∫₀<sup>∞</sup> e<sup>−v</sup>v<sup>h</sup>(1+Zv)<sup>−h</sup> dv, &nbsp; −∂<sub>τ</sub>K = ∂<sub>r</sub>²K + r<sup>−1</sup>∂<sub>r</sub>K − r<sup>−2</sup>K &nbsp;&nbsp;(4.29), (3.5), (10.7)</div>
+</div>
+
+<!-- MARCH ────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-march">
+<p class="lede">Don't take the formula's word for it. Start a plain finite-difference solver from the exact profile at τ = 1, march the swirl heat equation forward in time on an annulus with the exact values as boundary data, and compare with the formula at a later time. The error should shrink like the grid spacing squared — and it does.</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="mk" class="chart"></canvas>
+    <canvas id="me" class="chart" style="aspect-ratio:5/2"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">march from τ = 1 down to</span>
+      <div class="slider-row"><input type="range" id="tau1" min="0" max="0.95" step="0.01" value="0.2"><span class="val" id="tau1-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">grid points on r ∈ [0.4, 8]</span>
+      <div class="btn-row"><button class="btn" data-n="100">100</button><button class="btn active" data-n="200">200</button><button class="btn" data-n="400">400</button></div>
+      <div class="stat-note">Explicit Euler, dt = 0.4·dr², second-order centred differences. Nothing clever — that is the point.</div>
+    </div>
+    <div class="stats" id="march-stats"></div>
+    <div class="verdict" id="march-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--accent)"></i>exact K(r, τ₁) <i style="background:var(--hot)"></i>marched solution <i style="background:#888"></i>initial profile K(r, 1)</div>
+</div>
+
+<!-- WHERE ────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-where">
+<p class="lede">The exterior formula is only <em>used</em> where X = r²/2q ≥ X<sub>b</sub>, outside the pulse annulus — and that region swallows everything but the origin as τ → 0. Fix any radius r₀ &gt; 0: once τ &lt; r₀²/2X<sub>b</sub> the point (r₀, z = 0) is in the exterior, where the velocity and pressure have smooth limits, with every derivative, at τ = 0 (10.8). That is what makes it possible to cut the flow off in space and time without touching the core (§3.5).</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="wh" class="viz wide"></canvas>
+    <canvas id="pr" class="chart" style="aspect-ratio:5/2;margin-top:0.8rem"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">annulus radii (illustrative)</span>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:1.6em">X_a</span><input type="range" id="xa" min="0.5" max="4" step="0.05" value="2"><span class="val" id="xa-val"></span></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:1.6em">X_b</span><input type="range" id="xb" min="2" max="10" step="0.05" value="5"><span class="val" id="xb-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">probe radius r₀</span>
+      <div class="slider-row"><input type="range" id="r0" min="0.2" max="3" step="0.01" value="1"><span class="val" id="r0-val"></span></div>
+    </div>
+    <div class="stats" id="where-stats"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--hot)"></i>core and annulus (X &lt; X<sub>b</sub>) at z = 0 <i style="background:var(--accent)"></i>exterior X ≥ X<sub>b</sub>: exact heat swirl, zero residual <i style="background:#888"></i>the probe r₀ and the time it enters the exterior</div>
+</div>
+
+<!-- DOCS ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="ref">§2.3 · §3.5 · Theorem 3.1(iii) · Theorem 4.6(v) · Lemmas A.6, 10.2 · (10.7)–(10.8) of the paper</p>
+<h2>An exact solution as the outer boundary condition</h2>
+<p>For a purely azimuthal, z-independent velocity u = K(r,t)e<sub>θ</sub>, the Navier–Stokes equations reduce to two statements: the radial equation ∂<sub>r</sub>p = K²/r, which just defines the pressure, and the azimuthal equation ∂<sub>t</sub>K = ∂<sub>r</sub>²K + r<sup>−1</sup>∂<sub>r</sub>K − r<sup>−2</sup>K, the heat equation for the first angular harmonic. The nonlinear term drops out entirely — (u·∇)u is pure centripetal acceleration. So any solution of this linear equation is an exact solution of Navier–Stokes with zero force. The paper's choice is</p>
+<div class="eq boxed">K(r,τ) = c<sub>∞</sub>·s<sup>−A</sup>·H(2τ/s), &nbsp; s = r²/2, &nbsp; A = ½ + h, &nbsp; H(Z) = Γ(1+h)<sup>−1</sup>∫₀<sup>∞</sup> e<sup>−v</sup>v<sup>h</sup>(1+Zv)<sup>−h</sup> dv</div>
+<p>with τ = 1 − t. In profile variables this is E = c<sub>∞</sub>X<sup>−A</sup>H(2d/X) for X ≥ X<sub>b</sub>, where d = 1 − η² (Theorem 4.6(v)); Lemma A.6 verifies the heat equation and that H is positive and smooth for Z ≥ 0 with K<sub>r</sub> &lt; 0. Its two limits are worth knowing:</p>
+<ul>
+  <li><b>τ → 0 at fixed r:</b> H(0) = 1, so K → c<sub>∞</sub>(r²/2)<sup>−A</sup> = c<sub>∞</sub>2<sup>A</sup>r<sup>−1−2h</sup>. At the singular time the exterior is a pure power-law swirl, and every τ-derivative is bounded by C<sub>j</sub>r<sup>−1−2h−2j</sup> (10.8), uniformly in τ ≥ 0. Nothing singular happens at any positive radius.</li>
+  <li><b>r → 0 at fixed τ:</b> Z = 4τ/r² → ∞ and H(Z) ~ Z<sup>−h</sup>/Γ(1+h), so K ~ τ<sup>−h</sup>·r<sup>−1</sup>·const: a potential vortex with slowly growing circulation. The formula is never used there — inside X<sub>b</sub> the annulus and core take over — but it shows the exterior is the far field of a vortex whose circulation at the joining radius grows like τ<sup>−h</sup>, matching Re<sub>θ</sub> ≍ τ<sup>−h</sup> in the core.</li>
+</ul>
+
+<h2>Why the paper needs it</h2>
+<p>Joining the collapsing core to <em>any</em> smooth outer swirl leaves a residual in between; the paper arranges for that residual to be a compactly supported stress divergence (see <a href="../stress/">stress</a>), which needs the outer flow to be exactly balanced so nothing leaks past the annulus. The five cumulative radial integrals of (4.15) — the angular moment made convergent by subtracting the exterior power law H<sub>pow</sub> = √(2X)c<sub>∞</sub>X<sup>−A</sup> — are matched at every join precisely so that the prescribed exterior fields are preserved (Lemma 4.4, Lemma A.8). Replacing a plain power-law tail by the exact heat flow changes the pressure integral, and Proposition A.7 restores it at smaller radii.</p>
+<p>The second role is localisation. Theorem 3.1(ii) gives bounded derivatives on compact sets where q stays positive; but in the remaining region — r bounded below, q → 0 — the vector potential vanishes and the velocity is exactly Ke<sub>θ</sub>, with the pressure −∫<sub>r</sub><sup>∞</sup>K²/ρ dρ. Dominated convergence on the integral (the majorant ρ<sup>−3−4h−2j</sup> is integrable) gives uniform one-sided limits of every derivative there (Lemma 10.2). Together with the flatness of the residual near the origin, that is what makes the cut-off force converge, with all its derivatives, as t ↑ 1 — and what Lemma 10.3 then extends smoothly past t = 1.</p>
+
+<h2>What the canvases compute</h2>
+<ul>
+  <li><b>the swirl</b> — H(Z) by Simpson's rule after the substitution v = u², which removes the v<sup>h</sup> endpoint singularity (without it the quadrature is only 1% accurate; H(0) should be exactly 1 and is). The PDE residual is a centred finite difference in r and τ at eleven sample points, reported relative to |∂<sub>r</sub>²K|; the remaining 10<sup>−4</sup> is the finite difference, not the formula.</li>
+  <li><b>march it</b> — explicit Euler on the swirl heat equation with the exact solution as Dirichlet data at r = 0.4 and r = 8, compared at τ₁. Doubling the grid divides the error by about four.</li>
+  <li><b>where it applies</b> — the regions at z = 0 in the (r, τ) half-plane, with q = τ there, and the pressure integral evaluated by quadrature with its ρ<sup>−3−4h</sup> tail added analytically.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="../">ns</a><a href="../core/">core</a><a href="../pulse/">pulse</a><a href="../stress/">stress</a><a href="../bands/">bands</a><a href="../solver/">solver</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+</footer>
+
+<script src="../ns.js"></script>
+<script>
+'use strict';
+(function () {
+  const { fit, fmt, stats, cssVar, chart, slider } = NS;
+  const hot = () => cssVar('--hot'), cool = () => cssVar('--accent'), grey = () => cssVar('--muted'), ink = () => cssVar('--canvas-ink');
+
+  // ─────────────────────────── the formula ────────────────────────────
+  function lgamma(x) { const g = 7, c = [0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313, -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7]; if (x < 0.5) return Math.log(Math.PI / Math.sin(Math.PI * x)) - lgamma(1 - x); x -= 1; let a = c[0]; const t = x + g + 0.5; for (let i = 1; i < g + 2; i++) a += c[i] / (x + i); return 0.5 * Math.log(2 * Math.PI) + (x + 0.5) * Math.log(t) - t + Math.log(a); }
+  let H_ = 0.01, GAM = Math.exp(lgamma(1.01));
+  // H(Z) = Γ(1+h)^{-1} ∫₀^∞ e^{-v} v^h (1+Zv)^{-h} dv, with v = u² to tame the endpoint. Simpson on u ∈ [0, 9].
+  function Hfn(Z, h = H_, n = 600) {
+    const b = 9, du = b / n; let s = 0;
+    for (let i = 0; i <= n; i++) { const u = i * du; const f = 2 * Math.exp(-u * u) * Math.pow(u, 1 + 2 * h) * Math.pow(1 + Z * u * u, -h); s += f * (i === 0 || i === n ? 1 : (i % 2 ? 4 : 2)); }
+    return s * du / 3 / GAM;
+  }
+  const K = (r, tau, h = H_) => Math.pow(r * r / 2, -(0.5 + h)) * Hfn(4 * tau / (r * r), h);   // c_∞ = 1
+  function residual(r, tau) {
+    const dr = 2e-3 * r, dt = 2e-3 * Math.max(tau, 0.05);
+    const lo = Math.max(tau - dt, 0), Kt = -(K(r, tau + dt) - K(r, lo)) / (tau + dt - lo);
+    const Krr = (K(r + dr, tau) - 2 * K(r, tau) + K(r - dr, tau)) / (dr * dr), Kr = (K(r + dr, tau) - K(r - dr, tau)) / (2 * dr);
+    const rhs = Krr + Kr / r - K(r, tau) / (r * r);
+    return { lhs: Kt, rhs, rel: Math.abs(Kt - rhs) / Math.abs(Krr) };
+  }
+
+  // ─────────────────────────── tab 1 ──────────────────────────────────
+  let TAU = 0.3;
+  function drawSwirl() {
+    GAM = Math.exp(lgamma(1 + H_));
+    const taus = [1, 0.3, 0.1, 0.03, 0];
+    chart(document.getElementById('kr'), {
+      x: [0.2, 10], y: [0.02, 300], xlog: true, ylog: true, xlabel: 'r', ylabel: 'K(r, τ)  (c_∞ = 1)',
+      draw: (c) => {
+        for (const t of taus) { const pts = []; for (let i = 0; i <= 120; i++) { const r = Math.pow(10, Math.log10(0.2) + (Math.log10(10) - Math.log10(0.2)) * i / 120); pts.push([r, K(r, t)]); } c.line(pts, t === 0 ? ink() : grey(), t === 0 ? 1.6 : 1, t === 0 ? [] : [3, 3]); if (t === 1) c.label(0.22, K(0.22, t), 'τ = 1 … 0 — with h this small the exterior barely moves in time', grey(), 4, -10); }
+        const pts = []; for (let i = 0; i <= 120; i++) { const r = Math.pow(10, Math.log10(0.2) + (Math.log10(10) - Math.log10(0.2)) * i / 120); pts.push([r, K(r, TAU)]); } c.line(pts, hot(), 2.2);
+        c.label(2, K(2, TAU), 'τ = ' + fmt(TAU, 3), hot(), 6, -8);
+        // the two asymptotes
+        const pw = [], pv = []; for (let i = 0; i <= 40; i++) { const r = Math.pow(10, Math.log10(0.2) + 1.7 * i / 40); pw.push([r, Math.pow(r * r / 2, -(0.5 + H_))]); pv.push([r, Math.pow(TAU || 1e-9, -H_) * Math.pow(2, 0.5 + H_) * Math.pow(4, -H_) / GAM / r]); }
+        if (TAU > 0) c.line(pv, cool(), 1, [1, 3]); c.label(0.5, Math.pow(TAU || 1e-9, -H_) * Math.pow(2, 0.5 + H_) * Math.pow(4, -H_) / GAM / 0.5, TAU > 0 ? 'r → 0 asymptote: potential vortex ∝ τ^−h / r' : '', cool(), 8, 12);
+        c.label(6, Math.pow(18, -(0.5 + H_)), 'τ → 0: pure power law (r²/2)^−A', ink(), -4, 12, 'right');
+      },
+    });
+    chart(document.getElementById('kt'), {
+      x: [0, 1], y: [0, Math.max(K(0.5, 0), K(0.5, 1)) * 1.1], xlabel: 'τ = 1 − t', ylabel: 'K(r₀, τ) at fixed r₀',
+      draw: (c) => {
+        for (const r0 of [0.5, 0.7, 1, 1.5, 2.5]) { const pts = []; for (let i = 0; i <= 80; i++) pts.push([i / 80, K(r0, i / 80)]); c.line(pts, r0 === 1 ? hot() : cool(), r0 === 1 ? 1.8 : 1.1); c.label(0.98, K(r0, 0.98), 'r₀ = ' + r0, r0 === 1 ? hot() : cool(), -4, 0, 'right'); }
+        c.ctx.strokeStyle = grey(); c.ctx.setLineDash([2, 3]); c.ctx.beginPath(); c.ctx.moveTo(c.X(TAU), c.pad.t); c.ctx.lineTo(c.X(TAU), c.h - c.pad.b); c.ctx.stroke(); c.ctx.setLineDash([]);
+        c.label(0.02, K(0.5, 0) * 1.03, 'smooth all the way to τ = 0 — every derivative bounded (10.8)', grey(), 0, -6);
+      },
+    });
+    // residual sweep
+    let worst = 0, worstAt = ''; const samples = [];
+    for (const r of [0.3, 0.5, 0.8, 1, 1.5, 2, 3, 5]) for (const t of [TAU, 0.5, 0]) { const R = residual(r, Math.max(t, 0)); samples.push(R); if (R.rel > worst) { worst = R.rel; worstAt = `r=${r}, τ=${fmt(t, 2)}`; } }
+    const R1 = residual(1, TAU);
+    let krNeg = true; for (let i = 1; i < 60; i++) { const r = 0.2 + i * 0.15; if (K(r + 1e-4, TAU) >= K(r, TAU)) krNeg = false; }
+    stats(document.getElementById('swirl-stats'), [
+      ['h', fmt(H_, 3)], ['A = ½ + h', fmt(0.5 + H_, 3)], ['Γ(1+h)', fmt(GAM, 6)], ['H(0) (should be 1)', fmt(Hfn(0), 7), 'cool'],
+      ['K(1, τ)', fmt(K(1, TAU), 5)], ['−∂_τK at (1, τ)', fmt(R1.lhs, 5)], ['K_rr + K_r/r − K/r²', fmt(R1.rhs, 5)],
+      ['worst |residual|/|K_rr| over ' + samples.length + ' pts', fmt(worst, 2), 'cool'], ['at', worstAt], ['K_r < 0 (Lemma 4.8)', krNeg ? 'yes ✓' : 'violated ✗', krNeg ? 'cool' : 'hot'],
+    ]);
+    const v = document.getElementById('swirl-verdict'); v.className = 'verdict ok';
+    v.textContent = `The formula satisfies the swirl heat equation to ${fmt(worst, 1)} — the size of a centred finite difference, not a defect. Its momentum residual is therefore zero: no external force acts on the exterior, ever.`;
+  }
+  slider('h', (v) => fmt(v, 3), (v) => { H_ = v; drawSwirl(); });
+  slider('tau', (v) => fmt(v, 3), (v) => { TAU = v; drawSwirl(); });
+
+  // ─────────────────────────── tab 2: march ───────────────────────────
+  let TAU1 = 0.2, NG = 200, lastErr = {};
+  function march(N, tau1) {
+    const r0 = 0.4, r1 = 8, dr = (r1 - r0) / (N - 1), dt = 0.4 * dr * dr;
+    const r = new Float64Array(N), u = new Float64Array(N), nu = new Float64Array(N);
+    for (let i = 0; i < N; i++) { r[i] = r0 + i * dr; u[i] = K(r[i], 1); }
+    let tau = 1, steps = 0;
+    while (tau > tau1 + 1e-12) {
+      const step = Math.min(dt, tau - tau1);
+      nu[0] = K(r0, tau - step); nu[N - 1] = K(r1, tau - step);
+      for (let i = 1; i < N - 1; i++) {
+        const urr = (u[i + 1] - 2 * u[i] + u[i - 1]) / (dr * dr), ur = (u[i + 1] - u[i - 1]) / (2 * dr);
+        nu[i] = u[i] + step * (urr + ur / r[i] - u[i] / (r[i] * r[i]));
+      }
+      u.set(nu); tau -= step; steps++;
+    }
+    const ex = new Float64Array(N), err = new Float64Array(N); let maxErr = 0, maxEx = 0;
+    for (let i = 0; i < N; i++) { ex[i] = K(r[i], tau1); err[i] = Math.abs(u[i] - ex[i]); maxErr = Math.max(maxErr, err[i]); maxEx = Math.max(maxEx, ex[i]); }
+    return { r, u, ex, err, maxErr, maxEx, steps, dr, dt };
+  }
+  function drawMarch() {
+    const M = march(NG, TAU1); lastErr[NG] = M.maxErr;
+    const init = [], exact = [], num = [];
+    for (let i = 0; i < M.r.length; i += Math.max(1, Math.floor(M.r.length / 200))) { init.push([M.r[i], K(M.r[i], 1)]); exact.push([M.r[i], M.ex[i]]); num.push([M.r[i], M.u[i]]); }
+    chart(document.getElementById('mk'), {
+      x: [0.4, 8], y: [0.01, 10], xlog: true, ylog: true, xlabel: 'r', ylabel: 'K',
+      draw: (c) => { c.line(init, grey(), 1, [3, 3]); c.line(exact, cool(), 3); c.line(num, hot(), 1.2); c.label(0.45, K(0.45, 1), 'K(r, 1) — where the march starts', grey(), 4, 10); c.label(2, M.ex[Math.floor(M.r.length / 4)], 'exact vs marched at τ₁ = ' + fmt(TAU1, 2) + ' (they overlay)', cool(), 6, -10); },
+    });
+    const e = []; for (let i = 1; i < M.r.length - 1; i += Math.max(1, Math.floor(M.r.length / 200))) e.push([M.r[i], Math.max(M.err[i], 1e-13)]);
+    chart(document.getElementById('me'), {
+      x: [0.4, 8], y: [1e-9, 1e-1], xlog: true, ylog: true, xlabel: 'r', ylabel: '|marched − exact|',
+      draw: (c) => { c.line(e, hot(), 1.6); },
+    });
+    const rows = [['grid points', NG], ['dr', fmt(M.dr, 4)], ['dt = 0.4 dr²', fmt(M.dt)], ['time steps', M.steps], ['max |error|', fmt(M.maxErr, 3), 'hot'], ['max |K| at τ₁', fmt(M.maxEx, 3)], ['relative', fmt(M.maxErr / M.maxEx, 2)]];
+    for (const n of [100, 200, 400]) if (lastErr[n] !== undefined && lastErr[2 * n] !== undefined) rows.push([`error ratio ${n}→${2 * n}`, fmt(lastErr[n] / lastErr[2 * n], 2), 'cool']);
+    stats(document.getElementById('march-stats'), rows);
+    const v = document.getElementById('march-verdict'); v.className = 'verdict ok';
+    v.textContent = `Marched ${M.steps} explicit steps from τ = 1 to τ₁ = ${fmt(TAU1, 2)}; the finite-difference solution agrees with the closed form to ${fmt(M.maxErr / M.maxEx, 1)} relative. Try the other grids: halving dr should cut the error by about four.`;
+  }
+  slider('tau1', (v) => fmt(v, 2), (v) => { TAU1 = v; lastErr = {}; drawMarch(); });
+  document.querySelectorAll('[data-n]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-n]').forEach((x) => x.classList.remove('active')); b.classList.add('active'); NG = parseInt(b.dataset.n, 10); drawMarch(); });
+
+  // ─────────────────────────── tab 3: where ───────────────────────────
+  const Wh = { xa: 2, xb: 5, r0: 1 };
+  function pressure(r, tau) { // p = −∫_r^∞ K²/ρ dρ: quadrature to R = 40, tail ∝ ρ^{-3-4h} added analytically
+    const R = 40, n = 400, dl = Math.log(R / r) / n; let s = 0;
+    for (let i = 0; i <= n; i++) { const rho = r * Math.exp(i * dl); const f = K(rho, tau) * K(rho, tau) / rho * rho; s += f * (i === 0 || i === n ? 1 : (i % 2 ? 4 : 2)); }   // dρ = ρ dl
+    s *= dl / 3;
+    const KR = K(R, tau); s += KR * KR / (2 + 4 * H_);   // ∫_R^∞ K²/ρ with K ~ c ρ^{-1-2h}: = K(R)² R^{2+4h} ∫_R^∞ ρ^{-3-4h} = K(R)²/(2+4h)
+    return -s;
+  }
+  function drawWhere() {
+    const c = document.getElementById('wh'); const { ctx, w, h } = fit(c); ctx.clearRect(0, 0, w, h);
+    const pad = { l: 50, r: 14, t: 14, b: 32 }, RM = 3.2, TM = 1;
+    const X = (r) => pad.l + r / RM * (w - pad.l - pad.r), Y = (t) => h - pad.b - t / TM * (h - pad.t - pad.b);
+    // regions at z = 0 (q = τ): exterior r ≥ √(2 τ X_b); annulus √(2τX_a) ≤ r < √(2τX_b); core r < √(2τX_a)
+    const fillBetween = (fa, fb, color, alpha) => { ctx.fillStyle = color; ctx.globalAlpha = alpha; ctx.beginPath(); for (let i = 0; i <= 100; i++) { const t = TM * i / 100; ctx.lineTo(X(fa(t)), Y(t)); } for (let i = 100; i >= 0; i--) { const t = TM * i / 100; ctx.lineTo(X(fb(t)), Y(t)); } ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; };
+    fillBetween(() => 0, (t) => Math.sqrt(2 * t * Wh.xa), hot(), 0.35);
+    fillBetween((t) => Math.sqrt(2 * t * Wh.xa), (t) => Math.sqrt(2 * t * Wh.xb), hot(), 0.16);
+    fillBetween((t) => Math.sqrt(2 * t * Wh.xb), () => RM, cool(), 0.12);
+    ctx.strokeStyle = hot(); ctx.lineWidth = 1.4; ctx.beginPath(); for (let i = 0; i <= 100; i++) { const t = TM * i / 100; const x = X(Math.sqrt(2 * t * Wh.xb)); if (i === 0) ctx.moveTo(x, Y(t)); else ctx.lineTo(x, Y(t)); } ctx.stroke();
+    // axes
+    ctx.strokeStyle = grey(); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(pad.l, pad.t); ctx.lineTo(pad.l, h - pad.b); ctx.lineTo(w - pad.r, h - pad.b); ctx.stroke();
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = grey(); ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const r of [0, 1, 2, 3]) ctx.fillText(fmt(r, 0), X(r), h - pad.b + 5);
+    ctx.fillText('r  (at z = 0)', (pad.l + w - pad.r) / 2, h - 14);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; for (const t of [0, 0.25, 0.5, 0.75, 1]) ctx.fillText(fmt(t, 2), pad.l - 5, Y(t));
+    ctx.save(); ctx.translate(11, (pad.t + h - pad.b) / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText('τ = 1 − t   (t = 1 at the bottom)', 0, 0); ctx.restore();
+    // probe
+    const tEnter = Wh.r0 * Wh.r0 / (2 * Wh.xb);
+    ctx.strokeStyle = ink(); ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(X(Wh.r0), Y(TM)); ctx.lineTo(X(Wh.r0), Y(0)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = ink(); ctx.beginPath(); ctx.arc(X(Wh.r0), Y(Math.min(tEnter, TM)), 4, 0, 6.283); ctx.fill();
+    ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText('r₀ = ' + fmt(Wh.r0, 2) + ' enters the exterior at τ = ' + fmt(tEnter, 3), X(Wh.r0) + 8, Y(Math.min(tEnter, TM)) - 4);
+    ctx.fillStyle = cool(); ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.fillText('EXTERIOR  X ≥ X_b — exact heat swirl', w - pad.r - 6, pad.t + 6);
+    ctx.fillStyle = hot(); ctx.textAlign = 'left'; ctx.fillText('core + annulus, shrinking like √τ', pad.l + 6, pad.t + 6);
+    // pressure chart
+    const pmin = pressure(0.3, 0);
+    chart(document.getElementById('pr'), {
+      x: [0.3, 6], y: [pmin * 1.05, 0], xlog: true, xlabel: 'r', ylabel: 'p = −∫_r^∞ K²/ρ dρ',
+      draw: (cc) => { for (const t of [1, 0.3, 0]) { const pts = []; for (let i = 0; i <= 50; i++) { const r = Math.pow(10, Math.log10(0.3) + Math.log10(20) * i / 50); pts.push([r, pressure(r, t)]); } cc.line(pts, t === 0 ? ink() : cool(), t === 0 ? 1.8 : 1, t === 0 ? [] : [3, 3]); cc.label(0.33, pressure(0.33, t), 'τ=' + t, t === 0 ? ink() : cool(), 4, t === 0 ? 10 : -8); } },
+    });
+    stats(document.getElementById('where-stats'), [
+      ['X_a, X_b', fmt(Wh.xa, 2) + ', ' + fmt(Wh.xb, 2)], ['r₀', fmt(Wh.r0, 2)], ['τ when r₀ enters exterior', fmt(tEnter, 4), 'cool'],
+      ['annulus outer radius at τ = 0.1', fmt(Math.sqrt(0.2 * Wh.xb), 3)], ['at τ = 0.01', fmt(Math.sqrt(0.02 * Wh.xb), 3)], ['at τ = 10⁻⁶', fmt(Math.sqrt(2e-6 * Wh.xb), 3), 'hot'],
+      ['p(r₀, 0)', fmt(pressure(Wh.r0, 0), 4)], ['p(r₀, 1)', fmt(pressure(Wh.r0, 1), 4)],
+    ]);
+  }
+  slider('xa', (v) => fmt(v, 2), (v) => { Wh.xa = Math.min(v, Wh.xb - 0.1); drawWhere(); });
+  slider('xb', (v) => fmt(v, 2), (v) => { Wh.xb = Math.max(v, Wh.xa + 0.1); drawWhere(); });
+  slider('r0', (v) => fmt(v, 2), (v) => { Wh.r0 = v; drawWhere(); });
+
+  const redraw = { swirl: drawSwirl, march: drawMarch, where: drawWhere };
+  NS.tabs((id) => { if (redraw[id]) requestAnimationFrame(redraw[id]); });
+  window.addEventListener('resize', () => { const a = document.querySelector('.tab.active'); if (a && redraw[a.dataset.tab]) redraw[a.dataset.tab](); });
+})();
+</script>
+</body>
+</html>

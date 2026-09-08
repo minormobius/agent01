@@ -1111,6 +1111,55 @@
       "wing": "study"
     },
     {
+      "id": "ns",
+      "label": "ns",
+      "u": "ns.mino.mobi",
+      "kind": "explainer",
+      "domain": "math",
+      "action": "new-hub",
+      "why": "A new explainer pack on one paper — the 2026 forced Navier–Stokes blowup — built as its own surface rather than as a member of the math hub, because it has six sub-pages of its own and a door that has to say what the paper does and does not claim. Sits beside math in the study wing.",
+      "members": [
+        {
+          "u": "ns.mino.mobi",
+          "action": "new",
+          "note": "the door: the theorem, its scope, the anatomy, the proof map, the timeline"
+        },
+        {
+          "u": "ns.mino.mobi/core",
+          "action": "new",
+          "group": "the construction"
+        },
+        {
+          "u": "ns.mino.mobi/pulse",
+          "action": "new",
+          "group": "the construction"
+        },
+        {
+          "u": "ns.mino.mobi/stress",
+          "action": "new",
+          "group": "the construction"
+        },
+        {
+          "u": "ns.mino.mobi/exterior",
+          "action": "new",
+          "group": "the construction"
+        },
+        {
+          "u": "ns.mino.mobi/bands",
+          "action": "new",
+          "group": "the bookkeeping"
+        },
+        {
+          "u": "ns.mino.mobi/solver",
+          "action": "new",
+          "group": "the contrast",
+          "note": "a real 2D solver; why two dimensions cannot do this"
+        }
+      ],
+      "blurb": "The 2026 Navier–Stokes blowup paper taken apart: a collapsing core, shear-fed pulses whose Reynolds stress supplies the missing force, an exact heat-flow exterior — each piece implemented in the browser.",
+      "wing": "study"
+    },
+    {
       "id": "read",
       "label": "read",
       "u": "mino.mobi/read",

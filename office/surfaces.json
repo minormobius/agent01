@@ -1337,6 +1337,69 @@
    "parent": "geometry"
   },
   {
+   "id": "ns",
+   "name": "ns",
+   "url": "https://ns.mino.mobi",
+   "cat": "data",
+   "commits": 3,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "core",
+   "name": "core",
+   "url": "https://ns.mino.mobi/core/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "pulse",
+   "name": "pulse",
+   "url": "https://ns.mino.mobi/pulse/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "stress",
+   "name": "stress",
+   "url": "https://ns.mino.mobi/stress/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "exterior",
+   "name": "exterior",
+   "url": "https://ns.mino.mobi/exterior/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "bands",
+   "name": "bands",
+   "url": "https://ns.mino.mobi/bands/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "solver",
+   "name": "solver",
+   "url": "https://ns.mino.mobi/solver/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
    "id": "loop",
    "name": "loop",
    "url": "https://loop.mino.mobi",

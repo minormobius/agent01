@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ns/pulse — grow on the shear, die by viscosity</title>
+<meta name="description" content="The pulse of the 2026 Navier–Stokes blowup construction, implemented: the projected wave-amplitude equation integrated and compared with the paper's envelope P(v); the exact Orr shearing wave in Couette flow; and the centrifugal criterion v_s > 2 shown to be Rayleigh's criterion with axial shear folded in.">
+<link rel="stylesheet" href="../ns.css">
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="../">← ns</a><a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>pulse <span class="thin">— grow on the shear, die by viscosity</span></h1>
+  <p class="subtitle">the amplitude equation · the envelope · orr's mechanism · rayleigh's criterion</p>
+  <p class="crossref"><a href="../core/">core</a> · <a class="here" href="./">pulse</a> · <a href="../stress/">stress</a> · <a href="../exterior/">exterior</a> · <a href="../bands/">bands</a> · <a href="../solver/">solver</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="ode" role="tab">amplitude equation</button>
+  <button class="tab" data-tab="orr" role="tab">shearing wave</button>
+  <button class="tab" data-tab="rayleigh" role="tab">centrifugal criterion</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- ODE ──────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-ode">
+<p class="lede">Each pulse is a plane-wave-like oscillation whose amplitude t(v) obeys a linear ODE along the pulse coordinate v: transport, the background's shear and rotation, and viscous damping that grows as the shear tilts the wavevector (7.5). This integrates that equation — in the paper's frozen-coefficient reference form, with the actual moving-normal and frame terms kept — and overlays the closed-form envelope P(v) of (7.12). The paper proves the two agree up to constants; here you can watch them.</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="ode" class="chart"></canvas>
+    <canvas id="rates" class="chart" style="aspect-ratio:5/2"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">shear parameters</span>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:2.4em">a</span><input type="range" id="a" min="0.5" max="6" step="0.05" value="2.6"><span class="val" id="a-val"></span></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:2.4em">b_s</span><input type="range" id="bs" min="-3" max="3" step="0.05" value="0.8"><span class="val" id="bs-val"></span></div>
+      <div class="stat-note">a = −d log Ω/d log r is the swirl's angular-velocity decay; b<sub>s</sub> the normalised radial shear of the axial velocity (4.11). Together v<sub>s</sub> = a + b<sub>s</sub>²/a, and the pulse only grows if v<sub>s</sub> &gt; 2.</div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">pulse geometry</span>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:2.4em">u*</span><input type="range" id="ustar" min="0.3" max="3" step="0.05" value="1"><span class="val" id="ustar-val"></span></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:2.4em">L_s</span><input type="range" id="Ls" min="10" max="400" step="5" value="80"><span class="val" id="Ls-val"></span></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:2.4em">εk²</span><input type="range" id="ek2" min="1" max="4" step="0.05" value="1"><span class="val" id="ek2-val"></span></div>
+      <div class="stat-note">s(v) = u*/2 + u*·v/L<sub>s</sub> is the radial tilt of the wavevector; it passes u* at the midpoint, where amplification and damping balance. L<sub>s</sub> ≍ S* = ℓ² is the pulse length; the errors the paper bounds by C/S* shrink as you lengthen it.</div>
+    </div>
+    <div class="stats" id="ode-stats"></div>
+    <div class="verdict" id="ode-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--hot)"></i>|t(v)| from the ODE <i style="background:var(--accent)"></i>envelope P(v), (7.12) <i style="background:#888"></i>Gaussian bounds e<sup>−c(v−L/2)²/L</sup>, (7.16)</div>
+</div>
+
+<!-- ORR ──────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-orr">
+<p class="lede">The same mechanism in the simplest flow there is. In plane Couette flow U = (Sy, 0) a single Fourier mode stays a single Fourier mode, but its wavevector is carried by the shear: k<sub>y</sub>(t) = k<sub>y</sub>(0) − S·k<sub>x</sub>·t. Vorticity is conserved along particles, so the velocity amplitude scales like 1/|k(t)|: a wave tilted against the shear is first stretched (|k| shrinks, energy grows) and then compressed (|k| grows, energy falls), and viscosity, which damps at the rate ν|k(t)|², finishes it off. Orr found this in 1907; Craik and Criminale showed in 1986 that it is an exact nonlinear solution, because the wave's self-interaction cancels. That cancellation is why the paper's pulses can be large.</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="orrpic" class="viz wide"></canvas>
+    <canvas id="orr" class="chart" style="aspect-ratio:5/2;margin-top:0.8rem"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">initial tilt · k_y(0)/k_x</span>
+      <div class="slider-row"><input type="range" id="tilt" min="0" max="6" step="0.05" value="3"><span class="val" id="tilt-val"></span></div>
+      <div class="stat-note">Positive means the crests lean against the shear. The inviscid energy gain is exactly 1 + (k<sub>y</sub>(0)/k<sub>x</sub>)², reached when k<sub>y</sub> passes through zero at t* = k<sub>y</sub>(0)/(S k<sub>x</sub>).</div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">viscosity · ν k_x²/S</span>
+      <div class="slider-row"><input type="range" id="visc" min="-3" max="0" step="0.05" value="-1.5"><span class="val" id="visc-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">time · S·t</span>
+      <div class="slider-row"><input type="range" id="ot" min="0" max="12" step="0.02" value="0"><span class="val" id="ot-val"></span></div>
+      <div class="btn-row"><button class="btn" id="oplay">▶ play</button></div>
+    </div>
+    <div class="stats" id="orr-stats"></div>
+  </div>
+</div>
+<div class="eq boxed">ψ = a(t)·cos(k<sub>x</sub>x + k<sub>y</sub>(t)y), &nbsp; k<sub>y</sub>(t) = k<sub>y</sub>(0) − S k<sub>x</sub> t, &nbsp; a(t)|k(t)|² = a(0)|k(0)|²·exp(−ν∫₀<sup>t</sup>|k|²) &nbsp;&nbsp;⟹&nbsp;&nbsp; |u′| ∝ |k(0)|²/|k(t)| · e<sup>−ν∫|k|²</sup></div>
+</div>
+
+<!-- RAYLEIGH ─────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-rayleigh">
+<p class="lede">Why does the pulse grow at all? Displace a ring of fluid outward in a swirling flow. It keeps its angular momentum Γ = r·u<sub>θ</sub> (no torque), so at its new radius it spins faster than its neighbours if the ambient Γ decreases outward — and a swirl surplus means a centrifugal surplus, which pushes it further out. Rayleigh (1917): unstable iff d(r·u<sub>θ</sub>)²/dr &lt; 0. Writing the angular velocity as Ω ∝ r<sup>−a</sup>, that is a &gt; 2. The paper's growth rate λ₀² = 2aF₀²(1 − 2/v<sub>s</sub>) with v<sub>s</sub> = a + b<sub>s</sub>²/a is exactly this, with the axial shear b<sub>s</sub> folded in — the centrifugal-instability criteria of Leibovich–Stewartson and Billant–Gallaire the paper cites.</p>
+<div class="work-wrap">
+  <canvas id="ray" class="chart" style="aspect-ratio:1"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">angular-velocity decay · a (Ω ∝ r<sup>−a</sup>)</span>
+      <div class="slider-row"><input type="range" id="ra" min="0" max="4" step="0.02" value="2.6"><span class="val" id="ra-val"></span></div>
+      <div class="btn-row"><button class="btn" data-ra="0">solid body</button><button class="btn" data-ra="2">potential vortex</button><button class="btn" data-ra="3">a = 3</button></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">axial shear · b_s</span>
+      <div class="slider-row"><input type="range" id="rb" min="0" max="3" step="0.02" value="0"><span class="val" id="rb-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">ring displacement · δr/r</span>
+      <div class="slider-row"><input type="range" id="rd" min="0.02" max="0.5" step="0.01" value="0.25"><span class="val" id="rd-val"></span></div>
+    </div>
+    <div class="stats" id="ray-stats"></div>
+    <div class="verdict" id="ray-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--accent)"></i>ambient angular momentum Γ(r) = r·u<sub>θ</sub> <i style="background:var(--hot)"></i>the displaced ring keeps its Γ</div>
+</div>
+
+<!-- DOCS ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="ref">§2.2 · §3.3 · §7.1–7.2 · Lemmas 7.1, 7.4 · Proposition 7.2 of the paper</p>
+<h2>What a pulse is</h2>
+<p>A pulse is a spatially oscillatory velocity, localised in radius, height and time but wrapped around a complete ring, seeded by an exponentially small force and then grown by the background shear. Frozen at a point it looks like w = a·cos(ξ·x + φ) with a ⊥ ξ: a transverse wave. In the paper the phase is</p>
+<div class="eq">Φ = pθ + p<sub>z</sub>Z/ε + x₀R − v·(pF + p<sub>z</sub>G) &nbsp;&nbsp;(7.3)</div>
+<p>with integer angular frequency kp (so the wave is single-valued around the ring and has zero angular mean), carrier k = ⌈ε<sup>−1/2</sup>⌉ so that εk² stays of order one and viscosity sits in the leading balance, and a radial component x₀ − v(pF<sub>R</sub> + p<sub>z</sub>G<sub>R</sub>) that the background shear changes linearly along the pulse. F is the base angular velocity, G the base axial velocity, and v the pulse coordinate — normalised time, advancing at unit speed.</p>
+
+<h2>The amplitude equation</h2>
+<div class="eq boxed">t′ + 𝒦t + m²d·t + ikm·n<sub>Φ</sub>π = −f, &nbsp; n<sub>Φ</sub>·t = 0, &nbsp; d = εk²|n<sub>Φ</sub>|² &nbsp;&nbsp;(7.5)<br>𝒦 = ⎡ 0 &nbsp;−2F &nbsp;0 ⎤ ⎡ 2F + RF<sub>R</sub> &nbsp;0 &nbsp;0 ⎤ ⎡ G<sub>R</sub> &nbsp;0 &nbsp;0 ⎤ &nbsp;(rows) &nbsp;&nbsp;(7.6)</div>
+<p>The matrix 𝒦 is the linearisation of transport by a swirling, axially sheared background about a moving frame: a radial displacement feels the shear of the swirl (2F + RF<sub>R</sub>) and of the axial flow (G<sub>R</sub>), and a swirl surplus feels the Coriolis-like return −2F. Eliminating the pressure with the constraint gives the projected operator 𝒜<sub>Φ</sub> = −𝒦 + n(nᵀ𝒦 − n′ᵀ)/|n|². In a frame B adapted to the plane n<sub>Φ</sub><sup>⊥</sup>, Lemma 7.1 shows</p>
+<div class="eq">B<sub>ℓ</sub>(𝒜<sub>Φ</sub>B − B′) = diag(λ, −λ) + E, &nbsp; λ(v) = λ₀/√(1 + s(v)²), &nbsp; |E| ≤ C/S*, &nbsp;&nbsp; λ₀² = 2aF₀²(1 − 2/v<sub>s</sub>) &nbsp;&nbsp;(7.10)</div>
+<p>one growing and one decaying direction, with the growth rate falling as the wavevector tilts (s grows) and the damping d<sub>ref</sub> = εk²B<sub>s</sub>²(1 + s²) rising. The normalisation B<sub>s</sub>² = λ₀/(εk²(1 + u*²)<sup>3/2</sup>) is chosen so that the two rates cross exactly at s = u*, the midpoint of the pulse (7.2).</p>
+
+<h2>The envelope</h2>
+<div class="eq boxed">P(v) = exp ∫<sub>L<sub>s</sub>/2</sub><sup>v</sup> (λ(w) − d<sub>ref</sub>(w)) dw &nbsp;&nbsp;(7.12), &nbsp;&nbsp; e<sup>−C(v−L<sub>s</sub>/2)²/L<sub>s</sub></sup> ≤ P(v) ≤ e<sup>−c(v−L<sub>s</sub>/2)²/L<sub>s</sub></sup> ≤ 1 &nbsp;&nbsp;(7.16)</div>
+<p>Because the net rate λ − d<sub>ref</sub> decreases at a rate between c/L<sub>s</sub> and C/L<sub>s</sub> and vanishes at the midpoint, log P is concave with a maximum there and the envelope is Gaussian on both sides. Lemma 7.4 then shows the actual homogeneous solution, started in the growing direction, has radial component between cP and CP throughout, with the tangential-to-radial ratio y/x = c₀√(1 + s²) + O(1/S*). The time cutoff ψ, equal to one on the middle three fifths of the pulse, acts only where P is exponentially small — so the cutoff errors and all their derivatives are flat at the singular time. That, rather than any single estimate, is why the construction can be summed.</p>
+<p>The first tab integrates t′ = 𝒜<sub>Φ</sub>t − d·t with RK4 from t(0) = P(0)·(growing eigenvector) using the frozen reference coefficients, keeps the moving-normal term n′ and the frame drift B′ that the paper bounds by C/S*, and reports the measured growth rate against λ₀ and the measured y/x against c₀√(1 + s²). Lengthen L<sub>s</sub> and both converge, as the estimates say they should.</p>
+
+<h2>Orr, and why the wave can be big</h2>
+<p>A Fourier mode in a uniform shear is carried to a new wavevector k(t) = (k<sub>x</sub>, k<sub>y</sub>(0) − S k<sub>x</sub> t) without changing shape, and 2D vorticity is conserved along particles, so the streamfunction amplitude obeys a(t)|k(t)|² = const. The kinetic energy therefore goes like |k(0)|⁴/|k(t)|², peaking when the crests are vertical. With viscosity the vorticity amplitude also decays by exp(−ν∫|k|²), which is small at first and then large: growth, then decay, with a Gaussian-ish tail — the same shape as P(v). Craik and Criminale (1986) observed that such a wave on an affine background is an <em>exact</em> solution of the full nonlinear equations: (w·∇)w for a single transverse plane wave is a gradient and is absorbed into the pressure. The paper's pulses inherit this cancellation locally; what is left over — the interactions between different pulses, harmonics, and the slow variation of everything — is what the correction cycle of §9 mops up.</p>
+
+<h2>Rayleigh's criterion, in the paper's variables</h2>
+<p>The paper's shear vector is s = (a, −b<sub>s</sub>) with a = 1 − 2D<sub>X</sub>log E and b<sub>s</sub> = 2D<sub>X</sub>U/E (4.11). Since D<sub>X</sub> = X∂<sub>X</sub> = ½ r∂<sub>r</sub> and E = √(2X)·F with F the profile of the angular velocity, a = −r∂<sub>r</sub>log F = −d log Ω/d log r: a swirl whose angular velocity falls like r<sup>−a</sup>. Its angular momentum Γ = r²Ω falls like r<sup>2−a</sup>, so Rayleigh's condition d(Γ²)/dr &lt; 0 is a &gt; 2, and his local growth rate is −Φ = −(1/r³)d(Γ²)/dr = 2(a − 2)Ω². Set b<sub>s</sub> = 0 in the paper's formula: v<sub>s</sub> = a and λ₀² = 2aF₀²(1 − 2/a) = 2(a − 2)F₀². The same number. With axial shear the effective v<sub>s</sub> = a + b<sub>s</sub>²/a is larger — axial shear also feeds the pulse — which is why the profile needs a nonzero radial shear of u<sub>z</sub> near the middle plane where the rotational mechanism weakens (§2.1), and why the axis profile is given its small offset j₀ (see <a href="../core/#flow">core → meridional flow</a>).</p>
+<p>The strict inequality v<sub>s</sub> &gt; 2 on the whole closed annulus is part (iii) of Theorem 4.6, and it is also the extra inequality that turns the "relaxed" stress-cone condition into the "admissible" one (Lemma 4.5): the cone the waves can realise is only defined where they grow (see <a href="../stress/">stress</a>).</p>
+</div>
+</div>
+
+<footer>
+  <a href="../">ns</a><a href="../core/">core</a><a href="../stress/">stress</a><a href="../exterior/">exterior</a><a href="../bands/">bands</a><a href="../solver/">solver</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+</footer>
+
+<script src="../ns.js"></script>
+<script>
+'use strict';
+(function () {
+  const { fit, fmt, stats, cssVar, chart, slider } = NS;
+  const hot = () => cssVar('--hot'), cool = () => cssVar('--accent'), grey = () => cssVar('--muted'), ink = () => cssVar('--canvas-ink');
+
+  // ─────────────────────────── amplitude equation ─────────────────────
+  const P = { a: 2.6, bs: 0.8, ustar: 1, Ls: 80, ek2: 1, F0: 1 };
+  function derived(p) {
+    const F0 = p.F0, ts = -p.bs / p.a, vs = p.a * (1 + ts * ts);
+    const g0 = [-p.a * F0, p.bs * F0], gn = Math.hypot(g0[0], g0[1]);
+    const N = [g0[0] / gn, g0[1] / gn], K = [-N[1], N[0]];       // tangential (theta, z) components
+    const lam0sq = -2 * F0 * N[0] * (2 * F0 * N[0] + gn);        // = 2 a F0^2 (1 - 2/vs)
+    const lam0 = Math.sqrt(Math.max(lam0sq, 0));
+    const c0 = lam0 / (2 * F0 * N[0]);
+    const Bs2 = lam0 / (p.ek2 * Math.pow(1 + p.ustar * p.ustar, 1.5)), Bs = Math.sqrt(Bs2);
+    return { ts, vs, g0, gn, N, K, lam0sq, lam0, c0, Bs2, Bs };
+  }
+  function solveODE(p) {
+    const d = derived(p), { N, K, Bs, Bs2, lam0, c0 } = d, F0 = p.F0;
+    const s = (v) => p.ustar / 2 + p.ustar * v / p.Ls, sp = p.ustar / p.Ls;
+    const lam = (v) => lam0 / Math.sqrt(1 + s(v) * s(v)), dref = (v) => p.ek2 * Bs2 * (1 + s(v) * s(v));
+    // envelope by the trapezoid rule from the midpoint
+    const n = 1200, dv = p.Ls / n, Pv = new Float64Array(n + 1);
+    { let acc = 0; const mid = n / 2; Pv[mid] = 1;
+      for (let i = mid; i < n; i++) { acc += 0.5 * dv * (lam(i * dv) - dref(i * dv) + lam((i + 1) * dv) - dref((i + 1) * dv)); Pv[i + 1] = Math.exp(acc); }
+      acc = 0; for (let i = mid; i > 0; i--) { acc -= 0.5 * dv * (lam(i * dv) - dref(i * dv) + lam((i - 1) * dv) - dref((i - 1) * dv)); Pv[i - 1] = Math.exp(acc); } }
+    // the reference normal n(v) = Bs (s(v), K) and its derivative; the frozen matrix 𝒦 (7.6) with R F_R = -a F0, G_R = bs F0
+    const Kmat = [[0, -2 * F0, 0], [2 * F0 - p.a * F0, 0, 0], [p.bs * F0, 0, 0]];
+    const rhs = (v, t) => {
+      const nv = [Bs * s(v), Bs * K[0], Bs * K[1]], np = [Bs * sp, 0, 0];
+      const n2 = nv[0] * nv[0] + nv[1] * nv[1] + nv[2] * nv[2];
+      const Kt = [0, 0, 0]; for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) Kt[i] += Kmat[i][j] * t[j];
+      const nKt = nv[0] * Kt[0] + nv[1] * Kt[1] + nv[2] * Kt[2], npt = np[0] * t[0] + np[1] * t[1] + np[2] * t[2];
+      const damp = p.ek2 * n2;
+      return [0, 1, 2].map((i) => -Kt[i] + nv[i] * (nKt - npt) / n2 - damp * t[i]);
+    };
+    // initial data: P(0) times the growing column of B = U M, U = [e_r - s K, N], M first column (1, c0 sqrt(1+s^2))
+    const s0 = s(0), c1 = c0 * Math.sqrt(1 + s0 * s0);
+    let t = [Pv[0] * 1, Pv[0] * (-s0 * K[0] + c1 * N[0]), Pv[0] * (-s0 * K[1] + c1 * N[1])];
+    const mag = new Float64Array(n + 1), xr = new Float64Array(n + 1), ratio = new Float64Array(n + 1), constraint = new Float64Array(n + 1);
+    const proj = (v, tt) => { // x = radial coefficient along (e_r - s K), y = along N
+      const x = tt[0]; const tan = [tt[1], tt[2]]; const y = tan[0] * N[0] + tan[1] * N[1]; return [x, y];
+    };
+    for (let i = 0; i <= n; i++) {
+      const v = i * dv; mag[i] = Math.hypot(t[0], t[1], t[2]); const [x, y] = proj(v, t); xr[i] = x; ratio[i] = y / (x || 1e-300);
+      const nv = [Bs * s(v), Bs * K[0], Bs * K[1]]; constraint[i] = Math.abs(nv[0] * t[0] + nv[1] * t[1] + nv[2] * t[2]) / (Math.hypot(...nv) * (mag[i] || 1e-300));
+      if (i === n) break;
+      const k1 = rhs(v, t), t2 = t.map((x, j) => x + dv / 2 * k1[j]);
+      const k2 = rhs(v + dv / 2, t2), t3 = t.map((x, j) => x + dv / 2 * k2[j]);
+      const k3 = rhs(v + dv / 2, t3), t4 = t.map((x, j) => x + dv * k3[j]);
+      const k4 = rhs(v + dv, t4);
+      t = t.map((x, j) => x + dv / 6 * (k1[j] + 2 * k2[j] + 2 * k3[j] + k4[j]));
+    }
+    // measured initial growth rate of |t| over the first 2% of the pulse vs lam(0) - dref(0)
+    const i1 = Math.max(2, Math.round(n * 0.02));
+    const rateMeas = (Math.log(xr[i1]) - Math.log(xr[0])) / (i1 * dv), rateTh = lam(0) - dref(0);
+    return { d, s, lam, dref, Pv, mag, xr, ratio, constraint, dv, n, rateMeas, rateTh };
+  }
+  function drawODE() {
+    const d0 = derived(P);
+    const vEl = document.getElementById('ode-verdict');
+    if (!(d0.lam0sq > 0)) {
+      chart(document.getElementById('ode'), { x: [0, P.Ls], y: [1e-6, 2], ylog: true, xlabel: 'pulse coordinate v', ylabel: 'amplitude' });
+      chart(document.getElementById('rates'), { x: [0, P.Ls], y: [0, 1], xlabel: 'pulse coordinate v', ylabel: 'rate' });
+      stats(document.getElementById('ode-stats'), [['t_s = −b_s/a', fmt(d0.ts)], ['v_s = a + b_s²/a', fmt(d0.vs), 'hot'], ['λ₀² = 2aF₀²(1−2/v_s)', fmt(d0.lam0sq), 'hot']]);
+      vEl.className = 'verdict bad'; vEl.textContent = 'v_s ≤ 2: λ₀² ≤ 0, no growing direction. The background shear cannot feed a pulse here — this is where Theorem 4.6(iii) forbids the annulus from being.';
+      return;
+    }
+    const S = solveODE(P);
+    const ymax = Math.max(1.5, ...S.mag) * 1.5, ymin = Math.max(1e-7, Math.min(...S.Pv) / 20);
+    chart(document.getElementById('ode'), {
+      x: [0, P.Ls], y: [ymin, ymax], ylog: true, xlabel: 'pulse coordinate v  (0 … L_s)', ylabel: 'amplitude (log)',
+      draw: (c) => {
+        const mid = P.Ls / 2;
+        // Gaussian bounds with the two extreme slopes of a_net' (Step 1 of the proof of Prop. 7.2)
+        const rateSlope = (y) => -P.ustar * S.d.lam0 * y / P.Ls * (Math.pow(1 + y * y, -1.5) + 2 * Math.pow(1 + P.ustar * P.ustar, -1.5));
+        const cS = Math.min(-rateSlope(P.ustar / 2), -rateSlope(1.5 * P.ustar)), CS = Math.max(-rateSlope(P.ustar / 2), -rateSlope(1.5 * P.ustar));
+        const g = (k) => { const pts = []; for (let i = 0; i <= 200; i++) { const v = P.Ls * i / 200; pts.push([v, Math.exp(-k * (v - mid) * (v - mid) / 2)]); } return pts; };
+        c.line(g(cS), grey(), 1, [2, 3]); c.line(g(CS), grey(), 1, [2, 3]);
+        const pP = [], pM = []; for (let i = 0; i <= S.n; i += 2) { pP.push([i * S.dv, S.Pv[i]]); pM.push([i * S.dv, Math.abs(S.xr[i])]); }
+        c.line(pP, cool(), 1.6); c.line(pM, hot(), 1.8);
+        c.ctx.strokeStyle = grey(); c.ctx.setLineDash([2, 3]); c.ctx.beginPath(); c.ctx.moveTo(c.X(mid), c.pad.t); c.ctx.lineTo(c.X(mid), c.h - c.pad.b); c.ctx.stroke(); c.ctx.setLineDash([]);
+        c.label(mid, ymax / 2, 's = u*: λ = d_ref', grey(), 4, 0);
+        // the cutoff support: |v - L/2| < L/3 (6.16)
+        c.ctx.fillStyle = cool(); c.ctx.globalAlpha = 0.08; c.ctx.fillRect(c.X(mid - P.Ls / 3), c.pad.t, c.X(mid + P.Ls / 3) - c.X(mid - P.Ls / 3), c.h - c.pad.t - c.pad.b); c.ctx.globalAlpha = 1;
+        c.label(mid - P.Ls / 3, ymin * 3, 'ψ cutoff support (6.16)', cool(), 4, 0);
+      },
+    });
+    chart(document.getElementById('rates'), {
+      x: [0, P.Ls], y: [0, Math.max(S.lam(0), S.dref(P.Ls)) * 1.15], xlabel: 'pulse coordinate v', ylabel: 'rate',
+      draw: (c) => {
+        const l = [], dd = []; for (let i = 0; i <= 100; i++) { const v = P.Ls * i / 100; l.push([v, S.lam(v)]); dd.push([v, S.dref(v)]); }
+        c.line(l, hot(), 1.6); c.line(dd, cool(), 1.6);
+        c.label(P.Ls * 0.05, S.lam(P.Ls * 0.05), 'λ(v) = λ₀/√(1+s²)  amplification', hot(), 4, -9);
+        c.label(P.Ls * 0.55, S.dref(P.Ls * 0.55), 'd_ref = εk²B_s²(1+s²)  viscous damping', cool(), 4, 10);
+      },
+    });
+    const iEnd = Math.round(S.n * 0.8), sEnd = S.s(iEnd * S.dv);
+    stats(document.getElementById('ode-stats'), [
+      ['t_s = −b_s/a', fmt(S.d.ts)], ['v_s = a + b_s²/a', fmt(S.d.vs), 'hot'],
+      ['λ₀ (7.10)', fmt(S.d.lam0), 'hot'], ['c₀ = λ₀/(2F₀N_θ)', fmt(S.d.c0)], ['B_s²', fmt(S.d.Bs2)],
+      ['rate at v=0: theory', fmt(S.rateTh, 4)], ['rate at v=0: measured', fmt(S.rateMeas, 4), 'hot'],
+      ['y/x at 0.8L: c₀√(1+s²)', fmt(S.d.c0 * Math.sqrt(1 + sEnd * sEnd))], ['y/x at 0.8L: measured', fmt(S.ratio[iEnd]), 'hot'],
+      ['max |t| / P(mid)', fmt(Math.max(...S.mag))], ['|n·t|/|n||t| (max)', fmt(Math.max(...S.constraint), 2), 'cool'],
+    ]);
+    const err = Math.abs(S.rateMeas - S.rateTh) / Math.abs(S.rateTh);
+    vEl.className = 'verdict ' + (err < 0.1 ? 'ok' : '');
+    vEl.textContent = `Growth then decay. Measured initial rate within ${fmt(100 * err, 2)}% of λ(0) − d_ref(0); the incompressibility constraint n·t = 0 is preserved to ${fmt(Math.max(...S.constraint), 1)}. The gap to P(v) is the O(1/S*) frame drift the paper bounds — lengthen L_s to shrink it.`;
+  }
+  slider('a', (v) => fmt(v, 2), (v) => { P.a = v; drawODE(); });
+  slider('bs', (v) => fmt(v, 2), (v) => { P.bs = v; drawODE(); });
+  slider('ustar', (v) => fmt(v, 2), (v) => { P.ustar = v; drawODE(); });
+  slider('Ls', (v) => fmt(v, 0), (v) => { P.Ls = v; drawODE(); });
+  slider('ek2', (v) => fmt(v, 2), (v) => { P.ek2 = v; drawODE(); });
+
+  // ─────────────────────────── Orr shearing wave ──────────────────────
+  const O = { tilt: 3, lognu: -1.5, t: 0, playing: false, t0: 0 };
+  function orrAmp(t, tilt, nu) {           // k_x = 1, S = 1: k_y(t) = tilt - t
+    const ky = tilt - t, k2 = 1 + ky * ky, k20 = 1 + tilt * tilt;
+    const intk2 = t + (Math.pow(tilt, 3) - Math.pow(ky, 3)) / 3;   // ∫₀ᵗ (1 + (tilt - s)²) ds
+    const vort = Math.exp(-nu * intk2);      // vorticity amplitude / initial
+    return { ky, k2, vel: k20 / Math.sqrt(k2) / Math.sqrt(k20) * vort, energy: k20 / k2 * vort * vort, vort };
+  }
+  function drawOrr() {
+    const nu = Math.pow(10, O.lognu);
+    const pic = document.getElementById('orrpic'); const { ctx, w, h } = fit(pic);
+    ctx.clearRect(0, 0, w, h);
+    const A = orrAmp(O.t, O.tilt, nu);
+    // stripes cos(x + ky y) with amplitude ∝ velocity amplitude, in a box x,y ∈ [0, 2π]×[0, 2π·h/w]
+    const img = ctx.createImageData(Math.floor(w / 2), Math.floor(h / 2));
+    const hc = hex(hot()), cc = hex(cool()), bg = hex(cssVar('--canvas-bg'));
+    const amp = Math.min(1, A.vel);
+    for (let j = 0; j < img.height; j++) for (let i = 0; i < img.width; i++) {
+      const x = i / img.width * 4 * Math.PI, y = (1 - j / img.height) * 4 * Math.PI * (h / w);
+      const s = Math.cos(x + A.ky * y) * amp;   // streamfunction sign
+      const k = (j * img.width + i) * 4, m = Math.abs(s), col = s > 0 ? hc : cc;
+      img.data[k] = bg[0] + (col[0] - bg[0]) * m; img.data[k + 1] = bg[1] + (col[1] - bg[1]) * m; img.data[k + 2] = bg[2] + (col[2] - bg[2]) * m; img.data[k + 3] = 255;
+    }
+    const off = document.createElement('canvas'); off.width = img.width; off.height = img.height; off.getContext('2d').putImageData(img, 0, 0);
+    ctx.drawImage(off, 0, 0, w, h);
+    // the shear profile U = S y as arrows at the left edge
+    ctx.strokeStyle = ink(); ctx.fillStyle = ink(); ctx.lineWidth = 1;
+    for (let j = 1; j < 8; j++) { const y = h * j / 8, len = (0.5 - j / 8) * 70; ctx.beginPath(); ctx.moveTo(30, y); ctx.lineTo(30 + len, y); ctx.stroke(); const dir = Math.sign(len) || 1; ctx.beginPath(); ctx.moveTo(30 + len, y); ctx.lineTo(30 + len - 4 * dir, y - 3); ctx.lineTo(30 + len - 4 * dir, y + 3); ctx.fill(); }
+    // wavevector arrow
+    const kx = 1, ky = A.ky, kl = Math.hypot(kx, ky), sc = 40;
+    ctx.strokeStyle = ink(); ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(w - 70, h / 2); ctx.lineTo(w - 70 + kx / kl * sc * Math.min(3, kl), h / 2 - ky / kl * sc * Math.min(3, kl)); ctx.stroke();
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = grey(); ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+    ctx.fillText('k(t) = (1, ' + fmt(ky, 2) + ')', w - 8, 8);
+    ctx.textAlign = 'left'; ctx.fillText('U = S·y  →  crests tilt: k_y(t) = k_y(0) − S·k_x·t', 8, 8);
+    ctx.fillText('S·t = ' + fmt(O.t, 2) + '   |u′| / |u′(0)| = ' + fmt(A.vel, 3), 8, h - 16);
+    // amplitude chart
+    const T = 12, gainInv = 1 + O.tilt * O.tilt;
+    chart(document.getElementById('orr'), {
+      x: [0, T], y: [0, Math.max(1.05, Math.sqrt(gainInv) * 1.05)], xlabel: 'S·t', ylabel: '|u′| / |u′(0)|',
+      draw: (c) => {
+        const inv = [], vis = []; for (let i = 0; i <= 300; i++) { const t = T * i / 300; inv.push([t, orrAmp(t, O.tilt, 0).vel]); vis.push([t, orrAmp(t, O.tilt, nu).vel]); }
+        c.line(inv, grey(), 1, [3, 3]); c.line(vis, hot(), 1.8);
+        c.ctx.strokeStyle = cool(); c.ctx.setLineDash([2, 3]); c.ctx.beginPath(); c.ctx.moveTo(c.X(O.t), c.pad.t); c.ctx.lineTo(c.X(O.t), c.h - c.pad.b); c.ctx.stroke(); c.ctx.setLineDash([]);
+        c.label(O.tilt, Math.sqrt(gainInv), 'inviscid peak √(1+tilt²) at t* = tilt', grey(), 6, 12);
+      },
+    });
+    const tStar = O.tilt, peak = orrAmp(tStar, O.tilt, nu);
+    stats(document.getElementById('orr-stats'), [
+      ['k_y(0)/k_x', fmt(O.tilt, 2)], ['νk_x²/S', fmt(nu)], ['inviscid energy gain', fmt(gainInv), 'hot'],
+      ['t* (crests vertical)', fmt(tStar, 2)], ['viscous |u′| at t*', fmt(peak.vel), 'hot'], ['|u′| now', fmt(A.vel)], ['ν∫|k|² so far', fmt(nu * (O.t + (Math.pow(O.tilt, 3) - Math.pow(O.tilt - O.t, 3)) / 3)), 'cool'],
+    ]);
+  }
+  function hex(s) { s = s.trim(); if (s[0] === '#') { const n = parseInt(s.slice(1), 16); return s.length === 7 ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [((n >> 8) & 15) * 17, ((n >> 4) & 15) * 17, (n & 15) * 17]; } const m = s.match(/[\d.]+/g); return m ? m.slice(0, 3).map(Number) : [128, 128, 128]; }
+  slider('tilt', (v) => fmt(v, 2), (v) => { O.tilt = v; drawOrr(); });
+  slider('visc', (v) => fmt(Math.pow(10, v), 3), (v) => { O.lognu = v; drawOrr(); });
+  const otS = slider('ot', (v) => fmt(v, 2), (v) => { O.t = v; drawOrr(); });
+  document.getElementById('oplay').onclick = (e) => {
+    O.playing = !O.playing; e.target.textContent = O.playing ? '■ stop' : '▶ play';
+    if (O.playing) { O.t0 = performance.now() - O.t * 1000; requestAnimationFrame(orrStep); }
+  };
+  function orrStep(now) { if (!O.playing) return; const t = (now - O.t0) / 1000; if (t > 12) { O.playing = false; document.getElementById('oplay').textContent = '▶ play'; otS.set(12); return; } otS.set(t); requestAnimationFrame(orrStep); }
+
+  // ─────────────────────────── Rayleigh ───────────────────────────────
+  const Rr = { a: 2.6, bs: 0, d: 0.25 };
+  function drawRay() {
+    const c = document.getElementById('ray');
+    const a = Rr.a, bs = Rr.bs, vs = a > 0 ? a + bs * bs / a : Infinity;
+    const Gam = (r) => Math.pow(r, 2 - a);      // Γ = r² Ω, Ω = r^{-a}, normalised at r = 1
+    const r0 = 1, r1 = r0 * (1 + Rr.d), G0 = Gam(r0);
+    const lam0sq = a > 0 ? 2 * a * (1 - 2 / vs) : 0;   // F0 = Ω(1) = 1
+    const phi = 2 * (a - 2);                            // −Rayleigh discriminant / Ω² at r = 1 (no axial shear)
+    chart(c, {
+      x: [0.5, 2], y: [0, Math.max(2.2, Math.pow(0.5, 2 - a) * 1.05)], xlabel: 'radius r', ylabel: 'angular momentum Γ = r·u_θ  (Ω(1) = 1)',
+      draw: (cc) => {
+        const pts = []; for (let i = 0; i <= 150; i++) { const r = 0.5 + 1.5 * i / 150; pts.push([r, Gam(r)]); }
+        cc.line(pts, cool(), 1.8);
+        cc.line([[0.5, G0], [2, G0]], hot(), 1.2, [4, 3]);
+        // the ring: at r0 then displaced to r1 keeping G0
+        cc.ctx.fillStyle = hot(); cc.ctx.beginPath(); cc.ctx.arc(cc.X(r1), cc.Y(G0), 5, 0, 6.283); cc.ctx.fill();
+        cc.ctx.fillStyle = grey(); cc.ctx.beginPath(); cc.ctx.arc(cc.X(r0), cc.Y(G0), 3.5, 0, 6.283); cc.ctx.fill();
+        // the ambient at r1
+        cc.ctx.fillStyle = cool(); cc.ctx.beginPath(); cc.ctx.arc(cc.X(r1), cc.Y(Gam(r1)), 3.5, 0, 6.283); cc.ctx.fill();
+        // net centrifugal surplus arrow: sign(Γ_ring² − Γ_amb²) → outward if positive
+        const surplus = G0 * G0 - Gam(r1) * Gam(r1);
+        const dir = Math.sign(surplus), x0 = cc.X(r1), y0 = cc.Y(G0);
+        if (dir !== 0) { cc.ctx.strokeStyle = hot(); cc.ctx.lineWidth = 2; cc.ctx.beginPath(); cc.ctx.moveTo(x0, y0); cc.ctx.lineTo(x0 + 34 * dir, y0); cc.ctx.stroke(); cc.ctx.fillStyle = hot(); cc.ctx.beginPath(); cc.ctx.moveTo(x0 + 34 * dir, y0); cc.ctx.lineTo(x0 + 26 * dir, y0 - 5); cc.ctx.lineTo(x0 + 26 * dir, y0 + 5); cc.ctx.fill(); }
+        cc.label(r1, G0, dir > 0 ? 'surplus → pushed further out' : dir < 0 ? 'deficit → pulled back' : 'neutral', hot(), 40 * (dir || 1) + (dir < 0 ? -140 : 4), 0);
+        cc.label(r1, Gam(r1), 'ambient Γ(r₁)', cool(), 6, 10);
+        cc.label(r0, G0, 'ring at r₀ = 1', grey(), -6, -10, 'right');
+        cc.label(1.55, Gam(1.55), 'Γ ∝ r^(2−a)', cool(), 4, -10);
+      },
+    });
+    stats(document.getElementById('ray-stats'), [
+      ['a', fmt(a, 2)], ['Γ ∝ r^(2−a)', a < 2 ? 'increasing' : a > 2 ? 'decreasing' : 'constant', a > 2 ? 'hot' : 'cool'],
+      ['Rayleigh Φ/Ω² = 2(2−a)', fmt(-phi, 3)], ['b_s', fmt(bs, 2)], ['v_s = a + b_s²/a', isFinite(vs) ? fmt(vs, 3) : '∞', vs > 2 ? 'hot' : ''],
+      ['λ₀² = 2aF₀²(1−2/v_s)', fmt(lam0sq, 3), lam0sq > 0 ? 'hot' : 'cool'], ['−Φ (b_s = 0)', fmt(phi, 3)],
+      ['ring: Γ² − Γ(r₁)²', fmt(G0 * G0 - Gam(r1) * Gam(r1), 3), G0 * G0 > Gam(r1) * Gam(r1) ? 'hot' : 'cool'],
+    ]);
+    const v = document.getElementById('ray-verdict');
+    if (vs > 2) { v.className = 'verdict bad'; v.textContent = (a > 2 ? 'Angular momentum falls outward: the displaced ring out-spins its surroundings and keeps going. ' : 'Swirl alone is Rayleigh-stable, but the axial shear b_s lifts v_s above 2. ') + 'Centrifugally unstable — growth rate λ₀ = ' + fmt(Math.sqrt(lam0sq), 3) + '·F₀. This is where the paper puts its pulses.'; }
+    else { v.className = 'verdict ok'; v.textContent = 'v_s ≤ 2: the displaced ring spins slower than its neighbours and is pulled back. Stable; no pulse can grow here. (a = 2 is the potential vortex, Γ constant — the marginal case.)'; }
+  }
+  slider('ra', (v) => fmt(v, 2), (v) => { Rr.a = v; drawRay(); });
+  slider('rb', (v) => fmt(v, 2), (v) => { Rr.bs = v; drawRay(); });
+  slider('rd', (v) => fmt(v, 2), (v) => { Rr.d = v; drawRay(); });
+  document.querySelectorAll('[data-ra]').forEach((b) => b.onclick = () => { document.getElementById('ra').value = b.dataset.ra; document.getElementById('ra').dispatchEvent(new Event('input')); });
+
+  const redraw = { ode: drawODE, orr: drawOrr, rayleigh: drawRay };
+  NS.tabs((id) => { if (redraw[id]) requestAnimationFrame(redraw[id]); });
+  window.addEventListener('resize', () => { const a = document.querySelector('.tab.active'); if (a && redraw[a.dataset.tab]) redraw[a.dataset.tab](); });
+})();
+</script>
+</body>
+</html>

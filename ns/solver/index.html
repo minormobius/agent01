@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ns/solver — Navier–Stokes in two dimensions, live</title>
+<meta name="description" content="A pseudo-spectral incompressible Navier–Stokes solver running in the browser — hand-written FFT, vorticity form, 2/3 dealiasing, integrating-factor RK4. Run a tilted wave on a shear flow and measure its Reynolds stress and the mean-flow feedback; watch decaying turbulence keep its vorticity maximum; and see why two dimensions cannot do what the 2026 blowup paper does in three.">
+<link rel="stylesheet" href="../ns.css">
+<style>
+canvas.field { width: 100%; aspect-ratio: 1; display: block; background: var(--canvas-bg); border: 1px solid var(--rule); border-radius: 2px; image-rendering: auto; }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 0.8rem; margin-top: 0.8rem; }
+@media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="../">← ns</a><a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>solver <span class="thin">— two dimensions, live</span></h1>
+  <p class="subtitle">pseudo-spectral · vorticity form · 128² · runs in this tab</p>
+  <p class="crossref"><a href="../core/">core</a> · <a href="../pulse/">pulse</a> · <a href="../stress/">stress</a> · <a href="../exterior/">exterior</a> · <a href="../bands/">bands</a> · <a class="here" href="./">solver</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="run" role="tab">run</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<div class="pane" id="pane-run">
+<p class="lede">The real equations, in two dimensions, integrated properly: ∂<sub>t</sub>ω + u·∇ω = νΔω on a periodic square, pseudo-spectral with a radix-2 FFT written for this page, the 2/3 rule against aliasing, and a fourth-order integrating-factor Runge–Kutta step. Three experiments. The first is the paper's mechanism in its simplest form: a wave on a shear gains energy, carries a Reynolds stress, and pushes the mean flow. The other two are what two dimensions <em>cannot</em> do.</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="field" class="field"></canvas>
+    <div class="two">
+      <canvas id="series" class="chart" style="aspect-ratio:4/3;margin:0"></canvas>
+      <canvas id="prof" class="chart" style="aspect-ratio:4/3;margin:0"></canvas>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">experiment</span>
+      <div class="btn-row"><button class="btn active" data-p="orr">shear + wave</button><button class="btn" data-p="turb">decaying turbulence</button><button class="btn" data-p="merge">vortex merger</button></div>
+      <div class="stat-note" id="preset-note"></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">viscosity · ν</span>
+      <div class="slider-row"><input type="range" id="nu" min="-4" max="-1" step="0.05" value="-2.7"><span class="val" id="nu-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">wave tilt · k_y/k_x (shear + wave)</span>
+      <div class="slider-row"><input type="range" id="tilt" min="-4" max="4" step="1" value="3"><span class="val" id="tilt-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">run</span>
+      <div class="btn-row"><button class="btn active" id="play">■ pause</button><button class="btn" id="reset">↺ reset</button><button class="btn" id="n64">64²</button><button class="btn active" id="n128">128²</button></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:4em">steps/frame</span><input type="range" id="spf" min="1" max="8" step="1" value="2"><span class="val" id="spf-val"></span></div>
+    </div>
+    <div class="stats" id="run-stats"></div>
+    <div class="verdict" id="run-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--hot)"></i>positive vorticity <i style="background:var(--accent)"></i>negative vorticity · series: energy, enstrophy, max|u|, max|ω|, perturbation energy (all relative to t = 0) · profile: mean flow U(y) and Reynolds stress ⟨u′v′⟩(y)</div>
+</div>
+
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="ref">Leray 1934 · Orr 1907 · Craik–Criminale 1986 · Beale–Kato–Majda 1984 · and the paper's §1–2</p>
+<h2>Why two dimensions cannot blow up</h2>
+<p>In two dimensions vorticity is a scalar, and taking the curl of the momentum equation gives ∂<sub>t</sub>ω + u·∇ω = νΔω: vorticity is carried by the flow and diffused, nothing else. A quantity that is only transported and diffused obeys a maximum principle — its largest value can never increase — so ‖ω(t)‖<sub>∞</sub> ≤ ‖ω(0)‖<sub>∞</sub> forever. Bounded vorticity is enough to keep the flow smooth (that is the Beale–Kato–Majda criterion, and in two dimensions the bound is free). This is why the classical theory settles the two-dimensional problem completely and the three-dimensional one not at all. Run the decaying-turbulence experiment and watch max|ω|: it does not rise. Energy and enstrophy fall monotonically, because in two dimensions dE/dt = −2νZ and dZ/dt = −2νP with P the palinstrophy ½⟨|∇ω|²⟩ — the solver's selftest checks both monotonicities and that the inviscid nonlinear term conserves E and Z to 10<sup>−10</sup>.</p>
+<p>In three dimensions the vorticity equation is ∂<sub>t</sub>ω + u·∇ω = (ω·∇)u + νΔω. The new term is vortex stretching: a vortex line aligned with a stretching direction of the strain gets longer and, by conservation of angular momentum, spins faster. No maximum principle survives it. The paper's core is stretching made permanent: fluid converges on the axis and leaves along it, so axial vortex lines are stretched and the swirl grows like τ<sup>−½−h</sup> (see <a href="../core/">core</a>). Nothing in the two-dimensional equations can produce that.</p>
+
+<h2>The shear-plus-wave experiment</h2>
+<p>The base flow is the Kolmogorov shear U = sin y, with vorticity −cos y, plus a small wave ψ′ = ε cos(k<sub>x</sub>x + k<sub>y</sub>y). Where the shear dU/dy = cos y is positive (near y = 0), a wave with k<sub>y</sub>/k<sub>x</sub> &gt; 0 leans against it and is stretched: its energy grows, peaks when its crests have been turned vertical, and then decays — Orr's mechanism, which the <a href="../pulse/">pulse</a> page solves exactly for a uniform shear. Where the shear is negative the same wave is compressed immediately. The lower-right chart shows the horizontal mean flow U(y,t) and the Reynolds stress ⟨u′v′⟩(y) the wave carries; the dotted line is what U would have done under viscosity alone. The difference between the dashed and dotted lines is the wave's push on the mean flow: the divergence of a stress built from oscillations whose mean is zero. That is the whole of §2.2 of the paper, in a flow you can run.</p>
+<p>Two honest caveats. The Kolmogorov shear is itself unstable at low viscosity and eventually breaks into vortices on its own — that is not the paper's effect, it is Kolmogorov flow being Kolmogorov flow; keep ν above about 10<sup>−3</sup> for a clean run. And the amplitude here is small, so the mean-flow change is small too; the paper's pulses are large — A<sub>wave</sub> ≍ q<sup>−½−h/2</sup> — because their leading self-interaction is a gradient and cancels, and what they must cancel is the whole leading residual of the annulus.</p>
+
+<h2>The method</h2>
+<ul>
+  <li><b>Spectral space.</b> ω̂ on integer wavenumbers |k<sub>x</sub>|, |k<sub>y</sub>| &lt; n/3 (the 2/3 rule: products of two retained modes cannot alias back onto a retained mode). ψ̂ = ω̂/|k|², û = ik<sub>y</sub>ψ̂, v̂ = −ik<sub>x</sub>ψ̂.</li>
+  <li><b>The nonlinear term</b> u·∇ω is formed pointwise in real space after four inverse transforms and transformed back once.</li>
+  <li><b>Time stepping.</b> Integrating-factor RK4: the viscous factor e<sup>−ν|k|²Δt</sup> is applied exactly and only the nonlinear term is stepped, so the viscous term imposes no stability limit. The step is set from the advective CFL condition, Δt = 0.4·Δx/max|u|.</li>
+  <li><b>The FFT</b> is an iterative radix-2 Cooley–Tukey with precomputed twiddles and bit-reversal, applied to rows then columns. The selftest checks it against a naive O(n²) DFT to 10<sup>−14</sup>.</li>
+  <li><b>Known answers.</b> Taylor–Green vorticity 2cos x cos y is an exact solution decaying as e<sup>−2νt</sup> — its self-advection is identically zero — and the solver reproduces it to 10<sup>−15</sup>. The selftest is <code>ns/solver/ns2d.selftest.mjs</code> and imports the exact file this page runs.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="../">ns</a><a href="../core/">core</a><a href="../pulse/">pulse</a><a href="../stress/">stress</a><a href="../exterior/">exterior</a><a href="../bands/">bands</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+</footer>
+
+<script src="../ns.js"></script>
+<script src="ns2d.js"></script>
+<script>
+'use strict';
+(function () {
+  const { fit, fmt, stats, cssVar, chart, slider } = NS;
+  const hot = () => cssVar('--hot'), cool = () => cssVar('--accent'), grey = () => cssVar('--muted'), ink = () => cssVar('--canvas-ink');
+  const S = { n: 128, nu: Math.pow(10, -2.7), preset: 'orr', tilt: 3, playing: true, spf: 2, sim: null, hist: [], d0: null, U0: null, fps: 0, lastFrame: 0, dtLast: 0 };
+  const NOTES = {
+    orr: 'Kolmogorov shear U = sin y plus a small tilted wave (ε = 0.03, k_x = 1). Watch the perturbation energy rise and fall in the series chart and the stress ⟨u′v′⟩ appear where the shear feeds the wave.',
+    turb: 'Random low-mode vorticity left to itself. Energy and enstrophy only fall; max|ω| never rises above its starting value. Two dimensions cannot concentrate vorticity.',
+    merge: 'Two like-signed Gaussian vortices. They orbit, then merge into one — filaments shed, enstrophy dissipated, maximum vorticity never exceeding the initial peak.',
+  };
+
+  function init() {
+    const n = S.n, sim = NS2D.create(n, S.nu), w = new Float64Array(n * n);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const x = 2 * Math.PI * i / n, y = 2 * Math.PI * j / n; let v = 0;
+      if (S.preset === 'orr') { const kx = 1, ky = S.tilt, eps = 0.03; v = -Math.cos(y) + eps * (kx * kx + ky * ky) * Math.cos(kx * x + ky * y); }
+      else if (S.preset === 'turb') { for (let a = 1; a <= 5; a++) for (let b = -5; b <= 5; b++) v += Math.sin(a * x + b * y + 5.1 * a * a - 1.7 * b + 0.3 * a * b) / Math.pow(a * a + b * b + 1, 0.75); v *= 0.9; }
+      else { const g = (cx, cy, s) => { let acc = 0; for (const dx of [-2 * Math.PI, 0, 2 * Math.PI]) for (const dy of [-2 * Math.PI, 0, 2 * Math.PI]) { const r2 = (x - cx + dx) ** 2 + (y - cy + dy) ** 2; acc += Math.exp(-r2 / (2 * s * s)); } return acc; }; v = 3 * g(Math.PI - 0.55, Math.PI, 0.32) + 3 * g(Math.PI + 0.55, Math.PI, 0.32); }
+      w[j * n + i] = v;
+    }
+    sim.setVorticity(w);
+    S.sim = sim; S.hist = []; S.d0 = sim.diagnostics(); S.U0 = Float64Array.from(S.d0.U);
+    record(S.d0);
+    document.getElementById('preset-note').textContent = NOTES[S.preset];
+  }
+  function record(d) { S.hist.push({ t: d.t, E: d.E / S.d0.E, Z: d.Z / S.d0.Z, U: d.maxU / S.d0.maxU, W: d.maxW / S.d0.maxW, Ep: S.d0.Ep > 1e-12 ? d.Ep / S.d0.Ep : 0 }); if (S.hist.length > 1500) S.hist.splice(0, S.hist.length - 1500); }
+
+  // ------------------------------------------------------------ render ----
+  const fieldC = document.getElementById('field');
+  let img = null, off = null;
+  function hex(s) { s = s.trim(); if (s[0] === '#') { const n = parseInt(s.slice(1), 16); return s.length === 7 ? [(n >> 16) & 255, (n >> 8) & 255, n & 255] : [((n >> 8) & 15) * 17, ((n >> 4) & 15) * 17, (n & 15) * 17]; } const m = s.match(/[\d.]+/g); return m ? m.slice(0, 3).map(Number) : [128, 128, 128]; }
+  function drawField(d) {
+    const n = S.n, { ctx, w, h } = fit(fieldC);
+    if (!img || img.width !== n) { img = new ImageData(n, n); off = document.createElement('canvas'); off.width = n; off.height = n; }
+    const hc = hex(hot()), cc = hex(cool()), bg = hex(cssVar('--canvas-bg'));
+    const wm = Math.max(1e-9, S.d0.maxW);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const v = d.fields.w[j * n + i] / wm, m = Math.min(1, Math.pow(Math.abs(v), 0.7)), col = v > 0 ? hc : cc;
+      const k = ((n - 1 - j) * n + i) * 4;   // y up
+      img.data[k] = bg[0] + (col[0] - bg[0]) * m; img.data[k + 1] = bg[1] + (col[1] - bg[1]) * m; img.data[k + 2] = bg[2] + (col[2] - bg[2]) * m; img.data[k + 3] = 255;
+    }
+    off.getContext('2d').putImageData(img, 0, 0);
+    ctx.imageSmoothingEnabled = true; ctx.drawImage(off, 0, 0, w, h);
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = ink(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText(`ω(x, y)   t = ${fmt(d.t, 2)}   ${n}²   ν = ${fmt(S.nu, 4)}`, 8, 8);
+  }
+  function drawSeries() {
+    const H = S.hist, tmax = Math.max(1, H[H.length - 1].t);
+    let ymax = 1.2; for (const r of H) ymax = Math.max(ymax, r.Ep * 1.05, r.W * 1.05);
+    chart(document.getElementById('series'), {
+      x: [0, tmax], y: [0, Math.min(ymax, 8)], xlabel: 't', ylabel: 'relative to t = 0', pad: { l: 40, r: 8, t: 10, b: 30 },
+      draw: (c) => {
+        const ser = (key, color, width, dash) => c.line(H.map((r) => [r.t, r[key]]), color, width, dash || []);
+        ser('E', cool(), 1.4); ser('Z', cool(), 1, [3, 3]); ser('U', grey(), 1); ser('W', ink(), 1.4);
+        if (S.preset === 'orr') ser('Ep', hot(), 2);
+        const last = H[H.length - 1];
+        c.label(last.t, last.E, 'E', cool(), -14, -8); c.label(last.t, last.Z, 'Z', cool(), -14, 8); c.label(last.t, last.W, 'max|ω|', ink(), -44, -8); c.label(last.t, last.U, 'max|u|', grey(), -44, 8);
+        if (S.preset === 'orr') c.label(last.t, last.Ep, 'E′ wave', hot(), -48, -8);
+        c.line([[0, 1], [tmax, 1]], grey(), 0.6, [1, 3]);
+      },
+    });
+  }
+  function drawProfile(d) {
+    const n = S.n, ys = Array.from({ length: n }, (_, j) => 2 * Math.PI * j / n);
+    const uvScale = Math.max(1e-9, ...Array.from(d.uv).map(Math.abs));
+    chart(document.getElementById('prof'), {
+      x: [0, 2 * Math.PI], y: [-1.2, 1.2], xlabel: 'y', ylabel: 'U(y), and ⟨u′v′⟩(y) scaled', pad: { l: 40, r: 8, t: 10, b: 30 }, xticks: [0, Math.PI, 2 * Math.PI],
+      draw: (c) => {
+        c.line(ys.map((y, j) => [y, S.U0[j]]), grey(), 1, [3, 3]);
+        if (S.preset === 'orr') c.line(ys.map((y) => [y, Math.exp(-S.nu * d.t) * Math.sin(y)]), grey(), 1, [1, 3]);
+        c.line(ys.map((y, j) => [y, d.U[j]]), cool(), 1.8);
+        c.line(ys.map((y, j) => [y, d.uv[j] / uvScale * 0.9]), hot(), 1.6);
+        c.label(0.1, 1.05, 'U(y,t) solid · U(y,0) dashed' + (S.preset === 'orr' ? ' · viscous-only dotted' : ''), cool(), 0, 0);
+        c.label(0.1, -1.05, '⟨u′v′⟩(y), max = ' + fmt(uvScale, 2), hot(), 0, 0);
+      },
+    });
+  }
+  function drawStats(d) {
+    const dtl = S.dtLast;
+    let peakEp = 0, tPeak = 0; for (const r of S.hist) if (r.Ep > peakEp) { peakEp = r.Ep; tPeak = r.t; }
+    let maxWratio = 0; for (const r of S.hist) maxWratio = Math.max(maxWratio, r.W);
+    const rows = [['t', fmt(d.t, 3)], ['Δt (CFL)', fmt(dtl, 4)], ['steps', S.sim.steps], ['frames/s', fmt(S.fps, 0)],
+      ['energy E / E₀', fmt(d.E / S.d0.E, 4), 'cool'], ['enstrophy Z / Z₀', fmt(d.Z / S.d0.Z, 4), 'cool'], ['max|u| / max|u₀|', fmt(d.maxU / S.d0.maxU, 4)],
+      ['max|ω| / max|ω₀|', fmt(d.maxW / S.d0.maxW, 4), d.maxW / S.d0.maxW > 1.01 ? 'hot' : 'cool'], ['largest max|ω| ratio so far', fmt(maxWratio, 4), maxWratio > 1.01 ? 'hot' : 'cool'], ['palinstrophy P', fmt(d.P, 3)]];
+    if (S.preset === 'orr') rows.push(['wave energy E′/E′₀', fmt(d.Ep / S.d0.Ep, 3), 'hot'], ['peak E′/E′₀ so far', fmt(peakEp, 3) + ' at t = ' + fmt(tPeak, 2), 'hot'], ['max |⟨u′v′⟩|', fmt(Math.max(...Array.from(d.uv).map(Math.abs)), 3)]);
+    stats(document.getElementById('run-stats'), rows);
+    const v = document.getElementById('run-verdict');
+    if (S.preset === 'orr') { v.className = 'verdict'; v.textContent = d.Ep / S.d0.Ep > 1.05 && d.Ep >= peakEp * 0.98 ? 'The wave is gaining energy from the shear (Orr): its crests are being turned upright.' : peakEp > 1.2 && d.Ep / S.d0.Ep < 0.8 * peakEp ? 'Past the peak: the shear now compresses the wave and viscosity finishes it. Its stress has already nudged the mean flow — compare the solid and dotted profiles.' : 'Running. The tilted wave trades energy with the mean flow through ⟨u′v′⟩.'; }
+    else { v.className = 'verdict ' + (maxWratio > 1.01 ? '' : 'ok'); v.textContent = maxWratio > 1.01 ? 'max|ω| exceeded its start by ' + fmt(100 * (maxWratio - 1), 1) + '% — dealiasing and the finite grid can do that; the continuous equations cannot.' : 'Vorticity is only transported and diffused in 2D: its maximum has not grown. This is the theorem that makes two dimensions easy and three hard.'; }
+  }
+
+  // ---------------------------------------------------------------- loop --
+  let lastDiag = null;
+  function frame(now) {
+    if (S.lastFrame) S.fps = 0.9 * S.fps + 0.1 * (1000 / Math.max(1, now - S.lastFrame)); S.lastFrame = now;
+    if (S.playing) {
+      const maxU = lastDiag ? lastDiag.maxU : S.d0.maxU;
+      const dt = Math.min(0.05, 0.4 * (2 * Math.PI / S.n) / Math.max(maxU, 1e-6)); S.dtLast = dt;
+      for (let s = 0; s < S.spf; s++) S.sim.step(dt);
+    }
+    const d = S.sim.diagnostics(); lastDiag = d;
+    if (S.playing) record(d);
+    drawField(d); drawSeries(); drawProfile(d); drawStats(d);
+    requestAnimationFrame(frame);
+  }
+
+  // ------------------------------------------------------------ controls --
+  document.querySelectorAll('[data-p]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-p]').forEach((x) => x.classList.remove('active')); b.classList.add('active'); S.preset = b.dataset.p; init(); });
+  slider('nu', (v) => fmt(Math.pow(10, v), 4), (v) => { S.nu = Math.pow(10, v); if (S.sim) S.sim.setNu(S.nu); });
+  slider('tilt', (v) => v, (v) => { S.tilt = v; if (S.preset === 'orr' && S.sim) init(); });
+  slider('spf', (v) => v, (v) => { S.spf = v; });
+  document.getElementById('play').onclick = (e) => { S.playing = !S.playing; e.target.textContent = S.playing ? '■ pause' : '▶ play'; e.target.classList.toggle('active', S.playing); };
+  document.getElementById('reset').onclick = () => init();
+  document.getElementById('n64').onclick = () => { S.n = 64; document.getElementById('n64').classList.add('active'); document.getElementById('n128').classList.remove('active'); init(); };
+  document.getElementById('n128').onclick = () => { S.n = 128; document.getElementById('n128').classList.add('active'); document.getElementById('n64').classList.remove('active'); init(); };
+  NS.tabs();
+  init();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

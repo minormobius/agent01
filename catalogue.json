@@ -28,11 +28,11 @@
       "label": "data"
     },
     {
-      "before": 147,
+      "before": 154,
       "label": "tools"
     },
     {
-      "before": 212,
+      "before": 219,
       "label": "games"
     }
   ],
@@ -1954,6 +1954,119 @@
         "canvas",
         "math",
         "procgen"
+      ]
+    },
+    {
+      "n": "ns",
+      "u": "https://ns.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "surface": "ns",
+      "d": "The 2026 OpenAI paper claiming finite-time blowup for the forced 3D Navier–Stokes equations (Fefferman’s alternatives C and D), taken apart: an animated r–z anatomy of the collapsing core, the pulse annulus and the heat exterior, the proof in six moves, a timeline from Leray to now, and six sub-pages that each implement one piece of the construction in the browser. Says plainly what is claimed, what is not, and that nothing here verifies the proof.",
+      "tags": [
+        "canvas",
+        "math",
+        "index"
+      ]
+    },
+    {
+      "n": "core",
+      "u": "https://ns.mino.mobi/core/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The concentrating vortex core: every scaling law against the time remaining τ with the exponent h live (ℓ_r ≍ τ^½, ℓ_z ≍ τ^(½−h), speed ≍ τ^(−½−h), energy → 0), the similarity map q(z,τ) solved by Newton at every pixel, true meridional streamlines from the paper’s axis profile U = 4η + j₀ via the incompressibility identity, and the viscosity and torus rescalings.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "pulse",
+      "u": "https://ns.mino.mobi/pulse/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The pulse: integrates the paper’s wave-amplitude equation and overlays its Gaussian envelope P(v) — growth on the shear, then viscous death — solves the exact Orr shearing wave in Couette flow, and shows the growth condition v_s > 2 is Rayleigh’s centrifugal criterion with axial shear folded in.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "stress",
+      "u": "https://ns.mino.mobi/stress/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "Zero-mean waves, nonzero flux: Reynolds stress from a ring wave, the radial stress integrals that need zero moments to stay compact, and the admissible stress cone drawn exactly from (t_s, v_s) with a draggable target and its positive representation c₁v₊ + c₂v₋.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "exterior",
+      "u": "https://ns.mino.mobi/exterior/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The heat exterior: the paper’s exact swirl K(r,τ) = c·(r²/2)^(−A)·H(4τ/r²) computed by quadrature, checked against the swirl heat equation to finite-difference precision, marched by a plain FD solver that converges to it at second order, and shown to have smooth limits at the singular time at every fixed radius.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "bands",
+      "u": "https://ns.mino.mobi/bands/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The ledger of scales: dyadic bands Q = 2^−ℓ, ε = Q^h, S* = ℓ², the carrier k = ⌈ε^−½⌉, wavelength and amplitude ratios, the correction cycle σ_j = ⅕ + j/10, flatness — and how astronomically small q must be before h = 1/100 makes anything small.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "solver",
+      "u": "https://ns.mino.mobi/solver/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "A 2D pseudo-spectral incompressible Navier–Stokes solver in the tab — hand-written FFT, vorticity form, 2/3 dealiasing, integrating-factor RK4, selftested against Taylor–Green and the 2D conservation laws. A shear-plus-wave experiment measures ⟨u′v′⟩ and the mean-flow feedback; decaying turbulence shows the vorticity maximum never grows, which is why two dimensions cannot blow up.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
       ]
     },
     {

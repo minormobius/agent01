@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ns/stress — zero-mean waves, nonzero flux</title>
+<meta name="description" content="How oscillations that average to nothing push the mean flow: Reynolds stress from a ring wave, the radial stress integrals that need zero moments to stay compact, and the admissible stress cone of the 2026 Navier–Stokes blowup paper drawn exactly from (t_s, v_s), with a draggable target and its positive representation.">
+<link rel="stylesheet" href="../ns.css">
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="../">← ns</a><a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>stress <span class="thin">— zero-mean waves, nonzero flux</span></h1>
+  <p class="subtitle">reynolds stress · the radial integrals · the admissible cone · positive representation</p>
+  <p class="crossref"><a href="../core/">core</a> · <a href="../pulse/">pulse</a> · <a class="here" href="./">stress</a> · <a href="../exterior/">exterior</a> · <a href="../bands/">bands</a> · <a href="../solver/">solver</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="flux" role="tab">a ring wave</button>
+  <button class="tab" data-tab="div" role="tab">stress from residual</button>
+  <button class="tab" data-tab="cone" role="tab">the cone</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- FLUX ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-flux">
+<p class="lede">A wave around a ring: w<sub>r</sub> = A·cos(nθ), w<sub>θ</sub> = B·cos(nθ + φ). Each component averages to zero around the ring. Their product does not: ⟨w<sub>r</sub>w<sub>θ</sub>⟩ = ½AB·cos φ. In phase, outward motion carries a swirl surplus and inward motion a deficit — both move angular momentum outward. Flip the sign of <em>both</em> components and nothing changes; flip one and the flux reverses. That product is a Reynolds stress, and its radial divergence is a force on the mean flow.</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="ring" class="viz"></canvas>
+    <canvas id="prod" class="chart" style="aspect-ratio:5/2;margin-top:0.8rem"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">angular frequency · n</span>
+      <div class="slider-row"><input type="range" id="n" min="1" max="12" step="1" value="6"><span class="val" id="n-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">phase lag · φ</span>
+      <div class="slider-row"><input type="range" id="phi" min="0" max="6.2832" step="0.01" value="0"><span class="val" id="phi-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">amplitudes</span>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:1.4em">A</span><input type="range" id="A" min="-1" max="1" step="0.05" value="0.6"><span class="val" id="A-val"></span></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:1.4em">B</span><input type="range" id="B" min="-1" max="1" step="0.05" value="0.6"><span class="val" id="B-val"></span></div>
+      <div class="btn-row"><button class="btn" id="flipboth">reverse both</button><button class="btn" id="flipone">reverse w_θ only</button></div>
+    </div>
+    <div class="stats" id="flux-stats"></div>
+    <div class="verdict" id="flux-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--hot)"></i>w<sub>r</sub> (radial) <i style="background:var(--accent)"></i>w<sub>θ</sub> (azimuthal) <i style="background:#888"></i>w<sub>r</sub>·w<sub>θ</sub> and its mean</div>
+</div>
+
+<!-- DIVERGENCE ───────────────────────────────────────────────────── -->
+<div class="pane" id="pane-div">
+<p class="lede">The background's leftover azimuthal residual R<sub>θ</sub>(r) is written as a stress divergence, R<sub>θ</sub> = −(∂<sub>r</sub> + 2/r)T<sub>rθ</sub>, and regularity at the axis fixes T<sub>rθ</sub>(r) = −r<sup>−2</sup>∫₀<sup>r</sup> s²R<sub>θ</sub>(s)ds (§3.2). For T to vanish beyond the annulus — so that no wave is needed at infinity — the weighted integral ∫₀<sup>∞</sup> r²R<sub>θ</sub> dr must be exactly zero. Shape a residual out of two bumps and watch what a nonzero moment does to the stress: it leaves an r<sup>−2</sup> tail that never ends. The five cumulative integrals of (4.15) exist to kill such tails.</p>
+<div class="work-wrap">
+  <canvas id="divc" class="chart" style="aspect-ratio:5/3"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">residual R_θ = bump(r₁) − β·bump(r₂)</span>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:1.4em">r₁</span><input type="range" id="r1" min="0.8" max="2.2" step="0.01" value="1.2"><span class="val" id="r1-val"></span></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:1.4em">r₂</span><input type="range" id="r2" min="1.2" max="3.5" step="0.01" value="2.1"><span class="val" id="r2-val"></span></div>
+      <div class="slider-row"><span class="ctrl-label" style="min-width:1.4em">β</span><input type="range" id="beta" min="0" max="1.5" step="0.005" value="0.5"><span class="val" id="beta-val"></span></div>
+      <div class="btn-row"><button class="btn" id="zero">set β so the moment vanishes</button></div>
+    </div>
+    <div class="stats" id="div-stats"></div>
+    <div class="verdict" id="div-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--hot)"></i>residual R<sub>θ</sub>(r) <i style="background:var(--accent)"></i>stress T<sub>rθ</sub>(r) = −r<sup>−2</sup>∫₀<sup>r</sup>s²R<sub>θ</sub> <i style="background:#888"></i>r²R<sub>θ</sub>, whose total integral is the moment</div>
+</div>
+
+<!-- CONE ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-cone">
+<p class="lede">Two pulse families, σ = ±, each with a fixed direction of momentum flux per unit squared amplitude. Because squared amplitudes are positive, the stresses they can jointly realise form a cone — Figure 4 of the paper — and the profiles are built so the required stress T = (T<sub>rθ</sub>, T<sub>rz</sub>) lies strictly inside it. The cone is not free: it is determined by the background shear through the frame (N, K) and the constant c₀² = (v<sub>s</sub> − 2)/2 of §7.1. Drag the target.</p>
+<div class="work-wrap">
+  <canvas id="cone" class="viz"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">shear direction · t_s = −b_s/a</span>
+      <div class="slider-row"><input type="range" id="ts" min="-2" max="2" step="0.02" value="0.35"><span class="val" id="ts-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">shear strength · v_s</span>
+      <div class="slider-row"><input type="range" id="vs" min="2.02" max="8" step="0.02" value="3"><span class="val" id="vs-val"></span></div>
+      <div class="stat-note">c₀² = (v<sub>s</sub> − 2)/2. Near v<sub>s</sub> = 2 the pulses barely grow but the cone is the whole half-plane; strong shear narrows it toward −N.</div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">pulse tilt · u*</span>
+      <div class="slider-row"><input type="range" id="us" min="0.2" max="4" step="0.02" value="1.2"><span class="val" id="us-val"></span></div>
+      <div class="stat-note">The realised cone at the pulse midpoint (s = u*) sits inside the admissible cone of (7.1) and opens toward it as u* grows — which is exactly how the paper chooses u*.</div>
+    </div>
+    <div class="stats" id="cone-stats"></div>
+    <div class="verdict" id="cone-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--accent);opacity:.35"></i>admissible cone (4.23)/(7.1) <i style="background:var(--accent)"></i>cone realised by the two families at s = u* <i style="background:var(--hot)"></i>target T and its decomposition c₁v₊ + c₂v₋</div>
+</div>
+
+<!-- DOCS ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="ref">§2.2 · §3.2–3.3 · §4.3 · Lemma 4.5 · Propositions 7.5, 7.6 · Lemma A.8 of the paper</p>
+<h2>Averaging the nonlinear term</h2>
+<p>Add a divergence-free increment w with pressure π to a background (u<sub>B</sub>, p<sub>B</sub>). The residual changes exactly by</p>
+<div class="eq boxed">R(u<sub>B</sub> + w, p<sub>B</sub> + π) = R(u<sub>B</sub>, p<sub>B</sub>) + L<sub>u<sub>B</sub></sub>(w, π) + ∇·(w ⊗ w)</div>
+<p>The linear term is the pulse equation of the <a href="../pulse/">pulse</a> page. The quadratic term is the one that matters here: if w oscillates fast with zero mean, its angular average vanishes but the average of w ⊗ w does not, and ∇·⟨w ⊗ w⟩ is a smooth force acting on the mean flow. In cylindrical components the two entries that transport tangential momentum radially are ⟨w<sub>r</sub>w<sub>θ</sub>⟩ and ⟨w<sub>r</sub>w<sub>z</sub>⟩; their radial divergences −(∂<sub>r</sub> + 2/r) and −(∂<sub>r</sub> + 1/r) are what the background's azimuthal and axial residuals are written as (§3.2). Proposition 7.5 chooses positive squared amplitudes y so that the leading covariance equals T; the higher-order terms are smaller by positive powers of q.</p>
+
+<h2>Why the moments</h2>
+<p>Integrating a residual from the axis outward produces a stress; for that stress to be zero beyond the annulus, the total weighted integrals ∫r²R<sub>θ</sub> and ∫rR<sub>z</sub> must vanish, otherwise stresses proportional to r<sup>−2</sup> and r<sup>−1</sup> survive to infinity (§4.2, Lemma A.8). The paper keeps five cumulative radial integrals — M, I, J, S and the pressure increment C<sub>p</sub> of (4.15) — and matches them whenever two profile pieces are joined (Lemma 4.4), because the stress at a radius depends on the profile at every smaller radius through these integrals. Each correction stage of §9 solves the same five moment equations again (8.25). The second tab is the one-dimensional version of that bookkeeping.</p>
+
+<h2>The cone</h2>
+<p>In the frame of §7.1 — N along the background's tangential shear g₀ = F₀(−a, b<sub>s</sub>), K its quarter turn — the pointwise admissible condition on the leading stress is</p>
+<div class="eq boxed">T·N &lt; 0, &nbsp;&nbsp; |c₀ · (T·K)/(T·N)| &lt; 1, &nbsp;&nbsp; c₀² = (v<sub>s</sub> − 2)/2 &nbsp;&nbsp;(7.1)</div>
+<p>which is the same as the inequalities of (4.23): T<sub>θ</sub> + t<sub>s</sub>T<sub>z</sub> &gt; 0 and (v<sub>s</sub> − 2)(T<sub>z</sub> − t<sub>s</sub>T<sub>θ</sub>)² &lt; 2(T<sub>θ</sub> + t<sub>s</sub>T<sub>z</sub>)². The two pulse families have transverse amplitude t = x(e<sub>r</sub> − sK) + yN with y/x = c₀√(1 + s²) (Lemma 7.4), so their radial–tangential covariance per unit x² is ½(−sK + c₀√(1 + s²)N), with s = ±u* at the midpoint of the pulse. Both directions point into the half-plane T·N &lt; 0 (because c₀ &lt; 0), on opposite sides of −N, and the cone they span opens toward the admissible one as u* grows — since |c₀|·|s|/(|c₀|√(1 + s²)) = |s|/√(1 + s²) → 1. That is how u* is fixed in §7.1: large enough that u*/√(1 + u*²) exceeds the supremum of |c₀(T·K)/(T·N)| over the closed annulus, with the strict margin κ of Theorem 4.6(iii) making the supremum less than one.</p>
+<p>Once the target has positive coefficients, so does anything close to it, so a <em>signed</em> change of the stress can be produced by a signed change of the amplitudes about their fixed positive values: the linearised operator ℒ of Proposition 7.6 supplies the stress increments the correction cycle asks for, of either sign, without ever needing a negative squared amplitude.</p>
+
+<h2>What the canvases compute</h2>
+<ul>
+  <li><b>a ring wave</b> — the two components and their product sampled around the ring, averaged numerically, checked against ½AB cos φ.</li>
+  <li><b>stress from residual</b> — the integral T<sub>rθ</sub>(r) = −r<sup>−2</sup>∫₀<sup>r</sup>s²R<sub>θ</sub>(s)ds by the trapezoid rule, the total moment, and the size of the tail at the right edge of the plot.</li>
+  <li><b>the cone</b> — N, K, c₀ from (t<sub>s</sub>, v<sub>s</sub>); the admissible cone from (7.1); the two family directions at s = ±u*; the 2×2 solve for (c₁, c₂); and the smallest u* that would put your target inside the realised cone.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="../">ns</a><a href="../core/">core</a><a href="../pulse/">pulse</a><a href="../exterior/">exterior</a><a href="../bands/">bands</a><a href="../solver/">solver</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+</footer>
+
+<script src="../ns.js"></script>
+<script>
+'use strict';
+(function () {
+  const { fit, fmt, stats, cssVar, chart, slider } = NS;
+  const hot = () => cssVar('--hot'), cool = () => cssVar('--accent'), grey = () => cssVar('--muted'), ink = () => cssVar('--canvas-ink');
+
+  // ─────────────────────────── ring wave ──────────────────────────────
+  const W = { n: 6, phi: 0, A: 0.6, B: 0.6 };
+  function drawFlux() {
+    const c = document.getElementById('ring'); const { ctx, w, h } = fit(c);
+    ctx.clearRect(0, 0, w, h);
+    const cx = w / 2, cy = h / 2, R = Math.min(w, h) * 0.32;
+    ctx.strokeStyle = grey(); ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.283); ctx.stroke();
+    const M = 72, scale = R * 0.55;
+    let sr = 0, st = 0, sp = 0;
+    for (let i = 0; i < M; i++) {
+      const th = 2 * Math.PI * i / M, wr = W.A * Math.cos(W.n * th), wt = W.B * Math.cos(W.n * th + W.phi);
+      sr += wr; st += wt; sp += wr * wt;
+      const er = [Math.cos(th), Math.sin(th)], et = [-Math.sin(th), Math.cos(th)];
+      const x0 = cx + R * er[0], y0 = cy - R * er[1];
+      // radial component (hot) and azimuthal (cool) as separate arrows, then the resultant faint
+      arrow(ctx, x0, y0, x0 + scale * wr * er[0], y0 - scale * wr * er[1], hot(), 1.4);
+      arrow(ctx, x0, y0, x0 + scale * wt * et[0], y0 - scale * wt * et[1], cool(), 1.4);
+    }
+    // where is the angular-momentum flux outward? colour the ring by w_r*w_theta
+    for (let i = 0; i < 360; i++) { const th = 2 * Math.PI * i / 360, p = W.A * Math.cos(W.n * th) * W.B * Math.cos(W.n * th + W.phi); ctx.strokeStyle = p > 0 ? hot() : cool(); ctx.globalAlpha = Math.min(1, Math.abs(p) * 2.5); ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(cx, cy, R, -th - 0.01, -th + 0.012, true); ctx.stroke(); }
+    ctx.globalAlpha = 1;
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = grey(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('ring coloured by the local product w_r·w_θ: outward angular-momentum flux (hot) or inward (cool)', 8, 8);
+    const mean = sp / M, meanR = sr / M, meanT = st / M, th = 0.5 * W.A * W.B * Math.cos(W.phi);
+    chart(document.getElementById('prod'), {
+      x: [0, 360], y: [-1.05, 1.05], xlabel: 'θ (degrees)', ylabel: 'w and w_r·w_θ', xticks: [0, 90, 180, 270, 360],
+      draw: (cc) => {
+        const a = [], b = [], p = []; for (let i = 0; i <= 360; i++) { const t = 2 * Math.PI * i / 360, wr = W.A * Math.cos(W.n * t), wt = W.B * Math.cos(W.n * t + W.phi); a.push([i, wr]); b.push([i, wt]); p.push([i, wr * wt]); }
+        cc.ctx.fillStyle = grey(); cc.ctx.globalAlpha = 0.18; cc.ctx.fillRect(cc.X(0), cc.Y(Math.max(mean, 0)), cc.X(360) - cc.X(0), Math.abs(cc.Y(0) - cc.Y(mean))); cc.ctx.globalAlpha = 1;
+        cc.line(a, hot(), 1.2); cc.line(b, cool(), 1.2); cc.line(p, grey(), 1.8);
+        cc.line([[0, mean], [360, mean]], ink(), 1, [4, 3]);
+        cc.label(300, mean, '⟨w_r w_θ⟩ = ' + fmt(mean, 3), ink(), 4, mean >= 0 ? -9 : 9);
+      },
+    });
+    stats(document.getElementById('flux-stats'), [
+      ['⟨w_r⟩ (numeric)', fmt(meanR, 3)], ['⟨w_θ⟩ (numeric)', fmt(meanT, 3)],
+      ['⟨w_r w_θ⟩ (numeric)', fmt(mean, 4), 'hot'], ['½AB cos φ', fmt(th, 4), 'hot'],
+      ['|⟨w_r w_θ⟩| / (|A||B|/2)', fmt(Math.abs(Math.cos(W.phi)), 3)],
+    ]);
+    const v = document.getElementById('flux-verdict');
+    v.className = 'verdict ' + (Math.abs(mean) > 0.02 ? 'bad' : 'ok');
+    v.textContent = Math.abs(mean) > 0.02 ? (mean > 0 ? 'Net outward flux of angular momentum, from a wave with no mean velocity at all. This is the “internal force” the paper uses in place of an external one (§2.2).' : 'Net inward flux of angular momentum. Same wave, one sign flipped — the divergence of the stress now pushes the other way.') : 'Quadrature: radial and azimuthal motion are 90° out of phase, the product averages to zero, and the wave transports nothing on average.';
+  }
+  function arrow(ctx, x0, y0, x1, y1, color, lw) {
+    const L = Math.hypot(x1 - x0, y1 - y0); if (L < 1.5) return;
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = lw; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    const ang = Math.atan2(y1 - y0, x1 - x0); ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - 4 * Math.cos(ang - 0.5), y1 - 4 * Math.sin(ang - 0.5)); ctx.lineTo(x1 - 4 * Math.cos(ang + 0.5), y1 - 4 * Math.sin(ang + 0.5)); ctx.fill();
+  }
+  slider('n', (v) => v, (v) => { W.n = v; drawFlux(); });
+  const phiS = slider('phi', (v) => fmt(v * 180 / Math.PI, 0) + '°', (v) => { W.phi = v; drawFlux(); });
+  const AS = slider('A', (v) => fmt(v, 2), (v) => { W.A = v; drawFlux(); });
+  const BS = slider('B', (v) => fmt(v, 2), (v) => { W.B = v; drawFlux(); });
+  document.getElementById('flipboth').onclick = () => { AS.set(-W.A); BS.set(-W.B); };
+  document.getElementById('flipone').onclick = () => { BS.set(-W.B); };
+
+  // ─────────────────────────── stress from residual ───────────────────
+  const Dv = { r1: 1.2, r2: 2.1, beta: 0.5 };
+  const bump = (r, r0, wdt = 0.18) => { const x = (r - r0) / wdt; return Math.abs(x) < 1 ? Math.exp(-1 / (1 - x * x)) * Math.E : 0; };
+  function residual(r) { return bump(r, Dv.r1) - Dv.beta * bump(r, Dv.r2); }
+  function computeStress() {
+    const N = 1200, rmax = 6, dr = rmax / N, R = new Float64Array(N + 1), T = new Float64Array(N + 1), M = new Float64Array(N + 1);
+    let acc = 0;
+    for (let i = 0; i <= N; i++) { const r = i * dr; R[i] = residual(r); M[i] = r * r * R[i]; if (i > 0) acc += 0.5 * dr * (M[i] + M[i - 1]); T[i] = i === 0 ? 0 : -acc / (r * r); }
+    return { N, dr, R, T, M, moment: acc };
+  }
+  function betaZero() { // ∫ r² bump(r, r1) = β ∫ r² bump(r, r2)
+    const N = 4000, dr = 6 / N; let a = 0, b = 0;
+    for (let i = 0; i <= N; i++) { const r = i * dr, wgt = (i === 0 || i === N) ? 0.5 : 1; a += wgt * dr * r * r * bump(r, Dv.r1); b += wgt * dr * r * r * bump(r, Dv.r2); }
+    return a / b;
+  }
+  function drawDiv() {
+    const S = computeStress();
+    const tmax = Math.max(0.05, ...Array.from(S.T).map(Math.abs)) * 1.15;
+    chart(document.getElementById('divc'), {
+      x: [0, 6], y: [-1.2, 1.2], xlabel: 'r  (annulus roughly 1 … 2.5)', ylabel: 'R_θ, r²R_θ / 4, and T_rθ (scaled ×' + fmt(1 / tmax, 2) + ')',
+      draw: (c) => {
+        const rr = [], mm = [], tt = []; for (let i = 0; i <= S.N; i += 2) { const r = i * S.dr; rr.push([r, S.R[i]]); mm.push([r, S.M[i] / 4]); tt.push([r, S.T[i] / tmax]); }
+        c.line(mm, grey(), 1, [3, 3]); c.line(rr, hot(), 1.6); c.line(tt, cool(), 2);
+        c.line([[0, 0], [6, 0]], grey(), 0.8);
+        const tail = S.T[S.N] / tmax; c.label(5.9, tail, 'T at r = 6: ' + fmt(S.T[S.N], 3), cool(), -4, tail < 0 ? 10 : -10, 'right');
+      },
+    });
+    const tailRel = Math.abs(S.T[S.N]) / Math.max(1e-12, ...Array.from(S.T).map(Math.abs));
+    stats(document.getElementById('div-stats'), [
+      ['moment ∫ r² R_θ dr', fmt(S.moment, 4), Math.abs(S.moment) > 1e-3 ? 'hot' : 'cool'],
+      ['T_rθ at r = 6', fmt(S.T[S.N], 4), Math.abs(S.T[S.N]) > 1e-3 ? 'hot' : 'cool'],
+      ['tail / max |T|', fmt(tailRel, 3)],
+      ['predicted tail −moment/r²', fmt(-S.moment / 36, 4)],
+      ['β for zero moment', fmt(betaZero(), 4)],
+    ]);
+    const v = document.getElementById('div-verdict');
+    if (Math.abs(S.moment) > 2e-3) { v.className = 'verdict bad'; v.textContent = 'Nonzero moment: the stress decays only like −moment/r² and would need waves at every radius out to infinity. The paper forbids this — Lemma A.8 uses the total moment identities to make T vanish for X ≥ X_b.'; }
+    else { v.className = 'verdict ok'; v.textContent = 'Zero moment: the stress is compactly supported in the annulus, exactly where the two pulse families live. This is the property the five cumulative integrals of (4.15) preserve at every profile join and every correction stage.'; }
+  }
+  slider('r1', (v) => fmt(v, 2), (v) => { Dv.r1 = v; drawDiv(); });
+  slider('r2', (v) => fmt(v, 2), (v) => { Dv.r2 = v; drawDiv(); });
+  const betaS = slider('beta', (v) => fmt(v, 3), (v) => { Dv.beta = v; drawDiv(); });
+  document.getElementById('zero').onclick = () => betaS.set(betaZero().toFixed(4));
+
+  // ─────────────────────────── the cone ───────────────────────────────
+  const C = { ts: 0.35, vs: 3, us: 1.2, T: [0.55, 0.15], drag: false };
+  const coneC = document.getElementById('cone');
+  function frame() {
+    const nrm = Math.sqrt(1 + C.ts * C.ts);
+    const N = [-1 / nrm, -C.ts / nrm];              // N = g0/|g0|, g0 = -a F0 (1, t_s)
+    const K = [-N[1], N[0]];                        // quarter turn
+    const c0 = -Math.sqrt((C.vs - 2) / 2);
+    const s = C.us, f = Math.sqrt(1 + s * s);
+    // family directions at the pulse midpoint, per unit x²/2:  −s K + c0 f N  with s = ±u*
+    const vP = [-s * K[0] + c0 * f * N[0], -s * K[1] + c0 * f * N[1]];
+    const vM = [s * K[0] + c0 * f * N[0], s * K[1] + c0 * f * N[1]];
+    // admissible cone edges (7.1): −N ± K/|c0|
+    const eP = [-N[0] + K[0] / Math.abs(c0), -N[1] + K[1] / Math.abs(c0)], eM = [-N[0] - K[0] / Math.abs(c0), -N[1] - K[1] / Math.abs(c0)];
+    return { N, K, c0, vP, vM, eP, eM };
+  }
+  function solve2(v1, v2, T) { const det = v1[0] * v2[1] - v1[1] * v2[0]; if (Math.abs(det) < 1e-12) return [NaN, NaN]; return [(T[0] * v2[1] - T[1] * v2[0]) / det, (v1[0] * T[1] - v1[1] * T[0]) / det]; }
+  function drawCone() {
+    const { ctx, w, h } = fit(coneC); ctx.clearRect(0, 0, w, h);
+    const F = frame(), cx = w / 2, cy = h / 2, sc = Math.min(w, h) * 0.42;
+    const px = (v) => cx + v[0] * sc, py = (v) => cy - v[1] * sc;
+    const unit = (v) => { const L = Math.hypot(v[0], v[1]); return [v[0] / L, v[1] / L]; };
+    // axes
+    ctx.strokeStyle = grey(); ctx.lineWidth = 0.8; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = grey(); ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillText('T_rθ →', w - 8, cy - 4); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('T_rz ↑', cx + 6, 8);
+    // admissible cone (wedge between eM and eP, far)
+    const wedge = (a, b, color, alpha, far) => { const ua = unit(a), ub = unit(b); ctx.fillStyle = color; ctx.globalAlpha = alpha; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px([ua[0] * far, ua[1] * far]), py([ua[0] * far, ua[1] * far])); ctx.lineTo(px([(ua[0] + ub[0]) * far, (ua[1] + ub[1]) * far]), py([(ua[0] + ub[0]) * far, (ua[1] + ub[1]) * far])); ctx.lineTo(px([ub[0] * far, ub[1] * far]), py([ub[0] * far, ub[1] * far])); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1; };
+    wedge(F.eM, F.eP, cool(), 0.12, 3);
+    wedge(F.vM, F.vP, cool(), 0.22, 3);
+    // frame vectors
+    const arrowV = (v, color, label, lw = 1.4) => { const u = unit(v); arrow(ctx, cx, cy, px([u[0] * 0.9, u[1] * 0.9]), py([u[0] * 0.9, u[1] * 0.9]), color, lw); ctx.fillStyle = color; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, px([u[0] * 0.98, u[1] * 0.98]), py([u[0] * 0.98, u[1] * 0.98])); };
+    arrowV([-F.N[0], -F.N[1]], grey(), '−N');
+    arrowV(F.K, grey(), 'K');
+    arrowV(F.vP, cool(), 'v₊  (σ = +)', 1.8); arrowV(F.vM, cool(), 'v₋  (σ = −)', 1.8);
+    // target and decomposition
+    const [c1, c2] = solve2(F.vP, F.vM, C.T);
+    const inside = c1 > 0 && c2 > 0;
+    const p1 = [c1 * F.vP[0], c1 * F.vP[1]];
+    if (isFinite(c1)) { ctx.strokeStyle = hot(); ctx.setLineDash([4, 3]); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px(p1), py(p1)); ctx.lineTo(px(C.T), py(C.T)); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = hot(); ctx.textAlign = 'left'; ctx.fillText('c₁v₊', px([p1[0] / 2, p1[1] / 2]) + 6, py([p1[0] / 2, p1[1] / 2])); ctx.fillText('c₂v₋', px([(p1[0] + C.T[0]) / 2, (p1[1] + C.T[1]) / 2]) + 6, py([(p1[0] + C.T[0]) / 2, (p1[1] + C.T[1]) / 2])); }
+    arrow(ctx, cx, cy, px(C.T), py(C.T), hot(), 2.2);
+    ctx.fillStyle = hot(); ctx.beginPath(); ctx.arc(px(C.T), py(C.T), 6, 0, 6.283); ctx.fill();
+    ctx.fillStyle = grey(); ctx.textAlign = 'left'; ctx.textBaseline = 'top'; ctx.fillText('drag the target T', px(C.T) + 10, py(C.T) + 6);
+    // (7.1) test
+    const TN = C.T[0] * F.N[0] + C.T[1] * F.N[1], TK = C.T[0] * F.K[0] + C.T[1] * F.K[1];
+    const q = Math.abs(F.c0 * TK / TN);
+    const admissible = TN < 0 && q < 1;
+    const uNeeded = admissible ? (q < 1 ? q / Math.sqrt(1 - q * q) : Infinity) : Infinity;   // u*/√(1+u*²) > q  ⇔  u* > q/√(1−q²)
+    const Tth = C.T[0], Tz = C.T[1];
+    stats(document.getElementById('cone-stats'), [
+      ['c₀ = −√((v_s−2)/2)', fmt(F.c0, 3)], ['T·N', fmt(TN, 3), TN < 0 ? 'cool' : 'hot'], ['|c₀ (T·K)/(T·N)|', fmt(q, 3), q < 1 ? 'cool' : 'hot'],
+      ['T_θ + t_s T_z', fmt(Tth + C.ts * Tz, 3)], ['(v_s−2)(T_z−t_sT_θ)² vs 2(T_θ+t_sT_z)²', fmt((C.vs - 2) * Math.pow(Tz - C.ts * Tth, 2), 3) + ' vs ' + fmt(2 * Math.pow(Tth + C.ts * Tz, 2), 3)],
+      ['c₁, c₂ (realised cone)', fmt(c1, 3) + ', ' + fmt(c2, 3), inside ? 'cool' : 'hot'],
+      ['smallest u* that works', isFinite(uNeeded) ? fmt(uNeeded, 3) : 'none', isFinite(uNeeded) && uNeeded <= C.us ? 'cool' : 'hot'],
+    ]);
+    const v = document.getElementById('cone-verdict');
+    if (inside) { v.className = 'verdict ok'; v.textContent = 'T = c₁v₊ + c₂v₋ with both coefficients positive: two families with squared amplitudes ∝ c₁, c₂ realise this stress (Proposition 7.5). Small perturbations keep both signs, which is what lets the later corrections be signed.'; }
+    else if (admissible) { v.className = 'verdict'; v.textContent = 'Admissible by (7.1), but the realised cone at this u* is too narrow. Raise u* above ' + fmt(uNeeded, 3) + ' and the pulses tilt far enough to cover it — this is the choice made after (7.1).'; }
+    else { v.className = 'verdict bad'; v.textContent = TN >= 0 ? 'T·N ≥ 0: the stress points along the shear, and no positive combination of the two families can produce it. Theorem 4.6(iii) builds the profile so this never happens on the annulus.' : 'Outside the admissible cone: |c₀(T·K)/(T·N)| ≥ 1. Weaker shear (smaller v_s) widens the cone; the profile construction in Appendix C adjusts the shear so the stress always fits.'; }
+  }
+  function toTarget(e) { const b = coneC.getBoundingClientRect(); const sc = Math.min(b.width, b.height) * 0.42; return [(e.clientX - b.left - b.width / 2) / sc, -(e.clientY - b.top - b.height / 2) / sc]; }
+  coneC.addEventListener('pointerdown', (e) => { C.drag = true; C.T = toTarget(e); drawCone(); coneC.setPointerCapture(e.pointerId); });
+  coneC.addEventListener('pointermove', (e) => { if (!C.drag) return; C.T = toTarget(e); drawCone(); });
+  coneC.addEventListener('pointerup', () => { C.drag = false; });
+  slider('ts', (v) => fmt(v, 2), (v) => { C.ts = v; drawCone(); });
+  slider('vs', (v) => fmt(v, 2), (v) => { C.vs = v; drawCone(); });
+  slider('us', (v) => fmt(v, 2), (v) => { C.us = v; drawCone(); });
+
+  const redraw = { flux: drawFlux, div: drawDiv, cone: drawCone };
+  NS.tabs((id) => { if (redraw[id]) requestAnimationFrame(redraw[id]); });
+  window.addEventListener('resize', () => { const a = document.querySelector('.tab.active'); if (a && redraw[a.dataset.tab]) redraw[a.dataset.tab](); });
+})();
+</script>
+</body>
+</html>

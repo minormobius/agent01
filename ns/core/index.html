@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ns/core — the concentrating core</title>
+<meta name="description" content="The self-similar vortex core of the 2026 Navier–Stokes blowup construction: every scaling law against the time remaining with the exponent h live, the similarity coordinates q(z,τ), true meridional streamlines from the paper's reference axis profile, and the viscosity and torus rescalings.">
+<link rel="stylesheet" href="../ns.css">
+<style>
+.pick { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); margin-top: 0.4rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="../">← ns</a><a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>core <span class="thin">— the concentrating vortex</span></h1>
+  <p class="subtitle">similarity coordinates · scaling laws · the axis profile · rescaling ν</p>
+  <p class="crossref"><a class="here" href="./">core</a> · <a href="../pulse/">pulse</a> · <a href="../stress/">stress</a> · <a href="../exterior/">exterior</a> · <a href="../bands/">bands</a> · <a href="../solver/">solver</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="scaling" role="tab">scaling laws</button>
+  <button class="tab" data-tab="map" role="tab">similarity map</button>
+  <button class="tab" data-tab="flow" role="tab">meridional flow</button>
+  <button class="tab" data-tab="nu" role="tab">viscosity &amp; torus</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- SCALING ──────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-scaling">
+<p class="lede">Every length, speed, energy and Reynolds number of the core is a power of the time remaining τ = 1 − t, and every exponent is built from one number h. The paper takes 0 &lt; h &lt; 1/100 (Theorem 3.1). Move h to see which laws care and which do not — and where the whole thing would break.</p>
+<div class="work-wrap">
+  <canvas id="sc" class="chart" style="aspect-ratio:1"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">exponent h</span>
+      <div class="slider-row"><input type="range" id="h" min="0.001" max="0.2" step="0.001" value="0.01"><span class="val" id="h-val"></span></div>
+      <div class="stat-note">A = ½ + h is the swirl growth exponent, D = ½ − h the axial length exponent (4.1). The proof needs h &lt; 1/100; bounded dissipation alone only needs h &lt; 1/6 — push past it.</div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">read off at τ</span>
+      <div class="slider-row"><input type="range" id="tau" min="-8" max="0" step="0.05" value="-4"><span class="val" id="tau-val"></span></div>
+    </div>
+    <div class="stats" id="sc-stats"></div>
+    <div class="verdict" id="sc-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--hot)"></i>grows <i style="background:var(--accent)"></i>shrinks <i style="background:#888"></i>bounded</div>
+</div>
+
+<!-- MAP ──────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-map">
+<p class="lede">The change of variables the whole construction lives in (3.2): τ = q(1 − η²), z = q<sup>D</sup>η, X = r²/2q. At fixed time, q depends on height — it grows like |z|<sup>1/D</sup> away from the middle plane — so the coordinate grid in the physical r–z plane is a family of curves. Click anywhere to read (q, X, η) at that point; scrub τ to watch the grid concentrate.</p>
+<div class="work-wrap">
+  <canvas id="map" class="viz"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">time remaining · τ</span>
+      <div class="slider-row"><input type="range" id="mtau" min="-3" max="0" step="0.01" value="-0.5"><span class="val" id="mtau-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">exponent h</span>
+      <div class="btn-row"><button class="btn active" data-mh="0.01">1/100</button><button class="btn hot" data-mh="0.15">0.15</button></div>
+    </div>
+    <div class="stats" id="map-stats"></div>
+    <div class="pick" id="map-pick">click the canvas</div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--accent)"></i>level sets of X (r² = 2qX) <i style="background:var(--hot)"></i>level sets of η (z = q<sup>D</sup>η)</div>
+</div>
+
+<!-- FLOW ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-flow">
+<p class="lede">The meridional flow is not a cartoon. Given the axial profile U(η), incompressibility and regularity at the axis <em>determine</em> the radial flux r·u<sub>r</sub> = V₀ by the identity (4.7). The paper's reference axis data is U* = 4η + j₀ with a small offset 0 &lt; j₀ ≤ 0.05 (proof of Proposition 4.10) — the "slight upward bias" of §2.1. These are the instantaneous streamlines of that field at fixed τ, in similarity units.</p>
+<div class="work-wrap">
+  <canvas id="flow" class="viz"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">axis offset j₀ (U = 4η + j₀)</span>
+      <div class="slider-row"><input type="range" id="j0" min="0" max="0.05" step="0.001" value="0.02"><span class="val" id="j0-val"></span></div>
+      <div class="stat-note">With j₀ = 0 the flow is reflection-symmetric and u<sub>z</sub> vanishes on z = 0 — leaving no radial shear of the axial velocity to amplify pulses near the middle plane. The offset separates the layer where u<sub>z</sub> = 0 from the layer where the rotational mechanism is weak.</div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">exponent h</span>
+      <div class="slider-row"><input type="range" id="fh" min="0.001" max="0.2" step="0.001" value="0.01"><span class="val" id="fh-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">show</span>
+      <div class="btn-row"><button class="btn active" id="f-lines">streamlines</button><button class="btn active" id="f-layers">layers</button></div>
+    </div>
+    <div class="stats" id="flow-stats"></div>
+  </div>
+</div>
+<div class="eq boxed">V₀ = (X/L)·(2ηU − 2Dη·A<sub>X</sub>(U) − d·∂<sub>η</sub>A<sub>X</sub>(U)), &nbsp; d = 1 − η², &nbsp; L = 1 − 2hη², &nbsp; A<sub>X</sub>(U) = X<sup>−1</sup>∫₀<sup>X</sup>U &nbsp;&nbsp;(4.7)</div>
+<p class="stat-note" style="margin-top:0">For U = 4η + j₀ the radial average A<sub>X</sub>(U) equals U itself, so V₀ = (X/L)·(2Aη(4η + j₀) − 4(1 − η²)): inflow (V₀ &lt; 0) in a band around the middle plane, outflow beyond |η| ≈ 0.7. The axial velocity vanishes on η = −j₀/4, below the middle plane.</p>
+</div>
+
+<!-- VISCOSITY ────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-nu">
+<p class="lede">The whole construction is done at ν = 1. One rescaling gives every viscosity: u<sub>ν</sub>(x,t) = √ν·u(x/√ν, t), p<sub>ν</sub> = ν·p(x/√ν, t), f<sub>ν</sub> = √ν·f(x/√ν, t) — equation (10.22). Time is untouched, so the singular time stays t = 1. The periodic case (Corollary 10.6) then shrinks everything by a factor λ into the unit cube and copies it to every lattice point.</p>
+<div class="work-wrap">
+  <canvas id="nu" class="viz"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">viscosity · ν</span>
+      <div class="slider-row"><input type="range" id="nu" min="-3" max="3" step="0.05" value="0"><span class="val" id="nu-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">periodisation factor · λ</span>
+      <div class="slider-row"><input type="range" id="lam" min="1" max="12" step="0.05" value="3"><span class="val" id="lam-val"></span></div>
+      <div class="stat-note">λ must be large enough that λ<sup>−1</sup>K<sub>ν</sub> fits strictly inside the open cube (−½, ½)³; here K is drawn as a ball of radius 1 at ν = 1 (illustrative — the paper's K is some compact set).</div>
+    </div>
+    <div class="stats" id="nu-stats"></div>
+    <div class="verdict" id="nu-verdict"></div>
+  </div>
+</div>
+</div>
+
+<!-- DOCS ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="ref">§2.1 · §3.1 · §4.1 · §10.4–10.5 of the paper</p>
+<h2>The picture</h2>
+<p>Take cylindrical coordinates (r, θ, z) about the vertical axis. The leading flow is axisymmetric — its components depend on r, z, t but not θ. In the middle of the core, fluid spirals inward toward the axis and leaves upward and downward on either side of a dividing layer close to z = 0; farther above and below there is radial outflow. Pressure falls toward the axis and supplies the centripetal force. Angular momentum carried inward spins the core up: a torque-free parcel conserves r·u<sub>θ</sub>, so moving inward raises u<sub>θ</sub>. Viscosity carries angular momentum back out; the growth of the characteristic speed is the balance of the two.</p>
+
+<h2>The coordinates</h2>
+<div class="eq boxed">τ = 1 − t, &nbsp; A = ½ + h, &nbsp; D = ½ − h, &nbsp; 0 &lt; h &lt; 1/100<br>τ = q(1 − η²), &nbsp; z = q<sup>D</sup>η, &nbsp; X = r²/2q, &nbsp; q &gt; 0, &nbsp; −1 &lt; η &lt; 1</div>
+<p>For τ &gt; 0 the concentration scale q = q(z, τ) is the unique root of q − z²q<sup>2h</sup> = τ (Lemma 4.1: the left side is increasing in q, with derivative L = 1 − 2hη² ≥ 1 − 2h). It satisfies q ≍ τ + |z|<sup>1/D</sup>. Letting q ↓ 0 at bounded X approaches the singular point; the parameter endpoints η = ±1 with q &gt; 0 describe t = 1 away from it. The leading field is</p>
+<div class="eq">u<sub>θ</sub><sup>(0)</sup> = q<sup>−A</sup>E(X,η), &nbsp; u<sub>z</sub><sup>(0)</sup> = q<sup>−A</sup>U(X,η), &nbsp; r·u<sub>r</sub><sup>(0)</sup> = V₀(X,η), &nbsp; p<sup>(0)</sup> = q<sup>−2A</sup>Π(X,η)</div>
+<p>with E = √(2X)·F for a smooth positive F — the √X factor is the swirl vanishing linearly at the axis — and incompressibility fixing V₀ from U by (4.7). The leading radial momentum balance is the centrifugal one, ∂<sub>X</sub>Π = E²/2X, normalised so Π → 0 at radial infinity (4.25).</p>
+
+<h2>The scalings</h2>
+<p>On the core C<sub>τ</sub> = {0 ≤ X ≤ X<sub>c</sub>, |η| ≤ η<sub>c</sub>} one has q ≍ τ, so</p>
+<div class="eq">ℓ<sub>r</sub> ≍ τ<sup>½</sup>, &nbsp; ℓ<sub>z</sub> ≍ τ<sup>½−h</sup>, &nbsp; ℓ<sub>z</sub>/ℓ<sub>r</sub> ≍ τ<sup>−h</sup> → ∞<br>‖u<sub>θ</sub>‖, ‖u<sub>z</sub>‖ ≍ τ<sup>−½−h</sup>, &nbsp; ‖u<sub>r</sub>‖ = O(τ<sup>−½</sup>), &nbsp; vol ≍ τ<sup>3/2−h</sup><br>E<sub>core</sub> ≍ τ<sup>½−3h</sup> → 0, &nbsp; D<sub>core</sub> = ∫|∂<sub>r</sub>u|² ≍ τ<sup>−½−3h</sup>, &nbsp; Re<sub>θ</sub> ≍ τ<sup>−h</sup>, &nbsp; Re<sub>r</sub> = O(1)</div>
+<p>Two things are worth staring at. The core becomes an ever more slender column — radius shrinking faster than height — and its kinetic energy goes to zero while its speed goes to infinity. The total dissipation up to the singular time is ∫₀ τ<sup>−½−3h</sup>dτ, finite exactly when h &lt; 1/6. The swirl Reynolds number diverges — fluid makes more and more turns per radial diffusion time — but the radial one stays bounded, so viscosity keeps competing with the inflow. Axial diffusion is weaker than radial by the factor ℓ<sub>r</sub>²/ℓ<sub>z</sub>² ≍ τ<sup>2h</sup>, and that ratio is the expansion parameter for the background corrections of §5 (see <a href="../bands/">bands</a>).</p>
+<p>The lower bound on the axial speed comes from the nonzero axis datum: the paper prescribes U*(η) = 4η + j₀ at the axis with 0 &lt; j₀ ≤ 0.05, and an azimuthal reference profile E₀ = P*(1 + η²)<sup>−1</sup>(X/X<sub>R</sub>)<sup>1/10</sup> farther out, where P* is large (Lemma 4.8, Proposition 4.10). The asymmetry is not decoration: with exact reflection symmetry u<sub>z</sub> would vanish on z = 0 and there would be no radial shear of the axial velocity to amplify pulses near the middle plane, where the rotational mechanism is weakest (§2.1).</p>
+
+<h2>Viscosity, and the torus</h2>
+<p>If (u, p, f) solves the equation at viscosity one, then u<sub>ν</sub>(x,t) = √ν·u(x/√ν, t), p<sub>ν</sub> = νp(x/√ν, t), f<sub>ν</sub> = √ν·f(x/√ν, t) solves it at viscosity ν with the same singular time; the support becomes √ν·K and energy and dissipation scale by ν<sup>5/2</sup> (10.22–10.23). A bounded-energy competitor at viscosity ν would rescale back to one at viscosity one, which is already excluded. For the periodic statement, choose λ &gt; 1 with λ<sup>−1</sup>K<sub>ν</sub> inside the open cube, put t₀ = 1 − λ<sup>−2</sup>, and set ũ(x,t) = λu(λx, λ²(t − t₀)), p̃ = λ²p, f̃ = λ³f; every term of the equation picks up the same factor λ³, so ν is unchanged, and the original time one is reached at t = 1 again. Sum the integer translates: they never overlap, so the nonlinear term is exactly preserved and the pressure is periodic as the erratum to the problem statement requires (Corollary 10.6).</p>
+
+<h2>What the canvases compute</h2>
+<ul>
+  <li><b>scaling laws</b> — the eight power laws above, drawn honestly on log–log axes from τ = 10<sup>−8</sup> to 1, with the dissipation integral evaluated in closed form.</li>
+  <li><b>similarity map</b> — Newton's method on q − z²q<sup>2h</sup> = τ at every pixel; level sets of X and η in the physical half-plane.</li>
+  <li><b>meridional flow</b> — RK4 streamlines of the field (u<sub>r</sub>, u<sub>z</sub>) = (V₀/r, q<sup>−A</sup>U) with V₀ from (4.7), for U = 4η + j₀. The two marked layers are where u<sub>z</sub> = 0 (η = −j₀/4) and where V₀ = 0 (the roots of 2Aη(4η + j₀) = 4(1 − η²)).</li>
+  <li><b>viscosity &amp; torus</b> — the rescaling exponents of (10.22)–(10.23) and Corollary 10.6, with the containment condition checked.</li>
+</ul>
+</div>
+</div>
+
+<footer>
+  <a href="../">ns</a><a href="../pulse/">pulse</a><a href="../stress/">stress</a><a href="../exterior/">exterior</a><a href="../bands/">bands</a><a href="../solver/">solver</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+</footer>
+
+<script src="../ns.js"></script>
+<script>
+'use strict';
+(function () {
+  const { fit, fmt, stats, cssVar, chart, slider, qOf } = NS;
+  const hot = () => cssVar('--hot'), cool = () => cssVar('--accent'), grey = () => cssVar('--muted'), ink = () => cssVar('--canvas-ink');
+
+  // ─────────────────────────── scaling laws ───────────────────────────
+  let H = 0.01, logTau = -4;
+  function laws(h) {
+    const A = 0.5 + h, D = 0.5 - h;
+    return [
+      { k: 'ℓ_r = τ^½', e: 0.5, c: cool(), lx: 1e-7, dy: -8 },
+      { k: 'ℓ_z = τ^(½−h)', e: D, c: cool(), lx: 3e-5, dy: 9 },
+      { k: 'vol = τ^(3/2−h)', e: 1.5 - h, c: cool(), lx: 1e-4, dy: 8 },
+      { k: 'E_core = τ^(½−3h)', e: 0.5 - 3 * h, c: cool(), lx: 3e-3, dy: 9 },
+      { k: '|u_r| = τ^−½', e: -0.5, c: hot(), lx: 1e-7, dy: 9 },
+      { k: '|u_θ|,|u_z| = τ^(−½−h)', e: -A, c: hot(), lx: 3e-5, dy: -9 },
+      { k: 'D_core = τ^(−½−3h)', e: -0.5 - 3 * h, c: hot(), lx: 3e-3, dy: -9 },
+      { k: 'Re_θ = τ^−h', e: -h, c: hot(), lx: 1e-7, dy: -8 },
+      { k: 'ℓ_z/ℓ_r = τ^−h', e: -h, c: hot(), dash: [3, 3], lx: 1e-4, dy: -8 },
+      { k: 'Re_r = O(1)', e: 0, c: grey(), dash: [1, 3], lx: 1e-2, dy: 9 },
+    ];
+  }
+  function drawScaling() {
+    const L = laws(H), tau = Math.pow(10, logTau);
+    chart(document.getElementById('sc'), {
+      x: [1e-8, 1], y: [1e-8, 1e8], xlog: true, ylog: true, xlabel: 'τ = 1 − t  (time remaining)', ylabel: 'scale (ν = 1 units)',
+      draw: (c) => {
+        for (const l of L) {
+          const pts = []; for (let i = 0; i <= 80; i++) { const t = Math.pow(10, -8 + 8 * i / 80); pts.push([t, Math.pow(t, l.e)]); }
+          c.line(pts, l.c, l.dash ? 1.1 : 1.6, l.dash || []);
+          c.label(l.lx, Math.pow(l.lx, l.e), l.k, l.c, 4, l.dy);
+        }
+        c.ctx.strokeStyle = grey(); c.ctx.setLineDash([2, 3]); c.ctx.beginPath(); c.ctx.moveTo(c.X(tau), c.pad.t); c.ctx.lineTo(c.X(tau), c.h - c.pad.b); c.ctx.stroke(); c.ctx.setLineDash([]);
+      },
+    });
+    const A = 0.5 + H, D = 0.5 - H;
+    const diss = H < 1 / 6 ? Math.pow(1, 0.5 - 3 * H) / (0.5 - 3 * H) : Infinity;
+    stats(document.getElementById('sc-stats'), [
+      ['A = ½+h', fmt(A, 4)], ['D = ½−h', fmt(D, 4)],
+      ['ℓ_r', fmt(Math.pow(tau, 0.5))], ['ℓ_z', fmt(Math.pow(tau, D))], ['ℓ_z/ℓ_r', fmt(Math.pow(tau, -H), 4), 'hot'],
+      ['|u_θ|', fmt(Math.pow(tau, -A)), 'hot'], ['|u_r|', fmt(Math.pow(tau, -0.5))],
+      ['E_core', fmt(Math.pow(tau, 0.5 - 3 * H)), 'cool'], ['Re_θ', fmt(Math.pow(tau, -H), 4), 'hot'],
+      ['∫₀¹ D_core dτ', isFinite(diss) ? fmt(diss) : 'diverges', isFinite(diss) ? 'cool' : 'hot'],
+    ]);
+    const v = document.getElementById('sc-verdict');
+    if (H >= 1 / 6) { v.className = 'verdict bad'; v.textContent = 'h ≥ 1/6: the dissipation integral ∫τ^(−½−3h) diverges and the energy law τ^(½−3h) no longer tends to zero. Nothing here is proved.'; }
+    else if (H > 0.01) { v.className = 'verdict'; v.textContent = 'Energy and dissipation still fine, but the proof fixes h < 1/100 for its expansions (Theorem 3.1, Lemma 4.8): h < min{1/100, λ, e^(−T_d)}.'; }
+    else { v.className = 'verdict ok'; v.textContent = 'Inside the proof’s range. Energy of the core → 0, total dissipation finite, speed → ∞ on a set of vanishing volume.'; }
+  }
+  slider('h', (v) => fmt(v, 3), (v) => { H = v; drawScaling(); });
+  slider('tau', (v) => fmt(Math.pow(10, v), 2), (v) => { logTau = v; drawScaling(); });
+
+  // ─────────────────────────── similarity map ─────────────────────────
+  let MH = 0.01, mLogTau = -0.5, pick = null;
+  const mapC = document.getElementById('map');
+  function drawMap() {
+    const { ctx, w, h } = fit(mapC);
+    const tau = Math.pow(10, mLogTau), D = 0.5 - MH;
+    ctx.clearRect(0, 0, w, h);
+    const R0 = 3.6, Z0 = 1.15;  // physical frame: fixed, so the grid concentrates as tau -> 0
+    const px = (r) => w / 2 + r / R0 * (w * 0.47), py = (z) => h / 2 - z / Z0 * (h * 0.47);
+    const rOf = (X, q) => Math.sqrt(2 * q * X);
+    ctx.lineWidth = 1;
+    // level sets of X: parametrised by eta
+    ctx.strokeStyle = cool();
+    for (const X of [0.25, 0.5, 1, 2, 4, 8, 16]) {
+      for (const sg of [1, -1]) {
+        ctx.beginPath(); let first = true;
+        for (let k = 0; k <= 300; k++) { const eta = -0.998 + 1.996 * k / 300; const q = tau / (1 - eta * eta); const x = px(sg * rOf(X, q)), y = py(Math.pow(q, D) * eta); if (first) { ctx.moveTo(x, y); first = false; } else ctx.lineTo(x, y); }
+        ctx.stroke();
+      }
+    }
+    // level sets of eta: z = q^D eta with q = tau/(1-eta^2) — a horizontal line at fixed tau!
+    ctx.strokeStyle = hot(); ctx.setLineDash([4, 3]);
+    for (const eta of [-0.9, -0.7, -0.5, -0.3, 0, 0.3, 0.5, 0.7, 0.9]) { const q = tau / (1 - eta * eta), z = Math.pow(q, D) * eta; ctx.beginPath(); ctx.moveTo(0, py(z)); ctx.lineTo(w, py(z)); ctx.stroke(); }
+    ctx.setLineDash([]);
+    ctx.strokeStyle = grey(); ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.stroke(); ctx.setLineDash([]);
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = grey(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('τ = ' + fmt(tau, 3) + ' · h = ' + MH + ' · frame is fixed physical r (±' + R0 + ') and z (±' + Z0 + ')', 8, 8);
+    [0.25, 1, 4, 16].forEach((X, i) => { const q = tau; ctx.fillStyle = cool(); ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText('X=' + X, px(rOf(X, q)), py(0) - 3 - (i % 2) * 12); });
+    for (const eta of [-0.9, -0.5, 0.5, 0.9]) { const q = tau / (1 - eta * eta); ctx.fillStyle = hot(); ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText('η=' + eta, w - 6, py(Math.pow(q, D) * eta)); }
+    if (pick) { ctx.fillStyle = ink(); ctx.beginPath(); ctx.arc(px(pick.r), py(pick.z), 4, 0, 6.283); ctx.fill(); }
+    // q along the axis as a function of z (inset text)
+    const rows = [['τ', fmt(tau, 3)], ['q at z=0', fmt(tau, 3)], ['q at z=±0.5', fmt(qOf(0.5, tau, MH), 3)], ['q at z=±1', fmt(qOf(1, tau, MH), 3)], ['|z|^(1/D) at z=1', fmt(Math.pow(1, 1 / D), 3)]];
+    stats(document.getElementById('map-stats'), rows);
+    if (pick) {
+      const q = qOf(pick.z, tau, MH), X = pick.r * pick.r / (2 * q), eta = pick.z / Math.pow(q, D);
+      document.getElementById('map-pick').innerHTML = `r = ${fmt(pick.r)} · z = ${fmt(pick.z)}<br>q = ${fmt(q)} · X = ${fmt(X)} · η = ${fmt(eta)}<br>check: q(1−η²) = ${fmt(q * (1 - eta * eta))} = τ`;
+    }
+    mapC._px = px; mapC._py = py; mapC._R0 = R0; mapC._Z0 = Z0;
+  }
+  mapC.addEventListener('click', (e) => {
+    const b = mapC.getBoundingClientRect(); const x = e.clientX - b.left, y = e.clientY - b.top;
+    pick = { r: Math.abs((x - b.width / 2) / (b.width * 0.47) * mapC._R0), z: -(y - b.height / 2) / (b.height * 0.47) * mapC._Z0 };
+    drawMap();
+  });
+  slider('mtau', (v) => fmt(Math.pow(10, v), 3), (v) => { mLogTau = v; drawMap(); });
+  document.querySelectorAll('[data-mh]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-mh]').forEach((x) => x.classList.remove('active')); b.classList.add('active'); MH = parseFloat(b.dataset.mh); drawMap(); });
+
+  // ─────────────────────────── meridional flow ────────────────────────
+  let J0 = 0.02, FH = 0.01, showLines = true, showLayers = true;
+  const flowC = document.getElementById('flow');
+  // the field at fixed tau, physical coordinates; U = 4 eta + j0 so A_X(U) = U
+  function field(r, z, tau, h, j0) {
+    const A = 0.5 + h, D = 0.5 - h;
+    const q = qOf(z, tau, h), X = r * r / (2 * q), eta = z / Math.pow(q, D);
+    const d = 1 - eta * eta, L = 1 - 2 * h * eta * eta, U = 4 * eta + j0;
+    const V0 = (X / L) * (2 * A * eta * U - 4 * d);
+    return { ur: r > 1e-12 ? V0 / r : 0, uz: Math.pow(q, -A) * U, q, X, eta, V0 };
+  }
+  function drawFlow() {
+    const { ctx, w, h } = fit(flowC);
+    ctx.clearRect(0, 0, w, h);
+    const tau = 1, A = 0.5 + FH, D = 0.5 - FH;   // similarity units at tau = 1 (the picture is the same at every tau)
+    const RM = 2.6, ZM = 1.45;                    // frame in R = r/√τ = √(2X q/τ) and Z = z/τ^D
+    const px = (r) => w / 2 + r / RM * (w * 0.47), py = (z) => h / 2 - z / ZM * (h * 0.47);
+    // background: |V0| shading? keep clean: dividing layers
+    if (showLayers) {
+      // u_z = 0 on eta = -j0/4 ; V0 = 0 where 2A eta (4 eta + j0) = 4(1 - eta^2)
+      const etaZ = -J0 / 4;
+      const a2 = 8 * A + 4, b1 = 2 * A * J0, c0 = -4;
+      const disc = Math.sqrt(b1 * b1 - 4 * a2 * c0), etaP = (-b1 + disc) / (2 * a2), etaM = (-b1 - disc) / (2 * a2);
+      const zOf = (eta) => Math.pow(tau / (1 - eta * eta), D) * eta;
+      ctx.setLineDash([5, 4]); ctx.lineWidth = 1.2;
+      ctx.strokeStyle = hot(); ctx.beginPath(); ctx.moveTo(0, py(zOf(etaZ))); ctx.lineTo(w, py(zOf(etaZ))); ctx.stroke();
+      ctx.strokeStyle = cool(); for (const e of [etaP, etaM]) { ctx.beginPath(); ctx.moveTo(0, py(zOf(e))); ctx.lineTo(w, py(zOf(e))); ctx.stroke(); }
+      ctx.setLineDash([]);
+      ctx.font = '10px ' + cssVar('--mono'); ctx.textBaseline = 'bottom'; ctx.textAlign = 'left';
+      ctx.fillStyle = hot(); ctx.fillText('u_z = 0  (η = −j₀/4 = ' + fmt(etaZ, 3) + ')', 8, py(zOf(etaZ)) - 2);
+      ctx.fillStyle = cool(); ctx.fillText('V₀ = 0  (η = ' + fmt(etaP, 3) + '): inflow below, outflow above', 8, py(zOf(etaP)) - 2);
+      ctx.fillText('V₀ = 0  (η = ' + fmt(etaM, 3) + ')', 8, py(zOf(etaM)) - 2);
+      stats(document.getElementById('flow-stats'), [['j₀', fmt(J0, 3)], ['h', fmt(FH, 3)], ['u_z = 0 at η', fmt(etaZ, 4), 'hot'], ['V₀ = 0 at η', fmt(etaM, 3) + ', ' + fmt(etaP, 3), 'cool'], ['u_z on z = 0', fmt(J0, 3) + ' · q^−A', 'hot'], ['V₀ on z = 0', '−4X / L', 'cool']]);
+    }
+    // axis
+    ctx.strokeStyle = grey(); ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(w / 2, 0); ctx.lineTo(w / 2, h); ctx.stroke(); ctx.setLineDash([]);
+    if (showLines) {
+      ctx.strokeStyle = ink(); ctx.lineWidth = 0.9; ctx.globalAlpha = 0.85;
+      // seeds: a column near the frame edge plus a row along the top and bottom (fluid enters from outside and above/below)
+      const seeds = [];
+      for (let i = 0; i < 14; i++) seeds.push([RM * 0.98, -ZM * 0.9 + 1.8 * ZM * i / 13]);
+      for (let i = 1; i < 9; i++) { seeds.push([RM * i / 9, ZM * 0.98]); seeds.push([RM * i / 9, -ZM * 0.98]); }
+      for (const sg of [1, -1]) for (const [r0, z0] of seeds) for (const dir of [1, -1]) {
+        let r = r0, z = z0; ctx.beginPath(); ctx.moveTo(px(sg * r), py(z));
+        for (let n = 0; n < 900; n++) {
+          const f1 = field(r, z, tau, FH, J0); const s = 0.004 * dir / (Math.hypot(f1.ur, f1.uz) + 1e-9);
+          const k1 = [f1.ur * s, f1.uz * s];
+          const f2 = field(r + k1[0] / 2, z + k1[1] / 2, tau, FH, J0); const k2 = [f2.ur * s, f2.uz * s];
+          const f3 = field(r + k2[0] / 2, z + k2[1] / 2, tau, FH, J0); const k3 = [f3.ur * s, f3.uz * s];
+          const f4 = field(r + k3[0], z + k3[1], tau, FH, J0); const k4 = [f4.ur * s, f4.uz * s];
+          r += (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) / 6; z += (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) / 6;
+          if (r < 0.004 || r > RM * 1.05 || Math.abs(z) > ZM * 1.05) break;
+          ctx.lineTo(px(sg * r), py(z));
+          if (n % 60 === 30 && dir === 1) { // arrowhead along the flow direction
+            const f = field(r, z, tau, FH, J0); const ang = Math.atan2(-f.uz / ZM * h, sg * f.ur / RM * w);
+            const x = px(sg * r), y = py(z); ctx.lineTo(x - 5 * Math.cos(ang - 0.45), y - 5 * Math.sin(ang - 0.45)); ctx.moveTo(x, y); ctx.lineTo(x - 5 * Math.cos(ang + 0.45), y - 5 * Math.sin(ang + 0.45)); ctx.moveTo(x, y);
+          }
+        }
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = grey(); ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+    ctx.fillText('similarity units: horizontal r/√τ, vertical z/τᴰ · instantaneous streamlines of (V₀/r, q^−A U), U = 4η + j₀', 8, h - 6);
+  }
+  slider('j0', (v) => fmt(v, 3), (v) => { J0 = v; drawFlow(); });
+  slider('fh', (v) => fmt(v, 3), (v) => { FH = v; drawFlow(); });
+  document.getElementById('f-lines').onclick = (e) => { showLines = !showLines; e.target.classList.toggle('active', showLines); drawFlow(); };
+  document.getElementById('f-layers').onclick = (e) => { showLayers = !showLayers; e.target.classList.toggle('active', showLayers); drawFlow(); };
+
+  // ─────────────────────────── viscosity & torus ──────────────────────
+  let logNu = 0, LAM = 3;
+  const nuC = document.getElementById('nu');
+  function drawNu() {
+    const { ctx, w, h } = fit(nuC);
+    ctx.clearRect(0, 0, w, h);
+    const nu = Math.pow(10, logNu), R = Math.sqrt(nu);   // support radius √ν · 1
+    const cell = Math.min(w, h) / 3.2;                    // one unit cube = cell px; draw 3x3 translates
+    const cx = w / 2, cy = h / 2;
+    ctx.strokeStyle = grey(); ctx.lineWidth = 0.8;
+    for (let i = -1; i <= 1; i++) for (let j = -1; j <= 1; j++) {
+      ctx.strokeRect(cx + (i - 0.5) * cell, cy + (j - 0.5) * cell, cell, cell);
+      const rr = R / LAM * cell;
+      ctx.fillStyle = (i === 0 && j === 0) ? hot() : cool(); ctx.globalAlpha = (i === 0 && j === 0) ? 0.75 : 0.35;
+      ctx.beginPath(); ctx.arc(cx + i * cell, cy + j * cell, Math.min(rr, cell * 2), 0, 6.283); ctx.fill(); ctx.globalAlpha = 1;
+    }
+    const fits = R / LAM < 0.5;
+    ctx.font = '10px ' + cssVar('--mono'); ctx.fillStyle = grey(); ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+    ctx.fillText('the torus 𝕋³ = ℝ³/ℤ³ (a slice): fundamental cube Q₀ = (−½,½)³ and its neighbours', 8, 8);
+    ctx.fillText('disc = λ⁻¹K_ν, radius √ν/λ = ' + fmt(R / LAM, 3) + (fits ? '  ⊂ Q₀ ✓' : '  — spills over the cube ✗'), 8, 22);
+    const t0 = 1 - 1 / (LAM * LAM);
+    stats(document.getElementById('nu-stats'), [
+      ['ν', fmt(nu)], ['support radius √ν·R', fmt(R)], ['energy factor ν^(5/2)', fmt(Math.pow(nu, 2.5))], ['force factor √ν', fmt(Math.sqrt(nu))],
+      ['∂^α f factor ν^((1−|α|)/2)', '|α|=2: ' + fmt(Math.pow(nu, -0.5))],
+      ['λ', fmt(LAM, 2)], ['t₀ = 1 − λ⁻²', fmt(t0, 4)], ['force support in t', '[' + fmt(t0, 3) + ', ' + fmt(1 + 1 / (LAM * LAM), 3) + ']'],
+      ['U_θ growth', 'λ√ν · e₀ · τ^−A'],
+    ]);
+    const v = document.getElementById('nu-verdict');
+    v.className = 'verdict ' + (fits ? 'ok' : 'bad');
+    v.textContent = fits ? 'λ⁻¹K_ν ⋐ Q₀: the translates have a positive gap, so the sum over ℤ³ solves the equation exactly, nonlinear term included.' : 'Translates would overlap: (U·∇)U picks up cross terms and the periodic argument fails. Increase λ.';
+  }
+  slider('nu', (v) => fmt(Math.pow(10, v), 2), (v) => { logNu = v; drawNu(); });
+  slider('lam', (v) => fmt(v, 2), (v) => { LAM = v; drawNu(); });
+
+  const redraw = { scaling: drawScaling, map: drawMap, flow: drawFlow, nu: drawNu };
+  NS.tabs((id) => { if (redraw[id]) requestAnimationFrame(redraw[id]); });
+  window.addEventListener('resize', () => { const a = document.querySelector('.tab.active'); if (a && redraw[a.dataset.tab]) redraw[a.dataset.tab](); });
+})();
+</script>
+</body>
+</html>

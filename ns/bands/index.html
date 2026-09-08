@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ns/bands — the ledger of scales</title>
+<meta name="description" content="The bookkeeping of the 2026 Navier–Stokes blowup construction: dyadic bands Q = 2^−ℓ, the small parameter ε = Q^h, the slow scale S* = ℓ², the carrier frequency k = ⌈ε^−½⌉, wavelength and amplitude ratios, the correction cycle σ_j = ⅕ + j/10, flatness — and how astronomically small q must be before h = 1/100 makes anything small.">
+<link rel="stylesheet" href="../ns.css">
+<style>
+table.ledger td.hot { color: var(--hot); } table.ledger td.cool { color: var(--accent); }
+.big { font-family: var(--mono); font-size: 1.4rem; color: var(--hot); margin: 0.2rem 0 0.6rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="../">← ns</a><a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>bands <span class="thin">— the ledger of scales</span></h1>
+  <p class="subtitle">dyadic charts · the small parameter ε · the correction cycle · flatness · how deep is deep</p>
+  <p class="crossref"><a href="../core/">core</a> · <a href="../pulse/">pulse</a> · <a href="../stress/">stress</a> · <a href="../exterior/">exterior</a> · <a class="here" href="./">bands</a> · <a href="../solver/">solver</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="ledger" role="tab">the ledger</button>
+  <button class="tab" data-tab="deep" role="tab">how deep</button>
+  <button class="tab" data-tab="cycle" role="tab">the cycle</button>
+  <button class="tab" data-tab="flat" role="tab">flatness</button>
+  <button class="tab" data-tab="docs" role="tab">docs</button>
+</nav>
+
+<!-- LEDGER ───────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-ledger">
+<p class="lede">Near the singularity the construction is organised in dyadic bands where the concentration scale q is comparable to a fixed Q = 2<sup>−ℓ</sup>. Within a band every quantity is rescaled so the collapsing annulus has size one, and three numbers run the show: the small parameter ε = Q<sup>h</sup>, the slow scale S* = ℓ², and the carrier frequency k = ⌈ε<sup>−1/2</sup>⌉ (6.1), (7.2). Every "smaller by a positive power of q" in the paper is a row of this table.</p>
+<div class="work-wrap">
+  <div>
+    <div class="tableflow"><table class="ledger" id="ledger"></table></div>
+    <canvas id="lc" class="chart" style="aspect-ratio:5/2"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">exponent h</span>
+      <div class="slider-row"><input type="range" id="h" min="0.002" max="0.1" step="0.001" value="0.01"><span class="val" id="h-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">first band shown · ℓ</span>
+      <div class="slider-row"><input type="range" id="l0" min="4" max="1000" step="1" value="10"><span class="val" id="l0-val"></span></div>
+    </div>
+    <div class="stats" id="ledger-stats"></div>
+  </div>
+</div>
+</div>
+
+<!-- DEEP ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-deep">
+<p class="lede">The proof needs ε = q<sup>h</sup> small, with h &lt; 1/100. That is a very slow function. Pick how small you want ε and the page tells you how close to the singular time you have to be — and how that compares with anything a computer could resolve.</p>
+<div class="work-wrap">
+  <div>
+    <div class="big" id="deep-big"></div>
+    <canvas id="dc" class="chart"></canvas>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">exponent h</span>
+      <div class="slider-row"><input type="range" id="dh" min="0.002" max="0.166" step="0.001" value="0.01"><span class="val" id="dh-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">target ε = q^h</span>
+      <div class="slider-row"><input type="range" id="eps" min="0.05" max="0.95" step="0.01" value="0.5"><span class="val" id="eps-val"></span></div>
+    </div>
+    <div class="stats" id="deep-stats"></div>
+    <div class="verdict" id="deep-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--hot)"></i>q<sup>h</sup> for the chosen h <i style="background:var(--accent)"></i>q<sup>h</sup> at the proof's ceiling h = 1/100 <i style="background:#888"></i>double-precision spacing near 1, 2<sup>−52</sup></div>
+</div>
+
+<!-- CYCLE ────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-cycle">
+<p class="lede">After the background and the leading pulses, what remains is corrected in a fixed four-operation cycle, and each cycle buys a fixed improvement in the residual's decay: σ<sub>j</sub> = ⅕ + j/10 (9.8). The cycles are summed with cutoffs that switch each one on only very close to the singularity, so that on any fixed compact set only finitely many are active, while at q = 0 all of them are — and the residual becomes flat.</p>
+<div class="work-wrap">
+  <div>
+    <canvas id="cc" class="chart"></canvas>
+    <div class="tableflow"><table class="ledger" id="cyc"></table></div>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">exponent h</span>
+      <div class="slider-row"><input type="range" id="ch" min="0.002" max="0.1" step="0.001" value="0.01"><span class="val" id="ch-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">stages to show</span>
+      <div class="slider-row"><input type="range" id="J" min="2" max="40" step="1" value="12"><span class="val" id="J-val"></span></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">the four operations (Prop. 9.6)</span>
+      <div class="stat-note" style="font-style:normal">
+        1 · solve the sourced wave-amplitude equations for the nonzero angular harmonics (Prop. 9.1)<br>
+        2 · signed amplitude increments whose cross-covariance with the leading pulses supplies the prescribed stress change (Prop. 7.6)<br>
+        3 · correct the angular-mean flow by inverting the fast auxiliary-time derivative; rebuild the pressure (8.14), (8.20)<br>
+        4 · solve the five radial moment equations (8.25)
+      </div>
+    </div>
+    <div class="stats" id="cycle-stats"></div>
+  </div>
+</div>
+</div>
+
+<!-- FLAT ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-flat">
+<p class="lede">A residual is <em>flat</em> if every Cartesian space–time derivative is O(q<sup>N</sup>) for every N (§3.2). Flat functions are the ones that can be extended by zero and stay smooth. The proof never produces a closed form for its flat remainder; it proves the bound for each N separately, with constants that depend on N. Here is what that looks like against the textbook flat function e<sup>−1/q</sup>.</p>
+<div class="work-wrap">
+  <canvas id="fc" class="chart" style="aspect-ratio:1"></canvas>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">compare at q</span>
+      <div class="slider-row"><input type="range" id="fq" min="-4" max="0" step="0.02" value="-1"><span class="val" id="fq-val"></span></div>
+    </div>
+    <div class="stats" id="flat-stats"></div>
+    <div class="verdict" id="flat-verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:var(--accent)"></i>q<sup>N</sup>, N = 1 … 20 <i style="background:var(--hot)"></i>e<sup>−1/q</sup>, flat at 0 <i style="background:#888"></i>the paper's (3.4): |∂<sup>α</sup><sub>x</sub>∂<sup>b</sup><sub>t</sub>R| ≤ C<sub>α,b,N</sub> q<sup>N</sup> for every N</div>
+</div>
+
+<!-- DOCS ─────────────────────────────────────────────────────────── -->
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="ref">§3.4 · §3.6 · §6.1–6.2 · §9.3–9.5 · (6.1), (7.2), (9.8), (9.18) of the paper</p>
+<h2>Charts</h2>
+<p>For a dyadic index ℓ, Q = 2<sup>−ℓ</sup>, ε = Q<sup>h</sup>, S* = ℓ², and the chart coordinates are R = r/√Q, Z = z/Q<sup>D</sup>, T = τ/Q. Velocity, pressure and residual are normalised by Q<sup>A</sup>, Q<sup>2A</sup>, Q<sup>2A+½</sup>. In these units the concentrating annulus has bounded size, the viscous term carries the factor ε, and the fast auxiliary time advances at rate c<sub>i</sub> ≍ 1/S*. Within a band ε and S* are constants; derivatives of any fixed order of the cutoffs cost powers of S*. The estimates the paper proves have the shape "≤ C ε<sup>α</sup> S*<sup>b</sup>" — a small parameter that is a power of Q, against a loss that is only polynomial in log(1/Q). Since S*<sup>b</sup>ε = ℓ<sup>2b</sup>2<sup>−hℓ</sup> → 0 for every b, the small parameter always wins eventually, and "eventually" is a lower bound ℓ ≥ ℓ₀, i.e. an upper bound q &lt; q<sub>big</sub>, that is fixed once and for all before the correction cycle starts (Lemma 9.7).</p>
+
+<h2>The rows of the ledger</h2>
+<ul>
+  <li><b>ε = Q<sup>h</sup></b> — the expansion parameter of the whole construction. Axial diffusion is weaker than radial by ε²; the background corrections come in powers ε<sup>2n</sup> (§5); the viscous term in the wave equation is O(ε) times a second derivative.</li>
+  <li><b>k = ⌈ε<sup>−1/2</sup>⌉</b> — the carrier frequency, chosen so εk² ∈ [1, 4]: viscosity neither dominates nor disappears from the leading amplitude equation (7.2).</li>
+  <li><b>wavelength and amplitude</b> — A<sub>wave</sub> ≍ q<sup>−½−h/2</sup> and ℓ<sub>wave</sub> ≍ q<sup>½+h/2</sup>, so relative to the core's speed and radius both ratios are ≍ q<sup>h/2</sup> = √ε (§3.3). The pulses are small and short compared with the core, but only by √ε — barely.</li>
+  <li><b>A<sub>wave</sub>²</b> ≍ q<sup>−1−h</sup> ≍ |u<sub>θ</sub>|/q<sup>½</sup> — the squared amplitude is exactly the stress scale the annulus needs (§3.3).</li>
+  <li><b>S* = ℓ²</b> — the slow scale: pulses last L<sub>s</sub> ≍ S* in the fast time, slow cutoffs have mesh S*<sup>−3</sup>, and every estimate loses a power of it.</li>
+  <li><b>i(ℓ) = ⌊log<sub>T<sub>g</sub></sub>(Q<sup>−1−h</sup>/S*)⌋</b> — the covering index of the auxiliary torus for the band (6.5), with T<sub>g</sub> = 4 + √2 the larger eigenvalue of the integer matrix J<sub>g</sub> = [[3,1],[1,5]]. It is what makes the fast time advance at the right rate.</li>
+  <li><b>Re<sub>θ</sub> ≍ q<sup>−h</sup> = 1/ε</b> — turns per diffusion time in the core.</li>
+</ul>
+
+<h2>How deep</h2>
+<p>With h &lt; 1/100, ε = q<sup>h</sup> falls below ½ only when q &lt; 2<sup>−100</sup> ≈ 8·10<sup>−31</sup>. Double precision cannot represent a time 1 − q with q that small: the spacing of doubles near 1 is 2<sup>−52</sup> ≈ 2·10<sup>−16</sup>. The construction is therefore not something a direct simulation could ever be expected to display; the regime in which its estimates hold lies far below any resolvable scale. That is not a flaw in the proof — asymptotic constructions are like this — but it is a fact worth having in front of you when reading claims about what the flow "looks like".</p>
+
+<h2>The correction cycle</h2>
+<p>Stage j holds fields (u<sup>[j]</sup>, p<sup>[j]</sup>) whose supported residual is bounded, in chart units, by ε<sup>σ<sub>j</sub></sup> times polynomial losses (9.18), with σ<sub>j</sub> = ⅕ + j/10. One cycle — the four operations listed in the tab — produces stage j+1 with σ<sub>j+1</sub> = σ<sub>j</sub> + 1/10. All stages live on one common domain (Lemma 9.7), and the loss of powers of q in derivative bounds depends on the derivative order but not on the stage (9.17). The stages are summed with cutoffs χ(a<sub>j</sub>q), a<sub>j+1</sub> ≥ 2a<sub>j</sub>, equal to one near q = 0 and supported in shrinking neighbourhoods; curls are taken after multiplying the vector potentials, so incompressibility survives exactly. The sum is locally finite for q &gt; 0 and its residual, compared with any fixed finite stage, is flat (Proposition 9.9).</p>
+</div>
+</div>
+
+<footer>
+  <a href="../">ns</a><a href="../core/">core</a><a href="../pulse/">pulse</a><a href="../stress/">stress</a><a href="../exterior/">exterior</a><a href="../solver/">solver</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+</footer>
+
+<script src="../ns.js"></script>
+<script>
+'use strict';
+(function () {
+  const { fmt, stats, cssVar, chart, slider, sup } = NS;
+  const hot = () => cssVar('--hot'), cool = () => cssVar('--accent'), grey = () => cssVar('--muted'), ink = () => cssVar('--canvas-ink');
+  const Tg = 4 + Math.SQRT2;
+  const pow2 = (e) => e > -1000 ? Math.pow(2, e) : 0;
+  const fmtQ = (l) => '2' + sup(-l) + (l <= 1000 ? ' ≈ ' + fmt(Math.pow(2, -l), 2) : '');
+
+  // ─────────────────────────── ledger ─────────────────────────────────
+  let H = 0.01, L0 = 10;
+  function row(l, h) {
+    const Q = Math.pow(2, -l), eps = Math.pow(Q, h), S = l * l, k = Math.ceil(Math.pow(eps, -0.5));
+    const i = Math.floor(Math.log(Math.pow(Q, -1 - h) / S) / Math.log(Tg));
+    const ci = Math.pow(Tg, i) * Math.pow(Q, 1 + h);
+    return { l, Q, eps, S, k, ek2: eps * k * k, i, ci, ciS: ci * S, sq: Math.sqrt(eps), Re: 1 / eps, ax: eps * eps, mesh: Math.pow(S, -3) };
+  }
+  function drawLedger() {
+    const ls = [L0, L0 + 1, L0 + 2, L0 + 5, L0 + 10, L0 + 20, L0 + 50, L0 + 100, L0 + 300].filter((x) => x <= 4000);
+    const rows = ls.map((l) => row(l, H));
+    const cell = (v, cls = '') => `<td class="num ${cls}">${v}</td>`;
+    document.getElementById('ledger').innerHTML = '<tr><th>ℓ</th><th>Q = 2^−ℓ</th><th>ε = Q^h</th><th>S* = ℓ²</th><th>k</th><th>εk²</th><th>i(ℓ)</th><th>c_i·S*</th><th>ℓ_wave/ℓ_r, A_wave/|u_θ| ≍ √ε</th><th>Re_θ ≍ 1/ε</th><th>axial/radial diffusion ε²</th></tr>'
+      + rows.map((r) => `<tr>${cell(r.l)}${cell(fmtQ(r.l))}${cell(fmt(r.eps, 3), 'hot')}${cell(r.S)}${cell(r.k)}${cell(fmt(r.ek2, 2), r.ek2 >= 1 && r.ek2 <= 4 ? 'cool' : 'hot')}${cell(r.i)}${cell(fmt(r.ciS, 2))}${cell(fmt(r.sq, 3))}${cell(fmt(r.Re, 3), 'hot')}${cell(fmt(r.ax, 3), 'cool')}</tr>`).join('');
+    chart(document.getElementById('lc'), {
+      x: [1, 4000], y: [1e-3, 1], xlog: true, ylog: true, xlabel: 'band index ℓ  (q ≍ 2^−ℓ)', ylabel: 'ε = 2^−hℓ',
+      draw: (c) => {
+        for (const hh of [0.002, 0.005, 0.01, 0.02, 0.05, 0.1]) { const pts = []; for (let i = 0; i <= 100; i++) { const l = Math.pow(10, 3.6 * i / 100); pts.push([l, Math.pow(2, -hh * l)]); } const me = Math.abs(hh - H) < 5e-4; c.line(pts, me ? hot() : grey(), me ? 2 : 0.9, me ? [] : [3, 3]); const lx = Math.min(3500, 8 / hh); c.label(lx, Math.pow(2, -hh * lx), 'h = ' + hh, me ? hot() : grey(), 4, 0); }
+        if (![0.002, 0.005, 0.01, 0.02, 0.05, 0.1].some((x) => Math.abs(x - H) < 5e-4)) { const pts = []; for (let i = 0; i <= 100; i++) { const l = Math.pow(10, 3.6 * i / 100); pts.push([l, Math.pow(2, -H * l)]); } c.line(pts, hot(), 2); }
+        c.line([[1, 0.5], [4000, 0.5]], ink(), 0.8, [1, 3]); c.label(1.2, 0.5, 'ε = ½ at ℓ = 1/h', ink(), 4, -8);
+      },
+    });
+    const r0 = rows[0];
+    stats(document.getElementById('ledger-stats'), [['h', fmt(H, 3)], ['ℓ with ε = ½', fmt(1 / H, 0), 'hot'], ['ℓ with ε = 1/10', fmt(Math.log2(10) / H, 0), 'hot'], ['at ℓ = ' + L0 + ': q ≈', fmt(r0.Q, 2)], ['ε', fmt(r0.eps, 4)], ['k', r0.k], ['S*', r0.S], ['L_s ≍ S*', r0.S], ['slow-box mesh S*^−3', fmt(r0.mesh, 2)]]);
+  }
+  slider('h', (v) => fmt(v, 3), (v) => { H = v; drawLedger(); });
+  slider('l0', (v) => v, (v) => { L0 = v; drawLedger(); });
+
+  // ─────────────────────────── how deep ───────────────────────────────
+  let DH = 0.01, EPS = 0.5;
+  function drawDeep() {
+    const lNeeded = Math.log2(1 / EPS) / DH;          // 2^{-h l} = eps
+    const log10q = -lNeeded * Math.log10(2);
+    document.getElementById('deep-big').textContent = `ε = ${fmt(EPS, 2)} needs q < 2^−${fmt(lNeeded, 1)} ≈ 10^${fmt(log10q, 1)}`;
+    chart(document.getElementById('dc'), {
+      x: [1e-40, 1], y: [0, 1], xlog: true, xlabel: 'q  (time remaining, roughly)', ylabel: 'ε = q^h', xticks: [1e-40, 1e-30, 1e-20, 1e-10, 1],
+      draw: (c) => {
+        const mk = (h) => { const pts = []; for (let i = 0; i <= 200; i++) { const q = Math.pow(10, -40 + 40 * i / 200); pts.push([q, Math.pow(q, h)]); } return pts; };
+        c.line(mk(0.01), cool(), 1.2, [3, 3]); c.line(mk(DH), hot(), 2);
+        c.line([[Math.pow(2, -52), 0], [Math.pow(2, -52), 1]], grey(), 1, [2, 3]); c.label(Math.pow(2, -52), 0.08, '2^−52: doubles cannot get closer to t = 1', grey(), 6, 0);
+        c.line([[1e-40, EPS], [1, EPS]], ink(), 0.8, [1, 3]);
+        const q = Math.pow(10, log10q); if (q > 1e-40) { c.ctx.fillStyle = hot(); c.ctx.beginPath(); c.ctx.arc(c.X(q), c.Y(EPS), 5, 0, 6.283); c.ctx.fill(); c.label(q, EPS, 'q = 10^' + fmt(log10q, 1), hot(), 8, -10); }
+        c.label(1e-39, Math.pow(1e-39, 0.01), 'h = 1/100', cool(), 4, 10);
+      },
+    });
+    const dbl = -52 * Math.log10(2);
+    stats(document.getElementById('deep-stats'), [['h', fmt(DH, 3)], ['target ε', fmt(EPS, 2)], ['band ℓ = log₂(1/ε)/h', fmt(lNeeded, 1), 'hot'], ['q = 2^−ℓ', '10^' + fmt(log10q, 1), 'hot'], ['ε at q = 2^−52 (double eps)', fmt(Math.pow(2, -52 * DH), 3)], ['ε at q = 10^−300 (double min)', fmt(Math.pow(10, -300 * DH), 3), 'cool'], ['orders of magnitude below double eps', fmt(dbl - log10q, 1)]]);
+    const v = document.getElementById('deep-verdict');
+    const below = log10q < dbl;
+    v.className = 'verdict ' + (below ? 'bad' : 'ok');
+    v.textContent = below ? `At h = ${fmt(DH, 3)}, the regime where ε ≤ ${fmt(EPS, 2)} begins ${fmt(dbl - log10q, 0)} orders of magnitude closer to t = 1 than double precision can represent. No direct simulation will show this flow's asymptotic regime.` : `Reachable in principle by double precision, but only because h here is far above the proof's ceiling of 1/100.`;
+  }
+  slider('dh', (v) => fmt(v, 3), (v) => { DH = v; drawDeep(); });
+  slider('eps', (v) => fmt(v, 2), (v) => { EPS = v; drawDeep(); });
+
+  // ─────────────────────────── cycle ──────────────────────────────────
+  let CH = 0.01, J = 12;
+  function drawCycle() {
+    const sig = (j) => 0.2 + j / 10;
+    chart(document.getElementById('cc'), {
+      x: [1e-12, 1], y: [1e-12, 1], xlog: true, ylog: true, xlabel: 'ε = q^h  (chart small parameter)', ylabel: 'residual bound ε^σ_j  (losses S*^b omitted)', xticks: [1e-12, 1e-9, 1e-6, 1e-3, 1],
+      draw: (c) => {
+        for (let j = 0; j <= J; j++) { const pts = []; for (let i = 0; i <= 60; i++) { const e = Math.pow(10, -12 * i / 60); pts.push([e, Math.pow(e, sig(j))]); } const last = j === J; c.line(pts, last ? hot() : cool(), last ? 2 : 0.9); if (j % Math.max(1, Math.floor(J / 6)) === 0 || last) c.label(1e-11, Math.pow(1e-11, sig(j)), 'j = ' + j + ' · σ = ' + fmt(sig(j), 2), last ? hot() : cool(), 4, 0); }
+      },
+    });
+    const rows = []; for (let j = 0; j <= Math.min(J, 40); j++) rows.push([j, sig(j), 0.5 + sig(j), 1 + sig(j)]);
+    document.getElementById('cyc').innerHTML = '<tr><th>stage j</th><th>σ_j = ⅕ + j/10</th><th>wave order B_j = ½ + σ_j</th><th>mean order C*_j = 1 + σ_j</th><th>residual ≤ ε^σ_j at ε = 0.1</th><th>to have residual ≤ q^N: N = hσ_j at h=' + fmt(CH, 3) + '</th></tr>'
+      + rows.map(([j, s, b, cst]) => `<tr><td class="num">${j}</td><td class="num hot">${fmt(s, 2)}</td><td class="num">${fmt(b, 2)}</td><td class="num">${fmt(cst, 2)}</td><td class="num cool">${fmt(Math.pow(0.1, s), 2)}</td><td class="num">${fmt(CH * s, 4)}</td></tr>`).join('');
+    stats(document.getElementById('cycle-stats'), [['σ₀', '1/5'], ['gain per cycle', '1/10'], ['stages for q^1 in physical units', fmt(10 * (1 / CH - 0.2), 0), 'hot'], ['stages for q^10', fmt(10 * (10 / CH - 0.2), 0), 'hot'], ['stages summed', '∞ (with cutoffs χ(a_j q))'], ['active on a compact set with q ≥ c', 'finitely many']]);
+  }
+  slider('ch', (v) => fmt(v, 3), (v) => { CH = v; drawCycle(); });
+  slider('J', (v) => v, (v) => { J = v; drawCycle(); });
+
+  // ─────────────────────────── flatness ───────────────────────────────
+  let FQ = -1;
+  function drawFlat() {
+    const q = Math.pow(10, FQ);
+    chart(document.getElementById('fc'), {
+      x: [1e-4, 1], y: [1e-40, 1], xlog: true, ylog: true, xlabel: 'q', ylabel: 'size', yticks: [1e-40, 1e-30, 1e-20, 1e-10, 1],
+      draw: (c) => {
+        for (const N of [1, 2, 3, 5, 8, 12, 20]) { const pts = []; for (let i = 0; i <= 80; i++) { const x = Math.pow(10, -4 * (1 - i / 80)); pts.push([x, Math.pow(x, N)]); } c.line(pts, cool(), 1); c.label(Math.pow(10, -4 + 0.2), Math.pow(Math.pow(10, -3.8), N), 'q^' + N, cool(), 2, N === 1 ? -8 : 0); }
+        const pts = []; for (let i = 0; i <= 200; i++) { const x = Math.pow(10, -4 * (1 - i / 200)); pts.push([x, Math.exp(-1 / x)]); } c.line(pts, hot(), 2.2);
+        c.label(0.3, Math.exp(-1 / 0.3), 'e^−1/q', hot(), 6, 0);
+        c.ctx.strokeStyle = grey(); c.ctx.setLineDash([2, 3]); c.ctx.beginPath(); c.ctx.moveTo(c.X(q), c.pad.t); c.ctx.lineTo(c.X(q), c.h - c.pad.b); c.ctx.stroke(); c.ctx.setLineDash([]);
+      },
+    });
+    const f = Math.exp(-1 / q); let Nwin = 0; for (let N = 1; N <= 200; N++) if (Math.pow(q, N) > f) Nwin = N;
+    stats(document.getElementById('flat-stats'), [['q', fmt(q)], ['e^−1/q', f > 1e-300 ? fmt(f, 2) : '< 10^−300', 'hot'], ['largest N with q^N > e^−1/q', Nwin || 'none', 'cool'], ['derivative (e^−1/q)′ = e^−1/q/q²', f > 1e-300 ? fmt(f / (q * q), 2) : '≈ 0']]);
+    const v = document.getElementById('flat-verdict'); v.className = 'verdict ok';
+    v.textContent = `At this q the flat function beats q^N for every N > ${Nwin}. As q → 0 it beats every fixed power — and so do all its derivatives. A residual with that property extends smoothly by zero through t = 1; that is the content of (3.4) and the reason Lemma 10.3 can continue the force.`;
+  }
+  slider('fq', (v) => fmt(Math.pow(10, v), 3), (v) => { FQ = v; drawFlat(); });
+
+  const redraw = { ledger: drawLedger, deep: drawDeep, cycle: drawCycle, flat: drawFlat };
+  NS.tabs((id) => { if (redraw[id]) requestAnimationFrame(redraw[id]); });
+  window.addEventListener('resize', () => { const a = document.querySelector('.tab.active'); if (a && redraw[a.dataset.tab]) redraw[a.dataset.tab](); });
+})();
+</script>
+</body>
+</html>
