@@ -33,7 +33,7 @@ _Regenerated 2026-09-08 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): games 84, bluesky 75, tools 66, data 63, work 8.
 
-**Neighborhood spark** (bisk 2026-09-08, 98 members / 286 posts):
+**Neighborhood spark** (bisk 2026-09-08, 98 members / 290 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: openai, astra, llms
 - Top post: "I'm constantly talking about LLMs as text elementals and hungry ghosts trapped in jars and nobody's called me out for LL" — @hikikomorphism.bsky.social
