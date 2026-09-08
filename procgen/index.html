@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>procgen</title>
+<meta name="description" content="The generators on mino.mobi, organised by the techniques they share: seed, genome, certify, judge, grow, measure.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F2F4F8; --paper:#FFFFFF; --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+  --line:#D8DCE6; --line-2:#E9ECF2; --accent:#237E7A; --accent-soft:#DDEFEE;
+  --t-seed:#237E7A; --t-genome:#7B5FD6; --t-certify:#B8720C; --t-judge:#C0392B; --t-grow:#4E9C2E; --t-measure:#3E9AC2;
+  --shadow:0 1px 2px rgba(22,25,35,.06),0 8px 24px -12px rgba(22,25,35,.18);
+  --radius:6px;
+  --display:"Bricolage Grotesque","Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Sans 3","Source Sans Pro","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+    --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-soft:#183634;
+    --t-seed:#4FC3BE; --t-genome:#A880FF; --t-certify:#E0A64A; --t-judge:#E8776A; --t-grow:#6CC282; --t-measure:#6EC1E4;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+  --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-soft:#183634;
+  --t-seed:#4FC3BE; --t-genome:#A880FF; --t-certify:#E0A64A; --t-judge:#E8776A; --t-grow:#6CC282; --t-measure:#6EC1E4;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+a:hover,a:focus-visible{border-bottom-color:currentColor}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--line-2);padding:.08em .35em;border-radius:3px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(2.6rem,7vw,5rem);font-weight:750;line-height:.95;font-variation-settings:"opsz" 96}
+h2{font-size:1.7rem;font-weight:650;line-height:1.1}
+h3{font-size:1.1rem;font-weight:650;line-height:1.25}
+p{margin:0 0 1rem}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.6rem}
+.wrap{max-width:1120px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
+header{padding:clamp(40px,7vw,88px) 0 36px}
+header .lede{max-width:64ch;font-size:1.2rem;color:var(--ink-2);margin-top:1.3rem}
+header .lede b{color:var(--ink);font-weight:600}
+.crumb{font-family:var(--mono);font-size:.78rem;color:var(--ink-3);margin-bottom:1.2rem}
+.crumb a{color:var(--ink-2)}
+
+/* the vocabulary */
+.vocab{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-top:2rem}
+.vocab button{all:unset;display:block;background:var(--paper);padding:14px 16px 12px;cursor:pointer;border-top:3px solid var(--tc,var(--line))}
+.vocab button:hover{background:var(--line-2)}
+.vocab button.on{background:var(--accent-soft)}
+.vocab button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.vocab .w{font-family:var(--display);font-size:1.35rem;font-weight:700;color:var(--tc)}
+.vocab .w small{font-family:var(--mono);font-size:.7rem;font-weight:400;color:var(--ink-3);margin-left:6px;font-variant-numeric:tabular-nums}
+.vocab .d{font-size:.84rem;color:var(--ink-2);margin-top:4px;line-height:1.35}
+.hint{font-size:.82rem;color:var(--ink-3);margin:8px 0 0;font-family:var(--mono)}
+
+/* the shelf */
+section{padding:36px 0 0}
+.shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;margin-top:18px}
+.gen{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px 14px;display:flex;flex-direction:column;gap:8px;transition:opacity .15s}
+.gen.dim{opacity:.28}
+.gen .top{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.gen h3 a{color:var(--ink);border:0}
+.gen h3 a:hover{color:var(--accent)}
+.gen .host{font-family:var(--mono);font-size:.68rem;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.gen p{margin:0;color:var(--ink-2);font-size:.94rem}
+.gen .tech{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:6px}
+.t{font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;padding:2px 7px;border-radius:999px;border:1px solid var(--tc);color:var(--tc)}
+.gen .pages{font-size:.82rem;color:var(--ink-3);line-height:1.5}
+.gen .pages a{color:var(--ink-2)}
+.gen .pages a::after{content:" · ";color:var(--ink-3)}
+.gen .pages a:last-child::after{content:""}
+.gen .pack{font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;color:var(--ink-3);text-transform:uppercase}
+.note{max-width:70ch;color:var(--ink-2);margin-top:14px;font-size:.95rem}
+footer{padding:48px 0 56px;color:var(--ink-3);font-size:.85rem;border-top:1px solid var(--line);margin-top:48px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="crumb"><a href="/">mino.mobi</a> / procgen</div>
+    <h1>Things no one wrote</h1>
+    <p class="lede">The generators on this site, gathered. Not the O'Neill cylinder's, which have their own home. What these share is not a look but a way of working: <b>a seed is a permalink</b>, so a page number reproduces the whole artefact; <b>a genome is a grammar</b>, so the space of outputs is designed before any output is; <b>a solver certifies</b> that what shipped is fair or unique or survivable; <b>a rubric judges</b>, so most of what is generated is thrown away; <b>local rules grow</b> the thing rather than drawing it; and <b>the output is measured</b> against the real world it imitates. A trick invented in one is usable in the next. Pick a word to see who uses it.</p>
+    <div class="vocab" id="vocab" role="group" aria-label="Techniques"></div>
+    <p class="hint" id="hint">showing every generator</p>
+  </div>
+</header>
+
+<section class="wrap">
+  <div class="eyebrow">The shelf</div>
+  <h2 id="count">Generators</h2>
+  <div class="shelf" id="shelf"></div>
+  <p class="note">Descriptions are the catalogue's where it has one and the deploy registry's where it does not. Blank technique rows mean nobody has written down what the generator does yet; the list is built from <code>rethink/proposal.json</code>, which is where to fix that.</p>
+</section>
+
+<section class="wrap">
+  <div class="eyebrow">Also generators, living elsewhere</div>
+  <h2>Cross-listed</h2>
+  <div class="shelf" id="cross"></div>
+</section>
+
+<footer><div class="wrap">Built from <code>rethink/data.js</code>. Regenerate with <code>node scripts/build-rethink.mjs --write</code>. The full content pass is at <a href="/rethink/">/rethink/</a>.</div></footer>
+
+<script src="../rethink/data.js"></script>
+<script>
+(function(){
+  var R = window.RETHINK; if (!R) return;
+  var TECH = [
+    ['seed',    'a seed is a permalink: the same integer rebuilds the same artefact, so a URL is the whole thing'],
+    ['genome',  'a genome is a grammar: the output space is a designed structure the seed walks, not a pile of random numbers'],
+    ['certify', 'a solver proves the artefact before it ships: unique, fair, holdable, slot-accurate'],
+    ['judge',   'overgenerate, then judge: a rubric, a crowd or a model discards most of what was made'],
+    ['grow',    'local rules grow the thing brick by brick; nobody plans the staircase'],
+    ['measure', 'the output is checked against the real world it imitates: field numbers, kinetics, a published file'],
+  ];
+  var rows = {}; R.rows.forEach(function(r){ rows[r.id] = r; });
+  var ms = R.members;
+  var byParent = {}; ms.forEach(function(m){ (byParent[m.parent] = byParent[m.parent] || []).push(m); });
+  var tops = ms.filter(function(m){ return m.top === 'procgen' && m.depth === 1 && !/procgen$/.test(m.id); });
+  var cross = ms.filter(function(m){ return m.top !== 'procgen' && m.domain === 'procgen'; });
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function href(m){ var r = rows[m.id]; return r ? r.u : 'https://' + m.id + '/'; }
+  function prose(m){ var r = rows[m.id]; return m.note || (r && r.d) || m.rn || ''; }
+  function counts(){ var c = {}; tops.concat(cross).forEach(function(m){ m.tech.forEach(function(t){ c[t] = (c[t]||0)+1; }); }); return c; }
+  var active = null;
+
+  var vocab = document.getElementById('vocab'), c = counts();
+  vocab.innerHTML = TECH.map(function(t){ return '<button type="button" data-t="'+t[0]+'" style="--tc:var(--t-'+t[0]+')"><div class="w">'+t[0]+'<small>'+(c[t[0]]||0)+'</small></div><div class="d">'+esc(t[1])+'</div></button>'; }).join('');
+  vocab.addEventListener('click', function(e){
+    var b = e.target.closest('button'); if (!b) return;
+    active = active === b.dataset.t ? null : b.dataset.t;
+    Array.prototype.forEach.call(vocab.querySelectorAll('button'), function(x){ x.classList.toggle('on', x.dataset.t === active); });
+    Array.prototype.forEach.call(document.querySelectorAll('.gen'), function(g){ g.classList.toggle('dim', !!active && g.dataset.tech.split(' ').indexOf(active) < 0); });
+    document.getElementById('hint').textContent = active ? 'showing generators that ' + active + ' · click again to clear' : 'showing every generator';
+  });
+
+  function card(m, showPack){
+    var kids = (byParent[m.id] || []).filter(function(k){ return k.action !== 'retire' && k.action !== 'merge'; });
+    var host = m.id.split('/')[0];
+    return '<article class="gen" data-tech="'+esc(m.tech.join(' '))+'">'
+      + (showPack ? '<div class="pack">in '+esc(m.top)+'</div>' : '')
+      + '<div class="top"><h3><a href="'+esc(href(m))+'">'+esc(m.label || m.n)+'</a></h3><span class="host">'+esc(host)+'</span></div>'
+      + '<p>'+esc(prose(m))+'</p>'
+      + (kids.length ? '<div class="pages">'+kids.map(function(k){ return '<a href="'+esc(href(k))+'">'+esc(k.n)+'</a>'; }).join('')+'</div>' : '')
+      + '<div class="tech">'+m.tech.map(function(t){ return '<span class="t" style="--tc:var(--t-'+t+')">'+t+'</span>'; }).join('')+'</div>'
+      + '</article>';
+  }
+  document.getElementById('shelf').innerHTML = tops.map(function(m){ return card(m, false); }).join('');
+  document.getElementById('cross').innerHTML = cross.filter(function(m){ return !byParent[m.parent] || m.depth === 1 || !cross.some(function(x){ return x.id === m.parent; }); }).map(function(m){ return card(m, true); }).join('');
+  var n = tops.length, sub = tops.reduce(function(a,m){ return a + (byParent[m.id]||[]).length; }, 0);
+  document.getElementById('count').textContent = n + ' generators, ' + sub + ' pages inside them, ' + cross.length + ' more cross-listed';
+})();
+</script>
+</body>
+</html>

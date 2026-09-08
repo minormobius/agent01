@@ -1,152 +1,128 @@
 #!/usr/bin/env node
-// Regenerates og.png — the link-card / Open Graph image for mino.mobi.
-// Reproduces the landing page's "constellation" visualization frame (dark
-// space, five category clusters, commit-sized stars, nearest-neighbour links)
-// from the live PROJECTS array, then rasterizes to a 1200×630 PNG.
+// Regenerates og.png (and og.svg) — the link card for mino.mobi.
+//
+// The card is the landing page's hero in miniature: the radial tree of every
+// reachable page (wings → hubs → pages → content) drawn from rethink/data.js
+// with the same geometry as rethink/space.js, next to the wordmark and the
+// counts, in the design language of /mino.css. og.svg is the drawing; og.png
+// is the 1200×630 raster that link previews actually fetch.
 //
 //   node scripts/generate-og-card.mjs
 //
-// Run after the project list changes so the card stays in sync with the site.
+// Rasterising needs Chromium (Playwright): the sandbox has it pre-installed at
+// /opt/pw-browsers, and the PNG is committed, so CI never has to render it. If
+// Playwright cannot be found the SVG is still written and the PNG is left as is.
 
-import { readFileSync, writeFileSync } from 'node:fs';
-import { loadCatalogue } from './lib/landing.mjs';
-import { fileURLToPath } from 'node:url';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { dirname, join } from 'node:path';
-import { Resvg } from '@resvg/resvg-js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-// ── The catalogue — name, category, commits, age ──
-// Read from catalogue.json, the source of truth. The regex this replaced
-// scanned the WHOLE of index.html for any `{ n:'…' }` literal, so it would
-// have silently absorbed any unrelated object literal added to the page.
-const projects = loadCatalogue(root).entries
-  .filter((e) => e.n && e.c)
-  .map((e) => ({ n: e.n, c: e.c, k: e.k ?? 1, a: e.a || 'cold' }));
+const w = {}; new Function('window', readFileSync(join(root, 'rethink/data.js'), 'utf8'))(w);
+const R = w.RETHINK;
 
-// Category palette + order — must match CATS in index.html.
-const CATS = {
-  bluesky: '#6ec1e4',
-  work:    '#e6a23c',
-  data:    '#67c23a',
-  tools:   '#a880ff',
-  games:   '#f56991',
-};
-const catKeys = Object.keys(CATS);
+// ---- the tree, exactly as rethink/space.js builds it (internal and unplaced hidden)
+const WING = { bluesky: '#3E9AC2', procgen: '#4E9C2E', oneill: '#237E7A', play: '#D64C77', study: '#C77F16', bench: '#7B5FD6', about: '#6B7280' };
+const nodes = {}; const rootNode = { id: 'landing', children: [], depth: 0 };
+const add = (n) => { nodes[n.id] = n; n.children = []; return n; };
+const wings = R.wings.map((wd) => add({ id: 'wing:' + wd.id, wing: wd.id, label: wd.label, pinned: !!wd.pinned }));
+for (const t of R.top) { if (t.id === 'sites') continue; const h = add({ id: t.id, wing: t.wing, hub: true }); const wg = nodes['wing:' + t.wing]; if (wg) { h.parent = wg; wg.children.push(h); } }
+const items = R.space.slice().sort((a, b) => (a.fate === 'content' ? 1 : 0) - (b.fate === 'content' ? 1 : 0));
+for (const s of items) {
+  if (s.fate === 'folded' || s.fate === 'internal' || s.fate === 'orphan') continue;
+  if (s.fate === 'door' && nodes[s.top]) continue;
+  const n = add({ id: s.id, wing: s.wing, dead: s.dead });
+  let parent = s.fate === 'site' ? nodes['wing:' + s.wing] : (nodes[s.via] || nodes[s.top] || nodes['wing:' + s.wing]);
+  if (!parent || parent === n) parent = nodes[s.top] || rootNode;
+  n.parent = parent; parent.children.push(n);
+}
+const leaves = (n) => (n._l ??= n.children.length ? n.children.reduce((a, c) => a + leaves(c), 0) + 1 : 1);
+const allWings = wings.filter((x) => x.children.length);
+allWings.forEach(leaves);
+allWings.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || R.wings.findIndex((x) => x.id === a.wing) - R.wings.findIndex((x) => x.id === b.wing));
+allWings.forEach((wg) => wg.children.sort((a, b) => (b.hub ? 1 : 0) - (a.hub ? 1 : 0) || leaves(b) - leaves(a)));
+rootNode.children = allWings;
 
-// ── Canvas geometry ──
+// ---- geometry: the figure fills the right two thirds of the card
 const W = 1200, H = 630;
-const cx = 862, cy = 334;            // constellation centre, right of the title
-const clusterRing = 166;             // category-cluster ring radius
-
-// ── Reproduce the live layout() (rotation = 0 for a still frame) ──
-const stars = [];
-catKeys.forEach((cat, ci) => {
-  const projs = projects.filter(p => p.c === cat);
-  if (!projs.length) return;
-  const catAngle = ci * Math.PI * 2 / catKeys.length - Math.PI / 2;
-  const catCx = cx + Math.cos(catAngle) * clusterRing;
-  const catCy = cy + Math.sin(catAngle) * clusterRing;
-  projs.forEach((p, i) => {
-    const ring = Math.floor(i / 8);
-    const slot = i % 8;
-    const ang = slot * Math.PI / 4 + ring * 0.31 + ci * 0.7;
-    const r = 20 + ring * 24;
-    stars.push({
-      p, cat,
-      x: catCx + Math.cos(ang) * r,
-      y: catCy + Math.sin(ang) * r,
-    });
-  });
-});
-
-const ageOp = a => (a === 'hot' ? 1 : a === 'warm' ? 0.82 : 0.62);
-const starSize = k => 2.0 + Math.sqrt(k) * 0.42;
-
-// ── Build SVG ──
-const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-const parts = [];
-parts.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`);
-
-// Background radial gradient (matches the live constellation bg)
-parts.push(`<defs>
-  <radialGradient id="bg" cx="${(cx / W * 100).toFixed(1)}%" cy="${(cy / H * 100).toFixed(1)}%" r="75%">
-    <stop offset="0%" stop-color="#0d0d18"/>
-    <stop offset="100%" stop-color="#040408"/>
-  </radialGradient>
-</defs>`);
-parts.push(`<rect width="${W}" height="${H}" fill="url(#bg)"/>`);
-
-// Decorative far stars (deterministic)
-for (let i = 0; i < 140; i++) {
-  const fx = (i * 137.5) % W;
-  const fy = (i * 89.3 + Math.sin(i) * 40) % H;
-  const op = (0.06 + (Math.sin(i * 1.7) * 0.5 + 0.5) * 0.16).toFixed(3);
-  parts.push(`<rect x="${fx.toFixed(1)}" y="${fy.toFixed(1)}" width="1.3" height="1.3" fill="#ffffff" opacity="${op}"/>`);
+const cx = 815, cy = 315, R0 = 44, RING = [0, 40, 104, 142, 166, 182, 194], MAXD = RING.length - 1;
+(function assign(n, a0, a1, depth) {
+  n.a0 = a0; n.a1 = a1; n.depth = depth;
+  let a = a0; const span = a1 - a0, L = leaves(n) - 1;
+  for (const c of n.children) { const ww = span * leaves(c) / (L || 1); assign(c, a, a + ww, depth + 1); a += ww; }
+})(rootNode, -Math.PI / 2, Math.PI * 1.5, 0);
+function arc(r0, r1, a0, a1) {
+  if (a1 - a0 >= Math.PI * 2 - 1e-6) a1 = a0 + Math.PI * 2 - 1e-4;
+  const p = (r, a) => `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`;
+  const big = a1 - a0 > Math.PI ? 1 : 0;
+  return `M${p(r0, a0)}L${p(r1, a0)}A${r1},${r1} 0 ${big} 1 ${p(r1, a1)}L${p(r0, a1)}A${r0},${r0} 0 ${big} 0 ${p(r0, a0)}Z`;
 }
-
-// Constellation links: each star to its 2 nearest same-category neighbours
-for (const s of stars) {
-  const others = stars
-    .filter(o => o.cat === s.cat && o !== s)
-    .sort((a, b) => Math.hypot(a.x - s.x, a.y - s.y) - Math.hypot(b.x - s.x, b.y - s.y));
-  for (let k = 0; k < Math.min(2, others.length); k++) {
-    const o = others[k];
-    parts.push(`<line x1="${s.x.toFixed(1)}" y1="${s.y.toFixed(1)}" x2="${o.x.toFixed(1)}" y2="${o.y.toFixed(1)}" stroke="${CATS[s.cat]}" stroke-opacity="0.16" stroke-width="0.7"/>`);
+const wingOf = (n) => { let g = n; while (g.parent && g.parent !== rootNode) g = g.parent; return g; };
+const arcs = [];
+(function draw(n) {
+  if (n !== rootNode) {
+    const d = Math.min(n.depth, MAXD), r0 = R0 + RING[d - 1] + (d > 1 ? 1.5 : 0), r1 = R0 + RING[d] - (d === 1 ? 0 : 0.8);
+    const alt = d === 2 ? (n.parent.children.indexOf(n) % 2 ? 0.66 : 0.86) : 1;
+    const op = d === 1 ? 0.95 : d === 2 ? alt : d === 3 ? 0.42 : 0.24;
+    arcs.push(`<path d="${arc(r0, r1, n.a0, n.a1)}" fill="${n.dead ? '#C0392B' : WING[wingOf(n).wing]}" fill-opacity="${op}" stroke="#F2F4F8" stroke-width="${d <= 2 ? 1.1 : 0.4}"/>`);
   }
+  n.children.forEach(draw);
+})(rootNode);
+
+// ---- wing labels: a short column on the far right, leader lines to the ring
+const LR = R0 + RING[MAXD];
+const labs = allWings.map((wg) => { const a = (wg.a0 + wg.a1) / 2; return { wg, a, right: Math.cos(a) >= 0, y: cy + (LR + 16) * Math.sin(a) }; });
+for (const right of [true, false]) {
+  const L = labs.filter((l) => l.right === right).sort((a, b) => a.y - b.y);
+  let y = 26; for (const l of L) { l.y = Math.max(l.y, y); y = l.y + 30; }
+  let yb = H - 26; for (let i = L.length - 1; i >= 0; i--) { L[i].y = Math.min(L[i].y, yb); yb = L[i].y - 30; }
 }
+const labels = labs.map((l) => {
+  // right-hand labels end at the card's edge; left-hand ones start just outside the ring
+  const width = l.wg.label.length * 8.4;
+  const xt = l.right ? W - 14 : cx - LR - 22, anchor = l.right ? 'end' : 'end';
+  const xEdge = l.right ? xt - width - 6 : xt + 4, xk = l.right ? Math.min(cx + LR + 14, xEdge - 8) : cx - LR - 14;
+  const x0 = cx + (LR + 2) * Math.cos(l.a), y0 = cy + (LR + 2) * Math.sin(l.a);
+  return `<polyline points="${x0.toFixed(1)},${y0.toFixed(1)} ${xk.toFixed(1)},${l.y.toFixed(1)} ${xEdge.toFixed(1)},${l.y.toFixed(1)}" fill="none" stroke="#D8DCE6" stroke-width="1"/>`
+    + `<text x="${xt}" y="${(l.y - 3).toFixed(1)}" text-anchor="${anchor}" font-family="Bricolage Grotesque" font-weight="700" font-size="15" fill="#161923">${esc(l.wg.label)}</text>`
+    + `<text x="${xt}" y="${(l.y + 12).toFixed(1)}" text-anchor="${anchor}" font-family="JetBrains Mono" font-size="9.5" fill="${WING[l.wg.wing]}">${leaves(l.wg) - 1} pages</text>`;
+}).join('');
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 
-// Stars: colored glow halo + white core
-for (const s of stars) {
-  const size = starSize(s.p.k);
-  const op = ageOp(s.p.a);
-  const col = CATS[s.cat];
-  parts.push(`<circle cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="${(size * 3.2).toFixed(1)}" fill="${col}" opacity="${(0.10 * op).toFixed(3)}"/>`);
-  parts.push(`<circle cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="${(size * 1.7).toFixed(1)}" fill="${col}" opacity="${(0.28 * op).toFixed(3)}"/>`);
-  parts.push(`<circle cx="${s.x.toFixed(1)}" cy="${s.y.toFixed(1)}" r="${size.toFixed(1)}" fill="#ffffff" opacity="${op.toFixed(2)}"/>`);
-}
+const S = R.summary, pages = (S.space || {}).reachable || R.space.length;
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+<rect width="${W}" height="${H}" fill="#F2F4F8"/>
+<g>${arcs.join('')}</g>
+<circle cx="${cx}" cy="${cy}" r="${R0 - 3}" fill="#FFFFFF" stroke="#D8DCE6"/>
+<text x="${cx}" y="${cy - 3}" text-anchor="middle" font-family="Bricolage Grotesque" font-weight="700" font-size="12" fill="#161923">mino.mobi</text>
+<text x="${cx}" y="${cy + 11}" text-anchor="middle" font-family="JetBrains Mono" font-size="8" fill="#7C8296">${pages} pages</text>
+<g>${labels}</g>
+<text x="64" y="176" font-family="Bricolage Grotesque" font-weight="700" font-size="72" letter-spacing="-2" fill="#161923">minomobi</text>
+<text x="66" y="236" font-family="Bricolage Grotesque" font-weight="700" font-size="30" fill="#161923">Three hundred small</text>
+<text x="66" y="272" font-family="Bricolage Grotesque" font-weight="700" font-size="30" fill="#161923">websites, one door.</text>
+<text x="66" y="318" font-family="'Source Sans 3'" font-size="19" fill="#4A5063">Generators, lenses on Bluesky, an O'Neill</text>
+<text x="66" y="344" font-family="'Source Sans 3'" font-size="19" fill="#4A5063">cylinder, medieval tales, math explainers,</text>
+<text x="66" y="370" font-family="'Source Sans 3'" font-size="19" fill="#4A5063">and the tools that built them.</text>
+<text x="66" y="430" font-family="JetBrains Mono" font-size="13" fill="#7C8296">${R.wings.length} wings · ${S.after.hubs} hubs · ${S.after.sites} sites · ${pages} pages</text>
+<text x="66" y="454" font-family="JetBrains Mono" font-size="13" fill="#7C8296">built in conversation · ${R.generated}</text>
+</svg>`;
+writeFileSync(join(root, 'og.svg'), svg + '\n');
+console.log(`og.svg: ${arcs.length} arcs, ${allWings.length} wings.`);
 
-// Labels for the larger / established projects only (keeps it legible)
-for (const s of stars) {
-  if (s.p.k < 35) continue;
-  const size = starSize(s.p.k);
-  parts.push(`<text x="${s.x.toFixed(1)}" y="${(s.y + size + 13).toFixed(1)}" font-family="DejaVu Sans Mono, monospace" font-size="11" fill="#cdd4dd" opacity="${(0.9 * ageOp(s.p.a)).toFixed(2)}" text-anchor="middle">${esc(s.p.n)}</text>`);
-}
-
-// ── Title overlay (top-left) ──
-const N = projects.length;
-parts.push(`<text x="64" y="92" font-family="DejaVu Sans Mono, monospace" font-size="20" letter-spacing="2" fill="#9aa0aa">minomobi</text>`);
-parts.push(`<rect x="64" y="112" width="300" height="2" fill="#8b0000"/>`);
-parts.push(`<text x="62" y="186" font-family="DejaVu Sans Mono, monospace" font-weight="bold" font-size="52" fill="#f2f0ec">personal tooling</text>`);
-parts.push(`<text x="62" y="244" font-family="DejaVu Sans Mono, monospace" font-weight="bold" font-size="52" fill="#f2f0ec">for the open web</text>`);
-parts.push(`<text x="64" y="300" font-family="DejaVu Sans Mono, monospace" font-size="18" letter-spacing="1" fill="#9aa0aa">${N} surfaces &#183; cloudflare pages &#183; atproto pds</text>`);
-
-// ── Category legend (bottom-left) ──
-let lx = 64;
-const ly = 372;
-parts.push(`<text x="64" y="${ly}" font-family="DejaVu Sans Mono, monospace" font-size="12" letter-spacing="2" fill="#6a7078">CATEGORIES</text>`);
-let ly2 = ly + 26;
-for (const cat of catKeys) {
-  const count = projects.filter(p => p.c === cat).length;
-  if (!count) continue;
-  parts.push(`<circle cx="${lx + 6}" cy="${ly2 - 4}" r="5" fill="${CATS[cat]}"/>`);
-  parts.push(`<text x="${lx + 18}" y="${ly2}" font-family="DejaVu Sans Mono, monospace" font-size="14" fill="#c4cad2">${esc(cat)} <tspan fill="#6a7078">${count}</tspan></text>`);
-  ly2 += 26;
-}
-
-// Bottom accent bar (matches the site's red rule)
-parts.push(`<rect x="0" y="${H - 6}" width="${W}" height="6" fill="#8b0000"/>`);
-
-parts.push(`</svg>`);
-const svg = parts.join('\n');
-writeFileSync(join(root, 'og.svg'), svg);
-
-// ── Rasterize to PNG ──
-const resvg = new Resvg(svg, {
-  background: '#040408',
-  fitTo: { mode: 'width', value: W },
-  font: { loadSystemFonts: true },
-});
-const png = resvg.render().asPng();
+// ---- raster: Chromium with the bundled faces, so the card looks like the site
+const fontsDir = join(root, 'assets/fonts');
+const face = (fam, file, weight) => `@font-face{font-family:"${fam}";font-weight:${weight};src:url("${pathToFileURL(join(fontsDir, file)).href}") format("truetype")}`;
+const html = `<!doctype html><meta charset="utf-8"><style>${face('Bricolage Grotesque', 'BricolageGrotesque-700.ttf', 700)}${face('JetBrains Mono', 'JetBrainsMono-400.ttf', 400)}${face('Source Sans 3', 'SourceSans3-400.ttf', 400)}${face('Source Sans 3', 'SourceSans3-600.ttf', 600)}html,body{margin:0;background:#F2F4F8}svg{display:block}</style>${svg}`;
+const cardHtml = join(root, 'rethink/og-card.html');
+writeFileSync(cardHtml, html);
+let chromium = null;
+for (const p of ['playwright', '/opt/node22/lib/node_modules/playwright/index.mjs']) { try { chromium = (await import(p)).chromium; break; } catch {} }
+if (!chromium) { console.log('og.png: Playwright not found; SVG written, PNG left as is.'); process.exit(0); }
+const browser = await chromium.launch({ executablePath: existsSync('/opt/pw-browsers/chromium') ? '/opt/pw-browsers/chromium' : undefined }).catch(() => chromium.launch());
+const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
+await page.goto(pathToFileURL(cardHtml).href);
+await page.evaluate(() => Promise.all(['700 20px "Bricolage Grotesque"', '400 20px "JetBrains Mono"', '400 20px "Source Sans 3"', '600 20px "Source Sans 3"'].map((f) => document.fonts.load(f))).then(() => document.fonts.ready));
+const png = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: W, height: H } });
+await browser.close();
 writeFileSync(join(root, 'og.png'), png);
-
-console.log(`og.png: ${N} surfaces, ${stars.length} stars across ${catKeys.length} categories, ${png.length} bytes (${W}×${H}).`);
+console.log(`og.png: ${W}×${H}, ${png.length} bytes.`);

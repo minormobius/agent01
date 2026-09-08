@@ -55,4 +55,4 @@ if (dry) { console.log('(dry run)'); process.exit(0); }
 
 saveCatalogue(ROOT, cat);
 console.log('wrote catalogue.json');
-execSync('node scripts/gen-landing-catalogue.mjs --write', { cwd: ROOT, stdio: 'inherit' });
+execSync('node scripts/build-rethink.mjs --write', { cwd: ROOT, stdio: 'inherit' });

@@ -9,34 +9,20 @@
 <meta property="og:title" content="minomobi /stats — how this repo actually got built">
 <meta property="og:description" content="Five thousand commits, 160 sessions, 77 surfaces. Split by who made them, because only some of them had a person behind them.">
 <meta property="og:url" content="https://mino.mobi/stats/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/mino.css">
 <style>
-:root {
-  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
-  --link: #8b0000; --accent: #8b0000;
-  --accent-faint: rgba(139,0,0,0.06); --card: #fff;
-  --agent: #8b0000; --loop: #3a6ea5; --bot: #a08030; --human: #2a7a2a;
-  --grid0: #e8e6e0;
-  --mono: 'SF Mono','Cascadia Code','Fira Code',Menlo,monospace;
-  --serif: 'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0f0f0f; --text: #d4d4d4; --muted: #777; --rule: #333;
-    --link: #c45; --accent: #c45;
-    --accent-faint: rgba(204,68,85,0.08); --card: #161616;
-    --agent: #c45; --loop: #5d9bd8; --bot: #d4a355; --human: #55b070;
-    --grid0: #1e1e1e;
-  }
-}
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:var(--bg); color:var(--text); font-family:var(--serif); line-height:1.55; }
-.wrap { max-width:1060px; margin:0 auto; padding:2rem 1.2rem 5rem; }
-a { color:var(--link); text-decoration:none; } a:hover { text-decoration:underline; }
-header .crumb { font-family:var(--mono); font-size:.8rem; }
-h1 { font-size:1.9rem; margin:.4rem 0 .2rem; }
+/* tokens come from /mino.css; this page's old names map onto them */
+:root { --text: var(--ink); --muted: var(--ink-3); --rule: var(--line); --link: var(--accent);
+  --card: var(--paper); --serif: var(--body); --accent-faint: var(--accent-soft);
+  --tag-bg: var(--accent-soft); --tag-text: var(--accent); --dim: var(--ink-3); --agent: var(--w-play); --loop: var(--w-bench); --bot: var(--w-study); --human: var(--w-procgen); --grid0: var(--line-2); }
+.wrap { max-width: 1060px; padding-bottom: 5rem; }
+a { color:var(--link); text-decoration:none; } header .crumb { font-family:var(--mono); font-size:.8rem; }
+h1 { margin: .4rem 0 .2rem; }
 .sub { color:var(--muted); max-width:64ch; }
 .stamp { font-family:var(--mono); font-size:.72rem; color:var(--muted); margin-top:.5rem; }
-h2 { font-size:1.25rem; margin:2.8rem 0 .3rem; border-bottom:1px solid var(--rule); padding-bottom:.25rem; }
+h2 { margin: 2.6rem 0 .6rem; border-bottom: 1px solid var(--rule); padding-bottom: .25rem; }
 h2 + .note { color:var(--muted); font-size:.92rem; margin:.5rem 0 1rem; max-width:66ch; }
 .counts { display:flex; flex-wrap:wrap; gap:1.6rem; margin-top:1.2rem; }
 .counts div { min-width:96px; }
@@ -65,9 +51,8 @@ footer { margin-top:3.5rem; padding-top:1rem; border-top:1px solid var(--rule); 
 </head>
 <body>
 <div class="wrap">
-<header>
-  <div class="crumb"><a href="/">mino.mobi</a> / stats</div>
-  <h1>How this repo actually got built</h1>
+<div class="topbar"><div class="brand"><a href="/">minomobi</a><small>/ stats</small></div><div class="links"><a class="stumble" href="https://io.mino.mobi/stumble">🎲 stumble</a><a class="" href="/spec/">spec</a><a class="here" href="/stats/">stats</a></div></div>
+<header style="margin-top:12px">  <h1>How this repo actually got built</h1>
   <p class="sub">Self-analytics over the whole git history — every commit on every branch, split by who made it. Companion to <a href="/spec/">/spec</a> (what exists) and <a href="/office/">/office</a> (how it's arranged).</p>
   <p class="stamp" id="stamp">loading…</p>
 </header>

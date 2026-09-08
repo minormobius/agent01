@@ -95,7 +95,7 @@ export function loadCatalogue(root) {
 // Canonical field order for a catalogue entry, so a script that adds a field
 // to an existing entry doesn't leave the file in a different shape than one
 // that wrote it from scratch.
-export const CATALOGUE_KEYS = ['n', 'u', 'c', 'k', 'a', 't', 'b', 'p', 'surface'];
+export const CATALOGUE_KEYS = ['n', 'u', 'c', 'k', 'a', 't', 'b', 'p', 'surface', 'd', 'tags'];
 
 export function orderEntry(e) {
   const out = {};
@@ -135,19 +135,14 @@ export function pathGlob(glob) {
 // The landing-page view: the catalogue entries plus the curated <li> blocks.
 // The <li> descriptions are still hand-written in index.html — they are prose
 // about each site, not catalogue data — so those are still read from the HTML.
+// The curated one-liners used to live in the landing's <li> list; since 2026-09
+// they are the catalogue's own `d` and `tags` fields (the old page is frozen
+// under archive/). The shape returned is unchanged so every consumer keeps working.
 export function loadLanding(root) {
-  const html = readFileSync(join(root, 'index.html'), 'utf8');
   const P = loadCatalogue(root).entries;
-
   const descMap = new Map();
-  for (const m of html.matchAll(/<li>\s*<div class="name-row">([\s\S]*?)<\/div>\s*<div class="desc">([\s\S]*?)<\/div>\s*<\/li>/g)) {
-    const href = (m[1].match(/href="([^"]+)"/) || [])[1];
-    if (!href) continue;
-    const tags = [...m[1].matchAll(/<span class="tag">([^<]+)<\/span>/g)].map((t) => t[1]);
-    const desc = decode(m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim());
-    descMap.set(norm(href), { desc, tags });
-  }
-  return { P, descMap, html, norm };
+  for (const e of P) if (e.d) descMap.set(norm(e.u), { desc: e.d, tags: e.tags || [] });
+  return { P, descMap, html: '', norm };
 }
 
 // ------------------------------------------------------- surface resolution --

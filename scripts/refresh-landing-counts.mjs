@@ -79,4 +79,4 @@ if (!changes.length) process.exit(0);
 
 saveCatalogue(ROOT, cat);
 console.log(`\nWrote ${changes.length} updates to catalogue.json`);
-execSync('node scripts/gen-landing-catalogue.mjs --write', { cwd: ROOT, stdio: 'inherit' });
+execSync('node scripts/build-rethink.mjs --write', { cwd: ROOT, stdio: 'inherit' });

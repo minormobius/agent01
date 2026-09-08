@@ -84,7 +84,7 @@
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "type": "frontend",
-      "branch": "claude/root-directory-audit-0tk7r7",
+      "branch": "claude/landing-page-architecture-1igui5",
       "uses": [],
       "provides": "landing",
       "status": "MANAGED — Cloudflare Pages project agent01, Direct Upload, production branch main. Deployed by .github/workflows/deploy-root.yml, which stages the tree with .assetsignore applied by hand before uploading (wrangler pages deploy does not honour .assetsignore).",
@@ -121,10 +121,15 @@
         "catalogue.json",
         "git-graph.json",
         "stats/**",
-        "scripts/gen-landing-catalogue.mjs",
         "scripts/build-git-stats.mjs",
         "scripts/catalogue-coverage.mjs",
-        "scripts/lib/**"
+        "scripts/lib/**",
+        "rethink/**",
+        "scripts/build-rethink.mjs",
+        "procgen/**",
+        "next/**",
+        "archive/**",
+        "mino.css"
       ]
     },
     {
@@ -607,7 +612,7 @@
       "dir": "io",
       "endpoint": "io.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-architecture-1igui5",
       "uses": [
         "atpolls-db",
         "auth.mino.mobi"

@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Catalogue Rethink</title>
+<meta name="description" content="An audit of the mino.mobi landing catalogue and a content-level pass over its 296 entries: what collapses, what splits, what moves.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+:root{
+  --bg:#F2F4F8; --paper:#FFFFFF; --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+  --line:#D8DCE6; --line-2:#E9ECF2; --accent:#237E7A; --accent-ink:#FFFFFF; --accent-soft:#DDEFEE;
+  --bad:#C0392B; --bad-soft:#F8E1DE; --warn:#B8720C; --warn-soft:#F8ECD6; --ok:#3B8A4A; --ok-soft:#DFEFE2;
+  --c-bluesky:#3E9AC2; --c-work:#C77F16; --c-data:#4E9C2E; --c-tools:#7B5FD6; --c-games:#D64C77;
+  --shadow:0 1px 2px rgba(22,25,35,.06),0 8px 24px -12px rgba(22,25,35,.18);
+  --radius:6px;
+  --display:"Bricolage Grotesque","Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Sans 3","Source Sans Pro","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+    --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-ink:#0F1219; --accent-soft:#183634;
+    --bad:#E8776A; --bad-soft:#3A1F1C; --warn:#E0A64A; --warn-soft:#3A2D14; --ok:#6CC282; --ok-soft:#173523;
+    --c-bluesky:#6EC1E4; --c-work:#E6A23C; --c-data:#67C23A; --c-tools:#A880FF; --c-games:#F56991;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+  --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-ink:#0F1219; --accent-soft:#183634;
+  --bad:#E8776A; --bad-soft:#3A1F1C; --warn:#E0A64A; --warn-soft:#3A2D14; --ok:#6CC282; --ok-soft:#173523;
+  --c-bluesky:#6EC1E4; --c-work:#E6A23C; --c-data:#67C23A; --c-tools:#A880FF; --c-games:#F56991;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+a:hover,a:focus-visible{border-bottom-color:currentColor}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+code,.mono{font-family:var(--mono);font-size:.86em}
+code{background:var(--line-2);padding:.08em .35em;border-radius:3px;color:var(--ink)}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+h1{font-size:clamp(2.4rem,6vw,4.4rem);font-weight:700;line-height:1;font-variation-settings:"opsz" 96}
+h2{font-size:1.9rem;font-weight:650;line-height:1.1;margin-bottom:.4rem}
+h3{font-size:1.15rem;font-weight:650;line-height:1.25}
+p{margin:0 0 1rem}
+.eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.6rem}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
+header.masthead{padding:clamp(40px,7vw,88px) 0 40px;border-bottom:1px solid var(--line)}
+.masthead .kicker{display:flex;gap:1rem;align-items:baseline;flex-wrap:wrap;margin-bottom:1.2rem}
+.masthead .lede{max-width:66ch;font-size:1.2rem;color:var(--ink-2);margin-top:1.4rem}
+.masthead .lede b{color:var(--ink);font-weight:600}
+.statline{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin-top:2.4rem;border-radius:var(--radius);overflow:hidden}
+.statline div{background:var(--paper);padding:14px 16px 12px}
+.statline .v{font-family:var(--display);font-size:2rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.statline .v.hot{color:var(--bad)}
+.statline .l{font-size:.82rem;color:var(--ink-3);margin-top:6px;line-height:1.3}
+
+.layout{display:grid;grid-template-columns:200px minmax(0,1fr);gap:clamp(24px,5vw,72px);padding-top:40px}
+@media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}}
+nav.rail{position:sticky;top:24px;align-self:start;font-size:.9rem}
+@media (max-width:860px){nav.rail{position:static;display:flex;flex-wrap:wrap;gap:.3rem .9rem;border-bottom:1px solid var(--line);padding-bottom:12px}}
+nav.rail a{display:block;color:var(--ink-2);padding:4px 0;border:0;border-left:2px solid transparent;padding-left:10px;margin-left:-12px}
+nav.rail a:hover{color:var(--ink)}
+nav.rail a.on{color:var(--ink);border-left-color:var(--accent)}
+@media (max-width:860px){nav.rail a{border-left:0;padding-left:0;margin-left:0}}
+nav.rail .eyebrow{margin-bottom:.3rem}
+main{min-width:0}
+section.block{padding:8px 0 56px;border-bottom:1px solid var(--line);margin-bottom:48px}
+section.block:last-child{border-bottom:0}
+.prose{max-width:70ch}
+.prose ul{padding-left:1.2em}
+.prose li{margin-bottom:.35rem}
+
+/* findings */
+.finding{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:20px 32px;padding:20px 0;border-top:1px solid var(--line-2)}
+.finding:first-of-type{border-top:0}
+@media (max-width:700px){.finding{grid-template-columns:minmax(0,1fr)}}
+.finding h3{margin-bottom:.4rem}
+.finding p{color:var(--ink-2);margin:0}
+.finding .ev{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;font-family:var(--mono);font-size:.78rem;line-height:1.55;color:var(--ink-2);overflow-x:auto}
+.finding .ev b{color:var(--ink);font-weight:600}
+.finding .ev .r{color:var(--bad)}
+.finding .ev .g{color:var(--ok)}
+.finding .ev .w{color:var(--warn)}
+.finding .ev table{border-collapse:collapse;width:100%}
+.finding .ev td,.finding .ev th{padding:2px 8px 2px 0;text-align:left;vertical-align:top;white-space:nowrap}
+.finding .ev th{color:var(--ink-3);font-weight:400}
+.finding .ev td.n{text-align:right;font-variant-numeric:tabular-nums}
+.tagline{display:inline-block;font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:.6rem}
+.bar{display:inline-block;height:9px;background:var(--accent);vertical-align:middle;border-radius:2px}
+
+/* demo */
+.demo{margin:8px 0 28px}
+.demo .panes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:760px){.demo .panes{grid-template-columns:1fr}}
+.pane{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.pane .cap{display:flex;justify-content:space-between;align-items:baseline;padding:10px 14px;border-bottom:1px solid var(--line-2);font-size:.85rem}
+.pane .cap b{font-family:var(--display);font-size:1rem}
+.pane .cap .num{color:var(--ink-3)}
+.pane canvas{display:block;width:100%;height:360px}
+.legend{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;font-size:.8rem;color:var(--ink-2);margin-top:10px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+
+/* ideas */
+.lane{margin-top:26px}
+.lane h3.lanehead{font-size:.8rem;font-family:var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;font-weight:600}
+.ideas{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.idea{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px 14px;display:flex;flex-direction:column;gap:8px}
+.idea.star{border-color:var(--accent);box-shadow:var(--shadow)}
+.idea .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.idea h3{font-size:1.08rem}
+.idea p{margin:0;color:var(--ink-2);font-size:.95rem}
+.idea .fixes{display:flex;flex-wrap:wrap;gap:4px;margin-top:auto;padding-top:6px}
+.chip{font-family:var(--mono);font-size:.68rem;letter-spacing:.04em;padding:2px 7px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.chip.cost{border-color:transparent;background:var(--line-2);color:var(--ink);font-weight:600;flex:none}
+.chip.cost.L{background:var(--warn-soft);color:var(--warn)}
+.chip.cost.S{background:var(--ok-soft);color:var(--ok)}
+.idea .star-note{font-size:.78rem;color:var(--accent);font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+
+/* schema */
+.schema{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;font-family:var(--mono);font-size:.8rem;line-height:1.6;overflow-x:auto;white-space:pre;color:var(--ink-2)}
+.schema b{color:var(--ink);font-weight:600}
+.schema i{color:var(--ink-3);font-style:normal}
+.schema .add{color:var(--ok)}
+.schema .del{color:var(--bad);text-decoration:line-through}
+
+/* audit */
+.filters{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 10px;align-items:center}
+.filters button{font:inherit;font-size:.82rem;font-family:var(--mono);padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink-2);cursor:pointer}
+.filters button:hover{border-color:var(--ink-3)}
+.filters button.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.filters button .n{opacity:.7;margin-left:5px}
+.filters input{font:inherit;font-size:.9rem;padding:6px 10px;border-radius:var(--radius);border:1px solid var(--line);background:var(--paper);color:var(--ink);min-width:180px;margin-left:auto}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper)}
+table.audit{border-collapse:collapse;width:100%;font-size:.84rem}
+table.audit th{position:sticky;top:0;background:var(--paper);text-align:left;font-family:var(--mono);font-weight:400;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:10px 10px;border-bottom:1px solid var(--line)}
+table.audit td{padding:6px 10px;border-bottom:1px solid var(--line-2);vertical-align:top;white-space:nowrap}
+table.audit td.n,table.audit th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+table.audit td.name{font-weight:600}
+table.audit td.name .p{color:var(--ink-3);font-weight:400}
+table.audit td.flags{white-space:normal}
+.f{display:inline-block;font-family:var(--mono);font-size:.66rem;letter-spacing:.04em;padding:1px 6px;border-radius:3px;margin:1px 2px 1px 0}
+.f-stale{background:var(--warn-soft);color:var(--warn)}
+.f-nodesc{background:var(--line-2);color:var(--ink-2)}
+.f-dup,.f-section,.f-weight{background:var(--bad-soft);color:var(--bad)}
+.f-nodate{background:var(--line-2);color:var(--ink-3)}
+.f-dead{background:var(--bad);color:#fff}
+.deadlist{columns:2;column-gap:24px;font-size:.86rem;list-style:none;padding:0;margin:8px 0 0}
+@media (max-width:640px){.deadlist{columns:1}}
+.deadlist li{break-inside:avoid;padding:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.deadlist li .t{font-family:var(--mono);font-size:.68rem;color:var(--bad);margin-left:6px}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.live-hot{color:var(--bad)}.live-warm{color:var(--warn)}.live-cold{color:var(--ink-3)}.live-none{color:var(--ink-3)}
+.tally{font-size:.85rem;color:var(--ink-3);margin:8px 0 0;font-family:var(--mono)}
+
+/* plan */
+ol.plan{list-style:none;padding:0;margin:0;counter-reset:step}
+ol.plan li{counter-increment:step;display:grid;grid-template-columns:44px minmax(0,1fr);gap:14px;padding:16px 0;border-top:1px solid var(--line-2)}
+ol.plan li:first-child{border-top:0}
+ol.plan li::before{content:counter(step,decimal-leading-zero);font-family:var(--display);font-size:1.6rem;font-weight:700;color:var(--accent);line-height:1}
+ol.plan h3{margin-bottom:.25rem}
+ol.plan p{margin:0;color:var(--ink-2)}
+ol.plan .gate{font-family:var(--mono);font-size:.76rem;color:var(--ink-3);margin-top:6px}
+ol.plan .gate b{color:var(--ok);font-weight:600}
+footer{padding:32px 0 56px;color:var(--ink-3);font-size:.85rem;border-top:1px solid var(--line)}
+</style>
+<style>
+/* content pass */
+.ba{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:stretch;margin:18px 0 8px}
+@media (max-width:700px){.ba{grid-template-columns:1fr}.ba .arrow{display:none}}
+.ba .side{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px}
+.ba .side .eyebrow{margin-bottom:8px}
+.ba .side .big{font-family:var(--display);font-size:2.6rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.ba .side .big small{font-size:1rem;font-weight:500;color:var(--ink-3);margin-left:6px}
+.ba .side ul{list-style:none;margin:10px 0 0;padding:0;font-size:.9rem;color:var(--ink-2)}
+.ba .side li{display:flex;justify-content:space-between;gap:12px;padding:3px 0;border-top:1px solid var(--line-2)}
+.ba .side li b{font-family:var(--mono);font-weight:600;color:var(--ink);font-variant-numeric:tabular-nums}
+.ba .arrow{align-self:center;font-family:var(--display);font-size:2rem;color:var(--ink-3)}
+.ledger{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
+.a{display:inline-block;font-family:var(--mono);font-size:.68rem;letter-spacing:.05em;padding:2px 7px;border-radius:3px;white-space:nowrap;line-height:1.5}
+.a-keep{background:var(--line-2);color:var(--ink-3)}
+.a-fold{background:var(--accent-soft);color:var(--accent)}
+.a-regroup{background:var(--accent-soft);color:var(--accent)}
+.a-promote{background:var(--ok-soft);color:var(--ok)}
+.a-new{background:var(--ok-soft);color:var(--ok)}
+.a-merge{background:var(--warn-soft);color:var(--warn)}
+.a-retire{background:var(--warn-soft);color:var(--warn)}
+.a-decide{background:var(--bad-soft);color:var(--bad)}
+.a-look{background:var(--bad-soft);color:var(--bad)}
+.a-pinned{background:var(--accent);color:var(--accent-ink)}
+.a-pinned a{color:inherit;border-bottom-color:currentColor}
+.mrow .nt .rn{color:var(--ink-3)}
+.mrow .nt .tech{font-family:var(--mono);font-size:.7rem;color:var(--accent);letter-spacing:.04em}
+.ledger .a{font-size:.78rem;padding:4px 10px}
+.ledger .a b{margin-left:5px}
+.legend-note{font-size:.85rem;color:var(--ink-2);max-width:70ch;margin:8px 0 0}
+.hubs{display:flex;flex-direction:column;gap:14px;margin-top:22px}
+.hub{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.hub.is-new{border-color:var(--accent)}
+.hub > summary{list-style:none;cursor:pointer;padding:14px 18px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 16px;align-items:start}
+.hub > summary::-webkit-details-marker{display:none}
+.hub > summary:hover{background:var(--line-2)}
+.hub .hd{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px}
+.hub .hd h3{font-size:1.25rem}
+.hub .hd .facet{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;color:var(--ink-3)}
+.hub .hd .facet b{color:var(--ink-2);font-weight:600}
+.hub .why{grid-column:1/-1;color:var(--ink-2);font-size:.95rem;max-width:80ch;margin:0}
+.hub .cnt{font-family:var(--mono);font-size:.74rem;color:var(--ink-3);white-space:nowrap;text-align:right}
+.hub .cnt b{color:var(--ink);font-weight:600}
+.hub .body{border-top:1px solid var(--line-2);padding:6px 18px 14px}
+.hub .grp{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);padding:12px 0 4px}
+.mrow{display:grid;grid-template-columns:minmax(120px,220px) auto minmax(0,1fr) auto;gap:8px 12px;align-items:baseline;padding:5px 0;border-top:1px solid var(--line-2);font-size:.9rem}
+.mrow:first-child{border-top:0}
+.mrow.d2{padding-left:22px}
+.mrow.d2 .nm::before{content:"↳ ";color:var(--ink-3)}
+.mrow .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .nm .id{display:block;font-family:var(--mono);font-size:.68rem;font-weight:400;color:var(--ink-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mrow .nt{color:var(--ink-2);font-size:.86rem;min-width:0}
+.mrow .nt .into{font-family:var(--mono);font-size:.74rem;color:var(--warn)}
+.mrow .nt .from{font-family:var(--mono);font-size:.74rem;color:var(--accent)}
+.mrow .st{font-family:var(--mono);font-size:.7rem;color:var(--ink-3);white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.mrow .st .np{color:var(--bad)}
+@media (max-width:640px){.mrow{grid-template-columns:minmax(0,1fr) auto}.mrow .nt{grid-column:1/-1}.mrow .st{display:none}}
+.lists{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+@media (max-width:760px){.lists{grid-template-columns:1fr}}
+.lists .box{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:14px 18px}
+.lists h3{margin-bottom:4px}
+.lists p{font-size:.9rem;color:var(--ink-2);margin-bottom:8px}
+.lists ul{list-style:none;margin:0;padding:0;font-size:.88rem;columns:2;column-gap:18px}
+@media (max-width:520px){.lists ul{columns:1}}
+.lists li{break-inside:avoid;padding:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lists li .t{color:var(--ink-3);font-family:var(--mono);font-size:.7rem;margin-left:4px}
+.tool{display:flex;gap:8px;align-items:center;margin:14px 0 0;flex-wrap:wrap}
+.tool button{font:inherit;font-size:.82rem;font-family:var(--mono);padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--paper);color:var(--ink-2);cursor:pointer}
+.tool button:hover{border-color:var(--ink-3)}
+/* the whole space */
+section.space{padding:40px 0 8px;border-bottom:1px solid var(--line)}
+.space-head{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:16px 40px;align-items:end}
+@media (max-width:860px){.space-head{grid-template-columns:minmax(0,1fr)}}
+.space-legend{display:flex;flex-wrap:wrap;gap:.4rem 1rem;font-size:.8rem;color:var(--ink-2);max-width:360px;justify-content:flex-end}
+@media (max-width:860px){.space-legend{justify-content:flex-start;max-width:none}}
+.space-legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.sun-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:24px;align-items:start;margin-top:8px}
+@media (max-width:860px){.sun-wrap{grid-template-columns:minmax(0,1fr)}}
+#sun{width:100%;height:auto;max-height:78vh;display:block}
+#sun path{cursor:pointer;transition:opacity .12s}
+#sun text{pointer-events:none}
+.sun-side{position:sticky;top:24px;display:flex;flex-direction:column;gap:14px}
+.crumbs{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;font-size:.92rem;min-height:92px;line-height:1.5}
+.crumbs .hint{color:var(--ink-3);font-family:var(--mono);font-size:.78rem}
+.crumbs .c0{font-family:var(--display);font-weight:700}
+.crumbs .sep{color:var(--ink-3)}
+.crumbs .meta{margin-top:8px;font-size:.84rem;color:var(--ink-2);display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.crumbs .meta .why{flex-basis:100%;color:var(--ink-3);font-size:.8rem}
+.fates{display:flex;flex-direction:column;gap:2px}
+.fate{display:grid;grid-template-columns:44px 70px minmax(0,1fr);gap:8px;align-items:baseline;font-size:.82rem;padding:5px 0;border-top:1px solid var(--line-2)}
+.fate b{font-family:var(--display);font-size:1.15rem;text-align:right}
+.fate span{font-family:var(--mono);font-size:.74rem;color:var(--ink)}
+.fate em{font-style:normal;color:var(--ink-3)}
+.fatetable{overflow-x:auto;background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);margin-top:8px}
+.fates-t{border-collapse:collapse;width:100%;font-size:.88rem}
+.fates-t th{text-align:left;font-family:var(--mono);font-weight:400;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:10px 12px;border-bottom:1px solid var(--line)}
+.fates-t td{padding:8px 12px;border-bottom:1px solid var(--line-2);vertical-align:top}
+.fates-t td.n,.fates-t th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="kicker">
+      <span class="eyebrow" style="margin:0">mino.mobi · landing page · rethink · <span id="gen-date">2026-09-07</span></span>
+    </div>
+    <h1>The Catalogue Rethink</h1>
+    <p class="lede">The landing page was designed for about a hundred sites and now carries <b>296 catalogue entries</b> over <b>630 reachable endpoints</b>, sorted into five buckets that were named before most of the sites existed. Its shape is the order things were built in: every session got a directory, every directory got an entry. This page is the audit of what creaked, a <b>content pass over every entry</b> saying what collapses, what splits and what moves, and an order to do it in.</p>
+    <div class="statline" aria-label="Key numbers">
+      <div><div class="v num">630</div><div class="l">reachable endpoints (every dir with an index.html); all placed below</div></div>
+      <div><div class="v num">296</div><div class="l">catalogue entries · 112 top-level · 184 children</div></div>
+      <div><div class="v num">5</div><div class="l">buckets in <code>c</code> · bluesky · work · data · tools · games</div></div>
+      <div><div class="v num">3</div><div class="l">competing taxonomies: catalogue buckets, spec families, mappa wings</div></div>
+      <div><div class="v num">7</div><div class="l">landing visualisations, all drawing the same flat array</div></div>
+      <div><div class="v num hot">270</div><div class="l">entries the live page colours “cold” today · 7 hot · 4 warm</div></div>
+    </div>
+  </div>
+</header>
+
+<section class="space" id="space">
+  <div class="wrap">
+    <div class="space-head">
+      <div>
+        <div class="eyebrow">The whole space</div>
+        <h2 id="space-title">Every reachable endpoint, one figure</h2>
+        <p class="prose" style="color:var(--ink-2)">This is the landing hero, prototyped at <a href="/next/">/next/</a>: the entire site as one radial tree. The centre is the landing. The first ring is the seven wings the landing is organised by. The second is the hubs and standalone sites inside each wing, named along their arc where the arc is long enough. The third is the pages inside each hub. Everything beyond is content reached through those pages, down to hoop's frozen versions. Sector width is how many endpoints live under it. The faint outer band is what is reachable today but should not be: build output and source directories the apex serves by accident. Hover for the path, click to go.</p>
+      </div>
+      <div class="space-legend" id="space-legend"></div>
+    </div>
+    <div class="sun-wrap">
+      <svg id="sun" viewBox="0 0 1240 900" role="img" aria-label="Radial tree of every reachable endpoint on mino.mobi"></svg>
+      <div class="sun-side">
+        <div class="crumbs" id="sun-crumbs"><span class="hint">hover a sector</span></div>
+        <div class="fates" id="sun-fates"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap layout">
+<nav class="rail" aria-label="Sections">
+  <div class="eyebrow">Contents</div>
+  <a href="#creaks">What creaks</a>
+  <a href="#pass">The content pass</a>
+  <a href="#all">A plan for all 630</a>
+  <a href="#demo">Today vs. proposed</a>
+  <a href="#ideas">Ideas</a>
+  <a href="#schema">A schema to grow into</a>
+  <a href="#audit">The audit table</a>
+  <a href="#plan">Order of work</a>
+</nav>
+
+<main>
+<section class="block" id="creaks">
+  <div class="eyebrow">Diagnosis</div>
+  <h2>What creaks, with evidence</h2>
+  <p class="prose" style="color:var(--ink-2)">Every number below was computed from <code>catalogue.json</code>, <code>stats/data.json</code>, <code>spec/curated.js</code>, <code>mappa/sites.js</code> and <code>index.html</code> as of this merge. Nothing here is an impression.</p>
+
+  <div class="finding">
+    <div><h3>The five buckets predate the collection.</h3><p><code>work</code> has 8 entries; <code>games</code> has 84. <code>data</code> and <code>tools</code> are catch-alls: when the spec's ten families are laid over the catalogue's top-level <code>tools</code> entries, they fan out into eight different families. The buckets are not wrong so much as no longer a partition of anything.</p></div>
+    <div class="ev"><table>
+      <tr><th>bucket</th><th>entries</th><th></th><th>top-level</th></tr>
+      <tr><td>games</td><td class="n">84</td><td><span class="bar" style="width:84px"></span></td><td class="n">20</td></tr>
+      <tr><td>bluesky</td><td class="n">75</td><td><span class="bar" style="width:75px"></span></td><td class="n">26</td></tr>
+      <tr><td>tools</td><td class="n">66</td><td><span class="bar" style="width:66px"></span></td><td class="n">36</td></tr>
+      <tr><td>data</td><td class="n">63</td><td><span class="bar" style="width:63px"></span></td><td class="n">26</td></tr>
+      <tr><td>work</td><td class="n">8</td><td><span class="bar" style="width:8px"></span></td><td class="n">4</td></tr>
+    </table><br><b>tools</b> → spec families: platform 10 · science 8 · generative 5 · reference 4 · work 3 · reading 3 · games 2 · math 1<br><b>data</b> → oneill 5 · science 5 · math 5 · generative 4 · platform 3 · work 2 · social 1 · games 1</div>
+  </div>
+
+  <div class="finding">
+    <div><h3>Three taxonomies disagree, and each map trusts a different one.</h3><p>The landing uses <code>c</code> (5 buckets). The spec uses <code>families</code> in <code>spec/curated.js</code> (10, keyed by surface). Mappa and the orrery use <code>WINGS</code> plus a hand-kept <code>ASSIGN</code> table in <code>build-mappa.mjs</code> (9, keyed by name). Nothing checks them against each other, so a site can be a “tool”, a “science” surface and a citizen of “The Workbench” at once, and the reader is asked to hold all three.</p></div>
+    <div class="ev"><b>catalogue.c</b>  bluesky work data tools games<br><b>spec.families</b>  platform social work science oneill generative games reference reading math<br><b>mappa.WINGS</b>  social lenses bench cards studio arcade sandbox math reading<br><br>bluesky → wings: <span class="w">lenses 19</span> · social 6 · studio 1<br>tools → wings: <span class="w">bench 29</span> · studio 4 · reading 2 · arcade 1<br><i>“bench” absorbs 55 of 112 top-level sites</i></div>
+  </div>
+
+  <div class="finding">
+    <div><h3><code>k</code> (weight) is fiction for half the catalogue.</h3><p>137 of 296 entries carry <code>k: 1</code>. The comment in <code>index.html</code> still calls it “commits”, the catalogue calls it “weight”, and it drives orrery ring placement and sort order. Against real per-surface commit counts from <code>stats/data.json</code> the correlation is 0.20. Five surfaces with more than fifty commits sit at <code>k: 1</code>.</p></div>
+    <div class="ev"><table>
+      <tr><th>surface</th><th class="n">k</th><th class="n">git commits</th></tr>
+      <tr><td>lab</td><td class="n r">1</td><td class="n">349</td></tr>
+      <tr><td>loop</td><td class="n r">1</td><td class="n">338</td></tr>
+      <tr><td>bisk</td><td class="n r">1</td><td class="n">158</td></tr>
+      <tr><td>mappa</td><td class="n r">1</td><td class="n">84</td></tr>
+      <tr><td>plant</td><td class="n r">1</td><td class="n">79</td></tr>
+      <tr><td>poll</td><td class="n">75</td><td class="n">—</td></tr>
+    </table><br>k distribution: 1 → <b>137</b> · 2–4 → 58 · 5–9 → 42 · 10–19 → 33 · 20–49 → 22 · 50+ → 3<br>corr(k, commits) over 91 top-level = <b class="r">0.20</b></div>
+  </div>
+
+  <div class="finding">
+    <div><h3>The heat signal has gone out.</h3><p><code>t</code> (last touched) is hand-maintained and was last refreshed in bulk in May–June. The page recomputes <code>a</code> from <code>t</code> at load: hot within 7 days, warm within 14, cold after. Today that makes 270 of 296 entries cold, so the legend gradient, the orrery dial and the timeline's right edge all read as one colour. Meanwhile git knows the real answer: every one of the 248 entries whose surface appears in the stats has a newer commit than its <code>t</code>.</p></div>
+    <div class="ev"><table>
+      <tr><th>entry</th><th>catalogue t</th><th>git last</th></tr>
+      <tr><td>poll</td><td>2026-05-30</td><td class="g">2026-09-07</td></tr>
+      <tr><td>photo</td><td>2026-05-30</td><td class="g">2026-09-07</td></tr>
+      <tr><td>bisk</td><td>2026-06-02</td><td class="g">2026-09-06</td></tr>
+      <tr><td>disk</td><td>2026-05-29</td><td class="g">2026-09-07</td></tr>
+      <tr><td>airchat</td><td>2026-05-29</td><td class="g">2026-07-25</td></tr>
+    </table><br>stale t: <b class="r">248 / 248</b> · live tiers today: hot 7 · warm 4 · cold <b>270</b> · undated 15</div>
+  </div>
+
+  <div class="finding">
+    <div><h3>Names are the primary key, and names collide.</h3><p><code>p</code> (parent) points at a display name. Seven names appear more than once, <code>arena</code> three times. Any child of a duplicated name is ambiguous today; any future rename silently orphans children. The registry already has a stable key (<code>surface</code>); the catalogue needs one of its own.</p></div>
+    <div class="ev"><b>atlas</b>  rite.mino.mobi/atlas/ · atlas.mino.mobi<br><b>org</b>  rite.mino.mobi/org/ · org.mino.mobi<br><b>arena</b>  hoop…/v099/arena/ · os…/arena/race-01/ · fluoddity…/arena.html<br><b>voronoi</b>  hoop.mino.mobi/paint/ · mino.mobi/voronoi/<br><b>orb</b>  photo…/orb/ · tjs…/orb/<br><b>ink</b>  mino.mobi/wars/ink/ · ink.mino.mobi<br><b>sprite</b>  biome…/sprite/ · mega…/sprite/</div>
+  </div>
+
+  <div class="finding">
+    <div><h3>The hierarchy is two levels deep and lopsided, and the maps ignore it.</h3><p>184 of 296 entries are children, but only four are grandchildren. <code>g</code> has 24 children, <code>geometry</code> 19, <code>rite</code>, <code>read</code> and <code>fluoddity</code> 13 each. The orrery draws only the 112 top-levels; the constellation, subway, force and periodic views draw all 296 as peers. Neither is the shape of the collection, which is roughly 50 hubs with satellites.</p></div>
+    <div class="ev"><table>
+      <tr><th>parent</th><th class="n">children</th><th></th></tr>
+      <tr><td>g</td><td class="n">24</td><td><span class="bar" style="width:96px"></span></td></tr>
+      <tr><td>geometry</td><td class="n">19</td><td><span class="bar" style="width:76px"></span></td></tr>
+      <tr><td>rite</td><td class="n">13</td><td><span class="bar" style="width:52px"></span></td></tr>
+      <tr><td>read</td><td class="n">13</td><td><span class="bar" style="width:52px"></span></td></tr>
+      <tr><td>fluoddity</td><td class="n">13</td><td><span class="bar" style="width:52px"></span></td></tr>
+      <tr><td>photo</td><td class="n">12</td><td><span class="bar" style="width:48px"></span></td></tr>
+      <tr><td>atmosphere</td><td class="n">11</td><td><span class="bar" style="width:44px"></span></td></tr>
+      <tr><td>hoop · tjs</td><td class="n">10</td><td><span class="bar" style="width:40px"></span></td></tr>
+    </table><br>depth 0: 112 · depth 1: 180 · depth 2: <b>4</b> · hubs (top-level with children or k≥10): <b>49</b></div>
+  </div>
+
+  <div class="finding">
+    <div><h3>Prose covers 167 of 296. Search only knows those 167.</h3><p>The curated <code>&lt;li&gt;</code> list in <code>index.html</code> has 167 descriptions; 130 catalogue entries (every child of <code>rite</code>, <code>read</code>, <code>g</code>…) have none. <code>functions/search.js</code> is generated <em>from the li list</em>, so the ask panel cannot find anything without a description, which is most of the sub-sites.</p></div>
+    <div class="ev">li descriptions <b>167</b> · catalogue entries <b>296</b> · entries with no prose <b class="r">130</b><br>li not in catalogue: 1 (fortress)<br>search catalogue source: index.html li → <i>not</i> catalogue.json<br>tags in li: canvas 48 · atproto 32 · math 20 · wasm 14 · webgpu 12 · webgl 10 · react 9 · embeddings 9 · welsh 7 · rust 7 …</div>
+  </div>
+
+  <div class="finding">
+    <div><h3>Five entries sit in the wrong section, and the section list is by index.</h3><p><code>sections[]</code> records section boundaries as entry indexes (“work starts at 74”). Insert an entry and every later boundary is off by one. Five entries already fall in a section that is not their category.</p></div>
+    <div class="ev"><span class="r">78 farm</span> games, listed under work<br><span class="r">79 farm-next</span> games, listed under work<br><span class="r">169 fifty</span> bluesky, listed under tools<br><span class="r">277 canvas</span> tools, listed under games<br><span class="r">278 pizza</span> tools, listed under games</div>
+  </div>
+
+  <div class="finding">
+    <div><h3>The backlog is one-third phantom.</h3><p><code>catalogue-coverage.mjs</code> keys on directories; the catalogue keys on URLs. The <code>clock/</code> dir ships as <code>g.mino.mobi</code>, so 24 of the 28 <code>clock/*</code> “pending” sub-sites are already catalogued under <code>g.mino.mobi/…</code>. Forty of the 80 pending leaf names already exist as catalogue names. The true backlog is closer to 40 than 80.</p></div>
+    <div class="ev">pending 80 · clock/* 28 → already listed as g/* <b class="r">24</b><br>pending leaf name already a catalogue name: <b>40</b><br>registry dir ≠ host (20): geometry→math · draw→canvas · clock→torus · answers→ask · bakery→bake · empathy→empath · labglass→glass · pokemon→poke · finance→fin · wars→war …</div>
+  </div>
+
+  <div class="finding">
+    <div><h3>One 250 KB file does everything.</h3><p><code>index.html</code> is 4,523 lines: 44 KB of <code>var P</code>, 76 KB of curated list, 106 KB of script across seven renderers plus git history plots, and a hand-written mobile fallback of about 150 unlabelled links. Every visitor downloads all of it to see one view. The site-count says “125 surfaces” in HTML and is overwritten to “296 surfaces” by script, while the registry says 102 surfaces. The word <em>surface</em> now means two things.</p></div>
+    <div class="ev">index.html <b>250,374 B</b> · 4,523 lines<br>var P 43,875 · li list 76,201 · style 21,303 · script 106,509 (5 blocks)<br>vis modes: constellation subway periodic force depends orrery timeline<br>registry surfaces <b>102</b> · catalogue “surfaces” <b>296</b> · HTML literal “125”</div>
+  </div>
+</section>
+
+<section class="block" id="pass">
+  <div class="eyebrow">Content pass</div>
+  <h2>Every entry, placed</h2>
+  <p class="prose" style="color:var(--ink-2)">The structural ideas further down only matter if the entries themselves are right, and most of the mess is path dependence: a thing lives where it was born, not where it belongs. This pass reads all 296 entries plus the 80 in the coverage backlog and gives each one an action. It is hand-written in <code>rethink/proposal.json</code>, and <code>scripts/build-rethink.mjs</code> refuses to build this page unless every catalogue entry is placed exactly once. Edit the file, rebuild, argue with it.</p>
+
+  <div class="ba">
+    <div class="side">
+      <div class="eyebrow">Today</div>
+      <div class="big num" id="ba-before-top">112<small>top-level</small></div>
+      <ul>
+        <li><span>catalogue entries</span><b id="ba-before-entries">296</b></li>
+        <li><span>buckets</span><b>5</b></li>
+        <li><span>hubs the maps could draw</span><b>none declared</b></li>
+        <li><span>entries with no description</span><b id="ba-before-nodesc">130</b></li>
+      </ul>
+    </div>
+    <div class="arrow" aria-hidden="true">→</div>
+    <div class="side">
+      <div class="eyebrow">Proposed</div>
+      <div class="big num" id="ba-after-top">83<small>top-level</small></div>
+      <ul>
+        <li><span>hubs · standalone sites</span><b id="ba-after-split">32 · 51</b></li>
+        <li><span>entries, after merges and new listings</span><b id="ba-after-entries">334</b></li>
+        <li><span>merged or retired</span><b id="ba-removed">13</b></li>
+        <li><span>listed for the first time</span><b id="ba-added">51</b></li>
+      </ul>
+    </div>
+  </div>
+  <p class="legend-note">The entry count goes <em>up</em>, because the backlog is real: fable alone has eight sub-sites nobody listed. What goes down is what the front door has to show. The hubs are the whole landing page; the standalone sites sort by <code>kind</code> under them. One hub is <b>pinned</b>: procgen, two dozen generators that were scattered through games, tools and data, now one category with its own door at <a href="/procgen/">/procgen/</a>.</p>
+
+  <div class="ledger" id="ledger" aria-label="Actions taken"></div>
+  <p class="legend-note"><b>keep</b> unchanged · <b>fold</b> was top-level, becomes a page inside a hub · <b>regroup</b> a page moved to a different hub · <b>promote</b> a page becomes its own site · <b>new</b> listed for the first time · <b>merge</b> an iteration or duplicate retired into its sibling · <b>retire</b> frozen versions and scaffolding leave the catalogue · <b>decide</b> two things claim the same slot; a person picks · <b>look</b> nobody has written down what this is, so its placement is a guess. A <b>pinned</b> hub is a category the landing shows first, with its own door.</p>
+
+  <div class="tool"><button type="button" id="open-all">open all</button><button type="button" id="close-all">close all</button><button type="button" id="open-changed">open only the hubs that change</button></div>
+  <div class="hubs" id="hubs"></div>
+
+  <div class="lists">
+    <div class="box"><h3>Decide</h3><p>Two things claim one slot. Nothing downstream can pick for you.</p><ul id="list-decide"></ul></div>
+    <div class="box"><h3>Look</h3><p>No description anywhere in the repo, so the placement above is a guess. This is the editorial backlog, and it is the real one: <span id="look-count"></span> entries.</p><ul id="list-look"></ul></div>
+  </div>
+</section>
+
+<section class="block" id="all">
+  <div class="eyebrow">Coverage</div>
+  <h2>A plan for all <span id="all-n">630</span></h2>
+  <p class="prose" style="color:var(--ink-2)">The catalogue lists 296 things. The apex serves <span id="all-n2">630</span> directories with an index.html. The gap is mostly scratch: hoop's version directories, chapters and exhibits inside listed sites, and source trees the root worker uploads because it uploads everything. “Reachable from the landing” has to mean something for every one of them, so every endpoint gets a fate, computed from the proposal's tree plus the coverage rules in <code>catalogue.json</code>:</p>
+  <div class="fatetable" id="fatetable"></div>
+  <p class="prose" style="color:var(--ink-2);margin-top:14px">The rule for content is the one that makes the plan honest: a page inside a hub is reachable only if that hub's door links it. Today most doors are the surfaces' own index pages and they mostly do. The exceptions are the <b>look</b> rows, where the door itself is undescribed, so the content beneath it is reachable in theory only. <span id="content-under-look"></span> Internal endpoints are not a navigation problem but a serving problem: they should leave the upload, via <code>.assetsignore</code> or a carve-out, and the figure keeps drawing them until they do.</p>
+  <div id="orphans"></div>
+  <h3 style="margin-top:22px">Dead, as of the last probe</h3>
+  <p class="prose" style="color:var(--ink-2)" id="dead-intro"></p>
+  <ul class="deadlist" id="deadlist"></ul>
+</section>
+
+<section class="block" id="demo">
+  <div class="eyebrow">Live demonstration</div>
+  <h2>Today vs. proposed, same data</h2>
+  <p class="prose" style="color:var(--ink-2)">Both panels lay out the real catalogue with the same deterministic spiral, coloured by today's five buckets. Left: every entry as a peer, which is what the constellation, force and periodic views do now. Right: only the hubs from the content pass below, sized by how many entries each one carries. Hover either for names.</p>
+  <div class="demo">
+    <div class="panes">
+      <div class="pane"><div class="cap"><b>Today</b><span class="num" id="cap-a">296 peers</span></div><canvas id="cv-a" aria-label="All 296 catalogue entries drawn as equal dots"></canvas></div>
+      <div class="pane"><div class="cap"><b>Proposed</b><span class="num" id="cap-b">49 hubs · 247 tucked inside</span></div><canvas id="cv-b" aria-label="Only hub entries drawn, sized by children"></canvas></div>
+    </div>
+    <div class="legend"><span><i style="background:var(--c-bluesky)"></i>bluesky</span><span><i style="background:var(--c-work)"></i>work</span><span><i style="background:var(--c-data)"></i>data</span><span><i style="background:var(--c-tools)"></i>tools</span><span><i style="background:var(--c-games)"></i>games</span><span style="margin-left:auto">ring on a hub = child count</span></div>
+  </div>
+</section>
+
+<section class="block" id="ideas">
+  <div class="eyebrow">Brainstorm</div>
+  <h2>Ideas, in three lanes</h2>
+  <p class="prose" style="color:var(--ink-2)">Cost is a gut estimate: <b>S</b> an afternoon, <b>M</b> a session or two, <b>L</b> a week of sessions. The outlined cards are the ones the rest depend on. Chips name the finding each idea retires.</p>
+
+  <div class="lane">
+    <h3 class="lanehead">Lane 1 · The data model</h3>
+    <div class="ideas">
+      <div class="idea star"><div class="top"><h3>Give every entry a stable id</h3><span class="chip cost S">S</span></div><p>Add <code>id</code> (host-and-path slug: <code>rite/atlas</code>, <code>g/antoine</code>) and make <code>p</code> point at ids. <code>n</code> stays the display name and may repeat. A one-shot migration script writes the ids; preflight refuses a duplicate id or a dangling parent.</p><div class="star-note">foundation</div><div class="fixes"><span class="chip">name collisions</span><span class="chip">ambiguous parents</span></div></div>
+      <div class="idea star"><div class="top"><h3>Replace the bucket with facets</h3><span class="chip cost M">M</span></div><p>Retire <code>c</code>. Add three orthogonal fields: <code>kind</code> (one of: app · toy · explainer · reading · engine · infra), <code>domain</code> (bluesky · oneill · math · welsh · science · finance · …, one or more), and <code>stack</code> (the tags already on the li: canvas, atproto, wasm, webgpu…). The landing sections become “group by kind”; the maps colour by domain; search filters by stack.</p><div class="star-note">foundation</div><div class="fixes"><span class="chip">five buckets</span><span class="chip">catch-alls</span></div></div>
+      <div class="idea star"><div class="top"><h3>One taxonomy, three projections</h3><span class="chip cost M">M</span></div><p>Fold spec <code>families</code> and mappa <code>WINGS</code>/<code>ASSIGN</code> into the catalogue as facet values, then delete the hand tables in <code>spec/curated.js</code> and <code>build-mappa.mjs</code>. The spec reads <code>kind</code>+<code>domain</code>; mappa reads <code>domain</code> as its countries. A site can no longer belong to three unrelated places.</p><div class="star-note">foundation</div><div class="fixes"><span class="chip">three taxonomies</span></div></div>
+      <div class="idea"><div class="top"><h3>Derive heat and weight from git</h3><span class="chip cost S">S</span></div><p><code>build-git-stats.mjs</code> already computes per-surface <code>last</code> and <code>total</code> at <code>fetch-depth: 0</code> in CI. Let <code>gen-landing-catalogue</code> fill <code>t</code> and <code>k</code> from <code>stats/data.json</code> and treat hand values as overrides only. The 248 stale dates and 137 fake weights disappear on the next <code>preflight --fix</code>.</p><div class="fixes"><span class="chip">stale t</span><span class="chip">k is fiction</span><span class="chip">heat legend</span></div></div>
+      <div class="idea"><div class="top"><h3>Prose lives in the catalogue</h3><span class="chip cost M">M</span></div><p>Move the 167 curated descriptions into a <code>d</code> field (HTML allowed) and generate the <code>&lt;li&gt;</code> list and <code>functions/search.js</code> from it. Then the 130 undescribed entries have an obvious empty slot, coverage can count it, and search finally sees the whole collection.</p><div class="fixes"><span class="chip">130 without prose</span><span class="chip">search blind spots</span></div></div>
+      <div class="idea"><div class="top"><h3>Tiers instead of a flat array</h3><span class="chip cost S">S</span></div><p>Add <code>tier</code>: <code>hub</code> (a door: has children or is a whole domain), <code>site</code> (a standalone thing), <code>page</code> (content inside a hub). Derived by default, overridable. Every map renders hubs first and expands the rest on demand.</p><div class="fixes"><span class="chip">lopsided hierarchy</span><span class="chip">crowded maps</span></div></div>
+      <div class="idea"><div class="top"><h3>Sections by facet, not by index</h3><span class="chip cost S">S</span></div><p>Delete <code>sections[]</code>. The generator groups by <code>kind</code> (or whatever facet the landing chooses) and orders within a group by derived weight. Inserting an entry can no longer shift a boundary.</p><div class="fixes"><span class="chip">5 mis-sectioned</span></div></div>
+      <div class="idea"><div class="top"><h3>Coverage keys on URLs</h3><span class="chip cost S">S</span></div><p>Teach <code>catalogue-coverage.mjs</code> to map a directory to its live URL through the registry (<code>dir</code> → <code>endpoint</code>, plus the <code>paths</code> a surface stages), and compare URLs to URLs. The 24 phantom <code>clock/*</code> rows vanish and the real backlog of about 40 stands out.</p><div class="fixes"><span class="chip">phantom backlog</span></div></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <h3 class="lanehead">Lane 2 · The front door</h3>
+    <div class="ideas">
+      <div class="idea star"><div class="top"><h3>A shelf of hubs, not a sky of dots</h3><span class="chip cost M">M</span></div><p>Above the fold: the ~50 hubs as a compact shelf grouped by <code>kind</code>, each with its one-line description, its satellite count and a real last-touched date. That is the whole first screen. Nothing with <code>tier: page</code> appears until a hub is opened.</p><div class="star-note">the pitch</div><div class="fixes"><span class="chip">296 peers</span><span class="chip">first screen</span></div></div>
+      <div class="idea"><div class="top"><h3>A “this week” strip from git</h3><span class="chip cost S">S</span></div><p>Replace the hot/warm/cold legend with a short list of what actually changed in the last seven days, straight from <code>stats/data.json</code>. When nothing changed, it says so. It is the one part of the page that is honest about time without anyone editing a date.</p><div class="fixes"><span class="chip">dead heat signal</span></div></div>
+      <div class="idea"><div class="top"><h3>Instant filter before the model</h3><span class="chip cost S">S</span></div><p>The ask panel calls a 70B model for every query. Put a client-side fuzzy filter over id, name, facets and <code>d</code> in front of it: typing “welsh” or “webgpu” narrows the shelf immediately. The model stays for questions, not for lookups.</p><div class="fixes"><span class="chip">search cost</span><span class="chip">mobile nav</span></div></div>
+      <div class="idea"><div class="top"><h3>Split the 250 KB file</h3><span class="chip cost M">M</span></div><p>Generate <code>catalogue.js</code> (or fetch <code>catalogue.json</code>) instead of inlining <code>var P</code>; move each renderer to <code>landing/&lt;mode&gt;.js</code> loaded when its tab is first opened; keep the generated li list as the no-JS fallback. First paint drops to roughly 40 KB and the generators stop rewriting a 4,500-line file.</p><div class="fixes"><span class="chip">250 KB index</span><span class="chip">generator churn</span></div></div>
+      <div class="idea"><div class="top"><h3>Generated hub pages</h3><span class="chip cost M">M</span></div><p>For every hub without its own index (<code>rite</code>, <code>read</code>, <code>g</code>, <code>photo</code>, <code>geometry</code>…), generate a small page from the catalogue listing its children with descriptions. The hierarchy gets doors of its own; the landing links to the door instead of every room.</p><div class="fixes"><span class="chip">184 children on the landing</span></div></div>
+      <div class="idea"><div class="top"><h3>Retire the hand-written mobile fallback</h3><span class="chip cost S">S</span></div><p>The <code>.orrery-fallback</code> nav is 150 links in two unlabelled groups, maintained by hand. Once the li list is generated by hub, it <em>is</em> the fallback. Delete the nav and the HTML literal “125 surfaces”.</p><div class="fixes"><span class="chip">hand-kept lists</span></div></div>
+      <div class="idea"><div class="top"><h3>One word for “surface”</h3><span class="chip cost S">S</span></div><p>The registry has 102 surfaces (things that deploy). The landing counts 296 “surfaces” (things you can visit). Call catalogue entries <em>sites</em> everywhere on the page and in the generators; keep <em>surface</em> for the registry. Ninety seconds of confusion per new reader, retired.</p><div class="fixes"><span class="chip">vocabulary</span></div></div>
+    </div>
+  </div>
+
+  <div class="lane">
+    <h3 class="lanehead">Lane 3 · The maps</h3>
+    <div class="ideas">
+      <div class="idea star"><div class="top"><h3>Level of detail everywhere</h3><span class="chip cost M">M</span></div><p>One rule for all seven renderers: draw <code>tier: hub</code> nodes; draw a hub's children only when it is hovered, focused or zoomed. The maps stop being 296-node hairballs without any renderer changing its geometry. The demo above is this rule applied to a spiral.</p><div class="star-note">the pitch</div><div class="fixes"><span class="chip">crowded maps</span></div></div>
+      <div class="idea"><div class="top"><h3>Seven modes answer three questions</h3><span class="chip cost S">S</span></div><p>Constellation, force and subway draw the same graph three ways. Keep one view per question: <em>what is here</em> (the shelf or a treemap), <em>what is alive</em> (the timeline), <em>how it is wired</em> (depends, from the registry's <code>uses</code>). Retire the other four; each is a renderer nobody has to maintain.</p><div class="fixes"><span class="chip">106 KB of script</span></div></div>
+      <div class="idea"><div class="top"><h3>A treemap that scales past 300</h3><span class="chip cost M">M</span></div><p>Area by derived weight, nested by <code>kind</code> → hub → children, coloured by <code>domain</code>. It is the only layout in which 600 leaves stay legible, because small things become small rectangles instead of overlapping labels. It is the honest version of “periodic”.</p><div class="fixes"><span class="chip">label overlap</span></div></div>
+      <div class="idea"><div class="top"><h3>Orrery rings by tier</h3><span class="chip cost S">S</span></div><p>Inner ring hubs, middle ring standalone sites, outer ring the long tail, instead of splitting by a weight that is <code>1</code> for half the entries. Ring speed already encodes nothing; let radius encode something.</p><div class="fixes"><span class="chip">k is fiction</span></div></div>
+      <div class="idea"><div class="top"><h3>Mappa: cities are hubs, districts are children</h3><span class="chip cost M">M</span></div><p>The atlas currently plants 296 cities. Plant the ~50 hubs as cities sized by satellites, draw children as districts inside the city marker at zoom, and let <code>domain</code> be the countries so the wings table can be deleted.</p><div class="fixes"><span class="chip">three taxonomies</span><span class="chip">crowded atlas</span></div></div>
+      <div class="idea"><div class="top"><h3>Timeline of births, not touches</h3><span class="chip cost S">S</span></div><p><code>b</code> (birth) is the one date the catalogue gets right, because it never changes. A timeline by birth month, with hubs as anchors and children as ticks under them, shows the story of the collection: 26 in March, 91 in June. Last-touched belongs to the “this week” strip.</p><div class="fixes"><span class="chip">stale t</span></div></div>
+    </div>
+  </div>
+</section>
+
+<section class="block" id="schema">
+  <div class="eyebrow">Sketch</div>
+  <h2>A schema to grow into</h2>
+  <p class="prose" style="color:var(--ink-2)">The same short keys, so nothing downstream breaks on day one. Green is added, struck is removed, the rest stays. Every field marked <i>derived</i> is written by <code>preflight --fix</code> and may be overridden by hand.</p>
+<div class="schema">{
+  <b>"id"</b>:      <span class="add">"rite/atlas"</span>,        <i>// stable key; p points here. host/path slug</i>
+  <b>"n"</b>:       "atlas",             <i>// display name, may repeat</i>
+  <b>"u"</b>:       "https://rite.mino.mobi/atlas/",
+  <span class="del">"c":       "bluesky",</span>            <i>// gone: the bucket</i>
+  <b>"kind"</b>:    <span class="add">"app"</span>,               <i>// app · toy · explainer · reading · engine · infra — exactly one</i>
+  <b>"domain"</b>:  <span class="add">["bluesky"]</span>,         <i>// one or more; colours the maps; mappa's countries</i>
+  <b>"stack"</b>:   <span class="add">["atproto","canvas"]</span>, <i>// the li tags, promoted; search filters on them</i>
+  <b>"tier"</b>:    <span class="add">"page"</span>,              <i>// hub · site · page — derived from p and children, overridable</i>
+  <b>"p"</b>:       <span class="add">"rite"</span>,              <i>// parent id, was parent name</i>
+  <b>"d"</b>:       <span class="add">"Where the …"</span>,       <i>// the curated description, moved out of index.html</i>
+  <b>"k"</b>:       14,                  <i>// derived: git commits on the surface; hand value = override</i>
+  <b>"t"</b>:       "2026-09-06",        <i>// derived: git last-touch</i>
+  <b>"b"</b>:       "2026-05-20",        <i>// birth; hand-kept, never changes</i>
+  <b>"surface"</b>: "rite"               <i>// unchanged: FK into deploy-registry.json</i>
+}
+<span class="del">"sections": [ { "before": 74, "label": "work" } … ]</span>   <i>// gone: grouping is by kind</i>
+<b>"kinds"</b>:   <span class="add">[ "app","toy","explainer","reading","engine","infra" ]</span>   <i>// closed list; preflight enforces</i>
+<b>"domains"</b>: <span class="add">[ { "id":"oneill", "label":"The O'Neill cylinder", "hue":32 } … ]</span>   <i>// the one taxonomy</i></div>
+  <p class="prose" style="margin-top:1rem;color:var(--ink-2)">Migration is mechanical: ids from URLs, <code>kind</code> from a first pass over <code>c</code> plus the spec families, <code>domain</code> from the mappa wings plus the li tags, <code>tier</code> from children counts, <code>d</code> from the li list keyed by URL. A script can propose all of it and a person corrects perhaps forty rows.</p>
+</section>
+
+<section class="block" id="audit">
+  <div class="eyebrow">The audit</div>
+  <h2>Every catalogue entry, flagged</h2>
+  <p class="prose" style="color:var(--ink-2)">All 296 rows from <code>catalogue.json</code>, joined to <code>stats/data.json</code> by <code>surface</code>. “Live” is the tier the landing page computes today from <code>t</code>. Flags: <b>stale</b> git has a newer commit than <code>t</code> · <b>nodesc</b> no curated description · <b>dup</b> name appears more than once · <b>section</b> listed under the wrong section · <b>weight</b> <code>k≤1</code> on a surface with more than fifty commits · <b>nodate</b> no <code>t</code> · <b>dead</b> the last probe got a 4xx/5xx, a timeout, or the apex landing page instead of the page.</p>
+  <div class="filters" id="filters">
+    <button data-f="all" class="on">all<span class="n" id="n-all"></span></button>
+    <button data-f="stale">stale<span class="n" id="n-stale"></span></button>
+    <button data-f="nodesc">nodesc<span class="n" id="n-nodesc"></span></button>
+    <button data-f="dup">dup<span class="n" id="n-dup"></span></button>
+    <button data-f="section">section<span class="n" id="n-section"></span></button>
+    <button data-f="weight">weight<span class="n" id="n-weight"></span></button>
+    <button data-f="nodate">nodate<span class="n" id="n-nodate"></span></button>
+    <button data-f="dead">dead<span class="n" id="n-dead"></span></button>
+    <button data-f="clean">clean<span class="n" id="n-clean"></span></button>
+    <button data-f="hub">hubs<span class="n" id="n-hub"></span></button>
+    <input id="q" type="search" placeholder="filter by name, parent, surface…" aria-label="Filter rows">
+  </div>
+  <div class="tablewrap" style="max-height:640px;overflow:auto">
+    <table class="audit">
+      <thead><tr><th>entry</th><th>bucket</th><th>proposed hub</th><th>action</th><th class="n">k</th><th class="n">git</th><th>t</th><th>git last</th><th>live</th><th class="n">kids</th><th>flags</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p class="tally" id="tally"></p>
+</section>
+
+<section class="block" id="plan">
+  <div class="eyebrow">Sequence</div>
+  <h2>An order of work</h2>
+  <p class="prose" style="color:var(--ink-2)">Numbered because the order matters: each step is safe on its own, ships through <code>preflight --fix</code>, and makes the next one smaller. Nothing here touches a deploy until step six.</p>
+  <ol class="plan">
+    <li><div><h3>Ids and parents</h3><p>Migration script adds <code>id</code> to every entry and rewrites <code>p</code> to ids. Preflight gains two checks: unique ids, no dangling parents. Every generator keeps working because <code>n</code> and <code>u</code> are untouched.</p><div class="gate">gate: <b>preflight green</b> · var P byte-identical apart from the new field</div></div></li>
+    <li><div><h3>Heat and weight from git</h3><p><code>gen-landing-catalogue</code> reads <code>stats/data.json</code> and fills <code>t</code>/<code>k</code>; hand values become overrides. The landing's legend lights up again without anyone editing a date.</p><div class="gate">gate: <b>0 stale rows</b> in the audit table · CI at fetch-depth 0 already provides the stats</div></div></li>
+    <li><div><h3>Apply the content pass</h3><p>A script reads <code>rethink/proposal.json</code> and rewrites <code>catalogue.json</code>: parents moved, merges and retirements applied (retired URLs go into <code>notListed</code> as content), backlog entries added with <code>d: ""</code>. The seven <b>decide</b> rows are answered in the proposal first, by hand.</p><div class="gate">gate: <b>coverage backlog ≈ 0</b> · top-level ≈ 83 · every hub has a door</div></div></li>
+    <li><div><h3>Descriptions into the catalogue</h3><p>Move the 167 li descriptions to <code>d</code>; generate the li list and <code>search.js</code> from the catalogue. Then work the <b>look</b> list, hubs first: a sentence each is enough to place them properly.</p><div class="gate">gate: <b>nodesc = 0 for hubs</b> · search finds a child of rite by name</div></div></li>
+    <li><div><h3>Facets and the single taxonomy</h3><p>Add <code>kind</code>, <code>domain</code>, <code>stack</code>, <code>tier</code>; the proposal already carries kind and domain per hub. Delete <code>sections[]</code>, spec <code>families</code>, mappa <code>ASSIGN</code>. Coverage switches to URL keys.</p><div class="gate">gate: <b>one taxonomy file</b> · every projection regenerates from it</div></div></li>
+    <li><div><h3>The shelf and the split</h3><p>New landing: shelf of hubs by kind, the “this week” strip, instant filter; renderers split into modules; li list becomes the no-JS fallback; the hand-written mobile nav goes. This is the deploy, on the root surface's owning branch.</p><div class="gate">gate: <b>first paint under 50 KB</b> · every hub reachable in one click · deploy log binds mino.mobi (custom domain)</div></div></li>
+    <li><div><h3>Maps get level of detail</h3><p>Apply the hub-first rule to whichever renderers survive, add the treemap, re-ring the orrery by tier, replant mappa's cities. Each is its own small change against the same catalogue.</p><div class="gate">gate: <b>no map draws more than ~60 labels at rest</b></div></div></li>
+  </ol>
+</section>
+
+</main>
+</div>
+
+<footer><div class="wrap">Computed from <code>catalogue.json</code>, <code>stats/data.json</code>, <code>index.html</code> and <code>rethink/proposal.json</code> on <span id="gen-date-2">2026-09-07</span>. Rebuild with <code>node scripts/build-rethink.mjs --write</code>.</div></footer>
+
+<script src="data.js"></script>
+<script src="space.js"></script>
+<script>
+(function(){
+  var R = window.RETHINK; if (!R) return;
+  var rows = R.rows, members = R.members, tops = R.top, S = R.summary;
+  var rowById = {}; rows.forEach(function(r){ rowById[r.id] = r; });
+  var css = getComputedStyle(document.documentElement);
+  function col(c){ return css.getPropertyValue('--c-'+c).trim() || '#888'; }
+  function ink(v){ return css.getPropertyValue(v).trim(); }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function txt(id, v){ var el = document.getElementById(id); if (el) el.textContent = v; }
+
+  // ---- header numbers ------------------------------------------------------
+  txt('gen-date', R.generated); txt('gen-date-2', R.generated);
+  txt('ba-before-entries', S.before.entries); txt('ba-before-nodesc', S.flags.nodesc || 0);
+  txt('ba-after-entries', S.after.entries); txt('ba-after-split', S.after.hubs+' · '+S.after.sites);
+  txt('ba-removed', S.after.removed); txt('ba-added', S.after.added);
+  document.getElementById('ba-before-top').innerHTML = S.before.top+'<small>top-level</small>';
+  document.getElementById('ba-after-top').innerHTML = S.after.top+'<small>top-level</small>';
+
+  // ---- ledger --------------------------------------------------------------
+  var order = ['keep','fold','regroup','promote','new','merge','retire','decide','look'];
+  document.getElementById('ledger').innerHTML = order.filter(function(a){ return S.actions[a]; }).map(function(a){
+    return '<span class="a a-'+a+'">'+a+'<b>'+S.actions[a]+'</b></span>';
+  }).join('');
+
+  // ---- hubs ----------------------------------------------------------------
+  var byTop = {}; members.forEach(function(m){ (byTop[m.top] = byTop[m.top] || []).push(m); });
+  function stat(m){
+    var r = rowById[m.id]; if (!r) return '<span class="np">unlisted</span>';
+    var s = 'k'+r.k; if (r.g != null) s += ' · '+r.g+' on surface';
+    if (!r.d) s += ' · <span class="np">no prose</span>';
+    return s;
+  }
+  function href(m){ var r = rowById[m.id]; return r ? r.u : 'https://'+m.id+'/'; }
+  function mrow(m){
+    var r = rowById[m.id];
+    var note = [];
+    if (m.into) note.push('<span class="into">→ '+esc(m.into.split('/').slice(-1)[0] === m.into ? m.into : m.into)+'</span>');
+    if (m.from) note.push('<span class="from">from '+esc(m.from)+'</span>');
+    if (m.note) note.push(esc(m.note));
+    else if (r && r.d) note.push(esc(r.d.length > 140 ? r.d.slice(0,137)+'…' : r.d));
+    else if (m.rn) note.push('<span class="rn">'+esc(m.rn.length > 140 ? m.rn.slice(0,137)+'…' : m.rn)+'</span>');
+    if (m.tech && m.tech.length) note.push('<span class="tech">'+m.tech.join(' · ')+'</span>');
+    return '<div class="mrow d'+m.depth+'"><div class="nm"><a href="'+esc(href(m))+'" target="_blank" rel="noopener">'+esc(m.n)+'</a><span class="id">'+esc(m.id)+'</span></div>'
+      +'<span class="a a-'+m.action+'">'+m.action+'</span><div class="nt">'+note.join(' · ')+'</div><div class="st">'+stat(m)+'</div></div>';
+  }
+  var changed = {};
+  var html = tops.map(function(t){
+    var ms = byTop[t.id] || [];
+    var nChanged = ms.filter(function(m){ return m.action !== 'keep'; }).length;
+    var isNew = /new-hub|split-from/.test(t.action);
+    changed[t.id] = nChanged > 0 || isNew;
+    // group members: keep insertion order, but cluster by group label when present
+    var groups = [], seen = {};
+    ms.forEach(function(m){ var g = m.depth === 1 ? (m.group || '') : (ms.find(function(x){ return x.id === m.parent; }) || {}).group || ''; if (!seen[g]) { seen[g] = []; groups.push(g); } seen[g].push(m); });
+    var body = groups.map(function(g){ return (g ? '<div class="grp">'+esc(g)+'</div>' : '') + seen[g].map(mrow).join(''); }).join('');
+    var badge = t.action === 'list' ? '' : '<span class="a a-'+(isNew ? 'new' : t.action === 'keep' ? 'keep' : 'fold')+'">'+esc(t.action)+(t.from ? ' '+esc(t.from) : '')+'</span>';
+    if (t.pinned) badge += '<span class="a a-pinned">pinned · <a href="/'+esc(t.id)+'/">/'+esc(t.id)+'/</a></span>';
+    return '<details class="hub'+(isNew ? ' is-new' : '')+'" id="hub-'+esc(t.id)+'" data-changed="'+changed[t.id]+'"><summary>'
+      +'<div class="hd"><h3>'+esc(t.label)+'</h3>'+badge+(t.u ? '<span class="facet"><a href="https://'+esc(t.u)+'/" target="_blank" rel="noopener">'+esc(t.u)+'</a></span>' : '')+'<span class="facet">kind <b>'+esc(t.kind)+'</b></span><span class="facet">domain <b>'+esc(t.domain)+'</b></span></div>'
+      +'<div class="cnt"><b>'+ms.length+'</b> entries · <b>'+nChanged+'</b> change</div>'
+      +(t.why ? '<p class="why">'+esc(t.why)+'</p>' : '')
+      +'</summary><div class="body">'+body+'</div></details>';
+  }).join('');
+  document.getElementById('hubs').innerHTML = html;
+  function setAll(fn){ Array.prototype.forEach.call(document.querySelectorAll('.hub'), function(d){ d.open = fn(d); }); }
+  document.getElementById('open-all').addEventListener('click', function(){ setAll(function(){ return true; }); });
+  document.getElementById('close-all').addEventListener('click', function(){ setAll(function(){ return false; }); });
+  document.getElementById('open-changed').addEventListener('click', function(){ setAll(function(d){ return d.dataset.changed === 'true'; }); });
+  // open the hubs with the most change at rest
+  ['atmosphere','oneill','procgen','tales'].forEach(function(id){ var d = document.getElementById('hub-'+id); if (d) d.open = true; });
+
+  function li(m){ return '<li><a href="'+esc(href(m))+'" target="_blank" rel="noopener">'+esc(m.n)+'</a><span class="t">'+esc(m.top)+(m.note ? ' · '+esc(m.note.length > 60 ? m.note.slice(0,57)+'…' : m.note) : '')+'</span></li>'; }
+  document.getElementById('list-decide').innerHTML = members.filter(function(m){ return m.action === 'decide'; }).map(li).join('');
+  var looks = members.filter(function(m){ return m.action === 'look'; });
+  document.getElementById('list-look').innerHTML = looks.map(li).join('');
+  txt('look-count', looks.length);
+
+  // ---- demo canvases -------------------------------------------------------
+  function spiral(items, cv, opts){
+    var dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = cv.clientHeight;
+    if (!W) return;
+    cv.width = W*dpr; cv.height = H*dpr;
+    var ctx = cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.clearRect(0,0,W,H);
+    var cx = W/2, cy = H/2, Rr = Math.min(W,H)/2 - 18, n = items.length, phi = Math.PI*(3-Math.sqrt(5));
+    ctx.font = (opts.font||11)+'px '+css.getPropertyValue('--mono'); ctx.textBaseline = 'middle';
+    var pts = items.map(function(it,i){ var r = Rr*Math.sqrt((i+0.5)/n), a = i*phi; return {x:cx+r*Math.cos(a), y:cy+r*Math.sin(a), r:opts.radius(it), it:it}; });
+    pts.forEach(function(p){
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2); ctx.fillStyle = col(p.it.c); ctx.globalAlpha = opts.alpha||0.9; ctx.fill(); ctx.globalAlpha = 1;
+      if (opts.ring && p.it.ch){ ctx.beginPath(); ctx.arc(p.x,p.y,p.r+2+Math.sqrt(p.it.ch)*1.6,0,Math.PI*2); ctx.strokeStyle = col(p.it.c); ctx.lineWidth = 1; ctx.globalAlpha = .5; ctx.stroke(); ctx.globalAlpha = 1; }
+      ctx.fillStyle = ink('--ink-2'); ctx.fillText(p.it.n, p.x + p.r + 3, p.y);
+    });
+    cv._pts = pts;
+  }
+  // proposed: the hubs of the content pass, sized by member count, coloured by the bucket their door had
+  var hubItems = tops.filter(function(t){ return t.id !== 'sites'; }).map(function(t){
+    var door = rowById[t.u] || {}; var ms = byTop[t.id] || [];
+    return { n: t.label, u: 'https://'+t.u+'/', c: door.c || 'tools', k: door.k || 1, ch: ms.length, p: '' };
+  });
+  var cvA = document.getElementById('cv-a'), cvB = document.getElementById('cv-b');
+  function drawAll(){
+    spiral(rows, cvA, {radius:function(){return 3.2;}, font:10, alpha:.85});
+    spiral(hubItems, cvB, {radius:function(it){return 4+Math.min(8,it.ch/4);}, ring:true, font:11});
+  }
+  drawAll();
+  var rt; window.addEventListener('resize', function(){ clearTimeout(rt); rt=setTimeout(drawAll,120); });
+  txt('cap-a', rows.length+' peers'); txt('cap-b', hubItems.length+' hubs · '+S.after.sites+' sites under them');
+  function near(cv,e){ var b = cv.getBoundingClientRect(), x=e.clientX-b.left, y=e.clientY-b.top, best=null, bd=14; (cv._pts||[]).forEach(function(p){ var d=Math.hypot(p.x-x,p.y-y); if(d<bd){bd=d;best=p;} }); return best; }
+  [cvA,cvB].forEach(function(cv){
+    cv.addEventListener('mousemove', function(e){ var b = near(cv,e); cv.title = b ? b.it.n+(b.it.p?' · in '+b.it.p:'')+(b.it.ch?' · '+b.it.ch+' entries':'') : ''; cv.style.cursor = b ? 'pointer' : 'default'; });
+    cv.addEventListener('click', function(e){ var b = near(cv,e); if (b) window.open(b.it.u, '_blank', 'noopener'); });
+  });
+  if (window.matchMedia){ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(){ setTimeout(drawAll,50); }); }
+
+  // ---- audit table ---------------------------------------------------------
+  var tbody = document.getElementById('rows'), q = document.getElementById('q'), tally = document.getElementById('tally');
+  var filter = 'all';
+  var hubIds = {}; tops.forEach(function(t){ hubIds[t.u] = true; });
+  var counts = {all:rows.length, clean:0, hub:0};
+  rows.forEach(function(r){ if(!r.f.length) counts.clean++; if (hubIds[r.id]) counts.hub++; r.f.forEach(function(f){ counts[f]=(counts[f]||0)+1; }); });
+  Object.keys(counts).forEach(function(k){ txt('n-'+k, counts[k]); });
+  var actionOf = {}; members.forEach(function(m){ actionOf[m.id] = m; });
+  function match(r){
+    if (filter==='clean' && r.f.length) return false;
+    if (filter==='hub' && !hubIds[r.id]) return false;
+    if (filter!=='all' && filter!=='clean' && filter!=='hub' && r.f.indexOf(filter)<0) return false;
+    var s = q.value.trim().toLowerCase();
+    if (s && (r.n+' '+r.p+' '+r.s+' '+r.c+' '+(actionOf[r.id]||{}).top).toLowerCase().indexOf(s)<0) return false;
+    return true;
+  }
+  function render(){
+    var html = [], shown = 0;
+    rows.forEach(function(r){
+      if (!match(r)) return; shown++;
+      var m = actionOf[r.id] || {};
+      html.push('<tr><td class="name"><a href="'+esc(r.u)+'" target="_blank" rel="noopener">'+esc(r.n)+'</a>'+(r.p?' <span class="p">← '+esc(r.p)+'</span>':'')+'</td>'
+        +'<td><span class="dot" style="background:'+col(r.c)+'"></span>'+esc(r.c)+'</td>'
+        +'<td class="mono">'+esc(m.top||'')+'</td><td><span class="a a-'+esc(m.action||'keep')+'">'+esc(m.action||'')+'</span></td>'
+        +'<td class="n">'+r.k+'</td><td class="n">'+(r.g==null?'—':r.g)+'</td>'
+        +'<td class="mono">'+(r.t||'—')+'</td><td class="mono">'+(r.gl||'—')+'</td>'
+        +'<td class="live-'+r.live+'">'+r.live+'</td><td class="n">'+(r.ch||'')+'</td>'
+        +'<td class="flags">'+r.f.map(function(f){return '<span class="f f-'+f+'">'+f+'</span>';}).join('')+'</td></tr>');
+    });
+    tbody.innerHTML = html.join('');
+    tally.textContent = shown+' of '+rows.length+' rows';
+  }
+  document.getElementById('filters').addEventListener('click', function(e){
+    var b = e.target.closest('button'); if(!b) return;
+    filter = b.dataset.f;
+    Array.prototype.forEach.call(this.querySelectorAll('button'), function(x){ x.classList.toggle('on', x===b); });
+    render();
+  });
+  q.addEventListener('input', render);
+  render();
+
+
+  // ---- the whole space: shared figure (rethink/space.js) + this page's chrome
+  (function(){
+    var svg = document.getElementById('sun'); if (!svg || !R.space || !window.MINO_SPACE) return;
+    var api = MINO_SPACE.draw(svg, R);
+    var WING = api.WING, INTERNAL = ink('--ink-3');
+    var legend = document.getElementById('space-legend');
+    legend.innerHTML = (R.wings||[]).map(function(w){ return '<span><i style="background:'+WING[w.id]+'"></i>'+esc(w.label)+'</span>'; }).join('') + '<span><i style="background:'+INTERNAL+';opacity:.4"></i>should not be served</span>';
+    var sp = R.summary.space || {};
+    var FATE = [['door','hubs on the landing'],['site','standalone sites on the landing, under their kind'],['page','pages inside a hub, one click from its door'],['content','pages inside a page, reached through it'],['internal','served by accident; to be excluded'],['orphan','unplaced']];
+    document.getElementById('sun-fates').innerHTML = FATE.filter(function(f){ return sp[f[0]]; }).map(function(f){ return '<div class="fate"><b class="num">'+sp[f[0]]+'</b><span>'+f[0]+'</span><em>'+f[1]+'</em></div>'; }).join('');
+    var crumbs = document.getElementById('sun-crumbs');
+    svg.addEventListener('mousemove', function(e){
+      var n = api.nodeAt(e); if (!n) return;
+      var p = api.pathOf(n);
+      crumbs.innerHTML = '<span class="c0">mino.mobi</span>' + p.map(function(x){ return ' <span class="sep">→</span> <span>'+esc(x.n)+'</span>'; }).join('')
+        + '<div class="meta"><span class="a a-'+(n.fate==='internal'?'retire':n.fate==='orphan'?'look':n.fate==='content'?'keep':'fold')+'">'+n.fate+'</span> '+(n.u?'<a href="'+esc(n.u)+'" target="_blank" rel="noopener">'+esc(n.u.replace(/^https:\/\//,''))+'</a>':'')+(n.why?'<div class="why">'+esc(n.why)+'</div>':'')+(n.children.length?'<div class="why">'+(api.leaves(n)-1)+' endpoints beneath</div>':'')+'</div>';
+      api.focus(n);
+    });
+    svg.addEventListener('mouseleave', function(){ api.dim(null); });
+    svg.addEventListener('click', function(e){ var n = api.nodeAt(e); if (n && n.u) window.open(n.u, '_blank', 'noopener'); });
+
+    var ft = document.getElementById('fatetable');
+    if (ft) {
+      var ROWS = [['door', 'on the landing', 'the hub is the landing entry; its door page lists its pages'],['site','on the landing','listed under its kind; nothing beneath it'],['page','one click','on its hub\'s door; the hub page is generated from the catalogue'],['content','two clicks','linked from the page it lives in; that page owns the link, not the landing'],['internal','removed','build output and source dirs: leave the upload via .assetsignore or a carve-out'],['orphan','decide','nobody has placed it']];
+      ft.innerHTML = '<table class="fates-t"><thead><tr><th>fate</th><th class="n">endpoints</th><th>reachable how</th><th>what has to be true</th></tr></thead><tbody>'
+        + ROWS.filter(function(r){ return sp[r[0]]; }).map(function(r){ return '<tr><td><span class="a a-'+(r[0]==='internal'?'retire':r[0]==='orphan'?'look':r[0]==='content'?'keep':'fold')+'">'+r[0]+'</span></td><td class="n">'+sp[r[0]]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td></tr>'; }).join('')
+        + '<tr><td>folded</td><td class="n">'+(sp.folded||0)+'</td><td>via its sibling</td><td>merged or retired entries; the URL keeps working</td></tr>'
+        + '</tbody></table>';
+      var lookIds = {}; members.forEach(function(m){ if (m.action === 'look') lookIds[m.id] = 1; });
+      var cul = R.space.filter(function(s){ return s.fate === 'content' && lookIds[s.via]; }).length;
+      txt('content-under-look', cul + ' content endpoints sit under a door nobody has described.');
+      txt('all-n', sp.reachable); txt('all-n2', sp.reachable);
+      var H = R.summary.health;
+      var seenDead = {}; var deadNodes = R.space.filter(function(s){ if (!s.dead || seenDead[s.u]) return false; seenDead[s.u] = 1; return true; });
+      document.getElementById('dead-intro').textContent = H
+        ? 'scripts/probe-endpoints.mjs fetched every one of the '+H.probed+' URLs above on '+H.checked.slice(0,10)+'. '+deadNodes.length+' answered with a 4xx/5xx, timed out, or came back as the apex landing page instead of the page. The stumble portal skips them; the ask panel does not know them; the figure paints them red. Re-run the probe and rebuild to refresh.'
+        : 'No probe has been run yet: node scripts/probe-endpoints.mjs, then rebuild.';
+      document.getElementById('deadlist').innerHTML = deadNodes.map(function(s){ return '<li><a href="'+esc(s.u)+'" target="_blank" rel="noopener">'+esc(s.u.replace(/^https:\/\//,'').replace(/\/$/,''))+'</a><span class="t">'+esc(s.dead)+(s.top?' · '+esc(s.top):'')+'</span></li>'; }).join('');
+      var orph = R.space.filter(function(s){ return s.fate === 'orphan'; });
+      document.getElementById('orphans').innerHTML = orph.length ? '<p class="prose" style="color:var(--ink-2)">Unplaced: ' + orph.map(function(o){ return '<code>'+esc(o.p)+'</code> ('+esc(o.why)+')'; }).join(', ') + '.</p>' : '';
+    }
+  })();
+
+  // ---- rail highlight ------------------------------------------------------
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav.rail a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  if ('IntersectionObserver' in window){
+    var io = new IntersectionObserver(function(es){ es.forEach(function(en){ if(en.isIntersecting){ var i=secs.indexOf(en.target); links.forEach(function(a,j){ a.classList.toggle('on', i===j); }); } }); }, {rootMargin:'-20% 0px -70% 0px'});
+    secs.forEach(function(s){ if(s) io.observe(s); });
+  }
+})();
+</script>
+</body>
+</html>

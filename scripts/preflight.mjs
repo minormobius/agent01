@@ -59,15 +59,14 @@ console.log('\nregistry');
 console.log('\ngenerated artefacts in sync');
 const GENERATED = [
   { name: 'workflow triggers',      script: 'gen-deploy-triggers.mjs',      write: ['--write'] },
-  { name: 'landing surface map',    script: 'gen-surface-map.mjs',          write: ['--write'] },
   { name: 'search catalogue',       script: 'generate-search-catalog.mjs',  write: [] },
   { name: 'docs/SURFACES.md index', script: 'gen-surface-index.mjs',        write: ['--write'] },
   { name: 'per-surface docs exist', script: 'gen-surface-docs.mjs',         write: ['--write'] },
   { name: 'dataviz copies',         script: 'sync-dataviz.mjs',             write: ['--write'] },
-  // Everything derived from catalogue.json. The landing `var P` is the
-  // projection people actually see; the other four are the site maps that
-  // drifted for months precisely because none of them was in this list.
-  { name: 'landing var P',          script: 'gen-landing-catalogue.mjs',    write: ['--write'] },
+  // Everything derived from catalogue.json. rethink/data.js is what the landing
+  // renders from; the others are the site maps that drifted for months
+  // precisely because none of them was in this list.
+  { name: 'landing data',           script: 'build-rethink.mjs',            write: ['--write'] },
   { name: 'stumble portal',         script: 'generate-sites-json.mjs',      write: [] },
   { name: 'office site map',        script: 'build-office.mjs',             write: ['--write'] },
   { name: 'mappa atlas',            script: 'build-mappa.mjs',              write: [] },
