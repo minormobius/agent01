@@ -556,13 +556,12 @@ section.space{padding:40px 0 8px;border-bottom:1px solid var(--line)}
 <section class="block" id="audit">
   <div class="eyebrow">The audit</div>
   <h2>Every catalogue entry, flagged</h2>
-  <p class="prose" style="color:var(--ink-2)">All 296 rows from <code>catalogue.json</code>, joined to <code>stats/data.json</code> by <code>surface</code>. “Live” is the tier the landing page computes today from <code>t</code>. Flags: <b>stale</b> git has a newer commit than <code>t</code> · <b>nodesc</b> no curated description · <b>dup</b> name appears more than once · <b>section</b> listed under the wrong section · <b>weight</b> <code>k≤1</code> on a surface with more than fifty commits · <b>nodate</b> no <code>t</code> · <b>dead</b> the last probe got a 4xx/5xx, a timeout, or the apex landing page instead of the page.</p>
+  <p class="prose" style="color:var(--ink-2)">All 296 rows from <code>catalogue.json</code>, joined to <code>stats/data.json</code> by <code>surface</code>. “Live” is the tier the landing page computes today from <code>t</code>. Flags: <b>stale</b> git has a newer commit than <code>t</code> · <b>nodesc</b> no curated description · <b>dup</b> name appears more than once · <b>weight</b> <code>k≤1</code> on a surface with more than fifty commits · <b>nodate</b> no <code>t</code> · <b>dead</b> the last probe got a 4xx/5xx, a timeout, or the apex landing page instead of the page.</p>
   <div class="filters" id="filters">
     <button data-f="all" class="on">all<span class="n" id="n-all"></span></button>
     <button data-f="stale">stale<span class="n" id="n-stale"></span></button>
     <button data-f="nodesc">nodesc<span class="n" id="n-nodesc"></span></button>
     <button data-f="dup">dup<span class="n" id="n-dup"></span></button>
-    <button data-f="section">section<span class="n" id="n-section"></span></button>
     <button data-f="weight">weight<span class="n" id="n-weight"></span></button>
     <button data-f="nodate">nodate<span class="n" id="n-nodate"></span></button>
     <button data-f="dead">dead<span class="n" id="n-dead"></span></button>

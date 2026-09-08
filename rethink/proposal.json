@@ -1966,6 +1966,14 @@
       "why": "Everything that is genuinely one thing. These are not a hub; they are the sites the facets will sort. Kind and domain are proposed per row.",
       "members": [
         {
+          "u": "mino.mobi/eigensite",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "wing": "bluesky",
+          "note": "the personality quiz that finds your eigensite; the viral door into the rest"
+        },
+        {
           "u": "poll.mino.mobi",
           "action": "keep",
           "kind": "app",
