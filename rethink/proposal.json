@@ -1154,9 +1154,15 @@
           "action": "new",
           "group": "the contrast",
           "note": "a real 2D solver; why two dimensions cannot do this"
+        },
+        {
+          "u": "ns.mino.mobi/explorer",
+          "action": "new",
+          "group": "the construction",
+          "note": "the 3D specimen; procgen, seed is a permalink"
         }
       ],
-      "blurb": "The 2026 Navier–Stokes blowup paper taken apart: a collapsing core, shear-fed pulses whose Reynolds stress supplies the missing force, an exact heat-flow exterior — each piece implemented in the browser.",
+      "blurb": "The 2026 Navier–Stokes blowup paper taken apart: a collapsing core, shear-fed pulses whose Reynolds stress supplies the missing force, an exact heat-flow exterior — each piece implemented in the browser, and the whole ansatz drawn in three dimensions.",
       "wing": "study"
     },
     {

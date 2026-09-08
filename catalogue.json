@@ -28,11 +28,11 @@
       "label": "data"
     },
     {
-      "before": 154,
+      "before": 155,
       "label": "tools"
     },
     {
-      "before": 219,
+      "before": 220,
       "label": "games"
     }
   ],
@@ -2065,6 +2065,24 @@
       "d": "A 2D pseudo-spectral incompressible Navier–Stokes solver in the tab — hand-written FFT, vorticity form, 2/3 dealiasing, integrating-factor RK4, selftested against Taylor–Green and the 2D conservation laws. A shear-plus-wave experiment measures ⟨u′v′⟩ and the mean-flow feedback; decaying turbulence shows the vorticity maximum never grows, which is why two dimensions cannot blow up.",
       "tags": [
         "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "explorer",
+      "u": "https://ns.mino.mobi/explorer/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The collapse in three dimensions: a seeded specimen of the paper’s leading-order field — exactly divergence-free via the identity for V₀, axis-regular, centrifugally balanced, heat-law exterior, the paper’s exponents — drawn live in WebGL. A section plane facing you with the near half cut away carries pressure as colour and line-integral-convolution streaks of the meridional flow; behind it spiralling streamlines, transform-feedback particles tracing pathlines through the collapse as τ → 0, and the low-pressure core as a ray-marched glow. Every seed is a permalink; a selftest pins what is exact.",
+      "tags": [
+        "webgl",
+        "procgen",
         "math",
         "selftest"
       ]

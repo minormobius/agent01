@@ -36,6 +36,7 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 | `/exterior/` | the heat exterior: H(Z) by quadrature, K(r,τ), the pressure integral, a finite-difference residual of the swirl heat equation, and a radial FD solver checked against the exact field | (3.5), (4.29), (10.7)–(10.8), Lemma A.6 |
 | `/bands/` | the ledger of scales: dyadic bands Q = 2^−ℓ, ε = Q^h, S* = ℓ², carrier k, wavelength and amplitude ratios, the correction cycle σ_j, and how small q must be before h = 1/100 bites | §3.6, (6.1), (7.2), (9.8) |
 | `/solver/` | a 2D pseudo-spectral incompressible Navier–Stokes solver (hand-written FFT, vorticity form, RK with integrating factor, 2/3 dealiasing) with a shear-plus-wave experiment that measures ⟨uv⟩ and the mean-flow feedback — and shows why 2D cannot blow up | contrast to §1; Orr 1907, Craik–Criminale 1986 |
+| `/explorer/` | the 3D explorer: a seeded leading-order field (`field.js`, exact incompressibility via (4.7), zero axial moment, axis regularity, centrifugal pressure table, heat-law exterior; selftest `field.selftest.mjs`, 40 checks) rendered in raw WebGL2 — the section plane with pressure colour + LIC streaks (bismuth’s trick), additive streamlines integrated on the CPU in similarity units, transform-feedback particles in physical time through the collapse, a ray-marched pressure glow. The GLSL field is generated from `field.js` (`glslField()`) so there is one set of formulas | (3.2), (4.3)–(4.7), (4.25), (4.29), Thm 4.6(v) |
 
 ## How it works
 
@@ -51,6 +52,10 @@ X_a, X_b), it says so in the caption. Do not tighten those into claims.
 
 **The paper is a preprint by "OpenAI" with no named authors; nothing here
 verifies its proof.** The hub says so. Keep that sentence.
+
+The explorer is **not a simulation**. It draws the leading-order ansatz with a
+modelled profile; its docs tab lists exactly what is exact and what is not, and
+the selftest pins the exact part. Keep those two lists in step with `field.js`.
 
 ## Deploying
 

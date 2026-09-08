@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ns/explorer — the collapse in three dimensions</title>
+<meta name="description" content="A seeded 3D explorer of the 2026 Navier–Stokes blowup ansatz: an exactly divergence-free leading-order field with the paper's similarity scalings, its centrifugal pressure and heat-law exterior, rendered live in WebGL — a section plane with pressure as colour and streaks of the meridional flow, spiralling streamlines, pathlines of particles through the collapse, and the low-pressure core as a glow. Every seed is a specimen and a permalink.">
+<link rel="stylesheet" href="../ns.css">
+<style>
+body { max-width: 1180px; }
+.stage { position: relative; }
+canvas#gl { width: 100%; aspect-ratio: 16 / 10; display: block; background: #05060a; border: 1px solid var(--rule); border-radius: 2px; touch-action: none; cursor: grab; }
+canvas#gl:active { cursor: grabbing; }
+.hud { position: absolute; left: 10px; bottom: 8px; font-family: var(--mono); font-size: 0.62rem; color: rgba(255,255,255,0.6); letter-spacing: 0.06em; pointer-events: none; text-transform: uppercase; }
+.hud b { color: #ff9a6a; font-weight: 500; }
+.seedrow { display: flex; gap: 0.3rem; align-items: center; }
+.seedrow input[type=text] { font-family: var(--mono); font-size: 0.72rem; background: var(--canvas-bg); color: var(--fg); border: 1px solid var(--rule); border-radius: 2px; padding: 0.3rem 0.4rem; flex: 1; min-width: 0; }
+.work-wrap { grid-template-columns: minmax(0, 1fr) 260px; }
+.nogl { padding: 2rem; color: var(--muted); font-family: var(--mono); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="../">← ns</a><a class="crumb" href="https://mino.mobi/">mino.mobi</a>
+  <h1>explorer <span class="thin">— the collapse, in three dimensions</span></h1>
+  <p class="subtitle">a seeded leading-order field · pressure · streamlines · pathlines through the collapse · webgl</p>
+  <p class="crossref"><a href="../core/">core</a> · <a href="../pulse/">pulse</a> · <a href="../stress/">stress</a> · <a href="../exterior/">exterior</a> · <a href="../bands/">bands</a> · <a href="../solver/">solver</a> · <a class="here" href="./">explorer</a></p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab" data-tab="explore" role="tab">explore</button>
+  <button class="tab" data-tab="docs" role="tab">what you are looking at</button>
+</nav>
+
+<div class="pane" id="pane-explore">
+<p class="lede" style="max-width:none">One specimen of the paper's leading-order flow, evaluated everywhere and drawn live. The vertical axis is the vortex axis. A section through it faces you with the near half cut away: on it, colour is pressure (the suction toward the axis, on a log scale about the current core value) and the streaks are the meridional flow — inward at the middle plane, out along the axis. Behind the plane: streamlines of the frozen field, particles following the time-dependent field, and the low-pressure core as a glow. Press <b>collapse</b> to run τ → 0 and watch the whole thing fall into the origin; switch to <b>follow</b> to ride the similarity scale, where the picture stops changing.</p>
+<div class="work-wrap">
+  <div class="stage">
+    <canvas id="gl" width="1120" height="700"></canvas>
+    <div class="hud" id="hud"></div>
+  </div>
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label">specimen</span>
+      <div class="seedrow"><input type="text" id="seed" value="" spellcheck="false"><button class="btn" id="newseed">new</button><button class="btn" id="copylink">link</button></div>
+      <div class="stat-note" id="seednote"></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">time remaining · τ</span>
+      <div class="slider-row"><input type="range" id="tau" min="-3" max="0" step="0.005" value="0"><span class="val" id="tau-val"></span></div>
+      <div class="btn-row"><button class="btn hot" id="play">▶ collapse</button><button class="btn" id="restart">↺ τ = 1</button></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">frame</span>
+      <div class="btn-row"><button class="btn active" id="fixed">fixed</button><button class="btn" id="follow">follow the core</button></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">show</span>
+      <div class="btn-row"><button class="btn active" data-layer="plane">section</button><button class="btn active" data-layer="lines">streamlines</button><button class="btn active" data-layer="parts">particles</button><button class="btn active" data-layer="glow">pressure glow</button><button class="btn" data-layer="rings">pulse rings</button></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">particles</span>
+      <div class="btn-row"><button class="btn" data-np="8192">8k</button><button class="btn active" data-np="32768">32k</button><button class="btn" data-np="131072">131k</button></div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="verdict" id="verdict"></div>
+  </div>
+</div>
+<div class="legend"><i style="background:#3d7bd6"></i>pressure: moderate suction <i style="background:#ff7a45"></i>deep suction (the core) <i style="background:#bbb"></i>streaks: the meridional flow on the section · drag to orbit, wheel to zoom</div>
+</div>
+
+<div class="pane" id="pane-docs">
+<div class="docs">
+<p class="ref">§2.1 · §3.1 · (3.2) · (4.3)–(4.7) · (4.25) · (4.29) · Theorem 4.6(v) of the paper · the section technique is bismuth's</p>
+<h2>Not boundary conditions — a choice of profile</h2>
+<p>The natural first guess for "a 3D solution explorer" is a fluid solver with boundary conditions you can pick. That is not what this problem is. The paper's solution lives in the whole space with a body force, and nothing is imposed at any boundary: the flow is <em>designed</em>, term by term, and the force is whatever residual the design leaves. What is free in that design is the <b>profile</b> — the functions E(X, η) and U(X, η) that give the swirl and the axial flow in similarity coordinates — and the paper spends its appendices proving a profile exists with all the properties it needs, without ever writing one down. So the generative object here is the profile: a seed picks one member of a family that has every structural property the paper demands, and everything else — the meridional flow, the pressure, the exterior, the collapse — follows from it by the paper's own identities.</p>
+
+<h2>What is exact and what is modelled</h2>
+<p>The field on screen is u<sub>θ</sub> = q<sup>−A</sup>E, u<sub>z</sub> = q<sup>−A</sup>U, r·u<sub>r</sub> = V₀, p = q<sup>−2A</sup>Π in the similarity coordinates τ = q(1 − η²), z = q<sup>D</sup>η, X = r²/2q of (3.2), with A = ½ + h and D = ½ − h. Exact, and pinned by the selftest:</p>
+<ul>
+  <li><b>Incompressibility.</b> V₀ is computed from U by the paper's identity (4.7), so ∇·u = 0 to finite-difference precision everywhere, at every time.</li>
+  <li><b>Zero axial moment.</b> U has a return shell chosen so ∫₀<sup>∞</sup>U dX = 0 exactly — the paper's M(∞, η) = 0 in (4.28) — which is what makes the radial flux vanish outside the core instead of pulling fluid in from infinity.</li>
+  <li><b>Regularity at the axis.</b> E = √(2X)·F with F smooth, so the swirl and radial velocity vanish linearly at the axis and the Cartesian field (4.5) is smooth.</li>
+  <li><b>The pressure.</b> Π = −∫<sub>X</sub><sup>∞</sup>E²/2x dx, the leading centrifugal balance normalised to vanish at infinity (4.25): the low pressure you see is exactly what holds the swirl in.</li>
+  <li><b>The exterior.</b> Far from the axis E → c<sub>∞</sub>X<sup>−A</sup>H(2d/X), the heat-law swirl of the <a href="../exterior/">exterior</a> page, and the flow becomes purely azimuthal.</li>
+  <li><b>The scalings.</b> Radius ∼ τ<sup>½</sup>, height ∼ τ<sup>½−h</sup>, speed ∼ τ<sup>−½−h</sup>, and u<sub>z</sub> = 0 on the layer η = −j₀/4 below the middle plane — all the numbers of the <a href="../core/">core</a> page, live.</li>
+</ul>
+<p>Modelled: the shape of E and U between the axis and the far field (a Gaussian axial core with a Gaussian return shell; a swirl that rises linearly, bulges by a factor 1 + β/(1 + η²) at intermediate radius and settles onto the heat law), and the radii of the pulse annulus. The paper's actual profiles are built by matching five radial moments across joins and adjusting the shear to sit inside the stress cone; ours do not satisfy the momentum balance in the annulus and are not meant to — that residual is exactly what the paper's pulses exist to cancel. The rings you can switch on mark where they would live; they are decoration.</p>
+
+<h2>How it is drawn</h2>
+<p>The section is the trick from <a href="https://bismuth.mino.mobi/">bismuth</a>'s magnetism view. A plane through the axis always faces the camera and the near half of everything is clipped away in the fragment shaders, so you never look at the object through its own front. On the plane, pressure is colour on a log scale about the current core value, and direction is line-integral convolution: white noise smeared along the in-plane velocity, eight steps each way, faded where the flow runs through the plane rather than along it. Behind it, streamlines of the frozen field at the current τ are integrated on the CPU in similarity coordinates and rescaled with q, drawn additively; particles are advected on the GPU by transform feedback with the same field, in physical time — while τ runs they trace genuine pathlines of the time-dependent flow, recruited at the current scale as the core shrinks; and the glow is a ray march through the pressure field, emission rising steeply with suction. The field is written once in JavaScript and once in GLSL from the same formulas, and both read the same two tables — H(Z) for the heat factor and Π(X, η) for the pressure — uploaded as float textures.</p>
+<p>Two honest limits. In the fixed frame the object shrinks like √τ, so by τ ≈ 10<sup>−3</sup> it is a few pixels; that is the point, and "follow" is the antidote. And with h &lt; 1/100 the picture in similarity units barely changes with τ — the ratios that do change go like τ<sup>−h</sup> — so following the core is very nearly watching a still image while the speeds and the pressure run away underneath it. That, too, is the content of the theorem.</p>
+</div>
+</div>
+
+<footer>
+  <a href="../">ns</a><a href="../core/">core</a><a href="../pulse/">pulse</a><a href="../stress/">stress</a><a href="../exterior/">exterior</a><a href="../bands/">bands</a><a href="../solver/">solver</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+</footer>
+
+<script src="../ns.js"></script>
+<script src="field.js"></script>
+<script>
+'use strict';
+(function () {
+  const { fmt, stats } = NS;
+  const canvas = document.getElementById('gl');
+  const gl = canvas.getContext('webgl2', { antialias: true, alpha: false, premultipliedAlpha: false });
+  if (!gl) { canvas.replaceWith(Object.assign(document.createElement('div'), { className: 'nogl', textContent: 'WebGL2 is not available in this browser; the explorer needs it.' })); return; }
+
+  // ─────────────────────────── state ──────────────────────────────────
+  const url = new URL(location.href);
+  const S = {
+    seed: url.searchParams.get('s') || ('specimen-' + Math.floor(Math.random() * 9000 + 1000)),
+    tau: parseFloat(url.searchParams.get('tau')) || 1, playing: false, follow: url.searchParams.get('follow') === '1',
+    layers: { plane: true, lines: true, parts: true, glow: true, rings: false },
+    np: 32768, az: 0.55, el: 0.42, zoom: 1, drag: null, fps: 0, lastT: 0, frame: 0,
+    Fd: null, P: null, linesAtTau: -1, lineCount: 0, ringCount: 0,
+  };
+  const TAU_MIN = 1e-3;
+
+  // ─────────────────────────── GL helpers ─────────────────────────────
+  function sh(type, src) { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s), src); throw new Error('shader'); } return s; }
+  function prog(vs, fs, tf) { const p = gl.createProgram(); gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); if (tf) gl.transformFeedbackVaryings(p, tf, gl.INTERLEAVED_ATTRIBS); gl.linkProgram(p); if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(p)); throw new Error('link'); } const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS); for (let i = 0; i < n; i++) { const info = gl.getActiveUniform(p, i); u[info.name.replace(/\[0\]$/, '')] = gl.getUniformLocation(p, info.name); } return { p, u }; }
+  const FIELD = NSFIELD.glslField();
+  const HDR = '#version 300 es\nprecision highp float; precision highp int; precision highp sampler2D;\n';
+  const COMMON = `
+uniform vec3 uCam, uRight, uUp, uFwd; uniform float uTanF, uAspect; uniform mat4 uVP;
+uniform vec3 uN;            // section normal (points to the eye)
+uniform float uSection, uPmax, uHue;
+vec3 hue(vec3 c) { float a = uHue * 0.5; float cs = cos(a), sn = sin(a); vec3 k = vec3(0.57735); return c * cs + cross(k, c) * sn + k * dot(k, c) * (1.0 - cs); }
+// pressure → colour: s = log(1+|p|/pref)/log(1+pmax/pref), ramp bg → blue → orange → white
+vec3 pcol(float p) {
+  float pref = uPmax * 0.15; float s = clamp(log(1.0 + abs(p) / pref) / log(1.0 + uPmax / pref), 0.0, 1.0);
+  vec3 c0 = vec3(0.10, 0.12, 0.20), c1 = vec3(0.24, 0.48, 0.84), c2 = vec3(1.0, 0.48, 0.27), c3 = vec3(1.0, 0.94, 0.86);
+  vec3 c = s < 0.45 ? mix(c0, c1, s / 0.45) : s < 0.8 ? mix(c1, c2, (s - 0.45) / 0.35) : mix(c2, c3, (s - 0.8) / 0.2);
+  return hue(c);
+}`;
+  // the section plane -----------------------------------------------------
+  const planeP = prog(HDR + `
+in vec2 aQ; uniform vec3 uEH, uEZ; uniform float uRx, uRz; uniform mat4 uVP;
+out vec2 vQ; out vec3 vW;
+void main() { vec2 q = aQ * vec2(uRx, uRz); vW = q.x * uEH + q.y * uEZ; vQ = q; gl_Position = uVP * vec4(vW, 1.0); }`,
+  HDR + COMMON + FIELD + `
+in vec2 vQ; in vec3 vW; uniform vec3 uEH, uEZ; uniform sampler2D uNoise; uniform float uPix; out vec4 o;
+void main() {
+  float q, X, eta; vec4 f = fieldAt(vW, q, X, eta);
+  vec2 up = vec2(dot(f.xyz, uEH), f.z);                          // in-plane (meridional) velocity
+  float sp = length(f.xyz), spl = length(up);
+  // line integral convolution of noise along the in-plane flow; step ≈ 1.3 screen pixels in world units,
+  // noise cells ≈ 2.6 pixels (the texture is 256 texels, REPEAT)
+  float px = uPix * 1.3; float cell = uPix * 2.6 * 256.0;
+  vec2 dir0 = spl > 1.0e-9 ? up / spl : vec2(0.0);
+  float acc = texture(uNoise, vQ / cell).r, cnt = 1.0;
+  for (int k = 0; k < 2; k++) {
+    vec2 Q = vQ; vec2 d = (k == 0) ? dir0 : -dir0;
+    for (int s = 0; s < 8; s++) {
+      Q += d * px; vec3 W = Q.x * uEH + Q.y * uEZ; float q2, X2, e2; vec4 f2 = fieldAt(W, q2, X2, e2);
+      vec2 u2 = vec2(dot(f2.xyz, uEH), f2.z); float l2 = length(u2); vec2 nd = l2 > 1.0e-9 ? u2 / l2 : ((k == 0) ? d : -d);
+      d = (k == 0) ? nd : -nd;
+      acc += texture(uNoise, Q / cell).r; cnt += 1.0;
+    }
+  }
+  acc /= cnt;
+  float inplane = spl / (sp + 1.0e-9);                             // how much of the flow lies in the plane
+  float lic = (acc - 0.5) * (0.25 + 1.4 * inplane);
+  float pref = uPmax * 0.15; float s = clamp(log(1.0 + abs(f.w) / pref) / log(1.0 + uPmax / pref), 0.0, 1.0);
+  vec3 c = pcol(f.w) * (0.72 + 1.4 * lic);
+  float alpha = 0.10 + 0.85 * smoothstep(0.04, 0.55, s) + 0.25 * inplane * smoothstep(0.0, 0.2, s);
+  o = vec4(c, alpha);
+}`);
+  // lines / rings ------------------------------------------------------------
+  const lineP = prog(HDR + `
+in vec3 aP; in float aS; in float aT; uniform mat4 uVP; uniform vec3 uN; uniform float uSection;
+out float vS; out float vT; out float vClip;
+void main() { vS = aS; vT = aT; vClip = uSection > 0.5 ? dot(aP, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); }`,
+  HDR + COMMON + `
+in float vS; in float vT; in float vClip; uniform float uAlpha; uniform float uMode; out vec4 o;
+void main() { if (vClip > 0.0) discard; float fade = sin(3.14159 * vT); vec3 c = uMode > 0.5 ? hue(vec3(1.0, 0.55, 0.3)) : pcol(-vS * uPmax); o = vec4(c * uAlpha * (0.35 + 0.65 * fade), 1.0); }`);
+  // particles: transform feedback advection + point rendering ---------------
+  const tfP = prog(HDR + FIELD + `
+in vec3 aP; in float aAge; uniform float uDt, uLife, uBoxR, uBoxZ, uSeedF; uniform int uFrame;
+out vec3 vP; out float vAge;
+float hash(float n) { return fract(sin(n * 12.9898 + 78.233) * 43758.5453); }
+void main() {
+  float q, X, eta; vec3 P = aP; float age = aAge + uDt;
+  vec3 k1 = fieldAt(P, q, X, eta).xyz; vec3 k2 = fieldAt(P + uDt * k1, q, X, eta).xyz; P += uDt * 0.5 * (k1 + k2);
+  float r2 = P.x * P.x + P.y * P.y;
+  bool out_ = r2 > uBoxR * uBoxR || abs(P.z) > uBoxZ || age > uLife || r2 < 1.0e-12;
+  if (out_) {
+    float id = float(gl_VertexID) + float(uFrame) * 0.618 + uSeedF;
+    float a = hash(id) * 6.2831853, rr = uBoxR * sqrt(0.02 + 0.98 * hash(id + 1.0)), zz = (hash(id + 2.0) * 2.0 - 1.0) * uBoxZ;
+    P = vec3(rr * cos(a), rr * sin(a), zz); age = hash(id + 3.0) * uLife * 0.3;
+  }
+  vP = P; vAge = age;
+}`, HDR + 'out vec4 o; void main(){ o = vec4(0.0); }', ['vP', 'vAge']);
+  const ptP = prog(HDR + COMMON + FIELD + `
+in vec3 aP; in float aAge; uniform float uLife, uPointPx;
+out float vPr; out float vA; out float vClip;
+void main() { float q, X, eta; vec4 f = fieldAt(aP, q, X, eta); vPr = f.w; vA = smoothstep(0.0, 0.08, aAge / uLife) * (1.0 - smoothstep(0.85, 1.0, aAge / uLife)); vClip = uSection > 0.5 ? dot(aP, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); gl_PointSize = uPointPx; }`,
+  HDR + COMMON + `
+in float vPr; in float vA; in float vClip; out vec4 o;
+void main() { if (vClip > 0.0) discard; vec2 d = gl_PointCoord - 0.5; float r = dot(d, d) * 4.0; if (r > 1.0) discard; o = vec4(mix(pcol(vPr), vec3(0.9, 0.95, 1.0), 0.25) * vA * (1.0 - r) * 0.9, 1.0); }`);
+  // pressure glow: ray march -------------------------------------------------
+  const volP = prog(HDR + 'in vec2 aQ; out vec2 vQ; void main(){ vQ = aQ; gl_Position = vec4(aQ, 0.0, 1.0); }',
+  HDR + COMMON + FIELD + `
+in vec2 vQ; uniform float uBoxR, uBoxZ, uGlow; out vec4 o;
+void main() {
+  vec3 dir = normalize(uFwd + uRight * vQ.x * uTanF * uAspect + uUp * vQ.y * uTanF);
+  // slab/cylinder-ish bounds: a box of half sizes (R, R, Z)
+  vec3 bmin = vec3(-uBoxR, -uBoxR, -uBoxZ), bmax = -bmin;
+  vec3 t0 = (bmin - uCam) / dir, t1 = (bmax - uCam) / dir; vec3 tn = min(t0, t1), tf = max(t0, t1);
+  float ta = max(max(tn.x, tn.y), tn.z), tb = min(min(tf.x, tf.y), tf.z);
+  if (tb <= max(ta, 0.0)) { o = vec4(0.0); return; }
+  ta = max(ta, 0.0); const int N = 40; float dt = (tb - ta) / float(N);
+  vec3 acc = vec3(0.0); float pref = uPmax * 0.15;
+  for (int i = 0; i < N; i++) {
+    vec3 P = uCam + dir * (ta + dt * (float(i) + 0.5));
+    if (uSection > 0.5 && dot(P, uN) > 0.0) continue;
+    float q, X, eta; vec4 f = fieldAt(P, q, X, eta);
+    float s = clamp(log(1.0 + abs(f.w) / pref) / log(1.0 + uPmax / pref), 0.0, 1.0);
+    float e = pow(smoothstep(0.35, 1.0, s), 2.2);
+    acc += pcol(f.w) * e * dt / (uBoxZ * 0.9) * uGlow * 2.2;
+  }
+  o = vec4(acc, 1.0);
+}`);
+
+  // ─────────────────────────── buffers ────────────────────────────────
+  const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+  const quadVAO = gl.createVertexArray(); gl.bindVertexArray(quadVAO); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  const lineBuf = gl.createBuffer(), lineVAO = gl.createVertexArray();
+  gl.bindVertexArray(lineVAO); gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 20, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 12); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 20, 16);
+  const ringBuf = gl.createBuffer(), ringVAO = gl.createVertexArray();
+  gl.bindVertexArray(ringVAO); gl.bindBuffer(gl.ARRAY_BUFFER, ringBuf);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 20, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 20, 12); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 20, 16);
+  gl.bindVertexArray(null);
+  // particle ping-pong
+  let part = null;
+  function makeParticles(n) {
+    if (part) { for (const b of part.buf) gl.deleteBuffer(b); for (const v of part.vao) gl.deleteVertexArray(v); for (const t of part.tf) gl.deleteTransformFeedback(t); }
+    const data = new Float32Array(n * 4); const rnd = NSFIELD.mulberry(S.P.pseed);
+    for (let i = 0; i < n; i++) { const a = rnd() * 6.283, r = 1.5 * Math.sqrt(rnd()); data[i * 4] = r * Math.cos(a); data[i * 4 + 1] = r * Math.sin(a); data[i * 4 + 2] = (rnd() * 2 - 1) * 1.2; data[i * 4 + 3] = rnd() * 6; }
+    const buf = [gl.createBuffer(), gl.createBuffer()], vao = [gl.createVertexArray(), gl.createVertexArray()], tf = [gl.createTransformFeedback(), gl.createTransformFeedback()];
+    for (let k = 0; k < 2; k++) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf[k]); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_COPY);
+      gl.bindVertexArray(vao[k]); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 16, 0); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 1, gl.FLOAT, false, 16, 12);
+      gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, tf[k]); gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, buf[k]);
+    }
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null); gl.bindVertexArray(null); gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    part = { n, buf, vao, tf, cur: 0 };
+  }
+  // tables as float textures
+  let texPi = gl.createTexture(), texH = gl.createTexture(), texNoise = gl.createTexture();
+  function uploadTables() {
+    const { Pi, Htab, consts } = S.Fd;
+    gl.bindTexture(gl.TEXTURE_2D, texPi); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, consts.PI_NX, consts.PI_NE, 0, gl.RED, gl.FLOAT, Pi);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.bindTexture(gl.TEXTURE_2D, texH); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, consts.HZ_N, 1, 0, gl.RED, gl.FLOAT, Htab);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const N = 256, noise = new Uint8Array(N * N), rnd = NSFIELD.mulberry(S.P.pseed ^ 0x9e3779b9); for (let i = 0; i < N * N; i++) noise[i] = Math.floor(rnd() * 256);
+    gl.bindTexture(gl.TEXTURE_2D, texNoise); gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, N, N, 0, gl.RED, gl.UNSIGNED_BYTE, noise);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  }
+  function setFieldUniforms(P) {
+    const p = S.P, Fd = S.Fd; gl.useProgram(P.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texPi); gl.uniform1i(P.u.uPi, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, texH); gl.uniform1i(P.u.uH, 1);
+    const psi0 = 1 - Fd.kappa * Math.exp(-((Fd.Xr / Fd.Wr) ** 2)), dpsi0 = Fd.kappa * (2 * Fd.Xr / (Fd.Wr * Fd.Wr)) * Math.exp(-((Fd.Xr / Fd.Wr) ** 2));
+    const set = (n, v) => { if (P.u[n]) gl.uniform1f(P.u[n], v); };
+    set('uHh', p.h); set('uA', Fd.A); set('uD', Fd.D); set('uJ0', p.j0); set('uXu', p.Xu); set('uXe', p.Xe); set('uXs', p.Xs); set('uBeta', p.beta); set('uCinf', p.cinf); set('uTau', S.tau);
+    set('uXr', Fd.Xr); set('uWr', Fd.Wr); set('uKappa', Fd.kappa); set('uPsi0', psi0); set('uDpsi0', dpsi0);
+  }
+
+  // ─────────────────────────── the specimen ───────────────────────────
+  function setSeed(seed) {
+    S.seed = String(seed); S.P = NSFIELD.params(S.seed); S.Fd = NSFIELD.build(S.P);
+    uploadTables(); makeParticles(S.np); S.linesAtTau = -1;
+    document.getElementById('seed').value = S.seed;
+    const p = S.P;
+    document.getElementById('seednote').textContent = `h = ${p.h.toFixed(4)} · j₀ = ${p.j0.toFixed(3)} · axial core X_u = ${p.Xu.toFixed(2)}, return shell at ${(p.XrF * p.Xu).toFixed(2)} · swirl core X_e = ${p.Xe.toFixed(2)}, bulge β = ${p.beta.toFixed(2)} · c∞ = ${p.cinf.toFixed(2)}`;
+    updateURL();
+  }
+  function updateURL() { const u = new URL(location.href); u.searchParams.set('s', S.seed); u.searchParams.set('tau', S.tau.toPrecision(3)); if (S.follow) u.searchParams.set('follow', '1'); else u.searchParams.delete('follow'); history.replaceState(null, '', u); }
+
+  // ─────────────────────────── streamlines (CPU) ─────────────────────
+  function buildLines() {
+    const Fd = S.Fd, tau = S.tau, D = Fd.D, out = [];
+    const q0 = tau;                                         // q at z = 0
+    const seeds = [];
+    for (const X of [0.15, 0.6, 1.4, 2.6]) for (let k = 0; k < 10; k++) { const th = 2 * Math.PI * k / 10 + X; seeds.push([Math.sqrt(2 * q0 * X) * Math.cos(th), Math.sqrt(2 * q0 * X) * Math.sin(th), 0.0]); }
+    for (const eta of [0.5, -0.5]) for (let k = 0; k < 8; k++) { const q = tau / (1 - eta * eta), X = 0.4; const th = 2 * Math.PI * k / 8 + 0.3; seeds.push([Math.sqrt(2 * q * X) * Math.cos(th), Math.sqrt(2 * q * X) * Math.sin(th), Math.pow(q, D) * eta]); }
+    const pAxis = Math.abs(Fd.at(0, 0, 0, tau).p);
+    const lr = Math.sqrt(tau), lz = Math.pow(tau, D);
+    const f = {};
+    for (const s0 of seeds) for (const dir of [1, -1]) {
+      let P = s0.slice(), pts = [];
+      for (let n = 0; n < 240; n++) {
+        Fd.at(P[0], P[1], P[2], tau, f); const sp = Math.hypot(f.u, f.v, f.w) + 1e-12; const ds = dir * 0.035 * lr / sp;
+        const k1 = [f.u * ds, f.v * ds, f.w * ds]; Fd.at(P[0] + k1[0] / 2, P[1] + k1[1] / 2, P[2] + k1[2] / 2, tau, f); const k2 = [f.u * ds, f.v * ds, f.w * ds];
+        Fd.at(P[0] + k2[0] / 2, P[1] + k2[1] / 2, P[2] + k2[2] / 2, tau, f); const k3 = [f.u * ds, f.v * ds, f.w * ds];
+        Fd.at(P[0] + k3[0], P[1] + k3[1], P[2] + k3[2], tau, f); const k4 = [f.u * ds, f.v * ds, f.w * ds];
+        P = [P[0] + (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]) / 6, P[1] + (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1]) / 6, P[2] + (k1[2] + 2 * k2[2] + 2 * k3[2] + k4[2]) / 6];
+        const r = Math.hypot(P[0], P[1]); if (r > 6 * lr || Math.abs(P[2]) > 2.2 * lz || r < 0.002 * lr) break;
+        Fd.at(P[0], P[1], P[2], tau, f);
+        pts.push([P[0] / lr, P[1] / lr, P[2] / lz, Math.min(1, Math.abs(f.p) / pAxis)]);   // stored in similarity units
+      }
+      if (pts.length > 4) out.push(pts);
+    }
+    // to GL_LINES with (x,y,z,s,t)
+    let count = 0; for (const l of out) count += (l.length - 1) * 2;
+    const arr = new Float32Array(count * 5); let o = 0;
+    for (const l of out) for (let i = 0; i < l.length - 1; i++) { for (const j of [i, i + 1]) { const p = l[j]; arr[o++] = p[0]; arr[o++] = p[1]; arr[o++] = p[2]; arr[o++] = p[3]; arr[o++] = j / (l.length - 1); } }
+    S.lineSim = arr; S.lineCount = count; S.linesAtTau = tau;
+  }
+  function uploadLines() {
+    // rescale similarity units → physical at the current τ
+    const tau = S.tau, lr = Math.sqrt(tau), lz = Math.pow(tau, S.Fd.D), a = S.lineSim, out = new Float32Array(a.length);
+    for (let i = 0; i < a.length; i += 5) { out[i] = a[i] * lr; out[i + 1] = a[i + 1] * lr; out[i + 2] = a[i + 2] * lz; out[i + 3] = a[i + 3]; out[i + 4] = a[i + 4]; }
+    gl.bindBuffer(gl.ARRAY_BUFFER, lineBuf); gl.bufferData(gl.ARRAY_BUFFER, out, gl.DYNAMIC_DRAW);
+  }
+  function buildRings(timeSec) {
+    const p = S.P, Fd = S.Fd, tau = S.tau, pts = [];
+    const bands = [1, 0.5, 0.25];
+    for (let b = 0; b < bands.length; b++) for (const eta of [-0.6, -0.2, 0.2, 0.6]) for (let fam = 0; fam < 2; fam++) for (let k = 0; k < p.bands; k++) {
+      const X = p.Xa + (p.Xb - p.Xa) * (0.15 + 0.7 * (k + 0.5 * fam) / p.bands), qq = tau * bands[b] / (1 - eta * eta), r = Math.sqrt(2 * qq * X), z = Math.pow(qq, Fd.D) * eta;
+      const f = Fd.at(r, 0, z, tau); const omega = f.uth / r;      // the ring turns with the base swirl
+      const M = 96, kp = 14 + 4 * fam;
+      for (let i = 0; i < M; i++) for (const j of [i, i + 1]) { const th = 2 * Math.PI * j / M + omega * timeSec * 0.15; const wave = 0.5 + 0.5 * Math.cos(kp * th * (fam ? -1 : 1) + b); pts.push(r * Math.cos(th), r * Math.sin(th), z, wave * (0.9 - 0.25 * b), fam ? 0.25 : 0.75); }
+    }
+    gl.bindBuffer(gl.ARRAY_BUFFER, ringBuf); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pts), gl.DYNAMIC_DRAW); S.ringCount = pts.length / 5;
+  }
+
+  // ─────────────────────────── camera ─────────────────────────────────
+  function perspective(fovy, aspect, n, f) { const t = 1 / Math.tan(fovy / 2); return new Float32Array([t / aspect, 0, 0, 0, 0, t, 0, 0, 0, 0, (f + n) / (n - f), -1, 0, 0, 2 * f * n / (n - f), 0]); }
+  function lookAt(eye, up) { const f = norm([-eye[0], -eye[1], -eye[2]]), s = norm(cross(f, up)), u = cross(s, f); return { m: new Float32Array([s[0], u[0], -f[0], 0, s[1], u[1], -f[1], 0, s[2], u[2], -f[2], 0, -dot(s, eye), -dot(u, eye), dot(f, eye), 1]), right: s, up: u, fwd: f }; }
+  function mul(a, b) { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; }
+  const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }, cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+
+  // ─────────────────────────── frame ──────────────────────────────────
+  function frame(now) {
+    const dtReal = S.lastT ? Math.min(0.05, (now - S.lastT) / 1000) : 0.016; S.lastT = now; S.frame++;
+    S.fps = 0.9 * S.fps + 0.1 / dtReal;
+    let dtPhys = 0.004 * S.tau;                       // paused: drift through the frozen field so it reads as flow
+    if (S.playing) { const k = Math.log(1000) / 28; const nt = Math.max(TAU_MIN, S.tau * Math.exp(-k * dtReal)); dtPhys = S.tau - nt; S.tau = nt; if (S.tau <= TAU_MIN) { S.playing = false; document.getElementById('play').textContent = '▶ collapse'; } document.getElementById('tau').value = Math.log10(S.tau); document.getElementById('tau-val').textContent = fmt(S.tau, 3); }
+    const Fd = S.Fd, tau = S.tau, D = Fd.D;
+    // sizes
+    const dpr = Math.min(2, devicePixelRatio || 1), W = Math.round(canvas.clientWidth * dpr), Hh = Math.round(canvas.clientHeight * dpr);
+    if (canvas.width !== W || canvas.height !== Hh) { canvas.width = W; canvas.height = Hh; }
+    gl.viewport(0, 0, W, Hh);
+    const V = (S.follow ? 6.5 * Math.sqrt(tau) : 1.7) * S.zoom;            // view radius (world)
+    const Vz = S.follow ? 1.9 * Math.pow(tau, D) * S.zoom : V * 0.75;
+    const dist = V * 2.9, eye = [dist * Math.cos(S.el) * Math.cos(S.az), dist * Math.cos(S.el) * Math.sin(S.az), dist * Math.sin(S.el)];
+    const cam = lookAt(eye, [0, 0, 1]), aspect = W / Hh, fov = 0.62;
+    const VP = mul(perspective(fov, aspect, dist * 0.05, dist * 4), cam.m);
+    // section: plane through the axis facing the eye
+    const nH = norm([eye[0], eye[1], 0]), eH = cross([0, 0, 1], nH);
+    const pAxis = Math.abs(Fd.at(0, 0, 0, tau).p);
+    const common = (P) => { gl.useProgram(P.p); const u = P.u; if (u.uVP) gl.uniformMatrix4fv(u.uVP, false, VP); if (u.uCam) gl.uniform3fv(u.uCam, eye); if (u.uRight) gl.uniform3fv(u.uRight, cam.right); if (u.uUp) gl.uniform3fv(u.uUp, cam.up); if (u.uFwd) gl.uniform3fv(u.uFwd, cam.fwd); if (u.uTanF) gl.uniform1f(u.uTanF, Math.tan(fov / 2)); if (u.uAspect) gl.uniform1f(u.uAspect, aspect); if (u.uN) gl.uniform3fv(u.uN, nH); if (u.uSection) gl.uniform1f(u.uSection, S.layers.plane ? 1 : 0); if (u.uPmax) gl.uniform1f(u.uPmax, pAxis); if (u.uHue) gl.uniform1f(u.uHue, S.P.hue * 0.6 - 0.3); };
+
+    // 1. advect particles (transform feedback)
+    if (S.layers.parts) {
+      setFieldUniforms(tfP); const u = tfP.u;
+      const boxR = S.follow ? 6.5 * Math.sqrt(tau) : Math.min(1.9, Math.max(0.12, 5.5 * Math.sqrt(tau))), boxZ = S.follow ? 2.0 * Math.pow(tau, D) : Math.min(1.4, Math.max(0.1, 2.2 * Math.pow(tau, D)));
+      gl.uniform1f(u.uDt, dtPhys); gl.uniform1f(u.uLife, S.playing ? 0.9 * tau + 0.05 : 0.35 * tau + 0.02); gl.uniform1f(u.uBoxR, boxR); gl.uniform1f(u.uBoxZ, boxZ); gl.uniform1f(u.uSeedF, (S.P.pseed % 1000) / 1000); gl.uniform1i(u.uFrame, S.frame);
+      gl.enable(gl.RASTERIZER_DISCARD);
+      gl.bindVertexArray(part.vao[part.cur]); gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, part.tf[1 - part.cur]);
+      gl.beginTransformFeedback(gl.POINTS); gl.drawArrays(gl.POINTS, 0, part.n); gl.endTransformFeedback();
+      gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null); gl.disable(gl.RASTERIZER_DISCARD); part.cur = 1 - part.cur;
+    }
+    // 2. clear
+    gl.clearColor(0.02, 0.024, 0.04, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.disable(gl.DEPTH_TEST); gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE);
+    // 3. streamlines (additive, far half only)
+    if (S.layers.lines) {
+      if (S.linesAtTau < 0 || Math.abs(Math.log(tau / S.linesAtTau)) > 0.25) buildLines();
+      uploadLines(); common(lineP); gl.uniform1f(lineP.u.uAlpha, 0.55); gl.uniform1f(lineP.u.uMode, 0);
+      gl.bindVertexArray(lineVAO); gl.lineWidth(1); gl.drawArrays(gl.LINES, 0, S.lineCount);
+    }
+    if (S.layers.rings) { buildRings(now / 1000); common(lineP); gl.uniform1f(lineP.u.uAlpha, 0.5); gl.uniform1f(lineP.u.uMode, 1); gl.bindVertexArray(ringVAO); gl.drawArrays(gl.LINES, 0, S.ringCount); }
+    // 4. particles
+    if (S.layers.parts) { setFieldUniforms(ptP); common(ptP); gl.uniform1f(ptP.u.uLife, S.playing ? 0.9 * tau + 0.05 : 0.35 * tau + 0.02); gl.uniform1f(ptP.u.uPointPx, 2.2 * dpr); gl.bindVertexArray(part.vao[part.cur]); gl.drawArrays(gl.POINTS, 0, part.n); }
+    // 5. glow (ray march, far half only)
+    if (S.layers.glow) { setFieldUniforms(volP); common(volP); gl.uniform1f(volP.u.uBoxR, 6.5 * Math.sqrt(tau)); gl.uniform1f(volP.u.uBoxZ, 2.0 * Math.pow(tau, D)); gl.uniform1f(volP.u.uGlow, 1.0); gl.bindVertexArray(quadVAO); gl.drawArrays(gl.TRIANGLES, 0, 6); }
+    // 6. the section plane, blended over
+    if (S.layers.plane) {
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      setFieldUniforms(planeP); common(planeP); const u = planeP.u;
+      gl.uniform3fv(u.uEH, eH); gl.uniform3fv(u.uEZ, [0, 0, 1]); gl.uniform1f(u.uRx, V * 1.05); gl.uniform1f(u.uRz, S.follow ? Math.max(Vz * 1.15, V * 0.55) : V * 0.7);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texNoise); gl.uniform1i(u.uNoise, 2);
+      gl.uniform1f(u.uPix, 2 * V * 1.05 / (W * 0.62));   // world units per screen pixel across the plane, roughly
+      gl.bindVertexArray(quadVAO); gl.drawArrays(gl.TRIANGLES, 0, 6);
+    }
+    gl.bindVertexArray(null);
+    // hud + stats
+    const A = Fd.A; const uth = Fd.at(Math.sqrt(2 * 0.3 * tau), 0, 0, tau).uth;
+    document.getElementById('hud').innerHTML = `τ = <b>${fmt(tau, 3)}</b> · ℓ_r = ${fmt(Math.sqrt(tau), 3)} · core swirl ${fmt(uth, 3)} · core pressure −${fmt(pAxis, 3)} · ${S.follow ? 'following the core' : 'fixed frame'} · ${S.fps.toFixed(0)} fps`;
+    if (S.frame % 10 === 0) stats(document.getElementById('stats'), [['seed', S.seed], ['τ', fmt(tau, 4)], ['ℓ_r ≍ √τ', fmt(Math.sqrt(tau), 4)], ['ℓ_z ≍ τ^D', fmt(Math.pow(tau, D), 4)], ['u_θ at X = 0.3', fmt(uth, 3), 'hot'], ['p on the axis', '−' + fmt(pAxis, 3), 'cool'], ['|u_θ| ∝ τ^−A, A =', fmt(A, 4)], ['particles', part ? part.n : 0], ['streamline segments', S.lineCount / 2], ['fps', S.fps.toFixed(0)]]);
+    requestAnimationFrame(frame);
+  }
+
+  // ─────────────────────────── controls ───────────────────────────────
+  const tauS = NS.slider('tau', (v) => fmt(Math.pow(10, v), 3), (v) => { S.tau = Math.pow(10, v); updateURL(); });
+  document.getElementById('play').onclick = (e) => { S.playing = !S.playing; e.target.textContent = S.playing ? '■ pause' : '▶ collapse'; if (S.playing && S.tau <= TAU_MIN * 1.01) S.tau = 1; };
+  document.getElementById('restart').onclick = () => { S.tau = 1; tauS.set(0); };
+  document.getElementById('fixed').onclick = () => { S.follow = false; document.getElementById('fixed').classList.add('active'); document.getElementById('follow').classList.remove('active'); updateURL(); };
+  document.getElementById('follow').onclick = () => { S.follow = true; document.getElementById('follow').classList.add('active'); document.getElementById('fixed').classList.remove('active'); updateURL(); };
+  document.querySelectorAll('[data-layer]').forEach((b) => b.onclick = () => { S.layers[b.dataset.layer] = !S.layers[b.dataset.layer]; b.classList.toggle('active', S.layers[b.dataset.layer]); });
+  document.querySelectorAll('[data-np]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-np]').forEach((x) => x.classList.remove('active')); b.classList.add('active'); S.np = parseInt(b.dataset.np, 10); makeParticles(S.np); });
+  document.getElementById('newseed').onclick = () => setSeed('specimen-' + Math.floor(Math.random() * 90000 + 1000));
+  document.getElementById('seed').addEventListener('change', (e) => setSeed(e.target.value.trim() || 'specimen-1'));
+  document.getElementById('copylink').onclick = (e) => { navigator.clipboard && navigator.clipboard.writeText(location.href); e.target.textContent = 'copied'; setTimeout(() => e.target.textContent = 'link', 1200); };
+  canvas.addEventListener('pointerdown', (e) => { S.drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener('pointermove', (e) => { if (!S.drag) return; S.az -= (e.clientX - S.drag.x) * 0.008; S.el = Math.max(-1.4, Math.min(1.4, S.el + (e.clientY - S.drag.y) * 0.008)); S.drag = { x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener('pointerup', () => { S.drag = null; });
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); S.zoom = Math.max(0.15, Math.min(6, S.zoom * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
+  document.getElementById('verdict').textContent = 'Exact: divergence-free, axis-regular, centrifugally balanced, heat-law exterior, the paper’s exponents. Modelled: the profile shapes and the ring radii. Not a simulation — the ansatz, drawn.';
+
+  NS.tabs();
+  setSeed(S.seed); tauS.set(Math.log10(S.tau));
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

@@ -1400,6 +1400,15 @@
    "parent": "ns"
   },
   {
+   "id": "explorer",
+   "name": "explorer",
+   "url": "https://ns.mino.mobi/explorer/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
    "id": "loop",
    "name": "loop",
    "url": "https://loop.mino.mobi",
