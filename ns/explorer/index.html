@@ -34,7 +34,7 @@ canvas#gl:active { cursor: grabbing; }
 </nav>
 
 <div class="pane" id="pane-explore">
-<p class="lede" style="max-width:none">One specimen of the paper's leading-order flow, evaluated everywhere and drawn live. The vertical axis is the vortex axis. Streamlines of the frozen field spiral in at the middle plane and out along the axis; particles ride the time-dependent field and are shaded by speed; the low-pressure core glows, on an absolute scale, so it burns brighter as it deepens. Press <b>collapse</b> to run τ → 0 and watch the whole thing fall into the origin — the core shrinks like √τ while its speed and suction run away; switch to <b>follow</b> to ride the similarity scale, where the picture is meant to stand almost still. Switch on the <b>slice</b> for a live section perpendicular to your line of sight: pressure as colour, streaks of the in-plane flow.</p>
+<p class="lede" style="max-width:none">One specimen of the paper's leading-order flow, evaluated everywhere and drawn live. The vertical axis is the vortex axis. Streamlines of the frozen field spiral in at the middle plane and out along the axis; particles are seeded in proportion to the local speed — so they crowd where the flow is — ride the time-dependent field and are shaded by speed; the low-pressure core glows, on an absolute scale, so it burns brighter as it deepens. Press <b>collapse</b> to run τ → 0 and watch the whole thing fall into the origin — the core shrinks like √τ while its speed and suction run away; switch to <b>follow</b> to ride the similarity scale, where the picture is meant to stand almost still. Switch on the <b>slice</b> for a live section perpendicular to your line of sight: pressure as colour, streaks of the in-plane flow.</p>
 <div class="work-wrap">
   <div class="stage">
     <canvas id="gl" width="1120" height="700"></canvas>
@@ -95,7 +95,7 @@ canvas#gl:active { cursor: grabbing; }
 <p>Modelled: the shape of E and U between the axis and the far field (a Gaussian axial core with a Gaussian return shell; a swirl that rises linearly, bulges by a factor 1 + β/(1 + η²) at intermediate radius and settles onto the heat law), and the radii of the pulse annulus. The paper's actual profiles are built by matching five radial moments across joins and adjusting the shear to sit inside the stress cone; ours do not satisfy the momentum balance in the annulus and are not meant to — that residual is exactly what the paper's pulses exist to cancel. The rings you can switch on mark where they would live; they are decoration.</p>
 
 <h2>How it is drawn</h2>
-<p>The slice is the trick from <a href="https://bismuth.mino.mobi/">bismuth</a>'s magnetism view, turned to face you: a plane perpendicular to the line of sight at a depth you choose, with everything between you and it clipped away in the fragment shaders, so you look <em>into</em> the object rather than at its front. On the plane, pressure is colour on a log scale, and direction is line-integral convolution: white noise smeared along the in-plane velocity, eight steps each way, faded where the flow runs through the plane rather than along it. Looking down the axis it shows the swirl as spirals; from the side, the inflow and the axial jets. In the fixed frame the colour scale is absolute — the core value at τ = 1 — so the core saturates to white as it deepens; following the core it is relative to the current core value. Behind it, streamlines of the frozen field at the current τ are integrated on the CPU in similarity coordinates and rescaled with q, drawn additively; particles are advected on the GPU by transform feedback with the same field, in physical time — while τ runs they trace genuine pathlines of the time-dependent flow, recruited at the current scale as the core shrinks; and the glow is a ray march through the pressure field, emission rising steeply with suction. The field is written once in JavaScript and once in GLSL from the same formulas, and both read the same two tables — H(Z) for the heat factor and Π(X, η) for the pressure — uploaded as float textures.</p>
+<p>The slice is the trick from <a href="https://bismuth.mino.mobi/">bismuth</a>'s magnetism view, turned to face you: a plane perpendicular to the line of sight at a depth you choose, with everything between you and it clipped away in the fragment shaders, so you look <em>into</em> the object rather than at its front. On the plane, pressure is colour on a log scale, and direction is line-integral convolution: white noise smeared along the in-plane velocity, eight steps each way, faded where the flow runs through the plane rather than along it. Looking down the axis it shows the swirl as spirals; from the side, the inflow and the axial jets. In the fixed frame the colour scale is absolute — the core value at τ = 1 — so the core saturates to white as it deepens; following the core it is relative to the current core value. Behind it, streamlines of the frozen field at the current τ are integrated on the CPU in similarity coordinates and rescaled with q, drawn additively; particles are seeded by rejection sampling with acceptance proportional to the local speed (so the slow exterior stays nearly empty and the core is dense), then advected on the GPU by transform feedback with the same field, in physical time — while τ runs they trace genuine pathlines of the time-dependent flow, recruited at the current scale as the core shrinks; and the glow is a ray march through the pressure field, emission rising steeply with suction. The field is written once in JavaScript and once in GLSL from the same formulas, and both read the same two tables — H(Z) for the heat factor and Π(X, η) for the pressure — uploaded as float textures.</p>
 <p>Two honest limits. In the fixed frame the object shrinks like √τ, so by τ ≈ 10<sup>−3</sup> it is a few pixels; that is the point, and "follow" is the antidote. And with h &lt; 1/100 the picture in similarity units barely changes with τ — the ratios that do change go like τ<sup>−h</sup> — so following the core is very nearly watching a still image while the speeds and the pressure run away underneath it. That, too, is the content of the theorem.</p>
 </div>
 </div>
@@ -186,25 +186,34 @@ in float vS; in float vT; in float vClip; uniform float uAlpha; uniform float uM
 void main() { if (vClip > 0.0) discard; float fade = sin(3.14159 * vT); vec3 c = uMode > 0.5 ? hue(vec3(1.0, 0.55, 0.3)) : pcol(-vS * uPmax); o = vec4(c * uAlpha * (0.35 + 0.65 * fade), 1.0); }`);
   // particles: transform feedback advection + point rendering ---------------
   const tfP = prog(HDR + FIELD + `
-in vec3 aP; in float aAge; uniform float uDt, uLife, uBoxR, uBoxZ, uSeedF; uniform int uFrame;
+in vec3 aP; in float aAge; uniform float uDt, uBoxR, uBoxZ, uSeedF, uUref; uniform int uFrame;
 out vec3 vP; out float vAge;
 float hash(float n) { return fract(sin(n * 12.9898 + 78.233) * 43758.5453); }
 void main() {
-  float q, X, eta; vec3 P = aP; float age = aAge + uDt;
-  vec3 k1 = fieldAt(P, q, X, eta).xyz; vec3 k2 = fieldAt(P + uDt * k1, q, X, eta).xyz; P += uDt * 0.5 * (k1 + k2);
-  float r2 = P.x * P.x + P.y * P.y;
-  bool out_ = r2 > uBoxR * uBoxR || abs(P.z) > uBoxZ || r2 < 1.0e-10 * uBoxR * uBoxR || !(P.x == P.x);
-  if (out_) {
-    float id = float(gl_VertexID) + float(uFrame) * 0.618 + uSeedF;
-    float a = hash(id) * 6.2831853, rr = uBoxR * (0.03 + 0.97 * pow(hash(id + 1.0), 1.6)), zz = (hash(id + 2.0) * 2.0 - 1.0) * uBoxZ;
-    P = vec3(rr * cos(a), rr * sin(a), zz); age = 0.0;
+  float q, X, eta; vec3 P = aP; float age = aAge; float id = float(gl_VertexID) + float(uFrame) * 0.618 + uSeedF;
+  bool dead = age < 0.0;
+  if (!dead) {
+    age += uDt;
+    vec3 k1 = fieldAt(P, q, X, eta).xyz; vec3 k2 = fieldAt(P + uDt * k1, q, X, eta).xyz; P += uDt * 0.5 * (k1 + k2);
+    float r2 = P.x * P.x + P.y * P.y;
+    // leave the frame, reach the axis, or — if loitering in slow fluid — a small chance per frame of being retired
+    float slow = 1.0 - clamp(length(k1) / uUref, 0.0, 1.0);
+    dead = r2 > uBoxR * uBoxR || abs(P.z) > uBoxZ || r2 < 1.0e-10 * uBoxR * uBoxR || !(P.x == P.x) || hash(id + 5.0) < 0.012 * slow * slow;
+  }
+  if (dead) {
+    // flux-weighted seeding: propose a point, accept with probability |u|/uUref (floor 1%), else stay dead and retry next frame
+    float a = hash(id) * 6.2831853, rr = uBoxR * (0.02 + 0.98 * pow(hash(id + 1.0), 1.3)), zz = (hash(id + 2.0) * 2.0 - 1.0) * uBoxZ;
+    vec3 C = vec3(rr * cos(a), rr * sin(a), zz);
+    float sp = length(fieldAt(C, q, X, eta).xyz);
+    float pAccept = max(0.01, min(1.0, sp / uUref));
+    P = C; age = hash(id + 3.0) < pAccept ? 0.0 : -1.0;
   }
   vP = P; vAge = age;
 }`, HDR + 'out vec4 o; void main(){ o = vec4(0.0); }', ['vP', 'vAge']);
   const ptP = prog(HDR + COMMON + FIELD + `
 in vec3 aP; in float aAge; uniform float uFade, uPointPx, uSref, uDens, uBoost;
 out float vPr; out float vA; out float vClip; out float vSp;
-void main() { float q, X, eta; vec4 f = fieldAt(aP, q, X, eta); vPr = f.w; vSp = length(f.xyz) / uSref; vA = smoothstep(0.0, 1.0, aAge / uFade); vClip = uSection > 0.5 ? dot(aP - uP0c, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); gl_PointSize = uPointPx * sqrt(uDens) * (0.8 + 0.6 * clamp(vSp, 0.0, 1.5)); vA *= uDens * uBoost; }`,
+void main() { if (aAge < 0.0) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; vA = 0.0; vPr = 0.0; vSp = 0.0; vClip = -1.0; return; } float q, X, eta; vec4 f = fieldAt(aP, q, X, eta); vPr = f.w; vSp = length(f.xyz) / uSref; vA = smoothstep(0.0, 1.0, aAge / uFade); vClip = uSection > 0.5 ? dot(aP - uP0c, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); gl_PointSize = uPointPx * sqrt(uDens) * (0.8 + 0.6 * clamp(vSp, 0.0, 1.5)); vA *= uDens * uBoost; }`,
   HDR + COMMON + `
 in float vPr; in float vA; in float vClip; in float vSp; out vec4 o;
 void main() { if (vClip > 0.0) discard; vec2 d = gl_PointCoord - 0.5; float r = dot(d, d) * 4.0; if (r > 1.0) discard; float b = 0.12 + 0.5 * smoothstep(0.0, 1.5, vSp); o = vec4(mix(pcol(vPr), vec3(0.9, 0.95, 1.0), 0.3 * smoothstep(0.8, 3.0, vSp)) * vA * (1.0 - r) * b, 1.0); }`);
@@ -247,7 +256,7 @@ void main() {
   function makeParticles(n) {
     if (part) { for (const b of part.buf) gl.deleteBuffer(b); for (const v of part.vao) gl.deleteVertexArray(v); for (const t of part.tf) gl.deleteTransformFeedback(t); }
     const data = new Float32Array(n * 4); const rnd = NSFIELD.mulberry(S.P.pseed);
-    for (let i = 0; i < n; i++) { const a = rnd() * 6.283, r = 1.5 * Math.sqrt(rnd()); data[i * 4] = r * Math.cos(a); data[i * 4 + 1] = r * Math.sin(a); data[i * 4 + 2] = (rnd() * 2 - 1) * 1.2; data[i * 4 + 3] = rnd() * 6; }
+    for (let i = 0; i < n; i++) { const a = rnd() * 6.283, r = 1.5 * Math.sqrt(rnd()); data[i * 4] = r * Math.cos(a); data[i * 4 + 1] = r * Math.sin(a); data[i * 4 + 2] = (rnd() * 2 - 1) * 1.2; data[i * 4 + 3] = -1; }
     const buf = [gl.createBuffer(), gl.createBuffer()], vao = [gl.createVertexArray(), gl.createVertexArray()], tf = [gl.createTransformFeedback(), gl.createTransformFeedback()];
     for (let k = 0; k < 2; k++) {
       gl.bindBuffer(gl.ARRAY_BUFFER, buf[k]); gl.bufferData(gl.ARRAY_BUFFER, data, gl.DYNAMIC_COPY);
@@ -373,7 +382,8 @@ void main() {
     if (S.layers.parts) {
       setFieldUniforms(tfP); const u = tfP.u;
       const boxR = S.follow ? 6.5 * Math.sqrt(tau) : Math.min(1.9, Math.max(0.12, 5.5 * Math.sqrt(tau))); boxRLast = boxR; const boxZ = S.follow ? 2.0 * Math.pow(tau, D) : Math.min(1.4, Math.max(0.1, 2.2 * Math.pow(tau, D)));
-      gl.uniform1f(u.uDt, dtPhys); gl.uniform1f(u.uBoxR, boxR); gl.uniform1f(u.uBoxZ, boxZ); gl.uniform1f(u.uSeedF, (S.P.pseed % 1000) / 1000); gl.uniform1i(u.uFrame, S.frame);
+      const uref = Math.abs(Fd.at(Math.sqrt(2 * 0.3 * tau), 0, 0, tau).uth) * 1.1;
+      gl.uniform1f(u.uDt, dtPhys); gl.uniform1f(u.uUref, uref); gl.uniform1f(u.uBoxR, boxR); gl.uniform1f(u.uBoxZ, boxZ); gl.uniform1f(u.uSeedF, (S.P.pseed % 1000) / 1000); gl.uniform1i(u.uFrame, S.frame);
       gl.enable(gl.RASTERIZER_DISCARD);
       gl.bindVertexArray(part.vao[part.cur]); gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, part.tf[1 - part.cur]);
       gl.beginTransformFeedback(gl.POINTS); gl.drawArrays(gl.POINTS, 0, part.n); gl.endTransformFeedback();
