@@ -34,7 +34,7 @@ canvas#gl:active { cursor: grabbing; }
 </nav>
 
 <div class="pane" id="pane-explore">
-<p class="lede" style="max-width:none">One specimen of the paper's leading-order flow, evaluated everywhere and drawn live. The vertical axis is the vortex axis. A section through it faces you with the near half cut away: on it, colour is pressure (the suction toward the axis, on a log scale about the current core value) and the streaks are the meridional flow — inward at the middle plane, out along the axis. Behind the plane: streamlines of the frozen field, particles following the time-dependent field, and the low-pressure core as a glow. Press <b>collapse</b> to run τ → 0 and watch the whole thing fall into the origin; switch to <b>follow</b> to ride the similarity scale, where the picture stops changing.</p>
+<p class="lede" style="max-width:none">One specimen of the paper's leading-order flow, evaluated everywhere and drawn live. The vertical axis is the vortex axis. Streamlines of the frozen field spiral in at the middle plane and out along the axis; particles ride the time-dependent field and are shaded by speed; the low-pressure core glows, on an absolute scale, so it burns brighter as it deepens. Press <b>collapse</b> to run τ → 0 and watch the whole thing fall into the origin — the core shrinks like √τ while its speed and suction run away; switch to <b>follow</b> to ride the similarity scale, where the picture is meant to stand almost still. Switch on the <b>slice</b> for a live section perpendicular to your line of sight: pressure as colour, streaks of the in-plane flow.</p>
 <div class="work-wrap">
   <div class="stage">
     <canvas id="gl" width="1120" height="700"></canvas>
@@ -57,7 +57,13 @@ canvas#gl:active { cursor: grabbing; }
     </div>
     <div class="ctrl-group">
       <span class="ctrl-label">show</span>
-      <div class="btn-row"><button class="btn active" data-layer="plane">section</button><button class="btn active" data-layer="lines">streamlines</button><button class="btn active" data-layer="parts">particles</button><button class="btn active" data-layer="glow">pressure glow</button><button class="btn" data-layer="rings">pulse rings</button></div>
+      <div class="btn-row"><button class="btn active" data-layer="lines">streamlines</button><button class="btn active" data-layer="parts">particles</button><button class="btn active" data-layer="glow">pressure glow</button><button class="btn" data-layer="rings">pulse rings</button></div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label">live section · a slice facing you</span>
+      <div class="btn-row"><button class="btn" data-layer="plane">slice</button></div>
+      <div class="slider-row"><input type="range" id="depth" min="-1" max="1" step="0.01" value="0"><span class="val" id="depth-val"></span></div>
+      <div class="stat-note">The slice is perpendicular to your line of sight; everything between you and it is removed. Depth 0 passes through the origin. Look straight down the axis to see the swirl as spirals, from the side to see the inflow.</div>
     </div>
     <div class="ctrl-group">
       <span class="ctrl-label">particles</span>
@@ -89,7 +95,7 @@ canvas#gl:active { cursor: grabbing; }
 <p>Modelled: the shape of E and U between the axis and the far field (a Gaussian axial core with a Gaussian return shell; a swirl that rises linearly, bulges by a factor 1 + β/(1 + η²) at intermediate radius and settles onto the heat law), and the radii of the pulse annulus. The paper's actual profiles are built by matching five radial moments across joins and adjusting the shear to sit inside the stress cone; ours do not satisfy the momentum balance in the annulus and are not meant to — that residual is exactly what the paper's pulses exist to cancel. The rings you can switch on mark where they would live; they are decoration.</p>
 
 <h2>How it is drawn</h2>
-<p>The section is the trick from <a href="https://bismuth.mino.mobi/">bismuth</a>'s magnetism view. A plane through the axis always faces the camera and the near half of everything is clipped away in the fragment shaders, so you never look at the object through its own front. On the plane, pressure is colour on a log scale about the current core value, and direction is line-integral convolution: white noise smeared along the in-plane velocity, eight steps each way, faded where the flow runs through the plane rather than along it. Behind it, streamlines of the frozen field at the current τ are integrated on the CPU in similarity coordinates and rescaled with q, drawn additively; particles are advected on the GPU by transform feedback with the same field, in physical time — while τ runs they trace genuine pathlines of the time-dependent flow, recruited at the current scale as the core shrinks; and the glow is a ray march through the pressure field, emission rising steeply with suction. The field is written once in JavaScript and once in GLSL from the same formulas, and both read the same two tables — H(Z) for the heat factor and Π(X, η) for the pressure — uploaded as float textures.</p>
+<p>The slice is the trick from <a href="https://bismuth.mino.mobi/">bismuth</a>'s magnetism view, turned to face you: a plane perpendicular to the line of sight at a depth you choose, with everything between you and it clipped away in the fragment shaders, so you look <em>into</em> the object rather than at its front. On the plane, pressure is colour on a log scale, and direction is line-integral convolution: white noise smeared along the in-plane velocity, eight steps each way, faded where the flow runs through the plane rather than along it. Looking down the axis it shows the swirl as spirals; from the side, the inflow and the axial jets. In the fixed frame the colour scale is absolute — the core value at τ = 1 — so the core saturates to white as it deepens; following the core it is relative to the current core value. Behind it, streamlines of the frozen field at the current τ are integrated on the CPU in similarity coordinates and rescaled with q, drawn additively; particles are advected on the GPU by transform feedback with the same field, in physical time — while τ runs they trace genuine pathlines of the time-dependent flow, recruited at the current scale as the core shrinks; and the glow is a ray march through the pressure field, emission rising steeply with suction. The field is written once in JavaScript and once in GLSL from the same formulas, and both read the same two tables — H(Z) for the heat factor and Π(X, η) for the pressure — uploaded as float textures.</p>
 <p>Two honest limits. In the fixed frame the object shrinks like √τ, so by τ ≈ 10<sup>−3</sup> it is a few pixels; that is the point, and "follow" is the antidote. And with h &lt; 1/100 the picture in similarity units barely changes with τ — the ratios that do change go like τ<sup>−h</sup> — so following the core is very nearly watching a still image while the speeds and the pressure run away underneath it. That, too, is the content of the theorem.</p>
 </div>
 </div>
@@ -114,8 +120,8 @@ canvas#gl:active { cursor: grabbing; }
   const S = {
     seed: url.searchParams.get('s') || ('specimen-' + Math.floor(Math.random() * 9000 + 1000)),
     tau: parseFloat(url.searchParams.get('tau')) || 1, playing: false, follow: url.searchParams.get('follow') === '1',
-    layers: { plane: true, lines: true, parts: true, glow: true, rings: false },
-    np: 32768, az: 0.55, el: 0.42, zoom: 1, drag: null, fps: 0, lastT: 0, frame: 0,
+    layers: { plane: url.searchParams.get('slice') === '1', lines: true, parts: true, glow: true, rings: false }, depth: parseFloat(url.searchParams.get('depth')) || 0,
+    np: 32768, az: parseFloat(url.searchParams.get('az')) || 0.55, el: url.searchParams.has('el') ? Math.max(-1.5707, Math.min(1.5707, parseFloat(url.searchParams.get('el')))) : 0.42, zoom: 1, drag: null, fps: 0, lastT: 0, frame: 0,
     Fd: null, P: null, linesAtTau: -1, lineCount: 0, ringCount: 0,
   };
   const TAU_MIN = 1e-3;
@@ -127,7 +133,7 @@ canvas#gl:active { cursor: grabbing; }
   const HDR = '#version 300 es\nprecision highp float; precision highp int; precision highp sampler2D;\n';
   const COMMON = `
 uniform vec3 uCam, uRight, uUp, uFwd; uniform float uTanF, uAspect; uniform mat4 uVP;
-uniform vec3 uN;            // section normal (points to the eye)
+uniform vec3 uN, uP0c;      // section normal (points to the eye) and a point on the slice
 uniform float uSection, uPmax, uHue;
 vec3 hue(vec3 c) { float a = uHue * 0.5; float cs = cos(a), sn = sin(a); vec3 k = vec3(0.57735); return c * cs + cross(k, c) * sn + k * dot(k, c) * (1.0 - cs); }
 // pressure → colour: s = log(1+|p|/pref)/log(1+pmax/pref), ramp bg → blue → orange → white
@@ -139,11 +145,11 @@ vec3 pcol(float p) {
 }`;
   // the section plane -----------------------------------------------------
   const planeP = prog(HDR + `
-in vec2 aQ; uniform vec3 uEH, uEZ; uniform float uRx, uRz; uniform mat4 uVP;
+in vec2 aQ; uniform vec3 uEH, uEZ, uP0; uniform float uRx, uRz; uniform mat4 uVP;
 out vec2 vQ; out vec3 vW;
-void main() { vec2 q = aQ * vec2(uRx, uRz); vW = q.x * uEH + q.y * uEZ; vQ = q; gl_Position = uVP * vec4(vW, 1.0); }`,
+void main() { vec2 q = aQ * vec2(uRx, uRz); vW = uP0 + q.x * uEH + q.y * uEZ; vQ = q; gl_Position = uVP * vec4(vW, 1.0); }`,
   HDR + COMMON + FIELD + `
-in vec2 vQ; in vec3 vW; uniform vec3 uEH, uEZ; uniform sampler2D uNoise; uniform float uPix; out vec4 o;
+in vec2 vQ; in vec3 vW; uniform vec3 uEH, uEZ, uP0; uniform sampler2D uNoise; uniform float uPix; out vec4 o;
 void main() {
   float q, X, eta; vec4 f = fieldAt(vW, q, X, eta);
   vec2 up = vec2(dot(f.xyz, uEH), f.z);                          // in-plane (meridional) velocity
@@ -156,7 +162,7 @@ void main() {
   for (int k = 0; k < 2; k++) {
     vec2 Q = vQ; vec2 d = (k == 0) ? dir0 : -dir0;
     for (int s = 0; s < 8; s++) {
-      Q += d * px; vec3 W = Q.x * uEH + Q.y * uEZ; float q2, X2, e2; vec4 f2 = fieldAt(W, q2, X2, e2);
+      Q += d * px; vec3 W = uP0 + Q.x * uEH + Q.y * uEZ; float q2, X2, e2; vec4 f2 = fieldAt(W, q2, X2, e2);
       vec2 u2 = vec2(dot(f2.xyz, uEH), f2.z); float l2 = length(u2); vec2 nd = l2 > 1.0e-9 ? u2 / l2 : ((k == 0) ? d : -d);
       d = (k == 0) ? nd : -nd;
       acc += texture(uNoise, Q / cell).r; cnt += 1.0;
@@ -172,9 +178,9 @@ void main() {
 }`);
   // lines / rings ------------------------------------------------------------
   const lineP = prog(HDR + `
-in vec3 aP; in float aS; in float aT; uniform mat4 uVP; uniform vec3 uN; uniform float uSection;
+in vec3 aP; in float aS; in float aT; uniform mat4 uVP; uniform vec3 uN, uP0c; uniform float uSection;
 out float vS; out float vT; out float vClip;
-void main() { vS = aS; vT = aT; vClip = uSection > 0.5 ? dot(aP, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); }`,
+void main() { vS = aS; vT = aT; vClip = uSection > 0.5 ? dot(aP - uP0c, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); }`,
   HDR + COMMON + `
 in float vS; in float vT; in float vClip; uniform float uAlpha; uniform float uMode; out vec4 o;
 void main() { if (vClip > 0.0) discard; float fade = sin(3.14159 * vT); vec3 c = uMode > 0.5 ? hue(vec3(1.0, 0.55, 0.3)) : pcol(-vS * uPmax); o = vec4(c * uAlpha * (0.35 + 0.65 * fade), 1.0); }`);
@@ -187,25 +193,25 @@ void main() {
   float q, X, eta; vec3 P = aP; float age = aAge + uDt;
   vec3 k1 = fieldAt(P, q, X, eta).xyz; vec3 k2 = fieldAt(P + uDt * k1, q, X, eta).xyz; P += uDt * 0.5 * (k1 + k2);
   float r2 = P.x * P.x + P.y * P.y;
-  bool out_ = r2 > uBoxR * uBoxR || abs(P.z) > uBoxZ || age > uLife || r2 < 1.0e-12;
+  bool out_ = r2 > uBoxR * uBoxR || abs(P.z) > uBoxZ || r2 < 1.0e-10 * uBoxR * uBoxR || !(P.x == P.x);
   if (out_) {
     float id = float(gl_VertexID) + float(uFrame) * 0.618 + uSeedF;
-    float a = hash(id) * 6.2831853, rr = uBoxR * sqrt(0.02 + 0.98 * hash(id + 1.0)), zz = (hash(id + 2.0) * 2.0 - 1.0) * uBoxZ;
-    P = vec3(rr * cos(a), rr * sin(a), zz); age = hash(id + 3.0) * uLife * 0.3;
+    float a = hash(id) * 6.2831853, rr = uBoxR * (0.03 + 0.97 * pow(hash(id + 1.0), 1.6)), zz = (hash(id + 2.0) * 2.0 - 1.0) * uBoxZ;
+    P = vec3(rr * cos(a), rr * sin(a), zz); age = 0.0;
   }
   vP = P; vAge = age;
 }`, HDR + 'out vec4 o; void main(){ o = vec4(0.0); }', ['vP', 'vAge']);
   const ptP = prog(HDR + COMMON + FIELD + `
-in vec3 aP; in float aAge; uniform float uLife, uPointPx;
-out float vPr; out float vA; out float vClip;
-void main() { float q, X, eta; vec4 f = fieldAt(aP, q, X, eta); vPr = f.w; vA = smoothstep(0.0, 0.08, aAge / uLife) * (1.0 - smoothstep(0.85, 1.0, aAge / uLife)); vClip = uSection > 0.5 ? dot(aP, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); gl_PointSize = uPointPx; }`,
+in vec3 aP; in float aAge; uniform float uFade, uPointPx, uSref, uDens, uBoost;
+out float vPr; out float vA; out float vClip; out float vSp;
+void main() { float q, X, eta; vec4 f = fieldAt(aP, q, X, eta); vPr = f.w; vSp = length(f.xyz) / uSref; vA = smoothstep(0.0, 1.0, aAge / uFade); vClip = uSection > 0.5 ? dot(aP - uP0c, uN) : -1.0; gl_Position = uVP * vec4(aP, 1.0); gl_PointSize = uPointPx * sqrt(uDens) * (0.8 + 0.6 * clamp(vSp, 0.0, 1.5)); vA *= uDens * uBoost; }`,
   HDR + COMMON + `
-in float vPr; in float vA; in float vClip; out vec4 o;
-void main() { if (vClip > 0.0) discard; vec2 d = gl_PointCoord - 0.5; float r = dot(d, d) * 4.0; if (r > 1.0) discard; o = vec4(mix(pcol(vPr), vec3(0.9, 0.95, 1.0), 0.25) * vA * (1.0 - r) * 0.9, 1.0); }`);
+in float vPr; in float vA; in float vClip; in float vSp; out vec4 o;
+void main() { if (vClip > 0.0) discard; vec2 d = gl_PointCoord - 0.5; float r = dot(d, d) * 4.0; if (r > 1.0) discard; float b = 0.12 + 0.5 * smoothstep(0.0, 1.5, vSp); o = vec4(mix(pcol(vPr), vec3(0.9, 0.95, 1.0), 0.3 * smoothstep(0.8, 3.0, vSp)) * vA * (1.0 - r) * b, 1.0); }`);
   // pressure glow: ray march -------------------------------------------------
   const volP = prog(HDR + 'in vec2 aQ; out vec2 vQ; void main(){ vQ = aQ; gl_Position = vec4(aQ, 0.0, 1.0); }',
   HDR + COMMON + FIELD + `
-in vec2 vQ; uniform float uBoxR, uBoxZ, uGlow; out vec4 o;
+in vec2 vQ; uniform float uBoxR, uBoxZ, uGlow, uPrel; out vec4 o;
 void main() {
   vec3 dir = normalize(uFwd + uRight * vQ.x * uTanF * uAspect + uUp * vQ.y * uTanF);
   // slab/cylinder-ish bounds: a box of half sizes (R, R, Z)
@@ -214,16 +220,16 @@ void main() {
   float ta = max(max(tn.x, tn.y), tn.z), tb = min(min(tf.x, tf.y), tf.z);
   if (tb <= max(ta, 0.0)) { o = vec4(0.0); return; }
   ta = max(ta, 0.0); const int N = 40; float dt = (tb - ta) / float(N);
-  vec3 acc = vec3(0.0); float pref = uPmax * 0.15;
+  vec3 acc = vec3(0.0); float pref = uPrel * 0.15;
   for (int i = 0; i < N; i++) {
     vec3 P = uCam + dir * (ta + dt * (float(i) + 0.5));
-    if (uSection > 0.5 && dot(P, uN) > 0.0) continue;
+    if (uSection > 0.5 && dot(P - uP0c, uN) > 0.0) continue;
     float q, X, eta; vec4 f = fieldAt(P, q, X, eta);
-    float s = clamp(log(1.0 + abs(f.w) / pref) / log(1.0 + uPmax / pref), 0.0, 1.0);
-    float e = pow(smoothstep(0.35, 1.0, s), 2.2);
-    acc += pcol(f.w) * e * dt / (uBoxZ * 0.9) * uGlow * 2.2;
+    float s = clamp(log(1.0 + abs(f.w) / pref) / log(1.0 + uPrel / pref), 0.0, 1.0);
+    float e = pow(smoothstep(0.45, 1.0, s), 2.5);
+    acc += pcol(f.w) * e * dt / (uBoxZ * 0.9) * uGlow;
   }
-  o = vec4(acc, 1.0);
+  o = vec4(1.0 - exp(-acc * 0.9), 1.0);
 }`);
 
   // ─────────────────────────── buffers ────────────────────────────────
@@ -282,7 +288,7 @@ void main() {
     document.getElementById('seednote').textContent = `h = ${p.h.toFixed(4)} · j₀ = ${p.j0.toFixed(3)} · axial core X_u = ${p.Xu.toFixed(2)}, return shell at ${(p.XrF * p.Xu).toFixed(2)} · swirl core X_e = ${p.Xe.toFixed(2)}, bulge β = ${p.beta.toFixed(2)} · c∞ = ${p.cinf.toFixed(2)}`;
     updateURL();
   }
-  function updateURL() { const u = new URL(location.href); u.searchParams.set('s', S.seed); u.searchParams.set('tau', S.tau.toPrecision(3)); if (S.follow) u.searchParams.set('follow', '1'); else u.searchParams.delete('follow'); history.replaceState(null, '', u); }
+  function updateURL() { const u = new URL(location.href); u.searchParams.set('s', S.seed); u.searchParams.set('tau', S.tau.toPrecision(3)); if (S.follow) u.searchParams.set('follow', '1'); else u.searchParams.delete('follow'); if (S.layers.plane) { u.searchParams.set('slice', '1'); u.searchParams.set('depth', S.depth.toFixed(2)); } else { u.searchParams.delete('slice'); u.searchParams.delete('depth'); } u.searchParams.set('az', S.az.toFixed(2)); u.searchParams.set('el', S.el.toFixed(2)); history.replaceState(null, '', u); }
 
   // ─────────────────────────── streamlines (CPU) ─────────────────────
   function buildLines() {
@@ -339,12 +345,13 @@ void main() {
   const norm = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; }, cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]], dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
   // ─────────────────────────── frame ──────────────────────────────────
+  let boxRLast = 1.9;
   function frame(now) {
     const dtReal = S.lastT ? Math.min(0.05, (now - S.lastT) / 1000) : 0.016; S.lastT = now; S.frame++;
     S.fps = 0.9 * S.fps + 0.1 / dtReal;
-    let dtPhys = 0.004 * S.tau;                       // paused: drift through the frozen field so it reads as flow
+    let dtPhys = 0.012 * S.tau;                       // paused: drift through the frozen field so it reads as flow
     if (S.playing) { const k = Math.log(1000) / 28; const nt = Math.max(TAU_MIN, S.tau * Math.exp(-k * dtReal)); dtPhys = S.tau - nt; S.tau = nt; if (S.tau <= TAU_MIN) { S.playing = false; document.getElementById('play').textContent = '▶ collapse'; } document.getElementById('tau').value = Math.log10(S.tau); document.getElementById('tau-val').textContent = fmt(S.tau, 3); }
-    const Fd = S.Fd, tau = S.tau, D = Fd.D;
+    const Fd = S.Fd, tau = S.tau, D = Fd.D, A = Fd.A;
     // sizes
     const dpr = Math.min(2, devicePixelRatio || 1), W = Math.round(canvas.clientWidth * dpr), Hh = Math.round(canvas.clientHeight * dpr);
     if (canvas.width !== W || canvas.height !== Hh) { canvas.width = W; canvas.height = Hh; }
@@ -352,18 +359,21 @@ void main() {
     const V = (S.follow ? 6.5 * Math.sqrt(tau) : 1.7) * S.zoom;            // view radius (world)
     const Vz = S.follow ? 1.9 * Math.pow(tau, D) * S.zoom : V * 0.75;
     const dist = V * 2.9, eye = [dist * Math.cos(S.el) * Math.cos(S.az), dist * Math.cos(S.el) * Math.sin(S.az), dist * Math.sin(S.el)];
-    const cam = lookAt(eye, [0, 0, 1]), aspect = W / Hh, fov = 0.62;
+    const upv = [-Math.sin(S.el) * Math.cos(S.az), -Math.sin(S.el) * Math.sin(S.az), Math.cos(S.el)];   // d(eye)/d(el): always ⟂ the view, well-defined at the poles
+    const cam = lookAt(eye, upv), aspect = W / Hh, fov = 0.62;
     const VP = mul(perspective(fov, aspect, dist * 0.05, dist * 4), cam.m);
-    // section: plane through the axis facing the eye
-    const nH = norm([eye[0], eye[1], 0]), eH = cross([0, 0, 1], nH);
+    // the live section: a slice perpendicular to the line of sight at depth S.depth (in view radii), normal toward the eye
+    const nH = [-cam.fwd[0], -cam.fwd[1], -cam.fwd[2]], P0 = [cam.fwd[0] * S.depth * V, cam.fwd[1] * S.depth * V, cam.fwd[2] * S.depth * V];
     const pAxis = Math.abs(Fd.at(0, 0, 0, tau).p);
-    const common = (P) => { gl.useProgram(P.p); const u = P.u; if (u.uVP) gl.uniformMatrix4fv(u.uVP, false, VP); if (u.uCam) gl.uniform3fv(u.uCam, eye); if (u.uRight) gl.uniform3fv(u.uRight, cam.right); if (u.uUp) gl.uniform3fv(u.uUp, cam.up); if (u.uFwd) gl.uniform3fv(u.uFwd, cam.fwd); if (u.uTanF) gl.uniform1f(u.uTanF, Math.tan(fov / 2)); if (u.uAspect) gl.uniform1f(u.uAspect, aspect); if (u.uN) gl.uniform3fv(u.uN, nH); if (u.uSection) gl.uniform1f(u.uSection, S.layers.plane ? 1 : 0); if (u.uPmax) gl.uniform1f(u.uPmax, pAxis); if (u.uHue) gl.uniform1f(u.uHue, S.P.hue * 0.6 - 0.3); };
+    if (S.pAxis1 === undefined || S.pAxis1Seed !== S.seed) { S.pAxis1 = Math.abs(Fd.at(0, 0, 0, 1).p); S.pAxis1Seed = S.seed; }
+    const pScale = S.follow ? pAxis : S.pAxis1;        // follow: relative to the current core; fixed: absolute, so the core brightens as it deepens
+    const common = (P) => { gl.useProgram(P.p); const u = P.u; if (u.uVP) gl.uniformMatrix4fv(u.uVP, false, VP); if (u.uCam) gl.uniform3fv(u.uCam, eye); if (u.uRight) gl.uniform3fv(u.uRight, cam.right); if (u.uUp) gl.uniform3fv(u.uUp, cam.up); if (u.uFwd) gl.uniform3fv(u.uFwd, cam.fwd); if (u.uTanF) gl.uniform1f(u.uTanF, Math.tan(fov / 2)); if (u.uAspect) gl.uniform1f(u.uAspect, aspect); if (u.uN) gl.uniform3fv(u.uN, nH); if (u.uP0c) gl.uniform3fv(u.uP0c, P0); if (u.uSection) gl.uniform1f(u.uSection, S.layers.plane ? 1 : 0); if (u.uPmax) gl.uniform1f(u.uPmax, pScale); if (u.uHue) gl.uniform1f(u.uHue, S.P.hue * 0.6 - 0.3); };
 
     // 1. advect particles (transform feedback)
     if (S.layers.parts) {
       setFieldUniforms(tfP); const u = tfP.u;
-      const boxR = S.follow ? 6.5 * Math.sqrt(tau) : Math.min(1.9, Math.max(0.12, 5.5 * Math.sqrt(tau))), boxZ = S.follow ? 2.0 * Math.pow(tau, D) : Math.min(1.4, Math.max(0.1, 2.2 * Math.pow(tau, D)));
-      gl.uniform1f(u.uDt, dtPhys); gl.uniform1f(u.uLife, S.playing ? 0.9 * tau + 0.05 : 0.35 * tau + 0.02); gl.uniform1f(u.uBoxR, boxR); gl.uniform1f(u.uBoxZ, boxZ); gl.uniform1f(u.uSeedF, (S.P.pseed % 1000) / 1000); gl.uniform1i(u.uFrame, S.frame);
+      const boxR = S.follow ? 6.5 * Math.sqrt(tau) : Math.min(1.9, Math.max(0.12, 5.5 * Math.sqrt(tau))); boxRLast = boxR; const boxZ = S.follow ? 2.0 * Math.pow(tau, D) : Math.min(1.4, Math.max(0.1, 2.2 * Math.pow(tau, D)));
+      gl.uniform1f(u.uDt, dtPhys); gl.uniform1f(u.uBoxR, boxR); gl.uniform1f(u.uBoxZ, boxZ); gl.uniform1f(u.uSeedF, (S.P.pseed % 1000) / 1000); gl.uniform1i(u.uFrame, S.frame);
       gl.enable(gl.RASTERIZER_DISCARD);
       gl.bindVertexArray(part.vao[part.cur]); gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, part.tf[1 - part.cur]);
       gl.beginTransformFeedback(gl.POINTS); gl.drawArrays(gl.POINTS, 0, part.n); gl.endTransformFeedback();
@@ -380,21 +390,21 @@ void main() {
     }
     if (S.layers.rings) { buildRings(now / 1000); common(lineP); gl.uniform1f(lineP.u.uAlpha, 0.5); gl.uniform1f(lineP.u.uMode, 1); gl.bindVertexArray(ringVAO); gl.drawArrays(gl.LINES, 0, S.ringCount); }
     // 4. particles
-    if (S.layers.parts) { setFieldUniforms(ptP); common(ptP); gl.uniform1f(ptP.u.uLife, S.playing ? 0.9 * tau + 0.05 : 0.35 * tau + 0.02); gl.uniform1f(ptP.u.uPointPx, 2.2 * dpr); gl.bindVertexArray(part.vao[part.cur]); gl.drawArrays(gl.POINTS, 0, part.n); }
+    if (S.layers.parts) { setFieldUniforms(ptP); common(ptP); gl.uniform1f(ptP.u.uFade, 0.03 * tau + 0.002); gl.uniform1f(ptP.u.uSref, 0.8 * Math.pow(tau, -A)); gl.uniform1f(ptP.u.uDens, S.follow ? 1 : Math.max(0.2, Math.min(1, boxRLast / 1.9))); gl.uniform1f(ptP.u.uBoost, S.follow ? 1 : Math.min(1.6, Math.pow(tau, -0.15 * A))); gl.uniform1f(ptP.u.uPointPx, 2.2 * dpr); gl.bindVertexArray(part.vao[part.cur]); gl.drawArrays(gl.POINTS, 0, part.n); }
     // 5. glow (ray march, far half only)
-    if (S.layers.glow) { setFieldUniforms(volP); common(volP); gl.uniform1f(volP.u.uBoxR, 6.5 * Math.sqrt(tau)); gl.uniform1f(volP.u.uBoxZ, 2.0 * Math.pow(tau, D)); gl.uniform1f(volP.u.uGlow, 1.0); gl.bindVertexArray(quadVAO); gl.drawArrays(gl.TRIANGLES, 0, 6); }
+    if (S.layers.glow) { setFieldUniforms(volP); common(volP); gl.uniform1f(volP.u.uBoxR, 6.5 * Math.sqrt(tau)); gl.uniform1f(volP.u.uBoxZ, 2.0 * Math.pow(tau, D)); gl.uniform1f(volP.u.uPrel, pAxis); gl.uniform1f(volP.u.uGlow, 1.0 * (S.follow ? 1 : Math.min(3, Math.pow(pAxis / S.pAxis1, 0.2)))); gl.bindVertexArray(quadVAO); gl.drawArrays(gl.TRIANGLES, 0, 6); }
     // 6. the section plane, blended over
     if (S.layers.plane) {
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       setFieldUniforms(planeP); common(planeP); const u = planeP.u;
-      gl.uniform3fv(u.uEH, eH); gl.uniform3fv(u.uEZ, [0, 0, 1]); gl.uniform1f(u.uRx, V * 1.05); gl.uniform1f(u.uRz, S.follow ? Math.max(Vz * 1.15, V * 0.55) : V * 0.7);
+      gl.uniform3fv(u.uEH, cam.right); gl.uniform3fv(u.uEZ, cam.up); gl.uniform3fv(u.uP0, P0); gl.uniform1f(u.uRx, V * 1.0 * aspect * (1 + Math.abs(S.depth) * 0.6)); gl.uniform1f(u.uRz, V * 1.0 * (1 + Math.abs(S.depth) * 0.6));
       gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, texNoise); gl.uniform1i(u.uNoise, 2);
-      gl.uniform1f(u.uPix, 2 * V * 1.05 / (W * 0.62));   // world units per screen pixel across the plane, roughly
+      gl.uniform1f(u.uPix, 2 * 0.93 * V * (1 - S.depth * 0.3) / Hh);   // world units per screen pixel on the slice (perspective at its depth)
       gl.bindVertexArray(quadVAO); gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
     gl.bindVertexArray(null);
     // hud + stats
-    const A = Fd.A; const uth = Fd.at(Math.sqrt(2 * 0.3 * tau), 0, 0, tau).uth;
+    const uth = Fd.at(Math.sqrt(2 * 0.3 * tau), 0, 0, tau).uth;
     document.getElementById('hud').innerHTML = `τ = <b>${fmt(tau, 3)}</b> · ℓ_r = ${fmt(Math.sqrt(tau), 3)} · core swirl ${fmt(uth, 3)} · core pressure −${fmt(pAxis, 3)} · ${S.follow ? 'following the core' : 'fixed frame'} · ${S.fps.toFixed(0)} fps`;
     if (S.frame % 10 === 0) stats(document.getElementById('stats'), [['seed', S.seed], ['τ', fmt(tau, 4)], ['ℓ_r ≍ √τ', fmt(Math.sqrt(tau), 4)], ['ℓ_z ≍ τ^D', fmt(Math.pow(tau, D), 4)], ['u_θ at X = 0.3', fmt(uth, 3), 'hot'], ['p on the axis', '−' + fmt(pAxis, 3), 'cool'], ['|u_θ| ∝ τ^−A, A =', fmt(A, 4)], ['particles', part ? part.n : 0], ['streamline segments', S.lineCount / 2], ['fps', S.fps.toFixed(0)]]);
     requestAnimationFrame(frame);
@@ -406,18 +416,20 @@ void main() {
   document.getElementById('restart').onclick = () => { S.tau = 1; tauS.set(0); };
   document.getElementById('fixed').onclick = () => { S.follow = false; document.getElementById('fixed').classList.add('active'); document.getElementById('follow').classList.remove('active'); updateURL(); };
   document.getElementById('follow').onclick = () => { S.follow = true; document.getElementById('follow').classList.add('active'); document.getElementById('fixed').classList.remove('active'); updateURL(); };
-  document.querySelectorAll('[data-layer]').forEach((b) => b.onclick = () => { S.layers[b.dataset.layer] = !S.layers[b.dataset.layer]; b.classList.toggle('active', S.layers[b.dataset.layer]); });
+  NS.slider('depth', (v) => fmt(v, 2), (v) => { S.depth = v; updateURL(); });
+  document.querySelectorAll('[data-layer]').forEach((b) => b.onclick = () => { S.layers[b.dataset.layer] = !S.layers[b.dataset.layer]; b.classList.toggle('active', S.layers[b.dataset.layer]); updateURL(); });
   document.querySelectorAll('[data-np]').forEach((b) => b.onclick = () => { document.querySelectorAll('[data-np]').forEach((x) => x.classList.remove('active')); b.classList.add('active'); S.np = parseInt(b.dataset.np, 10); makeParticles(S.np); });
   document.getElementById('newseed').onclick = () => setSeed('specimen-' + Math.floor(Math.random() * 90000 + 1000));
   document.getElementById('seed').addEventListener('change', (e) => setSeed(e.target.value.trim() || 'specimen-1'));
   document.getElementById('copylink').onclick = (e) => { navigator.clipboard && navigator.clipboard.writeText(location.href); e.target.textContent = 'copied'; setTimeout(() => e.target.textContent = 'link', 1200); };
   canvas.addEventListener('pointerdown', (e) => { S.drag = { x: e.clientX, y: e.clientY }; canvas.setPointerCapture(e.pointerId); });
-  canvas.addEventListener('pointermove', (e) => { if (!S.drag) return; S.az -= (e.clientX - S.drag.x) * 0.008; S.el = Math.max(-1.4, Math.min(1.4, S.el + (e.clientY - S.drag.y) * 0.008)); S.drag = { x: e.clientX, y: e.clientY }; });
-  canvas.addEventListener('pointerup', () => { S.drag = null; });
+  canvas.addEventListener('pointermove', (e) => { if (!S.drag) return; S.az -= (e.clientX - S.drag.x) * 0.008; S.el = Math.max(-1.5707, Math.min(1.5707, S.el + (e.clientY - S.drag.y) * 0.008)); S.drag = { x: e.clientX, y: e.clientY }; });
+  canvas.addEventListener('pointerup', () => { S.drag = null; updateURL(); });
   canvas.addEventListener('wheel', (e) => { e.preventDefault(); S.zoom = Math.max(0.15, Math.min(6, S.zoom * Math.exp(e.deltaY * 0.0012))); }, { passive: false });
   document.getElementById('verdict').textContent = 'Exact: divergence-free, axis-regular, centrifugally balanced, heat-law exterior, the paper’s exponents. Modelled: the profile shapes and the ring radii. Not a simulation — the ansatz, drawn.';
 
   NS.tabs();
+  document.querySelector('[data-layer="plane"]').classList.toggle('active', S.layers.plane); document.getElementById('depth').value = S.depth; document.getElementById('depth-val').textContent = fmt(S.depth, 2);
   setSeed(S.seed); tauS.set(Math.log10(S.tau));
   requestAnimationFrame(frame);
 })();
