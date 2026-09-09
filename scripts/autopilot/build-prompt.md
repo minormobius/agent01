@@ -33,7 +33,7 @@ _Regenerated 2026-09-09 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-09, 98 members / 345 posts):
+**Neighborhood spark** (bisk 2026-09-09, 99 members / 369 posts):
 - Mood: Overcast ☁ (trust)
 - Distinctive words: openai, navier, idk
 - Top post: "" — @tautologer.com
