@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-09-08 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-09-09 by build-brief.mjs — do not edit by hand._
 
-**Already taken** (never reuse these slugs/sites): agimet, ai-edu, airchat, alch, answers, antoine, ar, archive, arena, arnold, ask, astra, astro, atlas, atmosphere, atproto-data, aub, audio, auto, axial, aztec, b, bakeoff, bakery, basket, bearings, beelix, biome, bisk, bismuth, bloom, board, bogo, borges, borsuk, bounty, branwen, brawl, breeder, bsky, cable, canvas, capset, cards, chapter, chat, chess, civ, clef, clock, cluster, cohomology, coin, conjectures, corn, crm, crucible, cube, culhwch, cult, curve, data, deck, density, descent, diffract, disk, docs, dragon, draw, duck, dyad, echo, econ, elements, empathy, emsim, erdos, explore, fable, farm, farm-next, feedgen, fifty, finance, fipo, fix, fixture, flights, flogame, flotorus, flow, flows, fluoddity, foam, fodder, fold, font, forest, forge, fractal, functions, g, gacha, gallery, games, gantry, garden, gawain, gc, geb, gen, geomancy, geometry, glass, glitch, globe, golem, golf, goss, graph, grow, guthkatz, hadwiger, hand, heilbronn, helix, history, homeostasis, hoop, hoop-archive, hoop-backend, hoop-history, hopper, horde, horned, hotnot, hourglass, human, iching, idol, inat, infill, ink, inpac, io, iris, ising, isopod, item, j, js, judge, juice, jurassic, kakeya, ken, kite, knotpac, lab, labglass, lathe, lattice, lens, lexicon, list, loop, mabinogi, macro, manawydan, mappa, markov, math, meander, mega, meme, mmo, modulo, moji, mol, mole, monthly, morph, morphyx, music, name, names, neuro, noise, notes, novelty, ocr, office, ops, orb, orfeo, org, orrery, os, outbound, over, owain, pac, packages, paint, pds, pendragon, perp, phasemap, photo, phylo, phylofiction, pizza, plant, playground, pm, pod, pokemon, polis, poll, poly, portrait, post01, pressure, prism, prop, proteus, pwyll, quad, quarter, radial, range, rant, ratchet, read, recipe, redact, reef, rind, rite, runner, sci, scope, scripts, seek, selection, ship, shop, signal, silk, soil, spark, spec, speclab, splice, sprite, squares, src, stats, sticks, stocks, story, stretch, swarm, swarmclip, swarmread, swarmtext, sweat, switchboard, szemeredi-trotter, tabard, table, tablet, tabletilt, tape, techtree, telegraph, temperley-lieb, ternary, ternary2, ternary3, tetr, tetro, thread, tide, time, tjs, torpac, torus, track, traffic, trainer, uni, unique, unit, vault, viazovska, vitamerlini, voronoi, wars, wave, wc, web, weft, wiki, wild, words, workers, wormhole, yarrow, yijing, yum, zest, zoom
+**Already taken** (never reuse these slugs/sites): ai-edu, airchat, answers, ar, archive, arnold, assets, astra, atlas, atproto-data, aub, audio, auto, aztec, b, bakeoff, bakery, biome, bisk, bismuth, board, borges, borsuk, bounty, bsky, cable, canvas, capset, cards, chat, civ, clef, clock, cluster, cohomology, conjectures, crm, crucible, curve, data, density, descent, docs, draw, duck, echo, elements, empathy, erdos, fable, farm, fifty, finance, fipo, fix, flights, flows, fluoddity, foam, fold, functions, g, games, geometry, golem, guthkatz, hadwiger, heilbronn, hoop, hoop-archive, hoop-backend, hoop-history, hopper, human, idol, ink, io, iris, ising, j, js, judge, jurassic, kakeya, ken, lab, labglass, loop, mappa, markov, math, meander, mega, mmo, modulo, moji, morphyx, music, neuro, next, noise, notes, novelty, ocr, office, org, orrery, os, packages, paint, pds, perp, photo, phylo, phylofiction, pizza, plant, pm, pod, pokemon, polis, poll, procgen, prop, range, rant, read, reef, rethink, rind, rite, runner, sci, scripts, seek, silk, spec, splice, src, stats, sweat, szemeredi-trotter, table, tape, temperley-lieb, ternary, ternary2, ternary3, tide, time, tjs, torus, track, traffic, uni, unit, vault, viazovska, voronoi, wars, wave, weft, wiki, wild, words, workers, wormhole, zest, zoom
 
-**Catalog saturation** (sites per category): games 84, bluesky 75, tools 66, data 63, work 8.
+**Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-08, 98 members / 290 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: openai, astra, llms
-- Top post: "I'm constantly talking about LLMs as text elementals and hungry ghosts trapped in jars and nobody's called me out for LL" — @hikikomorphism.bsky.social
+**Neighborhood spark** (bisk 2026-09-09, 98 members / 345 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: openai, navier, idk
+- Top post: "" — @tautologer.com
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
