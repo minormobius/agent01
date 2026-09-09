@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Open Tab — a receipt for every bracket you never closed</title>
+<meta name="description" content="Type a Bluesky handle and it scans their whole repository — not just what's visible in the app — for every ( [ { and quote left open, and prints the tally like a receipt.">
+<meta property="og:title" content="Open Tab — a receipt for every bracket you never closed">
+<meta property="og:description" content="Type a Bluesky handle and it scans their whole repository — not just what's visible in the app — for every ( [ { and quote left open, and prints the tally like a receipt.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .lookup { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; margin: 1.25rem 0; }
+  .lookup label { flex: 1 1 100%; font-size: .85rem; color: var(--muted); }
+  .lookup input { flex: 1 1 14rem; }
+  .lookup button { flex: 0 0 auto; }
+  .status { font-size: .85rem; color: var(--muted); margin: .75rem 0; }
+
+  .receipt {
+    margin: 1.5rem 0;
+    background: var(--bg-raised);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem 1.25rem 1.5rem;
+    font-size: .85rem;
+  }
+  .receipt h3 {
+    margin: 0 0 .15rem; font-size: 1rem; color: var(--accent);
+    word-break: break-word;
+  }
+  .receipt .meta { color: var(--muted); font-size: .75rem; margin-bottom: .9rem; }
+  .receipt .rule { border: 0; border-top: 1px dashed var(--border); margin: .75rem 0; }
+  .receipt .line {
+    display: flex; justify-content: space-between; gap: 1rem;
+    padding: .3rem 0; color: var(--fg);
+  }
+  .receipt .line .label { display: flex; gap: .5rem; align-items: baseline; min-width: 0; }
+  .mark { color: var(--accent); font-weight: 600; }
+  .receipt .line .sub { color: var(--muted); font-size: .75rem; }
+  .receipt .line .qty { white-space: nowrap; }
+  .receipt .total {
+    display: flex; justify-content: space-between; font-weight: 600;
+    padding-top: .6rem; font-size: 1rem;
+  }
+  .receipt .total .num { color: var(--accent); }
+  .receipt .balanced { color: var(--ok); }
+  .receipt .footer-note { color: var(--muted); font-size: .75rem; margin-top: 1rem; text-align: center; }
+
+  .scope-note { font-size: .78rem; }
+</style>
+</head>
+<body>
+<div id="crumb"></div>
+<main>
+  <h1>Open Tab</h1>
+  <p class="sub">
+    Every <span class="mark">(</span> <span class="mark">[</span> <span class="mark">{</span> and quote
+    a Bluesky account has left open, run up like a bar tab — tallied from their whole
+    repository, not just the posts the app happens to show you.
+  </p>
+
+  <form id="form" class="lookup">
+    <label for="handle">Whose tab are we running?</label>
+    <input id="handle" type="text" placeholder="handle.bsky.social" autocomplete="off">
+    <button type="submit">Run the tab</button>
+  </form>
+
+  <div id="status" class="status" hidden></div>
+  <div id="err" class="err" hidden></div>
+  <div id="receipt" class="receipt" hidden></div>
+
+  <p class="sub scope-note">
+    Counts post text only — not image alt text, not the words inside a quoted post.
+    Straight double quotes and curly “ ” quotes are tracked; a bare apostrophe
+    isn't, because <em>don't</em>, <em>y'all</em> and <em>it's</em> would drown out
+    anything real. If the account's own data server can't be reached directly
+    (self-hosted, or a <code>did:web</code> identity), this falls back to their
+    public post feed instead — same tally, fewer posts to work from.
+  </p>
+</main>
+
+<script type="module">
+const form = document.getElementById('form');
+const handleEl = document.getElementById('handle');
+const statusEl = document.getElementById('status');
+const errEl = document.getElementById('err');
+const receiptEl = document.getElementById('receipt');
+
+document.getElementById('crumb').innerHTML = kit.crumb('open tab');
+
+kit.handleInput(handleEl, { onPick: (handle) => runTab(handle) });
+
+form.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const h = handleEl.value.trim().replace(/^@/, '');
+  if (h) runTab(h);
+});
+
+function setStatus(msg) { statusEl.textContent = msg; statusEl.hidden = false; }
+function clearStatus() { kit.clear(statusEl); }
+function showErr(msg) { clearStatus(); receiptEl.hidden = true; kit.showError(errEl, msg); }
+
+// --- the bracket/quote pairs we track as running stacks -------------------
+const PAIRS = [
+  { name: '(', close: ')' },
+  { name: '[', close: ']' },
+  { name: '{', close: '}' },
+  { name: '“”', open: '“', close: '”' },
+];
+PAIRS.forEach((p) => { if (!p.open) p.open = p.name; });
+
+function tallyRecords(records) {
+  const state = {};
+  PAIRS.forEach((p) => { state[p.name] = { stack: [], opened: 0, phantom: 0 }; });
+  let straightOpen = false;
+  let straightSeen = 0;
+  let totalChars = 0;
+
+  for (const rec of records) {
+    totalChars += rec.text.length;
+    for (const ch of rec.text) {
+      const pair = PAIRS.find((p) => p.open === ch || p.close === ch);
+      if (pair) {
+        const s = state[pair.name];
+        if (ch === pair.open) { s.stack.push(1); s.opened++; }
+        else if (s.stack.length) s.stack.pop();
+        else s.phantom++;
+        continue;
+      }
+      if (ch === '"') { straightOpen = !straightOpen; straightSeen++; }
+    }
+  }
+
+  const items = PAIRS.map((p) => ({
+    name: p.name, opened: state[p.name].opened, owed: state[p.name].stack.length,
+  }));
+  const phantom = PAIRS.reduce((s, p) => s + state[p.name].phantom, 0);
+  return {
+    items, phantom, straightOpen, straightSeen,
+    postsScanned: records.length, totalChars,
+  };
+}
+
+// --- getting at a whole repo ------------------------------------------------
+let carParserPromise = null;
+function loadCarParser() {
+  if (!carParserPromise) {
+    carParserPromise = import('/_kit/wasm/pds_car_parser.js').then(async (mod) => {
+      await mod.default(new URL('/_kit/wasm/pds_car_parser_bg.wasm', location.href));
+      return mod;
+    });
+  }
+  return carParserPromise;
+}
+
+async function resolvePds(did) {
+  if (!did.startsWith('did:plc:')) {
+    throw new Error('only did:plc accounts are supported here, not did:web');
+  }
+  const doc = await kit.fetchJson('https://plc.directory/' + encodeURIComponent(did));
+  const svc = (doc.service || []).find(
+    (s) => s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer'
+  );
+  if (!svc || !svc.serviceEndpoint) throw new Error('no data server listed in their DID document');
+  return svc.serviceEndpoint;
+}
+
+async function fetchCar(pds, did) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const url = pds.replace(/\/$/, '') + '/xrpc/com.atproto.sync.getRepo?did=' + encodeURIComponent(did);
+    const res = await fetch(url, { signal: ctl.signal });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    return new Uint8Array(await res.arrayBuffer());
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('timed out reaching their repository');
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function fetchWholeRepo(did) {
+  const pds = await resolvePds(did);
+  setStatus('fetching their repository from ' + new URL(pds).host + ' — can take a few seconds…');
+  const car = await fetchCar(pds, did);
+  setStatus('unpacking the repository…');
+  const mod = await loadCarParser();
+  const ndjson = mod.parseCarToNdjson(car, did);
+  const out = [];
+  for (const line of ndjson.split('\n')) {
+    if (!line.trim()) continue;
+    let rec;
+    try { rec = JSON.parse(line); } catch { continue; }
+    if (rec.collection === 'app.bsky.feed.post' && rec.value && typeof rec.value.text === 'string') {
+      out.push({ rkey: rec.rkey, text: rec.value.text });
+    }
+  }
+  out.sort((a, b) => (a.rkey < b.rkey ? -1 : a.rkey > b.rkey ? 1 : 0));
+  return out;
+}
+
+// --- fallback: the public feed, if the repo itself can't be reached -------
+async function fetchViaFeed(did) {
+  const out = [];
+  let cursor;
+  let pages = 0;
+  do {
+    const params = { actor: did, limit: 100 };
+    if (cursor) params.cursor = cursor;
+    const res = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+    for (const item of kit.visible(res.feed || [])) {
+      if (item.reason) continue; // a repost — not their own words
+      if (!item.post || !item.post.author || item.post.author.did !== did) continue;
+      const rec = item.post.record;
+      if (rec && rec.$type === 'app.bsky.feed.post' && typeof rec.text === 'string') {
+        out.push({ rkey: item.post.uri.split('/').pop(), text: rec.text });
+      }
+    }
+    cursor = res.cursor;
+    pages++;
+  } while (cursor && pages < 40); // ~4,000 posts
+  out.sort((a, b) => (a.rkey < b.rkey ? -1 : a.rkey > b.rkey ? 1 : 0));
+  return out;
+}
+
+async function runTab(handle) {
+  clearStatus();
+  receiptEl.hidden = true;
+  kit.clear(errEl);
+
+  setStatus('resolving ' + handle + '…');
+  let did;
+  try {
+    const r = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle });
+    did = r.did;
+  } catch (e) {
+    showErr('could not resolve that handle — ' + e.message);
+    return;
+  }
+
+  let records, via;
+  try {
+    records = await fetchWholeRepo(did);
+    via = 'repo';
+  } catch (e) {
+    setStatus("couldn't read their repository directly (" + e.message + ") — trying their public feed instead…");
+    try {
+      records = await fetchViaFeed(did);
+      via = 'feed';
+    } catch (e2) {
+      showErr("couldn't read anything for this account — " + e2.message);
+      return;
+    }
+  }
+
+  setStatus('tallying ' + records.length + ' posts…');
+  const t = tallyRecords(records);
+  renderReceipt(handle, t, via);
+  clearStatus();
+}
+
+function renderReceipt(handle, t, via) {
+  const rows = t.items.map((it) => {
+    const owedText = it.owed > 0
+      ? `<span class="qty">${it.owed} still open</span>`
+      : `<span class="qty balanced">closed</span>`;
+    return `<div class="line">
+      <span class="label"><span class="mark">${escapeHtml(it.name)}</span>
+        <span class="sub">opened ${it.opened}×</span></span>
+      ${owedText}
+    </div>`;
+  }).join('');
+
+  const straightLine = t.straightSeen
+    ? `<div class="line">
+        <span class="label"><span class="mark">"</span> <span class="sub">seen ${t.straightSeen}×</span></span>
+        <span class="qty ${t.straightOpen ? '' : 'balanced'}">${t.straightOpen ? 'open right now' : 'closed'}</span>
+      </div>`
+    : '';
+
+  const phantomLine = t.phantom
+    ? `<div class="line">
+        <span class="label">stray closers <span class="sub">(closed something never opened here)</span></span>
+        <span class="qty">${t.phantom}</span>
+      </div>`
+    : '';
+
+  const owedTotal = t.items.reduce((s, it) => s + it.owed, 0) + (t.straightOpen ? 1 : 0);
+
+  const totalLine = owedTotal > 0
+    ? `<div class="total"><span>total owed</span><span class="num">${owedTotal} closing mark${owedTotal === 1 ? '' : 's'}</span></div>`
+    : `<div class="total balanced"><span>total owed</span><span>zero — a balanced account</span></div>`;
+
+  receiptEl.innerHTML = `
+    <h3>@${escapeHtml(handle)}</h3>
+    <div class="meta">${t.postsScanned.toLocaleString()} posts, ${t.totalChars.toLocaleString()} characters —
+      ${via === 'repo' ? 'read straight from their repository' : 'read from their public feed (repository was unreachable)'}</div>
+    <hr class="rule">
+    ${rows}
+    ${straightLine}
+    ${phantomLine ? '<hr class="rule">' + phantomLine : ''}
+    <hr class="rule">
+    ${totalLine}
+    <div class="footer-note">thank you for your custody of the language</div>
+  `;
+  receiptEl.hidden = false;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+</script>
+</body>
+</html>

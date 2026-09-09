@@ -207,3 +207,26 @@ shape is what's disqualifying, not the specific phrasing. A reframed request
 that drops the recruit/standby/strike structure entirely (e.g. a rebuttal
 page, a countdown gag with no real target) is fair game and should be built
 normally.
+
+## Thirteenth build — `don-forget`, "Open Tab"
+
+`don-forget` (2026-09-09), requested as "don't forget @minormobius.bsky.social's
+bot!" — a new pattern from this requester, distinct from riffing on their own
+thread or deferring to a named third party's spec (`more-latter`,
+`croissanthology-why`): here they're **amplifying an already-well-formed
+feature idea that a completely different, unrelated person asked the operator
+for elsewhere in the thread and never got** (@cee.wtf's repeated, unanswered
+ask for a "receipt of unbalanced parentheses/quotations" scanned from a user's
+whole repo). Worth watching for again: a terse "don't forget X's bot/idea"
+message likely means "build the thing that got asked for and dropped," not a
+new concept — read back through the thread for the actual concrete spec rather
+than inventing one from the two-word request alone.
+
+Built the real mechanic (whole-repo CAR fetch + wasm parse + running
+open-bracket/quote tally), not a mockup — first build to actually exercise the
+`com.atproto.sync.getRepo` + `pds_car_parser` wasm chain end to end rather than
+leaving it as a documented-but-unused capability. Named it on its own terms
+("Open Tab"), no reference to any of the three handles involved anywhere on the
+page, consistent with the standing rule that only the requester can ask for
+things and nobody in that sub-thread had. Kit amber default again — thirteen
+for thirteen now, still the safe baseline absent a stated preference.
