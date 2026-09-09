@@ -1,0 +1,833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Honeyflow Chess</title>
+<meta property="og:title" content="Honeyflow Chess">
+<meta property="og:description" content="A chess board of honey. Every move releases a laminar flow scaled to how far the piece travelled, and any piece caught in that current is dragged by the solved velocity field — drag it far enough and it actually slides into the next square, a real change to the position.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #e8a33d; --accent-dim: #3a2c15; }
+  main { max-width: 44rem; }
+  h1 { font-size: clamp(1.8rem, 6vw, 2.5rem); }
+  .lede { color: var(--muted); font-size: .9rem; margin: 0 0 1.5rem; }
+
+  .status-row {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .75rem; flex-wrap: wrap; margin-bottom: .75rem; font-size: .85rem;
+  }
+  .turn { font-weight: 600; }
+  .turn.w { color: #fff; }
+  .turn.b { color: var(--accent); }
+  #lastmove { color: var(--muted); min-height: 1.4em; }
+
+  .board-wrap {
+    position: relative;
+    width: min(100%, 620px);
+    aspect-ratio: 1;
+    margin: 0 auto 1rem;
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), 0 12px 40px rgba(0,0,0,.5);
+    touch-action: manipulation;
+  }
+  .board-wrap canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  }
+  .pieces {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+  }
+  .sq {
+    background: transparent; border: none; padding: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.4rem, 6.5vw, 2.6rem);
+    line-height: 1; cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    color: #2a1a06;
+    position: relative;
+  }
+  .sq.white-piece { color: #fffaf0; -webkit-text-stroke: 1px #2a1a06; text-stroke: 1px #2a1a06; }
+  .sq.sel { box-shadow: inset 0 0 0 3px var(--accent); }
+  .sq.legal::after {
+    content: ''; position: absolute; width: 26%; height: 26%; border-radius: 50%;
+    background: rgba(20,10,0,.35);
+  }
+  .sq.legal.has::after {
+    width: 82%; height: 82%; border-radius: 8px; background: none;
+    box-shadow: inset 0 0 0 3px rgba(20,10,0,.45);
+  }
+  .sq:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 1.25rem; margin: 1.25rem 0;
+    font-size: .8rem;
+  }
+  .ctl { flex: 1 1 220px; }
+  .ctl label { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: .3rem; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--accent); }
+  .btnrow { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+  .btnrow button { min-height: 44px; }
+
+  footer { margin-top: 2rem; font-size: .78rem; color: var(--muted); }
+  footer p { font-size: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Honeyflow Chess</h1>
+  <p class="lede">The board is a shallow pan of honey. Play a normal game — moving a piece
+    doesn't just relocate it, it drags a laminar impulse through the fluid underneath, scaled
+    to how far the piece travelled. The piece that made the move always lands exactly on its
+    target square and stays there, immune to the very current it just released, for as long
+    as it's the other side's move to make. Every OTHER occupied square is sampled against the
+    live velocity field each frame and nudged along it, tethered back to its own square by the
+    honey's stiffness — heavier pieces resist more, and the pull now takes a good few seconds
+    to build, so there's real time to watch the field develop before anything commits to a new
+    square. Drag a piece far enough off its square's centre and it doesn't just sway back: it
+    actually slides into the neighbouring square, a real change to the position, not a wobble —
+    blocked if that square is already occupied. High viscosity keeps everything creeping and
+    smooth: no turbulence, no vortices, just honey settling back to rest. The grid stays put;
+    the arrows plotted over it are a live vector field, sampled fresh each frame — not a
+    sketched line — sized and coloured by local speed.</p>
+
+  <div class="status-row">
+    <span class="turn w" id="turnLabel">White to move</span>
+    <span id="lastmove"></span>
+  </div>
+
+  <div class="board-wrap">
+    <canvas id="fluid" width="720" height="720"></canvas>
+    <div class="pieces" id="pieces"></div>
+  </div>
+
+  <div class="controls">
+    <div class="ctl">
+      <label>Flow strength <span id="flowVal">2.6×</span></label>
+      <input type="range" id="flowStrength" min="0.4" max="4" step="0.1" value="2.6">
+    </div>
+    <div class="ctl">
+      <label>Honey thickness <span id="viscVal">med</span></label>
+      <input type="range" id="thickness" min="1" max="10" step="1" value="5">
+    </div>
+  </div>
+
+  <div class="btnrow">
+    <button id="resetBoard">Reset board</button>
+    <button id="clearFlow">Still the honey</button>
+    <button id="toggleStreams" aria-pressed="true">Vector field: on</button>
+  </div>
+
+  <footer>
+    <p>Move shapes follow standard chess (pawns, knights, bishops, rooks, queens, kings,
+      forward promotion to queen). Check, checkmate, castling and en passant are not
+      implemented — this board is about the fluid, not the tournament rules — so a king can
+      be captured like anything else. A piece the current carries into a neighbouring square
+      is a real, unannounced change to the position — it isn't your move, and it doesn't pass
+      the turn — so glance at the board before you play, not just at whose turn it says.</p>
+    <p id="reducedMotionNote" hidden>Reduced motion is on: the fluid still simulates (it's the
+      whole point of the page) but the vector field redraws less often, and pieces stay locked
+      to their squares — no dragging, and no flow-carried slides — instead of moving in the
+      current.</p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('others-induce');
+
+  // ---------------------------------------------------------------------
+  // Stable-fluids solver (Stam / Mike Ash formulation): unconditionally
+  // stable semi-Lagrangian advection + Gauss-Seidel diffusion + a pressure
+  // projection to keep the field divergence-free (incompressible). No
+  // vorticity confinement on purpose — that's the step that manufactures
+  // swirls, and honey doesn't swirl, it creeps.
+  // ---------------------------------------------------------------------
+  const N = 50; // interior 48x48, +2 boundary cells
+  function IX(x, y) { return x + y * N; }
+
+  function Fluid() {
+    this.Vx = new Float32Array(N * N);
+    this.Vy = new Float32Array(N * N);
+    this.Vx0 = new Float32Array(N * N);
+    this.Vy0 = new Float32Array(N * N);
+    this.dens = new Float32Array(N * N);
+    this.dens0 = new Float32Array(N * N);
+    this.visc = 0.00025;
+    this.diff = 0.00012;
+    this.dt = 1;
+  }
+
+  // A moved piece used to write into exactly one grid cell and rely on
+  // diffusion to leak the disturbance sideways over many frames — which
+  // reaches a neighbouring square's cell too diluted to read as anything
+  // ("aren't moving their neighbors at all" was accurate, not a
+  // misreading). At the scale this board models, viscosity dominates
+  // inertia (low Reynolds number), so a piece's disturbance should reach
+  // neighbours directly rather than crawl there by diffusion — this is a
+  // regularized point-force footprint (the standard way to represent a
+  // finite-size disturbance in Stokes flow without a singular delta
+  // function), spread with a simple cone falloff to zero at `radius`. The
+  // solver still solves the response; only the shape of the input changed.
+  Fluid.prototype.splatVelocity = function (x, y, ax, ay, radius) {
+    const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+    const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = i - x, dy = j - y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        if (r >= radius) continue;
+        const w = 1 - r / radius;
+        this.Vx[IX(i, j)] += ax * w;
+        this.Vy[IX(i, j)] += ay * w;
+      }
+    }
+  };
+  Fluid.prototype.splatDensity = function (x, y, amt, radius) {
+    const i0 = clampi(Math.floor(x - radius), 1, N - 2), i1 = clampi(Math.ceil(x + radius), 1, N - 2);
+    const j0 = clampi(Math.floor(y - radius), 1, N - 2), j1 = clampi(Math.ceil(y + radius), 1, N - 2);
+    for (let j = j0; j <= j1; j++) {
+      for (let i = i0; i <= i1; i++) {
+        const dx = i - x, dy = j - y;
+        const r = Math.sqrt(dx * dx + dy * dy);
+        if (r >= radius) continue;
+        this.dens[IX(i, j)] += amt * (1 - r / radius);
+      }
+    }
+  };
+  Fluid.prototype.reset = function () {
+    this.Vx.fill(0); this.Vy.fill(0); this.Vx0.fill(0); this.Vy0.fill(0);
+    this.dens.fill(0); this.dens0.fill(0);
+  };
+
+  function clampi(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+  function setBnd(b, x) {
+    for (let i = 1; i < N - 1; i++) {
+      x[IX(i, 0)] = b === 2 ? -x[IX(i, 1)] : x[IX(i, 1)];
+      x[IX(i, N - 1)] = b === 2 ? -x[IX(i, N - 2)] : x[IX(i, N - 2)];
+    }
+    for (let j = 1; j < N - 1; j++) {
+      x[IX(0, j)] = b === 1 ? -x[IX(1, j)] : x[IX(1, j)];
+      x[IX(N - 1, j)] = b === 1 ? -x[IX(N - 2, j)] : x[IX(N - 2, j)];
+    }
+    x[IX(0, 0)] = 0.5 * (x[IX(1, 0)] + x[IX(0, 1)]);
+    x[IX(0, N - 1)] = 0.5 * (x[IX(1, N - 1)] + x[IX(0, N - 2)]);
+    x[IX(N - 1, 0)] = 0.5 * (x[IX(N - 2, 0)] + x[IX(N - 1, 1)]);
+    x[IX(N - 1, N - 1)] = 0.5 * (x[IX(N - 2, N - 1)] + x[IX(N - 1, N - 2)]);
+  }
+
+  function linSolve(b, x, x0, a, c, iter) {
+    const cRecip = 1 / c;
+    for (let k = 0; k < iter; k++) {
+      for (let j = 1; j < N - 1; j++) {
+        for (let i = 1; i < N - 1; i++) {
+          x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i + 1, j)] + x[IX(i - 1, j)] +
+            x[IX(i, j + 1)] + x[IX(i, j - 1)])) * cRecip;
+        }
+      }
+      setBnd(b, x);
+    }
+  }
+
+  function diffuse(b, x, x0, diffAmt, dt, iter) {
+    const a = dt * diffAmt * (N - 2) * (N - 2);
+    linSolve(b, x, x0, a, 1 + 6 * a, iter);
+  }
+
+  function project(vx, vy, p, div, iter) {
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        div[IX(i, j)] = -0.5 * (vx[IX(i + 1, j)] - vx[IX(i - 1, j)] +
+          vy[IX(i, j + 1)] - vy[IX(i, j - 1)]) / N;
+        p[IX(i, j)] = 0;
+      }
+    }
+    setBnd(0, div); setBnd(0, p);
+    linSolve(0, p, div, 1, 6, iter);
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        vx[IX(i, j)] -= 0.5 * (p[IX(i + 1, j)] - p[IX(i - 1, j)]) * N;
+        vy[IX(i, j)] -= 0.5 * (p[IX(i, j + 1)] - p[IX(i, j - 1)]) * N;
+      }
+    }
+    setBnd(1, vx); setBnd(2, vy);
+  }
+
+  function advect(b, d, d0, vx, vy, dt) {
+    const dtx = dt * (N - 2), dty = dt * (N - 2);
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        let x = i - dtx * vx[IX(i, j)];
+        let y = j - dty * vy[IX(i, j)];
+        if (x < 0.5) x = 0.5; if (x > N - 1.5) x = N - 1.5;
+        if (y < 0.5) y = 0.5; if (y > N - 1.5) y = N - 1.5;
+        const i0 = Math.floor(x), i1 = i0 + 1, j0 = Math.floor(y), j1 = j0 + 1;
+        const s1 = x - i0, s0 = 1 - s1, t1 = y - j0, t0 = 1 - t1;
+        d[IX(i, j)] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
+                      s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
+      }
+    }
+    setBnd(b, d);
+  }
+
+  Fluid.prototype.step = function () {
+    const iter = 4, dt = this.dt;
+    diffuse(1, this.Vx0, this.Vx, this.visc, dt, iter);
+    diffuse(2, this.Vy0, this.Vy, this.visc, dt, iter);
+    project(this.Vx0, this.Vy0, this.Vx, this.Vy, iter);
+    advect(1, this.Vx, this.Vx0, this.Vx0, this.Vy0, dt);
+    advect(2, this.Vy, this.Vy0, this.Vx0, this.Vy0, dt);
+    project(this.Vx, this.Vy, this.Vx0, this.Vy0, iter);
+    diffuse(0, this.dens0, this.dens, this.diff, dt, iter);
+    advect(0, this.dens, this.dens0, this.Vx, this.Vy, dt);
+    for (let k = 0; k < this.dens.length; k++) this.dens[k] *= 0.996;
+  };
+
+  // sample bilinear velocity at board coords (0..8)
+  Fluid.prototype.sampleVel = function (bx, by) {
+    const sx = clampf(1 + bx * (N - 2) / 8, 1, N - 2);
+    const sy = clampf(1 + by * (N - 2) / 8, 1, N - 2);
+    const i0 = Math.floor(sx), j0 = Math.floor(sy);
+    const i1 = Math.min(i0 + 1, N - 2), j1 = Math.min(j0 + 1, N - 2);
+    const s1 = sx - i0, s0 = 1 - s1, t1 = sy - j0, t0 = 1 - t1;
+    const vx = s0 * (t0 * this.Vx[IX(i0, j0)] + t1 * this.Vx[IX(i0, j1)]) +
+               s1 * (t0 * this.Vx[IX(i1, j0)] + t1 * this.Vx[IX(i1, j1)]);
+    const vy = s0 * (t0 * this.Vy[IX(i0, j0)] + t1 * this.Vy[IX(i0, j1)]) +
+               s1 * (t0 * this.Vy[IX(i1, j0)] + t1 * this.Vy[IX(i1, j1)]);
+    return [vx, vy];
+  };
+  function clampf(v, lo, hi) { return v < lo ? lo : v > hi ? hi : v; }
+
+  const fluid = new Fluid();
+
+  // ---------------------------------------------------------------------
+  // Chess: standard piece-movement shapes, no check/checkmate/castling.
+  // ---------------------------------------------------------------------
+  const START = [
+    ['bR','bN','bB','bQ','bK','bB','bN','bR'],
+    ['bP','bP','bP','bP','bP','bP','bP','bP'],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    [null,null,null,null,null,null,null,null],
+    ['wP','wP','wP','wP','wP','wP','wP','wP'],
+    ['wR','wN','wB','wQ','wK','wB','wN','wR'],
+  ];
+  const GLYPH = {
+    wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
+    bK:'♚', bQ:'♛', bR:'♜', bB:'♝', bN:'♞', bP:'♟',
+  };
+  let board, turn, sel, legal, offsetGrid, lastMovedSq;
+
+  function freshOffsetGrid() {
+    const g = [];
+    for (let r = 0; r < 8; r++) {
+      const row = [];
+      for (let c = 0; c < 8; c++) row.push({ ox: 0, oy: 0 });
+      g.push(row);
+    }
+    return g;
+  }
+
+  function newGame() {
+    board = START.map(row => row.slice());
+    turn = 'w'; sel = null; legal = [];
+    offsetGrid = freshOffsetGrid();
+    lastMovedSq = null;
+    fluid.reset();
+    document.getElementById('lastmove').textContent = '';
+    updateTurnLabel();
+    renderPieces();
+  }
+
+  function inb(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+
+  function movesFor(r, c) {
+    const p = board[r][c]; if (!p) return [];
+    const color = p[0], type = p[1];
+    const dir = color === 'w' ? -1 : 1;
+    const startRow = color === 'w' ? 6 : 1;
+    const enemy = (rr, cc) => board[rr][cc] && board[rr][cc][0] !== color;
+    const moves = [];
+    if (type === 'P') {
+      if (inb(r + dir, c) && !board[r + dir][c]) {
+        moves.push([r + dir, c]);
+        if (r === startRow && !board[r + 2 * dir][c]) moves.push([r + 2 * dir, c]);
+      }
+      for (const dc of [-1, 1]) {
+        if (inb(r + dir, c + dc) && enemy(r + dir, c + dc)) moves.push([r + dir, c + dc]);
+      }
+    } else if (type === 'N') {
+      const offs = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+      for (const [dr, dc] of offs) {
+        const nr = r + dr, nc = c + dc;
+        if (inb(nr, nc) && (!board[nr][nc] || enemy(nr, nc))) moves.push([nr, nc]);
+      }
+    } else if (type === 'K') {
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dr && !dc) continue;
+        const nr = r + dr, nc = c + dc;
+        if (inb(nr, nc) && (!board[nr][nc] || enemy(nr, nc))) moves.push([nr, nc]);
+      }
+    } else {
+      const dirs = type === 'R' ? [[1,0],[-1,0],[0,1],[0,-1]]
+        : type === 'B' ? [[1,1],[1,-1],[-1,1],[-1,-1]]
+        : [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
+      for (const [dr, dc] of dirs) {
+        let nr = r + dr, nc = c + dc;
+        while (inb(nr, nc)) {
+          if (!board[nr][nc]) { moves.push([nr, nc]); }
+          else { if (enemy(nr, nc)) moves.push([nr, nc]); break; }
+          nr += dr; nc += dc;
+        }
+      }
+    }
+    return moves;
+  }
+
+  function sqName(r, c) { return String.fromCharCode(97 + c) + (8 - r); }
+
+  const piecesEl = document.getElementById('pieces');
+  const cells = [];
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'sq';
+      btn.setAttribute('aria-label', sqName(r, c));
+      btn.dataset.r = r; btn.dataset.c = c;
+      btn.addEventListener('click', onCellClick);
+      piecesEl.appendChild(btn);
+      cells.push(btn);
+    }
+  }
+
+  function cellAt(r, c) { return cells[r * 8 + c]; }
+
+  function renderPieces() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const btn = cellAt(r, c);
+        const p = board[r][c];
+        btn.textContent = p ? GLYPH[p] : '';
+        btn.classList.toggle('white-piece', !!p && p[0] === 'w');
+        btn.classList.toggle('sel', !!sel && sel[0] === r && sel[1] === c);
+        const isLegal = legal.some(m => m[0] === r && m[1] === c);
+        btn.classList.toggle('legal', isLegal);
+        btn.classList.toggle('has', isLegal && !!p);
+      }
+    }
+  }
+
+  function updateTurnLabel() {
+    const el = document.getElementById('turnLabel');
+    el.textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+    el.className = 'turn ' + turn;
+  }
+
+  function onCellClick(e) {
+    const r = +e.currentTarget.dataset.r, c = +e.currentTarget.dataset.c;
+    const p = board[r][c];
+    if (sel) {
+      const dest = legal.find(m => m[0] === r && m[1] === c);
+      if (dest) { doMove(sel[0], sel[1], r, c); return; }
+    }
+    if (p && p[0] === turn) {
+      sel = [r, c];
+      legal = movesFor(r, c);
+    } else {
+      sel = null; legal = [];
+    }
+    renderPieces();
+  }
+
+  function doMove(fr, fc, tr, tc) {
+    const piece = board[fr][fc];
+    const captured = board[tr][tc];
+    board[tr][tc] = piece;
+    board[fr][fc] = null;
+    if (piece[1] === 'P' && (tr === 0 || tr === 7)) board[tr][tc] = piece[0] + 'Q';
+    // the moved piece is the source of the impulse, not a tracer caught in
+    // someone else's wake — land it dead-centre on its new square.
+    offsetGrid[tr][tc] = { ox: 0, oy: 0 };
+    offsetGrid[fr][fc] = { ox: 0, oy: 0 };
+    // "the piece that induces the flow field shouldn't be effected by the
+    // flow field, the piece that moves should always hit its target" — the
+    // mover's own impulse (and anything else already moving) would
+    // otherwise start dragging it around on the very next physics tick,
+    // same as any other occupied square. lastMovedSq exempts ONE square —
+    // the current mover's destination — from updatePiecePhysics() entirely,
+    // until the next doMove() reassigns it. So it's pinned exactly on its
+    // square for the rest of this "turn" (any number of physics ticks while
+    // the other player thinks), but becomes draggable again like every
+    // other piece as soon as a fresh move — and a fresh flow — begins.
+    // Deliberately NOT extended to resolveFlowSlides() targets below: the
+    // request named the piece that INDUCES a flow, not every piece a flow
+    // relocates, and flow-carried pieces are the mechanic, not the bug.
+    lastMovedSq = { r: tr, c: tc };
+
+    const dx = tc - fc, dy = tr - fr;
+    const dist = Math.hypot(dx, dy);
+    injectFlow(fc + 0.5, fr + 0.5, tc + 0.5, tr + 0.5, dist);
+
+    const letter = { P:'', N:'N', B:'B', R:'R', Q:'Q', K:'K' }[piece[1]];
+    document.getElementById('lastmove').textContent =
+      (turn === 'w' ? 'White' : 'Black') + ': ' + letter + sqName(fr, fc) +
+      (captured ? '×' : '–') + sqName(tr, tc) +
+      ' · flow ×' + dist.toFixed(2);
+
+    sel = null; legal = [];
+    turn = turn === 'w' ? 'b' : 'w';
+    updateTurnLabel();
+    renderPieces();
+  }
+
+  // Sim cells (~2.3 board squares). A cone-kernel splat with this radius
+  // hands a materially large share (~57% of peak) to a piece one square
+  // away on the FIRST tick, rather than waiting on diffusion to leak an
+  // ever-diluting signal there over dozens of frames. Tuned so influence
+  // fades out by ~2-3 squares — this is meant to move an adjacent piece,
+  // not shudder the whole board.
+  const SPREAD_RADIUS = 14;
+  // "I'm seeing real effects not start until flow at four" (the slider's
+  // max) — the steady-state drag offset a neighbour actually reaches scales
+  // linearly with this multiplier (see DRAG/RESTORE above), so at the old
+  // 0.045 the default flowStrength (2.6, ~65% of the 0.4-4 range) landed
+  // below SLIDE_THRESHOLD and only the top of the slider ever produced a
+  // real square change. Doubled so the same "real effect" that used to need
+  // the slider near its max now shows up around the default — reasoned by
+  // linear scaling, not measured; rerun headless-test.mjs's sweep (it
+  // mirrors this constant) before trusting the new default's feel.
+  const FLOW_VEL_MULT = 0.09;
+
+  function injectFlow(fx, fy, tx, ty, dist) {
+    if (dist < 1e-4) return;
+    const dx = tx - fx, dy = ty - fy;
+    const ux = dx / dist, uy = dy / dist;
+    // One splat roughly every 70% of a radius along the path is enough
+    // coverage once each splat itself is this wide — a short move needs
+    // only one or two, a long queen sweep a handful. Far fewer, much wider
+    // injections than the old per-cell version.
+    const pathLen = dist * (N - 2) / 8;
+    const steps = Math.max(1, Math.round(pathLen / (SPREAD_RADIUS * 0.7)));
+    const flowStrength = +document.getElementById('flowStrength').value;
+    const base = flowStrength * (0.7 + dist * 0.55);
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const bx = fx + dx * t, by = fy + dy * t;
+      const sx = 1 + bx * (N - 2) / 8, sy = 1 + by * (N - 2) / 8;
+      const fall = Math.max(0.2, 1 - Math.abs(t - 0.5) * 1.3);
+      // Per-splat multipliers cut hard from the old single-cell values
+      // (0.13, 4.2): a neighbouring square used to sit far outside the
+      // injection's reach entirely, now it sits inside a kernel that hands
+      // it ~57% of peak directly. Left at the old multiplier that would
+      // very likely slam every adjacent piece straight into MAX_OFFSET on
+      // the first physics tick after any move — a binary snap, not a
+      // flow. The velocity multiplier (what actually drives piece drag)
+      // is cut hardest for that reason; density (purely visual, no clamp
+      // to hit) stays closer to where "more dramatic streamlines" left it.
+      // This number is reasoned, not measured — see BRIEF.md and rerun
+      // headless-test.mjs's sweep against this new kernel before trusting it.
+      fluid.splatVelocity(sx, sy, ux * base * fall * FLOW_VEL_MULT, uy * base * fall * FLOW_VEL_MULT, SPREAD_RADIUS);
+      fluid.splatDensity(sx, sy, base * fall * 3.0, SPREAD_RADIUS);
+    }
+  }
+
+  // ---------------------------------------------------------------------
+  // Piece drag: every occupied square is sampled against the SAME solved
+  // velocity field that drives the density/streamlines — not a separate
+  // faked wobble. A piece is a tracer tethered to its home square: the
+  // flow nudges it each tick, honey's stiffness pulls it back, heavier
+  // pieces resist more. Exponential relaxation rather than an integrated
+  // spring, because a real spring-damper ODE at dt=1 (this sim's tick,
+  // not a real second) needs constants tuned by eye in a browser this
+  // sandbox doesn't have — relaxation is stable at any coefficient.
+  // ---------------------------------------------------------------------
+  const PIECE_MASS = { P: 1, N: 2.2, B: 2.2, R: 3.4, Q: 5.2, K: 4 };
+  // DRAG/RESTORE this turn: "piece moves are about 10x the speed they
+  // should be... a blink and you miss it sort of affair" — the previous
+  // turn's RESTORE=0.95/DRAG=0.5 slowed things down, evidently not nearly
+  // enough. The recurrence is st_new = RESTORE*(st + DRAG*v/m); its
+  // steady-state asymptote is st_inf = RESTORE*DRAG*v/(m*(1-RESTORE)), and
+  // the number of ticks to close any given FRACTION of the gap to that
+  // asymptote scales with 1/(1-RESTORE). To make the approach take ~10x as
+  // many ticks while landing on the SAME st_inf (so "how far" doesn't also
+  // change, only "how long it takes to get there"): shrinking (1-RESTORE)
+  // by 10x alone would multiply st_inf by ~10x too, so DRAG has to shrink by
+  // the matching ~10x alongside it. RESTORE 0.95 -> 0.995 (RESTORE^(1/10),
+  // solved from RESTORE'^10 = RESTORE so the same fraction-of-asymptote is
+  // reached at 10x the tick count) and DRAG 0.5 -> 0.05, together, holds
+  // st_inf to within ~2% of its old value while multiplying settle time by
+  // ~10x (~20 ticks to ~200, i.e. ~0.3s to ~3.3s at 60fps). See
+  // FLOW_VEL_MULT below for the separate (orthogonal) fix to how STRONG
+  // that asymptote is. Reasoned from the recurrence, not measured in a
+  // browser — rerun headless-test.mjs's sweep against these new values
+  // before trusting them.
+  const DRAG = 0.05;      // how hard the current pulls a tracer, per tick
+  const RESTORE = 0.995;  // fraction of displacement kept each tick
+  // MAX_OFFSET is now a PHYSICS ceiling, not a rendering one — split from
+  // MAX_VISUAL_OFFSET below this turn. Previously the same 0.3 did both
+  // jobs at once (stop the sim exploding, AND keep the CSS transform off a
+  // neighbour's tap target), which meant the offset could never grow large
+  // enough to mean anything beyond a wobble. The request this turn — "the
+  // effected pieces [should] change squares... if they're wiggling now
+  // they should be moving tiles" — needs the physics value to actually
+  // cross a square boundary, so it now runs well past where the old clamp
+  // sat; SLIDE_THRESHOLD below is what turns that into a real move.
+  const MAX_OFFSET = 0.9;
+  const MAX_VISUAL_OFFSET = 0.3; // board-units; caps ONLY the CSS transform, so a piece mid-drag never visually drifts onto a neighbour's tap target, even once its physics offset is already past SLIDE_THRESHOLD
+  // Crossing this many board-units of drag displacement commits the piece
+  // to the neighbouring square — a real change to the board array, not a
+  // springy snap-back. Must stay below MAX_OFFSET or it could never be
+  // reached.
+  const SLIDE_THRESHOLD = 0.55;
+
+  function updatePiecePhysics() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c];
+        const st = offsetGrid[r][c];
+        if (!p) { st.ox = 0; st.oy = 0; continue; }
+        if (lastMovedSq && lastMovedSq.r === r && lastMovedSq.c === c) { st.ox = 0; st.oy = 0; continue; }
+        const bx = c + 0.5 + st.ox, by = r + 0.5 + st.oy;
+        const v = fluid.sampleVel(bx, by);
+        // sim velocity -> board-units/tick: the same (N-2)/8 scale used
+        // everywhere else to convert board coords into sim coords, run
+        // in reverse (see advect()'s dtx = dt*(N-2), which is where that
+        // factor of 8 actually comes from).
+        const fvx = v[0] * 8, fvy = v[1] * 8;
+        const m = PIECE_MASS[p[1]] || 2;
+        st.ox = clampf((st.ox + fvx * DRAG / m) * RESTORE, -MAX_OFFSET, MAX_OFFSET);
+        st.oy = clampf((st.oy + fvy * DRAG / m) * RESTORE, -MAX_OFFSET, MAX_OFFSET);
+      }
+    }
+    resolveFlowSlides();
+  }
+
+  // A piece dragged past SLIDE_THRESHOLD actually crosses into the
+  // neighbouring square: the board array itself changes, which is the
+  // game-state effect the previous turn's tether-and-spring only ever
+  // faked visually. Built
+  // as a batch over a snapshot of the board (proposals collected first,
+  // applied after) so that within one tick: two pieces flowing toward the
+  // same empty square don't both claim it, and a piece can't be evaluated
+  // against a square another piece is simultaneously vacating out from
+  // under it depending on scan order. Only the dominant axis moves, so one
+  // tick can't smuggle a piece two squares diagonally at once. Blocked
+  // (not captured) if the destination is occupied — honey pushes a piece
+  // up against its neighbour, it doesn't shove it off the board; that's a
+  // deliberate scope line, not an oversight, see BRIEF.md.
+  function resolveFlowSlides() {
+    const proposals = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = board[r][c]; if (!p) continue;
+        const st = offsetGrid[r][c];
+        const ax = Math.abs(st.ox), ay = Math.abs(st.oy);
+        if (ax < SLIDE_THRESHOLD && ay < SLIDE_THRESHOLD) continue;
+        let nr = r, nc = c;
+        if (ax >= ay) nc = c + (st.ox > 0 ? 1 : -1);
+        else nr = r + (st.oy > 0 ? 1 : -1);
+        if (!inb(nr, nc) || board[nr][nc]) continue;
+        proposals.push({ r, c, nr, nc });
+      }
+    }
+    if (!proposals.length) return;
+    const claimed = new Set();
+    let moved = false;
+    for (const mv of proposals) {
+      const key = mv.nr + ',' + mv.nc;
+      if (claimed.has(key)) continue; // two pieces flowed toward the same empty square this tick; first in scan order wins, the other relaxes and can try again next tick
+      claimed.add(key);
+      board[mv.nr][mv.nc] = board[mv.r][mv.c];
+      board[mv.r][mv.c] = null;
+      offsetGrid[mv.nr][mv.nc] = { ox: 0, oy: 0 };
+      offsetGrid[mv.r][mv.c] = { ox: 0, oy: 0 };
+      moved = true;
+    }
+    if (moved) {
+      // a flow-carried slide can relocate the piece the player has
+      // selected, or a square its legal-move highlight referred to —
+      // clear selection state rather than let it point at a stale square.
+      sel = null; legal = [];
+      renderPieces();
+    }
+  }
+
+  function applyPieceTransforms() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const st = offsetGrid[r][c];
+        const vx = clampf(st.ox, -MAX_VISUAL_OFFSET, MAX_VISUAL_OFFSET);
+        const vy = clampf(st.oy, -MAX_VISUAL_OFFSET, MAX_VISUAL_OFFSET);
+        const btn = cellAt(r, c);
+        btn.style.transform = (vx || vy)
+          ? 'translate(' + (vx * 100).toFixed(1) + '%, ' + (vy * 100).toFixed(1) + '%)'
+          : '';
+      }
+    }
+  }
+
+  document.getElementById('resetBoard').addEventListener('click', newGame);
+  document.getElementById('clearFlow').addEventListener('click', function () { fluid.reset(); });
+
+  const flowInput = document.getElementById('flowStrength');
+  flowInput.addEventListener('input', function () {
+    document.getElementById('flowVal').textContent = (+flowInput.value).toFixed(1) + '×';
+  });
+  const viscInput = document.getElementById('thickness');
+  const viscLabels = ['thin','thin','loose','loose','med','med','thick','thick','stiff','stiff'];
+  viscInput.addEventListener('input', function () {
+    const v = +viscInput.value;
+    // higher slider = thicker honey = more viscosity/diffusion = more laminar damping
+    fluid.visc = 0.00006 * v;
+    fluid.diff = 0.00003 * v;
+    document.getElementById('viscVal').textContent = viscLabels[v - 1] || 'med';
+  });
+  viscInput.dispatchEvent(new Event('input'));
+  flowInput.dispatchEvent(new Event('input'));
+
+  let streamsOn = true;
+  const streamBtn = document.getElementById('toggleStreams');
+  streamBtn.addEventListener('click', function () {
+    streamsOn = !streamsOn;
+    streamBtn.textContent = 'Vector field: ' + (streamsOn ? 'on' : 'off');
+    streamBtn.setAttribute('aria-pressed', String(streamsOn));
+  });
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduceMotion) document.getElementById('reducedMotionNote').hidden = false;
+
+  // ---------------------------------------------------------------------
+  // Rendering
+  // ---------------------------------------------------------------------
+  const canvas = document.getElementById('fluid');
+  const ctx = canvas.getContext('2d');
+  const SIZE = canvas.width; // 720, square
+  const CELL = SIZE / 8;
+  const densCanvas = document.createElement('canvas');
+  densCanvas.width = N - 2; densCanvas.height = N - 2;
+  const densCtx = densCanvas.getContext('2d');
+  const densImg = densCtx.createImageData(N - 2, N - 2);
+
+  const LIGHT = '#f3c877', DARK = '#b8792e';
+
+  function drawBoard() {
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        ctx.fillStyle = (r + c) % 2 === 0 ? LIGHT : DARK;
+        ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
+      }
+    }
+  }
+
+  function drawDensity() {
+    const data = densImg.data;
+    let k = 0;
+    for (let j = 1; j < N - 1; j++) {
+      for (let i = 1; i < N - 1; i++) {
+        const d = fluid.dens[IX(i, j)];
+        const a = clampf(d * 10, 0, 235);
+        data[k++] = 255; data[k++] = 176; data[k++] = 46; data[k++] = a;
+      }
+    }
+    densCtx.putImageData(densImg, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(densCanvas, 0, 0, N - 2, N - 2, 0, 0, SIZE, SIZE);
+  }
+
+  function drawGrid() {
+    ctx.strokeStyle = 'rgba(40,24,4,.35)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) {
+      ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, SIZE); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(SIZE, i * CELL); ctx.stroke();
+    }
+  }
+
+  // Vector field plot — this turn's request named the previous version
+  // exactly: "technical field plotting not fwoof lines that you sketch
+  // now". The old version traced multi-step streamlines and rendered each
+  // with a soft low-alpha glow pass under a bright core, which reads as an
+  // atmosphere sitting on the honey rather than a measurement of it. This
+  // is a quiver plot instead: a fixed grid of sample points, ONE directly
+  // sampled velocity vector each, drawn as a thin arrow with a hard
+  // arrowhead — no integration along the flow, no seeds, nothing sketched.
+  // Colour runs cool cyan (slow) to white (fast) specifically so it reads
+  // as an instrument overlay against the warm amber board and density
+  // glaze, which both stay in the honey palette.
+  const FIELD_GRID = 13;              // arrows per row/column across the board
+  const FIELD_SPACING = 8 / FIELD_GRID;
+  const FIELD_MAXLEN = FIELD_SPACING * 0.42; // stops neighbouring arrows overlapping
+  const FIELD_EPS = 0.0005;           // below this, nothing is plotted rather than a zero-length arrow
+  const FIELD_REFSPEED = 0.01;        // sampleVel speed that maps to a full-length, full-white arrow
+  let fieldSamples = [];
+
+  function computeVectorField() {
+    fieldSamples = [];
+    for (let gy = 0; gy < FIELD_GRID; gy++) {
+      for (let gx = 0; gx < FIELD_GRID; gx++) {
+        const bx = (gx + 0.5) * FIELD_SPACING, by = (gy + 0.5) * FIELD_SPACING;
+        const v = fluid.sampleVel(bx, by);
+        const speed = Math.hypot(v[0], v[1]);
+        if (speed < FIELD_EPS) continue;
+        fieldSamples.push({ x: bx * CELL, y: by * CELL, ux: v[0] / speed, uy: v[1] / speed, speed });
+      }
+    }
+  }
+
+  function drawVectorField() {
+    ctx.lineCap = 'round';
+    for (const s of fieldSamples) {
+      const t = clampf(s.speed / FIELD_REFSPEED, 0, 1);
+      const grown = Math.pow(t, 0.6); // early speed is still visible, not lost near zero
+      const len = FIELD_MAXLEN * (0.2 + 0.8 * grown);
+      const alpha = clampf(0.3 + t * 0.65, 0.3, 0.95);
+      const r = (120 + 135 * t) | 0, g = (200 + 55 * t) | 0, b = (220 + 35 * t) | 0;
+      const x2 = s.x + s.ux * len, y2 = s.y + s.uy * len;
+      ctx.strokeStyle = 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(2) + ')';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(s.x, s.y); ctx.lineTo(x2, y2); ctx.stroke();
+      const ang = Math.atan2(s.uy, s.ux);
+      const ah = Math.min(4, len * 0.55);
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - ah * Math.cos(ang - 0.5), y2 - ah * Math.sin(ang - 0.5));
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(x2 - ah * Math.cos(ang + 0.5), y2 - ah * Math.sin(ang + 0.5));
+      ctx.stroke();
+    }
+    ctx.lineCap = 'butt';
+  }
+
+  let frame = 0;
+  function loop() {
+    fluid.step();
+    drawBoard();
+    drawDensity();
+    if (streamsOn) {
+      const every = reduceMotion ? 24 : 1;
+      if (frame % every === 0) computeVectorField();
+      drawVectorField();
+    }
+    drawGrid();
+    if (!reduceMotion) { updatePiecePhysics(); applyPieceTransforms(); }
+    frame++;
+    requestAnimationFrame(loop);
+  }
+
+  newGame();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

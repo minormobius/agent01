@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Assay Office — rank your lexical dupes, best to worst</title>
+<meta name="description" content="Paste any text, or point it at a Bluesky handle's recent posts, and every repeated word gets ranked from most-duplicated (bullion) down to barely-a-dupe (alloy). Naive tokenizer, no server, nothing kept.">
+<meta property="og:title" content="The Assay Office — rank your lexical dupes, best to worst">
+<meta property="og:description" content="Paste any text, or point it at a Bluesky handle's recent posts, and every repeated word gets ranked from most-duplicated (bullion) down to barely-a-dupe (alloy). Naive tokenizer, no server, nothing kept.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .panel { background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+           padding: 1rem; margin: 1.25rem 0; }
+  textarea#src { min-height: 8rem; resize: vertical; font-size: .85rem; }
+
+  .row2 { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-top: .75rem; }
+  .row2 label { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: .4rem; }
+  .row2 input[type=checkbox] { width: 20px; height: 20px; flex: none; }
+  .row2 input[type=number] { width: 4.5rem; padding: .5rem .6rem; font-size: 16px; }
+  .actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .9rem; }
+  .actions button { min-height: 44px; }
+
+  .swap { margin: 1.5rem 0 .5rem; }
+  .swap label { font-size: .8rem; color: var(--muted); display: block; margin-bottom: .4rem; }
+  .swap input { min-height: 44px; font-size: 16px; }
+  #bsky-status { font-size: .8rem; color: var(--muted); margin-top: .4rem; min-height: 1.2em; }
+
+  #results-head { font-size: .85rem; color: var(--muted); margin: 1.5rem 0 .75rem; }
+  .ledger { display: flex; flex-direction: column; gap: .5rem; }
+  .atom { display: flex; align-items: center; gap: .75rem; padding: .6rem .7rem;
+          background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius); }
+  .atom .rank { width: 2.2rem; flex: none; text-align: right; color: var(--muted); font-size: .8rem; }
+  .tile { width: 2.6rem; height: 2.6rem; flex: none; border-radius: var(--radius);
+          border: 1px solid var(--border); display: flex; align-items: center; justify-content: center;
+          font-weight: 700; font-size: 1rem; }
+  .atom .word-wrap { flex: 1 1 auto; min-width: 0; }
+  .atom .word { color: var(--fg); font-size: .9rem; word-break: break-word; }
+  .atom .bar-track { height: 6px; border-radius: 3px; background: var(--border); margin-top: .35rem; overflow: hidden; }
+  .atom .bar-fill { height: 100%; border-radius: 3px; }
+  .atom .meta { flex: none; text-align: right; font-size: .75rem; color: var(--muted); min-width: 4.5rem; }
+  .atom .count { color: var(--fg); font-size: .95rem; display: block; }
+
+  .grade-bullion .tile { background: var(--accent-dim); border-color: var(--accent); color: var(--accent); }
+  .grade-bullion .bar-fill { background: var(--accent); }
+  .grade-sterling .tile { background: #23262b; border-color: #9aa3ad; color: #cfd6dc; }
+  .grade-sterling .bar-fill { background: #9aa3ad; }
+  .grade-alloy .tile { background: #23201b; border-color: #6b5a3f; color: #a68a5c; }
+  .grade-alloy .bar-fill { background: #6b5a3f; }
+
+  #empty, #src-err { margin: .75rem 0 0; }
+
+  @media (prefers-reduced-motion: reduce) { .bar-fill { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>The Assay Office</h1>
+  <p class="sub">Paste text below, or point it at a Bluesky handle's recent
+     posts, and every word that shows up more than once gets weighed and
+     ranked — most-repeated first, down to the words that barely qualify as
+     duplicates at all. It's a naive word tokenizer wearing an assayer's
+     coat: no stemming, no dictionary, "cat" and "cats" are different atoms.
+     Nothing you paste leaves your browser unless you choose the Bluesky
+     option, which only ever reads the handle you typed.</p>
+
+  <div class="panel">
+    <textarea id="src" aria-label="text to assay">The lab keeps building the same idea in a new coat: a bot that answers a
+bot, a bot that quotes a bot, a bot that thanks a bot for thanking a bot.
+Every thread is a bot appreciating a bot appreciating a bot, and somewhere
+under all that appreciation is one good idea, repeated until it shines.</textarea>
+
+    <div class="row2">
+      <label><input type="checkbox" id="stop" checked> hide common words (the, and, a, …)</label>
+      <label>min. length <input type="number" id="minlen" value="3" min="1" max="12"></label>
+    </div>
+    <div class="actions">
+      <button type="button" id="run">Assay these words</button>
+      <button type="button" id="clear-btn">Clear</button>
+    </div>
+    <div id="src-err" class="err" hidden></div>
+  </div>
+
+  <div class="swap">
+    <label for="handle-input">or load a Bluesky handle's recent posts instead</label>
+    <input id="handle-input" type="text" placeholder="type a handle…" autocomplete="off">
+    <div id="bsky-status"></div>
+  </div>
+
+  <h2 id="results-head" hidden></h2>
+  <div id="empty" class="err" hidden></div>
+  <div class="ledger" id="ledger"></div>
+
+  <h2>How the grading works</h2>
+  <p>Every run of letters between non-letters is one "atom," lowercased.
+     Only atoms that occur <strong>two or more times</strong> in the text
+     count as dupes — singletons never make the ledger, because a word that
+     shows up once isn't a duplicate of anything. Above that floor, three
+     grades: <strong>bullion</strong> (8+ copies), <strong>sterling</strong>
+     (4–7), <strong>alloy</strong> (2–3) — best to worst, by raw count, ties
+     broken alphabetically.</p>
+</main>
+
+<script src="../_kit/kit.js"></script>
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('speaking-bot');
+
+  var STOPWORDS = ('the and a of to in is it that i you for on was with as at this but from are be or an ' +
+    'my your we they he she not have has had will would can could so if just about what when out up do did ' +
+    'no all one more than then there their been into over also its me our us his her them who which how ' +
+    'some very get got like im dont this these those been being am were').split(' ');
+  var STOP = {};
+  STOPWORDS.forEach(function (w) { STOP[w] = true; });
+
+  function tokenize(text, hideStop, minLen) {
+    var raw = (text || '').toLowerCase().match(/[a-z']+/g) || [];
+    var counts = {};
+    raw.forEach(function (w) {
+      w = w.replace(/^'+|'+$/g, '');
+      if (!w) return;
+      if (w.length < minLen) return;
+      if (hideStop && STOP[w]) return;
+      counts[w] = (counts[w] || 0) + 1;
+    });
+    return counts;
+  }
+
+  function grade(n) {
+    if (n >= 8) return { key: 'bullion', label: 'bullion' };
+    if (n >= 4) return { key: 'sterling', label: 'sterling' };
+    return { key: 'alloy', label: 'alloy' };
+  }
+
+  function symbolOf(word) {
+    if (word.length === 1) return word.toUpperCase();
+    return word[0].toUpperCase() + word[1];
+  }
+
+  function render(counts) {
+    var ledger = document.getElementById('ledger');
+    var head = document.getElementById('results-head');
+    var empty = document.getElementById('empty');
+    ledger.innerHTML = '';
+
+    var dupes = Object.keys(counts).filter(function (w) { return counts[w] >= 2; });
+    dupes.sort(function (a, b) { return counts[b] - counts[a] || (a < b ? -1 : 1); });
+
+    if (!dupes.length) {
+      head.hidden = true;
+      kit.showError(empty, 'no atom repeats twice in there — paste more text, lower the minimum length, or turn off "hide common words."');
+      return;
+    }
+    kit.clear(empty);
+    head.hidden = false;
+    head.textContent = dupes.length + ' duplicate atom' + (dupes.length === 1 ? '' : 's') + ' found, best to worst';
+
+    var max = counts[dupes[0]];
+    dupes.forEach(function (word, i) {
+      var n = counts[word];
+      var g = grade(n);
+      var row = document.createElement('div');
+      row.className = 'atom grade-' + g.key;
+
+      var rank = document.createElement('div');
+      rank.className = 'rank';
+      rank.textContent = '#' + (i + 1);
+      row.appendChild(rank);
+
+      var tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.textContent = symbolOf(word);
+      row.appendChild(tile);
+
+      var wrap = document.createElement('div');
+      wrap.className = 'word-wrap';
+      var wordEl = document.createElement('div');
+      wordEl.className = 'word';
+      wordEl.textContent = word;
+      wrap.appendChild(wordEl);
+      var track = document.createElement('div');
+      track.className = 'bar-track';
+      var fill = document.createElement('div');
+      fill.className = 'bar-fill';
+      fill.style.width = Math.max(6, Math.round(100 * n / max)) + '%';
+      track.appendChild(fill);
+      wrap.appendChild(track);
+      row.appendChild(wrap);
+
+      var meta = document.createElement('div');
+      meta.className = 'meta';
+      var countEl = document.createElement('span');
+      countEl.className = 'count';
+      countEl.textContent = '×' + n;
+      meta.appendChild(countEl);
+      meta.appendChild(document.createTextNode(g.label));
+      row.appendChild(meta);
+
+      ledger.appendChild(row);
+    });
+  }
+
+  function runAssay() {
+    var text = document.getElementById('src').value;
+    var errEl = document.getElementById('src-err');
+    if (!text.trim()) {
+      kit.showError(errEl, 'nothing to assay yet — paste some text first.');
+      document.getElementById('ledger').innerHTML = '';
+      document.getElementById('results-head').hidden = true;
+      kit.clear(document.getElementById('empty'));
+      return;
+    }
+    kit.clear(errEl);
+    var hideStop = document.getElementById('stop').checked;
+    var minLen = Math.max(1, parseInt(document.getElementById('minlen').value, 10) || 1);
+    render(tokenize(text, hideStop, minLen));
+  }
+
+  document.getElementById('run').addEventListener('click', runAssay);
+  document.getElementById('clear-btn').addEventListener('click', function () {
+    document.getElementById('src').value = '';
+    document.getElementById('ledger').innerHTML = '';
+    document.getElementById('results-head').hidden = true;
+    kit.clear(document.getElementById('empty'));
+    kit.clear(document.getElementById('src-err'));
+    document.getElementById('src').focus();
+  });
+
+  // ---- optional: load a named handle's own recent post text ----
+  var statusEl = document.getElementById('bsky-status');
+  kit.handleInput(document.getElementById('handle-input'), {
+    onPick: function (handle, actor) {
+      statusEl.textContent = 'loading @' + actor.handle + '’s recent posts…';
+      kit.bskyGet('app.bsky.feed.getAuthorFeed', { actor: actor.did, limit: 50 })
+        .then(function (feed) {
+          var items = kit.visible(feed.feed || []).filter(function (item) {
+            // own words only — skip reposts of somebody else's post
+            return item.post && item.post.author && item.post.author.did === actor.did &&
+                   item.post.record && typeof item.post.record.text === 'string';
+          });
+          var text = items.map(function (item) { return item.post.record.text; }).join('\n\n');
+          if (!text.trim()) {
+            statusEl.textContent = '@' + actor.handle + ' has no visible post text to assay right now.';
+            return;
+          }
+          document.getElementById('src').value = text;
+          statusEl.textContent = 'loaded ' + items.length + ' post' + (items.length === 1 ? '' : 's') + ' from @' + actor.handle + '.';
+          runAssay();
+        })
+        .catch(function (e) {
+          statusEl.textContent = 'could not load @' + actor.handle + '’s posts (' + e.message + ').';
+        });
+    }
+  });
+
+  runAssay();
+})();
+</script>
+</body>
+</html>

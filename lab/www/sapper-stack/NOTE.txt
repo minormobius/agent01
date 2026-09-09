@@ -1,0 +1,1 @@
+Full loop works: solve a digit, then clear/flag it. Clearing a mine hard-drops your falling piece into the tower instead of ending anything. Sudoku isn't verified unique — deduction from mines sometimes helps too. Next: piece bag, speed ramp.

@@ -1,0 +1,1 @@
+Kept it burning — two small upkeep fixes: mate handles now get checked against Bluesky before the chip appears, and the fire canvas won't outgrow a short screen anymore. Nothing new yet. Say the word for what's next.
