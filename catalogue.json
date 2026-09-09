@@ -32,7 +32,7 @@
       "label": "tools"
     },
     {
-      "before": 212,
+      "before": 214,
       "label": "games"
     }
   ],
@@ -2749,6 +2749,39 @@
         "wasm",
         "biology",
         "webgl"
+      ]
+    },
+    {
+      "n": "henderhead",
+      "u": "https://henderhead.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-09",
+      "b": "2026-09-09",
+      "surface": "henderhead",
+      "d": "An unofficial fan site for Matt Henderson’s mathematical demos, which are beautiful and are videos — rebuilt here as things you can turn the knobs on. Independent implementations written from the mathematics he described in public, credited and linked on every page, with none of his images or video copied. The front page carries the consent gate: the obvious next step is a bot that watches his feed and rebuilds each new demo as it appears, and it will not be built until he has been asked and has said yes.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "continued fraction Fourier",
+      "u": "https://henderhead.mino.mobi/cf/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-09",
+      "b": "2026-09-09",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "z(t) = Σ exp(i qₖt) / qₖ^α, where the qₖ are the denominators of a number’s continued-fraction convergents: each contributes a circle of radius qₖ^−α going round qₖ times a turn, and stacking them tip to tail draws the number. α = 1 and α = ½ are the two pictures from the original post; φ comes out the roughest curve there is because its qₖ grow the slowest of any number’s. Expansions are exact — Euclid in 128-bit integers, with a separate periodic route for quadratic surds — in a 53 KB Rust→WASM module with no imports at all. Sweep x from 0 to 1, or pile thousands of curves into one density plot and look at the holes.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
       ]
     },
     {

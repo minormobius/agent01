@@ -1,0 +1,8 @@
+# Not part of the site: internal instructions for whoever works on this
+# surface. assets.directory is this dir, so without this line the file is
+# served at the surface's public URL.
+CLAUDE.md
+# Rust sources and build output for cf/cffourier.wasm. The built module is
+# committed at cf/cffourier.wasm and served from there; the crate itself is
+# read on GitHub, not fetched over HTTP.
+cf/engine

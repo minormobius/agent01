@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **102 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -74,6 +74,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `g` | frontend | `g` | [g.mino.mobi](https://g.mino.mobi) | `claude/morphhdl-sonification-graphs-s9t2qo` | [`g/CLAUDE.md`](../g/CLAUDE.md) | The WebGPU gallery — a shelf of simulations, one canvas each: the Helix Calendar it grew out of, grain-scale sand, molecular dynamics, self-assembling bearings, fractal zooms. |
 | `games` | frontend | `games` | [games.mino.mobi](https://games.mino.mobi) | `claude/tempest-procgen-game-vwj0f1` | [`games/CLAUDE.md`](../games/CLAUDE.md) | Multiplayer party games for Bluesky, with real-time rooms orchestrated by Durable Objects. |
 | `golem` | frontend | `golem` | [golem.mino.mobi](https://golem.mino.mobi) | `claude/cube3d-browser-port-ufh9gy` | [`golem/CLAUDE.md`](../golem/CLAUDE.md) | golem.mino.mobi — Minecraft-like builder world over cube3D's smart cellular bricks (sequel to tjs.mino.mobi/cube/)… (full description: golem/CLAUDE.md) |
+| `henderhead` | frontend | `henderhead` | [henderhead.mino.mobi](https://henderhead.mino.mobi) | `claude/henderson-fan-page-demo-xhgtrj` | [`henderhead/CLAUDE.md`](../henderhead/CLAUDE.md) | An unofficial fan site for Matt Henderson’s mathematical demos, which are beautiful and are videos — rebuilt here as things you can turn the knobs on… |
 | `hoop` | frontend | `hoop` | [hoop.mino.mobi](https://hoop.mino.mobi) | `claude/hoop-mino-mobi-deploy-3au5qn` | [`hoop/CLAUDE.md`](../hoop/CLAUDE.md) | The GAME wing of the O’Neill cylinder pack: “the infinite game” — a deterministic glyph-world adventure over an endless ship engine, every place and save an ATProto record… |
 | `hoop-archive` | frontend | `hoop-archive` | [hoop-archive.mino.mobi](https://hoop-archive.mino.mobi) | `claude/hoop-mino-mobi-deploy-3au5qn` | [`hoop-archive/CLAUDE.md`](../hoop-archive/CLAUDE.md) | The hoop museum… |
 | `hopper` | frontend | `hopper` | [hopper.mino.mobi](https://hopper.mino.mobi) | `claude/bismuth-crystal-procgen-g6t0dh` | [`hopper/CLAUDE.md`](../hopper/CLAUDE.md) | A puzzle platformer on the bismuth engine. You wake on a slab in the void; look up and there is a bucket… |

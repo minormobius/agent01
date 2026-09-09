@@ -1689,6 +1689,20 @@
         "clef/**",
         ".github/workflows/deploy-clef.yml"
       ]
+    },
+    {
+      "surface": "henderhead",
+      "dir": "henderhead",
+      "endpoint": "henderhead.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/henderson-fan-page-demo-xhgtrj",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "henderhead/**",
+        ".github/workflows/deploy-henderhead.yml"
+      ],
+      "note": "An unofficial fan site rebuilding Matt Henderson's mathematical demos as interactive toys (worker `henderhead`, custom_domain henderhead.mino.mobi). Thin header/JSON worker in front of static assets — no build step to serve, no D1, no AI, no secrets. /cf/ is the first demo: continued-fraction Fourier curves on a Rust→WASM engine (henderhead/cf/engine, gated by cargo test + cf.selftest.mjs; the workflow rebuilds the .wasm rather than trusting the committed copy). The follow-the-feed pipeline the site describes is deliberately NOT built — see the consent gate at henderhead.mino.mobi/#consent and henderhead/CLAUDE.md."
     }
   ],
   "unmanaged": {

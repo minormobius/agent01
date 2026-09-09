@@ -1,0 +1,78 @@
+name: Deploy henderhead (Matt Henderson fan site)
+
+on:
+  push:
+    branches: ['claude/henderson-fan-page-demo-xhgtrj']
+    paths:
+      - 'henderhead/**'
+      - '.github/workflows/deploy-henderhead.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- the continued-fraction engine (henderhead.mino.mobi/cf/) ---
+      #
+      # cf/cffourier.wasm is committed, so the site is servable straight from
+      # the repo. CI does not trust that copy: it rebuilds from source and
+      # deploys what it built, then runs the selftest against the module it is
+      # about to ship. A stale or hand-edited .wasm therefore cannot reach
+      # production, and the committed one only ever has to be good enough for
+      # local work.
+      - name: Install Rust with the wasm target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Engine known-answer tests (the published continued fractions)
+        run: cargo test --manifest-path henderhead/cf/engine/Cargo.toml
+
+      - name: Build the engine → wasm
+        run: cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/cf/engine/Cargo.toml
+
+      - name: Install the freshly built module
+        run: cp henderhead/cf/engine/target/wasm32-unknown-unknown/release/cffourier.wasm henderhead/cf/cffourier.wasm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Engine selftest against the module being shipped
+        run: node henderhead/cf/cf.selftest.mjs
+
+      - name: The committed module matches the one built here
+        # Not a gate — toolchain drift changes the bytes legitimately. It is a
+        # notice that the repo copy is behind what production is getting.
+        continue-on-error: true
+        run: git diff --stat --exit-code -- henderhead/cf/cffourier.wasm
+
+      - name: Install wrangler
+        working-directory: henderhead
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: henderhead
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # The golden rule: a green deploy is not proof. This is the first deploy
+      # that creates henderhead.mino.mobi, so the domain may take a moment to
+      # attach — and if the run log did not say `(custom domain)` above, this
+      # will keep failing however long you wait.
+      - name: Verify the site is live on its own domain
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS https://henderhead.mino.mobi/ | grep -q 'henderhead' \
+               && curl -fsS https://henderhead.mino.mobi/api/demos | grep -q '"automatedPipelineRunning": false' \
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/cf/cffourier.wasm | grep -q wasm; then
+              echo "✓ henderhead is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ henderhead did not answer within 30s — check the deploy log bound the custom domain."

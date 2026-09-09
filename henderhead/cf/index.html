@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Continued fraction Fourier — henderhead</title>
+<meta name="description" content="Draw a picture from the continued fraction of a number: z(t) = Σ exp(i q_k t) / q_k^α, where q_k are the convergent denominators. An interactive rebuild of a Matt Henderson demo, in Rust and WebAssembly.">
+<meta property="og:title" content="Continued fraction Fourier">
+<meta property="og:description" content="The continued fraction terms drive a Fourier series. After a demo by Matt Henderson.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%238fc0e8' stroke-width='2'/%3E%3Ccircle cx='16' cy='5' r='4' fill='none' stroke='%238fc0e8' stroke-width='1.5'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0a1a2b;
+    --panel: #0f2437;
+    --edge: #1e3d58;
+    --ink: #dbe8f4;
+    --dim: #7b9cb8;
+    --curve: #9fc9ee;
+    --hot: #ffd79a;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  a { color: var(--curve); }
+  a:hover { color: #fff; }
+
+  header {
+    display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: baseline;
+    padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--edge);
+  }
+  header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; letter-spacing: .01em; }
+  header .home { font-size: .85rem; color: var(--dim); text-decoration: none; }
+  header .home:hover { color: var(--ink); }
+  header .after { font-size: .85rem; color: var(--dim); margin-left: auto; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 24rem; gap: 1.25rem; padding: 1.25rem; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  /* keep the square canvas inside the viewport rather than pushing the
+     controls below the fold on a wide screen */
+  .stage { position: relative; width: min(100%, 78vh); margin-inline: auto; }
+  canvas {
+    display: block; width: 100%; aspect-ratio: 1 / 1; border-radius: 10px;
+    background: #071624; border: 1px solid var(--edge); touch-action: none;
+  }
+  .stamp {
+    position: absolute; left: .8rem; top: .7rem; font: 500 .85rem/1.4 var(--mono);
+    color: var(--dim); pointer-events: none; text-shadow: 0 1px 6px #071624;
+  }
+  .stamp b { color: var(--ink); font-size: 1.15rem; font-weight: 600; }
+  .status {
+    position: absolute; right: .8rem; bottom: .7rem; font: .75rem/1.4 var(--mono);
+    color: var(--dim); pointer-events: none; text-align: right; text-shadow: 0 1px 6px #071624;
+  }
+
+  .panel { display: grid; gap: 1rem; }
+  fieldset { border: 1px solid var(--edge); border-radius: 8px; margin: 0; padding: .7rem .8rem .85rem; background: var(--panel); }
+  legend { padding: 0 .35rem; font-size: .72rem; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }
+
+  .tabs { display: flex; gap: .3rem; }
+  .tabs button { flex: 1; }
+  button:disabled { opacity: .4; cursor: default; }
+  button, input[type=text] {
+    font: inherit; color: var(--ink); background: #14314a; border: 1px solid var(--edge);
+    border-radius: 6px; padding: .38rem .6rem;
+  }
+  button { cursor: pointer; }
+  button:hover { background: #1b405e; }
+  button[aria-pressed="true"], button.on { background: var(--curve); color: #071624; border-color: var(--curve); font-weight: 600; }
+  input[type=text] { width: 100%; font-family: var(--mono); }
+  input[type=text].bad { border-color: #c2705c; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .55rem; }
+  .chips button { padding: .18rem .5rem; font-size: .85rem; font-family: var(--mono); }
+
+  .row { display: grid; grid-template-columns: 4.6rem 1fr 3.6rem; gap: .5rem; align-items: center; margin-top: .45rem; }
+  .row:first-of-type { margin-top: .2rem; }
+  .row label { font-size: .82rem; color: var(--dim); }
+  .row output { font: .82rem var(--mono); text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--curve); }
+
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; margin-top: .6rem; }
+  .actions button { font-size: .85rem; padding: .34rem .3rem; }
+
+  .readout { font: .8rem/1.6 var(--mono); word-break: break-word; }
+  .readout .terms b { color: var(--hot); font-weight: 600; }
+  .readout .qs { color: var(--dim); }
+  .readout .qs em { color: var(--ink); font-style: normal; }
+  .note { font: .78rem/1.5 ui-sans-serif, system-ui, sans-serif; color: var(--dim); margin-top: .5rem; }
+  .note.warn { color: var(--hot); }
+
+  .prose { max-width: 46rem; padding: 0 1.25rem 3rem; color: #b9cfe2; }
+  .prose h2 { font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 2rem 0 .5rem; }
+  .prose p { margin: .65rem 0; }
+  .prose code { font: .9em var(--mono); background: #0f2437; padding: .1em .35em; border-radius: 4px; }
+  .eq { font: 1.05rem/1.8 var(--mono); color: var(--ink); background: #0f2437; border: 1px solid var(--edge);
+        border-radius: 8px; padding: .7rem .9rem; overflow-x: auto; }
+  .credit { border-left: 2px solid var(--curve); padding-left: .9rem; }
+  noscript { display: block; padding: 1.25rem; color: var(--hot); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home" href="/">← henderhead</a>
+  <h1>Continued fraction Fourier</h1>
+  <span class="after">after <a href="https://bsky.app/profile/matthen.com/post/3mv2xgpwkg22t">a demo by Matt Henderson</a></span>
+</header>
+
+<noscript>This toy computes continued fractions in WebAssembly as you move the controls, so it needs JavaScript on.</noscript>
+
+<main>
+  <div class="stage">
+    <canvas id="c" width="880" height="880"></canvas>
+    <div class="stamp" id="stamp"></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="panel">
+    <fieldset>
+      <legend>what to draw</legend>
+      <div class="tabs" role="tablist">
+        <button id="m-curve" data-mode="curve" aria-pressed="true">one number</button>
+        <button id="m-sweep" data-mode="sweep" aria-pressed="false">sweep 0→1</button>
+        <button id="m-overlay" data-mode="overlay" aria-pressed="false">overlay</button>
+      </div>
+      <div id="pane-curve">
+        <div class="chips" id="gallery"></div>
+        <div class="row" style="grid-template-columns: 1fr; margin-top:.6rem">
+          <input type="text" id="x" spellcheck="false" autocomplete="off" aria-label="number">
+        </div>
+      </div>
+      <div id="pane-sweep" hidden>
+        <div class="row"><label for="sweepN">of</label><input type="range" id="sweepN" min="60" max="4000" step="20" value="720"><output id="sweepN-o"></output></div>
+        <div class="row"><label for="sweepI">at</label><input type="range" id="sweepI" min="1" max="719" step="1" value="97"><output id="sweepI-o"></output></div>
+      </div>
+      <div id="pane-overlay" hidden>
+        <div class="row"><label for="ovN">numbers</label><input type="range" id="ovN" min="200" max="16000" step="100" value="4000"><output id="ovN-o"></output></div>
+        <div class="row"><label for="ovQ">detail</label><input type="range" id="ovQ" min="16" max="4096" step="16" value="1024"><output id="ovQ-o"></output></div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>the series</legend>
+      <div class="row">
+        <label for="alpha">1/q<sup>α</sup></label>
+        <input type="range" id="alpha" min="0.2" max="1.5" step="0.01" value="1">
+        <output id="alpha-o"></output>
+      </div>
+      <div class="row" id="row-k">
+        <label for="k">terms</label>
+        <input type="range" id="k" min="1" max="12" step="1" value="12">
+        <output id="k-o"></output>
+      </div>
+      <div class="actions">
+        <button id="a-half">α = ½</button>
+        <button id="a-one">α = 1</button>
+        <button id="play-build">▶ build up</button>
+        <button id="play-trace">▶ trace</button>
+        <button id="epi" aria-pressed="false">circles</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>this number</legend>
+      <div class="readout" id="readout"></div>
+      <div class="note" id="note"></div>
+      <div class="actions">
+        <button id="save-png">save PNG</button>
+        <button id="save-svg">save SVG</button>
+        <button id="link">copy link</button>
+      </div>
+    </fieldset>
+  </div>
+</main>
+
+<div class="prose">
+  <h2>What this is</h2>
+  <p class="credit">
+    On 9 September 2026 Matt Henderson posted a picture: <em>drawing a picture from the continued
+    fraction of a number — the continued fraction terms drive a Fourier series.</em> The idea, the
+    formula and the choice of numbers are his. This page is an independent rebuild of the demo so
+    you can turn the knobs; the original post, with his own renders, is
+    <a href="https://bsky.app/profile/matthen.com/post/3mv2xgpwkg22t">here</a>, and it is worth
+    seeing first.
+  </p>
+
+  <h2>The formula</h2>
+  <div class="eq">z(t) = Σ<sub>k</sub> e<sup>i q<sub>k</sub> t</sup> / q<sub>k</sub><sup>α</sup>&nbsp;&nbsp;&nbsp;t ∈ [0, 2π)</div>
+  <p>
+    Write a number as a continued fraction, x = [a₀; a₁, a₂, …]. Truncating it after each term gives
+    the <em>convergents</em> p<sub>k</sub>/q<sub>k</sub> — the best rational approximations to x. The
+    denominators q<sub>k</sub> are the only thing that draws. Each one contributes a circle of radius
+    q<sub>k</sub><sup>−α</sup> going round q<sub>k</sub> times per turn; stack them tip to tail and
+    the pen at the end traces the picture. α = 1 is Matt's first image, α = ½ his second — <em>"introducing
+    a sqrt lifts more detail"</em>, because the amplitudes then fall away far more slowly.
+  </p>
+  <p>
+    q₀ = 1 for every number, and a₀ appears nowhere else, so <strong>only the fractional part
+    draws</strong>: π and 22/7 and −0.858… all start from the same unit circle. 22/7 = [3; 7] is that
+    circle plus a seventh-size one going round seven times, and nothing more, because a rational's
+    expansion stops. 355/113 = [3; 7, 16] adds 113 ripples on top of the same seven lobes — which is
+    a picture of <em>why</em> 355/113 is such a famously good approximation to π.
+  </p>
+
+  <h2>Rough and smooth</h2>
+  <p>
+    In the thread, <a href="https://bsky.app/profile/lisyarus.bsky.social">lisyarus</a> noticed that
+    the transcendental numbers come out much smoother than the low-degree algebraic ones, and Matt
+    agreed the roughness measures how well the number is approximated by its own convergents. You can
+    see the mechanism directly here. Amplitude q<sub>k</sub><sup>−α</sup> falls as fast as q<sub>k</sub>
+    grows, so a number whose q<sub>k</sub> climb slowly keeps large circles at high frequencies, and
+    keeps wiggling. The golden ratio is [1; 1, 1, 1, …] — every term the smallest it can be, so its
+    q<sub>k</sub> are the Fibonacci numbers, the slowest growth any irrational can have. φ is the
+    roughest picture on this page, and that is not a coincidence: it is the same fact as φ being the
+    hardest number to approximate by rationals.
+  </p>
+  <p>
+    The opposite end is more startling. Liouville's constant has a partial quotient of
+    999&nbsp;999&nbsp;999&nbsp;999; Champernowne's has 149&nbsp;083. One enormous term sends
+    q<sub>k</sub> out of sight in a single step, every circle after it is smaller than a pixel, and
+    the picture simply stops developing. Try them.
+  </p>
+
+  <h2>How it computes</h2>
+  <p>
+    The expansion is done exactly, not in floating point, by a small Rust engine compiled to
+    WebAssembly (<code>engine/</code> here, 53 KB, no imports and no bindgen). Fractions go through
+    Euclid in 128-bit integers. Quadratic irrationals — √2, √3, φ, and anything you type as
+    <code>(a+sqrt(n))/c</code> — take a separate exact route whose terms are eventually periodic and
+    therefore never run out. Everything else is a decimal, given here to 40 significant figures and
+    expanded exactly as the rational it literally is; the panel says how far up the term list those
+    digits can vouch for, which is well past anything the screen can show. The sampler is what
+    actually needs the speed: a curve with a frequency of 15&nbsp;000 in it needs a few hundred
+    thousand samples before the fine structure stops being a lie about the number.
+  </p>
+
+  <h2>Credit, and a request</h2>
+  <p>
+    This is a fan page. The mathematics and the demo are Matt Henderson's
+    (<a href="https://matthen.com">matthen.com</a>, <a href="https://bsky.app/profile/matthen.com">@matthen.com</a>);
+    the code here is ours and none of his images or videos are copied onto this site. If he would
+    rather this did not exist, or wants anything about it changed, that decision is his and we will
+    act on it — see <a href="/#consent">the note on the front page</a>.
+  </p>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -2214,6 +2214,21 @@
           "wing": "study"
         },
         {
+          "u": "henderhead.mino.mobi",
+          "action": "new",
+          "kind": "explainer",
+          "domain": "math",
+          "note": "an unofficial fan site rebuilding Matt Henderson's demos as interactive toys; the front page is the shelf and the consent gate",
+          "pages": [
+            {
+              "u": "henderhead.mino.mobi/cf",
+              "action": "new",
+              "note": "continued-fraction Fourier curves, Rust→WASM"
+            }
+          ],
+          "wing": "study"
+        },
+        {
           "u": "moji.mino.mobi",
           "action": "look",
           "wing": "bench"

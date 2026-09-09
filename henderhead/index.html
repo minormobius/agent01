@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>henderhead — an unofficial fan site for Matt Henderson's demos</title>
+<meta name="description" content="An unofficial fan site that rebuilds Matt Henderson's little mathematical demos as things you can turn the knobs on. Independent implementations, credited and linked, nothing of his copied here.">
+<meta property="og:title" content="henderhead">
+<meta property="og:description" content="Rebuilding Matt Henderson's mathematical demos as toys you can turn the knobs on. Unofficial, credited, and his to veto.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%238fc0e8' stroke-width='2'/%3E%3Ccircle cx='16' cy='5' r='4' fill='none' stroke='%238fc0e8' stroke-width='1.5'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0a1a2b; --panel: #0f2437; --edge: #1e3d58;
+    --ink: #dbe8f4; --dim: #7b9cb8; --curve: #9fc9ee; --hot: #ffd79a;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+  a { color: var(--curve); }
+  a:hover { color: #fff; }
+  .wrap { max-width: 62rem; margin: 0 auto; padding: 0 1.25rem; }
+
+  /* ---------------------------------------------------------------- hero -- */
+  .hero { display: grid; grid-template-columns: 1fr 20rem; gap: 2rem; align-items: center; padding: 3rem 0 2.5rem; }
+  @media (max-width: 760px) { .hero { grid-template-columns: 1fr; gap: 1.25rem; padding-top: 2rem; } }
+  h1 { font-size: clamp(2rem, 6vw, 3rem); margin: 0 0 .3rem; letter-spacing: -.02em; }
+  h1 span { color: var(--curve); }
+  .tag { color: var(--dim); font-size: 1.05rem; margin: 0 0 1rem; }
+  .lede { font-size: 1.05rem; max-width: 34rem; }
+  .lede strong { color: #fff; font-weight: 600; }
+  #hero-canvas {
+    width: 100%; aspect-ratio: 1/1; display: block; border-radius: 12px;
+    background: #071624; border: 1px solid var(--edge);
+  }
+  .hero figure { margin: 0; }
+  .hero figcaption { font: .78rem var(--mono); color: var(--dim); text-align: center; margin-top: .5rem; min-height: 1.2em; }
+
+  /* -------------------------------------------------------------- shelf --- */
+  h2 { font-size: .82rem; letter-spacing: .13em; text-transform: uppercase; color: var(--dim);
+       margin: 3rem 0 1rem; border-top: 1px solid var(--edge); padding-top: 1.4rem; }
+  .built {
+    display: grid; grid-template-columns: 1fr; gap: 1rem; text-decoration: none; color: inherit;
+    background: var(--panel); border: 1px solid var(--edge); border-left: 3px solid var(--curve);
+    border-radius: 10px; padding: 1.2rem 1.35rem;
+  }
+  a.built:hover { border-color: var(--curve); background: #12293e; }
+  a.built:hover h3 { color: #fff; }
+  .built h3 { margin: 0; font-size: 1.3rem; letter-spacing: -.01em; }
+  .built .from { font: .82rem var(--mono); color: var(--dim); }
+  .built p { margin: 0; }
+  .built .go { color: var(--curve); font-weight: 600; }
+
+  .queue { display: grid; gap: .55rem; padding: 0; margin: 0; list-style: none; }
+  .queue li {
+    background: var(--panel); border: 1px solid var(--edge); border-radius: 8px;
+    padding: .75rem .95rem;
+  }
+  .queue .top { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; }
+  .queue .t { font-weight: 600; }
+  .queue .d { font: .75rem var(--mono); color: var(--dim); margin-left: auto; }
+  .queue .why { color: var(--dim); font-size: .9rem; margin: .35rem 0 0; }
+  .queue .why b { color: var(--ink); font-weight: 500; }
+  .pill { font: .68rem var(--mono); letter-spacing: .06em; text-transform: uppercase;
+          border: 1px solid var(--edge); border-radius: 999px; padding: .1rem .5rem; color: var(--dim); }
+
+  /* -------------------------------------------------------------- prose --- */
+  .prose { max-width: 44rem; }
+  .prose p { margin: .8rem 0; }
+  .prose ol, .prose ul { padding-left: 1.2rem; }
+  .prose li { margin: .45rem 0; }
+  .box { background: var(--panel); border: 1px solid var(--edge); border-radius: 10px; padding: 1.1rem 1.3rem; }
+  .box.gate { border-left: 3px solid var(--hot); }
+  code { font: .88em var(--mono); background: #0f2437; padding: .1em .35em; border-radius: 4px; }
+  footer { color: var(--dim); font-size: .88rem; padding: 3rem 0 4rem; border-top: 1px solid var(--edge); margin-top: 3rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <div>
+      <h1>hender<span>head</span></h1>
+      <p class="tag">an unofficial fan site for Matt Henderson's demos</p>
+      <p class="lede">
+        <a href="https://bsky.app/profile/matthen.com">Matt Henderson</a> posts a small mathematical
+        demo most days — a maze you can solve by hanging it up, every 24-bit colour in one picture,
+        a Fourier series driven by a continued fraction. They are beautiful, and they are videos.
+        <strong>This site rebuilds them as things you can turn the knobs on.</strong>
+      </p>
+      <p class="lede" style="color:var(--dim);font-size:.95rem">
+        Nothing here is his: no images, no video, no code. Each demo is written from scratch out of
+        the mathematics he described in public, and every page says whose idea it was and links to
+        the original — which is better than what's here. He has not endorsed this, and
+        <a href="#consent">if he wants it gone it goes</a>.
+      </p>
+    </div>
+    <figure>
+      <canvas id="hero-canvas" width="720" height="720"></canvas>
+      <figcaption id="hero-cap"></figcaption>
+    </figure>
+  </div>
+
+  <h2>Built</h2>
+  <div id="shelf"></div>
+
+  <h2>The queue</h2>
+  <p class="prose" style="margin-top:-.4rem;color:var(--dim)">
+    Demos of his we would like to rebuild. <strong style="color:var(--ink);font-weight:600">None of
+    these has been started</strong>, and the automated pipeline described below has not been built
+    and will not be until the gate below is passed. The list is here so that what we are proposing
+    is legible rather than a surprise.
+  </p>
+  <ul class="queue" id="queue"></ul>
+
+  <h2 id="consent">Consent, and the bot that does not exist</h2>
+  <div class="prose">
+    <p>
+      The obvious idea, once you have rebuilt one of these, is to stop doing it by hand: watch his
+      feed, and when a new demo appears, build an interactive version of it automatically. That is
+      the intention behind this site. It is also the thing that most needs asking about first, so
+      here is the whole position in one place.
+    </p>
+
+    <div class="box gate">
+      <p style="margin-top:0"><strong>Gate zero.</strong> No automated pipeline runs against
+      Matt Henderson's feed until he has been asked, in plain words, and has said yes. Not a
+      notification, not an opt-out, not a "we assumed you wouldn't mind" — asked, and answered.
+      Until then this site is hand-built, one demo at a time, at the pace of someone who read a post
+      and wanted to play with it.</p>
+      <p style="margin-bottom:0">As of <time datetime="2026-09-09">9 September 2026</time>: <strong>he
+      has not been asked.</strong> One demo is built. Nothing is watching his feed.</p>
+    </div>
+
+    <p>What we would be asking for, so that the ask is not vague:</p>
+    <ol>
+      <li><strong>To keep rebuilding his demos as interactive versions</strong>, credited to him by
+        name on every page, with a link to his original post above the fold.</li>
+      <li><strong>To do it automatically</strong> — a job that notices a new demo, works out the
+        mathematics from what he wrote, and publishes a page here, with a human reading it before it
+        goes out.</li>
+      <li><strong>To be told to stop</strong>, in whole or for any single demo, by any means he
+        likes, and for that to take effect the same day.</li>
+    </ol>
+
+    <p>What we are not asking for and would not do:</p>
+    <ul>
+      <li>Reposting, mirroring or embedding his images or video. Every demo here is written from the
+        mathematics; the pictures on this site were made by this site's own code.</li>
+      <li>Implying he made, approved, or has anything to do with these pages.</li>
+      <li>Putting advertising, tracking, sign-ups or payment anywhere near them. There is none of any
+        of that here and there will not be.</li>
+      <li>Racing him — posting a rebuild of a demo before he has posted the demo.</li>
+    </ul>
+
+    <p>
+      If you are Matt Henderson and you want something changed or removed: say so however is
+      easiest — a reply on Bluesky is plenty — and it will be done. You do not have to give a reason
+      and you will not be argued with. The same goes for anyone whose work turns up here by mistake.
+    </p>
+  </div>
+
+  <h2>What counts as a good rebuild</h2>
+  <div class="prose">
+    <p>
+      A video shows you the answer. The thing a rebuild can add is the <em>why</em>: a control that
+      makes the mechanism visible, and a number you can push until the effect breaks. So each demo
+      here has to earn its existence on four counts, and the pages say so out loud:
+    </p>
+    <ul>
+      <li><strong>A knob that teaches something.</strong> The continued-fraction page has α, the
+        exponent on the amplitudes: at 1 you get his first picture, at ½ his second, and moving
+        between them shows you exactly which part of the shape the small circles were responsible
+        for.</li>
+      <li><strong>Exact where it can be.</strong> The continued fractions are computed in 128-bit
+        integers, and quadratic irrationals take a route whose terms are provably periodic. Where a
+        number is only known to forty digits, the page says how far up the term list those digits can
+        vouch for, rather than printing everything with equal confidence.</li>
+      <li><strong>Honest sampling.</strong> A curve with a frequency of fifteen thousand in it needs
+        hundreds of thousands of samples; draw it with fewer and you get a smooth, plausible, wrong
+        picture. The sample count is on screen.</li>
+      <li><strong>Credit above the fold</strong>, and a link to the original.</li>
+    </ul>
+  </div>
+
+  <footer class="prose">
+    <p>
+      <strong>henderhead</strong> is unofficial and unaffiliated. Matt Henderson is at
+      <a href="https://matthen.com">matthen.com</a> and
+      <a href="https://bsky.app/profile/matthen.com">@matthen.com</a> on Bluesky — go and follow him;
+      the originals are better than the rebuilds. All mathematics on this site is his or the public
+      domain's; the code is ours, and lives with the rest of
+      <a href="https://mino.mobi">mino.mobi</a>.
+    </p>
+    <p style="color:#5d7d97">
+      No cookies, no analytics, no accounts. The pages are static files and a WebAssembly module;
+      nothing you type here leaves your browser.
+    </p>
+  </footer>
+</div>
+
+<script type="module" src="./home.js"></script>
+</body>
+</html>
