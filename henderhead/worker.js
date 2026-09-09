@@ -1,16 +1,19 @@
-// henderhead — a thin worker in front of static assets.
+// henderhead — a thin worker behind static assets.
 //
 // The site is static: two pages, one WebAssembly module, and the JS that
-// drives it. This worker exists for two reasons only.
+// drives it. This worker exists for one route.
 //
-//   1. Headers. The asset layer will not set a Content-Security-Policy for us,
-//      and this site has no reason to load anything from anywhere: no
-//      analytics, no fonts, no CDN. Saying so in a header is the difference
-//      between meaning it and claiming it.
-//   2. /api/demos — the shelf as JSON, so that anything wanting to know what
-//      has been rebuilt (including, one day and only with consent, the
-//      pipeline described on the front page) reads it from here rather than
-//      scraping the HTML.
+//   /api/demos — the shelf as JSON, so that anything wanting to know what has
+//   been rebuilt (including, one day and only with consent, the pipeline
+//   described on the front page) reads it from here rather than scraping the
+//   HTML. It carries the consent state in the payload: whoever reads this
+//   machine-side gets the constraint along with the data.
+//
+// Security headers are NOT set here, and it would be a mistake to move them
+// here: Static Assets answers a request that matches a file without invoking
+// the worker at all, so a header set in this file would reach /api/demos and
+// no page on the site. `_headers` is what covers the pages — see the comment
+// in it.
 //
 // No D1, no AI, no secrets, no state.
 
@@ -21,19 +24,6 @@ const CORS = {
   "access-control-allow-methods": "GET, OPTIONS",
 };
 
-// Everything this site needs is same-origin. 'wasm-unsafe-eval' is what lets
-// the browser compile cffourier.wasm; without it the engine will not start.
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data:",
-  "connect-src 'self'",
-  "frame-ancestors 'none'",
-  "base-uri 'none'",
-  "form-action 'none'",
-].join("; ");
-
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -42,8 +32,6 @@ export default {
     if (url.pathname === "/api/demos") {
       return json({
         author: AUTHOR,
-        // Stated in the payload as well as on the page: whoever reads this
-        // machine-side should get the constraint along with the data.
         consent: {
           asked: false,
           granted: false,
@@ -54,18 +42,21 @@ export default {
       });
     }
 
-    const res = await env.ASSETS.fetch(request);
-    const headers = new Headers(res.headers);
-    headers.set("Content-Security-Policy", CSP);
-    headers.set("X-Content-Type-Options", "nosniff");
-    headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    headers.set("Permissions-Policy", "geolocation=(), microphone=(), camera=()");
-    return new Response(res.body, { status: res.status, headers });
+    // Reached only for paths that match no asset; `_headers` has already
+    // covered everything that does.
+    return env.ASSETS.fetch(request);
   },
 };
 
 function json(obj) {
   return new Response(JSON.stringify(obj, null, 2), {
-    headers: { "content-type": "application/json; charset=utf-8", "cache-control": "public, max-age=300", ...CORS },
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+      "cache-control": "public, max-age=300",
+      // `_headers` does not reach a worker-generated response, so this one
+      // carries its own
+      "x-content-type-options": "nosniff",
+      ...CORS,
+    },
   });
 }

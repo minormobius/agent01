@@ -24,10 +24,12 @@ which the site is defensible:
 - **Never imply endorsement.** He has not endorsed this. The front page says so
   and the pages must not contradict it.
 - **No ads, no analytics, no accounts, no tracking of any kind.** There are none
-  and there will be none. `worker.js` sets a Content-Security-Policy with
+  and there will be none. `_headers` sets a Content-Security-Policy with
   `default-src 'self'` so that this is enforced rather than promised — adding a
   font CDN or an analytics script means visibly widening that header, which is
-  the point.
+  the point. It has to live in `_headers`, not `worker.js`: Static Assets
+  answers a request that matches a file **without invoking the worker**, so a
+  header set in the worker reaches `/api/demos` and no page on the site.
 
 ### Gate zero: the pipeline is not built, and must not be
 
@@ -51,7 +53,8 @@ on the next deploy. Do not argue the point on his behalf in a commit message.
 |---|---|
 | `index.html` + `home.js` | the front page: the shelf, the queue, the consent gate |
 | `demos.js` | **the data.** One record per demo, `state: built \| queued`. The front page and `/api/demos` are both projections of it — edit here, never the HTML |
-| `worker.js` | security headers + `/api/demos`. No state, no secrets |
+| `worker.js` | `/api/demos` only. No state, no secrets |
+| `_headers` | the CSP and friends. These cannot go in `worker.js` — see above |
 | `cf/` | demo #1 — continued-fraction Fourier curves |
 | `.assetsignore` | keeps `CLAUDE.md` and `cf/engine/` off the public site |
 
