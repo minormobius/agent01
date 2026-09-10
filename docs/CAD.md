@@ -96,7 +96,8 @@ WASM. Nothing about a design ever has to touch a server we run.
 |---|---|---|
 | `com.minomobi.cad.revision` | one immutable snapshot: the tree (inline if small, blob if not), `parents[]` as strongRefs, kernel id+version, the **invariants** of the result (volume, area, bbox, centre of mass, Euler characteristic, watertight) | immutable |
 | `com.minomobi.cad.part` | a *head*: name, description, strongRef to the current revision, optional cached geometry blobs (STL, glTF, B-rep) keyed by their CID | mutable (it's a ref) |
-| `com.minomobi.cad.assembly` | components `[{ref: strongRef → part revision, transform, name}]`, mates `[{kind, a, b, params}]`, and a head revision like parts | as above |
+| `com.minomobi.cad.assembly` | components `[{ref: strongRef → a part **or assembly** revision, params?: {…}, transform, name, flexible?: bool}]`, mates `[{kind, a, b, params}]`, and a head revision like parts. A component ref to an assembly is what makes assemblies of assemblies (§10); `params` binds a parametric part's exposed parameters at the instance, so a part is a function and an instance is a call | as above |
+| `com.minomobi.cad.vendorPart` | a part whose tree is one `import` feature over a STEP blob, plus vendor, part number, URL, and the invariants — so an imported bolt is still measurable, still cached by CID, still referenceable (§11) | immutable |
 | `com.minomobi.cad.study` | an FEA study: fixtures, loads, material ref, mesh settings, result summary (max stress, max displacement, factor of safety) and a blob of the field | immutable per run |
 | `com.minomobi.cad.material` | a material: E, ν, ρ, yield — shareable, so a library is just someone's PDS | mutable |
 | `com.minomobi.cad.release` | a tag: "v1.2", strongRef to a revision, notes | immutable |
@@ -173,19 +174,28 @@ between things that exist:
 | **OCCT** (opencascade.js) | the only open B-rep kernel with fillets, booleans and STEP; Emscripten builds exist and are used by chili3d and replicad | exactness, STEP, fillets/chamfers on real edges, drawings later | 10–30 MB WASM (custom builds shrink it), effectively single-threaded, booleans that are slow on hard cases and occasionally wrong |
 | **Manifold** | Google's mesh boolean library; guaranteed-manifold output, fast, small | interactive-speed booleans, robust, ~1 MB, fits in a Worker | no exact surfaces: no STEP, no true fillets, no "the face is a cylinder" |
 | **Implicit / SDF** | a field, not a surface; our own code | fillets are `smoothmin`, booleans are `min`/`max`, meshing-free FEA (§5), lattices, topology optimisation, WebGPU-native | exporting exact geometry is impossible; extracting a good mesh (adaptive dual contouring) is real work; precision costs resolution |
-| **Truck / Fornjot** (Rust) | young open B-rep kernels | Rust, ours to extend | years from fillets that work |
+| **Truck** (Rust) | pure-Rust B-rep: NURBS, topology, booleans, STEP I/O, wgpu tessellation, a JS wrapper; active | Rust end to end, so one WASM module and no JS seam between the tree and the kernel; STEP; small | **no fillets**, booleans younger than OCCT's; every gap is ours to close |
+| Fornjot (Rust) | was the other Rust B-rep kernel | — | **development ended, goals not reached.** Not a candidate |
 
-**Recommendation.** OCCT behind the adapter as the *exact* kernel, because a
-CAD without fillets and STEP is a toy and every machinist's first question is
-"can you send me a STEP". Manifold for the preview loop — every drag of a
-dimension re-evaluates on meshes at interactive rate, and the exact rebuild
-lands behind it — and for the server-side path, since it fits a Worker and
-OCCT does not. Implicit only where it is strictly better: the simulation path.
+**Recommendation.** Two exact candidates go into the bake-off, and the
+target decides between them. OCCT is the safe one: fillets, STEP, thirty years
+of booleans, and a C++/Emscripten module that the Rust tree layer has to talk
+to across a JS seam, one coarse call per feature. Truck is the one the *Rust
+for everything* decision (§9) wants: a single WASM module, STEP in and out,
+and a kernel whose gaps we can close ourselves — but no fillets today. The
+clock (§10) is mostly gears, plates, pins and arbors; it needs curves and
+booleans far more than it needs fillets, which is a real point for Truck on
+*this* benchmark and no point at all in general. Manifold runs the preview
+loop either way — every drag of a dimension re-evaluates on meshes at frame
+rate and the exact rebuild lands behind it — and the server-side path, since it
+fits a Worker and OCCT does not. Implicit only where it is strictly better: the
+simulation path.
 
 **This is decided by a bake-off, not by this paragraph.** The repo already has
-the apparatus (`bakeoff/`). Five benchmark parts of rising nastiness (a plate
-with holes; a shelled box with fillets; a revolved flange with a bolt pattern;
-a boolean of two swept tubes; a 200-feature real-world bracket), each kernel
+the apparatus (`bakeoff/`). The benchmark parts are the clock's (§10): an
+involute gear; an arbor with pinion and pivots; a plate with a pattern of pivot
+holes; an escape wheel and pallet fork (the ugly one — curves, thin features,
+booleans that touch tangentially); the case (shell, fillets). Each kernel
 adapter builds them headless under node, and the table is: wall time cold and
 incremental, WASM size, invariants matched against a reference, failures. The
 adapter interface is the seam that makes the bake-off cheap:
@@ -380,33 +390,172 @@ ends it and a kill criterion.
 
 | # | Phase | Gate | Kills the programme if |
 |---|---|---|---|
-| 0 | **Kernel bake-off** in `bakeoff/` style: OCCT-wasm vs Manifold vs an implicit spike on the five benchmark parts | a table with wall time, size, invariant errors | no kernel builds the 200-feature bracket under 5 s cold in a browser |
-| 1 | **Tree + headless.** `packages/cad/`: schema, expressions, naming, the adapter, `build/check/measure/diff`, selftests with golden invariants. No UI. | the §1.1 bracket builds under node and exports an STL that prints | topological naming can't be made stable across the benchmark edits |
+| 0 | **Kernel bake-off** in `bakeoff/` style: OCCT-wasm vs Truck vs Manifold vs an implicit spike, on the five clock parts, with STEP round-trip as a mandatory column | a table with wall time, size, invariant errors, STEP fidelity | no exact kernel builds the escape wheel under 2 s cold in a browser |
+| 1 | **Tree + headless.** `packages/cad/`: schema, expressions, naming, the adapter, `build/check/measure/diff`, selftests with golden invariants. No UI. In Rust (§9). | the §10 gear builds under node from `{m, z, α, b, bore}` and exports a STEP that opens elsewhere and an STL that prints | topological naming can't be made stable across the benchmark edits |
 | 2 | **Lexicons + push.** Revisions, heads, strongRef parents; `cad push`; rebuild a part from its AT URI | round-trip: push from node, rebuild in a fresh clone, invariants match | record limits force every tree to a blob (then the design changes, not dies) |
 | 3 | **Viewer surface `cad.mino.mobi`.** Read-only WebGPU render of any `at://` part; `.stl/.glb/.png` faces; the R2 geometry cache | a Bluesky post links a part and the preview renders | — |
 | 4 | **Sketcher + editor.** The 2D solver, the timeline, drag with preview kernel | a human draws the bracket without touching JSON, under the budgets in §4 | drag latency can't be brought under a frame on integrated graphics |
-| 5 | **Assemblies.** Mates, mate solver, interference, cross-DID references | a ten-part assembly from three PDSes, drag a component, mates hold | — |
-| 6 | **Stress.** TetGen path, then the immersed path, PCG solve, study records | the bracket's max stress matches a closed-form beam within 5 % | — |
-| 7 | **Agent API.** HTTP + MCP over the headless library; the loop runs the bracket brief end to end | an agent produces a passing revision from the text brief with no human edits | — |
+| 5 | **Assemblies of assemblies.** Mates, the mate solver, gear mates, sub-assemblies rigid or flexible, interference, cross-DID references, vendor parts | **the spin gate** (§10): the movement assembled from sub-assemblies, drive the barrel arbor, the whole train turns at frame rate with every mate held, on integrated graphics | it chugs |
+| 6 | **Stress.** TetGen path, then the immersed path, PCG solve, study records | a gear tooth under its rated load matches the Lewis bending formula within 10 %; a plate under the mainspring reaction matches a closed-form beam within 5 % | — |
+| 7 | **Agent API.** HTTP + MCP over the headless library; the loop runs a brief end to end | from "a 1:12 motion works between the minute and hour hands, module 0.5", an agent produces a passing sub-assembly with no human edits | — |
 
 Phases 1–2 are the programme. If they hold, everything after is engineering
 with known answers. If they do not, the browser editor was never the problem.
 
 ---
 
-## 9. Asks — things no gate can measure
+## 9. Decisions — the asks, answered
 
-In the manner of [`.github/loop/vision.md`](../.github/loop/vision.md), the
-questions only the operator can answer, so that the next turn does not guess:
+The four questions §9 originally asked have answers (operator, 2026-09-10),
+and each one moves something above.
 
-1. **Public-by-default is acceptable?** The commons is the thesis, but the first
-   real design will be something you might not want on a firehose. Encrypted
-   blobs cost one phase of work; say whether it is phase 2 or phase 9.
-2. **STEP is required for phase 1?** It decides whether OCCT is in the first
-   bake-off or the second. My prior is yes.
-3. **Rust or TypeScript for the layer above the kernel?** The repo's WASM
-   precedent is Rust; the no-build precedent is plain JS. The tree/expression/
-   naming layer is small enough to be either. Rust if the sketch and mate
-   solvers are ours; JS if we take `planegcs`.
-4. **Which real part first?** The benchmark bracket should be something you
-   actually need printed, so the gate is "it printed and fit", not a number.
+| Ask | Answer | Consequence |
+|---|---|---|
+| Public by default? | **Yes.** | No encryption phase. The commons is the product; `vault`-style private designs are a later option, not a requirement. |
+| STEP required in phase 1? | **Yes.** | STEP round-trip is a column of the bake-off, not an afterthought, and it also settles the vendor-part path (§11): STEP *import* is how catalogue parts arrive. Manifold alone can never be the exact kernel. |
+| Rust or JS above the kernel? | **Rust for everything we can get away with.** | One crate: tree evaluator, expression language, topological naming, the sketch solver, the mate solver, tessellation glue — `wasm-bindgen`, initialised from bytes so node drives it (the `fold`/`rite` precedent). JS is the browser glue and nothing else. It also puts Truck squarely in the bake-off, because a Rust kernel means one module and no seam. |
+| Which real part first? | **A mechanical clock.** Assemblies of assemblies; the gear as a canonical part. | §10. The benchmark is no longer a bracket; the gate is no longer "it printed" but "it runs". |
+
+And one performance sentence that is now a gate, verbatim: *if it chugs when
+you try to spin it we are ngmi.* That is the phase-5 gate in §8, and it is
+what the whole of §4 exists to pass.
+
+---
+
+## 10. The clock — assemblies of assemblies, and the gear as a canonical part
+
+A mechanical clock is a better target than a bracket for exactly the reason it
+is harder: it is only interesting *as an assembly*, and its assembly is
+hierarchical. A movement is a gear train, an escapement, a motion works and a
+barrel; each is a sub-assembly with its own mates; the case, dial and hands sit
+around it. Nothing about it is a single part with a single load. It is the
+big-picture target, and it forces the big-picture machinery early.
+
+### 10.1 What "assemblies of assemblies" costs the data model
+
+Almost nothing, which is the good news, and it is already in §2.1:
+
+- A component ref points at a part revision **or an assembly revision**. The
+  hierarchy is the reference graph; there is no separate concept.
+- A sub-assembly is **rigid** by default — one transform for the whole thing,
+  its internal mates already solved and cached. `flexible: true` opens it, so
+  its internal mates join the parent's solve. A clock's gear train is flexible
+  (it has to turn); its case is rigid.
+- **Rendering flattens; solving does not.** The renderer walks the graph to a
+  flat list of (part CID, world transform) and instances by CID — a thousand
+  identical screws are one mesh. The mate solver works the hierarchy, and only
+  the flexible parts of it.
+
+What it costs the *cache*: an assembly's geometry is the union of its
+components' caches, so assembling never rebuilds a part; and an instance with
+`params` overrides caches under `hash(revision CID, params)`, so ten gears of
+different tooth counts from one parametric part are ten cache entries and one
+tree.
+
+### 10.2 The gear
+
+A gear is the ideal canonical part because it is *entirely* parametric and
+*entirely* standard: module `m`, tooth count `z`, pressure angle `α`, face
+width `b`, bore, and everything else follows — pitch diameter `mz`, addendum
+`m`, dedendum `1.25m`, the involute itself. Nobody sketches a gear; they
+specify one.
+
+So `gear` is a **feature op**, not a sketch someone drew:
+
+```json
+{ "id": "g1", "op": "gear", "m": 0.5, "z": 30, "alpha": 20, "b": 1.2,
+  "bore": { "d": 1.0 }, "profile": "involute" }
+```
+
+It generates the exact involute (a B-spline fit in B-rep, or the closed-form
+curve in implicit), names its topology (`g1.tooth[i].flank[l|r]`, `g1.pitch`,
+`g1.axis`, `g1.face[a|b]`), and the canonical part record is just a tree with
+this one op and its parameters exposed. Every gear in every clock on the
+network can be an instance of one public revision at one AT URI.
+
+The **gear mate** is where the lathe pattern from `b/lathe/engine.js` shows up
+again — a typed algebra with an oracle. Two gears mesh iff they share `m` and
+`α`; the centre distance *must* be `m(z1 + z2)/2`; the ratio *is* `z2/z1`.
+Those are not things the user sets, they are things the tree *checks*: a gear
+mate between incompatible gears is a typed error, and a gear train is a typed
+walk. Because a gear mate is a scalar relation between two rotations, driving
+one arbor drives the whole train through the mate solver at trivial cost —
+which is the spin gate. A clock in CAD turns by mates, not by contact physics;
+contact is a simulation, not a constraint, and stays in §5.
+
+### 10.3 What the clock forces, in order
+
+| the clock needs | which is | phase |
+|---|---|---|
+| gears, arbors, plates | `gear`, revolve, sketch+extrude, patterns | 1 |
+| an escape wheel and pallets | curves and tangent booleans — the kernel's stress test | 0/1 |
+| the train | assemblies, gear mates, the spin gate | 5 |
+| a barrel and a mainspring | a vendor spring (§11) or a parametric torsion spring; a torque | 5/6 |
+| pivots that don't snap, teeth that don't bend | stress on a tooth and a plate | 6 |
+| the case, the dial, the hands | shell, fillet, text — and the first assembly a person shows someone | 4/5 |
+| "make me a motion works" | the agent loop over all of it | 7 |
+
+The escapement is the honest risk. It is the part with real curves and the
+part where kernels lie; it is in the phase-0 benchmark on purpose.
+
+---
+
+## 11. Vendor parts — McMaster-Carr, and what "import their stuff" is
+
+Checked 2026-09-10. Three facts:
+
+1. **There is an official API.** The McMaster-Carr Product Information API is
+   REST at `api.mcmaster.com/v1`: login for a bearer token, subscribe to part
+   numbers, then fetch product data, pricing, images, datasheets and **CAD —
+   3-D STEP and 2-D DWG** from `/v1/cad/`. It is for **approved customers
+   only** (apply via eprocurement@mcmaster.com), every request carries a
+   **client certificate** they issue, and the CAD endpoints are rate-limited.
+   No published redistribution terms either way.
+2. **The famous "integrations" are thinner than they look.** Fusion's *Insert
+   McMaster-Carr Component* is the McMaster website in a panel; you find the
+   part, download the STEP, and Fusion inserts it. Onshape has no native
+   integration. Nobody has a deep one, because the API is gated.
+3. **The CAD download on the public product page needs no login.** That is
+   the path everyone actually uses.
+
+So there are three tiers, and they stack:
+
+**Tier 1 — STEP in.** Drag a STEP onto the editor, or `cad import`, and it
+becomes a `vendorPart` revision: one `import` feature over the STEP blob,
+vendor and part number as metadata, invariants computed so it is measurable and
+mateable like anything else. This is phase 1 work and it needs the exact
+kernel's STEP reader, which is the second reason §9 made STEP a phase-1
+requirement. It covers the whole long tail of the catalogue with no agreement
+with anyone. The open question is whether a vendor's STEP may sit on a public
+PDS blob; until answered, a `vendorPart` can carry the *part number and a
+local-only blob* and rebuild from the vendor's URL on demand.
+
+**Tier 2 — generate, don't import.** Most of what a clock orders from McMaster
+is *standard*: an M2×6 socket-head screw is ISO 4762, a 2 mm dowel is ISO
+2338, a bearing is a bore/OD/width triple, a gear is §10.2. Standard parts are
+parametric ops in our own library — public, ours, exact, tiny, and with the
+vendor part number as an *attribute* rather than the source. This is the tier
+that goes hard: the BOM of an assembly becomes a McMaster cart, which is what
+people keep building by hand (`solidworks2mcmaster` exists for that reason),
+and nothing of McMaster's is ever redistributed.
+
+**Tier 3 — the API, if approved.** A small BFF worker (`workers/mcmaster`)
+holding the *operator's* certificate, proxying search, pricing and CAD fetch
+for signed-in users, with the STEP landing as a tier-1 `vendorPart`. Browsers
+cannot attach a client certificate to a `fetch`, so this cannot be
+client-only; it is the one place in the whole design that needs a server we
+run, and it is optional. Apply early because approval takes as long as it
+takes; build it last because tiers 1 and 2 cover the clock.
+
+---
+
+## 12. Open — the things still nobody can measure
+
+1. **Truck's fillet gap.** If the bake-off says Truck wins everything except
+   fillets, do we close the gap ourselves (Rust, months) or run OCCT alongside
+   for fillets only (a STEP round-trip per fillet, slow but on commit only)?
+   The clock barely needs fillets; the case does.
+2. **Which clock.** A real movement (a specific calibre with published tooth
+   counts) or a designed-here one? A real one makes the gate external and
+   honest; a designed one makes the agent loop the designer from day one.
+3. **Vendor STEP on a public PDS** — ask, before the first one is pushed.
