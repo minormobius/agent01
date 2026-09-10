@@ -1,0 +1,10 @@
+{
+  "name": "cad-bakeoff",
+  "private": true,
+  "type": "module",
+  "description": "Kernel bake-off harness for packages/cad. Foreign kernels (Manifold, OCCT) are npm deps; Truck and the implicit spike come from the Rust engine.",
+  "dependencies": {
+    "manifold-3d": "3.5.3",
+    "opencascade.js": "1.1.1"
+  }
+}

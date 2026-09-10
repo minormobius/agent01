@@ -1,0 +1,18 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Clock wheel: module 0.5, 60 teeth, crossed out with four windows between spokes. Gear op + a circular pattern of an arc-bounded window loop.",
+  "params": { "m": 0.5, "z": 60, "b": 1.2, "bore": 1.0, "r1": 5, "r2": 11, "spoke": 1.6, "windows": 4 },
+  "features": [
+    { "op": "gear", "id": "wheel", "m": "m", "z": "z", "alpha": 20, "b": "b", "bore": "bore" },
+    { "op": "sketch", "id": "window", "loops": [
+      { "name": "window", "path": { "from": ["r1*cos(deg(spoke*4))", "r1*sin(deg(spoke*4))"], "segs": [
+        { "to": ["r2*cos(deg(spoke*2))", "r2*sin(deg(spoke*2))"] },
+        { "arc": { "via": ["r2*cos(deg(45))", "r2*sin(deg(45))"], "to": ["r2*cos(deg(90-spoke*2))", "r2*sin(deg(90-spoke*2))"] } },
+        { "to": ["r1*cos(deg(90-spoke*4))", "r1*sin(deg(90-spoke*4))"] },
+        { "arc": { "via": ["r1*cos(deg(45))", "r1*sin(deg(45))"], "to": ["r1*cos(deg(spoke*4))", "r1*sin(deg(spoke*4))"] } }
+      ] } } ] },
+    { "op": "pattern", "id": "windows", "of": "window", "kind": "circular", "count": "windows" },
+    { "op": "extrude", "id": "crossing", "profile": "windows", "depth": "b", "mode": "cut" }
+  ]
+}
