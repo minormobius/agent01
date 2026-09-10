@@ -56,9 +56,10 @@ export function make() {
       // a hole iff its signed area is negative after the engine's orientation
       // pass, which we don't have. So use the polylines' `outer` flags.
       const polys = new Map(resolved.polylines.map((p) => [p.id, p]));
-      const faceOf = (op) => {
-        // exact loops for the sketches, outer/hole flags from the polylines (same order)
-        let face = null; let holes = [];
+      // One face per outer loop (with its holes); several outer loops in one op
+      // become several faces whose solids are fused.
+      const facesOf = (op) => {
+        const groups = []; // [{face, holes:[wire]}]
         let li = 0;
         for (const sid of op.sketches) {
           const sk = resolved.resolved.sketches.find((s) => s.id === sid);
@@ -74,14 +75,14 @@ export function make() {
             const ends = [loop.start, ...loop.segs.map((s) => s.to)]; let a2 = 0; for (let i = 0; i < ends.length - 1; i++) { const p = ends[i], q = ends[i + 1]; a2 += p[0] * q[1] - q[0] * p[1]; }
             if ((a2 > 0) !== (area > 0)) L = reverseLoop(loop);
             const w = wireOf(op.frame, L);
-            if (isOuter) { if (face) throw new Error('multiple outer loops in one op: not wired for occt'); face = new oc.BRepBuilderAPI_MakeFace_15(w, false).Face(); }
-            else holes.push(w);
+            if (isOuter) groups.push({ face: new oc.BRepBuilderAPI_MakeFace_15(w, false).Face(), holes: [] });
+            else groups[groups.length - 1].holes.push(w);
             li++;
           });
         }
-        for (const h of holes) { const mf = new oc.BRepBuilderAPI_MakeFace_22(face, h); if (!mf.IsDone()) throw new Error('hole failed'); face = mf.Face(); }
-        return face;
+        return groups.map((g) => { let face = g.face; for (const h of g.holes) { const mf = new oc.BRepBuilderAPI_MakeFace_22(face, h); if (!mf.IsDone()) throw new Error('hole failed'); face = mf.Face(); } return face; });
       };
+      const fuseAll = (shapes) => shapes.reduce((a, b) => (a === null ? b : new oc.BRepAlgoAPI_Fuse_3(a, b).Shape()), null);
       const reverseLoop = (l) => { const ends = [l.start, ...l.segs.map((s) => s.to)]; const segs = []; for (let i = l.segs.length - 1; i >= 0; i--) { const s = l.segs[i]; const to = ends[i]; segs.push(s.kind === 'line' ? { kind: 'line', to } : s.kind === 'arc' ? { kind: 'arc', to, via: s.via } : { kind: 'bezier', to, ctrl: [...s.ctrl].reverse() }); } return { start: ends[l.segs.length], segs }; };
       const vol = (sh) => { const g = new oc.GProp_GProps_1(); oc.BRepGProp.VolumeProperties_1(sh, g, false, false, false); return g.Mass(); };
       const solids = new Map();
@@ -95,15 +96,12 @@ export function make() {
         for (const op of resolved.resolved.ops) {
           let s;
           if (op.op === 'extrude') {
-            const face = faceOf(op);
             const n = op.frame.n; const d = op.depth;
-            s = new oc.BRepPrimAPI_MakePrism_1(face, new oc.gp_Vec_4(n[0] * d, n[1] * d, n[2] * d), false, true).Shape();
+            s = fuseAll(facesOf(op).map((face) => new oc.BRepPrimAPI_MakePrism_1(face, new oc.gp_Vec_4(n[0] * d, n[1] * d, n[2] * d), false, true).Shape()));
           } else if (op.op === 'revolve') {
-            const face = faceOf(op);
             const o = to3(op.frame, op.axis_p); const d3 = dir3(op.frame, op.axis_d); const l = Math.hypot(...d3);
             const ax = new oc.gp_Ax1_2(P(o), new oc.gp_Dir_4(d3[0] / l, d3[1] / l, d3[2] / l));
-            s = new oc.BRepPrimAPI_MakeRevol_1(face, ax, op.angle_deg * Math.PI / 180, false).Shape();
-            if (vol(s) < 0) { /* orientation is handled by OCCT; nothing to do */ }
+            s = fuseAll(facesOf(op).map((face) => new oc.BRepPrimAPI_MakeRevol_1(face, ax, op.angle_deg * Math.PI / 180, false).Shape()));
           } else if (op.op === 'boolean') {
             s = combine(solids.get(op.a), solids.get(op.b), op.kind === 'union' ? 'add' : op.kind === 'cut' ? 'cut' : 'intersect');
             solids.set(op.id, s); body = s; continue;
