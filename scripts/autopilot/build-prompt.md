@@ -33,9 +33,9 @@ _Regenerated 2026-09-10 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-10, 99 members / 334 posts):
+**Neighborhood spark** (bisk 2026-09-10, 99 members / 309 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: anthropic, openai, deepseek
+- Distinctive words: openai, deepseek, anthropic
 - Top post: "" — @gracekind.net
 <!-- BRIEF_END -->
 
