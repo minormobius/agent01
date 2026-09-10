@@ -1,0 +1,1190 @@
+{
+ "date": "2026-09-10T21:20:36.290Z",
+ "node": "v22.22.2",
+ "cpu": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+ "kernels": {
+  "truck": {
+   "init_ms": 0,
+   "bytes": 3102344,
+   "exact": true
+  },
+  "wasm": {
+   "init_ms": 9.267629999999997,
+   "bytes": 1745368,
+   "exact": true
+  },
+  "implicit": {
+   "init_ms": 0,
+   "bytes": 3102344,
+   "exact": false
+  },
+  "manifold": {
+   "init_ms": 27.992964,
+   "bytes": 541470,
+   "exact": false
+  },
+  "occt": {
+   "init_ms": 1388.973088,
+   "bytes": 65864037,
+   "exact": true
+  }
+ },
+ "parts": {
+  "gear": {
+   "expected": {
+    "volume": null,
+    "euler": -8,
+    "tol": 0.01
+   },
+   "kernels": {
+    "truck": {
+     "ok": true,
+     "cold_ms": 13270.082275390625,
+     "warm_ms": 12560.6728515625,
+     "error": null,
+     "invariants": {
+      "volume": 514.5486122502824,
+      "area": 1257.0985308402285,
+      "bbox": [
+       [
+        -15.49875545501709,
+        -15.49875545501709,
+        -1.2041955770818609e-18
+       ],
+       [
+        15.49875545501709,
+        15.49875545501709,
+        1.2000000476837158
+       ]
+      ],
+      "centroid": [
+       -0.000005006917957830635,
+       -0.0000036083199338945964,
+       0.6000007184510181
+      ],
+      "euler": -12,
+      "watertight": false,
+      "tris": 17346,
+      "verts": 8667,
+      "open_edges": 12,
+      "flipped_edges": 0
+     },
+     "faces": 502,
+     "named": 0,
+     "step_bytes": 1722756,
+     "step_readback": {
+      "ok": false,
+      "msg": "timeout after 120 s",
+      "ms": 120462.238547
+     },
+     "volume_err": 3.231950192134564e-7
+    },
+    "wasm": {
+     "ok": true,
+     "cold_ms": 20034.512636,
+     "warm_ms": 13577.262507000007,
+     "error": null,
+     "invariants": {
+      "volume": 514.5487785498848,
+      "area": 1257.105649798831,
+      "bbox": [
+       [
+        -15.49875545501709,
+        -15.49875545501709,
+        -1.150633771262674e-18
+       ],
+       [
+        15.49875545501709,
+        15.49875545501709,
+        1.2000000476837158
+       ]
+      ],
+      "centroid": [
+       -0.000003452652799773732,
+       -0.000002757382202556786,
+       0.600000349029589
+      ],
+      "euler": -10,
+      "watertight": false,
+      "tris": 17396,
+      "verts": 8691,
+      "open_edges": 6,
+      "flipped_edges": 0
+     },
+     "faces": 502,
+     "named": 0,
+     "step_bytes": 1722963,
+     "step_readback": {
+      "ok": false,
+      "msg": "timeout after 120 s",
+      "ms": 120175.61290100001
+     },
+     "volume_err": 0
+    },
+    "implicit": {
+     "ok": true,
+     "cold_ms": 3742.438720703125,
+     "warm_ms": 3517.318359375,
+     "error": null,
+     "invariants": {
+      "volume": 497.4345129923273,
+      "area": 1152.4623372714625,
+      "bbox": [
+       [
+        -15.5,
+        -15.444966316223145,
+        0
+       ],
+       [
+        15.444966316223145,
+        15.444966316223145,
+        1.2000000476837158
+       ]
+      ],
+      "centroid": [
+       -0.0003594608121873461,
+       -0.00004879381914201773,
+       0.5993930742745042
+      ],
+      "euler": -8,
+      "watertight": true,
+      "tris": 42714,
+      "verts": 21349,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "volume_err": 0.033260725262606504
+    },
+    "manifold": {
+     "ok": true,
+     "cold_ms": 141.1136079999851,
+     "warm_ms": 93.52036099997349,
+     "error": null,
+     "invariants": {
+      "volume": 515.1014412979648,
+      "area": 1258.0277926448548,
+      "bbox": [
+       [
+        -15.5,
+        -15.5,
+        0
+       ],
+       [
+        15.5,
+        15.5,
+        1.2000000476837158
+       ]
+      ],
+      "centroid": [
+       2.7519487312430485e-14,
+       -3.2054340171559065e-15,
+       0.6000000238418501
+      ],
+      "euler": -8,
+      "watertight": true,
+      "tris": 18816,
+      "verts": 9400,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "kernel_volume": 515.1014163602756,
+     "volume_err": 0.001074072607144367
+    },
+    "occt": {
+     "ok": true,
+     "cold_ms": 6089.6815910000005,
+     "warm_ms": 2265.1115740000005,
+     "error": null,
+     "invariants": {
+      "volume": 514.678676619076,
+      "area": 1257.3298407727764,
+      "bbox": [
+       [
+        -15.499861724079365,
+        -15.499861724079365,
+        0
+       ],
+       [
+        15.499861724079363,
+        15.499861724079365,
+        1.2
+       ]
+      ],
+      "centroid": [
+       -2.6812986088219868e-15,
+       9.92921761577442e-16,
+       0.5999999999999862
+      ],
+      "euler": -8,
+      "watertight": true,
+      "tris": 4176,
+      "verts": 2080,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 502,
+     "named": 0,
+     "step_bytes": 2418084,
+     "step_readback": {
+      "ok": false,
+      "msg": "timeout after 120 s",
+      "ms": 69832.07795899999
+     },
+     "kernel_volume": 514.8341792764069,
+     "volume_err": 0.0002524504470835234
+    }
+   },
+   "reference": {
+    "volume": 514.5487785498848,
+    "source": "median of exact kernels"
+   }
+  },
+  "arbor": {
+   "expected": {
+    "volume": null,
+    "euler": 2,
+    "tol": 0.01
+   },
+   "kernels": {
+    "truck": {
+     "ok": true,
+     "cold_ms": 419.114501953125,
+     "warm_ms": 401.9892578125,
+     "error": null,
+     "invariants": {
+      "volume": 29.84592812173264,
+      "area": 101.9380396163503,
+      "bbox": [
+       [
+        -2.4963388442993164,
+        -2.4963388442993164,
+        0
+       ],
+       [
+        2.4963388442993164,
+        2.4963388442993164,
+        12
+       ]
+      ],
+      "centroid": [
+       0.00003136506092583926,
+       -0.00004352112025711604,
+       5.999948676815653
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 826,
+      "verts": 415,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 106,
+     "named": 0,
+     "step_bytes": 280557,
+     "step_readback": {
+      "ok": false,
+      "msg": "timeout after 120 s",
+      "ms": 143.64747899997747
+     },
+     "volume_err": 0
+    },
+    "wasm": {
+     "ok": true,
+     "cold_ms": 763.1513989999657,
+     "warm_ms": 580.7796109999763,
+     "error": null,
+     "invariants": {
+      "volume": 29.84394684680452,
+      "area": 101.93620081940604,
+      "bbox": [
+       [
+        -2.4963388442993164,
+        -2.4963388442993164,
+        0
+       ],
+       [
+        2.4963388442993164,
+        2.4963388442993164,
+        12
+       ]
+      ],
+      "centroid": [
+       0.00006824159680355922,
+       -0.00005641372874611436,
+       5.999968223731337
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 824,
+      "verts": 414,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 106,
+     "named": 0,
+     "step_bytes": 280791,
+     "step_readback": {
+      "ok": false,
+      "msg": "timeout after 120 s",
+      "ms": 45990.22604400001
+     },
+     "volume_err": 0.00006638342490268784
+    },
+    "implicit": {
+     "ok": true,
+     "cold_ms": 1414.5263671875,
+     "warm_ms": 1591.95947265625,
+     "error": null,
+     "invariants": {
+      "volume": 29.72604532638124,
+      "area": 97.23320165660596,
+      "bbox": [
+       [
+        -2.4987311363220215,
+        -2.4987311363220215,
+        0
+       ],
+       [
+        2.4987311363220215,
+        2.4987311363220215,
+        12
+       ]
+      ],
+      "centroid": [
+       0.00009190298082277935,
+       0.00009190298083585625,
+       5.9999569593472675
+      ],
+      "euler": 2,
+      "watertight": false,
+      "tris": 27184,
+      "verts": 13593,
+      "open_edges": 1,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "volume_err": 0.0040167219750190065
+    },
+    "manifold": {
+     "ok": true,
+     "cold_ms": 40.92606800002977,
+     "warm_ms": 30.319037000008393,
+     "error": null,
+     "invariants": {
+      "volume": 30.0048171827872,
+      "area": 102.17742467705506,
+      "bbox": [
+       [
+        -2.5,
+        -2.5,
+        0
+       ],
+       [
+        2.5,
+        2.5,
+        12
+       ]
+      ],
+      "centroid": [
+       -1.3135529916443879e-16,
+       -2.388908873888473e-16,
+       6.000000000000044
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 6592,
+      "verts": 3298,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "kernel_volume": 30.00481734709822,
+     "volume_err": 0.0053236428234531
+    },
+    "occt": {
+     "ok": true,
+     "cold_ms": 432.30286799999885,
+     "warm_ms": 278.28889600001276,
+     "error": null,
+     "invariants": {
+      "volume": 29.92057126612278,
+      "area": 102.07787965389207,
+      "bbox": [
+       [
+        -2.4995931220984904,
+        -2.499593122098491,
+        0
+       ],
+       [
+        2.4995931220984904,
+        2.4995931220984904,
+        12
+       ]
+      ],
+      "centroid": [
+       -3.3182403055729034e-16,
+       3.365052703274868e-16,
+       6.000000000000008
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 1052,
+      "verts": 528,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 90,
+     "named": 0,
+     "step_bytes": 377565,
+     "step_readback": {
+      "ok": true,
+      "volume": 68.51582531265402,
+      "euler": 474,
+      "watertight": false,
+      "shells": 1,
+      "ms": 214.81974399999308
+     },
+     "kernel_volume": 30.040621244025846,
+     "volume_err": 0.0025009490100523467
+    }
+   },
+   "reference": {
+    "volume": 29.84592812173264,
+    "source": "median of exact kernels"
+   }
+  },
+  "plate": {
+   "expected": {
+    "volume": 1878.084929020475,
+    "euler": -16,
+    "tol": 0.002
+   },
+   "kernels": {
+    "truck": {
+     "ok": true,
+     "cold_ms": 245.139404296875,
+     "warm_ms": 256.61669921875,
+     "error": null,
+     "invariants": {
+      "volume": 1877.388905464857,
+      "area": 2720.7849118186195,
+      "bbox": [
+       [
+        -20,
+        -20,
+        0
+       ],
+       [
+        20,
+        20,
+        1.5
+       ]
+      ],
+      "centroid": [
+       3.71506275543817e-10,
+       -1.0216146020746024e-9,
+       0.7500000000022226
+      ],
+      "euler": -16,
+      "watertight": true,
+      "tris": 10848,
+      "verts": 5408,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 42,
+     "named": 82,
+     "step_bytes": 169183,
+     "step_readback": {
+      "ok": true,
+      "volume": 1877.3889121892098,
+      "euler": -16,
+      "watertight": true,
+      "shells": 1,
+      "ms": 298.1347919999971
+     },
+     "volume_err": 0.0003706028118659293
+    },
+    "wasm": {
+     "ok": true,
+     "cold_ms": 249.2920930000255,
+     "warm_ms": 180.2029399999883,
+     "error": null,
+     "invariants": {
+      "volume": 1877.3889054603783,
+      "area": 2720.7849117776486,
+      "bbox": [
+       [
+        -20,
+        -20,
+        0
+       ],
+       [
+        20,
+        20,
+        1.5
+       ]
+      ],
+      "centroid": [
+       3.240318040867183e-10,
+       -1.0549466643685565e-9,
+       0.7499999999998047
+      ],
+      "euler": -16,
+      "watertight": true,
+      "tris": 10848,
+      "verts": 5408,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 42,
+     "named": 82,
+     "step_bytes": 169360,
+     "step_readback": {
+      "ok": true,
+      "volume": 1877.3889121893296,
+      "euler": -16,
+      "watertight": true,
+      "shells": 1,
+      "ms": 296.4786669999594
+     },
+     "volume_err": 0.00037060281425070255
+    },
+    "implicit": {
+     "ok": true,
+     "cold_ms": 390.077392578125,
+     "warm_ms": 410.270263671875,
+     "error": null,
+     "invariants": {
+      "volume": 1865.089835049663,
+      "area": 2667.8251850666434,
+      "bbox": [
+       [
+        -19.9978084564209,
+        -19.9978084564209,
+        0
+       ],
+       [
+        19.9978084564209,
+        20,
+        1.5
+       ]
+      ],
+      "centroid": [
+       -0.0000850418791929305,
+       0.0002419121369591495,
+       0.7499405501930689
+      ],
+      "euler": -16,
+      "watertight": true,
+      "tris": 55902,
+      "verts": 27935,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "volume_err": 0.006919332438064879
+    },
+    "manifold": {
+     "ok": true,
+     "cold_ms": 14.935917000000003,
+     "warm_ms": 3.8554479999999955,
+     "error": null,
+     "invariants": {
+      "volume": 1876.9854636850691,
+      "area": 2720.142917506354,
+      "bbox": [
+       [
+        -20,
+        -20,
+        0
+       ],
+       [
+        20,
+        20,
+        1.5
+       ]
+      ],
+      "centroid": [
+       -2.619941935387761e-9,
+       -4.527334404523011e-11,
+       0.7500000000000008
+      ],
+      "euler": -16,
+      "watertight": true,
+      "tris": 976,
+      "verts": 472,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "kernel_volume": 1876.9854602983041,
+     "volume_err": 0.0005854183260920997
+    },
+    "occt": {
+     "ok": true,
+     "cold_ms": 115.5781319999951,
+     "warm_ms": 54.69487200000731,
+     "error": null,
+     "invariants": {
+      "volume": 1877.5443882266402,
+      "area": 2721.0286739114326,
+      "bbox": [
+       [
+        -20,
+        -20,
+        0
+       ],
+       [
+        20,
+        20,
+        1.5
+       ]
+      ],
+      "centroid": [
+       2.7153254863358876e-16,
+       -1.0430823514582985e-15,
+       0.7500000000000006
+      ],
+      "euler": -16,
+      "watertight": true,
+      "tris": 1616,
+      "verts": 792,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 42,
+     "named": 0,
+     "step_bytes": 200467,
+     "step_readback": {
+      "ok": true,
+      "volume": 2827.5853584508145,
+      "euler": 134,
+      "watertight": false,
+      "shells": 1,
+      "ms": 602.3790389999922
+     },
+     "kernel_volume": 1878.0849290204758,
+     "volume_err": 0.0002878148828534762
+    }
+   },
+   "reference": {
+    "volume": 1878.084929020475,
+    "source": "closed form"
+   }
+  },
+  "escape": {
+   "expected": {
+    "volume": null,
+    "euler": 0,
+    "tol": 0.01
+   },
+   "kernels": {
+    "truck": {
+     "ok": false,
+     "cold_ms": 366.582763671875,
+     "warm_ms": null,
+     "error": {
+      "op": "club",
+      "msg": "boolean union failed",
+      "unsupported": false
+     }
+    },
+    "wasm": {
+     "ok": false,
+     "cold_ms": 392.78243899997324,
+     "warm_ms": null,
+     "error": {
+      "op": "club",
+      "msg": "boolean union failed",
+      "unsupported": false
+     }
+    },
+    "implicit": {
+     "ok": true,
+     "cold_ms": 225.135498046875,
+     "warm_ms": 201.312744140625,
+     "error": null,
+     "invariants": {
+      "volume": 180.0880976357488,
+      "area": 663.7013788054547,
+      "bbox": [
+       [
+        -11.671354293823242,
+        -11.892263412475586,
+        0
+       ],
+       [
+        11.989503860473633,
+        11.90980339050293,
+        0.6000000238418579
+       ]
+      ],
+      "centroid": [
+       0.004831973561212374,
+       0.0015716167138534157,
+       0.3013348125190553
+      ],
+      "euler": 0,
+      "watertight": true,
+      "tris": 40044,
+      "verts": 20022,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "volume_err": 0.01623010507763284
+    },
+    "manifold": {
+     "ok": true,
+     "cold_ms": 7.477515000035055,
+     "warm_ms": 5.038469999912195,
+     "error": null,
+     "invariants": {
+      "volume": 182.97914389182282,
+      "area": 686.7761491005399,
+      "bbox": [
+       [
+        -11.762721061706543,
+        -11.954153060913086,
+        0
+       ],
+       [
+        12.020000457763672,
+        11.954153060913086,
+        0.6000000238418579
+       ]
+      ],
+      "centroid": [
+       -9.666103676710817e-8,
+       -2.8189878325412566e-8,
+       0.3000000119209289
+      ],
+      "euler": 0,
+      "watertight": true,
+      "tris": 760,
+      "verts": 380,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "kernel_volume": 182.97913401139604,
+     "volume_err": 0.00043714424961495125
+    },
+    "occt": {
+     "ok": true,
+     "cold_ms": 1616.2149570000038,
+     "warm_ms": 1196.2108699999953,
+     "error": null,
+     "invariants": {
+      "volume": 183.05916715408353,
+      "area": 686.9701816051153,
+      "bbox": [
+       [
+        -11.763595374453622,
+        -11.956174727606918,
+        0
+       ],
+       [
+        12.017759728454141,
+        11.95617472760692,
+        0.6
+       ]
+      ],
+      "centroid": [
+       -0.00007914424740887351,
+       0.000022619855546996683,
+       0.29999999999999993
+      ],
+      "euler": 0,
+      "watertight": true,
+      "tris": 988,
+      "verts": 494,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 129,
+     "named": 0,
+     "step_bytes": 442696,
+     "step_readback": {
+      "ok": false,
+      "msg": "timeout after 120 s",
+      "ms": 87140.729868
+     },
+     "kernel_volume": 183.14334275736562,
+     "volume_err": 0
+    }
+   },
+   "reference": {
+    "volume": 183.05916715408353,
+    "source": "median of exact kernels"
+   }
+  },
+  "case": {
+   "expected": {
+    "volume": 2466.1502330679878,
+    "euler": 2,
+    "tol": 0.002
+   },
+   "kernels": {
+    "truck": {
+     "ok": true,
+     "cold_ms": 147.872802734375,
+     "warm_ms": 189.89892578125,
+     "error": null,
+     "invariants": {
+      "volume": 2465.8118463641686,
+      "area": 5069.724245961642,
+      "bbox": [
+       [
+        -22,
+        -21.999725341796875,
+        0
+       ],
+       [
+        22,
+        21.999725341796875,
+        8
+       ]
+      ],
+      "centroid": [
+       0.00008751119963115603,
+       0.00011237958134674946,
+       2.0339878592143035
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 1414,
+      "verts": 709,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 15,
+     "named": 10,
+     "step_bytes": 25236,
+     "step_readback": {
+      "ok": true,
+      "volume": -4930.326825876463,
+      "euler": 2,
+      "watertight": true,
+      "shells": 1,
+      "ms": 1916.6686739999568
+     },
+     "volume_err": 0.00013721252634241597
+    },
+    "wasm": {
+     "ok": true,
+     "cold_ms": 156.14096099999733,
+     "warm_ms": 82.9639610000886,
+     "error": null,
+     "invariants": {
+      "volume": 2465.8118463641686,
+      "area": 5069.724245961642,
+      "bbox": [
+       [
+        -22,
+        -21.999725341796875,
+        0
+       ],
+       [
+        22,
+        21.999725341796875,
+        8
+       ]
+      ],
+      "centroid": [
+       0.00008751119962765204,
+       0.00011237958134822482,
+       2.0339878592143035
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 1414,
+      "verts": 709,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 15,
+     "named": 10,
+     "step_bytes": 25236,
+     "step_readback": {
+      "ok": true,
+      "volume": -4930.326825876463,
+      "euler": 2,
+      "watertight": true,
+      "shells": 1,
+      "ms": 1874.8642879999243
+     },
+     "volume_err": 0.00013721252634241597
+    },
+    "implicit": {
+     "ok": true,
+     "cold_ms": 44.902099609375,
+     "warm_ms": 48.8564453125,
+     "error": null,
+     "invariants": {
+      "volume": 2453.779889464015,
+      "area": 4997.9704085194235,
+      "bbox": [
+       [
+        -21.9986572265625,
+        -21.9986572265625,
+        -2.1094237467877974e-15
+       ],
+       [
+        21.9986572265625,
+        21.9986572265625,
+        8
+       ]
+      ],
+      "centroid": [
+       -0.00020557069827031,
+       -0.0002055706982884723,
+       2.020641843695498
+      ],
+      "euler": 1,
+      "watertight": true,
+      "tris": 107024,
+      "verts": 53513,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "volume_err": 0.005016054349853435
+    },
+    "manifold": {
+     "ok": true,
+     "cold_ms": 5.593895000056364,
+     "warm_ms": 2.021792000043206,
+     "error": null,
+     "invariants": {
+      "volume": 2465.9024921912687,
+      "area": 5070.1742310124155,
+      "bbox": [
+       [
+        -22,
+        -22,
+        0
+       ],
+       [
+        22,
+        22,
+        8
+       ]
+      ],
+      "centroid": [
+       -5.964645673059008e-16,
+       4.722731525673291e-15,
+       2.0337578536766836
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 2048,
+      "verts": 1026,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 0,
+     "named": 0,
+     "step_bytes": 0,
+     "kernel_volume": 2465.9026419822267,
+     "volume_err": 0.00010045652263886456
+    },
+    "occt": {
+     "ok": true,
+     "cold_ms": 50.39789500000188,
+     "warm_ms": 32.42407899998943,
+     "error": null,
+     "invariants": {
+      "volume": 2465.5735560168614,
+      "area": 5069.460810318066,
+      "bbox": [
+       [
+        -22,
+        -22,
+        0
+       ],
+       [
+        22,
+        22,
+        8
+       ]
+      ],
+      "centroid": [
+       -1.2116920150358606e-14,
+       -1.0165566082408242e-14,
+       2.0339220686177923
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 1164,
+      "verts": 584,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 5,
+     "named": 0,
+     "step_bytes": 9435,
+     "step_readback": {
+      "ok": true,
+      "volume": 2465.0240349369888,
+      "euler": 2,
+      "watertight": true,
+      "shells": 1,
+      "ms": 129.9900980000093
+     },
+     "kernel_volume": 2466.1502330679887,
+     "volume_err": 0.00023383695096666684
+    }
+   },
+   "reference": {
+    "volume": 2466.1502330679878,
+    "source": "closed form"
+   }
+  },
+  "case-fillet": {
+   "expected": {
+    "volume": null,
+    "euler": 2,
+    "tol": 0.01
+   },
+   "kernels": {
+    "truck": {
+     "ok": false,
+     "cold_ms": 0.147705078125,
+     "warm_ms": null,
+     "error": {
+      "op": "rim",
+      "msg": "fillet is not supported by this kernel",
+      "unsupported": true
+     }
+    },
+    "wasm": {
+     "ok": false,
+     "cold_ms": 0.2633020000066608,
+     "warm_ms": null,
+     "error": {
+      "op": "rim",
+      "msg": "fillet is not supported by this kernel",
+      "unsupported": true
+     }
+    },
+    "implicit": {
+     "ok": false,
+     "cold_ms": 0.052978515625,
+     "warm_ms": null,
+     "error": {
+      "op": "rim",
+      "msg": "fillet (planned: smooth-min) is not supported by this kernel",
+      "unsupported": true
+     }
+    },
+    "manifold": {
+     "ok": false,
+     "cold_ms": 2.453574000042863,
+     "warm_ms": null,
+     "error": {
+      "op": "rim",
+      "msg": "fillet is not supported by this kernel",
+      "unsupported": true
+     }
+    },
+    "occt": {
+     "ok": true,
+     "cold_ms": 187.37594699999318,
+     "warm_ms": 115.65448100000503,
+     "error": null,
+     "invariants": {
+      "volume": 2455.521633885376,
+      "area": 5022.479524027158,
+      "bbox": [
+       [
+        -22,
+        -22,
+        0
+       ],
+       [
+        22,
+        22,
+        8
+       ]
+      ],
+      "centroid": [
+       -0.00132359191867332,
+       -0.00002502895328835739,
+       2.009882675757706
+      ],
+      "euler": 2,
+      "watertight": true,
+      "tris": 6920,
+      "verts": 3462,
+      "open_edges": 0,
+      "flipped_edges": 0
+     },
+     "faces": 7,
+     "named": 0,
+     "step_bytes": 14749,
+     "step_readback": {
+      "ok": true,
+      "volume": 2454.8546631478353,
+      "euler": 2,
+      "watertight": true,
+      "shells": 1,
+      "ms": 161.21592299998156
+     },
+     "kernel_volume": 2456.8733572943406,
+     "volume_err": 0
+    }
+   },
+   "reference": {
+    "volume": 2455.521633885376,
+    "source": "median of exact kernels"
+   }
+  }
+ },
+ "merged": [
+  {
+   "date": "2026-09-10T21:31:49.677Z",
+   "kernels": [
+    "occt"
+   ],
+   "parts": [
+    "gear",
+    "arbor",
+    "plate",
+    "escape",
+    "case",
+    "case-fillet"
+   ]
+  },
+  {
+   "date": "2026-09-10T21:35:07.036Z",
+   "kernels": [
+    "manifold"
+   ],
+   "parts": [
+    "plate"
+   ]
+  }
+ ]
+}

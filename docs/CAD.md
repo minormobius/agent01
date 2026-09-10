@@ -4,6 +4,15 @@ One pass of ideation, written before anything exists, so the reasoning survives
 the conversation it came from. Same genre as [`CLOSED-LOOP.md`](CLOSED-LOOP.md):
 the **why** and the shape, not a backlog.
 
+> **Update, 2026-09-10 — phases 0 and 1 have code.** [`packages/cad/`](../packages/cad/)
+> holds the Rust engine (tree, expressions, sketches, the involute gear, named
+> topology, invariants, a kernel seam with Truck and an implicit spike, the
+> `cad` CLI, a 1.7 MB WASM with a raw C ABI and a passing selftest), the five
+> clock parts as trees, and the bake-off. The bake-off ran: see §13 below for
+> what it found and [`RESULTS.md`](../packages/cad/bakeoff/RESULTS.md) for the
+> table. The recommendation in §3 changes as a result. Nothing else below is
+> superseded.
+
 **What is being proposed:** a parametric solid modeller that runs in the
 browser, whose *model* is a feature tree stored as ATProto records on the
 designer's own PDS, whose *geometry* is a content-addressed cache, and whose
@@ -177,8 +186,9 @@ between things that exist:
 | **Truck** (Rust) | pure-Rust B-rep: NURBS, topology, booleans, STEP I/O, wgpu tessellation, a JS wrapper; active | Rust end to end, so one WASM module and no JS seam between the tree and the kernel; STEP; small | **no fillets**, booleans younger than OCCT's; every gap is ours to close |
 | Fornjot (Rust) | was the other Rust B-rep kernel | — | **development ended, goals not reached.** Not a candidate |
 
-**Recommendation.** Two exact candidates go into the bake-off, and the
-target decides between them. OCCT is the safe one: fillets, STEP, thirty years
+**Recommendation** *(written before the bake-off; §13 records what it
+found and reverses the Truck half of this)*. Two exact candidates go into the
+bake-off, and the target decides between them. OCCT is the safe one: fillets, STEP, thirty years
 of booleans, and a C++/Emscripten module that the Rust tree layer has to talk
 to across a JS seam, one coarse call per feature. Truck is the one the *Rust
 for everything* decision (§9) wants: a single WASM module, STEP in and out,
@@ -390,7 +400,7 @@ ends it and a kill criterion.
 
 | # | Phase | Gate | Kills the programme if |
 |---|---|---|---|
-| 0 | **Kernel bake-off** in `bakeoff/` style: OCCT-wasm vs Truck vs Manifold vs an implicit spike, on the five clock parts, with STEP round-trip as a mandatory column | a table with wall time, size, invariant errors, STEP fidelity | no exact kernel builds the escape wheel under 2 s cold in a browser |
+| 0 | **Kernel bake-off** in `bakeoff/` style: OCCT-wasm vs Truck vs Manifold vs an implicit spike, on the five clock parts, with STEP round-trip as a mandatory column — **done, §13** | a table with wall time, size, invariant errors, STEP fidelity — [`RESULTS.md`](../packages/cad/bakeoff/RESULTS.md) | no exact kernel builds the escape wheel under 2 s cold in a browser — **OCCT does it in 1.6 s cold, 1.2 s warm** |
 | 1 | **Tree + headless.** `packages/cad/`: schema, expressions, naming, the adapter, `build/check/measure/diff`, selftests with golden invariants. No UI. In Rust (§9). | the §10 gear builds under node from `{m, z, α, b, bore}` and exports a STEP that opens elsewhere and an STL that prints | topological naming can't be made stable across the benchmark edits |
 | 2 | **Lexicons + push.** Revisions, heads, strongRef parents; `cad push`; rebuild a part from its AT URI | round-trip: push from node, rebuild in a fresh clone, invariants match | record limits force every tree to a blob (then the design changes, not dies) |
 | 3 | **Viewer surface `cad.mino.mobi`.** Read-only WebGPU render of any `at://` part; `.stl/.glb/.png` faces; the R2 geometry cache | a Bluesky post links a part and the preview renders | — |
@@ -559,3 +569,74 @@ takes; build it last because tiers 1 and 2 cover the clock.
    counts) or a designed-here one? A real one makes the gate external and
    honest; a designed one makes the agent loop the designer from day one.
 3. **Vendor STEP on a public PDS** — ask, before the first one is pushed.
+
+---
+
+## 13. Phase 0 result — the bake-off, and what it decides
+
+Run 2026-09-10 on one Xeon core under node 22; the table is
+[`packages/cad/bakeoff/RESULTS.md`](../packages/cad/bakeoff/RESULTS.md) and
+`node packages/cad/bakeoff/run.mjs` regenerates it. Five kernels, six parts,
+three repeats. The shape of the table is the finding.
+
+### 13.1 What happened
+
+| | Truck (Rust, native and WASM) | OCCT 7.4 (WASM) | Manifold (WASM) | implicit spike |
+|---|---|---|---|---|
+| plate, case, arbor | ✓ exact, watertight, 0.01–0.04 % of closed form; **80–400 ms**; WASM at parity with native (plate 180 ms warm) | ✓ same accuracy; **30–280 ms** warm | ✓ 0.01–0.5 %; **2–30 ms** | ✓ 0.4–0.7 %, grid-limited |
+| crossed-out gear (4 window cuts through a 60-tooth involute) | built in **13 s**, and the result is wrong: χ = −12 for −8, not watertight | ✓ correct, 2.3 s warm, 6 s cold | ✓ correct, **94 ms** | ✓ correct topology, 3 % low |
+| escape wheel (15 tooth unions with coplanar caps) | **boolean union failed** | ✓ correct, 1.2 s | ✓ correct, **5 ms** | ✓ correct |
+| case with a filleted rim | unsupported | ✓ **116 ms**, χ = 2, removed volume matches the fillet's | unsupported | unsupported (planned) |
+| STEP out | yes | yes | no | no |
+| named faces through a sweep | yes (82 on the plate) | not wired | no faces | no faces |
+| module | 1.7 MB | 65.9 MB, 1.4 s to initialise | 0.5 MB, 17 ms | (in the 1.7 MB) |
+
+Two columns in the table are about our own code, not the kernels, and are
+recorded as such: face names vanish through any boolean (naming is only
+implemented for sweeps — the phase-1 gap), and the STEP read-back column runs
+through Truck's `ruststep`-based reader, which times out on every
+spline-heavy file and misreads OCCT's arbor and plate; it verified Truck's
+plate exactly and OCCT's case and fillet to 0.03 %, and read Truck's own
+case STEP back at minus twice the volume. **The read-back column measures
+Truck's reader, not the writers**, and needs a second reader before it can
+be a fidelity column.
+
+### 13.2 What it decides
+
+1. **Truck is not the exact kernel.** Its sweeps are fine and fast, its
+   booleans are not: one of the two boolean parts is wrong and the other
+   fails, and the one that "works" takes thirteen seconds. Booleans are the
+   whole of CAD after the first feature. §3's hope that a clock needs
+   booleans more than fillets was right, and it is exactly the booleans
+   Truck cannot do. The *Rust for everything* decision (§9) stops at the
+   kernel seam, which is what the seam was for.
+2. **OCCT is the exact kernel, at the cost §3 predicted:** 66 MB and 1.4 s to
+   initialise, then correct on every part including the fillet, within a
+   few hundred milliseconds of Truck on simple parts and *faster* than Truck
+   on the hard ones. That cost is paid once per session and cached by the
+   browser; it is the same trade every browser CAD has made, and the table
+   says it is the right one.
+3. **Manifold runs the preview loop, and it is not close.** Ten to a hundred
+   times faster than either B-rep kernel on every part, correct on all of
+   them, half a megabyte. The drag-a-dimension path in §4 is Manifold, fed
+   the engine's sampled polylines — which the harness already does.
+4. **The implicit spike earns its place only in §5.** Grid-limited accuracy
+   (0.4–3 %), loses features thinner than a cell, but never fails, and the
+   fillet and shell are one-liners it does not yet have. It stays as the
+   simulation representation, not a modelling kernel.
+5. **The engine above the seam holds.** Tree, expressions, even-odd regions,
+   the gear op, sweep naming, invariants and the WASM ABI all survived five
+   kernels' worth of inputs; every defect found in the bake-off was in an
+   adapter or the bench, and each was fixed in the adapter. The kernel seam
+   is real: OCCT went in as 300 lines of JS against the resolved tree.
+
+### 13.3 What phase 1 now is
+
+Same phase, different kernel under it: the Truck adapter stays as the small
+exact kernel for sweeps and STEP, the **OCCT adapter moves from the harness
+into the engine's kernel seam** (in the browser it is a Worker holding the 66
+MB module; under node it is what the harness already runs), and Manifold is
+wired as the preview kernel. Naming through booleans — tracking which faces
+of the result came from which named faces of the operands — is the gap to
+close first, because it is what makes a fillet after a cut addressable, and
+OCCT's `BRepAlgoAPI` history (`Generated`/`Modified`) is the mechanism.

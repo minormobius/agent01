@@ -57,30 +57,41 @@ export function make() {
       // pass, which we don't have. So use the polylines' `outer` flags.
       const polys = new Map(resolved.polylines.map((p) => [p.id, p]));
       // One face per outer loop (with its holes); several outer loops in one op
-      // become several faces whose solids are fused.
+      // become several faces whose solids are fused. Nesting is computed over
+      // ALL the op's loops together (even-odd), not per sketch — a lone
+      // circle in a "holes" sketch is a hole of the outline in another.
+      const pointInRing = (pt, ring) => { let inside = false; for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) { const pi = ring[i], pj = ring[j]; if ((pi[1] > pt[1]) !== (pj[1] > pt[1])) { const x = pj[0] + (pt[1] - pj[1]) * (pi[0] - pj[0]) / (pi[1] - pj[1]); if (pt[0] < x) inside = !inside; } } return inside; };
+      const ringArea = (ring) => { let a = 0; for (let i = 0; i < ring.length; i++) { const p = ring[i], q = ring[(i + 1) % ring.length]; a += p[0] * q[1] - q[0] * p[1]; } return a / 2; };
       const facesOf = (op) => {
-        const groups = []; // [{face, holes:[wire]}]
-        let li = 0;
+        // exact loops with their sampled rings, across every sketch of the op
+        const items = [];
         for (const sid of op.sketches) {
-          const sk = resolved.resolved.sketches.find((s) => s.id === sid);
+          const sk = resolved.resolved.sketches.find((x) => x.id === sid);
           const pl = polys.get(sid);
-          // polylines are in oriented() order which may differ from sk.region.loops order; match by first point
-          const orderedLoops = pl.rings.map((ring) => sk.region.loops.find((l) => Math.hypot(l.start[0] - ring[0][0], l.start[1] - ring[0][1]) < 1e-6) || sk.region.loops[0]);
-          orderedLoops.forEach((loop, k) => {
-            const isOuter = pl.outer[k];
-            // ensure orientation: outer ccw, hole cw (engine's oriented() did this on the polylines; the exact loops may be reversed)
-            const ring = pl.rings[k]; let area = 0; for (let i = 0; i < ring.length; i++) { const p = ring[i], q = ring[(i + 1) % ring.length]; area += p[0] * q[1] - q[0] * p[1]; }
-            let L = loop;
-            // exact loop signed area (sampled by its own segment ends)
-            const ends = [loop.start, ...loop.segs.map((s) => s.to)]; let a2 = 0; for (let i = 0; i < ends.length - 1; i++) { const p = ends[i], q = ends[i + 1]; a2 += p[0] * q[1] - q[0] * p[1]; }
-            if ((a2 > 0) !== (area > 0)) L = reverseLoop(loop);
-            const w = wireOf(op.frame, L);
-            if (isOuter) groups.push({ face: new oc.BRepBuilderAPI_MakeFace_15(w, false).Face(), holes: [] });
-            else groups[groups.length - 1].holes.push(w);
-            li++;
-          });
+          for (const ring of pl.rings) {
+            const loop = sk.region.loops.find((l) => Math.hypot(l.start[0] - ring[0][0], l.start[1] - ring[0][1]) < 1e-6);
+            if (!loop) throw new Error(`no exact loop for a ring of ${sid}`);
+            items.push({ loop, ring });
+          }
         }
-        return groups.map((g) => { let face = g.face; for (const h of g.holes) { const mf = new oc.BRepBuilderAPI_MakeFace_22(face, h); if (!mf.IsDone()) throw new Error('hole failed'); face = mf.Face(); } return face; });
+        const n = items.length;
+        const depth = items.map((it, i) => items.reduce((d, o, j) => d + (i !== j && pointInRing(it.ring[0], o.ring) ? 1 : 0), 0));
+        const groups = [];
+        const groupOf = new Array(n).fill(-1);
+        items.forEach((it, i) => { if (depth[i] % 2 === 0) { groupOf[i] = groups.length; groups.push({ outer: i, holes: [] }); } });
+        items.forEach((it, i) => { if (depth[i] % 2 === 1) { const parent = items.findIndex((o, j) => i !== j && depth[j] + 1 === depth[i] && pointInRing(it.ring[0], o.ring)); if (parent < 0) throw new Error('hole without outer'); groups[groupOf[parent]].holes.push(i); } });
+        const wireOriented = (i, ccw) => {
+          const { loop, ring } = items[i];
+          const ends = [loop.start, ...loop.segs.map((sg) => sg.to)];
+          let a2 = 0; for (let k = 0; k < ends.length - 1; k++) { const p = ends[k], q = ends[k + 1]; a2 += p[0] * q[1] - q[0] * p[1]; }
+          const exactCcw = Math.abs(a2) > 1e-12 ? a2 > 0 : ringArea(ring) > 0;
+          return wireOf(op.frame, exactCcw === ccw ? loop : reverseLoop(loop));
+        };
+        return groups.map((g) => {
+          let face = new oc.BRepBuilderAPI_MakeFace_15(wireOriented(g.outer, true), false).Face();
+          for (const h of g.holes) { const mf = new oc.BRepBuilderAPI_MakeFace_22(face, wireOriented(h, false)); if (!mf.IsDone()) throw new Error('hole failed'); face = mf.Face(); }
+          return face;
+        });
       };
       const fuseAll = (shapes) => shapes.reduce((a, b) => (a === null ? b : new oc.BRepAlgoAPI_Fuse_3(a, b).Shape()), null);
       const reverseLoop = (l) => { const ends = [l.start, ...l.segs.map((s) => s.to)]; const segs = []; for (let i = l.segs.length - 1; i >= 0; i--) { const s = l.segs[i]; const to = ends[i]; segs.push(s.kind === 'line' ? { kind: 'line', to } : s.kind === 'arc' ? { kind: 'arc', to, via: s.via } : { kind: 'bezier', to, ctrl: [...s.ctrl].reverse() }); } return { start: ends[l.segs.length], segs }; };

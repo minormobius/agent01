@@ -72,6 +72,11 @@ node run.mjs                              # all kernels, all parts, 3 repeats �
 node run.mjs --kernels truck,manifold --parts plate,case --repeat 1
 ```
 
+The 2026-09-10 run and what it decided are in `RESULTS.md` and
+[`docs/CAD.md` §13](../../docs/CAD.md): OCCT is the exact kernel, Manifold the
+preview kernel, Truck's booleans are not usable, and the STEP read-back column
+measures Truck's reader rather than the writers.
+
 Kernels: `truck` (native binary), `wasm` (the same engine as WASM under node —
 the browser's number), `implicit` (SDF + surface nets), `manifold` (mesh
 booleans, npm), `occt` (OCCT 7.4 as 66 MB of WASM, npm). Each builds from the

@@ -1,6 +1,6 @@
 {
   "_": "Closed-form invariants where one exists. The harness scores each kernel against these, and kernels against each other where there is none. Tolerances are relative.",
-  "plate": { "volume": "pi*R^2*t - pi*r_centre^2*t - n_pivots*pi*r_pivot^2*t - n_pillars*pi*r_pillar^2*t", "area_top": "pi*R^2 - pi*r_centre^2 - n_pivots*pi*r_pivot^2 - n_pillars*pi*r_pillar^2", "euler": -14, "tol": 0.002 },
+  "plate": { "volume": "pi*R^2*t - pi*r_centre^2*t - n_pivots*pi*r_pivot^2*t - n_pillars*pi*r_pillar^2*t", "area_top": "pi*R^2 - pi*r_centre^2 - n_pivots*pi*r_pivot^2 - n_pillars*pi*r_pillar^2", "euler": -16, "tol": 0.002 },
   "case": { "volume": "pi*R^2*floor + pi*(R^2-(R-wall)^2)*(H-floor)", "euler": 2, "tol": 0.002 },
   "case-fillet": { "euler": 2, "tol": 0.01 },
   "arbor": { "euler": 2, "tol": 0.01 },
