@@ -4,7 +4,10 @@
 // the other kernels where none does, STEP fidelity (OCCT reads it back and
 // the volume must match), face naming, and failures with their kind.
 //
-//   node run.mjs [--kernels truck,implicit,manifold,occt,wasm] [--parts gear,plate] [--repeat 3]
+//   node run.mjs [--kernels truck,implicit,manifold,occt,wasm] [--parts gear,plate] [--repeat 3] [--merge]
+//
+// --merge keeps the existing results.json and replaces only the kernels/parts
+// run now — for re-measuring one kernel after an adapter fix.
 //
 // Writes results.json and RESULTS.md next to this file.
 import fs from 'node:fs';
@@ -64,7 +67,10 @@ function refFacesFor(tree, treePath) {
   return JSON.parse(fs.readFileSync(j, 'utf8')).faces;
 }
 
-const results = { date: new Date().toISOString(), node: process.version, cpu: os.cpus()[0]?.model, kernels: {}, parts: {} };
+const merge = args.includes('--merge');
+const prior = merge && fs.existsSync(path.join(here, 'results.json')) ? JSON.parse(fs.readFileSync(path.join(here, 'results.json'), 'utf8')) : null;
+const results = prior ?? { date: new Date().toISOString(), node: process.version, cpu: os.cpus()[0]?.model, kernels: {}, parts: {} };
+if (prior) results.merged = (prior.merged || []).concat([{ date: new Date().toISOString(), kernels: kernelNames, parts: partNames }]);
 for (const k of kernels) {
   const initMs = await k.init();
   results.kernels[k.id] = { init_ms: initMs, bytes: k.bytes, exact: k.exact };
@@ -80,7 +86,7 @@ for (const part of partNames) {
   const env = resolved.resolved.params;
   const exp = expected[part] || {};
   const expVol = exp.volume ? evalExpr(exp.volume, env) : null;
-  const row = { expected: { volume: expVol, euler: exp.euler ?? null, tol: exp.tol ?? 0.01 }, kernels: {} };
+  const row = { expected: { volume: expVol, euler: exp.euler ?? null, tol: exp.tol ?? 0.01 }, kernels: (prior && prior.parts[part]?.kernels) || {} };
   const refFaces = refFacesFor(tree, treePath);
   for (const k of kernels) {
     const runs = [];
