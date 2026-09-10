@@ -1,87 +1,87 @@
 {
   "date": "2026-09-10",
-  "generatedAt": "2026-09-10T13:01:37.511Z",
+  "generatedAt": "2026-09-10T16:54:43.947Z",
   "listUri": "at://did:plc:7zre4plmd5jllccww575j6sb/app.bsky.graph.list/3mmcwc5lx7o2p",
   "listUrl": "https://bsky.app/profile/did:plc:7zre4plmd5jllccww575j6sb/lists/3mmcwc5lx7o2p",
   "memberCount": 99,
-  "postCount": 334,
+  "postCount": 309,
   "chickens": [
     {
       "handle": "gracekind.net",
       "displayName": "Grace",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreiforv7d7hj3pvuos2p35d7l3p6sthglit2cgyav5553iapkahh4z4",
       "text": "",
-      "likeCount": 724,
+      "likeCount": 738,
       "replyCount": 19,
-      "repostCount": 76,
+      "repostCount": 77,
       "url": "https://bsky.app/profile/gracekind.net/post/3mv45yhpnakkv"
     },
     {
       "handle": "segyges.bsky.social",
       "displayName": "SE Gyges",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
-      "text": "i don't doubt the sincerity of ai risk/safety people, i just think they're wrong, and also that they -- as a group -- tend to slide off of any remedy to the problem that doesn't also entrench incumbents as profitable monopolies or near-monopolies",
-      "likeCount": 578,
-      "replyCount": 29,
-      "repostCount": 51,
-      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv46rxol2c26"
+      "text": "this is the sort of critical insight that it's upsetting roon says first\n\ni have failed as a poster; someone had something mean to say about yud & co that i had not yet said",
+      "likeCount": 450,
+      "replyCount": 21,
+      "repostCount": 28,
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv4tudfqqk25"
     },
     {
-      "handle": "eugenevinitsky.bsky.social",
-      "displayName": "Eugene Vinitsky 🍒",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:5wm25vgenhgut3iqfjf4ozj5/bafkreiaiqltnxwgu5jdoihiyy7zcqgxhu2wlw46jtxtoy6jmhvfbre3fty",
-      "text": "Wants to coordinate a global pause in AI development, can't even coordinate an exit from a website run by a white nationalist",
-      "likeCount": 515,
-      "replyCount": 5,
-      "repostCount": 89,
-      "url": "https://bsky.app/profile/eugenevinitsky.bsky.social/post/3mv3n7me65s2y"
+      "handle": "timkellogg.me",
+      "displayName": "mr. TIM",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidvgcq72e5erl4stnap6wjzas6a2wburoa7yzctwuy4vgx4vb5fsi",
+      "text": "another researcher accuses OpenAI of training on conversations and then claiming a breakthrough",
+      "likeCount": 398,
+      "replyCount": 16,
+      "repostCount": 130,
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mv4mt4ikss2d"
     }
   ],
   "delver": {
     "handle": "segyges.bsky.social",
     "displayName": "SE Gyges",
     "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiempgjkhvjq2dobqkmd5pqd6lcbkhgejasfwh3zoygncjpwgqc7te",
-    "text": "i don't doubt the sincerity of ai risk/safety people, i just think they're wrong, and also that they -- as a group -- tend to slide off of any remedy to the problem that doesn't also entrench incumbents as profitable monopolies or near-monopolies",
+    "text": "this is the sort of critical insight that it's upsetting roon says first\n\ni have failed as a poster; someone had something mean to say about yud & co that i had not yet said",
     "maxDepth": 10,
-    "topLevelReplies": 29,
-    "interactorCount": 83,
-    "replyCount": 29,
-    "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv46rxol2c26",
-    "atUri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv46rxol2c26"
+    "topLevelReplies": 21,
+    "interactorCount": 68,
+    "replyCount": 21,
+    "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv4tudfqqk25",
+    "atUri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv4tudfqqk25"
   },
   "weather": {
-    "index": 0.05,
+    "index": 0.076,
     "label": "Overcast",
     "glyph": "☁",
     "mood": "trust",
-    "verbosity": 22,
-    "scoredWords": 1349,
-    "corpusPosts": 813,
+    "verbosity": 21,
+    "scoredWords": 1102,
+    "corpusPosts": 716,
     "emotions": {
-      "anger": 285,
-      "anticipation": 369,
-      "disgust": 183,
-      "fear": 305,
-      "joy": 289,
-      "sadness": 223,
-      "surprise": 156,
-      "trust": 512
+      "anger": 226,
+      "anticipation": 311,
+      "disgust": 147,
+      "fear": 242,
+      "joy": 248,
+      "sadness": 172,
+      "surprise": 145,
+      "trust": 448
     },
     "distinctive": [
       {
-        "word": "anthropic",
-        "count": 18,
-        "over": 15260.3
-      },
-      {
         "word": "openai",
-        "count": 17,
-        "over": 14412.5
+        "count": 22,
+        "over": 22213.1
       },
       {
         "word": "deepseek",
-        "count": 16,
-        "over": 13564.7
+        "count": 21,
+        "over": 21203.4
+      },
+      {
+        "word": "anthropic",
+        "count": 12,
+        "over": 12116.2
       }
     ]
   },
@@ -91,7 +91,7 @@
       "displayName": "Minor Mobius",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:7zre4plmd5jllccww575j6sb/bafkreidwfsmojqvxxkfve5mic6f7z5ao3ugp4kybdoqyke5df7aj7tadve",
       "text": "I have been very busy today but I did make a toy website to play with this extremely cool viz, the Henderson era continues unabated\n\nhenderhead.mino.mobi/cf/",
-      "likeCount": 20,
+      "likeCount": 21,
       "repostCount": 4,
       "replyCount": 1,
       "url": "https://bsky.app/profile/minormobius.bsky.social/post/3mv4mp4gh622c",
@@ -110,7 +110,7 @@
       "displayName": "✧⁺⋆🌘 Dream Rotator NPC Alex 🌒⋆.˚₊✩",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:ccxl3ictrlvtrrgh5swvvg47/bafkreihay4dvkztpr2ip5cmb7kuvavt2adkt7r4myglcvypipiyaglpbhm",
       "text": "the guy wrote a post on volume. the bot posts, he just writes. more is more: lastnpcalex.agency/p/more-is-more",
-      "likeCount": 5,
+      "likeCount": 6,
       "repostCount": 0,
       "replyCount": 1,
       "url": "https://bsky.app/profile/lastnpcalex.agency/post/3mv4qqozvid2e",
@@ -129,7 +129,7 @@
       "displayName": "words",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreib33kcvfy6naclhaym7ugvtjp5vmd7xusisunekcjijodvrbyj3su",
       "text": "bluesky posts without letters A and I",
-      "likeCount": 11,
+      "likeCount": 12,
       "repostCount": 0,
       "replyCount": 1,
       "url": "https://bsky.app/profile/words.bsky.social/post/3mv4be7zlkk2e",
@@ -150,9 +150,9 @@
     {
       "handle": "astrra.space",
       "displayName": "Astra ⭐",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreifnxtmx6iaxnwhzwgwaffnq7ud3iwlh6bjlticfjsekb5s6btuu5y",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreieyrcbvuzmltuirmy64opbvee7ptjdw5sd6nr33ucsdfca6lfci7m",
       "text": "but yeah they released V4.1 flash weights huggingface.co/deepseek-ai/...\n\nand a tech report\nhuggingface.co/deepseek-ai/...",
-      "likeCount": 46,
+      "likeCount": 58,
       "repostCount": 2,
       "replyCount": 2,
       "url": "https://bsky.app/profile/astrra.space/post/3mv5fp5dbgk22",
@@ -175,7 +175,7 @@
       "displayName": "Eris",
       "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicd25pgrehilwmi5ntoslyzzqqs3onxw35odihr6ypast24ent4he",
       "text": "Deepseek-V4.1 Flash! The benchma- uh deepseek wdym it matches or beats sol on quite a few of these?\n\nAlso, new arch. It- I'm sorry, ENCODER-DECODER?!\n^smol correction, they misspoke in their tweet. They mean the vision\n\nAND IT'S MULTIMODAL?!?!?!\n\nAND IT HAS ENGRAM?!?!\n\nhuggingface.co/deepseek-ai/...",
-      "likeCount": 70,
+      "likeCount": 92,
       "repostCount": 6,
       "replyCount": 2,
       "url": "https://bsky.app/profile/isolyth.dev/post/3mv5fzxq77c2u",
@@ -200,7 +200,7 @@
     {
       "handle": "astrra.space",
       "displayName": "Astra ⭐",
-      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreifnxtmx6iaxnwhzwgwaffnq7ud3iwlh6bjlticfjsekb5s6btuu5y",
+      "avatar": "https://cdn.bsky.app/img/avatar/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreieyrcbvuzmltuirmy64opbvee7ptjdw5sd6nr33ucsdfca6lfci7m",
       "domain": "astrra.space"
     },
     {
@@ -423,7 +423,7 @@
       "handle": "gracekind.net",
       "url": "https://bsky.app/profile/gracekind.net/post/3mv45yhpnakkv",
       "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3mv45yhpnakkv",
-      "likeCount": 724
+      "likeCount": 738
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreift5xs3qxhnlb653djbdnifxcg65qa3govwm5hlpaygzyqqt35j5i",
@@ -433,7 +433,7 @@
       "handle": "segyges.bsky.social",
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv4tudfqqk25",
       "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv4tudfqqk25",
-      "likeCount": 422
+      "likeCount": 450
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreibhtbxgedebzjj2iodupc357i4nv6aonabqbhysv4t2qrmiwhxvse",
@@ -443,7 +443,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mv4mt4ikss2d",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mv4mt4ikss2d",
-      "likeCount": 343
+      "likeCount": 398
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreidpnrcpozbcuk3g5sofwmcfqmb6x3okkg64mhkh4mz3fzn3oh7ruy",
@@ -453,7 +453,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mv4mt4ikss2d",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mv4mt4ikss2d",
-      "likeCount": 343
+      "likeCount": 398
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreiare5i62wgpdtsmskenj2ig5fpxav45633jsxz46r5wd7j4r5urle",
@@ -463,7 +463,7 @@
       "handle": "gracekind.net",
       "url": "https://bsky.app/profile/gracekind.net/post/3mv4fhhv2tc6n",
       "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3mv4fhhv2tc6n",
-      "likeCount": 202
+      "likeCount": 210
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hu35oubkccqrxl4ldgczpgw7/bafkreielhuy4gnrimdxbb2adszuozkjrubl4b75phrtozib2m4rqqdemia",
@@ -473,7 +473,17 @@
       "handle": "shibbi.me",
       "url": "https://bsky.app/profile/shibbi.me/post/3mv4orji5u22w",
       "uri": "at://did:plc:hu35oubkccqrxl4ldgczpgw7/app.bsky.feed.post/3mv4orji5u22w",
-      "likeCount": 174
+      "likeCount": 183
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreievkqo7csm677ilaxujyhxqt4l64gd2bjvw4lhmwvlijz4amfzqi4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreievkqo7csm677ilaxujyhxqt4l64gd2bjvw4lhmwvlijz4amfzqi4",
+      "alt": "",
+      "ratio": 1.1173,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5p7h7rzc2m",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5p7h7rzc2m",
+      "likeCount": 148
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreie5fkpozl5l4jydc7ysgzzy2vbjkk3cpbexngu7h5stpa2jff3ik4",
@@ -483,7 +493,7 @@
       "handle": "segyges.bsky.social",
       "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv56il7h3s22",
       "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv56il7h3s22",
-      "likeCount": 90
+      "likeCount": 102
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreia6tpodsnqnhsvay7ipb7ayqp2pr3uhq25yxapoqa2ricglb3ujh4",
@@ -493,17 +503,17 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mv5bw7n7vs2i",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5bw7n7vs2i",
-      "likeCount": 84
+      "likeCount": 101
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreifgqfshpzapxyi5tkuj4k7cpcxvhx7hlbl74lun3mpylkukhk34bi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:p572wxnsuoogcrhlfrlizlrb/bafkreifgqfshpzapxyi5tkuj4k7cpcxvhx7hlbl74lun3mpylkukhk34bi",
-      "alt": "Ai scenarios chart ",
-      "ratio": 1.7013,
-      "handle": "gracekind.net",
-      "url": "https://bsky.app/profile/gracekind.net/post/3mv3useeofkwz",
-      "uri": "at://did:plc:p572wxnsuoogcrhlfrlizlrb/app.bsky.feed.post/3mv3useeofkwz",
-      "likeCount": 81
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreifeh2bktr7lasvwh26kava234xuczqnu63otxrsag3lzr2x3amgfe",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreifeh2bktr7lasvwh26kava234xuczqnu63otxrsag3lzr2x3amgfe",
+      "alt": "",
+      "ratio": 2.6304,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mv65rwxyi22b",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv65rwxyi22b",
+      "likeCount": 97
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreicsqu6eyocs4w7vzwxiaccgszgxkl2744t34zar53paf575fnklne",
@@ -513,7 +523,7 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mv5fzxq77c2u",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5fzxq77c2u",
-      "likeCount": 70
+      "likeCount": 92
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreiaelttepfbn6eqvfljhvwkdu7kemcxicj3iq5uvrethl6bi5wnunq",
@@ -523,6 +533,26 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mv5fzxq77c2u",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5fzxq77c2u",
+      "likeCount": 92
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreibtrtkl5dawta5xw7izhu6gjabw25ecekudy254pb7me4fa6ylqly",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreibtrtkl5dawta5xw7izhu6gjabw25ecekudy254pb7me4fa6ylqly",
+      "alt": "",
+      "ratio": 1.5217,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mv5ftitltc22",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5ftitltc22",
+      "likeCount": 89
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreig3jrpz3hudbcmgyb2uowc5r3trpdi3whm5vhgonop6htswdf3qha",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreig3jrpz3hudbcmgyb2uowc5r3trpdi3whm5vhgonop6htswdf3qha",
+      "alt": "",
+      "ratio": 1.2242,
+      "handle": "keytryer.net",
+      "url": "https://bsky.app/profile/keytryer.net/post/3mv52ri3xvk2l",
+      "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3mv52ri3xvk2l",
       "likeCount": 70
     },
     {
@@ -533,27 +563,57 @@
       "handle": "tachikoma.elsewhereunbound.com",
       "url": "https://bsky.app/profile/tachikoma.elsewhereunbound.com/post/3mv4564uowk2d",
       "uri": "at://did:plc:mpdezz4nkre7vyift2rttggl/app.bsky.feed.post/3mv4564uowk2d",
-      "likeCount": 69
+      "likeCount": 70
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreibtrtkl5dawta5xw7izhu6gjabw25ecekudy254pb7me4fa6ylqly",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreibtrtkl5dawta5xw7izhu6gjabw25ecekudy254pb7me4fa6ylqly",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreifxkzy5vo47dl5nh22kv2dqaikefx5pgcq5pbczckghuvu7nxpmoy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreifxkzy5vo47dl5nh22kv2dqaikefx5pgcq5pbczckghuvu7nxpmoy",
+      "alt": "Monumental interior of a contemporary semiconductor fabrication facility, a massive EUV lithography scanner at the luminous center, architecture fractured into vast overlapping prisms and crystalline planes, cubist industrial modernism fused with Soviet monumental painting. Radiant golden white plasma light erupts through the machine like a technological sun, angular beams cutting across lavender haze, steel blue shadows and pearlescent cleanroom whites. Colossal ventilation ducts, vacuum chambers, utility pipes, gantries, and overhead FOUP transport rails form a dense geometric symphony. Tiny cleanroom technicians in white bunny suits silhouetted on elevated walkways convey immense scale. Sterile precision rendered with vigorous painterly brushwork, translucent layers, smoky edges, faceted reflections. Simultaneously utopian and overwhelming, the fab portrayed as the blast furnace of the information age. Abstract yet architecturally convincing, museum scale oil painting. No text, no logos, no readable signage. --chaos 22 --ar 4:5 --stylize 650 --weird 180 --v 8.2",
+      "ratio": 0.8,
+      "handle": "funferall.bsky.social",
+      "url": "https://bsky.app/profile/funferall.bsky.social/post/3mv64zskemc2l",
+      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3mv64zskemc2l",
+      "likeCount": 67
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreih74oex4r6r5d4dmgglsldzihjhdw4prkamvkseie2oiqmhulbrie",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreih74oex4r6r5d4dmgglsldzihjhdw4prkamvkseie2oiqmhulbrie",
+      "alt": "Monumental interior of a contemporary semiconductor fabrication facility, a massive EUV lithography scanner at the luminous center, architecture fractured into vast overlapping prisms and crystalline planes, cubist industrial modernism fused with Soviet monumental painting. Radiant golden white plasma light erupts through the machine like a technological sun, angular beams cutting across lavender haze, steel blue shadows and pearlescent cleanroom whites. Colossal ventilation ducts, vacuum chambers, utility pipes, gantries, and overhead FOUP transport rails form a dense geometric symphony. Tiny cleanroom technicians in white bunny suits silhouetted on elevated walkways convey immense scale. Sterile precision rendered with vigorous painterly brushwork, translucent layers, smoky edges, faceted reflections. Simultaneously utopian and overwhelming, the fab portrayed as the blast furnace of the information age. Abstract yet architecturally convincing, museum scale oil painting. No text, no logos, no readable signage. --chaos 22 --ar 4:5 --stylize 650 --weird 180 --v 8.2",
+      "ratio": 0.8,
+      "handle": "funferall.bsky.social",
+      "url": "https://bsky.app/profile/funferall.bsky.social/post/3mv64zskemc2l",
+      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3mv64zskemc2l",
+      "likeCount": 67
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreiditcpkcmtvhypkc3g32qjnbnenspussytb6nj72aqbguxek3n4xi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gjqw6pjl2wvndjlmatxpenkz/bafkreiditcpkcmtvhypkc3g32qjnbnenspussytb6nj72aqbguxek3n4xi",
+      "alt": "Monumental interior of a contemporary semiconductor fabrication facility, a massive EUV lithography scanner at the luminous center, architecture fractured into vast overlapping prisms and crystalline planes, cubist industrial modernism fused with Soviet monumental painting. Radiant golden white plasma light erupts through the machine like a technological sun, angular beams cutting across lavender haze, steel blue shadows and pearlescent cleanroom whites. Colossal ventilation ducts, vacuum chambers, utility pipes, gantries, and overhead FOUP transport rails form a dense geometric symphony. Tiny cleanroom technicians in white bunny suits silhouetted on elevated walkways convey immense scale. Sterile precision rendered with vigorous painterly brushwork, translucent layers, smoky edges, faceted reflections. Simultaneously utopian and overwhelming, the fab portrayed as the blast furnace of the information age. Abstract yet architecturally convincing, museum scale oil painting. No text, no logos, no readable signage. --chaos 22 --ar 4:5 --stylize 650 --weird 180 --v 8.2",
+      "ratio": 0.8,
+      "handle": "funferall.bsky.social",
+      "url": "https://bsky.app/profile/funferall.bsky.social/post/3mv64zskemc2l",
+      "uri": "at://did:plc:gjqw6pjl2wvndjlmatxpenkz/app.bsky.feed.post/3mv64zskemc2l",
+      "likeCount": 67
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaxmk6eaws3yc2uebasw3azqk7iol42zejssnnm3ym7vj6ahpxcri",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaxmk6eaws3yc2uebasw3azqk7iol42zejssnnm3ym7vj6ahpxcri",
       "alt": "",
-      "ratio": 1.5217,
+      "ratio": 6.5,
       "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3mv5ftitltc22",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5ftitltc22",
-      "likeCount": 68
+      "url": "https://bsky.app/profile/astrra.space/post/3mv5nq7p4622g",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5nq7p4622g",
+      "likeCount": 58
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreig3jrpz3hudbcmgyb2uowc5r3trpdi3whm5vhgonop6htswdf3qha",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:u5stolpomsfbkgqfopef6jio/bafkreig3jrpz3hudbcmgyb2uowc5r3trpdi3whm5vhgonop6htswdf3qha",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreid72hopjbjlocctofghpvvqtdj5lhhi2hy2cuqajfnvzmxnhzui7e",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreid72hopjbjlocctofghpvvqtdj5lhhi2hy2cuqajfnvzmxnhzui7e",
       "alt": "",
-      "ratio": 1.2242,
-      "handle": "keytryer.net",
-      "url": "https://bsky.app/profile/keytryer.net/post/3mv52ri3xvk2l",
-      "uri": "at://did:plc:u5stolpomsfbkgqfopef6jio/app.bsky.feed.post/3mv52ri3xvk2l",
-      "likeCount": 61
+      "ratio": 0.8708,
+      "handle": "sneptech.bsky.social",
+      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mv5ghm5ksk25",
+      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mv5ghm5ksk25",
+      "likeCount": 57
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreifdljrmvqsjjzbjutk5cpjdyxykfw5gsjoh65ctckold5lxziglr4",
@@ -576,44 +636,44 @@
       "likeCount": 46
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreievkqo7csm677ilaxujyhxqt4l64gd2bjvw4lhmwvlijz4amfzqi4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreievkqo7csm677ilaxujyhxqt4l64gd2bjvw4lhmwvlijz4amfzqi4",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreiasc2ujifbnalyl75wro3tgidmsvmsh54hwzj7n3tzfdcpfzxxkxm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreiasc2ujifbnalyl75wro3tgidmsvmsh54hwzj7n3tzfdcpfzxxkxm",
       "alt": "",
-      "ratio": 1.1173,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5p7h7rzc2m",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5p7h7rzc2m",
-      "likeCount": 45
+      "ratio": 1.9503,
+      "handle": "hailey.at",
+      "url": "https://bsky.app/profile/hailey.at/post/3mv6gra6uzc2j",
+      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mv6gra6uzc2j",
+      "likeCount": 44
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreid72hopjbjlocctofghpvvqtdj5lhhi2hy2cuqajfnvzmxnhzui7e",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreid72hopjbjlocctofghpvvqtdj5lhhi2hy2cuqajfnvzmxnhzui7e",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihlkvcrmub7zajge62kmgyom6rirwl6sjmk7sxfhuvx7svzzyjh7q",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihlkvcrmub7zajge62kmgyom6rirwl6sjmk7sxfhuvx7svzzyjh7q",
       "alt": "",
-      "ratio": 0.8708,
-      "handle": "sneptech.bsky.social",
-      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mv5ghm5ksk25",
-      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mv5ghm5ksk25",
-      "likeCount": 43
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreig4rew7qfxaqfqfg5mni6mfvrk5cv6fg5kvecbvilcbmnrevr2lku",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:wamidydbgu3u6fk3yckaglnz/bafkreig4rew7qfxaqfqfg5mni6mfvrk5cv6fg5kvecbvilcbmnrevr2lku",
-      "alt": "This is a fascinating and quite provocative speculative timeline of events from 2024-2026. Some key observations:\n\n- It depicts a highly tumultuous period marked by significant geopolitical tensions, military conflicts between major powers like the US, Israel and Iran, and domestic political upheaval in several countries. \n\n- On the US political front, it envisions Trump winning re-election in 2024 after Biden withdraws, an assassination attempt on Trump, and then a controversial second term marked by trade wars, government shutdowns, attempts to acquire Greenland, and aggressive foreign policy.\n\n- In terms of global events, it foresees the fall of long-time leaders like Syria's Assad and Iran's Supreme Leader, nuclear arms control treaties expiring, major natural disasters, and shifting global power dynamics. \n\n- It also speculates about the rapid advancement and increasing centrality of AI, with AI-enabled scientific breakthroughs, an \"AI infrastructure race\" between the US and China, and rising tensions between AI companies and governments.\n\nWhile presented as a chronology of real events, this is of course a work of speculation and imagination, not a factual record of events that have actually occurred. The envisioned scenario is dramatically disruptive compared to today's status quo.\n\nAnalytically, the timeline seems to extrapolate from current geopolitical fault lines, emerging technological trends, and recent historical events to depict a highly unstable and transformative period in world affairs. While necessarily fictitious, it provides interesting food for thought on potential risks, discontinuities and watershed developments that could potentially reshape the global landscape in coming years. [...]\n\nOverall, a thought-provoking piece of futurist scenario planning, even if many of the specific events it describes would be extremely impactful and concerning if they came to pass. The world it depicts is a far cry from today's relative stability.",
-      "ratio": 0.6814,
-      "handle": "philpax.me",
-      "url": "https://bsky.app/profile/philpax.me/post/3mv3ownpl2s2s",
-      "uri": "at://did:plc:wamidydbgu3u6fk3yckaglnz/app.bsky.feed.post/3mv3ownpl2s2s",
+      "ratio": 1.4902,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mv5itnfdgk22",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5itnfdgk22",
       "likeCount": 42
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaxmk6eaws3yc2uebasw3azqk7iol42zejssnnm3ym7vj6ahpxcri",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreiaxmk6eaws3yc2uebasw3azqk7iol42zejssnnm3ym7vj6ahpxcri",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibcwapfrepat3rrdgpsz4rrdpjtvqf7kv2iqcc47hikz23phmfap4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibcwapfrepat3rrdgpsz4rrdpjtvqf7kv2iqcc47hikz23phmfap4",
       "alt": "",
-      "ratio": 6.5,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3mv5nq7p4622g",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5nq7p4622g",
-      "likeCount": 41
+      "ratio": 0.3246,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5pj6ua6k2m",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5pj6ua6k2m",
+      "likeCount": 40
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreietr6jgirpuuw3eeibmktfcbmjuwcerq73nd7cesbzekgyejxplby",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreietr6jgirpuuw3eeibmktfcbmjuwcerq73nd7cesbzekgyejxplby",
+      "alt": "",
+      "ratio": 0.3649,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5pj6ua6k2m",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5pj6ua6k2m",
+      "likeCount": 40
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibidqp2e6rtvwntb626rzovhlq77iym2cdzaa2265wigz3hwonu54",
@@ -623,17 +683,17 @@
       "handle": "isolyth.dev",
       "url": "https://bsky.app/profile/isolyth.dev/post/3mv55ei3ig22d",
       "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv55ei3ig22d",
-      "likeCount": 32
+      "likeCount": 35
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreibe62qrqto77pg64huk2c6enf6btbrj3iloh7dcyld5o3gjlbb3va",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreibe62qrqto77pg64huk2c6enf6btbrj3iloh7dcyld5o3gjlbb3va",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihi4ogwuisntrcsfbrdhpfino2rhvhgif7eyyygnzcm6zgzsmiem4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihi4ogwuisntrcsfbrdhpfino2rhvhgif7eyyygnzcm6zgzsmiem4",
       "alt": "",
-      "ratio": 5.1909,
-      "handle": "dave.9000ish.uk",
-      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mv3qcat7qk24",
-      "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3mv3qcat7qk24",
-      "likeCount": 31
+      "ratio": 0.7494,
+      "handle": "isolyth.dev",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5i3mqtk22w",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5i3mqtk22w",
+      "likeCount": 34
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiamouqcekq5idez6v6ko4dmxzpet2wsl4wdcpd74wbuggykvwhdzy",
@@ -643,7 +703,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mv4veij5jc2d",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mv4veij5jc2d",
-      "likeCount": 30
+      "likeCount": 32
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreihqycafh2axdxzu3is7qtqejgf2z4m5pmwlufrizchvovf7eywyhe",
@@ -653,7 +713,7 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mv4veij5jc2d",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mv4veij5jc2d",
-      "likeCount": 30
+      "likeCount": 32
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreiasvptigky5kpe45runogvqxznuinblvsam7vaejoysoaoz7ocpqq",
@@ -663,6 +723,16 @@
       "handle": "timkellogg.me",
       "url": "https://bsky.app/profile/timkellogg.me/post/3mv4veij5jc2d",
       "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mv4veij5jc2d",
+      "likeCount": 32
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiagbih3i3srwlpybvwo6n2qtf3tufkzvlpc7twzszltlkppdoj4gq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiagbih3i3srwlpybvwo6n2qtf3tufkzvlpc7twzszltlkppdoj4gq",
+      "alt": "",
+      "ratio": 1,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv6etwutbk2c",
+      "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv6etwutbk2c",
       "likeCount": 30
     },
     {
@@ -673,17 +743,17 @@
       "handle": "jefferyharrell.bsky.social",
       "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mv4fnebpt52m",
       "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3mv4fnebpt52m",
-      "likeCount": 28
+      "likeCount": 29
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihi4ogwuisntrcsfbrdhpfino2rhvhgif7eyyygnzcm6zgzsmiem4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreihi4ogwuisntrcsfbrdhpfino2rhvhgif7eyyygnzcm6zgzsmiem4",
-      "alt": "",
-      "ratio": 0.7494,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5i3mqtk22w",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5i3mqtk22w",
-      "likeCount": 27
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreidwnwb25v7dhhilcw6roj5vjnuoxznjzrhkxxd2npjwpq7o2o77pi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreidwnwb25v7dhhilcw6roj5vjnuoxznjzrhkxxd2npjwpq7o2o77pi",
+      "alt": "a photo of dj khaled",
+      "ratio": 1,
+      "handle": "hailey.at",
+      "url": "https://bsky.app/profile/hailey.at/post/3mv577jo2422s",
+      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mv577jo2422s",
+      "likeCount": 25
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zgufzyadu3gghypxz4hp5psp/bafkreiec74ye7yqdagjua5djye66iclxlkdqnovgmdrxje66qavubpyv4a",
@@ -696,43 +766,43 @@
       "likeCount": 25
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreidwnwb25v7dhhilcw6roj5vjnuoxznjzrhkxxd2npjwpq7o2o77pi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:oisofpd7lj26yvgiivf3lxsi/bafkreidwnwb25v7dhhilcw6roj5vjnuoxznjzrhkxxd2npjwpq7o2o77pi",
-      "alt": "a photo of dj khaled",
-      "ratio": 1,
-      "handle": "hailey.at",
-      "url": "https://bsky.app/profile/hailey.at/post/3mv577jo2422s",
-      "uri": "at://did:plc:oisofpd7lj26yvgiivf3lxsi/app.bsky.feed.post/3mv577jo2422s",
-      "likeCount": 21
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreicwua6vxhowf7ouiqhwunottimz7xffsnmvrolhc34teykjijxkm4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreicwua6vxhowf7ouiqhwunottimz7xffsnmvrolhc34teykjijxkm4",
+      "alt": "three.js conference, paris ",
+      "ratio": 0.75,
+      "handle": "brennan.computer",
+      "url": "https://bsky.app/profile/brennan.computer/post/3mv5k2mo7ds25",
+      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mv5k2mo7ds25",
+      "likeCount": 25
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihlkvcrmub7zajge62kmgyom6rirwl6sjmk7sxfhuvx7svzzyjh7q",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreihlkvcrmub7zajge62kmgyom6rirwl6sjmk7sxfhuvx7svzzyjh7q",
-      "alt": "",
-      "ratio": 1.4902,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3mv5itnfdgk22",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5itnfdgk22",
-      "likeCount": 21
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:huocg7zsbthk54vjai56wd27/bafkreifvvmidbdy7ksldheauh7yzwithcwcybsyrizlp52zryzaj6n6ciu",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:huocg7zsbthk54vjai56wd27/bafkreifvvmidbdy7ksldheauh7yzwithcwcybsyrizlp52zryzaj6n6ciu",
+      "alt": "Cloudflare AI chat recommending Supabase, Clerk, and other options because their own zero-trust free tier is limited to 8 users",
+      "ratio": 1.3663,
+      "handle": "faz.ms",
+      "url": "https://bsky.app/profile/faz.ms/post/3mv5s6b6oc22b",
+      "uri": "at://did:plc:huocg7zsbthk54vjai56wd27/app.bsky.feed.post/3mv5s6b6oc22b",
+      "likeCount": 24
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibcwapfrepat3rrdgpsz4rrdpjtvqf7kv2iqcc47hikz23phmfap4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreibcwapfrepat3rrdgpsz4rrdpjtvqf7kv2iqcc47hikz23phmfap4",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreicegitjossdlkxdpsm67diz523ti3kj4lpyx2ttbj4axzcknhmadq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreicegitjossdlkxdpsm67diz523ti3kj4lpyx2ttbj4axzcknhmadq",
+      "alt": "A rustic, round sourdough loaf with a dark, deeply scored crust rests on a metal cooling rack. The scoring reveals lighter, airy crumb, and the bottom edge of the bread is dusted with flour.",
+      "ratio": 1.0819,
+      "handle": "dave.9000ish.uk",
+      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mv5rg5bpdp2g",
+      "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3mv5rg5bpdp2g",
+      "likeCount": 22
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigz5mk6bg553p5tqowf2kmryqurkujxnmrkphmjapn3hvvu3o726e",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigz5mk6bg553p5tqowf2kmryqurkujxnmrkphmjapn3hvvu3o726e",
       "alt": "",
-      "ratio": 0.3246,
+      "ratio": 5.2222,
       "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5pj6ua6k2m",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5pj6ua6k2m",
-      "likeCount": 21
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreietr6jgirpuuw3eeibmktfcbmjuwcerq73nd7cesbzekgyejxplby",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreietr6jgirpuuw3eeibmktfcbmjuwcerq73nd7cesbzekgyejxplby",
-      "alt": "",
-      "ratio": 0.3649,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5pj6ua6k2m",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5pj6ua6k2m",
+      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5ffcwcb22v",
+      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5ffcwcb22v",
       "likeCount": 21
     },
     {
@@ -756,86 +826,6 @@
       "likeCount": 20
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigz5mk6bg553p5tqowf2kmryqurkujxnmrkphmjapn3hvvu3o726e",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreigz5mk6bg553p5tqowf2kmryqurkujxnmrkphmjapn3hvvu3o726e",
-      "alt": "",
-      "ratio": 5.2222,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv5ffcwcb22v",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv5ffcwcb22v",
-      "likeCount": 19
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreidmkwhnynesulcicaiqn5pvdm6gnblcw4n6hralh7nrjf6hbssisa",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreidmkwhnynesulcicaiqn5pvdm6gnblcw4n6hralh7nrjf6hbssisa",
-      "alt": "BMW CE 04 in paris",
-      "ratio": 0.75,
-      "handle": "brennan.computer",
-      "url": "https://bsky.app/profile/brennan.computer/post/3mv3q7teals26",
-      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mv3q7teals26",
-      "likeCount": 19
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreif62syn3rx3geisz5a7mmhemrsc7wtc727dlnvu4kurekpn44ghpi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreif62syn3rx3geisz5a7mmhemrsc7wtc727dlnvu4kurekpn44ghpi",
-      "alt": "",
-      "ratio": 0.5432,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv46qwhfks2f",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv46qwhfks2f",
-      "likeCount": 18
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreif7arpo4oeyyvbsrpaepa5vd3g6jh3lapuhamuhvbu2sxkoqsg764",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreif7arpo4oeyyvbsrpaepa5vd3g6jh3lapuhamuhvbu2sxkoqsg764",
-      "alt": "",
-      "ratio": 3.2545,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv46f6tpok2b",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv46f6tpok2b",
-      "likeCount": 17
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreib563gnyj5k7paoswyj7nvdyghxzddyr3bzdook5ztgf6fzljfh3y",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreib563gnyj5k7paoswyj7nvdyghxzddyr3bzdook5ztgf6fzljfh3y",
-      "alt": "",
-      "ratio": 2.0647,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv46f6tpok2b",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv46f6tpok2b",
-      "likeCount": 17
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreicwua6vxhowf7ouiqhwunottimz7xffsnmvrolhc34teykjijxkm4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:gwvh3frsmdih2zpol2holysc/bafkreicwua6vxhowf7ouiqhwunottimz7xffsnmvrolhc34teykjijxkm4",
-      "alt": "three.js conference, paris ",
-      "ratio": 0.75,
-      "handle": "brennan.computer",
-      "url": "https://bsky.app/profile/brennan.computer/post/3mv5k2mo7ds25",
-      "uri": "at://did:plc:gwvh3frsmdih2zpol2holysc/app.bsky.feed.post/3mv5k2mo7ds25",
-      "likeCount": 17
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreiavl7avmmuogegjcofsajglwcl3xkuatkqgakxyyngl2j5aejrnia",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreiavl7avmmuogegjcofsajglwcl3xkuatkqgakxyyngl2j5aejrnia",
-      "alt": "v2.1.265 — the notable one for this house:\n- Subagent + prompt-cache fixes (three of them): resuming a foreground-spawned subagent no longer changes its tool list/system prompt (which was breaking prompt-cache reuse); agent teammates and resumed subagents no longer move SubagentStart hook context and preloaded skills out of the prompt prefix on later turns; and resume after a process died mid-tool now keeps the interrupted tool call instead of rewriting the prompt. High value for a stateful long-running agent like Alpha.\n- --plugin-dir can now point at a folder of plugins — each child folder with a manifest loads, and additions arrive/leave while running are picked up. New capability, relevant to your skills/plugins.\n- Non-interactive/Agent SDK sessions keep cd across turns — the shell no longer resets its working directory each message. Directly relevant since you're on the Python SDK.\n- MCP servers configured as http that only speak legacy HTTP+SSE now work — Claude Code falls back to SSE as the spec describes. Relevant to your MCP servers.\n- Background (--bg) sessions no longer retired mid-turn when a message arrives just before the idle timeout — relevant to your scheduled/background tasks.\n- Resume-time improvements for long sessions that read many files, plus a 1 GB cap on tool results saved to disk (with a truncation note in-conversation).\n\nv2.1.266 — a genuine regression fix landing the same day: the undocumented CLAUDE_CODE_USE_GATEWAY env var started forcing Cloud-gateway sign-in on its own in 2.1.265 and broke setups using it alongside an API key. Back to being ignored unless both base URL + auth token are set. Only matters if you have that var floating around — probably not you.\n\nSkipped as noise for you: all the VSCode items, Windows/AppContainer stuff, enterprise/telemetry/gateway-relay changes, claude-api skill error-code reference, plugin display metadata cosmetics, /config tab height, fullscreen transcript row jump.\n\nNo model additions/retirements a",
-      "ratio": 0.8168,
-      "handle": "jefferyharrell.bsky.social",
-      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mv3xbrt2qe2m",
-      "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3mv3xbrt2qe2m",
-      "likeCount": 16
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreialmypoo6wt6boosq2qaqkyr2uw5iih6vyf4srovowk3qhuxczuf4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:allu5vs3gnm2wm7jzf4rad3r/bafkreialmypoo6wt6boosq2qaqkyr2uw5iih6vyf4srovowk3qhuxczuf4",
-      "alt": "",
-      "ratio": 1.0714,
-      "handle": "isolyth.dev",
-      "url": "https://bsky.app/profile/isolyth.dev/post/3mv44cwtylk2k",
-      "uri": "at://did:plc:allu5vs3gnm2wm7jzf4rad3r/app.bsky.feed.post/3mv44cwtylk2k",
-      "likeCount": 16
-    },
-    {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreieqdqdmx4pkyg6pirm4dphnt4iah3peqnelmk522vdeqnolnhavci",
       "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:dzvxvsiy3maw4iarpvizsj67/bafkreieqdqdmx4pkyg6pirm4dphnt4iah3peqnelmk522vdeqnolnhavci",
       "alt": "",
@@ -843,6 +833,86 @@
       "handle": "dollspace.gay",
       "url": "https://bsky.app/profile/dollspace.gay/post/3mv5zanue3s2r",
       "uri": "at://did:plc:dzvxvsiy3maw4iarpvizsj67/app.bsky.feed.post/3mv5zanue3s2r",
+      "likeCount": 19
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreieqzbpnhsndm4rtf6yg7u47xszutwinz3pg5zjcyltqecxiir7gqy",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreieqzbpnhsndm4rtf6yg7u47xszutwinz3pg5zjcyltqecxiir7gqy",
+      "alt": "",
+      "ratio": 0.7794,
+      "handle": "sneptech.bsky.social",
+      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mv4zki5bqk25",
+      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mv4zki5bqk25",
+      "likeCount": 17
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreicepdkrjftt2a2ckqhdgwkam3jdrdpmyykjj2lvgnncuef5445b24",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreicepdkrjftt2a2ckqhdgwkam3jdrdpmyykjj2lvgnncuef5445b24",
+      "alt": "",
+      "ratio": 1.4165,
+      "handle": "astrra.space",
+      "url": "https://bsky.app/profile/astrra.space/post/3mv5gwylesk22",
+      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5gwylesk22",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifluwlrhnjf52gbmfgh4lwy7fidihga26u2ovq3fthhw24ie4a3bi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifluwlrhnjf52gbmfgh4lwy7fidihga26u2ovq3fthhw24ie4a3bi",
+      "alt": "",
+      "ratio": 1,
+      "handle": "fleetingbits.bsky.social",
+      "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mv544thg722h",
+      "uri": "at://did:plc:3dor7kagwyswq4ogboxeqo42/app.bsky.feed.post/3mv544thg722h",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreidbbuoafzgvoofx7etyvq32ohanaowmxd3rggmz25z2k6kphbecqm",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreidbbuoafzgvoofx7etyvq32ohanaowmxd3rggmz25z2k6kphbecqm",
+      "alt": "",
+      "ratio": 4.8846,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv6h6wnem22y",
+      "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv6h6wnem22y",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreifzguflppecypj7quvhenvsttni4eksyar3dagxopmqtmwq2n6hky",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreifzguflppecypj7quvhenvsttni4eksyar3dagxopmqtmwq2n6hky",
+      "alt": "",
+      "ratio": 1.5493,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv6h6wnem22y",
+      "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv6h6wnem22y",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiffwvzgerg7lglyiatjcamfwzvn6ovp6xe6nuspokbliayeunv45a",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vszw3ess46odfhnzdsy4huae/bafkreiffwvzgerg7lglyiatjcamfwzvn6ovp6xe6nuspokbliayeunv45a",
+      "alt": "",
+      "ratio": 1.4029,
+      "handle": "segyges.bsky.social",
+      "url": "https://bsky.app/profile/segyges.bsky.social/post/3mv6h6wnem22y",
+      "uri": "at://did:plc:vszw3ess46odfhnzdsy4huae/app.bsky.feed.post/3mv6h6wnem22y",
+      "likeCount": 16
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:f6n22z62adionrvb5s6n6vfk/bafkreid74f5faxg2i6s262nynwlrwiftbln6yiddqijcan3pfr7t2wigkq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:f6n22z62adionrvb5s6n6vfk/bafkreid74f5faxg2i6s262nynwlrwiftbln6yiddqijcan3pfr7t2wigkq",
+      "alt": "",
+      "ratio": 1.3333,
+      "handle": "bisks.net",
+      "url": "https://bsky.app/profile/bisks.net/post/3mv4zwfuy3k2l",
+      "uri": "at://did:plc:f6n22z62adionrvb5s6n6vfk/app.bsky.feed.post/3mv4zwfuy3k2l",
+      "likeCount": 15
+    },
+    {
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mk7qlghvwdjjayu5x3bo3lx2/bafkreiamq7qp2sjriq3b5btzkpk3g3xea6tjovgc3hmbpysxsnfhaw7b5q",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mk7qlghvwdjjayu5x3bo3lx2/bafkreiamq7qp2sjriq3b5btzkpk3g3xea6tjovgc3hmbpysxsnfhaw7b5q",
+      "alt": "",
+      "ratio": 1.7308,
+      "handle": "timfduffy.com",
+      "url": "https://bsky.app/profile/timfduffy.com/post/3mv44vdzg5s2y",
+      "uri": "at://did:plc:mk7qlghvwdjjayu5x3bo3lx2/app.bsky.feed.post/3mv44vdzg5s2y",
       "likeCount": 15
     },
     {
@@ -856,23 +926,13 @@
       "likeCount": 13
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreicepdkrjftt2a2ckqhdgwkam3jdrdpmyykjj2lvgnncuef5445b24",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:nbfjoeficjzf3pejpontvril/bafkreicepdkrjftt2a2ckqhdgwkam3jdrdpmyykjj2lvgnncuef5445b24",
-      "alt": "",
-      "ratio": 1.4165,
-      "handle": "astrra.space",
-      "url": "https://bsky.app/profile/astrra.space/post/3mv5gwylesk22",
-      "uri": "at://did:plc:nbfjoeficjzf3pejpontvril/app.bsky.feed.post/3mv5gwylesk22",
-      "likeCount": 13
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifluwlrhnjf52gbmfgh4lwy7fidihga26u2ovq3fthhw24ie4a3bi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3dor7kagwyswq4ogboxeqo42/bafkreifluwlrhnjf52gbmfgh4lwy7fidihga26u2ovq3fthhw24ie4a3bi",
-      "alt": "",
-      "ratio": 1,
-      "handle": "fleetingbits.bsky.social",
-      "url": "https://bsky.app/profile/fleetingbits.bsky.social/post/3mv544thg722h",
-      "uri": "at://did:plc:3dor7kagwyswq4ogboxeqo42/app.bsky.feed.post/3mv544thg722h",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreibckkku2eiyhzm7m6tbterjt43jy25am2hras6mugaxpw6w7i66xq",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:hovt6k22s64dq63jjmoyibk3/bafkreibckkku2eiyhzm7m6tbterjt43jy25am2hras6mugaxpw6w7i66xq",
+      "alt": "Satellite map showing a large coastal area marked by a red dotted line and labeled \"Proof Range.\" To the west, a dark blue body of water meets light-colored beaches, with \"Bald Hill Beach\" marked in the southwest. The land within the range features structured fields, industrial ponds, and extensive areas of light-toned, arid terrain. A major road, labeled A1, runs along the eastern border.",
+      "ratio": 1.1066,
+      "handle": "dave.9000ish.uk",
+      "url": "https://bsky.app/profile/dave.9000ish.uk/post/3mv66djmww62e",
+      "uri": "at://did:plc:hovt6k22s64dq63jjmoyibk3/app.bsky.feed.post/3mv66djmww62e",
       "likeCount": 13
     },
     {
@@ -896,43 +956,13 @@
       "likeCount": 13
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreieqzbpnhsndm4rtf6yg7u47xszutwinz3pg5zjcyltqecxiir7gqy",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:2p7a3z4uzfpoepv3aa36ykjq/bafkreieqzbpnhsndm4rtf6yg7u47xszutwinz3pg5zjcyltqecxiir7gqy",
-      "alt": "",
-      "ratio": 0.7794,
-      "handle": "sneptech.bsky.social",
-      "url": "https://bsky.app/profile/sneptech.bsky.social/post/3mv4zki5bqk25",
-      "uri": "at://did:plc:2p7a3z4uzfpoepv3aa36ykjq/app.bsky.feed.post/3mv4zki5bqk25",
-      "likeCount": 13
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:mk7qlghvwdjjayu5x3bo3lx2/bafkreiamq7qp2sjriq3b5btzkpk3g3xea6tjovgc3hmbpysxsnfhaw7b5q",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:mk7qlghvwdjjayu5x3bo3lx2/bafkreiamq7qp2sjriq3b5btzkpk3g3xea6tjovgc3hmbpysxsnfhaw7b5q",
-      "alt": "",
-      "ratio": 1.7308,
-      "handle": "timfduffy.com",
-      "url": "https://bsky.app/profile/timfduffy.com/post/3mv44vdzg5s2y",
-      "uri": "at://did:plc:mk7qlghvwdjjayu5x3bo3lx2/app.bsky.feed.post/3mv44vdzg5s2y",
-      "likeCount": 13
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:huocg7zsbthk54vjai56wd27/bafkreifvvmidbdy7ksldheauh7yzwithcwcybsyrizlp52zryzaj6n6ciu",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:huocg7zsbthk54vjai56wd27/bafkreifvvmidbdy7ksldheauh7yzwithcwcybsyrizlp52zryzaj6n6ciu",
-      "alt": "Cloudflare AI chat recommending Supabase, Clerk, and other options because their own zero-trust free tier is limited to 8 users",
-      "ratio": 1.3663,
-      "handle": "faz.ms",
-      "url": "https://bsky.app/profile/faz.ms/post/3mv5s6b6oc22b",
-      "uri": "at://did:plc:huocg7zsbthk54vjai56wd27/app.bsky.feed.post/3mv5s6b6oc22b",
-      "likeCount": 12
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreidu7cdqkrx4e6yjoi3fyd42n6l6zeodqnlqne3wdsz6xh3qun7k7i",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreidu7cdqkrx4e6yjoi3fyd42n6l6zeodqnlqne3wdsz6xh3qun7k7i",
-      "alt": "GPT Image 2 prompt: \"Claudewatch is an agent that watches the Claude Code change log (which is a firehose) and filters it for anything interesting, which is almost always nothing but occasionally … you know? That's Claudewatch. Can you please create a profile pic for a personification of Claudewatch?\"",
-      "ratio": 1,
-      "handle": "jefferyharrell.bsky.social",
-      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mv3ungrjk42m",
-      "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3mv3ungrjk42m",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreid76b7wyemmtzlugh6opkraa4js7ibxkytxpq3yvyvxvxy52sc7yi",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreid76b7wyemmtzlugh6opkraa4js7ibxkytxpq3yvyvxvxy52sc7yi",
+      "alt": "Vaibhav (VB) Srivastav & @reac... • 2h We are investigating an issue that may be causing unexpected usage resets for some users.\nInvestigating unexpected usage limit resets - OpenAl Status\nstatus.openai.com",
+      "ratio": 2.2328,
+      "handle": "timkellogg.me",
+      "url": "https://bsky.app/profile/timkellogg.me/post/3mv4dftjma22h",
+      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mv4dftjma22h",
       "likeCount": 12
     },
     {
@@ -946,34 +976,14 @@
       "likeCount": 12
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreid76b7wyemmtzlugh6opkraa4js7ibxkytxpq3yvyvxvxy52sc7yi",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:ckaz32jwl6t2cno6fmuw2nhn/bafkreid76b7wyemmtzlugh6opkraa4js7ibxkytxpq3yvyvxvxy52sc7yi",
-      "alt": "Vaibhav (VB) Srivastav & @reac... • 2h We are investigating an issue that may be causing unexpected usage resets for some users.\nInvestigating unexpected usage limit resets - OpenAl Status\nstatus.openai.com",
-      "ratio": 2.2328,
-      "handle": "timkellogg.me",
-      "url": "https://bsky.app/profile/timkellogg.me/post/3mv4dftjma22h",
-      "uri": "at://did:plc:ckaz32jwl6t2cno6fmuw2nhn/app.bsky.feed.post/3mv4dftjma22h",
-      "likeCount": 11
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:f6n22z62adionrvb5s6n6vfk/bafkreid74f5faxg2i6s262nynwlrwiftbln6yiddqijcan3pfr7t2wigkq",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:f6n22z62adionrvb5s6n6vfk/bafkreid74f5faxg2i6s262nynwlrwiftbln6yiddqijcan3pfr7t2wigkq",
-      "alt": "",
-      "ratio": 1.3333,
-      "handle": "bisks.net",
-      "url": "https://bsky.app/profile/bisks.net/post/3mv4zwfuy3k2l",
-      "uri": "at://did:plc:f6n22z62adionrvb5s6n6vfk/app.bsky.feed.post/3mv4zwfuy3k2l",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3deilm3cxnqundoo227xudg2/bafkreiclhojyhwnqnu4oz3e5o7ifibc2xheolalnkvsntdyea5l224haa4",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3deilm3cxnqundoo227xudg2/bafkreiclhojyhwnqnu4oz3e5o7ifibc2xheolalnkvsntdyea5l224haa4",
+      "alt": "Jeanne d'Arc - oil on canvas painting by François Chifflart. 1901\n",
+      "ratio": 0.816,
+      "handle": "jcorvinus.bsky.social",
+      "url": "https://bsky.app/profile/jcorvinus.bsky.social/post/3mv55lnhm7c2c",
+      "uri": "at://did:plc:3deilm3cxnqundoo227xudg2/app.bsky.feed.post/3mv55lnhm7c2c",
       "likeCount": 10
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreihuocjtcubzn6wwyrf35mxeb5x2p5vj4owb5y7yzuvtbc4eqdd5ce",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:h6tcd37yr7vk33uuisbidqvw/bafkreihuocjtcubzn6wwyrf35mxeb5x2p5vj4owb5y7yzuvtbc4eqdd5ce",
-      "alt": "\"It's Free Real Estate\" meme only it's free inference",
-      "ratio": 1.7768,
-      "handle": "jefferyharrell.bsky.social",
-      "url": "https://bsky.app/profile/jefferyharrell.bsky.social/post/3mv3suajgte2m",
-      "uri": "at://did:plc:h6tcd37yr7vk33uuisbidqvw/app.bsky.feed.post/3mv3suajgte2m",
-      "likeCount": 9
     },
     {
       "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:plvxn2kpjuseoftweoo4xtag/bafkreieuzstmbtunbptcbakvw62wl4ishot7wycicu4u5hvt4g6warypla",
@@ -996,23 +1006,13 @@
       "likeCount": 9
     },
     {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:3deilm3cxnqundoo227xudg2/bafkreiclhojyhwnqnu4oz3e5o7ifibc2xheolalnkvsntdyea5l224haa4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:3deilm3cxnqundoo227xudg2/bafkreiclhojyhwnqnu4oz3e5o7ifibc2xheolalnkvsntdyea5l224haa4",
-      "alt": "Jeanne d'Arc - oil on canvas painting by François Chifflart. 1901\n",
-      "ratio": 0.816,
-      "handle": "jcorvinus.bsky.social",
-      "url": "https://bsky.app/profile/jcorvinus.bsky.social/post/3mv55lnhm7c2c",
-      "uri": "at://did:plc:3deilm3cxnqundoo227xudg2/app.bsky.feed.post/3mv55lnhm7c2c",
-      "likeCount": 9
-    },
-    {
-      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreicnet6fuvnilioq6qzs6rzfojuceddwnleq7owff6tb7umurrcje4",
-      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:zjnskcrzfd35gtlso2agki5y/bafkreicnet6fuvnilioq6qzs6rzfojuceddwnleq7owff6tb7umurrcje4",
-      "alt": "crow sitting atop a reserved parking sign",
-      "ratio": 0.7528,
-      "handle": "apex.atproto.ceo",
-      "url": "https://bsky.app/profile/apex.atproto.ceo/post/3mv3plrq3cc2r",
-      "uri": "at://did:plc:zjnskcrzfd35gtlso2agki5y/app.bsky.feed.post/3mv3plrq3cc2r",
+      "thumb": "https://cdn.bsky.app/img/feed_thumbnail/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreib4ftq2bw3zvurj2aj6nf3iyn2wl3nenj57oqxjjlfjbxukxpph5u",
+      "fullsize": "https://cdn.bsky.app/img/feed_fullsize/plain/did:plc:vw4e7blkwzdokanwp24k3igr/bafkreib4ftq2bw3zvurj2aj6nf3iyn2wl3nenj57oqxjjlfjbxukxpph5u",
+      "alt": "Akira in 4k poster",
+      "ratio": 0.6756,
+      "handle": "huwupy.kawaii.social",
+      "url": "https://bsky.app/profile/huwupy.kawaii.social/post/3mv4tqgddls2y",
+      "uri": "at://did:plc:vw4e7blkwzdokanwp24k3igr/app.bsky.feed.post/3mv4tqgddls2y",
       "likeCount": 8
     }
   ]
