@@ -129,16 +129,12 @@ export async function detectFacets(text, resolveHandle) {
 }
 
 /**
- * Publish a post to the signed-in user's own repo.
- *
- * @param {string} text
- * @param {object} [opts]
- * @param {(handle: string) => Promise<string|null>} [opts.resolveHandle]
- * @param {{uri:string, cid:string}} [opts.replyTo] - parent, for a reply
- * @returns {Promise<{uri:string, cid:string}>}
+ * The image rules live in lib/attach.js — one copy, shared by the composer, a
+ * reply, a shuffle card and every paste into them — and are re-exported here so
+ * nothing that already imports MAX_IMAGES from this module has to move.
  */
-/** Bluesky shows at most four, and so does every other client. */
-export const MAX_IMAGES = 4;
+export { MAX_IMAGES, imagesFrom, takeImages } from '/lib/attach.js';
+import { MAX_IMAGES } from '/lib/attach.js';
 
 /**
  * The PDS blob ceiling. A modern phone photo is 3–8 MB, so uploading one
@@ -248,6 +244,19 @@ export function firstLink(text) {
   return m[0].replace(/[.,;:!?)]+$/, '');
 }
 
+/**
+ * Publish a post to the signed-in user's own repo.
+ *
+ * @param {string} text
+ * @param {object} [opts]
+ * @param {(handle: string) => Promise<string|null>} [opts.resolveHandle]
+ * @param {{uri:string, cid:string, root?:object}} [opts.replyTo] - the parent; `root`
+ *   is the THREAD's root and is not optional in practice — see the reply notes below
+ * @param {{uri:string, cid:string}} [opts.quote] - a quoted post; the cid is required
+ * @param {Array<{file: File, alt?: string}>} [opts.images] - up to MAX_IMAGES
+ * @param {{uri:string, title:string, description?:string, thumbUrl?:string}} [opts.card]
+ * @returns {Promise<{uri:string, cid:string}>}
+ */
 export async function publish(text, opts = {}) {
   const a = auth();
   if (!a.isLoggedIn()) throw new Error('not signed in');
@@ -305,6 +314,11 @@ export async function publish(text, opts = {}) {
     for (const img of opts.images.slice(0, MAX_IMAGES)) {
       const { blob, mime, width, height } = await prepareImage(img.file);
       const ref = await a.pds.uploadBlob(await blob.arrayBuffer(), mime);
+      // An upload that answers 200 with no blob in it has already broken the
+      // post — `ref.blob` on an undefined ref throws a TypeError naming neither
+      // the picture nor the upload, which is what the reader would have been
+      // shown. Say which step failed instead.
+      if (!ref) throw new Error('the PDS accepted that picture but returned no blob');
       images.push({
         // The PDS answers { blob: {...} }; the record wants the blob itself.
         image: ref.blob || ref,

@@ -32,7 +32,7 @@ import { renderEmbed, imageUrl, videoUrls } from '/lib/blobs.js';
 import { installVideo } from '/lib/video.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
-import { auth, publish, graphemeLength, MAX_GRAPHEMES, MAX_IMAGES, SCOPE,
+import { auth, publish, graphemeLength, MAX_GRAPHEMES, SCOPE,
          extractCard, firstLink } from '/lib/compose.js';
 import * as theme from '/lib/theme.js';
 import * as lightbox from '/lib/lightbox.js';
@@ -40,6 +40,7 @@ import * as share from '/lib/share.js';
 import * as feedgen from '/lib/feedgen.js';
 import * as actions from '/lib/actions.js';
 import * as shuffle from '/lib/shuffle.js';
+import * as attach from '/lib/attach.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1604,15 +1605,18 @@ function replyBox(parent) {
   const images = [];
 
   const drawThumbs = () => {
-    thumbs.innerHTML = '';
-    images.forEach((img, i) => {
-      thumbs.append(el(`<div class="cthumb">
-        <img alt="" src="${esc(img.url)}">
-        <button type="button" data-rm="${i}" aria-label="Remove image">×</button>
-        <input type="text" data-alt="${i}" placeholder="alt text" value="${esc(img.alt || '')}">
-      </div>`));
-    });
+    thumbs.innerHTML = thumbHtml(images);
     count();
+  };
+
+  // Attaching, from the picker or from a paste. One rule set, shared with the
+  // composer and the shuffle cards — this box used to say "images only for now"
+  // where the composer named the type it had refused and why.
+  const addToReply = (files) => {
+    const { accept, reasons } = attach.takeImages(files, images.length);
+    for (const r of reasons) say(r);
+    for (const file of accept) images.push({ file, url: URL.createObjectURL(file), alt: '' });
+    drawThumbs();
   };
 
   thumbs.addEventListener('click', (e) => {
@@ -1628,12 +1632,14 @@ function replyBox(parent) {
   });
 
   box.querySelector('#rfile').addEventListener('change', (e) => {
-    for (const file of [...e.target.files].slice(0, MAX_IMAGES - images.length)) {
-      if (!file.type.startsWith('image/')) { say('images only for now'); continue; }
-      images.push({ file, url: URL.createObjectURL(file), alt: '' });
-    }
+    addToReply(e.target.files);
     e.target.value = '';
-    drawThumbs();
+  });
+  ta.addEventListener('paste', (e) => {
+    const files = attach.imagesFrom(e.clipboardData);
+    if (!files.length) return;        // an ordinary text paste is the browser's
+    e.preventDefault();
+    addToReply(files);
   });
 
   const count = () => {
@@ -1965,15 +1971,7 @@ function renderQuotePreview() {
 function renderThumbs() {
   const box = $('cthumbs');
   if (!box) return;
-  box.innerHTML = '';
-  draft.images.forEach((img, i) => {
-    const t = el(`<div class="cthumb">
-      <img alt="" src="${esc(img.url)}">
-      <button type="button" data-rm="${i}" aria-label="Remove image">×</button>
-      <input type="text" data-alt="${i}" placeholder="alt text" value="${esc(img.alt || '')}">
-    </div>`);
-    box.append(t);
-  });
+  box.innerHTML = thumbHtml(draft.images);
   countChars();
 }
 
@@ -2036,20 +2034,15 @@ function renderCard() {
   });
 }
 
-async function addImages(files) {
-  const room = MAX_IMAGES - draft.images.length;
-  if (room <= 0) return say(`${MAX_IMAGES} images is the limit`);
-  for (const file of [...files].slice(0, room)) {
-    if (!file.type.startsWith('image/')) {
-      // Video needs Bluesky's transcoding service, not a PDS blob — see the
-      // note in this surface's CLAUDE.md. Saying so beats a silent skip.
-      say(file.type.startsWith('video/')
-        ? 'video needs Bluesky\'s transcoder — images only for now'
-        : `not an image: ${file.type || 'unknown type'}`);
-      continue;
-    }
-    draft.images.push({ file, url: URL.createObjectURL(file), alt: '' });
-  }
+/**
+ * Attach files to the composer. The rules — images only, why a video is
+ * refused, and the four-image cap — live in lib/attach.js, because the reply
+ * box and every shuffle card apply the same ones and their copies drifted.
+ */
+function addImages(files) {
+  const { accept, reasons } = attach.takeImages(files, draft.images.length);
+  for (const r of reasons) say(r);
+  for (const file of accept) draft.images.push({ file, url: URL.createObjectURL(file), alt: '' });
   renderThumbs();
   // Images and a card are both `embed`; the pictures win.
   if (draft.images.length) { draft.card = null; renderCard(); }
@@ -2097,7 +2090,8 @@ async function sendPost() {
 // is the sheet.
 
 /** The deck the shuffle sheet is holding: the thread, the cards, and progress. */
-const EMPTY_DECK = () => ({ posts: [], steps: [], dropped: 0, capped: 0, busy: false, focus: null });
+const EMPTY_DECK = () => ({ posts: [], steps: [], dropped: 0, capped: 0, busy: false,
+                            focus: null, pickFor: null });
 let deck = EMPTY_DECK();
 
 /**
@@ -2132,12 +2126,26 @@ async function openShuffle(post) {
   say(`shuffle quote · ${plan.steps.length} posts`);
 }
 
-/** One card: the post being quoted, and what you have to say about it. */
+/**
+ * Thumbnails with their own ALT boxes. The composer, a reply and a shuffle card
+ * all draw the same thing, so they draw it from here — the reply box's copy had
+ * already drifted from the composer's before this existed.
+ */
+function thumbHtml(images) {
+  return images.map((img, j) => `<div class="cthumb">
+      <img alt="" src="${esc(img.url)}">
+      <button type="button" data-rm="${j}" aria-label="Remove image">×</button>
+      <input type="text" data-alt="${j}" placeholder="alt text" value="${esc(img.alt || '')}">
+    </div>`).join('');
+}
+
+/** One card: the post being quoted, what you have to say, and your pictures. */
 function shuffleCard(step, i) {
   const who = step.target.handle || `${step.target.did.slice(0, 18)}…`;
   const n = graphemeLength(step.text);
   const done = Boolean(step.posted);
   const locked = done || deck.busy;
+  const images = step.images || [];
   return el(`<div class="shstep${done ? ' done' : ''}${step.error ? ' failed' : ''}" data-i="${i}">
     <div class="shhead">
       <span class="shnum">${done ? '✓' : i + 1}</span>
@@ -2145,8 +2153,10 @@ function shuffleCard(step, i) {
     </div>
     <div class="shq">${esc(step.target.text.slice(0, 200)) || '<i>no text — media or a quote</i>'}</div>
     <textarea data-say="${i}" maxlength="3000" ${locked ? 'disabled' : ''}
-      placeholder="say something — or nothing, and let the quote speak">${esc(step.text)}</textarea>
+      placeholder="say something, or paste a picture — or nothing, and let the quote speak">${esc(step.text)}</textarea>
+    ${images.length ? `<div class="cthumbs">${thumbHtml(images)}</div>` : ''}
     <div class="shrow">
+      <button type="button" data-pick aria-label="Add pictures to this post" ${locked ? 'disabled' : ''}>🖼</button>
       <button type="button" data-mv="up" aria-label="Move up" ${locked || i === 0 ? 'disabled' : ''}>↑</button>
       <button type="button" data-mv="down" aria-label="Move down" ${locked || i === deck.steps.length - 1 ? 'disabled' : ''}>↓</button>
       <button type="button" data-drop aria-label="Drop this one" ${locked ? 'disabled' : ''}>✕</button>
@@ -2155,6 +2165,27 @@ function shuffleCard(step, i) {
     ${step.error ? `<div class="sherr">${esc(step.error)}</div>` : ''}
     ${done ? '<div class="shdone">published</div>' : ''}
   </div>`);
+}
+
+/**
+ * Attach files to one card, from its 🖼 button or from a paste into its box.
+ *
+ * Re-renders rather than appending, because a card that had no pictures has no
+ * thumbnail strip to append to — and the strip is where the alt boxes live.
+ */
+function addShuffleImages(i, files) {
+  const step = deck.steps[i];
+  if (!step || step.posted || deck.busy) return;
+  const { accept, reasons } = attach.takeImages(files, step.images.length);
+  for (const r of reasons) say(r);
+  if (!accept.length) return;
+  for (const file of accept) step.images.push({ file, url: URL.createObjectURL(file), alt: '' });
+  renderShuffle();
+}
+
+/** Object URLs are not garbage collected; a session of picking leaks one each. */
+function revokeImages(images) {
+  for (const img of images || []) URL.revokeObjectURL(img.url);
 }
 
 /**
@@ -2225,6 +2256,25 @@ function moveStep(i, dir) {
  */
 async function sendShuffle() {
   if (deck.busy || !deck.steps.length) return;
+
+  /**
+   * A missing blob scope is caught HERE, before anything is published.
+   *
+   * `publish()` escalates a missing `blob:image/*` with `ensureScope`, which
+   * REDIRECTS to the consent screen — and a redirect at card 3 of 9 walks away
+   * from a thread that is already half published, taking the resume with it.
+   * A session minted before this site asked for blobs is exactly the case, so
+   * it is asked while nothing is at stake and fixed from the reader's own tap.
+   */
+  if (shuffle.hasImages(deck.steps) && !auth().hasScope('blob:image/*')) {
+    const st = $('sh-status');
+    st.innerHTML = 'this sign-in predates pictures, so it cannot upload them yet — '
+      + 'authorising takes one tap and brings you back here.<br>'
+      + '<button type="button" class="btn small" id="sh-rescope">authorise pictures</button>';
+    on('sh-rescope', 'click', () => auth().ensureScope('blob:image/*'));
+    return;
+  }
+
   deck.busy = true;
   renderShuffle();
 
@@ -2255,6 +2305,7 @@ async function sendShuffle() {
 }
 
 function closeShuffle() {
+  for (const step of deck.steps) revokeImages(step.images);
   $('shuffle').hidden = true;
   $('sh-steps').innerHTML = '';
   $('sh-pool').innerHTML = '';
@@ -2569,6 +2620,19 @@ $('cthumbs')?.addEventListener('input', (e) => {
   if (alt) draft.images[Number(alt.dataset.alt)].alt = alt.value;
 });
 $('ct').addEventListener('input', () => { countChars(); scheduleCard(); });
+/**
+ * Paste a picture into the box and it is attached.
+ *
+ * `preventDefault` only when there IS an image: a plain text paste has to stay
+ * the browser's, and a clipboard carrying both text and an image (copying a
+ * region out of a document does this) would otherwise lose its text.
+ */
+$('ct').addEventListener('paste', (e) => {
+  const files = attach.imagesFrom(e.clipboardData);
+  if (!files.length) return;
+  e.preventDefault();
+  addImages(files);
+});
 
 // Shuffle quote. All three are delegated to containers that outlive the cards,
 // which are rebuilt on every reorder, drop and publish.
@@ -2588,16 +2652,64 @@ $('sh-steps')?.addEventListener('input', (e) => {
   if (cc) { cc.textContent = `${n}/${MAX_GRAPHEMES}`; cc.className = 'cc' + (n > MAX_GRAPHEMES ? ' over' : ''); }
   shuffleButton();
 });
+// Alt text on a card's thumbnails. Same container, a different target from the
+// textarea above — a [data-alt] input is never inside a [data-say].
+$('sh-steps')?.addEventListener('input', (e) => {
+  const alt = e.target.closest('[data-alt]');
+  if (!alt) return;
+  const i = Number(e.target.closest('.shstep')?.dataset.i);
+  const img = deck.steps[i]?.images[Number(alt.dataset.alt)];
+  if (img) img.alt = alt.value;
+});
+
+// Paste a picture straight into a card. `paste` bubbles, so one listener on the
+// container covers every card including the ones drawn after it.
+$('sh-steps')?.addEventListener('paste', (e) => {
+  const ta = e.target.closest('[data-say]');
+  if (!ta) return;
+  const files = attach.imagesFrom(e.clipboardData);
+  if (!files.length) return;          // an ordinary text paste is the browser's
+  e.preventDefault();
+  addShuffleImages(Number(ta.dataset.say), files);
+});
+
+on('shfile', 'change', (e) => {
+  const i = deck.pickFor;
+  deck.pickFor = null;
+  // Copy the FileList BEFORE clearing the input. Clearing `value` empties
+  // `files` in the same breath, so reading it afterwards hands back nothing and
+  // the picked image simply never appears — which looks exactly like a picker
+  // that does not work. (Caught by the browser test, not by reading this.)
+  const files = [...e.target.files];
+  e.target.value = '';                // re-picking the same file must fire again
+  if (i !== null && i !== undefined) addShuffleImages(i, files);
+});
+
 $('sh-steps')?.addEventListener('click', (e) => {
   if (deck.busy) return;
   const card = e.target.closest('.shstep');
   if (!card) return;
   const i = Number(card.dataset.i);
+
+  // One file input for the whole sheet rather than one per card: the card that
+  // asked is remembered, so a 25-card deck does not put 25 inputs in the DOM.
+  if (e.target.closest('[data-pick]')) {
+    deck.pickFor = i;
+    return $('shfile')?.click();
+  }
+  // A thumbnail's ×. The card is the scope, so the index is per-card.
+  const rm = e.target.closest('[data-rm]');
+  if (rm) {
+    const [img] = deck.steps[i].images.splice(Number(rm.dataset.rm), 1);
+    if (img) URL.revokeObjectURL(img.url);
+    return renderShuffle();
+  }
   const mv = e.target.closest('[data-mv]');
   if (mv) return moveStep(i, mv.dataset.mv === 'up' ? -1 : 1);
   if (e.target.closest('[data-drop]')) {
     if (deck.steps[i]?.posted) return say('a published post cannot be dropped');
-    deck.steps.splice(i, 1);
+    const [gone] = deck.steps.splice(i, 1);
+    revokeImages(gone?.images);
     renderShuffle();
   }
 });

@@ -265,6 +265,12 @@ textarea{resize:none;line-height:1.4}
 .shrow{display:flex;align-items:center;gap:6px;margin-top:7px}
 .shrow button{border:1px solid var(--line);border-radius:8px;min-width:38px;min-height:34px;
   color:var(--muted);font-size:13px}
+/* The picker reads as an action, the arrows as adjustments — so it carries the
+   accent and a little air after it. */
+.shrow [data-pick]{color:var(--accent);margin-right:4px}
+/* A card's thumbnails are the composer's, at the composer's size: an alt box
+   you cannot read is an alt box nobody fills in. */
+.shstep .cthumbs{margin-top:9px}
 .shrow button:disabled{opacity:.35}
 .shrow .cc{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
 .shrow .cc.over{color:var(--dead)}
@@ -516,6 +522,10 @@ body.compact .brand small{display:none}
     <div id="sh-status" class="muted" style="font-size:13px;margin-top:10px"></div>
   </div>
   <div class="sheetfoot">
+    <!-- ONE input for the whole sheet, not one per card: a 25-card deck would
+         otherwise put 25 file inputs in the DOM. The card that asked is
+         remembered in deck.pickFor. -->
+    <input id="shfile" type="file" accept="image/*" multiple hidden>
     <span class="muted" style="font-size:12.5px">each post quotes one of theirs and replies to your last</span>
     <span class="spacer"></span>
   </div>

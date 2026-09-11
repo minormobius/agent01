@@ -19,7 +19,7 @@
  * points at which — rather than about whether a call succeeded.
  */
 import { MAX_STEPS, threadPosts, quotable, defaultTargets, planFrom, stepFor,
-         chain, postShuffle, progress } from './shuffle.js';
+         chain, postShuffle, progress, hasImages } from './shuffle.js';
 
 let fails = 0;
 const ok = (name, cond) => {
@@ -212,6 +212,36 @@ const THREAD = {
   threw = '';
   try { await postShuffle([stepFor(post(1, alice, 'a', 'x'))], {}); } catch (e) { threw = e.message; }
   ok('a missing publish() is refused', /publish/.test(threw));
+}
+
+
+// ─── 11. pictures belong to the CARD, not to the shuffle ─────────
+//
+// Each card publishes its own record, so a shared array would put the same
+// pictures on every post in the thread — and would turn the four-image cap into
+// a cap on the whole thread instead of on each post.
+{
+  const calls = [];
+  const publish = async (text, o) => { calls.push(o); return { uri: `at://me/${calls.length}`, cid: `c${calls.length}` }; };
+  const steps = planFrom(THREAD, THREAD.post.uri).steps;
+
+  ok('a fresh card carries an empty album', Array.isArray(steps[0].images) && steps[0].images.length === 0);
+  ok('hasImages() is false before anything is attached', !hasImages(steps));
+
+  steps[0].images.push({ file: 'photo-a', alt: 'a' });
+  steps[2].images.push({ file: 'photo-c1', alt: '' }, { file: 'photo-c2', alt: '' });
+  ok('one card does not share another card\'s album', steps[1].images.length === 0);
+  ok('hasImages() sees them', hasImages(steps));
+
+  await postShuffle(steps, { publish, delayMs: 0 });
+  ok('each post gets its OWN pictures', calls[0].images.length === 1 && calls[2].images.length === 2);
+  ok('…the right ones', calls[0].images[0].file === 'photo-a' && calls[2].images[1].file === 'photo-c2');
+  ok('a card with no pictures posts none', calls[1].images.length === 0);
+  ok('the quote rides along with them',
+    calls[0].quote.uri.endsWith('/p1') && calls[2].quote.uri.endsWith('/p3'));
+  // A post carrying both is app.bsky.embed.recordWithMedia — compose.publish()
+  // builds that, and it only can if both reach it on the same call.
+  ok('images and quote reach publish together', Boolean(calls[0].images && calls[0].quote));
 }
 
 console.log(fails ? `\nshuffle selftest FAILED (${fails})` : '\nshuffle selftest passed');

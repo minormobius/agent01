@@ -828,6 +828,26 @@ Three things the composer refuses to hide:
   quotes speak — that is the pure repost-style use, and it is the default state
   of every card.
 
+#### Pictures, per card
+
+Each card has its own album — a 🖼 button, thumbnails with their own alt boxes,
+and **paste**: put an image on the clipboard, paste into a card's box, and it
+attaches to *that* post. A card publishes `app.bsky.embed.recordWithMedia`, the
+lexicon for a quote *with* media; a card with no pictures stays a plain
+`app.bsky.embed.record`.
+
+**The album belongs to the card, not to the shuffle.** One shared array would
+put the same four pictures on all nine posts, and — less obviously — would turn
+the four-image cap into a cap on the whole thread instead of on each post.
+
+**The blob scope is checked before the FIRST write, not discovered at card 3.**
+`publish()` escalates a missing `blob:image/*` with `ensureScope`, and
+`ensureScope` **redirects**. A redirect three posts into a nine-post shuffle
+walks away from a thread that is already half published and takes the resume
+with it. A session minted before this site asked for blobs is exactly that case,
+so `hasImages()` is asked while nothing is at stake and the sheet offers the one
+tap that fixes it. A deck with no pictures is unaffected and still posts.
+
 #### Partial publish is the whole design
 
 Posting is sequential *by necessity*: post n+1 replies to post n, so it cannot
@@ -867,32 +887,78 @@ rejected it, at the very END, after the pictures were picked, blaming the reader
 for an empty post that plainly was not empty. It now asks for a BODY — text, or
 images, or a quote, or a card.
 
-**Verified in Chromium** (2026-09-11, 52 assertions, zero page errors) against a
+**Verified in Chromium** (2026-09-11, 79 assertions, zero page errors) against a
 stubbed thread, profile and `auth.mino.mobi` — including
-`/pds/repo/createRecord`, which is the point: the stub records exactly what
-would be written, so the chain is asserted record by record rather than
-reasoned about. Covered: both entry points (the ↻ menu and the thread pill);
-the default deck (alice's three, not bob's reply, with bob offered in the pool);
-reorder, drop and re-add, with each card's text following its card; three
-records written with the right `embed.record.uri`/`cid` per post, post 1
-top-level, posts 2 and 3 replying to my m1/m2 with root m1 and no reply pointing
-into their repo; a 429 on the second write leaving 1 of 3 published, the card
-marked failed, the button offering *resume from #2* and the published card
-locked; the resume writing exactly the two that were left, chained onto what
-actually landed, with nothing republished; a wordless shuffle publishing three
-empty-text quotes; and a post with no thread falling back to the ordinary quote
-composer.
+`/pds/repo/createRecord` and `/pds/repo/uploadBlob`, which is the point: the
+stubs record exactly what would be written, so the chain is asserted record by
+record rather than reasoned about. Covered: both entry points (the ↻ menu and
+the thread pill); the default deck (alice's three, not bob's reply, with bob
+offered in the pool); reorder, drop and re-add, with each card's text following
+its card; three records written with the right `embed.record.uri`/`cid` per
+post, post 1 top-level, posts 2 and 3 replying to my m1/m2 with root m1 and no
+reply pointing into their repo; a 429 on the second write leaving 1 of 3
+published, the card marked failed, the button offering *resume from #2* and the
+published card locked; the resume writing exactly the two that were left,
+chained onto what actually landed, with nothing republished; a wordless shuffle
+publishing three empty-text quotes; and a post with no thread falling back to
+the ordinary quote composer.
 
-**Not verified:** a real `createRecord`. Nothing in this sandbox can complete an
-OAuth round trip, so — as with post, reply, like and repost — the write itself
-has never run against a PDS. What a live run would test that the stub cannot is
-the PDS's own acceptance of an empty-text post carrying an embed, and its rate
-limiting under 25 writes in a row (which is exactly the path the resume exists
-for).
+Pictures were driven the same way, with a **real** `ClipboardEvent` carrying a
+real PNG `File` on a real `DataTransfer` — stubbing our own handler would test
+nothing, since the whole question is whether the browser's payload arrives in a
+shape `imagesFrom()` can read. The pasted picture landed on the card it was
+pasted into and on no other, a text-only paste was left to the browser, the 🖼
+picker attached to the card that asked, one blob went up (not three), the card
+with a picture published `recordWithMedia` carrying its alt text, its measured
+`aspectRatio` and the quote inside it while the other two stayed plain quotes,
+and the chain was unchanged by any of it. A session without `blob:image/*`
+published **nothing** and was offered the one tap that fixes it, while a deck
+with no pictures posted normally.
 
-### Posting pictures
+**Not verified:** a real `createRecord` or `uploadBlob`. Nothing in this sandbox
+can complete an OAuth round trip, so — as with post, reply, like and repost —
+the writes themselves have never run against a PDS. What a live run would test
+that the stubs cannot: the PDS's own acceptance of an empty-text post carrying
+an embed, its rate limiting under 25 writes in a row (exactly the path the
+resume exists for), and a real photograph's trip through `prepareImage` (the
+test's picture is 1x1, so it exercises the plumbing and not the resizing).
 
-`prepareImage()` in `lib/compose.js`, and the picker in the compose sheet.
+### Posting pictures — and pasting them
+
+`prepareImage()` in `lib/compose.js`, the picker in the compose sheet, and
+**`lib/attach.js`**, which owns the three rules every attachment point applies.
+
+**Paste is a first-class way to attach.** Paste an image into the composer, a
+reply, or any shuffle card and it becomes an attachment on that post. Two things
+this has to get right, and both fail silently when it does not:
+
+- **Read BOTH clipboard channels.** A pasted screenshot arrives in
+  `clipboardData.files` in Chromium, while an image copied out of another page
+  can appear only in `clipboardData.items` as `{kind:'file'}` with `files`
+  empty. Reading one of them works on whichever browser you tested and does
+  nothing at all on the other — indistinguishable from a clipboard with no
+  image in it.
+- **`preventDefault()` only when there IS an image.** A plain text paste has to
+  stay the browser's, and a clipboard carrying text *and* an image (copying a
+  region out of a document does this) would otherwise lose its text.
+
+Copied HTML is *not* an image: it is an `<img src>` on somebody else's origin,
+behind their CORS policy, so there is nothing this page can read. Those pastes
+are left alone rather than pretended at.
+
+`lib/attach.js` exists because there were about to be four copies of "images
+only, four at most, and here is why a video is refused" — and the copies had
+already drifted: the reply box said *"images only for now"* where the composer
+named the type it had refused. It is pure (no DOM, no object URLs, no `say()`),
+so `lib/attach.selftest.mjs` runs the whole decision in node against hand-built
+clipboard payloads. Rejections come back as sentences and every caller speaks
+them: a picker that silently ignores half of what you gave it is the same bug as
+a control that does nothing.
+
+One bug the browser test caught that no amount of reading would have:
+`e.target.value = ''` on a file input **empties `e.target.files` in the same
+breath**, so clearing the input before reading it hands back nothing and the
+picked image simply never appears. The FileList is copied first.
 
 The auth ceiling already declared `blob:image/*` and `blob:video/*`, so this
 needed no worker change — but **a scope is only granted if it is asked for**, and

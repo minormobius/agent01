@@ -50,6 +50,7 @@ const SHELL = [
   '/icons/apple-touch-icon.png',
   '/icons/favicon-32.png',
   '/lib/actions.js',
+  '/lib/attach.js',
   '/lib/archive.js',
   '/lib/apikey.js',
   '/lib/blobs.js',

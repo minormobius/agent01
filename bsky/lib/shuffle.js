@@ -128,11 +128,16 @@ export function planFrom(thread, focusUri) {
 }
 
 /**
- * One card in the composer: a target, the text you will say about it, and
- * whatever has happened to it so far.
+ * One card in the composer: a target, what you will say about it, the pictures
+ * you are attaching to THAT post, and whatever has happened to it so far.
  *
  * `posted` is the load-bearing field. It is what makes a half-published shuffle
  * resumable instead of duplicable — see postShuffle().
+ *
+ * **The images belong to the card, not to the shuffle.** Each card publishes a
+ * separate record with its own `app.bsky.embed.images`, so one shared array
+ * would put the same four pictures on all nine posts — and, worse, would make
+ * the four-image cap a cap on the whole thread rather than on each post.
  *
  * @param {object} p - a post from the thread
  * @returns {object}
@@ -147,6 +152,7 @@ export function stepFor(p) {
       text: p.record?.text || '',
     },
     text: '',
+    images: [],
     posted: null,
     error: null,
   };
@@ -240,6 +246,10 @@ export async function postShuffle(steps, opts = {}) {
       const res = await publish(step.text || '', {
         ...publishOpts,
         quote: { uri: step.target.uri, cid: step.target.cid },
+        // This card's own pictures. publish() turns them into
+        // app.bsky.embed.recordWithMedia alongside the quote, which is the
+        // lexicon for "a quote WITH media" — not two embeds.
+        images: step.images || [],
         replyTo: chain(prior),
       });
       // A createRecord that answers without a cid cannot be replied to, so the
@@ -260,6 +270,22 @@ export async function postShuffle(steps, opts = {}) {
   }
 
   return { posted, failedAt: -1, error: null, done: true };
+}
+
+/**
+ * Whether any card is carrying pictures.
+ *
+ * Asked BEFORE the first write, because uploading a blob needs the
+ * `blob:image/*` scope and compose.publish() escalates a missing one with
+ * `ensureScope`, which REDIRECTS. A redirect at card 3 of 9 abandons a thread
+ * that is already half published and takes the resume with it — so a session
+ * that cannot upload has to be caught while nothing is at stake.
+ *
+ * @param {object[]} steps
+ * @returns {boolean}
+ */
+export function hasImages(steps) {
+  return (steps || []).some((s) => s.images?.length);
 }
 
 /**
