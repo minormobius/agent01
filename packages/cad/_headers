@@ -32,4 +32,5 @@
   Cache-Control: public, max-age=86400
 
 /build-worker.js
+  ! Content-Security-Policy
   Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; connect-src 'self'; base-uri 'none'; object-src 'none'

@@ -27,10 +27,14 @@ for (const block of fs.readFileSync(path.join(here, '_headers'), 'utf8').split(/
   const pattern = lines[0].trim();
   const re = new RegExp('^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
   const headers = {};
-  for (const l of lines.slice(1)) { const m = l.trim().match(/^([^:]+):\s*(.*)$/); if (m) headers[m[1].toLowerCase()] = m[2]; }
+  for (const l of lines.slice(1)) {
+    const t = l.trim();
+    if (t.startsWith('!')) { headers[t.slice(1).trim().toLowerCase()] = null; continue; } // detach an inherited header
+    const m = t.match(/^([^:]+):\s*(.*)$/); if (m) headers[m[1].toLowerCase()] = m[2];
+  }
   rules.push({ re, headers });
 }
-const headersFor = (urlPath) => Object.assign({}, ...rules.filter((r) => r.re.test(urlPath)).map((r) => r.headers));
+const headersFor = (urlPath) => { const out = {}; for (const r of rules) if (r.re.test(urlPath)) for (const [k, v] of Object.entries(r.headers)) { if (v === null) delete out[k]; else out[k] = v; } return out; };
 const csp = headersFor('/')['content-security-policy'];
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm' };
 const server = http.createServer((req, res) => {
