@@ -37,7 +37,7 @@ for (const block of fs.readFileSync(path.join(here, '_headers'), 'utf8').split(/
 const headersFor = (urlPath) => { const out = {}; for (const r of rules) if (r.re.test(urlPath)) for (const [k, v] of Object.entries(r.headers)) { if (v === null) delete out[k]; else out[k] = v; } return out; };
 const csp = headersFor('/')['content-security-policy'];
 // A stranger's public repo, answered by this server at /xrpc/ the way the site
-// worker's gateway answers on the live host (worker.js; drive.selftest covers
+// worker's gateway answers on the live host (gateway.js; drive.selftest covers
 // the gateway itself). One file: the cam, filed at lib/cam.
 const { Drive, MemoryBackend } = await import('./lib/drive.js');
 const stranger = new MemoryBackend('did:plc:stranger');

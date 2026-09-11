@@ -23,7 +23,7 @@ jobs:
       # that the committed artefact and the JS that talks to it still agree.
       - name: Selftest the committed wasm
         working-directory: packages/cad
-        run: node cad.selftest.mjs && node drive.selftest.mjs
+        run: node cad.selftest.mjs && node drive.selftest.mjs && node mcp.selftest.mjs
 
       - name: Install wrangler
         run: npm install wrangler

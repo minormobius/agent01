@@ -108,7 +108,7 @@ check(rm.path === 'scratch/wheel-copy' && !(await local.find('scratch/wheel-copy
 
 // the site worker's /xrpc/ gateway: handle → did → PDS, forwarded, CAD collections only
 {
-  const { xrpc } = await import('./worker.js');
+  const { xrpc } = await import('./gateway.js');
   const wf = async (u, init) => {
     u = new URL(u);
     if (u.host === 'public.api.bsky.app') return Response.json({ did: 'did:plc:stranger' });

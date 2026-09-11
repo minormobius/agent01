@@ -24,6 +24,10 @@ The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (t
 - `node agent/render.mjs doc.json --out shots` — PNG per view (needs Chromium).
 - `node agent/drive.mjs ls --at minomobi.com` — the published bench as a file tree.
 
+## Run it with no files at all: MCP
+
+`https://cad.mino.mobi/mcp` is a Model Context Protocol server (streamable HTTP, JSON responses; GET returns the descriptor). Tools: `check`, `build`, `measure`, `interference`, `step`, `list_files`, `get_file`. Every tool takes a tree object, `bench:<name>` or an `at://` URI; `build` returns the invariants, every named face with its geometry, and a viewer link to hand a human. There is no render tool (the link is the picture) and no write tool (a person's parts are saved with the person's own sign-in). Add it to Claude Code with `claude mcp add --transport http cad https://cad.mino.mobi/mcp`.
+
 ## Data
 
 - Records: `com.minomobi.cad.part` (a head: `path`, `name`, `kind`, `head` strongRef) and `com.minomobi.cad.revision` (immutable: `tree`, `parents[]` strongRefs, `createdAt`, `message`, `kernel`, `invariants`). No floats in records: non-integers are decimal strings, which the tree language reads as expressions.

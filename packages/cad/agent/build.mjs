@@ -50,7 +50,7 @@ function printFaces(faces) {
 let exit = 0;
 if (has('--check')) {
   try {
-    const r = engine.resolve(doc);
+    const r = engine.resolve(doc).resolved;
     console.log(`ok: ${Object.keys(r.params || {}).length} params, ${(r.sketches || []).length} sketches, ${(r.ops || []).length} ops`);
     for (const [k, v] of Object.entries(r.params || {})) console.log(`  ${k} = ${fmt(v)}`);
     for (const op of r.ops || []) console.log(`  ${op.op.padEnd(8)} ${op.id}${op.mode ? ' ' + op.mode : ''}`);

@@ -115,6 +115,17 @@ documented in [`README.md`](README.md) next to this file.
   `cad.mino.mobi/SKILL.md`, and synced to `.claude/skills/cad/SKILL.md` by
   `scripts/sync-dataviz.mjs` (edit it here, never the copy). `llms.txt` is
   the site's index for agents; `README.md` (the schema) is served too.
+- **MCP.** `mcp.js` is the headless library as Model Context Protocol tools
+  (`check`, `build`, `measure`, `interference`, `step`, `list_files`,
+  `get_file`), mounted at `/mcp` by `worker.js` — GET the descriptor, POST
+  JSON-RPC. The engine wasm and Manifold run *inside the worker*: both are
+  imported as wasm modules (Workers cannot compile wasm from bytes) and
+  instantiated once per isolate on first call; Manifold's glue gets the
+  module through `instantiateWasm`. No render (needs a browser; the link is
+  the picture), no OCCT, no writes. `mcp.selftest.mjs` drives the same
+  module under node with the kernels injected and a fake repo behind the
+  file tools; the worker-side loading is verified only by the deploy and a
+  live `curl -X POST …/mcp` — do both after touching it.
 - **The mirror.** `.github/workflows/mirror-cad-tangled.yml` force-pushes
   this package — minus `engine/target`, `node_modules` and the Cloudflare
   files, plus the skill under `.claude/skills/cad/` and a README — to a
@@ -144,11 +155,11 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 
 - **`cad.wasm` is committed.** Rebuild with `engine/build.sh`, which runs the
   unit tests, both builds, and `cad.selftest.mjs`. Never hand-build.
-- **Three selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
-  bytes under node), `drive.selftest.mjs` (the file tree and the gateway)
-  and `browser.selftest.mjs` (headless Chromium loads the page, builds every
+- **Four selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
+  bytes under node), `drive.selftest.mjs` (the file tree and the gateway),
+  `mcp.selftest.mjs` (the tool surface) and `browser.selftest.mjs` (headless Chromium loads the page, builds every
   bench part, checks the report against closed forms, saves and forks files
-  against a mocked repo, and screenshots). Run all three before pushing.
+  against a mocked repo, and screenshots). Run all four before pushing.
 - **`vendor/auth.js` is a copy** of `packages/oauth-client/auth.js`, kept
   byte-identical by `scripts/sync-dataviz.mjs` (preflight checks it). Edit
   the package, never the copy.

@@ -867,5 +867,13 @@ that with two in-memory repos standing in for a PDS and a stranger.
 - **No merge.** `parents` is a list, so a merge revision is representable;
   nothing writes one. `cad diff` exists; three-way merge of trees is
   phase-4 work alongside the sketcher.
+- **Phase 7, first cut: the library as MCP tools.** `cad.mino.mobi/mcp`
+  runs the engine wasm and Manifold inside the worker and answers `check`,
+  `build`, `measure`, `interference`, `step`, `list_files` and `get_file`
+  over JSON-RPC, so an agent that has never cloned anything gets the same
+  numbers the page reports and a link to hand a human. No render (a
+  browser's job; the link is the picture) and no write (a person's
+  sign-in is the pen). The phase-7 gate — a passing sub-assembly from a
+  sentence, no human edits — is now runnable against a URL.
 - **No `.stl` / `.png` faces on an AT URI** (§2.2). The gateway is the
   first step; content negotiation is the next.
