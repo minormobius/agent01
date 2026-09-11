@@ -1,0 +1,78 @@
+name: Publish cad bench files
+
+# Puts the bench parts and assemblies (packages/cad/bench/) into the service
+# account's repo as com.minomobi.cad.part / .revision records — the file tree
+# the files tab on cad.mino.mobi browses. WRITES TO A REAL PDS. Idempotent: a
+# file whose head already holds the same tree is skipped, so a re-run that
+# changes nothing writes nothing (agent/publish.mjs).
+#
+# The account is the same one publish-lexicons.yml writes as: the identity
+# that owns minomobi.com. Anyone can open what lands here by AT URI and fork
+# it into their own drive; only this account can move these heads.
+#
+# workflow_dispatch does not resolve for workflows off the default branch, so
+# a push that touches a bench file, the publisher, or this file is the trigger.
+# marker: 2026-09-11a
+
+on:
+  push:
+    branches: ['claude/browser-cad-ideation-ollmd3']
+    paths:
+      - 'packages/cad/bench/**'
+      - 'packages/cad/agent/publish.mjs'
+      - 'packages/cad/lib/drive.js'
+      - '.github/workflows/publish-cad.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: publish-cad
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/cad
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Plan
+        run: node agent/publish.mjs --check
+
+      - name: Publish
+        id: publish
+        env:
+          BLUESKY_BOT_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_BOT_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node agent/publish.mjs --write | tee /tmp/pub.log
+          DID=$(grep -oE 'did=did:[a-z0-9:._%-]+' /tmp/pub.log | head -1 | cut -d= -f2)
+          [ -n "$DID" ] || { echo "::error::published, but could not read the DID back out of the log"; exit 1; }
+          echo "did=$DID" >> "$GITHUB_OUTPUT"
+          {
+            echo "### cad bench files published"
+            echo
+            echo "- repo: \`$DID\`"
+            grep -oE 'https://cad\.mino\.mobi/\?at=[^ ]+' /tmp/pub.log | sed 's/^/- /'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # GREEN IS NOT PROOF. Read the files back the way the page will: through
+      # the site's own /xrpc/ gateway, which resolves the DID to its PDS.
+      - name: Verify through the gateway
+        env:
+          DID: ${{ steps.publish.outputs.did }}
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5; do
+            N=$(curl -sS "https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=$DID&collection=com.minomobi.cad.part&limit=100" \
+              | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log((JSON.parse(s).records||[]).length)}catch{console.log(0)}})')
+            if [ "$N" -ge 14 ]; then echo "gateway lists $N files for $DID"; exit 0; fi
+            echo "  attempt $attempt: $N files, waiting…"; sleep $((attempt * 5))
+          done
+          echo "::error::the gateway lists fewer than 14 files for $DID"
+          exit 1

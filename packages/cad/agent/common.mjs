@@ -8,7 +8,20 @@ import Module from '../vendor/manifold.js';
 export const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 export const readDoc = (p) => JSON.parse(fs.readFileSync(path.resolve(p), 'utf8'));
 export const isAssembly = (doc) => Array.isArray(doc.components);
-export const benchRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? readDoc(path.join(ROOT, 'bench', ref.slice(6) + '.json')) : structuredClone(ref));
+/// A component ref: `bench:<name>` (a file in bench/), an AT URI (a part head or a
+/// pinned revision in any public repo — resolved over the network), or an inline tree.
+export async function benchRef(ref) {
+  if (typeof ref !== 'string') return structuredClone(ref);
+  if (ref.startsWith('bench:')) return readDoc(path.join(ROOT, 'bench', ref.slice(6) + '.json'));
+  if (ref.startsWith('at://')) {
+    const { Drive, PublicBackend, resolvePds, parseAtUri, PART } = await import('../lib/drive.js');
+    const { did, collection } = parseAtUri(ref);
+    const d = new Drive(new PublicBackend(did, await resolvePds(did)));
+    if (collection === PART) { const f = await d.get(ref); if (!f) throw new Error(`no file at ${ref}`); return f.revision.tree; }
+    const r = await d.fetchRecord(ref); if (!r?.value?.tree) throw new Error(`no tree at ${ref}`); return r.value.tree;
+  }
+  throw new Error(`unknown ref ${ref}`);
+}
 
 let engine, manifold;
 export async function kernels() {

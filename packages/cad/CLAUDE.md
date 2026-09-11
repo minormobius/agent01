@@ -82,6 +82,15 @@ documented in [`README.md`](README.md) next to this file.
   kernel that built the part with its STEP writer on — Truck's, or OCCT's
   when OCCT built it. In an assembly both export the pinned or hovered
   component's part.
+- **The published bench.** `agent/publish.mjs` writes every bench part to
+  `parts/<name>` and the assemblies to `train` and `clock` in the service
+  account's repo (`BLUESKY_BOT_*`, the identity that owns minomobi.com),
+  rewriting `bench:` refs to the AT URIs of the published heads;
+  `.github/workflows/publish-cad.yml` runs it on a push touching `bench/`,
+  the publisher, or itself, and verifies through the gateway. Idempotent:
+  an unchanged tree is skipped. A component ref may be `bench:<name>`, an
+  AT URI (a part head, or a revision to pin), or an inline tree — in the
+  page and in the agent scripts.
 - **Files.** The *files* tab is a file tree over ATProto records
   (`lib/drive.js`): a `com.minomobi.cad.part` head names a path and points
   at an immutable `com.minomobi.cad.revision` (the tree, its parents as

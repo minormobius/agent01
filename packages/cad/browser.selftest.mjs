@@ -43,6 +43,8 @@ const { Drive, MemoryBackend } = await import('./lib/drive.js');
 const stranger = new MemoryBackend('did:plc:stranger');
 { const put = stranger.putRecord.bind(stranger); stranger.putRecord = async (c, r, v) => { const x = await put(c, r, v); x.cid = 'bafyfake' + x.cid.slice(6); stranger.records.get(stranger.key(c, r)).cid = x.cid; return x; }; }
 const strangerFile = await new Drive(stranger).put('lib/cam', JSON.parse(fs.readFileSync(path.join(here, 'bench', 'cam.json'), 'utf8')), { message: 'a cam, shared' });
+// …and an assembly that references that part by its AT URI, the way agent/publish.mjs writes them
+const strangerAsm = await new Drive(stranger).put('lib/two-cams', { name: 'two-cams', parts: { cam: strangerFile.uri }, components: [{ id: 'a', part: 'cam' }, { id: 'b', part: 'cam', at: [30, 0, 0], params: { lift: 6 } }], mates: [], drive: { component: 'a', rpm: 6 } }, { message: 'two cams by at:// ref' });
 async function xrpcMock(req, res) {
   const u = new URL(req.url, 'http://x'); const q = Object.fromEntries(u.searchParams); const method = u.pathname.slice(6);
   const send = (code, body) => { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }); res.end(JSON.stringify(body)); };
@@ -183,7 +185,10 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   const fk = await page.evaluate(async (uri) => { const r = await window.__cad.drives.local.fork(uri, 'vendor/cam'); const h = await window.__cad.drives.local.history('vendor/cam'); await window.__cad.renderFiles(); return { path: r.path, dids: h.map((x) => x.did), parent: h[0].parents[0]?.uri, rows: document.querySelectorAll('#files .f[data-drive=local]').length }; }, strangerFile.uri);
   check(fk.path === 'vendor/cam' && fk.dids.join(' ') === 'did:local did:plc:stranger' && fk.parent === strangerFile.head.uri && fk.rows === 2, `forking it to the local drive keeps the lineage across repos (${fk.dids.join(' ← ')})`);
   const browsed = await page.evaluate(async () => { document.querySelector('#repo').value = 'stranger.example'; document.querySelector('#browse').click(); for (let i = 0; i < 200 && !document.querySelector('#files .f[data-drive=browse]'); i++) await new Promise((r) => setTimeout(r, 25)); return document.querySelectorAll('#files .f[data-drive=browse]').length; });
-  check(browsed === 1, 'browsing a repo by handle lists it (the gateway resolves the handle)');
+  check(browsed === 2, `browsing a repo by handle lists it (the gateway resolves the handle; ${browsed} files)`);
+  await page.goto(`${base}/?at=${encodeURIComponent(strangerAsm.uri)}`, { waitUntil: 'load' });
+  const asm = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { mode: r.mode, components: r.components, slots: r.slots, timeout: r.timeout }; });
+  check(!asm.timeout && asm.mode === 'asm' && asm.components === 2 && asm.slots === 2, `an assembly whose parts are at:// refs resolves them through the gateway and builds (${asm.components} components, ${asm.slots} distinct builds)`);
   await page.goto(`${base}/?part=case`, { waitUntil: 'load' });
   await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
 }

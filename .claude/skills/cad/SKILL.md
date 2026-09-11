@@ -54,13 +54,33 @@ Face names are stable and semantic: an extrude `plate` has `plate.start`,
 
 ## Assemblies
 
-A document with `components` (each a `part` from `parts` or `bench:<name>`,
+A document with `components` (each a `part` from `parts` — an inline tree,
+`bench:<name>`, or the **AT URI of a published part** (its head, or a
+revision URI to pin a version) —
 optional `params` overrides, `at`, `rotate`, `phase`, or a nested
 `assembly`), `mates` (`gear` with `za`/`zb`, `fixed`) and a `drive`
 (`{component, rpm}` or an `escapement`). Gear phases are automatic. See
 `bench/clock.json`. Kinematics are a chain from the driven component, not a
 constraint solver — placements are yours to get right; `agent/check.mjs`
 tells you when you have not.
+
+## The published bench
+
+The bench parts and assemblies live in the service account's repo (the
+identity that owns `minomobi.com`), as `parts/<name>`, `train` and `clock`,
+written by `node agent/publish.mjs --write` from the `publish-cad`
+workflow — idempotent, one revision per real change. Their assemblies
+reference their parts by AT URI. Browse them on cad.mino.mobi (files tab,
+enter the handle) or list them headlessly:
+
+```bash
+node agent/drive.mjs ls --at minomobi.com
+node agent/drive.mjs get clock --at minomobi.com > clock.json   # then check / render / export it
+```
+
+Fork one into your own drive (`agent/drive.mjs fork at://… parts/gear`)
+rather than editing the bench file when the change is yours, not the
+bench's.
 
 ## Handing over
 

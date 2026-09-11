@@ -9,7 +9,7 @@ import { Renderer } from './gl.js';
 import { flatten, solveAngles as solveKin, modelOf } from './lib/assembly.js';
 import { measure, describe, faceWorld } from './lib/measure.js';
 import { writeStl } from './lib/mesh.js';
-import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, resolveHandle, SCOPE as DRIVE_SCOPE } from './lib/drive.js';
+import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, PART, SCOPE as DRIVE_SCOPE } from './lib/drive.js';
 import { AuthClient } from './vendor/auth.js';
 
 const $ = (s) => document.querySelector(s);
@@ -122,7 +122,15 @@ async function fetchBench(name) {
   if (!benchCache.has(name)) benchCache.set(name, fetch(`./bench/${name}.json`).then((r) => { if (!r.ok) throw new Error(`no bench part ${name}`); return r.json(); }));
   return structuredClone(await benchCache.get(name));
 }
-const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? fetchBench(ref.slice(6)) : structuredClone(ref));
+/// A component ref is `bench:<name>` (a file this site ships), an AT URI (a
+/// part head — its current revision — or a revision, pinned), or an inline tree.
+async function atRef(uri) {
+  const { did, collection } = parseAtUri(uri);
+  const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
+  if (collection === PART) { const f = await d.get(uri); if (!f) throw new Error(`no file at ${uri}`); return f.revision.tree; }
+  const r = await d.fetchRecord(uri); if (!r?.value?.tree) throw new Error(`no tree at ${uri}`); return r.value.tree;
+}
+const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? fetchBench(ref.slice(6)) : typeof ref === 'string' && ref.startsWith('at://') ? atRef(ref) : structuredClone(ref));
 
 /// Flatten an assembly through the shared library; the page keeps the
 /// components, mates and drive and asks the library for angles and matrices.
