@@ -33,9 +33,9 @@ _Regenerated 2026-09-11 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-11, 99 members / 339 posts):
+**Neighborhood spark** (bisk 2026-09-11, 99 members / 345 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: anthropic, ascii, deepseek
+- Distinctive words: anthropic, ascii, rsi
 - Top post: "i could spend all day just collecting rare kirks today" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
