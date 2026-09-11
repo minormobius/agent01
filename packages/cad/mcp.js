@@ -49,7 +49,20 @@ export const TOOLS = [
     inputSchema: { type: 'object', properties: { uri: { type: 'string', description: 'at://did/com.minomobi.cad.part/rkey' }, repo: { type: 'string' }, path: { type: 'string' } } } },
 ];
 
-export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f } = {}) {
+/** The tool list for a host. `manifold: false` (the live worker — Manifold's Emscripten glue
+ *  generates its invokers with `new Function`, which Workers forbid) drops the tools that need
+ *  the preview kernel: interference, and build's manifold option. Those run locally. */
+export function toolsFor({ manifold = true } = {}) {
+  return TOOLS.filter((t) => manifold || t.name !== 'interference').map((t) => {
+    if (manifold || t.name !== 'build') return t;
+    const p = { ...t.inputSchema.properties }; delete p.kernel;
+    return { ...t, description: t.description.replace(' (or the Manifold preview kernel)', '') + ' The preview kernel is not available on this server; for interference checks run agent/check.mjs locally (see SKILL.md).', inputSchema: { ...t.inputSchema, properties: p } };
+  });
+}
+
+export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabilities = {} } = {}) {
+  const caps = { manifold: true, ...capabilities };
+  const toolList = toolsFor(caps);
   const publicDrive = (did) => new Drive(new PublicBackend(did, gateway, { fetch: f }), { pdsOf: async () => gateway, fetch: f });
   const asTree = async (v) => {
     if (typeof v === 'string') { if (v.startsWith('bench:') || v.startsWith('at://')) return fetchRef(v); throw new Error('tree must be an object, `bench:<name>` or an at:// URI'); }
@@ -68,6 +81,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f } = {}) 
     },
     async build({ tree, kernel = 'truck', faces = true }) {
       const { engine, manifold } = await kernels();
+      if (kernel === 'manifold' && !(caps.manifold && manifold)) throw new Error('the preview kernel is not available on this server; use kernel "truck", or run agent/build.mjs --kernel manifold locally');
       const doc = await asTree(tree);
       const one = (t) => {
         if (kernel === 'manifold') { const t0 = performance.now(); const r = buildManifold(manifold, engine.resolve(t)); if (!r.ok) return { ok: false, kernel, error: r.error }; const m = weld(r.mesh, 1e-5); return { ok: true, kernel, ms: performance.now() - t0, invariants: invariants(m), faces: [] }; }
@@ -95,6 +109,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f } = {}) 
     },
     async interference({ assembly, t = 0, eps = 0.01 }) {
       const { engine, manifold } = await kernels();
+      if (!(caps.manifold && manifold)) throw new Error('interference needs the preview kernel, which is not available on this server; run agent/check.mjs locally (see SKILL.md)');
       const doc = await asTree(assembly);
       if (!Array.isArray(doc.components)) throw new Error('not an assembly (no components)');
       const { components, mates, drive, partTrees } = await flatten(doc, resolveRef);
@@ -131,8 +146,9 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f } = {}) 
     },
   };
 
+  const listed = new Set(toolList.map((t) => t.name));
   async function call(name, args) {
-    const fn = tools[name]; if (!fn) throw new Error(`unknown tool ${name}`);
+    const fn = listed.has(name) ? tools[name] : null; if (!fn) throw new Error(`unknown tool ${name}`);
     return fn(args || {});
   }
 
@@ -143,17 +159,17 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f } = {}) 
     const fail = (code, message, data) => ({ jsonrpc: '2.0', id, error: { code, message, ...(data ? { data } : {}) } });
     if (!msg || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') return fail(-32600, 'invalid request');
     switch (msg.method) {
-      case 'initialize': return reply({ protocolVersion: PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER, instructions: `Feature-tree CAD. Read ${SITE}/SKILL.md first. Tools take a tree object, \`bench:<name>\` or an at:// URI. build gives the numbers to judge by and a link to hand a human; there is no render tool — the link is the picture — and no write tool: parts are saved with the person's own sign-in.` });
+      case 'initialize': return reply({ protocolVersion: PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER, instructions: `Feature-tree CAD. Read ${SITE}/SKILL.md first. Tools take a tree object, \`bench:<name>\` or an at:// URI. build gives the numbers to judge by and a link to hand a human; there is no render tool — the link is the picture — and no write tool: parts are saved with the person's own sign-in.${caps.manifold ? '' : ' The preview kernel (and so the interference tool) is not on this server; run agent/check.mjs locally for that.'}` });
       case 'notifications/initialized': case 'notifications/cancelled': return null;
       case 'ping': return reply({});
-      case 'tools/list': return reply({ tools: TOOLS });
+      case 'tools/list': return reply({ tools: toolList });
       case 'tools/call': {
         const { name, arguments: args } = msg.params || {};
         try {
           const result = await call(name, args);
           return reply({ content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result, isError: false });
         } catch (e) {
-          if (!tools[name]) return fail(-32602, e.message);
+          if (!listed.has(name)) return fail(-32602, e.message);
           return reply({ content: [{ type: 'text', text: String(e?.message ?? e) }], isError: true });
         }
       }
@@ -167,7 +183,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f } = {}) 
   /** The HTTP face: GET → descriptor, POST → JSON-RPC (single or batch), OPTIONS → CORS. */
   async function handle(request) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-    if (request.method === 'GET') return json({ ...SERVER, protocolVersion: PROTOCOL, transport: 'streamable-http (JSON responses)', endpoint: `${SITE}/mcp`, skill: `${SITE}/SKILL.md`, index: `${SITE}/llms.txt`, tools: TOOLS });
+    if (request.method === 'GET') return json({ ...SERVER, protocolVersion: PROTOCOL, transport: 'streamable-http (JSON responses)', endpoint: `${SITE}/mcp`, skill: `${SITE}/SKILL.md`, index: `${SITE}/llms.txt`, capabilities: caps, tools: toolList });
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
     let body; try { body = await request.json(); } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } }, 400); }
     if (Array.isArray(body)) { const out = (await Promise.all(body.map(rpc))).filter(Boolean); return out.length ? json(out) : new Response(null, { status: 202, headers: cors }); }
@@ -175,5 +191,5 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f } = {}) 
     return res ? json(res) : new Response(null, { status: 202, headers: cors });
   }
 
-  return { tools: TOOLS, call, rpc, handle };
+  return { tools: toolList, call, rpc, handle };
 }

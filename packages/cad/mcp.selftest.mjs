@@ -77,5 +77,19 @@ check(viaRef.ok && Math.abs(viaRef.invariants.volume - 1984.984) < 0.01, `build 
 const batch = await (await post([{ jsonrpc: '2.0', id: 'a', method: 'ping' }, { jsonrpc: '2.0', id: 'b', method: 'tools/list' }])).json();
 check(Array.isArray(batch) && batch.length === 2 && batch[1].result.tools.length === TOOLS.length, 'a batch answers each request');
 
+// the live worker has no Manifold (its glue needs eval): the surface says so instead of failing
+{
+  const lite = createMcp({ kernels: async () => ({ engine: (await kernels()).engine, manifold: null }), fetchRef, capabilities: { manifold: false } });
+  const lp = (body) => lite.handle(new Request('https://cad.mino.mobi/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
+  const l = await (await lp({ jsonrpc: '2.0', id: 1, method: 'tools/list' })).json();
+  check(!l.result.tools.some((t) => t.name === 'interference') && !l.result.tools.find((t) => t.name === 'build').inputSchema.properties.kernel, `without Manifold the tool list drops interference and the kernel choice (${l.result.tools.map((t) => t.name).join(', ')})`);
+  const bl = await (await lp({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'build', arguments: { tree: 'bench:plate', faces: false } } })).json();
+  check(bl.result.structuredContent.ok && bl.result.structuredContent.kernel === 'truck', 'build still works with the exact kernel alone');
+  const li = await (await lp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'interference', arguments: { assembly: 'bench:train' } } })).json();
+  check(li.error?.code === -32602, 'calling interference there is an unknown tool, not a crash');
+  const d = await (await lite.handle(new Request('https://cad.mino.mobi/mcp'))).json();
+  check(d.capabilities.manifold === false && d.tools.length === TOOLS.length - 1, 'the descriptor states the capability');
+}
+
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ mcp selftest passed');
 process.exit(fails ? 1 : 0);

@@ -118,14 +118,17 @@ documented in [`README.md`](README.md) next to this file.
 - **MCP.** `mcp.js` is the headless library as Model Context Protocol tools
   (`check`, `build`, `measure`, `interference`, `step`, `list_files`,
   `get_file`), mounted at `/mcp` by `worker.js` — GET the descriptor, POST
-  JSON-RPC. The engine wasm and Manifold run *inside the worker*: both are
-  imported as wasm modules (Workers cannot compile wasm from bytes) and
-  instantiated once per isolate on first call; Manifold's glue gets the
-  module through `instantiateWasm`. No render (needs a browser; the link is
-  the picture), no OCCT, no writes. `mcp.selftest.mjs` drives the same
-  module under node with the kernels injected and a fake repo behind the
-  file tools; the worker-side loading is verified only by the deploy and a
-  live `curl -X POST …/mcp` — do both after touching it.
+  JSON-RPC. The engine wasm runs *inside the worker*: imported as a wasm
+  module (Workers cannot compile wasm from bytes) and instantiated once per
+  isolate on first call. **Manifold cannot run there**: its embind glue
+  builds invokers with `new Function`, which Workers forbid (measured:
+  "Code generation from strings disallowed"), so the live host is created
+  with `capabilities: { manifold: false }` and its tool list omits
+  `interference` and the preview kernel, saying so in the descriptor and
+  the instructions; those run locally. No render (needs a browser; the link
+  is the picture), no OCCT, no writes. `mcp.selftest.mjs` drives the module
+  under node both ways; the worker-side loading is verified only by the
+  deploy and a live `curl -X POST …/mcp` — do both after touching it.
 - **The mirror.** `.github/workflows/mirror-cad-tangled.yml` force-pushes
   this package — minus `engine/target`, `node_modules` and the Cloudflare
   files, plus the skill under `.claude/skills/cad/` and a README — to a

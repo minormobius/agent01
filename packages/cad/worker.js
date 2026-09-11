@@ -8,33 +8,30 @@
 // for `/xrpc/*`, and for `/mcp`.
 //
 // /mcp is the headless library as Model Context Protocol tools: an agent with
-// no clone checks, builds, measures and interference-tests a tree here and
-// gets the same numbers the page reports. The engine and Manifold run inside
-// this worker: both wasm files are imported as modules (Workers cannot
-// compile wasm from bytes at run time), instantiated once per isolate on
-// first use, and Manifold's Emscripten glue is handed the compiled module
-// through its `instantiateWasm` hook so it never tries to fetch one. Those
-// imports are why this file cannot be loaded under node: the gateway is in
-// gateway.js and the tools in mcp.js so the selftests can.
+// no clone checks, builds, measures and exports a tree here and gets the same
+// numbers the page reports. The Rust engine runs inside this worker: the wasm
+// is imported as a module (Workers cannot compile wasm from bytes at run
+// time) and instantiated once per isolate on first use. That import is why
+// this file cannot be loaded under node: the gateway is in gateway.js and the
+// tools in mcp.js so the selftests can.
+//
+// Manifold is NOT here. Its Emscripten/embind glue generates every method
+// invoker with `new Function`, and Workers forbid code generation from
+// strings outright (the page grants its build worker 'unsafe-eval' for the
+// same reason; there is no such grant here). Measured on the first deploy:
+// "Code generation from strings disallowed for this context". So the tool
+// list on this host omits interference and the preview kernel, and says so;
+// those run locally (agent/check.mjs, agent/build.mjs --kernel manifold). A
+// Manifold build with -sDYNAMIC_EXECUTION=0 would lift this.
 
 import { createMcp } from './mcp.js';
 import { xrpc, json } from './gateway.js';
 import { loadEngine } from './lib/engine.js';
-import Module from './vendor/manifold.js';
 import cadWasm from './cad.wasm';
-import manifoldWasm from './vendor/manifold.wasm';
 
 let kernelsPromise = null;
 function kernels() {
-  return (kernelsPromise ??= (async () => {
-    const engine = await loadEngine(cadWasm);
-    const manifold = await Module({
-      instantiateWasm: (imports, done) => { WebAssembly.instantiate(manifoldWasm, imports).then((inst) => done(inst, manifoldWasm)); return {}; },
-      locateFile: (f) => f,
-    });
-    manifold.setup();
-    return { engine, manifold };
-  })());
+  return (kernelsPromise ??= (async () => ({ engine: await loadEngine(cadWasm), manifold: null }))());
 }
 
 let mcp = null;
@@ -49,7 +46,7 @@ function mcpFor(env, origin) {
     if (collection === PART) { const f = await d.get(ref); if (!f) throw new Error(`no file at ${ref}`); return f.revision.tree; }
     return d.treeAt(ref);
   };
-  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch }));
+  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch, capabilities: { manifold: false } }));
 }
 
 export default {
