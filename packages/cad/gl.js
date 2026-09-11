@@ -6,26 +6,30 @@
 //
 // Passes: solid (flat shading, two lights, hover/selection tint), edges
 // (GL_LINES, depth-biased toward the eye), grid + axes, and an id pass into a
-// framebuffer that only re-renders when the view or the mesh changes.
+// framebuffer that only re-renders when the view or a mesh changes.
+//
+// Several bodies at once, each with its own model matrix: an assembly is a
+// list of bodies, and a pick returns (body, face) — component and name.
 
 const VS_SOLID = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
 layout(location=1) in vec3 aNrm;
 layout(location=2) in float aFid;
-uniform mat4 uProj, uView;
-out vec3 vNrmV; out vec3 vPosV; flat out float vFid;
+uniform mat4 uProj, uView, uModel;
+uniform float uBody;
+out vec3 vNrmV; out vec3 vPosV; flat out float vKey;
 void main() {
-  vec4 eye = uView * vec4(aPos, 1.0);
+  vec4 eye = uView * uModel * vec4(aPos, 1.0);
   gl_Position = uProj * eye;
   vPosV = eye.xyz;
-  vNrmV = mat3(uView) * aNrm;
-  vFid = aFid;
+  vNrmV = mat3(uView) * mat3(uModel) * aNrm;
+  vKey = uBody * 65536.0 + aFid;
 }`;
 
 const FS_SOLID = `#version 300 es
 precision highp float;
-in vec3 vNrmV; in vec3 vPosV; flat in float vFid;
+in vec3 vNrmV; in vec3 vPosV; flat in float vKey;
 uniform float uHover, uSelect, uPreview;
 uniform vec3 uBase;
 out vec4 o;
@@ -40,8 +44,8 @@ void main() {
   vec3 H = normalize(L1 + V);
   float spec = pow(max(dot(N, H), 0.0), 48.0) * 0.25;
   vec3 c = uBase * (0.28 + 0.62 * d + 0.12 * hemi) + spec;
-  if (vFid == uHover) c = mix(c, vec3(1.0, 0.82, 0.30), 0.55);
-  if (vFid == uSelect) c = mix(c, vec3(0.35, 0.85, 1.0), 0.55);
+  if (vKey == uHover) c = mix(c, vec3(1.0, 0.82, 0.30), 0.55);
+  if (vKey == uSelect) c = mix(c, vec3(0.35, 0.85, 1.0), 0.55);
   if (!gl_FrontFacing) c *= 0.55;
   o = vec4(c, 1.0);
 }`;
@@ -50,25 +54,26 @@ const VS_ID = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
 layout(location=2) in float aFid;
-uniform mat4 uProj, uView;
-flat out float vFid;
-void main() { gl_Position = uProj * uView * vec4(aPos, 1.0); vFid = aFid; }`;
+uniform mat4 uProj, uView, uModel;
+uniform float uBody;
+flat out float vKey;
+void main() { gl_Position = uProj * uView * uModel * vec4(aPos, 1.0); vKey = uBody * 65536.0 + aFid; }`;
 
 const FS_ID = `#version 300 es
 precision highp float;
-flat in float vFid;
+flat in float vKey;
 out vec4 o;
 void main() {
-  float id = vFid + 1.0;
+  float id = vKey + 1.0;
   o = vec4(mod(id, 256.0) / 255.0, mod(floor(id / 256.0), 256.0) / 255.0, floor(id / 65536.0) / 255.0, 1.0);
 }`;
 
 const VS_LINE = `#version 300 es
 precision highp float;
 layout(location=0) in vec3 aPos;
-uniform mat4 uProj, uView;
+uniform mat4 uProj, uView, uModel;
 uniform float uBias;
-void main() { vec4 p = uProj * uView * vec4(aPos, 1.0); p.z -= uBias * p.w; gl_Position = p; }`;
+void main() { vec4 p = uProj * uView * uModel * vec4(aPos, 1.0); p.z -= uBias * p.w; gl_Position = p; }`;
 
 const FS_LINE = `#version 300 es
 precision highp float;
@@ -85,6 +90,44 @@ function compile(gl, vs, fs) {
   return { p, u };
 }
 
+const IDENT = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+
+/// One uploaded mesh: VAO + buffers for the solid pass and the edge pass.
+class Body {
+  constructor(gl) {
+    this.gl = gl;
+    this.vao = gl.createVertexArray(); this.bufPos = gl.createBuffer(); this.bufNrm = gl.createBuffer(); this.bufFid = gl.createBuffer();
+    this.vaoEdges = gl.createVertexArray(); this.bufEdges = gl.createBuffer();
+    this.count = 0; this.edgeCount = 0; this.bbox = null; this.model = IDENT; this.tint = 1;
+  }
+  upload(streams, edges, bbox) {
+    const gl = this.gl;
+    gl.bindVertexArray(this.vao);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufPos); gl.bufferData(gl.ARRAY_BUFFER, streams.p3, gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufNrm); gl.bufferData(gl.ARRAY_BUFFER, streams.n3, gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufFid); gl.bufferData(gl.ARRAY_BUFFER, streams.f3, gl.STATIC_DRAW); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
+    this.count = streams.count;
+    gl.bindVertexArray(this.vaoEdges);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufEdges); gl.bufferData(gl.ARRAY_BUFFER, edges, gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+    this.edgeCount = edges.length / 3;
+    gl.bindVertexArray(null);
+    this.bbox = bbox;
+  }
+  dispose() { const gl = this.gl; gl.deleteVertexArray(this.vao); gl.deleteVertexArray(this.vaoEdges); for (const b of [this.bufPos, this.bufNrm, this.bufFid, this.bufEdges]) gl.deleteBuffer(b); }
+}
+
+/// bbox of a body under its model matrix (corners transformed)
+function worldBbox(b) {
+  if (!b.bbox || !isFinite(b.bbox[0][0])) return null;
+  const m = b.model; const out = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+  for (let i = 0; i < 8; i++) {
+    const p = [b.bbox[(i & 1)][0], b.bbox[(i >> 1) & 1][1], b.bbox[(i >> 2) & 1][2]];
+    const w = [m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]];
+    for (let k = 0; k < 3; k++) { out[0][k] = Math.min(out[0][k], w[k]); out[1][k] = Math.max(out[1][k], w[k]); }
+  }
+  return out;
+}
+
 export class Renderer {
   constructor(canvas) {
     this.canvas = canvas;
@@ -94,12 +137,10 @@ export class Renderer {
     this.solid = compile(gl, VS_SOLID, FS_SOLID);
     this.id = compile(gl, VS_ID, FS_ID);
     this.line = compile(gl, VS_LINE, FS_LINE);
-    this.vaoSolid = gl.createVertexArray();
-    this.bufPos = gl.createBuffer(); this.bufNrm = gl.createBuffer(); this.bufFid = gl.createBuffer();
-    this.vaoEdges = gl.createVertexArray(); this.bufEdges = gl.createBuffer();
+    this.bodies = new Map(); // key → Body
     this.vaoGrid = gl.createVertexArray(); this.bufGrid = gl.createBuffer();
     this.vaoAxes = gl.createVertexArray(); this.bufAxes = gl.createBuffer();
-    this.count = 0; this.edgeCount = 0; this.gridCount = 0;
+    this.gridCount = 0;
     this.hover = -1; this.select = -1; this.preview = false;
     this.base = [0.62, 0.66, 0.72];
     this.showEdges = true; this.showGrid = true;
@@ -109,22 +150,28 @@ export class Renderer {
     gl.enable(gl.DEPTH_TEST);
   }
 
-  setMesh(streams, edges, bboxIn) {
-    const gl = this.gl;
-    gl.bindVertexArray(this.vaoSolid);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufPos); gl.bufferData(gl.ARRAY_BUFFER, streams.p3, gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufNrm); gl.bufferData(gl.ARRAY_BUFFER, streams.n3, gl.STATIC_DRAW); gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 3, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufFid); gl.bufferData(gl.ARRAY_BUFFER, streams.f3, gl.STATIC_DRAW); gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 0, 0);
-    this.count = streams.count;
-    gl.bindVertexArray(this.vaoEdges);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.bufEdges); gl.bufferData(gl.ARRAY_BUFFER, edges, gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
-    this.edgeCount = edges.length / 3;
-    gl.bindVertexArray(null);
-    this.setGrid(bboxIn);
+  /// Single-part API: one body under the key 'main'.
+  setMesh(streams, edges, bbox) { this.setBody('main', streams, edges, bbox); this.setGrid(this.sceneBbox()); }
+  clearMesh() { this.clearBodies(); }
+
+  setBody(key, streams, edges, bbox) {
+    let b = this.bodies.get(key);
+    if (!b) { b = new Body(this.gl); this.bodies.set(key, b); }
+    b.upload(streams, edges, bbox);
     this.idDirty = true;
   }
+  setModel(key, m, tint) { const b = this.bodies.get(key); if (b) { b.model = m; if (tint !== undefined) b.tint = tint; this.idDirty = true; } }
+  removeBody(key) { const b = this.bodies.get(key); if (b) { b.dispose(); this.bodies.delete(key); this.idDirty = true; } }
+  clearBodies() { for (const b of this.bodies.values()) b.dispose(); this.bodies.clear(); this.idDirty = true; }
+  /// numeric index of a body key (for the id buffer), stable per frame
+  bodyIndex(key) { let i = 0; for (const k of this.bodies.keys()) { if (k === key) return i; i++; } return -1; }
+  bodyKey(index) { let i = 0; for (const k of this.bodies.keys()) { if (i === index) return k; i++; } return null; }
 
-  clearMesh() { this.count = 0; this.edgeCount = 0; this.idDirty = true; }
+  sceneBbox() {
+    const out = [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]];
+    for (const b of this.bodies.values()) { const w = worldBbox(b); if (!w) continue; for (let k = 0; k < 3; k++) { out[0][k] = Math.min(out[0][k], w[0][k]); out[1][k] = Math.max(out[1][k], w[1][k]); } }
+    return isFinite(out[0][0]) ? out : null;
+  }
 
   setGrid(bbox) {
     const gl = this.gl;
@@ -133,12 +180,14 @@ export class Renderer {
     const n = Math.ceil((ext * 1.5) / step);
     const half = n * step;
     const z = bbox && isFinite(bbox[0][2]) ? Math.min(0, bbox[0][2]) : 0;
+    const cx = bbox ? (bbox[0][0] + bbox[1][0]) / 2 : 0, cy = bbox ? (bbox[0][1] + bbox[1][1]) / 2 : 0;
+    const snap = (v) => Math.round(v / step) * step;
     const v = [];
-    for (let i = -n; i <= n; i++) { const x = i * step; v.push(x, -half, z, x, half, z, -half, x, z, half, x, z); }
+    for (let i = -n; i <= n; i++) { const x = i * step; v.push(snap(cx) + x, snap(cy) - half, z, snap(cx) + x, snap(cy) + half, z, snap(cx) - half, snap(cy) + x, z, snap(cx) + half, snap(cy) + x, z); }
     gl.bindVertexArray(this.vaoGrid);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.bufGrid); gl.bufferData(gl.ARRAY_BUFFER, Float32Array.from(v), gl.STATIC_DRAW); gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
     gl.bindVertexArray(null);
-    this.gridCount = v.length / 3; this.gridStep = step; this.gridZ = z; this.gridHalf = half;
+    this.gridCount = v.length / 3; this.gridStep = step;
   }
 
   setupAxes() {
@@ -160,30 +209,33 @@ export class Renderer {
     gl.viewport(0, 0, W, H);
     gl.clearColor(0.11, 0.12, 0.14, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     const proj = cam.proj(W / H), view = cam.view();
-    // grid
     if (this.showGrid && this.gridCount) {
-      gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, proj); gl.uniformMatrix4fv(this.line.u.uView, false, view); gl.uniform1f(this.line.u.uBias, 0);
+      gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, proj); gl.uniformMatrix4fv(this.line.u.uView, false, view); gl.uniformMatrix4fv(this.line.u.uModel, false, IDENT); gl.uniform1f(this.line.u.uBias, 0);
       gl.bindVertexArray(this.vaoGrid); gl.uniform4f(this.line.u.uColor, 0.22, 0.24, 0.28, 1); gl.drawArrays(gl.LINES, 0, this.gridCount);
     }
-    // solid
-    if (this.count) {
-      gl.useProgram(this.solid.p);
-      gl.uniformMatrix4fv(this.solid.u.uProj, false, proj); gl.uniformMatrix4fv(this.solid.u.uView, false, view);
-      gl.uniform1f(this.solid.u.uHover, this.hover); gl.uniform1f(this.solid.u.uSelect, this.select); gl.uniform1f(this.solid.u.uPreview, this.preview ? 1 : 0);
-      const b = this.preview ? [0.55, 0.62, 0.74] : this.base;
-      gl.uniform3f(this.solid.u.uBase, b[0], b[1], b[2]);
-      gl.bindVertexArray(this.vaoSolid); gl.drawArrays(gl.TRIANGLES, 0, this.count);
+    gl.useProgram(this.solid.p);
+    gl.uniformMatrix4fv(this.solid.u.uProj, false, proj); gl.uniformMatrix4fv(this.solid.u.uView, false, view);
+    gl.uniform1f(this.solid.u.uHover, this.hover); gl.uniform1f(this.solid.u.uSelect, this.select); gl.uniform1f(this.solid.u.uPreview, this.preview ? 1 : 0);
+    let bi = 0;
+    for (const b of this.bodies.values()) {
+      if (b.count) {
+        const base = this.preview ? [0.55, 0.62, 0.74] : this.base;
+        gl.uniform3f(this.solid.u.uBase, base[0] * b.tint, base[1] * b.tint, base[2] * b.tint);
+        gl.uniformMatrix4fv(this.solid.u.uModel, false, b.model); gl.uniform1f(this.solid.u.uBody, bi);
+        gl.bindVertexArray(b.vao); gl.drawArrays(gl.TRIANGLES, 0, b.count);
+      }
+      bi++;
     }
-    // edges
-    if (this.showEdges && this.edgeCount) {
+    if (this.showEdges) {
       gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, proj); gl.uniformMatrix4fv(this.line.u.uView, false, view); gl.uniform1f(this.line.u.uBias, 0.0006);
-      gl.bindVertexArray(this.vaoEdges); gl.uniform4f(this.line.u.uColor, 0.06, 0.07, 0.09, 1); gl.drawArrays(gl.LINES, 0, this.edgeCount);
+      gl.uniform4f(this.line.u.uColor, 0.06, 0.07, 0.09, 1);
+      for (const b of this.bodies.values()) if (b.edgeCount) { gl.uniformMatrix4fv(this.line.u.uModel, false, b.model); gl.bindVertexArray(b.vaoEdges); gl.drawArrays(gl.LINES, 0, b.edgeCount); }
     }
     // axes triad, bottom-left
     const s = Math.floor(Math.min(W, H) * 0.12);
     gl.viewport(8, 8, s, s); gl.clear(gl.DEPTH_BUFFER_BIT);
     const c2 = Object.assign(Object.create(Object.getPrototypeOf(cam)), cam, { target: [0, 0, 0], distance: 3.2, ortho: true });
-    gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, c2.proj(1)); gl.uniformMatrix4fv(this.line.u.uView, false, c2.view()); gl.uniform1f(this.line.u.uBias, 0);
+    gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, c2.proj(1)); gl.uniformMatrix4fv(this.line.u.uView, false, c2.view()); gl.uniformMatrix4fv(this.line.u.uModel, false, IDENT); gl.uniform1f(this.line.u.uBias, 0);
     gl.bindVertexArray(this.vaoAxes);
     gl.uniform4f(this.line.u.uColor, 0.95, 0.35, 0.35, 1); gl.drawArrays(gl.LINES, 0, 2);
     gl.uniform4f(this.line.u.uColor, 0.45, 0.9, 0.4, 1); gl.drawArrays(gl.LINES, 2, 2);
@@ -207,17 +259,19 @@ export class Renderer {
     this.fboSize = [W, H]; this.idDirty = true;
   }
 
-  /// Face id under a CSS pixel, or -1. The id pass is redrawn only when the
-  /// view or the mesh changed since the last pick.
+  /// {body, fid, key} under a CSS pixel, or null. The id pass is redrawn only
+  /// when the view, a model matrix or a mesh changed since the last pick.
   pick(cssX, cssY, cam) {
-    if (!this.count) return -1;
+    if (!this.bodies.size) return null;
     const gl = this.gl; this.ensureFbo();
     const W = this.canvas.width, H = this.canvas.height;
     if (this.idDirty || this.pickView !== this.lastView) {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo); gl.viewport(0, 0, W, H);
       gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(this.id.p); gl.uniformMatrix4fv(this.id.u.uProj, false, this.lastProj || cam.proj(W / H)); gl.uniformMatrix4fv(this.id.u.uView, false, this.lastView || cam.view());
-      gl.bindVertexArray(this.vaoSolid); gl.drawArrays(gl.TRIANGLES, 0, this.count); gl.bindVertexArray(null);
+      let bi = 0;
+      for (const b of this.bodies.values()) { if (b.count) { gl.uniformMatrix4fv(this.id.u.uModel, false, b.model); gl.uniform1f(this.id.u.uBody, bi); gl.bindVertexArray(b.vao); gl.drawArrays(gl.TRIANGLES, 0, b.count); } bi++; }
+      gl.bindVertexArray(null);
       this.idDirty = false; this.pickView = this.lastView;
     } else gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);
     const dpr = W / this.canvas.clientWidth;
@@ -226,7 +280,9 @@ export class Renderer {
     gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     const id = buf[0] + buf[1] * 256 + buf[2] * 65536;
-    return id === 0 ? -1 : id - 1;
+    if (id === 0) return null;
+    const key = id - 1; const body = Math.floor(key / 65536), fid = key % 65536;
+    return { body, fid, key, name: this.bodyKey(body) };
   }
 
   snapshot(type = 'image/png') { return this.canvas.toDataURL(type); }

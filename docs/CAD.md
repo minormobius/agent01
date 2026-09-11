@@ -680,19 +680,32 @@ Built 2026-09-11 as the `cad` surface at `cad.mino.mobi`
   volume grows, and screenshots each part. It passes; the deploy workflow
   runs the ABI selftest and this one is run before pushing.
 
+Second cut, the same day:
+
+- **OCCT in the browser, on demand.** The worker imports the 66 MB module
+  from unpkg (jsDelivr refuses it; Workers static assets cap files at 25
+  MiB) the first time a fillet, chamfer or shell appears or Truck fails a
+  boolean, after one press of *exact with OCCT*; the browser caches it. The
+  filleted case lands from OCCT at the bake-off's number; the escape wheel's
+  fifteen-tooth union that Truck fails falls through to OCCT. Fillet
+  selectors cross the kernel seam via the engine's reference faces, as in
+  the harness. The selftest runs this path against a locally served copy.
+- **Assemblies, first cut.** Components with placements and `params`
+  overrides, sub-assemblies flattened with prefixed ids, `gear` and `fixed`
+  mates solved as a kinematic chain from one driven component, and *spin*
+  with a frame-rate readout — the §10 spin gate, measurable on a phone.
+  `bench/train.json` is a two-stage train built from the arbor and wheel
+  bench parts, the second stage a sub-assembly. Mates are kinematic, not a
+  constraint solver: a gear mate is the scalar relation §10.2 said it was.
+- **Phone.** Two fingers pan and pinch; the part takes the top of the
+  screen and one tabbed panel the bottom third.
+
 What it is not, yet:
 
-- **OCCT is not in the browser.** The bake-off's exact kernel is 66 MB,
-  above the 25 MiB Workers static-asset ceiling. unpkg serves it with CORS
-  (jsDelivr refuses), so the lazy load is a CSP line and a fetch away; the
-  shared [`lib/occt-kernel.js`](../packages/cad/lib/occt-kernel.js) is the
-  same code the harness runs. Until then the exact build in the browser is
-  Truck, which names faces on every sweep and says *unsupported* or *failed*
-  on the booleans it cannot do — the gear and escape wheel show the preview
-  only, and say so.
 - **No sketcher.** The tree is edited as JSON and parameters; phase 4.
-- **No assemblies, no ATProto.** One part, from a bench file, a dropped
-  JSON, or the hash. Phases 2 and 5.
+- **No constraint solver, no ATProto.** Mates are gear and fixed only, and
+  placements are typed in. Documents come from a bench file, a dropped JSON,
+  or the hash. Phases 2 and 5 proper.
 
 Two adapter defects surfaced while building it and were fixed in the
 harness as well: OCCT's outer-versus-hole decision must be taken over an

@@ -40,6 +40,23 @@ documented in [`README.md`](README.md) next to this file.
   `manifold-kernel.js` and `occt-kernel.js` (the kernel adapters as pure
   functions of a loaded module and the resolved tree).
 
+- **Assemblies.** A document with `components` is an assembly: each
+  component names a part (`bench:<name>` or an inline tree, with optional
+  `params` overrides that make a distinct part build), a placement (`at`,
+  `rotate`), and a `phase`; a component may instead hold a sub-`assembly`,
+  flattened with its ids prefixed (`stage2/arbor`). `mates` are `gear`
+  (`za`, `zb`) and `fixed`; `drive` names one component and an rpm. The
+  angles are a kinematic chain from the driven component; *spin* animates it
+  and reports the frame rate. `bench/train.json` is the two-stage train.
+- **OCCT, lazily.** Fillets, chamfers, shells and any boolean Truck fails go
+  to OCCT, loaded on demand from unpkg (66 MB, cached by the browser) after
+  the user presses *exact with OCCT* once (`localStorage cad.occt=1`), or
+  always when `?occt=<base>` names a base URL — which is how the selftest
+  runs it from a locally served copy.
+- **Phone.** One finger orbits, two fingers pan and pinch. Under 900 px the
+  part takes the top of the screen and one tabbed panel (params, tree,
+  report) the bottom third.
+
 ## How it works
 
 1. `app.js` posts `{type:'build', tree}` to the worker.
@@ -49,11 +66,14 @@ documented in [`README.md`](README.md) next to this file.
    (transferred, zero-copy), then runs the Truck exact build and posts that.
 3. The renderer uploads the streams once; hover picks from the id buffer.
 
-The exact kernel in the browser is Truck: fine and fast on sweeps, honest
-about the booleans it cannot do (§13 of the design record). OCCT, the exact
-kernel the bake-off chose, is 66 MB — over the 25 MiB static-asset ceiling —
-so it is not shipped here yet; `lib/occt-kernel.js` is ready for it as a lazy
-load from a CDN that serves it (unpkg does, jsDelivr does not).
+The exact kernel in the browser is Truck first: fine and fast on sweeps,
+honest about the booleans it cannot do (§13 of the design record). OCCT, the
+exact kernel the bake-off chose, is 66 MB — over the 25 MiB static-asset
+ceiling — so it is not shipped with the site but imported by the worker from
+unpkg on demand (jsDelivr refuses files that size); the worker's own CSP in
+`_headers` names that host. Fillet selectors reach OCCT through the engine's
+reference faces: the tree minus its fillet ops is built by Truck, and the
+named face's centroid and normal pick the OCCT face whose edges get rounded.
 
 ## Quirks
 
@@ -65,5 +85,6 @@ load from a CDN that serves it (unpkg does, jsDelivr does not).
   screenshots). Run both before pushing.
 - `?part=<bench>` loads a bench part; `#t=<base64url json>` carries an
   arbitrary tree — an agent can hand a human a link.
-- Keys: drag orbit, shift/right-drag pan, wheel zoom, `f` fit, `o` ortho,
-  `e` edges, `g` grid, `0/1/3/7` views.
+- Keys: drag orbit, shift/right-drag pan, wheel zoom, two fingers pan and
+  pinch, `f` fit, `o` ortho, `e` edges, `g` grid, `space` spin, `0/1/3/7`
+  views.

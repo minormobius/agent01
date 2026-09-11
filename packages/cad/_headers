@@ -33,8 +33,10 @@
 /index.html
   Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
 
+# The worker may also import OCCT (66 MB) from unpkg on demand — jsDelivr
+# refuses files that size — so its script-src and connect-src name that host.
 /build-worker.js
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; connect-src 'self'; base-uri 'none'; object-src 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval' https://unpkg.com; connect-src 'self' https://unpkg.com; base-uri 'none'; object-src 'none'
 
 /cad.wasm
   Content-Type: application/wasm

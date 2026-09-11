@@ -39,8 +39,9 @@ const csp = headersFor('/')['content-security-policy'];
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm' };
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-  const p = path.join(here, urlPath.replace(/\/$/, '/index.html'));
-  if (!p.startsWith(here) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
+  const OCCT = path.join(here, 'bakeoff', 'node_modules', 'opencascade.js', 'dist');
+  const p = urlPath.startsWith('/occt/') ? path.join(OCCT, urlPath.slice(6)) : path.join(here, urlPath.replace(/\/$/, '/index.html'));
+  if (!(p.startsWith(here)) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
   const extra = headersFor(urlPath); delete extra['cache-control'];
   res.writeHead(200, { ...extra, 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
   fs.createReadStream(p).pipe(res);
@@ -96,7 +97,7 @@ await page.evaluate(() => window.__cad.render());
 await page.screenshot({ path: path.join(shots, 'plate.png') });
 
 // pick a face by pointing at the middle of the canvas (the plate's top face)
-const picked = await page.evaluate(() => { const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const id = window.__cad.renderer.pick(r.width / 2, r.height / 2, window.__cad.cam); return { id, names: window.__cad.state.faces[id]?.names || [] }; });
+const picked = await page.evaluate(() => { const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const p = window.__cad.renderer.pick(r.width / 2, r.height / 2, window.__cad.cam); return { id: p ? p.fid : -1, names: p ? window.__cad.state.slots.get('main').faces[p.fid]?.names || [] : [] }; });
 check(picked.id >= 0 && picked.names.some((n) => /plate\.(end|start|side)/.test(n)), `picking the centre of the view returns a named face: ${picked.names.slice(0, 3).join(', ') || picked.id}`);
 
 // the report is on screen
@@ -104,10 +105,10 @@ const reportText = await page.textContent('#report');
 check(/volume/.test(reportText) && /watertight/.test(reportText), 'report table renders');
 
 // every other bench part builds (preview at least), with the expected honesty on exact
-const expect = { gear: { exact: false }, arbor: { exact: true, euler: 2 }, escape: { exact: false, euler: 0 }, case: { exact: true, euler: 2 }, 'case-fillet': { exact: false, previewFails: true } };
+const expect = { gear: { exact: false }, arbor: { exact: true, euler: 2 }, escape: { exact: false, euler: 0 }, case: { exact: true, euler: 2 }, 'case-fillet': { exact: false, approx: true } };
 for (const [name, ex] of Object.entries(expect)) {
   const r = await page.evaluate(async (n) => { await window.__cad.load(n); return await window.__cad.settled(); }, name);
-  if (ex.previewFails) { check(r.previewError && r.previewError.unsupported, `${name}: preview reports unsupported (${r.previewError?.msg})`); continue; }
+  if (ex.approx) { check(r.preview && r.preview.watertight && r.exactError && r.exactError.unsupported, `${name}: preview shows the tree without its fillet; exact says it needs OCCT (${r.exactError?.msg})`); continue; }
   check(r.preview && r.preview.watertight, `${name}: preview builds, watertight, χ=${r.preview?.euler}${ex.euler !== undefined ? ` (expected ${ex.euler})` : ''}`);
   if (ex.euler !== undefined) check(r.preview.euler === ex.euler, `${name}: preview χ = ${ex.euler}`);
   if (ex.exact) check(r.exact && r.exact.watertight && r.faces > 0, `${name}: exact lands with ${r.faces} named faces`);
@@ -118,9 +119,9 @@ for (const [name, ex] of Object.entries(expect)) {
 
 // a param edit rebuilds: thicken the case wall and the volume grows
 await page.evaluate(async () => { await window.__cad.load('case'); await window.__cad.settled(); });
-const before = await page.evaluate(() => window.__cad.state.exact.invariants.volume);
+const before = await page.evaluate(() => window.__cad.state.slots.get('main').exact.invariants.volume);
 await page.evaluate(() => { const row = [...document.querySelectorAll('#params .param')].find((r) => r.querySelector('span').textContent === 'wall'); const i = row.querySelector('input'); i.value = '3'; i.dispatchEvent(new Event('input')); });
-const after = await page.evaluate(async () => { await window.__cad.settled(); return window.__cad.state.exact.invariants.volume; });
+const after = await page.evaluate(async () => { await window.__cad.settled(); return window.__cad.state.slots.get('main').exact.invariants.volume; });
 check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.toFixed(1)} → ${after.toFixed(1)})`);
 
 // three views snapshot strip
@@ -128,6 +129,72 @@ await page.click('#views');
 const imgs = await page.$$eval('#strip img', (els) => els.map((i) => i.src.length));
 check(imgs.length === 3 && imgs.every((l) => l > 1000), `three-view strip renders (${imgs.map((l) => (l / 1e3).toFixed(0) + 'k').join(', ')})`);
 await page.screenshot({ path: path.join(shots, 'ui.png') });
+
+// the assembly: four components from two parts (one with a params override), a sub-assembly, gear + fixed mates, spin
+{
+  const r = await page.evaluate(async () => { await window.__cad.load('train'); return await window.__cad.settled(); });
+  check(r.mode === 'asm' && r.components === 4 && r.slots === 3, `train: 4 components over 3 distinct part builds (${r.components} / ${r.slots})`);
+  const angles = await page.evaluate(() => { window.__cad.solveAngles(360); return Object.fromEntries(window.__cad.state.angles); });
+  check(Math.abs(angles['wheel1'] + 48) < 1e-9 && Math.abs(angles['stage2/arbor'] + 48) < 1e-9 && Math.abs(angles['stage2/wheel'] - 6.4) < 1e-9, `gear mates propagate: arbor1 360° → wheel1 ${angles['wheel1']}° → stage2/arbor ${angles['stage2/arbor']}° → stage2/wheel ${angles['stage2/wheel']}°`);
+  const spun = await page.evaluate(async () => { window.__cad.toggleSpin(); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); const a0 = window.__cad.state.angles.get('arbor1'); await new Promise((r) => setTimeout(r, 1200)); const a1 = window.__cad.state.angles.get('arbor1'); const fps = window.__cad.state.fps; window.__cad.toggleSpin(); return { a0, a1, fps }; });
+  check(spun.a1 > spun.a0 && spun.fps > 5, `spin advances the train (${spun.a0.toFixed(1)}° → ${spun.a1.toFixed(1)}° in 1.2 s) at ${spun.fps.toFixed(0)} fps under software GL`);
+  const pick = await page.evaluate(() => { window.__cad.render(); const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); for (let y = 0.3; y <= 0.7; y += 0.05) for (let x = 0.3; x <= 0.7; x += 0.05) { const p = window.__cad.renderer.pick(r.width * x, r.height * y, window.__cad.cam); if (p) return p; } return null; });
+  check(pick && pick.name, `picking an assembly returns a component: ${pick?.name} face ${pick?.fid}`);
+  await page.evaluate(() => window.__cad.render());
+  await page.screenshot({ path: path.join(shots, 'train.png') });
+}
+
+// touch: two-finger pinch dollies, two-finger drag pans, one finger orbits
+{
+  const before = await page.evaluate(() => ({ d: window.__cad.cam.distance, yaw: window.__cad.cam.yaw, t: [...window.__cad.cam.target] }));
+  await page.evaluate(() => {
+    const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const ev = (type, id, x, y) => c.dispatchEvent(new PointerEvent(type, { pointerId: id, pointerType: 'touch', clientX: x, clientY: y, bubbles: true, isPrimary: id === 1, button: 0 }));
+    ev('pointerdown', 1, cx - 50, cy); ev('pointerdown', 2, cx + 50, cy);
+    ev('pointermove', 1, cx - 100, cy); ev('pointermove', 2, cx + 100, cy);   // pinch out
+    ev('pointermove', 1, cx - 100, cy + 60); ev('pointermove', 2, cx + 100, cy + 60); // drag down
+    ev('pointerup', 1, cx - 100, cy + 60); ev('pointerup', 2, cx + 100, cy + 60);
+    ev('pointerdown', 1, cx, cy); ev('pointermove', 1, cx + 80, cy); ev('pointerup', 1, cx + 80, cy); // one finger
+  });
+  const after = await page.evaluate(() => ({ d: window.__cad.cam.distance, yaw: window.__cad.cam.yaw, t: [...window.__cad.cam.target] }));
+  check(after.d < before.d, `pinch out zooms in (distance ${before.d.toFixed(1)} → ${after.d.toFixed(1)})`);
+  check(Math.hypot(...after.t.map((v, i) => v - before.t[i])) > 0.01, `two-finger drag pans (target moved ${Math.hypot(...after.t.map((v, i) => v - before.t[i])).toFixed(2)})`);
+  check(after.yaw !== before.yaw, `one finger orbits (yaw ${before.yaw.toFixed(3)} → ${after.yaw.toFixed(3)})`);
+}
+
+// the phone layout: part on top, tabs, one panel below
+{
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, bypassCSP: true });
+  await phone.goto(`${base}/?part=case`, { waitUntil: 'load' });
+  await phone.waitForFunction(() => !!window.__cad, null, { timeout: 30000 });
+  await phone.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); window.__cad.render(); });
+  const lay = await phone.evaluate(() => { const g = (s) => { const r = document.querySelector(s).getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; }; const v = document.querySelector('#view').getBoundingClientRect(); const t = document.querySelector('#tabs').getBoundingClientRect(); const l = document.querySelector('#left').getBoundingClientRect(); return { view: v.height / innerHeight, tabsVisible: t.height > 0, panelBelow: l.top >= v.bottom - 1, docScrollX: document.documentElement.scrollWidth <= innerWidth + 1, rects: { header: g('header'), main: g('main'), view: g('#view'), tabs: g('#tabs'), left: g('#left'), inner: innerHeight } }; });
+  check(lay.view > 0.5 && lay.tabsVisible && lay.panelBelow && lay.docScrollX, `phone: part takes ${(lay.view * 100).toFixed(0)}% of the height, tabs visible, panel below, no sideways scroll ${JSON.stringify(lay.rects)}`);
+  await phone.click('[data-tab=report]');
+  const rep = await phone.evaluate(() => getComputedStyle(document.querySelector('#right')).display !== 'none' && getComputedStyle(document.querySelector('#left')).display === 'none');
+  check(rep, 'phone: the report tab swaps the panel');
+  await phone.screenshot({ path: path.join(shots, 'phone.png') });
+  await phone.close();
+}
+
+// OCCT, lazily, from a base URL the test serves itself: the fillet the other kernels cannot do
+{
+  const occ = await browser.newPage({ viewport: { width: 1400, height: 900 }, bypassCSP: true });
+  const occErrors = [];
+  occ.on('pageerror', (e) => occErrors.push(e.message));
+  await occ.goto(`${base}/?part=case-fillet&occt=/occt/`, { waitUntil: 'load' });
+  await occ.waitForFunction(() => !!window.__cad, null, { timeout: 30000 });
+  const r = await Promise.race([occ.evaluate(async () => { await window.__cad.ready; return await window.__cad.settled(); }), new Promise((res) => setTimeout(() => res({ timeout: true }), 180000))]);
+  check(!r.timeout && r.exact && r.exactKernel === 'occt', `case-fillet: exact lands from OCCT${r.exact ? ` (volume ${r.exact.volume.toFixed(3)}, χ=${r.exact.euler}, watertight ${r.exact.watertight})` : r.timeout ? ' — timed out' : ` — ${r.exactError?.msg}`}`);
+  if (r.exact) check(near(r.exact.volume, 2455.522, 0.002) && r.exact.euler === 2, `case-fillet volume matches the bake-off's OCCT number (2455.522)`);
+  check(r.preview && r.preview.watertight, `case-fillet: preview shows the unfilleted case meanwhile (${r.preview?.volume?.toFixed(1)})`);
+  const esc = await Promise.race([occ.evaluate(async () => { await window.__cad.load('escape'); return await window.__cad.settled(); }), new Promise((res) => setTimeout(() => res({ timeout: true }), 120000))]);
+  check(!esc.timeout && esc.exact && esc.exactKernel === 'occt' && esc.exact.euler === 0, `escape: Truck's failed union falls through to OCCT (${esc.exact ? `χ=${esc.exact.euler}, ${esc.exact.volume.toFixed(2)}` : esc.exactError?.msg})`);
+  await occ.evaluate(() => window.__cad.render());
+  await occ.screenshot({ path: path.join(shots, 'case-fillet-occt.png') });
+  check(occErrors.length === 0, occErrors.length ? `OCCT page errors:\n  ${occErrors.join('\n  ')}` : 'no page errors on the OCCT path');
+  await occ.close();
+}
 
 check(errors.length === 0, errors.length ? `no page errors — got:\n  ${errors.join('\n  ')}` : 'no page errors');
 await browser.close(); server.close();

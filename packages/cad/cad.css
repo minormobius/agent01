@@ -2,6 +2,12 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
 body { display: grid; grid-template-rows: 40px 1fr; grid-template-columns: 300px 1fr 320px; grid-template-areas: "bar bar bar" "left view right"; height: 100vh; }
+#tabs { display: none; }
+body[data-mode=part] .asm-only, body[data-mode=asm] .part-only { display: none; }
+.asm-ctl { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.asm-ctl input { width: 64px; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; font: inherit; }
+#face code.comp { background: #3a2f12; color: var(--accent); }
+#occt { margin-top: 6px; border-color: var(--accent); }
 header { grid-area: bar; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
 header h1 { font-size: 14px; margin: 0 12px 0 0; font-weight: 600; letter-spacing: 0.02em; }
 header h1 small { color: var(--dim); font-weight: 400; margin-left: 6px; }
@@ -36,4 +42,20 @@ th small { color: var(--dim); }
 #strip img { width: 92px; height: 60px; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
 .keys { color: var(--dim); font-size: 11px; }
 .keys kbd { background: #2e3239; padding: 0 4px; border-radius: 3px; border: 1px solid var(--line); }
-@media (max-width: 900px) { body { grid-template-columns: 1fr; grid-template-rows: 40px 50vh auto auto; grid-template-areas: "bar" "view" "left" "right"; height: auto; } aside { border: none; border-top: 1px solid var(--line); } }
+/* Phone: the part in the top two thirds, one tabbed panel in the bottom third. */
+@media (max-width: 900px) {
+  body { grid-template-columns: 1fr; grid-template-rows: auto 1fr 32px minmax(0, 34vh); grid-template-areas: "bar" "view" "tabs" "panel"; height: 100vh; height: 100dvh; }
+  header { flex-wrap: nowrap; overflow-x: auto; padding: 4px 8px; gap: 6px; }
+  header h1 small { display: none; }
+  #status { display: none; }
+  #tabs { grid-area: tabs; display: flex; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel); }
+  #tabs button { flex: 1; border: none; border-radius: 0; background: none; color: var(--dim); }
+  #tabs button.on { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+  aside, #left, #right { grid-area: panel; border: none; padding: 8px 12px; display: none; }
+  #left, #right { min-height: 0; overflow: auto; }
+  body[data-tab=params] #left, body[data-tab=tree] #left, body[data-tab=report] #right, body:not([data-tab]) #left { display: block; }
+  section[data-pane] { display: none; }
+  body[data-tab=params] section[data-pane=params], body:not([data-tab]) section[data-pane=params], body[data-tab=tree] section[data-pane=tree], body[data-tab=report] section[data-pane=report] { display: block; }
+  textarea#json { min-height: 22vh; }
+  button, select { padding: 6px 10px; }
+}
