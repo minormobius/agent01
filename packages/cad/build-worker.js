@@ -9,13 +9,14 @@
 import { loadEngine } from './lib/engine.js';
 import { buildManifold } from './lib/manifold-kernel.js';
 import { buildOcct } from './lib/occt-kernel.js';
+import { interference } from './lib/interfere.js';
 import { weld, invariants, featureEdges, flatStreams, bbox, writeStl } from './lib/mesh.js';
 import Module from './vendor/manifold.js';
 
 let engine = null, manifold = null, oc = null, occtLoading = null;
 let occtBase = 'https://unpkg.com/opencascade.js@1.1.1/dist/';
 const latest = new Map();   // slot → id
-const last = new Map();     // slot → {preview, exact}
+const last = new Map();     // slot → {preview, exact, manifold, bbox}
 const post = (msg, transfer) => self.postMessage(msg, transfer || []);
 
 async function init(m) {
@@ -73,13 +74,17 @@ self.onmessage = async (e) => {
     const entry = last.get(slot) || {}; last.set(slot, entry);
     // preview (Manifold has no fillet: preview the tree without those ops, flagged)
     if (m.want.preview !== false) {
-      let r = buildManifold(manifold, resolved);
+      let r = buildManifold(manifold, resolved, { keep: true });
       let approx = false;
       if (!r.ok && r.error?.unsupported && needsOcct) {
         const stripped = JSON.parse(tree); stripped.features = stripped.features.filter((f) => !NEEDS_OCCT.has(f.op));
-        try { r = buildManifold(manifold, engine.resolve(JSON.stringify(stripped), m.tol || 0.01)); approx = true; } catch {}
+        try { r = buildManifold(manifold, engine.resolve(JSON.stringify(stripped), m.tol || 0.01), { keep: true }); approx = true; } catch {}
       }
-      if (r.ok) { const { payload, transfer } = pack(r.mesh, { type: 'preview', id, slot, ms: r.ms, kernelVolume: r.kernelVolume, genus: r.genus, kernel: 'manifold', approx }); entry.preview = payload.mesh; post(payload, transfer); }
+      if (r.ok) {
+        if (entry.manifold) { try { entry.manifold.delete(); } catch {} }
+        entry.manifold = r.manifold; entry.bbox = r.bbox;
+        const { payload, transfer } = pack(r.mesh, { type: 'preview', id, slot, ms: r.ms, kernelVolume: r.kernelVolume, genus: r.genus, kernel: 'manifold', approx }); entry.preview = payload.mesh; post(payload, transfer);
+      }
       else post({ type: 'error', id, slot, stage: 'preview', error: r.error });
     }
     if (stale()) return;
@@ -119,11 +124,19 @@ self.onmessage = async (e) => {
     entry.exact = payload.mesh; post(payload, transfer);
     return;
   }
+  if (m.type === 'check') {
+    // interference at a pose: bodies = [{id, slot, model}]
+    const bodies = m.bodies.filter((b) => last.get(b.slot)?.manifold).map((b) => ({ id: b.id, manifold: last.get(b.slot).manifold, bbox: last.get(b.slot).bbox, model: b.model }));
+    const missing = m.bodies.length - bodies.length;
+    try { const r = interference({ Manifold: manifold.Manifold }, bodies, { eps: m.eps ?? 0.01 }); post({ type: 'check', id: m.id, ...r, missing }); }
+    catch (e) { post({ type: 'error', id: m.id, stage: 'check', error: { op: 'check', msg: String(e?.message ?? e) } }); }
+    return;
+  }
   if (m.type === 'export') {
     const entry = last.get(m.slot || 'main') || {};
     const mesh = m.which === 'preview' ? entry.preview : entry.exact || entry.preview;
     if (!mesh) return post({ type: 'error', id: m.id, stage: 'export', error: { op: 'export', msg: 'nothing built yet' } });
     const stl = writeStl(mesh);
-    post({ type: 'export', id: m.id, format: 'stl', bytes: stl }, [stl.buffer]);
+    post({ type: 'export', id: m.id, format: 'stl', bytes: stl, name: m.name }, [stl.buffer]);
   }
 };

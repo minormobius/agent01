@@ -717,6 +717,33 @@ outlines rather than booleans (the balance's rim, windows and hub; the hand's
 boss and blade closed by one arc), because Truck's coplanar-cap unions
 were the thing the bake-off said not to lean on.
 
+Fourth cut — **the tools an agent needs**, which are the tools a human needs:
+
+- **Face geometry.** The engine now attaches a plane or a cylinder to every
+  face it names (§1.1's naming, extended with what the face *is*), computed
+  from the sketch curve that swept it. A circle is four exact arcs, so a
+  bore is a real cylinder with a radius; the mesh only ever approximated
+  it. The measure tool reads diameters and plane-to-plane, axis-to-axis
+  and axis-to-plane distances from that, in the page and from
+  `agent/measure.mjs`.
+- **Interference.** Every overlapping pair of components, intersected with
+  Manifold at the current pose; the shared volume is the number. It found
+  the pallet fork's stones swinging into the escape wheel's teeth, the
+  cannon pinion cutting into the hour wheel, and the escape wheel grazing
+  the case wall — three placement errors a picture had not shown — and the
+  fixes were three parameters. Pairs under 0.01 mm³ are polygon flanks
+  touching at a mesh and are not reported; fixed-mated press fits are
+  reported and marked. `agent/check.mjs` exits non-zero on a real clash.
+- **Export.** One STL per part and a posed assembly STL from
+  `agent/export.mjs`; the page exports the pinned component's part.
+- **Render.** `agent/render.mjs` opens the page in headless Chromium,
+  loads a document, waits for the builds, writes a PNG per view and the
+  report. An agent sees what a human sees.
+- **The skill.** `.claude/skills/cad/SKILL.md` is the instruction sheet
+  for another agent: the loop (write tree → build → measure → check →
+  render → judge), the commands, the naming, which kernel does what, and
+  how to hand over a link. This is §6 as built.
+
 What it is not, yet:
 
 - **No sketcher.** The tree is edited as JSON and parameters; phase 4.

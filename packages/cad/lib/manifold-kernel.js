@@ -9,7 +9,7 @@ const to3 = (f, p) => [0, 1, 2].map((i) => f.o[i] + f.u[i] * p[0] + f.v[i] * p[1
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const frameMat = (f) => [f.u[0], f.u[1], f.u[2], 0, f.v[0], f.v[1], f.v[2], 0, f.n[0], f.n[1], f.n[2], 0, f.o[0], f.o[1], f.o[2], 1];
 
-export function buildManifold({ Manifold, CrossSection }, resolved, { segments = 256 } = {}) {
+export function buildManifold({ Manifold, CrossSection }, resolved, { segments = 256, keep = false } = {}) {
   const t0 = performance.now();
   const polys = new Map(resolved.polylines.map((p) => [p.id, p]));
   const rings = (ids) => ids.flatMap((id) => polys.get(id).rings.map((r) => r.map(([x, y]) => [x, y])));
@@ -66,8 +66,9 @@ export function buildManifold({ Manifold, CrossSection }, resolved, { segments =
     const idx = Uint32Array.from(mg.triVerts);
     const fid = mg.faceID && mg.faceID.length ? Uint32Array.from(mg.faceID) : undefined;
     const kernelVolume = body.volume(), genus = body.genus();
-    for (const s of new Set(live)) { try { s.delete(); } catch {} }
-    return { ok: true, ms: performance.now() - t0, mesh: { pos, idx, fid }, kernelVolume, genus };
+    const bb = body.boundingBox();
+    for (const s of new Set(live)) { if (keep && s === body) continue; try { s.delete(); } catch {} }
+    return { ok: true, ms: performance.now() - t0, mesh: { pos, idx, fid }, kernelVolume, genus, bbox: [bb.min, bb.max], manifold: keep ? body : null };
   } catch (e) {
     for (const s of new Set(live)) { try { s.delete(); } catch {} }
     return { ok: false, error: { op: '?', msg: String(e?.message ?? e).slice(0, 200) }, ms: performance.now() - t0 };

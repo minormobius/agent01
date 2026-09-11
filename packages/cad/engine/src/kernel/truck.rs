@@ -17,6 +17,7 @@ type Result<T, E = String> = std::result::Result<T, E>;
 pub struct Truck;
 
 type Named = Vec<Vec<String>>;
+type Geoms = Vec<Option<super::Geom>>;
 
 fn p3(f: &Frame, p: [f64; 2]) -> Point3 {
     let q = f.to3(p);
@@ -70,31 +71,30 @@ fn union_all(solids: Vec<Solid>, tol: f64, op: &str) -> Result<Solid, KError> {
     Ok(acc)
 }
 
-fn combine(body: Option<(Solid, Named)>, tool: Solid, tool_names: Named, mode: &str, tol: f64, op: &str) -> Result<(Solid, Named), KError> {
+fn combine(body: Option<(Solid, Named, Geoms)>, tool: Solid, tool_names: Named, tool_geoms: Geoms, mode: &str, tol: f64, op: &str) -> Result<(Solid, Named, Geoms), KError> {
     match (body, mode) {
-        (None, _) | (_, "new") => Ok((tool, tool_names)),
-        (Some((b, _)), "add") => {
+        (None, _) | (_, "new") => Ok((tool, tool_names, tool_geoms)),
+        (Some((b, _, _)), "add") => {
             let r = truck_shapeops::or(&b, &tool, tol).ok_or_else(|| KError::fail(op, "boolean union failed"))?;
-            Ok((r, anon(op)))
+            Ok((r, Vec::new(), Vec::new()))
         }
-        (Some((b, _)), "cut") => {
+        (Some((b, _, _)), "cut") => {
             let mut t = builder::clone(&tool);
             t.not();
             let r = truck_shapeops::and(&b, &t, tol).ok_or_else(|| KError::fail(op, "boolean cut failed"))?;
-            Ok((r, anon(op)))
+            Ok((r, Vec::new(), Vec::new()))
         }
-        (Some((b, _)), "intersect") => {
+        (Some((b, _, _)), "intersect") => {
             let r = truck_shapeops::and(&b, &tool, tol).ok_or_else(|| KError::fail(op, "boolean intersect failed"))?;
-            Ok((r, anon(op)))
+            Ok((r, Vec::new(), Vec::new()))
         }
         (_, m) => Err(KError::fail(op, format!("unknown mode `{m}`"))),
     }
 }
+// Faces after a boolean are not tracked through it yet: they get `face[k]`
+// and no geometry.
 
-/// Faces after a boolean are not tracked through it yet: they get `id.face[k]`.
-fn anon(_op: &str) -> Named { Vec::new() }
-
-fn extrude(id: &str, frame: &Frame, region: &Region, depth: f64, tol: f64, cut: bool) -> Result<(Solid, Named), KError> {
+fn extrude(id: &str, frame: &Frame, region: &Region, depth: f64, tol: f64, cut: bool) -> Result<(Solid, Named, Geoms), KError> {
     let groups = region.oriented().map_err(|e| KError::fail(id, e))?;
     let dir = v3(frame.n) * depth.signum();
     // A cut tool is extended by a hair at both ends so its caps never sit
@@ -105,14 +105,16 @@ fn extrude(id: &str, frame: &Frame, region: &Region, depth: f64, tol: f64, cut: 
     let frame = &frame;
     let mut solids = Vec::new();
     let mut names = Vec::new();
+    let mut geoms = Vec::new();
     for g in &groups {
         let face = face_of(frame, g, dir).map_err(|e| KError::fail(id, e))?;
         solids.push(builder::tsweep(&face, dir * (depth.abs() + 2.0 * eps)));
         names.extend(sweep_face_names(id, region, std::slice::from_ref(g), true));
+        geoms.extend(super::extrude_face_geoms(frame, std::slice::from_ref(g), depth));
     }
     let multi = solids.len() > 1;
     let s = union_all(solids, tol, id)?;
-    Ok((s, if multi { Vec::new() } else { names }))
+    Ok((s, if multi { Vec::new() } else { names }, if multi { Vec::new() } else { geoms }))
 }
 
 /// Distance of a sketch point from the revolve axis, in the sketch plane.
@@ -121,7 +123,7 @@ fn off_axis(p: [f64; 2], axis_p: [f64; 2], axis_d: [f64; 2]) -> f64 {
     ((p[0] - axis_p[0]) * axis_d[1] - (p[1] - axis_p[1]) * axis_d[0]).abs() / l
 }
 
-fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [f64; 2], angle_deg: f64, tol: f64) -> Result<(Solid, Named), KError> {
+fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [f64; 2], angle_deg: f64, tol: f64) -> Result<(Solid, Named, Geoms), KError> {
     let groups = region.oriented().map_err(|e| KError::fail(id, e))?;
     let origin = p3(frame, axis_p);
     let d3 = frame.dir3(axis_d);
@@ -129,6 +131,7 @@ fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [
     let full = (angle_deg - 360.0).abs() < 1e-9;
     let mut solids = Vec::new();
     let mut names = Vec::new();
+    let mut geoms: Geoms = Vec::new();
     for g in &groups {
         // orient from the profile point farthest off the axis (a point on
         // the axis has no sweep direction)
@@ -211,17 +214,16 @@ fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [
             if surf.normal(u, v).dot(out3) < 0.0 {
                 solid.not();
             }
-            let per_edge = solid.boundaries()[0].len() / order.len().max(1);
+            let seg_geoms = super::revolve_seg_geoms(frame, outer, axis_p, axis_d);
             let mut nm: Named = Vec::new();
             for fi in 0..solid.boundaries()[0].len() {
-                let ei = order[fi / per_edge.max(1) % order.len()];
-                let _ = ei;
                 let seg_i = order[fi % order.len()];
                 let mut v = vec![format!("{id}.side[{seg_i}]")];
                 if let Some(n) = &outer.names[seg_i] {
                     v.push(format!("{id}.{n}"));
                 }
                 nm.push(v);
+                geoms.push(seg_geoms[seg_i].clone());
             }
             solids.push(solid);
             names.extend(nm);
@@ -234,20 +236,23 @@ fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [
         let n_edges: usize = g.iter().map(|l| l.segs.len()).sum();
         let base = sweep_face_names(id, region, std::slice::from_ref(g), !full);
         let n_faces = solid.boundaries()[0].len();
+        let seg_geoms: Geoms = g.iter().flat_map(|l| super::revolve_seg_geoms(frame, l, axis_p, axis_d)).collect();
         let mut nm: Named = Vec::new();
         if full && n_edges > 0 {
             for fi in 0..n_faces {
                 nm.push(base[fi % n_edges].clone());
+                geoms.push(seg_geoms[fi % n_edges].clone());
             }
         } else {
             nm = base;
+            geoms.extend(std::iter::repeat(None).take(n_faces));
         }
         solids.push(solid);
         names.extend(nm);
     }
     let multi = solids.len() > 1;
     let s = union_all(solids, tol, id)?;
-    Ok((s, if multi { Vec::new() } else { names }))
+    Ok((s, if multi { Vec::new() } else { names }, if multi { Vec::new() } else { geoms }))
 }
 
 fn tessellate(solid: &Solid, tol: f64) -> (TriMesh, Vec<u32>, Vec<(f64, [f64; 3], [f64; 3])>) {
@@ -321,34 +326,34 @@ impl Kernel for Truck {
     fn id(&self) -> &'static str { "truck" }
 
     fn build(&self, r: &Resolved, o: &BuildOpts) -> Result<Built, KError> {
-        let mut body: Option<(Solid, Named)> = None;
-        let mut solids: BTreeMap<String, (Solid, Named)> = BTreeMap::new();
+        let mut body: Option<(Solid, Named, Geoms)> = None;
+        let mut solids: BTreeMap<String, Solid> = BTreeMap::new();
         for op in &r.ops {
             match op {
                 ROp::Extrude { id, frame, region, depth, mode, .. } => {
-                    let (s, n) = extrude(id, frame, region, *depth, o.bool_tol, mode == "cut")?;
-                    solids.insert(id.clone(), (builder::clone(&s), n.clone()));
-                    body = Some(combine(body, s, n, mode, o.bool_tol, id)?);
+                    let (s, n, g) = extrude(id, frame, region, *depth, o.bool_tol, mode == "cut")?;
+                    solids.insert(id.clone(), builder::clone(&s));
+                    body = Some(combine(body, s, n, g, mode, o.bool_tol, id)?);
                 }
                 ROp::Revolve { id, frame, region, axis_p, axis_d, angle_deg, mode, .. } => {
-                    let (s, n) = revolve(id, frame, region, *axis_p, *axis_d, *angle_deg, o.bool_tol)?;
-                    solids.insert(id.clone(), (builder::clone(&s), n.clone()));
-                    body = Some(combine(body, s, n, mode, o.bool_tol, id)?);
+                    let (s, n, g) = revolve(id, frame, region, *axis_p, *axis_d, *angle_deg, o.bool_tol)?;
+                    solids.insert(id.clone(), builder::clone(&s));
+                    body = Some(combine(body, s, n, g, mode, o.bool_tol, id)?);
                 }
                 ROp::Boolean { id, kind, a, b } => {
-                    let (sa, _) = solids.get(a).ok_or_else(|| KError::fail(id, format!("unknown solid `{a}`")))?;
-                    let (sb, _) = solids.get(b).ok_or_else(|| KError::fail(id, format!("unknown solid `{b}`")))?;
+                    let sa = solids.get(a).ok_or_else(|| KError::fail(id, format!("unknown solid `{a}`")))?;
+                    let sb = solids.get(b).ok_or_else(|| KError::fail(id, format!("unknown solid `{b}`")))?;
                     let mode = match kind.as_str() { "union" => "add", "cut" => "cut", "intersect" => "intersect", k => return Err(KError::fail(id, format!("unknown boolean `{k}`"))) };
-                    let (s, n) = combine(Some((builder::clone(sa), Vec::new())), builder::clone(sb), Vec::new(), mode, o.bool_tol, id)?;
-                    solids.insert(id.clone(), (builder::clone(&s), n.clone()));
-                    body = Some((s, n));
+                    let (s, n, g) = combine(Some((builder::clone(sa), Vec::new(), Vec::new())), builder::clone(sb), Vec::new(), Vec::new(), mode, o.bool_tol, id)?;
+                    solids.insert(id.clone(), builder::clone(&s));
+                    body = Some((s, n, g));
                 }
                 ROp::Fillet { id, .. } => return Err(KError::unsupported(id, "fillet")),
                 ROp::Chamfer { id, .. } => return Err(KError::unsupported(id, "chamfer")),
                 ROp::Shell { id, .. } => return Err(KError::unsupported(id, "shell")),
             }
         }
-        let (solid, names) = body.ok_or_else(|| KError::fail("tree", "no solid-producing feature"))?;
+        let (solid, names, geoms) = body.ok_or_else(|| KError::fail("tree", "no solid-producing feature"))?;
         let (mesh, face_of_tri, per_face) = tessellate(&solid, o.tol);
         let faces = per_face
             .into_iter()
@@ -358,6 +363,7 @@ impl Kernel for Truck {
                 area,
                 normal,
                 centroid,
+                geom: geoms.get(i).cloned().flatten(),
             })
             .collect();
         let step = if o.want_step { Some(step_of(&solid)) } else { None };

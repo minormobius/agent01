@@ -100,6 +100,19 @@ await page.screenshot({ path: path.join(shots, 'plate.png') });
 const picked = await page.evaluate(() => { const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const p = window.__cad.renderer.pick(r.width / 2, r.height / 2, window.__cad.cam); return { id: p ? p.fid : -1, names: p ? window.__cad.state.slots.get('main').faces[p.fid]?.names || [] : [] }; });
 check(picked.id >= 0 && picked.names.some((n) => /plate\.(end|start|side)/.test(n)), `picking the centre of the view returns a named face: ${picked.names.slice(0, 3).join(', ') || picked.id}`);
 
+// measure: the exact geometry behind picked faces — a bore's diameter, plane to plane, axis to axis
+{
+  const m = await page.evaluate(() => {
+    const faces = window.__cad.state.slots.get('main').faces;
+    const byName = (n) => { const i = faces.findIndex((f) => f.names.includes(n)); return { name: 'main', fid: i, key: i }; };
+    return { pivot: window.__cad.describe(byName('plate.pivot[0][0]')), rim: window.__cad.describe(byName('plate.rim[0]')), faces: window.__cad.measure(byName('plate.start'), byName('plate.end')), axes: window.__cad.measure(byName('plate.rim[0]'), byName('plate.pivot[0][0]')) };
+  });
+  check(m.pivot.kind === 'cylinder' && Math.abs(m.pivot.diameter - 0.32) < 1e-9, `a pivot hole reads as a cylinder ⌀ ${m.pivot.diameter}`);
+  check(m.rim.kind === 'cylinder' && Math.abs(m.rim.diameter - 40) < 1e-9, `the rim reads ⌀ ${m.rim.diameter}`);
+  check(m.faces.kind === 'plane-plane' && m.faces.parallel && Math.abs(m.faces.distance - 1.5) < 1e-9, `plate.start to plate.end is ${m.faces.distance} (plane to plane, parallel)`);
+  check(m.axes.kind === 'cylinder-cylinder' && m.axes.parallel && Math.abs(m.axes.distance - 12) < 1e-9, `rim axis to pivot axis is ${m.axes.distance} (the pattern radius)`);
+}
+
 // the report is on screen
 const reportText = await page.textContent('#report');
 check(/volume/.test(reportText) && /watertight/.test(reportText), 'report table renders');
@@ -158,6 +171,9 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
   check(Object.values(phases).some((p) => p !== 0), `gear phases were set automatically: ${Object.entries(phases).slice(0, 4).map(([k, v]) => `${k} ${v}°`).join(', ')}`);
   const hl = await page.evaluate(() => { const s = window.__cad.state; s.hover = { name: 'balance', fid: 0, key: 0 }; window.__cad.renderer.hover = 0; const rows = [...document.querySelectorAll('[data-comp]')]; const before = rows.filter((r) => r.classList.contains('hl')).map((r) => r.dataset.comp); document.querySelector('#face'); const ev = new PointerEvent('pointerenter'); rows.find((r) => r.dataset.comp === 'balance').dispatchEvent(ev); const after = [...document.querySelectorAll('[data-comp].hl')].map((r) => r.dataset.comp); s.hover = null; return { after }; });
   check(hl.after.length >= 2 && hl.after.every((c) => c === 'balance'), `hovering the balance highlights its rows in the list and the report (${hl.after.length} rows)`);
+  const chk = await page.evaluate(async () => { window.__cad.state.angles = window.__cad.solveAngles(0.5); window.__cad.updateModels(); window.__cad.runCheck(); const c = await window.__cad.checked(); const fixed = new Set(window.__cad.state.mates.filter((m) => m.kind === 'fixed').map((m) => [m.a, m.b].sort().join('|'))); return { tested: c.tested, ms: c.ms, real: c.pairs.filter((p) => !fixed.has([p.a, p.b].sort().join('|'))).map((p) => `${p.a}×${p.b} ${p.volume.toFixed(3)}`), all: c.pairs.length }; });
+  check(chk.tested > 0, `interference check ran over ${chk.tested} overlapping pairs in ${chk.ms.toFixed(0)} ms (${chk.all} touching pairs, ${chk.real.length} real)`);
+  check(chk.real.length === 0, `the clock has no interfering pairs mid-beat${chk.real.length ? ' — ' + chk.real.join(', ') : ''}`);
   await page.evaluate(() => { window.__cad.cam.preset('iso'); window.__cad.cam.fit(window.__cad.renderer.sceneBbox()); window.__cad.solveAngles(0.5); window.__cad.render(); });
   await page.screenshot({ path: path.join(shots, 'clock.png') });
   const vis = await page.evaluate(() => { window.__cad.hide('dial'); window.__cad.hide('case'); window.__cad.render(); const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const seen = new Set(); for (let y = 0.2; y <= 0.8; y += 0.04) for (let x = 0.2; x <= 0.8; x += 0.04) { const p = window.__cad.renderer.pick(r.width * x, r.height * y, window.__cad.cam); if (p) seen.add(p.name); } return [...seen]; });

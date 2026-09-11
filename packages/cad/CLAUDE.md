@@ -66,6 +66,23 @@ documented in [`README.md`](README.md) next to this file.
   part takes the top of the screen and one tabbed panel (params, tree,
   report) the bottom third.
 
+- **Measure.** Every face the exact kernel names carries its geometry — a
+  plane or a cylinder (a circle is four exact arcs, so a bore is a real
+  cylinder) — so hovering a bore reads its diameter, and pinning one face
+  then clicking another gives plane-to-plane, axis-to-axis (with both
+  diameters and the wall between) or axis-to-plane distance. Numbers come
+  from the geometry, never the mesh; the preview mesh is polygons.
+- **Interference.** *check interference* in an assembly poses every
+  component at the current angles and intersects each overlapping pair
+  with Manifold; pairs with more than 0.01 mm³ in common are listed,
+  fixed-mated bores on their arbors marked as expected touches. Hover a pair
+  to light both components.
+- **Export.** *stl* exports the part (or, in an assembly, the pinned or
+  hovered component's part).
+- **Headless, for an agent.** `agent/check.mjs`, `agent/measure.mjs`,
+  `agent/export.mjs` and `agent/render.mjs` do the same from a file on disk;
+  the skill at `.claude/skills/cad/SKILL.md` is the instruction sheet.
+
 ## How it works
 
 1. `app.js` posts `{type:'build', tree}` to the worker.

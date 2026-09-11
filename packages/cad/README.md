@@ -88,6 +88,19 @@ booleans, npm), `occt` (OCCT 7.4 as 66 MB of WASM, npm). Each builds from the
 engine's *resolved* tree so all kernels see identical inputs; STEP output is
 read back by the engine's own STEP reader as the fidelity check.
 
+## For an agent
+
+`agent/` holds the headless tools; `.claude/skills/cad/SKILL.md` is the
+instruction sheet. From `packages/cad/`:
+
+```bash
+node agent/measure.mjs bench/plate.json --list                     # every named face: kind, diameter or normal, area
+node agent/measure.mjs bench/case.json case.cup[0] case.cup[2]     # plane to plane: 8
+node agent/check.mjs   bench/clock.json --t 0.5                    # interfering pairs at half a beat; exit 1 on a real clash
+node agent/export.mjs  bench/clock.json --out /tmp/out             # one STL per part + the posed assembly
+node agent/render.mjs  bench/clock.json --out /tmp/shots --hide dial,case   # PNG per view + report.json (needs bakeoff/node_modules)
+```
+
 ## Rules
 
 - **Edit `engine/`, run `engine/build.sh`.** It runs the unit tests, builds

@@ -7,6 +7,8 @@ body[data-mode=part] .asm-only, body[data-mode=asm] .part-only { display: none; 
 .asm-ctl { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
 .asm-ctl input { width: 64px; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; font: inherit; }
 #face code.comp { background: #3a2f12; color: var(--accent); }
+#face .measure { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+#checks .feat.bad { border-left-color: var(--bad); }
 #occt { margin-top: 6px; border-color: var(--accent); }
 header { grid-area: bar; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
 header h1 { font-size: 14px; margin: 0 12px 0 0; font-weight: 600; letter-spacing: 0.02em; }

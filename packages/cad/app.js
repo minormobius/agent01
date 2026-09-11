@@ -4,8 +4,10 @@
 // assembly is components (with transforms, sub-assemblies flattened) and
 // mates (gear, fixed) solved as a kinematic chain from one driven component;
 // `spin` drives it and reports the frame rate. `window.__cad` is the hook.
-import { Camera, mul4 } from './camera.js';
+import { Camera } from './camera.js';
 import { Renderer } from './gl.js';
+import { flatten, solveAngles as solveKin, modelOf } from './lib/assembly.js';
+import { measure, describe, faceWorld } from './lib/measure.js';
 
 const $ = (s) => document.querySelector(s);
 const BENCH = ['clock', 'train', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
@@ -15,12 +17,12 @@ const occtAllowed = () => !!OCCT_BASE || localStorage.getItem('cad.occt') === '1
 
 const state = {
   mode: 'part', name: 'gear', tree: null, treeText: '',
-  buildId: 0, fitNext: false,
+  buildId: 0, checkId: 0, fitNext: false,
   // per slot: {preview, exact, error, exactError, previewError, faces, needsOcct}
   slots: new Map(),
   // assembly
   asm: null, components: [], mates: [], drive: null, angles: new Map(), spin: false, t0: 0, tAcc: 0, fps: 0, speed: 1,
-  hover: null, select: null, occt: 'idle',
+  hover: null, select: null, measureB: null, check: null, occt: 'idle',
 };
 
 const canvas = $('#view');
@@ -41,7 +43,8 @@ worker.onmessage = (e) => {
   const m = e.data;
   if (m.type === 'ready') { setStatus(`engine v${m.engine} + manifold ready in ${m.ms.toFixed(0)} ms`); console.info(`cad: ready (engine v${m.engine}, ${m.ms.toFixed(0)} ms)`); return; }
   if (m.type === 'occt-status') { state.occt = m.state; if (m.state === 'ready') console.info(`cad: occt ready (${m.ms.toFixed(0)} ms)`); setStatus(m.state === 'loading' ? 'loading OCCT (66 MB, once; the browser caches it)…' : m.state === 'ready' ? `OCCT ready in ${(m.ms / 1000).toFixed(1)} s` : `OCCT failed: ${m.msg}`); renderReport(); return; }
-  if (m.type === 'export') { download(new Blob([m.bytes], { type: 'model/stl' }), `${state.name}.stl`); return; }
+  if (m.type === 'export') { download(new Blob([m.bytes], { type: 'model/stl' }), `${m.name || state.name}.stl`); return; }
+  if (m.type === 'check') { state.check = { pairs: m.pairs, tested: m.tested, ms: m.ms, missing: m.missing }; renderCheck(); console.info(`cad: check ${m.pairs.length} pairs interfere of ${m.tested} tested`); return; }
   if (isStale(m)) return;
   const s = slotOf(m);
   if (m.type === 'resolved') { s.needsOcct = m.needsOcct; s.resolved = m; renderTree(); renderReport(); return; }
@@ -85,7 +88,7 @@ function buildSlot(slot, treeText) {
 
 function build({ fit = false } = {}) {
   state.fitNext = fit || state.fitNext;
-  state.hover = null; state.select = null; renderer.hover = -1; renderer.select = -1;
+  state.hover = null; state.select = null; state.measureB = null; renderer.hover = -1; renderer.select = -1;
   if (state.mode === 'part') { buildSlot('main', state.treeText); setStatus('building…'); return; }
   // assembly: one slot per distinct part key
   const keys = new Set(state.components.map((c) => c.partKey));
@@ -114,106 +117,17 @@ async function fetchBench(name) {
 }
 const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? fetchBench(ref.slice(6)) : structuredClone(ref));
 
-/// Flatten an assembly (sub-assemblies included) into components with world
-/// placements, distinct part trees (params overrides make distinct parts),
-/// and mates with prefixed ids.
+/// Flatten an assembly through the shared library; the page keeps the
+/// components, mates and drive and asks the library for angles and matrices.
 async function prepareAssembly(asm) {
-  const components = [], mates = [], partTrees = new Map();
-  async function walk(a, prefix, parent) {
-    const parts = a.parts || {};
-    for (const c of a.components || []) {
-      const id = prefix + c.id;
-      const place = mul4(parent, placement(c));
-      if (c.assembly !== undefined) { const sub = await resolveRef(c.assembly); await walk(sub, id + '/', place); continue; }
-      const tree = await resolveRef(parts[c.part] ?? `bench:${c.part}`);
-      if (c.params) tree.params = { ...(tree.params || {}), ...c.params };
-      const partKey = `${c.part}${c.params ? '|' + JSON.stringify(c.params) : ''}`;
-      if (!partTrees.has(partKey)) partTrees.set(partKey, JSON.stringify(tree));
-      components.push({ id, part: c.part, partKey, place, phase: c.phase || 0, phaseGiven: c.phase !== undefined, tint: 1 });
-    }
-    for (const m of a.mates || []) mates.push({ ...m, a: prefix + m.a, b: prefix + m.b });
-  }
-  await walk(asm, '', IDENT);
-  state.components = components; state.mates = mates; state.partTrees = partTrees;
-  const d = asm.drive;
-  state.drive = !d ? null : d.escapement ? { kind: 'escapement', wheel: d.escapement.wheel, pallet: d.escapement.pallet, balance: d.escapement.balance, teeth: d.escapement.teeth ?? 15, beat: d.escapement.beat ?? 1, lift: d.escapement.lift ?? 8, swing: d.escapement.swing ?? 220 } : { kind: 'rpm', component: d.component, rpm: d.rpm ?? 6 };
-  state.spin = false; state.tAcc = 0;
-  autoPhase();
+  const { components, mates, drive, partTrees } = await flatten(asm, resolveRef);
+  for (const c of components) c.tint = 1;
+  state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive;
+  state.spin = false; state.tAcc = 0; state.check = null;
   solveAngles(0);
 }
-
-/// Gear phases: unless the document gives one, a gear's tooth 0 (its local
-/// +x) is turned to point at its mate, and the mate turns half a pitch so a
-/// gap faces back. Each gear component has one mesh (its pinion is the
-/// arbor, its own mate is one wheel), so this always lines up.
-function autoPhase() {
-  const byId = new Map(state.components.map((c) => [c.id, c]));
-  const set = new Set(state.components.filter((c) => c.phaseGiven).map((c) => c.id));
-  const deg = (v) => (v * 180) / Math.PI;
-  for (const m of state.mates) {
-    if (m.kind !== 'gear') continue;
-    const a = byId.get(m.a), b = byId.get(m.b); if (!a || !b) continue;
-    const dx = b.place[12] - a.place[12], dy = b.place[13] - a.place[13];
-    const ab = deg(Math.atan2(dy, dx)), ba = ab + 180;
-    const local = (c, ang) => ang - deg(Math.atan2(c.place[1], c.place[0])); // undo the component's own rotate about z
-    if (!set.has(a.id)) { a.phase = mod(local(a, ab), 360 / m.za); set.add(a.id); }
-    if (!set.has(b.id)) { b.phase = mod(local(b, ba) + 180 / m.zb, 360 / m.zb); set.add(b.id); }
-  }
-}
-const mod = (x, n) => ((x % n) + n) % n;
-
-const IDENT = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-const T = (v) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, v[0], v[1], v[2], 1];
-function R(axis, deg) {
-  const l = Math.hypot(...axis) || 1; const [x, y, z] = axis.map((v) => v / l); const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), t = 1 - c;
-  return [t * x * x + c, t * x * y + s * z, t * x * z - s * y, 0, t * x * y - s * z, t * y * y + c, t * y * z + s * x, 0, t * x * z + s * y, t * y * z - s * x, t * z * z + c, 0, 0, 0, 0, 1];
-}
-const placement = (c) => mul4(T(c.at || [0, 0, 0]), c.rotate ? R(c.rotate.axis || [0, 0, 1], c.rotate.deg || 0) : IDENT);
-
-/// Kinematics, as a function of time in seconds: the driven component's
-/// angle, propagated through gear and fixed mates (an undirected chain).
-/// Unreached components stay at 0. An escapement drive steps its wheel half
-/// a tooth per beat (a quick slide over the first 15 % of the beat), rocks
-/// the pallet fork ±lift with the same slide, and swings the balance over a
-/// two-beat period — the train then ticks through the mates.
-function solveAngles(t) {
-  const angles = new Map(state.components.map((c) => [c.id, 0]));
-  const d = state.drive;
-  if (!d) { state.angles = angles; return; }
-  let root, theta;
-  if (d.kind === 'escapement') {
-    const beats = t / d.beat, n = Math.floor(beats), frac = beats - n;
-    const e = Math.min(1, frac / 0.15); const ease = e * e * (3 - 2 * e);
-    const step = 360 / d.teeth / 2;
-    root = d.wheel; theta = step * (n + ease);
-    const sign = n % 2 === 0 ? 1 : -1;
-    angles.set(d.pallet, d.lift * (-sign + 2 * sign * ease));
-    angles.set(d.balance, (d.swing / 2) * Math.cos(Math.PI * beats));
-  } else { root = d.component; theta = (d.rpm * 360 * t) / 60; }
-  angles.set(root, theta);
-  const seen = new Set([root]); const queue = [root];
-  while (queue.length) {
-    const cur = queue.shift();
-    for (const m of state.mates) {
-      const other = m.a === cur ? m.b : m.b === cur ? m.a : null;
-      if (!other || seen.has(other)) continue;
-      const θ = angles.get(cur);
-      let v;
-      if (m.kind === 'gear') { const [zc, zo] = m.a === cur ? [m.za, m.zb] : [m.zb, m.za]; v = -θ * (zc / zo); }
-      else if (m.kind === 'fixed') v = θ;
-      else continue;
-      angles.set(other, v); seen.add(other); queue.push(other);
-    }
-  }
-  state.angles = angles;
-}
-
-function updateModels() {
-  for (const c of state.components) {
-    const θ = (state.angles.get(c.id) || 0) + c.phase;
-    renderer.setModel(c.id, mul4(c.place, R([0, 0, 1], θ)), c.tint);
-  }
-}
+function solveAngles(t) { state.angles = solveKin(state.components, state.mates, state.drive, t); return state.angles; }
+function updateModels() { for (const c of state.components) renderer.setModel(c.id, modelOf(c, state.angles), c.tint); }
 
 // ── UI: params / tree ─────────────────────────────────────────────────────
 function renderParams() {
@@ -221,8 +135,9 @@ function renderParams() {
   if (state.mode === 'asm') {
     const d = state.drive;
     const ctl = d?.kind === 'escapement' ? `<label>beat <input id="beat" type="number" step="any" min="0.01" value="${d.beat}"> s</label>` : `<label>rpm <input id="rpm" type="number" step="any" value="${d ? d.rpm : 0}" ${d ? '' : 'disabled'}></label>`;
-    box.innerHTML = `<div class="asm-ctl"><button id="spin">${state.spin ? 'stop' : 'spin'}</button> ${ctl} <label>×<input id="speed" type="number" step="any" min="0" value="${state.speed}" title="time scale"></label> <span id="fps" class="dim"></span></div>`;
+    box.innerHTML = `<div class="asm-ctl"><button id="spin">${state.spin ? 'stop' : 'spin'}</button> ${ctl} <label>×<input id="speed" type="number" step="any" min="0" value="${state.speed}" title="time scale"></label> <span id="fps" class="dim"></span></div><div class="asm-ctl"><button id="check" title="intersect every overlapping pair of components at the current pose (Manifold)">check interference</button> <span id="checkout" class="dim">${state.check ? checkSummary() : ''}</span></div>`;
     $('#spin').addEventListener('click', toggleSpin);
+    $('#check').addEventListener('click', runCheck);
     $('#rpm')?.addEventListener('input', () => { if (state.drive) state.drive.rpm = Number($('#rpm').value) || 0; });
     $('#beat')?.addEventListener('input', () => { if (state.drive) state.drive.beat = Math.max(0.01, Number($('#beat').value) || 1); });
     $('#speed').addEventListener('input', () => { state.speed = Math.max(0, Number($('#speed').value) || 0); });
@@ -289,7 +204,8 @@ function renderReport() {
     let total = 0;
     for (const c of state.components) { const s = state.slots.get(c.partKey) || {}; const inv = (s.exact || s.preview)?.invariants; if (inv) total += inv.volume; rows.push(`<tr data-comp="${c.id}"><td>${c.id}</td><td>${c.part}</td><td>${exactLabel(s)}${s.exact && !s.exact.invariants.watertight ? ' <span class="bad" title="not watertight">✗</span>' : ''}</td><td>${fmt(inv?.volume)}</td></tr>`); }
     rows.push(`<tr><td>total</td><td></td><td></td><td>${fmt(total)}</td></tr>`);
-    box.innerHTML = `<table>${rows.join('')}</table>`;
+    box.innerHTML = `<table>${rows.join('')}</table><h2>interference</h2><div id="checks"></div>`;
+    renderCheck();
     const errs = [...state.slots.values()].map((s) => s.error || s.previewError || s.exactError).filter(Boolean);
     $('#error').textContent = errs.length ? errs.map((e) => `${e.op}: ${e.msg}`).join(' · ') : '';
     $('#error').className = errs.length ? 'warn' : '';
@@ -330,17 +246,40 @@ function highlightComponent(id) {
   for (const el of document.querySelectorAll('[data-comp]')) el.classList.toggle('hl', !!id && el.dataset.comp === id);
 }
 
+/// The exact face behind a pick, in world coordinates (assembly poses applied).
+function faceOf(pick) {
+  if (!pick) return null;
+  const comp = state.mode === 'asm' ? state.components.find((c) => c.id === pick.name) : null;
+  const slotKey = state.mode === 'part' ? 'main' : comp?.partKey;
+  const s = state.slots.get(slotKey) || {};
+  const f = s.faces?.[pick.fid];
+  if (!f) return null;
+  return faceWorld(f, comp ? modelOf(comp, state.angles) : null);
+}
+const geomLine = (f) => { const d = describe(f); return d.kind === 'cylinder' ? `<b>⌀ ${fmt(d.diameter)}</b> cylinder, axis (${d.axis.map((v) => fmt(v, 2)).join(', ')})` : d.kind === 'plane' ? `plane, n (${d.normal.map((v) => fmt(v, 2)).join(', ')})` : 'face'; };
+function measureLine(a, b) {
+  const m = measure(a, b);
+  if (m.kind === 'plane-plane') return m.parallel ? `<b>${fmt(m.distance)}</b> plane to plane` : `planes at ${fmt(m.angle, 1)}° — not parallel; centroids ${fmt(m.centroidDistance)} apart`;
+  if (m.kind === 'cylinder-cylinder') return m.parallel ? `<b>${fmt(m.distance)}</b> axis to axis · ⌀ ${fmt(m.diameters[0])} and ⌀ ${fmt(m.diameters[1])} · wall ${fmt(m.wall)}` : `axes not parallel; centroids ${fmt(m.centroidDistance)} apart`;
+  if (m.kind === 'plane-cylinder') return m.parallel ? `<b>${fmt(m.distance)}</b> axis to plane · ⌀ ${fmt(m.diameter)}` : `axis not in the plane; centroids ${fmt(m.centroidDistance)} apart`;
+  return `centroids <b>${fmt(m.centroidDistance)}</b> apart (no exact geometry on one face)`;
+}
 function renderFace() {
   const box = $('#face');
   const pick = state.select || state.hover;
   if (state.mode === 'asm') highlightComponent(pick ? pick.name : null);
-  if (!pick) { box.innerHTML = '<span class="dim">hover a face</span>'; return; }
+  if (!pick) { box.innerHTML = '<span class="dim">hover a face · click to pin · click a second face to measure</span>'; return; }
+  const comp = state.mode === 'asm' ? `<code class="comp">${pick.name}</code> ` : '';
+  const f = faceOf(pick);
   const slotKey = state.mode === 'part' ? 'main' : state.components.find((c) => c.id === pick.name)?.partKey;
   const s = state.slots.get(slotKey) || {};
-  const f = s.faces?.[pick.fid];
-  const comp = state.mode === 'asm' ? `<code class="comp">${pick.name}</code> ` : '';
-  if (!f) { box.innerHTML = `${comp}<span class="dim">${s.exact ? 'face ' + pick.fid : 'preview face ' + pick.fid + ' — names arrive with the exact build'}</span>`; return; }
-  box.innerHTML = `${comp}<div class="names">${f.names.length ? f.names.map((n) => `<code>${n}</code>`).join(' ') : `<code>face[${pick.fid}]</code>`}</div><div>area ${fmt(f.area)} · n (${f.normal.map((v) => fmt(v, 2)).join(', ')}) · c (${f.centroid.map((v) => fmt(v, 2)).join(', ')})</div>`;
+  if (!f) { box.innerHTML = `${comp}<span class="dim">${s.exact ? 'face ' + pick.fid : 'preview face ' + pick.fid + ' — names and geometry arrive with the exact build'}</span>`; return; }
+  let html = `${comp}<div class="names">${f.names.length ? f.names.map((n) => `<code>${n}</code>`).join(' ') : `<code>face[${pick.fid}]</code>`}</div><div>${geomLine(f)} · area ${fmt(f.area)}</div>`;
+  if (state.select && state.measureB) {
+    const b = faceOf(state.measureB);
+    if (b) html += `<div class="measure">↔ <code>${state.measureB.name && state.mode === 'asm' ? state.measureB.name + ' ' : ''}${b.names[0] || 'face[' + state.measureB.fid + ']'}</code>: ${measureLine(f, b)}</div>`;
+  } else if (state.select) html += `<div class="dim">click a second face to measure</div>`;
+  box.innerHTML = html;
 }
 
 function setStatus(s) { $('#status').textContent = s; }
@@ -380,7 +319,8 @@ const endPointer = (e) => {
   pointers.delete(e.pointerId);
   if (was && gesture && !gesture.moved && pointers.size === 0) {
     const r = canvas.getBoundingClientRect(); const pick = renderer.pick(e.clientX - r.left, e.clientY - r.top, cam);
-    state.select = pick && state.select && pick.key === state.select.key ? null : pick;
+    if (!pick || !state.select || pick.key === state.select.key || state.measureB) { state.select = pick && state.select && pick.key === state.select.key ? null : pick; state.measureB = null; }
+    else state.measureB = pick;
     renderer.select = state.select ? state.select.key : -1; renderFace(); invalidate();
   }
   if (pointers.size === 0) gesture = null;
@@ -415,11 +355,38 @@ $('#ortho').addEventListener('click', () => { cam.ortho = !cam.ortho; invalidate
 $('#edges').addEventListener('click', () => { renderer.showEdges = !renderer.showEdges; invalidate(); });
 $('#apply').addEventListener('click', async () => { try { const obj = JSON.parse($('#json').value); await setDocument(obj, obj.name || 'custom'); build({ fit: true }); } catch (err) { $('#error').textContent = `JSON: ${err.message}`; $('#error').className = 'bad'; } });
 $('#part').addEventListener('change', () => loadBench($('#part').value));
-$('#stl').addEventListener('click', () => { const slot = state.mode === 'part' ? 'main' : state.components[0]?.partKey; worker.postMessage({ type: 'export', id: 0, slot, which: 'exact' }); });
+$('#stl').addEventListener('click', () => {
+  if (state.mode === 'part') return worker.postMessage({ type: 'export', id: 0, slot: 'main', which: 'exact' });
+  const c = state.components.find((x) => x.id === (state.select?.name || state.hover?.name)) || state.components[0];
+  if (c) worker.postMessage({ type: 'export', id: 0, slot: c.partKey, which: 'exact', name: `${state.name}-${c.id.replace(/\//g, '_')}` });
+  else setStatus('pin a component to export its part');
+});
 $('#views').addEventListener('click', () => snapshots());
 $('#share').addEventListener('click', async () => { const url = location.href; try { await navigator.clipboard.writeText(url); setStatus('link copied'); } catch { setStatus(url); } });
 $('#occt').addEventListener('click', () => { localStorage.setItem('cad.occt', '1'); worker.postMessage({ type: 'load-occt' }); build(); });
 $('#file').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const obj = JSON.parse(await f.text()); await setDocument(obj, f.name.replace(/\.json$/, '')); build({ fit: true }); } catch (err) { $('#error').textContent = `JSON: ${err.message}`; } });
+
+// ── interference ─────────────────────────────────────────────────────────
+function runCheck() {
+  if (state.mode !== 'asm') return;
+  const bodies = state.components.map((c) => ({ id: c.id, slot: c.partKey, model: modelOf(c, state.angles) }));
+  state.check = { pending: true };
+  worker.postMessage({ type: 'check', id: ++state.checkId, bodies });
+  const o = $('#checkout'); if (o) o.textContent = 'checking…';
+}
+const fixedPair = (a, b) => state.mates.some((m) => m.kind === 'fixed' && ((m.a === a && m.b === b) || (m.a === b && m.b === a)));
+function checkSummary() {
+  const c = state.check; if (!c || c.pending) return 'checking…';
+  const real = c.pairs.filter((p) => !fixedPair(p.a, p.b));
+  return real.length ? `${real.length} interfering pair${real.length === 1 ? '' : 's'} (${c.tested} tested, ${c.ms.toFixed(0)} ms)` : `no interference (${c.tested} pairs tested, ${c.ms.toFixed(0)} ms)`;
+}
+function renderCheck() {
+  const o = $('#checkout'); if (o) o.textContent = checkSummary();
+  const box = $('#checks'); if (!box) return;
+  const c = state.check; if (!c || c.pending) { box.innerHTML = ''; return; }
+  box.innerHTML = c.pairs.map((p) => `<div class="feat ${fixedPair(p.a, p.b) ? 'dim' : 'bad'}" data-pair="${p.a}|${p.b}"><b>${fixedPair(p.a, p.b) ? '~' : '✗'}</b> <span>${p.a} × ${p.b} · ${p.volume.toFixed(4)} mm³${fixedPair(p.a, p.b) ? ' (fixed-mated)' : ''}</span></div>`).join('') || '<div class="dim">no interference at this pose</div>';
+  for (const el of box.querySelectorAll('[data-pair]')) el.addEventListener('pointerenter', () => { const [a, b] = el.dataset.pair.split('|'); for (const r of document.querySelectorAll('[data-comp]')) r.classList.toggle('hl', r.dataset.comp === a || r.dataset.comp === b); });
+}
 
 // ── spin ──────────────────────────────────────────────────────────────────
 function toggleSpin() {
@@ -467,7 +434,10 @@ const boot = ready.then(async () => {
 });
 
 window.__cad = {
-  ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles,
+  ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, runCheck,
+  loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
+  faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),
+  checked: () => new Promise((resolve) => { const t = setInterval(() => { if (state.check && !state.check.pending) { clearInterval(t); resolve(state.check); } }, 50); }),
   hide: (id, on = true) => { const c = state.components.find((c) => c.id === id); if (c) { c.hidden = on; renderer.setHidden(id, on); renderParams(); invalidate(); } },
   // resolves when every slot of the current document has answered (preview and exact, or errored)
   settled: () => new Promise((resolve) => { const t = setInterval(() => {

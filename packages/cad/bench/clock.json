@@ -1,7 +1,7 @@
 {
   "$schema": "com.minomobi.cad.assembly#v1",
   "name": "clock",
-  "_": "The clock. A going train of three stages from the escape wheel to the centre arbor (8:60, 8:32, 8:32 = 120:1), so one-second beats give a minute hand at one turn an hour; a lever escapement — escape wheel, pallet fork, balance — as the drive, stepping the wheel half a tooth per beat; motion works (12:36 then 8:32 = 12:1) to the hour hand; a dial with twelve marks; the case. Gear phases are automatic. Every part is a bench tree with parameter overrides.",
+  "_": "The clock. A going train of three stages from the escape wheel to the centre arbor (8:60, 8:32, 8:32 = 120:1), so one-second beats give a minute hand at one turn an hour; a lever escapement — escape wheel, pallet fork, balance — as the drive, stepping the wheel half a tooth per beat; motion works (12:36 then 8:32 = 12:1) to the hour hand; a dial with twelve marks; the case. Gear phases are automatic. Every part is a bench tree with parameter overrides. Riding parts (hour wheel, hour hand) have 0.1 mm of clearance on the arbor; fixed parts are a press fit, which the interference check reports as fixed-mated touches.",
   "parts": {
     "arbor": "bench:arbor",
     "wheel": "bench:gear",
@@ -18,7 +18,7 @@
       "id": "case",
       "part": "case",
       "params": {
-        "R": 37,
+        "R": 38,
         "H": 10
       },
       "at": [
@@ -31,8 +31,8 @@
       "id": "dial",
       "part": "dial",
       "params": {
-        "R": 36,
-        "r_marks": 33
+        "R": 37,
+        "r_marks": 34
       },
       "at": [
         0,
@@ -71,7 +71,7 @@
       "id": "third",
       "part": "arbor",
       "params": {
-        "L": 9,
+        "L": 8.8,
         "pin_z": 2.5
       },
       "at": [
@@ -146,7 +146,7 @@
       "part": "pallet",
       "at": [
         6.5,
-        9.526,
+        9.027,
         3.8
       ],
       "rotate": {
@@ -163,8 +163,8 @@
       "part": "balance",
       "at": [
         6.5,
-        -0.074,
-        8.9
+        -0.573,
+        9.0
       ]
     },
     {
@@ -209,7 +209,7 @@
       "at": [
         12,
         0,
-        12.3
+        12.6
       ]
     },
     {
@@ -219,12 +219,12 @@
         "m": 0.6,
         "z": 32,
         "b": 1.2,
-        "bore": 1.0
+        "bore": 1.1
       },
       "at": [
         0,
         0,
-        12.3
+        12.6
       ]
     },
     {
@@ -234,12 +234,12 @@
         "length": 14,
         "width": 2.4,
         "boss": 2.4,
-        "bore": 1.0
+        "bore": 1.1
       },
       "at": [
         0,
         0,
-        13.6
+        13.9
       ],
       "phase": 90
     },
@@ -255,7 +255,7 @@
       "at": [
         0,
         0,
-        14.2
+        14.5
       ],
       "phase": 90
     }

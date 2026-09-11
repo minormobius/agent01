@@ -261,7 +261,7 @@ No build step, no dependencies. Import these instead of reimplementing.
 | [`packages/atproto/`](packages/atproto/) | `pds.js` identity + authenticated PDS ops; `bsky.js` public read APIs; `crypto.js` vault encryption |
 | [`packages/dataviz/`](packages/dataviz/) | `stats.js` estimators, `charts.js` SVG-string charts. Run its known-answer selftest before touching it |
 | [`packages/oauth-client/`](packages/oauth-client/) | `auth.js` — browser `AuthClient` for the shared OAuth worker |
-| [`packages/cad/`](packages/cad/) | `cad.wasm` + `engine/` — the feature-tree CAD engine (Rust, Truck kernel, raw C ABI). `cad.selftest.mjs` gates it; `bakeoff/` measures kernels. Design record: [`docs/CAD.md`](docs/CAD.md) |
+| [`packages/cad/`](packages/cad/) | `cad.wasm` + `engine/` — the feature-tree CAD engine (Rust, Truck kernel, raw C ABI); `lib/` the kernel adapters, mesh toolkit, assemblies and measure; `agent/` the headless tools (check, measure, export, render). `cad.selftest.mjs` and `browser.selftest.mjs` gate it; `bakeoff/` measures kernels. To CAD as an agent: [`.claude/skills/cad/SKILL.md`](.claude/skills/cad/SKILL.md). Design record: [`docs/CAD.md`](docs/CAD.md) |
 | [`packages/pressure-lab/`](packages/pressure-lab/) | `lab.mjs` — node-only measurement scaffolding for the `/pressure/` games: policy spreads, tightness bands, the generator contract loop. Not a solver — read its README before adding a game |
 
 Older projects each carry their own copy of the ATProto code. Don't bulk-rewrite
