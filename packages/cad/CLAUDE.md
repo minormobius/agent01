@@ -132,12 +132,15 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 - **`vendor/auth.js` is a copy** of `packages/oauth-client/auth.js`, kept
   byte-identical by `scripts/sync-dataviz.mjs` (preflight checks it). Edit
   the package, never the copy.
-- **Sign-in is not live until two things happen on the auth worker's
-  branch:** `https://cad.mino.mobi` must be in `ALLOWED_ORIGINS` in
-  `workers/auth/src/index.ts`, and the two collections above must be in
-  `WRITE_COLLECTIONS` in `workers/auth/src/oauth/scope.ts`. Until then the
-  page treats the auth worker's CORS refusal as signed-out and everything
-  works against the local drive and public repos.
+- **This branch owns the auth worker too** (`workers/auth`, since
+  2026-09-11): it was taken over to put `com.minomobi.cad.part` and
+  `com.minomobi.cad.revision` into the live scope ceiling. The origin needed
+  nothing — `isAllowedOrigin` has a `*.mino.mobi` wildcard — but it is listed
+  explicitly. Adding a cad lexicon means editing `WRITE_COLLECTIONS` in
+  `workers/auth/src/oauth/scope.ts` on this branch; a push under
+  `workers/auth/**` deploys it. Read `workers/auth/CLAUDE.md` first: union
+  only, never remove, `node scripts/check-auth-scope.mjs` green. Signed out,
+  the page works against the local drive and public repos.
 - `?part=<bench>` loads a bench part; `#t=<base64url json>` carries an
   arbitrary tree — an agent can hand a human a link; `?at=<AT URI>` opens a
   file from any repo.

@@ -196,12 +196,12 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/bsky-app-view-feasibility-8sdflz",
+      "branch": "claude/browser-cad-ideation-ollmd3",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
-      "status": "RECONCILED 2026-08-15 \u2014 one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins \u2014 farmville's tree is still missing the loop origin.",
+      "status": "HANDED OVER 2026-09-11 to claude/browser-cad-ideation-ollmd3 for cad.mino.mobi (com.minomobi.cad.part, com.minomobi.cad.revision). That tree's workers/auth was byte-identical to main's, which is the union: main's 80 collections (78 live \u2014 main's com.minomobi.hopper.run and app.bsky.graph.follow had never been deployed by the previous owner, claude/bsky-app-view-feasibility-8sdflz) plus the two cad ones = 82, nothing dropped, every origin kept. check-auth-scope green at handover.",
       "paths": [
         "workers/auth/**"
       ],

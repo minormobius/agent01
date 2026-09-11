@@ -15,7 +15,7 @@ The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + pr
 | Dir | `workers/auth/` |
 | Endpoint | `auth.mino.mobi` |
 | Type | backend |
-| Owning branch | `claude/bsky-app-view-feasibility-8sdflz` (handed over 2026-09-06 — see below) |
+| Owning branch | `claude/browser-cad-ideation-ollmd3` (handed over 2026-09-11 — see below) |
 | Deploy | `.github/workflows/deploy-auth.yml` |
 | Uses | `mino-auth-db` |
 | Provides | `auth.mino.mobi` |
@@ -34,7 +34,8 @@ repo — a bad push signs everyone out of every site.
 | `claude/standard-site-blog-page-319rod` | claims `auth` on its own branch; carries the `rant.mino.mobi` origin plus the four `site.standard.*` collections, not yet on `main`. |
 | `claude/atproto-infinite-whiteboard-usdpzx` | claimed `auth` back on its own branch and carries the `loop.mino.mobi` origin plus `com.minomobi.loop.answer`. Its collection list is **70 of the 75** below: it does not have the five `com.minomobi.farm.*` entries, so deploying auth from it would strip farm's writes. |
 | `claude/farmville-atproto-game-745mcr` | **previous claimant**, handed over 2026-09-06. Its tree carried all 75 collections plus the `farm.mino.mobi` and `farm-next.mino.mobi` origins and the `lab.doc`/`lab.score` dedupe — but it was still missing `loop.mino.mobi`, exactly as the 2026-08-15 note warned, so deploying it as-is would have signed loop out. |
-| `claude/bsky-app-view-feasibility-8sdflz` | **current owner.** Took the surface at the principal's instruction to ship `app.bsky.feed.like` and `app.bsky.feed.repost` for bsky.mino.mobi, and now carries `com.minomobi.clef.piece` for clef.mino.mobi on request from `claude/sheet-music-viewer-composer-qb4ljl`. It satisfies the union rule the handover requires: **78 collections, adding only those three and dropping none**, and it carries all four of the `farm`, `farm-next`, `loop` and `rant` origins. `node scripts/check-auth-scope.mjs` green before every deploy. |
+| `claude/bsky-app-view-feasibility-8sdflz` | **previous owner**, handed over 2026-09-11. Took the surface at the principal's instruction to ship `app.bsky.feed.like` and `app.bsky.feed.repost` for bsky.mino.mobi, and now carries `com.minomobi.clef.piece` for clef.mino.mobi on request from `claude/sheet-music-viewer-composer-qb4ljl`. It satisfies the union rule the handover requires: **78 collections, adding only those three and dropping none**, and it carries all four of the `farm`, `farm-next`, `loop` and `rant` origins. `node scripts/check-auth-scope.mjs` green before every deploy. At handover it was **two collections behind `main`** (`com.minomobi.hopper.run` and `app.bsky.graph.follow` had landed on `main` and never deployed). |
+| `claude/browser-cad-ideation-ollmd3` | **current owner.** Took the surface at the principal's instruction to ship `com.minomobi.cad.part` and `com.minomobi.cad.revision` for cad.mino.mobi. Its `workers/auth` was byte-identical to `main`'s before the change, so the deploy is the union: **82 collections** — main's 80 (which finally ships hopper's run and groom's follow token) plus the two cad ones — dropping none, every origin kept. `git diff origin/main -- workers/auth` is additive; `check-auth-scope` green. |
 
 ### What the 2026-08-15 merge candidate reconciled
 

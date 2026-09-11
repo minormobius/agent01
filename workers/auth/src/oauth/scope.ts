@@ -54,6 +54,13 @@ const WRITE_COLLECTIONS = [
   // board (infinite whiteboard) — one record per board, including every child
   // board a nesting gesture mints, so a single collection covers the whole tree
   'com.minomobi.board.canvas',
+  // cad (cad.mino.mobi) — a file tree over records (packages/cad/lib/drive.js):
+  // a `part` head names a path and points by strongRef at an immutable
+  // `revision` (the feature tree, its parents, the kernel and invariants it
+  // was judged by). Written to the designer's own repo; anyone can open a
+  // file by AT URI and fork it with the lineage intact.
+  'com.minomobi.cad.part',
+  'com.minomobi.cad.revision',
   // org / calendar
   'com.minomobi.cal.event',
   // cards

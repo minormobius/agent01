@@ -846,13 +846,14 @@ that with two in-memory repos standing in for a PDS and a stranger.
   (§8) was "record limits force every tree to a blob"; they do not, at
   these sizes. Geometry is not stored at all — it is a cache, rebuilt from
   the tree — which is the §1 decision paying rent.
-- **Sign-in on the live site needs two lines on another branch:** the
-  origin in the auth worker's allowlist and the two collections in its
-  scope ceiling (`packages/cad/CLAUDE.md` names the files). Until they
-  land, the page reads the worker's refusal as signed-out and everything
-  else works. This cut was verified against a mocked repo in the browser
-  selftest and against in-memory repos in the drive selftest, not against
-  a live PDS.
+- **Sign-in went live the same day** by taking over the auth worker's
+  surface on this branch and adding the two collections to its scope
+  ceiling (the origin was already admitted by the worker's `*.mino.mobi`
+  wildcard). The drive and files tab were verified against a mocked repo
+  in the browser selftest and against in-memory repos in the drive
+  selftest; the ceiling was verified live with a cache-busted
+  `client-metadata.json` and a real PAR — not yet with a full sign-in and
+  a write to a real PDS, which needs a person on the consent screen.
 - **No merge.** `parents` is a list, so a merge revision is representable;
   nothing writes one. `cad diff` exists; three-way merge of trees is
   phase-4 work alongside the sketcher.
