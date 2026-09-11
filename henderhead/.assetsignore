@@ -13,10 +13,12 @@ node_modules/
 package.json
 package-lock.json
 
-# Rust sources and build output for cf/cffourier.wasm. The built module is
-# committed at cf/cffourier.wasm and served from there; the crate itself is
+# Rust sources and build output for the two wasm engines. The built modules are
+# committed next to their pages and served from there; the crates themselves are
 # read on GitHub, not fetched over HTTP.
 cf/engine
+craft/engine
 
-# The node selftest is run in CI, not by a browser.
+# The node selftests are run in CI, not by a browser.
 cf/cf.selftest.mjs
+craft/craft.selftest.mjs

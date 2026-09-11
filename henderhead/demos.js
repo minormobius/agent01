@@ -27,6 +27,18 @@ export const postURL = (rkey) => `${AUTHOR.bsky}/post/${rkey}`;
 
 export const DEMOS = [
   {
+    id: 'craft',
+    state: 'built',
+    href: '/craft/',
+    date: '2026-09-11',
+    post: '3mva6fo4ew22c',
+    title: 'A cellular automaton from Minecraft crafting recipes',
+    quote: 'I added random motion to keep the grid alive — and banned buttons.',
+    what: 'Items drift around a grid of inventory slots, and whenever they drift into the shape of a crafting recipe they are crafted. Seed it with logs, planks and cobblestone and every boat, bowl and pickaxe that appears is something the shuffling stumbled into.',
+    built: 'The rule read off the video frame by frame, in a Rust→WASM engine. The recipe book is the whole transition rule and every entry is clickable, because switching one off is the fastest way to understand what it was doing — which is what his banned buttons were about.',
+    tags: ['rust', 'wasm', 'canvas'],
+  },
+  {
     id: 'cf',
     state: 'built',
     href: '/cf/',

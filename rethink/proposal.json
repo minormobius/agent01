@@ -2224,6 +2224,11 @@
               "u": "henderhead.mino.mobi/cf",
               "action": "new",
               "note": "continued-fraction Fourier curves, Rust→WASM"
+            },
+            {
+              "u": "henderhead.mino.mobi/craft",
+              "action": "new",
+              "note": "a cellular automaton whose rule is a table of Minecraft crafting recipes, Rust→WASM"
             }
           ],
           "wing": "study"

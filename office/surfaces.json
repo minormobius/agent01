@@ -1904,6 +1904,15 @@
    "parent": "henderhead"
   },
   {
+   "id": "crafting automaton",
+   "name": "crafting automaton",
+   "url": "https://henderhead.mino.mobi/craft/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "henderhead"
+  },
+  {
    "id": "hopper",
    "name": "hopper",
    "url": "https://hopper.mino.mobi",

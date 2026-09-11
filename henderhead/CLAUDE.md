@@ -56,6 +56,7 @@ on the next deploy. Do not argue the point on his behalf in a commit message.
 | `worker.js` | `/api/demos` only. No state, no secrets |
 | `_headers` | the CSP and friends. These cannot go in `worker.js` — see above |
 | `cf/` | demo #1 — continued-fraction Fourier curves |
+| `craft/` | demo #2 — a cellular automaton made of crafting recipes |
 | `.assetsignore` | keeps `CLAUDE.md` and `cf/engine/` off the public site |
 
 ## `cf/` — continued fraction Fourier
@@ -111,6 +112,72 @@ node henderhead/cf/cf.selftest.mjs                               # the seam
   between the page being right and the page being confident.
 - `henderhead.mino.mobi` did not exist before this surface. The first deploy
   creates and attaches it: check the run log says `(custom domain)`.
+
+## `craft/` — the crafting automaton
+
+After [his post of 2026-09-11](https://bsky.app/profile/matthen.com/post/3mva6fo4ew22c):
+*"A cellular automaton from Minecraft crafting recipes"*, and then *"I added
+random motion to keep the grid alive — and banned buttons"*.
+
+**There was no code and no write-up — only 40 seconds of video.** The rule here
+was read off it frame by frame (`/tmp` is gone; the method was: pull the mp4
+from the author's PDS with `com.atproto.sync.getBlob`, step it at 6 fps, find
+the green highlight boxes by colour, and diff the cells before and after each
+one). What that establishes, and what it does not, is written out on the page
+itself under *What the video shows, and what it doesn't* — keep that section
+honest if you change the rule.
+
+| File | What |
+|---|---|
+| `craft/engine/src/recipes.rs` | **the rule.** The item list and every recipe shape, typed out rather than lifted from the game's data files. A legend of four ingredients covers the whole table |
+| `craft/engine/src/world.rs` | the grid: motion, matching, crafting, spill, restock |
+| `craft/engine/src/lib.rs` | the C ABI, plus a JSON description of the rule that the page reads instead of writing the table down twice |
+| `craft/craftca.wasm` | the built module, **committed**; CI rebuilds it and ships what it built |
+| `craft/items.js` | **our** item art — the labels and the drawing code |
+| `craft/app.js` | grid, histogram, recipe book, controls |
+| `craft/craft.selftest.mjs` | node, over the ABI. Also the only place that checks the rule and the art describe the same set of items |
+
+```bash
+cargo test --manifest-path henderhead/craft/engine/Cargo.toml
+cargo build --release --target wasm32-unknown-unknown \
+  --manifest-path henderhead/craft/engine/Cargo.toml
+cp henderhead/craft/engine/target/wasm32-unknown-unknown/release/craftca.wasm \
+   henderhead/craft/craftca.wasm
+node henderhead/craft/craft.selftest.mjs
+```
+
+### Things that will bite you
+
+- **No Minecraft textures, ever.** Every icon is drawn by `items.js` out of a
+  few isometric primitives. The recipes are the game's because a recipe is a
+  fact about the game; the pictures are not facts. If you add an item, draw it.
+  The selftest fails on an item with no art *and* on art for an item the rule
+  does not have, so the two cannot drift apart.
+- **A tick is a unit of the automaton's time, not a frame.** The page runs
+  `speed` ticks per *second*. Tying it to the frame rate — which is where this
+  started — makes every other parameter meaningless, because 60 ticks a second
+  is about thirty times the video's pace and burns the grid down before you can
+  see anything.
+- **Firing every available match every tick is wrong** and was the first thing
+  that had to go: it strips the grid bare in about a hundred ticks, which is
+  not what the video looks like. `craft_rate` is the fix and it is fractional,
+  because a 700-cell grid at the video's pace wants well under one craft a tick.
+- **The empty squares in a recipe are load-bearing.** A chest is eight planks
+  *around a hole*. `try_craft` requires the hole to be empty, and there is a
+  test for it.
+- **Yields are the ecology.** A recipe returning more than it consumes places
+  the extra in the consumed cells first, then the nearest empty ones. This is an
+  inference, not something the video states outright — but his closing histogram
+  ranks items very nearly in order of yield, which a rule that discarded the
+  extras could not produce.
+- **The rule has no sinks, so it must run down.** Nothing consumes a slab or a
+  lever or a shovel once it exists, so every long run ends the same way. The
+  restock control is ours, not his, and it is a *level* rather than a rate on
+  purpose: a constant drip packs the grid solid and a full grid cannot craft at
+  all. Both facts have tests; do not "fix" them.
+- **Ties are undecided.** Five planks in a U are a boat, a slab and a stick all
+  at once. The one U in the video becomes a boat, so `Biggest` is the default —
+  but it is a switch on the page and should stay one.
 
 ## Adding a demo
 
