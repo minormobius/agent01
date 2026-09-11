@@ -39,4 +39,4 @@ The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (t
 ## Where the source lives
 
 - Monorepo: https://github.com/minormobius/agent01 — `packages/cad/` (the engine source is `engine/`, Rust). Design record: `docs/CAD.md`.
-- Small mirror (this package only): see README.md for the tangled repo.
+- Small mirror (this package only, 4 MB, on ATProto): `git clone https://tangled.org/morphyxmino.bsky.social/cad` — https://tangled.org/morphyxmino.bsky.social/cad. Refreshed on every push; do not open pull requests there.

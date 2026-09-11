@@ -138,7 +138,10 @@ documented in [`README.md`](README.md) next to this file.
   files, plus the skill under `.claude/skills/cad/` and a README — to a
   repo on tangled after every push here, with the morphyx deploy key the
   hoop mirror uses. That repo is the front door for anyone who wants the
-  CAD without the monorepo; `TANGLED_REPO` in the workflow names it.
+  CAD without the monorepo: `https://tangled.org/morphyxmino.bsky.social/cad`
+  (`TANGLED_HANDLE` / `TANGLED_REPO` in the workflow). Verified 2026-09-11:
+  a fresh HTTPS clone is 4 MB and passes `build.mjs`, all three node
+  selftests, and a `check.mjs` on the clock pulled from the network.
 
 ## How it works
 

@@ -124,7 +124,8 @@ node agent/drive.mjs   ls --at minomobi.com                        # the publish
   ABI; `drive.selftest.mjs`, the file tree and the gateway) and
   `npm run test:browser` (the page, in Chromium; `npm install` here or in
   `bakeoff/` first).
-- **This package is mirrored** to a small repo on tangled by
+- **This package is mirrored** to a small repo on tangled —
+  `git clone https://tangled.org/morphyxmino.bsky.social/cad` — by
   `.github/workflows/mirror-cad-tangled.yml` on every push, minus the Rust
   build dir, `node_modules` and the Cloudflare files, with the skill at
   `.claude/skills/cad/`. Someone who wants the CAD without the monorepo
