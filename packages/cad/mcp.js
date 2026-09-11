@@ -35,8 +35,8 @@ const treeArg = { oneOf: [treeSchema, { type: 'string', description: '`bench:<na
 export const TOOLS = [
   { name: 'check', title: 'Resolve a tree', description: 'Evaluate the expressions, sketches and ops of a tree without building geometry. Returns params, sketch and op counts, or the first error with its op id. Cheap; run it after every edit.',
     inputSchema: { type: 'object', properties: { tree: treeArg }, required: ['tree'] } },
-  { name: 'build', title: 'Build a part or assembly', description: 'Exact build with the Truck kernel (or the Manifold preview kernel): volume, area, bbox, centroid, Euler characteristic, watertightness, and every named face with its geometry (plane or cylinder). For an assembly, every distinct part and the totals. Returns a link that opens the same document in the viewer.',
-    inputSchema: { type: 'object', properties: { tree: treeArg, kernel: { type: 'string', enum: ['truck', 'manifold'], default: 'truck' }, faces: { type: 'boolean', default: true, description: 'include the face list' } }, required: ['tree'] } },
+  { name: 'build', title: 'Build a part or assembly', description: 'Exact build with the Truck kernel (or the Manifold preview kernel): volume, area, bbox, centroid, Euler characteristic, watertightness, and every named face with its geometry (plane or cylinder). For an assembly: the component list, every distinct part key, and the parts built in this call — a server builds at most a few parts per call (a gear can take 20 s), so pass `parts` (part keys from `partKeys`) to build the rest, and `remaining` tells you which are left. Returns a link that opens the same document in the viewer.',
+    inputSchema: { type: 'object', properties: { tree: treeArg, kernel: { type: 'string', enum: ['truck', 'manifold'], default: 'truck' }, faces: { type: 'boolean', default: true, description: 'include the face list' }, parts: { type: 'array', items: { type: 'string' }, description: 'assemblies only: the part keys to build in this call (default: the first few)' } }, required: ['tree'] } },
   { name: 'measure', title: 'Measure named faces', description: 'One face: its geometry (a cylinder\'s diameter and axis, a plane\'s normal). Two faces: plane-to-plane, axis-to-axis (with both diameters and the wall between) or axis-to-plane distance, from exact geometry. Face names come from `build`.',
     inputSchema: { type: 'object', properties: { tree: treeArg, a: { type: 'string', description: 'a face name, e.g. plate.pivot[0][0]' }, b: { type: 'string' } }, required: ['tree', 'a'] } },
   { name: 'interference', title: 'Check an assembly for interference', description: 'Pose every component of an assembly at time t (seconds through its drive) and intersect each overlapping pair. Pairs with more than eps mm³ in common are returned, largest first; fixed-mated bores on their arbors are expected touches.',
@@ -61,7 +61,7 @@ export function toolsFor({ manifold = true } = {}) {
 }
 
 export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabilities = {} } = {}) {
-  const caps = { manifold: true, ...capabilities };
+  const caps = { manifold: true, maxParts: Infinity, ...capabilities };
   const toolList = toolsFor(caps);
   const publicDrive = (did) => new Drive(new PublicBackend(did, gateway, { fetch: f }), { pdsOf: async () => gateway, fetch: f });
   const asTree = async (v) => {
@@ -79,7 +79,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const r = engine.resolve(await asTree(tree)).resolved;
       return { ok: true, units: r.units, params: r.params, sketches: (r.sketches || []).map((s) => s.id), ops: (r.ops || []).map((o) => ({ op: o.op, id: o.id, mode: o.mode })) };
     },
-    async build({ tree, kernel = 'truck', faces = true }) {
+    async build({ tree, kernel = 'truck', faces = true, parts: only }) {
       const { engine, manifold } = await kernels();
       if (kernel === 'manifold' && !(caps.manifold && manifold)) throw new Error('the preview kernel is not available on this server; use kernel "truck", or run agent/build.mjs --kernel manifold locally');
       const doc = await asTree(tree);
@@ -91,9 +91,14 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       };
       if (Array.isArray(doc.components)) {
         const { components, partTrees } = await flatten(doc, resolveRef);
+        const partKeys = [...partTrees.keys()];
+        const wanted = Array.isArray(only) && only.length ? only.filter((k) => partTrees.has(k)) : partKeys;
+        const unknown = Array.isArray(only) ? only.filter((k) => !partTrees.has(k)) : [];
+        const chosen = wanted.slice(0, caps.maxParts);
         const parts = {}; let volume = 0, ok = true;
-        for (const [key, t] of partTrees) { const r = one(JSON.parse(t)); parts[key] = { ...r, faces: undefined }; if (r.ok) volume += r.invariants.volume; else ok = false; if (r.ok && !r.invariants.watertight) ok = false; }
-        return { ok, kind: 'assembly', components: components.map((c) => ({ id: c.id, part: c.part, partKey: c.partKey })), parts, volume, link: link(doc) };
+        for (const key of chosen) { const r = one(JSON.parse(partTrees.get(key))); parts[key] = { ...r, faces: undefined }; if (r.ok) volume += r.invariants.volume; else ok = false; if (r.ok && !r.invariants.watertight) ok = false; }
+        const remaining = wanted.slice(caps.maxParts);
+        return { ok, kind: 'assembly', components: components.map((c) => ({ id: c.id, part: c.part, partKey: c.partKey })), partKeys, parts, remaining, ...(unknown.length ? { unknown } : {}), volume, complete: remaining.length === 0 && wanted.length === partKeys.length, link: link(doc) };
       }
       const r = one(doc);
       return { ...r, kind: 'part', link: link(doc) };

@@ -23,6 +23,10 @@
 // list on this host omits interference and the preview kernel, and says so;
 // those run locally (agent/check.mjs, agent/build.mjs --kernel manifold). A
 // Manifold build with -sDYNAMIC_EXECUTION=0 would lift this.
+//
+// CPU: wrangler.jsonc raises the budget to 120 s, and an assembly is built
+// three parts per call (maxParts) — the clock's seventeen distinct parts in
+// one request was a 1102 on the first try.
 
 import { createMcp } from './mcp.js';
 import { xrpc, json } from './gateway.js';
@@ -46,7 +50,7 @@ function mcpFor(env, origin) {
     if (collection === PART) { const f = await d.get(ref); if (!f) throw new Error(`no file at ${ref}`); return f.revision.tree; }
     return d.treeAt(ref);
   };
-  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch, capabilities: { manifold: false } }));
+  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch, capabilities: { manifold: false, maxParts: 3 } }));
 }
 
 export default {

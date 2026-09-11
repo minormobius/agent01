@@ -7,6 +7,12 @@
     "directory": ".",
     "binding": "ASSETS"
   },
+  // /mcp builds parts with the Rust engine inside the worker. Truck is slow on
+  // the booleans it can do (the 60-tooth crossed gear is ~17 s under node,
+  // 27 s here), so the default 30 s CPU budget is one gear away from a 1102.
+  // Same precedent as civ/. An assembly is built in slices of `maxParts`
+  // (mcp.js) so one request never asks for the whole clock.
+  "limits": { "cpu_ms": 120000 },
   // Golden rule (docs/DEPLOYS.md §4): the worker name must be the one that owns
   // the live custom domain, and the domain must be declared here — otherwise
   // `wrangler deploy` goes green against a stray cad.workers.dev and the live

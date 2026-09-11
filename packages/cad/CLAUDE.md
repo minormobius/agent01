@@ -125,8 +125,12 @@ documented in [`README.md`](README.md) next to this file.
   "Code generation from strings disallowed"), so the live host is created
   with `capabilities: { manifold: false }` and its tool list omits
   `interference` and the preview kernel, saying so in the descriptor and
-  the instructions; those run locally. No render (needs a browser; the link
-  is the picture), no OCCT, no writes. `mcp.selftest.mjs` drives the module
+  the instructions; those run locally. CPU is the other limit: the 60-tooth
+  gear takes ~27 s of Truck there, so `wrangler.jsonc` raises `cpu_ms` to
+  120 s and the host builds an assembly **three parts per call**
+  (`maxParts`; the client passes `parts` to continue — the whole clock in
+  one request was a 1102). No render (needs a browser; the link is the
+  picture), no OCCT, no writes. `mcp.selftest.mjs` drives the module
   under node both ways; the worker-side loading is verified only by the
   deploy and a live `curl -X POST …/mcp` — do both after touching it.
 - **The mirror.** `.github/workflows/mirror-cad-tangled.yml` force-pushes

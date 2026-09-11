@@ -55,7 +55,16 @@ check(bm.ok && bm.kernel === 'manifold' && bm.invariants.watertight && bm.faces.
 const esc = await tool('build', { tree: 'bench:escape' });
 check(!esc.structuredContent.ok && /boolean/.test(esc.structuredContent.error.msg), `build is honest about Truck's boolean failure: ${esc.structuredContent.error.msg}`);
 const asm = (await tool('build', { tree: 'bench:train', faces: false })).structuredContent;
-check(asm.kind === 'assembly' && asm.components.length === 4 && Object.keys(asm.parts).length === 3, `build on an assembly: ${asm.components.length} components over ${Object.keys(asm.parts).length} parts`);
+check(asm.kind === 'assembly' && asm.components.length === 4 && Object.keys(asm.parts).length === 3 && asm.complete && asm.remaining.length === 0, `build on an assembly: ${asm.components.length} components over ${Object.keys(asm.parts).length} parts, complete`);
+{
+  const sliced = createMcp({ kernels, fetchRef, capabilities: { maxParts: 2 } });
+  const s1 = (await sliced.call('build', { tree: 'bench:train', faces: false }));
+  check(Object.keys(s1.parts).length === 2 && s1.remaining.length === 1 && !s1.complete && s1.partKeys.length === 3, `a server with maxParts 2 builds two and names the one remaining (${s1.remaining.join(', ')})`);
+  const s2 = await sliced.call('build', { tree: 'bench:train', faces: false, parts: s1.remaining });
+  check(Object.keys(s2.parts).length === 1 && s2.remaining.length === 0 && s2.parts[s1.remaining[0]].ok !== undefined, 'the next call builds the remaining part by key');
+  const s3 = await sliced.call('build', { tree: 'bench:train', faces: false, parts: ['nope'] });
+  check(s3.unknown?.[0] === 'nope' && Object.keys(s3.parts).length === 0, 'an unknown part key is reported, not built');
+}
 const m1 = (await tool('measure', { tree: 'bench:plate', a: 'plate.pivot[0][0]' })).structuredContent;
 check(m1.face.kind === 'cylinder' && Math.abs(m1.face.diameter - 0.32) < 1e-6, `measure one face: pivot ⌀ ${m1.face.diameter}`);
 const m2 = (await tool('measure', { tree: 'bench:plate', a: 'plate.start', b: 'plate.end' })).structuredContent;
