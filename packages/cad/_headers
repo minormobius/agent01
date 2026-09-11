@@ -23,15 +23,20 @@
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
 
+# connect-src: 'self' covers the engine, the bench trees and the /xrpc/ read
+# gateway in worker.js (any public repo, proxied, so the page never talks to a
+# PDS host directly); auth.mino.mobi is the shared OAuth worker, which holds
+# the tokens and proxies the signed-in user's writes.
+#
 # The page policy goes on the document responses only. A CSP header on a
 # script or wasm response is inert (a dedicated Worker's script is the one
 # exception, below), so putting it on /* only invites the rule-combining
 # question; here there is no overlap to combine.
 /
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://auth.mino.mobi; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
 
 /index.html
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://auth.mino.mobi; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
 
 # The worker may also import OCCT (66 MB) from unpkg on demand — jsDelivr
 # refuses files that size — so its script-src and connect-src name that host.

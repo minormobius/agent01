@@ -29,6 +29,8 @@ and the native CLI is `engine/target/release/cad` (build once with
 | interference (assemblies) | `node agent/check.mjs asm.json [--t seconds] [--json]` | interfering pairs with shared volume; exit 1 if any beyond fixed-mated bores |
 | printable | `node agent/export.mjs doc.json --out DIR [--t s]` | one STL per part (and a posed assembly STL) |
 | look | `node agent/render.mjs doc.json --out DIR [--views iso,top,front] [--t s] [--hide dial,case]` | PNG per view + `report.json`; needs `cd bakeoff && npm install` once |
+| files | `node agent/drive.mjs ls\|get\|put\|log\|fork\|rm … [--drive file.json] [--at handle\|did] [-m msg]` | a file tree over ATProto records: your own in a JSON file (`--drive`), or anyone's public repo (`--at`) by handle or DID; `get` prints a tree to pipe into the other tools; `log` is the revision history, across repos for forks |
+| exact B-rep out | `engine/target/release/cad build tree.json --step out.step` (the page's *step* button does the same from the kernel that built the part) | STEP AP203/214 from Truck, or from OCCT when it built the part; `stepmeasure` reads one back |
 | diff two trees | `engine/target/release/cad diff a.json b.json` | params and features added / removed / changed |
 
 Face names are stable and semantic: an extrude `plate` has `plate.start`,
@@ -64,9 +66,17 @@ tells you when you have not.
 
 Any tree or assembly opens in the viewer as a link: base64url the JSON into
 `https://cad.mino.mobi/#t=<…>` (the page's *link* button does the same), or
-push a bench file and use `?part=<name>`. The human sees the part, the
-report, the named faces, the measure tool and the interference check; give
-them the link and the numbers you judged by.
+push a bench file and use `?part=<name>`; or save it to a repo and hand
+over `?at=<AT URI>` — a file the human can open, fork to their own drive,
+and read the history of. The human sees the part, the report, the named
+faces, the measure tool and the interference check; give them the link and
+the numbers you judged by.
+
+Sketch curves: lines, arcs (`via`), cubic Béziers (`ctrl`), and splines
+through points (a `spline` segment inside a `path`, or a closed `spline`
+loop — `bench/cam.json`). Splines are Catmull–Rom, one exact cubic per span,
+one face per span, named `id.<loop name>[k]` (`cam.cam[7]`) or `id.span[k]` when the loop is unnamed. There are no lofts, sweeps along a path, or
+free-form surfaces yet; say so rather than approximating with polygons.
 
 ## Honesty
 

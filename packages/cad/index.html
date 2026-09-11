@@ -22,11 +22,12 @@
   <button id="edges" title="e">edges</button>
   <span class="sp"></span>
   <button id="views" title="three views for the record">views</button>
-  <button id="stl">stl</button>
+  <button id="stl" title="mesh for printing">stl</button>
+  <button id="step" title="exact B-rep for other CAD; written by the kernel that built the part">step</button>
   <button id="share">link</button>
   <span id="status">starting…</span>
 </header>
-<nav id="tabs"><button data-tab="params" class="on">params</button><button data-tab="tree">tree</button><button data-tab="report">report</button></nav>
+<nav id="tabs"><button data-tab="params" class="on">params</button><button data-tab="tree">tree</button><button data-tab="report">report</button><button data-tab="files">files</button></nav>
 <aside id="left">
   <section data-pane="params">
   <h2>params</h2>
@@ -38,6 +39,20 @@
   <h2>tree</h2>
   <textarea id="json" spellcheck="false"></textarea>
   <button id="apply">apply</button>
+  </section>
+  <section data-pane="files" class="files">
+  <h2>files</h2>
+  <div id="who" class="dim">local drive — this browser only</div>
+  <div class="row"><input id="handle" placeholder="handle.bsky.social" autocapitalize="off"><button id="signin" title="sign in through auth.mino.mobi to save to your own PDS">sign in</button><button id="signout" hidden>sign out</button></div>
+  <div id="files"></div>
+  <div class="row"><input id="repo" placeholder="browse a repo: handle, did, or at://…" autocapitalize="off"><button id="browse">open</button></div>
+  <h2>save</h2>
+  <div class="row"><input id="path" placeholder="clock/train/gear"><select id="target"><option value="local">local</option></select></div>
+  <div class="row"><input id="message" placeholder="what changed"><button id="save">save</button></div>
+  <div id="drivestatus" class="dim"></div>
+  <h2>history</h2>
+  <div id="history" class="dim">open a file</div>
+  <p class="dim">Files are records in a repo: a <code>part</code> head that names a path and points at an immutable <code>revision</code>, whose parents are the history — across repos, so a fork keeps its lineage. Local files live in this browser; sign in and they push to your PDS, where anyone can open them by AT URI and fork them.</p>
   </section>
 </aside>
 <main><canvas id="view"></canvas></main>

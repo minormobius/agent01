@@ -53,6 +53,9 @@ const EXTRA = [
   // hopper publishes runs to the player's own PDS through the shared OAuth
   // worker, so it links the client like every other static site does.
   ["packages/oauth-client/auth.js", "hopper/js/auth.js"],
+  // cad.mino.mobi saves a user's parts to their own PDS (packages/cad/lib/drive.js)
+  // through the same client; the site is packages/cad served as static assets.
+  ["packages/oauth-client/auth.js", "packages/cad/vendor/auth.js"],
   ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],

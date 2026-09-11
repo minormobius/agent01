@@ -321,6 +321,41 @@ fn cubic_through(p0: P2, p1: P2, p2: P2, p3: P2) -> (P2, P2) {
     (c1, c2)
 }
 
+/// Catmull–Rom through `pts` as cubic Béziers, one per span. `closed` wraps
+/// around (a periodic spline); open splines clamp the end tangents. Tension
+/// 0.5 is the classic Catmull–Rom; 0 is straight lines.
+pub fn spline_segs(pts: &[P2], tension: f64, closed: bool) -> Vec<Seg> {
+    let n = pts.len();
+    if n < 2 {
+        return Vec::new();
+    }
+    let at = |i: isize| -> P2 {
+        if closed {
+            pts[((i % n as isize) + n as isize) as usize % n]
+        } else {
+            pts[i.clamp(0, n as isize - 1) as usize]
+        }
+    };
+    let spans = if closed { n } else { n - 1 };
+    let k = tension / 3.0; // Catmull–Rom tangent (p[i+1]-p[i-1])/2 scaled into Bézier handles
+    (0..spans)
+        .map(|i| {
+            let i = i as isize;
+            let (p0, p1, p2, p3) = (at(i - 1), at(i), at(i + 1), at(i + 2));
+            let c1 = [p1[0] + (p2[0] - p0[0]) * k, p1[1] + (p2[1] - p0[1]) * k];
+            let c2 = [p2[0] - (p3[0] - p1[0]) * k, p2[1] - (p3[1] - p1[1]) * k];
+            Seg::Bezier { to: p2, ctrl: vec![c1, c2] }
+        })
+        .collect()
+}
+
+/// A closed smooth loop through points, one Bézier per span, named `span[i]`.
+pub fn spline_loop(pts: &[P2], tension: f64) -> Loop {
+    let segs = spline_segs(pts, tension, true);
+    let names = (0..segs.len()).map(|i| Some(format!("span[{i}]"))).collect();
+    Loop { start: pts[0], segs, names }
+}
+
 /// Standard spur gear parameters, all derived from module `m`, tooth count `z`
 /// and pressure angle `alpha` (degrees). ISO 53 basic rack: addendum m,
 /// dedendum 1.25 m.

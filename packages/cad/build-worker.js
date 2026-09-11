@@ -10,7 +10,7 @@ import { loadEngine } from './lib/engine.js';
 import { buildManifold } from './lib/manifold-kernel.js';
 import { buildOcct } from './lib/occt-kernel.js';
 import { interference } from './lib/interfere.js';
-import { weld, invariants, featureEdges, flatStreams, bbox, writeStl } from './lib/mesh.js';
+import { weld, invariants, featureEdges, flatStreams, bbox } from './lib/mesh.js';
 import Module from './vendor/manifold.js';
 
 let engine = null, manifold = null, oc = null, occtLoading = null;
@@ -72,6 +72,7 @@ self.onmessage = async (e) => {
     const needsOcct = ops.some((o) => NEEDS_OCCT.has(o.op));
     post({ type: 'resolved', id, slot, ops: ops.map((o) => ({ op: o.op, id: o.id, mode: o.mode })), sketches: resolved.resolved.sketches.map((s) => s.id), params: resolved.resolved.params, gears: resolved.resolved.gears, needsOcct });
     const entry = last.get(slot) || {}; last.set(slot, entry);
+    entry.tree = tree; entry.needsOcct = needsOcct; entry.exactKernel = null;
     // preview (Manifold has no fillet: preview the tree without those ops, flagged)
     if (m.want.preview !== false) {
       let r = buildManifold(manifold, resolved, { keep: true });
@@ -98,7 +99,7 @@ self.onmessage = async (e) => {
       if (stale()) return;
       if (r.ok) {
         const { payload, transfer } = pack(r.mesh, { type: 'exact', id, slot, ms: r.report.timings.build_ms, report: r.report, kernel: 'truck', step: r.step });
-        entry.exact = payload.mesh; post(payload, transfer);
+        entry.exact = payload.mesh; entry.exactKernel = 'truck'; post(payload, transfer);
         return;
       }
       truckFailed = r.report.error;
@@ -121,7 +122,7 @@ self.onmessage = async (e) => {
     if (!r.ok) return post({ type: 'error', id, slot, stage: 'exact', error: r.error, truckError: truckFailed });
     const report = { ok: true, kernel: 'occt', timings: { build_ms: r.ms }, faces: r.faces.map((f) => ({ names: [], area: f.area, normal: f.normal, centroid: f.centroid })), kernelVolume: r.kernelVolume, truckError: truckFailed };
     const { payload, transfer } = pack(r.mesh, { type: 'exact', id, slot, ms: r.ms, report, kernel: 'occt', step: r.step });
-    entry.exact = payload.mesh; post(payload, transfer);
+    entry.exact = payload.mesh; entry.exactKernel = 'occt'; entry.refFaces = refFaces; post(payload, transfer);
     return;
   }
   if (m.type === 'check') {
@@ -134,9 +135,19 @@ self.onmessage = async (e) => {
   }
   if (m.type === 'export') {
     const entry = last.get(m.slot || 'main') || {};
-    const mesh = m.which === 'preview' ? entry.preview : entry.exact || entry.preview;
-    if (!mesh) return post({ type: 'error', id: m.id, stage: 'export', error: { op: 'export', msg: 'nothing built yet' } });
-    const stl = writeStl(mesh);
-    post({ type: 'export', id: m.id, format: 'stl', bytes: stl, name: m.name }, [stl.buffer]);
+    if (m.format === 'step') {
+      // STEP comes from the exact kernel that built the part: re-run it with the writer on
+      if (!entry.tree) return post({ type: 'error', id: m.id, stage: 'export', error: { op: 'export', msg: 'nothing built yet' } });
+      let text = null, kernel = entry.exactKernel;
+      try {
+        if (kernel === 'truck') { const r = engine.build(entry.tree, { kernel: 'truck', step: true }); if (r.ok) text = r.step; }
+        else if (kernel === 'occt' && oc) { const r = buildOcct(oc, engine.resolve(entry.tree, m.tol || 0.01), { wantStep: true, refFaces: entry.refFaces || null }); if (r.ok) text = r.step; }
+        else if (m.allowOcct) { const k = await loadOcct(); const r = buildOcct(k, engine.resolve(entry.tree, m.tol || 0.01), { wantStep: true, refFaces: entry.refFaces || null }); if (r.ok) { text = r.step; kernel = 'occt'; } }
+      } catch (e) { return post({ type: 'error', id: m.id, stage: 'export', error: { op: 'export', msg: String(e?.message ?? e) } }); }
+      if (!text) return post({ type: 'error', id: m.id, stage: 'export', error: { op: 'export', msg: 'no exact build to write STEP from — enable OCCT or fix the exact build' } });
+      const bytes = new TextEncoder().encode(text);
+      return post({ type: 'export', id: m.id, format: 'step', bytes, name: m.name, kernel }, [bytes.buffer]);
+    }
+    post({ type: 'error', id: m.id, stage: 'export', error: { op: 'export', msg: `unknown export format ${m.format}` } });
   }
 };

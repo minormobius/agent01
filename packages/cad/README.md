@@ -21,6 +21,7 @@ serves this directory with `engine/` and `bakeoff/` dropped by
 | `bakeoff/` | the harness: `run.mjs` builds every part with every kernel and writes `RESULTS.md`. OCCT is an npm dep there; Manifold is vendored |
 | `lib/` | shared by the site, the worker and the harness: `engine.js` (the ABI), `mesh.js` (weld, invariants, edges, streams, STL), `manifold-kernel.js`, `occt-kernel.js` |
 | `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
+| `drive.selftest.mjs` | the file tree over records (`lib/drive.js`) and the site worker's `/xrpc/` read gateway, with in-memory repos and a fake PDS |
 | `browser.selftest.mjs` | serves the package, drives the page in headless Chromium through every bench part, asserts the report, screenshots to `/tmp/cad-shots/` |
 
 ## The tree
@@ -37,7 +38,11 @@ serves this directory with `engine/` and `bakeoff/` dropped by
   (`"r": "pcd/2 + 8"`, `sin`, `cos`, `deg()`, `sqrt`, `min`, `max`, `pi`).
 - **Sketches** live on a plane (`XY`/`XZ`/`YZ`, `{ "base": "XY", "offset": 5 }`,
   or `<extrude>.end`) and hold closed loops: `circle`, `rect`, `polygon`, or a
-  `path` of lines, arcs (`via`) and cubic Béziers (`ctrl`). The region is
+  `path` of lines, arcs (`via`), cubic Béziers (`ctrl`) and `spline`
+  segments through points, or a closed `spline` (`through`, optional
+  `tension`; a periodic Catmull–Rom, one exact cubic Bézier per span in the
+  kernel, one face per span named `id.<loop name>[k]`, or `id.span[k]` for an
+  unnamed loop — `bench/cam.json`). The region is
   even-odd, so a loop inside a loop is a hole — that is how through-holes are
   made, not with booleans.
 - **Ops**: `extrude` (`profile` is one sketch id or a list; `mode` new/add/cut/

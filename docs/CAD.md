@@ -757,3 +757,104 @@ op's *combined* profile (a pattern of five circles is five holes, not five
 discs), so the engine now emits per-op oriented rings; and the involute's
 Bézier fit is chord-length parametrised. The OCCT column of the results
 table was re-measured after the first fix and is correct on every part.
+
+## 15. Splines, STEP out, and phase 2 — the file tree over records
+
+Two questions from outside, answered with code rather than a paragraph:
+
+- **"Do we do splines?"** Now: a `spline` segment inside a `path`, or a
+  closed `spline` loop, is a curve *through* points — a Catmull–Rom, one
+  exact cubic Bézier per span, so it is exact in every kernel (Truck and
+  OCCT take the Béziers as B-spline edges; Manifold samples them) and each
+  span is a named face, `cam.cam[7]` (the loop's name, as for any loop;
+  `span[k]` when it has none). `bench/cam.json` is a cam: twelve
+  polar points with a rise over a third of the turn, a keyed bore. It
+  builds watertight in Truck and its STEP reads back to the same volume.
+  What we still do not do, and should not pretend to: lofts, sweeps along
+  a path, free-form surfaces, and NURBS with user-set knots and weights.
+  Those are OCCT ops behind the same seam, phase 4 work, and they will be
+  named faces like everything else. The sketch language was never the
+  ceiling — the sketcher UI (§8 phase 4) is.
+- **"Do we have STEP export? I only see STL."** STEP was in the CLI from
+  phase 1 (`cad build --step`) and in the bake-off as a mandatory column;
+  what was missing was a button. The page now has one. It re-runs the
+  exact kernel that built the part with its writer on — Truck's, or OCCT's
+  when OCCT built it (fillets, the booleans Truck fails) — so the file is
+  the B-rep the report judged, not a re-tessellation. STL is written on the
+  page from the exact mesh when it has landed and the preview otherwise,
+  because the mesh buffers were transferred out of the worker at build
+  time and only the page still holds them.
+
+Then the ask that matters more: **"we need to roll something close to a PDS
+OS to run a file tree of a user's data records."** That is §2 as built, and
+the intuition is exactly right — the thing to roll is small.
+
+### 15.1 What a file tree over records is
+
+A repo is a flat set of collections of records. A filesystem over it is a
+*view*, the way a git tree is a view over blobs:
+
+| | record | what it holds | mutability |
+|---|---|---|---|
+| a file | `com.minomobi.cad.part` | `path`, `name`, `kind` (part / assembly), `head` (a strongRef to a revision), timestamps | a head: it moves |
+| a version | `com.minomobi.cad.revision` | the tree, `parents[]` as strongRefs, `createdAt`, `message`, the `kernel` that built it and the `invariants` it was judged by, `forkedFrom` | immutable |
+
+Directories are whatever the paths imply; `list('clock/train')` is a prefix
+filter. A rename edits the `path` field and the record's URI does not
+change, so a machine's reference survives a human's tidy-up. History is the
+parents chain, and a parent is a strongRef — a URI *and* a content hash —
+so it may point into another repo. That is a fork: a new head in your repo
+whose first revision's parent is theirs, and `history` walks straight
+across the boundary. There is no server in this design. There is no file
+list to keep in sync. The repo is the file list.
+
+### 15.2 The four backends, and why a local one comes first
+
+`packages/cad/lib/drive.js` is one class, `Drive`, over a five-call backend
+contract (`getRecord`, `listRecords`, `createRecord`, `putRecord`,
+`deleteRecord` — the ATProto repo methods, and nothing else). Four backends:
+
+1. **Memory** — a Map, with a persist hook. The node CLI (`agent/drive.mjs`)
+   keeps a whole repo in one JSON file; the selftests run against it.
+2. **Local** — IndexedDB, same shape, in the browser. This is the drive a
+   visitor gets with no sign-in: save, history, fork, all of it, and it
+   survives a reload. Local-first is not a fallback; it is the answer to
+   "what if the PDS is down" and "what if I never sign in".
+3. **Public** — any repo, read over the two public XRPC methods. No auth,
+   because the records are public. In the page these calls go to the
+   site's own worker at `/xrpc/`, which resolves the handle or DID to its
+   PDS and forwards — so the page's CSP stays `connect-src 'self'` and
+   the page never learns a PDS host. The gateway serves
+   `com.minomobi.cad.*` only: a CAD gateway, not a proxy.
+4. **Auth** — the signed-in user's own repo through the shared auth worker
+   (§2.3: zero OAuth code here; `packages/oauth-client/auth.js`, narrow
+   scope `atproto repo:com.minomobi.cad.part repo:com.minomobi.cad.revision`).
+
+The memory and local backends mint `local:<sha256>` as a record's cid: an
+honest content hash, but not an IPLD CID, and a PDS would reject a
+strongRef to one. So **push** is not a copy. It replays a local file's
+mainline oldest-first onto the PDS, rewriting each parent ref to the cid
+the PDS just minted; revisions that already live in a real repo (the fork's
+source) are referenced, not copied. After a push the file's history on the
+PDS is `mine ← mine ← theirs`, every ref real. The drive selftest proves
+that with two in-memory repos standing in for a PDS and a stranger.
+
+### 15.3 What it is not, yet
+
+- **Trees are inline.** A revision carries its tree as a record field.
+  Bench trees are 1–4 KB; the clock is 6 KB. The phase-2 kill criterion
+  (§8) was "record limits force every tree to a blob"; they do not, at
+  these sizes. Geometry is not stored at all — it is a cache, rebuilt from
+  the tree — which is the §1 decision paying rent.
+- **Sign-in on the live site needs two lines on another branch:** the
+  origin in the auth worker's allowlist and the two collections in its
+  scope ceiling (`packages/cad/CLAUDE.md` names the files). Until they
+  land, the page reads the worker's refusal as signed-out and everything
+  else works. This cut was verified against a mocked repo in the browser
+  selftest and against in-memory repos in the drive selftest, not against
+  a live PDS.
+- **No merge.** `parents` is a list, so a merge revision is representable;
+  nothing writes one. `cad diff` exists; three-way merge of trees is
+  phase-4 work alongside the sketcher.
+- **No `.stl` / `.png` faces on an AT URI** (§2.2). The gateway is the
+  first step; content negotiation is the next.

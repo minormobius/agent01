@@ -60,6 +60,15 @@ pub enum SegSpec {
     Line { to: [Num; 2] },
     Arc { arc: ArcSpec },
     Bezier { bezier: BezSpec },
+    /// A smooth curve *through* points (Catmull–Rom, `tension` 0.5 by
+    /// default), emitted as one cubic Bézier per span, exact in the kernel.
+    Spline { spline: SplineSpec },
+}
+#[derive(Debug, Clone, Deserialize)]
+pub struct SplineSpec {
+    pub through: Vec<[Num; 2]>,
+    #[serde(default)]
+    pub tension: Option<Num>,
 }
 #[derive(Debug, Clone, Deserialize)]
 pub struct ArcSpec {
@@ -85,6 +94,9 @@ pub struct LoopSpec {
     pub rect: Option<RectSpec>,
     pub polygon: Option<Vec<[Num; 2]>>,
     pub path: Option<PathSpec>,
+    /// A closed smooth loop through points: a periodic Catmull–Rom spline,
+    /// one cubic Bézier per span. A cam profile is this.
+    pub spline: Option<SplineSpec>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -353,18 +365,35 @@ pub fn resolve(tree: &Tree) -> Result<Resolved, String> {
                             return Err(format!("sketch `{id}` loop {li}: polygon needs 3 points"));
                         }
                         Loop::polygon(&pts)
+                    } else if let Some(sp) = &l.spline {
+                        let pts: Result<Vec<P2>, String> = sp.through.iter().map(|p| cx.p(p)).collect();
+                        let pts = pts?;
+                        if pts.len() < 3 {
+                            return Err(format!("sketch `{id}` loop {li}: a closed spline needs 3 points"));
+                        }
+                        let tension = match &sp.tension { Some(t) => cx.n(t)?, None => 0.5 };
+                        crate::sketch::spline_loop(&pts, tension)
                     } else if let Some(path) = &l.path {
                         let start = cx.p(&path.from)?;
                         let mut segs = Vec::new();
+                        let mut cur = start;
                         for s in &path.segs {
-                            segs.push(match s {
-                                SegSpec::Line { to } => Seg::Line { to: cx.p(to)? },
-                                SegSpec::Arc { arc } => Seg::Arc { to: cx.p(&arc.to)?, via: cx.p(&arc.via)? },
+                            match s {
+                                SegSpec::Line { to } => segs.push(Seg::Line { to: cx.p(to)? }),
+                                SegSpec::Arc { arc } => segs.push(Seg::Arc { to: cx.p(&arc.to)?, via: cx.p(&arc.via)? }),
                                 SegSpec::Bezier { bezier } => {
                                     let ctrl: Result<Vec<P2>, String> = bezier.ctrl.iter().map(|p| cx.p(p)).collect();
-                                    Seg::Bezier { to: cx.p(&bezier.to)?, ctrl: ctrl? }
+                                    segs.push(Seg::Bezier { to: cx.p(&bezier.to)?, ctrl: ctrl? })
                                 }
-                            });
+                                SegSpec::Spline { spline } => {
+                                    let pts: Result<Vec<P2>, String> = spline.through.iter().map(|p| cx.p(p)).collect();
+                                    let mut pts = pts?;
+                                    pts.insert(0, cur);
+                                    let tension = match &spline.tension { Some(t) => cx.n(t)?, None => 0.5 };
+                                    segs.extend(crate::sketch::spline_segs(&pts, tension, false));
+                                }
+                            }
+                            cur = segs.last().map(|s| s.end()).unwrap_or(cur);
                         }
                         let n = segs.len();
                         let lp = Loop { start, segs, names: vec![None; n] };
@@ -373,7 +402,7 @@ pub fn resolve(tree: &Tree) -> Result<Resolved, String> {
                         }
                         lp
                     } else {
-                        return Err(format!("sketch `{id}` loop {li}: needs circle, rect, polygon or path"));
+                        return Err(format!("sketch `{id}` loop {li}: needs circle, rect, polygon, spline or path"));
                     };
                     if let Some(n) = &l.name {
                         lp = lp.named(n);

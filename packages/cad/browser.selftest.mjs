@@ -36,9 +36,25 @@ for (const block of fs.readFileSync(path.join(here, '_headers'), 'utf8').split(/
 }
 const headersFor = (urlPath) => { const out = {}; for (const r of rules) if (r.re.test(urlPath)) for (const [k, v] of Object.entries(r.headers)) { if (v === null) delete out[k]; else out[k] = v; } return out; };
 const csp = headersFor('/')['content-security-policy'];
+// A stranger's public repo, answered by this server at /xrpc/ the way the site
+// worker's gateway answers on the live host (worker.js; drive.selftest covers
+// the gateway itself). One file: the cam, filed at lib/cam.
+const { Drive, MemoryBackend } = await import('./lib/drive.js');
+const stranger = new MemoryBackend('did:plc:stranger');
+{ const put = stranger.putRecord.bind(stranger); stranger.putRecord = async (c, r, v) => { const x = await put(c, r, v); x.cid = 'bafyfake' + x.cid.slice(6); stranger.records.get(stranger.key(c, r)).cid = x.cid; return x; }; }
+const strangerFile = await new Drive(stranger).put('lib/cam', JSON.parse(fs.readFileSync(path.join(here, 'bench', 'cam.json'), 'utf8')), { message: 'a cam, shared' });
+async function xrpcMock(req, res) {
+  const u = new URL(req.url, 'http://x'); const q = Object.fromEntries(u.searchParams); const method = u.pathname.slice(6);
+  const send = (code, body) => { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }); res.end(JSON.stringify(body)); };
+  if (!['did:plc:stranger', 'stranger.example'].includes(q.repo)) return send(400, { error: 'InvalidRequest', message: 'unknown repo' });
+  if (method === 'com.atproto.repo.getRecord') { const r = await stranger.getRecord(q.collection, q.rkey); return r ? send(200, r) : send(404, { error: 'RecordNotFound' }); }
+  if (method === 'com.atproto.repo.listRecords') return send(200, await stranger.listRecords(q.collection, Number(q.limit) || 50, q.cursor));
+  send(404, { error: 'MethodNotSupported' });
+}
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm' };
 const server = http.createServer((req, res) => {
   const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  if (urlPath.startsWith('/xrpc/')) return xrpcMock(req, res);
   const OCCT = path.join(here, 'bakeoff', 'node_modules', 'opencascade.js', 'dist');
   const p = urlPath.startsWith('/occt/') ? path.join(OCCT, urlPath.slice(6)) : path.join(here, urlPath.replace(/\/$/, '/index.html'));
   if (!(p.startsWith(here)) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
@@ -49,6 +65,10 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
+// auth.mino.mobi is not reachable from here; answer it as "signed out" so the page takes the local-drive path without a network error in the console
+// (the worker answers 401 when nobody is signed in — Chromium logs that as a console error, so it is not counted)
+const authNoise = (m) => /^https:\/\/auth\.mino\.mobi\//.test(m.location()?.url || '');
+const quietAuth = (p) => p.route('https://auth.mino.mobi/**', (r) => r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"unauthenticated"}' }));
 const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell'].find((p) => fs.existsSync(p));
 const browser = await chromium.launch({ headless: !args.includes('--headed'), executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--proxy-server=direct://', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--no-first-run'] });
 let fails = 0;
@@ -60,9 +80,9 @@ const near = (a, b, rel) => Math.abs(a - b) <= rel * Math.abs(b);
 // load the page and watch the console for the app's own ready and exact lines.
 {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
-  const p = await ctx.newPage();
+  const p = await ctx.newPage(); await quietAuth(p);
   const seen = []; const errs = [];
-  p.on('console', (m) => { seen.push(m.text()); if (m.type() === 'error') errs.push(m.text()); });
+  p.on('console', (m) => { seen.push(m.text()); if (m.type() === 'error' && !authNoise(m)) errs.push(m.text()); });
   p.on('pageerror', (e) => errs.push(e.message));
   await p.goto(`${base}/?part=plate`, { waitUntil: 'load' });
   const deadline = Date.now() + 90000;
@@ -74,10 +94,10 @@ const near = (a, b, rel) => Math.abs(a - b) <= rel * Math.abs(b);
 }
 
 // Pass 2 — the functional test, with the policy bypassed so evaluate works.
-const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, bypassCSP: true });
+const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, bypassCSP: true }); await quietAuth(page);
 const errors = [];
 page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+page.on('console', (m) => { if (m.type() === 'error' && !authNoise(m)) errors.push(`console: ${m.text()}`); });
 
 await page.goto(`${base}/?part=plate`, { waitUntil: 'load' });
 try { await page.waitForFunction(() => !!window.__cad, null, { timeout: 30000 }); }
@@ -118,7 +138,7 @@ const reportText = await page.textContent('#report');
 check(/volume/.test(reportText) && /watertight/.test(reportText), 'report table renders');
 
 // every other bench part builds (preview at least), with the expected honesty on exact
-const expect = { gear: { exact: false }, arbor: { exact: true, euler: 2 }, escape: { exact: false, euler: 0 }, case: { exact: true, euler: 2 }, 'case-fillet': { exact: false, approx: true } };
+const expect = { gear: { exact: false }, arbor: { exact: true, euler: 2 }, escape: { exact: false, euler: 0 }, case: { exact: true, euler: 2 }, 'case-fillet': { exact: false, approx: true }, cam: { exact: true, euler: 0 } };
 for (const [name, ex] of Object.entries(expect)) {
   const r = await page.evaluate(async (n) => { await window.__cad.load(n); return await window.__cad.settled(); }, name);
   if (ex.approx) { check(r.preview && r.preview.watertight && r.exactError && r.exactError.unsupported, `${name}: preview shows the tree without its fillet; exact says it needs OCCT (${r.exactError?.msg})`); continue; }
@@ -130,12 +150,43 @@ for (const [name, ex] of Object.entries(expect)) {
   await page.screenshot({ path: path.join(shots, `${name}.png`) });
 }
 
+// the cam is a closed spline through twelve points: the last part loaded above, so export it as STEP and STL
+{
+  const step = await page.evaluate(async () => { window.__lastExport = null; window.__cad.exportPart('step'); for (let i = 0; i < 400 && !window.__lastExport; i++) await new Promise((r) => setTimeout(r, 25)); return window.__lastExport; });
+  check(step && step.format === 'step' && step.bytes > 10000 && step.kernel === 'truck', `the step button writes the cam as STEP from the kernel that built it (${step ? `${(step.bytes / 1e3).toFixed(0)} kB by ${step.kernel}` : 'no export'})`);
+  const stl = await page.evaluate(async () => { window.__lastExport = null; window.__cad.exportPart('stl'); for (let i = 0; i < 400 && !window.__lastExport; i++) await new Promise((r) => setTimeout(r, 25)); return window.__lastExport; });
+  check(stl && stl.format === 'stl' && stl.bytes > 84, `the stl button writes the cam mesh (${stl ? `${(stl.bytes / 1e3).toFixed(0)} kB` : 'no export'})`);
+}
+
 // a param edit rebuilds: thicken the case wall and the volume grows
 await page.evaluate(async () => { await window.__cad.load('case'); await window.__cad.settled(); });
 const before = await page.evaluate(() => window.__cad.state.slots.get('main').exact.invariants.volume);
 await page.evaluate(() => { const row = [...document.querySelectorAll('#params .param')].find((r) => r.querySelector('span').textContent === 'wall'); const i = row.querySelector('input'); i.value = '3'; i.dispatchEvent(new Event('input')); });
 const after = await page.evaluate(async () => { await window.__cad.settled(); return window.__cad.state.slots.get('main').exact.invariants.volume; });
 check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.toFixed(1)} → ${after.toFixed(1)})`);
+
+// files: the local drive, history, a stranger's repo through the gateway, a fork with lineage
+{
+  const untilSaved = `for (let i = 0; i < 200; i++) { const t = document.querySelector('#drivestatus').textContent; if (/^saved/.test(t)) break; if (document.querySelector('#drivestatus').className === 'bad') throw new Error(t); await new Promise((r) => setTimeout(r, 25)); }`;
+  const saved = await page.evaluate(new Function(`return (async () => { document.querySelector('#path').value = 'clock/case'; document.querySelector('#message').value = 'thicker wall'; document.querySelector('#drivestatus').textContent = ''; document.querySelector('#save').click(); ${untilSaved} const ls = await window.__cad.drives.local.list(); return { at: window.__cad.state.at, paths: ls.map((e) => e.path), search: location.search, kind: ls[0].kind, status: document.querySelector('#drivestatus').textContent }; })()`));
+  check(saved.paths.join() === 'clock/case' && saved.at.startsWith('at://did:local/com.minomobi.cad.part/') && saved.search === `?at=${encodeURIComponent(saved.at)}`, `save files the case in the local drive and the URL becomes its AT URI (${saved.at})`);
+  const h = await page.evaluate(new Function(`return (async () => { document.querySelector('#message').value = 'again'; document.querySelector('#drivestatus').textContent = ''; document.querySelector('#save').click(); ${untilSaved} const h = await window.__cad.drives.local.history(window.__cad.state.file.entry.uri); return { msgs: h.map((r) => r.message), rows: document.querySelectorAll('#history .r').length, inv: h[0].invariants?.volume, kernel: h[0].kernel?.id, parents: h[0].parents.length }; })()`));
+  check(h.msgs.join(' ← ') === 'again ← thicker wall' && h.rows === 2 && h.parents === 1, `a second save adds a revision with the first as parent; the history pane lists both (${h.msgs.join(' ← ')})`);
+  check(h.kernel === 'truck' && Math.abs(h.inv - 4225.2) < 1, `the revision records the kernel and the invariants (${h.kernel}, ${h.inv?.toFixed(1)} mm³)`);
+  await page.goto(`${base}/?part=plate`, { waitUntil: 'load' });
+  const kept = await page.evaluate(async () => { await window.__cad.ready; return (await window.__cad.drives.local.list()).map((e) => e.path); });
+  check(kept.join() === 'clock/case', 'the local drive survives a reload (IndexedDB)');
+  await page.goto(`${base}/?at=${encodeURIComponent(strangerFile.uri)}`, { waitUntil: 'load' });
+  const opened = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { at: window.__cad.state.at, name: window.__cad.state.name, vol: r.exact?.volume, groups: [...document.querySelectorAll('#files h3')].map((h) => h.textContent), on: document.querySelector('#files .f.on')?.textContent, hist: document.querySelectorAll('#history .r').length }; });
+  check(opened.at === strangerFile.uri && opened.name === 'cam' && Math.abs(opened.vol - 1984.984) < 0.01, `?at= opens a stranger's file through the gateway and builds it (${opened.name}, ${opened.vol?.toFixed(3)} mm³)`);
+  check(opened.groups.includes('at://did:plc:stranger') && /lib\/cam/.test(opened.on || '') && opened.hist === 1, `the files pane shows their repo with the open file lit (${opened.groups.join(', ')})`);
+  const fk = await page.evaluate(async (uri) => { const r = await window.__cad.drives.local.fork(uri, 'vendor/cam'); const h = await window.__cad.drives.local.history('vendor/cam'); await window.__cad.renderFiles(); return { path: r.path, dids: h.map((x) => x.did), parent: h[0].parents[0]?.uri, rows: document.querySelectorAll('#files .f[data-drive=local]').length }; }, strangerFile.uri);
+  check(fk.path === 'vendor/cam' && fk.dids.join(' ') === 'did:local did:plc:stranger' && fk.parent === strangerFile.head.uri && fk.rows === 2, `forking it to the local drive keeps the lineage across repos (${fk.dids.join(' ← ')})`);
+  const browsed = await page.evaluate(async () => { document.querySelector('#repo').value = 'stranger.example'; document.querySelector('#browse').click(); for (let i = 0; i < 200 && !document.querySelector('#files .f[data-drive=browse]'); i++) await new Promise((r) => setTimeout(r, 25)); return document.querySelectorAll('#files .f[data-drive=browse]').length; });
+  check(browsed === 1, 'browsing a repo by handle lists it (the gateway resolves the handle)');
+  await page.goto(`${base}/?part=case`, { waitUntil: 'load' });
+  await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
+}
 
 // three views snapshot strip
 await page.click('#views');
@@ -205,7 +256,7 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
 
 // the phone layout: part on top, tabs, one panel below
 {
-  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, bypassCSP: true });
+  const phone = await browser.newPage({ viewport: { width: 390, height: 844 }, bypassCSP: true }); await quietAuth(phone);
   await phone.goto(`${base}/?part=case`, { waitUntil: 'load' });
   await phone.waitForFunction(() => !!window.__cad, null, { timeout: 30000 });
   await phone.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); window.__cad.render(); });
@@ -220,7 +271,7 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
 
 // OCCT, lazily, from a base URL the test serves itself: the fillet the other kernels cannot do
 {
-  const occ = await browser.newPage({ viewport: { width: 1400, height: 900 }, bypassCSP: true });
+  const occ = await browser.newPage({ viewport: { width: 1400, height: 900 }, bypassCSP: true }); await quietAuth(occ);
   const occErrors = [];
   occ.on('pageerror', (e) => occErrors.push(e.message));
   await occ.goto(`${base}/?part=case-fillet&occt=/occt/`, { waitUntil: 'load' });

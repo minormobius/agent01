@@ -77,10 +77,29 @@ documented in [`README.md`](README.md) next to this file.
   with Manifold; pairs with more than 0.01 mm³ in common are listed,
   fixed-mated bores on their arbors marked as expected touches. Hover a pair
   to light both components.
-- **Export.** *stl* exports the part (or, in an assembly, the pinned or
-  hovered component's part).
+- **Export.** *stl* writes the mesh on the page (the exact one when it has
+  landed, else the preview); *step* asks the worker to re-run the exact
+  kernel that built the part with its STEP writer on — Truck's, or OCCT's
+  when OCCT built it. In an assembly both export the pinned or hovered
+  component's part.
+- **Files.** The *files* tab is a file tree over ATProto records
+  (`lib/drive.js`): a `com.minomobi.cad.part` head names a path and points
+  at an immutable `com.minomobi.cad.revision` (the tree, its parents as
+  strongRefs, the kernel and invariants it was judged by). Three repos can
+  be on screen: the **local drive** (IndexedDB, `did:local`), the
+  signed-in user's **PDS** (writes through `auth.mino.mobi` with the narrow
+  scope `atproto repo:com.minomobi.cad.part repo:com.minomobi.cad.revision`),
+  and any **public repo** browsed by handle, DID or AT URI. `?at=<at://…>`
+  opens a file; save, history (click a revision to view it), fork (to local,
+  lineage kept across repos) and push (local → PDS, revisions recreated
+  oldest-first so they get real cids). Public reads go through **this
+  worker's `/xrpc/` gateway** (`worker.js`: the two public read methods,
+  `com.minomobi.cad.*` only, handle and DID resolved server-side), so the
+  page's CSP stays `connect-src 'self'` plus the auth worker.
 - **Headless, for an agent.** `agent/check.mjs`, `agent/measure.mjs`,
-  `agent/export.mjs` and `agent/render.mjs` do the same from a file on disk;
+  `agent/export.mjs`, `agent/render.mjs` and `agent/drive.mjs` (the file
+  tree from a terminal: a JSON-file repo, or anyone's public repo) do the
+  same from a file on disk;
   the skill at `.claude/skills/cad/SKILL.md` is the instruction sheet.
 
 ## How it works
@@ -105,12 +124,23 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 
 - **`cad.wasm` is committed.** Rebuild with `engine/build.sh`, which runs the
   unit tests, both builds, and `cad.selftest.mjs`. Never hand-build.
-- **Two selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from bytes
-  under node) and `browser.selftest.mjs` (headless Chromium loads the page,
-  builds every bench part, checks the report against closed forms, and
-  screenshots). Run both before pushing.
+- **Three selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
+  bytes under node), `drive.selftest.mjs` (the file tree and the gateway)
+  and `browser.selftest.mjs` (headless Chromium loads the page, builds every
+  bench part, checks the report against closed forms, saves and forks files
+  against a mocked repo, and screenshots). Run all three before pushing.
+- **`vendor/auth.js` is a copy** of `packages/oauth-client/auth.js`, kept
+  byte-identical by `scripts/sync-dataviz.mjs` (preflight checks it). Edit
+  the package, never the copy.
+- **Sign-in is not live until two things happen on the auth worker's
+  branch:** `https://cad.mino.mobi` must be in `ALLOWED_ORIGINS` in
+  `workers/auth/src/index.ts`, and the two collections above must be in
+  `WRITE_COLLECTIONS` in `workers/auth/src/oauth/scope.ts`. Until then the
+  page treats the auth worker's CORS refusal as signed-out and everything
+  works against the local drive and public repos.
 - `?part=<bench>` loads a bench part; `#t=<base64url json>` carries an
-  arbitrary tree — an agent can hand a human a link.
+  arbitrary tree — an agent can hand a human a link; `?at=<AT URI>` opens a
+  file from any repo.
 - Keys: drag orbit, shift/right-drag pan, wheel zoom, two fingers pan and
   pinch, `f` fit, `o` ortho, `e` edges, `g` grid, `space` spin, `0/1/3/7`
   views.
