@@ -31,18 +31,20 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find((p) => fs.existsSync(p));
 const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--proxy-server=direct://', '--disable-background-networking'] });
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, bypassCSP: true });
-const errors = []; page.on('pageerror', (e) => errors.push(e.message));
+const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); if (has('--verbose')) console.error('[page]', m.text()); });
 await page.goto(`${base}/?part=plate${has('--occt') ? '&occt=/occt/' : ''}`, { waitUntil: 'load' });
 await page.waitForFunction(() => !!window.__cad, null, { timeout: 30000 });
 await page.evaluate(() => window.__cad.ready);
 const doc = JSON.parse(fs.readFileSync(docPath, 'utf8'));
-const report = await page.evaluate(async ({ doc, t, hide }) => {
+const timeoutMs = Number(arg('--timeout', '240000'));
+const report = await Promise.race([page.evaluate(async ({ doc, t, hide }) => {
   const c = window.__cad; await c.loadDocument(doc, doc.name || 'agent'); const s = await c.settled();
   for (const id of hide) c.hide(id, true);
   if (c.state.mode === 'asm') { c.state.angles = c.solveAngles(t); c.updateModels(); }
   c.cam.fit(c.renderer.sceneBbox());
   return { ...s, faces: c.state.mode === 'part' ? c.state.slots.get('main')?.faces : undefined, components: c.state.components.map((x) => ({ id: x.id, part: x.part, partKey: x.partKey })), slots: Object.fromEntries([...c.state.slots].map(([k, v]) => [k, { preview: v.preview?.invariants, exact: v.exact?.invariants, exactKernel: v.exact?.kernel, exactError: v.exactError, previewError: v.previewError }])) };
-}, { doc, t, hide });
+}, { doc, t, hide }), new Promise((r) => setTimeout(() => r({ timeout: true }), timeoutMs))]);
+if (report.timeout) { console.error(`builds did not settle within ${timeoutMs} ms${errors.length ? `; page errors: ${errors.join('; ')}` : ''}`); await browser.close(); server.close(); process.exit(1); }
 for (const v of views) {
   await page.evaluate((v) => { const c = window.__cad; c.cam.preset(v); c.cam.ortho = v !== 'iso'; c.cam.fit(c.renderer.sceneBbox()); c.render(); }, v);
   await page.screenshot({ path: path.join(out, `${v}.png`) });

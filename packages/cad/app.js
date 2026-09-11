@@ -37,7 +37,10 @@ const ready = new Promise((resolve) => { worker.addEventListener('message', func
 worker.postMessage({ type: 'init', occtBase: OCCT_BASE ? new URL(OCCT_BASE, location.href).href : undefined });
 
 const slotOf = (m) => { const k = m.slot || 'main'; if (!state.slots.has(k)) state.slots.set(k, {}); return state.slots.get(k); };
-const isStale = (m) => m.id !== undefined && m.id !== (slotOf(m).buildId ?? -1);
+// a message from a build the current document never issued (a previous
+// document's, arriving late) must not create a slot: `settled()` would wait
+// on it for ever
+const isStale = (m) => m.id !== undefined && (!state.slots.has(m.slot || 'main') || m.id !== state.slots.get(m.slot || 'main').buildId);
 
 worker.onmessage = (e) => {
   const m = e.data;
