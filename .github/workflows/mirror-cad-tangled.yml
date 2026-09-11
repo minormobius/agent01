@@ -23,7 +23,7 @@ name: Mirror cad to Tangled
 #
 # workflow_dispatch does not resolve off the default branch; a push on the
 # owning branch that touches the package or this file is the trigger.
-# marker: 2026-09-11a
+# marker: 2026-09-11b (the repo exists now)
 
 on:
   push:
