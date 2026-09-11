@@ -241,7 +241,7 @@ function renderReport() {
   if (state.mode === 'asm') {
     const rows = [`<tr><th>component</th><th>part</th><th>exact</th><th>volume</th></tr>`];
     let total = 0;
-    for (const c of state.components) { const s = state.slots.get(c.partKey) || {}; const inv = (s.exact || s.preview)?.invariants; if (inv) total += inv.volume; rows.push(`<tr><td>${c.id}</td><td>${c.part}</td><td>${exactLabel(s)}</td><td>${fmt(inv?.volume)}</td></tr>`); }
+    for (const c of state.components) { const s = state.slots.get(c.partKey) || {}; const inv = (s.exact || s.preview)?.invariants; if (inv) total += inv.volume; rows.push(`<tr><td>${c.id}</td><td>${c.part}</td><td>${exactLabel(s)}${s.exact && !s.exact.invariants.watertight ? ' <span class="bad" title="not watertight">✗</span>' : ''}</td><td>${fmt(inv?.volume)}</td></tr>`); }
     rows.push(`<tr><td>total</td><td></td><td></td><td>${fmt(total)}</td></tr>`);
     box.innerHTML = `<table>${rows.join('')}</table>`;
     const errs = [...state.slots.values()].map((s) => s.error || s.previewError || s.exactError).filter(Boolean);
