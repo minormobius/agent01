@@ -123,8 +123,11 @@ pub fn build(json: &str, kernel_name: &str, opts: &BuildOpts) -> (Report, Option
     };
     rep.timings.build_ms = now_ms(t);
     let t = Instant::now();
-    let welded = invariants::weld(&built.mesh, opts.tol * 1e-3);
+    let (welded, ids) = invariants::weld_with(&built.mesh, opts.tol * 1e-3, &built.face_of_tri);
     rep.invariants = Some(invariants::compute(&welded));
+    let mut built = built;
+    built.mesh = welded;
+    built.face_of_tri = ids;
     rep.timings.invariants_ms = now_ms(t);
     rep.faces = built.faces.clone();
     rep.step_bytes = built.step.as_ref().map(|s| s.len()).unwrap_or(0);
@@ -159,12 +162,46 @@ pub fn resolve_json(json: &str, tol: f64) -> Result<String, String> {
         }
         polys.push(Poly { id: &s.id, frame: &s.frame, rings, outer });
     }
+    // Per-op rings over the *combined* profile: nesting (outer vs hole) only
+    // means anything across every sketch an op extrudes, not per sketch —
+    // a pattern of five circles is five holes in the plate, not five discs.
+    #[derive(Serialize)]
+    struct OpRings {
+        id: String,
+        rings: Vec<Vec<[f64; 2]>>,
+        outer: Vec<bool>,
+        /// index into the op's `region.loops` for each ring
+        loop_index: Vec<usize>,
+    }
+    let mut oprings = Vec::new();
+    for op in &r.ops {
+        let (id, region) = match op {
+            tree::ROp::Extrude { id, region, .. } | tree::ROp::Revolve { id, region, .. } => (id, region),
+            _ => continue,
+        };
+        let groups = region.oriented()?;
+        let starts: Vec<[f64; 2]> = region.loops.iter().map(|l| l.start).collect();
+        let mut rings = Vec::new();
+        let mut outer = Vec::new();
+        let mut loop_index = Vec::new();
+        for g in groups {
+            for (i, l) in g.iter().enumerate() {
+                // a reversed hole keeps its start point, so the start identifies the source loop
+                let li = starts.iter().position(|s| (s[0] - l.start[0]).abs() < 1e-9 && (s[1] - l.start[1]).abs() < 1e-9).unwrap_or(0);
+                rings.push(l.sample(tol));
+                outer.push(i == 0);
+                loop_index.push(li);
+            }
+        }
+        oprings.push(OpRings { id: id.clone(), rings, outer, loop_index });
+    }
     #[derive(Serialize)]
     struct Out<'a> {
         resolved: &'a tree::Resolved,
         polylines: Vec<Poly<'a>>,
+        oprings: Vec<OpRings>,
     }
-    serde_json::to_string(&Out { resolved: &r, polylines: polys }).map_err(|e| e.to_string())
+    serde_json::to_string(&Out { resolved: &r, polylines: polys, oprings }).map_err(|e| e.to_string())
 }
 
 /// Read a STEP file back (native only, `--features stepin`), tessellate it and
@@ -204,7 +241,9 @@ pub fn step_measure(step: &str, tol: f64) -> Result<(invariants::Invariants, usi
 //
 //   cad_alloc(n) → ptr            caller writes the tree JSON there
 //   cad_build(ptr, n, kernel, want_step) → 1 ok / 0 error (report still set)
-//   cad_out_ptr(which), cad_out_len(which)   which: 0 report JSON, 1 STL, 2 STEP
+//   cad_out_ptr(which), cad_out_len(which)   which: 0 report JSON, 1 STL, 2 STEP,
+//                                 3 positions f32×3, 4 tri indices u32×3, 5 face id per tri u32
+//   cad_resolve(ptr, n, tol_micro) → 1 ok / 0 error; slot 0 = resolved JSON (ops + sampled polylines)
 //   cad_free_all()                drop outputs
 //
 // kernel: 0 truck, 1 implicit.
@@ -213,6 +252,27 @@ struct Outs {
     report: Vec<u8>,
     stl: Vec<u8>,
     step: Vec<u8>,
+    /// welded mesh as the viewer wants it: xyz f32, tri indices u32, face id per tri u32
+    pos: Vec<u8>,
+    idx: Vec<u8>,
+    fid: Vec<u8>,
+}
+
+fn f32_bytes(v: &[[f64; 3]]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(v.len() * 12);
+    for p in v {
+        for x in p {
+            out.extend_from_slice(&(*x as f32).to_le_bytes());
+        }
+    }
+    out
+}
+fn u32_bytes(v: &[u32]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(v.len() * 4);
+    for x in v {
+        out.extend_from_slice(&x.to_le_bytes());
+    }
+    out
 }
 
 static mut OUTS: Option<Outs> = None;
@@ -240,6 +300,9 @@ pub extern "C" fn cad_build(ptr: *const u8, n: u32, kernel: u32, want_step: u32,
     let outs = Outs {
         report: serde_json::to_vec(&rep).unwrap_or_default(),
         stl: built.as_ref().map(|b| invariants::stl(&b.mesh)).unwrap_or_default(),
+        pos: built.as_ref().map(|b| f32_bytes(&b.mesh.pos)).unwrap_or_default(),
+        idx: built.as_ref().map(|b| u32_bytes(&b.mesh.tris.iter().flat_map(|t| t.iter().copied()).collect::<Vec<u32>>())).unwrap_or_default(),
+        fid: built.as_ref().map(|b| u32_bytes(&b.face_of_tri)).unwrap_or_default(),
         step: built.and_then(|b| b.step).map(|s| s.into_bytes()).unwrap_or_default(),
     };
     unsafe {
@@ -249,10 +312,24 @@ pub extern "C" fn cad_build(ptr: *const u8, n: u32, kernel: u32, want_step: u32,
 }
 
 #[no_mangle]
+pub extern "C" fn cad_resolve(ptr: *const u8, n: u32, tol_micro: u32) -> u32 {
+    let json = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr, n as usize)) };
+    let tol = if tol_micro == 0 { 0.01 } else { tol_micro as f64 * 1e-6 };
+    let (ok, report) = match resolve_json(json, tol) {
+        Ok(s) => (1, s.into_bytes()),
+        Err(e) => (0, serde_json::to_vec(&serde_json::json!({ "ok": false, "error": { "op": "resolve", "msg": e } })).unwrap_or_default()),
+    };
+    unsafe {
+        *std::ptr::addr_of_mut!(OUTS) = Some(Outs { report, stl: Vec::new(), step: Vec::new(), pos: Vec::new(), idx: Vec::new(), fid: Vec::new() });
+    }
+    ok
+}
+
+#[no_mangle]
 pub extern "C" fn cad_out_ptr(which: u32) -> *const u8 {
     unsafe {
         match &*std::ptr::addr_of!(OUTS) {
-            Some(o) => match which { 0 => o.report.as_ptr(), 1 => o.stl.as_ptr(), _ => o.step.as_ptr() },
+            Some(o) => match which { 0 => o.report.as_ptr(), 1 => o.stl.as_ptr(), 2 => o.step.as_ptr(), 3 => o.pos.as_ptr(), 4 => o.idx.as_ptr(), _ => o.fid.as_ptr() },
             None => std::ptr::null(),
         }
     }
@@ -262,7 +339,7 @@ pub extern "C" fn cad_out_ptr(which: u32) -> *const u8 {
 pub extern "C" fn cad_out_len(which: u32) -> u32 {
     unsafe {
         match &*std::ptr::addr_of!(OUTS) {
-            Some(o) => (match which { 0 => o.report.len(), 1 => o.stl.len(), _ => o.step.len() }) as u32,
+            Some(o) => (match which { 0 => o.report.len(), 1 => o.stl.len(), 2 => o.step.len(), 3 => o.pos.len(), 4 => o.idx.len(), _ => o.fid.len() }) as u32,
             None => 0,
         }
     }

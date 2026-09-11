@@ -250,49 +250,52 @@ fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [
     Ok((s, if multi { Vec::new() } else { names }))
 }
 
-fn tessellate(solid: &Solid, tol: f64) -> (TriMesh, Vec<(f64, [f64; 3], [f64; 3])>) {
+fn tessellate(solid: &Solid, tol: f64) -> (TriMesh, Vec<u32>, Vec<(f64, [f64; 3], [f64; 3])>) {
     let meshed = solid.triangulation(tol);
-    // per-face stats
+    // One polygon mesh per face, concatenated, with the face index kept per
+    // triangle — the viewer picks a triangle and gets a *name*. Vertices are
+    // welded later (invariants::weld), so per-face duplication costs nothing.
     let mut per_face = Vec::new();
-    for face in meshed.face_iter() {
+    let mut mesh = TriMesh::default();
+    let mut face_of_tri: Vec<u32> = Vec::new();
+    for (fi, face) in meshed.face_iter().enumerate() {
         let mut area = 0.0;
         let mut nsum = Vector3::zero();
         let mut csum = Vector3::zero();
         if let Some(pm) = face.surface() {
             let pos = pm.positions();
-            for t in pm.tri_faces() {
-                let (a, b, c) = (pos[t[0].pos], pos[t[1].pos], pos[t[2].pos]);
-                let n = (b - a).cross(c - a);
+            let base = mesh.pos.len() as u32;
+            mesh.pos.extend(pos.iter().map(|p| [p.x, p.y, p.z]));
+            let flip = !face.orientation();
+            let mut push = |a: usize, b: usize, c: usize| {
+                let (a, b, c) = if flip { (a, c, b) } else { (a, b, c) };
+                let (pa, pb, pc) = (pos[a], pos[b], pos[c]);
+                let n = (pb - pa).cross(pc - pa);
                 let ta = n.magnitude() / 2.0;
                 area += ta;
                 nsum += n;
-                csum += (a.to_vec() + b.to_vec() + c.to_vec()) / 3.0 * ta;
+                csum += (pa.to_vec() + pb.to_vec() + pc.to_vec()) / 3.0 * ta;
+                mesh.tris.push([base + a as u32, base + b as u32, base + c as u32]);
+                face_of_tri.push(fi as u32);
+            };
+            for t in pm.tri_faces() {
+                push(t[0].pos, t[1].pos, t[2].pos);
+            }
+            for q in pm.quad_faces() {
+                push(q[0].pos, q[1].pos, q[2].pos);
+                push(q[0].pos, q[2].pos, q[3].pos);
+            }
+            for f in pm.faces().other_faces() {
+                for i in 1..f.len() - 1 {
+                    push(f[0].pos, f[i].pos, f[i + 1].pos);
+                }
             }
         }
-        let sign = if face.orientation() { 1.0 } else { -1.0 };
-        let n = if nsum.magnitude() > 0.0 { nsum.normalize() * sign } else { nsum };
+        let n = if nsum.magnitude() > 0.0 { nsum.normalize() } else { nsum };
         let c = if area > 0.0 { csum / area } else { csum };
         per_face.push((area, [n.x, n.y, n.z], [c.x, c.y, c.z]));
     }
-    let mut pm = meshed.to_polygon();
-    pm.put_together_same_attrs(TOLERANCE);
-    pm.remove_degenerate_faces();
-    pm.remove_unused_attrs();
-    let pos: Vec<[f64; 3]> = pm.positions().iter().map(|p| [p.x, p.y, p.z]).collect();
-    let mut tris = Vec::new();
-    for t in pm.tri_faces() {
-        tris.push([t[0].pos as u32, t[1].pos as u32, t[2].pos as u32]);
-    }
-    for q in pm.quad_faces() {
-        tris.push([q[0].pos as u32, q[1].pos as u32, q[2].pos as u32]);
-        tris.push([q[0].pos as u32, q[2].pos as u32, q[3].pos as u32]);
-    }
-    for f in pm.faces().other_faces() {
-        for i in 1..f.len() - 1 {
-            tris.push([f[0].pos as u32, f[i].pos as u32, f[i + 1].pos as u32]);
-        }
-    }
-    (TriMesh { pos, tris }, per_face)
+    (mesh, face_of_tri, per_face)
 }
 
 fn step_of(solid: &Solid) -> String {
@@ -346,7 +349,7 @@ impl Kernel for Truck {
             }
         }
         let (solid, names) = body.ok_or_else(|| KError::fail("tree", "no solid-producing feature"))?;
-        let (mesh, per_face) = tessellate(&solid, o.tol);
+        let (mesh, face_of_tri, per_face) = tessellate(&solid, o.tol);
         let faces = per_face
             .into_iter()
             .enumerate()
@@ -358,6 +361,6 @@ impl Kernel for Truck {
             })
             .collect();
         let step = if o.want_step { Some(step_of(&solid)) } else { None };
-        Ok(Built { mesh, faces, step })
+        Ok(Built { mesh, faces, step, face_of_tri })
     }
 }

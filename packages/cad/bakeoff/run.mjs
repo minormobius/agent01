@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { compute, weld } from './invariants.mjs';
+import { invariants as compute, weld } from '../lib/mesh.js';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 const ROOT = path.resolve(here, '..');
@@ -98,7 +98,7 @@ for (const part of partNames) {
     const first = runs[0];
     const out = { ok: first.ok, cold_ms: first.ms, warm_ms: runs.length > 1 ? Math.min(...runs.slice(1).map((r) => r.ms)) : null, error: first.error || null };
     if (first.ok) {
-      const welded = weld(first.mesh.pos, first.mesh.tris, 1e-5);
+      const welded = weld(first.mesh, 1e-5);
       out.invariants = compute(welded);
       out.faces = first.faces?.length ?? 0;
       out.named = first.faces ? new Set(first.faces.flatMap((f) => f.names).filter((n) => !/^face\[/.test(n))).size : 0;

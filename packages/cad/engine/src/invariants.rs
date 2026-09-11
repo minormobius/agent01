@@ -90,7 +90,11 @@ pub fn compute(m: &TriMesh) -> Invariants {
 
 /// Weld vertices closer than `tol` so invariants (Euler, watertight) are
 /// about the geometry rather than the tessellator's bookkeeping.
-pub fn weld(m: &TriMesh, tol: f64) -> TriMesh {
+pub fn weld(m: &TriMesh, tol: f64) -> TriMesh { weld_with(m, tol, &[]).0 }
+
+/// `weld`, also carrying a per-triangle payload (face ids) through the
+/// degenerate-triangle drop so the two stay aligned.
+pub fn weld_with(m: &TriMesh, tol: f64, per_tri: &[u32]) -> (TriMesh, Vec<u32>) {
     let q = |x: f64| -> i64 { (x / tol).round() as i64 };
     let mut map: HashMap<(i64, i64, i64), u32> = HashMap::new();
     let mut pos = Vec::new();
@@ -103,13 +107,18 @@ pub fn weld(m: &TriMesh, tol: f64) -> TriMesh {
         });
         remap[i] = idx;
     }
-    let tris = m
-        .tris
-        .iter()
-        .map(|t| [remap[t[0] as usize], remap[t[1] as usize], remap[t[2] as usize]])
-        .filter(|t| t[0] != t[1] && t[1] != t[2] && t[0] != t[2])
-        .collect();
-    TriMesh { pos, tris }
+    let mut tris = Vec::with_capacity(m.tris.len());
+    let mut ids = Vec::new();
+    for (i, t) in m.tris.iter().enumerate() {
+        let t = [remap[t[0] as usize], remap[t[1] as usize], remap[t[2] as usize]];
+        if t[0] != t[1] && t[1] != t[2] && t[0] != t[2] {
+            tris.push(t);
+            if let Some(&id) = per_tri.get(i) {
+                ids.push(id);
+            }
+        }
+    }
+    (TriMesh { pos, tris }, ids)
 }
 
 /// Binary STL.

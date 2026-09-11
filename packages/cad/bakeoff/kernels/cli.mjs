@@ -1,11 +1,9 @@
-// Truck and the implicit spike, driven through the native `cad` binary. Cold
-// time includes the process spawn; warm is a second run in a fresh process
-// too (there is no in-process cache yet), so for these two "warm" measures
-// OS-level caching only. The WASM build is measured separately (wasm.mjs).
+// Truck and the implicit spike through the native `cad` binary (process spawn
+// included in the time). The WASM build is measured separately (wasm.mjs).
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { readStl } from '../invariants.mjs';
+import { readStl } from '../../lib/mesh.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 const BIN = path.join(ROOT, 'engine', 'target', 'release', 'cad');
@@ -17,9 +15,7 @@ export function make(kernel, extra = []) {
     bytes: fs.existsSync(BIN) ? fs.statSync(BIN).size : 0,
     async init() { return 0; },
     async build(treePath, { wantStep, tmp }) {
-      const stl = path.join(tmp, `${kernel}.stl`);
-      const step = path.join(tmp, `${kernel}.step`);
-      const json = path.join(tmp, `${kernel}.json`);
+      const stl = path.join(tmp, `${kernel}.stl`), step = path.join(tmp, `${kernel}.step`), json = path.join(tmp, `${kernel}.json`);
       const args = ['build', treePath, '--kernel', kernel, '--stl', stl, '--json', json, ...extra];
       if (wantStep && kernel === 'truck') args.push('--step', step);
       const t0 = performance.now();

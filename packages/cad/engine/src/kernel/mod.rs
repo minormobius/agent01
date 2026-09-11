@@ -27,6 +27,9 @@ pub struct Built {
     pub mesh: TriMesh,
     pub faces: Vec<FaceInfo>,
     pub step: Option<String>,
+    /// index into `faces` for every triangle of `mesh` (empty when the
+    /// kernel has no faces, e.g. implicit)
+    pub face_of_tri: Vec<u32>,
 }
 
 #[derive(Debug, Clone, Serialize)]

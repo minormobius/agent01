@@ -359,6 +359,6 @@ impl Kernel for Implicit {
         }
         let body = body.ok_or_else(|| KError::fail("tree", "no solid-producing feature"))?;
         let mesh = surface_nets(&body, o.res.max(8));
-        Ok(Built { mesh, faces: Vec::new(), step: None })
+        Ok(Built { mesh, faces: Vec::new(), step: None, face_of_tri: Vec::new() })
     }
 }

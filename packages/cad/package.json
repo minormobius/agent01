@@ -1,0 +1,6 @@
+{
+  "name": "cad",
+  "private": true,
+  "type": "module",
+  "description": "The feature-tree CAD engine and cad.mino.mobi. The package is the site; see CLAUDE.md."
+}
