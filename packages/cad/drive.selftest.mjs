@@ -89,6 +89,20 @@ check(ph.slice(0, 2).every((r) => r.parents.every((p) => !p.cid.startsWith('loca
 const again = await local2.push('vendor/m5-bolt', mine);
 check(again.uri === pushed.uri, 'pushing again updates the same head');
 
+// ATProto records have no floats: a stored revision carries them as strings and the drive hands back numbers
+{
+  const cam = bench('cam'); // m: 0.5 in the gear bench; the cam has r 10 — use a float on purpose
+  cam.params.r = 10.25;
+  const f = await local.put('scratch/cam', cam, { message: 'float', invariants: { volume: 1984.984, euler: 0, watertight: true } });
+  const raw = await local.fetchRecord(f.head.uri);
+  const walk = (v) => typeof v === 'number' ? (Number.isInteger(v) ? [] : [v]) : Array.isArray(v) ? v.flatMap(walk) : v && typeof v === 'object' ? Object.values(v).flatMap(walk) : [];
+  check(walk(raw.value).length === 0 && raw.value.tree.params.r === '10.25' && raw.value.invariants.volume === '1984.984', 'a stored revision holds no float: non-integers are written as strings');
+  const back = await local.get('scratch/cam');
+  check(back.revision.tree.params.r === 10.25 && back.revision.invariants.volume === 1984.984 && (await local.history('scratch/cam'))[0].tree.params.r === 10.25, 'get and history hand the numbers back');
+  check((await local.treeAt(f.head.uri)).params.r === 10.25, 'treeAt(revision uri) decodes too');
+  check(canonical(back.revision.tree) === canonical(cam), 'the round trip is exact (canonical JSON equal)');
+}
+
 const rm = await local.remove('scratch/wheel-copy');
 check(rm.path === 'scratch/wheel-copy' && !(await local.find('scratch/wheel-copy')) && (await local.fetchRecord(rm.head.uri)), 'remove drops the head and keeps the revision');
 

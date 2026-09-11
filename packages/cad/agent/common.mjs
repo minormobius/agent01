@@ -18,7 +18,7 @@ export async function benchRef(ref) {
     const { did, collection } = parseAtUri(ref);
     const d = new Drive(new PublicBackend(did, await resolvePds(did)));
     if (collection === PART) { const f = await d.get(ref); if (!f) throw new Error(`no file at ${ref}`); return f.revision.tree; }
-    const r = await d.fetchRecord(ref); if (!r?.value?.tree) throw new Error(`no tree at ${ref}`); return r.value.tree;
+    return d.treeAt(ref);
   }
   throw new Error(`unknown ref ${ref}`);
 }

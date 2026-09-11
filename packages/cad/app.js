@@ -128,7 +128,7 @@ async function atRef(uri) {
   const { did, collection } = parseAtUri(uri);
   const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
   if (collection === PART) { const f = await d.get(uri); if (!f) throw new Error(`no file at ${uri}`); return f.revision.tree; }
-  const r = await d.fetchRecord(uri); if (!r?.value?.tree) throw new Error(`no tree at ${uri}`); return r.value.tree;
+  return d.treeAt(uri);
 }
 const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? fetchBench(ref.slice(6)) : typeof ref === 'string' && ref.startsWith('at://') ? atRef(ref) : structuredClone(ref));
 
@@ -551,7 +551,7 @@ async function renderHistory() {
   const d = drives[state.file.drive];
   try {
     const h = await d.history(state.file.entry.uri);
-    box.innerHTML = h.map((r, i) => r.missing ? `<div class="r"><small>missing</small><span class="m" title="${r.uri}">${r.uri}</span></div>` : `<div class="r${i === 0 ? ' on' : ''}" data-uri="${r.uri}"><small>${fmtDate(r.createdAt)}</small><span class="m" title="${r.uri}">${r.message || (r.forkedFrom ? 'fork' : '—')}</span>${r.did !== d.did ? `<small title="${r.did}">${r.did.slice(0, 14)}…</small>` : ''}${r.invariants ? `<small>${r.invariants.volume?.toFixed(1)} mm³</small>` : ''}</div>`).join('');
+    box.innerHTML = h.map((r, i) => r.missing ? `<div class="r"><small>missing</small><span class="m" title="${r.uri}">${r.uri}</span></div>` : `<div class="r${i === 0 ? ' on' : ''}" data-uri="${r.uri}"><small>${fmtDate(r.createdAt)}</small><span class="m" title="${r.uri}">${r.message || (r.forkedFrom ? 'fork' : '—')}</span>${r.did !== d.did ? `<small title="${r.did}">${r.did.slice(0, 14)}…</small>` : ''}${r.invariants?.volume !== undefined ? `<small>${Number(r.invariants.volume).toFixed(1)} mm³</small>` : ''}</div>`).join('');
   } catch (e) { box.innerHTML = `<div class="bad">${e.message}</div>`; }
 }
 $('#history').addEventListener('click', async (e) => {

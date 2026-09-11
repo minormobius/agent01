@@ -845,7 +845,17 @@ that with two in-memory repos standing in for a PDS and a stranger.
   Bench trees are 1–4 KB; the clock is 6 KB. The phase-2 kill criterion
   (§8) was "record limits force every tree to a blob"; they do not, at
   these sizes. Geometry is not stored at all — it is a cache, rebuilt from
-  the tree — which is the §1 decision paying rent.
+  the tree — which is the §1 decision paying rent. One thing the first
+  real write taught: **the ATProto data model has no floats.** The PDS
+  refused `m: 0.5` at the door. The drive now writes every non-integer as
+  its shortest decimal string — still a valid tree, since the tree
+  language reads a numeric string as an expression — and hands numbers
+  back on read; the round trip is exact and the selftest counts zero
+  floats in stored records.
+- **The bench is published.** `agent/publish.mjs`, run by the
+  `publish-cad` workflow, files the twelve parts and two assemblies in the
+  service account's repo, assemblies referencing parts by AT URI.
+  Idempotent, so a bench edit becomes exactly one new revision.
 - **Sign-in went live the same day** by taking over the auth worker's
   surface on this branch and adding the two collections to its scope
   ceiling (the origin was already admitted by the worker's `*.mino.mobi`

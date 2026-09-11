@@ -50,6 +50,30 @@ export function normalizePath(p) {
 }
 const nameOf = (p) => p.slice(p.lastIndexOf('/') + 1);
 
+// ── floats ────────────────────────────────────────────────────────────────
+// ATProto records are DAG-CBOR and the data model has NO floats: a PDS refuses
+// `0.5` outright. So every non-integer number in a record is written as its
+// shortest decimal string — which is still a valid tree, because the tree
+// language reads a numeric string as an expression — and read back as a
+// number. Integers pass through; a string that merely looks like a float
+// (a user typing "0.5" as an expression) comes back as the number 0.5, which
+// the engine evaluates identically.
+const FLOAT = /^-?\d+\.\d+(?:e[+-]?\d+)?$/i;
+export function encodeFloats(v) {
+  if (typeof v === 'number') return Number.isInteger(v) ? v : String(v);
+  if (Array.isArray(v)) return v.map(encodeFloats);
+  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) o[k] = encodeFloats(v[k]); return o; }
+  return v;
+}
+export function decodeFloats(v) {
+  if (typeof v === 'string') return FLOAT.test(v) ? Number(v) : v;
+  if (Array.isArray(v)) return v.map(decodeFloats);
+  if (v && typeof v === 'object') { const o = {}; for (const k of Object.keys(v)) o[k] = decodeFloats(v[k]); return o; }
+  return v;
+}
+/** A revision record's value as the drive hands it out: floats restored in the tree and the invariants. */
+const decodeRevision = (value) => ({ ...value, ...(value.tree !== undefined ? { tree: decodeFloats(value.tree) } : {}), ...(value.invariants ? { invariants: decodeFloats(value.invariants) } : {}) });
+
 // ── tids and local cids ───────────────────────────────────────────────────
 let lastTid = 0n;
 export function tid() {
@@ -204,23 +228,25 @@ export class Drive {
     else { entry = await this.find(ref); if (!entry) return null; }
     const rev = await this.fetchRecord(entry.head.uri);
     if (!rev) throw new Error(`head revision missing: ${entry.head.uri}`);
-    return { ...entry, revision: { uri: rev.uri, cid: rev.cid, ...rev.value } };
+    return { ...entry, revision: { uri: rev.uri, cid: rev.cid, ...decodeRevision(rev.value) } };
   }
+  /** The tree inside any revision URI (a pinned version), floats restored. */
+  async treeAt(uri) { const r = await this.fetchRecord(uri); if (!r?.value?.tree) throw new Error(`no tree at ${uri}`); return decodeFloats(r.value.tree); }
 
   /** Save a tree at a path: a new immutable revision whose parent is the current head, then the head moves.
    *  `parents` overrides the parent list (a fork or an import passes the source revision). */
   async put(path, tree, { message, kind, description, parents, kernel, invariants, forkedFrom } = {}) {
     path = normalizePath(path);
     const existing = await this.find(path);
-    const revision = { $type: REVISION, tree, parents: parents ?? (existing ? [existing.head] : []), createdAt: new Date().toISOString() };
-    if (message) revision.message = message; if (kernel) revision.kernel = kernel; if (invariants) revision.invariants = invariants; if (forkedFrom) revision.forkedFrom = forkedFrom;
+    const revision = { $type: REVISION, tree: encodeFloats(tree), parents: parents ?? (existing ? [existing.head] : []), createdAt: new Date().toISOString() };
+    if (message) revision.message = message; if (kernel) revision.kernel = kernel; if (invariants) revision.invariants = encodeFloats(invariants); if (forkedFrom) revision.forkedFrom = forkedFrom;
     const ref = await this.backend.createRecord(REVISION, revision);
     const head = { uri: ref.uri, cid: ref.cid };
     const now = revision.createdAt;
     const value = { $type: PART, path, name: nameOf(path), kind: kind || (Array.isArray(tree?.components) ? 'assembly' : 'part'), head, createdAt: existing?.createdAt || now, updatedAt: now };
     if (description ?? existing?.description) value.description = description ?? existing.description;
     const r = existing ? await this.backend.putRecord(PART, existing.rkey, value) : await this.backend.createRecord(PART, value);
-    return { ...this.entry({ ...r, value }), revision: { ...head, ...revision } };
+    return { ...this.entry({ ...r, value }), revision: { ...head, ...decodeRevision(revision) } };
   }
 
   /** Move a file. The head record is updated in place, so its URI survives. */
@@ -242,7 +268,7 @@ export class Drive {
     while (uri && out.length < limit && !seen.has(uri)) {
       seen.add(uri);
       const r = await this.fetchRecord(uri); if (!r) { out.push({ uri, missing: true }); break; }
-      const { tree, ...meta } = r.value;
+      const { tree, ...meta } = decodeRevision(r.value);
       out.push({ uri: r.uri, cid: r.cid, did: parseAtUri(r.uri).did, ...meta, tree });
       uri = r.value.parents?.[0]?.uri;
     }
@@ -268,8 +294,8 @@ export class Drive {
     for (const rev of chain) {
       if (rev.missing) continue;
       if (rev.did !== this.did || !rev.cid.startsWith('local:')) { parentRef = { uri: rev.uri, cid: rev.cid }; continue; }
-      const value = { $type: REVISION, tree: rev.tree, parents: parentRef ? [parentRef] : [], createdAt: rev.createdAt };
-      for (const k of ['message', 'kernel', 'invariants']) if (rev[k] !== undefined) value[k] = rev[k];
+      const value = { $type: REVISION, tree: encodeFloats(rev.tree), parents: parentRef ? [parentRef] : [], createdAt: rev.createdAt };
+      for (const k of ['message', 'kernel', 'invariants']) if (rev[k] !== undefined) value[k] = encodeFloats(rev[k]);
       const ref = await target.backend.createRecord(REVISION, value);
       map.set(rev.uri, ref); parentRef = { uri: ref.uri, cid: ref.cid };
     }
