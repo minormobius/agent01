@@ -15,13 +15,26 @@
 # response headers, so the permission is granted to /build-worker.js only —
 # the page, which handles the DOM and the URL, keeps the strict policy.
 # browser.selftest.mjs loads the page under these exact rules and fails if
-# either policy is wrong.
+# either policy is wrong. The live host must answer / and /build-worker.js
+# with exactly one CSP each (curl -I both).
 
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+
+# The page policy goes on the document responses only. A CSP header on a
+# script or wasm response is inert (a dedicated Worker's script is the one
+# exception, below), so putting it on /* only invites the rule-combining
+# question; here there is no overlap to combine.
+/
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
+/index.html
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+
+/build-worker.js
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; connect-src 'self'; base-uri 'none'; object-src 'none'
 
 /cad.wasm
   Content-Type: application/wasm
@@ -30,7 +43,3 @@
 /vendor/manifold.wasm
   Content-Type: application/wasm
   Cache-Control: public, max-age=86400
-
-/build-worker.js
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; connect-src 'self'; base-uri 'none'; object-src 'none'
