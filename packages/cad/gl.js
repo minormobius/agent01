@@ -98,7 +98,7 @@ class Body {
     this.gl = gl;
     this.vao = gl.createVertexArray(); this.bufPos = gl.createBuffer(); this.bufNrm = gl.createBuffer(); this.bufFid = gl.createBuffer();
     this.vaoEdges = gl.createVertexArray(); this.bufEdges = gl.createBuffer();
-    this.count = 0; this.edgeCount = 0; this.bbox = null; this.model = IDENT; this.tint = 1;
+    this.count = 0; this.edgeCount = 0; this.bbox = null; this.model = IDENT; this.tint = 1; this.hidden = false;
   }
   upload(streams, edges, bbox) {
     const gl = this.gl;
@@ -161,6 +161,7 @@ export class Renderer {
     this.idDirty = true;
   }
   setModel(key, m, tint) { const b = this.bodies.get(key); if (b) { b.model = m; if (tint !== undefined) b.tint = tint; this.idDirty = true; } }
+  setHidden(key, hidden) { const b = this.bodies.get(key); if (b) { b.hidden = hidden; this.idDirty = true; } }
   removeBody(key) { const b = this.bodies.get(key); if (b) { b.dispose(); this.bodies.delete(key); this.idDirty = true; } }
   clearBodies() { for (const b of this.bodies.values()) b.dispose(); this.bodies.clear(); this.idDirty = true; }
   /// numeric index of a body key (for the id buffer), stable per frame
@@ -218,7 +219,7 @@ export class Renderer {
     gl.uniform1f(this.solid.u.uHover, this.hover); gl.uniform1f(this.solid.u.uSelect, this.select); gl.uniform1f(this.solid.u.uPreview, this.preview ? 1 : 0);
     let bi = 0;
     for (const b of this.bodies.values()) {
-      if (b.count) {
+      if (b.count && !b.hidden) {
         const base = this.preview ? [0.55, 0.62, 0.74] : this.base;
         gl.uniform3f(this.solid.u.uBase, base[0] * b.tint, base[1] * b.tint, base[2] * b.tint);
         gl.uniformMatrix4fv(this.solid.u.uModel, false, b.model); gl.uniform1f(this.solid.u.uBody, bi);
@@ -229,7 +230,7 @@ export class Renderer {
     if (this.showEdges) {
       gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, proj); gl.uniformMatrix4fv(this.line.u.uView, false, view); gl.uniform1f(this.line.u.uBias, 0.0006);
       gl.uniform4f(this.line.u.uColor, 0.06, 0.07, 0.09, 1);
-      for (const b of this.bodies.values()) if (b.edgeCount) { gl.uniformMatrix4fv(this.line.u.uModel, false, b.model); gl.bindVertexArray(b.vaoEdges); gl.drawArrays(gl.LINES, 0, b.edgeCount); }
+      for (const b of this.bodies.values()) if (b.edgeCount && !b.hidden) { gl.uniformMatrix4fv(this.line.u.uModel, false, b.model); gl.bindVertexArray(b.vaoEdges); gl.drawArrays(gl.LINES, 0, b.edgeCount); }
     }
     // axes triad, bottom-left
     const s = Math.floor(Math.min(W, H) * 0.12);
@@ -270,7 +271,7 @@ export class Renderer {
       gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(this.id.p); gl.uniformMatrix4fv(this.id.u.uProj, false, this.lastProj || cam.proj(W / H)); gl.uniformMatrix4fv(this.id.u.uView, false, this.lastView || cam.view());
       let bi = 0;
-      for (const b of this.bodies.values()) { if (b.count) { gl.uniformMatrix4fv(this.id.u.uModel, false, b.model); gl.uniform1f(this.id.u.uBody, bi); gl.bindVertexArray(b.vao); gl.drawArrays(gl.TRIANGLES, 0, b.count); } bi++; }
+      for (const b of this.bodies.values()) { if (b.count && !b.hidden) { gl.uniformMatrix4fv(this.id.u.uModel, false, b.model); gl.uniform1f(this.id.u.uBody, bi); gl.bindVertexArray(b.vao); gl.drawArrays(gl.TRIANGLES, 0, b.count); } bi++; }
       gl.bindVertexArray(null);
       this.idDirty = false; this.pickView = this.lastView;
     } else gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo);

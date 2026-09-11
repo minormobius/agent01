@@ -134,14 +134,39 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
 {
   const r = await page.evaluate(async () => { await window.__cad.load('train'); return await window.__cad.settled(); });
   check(r.mode === 'asm' && r.components === 4 && r.slots === 3, `train: 4 components over 3 distinct part builds (${r.components} / ${r.slots})`);
-  const angles = await page.evaluate(() => { window.__cad.solveAngles(360); return Object.fromEntries(window.__cad.state.angles); });
-  check(Math.abs(angles['wheel1'] + 48) < 1e-9 && Math.abs(angles['stage2/arbor'] + 48) < 1e-9 && Math.abs(angles['stage2/wheel'] - 6.4) < 1e-9, `gear mates propagate: arbor1 360° → wheel1 ${angles['wheel1']}° → stage2/arbor ${angles['stage2/arbor']}° → stage2/wheel ${angles['stage2/wheel']}°`);
+  const angles = await page.evaluate(() => { window.__cad.solveAngles(10); return Object.fromEntries(window.__cad.state.angles); }); // 10 s at 6 rpm = one turn
+  check(Math.abs(angles['wheel1'] + 48) < 1e-9 && Math.abs(angles['stage2/arbor'] + 48) < 1e-9 && Math.abs(angles['stage2/wheel'] - 6.4) < 1e-9, `gear mates propagate: arbor1 one turn → wheel1 ${angles['wheel1']}° → stage2/arbor ${angles['stage2/arbor']}° → stage2/wheel ${angles['stage2/wheel']}°`);
   const spun = await page.evaluate(async () => { window.__cad.toggleSpin(); await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))); const a0 = window.__cad.state.angles.get('arbor1'); await new Promise((r) => setTimeout(r, 1200)); const a1 = window.__cad.state.angles.get('arbor1'); const fps = window.__cad.state.fps; window.__cad.toggleSpin(); return { a0, a1, fps }; });
   check(spun.a1 > spun.a0 && spun.fps > 5, `spin advances the train (${spun.a0.toFixed(1)}° → ${spun.a1.toFixed(1)}° in 1.2 s) at ${spun.fps.toFixed(0)} fps under software GL`);
   const pick = await page.evaluate(() => { window.__cad.render(); const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); for (let y = 0.3; y <= 0.7; y += 0.05) for (let x = 0.3; x <= 0.7; x += 0.05) { const p = window.__cad.renderer.pick(r.width * x, r.height * y, window.__cad.cam); if (p) return p; } return null; });
   check(pick && pick.name, `picking an assembly returns a component: ${pick?.name} face ${pick?.fid}`);
   await page.evaluate(() => window.__cad.render());
   await page.screenshot({ path: path.join(shots, 'train.png') });
+}
+
+// the clock: 18 components, an escapement drive, hands at the right ratios, highlight follows the hover
+{
+  const r = await Promise.race([page.evaluate(async () => { await window.__cad.load('clock'); return await window.__cad.settled(); }), new Promise((res) => setTimeout(() => res({ timeout: true }), 240000))]);
+  check(!r.timeout && r.mode === 'asm' && r.components === 18, `clock: ${r.components} components over ${r.slots} distinct part builds${r.timeout ? ' (TIMEOUT waiting for exact builds)' : ''}`);
+  const a = await page.evaluate(() => { window.__cad.solveAngles(60); const g = (k) => window.__cad.state.angles.get(k); return { escape: g('escape'), minute: g('minute-hand'), hour: g('hour-hand'), fork: g('fork'), balance: g('balance'), centre: g('centre') }; });
+  check(Math.abs(a.escape - 720) < 1e-6, `after 60 beats the escape wheel has turned two revolutions (${a.escape.toFixed(3)}°)`);
+  check(Math.abs(a.minute + 6) < 1e-6, `…and the minute hand one minute, clockwise (${a.minute.toFixed(4)}°)`);
+  check(Math.abs(a.hour + 0.5) < 1e-6, `…and the hour hand a twelfth of that (${a.hour.toFixed(4)}°)`);
+  const mid = await page.evaluate(() => { window.__cad.solveAngles(0.5); const g = (k) => window.__cad.state.angles.get(k); return { escape: g('escape'), fork: g('fork'), balance: g('balance') }; });
+  check(Math.abs(mid.escape - 12) < 1e-6 && Math.abs(mid.fork - 8) < 1e-6 && Math.abs(mid.balance) < 1e-6, `mid-beat: the wheel has stepped a half tooth (${mid.escape}°), the fork is at +lift (${mid.fork}°), the balance passes centre (${mid.balance.toFixed(3)}°)`);
+  const phases = await page.evaluate(() => Object.fromEntries(window.__cad.state.components.filter((c) => /wheel|third|fourth|escape-arbor|cannon|pinion/.test(c.id)).map((c) => [c.id, +c.phase.toFixed(3)])));
+  check(Object.values(phases).some((p) => p !== 0), `gear phases were set automatically: ${Object.entries(phases).slice(0, 4).map(([k, v]) => `${k} ${v}°`).join(', ')}`);
+  const hl = await page.evaluate(() => { const s = window.__cad.state; s.hover = { name: 'balance', fid: 0, key: 0 }; window.__cad.renderer.hover = 0; const rows = [...document.querySelectorAll('[data-comp]')]; const before = rows.filter((r) => r.classList.contains('hl')).map((r) => r.dataset.comp); document.querySelector('#face'); const ev = new PointerEvent('pointerenter'); rows.find((r) => r.dataset.comp === 'balance').dispatchEvent(ev); const after = [...document.querySelectorAll('[data-comp].hl')].map((r) => r.dataset.comp); s.hover = null; return { after }; });
+  check(hl.after.length >= 2 && hl.after.every((c) => c === 'balance'), `hovering the balance highlights its rows in the list and the report (${hl.after.length} rows)`);
+  await page.evaluate(() => { window.__cad.cam.preset('iso'); window.__cad.cam.fit(window.__cad.renderer.sceneBbox()); window.__cad.solveAngles(0.5); window.__cad.render(); });
+  await page.screenshot({ path: path.join(shots, 'clock.png') });
+  const vis = await page.evaluate(() => { window.__cad.hide('dial'); window.__cad.hide('case'); window.__cad.render(); const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const seen = new Set(); for (let y = 0.2; y <= 0.8; y += 0.04) for (let x = 0.2; x <= 0.8; x += 0.04) { const p = window.__cad.renderer.pick(r.width * x, r.height * y, window.__cad.cam); if (p) seen.add(p.name); } return [...seen]; });
+  check(!vis.includes('dial') && !vis.includes('case') && vis.some((n) => /wheel|escape|balance|fork/.test(n)), `hiding the dial and case exposes the movement to the picker: ${vis.slice(0, 6).join(', ')}`);
+  await page.screenshot({ path: path.join(shots, 'clock-movement.png') });
+  await page.evaluate(() => { window.__cad.hide('dial', false); window.__cad.hide('case', false); });
+  await page.evaluate(() => { window.__cad.cam.preset('top'); window.__cad.cam.ortho = true; window.__cad.render(); });
+  await page.screenshot({ path: path.join(shots, 'clock-top.png') });
+  await page.evaluate(() => { window.__cad.cam.ortho = false; window.__cad.cam.preset('iso'); });
 }
 
 // touch: two-finger pinch dollies, two-finger drag pans, one finger orbits

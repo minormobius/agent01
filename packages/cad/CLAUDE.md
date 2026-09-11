@@ -47,7 +47,16 @@ documented in [`README.md`](README.md) next to this file.
   flattened with its ids prefixed (`stage2/arbor`). `mates` are `gear`
   (`za`, `zb`) and `fixed`; `drive` names one component and an rpm. The
   angles are a kinematic chain from the driven component; *spin* animates it
-  and reports the frame rate. `bench/train.json` is the two-stage train.
+  and reports the frame rate. Gear phases are set automatically unless a
+  component gives one. A `drive` is either `{component, rpm}` or an
+  `escapement` (`wheel`, `pallet`, `balance`, `teeth`, `beat`, `lift`,
+  `swing`): the wheel steps half a tooth per beat, the fork rocks, the
+  balance swings, and the train ticks through the mates. `bench/train.json`
+  is a two-stage train; **`bench/clock.json` is the clock** — going train,
+  lever escapement, motion works, hands, dial, case, eighteen components
+  from nine bench parts with parameter overrides. Click a component row to
+  hide or show it (hide the dial and case to watch the movement); hovering a
+  face highlights its component in the list and the report.
 - **OCCT, lazily.** Fillets, chamfers, shells and any boolean Truck fails go
   to OCCT, loaded on demand from unpkg (66 MB, cached by the browser) after
   the user presses *exact with OCCT* once (`localStorage cad.occt=1`), or

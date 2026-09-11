@@ -1,0 +1,7 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "A plain gear: the involute op alone, for pinions and small wheels. m, z, b, bore.",
+  "params": { "m": 0.5, "z": 12, "b": 1.5, "bore": 1.0 },
+  "features": [ { "op": "gear", "id": "g", "m": "m", "z": "z", "alpha": 20, "b": "b", "bore": "bore" } ]
+}

@@ -17,7 +17,7 @@ serves this directory with `engine/` and `bakeoff/` dropped by
 | `engine/` | the Rust crate `cad-engine`: tree schema, expression language, 2D sketches and the involute gear, topological naming, invariants, the kernel seam and two kernels (Truck, implicit), the `cad` CLI, and a raw C ABI for WASM |
 | `cad.wasm` | the committed WASM build (1.7 MB). Rebuild with `engine/build.sh`, never by hand |
 | `cad.selftest.mjs` | drives `cad.wasm` from bytes under node and asserts invariants. **Run before touching `engine/` or the ABI** |
-| `bench/` | the clock parts as trees: gear, arbor, plate, escape wheel, case, case-fillet; `train.json` is a two-stage gear-train assembly; `expected.json` carries the closed forms |
+| `bench/` | the clock parts as trees: gear, arbor, plate, escape wheel, case, case-fillet, pinion, pallet fork, balance, hand, dial; `train.json` is a two-stage gear-train assembly and **`clock.json` is the clock**; `expected.json` carries the closed forms |
 | `bakeoff/` | the harness: `run.mjs` builds every part with every kernel and writes `RESULTS.md`. OCCT is an npm dep there; Manifold is vendored |
 | `lib/` | shared by the site, the worker and the harness: `engine.js` (the ABI), `mesh.js` (weld, invariants, edges, streams, STL), `manifold-kernel.js`, `occt-kernel.js` |
 | `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |

@@ -700,6 +700,23 @@ Second cut, the same day:
 - **Phone.** Two fingers pan and pinch; the part takes the top of the
   screen and one tabbed panel the bottom third.
 
+Third cut: **the clock**, as `bench/clock.json`. A going train of three
+stages from the escape wheel to the centre arbor (8:60, 8:32, 8:32, so
+120:1 and a one-second beat gives the minute hand one turn an hour, checked
+in the selftest to the fourth decimal), a lever escapement as the drive
+(the wheel steps half a tooth per beat with a quick slide, the pallet fork
+rocks ±lift, the balance swings over two beats, and the whole train ticks
+through the mates), motion works (12:36 then 8:32, so 12:1 to the hour
+hand), a dial with twelve marks, the case. Eighteen components from nine
+bench parts, every one with parameter overrides — the same `gear` op is the
+60-tooth fourth wheel, the 32-tooth wheels, the cannon pinion and the hour
+wheel. Gear phases are automatic: a gear's tooth 0 is turned to face its
+mate and the mate turns half a pitch back, which works because each gear
+component has exactly one mesh. Four new parts are single even-odd
+outlines rather than booleans (the balance's rim, windows and hub; the hand's
+boss and blade closed by one arc), because Truck's coplanar-cap unions
+were the thing the bake-off said not to lean on.
+
 What it is not, yet:
 
 - **No sketcher.** The tree is edited as JSON and parameters; phase 4.

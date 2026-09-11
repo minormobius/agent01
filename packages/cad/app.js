@@ -8,7 +8,7 @@ import { Camera, mul4 } from './camera.js';
 import { Renderer } from './gl.js';
 
 const $ = (s) => document.querySelector(s);
-const BENCH = ['gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'train'];
+const BENCH = ['clock', 'train', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
 const q = new URLSearchParams(location.search);
 const OCCT_BASE = q.get('occt') || null;
 const occtAllowed = () => !!OCCT_BASE || localStorage.getItem('cad.occt') === '1';
@@ -19,7 +19,7 @@ const state = {
   // per slot: {preview, exact, error, exactError, previewError, faces, needsOcct}
   slots: new Map(),
   // assembly
-  asm: null, components: [], mates: [], drive: null, angles: new Map(), spin: false, t0: 0, tAcc: 0, fps: 0,
+  asm: null, components: [], mates: [], drive: null, angles: new Map(), spin: false, t0: 0, tAcc: 0, fps: 0, speed: 1,
   hover: null, select: null, occt: 'idle',
 };
 
@@ -70,7 +70,7 @@ function applyMesh(slot, m, preview) {
   if (state.mode === 'part') { renderer.preview = preview; renderer.setMesh(m.streams, m.edges, m.bbox); }
   else {
     renderer.preview = false;
-    for (const c of state.components) if (c.partKey === slot) { renderer.setBody(c.id, m.streams, m.edges, m.bbox); c.tint = preview ? 0.9 : 1; }
+    for (const c of state.components) if (c.partKey === slot) { renderer.setBody(c.id, m.streams, m.edges, m.bbox); renderer.setHidden(c.id, !!c.hidden); c.tint = preview ? 0.9 : 1; }
     updateModels();
     renderer.setGrid(renderer.sceneBbox());
   }
@@ -129,16 +129,38 @@ async function prepareAssembly(asm) {
       if (c.params) tree.params = { ...(tree.params || {}), ...c.params };
       const partKey = `${c.part}${c.params ? '|' + JSON.stringify(c.params) : ''}`;
       if (!partTrees.has(partKey)) partTrees.set(partKey, JSON.stringify(tree));
-      components.push({ id, part: c.part, partKey, place, phase: c.phase || 0, tint: 1 });
+      components.push({ id, part: c.part, partKey, place, phase: c.phase || 0, phaseGiven: c.phase !== undefined, tint: 1 });
     }
     for (const m of a.mates || []) mates.push({ ...m, a: prefix + m.a, b: prefix + m.b });
   }
   await walk(asm, '', IDENT);
   state.components = components; state.mates = mates; state.partTrees = partTrees;
-  state.drive = asm.drive ? { component: asm.drive.component, rpm: asm.drive.rpm ?? 6 } : null;
+  const d = asm.drive;
+  state.drive = !d ? null : d.escapement ? { kind: 'escapement', wheel: d.escapement.wheel, pallet: d.escapement.pallet, balance: d.escapement.balance, teeth: d.escapement.teeth ?? 15, beat: d.escapement.beat ?? 1, lift: d.escapement.lift ?? 8, swing: d.escapement.swing ?? 220 } : { kind: 'rpm', component: d.component, rpm: d.rpm ?? 6 };
   state.spin = false; state.tAcc = 0;
+  autoPhase();
   solveAngles(0);
 }
+
+/// Gear phases: unless the document gives one, a gear's tooth 0 (its local
+/// +x) is turned to point at its mate, and the mate turns half a pitch so a
+/// gap faces back. Each gear component has one mesh (its pinion is the
+/// arbor, its own mate is one wheel), so this always lines up.
+function autoPhase() {
+  const byId = new Map(state.components.map((c) => [c.id, c]));
+  const set = new Set(state.components.filter((c) => c.phaseGiven).map((c) => c.id));
+  const deg = (v) => (v * 180) / Math.PI;
+  for (const m of state.mates) {
+    if (m.kind !== 'gear') continue;
+    const a = byId.get(m.a), b = byId.get(m.b); if (!a || !b) continue;
+    const dx = b.place[12] - a.place[12], dy = b.place[13] - a.place[13];
+    const ab = deg(Math.atan2(dy, dx)), ba = ab + 180;
+    const local = (c, ang) => ang - deg(Math.atan2(c.place[1], c.place[0])); // undo the component's own rotate about z
+    if (!set.has(a.id)) { a.phase = mod(local(a, ab), 360 / m.za); set.add(a.id); }
+    if (!set.has(b.id)) { b.phase = mod(local(b, ba) + 180 / m.zb, 360 / m.zb); set.add(b.id); }
+  }
+}
+const mod = (x, n) => ((x % n) + n) % n;
 
 const IDENT = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 const T = (v) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, v[0], v[1], v[2], 1];
@@ -148,13 +170,28 @@ function R(axis, deg) {
 }
 const placement = (c) => mul4(T(c.at || [0, 0, 0]), c.rotate ? R(c.rotate.axis || [0, 0, 1], c.rotate.deg || 0) : IDENT);
 
-/// Kinematics: the driven component's angle, propagated through gear and
-/// fixed mates (an undirected chain). Unreached components stay at 0.
-function solveAngles(theta) {
+/// Kinematics, as a function of time in seconds: the driven component's
+/// angle, propagated through gear and fixed mates (an undirected chain).
+/// Unreached components stay at 0. An escapement drive steps its wheel half
+/// a tooth per beat (a quick slide over the first 15 % of the beat), rocks
+/// the pallet fork ±lift with the same slide, and swings the balance over a
+/// two-beat period — the train then ticks through the mates.
+function solveAngles(t) {
   const angles = new Map(state.components.map((c) => [c.id, 0]));
-  if (!state.drive) { state.angles = angles; return; }
-  angles.set(state.drive.component, theta);
-  const seen = new Set([state.drive.component]); const queue = [state.drive.component];
+  const d = state.drive;
+  if (!d) { state.angles = angles; return; }
+  let root, theta;
+  if (d.kind === 'escapement') {
+    const beats = t / d.beat, n = Math.floor(beats), frac = beats - n;
+    const e = Math.min(1, frac / 0.15); const ease = e * e * (3 - 2 * e);
+    const step = 360 / d.teeth / 2;
+    root = d.wheel; theta = step * (n + ease);
+    const sign = n % 2 === 0 ? 1 : -1;
+    angles.set(d.pallet, d.lift * (-sign + 2 * sign * ease));
+    angles.set(d.balance, (d.swing / 2) * Math.cos(Math.PI * beats));
+  } else { root = d.component; theta = (d.rpm * 360 * t) / 60; }
+  angles.set(root, theta);
+  const seen = new Set([root]); const queue = [root];
   while (queue.length) {
     const cur = queue.shift();
     for (const m of state.mates) {
@@ -183,11 +220,20 @@ function renderParams() {
   const box = $('#params'); box.innerHTML = '';
   if (state.mode === 'asm') {
     const d = state.drive;
-    box.innerHTML = `<div class="asm-ctl"><button id="spin">${state.spin ? 'stop' : 'spin'}</button> <label>rpm <input id="rpm" type="number" step="any" value="${d ? d.rpm : 0}" ${d ? '' : 'disabled'}></label> <span id="fps" class="dim"></span></div>`;
+    const ctl = d?.kind === 'escapement' ? `<label>beat <input id="beat" type="number" step="any" min="0.01" value="${d.beat}"> s</label>` : `<label>rpm <input id="rpm" type="number" step="any" value="${d ? d.rpm : 0}" ${d ? '' : 'disabled'}></label>`;
+    box.innerHTML = `<div class="asm-ctl"><button id="spin">${state.spin ? 'stop' : 'spin'}</button> ${ctl} <label>×<input id="speed" type="number" step="any" min="0" value="${state.speed}" title="time scale"></label> <span id="fps" class="dim"></span></div>`;
     $('#spin').addEventListener('click', toggleSpin);
-    $('#rpm').addEventListener('input', () => { if (state.drive) state.drive.rpm = Number($('#rpm').value) || 0; });
+    $('#rpm')?.addEventListener('input', () => { if (state.drive) state.drive.rpm = Number($('#rpm').value) || 0; });
+    $('#beat')?.addEventListener('input', () => { if (state.drive) state.drive.beat = Math.max(0.01, Number($('#beat').value) || 1); });
+    $('#speed').addEventListener('input', () => { state.speed = Math.max(0, Number($('#speed').value) || 0); });
     const list = document.createElement('div');
-    for (const c of state.components) { const row = document.createElement('div'); row.className = 'feat'; row.innerHTML = `<b>${c.part}</b> <span>${c.id}</span>`; row.title = `at ${c.place.slice(12, 15).map((v) => +v.toFixed(2)).join(', ')} phase ${c.phase}°`; list.append(row); }
+    for (const c of state.components) {
+      const row = document.createElement('div'); row.className = 'feat' + (c.hidden ? ' off' : ''); row.dataset.comp = c.id; row.innerHTML = `<b>${c.part}</b> <span>${c.id}</span>`;
+      row.title = `at ${c.place.slice(12, 15).map((v) => +v.toFixed(2)).join(', ')} phase ${(+c.phase).toFixed(2)}° — click to hide/show`;
+      row.addEventListener('pointerenter', () => highlightComponent(c.id)); row.addEventListener('pointerleave', () => highlightComponent(state.select?.name || state.hover?.name || null));
+      row.addEventListener('click', () => { c.hidden = !c.hidden; renderer.setHidden(c.id, c.hidden); row.classList.toggle('off', c.hidden); invalidate(); });
+      list.append(row);
+    }
     box.append(list);
     return;
   }
@@ -219,7 +265,7 @@ function renderTree() {
   const box = $('#features'); box.innerHTML = '';
   if (state.mode === 'asm') {
     for (const m of state.mates) { const li = document.createElement('div'); li.className = 'feat'; li.innerHTML = `<b>${m.kind}</b> <span>${m.a} ↔ ${m.b}${m.kind === 'gear' ? ` (${m.za}:${m.zb})` : ''}</span>`; box.append(li); }
-    if (state.drive) { const li = document.createElement('div'); li.className = 'feat'; li.innerHTML = `<b>drive</b> <span>${state.drive.component}</span>`; box.append(li); }
+    if (state.drive) { const li = document.createElement('div'); li.className = 'feat'; li.innerHTML = state.drive.kind === 'escapement' ? `<b>escapement</b> <span>${state.drive.wheel} · ${state.drive.pallet} · ${state.drive.balance}, ${state.drive.teeth} teeth, ${state.drive.beat} s beat</span>` : `<b>drive</b> <span>${state.drive.component} at ${state.drive.rpm} rpm</span>`; box.append(li); }
     return;
   }
   for (const f of state.tree?.features || []) {
@@ -241,7 +287,7 @@ function renderReport() {
   if (state.mode === 'asm') {
     const rows = [`<tr><th>component</th><th>part</th><th>exact</th><th>volume</th></tr>`];
     let total = 0;
-    for (const c of state.components) { const s = state.slots.get(c.partKey) || {}; const inv = (s.exact || s.preview)?.invariants; if (inv) total += inv.volume; rows.push(`<tr><td>${c.id}</td><td>${c.part}</td><td>${exactLabel(s)}${s.exact && !s.exact.invariants.watertight ? ' <span class="bad" title="not watertight">✗</span>' : ''}</td><td>${fmt(inv?.volume)}</td></tr>`); }
+    for (const c of state.components) { const s = state.slots.get(c.partKey) || {}; const inv = (s.exact || s.preview)?.invariants; if (inv) total += inv.volume; rows.push(`<tr data-comp="${c.id}"><td>${c.id}</td><td>${c.part}</td><td>${exactLabel(s)}${s.exact && !s.exact.invariants.watertight ? ' <span class="bad" title="not watertight">✗</span>' : ''}</td><td>${fmt(inv?.volume)}</td></tr>`); }
     rows.push(`<tr><td>total</td><td></td><td></td><td>${fmt(total)}</td></tr>`);
     box.innerHTML = `<table>${rows.join('')}</table>`;
     const errs = [...state.slots.values()].map((s) => s.error || s.previewError || s.exactError).filter(Boolean);
@@ -278,9 +324,16 @@ function renderOcct() {
   b.textContent = state.occt === 'loading' ? 'loading OCCT…' : 'exact with OCCT (66 MB)';
 }
 
+/// The component under the cursor (or pinned) lights up in the component
+/// list and the report table.
+function highlightComponent(id) {
+  for (const el of document.querySelectorAll('[data-comp]')) el.classList.toggle('hl', !!id && el.dataset.comp === id);
+}
+
 function renderFace() {
   const box = $('#face');
   const pick = state.select || state.hover;
+  if (state.mode === 'asm') highlightComponent(pick ? pick.name : null);
   if (!pick) { box.innerHTML = '<span class="dim">hover a face</span>'; return; }
   const slotKey = state.mode === 'part' ? 'main' : state.components.find((c) => c.id === pick.name)?.partKey;
   const s = state.slots.get(slotKey) || {};
@@ -377,8 +430,8 @@ function toggleSpin() {
 }
 function tick(now) {
   if (state.spin && state.drive) {
-    const dt = (now - state.t0) / 1000; state.t0 = now; state.tAcc += dt;
-    solveAngles((state.drive.rpm * 360 * state.tAcc) / 60);
+    const dt = (now - state.t0) / 1000; state.t0 = now; state.tAcc += dt * state.speed;
+    solveAngles(state.tAcc);
     updateModels(); needsRender = true;
     state.frames++;
     if (now - state.fpsT >= 500) { state.fps = (state.frames * 1000) / (now - state.fpsT); state.frames = 0; state.fpsT = now; const f = $('#fps'); if (f) f.textContent = `${state.fps.toFixed(0)} fps`; }
@@ -415,6 +468,7 @@ const boot = ready.then(async () => {
 
 window.__cad = {
   ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles,
+  hide: (id, on = true) => { const c = state.components.find((c) => c.id === id); if (c) { c.hidden = on; renderer.setHidden(id, on); renderParams(); invalidate(); } },
   // resolves when every slot of the current document has answered (preview and exact, or errored)
   settled: () => new Promise((resolve) => { const t = setInterval(() => {
     const slots = [...state.slots.values()];

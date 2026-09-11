@@ -1,0 +1,12 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Dial: a disc with the centre hole and twelve hour marks as a circular pattern of small holes. Even-odd, no booleans.",
+  "params": { "R": 37, "t": 0.8, "centre": 1.2, "marks": 12, "r_marks": 33, "mark": 0.8 },
+  "features": [
+    { "op": "sketch", "id": "disc", "loops": [ { "name": "rim", "circle": { "c": [0, 0], "r": "R" } }, { "name": "centre", "circle": { "c": [0, 0], "r": "centre" } } ] },
+    { "op": "sketch", "id": "mark", "loops": [ { "circle": { "c": [0, "r_marks"], "r": "mark" } } ] },
+    { "op": "pattern", "id": "marks", "of": "mark", "kind": "circular", "count": "marks", "name": "mark" },
+    { "op": "extrude", "id": "dial", "profile": ["disc", "marks"], "depth": "t" }
+  ]
+}

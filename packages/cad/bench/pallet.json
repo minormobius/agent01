@@ -1,0 +1,19 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Pallet fork: an anchor pivoted at the origin whose two pallets sit on the escape wheel's tip circle 30 degrees either side of the line of centres, with a lever running up to the balance. One closed polygon plus the pivot hole.",
+  "params": { "r_tip": 12, "span": 30, "arm": 1.0, "boss": 1.4, "lever": 8, "pivot": 0.5, "b": 0.6 },
+  "features": [
+    { "op": "sketch", "id": "anchor", "loops": [
+      { "name": "outline", "polygon": [
+        ["-arm/2", "lever"], ["arm/2", "lever"], ["arm/2", "boss"], ["boss", "boss/2"], ["boss", "-boss/2"],
+        ["r_tip*sin(deg(span)) + 1.0", "-r_tip/cos(deg(span)) + r_tip*cos(deg(span)) + 0.4"],
+        ["r_tip*sin(deg(span)) + 0.6", "-r_tip/cos(deg(span)) + r_tip*cos(deg(span)) - 1.0"],
+        ["boss - 0.2", "-boss - 0.8"], ["-boss + 0.2", "-boss - 0.8"],
+        ["-r_tip*sin(deg(span)) - 0.6", "-r_tip/cos(deg(span)) + r_tip*cos(deg(span)) - 1.0"],
+        ["-r_tip*sin(deg(span)) - 1.0", "-r_tip/cos(deg(span)) + r_tip*cos(deg(span)) + 0.4"],
+        ["-boss", "-boss/2"], ["-boss", "boss/2"], ["-arm/2", "boss"] ] },
+      { "name": "pivot", "circle": { "c": [0, 0], "r": "pivot" } } ] },
+    { "op": "extrude", "id": "fork", "profile": "anchor", "depth": "b" }
+  ]
+}
