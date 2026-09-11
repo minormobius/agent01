@@ -25,7 +25,7 @@ surface lives in that surface's own `CLAUDE.md`.
 | how a loop is actually wired: chain-reaction Actions, the ticket graph, the contagion firewall | [`docs/LOOPS.md`](docs/LOOPS.md) — built and **disabled**; the **how** |
 | what gets built in what order, and what would stop the programme | [`docs/LOOP-WBS.md`](docs/LOOP-WBS.md) — phases, gates, kill criteria, and the Definition of Ready |
 | where loop output lands, and how six parallel agents' work comes back together | [`docs/LOOP-SPRINTS.md`](docs/LOOP-SPRINTS.md) — the three surfaces, path leases, the barrier, the integrator |
-| the browser CAD idea — tree-as-model, kernel bake-off, ATProto lexicons, headless-first | [`docs/CAD.md`](docs/CAD.md) — a design record, nothing built |
+| the browser CAD — tree-as-model, the kernel bake-off and what it decided, ATProto lexicons, headless-first | [`docs/CAD.md`](docs/CAD.md) — the design record; phases 0–1 and the viewer (`cad.mino.mobi`) are built under [`packages/cad/`](packages/cad/) |
 | **how to steer the loop**, and how it asks you for the things no gate can measure | [`.github/loop/vision.md`](.github/loop/vision.md) — the operator's channel in; every planning turn reads it verbatim. Answer its asks with `beads answer <id> --body-file` |
 
 ## The shape of a surface

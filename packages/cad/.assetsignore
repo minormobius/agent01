@@ -1,0 +1,7 @@
+# Not part of the site: the Rust source and its build dir, the harness and its
+# node_modules, the docs. cad.wasm, lib/, vendor/, bench/ and the page ship.
+engine/
+bakeoff/
+README.md
+*.selftest.mjs
+CLAUDE.md

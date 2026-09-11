@@ -2752,6 +2752,22 @@
       ]
     },
     {
+      "n": "cad",
+      "u": "https://cad.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-11",
+      "b": "2026-09-10",
+      "surface": "cad",
+      "d": "Parametric CAD in the browser. A feature tree in, solids out—the Manifold preview lands in milliseconds and the exact build with every face named lands behind it. Rust engine as WASM, hand-written WebGL2, an involute gear as a first-class op.",
+      "tags": [
+        "wasm",
+        "webgl",
+        "cad"
+      ]
+    },
+    {
       "n": "hopper",
       "u": "https://hopper.mino.mobi",
       "c": "tools",

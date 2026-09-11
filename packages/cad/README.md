@@ -5,8 +5,10 @@ this is the code for its phases 0 and 1: a Rust engine that turns a parametric
 feature tree into solids, the five clock benchmark parts, and the kernel
 bake-off that measures every candidate kernel against them.
 
-Not a surface. Nothing deploys from here yet; the viewer (`cad.mino.mobi`) is
-phase 3.
+**The package is the site.** `index.html`, `app.js`, `build-worker.js`,
+`gl.js`, `camera.js` and `cad.css` are `cad.mino.mobi`; `wrangler.jsonc`
+serves this directory with `engine/` and `bakeoff/` dropped by
+`.assetsignore`. Surface notes: [`CLAUDE.md`](CLAUDE.md).
 
 ## Layout
 
@@ -16,7 +18,10 @@ phase 3.
 | `cad.wasm` | the committed WASM build (1.7 MB). Rebuild with `engine/build.sh`, never by hand |
 | `cad.selftest.mjs` | drives `cad.wasm` from bytes under node and asserts invariants. **Run before touching `engine/` or the ABI** |
 | `bench/` | the clock parts as trees: gear, arbor, plate, escape wheel, case, case-fillet; `expected.json` carries the closed forms |
-| `bakeoff/` | the harness: `run.mjs` builds every part with every kernel and writes `RESULTS.md`. Foreign kernels (Manifold, OCCT) are npm deps |
+| `bakeoff/` | the harness: `run.mjs` builds every part with every kernel and writes `RESULTS.md`. OCCT is an npm dep there; Manifold is vendored |
+| `lib/` | shared by the site, the worker and the harness: `engine.js` (the ABI), `mesh.js` (weld, invariants, edges, streams, STL), `manifold-kernel.js`, `occt-kernel.js` |
+| `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
+| `browser.selftest.mjs` | serves the package, drives the page in headless Chromium through every bench part, asserts the report, screenshots to `/tmp/cad-shots/` |
 
 ## The tree
 
@@ -92,3 +97,6 @@ read back by the engine's own STEP reader as the fidelity check.
   Two transitive deps link wasm-bindgen shims that are never called; the
   selftest and the harness stub them.
 - Tests are invariants with tolerances, never mesh bits.
+- **Two selftests before a push:** `node cad.selftest.mjs` (the ABI) and
+  `node browser.selftest.mjs` (the page, in Chromium; needs
+  `bakeoff/node_modules` — `cd bakeoff && npm install`).

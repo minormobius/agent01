@@ -1886,6 +1886,15 @@
    "parent": null
   },
   {
+   "id": "cad",
+   "name": "cad",
+   "url": "https://cad.mino.mobi",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "hopper",
    "name": "hopper",
    "url": "https://hopper.mino.mobi",

@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **102 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -49,6 +49,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `bsky` | frontend | `bsky` | [bsky.mino.mobi](https://bsky.mino.mobi) | `claude/bsky-app-view-feasibility-8sdflz` | [`bsky/CLAUDE.md`](../bsky/CLAUDE.md) | An AppView with no database… |
 | `bsky-bot` | backend | `workers/bsky-bot` | `mino-bsky-bot` | `claude/minomobi-landing-page-vg37b8` | [`workers/bsky-bot/CLAUDE.md`](../workers/bsky-bot/CLAUDE.md) | The lab factory's outer loop… |
 | `cable` | frontend | `cable` | [cable.mino.mobi](https://cable.mino.mobi) | `claude/cable-definition-website-yrwv41` | [`cable/CLAUDE.md`](../cable/CLAUDE.md) | Progressive cable-drawing solver for custom instrument cabling… |
+| `cad` | frontend | `packages/cad` | [cad.mino.mobi](https://cad.mino.mobi) | `claude/browser-cad-ideation-ollmd3` | [`packages/cad/CLAUDE.md`](../packages/cad/CLAUDE.md) | Parametric CAD in the browser. A feature tree in, solids out—the Manifold preview lands in milliseconds and the exact build with every face named lands behind it… |
 | `canvas` | frontend | `draw` | [canvas.mino.mobi](https://canvas.mino.mobi) | `claude/pizza-cutting-game-7VvX2` | [`draw/CLAUDE.md`](../draw/CLAUDE.md) | Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating. |
 | `cards` | frontend | `cards` | [cards.mino.mobi](https://cards.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`cards/CLAUDE.md`](../cards/CLAUDE.md) | Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings. |
 | `chat` | fullstack | `chat` | [chat.mino.mobi](https://chat.mino.mobi) | `claude/conversation-practice-website-he3t8x` | [`chat/CLAUDE.md`](../chat/CLAUDE.md) | Conversation-practice dojo. An AI partner (Workers AI Llama 3.3 70B) plays your counterpart and a theory-grounded rubric scores the exchange; multiplayer DO rooms are roadmap. |

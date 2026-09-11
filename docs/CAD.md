@@ -4,6 +4,13 @@ One pass of ideation, written before anything exists, so the reasoning survives
 the conversation it came from. Same genre as [`CLOSED-LOOP.md`](CLOSED-LOOP.md):
 the **why** and the shape, not a backlog.
 
+> **Update, 2026-09-11 — the viewer exists.** `cad.mino.mobi` is the
+> `cad` surface, and the package is the site: [`packages/cad/`](../packages/cad/)
+> serves `index.html`, a module Worker holding the Rust engine and Manifold,
+> and a hand-written WebGL2 renderer whose id-buffer pick lands on the
+> engine's *named* faces. Every bench part builds in headless Chromium under
+> `browser.selftest.mjs`; §14 records what the first frontend is and is not.
+>
 > **Update, 2026-09-10 — phases 0 and 1 have code.** [`packages/cad/`](../packages/cad/)
 > holds the Rust engine (tree, expressions, sketches, the involute gear, named
 > topology, invariants, a kernel seam with Truck and an implicit spike, the
@@ -640,3 +647,56 @@ wired as the preview kernel. Naming through booleans — tracking which faces
 of the result came from which named faces of the operands — is the gap to
 close first, because it is what makes a fillet after a cut addressable, and
 OCCT's `BRepAlgoAPI` history (`Generated`/`Modified`) is the mechanism.
+
+---
+
+## 14. Phase 3, first cut — the viewer as the judgement surface
+
+Built 2026-09-11 as the `cad` surface at `cad.mino.mobi`
+([`packages/cad/CLAUDE.md`](../packages/cad/CLAUDE.md)). What it is:
+
+- **Two builds per edit, in a Worker.** The Rust engine resolves the tree;
+  Manifold builds the preview from the sampled polylines in milliseconds and
+  the part appears; Truck's exact build lands behind it with every face
+  named. Drag a parameter's name to scrub it and the preview follows at
+  frame rate — the §4 loop, as built. A newer edit supersedes an older
+  build between its two answers.
+- **A rolled renderer, not three.js.** The engine hands over flat typed
+  arrays with a face id per triangle; the renderer uploads them once, shades
+  flat from per-triangle normals, draws feature edges from the dihedral
+  angle, and picks by rendering ids into a framebuffer that is only redrawn
+  when the view changes. So a hover returns `plate.end`, not a triangle
+  index. Four hundred lines, and nothing between the kernel seam and the
+  GPU that we do not own.
+- **The report is the judgement.** Preview and exact side by side: build
+  time, volume, area, χ, watertightness, triangle count, bbox, the count of
+  named faces; the face under the cursor with its names, area, normal and
+  centroid; three canonical views on demand; STL out; a link that carries
+  the whole tree in the hash so an agent can hand a human a URL.
+- **Verified in a browser, not by inspection.** `browser.selftest.mjs`
+  serves the package, opens it in headless Chromium, builds all six bench
+  parts, checks the plate against its closed form, picks the centre of the
+  view and asserts it is a named face, edits a parameter and asserts the
+  volume grows, and screenshots each part. It passes; the deploy workflow
+  runs the ABI selftest and this one is run before pushing.
+
+What it is not, yet:
+
+- **OCCT is not in the browser.** The bake-off's exact kernel is 66 MB,
+  above the 25 MiB Workers static-asset ceiling. unpkg serves it with CORS
+  (jsDelivr refuses), so the lazy load is a CSP line and a fetch away; the
+  shared [`lib/occt-kernel.js`](../packages/cad/lib/occt-kernel.js) is the
+  same code the harness runs. Until then the exact build in the browser is
+  Truck, which names faces on every sweep and says *unsupported* or *failed*
+  on the booleans it cannot do — the gear and escape wheel show the preview
+  only, and say so.
+- **No sketcher.** The tree is edited as JSON and parameters; phase 4.
+- **No assemblies, no ATProto.** One part, from a bench file, a dropped
+  JSON, or the hash. Phases 2 and 5.
+
+Two adapter defects surfaced while building it and were fixed in the
+harness as well: OCCT's outer-versus-hole decision must be taken over an
+op's *combined* profile (a pattern of five circles is five holes, not five
+discs), so the engine now emits per-op oriented rings; and the involute's
+Bézier fit is chord-length parametrised. The OCCT column of the results
+table was re-measured after the first fix and is correct on every part.

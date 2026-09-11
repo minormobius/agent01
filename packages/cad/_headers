@@ -1,0 +1,24 @@
+# cad.mino.mobi — the egress boundary for this surface.
+#
+# This file, not worker.js, is what applies: Workers Static Assets serves an
+# asset match directly without invoking the Worker.
+#
+# Self-contained: the engine wasm, the Manifold module, the bench trees and the
+# ES modules all ship with the site, so connect-src is 'self'. The build runs
+# in a module Worker (worker-src 'self'); 'wasm-unsafe-eval' permits
+# WebAssembly.instantiate and nothing else. blob: in img-src is the snapshot
+# strip and the STL download.
+
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+
+/cad.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=3600
+
+/vendor/manifold.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=86400

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cad — the feature-tree CAD engine, in the browser</title>
+<meta name="description" content="Parametric CAD in the browser. A feature tree in, solids out: the preview lands in milliseconds, the exact build with named faces behind it. Part of mino.mobi.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27none%27 stroke=%27%23f2c14e%27 stroke-width=%273%27 stroke-dasharray=%274 3%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%274%27 fill=%27%23f2c14e%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./cad.css">
+</head>
+<body>
+<header>
+  <h1>cad<small>feature-tree CAD engine</small></h1>
+  <select id="part" title="bench part"></select>
+  <input type="file" id="file" accept=".json" title="load a tree">
+  <button id="fit" title="fit (f)">fit</button>
+  <button data-view="iso" title="0">iso</button>
+  <button data-view="front" title="1">front</button>
+  <button data-view="right" title="3">right</button>
+  <button data-view="top" title="7">top</button>
+  <button id="ortho" title="o">ortho</button>
+  <button id="edges" title="e">edges</button>
+  <span class="sp"></span>
+  <button id="views" title="three views for the record">views</button>
+  <button id="stl">stl</button>
+  <button id="share">link</button>
+  <span id="status">starting…</span>
+</header>
+<aside id="left">
+  <h2>params</h2>
+  <div id="params"></div>
+  <h2>features</h2>
+  <div id="features"></div>
+  <h2>tree</h2>
+  <textarea id="json" spellcheck="false"></textarea>
+  <button id="apply">apply</button>
+</aside>
+<main><canvas id="view"></canvas></main>
+<aside id="right">
+  <h2>report</h2>
+  <div id="report"></div>
+  <div id="error"></div>
+  <h2>face</h2>
+  <div id="face"><span class="dim">hover a face</span></div>
+  <h2>views</h2>
+  <div id="strip"></div>
+  <h2>keys</h2>
+  <div class="keys"><kbd>drag</kbd> orbit · <kbd>shift-drag</kbd>/<kbd>right-drag</kbd> pan · <kbd>wheel</kbd> zoom · <kbd>f</kbd> fit · <kbd>o</kbd> ortho · <kbd>e</kbd> edges · <kbd>g</kbd> grid · <kbd>0</kbd> <kbd>1</kbd> <kbd>3</kbd> <kbd>7</kbd> views · click a face to pin it</div>
+  <p class="dim">Preview is Manifold (mesh booleans, milliseconds); exact is the Rust engine's Truck kernel, which names every face it makes and fails honestly on the booleans it cannot do. Design record: <a href="https://github.com/minormobius/agent01/blob/main/docs/CAD.md" style="color:inherit">docs/CAD.md</a>.</p>
+</aside>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

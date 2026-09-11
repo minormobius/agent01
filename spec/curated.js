@@ -47,7 +47,7 @@ window.SPEC_CURATED = {
     clef: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
-    neuro: 'science', sci: 'science', jurassic: 'science', fold: 'science',
+    neuro: 'science', sci: 'science', jurassic: 'science', fold: 'science', cad: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',
     silk: 'science',
     hoop: 'oneill', 'hoop-archive': 'oneill', rind: 'oneill', tide: 'oneill', iris: 'oneill',

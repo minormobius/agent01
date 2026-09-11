@@ -1661,6 +1661,20 @@
       ]
     },
     {
+      "surface": "cad",
+      "dir": "packages/cad",
+      "endpoint": "cad.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/browser-cad-ideation-ollmd3",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — first deploy. cad.mino.mobi did not resolve beforehand; wrangler is expected to create the custom domain itself, as it did for fold and neuro. Confirm the run binds `cad.mino.mobi (custom domain)` — green alone is not proof.",
+      "note": "Parametric CAD in the browser: a feature tree in, solids out. Rust engine (tree, expressions, sketches, the involute gear, named topology) as raw-ABI WASM, Manifold as the preview kernel, Truck as the exact kernel, hand-written WebGL2 with id-buffer picking onto named faces. The package is the site. (full description: packages/cad/CLAUDE.md)",
+      "paths": [
+        "packages/cad/**"
+      ]
+    },
+    {
       "surface": "tape",
       "dir": "tape",
       "endpoint": "tape.mino.mobi",
