@@ -95,15 +95,20 @@ read back by the engine's own STEP reader as the fidelity check.
 
 ## For an agent
 
-`agent/` holds the headless tools; `.claude/skills/cad/SKILL.md` is the
-instruction sheet. From `packages/cad/`:
+`agent/` holds the headless tools and needs nothing but node; `SKILL.md`
+next to this file is the instruction sheet (also served at
+`cad.mino.mobi/SKILL.md`, and synced to `.claude/skills/cad/SKILL.md` so
+Claude Code loads it), `llms.txt` the index. From `packages/cad/`:
 
 ```bash
+node agent/build.mjs   bench/plate.json --faces                    # exact build: invariants, every named face with its geometry
+node agent/build.mjs   bench/cam.json --stl cam.stl --step cam.step
 node agent/measure.mjs bench/plate.json --list                     # every named face: kind, diameter or normal, area
 node agent/measure.mjs bench/case.json case.cup[0] case.cup[2]     # plane to plane: 8
 node agent/check.mjs   bench/clock.json --t 0.5                    # interfering pairs at half a beat; exit 1 on a real clash
 node agent/export.mjs  bench/clock.json --out /tmp/out             # one STL per part + the posed assembly
-node agent/render.mjs  bench/clock.json --out /tmp/shots --hide dial,case   # PNG per view + report.json (needs bakeoff/node_modules)
+node agent/render.mjs  bench/clock.json --out /tmp/shots --hide dial,case   # PNG per view + report.json (npm install; npx playwright-core install chromium)
+node agent/drive.mjs   ls --at minomobi.com                        # the published bench as a file tree; --login writes to your own repo
 ```
 
 ## Rules
@@ -115,6 +120,12 @@ node agent/render.mjs  bench/clock.json --out /tmp/shots --hide dial,case   # PN
   Two transitive deps link wasm-bindgen shims that are never called; the
   selftest and the harness stub them.
 - Tests are invariants with tolerances, never mesh bits.
-- **Two selftests before a push:** `node cad.selftest.mjs` (the ABI) and
-  `node browser.selftest.mjs` (the page, in Chromium; needs
-  `bakeoff/node_modules` — `cd bakeoff && npm install`).
+- **Three selftests before a push:** `npm test` (`cad.selftest.mjs`, the
+  ABI; `drive.selftest.mjs`, the file tree and the gateway) and
+  `npm run test:browser` (the page, in Chromium; `npm install` here or in
+  `bakeoff/` first).
+- **This package is mirrored** to a small repo on tangled by
+  `.github/workflows/mirror-cad-tangled.yml` on every push, minus the Rust
+  build dir, `node_modules` and the Cloudflare files, with the skill at
+  `.claude/skills/cad/`. Someone who wants the CAD without the monorepo
+  clones that.

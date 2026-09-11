@@ -1,0 +1,117 @@
+name: Mirror cad to Tangled
+
+# Publishes packages/cad as its own small repo on tangled, so someone who
+# wants the CAD — the engine, the agent tools, the skill, the bench, the
+# viewer — clones five megabytes instead of the monorepo.
+#
+#   git@tangled.org:<TANGLED_HANDLE>/<TANGLED_REPO>
+#
+# What ships: the whole package as served at cad.mino.mobi plus the Rust
+# source (engine/src, Cargo.toml, build.sh — so the wasm can be rebuilt), the
+# selftests, README.md and CLAUDE.md, and the skill copied to
+# .claude/skills/cad/SKILL.md so Claude Code loads it on clone.
+# What is dropped: engine/target (build dir), every node_modules, the
+# Cloudflare deployment files (wrangler.jsonc, _headers, .assetsignore) —
+# the mirror is the package, not the deployment; worker.js stays because it
+# is the read gateway the selftest exercises — and the bake-off's results
+# stay but its 146 MB of dependencies do not (`npm install` restores them).
+#
+# Transparent mirror: NSIDs, auth.mino.mobi and cad.mino.mobi URLs are kept
+# (they are load-bearing), with a back-reference README. Same key and handle
+# as mirror-hoop-tangled.yml (TANGLED_SSH_KEY_MORPHYX, registered under
+# morphyxmino.bsky.social). Force-push: the mirror has no history of its own.
+#
+# workflow_dispatch does not resolve off the default branch; a push on the
+# owning branch that touches the package or this file is the trigger.
+# marker: 2026-09-11a
+
+on:
+  push:
+    branches: ['claude/browser-cad-ideation-ollmd3']
+    paths:
+      - 'packages/cad/**'
+      - '.github/workflows/mirror-cad-tangled.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mirror-cad-tangled
+  cancel-in-progress: true
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    env:
+      TANGLED_KNOT: tangled.org
+      TANGLED_HANDLE: morphyxmino.bsky.social
+      TANGLED_REPO: cad
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Stage the package
+        run: |
+          set -euo pipefail
+          TMP="$(mktemp -d)"
+          rsync -a packages/cad/ "$TMP/" \
+            --exclude 'engine/target' --exclude 'node_modules' --exclude '.wrangler' \
+            --exclude 'wrangler.jsonc' --exclude '_headers' --exclude '.assetsignore'
+          # worker.js stays: it is the /xrpc/ read gateway (and the MCP surface),
+          # which drive.selftest.mjs exercises under node — code, not deployment.
+          mkdir -p "$TMP/.claude/skills/cad"
+          cp packages/cad/SKILL.md "$TMP/.claude/skills/cad/SKILL.md"
+          # The mirror's own .gitignore: what npm and cargo create locally.
+          printf 'node_modules/\nengine/target/\n' > "$TMP/.gitignore"
+          cat > "$TMP/MIRROR.md" <<'EOF'
+          # cad — the mirror
+
+          This is `packages/cad/` of https://github.com/minormobius/agent01,
+          mirrored on every push so you can clone the CAD without the monorepo.
+          It runs the live site https://cad.mino.mobi and works headlessly with
+          nothing but node 22:
+
+              node agent/build.mjs bench/gear.json --faces
+              node agent/drive.mjs ls --at minomobi.com
+
+          `SKILL.md` is the instruction sheet (Claude Code picks it up from
+          `.claude/skills/cad/`), `README.md` the tree schema, `llms.txt` the
+          index. The Rust engine source is under `engine/`; the committed
+          `cad.wasm` is what everything runs on, so you never need to build it.
+
+          Do not open pull requests here — this copy is overwritten. Changes go
+          to the monorepo; a fork of a part goes to your own repo (`drive.mjs
+          push --login`) and the lineage comes with it.
+          EOF
+          echo "TMP=$TMP" >> "$GITHUB_ENV"
+          echo "staged $(find "$TMP" -type f | wc -l) files, $(du -sh "$TMP" | cut -f1)"
+
+      - name: Prove it runs from the staged copy alone
+        run: |
+          set -euo pipefail
+          cd "$TMP"
+          node agent/build.mjs bench/plate.json
+          node cad.selftest.mjs | tail -1
+          node drive.selftest.mjs | tail -1
+
+      - name: Set up SSH deploy key
+        run: |
+          test -n "${{ secrets.TANGLED_SSH_KEY_MORPHYX }}" || { echo "✗ secret TANGLED_SSH_KEY_MORPHYX not set"; exit 1; }
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.TANGLED_SSH_KEY_MORPHYX }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          # Force IPv4 — the knot sits behind Cloudflare (AAAA present) and the
+          # runner usually has no IPv6 route → ENETUNREACH otherwise.
+          ssh-keyscan -4 -H "$TANGLED_KNOT" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Force-push to tangled
+        run: |
+          set -euo pipefail
+          cd "$TMP"
+          git init -q -b main
+          git add -A
+          git -c user.name='cad-mirror' -c user.email='mirror@morphyxmino.bsky.social' \
+            commit -qm "mirror packages/cad — ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d)"
+          git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}"
+          GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
+            git push -f origin main
+          echo "✓ mirrored packages/cad → ${TANGLED_HANDLE}/${TANGLED_REPO} on ${TANGLED_KNOT}"
+          echo "### cad mirrored" >> "$GITHUB_STEP_SUMMARY"
+          echo "git clone git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}" >> "$GITHUB_STEP_SUMMARY"

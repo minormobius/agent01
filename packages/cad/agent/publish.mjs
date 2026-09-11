@@ -24,8 +24,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Drive, MemoryBackend, canonical, PART } from '../lib/drive.js';
-import { PdsClient } from '../../atproto/pds.js';
+import { Drive, MemoryBackend, SessionBackend, canonical, PART } from '../lib/drive.js';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2);
@@ -39,19 +38,6 @@ const PARTS = ['gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam',
 const ASSEMBLIES = ['train', 'clock'];
 const pathOf = (name, isAsm) => (isAsm ? name : `parts/${name}`);
 
-/** PdsClient (app password) as a drive backend: the same five calls. */
-function pdsBackend(client) {
-  const did = client.getSession().did;
-  return {
-    did, kind: 'pds',
-    getRecord: (c, r) => client.getRecord(c, r),
-    listRecords: (c, limit, cursor) => client.listRecords(c, limit, cursor),
-    createRecord: (c, v) => client.createRecord(c, v),
-    putRecord: (c, r, v) => client.putRecord(c, r, v),
-    deleteRecord: (c, r) => client.deleteRecord(c, r),
-  };
-}
-
 async function open() {
   if (!write) return null;
   if (driveFile) {
@@ -60,9 +46,7 @@ async function open() {
   }
   const handle = process.env.BLUESKY_BOT_HANDLE, pw = process.env.BLUESKY_BOT_APP_PASSWORD;
   if (!handle || !pw) { console.error('BLUESKY_BOT_HANDLE and BLUESKY_BOT_APP_PASSWORD are required for --write'); process.exit(2); }
-  const client = new PdsClient(process.env.BLUESKY_PDS || 'https://bsky.social');
-  await client.login(handle, pw);
-  const b = pdsBackend(client);
+  const b = await SessionBackend.login(handle, pw, { entry: process.env.BLUESKY_PDS || 'https://bsky.social' });
   console.log(`signed in as ${handle} did=${b.did}`);
   return new Drive(b);
 }

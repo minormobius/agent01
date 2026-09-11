@@ -11,8 +11,9 @@ import path from 'node:path';
 import { createRequire } from 'node:module';
 import { ROOT, arg, has } from './common.mjs';
 
-const require = createRequire(path.join(ROOT, 'bakeoff', 'package.json'));
-const { chromium } = require('playwright-core');
+// playwright-core from the package's own node_modules (`npm install` here), or the
+// bake-off's; the browser from CAD_CHROME, else Playwright's own install.
+const { chromium } = (() => { for (const p of [ROOT, path.join(ROOT, 'bakeoff')]) { try { return createRequire(path.join(p, 'package.json'))('playwright-core'); } catch {} } throw new Error('playwright-core is not installed: run `npm install` in this directory'); })();
 const docPath = path.resolve(process.argv[2]);
 const out = arg('--out', '/tmp/cad-render'); fs.mkdirSync(out, { recursive: true });
 const views = arg('--views', 'iso,top,front').split(',');
@@ -28,7 +29,7 @@ const server = http.createServer((req, res) => {
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
-const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find((p) => fs.existsSync(p));
+const exe = [process.env.CAD_CHROME, '/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].filter(Boolean).find((p) => fs.existsSync(p)); // undefined → Playwright's own Chromium (`npx playwright-core install chromium`)
 const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--proxy-server=direct://', '--disable-background-networking'] });
 const page = await browser.newPage({ viewport: { width: 1200, height: 800 }, bypassCSP: true });
 const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); if (has('--verbose')) console.error('[page]', m.text()); });

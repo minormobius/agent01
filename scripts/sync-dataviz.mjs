@@ -56,6 +56,10 @@ const EXTRA = [
   // cad.mino.mobi saves a user's parts to their own PDS (packages/cad/lib/drive.js)
   // through the same client; the site is packages/cad served as static assets.
   ["packages/oauth-client/auth.js", "packages/cad/vendor/auth.js"],
+  // The cad skill is written next to the code it describes and served from
+  // cad.mino.mobi/SKILL.md, so an agent that never clones this repo can read
+  // it; Claude Code loads skills from .claude/skills/, so that copy follows.
+  ["packages/cad/SKILL.md", ".claude/skills/cad/SKILL.md"],
   ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],

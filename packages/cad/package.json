@@ -2,5 +2,12 @@
   "name": "cad",
   "private": true,
   "type": "module",
-  "description": "The feature-tree CAD engine and cad.mino.mobi. The package is the site; see CLAUDE.md."
+  "description": "The feature-tree CAD engine and cad.mino.mobi. The package is the site; see CLAUDE.md.",
+  "scripts": {
+    "test": "node cad.selftest.mjs && node drive.selftest.mjs",
+    "test:browser": "node browser.selftest.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.56.1"
+  }
 }

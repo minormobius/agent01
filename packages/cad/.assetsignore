@@ -1,7 +1,9 @@
 # Not part of the site: the Rust source and its build dir, the harness and its
-# node_modules, the docs. cad.wasm, lib/, vendor/, bench/ and the page ship.
+# node_modules, the ops notes. cad.wasm, lib/, vendor/, bench/, agent/, the
+# page, and the two documents an agent reads (SKILL.md, README.md) ship — the
+# site is the package, and llms.txt is its index.
 engine/
 bakeoff/
-README.md
+node_modules/
 *.selftest.mjs
 CLAUDE.md

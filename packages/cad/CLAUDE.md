@@ -105,11 +105,22 @@ documented in [`README.md`](README.md) next to this file.
   worker's `/xrpc/` gateway** (`worker.js`: the two public read methods,
   `com.minomobi.cad.*` only, handle and DID resolved server-side), so the
   page's CSP stays `connect-src 'self'` plus the auth worker.
-- **Headless, for an agent.** `agent/check.mjs`, `agent/measure.mjs`,
-  `agent/export.mjs`, `agent/render.mjs` and `agent/drive.mjs` (the file
-  tree from a terminal: a JSON-file repo, or anyone's public repo) do the
-  same from a file on disk;
-  the skill at `.claude/skills/cad/SKILL.md` is the instruction sheet.
+- **Headless, for an agent.** `agent/build.mjs` (check and exact build
+  over the wasm: invariants, named faces, STL/STEP — node only, no Rust),
+  `agent/check.mjs`, `agent/measure.mjs`, `agent/export.mjs`,
+  `agent/render.mjs` and `agent/drive.mjs` (the file tree from a terminal:
+  a JSON-file repo, anyone's public repo, or your own with `--login` and an
+  app password) do the same from a file on disk. **`SKILL.md` in this
+  directory is the instruction sheet** — canonical here, served at
+  `cad.mino.mobi/SKILL.md`, and synced to `.claude/skills/cad/SKILL.md` by
+  `scripts/sync-dataviz.mjs` (edit it here, never the copy). `llms.txt` is
+  the site's index for agents; `README.md` (the schema) is served too.
+- **The mirror.** `.github/workflows/mirror-cad-tangled.yml` force-pushes
+  this package — minus `engine/target`, `node_modules` and the Cloudflare
+  files, plus the skill under `.claude/skills/cad/` and a README — to a
+  repo on tangled after every push here, with the morphyx deploy key the
+  hoop mirror uses. That repo is the front door for anyone who wants the
+  CAD without the monorepo; `TANGLED_REPO` in the workflow names it.
 
 ## How it works
 

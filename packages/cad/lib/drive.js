@@ -169,6 +169,33 @@ export class AuthBackend {
   deleteRecord(c, r) { return this.auth.pds.deleteRecord(c, r); }
 }
 
+/** A repo with a bearer session (an app password, from a terminal or a script — never from a
+ *  browser page, which has the auth worker for that). `SessionBackend.login(handle, password)`
+ *  creates the session on the account's own PDS; pass `{ pds }` to skip the entry-server hop. */
+export class SessionBackend {
+  constructor(pds, session, { fetch: f } = {}) { this.pds = pds.replace(/\/$/, ''); this.session = session; this.did = session.did; this.kind = 'pds'; this.fetch = f || globalThis.fetch.bind(globalThis); }
+  static async login(handle, password, { entry = 'https://bsky.social', fetch: f } = {}) {
+    const ff = f || globalThis.fetch.bind(globalThis);
+    const res = await ff(`${entry.replace(/\/$/, '')}/xrpc/com.atproto.server.createSession`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identifier: handle, password }) });
+    if (!res.ok) throw new Error(`sign-in failed for ${handle}: ${res.status} ${(await res.text()).slice(0, 200)}`);
+    const session = await res.json();
+    const svc = (session.didDoc?.service || []).find((s) => s.id === '#atproto_pds' || s.type === 'AtprotoPersonalDataServer');
+    return new SessionBackend(svc?.serviceEndpoint || entry, session, { fetch: f });
+  }
+  async xrpc(method, { params, body } = {}) {
+    const u = new URL(`${this.pds}/xrpc/${method}`); for (const [k, v] of Object.entries(params || {})) if (v !== undefined) u.searchParams.set(k, v);
+    const res = await this.fetch(u, { method: body ? 'POST' : 'GET', headers: { authorization: `Bearer ${this.session.accessJwt}`, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    if (res.status === 404 || (res.status === 400 && !body)) return null;
+    if (!res.ok) { let d = ''; try { const j = await res.json(); d = `${j.error}: ${j.message}`; } catch {} throw new Error(d || `${method} ${res.status}`); }
+    return res.json();
+  }
+  getRecord(c, r) { return this.xrpc('com.atproto.repo.getRecord', { params: { repo: this.did, collection: c, rkey: r } }); }
+  async listRecords(c, limit = 100, cursor) { return (await this.xrpc('com.atproto.repo.listRecords', { params: { repo: this.did, collection: c, limit: String(limit), cursor } })) || { records: [] }; }
+  createRecord(c, record) { return this.xrpc('com.atproto.repo.createRecord', { body: { repo: this.did, collection: c, record } }); }
+  putRecord(c, r, record) { return this.xrpc('com.atproto.repo.putRecord', { body: { repo: this.did, collection: c, rkey: r, record } }); }
+  deleteRecord(c, r) { return this.xrpc('com.atproto.repo.deleteRecord', { body: { repo: this.did, collection: c, rkey: r } }); }
+}
+
 // ── identity, without importing packages/atproto (a static site cannot) ───
 export async function resolveHandle(handle, f = globalThis.fetch) {
   const res = await f(`https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?handle=${encodeURIComponent(handle.replace(/^@/, ''))}`);

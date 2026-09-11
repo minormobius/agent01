@@ -1,0 +1,38 @@
+# cad.mino.mobi
+
+> Parametric CAD in the browser and headless. The model is a feature tree
+> (JSON); the engine (Rust → wasm) builds it into exact B-rep solids with
+> named faces; a person's parts live in their own ATProto repo as records,
+> so anything here can be opened by AT URI, forked with its lineage, and
+> saved back with a sign-in. Built to be driven by an agent.
+
+This site is the whole package: every file an agent needs is a URL here.
+
+## Start here
+
+- [SKILL.md](https://cad.mino.mobi/SKILL.md): the instruction sheet — the loop (write tree → build → measure → check → render → judge), every command, face naming, which kernel does what, files, hand-over. Also a Claude Code skill when placed at `.claude/skills/cad/SKILL.md`.
+- [README.md](https://cad.mino.mobi/README.md): the tree schema (params and expressions, sketches, ops, naming), the CLI, the bake-off.
+- [bench/](https://cad.mino.mobi/bench/clock.json): worked examples — `gear`, `arbor`, `plate`, `escape`, `case`, `case-fillet`, `cam`, `pinion`, `pallet`, `balance`, `hand`, `dial` (parts), `train`, `clock` (assemblies). `https://cad.mino.mobi/bench/<name>.json`.
+
+## Run it with nothing but node
+
+The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (the engine), `lib/*.js` (engine ABI, mesh toolkit, kernel adapters, assemblies, measure, interference, the drive), `agent/*.mjs` (build, measure, check, export, render, drive, publish), `vendor/manifold.{js,wasm}` (the preview kernel).
+
+- `node agent/build.mjs tree.json` — exact build: volume, area, bbox, χ, watertight, named faces with geometry, STL/STEP out.
+- `node agent/measure.mjs tree.json --list` — diameters and distances from exact geometry.
+- `node agent/check.mjs asm.json --t 0.5` — interference through the motion.
+- `node agent/render.mjs doc.json --out shots` — PNG per view (needs Chromium).
+- `node agent/drive.mjs ls --at minomobi.com` — the published bench as a file tree.
+
+## Data
+
+- Records: `com.minomobi.cad.part` (a head: `path`, `name`, `kind`, `head` strongRef) and `com.minomobi.cad.revision` (immutable: `tree`, `parents[]` strongRefs, `createdAt`, `message`, `kernel`, `invariants`). No floats in records: non-integers are decimal strings, which the tree language reads as expressions.
+- Read anyone's files without sign-in through this site's gateway: `https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=<handle or did>&collection=com.minomobi.cad.part` and `…/com.atproto.repo.getRecord?repo=&collection=&rkey=`. `com.minomobi.cad.*` only.
+- The published bench: repo `minomobi.com` — `parts/<name>`, `train`, `clock`; assemblies reference parts by AT URI.
+- Open a file in the viewer: `https://cad.mino.mobi/?at=<AT URI>`. Any tree: `https://cad.mino.mobi/#t=<base64url JSON>`.
+- Writing: sign in on the site (OAuth through auth.mino.mobi, scope `atproto repo:com.minomobi.cad.part repo:com.minomobi.cad.revision`), or headlessly with an app password (`agent/drive.mjs … --login`).
+
+## Where the source lives
+
+- Monorepo: https://github.com/minormobius/agent01 — `packages/cad/` (the engine source is `engine/`, Rust). Design record: `docs/CAD.md`.
+- Small mirror (this package only): see README.md for the tangled repo.
