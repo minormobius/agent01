@@ -8,6 +8,14 @@
 # in a module Worker (worker-src 'self'); 'wasm-unsafe-eval' permits
 # WebAssembly.instantiate and nothing else. blob: in img-src is the snapshot
 # strip and the STL download.
+#
+# One deliberate exception, confined: Manifold's Emscripten/embind glue
+# generates every method invoker with `new Function`, so it needs
+# 'unsafe-eval'. A dedicated Worker takes its CSP from its *own* script's
+# response headers, so the permission is granted to /build-worker.js only —
+# the page, which handles the DOM and the URL, keeps the strict policy.
+# browser.selftest.mjs loads the page under these exact rules and fails if
+# either policy is wrong.
 
 /*
   Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
@@ -22,3 +30,6 @@
 /vendor/manifold.wasm
   Content-Type: application/wasm
   Cache-Control: public, max-age=86400
+
+/build-worker.js
+  Content-Security-Policy: default-src 'none'; script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'; connect-src 'self'; base-uri 'none'; object-src 'none'

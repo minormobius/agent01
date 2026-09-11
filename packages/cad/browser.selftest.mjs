@@ -17,31 +17,71 @@ const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : '/tmp/cad-shots';
 fs.mkdirSync(shots, { recursive: true });
 
+// Serve under the production `_headers`, so the policies are part of what
+// this test proves (a Worker, wasm, blob: snapshots — all easy to block).
+// Cloudflare semantics: every matching rule applies, later rules override.
+const rules = [];
+for (const block of fs.readFileSync(path.join(here, '_headers'), 'utf8').split(/\n(?=\S)/)) {
+  const lines = block.split('\n').filter((l) => l.trim() && !l.trim().startsWith('#'));
+  if (!lines.length || lines[0].startsWith(' ')) continue;
+  const pattern = lines[0].trim();
+  const re = new RegExp('^' + pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*') + '$');
+  const headers = {};
+  for (const l of lines.slice(1)) { const m = l.trim().match(/^([^:]+):\s*(.*)$/); if (m) headers[m[1].toLowerCase()] = m[2]; }
+  rules.push({ re, headers });
+}
+const headersFor = (urlPath) => Object.assign({}, ...rules.filter((r) => r.re.test(urlPath)).map((r) => r.headers));
+const csp = headersFor('/')['content-security-policy'];
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.wasm': 'application/wasm' };
 const server = http.createServer((req, res) => {
-  const p = path.join(here, decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/\/$/, '/index.html'));
+  const urlPath = decodeURIComponent(new URL(req.url, 'http://x').pathname);
+  const p = path.join(here, urlPath.replace(/\/$/, '/index.html'));
   if (!p.startsWith(here) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
-  res.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
+  const extra = headersFor(urlPath); delete extra['cache-control'];
+  res.writeHead(200, { ...extra, 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
   fs.createReadStream(p).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const base = `http://127.0.0.1:${server.address().port}`;
 
 const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell'].find((p) => fs.existsSync(p));
-const browser = await chromium.launch({ headless: !args.includes('--headed'), executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox'] });
-const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
-const errors = [];
-page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
-
+const browser = await chromium.launch({ headless: !args.includes('--headed'), executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--proxy-server=direct://', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--no-first-run'] });
 let fails = 0;
 const check = (c, msg) => { console.log(`${c ? '✓' : '✗'} ${msg}`); if (!c) fails++; };
 const near = (a, b, rel) => Math.abs(a - b) <= rel * Math.abs(b);
 
+// Pass 1 — under the production CSP, with no script injection at all
+// (Playwright's evaluate uses string evaluation, which the policy forbids):
+// load the page and watch the console for the app's own ready and exact lines.
+{
+  const ctx = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+  const p = await ctx.newPage();
+  const seen = []; const errs = [];
+  p.on('console', (m) => { seen.push(m.text()); if (m.type() === 'error') errs.push(m.text()); });
+  p.on('pageerror', (e) => errs.push(e.message));
+  await p.goto(`${base}/?part=plate`, { waitUntil: 'load' });
+  const deadline = Date.now() + 90000;
+  while (Date.now() < deadline && !seen.some((t) => t.startsWith('cad: exact plate'))) await new Promise((r) => setTimeout(r, 250));
+  check(seen.some((t) => t.startsWith('cad: ready')), `under the production CSP the worker comes up: ${seen.find((t) => t.startsWith('cad: ready')) || '(no ready line)'}`);
+  check(seen.some((t) => t.startsWith('cad: exact plate')), `under the production CSP the exact build lands: ${seen.find((t) => t.startsWith('cad: exact')) || '(no exact line)'}`);
+  check(errs.length === 0, errs.length ? `no CSP or page errors — got:\n  ${errs.join('\n  ')}` : 'no CSP or page errors');
+  await ctx.close();
+}
+
+// Pass 2 — the functional test, with the policy bypassed so evaluate works.
+const page = await browser.newPage({ viewport: { width: 1400, height: 900 }, bypassCSP: true });
+const errors = [];
+page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
+page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.text()}`); });
+
 await page.goto(`${base}/?part=plate`, { waitUntil: 'load' });
 try { await page.waitForFunction(() => !!window.__cad, null, { timeout: 30000 }); }
 catch { console.log(`✗ app did not boot.\n  ${errors.join('\n  ') || '(no page errors captured)'}`); await browser.close(); server.close(); process.exit(1); }
-const boot = await page.evaluate(async () => { await window.__cad.ready; return await window.__cad.settled(); });
+const boot = await Promise.race([
+  page.evaluate(async () => { await window.__cad.ready; return await window.__cad.settled(); }),
+  new Promise((r) => setTimeout(() => r({ timeout: true }), 90000)),
+]);
+if (boot.timeout) { console.log(`✗ the worker never reported ready (90 s).\n  ${errors.join('\n  ') || '(no page errors captured)'}`); await browser.close(); server.close(); process.exit(1); }
 check(!boot.error && boot.preview && boot.exact, `page boots and builds the plate (preview ${boot.preview?.tris} tris, exact ${boot.exact?.tris} tris, ${boot.faces} faces)`);
 const plate = JSON.parse(fs.readFileSync(path.join(here, 'bench', 'plate.json'), 'utf8')).params;
 const vol = Math.PI * plate.R ** 2 * plate.t - Math.PI * plate.r_centre ** 2 * plate.t - plate.n_pivots * Math.PI * plate.r_pivot ** 2 * plate.t - plate.n_pillars * Math.PI * plate.r_pillar ** 2 * plate.t;

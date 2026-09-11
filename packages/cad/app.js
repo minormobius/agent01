@@ -27,7 +27,7 @@ worker.postMessage({ type: 'init' });
 
 worker.onmessage = (e) => {
   const m = e.data;
-  if (m.type === 'ready') { setStatus(`engine v${m.engine} + manifold ready in ${m.ms.toFixed(0)} ms`); return; }
+  if (m.type === 'ready') { setStatus(`engine v${m.engine} + manifold ready in ${m.ms.toFixed(0)} ms`); console.info(`cad: ready (engine v${m.engine}, ${m.ms.toFixed(0)} ms)`); return; }
   if (m.id !== undefined && m.id !== state.buildId && m.type !== 'export') return; // stale
   if (m.type === 'resolved') { state.resolved = m; renderTree(); return; }
   if (m.type === 'preview') {
@@ -39,6 +39,7 @@ worker.onmessage = (e) => {
     state.exact = m; state.exactStale = false; state.faces = m.report.faces; state.timings.exact = m.ms;
     renderer.preview = false; renderer.setMesh(m.streams, m.edges, m.bbox);
     if (state.fitNext) { cam.fit(m.bbox); state.fitNext = false; }
+    console.info(`cad: exact ${state.name} volume ${m.invariants.volume.toFixed(3)} χ=${m.invariants.euler} faces ${m.report.faces.length}`);
     renderReport(); invalidate(); return;
   }
   if (m.type === 'error') {
