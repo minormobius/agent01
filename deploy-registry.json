@@ -1618,7 +1618,7 @@
       "dir": "bsky",
       "endpoint": "bsky.mino.mobi",
       "type": "frontend",
-      "branch": "claude/bsky-app-view-feasibility-8sdflz",
+      "branch": "claude/bsky-shuffle-quote-feature-fqo19l",
       "uses": [],
       "provides": null,
       "paths": [
@@ -1628,7 +1628,7 @@
         "packages/atproto/bsky.js"
       ],
       "note": "An AppView with no database… (full description: bsky/CLAUDE.md)",
-      "status": "NEW 2026-09-05 — scaffold. Domain bsky.mino.mobi did not resolve before this branch; the custom-domain route is attached by the first wrangler deploy. VERIFY the run log binds `bsky.mino.mobi (custom domain)` before believing it (golden rule)."
+      "status": "OWNER CHANGED 2026-09-11 — claude/bsky-app-view-feasibility-8sdflz -> claude/bsky-shuffle-quote-feature-fqo19l, at the principal's instruction, for the shuffle-quote feature. Safe because the two trees are byte-identical over bsky/ and packages/atproto|oauth-client (git diff, 2026-09-11): Workers Static Assets replaces the whole manifest, so a handover is only safe while the new owner carries everything the surface serves. The auth surface did NOT move and is still owned by claude/bsky-app-view-feasibility-8sdflz. Domain bsky.mino.mobi was attached by the first deploy from the previous owner; VERIFY the run log still binds `bsky.mino.mobi (custom domain)` (golden rule)."
     },
     {
       "surface": "atlas",

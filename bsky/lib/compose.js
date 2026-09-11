@@ -252,8 +252,22 @@ export async function publish(text, opts = {}) {
   const a = auth();
   if (!a.isLoggedIn()) throw new Error('not signed in');
 
+  /**
+   * A post needs a BODY, and text is only one kind of body.
+   *
+   * This used to be `if (!n) throw new Error('empty post')`, which disagreed
+   * with the composer standing in front of it: `countChars()` enables the post
+   * button for an image-only or quote-only post on the stated grounds that
+   * requiring text is wrong — and then this line rejected exactly those. The
+   * failure landed at the END, after the reader had picked their pictures, and
+   * blamed them for an empty post that plainly was not empty.
+   *
+   * A wordless quote is the whole of the shuffle-quote repost style
+   * (lib/shuffle.js): deal the thread out, say nothing, let the quotes speak.
+   */
   const n = graphemeLength(text);
-  if (!n) throw new Error('empty post');
+  const hasBody = n > 0 || opts.images?.length || opts.quote?.uri || opts.card?.uri;
+  if (!hasBody) throw new Error('empty post');
   if (n > MAX_GRAPHEMES) throw new Error(`${n} characters — the limit is ${MAX_GRAPHEMES}`);
 
   // Scope is fixed at authorization, so a session that predates this site's

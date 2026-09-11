@@ -237,6 +237,44 @@ textarea{resize:none;line-height:1.4}
   border-radius:8px;cursor:pointer;min-height:44px}
 .repostmenu button:active{background:var(--line-soft)}
 #postmenu button.danger{color:var(--dead)}
+
+/* ── shuffle quote ─────────────────────────────────────
+   A deck of the thread's posts, one card each, dealt in order. The cards are
+   the composer: there is no separate "preview", because the thing being
+   previewed IS the thing being written. */
+.shnote{color:var(--muted);font-size:13px;line-height:1.55;margin-bottom:12px}
+.shnote b{color:var(--text);font-weight:600}
+.shstep{border:1px solid var(--line);border-radius:11px;padding:10px 11px;margin-bottom:10px;background:var(--panel)}
+.shstep.posting{border-color:var(--accent)}
+/* A published step is DONE and cannot be unpublished. It stays on screen,
+   dimmed and locked, so a resume is visibly a continuation rather than a
+   fresh start — the one thing the reader must not be confused about. */
+.shstep.done{opacity:.6;border-color:var(--live)}
+.shstep.failed{border-color:var(--dead)}
+.shhead{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-bottom:7px}
+.shnum{width:22px;height:22px;border-radius:50%;background:var(--line);color:var(--text);font-size:12px;
+  display:flex;align-items:center;justify-content:center;flex:none;font-variant-numeric:tabular-nums}
+.shstep.done .shnum{background:var(--live);color:#05130a}
+.shstep.failed .shnum{background:var(--dead);color:#fff}
+.shq{border-left:2px solid var(--line);padding-left:9px;font-size:13px;color:var(--muted);line-height:1.45;
+  max-height:72px;overflow:hidden;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+.shq b{color:var(--text);font-weight:600;font-size:12.5px}
+.shstep textarea{min-height:62px;font-size:15px;background:var(--bg);
+  border:1px solid var(--line);padding:9px 10px}
+.shstep textarea:disabled{opacity:.7}
+.shrow{display:flex;align-items:center;gap:6px;margin-top:7px}
+.shrow button{border:1px solid var(--line);border-radius:8px;min-width:38px;min-height:34px;
+  color:var(--muted);font-size:13px}
+.shrow button:disabled{opacity:.35}
+.shrow .cc{margin-left:auto;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.shrow .cc.over{color:var(--dead)}
+.sherr{font-size:12.5px;color:var(--dead);margin-top:7px;line-height:1.45}
+.shdone{font-size:12.5px;color:var(--live);margin-top:7px}
+.shpool{border-top:1px solid var(--line);padding-top:12px;margin-top:6px}
+.shpool h4{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:9px}
+.shadd{display:block;width:100%;text-align:left;border:1px dashed var(--line);border-radius:10px;
+  padding:9px 11px;margin-bottom:8px;font-size:13px;color:var(--muted);line-height:1.45}
+.shadd b{color:var(--text);font-weight:600;font-size:12.5px}
 /* A quoted post's media sits inside an already-inset card, so it is capped
    shorter than a top-level embed — a full-height picture makes the quote read
    as the post. */
@@ -457,6 +495,29 @@ body.compact .brand small{display:none}
     <span class="muted" style="font-size:12.5px">posts to your own repo</span>
     <span class="spacer"></span>
     <span id="cc">0/300</span>
+  </div>
+</div>
+
+<!-- Shuffle quote. One thread of yours, quoting one of theirs per post — for a
+     thread you want to answer post by post rather than in one lump. Each card
+     below becomes one app.bsky.feed.post carrying a quote AND a reply onto your
+     own previous post; see lib/shuffle.js. -->
+<div class="sheet" id="shuffle" hidden role="dialog" aria-modal="true" aria-label="Shuffle quote a thread">
+  <div class="sheethead">
+    <button id="sh-cancel" class="pill">cancel</button>
+    <span id="sh-count" class="muted" style="font-size:13px"></span>
+    <span class="spacer"></span>
+    <button id="sh-post" class="btn" disabled>post thread</button>
+  </div>
+  <div class="sheetbody">
+    <div id="sh-note" class="shnote"></div>
+    <div id="sh-steps"></div>
+    <div id="sh-pool" class="shpool" hidden></div>
+    <div id="sh-status" class="muted" style="font-size:13px;margin-top:10px"></div>
+  </div>
+  <div class="sheetfoot">
+    <span class="muted" style="font-size:12.5px">each post quotes one of theirs and replies to your last</span>
+    <span class="spacer"></span>
   </div>
 </div>
 

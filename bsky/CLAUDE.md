@@ -20,7 +20,7 @@ needs no backend at all.
 | Dir | `bsky/` |
 | Endpoint | `bsky.mino.mobi` |
 | Type | frontend (Worker-with-assets; the worker is one route) |
-| Owning branch | `claude/bsky-app-view-feasibility-8sdflz` |
+| Owning branch | `claude/bsky-shuffle-quote-feature-fqo19l` |
 | Deploy | [`.github/workflows/deploy-bsky.yml`](../.github/workflows/deploy-bsky.yml) |
 | Uses | — (no shared backend; three public services, none of ours) |
 | Provides | — |
@@ -136,8 +136,9 @@ Both `fromHydrated` (from `post.cid`) and the Jetstream path (from
 
 **These are gated on the auth ceiling.** `app.bsky.feed.like` and
 `app.bsky.feed.repost` were added to `WRITE_COLLECTIONS` in
-`workers/auth/src/oauth/scope.ts`, and **this branch now owns the `auth`
-surface** (handed over at the principal's instruction — see
+`workers/auth/src/oauth/scope.ts`, and the `auth` surface is owned by
+**`claude/bsky-app-view-feasibility-8sdflz`** — this surface's previous owner,
+which kept `auth` when `bsky` changed hands (see
 [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md)). It is deployed and live:
 `auth.mino.mobi/client-metadata.json` lists **77 collections**, both of these
 among them, plus `rpc:com.atproto.server.getServiceAuth` for custom feeds.
@@ -145,11 +146,14 @@ among them, plus `rpc:com.atproto.server.getServiceAuth` for custom feeds.
 narrows the buttons explain themselves rather than failing at the consent screen
 with `invalid_scope`.
 
-Owning that surface means owning its hazard. `node scripts/check-auth-scope.mjs`
-runs before every auth deploy and **must stay green**: on 2026-07-29 a branch
-with a stale `workers/` shipped a green build that dropped the ceiling from 66
-collections to 61 and broke four sites. Only ever add to `WRITE_COLLECTIONS`,
-never remove.
+**This surface no longer deploys `auth`, and that is the safer arrangement:**
+the ceiling is a superset of what every site on the account asks for, so the
+branch that owns it should be the one that can see all of them. If a future
+write from here ever needs a collection the ceiling lacks, it is that branch's
+deploy, not this one's — and `node scripts/check-auth-scope.mjs` must be green
+before it. On 2026-07-29 a branch with a stale `workers/` shipped a green build
+that dropped the ceiling from 66 collections to 61 and broke four sites. Only
+ever add to `WRITE_COLLECTIONS`, never remove.
 
 ### Installing it — the PWA, and the one rule that is a security rule
 
@@ -749,9 +753,10 @@ is a scroll), and when an overlay is open (the gesture is the overlay's).
 
 ### Repost, or quote?
 
-Tapping ↻ on a post you have NOT reposted opens a two-item menu; un-reposting
-skips it, because there is only one way to undo. A repost is two different
-intentions sharing one glyph, and doing the wrong one is public.
+Tapping ↻ on a post you have NOT reposted opens a three-item menu — repost,
+quote, **shuffle quote** (below); un-reposting skips it, because there is only
+one way to undo. A repost is several different intentions sharing one glyph, and
+doing the wrong one is public.
 
 `toggleAction()` is extracted rather than duplicated: the menu's "Repost" must
 do exactly what a direct tap does, and a second copy would drift.
@@ -759,6 +764,131 @@ do exactly what a direct tap does, and a second copy would drift.
 **A quote needs the quoted post's CID**, exactly like a like — `app.bsky.embed.record`
 with only a URI is rejected. The composer checks before opening rather than
 failing after the reader has written something.
+
+### Shuffle quote — a thread of yours, quoting a thread of theirs
+
+`lib/shuffle.js`, the `#shuffle` sheet, and one new item in the ↻ menu. Also a
+pill on the thread screen, which is where the decision is actually made: you
+have just read the whole thing and you know whether you have a separate thing to
+say about each post.
+
+**The case it exists for.** Somebody posts a seven-post thread and you have a
+different reaction to each of the seven. Every existing option is bad: quote the
+root and write one lump about all of it; quote one post and drop the other six;
+or reply seven times *inside their thread*, where your reactions sit scattered
+down somebody else's replies and nobody who follows you ever reads them in
+order. A shuffle quote deals the thread out into a thread of your own:
+
+```
+you #1   quotes  them #1
+  ↳ you #2   quotes  them #2
+      ↳ you #3   quotes  them #3
+```
+
+**Nothing here is a new record type**, and that is the point — it is a *style*
+of repost, not a lexicon. Each of your posts is an ordinary
+`app.bsky.feed.post` carrying BOTH an `app.bsky.embed.record` (the quote) and a
+`reply` (onto your own previous post). Quote-replies already render everywhere,
+so a shuffle reads correctly in the official client and in every third-party
+one, with no cooperation from anybody.
+
+**The quote points into their thread; the reply points into yours.** Those two
+are independent and confusing them is the most plausible bug in the file — it
+would publish a reply storm into somebody else's thread instead of a thread of
+your own. `chain()` owns the decision in one place, and the selftest asserts
+per post that no `reply` ever names an `at://` in the target's repo.
+
+And, as everywhere else here, **`root` is the thread's root — your own first
+post — never the parent.** Get it wrong and everything after post 1 detaches
+in every client, while looking perfectly fine locally: this app already holds
+all the posts and draws them in the order it knows. You find out when somebody
+else opens the thread.
+
+#### The deck
+
+The default selection is the focused post's author's own posts, in thread
+order — tap shuffle anywhere in a tweetstorm and you get the tweetstorm. When
+that author has only one post in the thread you are not looking at a
+self-thread but at a *conversation*, and the default becomes everybody, which is
+the same shape with a different deck.
+
+From there it is a deck: reorder with ↑ ↓, drop with ✕, and deal anything the
+default left out back in from **also in this thread**. Thread order is a default,
+not a constraint — hence the name.
+
+Three things the composer refuses to hide:
+
+- **A post with no cid is never dealt**, and the note says how many were
+  dropped. A quote without the quoted post's CID is rejected by the PDS, the
+  same trap as a like, and finding that out after the reader has written twelve
+  reactions is the worst possible moment.
+- **`MAX_STEPS` is 25** and an overflowing thread says so. Past two dozen you
+  are not reacting to a thread, you are writing one.
+- **An empty card is a legitimate post.** Deal the deck, say nothing, let the
+  quotes speak — that is the pure repost-style use, and it is the default state
+  of every card.
+
+#### Partial publish is the whole design
+
+Posting is sequential *by necessity*: post n+1 replies to post n, so it cannot
+be written until the PDS has answered with post n's `cid`. There is no parallel
+version of this. Which means the interesting state is halfway: four posts are
+public, the fifth is refused, and there is **no undo for the four**. The options
+were:
+
+| | |
+|---|---|
+| retry the whole plan | four duplicate posts, publicly |
+| abandon it | a thread that stops mid-sentence |
+| **continue from the break** | the only honest one |
+
+So every step remembers its own `posted`, the run stops at the FIRST failure
+(continuing past a hole would silently attach your reaction to post 6 onto your
+reaction to post 4), landed cards are locked and dimmed on screen, and the
+button changes from *post all n* to **resume from #k**. Calling `postShuffle`
+again with the same array skips what landed, rebuilds the chain from it and
+carries on. A published step is never republished, whatever else fails — and it
+cannot be moved or dropped either, because its place in the chain already
+exists. Escape does not close the sheet mid-publish: closing it is how you lose
+the resume.
+
+`lib/shuffle.selftest.mjs` runs the entire publish path against a fake
+`publish()`, which is why `publish` is a parameter of `postShuffle` and never an
+import. This is code whose failure mode cannot be rehearsed against a real PDS,
+because the rehearsal is public.
+
+#### One bug this found in code that shipped a while ago
+
+`publish()` began `if (!graphemeLength(text)) throw new Error('empty post')` —
+while `countChars()`, ten lines of UI away, deliberately enables the post button
+for an image-only or quote-only post on the stated grounds that requiring text
+is wrong. So the composer offered a picture-only post and the publish path
+rejected it, at the very END, after the pictures were picked, blaming the reader
+for an empty post that plainly was not empty. It now asks for a BODY — text, or
+images, or a quote, or a card.
+
+**Verified in Chromium** (2026-09-11, 52 assertions, zero page errors) against a
+stubbed thread, profile and `auth.mino.mobi` — including
+`/pds/repo/createRecord`, which is the point: the stub records exactly what
+would be written, so the chain is asserted record by record rather than
+reasoned about. Covered: both entry points (the ↻ menu and the thread pill);
+the default deck (alice's three, not bob's reply, with bob offered in the pool);
+reorder, drop and re-add, with each card's text following its card; three
+records written with the right `embed.record.uri`/`cid` per post, post 1
+top-level, posts 2 and 3 replying to my m1/m2 with root m1 and no reply pointing
+into their repo; a 429 on the second write leaving 1 of 3 published, the card
+marked failed, the button offering *resume from #2* and the published card
+locked; the resume writing exactly the two that were left, chained onto what
+actually landed, with nothing republished; a wordless shuffle publishing three
+empty-text quotes; and a post with no thread falling back to the ordinary quote
+composer.
+
+**Not verified:** a real `createRecord`. Nothing in this sandbox can complete an
+OAuth round trip, so — as with post, reply, like and repost — the write itself
+has never run against a PDS. What a live run would test that the stub cannot is
+the PDS's own acceptance of an empty-text post carrying an embed, and its rate
+limiting under 25 writes in a row (which is exactly the path the resume exists
+for).
 
 ### Posting pictures
 
@@ -1452,7 +1582,7 @@ Nothing here is ever uploaded. There is no server in this design to upload it to
 
 ## Deploying
 
-Pushes to `claude/bsky-app-view-feasibility-8sdflz` touching this surface's
+Pushes to `claude/bsky-shuffle-quote-feature-fqo19l` touching this surface's
 paths trigger [`deploy-bsky.yml`](../.github/workflows/deploy-bsky.yml).
 `main` does not deploy — see the repo [`CLAUDE.md`](../CLAUDE.md).
 

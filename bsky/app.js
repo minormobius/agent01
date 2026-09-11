@@ -39,6 +39,7 @@ import * as lightbox from '/lib/lightbox.js';
 import * as share from '/lib/share.js';
 import * as feedgen from '/lib/feedgen.js';
 import * as actions from '/lib/actions.js';
+import * as shuffle from '/lib/shuffle.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1536,9 +1537,14 @@ async function renderThread(uri) {
   catch (err) { v.innerHTML = `<div class="empty"><strong>Thread unavailable.</strong>${esc(err.message)}</div>`; return; }
 
   v.innerHTML = '';
-  const back = el('<div class="backbar"><button class="pill" id="tback">← back</button></div>');
+  // The thread screen is where a shuffle quote is actually decided on — you
+  // have just read the whole thing and know whether you have something to say
+  // about each post. Offering it only from the ↻ menu buried it.
+  const back = el('<div class="backbar"><button class="pill" id="tback">← back</button>'
+    + '<button class="pill" id="tshuffle">🔀 shuffle quote</button></div>');
   v.append(back);
   $('tback').addEventListener('click', () => history.back());
+  on('tshuffle', 'click', () => openShuffle(data.post));
 
   for (const a of data.ancestors) {
     const n = postNode(a);
@@ -2077,6 +2083,185 @@ async function sendPost() {
   }
 }
 
+// ─── shuffle quote ───────────────────────────────────────────────
+//
+// A repost passes a post on; a quote passes it on with a sentence attached.
+// Neither is what you want when somebody posts a seven-post thread and you have
+// a different thing to say about each of the seven. A shuffle quote builds one
+// thread of YOURS, each post quoting one of theirs and replying to your own
+// previous post — so your reactions read in order, in your own feed, instead of
+// being scattered down somebody else's replies.
+//
+// The chaining, the cap, and the resume-after-a-partial-publish all live in
+// lib/shuffle.js and are tested there against a fake publish(). Everything below
+// is the sheet.
+
+/** The deck the shuffle sheet is holding: the thread, the cards, and progress. */
+const EMPTY_DECK = () => ({ posts: [], steps: [], dropped: 0, capped: 0, busy: false, focus: null });
+let deck = EMPTY_DECK();
+
+/**
+ * Read the thread behind a post and deal it into the sheet.
+ *
+ * A thread has to be FETCHED before the composer can exist — the feed only ever
+ * holds one post of it — so this is the one composer on this surface that opens
+ * asynchronously, and it says so while it waits.
+ */
+async function openShuffle(post) {
+  if (!auth().isLoggedIn()) return signIn();
+  if (!post?.uri) return say('no post to shuffle');
+
+  say('reading the thread…');
+  let thread;
+  try { thread = await getThread(post.uri, { depth: 10, parentHeight: 40 }); }
+  catch (err) { return say(`could not read that thread — ${err.message}`); }
+
+  const plan = shuffle.planFrom(thread, post.uri);
+  // One card is not a shuffle, it is a quote post — and this app already has a
+  // composer for that. Offering an explanation instead of the thing they wanted
+  // would be worse than just doing it.
+  if (plan.steps.length < 2) {
+    say('nothing else in that thread to quote — opening a plain quote instead');
+    return openQuote(post);
+  }
+
+  deck = { ...plan, busy: false, focus: post.uri };
+  $('sh-status').textContent = '';
+  renderShuffle();
+  $('shuffle').hidden = false;
+  say(`shuffle quote · ${plan.steps.length} posts`);
+}
+
+/** One card: the post being quoted, and what you have to say about it. */
+function shuffleCard(step, i) {
+  const who = step.target.handle || `${step.target.did.slice(0, 18)}…`;
+  const n = graphemeLength(step.text);
+  const done = Boolean(step.posted);
+  const locked = done || deck.busy;
+  return el(`<div class="shstep${done ? ' done' : ''}${step.error ? ' failed' : ''}" data-i="${i}">
+    <div class="shhead">
+      <span class="shnum">${done ? '✓' : i + 1}</span>
+      <span>quoting @${esc(who)}</span>
+    </div>
+    <div class="shq">${esc(step.target.text.slice(0, 200)) || '<i>no text — media or a quote</i>'}</div>
+    <textarea data-say="${i}" maxlength="3000" ${locked ? 'disabled' : ''}
+      placeholder="say something — or nothing, and let the quote speak">${esc(step.text)}</textarea>
+    <div class="shrow">
+      <button type="button" data-mv="up" aria-label="Move up" ${locked || i === 0 ? 'disabled' : ''}>↑</button>
+      <button type="button" data-mv="down" aria-label="Move down" ${locked || i === deck.steps.length - 1 ? 'disabled' : ''}>↓</button>
+      <button type="button" data-drop aria-label="Drop this one" ${locked ? 'disabled' : ''}>✕</button>
+      <span class="cc${n > MAX_GRAPHEMES ? ' over' : ''}">${n}/${MAX_GRAPHEMES}</span>
+    </div>
+    ${step.error ? `<div class="sherr">${esc(step.error)}</div>` : ''}
+    ${done ? '<div class="shdone">published</div>' : ''}
+  </div>`);
+}
+
+/**
+ * The header, the button and the note.
+ *
+ * Split out from renderShuffle because typing must not rebuild the list — a
+ * re-render mid-keystroke moves the caret to the end of the box, which on a
+ * phone is indistinguishable from the app eating your text.
+ */
+function shuffleButton() {
+  const p = shuffle.progress(deck.steps);
+  const over = deck.steps.some((s) => graphemeLength(s.text) > MAX_GRAPHEMES);
+  const btn = $('sh-post');
+  btn.disabled = deck.busy || !p.remaining || over;
+  btn.textContent = deck.busy ? 'posting…'
+    : p.started ? `resume from #${p.done + 1}` : `post all ${p.total}`;
+  $('sh-count').textContent = p.started ? `${p.done}/${p.total} posted` : `${p.total} posts`;
+  // Once anything is published there is no cancelling it, and a button that
+  // says "cancel" over four public posts is a lie.
+  $('sh-cancel').textContent = p.started && !deck.busy ? 'close' : 'cancel';
+  return p;
+}
+
+function renderShuffle() {
+  const box = $('sh-steps');
+  box.innerHTML = '';
+  deck.steps.forEach((step, i) => box.append(shuffleCard(step, i)));
+
+  // Whatever is in the thread but not in the deck, so a card dropped by mistake
+  // — or one the default selection left out — can be dealt back in.
+  const inDeck = new Set(deck.steps.map((s) => s.target.uri));
+  const spare = deck.posts.filter((p) => shuffle.quotable(p) && !inDeck.has(p.uri));
+  const pool = $('sh-pool');
+  pool.hidden = spare.length === 0 || deck.busy;
+  pool.innerHTML = spare.length
+    ? `<h4>also in this thread</h4>` + spare.map((p) => `<button type="button" class="shadd" data-add="${esc(p.uri)}">`
+        + `<b>@${esc(p.author?.handle || p.did.slice(0, 18))}</b> ${esc((p.record?.text || '').slice(0, 120))}</button>`).join('')
+    : '';
+
+  const p = shuffleButton();
+  const notes = [
+    'Each card is one post: it <b>quotes</b> the post shown and <b>replies</b> to your previous card.'
+    + ' Reorder or drop them — thread order is only the default.',
+  ];
+  if (deck.capped) notes.push(`${deck.capped} more post${deck.capped === 1 ? '' : 's'} in this thread were left out — ${shuffle.MAX_STEPS} is the cap.`);
+  if (deck.dropped) notes.push(`${deck.dropped} post${deck.dropped === 1 ? ' is' : 's are'} not quotable here (no cid) and are not offered.`);
+  if (p.started) notes.push(`<b>${p.done} already published.</b> Those cannot be unposted; resuming continues the thread from where it stopped.`);
+  $('sh-note').innerHTML = notes.join(' ');
+}
+
+/** Reorder. A published card is pinned — its place in the chain already exists. */
+function moveStep(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= deck.steps.length) return;
+  if (deck.steps[i].posted || deck.steps[j].posted) return say('a published post cannot be moved');
+  [deck.steps[i], deck.steps[j]] = [deck.steps[j], deck.steps[i]];
+  renderShuffle();
+}
+
+/**
+ * Deal the whole deck.
+ *
+ * Sequential and not parallel by necessity: each post replies to the one before
+ * it, so it cannot be written until the PDS has answered with that post's cid.
+ * A failure stops the run and leaves the sheet open with the landed posts
+ * locked — tapping again resumes rather than restarting, which is the only
+ * behaviour that does not risk publishing a duplicate.
+ */
+async function sendShuffle() {
+  if (deck.busy || !deck.steps.length) return;
+  deck.busy = true;
+  renderShuffle();
+
+  const res = await shuffle.postShuffle(deck.steps, {
+    publish,
+    publishOpts: { resolveHandle: (h) => resolveActor(h).catch(() => null) },
+    onStep: (i, st) => {
+      if (st === 'posting') $('sh-status').textContent = `posting ${i + 1} of ${deck.steps.length}…`;
+      renderShuffle();
+      if (st === 'posting') $('sh-steps').children[i]?.classList.add('posting');
+    },
+  });
+
+  deck.busy = false;
+  const p = shuffle.progress(deck.steps);
+
+  if (res.done) {
+    const first = deck.steps[0].posted;
+    closeShuffle();
+    say(`shuffle quote posted — ${p.total} posts`);
+    if (first) location.hash = `#/thread/${encodeURIComponent(first.uri)}`;
+    return;
+  }
+
+  renderShuffle();
+  $('sh-status').textContent = `stopped at #${res.failedAt + 1} — ${res.error?.message || 'unknown error'}. `
+    + `${p.done} of ${p.total} are published; resume picks up from there.`;
+}
+
+function closeShuffle() {
+  $('shuffle').hidden = true;
+  $('sh-steps').innerHTML = '';
+  $('sh-pool').innerHTML = '';
+  $('sh-status').textContent = '';
+  deck = EMPTY_DECK();
+}
+
 /**
  * Sign out.
  *
@@ -2285,6 +2470,7 @@ function askRepostKind(btn, post) {
   const menu = el(`<div class="repostmenu">
     <button type="button" data-kind="repost">↻ Repost</button>
     <button type="button" data-kind="quote">❝ Quote post</button>
+    <button type="button" data-kind="shuffle">🔀 Shuffle quote</button>
   </div>`);
   const r = btn.getBoundingClientRect();
   menu.style.left = `${Math.max(8, Math.min(window.innerWidth - 188, r.left))}px`;
@@ -2302,6 +2488,10 @@ function askRepostKind(btn, post) {
     if (!kind) return;
     close();
     if (kind === 'repost') { toggleAction(btn, post, 'repost'); return; }
+    // A shuffle is a quote of the whole thread, one post at a time — it reads
+    // the thread first, so it can only be offered from here optimistically and
+    // falls back to a plain quote when there is no thread behind the post.
+    if (kind === 'shuffle') { openShuffle(post); return; }
     openQuote(post);
   });
 }
@@ -2379,10 +2569,55 @@ $('cthumbs')?.addEventListener('input', (e) => {
   if (alt) draft.images[Number(alt.dataset.alt)].alt = alt.value;
 });
 $('ct').addEventListener('input', () => { countChars(); scheduleCard(); });
+
+// Shuffle quote. All three are delegated to containers that outlive the cards,
+// which are rebuilt on every reorder, drop and publish.
+on('sh-cancel', 'click', closeShuffle);
+on('sh-post', 'click', sendShuffle);
+$('sh-steps')?.addEventListener('input', (e) => {
+  const ta = e.target.closest('[data-say]');
+  if (!ta) return;
+  // Written straight back into the step, so a re-render never loses what is
+  // typed — and only this card's counter is touched, because rebuilding the
+  // list on a keystroke would throw the caret to the end of the box.
+  const step = deck.steps[Number(ta.dataset.say)];
+  if (!step) return;
+  step.text = ta.value;
+  const n = graphemeLength(ta.value);
+  const cc = ta.closest('.shstep')?.querySelector('.cc');
+  if (cc) { cc.textContent = `${n}/${MAX_GRAPHEMES}`; cc.className = 'cc' + (n > MAX_GRAPHEMES ? ' over' : ''); }
+  shuffleButton();
+});
+$('sh-steps')?.addEventListener('click', (e) => {
+  if (deck.busy) return;
+  const card = e.target.closest('.shstep');
+  if (!card) return;
+  const i = Number(card.dataset.i);
+  const mv = e.target.closest('[data-mv]');
+  if (mv) return moveStep(i, mv.dataset.mv === 'up' ? -1 : 1);
+  if (e.target.closest('[data-drop]')) {
+    if (deck.steps[i]?.posted) return say('a published post cannot be dropped');
+    deck.steps.splice(i, 1);
+    renderShuffle();
+  }
+});
+$('sh-pool')?.addEventListener('click', (e) => {
+  const add = e.target.closest('[data-add]');
+  if (!add || deck.busy) return;
+  if (deck.steps.length >= shuffle.MAX_STEPS) return say(`${shuffle.MAX_STEPS} posts is the cap`);
+  const p = deck.posts.find((x) => x.uri === add.dataset.add);
+  if (!p) return;
+  deck.steps.push(shuffle.stepFor(p));
+  renderShuffle();
+});
+
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('postmenu').hidden) return closeMenu();
   if (!$('sheet').hidden) return closeSheet();
+  // Escape must not discard a shuffle that is mid-publish: the posts already
+  // out there are real, and closing the sheet is how you lose the resume.
+  if (!$('shuffle').hidden) { if (!deck.busy) closeShuffle(); return; }
   if (!$('signin').hidden) { signinTypeahead?.close(); $('signin').hidden = true; }
 });
 // A scroll under an open menu leaves it floating over the wrong post, so it

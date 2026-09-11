@@ -63,6 +63,7 @@ const SHELL = [
   '/lib/prefs.js',
   '/lib/rulefeed.js',
   '/lib/share.js',
+  '/lib/shuffle.js',
   '/lib/sources.js',
   '/lib/theme.js',
   '/lib/tid.js',
