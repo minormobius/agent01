@@ -159,6 +159,7 @@ footer { color: var(--dim); font-size: 12px; padding-top: 20px; }
   <h3>The rules</h3>
   <ul>
     <li><strong>Preview then exact.</strong> Manifold answers first so the part appears; Truck's exact build lands behind it with every face named. The report shows both side by side.</li>
+    <li><strong>Truck's gear is not deterministic.</strong> The first thing the corpus audit found: the 60-tooth gear's exact mesh, which Truck cannot close, comes out with a different Euler number and triangle count run to run. Its B-rep face count and its volume to a part in a thousand are stable, and those are what the audit holds a non-watertight part to.</li>
     <li><strong>Regions over booleans.</strong> A part written as even-odd regions never asks Truck for the union it cannot do. Four clock parts were rewritten this way after the bake-off.</li>
     <li><strong>Fall through to OCCT.</strong> A fillet, chamfer or shell, or a boolean Truck fails, is flagged <em>unsupported</em> in the report and goes to OCCT once the user has allowed the download. Fillet selectors cross the seam through the engine's reference faces: the tree minus its fillet ops is built by Truck, and the named face's centroid and normal pick the OCCT face whose edges get rounded.</li>
     <li><strong>Honesty in the report.</strong> A Truck failure says so by op id. The preview is labelled preview. Volumes come from the mesh the kernel produced; diameters come from geometry, never from the mesh.</li>

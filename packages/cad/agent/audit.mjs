@@ -36,15 +36,22 @@ for (const f of files) {
   if (!r.ok) { const e = r.report.error || {}; if (e.unsupported || /boolean|union|intersect|subtract/i.test(e.msg || '')) { console.log(`· ${f.path.padEnd(22)} needs OCCT (Truck: ${e.op}: ${e.msg}) — not audited here`); ungolden++; continue; } console.log(`✗ ${f.path}  does not build: ${e.op}: ${e.msg}`); bad++; continue; }
   const inv = r.report.invariants, faces = r.report.faces.length;
   const g = rev.invariants;
-  const notes = [];
+  const notes = []; let kern = '';
+  // A build Truck cannot close (the 60-tooth gear: watertight false) is not
+  // deterministic either — χ −40 or −41, triangle counts apart, volume in
+  // the fourth decimal, run to run, old wasm and new (measured 2026-09-12).
+  // Its B-rep is stable: the face count, and the volume to a part in a
+  // thousand. So those are what a non-watertight part is held to; χ and
+  // the triangle count are compared only where the mesh closes.
+  const closed = inv.watertight && (!g || g.watertight !== false);
   if (!g) { ungolden++; notes.push('no stored invariants — republish to record them'); }
   else {
-    if (rel(inv.volume, g.volume) > 1e-6) notes.push(`volume ${inv.volume.toFixed(4)} vs stored ${Number(g.volume).toFixed(4)}`);
-    if (g.euler !== undefined && inv.euler !== g.euler) notes.push(`χ ${inv.euler} vs stored ${g.euler}`);
+    if (rel(inv.volume, g.volume) > (closed ? 1e-6 : 1e-3)) notes.push(`volume ${inv.volume.toFixed(4)} vs stored ${Number(g.volume).toFixed(4)}`);
+    if (closed && g.euler !== undefined && inv.euler !== g.euler) notes.push(`χ ${inv.euler} vs stored ${g.euler}`);
     if (g.watertight !== undefined && inv.watertight !== g.watertight) notes.push(`watertight ${inv.watertight} vs stored ${g.watertight}`);
     if (g.faces !== undefined && faces !== g.faces) notes.push(`${faces} faces vs stored ${g.faces}`);
   }
-  let kern = '';
+  if (!closed) kern += '  (not watertight: mesh χ and triangles vary between builds; faces and volume compared)';
   if (has('--kernels')) {
     const m = buildManifold(manifold, engine.resolve(tree));
     if (!m.ok) notes.push(`manifold: ${m.error.msg}`);

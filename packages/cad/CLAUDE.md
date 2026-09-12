@@ -240,6 +240,16 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   bench part, checks the report against closed forms, spins the train and
   the crank, poses the lift, saves and forks files against a mocked repo, and screenshots;
   skips, saying so, without Playwright). Run all five before pushing.
+- **Truck's gear build is not deterministic.** The first thing the corpus
+  audit found: the 60-tooth gear, built twice in one process, gives χ −40
+  then −41, different triangle counts, and a volume that moves in the
+  fourth decimal — old wasm and new alike, so it is Truck (hash-ordered
+  work inside its meshing and booleans), not a rebuild. The tell is
+  `watertight: false`; a part Truck closes (the plate, the case) is exact
+  run to run. Its B-rep is stable — 502 faces every time — and the volume
+  to a part in a thousand, so those are what `audit.mjs` holds a
+  non-watertight part to, and χ and the triangle count only where the
+  mesh closes. Do not "fix" this by loosening a watertight part's check.
 - **`vendor/auth.js` is a copy** of `packages/oauth-client/auth.js`, kept
   byte-identical by `scripts/sync-dataviz.mjs` (preflight checks it). Edit
   the package, never the copy.
