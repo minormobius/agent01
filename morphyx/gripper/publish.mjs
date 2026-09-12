@@ -63,16 +63,19 @@ for (const [ver, names] of Object.entries(RETIRED)) for (const name of names) {
   if (await drive.find(`gripper/parts/${name}`)) { await drive.rename(`gripper/parts/${name}`, `gripper/${ver}/${name}`); console.log(`  moved  gripper/parts/${name} → gripper/${ver}/${name}`); }
 }
 for (const [name, tree] of Object.entries(parts)) await publish(`gripper/parts/${name}`, tree, { kind: 'part', name });
-const asm = assembly(nut);
 const rewrite = (a) => {
   // pinned to the REVISION each part was published as, so this assembly revision rebuilds the same way forever
   for (const k of Object.keys(a.parts || {})) { const u = revs.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
   for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
 };
-rewrite(asm);
-await publish('gripper/assembly', asm, { kind: 'assembly', name: 'assembly' });
+for (const [pathName, mode, name] of [['gripper/assembly', 'cycle', 'assembly'], ['gripper/stroke', 'stroke', 'stroke']]) {
+  const asm = assembly(mode);
+  rewrite(asm);
+  await publish(pathName, asm, { kind: 'assembly', name });
+}
 if (drive) {
   console.log(`\n${wrote} written, ${kept} unchanged, in ${drive.did}`);
   console.log(`  open: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('assembly'))}`);
-  for (const [n, u] of uris) if (n !== 'assembly') console.log(`  ${n}: https://cad.mino.mobi/?at=${encodeURIComponent(u)}`);
+  console.log(`  stroke: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('stroke'))}`);
+  for (const [n, u] of uris) if (n !== 'assembly' && n !== 'stroke') console.log(`  ${n}: https://cad.mino.mobi/?at=${encodeURIComponent(u)}`);
 }

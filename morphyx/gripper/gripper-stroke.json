@@ -1,7 +1,7 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
- "name": "gripper",
- "_": "Parallel-jaw robot gripper, v4: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on two Ø6 rods → crossbar with two pivot pins → four 27 mm links on bronze bushings, one above and one below the linear block, on a pin spanning two finger tabs → MGN9 blocks on one rail across the front wall → carriers and pads outside. Thrust collar on the bulkhead. 96 × 67 × 104 mm case, pads to y = 140. Demo cycle: the drive turns a reference clock (one turn = one grip cycle); the screw angle \\`spin\\` swings 0 → 6.978 turns → 0, the nut moves forward by the lead to close (y = 60.68 open … 74.63 closed), and the links swing the fingers in: opening 36 → 0 mm. Press spin.",
+ "name": "gripper-stroke",
+ "_": "Parallel-jaw robot gripper, v4: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on two Ø6 rods → crossbar with two pivot pins → four 27 mm links on bronze bushings, one above and one below the linear block, on a pin spanning two finger tabs → MGN9 blocks on one rail across the front wall → carriers and pads outside. Thrust collar on the bulkhead. 96 × 67 × 104 mm case, pads to y = 140. The physical stroke: the screw is driven at 5 rpm, a screw mate moves the carriage 2 mm per turn (y = 60.68 open → 74.63 closed in 6.978 turns, 83.7 s), fixed mates carry the nut and the crossbar, and the links swing the fingers in: opening 36 → 0 mm. Sweep with period 83.7 s; beyond it the nut runs on, as it would.",
  "params": {
   "ynOpen": 60.6751,
   "ynClosed": 74.6307,
@@ -24,8 +24,8 @@
   "pinDrop": 7
  },
  "derived": {
-  "spin": "360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2",
-  "yn": "ynOpen + lead * spin / 360",
+  "turns": "theta / 360",
+  "yn": "ynOpen + lead * turns",
   "dy": "yf - py - yn",
   "x": "sqrt(L^2 - dy^2)",
   "xp": "px - x",
@@ -1514,19 +1514,6 @@
  },
  "components": [
   {
-   "id": "clock",
-   "part": "pin",
-   "at": [
-    0,
-    -20,
-    6.5
-   ],
-   "params": {
-    "h": 1
-   },
-   "reference": true
-  },
-  {
    "id": "rear-flange",
    "part": "rear-flange",
    "at": [
@@ -1593,14 +1580,11 @@
   {
    "id": "drivetrain",
    "assembly": {
-    "_": "The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement. Both spin by `spin`.",
+    "_": "The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement. The screw is the driven component; the collar is fixed to it.",
     "params": {
      "ynOpen": 60.6751,
      "ynClosed": 74.6307,
      "lead": 2
-    },
-    "derived": {
-     "spin": "360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2"
     },
     "parts": {
      "screw": {
@@ -1731,15 +1715,7 @@
        0,
        0,
        0
-      ],
-      "rotate": {
-       "axis": [
-        0,
-        0,
-        1
-       ],
-       "deg": "spin"
-      }
+      ]
      },
      {
       "id": "collar",
@@ -1748,15 +1724,14 @@
        0,
        0,
        6
-      ],
-      "rotate": {
-       "axis": [
-        0,
-        0,
-        1
-       ],
-       "deg": "spin"
-      }
+      ]
+     }
+    ],
+    "mates": [
+     {
+      "kind": "fixed",
+      "a": "screw",
+      "b": "collar"
      }
     ]
    },
@@ -1792,7 +1767,7 @@
    "part": "nut",
    "at": [
     0,
-    "yn - carT / 2 - flangeT",
+    "ynOpen - carT / 2 - flangeT",
     0
    ],
    "rotate": {
@@ -1809,7 +1784,7 @@
    "part": "carriage",
    "at": [
     0,
-    "yn + carT / 2",
+    "ynOpen + carT / 2",
     0
    ]
   },
@@ -1818,7 +1793,7 @@
    "part": "crossbar",
    "at": [
     0,
-    "yn",
+    "ynOpen",
     0
    ]
   },
@@ -1954,6 +1929,33 @@
  ],
  "mates": [
   {
+   "kind": "screw",
+   "a": "drivetrain/screw",
+   "b": "carriage",
+   "lead": "lead",
+   "axis": [
+    0,
+    1,
+    0
+   ]
+  },
+  {
+   "kind": "screw",
+   "a": "drivetrain/screw",
+   "b": "nut",
+   "lead": "lead",
+   "axis": [
+    0,
+    0,
+    1
+   ]
+  },
+  {
+   "kind": "fixed",
+   "a": "carriage",
+   "b": "crossbar"
+  },
+  {
    "kind": "fixed",
    "a": "finger-pin[0]",
    "b": "tab[0]"
@@ -1972,16 +1974,6 @@
    "kind": "fixed",
    "a": "finger-pin[1]",
    "b": "tab[3]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bar-pin[0]",
-   "b": "crossbar"
-  },
-  {
-   "kind": "fixed",
-   "a": "bar-pin[1]",
-   "b": "crossbar"
   },
   {
    "kind": "fixed",
@@ -2145,7 +2137,7 @@
   }
  ],
  "drive": {
-  "component": "clock",
+  "component": "drivetrain/screw",
   "rpm": 5
  }
 }

@@ -158,10 +158,10 @@ export const parts = {
 
   crossbar: tree('Crossbar: keyed over the carriage neck (the window) at the guide height, reaching ahead of the carriage body to carry the two link pivot pins at x \u00b136, so the links never sweep the carriage. Local origin at the carriage centre; +y forward. One extrude along +Z.',
     { half: D.barHalf, back: D.barBack, front: D.barFront, t: D.barT, z0: D.carShoulder, win_w: D.neck + 0.2, win_h: D.carT + 0.2, px: D.pivotX, py: D.pivotY, d_pin: D.pin },
-    [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [
-        rect('outline', [0, '(back + front) / 2'], '2 * half', 'front - back'), rect('window', [0, 0], 'win_w', 'win_h'),
-        circle('pivotR', ['px', 'py'], 'd_pin / 2'), circle('pivotL', ['-px', 'py'], 'd_pin / 2') ] },
-     { op: 'extrude', id: 'crossbar', profile: 'plate', depth: 't' }]),
+    [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', [0, '(back + front) / 2'], '2 * half', 'front - back'), rect('window', [0, 0], 'win_w', 'win_h')] },
+     { op: 'sketch', id: 'pivot', plane: { base: 'XY', offset: 'z0' }, loops: [circle(null, ['-px', 'py'], 'd_pin / 2')] },
+     { op: 'pattern', id: 'pivots', of: 'pivot', kind: 'linear', count: 2, step: ['2 * px', 0], name: 'pivot' },
+     { op: 'extrude', id: 'crossbar', profile: ['plate', 'pivots'], depth: 't' }]),
 
   link: tree('Link: a 27 mm dog-bone, 6 thick, with two \u00d86 eyes for pressed bronze bushings. Four per gripper: one above and one below each finger tab, from the crossbar pin to the finger pin. Built along +X from eye 0; the assembly rotates it about Z. One extrude.',
     { L: D.link, r: D.linkW / 2, t: D.linkT, d_eye: D.eye },
@@ -192,7 +192,7 @@ export const parts = {
 
   carrier: tree('Finger carrier: a vertical plate bolted to the linear block\u2019s face (four Ø3.4 on the MGN9C 10 × 15 pattern), with two windows the tabs pass through and two Ø3.4 for the pad. side = 1 right, -1 left. One extrude along -Y.',
     { side: 1, x0: D.carrierX[0], x1: D.carrierX[1], z0: D.carrierZ[0], z1: D.carrierZ[1], t: D.carrierT, y1: D.carrierY + D.carrierT, zr: D.railZ, px: D.blockPattern[0], pz: D.blockPattern[1], d_bolt: D.blockBolt,
-      win_w: D.tabW + 0.2, win_h: D.tabT + 0.2, wx: -D.tabW / 2, wlo: D.tabLoZ + D.tabT / 2, whi: D.tabHiZ + D.tabT / 2, padx: -(D.pinInset + D.padW / 2 - 2), padz: D.padH / 2 - 4, d_pad: D.padBolt },
+      win_w: D.tabW + 0.2, win_h: D.tabT + 0.2, wx: -D.tabW / 2, wlo: D.tabLoZ + D.tabT / 2, whi: D.tabHiZ + D.tabT / 2, padx: -(D.pinInset + D.padW / 2), padz: D.padH / 2 - 4, d_pad: D.padBolt },
     [{ op: 'sketch', id: 'face', plane: { base: 'XZ', offset: '-y1' }, loops: [
         rect('outline', ['side * (x0 + x1) / 2', '(z0 + z1) / 2'], 'x1 - x0', 'z1 - z0'), rect('windowLo', ['side * wx', 'wlo'], 'win_w', 'win_h'), rect('windowHi', ['side * wx', 'whi'], 'win_w', 'win_h'),
         circle('blockA', ['-px/2', 'zr - pz/2'], 'd_bolt / 2'), circle('blockB', ['px/2', 'zr - pz/2'], 'd_bolt / 2'), circle('blockC', ['-px/2', 'zr + pz/2'], 'd_bolt / 2'), circle('blockD', ['px/2', 'zr + pz/2'], 'd_bolt / 2'),
@@ -209,7 +209,7 @@ export const parts = {
     [{ op: 'sketch', id: 'section', plane: { base: 'YZ', offset: '-half' }, loops: [rect('outline', ['y0 + h/2', 'zr'], 'h', 'w')] }, { op: 'extrude', id: 'rail', profile: 'section', depth: '2 * half' }]),
 
   pad: tree('Fingertip pad: 12 × 20 × 20, bolted to the carrier from behind (two M3 into heat-set inserts, Ø2.5 tap holes here). Its inner X face is the gripping surface, centred on the linear block; the pads meet at x = 0 when closed. side = 1 right, -1 left. One extrude along -Y.',
-    { side: 1, w: D.padW, inset: D.pinInset, y1: D.padY0 + D.padL, t: D.padL, zr: D.railZ, h: D.padH, d_tap: D.padTap, padz: D.padH / 2 - 4, xc: -(D.pinInset + D.padW / 2 - 2) },
+    { side: 1, w: D.padW, inset: D.pinInset, y1: D.padY0 + D.padL, t: D.padL, zr: D.railZ, h: D.padH, d_tap: D.padTap, padz: D.padH / 2 - 4, xc: -(D.pinInset + D.padW / 2) },
     [{ op: 'sketch', id: 'face', plane: { base: 'XZ', offset: '-y1' }, loops: [rect('outline', ['side * xc', 'zr'], 'w', 'h'), circle('tapA', ['side * xc', 'zr - padz'], 'd_tap / 2'), circle('tapB', ['side * xc', 'zr + padz'], 'd_tap / 2')] },
      { op: 'extrude', id: 'pad', profile: 'face', depth: 't' }]),
 
@@ -227,14 +227,25 @@ export const parts = {
 };
 
 // ── the assembly, kinematic ──────────────────────────────────────────────────
+// Two documents from the same parts. `assembly()` is the demo cycle: a
+// reference clock is the driven component, the screw angle is a cosine of
+// its angle, so the gripper closes and opens once per clock turn and the
+// viewer's spin never runs it into a stop. `assembly('stroke')` is the
+// physical stroke: the screw is driven at rpm, a `screw` mate carries the
+// carriage by the lead, `fixed` mates carry the nut and the crossbar, and
+// the links and fingers follow the screw's angle; one stroke is
+// ynClosed − ynOpen over the lead, and the sweep's period is that stroke.
+// Both use `repeat` and placement by feature: bushings sit on their link
+// eyes, pins on their holes, and follow them through the motion.
 const alongY = { axis: [1, 0, 0], deg: -90 }; // local +Z → world +Y
 const SPIN = '360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2';
-export function assembly() {
+export function assembly(mode = 'cycle') {
+  const stroke = mode === 'stroke';
   const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
-  const params = { ynOpen: round(D.ynOpen, 4), ynClosed: round(D.ynClosed, 4), lead: D.lead, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.pinInset, nutLen: D.nutLen, flangeT: D.flangeT, carT: D.carT, barZ: D.carShoulder, blockL: D.blockL, pinZ: D.linkZ[0][0], lo: D.linkZ[0][0], hi: D.linkZ[1][0], mid: D.linkZ[0][1], tabLo: D.tabLoZ, tabHi: D.tabHiZ };
+  const params = { ynOpen: round(D.ynOpen, 4), ynClosed: round(D.ynClosed, 4), lead: D.lead, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.pinInset, nutLen: D.nutLen, flangeT: D.flangeT, carT: D.carT, barZ: D.carShoulder, blockL: D.blockL, lo: D.linkZ[0][0], hi: D.linkZ[1][0], mid: D.linkZ[0][1], tabLo: D.tabLoZ, tabHi: D.tabHiZ, pinDrop: D.carShoulder - D.linkZ[0][0] };
   const derived = {
-    spin: SPIN,
-    yn: 'ynOpen + lead * spin / 360',                     // the nut moves forward to close
+    ...(stroke ? { turns: 'theta / 360' } : { spin: SPIN }),
+    yn: stroke ? 'ynOpen + lead * turns' : 'ynOpen + lead * spin / 360',   // the nut moves forward to close
     dy: 'yf - py - yn',
     x: 'sqrt(L^2 - dy^2)',
     xp: 'px - x',                                         // finger pivot, inboard of the carriage pivot
@@ -242,77 +253,89 @@ export function assembly() {
     phi: 'rad2deg(atan2(dy, -x))',                        // the right link, from its carriage eye, points inward and forward
   };
   const drivetrain = {
-    _: 'The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly\u2019s placement, spinning by `spin`.',
+    _: 'The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly\u2019s placement.' + (stroke ? ' The screw is the driven component; the collar is fixed to it.' : ' Both spin by `spin`.'),
     params: { ynOpen: round(D.ynOpen, 4), ynClosed: round(D.ynClosed, 4), lead: D.lead },
-    derived: { spin: SPIN },
+    ...(stroke ? {} : { derived: { spin: SPIN } }),
     parts: { screw: structuredClone(parts.screw), collar: structuredClone(parts.collar) },
     components: [
-      c('screw', 'screw', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
-      c('collar', 'collar', [0, 0, D.collarY - (D.motorY + D.motorLen)], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
+      c('screw', 'screw', [0, 0, 0], stroke ? {} : { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
+      c('collar', 'collar', [0, 0, D.collarY - (D.motorY + D.motorLen)], stroke ? {} : { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
     ],
+    ...(stroke ? { mates: [{ kind: 'fixed', a: 'screw', b: 'collar' }] } : {}),
   };
-  const linkR = (id, z) => c(id, 'link', ['px', 'yn + py', z], { rotate: { axis: [0, 0, 1], deg: 'phi' } });
-  const linkL = (id, z) => c(id, 'link', ['-px', 'yn + py', z], { rotate: { axis: [0, 0, 1], deg: '180 - phi' } });
-  const bush = (id, x, y, z) => c(id, 'bushing', [x, y, z]);
+  // the carriage: posed by expression in the cycle document; carried by the screw mate in the stroke document, where its
+  // placement is the open position and the mate adds lead × turns along +Y
+  const side = '(1 - 2 * (i - 2 * floor(i / 2)))', level = 'floor(i / 2)'; // +1 right / −1 left for even / odd i; 0 lower / 1 upper — `i` is in scope only in a repeated component's own fields
+  const carriageAt = stroke ? [0, 'ynOpen + carT / 2', 0] : [0, 'yn + carT / 2', 0];
+  const nutAt = stroke ? [0, 'ynOpen - carT / 2 - flangeT', 0] : [0, 'yn - carT / 2 - flangeT', 0];
+  const crossbarAt = stroke ? [0, 'ynOpen', 0] : [0, 'yn', 0];
   const components = [
-    c('clock', 'pin', [0, -20, D.zc], { params: { h: 1 }, hidden: true }),
+    ...(stroke ? [] : [c('clock', 'pin', [0, -20, D.zc], { params: { h: 1 }, reference: true })]),
     c('rear-flange', 'rear-flange', [0, 0, 0]),
     c('floor', 'floor', [0, 0, 0]),
     c('lid', 'lid', [0, 0, 0]),
-    c('wall-r', 'side-wall', [D.W / 2 - D.wall, 0, 0]),
-    c('wall-l', 'side-wall', [-D.W / 2, 0, 0]),
+    c('wall', 'side-wall', [`${side} * ${D.W / 2 - D.wall} - (1 - ${side}) / 2 * ${D.wall}`, 0, 0], { repeat: 2 }),
     c('bulkhead', 'bulkhead', [0, 0, 0]),
     c('front-wall', 'front-wall', [0, 0, 0]),
     c('motor', 'motor', [0, 0, 0]),
     { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
-    c('rod-r', 'rod', [0, 0, 0]),
-    c('rod-l', 'rod', [0, 0, 0], { params: { x: -D.rodX } }),
-    c('nut', 'nut', [0, 'yn - carT / 2 - flangeT', 0], { rotate: alongY }),
-    c('carriage', 'carriage', [0, 'yn + carT / 2', 0]),
-    c('crossbar', 'crossbar', [0, 'yn', 0]),
-    c('bar-pin-r', 'pin', ['px', 'yn + py', 'pinZ']),
-    c('bar-pin-l', 'pin', ['-px', 'yn + py', 'pinZ']),
-    linkR('link-r-lo', 'lo'), linkR('link-r-hi', 'hi'), linkL('link-l-lo', 'lo'), linkL('link-l-hi', 'hi'),
-    bush('bush-r-lo-a', 'px', 'yn + py', 'lo'), bush('bush-r-lo-b', 'xp', 'yf', 'lo'), bush('bush-r-hi-a', 'px', 'yn + py', 'hi'), bush('bush-r-hi-b', 'xp', 'yf', 'hi'),
-    bush('bush-l-lo-a', '-px', 'yn + py', 'lo'), bush('bush-l-lo-b', '-xp', 'yf', 'lo'), bush('bush-l-hi-a', '-px', 'yn + py', 'hi'), bush('bush-l-hi-b', '-xp', 'yf', 'hi'),
+    c('rod', 'rod', [0, 0, 0], { repeat: 2, params: { x: `${side} * ${D.rodX}` } }),
+    c('nut', 'nut', nutAt, { rotate: alongY }),
+    c('carriage', 'carriage', carriageAt),
+    c('crossbar', 'crossbar', crossbarAt),
+    // the crossbar pins: on the crossbar's own pivot holes, dropped to the lower link's bottom; they follow the crossbar
+    { id: 'bar-pin', part: 'pin', repeat: 2, at: '@crossbar.pivot[i][0]', rotate: { align: '@crossbar.pivot[i][0]' }, offset: [0, 0, '-pinDrop'], params: { h: D.pinLen } },
+    // four links: i = 0 right-lower, 1 left-lower, 2 right-upper, 3 left-upper; from the carriage pivot toward the finger pivot
+    { id: 'link', part: 'link', repeat: 4, at: [`${side} * px`, 'yn + py', `lo + (hi - lo) * ${level}`], rotate: { axis: [0, 0, 1], deg: `phi + (180 - 2 * phi) * (1 - ${side}) / 2` } },
+    // eight bushings: one per link eye, placed on the eye itself
+    { id: 'bush', part: 'bushing', repeat: 8, at: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]', rotate: { align: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]' } },
     c('rail', 'rail', [0, 0, 0]),
-    c('block-r', 'block', ['xf - blockL / 2', 0, 0]),
-    c('block-l', 'block', ['-xf - blockL / 2', 0, 0]),
-    c('carrier-r', 'carrier', ['xf', 0, 0]),
-    c('carrier-l', 'carrier', ['-xf', 0, 0], { params: { side: -1 } }),
-    c('tab-r-lo', 'tab', ['xf', 0, 0]),
-    c('tab-r-hi', 'tab', ['xf', 0, 0], { params: { z0: D.tabHiZ } }),
-    c('tab-l-lo', 'tab', ['-xf', 0, 0], { params: { side: -1 } }),
-    c('tab-l-hi', 'tab', ['-xf', 0, 0], { params: { side: -1, z0: D.tabHiZ } }),
-    c('finger-pin-r', 'pin', ['xp', 'yf', 'tabLo'], { params: { h: D.fingerPinLen } }),
-    c('finger-pin-l', 'pin', ['-xp', 'yf', 'tabLo'], { params: { h: D.fingerPinLen } }),
-    c('spacer-r', 'spacer', ['xp', 'yf', 'mid']), c('spacer-l', 'spacer', ['-xp', 'yf', 'mid']),   // on the finger pins; on the crossbar pins the crossbar itself fills the gap
-    c('pad-r', 'pad', ['xf', 0, 0]),
-    c('pad-l', 'pad', ['-xf', 0, 0], { params: { side: -1 } }),
+    c('block', 'block', [`${side} * xf - blockL / 2`, 0, 0], { repeat: 2 }),
+    c('carrier', 'carrier', [`${side} * xf`, 0, 0], { repeat: 2, params: { side } }),
+    // four tabs: i = 0 right-lower, 1 left-lower, 2 right-upper, 3 left-upper
+    c('tab', 'tab', [`${side} * xf`, 0, 0], { repeat: 4, params: { side, z0: `tabLo + (tabHi - tabLo) * ${level}` } }),
+    // the finger pins: on the lower tabs' pin holes, which is where they start
+    { id: 'finger-pin', part: 'pin', repeat: 2, at: '@tab[i].pin[0]', rotate: { align: '@tab[i].pin[0]' }, params: { h: D.fingerPinLen } },
+    { id: 'spacer', part: 'spacer', repeat: 2, at: '@link[i].eye[1][0]', rotate: { align: '@link[i].eye[1][0]' }, offset: [0, 0, D.linkT] }, // on the finger pin, above the lower link
+    c('pad', 'pad', [`${side} * xf`, 0, 0], { repeat: 2, params: { side } }),
   ];
   const fixed = (a, b) => ({ kind: 'fixed', a, b });
   const mates = [
-    fixed('finger-pin-r', 'tab-r-lo'), fixed('finger-pin-r', 'tab-r-hi'), fixed('finger-pin-l', 'tab-l-lo'), fixed('finger-pin-l', 'tab-l-hi'), fixed('bar-pin-r', 'crossbar'), fixed('bar-pin-l', 'crossbar'),   // press fits
-    fixed('bush-r-lo-a', 'link-r-lo'), fixed('bush-r-lo-b', 'link-r-lo'), fixed('bush-r-hi-a', 'link-r-hi'), fixed('bush-r-hi-b', 'link-r-hi'),
-    fixed('bush-l-lo-a', 'link-l-lo'), fixed('bush-l-lo-b', 'link-l-lo'), fixed('bush-l-hi-a', 'link-l-hi'), fixed('bush-l-hi-b', 'link-l-hi'),
-    fixed('tab-r-lo', 'carrier-r'), fixed('tab-r-hi', 'carrier-r'), fixed('tab-l-lo', 'carrier-l'), fixed('tab-l-hi', 'carrier-l'),   // through the windows, cross-pinned
-    fixed('carrier-r', 'block-r'), fixed('carrier-l', 'block-l'),         // 4 × M3
-    fixed('pad-r', 'carrier-r'), fixed('pad-l', 'carrier-l'),             // 2 × M3
-    fixed('rail', 'front-wall'),                                          // M3 at 20 pitch
-    fixed('rod-r', 'bulkhead'), fixed('rod-l', 'bulkhead'), fixed('rod-r', 'front-wall'), fixed('rod-l', 'front-wall'),
+    ...(stroke ? [
+      { kind: 'screw', a: 'drivetrain/screw', b: 'carriage', lead: 'lead', axis: [0, 1, 0] },   // the physical joint
+      // the nut is placed tilted (local +z = world +Y), and a fixed mate copies travel in the follower's own frame, so it gets its own screw mate along its local z
+      { kind: 'screw', a: 'drivetrain/screw', b: 'nut', lead: 'lead', axis: [0, 0, 1] },
+      fixed('carriage', 'crossbar'),
+    ] : []),
+    fixed('finger-pin[0]', 'tab[0]'), fixed('finger-pin[0]', 'tab[2]'), fixed('finger-pin[1]', 'tab[1]'), fixed('finger-pin[1]', 'tab[3]'),   // press fits
+    // the bar pins are placed by reference on the crossbar's holes and follow it; a fixed mate as well would carry the mate's travel twice
+    ...(stroke ? [] : [fixed('bar-pin[0]', 'crossbar'), fixed('bar-pin[1]', 'crossbar')]),
+    ...[0, 1, 2, 3].flatMap((k) => [fixed(`bush[${2 * k}]`, `link[${k}]`), fixed(`bush[${2 * k + 1}]`, `link[${k}]`)]),
+    fixed('tab[0]', 'carrier[0]'), fixed('tab[2]', 'carrier[0]'), fixed('tab[1]', 'carrier[1]'), fixed('tab[3]', 'carrier[1]'),   // through the windows, cross-pinned
+    fixed('carrier[0]', 'block[0]'), fixed('carrier[1]', 'block[1]'),   // 4 × M3
+    fixed('pad[0]', 'carrier[0]'), fixed('pad[1]', 'carrier[1]'),       // 2 × M3
+    fixed('rail', 'front-wall'),                                        // M3 at 20 pitch
+    fixed('rod[0]', 'bulkhead'), fixed('rod[1]', 'bulkhead'), fixed('rod[0]', 'front-wall'), fixed('rod[1]', 'front-wall'),
+    fixed('rear-flange', 'floor'), fixed('rear-flange', 'lid'), fixed('rear-flange', 'wall[0]'), fixed('rear-flange', 'wall[1]'),   // the case: M3 countersunk, not drawn
+    fixed('floor', 'wall[0]'), fixed('floor', 'wall[1]'), fixed('floor', 'front-wall'), fixed('lid', 'wall[0]'), fixed('lid', 'wall[1]'), fixed('lid', 'front-wall'),
+    fixed('bulkhead', 'motor'),
   ];
   const partsMap = Object.fromEntries(Object.entries(parts).filter(([k]) => !(k in drivetrain.parts)).map(([k, v]) => [k, structuredClone(v)]));
   const o = pose(D.xpOpen), cl = pose(D.xpClosed);
+  const turns = round((D.ynClosed - D.ynOpen) / D.lead, 3);
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
-    name: 'gripper',
-    _: `Parallel-jaw robot gripper, v4: ISO 9409-1-50-4-M6 flange \u2192 NEMA 17 pancake stepper with an integrated Tr8\u00d7${D.lead} screw \u2192 flange nut in a carriage on two \u00d86 rods \u2192 crossbar with two pivot pins \u2192 four ${D.link} mm links on bronze bushings, one above and one below the linear block, on a pin spanning two finger tabs \u2192 MGN9 blocks on one rail across the front wall \u2192 carriers and pads outside. Thrust collar on the bulkhead. ${D.W} \u00d7 ${D.zTop - D.zBot} \u00d7 ${D.L} mm case, pads to y = ${D.padY0 + D.padL}. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \\\`spin\\\` swings 0 \u2192 ${round((D.ynClosed - D.ynOpen) / D.lead, 2)} turns \u2192 0, the nut moves forward by the lead to close (y = ${round(o.yn, 2)} open \u2026 ${round(cl.yn, 2)} closed), and the links swing the fingers in: opening ${2 * D.travel} \u2192 0 mm. Press spin.`,
+    name: stroke ? 'gripper-stroke' : 'gripper',
+    _: `Parallel-jaw robot gripper, v4: ISO 9409-1-50-4-M6 flange \u2192 NEMA 17 pancake stepper with an integrated Tr8\u00d7${D.lead} screw \u2192 flange nut in a carriage on two \u00d86 rods \u2192 crossbar with two pivot pins \u2192 four ${D.link} mm links on bronze bushings, one above and one below the linear block, on a pin spanning two finger tabs \u2192 MGN9 blocks on one rail across the front wall \u2192 carriers and pads outside. Thrust collar on the bulkhead. ${D.W} \u00d7 ${D.zTop - D.zBot} \u00d7 ${D.L} mm case, pads to y = ${D.padY0 + D.padL}. ` + (stroke
+      ? `The physical stroke: the screw is driven at ${D.rpm} rpm, a screw mate moves the carriage ${D.lead} mm per turn (y = ${round(o.yn, 2)} open \u2192 ${round(cl.yn, 2)} closed in ${turns} turns, ${round(turns * 60 / D.rpm, 1)} s), fixed mates carry the nut and the crossbar, and the links swing the fingers in: opening ${2 * D.travel} \u2192 0 mm. Sweep with period ${round(turns * 60 / D.rpm, 1)} s; beyond it the nut runs on, as it would.`
+      : `Demo cycle: the drive turns a reference clock (one turn = one grip cycle); the screw angle \\\`spin\\\` swings 0 \u2192 ${turns} turns \u2192 0, the nut moves forward by the lead to close (y = ${round(o.yn, 2)} open \u2026 ${round(cl.yn, 2)} closed), and the links swing the fingers in: opening ${2 * D.travel} \u2192 0 mm. Press spin.`),
     params, derived,
     parts: partsMap,
     components, mates,
-    drive: { component: 'clock', rpm: D.rpm },
+    drive: stroke ? { component: 'drivetrain/screw', rpm: D.rpm } : { component: 'clock', rpm: D.rpm },
   };
 }
+D.strokeSeconds = round(((D.ynClosed - D.ynOpen) / D.lead) * 60 / D.rpm, 2);
 
 // ── the force curve: what pivots cost ───────────────────────────────────────
 export function forces() {
@@ -389,7 +412,7 @@ export function audit() {
   ok('carrier windows inside the carrier', D.tabLoZ - 2 >= D.carrierZ[0] && D.tabHiZ + D.tabT + 2 <= D.carrierZ[1], `${D.carrierZ}`);
   ok('blocks inside the front wall height', D.railZ + D.blockW / 2 < D.zTop && D.railZ - D.blockW / 2 > D.zBot, `${D.railZ - D.blockW / 2} … ${D.railZ + D.blockW / 2}`);
   ok('carrier bolts inside the carrier', D.railZ - D.blockPattern[1] / 2 - D.blockBolt / 2 > D.carrierZ[0] && D.railZ + D.blockPattern[1] / 2 + D.blockBolt / 2 < D.carrierZ[1], `${D.carrierZ}`);
-  ok('pads meet at x = 0 when closed', D.xpClosed - D.padW === 0, `${D.xpClosed - D.padW}`);
+  ok('pads meet at x = 0 when closed', D.xpClosed + D.pinInset - (D.pinInset + D.padW / 2) - D.padW / 2 === 0, `inner face at xf ${-(D.pinInset + D.padW / 2) - D.padW / 2} → ${D.xpClosed + D.pinInset - (D.pinInset + D.padW / 2) - D.padW / 2} at closed`);
   return out;
 }
 
@@ -424,11 +447,12 @@ if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url
   for (const f of fs.readdirSync(path.join(out, 'parts'))) if (!(f.replace(/\.json$/, '') in parts)) fs.unlinkSync(path.join(out, 'parts', f));
   for (const [k, v] of Object.entries(parts)) fs.writeFileSync(path.join(out, 'parts', `${k}.json`), JSON.stringify(v, null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'gripper.json'), JSON.stringify(asm, null, 1) + '\n');
+  fs.writeFileSync(path.join(out, 'gripper-stroke.json'), JSON.stringify(assembly('stroke'), null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'expected.json'), JSON.stringify(expected, null, 1) + '\n');
   console.table([D.xpClosed, (D.xpClosed + D.xpOpen) / 2, D.xpOpen].map((xp) => { const p = pose(xp); return { finger_pivot_x: xp, block_x: p.xf, nut_y: round(p.yn), link_deg: round(p.angle, 1), opening: p.gap, crossbar_front_y: round(p.barFront) }; }));
   console.table(forces());
   console.table(moments());
   const a = audit(); for (const r of a) console.log(`${r.ok ? '✓' : '✗'} ${r.name}  ${r.detail}`);
-  console.log(`case ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm, front wall ${D.frontW} wide, pads to y = ${D.padY0 + D.padL}; nut stroke ${round(D.ynClosed - D.ynOpen)} mm = ${round((D.ynClosed - D.ynOpen) / D.lead, 1)} turns of Tr8×${D.lead} for ${D.travel} mm of finger; one grip cycle per clock turn (${60 / D.rpm} s at rpm ${D.rpm}); wrote ${Object.keys(parts).length} parts + gripper.json to ${out}`);
+  console.log(`case ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm, front wall ${D.frontW} wide, pads to y = ${D.padY0 + D.padL}; nut stroke ${round(D.ynClosed - D.ynOpen)} mm = ${round((D.ynClosed - D.ynOpen) / D.lead, 1)} turns of Tr8×${D.lead} for ${D.travel} mm of finger; one grip cycle per clock turn (${60 / D.rpm} s at rpm ${D.rpm}); wrote ${Object.keys(parts).length} parts + gripper.json (cycle) + gripper-stroke.json (screw mate, stroke ${D.strokeSeconds} s) to ${out}`);
   if (a.some((r) => !r.ok)) process.exit(1);
 }

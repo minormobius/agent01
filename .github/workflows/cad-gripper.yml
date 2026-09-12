@@ -67,13 +67,17 @@ jobs:
               console.log(`${ok ? "✓" : "✗"} ${n.padEnd(12)} ${v.toFixed(1)} vs ${e.volume.toFixed(1)}  ${(err * 100).toFixed(3)}%`); }
             process.exit(bad ? 1 : 0);'
 
-      - name: Interference through one grip cycle (Manifold; the clock turns once in 12 s at rpm 5)
+      - name: Interference through one grip cycle and through the physical stroke (Manifold, shared volume; the gate)
         working-directory: /tmp/cad
         run: |
-          for t in 0 1.5 3 4.5 6 7.5 9 10.5; do
-            echo "── t = $t s"
-            node agent/check.mjs /tmp/gripper/gripper.json --t $t
-          done
+          echo "── gripper.json: 24 instants over one clock turn (12 s at rpm 5)"
+          node agent/check.mjs /tmp/gripper/gripper.json --sweep 24
+          echo "── gripper-stroke.json: 24 instants over one stroke, open → closed"
+          node agent/check.mjs /tmp/gripper/gripper-stroke.json --sweep 24 --period "$(node -e 'import(process.env.GITHUB_WORKSPACE + "/morphyx/gripper/gripper.mjs").then(m => console.log(m.D.strokeSeconds))')"
+
+      - name: Clearance table through the cycle (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/gripper/gripper.json --sweep 24 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
 
       - name: Publish plan
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"
@@ -91,3 +95,8 @@ jobs:
           # the morphyx persona's public repo, through the site's read gateway; no credentials involved
           curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=morphyxmino.bsky.social&collection=com.minomobi.cad.part' \
             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("gripper/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<17)process.exit(1)})'
+
+      - name: Audit the published corpus (every head rebuilt against the invariants its revision recorded; Truck vs Manifold)
+        if: ${{ env.PUBLISH == 'true' }}
+        working-directory: /tmp/cad
+        run: node agent/audit.mjs --at morphyxmino.bsky.social --kernels

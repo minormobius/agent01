@@ -21,10 +21,11 @@ the bench trees, the `/mcp` server, and the tangled mirror.
 |---|---|
 | `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment-and-friction audit, the clearance audit, closed forms. `node gripper.mjs` writes `parts/`, `gripper.json`, `expected.json` |
 | `parts/*.json` | the twenty-two part trees, as generated |
-| `gripper.json` | the assembly, kinematic (a clock drive, everything derived), parts inline — paste into the viewer's tree tab and press spin |
+| `gripper.json` | the demo cycle: a reference clock drives a cosine, so the viewer's spin closes and opens once per turn; parts inline — paste into the tree tab and press spin |
+| `gripper-stroke.json` | the physical stroke: the screw is driven at rpm, a `screw` mate carries the carriage and the nut by the lead, the links follow the screw angle; one stroke open → closed in 83.7 s at 5 rpm |
 | `expected.json` | closed-form volumes for the parts that have one |
-| `publish.mjs` | writes parts then the assembly (parts pinned to revision URIs) into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
-| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, interference through a cycle, publish on request |
+| `publish.mjs` | writes parts then both assemblies (`gripper/assembly`, `gripper/stroke`; parts pinned to revision URIs) into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
+| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 24-instant interference sweep of both documents (the gate), the clearance table (for the record), publish on request, then audit the published corpus |
 
 ## How cad.mino.mobi works, for the next agent
 
@@ -117,8 +118,10 @@ face. The tool centre line is the case centre, 3.5 above the screw axis.
   104–114 MGN9 rail (z 16) and blocks on the wall's outer face; carriers 114–120; pads 120–140
 ```
 
-The document is kinematic. The drive turns a hidden `clock` at 5 rpm, so one
-turn is one grip cycle of 12 s, and everything else is derived:
+Two documents, one set of parts. **`gripper.json`** is the demo cycle: the
+drive turns a `reference` clock at 5 rpm (drawn translucent, left out of
+every check), one turn is one grip cycle of 12 s, and everything else is
+derived:
 
 ```
 spin = 360 · (ynClosed − ynOpen)/lead · (1 − cos θ)/2    screw angle: 0 → 7 turns → 0
@@ -128,6 +131,21 @@ x    = √(L² − dy²)                                        link reach along
 xp   = px − x                                             finger pivot x, 30 → 12 → 30; opening = 2(xp − 12)
 phi  = atan2(dy, −x)                                      right link angle
 ```
+
+**`gripper-stroke.json`** is the physical stroke: the screw is the driven
+component at 5 rpm, a `screw` mate (`lead`, axis +Y) carries the carriage
+2 mm per turn, a second one along the nut's own +z carries the nut, a
+`fixed` mate carries the crossbar, and `yn = ynOpen + lead · θ/360` puts
+the links and fingers where the mate puts the carriage. Measured on the
+server at 3.5 turns: the crossbar pin sits on the link eye to 0.000 mm and
+the pins are 27.000 apart. One stroke is 7 turns, 83.7 s; sweep with that
+period. Beyond it the nut runs on, as it would.
+
+Both use `repeat` and placement by feature: `link` is one component
+repeated four times with `i` choosing side and level, the eight bushings
+sit on `@link[floor(i/2)].eye[i − 2·floor(i/2)][0]`, the crossbar pins on
+`@crossbar.pivot[i][0]` dropped by `offset`, the finger pins on
+`@tab[i].pin[0]`, and each follows its host through the motion.
 
 | finger pivot x | block x | nut y | link angle | opening |
 |---|---|---|---|---|
@@ -197,10 +215,13 @@ nut and pad 0.028 %, rod 0.16 %, screw 0.24 %, bushing and spacer 0.29 %
 ## Verified, and not
 
 **Verified from this sandbox:** every part builds exact and watertight with
-all faces named (28 builds through `/mcp`); the closed forms above; the
-assembly resolves through `/mcp` (47 components, 30 distinct builds,
-`remaining: []`); the clearance audit in `gripper.mjs` at closed, mid and
-open.
+all faces named (28 builds through `/mcp`); the closed forms above; both
+documents resolve through the `/mcp` `check` tool (45 and 44 components,
+every repeat and reference expanded); assembly-wide `measure` on the
+server: pad faces 36.000 apart at open and 0.001 at closed on both
+documents, link pin-to-pin 27.000 at every instant tried, the screw mate's
+7.000 mm at 3.5 turns matching the expressions; the clearance audit in
+`gripper.mjs` at closed, mid and open.
 
 **Run by the workflow, not from here:** the Manifold interference check
 through the motion (`agent/check.mjs`) at eight instants of the cycle, and
@@ -208,6 +229,37 @@ the publish. Read its log for the `no interference` lines.
 
 **Not verified anywhere here:** the MGN9C moment ratings against the 2.2 N·m
 yaw; those are catalogue numbers to check.
+
+## What the harness said back
+
+Putting the 2026-09-12 tools through their paces on this design:
+
+- **Assembly-wide `measure` found a real error in one call.** The pads were
+  4 mm apart at closed: a stray +2 in the pad centre from v3, and an audit
+  line that checked the intended number rather than the geometry. Fixed.
+- **The server clearance table** (990 pairs, 70 s at one instant) reported
+  33 collisions and 36 close pairs, and none is real: every collision has
+  penetration under 1e-12 (case plates on each other, links resting on
+  tabs, the nut flange on the carriage: coplanar contacts), and every close
+  pair is a designed running fit (pins in Ø4.1 bushings at 0.045, rods in
+  bushings at 0.1, tabs in 0.2 slots) or a 1.000 mm gap reported as 0.997
+  by chord error. A verdict tolerance on penetration, a `running` fit the
+  table can expect, and the sagitta applied before the verdict would make
+  it a gate; today it is a table to read.
+- **A 24-instant server sweep of 45 components** hit the Worker's CPU
+  ceiling (Cloudflare 1102) after 2.5 minutes. The descriptor warns about
+  big gears; component count is the other axis. Sweeps of this size run
+  locally, and the workflow does.
+- **A component placed by reference and also fixed-mated to its host moves
+  twice**: the crossbar pins landed 14 mm on for 7 mm of screw travel. The
+  reference already follows; the mate adds the travel again. The stroke
+  document drops that mate.
+- **A fixed mate copies travel in the follower's own frame**, so the nut,
+  placed tilted so its +z is the screw axis, went sideways instead of along
+  the screw. It has its own `screw` mate along its local +z now.
+- **`check` on an assembly** caught `pivot[i]` against a crossbar whose holes
+  were named `pivotR` and `pivotL`, and listed the faces it does have. That
+  is the error message the loop needs.
 
 ## Open it
 

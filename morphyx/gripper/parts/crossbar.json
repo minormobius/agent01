@@ -44,19 +44,19 @@
       "w": "win_w",
       "h": "win_h"
      }
-    },
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "pivot",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
     {
-     "name": "pivotR",
-     "circle": {
-      "c": [
-       "px",
-       "py"
-      ],
-      "r": "d_pin / 2"
-     }
-    },
-    {
-     "name": "pivotL",
+     "name": null,
      "circle": {
       "c": [
        "-px",
@@ -68,9 +68,24 @@
    ]
   },
   {
+   "op": "pattern",
+   "id": "pivots",
+   "of": "pivot",
+   "kind": "linear",
+   "count": 2,
+   "step": [
+    "2 * px",
+    0
+   ],
+   "name": "pivot"
+  },
+  {
    "op": "extrude",
    "id": "crossbar",
-   "profile": "plate",
+   "profile": [
+    "plate",
+    "pivots"
+   ],
    "depth": "t"
   }
  ]
