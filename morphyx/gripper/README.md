@@ -152,8 +152,8 @@ through `/mcp` for all twenty-two plus the mirrored and upper tabs, the mirrored
 | collar | revolve, Ø14 × 4, Ø8 bore | — | thrust into the bulkhead |
 | rod (×2) | XZ extrude circle, Ø6 × 64 | `rod.od[k]` | x = ±19 by `params` |
 | nut | revolve, Ø22 flange, Ø10 body, Ø8.4 bore | — | thread clearance 0.2 |
-| carriage | XZ extrude, 52 wide, 20 thick, stepped, neck 26 × 8 | `carriage.bore[k]`, `carriage.rodR/L[k]` Ø6.2, `carriage.bolt[k][j]` | nut, rods, crossbar |
-| crossbar | XY extrude, 84 × 24 × 8, window 26.2 × 20.2 | `crossbar.pivotR/L[k]` Ø4 | the carriage pins |
+| carriage | XZ extrude, 52 wide, 20 thick, stepped, neck 24 × 8 | `carriage.bore[k]`, `carriage.rodR/L[k]` Ø6.2, `carriage.bolt[k][j]` | nut, rods, crossbar |
+| crossbar | XY extrude, 84 × 24 × 8, window 24.2 × 20.2 | `crossbar.pivotR/L[k]` Ø4 | the carriage pins |
 | link (×4) | XY extrude, 27 dog-bone, 10 wide, 6 thick, Ø6 eyes | `link.eye[k][j]` | bushings |
 | bushing (×8) | revolve, Ø6 × 6, Ø4.1 bore | — | bronze; press in the eye, runs on the pin |
 | spacer (×2) | revolve, Ø6 × 10, Ø4.1 bore | — | between the links on each finger pin |

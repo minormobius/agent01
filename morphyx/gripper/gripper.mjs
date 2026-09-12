@@ -55,7 +55,7 @@ export const D = {
   rodD: 6, rodX: 19, rodZ: -8, rodY: [38, 102], rodBore: 6.2,
   // nut and carriage
   nutBore: 8.4, nutBody: 10, nutLen: 15, flange: 22, flangeT: 3.5, nutPcd: 16, nutBolt: 3.5,
-  carW: 52, carT: 20, carBot: -13, carStep: 4, carUpperHalf: 16, carShoulder: 12, carTop: 20, neck: 26,
+  carW: 52, carT: 20, carBot: -13, carStep: 4, carUpperHalf: 14, carShoulder: 12, carTop: 20, neck: 24,
   // the linkage: crossbar on the carriage neck, pivots at ±pivotX ahead of the carriage; links L long, one above and one below the tab
   barHalf: 42, barBack: -12, barFront: 12, barT: 8, pivotX: 36, pivotY: 5, link: 27, linkW: 10, linkT: 6, eye: 6, pin: 4, bushBore: 4.1, pinLen: 22, spacerL: 10,
   linkZ: [[5, 11], [21, 27]],
@@ -351,7 +351,7 @@ export function audit() {
     ok(`xp ${xp}: nut flange clear of the collar`, p.yn - D.carT / 2 - D.flangeT > D.collarY + D.collarL, `${round(p.yn - D.carT / 2 - D.flangeT)} > ${D.collarY + D.collarL}`);
     ok(`xp ${xp}: crossbar inside the front wall`, p.barFront < D.frontY, `${round(p.barFront)} < ${D.frontY}`);
     ok(`xp ${xp}: crossbar clear of the tabs`, p.barFront < D.tabY[0] || (D.tabLoZ + D.tabT <= D.carShoulder && D.tabHiZ >= D.carShoulder + D.barT), `${round(p.barFront)} vs ${D.tabY[0]}; tabs at z ${D.tabLoZ}, ${D.tabHiZ} outside the crossbar's ${D.carShoulder}..${D.carShoulder + D.barT}`);
-    ok(`xp ${xp}: lower link clears the carriage's upper part`, p.yn + D.pivotY + (D.pivotLine - p.yn - D.pivotY) * (D.pivotX - D.carUpperHalf) / p.x - D.linkW / 2 > p.yn + D.carT / 2, `link at x ${D.carUpperHalf}: y ${round(p.yn + D.pivotY + (D.pivotLine - p.yn - D.pivotY) * (D.pivotX - D.carUpperHalf) / p.x - D.linkW / 2)} > carriage front ${round(p.yn + D.carT / 2)}`);
+    ok(`xp ${xp}: lower link clears the carriage's upper part by 1 mm`, p.yn + D.pivotY + (D.pivotLine - p.yn - D.pivotY) * (D.pivotX - D.carUpperHalf) / p.x - D.linkW / 2 > p.yn + D.carT / 2 + 1, `link at x ${D.carUpperHalf}: y ${round(p.yn + D.pivotY + (D.pivotLine - p.yn - D.pivotY) * (D.pivotX - D.carUpperHalf) / p.x - D.linkW / 2)} > carriage front ${round(p.yn + D.carT / 2)}`);
     ok(`xp ${xp}: link eyes clear of the carriage body`, D.pivotX - D.linkW / 2 > D.carW / 2, `${D.pivotX - D.linkW / 2} > ${D.carW / 2}`);
     ok(`xp ${xp}: links clear of the nut body`, xp - D.linkW / 2 > D.nutBody / 2, `${xp - D.linkW / 2} > ${D.nutBody / 2}`);
     ok(`xp ${xp}: tab inside the walls`, p.xf < inner, `${p.xf} < ${inner}`);
