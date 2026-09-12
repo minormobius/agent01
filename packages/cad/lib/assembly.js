@@ -41,6 +41,13 @@
 // placement in the parent is evaluated in the parent's scope. `theta` is the
 // top document's drive everywhere.
 //
+// `hidden: true` is display only: the page draws the component dim or not
+// at all, and every tool still counts it. `reference: true` is the other
+// thing — construction geometry, a placeholder pin, a ghost of the mating
+// part — which the page draws translucent and the interference check, the
+// clearance table and the export leave out. A part you want ignored by the
+// checks is a reference, not a hidden part.
+//
 // Component `params` (overrides of a part's parameters) are evaluated in the
 // assembly's scope at t = 0 when they can be — so `"pin_z": "L/2"` binds the
 // assembly's L — and are otherwise handed to the part as expressions in the
@@ -201,7 +208,7 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
         }
         const partKey = `${c.part}${params ? '|' + JSON.stringify(params) : ''}`;
         if (!partTrees.has(partKey)) partTrees.set(partKey, JSON.stringify(tree));
-        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden };
+        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference };
         comp.place = placeAt(comp, 0, 0); // the pose at rest, for gear phases and static documents
         components.push(comp); byId.set(id, comp);
       }

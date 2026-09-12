@@ -891,7 +891,12 @@ that with two in-memory repos standing in for a PDS and a stranger.
   with `i` in scope makes a bolt circle one component, and
   `at: "@comp.face"` places a component on another's named face (the exact
   kernel's geometry) and follows it through its motion — placement by
-  description, not arithmetic. `bench/lift.json` is the proof.
+  description, not arithmetic. `bench/lift.json` is the proof. The tests
+  the harness's users asked for followed: clearance (nearest approach per
+  pair, from the meshes, no kernel — so it runs on the server), a sweep
+  that chases each minimum between samples, measure across an assembly,
+  reference components, and an audit of every published part against the
+  invariants its revision recorded.
 - **The social layer, first cut.** `cad.mino.mobi/parts/` (`parts/`, its
   own worker, mounted through a service binding because the zone is at
   Cloudflare's ceiling of a hundred custom domains): a

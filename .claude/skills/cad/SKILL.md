@@ -27,6 +27,9 @@ write tree.json → build → measure → (check) → render → judge → edit 
 | build, preview | `node agent/build.mjs tree.json --kernel manifold` | always builds, milliseconds, polygons, no names |
 | measure | `node agent/measure.mjs tree.json --list` · `… <face>` · `… <faceA> <faceB>` | a cylinder's diameter; plane-to-plane, axis-to-axis, axis-to-plane distances, from exact geometry |
 | interference (assemblies) | `node agent/check.mjs asm.json [--t seconds \| --sweep N [--period s]] [--json]` | interfering pairs with shared volume, at one instant or the worst through a cycle; exit 1 if any beyond expected touches (fixed- and screw-mated) |
+| clearance (assemblies) | `node agent/check.mjs asm.json --clearance 1 [--sweep N]` | every pair's nearest approach from the exact meshes — crossing, contained, touching, or the distance — with a verdict; in a sweep each minimum is chased between samples; exit 1 on a collision or a pair closer than 1 mm |
+| measure across an assembly | `node agent/measure.mjs asm.json finger-r.pad finger-l.pad --t 0.5` | two parts' named faces posed at t: the kinematics measured directly |
+| audit a repo | `node agent/audit.mjs --at handle [--kernels]` | rebuild every published part and diff it against the invariants its revision recorded; `--kernels` also checks Truck and Manifold agree on volume |
 | printable | `node agent/export.mjs doc.json --out DIR [--t s]` | one STL per part (and a posed assembly STL) |
 | look | `node agent/render.mjs doc.json --out DIR [--views iso,top,front] [--t s] [--hide dial,case]` | a PNG per view + `report.json` — the same viewer a human sees. Needs Chromium once: `npm install && npx playwright-core install chromium`, or `CAD_CHROME=/path/to/chrome` |
 | files | `node agent/drive.mjs ls\|get\|put\|log\|fork\|push\|rm …` | a file tree over ATProto records — see *Files* below |
@@ -102,10 +105,39 @@ needed. `check.mjs`, `build.mjs`, the MCP tools and the viewer all resolve
 references (the exact kernel names the faces); a missing face lists what
 there is.
 
-**Sweep.** `node agent/check.mjs asm.json --sweep 24` checks 24 instants
-over one period of the drive (a turn, two beats, or `--period` seconds) and
-reports each pair's worst overlap and when — the check for anything that
-moves. The MCP `interference` tool takes `sweep` and `period` too.
+**Sweep and clearance.** `node agent/check.mjs asm.json --sweep 24` checks
+24 instants over one period of the drive (a turn, two beats, or `--period`
+seconds) and reports each pair's worst overlap and when. Add
+`--clearance 1` for what a reviewer reads first: every pair's nearest
+approach (crossing, contained, touching, or the distance in mm) with a
+verdict — collision, expected (a fixed- or screw-mated touch), close
+(under 1 mm), clear — and in a sweep the minimum of each pair is chased
+between samples by a golden-section search, so a graze between two
+instants is found, not missed. Clearance needs no kernel, so the MCP
+`interference` tool runs it on the server (`clearance`, `sweep`,
+`period`); shared volumes still need Manifold, which is local. Distances
+come from the exact meshes, so a curved face is a chord approximation:
+within its sagitta, under 0.02 mm on the bench parts.
+
+**Reference geometry.** `"reference": true` on a component draws it
+translucent and keeps it out of the interference check, the clearance
+table and the export — a placeholder pin, the mating part you are
+designing against. `hidden` is display only; every tool still counts a
+hidden component.
+
+**Measure across an assembly.** `node agent/measure.mjs asm.json
+finger-r.pad finger-l.pad --t 0.5` (and the MCP `measure` tool with `t`)
+poses the assembly and measures two parts' named faces against each other
+— plane to plane, axis to axis — which tests the kinematics directly
+instead of your own pose arithmetic.
+
+**Audit a corpus.** Every published revision carries the invariants it
+was judged by. `node agent/audit.mjs --at <handle> --kernels` rebuilds
+every head in a repo and diffs volume, χ, watertightness and face count
+against the record, and checks Truck and Manifold still agree on volume
+within `--tol` (1 % by default; chord error on small round parts is
+~0.3 %). The publish workflow runs it on the bench repo after every
+publish.
 
 **Placements are expressions**, so the pose math for anything the mates
 cannot express (a lead screw and its nut, a crank and its slider, a link

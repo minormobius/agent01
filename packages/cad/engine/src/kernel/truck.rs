@@ -62,11 +62,37 @@ fn face_of(f: &Frame, group: &[Loop], dir: Vector3) -> Result<Face, String> {
 
 fn v3(a: [f64; 3]) -> Vector3 { Vector3::new(a[0], a[1], a[2]) }
 
-fn union_all(solids: Vec<Solid>, tol: f64, op: &str) -> Result<Solid, KError> {
-    let mut it = solids.into_iter();
-    let mut acc = it.next().ok_or_else(|| KError::fail(op, "region produced no solid"))?;
-    for s in it {
-        acc = truck_shapeops::or(&acc, &s, tol).ok_or_else(|| KError::fail(op, "union of disjoint outer loops failed"))?;
+/// What to call a group in an error: its outer loop's name (`bore` from
+/// `bore[0]`), else its place in the sketch.
+fn group_label(groups: &[Vec<Loop>], i: usize) -> String {
+    groups
+        .get(i)
+        .and_then(|g| g.first())
+        .and_then(|outer| outer.names.iter().flatten().next())
+        .map(|n| n.split('[').next().unwrap_or(n).to_string())
+        .unwrap_or_else(|| format!("loop #{}", i + 1))
+}
+
+/// A region with several outer loops is several solids unioned. When the
+/// union fails it is almost always a design error — two outlines that
+/// overlap or touch — so the message names the two loops, which is what
+/// the designer needs to see; the kernel's silence is not.
+fn union_all(solids: Vec<Solid>, groups: &[Vec<Loop>], tol: f64, op: &str) -> Result<Solid, KError> {
+    let mut it = solids.into_iter().enumerate();
+    let (_, mut acc) = it.next().ok_or_else(|| KError::fail(op, "region produced no solid"))?;
+    let mut acc_i = 0;
+    for (i, s) in it {
+        acc = truck_shapeops::or(&acc, &s, tol).ok_or_else(|| {
+            KError::fail(
+                op,
+                format!(
+                    "union of outer loops `{}` and `{}` failed — do their outlines overlap or touch? Overlapping outlines must be drawn as one path, or the second made a separate op",
+                    group_label(groups, acc_i),
+                    group_label(groups, i)
+                ),
+            )
+        })?;
+        acc_i = i;
     }
     Ok(acc)
 }
@@ -113,7 +139,7 @@ fn extrude(id: &str, frame: &Frame, region: &Region, depth: f64, tol: f64, cut: 
         geoms.extend(super::extrude_face_geoms(frame, std::slice::from_ref(g), depth));
     }
     let multi = solids.len() > 1;
-    let s = union_all(solids, tol, id)?;
+    let s = union_all(solids, &groups, tol, id)?;
     Ok((s, if multi { Vec::new() } else { names }, if multi { Vec::new() } else { geoms }))
 }
 
@@ -251,7 +277,7 @@ fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [
         names.extend(nm);
     }
     let multi = solids.len() > 1;
-    let s = union_all(solids, tol, id)?;
+    let s = union_all(solids, &groups, tol, id)?;
     Ok((s, if multi { Vec::new() } else { names }, if multi { Vec::new() } else { geoms }))
 }
 

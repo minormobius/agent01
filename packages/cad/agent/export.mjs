@@ -47,6 +47,7 @@ if (!isAssembly(doc)) {
   const angles = solveAngles(components, mates, drive, t);
   const pos = [], idx = [];
   for (const c of components) {
+    if (c.reference) continue; // construction geometry stays out of the export
     const m = meshes.get(c.partKey); if (!m) continue;
     const model = modelOf(c, angles); const base = pos.length / 3;
     for (let i = 0; i < m.pos.length; i += 3) pos.push(...xform(model, [m.pos[i], m.pos[i + 1], m.pos[i + 2]]));

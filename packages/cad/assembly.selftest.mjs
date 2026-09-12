@@ -15,7 +15,9 @@ import path from 'node:path';
 import { loadEngine } from './lib/engine.js';
 import { evaluate, resolveParams } from './lib/expr.js';
 import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, periodOf } from './lib/assembly.js';
-import { facesOf } from './agent/common.mjs';
+import { facesOf, kernels } from './agent/common.mjs';
+import { clearances } from './lib/proximity.js';
+import { clearanceAt, sweepClearance, verdictOf } from './lib/sweep.js';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 let fails = 0;
@@ -178,6 +180,44 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   check((await bad({ params: { n: 'x' }, parts: { p: 'bench:plate' }, components: [{ id: 'a', part: 'p', repeat: 'n' }] })).startsWith('assembly: param `n`'), 'a bad repeat count is named');
   const rep = await flatten({ params: { n: 3 }, parts: { p: 'bench:arbor' }, components: [{ id: 'a', part: 'p', repeat: 'n', at: ['i * 5', 0, 0], params: { L: '10 + i' } }] }, benchRef);
   check(rep.components.length === 3 && rep.partTrees.size === 3 && near(rep.components[2].place[12], 10) && JSON.parse(rep.partTrees.get(rep.components[1].partKey)).params.L === 11, 'i is in scope for at and for params, so repeated parts can differ');
+}
+
+// ── 8. proximity: clearance, crossing, containment, contact; the sweep finds a graze between samples ──
+{
+  const cube = (sz) => { const v = [[0, 0, 0], [sz, 0, 0], [sz, sz, 0], [0, sz, 0], [0, 0, sz], [sz, 0, sz], [sz, sz, sz], [0, sz, sz]]; return { pos: Float32Array.from(v.flat()), idx: Uint32Array.from([0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7, 0, 1, 5, 0, 5, 4, 1, 2, 6, 1, 6, 5, 2, 3, 7, 2, 7, 6, 3, 0, 4, 3, 4, 7]) }; };
+  const T = (x, y, z) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]; const m = cube(2);
+  const one = (bodies) => clearances(bodies).pairs[0];
+  const apart = one([{ id: 'a', mesh: m, model: T(0, 0, 0) }, { id: 'b', mesh: m, model: T(5, 0, 0) }]);
+  const diag = one([{ id: 'a', mesh: m, model: T(0, 0, 0) }, { id: 'b', mesh: m, model: T(3, 3, 0) }]);
+  const cross = one([{ id: 'a', mesh: m, model: T(0, 0, 0) }, { id: 'b', mesh: m, model: T(1, 0.5, 0.5) }]);
+  const inside = one([{ id: 'a', mesh: cube(6), model: T(0, 0, 0) }, { id: 'b', mesh: m, model: T(2, 2, 2) }]);
+  const touch = one([{ id: 'a', mesh: m, model: T(0, 0, 0) }, { id: 'b', mesh: m, model: T(2, 0, 0) }]);
+  check(near(apart.distance, 3) && !apart.intersecting && near(diag.distance, Math.SQRT2), `two cubes 3 mm apart, and corner to corner at √2 (${diag.distance.toFixed(4)})`);
+  check(cross.intersecting && near(cross.penetration, 0.5) && cross.distance === 0, `crossing cubes: intersecting, ${cross.penetration} mm deep`);
+  check(inside.contained === 'b in a' && near(inside.penetration, 2) && !inside.intersecting, `a cube inside a cube: contained, ${inside.penetration} mm deep`);
+  check(touch.touching && touch.intersecting && touch.penetration === 0 && verdictOf(touch) === 'collision' && verdictOf(touch, () => true) === 'expected' && verdictOf(apart, () => false, 4) === 'close', 'face-to-face contact is touching; a verdict tells contact from collision from too close');
+  // the lift's real meshes: nut on screw is an expected touch, bolts and screw keep their distance
+  const { engine } = await kernels();
+  const lift = bench('lift'); const fl = await flatten(lift, benchRef, { facesOf });
+  const meshes = new Map(); for (const [k, tr] of fl.partTrees) { const r = engine.build(tr, { kernel: 'truck' }); meshes.set(k, r.mesh); }
+  const bodies = fl.components.map((c) => ({ id: c.id, mesh: meshes.get(c.partKey), comp: c }));
+  const kin = { components: fl.components, mates: fl.mates, drive: fl.drive };
+  const at0 = clearanceAt(bodies, kin, 0.3); const exp = expectedTouch(fl.mates);
+  const ns = at0.pairs.find((p) => (p.a === 'screw' && p.b === 'nut') || (p.a === 'nut' && p.b === 'screw'));
+  const sb = at0.pairs.filter((p) => [p.a, p.b].includes('screw') && [p.a, p.b].some((x) => x.startsWith('bolt')));
+  check(ns && near(ns.distance, 0.1, 0.01) && verdictOf(ns, exp, 0.5) === 'close' && sb.length === 4 && sb.every((p) => p.distance > 6.69 && p.distance < 6.85), `at t = 0.3 the nut clears the screw by ${ns?.distance.toFixed(4)} mm (bore 1.3, shaft 1.2: 0.1 less the two chords' sagitta) and the bolts stand ${sb.map((p) => p.distance.toFixed(2)).join(', ')} mm from it (one faces its flat)`);
+  // a graze between samples: a block passes 1 mm from a post at t = 0.07, which eight samples straddle
+  const post = { units: 'mm', params: {}, features: [{ op: 'sketch', id: 's', loops: [{ name: 'p', rect: { c: [0, 0], w: 2, h: 2 } }] }, { op: 'extrude', id: 'p', profile: 's', depth: 2 }] };
+  const graze = { params: {}, parts: { p: post }, components: [{ id: 'post', part: 'p' }, { id: 'block', part: 'p', at: ['4 - 3 * cos(2 * pi * (t - 0.07)) + 2', 0, 0] }, { id: 'drv', part: 'p', at: [50, 50, 0] }], drive: { component: 'drv', rpm: 60 } };
+  const fg = await flatten(graze, benchRef); const gm = engine.build(fg.partTrees.get('p'), { kernel: 'truck' }).mesh;
+  const gb = fg.components.map((c) => ({ id: c.id, mesh: gm, comp: c })); const gk = { components: fg.components, mates: fg.mates, drive: fg.drive };
+  const pb = (r) => r.pairs.find((p) => [p.a, p.b].includes('post') && [p.a, p.b].includes('block'));
+  const coarse = pb(sweepClearance(gb, gk, { instants: 8, period: 1, refine: false })), fine = pb(sweepClearance(gb, gk, { instants: 8, period: 1 }));
+  check(coarse.distance > 1.15 && near(fine.distance, 1, 1e-3) && Math.abs(fine.t - 0.07) < 2e-3, `eight samples see ${coarse.distance.toFixed(3)} mm at best; the refined sweep finds the 1 mm graze at t = ${fine.t.toFixed(4)} s`);
+  // reference components are for the eye only
+  const withRef = { ...lift, components: [...lift.components, { id: 'ghost', part: 'nut', at: [0, 0, 'rise'], reference: true }] };
+  const fr = await flatten(withRef, benchRef, { facesOf });
+  check(fr.components.find((c) => c.id === 'ghost')?.reference === true && !fr.components.find((c) => c.id === 'nut').reference, 'a component marked reference is flagged for the tools to leave out (and hidden is not)');
 }
 
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ assembly selftest passed');

@@ -73,6 +73,10 @@ const m2 = (await tool('measure', { tree: 'bench:plate', a: 'plate.start', b: 'p
 check(m2.kind === 'plane-plane' && m2.parallel && Math.abs(m2.distance - 1.5) < 1e-9, `measure two faces: plate.start→plate.end ${m2.distance}`);
 const nf = await tool('measure', { tree: 'bench:plate', a: 'nothing' });
 check(nf.isError && /no face named nothing/.test(nf.content[0].text), 'measure names the faces it does know when one is missing');
+const cl = (await tool('interference', { assembly: 'bench:lift', sweep: 6, clearance: 0.5 })).structuredContent;
+check(cl.method === 'mesh' && cl.refined && cl.pairs.length >= 9 && cl.pairs.every((p) => ['clear', 'expected', 'close'].includes(p.verdict)) && cl.pairs.some((p) => p.verdict === 'close' && [p.a, p.b].includes('nut')) && cl.ok === false, `clearance mode: nearest approach of ${cl.pairs.length} pairs through the cycle, the nut's 0.1 mm to the screw flagged under 0.5 (ok ${cl.ok})`);
+const ms = (await tool('measure', { tree: 'bench:lift', a: 'nut.end', b: 'platform.start', t: 0.5 })).structuredContent;
+check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5, `measure across an assembly: the nut's top and the platform's underside are coplanar at t = 0.5 (${ms.kind}, ${ms.distance})`);
 const sw = (await tool('interference', { assembly: 'bench:lift', sweep: 6 })).structuredContent;
 check(sw.ok && sw.sweep === 6 && Math.abs(sw.period - 1) < 1e-9 && sw.pairs.every((p) => p.expected), `interference sweeps ${sw.sweep} instants over ${sw.period} s of the lift (references resolved on the host) and finds only expected touches`);
 const i = (await tool('interference', { assembly: 'bench:clock', t: 0.5 })).structuredContent;
@@ -95,13 +99,14 @@ check(Array.isArray(batch) && batch.length === 2 && batch[1].result.tools.length
   const lite = createMcp({ kernels: async () => ({ engine: (await kernels()).engine, manifold: null }), fetchRef, capabilities: { manifold: false } });
   const lp = (body) => lite.handle(new Request('https://cad.mino.mobi/mcp', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }));
   const l = await (await lp({ jsonrpc: '2.0', id: 1, method: 'tools/list' })).json();
-  check(!l.result.tools.some((t) => t.name === 'interference') && !l.result.tools.find((t) => t.name === 'build').inputSchema.properties.kernel, `without Manifold the tool list drops interference and the kernel choice (${l.result.tools.map((t) => t.name).join(', ')})`);
+  check(l.result.tools.some((t) => t.name === 'interference' && /clearance/.test(t.description)) && !l.result.tools.find((t) => t.name === 'build').inputSchema.properties.kernel, `without Manifold the tool list keeps interference (clearance mode, no kernel) and drops the kernel choice (${l.result.tools.map((t) => t.name).join(', ')})`);
   const bl = await (await lp({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'build', arguments: { tree: 'bench:plate', faces: false } } })).json();
   check(bl.result.structuredContent.ok && bl.result.structuredContent.kernel === 'truck', 'build still works with the exact kernel alone');
-  const li = await (await lp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'interference', arguments: { assembly: 'bench:train' } } })).json();
-  check(li.error?.code === -32602, 'calling interference there is an unknown tool, not a crash');
+  const li = await (await lp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'interference', arguments: { assembly: 'bench:lift', sweep: 4, clearance: 0.5 } } })).json();
+  const lc = li.result?.structuredContent;
+  check(lc?.method === 'mesh' && lc.sweep === 4 && lc.pairs.length >= 9 && lc.pairs.some((p) => p.verdict === 'close'), `interference on the kernel-less host answers in clearance mode from the exact meshes (${lc?.pairs.length} pairs, ${lc?.ms.toFixed(0)} ms)`);
   const d = await (await lite.handle(new Request('https://cad.mino.mobi/mcp'))).json();
-  check(d.capabilities.manifold === false && d.tools.length === TOOLS.length - 1, 'the descriptor states the capability');
+  check(d.capabilities.manifold === false && d.tools.length === TOOLS.length, 'the descriptor states the capability and lists every tool');
 }
 
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ mcp selftest passed');

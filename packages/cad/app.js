@@ -81,7 +81,7 @@ function applyMesh(slot, m, preview) {
   if (state.mode === 'part') { renderer.preview = preview; renderer.setMesh(m.streams, m.edges, m.bbox); }
   else {
     renderer.preview = false;
-    for (const c of state.components) if (c.partKey === slot) { renderer.setBody(c.id, m.streams, m.edges, m.bbox); renderer.setHidden(c.id, !!c.hidden); c.tint = preview ? 0.9 : 1; }
+    for (const c of state.components) if (c.partKey === slot) { renderer.setBody(c.id, m.streams, m.edges, m.bbox); renderer.setHidden(c.id, !!c.hidden); c.tint = c.reference ? 0.45 : preview ? 0.9 : 1; }
     updateModels();
     renderer.setGrid(renderer.sceneBbox());
   }
@@ -155,7 +155,7 @@ const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('be
 /// components, mates and drive and asks the library for angles and matrices.
 async function prepareAssembly(asm) {
   const { components, mates, drive, partTrees } = await flatten(asm, resolveRef, { facesOf });
-  for (const c of components) c.tint = 1;
+  for (const c of components) c.tint = c.reference ? 0.45 : 1;
   state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive;
   state.spin = false; state.tAcc = 0; state.check = null;
   solveAngles(0);
@@ -177,7 +177,7 @@ function renderParams() {
     $('#speed').addEventListener('input', () => { state.speed = Math.max(0, Number($('#speed').value) || 0); });
     const list = document.createElement('div');
     for (const c of state.components) {
-      const row = document.createElement('div'); row.className = 'feat' + (c.hidden ? ' off' : ''); row.dataset.comp = c.id; row.innerHTML = `<b>${c.part}</b> <span>${c.id}</span>`;
+      const row = document.createElement('div'); row.className = 'feat' + (c.hidden ? ' off' : ''); row.dataset.comp = c.id; row.innerHTML = `<b>${c.part}</b> <span>${c.id}${c.reference ? ' <small class="dim">reference</small>' : ''}</span>`;
       row.title = `at ${c.place.slice(12, 15).map((v) => +v.toFixed(2)).join(', ')} phase ${(+c.phase).toFixed(2)}° — click to hide/show`;
       row.addEventListener('pointerenter', () => highlightComponent(c.id)); row.addEventListener('pointerleave', () => highlightComponent(state.select?.name || state.hover?.name || null));
       row.addEventListener('click', () => { c.hidden = !c.hidden; renderer.setHidden(c.id, c.hidden); row.classList.toggle('off', c.hidden); invalidate(); });
@@ -419,7 +419,7 @@ $('#file').addEventListener('change', async (e) => { const f = e.target.files[0]
 // ── interference ─────────────────────────────────────────────────────────
 function runCheck() {
   if (state.mode !== 'asm') return;
-  const bodies = state.components.map((c) => ({ id: c.id, slot: c.partKey, model: modelOf(c, state.angles) }));
+  const bodies = state.components.filter((c) => !c.reference).map((c) => ({ id: c.id, slot: c.partKey, model: modelOf(c, state.angles) }));
   state.check = { pending: true };
   worker.postMessage({ type: 'check', id: ++state.checkId, bodies });
   const o = $('#checkout'); if (o) o.textContent = 'checking…';

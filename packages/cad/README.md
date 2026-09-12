@@ -22,7 +22,8 @@ serves this directory with `engine/` and `bakeoff/` dropped by
 | `lib/` | shared by the site, the worker and the harness: `engine.js` (the ABI), `mesh.js` (weld, invariants, edges, streams, STL), `manifold-kernel.js`, `occt-kernel.js` |
 | `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
 | `drive.selftest.mjs` | the file tree over records (`lib/drive.js`) and the site worker's `/xrpc/` read gateway, with in-memory repos and a fake PDS |
-| `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form, the six mates in both directions, repeat, place-by-feature on the lift |
+| `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form, the six mates in both directions, repeat, place-by-feature on the lift; `lib/proximity.js` on cube pairs and the lift's meshes, and a sweep that finds a 1 mm graze between samples |
+| `agent/audit.mjs` | rebuilds every part in a published repo and diffs it against the invariants its revision recorded; `--kernels` checks Truck and Manifold agree on volume. The publish workflow runs it on the bench |
 | `browser.selftest.mjs` | serves the package, drives the page in headless Chromium through every bench part, asserts the report, screenshots to `/tmp/cad-shots/` |
 
 ## The tree

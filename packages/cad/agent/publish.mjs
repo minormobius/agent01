@@ -25,6 +25,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Drive, MemoryBackend, SessionBackend, canonical, PART } from '../lib/drive.js';
+import { kernels } from './common.mjs';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const args = process.argv.slice(2);
@@ -63,7 +64,10 @@ async function publish(name, tree, isAsm) {
     kept++; uris.set(name, existing.uri);
     console.log(`  same  ${p}  ${existing.uri}`); return;
   }
-  const r = await drive.put(p, tree, { message: existing ? `bench update from ${name}.json` : `published from bench/${name}.json`, kind: isAsm ? 'assembly' : 'part' });
+  // the exact build's invariants ride on the revision, so agent/audit.mjs can rebuild every head later and diff them
+  let judged = {};
+  if (!isAsm) { const { engine } = await kernels(); const b = engine.build(JSON.stringify(tree), { kernel: 'truck' }); if (b.ok) judged = { kernel: { id: 'truck', version: String(engine.version ?? '') }, invariants: { ...b.report.invariants, faces: b.report.faces.length } }; }
+  const r = await drive.put(p, tree, { message: existing ? `bench update from ${name}.json` : `published from bench/${name}.json`, kind: isAsm ? 'assembly' : 'part', ...judged });
   wrote++; uris.set(name, r.uri);
   console.log(`  ${existing ? 'new revision' : 'created'}  ${p}  ${r.uri}`);
 }

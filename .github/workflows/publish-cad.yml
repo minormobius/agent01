@@ -76,3 +76,12 @@ jobs:
           done
           echo "::error::the gateway lists fewer than 14 files for $DID"
           exit 1
+
+      # Every published part is a test case: rebuild each head and diff it
+      # against the invariants its revision recorded, and check that the
+      # exact kernel and the preview kernel still agree on volume.
+      - name: Audit the published corpus
+        env:
+          DID: ${{ steps.publish.outputs.did }}
+        working-directory: packages/cad
+        run: node agent/audit.mjs --at "$DID" --kernels

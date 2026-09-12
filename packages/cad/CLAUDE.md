@@ -102,6 +102,24 @@ documented in [`README.md`](README.md) next to this file.
   `check.mjs` and the MCP). Hover a pair to light both components.
   Headlessly, `check.mjs --sweep N` and the MCP tool's `sweep` check N
   instants over a period (`periodOf`: a turn, two beats, or given).
+  **Clearance, without a kernel:** `lib/proximity.js` is a pure-JS BVH
+  over the exact meshes — nearest approach per pair with the realising
+  points, triangle crossings, containment by ray parity (three rays,
+  majority, because one axis ray lands on a cube's diagonal), a
+  penetration estimate, and `touching` for contact with no depth.
+  `lib/sweep.js` runs it through the motion and chases each pair's
+  minimum between samples (golden section), with `verdictOf`: collision /
+  expected / close / clear. `check.mjs --clearance d` and the MCP
+  `interference` tool's `clearance` use it — which is why interference is
+  a server tool now (Manifold still cannot run there; volumes stay local).
+  Components with `reference: true` are drawn translucent and left out of
+  checks and export; `hidden` is display only and counts.
+- **Audit.** `agent/audit.mjs --at <repo> [--kernels]` rebuilds every
+  part in a repo and diffs volume, χ, watertightness and face count against
+  the invariants its revision recorded (`publish.mjs` stores them on every
+  part it publishes); `--kernels` checks Truck and Manifold agree on volume
+  within a tolerance. `publish-cad.yml` runs it on the bench after each
+  publish: the whole published corpus as the kernels' regression suite.
 - **Export.** *stl* writes the mesh on the page (the exact one when it has
   landed, else the preview); *step* asks the worker to re-run the exact
   kernel that built the part with its STEP writer on — Truck's, or OCCT's
@@ -153,9 +171,10 @@ documented in [`README.md`](README.md) next to this file.
   isolate on first call. **Manifold cannot run there**: its embind glue
   builds invokers with `new Function`, which Workers forbid (measured:
   "Code generation from strings disallowed"), so the live host is created
-  with `capabilities: { manifold: false }` and its tool list omits
-  `interference` and the preview kernel, saying so in the descriptor and
-  the instructions; those run locally. CPU is the other limit: the 60-tooth
+  with `capabilities: { manifold: false }`; the preview kernel is off the
+  menu there, and `interference` answers in clearance mode (exact meshes,
+  `lib/proximity.js`) — shared volumes run locally. `measure` takes an
+  assembly with `component.face` names and `t`. CPU is the other limit: the 60-tooth
   gear takes ~27 s of Truck there, so `wrangler.jsonc` raises `cpu_ms` to
   120 s and the host builds an assembly **three parts per call**
   (`maxParts`; the client passes `parts` to continue — the whole clock in
@@ -209,11 +228,14 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 ## Quirks
 
 - **`cad.wasm` is committed.** Rebuild with `engine/build.sh`, which runs the
-  unit tests, both builds, and `cad.selftest.mjs`. Never hand-build.
+  unit tests, both builds, and `cad.selftest.mjs`. Never hand-build. A
+  failed union of a region's outer loops names the two loops (`union of
+  outer loops \`body\` and \`slot\` failed — do their outlines overlap or
+  touch?`): a kernel error reported as the design error it almost always is.
 - **Five selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
   bytes under node), `drive.selftest.mjs` (the file tree and the gateway),
   `assembly.selftest.mjs` (expressions against the engine, kinematics
-  against closed forms, the mates, repeat and references), `mcp.selftest.mjs` (the tool surface) and
+  against closed forms, the mates, repeat and references), `mcp.selftest.mjs` (the tool surface, both hosts) and
   `browser.selftest.mjs` (headless Chromium loads the page, builds every
   bench part, checks the report against closed forms, spins the train and
   the crank, poses the lift, saves and forks files against a mocked repo, and screenshots;
