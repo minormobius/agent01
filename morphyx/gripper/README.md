@@ -156,7 +156,7 @@ through `/mcp` for all twenty-two plus the mirrored and upper tabs, the mirrored
 | crossbar | XY extrude, 84 × 24 × 8, window 26.2 × 20.2 | `crossbar.pivotR/L[k]` Ø4 | the carriage pins |
 | link (×4) | XY extrude, 27 dog-bone, 10 wide, 6 thick, Ø6 eyes | `link.eye[k][j]` | bushings |
 | bushing (×8) | revolve, Ø6 × 6, Ø4.1 bore | — | bronze; press in the eye, runs on the pin |
-| spacer (×4) | revolve, Ø6 × 10, Ø4.1 bore | — | between the links on each pin |
+| spacer (×2) | revolve, Ø6 × 10, Ø4.1 bore | — | between the links on each finger pin |
 | pin (×4) | extrude circle Ø4, 22 and 38 long | `pin.od[k]` | press in crossbar or tabs, two links each |
 | tab (×4) | XY extrude, 12 × 36 × 8 | `tab.pin[k]` Ø4 | `side: -1` mirrors, `z0: 27` lifts; the clevis cheeks |
 | carrier (×2) | XZ extrude, 27 × 44 × 6 | `carrier.blockA–D[k]` Ø3.4 on 10 × 15, `carrier.padA/B[k]`, `carrier.windowLo/Hi[k]` | block, tabs, pad |

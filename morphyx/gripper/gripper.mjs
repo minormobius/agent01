@@ -176,7 +176,7 @@ export const parts = {
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d/2', 0], ['D/2', 0], ['D/2', 'L'], ['d/2', 'L']] }] },
      { op: 'revolve', id: 'bushing', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
-  spacer: tree('Spacer sleeve: \u00d86 \u00d7 8 with a \u00d84.1 bore, keeping the upper and lower links apart on their pin. Four per gripper. One revolve about local Z.',
+  spacer: tree('Spacer sleeve: \u00d86 \u00d7 8 with a \u00d84.1 bore, keeping the upper and lower links apart on a finger pin (on the crossbar pins the crossbar fills the gap). Two per gripper. One revolve about local Z.',
     { D: D.eye, L: D.spacerL, d: D.bushBore },
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d/2', 0], ['D/2', 0], ['D/2', 'L'], ['d/2', 'L']] }] },
      { op: 'revolve', id: 'spacer', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
@@ -286,8 +286,7 @@ export function assembly() {
     c('tab-l-hi', 'tab', ['-xf', 0, 0], { params: { side: -1, z0: D.tabHiZ } }),
     c('finger-pin-r', 'pin', ['xp', 'yf', 'tabLo'], { params: { h: D.fingerPinLen } }),
     c('finger-pin-l', 'pin', ['-xp', 'yf', 'tabLo'], { params: { h: D.fingerPinLen } }),
-    c('spacer-r-a', 'spacer', ['px', 'yn + py', 'mid']), c('spacer-r-b', 'spacer', ['xp', 'yf', 'mid']),
-    c('spacer-l-a', 'spacer', ['-px', 'yn + py', 'mid']), c('spacer-l-b', 'spacer', ['-xp', 'yf', 'mid']),
+    c('spacer-r', 'spacer', ['xp', 'yf', 'mid']), c('spacer-l', 'spacer', ['-xp', 'yf', 'mid']),   // on the finger pins; on the crossbar pins the crossbar itself fills the gap
     c('pad-r', 'pad', ['xf', 0, 0]),
     c('pad-l', 'pad', ['-xf', 0, 0], { params: { side: -1 } }),
   ];
