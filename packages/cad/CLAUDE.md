@@ -59,8 +59,8 @@ documented in [`README.md`](README.md) next to this file.
   face highlights its component in the list and the report.
   **Placements are expressions** (`lib/expr.js`, a mirror of the engine's
   `expr.rs` that `assembly.selftest.mjs` holds to the bit): a document's
-  `params` and its ordered `derived` (with `t` seconds and `theta` the
-  driven angle) may appear in any `at`, `rotate` or `drive` number, and in
+  `params` and its `derived` (resolved in dependency order, any key
+  order, with `t` seconds and `theta` the driven angle) may appear in any `at`, `rotate` or `drive` number, and in
   component `params` overrides. `flatten` marks such components `dynamic`
   and `modelOf` re-evaluates their placement at the `t`/`theta` the angles
   map carries; static documents pay nothing. `bench/crank.json` is the

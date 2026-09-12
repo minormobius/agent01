@@ -879,7 +879,7 @@ that with two in-memory repos standing in for a PDS and a stranger.
   passing sub-assembly from a sentence, no human edits — is runnable
   against a URL for everything but the clash check.
 - **Kinematics by expression.** An assembly document carries `params` and
-  an ordered `derived` (with `t` and `theta`), and any `at`, `rotate` or
+  `derived` (any order — a PDS returns keys sorted — with `t` and `theta`), and any `at`, `rotate` or
   `drive` number may be an expression over them — the tree's own language,
   mirrored in `lib/expr.js` and held to the engine's evaluator by a test.
   This is how a screw moves a nut and a crank a slider without a mate for

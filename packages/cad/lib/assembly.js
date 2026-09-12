@@ -5,9 +5,12 @@
 //
 // Placements are expressions. A document may carry `params` (numbers or
 // expressions over each other, any order — the tree's own language,
-// lib/expr.js) and `derived`, an ORDERED map evaluated top to bottom at each
-// instant with two reserved variables: `t`, seconds, and `theta`, the driven
-// component's angle in degrees (the escapement wheel's, for an escapement).
+// lib/expr.js) and `derived`, a second map resolved the same way at each
+// instant, with two reserved variables in scope: `t`, seconds, and `theta`,
+// the driven component's angle in degrees (the escapement wheel's, for an
+// escapement). Any order, on purpose: a record's map keys come back from a
+// PDS in DAG-CBOR order, not the author's, so nothing here may depend on
+// the order keys were written in.
 // Every `at` element, `rotate.deg`, `rotate.axis` element, and the `drive`'s
 // numbers take a number or an expression over params + derived + t + theta.
 // That is how a lead screw moves a nut, a crank moves a slider, a link
@@ -45,18 +48,17 @@ const mod = (x, n) => ((x % n) + n) % n;
 function makeScope(doc, name) {
   let params;
   try { params = resolveParams(doc.params || {}); } catch (e) { throw new Error(`${name}: ${e.message}`); }
-  const derived = Object.entries(doc.derived || {});
-  for (const [k, v] of derived) if (typeof v !== 'number' && typeof v !== 'string') throw new Error(`${name}: derived \`${k}\` must be a number or expression`);
+  const derived = doc.derived || {};
+  for (const [k, v] of Object.entries(derived)) if (typeof v !== 'number' && typeof v !== 'string') throw new Error(`${name}: derived \`${k}\` must be a number or expression`);
   return { name, params, derived, memo: null };
 }
-/// The variables in force at (t, theta): params, then derived in order. Memoised per instant.
+/// The variables in force at (t, theta): params, then derived resolved in
+/// dependency order over params + t + theta. Memoised per instant.
 function envAt(scope, t, theta) {
   const m = scope.memo;
   if (m && m.t === t && m.theta === theta) return m.env;
-  const env = { ...scope.params, t, theta };
-  for (const [k, v] of scope.derived) {
-    try { env[k] = num(v, env); } catch (e) { throw new Error(`${scope.name}: derived \`${k}\`: ${e.message}`); }
-  }
+  let env;
+  try { env = resolveParams(scope.derived, { ...scope.params, t, theta }); } catch (e) { throw new Error(`${scope.name}: derived ${e.message.replace(/^param /, '')}`); }
   scope.memo = { t, theta, env };
   return env;
 }

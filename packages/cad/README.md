@@ -53,9 +53,10 @@ serves this directory with `engine/` and `bakeoff/` dropped by
   `fillet`/`chamfer`/`shell`, which the current kernels report as
   *unsupported* rather than failing.
 - **Assemblies move by expressions.** A document with `components` may carry
-  `params` (any order, the same language) and `derived` (an *ordered* map,
-  evaluated top to bottom at each instant with `t`, seconds, and `theta`, the
-  driven component's angle in degrees). Every `at` element, `rotate.deg`,
+  `params` (any order, the same language) and `derived` (a second map,
+  resolved in dependency order at each instant — any order, since a PDS
+  returns keys sorted — with `t`, seconds, and `theta`, the driven
+  component's angle in degrees, in scope). Every `at` element, `rotate.deg`,
   `rotate.axis` element and the `drive`'s numbers take a number or an
   expression over those. Gear and fixed mates still propagate rotation from
   the drive; the expressions are how a screw moves a nut or a crank a slider

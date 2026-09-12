@@ -73,9 +73,9 @@ right; `check.mjs` tells you when you have not.
 **Placements are expressions**, so the pose math for anything the mates
 cannot express (a lead screw and its nut, a crank and its slider, a link
 that closes a loop) lives in the document. An assembly may carry `params`
-(numbers or expressions over each other, any order) and `derived`, an
-*ordered* map evaluated top to bottom at each instant with two reserved
-variables: `t` (seconds) and `theta` (the driven component's angle in
+(numbers or expressions over each other, any order) and `derived`, a
+second map resolved the same way at each instant — any order, since a
+record's keys come back from a PDS sorted — with two reserved variables: `t` (seconds) and `theta` (the driven component's angle in
 degrees; the escape wheel's for an escapement). Every `at` element,
 `rotate.deg`, `rotate.axis` element and the drive's numbers take a number
 or an expression over params + derived + t + theta. Component `params`

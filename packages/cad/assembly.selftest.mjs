@@ -75,6 +75,10 @@ for (const t of [0, 0.25, 0.5, 0.8, 1.3, 2]) {
 check(poseOk, 'the rod follows the crank pin, its far end sits on the block, and the block slides along x, at six instants');
 const a0 = solveAngles(components, mates, drive, 0), a1 = solveAngles(components, mates, drive, 1);
 check(near(origin(modelOf(byId.block, a0))[0], 40) && near(origin(modelOf(byId.block, a1))[0], 20), `top dead centre at t = 0 (x = ${origin(modelOf(byId.block, a0))[0]}), bottom at t = 1 (x = ${origin(modelOf(byId.block, a1))[0]})`);
+// a PDS hands map keys back in DAG-CBOR order, not the author's: derived must not care
+const shuffled = { ...doc, derived: Object.fromEntries(Object.entries(doc.derived).sort(([a], [b]) => a.length - b.length || (a < b ? -1 : 1))) };
+const fs2 = await flatten(shuffled, benchRef);
+check(Object.keys(shuffled.derived)[0] === 'px' && near(origin(modelOf(fs2.components[2], solveAngles(fs2.components, fs2.mates, fs2.drive, 1)))[0], 20), `derived resolves in dependency order whatever the key order (${Object.keys(shuffled.derived).join(', ')})`);
 check(near(placeAt(byId.block, 0.5, 90)[12], Math.sqrt(800)), 'placeAt takes t and theta directly (theta = 90°: the pin is on y, the block at sqrt(L² − r²))');
 
 // ── 3. sub-assembly scopes, t without a drive, theta from an escapement ──

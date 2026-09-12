@@ -21,7 +21,7 @@ The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (t
 
 - `node agent/build.mjs tree.json` — exact build: volume, area, bbox, χ, watertight, named faces with geometry, STL/STEP out.
 - `node agent/measure.mjs tree.json --list` — diameters and distances from exact geometry.
-- `node agent/check.mjs asm.json --t 0.5` — interference through the motion. An assembly's `at`, `rotate` and `drive` take expressions over its `params`, an ordered `derived`, `t` (seconds) and `theta` (the driven angle, degrees): `bench/crank.json`.
+- `node agent/check.mjs asm.json --t 0.5` — interference through the motion. An assembly's `at`, `rotate` and `drive` take expressions over its `params`, `derived` (any order), `t` (seconds) and `theta` (the driven angle, degrees): `bench/crank.json`.
 - `node agent/render.mjs doc.json --out shots` — PNG per view (needs Chromium).
 - `node agent/drive.mjs ls --at minomobi.com` — the published bench as a file tree.
 
