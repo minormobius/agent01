@@ -96,6 +96,17 @@ async function localCid(record) {
   return 'local:' + [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+/// A fetch that tries again, once, when the network itself failed — a PDS
+/// closing a kept-alive socket mid-corpus ("fetch failed … other side
+/// closed", seen 2026-09-12 twelve writes into a publish) is not an answer,
+/// and the request is safe to repeat: reads always, and the writes here are
+/// puts of records the caller just minted. An HTTP status is never retried.
+export async function fetchRetry(f, url, init, { tries = 3, delayMs = 400 } = {}) {
+  for (let i = 1; ; i++) {
+    try { return await f(url, init); } catch (e) { if (i >= tries) throw e; await new Promise((r) => setTimeout(r, delayMs * i)); }
+  }
+}
+
 // ── backends ──────────────────────────────────────────────────────────────
 
 /** A repo in memory. `persist(records)` (optional) is called after every write with
@@ -149,7 +160,7 @@ export class PublicBackend {
   constructor(did, pds, { fetch: f } = {}) { this.did = did; this.pds = pds.replace(/\/$/, ''); this.kind = 'public'; this.readonly = true; this.fetch = f || globalThis.fetch.bind(globalThis); }
   async xrpc(method, params) {
     const u = new URL(`${this.pds}/xrpc/${method}`); for (const [k, v] of Object.entries(params)) if (v !== undefined) u.searchParams.set(k, v);
-    const res = await this.fetch(u); if (res.status === 400 || res.status === 404) return null;
+    const res = await fetchRetry(this.fetch, u); if (res.status === 400 || res.status === 404) return null;
     if (!res.ok) throw new Error(`${method} ${res.status}`); return res.json();
   }
   async getRecord(c, r) { return this.xrpc('com.atproto.repo.getRecord', { repo: this.did, collection: c, rkey: r }); }
@@ -184,7 +195,7 @@ export class SessionBackend {
   }
   async xrpc(method, { params, body } = {}) {
     const u = new URL(`${this.pds}/xrpc/${method}`); for (const [k, v] of Object.entries(params || {})) if (v !== undefined) u.searchParams.set(k, v);
-    const res = await this.fetch(u, { method: body ? 'POST' : 'GET', headers: { authorization: `Bearer ${this.session.accessJwt}`, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
+    const res = await fetchRetry(this.fetch, u, { method: body ? 'POST' : 'GET', headers: { authorization: `Bearer ${this.session.accessJwt}`, ...(body ? { 'content-type': 'application/json' } : {}) }, body: body ? JSON.stringify(body) : undefined });
     if (res.status === 404 || (res.status === 400 && !body)) return null;
     if (!res.ok) { let d = ''; try { const j = await res.json(); d = `${j.error}: ${j.message}`; } catch {} throw new Error(d || `${method} ${res.status}`); }
     return res.json();

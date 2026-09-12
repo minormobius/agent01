@@ -17,6 +17,8 @@
 // resolves `at://` refs through its gateway without needing this site's bench
 // directory at all. A sub-assembly that is inline stays inline.
 //
+// The transport retries a dropped socket (lib/drive.js fetchRetry); a run
+// that still dies is safe to repeat, because:
 // IDEMPOTENT. A file whose head revision holds the same tree (canonical JSON)
 // is skipped, so a re-run writes nothing and the history stays honest: one
 // revision per real change. A changed tree gets a new revision whose parent

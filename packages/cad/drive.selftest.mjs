@@ -106,6 +106,18 @@ check(again.uri === pushed.uri, 'pushing again updates the same head');
 const rm = await local.remove('scratch/wheel-copy');
 check(rm.path === 'scratch/wheel-copy' && !(await local.find('scratch/wheel-copy')) && (await local.fetchRecord(rm.head.uri)), 'remove drops the head and keeps the revision');
 
+// a transport that fails once, at the socket, is tried again; an HTTP status is not
+{
+  const { fetchRetry } = await import('./lib/drive.js');
+  let calls = 0; const flaky = async () => { calls++; if (calls === 1) throw new TypeError('fetch failed'); return new Response('ok'); };
+  check((await (await fetchRetry(flaky, 'https://x', undefined, { delayMs: 1 })).text()) === 'ok' && calls === 2, 'fetchRetry retries a network failure once and returns the second answer');
+  let n = 0; const dead = async () => { n++; throw new TypeError('fetch failed'); };
+  let threw = ''; try { await fetchRetry(dead, 'https://x', undefined, { tries: 3, delayMs: 1 }); } catch (e) { threw = e.message; }
+  check(threw === 'fetch failed' && n === 3, 'and gives up after three, throwing the last error');
+  let m = 0; const status = async () => { m++; return new Response('nope', { status: 500 }); };
+  check((await fetchRetry(status, 'https://x', undefined, { delayMs: 1 })).status === 500 && m === 1, 'a 500 is an answer, not retried');
+}
+
 // the site worker's /xrpc/ gateway: handle → did → PDS, forwarded, CAD collections only
 {
   const { xrpc } = await import('./gateway.js');
