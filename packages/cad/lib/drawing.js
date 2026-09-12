@@ -204,7 +204,10 @@ export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = tr
   const S = fixedScale ?? (NICE.map((n) => n * pxPerMm).find((s) => s <= budget) ?? NICE[NICE.length - 1] * pxPerMm);
   const ratio = S / pxPerMm; const scaleText = ratio >= 1 ? `${fmt(ratio)}:1` : `1:${fmt(1 / ratio)}`;
   const margin = 30, titleH = 72, below = 64; // px under the lowest view for its dimension, its text and its label; then the title block
-  const W = Math.ceil(sheetW * S + 2 * margin + dimRoom * S), H = Math.ceil(sheetH * S + 2 * margin + below + titleH);
+  // room on the right for the hole callouts of whichever view has the most text
+  let calloutRoom = 0;
+  for (const v of vs) { const g = new Map(); for (const m of v.marks) { const k = `${m.diameter.toFixed(4)}|${m.depth.toFixed(3)}`; g.set(k, (g.get(k) || 0) + 1); } for (const [k, n] of g) { const [dia, depth] = k.split('|').map(Number); calloutRoom = Math.max(calloutRoom, 28 + `${n > 1 ? n + '× ' : ''}⌀${fmt(dia)} ↧${fmt(depth)}`.length * 6.7); } }
+  const W = Math.ceil(sheetW * S + 2 * margin + dimRoom * S + calloutRoom), H = Math.ceil(sheetH * S + 2 * margin + below + titleH);
   // sheet mm → px: x right, y up
   const X = (v, x) => margin + dimRoom * S + (v.sx + x) * S, Y = (v, y) => margin + (sheetH - (v.sy + y)) * S;
   const parts = [];
@@ -246,7 +249,10 @@ export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = tr
       const through = m.depth >= (overall.reduce((a, b, i) => (Math.abs(m.axis[i]) > 0.999 ? b : a), m.depth)) - 1e-6;
       const label = `${ms.length > 1 ? ms.length + '× ' : ''}⌀${fmt(m.diameter)}${through ? '' : ' ↧' + fmt(m.depth)}`;
       const ex = px(m.x + m.diameter / 2 * 0.7071), ey = py(m.y + m.diameter / 2 * 0.7071);
-      const lx = px(v.box[2]) + 14 + 8 * (k % 2), ly = py(v.box[3]) - 10 - 16 * k;
+      // the ladder hangs DOWN the right of the view, clamped to the sheet, so a
+      // part with a dozen distinct holes does not push its callouts off the top
+      const lx = px(v.box[2]) + 14 + 8 * (k % 2);
+      const ly = Math.min(py(v.box[3]) + 8 + 16 * k, H - margin - titleH - 8);
       line(ex, ey, lx, ly, 'dim'); line(lx, ly, lx + 6, ly, 'dim'); text(lx + 8, ly + 4, label, 'dimtext', 'start');
       k++;
     }
