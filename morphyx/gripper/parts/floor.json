@@ -3,7 +3,7 @@
  "units": "mm",
  "_": "Floor plate, between the rear plate and the front wall. One extrude along +Z.",
  "params": {
-  "w": 84,
+  "w": 96,
   "y0": 8,
   "y1": 98,
   "t": 4,

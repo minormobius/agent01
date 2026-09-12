@@ -1,13 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), and a neck on top that keys into the yoke. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
+ "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), and a neck on top that keys into the crossbar. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
  "params": {
   "w": 52,
   "t": 20,
   "bottom": -13,
   "shoulder": 12,
-  "top": 18,
+  "top": 20,
   "neck": 30,
   "d_bore": 10.200000000000001,
   "pcd": 16,

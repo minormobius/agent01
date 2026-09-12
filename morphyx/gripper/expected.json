@@ -1,16 +1,24 @@
 {
  "_": "Closed-form volumes of the parts that have one; mm³. The kernel must land within tol (relative).",
  "rear-flange": {
-  "volume": 33237.04136646666,
+  "volume": 39093.04136646666,
   "tol": 0.002
  },
  "front-wall": {
-  "volume": 30570.24695837124,
+  "volume": 33678.24695837124,
   "tol": 0.002
  },
- "yoke": {
-  "volume": 13209.979645899948,
+ "crossbar": {
+  "volume": 11046.618070170254,
   "tol": 0.002
+ },
+ "link": {
+  "volume": 1751.9468914507715,
+  "tol": 0.002
+ },
+ "bushing": {
+  "volume": 90.4307445335822,
+  "tol": 0.004
  },
  "rail": {
   "volume": 6084,
@@ -25,7 +33,7 @@
   "tol": 0.002
  },
  "collar": {
-  "volume": 622.0353454107791,
+  "volume": 414.6902302738527,
   "tol": 0.002
  },
  "screw": {
@@ -37,7 +45,7 @@
   "tol": 0.002
  },
  "floor": {
-  "volume": 30240,
+  "volume": 34560,
   "tol": 0.002
  },
  "side-wall": {
@@ -45,7 +53,7 @@
   "tol": 0.002
  },
  "tab": {
-  "volume": 3739.4690350851265,
+  "volume": 3067.4690350851265,
   "tol": 0.002
  },
  "pad": {

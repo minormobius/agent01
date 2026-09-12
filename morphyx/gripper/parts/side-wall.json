@@ -1,7 +1,7 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Side wall, plain: the guide no longer lives here. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
+ "_": "Side wall, plain. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
  "params": {
   "t": 4,
   "y0": 8,

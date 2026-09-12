@@ -3,7 +3,7 @@
  "units": "mm",
  "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 3.5 above the screw axis). Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
  "params": {
-  "w": 84,
+  "w": 96,
   "zb": -27,
   "zt": 34,
   "t": 8,

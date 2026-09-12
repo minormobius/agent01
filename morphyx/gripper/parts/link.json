@@ -1,0 +1,103 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Link: a 27 mm dog-bone, 6 thick, with two Ø6 eyes for pressed bronze bushings. Four per gripper: one above and one below each finger tab, from the crossbar pin to the finger pin. Built along +X from eye 0; the assembly rotates it about Z. One extrude.",
+ "params": {
+  "L": 27,
+  "r": 5,
+  "t": 6,
+  "d_eye": 6
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "outline",
+   "loops": [
+    {
+     "name": "body",
+     "path": {
+      "from": [
+       0,
+       "-r"
+      ],
+      "segs": [
+       {
+        "to": [
+         "L",
+         "-r"
+        ]
+       },
+       {
+        "arc": {
+         "via": [
+          "L + r",
+          0
+         ],
+         "to": [
+          "L",
+          "r"
+         ]
+        }
+       },
+       {
+        "to": [
+         0,
+         "r"
+        ]
+       },
+       {
+        "arc": {
+         "via": [
+          "-r",
+          0
+         ],
+         "to": [
+          0,
+          "-r"
+         ]
+        }
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "eye",
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_eye / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "eyes",
+   "of": "eye",
+   "kind": "linear",
+   "count": 2,
+   "step": [
+    "L",
+    0
+   ],
+   "name": "eye"
+  },
+  {
+   "op": "extrude",
+   "id": "link",
+   "profile": [
+    "outline",
+    "eyes"
+   ],
+   "depth": "t"
+  }
+ ]
+}

@@ -1,0 +1,77 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Crossbar: keyed over the carriage neck (the window) at the guide height, reaching ahead of the carriage body to carry the two link pivot pins at x ±36, so the links never sweep the carriage. Local origin at the carriage centre; +y forward. One extrude along +Z.",
+ "params": {
+  "half": 42,
+  "back": -12,
+  "front": 12,
+  "t": 8,
+  "z0": 12,
+  "win_w": 30.2,
+  "win_h": 20.2,
+  "px": 36,
+  "py": 8,
+  "d_pin": 4
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plate",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "(back + front) / 2"
+      ],
+      "w": "2 * half",
+      "h": "front - back"
+     }
+    },
+    {
+     "name": "window",
+     "rect": {
+      "c": [
+       0,
+       0
+      ],
+      "w": "win_w",
+      "h": "win_h"
+     }
+    },
+    {
+     "name": "pivotR",
+     "circle": {
+      "c": [
+       "px",
+       "py"
+      ],
+      "r": "d_pin / 2"
+     }
+    },
+    {
+     "name": "pivotL",
+     "circle": {
+      "c": [
+       "-px",
+       "py"
+      ],
+      "r": "d_pin / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "crossbar",
+   "profile": "plate",
+   "depth": "t"
+  }
+ ]
+}

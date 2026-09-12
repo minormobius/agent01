@@ -1,25 +1,33 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "gripper",
- "_": "Parallel-jaw robot gripper, v3: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on two Ø6 rods → tapered cam yoke with two 45° slots → pins on two finger tabs → MGN9 blocks on one rail across the front wall → carriers and pads outside. Thrust collar behind the front wall. 84 × 61 × 104 mm case, pads to y = 140. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \\`spin\\` swings 0 → 10 turns → 0, the nut follows by the lead (y = 57 closed … 77 open), the fingers follow one to one: opening 0 → 40 mm. Press spin.",
+ "_": "Parallel-jaw robot gripper, v4: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on two Ø6 rods → crossbar with two pivot pins → four 27 mm links on bronze bushings, one above and one below each finger tab → MGN9 blocks on one rail across the front wall → carriers and pads outside. Thrust collar on the bulkhead. 96 × 61 × 104 mm case, pads to y = 140. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \\`spin\\` swings 0 → 6.98 turns → 0, the nut moves forward by the lead to close (y = 60.68 open … 74.63 closed), and the links swing the fingers in: opening 36 → 0 mm. Press spin.",
  "params": {
-  "closed": 57,
-  "open": 77,
+  "ynOpen": 60.6751,
+  "ynClosed": 74.6307,
   "lead": 2,
-  "xfClosed": 16,
-  "pinLine": 88,
-  "pinInset": 6,
+  "L": 27,
+  "px": 36,
+  "py": 8,
+  "yf": 95,
+  "inset": 6,
   "nutLen": 15,
   "flangeT": 3.5,
   "carT": 20,
-  "yokeZ": 12,
-  "blockL": 28.9
+  "barZ": 12,
+  "blockL": 28.9,
+  "pinZ": 6,
+  "lo": 6,
+  "hi": 20
  },
  "derived": {
-  "spin": "360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2",
-  "yn": "closed + lead * spin / 360",
-  "xf": "xfClosed + yn - closed",
-  "xp": "xf - pinInset"
+  "spin": "360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2",
+  "yn": "ynOpen + lead * spin / 360",
+  "dy": "yf - py - yn",
+  "x": "sqrt(L^2 - dy^2)",
+  "xp": "px - x",
+  "xf": "xp + inset",
+  "phi": "rad2deg(atan2(dy, -x))"
  },
  "parts": {
   "rear-flange": {
@@ -27,7 +35,7 @@
    "units": "mm",
    "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 3.5 above the screw axis). Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
    "params": {
-    "w": 84,
+    "w": 96,
     "zb": -27,
     "zt": 34,
     "t": 8,
@@ -128,7 +136,7 @@
    "units": "mm",
    "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot, its four M3 on a 31 square, and the two Ø6 carriage rods (press fit). The screw passes through the pilot. One extrude along -Y.",
    "params": {
-    "w": 75,
+    "w": 87,
     "zb": -22.5,
     "zt": 29.5,
     "t": 6,
@@ -244,7 +252,7 @@
     "d_rod": 6,
     "sx": 37,
     "sz0": 11.8,
-    "sz1": 27.2,
+    "sz1": 20.2,
     "y1": 104
    },
    "features": [
@@ -491,13 +499,13 @@
   "carriage": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), and a neck on top that keys into the yoke. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
+   "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), and a neck on top that keys into the crossbar. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
    "params": {
     "w": 52,
     "t": 20,
     "bottom": -13,
     "shoulder": 12,
-    "top": 18,
+    "top": 20,
     "neck": 30,
     "d_bore": 10.200000000000001,
     "pcd": 16,
@@ -616,26 +624,21 @@
     }
    ]
   },
-  "yoke": {
+  "crossbar": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Cam yoke: a tongue keyed over the carriage neck (the window), 72 wide at the back, tapered at 45° to a 38 mm tip so it passes through the front wall at full open. Two 45° slots; a pin on each finger tab rides its slot, so the nut’s travel along Y becomes the fingers’ travel along X, one to one. Local origin at the carriage centre; +y forward. One extrude along +Z.",
+   "_": "Crossbar: keyed over the carriage neck (the window) at the guide height, reaching ahead of the carriage body to carry the two link pivot pins at x ±36, so the links never sweep the carriage. Local origin at the carriage centre; +y forward. One extrude along +Z.",
    "params": {
-    "half": 36,
-    "back": -14,
-    "taper0": 11,
-    "tip": 19,
-    "tip0": 28,
-    "tip1": 37,
-    "t": 6,
+    "half": 42,
+    "back": -12,
+    "front": 12,
+    "t": 8,
     "z0": 12,
     "win_w": 30.2,
     "win_h": 20.2,
-    "sw": 4.2,
-    "xc": 10,
-    "lc": 31,
-    "xo": 30,
-    "lo": 11
+    "px": 36,
+    "py": 8,
+    "d_pin": 4
    },
    "features": [
     {
@@ -648,40 +651,14 @@
      "loops": [
       {
        "name": "outline",
-       "polygon": [
-        [
-         "-half",
-         "back"
+       "rect": {
+        "c": [
+         0,
+         "(back + front) / 2"
         ],
-        [
-         "half",
-         "back"
-        ],
-        [
-         "half",
-         "taper0"
-        ],
-        [
-         "tip",
-         "tip0"
-        ],
-        [
-         "tip",
-         "tip1"
-        ],
-        [
-         "-tip",
-         "tip1"
-        ],
-        [
-         "-tip",
-         "tip0"
-        ],
-        [
-         "-half",
-         "taper0"
-        ]
-       ]
+        "w": "2 * half",
+        "h": "front - back"
+       }
       },
       {
        "name": "window",
@@ -695,93 +672,91 @@
        }
       },
       {
-       "name": "slotR",
-       "path": {
-        "from": [
-         "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
-         "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
+       "name": "pivotR",
+       "circle": {
+        "c": [
+         "px",
+         "py"
         ],
-        "segs": [
-         {
-          "to": [
-           "(xo) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
-           "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
-          ]
-         },
-         {
-          "arc": {
-           "via": [
-            "(xo) + (sw)/2 * ((1) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
-            "(lo) + (sw)/2 * ((1) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
-           ],
-           "to": [
-            "(xo) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
-            "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
-           ]
-          }
-         },
-         {
-          "to": [
-           "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
-           "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
-          ]
-         },
-         {
-          "arc": {
-           "via": [
-            "(xc) + (sw)/2 * ((-1) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
-            "(lc) + (sw)/2 * ((-1) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
-           ],
-           "to": [
-            "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
-            "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
-           ]
-          }
-         }
-        ]
+        "r": "d_pin / 2"
        }
       },
       {
-       "name": "slotL",
+       "name": "pivotL",
+       "circle": {
+        "c": [
+         "-px",
+         "py"
+        ],
+        "r": "d_pin / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "crossbar",
+     "profile": "plate",
+     "depth": "t"
+    }
+   ]
+  },
+  "link": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Link: a 27 mm dog-bone, 6 thick, with two Ø6 eyes for pressed bronze bushings. Four per gripper: one above and one below each finger tab, from the crossbar pin to the finger pin. Built along +X from eye 0; the assembly rotates it about Z. One extrude.",
+   "params": {
+    "L": 27,
+    "r": 5,
+    "t": 6,
+    "d_eye": 6
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "outline",
+     "loops": [
+      {
+       "name": "body",
        "path": {
         "from": [
-         "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
-         "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
+         0,
+         "-r"
         ],
         "segs": [
          {
           "to": [
-           "(-xo) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
-           "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
+           "L",
+           "-r"
           ]
          },
          {
           "arc": {
            "via": [
-            "(-xo) + (sw)/2 * ((1) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
-            "(lo) + (sw)/2 * ((1) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
+            "L + r",
+            0
            ],
            "to": [
-            "(-xo) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
-            "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
+            "L",
+            "r"
            ]
           }
          },
          {
           "to": [
-           "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
-           "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
+           0,
+           "r"
           ]
          },
          {
           "arc": {
            "via": [
-            "(-xc) + (sw)/2 * ((-1) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
-            "(lc) + (sw)/2 * ((-1) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
+            "-r",
+            0
            ],
            "to": [
-            "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
-            "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
+            0,
+            "-r"
            ]
           }
          }
@@ -791,20 +766,106 @@
      ]
     },
     {
+     "op": "sketch",
+     "id": "eye",
+     "loops": [
+      {
+       "name": null,
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d_eye / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "pattern",
+     "id": "eyes",
+     "of": "eye",
+     "kind": "linear",
+     "count": 2,
+     "step": [
+      "L",
+      0
+     ],
+     "name": "eye"
+    },
+    {
      "op": "extrude",
-     "id": "yoke",
-     "profile": "plate",
+     "id": "link",
+     "profile": [
+      "outline",
+      "eyes"
+     ],
      "depth": "t"
+    }
+   ]
+  },
+  "bushing": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Bronze bushing: Ø6 × 6 with a Ø4.1 bore, pressed into a link eye, running on a Ø4 dowel. Eight per gripper. One revolve about local Z.",
+   "params": {
+    "D": 6,
+    "L": 6,
+    "d": 4.1
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "profile",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "body",
+       "polygon": [
+        [
+         "d/2",
+         0
+        ],
+        [
+         "D/2",
+         0
+        ],
+        [
+         "D/2",
+         "L"
+        ],
+        [
+         "d/2",
+         "L"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "op": "revolve",
+     "id": "bushing",
+     "profile": "profile",
+     "axis": {
+      "p": [
+       0,
+       0
+      ],
+      "d": [
+       0,
+       1
+      ]
+     }
     }
    ]
   },
   "pin": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "A 4 mm dowel, h long, along +Z: pressed into a finger tab, riding a yoke slot. One extrude.",
+   "_": "A 4 mm hardened dowel, h long, along +Z: pressed into a finger tab or the crossbar, carrying a link above and a link below in bronze bushings (retaining clips not modelled). One extrude.",
    "params": {
     "d": 4,
-    "h": 15
+    "h": 20
    },
    "features": [
     {
@@ -839,11 +900,11 @@
     "side": 1,
     "w": 12,
     "inset": 6,
-    "y0": 82,
+    "y0": 89,
     "y1": 122,
-    "z0": 19,
+    "z0": 12,
     "t": 8,
-    "y_pin": 88,
+    "y_pin": 95,
     "d_pin": 4
    },
    "features": [
@@ -894,18 +955,18 @@
     "side": 1,
     "x0": -15,
     "x1": 12,
-    "z0": -26,
-    "z1": 30,
+    "z0": -2,
+    "z1": 34,
     "t": 6,
     "y1": 120,
-    "zr": -14,
+    "zr": 16,
     "px": 10,
     "pz": 15,
     "d_bolt": 3.4,
     "win_w": 12.2,
     "win_h": 8.2,
     "wx": -6,
-    "wz": 23,
+    "wz": 16,
     "padx": -10,
     "padz": 6,
     "d_pad": 3.4
@@ -1019,7 +1080,7 @@
     "L": 28.9,
     "y0": 106,
     "y1": 114,
-    "zr": -14,
+    "zr": 16,
     "w": 20,
     "cw": 10,
     "ch": 5
@@ -1085,7 +1146,7 @@
     "w": 9,
     "h": 6.5,
     "y0": 104,
-    "zr": -14,
+    "zr": 16,
     "half": 52
    },
    "features": [
@@ -1128,7 +1189,7 @@
     "inset": 6,
     "y1": 140,
     "t": 20,
-    "zr": -14,
+    "zr": 16,
     "h": 20,
     "d_tap": 2.5,
     "padz": 6,
@@ -1187,7 +1248,7 @@
   "side-wall": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Side wall, plain: the guide no longer lives here. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
+   "_": "Side wall, plain. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
    "params": {
     "t": 4,
     "y0": 8,
@@ -1227,7 +1288,7 @@
    "units": "mm",
    "_": "Floor plate, between the rear plate and the front wall. One extrude along +Z.",
    "params": {
-    "w": 84,
+    "w": 96,
     "y0": 8,
     "y1": 98,
     "t": 4,
@@ -1266,15 +1327,15 @@
   "lid": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Lid, with an access window over the yoke. One extrude along +Z.",
+   "_": "Lid, with an access window over the linkage. One extrude along +Z.",
    "params": {
-    "w": 84,
+    "w": 96,
     "y0": 8,
     "y1": 98,
     "t": 4,
     "z0": 30,
-    "win_w": 60,
-    "win_y0": 51,
+    "win_w": 72,
+    "win_y0": 54.675106837823634,
     "win_y1": 90
    },
    "features": [
@@ -1364,7 +1425,7 @@
    "id": "wall-r",
    "part": "side-wall",
    "at": [
-    38,
+    44,
     0,
     0
    ]
@@ -1373,7 +1434,7 @@
    "id": "wall-l",
    "part": "side-wall",
    "at": [
-    -42,
+    -48,
     0,
     0
    ]
@@ -1410,12 +1471,12 @@
    "assembly": {
     "_": "The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement, spinning by `spin`.",
     "params": {
-     "closed": 57,
-     "open": 77,
+     "ynOpen": 60.6751,
+     "ynClosed": 74.6307,
      "lead": 2
     },
     "derived": {
-     "spin": "360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2"
+     "spin": "360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2"
     },
     "parts": {
      "screw": {
@@ -1457,7 +1518,7 @@
       "_": "Thrust collar: clamped on the screw just behind the front wall. Gripping pulls the screw forward, so the collar bears on the wall’s inner face (thrust washer and set screw not modelled). One revolve about local Z.",
       "params": {
        "D": 14,
-       "L": 6,
+       "L": 4,
        "d": 8
       },
       "features": [
@@ -1531,7 +1592,7 @@
       "at": [
        0,
        0,
-       56
+       6
       ],
       "rotate": {
        "axis": [
@@ -1606,12 +1667,170 @@
    ]
   },
   {
-   "id": "yoke",
-   "part": "yoke",
+   "id": "crossbar",
+   "part": "crossbar",
    "at": [
     0,
     "yn",
     0
+   ]
+  },
+  {
+   "id": "bar-pin-r",
+   "part": "pin",
+   "at": [
+    "px",
+    "yn + py",
+    "pinZ"
+   ]
+  },
+  {
+   "id": "bar-pin-l",
+   "part": "pin",
+   "at": [
+    "-px",
+    "yn + py",
+    "pinZ"
+   ]
+  },
+  {
+   "id": "link-r-lo",
+   "part": "link",
+   "at": [
+    "px",
+    "yn + py",
+    "lo"
+   ],
+   "rotate": {
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "deg": "phi"
+   }
+  },
+  {
+   "id": "link-r-hi",
+   "part": "link",
+   "at": [
+    "px",
+    "yn + py",
+    "hi"
+   ],
+   "rotate": {
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "deg": "phi"
+   }
+  },
+  {
+   "id": "link-l-lo",
+   "part": "link",
+   "at": [
+    "-px",
+    "yn + py",
+    "lo"
+   ],
+   "rotate": {
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "deg": "180 - phi"
+   }
+  },
+  {
+   "id": "link-l-hi",
+   "part": "link",
+   "at": [
+    "-px",
+    "yn + py",
+    "hi"
+   ],
+   "rotate": {
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "deg": "180 - phi"
+   }
+  },
+  {
+   "id": "bush-r-lo-a",
+   "part": "bushing",
+   "at": [
+    "px",
+    "yn + py",
+    "lo"
+   ]
+  },
+  {
+   "id": "bush-r-lo-b",
+   "part": "bushing",
+   "at": [
+    "xp",
+    "yf",
+    "lo"
+   ]
+  },
+  {
+   "id": "bush-r-hi-a",
+   "part": "bushing",
+   "at": [
+    "px",
+    "yn + py",
+    "hi"
+   ]
+  },
+  {
+   "id": "bush-r-hi-b",
+   "part": "bushing",
+   "at": [
+    "xp",
+    "yf",
+    "hi"
+   ]
+  },
+  {
+   "id": "bush-l-lo-a",
+   "part": "bushing",
+   "at": [
+    "-px",
+    "yn + py",
+    "lo"
+   ]
+  },
+  {
+   "id": "bush-l-lo-b",
+   "part": "bushing",
+   "at": [
+    "-xp",
+    "yf",
+    "lo"
+   ]
+  },
+  {
+   "id": "bush-l-hi-a",
+   "part": "bushing",
+   "at": [
+    "-px",
+    "yn + py",
+    "hi"
+   ]
+  },
+  {
+   "id": "bush-l-hi-b",
+   "part": "bushing",
+   "at": [
+    "-xp",
+    "yf",
+    "hi"
    ]
   },
   {
@@ -1684,21 +1903,21 @@
    }
   },
   {
-   "id": "pin-r",
+   "id": "finger-pin-r",
    "part": "pin",
    "at": [
     "xp",
-    "pinLine",
-    "yokeZ"
+    "yf",
+    "pinZ"
    ]
   },
   {
-   "id": "pin-l",
+   "id": "finger-pin-l",
    "part": "pin",
    "at": [
     "-xp",
-    "pinLine",
-    "yokeZ"
+    "yf",
+    "pinZ"
    ]
   },
   {
@@ -1726,13 +1945,63 @@
  "mates": [
   {
    "kind": "fixed",
-   "a": "pin-r",
+   "a": "finger-pin-r",
    "b": "tab-r"
   },
   {
    "kind": "fixed",
-   "a": "pin-l",
+   "a": "finger-pin-l",
    "b": "tab-l"
+  },
+  {
+   "kind": "fixed",
+   "a": "bar-pin-r",
+   "b": "crossbar"
+  },
+  {
+   "kind": "fixed",
+   "a": "bar-pin-l",
+   "b": "crossbar"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-r-lo-a",
+   "b": "link-r-lo"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-r-lo-b",
+   "b": "link-r-lo"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-r-hi-a",
+   "b": "link-r-hi"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-r-hi-b",
+   "b": "link-r-hi"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-l-lo-a",
+   "b": "link-l-lo"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-l-lo-b",
+   "b": "link-l-lo"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-l-hi-a",
+   "b": "link-l-hi"
+  },
+  {
+   "kind": "fixed",
+   "a": "bush-l-hi-b",
+   "b": "link-l-hi"
   },
   {
    "kind": "fixed",

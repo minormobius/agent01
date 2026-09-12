@@ -1,11 +1,11 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Thrust collar: clamped on the screw just behind the front wall. Gripping pulls the screw forward, so the collar bears on the wall’s inner face (thrust washer and set screw not modelled). One revolve about local Z.",
+ "_": "Bronze bushing: Ø6 × 6 with a Ø4.1 bore, pressed into a link eye, running on a Ø4 dowel. Eight per gripper. One revolve about local Z.",
  "params": {
-  "D": 14,
-  "L": 4,
-  "d": 8
+  "D": 6,
+  "L": 6,
+  "d": 4.1
  },
  "features": [
   {
@@ -38,7 +38,7 @@
   },
   {
    "op": "revolve",
-   "id": "collar",
+   "id": "bushing",
    "profile": "profile",
    "axis": {
     "p": [

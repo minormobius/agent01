@@ -3,7 +3,7 @@
  "units": "mm",
  "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot, its four M3 on a 31 square, and the two Ø6 carriage rods (press fit). The screw passes through the pilot. One extrude along -Y.",
  "params": {
-  "w": 75,
+  "w": 87,
   "zb": -22.5,
   "zt": 29.5,
   "t": 6,

@@ -1,15 +1,15 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Lid, with an access window over the yoke. One extrude along +Z.",
+ "_": "Lid, with an access window over the linkage. One extrude along +Z.",
  "params": {
-  "w": 84,
+  "w": 96,
   "y0": 8,
   "y1": 98,
   "t": 4,
   "z0": 30,
-  "win_w": 60,
-  "win_y0": 51,
+  "win_w": 72,
+  "win_y0": 54.675106837823634,
   "win_y1": 90
  },
  "features": [
