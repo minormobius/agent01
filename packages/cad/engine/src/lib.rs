@@ -295,7 +295,13 @@ pub extern "C" fn cad_alloc(n: u32) -> *mut u8 {
 pub extern "C" fn cad_build(ptr: *const u8, n: u32, kernel: u32, want_step: u32, res: u32) -> u32 {
     let json = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr, n as usize)) };
     let kname = match kernel { 1 => "implicit", _ => "truck" };
-    let opts = BuildOpts { want_step: want_step != 0, res: if res == 0 { 64 } else { res as usize }, ..Default::default() };
+    // `res` is the implicit kernel's grid; for the B-rep kernels it also sets
+    // the chord tolerance, finer than the default 0.01 mm in proportion —
+    // res 256 → 0.0025 mm — so a clearance measured on the mesh reads the
+    // designed gap, not the gap less two sagittas.
+    let res = if res == 0 { 64 } else { res as usize };
+    let tol = if res > 64 { 0.01 * 64.0 / res as f64 } else { 0.01 };
+    let opts = BuildOpts { want_step: want_step != 0, res, tol, ..Default::default() };
     let (rep, built) = build(json, kname, &opts);
     let outs = Outs {
         report: serde_json::to_vec(&rep).unwrap_or_default(),

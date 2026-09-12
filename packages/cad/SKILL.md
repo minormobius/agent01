@@ -87,12 +87,20 @@ you when you have not.
 | `slider` | `ratio?` | travels ratio × a's travel |
 
 Numbers in a mate are expressions in the document's scope. A component's
-pose is its placement, then its travel in its own frame, then its turn
-about its own z. `bench/lift.json` is a lead screw, a nut and a platform.
+pose is its placement, then its travel, then its turn about its own z.
+Travel is carried between components **in world**: a `fixed` follower
+placed at 90° to the part it rides moves the same world direction, in its
+own frame that is a different axis. A component placed by reference on
+another (`@platform.pivot[i]`) already follows it, so a `fixed` mate
+between the two adds nothing — the solver skips it rather than travelling
+twice. `bench/lift.json` is a lead screw, a nut and a platform.
 
 **Repeat.** `"repeat": 4` makes `id[0]` … `id[3]` with `i` in scope for
-`at`, `rotate`, `offset`, references and `params` — six bolts on a bolt
-circle are one component: `"at": ["r*cos(2*pi*i/6)", "r*sin(2*pi*i/6)", 0]`.
+`at`, `rotate`, `offset`, references, `params` and the document's `derived`
+— six bolts on a bolt circle are one component: `"at": ["r*cos(2*pi*i/6)",
+"r*sin(2*pi*i/6)", 0]`, or `"derived": { "bx": "r*cos(2*pi*i/6)" }` and
+`"at": ["bx", "by", 0]`. A derived that mentions `i` is evaluated per
+instance; outside a repeat `i` is 0.
 
 **Place by feature.** `"at": "@platform.pivot[i]"` puts the component's
 origin on that named face of that component — a bore's centre on its
@@ -112,14 +120,36 @@ there is.
 seconds) and reports each pair's worst overlap and when. Add
 `--clearance 1` for what a reviewer reads first: every pair's nearest
 approach (crossing, contained, touching, or the distance in mm) with a
-verdict — collision, expected (a fixed- or screw-mated touch), close
-(under 1 mm), clear — and in a sweep the minimum of each pair is chased
-between samples by a golden-section search, so a graze between two
-instants is found, not missed. Clearance needs no kernel, so the MCP
-`interference` tool runs it on the server (`clearance`, `sweep`,
+verdict, and in a sweep the minimum of each pair is chased between
+samples by a golden-section search, so a graze between two instants is
+found, not missed. The verdicts:
+
+| verdict | means | passes |
+|---|---|---|
+| `collision` | crossing, one inside the other, or any depth | no |
+| `contact` | touching with no depth, and no clearance was demanded | yes |
+| `expected` | a touch the mates imply (fixed, screw) or a `fits` entry declares with `"contact": true` | yes |
+| `fit` | a pair with a declared fit, within its `[min, max]` | yes |
+| `close` | nearer than the clearance you asked for, or under a fit's `min` | no |
+| `loose` | over a fit's `max` | no |
+| `clear` | farther than the clearance | yes |
+
+A running fit is not "close": declare it, and it is judged against its
+own numbers rather than the clearance you demand of everything else —
+
+```json
+"fits": [ { "a": "screw", "b": "nut", "min": 0.05, "max": 0.15 },
+          { "a": "platform", "b": "bolt[*]", "min": 0.05, "max": 0.15 },
+          { "a": "nut", "b": "platform", "contact": true } ]
+```
+
+`[*]` matches every instance of a repeat; either order of `a` and `b`
+matches; numbers may be expressions. Clearance needs no kernel, so the
+MCP `interference` tool runs it on the server (`clearance`, `sweep`,
 `period`); shared volumes still need Manifold, which is local. Distances
-come from the exact meshes, so a curved face is a chord approximation:
-within its sagitta, under 0.02 mm on the bench parts.
+come from the exact meshes at a fine tessellation (chord tolerance
+0.0025 mm), so a designed 0.1 mm reads 0.098; set a fit's `min` with that
+in mind.
 
 **Reference geometry.** `"reference": true` on a component draws it
 translucent and keeps it out of the interference check, the clearance

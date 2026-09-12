@@ -61,6 +61,12 @@
 //                                     `axis` (b's local, default +z); b does not turn
 //   rack   {a, b, r | m, z, axis?}    a's turns move b by r·θ along its axis (a pinion on a rack)
 //   slider {a, b, ratio?}             b travels ratio × a's travel
+// Travel carried by fixed and slider is turned into the follower's own frame
+// (through world, by the rest placements). A component placed on another's
+// face by reference follows it already; a mate between the two is ignored.
+// `fits: [{ a, b, min, max }]` records the clearance a pair is designed to
+// keep (`contact: true` for a designed touch), which the clearance verdicts
+// honour; ids may end in `[*]` for every instance of a repeat.
 // Each works in either direction (a rack driven moves its pinion). A
 // component's pose is its placement, then its travel (a vector in its own
 // frame), then its rotation about its own z. Nothing here is a constraint
@@ -99,11 +105,22 @@ function makeScope(doc, name) {
   try { params = resolveParams(doc.params || {}); } catch (e) { throw new Error(`${name}: ${e.message}`); }
   const derived = doc.derived || {};
   for (const [k, v] of Object.entries(derived)) if (typeof v !== 'number' && typeof v !== 'string') throw new Error(`${name}: derived \`${k}\` must be a number or expression`);
-  return { name, params, derived, memo: null };
+  // a derived that mentions `i` is per repeat instance, not per document
+  const usesI = Object.values(derived).some((v) => typeof v === 'string' && /(^|[^\w.])i([^\w]|$)/.test(v));
+  return { name, params, derived, usesI, memo: null, memoI: new Map() };
 }
 /// The variables in force at (t, theta): params, then derived resolved in
-/// dependency order over params + t + theta. Memoised per instant.
-function envAt(scope, t, theta) {
+/// dependency order over params + t + theta (+ i, for a repeat instance
+/// whose derived use it; 0 outside a repeat). Memoised per instant (and per i).
+function envAt(scope, t, theta, i) {
+  // outside a repeat (the document env, a non-repeated component) `i` is 0
+  if (scope.usesI) { if (i === undefined) i = 0;
+    const key = `${t}|${theta}|${i}`; const hit = scope.memoI.get(key); if (hit) return hit;
+    let env;
+    try { env = resolveParams(scope.derived, { ...scope.params, t, theta, i }); } catch (e) { throw new Error(`${scope.name}[${i}]: derived ${e.message.replace(/^param /, '')}`); }
+    if (scope.memoI.size > 256) scope.memoI.clear();
+    scope.memoI.set(key, env); return env;
+  }
   const m = scope.memo;
   if (m && m.t === t && m.theta === theta) return m.env;
   let env;
@@ -149,7 +166,7 @@ const modelFor = (comp, t, theta, angles) => (angles ? modelOf(comp, angles) : p
 function placement(link, t, theta, angles) {
   const { spec, scope, refs } = link;
   const name = `${scope.name}${spec.id ? ' ' + spec.id : ''}${link.i === undefined ? '' : `[${link.i}]`}`;
-  const base = envAt(scope, t, theta);
+  const base = envAt(scope, t, theta, link.i);
   const env = link.i === undefined ? base : { ...base, i: link.i };
   const field = (v, what) => { try { return num(v, env, what); } catch (e) { throw new Error(`${name}: ${what}: ${e.message}`); } };
   let m;
@@ -189,7 +206,7 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
       for (let k = 0; k < n; k++) {
         const i = c.repeat === undefined ? undefined : k;
         const id = prefix + c.id + (i === undefined ? '' : `[${i}]`);
-        const env = i === undefined ? env0 : { ...env0, i };
+        const env = i === undefined ? env0 : { ...envAt(scope, 0, 0, i), i };
         const link = { spec: c, scope, i, refs: null };
         const what = `${docName} ${c.id}${i === undefined ? '' : `[${i}]`}`;
         if (isRef(c.at) || c.rotate?.align) {
@@ -208,7 +225,9 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
         }
         const partKey = `${c.part}${params ? '|' + JSON.stringify(params) : ''}`;
         if (!partTrees.has(partKey)) partTrees.set(partKey, JSON.stringify(tree));
-        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference };
+        // placed on another component's face: it follows that component's pose already, so a mate to it must not move it again
+        const anchor = [...myChain].reverse().find((l) => l.refs?.at)?.refs.at.comp.id ?? null;
+        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference, anchoredTo: anchor };
         comp.place = placeAt(comp, 0, 0); // the pose at rest, for gear phases and static documents
         components.push(comp); byId.set(id, comp);
       }
@@ -222,12 +241,19 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
     return env0;
   }
   const env0 = await walk(asm, '', [], asm.name || 'assembly');
+  // designed fits: `fits: [{ a, b, min, max }]` — the clearance a pair is meant to have (ids may end in `[*]` for a repeat)
+  const fits = [];
+  for (const f of asm.fits || []) {
+    if (!f || !f.a || !f.b) throw new Error('fits: each entry needs a and b');
+    const n = (v, what) => { try { return v === undefined ? undefined : num(v, env0, what); } catch (e) { throw new Error(`fits ${f.a} ↔ ${f.b}: ${what}: ${e.message}`); } };
+    fits.push({ a: String(f.a), b: String(f.b), min: n(f.min, 'min') ?? 0, max: n(f.max, 'max') ?? Infinity, contact: !!f.contact });
+  }
   const d = asm.drive;
   const n = (v, dflt, what) => { try { return num(v ?? dflt, env0, what); } catch (e) { throw new Error(`drive: ${what}: ${e.message}`); } };
   const drive = !d ? null : d.escapement ? { kind: 'escapement', wheel: d.escapement.wheel, pallet: d.escapement.pallet, balance: d.escapement.balance, teeth: n(d.escapement.teeth, 15, 'teeth'), beat: n(d.escapement.beat, 1, 'beat'), lift: n(d.escapement.lift, 8, 'lift'), swing: n(d.escapement.swing, 220, 'swing') } : { kind: 'rpm', component: d.component, rpm: n(d.rpm, 6, 'rpm') };
   for (const m of mates) { const known = new Set(components.map((c) => c.id)); if (!known.has(m.a) || !known.has(m.b)) throw new Error(`mate ${m.kind} ${m.a} ↔ ${m.b}: no such component ${known.has(m.a) ? m.b : m.a}`); }
   autoPhase(components, mates);
-  return { components, mates, drive, partTrees, params: env0 };
+  return { components, mates, drive, partTrees, params: env0, fits };
 }
 
 /// Gear phases: unless the document gives one, a gear's tooth 0 (its local
@@ -263,6 +289,23 @@ export function expectedTouch(mates) {
   return (a, b) => set.has([a, b].sort().join('\0'));
 }
 
+/// What a pair is designed to do: touch (a fixed or screw mate, or a fit with
+/// `contact: true`), or keep a clearance between `min` and `max` (a `fits`
+/// entry; ids may end in `[*]` to cover every instance of a repeat). Returns
+/// (a, b) → { touch, fit: { min, max } | null }.
+export function expectations(mates, fits = []) {
+  const touch = expectedTouch(mates);
+  const pat = (id) => (id.includes('*') ? new RegExp('^' + id.replace(/[.+?^${}()|\\]/g, '\\$&').replace(/\[\*\]/g, '\\[\\d+\\]').replace(/\*/g, '.*') + '$') : null);
+  const rules = fits.map((f) => ({ ...f, ra: pat(f.a), rb: pat(f.b) }));
+  const hits = (r, x, y) => (r.ra ? r.ra.test(x) : r.a === x) && (r.rb ? r.rb.test(y) : r.b === y);
+  return (a, b) => {
+    const r = rules.find((f) => hits(f, a, b) || hits(f, b, a));
+    // a declared fit is more specific than the touch a mate implies (a nut on a screw with a fit is judged by the fit)
+    if (r) return r.contact ? { touch: true, fit: null } : { touch: false, fit: { min: r.min, max: r.max } };
+    return { touch: touch(a, b), fit: null };
+  };
+}
+
 /// Kinematics as a function of time in seconds. An rpm drive turns one
 /// component; an escapement drive steps its wheel half a tooth per beat (a
 /// quick slide over the first 15 % of the beat), rocks the pallet fork
@@ -286,24 +329,32 @@ export function solveAngles(components, mates, drive, t) {
     angles.set(drive.balance, (drive.swing / 2) * Math.cos(Math.PI * beats));
   } else { root = drive.component; theta = (drive.rpm * 360 * t) / 60; }
   angles.set(root, theta); angles.theta = theta;
+  const byId = new Map(components.map((c) => [c.id, c]));
+  // travel is kept in each component's own frame; carrying it across a mate
+  // goes through world, using the rest placements' rotations (rigid, so the
+  // inverse is the transpose) — a carriage sliding along its y moves a nut
+  // fixed to it at 90° along the nut's x, not the nut's y
+  const carry = (from, to, v) => { const pf = byId.get(from)?.place, pt = byId.get(to)?.place; if (!pf || !pt) return v; const w = xformDir(pf, v); return [w[0] * pt[0] + w[1] * pt[1] + w[2] * pt[2], w[0] * pt[4] + w[1] * pt[5] + w[2] * pt[6], w[0] * pt[8] + w[1] * pt[9] + w[2] * pt[10]]; };
   const seen = new Set([root]); const queue = [root];
   while (queue.length) {
     const cur = queue.shift();
     for (const m of mates) {
       const other = m.a === cur ? m.b : m.b === cur ? m.a : null;
       if (!other || seen.has(other)) continue;
+      // a component placed on cur's face already follows cur's pose: a mate between them would move it twice
+      if (byId.get(other)?.anchoredTo === cur) { seen.add(other); continue; }
       const forward = m.a === cur; // cur is a, other is b
       const θ = angles.get(cur), s = slide.get(cur);
       const axis = norm(m.axis || [0, 0, 1]);
       if (m.kind === 'gear') { const [zc, zo] = forward ? [m.za, m.zb] : [m.zb, m.za]; angles.set(other, -θ * (zc / zo)); }
       else if (m.kind === 'belt') { const [rc, ro] = forward ? [m.ra ?? m.za, m.rb ?? m.zb] : [m.rb ?? m.zb, m.ra ?? m.za]; angles.set(other, θ * (rc / ro)); }
-      else if (m.kind === 'fixed') { angles.set(other, θ); slide.set(other, s); }
+      else if (m.kind === 'fixed') { angles.set(other, θ); slide.set(other, carry(cur, other, s)); }
       else if (m.kind === 'screw' || m.kind === 'rack') {
         const per = m.kind === 'screw' ? (m.lead ?? 1) / 360 : (m.r ?? ((m.m ?? 1) * (m.z ?? 1)) / 2) * (Math.PI / 180); // travel per degree of a
         if (forward) slide.set(other, axis.map((x) => x * per * θ));
         else angles.set(other, dot(s, axis) / per);
       }
-      else if (m.kind === 'slider') { const ratio = m.ratio ?? 1; slide.set(other, forward ? s.map((x) => x * ratio) : s.map((x) => x / ratio)); }
+      else if (m.kind === 'slider') { const ratio = m.ratio ?? 1; slide.set(other, carry(cur, other, forward ? s.map((x) => x * ratio) : s.map((x) => x / ratio))); }
       else continue;
       seen.add(other); queue.push(other);
     }

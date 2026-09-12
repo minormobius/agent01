@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadEngine } from './lib/engine.js';
 import { evaluate, resolveParams } from './lib/expr.js';
-import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, periodOf } from './lib/assembly.js';
+import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, expectations, periodOf } from './lib/assembly.js';
 import { facesOf, kernels } from './agent/common.mjs';
 import { clearances } from './lib/proximity.js';
 import { clearanceAt, sweepClearance, verdictOf } from './lib/sweep.js';
@@ -195,7 +195,9 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   check(near(apart.distance, 3) && !apart.intersecting && near(diag.distance, Math.SQRT2), `two cubes 3 mm apart, and corner to corner at √2 (${diag.distance.toFixed(4)})`);
   check(cross.intersecting && near(cross.penetration, 0.5) && cross.distance === 0, `crossing cubes: intersecting, ${cross.penetration} mm deep`);
   check(inside.contained === 'b in a' && near(inside.penetration, 2) && !inside.intersecting, `a cube inside a cube: contained, ${inside.penetration} mm deep`);
-  check(touch.touching && touch.intersecting && touch.penetration === 0 && verdictOf(touch) === 'collision' && verdictOf(touch, () => true) === 'expected' && verdictOf(apart, () => false, 4) === 'close', 'face-to-face contact is touching; a verdict tells contact from collision from too close');
+  check(touch.touching && touch.intersecting && touch.penetration === 0 && verdictOf(touch) === 'contact' && verdictOf(touch, () => false, 1) === 'close' && verdictOf(touch, () => true) === 'expected' && verdictOf(cross) === 'collision' && verdictOf(apart, () => false, 4) === 'close', 'face-to-face contact is contact (close only when a clearance is demanded), depth is collision, a mated touch is expected');
+  const fitOf = (min, max) => () => ({ touch: false, fit: { min, max } });
+  check(verdictOf(apart, fitOf(2.5, 3.5)) === 'fit' && verdictOf(apart, fitOf(3.5, 4)) === 'close' && verdictOf(apart, fitOf(1, 2)) === 'loose' && verdictOf(touch, fitOf(0, 0.1)) === 'fit' && verdictOf(touch, fitOf(0.05, 0.1)) === 'collision' && verdictOf(cross, fitOf(0, 1)) === 'collision', 'a designed fit is judged against its own [min, max]: fit, close, loose; contact within a fit that allows 0 passes');
   // the lift's real meshes: nut on screw is an expected touch, bolts and screw keep their distance
   const { engine } = await kernels();
   const lift = bench('lift'); const fl = await flatten(lift, benchRef, { facesOf });
@@ -218,6 +220,36 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   const withRef = { ...lift, components: [...lift.components, { id: 'ghost', part: 'nut', at: [0, 0, 'rise'], reference: true }] };
   const fr = await flatten(withRef, benchRef, { facesOf });
   check(fr.components.find((c) => c.id === 'ghost')?.reference === true && !fr.components.find((c) => c.id === 'nut').reference, 'a component marked reference is flagged for the tools to leave out (and hidden is not)');
+}
+
+// ── 9. the practitioner's findings ──────────────────────────────────────
+{
+  const lift = bench('lift');
+  // a component placed on a face and also fixed-mated to that component moves once, not twice
+  const doubled = { ...lift, mates: [...lift.mates, { kind: 'fixed', a: 'platform', b: 'bolt[0]' }] };
+  const fd = await flatten(doubled, benchRef, { facesOf });
+  const b0 = fd.components.find((c) => c.id === 'bolt[0]'); const z = origin(modelOf(b0, solveAngles(fd.components, fd.mates, fd.drive, 0.5)))[2];
+  check(b0.anchoredTo === 'platform' && near(z, 13), `a bolt placed on the platform's hole and fixed-mated to it rides once (z ${z}, not 14)`);
+  // travel carried by a fixed mate is turned into the follower's frame: a carriage sliding along its y carries a nut turned 90° along the nut's x
+  const rig = { parts: { p: 'bench:arbor' }, components: [{ id: 'screw', part: 'p' }, { id: 'carriage', part: 'p', at: [0, 0, 5] }, { id: 'rider', part: 'p', at: [0, 0, 8], rotate: { axis: [0, 0, 1], deg: 90 } }], mates: [{ kind: 'screw', a: 'screw', b: 'carriage', lead: 4, axis: [0, 1, 0] }, { kind: 'fixed', a: 'carriage', b: 'rider' }], drive: { component: 'screw', rpm: 60 } };
+  const fr = await flatten(rig, benchRef); const ar = solveAngles(fr.components, fr.mates, fr.drive, 0.5);
+  const carriage = origin(modelOf(fr.components[1], ar)), rider = origin(modelOf(fr.components[2], ar)), local = ar.slide.get('rider');
+  check(near(carriage[1], 2) && near(rider[1], 2) && near(rider[0], 0) && near(local[0], 2, 1e-9) && near(local[1], 0), `the carriage moves 2 mm along world y and so does its rider, whose own travel is along its x (${local.map((v) => +v.toFixed(3)).join(', ')})`);
+  // i in derived
+  const rep = await flatten({ params: { pitch: 5 }, derived: { xi: 'i * pitch', yi: 'sin(i) * 0' }, parts: { p: 'bench:arbor' }, components: [{ id: 'a', part: 'p', repeat: 3, at: ['xi', 'yi', 0] }] }, benchRef);
+  check(rep.components.map((c) => c.place[12]).join() === '0,5,10', `derived may use i: three instances at x = ${rep.components.map((c) => c.place[12]).join(', ')}`);
+  // designed fits from the document, with a wildcard for the repeat
+  const ff = await flatten(lift, benchRef, { facesOf });
+  const ex = expectations(ff.mates, ff.fits);
+  check(ff.fits.length === 3 && ex('nut', 'screw').fit?.min === 0.05 && ex('platform', 'bolt[2]').fit?.max === 0.15 && ex('bolt[2]', 'platform').fit && !ex('screw', 'bolt[0]').fit && ex('nut', 'platform').touch, 'fits: screw–nut and platform–bolt[*] carry their designed clearance either way round; other pairs do not');
+  const { engine } = await kernels();
+  const meshes = new Map(); for (const [k, tr] of ff.partTrees) meshes.set(k, engine.build(tr, { kernel: 'truck', res: 256 }).mesh);
+  const bodies = ff.components.map((c) => ({ id: c.id, mesh: meshes.get(c.partKey), comp: c }));
+  const at = clearanceAt(bodies, { components: ff.components, mates: ff.mates, drive: ff.drive }, 0.3);
+  const vs = Object.fromEntries(at.pairs.map((p) => [`${p.a}|${p.b}`, verdictOf(p, ex, 0.5)]));
+  const ns = at.pairs.find((p) => [p.a, p.b].includes('screw') && [p.a, p.b].includes('nut'));
+  check(vs['screw|nut'] === 'fit' && vs['platform|bolt[0]'] === 'fit' && vs['nut|platform'] === 'expected' && Object.values(vs).every((v) => ['fit', 'expected', 'clear'].includes(v)), `with fits declared and 0.5 mm demanded, the lift passes: ${[...new Set(Object.values(vs))].join(', ')}`);
+  check(near(ns.distance, 0.1, 0.0025), `at res 256 the nut's clearance reads ${ns.distance.toFixed(4)} mm for a designed 0.1 (chord error under 0.0025)`);
 }
 
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ assembly selftest passed');

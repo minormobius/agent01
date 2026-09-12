@@ -74,7 +74,7 @@ check(m2.kind === 'plane-plane' && m2.parallel && Math.abs(m2.distance - 1.5) < 
 const nf = await tool('measure', { tree: 'bench:plate', a: 'nothing' });
 check(nf.isError && /no face named nothing/.test(nf.content[0].text), 'measure names the faces it does know when one is missing');
 const cl = (await tool('interference', { assembly: 'bench:lift', sweep: 6, clearance: 0.5 })).structuredContent;
-check(cl.method === 'mesh' && cl.refined && cl.pairs.length >= 9 && cl.pairs.every((p) => ['clear', 'expected', 'close'].includes(p.verdict)) && cl.pairs.some((p) => p.verdict === 'close' && [p.a, p.b].includes('nut')) && cl.ok === false, `clearance mode: nearest approach of ${cl.pairs.length} pairs through the cycle, the nut's 0.1 mm to the screw flagged under 0.5 (ok ${cl.ok})`);
+check(cl.method === 'mesh' && cl.refined && cl.pairs.length >= 9 && cl.pairs.every((p) => ['clear', 'expected', 'fit'].includes(p.verdict)) && cl.pairs.some((p) => p.verdict === 'fit' && [p.a, p.b].includes('nut')) && cl.ok === true, `clearance mode: nearest approach of ${cl.pairs.length} pairs through the cycle, the nut's 0.1 mm to the screw read as its declared fit under a 0.5 demand (ok ${cl.ok})`);
 const ms = (await tool('measure', { tree: 'bench:lift', a: 'nut.end', b: 'platform.start', t: 0.5 })).structuredContent;
 check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5, `measure across an assembly: the nut's top and the platform's underside are coplanar at t = 0.5 (${ms.kind}, ${ms.distance})`);
 const sw = (await tool('interference', { assembly: 'bench:lift', sweep: 6 })).structuredContent;
@@ -104,7 +104,7 @@ check(Array.isArray(batch) && batch.length === 2 && batch[1].result.tools.length
   check(bl.result.structuredContent.ok && bl.result.structuredContent.kernel === 'truck', 'build still works with the exact kernel alone');
   const li = await (await lp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'interference', arguments: { assembly: 'bench:lift', sweep: 4, clearance: 0.5 } } })).json();
   const lc = li.result?.structuredContent;
-  check(lc?.method === 'mesh' && lc.sweep === 4 && lc.pairs.length >= 9 && lc.pairs.some((p) => p.verdict === 'close'), `interference on the kernel-less host answers in clearance mode from the exact meshes (${lc?.pairs.length} pairs, ${lc?.ms.toFixed(0)} ms)`);
+  check(lc?.method === 'mesh' && lc.sweep === 4 && lc.pairs.length >= 9 && lc.pairs.some((p) => p.verdict === 'fit'), `interference on the kernel-less host answers in clearance mode from the exact meshes (${lc?.pairs.length} pairs, ${lc?.ms.toFixed(0)} ms)`);
   const d = await (await lite.handle(new Request('https://cad.mino.mobi/mcp'))).json();
   check(d.capabilities.manifold === false && d.tools.length === TOOLS.length, 'the descriptor states the capability and lists every tool');
 }

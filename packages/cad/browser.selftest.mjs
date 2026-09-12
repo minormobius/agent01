@@ -138,6 +138,15 @@ check(picked.id >= 0 && picked.names.some((n) => /plate\.(end|start|side)/.test(
   check(m.rim.kind === 'cylinder' && Math.abs(m.rim.diameter - 40) < 1e-9, `the rim reads ⌀ ${m.rim.diameter}`);
   check(m.faces.kind === 'plane-plane' && m.faces.parallel && Math.abs(m.faces.distance - 1.5) < 1e-9, `plate.start to plate.end is ${m.faces.distance} (plane to plane, parallel)`);
   check(m.axes.kind === 'cylinder-cylinder' && m.axes.parallel && Math.abs(m.axes.distance - 12) < 1e-9, `rim axis to pivot axis is ${m.axes.distance} (the pattern radius)`);
+  // the measure panel: the same faces picked from two lists, no hovering needed
+  const mp = await page.evaluate(() => {
+    const pick = (id, v) => { const s = document.querySelector('#' + id); s.value = v; s.dispatchEvent(new Event('change')); };
+    const n = document.querySelectorAll('#ma option').length;
+    pick('ma', 'plate.pivot[0][0]'); const one = document.querySelector('#measurebox').textContent;
+    pick('mb', 'plate.rim[0]'); const two = document.querySelector('#measurebox .measure')?.textContent || '';
+    return { n, one, two, kept: document.querySelector('#ma').value };
+  });
+  check(mp.n > 10 && /⌀ 0\.32/.test(mp.one) && /12(\.0+)?\b/.test(mp.two) && mp.kept === 'plate.pivot[0][0]', `the measure panel lists ${mp.n - 1} faces; one pick reads its geometry, two read the distance (${mp.two.trim()})`);
 }
 
 // the report is on screen
@@ -186,20 +195,21 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   await page.goto(`${base}/?at=${encodeURIComponent(strangerFile.uri)}`, { waitUntil: 'load' });
   const opened = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { at: window.__cad.state.at, name: window.__cad.state.name, vol: r.exact?.volume, groups: [...document.querySelectorAll('#files h3')].map((h) => h.textContent), on: document.querySelector('#files .f.on')?.textContent, hist: document.querySelectorAll('#history .r').length }; });
   check(opened.at === strangerFile.uri && opened.name === 'cam' && Math.abs(opened.vol - 1984.984) < 0.01, `?at= opens a stranger's file through the gateway and builds it (${opened.name}, ${opened.vol?.toFixed(3)} mm³)`);
-  check(opened.groups.includes('at://did:plc:stranger') && /lib\/cam/.test(opened.on || '') && opened.hist === 1, `the files pane shows their repo with the open file lit (${opened.groups.join(', ')})`);
+  check(opened.groups.some((g) => g.startsWith('at://did:plc:stranger')) && /cam/.test(opened.on || '') && opened.hist === 1, `the files pane shows their repo with the open file lit (${opened.groups.join(', ')})`);
   await page.goto(`${base}/?at=${encodeURIComponent(strangerFile.head.uri)}`, { waitUntil: 'load' });
   const pinned = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { at: window.__cad.state.at, vol: r.exact?.volume, file: !!window.__cad.state.file }; });
   check(pinned.at === strangerFile.head.uri && Math.abs(pinned.vol - 1984.984) < 0.01 && !pinned.file, `?at= with a REVISION uri (what a parts post points at) opens the pinned tree as a document (${pinned.vol?.toFixed(3)} mm³)`);
   await page.goto(`${base}/?at=${encodeURIComponent(strangerFile.uri)}`, { waitUntil: 'load' });
   await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
-  const fk = await page.evaluate(async (uri) => { const r = await window.__cad.drives.local.fork(uri, 'vendor/cam'); const h = await window.__cad.drives.local.history('vendor/cam'); await window.__cad.renderFiles(); return { path: r.path, dids: h.map((x) => x.did), parent: h[0].parents[0]?.uri, rows: document.querySelectorAll('#files .f[data-drive=local]').length }; }, strangerFile.uri);
+  const fk = await page.evaluate(async (uri) => { const r = await window.__cad.drives.local.fork(uri, 'vendor/cam'); const h = await window.__cad.drives.local.history('vendor/cam'); await window.__cad.renderFiles(); for (const d of document.querySelectorAll('#files .f.dir')) window.__cad.state.folds.add(d.dataset.fold); await window.__cad.renderFiles(); return { path: r.path, dids: h.map((x) => x.did), parent: h[0].parents[0]?.uri, rows: document.querySelectorAll('#files .f[data-drive=local]').length }; }, strangerFile.uri);
   check(fk.path === 'vendor/cam' && fk.dids.join(' ') === 'did:local did:plc:stranger' && fk.parent === strangerFile.head.uri && fk.rows === 2, `forking it to the local drive keeps the lineage across repos (${fk.dids.join(' ← ')})`);
   await page.route('**/xrpc/app.bsky.actor.searchActorsTypeahead*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ actors: [{ did: 'did:plc:stranger', handle: 'stranger.example' }] }) }));
-  await page.fill('#repo', 'stra'); await page.waitForFunction(() => document.querySelector('#repo')?.list?.options.length === 1, null, { timeout: 5000 });
+  await page.fill('#repo', 'stra'); await page.waitForFunction(() => document.querySelectorAll('.ta-list:not([hidden]) li').length === 1, null, { timeout: 5000 });
+  const below = await page.evaluate(() => { const i = document.querySelector('#repo'), l = i.parentElement.querySelector('.ta-list'); return l.getBoundingClientRect().top >= i.getBoundingClientRect().bottom - 1; });
   await page.fill('#repo', 'did:plc:x'); await new Promise((r) => setTimeout(r, 300));
-  const ta = await page.evaluate(() => ({ h: !!document.querySelector('#handle').list, r: document.querySelector('#repo').list.options.length }));
-  check(ta.h && ta.r === 0, 'both handle fields suggest accounts through the gateway; a DID in the browse field gets no suggestions');
-  const browsed = await page.evaluate(async () => { document.querySelector('#repo').value = 'stranger.example'; document.querySelector('#browse').click(); for (let i = 0; i < 200 && !document.querySelector('#files .f[data-drive=browse]'); i++) await new Promise((r) => setTimeout(r, 25)); return document.querySelectorAll('#files .f[data-drive=browse]').length; });
+  const ta = await page.evaluate(() => ({ h: !!document.querySelector('#handle').dataset.typeahead, r: document.querySelectorAll('.ta-list:not([hidden]) li').length }));
+  check(ta.h && ta.r === 0 && below, 'both handle fields suggest accounts through the gateway, in a list under the field; a DID in the browse field gets none');
+  const browsed = await page.evaluate(async () => { document.querySelector('#repo').value = 'stranger.example'; document.querySelector('#browse').click(); for (let i = 0; i < 200 && ![...document.querySelectorAll('#files h3')].some((h) => h.textContent.startsWith('at://')); i++) await new Promise((r) => setTimeout(r, 25)); for (const d of document.querySelectorAll('#files .f.dir')) window.__cad.state.folds.add(d.dataset.fold); await window.__cad.renderFiles(); return document.querySelectorAll('#files .f[data-drive=browse]').length; });
   check(browsed === 2, `browsing a repo by handle lists it (the gateway resolves the handle; ${browsed} files)`);
   await page.goto(`${base}/?at=${encodeURIComponent(strangerAsm.uri)}`, { waitUntil: 'load' });
   const asm = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { mode: r.mode, components: r.components, slots: r.slots, timeout: r.timeout }; });

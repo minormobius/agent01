@@ -80,9 +80,11 @@ check(front.posts[0] === 'A lever escapement that ticks' && front.posts.length =
 check(front.communities.join() === 'clocks' && front.who === 'not signed in', 'the communities sidebar and the signed-out state render');
 await page.waitForFunction(() => [...document.querySelectorAll('[data-did]')].every((a) => a.textContent.startsWith('@')));
 check(true, 'author handles resolve through the cad gateway');
-await page.fill('#handle', 'some'); await page.waitForFunction(() => document.querySelector('#handle')?.list?.options.length === 2, null, { timeout: 5000 });
-const ta = await page.evaluate(() => [...document.querySelector('#handle').list.options].map((o) => o.value));
-check(ta.join() === 'someone.test,somebody.else.test', `typing in the handle field suggests accounts (${ta.join(', ')})`);
+await page.fill('#handle', 'some'); await page.waitForFunction(() => document.querySelectorAll('.ta-list li').length === 2, null, { timeout: 5000 });
+const ta = await page.evaluate(() => { const i = document.querySelector('#handle'), l = document.querySelector('.ta-list'); const ri = i.getBoundingClientRect(), rl = l.getBoundingClientRect(); return { names: [...l.querySelectorAll('li')].map((o) => o.firstChild.textContent), below: rl.top >= ri.bottom - 1, hidden: l.hidden }; });
+check(ta.names.join() === 'someone.test,somebody.else.test' && ta.below && !ta.hidden, `typing in the handle field opens a list under it, never over it (${ta.names.join(', ')})`);
+await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+check((await page.inputValue('#handle')) === 'someone.test' && (await page.evaluate(() => document.querySelector('.ta-list').hidden)), 'arrow and enter pick a suggestion and close the list');
 await page.click('.sorts a:nth-child(2)'); await page.waitForFunction(() => document.querySelector('.sorts a.on')?.textContent === 'new');
 await page.click('.side .c a'); await page.waitForSelector('h2');
 const comm = await page.evaluate(() => ({ h2: document.querySelector('h2').textContent, posts: document.querySelectorAll('.post').length, desc: document.querySelector('.text')?.textContent }));

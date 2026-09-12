@@ -19,6 +19,14 @@ body[data-mode=part] .asm-only, body[data-mode=asm] .part-only { display: none; 
 #files .f .p { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #files .f button, #history .r button { padding: 0 5px; font-size: 11px; }
 #files .f small, #history .r small { color: var(--dim); }
+#files .f.dir { color: var(--dim); }
+#files .f.asm .p { color: var(--ink); font-weight: 600; }
+#files h3 .cnt { text-transform: none; letter-spacing: 0; margin-left: 6px; }
+#files .hint { margin-top: 6px; font-size: 11px; }
+#measurebox { background: #1a1c20; border: 1px solid var(--line); border-radius: 3px; padding: 6px; }
+#measurebox .row { display: flex; margin-bottom: 4px; }
+#measurebox select { flex: 1; min-width: 0; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 3px; font: inherit; font-size: 11px; }
+#measurebox .measure { margin-top: 4px; }
 #history .r .m { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 header { grid-area: bar; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
 header h1 { font-size: 14px; margin: 0 12px 0 0; font-weight: 600; letter-spacing: 0.02em; }

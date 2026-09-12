@@ -15,8 +15,8 @@
 // `kernels()` resolves to { engine, manifold } (lib/engine.js and the
 // Manifold module); `fetchRef(ref)` turns `bench:<name>` or an `at://` URI into
 // a tree; `gateway` is the base URL of the /xrpc/ read gateway for file tools.
-import { flatten, solveAngles, modelOf, expectedTouch, periodOf, findFace } from './lib/assembly.js';
-import { clearanceAt, sweepClearance, verdictOf } from './lib/sweep.js';
+import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf, findFace } from './lib/assembly.js';
+import { clearanceAt, sweepClearance, verdictOf, OK_VERDICTS } from './lib/sweep.js';
 import { buildManifold } from './lib/manifold-kernel.js';
 import { interference } from './lib/interfere.js';
 import { weld, invariants } from './lib/mesh.js';
@@ -40,7 +40,7 @@ export const TOOLS = [
     inputSchema: { type: 'object', properties: { tree: treeArg, kernel: { type: 'string', enum: ['truck', 'manifold'], default: 'truck' }, faces: { type: 'boolean', default: true, description: 'include the face list' }, parts: { type: 'array', items: { type: 'string' }, description: 'assemblies only: the part keys to build in this call (default: the first few)' } }, required: ['tree'] } },
   { name: 'measure', title: 'Measure named faces', description: 'One face: its geometry (a cylinder\'s diameter and axis, a plane\'s normal). Two faces: plane-to-plane, axis-to-axis (with both diameters and the wall between) or axis-to-plane distance, from exact geometry. Face names come from `build`. On an assembly, name faces as `component.face` and pass `t` to pose it first: the distance between two parts\' faces at an instant, which tests the kinematics directly.',
     inputSchema: { type: 'object', properties: { tree: treeArg, a: { type: 'string', description: 'a face name, e.g. plate.pivot[0][0]' }, b: { type: 'string' }, t: { type: 'number', description: 'seconds through the drive, for an assembly' } }, required: ['tree', 'a'] } },
-  { name: 'interference', title: 'Check an assembly for interference and clearance', description: 'Pose every component of an assembly at time t (seconds through its drive) and test every pair. With the preview kernel, pairs with more than eps mm³ in common are returned with their shared volume. Everywhere (this server included), pass `clearance` in mm to get the nearest approach of every pair from the exact meshes instead — crossing, contained, touching, or the distance — and a verdict per pair: collision, expected (a fixed- or screw-mated touch), close (under the clearance), clear. With sweep N, N instants over one period of the drive (or `period` seconds) are checked and each pair\'s worst kept; in clearance mode the minimum is then chased between samples, so a graze between instants is found. Reference components are left out. Big gears take ~30 s each to build here; sweep large assemblies locally with agent/check.mjs.',
+  { name: 'interference', title: 'Check an assembly for interference and clearance', description: 'Pose every component of an assembly at time t (seconds through its drive) and test every pair. With the preview kernel, pairs with more than eps mm³ in common are returned with their shared volume. Everywhere (this server included), pass `clearance` in mm to get the nearest approach of every pair from the exact meshes instead — crossing, contained, touching, or the distance — and a verdict per pair: collision (depth or containment), close (under the clearance), loose (wider than a designed fit), expected (a mated touch), fit (a designed clearance, from the document\'s `fits`), contact (touching, no depth, no clearance demanded), clear. With sweep N, N instants over one period of the drive (or `period` seconds) are checked and each pair\'s worst kept; in clearance mode the minimum is then chased between samples, so a graze between instants is found. Reference components are left out. Big gears take ~30 s each to build here; sweep large assemblies locally with agent/check.mjs.',
     inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0 }, eps: { type: 'number', default: 0.01 }, clearance: { type: 'number', description: 'mm: report every pair\'s nearest approach and flag those closer than this (0 flags only contact); this mode needs no kernel' }, sweep: { type: 'integer', description: 'check this many instants over one period instead of one time t' }, period: { type: 'number', description: 'seconds per cycle for a sweep; default one turn of the driven component' } }, required: ['assembly'] } },
   { name: 'step', title: 'Export STEP', description: 'The exact B-rep as STEP text (Truck kernel). For other CAD systems.',
     inputSchema: { type: 'object', properties: { tree: treeArg }, required: ['tree'] } },
@@ -151,21 +151,22 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const { engine, manifold } = await kernels();
       const doc = await asTree(assembly);
       if (!Array.isArray(doc.components)) throw new Error('not an assembly (no components)');
-      const { components: all, mates, drive, partTrees } = await flatten(doc, resolveRef, { facesOf });
+      const { components: all, mates, drive, partTrees, fits } = await flatten(doc, resolveRef, { facesOf });
       const components = all.filter((c) => !c.reference);
       const expected = expectedTouch(mates);
+      const expect = expectations(mates, fits);
       if (clearance !== undefined || !(caps.manifold && manifold)) {
         // nearest approach from the exact meshes: no kernel needed, so this is what the server runs
         if (clearance === undefined) clearance = 0;
         const meshes = new Map(); const failed = [];
-        for (const [key, tree] of partTrees) { const r = engine.build(tree, { kernel: 'truck' }); if (r.ok) meshes.set(key, r.mesh); else failed.push({ key, error: r.report.error }); }
+        for (const [key, tree] of partTrees) { const r = engine.build(tree, { kernel: 'truck', res: 256 }); if (r.ok) meshes.set(key, r.mesh); else failed.push({ key, error: r.report.error }); }
         const bodies = components.filter((c) => meshes.has(c.partKey)).map((c) => ({ id: c.id, mesh: meshes.get(c.partKey), comp: c }));
         const kin = { components: all, mates, drive };
-        const annotate = (p) => ({ a: p.a, b: p.b, verdict: verdictOf(p, expected, clearance), distance: p.distance, intersecting: p.intersecting, contained: p.contained, touching: p.touching, penetration: p.penetration, closest: p.closest, ...(p.t !== undefined ? { t: p.t } : {}) });
+        const annotate = (p) => ({ a: p.a, b: p.b, verdict: verdictOf(p, expect, clearance), distance: p.distance, intersecting: p.intersecting, contained: p.contained, touching: p.touching, penetration: p.penetration, closest: p.closest, ...(p.t !== undefined ? { t: p.t } : {}) });
         let r;
         if (!sweep) { const c = clearanceAt(bodies, kin, t); r = { t, pairs: c.pairs.map(annotate), tested: c.tested, ms: c.ms }; }
         else { const n = Math.max(2, Math.min(360, Math.round(sweep))), per = period ?? periodOf(drive); const c = sweepClearance(bodies, kin, { instants: n, period: per }); r = { sweep: n, period: per, refined: true, pairs: c.pairs.map(annotate), tested: c.tested, ms: c.ms }; }
-        return { ok: r.pairs.every((p) => p.verdict === 'clear' || p.verdict === 'expected'), method: 'mesh', clearance, ...r, failed, link: link(doc), note: 'nearest approach from the exact meshes; shared volumes need the preview kernel (agent/check.mjs locally)' };
+        return { ok: r.pairs.every((p) => OK_VERDICTS.has(p.verdict)), method: 'mesh', clearance, ...r, failed, link: link(doc), note: 'nearest approach from the exact meshes (res 256, chord error under 0.002 mm); verdicts: collision, close, loose fail; clear, contact, expected, fit pass; shared volumes need the preview kernel (agent/check.mjs locally)' };
       }
       const built = new Map(); const failed = [];
       for (const [key, tree] of partTrees) { const r = buildManifold(manifold, engine.resolve(tree), { keep: true }); if (r.ok) built.set(key, r); else failed.push({ key, error: r.error }); }

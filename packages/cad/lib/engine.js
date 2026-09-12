@@ -3,7 +3,9 @@
 //
 //   const engine = await loadEngine(bytesOrResponse);
 //   engine.resolve(treeJson)                 → resolved tree + sampled polylines (throws on error)
-//   engine.build(treeJson, {kernel, step})   → {ok, report, mesh:{pos,idx,fid}, stl, step}
+//   engine.build(treeJson, {kernel, step, res}) → {ok, report, mesh:{pos,idx,fid}, stl, step}
+//   res (default 64): the implicit kernel's grid, and above 64 a finer chord
+//   tolerance for the B-rep kernels (0.01 mm × 64 / res) — clearance uses 256
 import { weld } from './mesh.js';
 
 const KERNELS = { truck: 0, implicit: 1 };

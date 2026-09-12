@@ -4,6 +4,53 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-12, second pass
+
+From a practitioner's findings on the first pass.
+
+**Contact is not collision.** A pair touching with no depth is `contact`
+now (passes), `collision` only with depth or containment. Demand a
+clearance and a touch is `close`.
+
+**Designed fits.** An assembly may declare the clearances it intends:
+`"fits": [{ "a": "screw", "b": "nut", "min": 0.05, "max": 0.15 }]` —
+`[*]` for every instance of a repeat, `"contact": true` for a designed
+touch, either order of the pair. A declared pair is judged on its own
+numbers: `fit`, `close` (under `min`), `loose` (over `max`) — never
+against the clearance you demand of everything else. A fit on a
+screw-mated pair takes precedence over the mate's implied touch. Seven
+verdicts in all; `ok` is true when every pair is `clear`, `contact`,
+`expected` or `fit`. `bench/lift.json` declares three.
+
+**Finer meshes for clearance.** The clearance check tessellates at
+`res: 256` (chord tolerance 0.0025 mm, was 0.01): a designed 0.1 mm bore
+now reads 0.098, not 0.093; a plane-to-plane 1.000. Build time is higher
+in that mode. (Rebuilt `cad.wasm`: `res` above 64 now also tightens the
+exact kernel's chord tolerance.)
+
+**One travel, not two.** A component placed by reference on another
+(`at: "@platform.pivot[i]"`) already follows it; a `fixed` mate between
+the two no longer adds the travel again.
+
+**Travel is carried in world.** A `fixed` or `slider` follower placed at
+an angle to the part it rides now moves the same world direction as its
+leader, whatever its own axes. A nut that needed its own `screw` mate to
+move with the carriage does not any more.
+
+**`i` in `derived`.** A derived that mentions `i` is evaluated per repeat
+instance (`"bx": "r*cos(2*pi*i/6)"`); outside a repeat `i` is 0.
+
+**On the page:** the files tab is a tree — folders from the paths'
+slashes, folded until you open them, assemblies before parts, counts in
+the heading; a **measure** panel lists every named face (of every
+component, posed, in an assembly) so two picks give a distance without
+hovering; handle suggestions open in a list under the field instead of
+the browser's own popup over it.
+
+Not yet: a server sweep still runs one instant after another with no
+budget — a 45-component assembly at 24 instants does not finish.
+Windowed sweeps and drawings are next.
+
 ## 2026-09-12
 
 **Interference is a server tool.** The MCP `interference` tool now runs on

@@ -298,11 +298,35 @@ function measureLine(a, b) {
   if (m.kind === 'plane-cylinder') return m.parallel ? `<b>${fmt(m.distance)}</b> axis to plane · ⌀ ${fmt(m.diameter)}` : `axis not in the plane; centroids ${fmt(m.centroidDistance)} apart`;
   return `centroids <b>${fmt(m.centroidDistance)}</b> apart (no exact geometry on one face)`;
 }
+/// The measure panel: pick two faces from lists instead of clicking geometry.
+/// Parts list the exact build's named faces; assemblies list every component's,
+/// posed at the current angles, so a distance across parts is two picks.
+function faceOptions() {
+  const out = [];
+  // a face's last name is its most specific (`plate.rim[0]` after the generic `plate.side[0]`)
+  const nm = (f, i) => f.names[f.names.length - 1] || `face[${i}]`;
+  if (state.mode === 'part') { (state.slots.get('main')?.faces || []).forEach((f, i) => out.push({ key: nm(f, i), label: nm(f, i), face: f })); return out; }
+  for (const c of state.components) { const s = state.slots.get(c.partKey); if (!s?.faces?.length) continue; s.faces.forEach((f, i) => out.push({ key: `${c.id}.${nm(f, i)}`, label: `${c.id} · ${nm(f, i)}`, face: faceWorld(f, modelOf(c, state.angles)) })); }
+  return out;
+}
+function renderMeasure() {
+  const box = $('#measurebox'); if (!box) return;
+  const opts = faceOptions();
+  if (!opts.length) { box.innerHTML = '<span class="dim">faces arrive with the exact build</span>'; return; }
+  const sel = (id) => `<select id="${id}"><option value="">— pick a face —</option>${opts.map((o) => `<option value="${o.key}"${state.measurePick?.[id] === o.key ? ' selected' : ''}>${o.label}</option>`).join('')}</select>`;
+  const a = opts.find((o) => o.key === state.measurePick?.ma), b = opts.find((o) => o.key === state.measurePick?.mb);
+  let out = '';
+  if (a && !b) out = `<div>${geomLine(a.face)}</div>`;
+  else if (a && b) out = `<div class="measure">${measureLine(a.face, b.face)}</div>`;
+  box.innerHTML = `<div class="row">${sel('ma')}</div><div class="row">${sel('mb')}</div>${out || '<div class="dim">one face: its size and geometry · two: the distance between them</div>'}`;
+  for (const id of ['ma', 'mb']) $('#' + id).addEventListener('change', () => { state.measurePick ??= {}; state.measurePick[id] = $('#' + id).value; renderMeasure(); });
+}
 function renderFace() {
+  renderMeasure();
   const box = $('#face');
   const pick = state.select || state.hover;
   if (state.mode === 'asm') highlightComponent(pick ? pick.name : null);
-  if (!pick) { box.innerHTML = '<span class="dim">hover a face · click to pin · click a second face to measure</span>'; return; }
+  if (!pick) { box.innerHTML = '<span class="dim">hover a face on the part · click to pin it · click a second face to measure between them — or pick both from the lists above</span>'; return; }
   const comp = state.mode === 'asm' ? `<code class="comp">${pick.name}</code> ` : '';
   const f = faceOf(pick);
   const slotKey = state.mode === 'part' ? 'main' : state.components.find((c) => c.id === pick.name)?.partKey;
@@ -507,18 +531,49 @@ function onAuth() {
 }
 function setDriveStatus(msg, bad = false) { const el = $('#drivestatus'); el.textContent = msg; el.className = bad ? 'bad' : 'dim'; }
 const fmtDate = (s) => (s || '').replace('T', ' ').slice(0, 16);
+/// The files tab as a tree. A path's folders are its slashes; assemblies
+/// come first at every level and folders start folded, because a repo of
+/// parts is busy and the assemblies are what a person opens. Open folders
+/// are remembered in `state.folds` per drive.
+state.folds ??= new Set();
+function fileTree(entries) {
+  const root = { dirs: new Map(), files: [] };
+  for (const e of entries) {
+    const segs = e.path.split('/'); let node = root;
+    for (const d of segs.slice(0, -1)) { if (!node.dirs.has(d)) node.dirs.set(d, { dirs: new Map(), files: [] }); node = node.dirs.get(d); }
+    node.files.push(e);
+  }
+  return root;
+}
+const countFiles = (n) => n.files.length + [...n.dirs.values()].reduce((a, d) => a + countFiles(d), 0);
+function renderNode(node, k, prefix, depth) {
+  const rows = [];
+  const files = [...node.files].sort((a, b) => (a.kind === 'assembly' ? 0 : 1) - (b.kind === 'assembly' ? 0 : 1) || a.path.localeCompare(b.path));
+  for (const e of files) rows.push(`<div class="f${state.file?.entry.uri === e.uri ? ' on' : ''}${e.kind === 'assembly' ? ' asm' : ''}" style="padding-left:${4 + depth * 12}px" data-drive="${k}" data-uri="${e.uri}"><span class="p" title="${e.uri}">${e.path.slice(e.path.lastIndexOf('/') + 1)}</span><small>${e.kind === 'assembly' ? 'assembly' : 'part'}</small>${k !== 'browse' && drives.pds && k === 'local' ? '<button data-act="push" title="copy this file and its history to your PDS">push</button>' : ''}${k !== 'local' ? '<button data-act="fork" title="copy to the local drive, keeping the lineage">fork</button>' : ''}${k !== 'browse' ? '<button data-act="rm">×</button>' : ''}</div>`);
+  for (const [name, dir] of [...node.dirs].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const key = `${k}:${prefix}${name}/`; const folded = !state.folds.has(key); const n = countFiles(dir);
+    rows.push(`<div class="f dir" style="padding-left:${4 + depth * 12}px" data-fold="${key}"><span class="p">${folded ? '▸' : '▾'} ${name}/</span><small>${n} ${n === 1 ? 'file' : 'files'}</small></div>`);
+    if (!folded) rows.push(...renderNode(dir, k, prefix + name + '/', depth + 1));
+  }
+  return rows;
+}
+/// the folders on the way to the open file are always open, so it is never hidden
+function unfoldTo(k, path) { const segs = path.split('/').slice(0, -1); let p = ''; for (const d of segs) { p += d + '/'; state.folds.add(`${k}:${p}`); } }
 async function renderFiles() {
   const box = $('#files'); const groups = [];
+  if (state.file) unfoldTo(state.file.drive, state.file.entry.path);
   for (const [k, title] of [['local', 'local'], ['pds', 'my PDS'], ['browse', drives.browse ? `at://${drives.browse.did}` : null]]) {
     const d = drives[k]; if (!d) continue;
     let ls = [];
     try { ls = await d.list(); } catch (e) { groups.push(`<h3>${title}</h3><div class="bad">${e.message}</div>`); continue; }
-    const rows = ls.map((e) => `<div class="f${state.file?.entry.uri === e.uri ? ' on' : ''}" data-drive="${k}" data-uri="${e.uri}"><span class="p" title="${e.uri}">${e.path}</span><small>${e.kind === 'assembly' ? 'asm' : ''}</small>${k !== 'browse' && drives.pds && k === 'local' ? '<button data-act="push" title="copy this file and its history to your PDS">push</button>' : ''}${k !== 'local' ? '<button data-act="fork" title="copy to the local drive, keeping the lineage">fork</button>' : ''}${k !== 'browse' ? '<button data-act="rm">×</button>' : ''}</div>`);
-    groups.push(`<h3>${title}</h3>${rows.join('') || '<div class="dim">(empty)</div>'}`);
+    const n = ls.length, asm = ls.filter((e) => e.kind === 'assembly').length;
+    const rows = renderNode(fileTree(ls), k, '', 0);
+    groups.push(`<h3>${title}${n ? ` <span class="cnt">${asm} ${asm === 1 ? 'assembly' : 'assemblies'} · ${n - asm} ${n - asm === 1 ? 'part' : 'parts'}</span>` : ''}</h3>${rows.join('') || '<div class="dim">(empty)</div>'}`);
   }
-  box.innerHTML = groups.join('');
+  box.innerHTML = groups.join('') + (groups.length ? '<div class="dim hint">a file is a <code>part</code> record naming a path; its folders are the path\'s slashes. Assemblies first; click a folder to open it.</div>' : '');
 }
 $('#files').addEventListener('click', async (e) => {
+  const dir = e.target.closest('.f.dir'); if (dir) { const key = dir.dataset.fold; if (state.folds.has(key)) state.folds.delete(key); else state.folds.add(key); return renderFiles(); }
   const row = e.target.closest('.f'); if (!row) return;
   const k = row.dataset.drive, uri = row.dataset.uri, act = e.target.dataset.act;
   try {

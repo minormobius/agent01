@@ -1,7 +1,7 @@
 {
   "$schema": "com.minomobi.cad.assembly#v1",
   "name": "lift",
-  "_": "A lead-screw lift, and three things an assembly can now say. The screw is driven; a `screw` mate moves the nut up the screw by `lead` per turn; a `fixed` mate carries the platform with the nut. The four bolts are one component with `repeat: 4`, each placed by reference — `at: \"@platform.pivot[i]\"` — on the platform's own holes, aligned to the bore's axis, so they ride up with it without a mate of their own. Every number below is the document's; nothing was measured by hand.",
+  "_": "A lead-screw lift, and three things an assembly can now say. The screw is driven; a `screw` mate moves the nut up the screw by `lead` per turn; a `fixed` mate carries the platform with the nut. The four bolts are one component with `repeat: 4`, each placed by reference — `at: \"@platform.pivot[i]\"` — on the platform's own holes, aligned to the bore's axis, so they ride up with it without a mate of their own. Every number below is the document's; nothing was measured by hand. `fits` records the three clearances the design intends — nut on screw, bolts in their holes, the screw through the platform's centre — so the clearance check reads them as fits, not as pairs too close.",
   "params": {
     "lead": 2,
     "rise": 10,
@@ -240,5 +240,25 @@
   "drive": {
     "component": "screw",
     "rpm": 60
-  }
+  },
+  "fits": [
+    {
+      "a": "screw",
+      "b": "nut",
+      "min": 0.05,
+      "max": 0.15
+    },
+    {
+      "a": "platform",
+      "b": "bolt[*]",
+      "min": 0.05,
+      "max": 0.15
+    },
+    {
+      "a": "screw",
+      "b": "platform",
+      "min": 0.15,
+      "max": 0.3
+    }
+  ]
 }

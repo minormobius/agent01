@@ -109,7 +109,12 @@ documented in [`README.md`](README.md) next to this file.
   penetration estimate, and `touching` for contact with no depth.
   `lib/sweep.js` runs it through the motion and chases each pair's
   minimum between samples (golden section), with `verdictOf`: collision /
-  expected / close / clear. `check.mjs --clearance d` and the MCP
+  contact / expected / fit / close / loose / clear — a touch with no depth
+  is contact, not collision, and a document's `fits` (`[min, max]` per
+  pair, `[*]` for a repeat, `contact: true` for a designed touch) are
+  judged on their own numbers (`expectations(mates, fits)`). Clearance
+  meshes are built at `res: 256` (chord tolerance 0.0025 mm) so a designed
+  0.1 mm reads 0.098, not 0.093. `check.mjs --clearance d` and the MCP
   `interference` tool's `clearance` use it — which is why interference is
   a server tool now (Manifold still cannot run there; volumes stay local).
   Components with `reference: true` are drawn translucent and left out of
