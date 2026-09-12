@@ -2,6 +2,29 @@
 // scripts. Flattens a document (sub-assemblies included) into components
 // with world placements and distinct part trees, sets gear phases, and
 // solves the kinematic chain as a function of time.
+//
+// Placements are expressions. A document may carry `params` (numbers or
+// expressions over each other, any order — the tree's own language,
+// lib/expr.js) and `derived`, an ORDERED map evaluated top to bottom at each
+// instant with two reserved variables: `t`, seconds, and `theta`, the driven
+// component's angle in degrees (the escapement wheel's, for an escapement).
+// Every `at` element, `rotate.deg`, `rotate.axis` element, and the `drive`'s
+// numbers take a number or an expression over params + derived + t + theta.
+// That is how a lead screw moves a nut, a crank moves a slider, a link
+// closes a loop: the pose math lives in the document, and the interference
+// check stays the safety net. Gear and fixed mates still propagate rotation
+// about local z from the drive; expressions compose with that.
+//
+// A sub-assembly is its own document with its own params and derived; its
+// placement in the parent is evaluated in the parent's scope. `theta` is the
+// top document's drive everywhere.
+//
+// Component `params` (overrides of a part's parameters) are evaluated in the
+// assembly's scope at t = 0 when they can be — so `"pin_z": "L/2"` binds the
+// assembly's L — and are otherwise handed to the part as expressions in the
+// part's own language. Part geometry does not change with time.
+
+import { evaluate, num, resolveParams } from './expr.js';
 
 export const IDENT = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
 export const T = (v) => [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, v[0], v[1], v[2], 1];
@@ -16,32 +39,79 @@ export function mul4(a, b) {
 }
 export const xform = (m, p) => [m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]];
 export const xformDir = (m, d) => [m[0] * d[0] + m[4] * d[1] + m[8] * d[2], m[1] * d[0] + m[5] * d[1] + m[9] * d[2], m[2] * d[0] + m[6] * d[1] + m[10] * d[2]];
-const placement = (c) => mul4(T(c.at || [0, 0, 0]), c.rotate ? R(c.rotate.axis || [0, 0, 1], c.rotate.deg || 0) : IDENT);
 const mod = (x, n) => ((x % n) + n) % n;
+
+// ── scopes: a document's params, its derived, and the env at an instant ──
+function makeScope(doc, name) {
+  let params;
+  try { params = resolveParams(doc.params || {}); } catch (e) { throw new Error(`${name}: ${e.message}`); }
+  const derived = Object.entries(doc.derived || {});
+  for (const [k, v] of derived) if (typeof v !== 'number' && typeof v !== 'string') throw new Error(`${name}: derived \`${k}\` must be a number or expression`);
+  return { name, params, derived, memo: null };
+}
+/// The variables in force at (t, theta): params, then derived in order. Memoised per instant.
+function envAt(scope, t, theta) {
+  const m = scope.memo;
+  if (m && m.t === t && m.theta === theta) return m.env;
+  const env = { ...scope.params, t, theta };
+  for (const [k, v] of scope.derived) {
+    try { env[k] = num(v, env); } catch (e) { throw new Error(`${scope.name}: derived \`${k}\`: ${e.message}`); }
+  }
+  scope.memo = { t, theta, env };
+  return env;
+}
+const isExpr = (v) => typeof v === 'string';
+const hasExpr = (c) => (c.at || []).some(isExpr) || (c.rotate ? isExpr(c.rotate.deg) || (c.rotate.axis || []).some(isExpr) : false);
+function placement(c, env, name) {
+  const field = (v, what) => { try { return num(v, env, what); } catch (e) { throw new Error(`${name}: ${what}: ${e.message}`); } };
+  const at = (c.at || [0, 0, 0]).map((v, i) => field(v, `at[${i}]`));
+  if (!c.rotate) return T(at);
+  const axis = (c.rotate.axis || [0, 0, 1]).map((v, i) => field(v, `rotate.axis[${i}]`));
+  return mul4(T(at), R(axis, field(c.rotate.deg ?? 0, 'rotate.deg')));
+}
+/// World placement of a component at an instant: the product of its chain of
+/// (spec, scope) links from the root document down.
+export function placeAt(c, t = 0, theta = 0) {
+  let m = IDENT;
+  for (const { spec, scope } of c.chain) m = mul4(m, placement(spec, envAt(scope, t, theta), `${scope.name}${spec.id ? ' ' + spec.id : ''}`));
+  return m;
+}
 
 /// `resolveRef(ref)` turns "bench:<name>" or an inline object into a tree
 /// object (a fresh copy each call). Returns {components, mates, drive, partTrees}.
 export async function flatten(asm, resolveRef) {
   const components = [], mates = [], partTrees = new Map();
-  async function walk(a, prefix, parent) {
+  async function walk(a, prefix, chain, docName) {
+    const scope = makeScope(a, docName);
+    const env0 = envAt(scope, 0, 0);
     const parts = a.parts || {};
     for (const c of a.components || []) {
       const id = prefix + c.id;
-      const place = mul4(parent, placement(c));
-      if (c.assembly !== undefined) { const sub = await resolveRef(c.assembly); await walk(sub, id + '/', place); continue; }
+      const link = { spec: c, scope };
+      const myChain = [...chain, link];
+      if (c.assembly !== undefined) { const sub = await resolveRef(c.assembly); await walk(sub, id + '/', myChain, id); continue; }
       const tree = await resolveRef(parts[c.part] ?? `bench:${c.part}`);
-      if (c.params) tree.params = { ...(tree.params || {}), ...c.params };
-      const partKey = `${c.part}${c.params ? '|' + JSON.stringify(c.params) : ''}`;
+      let params = c.params;
+      if (params) {
+        // an override the assembly can evaluate is a number to the part; the rest is the part's own expression
+        params = Object.fromEntries(Object.entries(params).map(([k, v]) => { if (!isExpr(v)) return [k, v]; try { return [k, evaluate(v, env0)]; } catch { return [k, v]; } }));
+        tree.params = { ...(tree.params || {}), ...params };
+      }
+      const partKey = `${c.part}${params ? '|' + JSON.stringify(params) : ''}`;
       if (!partTrees.has(partKey)) partTrees.set(partKey, JSON.stringify(tree));
-      components.push({ id, part: c.part, partKey, place, phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden });
+      const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden };
+      comp.place = placeAt(comp, 0, 0); // the pose at rest, for gear phases and static documents
+      components.push(comp);
     }
     for (const m of a.mates || []) mates.push({ ...m, a: prefix + m.a, b: prefix + m.b });
+    return env0;
   }
-  await walk(asm, '', IDENT);
+  const env0 = await walk(asm, '', [], asm.name || 'assembly');
   const d = asm.drive;
-  const drive = !d ? null : d.escapement ? { kind: 'escapement', wheel: d.escapement.wheel, pallet: d.escapement.pallet, balance: d.escapement.balance, teeth: d.escapement.teeth ?? 15, beat: d.escapement.beat ?? 1, lift: d.escapement.lift ?? 8, swing: d.escapement.swing ?? 220 } : { kind: 'rpm', component: d.component, rpm: d.rpm ?? 6 };
+  const n = (v, dflt, what) => { try { return num(v ?? dflt, env0, what); } catch (e) { throw new Error(`drive: ${what}: ${e.message}`); } };
+  const drive = !d ? null : d.escapement ? { kind: 'escapement', wheel: d.escapement.wheel, pallet: d.escapement.pallet, balance: d.escapement.balance, teeth: n(d.escapement.teeth, 15, 'teeth'), beat: n(d.escapement.beat, 1, 'beat'), lift: n(d.escapement.lift, 8, 'lift'), swing: n(d.escapement.swing, 220, 'swing') } : { kind: 'rpm', component: d.component, rpm: n(d.rpm, 6, 'rpm') };
   autoPhase(components, mates);
-  return { components, mates, drive, partTrees };
+  return { components, mates, drive, partTrees, params: env0 };
 }
 
 /// Gear phases: unless the document gives one, a gear's tooth 0 (its local
@@ -67,8 +137,11 @@ export function autoPhase(components, mates) {
 /// quick slide over the first 15 % of the beat), rocks the pallet fork
 /// ±lift with the same slide, and swings the balance over two beats. Gear
 /// and fixed mates propagate from the root; unreached components stay at 0.
+/// The map also carries `t` and `theta` (the driven component's angle at t),
+/// which `modelOf` needs for placements written as expressions.
 export function solveAngles(components, mates, drive, t) {
   const angles = new Map(components.map((c) => [c.id, 0]));
+  angles.t = t; angles.theta = 0;
   if (!drive) return angles;
   let root, theta;
   if (drive.kind === 'escapement') {
@@ -79,7 +152,7 @@ export function solveAngles(components, mates, drive, t) {
     angles.set(drive.pallet, drive.lift * (-sign + 2 * sign * ease));
     angles.set(drive.balance, (drive.swing / 2) * Math.cos(Math.PI * beats));
   } else { root = drive.component; theta = (drive.rpm * 360 * t) / 60; }
-  angles.set(root, theta);
+  angles.set(root, theta); angles.theta = theta;
   const seen = new Set([root]); const queue = [root];
   while (queue.length) {
     const cur = queue.shift();
@@ -97,5 +170,7 @@ export function solveAngles(components, mates, drive, t) {
   return angles;
 }
 
-/// World model matrix of a component at the given angles.
-export const modelOf = (c, angles) => mul4(c.place, R([0, 0, 1], (angles.get(c.id) || 0) + c.phase));
+/// World model matrix of a component at the given angles: its placement at
+/// that instant (recomputed when it is written as expressions), then the
+/// kinematic rotation about local z.
+export const modelOf = (c, angles) => mul4(c.dynamic && angles.t !== undefined ? placeAt(c, angles.t, angles.theta || 0) : c.place, R([0, 0, 1], (angles.get(c.id) || 0) + c.phase));

@@ -13,7 +13,7 @@ import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, PART, SCOP
 import { AuthClient } from './vendor/auth.js';
 
 const $ = (s) => document.querySelector(s);
-const BENCH = ['clock', 'train', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
+const BENCH = ['clock', 'train', 'crank', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
 const q = new URLSearchParams(location.search);
 const OCCT_BASE = q.get('occt') || null;
 const occtAllowed = () => !!OCCT_BASE || localStorage.getItem('cad.occt') === '1';
@@ -429,8 +429,9 @@ function toggleSpin() {
 function tick(now) {
   if (state.spin && state.drive) {
     const dt = (now - state.t0) / 1000; state.t0 = now; state.tAcc += dt * state.speed;
-    solveAngles(state.tAcc);
-    updateModels(); needsRender = true;
+    // a placement written as an expression can fail at some t (a sqrt gone negative): say so and stop, rather than die every frame
+    try { solveAngles(state.tAcc); updateModels(); } catch (e) { state.spin = false; const b = $('#spin'); if (b) b.textContent = 'spin'; setStatus(`stopped at t = ${state.tAcc.toFixed(2)} s: ${e.message}`); }
+    needsRender = true;
     state.frames++;
     if (now - state.fpsT >= 500) { state.fps = (state.frames * 1000) / (now - state.fpsT); state.frames = 0; state.fpsT = now; const f = $('#fps'); if (f) f.textContent = `${state.fps.toFixed(0)} fps`; }
   }
@@ -587,7 +588,7 @@ const boot = ready.then(async () => {
 });
 
 window.__cad = {
-  ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, runCheck, exportPart,
+  ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, modelOf, runCheck, exportPart,
   drives, auth, openAt, openFile, renderFiles, renderHistory,
   loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
   faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),

@@ -4,7 +4,7 @@
   "type": "module",
   "description": "The feature-tree CAD engine and cad.mino.mobi. The package is the site; see CLAUDE.md.",
   "scripts": {
-    "test": "node cad.selftest.mjs && node drive.selftest.mjs && node mcp.selftest.mjs",
+    "test": "node cad.selftest.mjs && node drive.selftest.mjs && node assembly.selftest.mjs && node mcp.selftest.mjs",
     "test:browser": "node browser.selftest.mjs"
   },
   "devDependencies": {

@@ -22,6 +22,7 @@ serves this directory with `engine/` and `bakeoff/` dropped by
 | `lib/` | shared by the site, the worker and the harness: `engine.js` (the ABI), `mesh.js` (weld, invariants, edges, streams, STL), `manifold-kernel.js`, `occt-kernel.js` |
 | `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
 | `drive.selftest.mjs` | the file tree over records (`lib/drive.js`) and the site worker's `/xrpc/` read gateway, with in-memory repos and a fake PDS |
+| `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form |
 | `browser.selftest.mjs` | serves the package, drives the page in headless Chromium through every bench part, asserts the report, screenshots to `/tmp/cad-shots/` |
 
 ## The tree
@@ -51,6 +52,16 @@ serves this directory with `engine/` and `bakeoff/` dropped by
   (`m`, `z`, `alpha`, `b`, `bore` — the exact involute), `boolean`, and
   `fillet`/`chamfer`/`shell`, which the current kernels report as
   *unsupported* rather than failing.
+- **Assemblies move by expressions.** A document with `components` may carry
+  `params` (any order, the same language) and `derived` (an *ordered* map,
+  evaluated top to bottom at each instant with `t`, seconds, and `theta`, the
+  driven component's angle in degrees). Every `at` element, `rotate.deg`,
+  `rotate.axis` element and the `drive`'s numbers take a number or an
+  expression over those. Gear and fixed mates still propagate rotation from
+  the drive; the expressions are how a screw moves a nut or a crank a slider
+  (`bench/crank.json`). Sub-assemblies have their own scope; `theta` is the
+  top drive's. Remember `deg(x)` is degrees → radians and `rad2deg(x)` the
+  reverse, so an angle for `rotate.deg` is `rad2deg(atan2(dy, dx))`.
 - **Names, never indices.** An extrude yields `id.start`, `id.end`,
   `id.side[k]`; loops with a `name` add `id.rim[0..3]`; a gear names
   `id.tooth[i].flank.r.0`, `id.tooth[i].tip`, `id.root[i]`, `id.bore[k]`. The
@@ -120,8 +131,9 @@ node agent/drive.mjs   ls --at minomobi.com                        # the publish
   Two transitive deps link wasm-bindgen shims that are never called; the
   selftest and the harness stub them.
 - Tests are invariants with tolerances, never mesh bits.
-- **Three selftests before a push:** `npm test` (`cad.selftest.mjs`, the
-  ABI; `drive.selftest.mjs`, the file tree and the gateway) and
+- **Four selftests before a push:** `npm test` (`cad.selftest.mjs`, the
+  ABI; `drive.selftest.mjs`, the file tree and the gateway;
+  `assembly.selftest.mjs`, expressions and kinematics; `mcp.selftest.mjs`) and
   `npm run test:browser` (the page, in Chromium; `npm install` here or in
   `bakeoff/` first).
 - **This package is mirrored** to a small repo on tangled —

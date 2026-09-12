@@ -57,6 +57,14 @@ documented in [`README.md`](README.md) next to this file.
   from nine bench parts with parameter overrides. Click a component row to
   hide or show it (hide the dial and case to watch the movement); hovering a
   face highlights its component in the list and the report.
+  **Placements are expressions** (`lib/expr.js`, a mirror of the engine's
+  `expr.rs` that `assembly.selftest.mjs` holds to the bit): a document's
+  `params` and its ordered `derived` (with `t` seconds and `theta` the
+  driven angle) may appear in any `at`, `rotate` or `drive` number, and in
+  component `params` overrides. `flatten` marks such components `dynamic`
+  and `modelOf` re-evaluates their placement at the `t`/`theta` the angles
+  map carries; static documents pay nothing. `bench/crank.json` is the
+  crank–slider that proves it, in the node test and the browser test.
 - **OCCT, lazily.** Fillets, chamfers, shells and any boolean Truck fails go
   to OCCT, loaded on demand from unpkg (66 MB, cached by the browser) after
   the user presses *exact with OCCT* once (`localStorage cad.occt=1`), or
@@ -83,7 +91,7 @@ documented in [`README.md`](README.md) next to this file.
   when OCCT built it. In an assembly both export the pinned or hovered
   component's part.
 - **The published bench.** `agent/publish.mjs` writes every bench part to
-  `parts/<name>` and the assemblies to `train` and `clock` in the service
+  `parts/<name>` and the assemblies to `train`, `clock` and `crank` in the service
   account's repo (`BLUESKY_BOT_*`, the identity that owns minomobi.com),
   rewriting `bench:` refs to the AT URIs of the published heads;
   `.github/workflows/publish-cad.yml` runs it on a push touching `bench/`,
@@ -180,11 +188,14 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 
 - **`cad.wasm` is committed.** Rebuild with `engine/build.sh`, which runs the
   unit tests, both builds, and `cad.selftest.mjs`. Never hand-build.
-- **Four selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
+- **Five selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
   bytes under node), `drive.selftest.mjs` (the file tree and the gateway),
-  `mcp.selftest.mjs` (the tool surface) and `browser.selftest.mjs` (headless Chromium loads the page, builds every
-  bench part, checks the report against closed forms, saves and forks files
-  against a mocked repo, and screenshots). Run all four before pushing.
+  `assembly.selftest.mjs` (expressions against the engine, kinematics
+  against closed forms), `mcp.selftest.mjs` (the tool surface) and
+  `browser.selftest.mjs` (headless Chromium loads the page, builds every
+  bench part, checks the report against closed forms, spins the train and
+  the crank, saves and forks files against a mocked repo, and screenshots;
+  skips, saying so, without Playwright). Run all five before pushing.
 - **`vendor/auth.js` is a copy** of `packages/oauth-client/auth.js`, kept
   byte-identical by `scripts/sync-dataviz.mjs` (preflight checks it). Edit
   the package, never the copy.

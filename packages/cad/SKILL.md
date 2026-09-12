@@ -70,6 +70,36 @@ are automatic. See `bench/clock.json`. Kinematics are a chain from the
 driven component, not a constraint solver — placements are yours to get
 right; `check.mjs` tells you when you have not.
 
+**Placements are expressions**, so the pose math for anything the mates
+cannot express (a lead screw and its nut, a crank and its slider, a link
+that closes a loop) lives in the document. An assembly may carry `params`
+(numbers or expressions over each other, any order) and `derived`, an
+*ordered* map evaluated top to bottom at each instant with two reserved
+variables: `t` (seconds) and `theta` (the driven component's angle in
+degrees; the escape wheel's for an escapement). Every `at` element,
+`rotate.deg`, `rotate.axis` element and the drive's numbers take a number
+or an expression over params + derived + t + theta. Component `params`
+overrides are bound in the assembly scope at t = 0 when they can be
+(`"length": "L"`), else handed to the part. `bench/crank.json`:
+
+```json
+{ "params": { "r": 10, "L": 30 },
+  "derived": { "th": "deg(theta)", "px": "r * cos(th)", "py": "r * sin(th)",
+               "reach": "sqrt(L^2 - py^2)", "xs": "px + reach",
+               "phi": "rad2deg(atan2(-py, reach))" },
+  "components": [
+    { "id": "crank", "part": "crank", "params": { "length": "r" } },
+    { "id": "rod",   "part": "rod",   "at": ["px", "py", 1], "rotate": { "axis": [0, 0, 1], "deg": "phi" } },
+    { "id": "block", "part": "block", "at": ["xs", 0, 2] } ],
+  "drive": { "component": "crank", "rpm": 30 } }
+```
+
+Mind the two angle helpers: `deg(x)` turns degrees *into* radians (for
+`sin`/`cos`), `rad2deg(x)` turns radians into degrees (for `rotate.deg`).
+`check.mjs --t` and the viewer's *spin* sweep the real motion; a sub-
+assembly keeps its own params and derived. Screw and slider mates, which
+would cover open chains without expressions, are not built.
+
 ## Files
 
 Parts live in repos as records: a `com.minomobi.cad.part` head names a

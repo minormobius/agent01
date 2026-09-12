@@ -13,7 +13,7 @@ This site is the whole package: every file an agent needs is a URL here.
 - [docs/](https://cad.mino.mobi/docs/): the system on one page — the spec, the pipeline, the kernels and their rules, the data model, the backend as it exists, the tests, the three ways an agent gets in, and what is not built yet.
 - [SKILL.md](https://cad.mino.mobi/SKILL.md): the instruction sheet — the loop (write tree → build → measure → check → render → judge), every command, face naming, which kernel does what, files, hand-over. Also a Claude Code skill when placed at `.claude/skills/cad/SKILL.md`.
 - [README.md](https://cad.mino.mobi/README.md): the tree schema (params and expressions, sketches, ops, naming), the CLI, the bake-off.
-- [bench/](https://cad.mino.mobi/bench/clock.json): worked examples — `gear`, `arbor`, `plate`, `escape`, `case`, `case-fillet`, `cam`, `pinion`, `pallet`, `balance`, `hand`, `dial` (parts), `train`, `clock` (assemblies). `https://cad.mino.mobi/bench/<name>.json`.
+- [bench/](https://cad.mino.mobi/bench/clock.json): worked examples — `gear`, `arbor`, `plate`, `escape`, `case`, `case-fillet`, `cam`, `pinion`, `pallet`, `balance`, `hand`, `dial` (parts), `train`, `clock`, `crank` (assemblies; `crank` is the crank–slider whose placements are expressions of `theta` and `t`). `https://cad.mino.mobi/bench/<name>.json`.
 
 ## Run it with nothing but node
 
@@ -21,7 +21,7 @@ The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (t
 
 - `node agent/build.mjs tree.json` — exact build: volume, area, bbox, χ, watertight, named faces with geometry, STL/STEP out.
 - `node agent/measure.mjs tree.json --list` — diameters and distances from exact geometry.
-- `node agent/check.mjs asm.json --t 0.5` — interference through the motion.
+- `node agent/check.mjs asm.json --t 0.5` — interference through the motion. An assembly's `at`, `rotate` and `drive` take expressions over its `params`, an ordered `derived`, `t` (seconds) and `theta` (the driven angle, degrees): `bench/crank.json`.
 - `node agent/render.mjs doc.json --out shots` — PNG per view (needs Chromium).
 - `node agent/drive.mjs ls --at minomobi.com` — the published bench as a file tree.
 

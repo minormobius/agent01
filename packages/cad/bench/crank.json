@@ -1,0 +1,32 @@
+{
+  "$schema": "com.minomobi.cad.assembly#v1",
+  "name": "crank",
+  "_": "A crank–slider, the smallest closed loop: a crank turns, a connecting rod follows its pin, a block slides along x. Nothing here is a mate but the drive; the rod's placement and angle and the block's position are expressions of theta, the crank angle, written in `derived` from the closed form. The parts are the clock hand (crank and rod, by length) and an inline block. `check.mjs --t` is clean at every t.",
+  "params": { "r": 10, "L": 30, "gap": 0.6 },
+  "derived": {
+    "th": "deg(theta)",
+    "px": "r * cos(th)",
+    "py": "r * sin(th)",
+    "reach": "sqrt(L^2 - py^2)",
+    "xs": "px + reach",
+    "phi": "rad2deg(atan2(-py, reach))"
+  },
+  "parts": {
+    "crank": "bench:hand",
+    "rod": "bench:hand",
+    "block": {
+      "units": "mm",
+      "params": { "w": 6, "h": 4, "b": 3 },
+      "features": [
+        { "op": "sketch", "id": "outline", "loops": [ { "name": "block", "rect": { "c": [0, 0], "w": "w", "h": "h" } } ] },
+        { "op": "extrude", "id": "block", "profile": "outline", "depth": "b" }
+      ]
+    }
+  },
+  "components": [
+    { "id": "crank", "part": "crank", "params": { "length": "r", "width": 2 }, "at": [0, 0, 0] },
+    { "id": "rod", "part": "rod", "params": { "length": "L", "width": 1.2, "boss": 1.6 }, "at": ["px", "py", "0.4 + gap"], "rotate": { "axis": [0, 0, 1], "deg": "phi" } },
+    { "id": "block", "part": "block", "at": ["xs", 0, "0.8 + 2 * gap"] }
+  ],
+  "drive": { "component": "crank", "rpm": 30 }
+}

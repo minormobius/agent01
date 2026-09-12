@@ -223,6 +223,21 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
   await page.screenshot({ path: path.join(shots, 'train.png') });
 }
 
+// the crank–slider: placements as expressions of theta and t — the rod follows the pin, the block slides, and spin sweeps the real motion
+{
+  const r = await page.evaluate(async () => { await window.__cad.load('crank'); return await window.__cad.settled(); });
+  check(r.mode === 'asm' && r.components === 3 && r.slots === 3, `crank: 3 components over 3 distinct part builds (${r.components} / ${r.slots})`);
+  const pose = await page.evaluate(() => { const c = window.__cad; const at = (t) => { const a = c.solveAngles(t); const b = c.state.components.find((x) => x.id === 'block'); const rod = c.state.components.find((x) => x.id === 'rod'); return { theta: a.theta, block: c.modelOf(b, a)[12], rod: [c.modelOf(rod, a)[12], c.modelOf(rod, a)[13]] }; }; return { t0: at(0), t1: at(1), t05: at(0.5) }; });
+  check(Math.abs(pose.t0.block - 40) < 1e-9 && Math.abs(pose.t1.block - 20) < 1e-9 && Math.abs(pose.t05.theta - 90) < 1e-9 && Math.abs(pose.t05.rod[1] - 10) < 1e-9 && Math.abs(pose.t05.block - Math.sqrt(800)) < 1e-9, `the block is at x = ${pose.t0.block} at t = 0, ${pose.t1.block} at t = 1; at theta = 90° the pin is at y = ${pose.t05.rod[1]} and the block at ${pose.t05.block.toFixed(3)}`);
+  const spun = await page.evaluate(async () => { const c = window.__cad; c.toggleSpin(); await new Promise((r) => setTimeout(r, 600)); const b = c.state.components.find((x) => x.id === 'block'); const x = c.modelOf(b, c.state.angles)[12]; const t = c.state.tAcc; c.toggleSpin(); return { x, t, status: document.querySelector('#status').textContent }; });
+  const want = 10 * Math.cos(Math.PI * spun.t) + Math.sqrt(900 - 100 * Math.sin(Math.PI * spun.t) ** 2);
+  check(Math.abs(spun.x - want) < 1e-6 && !/stopped/.test(spun.status), `spin moved the block to x = ${spun.x.toFixed(3)} at t = ${spun.t.toFixed(3)} s, the closed form's ${want.toFixed(3)}`);
+  const chk = await page.evaluate(async () => { const r = await window.__cad.runCheck(); return { real: (r?.pairs || []).filter((p) => !p.fixed).map((p) => `${p.a}×${p.b}`) }; });
+  check(chk.real.length === 0, `no interference in the crank at that pose${chk.real.length ? ' — ' + chk.real.join(', ') : ''}`);
+  await page.evaluate(() => window.__cad.render());
+  await page.screenshot({ path: path.join(shots, 'crank.png') });
+}
+
 // the clock: 18 components, an escapement drive, hands at the right ratios, highlight follows the hover
 {
   const r = await Promise.race([page.evaluate(async () => { await window.__cad.load('clock'); return await window.__cad.settled(); }), new Promise((res) => setTimeout(() => res({ timeout: true }), 240000))]);

@@ -878,6 +878,16 @@ that with two in-memory repos standing in for a PDS and a stranger.
   until Manifold is rebuilt without dynamic execution. The phase-7 gate — a
   passing sub-assembly from a sentence, no human edits — is runnable
   against a URL for everything but the clash check.
+- **Kinematics by expression.** An assembly document carries `params` and
+  an ordered `derived` (with `t` and `theta`), and any `at`, `rotate` or
+  `drive` number may be an expression over them — the tree's own language,
+  mirrored in `lib/expr.js` and held to the engine's evaluator by a test.
+  This is how a screw moves a nut and a crank a slider without a mate for
+  either: the pose math lives in the document, and the interference check
+  stays the safety net. It came from the gripper that spun but did not
+  grip. Screw and slider mates, which would cover open chains without
+  expressions, are not built; `solveAngles` still returns an angle, not a
+  pose.
 - **The social layer, first cut.** `cad.mino.mobi/parts/` (`parts/`, its
   own worker, mounted through a service binding because the zone is at
   Cloudflare's ceiling of a hundred custom domains): a

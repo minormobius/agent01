@@ -35,7 +35,7 @@ const bench = (n) => JSON.parse(fs.readFileSync(path.join(ROOT, 'bench', n + '.j
 
 // the manifest: what goes where. Order matters — parts before the assemblies that reference them.
 const PARTS = ['gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
-const ASSEMBLIES = ['train', 'clock'];
+const ASSEMBLIES = ['train', 'clock', 'crank'];
 const pathOf = (name, isAsm) => (isAsm ? name : `parts/${name}`);
 
 async function open() {
