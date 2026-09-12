@@ -16,6 +16,7 @@
 // records) is reported and skipped, not failed. Exit 1 on any mismatch.
 import { Drive, PublicBackend, resolveHandle, resolvePds } from '../lib/drive.js';
 import { buildManifold } from '../lib/manifold-kernel.js';
+import { weld, invariants } from '../lib/mesh.js';
 import { kernels, arg, has } from './common.mjs';
 
 const at = arg('--at', 'minomobi.com');
@@ -31,7 +32,8 @@ for (const f of files) {
   const file = await drive.get(f.uri);
   const rev = file.revision; const tree = JSON.stringify(rev.tree);
   const r = engine.build(tree, { kernel: 'truck' });
-  if (!r.ok) { console.log(`✗ ${f.path}  does not build: ${r.report.error?.op}: ${r.report.error?.msg}`); bad++; continue; }
+  // fillets, shells and the booleans Truck cannot do are OCCT's on the page (design record §13): not this kernel's regression to report
+  if (!r.ok) { const e = r.report.error || {}; if (e.unsupported || /boolean|union|intersect|subtract/i.test(e.msg || '')) { console.log(`· ${f.path.padEnd(22)} needs OCCT (Truck: ${e.op}: ${e.msg}) — not audited here`); ungolden++; continue; } console.log(`✗ ${f.path}  does not build: ${e.op}: ${e.msg}`); bad++; continue; }
   const inv = r.report.invariants, faces = r.report.faces.length;
   const g = rev.invariants;
   const notes = [];
@@ -46,11 +48,11 @@ for (const f of files) {
   if (has('--kernels')) {
     const m = buildManifold(manifold, engine.resolve(tree));
     if (!m.ok) notes.push(`manifold: ${m.error.msg}`);
-    else { const d = rel(m.invariants.volume, inv.volume); kern = `  truck/manifold ${(d * 100).toFixed(3)} %`; if (d > tol) notes.push(`kernels disagree on volume by ${(d * 100).toFixed(2)} % (tolerance ${(tol * 100).toFixed(1)} %)`); }
+    else { const d = rel(invariants(weld(m.mesh, 1e-5)).volume, inv.volume); kern = `  truck/manifold ${(d * 100).toFixed(3)} %`; if (d > tol) notes.push(`kernels disagree on volume by ${(d * 100).toFixed(2)} % (tolerance ${(tol * 100).toFixed(1)} %)`); }
   }
   const fail = notes.some((n) => !n.startsWith('no stored'));
   if (fail) bad++; else ok++;
   console.log(`${fail ? '✗' : g ? '✓' : '·'} ${f.path.padEnd(22)} volume ${inv.volume.toFixed(4)}  χ ${inv.euler}  ${faces} faces${kern}${notes.length ? '  — ' + notes.join('; ') : ''}`);
 }
-console.log(`\n${ok} match, ${bad} differ, ${ungolden} without stored invariants`);
+console.log(`\n${ok} match, ${bad} differ, ${ungolden} without stored invariants or not buildable by Truck`);
 process.exit(bad ? 1 : 0);

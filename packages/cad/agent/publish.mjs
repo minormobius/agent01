@@ -60,14 +60,15 @@ async function publish(name, tree, isAsm) {
   const p = pathOf(name, isAsm);
   if (!drive) { console.log(`  plan  ${p}${isAsm ? `  parts → ${Object.keys(tree.parts || {}).join(', ')}` : ''}`); return; }
   const existing = await drive.get(p);
-  if (existing && canonical(existing.revision.tree) === canonical(tree)) {
+  if (existing && canonical(existing.revision.tree) === canonical(tree) && (isAsm || existing.revision.invariants)) {
     kept++; uris.set(name, existing.uri);
     console.log(`  same  ${p}  ${existing.uri}`); return;
   }
+  const recordOnly = existing && canonical(existing.revision.tree) === canonical(tree); // same tree, but its invariants were never recorded: one revision to record them
   // the exact build's invariants ride on the revision, so agent/audit.mjs can rebuild every head later and diff them
   let judged = {};
   if (!isAsm) { const { engine } = await kernels(); const b = engine.build(JSON.stringify(tree), { kernel: 'truck' }); if (b.ok) judged = { kernel: { id: 'truck', version: String(engine.version ?? '') }, invariants: { ...b.report.invariants, faces: b.report.faces.length } }; }
-  const r = await drive.put(p, tree, { message: existing ? `bench update from ${name}.json` : `published from bench/${name}.json`, kind: isAsm ? 'assembly' : 'part', ...judged });
+  const r = await drive.put(p, tree, { message: recordOnly ? 'invariants recorded (same tree)' : existing ? `bench update from ${name}.json` : `published from bench/${name}.json`, kind: isAsm ? 'assembly' : 'part', ...judged });
   wrote++; uris.set(name, r.uri);
   console.log(`  ${existing ? 'new revision' : 'created'}  ${p}  ${r.uri}`);
 }
