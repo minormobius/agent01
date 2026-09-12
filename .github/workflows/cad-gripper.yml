@@ -5,9 +5,17 @@ name: cad gripper
 # closed, reference and open, and — only when asked — publish the parts and the
 # assembly into the morphyx repo as cad.mino.mobi files.
 #
-# workflow_dispatch only: nothing wakes this on a push. It writes to a public
-# ATProto repo when `publish` is true, so read morphyx/gripper/README.md first.
+# Wakes on a push to its own branch that touches its own files (the sandbox
+# cannot dispatch workflows), or by hand. It writes to a public ATProto repo
+# only when asked — the `publish` input, or `[publish]` in the head commit
+# message — so read morphyx/gripper/README.md first.
 on:
+  push:
+    branches:
+      - claude/gripper-mechanism-design-efcdzz
+    paths:
+      - 'morphyx/gripper/**'
+      - '.github/workflows/cad-gripper.yml'
   workflow_dispatch:
     inputs:
       nut:
@@ -17,6 +25,10 @@ on:
         description: write the parts and the assembly into the morphyx repo
         type: boolean
         default: false
+
+env:
+  NUT: ${{ inputs.nut || '53' }}
+  PUBLISH: ${{ inputs.publish || contains(github.event.head_commit.message, '[publish]') }}
 
 jobs:
   gripper:
@@ -32,7 +44,7 @@ jobs:
 
       - name: Generate the trees at the pose
         run: |
-          node morphyx/gripper/gripper.mjs --nut '${{ inputs.nut }}' --out /tmp/gripper
+          node morphyx/gripper/gripper.mjs --nut "$NUT" --out /tmp/gripper
           node morphyx/gripper/gripper.mjs --nut 44 --out /tmp/gripper-closed
           node morphyx/gripper/gripper.mjs --nut 62 --out /tmp/gripper-open
 
@@ -65,17 +77,18 @@ jobs:
           node agent/check.mjs /tmp/gripper-open/gripper.json --t 0.5
 
       - name: Publish plan
-        run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut '${{ inputs.nut }}'
+        run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"
 
       - name: Publish into the morphyx repo
-        if: ${{ inputs.publish }}
+        if: ${{ env.PUBLISH == 'true' }}
         env:
           CAD_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
           CAD_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
-        run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut '${{ inputs.nut }}' --write
+        run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT" --write
 
       - name: Verify on the live host
-        if: ${{ inputs.publish }}
+        if: ${{ env.PUBLISH == 'true' }}
         run: |
-          curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=${{ secrets.BLUESKY_MORPHYX_HANDLE }}&collection=com.minomobi.cad.part' \
+          # the morphyx persona's public repo, through the site's read gateway; no credentials involved
+          curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=morphyxmino.bsky.social&collection=com.minomobi.cad.part' \
             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("gripper/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<17)process.exit(1)})'
