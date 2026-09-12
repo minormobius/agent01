@@ -1,12 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "A Ø6 rail along X, wall to wall, at the y this instance is given. One extrude along +X.",
+ "_": "MGN9 rail stand-in: 9 × 6.5 section, 104 long, on the front wall’s outer face (its Ø3.5 mounting holes at 20 pitch are not modelled). One extrude along +X.",
  "params": {
-  "d": 6,
-  "y": 72,
-  "z": 32,
-  "half": 44
+  "w": 9,
+  "h": 6.5,
+  "y0": 104,
+  "zr": -14,
+  "half": 52
  },
  "features": [
   {
@@ -18,13 +19,14 @@
    },
    "loops": [
     {
-     "name": "od",
-     "circle": {
+     "name": "outline",
+     "rect": {
       "c": [
-       "y",
-       "z"
+       "y0 + h/2",
+       "zr"
       ],
-      "r": "d/2"
+      "w": "h",
+      "h": "w"
      }
     }
    ]

@@ -1,15 +1,17 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot and its four M3 on a 31 square (bolts run back through the motor face). The screw passes through the pilot. One extrude along -Y.",
+ "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot, its four M3 on a 31 square, and the two Ø6 carriage rods (press fit). The screw passes through the pilot. One extrude along -Y.",
  "params": {
-  "w": 79,
+  "w": 75,
   "zb": -22.5,
-  "zt": 39.5,
+  "zt": 29.5,
   "t": 6,
   "d_pilot": 22.5,
   "sq": 31,
   "d_bolt": 3.4,
+  "x_rod": 19,
+  "d_rod": 6,
   "y1": 42
  },
  "features": [
@@ -40,6 +42,26 @@
        0
       ],
       "r": "d_pilot / 2"
+     }
+    },
+    {
+     "name": "rodR",
+     "circle": {
+      "c": [
+       "x_rod",
+       0
+      ],
+      "r": "d_rod / 2"
+     }
+    },
+    {
+     "name": "rodL",
+     "circle": {
+      "c": [
+       "-x_rod",
+       0
+      ],
+      "r": "d_rod / 2"
      }
     }
    ]

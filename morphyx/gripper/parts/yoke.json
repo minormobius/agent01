@@ -1,20 +1,23 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Cam yoke: a flat plate keyed over the carriage neck (the window) with two 45° slots. A pin on each finger rides its slot, so the nut’s travel along Y becomes the fingers’ travel along X, one to one. Local origin at the carriage centre; +y forward. One extrude along +Z.",
+ "_": "Cam yoke: a tongue keyed over the carriage neck (the window), 72 wide at the back, tapered at 45° to a 38 mm tip so it passes through the front wall at full open. Two 45° slots; a pin on each finger tab rides its slot, so the nut’s travel along Y becomes the fingers’ travel along X, one to one. Local origin at the carriage centre; +y forward. One extrude along +Z.",
  "params": {
-  "w": 72,
-  "y0": -11,
-  "y1": 19,
+  "half": 36,
+  "back": -14,
+  "taper0": 11,
+  "tip": 19,
+  "tip0": 28,
+  "tip1": 37,
   "t": 6,
   "z0": 12,
   "win_w": 30.2,
-  "win_h": 8.2,
+  "win_h": 20.2,
   "sw": 4.2,
   "xc": 10,
-  "lc": 14,
+  "lc": 31,
   "xo": 30,
-  "lo": -6
+  "lo": 11
  },
  "features": [
   {
@@ -27,14 +30,40 @@
    "loops": [
     {
      "name": "outline",
-     "rect": {
-      "c": [
-       0,
-       "(y0 + y1) / 2"
+     "polygon": [
+      [
+       "-half",
+       "back"
       ],
-      "w": "w",
-      "h": "y1 - y0"
-     }
+      [
+       "half",
+       "back"
+      ],
+      [
+       "half",
+       "taper0"
+      ],
+      [
+       "tip",
+       "tip0"
+      ],
+      [
+       "tip",
+       "tip1"
+      ],
+      [
+       "-tip",
+       "tip1"
+      ],
+      [
+       "-tip",
+       "tip0"
+      ],
+      [
+       "-half",
+       "taper0"
+      ]
+     ]
     },
     {
      "name": "window",
@@ -51,43 +80,43 @@
      "name": "slotR",
      "path": {
       "from": [
-       "(xc) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-       "(lc) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+       "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+       "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
       ],
       "segs": [
        {
         "to": [
-         "(xo) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-         "(lo) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+         "(xo) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+         "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
         ]
        },
        {
         "arc": {
          "via": [
-          "(xo) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-          "(lo) + (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+          "(xo) + (sw)/2 * ((1) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+          "(lo) + (sw)/2 * ((1) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
          ],
          "to": [
-          "(xo) + (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-          "(lo) - (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+          "(xo) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+          "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
          ]
         }
        },
        {
         "to": [
-         "(xc) + (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-         "(lc) - (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+         "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+         "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
         ]
        },
        {
         "arc": {
          "via": [
-          "(xc) - (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-          "(lc) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+          "(xc) + (sw)/2 * ((-1) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+          "(lc) + (sw)/2 * ((-1) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
          ],
          "to": [
-          "(xc) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-          "(lc) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+          "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+          "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
          ]
         }
        }
@@ -98,43 +127,43 @@
      "name": "slotL",
      "path": {
       "from": [
-       "(-xc) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-       "(lc) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+       "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+       "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
       ],
       "segs": [
        {
         "to": [
-         "(-xo) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-         "(lo) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+         "(-xo) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+         "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
         ]
        },
        {
         "arc": {
          "via": [
-          "(-xo) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-          "(lo) + (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+          "(-xo) + (sw)/2 * ((1) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+          "(lo) + (sw)/2 * ((1) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
          ],
          "to": [
-          "(-xo) + (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-          "(lo) - (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+          "(-xo) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+          "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
          ]
         }
        },
        {
         "to": [
-         "(-xc) + (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-         "(lc) - (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+         "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+         "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
         ]
        },
        {
         "arc": {
          "via": [
-          "(-xc) - (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-          "(lc) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+          "(-xc) + (sw)/2 * ((-1) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+          "(lc) + (sw)/2 * ((-1) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
          ],
          "to": [
-          "(-xc) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-          "(lc) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+          "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+          "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
          ]
         }
        }

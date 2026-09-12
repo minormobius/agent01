@@ -1,0 +1,55 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Thrust collar: clamped on the screw just behind the front wall. Gripping pulls the screw forward, so the collar bears on the wall’s inner face (thrust washer and set screw not modelled). One revolve about local Z.",
+ "params": {
+  "D": 14,
+  "L": 6,
+  "d": 8
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "profile",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "body",
+     "polygon": [
+      [
+       "d/2",
+       0
+      ],
+      [
+       "D/2",
+       0
+      ],
+      [
+       "D/2",
+       "L"
+      ],
+      [
+       "d/2",
+       "L"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "revolve",
+   "id": "collar",
+   "profile": "profile",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

@@ -56,11 +56,11 @@ async function publish(p, tree, { kind, name }) {
 console.log(write ? `publishing (nut at ${nut})` : `plan, no writes (nut at ${nut})`);
 // parts an earlier version used and this one does not: moved under gripper/v1/ (the URI survives a rename, so
 // the first assembly revision still finds them)
-const RETIRED = ['base', 'bracket', 'end-block', 'rail-block', 'saddle', 'link', 'coupler', 'motor-shaft', 'nut-bracket'];
-for (const name of RETIRED) {
+const RETIRED = { v1: ['base', 'bracket', 'end-block', 'rail-block', 'saddle', 'link', 'coupler', 'motor-shaft', 'nut-bracket'], v2: ['slider', 'finger'] };
+for (const [ver, names] of Object.entries(RETIRED)) for (const name of names) {
   if (name in parts) continue;
-  if (!drive) { console.log(`  plan  gripper/parts/${name} → gripper/v1/${name} (if present)`); continue; }
-  if (await drive.find(`gripper/parts/${name}`)) { await drive.rename(`gripper/parts/${name}`, `gripper/v1/${name}`); console.log(`  moved  gripper/parts/${name} → gripper/v1/${name}`); }
+  if (!drive) { console.log(`  plan  gripper/parts/${name} → gripper/${ver}/${name} (if present)`); continue; }
+  if (await drive.find(`gripper/parts/${name}`)) { await drive.rename(`gripper/parts/${name}`, `gripper/${ver}/${name}`); console.log(`  moved  gripper/parts/${name} → gripper/${ver}/${name}`); }
 }
 for (const [name, tree] of Object.entries(parts)) await publish(`gripper/parts/${name}`, tree, { kind: 'part', name });
 const asm = assembly(nut);

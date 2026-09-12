@@ -1,13 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 8.5 above the screw axis). Four Ø6.6 bolt holes on a 50 PCD at 45°, a Ø6 dowel at 0°, and a Ø32 hole for the robot flange boss (no recess: the boss enters the case). Bolts to the case plates not modelled. One extrude along -Y.",
+ "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 3.5 above the screw axis). Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
  "params": {
-  "w": 88,
+  "w": 84,
   "zb": -27,
-  "zt": 44,
+  "zt": 34,
   "t": 8,
-  "zc": 8.5,
+  "zc": 3.5,
   "pcd": 50,
   "d_bolt": 6.6,
   "d_dowel": 6,

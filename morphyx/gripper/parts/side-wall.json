@@ -1,17 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Side wall: holds both rails (press fit). Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
+ "_": "Side wall, plain: the guide no longer lives here. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
  "params": {
   "t": 4,
   "y0": 8,
   "y1": 98,
   "z0": -23,
-  "z1": 40,
-  "ya": 72,
-  "yb": 84,
-  "zr": 32,
-  "d": 6
+  "z1": 30
  },
  "features": [
   {
@@ -28,26 +24,6 @@
       ],
       "w": "y1 - y0",
       "h": "z1 - z0"
-     }
-    },
-    {
-     "name": "railA",
-     "circle": {
-      "c": [
-       "ya",
-       "zr"
-      ],
-      "r": "d/2"
-     }
-    },
-    {
-     "name": "railB",
-     "circle": {
-      "c": [
-       "yb",
-       "zr"
-      ],
-      "r": "d/2"
      }
     }
    ]

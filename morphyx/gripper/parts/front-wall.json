@@ -1,16 +1,18 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Front wall: the screw’s end bearing (Ø8.2 plain bore) and the slot the two finger arms pass through. One extrude along -Y.",
+ "_": "Front wall, 104 wide: the screw’s end bearing (Ø8.2), the two carriage rod seats (Ø6 press), and one slot the yoke tongue (below) and the two finger tabs (above) pass through. Its outer face carries the linear rail. One extrude along -Y.",
  "params": {
-  "w": 88,
+  "w": 104,
   "zb": -27,
-  "zt": 44,
+  "zt": 34,
   "t": 6,
   "d_bore": 8.2,
-  "slot_half": 33,
-  "sz0": 17,
-  "sz1": 27,
+  "x_rod": 19,
+  "d_rod": 6,
+  "sx": 37,
+  "sz0": 11.8,
+  "sz1": 27.2,
   "y1": 104
  },
  "features": [
@@ -44,13 +46,33 @@
      }
     },
     {
+     "name": "rodR",
+     "circle": {
+      "c": [
+       "x_rod",
+       0
+      ],
+      "r": "d_rod / 2"
+     }
+    },
+    {
+     "name": "rodL",
+     "circle": {
+      "c": [
+       "-x_rod",
+       0
+      ],
+      "r": "d_rod / 2"
+     }
+    },
+    {
      "name": "slot",
      "rect": {
       "c": [
        0,
        "(sz0 + sz1) / 2"
       ],
-      "w": "2 * slot_half",
+      "w": "2 * sx",
       "h": "sz1 - sz0"
      }
     }

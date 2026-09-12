@@ -1,0 +1,55 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Finger tab: an 8 mm plate that carries the cam pin inside the case and runs forward through the front-wall slot and the carrier’s window to be fixed to the carrier (a cross pin, not modelled). Local x 0 is the finger pin line xf; side = 1 right, -1 left. One extrude along +Z.",
+ "params": {
+  "side": 1,
+  "w": 12,
+  "inset": 6,
+  "y0": 82,
+  "y1": 122,
+  "z0": 19,
+  "t": 8,
+  "y_pin": 88,
+  "d_pin": 4
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plan",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "-side * w / 2",
+       "(y0 + y1) / 2"
+      ],
+      "w": "w",
+      "h": "y1 - y0"
+     }
+    },
+    {
+     "name": "pin",
+     "circle": {
+      "c": [
+       "-side * inset",
+       "y_pin"
+      ],
+      "r": "d_pin / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "tab",
+   "profile": "plan",
+   "depth": "t"
+  }
+ ]
+}

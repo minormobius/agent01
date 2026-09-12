@@ -1,36 +1,37 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "gripper",
- "_": "Parallel-jaw robot gripper, v2: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage → cam yoke with two 45° slots → pins on two fingers under sliders on two Ø6 rails → replaceable pads outside the case. 88 × 71 × 104 mm case, pads to 126. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \\`spin\\` swings 0 → 10 turns → 0, the nut follows by the lead (y = 54 closed … 74 open), and the fingers follow one to one: opening 0 → 40 mm. Press spin.",
+ "_": "Parallel-jaw robot gripper, v3: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on two Ø6 rods → tapered cam yoke with two 45° slots → pins on two finger tabs → MGN9 blocks on one rail across the front wall → carriers and pads outside. Thrust collar behind the front wall. 84 × 61 × 104 mm case, pads to y = 140. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \\`spin\\` swings 0 → 10 turns → 0, the nut follows by the lead (y = 57 closed … 77 open), the fingers follow one to one: opening 0 → 40 mm. Press spin.",
  "params": {
-  "closed": 54,
-  "open": 74,
+  "closed": 57,
+  "open": 77,
   "lead": 2,
-  "xfClosed": 10,
-  "pinLine": 68,
+  "xfClosed": 16,
+  "pinLine": 88,
+  "pinInset": 6,
   "nutLen": 15,
-  "carT": 8,
+  "flangeT": 3.5,
+  "carT": 20,
   "yokeZ": 12,
-  "fingerZ": 18,
-  "sliderLen": 12,
-  "wallX": 40
+  "blockL": 28.9
  },
  "derived": {
   "spin": "360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2",
   "yn": "closed + lead * spin / 360",
-  "xf": "xfClosed + yn - closed"
+  "xf": "xfClosed + yn - closed",
+  "xp": "xf - pinInset"
  },
  "parts": {
   "rear-flange": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 8.5 above the screw axis). Four Ø6.6 bolt holes on a 50 PCD at 45°, a Ø6 dowel at 0°, and a Ø32 hole for the robot flange boss (no recess: the boss enters the case). Bolts to the case plates not modelled. One extrude along -Y.",
+   "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 3.5 above the screw axis). Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
    "params": {
-    "w": 88,
+    "w": 84,
     "zb": -27,
-    "zt": 44,
+    "zt": 34,
     "t": 8,
-    "zc": 8.5,
+    "zc": 3.5,
     "pcd": 50,
     "d_bolt": 6.6,
     "d_dowel": 6,
@@ -125,15 +126,17 @@
   "bulkhead": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot and its four M3 on a 31 square (bolts run back through the motor face). The screw passes through the pilot. One extrude along -Y.",
+   "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot, its four M3 on a 31 square, and the two Ø6 carriage rods (press fit). The screw passes through the pilot. One extrude along -Y.",
    "params": {
-    "w": 79,
+    "w": 75,
     "zb": -22.5,
-    "zt": 39.5,
+    "zt": 29.5,
     "t": 6,
     "d_pilot": 22.5,
     "sq": 31,
     "d_bolt": 3.4,
+    "x_rod": 19,
+    "d_rod": 6,
     "y1": 42
    },
    "features": [
@@ -164,6 +167,26 @@
          0
         ],
         "r": "d_pilot / 2"
+       }
+      },
+      {
+       "name": "rodR",
+       "circle": {
+        "c": [
+         "x_rod",
+         0
+        ],
+        "r": "d_rod / 2"
+       }
+      },
+      {
+       "name": "rodL",
+       "circle": {
+        "c": [
+         "-x_rod",
+         0
+        ],
+        "r": "d_rod / 2"
        }
       }
      ]
@@ -210,16 +233,18 @@
   "front-wall": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Front wall: the screw’s end bearing (Ø8.2 plain bore) and the slot the two finger arms pass through. One extrude along -Y.",
+   "_": "Front wall, 104 wide: the screw’s end bearing (Ø8.2), the two carriage rod seats (Ø6 press), and one slot the yoke tongue (below) and the two finger tabs (above) pass through. Its outer face carries the linear rail. One extrude along -Y.",
    "params": {
-    "w": 88,
+    "w": 104,
     "zb": -27,
-    "zt": 44,
+    "zt": 34,
     "t": 6,
     "d_bore": 8.2,
-    "slot_half": 33,
-    "sz0": 17,
-    "sz1": 27,
+    "x_rod": 19,
+    "d_rod": 6,
+    "sx": 37,
+    "sz0": 11.8,
+    "sz1": 27.2,
     "y1": 104
    },
    "features": [
@@ -253,13 +278,33 @@
        }
       },
       {
+       "name": "rodR",
+       "circle": {
+        "c": [
+         "x_rod",
+         0
+        ],
+        "r": "d_rod / 2"
+       }
+      },
+      {
+       "name": "rodL",
+       "circle": {
+        "c": [
+         "-x_rod",
+         0
+        ],
+        "r": "d_rod / 2"
+       }
+      },
+      {
        "name": "slot",
        "rect": {
         "c": [
          0,
          "(sz0 + sz1) / 2"
         ],
-        "w": "2 * slot_half",
+        "w": "2 * sx",
         "h": "sz1 - sz0"
        }
       }
@@ -339,10 +384,49 @@
     }
    ]
   },
+  "rod": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "A Ø6 carriage guide rod along Y, pressed into the bulkhead and the front wall, at the x this instance is given. One extrude along -Y.",
+   "params": {
+    "d": 6,
+    "x": 19,
+    "y0": 38,
+    "y1": 102
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "section",
+     "plane": {
+      "base": "XZ",
+      "offset": "-y1"
+     },
+     "loops": [
+      {
+       "name": "od",
+       "circle": {
+        "c": [
+         "x",
+         0
+        ],
+        "r": "d/2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "rod",
+     "profile": "section",
+     "depth": "y1 - y0"
+    }
+   ]
+  },
   "nut": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Tr8 flange nut stand-in: 22 mm flange, 10 mm body, 8.4 mm bore (thread not modelled; the 0.2 mm is the thread clearance). One revolve about local Z.",
+   "_": "Tr8 flange nut stand-in: 22 mm flange, 10 mm body, 8.4 mm bore (thread not modelled; the 0.2 mm is the thread clearance). The flange sits behind the carriage, so gripping loads it in compression. One revolve about local Z.",
    "params": {
     "d_bore": 8.4,
     "d_body": 10,
@@ -407,17 +491,19 @@
   "carriage": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Nut carriage: a vertical plate with the nut bore and the four flange bolt holes, a neck on top that keys into the yoke. Rides 2 mm above the floor; the yoke’s pins react its torque. One extrude along -Y.",
+   "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), and a neck on top that keys into the yoke. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
    "params": {
-    "w": 40,
-    "t": 8,
+    "w": 52,
+    "t": 20,
     "bottom": -13,
     "shoulder": 12,
     "top": 18,
     "neck": 30,
     "d_bore": 10.200000000000001,
     "pcd": 16,
-    "d_bolt": 3.5
+    "d_bolt": 3.5,
+    "x_rod": 19,
+    "d_rod": 6.2
    },
    "features": [
     {
@@ -471,6 +557,26 @@
         ],
         "r": "d_bore / 2"
        }
+      },
+      {
+       "name": "rodR",
+       "circle": {
+        "c": [
+         "x_rod",
+         0
+        ],
+        "r": "d_rod / 2"
+       }
+      },
+      {
+       "name": "rodL",
+       "circle": {
+        "c": [
+         "-x_rod",
+         0
+        ],
+        "r": "d_rod / 2"
+       }
       }
      ]
     },
@@ -513,20 +619,23 @@
   "yoke": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Cam yoke: a flat plate keyed over the carriage neck (the window) with two 45° slots. A pin on each finger rides its slot, so the nut’s travel along Y becomes the fingers’ travel along X, one to one. Local origin at the carriage centre; +y forward. One extrude along +Z.",
+   "_": "Cam yoke: a tongue keyed over the carriage neck (the window), 72 wide at the back, tapered at 45° to a 38 mm tip so it passes through the front wall at full open. Two 45° slots; a pin on each finger tab rides its slot, so the nut’s travel along Y becomes the fingers’ travel along X, one to one. Local origin at the carriage centre; +y forward. One extrude along +Z.",
    "params": {
-    "w": 72,
-    "y0": -11,
-    "y1": 19,
+    "half": 36,
+    "back": -14,
+    "taper0": 11,
+    "tip": 19,
+    "tip0": 28,
+    "tip1": 37,
     "t": 6,
     "z0": 12,
     "win_w": 30.2,
-    "win_h": 8.2,
+    "win_h": 20.2,
     "sw": 4.2,
     "xc": 10,
-    "lc": 14,
+    "lc": 31,
     "xo": 30,
-    "lo": -6
+    "lo": 11
    },
    "features": [
     {
@@ -539,14 +648,40 @@
      "loops": [
       {
        "name": "outline",
-       "rect": {
-        "c": [
-         0,
-         "(y0 + y1) / 2"
+       "polygon": [
+        [
+         "-half",
+         "back"
         ],
-        "w": "w",
-        "h": "y1 - y0"
-       }
+        [
+         "half",
+         "back"
+        ],
+        [
+         "half",
+         "taper0"
+        ],
+        [
+         "tip",
+         "tip0"
+        ],
+        [
+         "tip",
+         "tip1"
+        ],
+        [
+         "-tip",
+         "tip1"
+        ],
+        [
+         "-tip",
+         "tip0"
+        ],
+        [
+         "-half",
+         "taper0"
+        ]
+       ]
       },
       {
        "name": "window",
@@ -563,43 +698,43 @@
        "name": "slotR",
        "path": {
         "from": [
-         "(xc) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-         "(lc) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+         "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+         "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
         ],
         "segs": [
          {
           "to": [
-           "(xo) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-           "(lo) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+           "(xo) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+           "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
           ]
          },
          {
           "arc": {
            "via": [
-            "(xo) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-            "(lo) + (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+            "(xo) + (sw)/2 * ((1) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+            "(lo) + (sw)/2 * ((1) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
            ],
            "to": [
-            "(xo) + (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-            "(lo) - (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+            "(xo) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+            "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
            ]
           }
          },
          {
           "to": [
-           "(xc) + (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-           "(lc) - (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+           "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+           "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (-1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
           ]
          },
          {
           "arc": {
            "via": [
-            "(xc) - (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-            "(lc) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+            "(xc) + (sw)/2 * ((-1) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+            "(lc) + (sw)/2 * ((-1) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (0) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
            ],
            "to": [
-            "(xc) - (sw)/2 * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)",
-            "(lc) + (sw)/2 * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)"
+            "(xc) + (sw)/2 * ((0) * (xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2))))",
+            "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2) + (1) * ((xo - (xc)) / sqrt((xo - (xc))^2 + (lo - (lc))^2)))"
            ]
           }
          }
@@ -610,43 +745,43 @@
        "name": "slotL",
        "path": {
         "from": [
-         "(-xc) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-         "(lc) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+         "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+         "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
         ],
         "segs": [
          {
           "to": [
-           "(-xo) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-           "(lo) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+           "(-xo) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+           "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
           ]
          },
          {
           "arc": {
            "via": [
-            "(-xo) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-            "(lo) + (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+            "(-xo) + (sw)/2 * ((1) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+            "(lo) + (sw)/2 * ((1) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
            ],
            "to": [
-            "(-xo) + (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-            "(lo) - (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+            "(-xo) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+            "(lo) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
            ]
           }
          },
          {
           "to": [
-           "(-xc) + (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-           "(lc) - (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+           "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+           "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (-1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
           ]
          },
          {
           "arc": {
            "via": [
-            "(-xc) - (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-            "(lc) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+            "(-xc) + (sw)/2 * ((-1) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+            "(lc) + (sw)/2 * ((-1) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (0) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
            ],
            "to": [
-            "(-xc) - (sw)/2 * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)",
-            "(lc) + (sw)/2 * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)"
+            "(-xc) + (sw)/2 * ((0) * (-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * (-((lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2))))",
+            "(lc) + (sw)/2 * ((0) * (lo - (lc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2) + (1) * ((-xo - (-xc)) / sqrt((-xo - (-xc))^2 + (lo - (lc))^2)))"
            ]
           }
          }
@@ -666,10 +801,10 @@
   "pin": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "A 4 mm pin, h long, along +Z: pressed into a finger, riding a yoke slot. One extrude.",
+   "_": "A 4 mm dowel, h long, along +Z: pressed into a finger tab, riding a yoke slot. One extrude.",
    "params": {
     "d": 4,
-    "h": 14
+    "h": 15
    },
    "features": [
     {
@@ -696,141 +831,20 @@
     }
    ]
   },
-  "finger": {
+  "tab": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Finger: an 8 mm plate in plan — a tab inside the case with the cam pin (pressed) and a window that takes the slider neck from above, and an arm that runs forward through the front-wall slot to carry a pad (two Ø3.4 bolt holes). side = 1 right, -1 left. One extrude along +Z.",
-   "params": {
-    "side": 1,
-    "half": 8,
-    "y0": 62,
-    "y1": 88,
-    "y2": 126,
-    "arm": 10,
-    "inset": 8,
-    "z0": 18,
-    "t": 8,
-    "win_w": 12.2,
-    "win_h": 8.2,
-    "yw": 78,
-    "y_pin": 68,
-    "d_pin": 4,
-    "d_bolt": 3.4,
-    "yb0": 112,
-    "yb1": 122
-   },
-   "features": [
-    {
-     "op": "sketch",
-     "id": "plan",
-     "plane": {
-      "base": "XY",
-      "offset": "z0"
-     },
-     "loops": [
-      {
-       "name": "outline",
-       "polygon": [
-        [
-         "-side * half",
-         "y0"
-        ],
-        [
-         "side * half",
-         "y0"
-        ],
-        [
-         "side * half",
-         "y1"
-        ],
-        [
-         "side * (arm - inset)",
-         "y1"
-        ],
-        [
-         "side * (arm - inset)",
-         "y2"
-        ],
-        [
-         "-side * inset",
-         "y2"
-        ],
-        [
-         "-side * inset",
-         "y1"
-        ],
-        [
-         "-side * half",
-         "y1"
-        ]
-       ]
-      },
-      {
-       "name": "window",
-       "rect": {
-        "c": [
-         0,
-         "yw"
-        ],
-        "w": "win_w",
-        "h": "win_h"
-       }
-      },
-      {
-       "name": "pin",
-       "circle": {
-        "c": [
-         0,
-         "y_pin"
-        ],
-        "r": "d_pin / 2"
-       }
-      },
-      {
-       "name": "boltA",
-       "circle": {
-        "c": [
-         "-side * (inset - arm / 2)",
-         "yb0"
-        ],
-        "r": "d_bolt / 2"
-       }
-      },
-      {
-       "name": "boltB",
-       "circle": {
-        "c": [
-         "-side * (inset - arm / 2)",
-         "yb1"
-        ],
-        "r": "d_bolt / 2"
-       }
-      }
-     ]
-    },
-    {
-     "op": "extrude",
-     "id": "finger",
-     "profile": "plan",
-     "depth": "t"
-    }
-   ]
-  },
-  "pad": {
-   "$schema": "com.minomobi.cad.tree#v1",
-   "units": "mm",
-   "_": "Fingertip pad: 20 tall, bolted to the finger arm from below (two M3 into heat-set inserts, Ø2.5 tap holes here). Its inner face is the gripping surface; the pads meet at x = 0 when closed. side = 1 right, -1 left. One extrude along +Z.",
+   "_": "Finger tab: an 8 mm plate that carries the cam pin inside the case and runs forward through the front-wall slot and the carrier’s window to be fixed to the carrier (a cross pin, not modelled). Local x 0 is the finger pin line xf; side = 1 right, -1 left. One extrude along +Z.",
    "params": {
     "side": 1,
     "w": 12,
-    "over": 2,
-    "inset": 8,
-    "y0": 108,
-    "y1": 126,
-    "z0": 26,
-    "t": 20,
-    "d_tap": 2.5,
-    "arm": 10
+    "inset": 6,
+    "y0": 82,
+    "y1": 122,
+    "z0": 19,
+    "t": 8,
+    "y_pin": 88,
+    "d_pin": 4
    },
    "features": [
     {
@@ -845,7 +859,7 @@
        "name": "outline",
        "rect": {
         "c": [
-         "side * (w / 2 - inset - over)",
+         "-side * w / 2",
          "(y0 + y1) / 2"
         ],
         "w": "w",
@@ -853,52 +867,162 @@
        }
       },
       {
-       "name": "tapA",
+       "name": "pin",
        "circle": {
         "c": [
-         "-side * (inset - arm / 2)",
-         "y0 + 4"
+         "-side * inset",
+         "y_pin"
         ],
-        "r": "d_tap / 2"
-       }
-      },
-      {
-       "name": "tapB",
-       "circle": {
-        "c": [
-         "-side * (inset - arm / 2)",
-         "y1 - 4"
-        ],
-        "r": "d_tap / 2"
+        "r": "d_pin / 2"
        }
       }
      ]
     },
     {
      "op": "extrude",
-     "id": "pad",
+     "id": "tab",
      "profile": "plan",
      "depth": "t"
     }
    ]
   },
-  "slider": {
+  "carrier": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Finger slider: rides both rails on Ø6.2 bores (printed plain bearings) and hangs a neck down into the finger’s window. One extrude along +X.",
+   "_": "Finger carrier: a vertical plate bolted to the linear block’s face (four Ø3.4 on the MGN9C 10 × 15 pattern), with a window the tab passes through and two Ø3.4 for the pad. side = 1 right, -1 left. One extrude along -Y.",
    "params": {
-    "L": 12,
-    "y0": 66,
-    "y1": 90,
-    "z0": 26,
-    "z1": 38,
-    "n0": 74,
-    "n1": 82,
-    "zn": 20,
-    "ya": 72,
-    "yb": 84,
-    "zr": 32,
-    "d": 6.2
+    "side": 1,
+    "x0": -15,
+    "x1": 12,
+    "z0": -26,
+    "z1": 30,
+    "t": 6,
+    "y1": 120,
+    "zr": -14,
+    "px": 10,
+    "pz": 15,
+    "d_bolt": 3.4,
+    "win_w": 12.2,
+    "win_h": 8.2,
+    "wx": -6,
+    "wz": 23,
+    "padx": -10,
+    "padz": 6,
+    "d_pad": 3.4
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": {
+      "base": "XZ",
+      "offset": "-y1"
+     },
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         "side * (x0 + x1) / 2",
+         "(z0 + z1) / 2"
+        ],
+        "w": "x1 - x0",
+        "h": "z1 - z0"
+       }
+      },
+      {
+       "name": "window",
+       "rect": {
+        "c": [
+         "side * wx",
+         "wz"
+        ],
+        "w": "win_w",
+        "h": "win_h"
+       }
+      },
+      {
+       "name": "blockA",
+       "circle": {
+        "c": [
+         "-px/2",
+         "zr - pz/2"
+        ],
+        "r": "d_bolt / 2"
+       }
+      },
+      {
+       "name": "blockB",
+       "circle": {
+        "c": [
+         "px/2",
+         "zr - pz/2"
+        ],
+        "r": "d_bolt / 2"
+       }
+      },
+      {
+       "name": "blockC",
+       "circle": {
+        "c": [
+         "-px/2",
+         "zr + pz/2"
+        ],
+        "r": "d_bolt / 2"
+       }
+      },
+      {
+       "name": "blockD",
+       "circle": {
+        "c": [
+         "px/2",
+         "zr + pz/2"
+        ],
+        "r": "d_bolt / 2"
+       }
+      },
+      {
+       "name": "padA",
+       "circle": {
+        "c": [
+         "side * padx",
+         "zr - padz"
+        ],
+        "r": "d_pad / 2"
+       }
+      },
+      {
+       "name": "padB",
+       "circle": {
+        "c": [
+         "side * padx",
+         "zr + padz"
+        ],
+        "r": "d_pad / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "carrier",
+     "profile": "face",
+     "depth": "t"
+    }
+   ]
+  },
+  "block": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "MGN9C linear block stand-in: 20 × 10 × 28.9 with a channel over the rail, 2 mm above the rail’s mounting surface. Its four M3 on top face +Y here (in the carrier). One extrude along +X.",
+   "params": {
+    "L": 28.9,
+    "y0": 106,
+    "y1": 114,
+    "zr": -14,
+    "w": 20,
+    "cw": 10,
+    "ch": 5
    },
    "features": [
     {
@@ -911,63 +1035,43 @@
        "polygon": [
         [
          "y0",
-         "z0"
-        ],
-        [
-         "n0",
-         "z0"
-        ],
-        [
-         "n0",
-         "zn"
-        ],
-        [
-         "n1",
-         "zn"
-        ],
-        [
-         "n1",
-         "z0"
-        ],
-        [
-         "y1",
-         "z0"
-        ],
-        [
-         "y1",
-         "z1"
+         "zr - w/2"
         ],
         [
          "y0",
-         "z1"
+         "zr - cw/2"
+        ],
+        [
+         "y0 + ch",
+         "zr - cw/2"
+        ],
+        [
+         "y0 + ch",
+         "zr + cw/2"
+        ],
+        [
+         "y0",
+         "zr + cw/2"
+        ],
+        [
+         "y0",
+         "zr + w/2"
+        ],
+        [
+         "y1",
+         "zr + w/2"
+        ],
+        [
+         "y1",
+         "zr - w/2"
         ]
        ]
-      },
-      {
-       "name": "railA",
-       "circle": {
-        "c": [
-         "ya",
-         "zr"
-        ],
-        "r": "d/2"
-       }
-      },
-      {
-       "name": "railB",
-       "circle": {
-        "c": [
-         "yb",
-         "zr"
-        ],
-        "r": "d/2"
-       }
       }
      ]
     },
     {
      "op": "extrude",
-     "id": "slider",
+     "id": "block",
      "profile": "face",
      "depth": "L"
     }
@@ -976,12 +1080,13 @@
   "rail": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "A Ø6 rail along X, wall to wall, at the y this instance is given. One extrude along +X.",
+   "_": "MGN9 rail stand-in: 9 × 6.5 section, 104 long, on the front wall’s outer face (its Ø3.5 mounting holes at 20 pitch are not modelled). One extrude along +X.",
    "params": {
-    "d": 6,
-    "y": 72,
-    "z": 32,
-    "half": 44
+    "w": 9,
+    "h": 6.5,
+    "y0": 104,
+    "zr": -14,
+    "half": 52
    },
    "features": [
     {
@@ -993,13 +1098,14 @@
      },
      "loops": [
       {
-       "name": "od",
-       "circle": {
+       "name": "outline",
+       "rect": {
         "c": [
-         "y",
-         "z"
+         "y0 + h/2",
+         "zr"
         ],
-        "r": "d/2"
+        "w": "h",
+        "h": "w"
        }
       }
      ]
@@ -1012,20 +1118,82 @@
     }
    ]
   },
+  "pad": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Fingertip pad: 12 × 20 × 20, bolted to the carrier from behind (two M3 into heat-set inserts, Ø2.5 tap holes here). Its inner X face is the gripping surface, centred on the linear block; the pads meet at x = 0 when closed. side = 1 right, -1 left. One extrude along -Y.",
+   "params": {
+    "side": 1,
+    "w": 12,
+    "inset": 6,
+    "y1": 140,
+    "t": 20,
+    "zr": -14,
+    "h": 20,
+    "d_tap": 2.5,
+    "padz": 6,
+    "xc": -10
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": {
+      "base": "XZ",
+      "offset": "-y1"
+     },
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         "side * xc",
+         "zr"
+        ],
+        "w": "w",
+        "h": "h"
+       }
+      },
+      {
+       "name": "tapA",
+       "circle": {
+        "c": [
+         "side * xc",
+         "zr - padz"
+        ],
+        "r": "d_tap / 2"
+       }
+      },
+      {
+       "name": "tapB",
+       "circle": {
+        "c": [
+         "side * xc",
+         "zr + padz"
+        ],
+        "r": "d_tap / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "pad",
+     "profile": "face",
+     "depth": "t"
+    }
+   ]
+  },
   "side-wall": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Side wall: holds both rails (press fit). Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
+   "_": "Side wall, plain: the guide no longer lives here. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
    "params": {
     "t": 4,
     "y0": 8,
     "y1": 98,
     "z0": -23,
-    "z1": 40,
-    "ya": 72,
-    "yb": 84,
-    "zr": 32,
-    "d": 6
+    "z1": 30
    },
    "features": [
     {
@@ -1043,26 +1211,6 @@
         "w": "y1 - y0",
         "h": "z1 - z0"
        }
-      },
-      {
-       "name": "railA",
-       "circle": {
-        "c": [
-         "ya",
-         "zr"
-        ],
-        "r": "d/2"
-       }
-      },
-      {
-       "name": "railB",
-       "circle": {
-        "c": [
-         "yb",
-         "zr"
-        ],
-        "r": "d/2"
-       }
       }
      ]
     },
@@ -1079,7 +1227,7 @@
    "units": "mm",
    "_": "Floor plate, between the rear plate and the front wall. One extrude along +Z.",
    "params": {
-    "w": 88,
+    "w": 84,
     "y0": 8,
     "y1": 98,
     "t": 4,
@@ -1118,15 +1266,15 @@
   "lid": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Lid, with an access window over the yoke and sliders. One extrude along +Z.",
+   "_": "Lid, with an access window over the yoke. One extrude along +Z.",
    "params": {
-    "w": 88,
+    "w": 84,
     "y0": 8,
     "y1": 98,
     "t": 4,
-    "z0": 40,
-    "win_w": 64,
-    "win_y0": 48,
+    "z0": 30,
+    "win_w": 60,
+    "win_y0": 51,
     "win_y1": 90
    },
    "features": [
@@ -1178,7 +1326,7 @@
    "at": [
     0,
     -20,
-    8.5
+    3.5
    ],
    "params": {
     "h": 1
@@ -1216,7 +1364,7 @@
    "id": "wall-r",
    "part": "side-wall",
    "at": [
-    "wallX",
+    38,
     0,
     0
    ]
@@ -1225,7 +1373,7 @@
    "id": "wall-l",
    "part": "side-wall",
    "at": [
-    "-wallX - 4",
+    -42,
     0,
     0
    ]
@@ -1260,10 +1408,10 @@
   {
    "id": "drivetrain",
    "assembly": {
-    "_": "The lead screw, built along Z, tilted onto the +Y axis by this sub-assembly’s placement, spinning by `spin`.",
+    "_": "The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement, spinning by `spin`.",
     "params": {
-     "closed": 54,
-     "open": 74,
+     "closed": 57,
+     "open": 77,
      "lead": 2
     },
     "derived": {
@@ -1273,10 +1421,10 @@
      "screw": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face to the front-wall bearing; the thread is not modelled. One extrude along local Z, placed along +Y.",
+      "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face to the front-wall bearing, flush with its outer face; the thread is not modelled. One extrude along local Z, placed along +Y.",
       "params": {
        "d": 8,
-       "L": 67
+       "L": 68
       },
       "features": [
        {
@@ -1302,6 +1450,61 @@
         "depth": "L"
        }
       ]
+     },
+     "collar": {
+      "$schema": "com.minomobi.cad.tree#v1",
+      "units": "mm",
+      "_": "Thrust collar: clamped on the screw just behind the front wall. Gripping pulls the screw forward, so the collar bears on the wall’s inner face (thrust washer and set screw not modelled). One revolve about local Z.",
+      "params": {
+       "D": 14,
+       "L": 6,
+       "d": 8
+      },
+      "features": [
+       {
+        "op": "sketch",
+        "id": "profile",
+        "plane": "XZ",
+        "loops": [
+         {
+          "name": "body",
+          "polygon": [
+           [
+            "d/2",
+            0
+           ],
+           [
+            "D/2",
+            0
+           ],
+           [
+            "D/2",
+            "L"
+           ],
+           [
+            "d/2",
+            "L"
+           ]
+          ]
+         }
+        ]
+       },
+       {
+        "op": "revolve",
+        "id": "collar",
+        "profile": "profile",
+        "axis": {
+         "p": [
+          0,
+          0
+         ],
+         "d": [
+          0,
+          1
+         ]
+        }
+       }
+      ]
      }
     },
     "components": [
@@ -1312,6 +1515,23 @@
        0,
        0,
        0
+      ],
+      "rotate": {
+       "axis": [
+        0,
+        0,
+        1
+       ],
+       "deg": "spin"
+      }
+     },
+     {
+      "id": "collar",
+      "part": "collar",
+      "at": [
+       0,
+       0,
+       56
       ],
       "rotate": {
        "axis": [
@@ -1339,11 +1559,32 @@
    }
   },
   {
+   "id": "rod-r",
+   "part": "rod",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "rod-l",
+   "part": "rod",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "params": {
+    "x": -19
+   }
+  },
+  {
    "id": "nut",
    "part": "nut",
    "at": [
     0,
-    "yn - nutLen / 2",
+    "yn - carT / 2 - flangeT",
     0
    ],
    "rotate": {
@@ -1374,7 +1615,7 @@
    ]
   },
   {
-   "id": "rail-a",
+   "id": "rail",
    "part": "rail",
    "at": [
     0,
@@ -1383,38 +1624,26 @@
    ]
   },
   {
-   "id": "rail-b",
-   "part": "rail",
+   "id": "block-r",
+   "part": "block",
    "at": [
-    0,
-    0,
-    0
-   ],
-   "params": {
-    "y": 84
-   }
-  },
-  {
-   "id": "slider-r",
-   "part": "slider",
-   "at": [
-    "xf - sliderLen / 2",
+    "xf - blockL / 2",
     0,
     0
    ]
   },
   {
-   "id": "slider-l",
-   "part": "slider",
+   "id": "block-l",
+   "part": "block",
    "at": [
-    "-xf - sliderLen / 2",
+    "-xf - blockL / 2",
     0,
     0
    ]
   },
   {
-   "id": "finger-r",
-   "part": "finger",
+   "id": "carrier-r",
+   "part": "carrier",
    "at": [
     "xf",
     0,
@@ -1422,8 +1651,29 @@
    ]
   },
   {
-   "id": "finger-l",
-   "part": "finger",
+   "id": "carrier-l",
+   "part": "carrier",
+   "at": [
+    "-xf",
+    0,
+    0
+   ],
+   "params": {
+    "side": -1
+   }
+  },
+  {
+   "id": "tab-r",
+   "part": "tab",
+   "at": [
+    "xf",
+    0,
+    0
+   ]
+  },
+  {
+   "id": "tab-l",
+   "part": "tab",
    "at": [
     "-xf",
     0,
@@ -1437,7 +1687,7 @@
    "id": "pin-r",
    "part": "pin",
    "at": [
-    "xf",
+    "xp",
     "pinLine",
     "yokeZ"
    ]
@@ -1446,7 +1696,7 @@
    "id": "pin-l",
    "part": "pin",
    "at": [
-    "-xf",
+    "-xp",
     "pinLine",
     "yokeZ"
    ]
@@ -1477,52 +1727,67 @@
   {
    "kind": "fixed",
    "a": "pin-r",
-   "b": "finger-r"
+   "b": "tab-r"
   },
   {
    "kind": "fixed",
    "a": "pin-l",
-   "b": "finger-l"
+   "b": "tab-l"
   },
   {
    "kind": "fixed",
-   "a": "rail-a",
-   "b": "wall-r"
+   "a": "tab-r",
+   "b": "carrier-r"
   },
   {
    "kind": "fixed",
-   "a": "rail-a",
-   "b": "wall-l"
+   "a": "tab-l",
+   "b": "carrier-l"
   },
   {
    "kind": "fixed",
-   "a": "rail-b",
-   "b": "wall-r"
+   "a": "carrier-r",
+   "b": "block-r"
   },
   {
    "kind": "fixed",
-   "a": "rail-b",
-   "b": "wall-l"
+   "a": "carrier-l",
+   "b": "block-l"
   },
   {
    "kind": "fixed",
    "a": "pad-r",
-   "b": "finger-r"
+   "b": "carrier-r"
   },
   {
    "kind": "fixed",
    "a": "pad-l",
-   "b": "finger-l"
+   "b": "carrier-l"
   },
   {
    "kind": "fixed",
-   "a": "finger-r",
-   "b": "slider-r"
+   "a": "rail",
+   "b": "front-wall"
   },
   {
    "kind": "fixed",
-   "a": "finger-l",
-   "b": "slider-l"
+   "a": "rod-r",
+   "b": "bulkhead"
+  },
+  {
+   "kind": "fixed",
+   "a": "rod-l",
+   "b": "bulkhead"
+  },
+  {
+   "kind": "fixed",
+   "a": "rod-r",
+   "b": "front-wall"
+  },
+  {
+   "kind": "fixed",
+   "a": "rod-l",
+   "b": "front-wall"
   }
  ],
  "drive": {

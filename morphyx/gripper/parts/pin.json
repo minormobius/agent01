@@ -1,10 +1,10 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "A 4 mm pin, h long, along +Z: pressed into a finger, riding a yoke slot. One extrude.",
+ "_": "A 4 mm dowel, h long, along +Z: pressed into a finger tab, riding a yoke slot. One extrude.",
  "params": {
   "d": 4,
-  "h": 14
+  "h": 15
  },
  "features": [
   {
