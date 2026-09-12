@@ -1,0 +1,31 @@
+{
+ "_": "Closed-form volumes of the parts the mechanism is measured against; mm³. The kernel must land within tol (relative).",
+ "base": {
+  "volume": 227978.29649258885,
+  "tol": 0.002
+ },
+ "bracket": {
+  "volume": 10330.376843522718,
+  "tol": 0.002
+ },
+ "rail": {
+  "volume": 5372.123437638546,
+  "tol": 0.002
+ },
+ "screw": {
+  "volume": 3216.990877275948,
+  "tol": 0.002
+ },
+ "saddle": {
+  "volume": 3355.36355262769,
+  "tol": 0.002
+ },
+ "link": {
+  "volume": 5696.330929947423,
+  "tol": 0.002
+ },
+ "nut": {
+  "volume": 1402.4069605624836,
+  "tol": 0.002
+ }
+}

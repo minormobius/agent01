@@ -1,0 +1,81 @@
+name: cad gripper
+
+# The headless loop for morphyx/gripper, run where node and the cad package are:
+# generate the trees at a pose, build every part exact, check interference at
+# closed, reference and open, and — only when asked — publish the parts and the
+# assembly into the morphyx repo as cad.mino.mobi files.
+#
+# workflow_dispatch only: nothing wakes this on a push. It writes to a public
+# ATProto repo when `publish` is true, so read morphyx/gripper/README.md first.
+on:
+  workflow_dispatch:
+    inputs:
+      nut:
+        description: nut bracket centre y for the published pose (44 closed … 62 open)
+        default: '53'
+      publish:
+        description: write the parts and the assembly into the morphyx repo
+        type: boolean
+        default: false
+
+jobs:
+  gripper:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: The cad package (the tangled mirror; node 22 and nothing else)
+        run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
+
+      - name: Generate the trees at the pose
+        run: |
+          node morphyx/gripper/gripper.mjs --nut '${{ inputs.nut }}' --out /tmp/gripper
+          node morphyx/gripper/gripper.mjs --nut 44 --out /tmp/gripper-closed
+          node morphyx/gripper/gripper.mjs --nut 62 --out /tmp/gripper-open
+
+      - name: Exact build of every part (Truck) — must be ok and watertight
+        working-directory: /tmp/cad
+        run: |
+          mkdir -p /tmp/gripper/reports
+          for f in /tmp/gripper/parts/*.json; do
+            n=$(basename "$f" .json)
+            echo "── $n"
+            node agent/build.mjs "$f" --json "/tmp/gripper/reports/$n.json"
+          done
+
+      - name: Closed forms
+        run: |
+          node -e '
+            const fs = require("fs"); const exp = JSON.parse(fs.readFileSync("/tmp/gripper/expected.json"));
+            let bad = 0;
+            for (const [n, e] of Object.entries(exp)) { if (n === "_") continue;
+              const r = JSON.parse(fs.readFileSync(`/tmp/gripper/reports/${n}.json`)); const v = r.invariants.volume;
+              const err = Math.abs(v - e.volume) / e.volume; const ok = err < e.tol; if (!ok) bad++;
+              console.log(`${ok ? "✓" : "✗"} ${n.padEnd(12)} ${v.toFixed(1)} vs ${e.volume.toFixed(1)}  ${(err * 100).toFixed(3)}%`); }
+            process.exit(bad ? 1 : 0);'
+
+      - name: Interference at closed, reference and open (Manifold, through the motion)
+        working-directory: /tmp/cad
+        run: |
+          node agent/check.mjs /tmp/gripper-closed/gripper.json --t 0.5
+          node agent/check.mjs /tmp/gripper/gripper.json --t 0.5
+          node agent/check.mjs /tmp/gripper-open/gripper.json --t 0.5
+
+      - name: Publish plan
+        run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut '${{ inputs.nut }}'
+
+      - name: Publish into the morphyx repo
+        if: ${{ inputs.publish }}
+        env:
+          CAD_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          CAD_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut '${{ inputs.nut }}' --write
+
+      - name: Verify on the live host
+        if: ${{ inputs.publish }}
+        run: |
+          curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=${{ secrets.BLUESKY_MORPHYX_HANDLE }}&collection=com.minomobi.cad.part' \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("gripper/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<17)process.exit(1)})'

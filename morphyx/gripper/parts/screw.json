@@ -1,0 +1,33 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "T8 lead screw stand-in: an 8 mm cylinder; the thread (2 mm lead) is not modelled. One extrude along local Z, placed along +Y.",
+ "params": {
+  "d": 8,
+  "L": 64
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "section",
+   "loops": [
+    {
+     "name": "od",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "screw",
+   "profile": "section",
+   "depth": "L"
+  }
+ ]
+}

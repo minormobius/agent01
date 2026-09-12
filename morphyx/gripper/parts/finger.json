@@ -1,0 +1,88 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Finger: an L in plan, 12 thick — a mount that drops over the slider neck (the window) and an arm reaching inward to the pad face at x = 0 when closed. The link pin presses into the arm. side = 1 right, -1 left. One extrude along +Z.",
+ "params": {
+  "side": 1,
+  "half": 16,
+  "reach": 46.36,
+  "y0": 76,
+  "y1": 104,
+  "y2": 118,
+  "z0": 22,
+  "t": 12,
+  "win_w": 24.2,
+  "win_h": 12.2,
+  "yn": 90,
+  "y_pin": 111,
+  "d_pin": 4
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plan",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "polygon": [
+      [
+       "-side * half",
+       "y0"
+      ],
+      [
+       "side * half",
+       "y0"
+      ],
+      [
+       "side * half",
+       "y2"
+      ],
+      [
+       "-side * reach",
+       "y2"
+      ],
+      [
+       "-side * reach",
+       "y1"
+      ],
+      [
+       "-side * half",
+       "y1"
+      ]
+     ]
+    },
+    {
+     "name": "window",
+     "rect": {
+      "c": [
+       0,
+       "yn"
+      ],
+      "w": "win_w",
+      "h": "win_h"
+     }
+    },
+    {
+     "name": "pin",
+     "circle": {
+      "c": [
+       0,
+       "y_pin"
+      ],
+      "r": "d_pin / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "finger",
+   "profile": "plan",
+   "depth": "t"
+  }
+ ]
+}

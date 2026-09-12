@@ -1,0 +1,62 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Rail end block: stands on the base at each end of the rails and holds both (press fit). One extrude along +X.",
+ "params": {
+  "t": 8,
+  "w": 36,
+  "yc": 90,
+  "base_top": -24,
+  "top": 24,
+  "ya": 82,
+  "yb": 98,
+  "z": 16,
+  "d": 6
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": "YZ",
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "yc",
+       "(base_top + top) / 2"
+      ],
+      "w": "w",
+      "h": "top - base_top"
+     }
+    },
+    {
+     "name": "railA",
+     "circle": {
+      "c": [
+       "ya",
+       "z"
+      ],
+      "r": "d/2"
+     }
+    },
+    {
+     "name": "railB",
+     "circle": {
+      "c": [
+       "yb",
+       "z"
+      ],
+      "r": "d/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "block",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

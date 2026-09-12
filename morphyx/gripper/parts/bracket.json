@@ -1,0 +1,78 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Motor bracket: a vertical plate (XZ) at y in [-t, 0] with the NEMA 17 pilot bore and four bolt holes on a 31 mm square. Stands on the base. One extrude along -Y.",
+ "params": {
+  "w": 50,
+  "h": 50,
+  "t": 5,
+  "base_top": -24,
+  "d_pilot": 22.5,
+  "pcd": 31,
+  "d_bolt": 3.4
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "base_top + h/2"
+      ],
+      "w": "w",
+      "h": "h"
+     }
+    },
+    {
+     "name": "pilot",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_pilot / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd/2",
+       "pcd/2"
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "bracket",
+   "profile": [
+    "face",
+    "bolts"
+   ],
+   "depth": "t"
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "T8 flange nut stand-in: 22 mm flange, 10 mm body, 8.4 mm bore (thread not modelled; the 0.2 mm is the thread clearance). Flange bolt holes are on the bracket, not here. One revolve about local Z.",
+ "params": {
+  "d_bore": 8.4,
+  "d_body": 10,
+  "L": 15,
+  "d_flange": 22,
+  "t_flange": 3.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "profile",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "body",
+     "polygon": [
+      [
+       "d_bore/2",
+       0
+      ],
+      [
+       "d_flange/2",
+       0
+      ],
+      [
+       "d_flange/2",
+       "t_flange"
+      ],
+      [
+       "d_body/2",
+       "t_flange"
+      ],
+      [
+       "d_body/2",
+       "L"
+      ],
+      [
+       "d_bore/2",
+       "L"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "revolve",
+   "id": "nut",
+   "profile": "profile",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

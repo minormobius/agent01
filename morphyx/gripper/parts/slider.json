@@ -1,0 +1,91 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Finger slider: rides both rails on 6.2 mm bores (printed plain bearings), with a neck on top that keys into the finger. One extrude along +X.",
+ "params": {
+  "L": 24,
+  "y0": 76,
+  "y1": 104,
+  "z0": 10,
+  "z1": 22,
+  "n0": 84,
+  "n1": 96,
+  "zn": 28,
+  "ya": 82,
+  "yb": 98,
+  "zr": 16,
+  "d": 6.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": "YZ",
+   "loops": [
+    {
+     "name": "outline",
+     "polygon": [
+      [
+       "y0",
+       "z0"
+      ],
+      [
+       "y1",
+       "z0"
+      ],
+      [
+       "y1",
+       "z1"
+      ],
+      [
+       "n1",
+       "z1"
+      ],
+      [
+       "n1",
+       "zn"
+      ],
+      [
+       "n0",
+       "zn"
+      ],
+      [
+       "n0",
+       "z1"
+      ],
+      [
+       "y0",
+       "z1"
+      ]
+     ]
+    },
+    {
+     "name": "railA",
+     "circle": {
+      "c": [
+       "ya",
+       "zr"
+      ],
+      "r": "d/2"
+     }
+    },
+    {
+     "name": "railB",
+     "circle": {
+      "c": [
+       "yb",
+       "zr"
+      ],
+      "r": "d/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "slider",
+   "profile": "face",
+   "depth": "L"
+  }
+ ]
+}

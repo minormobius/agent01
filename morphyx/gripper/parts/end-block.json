@@ -1,0 +1,52 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Far screw support: a block on the base with a plain 8.2 mm bearing bore, under the rails. One extrude along -Y.",
+ "params": {
+  "w": 30,
+  "t": 8,
+  "y1": 84,
+  "base_top": -24,
+  "top": 12,
+  "d_bore": 8.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "(base_top + top) / 2"
+      ],
+      "w": "w",
+      "h": "top - base_top"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "block",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

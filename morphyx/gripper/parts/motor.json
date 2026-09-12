@@ -1,0 +1,66 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "NEMA 17 body: a 42.3 mm square with 5 mm corner chamfers, 40 long, behind the bracket (y in [-45, -5]). Stand-in geometry. One extrude along -Y.",
+ "params": {
+  "s": 42.3,
+  "ch": 5,
+  "L": 40,
+  "face_y": -5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "body",
+   "plane": {
+    "base": "XZ",
+    "offset": "-face_y"
+   },
+   "loops": [
+    {
+     "name": "body",
+     "polygon": [
+      [
+       "-(s/2 - ch)",
+       "-s/2"
+      ],
+      [
+       "s/2 - ch",
+       "-s/2"
+      ],
+      [
+       "s/2",
+       "-(s/2 - ch)"
+      ],
+      [
+       "s/2",
+       "s/2 - ch"
+      ],
+      [
+       "s/2 - ch",
+       "s/2"
+      ],
+      [
+       "-(s/2 - ch)",
+       "s/2"
+      ],
+      [
+       "-s/2",
+       "s/2 - ch"
+      ],
+      [
+       "-s/2",
+       "-(s/2 - ch)"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "motor",
+   "profile": "body",
+   "depth": "L"
+  }
+ ]
+}

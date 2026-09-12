@@ -1,0 +1,106 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Nut carriage: a vertical plate (XZ) with the nut bore and the four flange bolt holes, a neck on top for the saddle. Slides 1 mm above the base; the links react its torque. One extrude along -Y.",
+ "params": {
+  "w": 40,
+  "t": 8,
+  "bottom": -23,
+  "shoulder": 30,
+  "top": 36,
+  "neck": 30,
+  "d_bore": 10.2,
+  "pcd": 16,
+  "d_bolt": 3.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "outline",
+     "polygon": [
+      [
+       "-w/2",
+       "bottom"
+      ],
+      [
+       "w/2",
+       "bottom"
+      ],
+      [
+       "w/2",
+       "shoulder"
+      ],
+      [
+       "neck/2",
+       "shoulder"
+      ],
+      [
+       "neck/2",
+       "top"
+      ],
+      [
+       "-neck/2",
+       "top"
+      ],
+      [
+       "-neck/2",
+       "shoulder"
+      ],
+      [
+       "-w/2",
+       "shoulder"
+      ]
+     ]
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd/2 * cos(deg(45))",
+       "pcd/2 * sin(deg(45))"
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "bracket",
+   "profile": [
+    "face",
+    "bolts"
+   ],
+   "depth": "t"
+  }
+ ]
+}

@@ -1,0 +1,1465 @@
+{
+ "$schema": "com.minomobi.cad.assembly#v1",
+ "name": "gripper",
+ "_": "Parallel-jaw gripper: NEMA 17 → coupler → T8 lead screw → flange nut in a bracket → saddle with two pins → two 72 mm links → two fingers on sliders riding two 6 mm rails. Posed with the nut bracket at y = 53 (closed 44, open 62): finger pins at x = ±62.661, pad gap 32.6 mm, link angle 53.664°. Linear motion is not a mate kind, so the pose is baked in: regenerate with `node gripper.mjs --nut <y>`. The drive spins the motor shaft, coupler and screw for the record.",
+ "parts": {
+  "base": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Base plate, lying in XY under everything. Four mounting holes. One extrude.",
+   "params": {
+    "w": 220,
+    "y0": -48,
+    "y1": 125,
+    "t": 6,
+    "top": -24,
+    "d_mount": 4.5,
+    "inset": 10
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "outline",
+     "plane": {
+      "base": "XY",
+      "offset": "top - t"
+     },
+     "loops": [
+      {
+       "name": "plate",
+       "rect": {
+        "c": [
+         0,
+         "(y0 + y1) / 2"
+        ],
+        "w": "w",
+        "h": "y1 - y0"
+       }
+      }
+     ]
+    },
+    {
+     "op": "sketch",
+     "id": "mount",
+     "plane": {
+      "base": "XY",
+      "offset": "top - t"
+     },
+     "loops": [
+      {
+       "name": null,
+       "circle": {
+        "c": [
+         "-w/2 + inset",
+         "y0 + inset"
+        ],
+        "r": "d_mount / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "pattern",
+     "id": "mountsx",
+     "of": "mount",
+     "kind": "linear",
+     "count": 2,
+     "step": [
+      "w - 2 * inset",
+      0
+     ],
+     "name": "mount"
+    },
+    {
+     "op": "pattern",
+     "id": "mounts",
+     "of": "mountsx",
+     "kind": "linear",
+     "count": 2,
+     "step": [
+      0,
+      "y1 - y0 - 2 * inset"
+     ],
+     "name": "mount"
+    },
+    {
+     "op": "extrude",
+     "id": "base",
+     "profile": [
+      "outline",
+      "mounts"
+     ],
+     "depth": "t"
+    }
+   ]
+  },
+  "bracket": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Motor bracket: a vertical plate (XZ) at y in [-t, 0] with the NEMA 17 pilot bore and four bolt holes on a 31 mm square. Stands on the base. One extrude along -Y.",
+   "params": {
+    "w": 50,
+    "h": 50,
+    "t": 5,
+    "base_top": -24,
+    "d_pilot": 22.5,
+    "pcd": 31,
+    "d_bolt": 3.4
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         0,
+         "base_top + h/2"
+        ],
+        "w": "w",
+        "h": "h"
+       }
+      },
+      {
+       "name": "pilot",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d_pilot / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "sketch",
+     "id": "bolt",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": null,
+       "circle": {
+        "c": [
+         "pcd/2",
+         "pcd/2"
+        ],
+        "r": "d_bolt / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "pattern",
+     "id": "bolts",
+     "of": "bolt",
+     "kind": "circular",
+     "count": 4,
+     "name": "bolt"
+    },
+    {
+     "op": "extrude",
+     "id": "bracket",
+     "profile": [
+      "face",
+      "bolts"
+     ],
+     "depth": "t"
+    }
+   ]
+  },
+  "motor": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "NEMA 17 body: a 42.3 mm square with 5 mm corner chamfers, 40 long, behind the bracket (y in [-45, -5]). Stand-in geometry. One extrude along -Y.",
+   "params": {
+    "s": 42.3,
+    "ch": 5,
+    "L": 40,
+    "face_y": -5
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "body",
+     "plane": {
+      "base": "XZ",
+      "offset": "-face_y"
+     },
+     "loops": [
+      {
+       "name": "body",
+       "polygon": [
+        [
+         "-(s/2 - ch)",
+         "-s/2"
+        ],
+        [
+         "s/2 - ch",
+         "-s/2"
+        ],
+        [
+         "s/2",
+         "-(s/2 - ch)"
+        ],
+        [
+         "s/2",
+         "s/2 - ch"
+        ],
+        [
+         "s/2 - ch",
+         "s/2"
+        ],
+        [
+         "-(s/2 - ch)",
+         "s/2"
+        ],
+        [
+         "-s/2",
+         "s/2 - ch"
+        ],
+        [
+         "-s/2",
+         "-(s/2 - ch)"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "motor",
+     "profile": "body",
+     "depth": "L"
+    }
+   ]
+  },
+  "motor-shaft": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "NEMA 17 shaft with its pilot boss: revolved about local Z; placed with its axis along +Y. One revolve.",
+   "params": {
+    "d": 5,
+    "L": 24,
+    "d_boss": 22,
+    "l_boss": 2
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "profile",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "shaft",
+       "polygon": [
+        [
+         0,
+         0
+        ],
+        [
+         "d_boss/2",
+         0
+        ],
+        [
+         "d_boss/2",
+         "l_boss"
+        ],
+        [
+         "d/2",
+         "l_boss"
+        ],
+        [
+         "d/2",
+         "L"
+        ],
+        [
+         0,
+         "L"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "op": "revolve",
+     "id": "shaft",
+     "profile": "profile",
+     "axis": {
+      "p": [
+       0,
+       0
+      ],
+      "d": [
+       0,
+       1
+      ]
+     }
+    }
+   ]
+  },
+  "coupler": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Rigid shaft coupler: a stepped bore (5 mm for the motor shaft, 8 mm for the screw) in a 20 mm cylinder. Clamp screws not modelled. One revolve about local Z.",
+   "params": {
+    "D": 20,
+    "L": 25,
+    "d_a": 5,
+    "d_b": 8
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "profile",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "body",
+       "polygon": [
+        [
+         "d_a/2",
+         0
+        ],
+        [
+         "D/2",
+         0
+        ],
+        [
+         "D/2",
+         "L"
+        ],
+        [
+         "d_b/2",
+         "L"
+        ],
+        [
+         "d_b/2",
+         "L/2"
+        ],
+        [
+         "d_a/2",
+         "L/2"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "op": "revolve",
+     "id": "coupler",
+     "profile": "profile",
+     "axis": {
+      "p": [
+       0,
+       0
+      ],
+      "d": [
+       0,
+       1
+      ]
+     }
+    }
+   ]
+  },
+  "screw": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "T8 lead screw stand-in: an 8 mm cylinder; the thread (2 mm lead) is not modelled. One extrude along local Z, placed along +Y.",
+   "params": {
+    "d": 8,
+    "L": 64
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "section",
+     "loops": [
+      {
+       "name": "od",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d/2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "screw",
+     "profile": "section",
+     "depth": "L"
+    }
+   ]
+  },
+  "end-block": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Far screw support: a block on the base with a plain 8.2 mm bearing bore, under the rails. One extrude along -Y.",
+   "params": {
+    "w": 30,
+    "t": 8,
+    "y1": 84,
+    "base_top": -24,
+    "top": 12,
+    "d_bore": 8.2
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": {
+      "base": "XZ",
+      "offset": "-y1"
+     },
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         0,
+         "(base_top + top) / 2"
+        ],
+        "w": "w",
+        "h": "top - base_top"
+       }
+      },
+      {
+       "name": "bore",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d_bore / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "block",
+     "profile": "face",
+     "depth": "t"
+    }
+   ]
+  },
+  "nut": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "T8 flange nut stand-in: 22 mm flange, 10 mm body, 8.4 mm bore (thread not modelled; the 0.2 mm is the thread clearance). Flange bolt holes are on the bracket, not here. One revolve about local Z.",
+   "params": {
+    "d_bore": 8.4,
+    "d_body": 10,
+    "L": 15,
+    "d_flange": 22,
+    "t_flange": 3.5
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "profile",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "body",
+       "polygon": [
+        [
+         "d_bore/2",
+         0
+        ],
+        [
+         "d_flange/2",
+         0
+        ],
+        [
+         "d_flange/2",
+         "t_flange"
+        ],
+        [
+         "d_body/2",
+         "t_flange"
+        ],
+        [
+         "d_body/2",
+         "L"
+        ],
+        [
+         "d_bore/2",
+         "L"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "op": "revolve",
+     "id": "nut",
+     "profile": "profile",
+     "axis": {
+      "p": [
+       0,
+       0
+      ],
+      "d": [
+       0,
+       1
+      ]
+     }
+    }
+   ]
+  },
+  "nut-bracket": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Nut carriage: a vertical plate (XZ) with the nut bore and the four flange bolt holes, a neck on top for the saddle. Slides 1 mm above the base; the links react its torque. One extrude along -Y.",
+   "params": {
+    "w": 40,
+    "t": 8,
+    "bottom": -23,
+    "shoulder": 30,
+    "top": 36,
+    "neck": 30,
+    "d_bore": 10.2,
+    "pcd": 16,
+    "d_bolt": 3.5
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "outline",
+       "polygon": [
+        [
+         "-w/2",
+         "bottom"
+        ],
+        [
+         "w/2",
+         "bottom"
+        ],
+        [
+         "w/2",
+         "shoulder"
+        ],
+        [
+         "neck/2",
+         "shoulder"
+        ],
+        [
+         "neck/2",
+         "top"
+        ],
+        [
+         "-neck/2",
+         "top"
+        ],
+        [
+         "-neck/2",
+         "shoulder"
+        ],
+        [
+         "-w/2",
+         "shoulder"
+        ]
+       ]
+      },
+      {
+       "name": "bore",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d_bore / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "sketch",
+     "id": "bolt",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": null,
+       "circle": {
+        "c": [
+         "pcd/2 * cos(deg(45))",
+         "pcd/2 * sin(deg(45))"
+        ],
+        "r": "d_bolt / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "pattern",
+     "id": "bolts",
+     "of": "bolt",
+     "kind": "circular",
+     "count": 4,
+     "name": "bolt"
+    },
+    {
+     "op": "extrude",
+     "id": "bracket",
+     "profile": [
+      "face",
+      "bolts"
+     ],
+     "depth": "t"
+    }
+   ]
+  },
+  "saddle": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Pin saddle: a flat plate keyed over the nut bracket neck (the window), carrying the two link pins 40 mm apart. Retained by the neck laterally; a drop of adhesive or one grub screw vertically (not modelled). One extrude along +Z.",
+   "params": {
+    "w": 52,
+    "h": 16,
+    "t": 6,
+    "z0": 30,
+    "win_w": 30.2,
+    "win_h": 8.2,
+    "span": 40,
+    "d_pin": 4
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "plate",
+     "plane": {
+      "base": "XY",
+      "offset": "z0"
+     },
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         0,
+         0
+        ],
+        "w": "w",
+        "h": "h"
+       }
+      },
+      {
+       "name": "window",
+       "rect": {
+        "c": [
+         0,
+         0
+        ],
+        "w": "win_w",
+        "h": "win_h"
+       }
+      }
+     ]
+    },
+    {
+     "op": "sketch",
+     "id": "pin",
+     "plane": {
+      "base": "XY",
+      "offset": "z0"
+     },
+     "loops": [
+      {
+       "name": null,
+       "circle": {
+        "c": [
+         "-span/2",
+         0
+        ],
+        "r": "d_pin / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "pattern",
+     "id": "pins",
+     "of": "pin",
+     "kind": "linear",
+     "count": 2,
+     "step": [
+      "span",
+      0
+     ],
+     "name": "pin"
+    },
+    {
+     "op": "extrude",
+     "id": "saddle",
+     "profile": [
+      "plate",
+      "pins"
+     ],
+     "depth": "t"
+    }
+   ]
+  },
+  "link": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Link: a 72 mm dog-bone, 6 thick, with two 4.2 mm eyes (running clearance on 4 mm pins). Built along +X from eye 0; the assembly rotates it about Z. One extrude.",
+   "params": {
+    "L": 72,
+    "r": 6,
+    "t": 6,
+    "d_eye": 4.2
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "outline",
+     "loops": [
+      {
+       "name": "body",
+       "path": {
+        "from": [
+         0,
+         "-r"
+        ],
+        "segs": [
+         {
+          "to": [
+           "L",
+           "-r"
+          ]
+         },
+         {
+          "arc": {
+           "via": [
+            "L + r",
+            0
+           ],
+           "to": [
+            "L",
+            "r"
+           ]
+          }
+         },
+         {
+          "to": [
+           0,
+           "r"
+          ]
+         },
+         {
+          "arc": {
+           "via": [
+            "-r",
+            0
+           ],
+           "to": [
+            0,
+            "-r"
+           ]
+          }
+         }
+        ]
+       }
+      }
+     ]
+    },
+    {
+     "op": "sketch",
+     "id": "eye",
+     "loops": [
+      {
+       "name": null,
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d_eye / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "pattern",
+     "id": "eyes",
+     "of": "eye",
+     "kind": "linear",
+     "count": 2,
+     "step": [
+      "L",
+      0
+     ],
+     "name": "eye"
+    },
+    {
+     "op": "extrude",
+     "id": "link",
+     "profile": [
+      "outline",
+      "eyes"
+     ],
+     "depth": "t"
+    }
+   ]
+  },
+  "pin": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "A 4 mm pin, h long, along +Z. Press fit in the saddle or finger, running fit in the link eye. One extrude.",
+   "params": {
+    "d": 4,
+    "h": 14
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "section",
+     "loops": [
+      {
+       "name": "od",
+       "circle": {
+        "c": [
+         0,
+         0
+        ],
+        "r": "d/2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "pin",
+     "profile": "section",
+     "depth": "h"
+    }
+   ]
+  },
+  "rail": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "A 6 mm round rail along X at height 16, at the y this instance is given. One extrude along +X.",
+   "params": {
+    "d": 6,
+    "y": 82,
+    "z": 16,
+    "half": 95
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "section",
+     "plane": {
+      "base": "YZ",
+      "offset": "-half"
+     },
+     "loops": [
+      {
+       "name": "od",
+       "circle": {
+        "c": [
+         "y",
+         "z"
+        ],
+        "r": "d/2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "rail",
+     "profile": "section",
+     "depth": "2 * half"
+    }
+   ]
+  },
+  "rail-block": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Rail end block: stands on the base at each end of the rails and holds both (press fit). One extrude along +X.",
+   "params": {
+    "t": 8,
+    "w": 36,
+    "yc": 90,
+    "base_top": -24,
+    "top": 24,
+    "ya": 82,
+    "yb": 98,
+    "z": 16,
+    "d": 6
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": "YZ",
+     "loops": [
+      {
+       "name": "outline",
+       "rect": {
+        "c": [
+         "yc",
+         "(base_top + top) / 2"
+        ],
+        "w": "w",
+        "h": "top - base_top"
+       }
+      },
+      {
+       "name": "railA",
+       "circle": {
+        "c": [
+         "ya",
+         "z"
+        ],
+        "r": "d/2"
+       }
+      },
+      {
+       "name": "railB",
+       "circle": {
+        "c": [
+         "yb",
+         "z"
+        ],
+        "r": "d/2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "block",
+     "profile": "face",
+     "depth": "t"
+    }
+   ]
+  },
+  "slider": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Finger slider: rides both rails on 6.2 mm bores (printed plain bearings), with a neck on top that keys into the finger. One extrude along +X.",
+   "params": {
+    "L": 24,
+    "y0": 76,
+    "y1": 104,
+    "z0": 10,
+    "z1": 22,
+    "n0": 84,
+    "n1": 96,
+    "zn": 28,
+    "ya": 82,
+    "yb": 98,
+    "zr": 16,
+    "d": 6.2
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": "YZ",
+     "loops": [
+      {
+       "name": "outline",
+       "polygon": [
+        [
+         "y0",
+         "z0"
+        ],
+        [
+         "y1",
+         "z0"
+        ],
+        [
+         "y1",
+         "z1"
+        ],
+        [
+         "n1",
+         "z1"
+        ],
+        [
+         "n1",
+         "zn"
+        ],
+        [
+         "n0",
+         "zn"
+        ],
+        [
+         "n0",
+         "z1"
+        ],
+        [
+         "y0",
+         "z1"
+        ]
+       ]
+      },
+      {
+       "name": "railA",
+       "circle": {
+        "c": [
+         "ya",
+         "zr"
+        ],
+        "r": "d/2"
+       }
+      },
+      {
+       "name": "railB",
+       "circle": {
+        "c": [
+         "yb",
+         "zr"
+        ],
+        "r": "d/2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "slider",
+     "profile": "face",
+     "depth": "L"
+    }
+   ]
+  },
+  "finger": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Finger: an L in plan, 12 thick — a mount that drops over the slider neck (the window) and an arm reaching inward to the pad face at x = 0 when closed. The link pin presses into the arm. side = 1 right, -1 left. One extrude along +Z.",
+   "params": {
+    "side": 1,
+    "half": 16,
+    "reach": 46.36,
+    "y0": 76,
+    "y1": 104,
+    "y2": 118,
+    "z0": 22,
+    "t": 12,
+    "win_w": 24.2,
+    "win_h": 12.2,
+    "yn": 90,
+    "y_pin": 111,
+    "d_pin": 4
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "plan",
+     "plane": {
+      "base": "XY",
+      "offset": "z0"
+     },
+     "loops": [
+      {
+       "name": "outline",
+       "polygon": [
+        [
+         "-side * half",
+         "y0"
+        ],
+        [
+         "side * half",
+         "y0"
+        ],
+        [
+         "side * half",
+         "y2"
+        ],
+        [
+         "-side * reach",
+         "y2"
+        ],
+        [
+         "-side * reach",
+         "y1"
+        ],
+        [
+         "-side * half",
+         "y1"
+        ]
+       ]
+      },
+      {
+       "name": "window",
+       "rect": {
+        "c": [
+         0,
+         "yn"
+        ],
+        "w": "win_w",
+        "h": "win_h"
+       }
+      },
+      {
+       "name": "pin",
+       "circle": {
+        "c": [
+         0,
+         "y_pin"
+        ],
+        "r": "d_pin / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "finger",
+     "profile": "plan",
+     "depth": "t"
+    }
+   ]
+  }
+ },
+ "components": [
+  {
+   "id": "base",
+   "part": "base",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "bracket",
+   "part": "bracket",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "motor",
+   "part": "motor",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "motor-shaft",
+   "part": "motor-shaft",
+   "at": [
+    0,
+    -5,
+    0
+   ],
+   "rotate": {
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "deg": -90
+   }
+  },
+  {
+   "id": "coupler",
+   "part": "coupler",
+   "at": [
+    0,
+    4,
+    0
+   ],
+   "rotate": {
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "deg": -90
+   }
+  },
+  {
+   "id": "screw",
+   "part": "screw",
+   "at": [
+    0,
+    21,
+    0
+   ],
+   "rotate": {
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "deg": -90
+   }
+  },
+  {
+   "id": "end-block",
+   "part": "end-block",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "nut",
+   "part": "nut",
+   "at": [
+    0,
+    45.5,
+    0
+   ],
+   "rotate": {
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "deg": -90
+   }
+  },
+  {
+   "id": "nut-bracket",
+   "part": "nut-bracket",
+   "at": [
+    0,
+    57,
+    0
+   ]
+  },
+  {
+   "id": "saddle",
+   "part": "saddle",
+   "at": [
+    0,
+    53,
+    0
+   ]
+  },
+  {
+   "id": "pin-r",
+   "part": "pin",
+   "at": [
+    20,
+    53,
+    30
+   ]
+  },
+  {
+   "id": "pin-l",
+   "part": "pin",
+   "at": [
+    -20,
+    53,
+    30
+   ]
+  },
+  {
+   "id": "link-r",
+   "part": "link",
+   "at": [
+    20,
+    53,
+    36
+   ],
+   "rotate": {
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "deg": 53.664
+   }
+  },
+  {
+   "id": "link-l",
+   "part": "link",
+   "at": [
+    -20,
+    53,
+    36
+   ],
+   "rotate": {
+    "axis": [
+     0,
+     0,
+     1
+    ],
+    "deg": 126.336
+   }
+  },
+  {
+   "id": "rail-a",
+   "part": "rail",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "rail-b",
+   "part": "rail",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "params": {
+    "y": 98
+   }
+  },
+  {
+   "id": "rail-block-r",
+   "part": "rail-block",
+   "at": [
+    95,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "rail-block-l",
+   "part": "rail-block",
+   "at": [
+    -103,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "slider-r",
+   "part": "slider",
+   "at": [
+    50.661,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "slider-l",
+   "part": "slider",
+   "at": [
+    -74.661,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "finger-r",
+   "part": "finger",
+   "at": [
+    62.661,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "finger-l",
+   "part": "finger",
+   "at": [
+    -62.661,
+    0,
+    0
+   ],
+   "params": {
+    "side": -1
+   }
+  },
+  {
+   "id": "finger-pin-r",
+   "part": "pin",
+   "at": [
+    62.661,
+    111,
+    22
+   ],
+   "params": {
+    "h": 22
+   }
+  },
+  {
+   "id": "finger-pin-l",
+   "part": "pin",
+   "at": [
+    -62.661,
+    111,
+    22
+   ],
+   "params": {
+    "h": 22
+   }
+  }
+ ],
+ "mates": [
+  {
+   "kind": "fixed",
+   "a": "motor-shaft",
+   "b": "coupler"
+  },
+  {
+   "kind": "fixed",
+   "a": "coupler",
+   "b": "screw"
+  },
+  {
+   "kind": "fixed",
+   "a": "pin-r",
+   "b": "saddle"
+  },
+  {
+   "kind": "fixed",
+   "a": "pin-l",
+   "b": "saddle"
+  },
+  {
+   "kind": "fixed",
+   "a": "finger-pin-r",
+   "b": "finger-r"
+  },
+  {
+   "kind": "fixed",
+   "a": "finger-pin-l",
+   "b": "finger-l"
+  },
+  {
+   "kind": "fixed",
+   "a": "rail-a",
+   "b": "rail-block-r"
+  },
+  {
+   "kind": "fixed",
+   "a": "rail-a",
+   "b": "rail-block-l"
+  },
+  {
+   "kind": "fixed",
+   "a": "rail-b",
+   "b": "rail-block-r"
+  },
+  {
+   "kind": "fixed",
+   "a": "rail-b",
+   "b": "rail-block-l"
+  }
+ ],
+ "drive": {
+  "component": "motor-shaft",
+  "rpm": 60
+ }
+}

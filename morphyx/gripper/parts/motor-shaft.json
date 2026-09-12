@@ -1,0 +1,64 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "NEMA 17 shaft with its pilot boss: revolved about local Z; placed with its axis along +Y. One revolve.",
+ "params": {
+  "d": 5,
+  "L": 24,
+  "d_boss": 22,
+  "l_boss": 2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "profile",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "shaft",
+     "polygon": [
+      [
+       0,
+       0
+      ],
+      [
+       "d_boss/2",
+       0
+      ],
+      [
+       "d_boss/2",
+       "l_boss"
+      ],
+      [
+       "d/2",
+       "l_boss"
+      ],
+      [
+       "d/2",
+       "L"
+      ],
+      [
+       0,
+       "L"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "revolve",
+   "id": "shaft",
+   "profile": "profile",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

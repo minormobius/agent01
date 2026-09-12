@@ -1,0 +1,39 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "A 6 mm round rail along X at height 16, at the y this instance is given. One extrude along +X.",
+ "params": {
+  "d": 6,
+  "y": 82,
+  "z": 16,
+  "half": 95
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "section",
+   "plane": {
+    "base": "YZ",
+    "offset": "-half"
+   },
+   "loops": [
+    {
+     "name": "od",
+     "circle": {
+      "c": [
+       "y",
+       "z"
+      ],
+      "r": "d/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "rail",
+   "profile": "section",
+   "depth": "2 * half"
+  }
+ ]
+}
