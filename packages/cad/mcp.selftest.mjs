@@ -105,7 +105,9 @@ check(i.ok && i.tested > 20 && i.pairs.every((p) => p.expected), `interference: 
 const dw = await tool('drawing', { tree: 'bench:plate' });
 const dws = dw.structuredContent;
 check(dws.ok && dws.holes.length === 9 && dws.views.length === 3 && dw.content[1]?.resource?.mimeType === 'image/svg+xml' && dw.content[1].resource.text.startsWith('<svg') && !dw.content[0].text.includes('<svg'), `drawing: the plate's three views as an SVG resource (${(dws.svg.length / 1024).toFixed(0)} kB) with ${dws.holes.length} holes called out; the numbers travel without it`);
-const dwa = (await tool('drawing', { tree: 'bench:lift', t: 0.5, views: ['front', 'iso'], hidden: false })).structuredContent;
+check(dws.svg.includes('>plate</text>'), 'the sheet is titled from the ref it came from when the tree has no name');
+const dwa = (await tool('drawing', { tree: 'bench:lift', t: 0.5, views: ['front', 'iso'], hidden: false, title: 'lift — half a turn' })).structuredContent;
+check(dwa.svg.includes('lift — half a turn'), 'a caller may name the sheet');
 check(dwa.kind === 'assembly' && dwa.views.map((v) => v.name).join() === 'front,iso' && dwa.views.every((v) => v.hidden === 0) && dwa.svg.includes('t = 0.5 s'), 'drawing an assembly posed at t, chosen views, no hidden lines');
 const st = (await tool('step', { tree: 'bench:cam' })).structuredContent;
 check(st.ok && st.bytes > 30000 && st.step.startsWith('ISO-10303-21'), `step: ${(st.bytes / 1e3).toFixed(0)} kB of STEP`);

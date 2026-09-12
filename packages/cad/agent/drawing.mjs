@@ -16,12 +16,12 @@ import { flatten, solveAngles, modelOf } from '../lib/assembly.js';
 import { drawing } from '../lib/drawing.js';
 import { readDoc, isAssembly, benchRef, kernels, facesOf, arg, has } from './common.mjs';
 
-const src = process.argv[2]; if (!src) { console.error('usage: node agent/drawing.mjs <part-or-assembly.json> [--out file.svg] [--views front,top,right] [--no-hidden] [--t s] [--width px] [--json]'); process.exit(2); }
+const src = process.argv[2]; if (!src) { console.error('usage: node agent/drawing.mjs <part-or-assembly.json> [--out file.svg] [--views front,top,right] [--no-hidden] [--t s] [--width px] [--title name] [--json]'); process.exit(2); }
 const doc = readDoc(src);
 const name = path.basename(src, '.json');
 const out = arg('--out', `${name}.svg`);
 const views = arg('--views', 'front,top,right').split(',').map((s) => s.trim()).filter(Boolean);
-const opts = { views, hidden: !has('--no-hidden'), title: name, width: Number(arg('--width', '900')) };
+const opts = { views, hidden: !has('--no-hidden'), title: arg('--title', name), width: Number(arg('--width', '900')) };
 const { engine } = await kernels();
 
 let bodies;
