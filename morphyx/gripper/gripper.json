@@ -1,7 +1,29 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "gripper",
- "_": "Parallel-jaw gripper: NEMA 17 → coupler → T8 lead screw → flange nut in a bracket → saddle with two pins → two 72 mm links → two fingers on sliders riding two 6 mm rails. Posed with the nut bracket at y = 53 (closed 44, open 62): finger pins at x = ±62.661, pad gap 32.6 mm, link angle 53.664°. Linear motion is not a mate kind, so the pose is baked in: regenerate with `node gripper.mjs --nut <y>`. The drive spins the motor shaft, coupler and screw for the record.",
+ "_": "Parallel-jaw gripper: NEMA 17 → coupler → T8 lead screw → flange nut in a bracket → saddle with two pins → two 72 mm links → two fingers on sliders riding two 6 mm rails. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle `spin` swings 0 → 9 turns → 0 over the cycle, the nut follows by the 2 mm lead (y = 44 closed … 62 open), and the links, sliders and fingers follow the nut: finger pin x = span/2 + √(L² − (pinLine − yn)²). Pads meet at x = 0 when closed; 52.8 mm apart when open. Press spin.",
+ "params": {
+  "L": 72,
+  "span": 40,
+  "pinLine": 111,
+  "closed": 44,
+  "open": 62,
+  "lead": 2,
+  "linkZ": 36,
+  "saddleZ": 30,
+  "nutLen": 15,
+  "nbT": 8,
+  "sliderLen": 24,
+  "fingerZ": 22
+ },
+ "derived": {
+  "spin": "360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2",
+  "yn": "closed + lead * spin / 360",
+  "dy": "pinLine - yn",
+  "x": "sqrt(L^2 - dy^2)",
+  "xf": "span/2 + x",
+  "phi": "rad2deg(atan2(dy, x))"
+ },
  "parts": {
   "base": {
    "$schema": "com.minomobi.cad.tree#v1",
@@ -233,167 +255,6 @@
      "op": "extrude",
      "id": "motor",
      "profile": "body",
-     "depth": "L"
-    }
-   ]
-  },
-  "motor-shaft": {
-   "$schema": "com.minomobi.cad.tree#v1",
-   "units": "mm",
-   "_": "NEMA 17 shaft with its pilot boss: revolved about local Z; placed with its axis along +Y. One revolve.",
-   "params": {
-    "d": 5,
-    "L": 24,
-    "d_boss": 22,
-    "l_boss": 2
-   },
-   "features": [
-    {
-     "op": "sketch",
-     "id": "profile",
-     "plane": "XZ",
-     "loops": [
-      {
-       "name": "shaft",
-       "polygon": [
-        [
-         0,
-         0
-        ],
-        [
-         "d_boss/2",
-         0
-        ],
-        [
-         "d_boss/2",
-         "l_boss"
-        ],
-        [
-         "d/2",
-         "l_boss"
-        ],
-        [
-         "d/2",
-         "L"
-        ],
-        [
-         0,
-         "L"
-        ]
-       ]
-      }
-     ]
-    },
-    {
-     "op": "revolve",
-     "id": "shaft",
-     "profile": "profile",
-     "axis": {
-      "p": [
-       0,
-       0
-      ],
-      "d": [
-       0,
-       1
-      ]
-     }
-    }
-   ]
-  },
-  "coupler": {
-   "$schema": "com.minomobi.cad.tree#v1",
-   "units": "mm",
-   "_": "Rigid shaft coupler: a stepped bore (5 mm for the motor shaft, 8 mm for the screw) in a 20 mm cylinder. Clamp screws not modelled. One revolve about local Z.",
-   "params": {
-    "D": 20,
-    "L": 25,
-    "d_a": 5,
-    "d_b": 8
-   },
-   "features": [
-    {
-     "op": "sketch",
-     "id": "profile",
-     "plane": "XZ",
-     "loops": [
-      {
-       "name": "body",
-       "polygon": [
-        [
-         "d_a/2",
-         0
-        ],
-        [
-         "D/2",
-         0
-        ],
-        [
-         "D/2",
-         "L"
-        ],
-        [
-         "d_b/2",
-         "L"
-        ],
-        [
-         "d_b/2",
-         "L/2"
-        ],
-        [
-         "d_a/2",
-         "L/2"
-        ]
-       ]
-      }
-     ]
-    },
-    {
-     "op": "revolve",
-     "id": "coupler",
-     "profile": "profile",
-     "axis": {
-      "p": [
-       0,
-       0
-      ],
-      "d": [
-       0,
-       1
-      ]
-     }
-    }
-   ]
-  },
-  "screw": {
-   "$schema": "com.minomobi.cad.tree#v1",
-   "units": "mm",
-   "_": "T8 lead screw stand-in: an 8 mm cylinder; the thread (2 mm lead) is not modelled. One extrude along local Z, placed along +Y.",
-   "params": {
-    "d": 8,
-    "L": 64
-   },
-   "features": [
-    {
-     "op": "sketch",
-     "id": "section",
-     "loops": [
-      {
-       "name": "od",
-       "circle": {
-        "c": [
-         0,
-         0
-        ],
-        "r": "d/2"
-       }
-      }
-     ]
-    },
-    {
-     "op": "extrude",
-     "id": "screw",
-     "profile": "section",
      "depth": "L"
     }
    ]
@@ -1130,6 +991,19 @@
  },
  "components": [
   {
+   "id": "clock",
+   "part": "pin",
+   "at": [
+    0,
+    -38,
+    -50
+   ],
+   "params": {
+    "h": 1
+   },
+   "hidden": true
+  },
+  {
    "id": "base",
    "part": "base",
    "at": [
@@ -1157,45 +1031,237 @@
    ]
   },
   {
-   "id": "motor-shaft",
-   "part": "motor-shaft",
+   "id": "drivetrain",
+   "assembly": {
+    "_": "Shaft, coupler and screw, built along Z, tilted onto the +Y screw axis by this sub-assembly’s placement, spinning together by `spin`.",
+    "params": {
+     "closed": 44,
+     "open": 62,
+     "lead": 2
+    },
+    "derived": {
+     "spin": "360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2"
+    },
+    "parts": {
+     "motor-shaft": {
+      "$schema": "com.minomobi.cad.tree#v1",
+      "units": "mm",
+      "_": "NEMA 17 shaft with its pilot boss: revolved about local Z; placed with its axis along +Y. One revolve.",
+      "params": {
+       "d": 5,
+       "L": 24,
+       "d_boss": 22,
+       "l_boss": 2
+      },
+      "features": [
+       {
+        "op": "sketch",
+        "id": "profile",
+        "plane": "XZ",
+        "loops": [
+         {
+          "name": "shaft",
+          "polygon": [
+           [
+            0,
+            0
+           ],
+           [
+            "d_boss/2",
+            0
+           ],
+           [
+            "d_boss/2",
+            "l_boss"
+           ],
+           [
+            "d/2",
+            "l_boss"
+           ],
+           [
+            "d/2",
+            "L"
+           ],
+           [
+            0,
+            "L"
+           ]
+          ]
+         }
+        ]
+       },
+       {
+        "op": "revolve",
+        "id": "shaft",
+        "profile": "profile",
+        "axis": {
+         "p": [
+          0,
+          0
+         ],
+         "d": [
+          0,
+          1
+         ]
+        }
+       }
+      ]
+     },
+     "coupler": {
+      "$schema": "com.minomobi.cad.tree#v1",
+      "units": "mm",
+      "_": "Rigid shaft coupler: a stepped bore (5 mm for the motor shaft, 8 mm for the screw) in a 20 mm cylinder. Clamp screws not modelled. One revolve about local Z.",
+      "params": {
+       "D": 20,
+       "L": 25,
+       "d_a": 5,
+       "d_b": 8
+      },
+      "features": [
+       {
+        "op": "sketch",
+        "id": "profile",
+        "plane": "XZ",
+        "loops": [
+         {
+          "name": "body",
+          "polygon": [
+           [
+            "d_a/2",
+            0
+           ],
+           [
+            "D/2",
+            0
+           ],
+           [
+            "D/2",
+            "L"
+           ],
+           [
+            "d_b/2",
+            "L"
+           ],
+           [
+            "d_b/2",
+            "L/2"
+           ],
+           [
+            "d_a/2",
+            "L/2"
+           ]
+          ]
+         }
+        ]
+       },
+       {
+        "op": "revolve",
+        "id": "coupler",
+        "profile": "profile",
+        "axis": {
+         "p": [
+          0,
+          0
+         ],
+         "d": [
+          0,
+          1
+         ]
+        }
+       }
+      ]
+     },
+     "screw": {
+      "$schema": "com.minomobi.cad.tree#v1",
+      "units": "mm",
+      "_": "T8 lead screw stand-in: an 8 mm cylinder; the thread (2 mm lead) is not modelled. One extrude along local Z, placed along +Y.",
+      "params": {
+       "d": 8,
+       "L": 64
+      },
+      "features": [
+       {
+        "op": "sketch",
+        "id": "section",
+        "loops": [
+         {
+          "name": "od",
+          "circle": {
+           "c": [
+            0,
+            0
+           ],
+           "r": "d/2"
+          }
+         }
+        ]
+       },
+       {
+        "op": "extrude",
+        "id": "screw",
+        "profile": "section",
+        "depth": "L"
+       }
+      ]
+     }
+    },
+    "components": [
+     {
+      "id": "shaft",
+      "part": "motor-shaft",
+      "at": [
+       0,
+       0,
+       0
+      ],
+      "rotate": {
+       "axis": [
+        0,
+        0,
+        1
+       ],
+       "deg": "spin"
+      }
+     },
+     {
+      "id": "coupler",
+      "part": "coupler",
+      "at": [
+       0,
+       0,
+       9
+      ],
+      "rotate": {
+       "axis": [
+        0,
+        0,
+        1
+       ],
+       "deg": "spin"
+      }
+     },
+     {
+      "id": "screw",
+      "part": "screw",
+      "at": [
+       0,
+       0,
+       26
+      ],
+      "rotate": {
+       "axis": [
+        0,
+        0,
+        1
+       ],
+       "deg": "spin"
+      }
+     }
+    ]
+   },
    "at": [
     0,
     -5,
-    0
-   ],
-   "rotate": {
-    "axis": [
-     1,
-     0,
-     0
-    ],
-    "deg": -90
-   }
-  },
-  {
-   "id": "coupler",
-   "part": "coupler",
-   "at": [
-    0,
-    4,
-    0
-   ],
-   "rotate": {
-    "axis": [
-     1,
-     0,
-     0
-    ],
-    "deg": -90
-   }
-  },
-  {
-   "id": "screw",
-   "part": "screw",
-   "at": [
-    0,
-    21,
     0
    ],
    "rotate": {
@@ -1221,7 +1287,7 @@
    "part": "nut",
    "at": [
     0,
-    45.5,
+    "yn - nutLen / 2",
     0
    ],
    "rotate": {
@@ -1238,7 +1304,7 @@
    "part": "nut-bracket",
    "at": [
     0,
-    57,
+    "yn + nbT / 2",
     0
    ]
   },
@@ -1247,7 +1313,7 @@
    "part": "saddle",
    "at": [
     0,
-    53,
+    "yn",
     0
    ]
   },
@@ -1255,27 +1321,27 @@
    "id": "pin-r",
    "part": "pin",
    "at": [
-    20,
-    53,
-    30
+    "span / 2",
+    "yn",
+    "saddleZ"
    ]
   },
   {
    "id": "pin-l",
    "part": "pin",
    "at": [
-    -20,
-    53,
-    30
+    "-span / 2",
+    "yn",
+    "saddleZ"
    ]
   },
   {
    "id": "link-r",
    "part": "link",
    "at": [
-    20,
-    53,
-    36
+    "span / 2",
+    "yn",
+    "linkZ"
    ],
    "rotate": {
     "axis": [
@@ -1283,16 +1349,16 @@
      0,
      1
     ],
-    "deg": 53.664
+    "deg": "phi"
    }
   },
   {
    "id": "link-l",
    "part": "link",
    "at": [
-    -20,
-    53,
-    36
+    "-span / 2",
+    "yn",
+    "linkZ"
    ],
    "rotate": {
     "axis": [
@@ -1300,7 +1366,7 @@
      0,
      1
     ],
-    "deg": 126.336
+    "deg": "180 - phi"
    }
   },
   {
@@ -1346,7 +1412,7 @@
    "id": "slider-r",
    "part": "slider",
    "at": [
-    50.661,
+    "xf - sliderLen / 2",
     0,
     0
    ]
@@ -1355,7 +1421,7 @@
    "id": "slider-l",
    "part": "slider",
    "at": [
-    -74.661,
+    "-xf - sliderLen / 2",
     0,
     0
    ]
@@ -1364,7 +1430,7 @@
    "id": "finger-r",
    "part": "finger",
    "at": [
-    62.661,
+    "xf",
     0,
     0
    ]
@@ -1373,7 +1439,7 @@
    "id": "finger-l",
    "part": "finger",
    "at": [
-    -62.661,
+    "-xf",
     0,
     0
    ],
@@ -1385,9 +1451,9 @@
    "id": "finger-pin-r",
    "part": "pin",
    "at": [
-    62.661,
-    111,
-    22
+    "xf",
+    "pinLine",
+    "fingerZ"
    ],
    "params": {
     "h": 22
@@ -1397,9 +1463,9 @@
    "id": "finger-pin-l",
    "part": "pin",
    "at": [
-    -62.661,
-    111,
-    22
+    "-xf",
+    "pinLine",
+    "fingerZ"
    ],
    "params": {
     "h": 22
@@ -1407,16 +1473,6 @@
   }
  ],
  "mates": [
-  {
-   "kind": "fixed",
-   "a": "motor-shaft",
-   "b": "coupler"
-  },
-  {
-   "kind": "fixed",
-   "a": "coupler",
-   "b": "screw"
-  },
   {
    "kind": "fixed",
    "a": "pin-r",
@@ -1459,7 +1515,7 @@
   }
  ],
  "drive": {
-  "component": "motor-shaft",
-  "rpm": 60
+  "component": "clock",
+  "rpm": 5
  }
 }

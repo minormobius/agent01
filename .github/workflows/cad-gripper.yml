@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
     inputs:
       nut:
-        description: nut bracket centre y for the published pose (44 closed … 62 open)
+        description: nut bracket centre y for the analytic audit's reference pose (the document is kinematic)
         default: '53'
       publish:
         description: write the parts and the assembly into the morphyx repo
@@ -45,8 +45,6 @@ jobs:
       - name: Generate the trees at the pose
         run: |
           node morphyx/gripper/gripper.mjs --nut "$NUT" --out /tmp/gripper
-          node morphyx/gripper/gripper.mjs --nut 44 --out /tmp/gripper-closed
-          node morphyx/gripper/gripper.mjs --nut 62 --out /tmp/gripper-open
 
       - name: Exact build of every part (Truck) — must be ok and watertight
         working-directory: /tmp/cad
@@ -69,12 +67,13 @@ jobs:
               console.log(`${ok ? "✓" : "✗"} ${n.padEnd(12)} ${v.toFixed(1)} vs ${e.volume.toFixed(1)}  ${(err * 100).toFixed(3)}%`); }
             process.exit(bad ? 1 : 0);'
 
-      - name: Interference at closed, reference and open (Manifold, through the motion)
+      - name: Interference through one grip cycle (Manifold; the clock turns once in 12 s at rpm 5)
         working-directory: /tmp/cad
         run: |
-          node agent/check.mjs /tmp/gripper-closed/gripper.json --t 0.5
-          node agent/check.mjs /tmp/gripper/gripper.json --t 0.5
-          node agent/check.mjs /tmp/gripper-open/gripper.json --t 0.5
+          for t in 0 1.5 3 4.5 6 7.5 9 10.5; do
+            echo "── t = $t s"
+            node agent/check.mjs /tmp/gripper/gripper.json --t $t
+          done
 
       - name: Publish plan
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"

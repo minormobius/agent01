@@ -2,8 +2,8 @@
 // gripper.mjs — a parallel-jaw gripper for cad.mino.mobi, generated.
 //
 //   node gripper.mjs                      # writes parts/*.json and gripper.json at the reference pose
-//   node gripper.mjs --nut 44             # pose the mechanism with the nut bracket centred at y = 44 (closed)
-//   node gripper.mjs --nut 62 --out /tmp  # open, written elsewhere
+//   node gripper.mjs --out /tmp           # written elsewhere
+//   node gripper.mjs --nut 44             # the analytic audit's reference pose (the document itself is kinematic)
 //   node gripper.mjs --print              # the assembly on stdout, nothing written
 //
 // A stepper (NEMA 17) turns a T8 lead screw through a coupler. A flange nut
@@ -202,52 +202,79 @@ export const parts = {
     ]),
 };
 
-// ── the assembly at a pose ───────────────────────────────────────────────────
+// ── the assembly, kinematic ──────────────────────────────────────────────────
+// Placements are expressions (cad.mino.mobi assemblies carry `params` and
+// `derived`, resolved at each instant with `t` and `theta` in scope). The
+// drive is a constant rpm, and a gripper cycle reverses, so the driven
+// component is a hidden clock: one clock turn is one grip cycle. The screw's
+// own angle `spin` swings 0 → stroke → 0 turns over that cycle, the nut
+// follows the screw by the lead, and the links, sliders and fingers follow
+// the nut by the closed form. `check.mjs --t` and the viewer's spin sweep it.
 const alongY = { axis: [1, 0, 0], deg: -90 }; // local +Z → world +Y
+const SPIN = '360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2'; // screw angle, degrees, over one clock turn
 export function assembly(yn = D.nutRef) {
   const p = pose(yn);
-  const xf = round(p.xf, 3), phi = round(p.phi, 3);
-  const c = (id, part, at, extra = {}) => ({ id, part, at: at.map((v) => round(v, 3)), ...extra });
+  const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
+  const params = { L: D.link, span: D.pinSpan, pinLine: D.pinLine, closed: D.nutClosed, open: D.nutOpen, lead: D.lead, linkZ: D.linkZ, saddleZ: D.nbShoulder, nutLen: D.nutLen, nbT: D.nbT, sliderLen: D.sliderLen, fingerZ: D.fingerZ[0] };
+  const derived = {
+    spin: SPIN,
+    yn: 'closed + lead * spin / 360',
+    dy: 'pinLine - yn',
+    x: 'sqrt(L^2 - dy^2)',
+    xf: 'span/2 + x',
+    phi: 'rad2deg(atan2(dy, x))',
+  };
+  const drivetrain = {
+    _: 'Shaft, coupler and screw, built along Z, tilted onto the +Y screw axis by this sub-assembly\u2019s placement, spinning together by `spin`.',
+    params: { closed: D.nutClosed, open: D.nutOpen, lead: D.lead },
+    derived: { spin: SPIN },
+    parts: { 'motor-shaft': structuredClone(parts['motor-shaft']), coupler: structuredClone(parts.coupler), screw: structuredClone(parts.screw) },
+    components: [
+      c('shaft', 'motor-shaft', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
+      c('coupler', 'coupler', [0, 0, D.couplerAt + D.bracketT], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
+      c('screw', 'screw', [0, 0, D.screwAt + D.bracketT], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
+    ],
+  };
   const components = [
+    c('clock', 'pin', [0, D.baseY[0] + 10, D.baseTop - D.baseT - 20], { params: { h: 1 }, hidden: true }),
     c('base', 'base', [0, 0, 0]),
     c('bracket', 'bracket', [0, 0, 0]),
     c('motor', 'motor', [0, 0, 0]),
-    c('motor-shaft', 'motor-shaft', [0, -D.bracketT, 0], { rotate: alongY }),
-    c('coupler', 'coupler', [0, D.couplerAt, 0], { rotate: alongY }),
-    c('screw', 'screw', [0, D.screwAt, 0], { rotate: alongY }),
+    { id: 'drivetrain', assembly: drivetrain, at: [0, -D.bracketT, 0], rotate: alongY },
     c('end-block', 'end-block', [0, 0, 0]),
-    c('nut', 'nut', [0, yn - D.nutLen / 2, 0], { rotate: alongY }),
-    c('nut-bracket', 'nut-bracket', [0, yn + D.nbT / 2, 0]),
-    c('saddle', 'saddle', [0, yn, 0]),
-    c('pin-r', 'pin', [D.pinSpan / 2, yn, D.nbShoulder]),
-    c('pin-l', 'pin', [-D.pinSpan / 2, yn, D.nbShoulder]),
-    c('link-r', 'link', [D.pinSpan / 2, yn, D.linkZ], { rotate: { axis: [0, 0, 1], deg: phi } }),
-    c('link-l', 'link', [-D.pinSpan / 2, yn, D.linkZ], { rotate: { axis: [0, 0, 1], deg: round(180 - phi, 3) } }),
+    c('nut', 'nut', [0, 'yn - nutLen / 2', 0], { rotate: alongY }),
+    c('nut-bracket', 'nut-bracket', [0, 'yn + nbT / 2', 0]),
+    c('saddle', 'saddle', [0, 'yn', 0]),
+    c('pin-r', 'pin', ['span / 2', 'yn', 'saddleZ']),
+    c('pin-l', 'pin', ['-span / 2', 'yn', 'saddleZ']),
+    c('link-r', 'link', ['span / 2', 'yn', 'linkZ'], { rotate: { axis: [0, 0, 1], deg: 'phi' } }),
+    c('link-l', 'link', ['-span / 2', 'yn', 'linkZ'], { rotate: { axis: [0, 0, 1], deg: '180 - phi' } }),
     c('rail-a', 'rail', [0, 0, 0]),
     c('rail-b', 'rail', [0, 0, 0], { params: { y: D.railY[1] } }),
     c('rail-block-r', 'rail-block', [D.railBlockAt, 0, 0]),
     c('rail-block-l', 'rail-block', [-D.railBlockAt - D.railBlockT, 0, 0]),
-    c('slider-r', 'slider', [xf - D.sliderLen / 2, 0, 0]),
-    c('slider-l', 'slider', [-xf - D.sliderLen / 2, 0, 0]),
-    c('finger-r', 'finger', [xf, 0, 0]),
-    c('finger-l', 'finger', [-xf, 0, 0], { params: { side: -1 } }),
-    c('finger-pin-r', 'pin', [xf, D.pinLine, D.fingerZ[0]], { params: { h: D.linkZ + D.linkT + 2 - D.fingerZ[0] } }),
-    c('finger-pin-l', 'pin', [-xf, D.pinLine, D.fingerZ[0]], { params: { h: D.linkZ + D.linkT + 2 - D.fingerZ[0] } }),
+    c('slider-r', 'slider', ['xf - sliderLen / 2', 0, 0]),
+    c('slider-l', 'slider', ['-xf - sliderLen / 2', 0, 0]),
+    c('finger-r', 'finger', ['xf', 0, 0]),
+    c('finger-l', 'finger', ['-xf', 0, 0], { params: { side: -1 } }),
+    c('finger-pin-r', 'pin', ['xf', 'pinLine', 'fingerZ'], { params: { h: D.linkZ + D.linkT + 2 - D.fingerZ[0] } }),
+    c('finger-pin-l', 'pin', ['-xf', 'pinLine', 'fingerZ'], { params: { h: D.linkZ + D.linkT + 2 - D.fingerZ[0] } }),
   ];
   const fixed = (a, b) => ({ kind: 'fixed', a, b });
   const mates = [
-    fixed('motor-shaft', 'coupler'), fixed('coupler', 'screw'),           // the spinning chain, from the drive
     fixed('pin-r', 'saddle'), fixed('pin-l', 'saddle'),                   // press fits
     fixed('finger-pin-r', 'finger-r'), fixed('finger-pin-l', 'finger-l'),
     fixed('rail-a', 'rail-block-r'), fixed('rail-a', 'rail-block-l'), fixed('rail-b', 'rail-block-r'), fixed('rail-b', 'rail-block-l'),
   ];
+  const partsMap = Object.fromEntries(Object.entries(parts).filter(([k]) => !(k in drivetrain.parts)).map(([k, v]) => [k, structuredClone(v)]));
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
     name: 'gripper',
-    _: `Parallel-jaw gripper: NEMA 17 → coupler → T8 lead screw → flange nut in a bracket → saddle with two pins → two 72 mm links → two fingers on sliders riding two 6 mm rails. Posed with the nut bracket at y = ${yn} (closed ${D.nutClosed}, open ${D.nutOpen}): finger pins at x = ±${xf}, pad gap ${round(p.gap, 1)} mm, link angle ${phi}°. Linear motion is not a mate kind, so the pose is baked in: regenerate with \`node gripper.mjs --nut <y>\`. The drive spins the motor shaft, coupler and screw for the record.`,
-    parts: Object.fromEntries(Object.entries(parts).map(([k, v]) => [k, structuredClone(v)])),
+    _: `Parallel-jaw gripper: NEMA 17 \u2192 coupler \u2192 T8 lead screw \u2192 flange nut in a bracket \u2192 saddle with two pins \u2192 two ${D.link} mm links \u2192 two fingers on sliders riding two 6 mm rails. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \`spin\` swings 0 \u2192 ${(D.nutOpen - D.nutClosed) / D.lead} turns \u2192 0 over the cycle, the nut follows by the ${D.lead} mm lead (y = ${D.nutClosed} closed \u2026 ${D.nutOpen} open), and the links, sliders and fingers follow the nut: finger pin x = span/2 + \u221a(L\u00b2 \u2212 (pinLine \u2212 yn)\u00b2). Pads meet at x = 0 when closed; ${round(pose(D.nutOpen).gap, 1)} mm apart when open. Press spin.`,
+    params, derived,
+    parts: partsMap,
     components, mates,
-    drive: { component: 'motor-shaft', rpm: 60 },
+    drive: { component: 'clock', rpm: 5 },
   };
 }
 
@@ -302,6 +329,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url
   const rows = [D.nutClosed, D.nutRef, D.nutOpen].map((y) => { const p = pose(y); return { nut_y: y, finger_x: round(p.xf), pad_gap: round(p.gap, 1), link_deg: round(p.phi, 1), finger_per_nut: round(1 / p.ratio, 2) }; });
   console.table(rows);
   const a = audit(); for (const r of a) console.log(`${r.ok ? '✓' : '✗'} ${r.name}  ${r.detail}`);
-  console.log(`stroke ${D.nutOpen - D.nutClosed} mm of nut = ${(D.nutOpen - D.nutClosed) / D.lead} turns of a T8×${D.lead}; wrote ${Object.keys(parts).length} parts + gripper.json (nut at ${yn}) to ${out}`);
+  console.log(`stroke ${D.nutOpen - D.nutClosed} mm of nut = ${(D.nutOpen - D.nutClosed) / D.lead} turns of a T8×${D.lead}; one grip cycle per clock turn (${60 / 5} s at rpm 5); wrote ${Object.keys(parts).length} parts + gripper.json (kinematic) to ${out}`);
   if (a.some((r) => !r.ok)) process.exit(1);
 }

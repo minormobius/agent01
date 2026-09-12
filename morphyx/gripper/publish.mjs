@@ -55,7 +55,11 @@ async function publish(p, tree, { kind, name }) {
 console.log(write ? `publishing (nut at ${nut})` : `plan, no writes (nut at ${nut})`);
 for (const [name, tree] of Object.entries(parts)) await publish(`gripper/parts/${name}`, tree, { kind: 'part', name });
 const asm = assembly(nut);
-for (const k of Object.keys(asm.parts)) { const u = uris.get(k); if (u) asm.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
+const rewrite = (a) => {
+  for (const k of Object.keys(a.parts || {})) { const u = uris.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
+  for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
+};
+rewrite(asm);
 await publish('gripper/assembly', asm, { kind: 'assembly', name: 'assembly' });
 if (drive) {
   console.log(`\n${wrote} written, ${kept} unchanged, in ${drive.did}`);

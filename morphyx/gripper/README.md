@@ -15,7 +15,7 @@ the bench trees, the `/mcp` server, and the tangled mirror.
 |---|---|
 | `gripper.mjs` | the design: every part as a parametric tree, the pose solver, an analytic clearance audit, closed forms. `node gripper.mjs --nut 53` writes `parts/`, `gripper.json`, `expected.json` |
 | `parts/*.json` | the sixteen part trees, as generated |
-| `gripper.json` | the assembly at the reference pose (nut bracket at y = 53), parts inline — paste into the viewer's tree tab, or open the `#t=` link below |
+| `gripper.json` | the assembly, kinematic (a clock drive, everything derived), parts inline — paste into the viewer's tree tab and press spin |
 | `expected.json` | closed-form volumes for the parts that have one |
 | `publish.mjs` | writes parts then the assembly (parts rewritten to AT URIs) into a repo; idempotent |
 | `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, interference at three poses, publish on request |
@@ -36,10 +36,13 @@ the bench trees, the `/mcp` server, and the tangled mirror.
   over a neck on the nut bracket; the finger drops over a neck on the slider.
 - **Assemblies** are components with placements (`at`, `rotate`), `params`
   overrides that make distinct builds, `gear` and `fixed` mates, and one
-  `drive`. Kinematics rotate about local Z only — **linear travel is not a
-  mate kind**, so the nut position is baked into the placements and the
-  generator re-poses the whole mechanism. `rotate: {axis:[1,0,0], deg:-90}`
-  points a part built along Z down the +Y screw axis.
+  `drive`. Kinematics rotate about local Z only, and **placements are
+  expressions**: an assembly carries `params` and `derived`, resolved at
+  each instant with `t` (seconds) and `theta` (the driven component's angle,
+  degrees) in scope, so the pose math for a screw, a slider or a closed
+  loop lives in the document. A sub-assembly keeps its own scope.
+  `rotate: {axis:[1,0,0], deg:-90}` points a part built along Z down the
+  +Y screw axis. Mind `deg(x)` (degrees → radians) versus `rad2deg(x)`.
 - **Three doors.** `/mcp` (no files: `check`, `build`, `measure`, `step`,
   `list_files`, `get_file`; no interference, no write); the 4 MB mirror
   (`git clone https://tangled.org/morphyxmino.bsky.social/cad`; node 22 only:
@@ -64,7 +67,20 @@ Z up. The screw axis is the line x = 0, z = 0; the base top is z = −24.
   motor          ▮ NEMA 17 behind a 50 × 50 × 5 bracket at y = −5..0
 ```
 
-Pose from the nut bracket centre `yn`: Δy = 111 − yn, finger pin x = 20 + √(72² − Δy²).
+The document is kinematic. The drive turns a hidden `clock` component at
+5 rpm, so one turn is one grip cycle of 12 s, and everything else is derived:
+
+```
+spin = 360 · (open − closed)/lead · (1 − cos θ)/2     screw angle: 0 → 9 turns → 0
+yn   = closed + lead · spin/360                        nut bracket centre, 44 → 62 → 44
+xf   = span/2 + √(L² − (pinLine − yn)²)               finger pin x
+phi  = atan2(pinLine − yn, xf − span/2)               link angle
+```
+
+The shaft, coupler and screw sit in a `drivetrain` sub-assembly tilted onto
+the +Y axis, each rotated about its own Z by `spin`, so the screw visibly
+reverses when the gripper does. A stepper reverses; a constant-rpm drive
+cannot, which is why the driven component is a clock rather than the shaft.
 
 | nut y | finger pin x | pad gap | link angle | finger travel per mm of nut |
 |---|---|---|---|---|
@@ -134,7 +150,8 @@ distinct builds, `remaining: []`); the analytic clearance audit in
 `gripper.mjs` at closed, reference and open poses.
 
 **Run by the workflow, not from here:** the Manifold interference check
-through the motion (`agent/check.mjs`) at all three poses, and the publish.
+through the motion (`agent/check.mjs`) at eight instants of the cycle, and
+the publish.
 The sandbox could not execute the mirror's node scripts, so the workflow is
 where that loop closes; read its log for the `no interference` lines.
 
@@ -150,8 +167,8 @@ the morphyx repo, `did:plc:yivyyp54vddf7qf2lpsikhe4`:
   them; `list_files` on `/mcp` with `repo: morphyxmino.bsky.social`; or
   `node agent/drive.mjs ls --at morphyxmino.bsky.social` from the mirror.
   Fork one with `drive.mjs fork <uri> <path>`; the lineage crosses repos.
-- Any pose, parts inline: `node gripper.mjs --nut 48 --print`, then paste
-  into the viewer's tree tab, or take the `link` an `/mcp` `build` returns.
+- Parts inline: `node gripper.mjs --print`, then paste into the viewer's
+  tree tab, or take the `link` an `/mcp` `build` returns. Press *spin*.
 - Re-publish after a change: push to this branch with `[publish]` in the
   commit message (or dispatch the workflow with `publish` on). Unchanged
   trees are skipped; a changed one becomes one new revision.
