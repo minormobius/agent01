@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>parts — communities of CAD parts, on your own repo</title>
+<meta name="description" content="A Reddit-shaped front for CAD parts. Found a community, post a part, comment, vote — every one a record in your own ATProto repo. Parts open in cad.mino.mobi.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27none%27 stroke=%27%237fb4ff%27 stroke-width=%273%27/%3E%3Cpath d=%27M16 8v16M8 16h16%27 stroke=%27%237fb4ff%27 stroke-width=%273%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./parts.css">
+</head>
+<body>
+<header>
+  <h1><a href="#/">parts</a><small>communities of CAD parts</small></h1>
+  <nav><a href="#/">front</a><a href="#/new">post a part</a><a href="#/found">found a community</a><a href="https://cad.mino.mobi/" title="the CAD">cad</a><a href="https://cad.mino.mobi/docs/" title="how it works">docs</a></nav>
+  <span class="sp"></span>
+  <span id="who" class="dim">…</span>
+  <input id="handle" placeholder="handle.bsky.social" autocapitalize="off" hidden>
+  <button id="signin" hidden>sign in</button>
+  <button id="signout" hidden>sign out</button>
+</header>
+<main id="main"><p class="dim">loading…</p></main>
+<footer class="dim">Every community, post, comment and vote is a record in its author's own repo; this site indexes them and can be rebuilt from the network. <a href="https://cad.mino.mobi/docs/">How it works</a> · <a href="/api/status">index status</a></footer>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

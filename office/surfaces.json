@@ -1895,6 +1895,15 @@
    "parent": null
   },
   {
+   "id": "parts",
+   "name": "parts",
+   "url": "https://parts.mino.mobi",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "hopper",
    "name": "hopper",
    "url": "https://hopper.mino.mobi",
@@ -6014,6 +6023,16 @@
    "commits": 0,
    "age": "hot",
    "parent": "cad",
+   "discovered": true
+  },
+  {
+   "id": "parts/site",
+   "name": "site",
+   "url": "https://parts.mino.mobi/site/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": "parts",
    "discovered": true
   },
   {

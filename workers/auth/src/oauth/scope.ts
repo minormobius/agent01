@@ -61,6 +61,15 @@ const WRITE_COLLECTIONS = [
   // file by AT URI and fork it with the lineage intact.
   'com.minomobi.cad.part',
   'com.minomobi.cad.revision',
+  // parts (parts.mino.mobi) — the Reddit-shaped front for CAD parts. A
+  // community is a record in its founder's repo (rkey = the slug); a post
+  // is a record in the poster's repo pointing at a community and at one
+  // revision of a part; comments thread by strongRef; a vote is a record the
+  // voter owns. The site indexes them; it never writes on anyone's behalf.
+  'com.minomobi.cad.community',
+  'com.minomobi.cad.post',
+  'com.minomobi.cad.comment',
+  'com.minomobi.cad.vote',
   // org / calendar
   'com.minomobi.cal.event',
   // cards

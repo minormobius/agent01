@@ -878,5 +878,16 @@ that with two in-memory repos standing in for a PDS and a stranger.
   until Manifold is rebuilt without dynamic execution. The phase-7 gate — a
   passing sub-assembly from a sentence, no human edits — is runnable
   against a URL for everything but the clash check.
+- **The social layer, first cut.** `parts.mino.mobi` (`parts/`): a
+  community is a record in its founder's repo, a post is a record in the
+  poster's repo pointing at a community and at one *revision* of a part,
+  comments thread by strongRef, a vote is a record the voter owns. Alice
+  founding a community never makes her host Bob's posts; the front page is
+  an index, not a repo — one Durable Object's SQLite, rebuilt from the
+  network. Writers self-report after each write; a cron discovers strangers
+  through Constellation backlinks (who links to each community, post and
+  comment), in rounds. No firehose socket, because the hose surface
+  measured what one costs and the record count here does not justify it.
+  This is the feasibility record's Tier 2, scoped to one lexicon namespace.
 - **No `.stl` / `.png` faces on an AT URI** (§2.2). The gateway is the
   first step; content negotiation is the next.

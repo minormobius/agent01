@@ -1,0 +1,9 @@
+{
+  "name": "parts",
+  "private": true,
+  "type": "module",
+  "description": "parts.mino.mobi — a Reddit-shaped front for CAD parts, every post a record in its author's repo; the index is a Durable Object's SQLite, rebuilt from the network.",
+  "scripts": {
+    "test": "node parts.selftest.mjs"
+  }
+}

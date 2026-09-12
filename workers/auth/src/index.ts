@@ -50,6 +50,7 @@ const ALLOWED_ORIGINS = [
   'https://farm-next.mino.mobi',   // the testing table — petition experiments, same save, same scopes
   'https://loop.mino.mobi',
   'https://cad.mino.mobi',         // the browser CAD — saves parts to the designer's own repo
+  'https://parts.mino.mobi',       // communities of CAD parts — posts, comments and votes in the person's own repo
 ];
 
 function isAllowedOrigin(origin: string | null): boolean {

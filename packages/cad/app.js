@@ -521,6 +521,15 @@ async function openFile(k, uri) {
 async function openAt(uri) {
   const { did, collection, rkey } = parseAtUri(uri);
   if (!collection || !rkey) throw new Error('an AT URI needs collection and rkey');
+  if (collection !== PART) {
+    // a revision (what a parts.mino.mobi post points at): pinned, so it opens as a document, not a file
+    const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
+    const tree = await d.treeAt(uri);
+    state.file = null;
+    await setDocument(tree, tree.name || 'revision', { at: uri }); build({ fit: true });
+    setDriveStatus(`opened a pinned revision (${uri.slice(-13)}); save it to your drive to edit it as a file`);
+    await renderFiles(); return true;
+  }
   for (const k of ['local', 'pds']) if (drives[k]?.did === did) return openFile(k, uri);
   drives.browse = new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
   return openFile('browse', uri);

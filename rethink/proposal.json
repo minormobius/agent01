@@ -2095,6 +2095,13 @@
           "wing": "bench"
         },
         {
+          "u": "parts.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "science",
+          "wing": "bench"
+        },
+        {
           "u": "mino.mobi/phylo",
           "action": "keep",
           "kind": "app",

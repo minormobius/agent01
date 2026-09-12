@@ -1,0 +1,47 @@
+name: Deploy parts (communities of CAD parts)
+
+on:
+  push:
+    branches: ['claude/browser-cad-ideation-ollmd3']
+    paths:
+      - 'parts/**'
+      - '.github/workflows/deploy-parts.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The index is SQL over a seam; the selftest runs the same SQL under
+      # node:sqlite against a fake PDS and a fake Constellation.
+      - name: Selftest the index
+        working-directory: parts
+        run: node parts.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: parts
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Verify live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsSL https://parts.mino.mobi/api/status | grep -q '"ok":true'; then
+              echo "✓ parts is live"; curl -fsSL https://parts.mino.mobi/api/status; echo
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ parts.mino.mobi didn't answer. On the first deploy check the log"
+          echo "   above for 'parts.mino.mobi (custom domain)'. Green alone is not proof."

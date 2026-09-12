@@ -1,0 +1,13 @@
+# parts.mino.mobi — the egress boundary for the page.
+#
+# connect-src: 'self' is the index API; auth.mino.mobi is the shared OAuth
+# worker (sign-in, and the proxied writes to the person's own repo);
+# cad.mino.mobi is the CAD site's read gateway, which is how a post's part is
+# described without the page talking to a PDS host. No scripts from anywhere
+# but here; no frames.
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' https://auth.mino.mobi https://cad.mino.mobi; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'

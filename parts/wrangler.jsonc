@@ -1,0 +1,32 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "parts",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "site",
+    "binding": "ASSETS"
+  },
+  // The index lives in one Durable Object's own SQLite: no D1 to provision, no
+  // migrations to run, and the same SQL the selftest runs under node:sqlite.
+  "durable_objects": {
+    "bindings": [
+      { "name": "INDEX", "class_name": "PartsIndex" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PartsIndex"] }
+  ],
+  // Discovery through Constellation backlinks and a refresh of stale repos.
+  // Each tick wakes the object for a few HTTP calls, then it sleeps; there is
+  // no firehose socket, on purpose (lib/index.js explains).
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  // Golden rule (docs/DEPLOYS.md §4): the worker name must be the one that owns
+  // the live custom domain, and the domain must be declared here. parts.mino.mobi
+  // had no worker before this surface; the first deploy provisions it.
+  "routes": [
+    { "pattern": "parts.mino.mobi", "custom_domain": true }
+  ]
+}

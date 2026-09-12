@@ -2768,6 +2768,22 @@
       ]
     },
     {
+      "n": "parts",
+      "u": "https://parts.mino.mobi",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-12",
+      "b": "2026-09-12",
+      "surface": "parts",
+      "d": "Communities of CAD parts, Reddit-shaped, with nothing stored on our side that your repo does not hold: found a community (a record in your repo), post a part (a record pointing at one revision of it, so what people vote on cannot change under them), comment, vote — every one yours. The front page is an index rebuilt from the network: writers self-report, and a cron finds strangers through Constellation backlinks instead of holding a firehose open. Parts open in cad.",
+      "tags": [
+        "atproto",
+        "cad",
+        "communities"
+      ]
+    },
+    {
       "n": "hopper",
       "u": "https://hopper.mino.mobi",
       "c": "tools",
@@ -3931,6 +3947,11 @@
     }
   ],
   "notListed": [
+    {
+      "glob": "parts/site",
+      "kind": "internal",
+      "reason": "the served asset root of the parts surface (parts.mino.mobi); parts/ itself is the worker and the index library"
+    },
     {
       "glob": "packages/cad/docs",
       "kind": "content",

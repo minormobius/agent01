@@ -37,6 +37,10 @@ The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (t
 - Open a file in the viewer: `https://cad.mino.mobi/?at=<AT URI>`. Any tree: `https://cad.mino.mobi/#t=<base64url JSON>`.
 - Writing: sign in on the site (OAuth through auth.mino.mobi, scope `atproto repo:com.minomobi.cad.part repo:com.minomobi.cad.revision`), or headlessly with an app password (`agent/drive.mjs … --login`).
 
+## The social layer
+
+`https://parts.mino.mobi` — communities of parts, Reddit-shaped. Records in the author's own repo: `com.minomobi.cad.community` (founder's repo, rkey = slug), `com.minomobi.cad.post` (`community` and `part` strongRefs — `part` is a REVISION uri — `title`, `text`), `com.minomobi.cad.comment` (`post`, optional `parent`), `com.minomobi.cad.vote` (`subject`, `value` 1 or -1). Read the index: `https://parts.mino.mobi/api/feed?sort=hot`, `/api/communities`, `/api/community?name=`, `/api/post?uri=`, `/api/thread?uri=`. After writing records to a repo, `POST https://parts.mino.mobi/api/index?repo=<did>` makes them appear at once; a cron finds them anyway through backlinks.
+
 ## Where the source lives
 
 - Monorepo: https://github.com/minormobius/agent01 — `packages/cad/` (the engine source is `engine/`, Rust). Design record: `docs/CAD.md`.
