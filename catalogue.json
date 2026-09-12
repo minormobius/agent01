@@ -3932,6 +3932,11 @@
   ],
   "notListed": [
     {
+      "glob": "packages/cad/docs",
+      "kind": "content",
+      "reason": "the system page inside the cad surface (cad.mino.mobi/docs/): spec, data model, backend, kernels, tests, agent access; served, mirrored and versioned with the package"
+    },
+    {
       "glob": "archive/**",
       "kind": "content",
       "reason": "the landing page as it stood before the 2026-09 upgrade, kept frozen for nostalgia and linked from the new landing's footer"

@@ -133,6 +133,12 @@ documented in [`README.md`](README.md) next to this file.
   picture), no OCCT, no writes. `mcp.selftest.mjs` drives the module
   under node both ways; the worker-side loading is verified only by the
   deploy and a live `curl -X POST …/mcp` — do both after touching it.
+- **`docs/index.html`** is the system page (`cad.mino.mobi/docs/`): spec,
+  pipeline, kernels, data model, backend, tests, agent access, and what is
+  not built. Static, no scripts, its own inline styles on the site's
+  palette; the header's *docs* link points at it. Declared in the root
+  catalogue's `notListed` as `content`. Keep it honest: a `not yet` tag on
+  anything unbuilt, numbers only where a test asserts them.
 - **The mirror.** `.github/workflows/mirror-cad-tangled.yml` force-pushes
   this package — minus `engine/target`, `node_modules` and the Cloudflare
   files, plus the skill under `.claude/skills/cad/` and a README — to a

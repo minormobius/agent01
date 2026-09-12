@@ -75,3 +75,6 @@ th small { color: var(--dim); }
   textarea#json { min-height: 22vh; }
   button, select { padding: 6px 10px; }
 }
+
+header .doclink { color: var(--dim); font-size: 12px; text-decoration: none; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+header .doclink:hover { color: var(--accent); border-color: var(--accent); }

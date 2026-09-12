@@ -6007,6 +6007,16 @@
    "discovered": true
   },
   {
+   "id": "cad/docs",
+   "name": "docs",
+   "url": "https://cad.mino.mobi/docs/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "cad",
+   "discovered": true
+  },
+  {
    "id": "ken/lab.html",
    "name": "lab",
    "url": "https://ken.mino.mobi/lab.html",

@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cad — the system: spec, data model, kernels, tests, agents</title>
+<meta name="description" content="How cad.mino.mobi works: the feature tree as the model, the record graph on ATProto, the kernel seam, the worker, the headless tests, and the three ways an agent gets in.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27none%27 stroke=%27%23f2c14e%27 stroke-width=%273%27 stroke-dasharray=%274 3%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%274%27 fill=%27%23f2c14e%27/%3E%3C/svg%3E">
+<style>
+:root { --bg: #1c1e22; --panel: #24272c; --line: #33373e; --ink: #e6e8ec; --dim: #8a8f98; --accent: #f2c14e; --bad: #ff6b6b; --ok: #7bd88f; --blue: #7fb4ff; }
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+header.top { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 14px; padding: 8px 20px; background: var(--panel); border-bottom: 1px solid var(--line); }
+header.top h1 { font-size: 14px; margin: 0; font-weight: 600; } header.top h1 small { color: var(--dim); font-weight: 400; margin-left: 8px; }
+header.top nav { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; } header.top nav a { color: var(--dim); } header.top nav a:hover { color: var(--accent); }
+header.top .sp { flex: 1; }
+main { max-width: 960px; margin: 0 auto; padding: 24px 20px 80px; }
+.hero { padding: 24px 0 8px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+.hero h2 { font-size: 26px; margin: 0 0 8px; line-height: 1.2; }
+.hero p.lede { font-size: 16px; color: var(--ink); max-width: 720px; }
+.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 18px 0 8px; }
+.way { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; }
+.way h4 { margin: 0 0 6px; font-size: 13px; color: var(--accent); }
+.way p { margin: 0 0 8px; font-size: 13px; color: var(--dim); }
+.way code { display: block; white-space: pre-wrap; word-break: break-all; }
+section { padding: 28px 0 8px; border-bottom: 1px solid var(--line); }
+section h2 { font-size: 20px; margin: 0 0 14px; } section h2 small { color: var(--dim); font-size: 12px; font-weight: 400; margin-left: 10px; }
+section h3 { font-size: 15px; margin: 22px 0 8px; color: var(--accent); }
+p { max-width: 760px; }
+code { background: #2e3239; padding: 1px 5px; border-radius: 3px; font-size: 0.93em; overflow-wrap: anywhere; }
+p, li, td, figcaption, .way p { overflow-wrap: anywhere; }
+pre { background: #15171a; border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow-x: auto; font-size: 12.5px; line-height: 1.5; }
+pre code { background: none; padding: 0; font-size: inherit; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; margin: 8px 0 14px; }
+th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--dim); font-weight: 500; }
+td code { white-space: normal; }
+.tbl { overflow-x: auto; }
+.callout { border-left: 3px solid var(--accent); background: var(--panel); padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; max-width: 760px; }
+.callout.bad { border-color: var(--bad); } .callout.ok { border-color: var(--ok); }
+.dim { color: var(--dim); }
+.ok { color: var(--ok); } .bad { color: var(--bad); }
+figure { margin: 16px 0; } figure svg { width: 100%; height: auto; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+figcaption { color: var(--dim); font-size: 12px; margin-top: 6px; }
+.svg-t { font: 12px ui-monospace, Menlo, monospace; fill: var(--ink); } .svg-d { fill: var(--dim); font-size: 11px; } .svg-a { fill: var(--accent); }
+.box { fill: #1c1e22; stroke: #33373e; } .box.hot { stroke: #f2c14e; }
+.arrow { stroke: #8a8f98; stroke-width: 1.2; fill: none; marker-end: url(#m); }
+ul { padding-left: 20px; } li { margin: 4px 0; max-width: 740px; }
+kbd { background: #2e3239; padding: 0 4px; border-radius: 3px; border: 1px solid var(--line); }
+footer { color: var(--dim); font-size: 12px; padding-top: 20px; }
+.status { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px; border: 1px solid var(--line); color: var(--dim); vertical-align: middle; }
+.status.live { color: var(--ok); border-color: #2c4a35; } .status.local { color: var(--blue); border-color: #2c3a4a; } .status.not { color: var(--bad); border-color: #4a2c2c; }
+@media (max-width: 700px) { body { font-size: 14px; } .hero h2 { font-size: 22px; } header.top nav { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1><a href="../" style="color:inherit">cad</a><small>the system</small></h1>
+  <nav>
+    <a href="#spec">spec</a><a href="#pipeline">pipeline</a><a href="#kernels">kernels</a><a href="#data">data</a><a href="#backend">backend</a><a href="#tests">tests</a><a href="#agents">agents</a><a href="#next">next</a>
+  </nav>
+  <span class="sp"></span>
+  <a href="../" style="font-size:12px">open the viewer →</a>
+</header>
+<main>
+
+<div class="hero">
+  <h2>A parametric solid modeller whose model is a JSON tree, whose files are records in your own repo, and whose first-class user is a machine.</h2>
+  <p class="lede">Everything on this page is built and live unless it carries a <span class="status not">not yet</span> tag. Numbers are the ones the tests assert. The design record with the reasoning is <a href="https://github.com/minormobius/agent01/blob/main/docs/CAD.md">docs/CAD.md</a>; this page is what it became.</p>
+  <div class="ways">
+    <div class="way"><h4>No files: MCP</h4><p>Check, build, measure, export, read anyone's files. From any agent that speaks the protocol.</p><code>claude mcp add --transport http cad https://cad.mino.mobi/mcp</code></div>
+    <div class="way"><h4>Four megabytes: the mirror</h4><p>The whole package, node only. The skill loads on clone; the full loop including interference and render.</p><code>git clone https://tangled.org/morphyxmino.bsky.social/cad</code></div>
+    <div class="way"><h4>A browser: the viewer</h4><p>The judgement surface. Parts, assemblies, the report, named faces, measure, interference, files, sign-in.</p><code><a href="../">cad.mino.mobi</a> · <a href="../SKILL.md">SKILL.md</a> · <a href="../llms.txt">llms.txt</a></code></div>
+  </div>
+</div>
+
+<section id="spec">
+  <h2>1. The system spec<small>the one decision, and what follows</small></h2>
+  <p><strong>The model is the feature tree. Geometry is a cache.</strong> A part is a small, typed JSON document: parameters, sketches on planes, operations over them. The engine turns it into solids; the solids are never the source of truth. Because the tree is canonical it fits in a record, it diffs, an agent can write it, and every build is a pure function of it, so the kernel behind that function is replaceable.</p>
+  <pre><code>{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "params": { "R": 20, "t": 1.5, "r_pivot": 0.16, "r_pivots": 12, "n_pivots": 5, "r_centre": 0.5 },
+  "features": [
+    { "op": "sketch",  "id": "outline", "loops": [
+      { "name": "rim",    "circle": { "c": [0, 0], "r": "R" } },
+      { "name": "centre", "circle": { "c": [0, 0], "r": "r_centre" } } ] },
+    { "op": "sketch",  "id": "pivot", "loops": [ { "circle": { "c": ["r_pivots", 0], "r": "r_pivot" } } ] },
+    { "op": "pattern", "id": "pivots", "of": "pivot", "kind": "circular", "count": "n_pivots", "name": "pivot" },
+    { "op": "extrude", "id": "plate", "profile": ["outline", "pivots"], "depth": "t" }
+  ]
+}</code></pre>
+  <h3>What is load-bearing</h3>
+  <ul>
+    <li><strong>Parameters are expressions.</strong> Any numeric field takes a number or an expression over <code>params</code> (<code>"r*0.6"</code>, <code>sin</code>, <code>cos</code>, <code>deg()</code>, <code>sqrt</code>, <code>min</code>, <code>max</code>, <code>pi</code>). Change <code>t</code> and the tree follows. A numeric string is an expression too, which is what lets a record carry no floats (§4).</li>
+    <li><strong>Regions are even-odd.</strong> A loop inside a loop is a hole. A pattern of a sketch is a sketch. The profile of an extrude is a list of sketches. This is how holes, windows and spokes are made, and it is why most bench parts never ask a kernel for a boolean.</li>
+    <li><strong>Topology is named, never indexed.</strong> An extrude <code>plate</code> yields <code>plate.start</code>, <code>plate.end</code>, <code>plate.side[k]</code>; a named loop yields <code>plate.rim[0..3]</code>, <code>plate.pivot[2][1]</code>; a gear <code>g</code> yields <code>g.tooth[i].flank.r.0</code>, <code>g.tip</code>, <code>g.bore[k]</code>. A selector that no longer matches after an edit is a typed error naming the selector, not a silent wrong face.</li>
+    <li><strong>Every named face carries its geometry.</strong> A plane (normal, point) or a cylinder (axis, centre, radius), computed from the sketch curve that swept it. A circle is four exact arcs, so a bore is a real cylinder with a diameter; the mesh only ever approximates it.</li>
+    <li><strong>Invariants are the test.</strong> Every build reports volume, area, bounding box, centroid, Euler characteristic, watertightness, open and flipped edge counts. Tests compare these against closed forms with tolerances, never mesh bits.</li>
+  </ul>
+  <h3>Operations</h3>
+  <div class="tbl"><table>
+    <tr><th>op</th><th>does</th><th>names</th></tr>
+    <tr><td><code>sketch</code></td><td>closed loops on a plane (<code>XY</code>/<code>XZ</code>/<code>YZ</code>, offset, or <code>&lt;extrude&gt;.end</code>): <code>circle</code>, <code>rect</code>, <code>polygon</code>, a <code>path</code> of lines, arcs (<code>via</code>), cubic Béziers (<code>ctrl</code>) and <code>spline</code> segments through points, or a closed <code>spline</code> loop (Catmull–Rom, one exact cubic per span)</td><td>loop <code>name</code> → <code>id.name[k]</code></td></tr>
+    <tr><td><code>pattern</code></td><td>circular or linear copies of a sketch, giving a sketch</td><td>inherits</td></tr>
+    <tr><td><code>extrude</code></td><td>a profile (one sketch or a list) by <code>depth</code>; <code>mode</code> new / add / cut / intersect</td><td><code>start</code>, <code>end</code>, <code>side[k]</code></td></tr>
+    <tr><td><code>revolve</code></td><td>a profile about an axis in sketch coordinates; profiles may touch the axis</td><td><code>side[k]</code>, caps</td></tr>
+    <tr><td><code>gear</code></td><td>the exact involute from <code>m</code>, <code>z</code>, <code>alpha</code>, <code>b</code>, <code>bore</code>: three Bézier pieces per flank, chord-length parametrised</td><td><code>tooth[i].flank.l/r</code>, <code>tip</code>, <code>root[i]</code>, <code>bore[k]</code></td></tr>
+    <tr><td><code>boolean</code></td><td>union / cut / intersect of bodies (prefer regions)</td><td>kept from operands</td></tr>
+    <tr><td><code>fillet</code> <code>chamfer</code> <code>shell</code></td><td>edge and face ops; <em>unsupported</em> in Truck, done by OCCT (§3)</td><td>reference faces cross the seam</td></tr>
+  </table></div>
+  <h3>Assemblies</h3>
+  <p>A document with <code>components</code> is an assembly. Each names a <code>part</code>: an inline tree, <code>bench:&lt;name&gt;</code>, or the AT URI of a published part (its head, or a revision to pin a version), with optional <code>params</code> overrides that make a distinct build, a placement (<code>at</code>, <code>rotate</code>) and a <code>phase</code>; or it holds a nested <code>assembly</code>, flattened with prefixed ids (<code>stage2/arbor</code>). <code>mates</code> are <code>gear</code> (<code>za</code>, <code>zb</code>) and <code>fixed</code>; <code>drive</code> is <code>{component, rpm}</code> or an <code>escapement</code>. Angles are a kinematic chain from the driven component, gear phases are set automatically, and it is not a constraint solver: placements are yours to get right and the interference check tells you when you have not.</p>
+  <p>That is the front plate of the clock, minus its three pillar holes: a disc with a centre hole and five pivot holes on a circle, no booleans, and it builds in a hundred milliseconds with 42 named faces. The reference assembly is a mechanical clock: a three-stage going train, a lever escapement as the drive, motion works, hands, dial and case, eighteen components from nine parts with parameter overrides. It ticks: sixty beats turn the escape wheel two revolutions and the minute hand one minute, to the fourth decimal.</p>
+</section>
+
+<section id="pipeline">
+  <h2>2. The pipeline<small>what happens between an edit and a picture</small></h2>
+  <figure>
+    <svg viewBox="0 0 960 300" role="img" aria-label="tree to engine to two kernels to renderer">
+      <defs><marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#8a8f98"/></marker></defs>
+      <rect class="box hot" x="20" y="110" width="150" height="70" rx="6"/><text class="svg-t" x="95" y="140" text-anchor="middle">feature tree</text><text class="svg-t svg-d" x="95" y="160" text-anchor="middle">JSON, params, names</text>
+      <rect class="box" x="230" y="110" width="170" height="70" rx="6"/><text class="svg-t" x="315" y="134" text-anchor="middle">engine · resolve</text><text class="svg-t svg-d" x="315" y="152" text-anchor="middle">Rust → wasm, 1.7 MB</text><text class="svg-t svg-d" x="315" y="168" text-anchor="middle">expressions, regions, gears</text>
+      <rect class="box" x="470" y="30" width="180" height="62" rx="6"/><text class="svg-t" x="560" y="52" text-anchor="middle">Manifold · preview</text><text class="svg-t svg-d" x="560" y="70" text-anchor="middle">mesh booleans, milliseconds</text><text class="svg-t svg-d" x="560" y="84" text-anchor="middle">polygons, no names</text>
+      <rect class="box hot" x="470" y="118" width="180" height="62" rx="6"/><text class="svg-t" x="560" y="140" text-anchor="middle">Truck · exact</text><text class="svg-t svg-d" x="560" y="158" text-anchor="middle">B-rep, named faces + geometry</text><text class="svg-t svg-d" x="560" y="172" text-anchor="middle">sweeps fast, booleans weak</text>
+      <rect class="box" x="470" y="206" width="180" height="62" rx="6"/><text class="svg-t" x="560" y="228" text-anchor="middle">OCCT · on demand</text><text class="svg-t svg-d" x="560" y="246" text-anchor="middle">fillets, the booleans Truck fails</text><text class="svg-t svg-d" x="560" y="260" text-anchor="middle">66 MB, lazily, cached</text>
+      <rect class="box" x="720" y="80" width="220" height="130" rx="6"/><text class="svg-t" x="830" y="104" text-anchor="middle">mesh + face ids</text><text class="svg-t svg-d" x="830" y="124" text-anchor="middle">weld · invariants · edges</text><text class="svg-t svg-d" x="830" y="142" text-anchor="middle">WebGL2 renderer, id-buffer pick</text><text class="svg-t svg-d" x="830" y="160" text-anchor="middle">report · measure · STL · STEP</text><text class="svg-t svg-d" x="830" y="178" text-anchor="middle">interference (Manifold)</text><text class="svg-t svg-a" x="830" y="198" text-anchor="middle">the numbers you judge by</text>
+      <path class="arrow" d="M170,145 L228,145"/>
+      <path class="arrow" d="M400,140 C440,140 440,61 468,61"/>
+      <path class="arrow" d="M400,148 L468,148"/>
+      <path class="arrow" d="M400,156 C440,156 440,237 468,237"/>
+      <path class="arrow" d="M650,61 C690,61 690,120 718,120"/>
+      <path class="arrow" d="M650,148 L718,148"/>
+      <path class="arrow" d="M650,237 C690,237 690,175 718,175"/>
+      <text class="svg-t svg-d" x="230" y="230">one build request answers twice: preview, then exact.</text>
+      <text class="svg-t svg-d" x="230" y="248">a newer edit supersedes an older build in between.</text>
+      <text class="svg-t svg-d" x="230" y="266">drag a parameter and the preview follows at frame rate.</text>
+    </svg>
+    <figcaption>The engine resolves; two kernels build; the renderer, the report and the tools all read one welded mesh with a face id per triangle. In the page this runs in a module Worker off the main thread. Under node the same modules run from files. On the worker at <code>/mcp</code> the engine runs alone (§5).</figcaption>
+  </figure>
+  <p>The engine is a Rust crate compiled to <code>wasm32-unknown-unknown</code> with a raw C ABI, no wasm-bindgen: <code>cad_alloc</code>, <code>cad_resolve</code>, <code>cad_build</code>, <code>cad_out_ptr</code>, <code>cad_out_len</code>, <code>cad_free_all</code>, and one host import for the clock. The same bytes run in the browser, under node, and inside a Cloudflare Worker. The compiled <code>cad.wasm</code> is committed; <code>engine/build.sh</code> rebuilds it and runs the selftests.</p>
+</section>
+
+<section id="kernels">
+  <h2>3. Kernel juggling<small>the bake-off, and the rules it produced</small></h2>
+  <p>No open kernel that runs in wasm does everything. Rather than marry one, the tree is built behind a seam and a bake-off measured four candidates on the clock parts, with STEP round-trip as a mandatory column. The rules below are what it decided; the table is what each kernel is for.</p>
+  <div class="tbl"><table>
+    <tr><th>kernel</th><th>role</th><th>good at</th><th>cannot</th><th>where</th></tr>
+    <tr><td><strong>Manifold</strong> 3.5</td><td>preview, interference, export fallback</td><td>mesh booleans in milliseconds; always builds; watertight by construction</td><td>no exact geometry, no face names, polygons</td><td>page worker · node <span class="status not">not the /mcp worker</span></td></tr>
+    <tr><td><strong>Truck</strong> 0.6 (Rust)</td><td>exact, first</td><td>sweeps, revolves, splines as exact Béziers, named faces with geometry, STEP out; the plate in 100 ms</td><td>many booleans (<code>boolean union failed</code>), no fillets; the 60-tooth crossed gear takes ~17 s</td><td>everywhere: page, node, /mcp</td></tr>
+    <tr><td><strong>OCCT</strong> 7.4 (opencascade.js)</td><td>exact, on demand</td><td>fillets, chamfers, shells, every boolean; the escape wheel in 1.6 s cold; STEP the world trusts</td><td>66 MB, so not shipped: imported from unpkg after one press of <em>exact with OCCT</em>; not in the node scripts yet</td><td>page worker · bake-off harness</td></tr>
+    <tr><td><strong>implicit</strong> SDF spike</td><td>simulation representation</td><td>uniform fields for a future stress path</td><td>not a modelling kernel</td><td>engine, behind a flag</td></tr>
+  </table></div>
+  <h3>The rules</h3>
+  <ul>
+    <li><strong>Preview then exact.</strong> Manifold answers first so the part appears; Truck's exact build lands behind it with every face named. The report shows both side by side.</li>
+    <li><strong>Regions over booleans.</strong> A part written as even-odd regions never asks Truck for the union it cannot do. Four clock parts were rewritten this way after the bake-off.</li>
+    <li><strong>Fall through to OCCT.</strong> A fillet, chamfer or shell, or a boolean Truck fails, is flagged <em>unsupported</em> in the report and goes to OCCT once the user has allowed the download. Fillet selectors cross the seam through the engine's reference faces: the tree minus its fillet ops is built by Truck, and the named face's centroid and normal pick the OCCT face whose edges get rounded.</li>
+    <li><strong>Honesty in the report.</strong> A Truck failure says so by op id. The preview is labelled preview. Volumes come from the mesh the kernel produced; diameters come from geometry, never from the mesh.</li>
+    <li><strong>STEP from the kernel that built it.</strong> The <em>step</em> button re-runs the exact kernel with its writer on, so the file is the B-rep the report judged.</li>
+  </ul>
+  <div class="callout">Two adapter defects surfaced in the bake-off and were fixed in the harness as well: OCCT's outer-versus-hole decision must be taken over an op's <em>combined</em> profile, so the engine emits per-op oriented rings; and the involute's Bézier fit is chord-length parametrised, because the uniform fit folded at the base circle.</div>
+</section>
+
+<section id="data">
+  <h2>4. The data model<small>a file tree over records, on the designer's own repo</small></h2>
+  <p>A person's parts live in their ATProto repo as records. Two collections make a filesystem with history, the way a git tree is a view over blobs:</p>
+  <div class="tbl"><table>
+    <tr><th>record</th><th>holds</th><th>mutability</th></tr>
+    <tr><td><code>com.minomobi.cad.part</code></td><td><code>path</code>, <code>name</code>, <code>kind</code> (part or assembly), <code>head</code>: a strongRef to a revision, <code>createdAt</code>, <code>updatedAt</code></td><td>a head: it moves</td></tr>
+    <tr><td><code>com.minomobi.cad.revision</code></td><td><code>tree</code>, <code>parents[]</code> as strongRefs, <code>createdAt</code>, <code>message</code>, the <code>kernel</code> that built it and the <code>invariants</code> it was judged by, <code>forkedFrom</code></td><td>immutable</td></tr>
+  </table></div>
+  <figure>
+    <svg viewBox="0 0 960 250" role="img" aria-label="heads point at revisions; parents cross repos">
+      <text class="svg-t svg-a" x="30" y="30">alice's repo</text>
+      <rect class="box hot" x="30" y="45" width="200" height="54" rx="6"/><text class="svg-t" x="130" y="67" text-anchor="middle">part · clock/train/gear</text><text class="svg-t svg-d" x="130" y="86" text-anchor="middle">head → rev C</text>
+      <rect class="box" x="30" y="130" width="120" height="44" rx="6"/><text class="svg-t" x="90" y="148" text-anchor="middle">rev C</text><text class="svg-t svg-d" x="90" y="164" text-anchor="middle">z 60 → 72</text>
+      <rect class="box" x="180" y="130" width="120" height="44" rx="6"/><text class="svg-t" x="240" y="148" text-anchor="middle">rev B</text><text class="svg-t svg-d" x="240" y="164" text-anchor="middle">bore 1 → 1.2</text>
+      <rect class="box" x="330" y="130" width="120" height="44" rx="6"/><text class="svg-t" x="390" y="148" text-anchor="middle">rev A</text><text class="svg-t svg-d" x="390" y="164" text-anchor="middle">first cut</text>
+      <path class="arrow" d="M130,99 L95,128"/><path class="arrow" d="M150,152 L178,152"/><path class="arrow" d="M300,152 L328,152"/>
+      <text class="svg-t svg-a" x="560" y="30">bob's repo</text>
+      <rect class="box hot" x="560" y="45" width="200" height="54" rx="6"/><text class="svg-t" x="660" y="67" text-anchor="middle">part · parts/gear-72</text><text class="svg-t svg-d" x="660" y="86" text-anchor="middle">head → rev D</text>
+      <rect class="box" x="600" y="130" width="120" height="44" rx="6"/><text class="svg-t" x="660" y="148" text-anchor="middle">rev D</text><text class="svg-t svg-d" x="660" y="164" text-anchor="middle">fork of alice's</text>
+      <path class="arrow" d="M660,99 L660,128"/>
+      <path class="arrow" d="M600,152 C400,152 300,120 152,140" stroke-dasharray="4 3"/>
+      <text class="svg-t svg-d" x="380" y="205">parents are strongRefs — a URI and a content hash — so a parent may sit in another repo.</text>
+      <text class="svg-t svg-d" x="380" y="223">that is a fork: history walks straight across the boundary, and alice's next edit cannot break bob.</text>
+    </svg>
+    <figcaption>Rename edits the path and the URI survives, so a machine's reference outlives a human's tidy-up. The PDS keeps no history of its own, which is why revisions are explicit records.</figcaption>
+  </figure>
+  <h3>Rules learned from the first real write</h3>
+  <ul>
+    <li><strong>No floats.</strong> The ATProto data model has none; the PDS refused <code>m: 0.5</code> at the door. The drive writes every non-integer as its shortest decimal string, which is still a valid tree because a numeric string is an expression, and hands numbers back on read. The round trip is exact and the selftest counts zero floats in stored records.</li>
+    <li><strong>Local cids are not CIDs.</strong> The local drive (IndexedDB in the browser, a JSON file under node) mints <code>local:&lt;sha256&gt;</code>, an honest hash a PDS would reject. So <em>push</em> is a replay: a local file's revisions are recreated on the PDS oldest-first, refs rewritten to the cids the PDS just minted, revisions already in a real repo referenced rather than copied.</li>
+    <li><strong>Trees are inline.</strong> Bench trees are 1 to 4 KB; the clock is 6 KB. Geometry is never stored; it is rebuilt from the tree.</li>
+  </ul>
+  <h3>One drive, four backends</h3>
+  <p><code>lib/drive.js</code> is one class over a five-call contract: <code>getRecord</code>, <code>listRecords</code>, <code>createRecord</code>, <code>putRecord</code>, <code>deleteRecord</code>, the ATProto repo methods and nothing else. <code>list</code>, <code>tree</code>, <code>get</code>, <code>put</code>, <code>rename</code>, <code>history</code>, <code>fork</code>, <code>push</code> and <code>remove</code> are the same over all of them.</p>
+  <div class="tbl"><table>
+    <tr><th>backend</th><th>where</th><th>who</th></tr>
+    <tr><td>memory</td><td>a Map with a persist hook; the node CLI keeps a whole repo in <code>~/.cad-drive.json</code></td><td>tests, agents</td></tr>
+    <tr><td>local</td><td>IndexedDB, <code>did:local</code>; survives reload; no sign-in</td><td>every visitor</td></tr>
+    <tr><td>public</td><td>any repo over the two public XRPC reads; in the page through this site's gateway (§5)</td><td>anyone, no sign-in</td></tr>
+    <tr><td>auth</td><td>the signed-in user's repo through <code>auth.mino.mobi</code>, scope <code>atproto repo:com.minomobi.cad.part repo:com.minomobi.cad.revision</code></td><td>the designer</td></tr>
+    <tr><td>session</td><td>an app-password session, for terminals and scripts; never a browser</td><td>a local agent, the publisher</td></tr>
+  </table></div>
+  <h3>Addresses</h3>
+  <ul>
+    <li><code>https://cad.mino.mobi/?at=at://did/com.minomobi.cad.part/rkey</code> opens a file from any repo.</li>
+    <li><code>https://cad.mino.mobi/#t=&lt;base64url JSON&gt;</code> carries an arbitrary tree in the link.</li>
+    <li><code>https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=minomobi.com&amp;collection=com.minomobi.cad.part</code> lists a repo's files, by handle or DID.</li>
+    <li>The published bench lives in the <code>minomobi.com</code> repo: <code>parts/&lt;name&gt;</code>, <code>train</code>, <code>clock</code>; the assemblies reference their parts by AT URI.</li>
+  </ul>
+</section>
+
+<section id="backend">
+  <h2>5. The backend, such as it exists<small>deliberately small</small></h2>
+  <p>There is no database and no server that knows about your parts. The site is a static package served by one Cloudflare Worker, and the Worker does three things:</p>
+  <ul>
+    <li><strong>Assets.</strong> The package directory is the site: the page, the ES modules, <code>cad.wasm</code>, Manifold, the bench, the skill, the README, this page. Headers, including the two content security policies, come from <code>_headers</code>. The page's policy is strict; the build worker's script carries its own policy with the one grant Manifold's glue needs.</li>
+    <li><strong><code>/xrpc/</code>, a read gateway.</strong> The two public read methods, <code>com.minomobi.cad.*</code> only, with handles and DIDs resolved server-side and forwarded to the repo's own PDS. It exists so the page's policy stays <code>connect-src 'self'</code> and the page never learns a PDS host. It is a CAD gateway, not a proxy; nothing it returns was private.</li>
+    <li><strong><code>/mcp</code>, the tool surface.</strong> The engine wasm imported as a module and instantiated once per isolate; JSON-RPC in, the same numbers the page reports out (§7).</li>
+  </ul>
+  <h3>What is around it</h3>
+  <div class="tbl"><table>
+    <tr><th>piece</th><th>status</th><th>what it is</th></tr>
+    <tr><td>auth.mino.mobi</td><td><span class="status live">live</span></td><td>the shared OAuth worker for every mino.mobi site (PKCE, DPoP, PAR, private_key_jwt). It holds the tokens and proxies writes, so the page never holds a PDS token. The two cad collections are in its scope ceiling; sign-in asks for exactly those.</td></tr>
+    <tr><td>the service account</td><td><span class="status live">live</span></td><td>the identity that owns <code>minomobi.com</code>. A workflow publishes the bench into it on every change, idempotently: an unchanged tree is skipped, a changed one becomes exactly one revision.</td></tr>
+    <tr><td>the mirror</td><td><span class="status live">live</span></td><td>the package force-pushed to <a href="https://tangled.org/morphyxmino.bsky.social/cad">tangled</a> on every push, minus the Rust build directory and the deployment files, with the skill in place. Four megabytes; runs its selftests before it pushes.</td></tr>
+    <tr><td>a geometry cache</td><td><span class="status not">not yet</span></td><td>the design record's content-addressed cache of built solids by tree hash. Everything rebuilds from the tree today, which is fast enough at these sizes and is the honest place to start.</td></tr>
+    <tr><td>content-negotiated faces</td><td><span class="status not">not yet</span></td><td><code>/at/&lt;did&gt;/&lt;rkey&gt;.stl</code>, <code>.png</code>: the part as a URL you can paste into a post or a purchase order. The gateway is the first step.</td></tr>
+  </table></div>
+  <p>A push to this package's branch deploys it; there is no staging. The deploy runs the node selftests first and verifies the live host answers afterwards, and the surface's own notes say green is not proof: the log must bind the custom domain.</p>
+</section>
+
+<section id="tests">
+  <h2>6. The headless tests<small>what green means here</small></h2>
+  <p>Every claim above is gated by a test that runs under node or in headless Chromium, and the deploy runs the node ones before it ships. The tests assert invariants with tolerances against closed forms, never pixels or mesh bits.</p>
+  <div class="tbl"><table>
+    <tr><th>test</th><th>runs</th><th>asserts</th></tr>
+    <tr><td><code>cad.selftest.mjs</code></td><td>the committed wasm, from bytes, under node</td><td>the ABI; the gear's volume against its profile area; the plate against its closed form; Euler characteristics; watertightness; that names come out. 21 checks.</td></tr>
+    <tr><td><code>drive.selftest.mjs</code></td><td>two in-memory repos and a fake PDS</td><td>put, history, rename, fork with lineage across repos, push with cid rewriting, no float survives in a stored record, the gateway resolves a handle and refuses other collections.</td></tr>
+    <tr><td><code>mcp.selftest.mjs</code></td><td>the tool surface with kernels injected</td><td>the transport (initialize, notifications, batches, error codes), every tool against the bench, the sliced assembly build, and the reduced tool list a host without Manifold advertises.</td></tr>
+    <tr><td><code>browser.selftest.mjs</code></td><td>the page in headless Chromium, served under the production headers</td><td>first with no script injection at all, that the worker comes up and the exact build lands under the real policy; then every bench part, the plate against its closed form, picking a named face at the centre of the view, measure, a parameter edit growing the volume, the clock's ratios and escapement to the fourth decimal, interference clean mid-beat, touch gestures, the phone layout, OCCT from a locally served copy, save and reload through IndexedDB, a stranger's file opened through a mocked gateway and forked, an assembly whose parts are AT URIs, STEP and STL export.</td></tr>
+    <tr><td><code>preflight</code></td><td>the monorepo's own gate</td><td>the registry, the generated files, the synced copies (the skill, the auth client), catalogue coverage, the loop's blast radius, and the selftests of changed directories.</td></tr>
+  </table></div>
+  <h3>The verification habit</h3>
+  <p>After a deploy the live host is curled: the wasm's content type, the gateway with a real handle, a real PAR from this origin against the auth worker with the cad scope, a build through <code>/mcp</code>. The bench is the golden set; an agent working on its own part is told to write its own <code>expected.json</code> and rerun it after every edit.</p>
+  <div class="callout ok">Report what <code>watertight</code> and χ say, not what the picture looks like. That sentence is in the skill, in the tests, and in the report's layout.</div>
+</section>
+
+<section id="agents">
+  <h2>7. Agentic access<small>three doors, one loop</small></h2>
+  <p>The loop is the same everywhere: <em>write tree → build → measure → check → render → judge → edit</em>. What differs is how much you have to install.</p>
+  <h3>Door one: nothing. MCP at <code>/mcp</code></h3>
+  <p>Streamable HTTP, JSON responses; GET returns the descriptor. Tools on the live host: <code>check</code>, <code>build</code>, <code>measure</code>, <code>step</code>, <code>list_files</code>, <code>get_file</code>. Every tool takes a tree object, <code>bench:&lt;name&gt;</code> or an <code>at://</code> URI. <code>build</code> returns the invariants, every named face with its geometry, and a viewer link to hand a human; on an assembly it builds three parts per call and returns <code>partKeys</code> and <code>remaining</code>, so you pass <code>parts</code> to continue.</p>
+  <pre><code>curl -sX POST https://cad.mino.mobi/mcp -H 'content-type: application/json' -d '{
+  "jsonrpc":"2.0","id":1,"method":"tools/call",
+  "params":{"name":"measure","arguments":{"tree":"bench:plate","a":"plate.rim[0]","b":"plate.pivot[2][0]"}}}'
+→ {"kind":"cylinder-cylinder","parallel":true,"distance":12,"diameters":[40,0.32], …}</code></pre>
+  <p>What is not on the server, and why: no <em>render</em> (a browser's job; the link is the picture), no <em>interference</em> or preview kernel (Manifold's glue generates code from strings, which Workers forbid; a build of it without dynamic execution would lift this), no <em>write</em> (a person's parts are saved with the person's own sign-in), no OCCT. The descriptor says all of this so an agent does not have to discover it.</p>
+  <h3>Door two: four megabytes. The mirror and the skill</h3>
+  <p>Clone <a href="https://tangled.org/morphyxmino.bsky.social/cad">the mirror</a>; Claude Code loads <code>.claude/skills/cad/SKILL.md</code> on open. Node 22 is the only requirement; the engine is the committed wasm. The full loop: <code>agent/build.mjs</code>, <code>measure.mjs</code>, <code>check.mjs</code>, <code>export.mjs</code>, <code>render.mjs</code> (headless Chromium, one install), and <code>drive.mjs</code> for files, including <code>--login</code> with an app password to write to your own repo and hand back a <code>?at=</code> link.</p>
+  <h3>Door three: a browser</h3>
+  <p>The viewer is the judgement surface for the human at the other end: the report with preview and exact side by side, the face under the cursor with its names and geometry, pin one face and click another to measure, <em>check interference</em> through the motion, three views for the record, STL and STEP, the files tab with save, history, fork and push. A link from an agent opens here.</p>
+  <h3>Reading</h3>
+  <ul>
+    <li><a href="../SKILL.md">SKILL.md</a>: the instruction sheet, including a worked task on the published train.</li>
+    <li><a href="../llms.txt">llms.txt</a>: the index, for an agent that lands on the site cold.</li>
+    <li><a href="../README.md">README.md</a>: the schema and the CLI.</li>
+    <li><a href="https://github.com/minormobius/agent01/blob/main/docs/CAD.md">docs/CAD.md</a>: the design record, phases and gates, the bake-off result, what each cut decided.</li>
+  </ul>
+</section>
+
+<section id="next">
+  <h2>8. What it is not, yet<small>said plainly</small></h2>
+  <ul>
+    <li><strong>No sketcher.</strong> The tree is edited as JSON and parameters. A 2D constraint solver and a timeline are the next phase of the record.</li>
+    <li><strong>No lofts, sweeps along a path, or free-form surfaces.</strong> Splines through points are exact; NURBS with user knots are not there. These are OCCT ops behind the same seam, and they will be named faces like everything else.</li>
+    <li><strong>No constraint solver for assemblies.</strong> Mates are gear and fixed; placements are typed in; the interference check is the safety net.</li>
+    <li><strong>No stress.</strong> The implicit representation exists for it; the solver does not.</li>
+    <li><strong>No merge.</strong> <code>parents</code> is a list, so a merge revision is representable; nothing writes one yet.</li>
+    <li><strong>No social layer.</strong> Files are public and forkable by AT URI, which is the substrate. Communities, posts about parts, comments and votes are records that do not exist yet, and the index that would assemble them into a front page is a scoped AppView this repo has already studied and not yet built for cad.</li>
+  </ul>
+</section>
+
+<footer>
+  cad.mino.mobi · part of <a href="https://mino.mobi">mino.mobi</a> · source in <a href="https://github.com/minormobius/agent01/tree/main/packages/cad">the monorepo</a> · mirror on <a href="https://tangled.org/morphyxmino.bsky.social/cad">tangled</a> · this page is <code>docs/index.html</code> in the package and is served, mirrored and versioned with it.
+</footer>
+</main>
+</body>
+</html>
