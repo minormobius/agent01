@@ -34,7 +34,14 @@
 //
 // CPU: wrangler.jsonc raises the budget to 120 s, and an assembly is built
 // three parts per call (maxParts) — the clock's seventeen distinct parts in
-// one request was a 1102 on the first try.
+// one request was a 1102 on the first try. The clearance check is budgeted
+// the same way but in WORK, since a Worker's clock does not advance during
+// synchronous execution: `workBudget` is in pairWork units (triangles on
+// both sides of every pair). Calibrated against this host, 2026-09-12:
+// three instants of the lift plus refinement — about 2.1M units — took 11 s
+// of a request, so roughly 5 us a unit, twice what node costs. 6M units is
+// then ~30 s of the 120 s allowance, and an assembly that would need more
+// for a single instant is refused rather than killed.
 
 import { createMcp } from './mcp.js';
 import { xrpc, json } from './gateway.js';
@@ -58,7 +65,7 @@ function mcpFor(env, origin) {
     if (collection === PART) { const f = await d.get(ref); if (!f) throw new Error(`no file at ${ref}`); return f.revision.tree; }
     return d.treeAt(ref);
   };
-  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch, capabilities: { manifold: false, maxParts: 3, workBudget: 2.5e6 } }));
+  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch, capabilities: { manifold: false, maxParts: 3, workBudget: 6e6 } }));
 }
 
 export default {

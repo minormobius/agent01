@@ -134,8 +134,11 @@ documented in [`README.md`](README.md) next to this file.
   `res` (64/128/256) so a coarse check is affordable. An assembly whose
   single instant is past the budget is **refused** (`incomplete: "too-big"`,
   with the numbers and what to do) rather than killed. The live worker is
-  created with `maxParts: 3, workBudget: 2.5e6` under its 120 s `cpu_ms`:
-  the clock fits at res 64 (1.9M), not at 256 (6.7M).
+  created with `maxParts: 3, workBudget: 6e6` under its 120 s `cpu_ms` —
+  calibrated live: three instants of the lift plus refinement, 2.1M units,
+  took 11 s of one request, so about 5 µs a unit, twice node's. The clock
+  fits at res 64 (1.9M) and 128 (2.5M), not at 256 (6.7M); the lift takes
+  nine instants a call.
   Components with `reference: true` are drawn translucent and left out of
   checks and export; `hidden` is display only and counts.
 - **Audit.** `agent/audit.mjs --at <repo> [--kernels]` rebuilds every
