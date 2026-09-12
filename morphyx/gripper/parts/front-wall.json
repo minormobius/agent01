@@ -1,14 +1,17 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Far screw support: a block on the base with a plain 8.2 mm bearing bore, under the rails. One extrude along -Y.",
+ "_": "Front wall: the screw’s end bearing (Ø8.2 plain bore) and the slot the two finger arms pass through. One extrude along -Y.",
  "params": {
-  "w": 30,
-  "t": 8,
-  "y1": 84,
-  "base_top": -24,
-  "top": 12,
-  "d_bore": 8.2
+  "w": 88,
+  "zb": -27,
+  "zt": 44,
+  "t": 6,
+  "d_bore": 8.2,
+  "slot_half": 33,
+  "sz0": 17,
+  "sz1": 27,
+  "y1": 104
  },
  "features": [
   {
@@ -24,10 +27,10 @@
      "rect": {
       "c": [
        0,
-       "(base_top + top) / 2"
+       "(zb + zt) / 2"
       ],
       "w": "w",
-      "h": "top - base_top"
+      "h": "zt - zb"
      }
     },
     {
@@ -39,12 +42,23 @@
       ],
       "r": "d_bore / 2"
      }
+    },
+    {
+     "name": "slot",
+     "rect": {
+      "c": [
+       0,
+       "(sz0 + sz1) / 2"
+      ],
+      "w": "2 * slot_half",
+      "h": "sz1 - sz0"
+     }
     }
    ]
   },
   {
    "op": "extrude",
-   "id": "block",
+   "id": "plate",
    "profile": "face",
    "depth": "t"
   }

@@ -1,0 +1,101 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 8.5 above the screw axis). Four Ø6.6 bolt holes on a 50 PCD at 45°, a Ø6 dowel at 0°, and a Ø32 hole for the robot flange boss (no recess: the boss enters the case). Bolts to the case plates not modelled. One extrude along -Y.",
+ "params": {
+  "w": 88,
+  "zb": -27,
+  "zt": 44,
+  "t": 8,
+  "zc": 8.5,
+  "pcd": 50,
+  "d_bolt": 6.6,
+  "d_dowel": 6,
+  "d_boss": 32,
+  "y1": 8
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "(zb + zt) / 2"
+      ],
+      "w": "w",
+      "h": "zt - zb"
+     }
+    },
+    {
+     "name": "boss",
+     "circle": {
+      "c": [
+       0,
+       "zc"
+      ],
+      "r": "d_boss / 2"
+     }
+    },
+    {
+     "name": "dowel",
+     "circle": {
+      "c": [
+       "pcd / 2",
+       "zc"
+      ],
+      "r": "d_dowel / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd/2 * cos(deg(45))",
+       "zc + pcd/2 * sin(deg(45))"
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "center": [
+    0,
+    "zc"
+   ],
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "plate",
+   "profile": [
+    "face",
+    "bolts"
+   ],
+   "depth": "t"
+  }
+ ]
+}

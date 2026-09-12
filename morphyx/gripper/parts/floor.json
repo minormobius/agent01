@@ -1,0 +1,41 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Floor plate, between the rear plate and the front wall. One extrude along +Z.",
+ "params": {
+  "w": 88,
+  "y0": 8,
+  "y1": 98,
+  "t": 4,
+  "z0": -27
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plate",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "(y0 + y1) / 2"
+      ],
+      "w": "w",
+      "h": "y1 - y0"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "floor",
+   "profile": "plate",
+   "depth": "t"
+  }
+ ]
+}

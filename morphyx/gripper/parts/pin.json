@@ -1,7 +1,7 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "A 4 mm pin, h long, along +Z. Press fit in the saddle or finger, running fit in the link eye. One extrude.",
+ "_": "A 4 mm pin, h long, along +Z: pressed into a finger, riding a yoke slot. One extrude.",
  "params": {
   "d": 4,
   "h": 14

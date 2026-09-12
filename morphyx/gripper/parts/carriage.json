@@ -1,15 +1,15 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Nut carriage: a vertical plate (XZ) with the nut bore and the four flange bolt holes, a neck on top for the saddle. Slides 1 mm above the base; the links react its torque. One extrude along -Y.",
+ "_": "Nut carriage: a vertical plate with the nut bore and the four flange bolt holes, a neck on top that keys into the yoke. Rides 2 mm above the floor; the yoke’s pins react its torque. One extrude along -Y.",
  "params": {
   "w": 40,
   "t": 8,
-  "bottom": -23,
-  "shoulder": 30,
-  "top": 36,
+  "bottom": -13,
+  "shoulder": 12,
+  "top": 18,
   "neck": 30,
-  "d_bore": 10.2,
+  "d_bore": 10.200000000000001,
   "pcd": 16,
   "d_bolt": 3.5
  },
@@ -95,7 +95,7 @@
   },
   {
    "op": "extrude",
-   "id": "bracket",
+   "id": "carriage",
    "profile": [
     "face",
     "bolts"

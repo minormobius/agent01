@@ -1,280 +1,240 @@
 #!/usr/bin/env node
-// gripper.mjs — a parallel-jaw gripper for cad.mino.mobi, generated.
+// gripper.mjs — a parallel-jaw robot gripper for cad.mino.mobi, generated.
 //
-//   node gripper.mjs                      # writes parts/*.json and gripper.json at the reference pose
-//   node gripper.mjs --out /tmp           # written elsewhere
-//   node gripper.mjs --nut 44             # the analytic audit's reference pose (the document itself is kinematic)
+//   node gripper.mjs                      # writes parts/*.json, gripper.json (kinematic), expected.json
+//   node gripper.mjs --out /tmp/g         # written elsewhere
 //   node gripper.mjs --print              # the assembly on stdout, nothing written
 //
-// A stepper (NEMA 17) turns a T8 lead screw through a coupler. A flange nut
-// rides the screw inside a bracket; a saddle keyed over the bracket's neck
-// carries two pins. Two links run from those pins to pins on two fingers;
-// the fingers sit on sliders that ride two round rails across the screw
-// axis. Nut toward the motor: fingers close. Nut toward the rails: open.
+// Version 2: packaged for a robot. A NEMA 17 pancake stepper with an
+// integrated Tr8×2 lead screw sits behind a bulkhead inside a six-plate
+// case whose rear plate is an ISO 9409-1-50-4-M6 tool flange. The flange
+// nut rides in a carriage; a yoke keyed over the carriage's neck carries
+// two 45° cam slots; a pin pressed into each finger rides its slot, so
+// 1 mm of nut is 1 mm of finger. The fingers sit under sliders that ride
+// two Ø6 rails held by the side walls, and reach out through a slot in the
+// front wall to replaceable pads. Nut forward: open. Nut back: closed.
 //
-// Every part is ONE sweep (extrude or revolve) with an even-odd region, so the
-// exact kernel (Truck) names every face and the build is watertight — a cross
-// boolean in Truck comes back with open edges, so joints that need holes in
-// two directions are split along real part lines (saddle on neck, finger on
-// slider) and fixed-mated. No dependencies: node 22.
+// Every part is ONE sweep (extrude or revolve) with an even-odd region, so
+// the exact kernel (Truck) names every face and the build is watertight.
+// Joints that need holes in two directions are split along real part lines
+// (yoke on the carriage neck, finger under the slider neck) and fixed-mated.
+// No dependencies: node 22.
 //
-// World frame (mm): X = jaw travel, Y = screw axis (+Y away from the motor),
-// Z = up. The screw axis is the line x = 0, z = 0. The base top is z = -24.
+// World frame (mm): X = jaw travel, Y = screw axis (+Y is forward, toward
+// the pads), Z = up. The screw axis is the line x = 0, z = 0. y = 0 is the
+// robot flange face.
 import fs from 'node:fs';
 import path from 'node:path';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const has = (k) => args.includes(k);
+const round = (v, n = 2) => Number(v.toFixed(n));
 
 // ── the design numbers ───────────────────────────────────────────────────────
 export const D = {
-  // drive train
-  motor: 42.3, motorLen: 40, motorChamfer: 5, shaft: 5, shaftLen: 24, boss: 22, bossLen: 2,
-  bracketW: 50, bracketH: 50, bracketT: 5, pilot: 22.5, boltPcd: 31, bolt: 3.4,
-  couplerD: 20, couplerLen: 25, couplerAt: 4,
-  screw: 8, screwLen: 64, screwAt: 21, lead: 2,
-  endBlockY: 76, endBlockT: 8, endBlockW: 30, endBore: 8.2,
-  // nut and its carriage
-  nutBore: 8.4, nutBody: 10, nutLen: 15, flange: 22, flangeT: 3.5, flangePcd: 16, flangeBolt: 3.5,
-  nbW: 40, nbT: 8, nbBore: 10.2, nbShoulder: 30, nbTop: 36, nbNeck: 30, nbBottom: -23,
-  saddleW: 52, saddleH: 16, saddleT: 6, pinSpan: 40, pin: 4, pinClear: 4.2,
-  // linkage
-  link: 72, linkW: 12, linkT: 6, linkZ: 36, pinLine: 111,
-  // rails, sliders, fingers
-  railD: 6, railZ: 16, railY: [82, 98], railHalf: 95, railBlockT: 8, railBlockAt: 95, railBlockW: 36,
-  sliderY: [76, 104], sliderZ: [10, 22], neckY: [84, 96], neckTop: 28, sliderLen: 24, sliderBore: 6.2,
-  fingerZ: [22, 34], fingerHalf: 16, armY: [104, 118],
-  // the base
-  baseT: 6, baseTop: -24, baseX: 110, baseY: [-48, 125], mountD: 4.5, mountInset: 10,
-  // the stroke: nut bracket centre y
-  nutClosed: 44, nutOpen: 62, nutRef: 53,
+  // the case: outer box x ±44, z −27..44, y 0..104; walls 4, rear plate 8, front 6
+  W: 88, wall: 4, zBot: -27, zTop: 44, rearT: 8, frontY: 98, frontT: 6, L: 104,
+  // robot flange (ISO 9409-1-50-4-M6), centred on the case cross-section
+  flangePcd: 50, flangeBolt: 6.6, dowel: 6, boss: 32,
+  // motor: NEMA 17 pancake, integrated Tr8×2 screw
+  motor: 42.3, motorChamfer: 5, motorY: 14, motorLen: 22, pilot: 22.5, boltSquare: 31, bolt: 3.4, bulkheadT: 6,
+  screw: 8, lead: 2, screwEnd: 103, endBore: 8.2,
+  // nut and carriage
+  nutBore: 8.4, nutBody: 10, nutLen: 15, flange: 22, flangeT: 3.5, nutPcd: 16, nutBolt: 3.5,
+  carW: 40, carT: 8, carBot: -13, carShoulder: 12, carTop: 18, neck: 30,
+  // yoke: cam slots at 45°
+  yokeW: 72, yokeY: [-11, 19], yokeT: 6, slotW: 4.2, pin: 4,
+  // stroke: nut carriage centre y; finger pin x
+  closed: 54, open: 74, xfClosed: 10, pinLine: 68,
+  // fingers, sliders, rails, pads
+  fingerZ: [18, 26], tabHalf: 8, tabY: [62, 88], armW: 10, armY: [88, 126], armInset: 8,
+  sliderLen: 12, sliderY: [66, 90], sliderZ: [26, 38], neckY: [74, 82], neckBot: 20, railY: [72, 84], railZ: 32, railD: 6, sliderBore: 6.2,
+  padY: [108, 126], padZ: [26, 46], padW: 12, padOverhang: 2, padBolt: 3.4, padTap: 2.5,
+  slotZ: [17, 27], slotHalf: 33,
+  rpm: 5,
 };
+D.zc = (D.zBot + D.zTop) / 2; // case cross-section centre: the tool centre line
+D.travel = D.open - D.closed;
 
-// ── kinematics ───────────────────────────────────────────────────────────────
+// ── kinematics (45° slots: 1 mm of nut is 1 mm of finger) ────────────────────
 export function pose(yn) {
-  const dy = D.pinLine - yn;
-  if (dy >= D.link) throw new Error(`nut at ${yn}: link would lock (Δy ${dy} ≥ L ${D.link})`);
-  const x = Math.sqrt(D.link ** 2 - dy ** 2);
-  const xf = D.pinSpan / 2 + x;                 // finger pin x (right finger)
-  const phi = (Math.atan2(dy, x) * 180) / Math.PI; // link angle from +X, right link
-  return { yn, dy, x, xf, phi, gap: 2 * (xf - reach()), ratio: x / dy };
+  const xf = D.xfClosed + (yn - D.closed);
+  return { yn, xf, gap: 2 * (xf - D.xfClosed), ly: D.pinLine - yn };
 }
-export const reach = () => round(D.pinSpan / 2 + Math.sqrt(D.link ** 2 - (D.pinLine - D.nutClosed) ** 2)); // pad meets x = 0 when closed
-const round = (v, n = 2) => Number(v.toFixed(n));
 
 // ── the parts, each one sweep ────────────────────────────────────────────────
 const tree = (note, params, features) => ({ $schema: 'com.minomobi.cad.tree#v1', units: 'mm', _: note, params, features });
 const circle = (name, c, r) => ({ name, circle: { c, r } });
 const rect = (name, c, w, h) => ({ name, rect: { c, w, h } });
+// a stadium slot from a to b, width w, in sketch coordinates (expressions allowed)
+const slot = (name, [ax, ay], [bx, by], w) => ({ name, path: { from: [`(${ax}) - (${w})/2 * (${by} - (${ay})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`, `(${ay}) + (${w})/2 * (${bx} - (${ax})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`], segs: [
+  { to: [`(${bx}) - (${w})/2 * (${by} - (${ay})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`, `(${by}) + (${w})/2 * (${bx} - (${ax})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`] },
+  { arc: { via: [`(${bx}) + (${w})/2 * (${bx} - (${ax})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`, `(${by}) + (${w})/2 * (${by} - (${ay})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`],
+           to: [`(${bx}) + (${w})/2 * (${by} - (${ay})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`, `(${by}) - (${w})/2 * (${bx} - (${ax})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`] } },
+  { to: [`(${ax}) + (${w})/2 * (${by} - (${ay})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`, `(${ay}) - (${w})/2 * (${bx} - (${ax})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`] },
+  { arc: { via: [`(${ax}) - (${w})/2 * (${bx} - (${ax})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`, `(${ay}) - (${w})/2 * (${by} - (${ay})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`],
+           to: [`(${ax}) - (${w})/2 * (${by} - (${ay})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`, `(${ay}) + (${w})/2 * (${bx} - (${ax})) / sqrt((${bx} - (${ax}))^2 + (${by} - (${ay}))^2)`] } },
+] } });
+
+const xzPlate = (id, note, params, y1, loops, extra = []) => tree(note, { ...params, y1 }, [
+  { op: 'sketch', id: 'face', plane: { base: 'XZ', offset: '-y1' }, loops },
+  ...extra,
+  { op: 'extrude', id, profile: extra.length ? ['face', ...extra.filter((f) => f.op === 'pattern').map((f) => f.id)] : 'face', depth: 't' },
+]);
 
 export const parts = {
-  base: tree('Base plate, lying in XY under everything. Four mounting holes. One extrude.',
-    { w: 2 * D.baseX, y0: D.baseY[0], y1: D.baseY[1], t: D.baseT, top: D.baseTop, d_mount: D.mountD, inset: D.mountInset },
-    [
-      { op: 'sketch', id: 'outline', plane: { base: 'XY', offset: 'top - t' }, loops: [rect('plate', [0, '(y0 + y1) / 2'], 'w', 'y1 - y0')] },
-      { op: 'sketch', id: 'mount', plane: { base: 'XY', offset: 'top - t' }, loops: [circle(null, ['-w/2 + inset', 'y0 + inset'], 'd_mount / 2')] },
-      { op: 'pattern', id: 'mountsx', of: 'mount', kind: 'linear', count: 2, step: ['w - 2 * inset', 0], name: 'mount' },
-      { op: 'pattern', id: 'mounts', of: 'mountsx', kind: 'linear', count: 2, step: [0, 'y1 - y0 - 2 * inset'], name: 'mount' },
-      { op: 'extrude', id: 'base', profile: ['outline', 'mounts'], depth: 't' },
-    ]),
+  'rear-flange': xzPlate('plate', 'Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the case cross-section (the tool centre line, 8.5 above the screw axis). Four Ø6.6 bolt holes on a 50 PCD at 45°, a Ø6 dowel at 0°, and a Ø32 hole for the robot flange boss (no recess: the boss enters the case). Bolts to the case plates not modelled. One extrude along -Y.',
+    { w: D.W, zb: D.zBot, zt: D.zTop, t: D.rearT, zc: D.zc, pcd: D.flangePcd, d_bolt: D.flangeBolt, d_dowel: D.dowel, d_boss: D.boss }, D.rearT,
+    [rect('outline', [0, '(zb + zt) / 2'], 'w', 'zt - zb'), circle('boss', [0, 'zc'], 'd_boss / 2'), circle('dowel', ['pcd / 2', 'zc'], 'd_dowel / 2')],
+    [{ op: 'sketch', id: 'bolt', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['pcd/2 * cos(deg(45))', 'zc + pcd/2 * sin(deg(45))'], 'd_bolt / 2')] },
+     { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', center: [0, 'zc'], count: 4, name: 'bolt' }]),
 
-  bracket: tree('Motor bracket: a vertical plate (XZ) at y in [-t, 0] with the NEMA 17 pilot bore and four bolt holes on a 31 mm square. Stands on the base. One extrude along -Y.',
-    { w: D.bracketW, h: D.bracketH, t: D.bracketT, base_top: D.baseTop, d_pilot: D.pilot, pcd: D.boltPcd, d_bolt: D.bolt },
-    [
-      { op: 'sketch', id: 'face', plane: 'XZ', loops: [rect('outline', [0, 'base_top + h/2'], 'w', 'h'), circle('pilot', [0, 0], 'd_pilot / 2')] },
-      { op: 'sketch', id: 'bolt', plane: 'XZ', loops: [circle(null, ['pcd/2', 'pcd/2'], 'd_bolt / 2')] },
-      { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: 4, name: 'bolt' },
-      { op: 'extrude', id: 'bracket', profile: ['face', 'bolts'], depth: 't' },
-    ]),
+  bulkhead: xzPlate('plate', 'Motor bulkhead: fits inside the case, takes the NEMA 17 pilot and its four M3 on a 31 square (bolts run back through the motor face). The screw passes through the pilot. One extrude along -Y.',
+    { w: D.W - 2 * D.wall - 1, zb: D.zBot + D.wall + 0.5, zt: D.zTop - D.wall - 0.5, t: D.bulkheadT, d_pilot: D.pilot, sq: D.boltSquare, d_bolt: D.bolt }, D.motorY + D.motorLen + D.bulkheadT,
+    [rect('outline', [0, '(zb + zt) / 2'], 'w', 'zt - zb'), circle('pilot', [0, 0], 'd_pilot / 2')],
+    [{ op: 'sketch', id: 'bolt', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['sq/2', 'sq/2'], 'd_bolt / 2')] },
+     { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: 4, name: 'bolt' }]),
 
-  motor: tree('NEMA 17 body: a 42.3 mm square with 5 mm corner chamfers, 40 long, behind the bracket (y in [-45, -5]). Stand-in geometry. One extrude along -Y.',
-    { s: D.motor, ch: D.motorChamfer, L: D.motorLen, face_y: -D.bracketT },
-    [
-      { op: 'sketch', id: 'body', plane: { base: 'XZ', offset: '-face_y' }, loops: [{ name: 'body', polygon: [
-        ['-(s/2 - ch)', '-s/2'], ['s/2 - ch', '-s/2'], ['s/2', '-(s/2 - ch)'], ['s/2', 's/2 - ch'],
-        ['s/2 - ch', 's/2'], ['-(s/2 - ch)', 's/2'], ['-s/2', 's/2 - ch'], ['-s/2', '-(s/2 - ch)'] ] }] },
-      { op: 'extrude', id: 'motor', profile: 'body', depth: 'L' },
-    ]),
+  'front-wall': xzPlate('plate', 'Front wall: the screw’s end bearing (Ø8.2 plain bore) and the slot the two finger arms pass through. One extrude along -Y.',
+    { w: D.W, zb: D.zBot, zt: D.zTop, t: D.frontT, d_bore: D.endBore, slot_half: D.slotHalf, sz0: D.slotZ[0], sz1: D.slotZ[1] }, D.L,
+    [rect('outline', [0, '(zb + zt) / 2'], 'w', 'zt - zb'), circle('bore', [0, 0], 'd_bore / 2'), rect('slot', [0, '(sz0 + sz1) / 2'], '2 * slot_half', 'sz1 - sz0')]),
 
-  'motor-shaft': tree('NEMA 17 shaft with its pilot boss: revolved about local Z; placed with its axis along +Y. One revolve.',
-    { d: D.shaft, L: D.shaftLen, d_boss: D.boss, l_boss: D.bossLen },
-    [
-      { op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'shaft', polygon: [[0, 0], ['d_boss/2', 0], ['d_boss/2', 'l_boss'], ['d/2', 'l_boss'], ['d/2', 'L'], [0, 'L']] }] },
-      { op: 'revolve', id: 'shaft', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } },
-    ]),
+  motor: tree('NEMA 17 pancake stepper body (42.3 square, 5 mm corner chamfers, 22 long) with an integrated Tr8×2 lead screw as its shaft (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.',
+    { s: D.motor, ch: D.motorChamfer, L: D.motorLen, y1: D.motorY + D.motorLen },
+    [{ op: 'sketch', id: 'body', plane: { base: 'XZ', offset: '-y1' }, loops: [{ name: 'body', polygon: [
+        ['-(s/2 - ch)', '-s/2'], ['s/2 - ch', '-s/2'], ['s/2', '-(s/2 - ch)'], ['s/2', 's/2 - ch'], ['s/2 - ch', 's/2'], ['-(s/2 - ch)', 's/2'], ['-s/2', 's/2 - ch'], ['-s/2', '-(s/2 - ch)'] ] }] },
+     { op: 'extrude', id: 'motor', profile: 'body', depth: 'L' }]),
 
-  coupler: tree('Rigid shaft coupler: a stepped bore (5 mm for the motor shaft, 8 mm for the screw) in a 20 mm cylinder. Clamp screws not modelled. One revolve about local Z.',
-    { D: D.couplerD, L: D.couplerLen, d_a: D.shaft, d_b: D.screw },
-    [
-      { op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d_a/2', 0], ['D/2', 0], ['D/2', 'L'], ['d_b/2', 'L'], ['d_b/2', 'L/2'], ['d_a/2', 'L/2']] }] },
-      { op: 'revolve', id: 'coupler', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } },
-    ]),
+  screw: tree('Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face to the front-wall bearing; the thread is not modelled. One extrude along local Z, placed along +Y.',
+    { d: D.screw, L: D.screwEnd - (D.motorY + D.motorLen) },
+    [{ op: 'sketch', id: 'section', loops: [circle('od', [0, 0], 'd/2')] }, { op: 'extrude', id: 'screw', profile: 'section', depth: 'L' }]),
 
-  screw: tree('T8 lead screw stand-in: an 8 mm cylinder; the thread (2 mm lead) is not modelled. One extrude along local Z, placed along +Y.',
-    { d: D.screw, L: D.screwLen },
-    [
-      { op: 'sketch', id: 'section', loops: [circle('od', [0, 0], 'd/2')] },
-      { op: 'extrude', id: 'screw', profile: 'section', depth: 'L' },
-    ]),
-
-  'end-block': tree('Far screw support: a block on the base with a plain 8.2 mm bearing bore, under the rails. One extrude along -Y.',
-    { w: D.endBlockW, t: D.endBlockT, y1: D.endBlockY + D.endBlockT, base_top: D.baseTop, top: 12, d_bore: D.endBore },
-    [
-      { op: 'sketch', id: 'face', plane: { base: 'XZ', offset: '-y1' }, loops: [rect('outline', [0, '(base_top + top) / 2'], 'w', 'top - base_top'), circle('bore', [0, 0], 'd_bore / 2')] },
-      { op: 'extrude', id: 'block', profile: 'face', depth: 't' },
-    ]),
-
-  nut: tree('T8 flange nut stand-in: 22 mm flange, 10 mm body, 8.4 mm bore (thread not modelled; the 0.2 mm is the thread clearance). Flange bolt holes are on the bracket, not here. One revolve about local Z.',
+  nut: tree('Tr8 flange nut stand-in: 22 mm flange, 10 mm body, 8.4 mm bore (thread not modelled; the 0.2 mm is the thread clearance). One revolve about local Z.',
     { d_bore: D.nutBore, d_body: D.nutBody, L: D.nutLen, d_flange: D.flange, t_flange: D.flangeT },
-    [
-      { op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d_bore/2', 0], ['d_flange/2', 0], ['d_flange/2', 't_flange'], ['d_body/2', 't_flange'], ['d_body/2', 'L'], ['d_bore/2', 'L']] }] },
-      { op: 'revolve', id: 'nut', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } },
-    ]),
+    [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d_bore/2', 0], ['d_flange/2', 0], ['d_flange/2', 't_flange'], ['d_body/2', 't_flange'], ['d_body/2', 'L'], ['d_bore/2', 'L']] }] },
+     { op: 'revolve', id: 'nut', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
-  'nut-bracket': tree('Nut carriage: a vertical plate (XZ) with the nut bore and the four flange bolt holes, a neck on top for the saddle. Slides 1 mm above the base; the links react its torque. One extrude along -Y.',
-    { w: D.nbW, t: D.nbT, bottom: D.nbBottom, shoulder: D.nbShoulder, top: D.nbTop, neck: D.nbNeck, d_bore: D.nbBore, pcd: D.flangePcd, d_bolt: D.flangeBolt },
-    [
-      { op: 'sketch', id: 'face', plane: 'XZ', loops: [
+  carriage: tree('Nut carriage: a vertical plate with the nut bore and the four flange bolt holes, a neck on top that keys into the yoke. Rides 2 mm above the floor; the yoke’s pins react its torque. One extrude along -Y.',
+    { w: D.carW, t: D.carT, bottom: D.carBot, shoulder: D.carShoulder, top: D.carTop, neck: D.neck, d_bore: D.nutBore + 1.8, pcd: D.nutPcd, d_bolt: D.nutBolt },
+    [{ op: 'sketch', id: 'face', plane: 'XZ', loops: [
         { name: 'outline', polygon: [['-w/2', 'bottom'], ['w/2', 'bottom'], ['w/2', 'shoulder'], ['neck/2', 'shoulder'], ['neck/2', 'top'], ['-neck/2', 'top'], ['-neck/2', 'shoulder'], ['-w/2', 'shoulder']] },
         circle('bore', [0, 0], 'd_bore / 2') ] },
-      { op: 'sketch', id: 'bolt', plane: 'XZ', loops: [circle(null, ['pcd/2 * cos(deg(45))', 'pcd/2 * sin(deg(45))'], 'd_bolt / 2')] },
-      { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: 4, name: 'bolt' },
-      { op: 'extrude', id: 'bracket', profile: ['face', 'bolts'], depth: 't' },
-    ]),
+     { op: 'sketch', id: 'bolt', plane: 'XZ', loops: [circle(null, ['pcd/2 * cos(deg(45))', 'pcd/2 * sin(deg(45))'], 'd_bolt / 2')] },
+     { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: 4, name: 'bolt' },
+     { op: 'extrude', id: 'carriage', profile: ['face', 'bolts'], depth: 't' }]),
 
-  saddle: tree('Pin saddle: a flat plate keyed over the nut bracket neck (the window), carrying the two link pins 40 mm apart. Retained by the neck laterally; a drop of adhesive or one grub screw vertically (not modelled). One extrude along +Z.',
-    { w: D.saddleW, h: D.saddleH, t: D.saddleT, z0: D.nbShoulder, win_w: D.nbNeck + 0.2, win_h: D.nbT + 0.2, span: D.pinSpan, d_pin: D.pin },
-    [
-      { op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', [0, 0], 'w', 'h'), rect('window', [0, 0], 'win_w', 'win_h')] },
-      { op: 'sketch', id: 'pin', plane: { base: 'XY', offset: 'z0' }, loops: [circle(null, ['-span/2', 0], 'd_pin / 2')] },
-      { op: 'pattern', id: 'pins', of: 'pin', kind: 'linear', count: 2, step: ['span', 0], name: 'pin' },
-      { op: 'extrude', id: 'saddle', profile: ['plate', 'pins'], depth: 't' },
-    ]),
+  yoke: tree('Cam yoke: a flat plate keyed over the carriage neck (the window) with two 45° slots. A pin on each finger rides its slot, so the nut’s travel along Y becomes the fingers’ travel along X, one to one. Local origin at the carriage centre; +y forward. One extrude along +Z.',
+    { w: D.yokeW, y0: D.yokeY[0], y1: D.yokeY[1], t: D.yokeT, z0: D.carShoulder, win_w: D.neck + 0.2, win_h: D.carT + 0.2, sw: D.slotW,
+      xc: D.xfClosed, lc: D.pinLine - D.closed, xo: D.xfClosed + D.travel, lo: D.pinLine - D.open },
+    [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [
+        rect('outline', [0, '(y0 + y1) / 2'], 'w', 'y1 - y0'), rect('window', [0, 0], 'win_w', 'win_h'),
+        slot('slotR', ['xc', 'lc'], ['xo', 'lo'], 'sw'), slot('slotL', ['-xc', 'lc'], ['-xo', 'lo'], 'sw') ] },
+     { op: 'extrude', id: 'yoke', profile: 'plate', depth: 't' }]),
 
-  link: tree('Link: a 72 mm dog-bone, 6 thick, with two 4.2 mm eyes (running clearance on 4 mm pins). Built along +X from eye 0; the assembly rotates it about Z. One extrude.',
-    { L: D.link, r: D.linkW / 2, t: D.linkT, d_eye: D.pinClear },
-    [
-      { op: 'sketch', id: 'outline', loops: [{ name: 'body', path: { from: [0, '-r'], segs: [
-        { to: ['L', '-r'] }, { arc: { via: ['L + r', 0], to: ['L', 'r'] } }, { to: [0, 'r'] }, { arc: { via: ['-r', 0], to: [0, '-r'] } } ] } }] },
-      { op: 'sketch', id: 'eye', loops: [circle(null, [0, 0], 'd_eye / 2')] },
-      { op: 'pattern', id: 'eyes', of: 'eye', kind: 'linear', count: 2, step: ['L', 0], name: 'eye' },
-      { op: 'extrude', id: 'link', profile: ['outline', 'eyes'], depth: 't' },
-    ]),
+  pin: tree('A 4 mm pin, h long, along +Z: pressed into a finger, riding a yoke slot. One extrude.',
+    { d: D.pin, h: D.fingerZ[1] - D.carShoulder },
+    [{ op: 'sketch', id: 'section', loops: [circle('od', [0, 0], 'd/2')] }, { op: 'extrude', id: 'pin', profile: 'section', depth: 'h' }]),
 
-  pin: tree('A 4 mm pin, h long, along +Z. Press fit in the saddle or finger, running fit in the link eye. One extrude.',
-    { d: D.pin, h: 14 },
-    [
-      { op: 'sketch', id: 'section', loops: [circle('od', [0, 0], 'd/2')] },
-      { op: 'extrude', id: 'pin', profile: 'section', depth: 'h' },
-    ]),
+  finger: tree('Finger: an 8 mm plate in plan — a tab inside the case with the cam pin (pressed) and a window that takes the slider neck from above, and an arm that runs forward through the front-wall slot to carry a pad (two Ø3.4 bolt holes). side = 1 right, -1 left. One extrude along +Z.',
+    { side: 1, half: D.tabHalf, y0: D.tabY[0], y1: D.tabY[1], y2: D.armY[1], arm: D.armW, inset: D.armInset, z0: D.fingerZ[0], t: D.fingerZ[1] - D.fingerZ[0],
+      win_w: D.sliderLen + 0.2, win_h: D.neckY[1] - D.neckY[0] + 0.2, yw: (D.neckY[0] + D.neckY[1]) / 2, y_pin: D.pinLine, d_pin: D.pin, d_bolt: D.padBolt, yb0: D.padY[0] + 4, yb1: D.padY[1] - 4 },
+    [{ op: 'sketch', id: 'plan', plane: { base: 'XY', offset: 'z0' }, loops: [
+        { name: 'outline', polygon: [['-side * half', 'y0'], ['side * half', 'y0'], ['side * half', 'y1'], ['side * (arm - inset)', 'y1'], ['side * (arm - inset)', 'y2'], ['-side * inset', 'y2'], ['-side * inset', 'y1'], ['-side * half', 'y1']] },
+        rect('window', [0, 'yw'], 'win_w', 'win_h'), circle('pin', [0, 'y_pin'], 'd_pin / 2'),
+        circle('boltA', ['-side * (inset - arm / 2)', 'yb0'], 'd_bolt / 2'), circle('boltB', ['-side * (inset - arm / 2)', 'yb1'], 'd_bolt / 2') ] },
+     { op: 'extrude', id: 'finger', profile: 'plan', depth: 't' }]),
 
-  rail: tree('A 6 mm round rail along X at height 16, at the y this instance is given. One extrude along +X.',
-    { d: D.railD, y: D.railY[0], z: D.railZ, half: D.railHalf },
-    [
-      { op: 'sketch', id: 'section', plane: { base: 'YZ', offset: '-half' }, loops: [circle('od', ['y', 'z'], 'd/2')] },
-      { op: 'extrude', id: 'rail', profile: 'section', depth: '2 * half' },
-    ]),
+  pad: tree('Fingertip pad: 20 tall, bolted to the finger arm from below (two M3 into heat-set inserts, Ø2.5 tap holes here). Its inner face is the gripping surface; the pads meet at x = 0 when closed. side = 1 right, -1 left. One extrude along +Z.',
+    { side: 1, w: D.padW, over: D.padOverhang, inset: D.armInset, y0: D.padY[0], y1: D.padY[1], z0: D.padZ[0], t: D.padZ[1] - D.padZ[0], d_tap: D.padTap, arm: D.armW },
+    [{ op: 'sketch', id: 'plan', plane: { base: 'XY', offset: 'z0' }, loops: [
+        rect('outline', ['side * (w / 2 - inset - over)', '(y0 + y1) / 2'], 'w', 'y1 - y0'),
+        circle('tapA', ['-side * (inset - arm / 2)', 'y0 + 4'], 'd_tap / 2'), circle('tapB', ['-side * (inset - arm / 2)', 'y1 - 4'], 'd_tap / 2') ] },
+     { op: 'extrude', id: 'pad', profile: 'plan', depth: 't' }]),
 
-  'rail-block': tree('Rail end block: stands on the base at each end of the rails and holds both (press fit). One extrude along +X.',
-    { t: D.railBlockT, w: D.railBlockW, yc: (D.railY[0] + D.railY[1]) / 2, base_top: D.baseTop, top: 24, ya: D.railY[0], yb: D.railY[1], z: D.railZ, d: D.railD },
-    [
-      { op: 'sketch', id: 'face', plane: 'YZ', loops: [rect('outline', ['yc', '(base_top + top) / 2'], 'w', 'top - base_top'), circle('railA', ['ya', 'z'], 'd/2'), circle('railB', ['yb', 'z'], 'd/2')] },
-      { op: 'extrude', id: 'block', profile: 'face', depth: 't' },
-    ]),
-
-  slider: tree('Finger slider: rides both rails on 6.2 mm bores (printed plain bearings), with a neck on top that keys into the finger. One extrude along +X.',
-    { L: D.sliderLen, y0: D.sliderY[0], y1: D.sliderY[1], z0: D.sliderZ[0], z1: D.sliderZ[1], n0: D.neckY[0], n1: D.neckY[1], zn: D.neckTop, ya: D.railY[0], yb: D.railY[1], zr: D.railZ, d: D.sliderBore },
-    [
-      { op: 'sketch', id: 'face', plane: 'YZ', loops: [
-        { name: 'outline', polygon: [['y0', 'z0'], ['y1', 'z0'], ['y1', 'z1'], ['n1', 'z1'], ['n1', 'zn'], ['n0', 'zn'], ['n0', 'z1'], ['y0', 'z1']] },
+  slider: tree('Finger slider: rides both rails on Ø6.2 bores (printed plain bearings) and hangs a neck down into the finger’s window. One extrude along +X.',
+    { L: D.sliderLen, y0: D.sliderY[0], y1: D.sliderY[1], z0: D.sliderZ[0], z1: D.sliderZ[1], n0: D.neckY[0], n1: D.neckY[1], zn: D.neckBot, ya: D.railY[0], yb: D.railY[1], zr: D.railZ, d: D.sliderBore },
+    [{ op: 'sketch', id: 'face', plane: 'YZ', loops: [
+        { name: 'outline', polygon: [['y0', 'z0'], ['n0', 'z0'], ['n0', 'zn'], ['n1', 'zn'], ['n1', 'z0'], ['y1', 'z0'], ['y1', 'z1'], ['y0', 'z1']] },
         circle('railA', ['ya', 'zr'], 'd/2'), circle('railB', ['yb', 'zr'], 'd/2') ] },
-      { op: 'extrude', id: 'slider', profile: 'face', depth: 'L' },
-    ]),
+     { op: 'extrude', id: 'slider', profile: 'face', depth: 'L' }]),
 
-  finger: tree('Finger: an L in plan, 12 thick — a mount that drops over the slider neck (the window) and an arm reaching inward to the pad face at x = 0 when closed. The link pin presses into the arm. side = 1 right, -1 left. One extrude along +Z.',
-    { side: 1, half: D.fingerHalf, reach: reach(), y0: D.sliderY[0], y1: D.sliderY[1], y2: D.armY[1], z0: D.fingerZ[0], t: D.fingerZ[1] - D.fingerZ[0], win_w: D.sliderLen + 0.2, win_h: D.neckY[1] - D.neckY[0] + 0.2, yn: (D.neckY[0] + D.neckY[1]) / 2, y_pin: D.pinLine, d_pin: D.pin },
-    [
-      { op: 'sketch', id: 'plan', plane: { base: 'XY', offset: 'z0' }, loops: [
-        { name: 'outline', polygon: [['-side * half', 'y0'], ['side * half', 'y0'], ['side * half', 'y2'], ['-side * reach', 'y2'], ['-side * reach', 'y1'], ['-side * half', 'y1']] },
-        rect('window', [0, 'yn'], 'win_w', 'win_h'), circle('pin', [0, 'y_pin'], 'd_pin / 2') ] },
-      { op: 'extrude', id: 'finger', profile: 'plan', depth: 't' },
-    ]),
+  rail: tree('A Ø6 rail along X, wall to wall, at the y this instance is given. One extrude along +X.',
+    { d: D.railD, y: D.railY[0], z: D.railZ, half: D.W / 2 },
+    [{ op: 'sketch', id: 'section', plane: { base: 'YZ', offset: '-half' }, loops: [circle('od', ['y', 'z'], 'd/2')] }, { op: 'extrude', id: 'rail', profile: 'section', depth: '2 * half' }]),
+
+  'side-wall': tree('Side wall: holds both rails (press fit). Built at local x 0..4; the assembly places one at each side. One extrude along +X.',
+    { t: D.wall, y0: D.rearT, y1: D.frontY, z0: D.zBot + D.wall, z1: D.zTop - D.wall, ya: D.railY[0], yb: D.railY[1], zr: D.railZ, d: D.railD },
+    [{ op: 'sketch', id: 'face', plane: 'YZ', loops: [rect('outline', ['(y0 + y1) / 2', '(z0 + z1) / 2'], 'y1 - y0', 'z1 - z0'), circle('railA', ['ya', 'zr'], 'd/2'), circle('railB', ['yb', 'zr'], 'd/2')] },
+     { op: 'extrude', id: 'wall', profile: 'face', depth: 't' }]),
+
+  floor: tree('Floor plate, between the rear plate and the front wall. One extrude along +Z.',
+    { w: D.W, y0: D.rearT, y1: D.frontY, t: D.wall, z0: D.zBot },
+    [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', [0, '(y0 + y1) / 2'], 'w', 'y1 - y0')] }, { op: 'extrude', id: 'floor', profile: 'plate', depth: 't' }]),
+
+  lid: tree('Lid, with an access window over the yoke and sliders. One extrude along +Z.',
+    { w: D.W, y0: D.rearT, y1: D.frontY, t: D.wall, z0: D.zTop - D.wall, win_w: D.W - 2 * D.wall - 16, win_y0: D.closed - 6, win_y1: D.frontY - 8 },
+    [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', [0, '(y0 + y1) / 2'], 'w', 'y1 - y0'), rect('window', [0, '(win_y0 + win_y1) / 2'], 'win_w', 'win_y1 - win_y0')] }, { op: 'extrude', id: 'lid', profile: 'plate', depth: 't' }]),
 };
 
 // ── the assembly, kinematic ──────────────────────────────────────────────────
-// Placements are expressions (cad.mino.mobi assemblies carry `params` and
-// `derived`, resolved at each instant with `t` and `theta` in scope). The
-// drive is a constant rpm, and a gripper cycle reverses, so the driven
-// component is a hidden clock: one clock turn is one grip cycle. The screw's
-// own angle `spin` swings 0 → stroke → 0 turns over that cycle, the nut
-// follows the screw by the lead, and the links, sliders and fingers follow
-// the nut by the closed form. `check.mjs --t` and the viewer's spin sweep it.
+// A constant-rpm drive turns a hidden clock: one turn is one grip cycle. The
+// screw angle `spin` swings 0 → stroke → 0 turns over that cycle, the nut
+// follows the screw by the lead, and the yoke's 45° slots move the fingers.
 const alongY = { axis: [1, 0, 0], deg: -90 }; // local +Z → world +Y
-const SPIN = '360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2'; // screw angle, degrees, over one clock turn
-export function assembly(yn = D.nutRef) {
-  const p = pose(yn);
+const SPIN = '360 * ((open - closed) / lead) * (1 - cos(deg(theta))) / 2';
+export function assembly() {
   const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
-  const params = { L: D.link, span: D.pinSpan, pinLine: D.pinLine, closed: D.nutClosed, open: D.nutOpen, lead: D.lead, linkZ: D.linkZ, saddleZ: D.nbShoulder, nutLen: D.nutLen, nbT: D.nbT, sliderLen: D.sliderLen, fingerZ: D.fingerZ[0] };
-  const derived = {
-    spin: SPIN,
-    yn: 'closed + lead * spin / 360',
-    dy: 'pinLine - yn',
-    x: 'sqrt(L^2 - dy^2)',
-    xf: 'span/2 + x',
-    phi: 'rad2deg(atan2(dy, x))',
-  };
+  const params = { closed: D.closed, open: D.open, lead: D.lead, xfClosed: D.xfClosed, pinLine: D.pinLine, nutLen: D.nutLen, carT: D.carT, yokeZ: D.carShoulder, fingerZ: D.fingerZ[0], sliderLen: D.sliderLen, wallX: D.W / 2 - D.wall };
+  const derived = { spin: SPIN, yn: 'closed + lead * spin / 360', xf: 'xfClosed + yn - closed' };
   const drivetrain = {
-    _: 'Shaft, coupler and screw, built along Z, tilted onto the +Y screw axis by this sub-assembly\u2019s placement, spinning together by `spin`.',
-    params: { closed: D.nutClosed, open: D.nutOpen, lead: D.lead },
+    _: 'The lead screw, built along Z, tilted onto the +Y axis by this sub-assembly’s placement, spinning by `spin`.',
+    params: { closed: D.closed, open: D.open, lead: D.lead },
     derived: { spin: SPIN },
-    parts: { 'motor-shaft': structuredClone(parts['motor-shaft']), coupler: structuredClone(parts.coupler), screw: structuredClone(parts.screw) },
-    components: [
-      c('shaft', 'motor-shaft', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
-      c('coupler', 'coupler', [0, 0, D.couplerAt + D.bracketT], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
-      c('screw', 'screw', [0, 0, D.screwAt + D.bracketT], { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
-    ],
+    parts: { screw: structuredClone(parts.screw) },
+    components: [c('screw', 'screw', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: 'spin' } })],
   };
   const components = [
-    c('clock', 'pin', [0, D.baseY[0] + 10, D.baseTop - D.baseT - 20], { params: { h: 1 }, hidden: true }),
-    c('base', 'base', [0, 0, 0]),
-    c('bracket', 'bracket', [0, 0, 0]),
+    c('clock', 'pin', [0, -20, D.zc], { params: { h: 1 }, hidden: true }),
+    c('rear-flange', 'rear-flange', [0, 0, 0]),
+    c('floor', 'floor', [0, 0, 0]),
+    c('lid', 'lid', [0, 0, 0]),
+    c('wall-r', 'side-wall', ['wallX', 0, 0]),
+    c('wall-l', 'side-wall', ['-wallX - 4', 0, 0]),
+    c('bulkhead', 'bulkhead', [0, 0, 0]),
+    c('front-wall', 'front-wall', [0, 0, 0]),
     c('motor', 'motor', [0, 0, 0]),
-    { id: 'drivetrain', assembly: drivetrain, at: [0, -D.bracketT, 0], rotate: alongY },
-    c('end-block', 'end-block', [0, 0, 0]),
+    { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
     c('nut', 'nut', [0, 'yn - nutLen / 2', 0], { rotate: alongY }),
-    c('nut-bracket', 'nut-bracket', [0, 'yn + nbT / 2', 0]),
-    c('saddle', 'saddle', [0, 'yn', 0]),
-    c('pin-r', 'pin', ['span / 2', 'yn', 'saddleZ']),
-    c('pin-l', 'pin', ['-span / 2', 'yn', 'saddleZ']),
-    c('link-r', 'link', ['span / 2', 'yn', 'linkZ'], { rotate: { axis: [0, 0, 1], deg: 'phi' } }),
-    c('link-l', 'link', ['-span / 2', 'yn', 'linkZ'], { rotate: { axis: [0, 0, 1], deg: '180 - phi' } }),
+    c('carriage', 'carriage', [0, 'yn + carT / 2', 0]),
+    c('yoke', 'yoke', [0, 'yn', 0]),
     c('rail-a', 'rail', [0, 0, 0]),
     c('rail-b', 'rail', [0, 0, 0], { params: { y: D.railY[1] } }),
-    c('rail-block-r', 'rail-block', [D.railBlockAt, 0, 0]),
-    c('rail-block-l', 'rail-block', [-D.railBlockAt - D.railBlockT, 0, 0]),
     c('slider-r', 'slider', ['xf - sliderLen / 2', 0, 0]),
     c('slider-l', 'slider', ['-xf - sliderLen / 2', 0, 0]),
     c('finger-r', 'finger', ['xf', 0, 0]),
     c('finger-l', 'finger', ['-xf', 0, 0], { params: { side: -1 } }),
-    c('finger-pin-r', 'pin', ['xf', 'pinLine', 'fingerZ'], { params: { h: D.linkZ + D.linkT + 2 - D.fingerZ[0] } }),
-    c('finger-pin-l', 'pin', ['-xf', 'pinLine', 'fingerZ'], { params: { h: D.linkZ + D.linkT + 2 - D.fingerZ[0] } }),
+    c('pin-r', 'pin', ['xf', 'pinLine', 'yokeZ']),
+    c('pin-l', 'pin', ['-xf', 'pinLine', 'yokeZ']),
+    c('pad-r', 'pad', ['xf', 0, 0]),
+    c('pad-l', 'pad', ['-xf', 0, 0], { params: { side: -1 } }),
   ];
   const fixed = (a, b) => ({ kind: 'fixed', a, b });
   const mates = [
-    fixed('pin-r', 'saddle'), fixed('pin-l', 'saddle'),                   // press fits
-    fixed('finger-pin-r', 'finger-r'), fixed('finger-pin-l', 'finger-l'),
-    fixed('rail-a', 'rail-block-r'), fixed('rail-a', 'rail-block-l'), fixed('rail-b', 'rail-block-r'), fixed('rail-b', 'rail-block-l'),
+    fixed('pin-r', 'finger-r'), fixed('pin-l', 'finger-l'),           // press fits
+    fixed('rail-a', 'wall-r'), fixed('rail-a', 'wall-l'), fixed('rail-b', 'wall-r'), fixed('rail-b', 'wall-l'),
+    fixed('pad-r', 'finger-r'), fixed('pad-l', 'finger-l'),           // bolted
+    fixed('finger-r', 'slider-r'), fixed('finger-l', 'slider-l'),     // keyed on the neck
   ];
-  const partsMap = Object.fromEntries(Object.entries(parts).filter(([k]) => !(k in drivetrain.parts)).map(([k, v]) => [k, structuredClone(v)]));
+  const partsMap = Object.fromEntries(Object.entries(parts).filter(([k]) => k !== 'screw').map(([k, v]) => [k, structuredClone(v)]));
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
     name: 'gripper',
-    _: `Parallel-jaw gripper: NEMA 17 \u2192 coupler \u2192 T8 lead screw \u2192 flange nut in a bracket \u2192 saddle with two pins \u2192 two ${D.link} mm links \u2192 two fingers on sliders riding two 6 mm rails. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \`spin\` swings 0 \u2192 ${(D.nutOpen - D.nutClosed) / D.lead} turns \u2192 0 over the cycle, the nut follows by the ${D.lead} mm lead (y = ${D.nutClosed} closed \u2026 ${D.nutOpen} open), and the links, sliders and fingers follow the nut: finger pin x = span/2 + \u221a(L\u00b2 \u2212 (pinLine \u2212 yn)\u00b2). Pads meet at x = 0 when closed; ${round(pose(D.nutOpen).gap, 1)} mm apart when open. Press spin.`,
+    _: `Parallel-jaw robot gripper, v2: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×${D.lead} screw → flange nut in a carriage → cam yoke with two 45° slots → pins on two fingers under sliders on two Ø6 rails → replaceable pads outside the case. ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm case, pads to ${D.padY[1]}. Kinematic: the drive turns a hidden clock (one turn = one grip cycle); the screw angle \\\`spin\\\` swings 0 → ${D.travel / D.lead} turns → 0, the nut follows by the lead (y = ${D.closed} closed … ${D.open} open), and the fingers follow one to one: opening 0 → ${2 * D.travel} mm. Press spin.`,
     params, derived,
     parts: partsMap,
     components, mates,
-    drive: { component: 'clock', rpm: 5 },
+    drive: { component: 'clock', rpm: D.rpm },
   };
 }
 
@@ -282,53 +242,59 @@ export function assembly(yn = D.nutRef) {
 export function audit() {
   const out = [];
   const ok = (name, cond, detail) => out.push({ name, ok: cond, detail });
-  const r = reach();
-  for (const yn of [D.nutClosed, D.nutRef, D.nutOpen]) {
+  const inner = D.W / 2 - D.wall;
+  for (const yn of [D.closed, (D.closed + D.open) / 2, D.open]) {
     const p = pose(yn);
-    ok(`nut ${yn}: nut clear of coupler`, yn - D.nutLen / 2 > D.couplerAt + D.couplerLen, `${yn - D.nutLen / 2} > ${D.couplerAt + D.couplerLen}`);
-    ok(`nut ${yn}: nut clear of end block`, yn + D.nutLen / 2 < D.endBlockY, `${yn + D.nutLen / 2} < ${D.endBlockY}`);
-    ok(`nut ${yn}: saddle clear of fingers`, yn + D.saddleH / 2 < D.sliderY[0], `${yn + D.saddleH / 2} < ${D.sliderY[0]}`);
-    ok(`nut ${yn}: finger mount inside the rail blocks`, p.xf + D.fingerHalf < D.railBlockAt, `${round(p.xf + D.fingerHalf)} < ${D.railBlockAt}`);
-    ok(`nut ${yn}: pads do not cross`, p.xf - r >= -1e-9, `gap ${round(p.gap)}`);
-    ok(`nut ${yn}: link not near lock`, p.dy / D.link < 0.97, `Δy/L = ${round(p.dy / D.link, 3)}`);
+    ok(`nut ${yn}: nut clear of bulkhead`, yn - D.nutLen / 2 > D.motorY + D.motorLen + D.bulkheadT, `${yn - D.nutLen / 2} > ${D.motorY + D.motorLen + D.bulkheadT}`);
+    ok(`nut ${yn}: yoke inside the case`, yn + D.yokeY[0] > D.motorY + D.motorLen + D.bulkheadT && yn + D.yokeY[1] < D.frontY, `${yn + D.yokeY[0]} … ${yn + D.yokeY[1]}`);
+    ok(`nut ${yn}: finger tab inside the walls`, p.xf + D.tabHalf < inner, `${p.xf + D.tabHalf} < ${inner}`);
+    ok(`nut ${yn}: slider inside the walls`, p.xf + D.sliderLen / 2 < inner, `${p.xf + D.sliderLen / 2} < ${inner}`);
+    ok(`nut ${yn}: tabs do not cross`, p.xf - D.tabHalf > 0, `${p.xf - D.tabHalf} > 0`);
+    ok(`nut ${yn}: arm inside the front slot`, p.xf + D.armW - D.armInset < D.slotHalf, `${p.xf + D.armW - D.armInset} < ${D.slotHalf}`);
+    ok(`nut ${yn}: pads do not cross`, p.xf - D.armInset - D.padOverhang >= -1e-9, `gap ${round(p.gap)}`);
+    ok(`nut ${yn}: pin on its slot line`, Math.abs((p.xf - D.xfClosed) - ((D.pinLine - D.closed) - p.ly)) < 1e-9, `x ${p.xf}, local y ${p.ly}`);
   }
-  ok('motor body above the base', -D.motor / 2 > D.baseTop, `${-D.motor / 2} > ${D.baseTop}`);
-  ok('shaft ends inside the coupler 8 mm bore', -D.bracketT + D.shaftLen > D.couplerAt + D.couplerLen / 2 && -D.bracketT + D.shaftLen < D.screwAt, `${-D.bracketT + D.shaftLen}`);
-  ok('screw starts inside the coupler 8 mm bore', D.screwAt > D.couplerAt + D.couplerLen / 2 && D.screwAt < D.couplerAt + D.couplerLen, `${D.screwAt}`);
-  ok('screw passes the end block', D.screwAt + D.screwLen > D.endBlockY + D.endBlockT, `${D.screwAt + D.screwLen} > ${D.endBlockY + D.endBlockT}`);
-  ok('rails clear the end block', D.railZ - D.railD / 2 > 12, `${D.railZ - D.railD / 2} > 12`);
-  ok('links above the fingers', D.linkZ >= D.fingerZ[1], `${D.linkZ} ≥ ${D.fingerZ[1]}`);
-  ok('links start on the bracket top', D.linkZ === D.nbTop && D.nbShoulder + D.saddleT === D.nbTop, `${D.linkZ}`);
-  ok('finger sits on the slider shoulders', D.fingerZ[0] === D.sliderZ[1] && D.neckTop < D.fingerZ[1], `${D.fingerZ[0]} = ${D.sliderZ[1]}`);
-  ok('closed pads meet at x = 0', Math.abs(pose(D.nutClosed).xf - r) < 0.01, `x_f ${round(pose(D.nutClosed).xf, 3)} vs reach ${r}`);
+  ok('yoke inside the walls', D.yokeW / 2 < inner, `${D.yokeW / 2} < ${inner}`);
+  ok('motor inside the case', D.motor / 2 < inner && -D.motor / 2 > D.zBot + D.wall && D.motor / 2 < D.zTop - D.wall, `±${D.motor / 2}`);
+  ok('nut flange under the yoke', D.flange / 2 < D.carShoulder, `${D.flange / 2} < ${D.carShoulder}`);
+  ok('carriage above the floor', D.carBot > D.zBot + D.wall, `${D.carBot} > ${D.zBot + D.wall}`);
+  ok('screw reaches into the front wall', D.screwEnd > D.frontY && D.screwEnd < D.frontY + D.frontT, `${D.screwEnd}`);
+  ok('flange bolts inside the rear plate', D.zc + D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 < D.zTop && D.zc - D.flangePcd / 2 * Math.SQRT1_2 - D.flangeBolt / 2 > D.zBot, `z ${round(D.zc - 17.68 - 3.3)} … ${round(D.zc + 17.68 + 3.3)}`);
+  ok('robot boss clears the motor', D.rearT + 6 <= D.motorY, `${D.rearT + 6} ≤ ${D.motorY}`);
+  ok('slider neck reaches into the finger, above the yoke', D.neckBot >= D.fingerZ[0] && D.neckBot < D.fingerZ[1] && D.fingerZ[0] >= D.carShoulder + D.yokeT, `${D.neckBot}`);
+  ok('sliders under the lid', D.sliderZ[1] < D.zTop - D.wall, `${D.sliderZ[1]} < ${D.zTop - D.wall}`);
+  ok('finger arm through the front slot', D.fingerZ[0] > D.slotZ[0] && D.fingerZ[1] < D.slotZ[1], `${D.fingerZ} in ${D.slotZ}`);
+  ok('slider clear of the front wall', D.sliderY[1] < D.frontY, `${D.sliderY[1]} < ${D.frontY}`);
   return out;
 }
 
 // ── closed forms, for the report ─────────────────────────────────────────────
+const A = Math.PI / 4;
 export const expected = {
-  _: 'Closed-form volumes of the parts the mechanism is measured against; mm³. The kernel must land within tol (relative).',
-  base: { volume: 2 * D.baseX * (D.baseY[1] - D.baseY[0]) * D.baseT - 4 * Math.PI * (D.mountD / 2) ** 2 * D.baseT, tol: 0.002 },
-  bracket: { volume: D.bracketW * D.bracketH * D.bracketT - Math.PI * (D.pilot / 2) ** 2 * D.bracketT - 4 * Math.PI * (D.bolt / 2) ** 2 * D.bracketT, tol: 0.002 },
-  rail: { volume: Math.PI * (D.railD / 2) ** 2 * 2 * D.railHalf, tol: 0.002 },
-  screw: { volume: Math.PI * (D.screw / 2) ** 2 * D.screwLen, tol: 0.002 },
-  saddle: { volume: (D.saddleW * D.saddleH - (D.nbNeck + 0.2) * (D.nbT + 0.2) - 2 * Math.PI * (D.pin / 2) ** 2) * D.saddleT, tol: 0.002 },
-  link: { volume: (D.link * D.linkW + Math.PI * (D.linkW / 2) ** 2 - 2 * Math.PI * (D.pinClear / 2) ** 2) * D.linkT, tol: 0.002 },
+  _: 'Closed-form volumes of the parts that have one; mm³. The kernel must land within tol (relative).',
+  'rear-flange': { volume: (D.W * (D.zTop - D.zBot) - A * D.boss ** 2 - A * D.dowel ** 2 - 4 * A * D.flangeBolt ** 2) * D.rearT, tol: 0.002 },
+  'front-wall': { volume: (D.W * (D.zTop - D.zBot) - A * D.endBore ** 2 - 2 * D.slotHalf * (D.slotZ[1] - D.slotZ[0])) * D.frontT, tol: 0.002 },
+  yoke: { volume: (D.yokeW * (D.yokeY[1] - D.yokeY[0]) - (D.neck + 0.2) * (D.carT + 0.2) - 2 * (D.slotW * Math.SQRT2 * D.travel + A * D.slotW ** 2)) * D.yokeT, tol: 0.002 },
+  rail: { volume: A * D.railD ** 2 * D.W, tol: 0.002 },
+  screw: { volume: A * D.screw ** 2 * (D.screwEnd - D.motorY - D.motorLen), tol: 0.002 },
   nut: { volume: Math.PI * ((D.flange / 2) ** 2 * D.flangeT + (D.nutBody / 2) ** 2 * (D.nutLen - D.flangeT) - (D.nutBore / 2) ** 2 * D.nutLen), tol: 0.002 },
+  floor: { volume: D.W * (D.frontY - D.rearT) * D.wall, tol: 0.002 },
+  'side-wall': { volume: ((D.frontY - D.rearT) * (D.zTop - D.zBot - 2 * D.wall) - 2 * A * D.railD ** 2) * D.wall, tol: 0.002 },
 };
 
 // ── main ─────────────────────────────────────────────────────────────────────
 if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
-  const yn = Number(opt('--nut', D.nutRef));
   const out = opt('--out', path.dirname(new URL(import.meta.url).pathname));
-  const asm = assembly(yn);
+  const asm = assembly();
   if (has('--print')) { process.stdout.write(JSON.stringify(asm, null, 1) + '\n'); process.exit(0); }
   fs.mkdirSync(path.join(out, 'parts'), { recursive: true });
+  for (const f of fs.readdirSync(path.join(out, 'parts'))) if (!(f.replace(/\.json$/, '') in parts)) fs.unlinkSync(path.join(out, 'parts', f));
   for (const [k, v] of Object.entries(parts)) fs.writeFileSync(path.join(out, 'parts', `${k}.json`), JSON.stringify(v, null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'gripper.json'), JSON.stringify(asm, null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'expected.json'), JSON.stringify(expected, null, 1) + '\n');
-  const rows = [D.nutClosed, D.nutRef, D.nutOpen].map((y) => { const p = pose(y); return { nut_y: y, finger_x: round(p.xf), pad_gap: round(p.gap, 1), link_deg: round(p.phi, 1), finger_per_nut: round(1 / p.ratio, 2) }; });
+  const rows = [D.closed, (D.closed + D.open) / 2, D.open].map((y) => { const p = pose(y); return { nut_y: y, finger_x: p.xf, opening: p.gap }; });
   console.table(rows);
   const a = audit(); for (const r of a) console.log(`${r.ok ? '✓' : '✗'} ${r.name}  ${r.detail}`);
-  console.log(`stroke ${D.nutOpen - D.nutClosed} mm of nut = ${(D.nutOpen - D.nutClosed) / D.lead} turns of a T8×${D.lead}; one grip cycle per clock turn (${60 / 5} s at rpm 5); wrote ${Object.keys(parts).length} parts + gripper.json (kinematic) to ${out}`);
+  console.log(`case ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm, pads to y = ${D.padY[1]}; stroke ${D.travel} mm of nut = ${D.travel / D.lead} turns of Tr8×${D.lead}; one grip cycle per clock turn (${60 / D.rpm} s at rpm ${D.rpm}); wrote ${Object.keys(parts).length} parts + gripper.json to ${out}`);
   if (a.some((r) => !r.ok)) process.exit(1);
 }

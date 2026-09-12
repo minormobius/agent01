@@ -11,10 +11,11 @@
 // --write    actually write, as CAD_HANDLE / CAD_APP_PASSWORD (an app password). Without
 //            it, this prints the plan and touches nothing.
 //
-// Paths in the repo: gripper/parts/<name> for the sixteen parts, gripper/assembly for
-// the assembly, whose `parts` map is rewritten from inline trees to the AT URIs of the
-// published part heads — so the record graph references itself and anyone can fork a
-// part on its own. Idempotent the way the bench publisher is: a file whose head holds
+// Paths in the repo: gripper/parts/<name> for the parts, gripper/assembly for the
+// assembly, whose `parts` map is rewritten from inline trees to the AT URIs of the
+// published part REVISIONS — so the record graph references itself, an assembly
+// revision always rebuilds the same way, and anyone can fork a part on its own.
+// Parts an earlier version used are moved under gripper/v1/, URIs intact. Idempotent the way the bench publisher is: a file whose head holds
 // the same canonical tree is left alone; a changed tree becomes one new revision whose
 // parent is the old head.
 import fs from 'node:fs';
@@ -39,24 +40,33 @@ async function open() {
   return new Drive(b);
 }
 const drive = await open();
-const uris = new Map(); let wrote = 0, kept = 0;
+const uris = new Map(), revs = new Map(); let wrote = 0, kept = 0;
 async function publish(p, tree, { kind, name }) {
   if (!drive) { console.log(`  plan  ${p}`); return; }
   const existing = await drive.get(p);
-  if (existing && canonical(existing.revision.tree) === canonical(tree)) { kept++; uris.set(name, existing.uri); console.log(`  same  ${p}  ${existing.uri}`); return; }
+  if (existing && canonical(existing.revision.tree) === canonical(tree)) { kept++; uris.set(name, existing.uri); revs.set(name, existing.revision.uri); console.log(`  same  ${p}  ${existing.uri}`); return; }
   const r = report(name);
   const f = await drive.put(p, tree, {
     kind, description: tree._, message: existing ? `gripper: ${name} updated` : `gripper: ${name}`,
     kernel: r?.kernel, invariants: r?.invariants,
   });
-  wrote++; uris.set(name, f.uri);
+  wrote++; uris.set(name, f.uri); revs.set(name, f.revision.uri);
   console.log(`  ${existing ? 'new revision' : 'created'}  ${p}  ${f.uri}`);
 }
 console.log(write ? `publishing (nut at ${nut})` : `plan, no writes (nut at ${nut})`);
+// parts an earlier version used and this one does not: moved under gripper/v1/ (the URI survives a rename, so
+// the first assembly revision still finds them)
+const RETIRED = ['base', 'bracket', 'end-block', 'rail-block', 'saddle', 'link', 'coupler', 'motor-shaft', 'nut-bracket'];
+for (const name of RETIRED) {
+  if (name in parts) continue;
+  if (!drive) { console.log(`  plan  gripper/parts/${name} → gripper/v1/${name} (if present)`); continue; }
+  if (await drive.find(`gripper/parts/${name}`)) { await drive.rename(`gripper/parts/${name}`, `gripper/v1/${name}`); console.log(`  moved  gripper/parts/${name} → gripper/v1/${name}`); }
+}
 for (const [name, tree] of Object.entries(parts)) await publish(`gripper/parts/${name}`, tree, { kind: 'part', name });
 const asm = assembly(nut);
 const rewrite = (a) => {
-  for (const k of Object.keys(a.parts || {})) { const u = uris.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
+  // pinned to the REVISION each part was published as, so this assembly revision rebuilds the same way forever
+  for (const k of Object.keys(a.parts || {})) { const u = revs.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
   for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
 };
 rewrite(asm);

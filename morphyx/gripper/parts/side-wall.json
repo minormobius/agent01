@@ -1,16 +1,16 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Rail end block: stands on the base at each end of the rails and holds both (press fit). One extrude along +X.",
+ "_": "Side wall: holds both rails (press fit). Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
  "params": {
-  "t": 8,
-  "w": 36,
-  "yc": 90,
-  "base_top": -24,
-  "top": 24,
-  "ya": 82,
-  "yb": 98,
-  "z": 16,
+  "t": 4,
+  "y0": 8,
+  "y1": 98,
+  "z0": -23,
+  "z1": 40,
+  "ya": 72,
+  "yb": 84,
+  "zr": 32,
   "d": 6
  },
  "features": [
@@ -23,11 +23,11 @@
      "name": "outline",
      "rect": {
       "c": [
-       "yc",
-       "(base_top + top) / 2"
+       "(y0 + y1) / 2",
+       "(z0 + z1) / 2"
       ],
-      "w": "w",
-      "h": "top - base_top"
+      "w": "y1 - y0",
+      "h": "z1 - z0"
      }
     },
     {
@@ -35,7 +35,7 @@
      "circle": {
       "c": [
        "ya",
-       "z"
+       "zr"
       ],
       "r": "d/2"
      }
@@ -45,7 +45,7 @@
      "circle": {
       "c": [
        "yb",
-       "z"
+       "zr"
       ],
       "r": "d/2"
      }
@@ -54,7 +54,7 @@
   },
   {
    "op": "extrude",
-   "id": "block",
+   "id": "wall",
    "profile": "face",
    "depth": "t"
   }

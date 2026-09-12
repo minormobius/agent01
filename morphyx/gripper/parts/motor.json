@@ -1,12 +1,12 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "NEMA 17 body: a 42.3 mm square with 5 mm corner chamfers, 40 long, behind the bracket (y in [-45, -5]). Stand-in geometry. One extrude along -Y.",
+ "_": "NEMA 17 pancake stepper body (42.3 square, 5 mm corner chamfers, 22 long) with an integrated Tr8×2 lead screw as its shaft (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.",
  "params": {
   "s": 42.3,
   "ch": 5,
-  "L": 40,
-  "face_y": -5
+  "L": 22,
+  "y1": 36
  },
  "features": [
   {
@@ -14,7 +14,7 @@
    "id": "body",
    "plane": {
     "base": "XZ",
-    "offset": "-face_y"
+    "offset": "-y1"
    },
    "loops": [
     {

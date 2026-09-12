@@ -1,10 +1,10 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "T8 lead screw stand-in: an 8 mm cylinder; the thread (2 mm lead) is not modelled. One extrude along local Z, placed along +Y.",
+ "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face to the front-wall bearing; the thread is not modelled. One extrude along local Z, placed along +Y.",
  "params": {
   "d": 8,
-  "L": 64
+  "L": 67
  },
  "features": [
   {

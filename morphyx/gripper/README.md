@@ -1,9 +1,13 @@
-# gripper — a parallel-jaw gripper for cad.mino.mobi
+# gripper — a parallel-jaw robot gripper for cad.mino.mobi
 
-A stepper turns a lead screw. The lead nut, in a bracket, carries a saddle
-with two pins. Two links run from those pins to two fingers that ride on rails
-across the screw axis. Nut toward the motor: the fingers close. Nut toward the
-rails: they open. Sixteen parts, one assembly, every part one sweep.
+Version 2: packaged for a robot arm. An ISO 9409-1-50-4-M6 tool flange is
+the rear plate of an 88 × 71 × 104 mm case. Inside: a NEMA 17 pancake
+stepper with an integrated Tr8×2 lead screw, a flange nut in a carriage, a
+cam yoke with two 45° slots, and two fingers under sliders on two Ø6 rails.
+The fingers reach out through a slot in the front wall to replaceable pads.
+Opening 0 → 40 mm in 10 turns. Sixteen parts, one assembly, every part one
+sweep. Version 1 (the plate-mounted link gripper) is the first revisions in
+the same files, and its parts live on under `gripper/v1/`.
 
 This directory is the source. The published copy lives in the morphyx repo as
 `cad.mino.mobi` files (`gripper/parts/<name>`, `gripper/assembly`), written by
@@ -13,12 +17,12 @@ the bench trees, the `/mcp` server, and the tangled mirror.
 
 | | |
 |---|---|
-| `gripper.mjs` | the design: every part as a parametric tree, the pose solver, an analytic clearance audit, closed forms. `node gripper.mjs --nut 53` writes `parts/`, `gripper.json`, `expected.json` |
+| `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, an analytic clearance audit, closed forms. `node gripper.mjs` writes `parts/`, `gripper.json`, `expected.json` |
 | `parts/*.json` | the sixteen part trees, as generated |
 | `gripper.json` | the assembly, kinematic (a clock drive, everything derived), parts inline — paste into the viewer's tree tab and press spin |
 | `expected.json` | closed-form volumes for the parts that have one |
-| `publish.mjs` | writes parts then the assembly (parts rewritten to AT URIs) into a repo; idempotent |
-| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, interference at three poses, publish on request |
+| `publish.mjs` | writes parts then the assembly (parts pinned to revision URIs) into a repo; idempotent; retires v1-only parts under `gripper/v1/` |
+| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, interference through a cycle, publish on request |
 
 ## How cad.mino.mobi works, for the next agent
 
@@ -53,115 +57,111 @@ the bench trees, the `/mcp` server, and the tangled mirror.
 
 ## The mechanism
 
-World frame in mm: X is jaw travel, Y the screw axis (+Y away from the motor),
-Z up. The screw axis is the line x = 0, z = 0; the base top is z = −24.
+World frame in mm: X is jaw travel, Y the screw axis (+Y forward, toward the
+pads), Z up. The screw axis is the line x = 0, z = 0; y = 0 is the flange face.
+The tool centre line is the case centre, 8.5 above the screw axis.
 
 ```
-                 y=111  ● finger pin ──── pad face at x = 0 when closed
-  rails y=82,98  ═══════╪══════ sliders ride two Ø6 rails, z = 16
-                        │ link L = 72
-  saddle pins    ●──────┘ at x = ±20, on the nut bracket neck, z = 30..36
-  nut bracket    ▮ y = yn (44 closed … 62 open), Ø10.2 bore, 4 × Ø3.5 on PCD 16
-  screw          │ T8, y = 21..85, end bearing block y = 76..84
-  coupler        ▮ Ø20 × 25, Ø5 / Ø8 stepped bore, y = 4..29
-  motor          ▮ NEMA 17 behind a 50 × 50 × 5 bracket at y = −5..0
+  y=0    rear plate = ISO 9409-1-50-4-M6 flange: 4 × Ø6.6 on PCD 50, Ø6 dowel, Ø32 boss hole
+  14–36  NEMA 17 pancake, Tr8×2 shaft; bulkhead 36–42 takes its pilot and 4 × M3
+  54–74  nut carriage stroke (closed → open); yoke keyed on its neck, z 12–18, slots at 45°
+  62–88  finger tabs, z 18–26, pin at y 68 riding the slot; sliders above on rails y 72, 84 at z 32
+  98–104 front wall: screw end bearing Ø8.2 and a 66 × 10 slot for the arms
+  108–126 pads, 20 tall, bolted to the arms; they meet at x = 0 when closed
 ```
 
-The document is kinematic. The drive turns a hidden `clock` component at
-5 rpm, so one turn is one grip cycle of 12 s, and everything else is derived:
+Why not the links: a link pair needs width ≈ pin span + link length, which is
+what made v1 150 mm across. A 45° cam slot needs only the opening, and its
+force is highest at closed. Finger travel equals nut travel.
+
+The document is kinematic. The drive turns a hidden `clock` at 5 rpm, so one
+turn is one grip cycle of 12 s, and everything else is derived:
 
 ```
-spin = 360 · (open − closed)/lead · (1 − cos θ)/2     screw angle: 0 → 9 turns → 0
-yn   = closed + lead · spin/360                        nut bracket centre, 44 → 62 → 44
-xf   = span/2 + √(L² − (pinLine − yn)²)               finger pin x
-phi  = atan2(pinLine − yn, xf − span/2)               link angle
+spin = 360 · (open − closed)/lead · (1 − cos θ)/2     screw angle: 0 → 10 turns → 0
+yn   = closed + lead · spin/360                        carriage centre, 54 → 74 → 54
+xf   = xfClosed + (yn − closed)                        finger pin x, 10 → 30 → 10; opening = 2(xf − 10)
 ```
 
-The shaft, coupler and screw sit in a `drivetrain` sub-assembly tilted onto
-the +Y axis, each rotated about its own Z by `spin`, so the screw visibly
-reverses when the gripper does. A stepper reverses; a constant-rpm drive
-cannot, which is why the driven component is a clock rather than the shaft.
+The screw sits in a `drivetrain` sub-assembly tilted onto +Y and rotated about
+its own Z by `spin`, so it visibly reverses when the gripper does. A stepper
+reverses; a constant-rpm drive cannot, which is why the driven component is a
+clock rather than the motor.
 
-| nut y | finger pin x | pad gap | link angle | finger travel per mm of nut |
-|---|---|---|---|---|
-| 44 (closed) | 46.36 | 0 | 68.5° | 2.54 |
-| 53 (reference) | 62.66 | 32.6 | 53.7° | 1.36 |
-| 62 (open) | 72.75 | 52.8 | 42.9° | 0.93 |
+| nut y | finger pin x | opening |
+|---|---|---|
+| 54 (closed) | 10 | 0 |
+| 64 | 20 | 20 |
+| 74 (open) | 30 | 40 |
 
-Stroke: 18 mm of nut = 9 turns of a T8×2 = 1800 full steps; ~3 s at 180 rpm.
-Grip force per finger ≈ nut thrust / (2 × 2.54) at closed; a NEMA 17 on a T8×2
-(≈ 0.4 N·m, ~30 % screw efficiency) gives ~370 N of thrust, so ~70 N per finger.
-The links are steepest at closed, which is the low-force end of this linkage;
-crossing the links (nut pins outboard, finger pins inboard) inverts that and is
-the change to make if grip force matters more than opening.
+Grip force per finger ≈ nut thrust / 2 at 45° before friction. A pancake
+NEMA 17 (≈ 0.13 N·m) on Tr8×2 at ~30 % efficiency gives ~120 N of thrust,
+so ~60 N per finger; a full-length NEMA 17 (0.4 N·m) triples that at the
+cost of 18 mm of length (`motorLen`).
 
 ## The parts
 
 Every part builds exact on Truck, watertight, every face named (verified
-through `/mcp` for all sixteen plus the mirrored finger).
+through `/mcp` for all sixteen plus the mirrored finger and pad).
 
 | part | sweep | key faces | holds |
 |---|---|---|---|
-| base | XY extrude, 220 × 173 × 6 | `base.mount[k][j]` Ø4.5 | everything |
-| bracket | XZ extrude, 50 × 50 × 5 | `bracket.pilot[k]` Ø22.5, `bracket.bolt[k][j]` Ø3.4 on 31 | the motor |
-| motor | XZ extrude, 42.3 square, 5 chamfers, 40 long | — | stand-in |
-| motor-shaft | revolve, Ø5 × 24 with Ø22 × 2 boss | — | fixed to coupler |
-| coupler | revolve, Ø20 × 25, Ø5 then Ø8 bore | — | fixed to shaft and screw |
-| screw | extrude circle, Ø8 × 64 | `screw.od[k]` | thread not modelled |
-| end-block | XZ extrude, 30 × 36 × 8 | `block.bore[k]` Ø8.2 | far screw end |
+| rear-flange | XZ extrude, 88 × 71 × 8 | `plate.bolt[k][j]` Ø6.6 PCD 50, `plate.dowel[k]`, `plate.boss[k]` Ø32 | the robot |
+| floor, lid | XY extrude, 88 × 90 × 4 | `lid.window[k]` | the box; the lid has an access window |
+| side-wall (×2) | YZ extrude, 90 × 63 × 4 | `wall.railA[k]`, `wall.railB[k]` Ø6 | the rails, press fit |
+| bulkhead | XZ extrude, 79 × 62 × 6 | `plate.pilot[k]` Ø22.5, `plate.bolt[k][j]` Ø3.4 on 31 | the motor |
+| front-wall | XZ extrude, 88 × 71 × 6 | `plate.bore[k]` Ø8.2, `plate.slot[k]` | the screw end; the arms pass through |
+| motor | XZ extrude, 42.3 square, 22 long | — | stand-in; its shaft is the screw |
+| screw | extrude circle, Ø8 × 67 | `screw.od[k]` | thread not modelled |
 | nut | revolve, Ø22 flange, Ø10 body, Ø8.4 bore | — | thread clearance 0.2 |
-| nut-bracket | XZ extrude, 40 wide, neck 30 × 6 on top | `bracket.bore[k]` Ø10.2, `bracket.bolt[k][j]` Ø3.5 PCD 16 | the nut, the saddle |
-| saddle | XY extrude, 52 × 16 × 6, window 30.2 × 8.2 | `saddle.pin[k][j]` Ø4, 40 apart | the link pins |
-| link | XY extrude, 72 dog-bone, Ø4.2 eyes | `link.eye[k][j]` | running fit on Ø4 pins |
-| pin | extrude circle Ø4 × h | `pin.od[k]` | h = 14 (saddle), 22 (finger) |
-| rail | YZ extrude, Ø6 × 190 | `rail.od[k]` | y = 82, 98 by `params` |
-| rail-block | YZ extrude, 36 × 48 × 8 | `block.railA[k]`, `block.railB[k]` Ø6 | press fit |
-| slider | YZ extrude, 28 × 12 with a 12 × 6 neck | `slider.railA[k]`, `slider.railB[k]` Ø6.2 | running fit |
-| finger | XY extrude, L in plan, 12 thick, window 24.2 × 12.2 | `finger.outline[3]` pad face, `finger.pin[k]` Ø4 | `side: -1` mirrors |
+| carriage | XZ extrude, 40 wide, neck 30 × 6 on top | `carriage.bore[k]` Ø10.2, `carriage.bolt[k][j]` Ø3.5 PCD 16 | the nut, the yoke |
+| yoke | XY extrude, 72 × 30 × 6, window 30.2 × 8.2 | `yoke.slotR[k]`, `yoke.slotL[k]` 4.2 wide at 45° | the finger pins |
+| pin (×2) | extrude circle Ø4 × 14 | `pin.od[k]` | press in the finger, runs in the slot |
+| finger (×2) | XY extrude, 8 thick: tab + arm, window 12.2 × 8.2 | `finger.pin[k]` Ø4, `finger.boltA/B[k]` Ø3.4 | `side: -1` mirrors |
+| slider (×2) | YZ extrude, 24 × 12 with a 8 × 6 neck hanging down | `slider.railA[k]`, `slider.railB[k]` Ø6.2 | running fit |
+| pad (×2) | XY extrude, 12 × 18 × 20 | `pad.outline[k]` gripping face, `pad.tapA/B[k]` Ø2.5 | `side: -1` mirrors |
+| rail (×2) | YZ extrude, Ø6 × 88 | `rail.od[k]` | y = 72, 84 by `params` |
 
-Measured from exact geometry through `/mcp`: link eye centres 72.00; saddle
-pins 40.00; pad face to pin axis 46.36; rail pitch 16.00 in both slider and
-block; bracket bolts 31.00; bracket pilot Ø22.50. Closed forms: base 0.000 %,
-bracket 0.019 %, saddle 0.017 %, link 0.005 %, nut 0.028 %, rail and screw
-0.16 % (chord error of a plain cylinder).
+Closed forms: floor 0.000 %, front-wall 0.002 %, side-wall 0.002 %, yoke
+0.004 %, rear-flange 0.011 %, nut 0.028 %, rail and screw 0.16 % (chord error
+of a plain cylinder).
 
 ## Fits and what is not modelled
 
-- Running: rails Ø6 in Ø6.2; pins Ø4 in Ø4.2 eyes; nut Ø10 in Ø10.2; screw Ø8
-  in Ø8.4 nut and Ø8.2 end bearing; boss Ø22 in Ø22.5 pilot.
-- Fixed (press, clamp, or a fastener that is not drawn): rails in blocks,
-  pins in saddle and fingers, shaft in coupler, screw in coupler; saddle on
-  the bracket neck; finger on the slider neck; bracket, blocks and motor on
-  the base. A fixed mate in the assembly says which touches are intended.
-- The nut bracket slides 1 mm above the base and takes its torque through
-  the links; a guide strip is the obvious next part.
-- 1.15 mm of wall between the nut-bracket bore and the flange bolt holes —
-  that is the T8 flange nut's own geometry; print the bracket in something
-  stiff or counterbore from the back.
-- Threads, fasteners, the coupler's clamp screws, the motor's D-flat, and
-  any fillets (Truck cannot; the page's OCCT button can) are not modelled.
+- Running: rails Ø6 in Ø6.2; pins Ø4 in 4.2 slots; nut Ø10 in Ø10.2; screw Ø8
+  in Ø8.4 nut and Ø8.2 front bearing; boss Ø22 in Ø22.5 pilot.
+- Fixed (press, keyed, or a fastener that is not drawn): rails in walls,
+  pins in fingers, pads on arms (M3 × 2 each into heat-set inserts), fingers
+  on slider necks, the six case plates to each other, motor to bulkhead,
+  nut flange to carriage. A fixed mate in the assembly says which touches
+  are intended.
+- The carriage slides 2 mm above the floor; the yoke's pins react its torque.
+- No recess for the robot flange's Ø31.5 boss: it passes through the Ø32
+  hole into the 6 mm behind the motor. Locate on the dowel.
+- 1.15 mm of wall between the carriage bore and the flange bolt holes, the
+  Tr8 flange nut's own geometry. Print the carriage in something stiff.
+- Threads, fasteners, cable exit, the motor's D-flat, and any fillets (Truck
+  cannot; the page's OCCT button can) are not modelled.
 
 ## Verified, and not
 
 **Verified from this sandbox:** every part builds exact and watertight with
-all faces named (17 builds through `/mcp`); the closed forms above; the
-measures above; the assembly resolves through `/mcp` (24 components, 19
-distinct builds, `remaining: []`); the analytic clearance audit in
-`gripper.mjs` at closed, reference and open poses.
+all faces named (18 builds through `/mcp`); the closed forms above; the
+assembly resolves through `/mcp` (23 components, 20 distinct builds,
+`remaining: []`); the analytic clearance audit in `gripper.mjs` at closed,
+mid and open.
 
 **Run by the workflow, not from here:** the Manifold interference check
 through the motion (`agent/check.mjs`) at eight instants of the cycle, and
-the publish.
-The sandbox could not execute the mirror's node scripts, so the workflow is
-where that loop closes; read its log for the `no interference` lines.
+the publish. Read its log for the `no interference` lines.
 
 ## Open it
 
-Published 2026-09-12 by the `cad gripper` workflow (run 1: 16 exact builds,
-closed forms, `no interference` at nut 44, 53 and 62, 17 files written) into
-the morphyx repo, `did:plc:yivyyp54vddf7qf2lpsikhe4`:
+Published by the `cad gripper` workflow into the morphyx repo,
+`did:plc:yivyyp54vddf7qf2lpsikhe4`; the first revisions are v1, the plate-
+mounted link gripper:
 
-- **The assembly**, reference pose, parts by AT URI:
+- **The assembly**, kinematic, parts pinned by revision URI:
   https://cad.mino.mobi/?at=at%3A%2F%2Fdid%3Aplc%3Ayivyyp54vddf7qf2lpsikhe4%2Fcom.minomobi.cad.part%2F3mvbzwq2v2h2f
 - The parts: `gripper/parts/<name>` in the same repo — the files tab lists
   them; `list_files` on `/mcp` with `repo: morphyxmino.bsky.social`; or

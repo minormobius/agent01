@@ -1,0 +1,66 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Fingertip pad: 20 tall, bolted to the finger arm from below (two M3 into heat-set inserts, Ø2.5 tap holes here). Its inner face is the gripping surface; the pads meet at x = 0 when closed. side = 1 right, -1 left. One extrude along +Z.",
+ "params": {
+  "side": 1,
+  "w": 12,
+  "over": 2,
+  "inset": 8,
+  "y0": 108,
+  "y1": 126,
+  "z0": 26,
+  "t": 20,
+  "d_tap": 2.5,
+  "arm": 10
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plan",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "side * (w / 2 - inset - over)",
+       "(y0 + y1) / 2"
+      ],
+      "w": "w",
+      "h": "y1 - y0"
+     }
+    },
+    {
+     "name": "tapA",
+     "circle": {
+      "c": [
+       "-side * (inset - arm / 2)",
+       "y0 + 4"
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapB",
+     "circle": {
+      "c": [
+       "-side * (inset - arm / 2)",
+       "y1 - 4"
+      ],
+      "r": "d_tap / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pad",
+   "profile": "plan",
+   "depth": "t"
+  }
+ ]
+}

@@ -1,0 +1,55 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Lid, with an access window over the yoke and sliders. One extrude along +Z.",
+ "params": {
+  "w": 88,
+  "y0": 8,
+  "y1": 98,
+  "t": 4,
+  "z0": 40,
+  "win_w": 64,
+  "win_y0": 48,
+  "win_y1": 90
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plate",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "(y0 + y1) / 2"
+      ],
+      "w": "w",
+      "h": "y1 - y0"
+     }
+    },
+    {
+     "name": "window",
+     "rect": {
+      "c": [
+       0,
+       "(win_y0 + win_y1) / 2"
+      ],
+      "w": "win_w",
+      "h": "win_y1 - win_y0"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "lid",
+   "profile": "plate",
+   "depth": "t"
+  }
+ ]
+}

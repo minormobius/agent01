@@ -1,31 +1,35 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Motor bracket: a vertical plate (XZ) at y in [-t, 0] with the NEMA 17 pilot bore and four bolt holes on a 31 mm square. Stands on the base. One extrude along -Y.",
+ "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot and its four M3 on a 31 square (bolts run back through the motor face). The screw passes through the pilot. One extrude along -Y.",
  "params": {
-  "w": 50,
-  "h": 50,
-  "t": 5,
-  "base_top": -24,
+  "w": 79,
+  "zb": -22.5,
+  "zt": 39.5,
+  "t": 6,
   "d_pilot": 22.5,
-  "pcd": 31,
-  "d_bolt": 3.4
+  "sq": 31,
+  "d_bolt": 3.4,
+  "y1": 42
  },
  "features": [
   {
    "op": "sketch",
    "id": "face",
-   "plane": "XZ",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
    "loops": [
     {
      "name": "outline",
      "rect": {
       "c": [
        0,
-       "base_top + h/2"
+       "(zb + zt) / 2"
       ],
       "w": "w",
-      "h": "h"
+      "h": "zt - zb"
      }
     },
     {
@@ -43,14 +47,17 @@
   {
    "op": "sketch",
    "id": "bolt",
-   "plane": "XZ",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
    "loops": [
     {
      "name": null,
      "circle": {
       "c": [
-       "pcd/2",
-       "pcd/2"
+       "sq/2",
+       "sq/2"
       ],
       "r": "d_bolt / 2"
      }
@@ -67,7 +74,7 @@
   },
   {
    "op": "extrude",
-   "id": "bracket",
+   "id": "plate",
    "profile": [
     "face",
     "bolts"
