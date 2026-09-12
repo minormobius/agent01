@@ -125,6 +125,20 @@ documented in [`README.md`](README.md) next to this file.
   part it publishes); `--kernels` checks Truck and Manifold agree on volume
   within a tolerance. `publish-cad.yml` runs it on the bench after each
   publish: the whole published corpus as the kernels' regression suite.
+- **Drawings.** `lib/drawing.js` makes an engineering drawing as SVG from
+  the exact meshes, with no kernel and no browser, so the page's *drawing*
+  button, `agent/drawing.mjs` and the MCP `drawing` tool all produce the
+  same picture: third-angle views (front, top, right by default; `iso` and
+  the other four on request), hidden lines found by casting a ray from each
+  piece of each edge toward the viewer through a BVH of every body, the
+  overall width, height and depth dimensioned, and every cylindrical hole
+  called out with its count, diameter and depth when blind. A circle is four
+  exact arcs, so one bore is four cylindrical faces: they are grouped by
+  axis line and radius within a tolerance (exact string keys split on the
+  last bits and on negative zero). A face whose surface normal points away
+  from its axis is a boss, not a hole. On an assembly every component is
+  posed at `t` and `reference` ones are left out. The output is
+  deterministic, so two drawings of one tree diff cleanly.
 - **Export.** *stl* writes the mesh on the page (the exact one when it has
   landed, else the preview); *step* asks the worker to re-run the exact
   kernel that built the part with its STEP writer on — Truck's, or OCCT's
@@ -169,8 +183,8 @@ documented in [`README.md`](README.md) next to this file.
   `scripts/sync-dataviz.mjs` (edit it here, never the copy). `llms.txt` is
   the site's index for agents; `README.md` (the schema) is served too.
 - **MCP.** `mcp.js` is the headless library as Model Context Protocol tools
-  (`check`, `build`, `measure`, `interference`, `step`, `list_files`,
-  `get_file`), mounted at `/mcp` by `worker.js` — GET the descriptor, POST
+  (`check`, `build`, `measure`, `interference`, `drawing`, `step`,
+  `list_files`, `get_file`), mounted at `/mcp` by `worker.js` — GET the descriptor, POST
   JSON-RPC. The engine wasm runs *inside the worker*: imported as a wasm
   module (Workers cannot compile wasm from bytes) and instantiated once per
   isolate on first call. **Manifold cannot run there**: its embind glue
@@ -237,14 +251,18 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   failed union of a region's outer loops names the two loops (`union of
   outer loops \`body\` and \`slot\` failed — do their outlines overlap or
   touch?`): a kernel error reported as the design error it almost always is.
-- **Five selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
+- **Six selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
   bytes under node), `drive.selftest.mjs` (the file tree and the gateway),
   `assembly.selftest.mjs` (expressions against the engine, kinematics
-  against closed forms, the mates, repeat and references), `mcp.selftest.mjs` (the tool surface, both hosts) and
+  against closed forms, the mates, repeat and references),
+  `drawing.selftest.mjs` (the SVG drawing by its numbers: views, dimensions,
+  hole callouts, hidden lines, and that it is deterministic),
+  `mcp.selftest.mjs` (the tool surface, both hosts) and
   `browser.selftest.mjs` (headless Chromium loads the page, builds every
   bench part, checks the report against closed forms, spins the train and
-  the crank, poses the lift, saves and forks files against a mocked repo, and screenshots;
-  skips, saying so, without Playwright). Run all five before pushing.
+  the crank, poses the lift, saves and forks files against a mocked repo,
+  draws, and screenshots; skips, saying so, without Playwright). Run all six
+  before pushing.
 - **Truck's gear build is not deterministic.** The first thing the corpus
   audit found: the 60-tooth gear, built twice in one process, gives χ −40
   then −41, different triangle counts, and a volume that moves in the

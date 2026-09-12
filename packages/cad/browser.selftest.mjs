@@ -222,6 +222,14 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
 await page.click('#views');
 const imgs = await page.$$eval('#strip img', (els) => els.map((i) => i.src.length));
 check(imgs.length === 3 && imgs.every((l) => l > 1000), `three-view strip renders (${imgs.map((l) => (l / 1e3).toFixed(0) + 'k').join(', ')})`);
+
+// the drawing button: an SVG of what is built, from the exact meshes
+{
+  await page.goto(`${base}/?part=plate`, { waitUntil: 'load' });
+  await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
+  const dw = await page.evaluate(async () => { window.__lastDrawing = null; document.querySelector('#drawing').click(); for (let i = 0; i < 200 && !window.__lastDrawing; i++) await new Promise((r) => setTimeout(r, 25)); return { d: window.__lastDrawing, status: document.querySelector('#status')?.textContent || '' }; });
+  check(dw.d?.views?.length === 3 && dw.d.holes === 9 && dw.d.scale === '2:1' && dw.d.bytes > 20000 && /drawing:/.test(dw.status), `the drawing button writes an SVG of the plate: ${dw.d?.views?.map((v) => v.name).join(', ')} at ${dw.d?.scale}, ${dw.d?.holes} holes, ${((dw.d?.bytes || 0) / 1024).toFixed(0)} kB`);
+}
 await page.screenshot({ path: path.join(shots, 'ui.png') });
 
 // the assembly: four components from two parts (one with a params override), a sub-assembly, gear + fixed mates, spin

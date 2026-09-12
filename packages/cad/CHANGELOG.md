@@ -47,9 +47,28 @@ component, posed, in an assembly) so two picks give a distance without
 hovering; handle suggestions open in a list under the field instead of
 the browser's own popup over it.
 
+**Generated drawings.** An engineering drawing as SVG, from the same exact
+meshes everything else reads — three places, one picture:
+
+```bash
+node agent/drawing.mjs bench/plate.json --out plate.svg
+node agent/drawing.mjs bench/lift.json --t 0.5 --out lift.svg   # posed
+```
+
+the **drawing** button on the page, and the MCP `drawing` tool (the SVG
+comes back as an embedded resource, the numbers beside it). Third-angle
+views — front, top and right by default, `iso` and the other four on
+request — hidden lines dashed, the overall width, height and depth
+dimensioned, and every hole called out by count and diameter (`3× ⌀1.2`),
+with `↧` and its depth when blind. A bore is four exact arcs, so its four
+cylindrical faces are grouped back into one hole; a surface that faces away
+from its axis is a boss and is not called out. On an assembly every
+component is posed and `reference` ones are left out. Deterministic: two
+drawings of one tree diff cleanly.
+
 Not yet: a server sweep still runs one instant after another with no
-budget — a 45-component assembly at 24 instants does not finish.
-Windowed sweeps and drawings are next.
+budget — a 45-component assembly at 24 instants does not finish. Windowed
+sweeps are next.
 
 ## 2026-09-12
 

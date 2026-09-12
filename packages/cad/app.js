@@ -9,6 +9,7 @@ import { Renderer } from './gl.js';
 import { flatten, solveAngles as solveKin, modelOf, expectedTouch } from './lib/assembly.js';
 import { measure, describe, faceWorld } from './lib/measure.js';
 import { writeStl } from './lib/mesh.js';
+import { drawing } from './lib/drawing.js';
 import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, PART, SCOPE as DRIVE_SCOPE } from './lib/drive.js';
 import { AuthClient } from './vendor/auth.js';
 import { attachHandleTypeahead } from './vendor/typeahead.js';
@@ -436,6 +437,25 @@ function exportPart(format) {
 $('#stl').addEventListener('click', () => exportPart('stl'));
 $('#step').addEventListener('click', () => exportPart('step'));
 $('#views').addEventListener('click', () => snapshots());
+$('#drawing').addEventListener('click', () => makeDrawing());
+/// An SVG drawing of what is built: the part, or every posed component of the
+/// assembly (reference ones left out), from the exact meshes — so it waits
+/// for the exact build, and says so if a part only has a preview.
+function makeDrawing() {
+  let bodies, note;
+  if (state.mode === 'part') { const s = state.slots.get('main'); if (!s?.exact?.mesh) return setStatus('the drawing needs the exact build — wait for it, or the exact kernel could not build this part'); bodies = [{ id: state.name, mesh: s.exact.mesh, faces: s.faces }]; }
+  else {
+    bodies = [];
+    for (const c of state.components) { if (c.reference) continue; const s = state.slots.get(c.partKey); if (!s?.exact?.mesh) return setStatus(`the drawing needs every exact build — ${c.id} has none yet`); bodies.push({ id: c.id, mesh: s.exact.mesh, model: modelOf(c, state.angles), faces: s.faces }); }
+    note = `t = ${+(state.t || 0).toFixed(3)} s`;
+  }
+  try {
+    const d = drawing(bodies, { title: state.name, note });
+    download(new Blob([d.svg], { type: 'image/svg+xml' }), `${state.name}.svg`);
+    setStatus(`drawing: ${d.views.map((v) => v.name).join(', ')} at ${d.scale}, ${d.holes.length} hole${d.holes.length === 1 ? '' : 's'} called out, ${d.ms.toFixed(0)} ms`);
+    window.__lastDrawing = { bytes: d.svg.length, views: d.views, holes: d.holes.length, scale: d.scale, bodies: bodies.length };
+  } catch (e) { setStatus(`drawing failed: ${e.message}`, true); }
+}
 $('#share').addEventListener('click', async () => { const url = location.href; try { await navigator.clipboard.writeText(url); setStatus('link copied'); } catch { setStatus(url); } });
 $('#occt').addEventListener('click', () => { localStorage.setItem('cad.occt', '1'); worker.postMessage({ type: 'load-occt' }); build(); });
 $('#file').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const obj = JSON.parse(await f.text()); await setDocument(obj, f.name.replace(/\.json$/, '')); build({ fit: true }); } catch (err) { $('#error').textContent = `JSON: ${err.message}`; } });
@@ -666,7 +686,7 @@ const boot = ready.then(async () => {
 
 window.__cad = {
   ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, modelOf, runCheck, exportPart,
-  drives, auth, openAt, openFile, renderFiles, renderHistory,
+  drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing,
   loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
   faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),
   checked: () => new Promise((resolve) => { const t = setInterval(() => { if (state.check && !state.check.pending) { clearInterval(t); resolve(state.check); } }, 50); }),

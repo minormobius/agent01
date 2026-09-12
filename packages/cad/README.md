@@ -23,6 +23,7 @@ serves this directory with `engine/` and `bakeoff/` dropped by
 | `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
 | `drive.selftest.mjs` | the file tree over records (`lib/drive.js`) and the site worker's `/xrpc/` read gateway, with in-memory repos and a fake PDS |
 | `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form, the six mates in both directions, repeat, place-by-feature on the lift; `lib/proximity.js` on cube pairs and the lift's meshes, and a sweep that finds a 1 mm graze between samples |
+| `drawing.selftest.mjs` | the SVG drawing by its numbers: the plate's nine holes grouped from their arc faces and called out by count and diameter, the case's blind bore with its depth, the overall dimensions written on the sheet, hidden lines where a bore is seen through the plate, views on demand, and that the same input draws the same SVG |
 | `agent/audit.mjs` | rebuilds every part in a published repo and diffs it against the invariants its revision recorded; `--kernels` checks Truck and Manifold agree on volume. The publish workflow runs it on the bench |
 | `browser.selftest.mjs` | serves the package, drives the page in headless Chromium through every bench part, asserts the report, screenshots to `/tmp/cad-shots/` |
 
@@ -129,6 +130,8 @@ node agent/check.mjs   bench/clock.json --t 0.5                    # interfering
 node agent/check.mjs   bench/lift.json --sweep 24 --clearance 1     # nearest approach per pair through a cycle, minima refined; exit 1 under 1 mm
 node agent/measure.mjs bench/lift.json nut.end platform.start --t 0.5   # two parts' faces at an instant
 node agent/audit.mjs   --at minomobi.com --kernels                  # every published part rebuilt against its recorded invariants
+node agent/drawing.mjs bench/plate.json --out plate.svg             # three views, hidden lines, dimensions, holes called out
+node agent/drawing.mjs bench/lift.json --t 0.5 --out lift.svg      # an assembly, posed
 node agent/export.mjs  bench/clock.json --out /tmp/out             # one STL per part + the posed assembly
 node agent/render.mjs  bench/clock.json --out /tmp/shots --hide dial,case   # PNG per view + report.json (npm install; npx playwright-core install chromium)
 node agent/drive.mjs   ls --at minomobi.com                        # the published bench as a file tree; --login writes to your own repo
@@ -143,9 +146,10 @@ node agent/drive.mjs   ls --at minomobi.com                        # the publish
   Two transitive deps link wasm-bindgen shims that are never called; the
   selftest and the harness stub them.
 - Tests are invariants with tolerances, never mesh bits.
-- **Four selftests before a push:** `npm test` (`cad.selftest.mjs`, the
+- **Five selftests before a push:** `npm test` (`cad.selftest.mjs`, the
   ABI; `drive.selftest.mjs`, the file tree and the gateway;
-  `assembly.selftest.mjs`, expressions and kinematics; `mcp.selftest.mjs`) and
+  `assembly.selftest.mjs`, expressions and kinematics;
+  `drawing.selftest.mjs`, the drawing; `mcp.selftest.mjs`) and
   `npm run test:browser` (the page, in Chromium; `npm install` here or in
   `bakeoff/` first).
 - **This package is mirrored** to a small repo on tangled —

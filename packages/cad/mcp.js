@@ -17,6 +17,7 @@
 // a tree; `gateway` is the base URL of the /xrpc/ read gateway for file tools.
 import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf, findFace } from './lib/assembly.js';
 import { clearanceAt, sweepClearance, verdictOf, OK_VERDICTS } from './lib/sweep.js';
+import { drawing } from './lib/drawing.js';
 import { buildManifold } from './lib/manifold-kernel.js';
 import { interference } from './lib/interfere.js';
 import { weld, invariants } from './lib/mesh.js';
@@ -42,6 +43,8 @@ export const TOOLS = [
     inputSchema: { type: 'object', properties: { tree: treeArg, a: { type: 'string', description: 'a face name, e.g. plate.pivot[0][0]' }, b: { type: 'string' }, t: { type: 'number', description: 'seconds through the drive, for an assembly' } }, required: ['tree', 'a'] } },
   { name: 'interference', title: 'Check an assembly for interference and clearance', description: 'Pose every component of an assembly at time t (seconds through its drive) and test every pair. With the preview kernel, pairs with more than eps mm³ in common are returned with their shared volume. Everywhere (this server included), pass `clearance` in mm to get the nearest approach of every pair from the exact meshes instead — crossing, contained, touching, or the distance — and a verdict per pair: collision (depth or containment), close (under the clearance), loose (wider than a designed fit), expected (a mated touch), fit (a designed clearance, from the document\'s `fits`), contact (touching, no depth, no clearance demanded), clear. With sweep N, N instants over one period of the drive (or `period` seconds) are checked and each pair\'s worst kept; in clearance mode the minimum is then chased between samples, so a graze between instants is found. Reference components are left out. Big gears take ~30 s each to build here; sweep large assemblies locally with agent/check.mjs.',
     inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0 }, eps: { type: 'number', default: 0.01 }, clearance: { type: 'number', description: 'mm: report every pair\'s nearest approach and flag those closer than this (0 flags only contact); this mode needs no kernel' }, sweep: { type: 'integer', description: 'check this many instants over one period instead of one time t' }, period: { type: 'number', description: 'seconds per cycle for a sweep; default one turn of the driven component' } }, required: ['assembly'] } },
+  { name: 'drawing', title: 'Draw a part or assembly', description: 'An engineering drawing as SVG from the exact mesh: third-angle views (front, top, right by default; any of front, back, top, bottom, left, right, iso), hidden lines dashed, the overall width, height and depth dimensioned, and every cylindrical hole called out with its count, diameter and depth when blind. On an assembly, pass `t` to pose it; reference components are left out. Returns the SVG as an embedded resource plus the numbers on it (overall size, dimensions, holes, lines per view). Deterministic, so two drawings of the same tree diff cleanly.',
+    inputSchema: { type: 'object', properties: { tree: treeArg, views: { type: 'array', items: { type: 'string', enum: ['front', 'back', 'top', 'bottom', 'left', 'right', 'iso'] }, default: ['front', 'top', 'right'] }, hidden: { type: 'boolean', default: true, description: 'draw hidden lines (dashed)' }, t: { type: 'number', default: 0, description: 'seconds through the drive, for an assembly' }, width: { type: 'integer', default: 900, description: 'sheet width in px; the scale is fitted to it' } }, required: ['tree'] } },
   { name: 'step', title: 'Export STEP', description: 'The exact B-rep as STEP text (Truck kernel). For other CAD systems.',
     inputSchema: { type: 'object', properties: { tree: treeArg }, required: ['tree'] } },
   { name: 'list_files', title: 'List a repo\'s CAD files', description: 'The file tree in anyone\'s public repo: path, kind, AT URI, updated. `minomobi.com` holds the published bench (parts/<name>, train, clock).',
@@ -186,6 +189,26 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
         return { ok: pairs.every((p) => p.expected), sweep: n, period: per, pairs, tested, ms, failed, link: link(doc) };
       } finally { for (const b of built.values()) b.manifold.delete?.(); }
     },
+    async drawing({ tree, views, hidden = true, t = 0, width = 900 }) {
+      const { engine } = await kernels();
+      const doc = await asTree(tree);
+      let bodies, note;
+      if (Array.isArray(doc.components)) {
+        const { components, mates, drive, partTrees } = await flatten(doc, resolveRef, { facesOf });
+        const angles = solveAngles(components, mates, drive, t);
+        const built = new Map(); const failed = [];
+        for (const [key, tr] of partTrees) { const r = engine.build(tr, { kernel: 'truck' }); if (r.ok) built.set(key, r); else failed.push({ key, error: r.report.error }); }
+        if (failed.length) throw new Error(`exact build failed: ${failed.map((f) => `${f.key}: ${f.error?.op}: ${f.error?.msg}`).join('; ')}`);
+        bodies = components.filter((c) => !c.reference).map((c) => ({ id: c.id, mesh: built.get(c.partKey).mesh, model: modelOf(c, angles), faces: built.get(c.partKey).report.faces }));
+        note = `t = ${t} s`;
+      } else {
+        const r = engine.build(JSON.stringify(doc), { kernel: 'truck' });
+        if (!r.ok) throw new Error(`exact build failed: ${r.report.error?.op}: ${r.report.error?.msg}`);
+        bodies = [{ id: doc.name || 'part', mesh: r.mesh, faces: r.report.faces }];
+      }
+      const d = drawing(bodies, { views: Array.isArray(views) && views.length ? views : undefined, hidden, width: Math.max(300, Math.min(4000, width | 0)), title: doc.name || (Array.isArray(doc.components) ? 'assembly' : 'part'), note });
+      return { ok: true, kind: Array.isArray(doc.components) ? 'assembly' : 'part', ...d, link: link(doc) };
+    },
     async step({ tree }) {
       const { engine } = await kernels();
       const r = engine.build(JSON.stringify(await asTree(tree)), { kernel: 'truck', step: true });
@@ -229,6 +252,8 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
         const { name, arguments: args } = msg.params || {};
         try {
           const result = await call(name, args);
+          // a drawing's SVG travels once, as an embedded resource, beside the numbers
+          if (typeof result?.svg === 'string') return reply({ content: [{ type: 'text', text: JSON.stringify({ ...result, svg: undefined }) }, { type: 'resource', resource: { uri: 'cad://drawing.svg', mimeType: 'image/svg+xml', text: result.svg } }], structuredContent: result, isError: false });
           return reply({ content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result, isError: false });
         } catch (e) {
           if (!listed.has(name)) return fail(-32602, e.message);

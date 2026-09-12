@@ -36,7 +36,7 @@ const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabiliti
 check(init.result?.protocolVersion && init.result.capabilities.tools && /SKILL\.md/.test(init.result.instructions), 'initialize answers with capabilities and instructions');
 check((await post({ jsonrpc: '2.0', method: 'notifications/initialized' })).status === 202, 'a notification gets 202 and no body');
 const list = await rpc('tools/list');
-check(list.result.tools.map((t) => t.name).join() === 'check,build,measure,interference,step,list_files,get_file', `tools/list: ${list.result.tools.map((t) => t.name).join(', ')}`);
+check(list.result.tools.map((t) => t.name).join() === 'check,build,measure,interference,drawing,step,list_files,get_file', `tools/list: ${list.result.tools.map((t) => t.name).join(', ')}`);
 check((await rpc('nope')).error?.code === -32601, 'an unknown method is -32601');
 check((await rpc('tools/call', { name: 'nope' })).error?.code === -32602, 'an unknown tool is -32602');
 const opts = await mcp.handle(new Request('https://cad.mino.mobi/mcp', { method: 'OPTIONS' }));
@@ -81,6 +81,11 @@ const sw = (await tool('interference', { assembly: 'bench:lift', sweep: 6 })).st
 check(sw.ok && sw.sweep === 6 && Math.abs(sw.period - 1) < 1e-9 && sw.pairs.every((p) => p.expected), `interference sweeps ${sw.sweep} instants over ${sw.period} s of the lift (references resolved on the host) and finds only expected touches`);
 const i = (await tool('interference', { assembly: 'bench:clock', t: 0.5 })).structuredContent;
 check(i.ok && i.tested > 20 && i.pairs.every((p) => p.expected), `interference: the clock mid-beat, ${i.tested} pairs tested, ${i.pairs.length} expected touches, none real`);
+const dw = await tool('drawing', { tree: 'bench:plate' });
+const dws = dw.structuredContent;
+check(dws.ok && dws.holes.length === 9 && dws.views.length === 3 && dw.content[1]?.resource?.mimeType === 'image/svg+xml' && dw.content[1].resource.text.startsWith('<svg') && !dw.content[0].text.includes('<svg'), `drawing: the plate's three views as an SVG resource (${(dws.svg.length / 1024).toFixed(0)} kB) with ${dws.holes.length} holes called out; the numbers travel without it`);
+const dwa = (await tool('drawing', { tree: 'bench:lift', t: 0.5, views: ['front', 'iso'], hidden: false })).structuredContent;
+check(dwa.kind === 'assembly' && dwa.views.map((v) => v.name).join() === 'front,iso' && dwa.views.every((v) => v.hidden === 0) && dwa.svg.includes('t = 0.5 s'), 'drawing an assembly posed at t, chosen views, no hidden lines');
 const st = (await tool('step', { tree: 'bench:cam' })).structuredContent;
 check(st.ok && st.bytes > 30000 && st.step.startsWith('ISO-10303-21'), `step: ${(st.bytes / 1e3).toFixed(0)} kB of STEP`);
 const lf = (await tool('list_files', { repo: 'stranger.example' })).structuredContent;
