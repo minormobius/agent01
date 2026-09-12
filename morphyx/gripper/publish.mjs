@@ -56,7 +56,7 @@ async function publish(p, tree, { kind, name }) {
 console.log(write ? `publishing (nut at ${nut})` : `plan, no writes (nut at ${nut})`);
 // parts an earlier version used and this one does not: moved under gripper/v1/ (the URI survives a rename, so
 // the first assembly revision still finds them)
-const RETIRED = { v1: ['base', 'bracket', 'end-block', 'rail-block', 'saddle', 'coupler', 'motor-shaft', 'nut-bracket'], v2: ['slider', 'finger'], v3: ['yoke'] };
+const RETIRED = { v1: ['base', 'bracket', 'end-block', 'rail-block', 'saddle', 'coupler', 'motor-shaft', 'nut-bracket'], v2: ['slider', 'finger'], v3: ['yoke'], v4: ['tab', 'carrier', 'pad', 'rod', 'crossbar'] };
 for (const [ver, names] of Object.entries(RETIRED)) for (const name of names) {
   if (name in parts) continue;
   if (!drive) { console.log(`  plan  gripper/parts/${name} → gripper/${ver}/${name} (if present)`); continue; }

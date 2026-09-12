@@ -1,22 +1,23 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), a stepped outline so the lower links clear it, and a neck on top that keys into the crossbar. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
+ "_": "Nut carriage, 18 long: the nut bore with its four flange bolt holes; a 26 mm skid that runs on the bed; a 29 mm waist on the mid-plane with a through-slot each side (4 × 8.2) that the pivot arms key into; 18 mm bosses above and below the waist for the nut flange, narrow so the link eyes pass them. The housing aligns it — skid on the bed, arm tips at the walls — and the nut sees thrust only. One extrude along -Y.",
  "params": {
-  "w": 52,
-  "t": 20,
-  "bottom": -13,
-  "step": 4,
-  "upper": 14,
-  "shoulder": 12,
-  "top": 20,
-  "neck": 24,
+  "t": 18,
+  "sh": 13,
+  "sz0": -15.8,
+  "sz1": -14,
+  "bh": 9,
+  "bz0": -14,
+  "bz1": 11,
+  "mh": 14.5,
+  "mz": 6,
+  "slx0": 9,
+  "slx1": 13,
+  "slz": 4.1,
   "d_bore": 10.200000000000001,
   "pcd": 16,
-  "d_bolt": 3.5,
-  "x_rod": 19,
-  "z_rod": -8,
-  "d_rod": 6.2
+  "d_bolt": 3.5
  },
  "features": [
   {
@@ -28,52 +29,68 @@
      "name": "outline",
      "polygon": [
       [
-       "-w/2",
-       "bottom"
+       "-sh",
+       "sz0"
       ],
       [
-       "w/2",
-       "bottom"
+       "sh",
+       "sz0"
       ],
       [
-       "w/2",
-       "step"
+       "sh",
+       "sz1"
       ],
       [
-       "upper",
-       "step"
+       "bh",
+       "sz1"
       ],
       [
-       "upper",
-       "shoulder"
+       "bh",
+       "-mz"
       ],
       [
-       "neck/2",
-       "shoulder"
+       "mh",
+       "-mz"
       ],
       [
-       "neck/2",
-       "top"
+       "mh",
+       "mz"
       ],
       [
-       "-neck/2",
-       "top"
+       "bh",
+       "mz"
       ],
       [
-       "-neck/2",
-       "shoulder"
+       "bh",
+       "bz1"
       ],
       [
-       "-upper",
-       "shoulder"
+       "-bh",
+       "bz1"
       ],
       [
-       "-upper",
-       "step"
+       "-bh",
+       "mz"
       ],
       [
-       "-w/2",
-       "step"
+       "-mh",
+       "mz"
+      ],
+      [
+       "-mh",
+       "-mz"
+      ],
+      [
+       "-bh",
+       "-mz"
+      ],
+      [
+       "-bh",
+       "sz1"
+      ],
+      [
+       "-sh",
+       "sz1"
       ]
      ]
     },
@@ -88,23 +105,25 @@
      }
     },
     {
-     "name": "rodR",
-     "circle": {
+     "name": "slotR",
+     "rect": {
       "c": [
-       "x_rod",
-       "z_rod"
+       "(slx0 + slx1) / 2",
+       0
       ],
-      "r": "d_rod / 2"
+      "w": "slx1 - slx0",
+      "h": "2 * slz"
      }
     },
     {
-     "name": "rodL",
-     "circle": {
+     "name": "slotL",
+     "rect": {
       "c": [
-       "-x_rod",
-       "z_rod"
+       "-(slx0 + slx1) / 2",
+       0
       ],
-      "r": "d_rod / 2"
+      "w": "slx1 - slx0",
+      "h": "2 * slz"
      }
     }
    ]

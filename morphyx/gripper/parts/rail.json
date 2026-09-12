@@ -1,12 +1,12 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "MGN9 rail stand-in: 9 × 6.5 section, 104 long, on the front wall’s outer face (its Ø3.5 mounting holes at 20 pitch are not modelled). One extrude along +X.",
+ "_": "MGN9 rail stand-in: 9 × 6.5 section, 104 long, lying on the bed with its centre line on the screw’s plane (its Ø3.5 mounting holes at 20 pitch are not modelled; the bed’s tapped holes are). One extrude along +X.",
  "params": {
   "w": 9,
   "h": 6.5,
-  "y0": 104,
-  "zr": 16,
+  "yc": 118,
+  "z0": -16,
   "half": 52
  },
  "features": [
@@ -22,11 +22,11 @@
      "name": "outline",
      "rect": {
       "c": [
-       "y0 + h/2",
-       "zr"
+       "yc",
+       "z0 + h/2"
       ],
-      "w": "h",
-      "h": "w"
+      "w": "w",
+      "h": "h"
      }
     }
    ]

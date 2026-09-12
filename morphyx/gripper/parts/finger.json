@@ -1,0 +1,91 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "An example finger, reference only: a C that slips over the slide’s tenon, 22 tall, its jaw face 18 mm inboard of the block centre so the two jaws meet at x = 0 when closed. A real finger closes the pocket above and below the tenon and takes the Ø4 cross pin; it is the customer’s part. Local x 0 is the block centre, local y 0 the slide’s front face. One extrude along +Z.",
+ "params": {
+  "x0": -18,
+  "x1": 10,
+  "L": 34,
+  "hz": 11,
+  "pw": 16.2,
+  "pd": 10.2,
+  "y0": 133
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plan",
+   "plane": {
+    "base": "XY",
+    "offset": "-hz"
+   },
+   "loops": [
+    {
+     "name": "jaw",
+     "path": {
+      "from": [
+       "x0",
+       "y0"
+      ],
+      "segs": [
+       {
+        "to": [
+         "-pw / 2",
+         "y0"
+        ]
+       },
+       {
+        "to": [
+         "-pw / 2",
+         "y0 + pd"
+        ]
+       },
+       {
+        "to": [
+         "pw / 2",
+         "y0 + pd"
+        ]
+       },
+       {
+        "to": [
+         "pw / 2",
+         "y0"
+        ]
+       },
+       {
+        "to": [
+         "x1",
+         "y0"
+        ]
+       },
+       {
+        "to": [
+         "x1",
+         "y0 + L"
+        ]
+       },
+       {
+        "to": [
+         "x0",
+         "y0 + L"
+        ]
+       },
+       {
+        "to": [
+         "x0",
+         "y0"
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "finger",
+   "profile": "plan",
+   "depth": "2 * hz"
+  }
+ ]
+}

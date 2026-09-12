@@ -1,10 +1,10 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Spacer sleeve: Ø6 × 8 with a Ø4.1 bore, keeping the upper and lower links apart on a finger pin (on the crossbar pins the crossbar fills the gap). Two per gripper. One revolve about local Z.",
+ "_": "Spacer sleeve: Ø6 × 3 with a Ø4.1 bore, between an arm face and a link on each arm pin (the slide is thick enough to reach its links itself). Four per gripper. One revolve about local Z.",
  "params": {
   "D": 6,
-  "L": 10,
+  "L": 3,
   "d": 4.1
  },
  "features": [

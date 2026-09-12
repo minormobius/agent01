@@ -1,10 +1,10 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "A 4 mm hardened dowel, h long, along +Z: pressed into a finger tab or the crossbar, carrying a link above and a link below in bronze bushings (retaining clips not modelled). One extrude.",
+ "_": "A 4 mm hardened dowel, h long, along +Z: pressed into a slide or an arm, carrying a link above and a link below in bronze bushings (retaining clips not modelled). One extrude.",
  "params": {
   "d": 4,
-  "h": 22
+  "h": 26
  },
  "features": [
   {

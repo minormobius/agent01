@@ -1,13 +1,17 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Floor plate, between the rear plate and the front wall. One extrude along +Z.",
+ "_": "Floor plate, from the rear plate to the front wall’s outer face (the bed sits on it and passes under the wall), tapped M3 for the bed’s four bolts. One extrude along +Z.",
  "params": {
   "w": 96,
   "y0": 8,
-  "y1": 98,
+  "y1": 104,
   "t": 4,
-  "z0": -27
+  "z0": -27,
+  "bx": 40,
+  "by0": 50,
+  "by1": 95,
+  "d_tap": 2.5
  },
  "features": [
   {
@@ -27,6 +31,46 @@
       ],
       "w": "w",
       "h": "y1 - y0"
+     }
+    },
+    {
+     "name": "tapA",
+     "circle": {
+      "c": [
+       "-bx",
+       "by0"
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapB",
+     "circle": {
+      "c": [
+       "bx",
+       "by0"
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapC",
+     "circle": {
+      "c": [
+       "-bx",
+       "by1"
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapD",
+     "circle": {
+      "c": [
+       "bx",
+       "by1"
+      ],
+      "r": "d_tap / 2"
      }
     }
    ]

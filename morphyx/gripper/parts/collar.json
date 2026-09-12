@@ -1,7 +1,7 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Thrust collar: clamped on the screw just behind the front wall. Gripping pulls the screw forward, so the collar bears on the wall’s inner face (thrust washer and set screw not modelled). One revolve about local Z.",
+ "_": "Thrust collar: clamped on the screw just ahead of the bulkhead. Gripping drives the nut forward and so pulls the screw back, and the collar bears on the bulkhead’s front face (thrust washer and set screw not modelled). One revolve about local Z.",
  "params": {
   "D": 14,
   "L": 4,

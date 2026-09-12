@@ -1,20 +1,32 @@
 {
  "_": "Closed-form volumes of the parts that have one; mm³. The kernel must land within tol (relative).",
  "rear-flange": {
-  "volume": 43701.04136646666,
+  "volume": 33717.04136646666,
+  "tol": 0.002
+ },
+ "bulkhead": {
+  "volume": 20886.45221222726,
   "tol": 0.002
  },
  "front-wall": {
-  "volume": 34382.76376100632,
+  "volume": 21740.455767594012,
+  "tol": 0.002
+ },
+ "bed": {
+  "volume": 44695.97647422832,
+  "tol": 0.002
+ },
+ "carriage": {
+  "volume": 7974.04797132578,
+  "tol": 0.002
+ },
+ "arm": {
+  "volume": 4896.269035085126,
   "tol": 0.002
  },
  "spacer": {
-  "volume": 150.71790755597033,
+  "volume": 45.2153722667911,
   "tol": 0.004
- },
- "crossbar": {
-  "volume": 12016.218070170255,
-  "tol": 0.002
  },
  "link": {
   "volume": 1751.9468914507715,
@@ -24,6 +36,18 @@
   "volume": 90.4307445335822,
   "tol": 0.004
  },
+ "pin": {
+  "volume": 326.7256359733385,
+  "tol": 0.004
+ },
+ "slide": {
+  "volume": 12165.736799730796,
+  "tol": 0.002
+ },
+ "finger": {
+  "volume": 17308.72,
+  "tol": 0.002
+ },
  "rail": {
   "volume": 6084,
   "tol": 0.002
@@ -32,16 +56,12 @@
   "volume": 3179,
   "tol": 0.002
  },
- "rod": {
-  "volume": 1809.5573684677208,
-  "tol": 0.002
- },
  "collar": {
   "volume": 414.6902302738527,
   "tol": 0.002
  },
  "screw": {
-  "volume": 3242.1236185046664,
+  "volume": 3191.85813604723,
   "tol": 0.004
  },
  "nut": {
@@ -49,19 +69,19 @@
   "tol": 0.002
  },
  "floor": {
-  "volume": 34560,
+  "volume": 36785.46018366025,
   "tol": 0.002
  },
  "side-wall": {
-  "volume": 21240,
+  "volume": 16560,
   "tol": 0.002
  },
- "tab": {
-  "volume": 3355.4690350851265,
+ "lid": {
+  "volume": 24674.430769293205,
   "tol": 0.002
  },
- "pad": {
-  "volume": 4603.650459150638,
+ "motor": {
+  "volume": 38264.38,
   "tol": 0.002
  }
 }
