@@ -139,6 +139,15 @@ documented in [`README.md`](README.md) next to this file.
   palette; the header's *docs* link points at it. Declared in the root
   catalogue's `notListed` as `content`. Keep it honest: a `not yet` tag on
   anything unbuilt, numbers only where a test asserts them.
+- **`/parts/` is another worker.** The social layer (`../../parts/`, its own
+  surface, Durable Object and cron) is mounted here through the `PARTS`
+  service binding in `wrangler.jsonc`: `worker.js` strips the prefix and
+  forwards, so the parts worker sees the paths it would on a host of its
+  own. It has no host of its own because the `mino.mobi` zone is at
+  Cloudflare's ceiling of 100 Workers custom domains (measured on its first
+  deploy, code 100122); `parts/CLAUDE.md` has the detail. Deploying cad
+  therefore needs the `parts` worker to exist — it does; a fresh account
+  would deploy parts first.
 - **The mirror.** `.github/workflows/mirror-cad-tangled.yml` force-pushes
   this package — minus `engine/target`, `node_modules` and the Cloudflare
   files, plus the skill under `.claude/skills/cad/` and a README — to a

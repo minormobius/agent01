@@ -1677,14 +1677,15 @@
     {
       "surface": "parts",
       "dir": "parts",
-      "endpoint": "parts.mino.mobi",
+      "endpoint": "cad.mino.mobi/parts",
       "type": "frontend",
       "branch": "claude/browser-cad-ideation-ollmd3",
       "uses": [
-        "auth.mino.mobi"
+        "auth.mino.mobi",
+        "cad.mino.mobi"
       ],
       "provides": null,
-      "status": "NEW — first deploy. parts.mino.mobi did not resolve beforehand; wrangler provisions the custom domain from wrangler.jsonc. Confirm the run binds `parts.mino.mobi (custom domain)` — green alone is not proof.",
+      "status": "Mounted under cad.mino.mobi/parts/ through the cad worker's PARTS service binding — its own worker, Durable Object and cron, no host of its own: the mino.mobi zone is at Cloudflare's 100-custom-domain ceiling (code 100122 on the first deploy, 2026-09-12). Verify with curl https://cad.mino.mobi/parts/api/status.",
       "note": "Communities of CAD parts, Reddit-shaped, on the designer's own repo: a community is a record in its founder's repo, a post is a record in the poster's repo pointing at a community and at one revision of a part, comments thread by strongRef, a vote is a record the voter owns. One Durable Object holds the index in its own SQLite and rebuilds it from the network (writers self-report; a cron discovers strangers through Constellation backlinks); no firehose socket, on purpose. (full description: parts/CLAUDE.md)",
       "paths": [
         "parts/**"

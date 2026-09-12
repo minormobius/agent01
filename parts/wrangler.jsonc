@@ -23,10 +23,15 @@
   "triggers": {
     "crons": ["*/15 * * * *"]
   },
-  // Golden rule (docs/DEPLOYS.md §4): the worker name must be the one that owns
-  // the live custom domain, and the domain must be declared here. parts.mino.mobi
-  // had no worker before this surface; the first deploy provisions it.
-  "routes": [
-    { "pattern": "parts.mino.mobi", "custom_domain": true }
-  ]
+  // No domain of its own. This was to be parts.mino.mobi, but the mino.mobi
+  // zone is at Cloudflare's ceiling of 100 Workers custom domains (the first
+  // deploy failed with code 100122 after uploading the worker), and the deploy
+  // token cannot write the DNS record a `routes` entry would need. So the cad
+  // worker mounts this one at cad.mino.mobi/parts/ through a service binding
+  // (packages/cad/wrangler.jsonc `services`), prefix stripped. No workers.dev
+  // either: the only front door is the mount. If a domain is ever freed
+  // (detaching one is dashboard-only, docs/DEPLOYS.md §7), a
+  // `routes: [{ pattern, custom_domain: true }]` block here gives it back its
+  // own host — the page uses relative URLs, so nothing else changes.
+  "workers_dev": false
 }

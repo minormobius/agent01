@@ -12,7 +12,8 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 const enc = encodeURIComponent;
 const parseAt = (uri) => { const m = /^at:\/\/([^/]+)\/([^/]+)\/([^/?#]+)/.exec(uri || ''); return m ? { did: m[1], collection: m[2], rkey: m[3] } : null; };
 const ago = (iso) => { const s = (Date.now() - Date.parse(iso)) / 1000; if (!Number.isFinite(s)) return ''; if (s < 60) return 'just now'; if (s < 3600) return `${Math.floor(s / 60)} min ago`; if (s < 86400) return `${Math.floor(s / 3600)} h ago`; return `${Math.floor(s / 86400)} d ago`; };
-const api = async (path, init) => { const r = await fetch(`/api/${path}`, init); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; };
+// relative, not /api/: the page is mounted at cad.mino.mobi/parts/ (and would work at a host of its own)
+const api = async (path, init) => { const r = await fetch(`api/${path}`, init); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; };
 const handles = new Map(); // did → handle, resolved lazily through the public API
 async function handleOf(did) {
   if (handles.has(did)) return handles.get(did);

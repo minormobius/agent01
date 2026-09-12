@@ -56,7 +56,7 @@ const EXTRA = [
   // cad.mino.mobi saves a user's parts to their own PDS (packages/cad/lib/drive.js)
   // through the same client; the site is packages/cad served as static assets.
   ["packages/oauth-client/auth.js", "packages/cad/vendor/auth.js"],
-  // parts.mino.mobi writes communities, posts, comments and votes to the
+  // parts (cad.mino.mobi/parts/) writes communities, posts, comments and votes to the
   // person's own repo through the same client; the site is parts/site/.
   ["packages/oauth-client/auth.js", "parts/site/vendor/auth.js"],
   // The cad skill is written next to the code it describes and served from

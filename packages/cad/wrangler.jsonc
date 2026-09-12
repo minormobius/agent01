@@ -13,6 +13,15 @@
   // Same precedent as civ/. An assembly is built in slices of `maxParts`
   // (mcp.js) so one request never asks for the whole clock.
   "limits": { "cpu_ms": 120000 },
+  // /parts/* is the social layer (../../parts/), a separate worker with its
+  // own Durable Object, reached through this binding: cad.mino.mobi/parts/.
+  // It was meant to be parts.mino.mobi, but the zone is at Cloudflare's
+  // ceiling of 100 Workers custom domains (API code 100122, measured on its
+  // first deploy), and the deploy token cannot write DNS for a route. Same
+  // origin as the viewer, so the auth cookie and the gateway are 'self'.
+  "services": [
+    { "binding": "PARTS", "service": "parts" }
+  ],
   // Golden rule (docs/DEPLOYS.md §4): the worker name must be the one that owns
   // the live custom domain, and the domain must be declared here — otherwise
   // `wrangler deploy` goes green against a stray cad.workers.dev and the live

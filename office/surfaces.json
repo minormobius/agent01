@@ -1897,7 +1897,7 @@
   {
    "id": "parts",
    "name": "parts",
-   "url": "https://parts.mino.mobi",
+   "url": "https://cad.mino.mobi/parts/",
    "cat": "bluesky",
    "commits": 1,
    "age": "hot",
@@ -6023,16 +6023,6 @@
    "commits": 0,
    "age": "hot",
    "parent": "cad",
-   "discovered": true
-  },
-  {
-   "id": "parts/site",
-   "name": "site",
-   "url": "https://parts.mino.mobi/site/",
-   "cat": "bluesky",
-   "commits": 0,
-   "age": "hot",
-   "parent": "parts",
    "discovered": true
   },
   {

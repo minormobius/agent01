@@ -1,10 +1,11 @@
-# parts.mino.mobi — the egress boundary for the page.
+# parts (cad.mino.mobi/parts/) — the egress boundary for the page. These
+# headers ride through the cad worker's service binding untouched.
 #
-# connect-src: 'self' is the index API; auth.mino.mobi is the shared OAuth
-# worker (sign-in, and the proxied writes to the person's own repo);
-# cad.mino.mobi is the CAD site's read gateway, which is how a post's part is
-# described without the page talking to a PDS host. No scripts from anywhere
-# but here; no frames.
+# connect-src: 'self' is the index API and, mounted under cad.mino.mobi, the
+# CAD site's read gateway too; auth.mino.mobi is the shared OAuth worker
+# (sign-in, and the proxied writes to the person's own repo). cad.mino.mobi is
+# named as well so the page still works from a host of its own. No scripts
+# from anywhere but here; no frames.
 
 /*
   X-Content-Type-Options: nosniff

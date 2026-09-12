@@ -12,7 +12,13 @@ import { createRequire } from 'node:module';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 const require = createRequire(path.join(here, 'bakeoff', 'package.json'));
-const { chromium } = require('playwright-core');
+// Without Playwright (`npm ci` in packages/cad/bakeoff) or its Chromium this
+// says so and exits 0: the preflight sweep runs every changed dir's selftests
+// on a bare runner, and a crash there would read as a failing page.
+let chromium;
+try { ({ chromium } = require('playwright-core')); } catch { console.log('↷ browser selftest skipped — playwright-core is not installed (npm ci in packages/cad/bakeoff)'); process.exit(0); }
+const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell', process.env.CHROME_PATH].filter(Boolean).find((p) => fs.existsSync(p));
+if (!exe) { console.log('↷ browser selftest skipped — no Chromium at /opt/pw-browsers (set CHROME_PATH)'); process.exit(0); }
 const args = process.argv.slice(2);
 const shots = args.includes('--shots') ? args[args.indexOf('--shots') + 1] : '/tmp/cad-shots';
 fs.mkdirSync(shots, { recursive: true });
@@ -71,7 +77,6 @@ const base = `http://127.0.0.1:${server.address().port}`;
 // (the worker answers 401 when nobody is signed in — Chromium logs that as a console error, so it is not counted)
 const authNoise = (m) => /^https:\/\/auth\.mino\.mobi\//.test(m.location()?.url || '');
 const quietAuth = (p) => p.route('https://auth.mino.mobi/**', (r) => r.fulfill({ status: 401, contentType: 'application/json', body: '{"error":"unauthenticated"}' }));
-const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell'].find((p) => fs.existsSync(p));
 const browser = await chromium.launch({ headless: !args.includes('--headed'), executablePath: exe, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--no-sandbox', '--proxy-server=direct://', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--no-first-run'] });
 let fails = 0;
 const check = (c, msg) => { console.log(`${c ? '✓' : '✗'} ${msg}`); if (!c) fails++; };

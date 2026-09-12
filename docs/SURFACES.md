@@ -99,7 +99,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `org` | frontend | `org` | [org.mino.mobi](https://org.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`org/CLAUDE.md`](../org/CLAUDE.md) | Organization hub. Create orgs, manage members and tiers, with calendar, CRM, PM, and Wave apps built in. |
 | `os` | frontend | `os` | [os.mino.mobi](https://os.mino.mobi) | `claude/os-deploy-surface-474bz3` | [`os/CLAUDE.md`](../os/CLAUDE.md) | Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. |
 | `os-api` | backend | `os/api` | [os-api.minomobi.com](https://os-api.minomobi.com) | `claude/os-deploy-surface-474bz3` | [`os/api/CLAUDE.md`](../os/api/CLAUDE.md) | The agent-platform backend behind os.mino.mobi — a per-DID Cloudflare Container (bash + git, running Claude Code as the harness for open models via AGENT_PROFILES) with a PTY over WebSocket and DO-syn… |
-| `parts` | frontend | `parts` | [parts.mino.mobi](https://parts.mino.mobi) | `claude/browser-cad-ideation-ollmd3` | [`parts/CLAUDE.md`](../parts/CLAUDE.md) | Communities of CAD parts, Reddit-shaped, with nothing stored on our side that your repo does not hold: found a community (a record in your repo), post a part (a record pointing at one revision of it… |
+| `parts` | frontend | `parts` | [cad.mino.mobi/parts](https://cad.mino.mobi) | `claude/browser-cad-ideation-ollmd3` | [`parts/CLAUDE.md`](../parts/CLAUDE.md) | Communities of CAD parts, Reddit-shaped, with nothing stored on our side that your repo does not hold: found a community (a record in your repo), post a part (a record pointing at one revision of it… |
 | `perp` | frontend | `perp` | [perp.mino.mobi](https://perp.mino.mobi) | `claude/futures-finance-learning-r7p47e` | [`perp/CLAUDE.md`](../perp/CLAUDE.md) | A perpetual future never expires, so nothing forces it to converge on spot — instead it pays funding, an hourly cash transfer between longs and shorts… |
 | `photo` | frontend | `photo` | [photo.mino.mobi](https://photo.mino.mobi) | `claude/usda-fruit-paintings-dashboard-kxn1c1` | [`photo/CLAUDE.md`](../photo/CLAUDE.md) | The index of the image surface — fourteen tools sharing one origin: a layered editor, projections and warps, optical instruments, and an explorer that renders every image from any Bluesky account as a… |
 | `phylofiction` | frontend | `phylofiction` | [phylofiction.mino.mobi](https://phylofiction.mino.mobi) | `claude/phylofiction-world-generation-3zd33u` | [`phylofiction/CLAUDE.md`](../phylofiction/CLAUDE.md) | Seeded deterministic tree-of-life generator: a Rust/WASM evolution engine (engine-rs/, artifact committed by build-phylofiction-wasm.yml) drives a microbial phylogeny that any page-seed reproduces ide… |
@@ -146,6 +146,7 @@ A change here ripples to every dependent surface listed.
 | `bounty-board` | 1 | `bounty` |
 | `scores.mino.mobi` | 1 | `canvas` |
 | `os-api.minomobi.com` | 1 | `os` |
+| `cad.mino.mobi` | 1 | `parts` |
 | `civ` | 1 | `polis` |
 | `mino-scores-db` | 1 | `scores` |
 | `feed.mino.mobi` | 1 | `zoom` |

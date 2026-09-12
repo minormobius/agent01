@@ -1,5 +1,8 @@
-// parts — parts.mino.mobi. The Reddit-shaped front for CAD parts: one static
-// page, one Durable Object holding the index in its own SQLite, one cron.
+// parts — cad.mino.mobi/parts/. The Reddit-shaped front for CAD parts: one
+// static page, one Durable Object holding the index in its own SQLite, one
+// cron. Reached through the cad worker's PARTS service binding with the
+// `/parts` prefix stripped (wrangler.jsonc says why there is no host of its
+// own), so every path below is as it would be on a host of its own.
 //
 // Nothing here owns a post. Communities, posts, comments and votes are
 // records in their authors' repos (lib/index.js names the four collections);
@@ -76,6 +79,6 @@ export default {
   },
   // Every 15 minutes: discover through backlinks, refresh what is stale. Bounded inside the object.
   async scheduled(_event, env, ctx) {
-    ctx.waitUntil(indexStub(env).fetch(new Request('https://parts.mino.mobi/api/sweep', { method: 'POST' })));
+    ctx.waitUntil(indexStub(env).fetch(new Request('https://parts.internal/api/sweep', { method: 'POST' })));
   },
 };

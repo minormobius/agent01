@@ -15,7 +15,13 @@ import { handleApi } from './worker.js';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 const require = createRequire(path.join(here, '..', 'packages', 'cad', 'bakeoff', 'package.json'));
-const { chromium } = require('playwright-core');
+// Without Playwright (`npm ci` in packages/cad/bakeoff) or its Chromium this
+// says so and exits 0: the preflight sweep runs every changed dir's selftests
+// on a bare runner, and a crash there would read as a failing page.
+let chromium;
+try { ({ chromium } = require('playwright-core')); } catch { console.log('↷ browser selftest skipped — playwright-core is not installed (npm ci in packages/cad/bakeoff)'); process.exit(0); }
+const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', process.env.CHROME_PATH].filter(Boolean).find((p) => fs.existsSync(p));
+if (!exe) { console.log('↷ browser selftest skipped — no Chromium at /opt/pw-browsers (set CHROME_PATH)'); process.exit(0); }
 let fails = 0;
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails++; };
 
@@ -38,17 +44,20 @@ seed(VOTE, 'at://did:plc:bob/com.minomobi.cad.vote/4', { subject: { uri: c1, cid
 
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css' };
 const site = path.join(here, 'site');
+// Mounted at /parts/ the way the cad worker mounts it (prefix stripped before
+// the worker sees the path), so the page's relative URLs are what is tested.
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, 'http://x');
+  if (!u.pathname.startsWith('/parts/')) { res.writeHead(404); return res.end(); }
+  u.pathname = u.pathname.slice('/parts'.length); req.url = u.pathname + u.search;
   if (u.pathname.startsWith('/api/')) { const r = await handleApi(ix, new Request(`http://x${req.url}`, { method: req.method })); res.writeHead(r.status, { 'content-type': 'application/json' }); return res.end(await r.text()); }
   const p = path.join(site, u.pathname === '/' ? 'index.html' : u.pathname);
   if (!p.startsWith(site) || !fs.existsSync(p) || fs.statSync(p).isDirectory()) { res.writeHead(404); return res.end(); }
   res.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' }); fs.createReadStream(p).pipe(res);
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
-const base = `http://127.0.0.1:${server.address().port}`;
+const base = `http://127.0.0.1:${server.address().port}/parts`;
 
-const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome'].find((p) => fs.existsSync(p));
 const browser = await chromium.launch({ headless: true, executablePath: exe, args: ['--no-sandbox', '--proxy-server=direct://', '--disable-background-networking'] });
 const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
 const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on('console', (m) => { if (m.type() === 'error' && !/auth\.mino\.mobi|public\.api\.bsky\.app|cad\.mino\.mobi/.test(m.location()?.url || '')) errors.push(m.text()); });
@@ -59,6 +68,7 @@ await page.route('https://cad.mino.mobi/**', (r) => r.fulfill({ status: 200, con
 const dialogs = []; page.on('dialog', (d) => { dialogs.push(d.message()); d.dismiss(); });
 
 await page.goto(`${base}/#/`, { waitUntil: 'load' });
+check(page.url().includes('/parts/#/'), 'the page is served at /parts/, as the cad worker mounts it');
 await page.waitForSelector('.post');
 const front = await page.evaluate(() => ({ posts: [...document.querySelectorAll('.post h3')].map((h) => h.textContent), scores: [...document.querySelectorAll('.post .vote span')].map((s) => s.textContent), communities: [...document.querySelectorAll('.side .c a')].map((a) => a.textContent), who: document.querySelector('#who').textContent, handles: [...document.querySelectorAll('[data-did]')].map((a) => a.textContent) }));
 check(front.posts[0] === 'A lever escapement that ticks' && front.posts.length === 2 && front.scores.join() === '2,-1', `the front page lists both posts, hot first, with scores (${front.scores.join(', ')})`);

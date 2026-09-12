@@ -338,6 +338,7 @@ here, you want to push to a branch the workflow recognises.
 | ATProto auth fails | expired app password | regenerate in Bluesky settings |
 | DID resolution fails | missing `.well-known/atproto-did` | verify the file and its DID |
 | CI fails on a generated file | a generator wasn't re-run | `node scripts/preflight.mjs --fix` |
+| deploy red on `100122`, worker uploaded, domain not bound | the zone is at Cloudflare's 100-custom-domain ceiling | mount the worker under an existing host via a service binding — [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §6, `packages/cad` ↔ `parts` |
 
 ## Infrastructure
 

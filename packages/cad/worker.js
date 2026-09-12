@@ -5,7 +5,15 @@
 // and the 0.5 MB Manifold module. Workers Static Assets serves an asset match
 // directly without invoking this — the headers that apply come from
 // `_headers`; this exists for misses, to keep the wasm content type right,
-// for `/xrpc/*`, and for `/mcp`.
+// for `/xrpc/*`, for `/mcp`, and to mount `/parts/*`.
+//
+// /parts/ is the social layer: a separate worker (../../parts/) with its own
+// Durable Object and cron, reached through the PARTS service binding with
+// the prefix stripped, so it sees the same paths it would on its own host.
+// It lives here because the mino.mobi zone is at Cloudflare's ceiling of 100
+// Workers custom domains (code 100122 on its first deploy) and the deploy
+// token cannot write DNS for a route. Same origin as the viewer: one auth
+// cookie, and its reads of /xrpc/ are 'self'.
 //
 // /mcp is the headless library as Model Context Protocol tools: an agent with
 // no clone checks, builds, measures and exports a tree here and gets the same
@@ -57,6 +65,12 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === '/mcp' || url.pathname === '/mcp/') return mcpFor(env, url.origin).handle(request);
+    if (url.pathname === '/parts') return Response.redirect(`${url.origin}/parts/${url.search}`, 308);
+    if (url.pathname.startsWith('/parts/')) {
+      if (!env.PARTS) return json({ error: 'parts is not bound here' }, 503);
+      const inner = new URL(request.url); inner.pathname = url.pathname.slice('/parts'.length);
+      return env.PARTS.fetch(new Request(inner, request));
+    }
     if (url.pathname.startsWith('/xrpc/')) {
       if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { 'access-control-allow-origin': '*', 'access-control-allow-methods': 'GET', 'access-control-max-age': '86400' } });
       if (request.method !== 'GET') return json({ error: 'MethodNotAllowed' }, 405);

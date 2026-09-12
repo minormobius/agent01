@@ -878,7 +878,9 @@ that with two in-memory repos standing in for a PDS and a stranger.
   until Manifold is rebuilt without dynamic execution. The phase-7 gate — a
   passing sub-assembly from a sentence, no human edits — is runnable
   against a URL for everything but the clash check.
-- **The social layer, first cut.** `parts.mino.mobi` (`parts/`): a
+- **The social layer, first cut.** `cad.mino.mobi/parts/` (`parts/`, its
+  own worker, mounted through a service binding because the zone is at
+  Cloudflare's ceiling of a hundred custom domains): a
   community is a record in its founder's repo, a post is a record in the
   poster's repo pointing at a community and at one *revision* of a part,
   comments thread by strongRef, a vote is a record the voter owns. Alice

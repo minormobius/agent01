@@ -1,4 +1,4 @@
-# parts — parts.mino.mobi
+# parts — cad.mino.mobi/parts/
 
 Communities of CAD parts, Reddit-shaped, with nothing stored on our side
 that a person's repo does not hold. The CAD it fronts is
@@ -12,11 +12,11 @@ that a person's repo does not hold. The CAD it fronts is
 |---|---|
 | Surface | `parts` |
 | Dir | `parts/` — `worker.js` + `lib/` are the worker and the index; `site/` is the asset root |
-| Endpoint | `parts.mino.mobi` |
+| Endpoint | `cad.mino.mobi/parts/` — mounted by the cad worker through a service binding; no host of its own (Quirks) |
 | Type | frontend (with one Durable Object) |
 | Owning branch | `claude/browser-cad-ideation-ollmd3` |
 | Deploy | [`.github/workflows/deploy-parts.yml`](../.github/workflows/deploy-parts.yml) |
-| Uses | `auth.mino.mobi` (sign-in and the proxied writes); reads `cad.mino.mobi`'s `/xrpc/` gateway and Constellation |
+| Uses | `auth.mino.mobi` (sign-in and the proxied writes); `cad.mino.mobi` (the front door, and its `/xrpc/` gateway for part details); Constellation for discovery |
 | Provides | — |
 
 ## What it is
@@ -63,7 +63,7 @@ lives in Bob's repo and points at Alice's community; the front page is an
 
 ## How a post gets on the front page
 
-1. Bob signs in on parts.mino.mobi and posts: a `post` record is written to
+1. Bob signs in on cad.mino.mobi/parts/ and posts: a `post` record is written to
    Bob's repo through auth.mino.mobi.
 2. The page calls `POST /api/index?repo=<bob>`; the index lists Bob's repo
    and the post appears.
@@ -78,12 +78,26 @@ lives in Bob's repo and points at Alice's community; the front page is an
   rounds, hot/new/top, threads, one vote per person, deletes propagating,
   staleness, unresolvable repos. The deploy runs it.
 - `node browser.selftest.mjs` — the page in headless Chromium against the
-  same index mounted on a local server (`handleApi` from `worker.js`).
+  same index mounted on a local server under `/parts/` (`handleApi` from
+  `worker.js`). Skips, saying so, when Playwright is not installed (`npm ci`
+  in `packages/cad/bakeoff`), which is what the bare preflight runner sees.
 
 ## Quirks
 
-- **Green is not proof.** Confirm the deploy log binds
-  `parts.mino.mobi (custom domain)`, then `curl /api/status`.
+- **No host of its own, and why.** This was to be `parts.mino.mobi`. The
+  first deploy uploaded the worker and then failed binding the domain: the
+  `mino.mobi` zone is at Cloudflare's ceiling of **100 Workers custom
+  domains** (API code 100122), and the deploy token cannot write the DNS
+  record a `routes` entry would need (`docs/DEPLOYS.md` §6). So the cad
+  worker mounts this one at `/parts/` through its `PARTS` service binding
+  (`packages/cad/wrangler.jsonc`), stripping the prefix, and this
+  `wrangler.jsonc` declares no route and `workers_dev: false`. The page uses
+  relative URLs (`api/…`, `./app.js`) so it works at either place; the
+  browser selftest serves it under `/parts/` to keep that true. Same origin
+  as the viewer is a gain: one auth cookie, the gateway is `'self'`.
+- **Green is not proof.** Two deploys make the front door — this worker,
+  then the cad worker with the binding. `curl
+  https://cad.mino.mobi/parts/api/status` is the check; both workflows run it.
 - The Durable Object's SQLite is the only state. Deleting the object (a
   migration `deleted_sqlite_classes`) empties the site; `/api/sweep` and
   writers' self-reports rebuild it from the network, which is the point.

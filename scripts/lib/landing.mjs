@@ -147,13 +147,21 @@ export function loadLanding(root) {
 
 // ------------------------------------------------------- surface resolution --
 // Map a landing-page URL back to the surface that owns it.
+// An endpoint is a host (`cad.mino.mobi`), or a host with one path segment
+// (`cad.mino.mobi/parts`) for a worker MOUNTED under another surface's host
+// through a service binding — the zone's custom-domain ceiling is why that
+// exists (docs/DEPLOYS.md §6). A mount owns its path and nothing else; the
+// host stays with the surface that declares it bare.
 export function surfaceResolver(reg) {
   const hostToSurface = new Map();
+  const mountToSurface = new Map();
   const dirToSurface = new Map();
   for (const s of reg.surfaces) {
     for (const raw of String(s.endpoint || '').split(',')) {
-      const host = raw.replace(/\(.*?\)/g, '').trim().split(/[\s/]+/)[0];
-      if (host && host.includes('.')) hostToSurface.set(host, s.surface);
+      const [host, seg] = raw.replace(/\(.*?\)/g, '').trim().split(/\s+/)[0].split('/');
+      if (!host || !host.includes('.')) continue;
+      if (seg) mountToSurface.set(`${host}/${seg}`, s.surface);
+      else hostToSurface.set(host, s.surface);
     }
     for (const d of [s.dir, ...(s.dirs || [])]) if (d && d !== '.') dirToSurface.set(d, s.surface);
   }
@@ -163,15 +171,15 @@ export function surfaceResolver(reg) {
   }
   function ownerOf(url) {
     const u = norm(url);
-    const host = u.split('/')[0];
+    const [host, seg] = u.split('/');
+    if (seg && mountToSurface.has(`${host}/${seg}`)) return mountToSurface.get(`${host}/${seg}`);
     const surf = hostToSurface.get(host);
     if (!surf) return null;
     if (surf !== 'root') return surf;
-    const seg = u.split('/')[1];
     if (seg && dirToSurface.has(seg)) return dirToSurface.get(seg);
     return 'root';
   }
-  return { ownerOf, hostToSurface, dirToSurface };
+  return { ownerOf, hostToSurface, mountToSurface, dirToSurface };
 }
 
 // ----------------------------------------------------------- curated layer --

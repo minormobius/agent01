@@ -111,11 +111,15 @@ function parseTomlLoose(raw) {
 
 // ------------------------------------------------------ host/dir -> surface --
 const hostToSurface = new Map([['mino.mobi', 'root'], ['www.mino.mobi', 'root'], ['minomobi.com', 'root']]);
+// `host/seg` for a worker mounted under another surface's host (scripts/lib/landing.mjs explains)
+const mountToSurface = new Map();
 const dirToSurface = new Map();
 for (const s of reg.surfaces) {
-  for (const raw of String(s.endpoint || '').split(/[,/]/)) {
-    const host = raw.replace(/\(.*?\)/g, '').trim().split('/')[0];
-    if (host.includes('.') && !hostToSurface.has(host)) hostToSurface.set(host, s.surface);
+  for (const raw of String(s.endpoint || '').split(',')) {
+    const [host, seg] = raw.replace(/\(.*?\)/g, '').trim().split(/\s+/)[0].split('/');
+    if (!host || !host.includes('.')) continue;
+    if (seg) mountToSurface.set(`${host}/${seg}`, s.surface);
+    else if (!hostToSurface.has(host)) hostToSurface.set(host, s.surface);
   }
   const dirs = s.dirs ?? [s.dir];
   for (const d of dirs) if (d && d !== '.') dirToSurface.set(d.split('/')[0], s.surface);
@@ -124,11 +128,11 @@ for (const s of reg.surfaces) {
 // resolve a P node URL to its owning surface key (or 'root' for bundled subsites)
 function ownerOf(url) {
   const u = norm(url);
-  const host = u.split('/')[0];
+  const [host, seg] = u.split('/');
+  if (seg && mountToSurface.has(`${host}/${seg}`)) return mountToSurface.get(`${host}/${seg}`);
   const surf = hostToSurface.get(host);
   if (!surf) return null;
   if (surf !== 'root') return surf;
-  const seg = u.split('/')[1];
   if (seg && dirToSurface.has(seg)) return dirToSurface.get(seg);
   return 'root';
 }
@@ -149,7 +153,7 @@ for (const p of P) {
   const slot = bySurface.get(owner);
   const u = norm(p.u), host = u.split('/')[0];
   const isHome = owner !== 'root'
-    ? (u === host || u === `${host}`)
+    ? (u === host || mountToSurface.get(u) === owner)
     : false; // root's own home is the landing page itself
   if (isHome && !slot.primary) slot.primary = node;
   else slot.features.push(node);

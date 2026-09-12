@@ -42,6 +42,8 @@ jobs:
             if curl -fsSL https://cad.mino.mobi/ | grep -qi 'feature-tree CAD engine'; then
               echo "✓ cad is live"
               curl -fsSI https://cad.mino.mobi/cad.wasm | grep -i 'content-type' || true
+              # the social layer rides on this worker's PARTS service binding
+              curl -fsSL https://cad.mino.mobi/parts/api/status | grep -q '"ok":true' && echo "✓ /parts/ is mounted" || echo "⚠️ /parts/api/status did not answer — is the parts worker deployed and bound?"
               exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 5

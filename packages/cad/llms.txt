@@ -39,7 +39,7 @@ The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (t
 
 ## The social layer
 
-`https://parts.mino.mobi` — communities of parts, Reddit-shaped. Records in the author's own repo: `com.minomobi.cad.community` (founder's repo, rkey = slug), `com.minomobi.cad.post` (`community` and `part` strongRefs — `part` is a REVISION uri — `title`, `text`), `com.minomobi.cad.comment` (`post`, optional `parent`), `com.minomobi.cad.vote` (`subject`, `value` 1 or -1). Read the index: `https://parts.mino.mobi/api/feed?sort=hot`, `/api/communities`, `/api/community?name=`, `/api/post?uri=`, `/api/thread?uri=`. After writing records to a repo, `POST https://parts.mino.mobi/api/index?repo=<did>` makes them appear at once; a cron finds them anyway through backlinks.
+`https://cad.mino.mobi/parts/` — communities of parts, Reddit-shaped. Records in the author's own repo: `com.minomobi.cad.community` (founder's repo, rkey = slug), `com.minomobi.cad.post` (`community` and `part` strongRefs — `part` is a REVISION uri — `title`, `text`), `com.minomobi.cad.comment` (`post`, optional `parent`), `com.minomobi.cad.vote` (`subject`, `value` 1 or -1). Read the index: `https://cad.mino.mobi/parts/api/feed?sort=hot`, `…/parts/api/communities`, `…/parts/api/community?name=`, `…/parts/api/post?uri=`, `…/parts/api/thread?uri=`. After writing records to a repo, `POST https://cad.mino.mobi/parts/api/index?repo=<did>` makes them appear at once; a cron finds them anyway through backlinks.
 
 ## Where the source lives
 

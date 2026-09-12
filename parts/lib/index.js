@@ -163,7 +163,7 @@ export class Index {
     const dids = new Set(); let cursor;
     for (let page = 0; page < 5; page++) {
       const u = new URL(`${this.constellation}/links`); u.searchParams.set('target', target); u.searchParams.set('collection', collection); u.searchParams.set('path', path); u.searchParams.set('limit', '100'); if (cursor) u.searchParams.set('cursor', cursor);
-      const r = await this.fetch(u, { headers: { 'user-agent': 'parts.mino.mobi (+https://github.com/minormobius)' } });
+      const r = await this.fetch(u, { headers: { 'user-agent': 'cad.mino.mobi/parts (+https://github.com/minormobius)' } });
       if (!r.ok) throw new Error(`constellation ${r.status}`);
       const j = await r.json();
       for (const x of j.linking_records || []) if (x.did) dids.add(x.did);

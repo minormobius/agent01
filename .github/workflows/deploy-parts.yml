@@ -33,15 +33,19 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
 
+      # The front door is the cad worker's mount (cad.mino.mobi/parts/), so this
+      # waits on deploy-cad too when both run on one push. wrangler.jsonc says
+      # why there is no parts.mino.mobi.
       - name: Verify live
         continue-on-error: true
         run: |
-          for attempt in 1 2 3 4 5; do
-            if curl -fsSL https://parts.mino.mobi/api/status | grep -q '"ok":true'; then
-              echo "✓ parts is live"; curl -fsSL https://parts.mino.mobi/api/status; echo
+          for attempt in $(seq 1 18); do
+            if curl -fsSL https://cad.mino.mobi/parts/api/status | grep -q '"ok":true'; then
+              echo "✓ parts is live at cad.mino.mobi/parts/"; curl -fsSL https://cad.mino.mobi/parts/api/status; echo
               exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 5
           done
-          echo "⚠️ parts.mino.mobi didn't answer. On the first deploy check the log"
-          echo "   above for 'parts.mino.mobi (custom domain)'. Green alone is not proof."
+          echo "⚠️ cad.mino.mobi/parts/api/status didn't answer. The mount is the cad"
+          echo "   worker's PARTS service binding (packages/cad/wrangler.jsonc); check"
+          echo "   deploy-cad's log bound it. Green here alone is not proof."
