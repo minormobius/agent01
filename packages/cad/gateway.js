@@ -6,10 +6,17 @@
 // CAD gateway, not a general proxy. Nothing here needs a secret; every record
 // it returns is public already. Writes never come here.
 //
+// Two public actor methods pass too — `app.bsky.actor.searchActorsTypeahead`
+// (handle suggestions on every handle field, packages/oauth-client/
+// typeahead.js) and `app.bsky.actor.getProfile` (a DID's handle on the parts
+// page) — forwarded to the public API with their declared parameters only.
+// They are here so a page's CSP names this host and nothing else.
+//
 // Plain functions of a URL and a fetch, so drive.selftest.mjs runs them under
 // node; worker.js mounts them on the live host.
 
 const METHODS = new Set(['com.atproto.repo.getRecord', 'com.atproto.repo.listRecords']);
+const ACTOR = { 'app.bsky.actor.searchActorsTypeahead': ['q', 'limit'], 'app.bsky.actor.getProfile': ['actor'] };
 const COLLECTION = /^com\.minomobi\.cad\./;
 const DIRECTORY = 'https://plc.directory';
 const PUBLIC_API = 'https://public.api.bsky.app';
@@ -34,6 +41,15 @@ export async function resolvePds(did, f) {
 
 export async function xrpc(url, f = fetch) {
   const method = url.pathname.slice('/xrpc/'.length);
+  if (ACTOR[method]) {
+    const out = new URL(`${PUBLIC_API}/xrpc/${method}`);
+    for (const k of ACTOR[method]) if (url.searchParams.has(k)) out.searchParams.set(k, url.searchParams.get(k));
+    if (method.endsWith('searchActorsTypeahead')) out.searchParams.set('limit', String(Math.min(10, Number(url.searchParams.get('limit')) || 8)));
+    try {
+      const r = await f(out, { headers: { accept: 'application/json' } });
+      return new Response(await r.text(), { status: r.status, headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'cache-control': r.ok ? 'public, max-age=60' : 'no-store' } });
+    } catch (e) { return json({ error: 'UpstreamFailed', message: String(e?.message ?? e) }, 502); }
+  }
   if (!METHODS.has(method)) return json({ error: 'MethodNotSupported', message: `${method} is not served here` }, 404);
   const repo = url.searchParams.get('repo'), collection = url.searchParams.get('collection');
   if (!repo || !collection) return json({ error: 'InvalidRequest', message: 'repo and collection are required' }, 400);

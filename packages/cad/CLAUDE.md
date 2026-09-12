@@ -110,9 +110,14 @@ documented in [`README.md`](README.md) next to this file.
   opens a file; save, history (click a revision to view it), fork (to local,
   lineage kept across repos) and push (local → PDS, revisions recreated
   oldest-first so they get real cids). Public reads go through **this
-  worker's `/xrpc/` gateway** (`worker.js`: the two public read methods,
-  `com.minomobi.cad.*` only, handle and DID resolved server-side), so the
-  page's CSP stays `connect-src 'self'` plus the auth worker.
+  worker's `/xrpc/` gateway** (`gateway.js`: the two public read methods,
+  `com.minomobi.cad.*` only, handle and DID resolved server-side; plus the
+  two public actor methods, `searchActorsTypeahead` and `getProfile`,
+  forwarded to the public API with their declared params), so the page's
+  CSP stays `connect-src 'self'` plus the auth worker. **Every handle field
+  suggests accounts as you type** — `vendor/typeahead.js`, a copy of
+  `packages/oauth-client/typeahead.js` kept by `sync-dataviz`, a native
+  `<datalist>` fed by the gateway; the browse field skips DIDs and AT URIs.
 - **Headless, for an agent.** `agent/build.mjs` (check and exact build
   over the wasm: invariants, named faces, STL/STEP — node only, no Rust),
   `agent/check.mjs`, `agent/measure.mjs`, `agent/export.mjs`,

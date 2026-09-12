@@ -194,6 +194,11 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
   const fk = await page.evaluate(async (uri) => { const r = await window.__cad.drives.local.fork(uri, 'vendor/cam'); const h = await window.__cad.drives.local.history('vendor/cam'); await window.__cad.renderFiles(); return { path: r.path, dids: h.map((x) => x.did), parent: h[0].parents[0]?.uri, rows: document.querySelectorAll('#files .f[data-drive=local]').length }; }, strangerFile.uri);
   check(fk.path === 'vendor/cam' && fk.dids.join(' ') === 'did:local did:plc:stranger' && fk.parent === strangerFile.head.uri && fk.rows === 2, `forking it to the local drive keeps the lineage across repos (${fk.dids.join(' ← ')})`);
+  await page.route('**/xrpc/app.bsky.actor.searchActorsTypeahead*', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ actors: [{ did: 'did:plc:stranger', handle: 'stranger.example' }] }) }));
+  await page.fill('#repo', 'stra'); await page.waitForFunction(() => document.querySelector('#repo')?.list?.options.length === 1, null, { timeout: 5000 });
+  await page.fill('#repo', 'did:plc:x'); await new Promise((r) => setTimeout(r, 300));
+  const ta = await page.evaluate(() => ({ h: !!document.querySelector('#handle').list, r: document.querySelector('#repo').list.options.length }));
+  check(ta.h && ta.r === 0, 'both handle fields suggest accounts through the gateway; a DID in the browse field gets no suggestions');
   const browsed = await page.evaluate(async () => { document.querySelector('#repo').value = 'stranger.example'; document.querySelector('#browse').click(); for (let i = 0; i < 200 && !document.querySelector('#files .f[data-drive=browse]'); i++) await new Promise((r) => setTimeout(r, 25)); return document.querySelectorAll('#files .f[data-drive=browse]').length; });
   check(browsed === 2, `browsing a repo by handle lists it (the gateway resolves the handle; ${browsed} files)`);
   await page.goto(`${base}/?at=${encodeURIComponent(strangerAsm.uri)}`, { waitUntil: 'load' });

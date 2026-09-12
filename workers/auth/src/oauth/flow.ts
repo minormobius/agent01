@@ -335,12 +335,42 @@ export async function handleOAuthCallback(
   };
 }
 
-// --- Refresh OAuth token ---
+// --- A usable access token for a session ---
+//
+// THE ACCESS TOKEN IS CACHED, AND THAT IS THE WHOLE POINT. This used to run a
+// refresh_token grant on every proxied PDS call. ATProto refresh tokens are
+// single-use and rotate on each grant, so two calls in flight at once (a page
+// listing a repo while another tab saves, or a file tree fetching in
+// parallel) both presented the same refresh token; the second was a reuse,
+// the auth server revoked the family, and every call after that was a 401 —
+// "session expired" minutes after signing in. Now the access token and its
+// expiry ride in the session's JSON blob next to the DPoP key and nonce (no
+// migration), a grant runs only when it is within a minute of expiring or a
+// PDS has rejected it (`force`), and concurrent callers in one isolate share
+// the in-flight grant. Two isolates can still refresh at the same instant at
+// the moment of expiry; that window is seconds a day, not every request.
+
+type Fresh = { accessToken: string; did: string; pdsUrl: string; dpopKeyPair: DPoPKeyPair };
+const inflight = new Map<string, Promise<Fresh | null>>();
+const EXPIRY_MARGIN_MS = 60_000;
 
 export async function refreshOAuthToken(
   env: Env,
   sessionId: string,
-): Promise<{ accessToken: string; did: string; pdsUrl: string; dpopKeyPair: DPoPKeyPair } | null> {
+  opts: { force?: boolean } = {},
+): Promise<Fresh | null> {
+  const running = inflight.get(sessionId);
+  if (running && !opts.force) return running;
+  const p = refreshOAuthTokenUncached(env, sessionId, opts).finally(() => { if (inflight.get(sessionId) === p) inflight.delete(sessionId); });
+  inflight.set(sessionId, p);
+  return p;
+}
+
+async function refreshOAuthTokenUncached(
+  env: Env,
+  sessionId: string,
+  opts: { force?: boolean },
+): Promise<Fresh | null> {
   const row = await env.DB.prepare(
     `SELECT did, pds_url, refresh_token, dpop_key_jwk, auth_method
      FROM sessions WHERE session_id = ? AND expires_at > datetime('now')`
@@ -357,6 +387,11 @@ export async function refreshOAuthToken(
   const parsed = JSON.parse(dpopKeyData);
   const dpop = await deserializeDPoPKeyPair(parsed);
   const dpopNonce = parsed.nonce || undefined;
+
+  const cached = parsed.access as { token: string; exp: number } | undefined;
+  if (!opts.force && cached?.token && typeof cached.exp === 'number' && cached.exp - Date.now() > EXPIRY_MARGIN_MS) {
+    return { accessToken: cached.token, did: row.did as string, pdsUrl, dpopKeyPair: dpop };
+  }
 
   const { metadata } = await discoverAuthServer(pdsUrl);
 
@@ -417,11 +452,12 @@ export async function refreshOAuthToken(
     sub: string;
   };
 
-  // Store rotated refresh token + updated nonce
+  // Store rotated refresh token, updated nonce, and the access token with its expiry
   const newNonce = res.headers.get('DPoP-Nonce');
   const updatedDpopKey = JSON.stringify({
     ...parsed,
     nonce: newNonce || parsed.nonce || null,
+    access: { token: tokens.access_token, exp: Date.now() + Math.max(60, Number(tokens.expires_in) || 300) * 1000 },
   });
 
   await env.DB.prepare(

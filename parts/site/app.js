@@ -3,6 +3,7 @@
 // that repo so the write shows up at once. Part details come from the CAD
 // site's read gateway; the part itself opens in cad.mino.mobi.
 import { AuthClient } from './vendor/auth.js';
+import { attachHandleTypeahead } from './vendor/typeahead.js';
 
 const COMMUNITY = 'com.minomobi.cad.community', POST = 'com.minomobi.cad.post', COMMENT = 'com.minomobi.cad.comment', VOTE = 'com.minomobi.cad.vote';
 const SCOPE = `atproto repo:${COMMUNITY} repo:${POST} repo:${COMMENT} repo:${VOTE}`;
@@ -14,10 +15,11 @@ const parseAt = (uri) => { const m = /^at:\/\/([^/]+)\/([^/]+)\/([^/?#]+)/.exec(
 const ago = (iso) => { const s = (Date.now() - Date.parse(iso)) / 1000; if (!Number.isFinite(s)) return ''; if (s < 60) return 'just now'; if (s < 3600) return `${Math.floor(s / 60)} min ago`; if (s < 86400) return `${Math.floor(s / 3600)} h ago`; return `${Math.floor(s / 86400)} d ago`; };
 // relative, not /api/: the page is mounted at cad.mino.mobi/parts/ (and would work at a host of its own)
 const api = async (path, init) => { const r = await fetch(`api/${path}`, init); const j = await r.json(); if (!r.ok) throw new Error(j.error || r.status); return j; };
-const handles = new Map(); // did → handle, resolved lazily through the public API
+const GATEWAY = 'https://cad.mino.mobi'; // the CAD site's read gateway: records, and the two public actor methods (the page's CSP names it; the public API is not reachable from here)
+const handles = new Map(); // did → handle, resolved lazily through the gateway
 async function handleOf(did) {
   if (handles.has(did)) return handles.get(did);
-  const p = (async () => { try { const r = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${enc(did)}`); if (r.ok) return (await r.json()).handle; } catch {} return did.slice(0, 20) + '…'; })();
+  const p = (async () => { try { const r = await fetch(`${GATEWAY}/xrpc/app.bsky.actor.getProfile?actor=${enc(did)}`); if (r.ok) return (await r.json()).handle; } catch {} return did.slice(0, 20) + '…'; })();
   handles.set(did, p); return p;
 }
 
@@ -31,6 +33,7 @@ async function initAuth() {
   $('#handle').hidden = !!me; $('#signin').hidden = !!me; $('#signout').hidden = !me;
   if (me) { try { mine = (await api(`mine?did=${enc(me.did)}`)).votes || {}; } catch { mine = {}; } }
 }
+attachHandleTypeahead($('#handle'), { gateway: GATEWAY });
 $('#signin').addEventListener('click', async () => { const h = $('#handle').value.trim(); if (!h) return; try { await auth.login(h, { scope: SCOPE }); } catch (e) { alert(`sign-in failed: ${e.message}`); } });
 $('#signout').addEventListener('click', async () => { try { await auth.logout(); } catch {} me = null; mine = {}; await initAuth(); route(); });
 const needAuth = () => { if (!me) throw new Error('sign in first (top right)'); if (auth.hasScope && !auth.hasScope(POST)) { auth.ensureScope(SCOPE); throw new Error('re-authorising for the parts collections…'); } };

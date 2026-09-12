@@ -157,13 +157,16 @@ async function getSession(db: D1Database, token: string): Promise<{
 
 // --- Get a usable PDS access token for proxied operations ---
 
-async function getPdsAccessToken(env: Env, sessionId: string): Promise<{
+// Cached in the session row until a minute before it expires (see
+// refreshOAuthToken: refreshing per request is what used to kill sessions).
+// `force` after a PDS says the token is bad.
+async function getPdsAccessToken(env: Env, sessionId: string, force = false): Promise<{
   accessToken: string;
   did: string;
   pdsUrl: string;
   dpopKeyPair: { privateKey: CryptoKey; publicJWK: JsonWebKey };
 } | null> {
-  return refreshOAuthToken(env, sessionId);
+  return refreshOAuthToken(env, sessionId, { force });
 }
 
 // --- Router ---
@@ -447,8 +450,8 @@ async function handlePdsProxy(
   const route = proxyRoutes[path];
   if (!route) return errorResponse('Unknown PDS operation', 404, origin);
 
-  // Get a fresh access token + DPoP key
-  const auth = await getPdsAccessToken(env, token);
+  // The session's access token + DPoP key (cached; a grant only when needed)
+  let auth = await getPdsAccessToken(env, token);
   if (!auth) return errorResponse('Could not get PDS access token — session may need re-login', 401, origin);
 
   const pdsXrpcUrl = `${auth.pdsUrl}/xrpc/${route.xrpc}`;
@@ -511,6 +514,19 @@ async function handlePdsProxy(
         headers: pdsHeaders,
         body: route.method === 'POST' ? pdsBody : undefined,
       });
+    }
+  }
+  // Still 401 with a body (GETs only — a POST body has been consumed): the
+  // cached access token is dead early (revoked, or the PDS restarted). Force
+  // one grant and retry once, so a stale cache never surfaces as "expired".
+  if (pdsRes.status === 401 && route.method === 'GET') {
+    const fresh = await getPdsAccessToken(env, token, true);
+    if (fresh) {
+      auth = fresh;
+      const nonce = pdsRes.headers.get('DPoP-Nonce') || undefined;
+      pdsHeaders['Authorization'] = `DPoP ${auth.accessToken}`;
+      pdsHeaders['DPoP'] = await createDPoPProof(auth.dpopKeyPair, route.method, pdsXrpcUrl, nonce, auth.accessToken);
+      pdsRes = await fetch(pdsUrl, { method: route.method, headers: pdsHeaders });
     }
   }
 

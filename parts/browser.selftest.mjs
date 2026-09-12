@@ -64,7 +64,12 @@ const errors = []; page.on('pageerror', (e) => errors.push(e.message)); page.on(
 // the network is not reachable from here: the auth worker answers signed-out, profiles and the cad gateway answer empty
 await page.route('https://auth.mino.mobi/**', (r) => r.fulfill({ status: 401, contentType: 'application/json', body: '{}' }));
 await page.route('https://public.api.bsky.app/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ handle: 'someone.test' }) }));
-await page.route('https://cad.mino.mobi/**', (r) => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ uri: rev, cid: 'r', value: { tree: { name: 'clock', components: [1, 2, 3] }, invariants: { volume: 11619.4, euler: 2, watertight: true }, message: 'published from bench/clock.json' } }) }));
+await page.route('https://cad.mino.mobi/**', (r) => {
+  const u = r.request().url();
+  if (u.includes('searchActorsTypeahead')) return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ actors: [{ did: 'did:plc:a', handle: 'someone.test', displayName: 'Someone' }, { did: 'did:plc:b', handle: 'somebody.else.test' }] }) });
+  if (u.includes('getProfile')) return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ handle: 'someone.test' }) });
+  return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ uri: rev, cid: 'r', value: { tree: { name: 'clock', components: [1, 2, 3] }, invariants: { volume: 11619.4, euler: 2, watertight: true }, message: 'published from bench/clock.json' } }) });
+});
 const dialogs = []; page.on('dialog', (d) => { dialogs.push(d.message()); d.dismiss(); });
 
 await page.goto(`${base}/#/`, { waitUntil: 'load' });
@@ -74,7 +79,10 @@ const front = await page.evaluate(() => ({ posts: [...document.querySelectorAll(
 check(front.posts[0] === 'A lever escapement that ticks' && front.posts.length === 2 && front.scores.join() === '2,-1', `the front page lists both posts, hot first, with scores (${front.scores.join(', ')})`);
 check(front.communities.join() === 'clocks' && front.who === 'not signed in', 'the communities sidebar and the signed-out state render');
 await page.waitForFunction(() => [...document.querySelectorAll('[data-did]')].every((a) => a.textContent.startsWith('@')));
-check(true, 'author handles resolve through the public API');
+check(true, 'author handles resolve through the cad gateway');
+await page.fill('#handle', 'some'); await page.waitForFunction(() => document.querySelector('#handle')?.list?.options.length === 2, null, { timeout: 5000 });
+const ta = await page.evaluate(() => [...document.querySelector('#handle').list.options].map((o) => o.value));
+check(ta.join() === 'someone.test,somebody.else.test', `typing in the handle field suggests accounts (${ta.join(', ')})`);
 await page.click('.sorts a:nth-child(2)'); await page.waitForFunction(() => document.querySelector('.sorts a.on')?.textContent === 'new');
 await page.click('.side .c a'); await page.waitForSelector('h2');
 const comm = await page.evaluate(() => ({ h2: document.querySelector('h2').textContent, posts: document.querySelectorAll('.post').length, desc: document.querySelector('.text')?.textContent }));

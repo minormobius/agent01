@@ -11,6 +11,7 @@ import { measure, describe, faceWorld } from './lib/measure.js';
 import { writeStl } from './lib/mesh.js';
 import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, PART, SCOPE as DRIVE_SCOPE } from './lib/drive.js';
 import { AuthClient } from './vendor/auth.js';
+import { attachHandleTypeahead } from './vendor/typeahead.js';
 
 const $ = (s) => document.querySelector(s);
 const BENCH = ['clock', 'train', 'crank', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
@@ -573,6 +574,9 @@ $('#history').addEventListener('click', async (e) => {
     setDriveStatus(`viewing revision ${rev.cid.slice(0, 16)}… — save to make it the head again`);
   } catch (err) { setDriveStatus(err.message, true); }
 });
+// handle suggestions on both handle fields, through this site's own gateway (CSP: 'self')
+attachHandleTypeahead($('#handle'), { gateway: location.origin });
+attachHandleTypeahead($('#repo'), { gateway: location.origin, when: (v) => !/^(did:|at:\/\/)/.test(v) && !v.includes('/') });
 $('#signin').addEventListener('click', async () => {
   const h = $('#handle').value.trim(); if (!h) return setDriveStatus('enter your handle', true);
   try { await auth.login(h, { scope: DRIVE_SCOPE }); } catch (e) { setDriveStatus(`sign-in failed: ${e.message}`, true); }

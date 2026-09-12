@@ -122,6 +122,12 @@ check(rm.path === 'scratch/wheel-copy' && !(await local.find('scratch/wheel-copy
   check(one.status === 200 && one.headers.get('access-control-allow-origin') === '*' && (await one.json()).value.path === 'lib/m5-bolt', 'and fetches one record by DID, CORS open');
   check((await g('com.atproto.repo.getRecord?repo=did:plc:stranger&collection=app.bsky.feed.post&rkey=x')).status === 400, 'it refuses collections outside com.minomobi.cad.*');
   check((await g('com.atproto.repo.createRecord?repo=did:plc:stranger&collection=com.minomobi.cad.part')).status === 404, 'and any method but the two public reads');
+  // the two public actor methods pass to the public API with their declared params only
+  const seen = [];
+  const af = async (u) => { u = new URL(u); seen.push(u); return Response.json(u.pathname.endsWith('searchActorsTypeahead') ? { actors: [{ did: 'did:plc:a', handle: 'alice.test', displayName: 'Alice' }] } : { did: 'did:plc:a', handle: 'alice.test' }); };
+  const ta = await (await xrpc(new URL('https://cad.mino.mobi/xrpc/app.bsky.actor.searchActorsTypeahead?q=ali&limit=50&repo=x&evil=1'), af)).json();
+  const pf = await (await xrpc(new URL('https://cad.mino.mobi/xrpc/app.bsky.actor.getProfile?actor=did:plc:a'), af)).json();
+  check(ta.actors[0].handle === 'alice.test' && pf.handle === 'alice.test' && seen[0].host === 'public.api.bsky.app' && seen[0].searchParams.get('limit') === '10' && !seen[0].searchParams.has('evil') && !seen[0].searchParams.has('repo') && seen[1].searchParams.get('actor') === 'did:plc:a', `typeahead and getProfile pass through to the public API, limit capped at ${seen[0].searchParams.get('limit')}, stray params dropped`);
   // the browser drive points its public backend at the gateway
   const viaGateway = new Drive(new PublicBackend('did:plc:stranger', 'https://cad.mino.mobi', { fetch: (u) => g(String(u).split('/xrpc/')[1]) }));
   check((await viaGateway.get('lib/m5-bolt'))?.revision.message === 'a bolt', 'a PublicBackend aimed at the gateway reads the same file');

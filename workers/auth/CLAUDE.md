@@ -168,6 +168,28 @@ curl -s -X POST https://auth.mino.mobi/oauth/start \
 An `authUrl` in the response means the ceiling is live and agreed. A PAR that is
 never completed grants nothing, so this is safe to run against production.
 
+### The PDS access token is cached — refreshing per request killed sessions
+
+Until 2026-09-12 every `/pds/*` call ran a `refresh_token` grant to get an
+access token. ATProto refresh tokens are **single-use and rotate on every
+grant**, so two proxied calls in flight at once (a page listing a repo while
+another tab saves; a file tree fetching in parallel; the cad viewer and the
+parts page open together) presented the same refresh token twice. The auth
+server treats the second as a reuse and revokes the token family, and every
+call after that is a 401 — which the client reports as "session expired",
+minutes after a successful sign-in. That was the "login doesn't work" report.
+
+Now `refreshOAuthToken` (`src/oauth/flow.ts`) keeps the access token and its
+expiry in the session's `dpop_key_jwk` JSON blob next to the DPoP key and
+nonce (no migration), runs a grant only within a minute of expiry or when
+told to (`force`), and shares one in-flight grant between concurrent callers
+in an isolate. The proxy forces one grant and retries a GET once when a PDS
+answers 401 without a nonce challenge, so a token revoked early never
+surfaces as an expired session. Two isolates can still refresh at the same
+instant at the moment of expiry; that window is seconds a day, not every
+request. If sessions ever die again, look at the token endpoint's answer to
+the refresh in the worker logs before anything else.
+
 ## Deploying
 
 Pushes to the owning branch above, or `main`, that touch this surface's paths trigger [`.github/workflows/deploy-auth.yml`](../../.github/workflows/deploy-auth.yml).

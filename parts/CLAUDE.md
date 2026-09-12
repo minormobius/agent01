@@ -58,8 +58,11 @@ lives in Bob's repo and points at Alice's community; the front page is an
   `packages/oauth-client/`) with the narrow scope of the four collections.
   **After every write the page posts `/api/index?repo=<me>`**, so what you
   wrote is on the page before Constellation has seen it. Part details come
-  from `cad.mino.mobi/xrpc/` (the revision's own `invariants`); the part
-  opens in the viewer by revision URI.
+  from `cad.mino.mobi/xrpc/` (the revision's own `invariants`), and so do
+  authors' handles (`getProfile`) and the sign-in field's suggestions
+  (`searchActorsTypeahead`, `site/vendor/typeahead.js`, synced from
+  `packages/oauth-client/`) — the page's CSP never names the public API;
+  the part opens in the viewer by revision URI.
 
 ## How a post gets on the front page
 
