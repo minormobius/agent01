@@ -66,9 +66,23 @@ from its axis is a boss and is not called out. On an assembly every
 component is posed and `reference` ones are left out. Deterministic: two
 drawings of one tree diff cleanly.
 
-Not yet: a server sweep still runs one instant after another with no
-budget — a 45-component assembly at 24 instants does not finish. Windowed
-sweeps are next.
+**Sweeps on the server fit in the server.** The `interference` tool now
+spends one CPU budget over the whole call and says where it got to:
+
+- exact meshes are **cached between calls** in the isolate, so a second
+  call pays nothing to rebuild a part (a 60-tooth gear is ~30 s);
+- if the budget goes on the builds, the answer is `incomplete: "parts"`
+  with what is left — call again and it gets further;
+- a sweep that runs out answers `done: false` with `next`: call again with
+  `from: next` until `done`, then take the smallest distance per pair
+  across the windows;
+- refinement between samples now runs only for pairs within four times the
+  clearance (and at least 1 mm) — a pair 10 mm apart cannot graze. On the
+  lift that is 7 pairs of 21, locally too (`agent/check.mjs` says how many).
+
+A 45-component assembly at 24 instants no longer fails one request; it
+takes several. Locally there is no budget and `agent/check.mjs` is still
+the faster path for something that size.
 
 ## 2026-09-12
 

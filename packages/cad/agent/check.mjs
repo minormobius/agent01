@@ -103,9 +103,11 @@ if (!sweep) {
   if (has('--json')) console.log(JSON.stringify(out, null, 1));
   else { console.log(`t = ${r.t} s · ${bodies.length} components · nearest approach of ${r.pairs.length} pairs in ${r.ms.toFixed(0)} ms · flagging under ${clearance} mm`); for (const p of r.pairs) console.log(row(p)); }
 } else {
-  const r = sweepClearance(bodies, kin, { instants: sweep, period, within: Infinity });
-  out = { sweep, period, clearance, refined: r.refined, pairs: r.pairs, tested: r.tested, ms: r.ms };
+  // refine only where a graze between samples could reach the clearance being demanded: four times it, and at least a millimetre
+  const refineWithin = clearance * 4 + 1;
+  const r = sweepClearance(bodies, kin, { instants: sweep, period, within: Infinity, refineWithin });
+  out = { sweep, period, clearance, refined: r.refined, refinedPairs: r.refinedPairs, pairs: r.pairs, tested: r.tested, ms: r.ms };
   if (has('--json')) console.log(JSON.stringify(out, null, 1));
-  else { console.log(`${sweep} instants over ${period} s, minima refined between samples · ${bodies.length} components · ${r.pairs.length} pairs · ${r.ms.toFixed(0)} ms · flagging under ${clearance} mm`); for (const p of r.pairs) console.log(row(p)); }
+  else { console.log(`${sweep} instants over ${period} s, the ${r.refinedPairs} pairs within ${refineWithin} mm refined between samples · ${bodies.length} components · ${r.pairs.length} pairs · ${r.ms.toFixed(0)} ms · flagging under ${clearance} mm`); for (const p of r.pairs) console.log(row(p)); }
 }
 process.exit(out.pairs.some(failing) ? 1 : 0);

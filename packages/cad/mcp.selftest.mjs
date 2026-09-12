@@ -77,6 +77,27 @@ const cl = (await tool('interference', { assembly: 'bench:lift', sweep: 6, clear
 check(cl.method === 'mesh' && cl.refined && cl.pairs.length >= 9 && cl.pairs.every((p) => ['clear', 'expected', 'fit'].includes(p.verdict)) && cl.pairs.some((p) => p.verdict === 'fit' && [p.a, p.b].includes('nut')) && cl.ok === true, `clearance mode: nearest approach of ${cl.pairs.length} pairs through the cycle, the nut's 0.1 mm to the screw read as its declared fit under a 0.5 demand (ok ${cl.ok})`);
 const ms = (await tool('measure', { tree: 'bench:lift', a: 'nut.end', b: 'platform.start', t: 0.5 })).structuredContent;
 check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5, `measure across an assembly: the nut's top and the platform's underside are coplanar at t = 0.5 (${ms.kind}, ${ms.distance})`);
+// a sweep too big for one server request: windowed, resumable, and the meshes cached between calls
+{
+  const tight = createMcp({ kernels, fetchRef, capabilities: { manifold: false, budgetMs: 1000 } });
+  const w1 = await tight.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5 });
+  check(w1.method === 'mesh' && w1.done === false && Number.isInteger(w1.next) && w1.next > 0 && w1.window.sampled >= 1 && w1.window.of === 24 && w1.ok === false && /call again with from/i.test(w1.note), `a sweep over a 1 s budget stops after ${w1.window?.sampled} of 24 instants and says to resume at ${w1.next}`);
+  const w2 = await tight.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5, from: w1.next });
+  check(w2.window.from === w1.next && w2.cached > 0 && w2.built === 0 && w2.pairs.length === w1.pairs.length, `the next window starts at ${w2.window.from} and pays nothing to build: ${w2.cached} part meshes came from the cache`);
+  const clearanceBand = 0.5 * 4 + 1;
+  let from = 0, calls = 0, closest = new Map();
+  for (; calls < 40; calls++) { const r = await tight.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5, from }); for (const p of r.pairs) { const k = `${p.a}|${p.b}`; if (!closest.has(k) || p.distance < closest.get(k)) closest.set(k, p.distance); } if (r.done) break; from = r.next; }
+  const roomy = createMcp({ kernels, fetchRef, capabilities: { manifold: false, budgetMs: 600000 } });
+  const whole = await roomy.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5 });
+  // A window samples the same instants; refinement between samples is the
+  // part a 1 s budget cannot afford, so a window is never better than the
+  // whole call, and identical for the far pairs, which are not refined.
+  const w = (p) => closest.get(`${p.a}|${p.b}`);
+  const never = whole.pairs.every((p) => w(p) >= p.distance - 1e-9);
+  const far = whole.pairs.filter((p) => p.distance > clearanceBand);
+  check(whole.done === true && never && far.length > 0 && far.every((p) => Math.abs(w(p) - p.distance) < 1e-9), `${calls + 1} windows cover the sweep: never nearer than the one unbudgeted call, and identical on the ${far.length} pairs too far to refine`);
+  check(whole.refinedPairs < whole.pairs.length && whole.refinedPairs > 0, `only the ${whole.refinedPairs} pairs within four times the clearance are refined, not all ${whole.pairs.length}`);
+}
 const sw = (await tool('interference', { assembly: 'bench:lift', sweep: 6 })).structuredContent;
 check(sw.ok && sw.sweep === 6 && Math.abs(sw.period - 1) < 1e-9 && sw.pairs.every((p) => p.expected), `interference sweeps ${sw.sweep} instants over ${sw.period} s of the lift (references resolved on the host) and finds only expected touches`);
 const i = (await tool('interference', { assembly: 'bench:clock', t: 0.5 })).structuredContent;

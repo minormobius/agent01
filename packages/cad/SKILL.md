@@ -145,9 +145,19 @@ own numbers rather than the clearance you demand of everything else —
 ```
 
 `[*]` matches every instance of a repeat; either order of `a` and `b`
-matches; numbers may be expressions. Clearance needs no kernel, so the
-MCP `interference` tool runs it on the server (`clearance`, `sweep`,
-`period`); shared volumes still need Manifold, which is local. Distances
+matches; numbers may be expressions. Only the pairs within four times the
+clearance (and at least 1 mm) are refined — a pair 10 mm away cannot graze.
+
+Clearance needs no kernel, so the MCP `interference` tool runs it on the
+server (`clearance`, `sweep`, `period`); shared volumes still need Manifold,
+which is local. **A big assembly does not fit in one server request.** The
+call has a CPU budget: part meshes are cached between calls, and a sweep
+that runs out of time answers `done: false` with `next` — call again with
+`from: next` until `done`, then take the smallest distance per pair across
+the windows. If the budget goes on building parts instead, the answer says
+so (`incomplete: "parts"`, with what is left) and the next call gets
+further. Locally there is no budget: `agent/check.mjs` sweeps the whole
+cycle in one go, and for a 45-component assembly that is the faster path. Distances
 come from the exact meshes at a fine tessellation (chord tolerance
 0.0025 mm), so a designed 0.1 mm reads 0.098; set a fit's `min` with that
 in mind.

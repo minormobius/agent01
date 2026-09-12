@@ -117,6 +117,15 @@ documented in [`README.md`](README.md) next to this file.
   0.1 mm reads 0.098, not 0.093. `check.mjs --clearance d` and the MCP
   `interference` tool's `clearance` use it — which is why interference is
   a server tool now (Manifold still cannot run there; volumes stay local).
+  **The server's sweep is windowed:** `sweepClearance` takes `from` and
+  `budgetMs`, samples until the budget is spent (always at least one
+  instant), and returns `done`, `next` and `sampled`; `refineWithin` skips
+  the golden-section refinement for pairs no closer than four times the
+  clearance plus a millimetre. `mcp.js` spends one budget over the whole
+  call — the part builds first, then the sweep — and keeps exact meshes in
+  a module-level `MESH_CACHE` (48 entries, keyed by tree text and res), so
+  a continuation call pays nothing to rebuild. The live worker is created
+  with `budgetMs: 90000` under its 120 s `cpu_ms`.
   Components with `reference: true` are drawn translucent and left out of
   checks and export; `hidden` is display only and counts.
 - **Audit.** `agent/audit.mjs --at <repo> [--kernels]` rebuilds every

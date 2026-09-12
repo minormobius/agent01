@@ -50,18 +50,37 @@ function pairAt(a, b, kin, t) {
 }
 
 /// N instants over `period`, each pair's worst, refined between samples.
-export function sweepClearance(bodies, kin, { instants = 12, period = 1, within = Infinity, skip = () => false, refine = true, iterations = 10 } = {}) {
+///
+/// A big assembly does not fit in one server's CPU: 45 components at 24
+/// instants is 24 × 990 pairs. So a sweep is WINDOWED — it starts at instant
+/// `from`, stops when `budgetMs` is spent (always taking at least one
+/// instant), and reports `next`, the instant it stopped at, for the caller
+/// to pass back as `from`. `done` says the window reached the end.
+/// Refinement is the other cost, and it only pays near the clearance being
+/// demanded: `refineWithin` skips pairs no closer than that.
+export function sweepClearance(bodies, kin, { instants = 12, period = 1, from = 0, within = Infinity, skip = () => false, refine = true, iterations = 10, refineWithin = Infinity, budgetMs = Infinity } = {}) {
   const t0 = performance.now();
+  const spent = () => performance.now() - t0 >= budgetMs;
   const byId = new Map(bodies.map((b) => [b.id, b]));
   const worst = new Map(); let tested = 0;
-  const ts = []; for (let k = 0; k < instants; k++) ts.push((k * period) / instants);
   const better = (p, q) => (p.penetration > q.penetration) || (p.penetration === q.penetration && p.distance < q.distance);
   const record = (p, t) => { const key = `${p.a}|${p.b}`; const w = worst.get(key); if (!w || better(p, w)) worst.set(key, { ...p, t }); };
-  for (const t of ts) { const r = clearanceAt(bodies, kin, t, { within, skip }); tested = Math.max(tested, r.tested); for (const p of r.pairs) record(p, t); }
+  const start = Math.max(0, Math.min(instants - 1, Math.floor(from) || 0));
+  let k = start;
+  for (; k < instants; k++) {
+    if (k > start && spent()) break;
+    const r = clearanceAt(bodies, kin, (k * period) / instants, { within, skip });
+    tested = Math.max(tested, r.tested); for (const p of r.pairs) record(p, (k * period) / instants);
+  }
+  const done = k >= instants;
+  let refinedPairs = 0;
   if (refine && instants > 1) {
     const step = period / instants;
     for (const [key, w] of [...worst]) {
       if (w.penetration > 0) continue; // already colliding: the volume, not the distance, is the story
+      if (w.distance > refineWithin) continue; // far enough that a graze between samples cannot reach the clearance
+      if (spent()) break;
+      refinedPairs++;
       const a = byId.get(w.a), b = byId.get(w.b);
       const f = (t) => { const r = pairAt(a, b, kin, t); return r.penetration > 0 ? -r.penetration : r.distance; };
       let lo = w.t - step, hi = w.t + step, x1 = hi - phi * (hi - lo), x2 = lo + phi * (hi - lo), f1 = f(x1), f2 = f(x2);
@@ -71,5 +90,5 @@ export function sweepClearance(bodies, kin, { instants = 12, period = 1, within 
     }
   }
   const pairs = [...worst.values()].sort((p, q) => q.penetration - p.penetration || p.distance - q.distance);
-  return { pairs, instants, period, tested, refined: refine, ms: performance.now() - t0 };
+  return { pairs, instants, period, from: start, sampled: k - start, done, next: done ? null : k, tested, refined: refine, refinedPairs, ms: performance.now() - t0 };
 }
