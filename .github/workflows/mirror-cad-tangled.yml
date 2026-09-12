@@ -23,7 +23,7 @@ name: Mirror cad to Tangled
 #
 # workflow_dispatch does not resolve off the default branch; a push on the
 # owning branch that touches the package or this file is the trigger.
-# marker: 2026-09-11b (the repo exists now)
+# marker: 2026-09-12 (push retries on the knot's rate limit)
 
 on:
   push:
@@ -113,8 +113,16 @@ jobs:
           git -c user.name='cad-mirror' -c user.email='mirror@morphyxmino.bsky.social' \
             commit -qm "mirror packages/cad — ${GITHUB_SHA::7}, $(date -u +%Y-%m-%d)"
           git remote add origin "git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}"
-          GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
-            git push -f origin main
+          # The knot rate-limits by address ("too many concurrent operations
+          # from your address, try again shortly" — seen 2026-09-12 when a
+          # push landed while another runner from the same range was
+          # talking to it). Nothing here is wrong then; wait and push again.
+          for attempt in 1 2 3 4; do
+            if GIT_SSH_COMMAND="ssh -4 -o StrictHostKeyChecking=accept-new -i ~/.ssh/id_ed25519" \
+              git push -f origin main; then break; fi
+            [ "$attempt" = 4 ] && { echo "✗ the knot refused the push four times"; exit 1; }
+            echo "  push refused (attempt $attempt); waiting $((attempt * 30)) s for the knot"; sleep $((attempt * 30))
+          done
           echo "✓ mirrored packages/cad → ${TANGLED_HANDLE}/${TANGLED_REPO} on ${TANGLED_KNOT}"
           echo "### cad mirrored" >> "$GITHUB_STEP_SUMMARY"
           echo "git clone git@${TANGLED_KNOT}:${TANGLED_HANDLE}/${TANGLED_REPO}" >> "$GITHUB_STEP_SUMMARY"
