@@ -33,7 +33,7 @@ const treeSchema = { type: 'object', description: 'A feature tree (see cad.mino.
 const treeArg = { oneOf: [treeSchema, { type: 'string', description: '`bench:<name>` or an `at://` URI' }] };
 
 export const TOOLS = [
-  { name: 'check', title: 'Resolve a tree', description: 'Evaluate the expressions, sketches and ops of a tree without building geometry. Returns params, sketch and op counts, or the first error with its op id. Cheap; run it after every edit.',
+  { name: 'check', title: 'Resolve a tree', description: 'Evaluate the expressions, sketches and ops of a tree without building geometry. Returns params, sketch and op counts, or the first error with its op id. On an assembly: its params and derived at t = 0, every placement expression, and each distinct part. Cheap; run it after every edit.',
     inputSchema: { type: 'object', properties: { tree: treeArg }, required: ['tree'] } },
   { name: 'build', title: 'Build a part or assembly', description: 'Exact build with the Truck kernel (or the Manifold preview kernel): volume, area, bbox, centroid, Euler characteristic, watertightness, and every named face with its geometry (plane or cylinder). For an assembly: the component list, every distinct part key, and the parts built in this call — a server builds at most a few parts per call (a gear can take 20 s), so pass `parts` (part keys from `partKeys`) to build the rest, and `remaining` tells you which are left. Returns a link that opens the same document in the viewer.',
     inputSchema: { type: 'object', properties: { tree: treeArg, kernel: { type: 'string', enum: ['truck', 'manifold'], default: 'truck' }, faces: { type: 'boolean', default: true, description: 'include the face list' }, parts: { type: 'array', items: { type: 'string' }, description: 'assemblies only: the part keys to build in this call (default: the first few)' } }, required: ['tree'] } },
@@ -76,8 +76,15 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
   const tools = {
     async check({ tree }) {
       const { engine } = await kernels();
-      const r = engine.resolve(await asTree(tree)).resolved;
-      return { ok: true, units: r.units, params: r.params, sketches: (r.sketches || []).map((s) => s.id), ops: (r.ops || []).map((o) => ({ op: o.op, id: o.id, mode: o.mode })) };
+      const resolveOne = (t) => { const r = engine.resolve(t).resolved; return { ok: true, units: r.units, params: r.params, sketches: (r.sketches || []).map((s) => s.id), ops: (r.ops || []).map((o) => ({ op: o.op, id: o.id, mode: o.mode })) }; };
+      const doc = await asTree(tree);
+      if (!Array.isArray(doc.components)) return resolveOne(doc);
+      // an assembly: its params and derived at t = 0 and every placement expression are evaluated by flatten; then each distinct part
+      const { components, partTrees, params, drive } = await flatten(doc, resolveRef);
+      const parts = {};
+      for (const [key, t] of partTrees) { try { parts[key] = resolveOne(t); } catch (e) { parts[key] = { ok: false, error: { op: e.op, msg: e.message } }; } }
+      const bad = Object.values(parts).filter((p) => !p.ok).length;
+      return { ok: bad === 0, kind: 'assembly', params, drive, components: components.map((c) => ({ id: c.id, part: c.part, partKey: c.partKey, dynamic: c.dynamic })), parts };
     },
     async build({ tree, kernel = 'truck', faces = true, parts: only }) {
       const { engine, manifold } = await kernels();

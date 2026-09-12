@@ -54,6 +54,8 @@ const bm = (await tool('build', { tree: 'bench:gear', kernel: 'manifold' })).str
 check(bm.ok && bm.kernel === 'manifold' && bm.invariants.watertight && bm.faces.length === 0, `build with the preview kernel takes bench: refs (${bm.invariants.volume.toFixed(1)} mm³)`);
 const esc = await tool('build', { tree: 'bench:escape' });
 check(!esc.structuredContent.ok && /boolean/.test(esc.structuredContent.error.msg), `build is honest about Truck's boolean failure: ${esc.structuredContent.error.msg}`);
+const ck = (await tool('check', { tree: 'bench:crank' })).structuredContent;
+check(ck.ok && ck.kind === 'assembly' && ck.params.r === 10 && ck.components.length === 3 && ck.components.find((c) => c.id === 'block').dynamic && Object.values(ck.parts).every((p) => p.ok) && ck.parts[ck.components[1].partKey].params.length === 30, `check on an assembly evaluates its params (r = ${ck.params.r}), marks dynamic components, and resolves every distinct part (rod length ${ck.parts[ck.components[1].partKey].params.length})`);
 const asm = (await tool('build', { tree: 'bench:train', faces: false })).structuredContent;
 check(asm.kind === 'assembly' && asm.components.length === 4 && Object.keys(asm.parts).length === 3 && asm.complete && asm.remaining.length === 0, `build on an assembly: ${asm.components.length} components over ${Object.keys(asm.parts).length} parts, complete`);
 {
