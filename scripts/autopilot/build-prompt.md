@@ -33,9 +33,9 @@ _Regenerated 2026-09-12 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-12, 99 members / 287 posts):
+**Neighborhood spark** (bisk 2026-09-12, 99 members / 268 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: idk, imo, openai
+- Distinctive words: idk, openai, bluesky
 - Top post: "lmao I got a PhD" — @viriditax.bsky.social
 <!-- BRIEF_END -->
 
