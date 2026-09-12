@@ -1,0 +1,55 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Spacer sleeve: Ø6 × 8 with a Ø4.1 bore, keeping the upper and lower links apart on their pin. Four per gripper. One revolve about local Z.",
+ "params": {
+  "D": 6,
+  "L": 10,
+  "d": 4.1
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "profile",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "body",
+     "polygon": [
+      [
+       "d/2",
+       0
+      ],
+      [
+       "D/2",
+       0
+      ],
+      [
+       "D/2",
+       "L"
+      ],
+      [
+       "d/2",
+       "L"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "revolve",
+   "id": "spacer",
+   "profile": "profile",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

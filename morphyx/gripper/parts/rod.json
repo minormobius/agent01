@@ -1,10 +1,11 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "A Ø6 carriage guide rod along Y, pressed into the bulkhead and the front wall, at the x this instance is given. One extrude along -Y.",
+ "_": "A Ø6 carriage guide rod along Y at z −8, pressed into the bulkhead and the front wall, at the x this instance is given. One extrude along -Y.",
  "params": {
   "d": 6,
   "x": 19,
+  "z": -8,
   "y0": 38,
   "y1": 102
  },
@@ -22,7 +23,7 @@
      "circle": {
       "c": [
        "x",
-       0
+       "z"
       ],
       "r": "d/2"
      }

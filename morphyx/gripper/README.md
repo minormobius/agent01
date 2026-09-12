@@ -1,13 +1,13 @@
 # gripper — a parallel-jaw robot gripper for cad.mino.mobi
 
 Version 4: pivots, doubled. An ISO 9409-1-50-4-M6 tool flange is the rear
-plate of a 96 × 61 × 104 mm case. Inside: a NEMA 17 pancake stepper with an
+plate of a 96 × 67 × 104 mm case. Inside: a NEMA 17 pancake stepper with an
 integrated Tr8×2 lead screw, a flange nut in a carriage riding two Ø6 rods, a
 crossbar on the carriage neck carrying two pivot pins, and four 27 mm links
-on bronze bushings, one above and one below each finger tab. The fingers
-ride one MGN9 ball guide across the front wall's outer face, a block each,
-pads on a carrier bolted to the block. Nut forward closes. Opening 36 → 0 mm
-in 7 turns. Twenty-one parts, one assembly, every part one sweep. Versions 1
+on bronze bushings, one above and one below the linear block, on a pin that
+spans two finger tabs. The fingers ride one MGN9 ball guide across the front
+wall's outer face, a block each, pads on a carrier bolted to the block. Nut forward closes. Opening 36 → 0 mm
+in 7 turns. Twenty-two parts, one assembly, every part one sweep. Versions 1
 to 3 are the earlier revisions of the same files; their retired parts live
 under `gripper/v1/`, `gripper/v2/`, `gripper/v3/`.
 
@@ -20,7 +20,7 @@ the bench trees, the `/mcp` server, and the tangled mirror.
 | | |
 |---|---|
 | `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment-and-friction audit, the clearance audit, closed forms. `node gripper.mjs` writes `parts/`, `gripper.json`, `expected.json` |
-| `parts/*.json` | the twenty-one part trees, as generated |
+| `parts/*.json` | the twenty-two part trees, as generated |
 | `gripper.json` | the assembly, kinematic (a clock drive, everything derived), parts inline — paste into the viewer's tree tab and press spin |
 | `expected.json` | closed-form volumes for the parts that have one |
 | `publish.mjs` | writes parts then the assembly (parts pinned to revision URIs) into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
@@ -65,14 +65,14 @@ single yoke plane 15 mm above the screw axis that put a couple on the
 carriage. v4:
 
 1. **Every joint is a pivot.** Hardened Ø4 dowels in Ø6 × 6 bronze bushings
-   pressed into the link eyes. Each pin carries a link above and a link
-   below, so every pin is in double shear: the finger pin through the tab,
-   the carriage pin through the crossbar.
-2. **The links straddle the guide plane.** Upper link z 20–26, lower 6–12,
-   tab 12–20, rail centre and pad centre at z 16. The linear block sees
-   zero roll and zero pitch; what remains is the yaw couple between the pad
-   20 mm ahead of the block and the pin 15 mm behind it, 2.1 N·m at a
-   60 N grip.
+   pressed into the link eyes. Each carriage pin carries a link above and a
+   link below through the crossbar; each finger pin spans two tabs, one
+   under the linear block and one over it, with both links and a spacer
+   between them. Every link sits in double shear.
+2. **The links straddle the guide plane.** Lower link z 5–11, upper 21–27,
+   rail centre and pad centre at z 16. The linear block sees zero roll and
+   zero pitch; what remains is the yaw couple between the pad 20 mm ahead of
+   the block and the pin 18 mm behind it, 2.2 N·m at a 60 N grip.
 3. **The carriage pivots sit outboard and ahead of the carriage body**
    (x ±36, 8 mm ahead), on a crossbar keyed to the neck, so the links never
    sweep the carriage, the rods or the nut. That forces the crossed
@@ -109,11 +109,11 @@ face. The tool centre line is the case centre, 3.5 above the screw axis.
   y=0     rear plate = ISO 9409-1-50-4-M6 flange: 4 × Ø6.6 on PCD 50, Ø6 dowel, Ø32 boss hole
   14–36   NEMA 17 pancake, Tr8×2 shaft; bulkhead 36–42 takes its pilot, 4 × M3, and the two rods
   42–46   thrust collar Ø14 on the screw, against the bulkhead's front face
-  38–102  two Ø6 rods at x = ±19, z = 0, pressed into the bulkhead and the front wall
-  59–73   carriage centre stroke (open → closed), 20 thick; crossbar keyed on its neck, z 12–20
-  yn+8    crossbar pivot pins at x ±36, z 6–26; links 27 mm to the finger pins at (±xp, 95)
-  89–122  finger tabs, z 12–20, pin at y 95; through the wall slot and the carrier window
-  98–104  front wall, 104 wide: screw bearing Ø8.2, rod seats, one 74 × 8.4 slot for the tabs
+  38–102  two Ø6 rods at x = ±19, z = −8, pressed into the bulkhead and the front wall
+  61–75   carriage centre stroke (open → closed), 20 thick, stepped; crossbar keyed on its neck, z 12–20
+  yn+5    crossbar pivot pins at x ±36, z 5–27; links 27 mm to the finger pins at (±xp, 92)
+  86–122  finger tabs, z −3–5 and 27–35, pin at y 92 spanning both; through the wall slots and carrier windows
+  96–104  screw journal Ø6; front wall 98–104, 104 wide: bearing Ø6.2, rod seats, three tab slots
   104–114 MGN9 rail (z 16) and blocks on the wall's outer face; carriers 114–120; pads 120–140
 ```
 
@@ -122,7 +122,7 @@ turn is one grip cycle of 12 s, and everything else is derived:
 
 ```
 spin = 360 · (ynClosed − ynOpen)/lead · (1 − cos θ)/2    screw angle: 0 → 7 turns → 0
-yn   = ynOpen + lead · spin/360                           carriage centre, 58.7 → 72.6 → 58.7
+yn   = ynOpen + lead · spin/360                           carriage centre, 60.7 → 74.6 → 60.7
 dy   = yf − py − yn                                       link reach along Y
 x    = √(L² − dy²)                                        link reach along X
 xp   = px − x                                             finger pivot x, 30 → 12 → 30; opening = 2(xp − 12)
@@ -131,42 +131,43 @@ phi  = atan2(dy, −x)                                      right link angle
 
 | finger pivot x | block x | nut y | link angle | opening |
 |---|---|---|---|---|
-| 12 (closed) | 18 | 72.6 | 62.7° | 0 |
-| 21 | 27 | 62.6 | 33.7° | 18 |
-| 30 (open) | 36 | 58.7 | 12.8° | 36 |
+| 12 (closed) | 18 | 74.6 | 62.7° | 0 |
+| 21 | 27 | 64.6 | 33.7° | 18 |
+| 30 (open) | 36 | 60.7 | 12.8° | 36 |
 
 ## The parts
 
 Every part builds exact on Truck, watertight, every face named (verified
-through `/mcp` for all twenty-one plus the mirrored tab, carrier and pad).
+through `/mcp` for all twenty-two plus the mirrored and upper tabs, the mirrored carrier and pad, and the long pin).
 
 | part | sweep | key faces | holds |
 |---|---|---|---|
-| rear-flange | XZ extrude, 96 × 61 × 8 | `plate.bolt[k][j]` Ø6.6 PCD 50, `plate.dowel[k]`, `plate.boss[k]` | the robot |
+| rear-flange | XZ extrude, 96 × 67 × 8 | `plate.bolt[k][j]` Ø6.6 PCD 50, `plate.dowel[k]`, `plate.boss[k]` | the robot |
 | floor, lid | XY extrude, 96 × 90 × 4 | `lid.window[k]` | the box |
-| side-wall (×2) | YZ extrude, 90 × 53 × 4, plain | — | the box |
-| bulkhead | XZ extrude, 87 × 52 × 6 | `plate.pilot[k]`, `plate.bolt[k][j]`, `plate.rodR/L[k]` Ø6 | motor, rods, collar |
-| front-wall | XZ extrude, 104 × 61 × 6 | `plate.bore[k]` Ø8.2, `plate.rodR/L[k]`, `plate.slot[k]` | screw end, rods, rail; tabs pass |
+| side-wall (×2) | YZ extrude, 90 × 59 × 4, plain | — | the box |
+| bulkhead | XZ extrude, 87 × 58 × 6 | `plate.pilot[k]`, `plate.bolt[k][j]`, `plate.rodR/L[k]` Ø6 | motor, rods, collar |
+| front-wall | XZ extrude, 104 × 67 × 6 | `plate.bore[k]` Ø6.2, `plate.rodR/L[k]`, `plate.slotLoR/LoL/Hi[k]` | screw journal, rods, rail; tabs pass |
 | motor | XZ extrude, 42.3 square, 22 long | — | stand-in; its shaft is the screw |
-| screw | extrude circle, Ø8 × 68 | `screw.od[k]` | thread not modelled |
+| screw | revolve, Ø8 × 60 with a Ø6 × 8 journal | — | thread not modelled |
 | collar | revolve, Ø14 × 4, Ø8 bore | — | thrust into the bulkhead |
 | rod (×2) | XZ extrude circle, Ø6 × 64 | `rod.od[k]` | x = ±19 by `params` |
 | nut | revolve, Ø22 flange, Ø10 body, Ø8.4 bore | — | thread clearance 0.2 |
-| carriage | XZ extrude, 52 wide, 20 thick, neck 30 × 8 | `carriage.bore[k]`, `carriage.rodR/L[k]` Ø6.2, `carriage.bolt[k][j]` | nut, rods, crossbar |
-| crossbar | XY extrude, 84 × 24 × 8, window 30.2 × 20.2 | `crossbar.pivotR/L[k]` Ø4 | the carriage pins |
+| carriage | XZ extrude, 52 wide, 20 thick, stepped, neck 26 × 8 | `carriage.bore[k]`, `carriage.rodR/L[k]` Ø6.2, `carriage.bolt[k][j]` | nut, rods, crossbar |
+| crossbar | XY extrude, 84 × 24 × 8, window 26.2 × 20.2 | `crossbar.pivotR/L[k]` Ø4 | the carriage pins |
 | link (×4) | XY extrude, 27 dog-bone, 10 wide, 6 thick, Ø6 eyes | `link.eye[k][j]` | bushings |
 | bushing (×8) | revolve, Ø6 × 6, Ø4.1 bore | — | bronze; press in the eye, runs on the pin |
-| pin (×4) | extrude circle Ø4 × 20 | `pin.od[k]` | press in tab or crossbar, two links each |
-| tab (×2) | XY extrude, 12 × 33 × 8 | `tab.pin[k]` Ø4 | `side: -1` mirrors; the clevis tang |
-| carrier (×2) | XZ extrude, 27 × 36 × 6 | `carrier.blockA–D[k]` Ø3.4 on 10 × 15, `carrier.padA/B[k]`, `carrier.window[k]` | block, tab, pad |
+| spacer (×4) | revolve, Ø6 × 10, Ø4.1 bore | — | between the links on each pin |
+| pin (×4) | extrude circle Ø4, 22 and 38 long | `pin.od[k]` | press in crossbar or tabs, two links each |
+| tab (×4) | XY extrude, 12 × 36 × 8 | `tab.pin[k]` Ø4 | `side: -1` mirrors, `z0: 27` lifts; the clevis cheeks |
+| carrier (×2) | XZ extrude, 27 × 44 × 6 | `carrier.blockA–D[k]` Ø3.4 on 10 × 15, `carrier.padA/B[k]`, `carrier.windowLo/Hi[k]` | block, tabs, pad |
 | block (×2) | YZ extrude, MGN9C stand-in 20 × 8 × 28.9 with a channel | — | purchased |
 | rail | YZ extrude, MGN9 stand-in 9 × 6.5 × 104 | `rail.outline[k]` | purchased; mount holes not modelled |
 | pad (×2) | XZ extrude, 12 × 20 × 20 | `pad.outline[k]` gripping face, `pad.tapA/B[k]` Ø2.5 | `side: -1` mirrors |
 
 Closed forms: block, floor, rail and side-wall 0.000 %, front-wall 0.003 %,
 collar 0.004 %, crossbar 0.007 %, rear-flange and tab 0.012 %, link 0.017 %,
-nut and pad 0.028 %, rod and screw 0.16 %, bushing 0.29 % (chord error of
-thin cylinders).
+nut and pad 0.028 %, rod 0.16 %, screw 0.24 %, bushing and spacer 0.29 %
+(chord error of thin cylinders).
 
 ## Fits and what is not modelled
 
@@ -182,7 +183,8 @@ thin cylinders).
 - The carriage slides 2 mm above the floor on its rods; bronze rod bushings
   and the thrust washer are not modelled.
 - Link pins carry ~260 N each at closed (both links); a Ø4 hardened dowel
-  in 6 mm bushings is comfortable. Link bending is in-plane.
+  in 6 mm bushings, supported at both ends, is comfortable. Link bending is
+  in-plane.
 - No recess for the robot flange's Ø31.5 boss: it passes through the Ø32
   hole into the 6 mm behind the motor. Locate on the dowel.
 - 1.15 mm of wall between the carriage bore and the flange bolt holes, the
@@ -195,8 +197,8 @@ thin cylinders).
 ## Verified, and not
 
 **Verified from this sandbox:** every part builds exact and watertight with
-all faces named (24 builds through `/mcp`); the closed forms above; the
-assembly resolves through `/mcp` (41 components, 26 distinct builds,
+all faces named (28 builds through `/mcp`); the closed forms above; the
+assembly resolves through `/mcp` (47 components, 30 distinct builds,
 `remaining: []`); the clearance audit in `gripper.mjs` at closed, mid and
 open.
 
@@ -204,7 +206,7 @@ open.
 through the motion (`agent/check.mjs`) at eight instants of the cycle, and
 the publish. Read its log for the `no interference` lines.
 
-**Not verified anywhere here:** the MGN9C moment ratings against the 2.1 N·m
+**Not verified anywhere here:** the MGN9C moment ratings against the 2.2 N·m
 yaw; those are catalogue numbers to check.
 
 ## Open it

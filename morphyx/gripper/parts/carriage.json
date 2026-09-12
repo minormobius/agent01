@@ -1,18 +1,21 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), and a neck on top that keys into the crossbar. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
+ "_": "Nut carriage, 20 thick: the nut bore with its four flange bolt holes, two Ø6.2 bushing bores for the guide rods (bronze bushings not modelled), a stepped outline so the lower links clear it, and a neck on top that keys into the crossbar. The rods take the moment and the torque; the nut sees thrust only. One extrude along -Y.",
  "params": {
   "w": 52,
   "t": 20,
   "bottom": -13,
+  "step": 4,
+  "upper": 16,
   "shoulder": 12,
   "top": 20,
-  "neck": 30,
+  "neck": 26,
   "d_bore": 10.200000000000001,
   "pcd": 16,
   "d_bolt": 3.5,
   "x_rod": 19,
+  "z_rod": -8,
   "d_rod": 6.2
  },
  "features": [
@@ -34,6 +37,14 @@
       ],
       [
        "w/2",
+       "step"
+      ],
+      [
+       "upper",
+       "step"
+      ],
+      [
+       "upper",
        "shoulder"
       ],
       [
@@ -51,10 +62,18 @@
       [
        "-neck/2",
        "shoulder"
+      ],
+      [
+       "-upper",
+       "shoulder"
+      ],
+      [
+       "-upper",
+       "step"
       ],
       [
        "-w/2",
-       "shoulder"
+       "step"
       ]
      ]
     },
@@ -73,7 +92,7 @@
      "circle": {
       "c": [
        "x_rod",
-       0
+       "z_rod"
       ],
       "r": "d_rod / 2"
      }
@@ -83,7 +102,7 @@
      "circle": {
       "c": [
        "-x_rod",
-       0
+       "z_rod"
       ],
       "r": "d_rod / 2"
      }

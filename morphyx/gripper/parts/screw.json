@@ -1,33 +1,64 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face to the front-wall bearing, flush with its outer face; the thread is not modelled. One extrude along local Z, placed along +Y.",
+ "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face, turned down to a Ø6 journal for the last 8 mm so the front-wall bearing keeps its wall beside the tab slots; the thread is not modelled. One revolve about local Z, placed along +Y.",
  "params": {
   "d": 8,
+  "dj": 6,
+  "lj": 8,
   "L": 68
  },
  "features": [
   {
    "op": "sketch",
-   "id": "section",
+   "id": "profile",
+   "plane": "XZ",
    "loops": [
     {
-     "name": "od",
-     "circle": {
-      "c": [
+     "name": "shaft",
+     "polygon": [
+      [
        0,
        0
       ],
-      "r": "d/2"
-     }
+      [
+       "d/2",
+       0
+      ],
+      [
+       "d/2",
+       "L - lj"
+      ],
+      [
+       "dj/2",
+       "L - lj"
+      ],
+      [
+       "dj/2",
+       "L"
+      ],
+      [
+       0,
+       "L"
+      ]
+     ]
     }
    ]
   },
   {
-   "op": "extrude",
+   "op": "revolve",
    "id": "screw",
-   "profile": "section",
-   "depth": "L"
+   "profile": "profile",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
   }
  ]
 }

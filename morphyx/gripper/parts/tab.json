@@ -1,16 +1,16 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Finger tab: an 8 mm plate that carries the cam pin inside the case and runs forward through the front-wall slot and the carrier’s window to be fixed to the carrier (a cross pin, not modelled). Local x 0 is the finger pin line xf; side = 1 right, -1 left. One extrude along +Z.",
+ "_": "Finger tab: an 8 mm plate that runs from inside the case, through a front-wall slot and a carrier window, to be fixed to the carrier (a cross pin, not modelled). Two per finger, one under the linear block and one over it (z0 by params), and the finger pivot pin spans both, so each link sits in double shear between them. Local x 0 is the block centre xf; the pin is at −inset. side = 1 right, -1 left. One extrude along +Z.",
  "params": {
   "side": 1,
   "w": 12,
   "inset": 6,
-  "y0": 89,
+  "y0": 86,
   "y1": 122,
-  "z0": 12,
+  "z0": -3,
   "t": 8,
-  "y_pin": 95,
+  "y_pin": 92,
   "d_pin": 4
  },
  "features": [

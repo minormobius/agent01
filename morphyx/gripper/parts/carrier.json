@@ -1,13 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Finger carrier: a vertical plate bolted to the linear block’s face (four Ø3.4 on the MGN9C 10 × 15 pattern), with a window the tab passes through and two Ø3.4 for the pad. side = 1 right, -1 left. One extrude along -Y.",
+ "_": "Finger carrier: a vertical plate bolted to the linear block’s face (four Ø3.4 on the MGN9C 10 × 15 pattern), with two windows the tabs pass through and two Ø3.4 for the pad. side = 1 right, -1 left. One extrude along -Y.",
  "params": {
   "side": 1,
   "x0": -15,
   "x1": 12,
-  "z0": -2,
-  "z1": 34,
+  "z0": -6,
+  "z1": 38,
   "t": 6,
   "y1": 120,
   "zr": 16,
@@ -17,7 +17,8 @@
   "win_w": 12.2,
   "win_h": 8.2,
   "wx": -6,
-  "wz": 16,
+  "wlo": 1,
+  "whi": 31,
   "padx": -10,
   "padz": 6,
   "d_pad": 3.4
@@ -43,11 +44,22 @@
      }
     },
     {
-     "name": "window",
+     "name": "windowLo",
      "rect": {
       "c": [
        "side * wx",
-       "wz"
+       "wlo"
+      ],
+      "w": "win_w",
+      "h": "win_h"
+     }
+    },
+    {
+     "name": "windowHi",
+     "rect": {
+      "c": [
+       "side * wx",
+       "whi"
       ],
       "w": "win_w",
       "h": "win_h"
