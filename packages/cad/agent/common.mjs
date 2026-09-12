@@ -29,5 +29,16 @@ export async function kernels() {
   if (!manifold) { manifold = await Module(); manifold.setup(); }
   return { engine, manifold };
 }
+/// Named faces of a part for place-by-feature references (`at: "@plate.pivot[2]"`):
+/// the exact kernel's report, built once per distinct tree. Pass to flatten as `facesOf`.
+const faceCache = new Map();
+export async function facesOf(partKey, treeJson) {
+  if (faceCache.has(treeJson)) return faceCache.get(treeJson);
+  const { engine } = await kernels();
+  const r = engine.build(treeJson, { kernel: 'truck' });
+  if (!r.ok) throw new Error(`${partKey}: the exact build failed (${r.report.error?.op}: ${r.report.error?.msg}), so its faces cannot be referenced`);
+  faceCache.set(treeJson, r.report.faces);
+  return r.report.faces;
+}
 export const arg = (flag, dflt) => { const i = process.argv.indexOf(flag); return i >= 0 ? process.argv[i + 1] : dflt; };
 export const has = (flag) => process.argv.includes(flag);

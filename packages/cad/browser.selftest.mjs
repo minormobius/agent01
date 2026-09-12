@@ -237,10 +237,25 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
   const spun = await page.evaluate(async () => { const c = window.__cad; c.toggleSpin(); await new Promise((r) => setTimeout(r, 600)); const b = c.state.components.find((x) => x.id === 'block'); const x = c.modelOf(b, c.state.angles)[12]; const t = c.state.tAcc; c.toggleSpin(); return { x, t, status: document.querySelector('#status').textContent }; });
   const want = 10 * Math.cos(Math.PI * spun.t) + Math.sqrt(900 - 100 * Math.sin(Math.PI * spun.t) ** 2);
   check(Math.abs(spun.x - want) < 1e-6 && !/stopped/.test(spun.status), `spin moved the block to x = ${spun.x.toFixed(3)} at t = ${spun.t.toFixed(3)} s, the closed form's ${want.toFixed(3)}`);
-  const chk = await page.evaluate(async () => { const r = await window.__cad.runCheck(); return { real: (r?.pairs || []).filter((p) => !p.fixed).map((p) => `${p.a}×${p.b}`) }; });
-  check(chk.real.length === 0, `no interference in the crank at that pose${chk.real.length ? ' — ' + chk.real.join(', ') : ''}`);
+  const chk = await page.evaluate(async () => { window.__cad.runCheck(); const c = await window.__cad.checked(); return { tested: c.tested, real: c.pairs.map((p) => `${p.a}×${p.b}`) }; });
+  check(chk.real.length === 0, `no interference in the crank at that pose (${chk.tested} pairs tested)${chk.real.length ? ' — ' + chk.real.join(', ') : ''}`);
   await page.evaluate(() => window.__cad.render());
   await page.screenshot({ path: path.join(shots, 'crank.png') });
+}
+
+// the lift: a screw mate, travel through a fixed mate, four bolts by repeat placed on the platform's holes by reference — faces from the worker
+{
+  const r = await page.evaluate(async () => { await window.__cad.load('lift'); return await window.__cad.settled(); });
+  check(r.mode === 'asm' && r.components === 7 && r.slots === 4, `lift: 7 components over 4 distinct part builds (${r.components} / ${r.slots})`);
+  // the platform was built early, for the bolts' references, before the components existed — it must still have its mesh on screen
+  const drawn = await page.evaluate(() => window.__cad.state.components.map((c) => [c.id, window.__cad.renderer.bodies.get(c.id)?.count || 0]));
+  check(drawn.every(([, n]) => n > 0), `every component has a mesh on screen, the early-built platform included (${drawn.map(([id, n]) => `${id}:${n}`).join(' ')})`);
+  const pose = await page.evaluate(() => { const c = window.__cad; const z = (id, t) => { const a = c.solveAngles(t); return c.modelOf(c.state.components.find((x) => x.id === id), a)[14]; }; const x = (id, t) => { const a = c.solveAngles(t); return c.modelOf(c.state.components.find((x) => x.id === id), a)[12]; }; return { nut0: z('nut', 0), nut1: z('nut', 0.5), plat1: z('platform', 0.5), bolt1: z('bolt[3]', 0.5), boltx: x('bolt[0]', 0), bolts: c.state.components.filter((x) => x.id.startsWith('bolt[')).length }; });
+  check(Math.abs(pose.nut1 - 11) < 1e-9 && Math.abs(pose.plat1 - 15) < 1e-9 && Math.abs(pose.bolt1 - 13) < 1e-9 && Math.abs(pose.boltx - 9) < 1e-9 && pose.bolts === 4, `half a turn lifts the nut to z = ${pose.nut1}, the platform to ${pose.plat1}, and the bolts on its holes to ${pose.bolt1}`);
+  const chk = await page.evaluate(async () => { window.__cad.state.angles = window.__cad.solveAngles(0.3); window.__cad.updateModels(); window.__cad.runCheck(); const c = await window.__cad.checked(); const expected = new Set(window.__cad.state.mates.filter((m) => m.kind === 'fixed' || m.kind === 'screw').map((m) => [m.a, m.b].sort().join('|'))); return { tested: c.tested, real: c.pairs.filter((p) => !expected.has([p.a, p.b].sort().join('|'))).map((p) => `${p.a}×${p.b} ${p.volume.toFixed(3)}`) }; });
+  check(chk.real.length === 0, `no interference in the lift mid-travel (${chk.tested} pairs tested)${chk.real.length ? ' — ' + chk.real.join(', ') : ''}`);
+  await page.evaluate(() => window.__cad.render());
+  await page.screenshot({ path: path.join(shots, 'lift.png') });
 }
 
 // the clock: 18 components, an escapement drive, hands at the right ratios, highlight follows the hover

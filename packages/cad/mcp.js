@@ -15,7 +15,7 @@
 // `kernels()` resolves to { engine, manifold } (lib/engine.js and the
 // Manifold module); `fetchRef(ref)` turns `bench:<name>` or an `at://` URI into
 // a tree; `gateway` is the base URL of the /xrpc/ read gateway for file tools.
-import { flatten, solveAngles, modelOf } from './lib/assembly.js';
+import { flatten, solveAngles, modelOf, expectedTouch, periodOf } from './lib/assembly.js';
 import { buildManifold } from './lib/manifold-kernel.js';
 import { interference } from './lib/interfere.js';
 import { weld, invariants } from './lib/mesh.js';
@@ -39,8 +39,8 @@ export const TOOLS = [
     inputSchema: { type: 'object', properties: { tree: treeArg, kernel: { type: 'string', enum: ['truck', 'manifold'], default: 'truck' }, faces: { type: 'boolean', default: true, description: 'include the face list' }, parts: { type: 'array', items: { type: 'string' }, description: 'assemblies only: the part keys to build in this call (default: the first few)' } }, required: ['tree'] } },
   { name: 'measure', title: 'Measure named faces', description: 'One face: its geometry (a cylinder\'s diameter and axis, a plane\'s normal). Two faces: plane-to-plane, axis-to-axis (with both diameters and the wall between) or axis-to-plane distance, from exact geometry. Face names come from `build`.',
     inputSchema: { type: 'object', properties: { tree: treeArg, a: { type: 'string', description: 'a face name, e.g. plate.pivot[0][0]' }, b: { type: 'string' } }, required: ['tree', 'a'] } },
-  { name: 'interference', title: 'Check an assembly for interference', description: 'Pose every component of an assembly at time t (seconds through its drive) and intersect each overlapping pair. Pairs with more than eps mm³ in common are returned, largest first; fixed-mated bores on their arbors are expected touches.',
-    inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0 }, eps: { type: 'number', default: 0.01 } }, required: ['assembly'] } },
+  { name: 'interference', title: 'Check an assembly for interference', description: 'Pose every component of an assembly at time t (seconds through its drive) and intersect each overlapping pair. Pairs with more than eps mm³ in common are returned, largest first; fixed-mated bores on their arbors and nuts on their screws are expected touches. With sweep N, N instants over one period of the drive (or `period` seconds) are checked and each pair\'s worst overlap and its time returned: the check for anything that moves.',
+    inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0 }, eps: { type: 'number', default: 0.01 }, sweep: { type: 'integer', description: 'check this many instants over one period instead of one time t' }, period: { type: 'number', description: 'seconds per cycle for a sweep; default one turn of the driven component' } }, required: ['assembly'] } },
   { name: 'step', title: 'Export STEP', description: 'The exact B-rep as STEP text (Truck kernel). For other CAD systems.',
     inputSchema: { type: 'object', properties: { tree: treeArg }, required: ['tree'] } },
   { name: 'list_files', title: 'List a repo\'s CAD files', description: 'The file tree in anyone\'s public repo: path, kind, AT URI, updated. `minomobi.com` holds the published bench (parts/<name>, train, clock).',
@@ -73,6 +73,15 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
   const resolveRef = async (ref) => (typeof ref === 'string' ? fetchRef(ref) : structuredClone(ref));
   const faceOut = (fc) => ({ names: fc.names, ...describe(fc), centroid: fc.centroid, normal: fc.normal });
 
+  // named faces for place-by-feature references, from the exact kernel, once per distinct tree
+  const faceCache = new Map();
+  const facesOf = async (partKey, treeJson) => {
+    if (faceCache.has(treeJson)) return faceCache.get(treeJson);
+    const { engine } = await kernels();
+    const r = engine.build(treeJson, { kernel: 'truck' });
+    if (!r.ok) throw new Error(`${partKey}: the exact build failed (${r.report.error?.op}: ${r.report.error?.msg}), so its faces cannot be referenced`);
+    faceCache.set(treeJson, r.report.faces); return r.report.faces;
+  };
   const tools = {
     async check({ tree }) {
       const { engine } = await kernels();
@@ -80,7 +89,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const doc = await asTree(tree);
       if (!Array.isArray(doc.components)) return resolveOne(doc);
       // an assembly: its params and derived at t = 0 and every placement expression are evaluated by flatten; then each distinct part
-      const { components, partTrees, params, drive } = await flatten(doc, resolveRef);
+      const { components, partTrees, params, drive } = await flatten(doc, resolveRef, { facesOf });
       const parts = {};
       for (const [key, t] of partTrees) { try { parts[key] = resolveOne(t); } catch (e) { parts[key] = { ok: false, error: { op: e.op, msg: e.message } }; } }
       const bad = Object.values(parts).filter((p) => !p.ok).length;
@@ -97,7 +106,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
         return { ok: true, kernel: 'truck', ms: r.ms, timings: r.report.timings, invariants: r.report.invariants, faces: faces ? r.report.faces.map(faceOut) : undefined, faceCount: r.report.faces.length };
       };
       if (Array.isArray(doc.components)) {
-        const { components, partTrees } = await flatten(doc, resolveRef);
+        const { components, partTrees } = await flatten(doc, resolveRef, { facesOf });
         const partKeys = [...partTrees.keys()];
         const wanted = Array.isArray(only) && only.length ? only.filter((k) => partTrees.has(k)) : partKeys;
         const unknown = Array.isArray(only) ? only.filter((k) => !partTrees.has(k)) : [];
@@ -119,21 +128,29 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const B = faceByName(r.report.faces, b); if (!B) throw new Error(`no face named ${b}`);
       return { a: faceOut(A), b: faceOut(B), ...measure(A, B) };
     },
-    async interference({ assembly, t = 0, eps = 0.01 }) {
+    async interference({ assembly, t = 0, eps = 0.01, sweep = 0, period }) {
       const { engine, manifold } = await kernels();
       if (!(caps.manifold && manifold)) throw new Error('interference needs the preview kernel, which is not available on this server; run agent/check.mjs locally (see SKILL.md)');
       const doc = await asTree(assembly);
       if (!Array.isArray(doc.components)) throw new Error('not an assembly (no components)');
-      const { components, mates, drive, partTrees } = await flatten(doc, resolveRef);
+      const { components, mates, drive, partTrees } = await flatten(doc, resolveRef, { facesOf });
       const built = new Map(); const failed = [];
       for (const [key, tree] of partTrees) { const r = buildManifold(manifold, engine.resolve(tree), { keep: true }); if (r.ok) built.set(key, r); else failed.push({ key, error: r.error }); }
-      const angles = solveAngles(components, mates, drive, t);
-      const fixed = new Set(mates.filter((m) => m.kind === 'fixed').map((m) => [m.a, m.b].sort().join('×')));
-      const bodies = components.filter((c) => built.has(c.partKey)).map((c) => ({ id: c.id, manifold: built.get(c.partKey).manifold, bbox: built.get(c.partKey).bbox, model: modelOf(c, angles) }));
-      try {
+      const expected = expectedTouch(mates);
+      const poseAt = (at) => {
+        const angles = solveAngles(components, mates, drive, at);
+        const bodies = components.filter((c) => built.has(c.partKey)).map((c) => ({ id: c.id, manifold: built.get(c.partKey).manifold, bbox: built.get(c.partKey).bbox, model: modelOf(c, angles) }));
         const r = interference({ Manifold: manifold.Manifold }, bodies, { eps });
-        const pairs = r.pairs.map((p) => ({ ...p, expected: fixed.has([p.a, p.b].sort().join('×')) }));
-        return { ok: pairs.every((p) => p.expected), t, pairs, tested: r.tested, ms: r.ms, failed, link: link(doc) };
+        return { t: at, pairs: r.pairs.map((p) => ({ ...p, expected: expected(p.a, p.b) })), tested: r.tested, ms: r.ms };
+      };
+      try {
+        if (!sweep) { const r = poseAt(t); return { ok: r.pairs.every((p) => p.expected), t, pairs: r.pairs, tested: r.tested, ms: r.ms, failed, link: link(doc) }; }
+        // a sweep: N instants over one period of the drive, each pair's worst overlap and when
+        const n = Math.max(2, Math.min(360, Math.round(sweep))), per = period ?? periodOf(drive);
+        const worst = new Map(); let ms = 0, tested = 0;
+        for (let k = 0; k < n; k++) { const r = poseAt((k * per) / n); ms += r.ms; tested = Math.max(tested, r.tested); for (const p of r.pairs) { const key = `${p.a}|${p.b}`; const w = worst.get(key); if (!w || p.volume > w.volume) worst.set(key, { ...p, t: r.t }); } }
+        const pairs = [...worst.values()].sort((a, b) => b.volume - a.volume);
+        return { ok: pairs.every((p) => p.expected), sweep: n, period: per, pairs, tested, ms, failed, link: link(doc) };
       } finally { for (const b of built.values()) b.manifold.delete?.(); }
     },
     async step({ tree }) {

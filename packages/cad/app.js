@@ -6,7 +6,7 @@
 // `spin` drives it and reports the frame rate. `window.__cad` is the hook.
 import { Camera } from './camera.js';
 import { Renderer } from './gl.js';
-import { flatten, solveAngles as solveKin, modelOf } from './lib/assembly.js';
+import { flatten, solveAngles as solveKin, modelOf, expectedTouch } from './lib/assembly.js';
 import { measure, describe, faceWorld } from './lib/measure.js';
 import { writeStl } from './lib/mesh.js';
 import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, PART, SCOPE as DRIVE_SCOPE } from './lib/drive.js';
@@ -14,7 +14,7 @@ import { AuthClient } from './vendor/auth.js';
 import { attachHandleTypeahead } from './vendor/typeahead.js';
 
 const $ = (s) => document.querySelector(s);
-const BENCH = ['clock', 'train', 'crank', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
+const BENCH = ['clock', 'train', 'crank', 'lift', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
 const q = new URLSearchParams(location.search);
 const OCCT_BASE = q.get('occt') || null;
 const occtAllowed = () => !!OCCT_BASE || localStorage.getItem('cad.occt') === '1';
@@ -61,13 +61,14 @@ worker.onmessage = (e) => {
     renderReport(); invalidate(); return;
   }
   if (m.type === 'exact') {
-    s.exact = m; s.exactStale = false; s.exactError = null; s.faces = m.report.faces;
+    s.exact = m; s.exactStale = false; s.exactError = null; s.faces = m.report.faces; settleFaces(m.slot || 'main', null, s.faces);
     applyMesh(m.slot || 'main', m, false);
     console.info(`cad: exact ${state.name}${m.slot && m.slot !== 'main' ? ' ' + m.slot : ''} volume ${m.invariants.volume.toFixed(3)} χ=${m.invariants.euler} faces ${m.report.faces.length} (${m.kernel})`);
     renderReport(); invalidate(); return;
   }
   if (m.type === 'error') {
-    if (m.stage === 'exact') { s.exact = null; s.faces = []; s.exactError = m.error; s.occtWouldHelp = !!m.occtWouldHelp; }
+    if (m.stage === 'exact') { s.exact = null; s.faces = []; s.exactError = m.error; s.occtWouldHelp = !!m.occtWouldHelp; settleFaces(m.slot || 'main', new Error(`${m.slot || 'main'}: exact build failed: ${m.error?.msg || m.error}`)); }
+    else if (m.stage !== 'preview') settleFaces(m.slot || 'main', new Error(`${m.slot || 'main'}: ${m.error?.msg || m.error}`));
     else if (m.stage === 'preview') { s.previewError = m.error; }
     else { s.error = m.error; if (state.mode === 'part') renderer.clearMesh(); invalidate(); }
     renderReport(); return;
@@ -89,9 +90,21 @@ function applyMesh(slot, m, preview) {
 
 function buildSlot(slot, treeText) {
   const s = slotOf({ slot });
-  s.buildId = ++state.buildId; s.exactStale = true; s.error = null; s.previewError = null; s.exactError = null; s.faces = [];
+  s.buildId = ++state.buildId; s.exactStale = true; s.error = null; s.previewError = null; s.exactError = null; s.faces = []; s.treeText = treeText;
   worker.postMessage({ type: 'build', id: s.buildId, slot, tree: treeText, want: { preview: true, exact: true, occt: occtAllowed(), step: false } });
 }
+/// The exact kernel's named faces of a part, for placements written as
+/// references (`at: "@plate.pivot[2]"`): built in the worker if this slot has
+/// not been, then awaited. `build()` later skips a slot already built from the
+/// same tree, so a referenced part is built once.
+const faceWaiters = new Map();
+function facesOf(partKey, treeText) {
+  const s = state.slots.get(partKey);
+  if (s && s.treeText === treeText && s.exact && !s.exactStale) return Promise.resolve(s.faces);
+  if (!s || s.treeText !== treeText || !s.buildId) buildSlot(partKey, treeText);
+  return new Promise((resolve, reject) => { (faceWaiters.get(partKey) || faceWaiters.set(partKey, []).get(partKey)).push({ resolve, reject }); });
+}
+const settleFaces = (slot, err, faces) => { const w = faceWaiters.get(slot); if (!w) return; faceWaiters.delete(slot); for (const x of w) err ? x.reject(err) : x.resolve(faces); };
 
 function build({ fit = false } = {}) {
   state.fitNext = fit || state.fitNext;
@@ -99,7 +112,12 @@ function build({ fit = false } = {}) {
   if (state.mode === 'part') { buildSlot('main', state.treeText); setStatus('building…'); return; }
   // assembly: one slot per distinct part key
   const keys = new Set(state.components.map((c) => c.partKey));
-  for (const k of keys) buildSlot(k, state.partTrees.get(k));
+  for (const k of keys) {
+    const s = state.slots.get(k);
+    // a slot built early for a place-by-feature reference (facesOf) landed before the components existed: hand its mesh to them now
+    if (s && s.treeText === state.partTrees.get(k) && s.buildId && !s.error) { if (s.exact && !s.exactStale) applyMesh(k, s.exact, false); else if (s.preview) applyMesh(k, s.preview, true); continue; }
+    buildSlot(k, state.partTrees.get(k));
+  }
   setStatus(`building ${keys.size} part${keys.size === 1 ? '' : 's'}…`);
 }
 
@@ -136,7 +154,7 @@ const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('be
 /// Flatten an assembly through the shared library; the page keeps the
 /// components, mates and drive and asks the library for angles and matrices.
 async function prepareAssembly(asm) {
-  const { components, mates, drive, partTrees } = await flatten(asm, resolveRef);
+  const { components, mates, drive, partTrees } = await flatten(asm, resolveRef, { facesOf });
   for (const c of components) c.tint = 1;
   state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive;
   state.spin = false; state.tAcc = 0; state.check = null;
@@ -195,7 +213,7 @@ function scrub(el, get, set) {
 function renderTree() {
   const box = $('#features'); box.innerHTML = '';
   if (state.mode === 'asm') {
-    for (const m of state.mates) { const li = document.createElement('div'); li.className = 'feat'; li.innerHTML = `<b>${m.kind}</b> <span>${m.a} ↔ ${m.b}${m.kind === 'gear' ? ` (${m.za}:${m.zb})` : ''}</span>`; box.append(li); }
+    for (const m of state.mates) { const li = document.createElement('div'); li.className = 'feat'; const detail = m.kind === 'gear' ? ` (${m.za}:${m.zb})` : m.kind === 'belt' ? ` (${m.ra ?? m.za}:${m.rb ?? m.zb})` : m.kind === 'screw' ? ` (lead ${m.lead})` : m.kind === 'rack' ? ` (r ${m.r ?? (m.m * m.z) / 2})` : m.kind === 'slider' && m.ratio ? ` (×${m.ratio})` : ''; li.innerHTML = `<b>${m.kind}</b> <span>${m.a} ↔ ${m.b}${detail}</span>`; box.append(li); }
     if (state.drive) { const li = document.createElement('div'); li.className = 'feat'; li.innerHTML = state.drive.kind === 'escapement' ? `<b>escapement</b> <span>${state.drive.wheel} · ${state.drive.pallet} · ${state.drive.balance}, ${state.drive.teeth} teeth, ${state.drive.beat} s beat</span>` : `<b>drive</b> <span>${state.drive.component} at ${state.drive.rpm} rpm</span>`; box.append(li); }
     return;
   }
@@ -406,7 +424,7 @@ function runCheck() {
   worker.postMessage({ type: 'check', id: ++state.checkId, bodies });
   const o = $('#checkout'); if (o) o.textContent = 'checking…';
 }
-const fixedPair = (a, b) => state.mates.some((m) => m.kind === 'fixed' && ((m.a === a && m.b === b) || (m.a === b && m.b === a)));
+const fixedPair = (a, b) => expectedTouch(state.mates)(a, b);
 function checkSummary() {
   const c = state.check; if (!c || c.pending) return 'checking…';
   const real = c.pairs.filter((p) => !fixedPair(p.a, p.b));
@@ -416,7 +434,7 @@ function renderCheck() {
   const o = $('#checkout'); if (o) o.textContent = checkSummary();
   const box = $('#checks'); if (!box) return;
   const c = state.check; if (!c || c.pending) { box.innerHTML = ''; return; }
-  box.innerHTML = c.pairs.map((p) => `<div class="feat ${fixedPair(p.a, p.b) ? 'dim' : 'bad'}" data-pair="${p.a}|${p.b}"><b>${fixedPair(p.a, p.b) ? '~' : '✗'}</b> <span>${p.a} × ${p.b} · ${p.volume.toFixed(4)} mm³${fixedPair(p.a, p.b) ? ' (fixed-mated)' : ''}</span></div>`).join('') || '<div class="dim">no interference at this pose</div>';
+  box.innerHTML = c.pairs.map((p) => `<div class="feat ${fixedPair(p.a, p.b) ? 'dim' : 'bad'}" data-pair="${p.a}|${p.b}"><b>${fixedPair(p.a, p.b) ? '~' : '✗'}</b> <span>${p.a} × ${p.b} · ${p.volume.toFixed(4)} mm³${fixedPair(p.a, p.b) ? ' (expected touch)' : ''}</span></div>`).join('') || '<div class="dim">no interference at this pose</div>';
   for (const el of box.querySelectorAll('[data-pair]')) el.addEventListener('pointerenter', () => { const [a, b] = el.dataset.pair.split('|'); for (const r of document.querySelectorAll('[data-comp]')) r.classList.toggle('hl', r.dataset.comp === a || r.dataset.comp === b); });
 }
 

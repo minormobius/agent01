@@ -885,9 +885,13 @@ that with two in-memory repos standing in for a PDS and a stranger.
   This is how a screw moves a nut and a crank a slider without a mate for
   either: the pose math lives in the document, and the interference check
   stays the safety net. It came from the gripper that spun but did not
-  grip. Screw and slider mates, which would cover open chains without
-  expressions, are not built; `solveAngles` still returns an angle, not a
-  pose.
+  grip. The mates then grew to carry travel: `screw`, `rack`, `belt`,
+  `slider`, and `fixed` carrying both, each in either direction, so
+  `solveAngles` returns a turn and a travel per component. `repeat: n`
+  with `i` in scope makes a bolt circle one component, and
+  `at: "@comp.face"` places a component on another's named face (the exact
+  kernel's geometry) and follows it through its motion — placement by
+  description, not arithmetic. `bench/lift.json` is the proof.
 - **The social layer, first cut.** `cad.mino.mobi/parts/` (`parts/`, its
   own worker, mounted through a service binding because the zone is at
   Cloudflare's ceiling of a hundred custom domains): a

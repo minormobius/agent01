@@ -14,7 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadEngine } from './lib/engine.js';
 import { evaluate, resolveParams } from './lib/expr.js';
-import { flatten, solveAngles, modelOf, placeAt, xform } from './lib/assembly.js';
+import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, periodOf } from './lib/assembly.js';
+import { facesOf } from './agent/common.mjs';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 let fails = 0;
@@ -114,6 +115,70 @@ check(late === 'assembly x: at[0]: `sqrt(1 - t)` is not finite', `an expression 
 const pass = await flatten({ params: { L: 12 }, components: [{ id: 'a', part: 'p', params: { pin_z: 'L / 2', r_body: 'r_pivot * 3' } }], parts: { p: 'bench:arbor' } }, benchRef);
 const pt = JSON.parse(pass.partTrees.get(pass.components[0].partKey)).params;
 check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.partTrees.get(pass.components[0].partKey)).resolved.params.r_body, 0.45), 'an override the assembly can evaluate is bound there; one it cannot is handed to the part, which evaluates it');
+
+// ── 6. mates: travel as well as turning ─────────────────────────────────
+{
+  const box = (id, extra = {}) => ({ id, part: 'p', ...extra });
+  const doc = { parts: { p: 'bench:arbor' }, components: [box('screw'), box('nut', { at: [0, 0, 10] }), box('plat', { at: [0, 0, 14] }), box('pinion', { at: [30, 0, 0] }), box('rack', { at: [30, 5, 0] }), box('pulley', { at: [60, 0, 0] }), box('twin', { at: [0, 0, 30] })],
+    mates: [{ kind: 'screw', a: 'screw', b: 'nut', lead: 2 }, { kind: 'fixed', a: 'nut', b: 'plat' }, { kind: 'belt', a: 'screw', b: 'pinion', ra: 10, rb: 5 }, { kind: 'rack', a: 'pinion', b: 'rack', r: 4, axis: [1, 0, 0] }, { kind: 'belt', a: 'screw', b: 'pulley', za: 20, zb: 40 }, { kind: 'slider', a: 'nut', b: 'twin', ratio: 0.5 }],
+    drive: { component: 'screw', rpm: 60 } };
+  const f = await flatten(doc, benchRef);
+  const at = (t) => { const a = solveAngles(f.components, f.mates, f.drive, t); const o = Object.fromEntries(f.components.map((c) => [c.id, origin(modelOf(c, a))])); return { a, o }; };
+  const { a, o } = at(0.5); // half a turn
+  check(near(a.theta, 180) && near(o.nut[2], 11) && near(a.get('nut'), 0), `screw: half a turn lifts the nut half a lead (z ${o.nut[2]}), and the nut does not turn`);
+  check(near(o.plat[2], 15) && near(a.get('plat'), 0), `fixed carries travel as well as rotation (platform z ${o.plat[2]})`);
+  check(near(a.get('pinion'), 360) && near(a.get('pulley'), 90), `belt: same sense, by radius (${a.get('pinion')}°) or by teeth (${a.get('pulley')}°)`);
+  check(near(o.rack[0], 30 + 4 * Math.PI * 2), `rack: a pinion's full turn moves the rack 2πr along its axis (x ${o.rack[0].toFixed(4)})`);
+  check(near(o.twin[2], 30.5), `slider: half the nut's travel (z ${o.twin[2]})`);
+  // the other way round: drive the rack, the pinion turns; drive the nut, the screw turns
+  const back = await flatten({ ...doc, drive: { component: 'rack', rpm: 60 } }, benchRef);
+  const b = solveAngles(back.components, back.mates, back.drive, 0.25);
+  check(near(b.get('rack'), 90) && near(b.get('pinion'), 0) && near(b.slide.get('rack')[0], 0) && near(b.slide.get('pinion')[0], 0), 'a driven rack turns (it is the root), which is not travel; mates only carry what the root has');
+  const nutDrive = { parts: { p: 'bench:arbor' }, components: [box('screw'), box('nut')], mates: [{ kind: 'screw', a: 'screw', b: 'nut', lead: 4 }], drive: { component: 'screw', rpm: 30 } };
+  const nd = await flatten(nutDrive, benchRef); const na = solveAngles(nd.components, nd.mates, nd.drive, 1);
+  check(near(na.slide.get('nut')[2], 2), `lead 4 at half a turn is 2 mm of travel (${na.slide.get('nut')[2]})`);
+  check(near(periodOf(f.drive), 1) && near(periodOf({ kind: 'escapement', beat: 0.5 }), 1) && periodOf(null) === 1, 'periodOf: a turn, two beats, or a second');
+  const touch = expectedTouch(f.mates);
+  check(touch('nut', 'screw') && touch('plat', 'nut') && !touch('rack', 'pinion'), 'expected touches are fixed and screw pairs, either order');
+  const bad = async (d) => { try { await flatten(d, benchRef); return ''; } catch (e) { return e.message; } };
+  check((await bad({ components: [box('a')], parts: { p: 'bench:arbor' }, mates: [{ kind: 'fixed', a: 'a', b: 'zz' }] })) === 'mate fixed a ↔ zz: no such component zz', 'a mate to a component that does not exist is named');
+  check((await bad({ params: { L: 2 }, components: [box('a'), box('b')], parts: { p: 'bench:arbor' }, mates: [{ kind: 'screw', a: 'a', b: 'b', lead: 'L * q' }] })) === 'assembly: mate screw a ↔ b: lead: unknown parameter `q`', 'a mate number is an expression in the document scope, and a bad one is named');
+}
+
+// ── 7. repeat and place-by-feature: the lift from the bench ─────────────
+{
+  const lift = bench('lift');
+  const f = await flatten(lift, benchRef, { facesOf });
+  const ids = f.components.map((c) => c.id);
+  check(ids.join() === 'screw,nut,platform,bolt[0],bolt[1],bolt[2],bolt[3]' && f.partTrees.size === 4, `repeat: 4 gives bolt[0]…bolt[3], one part build (${ids.join(', ')})`);
+  const at = (t) => { const a = solveAngles(f.components, f.mates, f.drive, t); return Object.fromEntries(f.components.map((c) => [c.id, origin(modelOf(c, a))])); };
+  const o0 = at(0), o1 = at(0.5);
+  const onCircle = [0, 1, 2, 3].every((k) => near(Math.hypot(o0[`bolt[${k}]`][0], o0[`bolt[${k}]`][1]), 9) && near(o0[`bolt[${k}]`][2], 12));
+  check(onCircle, `each bolt sits on a platform hole (radius R − 3 = 9) at the platform's plane less its offset (z ${o0['bolt[0]'][2]})`);
+  check([0, 1, 2, 3].every((k) => near(o1[`bolt[${k}]`][2], 13)) && near(o1.platform[2], 15), 'the bolts ride up with the platform through the screw and fixed mates, with no mate of their own');
+  const facesP = await facesOf(f.components[2].partKey, f.partTrees.get(f.components[2].partKey));
+  check(findFace(facesP, 'pivot[3]')?.names.some((n) => n.startsWith('plate.pivot[3][')) && findFace(facesP, 'plate.end')?.geom.kind === 'plane' && !findFace(facesP, 'nope'), 'a face is found with or without its op prefix, and a circle by its loop name');
+  // align: a bolt on a tilted plate stands along the plate's hole axis
+  const tilted = { ...lift, components: lift.components.map((c) => (c.id === 'platform' ? { ...c, rotate: { axis: [1, 0, 0], deg: 30 } } : c)), mates: [], drive: null };
+  const ft = await flatten(tilted, benchRef, { facesOf });
+  const b0 = ft.components.find((c) => c.id === 'bolt[0]'); const A = solveAngles(ft.components, ft.mates, ft.drive, 0);
+  const zdir = xformDir(modelOf(b0, A), [0, 0, 1]);
+  check(near(zdir[0], 0) && near(zdir[1], -Math.sin(Math.PI / 6)) && near(zdir[2], Math.cos(Math.PI / 6)), `rotate.align turns the bolt's z onto the tilted bore axis (${zdir.map((v) => v.toFixed(3)).join(', ')})`);
+  const az = alignZ([0, 0, -1]); check(near(xformDir(az, [0, 0, 1])[2], -1) && near(xformDir(alignZ([1, 0, 0]), [0, 0, 1])[0], 1), 'alignZ handles the antipode and a right angle');
+  // references follow motion: a bolt on a turning plate orbits
+  const spun = { ...lift, mates: [{ kind: 'fixed', a: 'screw', b: 'platform' }] };
+  const fs3 = await flatten(spun, benchRef, { facesOf }); const S = solveAngles(fs3.components, fs3.mates, fs3.drive, 0.25); // 90°
+  const p0 = origin(modelOf(fs3.components.find((c) => c.id === 'bolt[0]'), solveAngles(fs3.components, fs3.mates, fs3.drive, 0))), p1 = origin(modelOf(fs3.components.find((c) => c.id === 'bolt[0]'), S));
+  check(near(p0[0], 9) && near(p0[1], 0) && near(p1[0], 0) && near(p1[1], 9), `a bolt placed on a plate that turns orbits with it ((${p0[0]}, ${p0[1]}) → (${p1[0].toFixed(6)}, ${p1[1]}))`);
+  const bad = async (d) => { try { await flatten(d, benchRef, { facesOf }); return ''; } catch (e) { return e.message; } };
+  check((await bad({ parts: { p: 'bench:plate' }, components: [{ id: 'b', part: 'p', at: '@a.end' }, { id: 'a', part: 'p' }] })).includes('no component `a` declared before this one'), 'a reference must point at an earlier component');
+  check((await bad({ parts: { p: 'bench:plate' }, components: [{ id: 'a', part: 'p' }, { id: 'b', part: 'p', at: '@a.lid' }] })).includes('has no face named lid; it has plate.start'), 'a missing face is named, with what there is');
+  let noFaces = ''; try { await flatten({ parts: { p: 'bench:plate' }, components: [{ id: 'a', part: 'p' }, { id: 'b', part: 'p', at: '@a.end' }] }, benchRef); } catch (e) { noFaces = e.message; }
+  check(noFaces.includes('needs face geometry'), 'without facesOf a reference is an error, not a guess');
+  check((await bad({ params: { n: 'x' }, parts: { p: 'bench:plate' }, components: [{ id: 'a', part: 'p', repeat: 'n' }] })).startsWith('assembly: param `n`'), 'a bad repeat count is named');
+  const rep = await flatten({ params: { n: 3 }, parts: { p: 'bench:arbor' }, components: [{ id: 'a', part: 'p', repeat: 'n', at: ['i * 5', 0, 0], params: { L: '10 + i' } }] }, benchRef);
+  check(rep.components.length === 3 && rep.partTrees.size === 3 && near(rep.components[2].place[12], 10) && JSON.parse(rep.partTrees.get(rep.components[1].partKey)).params.L === 11, 'i is in scope for at and for params, so repeated parts can differ');
+}
 
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ assembly selftest passed');
 process.exit(fails ? 1 : 0);

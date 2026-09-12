@@ -43,9 +43,13 @@ documented in [`README.md`](README.md) next to this file.
 - **Assemblies.** A document with `components` is an assembly: each
   component names a part (`bench:<name>` or an inline tree, with optional
   `params` overrides that make a distinct part build), a placement (`at`,
-  `rotate`), and a `phase`; a component may instead hold a sub-`assembly`,
-  flattened with its ids prefixed (`stage2/arbor`). `mates` are `gear`
-  (`za`, `zb`) and `fixed`; `drive` names one component and an rpm. The
+  `rotate`, `offset`), a `phase`, a `repeat`; a component may instead hold a
+  sub-`assembly`, flattened with its ids prefixed (`stage2/arbor`). `mates`
+  are `gear`, `belt`, `fixed`, `screw`, `rack` and `slider` (the table at
+  the top of `lib/assembly.js`: each propagates turning or travel from the
+  drive, in either direction; `solveAngles` carries a `slide` map beside the
+  angles and `modelOf` composes placement × travel × turn); `drive` names
+  one component and an rpm. The
   angles are a kinematic chain from the driven component; *spin* animates it
   and reports the frame rate. Gear phases are set automatically unless a
   component gives one. A `drive` is either `{component, rpm}` or an
@@ -65,6 +69,16 @@ documented in [`README.md`](README.md) next to this file.
   and `modelOf` re-evaluates their placement at the `t`/`theta` the angles
   map carries; static documents pay nothing. `bench/crank.json` is the
   crank–slider that proves it, in the node test and the browser test.
+  **Repeat and place-by-feature:** `repeat: n` makes `id[i]` instances
+  with `i` in scope; `at: "@comp.face"` and `rotate.align` put a component
+  on another's named face (anchor and axis from the exact kernel's face
+  geometry) and follow that component through its motion. `flatten` takes
+  a `facesOf(partKey, treeJson)` hook for the geometry — `agent/common.mjs`
+  builds with Truck once per tree; the page's `facesOf` asks the build
+  worker and awaits the exact report (`build()` then skips a slot already
+  built from the same tree); `mcp.js` has its own. Without the hook a
+  reference is an error. `bench/lift.json` — screw, nut, platform, four
+  bolts by reference — proves all three in every test.
 - **OCCT, lazily.** Fillets, chamfers, shells and any boolean Truck fails go
   to OCCT, loaded on demand from unpkg (66 MB, cached by the browser) after
   the user presses *exact with OCCT* once (`localStorage cad.occt=1`), or
@@ -83,15 +97,18 @@ documented in [`README.md`](README.md) next to this file.
 - **Interference.** *check interference* in an assembly poses every
   component at the current angles and intersects each overlapping pair
   with Manifold; pairs with more than 0.01 mm³ in common are listed,
-  fixed-mated bores on their arbors marked as expected touches. Hover a pair
-  to light both components.
+  fixed- and screw-mated pairs (a bore on its arbor, a nut on its screw)
+  marked as expected touches (`expectedTouch` in the library, shared with
+  `check.mjs` and the MCP). Hover a pair to light both components.
+  Headlessly, `check.mjs --sweep N` and the MCP tool's `sweep` check N
+  instants over a period (`periodOf`: a turn, two beats, or given).
 - **Export.** *stl* writes the mesh on the page (the exact one when it has
   landed, else the preview); *step* asks the worker to re-run the exact
   kernel that built the part with its STEP writer on — Truck's, or OCCT's
   when OCCT built it. In an assembly both export the pinned or hovered
   component's part.
 - **The published bench.** `agent/publish.mjs` writes every bench part to
-  `parts/<name>` and the assemblies to `train`, `clock` and `crank` in the service
+  `parts/<name>` and the assemblies to `train`, `clock`, `crank` and `lift` in the service
   account's repo (`BLUESKY_BOT_*`, the identity that owns minomobi.com),
   rewriting `bench:` refs to the AT URIs of the published heads;
   `.github/workflows/publish-cad.yml` runs it on a push touching `bench/`,
@@ -196,10 +213,10 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 - **Five selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
   bytes under node), `drive.selftest.mjs` (the file tree and the gateway),
   `assembly.selftest.mjs` (expressions against the engine, kinematics
-  against closed forms), `mcp.selftest.mjs` (the tool surface) and
+  against closed forms, the mates, repeat and references), `mcp.selftest.mjs` (the tool surface) and
   `browser.selftest.mjs` (headless Chromium loads the page, builds every
   bench part, checks the report against closed forms, spins the train and
-  the crank, saves and forks files against a mocked repo, and screenshots;
+  the crank, poses the lift, saves and forks files against a mocked repo, and screenshots;
   skips, saying so, without Playwright). Run all five before pushing.
 - **`vendor/auth.js` is a copy** of `packages/oauth-client/auth.js`, kept
   byte-identical by `scripts/sync-dataviz.mjs` (preflight checks it). Edit

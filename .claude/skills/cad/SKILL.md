@@ -26,7 +26,7 @@ write tree.json → build → measure → (check) → render → judge → edit 
 | build, exact | `node agent/build.mjs tree.json [--faces] [--json r.json] [--stl a.stl] [--step a.step]` | volume, area, bbox, centroid, χ, watertight; `--faces` lists every **named** face with its geometry (plane / cylinder); a typed error with `unsupported` when the kernel cannot. Exit 1 unless ok and watertight |
 | build, preview | `node agent/build.mjs tree.json --kernel manifold` | always builds, milliseconds, polygons, no names |
 | measure | `node agent/measure.mjs tree.json --list` · `… <face>` · `… <faceA> <faceB>` | a cylinder's diameter; plane-to-plane, axis-to-axis, axis-to-plane distances, from exact geometry |
-| interference (assemblies) | `node agent/check.mjs asm.json [--t seconds] [--json]` | interfering pairs with shared volume; exit 1 if any beyond fixed-mated bores |
+| interference (assemblies) | `node agent/check.mjs asm.json [--t seconds \| --sweep N [--period s]] [--json]` | interfering pairs with shared volume, at one instant or the worst through a cycle; exit 1 if any beyond expected touches (fixed- and screw-mated) |
 | printable | `node agent/export.mjs doc.json --out DIR [--t s]` | one STL per part (and a posed assembly STL) |
 | look | `node agent/render.mjs doc.json --out DIR [--views iso,top,front] [--t s] [--hide dial,case]` | a PNG per view + `report.json` — the same viewer a human sees. Needs Chromium once: `npm install && npx playwright-core install chromium`, or `CAD_CHROME=/path/to/chrome` |
 | files | `node agent/drive.mjs ls\|get\|put\|log\|fork\|push\|rm …` | a file tree over ATProto records — see *Files* below |
@@ -64,11 +64,48 @@ free-form surfaces yet; say so rather than approximating with polygons.
 A document with `components` (each a `part` from `parts` — an inline tree,
 `bench:<name>`, or the **AT URI of a published part** (its head, or a
 revision URI to pin a version) — optional `params` overrides, `at`,
-`rotate`, `phase`, or a nested `assembly`), `mates` (`gear` with `za`/`zb`,
-`fixed`) and a `drive` (`{component, rpm}` or an `escapement`). Gear phases
-are automatic. See `bench/clock.json`. Kinematics are a chain from the
-driven component, not a constraint solver — placements are yours to get
-right; `check.mjs` tells you when you have not.
+`rotate`, `phase`, `repeat`, or a nested `assembly`), `mates` and a `drive`
+(`{component, rpm}` or an `escapement`). Gear phases are automatic. See
+`bench/clock.json`. Kinematics are a chain from the driven component, not a
+constraint solver — placements are yours to get right; `check.mjs` tells
+you when you have not.
+
+**Mates** propagate from the driven component outward, in either direction:
+
+| mate | fields | b does |
+|---|---|---|
+| `gear` | `za`, `zb` | turns −za/zb × a |
+| `belt` | `ra`, `rb` (or `za`, `zb`) | turns +ra/rb × a — pulleys, chain, same sense |
+| `fixed` | | turns and travels with a |
+| `screw` | `lead`, `axis?` | travels `lead` per turn of a, along `axis` (b's local, default +z); does not turn |
+| `rack` | `r` (or `m`, `z`), `axis?` | travels r·θ along its axis per θ of a — a pinion on a rack |
+| `slider` | `ratio?` | travels ratio × a's travel |
+
+Numbers in a mate are expressions in the document's scope. A component's
+pose is its placement, then its travel in its own frame, then its turn
+about its own z. `bench/lift.json` is a lead screw, a nut and a platform.
+
+**Repeat.** `"repeat": 4` makes `id[0]` … `id[3]` with `i` in scope for
+`at`, `rotate`, `offset`, references and `params` — six bolts on a bolt
+circle are one component: `"at": ["r*cos(2*pi*i/6)", "r*sin(2*pi*i/6)", 0]`.
+
+**Place by feature.** `"at": "@platform.pivot[i]"` puts the component's
+origin on that named face of that component — a bore's centre on its
+sketch plane, a plane's centroid — and `"rotate": { "align":
+"@platform.pivot[i]" }` turns its local +z onto the bore's axis or the
+plane's normal (`deg` then spins about it, `offset` moves in the aligned
+frame). The op prefix may be left off (`pivot[2]` finds `plate.pivot[2]`);
+bracket contents are expressions. The referenced component must be
+declared earlier in the same document, and the reference follows it
+through its motion, so a bolt on a plate that turns orbits — no mate
+needed. `check.mjs`, `build.mjs`, the MCP tools and the viewer all resolve
+references (the exact kernel names the faces); a missing face lists what
+there is.
+
+**Sweep.** `node agent/check.mjs asm.json --sweep 24` checks 24 instants
+over one period of the drive (a turn, two beats, or `--period` seconds) and
+reports each pair's worst overlap and when — the check for anything that
+moves. The MCP `interference` tool takes `sweep` and `period` too.
 
 **Placements are expressions**, so the pose math for anything the mates
 cannot express (a lead screw and its nut, a crank and its slider, a link
@@ -97,8 +134,7 @@ overrides are bound in the assembly scope at t = 0 when they can be
 Mind the two angle helpers: `deg(x)` turns degrees *into* radians (for
 `sin`/`cos`), `rad2deg(x)` turns radians into degrees (for `rotate.deg`).
 `check.mjs --t` and the viewer's *spin* sweep the real motion; a sub-
-assembly keeps its own params and derived. Screw and slider mates, which
-would cover open chains without expressions, are not built.
+assembly keeps its own params and derived.
 
 ## Files
 

@@ -22,7 +22,7 @@ serves this directory with `engine/` and `bakeoff/` dropped by
 | `lib/` | shared by the site, the worker and the harness: `engine.js` (the ABI), `mesh.js` (weld, invariants, edges, streams, STL), `manifold-kernel.js`, `occt-kernel.js` |
 | `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
 | `drive.selftest.mjs` | the file tree over records (`lib/drive.js`) and the site worker's `/xrpc/` read gateway, with in-memory repos and a fake PDS |
-| `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form |
+| `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form, the six mates in both directions, repeat, place-by-feature on the lift |
 | `browser.selftest.mjs` | serves the package, drives the page in headless Chromium through every bench part, asserts the report, screenshots to `/tmp/cad-shots/` |
 
 ## The tree
@@ -58,11 +58,17 @@ serves this directory with `engine/` and `bakeoff/` dropped by
   returns keys sorted — with `t`, seconds, and `theta`, the driven
   component's angle in degrees, in scope). Every `at` element, `rotate.deg`,
   `rotate.axis` element and the `drive`'s numbers take a number or an
-  expression over those. Gear and fixed mates still propagate rotation from
-  the drive; the expressions are how a screw moves a nut or a crank a slider
-  (`bench/crank.json`). Sub-assemblies have their own scope; `theta` is the
-  top drive's. Remember `deg(x)` is degrees → radians and `rad2deg(x)` the
-  reverse, so an angle for `rotate.deg` is `rad2deg(atan2(dy, dx))`.
+  expression over those; so do a mate's numbers and `repeat`. Mates
+  propagate turning and travel from the drive: `gear`, `belt`, `fixed`,
+  `screw` (`lead`), `rack` (`r` or `m`,`z`), `slider` (`ratio`), each in
+  either direction. Expressions are how a crank moves a slider
+  (`bench/crank.json`); a `screw` mate is how a nut climbs
+  (`bench/lift.json`). `repeat: n` makes `id[i]` instances with `i` in
+  scope, and `at: "@comp.face"` / `rotate.align` place a component on
+  another's named face and follow it through its motion. Sub-assemblies
+  have their own scope; `theta` is the top drive's. Remember `deg(x)` is
+  degrees → radians and `rad2deg(x)` the reverse, so an angle for
+  `rotate.deg` is `rad2deg(atan2(dy, dx))`.
 - **Names, never indices.** An extrude yields `id.start`, `id.end`,
   `id.side[k]`; loops with a `name` add `id.rim[0..3]`; a gear names
   `id.tooth[i].flank.r.0`, `id.tooth[i].tip`, `id.root[i]`, `id.bore[k]`. The

@@ -19,7 +19,7 @@ import { flatten } from '../lib/assembly.js';
 import { buildManifold } from '../lib/manifold-kernel.js';
 import { writeStl, weld, invariants } from '../lib/mesh.js';
 import { describe } from '../lib/measure.js';
-import { readDoc, isAssembly, benchRef, kernels, arg, has } from './common.mjs';
+import { readDoc, isAssembly, benchRef, kernels, facesOf, arg, has } from './common.mjs';
 
 const src = process.argv[2];
 if (!src || src.startsWith('--')) { console.error('usage: build.mjs <tree.json | bench:name | at://…> [--check] [--faces] [--json f] [--stl f] [--step f] [--kernel truck|manifold]'); process.exit(2); }
@@ -60,7 +60,7 @@ if (has('--check')) {
 }
 
 if (isAssembly(doc)) {
-  const { components, partTrees } = await flatten(doc, benchRef);
+  const { components, partTrees } = await flatten(doc, benchRef, { facesOf });
   let total = 0; const results = {};
   for (const [key, tree] of partTrees) {
     const r = buildOne(JSON.parse(tree), key);

@@ -73,6 +73,8 @@ const m2 = (await tool('measure', { tree: 'bench:plate', a: 'plate.start', b: 'p
 check(m2.kind === 'plane-plane' && m2.parallel && Math.abs(m2.distance - 1.5) < 1e-9, `measure two faces: plate.start→plate.end ${m2.distance}`);
 const nf = await tool('measure', { tree: 'bench:plate', a: 'nothing' });
 check(nf.isError && /no face named nothing/.test(nf.content[0].text), 'measure names the faces it does know when one is missing');
+const sw = (await tool('interference', { assembly: 'bench:lift', sweep: 6 })).structuredContent;
+check(sw.ok && sw.sweep === 6 && Math.abs(sw.period - 1) < 1e-9 && sw.pairs.every((p) => p.expected), `interference sweeps ${sw.sweep} instants over ${sw.period} s of the lift (references resolved on the host) and finds only expected touches`);
 const i = (await tool('interference', { assembly: 'bench:clock', t: 0.5 })).structuredContent;
 check(i.ok && i.tested > 20 && i.pairs.every((p) => p.expected), `interference: the clock mid-beat, ${i.tested} pairs tested, ${i.pairs.length} expected touches, none real`);
 const st = (await tool('step', { tree: 'bench:cam' })).structuredContent;

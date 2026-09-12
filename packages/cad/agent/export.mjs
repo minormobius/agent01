@@ -13,7 +13,7 @@ import path from 'node:path';
 import { flatten, solveAngles, modelOf, xform } from '../lib/assembly.js';
 import { buildManifold } from '../lib/manifold-kernel.js';
 import { writeStl } from '../lib/mesh.js';
-import { readDoc, isAssembly, benchRef, kernels, arg } from './common.mjs';
+import { readDoc, isAssembly, benchRef, kernels, facesOf, arg } from './common.mjs';
 
 const doc = readDoc(process.argv[2]);
 const out = arg('--out', '/tmp/cad-export'); fs.mkdirSync(out, { recursive: true });
@@ -34,7 +34,7 @@ if (!isAssembly(doc)) {
   console.log(`${name}.stl  ${mesh.idx.length / 3} triangles  (${kernel})`);
 } else {
   const t = Number(arg('--t', '0'));
-  const { components, mates, drive, partTrees } = await flatten(doc, benchRef);
+  const { components, mates, drive, partTrees } = await flatten(doc, benchRef, { facesOf });
   const meshes = new Map();
   for (const [key, tree] of partTrees) {
     const { mesh, kernel } = buildMesh(tree, key);
