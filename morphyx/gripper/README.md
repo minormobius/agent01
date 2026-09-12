@@ -140,10 +140,18 @@ where that loop closes; read its log for the `no interference` lines.
 
 ## Open it
 
-- The reference pose, parts inline, straight from the build:
-  the `link` field of an `/mcp` `build` of `gripper.json`, or
-  `https://cad.mino.mobi/#t=<base64url of gripper.json>`.
-- Once published: `https://cad.mino.mobi/?at=<AT URI of gripper/assembly>`
-  in the morphyx repo — the files tab lists it, and anyone can fork a part.
-- Another pose: `node gripper.mjs --nut 48 --print | …` and paste into the
-  tree tab.
+Published 2026-09-12 by the `cad gripper` workflow (run 1: 16 exact builds,
+closed forms, `no interference` at nut 44, 53 and 62, 17 files written) into
+the morphyx repo, `did:plc:yivyyp54vddf7qf2lpsikhe4`:
+
+- **The assembly**, reference pose, parts by AT URI:
+  https://cad.mino.mobi/?at=at%3A%2F%2Fdid%3Aplc%3Ayivyyp54vddf7qf2lpsikhe4%2Fcom.minomobi.cad.part%2F3mvbzwq2v2h2f
+- The parts: `gripper/parts/<name>` in the same repo — the files tab lists
+  them; `list_files` on `/mcp` with `repo: morphyxmino.bsky.social`; or
+  `node agent/drive.mjs ls --at morphyxmino.bsky.social` from the mirror.
+  Fork one with `drive.mjs fork <uri> <path>`; the lineage crosses repos.
+- Any pose, parts inline: `node gripper.mjs --nut 48 --print`, then paste
+  into the viewer's tree tab, or take the `link` an `/mcp` `build` returns.
+- Re-publish after a change: push to this branch with `[publish]` in the
+  commit message (or dispatch the workflow with `publish` on). Unchanged
+  trees are skipped; a changed one becomes one new revision.
