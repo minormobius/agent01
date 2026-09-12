@@ -20,6 +20,7 @@ on:
     paths:
       - 'packages/cad/bench/**'
       - 'packages/cad/agent/publish.mjs'
+      - 'packages/cad/agent/audit.mjs'
       - 'packages/cad/lib/drive.js'
       - '.github/workflows/publish-cad.yml'
   workflow_dispatch:
