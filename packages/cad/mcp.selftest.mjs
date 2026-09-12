@@ -31,7 +31,7 @@ const tool = async (name, args) => { const r = await rpc('tools/call', { name, a
 
 // transport
 const desc = await (await mcp.handle(new Request('https://cad.mino.mobi/mcp'))).json();
-check(desc.name === 'cad.mino.mobi' && desc.tools.length === TOOLS.length && desc.skill.endsWith('/SKILL.md'), `GET /mcp is the descriptor with ${desc.tools.length} tools`);
+check(desc.name === 'cad.mino.mobi' && desc.tools.length === TOOLS.length && desc.skill.endsWith('/SKILL.md') && desc.changelog.endsWith('/CHANGELOG.md'), `GET /mcp is the descriptor with ${desc.tools.length} tools, the skill and the changelog`);
 const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } });
 check(init.result?.protocolVersion && init.result.capabilities.tools && /SKILL\.md/.test(init.result.instructions), 'initialize answers with capabilities and instructions');
 check((await post({ jsonrpc: '2.0', method: 'notifications/initialized' })).status === 202, 'a notification gets 202 and no body');

@@ -72,7 +72,7 @@ footer { color: var(--dim); font-size: 12px; padding-top: 20px; }
   <div class="ways">
     <div class="way"><h4>No files: MCP</h4><p>Check, build, measure, export, read anyone's files. From any agent that speaks the protocol.</p><code>claude mcp add --transport http cad https://cad.mino.mobi/mcp</code></div>
     <div class="way"><h4>Four megabytes: the mirror</h4><p>The whole package, node only. The skill loads on clone; the full loop including interference and render.</p><code>git clone https://tangled.org/morphyxmino.bsky.social/cad</code></div>
-    <div class="way"><h4>A browser: the viewer</h4><p>The judgement surface. Parts, assemblies, the report, named faces, measure, interference, files, sign-in.</p><code><a href="../">cad.mino.mobi</a> · <a href="../SKILL.md">SKILL.md</a> · <a href="../llms.txt">llms.txt</a></code></div>
+    <div class="way"><h4>A browser: the viewer</h4><p>The judgement surface. Parts, assemblies, the report, named faces, measure, interference, files, sign-in.</p><code><a href="../">cad.mino.mobi</a> · <a href="../SKILL.md">SKILL.md</a> · <a href="../llms.txt">llms.txt</a> · <a href="../CHANGELOG.md">CHANGELOG.md</a></code></div>
   </div>
 </div>
 
@@ -262,7 +262,7 @@ footer { color: var(--dim); font-size: 12px; padding-top: 20px; }
   <h2>7. Agentic access<small>three doors, one loop</small></h2>
   <p>The loop is the same everywhere: <em>write tree → build → measure → check → render → judge → edit</em>. What differs is how much you have to install.</p>
   <h3>Door one: nothing. MCP at <code>/mcp</code></h3>
-  <p>Streamable HTTP, JSON responses; GET returns the descriptor. Tools on the live host: <code>check</code>, <code>build</code>, <code>measure</code>, <code>step</code>, <code>list_files</code>, <code>get_file</code>. Every tool takes a tree object, <code>bench:&lt;name&gt;</code> or an <code>at://</code> URI. <code>build</code> returns the invariants, every named face with its geometry, and a viewer link to hand a human; on an assembly it builds three parts per call and returns <code>partKeys</code> and <code>remaining</code>, so you pass <code>parts</code> to continue.</p>
+  <p>Streamable HTTP, JSON responses; GET returns the descriptor. Tools on the live host: <code>check</code>, <code>build</code>, <code>measure</code>, <code>interference</code> (clearance mode: nearest approach per pair, no volumes), <code>step</code>, <code>list_files</code>, <code>get_file</code>. Every tool takes a tree object, <code>bench:&lt;name&gt;</code> or an <code>at://</code> URI. <code>build</code> returns the invariants, every named face with its geometry, and a viewer link to hand a human; on an assembly it builds three parts per call and returns <code>partKeys</code> and <code>remaining</code>, so you pass <code>parts</code> to continue.</p>
   <pre><code>curl -sX POST https://cad.mino.mobi/mcp -H 'content-type: application/json' -d '{
   "jsonrpc":"2.0","id":1,"method":"tools/call",
   "params":{"name":"measure","arguments":{"tree":"bench:plate","a":"plate.rim[0]","b":"plate.pivot[2][0]"}}}'
@@ -276,6 +276,7 @@ footer { color: var(--dim); font-size: 12px; padding-top: 20px; }
   <ul>
     <li><a href="../SKILL.md">SKILL.md</a>: the instruction sheet, including a worked task on the published train.</li>
     <li><a href="../llms.txt">llms.txt</a>: the index, for an agent that lands on the site cold.</li>
+    <li><a href="../CHANGELOG.md">CHANGELOG.md</a>: what changed and when — for an agent or a person who used this before.</li>
     <li><a href="../README.md">README.md</a>: the schema and the CLI.</li>
     <li><a href="https://github.com/minormobius/agent01/blob/main/docs/CAD.md">docs/CAD.md</a>: the design record, phases and gates, the bake-off result, what each cut decided.</li>
   </ul>

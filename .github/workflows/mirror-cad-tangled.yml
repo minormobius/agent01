@@ -73,7 +73,7 @@ jobs:
 
           `SKILL.md` is the instruction sheet (Claude Code picks it up from
           `.claude/skills/cad/`), `README.md` the tree schema, `llms.txt` the
-          index. The Rust engine source is under `engine/`; the committed
+          index, `CHANGELOG.md` what changed and when. The Rust engine source is under `engine/`; the committed
           `cad.wasm` is what everything runs on, so you never need to build it.
 
           Do not open pull requests here — this copy is overwritten. Changes go

@@ -12,7 +12,9 @@ under `bench/` are the worked examples (`gear`, `plate`, `case`, `cam`,
 `clock` …); the design record is `docs/CAD.md` in the monorepo.
 
 Everything below needs **node 22 and nothing else**: the engine is
-`cad.wasm`, committed. Run every command from this directory.
+`cad.wasm`, committed. Run every command from this directory. Used this
+before? `CHANGELOG.md` (also `cad.mino.mobi/CHANGELOG.md`) lists what
+changed and when, newest first.
 
 ## The loop
 

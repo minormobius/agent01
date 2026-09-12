@@ -220,7 +220,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
     const fail = (code, message, data) => ({ jsonrpc: '2.0', id, error: { code, message, ...(data ? { data } : {}) } });
     if (!msg || msg.jsonrpc !== '2.0' || typeof msg.method !== 'string') return fail(-32600, 'invalid request');
     switch (msg.method) {
-      case 'initialize': return reply({ protocolVersion: PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER, instructions: `Feature-tree CAD. Read ${SITE}/SKILL.md first. Tools take a tree object, \`bench:<name>\` or an at:// URI. build gives the numbers to judge by and a link to hand a human; there is no render tool — the link is the picture — and no write tool: parts are saved with the person's own sign-in.${caps.manifold ? '' : ' The preview kernel (and so the interference tool) is not on this server; run agent/check.mjs locally for that.'}` });
+      case 'initialize': return reply({ protocolVersion: PROTOCOL, capabilities: { tools: { listChanged: false } }, serverInfo: SERVER, instructions: `Feature-tree CAD. Read ${SITE}/SKILL.md first. Tools take a tree object, \`bench:<name>\` or an at:// URI. build gives the numbers to judge by and a link to hand a human; there is no render tool — the link is the picture — and no write tool: parts are saved with the person's own sign-in.${caps.manifold ? '' : ' The preview kernel is not on this server, so interference here gives nearest approach per pair (pass clearance in mm), not shared volumes; agent/check.mjs does volumes locally.'} What changed and when: ${SITE}/CHANGELOG.md.` });
       case 'notifications/initialized': case 'notifications/cancelled': return null;
       case 'ping': return reply({});
       case 'tools/list': return reply({ tools: toolList });
@@ -244,7 +244,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
   /** The HTTP face: GET → descriptor, POST → JSON-RPC (single or batch), OPTIONS → CORS. */
   async function handle(request) {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-    if (request.method === 'GET') return json({ ...SERVER, protocolVersion: PROTOCOL, transport: 'streamable-http (JSON responses)', endpoint: `${SITE}/mcp`, skill: `${SITE}/SKILL.md`, index: `${SITE}/llms.txt`, capabilities: caps, tools: toolList });
+    if (request.method === 'GET') return json({ ...SERVER, protocolVersion: PROTOCOL, transport: 'streamable-http (JSON responses)', endpoint: `${SITE}/mcp`, skill: `${SITE}/SKILL.md`, index: `${SITE}/llms.txt`, changelog: `${SITE}/CHANGELOG.md`, capabilities: caps, tools: toolList });
     if (request.method !== 'POST') return json({ error: 'method not allowed' }, 405);
     let body; try { body = await request.json(); } catch { return json({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'parse error' } }, 400); }
     if (Array.isArray(body)) { const out = (await Promise.all(body.map(rpc))).filter(Boolean); return out.length ? json(out) : new Response(null, { status: 202, headers: cors }); }
