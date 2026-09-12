@@ -58,7 +58,7 @@ function mcpFor(env, origin) {
     if (collection === PART) { const f = await d.get(ref); if (!f) throw new Error(`no file at ${ref}`); return f.revision.tree; }
     return d.treeAt(ref);
   };
-  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch, capabilities: { manifold: false, maxParts: 3, budgetMs: 90000 } }));
+  return (mcp ??= createMcp({ kernels, fetchRef, gateway: origin, fetch: localFetch, capabilities: { manifold: false, maxParts: 3, workBudget: 2.5e6 } }));
 }
 
 export default {

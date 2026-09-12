@@ -150,14 +150,20 @@ clearance (and at least 1 mm) are refined — a pair 10 mm away cannot graze.
 
 Clearance needs no kernel, so the MCP `interference` tool runs it on the
 server (`clearance`, `sweep`, `period`); shared volumes still need Manifold,
-which is local. **A big assembly does not fit in one server request.** The
-call has a CPU budget: part meshes are cached between calls, and a sweep
-that runs out of time answers `done: false` with `next` — call again with
-`from: next` until `done`, then take the smallest distance per pair across
-the windows. If the budget goes on building parts instead, the answer says
-so (`incomplete: "parts"`, with what is left) and the next call gets
-further. Locally there is no budget: `agent/check.mjs` sweeps the whole
-cycle in one go, and for a 45-component assembly that is the faster path. Distances
+which is local. **A big assembly does not fit in one server request**, and
+the server says so instead of dying:
+
+- `incomplete: "parts"` — it builds a few new part meshes per call and
+  caches them; call again with the same arguments until the sweep runs.
+- `done: false` with `next` — the sweep covered instants `window.from` to
+  `window.from + window.sampled - 1`. Call again with `from: next` until
+  `done`, then take the smallest distance per pair across the windows.
+- `incomplete: "too-big"` — one instant costs more than the server may
+  spend. Pass `res: 128` or `res: 64` (coarser meshes: chord error 0.005
+  or 0.01 mm instead of 0.0025), check fewer components, or run it locally.
+
+Locally there is no budget: `agent/check.mjs` sweeps the whole cycle in one
+go, and for anything the size of the clock that is the faster path. Distances
 come from the exact meshes at a fine tessellation (chord tolerance
 0.0025 mm), so a designed 0.1 mm reads 0.098; set a fit's `min` with that
 in mind.

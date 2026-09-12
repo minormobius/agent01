@@ -97,6 +97,21 @@ check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5,
   const far = whole.pairs.filter((p) => p.distance > clearanceBand);
   check(whole.done === true && never && far.length > 0 && far.every((p) => Math.abs(w(p) - p.distance) < 1e-9), `${calls + 1} windows cover the sweep: never nearer than the one unbudgeted call, and identical on the ${far.length} pairs too far to refine`);
   check(whole.refinedPairs < whole.pairs.length && whole.refinedPairs > 0, `only the ${whole.refinedPairs} pairs within four times the clearance are refined, not all ${whole.pairs.length}`);
+  // A Worker's clock does not advance during synchronous work, so the server
+  // budgets by WORK — triangles on both sides of every pair — not by time.
+  const counted = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 30, workBudget: 1.2e6 } });
+  const c1 = await counted.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5 });
+  check(c1.done === false && c1.window.sampled >= 1 && c1.window.sampled < 24 && c1.work <= 1.2e6 * 1.05, `a work budget windows the sweep with no clock at all: ${c1.window.sampled} of 24 instants, ${(c1.work / 1e6).toFixed(2)}M of 1.2M triangle-pairs`);
+  const tiny = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 30, workBudget: 1e5 } });
+  const t1 = await tiny.call('interference', { assembly: 'bench:lift', sweep: 4, clearance: 0.5 });
+  check(t1.incomplete === 'too-big' && t1.work > t1.budget && /refused instead/.test(t1.note) && /res 128 or 64/.test(t1.note), `an assembly whose single instant is past the budget is refused with its numbers, not killed (${(t1.work / 1e6).toFixed(2)}M of ${(t1.budget / 1e6).toFixed(2)}M)`);
+  const slow = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 1, workBudget: 1e7 } });
+  const p1 = await slow.call('interference', { assembly: 'bench:crank', clearance: 0.5, res: 128 });
+  check(p1.incomplete === 'parts' && p1.pending.length >= 1 && p1.built === 1 && /each call gets further/.test(p1.note), `a server that builds one part per call says what is left (${p1.pending?.length} pending at res 128)`);
+  const coarse = await counted.call('interference', { assembly: 'bench:lift', clearance: 0.5, res: 64 });
+  const fine = await counted.call('interference', { assembly: 'bench:lift', clearance: 0.5, res: 256 });
+  const nut = (r) => r.pairs.find((p) => [p.a, p.b].includes('nut') && [p.a, p.b].includes('screw')).distance;
+  check(coarse.res === 64 && fine.res === 256 && nut(coarse) < nut(fine) && Math.abs(nut(fine) - 0.1) < 0.0025, `res 64 is cheaper and coarser: the nut reads ${nut(coarse).toFixed(4)} against ${nut(fine).toFixed(4)} at res 256 for a designed 0.1`);
 }
 const sw = (await tool('interference', { assembly: 'bench:lift', sweep: 6 })).structuredContent;
 check(sw.ok && sw.sweep === 6 && Math.abs(sw.period - 1) < 1e-9 && sw.pairs.every((p) => p.expected), `interference sweeps ${sw.sweep} instants over ${sw.period} s of the lift (references resolved on the host) and finds only expected touches`);

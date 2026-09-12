@@ -49,16 +49,33 @@ function pairAt(a, b, kin, t) {
   return proximity(A, B);
 }
 
+/// The work in one instant, in triangles-per-pair: the cost model the server
+/// budgets with. Every pair is a BVH against a BVH, so the cost of an instant
+/// goes with the triangles on both sides of every pair. Measured on this
+/// bench (node, 2026-09-12): 1.5 µs per unit on the train, 2.3 on the lift,
+/// 5.7 on the clock at res 128 — so 6 µs per unit is a safe ceiling, and a
+/// worker is slower still.
+export const triCount = (b) => b.mesh.idx.length / 3;
+export function pairWork(bodies) {
+  let w = 0;
+  for (let i = 0; i < bodies.length; i++) for (let j = i + 1; j < bodies.length; j++) w += triCount(bodies[i]) + triCount(bodies[j]);
+  return w;
+}
+
 /// N instants over `period`, each pair's worst, refined between samples.
 ///
 /// A big assembly does not fit in one server's CPU: 45 components at 24
 /// instants is 24 × 990 pairs. So a sweep is WINDOWED — it starts at instant
-/// `from`, stops when `budgetMs` is spent (always taking at least one
-/// instant), and reports `next`, the instant it stopped at, for the caller
-/// to pass back as `from`. `done` says the window reached the end.
-/// Refinement is the other cost, and it only pays near the clearance being
-/// demanded: `refineWithin` skips pairs no closer than that.
-export function sweepClearance(bodies, kin, { instants = 12, period = 1, from = 0, within = Infinity, skip = () => false, refine = true, iterations = 10, refineWithin = Infinity, budgetMs = Infinity } = {}) {
+/// `from`, takes at most `maxInstants` (and stops early if `budgetMs` is
+/// spent, which only works where the clock runs: a Cloudflare Worker freezes
+/// it during synchronous work, so a server budgets with `maxInstants` and
+/// `refineBudget` from `pairWork` instead), and reports `next`, the instant
+/// it stopped at, for the caller to pass back as `from`. `done` says the
+/// window reached the end. Refinement is the other cost — about 20 pair
+/// evaluations each — so it is bounded twice: `refineWithin` skips pairs no
+/// closer than that, and `refineBudget` (in pairWork units) stops the rest,
+/// closest pair first.
+export function sweepClearance(bodies, kin, { instants = 12, period = 1, from = 0, within = Infinity, skip = () => false, refine = true, iterations = 10, refineWithin = Infinity, budgetMs = Infinity, maxInstants = Infinity, refineBudget = Infinity } = {}) {
   const t0 = performance.now();
   const spent = () => performance.now() - t0 >= budgetMs;
   const byId = new Map(bodies.map((b) => [b.id, b]));
@@ -68,20 +85,22 @@ export function sweepClearance(bodies, kin, { instants = 12, period = 1, from = 
   const start = Math.max(0, Math.min(instants - 1, Math.floor(from) || 0));
   let k = start;
   for (; k < instants; k++) {
-    if (k > start && spent()) break;
+    if (k > start && (spent() || k - start >= maxInstants)) break;
     const r = clearanceAt(bodies, kin, (k * period) / instants, { within, skip });
     tested = Math.max(tested, r.tested); for (const p of r.pairs) record(p, (k * period) / instants);
   }
   const done = k >= instants;
-  let refinedPairs = 0;
+  let refinedPairs = 0, refineSpent = 0;
   if (refine && instants > 1) {
     const step = period / instants;
-    for (const [key, w] of [...worst]) {
+    // closest first: if the budget runs out, it runs out on the pairs that matter least
+    for (const [key, w] of [...worst].sort((x, y) => x[1].distance - y[1].distance)) {
       if (w.penetration > 0) continue; // already colliding: the volume, not the distance, is the story
       if (w.distance > refineWithin) continue; // far enough that a graze between samples cannot reach the clearance
-      if (spent()) break;
-      refinedPairs++;
       const a = byId.get(w.a), b = byId.get(w.b);
+      const cost = 2 * iterations * (triCount(a) + triCount(b));
+      if (spent() || refineSpent + cost > refineBudget) break;
+      refineSpent += cost; refinedPairs++;
       const f = (t) => { const r = pairAt(a, b, kin, t); return r.penetration > 0 ? -r.penetration : r.distance; };
       let lo = w.t - step, hi = w.t + step, x1 = hi - phi * (hi - lo), x2 = lo + phi * (hi - lo), f1 = f(x1), f2 = f(x2);
       for (let i = 0; i < iterations; i++) { if (f1 < f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - phi * (hi - lo); f1 = f(x1); } else { lo = x1; x1 = x2; f1 = f2; x2 = lo + phi * (hi - lo); f2 = f(x2); } }
@@ -90,5 +109,5 @@ export function sweepClearance(bodies, kin, { instants = 12, period = 1, from = 
     }
   }
   const pairs = [...worst.values()].sort((p, q) => q.penetration - p.penetration || p.distance - q.distance);
-  return { pairs, instants, period, from: start, sampled: k - start, done, next: done ? null : k, tested, refined: refine, refinedPairs, ms: performance.now() - t0 };
+  return { pairs, instants, period, from: start, sampled: k - start, done, next: done ? null : k, tested, refined: refine, refinedPairs, work: pairWork(bodies) * (k - start) + refineSpent, ms: performance.now() - t0 };
 }

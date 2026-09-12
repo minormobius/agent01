@@ -66,23 +66,30 @@ from its axis is a boss and is not called out. On an assembly every
 component is posed and `reference` ones are left out. Deterministic: two
 drawings of one tree diff cleanly.
 
-**Sweeps on the server fit in the server.** The `interference` tool now
-spends one CPU budget over the whole call and says where it got to:
+**Sweeps on the server fit in the server.** A big assembly used to kill the
+request (code 1102). Now the `interference` tool answers in pieces and says
+which piece you have:
 
-- exact meshes are **cached between calls** in the isolate, so a second
-  call pays nothing to rebuild a part (a 60-tooth gear is ~30 s);
-- if the budget goes on the builds, the answer is `incomplete: "parts"`
-  with what is left — call again and it gets further;
-- a sweep that runs out answers `done: false` with `next`: call again with
-  `from: next` until `done`, then take the smallest distance per pair
-  across the windows;
+- exact meshes are **cached between calls** in the isolate, and a few new
+  parts are built per call: `incomplete: "parts"` with what is left, so
+  calling again with the same arguments gets further (a 60-tooth gear is
+  ~30 s of CPU on its own);
+- a sweep that does not fit answers `done: false` with `next` and the
+  window it covered: call again with `from: next` until `done`, then take
+  the smallest distance per pair across the windows;
+- an assembly whose *single instant* is past the budget is refused —
+  `incomplete: "too-big"`, with the numbers — instead of being killed
+  mid-call. Pass **`res: 128` or `res: 64`** for coarser, much cheaper
+  meshes (chord error 0.005 or 0.01 mm against 0.0025 at res 256), check
+  fewer components, or run it locally;
 - refinement between samples now runs only for pairs within four times the
   clearance (and at least 1 mm) — a pair 10 mm apart cannot graze. On the
   lift that is 7 pairs of 21, locally too (`agent/check.mjs` says how many).
 
-A 45-component assembly at 24 instants no longer fails one request; it
-takes several. Locally there is no budget and `agent/check.mjs` is still
-the faster path for something that size.
+The budget is counted in work, not time: a Cloudflare Worker freezes its
+clock during synchronous execution, so a wall-clock budget never trips.
+Locally there is no budget at all, and for something the size of the clock
+`agent/check.mjs` remains the faster path.
 
 ## 2026-09-12
 

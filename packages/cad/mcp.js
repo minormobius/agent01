@@ -16,7 +16,7 @@
 // Manifold module); `fetchRef(ref)` turns `bench:<name>` or an `at://` URI into
 // a tree; `gateway` is the base URL of the /xrpc/ read gateway for file tools.
 import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf, findFace } from './lib/assembly.js';
-import { clearanceAt, sweepClearance, verdictOf, OK_VERDICTS } from './lib/sweep.js';
+import { clearanceAt, sweepClearance, verdictOf, OK_VERDICTS, pairWork } from './lib/sweep.js';
 import { drawing } from './lib/drawing.js';
 import { buildManifold } from './lib/manifold-kernel.js';
 import { interference } from './lib/interfere.js';
@@ -41,8 +41,8 @@ export const TOOLS = [
     inputSchema: { type: 'object', properties: { tree: treeArg, kernel: { type: 'string', enum: ['truck', 'manifold'], default: 'truck' }, faces: { type: 'boolean', default: true, description: 'include the face list' }, parts: { type: 'array', items: { type: 'string' }, description: 'assemblies only: the part keys to build in this call (default: the first few)' } }, required: ['tree'] } },
   { name: 'measure', title: 'Measure named faces', description: 'One face: its geometry (a cylinder\'s diameter and axis, a plane\'s normal). Two faces: plane-to-plane, axis-to-axis (with both diameters and the wall between) or axis-to-plane distance, from exact geometry. Face names come from `build`. On an assembly, name faces as `component.face` and pass `t` to pose it first: the distance between two parts\' faces at an instant, which tests the kinematics directly.',
     inputSchema: { type: 'object', properties: { tree: treeArg, a: { type: 'string', description: 'a face name, e.g. plate.pivot[0][0]' }, b: { type: 'string' }, t: { type: 'number', description: 'seconds through the drive, for an assembly' } }, required: ['tree', 'a'] } },
-  { name: 'interference', title: 'Check an assembly for interference and clearance', description: 'Pose every component of an assembly at time t (seconds through its drive) and test every pair. With the preview kernel, pairs with more than eps mm³ in common are returned with their shared volume. Everywhere (this server included), pass `clearance` in mm to get the nearest approach of every pair from the exact meshes instead — crossing, contained, touching, or the distance — and a verdict per pair: collision (depth or containment), close (under the clearance), loose (wider than a designed fit), expected (a mated touch), fit (a designed clearance, from the document\'s `fits`), contact (touching, no depth, no clearance demanded), clear. With sweep N, N instants over one period of the drive (or `period` seconds) are checked and each pair\'s worst kept; in clearance mode the minimum is then chased between samples for the pairs near the clearance, so a graze between instants is found. Reference components are left out. A big assembly does not fit in one request here: the call has a CPU budget, part meshes are cached between calls, and a sweep that runs out answers with `done: false` and `next` — call again with `from: next` until `done`, then take the smallest distance per pair across the windows. Big gears take ~30 s each to build; sweeping a large assembly locally with agent/check.mjs is still faster.',
-    inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0 }, eps: { type: 'number', default: 0.01 }, clearance: { type: 'number', description: 'mm: report every pair\'s nearest approach and flag those closer than this (0 flags only contact); this mode needs no kernel' }, sweep: { type: 'integer', description: 'check this many instants over one period instead of one time t' }, period: { type: 'number', description: 'seconds per cycle for a sweep; default one turn of the driven component' }, from: { type: 'integer', default: 0, description: 'clearance sweeps only: the first instant of this window. A server stops on its CPU budget and answers with `next`; pass that back as `from` to continue, and take the smallest distance per pair across the windows.' }, budgetMs: { type: 'integer', description: 'stop after about this many ms and report where to resume (the server caps it)' } }, required: ['assembly'] } },
+  { name: 'interference', title: 'Check an assembly for interference and clearance', description: 'Pose every component of an assembly at time t (seconds through its drive) and test every pair. With the preview kernel, pairs with more than eps mm³ in common are returned with their shared volume. Everywhere (this server included), pass `clearance` in mm to get the nearest approach of every pair from the exact meshes instead — crossing, contained, touching, or the distance — and a verdict per pair: collision (depth or containment), close (under the clearance), loose (wider than a designed fit), expected (a mated touch), fit (a designed clearance, from the document\'s `fits`), contact (touching, no depth, no clearance demanded), clear. With sweep N, N instants over one period of the drive (or `period` seconds) are checked and each pair\'s worst kept; in clearance mode the minimum is then chased between samples for the pairs near the clearance, so a graze between instants is found. Reference components are left out. A big assembly does not fit in one request here. New part meshes are built a few per call and cached, so repeating the call gets further (`incomplete: "parts"` says what is left); a sweep that does not fit answers `done: false` with `next` — call again with `from: next` until `done`, then take the smallest distance per pair across the windows; and an assembly whose single instant is past the server\'s budget is refused with its numbers (`incomplete: "too-big"`) rather than killed — try `res` 128 or 64, or run it locally. Big gears take ~30 s each to build; sweeping a large assembly locally with agent/check.mjs is still faster.',
+    inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0 }, eps: { type: 'number', default: 0.01 }, clearance: { type: 'number', description: 'mm: report every pair\'s nearest approach and flag those closer than this (0 flags only contact); this mode needs no kernel' }, sweep: { type: 'integer', description: 'check this many instants over one period instead of one time t' }, period: { type: 'number', description: 'seconds per cycle for a sweep; default one turn of the driven component' }, from: { type: 'integer', default: 0, description: 'clearance sweeps only: the first instant of this window. A server stops on its CPU budget and answers with `next`; pass that back as `from` to continue, and take the smallest distance per pair across the windows.' }, res: { type: 'integer', enum: [64, 128, 256], default: 256, description: 'clearance mode: mesh resolution. 256 is the default (chord error 0.0025 mm); 64 or 128 is coarser and much cheaper, for an assembly this server refuses at 256' }, budgetMs: { type: 'integer', description: 'local hosts only: stop after about this many ms (a Worker\'s clock does not run during synchronous work, so the server budgets by work instead)' } }, required: ['assembly'] } },
   { name: 'drawing', title: 'Draw a part or assembly', description: 'An engineering drawing as SVG from the exact mesh: third-angle views (front, top, right by default; any of front, back, top, bottom, left, right, iso), hidden lines dashed, the overall width, height and depth dimensioned, and every cylindrical hole called out with its count, diameter and depth when blind. On an assembly, pass `t` to pose it; reference components are left out. Returns the SVG as an embedded resource plus the numbers on it (overall size, dimensions, holes, lines per view). Deterministic, so two drawings of the same tree diff cleanly.',
     inputSchema: { type: 'object', properties: { tree: treeArg, views: { type: 'array', items: { type: 'string', enum: ['front', 'back', 'top', 'bottom', 'left', 'right', 'iso'] }, default: ['front', 'top', 'right'] }, hidden: { type: 'boolean', default: true, description: 'draw hidden lines (dashed)' }, t: { type: 'number', default: 0, description: 'seconds through the drive, for an assembly' }, width: { type: 'integer', default: 900, description: 'sheet width in px; the scale is fitted to it' }, title: { type: 'string', description: 'the name in the title block; defaults to the document\'s name or the ref it came from' } }, required: ['tree'] } },
   { name: 'step', title: 'Export STEP', description: 'The exact B-rep as STEP text (Truck kernel). For other CAD systems.',
@@ -82,7 +82,7 @@ function cachedMesh(engine, treeText, res) {
 }
 
 export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabilities = {} } = {}) {
-  const caps = { manifold: true, maxParts: Infinity, budgetMs: Infinity, ...capabilities };
+  const caps = { manifold: true, maxParts: Infinity, budgetMs: Infinity, workBudget: Infinity, ...capabilities };
   const toolList = toolsFor(caps);
   const publicDrive = (did) => new Drive(new PublicBackend(did, gateway, { fetch: f }), { pdsOf: async () => gateway, fetch: f });
   const asTree = async (v) => {
@@ -167,7 +167,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const B = faceByName(r.report.faces, b); if (!B) throw new Error(`no face named ${b}`);
       return { a: faceOut(A), b: faceOut(B), ...measure(A, B) };
     },
-    async interference({ assembly, t = 0, eps = 0.01, sweep = 0, period, clearance, from = 0, budgetMs }) {
+    async interference({ assembly, t = 0, eps = 0.01, sweep = 0, period, clearance, from = 0, budgetMs, res = 256 }) {
       const { engine, manifold } = await kernels();
       const doc = await asTree(assembly);
       if (!Array.isArray(doc.components)) throw new Error('not an assembly (no components)');
@@ -178,35 +178,45 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       if (clearance !== undefined || !(caps.manifold && manifold)) {
         // nearest approach from the exact meshes: no kernel needed, so this is what the server runs
         if (clearance === undefined) clearance = 0;
-        // One budget over the whole call: the builds first (cached between
-        // calls), then the sweep, which stops on the same clock and says
-        // where to resume. A 45-component assembly does not fit in one
-        // server request; it fits in several.
-        const budget = Math.max(1000, Math.min(caps.budgetMs, budgetMs ?? caps.budgetMs));
-        const t0 = performance.now(); const left = () => budget - (performance.now() - t0);
+        res = [64, 128, 256].includes(res) ? res : 256;
+        // Two budgets, both counted rather than timed: a Cloudflare Worker
+        // freezes its clock during synchronous work, so a wall-clock budget
+        // never trips and the request dies on CPU instead (measured: the
+        // clock assembly, code 1102, 2026-09-12). Parts are built at most
+        // `maxParts` per call and cached; the sweep is budgeted in pairWork
+        // units — triangles on both sides of every pair — which is what an
+        // instant actually costs. `budgetMs` still applies where the clock
+        // runs (node).
+        const t0 = performance.now();
         const meshes = new Map(); const failed = []; const pending = []; let cachedCount = 0, builtCount = 0;
         for (const [key, tree] of partTrees) {
-          const fresh = !MESH_CACHE.has(`256|${tree}`);
-          if (fresh && builtCount && left() <= 0) { pending.push(key); continue; }
-          const r = cachedMesh(engine, tree, 256);
+          const fresh = !MESH_CACHE.has(`${res}|${tree}`);
+          if (fresh && builtCount >= caps.maxParts) { pending.push(key); continue; }
+          const r = cachedMesh(engine, tree, res);
           if (r.cached) cachedCount++; else builtCount++;
           if (r.mesh) meshes.set(key, r.mesh); else failed.push({ key, error: r.error });
         }
-        if (pending.length) return { ok: false, method: 'mesh', incomplete: 'parts', clearance, built: [...meshes.keys()], pending, failed, ms: performance.now() - t0, link: link(doc), note: `the CPU budget (${(budget / 1000).toFixed(0)} s) went on building ${builtCount} part${builtCount === 1 ? '' : 's'} at res 256; ${pending.length} still to build. Call again with the same arguments — the meshes built here are cached, so each call gets further.` };
+        if (pending.length) return { ok: false, method: 'mesh', incomplete: 'parts', clearance, res, built: builtCount, cached: cachedCount, ready: [...meshes.keys()], pending, failed, ms: performance.now() - t0, link: link(doc), note: `this server builds at most ${caps.maxParts} new part${caps.maxParts === 1 ? '' : 's'} per call at res ${res} (a big gear is ~30 s of CPU); ${pending.length} still to build. Call again with the same arguments — what is built is cached, so each call gets further, and the sweep runs once every part is in.` };
         const bodies = components.filter((c) => meshes.has(c.partKey)).map((c) => ({ id: c.id, mesh: meshes.get(c.partKey), comp: c }));
         const kin = { components: all, mates, drive };
         const annotate = (p) => ({ a: p.a, b: p.b, verdict: verdictOf(p, expect, clearance), distance: p.distance, intersecting: p.intersecting, contained: p.contained, touching: p.touching, penetration: p.penetration, closest: p.closest, ...(p.t !== undefined ? { t: p.t } : {}) });
-        const meshNote = `nearest approach from the exact meshes (res 256, chord error under 0.002 mm); verdicts: collision, close, loose fail; clear, contact, expected, fit pass; shared volumes need the preview kernel (agent/check.mjs locally)`;
-        const built = { parts: meshes.size, built: builtCount, cached: cachedCount };
+        const CHORD = { 256: '0.0025 mm', 128: '0.005 mm', 64: '0.01 mm' };
+        const meshNote = `nearest approach from the exact meshes (res ${res}, chord error under ${CHORD[res]}); verdicts: collision, close, loose fail; clear, contact, expected, fit pass; shared volumes need the preview kernel (agent/check.mjs locally)`;
+        const built = { parts: meshes.size, built: builtCount, cached: cachedCount, res };
+        // one instant's cost, and what this server can spend on it
+        const work = pairWork(bodies); const budget = caps.workBudget;
+        const tris = bodies.reduce((a, b) => a + b.mesh.idx.length / 3, 0);
+        if (work > budget) return { ok: false, method: 'mesh', incomplete: 'too-big', clearance, ...built, components: bodies.length, triangles: tris, work, budget, ms: performance.now() - t0, link: link(doc), note: `one instant of this assembly is ${(work / 1e6).toFixed(1)}M triangle-pairs of work, past what this server may spend in a request (${(budget / 1e6).toFixed(1)}M) — it would be killed mid-call, so it is refused instead. Try res 128 or 64 (coarser meshes, chord error ${CHORD[128]} / ${CHORD[64]}), check fewer components, or run \`node agent/check.mjs asm.json --clearance ${clearance} --sweep N\` locally, where there is no budget.` };
         let r;
-        if (!sweep) { const c = clearanceAt(bodies, kin, t); r = { t, pairs: c.pairs.map(annotate), tested: c.tested, ms: c.ms, done: true }; }
+        if (!sweep) { const c = clearanceAt(bodies, kin, t); r = { t, pairs: c.pairs.map(annotate), tested: c.tested, work: c.work ?? work, ms: c.ms, done: true }; }
         else {
           const n = Math.max(2, Math.min(360, Math.round(sweep))), per = period ?? periodOf(drive);
-          // refine a pair only if a graze between samples could reach the clearance: four times it, and at least a millimetre
-          const c = sweepClearance(bodies, kin, { instants: n, period: per, from, budgetMs: Math.max(1000, left()), refineWithin: clearance * 4 + 1 });
-          r = { sweep: n, period: per, refined: true, refinedPairs: c.refinedPairs, window: { from: c.from, sampled: c.sampled, of: n }, done: c.done, next: c.next, pairs: c.pairs.map(annotate), tested: c.tested, ms: c.ms };
+          // six tenths of the budget on instants, the rest on refining the closest pairs
+          const maxInstants = Math.max(1, Math.floor((budget * 0.6) / work));
+          const c = sweepClearance(bodies, kin, { instants: n, period: per, from, maxInstants, refineBudget: budget * 0.4, budgetMs: budgetMs ?? caps.budgetMs, refineWithin: clearance * 4 + 1 });
+          r = { sweep: n, period: per, refined: true, refinedPairs: c.refinedPairs, window: { from: c.from, sampled: c.sampled, of: n }, done: c.done, next: c.next, pairs: c.pairs.map(annotate), tested: c.tested, work: c.work, ms: c.ms };
         }
-        const note = r.done === false ? `${meshNote}. The CPU budget stopped this sweep after ${r.window.sampled} of ${r.window.of} instants: these are the worst approaches over instants ${r.window.from}–${r.window.from + r.window.sampled - 1}. Call again with from: ${r.next} for the rest (the meshes are cached) and take the smallest distance per pair across the windows.` : meshNote;
+        const note = r.done === false ? `${meshNote}. This server's budget covered ${r.window.sampled} of ${r.window.of} instants: these are the worst approaches over instants ${r.window.from}–${r.window.from + r.window.sampled - 1}. Call again with from: ${r.next} for the rest (the meshes are cached) and take the smallest distance per pair across the windows.` : meshNote;
         return { ok: r.pairs.every((p) => OK_VERDICTS.has(p.verdict)) && r.done !== false, method: 'mesh', clearance, ...built, ...r, failed, link: link(doc), note };
       }
       const built = new Map(); const failed = [];
