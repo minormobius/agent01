@@ -1,0 +1,13 @@
+{
+  "slug": "chess-except",
+  "task": "chess except when you select a piece you dont decide where it moves it just does a whole random walk of legal moves until it cannot make another move",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mvggyrent226",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mvggyrent226",
+  "root_cid": "bafyreidegqhnm3sqacmb4ykz4whvobu6i47dhmtnaq5m3dnogvkcrajqne",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mvggyrent226",
+  "parent_cid": "bafyreidegqhnm3sqacmb4ykz4whvobu6i47dhmtnaq5m3dnogvkcrajqne",
+  "refs_from": "chess except when you select a piece you dont decide where it moves it just does a whole random walk of legal moves until it cannot make another move",
+  "requestedAt": "2026-09-13T20:34:21.055Z"
+}
