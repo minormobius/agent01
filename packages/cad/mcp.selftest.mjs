@@ -3,7 +3,7 @@
 // behind the file tools. Exit 1 on any failure.
 import fs from 'node:fs';
 import path from 'node:path';
-import { createMcp, TOOLS } from './mcp.js';
+import { createMcp, TOOLS, packMesh, unpackMesh } from './mcp.js';
 import { kernels, benchRef } from './agent/common.mjs';
 import { Drive, MemoryBackend } from './lib/drive.js';
 
@@ -124,6 +124,25 @@ check(dws.svg.includes('>plate</text>'), 'the sheet is titled from the ref it ca
 const dwa = (await tool('drawing', { tree: 'bench:lift', t: 0.5, views: ['front', 'iso'], hidden: false, title: 'lift — half a turn' })).structuredContent;
 check(dwa.svg.includes('lift — half a turn'), 'a caller may name the sheet');
 check(dwa.kind === 'assembly' && dwa.views.map((v) => v.name).join() === 'front,iso' && dwa.views.every((v) => v.hidden === 0) && dwa.svg.includes('t = 0.5 s'), 'drawing an assembly posed at t, chosen views, no hidden lines');
+// the mesh cache at the edge: node has no Cache API, so the path that makes
+// staging converge on a Worker is proved here against a fake one
+{
+  const one = (await kernels()).engine.build(bench('plate'), { kernel: 'truck' });
+  const round = unpackMesh(packMesh({ mesh: one.mesh, faces: one.report.faces, invariants: one.report.invariants }));
+  const same = round.mesh.pos.length === one.mesh.pos.length && round.mesh.idx.every((v, i) => v === one.mesh.idx[i]) && round.mesh.pos.every((v, i) => v === one.mesh.pos[i]) && (!one.mesh.fid || round.mesh.fid.every((v, i) => v === one.mesh.fid[i]));
+  check(same && round.faces.length === one.report.faces.length && round.invariants.volume === one.report.invariants.volume, `a cached mesh survives the round trip whole: ${round.mesh.idx.length / 3} triangles, ${round.faces.length} named faces, volume ${round.invariants.volume.toFixed(3)}`);
+  const store = new Map();
+  globalThis.caches = { default: { async match(k) { const b = store.get(k); return b ? new Response(b) : undefined; }, async put(k, r) { store.set(k, await r.arrayBuffer()); } } };
+  try {
+    const edge = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 1, workBudget: 1e7 } });
+    const a = await edge.call('interference', { assembly: 'bench:crank', clearance: 0.5, res: 64 });
+    const wrote = store.size;
+    const b = await edge.call('interference', { assembly: 'bench:crank', clearance: 0.5, res: 64 });
+    check(wrote > 0 && [...store.keys()].every((k) => k.startsWith('https://cad.mino.mobi/__mesh/64/')) && b.built <= a.built, `meshes are written to the Cache API (${wrote} entries, keyed by tree and resolution) so the next isolate does not rebuild them`);
+    const got = unpackMesh(store.get([...store.keys()][0]));
+    check(got.mesh.idx.length > 0 && Array.isArray(got.faces), 'and what was written reads back as a mesh with its faces');
+  } finally { delete globalThis.caches; }
+}
 const rp = await tool('report', { assembly: 'bench:lift', t: 0.5 });
 const rps = rp.structuredContent;
 check(rps.ok && rps.bom.length === 4 && rps.bom.find((r) => r.part === 'bolt').qty === 4 && rps.sheets === 4 && rp.content[1]?.resource?.mimeType === 'text/html' && rp.content[1].resource.text.startsWith('<!doctype html>') && !rp.content[0].text.includes('<!doctype'), `report: the lift as one page (${(rps.bytes / 1024).toFixed(0)} kB) — ${rps.bom.length} items, ${rps.sheets} part sheets; the page travels as a resource, the numbers without it`);

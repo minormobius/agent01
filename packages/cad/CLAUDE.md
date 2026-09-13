@@ -128,8 +128,14 @@ documented in [`README.md`](README.md) next to this file.
   no closer than four times the clearance plus a millimetre), and returns
   `done`, `next`, `sampled` and `work`; `budgetMs` still works where the
   clock runs. `mcp.js` builds at most `maxParts` new part meshes per call
-  and keeps them in a module-level `MESH_CACHE` (48 entries, keyed by tree
-  text and res) so the next call resumes, spends six tenths of
+  and keeps them in a module-level `MESH_CACHE` **and in the runtime's Cache
+  API** (`caches.default`, keyed by a SHA-256 of tree text + res, the mesh
+  packed as a padded JSON header — named faces and invariants — followed by
+  its three typed arrays). The Cache API is the half that matters: two
+  requests land in **different isolates**, so with only the in-isolate Map
+  the staging never converged — measured live 2026-09-13, three parts built
+  and one pending on every call for ever. Both are best-effort; a miss costs
+  a rebuild. So the next call resumes, spends six tenths of
   `caps.workBudget` on instants and the rest on refinement, and takes
   `res` (64/128/256) so a coarse check is affordable. An assembly whose
   single instant is past the budget is **refused** (`incomplete: "too-big"`,

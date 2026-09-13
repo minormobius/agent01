@@ -39,6 +39,13 @@ A part the exact kernel cannot build here (a boolean Truck refuses; the
 viewer does it with OCCT) is named on the page with its error and left out
 of the drawings, rather than failing the whole report.
 
+**The server's mesh cache reaches across requests.** It was an in-memory
+map, which two consecutive requests do not share — different isolates — so
+a staged build never got past the first few parts on the live host. Meshes
+now also go to the runtime's Cache API, keyed by the tree and the
+resolution, so calling `interference` or `report` again really does get
+further.
+
 ## 2026-09-12, second pass
 
 From a practitioner's findings on the first pass.

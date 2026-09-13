@@ -67,21 +67,79 @@ export function toolsFor({ manifold = true } = {}) {
   });
 }
 
-// Exact meshes for the clearance check, kept between calls in one isolate.
-// A part at res 256 costs seconds (a 60-tooth gear ~30 s), and a windowed
-// sweep is several calls over the same assembly, so the second call must not
-// pay the build again. Keyed by the tree text and the resolution; bounded,
-// oldest evicted first. Meshes are read-only here — `clearances` poses copies.
+// ── the mesh cache ────────────────────────────────────────────────────────
+// A part at res 256 costs seconds (a 60-tooth gear ~30 s), and one answer is
+// several calls over the same assembly — a windowed sweep, a report built a
+// few parts at a time. So a mesh is kept, keyed by its tree text and the
+// resolution, in TWO places:
+//
+//   · a Map in this isolate — free, and gone when the isolate is;
+//   · the runtime's Cache API, where there is one. This is the part that
+//     matters on a Worker: consecutive requests land in DIFFERENT isolates,
+//     so without it the staging never converges — measured on the live host,
+//     2026-09-13: three parts built, one pending, on every call for ever.
+//
+// The cached body is one buffer: a padded JSON header (the named faces and
+// the invariants) then the mesh's three typed arrays. It is best-effort in
+// both directions — a miss, an eviction or no Cache API at all costs a
+// rebuild and nothing else.
 const MESH_CACHE = new Map();
 const MESH_CACHE_MAX = 48;
-function cachedMesh(engine, treeText, res) {
+const enc = new TextEncoder(), dec = new TextDecoder();
+export function packMesh(v) { // exported for the selftest: the edge path only runs in production
+  const meta = enc.encode(JSON.stringify({ faces: v.faces, invariants: v.invariants, n: v.mesh.pos.length, m: v.mesh.idx.length, f: v.mesh.fid ? v.mesh.fid.length : 0 }));
+  const pad = (4 - (meta.length % 4)) % 4; // the typed arrays that follow must stay 4-aligned
+  const head = 4 + meta.length + pad;
+  const buf = new ArrayBuffer(head + v.mesh.pos.byteLength + v.mesh.idx.byteLength + (v.mesh.fid?.byteLength || 0));
+  new DataView(buf).setUint32(0, meta.length + pad);
+  new Uint8Array(buf, 4, meta.length).set(meta);
+  let off = head;
+  new Float32Array(buf, off, v.mesh.pos.length).set(v.mesh.pos); off += v.mesh.pos.byteLength;
+  new Uint32Array(buf, off, v.mesh.idx.length).set(v.mesh.idx); off += v.mesh.idx.byteLength;
+  if (v.mesh.fid) new Uint32Array(buf, off, v.mesh.fid.length).set(v.mesh.fid);
+  return buf;
+}
+export function unpackMesh(buf) {
+  const metaLen = new DataView(buf).getUint32(0);
+  const meta = JSON.parse(dec.decode(new Uint8Array(buf, 4, metaLen)).replace(/\0+$/, ''));
+  let off = 4 + metaLen;
+  const pos = new Float32Array(buf.slice(off, off + meta.n * 4)); off += meta.n * 4;
+  const idx = new Uint32Array(buf.slice(off, off + meta.m * 4)); off += meta.m * 4;
+  const fid = meta.f ? new Uint32Array(buf.slice(off, off + meta.f * 4)) : undefined;
+  return { mesh: { pos, idx, fid }, faces: meta.faces, invariants: meta.invariants };
+}
+const CACHE_ORIGIN = 'https://cad.mino.mobi/__mesh/';
+async function meshKey(treeText, res) {
+  const h = await crypto.subtle.digest('SHA-256', enc.encode(`${res}|${treeText}`));
+  return CACHE_ORIGIN + res + '/' + [...new Uint8Array(h)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+async function cachedMesh(engine, treeText, res) {
   const key = `${res}|${treeText}`;
   const hit = MESH_CACHE.get(key);
-  if (hit) { MESH_CACHE.delete(key); MESH_CACHE.set(key, hit); return { ...hit, cached: true }; }
+  if (hit) { MESH_CACHE.delete(key); MESH_CACHE.set(key, hit); return { ...hit, cached: 'isolate' }; }
+  const store = globalThis.caches?.default;
+  let url = null;
+  if (store) {
+    try {
+      url = await meshKey(treeText, res);
+      const res0 = await store.match(url);
+      if (res0) { const v = unpackMesh(await res0.arrayBuffer()); remember(key, v); return { ...v, cached: 'edge' }; }
+    } catch { url = url || null; }
+  }
   const r = engine.build(treeText, { kernel: 'truck', res });
   const v = r.ok ? { mesh: r.mesh, faces: r.report.faces, invariants: r.report.invariants } : { error: r.report.error };
-  MESH_CACHE.set(key, v); if (MESH_CACHE.size > MESH_CACHE_MAX) MESH_CACHE.delete(MESH_CACHE.keys().next().value);
+  remember(key, v);
+  if (store && url && v.mesh) { try { await store.put(url, new Response(packMesh(v), { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'public, max-age=86400' } })); } catch { /* best effort */ } }
   return { ...v, cached: false };
+}
+function remember(key, v) { MESH_CACHE.set(key, v); if (MESH_CACHE.size > MESH_CACHE_MAX) MESH_CACHE.delete(MESH_CACHE.keys().next().value); }
+/// Is this mesh already to hand, here or at the edge? Asked before spending a
+/// build out of the per-call budget.
+async function meshReady(treeText, res) {
+  if (MESH_CACHE.has(`${res}|${treeText}`)) return true;
+  const store = globalThis.caches?.default;
+  if (!store) return false;
+  try { return !!(await store.match(await meshKey(treeText, res))); } catch { return false; }
 }
 
 export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabilities = {} } = {}) {
@@ -193,9 +251,8 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
         const t0 = performance.now();
         const meshes = new Map(); const failed = []; const pending = []; let cachedCount = 0, builtCount = 0;
         for (const [key, tree] of partTrees) {
-          const fresh = !MESH_CACHE.has(`${res}|${tree}`);
-          if (fresh && builtCount >= caps.maxParts) { pending.push(key); continue; }
-          const r = cachedMesh(engine, tree, res);
+          if (!(await meshReady(tree, res)) && builtCount >= caps.maxParts) { pending.push(key); continue; }
+          const r = await cachedMesh(engine, tree, res);
           if (r.cached) cachedCount++; else builtCount++;
           if (r.mesh) meshes.set(key, r.mesh); else failed.push({ key, error: r.error });
         }
@@ -272,9 +329,8 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       // the same staged, cached build the clearance check uses: a big assembly takes a few calls
       const builds = new Map(); const pending = []; const failed = []; let builtCount = 0, cachedCount = 0;
       for (const [key, tree] of partTrees) {
-        const fresh = !MESH_CACHE.has(`64|${tree}`);
-        if (fresh && builtCount >= caps.maxParts) { pending.push(key); continue; }
-        const r = cachedMesh(engine, tree, 64);
+        if (!(await meshReady(tree, 64)) && builtCount >= caps.maxParts) { pending.push(key); continue; }
+        const r = await cachedMesh(engine, tree, 64);
         if (r.cached) cachedCount++; else builtCount++;
         if (r.mesh) builds.set(key, { mesh: r.mesh, faces: r.faces, invariants: r.invariants }); else failed.push({ key, error: r.error });
       }
