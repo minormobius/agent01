@@ -35,23 +35,34 @@ impl Geom {
     /// nothing, so a drawing called the bore a boss and dimensioned neither
     /// (measured 2026-09-13). Scored instead of trusted, and re-matched when
     /// the index is wrong.
-    pub fn fits(&self, n: [f64; 3], c: [f64; 3]) -> Option<f64> {
+    pub fn fits(&self, n: [f64; 3], _c: [f64; 3], pts: &[[f64; 3]]) -> Option<f64> {
         let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
         match self {
-            Geom::Plane { normal, .. } => {
-                let d = dot(n, *normal).abs();
-                if d > 0.99 { Some(d) } else { None }
+            Geom::Plane { normal, point } => {
+                if dot(n, *normal).abs() <= 0.99 { return None; }
+                // every point of the face must lie in the plane
+                let scale = pts.iter().map(|p| (p[0] - point[0]).abs() + (p[1] - point[1]).abs() + (p[2] - point[2]).abs()).fold(1e-6, f64::max);
+                let worst = pts.iter().map(|p| dot([p[0] - point[0], p[1] - point[1], p[2] - point[2]], *normal).abs()).fold(0.0, f64::max);
+                if worst > 1e-3 * scale { return None; }
+                Some(dot(n, *normal).abs())
             }
             Geom::Cylinder { axis, center, radius } => {
-                if *radius <= 1e-9 || dot(n, *axis).abs() > 0.2 { return None; }
-                let rel = [c[0] - center[0], c[1] - center[1], c[2] - center[2]];
-                let along = dot(rel, *axis);
-                let rad = [rel[0] - axis[0] * along, rel[1] - axis[1] * along, rel[2] - axis[2] * along];
-                let len = (rad[0] * rad[0] + rad[1] * rad[1] + rad[2] * rad[2]).sqrt();
-                // a tessellated wedge's centroid sits inside its own radius —
-                // by 2/pi for a half cylinder, less for a quarter
-                if len < 0.55 * radius || len > 1.05 * radius { return None; }
-                Some(1.0 - (len - radius).abs() / radius)
+                if *radius <= 1e-9 || dot(n, *axis).abs() > 0.2 || pts.is_empty() { return None; }
+                // every point of the face must lie on the cylinder. The
+                // centroid alone cannot do this: a wedge's centroid sits
+                // inside its own radius, so two nearby radii both "fit" and
+                // the closer wrong one wins (measured on a flanged nut's
+                // 8.4 bore and 10 neck, 2026-09-13).
+                let mut worst: f64 = 0.0;
+                for p in pts {
+                    let rel = [p[0] - center[0], p[1] - center[1], p[2] - center[2]];
+                    let along = dot(rel, *axis);
+                    let rad = [rel[0] - axis[0] * along, rel[1] - axis[1] * along, rel[2] - axis[2] * along];
+                    let len = (rad[0] * rad[0] + rad[1] * rad[1] + rad[2] * rad[2]).sqrt();
+                    worst = worst.max((len - radius).abs());
+                }
+                if worst > 0.02 * radius { return None; }
+                Some(1.0 - worst / radius)
             }
         }
     }
@@ -59,13 +70,13 @@ impl Geom {
 
 /// The geometry for face `i`: the one its op assigned if it fits the face the
 /// kernel made, else the best-fitting one on offer, else none.
-pub fn geom_for(geoms: &[Option<Geom>], i: usize, normal: [f64; 3], centroid: [f64; 3]) -> Option<Geom> {
+pub fn geom_for(geoms: &[Option<Geom>], i: usize, normal: [f64; 3], centroid: [f64; 3], pts: &[[f64; 3]]) -> Option<Geom> {
     if let Some(Some(g)) = geoms.get(i) {
-        if g.fits(normal, centroid).is_some() { return Some(g.clone()); }
+        if g.fits(normal, centroid, pts).is_some() { return Some(g.clone()); }
     }
     let mut best: Option<(f64, &Geom)> = None;
     for g in geoms.iter().flatten() {
-        if let Some(score) = g.fits(normal, centroid) {
+        if let Some(score) = g.fits(normal, centroid, pts) {
             if best.map_or(true, |(b, _)| score > b) { best = Some((score, g)); }
         }
     }

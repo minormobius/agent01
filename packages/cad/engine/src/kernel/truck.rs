@@ -281,7 +281,7 @@ fn revolve(id: &str, frame: &Frame, region: &Region, axis_p: [f64; 2], axis_d: [
     Ok((s, if multi { Vec::new() } else { names }, if multi { Vec::new() } else { geoms }))
 }
 
-fn tessellate(solid: &Solid, tol: f64) -> (TriMesh, Vec<u32>, Vec<(f64, [f64; 3], [f64; 3])>) {
+fn tessellate(solid: &Solid, tol: f64) -> (TriMesh, Vec<u32>, Vec<(f64, [f64; 3], [f64; 3], Vec<[f64; 3]>)>) {
     let meshed = solid.triangulation(tol);
     // One polygon mesh per face, concatenated, with the face index kept per
     // triangle — the viewer picks a triangle and gets a *name*. Vertices are
@@ -293,8 +293,14 @@ fn tessellate(solid: &Solid, tol: f64) -> (TriMesh, Vec<u32>, Vec<(f64, [f64; 3]
         let mut area = 0.0;
         let mut nsum = Vector3::zero();
         let mut csum = Vector3::zero();
+        let mut sample: Vec<[f64; 3]> = Vec::new();
         if let Some(pm) = face.surface() {
             let pos = pm.positions();
+            // a sample of this face's own points: the geometry an op assigned
+            // is checked against them, which is the only thing that tells two
+            // nearby radii apart (a wedge's centroid cannot)
+            let step = (pos.len() / 48).max(1);
+            sample.extend(pos.iter().step_by(step).map(|p| [p.x, p.y, p.z]));
             let base = mesh.pos.len() as u32;
             mesh.pos.extend(pos.iter().map(|p| [p.x, p.y, p.z]));
             let flip = !face.orientation();
@@ -324,7 +330,7 @@ fn tessellate(solid: &Solid, tol: f64) -> (TriMesh, Vec<u32>, Vec<(f64, [f64; 3]
         }
         let n = if nsum.magnitude() > 0.0 { nsum.normalize() } else { nsum };
         let c = if area > 0.0 { csum / area } else { csum };
-        per_face.push((area, [n.x, n.y, n.z], [c.x, c.y, c.z]));
+        per_face.push((area, [n.x, n.y, n.z], [c.x, c.y, c.z], sample));
     }
     (mesh, face_of_tri, per_face)
 }
@@ -384,12 +390,12 @@ impl Kernel for Truck {
         let faces = per_face
             .into_iter()
             .enumerate()
-            .map(|(i, (area, normal, centroid))| FaceInfo {
+            .map(|(i, (area, normal, centroid, sample))| FaceInfo {
                 names: names.get(i).cloned().unwrap_or_else(|| vec![format!("face[{i}]")]),
                 area,
                 normal,
                 centroid,
-                geom: super::geom_for(&geoms, i, normal, centroid),
+                geom: super::geom_for(&geoms, i, normal, centroid, &sample),
             })
             .collect();
         let step = if o.want_step { Some(step_of(&solid)) } else { None };

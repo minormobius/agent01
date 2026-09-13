@@ -34,8 +34,11 @@ the faces an op makes, and on a revolve it does: a flanged nut came back
 with its flat annuli labelled as cylinders and its bore labelled as
 nothing. Face geometry is now scored against the face the kernel actually
 made and re-matched when the index is wrong, so `measure`, the hole
-callouts and the ordinates all read a turned part correctly. (Rebuilt
-`cad.wasm`.)
+callouts and the ordinates all read a turned part correctly. The fit is
+checked against a sample of the face's own points, because a wedge's
+centroid sits inside its own radius and made the ⌀10 neck match the ⌀8.4
+bore. A turned part's sheet now calls out its bore *and* each outside
+diameter. (Rebuilt `cad.wasm`.)
 
 ## 2026-09-13
 

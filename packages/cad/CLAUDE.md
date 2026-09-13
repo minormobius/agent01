@@ -332,9 +332,13 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   cylinder's axis must be across the normal and its radius must match the
   centroid's distance from the axis (a tessellated wedge's centroid sits
   inside its own radius, by 2/π for a half cylinder) — and `geom_for`
-  re-matches when the index is wrong. Hole detection on the JS side reads
-  the face's own normal against that radial direction, which is what tells
-  a bore from a boss and an annulus from either.
+  re-matches when the index is wrong. The fit is checked against a SAMPLE
+  OF THE FACE'S OWN POINTS, not its centroid: a wedge's centroid sits inside
+  its own radius, so a nut's ⌀10 neck matched its ⌀8.4 bore and won on
+  distance. Hole detection on the JS side then reads the face's own normal
+  against the radial direction, which is what tells a bore from a boss and
+  an annulus from either — so a turned part's sheet calls out its bore and
+  every outside diameter (`d.holes` and `d.diameters`).
 - **`cad.wasm` is committed.** Rebuild with `engine/build.sh`, which runs the
   unit tests, both builds, and `cad.selftest.mjs`. Never hand-build. A
   failed union of a region's outer loops names the two loops (`union of

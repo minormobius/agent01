@@ -54,6 +54,17 @@ const part = (n) => { const r = engine.build(bench(n), { kernel: 'truck' }); if 
   check(by('x-hole').join() === '20,80' && by('pitch').join() === '60' && d.svg.includes('3× 20 = 60'), `an evenly spaced row is one pitch dimension, not four ordinates: ${d.svg.includes('3× 20 = 60') ? '3× 20 = 60' : 'missing'}, ends at ${by('x-hole').join(' and ')}`);
   check(by('y-hole').join() === '15' && by('x-pocket').join() === '30,90' && by('y-pocket').join() === '35,55', `the window's edges are dimensioned from the datum: x ${by('x-pocket').join(', ')} · y ${by('y-pocket').join(', ')}`);
   check(d.svg.includes('window 60 × 20'), 'a named sketch loop is called out by its own name and size');
+  // a turned part is made to diameters: its outside ones are called out too
+  const nut = engine.build(JSON.stringify({ units: 'mm', features: [
+    { op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [[4.2, 0], [11, 0], [11, 3.5], [5, 3.5], [5, 15], [4.2, 15]] }] },
+    { op: 'revolve', id: 'nut', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } },
+  ] }), { kernel: 'truck' });
+  if (nut.ok) {
+    const dn = drawing([{ id: 'nut', mesh: nut.mesh, faces: nut.report.faces }], { title: 'nut' });
+    const dia = [...new Set(dn.diameters.map((x) => +x.diameter.toFixed(2)))].sort((a, b) => a - b);
+    const bores = dn.holes.map((h) => +h.diameter.toFixed(2));
+    check(bores.join() === '8.4' && dia.join() === '10,22', `a turned part reads its bore ⌀${bores.join()} and its outside diameters ⌀${dia.join(', ⌀')} — the kernel reorders a revolve's faces, so each is matched to the face it actually made`);
+  } else check(false, `the turned fixture did not build: ${nut.report.error?.op}: ${nut.report.error?.msg}`);
   const overall = Object.fromEntries(d.dims.filter((x) => ['width', 'height', 'depth'].includes(x.axis)).map((x) => [x.axis, +x.value.toFixed(3)]));
   check(overall.width === 120 && overall.depth === 60 && overall.height === 5, `and the overall size still reads ${overall.width} × ${overall.depth} × ${overall.height}`);
   const noInternals = drawing([{ id: 'fixture', mesh: r.mesh, faces: r.report.faces }], { title: 'fixture', internals: false });

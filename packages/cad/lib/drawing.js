@@ -146,7 +146,8 @@ function holesOf(bodies) {
       const len = Math.hypot(...radial);
       if (len < r * 0.5) return;               // the centroid is on the axis: not a cylindrical wall
       const facing = dot(nrm, radial) / len;
-      if (facing > -0.5) return;               // faces away from its axis (a boss) or along it (an annulus)
+      if (Math.abs(facing) < 0.5) return;      // faces along its axis: an annulus, not a wall
+      const hole = facing < 0;                 // toward its axis is a bore; away from it is a shaft
       let lo = Infinity, hi = -Infinity;
       for (const t of tris) for (let i = 0; i < 3; i++) { const sAx = dot(sub(P(t, i), center), axis); if (sAx < lo) lo = sAx; if (sAx > hi) hi = sAx; }
       // The same bore comes back as several faces — a circle is four exact
@@ -155,10 +156,10 @@ function holesOf(bodies) {
       // whichever way the axis points) and the radius, within a tolerance.
       const foot = sub(center, axis.map((x) => x * dot(center, axis)));
       const tol = Math.max(1e-4, r * 1e-3);
-      const h = seen.find((x) => Math.abs(x.r - r) < tol && Math.abs(Math.abs(dot(x.axis, axis)) - 1) < 1e-6 && Math.hypot(...sub(x.foot, foot)) < tol);
+      const h = seen.find((x) => x.hole === hole && Math.abs(x.r - r) < tol && Math.abs(Math.abs(dot(x.axis, axis)) - 1) < 1e-6 && Math.hypot(...sub(x.foot, foot)) < tol);
       if (h) { h.lo = Math.min(h.lo, lo); h.hi = Math.max(h.hi, hi); h.names.push(f.names[f.names.length - 1]); return; }
-      const hole = { body: body.id, names: [f.names[f.names.length - 1]], diameter: 2 * r, r, foot, axis, center, lo, hi };
-      seen.push(hole); out.push(hole);
+      const cyl = { body: body.id, names: [f.names[f.names.length - 1]], diameter: 2 * r, r, foot, axis, center, lo, hi, hole };
+      seen.push(cyl); out.push(cyl);
     });
   }
   return out;
@@ -255,8 +256,12 @@ export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = tr
     let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
     for (const s of segs) { x0 = Math.min(x0, s.x1, s.x2); x1 = Math.max(x1, s.x1, s.x2); y0 = Math.min(y0, s.y1, s.y2); y1 = Math.max(y1, s.y1, s.y2); }
     if (!segs.length) { x0 = y0 = 0; x1 = y1 = 1; }
-    const marks = holes.filter((h) => Math.abs(dot(h.axis, B.back)) > 0.999).map((h) => ({ ...h, x: dot(h.center, B.u), y: dot(h.center, B.v), depth: h.hi - h.lo }));
-    return { name, B, segs, box: [x0, y0, x1, y1], w: x1 - x0, h: y1 - y0, marks, hiddenCount: segs.filter((s) => s.hidden).length, visibleCount: segs.filter((s) => !s.hidden).length };
+    const facing = holes.filter((h) => Math.abs(dot(h.axis, B.back)) > 0.999).map((h) => ({ ...h, x: dot(h.center, B.u), y: dot(h.center, B.v), depth: h.hi - h.lo }));
+    const marks = facing.filter((h) => h.hole);
+    // a turned part's outside diameters: called out, but never dimensioned
+    // from a datum — a shaft is made to a diameter, not to a position
+    const turned = facing.filter((h) => !h.hole);
+    return { name, B, segs, box: [x0, y0, x1, y1], w: x1 - x0, h: y1 - y0, marks, turned, hiddenCount: segs.filter((s) => s.hidden).length, visibleCount: segs.filter((s) => !s.hidden).length };
   });
   const byName = Object.fromEntries(vs.map((v) => [v.name, v]));
   // Internal dimensions go on ONE view — the one that sees the most features,
@@ -442,6 +447,11 @@ export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = tr
       const through = m.depth >= (overall.reduce((a, b, i) => (Math.abs(m.axis[i]) > 0.999 ? b : a), m.depth)) - 1e-6;
       leaders.push({ x: m.x + m.diameter / 2 * 0.7071, y: m.y + m.diameter / 2 * 0.7071, text: `${ms.length > 1 ? ms.length + '× ' : ''}⌀${fmt(m.diameter)}${through ? '' : ' ↧' + fmt(m.depth)}` });
     }
+    if (wantInternals) {
+      const outer = new Map();
+      for (const c of v.turned) { const k = c.diameter.toFixed(4); if (!outer.has(k) || c.diameter > outer.get(k).diameter) outer.set(k, c); }
+      for (const c of outer.values()) leaders.push({ x: c.x + c.diameter / 2 * 0.7071, y: c.y + c.diameter / 2 * 0.7071, text: `⌀${fmt(c.diameter)}` });
+    }
     for (const n of notePoints.filter((n) => n.v === v)) leaders.push({ x: n.x, y: n.y, text: n.text });
     // the ladder hangs DOWN the right of the view, clamped to the sheet, so a
     // part with a dozen distinct features does not push its notes off the top
@@ -525,7 +535,8 @@ export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = tr
   return {
     svg, width: W, height: H, scale: scaleText, units, overall, dims,
     views: vs.map((v) => ({ name: v.name, width: v.w, height: v.h, visible: v.visibleCount, hidden: v.hiddenCount, callouts: v.marks.length })),
-    holes: holes.map((h) => ({ body: h.body, names: h.names, diameter: h.diameter, depth: h.hi - h.lo, axis: h.axis, center: h.center })),
+    holes: holes.filter((h) => h.hole).map((h) => ({ body: h.body, names: h.names, diameter: h.diameter, depth: h.hi - h.lo, axis: h.axis, center: h.center })),
+    diameters: holes.filter((h) => !h.hole).map((h) => ({ body: h.body, names: h.names, diameter: h.diameter, length: h.hi - h.lo, axis: h.axis, center: h.center })),
     ms: performance.now() - t0,
   };
 }
