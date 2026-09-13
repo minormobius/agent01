@@ -91,8 +91,8 @@ cross pin — a single fastener under the largest moment in the machine. v6:
 4. **Four holes at the finger mount, not one.** A 16 × 16 tenon stands
    16 mm proud of the web with four M4 cross holes on an 8 × 10 rectangle.
    The tenon locates the finger and takes the shear; the four bolts take
-   the couple, 8 mm apart in a pattern, in double shear. At a 60 N grip on
-   a jaw 67 mm ahead of the block that couple is 4 N·m and each bolt sees
+   the couple, 8 mm apart in a pattern, in double shear. At a 56 N grip on
+   a jaw 72 mm ahead of the block that couple is 4.0 N·m and each bolt sees
    about 250 N — a working number for M4, where one cross pin was not.
 5. **No fingers in the assembly.** They are the customer's part. Both
    documents end at the tenon.
@@ -103,11 +103,13 @@ centre. The jaws start 44 mm apart rather than touching, so a finger
 reaches inward — which is what a finger is for. And the link angle at
 closed is shallower than v5's, so the grip force at the mount is lower:
 
-| mount travel from closed | link angle from the screw | force at the mount, 120 N thrust |
+| mount centres opened from closed | link angle from the screw | force at each mount, 120 N thrust |
 |---|---|---|
-| 0 (closed) | 55.6° | 87 N |
-| 7 mm | 42.5° | 55 N |
-| 14 mm (open) | 16.5° | 18 N |
+| 0 (closed) | 54.6° | 84 N |
+| 7 mm | 43.3° | 56 N |
+| 14 mm | 33.7° | 40 N |
+| 21 mm | 25.2° | 28 N |
+| 28 mm (open) | 17.2° | 19 N |
 
 `forces()` and `moments()` in `gripper.mjs` print these.
 
@@ -121,7 +123,7 @@ flange face. The tool centre line is the screw axis.
   y=0      rear plate = ISO 9409-1-50-4-M6 flange: 4 × Ø6.6 on PCD 50, Ø6 dowel, Ø32 boss hole, on the axis
   14–36    NEMA 17 pancake, Tr8×2 shaft; bulkhead 36–42 takes its pilot and 4 × M3
   42–46    thrust collar Ø14 on the screw, against the bulkhead's front face
-  60–72    carriage centre stroke (open → closed), 18 long, skid on the floor at z −22.8, arms' tips at x ±51.8
+  60–70    carriage centre stroke (open → closed), 18 long, skid on the floor at z −22.8, arms' tips at x ±51.8
   yn+4     arm pivot pins at x ±38, z ±12; links 27 mm to the carrier pins at (±xp, 90)
   83–96    carrier tongue, z ±4, Ø4 pin at y 90 — the links straddle it, z ±(5…11)
   96–98    carrier flange: the block's backstop, bolted to it
@@ -138,7 +140,7 @@ derived:
 
 ```
 spin = 360 · (ynClosed − ynOpen)/lead · (1 − cos θ)/2    screw angle: 0 → 5.07 turns → 0
-yn   = ynOpen + lead · spin/360                           carriage centre, 63.0 → 73.1 → 63.0
+yn   = ynOpen + lead · spin/360                           carriage centre, 60.2 → 70.4 → 60.2
 dy   = yf − py − yn                                       link reach along Y
 x    = √(L² − dy²)                                        link reach along X
 xp   = px − x                                             carrier pin x, 30 → 16 → 30
@@ -163,9 +165,9 @@ about z = 0, so that is a pure mirror in x.
 
 | carrier pin x | carrier centre | nut y | link angle | mount centres |
 |---|---|---|---|---|
-| 16 (closed) | 22 | 73.1 | 55.6° | 44 |
-| 23 | 29 | 68.5 | 42.5° | 58 |
-| 30 (open) | 36 | 63.0 | 16.5° | 72 |
+| 16 (closed) | 22 | 70.4 | 54.6° | 44 |
+| 23 | 29 | 63.6 | 33.7° | 58 |
+| 30 (open) | 36 | 60.2 | 17.2° | 72 |
 
 ## The parts
 
@@ -219,7 +221,7 @@ cylinders).
   that sweep, and a second cut for them costs the part its watertightness.
   The flange backstops the block and the channel captures it in z, so the
   bolts clamp rather than locate.
-- Link pins carry ~210 N each at closed (both links); a Ø4 hardened dowel
+- Link pins carry ~207 N each at closed (both links); a Ø4 hardened dowel
   in 6 mm bushings, supported at both ends, is comfortable.
 - No recess for the robot flange's Ø31.5 boss: it passes through the Ø32
   hole into the 6 mm behind the motor. Locate on the dowel.
@@ -236,15 +238,19 @@ resolve through the `/mcp` `check` tool (45 and 44 components, every
 repeat, rotation and reference expanded); assembly-wide `measure` on the
 server: the two jaw pins 32.000 mm apart at closed and 60.000 at open, and
 each pin 27.000 from its arm pivot at both ends, on both sides; the
-clearance table on the mechanism at both ends of the stroke; and the 54
-analytic checks in `gripper.mjs` at closed, mid and open.
+clearance tables on the guide and on the linkage at both ends of the
+stroke, read in subsets; and the 54 analytic checks in `gripper.mjs` at
+closed, mid and open. The mirrored carrier is checked by that table rather
+than by a measurement: both carriers show 3 µm of penetration on their jaw
+pins, which is the press fit, and only lands there if the left part's hole
+comes out exactly on the left pin after its 180° turn.
 
 **Run by the workflow, not from here:** the Manifold volume sweep through
 the motion (`agent/check.mjs --sweep 24`) on both documents, and the
 publish. Read its log for the `no interference` lines.
 
 **Not verified anywhere here:** the MGN9C moment ratings against the 4 N·m
-yaw with a 67 mm jaw; those are catalogue numbers to check against the
+yaw with a 72 mm jaw; those are catalogue numbers to check against the
 finger actually fitted.
 
 ## What the harness said back
