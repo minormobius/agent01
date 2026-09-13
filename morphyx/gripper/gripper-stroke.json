@@ -2086,12 +2086,20 @@
   {
    "a": "carriage",
    "b": "arm[0]",
-   "contact": true
+   "min": 0.05,
+   "max": 0.2
   },
   {
    "a": "carriage",
    "b": "arm[1]",
-   "contact": true
+   "min": 0.05,
+   "max": 0.2
+  },
+  {
+   "a": "nut",
+   "b": "carriage",
+   "min": 0.05,
+   "max": 0.2
   },
   {
    "a": "carriage",

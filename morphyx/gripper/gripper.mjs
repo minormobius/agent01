@@ -319,7 +319,8 @@ export function assembly(mode = 'cycle') {
     { a: 'arm[0]', b: 'pillar[0]', min: 0.05, max: 0.2 }, { a: 'arm[1]', b: 'pillar[1]', min: 0.05, max: 0.2 },   // the plunger's alignment rail
     { a: 'drivetrain/screw', b: 'nut', min: 0.1, max: 0.3 },           // thread clearance, thread not modelled
     { a: 'bulkhead', b: 'pillar[0]', min: 0.1, max: 0.3 }, { a: 'bulkhead', b: 'pillar[1]', min: 0.1, max: 0.3 },
-    { a: 'carriage', b: 'arm[0]', contact: true }, { a: 'carriage', b: 'arm[1]', contact: true },
+    { a: 'carriage', b: 'arm[0]', min: 0.05, max: 0.2 }, { a: 'carriage', b: 'arm[1]', min: 0.05, max: 0.2 },   // the arm in its notch: 22 in 22.2
+    { a: 'nut', b: 'carriage', min: 0.05, max: 0.2 },                  // the nut body passes through the key plate's bore, Ø10 in Ø10.2
     { a: 'carriage', b: 'carriage-back', contact: true },              // the two plates, bolted face to face
     { a: 'carriage-back', b: 'arm[0]', contact: true }, { a: 'carriage-back', b: 'arm[1]', contact: true },   // the thrust joint: the arm bears on this face
     { a: 'nut', b: 'carriage-back', contact: true },
