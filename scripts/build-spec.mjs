@@ -232,10 +232,21 @@ const surfaces = reg.surfaces.map((s) => {
   };
 });
 
+// Provenance: the last commit that touched anything this generator READS —
+// not HEAD. Recording HEAD made the file stale the moment it was committed,
+// so CI's "would --fix rewrite anything?" gate failed on the next push, and
+// committing the regeneration only moved the hash again (measured
+// 2026-09-13, three pushes chasing their own tails). This is stable: it
+// changes when the spec's inputs change, which is what provenance means.
+// (the generator itself is deliberately not in this list: the provenance of
+// the DATA is where the data came from, and including it would make every
+// edit to this file need a second commit to settle)
+const SPEC_INPUTS = ['deploy-registry.json', 'catalogue.json', 'index.html', 'spec/curated.js'];
 let gitMeta = { commit: 'unknown', date: new Date().toISOString().slice(0, 10) };
 try {
-  const [commit, date] = execSync('git log -1 "--format=%h %cI"', { cwd: ROOT }).toString().trim().split(' ');
-  gitMeta = { commit, date: date.slice(0, 10) };
+  const paths = [...SPEC_INPUTS, ...reg.surfaces.map((s) => `${s.dir}/CLAUDE.md`).filter((f) => existsSync(join(ROOT, f)))];
+  const [commit, date] = execSync(`git log -1 "--format=%h %cI" -- ${paths.map((p) => `"${p}"`).join(' ')}`, { cwd: ROOT }).toString().trim().split(' ');
+  if (commit) gitMeta = { commit, date: date.slice(0, 10) };
 } catch { /* fine — keep fallback */ }
 
 // ------------------------------------------------------------------- probe --
