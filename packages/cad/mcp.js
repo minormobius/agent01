@@ -249,8 +249,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
         // instant actually costs. `budgetMs` still applies where the clock
         // runs (node).
         const t0 = performance.now();
-        const meshes = new Map(); const failed = []; const pending = []; let cachedCount = 0, builtCount = 0, edgeCount = 0;
-        let edge = null;
+        const meshes = new Map(); const failed = []; const pending = []; let cachedCount = 0, builtCount = 0, edgeCount = 0, edge = null;
         for (const [key, tree] of partTrees) {
           if (!(await meshReady(tree, res)) && builtCount >= caps.maxParts) { pending.push(key); continue; }
           const r = await cachedMesh(engine, tree, res);
@@ -264,7 +263,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
         const annotate = (p) => ({ a: p.a, b: p.b, verdict: verdictOf(p, expect, clearance), distance: p.distance, intersecting: p.intersecting, contained: p.contained, touching: p.touching, penetration: p.penetration, closest: p.closest, ...(p.t !== undefined ? { t: p.t } : {}) });
         const CHORD = { 256: '0.0025 mm', 128: '0.005 mm', 64: '0.01 mm' };
         const meshNote = `nearest approach from the exact meshes (res ${res}, chord error under ${CHORD[res]}); verdicts: collision, close, loose fail; clear, contact, expected, fit pass; shared volumes need the preview kernel (agent/check.mjs locally)`;
-        const built = { parts: meshes.size, built: builtCount, cached: cachedCount, res };
+        const built = { parts: meshes.size, built: builtCount, cached: cachedCount, fromEdge: edgeCount, edge, res };
         // one instant's cost, and what this server can spend on it
         const work = pairWork(bodies); const budget = caps.workBudget;
         const tris = bodies.reduce((a, b) => a + b.mesh.idx.length / 3, 0);
@@ -348,7 +347,7 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const CAP = 3.5e6;
       let rep = rep0, reduced = null;
       if (rep.bytes > CAP) { const keep = Math.max(1, Math.floor(maxParts / 3)); rep = mkReport({ title: String(title || doc.name || fromRef || 'assembly').slice(0, 60), explode, hidden: false, maxParts: keep, at: typeof assembly === 'string' && assembly.startsWith('at://') ? assembly : null, unbuilt }); reduced = { was: rep0.bytes, hidden: false, maxParts: keep }; }
-      return { ok: unbuilt.length === 0, html: rep.html, ...(reduced ? { reduced, note: `the full page was ${(reduced.was / 1e6).toFixed(1)} MB, past what this server returns — this one drops the hidden lines and draws ${reduced.maxParts} part sheets. Run \`node agent/report.mjs\` locally for the whole thing.` } : {}), bytes: rep.bytes, missing: rep.missing.map((m) => ({ part: m.part, qty: m.qty, error: m.error })), components: rep.components, overall: rep.overall, volume: rep.volume, bom: rep.bom.map((r) => ({ item: r.item, part: r.part, qty: r.qty, ids: r.ids, volume: r.volume, faces: r.faces })), steps: rep.steps.map((s) => ({ n: s.n, id: s.id, qty: s.qty, part: s.part, lines: s.lines })), sheets: rep.sheets, truncated: rep.truncated, built: builtCount, cached: cachedCount, ms: rep.ms, link: link(doc) };
+      return { ok: unbuilt.length === 0, html: rep.html, ...(reduced ? { reduced, note: `the full page was ${(reduced.was / 1e6).toFixed(1)} MB, past what this server returns — this one drops the hidden lines and draws ${reduced.maxParts} part sheets. Run \`node agent/report.mjs\` locally for the whole thing.` } : {}), bytes: rep.bytes, missing: rep.missing.map((m) => ({ part: m.part, qty: m.qty, error: m.error })), components: rep.components, built: builtCount, cached: cachedCount, fromEdge: edgeCount, edge, overall: rep.overall, volume: rep.volume, bom: rep.bom.map((r) => ({ item: r.item, part: r.part, qty: r.qty, ids: r.ids, volume: r.volume, faces: r.faces })), steps: rep.steps.map((s) => ({ n: s.n, id: s.id, qty: s.qty, part: s.part, lines: s.lines })), sheets: rep.sheets, truncated: rep.truncated, built: builtCount, cached: cachedCount, ms: rep.ms, link: link(doc) };
     },
     async step({ tree }) {
       const { engine } = await kernels();
