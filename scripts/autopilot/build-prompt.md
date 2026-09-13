@@ -33,10 +33,10 @@ _Regenerated 2026-09-13 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-13, 99 members / 269 posts):
+**Neighborhood spark** (bisk 2026-09-13, 99 members / 265 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: gpt, anthropic, llm
-- Top post: "very nearly everyone who is over 30 and has encountered yuddism has left, become a person whom you very much cannot put " — @segyges.bsky.social
+- Distinctive words: llms, llm, bisks
+- Top post: "it's a cold day in hell, i agree with David Sacks" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
