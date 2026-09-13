@@ -46,6 +46,14 @@ jobs:
         run: |
           node morphyx/gripper/gripper.mjs --nut "$NUT" --out /tmp/gripper
 
+      - name: The committed trees match the generator
+        run: |
+          node morphyx/gripper/gripper.mjs --nut "$NUT"
+          git diff --exit-code --stat morphyx/gripper || {
+            echo "::error::morphyx/gripper/*.json is stale — run 'node morphyx/gripper/gripper.mjs' and commit"
+            exit 1
+          }
+
       - name: Exact build of every part (Truck) — must be ok and watertight
         working-directory: /tmp/cad
         run: |

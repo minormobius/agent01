@@ -300,6 +300,34 @@ export function assembly(mode = 'cycle') {
     fixed('floor', 'wall[0]'), fixed('floor', 'wall[1]'), fixed('floor', 'front-wall'), fixed('floor', 'bulkhead'),
     fixed('lid', 'wall[0]'), fixed('lid', 'wall[1]'), fixed('lid', 'front-wall'), fixed('lid', 'bulkhead'),
   ];
+  // What this design intends at each interface, so the clearance table judges it on its own numbers.
+  // `[*]` is a cross product — it would match arm-pin[0] against every bushing, not the two it carries —
+  // so every pair a repeat makes is enumerated. k: 0 right-lower, 1 left-lower, 2 right-upper, 3 left-upper.
+  const fits = [
+    { a: 'arm[0]', b: 'pillar[0]', min: 0.05, max: 0.2 }, { a: 'arm[1]', b: 'pillar[1]', min: 0.05, max: 0.2 },   // the plunger's alignment rail
+    { a: 'drivetrain/screw', b: 'nut', min: 0.1, max: 0.3 },           // thread clearance, thread not modelled
+    { a: 'bulkhead', b: 'pillar[0]', min: 0.1, max: 0.3 }, { a: 'bulkhead', b: 'pillar[1]', min: 0.1, max: 0.3 },
+    { a: 'carriage', b: 'arm[0]', contact: true }, { a: 'carriage', b: 'arm[1]', contact: true },
+    { a: 'nut', b: 'arm[0]', contact: true }, { a: 'nut', b: 'arm[1]', contact: true },
+    { a: 'carrier[0]', b: 'block[0]', contact: true }, { a: 'carrier[1]', b: 'block[1]', contact: true },
+    { a: 'carrier[0]', b: 'carrier[1]', min: 0, max: 40 },             // they meet on the centre line at closed and part by the travel
+    { a: 'motor', b: 'pillar[0]', contact: true }, { a: 'motor', b: 'pillar[1]', contact: true },
+    { a: 'rail', b: 'pillar[0]', contact: true }, { a: 'rail', b: 'pillar[1]', contact: true },
+    { a: 'front-wall', b: 'pillar[0]', contact: true }, { a: 'front-wall', b: 'pillar[1]', contact: true },
+    { a: 'front-wall', b: 'drivetrain/screw', contact: true }, { a: 'rail', b: 'drivetrain/screw', contact: true },
+    { a: 'motor', b: 'drivetrain/screw', contact: true }, { a: 'drivetrain/screw', b: 'drivetrain/collar', contact: true },
+    ...[0, 1].flatMap((i) => [{ a: 'rail', b: `block[${i}]`, min: 0.3, max: 0.7 }, ...[0, 1, 2, 3].map((k) => ({ a: 'front-wall', b: `link[${k}]`, min: 0.25, max: 0.6 }))]),
+    // each link k: its two bushings are pressed in, its arm-end bushing runs on arm-pin[k % 2] and its jaw-end one on jaw-pin[k % 2],
+    // and the pin stands 1 mm off the link's own eye wall through the bushing
+    ...[0, 1, 2, 3].flatMap((k) => [
+      { a: `link[${k}]`, b: `bush[${2 * k}]`, contact: true }, { a: `link[${k}]`, b: `bush[${2 * k + 1}]`, contact: true },
+      { a: `arm-pin[${k % 2}]`, b: `bush[${2 * k}]`, min: 0.02, max: 0.1 }, { a: `jaw-pin[${k % 2}]`, b: `bush[${2 * k + 1}]`, min: 0.02, max: 0.1 },
+      { a: `arm-pin[${k % 2}]`, b: `link[${k}]`, min: 0.9, max: 1.1 }, { a: `jaw-pin[${k % 2}]`, b: `link[${k}]`, min: 0.9, max: 1.1 },
+      { a: `arm[${k % 2}]`, b: `link[${k}]`, contact: true }, { a: `carrier[${k % 2}]`, b: `link[${k}]`, contact: true },
+      { a: `arm[${k % 2}]`, b: `bush[${2 * k}]`, contact: true }, { a: `carrier[${k % 2}]`, b: `bush[${2 * k + 1}]`, contact: true },
+      { a: `arm[${1 - k % 2}]`, b: `link[${k}]`, min: 0.4 }, { a: `carrier[${1 - k % 2}]`, b: `link[${k}]`, min: 0.4 },
+    ]),
+  ];
   const partsMap = Object.fromEntries(Object.entries(parts).filter(([k]) => !(k in drivetrain.parts)).map(([k, v]) => [k, structuredClone(v)]));
   const o = pose(D.xpOpen), cl = pose(D.xpClosed);
   const turns = round((D.ynClosed - D.ynOpen) / D.lead, 3);
@@ -311,7 +339,7 @@ export function assembly(mode = 'cycle') {
       : `Demo cycle: the drive turns a reference clock (one turn = one grip cycle); the screw angle \\\`spin\\\` swings 0 → ${turns} turns → 0, the nut moves forward by the lead to close (y = ${round(o.yn, 2)} open … ${round(cl.yn, 2)} closed), and the links draw the jaws in by ${D.travel} mm each.`),
     params, derived,
     parts: partsMap,
-    components, mates,
+    components, mates, fits,
     drive: stroke ? { component: 'drivetrain/screw', rpm: D.rpm } : { component: 'clock', rpm: D.rpm },
   };
 }
