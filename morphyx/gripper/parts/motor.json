@@ -1,11 +1,11 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "NEMA 17 pancake stepper body (42.3 square, 5 mm corner chamfers, 22 long) with an integrated Tr8×2 lead screw as its shaft (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.",
+ "_": "NEMA 17 external linear stepper body (42.3 square, 5 mm corner chamfers, 48 mm stack) with an integrated Tr8×2 lead screw as its shaft — the shortest catalogue stack that carries a 2 mm lead (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.",
  "params": {
   "s": 42.3,
   "ch": 5,
-  "L": 22,
+  "L": 48,
   "y1": 22
  },
  "features": [

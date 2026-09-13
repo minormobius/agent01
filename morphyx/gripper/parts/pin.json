@@ -4,7 +4,7 @@
  "_": "A 4 mm hardened dowel, 34 long, along +Z: pressed through a pivot arm or a jaw carrier, carrying a link above and a link below in bronze bushings (retaining clips not modelled). Four per gripper. One extrude.",
  "params": {
   "d": 4,
-  "h": 34
+  "h": 36
  },
  "features": [
   {

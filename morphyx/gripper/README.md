@@ -1,6 +1,6 @@
 # gripper — a parallel-jaw robot gripper for cad.mino.mobi
 
-Version 9: two pillars, and no flange plate. A NEMA 17 pancake stepper
+Version 9: two pillars, and no flange plate. A NEMA 17 linear stepper
 bolted to the outside of a motor plate, an 88 × 44 × 48 mm frame ahead of
 it, and the jaws outside that. The frame is two plates — the motor plate
 and the rail plate — held apart by **two Ø10 pillars** on the grip plane at
@@ -136,14 +136,14 @@ the fingers), Z up. The screw axis is the line x = 0, z = 0; y = 0 is the
 back face of the motor.
 
 ```
-  0–22     NEMA 17 pancake, outside, with the pillars' nuts either side of it at x ±24
+  −26–22   NEMA 17 external linear stepper, 48 mm stack, outside; the pillars' nuts either side of it at x ±24
   22–28    motor plate: the pilot and 4 × M3 outside, the thrust collar inside, Ø8.4 for the pillars
   28–64    the cavity, 36 long — all of it swept. Two Ø10 pillars span it at x ±24, z 0
   28–32    thrust collar Ø14, bearing on the motor plate's inner face
   37–61    carriage sweep (4 mm back plate + 10 mm key plate), hanging on the nut, its arms running on the pillars
   yn+4     arm pivot pins at x ±34, z ±17; the arms are 22 thick and the links seat on their faces
   64–70    rail plate, 98 wide: a slot each side at z ±(10.6…17.4); the screw's blind bore and the pillars' taps at the centre
-  70–76.5  MGN9 rail on the OUTER face, 93 long, closing the bore and the taps
+  70–76.5  MGN9 rail on the OUTER face, 95 long (catalogue), closing the bore and the taps
   72–82    MGN9C blocks; the links pass over and under them at z ±11…17
   82–90    jaw plates, 32 × 22 × 8
 ```
@@ -153,6 +153,103 @@ back face of the motor.
 | 5.5 (closed) | 16 | 54.0 | 45.4° | 32 |
 | 13 | 23.5 | 48.6 | 31.7° | 47 |
 | 20.5 (open) | 31 | 44.4 | 19.7° | 62 |
+
+## Bill of materials: buy, cut, machine, print
+
+Nine of the nineteen trees are stand-ins for catalogue parts. The model now
+carries the catalogue's numbers, not round ones — the MGN9 rail is 95 long
+because 95 = 4 × 20 + 15 is what the 20 mm hole pitch allows, and the dowels
+are 36 because 34 is not a stock length.
+
+| # | part | buy this | notes |
+|---|---|---|---|
+| 1 | motor + screw | **NEMA 17 external linear stepper, 48 mm stack, 1.68 A, Tr8×2** (StepperOnline 17E19S1684AF2-200RS) | see below — lead 2 is only offered on the 48 mm stack |
+| 2 | nut | commodity **T8 / Tr8×2 brass flange nut**: Ø22 flange × 3.5, Ø10 body, 15 long, 4 × M3 on Ø16 PCD | exactly the modelled part; an anti-backlash version is a drop-in |
+| 3 | rail | **MGN9 rail, 95 mm, special end distance E = 12.5** | P = 20 is fixed by the catalogue; E is the configurable half |
+| 4 | block ×2 | **MGN9C** | L 28.9, W 20, H 10, H1 2, M3 × 3 deep on a 10 × 15 pattern — the modelled block, to the millimetre |
+| 5 | bushing ×8 | **igus JSM-0406-06** (iglidur J, 4/6/6) or a sintered-bronze equivalent | 3.6 MPa against a 35 MPa limit |
+| 6 | pin ×4 | **ISO 8734 Ø4 m6 × 36** hardened ground dowel | 36, not 34: a stock length |
+| 7 | pillar ×2 | **precision linear shaft, both ends threaded**, Ø10 g6 hardened, M8 ends (Misumi SFJ family) | length and thread lengths are configured, not machined |
+| 8 | collar | a thrust collar for Ø8 — but see the open questions | there is nowhere smooth on a Tr8 screw to clamp one |
+| 9 | fasteners | M3, M4 and M8 socket screws, M8 nuts | ~40 in total, half of them holding covers on |
+
+Everything else is made. Nothing in the mechanism needs a five-axis or a
+grinder except the rail seat:
+
+| part | qty | stock | process | why not printed |
+|---|---|---|---|---|
+| bulkhead (motor plate) | 1 | 6 mm 6061 | waterjet outline, drill and tap | two M8 nuts preload it; plastic creeps |
+| front-wall (rail plate) | 1 | 6 mm 6061 | waterjet, then **flatten the rail seat** | the MGN9 datum; waterjet taper under a rail is what kills a miniature guide |
+| carriage (key plate) | 1 | 10 mm 6061 | waterjet | the notch faces locate the arms |
+| carriage-back | 1 | 4 mm 6061 | waterjet | the whole grip thrust crosses this face |
+| arm | 2 | 22 mm 6061 bar | mill the profile, ream Ø10 H7 and Ø4 H7 | the only part with two reamed bores on perpendicular axes, and the only running fit we make ourselves |
+| carrier (jaw plate) | 2 | 10 mm 6061 | mill, ream Ø4, tap 4 × M4, ream 2 × Ø5 H7 | the customer's interface — its tolerances are the ones that leave the building |
+| link | 4 | 6 mm | waterjet, ream the Ø6 H7 eyes | a compression strut with two press fits |
+| side-wall | 2 | 4 mm | waterjet — **or printed** | torsion and shear only, no bearing surface: the one structural part that can be printed |
+| floor, lid | 1 each | 2 mm | **printed** | covers; they carry nothing by design |
+
+So: two milled parts (arm, carrier), seven flat parts off a waterjet, two
+printed covers, nine bought.
+
+### Why the motor got 26 mm longer
+
+The 34 mm stack NEMA 17 external steppers (17E13S…) are only catalogued
+with a **lead of 8**. Tr8×8 is four-start: tan λ = 0.36 against µ/cos α ≈
+0.26, so it back-drives — the gripper would drop its object when the power
+goes. Tr8×2 is single-start, tan λ = 0.091, and **self-locking**. Lead 2
+starts at the 48 mm stack, so the motor is 48 long and the whole of that
+went behind the motor plate, where the user put it: the case, the cavity
+and the mechanism did not move.
+
+The torque check comes out fine: 120 N of thrust on Tr8×2 at µ = 0.25 needs
+0.150 N·m, against about 0.44 N·m of holding torque for that motor, and at
+5 rpm a stepper gives nearly all of it — a margin near 3.
+
+### The two numbers that bound the design
+
+- **The guide's moment rating, not the linkage, is the limit.** A 61 N grip
+  at the assumed 145 mm fingertip is 3.2 N·m of yaw on one MGN9C, against
+  its 0.75 kgf·m ≈ 7.4 N·m *static* rating. That is 43% — of a rating that
+  is about permanent deformation, not life. Fingertip reach scales it
+  linearly, so this is the number to hand the customer with the mount
+  pattern.
+- **Two pillars and two bores is the classic over-constraint.** Ø10.2 on
+  Ø10 leaves 0.1 mm of radial slop, and the chain that has to fit inside it
+  is: notch position on the key plate, arm width, bore position, pillar
+  spacing across two plates. It will not. The fix is to make the notch the
+  loose feature in X — 0.5 mm of clearance at the root rather than 0.1 —
+  and let the pillars set X while the notch only drives Y. **Not done yet.**
+
+### Assembly order
+
+Motor to its plate → pillars through it, nuts on the inner face (a socket
+reaches in from the side while the walls are off) → arms onto the pillars →
+nut onto the screw → key plate slides along Y so the arms enter its notches
+→ back plate → four bolts through nut flange, back plate and key plate →
+rail plate on, pillars threading into it → links, bushings and arm pins,
+which must go in through the wall slots before the side walls → rail, blocks,
+jaw carriers, jaw pins → covers.
+
+Two things this order depends on: the notches are open in X **and** through
+in Y, so the key plate can be introduced along Y with the arms already
+captive on their pillars; and the arm pins go in while both side walls are
+off, because at x ±34 there is no access past a wall at ±40.
+
+### Open questions this pass raised
+
+1. **Delete the screw's Ø6 journal and the rail plate's blind bore?** The
+   free screw is 48 mm of Ø8: Euler buckling is 172 kN against 120 N, and
+   the motor carries thrust on its own bearing. The journal costs a lathe
+   op on a stainless rolled screw and a blind bore in the rail plate; the
+   bore is also what makes the rail's centre hole position awkward. The v5
+   intent — no skew between screw and grip centre — survives without it.
+2. **Delete the thrust collar?** It backs up the motor's internal thrust
+   bearing, but a Tr8 screw is threaded end to end: there is nowhere to
+   clamp a collar without turning a flat. Better to take the motor's rated
+   thrust as the ceiling and drop the part.
+3. **Line the arm bores.** Aluminium arms sliding on hardened steel pillars
+   will gall. Either press an iglidur or bronze liner into each arm (bore
+   goes to Ø14 for a 10/14 bush) or hard-anodise. Currently neither.
 
 ## Fits and what is not modelled
 
@@ -186,7 +283,15 @@ pillars at 0.098 mm and nothing else in that group touches.
 **Run by the workflow, not from here:** the Manifold volume sweep through
 the motion on both documents, and the publish.
 
-**Not verified anywhere here:** the MGN9C moment ratings; the pillars'
+**From vendor data, read this session:** the MGN9C dimension table and its
+load and moment ratings (L 28.9, W 20, H 10, B 15, C 10, M3 × 3; rail P 20,
+E 7.5; C 190 kgf, C0 260 kgf, MY 0.75 kgf·m); the NEMA 17 external linear
+stepper catalogue, including that lead 2 starts at the 48 mm stack. Several
+vendor pages refused the sandbox (403) or are image-only PDFs — the T8
+flange nut's dimensions and the Misumi Ø10/M8 shaft pairing are from the
+commodity part and the series description, not from a datasheet I opened.
+
+**Not verified anywhere here:** the pillars'
 buckling and the frame's stiffness, both hand calculations away but not
 modelled; and the tool interface, which does not exist yet.
 

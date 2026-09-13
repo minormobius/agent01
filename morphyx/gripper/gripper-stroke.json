@@ -194,8 +194,8 @@
     "sx0": 8,
     "sx1": 40,
     "d_tap": 2.5,
-    "tx0": 10,
-    "tx1": 36,
+    "tx0": 15,
+    "tx1": 35,
     "cx": 42,
     "cz": 16,
     "d_case": 3.4,
@@ -390,11 +390,11 @@
   "motor": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "NEMA 17 pancake stepper body (42.3 square, 5 mm corner chamfers, 22 long) with an integrated Tr8×2 lead screw as its shaft (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.",
+   "_": "NEMA 17 external linear stepper body (42.3 square, 5 mm corner chamfers, 48 mm stack) with an integrated Tr8×2 lead screw as its shaft — the shortest catalogue stack that carries a 2 mm lead (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.",
    "params": {
     "s": 42.3,
     "ch": 5,
-    "L": 22,
+    "L": 48,
     "y1": 22
    },
    "features": [
@@ -965,7 +965,7 @@
    "_": "A 4 mm hardened dowel, 34 long, along +Z: pressed through a pivot arm or a jaw carrier, carrying a link above and a link below in bronze bushings (retaining clips not modelled). Four per gripper. One extrude.",
    "params": {
     "d": 4,
-    "h": 34
+    "h": 36
    },
    "features": [
     {
@@ -1317,7 +1317,7 @@
     "w": 9,
     "h": 6.5,
     "y0": 70,
-    "half": 46.5
+    "half": 47.5
    },
    "features": [
     {
@@ -1822,7 +1822,7 @@
    "at": [
     "(1 - 2 * (i - 2 * floor(i / 2))) * px",
     "yn + py",
-    -17
+    -18
    ]
   },
   {
@@ -1832,7 +1832,7 @@
    "at": [
     "(1 - 2 * (i - 2 * floor(i / 2))) * xp",
     "yf",
-    -17
+    -18
    ]
   },
   {

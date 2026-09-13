@@ -44,8 +44,8 @@ const round = (v, n = 2) => Number(v.toFixed(n));
 export const D = {
   // the frame: a motor plate and a rail plate, two pillars between them, two 4 mm side walls at x ±40…44
   W: 88, wall: 4, zBot: -22, zTop: 22, frontY: 64, frontT: 6, frontW: 98, caseBolt: 3.4, caseBoltZ: 16,
-  // motor: NEMA 17 pancake, on the OUTSIDE of the motor plate, y 0…22
-  motor: 42.3, motorChamfer: 5, motorY: 0, motorLen: 22, pilot: 22.5, boltSquare: 31, bolt: 3.4, bulkheadT: 6,
+  // motor: NEMA 17 external linear stepper, 48 mm stack, Tr8×2 (StepperOnline 17E19S1684AF2), on the OUTSIDE of the motor plate, y −26…22
+  motor: 42.3, motorChamfer: 5, motorY: -26, motorLen: 48, pilot: 22.5, boltSquare: 31, bolt: 3.4, bulkheadT: 6,
   screw: 8, lead: 2, screwEnd: 70, journal: 6, journalLen: 6, endBore: 6.2, collarD: 14, collarL: 4, collarY: 28,
   // the pillars: Ø10 bodies on the grip plane, an M8 nutted end into the motor plate and an M8 thread into the rail plate
   pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarNut: 6.5, pillarTap: 6, pillarClear: 8.4,
@@ -55,12 +55,12 @@ export const D = {
   // the pivot arms: 22 thick so the links seat on them, keyed into the carriage, bored for the pillar
   armX0: 9.1, armHalf: 39, armT: 22, armZ0: -11, pivotX: 34, pivotY: 4,
   // the linkage: struts in compression during grip; Ø4 dowels in bronze bushings
-  link: 40, linkW: 10, linkT: 6, eye: 6, pin: 4, bushBore: 4.1, pinLen: 34,
+  link: 40, linkW: 10, linkT: 6, eye: 6, pin: 4, bushBore: 4.1, pinLen: 36,
   linkZ: [[-17, -11], [11, 17]],
   // stroke: the jaw pin 5.5 mm from its plate's inner edge, so the plates meet on the centre line at closed
   xpClosed: 5.5, xpOpen: 20.5, pivotLine: 86, inset: 10.5,
   // the guide, outside: one MGN9 rail on the OUTER face of the rail plate's strip, over the screw's blind bore
-  railW: 9, railH: 6.5, railHalf: 46.5, railTapX: [10, 36], railTap: 2.5,
+  railW: 9, railH: 6.5, railHalf: 47.5, railTapX: [15, 35], railTap: 2.5,
   blockL: 28.9, blockW: 20, blockH: 10, blockH1: 2, blockChannelW: 10, blockChannelH: 5, blockPattern: [10, 15], blockBolt: 3.4,
   // the jaw plate: the pin off its centre line, the finger pattern on the outboard side of the pin
   carrierHalf: 16, carrierZ: 11, carrierT: 8, fingerBolt: 4.3, fingerBoltX: [0, 11], fingerBoltZ: 7, fingerDowel: 5,
@@ -72,6 +72,7 @@ D.travel = D.xpOpen - D.xpClosed;
 D.inner = D.W / 2 - D.wall;
 D.bulkheadY = [D.motorY + D.motorLen, D.motorY + D.motorLen + D.bulkheadT];
 D.cavityY = [D.bulkheadY[1], D.frontY];                           // motor plate to rail plate: all of it swept
+D.pinZ0 = -D.pinLen / 2;                                          // ISO 8734 Ø4 m6 × 36: a stock length, centred on the links
 D.armY = [-D.carT / 2 + D.carBackT, D.carT / 2];                  // the arm fills the key plate only; its back face bears on the back plate
 D.pillarY = [D.bulkheadY[0], D.frontY + D.pillarTap];            // flush with the motor plate's back face: nothing protrudes behind it
 D.pillarShoulder = D.bulkheadY[1] + D.pillarNut;                  // the nut sits on the plate's INNER face, inside the cavity
@@ -122,7 +123,7 @@ export const parts = {
      circle('tapA', ['-tx1', 0], 'd_tap / 2'), circle('tapB', ['-tx0', 0], 'd_tap / 2'),
      circle('tapC', ['tx0', 0], 'd_tap / 2'), circle('tapD', ['tx1', 0], 'd_tap / 2')]),
 
-  motor: tree('NEMA 17 pancake stepper body (42.3 square, 5 mm corner chamfers, 22 long) with an integrated Tr8×2 lead screw as its shaft (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.',
+  motor: tree('NEMA 17 external linear stepper body (42.3 square, 5 mm corner chamfers, 48 mm stack) with an integrated Tr8×2 lead screw as its shaft — the shortest catalogue stack that carries a 2 mm lead (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.',
     { s: D.motor, ch: D.motorChamfer, L: D.motorLen, y1: D.motorY + D.motorLen },
     [{ op: 'sketch', id: 'body', plane: { base: 'XZ', offset: '-y1' }, loops: [{ name: 'body', polygon: [
         ['-(s/2 - ch)', '-s/2'], ['s/2 - ch', '-s/2'], ['s/2', '-(s/2 - ch)'], ['s/2', 's/2 - ch'], ['s/2 - ch', 's/2'], ['-(s/2 - ch)', 's/2'], ['-s/2', 's/2 - ch'], ['-s/2', '-(s/2 - ch)'] ] }] },
@@ -284,8 +285,8 @@ export function assembly(mode = 'cycle') {
     // the jaw plates: the pin is off the plate's centre line, so the left one is the right one turned 180° about Y (its section is symmetric about z = 0)
     c('carrier', 'carrier', [`${side} * xf`, 0, 0], { repeat: 2, rotate: { axis: [0, 1, 0], deg: `90 * (1 - ${side})` } }),
     // the arm pins and the jaw pins are both placed by expression: the arm's pillar bore and the jaw plate's pin hole are cuts, so neither part's faces are named
-    { id: 'arm-pin', part: 'pin', repeat: 2, at: [`${side} * px`, 'yn + py', D.linkZ[0][0]] },
-    { id: 'jaw-pin', part: 'pin', repeat: 2, at: [`${side} * xp`, 'yf', D.linkZ[0][0]] },
+    { id: 'arm-pin', part: 'pin', repeat: 2, at: [`${side} * px`, 'yn + py', D.pinZ0] },
+    { id: 'jaw-pin', part: 'pin', repeat: 2, at: [`${side} * xp`, 'yf', D.pinZ0] },
     // four links: i = 0 right-lower, 1 left-lower, 2 right-upper, 3 left-upper; from the arm pivot toward the jaw pin
     { id: 'link', part: 'link', repeat: 4, at: [`${side} * px`, 'yn + py', `lo + (hi - lo) * ${level}`], rotate: { axis: [0, 0, 1], deg: `phi + (180 - 2 * phi) * (1 - ${side}) / 2` } },
     // eight bushings: one per link eye, placed on the eye itself
@@ -405,7 +406,7 @@ export function audit() {
   // the box
   ok('the motor is outside, and nothing of the frame reaches into its square', D.motorY + D.motorLen === D.cavityY[0] - D.bulkheadT && D.pillarY[0] >= D.motorY + D.motorLen, `motor to y ${D.motorY + D.motorLen}, pillars from ${D.pillarY[0]}`);
   ok('the cavity is cut to the plunger sweep', D.cavityY[1] - D.cavityY[0] <= 40 && D.ynOpen - D.carT / 2 - D.flangeT - D.nutLen + D.nutLen > D.cavityY[0], `${round(D.cavityY[1] - D.cavityY[0])} mm of cavity for ${round(D.ynClosed - D.ynOpen + D.carT + D.flangeT)} mm of sweep`);
-  ok('nothing behind the motor plate but the motor', D.motorY === 0 && D.pillarY[0] >= D.bulkheadY[0], `motor ${D.motorY}…${D.motorY + D.motorLen}; the pillars stop flush at ${D.pillarY[0]}`);
+  ok('nothing behind the motor plate but the motor', D.motorY + D.motorLen === D.bulkheadY[0] && D.pillarY[0] >= D.bulkheadY[0], `motor ${D.motorY}…${D.motorY + D.motorLen}; the pillars stop flush at ${D.pillarY[0]}`);
   ok('the pillars pierce their arms and clear the pivot pins and the carriage', D.pillarX + D.pillarD / 2 < D.armHalf && D.pillarX - D.pillarD / 2 > D.carHalf + 3 && D.pivotX - D.pillarX > (D.pin + D.pillarD) / 2 + 2, `pillar x ${D.pillarX} ±${D.pillarD / 2}, pivot at ${D.pivotX}, carriage to ${D.carHalf}`);
   ok('the side walls span the cavity only', D.cavityY[0] === D.bulkheadY[1] && D.cavityY[1] === D.frontY, `walls y ${D.cavityY}`);
   ok('the pillars take the grip, the side walls take torsion', D.caseBoltZ + D.caseBolt / 2 + 2 <= D.zTop && D.pillarD >= 8 && D.pillarThread >= 8, `two Ø${D.pillarD} pillars with M${D.pillarThread} ends; ${D.wall} mm walls`);
@@ -414,6 +415,7 @@ export function audit() {
   ok('the pillars are flush behind and tapped ahead, and their nuts clear the arms', D.pillarY[0] === D.bulkheadY[0] && D.pillarY[1] === D.frontY + D.pillarTap && D.pillarClear > D.pillarThread && D.ynOpen - D.carT / 2 >= D.pillarShoulder + 2, `nut face ${D.pillarShoulder}, arm back to ${round(D.ynOpen - D.carT / 2, 1)}`);
   // the guide and the linkage
   ok('the rail is on the OUTER face, over the blind bore', D.railY[0] === D.frontY + D.frontT && D.screwEnd <= D.railY[0], `rail from ${D.railY[0]}; screw ends ${D.screwEnd}`);
+  ok('the rail is a catalogue MGN9: 95 long, holes at the 20 mm pitch, none over the screw', 2 * D.railHalf === 95 && D.railTapX[1] - D.railTapX[0] === 20 && D.railTapX[0] > D.railTap, `rail ${2 * D.railHalf} long, holes at ±${D.railTapX.join(', ±')} (E = ${D.railHalf - D.railTapX[1]})`);
   ok('the strip carries the rail, and the rail closes the pillar taps and the bore', D.wallSlotZ[0] > D.railW / 2 + 4 && D.railTapX[D.railTapX.length - 1] + D.railTap / 2 < D.railHalf && D.railTapX.every((x) => Math.abs(x - D.pillarX) > (D.railTap + D.pillarCore) / 2 + 2) && D.pillarX + D.pillarCore / 2 < D.railHalf, `strip ±${D.wallSlotZ[0]}, taps ${D.railTapX}, pillars ±${D.pillarX}`);
   ok('links clear the blocks and pass the slots', D.linkZ[1][0] >= D.blockW / 2 + 1 && D.linkZ[1][0] > D.wallSlotZ[0] && D.linkZ[1][1] < D.wallSlotZ[1], `links ${D.linkZ[1]}, block ±${D.blockW / 2}, slot ${D.wallSlotZ}`);
   ok('links seat on the arms and the plates, no spacers', D.armZ0 + D.armT === D.linkZ[1][0] && D.carrierZ === D.linkZ[1][0], `arm to ${D.armZ0 + D.armT}, plate ±${D.carrierZ}`);
