@@ -118,19 +118,19 @@ async function cachedMesh(engine, treeText, res) {
   const hit = MESH_CACHE.get(key);
   if (hit) { MESH_CACHE.delete(key); MESH_CACHE.set(key, hit); return { ...hit, cached: 'isolate' }; }
   const store = globalThis.caches?.default;
-  let url = null;
+  let url = null, edge = store ? 'miss' : 'unavailable';
   if (store) {
     try {
       url = await meshKey(treeText, res);
       const res0 = await store.match(url);
-      if (res0) { const v = unpackMesh(await res0.arrayBuffer()); remember(key, v); return { ...v, cached: 'edge' }; }
-    } catch { url = url || null; }
+      if (res0) { const v = unpackMesh(await res0.arrayBuffer()); remember(key, v); return { ...v, cached: 'edge', edge: 'hit' }; }
+    } catch (e) { edge = `read failed: ${e.message}`; }
   }
   const r = engine.build(treeText, { kernel: 'truck', res });
   const v = r.ok ? { mesh: r.mesh, faces: r.report.faces, invariants: r.report.invariants } : { error: r.report.error };
   remember(key, v);
-  if (store && url && v.mesh) { try { await store.put(url, new Response(packMesh(v), { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'public, max-age=86400' } })); } catch { /* best effort */ } }
-  return { ...v, cached: false };
+  if (store && url && v.mesh) { try { await store.put(url, new Response(packMesh(v), { headers: { 'content-type': 'application/octet-stream', 'cache-control': 'public, max-age=86400' } })); edge = 'stored'; } catch (e) { edge = `write failed: ${e.message}`; } }
+  return { ...v, cached: false, edge };
 }
 function remember(key, v) { MESH_CACHE.set(key, v); if (MESH_CACHE.size > MESH_CACHE_MAX) MESH_CACHE.delete(MESH_CACHE.keys().next().value); }
 /// Is this mesh already to hand, here or at the edge? Asked before spending a
@@ -249,14 +249,16 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
         // instant actually costs. `budgetMs` still applies where the clock
         // runs (node).
         const t0 = performance.now();
-        const meshes = new Map(); const failed = []; const pending = []; let cachedCount = 0, builtCount = 0;
+        const meshes = new Map(); const failed = []; const pending = []; let cachedCount = 0, builtCount = 0, edgeCount = 0;
+        let edge = null;
         for (const [key, tree] of partTrees) {
           if (!(await meshReady(tree, res)) && builtCount >= caps.maxParts) { pending.push(key); continue; }
           const r = await cachedMesh(engine, tree, res);
-          if (r.cached) cachedCount++; else builtCount++;
+          if (r.cached === 'edge') edgeCount++; if (r.cached) cachedCount++; else builtCount++;
+          if (r.edge) edge = r.edge;
           if (r.mesh) meshes.set(key, r.mesh); else failed.push({ key, error: r.error });
         }
-        if (pending.length) return { ok: false, method: 'mesh', incomplete: 'parts', clearance, res, built: builtCount, cached: cachedCount, ready: [...meshes.keys()], pending, failed, ms: performance.now() - t0, link: link(doc), note: `this server builds at most ${caps.maxParts} new part${caps.maxParts === 1 ? '' : 's'} per call at res ${res} (a big gear is ~30 s of CPU); ${pending.length} still to build. Call again with the same arguments — what is built is cached, so each call gets further, and the sweep runs once every part is in.` };
+        if (pending.length) return { ok: false, method: 'mesh', incomplete: 'parts', clearance, res, built: builtCount, cached: cachedCount, fromEdge: edgeCount, edge, ready: [...meshes.keys()], pending, failed, ms: performance.now() - t0, link: link(doc), note: `this server builds at most ${caps.maxParts} new part${caps.maxParts === 1 ? '' : 's'} per call at res ${res} (a big gear is ~30 s of CPU); ${pending.length} still to build. Call again with the same arguments — what is built is cached, so each call gets further, and the sweep runs once every part is in.` };
         const bodies = components.filter((c) => meshes.has(c.partKey)).map((c) => ({ id: c.id, mesh: meshes.get(c.partKey), comp: c }));
         const kin = { components: all, mates, drive };
         const annotate = (p) => ({ a: p.a, b: p.b, verdict: verdictOf(p, expect, clearance), distance: p.distance, intersecting: p.intersecting, contained: p.contained, touching: p.touching, penetration: p.penetration, closest: p.closest, ...(p.t !== undefined ? { t: p.t } : {}) });
@@ -327,14 +329,15 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const { components, mates, drive, partTrees, fits } = await flatten(doc, resolveRef, { facesOf });
       const angles = solveAngles(components, mates, drive, t);
       // the same staged, cached build the clearance check uses: a big assembly takes a few calls
-      const builds = new Map(); const pending = []; const failed = []; let builtCount = 0, cachedCount = 0;
+      const builds = new Map(); const pending = []; const failed = []; let builtCount = 0, cachedCount = 0, edgeCount = 0, edge = null;
       for (const [key, tree] of partTrees) {
         if (!(await meshReady(tree, 64)) && builtCount >= caps.maxParts) { pending.push(key); continue; }
         const r = await cachedMesh(engine, tree, 64);
-        if (r.cached) cachedCount++; else builtCount++;
+        if (r.cached === 'edge') edgeCount++; if (r.cached) cachedCount++; else builtCount++;
+        if (r.edge) edge = r.edge;
         if (r.mesh) builds.set(key, { mesh: r.mesh, faces: r.faces, invariants: r.invariants }); else failed.push({ key, error: r.error });
       }
-      if (pending.length) return { ok: false, incomplete: 'parts', built: builtCount, cached: cachedCount, ready: [...builds.keys()], pending, failed, link: link(doc), note: `this server builds at most ${caps.maxParts} new part${caps.maxParts === 1 ? '' : 's'} per call; ${pending.length} still to build. Call again with the same arguments — what is built is cached, so the report comes back once every part is in.` };
+      if (pending.length) return { ok: false, incomplete: 'parts', built: builtCount, cached: cachedCount, fromEdge: edgeCount, edge, ready: [...builds.keys()], pending, failed, link: link(doc), note: `this server builds at most ${caps.maxParts} new part${caps.maxParts === 1 ? '' : 's'} per call; ${pending.length} still to build. Call again with the same arguments — what is built is cached, so the report comes back once every part is in.` };
       if (!builds.size) throw new Error(`no part of this assembly builds with the exact kernel: ${failed.map((f) => `${f.key}: ${f.error?.op}: ${f.error?.msg}`).join('; ')}`);
       const unbuilt = failed.map((f) => ({ partKey: f.key, part: f.key.split('|')[0], error: `${f.error?.op}: ${f.error?.msg}`, tree: partTrees.get(f.key) }));
       const fromRef = typeof assembly === 'string' ? assembly.replace(/^bench:/, '').split('/').pop() : null;
