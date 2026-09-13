@@ -1,18 +1,21 @@
 # gripper — a parallel-jaw robot gripper for cad.mino.mobi
 
-Version 8: the box shrinks to the plunger, and the side walls carry the
-grip. An ISO 9409-1-50-4-M6 tool flange plate and a 92 × 44 × 84 mm frame:
-two 6 mm side walls run the whole length from that plate to the front wall,
-and the NEMA 17 pancake stepper hangs **outside**, bolted to the back wall of
-the plunger cavity and exposed between them. The cavity itself is 36 mm
-long, cut to what the plunger sweeps. The front wall is the slotted plate
-from v7 with the MGN9 rail on its outer face; the four coupling links pass
-out through the slots, over and under the rail and its blocks, and pin onto
-32 × 22 × 8 jaw plates. The jaw pin sits 5.5 mm from each plate's inner
-edge, so the arm pivots come in to x ±34 and the plates meet on the centre
-line at closed. Mount centres run 32 → 62 mm. Eighteen parts, two documents.
-Versions 1 to 7 are the earlier revisions of the same files; their retired
-parts live under `gripper/v1/` … `gripper/v6/`.
+Version 9: two pillars, and no flange plate. A NEMA 17 pancake stepper
+bolted to the outside of a motor plate, an 88 × 44 × 48 mm frame ahead of
+it, and the jaws outside that. The frame is two plates — the motor plate
+and the rail plate — held apart by **two Ø10 pillars** on the grip plane at
+x ±24, with an M8 end each. The pillars are the load member: their threads
+take the grip tension, their shoulders take the compression, and each one
+pierces its pivot arm so it is also the plunger's alignment rail and its
+anti-rotation. Two 4 mm side walls stiffen the frame in torsion and shear.
+The rail plate carries the MGN9 rail on its outer face; the links pass out
+through its two slots and pin onto 32 × 22 × 8 jaw plates, which meet on
+the centre line at closed. Mount centres 32 → 62 mm. Seventeen parts, two
+documents. Versions 1 to 8 are the earlier revisions of the same files.
+
+The tool interface is deliberately absent. v8's flange plate carried
+nothing and cost 14 mm; the robot mount belongs on the motor plate, which
+is the plane the load actually passes through, and it is not drawn yet.
 
 This directory is the source. The published copy lives in the morphyx repo as
 `cad.mino.mobi` files (`gripper/parts/<name>`, `gripper/assembly`,
@@ -23,13 +26,13 @@ the tangled mirror.
 
 | | |
 |---|---|
-| `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment audit, the clearance audit, closed forms. `node gripper.mjs` writes `parts/`, `gripper.json`, `gripper-stroke.json`, `expected.json` |
-| `parts/*.json` | the eighteen part trees, as generated |
-| `gripper.json` | the demo cycle: a reference clock drives a cosine, so the viewer's spin closes and opens once per turn; parts inline — paste into the tree tab and press spin |
-| `gripper-stroke.json` | the physical stroke: the screw is driven at rpm, a `screw` mate carries the carriage and the nut by the lead, the links follow the screw angle |
+| `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment audit, the clearance audit, closed forms |
+| `parts/*.json` | the seventeen part trees, as generated |
+| `gripper.json` | the demo cycle: a reference clock drives a cosine, so the viewer's spin closes and opens once per turn |
+| `gripper-stroke.json` | the physical stroke: the screw driven at rpm, a `screw` mate carrying the carriage and the nut by the lead |
 | `expected.json` | closed-form volumes for every part |
 | `publish.mjs` | writes parts then both assemblies into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
-| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 24-instant interference sweep of both documents (the gate), the clearance table (for the record), publish on request, then audit the published corpus |
+| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 24-instant interference sweep of both documents (the gate), the clearance table, publish on request, then audit the published corpus |
 
 ## How cad.mino.mobi works, for the next agent
 
@@ -67,167 +70,118 @@ the tangled mirror.
   the designer's own repo; anyone opens by AT URI and forks with lineage.
 - **Report what `watertight` and χ say, not what the picture looks like.**
 
-## Why v8: the air comes out, and the grip load gets a path
+## Why v9: the frame follows the load
 
-v7 worked but it was mostly air. The plunger swept about half the cavity,
-the screw was 78 mm for 9.6 mm of nut travel, and a NEMA 17 sat inside a
-box built around it. v8 takes four things out at once, and they compound:
+v8 put the grip tension in two side walls and an ISO tool flange on the
+back of the whole assembly. Both were wrong. The flange plate carried no
+grip load at all — it sat behind the motor and added 14 mm — and the side
+walls were carrying tension in bending-prone 6 mm plate, far from the line
+the load actually travels along.
 
-1. **The motor leaves the box.** It bolts to the outside of the cavity's
-   back wall and hangs exposed between the two side walls, which now run
-   the whole length from the tool flange to the front wall. The box no
-   longer has to be as tall as a 42.3 mm motor, or as long.
-2. **The cavity is cut to the sweep.** 36 mm, from the thrust collar to
-   3 mm behind the front wall. The screw follows it down to 48 mm.
-3. **The linkage moves inboard.** The jaw pin sits 5.5 mm from its plate's
-   inner edge instead of on the plate's centre line, so the arm pivots come
-   in from x ±47 to ±34 and the box narrows by 24 mm. The links go from 43
-   to 40 — *shorter*, because the shorter cavity brings the carriage closer
-   to the pin.
-4. **The covers stop pretending to be structure.** The lid and floor are
-   2 mm plates inset between the side walls, over the cavity only.
+v9 deletes the flange and rebuilds the frame around the load path:
 
-What that adds up to:
+1. **The cavity is exactly what the two plates imply.** Motor plate at
+   y 22…28, rail plate at 64…70, 36 mm of cavity between them, all of it
+   swept by the plunger. Nothing behind the motor plate but the motor.
+2. **Two pillars are the structure.** Ø10 bodies on the grip plane z = 0 at
+   x ±24, with an M8 end each: nutted behind the motor plate, threaded into
+   the rail plate. The threads take the tension, the shoulders set the
+   plate spacing and take the compression. They sit on the plane the grip
+   force acts in, so the frame sees no moment from carrying it.
+3. **Each pillar pierces its arm.** The arm has a Ø10.2 bore at x 24 and
+   slides on the pillar. That is the plunger's alignment rail and its
+   anti-rotation, and it replaces two things that were doing the job badly:
+   the arm tips rubbing the side walls, and (before v8) a skid on the floor.
+4. **The side walls drop to 4 mm** and do what they are good at: torsion
+   and shear.
 
-| | v7 | v8 |
+| | v8 | v9 |
 |---|---|---|
-| box envelope | 116 × 52 × 116, 700 cm³ | 92 × 44 × 84, 340 cm³ |
-| enclosed cavity | 485 cm³ | 92 cm³ |
-| screw | 78 mm | 48 mm |
-| flange to jaw plate face | 138 mm | 104 mm |
-| force at each jaw, closed | 55 N | 61 N |
+| frame envelope | 92 × 44 × 84 | 88 × 44 × 48 |
+| frame volume | 340 cm³ | 186 cm³ |
+| motor back to jaw face | 104 mm | 90 mm |
+| parts | 18 | 17 |
+| grip load member | two 6 mm side walls in tension | two Ø10 pillars on the load plane |
+| plunger alignment | arm tips on the side walls | the pillars, through the arms |
 
-The force went **up**, which was the interesting part of the trade. Pulling
-the pivots inboard shortens the link's X reach and should cost force; but
-shortening the cavity shortens its Y reach by more, and the ratio is the
-first over the second. Taking a bit from each came out ahead of either.
-
-| mount centres opened from closed | link angle from the screw | force at each jaw, 120 N thrust |
-|---|---|---|
-| 0 (closed) | 45.4° | 61 N |
-| 7.5 mm | 38.2° | 47 N |
-| 15 mm | 31.7° | 37 N |
-| 22.5 mm | 25.5° | 29 N |
-| 30 mm (open) | 19.7° | 22 N |
+The kinematics are untouched: 40 mm links, pivots at x ±34, jaw pins 5.5 mm
+from each plate's inner edge, 15 mm of travel per jaw, 61 N at each jaw at
+closed with 120 N of thrust.
 
 ## The grip load path
 
-This is the part worth being explicit about. During grip the links are
-**struts in compression**: they push the jaws inboard against the object and
-forward against the rail, and they push the carriage backward. So:
+The links are struts in compression during grip: they push the jaws inboard
+against the object and forward against the rail, and push the carriage back.
+So the rail plate is pushed forward, away from the frame, and the motor
+plate is pushed backward, and the frame between them is in tension at about
+the screw thrust.
 
-- the **front wall is pushed forward**, away from the box;
-- the **carriage is pushed back**, into the nut, into the screw, into the
-  thrust collar, into the **back wall, which is pushed backward**;
-- the box between those two walls is in **tension**, at about the screw
-  thrust — 120 N nominal.
-
-The two side walls are that tension member, and each joint is chosen so no
-bolt ever sees the load in shear:
-
-| joint | what the grip does to it | how it is made |
+| member | what it carries | how |
 |---|---|---|
-| front wall to side walls | pulls them apart | four Ø4.3 through the wall into tapped end faces — **bolts in tension** |
-| back wall to side walls | pushes the wall into them | a tenon each side through a **mortise**, bearing on its rear face — **no bolts at all** |
-| flange plate to side walls | nothing; it carries the robot load only | four Ø4.3 into their rear end faces |
-| lid, floor | nothing | inset covers, four screws each |
-
-The mortise is the piece that makes it work. The back wall is loaded
-*toward* the side walls, so bolting it would put the whole grip load in
-shear across four screws for no reason; letting it bear on a machined face
-is both stronger and simpler. The front wall is loaded *away*, which is the
-one case where a bolt is the right answer, and there the bolts are axial.
+| **pillars** (×2) | the whole grip tension, and compression on the return | M8 threads at both ends, Ø10 shoulders setting the plate spacing; on the grip plane, so no moment |
+| side walls (×2) | torsion and shear | 4 mm, bolted to both plates |
+| motor plate | the screw's thrust, via the collar bearing on its inner face | the plane the load passes through, and where the tool interface belongs |
+| rail plate | the jaws' forward push, via the rail | tapped for the pillars, bolted to the walls |
+| lid, floor | nothing | 2 mm covers |
 
 ## The mechanism
 
 World frame in mm: X is jaw travel, Y the screw axis (+Y forward, toward
 the fingers), Z up. The screw axis is the line x = 0, z = 0; y = 0 is the
-flange face.
+back face of the motor.
 
 ```
-  y=0      tool flange plate, 92 × 48 × 8: the ISO pattern, and four Ø4.3 into the side walls' rear end faces
-  14–36    NEMA 17 pancake, OUTSIDE, hanging between the side walls
-  36–42    back wall: the motor's pilot and 4 × M3 outside, the thrust collar inside, tenons through the side walls
-  42–78    the plunger cavity, 36 long — all of it swept
-  42–46    thrust collar Ø14, bearing on the back wall's inner face
-  51–75    carriage sweep (14 long), hanging on the nut; arm tips 1 mm off the side walls
+  0–22     NEMA 17 pancake, outside, with the pillars' nuts either side of it at x ±24
+  22–28    motor plate: the pilot and 4 × M3 outside, the thrust collar inside, Ø8.4 for the pillars
+  28–64    the cavity, 36 long — all of it swept. Two Ø10 pillars span it at x ±24, z 0
+  28–32    thrust collar Ø14, bearing on the motor plate's inner face
+  37–61    carriage sweep (14 long), hanging on the nut, its arms running on the pillars
   yn+4     arm pivot pins at x ±34, z ±17; the arms are 22 thick and the links seat on their faces
-  78–84    front wall, 98 wide: a slot each side at z ±(10.6…17.4); the screw's blind bore at the centre
-  84–90.5  MGN9 rail on the OUTER face, 93 long, closing the bore
-  86–96    MGN9C blocks; the links pass over and under them at z ±11…17
-  96–104   jaw plates, 32 × 22 × 8: the pin 5.5 from the inner edge, the finger pattern outboard of it
+  64–70    rail plate, 98 wide: a slot each side at z ±(10.6…17.4); the screw's blind bore and the pillars' taps at the centre
+  70–76.5  MGN9 rail on the OUTER face, 93 long, closing the bore and the taps
+  72–82    MGN9C blocks; the links pass over and under them at z ±11…17
+  82–90    jaw plates, 32 × 22 × 8
 ```
-
-Two documents, one set of parts. **`gripper.json`** is the demo cycle: a
-`reference` clock at 5 rpm, one turn per grip cycle, everything else
-derived. **`gripper-stroke.json`** is the physical stroke: the screw driven
-at 5 rpm, a `screw` mate carrying the carriage 2 mm per turn and a second
-one along the nut's own +z, `fixed` mates carrying the arms. One stroke is
-4.8 turns, 57.5 s.
 
 | jaw pin x | plate centre | nut y | link angle | mount centres |
 |---|---|---|---|---|
-| 5.5 (closed) | 16 | 68.0 | 45.4° | 32 |
-| 13 | 23.5 | 62.6 | 31.7° | 47 |
-| 20.5 (open) | 31 | 58.4 | 19.7° | 62 |
-
-## The parts
-
-Every part builds exact on Truck and watertight; every part but the jaw
-plate has named faces.
-
-| part | sweep | holds |
-|---|---|---|
-| rear-flange | XZ extrude, 92 × 48 × 8 | the robot; the side walls' rear bolts |
-| side-wall (×2) | YZ extrude, 78 × 44 × 6, with a mortise | **the grip tension** |
-| bulkhead | XZ extrude, 92 × 36 × 6 with two tenons | the motor outside, the collar inside |
-| front-wall | XZ extrude, 98 × 44 × 6 | the rail, the journal; the links pass; the side walls' front bolts |
-| floor, lid | XY extrude, 80 × 36 × 4, inset | covers |
-| motor | XZ extrude, 42.3 square, 22 long | stand-in; its shaft is the screw |
-| screw | revolve, Ø8 × 48 with a Ø6 × 6 journal | thread not modelled |
-| collar | revolve, Ø14 × 4 | thrust into the back wall |
-| nut | revolve, Ø22 flange, Ø10 body | thread clearance 0.2 |
-| carriage | XZ extrude, 29 × 28 × 14 | nut, arms; hangs on the screw |
-| arm (×2) | XY extrude, 29.9 × 14 × 22 | the links seat on its faces |
-| link (×4) | XY extrude, 40 dog-bone, 10 × 6 | struts in compression |
-| bushing (×8), pin (×4) | revolve, extrude | Ø6 × 6 bronze; Ø4 × 34 dowels |
-| **carrier (×2)** | **XZ extrude along Y, 32 × 22 × 8, + one Ø4 cut along Z** | the block, the links, the finger |
-| block (×2), rail | YZ extrude | purchased MGN9 stand-ins |
+| 5.5 (closed) | 16 | 54.0 | 45.4° | 32 |
+| 13 | 23.5 | 48.6 | 31.7° | 47 |
+| 20.5 (open) | 31 | 44.4 | 19.7° | 62 |
 
 ## Fits and what is not modelled
 
-- Running: pins Ø4 in Ø4.1 bushings; nut Ø10 in Ø10.2; screw Ø8 in the
-  Ø8.4 nut and the Ø6 journal in the Ø6.2 bore; block 2 mm off the wall on
-  the rail; links 0.4 mm inside the wall slots; arms 0.1 in their carriage
-  slots, 1 mm off the side walls; the back wall's tenons 0.1 in their
-  mortises.
-- **The carriage has no way to run on.** It hangs on the nut — the screw
-  takes its weight, the arm tips at the side walls take the screw's friction
-  torque. There is no floor under it any more.
-- The finger pattern is tapped through and closed off by the block behind
-  it, so a finger bolt is 8 mm at most.
-- The jaw pin is gripped over the plate's 22 mm and a link seats on each
-  face outside it, so the pin sees bending over a 6 mm overhang.
-- Tapped holes are not drawn: the clearance holes in the flange plate and
-  the front wall are, and they land on the side walls' end faces.
+- Running: the arms Ø10.2 on the Ø10 pillars (0.1 radial, bronze bushings
+  not modelled); pins Ø4 in Ø4.1 bushings; nut Ø10 in Ø10.2; screw Ø8 in
+  the Ø8.4 nut and the Ø6 journal in the Ø6.2 bore; block 2 mm off the
+  plate on the rail; links 0.4 mm inside the rail plate's slots.
+- The pillars' threads are modelled at their minor diameter, which is how a
+  screw in a tapped hole is normally drawn. The rail plate's holes are the
+  tap drill and are blind in practice: the rail covers them, as it covers
+  the screw's journal bore.
+- The pillar nuts behind the motor plate are not drawn. They sit at x ±24,
+  clear of the motor's 42.3 square.
+- **Two parts carry a cut**: the jaw plate's pin hole and the arm's pillar
+  bore. Both drop their part's face names, so both the arm pins and the jaw
+  pins are placed by expression rather than by feature.
 - Threads, fasteners, cable exit, the motor's D-flat and all fillets are
   not modelled.
 
 ## Verified, and not
 
 **Verified from this sandbox:** every part builds exact and watertight
-through `/mcp`, each within its closed-form tolerance; both documents
-resolve through the `/mcp` `check` tool (36 and 35 components); the 40
-analytic checks in `gripper.mjs` at closed, mid and open, including the
-link's passage through its slot at every pose; and the clearance table on
-the slot passage and the jaw joint, read in small subsets.
+through `/mcp`, each within its closed-form tolerance, including both cut
+parts; both documents resolve through the `/mcp` `check` tool (37 and 36
+components); the 49 analytic checks in `gripper.mjs`; and the clearance
+table on the pillar frame at both ends of the stroke — the arms run on the
+pillars at 0.098 mm and nothing else in that group touches.
 
 **Run by the workflow, not from here:** the Manifold volume sweep through
 the motion on both documents, and the publish.
 
-**Not verified anywhere here:** the MGN9C moment ratings; the side walls'
-stiffness in tension, which is a hand calculation away but not modelled;
-and whether the exposed motor wants a guard.
+**Not verified anywhere here:** the MGN9C moment ratings; the pillars'
+buckling and the frame's stiffness, both hand calculations away but not
+modelled; and the tool interface, which does not exist yet.
 
 ## Open it
 

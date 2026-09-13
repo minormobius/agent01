@@ -1,18 +1,21 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Back wall of the plunger cavity, and the motor mount. The NEMA 17 hangs on its outside on the pilot and four M3; the thrust collar bears on its inside. A tenon each side passes through a mortise in the side wall and bears on the mortise’s rear face, so the grip load into this plate is taken in compression rather than by any bolt. One extrude along -Y.",
+ "_": "Motor plate — the back of the cavity and the plane the grip load passes through. The NEMA 17 hangs on its outside on the pilot and four M3; the thrust collar bears on its inside. Two Ø8.4 clearance holes at x ±24 take the pillars’ M8 ends, nutted behind it, clear of the motor’s square. Four Ø3.4 at the corners into the side walls. The tool interface belongs here; it is not drawn yet. One extrude along -Y.",
  "params": {
-  "hi": 40,
-  "ho": 46,
-  "zb": -18,
-  "zt": 18,
-  "tz": 10,
+  "w": 88,
+  "zb": -22,
+  "zt": 22,
   "t": 6,
   "d_pilot": 22.5,
   "sq": 31,
   "d_bolt": 3.4,
-  "y1": 42
+  "ppx": 24,
+  "d_pillar": 8.4,
+  "cx": 42,
+  "cz": 16,
+  "d_case": 3.4,
+  "y1": 28
  },
  "features": [
   {
@@ -25,56 +28,14 @@
    "loops": [
     {
      "name": "outline",
-     "polygon": [
-      [
-       "-hi",
-       "zb"
+     "rect": {
+      "c": [
+       0,
+       0
       ],
-      [
-       "hi",
-       "zb"
-      ],
-      [
-       "hi",
-       "-tz"
-      ],
-      [
-       "ho",
-       "-tz"
-      ],
-      [
-       "ho",
-       "tz"
-      ],
-      [
-       "hi",
-       "tz"
-      ],
-      [
-       "hi",
-       "zt"
-      ],
-      [
-       "-hi",
-       "zt"
-      ],
-      [
-       "-hi",
-       "tz"
-      ],
-      [
-       "-ho",
-       "tz"
-      ],
-      [
-       "-ho",
-       "-tz"
-      ],
-      [
-       "-hi",
-       "-tz"
-      ]
-     ]
+      "w": "w",
+      "h": "zt - zb"
+     }
     },
     {
      "name": "pilot",
@@ -84,6 +45,66 @@
        0
       ],
       "r": "d_pilot / 2"
+     }
+    },
+    {
+     "name": "pillarR",
+     "circle": {
+      "c": [
+       "ppx",
+       0
+      ],
+      "r": "d_pillar / 2"
+     }
+    },
+    {
+     "name": "pillarL",
+     "circle": {
+      "c": [
+       "-ppx",
+       0
+      ],
+      "r": "d_pillar / 2"
+     }
+    },
+    {
+     "name": "caseA",
+     "circle": {
+      "c": [
+       "-cx",
+       "-cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseB",
+     "circle": {
+      "c": [
+       "cx",
+       "-cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseC",
+     "circle": {
+      "c": [
+       "-cx",
+       "cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseD",
+     "circle": {
+      "c": [
+       "cx",
+       "cz"
+      ],
+      "r": "d_case / 2"
      }
     }
    ]

@@ -1,15 +1,11 @@
 {
  "_": "Closed-form volumes of every part; mm³. The kernel must land within tol (relative).",
- "rear-flange": {
-  "volume": 27108.33698114767,
-  "tol": 0.002
- },
  "bulkhead": {
-  "volume": 16116.452212227261,
+  "volume": 19745.539012862384,
   "tol": 0.002
  },
  "front-wall": {
-  "volume": 19943.212891840332,
+  "volume": 19696.94344372543,
   "tol": 0.002
  },
  "carriage": {
@@ -17,8 +13,12 @@
   "tol": 0.002
  },
  "arm": {
-  "volume": 8932.739846484097,
-  "tol": 0.002
+  "volume": 7788.76029760591,
+  "tol": 0.004
+ },
+ "pillar": {
+  "volume": 3648.5200441730417,
+  "tol": 0.004
  },
  "carrier": {
   "volume": 4286.141707202132,
@@ -57,15 +57,15 @@
   "tol": 0.002
  },
  "floor": {
-  "volume": 11520,
+  "volume": 5760,
   "tol": 0.002
  },
  "side-wall": {
-  "volume": 19864.800000000003,
+  "volume": 6336,
   "tol": 0.002
  },
  "lid": {
-  "volume": 6803.274929489113,
+  "volume": 3401.6374647445564,
   "tol": 0.002
  },
  "motor": {

@@ -4,13 +4,13 @@
  "_": "Lid over the plunger cavity, inset between the side walls, with an access window over the linkage. It carries no load. One extrude along +Z.",
  "params": {
   "w": 80,
-  "y0": 42,
-  "y1": 78,
-  "t": 4,
-  "z0": 18,
+  "y0": 28,
+  "y1": 64,
+  "t": 2,
+  "z0": 20,
   "win_w": 60,
-  "win_y0": 54.346978872871304,
-  "win_y1": 74
+  "win_y0": 40.346978872871304,
+  "win_y1": 60
  },
  "features": [
   {

@@ -4,8 +4,8 @@
  "_": "MGN9C linear block stand-in: 20 × 10 × 28.9, wrapping the rail with a 10 × 5 channel, its base 2 mm off the wall. Its four M3 face +Y, into the jaw carrier. One extrude along +X.",
  "params": {
   "L": 28.9,
-  "y0": 86,
-  "y1": 96,
+  "y0": 72,
+  "y1": 82,
   "w": 20,
   "cw": 10,
   "ch": 5

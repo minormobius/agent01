@@ -1,7 +1,7 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Front wall — the slotted plate, turned around from v6. The strip across its middle carries the MGN9 rail on its OUTER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal runs in a blind bore at its centre, closed by the rail itself. Either side of the strip a long slot lets a coupling link pass through, over and under the rail. Four Ø4.3 at its corners take the bolts into the side walls’ end faces: during grip this wall is pushed forward, away from them, so those bolts see tension and never shear. One extrude along -Y.",
+ "_": "Front wall — the slotted plate, turned around from v6. The strip across its middle carries the MGN9 rail on its OUTER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal runs in a blind bore at its centre, closed by the rail itself. Either side of the strip a long slot lets a coupling link pass through, over and under the rail. Two M8 tapped holes at x ±24 take the pillars — drawn at the tap drill, blind because the rail closes them off. Four Ø3.4 at the corners into the side walls. One extrude along -Y.",
  "params": {
   "w": 98,
   "zb": -22,
@@ -14,12 +14,13 @@
   "sx1": 40,
   "d_tap": 2.5,
   "tx0": 10,
-  "tx1": 28,
-  "tx2": 44,
-  "cx": 43,
+  "tx1": 36,
+  "cx": 42,
   "cz": 16,
-  "d_case": 4.3,
-  "y1": 84
+  "d_case": 3.4,
+  "ppx": 24,
+  "d_pillar": 6.8,
+  "y1": 70
  },
  "features": [
   {
@@ -92,6 +93,26 @@
      }
     },
     {
+     "name": "pillarR",
+     "circle": {
+      "c": [
+       "ppx",
+       0
+      ],
+      "r": "d_pillar / 2"
+     }
+    },
+    {
+     "name": "pillarL",
+     "circle": {
+      "c": [
+       "-ppx",
+       0
+      ],
+      "r": "d_pillar / 2"
+     }
+    },
+    {
      "name": "slotRlo",
      "rect": {
       "c": [
@@ -139,7 +160,7 @@
      "name": "tapA",
      "circle": {
       "c": [
-       "-tx2",
+       "-tx1",
        0
       ],
       "r": "d_tap / 2"
@@ -149,7 +170,7 @@
      "name": "tapB",
      "circle": {
       "c": [
-       "-tx1",
+       "-tx0",
        0
       ],
       "r": "d_tap / 2"
@@ -159,7 +180,7 @@
      "name": "tapC",
      "circle": {
       "c": [
-       "-tx0",
+       "tx0",
        0
       ],
       "r": "d_tap / 2"
@@ -169,27 +190,7 @@
      "name": "tapD",
      "circle": {
       "c": [
-       "tx0",
-       0
-      ],
-      "r": "d_tap / 2"
-     }
-    },
-    {
-     "name": "tapE",
-     "circle": {
-      "c": [
        "tx1",
-       0
-      ],
-      "r": "d_tap / 2"
-     }
-    },
-    {
-     "name": "tapF",
-     "circle": {
-      "c": [
-       "tx2",
        0
       ],
       "r": "d_tap / 2"

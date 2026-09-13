@@ -1,15 +1,15 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "gripper-stroke",
- "_": "Parallel-jaw robot gripper, v7, links through the wall: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on the floor → two 22 mm pivot arms keyed into it → four 40 mm links on bronze bushings that pass through the front wall’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a 44 × 22 × 10 jaw carrier plate per side, four M4 and two Ø6 dowels for the customer’s finger. The stroke closes until the two jaw plates meet on the centre line. 92 × 44 × 84 mm case, the mechanism outside it 34 mm tall and reaching y = 104; mount centres 32 → 62 mm apart. The physical stroke: the screw is driven at 5 rpm, a screw mate moves the carriage 2 mm per turn (y = 58.35 open → 67.93 closed in 4.793 turns, 57.5 s), fixed mates carry the nut and the arms, and the links draw the jaws in by 15 mm each. Sweep with period 57.5 s; beyond it the nut runs on, as it would.",
+ "_": "Parallel-jaw robot gripper, v7, links through the wall: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on the floor → two 22 mm pivot arms keyed into it → four 40 mm links on bronze bushings that pass through the front wall’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a 44 × 22 × 10 jaw carrier plate per side, four M4 and two Ø6 dowels for the customer’s finger. The stroke closes until the two jaw plates meet on the centre line. 88 × 44 × 70 mm case, the mechanism outside it 34 mm tall and reaching y = 90; mount centres 32 → 62 mm apart. The physical stroke: the screw is driven at 5 rpm, a screw mate moves the carriage 2 mm per turn (y = 44.35 open → 53.93 closed in 4.793 turns, 57.5 s), fixed mates carry the nut and the arms, and the links draw the jaws in by 15 mm each. Sweep with period 57.5 s; beyond it the nut runs on, as it would.",
  "params": {
-  "ynOpen": 58.347,
-  "ynClosed": 67.9331,
+  "ynOpen": 44.347,
+  "ynClosed": 53.9331,
   "lead": 2,
   "L": 40,
   "px": 34,
   "py": 4,
-  "yf": 100,
+  "yf": 86,
   "inset": 10.5,
   "flangeT": 3.5,
   "carT": 14,
@@ -28,24 +28,24 @@
   "phi": "rad2deg(atan2(dy, -x))"
  },
  "parts": {
-  "rear-flange": {
+  "bulkhead": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Tool flange plate: the ISO 9409-1-50-4-M6 pattern, centred on the screw axis, and the rear end of the two side walls — four Ø4.3 through it into their end faces, so the robot’s load is axial on those bolts. It carries no grip load; the grip tension runs between the front wall and the back wall. Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
+   "_": "Motor plate — the back of the cavity and the plane the grip load passes through. The NEMA 17 hangs on its outside on the pilot and four M3; the thrust collar bears on its inside. Two Ø8.4 clearance holes at x ±24 take the pillars’ M8 ends, nutted behind it, clear of the motor’s square. Four Ø3.4 at the corners into the side walls. The tool interface belongs here; it is not drawn yet. One extrude along -Y.",
    "params": {
-    "w": 92,
-    "zb": -24,
-    "zt": 24,
-    "t": 8,
-    "zc": 0,
-    "pcd": 50,
-    "d_bolt": 6.6,
-    "d_dowel": 6,
-    "d_boss": 32,
-    "cx": 43,
+    "w": 88,
+    "zb": -22,
+    "zt": 22,
+    "t": 6,
+    "d_pilot": 22.5,
+    "sq": 31,
+    "d_bolt": 3.4,
+    "ppx": 24,
+    "d_pillar": 8.4,
+    "cx": 42,
     "cz": 16,
-    "d_case": 4.3,
-    "y1": 8
+    "d_case": 3.4,
+    "y1": 28
    },
    "features": [
     {
@@ -68,23 +68,33 @@
        }
       },
       {
-       "name": "boss",
+       "name": "pilot",
        "circle": {
         "c": [
          0,
-         "zc"
+         0
         ],
-        "r": "d_boss / 2"
+        "r": "d_pilot / 2"
        }
       },
       {
-       "name": "dowel",
+       "name": "pillarR",
        "circle": {
         "c": [
-         "pcd / 2",
-         "zc"
+         "ppx",
+         0
         ],
-        "r": "d_dowel / 2"
+        "r": "d_pillar / 2"
+       }
+      },
+      {
+       "name": "pillarL",
+       "circle": {
+        "c": [
+         "-ppx",
+         0
+        ],
+        "r": "d_pillar / 2"
        }
       },
       {
@@ -141,139 +151,6 @@
        "name": null,
        "circle": {
         "c": [
-         "pcd/2 * cos(deg(45))",
-         "zc + pcd/2 * sin(deg(45))"
-        ],
-        "r": "d_bolt / 2"
-       }
-      }
-     ]
-    },
-    {
-     "op": "pattern",
-     "id": "bolts",
-     "of": "bolt",
-     "kind": "circular",
-     "center": [
-      0,
-      "zc"
-     ],
-     "count": 4,
-     "name": "bolt"
-    },
-    {
-     "op": "extrude",
-     "id": "plate",
-     "profile": [
-      "face",
-      "bolts"
-     ],
-     "depth": "t"
-    }
-   ]
-  },
-  "bulkhead": {
-   "$schema": "com.minomobi.cad.tree#v1",
-   "units": "mm",
-   "_": "Back wall of the plunger cavity, and the motor mount. The NEMA 17 hangs on its outside on the pilot and four M3; the thrust collar bears on its inside. A tenon each side passes through a mortise in the side wall and bears on the mortise’s rear face, so the grip load into this plate is taken in compression rather than by any bolt. One extrude along -Y.",
-   "params": {
-    "hi": 40,
-    "ho": 46,
-    "zb": -18,
-    "zt": 18,
-    "tz": 10,
-    "t": 6,
-    "d_pilot": 22.5,
-    "sq": 31,
-    "d_bolt": 3.4,
-    "y1": 42
-   },
-   "features": [
-    {
-     "op": "sketch",
-     "id": "face",
-     "plane": {
-      "base": "XZ",
-      "offset": "-y1"
-     },
-     "loops": [
-      {
-       "name": "outline",
-       "polygon": [
-        [
-         "-hi",
-         "zb"
-        ],
-        [
-         "hi",
-         "zb"
-        ],
-        [
-         "hi",
-         "-tz"
-        ],
-        [
-         "ho",
-         "-tz"
-        ],
-        [
-         "ho",
-         "tz"
-        ],
-        [
-         "hi",
-         "tz"
-        ],
-        [
-         "hi",
-         "zt"
-        ],
-        [
-         "-hi",
-         "zt"
-        ],
-        [
-         "-hi",
-         "tz"
-        ],
-        [
-         "-ho",
-         "tz"
-        ],
-        [
-         "-ho",
-         "-tz"
-        ],
-        [
-         "-hi",
-         "-tz"
-        ]
-       ]
-      },
-      {
-       "name": "pilot",
-       "circle": {
-        "c": [
-         0,
-         0
-        ],
-        "r": "d_pilot / 2"
-       }
-      }
-     ]
-    },
-    {
-     "op": "sketch",
-     "id": "bolt",
-     "plane": {
-      "base": "XZ",
-      "offset": "-y1"
-     },
-     "loops": [
-      {
-       "name": null,
-       "circle": {
-        "c": [
          "sq/2",
          "sq/2"
         ],
@@ -304,7 +181,7 @@
   "front-wall": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Front wall — the slotted plate, turned around from v6. The strip across its middle carries the MGN9 rail on its OUTER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal runs in a blind bore at its centre, closed by the rail itself. Either side of the strip a long slot lets a coupling link pass through, over and under the rail. Four Ø4.3 at its corners take the bolts into the side walls’ end faces: during grip this wall is pushed forward, away from them, so those bolts see tension and never shear. One extrude along -Y.",
+   "_": "Front wall — the slotted plate, turned around from v6. The strip across its middle carries the MGN9 rail on its OUTER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal runs in a blind bore at its centre, closed by the rail itself. Either side of the strip a long slot lets a coupling link pass through, over and under the rail. Two M8 tapped holes at x ±24 take the pillars — drawn at the tap drill, blind because the rail closes them off. Four Ø3.4 at the corners into the side walls. One extrude along -Y.",
    "params": {
     "w": 98,
     "zb": -22,
@@ -317,12 +194,13 @@
     "sx1": 40,
     "d_tap": 2.5,
     "tx0": 10,
-    "tx1": 28,
-    "tx2": 44,
-    "cx": 43,
+    "tx1": 36,
+    "cx": 42,
     "cz": 16,
-    "d_case": 4.3,
-    "y1": 84
+    "d_case": 3.4,
+    "ppx": 24,
+    "d_pillar": 6.8,
+    "y1": 70
    },
    "features": [
     {
@@ -395,6 +273,26 @@
        }
       },
       {
+       "name": "pillarR",
+       "circle": {
+        "c": [
+         "ppx",
+         0
+        ],
+        "r": "d_pillar / 2"
+       }
+      },
+      {
+       "name": "pillarL",
+       "circle": {
+        "c": [
+         "-ppx",
+         0
+        ],
+        "r": "d_pillar / 2"
+       }
+      },
+      {
        "name": "slotRlo",
        "rect": {
         "c": [
@@ -442,7 +340,7 @@
        "name": "tapA",
        "circle": {
         "c": [
-         "-tx2",
+         "-tx1",
          0
         ],
         "r": "d_tap / 2"
@@ -452,7 +350,7 @@
        "name": "tapB",
        "circle": {
         "c": [
-         "-tx1",
+         "-tx0",
          0
         ],
         "r": "d_tap / 2"
@@ -462,7 +360,7 @@
        "name": "tapC",
        "circle": {
         "c": [
-         "-tx0",
+         "tx0",
          0
         ],
         "r": "d_tap / 2"
@@ -472,27 +370,7 @@
        "name": "tapD",
        "circle": {
         "c": [
-         "tx0",
-         0
-        ],
-        "r": "d_tap / 2"
-       }
-      },
-      {
-       "name": "tapE",
-       "circle": {
-        "c": [
          "tx1",
-         0
-        ],
-        "r": "d_tap / 2"
-       }
-      },
-      {
-       "name": "tapF",
-       "circle": {
-        "c": [
-         "tx2",
          0
         ],
         "r": "d_tap / 2"
@@ -516,7 +394,7 @@
     "s": 42.3,
     "ch": 5,
     "L": 22,
-    "y1": 36
+    "y1": 22
    },
    "features": [
     {
@@ -744,7 +622,7 @@
   "arm": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Pivot arm: a 22 mm block on the mid-plane, keyed into the carriage’s through-slot (4 mm of it), reaching to 0.2 mm from the side wall, carrying the link pivot pin at x 45, 4 mm ahead of the carriage centre. Its two faces are what the links seat on, so there are no spacers. Two per gripper (side = 1 right, -1 left); a set screw holds it in the slot (not modelled). Local origin at the carriage centre. One extrude along +Z.",
+   "_": "Pivot arm: a 22 mm block on the grip plane, keyed into the carriage’s through-slot, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored Ø10.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.",
    "params": {
     "side": 1,
     "x0": 9.1,
@@ -755,7 +633,9 @@
     "y1": 7,
     "px": 34,
     "py": 4,
-    "d_pin": 4
+    "d_pin": 4,
+    "ppx": 24,
+    "d_pillar": 10.2
    },
    "features": [
     {
@@ -794,6 +674,33 @@
      "id": "arm",
      "profile": "plate",
      "depth": "t"
+    },
+    {
+     "op": "sketch",
+     "id": "bore",
+     "plane": {
+      "base": "XZ",
+      "offset": "-(y1 + 3)"
+     },
+     "loops": [
+      {
+       "name": "pillar",
+       "circle": {
+        "c": [
+         "side * ppx",
+         0
+        ],
+        "r": "d_pillar / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "borecut",
+     "profile": "bore",
+     "depth": "y1 - y0 + 6",
+     "mode": "cut"
     }
    ]
   },
@@ -996,7 +903,7 @@
     "half": 16,
     "hz": 11,
     "t": 8,
-    "y1": 104,
+    "y1": 90,
     "px": 10,
     "pz": 15,
     "d_bolt": 3.4,
@@ -1007,7 +914,7 @@
     "d_dowel": 5,
     "inset": 10.5,
     "d_pin": 4,
-    "y_pin": 100
+    "y_pin": 86
    },
    "features": [
     {
@@ -1166,14 +1073,88 @@
     }
    ]
   },
+  "pillar": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Pillar: the frame’s primary member. A Ø10 body 36 long between the motor plate and the rail plate, with an M8 end at each — the threads take the grip tension, the shoulders set the plate spacing and take the compression. It also pierces its pivot arm, so it is the plunger’s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x ±24. Threads are modelled at their minor diameter. One revolve about local Z, placed along +Y.",
+   "params": {
+    "d": 10,
+    "dt": 8,
+    "dc": 6.8,
+    "nut": 12,
+    "tap": 6,
+    "body": 36
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "profile",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "body",
+       "polygon": [
+        [
+         0,
+         0
+        ],
+        [
+         "dt/2",
+         0
+        ],
+        [
+         "dt/2",
+         "nut"
+        ],
+        [
+         "d/2",
+         "nut"
+        ],
+        [
+         "d/2",
+         "nut + body"
+        ],
+        [
+         "dc/2",
+         "nut + body"
+        ],
+        [
+         "dc/2",
+         "nut + body + tap"
+        ],
+        [
+         0,
+         "nut + body + tap"
+        ]
+       ]
+      }
+     ]
+    },
+    {
+     "op": "revolve",
+     "id": "pillar",
+     "profile": "profile",
+     "axis": {
+      "p": [
+       0,
+       0
+      ],
+      "d": [
+       0,
+       1
+      ]
+     }
+    }
+   ]
+  },
   "block": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
    "_": "MGN9C linear block stand-in: 20 × 10 × 28.9, wrapping the rail with a 10 × 5 channel, its base 2 mm off the wall. Its four M3 face +Y, into the jaw carrier. One extrude along +X.",
    "params": {
     "L": 28.9,
-    "y0": 86,
-    "y1": 96,
+    "y0": 72,
+    "y1": 82,
     "w": 20,
     "cw": 10,
     "ch": 5
@@ -1238,7 +1219,7 @@
    "params": {
     "w": 9,
     "h": 6.5,
-    "y0": 84,
+    "y0": 70,
     "half": 46.5
    },
    "features": [
@@ -1274,16 +1255,13 @@
   "side-wall": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Side wall — the tension member. A 6 mm plate running the whole length, from the tool flange to the front wall, with the motor hanging exposed beside it. The front wall bolts into its front end face and the flange plate into its rear, both along Y, so the grip tension is axial on those bolts. The back wall is not bolted to it at all: the mortise takes that plate’s tenon and its rear face carries the collar’s thrust in bearing. Built at local x 0..6; the assembly places one at each side. One extrude along +X.",
+   "_": "Side wall: 4 mm, spanning the cavity from the motor plate to the rail plate, bolted to both. It is no longer the load member — the pillars carry the grip — so its job is torsion and shear. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
    "params": {
-    "t": 6,
-    "y0": 0,
-    "y1": 78,
+    "t": 4,
+    "y0": 28,
+    "y1": 64,
     "z0": -22,
-    "z1": 22,
-    "my0": 36,
-    "my1": 42,
-    "mz": 10.1
+    "z1": 22
    },
    "features": [
     {
@@ -1300,17 +1278,6 @@
         ],
         "w": "y1 - y0",
         "h": "z1 - z0"
-       }
-      },
-      {
-       "name": "mortise",
-       "rect": {
-        "c": [
-         "(my0 + my1) / 2",
-         0
-        ],
-        "w": "my1 - my0",
-        "h": "2 * mz"
        }
       }
      ]
@@ -1329,10 +1296,10 @@
    "_": "Floor cover over the plunger cavity, inset between the side walls. It carries no load. One extrude along +Z.",
    "params": {
     "w": 80,
-    "y0": 42,
-    "y1": 78,
-    "t": 4,
-    "z0": -20
+    "y0": 28,
+    "y1": 64,
+    "t": 2,
+    "z0": -22
    },
    "features": [
     {
@@ -1370,13 +1337,13 @@
    "_": "Lid over the plunger cavity, inset between the side walls, with an access window over the linkage. It carries no load. One extrude along +Z.",
    "params": {
     "w": 80,
-    "y0": 42,
-    "y1": 78,
-    "t": 4,
-    "z0": 18,
+    "y0": 28,
+    "y1": 64,
+    "t": 2,
+    "z0": 20,
     "win_w": 60,
-    "win_y0": 54.346978872871304,
-    "win_y1": 74
+    "win_y0": 40.346978872871304,
+    "win_y1": 60
    },
    "features": [
     {
@@ -1422,15 +1389,6 @@
  },
  "components": [
   {
-   "id": "rear-flange",
-   "part": "rear-flange",
-   "at": [
-    0,
-    0,
-    0
-   ]
-  },
-  {
    "id": "floor",
    "part": "floor",
    "at": [
@@ -1452,7 +1410,7 @@
    "id": "wall",
    "part": "side-wall",
    "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * 40 - (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2 * 6",
+    "(1 - 2 * (i - 2 * floor(i / 2))) * 40 - (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2 * 4",
     0,
     0
    ],
@@ -1490,8 +1448,8 @@
    "assembly": {
     "_": "The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement. The screw is the driven component; the collar is fixed to it.",
     "params": {
-     "ynOpen": 58.347,
-     "ynClosed": 67.9331,
+     "ynOpen": 44.347,
+     "ynClosed": 53.9331,
      "lead": 2
     },
     "parts": {
@@ -1645,7 +1603,7 @@
    },
    "at": [
     0,
-    36,
+    22,
     0
    ],
    "rotate": {
@@ -1706,6 +1664,24 @@
    ]
   },
   {
+   "id": "pillar",
+   "part": "pillar",
+   "at": [
+    "(1 - 2 * (i - 2 * floor(i / 2))) * 24",
+    16,
+    0
+   ],
+   "repeat": 2,
+   "rotate": {
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "deg": -90
+   }
+  },
+  {
    "id": "block",
    "part": "block",
    "at": [
@@ -1737,14 +1713,10 @@
    "id": "arm-pin",
    "part": "pin",
    "repeat": 2,
-   "at": "@arm[i].pivot[0]",
-   "rotate": {
-    "align": "@arm[i].pivot[0]"
-   },
-   "offset": [
-    0,
-    0,
-    "-6"
+   "at": [
+    "(1 - 2 * (i - 2 * floor(i / 2))) * px",
+    "yn + py",
+    -17
    ]
   },
   {
@@ -1830,6 +1802,16 @@
   },
   {
    "kind": "fixed",
+   "a": "arm-pin[0]",
+   "b": "arm[0]"
+  },
+  {
+   "kind": "fixed",
+   "a": "arm-pin[1]",
+   "b": "arm[1]"
+  },
+  {
+   "kind": "fixed",
    "a": "bush[0]",
    "b": "link[0]"
   },
@@ -1885,16 +1867,6 @@
   },
   {
    "kind": "fixed",
-   "a": "rear-flange",
-   "b": "wall[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "rear-flange",
-   "b": "wall[1]"
-  },
-  {
-   "kind": "fixed",
    "a": "front-wall",
    "b": "wall[0]"
   },
@@ -1917,6 +1889,26 @@
    "kind": "fixed",
    "a": "bulkhead",
    "b": "motor"
+  },
+  {
+   "kind": "fixed",
+   "a": "pillar[0]",
+   "b": "bulkhead"
+  },
+  {
+   "kind": "fixed",
+   "a": "pillar[1]",
+   "b": "bulkhead"
+  },
+  {
+   "kind": "fixed",
+   "a": "pillar[0]",
+   "b": "front-wall"
+  },
+  {
+   "kind": "fixed",
+   "a": "pillar[1]",
+   "b": "front-wall"
   },
   {
    "kind": "fixed",
