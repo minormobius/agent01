@@ -1,0 +1,1 @@
+Turn one is only the domination toy: place guards, live coverage, celebrate at 8. No edge-cutting or leaderboard yet — the domination solver after arbitrary cuts needs real pruning, not a lookup table, so it's next turn's actual hard part.
