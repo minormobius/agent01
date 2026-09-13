@@ -50,7 +50,10 @@ const stranger = new MemoryBackend('did:plc:stranger');
 { const put = stranger.putRecord.bind(stranger); stranger.putRecord = async (c, r, v) => { const x = await put(c, r, v); x.cid = 'bafyfake' + x.cid.slice(6); stranger.records.get(stranger.key(c, r)).cid = x.cid; return x; }; }
 const strangerFile = await new Drive(stranger).put('lib/cam', JSON.parse(fs.readFileSync(path.join(here, 'bench', 'cam.json'), 'utf8')), { message: 'a cam, shared' });
 // …and an assembly that references that part by its AT URI, the way agent/publish.mjs writes them
-const strangerAsm = await new Drive(stranger).put('lib/two-cams', { name: 'two-cams', parts: { cam: strangerFile.uri }, components: [{ id: 'a', part: 'cam' }, { id: 'b', part: 'cam', at: [30, 0, 0], params: { lift: 6 } }], mates: [], drive: { component: 'a', rpm: 6 } }, { message: 'two cams by at:// ref' });
+// one component by the file's HEAD (which moves with the file), one PINNED to
+// a revision — the shape a published assembly actually has, and the difference
+// the page must respect when the repo changes underneath it
+const strangerAsm = await new Drive(stranger).put('lib/two-cams', { name: 'two-cams', parts: { cam: strangerFile.uri, camPinned: strangerFile.head.uri }, components: [{ id: 'a', part: 'cam' }, { id: 'b', part: 'camPinned', at: [30, 0, 0], params: { lift: 6 } }], mates: [], drive: { component: 'a', rpm: 6 } }, { message: 'one cam by head, one pinned' });
 async function xrpcMock(req, res) {
   const u = new URL(req.url, 'http://x'); const q = Object.fromEntries(u.searchParams); const method = u.pathname.slice(6);
   // no-store: the page re-reads these records to notice a revision it has not seen
@@ -222,19 +225,21 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   // records — its own head and the head of the part it references — and the
   // page re-reads both, so a revision someone else saves lands here without a
   // reload (and so without signing in again).
-  const watching = await page.evaluate(() => ({ n: window.__cad.state.watch.size, uris: [...window.__cad.state.watch.keys()], doc: document.querySelector('#doc').textContent, vol: [...window.__cad.state.slots.values()].reduce((a, s) => a + (s.exact?.invariants.volume || 0), 0) }));
-  check(watching.n === 2 && watching.uris.includes(strangerAsm.uri) && watching.uris.includes(strangerFile.uri) && /watching 2 records/.test(watching.doc) && /assembly · 2 components from 1 part/.test(watching.doc), `the assembly watches its own head and the part it references (${watching.uris.length}): ${watching.doc.replace(/\s+/g, ' ').slice(0, 140)}`);
+  const watching = await page.evaluate(() => ({ n: window.__cad.state.watch.size, pinned: window.__cad.state.pinned.size, uris: [...window.__cad.state.watch.keys()], doc: document.querySelector('#doc').textContent, vols: [...window.__cad.state.slots.entries()].map(([k, s]) => [k, s.exact?.invariants.volume || 0]) }));
+  check(watching.n === 2 && watching.pinned === 1 && watching.uris.includes(strangerAsm.uri) && watching.uris.includes(strangerFile.uri) && /watching 2 records · 1 part pinned to a revision/.test(watching.doc) && /assembly · 2 components from 2 parts/.test(watching.doc), `the assembly watches its own head and the part referenced by head, and says which part is pinned: ${watching.doc.replace(/\s+/g, ' ').slice(0, 160)}`);
   const revised = JSON.parse(fs.readFileSync(path.join(here, 'bench', 'cam.json'), 'utf8'));
   revised.params.r = 14; // a bigger base circle: the volume on screen must change on its own
   await new Drive(stranger).put('lib/cam', revised, { message: 'a bigger base circle' });
-  const fresh = await page.evaluate(async () => { const stale = await window.__cad.checkFresh(); const r = await window.__cad.settled(); return { stale: (stale || []).map((s) => s.path), vol: [...window.__cad.state.slots.values()].reduce((a, s) => a + (s.exact?.invariants.volume || 0), 0), status: document.querySelector('#status').textContent, doc: document.querySelector('#doc').textContent, mode: r.mode }; });
-  check(fresh.stale.join() === 'lib/cam' && fresh.vol > watching.vol * 1.3 && /updated from the repo/.test(fresh.status), `a revision of the referenced part reaches the open assembly by itself: ${watching.vol.toFixed(0)} → ${fresh.vol.toFixed(0)} mm³ (${fresh.status})`);
+  const fresh = await page.evaluate(async () => { const stale = await window.__cad.checkFresh(); const r = await window.__cad.settled(); return { stale: (stale || []).map((s) => s.path), vols: [...window.__cad.state.slots.entries()].map(([k, s]) => [k, s.exact?.invariants.volume || 0]), status: document.querySelector('#status').textContent, doc: document.querySelector('#doc').textContent, mode: r.mode }; });
+  const grew = fresh.vols.filter(([k, v]) => { const was = watching.vols.find(([j]) => j === k); return !was || v > was[1] * 1.2; });
+  const same = fresh.vols.filter(([k, v]) => watching.vols.some(([j, w]) => j === k && Math.abs(v - w) < 1e-6));
+  check(fresh.stale.join() === 'lib/cam' && grew.length === 1 && same.length === 1 && /updated from the repo/.test(fresh.status), `a revision of the head-referenced part reaches the open assembly by itself and the pinned one stays put: ${watching.vols.map(([, v]) => v.toFixed(0)).join(' + ')} → ${fresh.vols.map(([, v]) => v.toFixed(0)).join(' + ')} mm³ (${fresh.status})`);
   // an edited document is never overwritten: it is told, and updates when asked
   await new Drive(stranger).put('lib/cam', { ...revised, params: { ...revised.params, r: 16 } }, { message: 'bigger still' });
   const held = await page.evaluate(async () => { document.querySelector('#json').value = '{"edited": true}'; const stale = await window.__cad.checkFresh(); const doc = document.querySelector('#doc'); return { stale: (stale || []).map((s) => s.path), text: doc.textContent, button: !!doc.querySelector('[data-act=update]'), tree: window.__cad.state.treeText.slice(0, 20) }; });
   check(held.stale.join() === 'lib/cam' && held.button && /a newer revision of lib\/cam/.test(held.text), 'a document edited on screen is told about the new revision and offered the update, not overwritten');
   const took = await page.evaluate(async () => { document.querySelector('#doc [data-act=update]').click(); for (let i = 0; i < 400 && !/updated from the repo/.test(document.querySelector('#status').textContent); i++) await new Promise((r) => setTimeout(r, 25)); await window.__cad.settled(); return { vol: [...window.__cad.state.slots.values()].reduce((a, s) => a + (s.exact?.invariants.volume || 0), 0), doc: document.querySelector('#doc').textContent }; });
-  check(took.vol > fresh.vol * 1.1 && /watching 2 records/.test(took.doc), `pressing update takes it (${fresh.vol.toFixed(0)} → ${took.vol.toFixed(0)} mm³)`);
+  check(took.vol > fresh.vols.reduce((a, [, v]) => a + v, 0) * 1.05 && /watching 2 records/.test(took.doc), `pressing update takes it (${fresh.vols.reduce((a, [, v]) => a + v, 0).toFixed(0)} → ${took.vol.toFixed(0)} mm³)`);
   await page.goto(`${base}/?part=case`, { waitUntil: 'load' });
   await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
 }

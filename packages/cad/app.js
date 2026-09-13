@@ -33,7 +33,7 @@ const state = {
   asm: null, components: [], mates: [], drive: null, angles: new Map(), spin: false, t0: 0, tAcc: 0, fps: 0, speed: 1,
   hover: null, select: null, measureB: null, check: null, occt: 'idle',
   // freshness: the repo records this document was read from, and the last check
-  watch: new Map(), fresh: null, checking: false,
+  watch: new Map(), pinned: new Set(), fresh: null, checking: false,
 };
 
 const canvas = $('#view');
@@ -131,7 +131,7 @@ function build({ fit = false } = {}) {
 // ── trees, parts, assemblies ──────────────────────────────────────────────
 async function setDocument(obj, name, { at = null } = {}) {
   state.name = name || state.name; state.at = at;
-  state.watch = new Map(); state.fresh = null; // the records this document is a photograph of (filled by atRef / openFile)
+  state.watch = new Map(); state.pinned = new Set(); state.fresh = null; // the records this document is a photograph of (filled by atRef / openFile)
   state.treeText = JSON.stringify(obj, null, 2);
   $('#json').value = state.treeText;
   for (const k of [...renderer.bodies.keys()]) renderer.removeBody(k);
@@ -166,8 +166,9 @@ function renderDoc() {
 const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const ago = (ms) => (ms < 15000 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`);
 function freshLine() {
-  if (!state.watch?.size) return `<span class="dim">not from a repo — nothing to keep up to date</span>`;
-  const n = state.watch.size, subject = `${n} record${n === 1 ? '' : 's'}`;
+  const pin = state.pinned?.size ? ` · ${state.pinned.size} part${state.pinned.size === 1 ? '' : 's'} pinned to a revision, which never move` : '';
+  if (!state.watch?.size) return `<span class="dim">not from a repo — nothing to keep up to date${pin}</span>`;
+  const n = state.watch.size, subject = `${n} record${n === 1 ? '' : 's'}${pin}`;
   const fr = state.fresh;
   if (fr?.error) return `<span class="warn">could not reach the repo: ${esc(fr.error)}</span> <button data-act="recheck">check</button>`;
   if (fr?.stale?.length) return `<span class="new">a newer revision of ${esc(fr.stale.map((s) => s.path).join(', '))} is in the repo</span> <button data-act="update">update</button>`;
@@ -259,6 +260,7 @@ async function atRef(uri) {
   const { did, collection } = parseAtUri(uri);
   const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
   if (collection === PART) { const f = await d.get(uri); if (!f) throw new Error(`no file at ${uri}`); state.watch.set(uri, { rev: f.revision.uri, path: f.path }); return f.revision.tree; }
+  state.pinned.add(uri); // a revision, not a head: pinned by whoever wrote the document, so never followed
   return d.treeAt(uri);
 }
 const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? fetchBench(ref.slice(6)) : typeof ref === 'string' && ref.startsWith('at://') ? atRef(ref) : structuredClone(ref));

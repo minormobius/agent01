@@ -14,7 +14,9 @@ AT URI. Both are re-read every 20 seconds and whenever the tab comes back,
 and a document nobody has edited on screen is **reloaded in place**, camera
 and all: a revision saved from anywhere reaches an open page without a
 reload and therefore without signing in again. A document that *has* been
-edited is told, and offered an *update* button, never overwritten. The
+edited is told, and offered an *update* button, never overwritten. A
+component pinned to a `revision` URI is left alone — pinned is pinned — and
+the panel says how many of them there are. The
 **document** panel says what is being watched and when it was last checked;
 *link* now says which kind of permalink it copied — a file's head (always
 its newest revision), a pinned revision, or a whole tree in the URL.

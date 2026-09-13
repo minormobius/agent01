@@ -264,7 +264,12 @@ documented in [`README.md`](README.md) next to this file.
   a revision saved from anywhere lands on an open page without a reload — and
   therefore without signing in again. An edited document (`isDirty`) is told
   instead, with an *update* button. Our own save updates the watch rather than
-  tripping it. A `?at=` of a head is therefore always current and a `?at=` of a
+  tripping it. **A component referenced by a `revision` URI is pinned** by
+  whoever wrote the document and is never followed — the panel counts them, and
+  the browser test holds one of the two cams to a revision to prove the other
+  moves and it does not. (The gripper published on a real repo pins all sixteen
+  of its parts, so what reaches an open page there is the assembly's own new
+  head.) A `?at=` of a head is therefore always current and a `?at=` of a
   revision is pinned for ever; *link* says which it copied. The **document**
   panel (`renderDoc`) carries the name, what the document is made of, where it
   came from, and what is being watched — all read off the loaded document,
