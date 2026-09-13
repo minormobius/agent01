@@ -1,14 +1,11 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Nut carriage, 18 long: the nut bore with its four flange bolt holes, a 26 mm skid that runs on the floor, and a through-slot each side (4 × 22.2) that the pivot arms key into. The housing aligns it — skid on the floor, arm tips at the walls — and the nut sees thrust only. One extrude along -Y.",
+ "_": "Nut carriage, 14 long: the nut bore with its four flange bolt holes and a through-slot each side (4 × 22.2) that the pivot arms key into. It hangs on the nut — the screw takes its weight, the arm tips at the side walls take the screw’s friction torque — so there is no skid and no floor to run on. One extrude along -Y.",
  "params": {
-  "t": 18,
-  "sh": 13,
-  "sz0": -21.8,
-  "sz1": -20,
+  "t": 14,
   "ch": 14.5,
-  "ct": 15,
+  "cz": 14,
   "slx0": 9,
   "slx1": 13,
   "slz": 11.1,
@@ -24,40 +21,14 @@
    "loops": [
     {
      "name": "outline",
-     "polygon": [
-      [
-       "-sh",
-       "sz0"
+     "rect": {
+      "c": [
+       0,
+       0
       ],
-      [
-       "sh",
-       "sz0"
-      ],
-      [
-       "sh",
-       "sz1"
-      ],
-      [
-       "ch",
-       "sz1"
-      ],
-      [
-       "ch",
-       "ct"
-      ],
-      [
-       "-ch",
-       "ct"
-      ],
-      [
-       "-ch",
-       "sz1"
-      ],
-      [
-       "-sh",
-       "sz1"
-      ]
-     ]
+      "w": "2 * ch",
+      "h": "2 * cz"
+     }
     },
     {
      "name": "bore",

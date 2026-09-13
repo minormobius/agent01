@@ -1,13 +1,16 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Side wall, plain. Built at local x 0..4; the assembly places one at each side. One extrude along +X.",
+ "_": "Side wall — the tension member. A 6 mm plate running the whole length, from the tool flange to the front wall, with the motor hanging exposed beside it. The front wall bolts into its front end face and the flange plate into its rear, both along Y, so the grip tension is axial on those bolts. The back wall is not bolted to it at all: the mortise takes that plate’s tenon and its rear face carries the collar’s thrust in bearing. Built at local x 0..6; the assembly places one at each side. One extrude along +X.",
  "params": {
-  "t": 4,
-  "y0": 8,
-  "y1": 110,
+  "t": 6,
+  "y0": 0,
+  "y1": 78,
   "z0": -22,
-  "z1": 22
+  "z1": 22,
+  "my0": 36,
+  "my1": 42,
+  "mz": 10.1
  },
  "features": [
   {
@@ -24,6 +27,17 @@
       ],
       "w": "y1 - y0",
       "h": "z1 - z0"
+     }
+    },
+    {
+     "name": "mortise",
+     "rect": {
+      "c": [
+       "(my0 + my1) / 2",
+       0
+      ],
+      "w": "my1 - my0",
+      "h": "2 * mz"
      }
     }
    ]

@@ -1,11 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot and its four M3 on a 31 square. The screw passes through the pilot; the thrust collar bears on this plate’s front face. One extrude along -Y.",
+ "_": "Back wall of the plunger cavity, and the motor mount. The NEMA 17 hangs on its outside on the pilot and four M3; the thrust collar bears on its inside. A tenon each side passes through a mortise in the side wall and bears on the mortise’s rear face, so the grip load into this plate is taken in compression rather than by any bolt. One extrude along -Y.",
  "params": {
-  "w": 107,
-  "zb": -21.5,
-  "zt": 21.5,
+  "hi": 40,
+  "ho": 46,
+  "zb": -18,
+  "zt": 18,
+  "tz": 10,
   "t": 6,
   "d_pilot": 22.5,
   "sq": 31,
@@ -23,14 +25,56 @@
    "loops": [
     {
      "name": "outline",
-     "rect": {
-      "c": [
-       0,
-       "(zb + zt) / 2"
+     "polygon": [
+      [
+       "-hi",
+       "zb"
       ],
-      "w": "w",
-      "h": "zt - zb"
-     }
+      [
+       "hi",
+       "zb"
+      ],
+      [
+       "hi",
+       "-tz"
+      ],
+      [
+       "ho",
+       "-tz"
+      ],
+      [
+       "ho",
+       "tz"
+      ],
+      [
+       "hi",
+       "tz"
+      ],
+      [
+       "hi",
+       "zt"
+      ],
+      [
+       "-hi",
+       "zt"
+      ],
+      [
+       "-hi",
+       "tz"
+      ],
+      [
+       "-ho",
+       "tz"
+      ],
+      [
+       "-ho",
+       "-tz"
+      ],
+      [
+       "-hi",
+       "-tz"
+      ]
+     ]
     },
     {
      "name": "pilot",

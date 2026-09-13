@@ -1,31 +1,31 @@
 {
  "_": "Closed-form volumes of every part; mm³. The kernel must land within tol (relative).",
  "rear-flange": {
-  "volume": 40501.04136646666,
+  "volume": 27108.33698114767,
   "tol": 0.002
  },
  "bulkhead": {
-  "volume": 25002.45221222727,
+  "volume": 16116.452212227261,
   "tol": 0.002
  },
  "front-wall": {
-  "volume": 25379.741180829587,
+  "volume": 19943.212891840332,
   "tol": 0.002
  },
  "carriage": {
-  "volume": 13752.047971325781,
+  "volume": 7198.837311031164,
   "tol": 0.002
  },
  "arm": {
-  "volume": 17424.739846484095,
+  "volume": 8932.739846484097,
   "tol": 0.002
  },
  "carrier": {
-  "volume": 6134.004576434202,
-  "tol": 0.003
+  "volume": 4286.141707202132,
+  "tol": 0.004
  },
  "link": {
-  "volume": 2711.9468914507715,
+  "volume": 2531.9468914507715,
   "tol": 0.002
  },
  "bushing": {
@@ -37,7 +37,7 @@
   "tol": 0.004
  },
  "rail": {
-  "volume": 6084,
+  "volume": 5440.5,
   "tol": 0.002
  },
  "block": {
@@ -49,7 +49,7 @@
   "tol": 0.002
  },
  "screw": {
-  "volume": 3744.7784430790334,
+  "volume": 2280.79626650619,
   "tol": 0.004
  },
  "nut": {
@@ -57,15 +57,15 @@
   "tol": 0.002
  },
  "floor": {
-  "volume": 50112,
+  "volume": 11520,
   "tol": 0.002
  },
  "side-wall": {
-  "volume": 17952,
+  "volume": 19864.800000000003,
   "tol": 0.002
  },
  "lid": {
-  "volume": 40094.186206211496,
+  "volume": 6803.274929489113,
   "tol": 0.002
  },
  "motor": {

@@ -1,13 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Floor plate, from the rear plate to the front wall’s outer face (the wall stands on it). Its top face is the carriage’s way. One extrude along +Z.",
+ "_": "Floor cover over the plunger cavity, inset between the side walls. It carries no load. One extrude along +Z.",
  "params": {
-  "w": 116,
-  "y0": 8,
-  "y1": 116,
+  "w": 80,
+  "y0": 42,
+  "y1": 78,
   "t": 4,
-  "z0": -26
+  "z0": -20
  },
  "features": [
   {

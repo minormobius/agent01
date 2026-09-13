@@ -1,16 +1,16 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Lid, with an access window over the linkage. One extrude along +Z.",
+ "_": "Lid over the plunger cavity, inset between the side walls, with an access window over the linkage. It carries no load. One extrude along +Z.",
  "params": {
-  "w": 116,
-  "y0": 8,
-  "y1": 110,
+  "w": 80,
+  "y0": 42,
+  "y1": 78,
   "t": 4,
-  "z0": 22,
-  "win_w": 92,
-  "win_y0": 82.34289729948776,
-  "win_y1": 102
+  "z0": 18,
+  "win_w": 60,
+  "win_y0": 54.346978872871304,
+  "win_y1": 74
  },
  "features": [
   {

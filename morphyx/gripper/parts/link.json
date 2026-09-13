@@ -3,7 +3,7 @@
  "units": "mm",
  "_": "Link: a 43 mm dog-bone, 6 thick, with two Ø6 eyes for pressed bronze bushings. Four per gripper: one above and one below, at z ±11…17, clear of the blocks. From the arm pin, through a slot in the front wall, to the jaw carrier’s pin outside. Built along +X from eye 0; the assembly rotates it about Z. One extrude.",
  "params": {
-  "L": 43,
+  "L": 40,
   "r": 5,
   "t": 6,
   "d_eye": 6

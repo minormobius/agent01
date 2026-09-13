@@ -1,22 +1,25 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Front wall — the slotted plate, turned around from v6. The strip across its middle carries the MGN9 rail on its OUTER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal runs in a blind bore at its centre, closed by the rail itself. Either side of the strip a long slot lets a coupling link pass through, over and under the rail. Stands on the floor. One extrude along -Y.",
+ "_": "Front wall — the slotted plate, turned around from v6. The strip across its middle carries the MGN9 rail on its OUTER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal runs in a blind bore at its centre, closed by the rail itself. Either side of the strip a long slot lets a coupling link pass through, over and under the rail. Four Ø4.3 at its corners take the bolts into the side walls’ end faces: during grip this wall is pushed forward, away from them, so those bolts see tension and never shear. One extrude along -Y.",
  "params": {
-  "w": 116,
+  "w": 98,
   "zb": -22,
-  "zt": 26,
+  "zt": 22,
   "t": 6,
   "d_bore": 6.2,
   "sz0": 10.6,
   "sz1": 17.4,
-  "sx0": 5,
-  "sx1": 52,
+  "sx0": 8,
+  "sx1": 40,
   "d_tap": 2.5,
   "tx0": 10,
-  "tx1": 30,
-  "tx2": 50,
-  "y1": 116
+  "tx1": 28,
+  "tx2": 44,
+  "cx": 43,
+  "cz": 16,
+  "d_case": 4.3,
+  "y1": 84
  },
  "features": [
   {
@@ -46,6 +49,46 @@
        0
       ],
       "r": "d_bore / 2"
+     }
+    },
+    {
+     "name": "caseA",
+     "circle": {
+      "c": [
+       "-cx",
+       "-cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseB",
+     "circle": {
+      "c": [
+       "cx",
+       "-cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseC",
+     "circle": {
+      "c": [
+       "-cx",
+       "cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseD",
+     "circle": {
+      "c": [
+       "cx",
+       "cz"
+      ],
+      "r": "d_case / 2"
      }
     },
     {

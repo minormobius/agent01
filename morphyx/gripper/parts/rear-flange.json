@@ -1,17 +1,20 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the screw axis. Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
+ "_": "Tool flange plate: the ISO 9409-1-50-4-M6 pattern, centred on the screw axis, and the rear end of the two side walls — four Ø4.3 through it into their end faces, so the robot’s load is axial on those bolts. It carries no grip load; the grip tension runs between the front wall and the back wall. Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
  "params": {
-  "w": 116,
-  "zb": -26,
-  "zt": 26,
+  "w": 92,
+  "zb": -24,
+  "zt": 24,
   "t": 8,
   "zc": 0,
   "pcd": 50,
   "d_bolt": 6.6,
   "d_dowel": 6,
   "d_boss": 32,
+  "cx": 43,
+  "cz": 16,
+  "d_case": 4.3,
   "y1": 8
  },
  "features": [
@@ -28,7 +31,7 @@
      "rect": {
       "c": [
        0,
-       "(zb + zt) / 2"
+       0
       ],
       "w": "w",
       "h": "zt - zb"
@@ -52,6 +55,46 @@
        "zc"
       ],
       "r": "d_dowel / 2"
+     }
+    },
+    {
+     "name": "caseA",
+     "circle": {
+      "c": [
+       "-cx",
+       "-cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseB",
+     "circle": {
+      "c": [
+       "cx",
+       "-cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseC",
+     "circle": {
+      "c": [
+       "-cx",
+       "cz"
+      ],
+      "r": "d_case / 2"
+     }
+    },
+    {
+     "name": "caseD",
+     "circle": {
+      "c": [
+       "cx",
+       "cz"
+      ],
+      "r": "d_case / 2"
      }
     }
    ]
