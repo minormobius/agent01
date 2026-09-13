@@ -1,25 +1,24 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "gripper-stroke",
- "_": "Parallel-jaw robot gripper, v5, coaxial: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage that the housing aligns (skid on the bed, arm tips at the walls) → two pivot arms keyed into the carriage → four 27 mm links on bronze bushings, one above and one below the mid-plane → two one-piece finger slides in the mid-plane, each on an MGN9 block on one rail lying on the bed beyond the front wall, each ending in a 16 × 12 tenon for the customer’s finger. The screw axis, the flange centre, the rail, the links’ plane of symmetry and the tenons share the line x = 0, z = 0. 96 × 54 × 104 mm case, tenons to y = 143. The physical stroke: the screw is driven at 5 rpm, a screw mate moves the carriage 2 mm per turn (y = 61.68 open → 75.63 closed in 6.978 turns, 83.7 s), fixed mates carry the nut and the arms, and the links swing the slides in: the example jaws from 36 mm apart to touching. Sweep with period 83.7 s; beyond it the nut runs on, as it would.",
+ "_": "Parallel-jaw robot gripper, v6, guide inside: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage that runs on the floor → two pivot arms keyed into it → four 27 mm links on bronze bushings, one above and one below the mid-plane → two jaw carriers, each one part: it wraps an MGN9 block on a rail mounted INSIDE, on the strip between the front wall’s two slots, passes its feet out through those slots, and ends in a 16 × 16 tenon with four M4 cross holes for the customer’s finger. Behind the block the same part runs back toward the motor as a tongue carrying the link pin. The screw axis, the flange centre, the rail, the links’ plane of symmetry and the tenons share the line x = 0, z = 0. 112 × 54 × 116 mm case, tenons to y = 140.5, mount centres 44 → 72 mm apart. The physical stroke: the screw is driven at 5 rpm, a screw mate moves the carriage 2 mm per turn (y = 60.21 open → 70.35 closed in 5.068 turns, 60.8 s), fixed mates carry the nut and the arms, and the links draw the carriers in by 14 mm each. Sweep with period 60.8 s; beyond it the nut runs on, as it would.",
  "params": {
-  "ynOpen": 61.6751,
-  "ynClosed": 75.6307,
+  "ynOpen": 60.2124,
+  "ynClosed": 70.3475,
   "lead": 2,
   "L": 27,
-  "px": 36,
+  "px": 38,
   "py": 4,
-  "yf": 92,
+  "yf": 90,
   "inset": 6,
   "flangeT": 3.5,
   "carT": 18,
-  "blockL": 28.9,
-  "lo": -13,
-  "hi": 7,
+  "lo": -11,
+  "hi": 5,
   "armT": 8,
-  "spacerL": 3,
-  "pinDropArm": 9,
-  "pinDropSlide": 7
+  "spacerL": 1,
+  "pinLo": -12,
+  "tongueZ": 4
  },
  "derived": {
   "turns": "theta / 360",
@@ -36,7 +35,7 @@
    "units": "mm",
    "_": "Rear plate: the ISO 9409-1-50-4-M6 tool flange, centred on the screw axis (the tool centre line and the screw axis coincide). Four Ø6.6 on a 50 PCD at 45°, a Ø6 dowel at 0°, a Ø32 hole for the robot flange boss (no recess: the boss enters the case). One extrude along -Y.",
    "params": {
-    "w": 96,
+    "w": 112,
     "zb": -27,
     "zt": 27,
     "t": 8,
@@ -137,7 +136,7 @@
    "units": "mm",
    "_": "Motor bulkhead: fits inside the case, takes the NEMA 17 pilot and its four M3 on a 31 square. The screw passes through the pilot; the thrust collar bears on this plate’s front face. One extrude along -Y.",
    "params": {
-    "w": 87,
+    "w": 103,
     "zb": -22.5,
     "zt": 22.5,
     "t": 6,
@@ -220,17 +219,22 @@
   "front-wall": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Front wall, 104 wide, standing on the bed: the screw journal’s bearing (Ø6.2) on the mid-plane, and either side of it the slot a finger slide passes through (z ±6.2, x 5.5..38.5). The rail no longer hangs on this wall; it lies on the bed in front of it. One extrude along -Y.",
+   "_": "Front wall — the slotted plate the whole design turns on. The strip across its middle (z ±10.1) carries the two MGN9 rail segments on its INNER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal bearing between them. Either side of the strip runs a long slot, one above and one below, and a carrier’s two feet pass through them. Stands on the floor. One extrude along -Y.",
    "params": {
-    "w": 104,
-    "zb": -16,
+    "w": 112,
+    "zb": -23,
     "zt": 27,
     "t": 6,
     "d_bore": 6.2,
+    "sz0": 10.1,
+    "sz1": 19.9,
     "sx0": 5.5,
-    "sx1": 38.5,
-    "sz": 6.2,
-    "y1": 104
+    "sx1": 52.5,
+    "d_tap": 2.5,
+    "tx0": 12,
+    "tx1": 27,
+    "tx2": 42,
+    "y1": 116
    },
    "features": [
     {
@@ -263,25 +267,107 @@
        }
       },
       {
-       "name": "slotR",
+       "name": "slotRlo",
        "rect": {
         "c": [
          "(sx0 + sx1) / 2",
-         0
+         "-(sz0 + sz1) / 2"
         ],
         "w": "sx1 - sx0",
-        "h": "2 * sz"
+        "h": "sz1 - sz0"
        }
       },
       {
-       "name": "slotL",
+       "name": "slotRhi",
+       "rect": {
+        "c": [
+         "(sx0 + sx1) / 2",
+         "(sz0 + sz1) / 2"
+        ],
+        "w": "sx1 - sx0",
+        "h": "sz1 - sz0"
+       }
+      },
+      {
+       "name": "slotLlo",
        "rect": {
         "c": [
          "-(sx0 + sx1) / 2",
-         0
+         "-(sz0 + sz1) / 2"
         ],
         "w": "sx1 - sx0",
-        "h": "2 * sz"
+        "h": "sz1 - sz0"
+       }
+      },
+      {
+       "name": "slotLhi",
+       "rect": {
+        "c": [
+         "-(sx0 + sx1) / 2",
+         "(sz0 + sz1) / 2"
+        ],
+        "w": "sx1 - sx0",
+        "h": "sz1 - sz0"
+       }
+      },
+      {
+       "name": "tapA",
+       "circle": {
+        "c": [
+         "-tx2",
+         0
+        ],
+        "r": "d_tap / 2"
+       }
+      },
+      {
+       "name": "tapB",
+       "circle": {
+        "c": [
+         "-tx1",
+         0
+        ],
+        "r": "d_tap / 2"
+       }
+      },
+      {
+       "name": "tapC",
+       "circle": {
+        "c": [
+         "-tx0",
+         0
+        ],
+        "r": "d_tap / 2"
+       }
+      },
+      {
+       "name": "tapD",
+       "circle": {
+        "c": [
+         "tx0",
+         0
+        ],
+        "r": "d_tap / 2"
+       }
+      },
+      {
+       "name": "tapE",
+       "circle": {
+        "c": [
+         "tx1",
+         0
+        ],
+        "r": "d_tap / 2"
+       }
+      },
+      {
+       "name": "tapF",
+       "circle": {
+        "c": [
+         "tx2",
+         0
+        ],
+        "r": "d_tap / 2"
        }
       }
      ]
@@ -290,184 +376,6 @@
      "op": "extrude",
      "id": "plate",
      "profile": "face",
-     "depth": "t"
-    }
-   ]
-  },
-  "bed": {
-   "$schema": "com.minomobi.cad.tree#v1",
-   "units": "mm",
-   "_": "The bed: one 7 mm plate bolted to the floor (four M3), from ahead of the bulkhead to 25 mm beyond the front wall, 87.6 wide inside the case and 104 wide outside it. Its top face is the datum: inside, the nut carriage’s skid runs on it; outside, the MGN9 rail is tapped into it (five M3 at 20 pitch, 12 mm from the rail ends), so the screw, the carriage and the rail are referenced to one machined surface. Two windows lighten it beside the carriage. One extrude along +Z.",
-   "params": {
-    "z0": -23,
-    "t": 7,
-    "y0": 43,
-    "yw": 98,
-    "y1": 129,
-    "hi": 43.8,
-    "ho": 52,
-    "wx0": 17,
-    "wx1": 36,
-    "wy0": 50,
-    "wy1": 92,
-    "bx": 40,
-    "by0": 50,
-    "by1": 95,
-    "d_bolt": 3.4,
-    "y_rail": 118,
-    "d_tap": 2.5,
-    "tp": 20,
-    "tx0": -40
-   },
-   "features": [
-    {
-     "op": "sketch",
-     "id": "plate",
-     "plane": {
-      "base": "XY",
-      "offset": "z0"
-     },
-     "loops": [
-      {
-       "name": "outline",
-       "polygon": [
-        [
-         "-hi",
-         "y0"
-        ],
-        [
-         "hi",
-         "y0"
-        ],
-        [
-         "hi",
-         "yw"
-        ],
-        [
-         "ho",
-         "yw"
-        ],
-        [
-         "ho",
-         "y1"
-        ],
-        [
-         "-ho",
-         "y1"
-        ],
-        [
-         "-ho",
-         "yw"
-        ],
-        [
-         "-hi",
-         "yw"
-        ]
-       ]
-      },
-      {
-       "name": "windowR",
-       "rect": {
-        "c": [
-         "(wx0 + wx1) / 2",
-         "(wy0 + wy1) / 2"
-        ],
-        "w": "wx1 - wx0",
-        "h": "wy1 - wy0"
-       }
-      },
-      {
-       "name": "windowL",
-       "rect": {
-        "c": [
-         "-(wx0 + wx1) / 2",
-         "(wy0 + wy1) / 2"
-        ],
-        "w": "wx1 - wx0",
-        "h": "wy1 - wy0"
-       }
-      },
-      {
-       "name": "boltA",
-       "circle": {
-        "c": [
-         "-bx",
-         "by0"
-        ],
-        "r": "d_bolt / 2"
-       }
-      },
-      {
-       "name": "boltB",
-       "circle": {
-        "c": [
-         "bx",
-         "by0"
-        ],
-        "r": "d_bolt / 2"
-       }
-      },
-      {
-       "name": "boltC",
-       "circle": {
-        "c": [
-         "-bx",
-         "by1"
-        ],
-        "r": "d_bolt / 2"
-       }
-      },
-      {
-       "name": "boltD",
-       "circle": {
-        "c": [
-         "bx",
-         "by1"
-        ],
-        "r": "d_bolt / 2"
-       }
-      }
-     ]
-    },
-    {
-     "op": "sketch",
-     "id": "tap",
-     "plane": {
-      "base": "XY",
-      "offset": "z0"
-     },
-     "loops": [
-      {
-       "name": null,
-       "circle": {
-        "c": [
-         "tx0",
-         "y_rail"
-        ],
-        "r": "d_tap / 2"
-       }
-      }
-     ]
-    },
-    {
-     "op": "pattern",
-     "id": "taps",
-     "of": "tap",
-     "kind": "linear",
-     "count": 5,
-     "step": [
-      "tp",
-      0
-     ],
-     "name": "tap"
-    },
-    {
-     "op": "extrude",
-     "id": "bed",
-     "profile": [
-      "plate",
-      "taps"
-     ],
      "depth": "t"
     }
    ]
@@ -606,14 +514,14 @@
   "carriage": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Nut carriage, 18 long: the nut bore with its four flange bolt holes; a 26 mm skid that runs on the bed; a 29 mm waist on the mid-plane with a through-slot each side (4 × 8.2) that the pivot arms key into; 18 mm bosses above and below the waist for the nut flange, narrow so the link eyes pass them. The housing aligns it — skid on the bed, arm tips at the walls — and the nut sees thrust only. One extrude along -Y.",
+   "_": "Nut carriage, 18 long: the nut bore with its four flange bolt holes; a 26 mm skid that runs on the floor; a 29 mm waist on the mid-plane with a through-slot each side (4 × 8.2) that the pivot arms key into; 18 mm bosses above and below the waist for the nut flange, narrow so the link eyes pass them. The housing aligns it — skid on the floor, arm tips at the walls — and the nut sees thrust only. One extrude along -Y.",
    "params": {
     "t": 18,
     "sh": 13,
-    "sz0": -15.8,
-    "sz1": -14,
+    "sz0": -22.8,
+    "sz1": -21,
     "bh": 9,
-    "bz0": -14,
+    "bz0": -21,
     "bz1": 11,
     "mh": 14.5,
     "mz": 6,
@@ -772,16 +680,16 @@
   "arm": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Pivot arm: an 8 mm plate on the mid-plane, keyed into the carriage’s through-slot (4 mm of it), reaching to 0.2 mm from the side wall, carrying the link pivot pin at x 36, 4 mm ahead of the carriage centre. Two per gripper (side = 1 right, -1 left); a set screw holds it in the slot (not modelled). Local origin at the carriage centre. One extrude along +Z.",
+   "_": "Pivot arm: an 8 mm plate on the mid-plane, keyed into the carriage’s through-slot (4 mm of it), reaching to 0.2 mm from the side wall, carrying the link pivot pin at x 38, 4 mm ahead of the carriage centre. Two per gripper (side = 1 right, -1 left); a set screw holds it in the slot (not modelled). Local origin at the carriage centre. One extrude along +Z.",
    "params": {
     "side": 1,
     "x0": 9.1,
-    "x1": 43.8,
+    "x1": 51.8,
     "t": 8,
     "z0": -4,
     "y0": -9,
     "y1": 9,
-    "px": 36,
+    "px": 38,
     "py": 4,
     "d_pin": 4
    },
@@ -828,7 +736,7 @@
   "link": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Link: a 27 mm dog-bone, 6 thick, with two Ø6 eyes for pressed bronze bushings. Four per gripper: one above and one below the mid-plane, from the arm pin to the slide pin. Built along +X from eye 0; the assembly rotates it about Z. One extrude.",
+   "_": "Link: a 27 mm dog-bone, 6 thick, with two Ø6 eyes for pressed bronze bushings. Four per gripper: one above and one below the mid-plane, from the arm pin to the carrier’s tongue pin. Built along +X from eye 0; the assembly rotates it about Z. One extrude.",
    "params": {
     "L": 27,
     "r": 5,
@@ -986,10 +894,10 @@
   "spacer": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Spacer sleeve: Ø6 × 3 with a Ø4.1 bore, between an arm face and a link on each arm pin (the slide is thick enough to reach its links itself). Four per gripper. One revolve about local Z.",
+   "_": "Spacer washer: Ø6 × 1 with a Ø4.1 bore, between a pin’s host (an arm, or the carrier’s tongue) and its link. Eight per gripper. One revolve about local Z.",
    "params": {
     "D": 6,
-    "L": 3,
+    "L": 1,
     "d": 4.1
    },
    "features": [
@@ -1041,10 +949,10 @@
   "pin": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "A 4 mm hardened dowel, h long, along +Z: pressed into a slide or an arm, carrying a link above and a link below in bronze bushings (retaining clips not modelled). One extrude.",
+   "_": "A 4 mm hardened dowel, 24 long, along +Z: pressed into a pivot arm or a carrier’s tongue, carrying a link above and a link below in bronze bushings (retaining clips not modelled). Four per gripper. One extrude.",
    "params": {
     "d": 4,
-    "h": 26
+    "h": 24
    },
    "features": [
     {
@@ -1071,156 +979,159 @@
     }
    ]
   },
-  "slide": {
+  "carrier": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Finger slide, one part: a 12 mm plate on the mid-plane. Its tang (14 wide, inboard) runs from inside the case through the front-wall slot, carrying the link pin (Ø4 press) 6 mm inboard of the block centre; over the linear block it widens to 24 and takes the block’s four M3 from above (Ø3.4, 10 × 15); ahead of the block it ends in a 16 × 12 tenon, 10 long, with a Ø4.1 cross-pin hole — the finger mount: a finger carries the female pocket and the cross pin. The tang-to-plate corner has a 3 mm fillet, the tenon roots 1.5. Local x 0 is the block centre; built for the right side, the left one is turned 180° about Y. One extrude along +Z.",
+   "_": "Jaw carrier — one part, section swept along X, 30 wide. Behind the block it is a tongue on the mid-plane (z ±4) carrying the Ø4 link pin; at the block it widens into a flange that backstops the block and is bolted to it (4 × M3 along Y, not drawn); the section then opens into a channel that wraps the rail, the block and the wall’s strip, with two feet either side that pass out through the wall’s slots; outside it closes into a web and ends in a 16 × 16 tenon standing 16 mm proud, with four M4 cross holes on an 8 × 10 rectangle — the finger mount. The pin hole is a cut along Z, the only boolean in this design. Built for the right side; the left is the same part turned 180° about Y.",
    "params": {
-    "z0": -6,
-    "t": 12,
-    "tx0": -12,
-    "tx1": 2,
-    "ty0": 86,
-    "ph": 12,
-    "py0": 107.5,
-    "py1": 133,
-    "th": 8,
-    "ty1": 143,
-    "r": 3,
-    "r1": 1.5,
-    "k": 0.2928932188134524,
+    "w": 30,
+    "tz": 4,
+    "fz": 19.5,
+    "cz": 10.5,
+    "ty0": 83,
+    "ty1": 96,
+    "cy0": 98,
+    "cy1": 116.5,
+    "ny0": 124.5,
+    "ny1": 140.5,
+    "nz": 8,
+    "d_bolt": 4.3,
+    "by0": 128.5,
+    "by1": 136.5,
+    "bz": 5,
     "inset": 6,
-    "y_pin": 92,
-    "d_pin": 4,
-    "d_x": 4.1,
-    "y_x": 138,
-    "bx": 5,
-    "by": 7.5,
-    "yb": 118,
-    "d_bolt": 3.4
+    "y_pin": 90,
+    "d_pin": 4
    },
    "features": [
     {
      "op": "sketch",
-     "id": "plan",
+     "id": "section",
      "plane": {
-      "base": "XY",
-      "offset": "z0"
+      "base": "YZ",
+      "offset": "-w/2"
      },
      "loops": [
       {
        "name": "outline",
-       "path": {
-        "from": [
-         "tx0",
-         "ty0"
+       "polygon": [
+        [
+         83,
+         -4
         ],
-        "segs": [
-         {
-          "to": [
-           "tx1",
-           "ty0"
-          ]
-         },
-         {
-          "to": [
-           "tx1",
-           "py0 - r"
-          ]
-         },
-         {
-          "arc": {
-           "via": [
-            "tx1 + r * k",
-            "py0 - r * k"
-           ],
-           "to": [
-            "tx1 + r",
-            "py0"
-           ]
-          }
-         },
-         {
-          "to": [
-           "ph",
-           "py0"
-          ]
-         },
-         {
-          "to": [
-           "ph",
-           "py1"
-          ]
-         },
-         {
-          "to": [
-           "th + r1",
-           "py1"
-          ]
-         },
-         {
-          "arc": {
-           "via": [
-            "th + r1 * k",
-            "py1 + r1 * k"
-           ],
-           "to": [
-            "th",
-            "py1 + r1"
-           ]
-          }
-         },
-         {
-          "to": [
-           "th",
-           "ty1"
-          ]
-         },
-         {
-          "to": [
-           "-th",
-           "ty1"
-          ]
-         },
-         {
-          "to": [
-           "-th",
-           "py1 + r1"
-          ]
-         },
-         {
-          "arc": {
-           "via": [
-            "-(th + r1 * k)",
-            "py1 + r1 * k"
-           ],
-           "to": [
-            "-(th + r1)",
-            "py1"
-           ]
-          }
-         },
-         {
-          "to": [
-           "-ph",
-           "py1"
-          ]
-         },
-         {
-          "to": [
-           "-ph",
-           "ty0"
-          ]
-         },
-         {
-          "to": [
-           "tx0",
-           "ty0"
-          ]
-         }
+        [
+         96,
+         -4
+        ],
+        [
+         96,
+         -19.5
+        ],
+        [
+         124.5,
+         -19.5
+        ],
+        [
+         124.5,
+         -8
+        ],
+        [
+         140.5,
+         -8
+        ],
+        [
+         140.5,
+         8
+        ],
+        [
+         124.5,
+         8
+        ],
+        [
+         124.5,
+         19.5
+        ],
+        [
+         96,
+         19.5
+        ],
+        [
+         96,
+         4
+        ],
+        [
+         83,
+         4
         ]
+       ]
+      },
+      {
+       "name": "channel",
+       "rect": {
+        "c": [
+         "(cy0 + cy1) / 2",
+         0
+        ],
+        "w": "cy1 - cy0",
+        "h": "2 * cz"
        }
       },
+      {
+       "name": "boltA",
+       "circle": {
+        "c": [
+         "by0",
+         "-bz"
+        ],
+        "r": "d_bolt / 2"
+       }
+      },
+      {
+       "name": "boltB",
+       "circle": {
+        "c": [
+         "by1",
+         "-bz"
+        ],
+        "r": "d_bolt / 2"
+       }
+      },
+      {
+       "name": "boltC",
+       "circle": {
+        "c": [
+         "by0",
+         "bz"
+        ],
+        "r": "d_bolt / 2"
+       }
+      },
+      {
+       "name": "boltD",
+       "circle": {
+        "c": [
+         "by1",
+         "bz"
+        ],
+        "r": "d_bolt / 2"
+       }
+      }
+     ]
+    },
+    {
+     "op": "extrude",
+     "id": "carrier",
+     "profile": "section",
+     "depth": "w"
+    },
+    {
+     "op": "sketch",
+     "id": "pinhole",
+     "plane": {
+      "base": "XY",
+      "offset": "-(tz + 3)"
+     },
+     "loops": [
       {
        "name": "pin",
        "circle": {
@@ -1230,78 +1141,27 @@
         ],
         "r": "d_pin / 2"
        }
-      },
-      {
-       "name": "cross",
-       "circle": {
-        "c": [
-         0,
-         "y_x"
-        ],
-        "r": "d_x / 2"
-       }
-      },
-      {
-       "name": "boltA",
-       "circle": {
-        "c": [
-         "-bx",
-         "yb - by"
-        ],
-        "r": "d_bolt / 2"
-       }
-      },
-      {
-       "name": "boltB",
-       "circle": {
-        "c": [
-         "bx",
-         "yb - by"
-        ],
-        "r": "d_bolt / 2"
-       }
-      },
-      {
-       "name": "boltC",
-       "circle": {
-        "c": [
-         "-bx",
-         "yb + by"
-        ],
-        "r": "d_bolt / 2"
-       }
-      },
-      {
-       "name": "boltD",
-       "circle": {
-        "c": [
-         "bx",
-         "yb + by"
-        ],
-        "r": "d_bolt / 2"
-       }
       }
      ]
     },
     {
      "op": "extrude",
-     "id": "slide",
-     "profile": "plan",
-     "depth": "t"
+     "id": "pincut",
+     "profile": "pinhole",
+     "depth": "2 * tz + 6",
+     "mode": "cut"
     }
    ]
   },
   "block": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "MGN9C linear block stand-in: 20 × 10 × 28.9 lying on the rail, with a channel over the rail, 2 mm above the rail’s mounting surface. Its four M3 on top face +Z here (in the slide). One extrude along +X.",
+   "_": "MGN9C linear block stand-in: 20 × 10 × 28.9, wrapping the rail with a 10 × 5 channel, its base 2 mm off the wall. Its four M3 face -Y, into the carrier’s flange. One extrude along +X.",
    "params": {
     "L": 28.9,
-    "y0": 108,
-    "y1": 128,
-    "z0": -14,
-    "z1": -6,
-    "yc": 118,
+    "y0": 98,
+    "y1": 108,
+    "w": 20,
     "cw": 10,
     "ch": 5
    },
@@ -1316,35 +1176,35 @@
        "polygon": [
         [
          "y0",
-         "z0"
-        ],
-        [
-         "yc - cw/2",
-         "z0"
-        ],
-        [
-         "yc - cw/2",
-         "z0 + ch"
-        ],
-        [
-         "yc + cw/2",
-         "z0 + ch"
-        ],
-        [
-         "yc + cw/2",
-         "z0"
+         "-w/2"
         ],
         [
          "y1",
-         "z0"
+         "-w/2"
         ],
         [
          "y1",
-         "z1"
+         "-cw/2"
+        ],
+        [
+         "y1 - ch",
+         "-cw/2"
+        ],
+        [
+         "y1 - ch",
+         "cw/2"
+        ],
+        [
+         "y1",
+         "cw/2"
+        ],
+        [
+         "y1",
+         "w/2"
         ],
         [
          "y0",
-         "z1"
+         "w/2"
         ]
        ]
       }
@@ -1361,13 +1221,13 @@
   "rail": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "MGN9 rail stand-in: 9 × 6.5 section, 104 long, lying on the bed with its centre line on the screw’s plane (its Ø3.5 mounting holes at 20 pitch are not modelled; the bed’s tapped holes are). One extrude along +X.",
+   "_": "MGN9 rail stand-in: 9 × 6.5 section on the inner face of the front wall’s strip, centred on z = 0. One segment each side of the screw’s journal bearing, from x0 to x1 (its own Ø3.5 counterbores are not modelled; the strip’s tapped holes are). One extrude along +X.",
    "params": {
     "w": 9,
     "h": 6.5,
-    "yc": 118,
-    "z0": -16,
-    "half": 52
+    "y0": 103.5,
+    "x0": 6.5,
+    "x1": 52
    },
    "features": [
     {
@@ -1375,18 +1235,18 @@
      "id": "section",
      "plane": {
       "base": "YZ",
-      "offset": "-half"
+      "offset": "x0"
      },
      "loops": [
       {
        "name": "outline",
        "rect": {
         "c": [
-         "yc",
-         "z0 + h/2"
+         "y0 + h/2",
+         0
         ],
-        "w": "w",
-        "h": "h"
+        "w": "h",
+        "h": "w"
        }
       }
      ]
@@ -1395,98 +1255,7 @@
      "op": "extrude",
      "id": "rail",
      "profile": "section",
-     "depth": "2 * half"
-    }
-   ]
-  },
-  "finger": {
-   "$schema": "com.minomobi.cad.tree#v1",
-   "units": "mm",
-   "_": "An example finger, reference only: a C that slips over the slide’s tenon, 22 tall, its jaw face 18 mm inboard of the block centre so the two jaws meet at x = 0 when closed. A real finger closes the pocket above and below the tenon and takes the Ø4 cross pin; it is the customer’s part. Local x 0 is the block centre, local y 0 the slide’s front face. One extrude along +Z.",
-   "params": {
-    "x0": -18,
-    "x1": 10,
-    "L": 34,
-    "hz": 11,
-    "pw": 16.2,
-    "pd": 10.2,
-    "y0": 133
-   },
-   "features": [
-    {
-     "op": "sketch",
-     "id": "plan",
-     "plane": {
-      "base": "XY",
-      "offset": "-hz"
-     },
-     "loops": [
-      {
-       "name": "jaw",
-       "path": {
-        "from": [
-         "x0",
-         "y0"
-        ],
-        "segs": [
-         {
-          "to": [
-           "-pw / 2",
-           "y0"
-          ]
-         },
-         {
-          "to": [
-           "-pw / 2",
-           "y0 + pd"
-          ]
-         },
-         {
-          "to": [
-           "pw / 2",
-           "y0 + pd"
-          ]
-         },
-         {
-          "to": [
-           "pw / 2",
-           "y0"
-          ]
-         },
-         {
-          "to": [
-           "x1",
-           "y0"
-          ]
-         },
-         {
-          "to": [
-           "x1",
-           "y0 + L"
-          ]
-         },
-         {
-          "to": [
-           "x0",
-           "y0 + L"
-          ]
-         },
-         {
-          "to": [
-           "x0",
-           "y0"
-          ]
-         }
-        ]
-       }
-      }
-     ]
-    },
-    {
-     "op": "extrude",
-     "id": "finger",
-     "profile": "plan",
-     "depth": "2 * hz"
+     "depth": "x1 - x0"
     }
    ]
   },
@@ -1497,7 +1266,7 @@
    "params": {
     "t": 4,
     "y0": 8,
-    "y1": 98,
+    "y1": 110,
     "z0": -23,
     "z1": 23
    },
@@ -1531,17 +1300,13 @@
   "floor": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Floor plate, from the rear plate to the front wall’s outer face (the bed sits on it and passes under the wall), tapped M3 for the bed’s four bolts. One extrude along +Z.",
+   "_": "Floor plate, from the rear plate to the front wall’s outer face (the wall stands on it). Its top face is the carriage’s way. One extrude along +Z.",
    "params": {
-    "w": 96,
+    "w": 112,
     "y0": 8,
-    "y1": 104,
+    "y1": 116,
     "t": 4,
-    "z0": -27,
-    "bx": 40,
-    "by0": 50,
-    "by1": 95,
-    "d_tap": 2.5
+    "z0": -27
    },
    "features": [
     {
@@ -1562,46 +1327,6 @@
         "w": "w",
         "h": "y1 - y0"
        }
-      },
-      {
-       "name": "tapA",
-       "circle": {
-        "c": [
-         "-bx",
-         "by0"
-        ],
-        "r": "d_tap / 2"
-       }
-      },
-      {
-       "name": "tapB",
-       "circle": {
-        "c": [
-         "bx",
-         "by0"
-        ],
-        "r": "d_tap / 2"
-       }
-      },
-      {
-       "name": "tapC",
-       "circle": {
-        "c": [
-         "-bx",
-         "by1"
-        ],
-        "r": "d_tap / 2"
-       }
-      },
-      {
-       "name": "tapD",
-       "circle": {
-        "c": [
-         "bx",
-         "by1"
-        ],
-        "r": "d_tap / 2"
-       }
       }
      ]
     },
@@ -1618,14 +1343,14 @@
    "units": "mm",
    "_": "Lid, with an access window over the linkage. One extrude along +Z.",
    "params": {
-    "w": 96,
+    "w": 112,
     "y0": 8,
-    "y1": 98,
+    "y1": 110,
     "t": 4,
     "z0": 23,
-    "win_w": 72,
-    "win_y0": 55.675106837823634,
-    "win_y1": 90
+    "win_w": 88,
+    "win_y0": 54.21240608354475,
+    "win_y1": 102
    },
    "features": [
     {
@@ -1701,7 +1426,7 @@
    "id": "wall",
    "part": "side-wall",
    "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * 44 - (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2 * 4",
+    "(1 - 2 * (i - 2 * floor(i / 2))) * 52 - (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2 * 4",
     0,
     0
    ],
@@ -1726,15 +1451,6 @@
    ]
   },
   {
-   "id": "bed",
-   "part": "bed",
-   "at": [
-    0,
-    0,
-    0
-   ]
-  },
-  {
    "id": "motor",
    "part": "motor",
    "at": [
@@ -1748,20 +1464,20 @@
    "assembly": {
     "_": "The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement. The screw is the driven component; the collar is fixed to it.",
     "params": {
-     "ynOpen": 61.6751,
-     "ynClosed": 75.6307,
+     "ynOpen": 60.2124,
+     "ynClosed": 70.3475,
      "lead": 2
     },
     "parts": {
      "screw": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face, turned down to a Ø6 journal for the last 8 mm, ending 1 mm inside the front wall’s outer face so nothing touches the rail bed; the thread is not modelled. One revolve about local Z, placed along +Y.",
+      "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face, turned down to a Ø6 journal for the last 8 mm, which runs in the front wall’s strip between the two rail segments; the thread is not modelled. One revolve about local Z, placed along +Y.",
       "params": {
        "d": 8,
        "dj": 6,
        "lj": 8,
-       "L": 67
+       "L": 79
       },
       "features": [
        {
@@ -1955,6 +1671,48 @@
    }
   },
   {
+   "id": "rail",
+   "part": "rail",
+   "at": [
+    0,
+    0,
+    0
+   ],
+   "repeat": 2,
+   "params": {
+    "x0": "(1 - 2 * (i - 2 * floor(i / 2))) * 6.5 - (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2 * 45.5",
+    "x1": "(1 - 2 * (i - 2 * floor(i / 2))) * 6.5 + (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2 * 45.5"
+   }
+  },
+  {
+   "id": "block",
+   "part": "block",
+   "at": [
+    "(1 - 2 * (i - 2 * floor(i / 2))) * xf - 14.45",
+    0,
+    0
+   ],
+   "repeat": 2
+  },
+  {
+   "id": "carrier",
+   "part": "carrier",
+   "at": [
+    "(1 - 2 * (i - 2 * floor(i / 2))) * xf",
+    0,
+    0
+   ],
+   "repeat": 2,
+   "rotate": {
+    "axis": [
+     0,
+     1,
+     0
+    ],
+    "deg": "90 * (1 - (1 - 2 * (i - 2 * floor(i / 2))))"
+   }
+  },
+  {
    "id": "arm-pin",
    "part": "pin",
    "repeat": 2,
@@ -1965,21 +1723,27 @@
    "offset": [
     0,
     0,
-    "-pinDropArm"
+    "-8"
+   ]
+  },
+  {
+   "id": "jaw-pin",
+   "part": "pin",
+   "repeat": 2,
+   "at": [
+    "(1 - 2 * (i - 2 * floor(i / 2))) * xp",
+    "yf",
+    -12
    ]
   },
   {
    "id": "spacer",
    "part": "spacer",
-   "repeat": 4,
-   "at": "@arm[floor(i / 2)].pivot[0]",
-   "rotate": {
-    "align": "@arm[floor(i / 2)].pivot[0]"
-   },
-   "offset": [
-    0,
-    0,
-    "-spacerL + (armT + spacerL) * (i - 2 * floor(i / 2))"
+   "repeat": 8,
+   "at": [
+    "(1 - 2 * floor((i - 4 * floor(i / 4)) / 2)) * (px * (1 - floor(i / 4)) + xp * floor(i / 4))",
+    "(yn + py) * (1 - floor(i / 4)) + yf * floor(i / 4)",
+    "-12 + 23 * (i - 2 * floor(i / 2))"
    ]
   },
   {
@@ -2008,76 +1772,6 @@
    "rotate": {
     "align": "@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]"
    }
-  },
-  {
-   "id": "rail",
-   "part": "rail",
-   "at": [
-    0,
-    0,
-    0
-   ]
-  },
-  {
-   "id": "block",
-   "part": "block",
-   "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * xf - blockL / 2",
-    0,
-    0
-   ],
-   "repeat": 2
-  },
-  {
-   "id": "slide",
-   "part": "slide",
-   "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * xf",
-    0,
-    0
-   ],
-   "repeat": 2,
-   "rotate": {
-    "axis": [
-     0,
-     1,
-     0
-    ],
-    "deg": "90 * (1 - (1 - 2 * (i - 2 * floor(i / 2))))"
-   }
-  },
-  {
-   "id": "slide-pin",
-   "part": "pin",
-   "repeat": 2,
-   "at": "@slide[i].pin[0]",
-   "rotate": {
-    "align": "@slide[i].pin[0]"
-   },
-   "offset": [
-    0,
-    0,
-    "-pinDropSlide"
-   ]
-  },
-  {
-   "id": "finger",
-   "part": "finger",
-   "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * xf",
-    0,
-    0
-   ],
-   "repeat": 2,
-   "rotate": {
-    "axis": [
-     0,
-     1,
-     0
-    ],
-    "deg": "90 * (1 - (1 - 2 * (i - 2 * floor(i / 2))))"
-   },
-   "reference": true
   }
  ],
  "mates": [
@@ -2115,13 +1809,13 @@
   },
   {
    "kind": "fixed",
-   "a": "slide-pin[0]",
-   "b": "slide[0]"
+   "a": "jaw-pin[0]",
+   "b": "carrier[0]"
   },
   {
    "kind": "fixed",
-   "a": "slide-pin[1]",
-   "b": "slide[1]"
+   "a": "jaw-pin[1]",
+   "b": "carrier[1]"
   },
   {
    "kind": "fixed",
@@ -2165,53 +1859,23 @@
   },
   {
    "kind": "fixed",
-   "a": "slide[0]",
+   "a": "carrier[0]",
    "b": "block[0]"
   },
   {
    "kind": "fixed",
-   "a": "slide[1]",
+   "a": "carrier[1]",
    "b": "block[1]"
   },
   {
    "kind": "fixed",
-   "a": "finger[0]",
-   "b": "slide[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "finger[1]",
-   "b": "slide[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "rail",
-   "b": "bed"
-  },
-  {
-   "kind": "fixed",
-   "a": "bed",
-   "b": "floor"
-  },
-  {
-   "kind": "fixed",
-   "a": "bed",
-   "b": "wall[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bed",
-   "b": "wall[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bed",
+   "a": "rail[0]",
    "b": "front-wall"
   },
   {
    "kind": "fixed",
-   "a": "bed",
-   "b": "bulkhead"
+   "a": "rail[1]",
+   "b": "front-wall"
   },
   {
    "kind": "fixed",

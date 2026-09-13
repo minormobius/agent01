@@ -1,16 +1,16 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Pivot arm: an 8 mm plate on the mid-plane, keyed into the carriage’s through-slot (4 mm of it), reaching to 0.2 mm from the side wall, carrying the link pivot pin at x 36, 4 mm ahead of the carriage centre. Two per gripper (side = 1 right, -1 left); a set screw holds it in the slot (not modelled). Local origin at the carriage centre. One extrude along +Z.",
+ "_": "Pivot arm: an 8 mm plate on the mid-plane, keyed into the carriage’s through-slot (4 mm of it), reaching to 0.2 mm from the side wall, carrying the link pivot pin at x 38, 4 mm ahead of the carriage centre. Two per gripper (side = 1 right, -1 left); a set screw holds it in the slot (not modelled). Local origin at the carriage centre. One extrude along +Z.",
  "params": {
   "side": 1,
   "x0": 9.1,
-  "x1": 43.8,
+  "x1": 51.8,
   "t": 8,
   "z0": -4,
   "y0": -9,
   "y1": 9,
-  "px": 36,
+  "px": 38,
   "py": 4,
   "d_pin": 4
  },

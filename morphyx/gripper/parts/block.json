@@ -1,14 +1,12 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "MGN9C linear block stand-in: 20 × 10 × 28.9 lying on the rail, with a channel over the rail, 2 mm above the rail’s mounting surface. Its four M3 on top face +Z here (in the slide). One extrude along +X.",
+ "_": "MGN9C linear block stand-in: 20 × 10 × 28.9, wrapping the rail with a 10 × 5 channel, its base 2 mm off the wall. Its four M3 face -Y, into the carrier’s flange. One extrude along +X.",
  "params": {
   "L": 28.9,
-  "y0": 108,
-  "y1": 128,
-  "z0": -14,
-  "z1": -6,
-  "yc": 118,
+  "y0": 98,
+  "y1": 108,
+  "w": 20,
   "cw": 10,
   "ch": 5
  },
@@ -23,35 +21,35 @@
      "polygon": [
       [
        "y0",
-       "z0"
-      ],
-      [
-       "yc - cw/2",
-       "z0"
-      ],
-      [
-       "yc - cw/2",
-       "z0 + ch"
-      ],
-      [
-       "yc + cw/2",
-       "z0 + ch"
-      ],
-      [
-       "yc + cw/2",
-       "z0"
+       "-w/2"
       ],
       [
        "y1",
-       "z0"
+       "-w/2"
       ],
       [
        "y1",
-       "z1"
+       "-cw/2"
+      ],
+      [
+       "y1 - ch",
+       "-cw/2"
+      ],
+      [
+       "y1 - ch",
+       "cw/2"
+      ],
+      [
+       "y1",
+       "cw/2"
+      ],
+      [
+       "y1",
+       "w/2"
       ],
       [
        "y0",
-       "z1"
+       "w/2"
       ]
      ]
     }

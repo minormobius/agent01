@@ -1,12 +1,12 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face, turned down to a Ø6 journal for the last 8 mm, ending 1 mm inside the front wall’s outer face so nothing touches the rail bed; the thread is not modelled. One revolve about local Z, placed along +Y.",
+ "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face, turned down to a Ø6 journal for the last 8 mm, which runs in the front wall’s strip between the two rail segments; the thread is not modelled. One revolve about local Z, placed along +Y.",
  "params": {
   "d": 8,
   "dj": 6,
   "lj": 8,
-  "L": 67
+  "L": 79
  },
  "features": [
   {

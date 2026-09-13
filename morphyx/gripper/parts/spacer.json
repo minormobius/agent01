@@ -1,10 +1,10 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Spacer sleeve: Ø6 × 3 with a Ø4.1 bore, between an arm face and a link on each arm pin (the slide is thick enough to reach its links itself). Four per gripper. One revolve about local Z.",
+ "_": "Spacer washer: Ø6 × 1 with a Ø4.1 bore, between a pin’s host (an arm, or the carrier’s tongue) and its link. Eight per gripper. One revolve about local Z.",
  "params": {
   "D": 6,
-  "L": 3,
+  "L": 1,
   "d": 4.1
  },
  "features": [

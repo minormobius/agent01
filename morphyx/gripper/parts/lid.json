@@ -3,14 +3,14 @@
  "units": "mm",
  "_": "Lid, with an access window over the linkage. One extrude along +Z.",
  "params": {
-  "w": 96,
+  "w": 112,
   "y0": 8,
-  "y1": 98,
+  "y1": 110,
   "t": 4,
   "z0": 23,
-  "win_w": 72,
-  "win_y0": 55.675106837823634,
-  "win_y1": 90
+  "win_w": 88,
+  "win_y0": 54.21240608354475,
+  "win_y1": 102
  },
  "features": [
   {

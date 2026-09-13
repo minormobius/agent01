@@ -1,18 +1,19 @@
 # gripper — a parallel-jaw robot gripper for cad.mino.mobi
 
-Version 5: coaxial. An ISO 9409-1-50-4-M6 tool flange is the rear plate of
-a 96 × 54 × 104 mm case. Inside: a NEMA 17 pancake stepper with an integrated
-Tr8×2 lead screw, a flange nut in a carriage that the housing itself aligns,
-two pivot arms keyed into the carriage, and four 27 mm links on bronze
-bushings, one above and one below the mid-plane. Outside: one MGN9 rail
-lying flat on a bed just beyond the screw's far bearing, a block each side,
-and on each block a one-piece finger slide that runs back through the front
-wall to the links and forward to a 16 × 12 tenon the customer's finger
-mounts on. The screw axis, the flange centre, the rail's centre line, the
-links' plane of symmetry and the tenons share one line. Nut forward closes.
-Opening 36 → 0 mm in 7 turns. Twenty-one parts, two documents, every part
-one sweep. Versions 1 to 4 are the earlier revisions of the same files;
-their retired parts live under `gripper/v1/` … `gripper/v4/`.
+Version 6: the guide comes inside. An ISO 9409-1-50-4-M6 tool flange is the
+rear plate of a 112 × 54 × 116 mm case. Inside: a NEMA 17 pancake stepper
+with an integrated Tr8×2 lead screw, a flange nut in a carriage riding on
+the floor, two pivot arms keyed into it, and four 27 mm links on bronze
+bushings, one above and one below the mid-plane. The front wall is a
+slotted plate: the strip across its middle carries two MGN9 rail segments
+on its **inner** face, and a long slot runs above and below that strip.
+Each jaw carrier is one part — it wraps the rail and its block, passes two
+feet out through the slots, runs back behind the block as a tongue that
+takes the link pin, and ends outside in a tenon with four M4 cross holes.
+Fingers are the customer's and are not modelled. Nut forward closes; the
+mount centres run 44 → 72 mm apart in 5 turns. Nineteen parts, two
+documents. Versions 1 to 5 are the earlier revisions of the same files;
+their retired parts live under `gripper/v1/` … `gripper/v5/`.
 
 This directory is the source. The published copy lives in the morphyx repo as
 `cad.mino.mobi` files (`gripper/parts/<name>`, `gripper/assembly`,
@@ -24,9 +25,9 @@ the tangled mirror.
 | | |
 |---|---|
 | `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment audit, the clearance audit, closed forms. `node gripper.mjs` writes `parts/`, `gripper.json`, `gripper-stroke.json`, `expected.json` |
-| `parts/*.json` | the twenty-one part trees, as generated |
+| `parts/*.json` | the nineteen part trees, as generated |
 | `gripper.json` | the demo cycle: a reference clock drives a cosine, so the viewer's spin closes and opens once per turn; parts inline — paste into the tree tab and press spin |
-| `gripper-stroke.json` | the physical stroke: the screw is driven at rpm, a `screw` mate carries the carriage and the nut by the lead, the links follow the screw angle; one stroke open → closed in 83.7 s at 5 rpm |
+| `gripper-stroke.json` | the physical stroke: the screw is driven at rpm, a `screw` mate carries the carriage and the nut by the lead, the links follow the screw angle; one stroke open → closed in 60.8 s at 5 rpm |
 | `expected.json` | closed-form volumes for every part |
 | `publish.mjs` | writes parts then both assemblies (`gripper/assembly`, `gripper/stroke`; parts pinned to revision URIs) into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
 | `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 24-instant interference sweep of both documents (the gate), the clearance table (for the record), publish on request, then audit the published corpus |
@@ -67,55 +68,48 @@ the tangled mirror.
   the designer's own repo; anyone opens by AT URI and forks with lineage.
 - **Report what `watertight` and χ say, not what the picture looks like.**
 
-## Why v5: coaxial, and one part where the load goes
+## Why v6: the guide inside, and a finger mount that can take a moment
 
-v4 put the linear guide 16 mm above the screw axis and the carriage rods
-8 mm below it. Every grip force then made a couple between the guide plane
-and the drive plane — 1.9 N·m into the rods at 120 N of thrust — and the
-finger was three parts (two tabs and a carrier) meeting at square corners.
-v5:
+v5 put the rail on a bed outside the front wall. It worked and it was
+coaxial, but the guide was exposed, the carriers had to reach back through
+the wall to find the linkage, and the finger mount was a tenon with one
+cross pin — a single fastener under the largest moment in the machine. v6:
 
-1. **No skew between the screw and the centre of grip.** The rail lies
-   flat on a bed just beyond the screw's far bearing, its centre line on
-   z = 0. The finger slides are 12 mm plates in that same plane; the links
-   sit one above and one below it; the arms' pivots and the slides' pins are
-   on it; the flange is centred on it. Roll and pitch on the block are zero
-   by construction, the carriage sees thrust and the screw's friction
-   torque and nothing else, and the yaw couple on the block is the one the
-   customer's finger length sets (4.0 N·m at a 60 N grip with the tip 73 mm
-   ahead of the pin).
-2. **The internal rods are gone; the housing aligns the carriage.** The bed
-   is one machined plate: inside the case its top guides the carriage's
-   26 mm skid, outside it seats the rail (five M3 at 20 pitch). The
-   carriage's arms reach to 0.2 mm from the side walls. Screw, carriage and
-   rail are referenced to one surface. The screw's friction torque, 0.16 N·m,
-   is reacted at the arm tips as 1.8 N.
-3. **The part that joins the linkage to the rail is one part.** The slide's
-   tang (14 × 12) carries the link pin 6 mm inboard of the block centre and
-   runs through the front wall; over the block it widens to 24 and takes the
-   block's four M3 from above; the tang-to-plate corner is a 3 mm fillet
-   and the plate over the block is the cross member the corner needed. The
-   fillet lives outside the wall: the first build put it 3 mm inside and the
-   server's clearance table found it at the open end of the stroke.
-4. **Fingers are the customer's; the slide offers a male mount.** A 16 × 12
-   tenon, 10 mm proud of the slide's front face, with a Ø4.1 cross-pin hole
-   and 1.5 mm root fillets. A finger carries the female pocket and the cross
-   pin; the plate's front face is its datum. An example finger (a C over the
-   tenon, jaw 18 mm inboard of the block centre so the jaws meet at x = 0) is
-   in both documents as a `reference` component: drawn translucent, left out
-   of every check, there to show the grip line.
-5. **What pivots cost is unchanged:** the force ratio follows the link angle.
+1. **The front wall is the slotted plate.** Two long slots, one above and
+   one below a central strip; the strip carries the rail on its inner face
+   and the screw's journal bearing between the two rail segments. The
+   guide, the blocks and the whole linkage are inside the case. The only
+   openings are the two slots a carrier's feet sweep along.
+2. **Each jaw carrier is one part, and it is the whole moment path.** Its
+   section wraps the rail, the block and the strip; two feet pass out
+   through the slots; outside it closes into a web and a tenon. Nothing in
+   the path from the finger to the ball guide is a joint.
+3. **The carrier points back up the case to the motor.** Behind the block
+   the same section runs on as a tongue on the mid-plane, carrying the Ø4
+   link pin between a link above and a link below. The linkage never leaves
+   the case and never leaves the plane of the screw.
+4. **Four holes at the finger mount, not one.** A 16 × 16 tenon stands
+   16 mm proud of the web with four M4 cross holes on an 8 × 10 rectangle.
+   The tenon locates the finger and takes the shear; the four bolts take
+   the couple, 8 mm apart in a pattern, in double shear. At a 60 N grip on
+   a jaw 67 mm ahead of the block that couple is 4 N·m and each bolt sees
+   about 250 N — a working number for M4, where one cross pin was not.
+5. **No fingers in the assembly.** They are the customer's part. Both
+   documents end at the tenon.
 
-| object width | link angle from the screw | finger force at 120 N thrust |
+What it costs: the case is 16 mm wider, because the carriers and their
+rails now live inside it and have to clear the screw's bearing at the
+centre. The jaws start 44 mm apart rather than touching, so a finger
+reaches inward — which is what a finger is for. And the link angle at
+closed is shallower than v5's, so the grip force at the mount is lower:
+
+| mount travel from closed | link angle from the screw | force at the mount, 120 N thrust |
 |---|---|---|
-| 0 (closed) | 62.7° | 116 N |
-| 10 mm | 44.7° | 59 N |
-| 20 mm | 31.2° | 36 N |
-| 30 mm | 19.5° | 21 N |
-| 36 mm (open) | 12.8° | 14 N |
+| 0 (closed) | 55.6° | 87 N |
+| 7 mm | 42.5° | 55 N |
+| 14 mm (open) | 16.5° | 18 N |
 
-`forces()` and `moments()` in `gripper.mjs` print these; the v4 rod couple
-is kept in the moments table for the record.
+`forces()` and `moments()` in `gripper.mjs` print these.
 
 ## The mechanism
 
@@ -124,16 +118,17 @@ the fingers), Z up. The screw axis is the line x = 0, z = 0; y = 0 is the
 flange face. The tool centre line is the screw axis.
 
 ```
-  y=0     rear plate = ISO 9409-1-50-4-M6 flange: 4 × Ø6.6 on PCD 50, Ø6 dowel, Ø32 boss hole, centred on the axis
-  14–36   NEMA 17 pancake, Tr8×2 shaft; bulkhead 36–42 takes its pilot and 4 × M3
-  42–46   thrust collar Ø14 on the screw, against the bulkhead's front face
-  43–129  the bed, z −23–−16, on the floor (4 × M3): carriage skid inside, rail seat outside
-  62–76   carriage centre stroke (open → closed), 18 long: skid z −15.8–−14, waist ±14.5 at z ±6 with a 4 × 8.2 slot each side, bosses ±9 to z ±11
-  yn+4    arm pivot pins at x ±36, z ±13, through the arms (z ±4, keyed in the slots, tips at x ±43.8) and a 3 mm spacer each side
-  ±7–13   links, 27 mm, from the arm pins to the slide pins at (±xp, 92)
-  86–133  finger slides, z ±6: tang 14 wide from y 86 through the wall slot, plate 24 wide over the block, tenon 16 × 12 from 133 to 143
-  95–103  screw journal Ø6; front wall 98–104, 104 wide, standing on the bed: bearing Ø6.2, a slot each side (z ±6.2, x 5.5–38.5)
-  108–128 MGN9 blocks on the rail (y 113.5–122.5, z −16–−9.5), block tops at z −6 under the slides
+  y=0      rear plate = ISO 9409-1-50-4-M6 flange: 4 × Ø6.6 on PCD 50, Ø6 dowel, Ø32 boss hole, on the axis
+  14–36    NEMA 17 pancake, Tr8×2 shaft; bulkhead 36–42 takes its pilot and 4 × M3
+  42–46    thrust collar Ø14 on the screw, against the bulkhead's front face
+  60–72    carriage centre stroke (open → closed), 18 long, skid on the floor at z −22.8, arms' tips at x ±51.8
+  yn+4     arm pivot pins at x ±38, z ±12; links 27 mm to the carrier pins at (±xp, 90)
+  83–96    carrier tongue, z ±4, Ø4 pin at y 90 — the links straddle it, z ±(5…11)
+  96–98    carrier flange: the block's backstop, bolted to it
+  98–108   MGN9C block, wrapping the rail, inside the carrier's channel
+  103.5–110 MGN9 rail segments on the strip's inner face, x 6.5…52 each side of the Ø6.2 journal bearing
+  110–116  front wall, 112 wide: the strip at z ±10.1, a slot each side at z ±(10.1…19.9), x 5.5…52.5
+  116.5–124.5 carrier web, outside; 124.5–140.5 the tenon, 16 × 16, four M4 at 8 × 10
 ```
 
 Two documents, one set of parts. **`gripper.json`** is the demo cycle: the
@@ -142,11 +137,12 @@ every check), one turn is one grip cycle of 12 s, and everything else is
 derived:
 
 ```
-spin = 360 · (ynClosed − ynOpen)/lead · (1 − cos θ)/2    screw angle: 0 → 7 turns → 0
-yn   = ynOpen + lead · spin/360                           carriage centre, 61.7 → 75.6 → 61.7
+spin = 360 · (ynClosed − ynOpen)/lead · (1 − cos θ)/2    screw angle: 0 → 5.07 turns → 0
+yn   = ynOpen + lead · spin/360                           carriage centre, 63.0 → 73.1 → 63.0
 dy   = yf − py − yn                                       link reach along Y
 x    = √(L² − dy²)                                        link reach along X
-xp   = px − x                                             finger pivot x, 30 → 12 → 30; opening = 2(xp − 12)
+xp   = px − x                                             carrier pin x, 30 → 16 → 30
+xf   = xp + inset                                         carrier centre, 6 mm outboard of its pin
 phi  = atan2(dy, −x)                                      right link angle
 ```
 
@@ -154,144 +150,148 @@ phi  = atan2(dy, −x)                                      right link angle
 component at 5 rpm, a `screw` mate (`lead`, axis +Y) carries the carriage
 2 mm per turn, a second one along the nut's own +z carries the nut, `fixed`
 mates carry the arms, and `yn = ynOpen + lead · θ/360` puts the links and
-slides where the mate puts the carriage. One stroke is 7 turns, 83.7 s;
-sweep with that period. Beyond it the nut runs on, as it would.
+carriers where the mate puts the carriage. One stroke is 5.07 turns,
+60.8 s; sweep with that period.
 
-Both use `repeat` and placement by feature: `link` is one component
-repeated four times with `i` choosing side and level, the eight bushings
-sit on `@link[floor(i/2)].eye[i − 2·floor(i/2)][0]`, the arm pins and the
-four spacers on `@arm[i].pivot[0]` with an `offset`, the slide pins on
-`@slide[i].pin[0]`, and each follows its host through the motion. The left
-slide and the left example finger are the right-hand parts turned 180°
-about Y (`rotate.deg = 90 · (1 − side)`): both are symmetric about z = 0,
-and a pin placed on the turned slide's hole aligns to its axis, which now
-points −Z, and comes out in the same place.
+Placement is by feature where the faces are named: the eight bushings sit
+on `@link[floor(i/2)].eye[i − 2·floor(i/2)][0]` and the arm pins on
+`@arm[i].pivot[0]` with an `offset`, and each follows its host through the
+motion. The carrier is the exception — its pin hole is a cut, which drops
+its face names — so the jaw pins are placed by expression. The left
+carrier is the right one turned 180° about Y; its section is symmetric
+about z = 0, so that is a pure mirror in x.
 
-| finger pivot x | block x | nut y | link angle | opening |
+| carrier pin x | carrier centre | nut y | link angle | mount centres |
 |---|---|---|---|---|
-| 12 (closed) | 18 | 75.6 | 62.7° | 0 |
-| 21 | 27 | 65.6 | 33.7° | 18 |
-| 30 (open) | 36 | 61.7 | 12.8° | 36 |
+| 16 (closed) | 22 | 73.1 | 55.6° | 44 |
+| 23 | 29 | 68.5 | 42.5° | 58 |
+| 30 (open) | 36 | 63.0 | 16.5° | 72 |
 
 ## The parts
 
-Every part builds exact on Truck, watertight, every face named (verified
-through `/mcp` for all twenty-one, and again for the slide, bed and finger
-after the fillet moved).
+Every part builds exact on Truck and watertight; every part but the
+carrier has named faces.
 
 | part | sweep | key faces | holds |
 |---|---|---|---|
-| rear-flange | XZ extrude, 96 × 54 × 8 | `plate.bolt[k][j]` Ø6.6 PCD 50, `plate.dowel[k]`, `plate.boss[k]` | the robot |
-| floor | XY extrude, 96 × 96 × 4 | `floor.tapA–D[k]` Ø2.5 | the box, the bed |
-| lid | XY extrude, 96 × 90 × 4 | `lid.window[k]` | the box |
-| side-wall (×2) | YZ extrude, 90 × 46 × 4, plain | — | the box |
-| bulkhead | XZ extrude, 87 × 45 × 6 | `plate.pilot[k]`, `plate.bolt[k][j]` | motor, collar |
-| front-wall | XZ extrude, 104 × 43 × 6, on the bed | `plate.bore[k]` Ø6.2, `plate.slotR/L[k]` 33 × 12.4 | screw journal; the slides pass |
-| bed | XY extrude, 7 thick, 87.6 wide inside, 104 outside, y 43–129 | `bed.tap[k][j]` Ø2.5 × 5, `bed.boltA–D[k]` Ø3.4, `bed.windowR/L[k]` | the rail; guides the carriage |
+| rear-flange | XZ extrude, 112 × 54 × 8 | `plate.bolt[k][j]` Ø6.6 PCD 50, `plate.dowel[k]`, `plate.boss[k]` | the robot |
+| floor | XY extrude, 112 × 108 × 4 | `floor.outline[k]` | the box; its top is the carriage's way |
+| lid | XY extrude, 112 × 102 × 4 | `lid.window[k]` | the box |
+| side-wall (×2) | YZ extrude, 102 × 46 × 4, plain | — | the box |
+| bulkhead | XZ extrude, 103 × 45 × 6 | `plate.pilot[k]`, `plate.bolt[k][j]` | motor, collar |
+| front-wall | XZ extrude, 112 × 50 × 6 | `plate.bore[k]` Ø6.2, `plate.slotRlo/Rhi/Llo/Lhi[k]` 47 × 9.8, `plate.tapA–F[k]` | the rail, the journal; the carriers pass |
 | motor | XZ extrude, 42.3 square, 22 long | — | stand-in; its shaft is the screw |
-| screw | revolve, Ø8 × 59 with a Ø6 × 8 journal | — | thread not modelled |
+| screw | revolve, Ø8 × 63 with a Ø6 × 8 journal | — | thread not modelled |
 | collar | revolve, Ø14 × 4, Ø8 bore | — | thrust into the bulkhead |
 | nut | revolve, Ø22 flange, Ø10 body, Ø8.4 bore | — | thread clearance 0.2 |
-| carriage | XZ extrude, 18 long: skid 26, waist 29, bosses 18 | `carriage.bore[k]` Ø10.2, `carriage.bolt[k][j]`, `carriage.slotR/L[k]` 4 × 8.2 | nut, arms |
-| arm (×2) | XY extrude, 34.7 × 18 × 8 | `arm.pivot[k]` Ø4 | `side: -1` mirrors; the arm pins |
-| link (×4) | XY extrude, 27 dog-bone, 10 wide, 6 thick, Ø6 eyes | `link.eye[k][j]` | bushings |
+| carriage | XZ extrude, 18 long: skid 26, waist 29, bosses 18 | `carriage.bore[k]` Ø10.2, `carriage.bolt[k][j]`, `carriage.slotR/L[k]` | nut, arms |
+| arm (×2) | XY extrude, 42.7 × 18 × 8 | `arm.pivot[k]` Ø4 | `side: -1` mirrors; the arm pins |
+| link (×4) | XY extrude, 27 dog-bone, 10 wide, 6 thick | `link.eye[k][j]` | bushings |
 | bushing (×8) | revolve, Ø6 × 6, Ø4.1 bore | — | bronze; press in the eye, runs on the pin |
-| spacer (×4) | revolve, Ø6 × 3, Ø4.1 bore | — | between each arm face and its link |
-| pin (×4) | extrude circle Ø4 × 26 | `pin.od[k]` | press in arm or slide, two links each |
-| slide (×2) | XY extrude, 12 thick, one sketch: tang 14 wide, plate 24 wide, tenon 16 wide | `slide.pin[0]` Ø4, `slide.boltA–D[0]` Ø3.4 on 10 × 15, `slide.cross[0]` Ø4.1, `slide.outline[k]` | block, links, the finger |
-| block (×2) | YZ extrude, MGN9C stand-in 20 × 8 × 28.9 with a channel | — | purchased |
-| rail | YZ extrude, MGN9 stand-in 9 × 6.5 × 104 | `rail.outline[k]` | purchased; its holes not modelled, the bed's are |
-| finger (×2, reference) | XY extrude, 28 × 34 × 22, a C 16.2 × 10.2 | `finger.jaw[7]` the jaw face | the customer's part, stood in for |
+| spacer (×8) | revolve, Ø6 × 1, Ø4.1 bore | — | between each pin's host and its link |
+| pin (×4) | extrude circle Ø4 × 24 | `pin.od[k]` | press in an arm or a tongue; two links each |
+| **carrier (×2)** | **YZ extrude along X, 30 wide, + one Ø4 cut along Z** | unnamed — the cut drops them | the block, the links, the finger |
+| block (×2) | YZ extrude, MGN9C stand-in 20 × 10 × 28.9 with a channel | — | purchased |
+| rail (×2) | YZ extrude, MGN9 stand-in 9 × 6.5 × 45.5 | `rail.outline[k]` | purchased; one segment each side |
 
-Closed forms: block, finger, floor, lid, motor, rail and side-wall 0.000 %,
-front-wall 0.001 %, collar 0.004 %, bed 0.006 %, arm 0.008 %, bulkhead
-0.011 %, rear-flange 0.014 %, link 0.017 %, nut 0.028 %, slide 0.036 %,
-carriage 0.086 %, screw 0.24 %, bushing and spacer 0.29 %, pin 0.38 %
-(chord error of thin cylinders; the pin's tolerance is 0.4 %).
+Closed forms: block, floor, lid, motor, rail and side-wall 0.000 %,
+collar 0.004 %, arm and front-wall 0.006 %, bulkhead 0.009 %, rear-flange
+0.012 %, carrier 0.016 %, link 0.017 %, nut 0.028 %, carriage 0.067 %,
+screw 0.23 %, bushing and spacer 0.29 %, pin 0.38 % (chord error of thin
+cylinders).
 
 ## Fits and what is not modelled
 
 - Running: pins Ø4 in Ø4.1 bushings; nut Ø10 in Ø10.2; screw Ø8 in the
   Ø8.4 nut and the Ø6 journal in the Ø6.2 bearing; boss Ø22 in the Ø22.5
-  pilot; block 2 mm above the rail's mounting surface; arms 0.1 in their
-  slots, 0.2 from the walls; carriage skid 0.2 above the bed; slides 0.2
-  in the wall slots; links 1 mm from the slides and the carriage waist.
+  pilot; block 2 mm off the wall on the rail; block 0.5 mm inside the
+  carrier's channel; carrier feet 0.4 mm inside the wall slots; arms 0.1
+  in their carriage slots, 0.2 from the walls; carriage skid 0.2 above the
+  floor; links 1 mm from the arms and the tongue, on spacers.
 - Fixed (press, keyed, or a fastener that is not drawn): bushings in link
-  eyes, pins in slides and arms (retaining clips), arms in the carriage
-  slots (set screw), slides on blocks (4 × M3 from above), rail on the bed
-  (5 × M3), bed on the floor (4 × M3), the front wall on the bed, the six
-  case plates to each other, motor to bulkhead, nut flange to carriage,
-  the example fingers on the tenons (cross pin).
-- Bronze or PTFE on the bed under the skid and the thrust washer are not
-  modelled. The carriage is 3.9 mm thick beside the bore at the waist.
-- Link pins carry ~260 N each at closed (both links); a Ø4 hardened dowel
-  in 6 mm bushings, supported at both ends, is comfortable. Link bending is
-  in-plane.
+  eyes, pins in tongues and arms (retaining clips), arms in the carriage
+  slots (set screw), rail segments on the strip (M3 at 20 pitch, tapped
+  holes drawn), the case plates to each other, motor to bulkhead, nut
+  flange to carriage.
+- **The carrier-to-block bolts are the one joint not drawn**: four M3 along
+  Y through the carrier's flange into the block's own tapped face. The
+  carrier's section is swept along X, so holes along Y cannot be part of
+  that sweep, and a second cut for them costs the part its watertightness.
+  The flange backstops the block and the channel captures it in z, so the
+  bolts clamp rather than locate.
+- Link pins carry ~210 N each at closed (both links); a Ø4 hardened dowel
+  in 6 mm bushings, supported at both ends, is comfortable.
 - No recess for the robot flange's Ø31.5 boss: it passes through the Ø32
   hole into the 6 mm behind the motor. Locate on the dowel.
-- The rail and blocks are stand-ins for purchased MGN9 parts; the guide is
-  exposed on the bed, so a bellows or cover is the next part.
-- Threads, fasteners, cable exit, the motor's D-flat, and any fillets other
-  than the four drawn into the slide's sketch are not modelled.
+- The rail and blocks are stand-ins for purchased MGN9 parts. The guide is
+  now enclosed; the slots want wipers if the gripper works in swarf.
+- Threads, fasteners, cable exit, the motor's D-flat and all fillets are
+  not modelled.
 
 ## Verified, and not
 
-**Verified from this sandbox:** every part builds exact and watertight with
-all faces named (24 builds through `/mcp`); the closed forms above; both
-documents resolve through the `/mcp` `check` tool (43 and 42 components,
-every repeat, rotation and reference expanded); assembly-wide `measure` on
-the server: example jaw faces 36.000 apart at open and 0.00002 at closed,
-each slide pin 27.000 from its arm pivot at open and at closed on both
-sides, the turned left slide's pin axis reading −Z at z +6 as expected; the
-server clearance table at the open and closed instants: no pair
-intersecting, every close pair a designed fit or a 1 mm gap; the clearance
-audit in `gripper.mjs` at closed, mid and open (63 checks).
+**Verified from this sandbox:** every part builds exact and watertight
+through `/mcp`, each within its closed-form tolerance; both documents
+resolve through the `/mcp` `check` tool (45 and 44 components, every
+repeat, rotation and reference expanded); assembly-wide `measure` on the
+server: the two jaw pins 32.000 mm apart at closed and 60.000 at open, and
+each pin 27.000 from its arm pivot at both ends, on both sides; the
+clearance table on the mechanism at both ends of the stroke; and the 54
+analytic checks in `gripper.mjs` at closed, mid and open.
 
 **Run by the workflow, not from here:** the Manifold volume sweep through
 the motion (`agent/check.mjs --sweep 24`) on both documents, and the
 publish. Read its log for the `no interference` lines.
 
 **Not verified anywhere here:** the MGN9C moment ratings against the 4 N·m
-yaw with a 73 mm finger; those are catalogue numbers to check against the
+yaw with a 67 mm jaw; those are catalogue numbers to check against the
 finger actually fitted.
 
 ## What the harness said back
 
-From the 2026-09-12 tools, on v4 and then v5:
+From the 2026-09-12 tools, across v4, v5 and v6:
 
-- **Assembly-wide `measure` found a real error in one call** (v4). The pads
-  were 4 mm apart at closed: a stray +2 in the pad centre from v3, and an
-  audit line that checked the intended number rather than the geometry.
-- **The server clearance table found the v5 fillet inside the front wall**
-  at the open instant (front-wall / slide, 0.38 mm penetration) and nothing
-  else real in 780 pairs at either end of the stroke. The rest of its
-  verdicts are as before: coplanar contacts with penetration under 1e-12
-  read as collisions, designed running fits (0.045, 0.1, 0.2) and 1.000 mm
-  gaps reported as 0.997 read as close. A verdict tolerance on penetration,
-  a `running` fit the table can expect, and the sagitta applied before the
-  verdict would make it a gate; today it is a table to read.
-- **Booleans on Truck** (v5 probe): a hole through a plain bar is
-  watertight; through a polygon or a bar with a second loop it is not (4 to
-  72 open edges, χ off by one or more); every boolean drops the face names.
-  A cut part is a dead end for `@component.face` placement and for
-  `measure`. This is what forced the flat rail and the one-sketch slide.
-- **A 24-instant server sweep of 45 components** hit the Worker's CPU
-  ceiling (Cloudflare 1102) after 2.5 minutes. The descriptor warns about
-  big gears; component count is the other axis. Sweeps of this size run
-  locally, and the workflow does.
-- **A component placed by reference and also fixed-mated to its host moves
-  twice**: the reference already follows; the mate adds the travel again.
-  The stroke document leaves those mates out.
-- **A fixed mate copies travel in the follower's own frame**, so the nut,
-  placed tilted so its +z is the screw axis, went sideways instead of along
-  the screw. It has its own `screw` mate along its local +z.
-- **`check` on an assembly** lists the faces a component does have when a
-  reference names one it does not. That is the error message the loop needs.
-- **A turned component's features place correctly**: the left slide is the
-  right one rotated 180° about Y, its pin hole's axis comes back as −Z, and
-  the pin aligned to it with a negative offset lands in the same z range as
-  the right one. The clearance table agrees (both slide pins 0.045 from
-  their bushings, 0.997 from their links).
+- **A boolean's clearance planes matter.** The carrier's Ø4 pin hole is
+  the one cut in this design. Cutting with the tool 1 mm proud of the
+  tongue's faces left the part open — 4 open edges, χ −11. The identical
+  cut 3 mm proud is watertight, χ −10, and the volume matches the closed
+  form to 0.016 %. Nothing in the error surface said so: `build` reported
+  `ok: true` and only `watertight` gave it away. A cut that grazes a face
+  plane is worth a warning.
+- **A boolean still drops every face name.** The carrier's faces come back
+  as `face[k]`, so it can be neither a `@component.face` placement target
+  nor measured by name. That is what forces the one-sweep rule, and it is
+  why the jaw pins here are placed by expression.
+- **Overlapping loops in one sketch fail as "disjoint outer loops."** Two
+  Ø4.3 bolt circles 3 mm apart read as two outer loops the kernel could
+  not union. The message names the loops, which is what made it findable.
+- **The server clearance table has a work budget.** At 44 components and
+  406 k triangles it returns `incomplete: "too-big"` with `work` 17.5 M
+  against a 6 M budget, after building every part across several calls.
+  Trimming to the mechanism did not help — 37 components and 291 k
+  triangles is still 10.5 M of work — so the table was read in subsets: the
+  guide (wall, rails, blocks, carriers, pins) and the linkage. A sweep of
+  that size hits the Worker's CPU ceiling outright (Cloudflare 1102 after
+  2.5 minutes). Both run locally, and the workflow does. Being able to ask
+  for a named subset of components would make this tool usable on a whole
+  machine.
+- **The table's verdicts still read designed fits as faults:** coplanar
+  contacts with penetration under 1e-12 read as collisions, running fits
+  of 0.045 to 0.5 read as close, and a 1.000 mm gap reports as 0.997 by
+  chord error. A verdict tolerance on penetration, a `running` fit the
+  document can declare, and the sagitta applied before the verdict would
+  make it a gate rather than a table to read.
+- **Fixed-mated pairs are not all counted as expected touches.** The rail
+  bolted flat to the wall, and the case plates to each other, come back as
+  collisions at 1e-15 even though a `fixed` mate joins them; in v5 only 36
+  of the fixed pairs were marked `expected`. Indexed ids from `repeat`
+  (`rail[0]`) may be the reason.
+- **Assembly-wide `measure` found a real error in one call** (v4): the
+  pads were 4 mm apart at closed, a stray constant, and the audit line was
+  checking the intention rather than the geometry.
+- **A component placed by reference and also fixed-mated moves twice**, and
+  **a fixed mate copies travel in the follower's own frame** — so the nut,
+  placed tilted, needs its own `screw` mate along its local +z.
 
 ## Open it
 

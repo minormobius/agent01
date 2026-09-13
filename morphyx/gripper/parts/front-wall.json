@@ -1,17 +1,22 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Front wall, 104 wide, standing on the bed: the screw journal’s bearing (Ø6.2) on the mid-plane, and either side of it the slot a finger slide passes through (z ±6.2, x 5.5..38.5). The rail no longer hangs on this wall; it lies on the bed in front of it. One extrude along -Y.",
+ "_": "Front wall — the slotted plate the whole design turns on. The strip across its middle (z ±10.1) carries the two MGN9 rail segments on its INNER face, tapped M3 at 20 pitch, and the screw’s Ø6.2 journal bearing between them. Either side of the strip runs a long slot, one above and one below, and a carrier’s two feet pass through them. Stands on the floor. One extrude along -Y.",
  "params": {
-  "w": 104,
-  "zb": -16,
+  "w": 112,
+  "zb": -23,
   "zt": 27,
   "t": 6,
   "d_bore": 6.2,
+  "sz0": 10.1,
+  "sz1": 19.9,
   "sx0": 5.5,
-  "sx1": 38.5,
-  "sz": 6.2,
-  "y1": 104
+  "sx1": 52.5,
+  "d_tap": 2.5,
+  "tx0": 12,
+  "tx1": 27,
+  "tx2": 42,
+  "y1": 116
  },
  "features": [
   {
@@ -44,25 +49,107 @@
      }
     },
     {
-     "name": "slotR",
+     "name": "slotRlo",
      "rect": {
       "c": [
        "(sx0 + sx1) / 2",
-       0
+       "-(sz0 + sz1) / 2"
       ],
       "w": "sx1 - sx0",
-      "h": "2 * sz"
+      "h": "sz1 - sz0"
      }
     },
     {
-     "name": "slotL",
+     "name": "slotRhi",
+     "rect": {
+      "c": [
+       "(sx0 + sx1) / 2",
+       "(sz0 + sz1) / 2"
+      ],
+      "w": "sx1 - sx0",
+      "h": "sz1 - sz0"
+     }
+    },
+    {
+     "name": "slotLlo",
      "rect": {
       "c": [
        "-(sx0 + sx1) / 2",
-       0
+       "-(sz0 + sz1) / 2"
       ],
       "w": "sx1 - sx0",
-      "h": "2 * sz"
+      "h": "sz1 - sz0"
+     }
+    },
+    {
+     "name": "slotLhi",
+     "rect": {
+      "c": [
+       "-(sx0 + sx1) / 2",
+       "(sz0 + sz1) / 2"
+      ],
+      "w": "sx1 - sx0",
+      "h": "sz1 - sz0"
+     }
+    },
+    {
+     "name": "tapA",
+     "circle": {
+      "c": [
+       "-tx2",
+       0
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapB",
+     "circle": {
+      "c": [
+       "-tx1",
+       0
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapC",
+     "circle": {
+      "c": [
+       "-tx0",
+       0
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapD",
+     "circle": {
+      "c": [
+       "tx0",
+       0
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapE",
+     "circle": {
+      "c": [
+       "tx1",
+       0
+      ],
+      "r": "d_tap / 2"
+     }
+    },
+    {
+     "name": "tapF",
+     "circle": {
+      "c": [
+       "tx2",
+       0
+      ],
+      "r": "d_tap / 2"
      }
     }
    ]
