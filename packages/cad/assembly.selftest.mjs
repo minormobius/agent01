@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadEngine } from './lib/engine.js';
 import { evaluate, resolveParams } from './lib/expr.js';
-import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, expectations, periodOf } from './lib/assembly.js';
+import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, expectations, periodOf, touchLimit } from './lib/assembly.js';
 import { facesOf, kernels } from './agent/common.mjs';
 import { clearances } from './lib/proximity.js';
 import { clearanceAt, sweepClearance, verdictOf } from './lib/sweep.js';
@@ -250,6 +250,39 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   const ns = at.pairs.find((p) => [p.a, p.b].includes('screw') && [p.a, p.b].includes('nut'));
   check(vs['screw|nut'] === 'fit' && vs['platform|bolt[0]'] === 'fit' && vs['nut|platform'] === 'expected' && Object.values(vs).every((v) => ['fit', 'expected', 'clear'].includes(v)), `with fits declared and 0.5 mm demanded, the lift passes: ${[...new Set(Object.values(vs))].join(', ')}`);
   check(near(ns.distance, 0.1, 0.0025), `at res 256 the nut's clearance reads ${ns.distance.toFixed(4)} mm for a designed 0.1 (chord error under 0.0025)`);
+}
+
+// ── what a document says about its own pairs, and what it may not excuse ──
+{
+  const part = { params: {}, features: [{ op: 'sketch', id: 's', loops: [{ rect: { c: [0, 0], w: 4, h: 4 } }] }, { op: 'extrude', id: 'e', profile: 's', depth: 2 }] };
+  const ref = async (r) => (typeof r === 'object' ? structuredClone(r) : structuredClone(part));
+  // a sub-assembly's fits reach the top, like its mates
+  const sub = { name: 'drivetrain', components: [{ id: 'screw', part: 'p' }, { id: 'collar', part: 'p' }], mates: [{ kind: 'fixed', a: 'screw', b: 'collar' }], fits: [{ a: 'screw', b: 'collar', min: 0.05, max: 0.15 }] };
+  const top = await flatten({ name: 'top', components: [{ id: 'd', assembly: sub }, { id: 'base', part: 'p' }], mates: [] }, ref);
+  const subEx = expectations(top.mates, top.fits);
+  check(top.mates.length === 1 && top.fits.length === 1 && top.fits[0].a === 'd/screw' && subEx('d/screw', 'd/collar').fit?.max === 0.15, `a sub-assembly's own fits are flattened with its prefix, not dropped (${top.fits.map((f) => `${f.a}↔${f.b}`).join(', ')})`);
+  // [*] on both sides pairs by index; over: {k} walks it
+  const idx = await flatten({ name: 'idx', components: [{ id: 'pin', part: 'p', repeat: 3 }, { id: 'bush', part: 'p', repeat: 3, at: [10, 0, 0] }, { id: 'link', part: 'p', repeat: 2, at: [20, 0, 0] }],
+    fits: [{ a: 'pin[*]', b: 'bush[*]', min: 0.02, max: 0.08 }, { a: 'link[k]', b: 'bush[2*k]', min: 0.1, max: 0.3, over: { k: 2 } }] }, ref);
+  const ie = expectations(idx.mates, idx.fits);
+  check(ie('pin[1]', 'bush[1]').fit?.min === 0.02 && !ie('pin[1]', 'bush[2]').fit, '`[*]` on both sides means the SAME index: pin[1] ↔ bush[1] is a fit, pin[1] ↔ bush[2] is not a pair at all');
+  check(idx.fits.length === 3 && ie('link[0]', 'bush[0]').fit?.max === 0.3 && ie('link[1]', 'bush[2]').fit?.max === 0.3 && !ie('link[1]', 'bush[1]').fit, `over: {k: 2} expands link[k] ↔ bush[2*k] into the two pairs it means, and the wildcard rule stays one (${idx.fits.slice(1).map((f) => `${f.a}↔${f.b}`).join(', ')})`);
+  let stale = ''; try { await flatten({ name: 'stale', components: [{ id: 'pin', part: 'p', repeat: 2 }], fits: [{ a: 'pin[0]', b: 'bush[9]', max: 1 }] }, ref); } catch (e) { stale = e.message; }
+  check(/no component `bush\[9\]`/.test(stale), `a fit that names nobody is an error, not silence: ${stale}`);
+  // a fixed mate is not a licence to be the same solid
+  const touchOnly = expectations([{ kind: 'fixed', a: 'wall', b: 'flange' }], []);
+  const press = expectations([{ kind: 'fixed', a: 'wall', b: 'flange' }], [{ a: 'wall', b: 'flange', contact: true, interfere: { max: 2000, depth: 0.5 } }]);
+  const deep = { a: 'wall', b: 'flange', penetration: 0.4, distance: 0, touching: true, contained: null };
+  check(verdictOf(deep, touchOnly, 0) === 'collision' && verdictOf(deep, press, 0) === 'expected', 'a designed touch 0.4 mm deep is a collision on the default budget, and expected where the document raises it');
+  const graze = { a: 'wall', b: 'flange', penetration: 0.002, distance: 0, touching: true, contained: null };
+  check(verdictOf(graze, touchOnly, 0) === 'expected', 'and a press fit at mesh resolution still reads as the touch it is');
+  const lim = touchLimit(null, [120, 900000]), raised = touchLimit({ interfere: { max: 5 } }, [120]);
+  check(lim.max === 1 && lim.depth === 0.1 && raised.max === 5 && touchLimit(null, [900000]).max === 900, `the volume budget is 1 mm³ or a thousandth of the smaller part, whichever is larger (${lim.max} here, ${touchLimit(null, [900000]).max} for a 900 cm³ part), raisable per pair`);
+  // driven twice: a placement over the drive AND a mate
+  const dbl = await flatten({ name: 'dbl', params: { r: 5 }, derived: { yn: 'r * sin(theta)' }, components: [{ id: 'arm', part: 'p' }, { id: 'pin', part: 'p', at: [0, 'yn', 0] }], mates: [{ kind: 'fixed', a: 'arm', b: 'pin' }], drive: { component: 'arm', rpm: 10 } }, ref);
+  check(dbl.warnings.length === 1 && dbl.warnings[0].code === 'double-driven' && /travels twice/.test(dbl.warnings[0].msg), `a component placed over theta AND carrying a mate is reported: ${dbl.warnings[0]?.msg?.slice(0, 72)}…`);
+  const okDoc = await flatten({ name: 'ok', params: { r: 5 }, components: [{ id: 'arm', part: 'p' }, { id: 'pin', part: 'p', at: [0, 'r', 0] }], mates: [{ kind: 'fixed', a: 'arm', b: 'pin' }], drive: { component: 'arm', rpm: 10 } }, ref);
+  check(okDoc.warnings.length === 0, 'a placement that is merely an expression of the params is not double-driven');
 }
 
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ assembly selftest passed');

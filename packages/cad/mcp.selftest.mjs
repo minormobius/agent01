@@ -82,7 +82,10 @@ check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5,
   const tight = createMcp({ kernels, fetchRef, capabilities: { manifold: false, budgetMs: 1000 } });
   const SWEEP = { assembly: 'bench:lift', sweep: 12, clearance: 0.5, res: 64 }; // res 64: this is about windowing, not chord error
   const w1 = await tight.call('interference', SWEEP);
-  check(w1.method === 'mesh' && w1.done === false && Number.isInteger(w1.next) && w1.next > 0 && w1.window.sampled >= 1 && w1.window.sampled < 12 && w1.window.of === 12 && w1.ok === false && /call again with from/i.test(w1.note), `a sweep over a 1 s budget stops after ${w1.window?.sampled} of 12 instants and says to resume at ${w1.next}`);
+  check(w1.method === 'mesh' && w1.done === false && Number.isInteger(w1.next) && w1.next > 0 && w1.window.sampled >= 1 && w1.window.sampled < 12 && w1.window.of === 12 && /call again with from/i.test(w1.note), `a sweep over a 1 s budget stops after ${w1.window?.sampled} of 12 instants and says to resume at ${w1.next}`);
+  // ok is about what was sampled; done says the sweep finished. One field for
+  // both meant a windowed run with nothing wrong in it came back ok: false.
+  check(w1.ok === true && w1.pairs.every((p) => ['clear', 'contact', 'expected', 'fit'].includes(p.verdict)) && w1.cost?.perInstant > 0 && w1.cost.estimate[64] < w1.cost.estimate[256], `…and says ok, because nothing in those ${w1.window?.sampled} instants was wrong — with the price of an instant (${((w1.cost?.perInstant || 0) / 1e6).toFixed(2)}M triangle-pairs at res ${w1.cost?.res}, about ${((w1.cost?.estimate[64] || 0) / 1e6).toFixed(2)}M at res 64)`);
   const w2 = await tight.call('interference', { ...SWEEP, from: w1.next });
   check(w2.window.from === w1.next && w2.cached > 0 && w2.built === 0 && w2.pairs.length === w1.pairs.length, `the next window starts at ${w2.window.from} and pays nothing to build: ${w2.cached} part meshes came from the cache`);
   const clearanceBand = 0.5 * 4 + 1;
@@ -105,7 +108,7 @@ check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5,
   check(c1.done === false && c1.window.sampled >= 1 && c1.window.sampled < 24 && c1.work <= 1.2e6 * 1.05, `a work budget windows the sweep with no clock at all: ${c1.window.sampled} of 24 instants, ${(c1.work / 1e6).toFixed(2)}M of 1.2M triangle-pairs`);
   const tiny = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 30, workBudget: 1e5 } });
   const t1 = await tiny.call('interference', { assembly: 'bench:lift', sweep: 4, clearance: 0.5, res: 64 });
-  check(t1.incomplete === 'too-big' && t1.work > t1.budget && /refused instead/.test(t1.note) && /res 128 or 64/.test(t1.note), `an assembly whose single instant is past the budget is refused with its numbers, not killed (${(t1.work / 1e6).toFixed(2)}M of ${(t1.budget / 1e6).toFixed(2)}M)`);
+  check(t1.incomplete === 'too-big' && t1.work > t1.budget && /refused instead/.test(t1.note) && /At res 128 an instant is about/.test(t1.note) && t1.cost.estimate[64] < t1.cost.estimate[256], `an assembly whose single instant is past the budget is refused with its numbers and what the coarser resolutions would cost, not killed (${(t1.work / 1e6).toFixed(2)}M of ${(t1.budget / 1e6).toFixed(2)}M)`);
   const slow = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 1, workBudget: 1e7 } });
   const p1 = await slow.call('interference', { assembly: 'bench:crank', clearance: 0.5, res: 128 });
   check(p1.incomplete === 'parts' && p1.pending.length >= 1 && p1.built === 1 && /each call gets further/.test(p1.note), `a server that builds one part per call says what is left (${p1.pending?.length} pending at res 128)`);

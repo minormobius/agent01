@@ -22,7 +22,7 @@
 // a clearance is demanded), and a document's `fits` say what clearance a
 // pair is designed to keep — so design intent and a mistake read apart.
 // Reference components are left out.
-import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf } from '../lib/assembly.js';
+import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf, touchLimit } from '../lib/assembly.js';
 import { buildManifold } from '../lib/manifold-kernel.js';
 import { interference } from '../lib/interfere.js';
 import { clearanceAt, sweepClearance, verdictOf, OK_VERDICTS } from '../lib/sweep.js';
@@ -34,7 +34,10 @@ const eps = Number(arg('--eps', '0.01')); // below 0.01 mm³ is polygon flank ov
 const sweep = has('--sweep') ? Math.max(2, Math.round(Number(arg('--sweep', '12')))) : 0;
 const clearance = has('--clearance') ? Number(arg('--clearance', '0')) : null;
 const { engine, manifold } = await kernels();
-const { components, mates, drive, partTrees, fits } = await flatten(doc, benchRef, { facesOf });
+const { components, mates, drive, partTrees, fits, warnings } = await flatten(doc, benchRef, { facesOf });
+// a document that drives a component twice is wrong before anything is
+// measured: say so first, and fail on it
+for (const w of warnings) console.error(`✗ ${w.msg}`);
 const live = components.filter((c) => !c.reference);
 const expected = expectedTouch(mates);
 const expect = expectations(mates, fits);
@@ -53,7 +56,14 @@ if (clearance === null) {
     const angles = solveAngles(components, mates, drive, t);
     const bodies = live.filter((c) => built.has(c.partKey)).map((c) => ({ id: c.id, manifold: built.get(c.partKey).manifold, bbox: built.get(c.partKey).bbox, model: modelOf(c, angles) }));
     const r = interference({ Manifold: manifold.Manifold }, bodies, { eps });
-    return { t, tested: r.tested, ms: r.ms, pairs: r.pairs.map((p) => ({ ...p, fixed: expected(p.a, p.b) })) };
+    // an expected touch is not a licence to share any amount of solid: it has
+    // a budget, in mm³, and past it the pair fails like any other
+    const volOf = (id) => { const c = live.find((x) => x.id === id); return built.get(c?.partKey)?.kernelVolume || 0; };
+    return { t, tested: r.tested, ms: r.ms, pairs: r.pairs.map((p) => {
+      const fixed = expected(p.a, p.b);
+      const limit = touchLimit(expect(p.a, p.b), [volOf(p.a), volOf(p.b)]).max;
+      return { ...p, fixed, limit, overBudget: fixed && p.volume > limit };
+    }) };
   };
   if (!sweep) {
     out = poseAt(Number(arg('--t', '0')));
@@ -61,7 +71,7 @@ if (clearance === null) {
     else {
       console.log(`t = ${out.t} s · ${live.length} components · ${out.tested} overlapping pairs tested in ${out.ms.toFixed(0)} ms`);
       if (!out.pairs.length) console.log('no interference');
-      for (const p of out.pairs) console.log(`${p.fixed ? '~' : '✗'} ${p.a} × ${p.b}  ${f4(p.volume)} mm³${p.fixed ? '  (expected touch: fixed- or screw-mated)' : ''}`);
+      for (const p of out.pairs) console.log(`${p.overBudget ? '✗' : p.fixed ? '~' : '✗'} ${p.a} × ${p.b}  ${f4(p.volume)} mm³${p.overBudget ? `  (expected touch, but ${f4(p.volume)} > ${f4(p.limit)} mm³ budget — raise it with fits interfere.max if this press fit is real)` : p.fixed ? '  (expected touch: fixed- or screw-mated)' : ''}`);
     }
   } else {
     const worst = new Map(); let tested = 0, ms = 0;
@@ -76,10 +86,10 @@ if (clearance === null) {
     else {
       console.log(`${sweep} instants over ${period} s · ${live.length} components · up to ${tested} overlapping pairs per instant · ${ms.toFixed(0)} ms`);
       if (!pairs.length) console.log('no interference anywhere in the cycle — add --clearance <mm> for the nearest approach of every pair');
-      for (const p of pairs) console.log(`${p.fixed ? '~' : '✗'} ${p.a} × ${p.b}  worst ${f4(p.volume)} mm³ at t = ${p.t.toFixed(3)} s${p.fixed ? '  (expected touch)' : ''}`);
+      for (const p of pairs) console.log(`${p.overBudget ? '✗' : p.fixed ? '~' : '✗'} ${p.a} × ${p.b}  worst ${f4(p.volume)} mm³ at t = ${p.t.toFixed(3)} s${p.overBudget ? `  (expected touch, over its ${f4(p.limit)} mm³ budget)` : p.fixed ? '  (expected touch)' : ''}`);
     }
   }
-  process.exit(out.pairs.some((p) => !p.fixed) ? 1 : 0);
+  process.exit(out.pairs.some((p) => !p.fixed || p.overBudget) || warnings.length ? 1 : 0);
 }
 
 // ── clearance: nearest approach per pair, from the exact meshes ──────────
@@ -110,4 +120,4 @@ if (!sweep) {
   if (has('--json')) console.log(JSON.stringify(out, null, 1));
   else { console.log(`${sweep} instants over ${period} s, the ${r.refinedPairs} pairs within ${refineWithin} mm refined between samples · ${bodies.length} components · ${r.pairs.length} pairs · ${r.ms.toFixed(0)} ms · flagging under ${clearance} mm`); for (const p of r.pairs) console.log(row(p)); }
 }
-process.exit(out.pairs.some(failing) ? 1 : 0);
+process.exit(out.pairs.some(failing) || warnings.length ? 1 : 0);

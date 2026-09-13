@@ -128,6 +128,31 @@ function envAt(scope, t, theta, i) {
   scope.memo = { t, theta, env };
   return env;
 }
+/// The names that move with the drive: `t`, `theta`, and every derived value
+/// that reaches them. A placement written over one of these is driven BY THE
+/// DOCUMENT — so a mate on that component drives it a second time, and the two
+/// travels add. (Measured on a gripper: four pins placed by an expression over
+/// `yn` and fixed-mated to the travelling arm stretched their links 40 → 34 mm.)
+function timedNames(scope) {
+  const timed = new Set(['t', 'theta']);
+  const word = (n) => new RegExp(`(^|[^\\w.])${n}([^\\w]|$)`);
+  for (let pass = 0; pass < 8; pass++) {
+    let grew = false;
+    for (const [k, v] of Object.entries(scope.derived || {})) {
+      if (timed.has(k) || typeof v !== 'string') continue;
+      if ([...timed].some((n) => word(n).test(v))) { timed.add(k); grew = true; }
+    }
+    if (!grew) break;
+  }
+  return timed;
+}
+const usesTimed = (spec, timed) => {
+  const strs = [];
+  if (Array.isArray(spec.at)) strs.push(...spec.at.filter((v) => typeof v === 'string'));
+  if (Array.isArray(spec.offset)) strs.push(...spec.offset.filter((v) => typeof v === 'string'));
+  if (spec.rotate) { if (typeof spec.rotate.deg === 'string') strs.push(spec.rotate.deg); for (const a of spec.rotate.axis || []) if (typeof a === 'string') strs.push(a); }
+  return strs.some((e) => [...timed].some((n) => new RegExp(`(^|[^\\w.])${n}([^\\w]|$)`).test(e)));
+};
 const isExpr = (v) => typeof v === 'string';
 const MATE_NUMBERS = ['lead', 'r', 'm', 'z', 'ratio', 'ra', 'rb', 'za', 'zb'];
 const isRef = (v) => typeof v === 'string' && v.startsWith('@');
@@ -194,10 +219,11 @@ export function placeAt(c, t = 0, theta = 0, angles = null) {
 /// exact kernel's named faces for a part (only asked for when a placement
 /// references one). Returns {components, mates, drive, partTrees, params}.
 export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
-  const components = [], mates = [], partTrees = new Map(), byId = new Map();
+  const components = [], mates = [], partTrees = new Map(), byId = new Map(), fits = [], warnings = [];
   async function walk(a, prefix, chain, docName) {
     const scope = makeScope(a, docName);
     const env0 = envAt(scope, 0, 0);
+    const timed = timedNames(scope);
     const parts = a.parts || {};
     for (const c of a.components || []) {
       if (!c.id) throw new Error(`${docName}: a component needs an id`);
@@ -230,9 +256,35 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
         const anchor = anchorLink?.refs.at.comp.id ?? null;
         // how this component was placed, in words the report can use
         const placedBy = anchor ? { on: anchor, face: anchorLink.refs.at.face.name, aligned: !!anchorLink.refs.align, offset: anchorLink.spec.offset || null } : null;
-        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference, anchoredTo: anchor, placedBy };
+        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), timed: myChain.some((l) => usesTimed(l.spec, timed)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference, anchoredTo: anchor, placedBy };
         comp.place = placeAt(comp, 0, 0); // the pose at rest, for gear phases and static documents
         components.push(comp); byId.set(id, comp);
+      }
+    }
+    // designed fits, in this document's own scope. A sub-assembly's fits used
+    // to be dropped on the floor: only the top document's were read, so the
+    // only way to say what a sub-assembly intends was to restate it at the top.
+    for (const f of a.fits || []) {
+      if (!f || !f.a || !f.b) throw new Error(`${docName}: fits: each entry needs a and b`);
+      const n = (v, what, env) => { try { return v === undefined ? undefined : num(v, env, what); } catch (e) { throw new Error(`${docName}: fits ${f.a} ↔ ${f.b}: ${what}: ${e.message}`); } };
+      // `over: {k: 4}` walks the index instead of crossing every instance with
+      // every other: `{a: 'link[k]', b: 'bush[2*k]', over: {k: 4}}` is four
+      // pairs, not sixteen, and it does not go stale when a repeat count moves.
+      const names = Object.keys(f.over || {});
+      const counts = names.map((k) => { const v = Math.round(n(f.over[k], `over.${k}`, env0)); if (!(v >= 1)) throw new Error(`${docName}: fits ${f.a} ↔ ${f.b}: over.${k} must be 1 or more`); return v; });
+      const total = counts.reduce((x, y) => x * y, 1);
+      for (let idx = 0; idx < total; idx++) {
+        const env = { ...env0 };
+        let rest = idx;
+        for (let d = names.length - 1; d >= 0; d--) { env[names[d]] = rest % counts[d]; rest = Math.floor(rest / counts[d]); }
+        // `[*]` is a wildcard, a plain number is itself, anything else in
+        // brackets is an expression over the params and the `over` variables
+        const sub = (id) => prefix + String(id).replace(/\[([^\]]+)\]/g, (whole, e) => {
+          const x = e.trim();
+          if (x === '*' || /^\d+$/.test(x)) return whole;
+          try { return `[${Math.round(num(x, env, 'index'))}]`; } catch (err) { throw new Error(`${docName}: fits ${f.a} ↔ ${f.b}: ${err.message}`); }
+        });
+        fits.push({ a: sub(f.a), b: sub(f.b), min: n(f.min, 'min', env) ?? 0, max: n(f.max, 'max', env) ?? Infinity, contact: !!f.contact, interfere: f.interfere ? { ...f.interfere } : null });
       }
     }
     for (const m of a.mates || []) {
@@ -244,19 +296,24 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
     return env0;
   }
   const env0 = await walk(asm, '', [], asm.name || 'assembly');
-  // designed fits: `fits: [{ a, b, min, max }]` — the clearance a pair is meant to have (ids may end in `[*]` for a repeat)
-  const fits = [];
-  for (const f of asm.fits || []) {
-    if (!f || !f.a || !f.b) throw new Error('fits: each entry needs a and b');
-    const n = (v, what) => { try { return v === undefined ? undefined : num(v, env0, what); } catch (e) { throw new Error(`fits ${f.a} ↔ ${f.b}: ${what}: ${e.message}`); } };
-    fits.push({ a: String(f.a), b: String(f.b), min: n(f.min, 'min') ?? 0, max: n(f.max, 'max') ?? Infinity, contact: !!f.contact });
-  }
   const d = asm.drive;
   const n = (v, dflt, what) => { try { return num(v ?? dflt, env0, what); } catch (e) { throw new Error(`drive: ${what}: ${e.message}`); } };
   const drive = !d ? null : d.escapement ? { kind: 'escapement', wheel: d.escapement.wheel, pallet: d.escapement.pallet, balance: d.escapement.balance, teeth: n(d.escapement.teeth, 15, 'teeth'), beat: n(d.escapement.beat, 1, 'beat'), lift: n(d.escapement.lift, 8, 'lift'), swing: n(d.escapement.swing, 220, 'swing') } : { kind: 'rpm', component: d.component, rpm: n(d.rpm, 6, 'rpm') };
-  for (const m of mates) { const known = new Set(components.map((c) => c.id)); if (!known.has(m.a) || !known.has(m.b)) throw new Error(`mate ${m.kind} ${m.a} ↔ ${m.b}: no such component ${known.has(m.a) ? m.b : m.a}`); }
+  const known = new Set(components.map((c) => c.id));
+  for (const m of mates) { if (!known.has(m.a) || !known.has(m.b)) throw new Error(`mate ${m.kind} ${m.a} ↔ ${m.b}: no such component ${known.has(m.a) ? m.b : m.a}`); }
+  // a fit that names nobody is a fit that has gone stale — the commonest way
+  // an enumerated list rots when a repeat count changes
+  for (const f of fits) for (const id of [f.a, f.b]) if (!id.includes('*') && !known.has(id)) throw new Error(`fits ${f.a} ↔ ${f.b}: no component \`${id}\``);
+  // driven twice: a placement written over `t`/`theta` already moves the
+  // component, so a mate moves it again and the two travels add
+  for (const m of mates) {
+    for (const id of [m.a, m.b]) {
+      const c = byId.get(id);
+      if (c?.timed) warnings.push({ code: 'double-driven', component: id, mate: `${m.kind} ${m.a} ↔ ${m.b}`, msg: `\`${id}\` is placed by an expression over the drive (t or theta) AND carries a ${m.kind} mate — it travels twice. Place it at rest and let the mate move it, or drop the mate.` });
+    }
+  }
   autoPhase(components, mates);
-  return { components, mates, drive, partTrees, params: env0, fits };
+  return { components, mates, drive, partTrees, params: env0, fits, warnings };
 }
 
 /// Gear phases: unless the document gives one, a gear's tooth 0 (its local
@@ -298,14 +355,41 @@ export function expectedTouch(mates) {
 /// (a, b) → { touch, fit: { min, max } | null }.
 export function expectations(mates, fits = []) {
   const touch = expectedTouch(mates);
-  const pat = (id) => (id.includes('*') ? new RegExp('^' + id.replace(/[.+?^${}()|\\]/g, '\\$&').replace(/\[\*\]/g, '\\[\\d+\\]').replace(/\*/g, '.*') + '$') : null);
+  // `[*]` captures the index it stands for, so a rule with one on BOTH sides
+  // pairs them off by index instead of crossing every instance with every
+  // other (`arm-pin[*]` ↔ `bush[*]` is four pairs, not sixteen — the rest were
+  // 26 spurious "loose" verdicts between parts 63 mm apart).
+  const pat = (id) => (id.includes('*') ? new RegExp('^' + id.replace(/[.+?^${}()|\\]/g, '\\$&').replace(/\[\*\]/g, '\\[(\\d+)\\]').replace(/\*/g, '.*') + '$') : null);
   const rules = fits.map((f) => ({ ...f, ra: pat(f.a), rb: pat(f.b) }));
-  const hits = (r, x, y) => (r.ra ? r.ra.test(x) : r.a === x) && (r.rb ? r.rb.test(y) : r.b === y);
+  const hits = (r, x, y) => {
+    const ma = r.ra ? r.ra.exec(x) : r.a === x ? [] : null;
+    const mb = r.rb ? r.rb.exec(y) : r.b === y ? [] : null;
+    if (!ma || !mb) return false;
+    const ia = ma.slice(1), ib = mb.slice(1);
+    if (ia.length && ia.length === ib.length && ia.some((v, i) => v !== ib[i])) return false;
+    return true;
+  };
   return (a, b) => {
     const r = rules.find((f) => hits(f, a, b) || hits(f, b, a));
     // a declared fit is more specific than the touch a mate implies (a nut on a screw with a fit is judged by the fit)
-    if (r) return r.contact ? { touch: true, fit: null } : { touch: false, fit: { min: r.min, max: r.max } };
-    return { touch: touch(a, b), fit: null };
+    if (r) return r.contact ? { touch: true, fit: null, interfere: r.interfere } : { touch: false, fit: { min: r.min, max: r.max }, interfere: r.interfere };
+    return { touch: touch(a, b), fit: null, interfere: r?.interfere || null };
+  };
+}
+
+/// What a designed touch may share before it stops being one. A fixed mate
+/// means bolted, not "may be the same solid": 462 mm³ and 1881 mm³ of shared
+/// volume both read as "expected touch" and said nothing, while two bushings
+/// legitimately sharing 0.68 mm³ at mesh resolution read the same. The budget
+/// is a millimetre cubed or a thousandth of the smaller part, whichever is
+/// larger, and a real press fit raises it per pair:
+/// `fits: [{a, b, contact: true, interfere: {max: 5, depth: 0.2}}]`.
+export const TOUCH_BUDGET = { mm3: 1, frac: 0.001, depth: 0.1 };
+export function touchLimit(rule, volumes = []) {
+  const small = volumes.filter((v) => v > 0).sort((x, y) => x - y)[0] || 0;
+  return {
+    max: rule?.interfere?.max ?? Math.max(TOUCH_BUDGET.mm3, TOUCH_BUDGET.frac * small),
+    depth: rule?.interfere?.depth ?? TOUCH_BUDGET.depth,
   };
 }
 

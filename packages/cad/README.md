@@ -50,7 +50,11 @@ serves this directory with `engine/` and `bakeoff/` dropped by
   even-odd, so a loop inside a loop is a hole — that is how through-holes are
   made, not with booleans.
 - **Ops**: `extrude` (`profile` is one sketch id or a list; `mode` new/add/cut/
-  intersect), `revolve` (`axis` in sketch coordinates; profiles may touch the
+  intersect; thickness as `depth`, as `from`/`to` — both measured along the
+  sketch plane's own normal, so no sign convention to remember — or
+  `through: true` on a cut, which sizes the tool from the body's own extent so
+  the overhang is the kernel's problem), `name` (`face`, `as`: an alias on a
+  face that already has a name), `revolve` (`axis` in sketch coordinates; profiles may touch the
   axis), `pattern` (circular or linear, of a sketch, giving a sketch), `gear`
   (`m`, `z`, `alpha`, `b`, `bore` — the exact involute), `boolean`, and
   `fillet`/`chamfer`/`shell`, which the current kernels report as
@@ -76,6 +80,22 @@ serves this directory with `engine/` and `bakeoff/` dropped by
   `id.side[k]`; loops with a `name` add `id.rim[0..3]`; a gear names
   `id.tooth[i].flank.r.0`, `id.tooth[i].tip`, `id.root[i]`, `id.bore[k]`. The
   build report lists every face with its names, area, normal and centroid.
+  **Names survive a boolean.** A cut destroys the face indices, not the
+  surfaces: a face that survives keeps its feature's name, a face the tool made
+  carries the tool's own loop name (`slot.pivot[0]`) and its geometry, and one
+  that matches no named surface is called `<op>.face[k]` after the op that last
+  changed the body. So a body with cuts in it is still a placement target and
+  still an argument to measure.
+- **Fits say what a pair is designed to do.** `fits: [{a, b, min, max}]` is a
+  clearance; `contact: true` is a designed touch. Ids may end in `[*]`, and
+  `[*]` on BOTH sides means the same index (`pin[*]` ↔ `bush[*]` is pair by
+  pair, not a cross product); `over: {k: 4}` walks an index through an
+  expression on either side (`{a: 'link[k]', b: 'bush[2*k]', over: {k: 4}}`).
+  A fit that names a component the document does not have is an error. A
+  `fixed` or `screw` mate implies a touch, but not an unlimited one: a pair may
+  share 1 mm³ (or a thousandth of the smaller part) and go 0.1 mm deep before
+  it is a collision, and a real press fit raises its own budget with
+  `interfere: {max, depth}`. A sub-assembly's fits and mates both reach the top.
 
 ## The CLI
 

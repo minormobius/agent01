@@ -8,7 +8,7 @@
 //
 // bodies: [{ id, mesh: {pos, idx}, comp }] — comp is the flattened component
 // (for modelOf). kin: { components, mates, drive }.
-import { solveAngles, modelOf } from './assembly.js';
+import { solveAngles, modelOf, TOUCH_BUDGET } from './assembly.js';
 import { BVH, posedTriangles, proximity, clearances } from './proximity.js';
 
 const phi = (Math.sqrt(5) - 1) / 2;
@@ -16,7 +16,9 @@ const phi = (Math.sqrt(5) - 1) / 2;
 /// What a pair's proximity means. `expect(a, b)` is expectations() from
 /// assembly.js — { touch, fit } — or, for older callers, a boolean "expected
 /// touch". `clearance` is the distance demanded of every other pair.
-///   collision  crossing with depth, or one body inside the other
+///   collision  crossing with depth, or one body inside the other — including
+///              a pair a mate says may touch, gone deeper than its budget: a
+///              fixed mate means bolted, not "may be the same solid"
 ///   expected   contact or crossing where a mate, or a fit with contact, says so
 ///   fit        a designed clearance, within its [min, max]
 ///   loose      a designed clearance, wider than its max
@@ -28,7 +30,13 @@ export const OK_VERDICTS = new Set(['clear', 'contact', 'expected', 'fit']);
 export function verdictOf(p, expect = () => false, clearance = 0) {
   const e = expect(p.a, p.b); const ex = typeof e === 'boolean' ? { touch: e, fit: null } : e || { touch: false, fit: null };
   const deep = p.penetration > 0 || !!p.contained;
-  if (ex.touch) return deep || p.touching ? 'expected' : p.distance < clearance ? 'close' : 'clear';
+  if (ex.touch) {
+    // how far a designed touch may go: `interfere: {depth}` per pair, else the
+    // shared default. Past it, a touch is a collision like any other.
+    const budget = ex.interfere?.depth ?? TOUCH_BUDGET.depth;
+    if (p.contained || p.penetration > budget) return 'collision';
+    return deep || p.touching ? 'expected' : p.distance < clearance ? 'close' : 'clear';
+  }
   if (ex.fit) { if (deep) return 'collision'; const d = p.touching ? 0 : p.distance; return d < ex.fit.min ? (ex.fit.min > 0 && d === 0 ? 'collision' : 'close') : d > ex.fit.max ? 'loose' : 'fit'; }
   if (deep) return 'collision';
   if (p.touching) return clearance > 0 ? 'close' : 'contact';

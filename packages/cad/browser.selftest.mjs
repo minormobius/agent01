@@ -310,6 +310,28 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
   await page.screenshot({ path: path.join(shots, 'lift.png') });
 }
 
+// a fixed mate is not a licence to be the same solid: two parts in the same
+// place, bolted together, must read as a collision and not as an expected touch
+{
+  const over = await page.evaluate(async () => {
+    await window.__cad.loadDocument({ name: 'clash', parts: { c: 'bench:case' }, components: [{ id: 'a', part: 'c' }, { id: 'b', part: 'c', at: [1, 0, 0] }], mates: [{ kind: 'fixed', a: 'a', b: 'b' }] }, 'clash');
+    await window.__cad.settled();
+    window.__cad.runCheck();
+    const c = await window.__cad.checked();
+    return { pairs: c.pairs.map((p) => ({ a: p.a, b: p.b, volume: p.volume })), summary: document.querySelector('#checkout')?.textContent || '', rows: [...document.querySelectorAll('#checks .feat')].map((r) => r.className + '|' + r.textContent) };
+  });
+  const row = over.rows[0] || '';
+  check(over.pairs.length === 1 && over.pairs[0].volume > 1 && /bad/.test(row) && /over its budget/.test(row) && /1 interfering pair/.test(over.summary), `two fixed-mated parts sharing ${over.pairs[0]?.volume.toFixed(0)} mm³ read as interference, not as an expected touch: ${over.summary}`);
+  const fine = await page.evaluate(async () => {
+    await window.__cad.loadDocument({ name: 'declared', parts: { c: 'bench:case' }, components: [{ id: 'a', part: 'c' }, { id: 'b', part: 'c', at: [1, 0, 0] }], mates: [{ kind: 'fixed', a: 'a', b: 'b' }], fits: [{ a: 'a', b: 'b', contact: true, interfere: { max: 100000 } }] }, 'declared');
+    await window.__cad.settled();
+    window.__cad.runCheck();
+    await window.__cad.checked();
+    return document.querySelector('#checkout')?.textContent || '';
+  });
+  check(/no interference/.test(fine), `…and a document that declares the interference it means is left alone (${fine})`);
+}
+
 // the clock: 18 components, an escapement drive, hands at the right ratios, highlight follows the hover
 {
   const r = await Promise.race([page.evaluate(async () => { await window.__cad.load('clock'); return await window.__cad.settled(); }), new Promise((res) => setTimeout(() => res({ timeout: true }), 240000))]);

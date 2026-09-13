@@ -69,6 +69,19 @@ documented in [`README.md`](README.md) next to this file.
   and `modelOf` re-evaluates their placement at the `t`/`theta` the angles
   map carries; static documents pay nothing. `bench/crank.json` is the
   crank–slider that proves it, in the node test and the browser test.
+  **Fits are index-linked, not a cross product:** `[*]` on both sides of a
+  `fits` entry means the SAME index (`arm-pin[*]` ↔ `bush[*]` is four pairs,
+  not sixteen — the rest were spurious `loose` verdicts between parts 63 mm
+  apart), and `over: {k: 4}` walks an index through an expression on either
+  side (`{a: 'link[k]', b: 'bush[2*k]'}`). A fit that names a component the
+  document does not have is an error, so an enumerated list cannot rot when a
+  repeat count changes. **A sub-assembly's `fits` reach the top** with its
+  prefix, like its mates always did — they used to be dropped, so the only way
+  to say what a sub-assembly intended was to restate it at the top. And
+  `flatten` returns `warnings`: a component placed by an expression over
+  `t`/`theta` that also carries a mate is **driven twice**, which `check`
+  refuses (the travels add — four pins did it and stretched their links
+  40 → 34 mm).
   **Repeat and place-by-feature:** `repeat: n` makes `id[i]` instances
   with `i` in scope; `at: "@comp.face"` and `rotate.align` put a component
   on another's named face (anchor and axis from the exact kernel's face
@@ -158,6 +171,19 @@ documented in [`README.md`](README.md) next to this file.
   nine instants a call.
   Components with `reference: true` are drawn translucent and left out of
   checks and export; `hidden` is display only and counts.
+  **A fixed mate means bolted, not "may be the same solid".** An expected
+  touch has a budget — 1 mm³ of shared volume or a thousandth of the smaller
+  part, whichever is larger, and 0.1 mm of depth (`TOUCH_BUDGET`,
+  `touchLimit`) — and past it the pair is a collision like any other. 462 mm³
+  and 1881 mm³ both read as "expected touch" and said nothing, while two
+  bushings legitimately sharing 0.68 mm³ read the same; a real press fit now
+  raises its own with `fits: [{a, b, contact: true, interfere: {max, depth}}]`.
+  **`ok` and `done` are separate** in a windowed sweep: `ok` is nothing bad in
+  what was sampled, `done` is whether the sweep finished (666 clear pairs used
+  to come back `ok: false` because the window had not ended). Every answer
+  carries `cost` — the work in one instant, the budget, the instants that buys,
+  and an estimate at the other resolutions — so `res` is chosen from numbers
+  rather than by probing for the cliff.
 - **Audit.** `agent/audit.mjs --at <repo> [--kernels]` rebuilds every
   part in a repo and diffs volume, χ, watertightness and face count against
   the invariants its revision recorded (`publish.mjs` stores them on every
@@ -350,6 +376,39 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 
 ## Quirks
 
+- **A boolean keeps the names, because it cannot destroy the surfaces.** It
+  destroys every face INDEX — truck hands back a fresh shell in its own order
+  — so until 2026-09-13 a cut threw away everything its ops had named, and a
+  body with one cut in it could be neither a placement target nor an argument
+  to measure. That was the root of the worst bug class here: it forces
+  placements by expression, and an expression-placed component that also
+  carries a mate travels twice. Now every op registers the geometry behind
+  each name it gives (`Book` in `truck.rs`), and each face is matched back to
+  it afterwards by the same scoring `geom_for` uses, against a sample of the
+  face's own points. A surviving face keeps its feature's name; a face the
+  tool made carries the tool's loop name and geometry; names are deduped by
+  surface (`Geom::same_as`), so a circle's four arcs give one name; a face
+  that matches nothing is `<op>.face[k]` after the op that last changed the
+  body. Multi-loop regions register too — a union used to lose its names the
+  same way. `{op:'name', face, as}` is the alias escape hatch, and an error
+  when the face does not exist.
+- **A panic is not a trap any more.** Wasm cannot unwind, so a
+  `truck-topology` assert — "This shell is not oriented and closed", which is
+  a boolean this kernel cannot do — reached the host as a bare `unreachable`
+  and left the instance dead for the rest of the session. `install_panic_hook`
+  in `lib.rs` hands the message to the host through `env.cad_host_panic`
+  before the abort, and `lib/engine.js` catches the `RuntimeError`, starts a
+  fresh instance from the already-compiled module, and returns an ordinary
+  error with `occtWouldHelp`. Any host that instantiates the wasm itself must
+  supply that import (`cad.selftest.mjs` does).
+- **A cut sizes itself.** `mode: "cut"` with `through: true` takes the body's
+  own extent along the sweep, so the overhang is the kernel's problem — it was
+  the overhang that made watertightness look like a coin flip (5486.69 mm³ at
+  every clearance, χ −6/−2/−6/−2 as the number was tuned). `from`/`to` on any
+  extrude are both measured along the sketch plane's own normal, so the XZ
+  sign convention (`offset: o` puts the plane at y = −o) never has to be
+  remembered. A cut whose tool misses the body names the gap and the axis
+  instead of trapping or silently doing nothing.
 - **A face's geometry is scored, not trusted.** An op hands the kernel one
   geometry per profile segment, matched to faces by index — and the kernel
   splits, merges and reorders them. On a revolve it does: a flanged nut came

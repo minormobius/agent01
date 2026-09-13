@@ -45,6 +45,24 @@ Face names are stable and semantic: an extrude `plate` has `plate.start`,
 `plate.pivot[2][1]`; a `gear` op `g` gives `g.tooth[i].flank.r.0`, `g.tip`,
 `g.bore[k]`. Use names, never face indices.
 
+**Names survive a boolean.** A cut destroys the face indices, not the
+surfaces, so a face that survives keeps its feature's name and a face the
+tool made carries the tool's own loop name (`slot.pivot[0]`) with its
+geometry. A body with cuts in it is a placement target and a measure
+argument like any other. A face that lies on no named surface is
+`<op>.face[k]`, after the op that last changed the body; `{"op": "name",
+"face": "slot.pivot[0]", "as": "pinBore"}` adds an alias when the name you
+want is not the one the sweep gave.
+
+**Three ways to give an extrude its thickness**, and one of them is always
+right: `depth` (along the sketch plane's normal), `from`/`to` (both along
+that same normal, so a solid that does not start at the plane needs no sign
+juggling), or `through: true` on a `cut`, which sizes the tool from the
+body's own extent. Prefer `through` for a cut that goes all the way: the
+overhang is what made watertightness look like a coin flip — the kernel
+knows the number and you do not. A cut whose tool misses the body is an
+error naming the gap and the axis, not a trap.
+
 ## Which kernel
 
 - **Manifold** (preview; `check.mjs`; `export.mjs` fallback): milliseconds,
@@ -128,7 +146,7 @@ found, not missed. The verdicts:
 
 | verdict | means | passes |
 |---|---|---|
-| `collision` | crossing, one inside the other, or any depth | no |
+| `collision` | crossing, one inside the other, any depth — or a mated touch past its budget | no |
 | `contact` | touching with no depth, and no clearance was demanded | yes |
 | `expected` | a touch the mates imply (fixed, screw) or a `fits` entry declares with `"contact": true` | yes |
 | `fit` | a pair with a declared fit, within its `[min, max]` | yes |
@@ -145,9 +163,38 @@ own numbers rather than the clearance you demand of everything else —
           { "a": "nut", "b": "platform", "contact": true } ]
 ```
 
-`[*]` matches every instance of a repeat; either order of `a` and `b`
-matches; numbers may be expressions. Only the pairs within four times the
-clearance (and at least 1 mm) are refined — a pair 10 mm away cannot graze.
+`[*]` matches every instance of a repeat and either order of `a` and `b`
+matches; numbers may be expressions. **`[*]` on BOTH sides means the same
+index** — `{"a": "arm-pin[*]", "b": "bush[*]"}` is four pairs, not sixteen —
+and `over` walks an index through an expression on either side when the
+pairing is not one-to-one:
+
+```json
+{ "a": "link[k]", "b": "bush[2*k]", "min": 0.1, "max": 0.3, "over": { "k": 4 } }
+```
+
+A fit naming a component the document does not have is an error, so an
+enumerated list cannot rot silently when a repeat count changes. A
+sub-assembly's `fits` reach the top like its mates, prefixed with its id.
+
+**A `fixed` mate means bolted, not "may be the same solid".** A touch the
+mates imply is `expected` only up to a budget: 1 mm³ of shared volume (or a
+thousandth of the smaller part, whichever is larger) and 0.1 mm of depth.
+Past that it is a `collision` like any other, and `check.mjs` exits 1. A
+real press fit declares its own:
+
+```json
+{ "a": "bush[0]", "b": "arm", "contact": true, "interfere": { "max": 5, "depth": 0.2 } }
+```
+
+Only the pairs within four times the clearance (and at least 1 mm) are
+refined — a pair 10 mm away cannot graze.
+
+**A component placed by an expression over `t` or `theta` must not also
+carry a mate**: the placement moves it and the mate moves it again, so the
+two travels add (measured: four pins placed over a derived `yn` and
+fixed-mated to the travelling arm stretched their links 40 → 34 mm).
+`check` refuses such a document and names the component.
 
 Clearance needs no kernel, so the MCP `interference` tool runs it on the
 server (`clearance`, `sweep`, `period`); shared volumes still need Manifold,
@@ -159,6 +206,11 @@ the server says so instead of dying:
 - `done: false` with `next` — the sweep covered instants `window.from` to
   `window.from + window.sampled - 1`. Call again with `from: next` until
   `done`, then take the smallest distance per pair across the windows.
+  `ok` and `done` are separate: `ok` says nothing bad was found in what was
+  sampled, `done` says the sweep finished. Every answer carries `cost` —
+  what one instant costs in triangle-pairs, the server's budget, how many
+  instants that buys, and an estimate at the other resolutions — so `res`
+  can be chosen without probing for the cliff.
 - `incomplete: "too-big"` — one instant costs more than the server may
   spend. Pass `res: 128` or `res: 64` (coarser meshes: chord error 0.005
   or 0.01 mm instead of 0.0025), check fewer components, or run it locally.
@@ -278,6 +330,10 @@ you mean *this version for ever*.
 ## Honesty
 
 Report what `watertight` and `χ` say, not what the picture looks like. A
-Truck failure is not a modelling failure — try the region form, then OCCT
-in the page. Volumes are in mm³ when `units` is `mm`. If the renderer is
-not installed, say so rather than describing a picture you did not see.
+part that builds but is **not watertight is not a part**: its volume is not
+to be trusted and it will not print or export cleanly. `agent/build.mjs`
+exits 1 on it and the MCP `build` tool returns `ok: false` with
+`built: true` — those two mean the same thing, deliberately. A Truck failure
+is not a modelling failure — try the region form, then OCCT in the page.
+Volumes are in mm³ when `units` is `mm`. If the renderer is not installed,
+say so rather than describing a picture you did not see.

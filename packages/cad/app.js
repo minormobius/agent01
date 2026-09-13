@@ -6,7 +6,7 @@
 // `spin` drives it and reports the frame rate. `window.__cad` is the hook.
 import { Camera } from './camera.js';
 import { Renderer } from './gl.js';
-import { flatten, solveAngles as solveKin, modelOf, expectedTouch } from './lib/assembly.js';
+import { flatten, solveAngles as solveKin, modelOf, expectedTouch, expectations, touchLimit } from './lib/assembly.js';
 import { measure, describe, faceWorld } from './lib/measure.js';
 import { writeStl } from './lib/mesh.js';
 import { drawing } from './lib/drawing.js';
@@ -137,7 +137,7 @@ async function setDocument(obj, name, { at = null } = {}) {
   for (const k of [...renderer.bodies.keys()]) renderer.removeBody(k);
   state.slots.clear();
   if (obj.components) { state.mode = 'asm'; state.asm = obj; await prepareAssembly(obj); }
-  else { state.mode = 'part'; state.tree = obj; state.asm = null; state.components = []; state.mates = []; state.drive = null; state.spin = false; }
+  else { state.mode = 'part'; state.tree = obj; state.asm = null; state.components = []; state.mates = []; state.drive = null; state.spin = false; state.warnings = []; }
   document.body.dataset.mode = state.mode;
   renderParams(); renderTree();
   history.replaceState(null, '', at ? `?at=${encodeURIComponent(at)}` : name && BENCH.includes(name) ? `?part=${name}${OCCT_BASE ? '&occt=' + encodeURIComponent(OCCT_BASE) : ''}` : `#t=${b64(state.treeText)}`);
@@ -159,7 +159,8 @@ function renderDoc() {
   const f = state.file;
   const where = f ? `${f.drive === 'pds' ? 'my PDS' : f.drive === 'browse' ? `at://${drives.browse?.did.slice(0, 22)}…` : 'local drive'} · ${f.entry.path} · rev ${f.entry.head?.uri.slice(-10) || '—'}`
     : state.at ? `pinned revision ${state.at.slice(-10)}` : BENCH.includes(state.name) ? 'bench — this site ships it' : 'a tree of your own';
-  box.innerHTML = `<div><b>${esc(state.name)}</b> <span class="dim">${esc(d.units || 'mm')}</span></div><div class="dim">${esc(what)}</div><div class="dim">${esc(where)}${d.description ? ` · ${esc(d.description)}` : ''}</div><div class="fresh">${freshLine()}</div>`;
+  const flaws = (state.warnings || []).map((w) => `<div class="bad">✗ ${esc(w.msg)}</div>`).join('');
+  box.innerHTML = `<div><b>${esc(state.name)}</b> <span class="dim">${esc(d.units || 'mm')}</span></div><div class="dim">${esc(what)}</div><div class="dim">${esc(where)}${d.description ? ` · ${esc(d.description)}` : ''}</div>${flaws}<div class="fresh">${freshLine()}</div>`;
   $('#doc [data-act=update]')?.addEventListener('click', () => reloadDocument(state.fresh?.stale || []));
   $('#doc [data-act=recheck]')?.addEventListener('click', () => checkFresh({ auto: false }));
 }
@@ -268,9 +269,9 @@ const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('be
 /// Flatten an assembly through the shared library; the page keeps the
 /// components, mates and drive and asks the library for angles and matrices.
 async function prepareAssembly(asm) {
-  const { components, mates, drive, partTrees, fits } = await flatten(asm, resolveRef, { facesOf });
+  const { components, mates, drive, partTrees, fits, warnings } = await flatten(asm, resolveRef, { facesOf });
   for (const c of components) c.tint = c.reference ? 0.45 : 1;
-  state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive; state.fits = fits; state.asmDoc = asm;
+  state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive; state.fits = fits; state.asmDoc = asm; state.warnings = warnings || [];
   state.spin = false; state.tAcc = 0; state.check = null;
   solveAngles(0);
 }
@@ -647,16 +648,24 @@ function runCheck() {
   const o = $('#checkout'); if (o) o.textContent = 'checking…';
 }
 const fixedPair = (a, b) => expectedTouch(state.mates)(a, b);
+/// A fixed or screw mate says a pair may touch; it does not say they may be
+/// the same solid. The budget is a mm³ or a thousandth of the smaller part,
+/// raisable per pair with `fits: [{a, b, contact: true, interfere: {max}}]`.
+function overBudget(p) {
+  if (!fixedPair(p.a, p.b)) return false;
+  const vol = (id) => { const c = state.components.find((x) => x.id === id); const inv = (state.slots.get(c?.partKey)?.exact || state.slots.get(c?.partKey)?.preview)?.invariants; return inv?.volume || 0; };
+  return p.volume > touchLimit(expectations(state.mates, state.fits)(p.a, p.b), [vol(p.a), vol(p.b)]).max;
+}
 function checkSummary() {
   const c = state.check; if (!c || c.pending) return 'checking…';
-  const real = c.pairs.filter((p) => !fixedPair(p.a, p.b));
+  const real = c.pairs.filter((p) => !fixedPair(p.a, p.b) || overBudget(p));
   return real.length ? `${real.length} interfering pair${real.length === 1 ? '' : 's'} (${c.tested} tested, ${c.ms.toFixed(0)} ms)` : `no interference (${c.tested} pairs tested, ${c.ms.toFixed(0)} ms)`;
 }
 function renderCheck() {
   const o = $('#checkout'); if (o) o.textContent = checkSummary();
   const box = $('#checks'); if (!box) return;
   const c = state.check; if (!c || c.pending) { box.innerHTML = ''; return; }
-  box.innerHTML = c.pairs.map((p) => `<div class="feat ${fixedPair(p.a, p.b) ? 'dim' : 'bad'}" data-pair="${p.a}|${p.b}"><b>${fixedPair(p.a, p.b) ? '~' : '✗'}</b> <span>${p.a} × ${p.b} · ${p.volume.toFixed(4)} mm³${fixedPair(p.a, p.b) ? ' (expected touch)' : ''}</span></div>`).join('') || '<div class="dim">no interference at this pose</div>';
+  box.innerHTML = c.pairs.map((p) => { const ok = fixedPair(p.a, p.b) && !overBudget(p); return `<div class="feat ${ok ? 'dim' : 'bad'}" data-pair="${p.a}|${p.b}"><b>${ok ? '~' : '✗'}</b> <span>${p.a} × ${p.b} · ${p.volume.toFixed(4)} mm³${ok ? ' (expected touch)' : overBudget(p) ? ' (expected touch, over its budget — declare interfere.max if this press fit is real)' : ''}</span></div>`; }).join('') || '<div class="dim">no interference at this pose</div>';
   for (const el of box.querySelectorAll('[data-pair]')) el.addEventListener('pointerenter', () => { const [a, b] = el.dataset.pair.split('|'); for (const r of document.querySelectorAll('[data-comp]')) r.classList.toggle('hl', r.dataset.comp === a || r.dataset.comp === b); });
 }
 

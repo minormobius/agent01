@@ -4,6 +4,54 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-14
+
+Seven things from a practitioner's session, in the order they cost time.
+
+**A boolean no longer strips face names.** The root of the worst bug class
+here: a cut destroyed every face index, so a body with one cut in it had no
+named faces and could be neither a placement target (`at: "@carrier.pivot"`)
+nor an argument to measure — which forces placement by expression, and an
+expression-placed component that also carries a mate travels twice. A
+boolean cannot destroy the *surfaces*, so every op now registers the
+geometry behind each name it gives and every face is matched back to it
+afterwards. A surviving face keeps its feature's name; a face the tool made
+carries the tool's own loop name (`slot.pivot[0]`) and geometry; anything
+unmatched is `<op>.face[k]`. `{"op": "name", "face": …, "as": …}` adds an
+alias, and `check` refuses a document whose mated component is also placed
+over `t`/`theta`.
+
+**A fixed mate no longer excuses unlimited shared volume.** An expected
+touch is expected up to 1 mm³ (or a thousandth of the smaller part) and
+0.1 mm of depth; past that it is a collision like any other. A real press
+fit raises its own: `fits: [{a, b, contact: true, interfere: {max, depth}}]`.
+
+**`ok` means what the CLI's exit code means.** The MCP `build` tool returned
+`"ok": true` beside `"watertight": false` in the same payload; now a leaky
+solid is `ok: false` with `built: true` and the open-edge count. And
+`through: true` on a cut sizes the tool from the body's own extent, so the
+overhang that made watertightness look like a coin flip is the kernel's
+problem rather than a number tuned by bisection.
+
+**`fits` pair by index, not by cross product.** `[*]` on both sides means the
+same index; `over: {k: 4}` walks an index through an expression
+(`{a: 'link[k]', b: 'bush[2*k]'}`); and a fit naming a component that does
+not exist is an error, so an enumerated list cannot rot silently.
+
+**A sub-assembly's `fits` reach the top**, prefixed, as its mates always did.
+
+**`ok` and `done` are separate** in a windowed sweep, so a run with nothing
+wrong in it stops saying `ok: false`; and every answer carries `cost` — the
+work in one instant, the budget, the instants it buys, and an estimate at
+the other resolutions — so `res` is chosen from numbers.
+
+**Cut diagnostics.** A cut whose tool misses the body is an error naming the
+gap and the axis. An extrude takes `from`/`to` along the sketch plane's own
+normal, so the XZ sign convention never has to be remembered. And a kernel
+panic — `truck-topology`'s "This shell is not oriented and closed" — reaches
+the host as a message instead of a bare `unreachable` that left the engine
+dead for the rest of the session.
+
 ## 2026-09-13, third pass
 
 From evaluating a gripper on a phone, against a repo someone else is changing.
