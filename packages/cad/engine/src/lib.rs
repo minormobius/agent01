@@ -291,8 +291,36 @@ pub extern "C" fn cad_alloc(n: u32) -> *mut u8 {
     }
 }
 
+// A panic is the worst thing that can reach a host: wasm has no unwinding, so
+// `truck-topology`'s "This shell is not oriented and closed" — a boolean this
+// kernel cannot do — arrives as an `unreachable` trap with nothing to read and
+// a dead instance. The hook hands the message to the host BEFORE the trap, so
+// the host can report the real reason (and start a fresh instance).
+#[cfg(target_arch = "wasm32")]
+extern "C" {
+    fn cad_host_panic(ptr: *const u8, len: usize);
+}
+
+fn install_panic_hook() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        std::panic::set_hook(Box::new(|info| {
+            let msg = format!("{info}");
+            #[cfg(target_arch = "wasm32")]
+            unsafe {
+                cad_host_panic(msg.as_ptr(), msg.len());
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                eprintln!("{msg}");
+            }
+        }));
+    });
+}
+
 #[no_mangle]
 pub extern "C" fn cad_build(ptr: *const u8, n: u32, kernel: u32, want_step: u32, res: u32) -> u32 {
+    install_panic_hook();
     let json = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr, n as usize)) };
     let kname = match kernel { 1 => "implicit", _ => "truck" };
     // `res` is the implicit kernel's grid; for the B-rep kernels it also sets
@@ -319,6 +347,7 @@ pub extern "C" fn cad_build(ptr: *const u8, n: u32, kernel: u32, want_step: u32,
 
 #[no_mangle]
 pub extern "C" fn cad_resolve(ptr: *const u8, n: u32, tol_micro: u32) -> u32 {
+    install_panic_hook();
     let json = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(ptr, n as usize)) };
     let tol = if tol_micro == 0 { 0.01 } else { tol_micro as f64 * 1e-6 };
     let (ok, report) = match resolve_json(json, tol) {

@@ -128,7 +128,8 @@ pub enum Feature {
         #[serde(default)] angle: Option<Num>,
         #[serde(default)] name: Option<String>,
     },
-    Extrude { id: String, profile: OneOrMany, depth: Num, #[serde(default)] mode: Option<String> },
+    Extrude { id: String, profile: OneOrMany, #[serde(default)] depth: Option<Num>, #[serde(default)] mode: Option<String>, #[serde(default)] through: Option<bool>, #[serde(default)] from: Option<Num>, #[serde(default)] to: Option<Num> },
+    Name { id: String, face: String, #[serde(rename = "as")] alias: String },
     Revolve { id: String, profile: OneOrMany, axis: AxisSpec, #[serde(default)] angle: Option<Num>, #[serde(default)] mode: Option<String> },
     Boolean { id: String, kind: String, a: String, b: String },
     Fillet { id: String, edges: String, r: Num },
@@ -141,7 +142,7 @@ impl Feature {
         match self {
             Feature::Sketch { id, .. } | Feature::Gear { id, .. } | Feature::Pattern { id, .. } | Feature::Extrude { id, .. }
             | Feature::Revolve { id, .. } | Feature::Boolean { id, .. } | Feature::Fillet { id, .. } | Feature::Chamfer { id, .. }
-            | Feature::Shell { id, .. } => id,
+            | Feature::Shell { id, .. } | Feature::Name { id, .. } => id,
         }
     }
     pub fn op(&self) -> &'static str {
@@ -155,6 +156,7 @@ impl Feature {
             Feature::Fillet { .. } => "fillet",
             Feature::Chamfer { .. } => "chamfer",
             Feature::Shell { .. } => "shell",
+            Feature::Name { .. } => "name",
         }
     }
 }
@@ -225,7 +227,8 @@ pub struct RSketch {
 #[derive(Debug, Clone, Serialize)]
 #[serde(tag = "op", rename_all = "lowercase")]
 pub enum ROp {
-    Extrude { id: String, sketches: Vec<String>, frame: Frame, region: Region, depth: f64, mode: String },
+    Extrude { id: String, sketches: Vec<String>, frame: Frame, region: Region, depth: f64, mode: String, through: bool },
+    Name { id: String, face: String, alias: String },
     Revolve { id: String, sketches: Vec<String>, frame: Frame, region: Region, axis_p: P2, axis_d: P2, angle_deg: f64, mode: String },
     Boolean { id: String, kind: String, a: String, b: String },
     Fillet { id: String, edges: String, r: f64 },
@@ -236,7 +239,7 @@ pub enum ROp {
 impl ROp {
     pub fn id(&self) -> &str {
         match self {
-            ROp::Extrude { id, .. } | ROp::Revolve { id, .. } | ROp::Boolean { id, .. } | ROp::Fillet { id, .. } | ROp::Chamfer { id, .. } | ROp::Shell { id, .. } => id,
+            ROp::Extrude { id, .. } | ROp::Revolve { id, .. } | ROp::Boolean { id, .. } | ROp::Fillet { id, .. } | ROp::Chamfer { id, .. } | ROp::Shell { id, .. } | ROp::Name { id, .. } => id,
         }
     }
     pub fn op(&self) -> &'static str {
@@ -247,6 +250,7 @@ impl ROp {
             ROp::Fillet { .. } => "fillet",
             ROp::Chamfer { .. } => "chamfer",
             ROp::Shell { .. } => "shell",
+            ROp::Name { .. } => "name",
         }
     }
 }
@@ -431,7 +435,7 @@ pub fn resolve(tree: &Tree) -> Result<Resolved, String> {
                 }
                 let sid = format!("{id}.profile");
                 sketches.push(RSketch { id: sid.clone(), frame: frame.clone(), region: region.clone() });
-                ops.push(ROp::Extrude { id: id.clone(), sketches: vec![sid], frame, region, depth: b, mode: if ops.is_empty() { "new".into() } else { "add".into() } });
+                ops.push(ROp::Extrude { id: id.clone(), sketches: vec![sid], frame, region, depth: b, through: false, mode: if ops.is_empty() { "new".into() } else { "add".into() } });
                 gears.push(GearMeta { id: id.clone(), spec, b, bore });
             }
             Feature::Pattern { id, of, kind, center, count, step, angle, name } => {
@@ -475,15 +479,35 @@ pub fn resolve(tree: &Tree) -> Result<Resolved, String> {
                 }
                 sketches.push(RSketch { id: id.clone(), frame: src.frame.clone(), region });
             }
-            Feature::Extrude { id, profile, depth, mode } => {
+            Feature::Extrude { id, profile, depth, mode, through, from, to } => {
                 let list = profile.list();
                 let (frame, region) = region_of(&sketches, &list)?;
-                let depth = cx.n(depth)?;
-                if depth.abs() < 1e-12 {
+                let mode = mode.clone().unwrap_or_else(|| if ops.is_empty() { "new".into() } else { "add".into() });
+                let through = through.unwrap_or(false);
+                // `from`/`to` are along the sketch plane's own normal, measured
+                // from the plane: no sign convention to remember, and the plane
+                // need not be where the material starts.
+                let (frame, depth) = match (from, to) {
+                    (None, None) => (frame, if through { 1.0 } else { cx.n(depth.as_ref().ok_or_else(|| format!("extrude `{id}`: needs `depth`, or `from`/`to`, or `through: true`"))?)? }),
+                    (f, t) => {
+                        let f = match f { Some(v) => cx.n(v)?, None => 0.0 };
+                        let t = match t { Some(v) => cx.n(v)?, None => return Err(format!("extrude `{id}`: `from` needs a `to`")) };
+                        if (t - f).abs() < 1e-12 {
+                            return Err(format!("extrude `{id}`: from {f} to {t} is zero thickness"));
+                        }
+                        (frame.offset(f), t - f)
+                    }
+                };
+                if !through && depth.abs() < 1e-12 {
                     return Err(format!("extrude `{id}`: zero depth"));
                 }
-                let mode = mode.clone().unwrap_or_else(|| if ops.is_empty() { "new".into() } else { "add".into() });
-                ops.push(ROp::Extrude { id: id.clone(), sketches: list, frame, region, depth, mode });
+                if through && mode == "new" {
+                    return Err(format!("extrude `{id}`: `through` needs a body to go through — it cuts or intersects one, so it cannot be the first solid"));
+                }
+                ops.push(ROp::Extrude { id: id.clone(), sketches: list, frame, region, depth, mode, through });
+            }
+            Feature::Name { id, face, alias } => {
+                ops.push(ROp::Name { id: id.clone(), face: face.clone(), alias: alias.clone() });
             }
             Feature::Revolve { id, profile, axis, angle, mode } => {
                 let list = profile.list();

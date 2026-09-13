@@ -352,6 +352,7 @@ impl Kernel for Implicit {
                     solids.push(mk(ra)?);
                     body = Some(node);
                 }
+                ROp::Name { .. } => {} // an alias on a named face; this kernel names none
                 ROp::Fillet { id, .. } => return Err(KError::unsupported(id, "fillet (planned: smooth-min)")),
                 ROp::Chamfer { id, .. } => return Err(KError::unsupported(id, "chamfer")),
                 ROp::Shell { id, .. } => return Err(KError::unsupported(id, "shell (planned: |d| - t)")),

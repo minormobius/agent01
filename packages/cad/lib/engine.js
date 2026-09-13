@@ -15,15 +15,32 @@ export async function loadEngine(source) {
   if (source instanceof WebAssembly.Module) mod = source;
   else if (typeof Response !== 'undefined' && source instanceof Response) mod = await WebAssembly.compileStreaming(source).catch(async () => WebAssembly.compile(await source.arrayBuffer()));
   else mod = await WebAssembly.compile(source);
-  const imports = { env: { cad_host_now_ms: () => performance.now() } };
+  // The engine hands over a panic message before it traps: wasm cannot unwind,
+  // so a boolean truck refuses ("This shell is not oriented and closed") kills
+  // the instance. Catching the trap and starting a fresh instance is what keeps
+  // one bad part from taking the engine down for the rest of the session — and
+  // the message is what turns an `unreachable` into something a person can act
+  // on.
+  let panicked = null;
+  const imports = { env: { cad_host_now_ms: () => performance.now(), cad_host_panic: (ptr, len) => { try { panicked = new TextDecoder().decode(new Uint8Array(X.memory.buffer).slice(ptr, ptr + len)); } catch { panicked = 'the kernel panicked'; } } } };
   // Two transitive deps (chrono, rand) link wasm-bindgen shims this path never
   // calls; satisfy them with stubs that trap loudly if anything does.
   for (const im of WebAssembly.Module.imports(mod)) {
     if (im.module === 'env') continue;
     (imports[im.module] ??= {})[im.name] = im.name.includes('describe') || im.name.includes('drop_ref') ? () => {} : () => { throw new Error(`wasm-bindgen shim called: ${im.name}`); };
   }
-  const inst = await WebAssembly.instantiate(mod, imports);
-  const X = inst.exports;
+  let inst = await WebAssembly.instantiate(mod, imports);
+  let X = inst.exports;
+  /// After a trap the instance's memory is undefined — every allocation and
+  /// every output slot with it — so it is replaced rather than reused. The
+  /// module is already compiled, so this is a cheap synchronous instantiation.
+  const trapped = (e) => {
+    const msg = panicked || (e && e.message) || 'the exact kernel trapped';
+    panicked = null;
+    inst = new WebAssembly.Instance(mod, imports);
+    X = inst.exports;
+    return msg.replace(/^panicked at [^\n]*\n/, '').split('\n')[0].trim();
+  };
   const mem = () => new Uint8Array(X.memory.buffer);
   const out = (w) => { const p = X.cad_out_ptr(w), n = X.cad_out_len(w); return mem().slice(p, p + n); };
   const put = (json) => { const b = new TextEncoder().encode(json); const ptr = X.cad_alloc(b.length); mem().set(b, ptr); return [ptr, b.length]; };
@@ -31,19 +48,32 @@ export async function loadEngine(source) {
   return {
     version: X.cad_version(),
     resolve(treeJson, tol = 0.01) {
-      const [ptr, n] = put(typeof treeJson === 'string' ? treeJson : JSON.stringify(treeJson));
-      const ok = X.cad_resolve(ptr, n, Math.round(tol * 1e6));
-      const r = JSON.parse(text(out(0)));
-      X.cad_free_all();
-      if (!ok) { const e = new Error(r.error?.msg || 'resolve failed'); e.op = r.error?.op; throw e; }
+      let r;
+      try {
+        const [ptr, n] = put(typeof treeJson === 'string' ? treeJson : JSON.stringify(treeJson));
+        const ok = X.cad_resolve(ptr, n, Math.round(tol * 1e6));
+        r = JSON.parse(text(out(0)));
+        X.cad_free_all();
+        if (!ok) { const e = new Error(r.error?.msg || 'resolve failed'); e.op = r.error?.op; throw e; }
+      } catch (err) {
+        if (!(err instanceof WebAssembly.RuntimeError)) throw err;
+        const e = new Error(trapped(err)); e.op = 'resolve'; e.trapped = true; throw e;
+      }
       return r;
     },
     build(treeJson, { kernel = 'truck', step = false, res = 64 } = {}) {
-      const [ptr, n] = put(typeof treeJson === 'string' ? treeJson : JSON.stringify(treeJson));
       const t0 = performance.now();
-      const ok = X.cad_build(ptr, n, KERNELS[kernel] ?? 0, step ? 1 : 0, res);
+      let ok, report;
+      try {
+        const [ptr, n] = put(typeof treeJson === 'string' ? treeJson : JSON.stringify(treeJson));
+        ok = X.cad_build(ptr, n, KERNELS[kernel] ?? 0, step ? 1 : 0, res);
+        report = JSON.parse(text(out(0)));
+      } catch (err) {
+        if (!(err instanceof WebAssembly.RuntimeError)) throw err;
+        // a trap is an error like any other now, and the next build works
+        return { ok: false, report: { ok: false, kernel, error: { op: 'kernel', msg: `${kernel} could not do this: ${trapped(err)}`, trapped: true, occtWouldHelp: kernel === 'truck' } }, mesh: null, stl: null, step: null, ms: performance.now() - t0 };
+      }
       const ms = performance.now() - t0;
-      const report = JSON.parse(text(out(0)));
       let mesh = null, stl = null, stepText = null;
       if (ok) {
         const pos = out(3), idx = out(4), fid = out(5);

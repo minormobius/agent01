@@ -66,6 +66,27 @@ impl Geom {
             }
         }
     }
+
+    /// The same surface, not merely a similar one: a circle is four exact arcs
+    /// and every one of them names the same cylinder, so a face on it must not
+    /// come back with four names.
+    pub fn same_as(&self, other: &Geom) -> bool {
+        let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+        let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+        match (self, other) {
+            (Geom::Plane { normal: n1, point: p1 }, Geom::Plane { normal: n2, point: p2 }) => {
+                dot(*n1, *n2).abs() > 0.9999 && dot(sub(*p1, *p2), *n1).abs() < 1e-6
+            }
+            (Geom::Cylinder { axis: a1, center: c1, radius: r1 }, Geom::Cylinder { axis: a2, center: c2, radius: r2 }) => {
+                if dot(*a1, *a2).abs() <= 0.9999 || (r1 - r2).abs() > 1e-6 * r1.abs().max(1.0) { return false; }
+                let d = sub(*c1, *c2);
+                let along = dot(d, *a1);
+                let off = sub(d, [a1[0] * along, a1[1] * along, a1[2] * along]);
+                dot(off, off).sqrt() < 1e-6 * r1.abs().max(1.0)
+            }
+            _ => false,
+        }
+    }
 }
 
 /// The geometry for face `i`: the one its op assigned if it fits the face the
