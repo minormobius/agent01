@@ -230,3 +230,23 @@ leaving it as a documented-but-unused capability. Named it on its own terms
 page, consistent with the standing rule that only the requester can ask for
 things and nobody in that sub-thread had. Kit amber default again — thirteen
 for thirteen now, still the safe baseline absent a stated preference.
+
+## Fourteenth build — `screen`, "First Words" (mutuals reply grid)
+
+`screen` (2026-09-13), requested directly and technically: "I want to create
+a grid that's all mutuals first reply to every other mutual." Terse but
+precise — unlike most of this requester's asks, this one names the exact
+mechanism (mutuals, pairwise, first reply) rather than a genre/vibe to
+infer. Built literally: handle → mutuals via follows/followers intersection
+→ concurrent per-mutual feed scan for earliest direct-reply to each other
+included mutual → N×N grid, sticky headers, real links to the reply post.
+Kit amber, untouched — fourteen for fourteen, confidently the baseline.
+
+Notable because it's the first build for this requester where the follow/
+follower-intersection approach was the *right* call rather than the thing to
+avoid — `mutuals-combined`'s requester rejected that same mechanism for a
+different reason (wanted an interaction chart instead); this request's own
+wording specifically needs a two-sided mutual relationship, which an
+interaction chart can't produce. Worth remembering: don't over-generalize
+"avoid follow/follower pagination" as a rule — it depends on what the
+request is actually asking for structurally, not a blanket preference.

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>First Words — the reply grid of your mutuals</title>
+<meta property="og:title" content="First Words — the reply grid of your mutuals">
+<meta property="og:description" content="Type a Bluesky handle. For every pair of their mutuals — people who follow each other — this finds the earliest reply between them and lays it out as a grid.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .field { margin-bottom: 1.1rem; }
+  .field label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: .35rem; }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+  input[type=range] { width: 100%; accent-color: var(--accent); height: 2rem; }
+  #capVal { color: var(--accent); }
+  button#go { width: 100%; margin-top: .3rem; }
+  #status { margin: 1rem 0; }
+  .note { font-size: .78rem; color: var(--muted); line-height: 1.5; }
+  .note strong { color: var(--fg); }
+  details.note { margin: 1rem 0 1.5rem; border: 1px solid var(--border); border-radius: var(--radius); padding: .1rem .9rem; }
+  details.note summary { cursor: pointer; padding: .6rem 0; font-size: .8rem; color: var(--fg); }
+  .scrollHint { font-size: .75rem; color: var(--muted); margin: .5rem 0; }
+  .scrollBox { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--border); border-radius: var(--radius); }
+  table#grid { border-collapse: collapse; font-size: .72rem; }
+  table#grid th, table#grid td {
+    border: 1px solid var(--border); padding: 0; text-align: center;
+    min-width: 2.75rem; height: 2.75rem; box-sizing: border-box;
+  }
+  table#grid thead th { position: sticky; top: 0; background: var(--bg); z-index: 2; }
+  table#grid tbody th { position: sticky; left: 0; background: var(--bg); z-index: 1; text-align: right; padding-right: .5rem; }
+  table#grid thead th:first-child { position: sticky; left: 0; z-index: 3; background: var(--bg); }
+  .hcell { display: flex; flex-direction: column; align-items: center; gap: .2rem; padding: .35rem .2rem; }
+  .hcell img, .rowlabel img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: var(--border); }
+  .hcell span, .rowlabel span { font-size: .62rem; color: var(--muted); max-width: 3.6rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rowlabel { display: flex; align-items: center; gap: .35rem; justify-content: flex-end; }
+  td.self { color: var(--border); }
+  td a { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%;
+         min-height: 44px; color: var(--ok); text-decoration: none; font-weight: 600; }
+  td a:hover, td a:focus { background: var(--accent-dim); }
+  td.empty { color: var(--border); }
+  .legend { display: flex; gap: 1.2rem; flex-wrap: wrap; margin: .8rem 0 1.2rem; font-size: .75rem; color: var(--muted); }
+  .legend span.dot { color: var(--ok); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>First Words</h1>
+  <p class="sub">Enter a handle. This finds their mutuals — people they follow who follow them back — and, for every pair, the earliest reply one sent the other.</p>
+
+  <form id="f">
+    <div class="field">
+      <label for="handle">Bluesky handle</label>
+      <input id="handle" type="text" placeholder="you.bsky.social" autocomplete="off">
+    </div>
+    <div class="field">
+      <label for="cap">Mutuals to include: <span id="capVal">10</span></label>
+      <input id="cap" type="range" min="4" max="20" value="10" step="1">
+    </div>
+    <button id="go" type="submit">build the grid</button>
+  </form>
+
+  <div id="status" class="note" hidden></div>
+  <div id="err" class="err" hidden></div>
+
+  <div id="results" hidden>
+    <div class="legend">
+      <div><span class="dot">date</span> — a reply exists, click to open it</div>
+      <div><span style="color:var(--border)">·</span> — no reply found in the scanned window</div>
+      <div>rows reply <em>to</em> columns</div>
+    </div>
+    <p class="scrollHint">Grid is wider than your screen? Scroll the box sideways →</p>
+    <div class="scrollBox"><table id="grid"></table></div>
+    <details class="note">
+      <summary>How this is actually computed</summary>
+      <p><strong>Mutuals</strong> = accounts on both the follows and followers lists, read via
+      <code>app.bsky.graph.getFollows</code>/<code>getFollowers</code>, up to 300 of each side. If either
+      list is longer than that, the mutual count below is a lower bound, said as one.</p>
+      <p><strong>"First reply"</strong> is the earliest reply found while scanning up to 300 of each
+      mutual's own recent posts (<code>getAuthorFeed</code>, replies included, reposts excluded) for one
+      whose reply-parent was authored by another included mutual. It is the earliest reply <em>in that
+      scanned window</em>, not necessarily the first one that ever happened — a very active account's
+      real first reply to someone could sit further back than 300 posts. Moderated/labelled posts are
+      dropped before anything is counted.</p>
+      <p>A reply counts if it was posted directly under a post by the other mutual — not a reply
+      somewhere further down the same thread, and not a mention or quote.</p>
+    </details>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('First Words');
+
+  var handleEl = document.getElementById('handle');
+  var capEl = document.getElementById('cap');
+  var capVal = document.getElementById('capVal');
+  var form = document.getElementById('f');
+  var goBtn = document.getElementById('go');
+  var statusEl = document.getElementById('status');
+  var errEl = document.getElementById('err');
+  var resultsEl = document.getElementById('results');
+  var gridEl = document.getElementById('grid');
+
+  capEl.addEventListener('input', function () { capVal.textContent = capEl.value; });
+
+  kit.handleInput(handleEl, {
+    onPick: function (handle) { handleEl.value = handle; }
+  });
+
+  var FOLLOW_PAGES = 3;   // up to 300 follows / 300 followers
+  var FEED_PAGES = 3;     // up to 300 posts scanned per mutual
+  var POOL_SIZE = 4;
+  var running = false;
+
+  function status(msg) { kit.clear(errEl); statusEl.hidden = false; statusEl.textContent = msg; }
+  function fail(msg) { statusEl.hidden = true; kit.showError(errEl, msg); }
+
+  async function mapPool(items, limit, fn) {
+    var out = new Array(items.length);
+    var i = 0;
+    async function worker() {
+      while (i < items.length) {
+        var idx = i++;
+        out[idx] = await fn(items[idx], idx);
+      }
+    }
+    var workers = [];
+    for (var w = 0; w < Math.min(limit, items.length); w++) workers.push(worker());
+    await Promise.all(workers);
+    return out;
+  }
+
+  async function paginate(method, did, listKey, maxPages) {
+    var out = [], cursor;
+    for (var p = 0; p < maxPages; p++) {
+      var params = { actor: did, limit: 100 };
+      if (cursor) params.cursor = cursor;
+      var res = await kit.bskyGet(method, params);
+      var arr = res[listKey] || [];
+      out.push.apply(out, arr);
+      cursor = res.cursor;
+      if (!cursor) break;
+    }
+    return { items: kit.visible(out), truncated: !!cursor };
+  }
+
+  var URI_DID = /^at:\/\/(did:[^/]+)\//;
+
+  async function scanReplies(did, idxOfDid, selfIdx) {
+    var edges = {}; // "toIdx" -> {uri, createdAt}
+    var cursor;
+    for (var p = 0; p < FEED_PAGES; p++) {
+      var params = { actor: did, limit: 100, filter: 'posts_with_replies' };
+      if (cursor) params.cursor = cursor;
+      var res;
+      try {
+        res = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+      } catch (e) { break; }
+      var items = kit.visible(res.feed || []);
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (item.reason) continue; // a repost, not this account's own post
+        var post = item.post;
+        var rec = post && post.record;
+        var reply = rec && rec.reply;
+        var parentUri = reply && reply.parent && reply.parent.uri;
+        if (!parentUri) continue;
+        var m = URI_DID.exec(parentUri);
+        if (!m) continue;
+        var parentDid = m[1];
+        if (parentDid === did) continue; // replying within their own thread
+        var toIdx = idxOfDid[parentDid];
+        if (toIdx === undefined) continue; // not one of the included mutuals
+        var createdAt = rec.createdAt;
+        var existing = edges[toIdx];
+        if (!existing || new Date(createdAt) < new Date(existing.createdAt)) {
+          edges[toIdx] = { uri: post.uri, createdAt: createdAt };
+        }
+      }
+      cursor = res.cursor;
+      if (!cursor) break;
+    }
+    return edges;
+  }
+
+  function rkeyOf(uri) { return uri.split('/').pop(); }
+
+  function fmtDate(iso) {
+    var d = new Date(iso);
+    return d.toLocaleDateString(undefined, { year: '2-digit', month: 'short' });
+  }
+
+  function renderGrid(mutuals, edgesByFrom) {
+    gridEl.innerHTML = '';
+    var thead = document.createElement('thead');
+    var trh = document.createElement('tr');
+    var corner = document.createElement('th');
+    corner.textContent = '';
+    trh.appendChild(corner);
+    mutuals.forEach(function (m) {
+      var th = document.createElement('th');
+      var wrap = document.createElement('div');
+      wrap.className = 'hcell';
+      if (m.avatar) {
+        var img = document.createElement('img');
+        img.src = m.avatar; img.alt = ''; img.loading = 'lazy';
+        wrap.appendChild(img);
+      }
+      var sp = document.createElement('span'); sp.textContent = '@' + m.handle;
+      wrap.appendChild(sp);
+      th.appendChild(wrap);
+      th.title = '@' + m.handle;
+      trh.appendChild(th);
+    });
+    thead.appendChild(trh);
+    gridEl.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    mutuals.forEach(function (m, fromIdx) {
+      var tr = document.createElement('tr');
+      var rowTh = document.createElement('th');
+      var lab = document.createElement('div');
+      lab.className = 'rowlabel';
+      if (m.avatar) {
+        var img2 = document.createElement('img');
+        img2.src = m.avatar; img2.alt = ''; img2.loading = 'lazy';
+        lab.appendChild(img2);
+      }
+      var sp2 = document.createElement('span'); sp2.textContent = '@' + m.handle;
+      lab.appendChild(sp2);
+      rowTh.appendChild(lab);
+      rowTh.title = '@' + m.handle;
+      tr.appendChild(rowTh);
+
+      mutuals.forEach(function (to, toIdx) {
+        var td = document.createElement('td');
+        if (toIdx === fromIdx) {
+          td.className = 'self';
+          td.textContent = '—';
+        } else {
+          var edge = edgesByFrom[fromIdx] && edgesByFrom[fromIdx][toIdx];
+          if (edge) {
+            var a = document.createElement('a');
+            a.href = 'https://bsky.app/profile/' + m.handle + '/post/' + rkeyOf(edge.uri);
+            a.target = '_blank';
+            a.rel = 'noopener';
+            a.textContent = fmtDate(edge.createdAt);
+            a.title = '@' + m.handle + ' replied to @' + to.handle + ' on ' + new Date(edge.createdAt).toLocaleString();
+            td.appendChild(a);
+          } else {
+            td.className = 'empty';
+            td.textContent = '·';
+          }
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    gridEl.appendChild(tbody);
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    if (running) return;
+    var typed = handleEl.value.trim().replace(/^@/, '');
+    if (!typed) { fail('type a handle first.'); return; }
+    build(typed);
+  });
+
+  async function build(typedHandle) {
+    running = true;
+    goBtn.disabled = true;
+    goBtn.textContent = 'working…';
+    kit.clear(errEl);
+    resultsEl.hidden = true;
+    var cap = parseInt(capEl.value, 10);
+
+    try {
+      status('resolving @' + typedHandle + '…');
+      var res;
+      try {
+        res = await kit.bskyGet('com.atproto.identity.resolveHandle', { handle: typedHandle });
+      } catch (e) {
+        throw new Error('could not resolve @' + typedHandle + ' — check the spelling.');
+      }
+      var did = res.did;
+
+      status('reading follows and followers for @' + typedHandle + '…');
+      var pair = await Promise.all([
+        paginate('app.bsky.graph.getFollows', did, 'follows', FOLLOW_PAGES),
+        paginate('app.bsky.graph.getFollowers', did, 'followers', FOLLOW_PAGES)
+      ]);
+      var follows = pair[0], followers = pair[1];
+      var followerDids = {};
+      followers.items.forEach(function (a) { followerDids[a.did] = true; });
+      var mutualsAll = follows.items.filter(function (a) { return a.did !== did && followerDids[a.did]; });
+
+      if (mutualsAll.length < 2) {
+        throw new Error('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') +
+          ' for @' + typedHandle + ' — need at least 2 to build a grid.');
+      }
+
+      var mutuals = mutualsAll.slice(0, cap);
+      var idxOfDid = {};
+      mutuals.forEach(function (a, i) { idxOfDid[a.did] = i; });
+
+      var boundNote = (follows.truncated || followers.truncated) ? 'at least ' : '';
+      var cappedNote = mutualsAll.length > mutuals.length
+        ? ' — showing the first ' + mutuals.length + ' of ' + boundNote + mutualsAll.length + ' found'
+        : (boundNote ? ' (' + boundNote + mutualsAll.length + ' found)' : '');
+
+      var done = 0;
+      status('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') + cappedNote +
+        '. scanning replies… (0/' + mutuals.length + ')');
+
+      var edgesByFrom = await mapPool(mutuals, POOL_SIZE, async function (m, i) {
+        var edges = await scanReplies(m.did, idxOfDid, i);
+        done++;
+        status('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') + cappedNote +
+          '. scanning replies… (' + done + '/' + mutuals.length + ')');
+        return edges;
+      });
+
+      statusEl.hidden = true;
+      renderGrid(mutuals, edgesByFrom);
+      resultsEl.hidden = false;
+    } catch (e) {
+      fail(e.message || String(e));
+    } finally {
+      running = false;
+      goBtn.disabled = false;
+      goBtn.textContent = 'build the grid';
+    }
+  }
+})();
+</script>
+</body>
+</html>

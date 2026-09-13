@@ -1,0 +1,5 @@
+Grid only counts direct replies (post → its parent's author), not deep-thread
+replies or quotes, and only scans each mutual's most recent 300 posts — so
+"first" means earliest found in that window, not provably ever. Said plainly
+on the page. Next: raise the scan depth or let you pick which mutuals to
+include instead of just "first N found."
