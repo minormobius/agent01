@@ -289,7 +289,8 @@ export function assembly(mode = 'cycle') {
     ] : [fixed('nut', 'carriage')]),                                    // the flange on the carriage's rear face: an expected touch
     fixed('carriage', 'arm[0]'), fixed('carriage', 'arm[1]'),           // keyed into the slots; in the stroke document this carries the mate's travel
     fixed('jaw-pin[0]', 'carrier[0]'), fixed('jaw-pin[1]', 'carrier[1]'),   // press fits
-    fixed('arm-pin[0]', 'arm[0]'), fixed('arm-pin[1]', 'arm[1]'),   // press fits; both pins are placed by expression, so a fixed mate is right in either document
+    // the arm pins are placed by expression on `yn`, and the arms travel by the screw mate through the carriage, so a fixed mate here would carry that travel a second time
+    ...(stroke ? [] : [fixed('arm-pin[0]', 'arm[0]'), fixed('arm-pin[1]', 'arm[1]')]),
     ...[0, 1, 2, 3].flatMap((k) => [fixed(`bush[${2 * k}]`, `link[${k}]`), fixed(`bush[${2 * k + 1}]`, `link[${k}]`)]),
     fixed('carrier[0]', 'block[0]'), fixed('carrier[1]', 'block[1]'),   // 4 × M3 into the block's face
     fixed('rail', 'front-wall'),                                        // M3 at 20 pitch into the strip
