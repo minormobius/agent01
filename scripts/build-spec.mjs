@@ -20,6 +20,7 @@
 //   node scripts/build-spec.mjs --write    # write spec/data.js
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -242,11 +243,19 @@ const surfaces = reg.surfaces.map((s) => {
 // the DATA is where the data came from, and including it would make every
 // edit to this file need a second commit to settle)
 const SPEC_INPUTS = ['deploy-registry.json', 'catalogue.json', 'index.html', 'spec/curated.js'];
-let gitMeta = { commit: 'unknown', date: new Date().toISOString().slice(0, 10) };
+// A COMMIT hash cannot go in here: the file is part of the commit that would
+// name it, so the stamp is stale the instant it is written and CI's "would
+// --fix rewrite anything?" gate fails on the next push for ever (three
+// pushes chased their own tails on 2026-09-13). The stamp is a hash of the
+// inputs themselves, which is what provenance actually means: it changes
+// when the data changes and holds still otherwise.
+let gitMeta = { inputs: 'unknown', date: new Date().toISOString().slice(0, 10) };
 try {
-  const paths = [...SPEC_INPUTS, ...reg.surfaces.map((s) => `${s.dir}/CLAUDE.md`).filter((f) => existsSync(join(ROOT, f)))];
-  const [commit, date] = execSync(`git log -1 "--format=%h %cI" -- ${paths.map((p) => `"${p}"`).join(' ')}`, { cwd: ROOT }).toString().trim().split(' ');
-  if (commit) gitMeta = { commit, date: date.slice(0, 10) };
+  const paths = [...SPEC_INPUTS, ...reg.surfaces.map((s) => `${s.dir}/CLAUDE.md`)].filter((f) => existsSync(join(ROOT, f))).sort();
+  const h = createHash('sha256');
+  for (const f of paths) { h.update(f); h.update(readFileSync(join(ROOT, f))); }
+  const dates = execSync(`git log -1 "--format=%cI" -- ${paths.map((p) => `"${p}"`).join(' ')}`, { cwd: ROOT }).toString().trim();
+  gitMeta = { inputs: h.digest('hex').slice(0, 12), date: (dates || new Date().toISOString()).slice(0, 10) };
 } catch { /* fine — keep fallback */ }
 
 // ------------------------------------------------------------------- probe --
