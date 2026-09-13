@@ -47,30 +47,50 @@ export function explodeBodies(bodies, factor = 0.6) {
   const all = boxes.reduce((a, b) => [[Math.min(a[0][0], b.min[0]), Math.min(a[0][1], b.min[1]), Math.min(a[0][2], b.min[2])], [Math.max(a[1][0], b.max[0]), Math.max(a[1][1], b.max[1]), Math.max(a[1][2], b.max[2])]], [[Infinity, Infinity, Infinity], [-Infinity, -Infinity, -Infinity]]);
   const C = [0, 1, 2].map((k) => (all[0][k] + all[1][k]) / 2);
   const diag = Math.hypot(all[1][0] - all[0][0], all[1][1] - all[0][1], all[1][2] - all[0][2]) || 1;
-  // direction per body: away from the centre, or along its own axis when it
-  // sits on it (a nut on its screw has no radial offset to use)
+  // Direction: away from the centre, or along the body's own axis when it sits
+  // on it (a nut on its screw has no radial offset to use). Quantised, so
+  // bodies leaving roughly the same way are treated as one train.
   const dirs = bodies.map((b, i) => {
     const d = [0, 1, 2].map((k) => boxes[i].centre[k] - C[k]);
     const len = Math.hypot(...d);
     const m = b.model || [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-    return len > diag * 0.02 ? d.map((x) => x / len) : [m[8], m[9], m[10]];
+    const raw = len > diag * 0.02 ? d.map((x) => x / len) : [m[8], m[9], m[10]];
+    // snap to the nearest of 26 directions: a train of parts should leave
+    // together, not fan out by a degree each
+    const snapped = raw.map((x) => (Math.abs(x) < 0.45 ? 0 : Math.sign(x)));
+    if (!snapped.some(Boolean)) { const k = raw.map(Math.abs).indexOf(Math.max(...raw.map(Math.abs))); snapped[k] = Math.sign(raw[k]) || 1; }
+    const l = Math.hypot(...snapped) || 1;
+    return snapped.map((x) => x / l);
   });
-  // bodies leaving the same way form a stack: they must separate from each
-  // other too, so the one already furthest out goes furthest
-  const key = (d) => d.map((x) => Math.round(x * 20) / 20).join(',');
+  // Bodies leaving the same way are a stack, and a stack must open UP: each
+  // one goes far enough that its own extent along that direction clears the
+  // one before it, with a gap. A fixed step per rank is what crowded a
+  // 44-body assembly — a long rail and a washer got the same room.
+  const extent = (i, d) => { // half-extent of body i along d, from its box
+    const b = boxes[i]; const c = b.centre;
+    return Math.abs((b.max[0] - c[0]) * d[0]) + Math.abs((b.max[1] - c[1]) * d[1]) + Math.abs((b.max[2] - c[2]) * d[2]);
+  };
+  const along = (i, d) => boxes[i].centre[0] * d[0] + boxes[i].centre[1] * d[1] + boxes[i].centre[2] * d[2];
   const stacks = new Map();
-  dirs.forEach((d, i) => { const k = key(d); (stacks.get(k) || stacks.set(k, []).get(k)).push(i); });
-  const rank = new Array(bodies.length).fill(0);
+  dirs.forEach((d, i) => { const k = d.map((x) => x.toFixed(3)).join(','); (stacks.get(k) || stacks.set(k, []).get(k)).push(i); });
+  const disp = new Array(bodies.length).fill(0);
+  const gap = factor * diag * 0.16, base = factor * diag * 0.35;
   for (const idxs of stacks.values()) {
-    const along = (i) => boxes[i].centre[0] * dirs[i][0] + boxes[i].centre[1] * dirs[i][1] + boxes[i].centre[2] * dirs[i][2];
-    [...idxs].sort((a, b) => along(a) - along(b)).forEach((i, r) => { rank[i] = r; });
+    const order = [...idxs].sort((a, b) => along(a, dirs[a]) - along(b, dirs[b]));
+    let prevEnd = null;
+    for (const i of order) {
+      const d = dirs[i], half = extent(i, d), pos = along(i, d);
+      let want = base;
+      if (prevEnd !== null) want = Math.max(base, prevEnd + gap + half - pos); // clear the one before it
+      disp[i] = want;
+      prevEnd = pos + want + half;
+    }
   }
   return bodies.map((b, i) => {
     const m = b.model || [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
-    const step = factor * diag * 0.5 * (1 + rank[i] * 0.7);
-    const disp = dirs[i].map((x) => x * step);
-    const model = m.slice(); model[12] += disp[0]; model[13] += disp[1]; model[14] += disp[2];
-    return { ...b, model, displaced: disp, centre: boxes[i].centre.map((x, k) => x + disp[k]) };
+    const d = dirs[i].map((x) => x * disp[i]);
+    const model = m.slice(); model[12] += d[0]; model[13] += d[1]; model[14] += d[2];
+    return { ...b, model, displaced: d, centre: boxes[i].centre.map((x, k) => x + d[k]) };
   });
 }
 
@@ -168,7 +188,10 @@ export function assemblyReport({ doc, components, mates = [], drive = null, fits
   const blown = explodeBodies(bodies, explode);
   const seenItem = new Set();
   const balloons = blown.filter((b) => { const k = b.comp.partKey; if (seenItem.has(k)) return false; seenItem.add(k); return true; }).map((b) => ({ point: b.centre, text: String(itemOf.get(b.comp.partKey).item) }));
-  const exploded = drawing(blown, { views: ['iso'], hidden: false, title: `${title} — exploded`, width, note: `exploded ${Math.round(explode * 100)} %`, callouts: false, balloons });
+  // the exploded figure gets a wider sheet: the balloons and their leaders are
+  // a fixed size in pixels, so more room for the drawing makes the PARTS bigger
+  // relative to them once the page scales the whole thing to fit
+  const exploded = drawing(blown, { views: ['iso'], hidden: false, title: `${title} — exploded`, width: Math.round(width * 1.8), note: `exploded ${Math.round(explode * 100)} %`, callouts: false, balloons, internals: false, dimensions: false });
   const steps = assemblySteps({ components, mates, drive, fits });
 
   // one sheet per distinct part, the part alone at its own origin

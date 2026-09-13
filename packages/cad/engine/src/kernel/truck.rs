@@ -389,7 +389,7 @@ impl Kernel for Truck {
                 area,
                 normal,
                 centroid,
-                geom: geoms.get(i).cloned().flatten(),
+                geom: super::geom_for(&geoms, i, normal, centroid),
             })
             .collect();
         let step = if o.want_step { Some(step_of(&solid)) } else { None };

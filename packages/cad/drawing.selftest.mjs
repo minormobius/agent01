@@ -30,25 +30,51 @@ const part = (n) => { const r = engine.build(bench(n), { kernel: 'truck' }); if 
   const top = d.views.find((v) => v.name === 'top'), front = d.views.find((v) => v.name === 'front');
   check(top.callouts === 9 && front.callouts === 0, 'the holes are called out on the top view, whose direction is their axis');
   check(front.hidden > 0 && d.svg.includes('class="h"'), `the front view has hidden lines (${front.hidden}): the bores seen through the plate`);
-  check(d.scale === '2:1', `the sheet is drawn at ${d.scale}`);
+  check(/^(\d+(\.\d+)?:1|1:\d+(\.\d+)?)$/.test(d.scale) && d.width <= 900 && d.svg.includes(`scale ${d.scale}`), `the sheet is drawn at a stated ratio (${d.scale}) and fits the width asked for (${d.width} px)`);
+  // ordinate dimensions: where every hole sits, from a datum at the corner
+  const ord = d.dims.filter((x) => x.axis.startsWith('x-') || x.axis.startsWith('y-'));
+  check(ord.length === 13 && d.svg.includes('class="datum"') && ord.some((o) => Math.abs(o.value - 20) < 1e-6) && ord.some((o) => Math.abs(o.value - 32) < 1e-6), `the nine holes give ${ord.length} ordinates from the datum, on the view their axes point at`);
   const again = drawing([part('plate')], { title: 'plate' });
   check(again.svg === d.svg, 'the same input draws the same SVG');
 }
-// 2. a blind bore reads its depth; a boss is not a hole
+// 2. internal dimensioning: a plate with a named window and a row of holes —
+//    what a machinist needs and an overall size alone cannot give
+{
+  const tree = JSON.stringify({ units: 'mm', params: { w: 120, h: 60, t: 5, d: 6, x0: 20, p: 20, y: 15 }, features: [
+    { op: 'sketch', id: 'face', loops: [
+      { name: 'outline', rect: { c: [0, 0], w: 'w', h: 'h' } },
+      { name: 'window', rect: { c: [0, 15], w: 60, h: 20 } },
+      ...['A', 'B', 'C', 'D'].map((n, i) => ({ name: `hole${n}`, circle: { c: [`-w/2 + x0 + ${i}*p`, '-h/2 + y'], r: 'd/2' } })),
+    ] },
+    { op: 'extrude', id: 'plate', profile: ['face'], depth: 't' },
+  ] });
+  const r = engine.build(tree, { kernel: 'truck' });
+  const d = drawing([{ id: 'fixture', mesh: r.mesh, faces: r.report.faces }], { title: 'fixture' });
+  const by = (a) => d.dims.filter((x) => x.axis === a).map((x) => x.value).sort((p, q) => p - q);
+  check(by('x-hole').join() === '20,80' && by('pitch').join() === '60' && d.svg.includes('3× 20 = 60'), `an evenly spaced row is one pitch dimension, not four ordinates: ${d.svg.includes('3× 20 = 60') ? '3× 20 = 60' : 'missing'}, ends at ${by('x-hole').join(' and ')}`);
+  check(by('y-hole').join() === '15' && by('x-pocket').join() === '30,90' && by('y-pocket').join() === '35,55', `the window's edges are dimensioned from the datum: x ${by('x-pocket').join(', ')} · y ${by('y-pocket').join(', ')}`);
+  check(d.svg.includes('window 60 × 20'), 'a named sketch loop is called out by its own name and size');
+  const overall = Object.fromEntries(d.dims.filter((x) => ['width', 'height', 'depth'].includes(x.axis)).map((x) => [x.axis, +x.value.toFixed(3)]));
+  check(overall.width === 120 && overall.depth === 60 && overall.height === 5, `and the overall size still reads ${overall.width} × ${overall.depth} × ${overall.height}`);
+  const noInternals = drawing([{ id: 'fixture', mesh: r.mesh, faces: r.report.faces }], { title: 'fixture', internals: false });
+  check(!noInternals.dims.some((x) => x.axis.startsWith('x-')) && !noInternals.svg.includes('class="datum"'), 'internals: false draws the outline and the overall size alone');
+}
+
+// 3. a blind bore reads its depth; a boss is not a hole
 {
   const d = drawing([part('case')], { title: 'case' });
   check(d.holes.length === 1 && near(d.holes[0].diameter, 42, 1e-6) && near(d.holes[0].depth, 7, 1e-6) && d.svg.includes('⌀42 ↧7'), `the cup's interior is one blind bore: ⌀${d.holes[0]?.diameter} ↧${d.holes[0]?.depth}, its rim is not a hole`);
   const dims = Object.fromEntries(d.dims.map((x) => [x.axis, +x.value.toFixed(2)]));
   check(dims.width === 44 && dims.height === 8, `overall ${dims.width} × ${dims.height}`);
 }
-// 3. views on demand, no hidden lines on request, a bad view named
+// 4. views on demand, no hidden lines on request, a bad view named
 {
   const d = drawing([part('arbor')], { views: ['iso', 'front'], hidden: false });
   check(d.views.length === 2 && d.views[0].name === 'iso' && d.views.every((v) => v.hidden === 0) && !d.svg.includes('class="h"'), 'iso and front, no hidden lines when not asked');
   let err = ''; try { drawing([part('arbor')], { views: ['side'] }); } catch (e) { err = e.message; }
   check(/no view named side/.test(err) && Object.keys(VIEWS).length === 7, `an unknown view is refused: ${err}`);
 }
-// 4. an assembly, posed: the lift at half a turn
+// 5. an assembly, posed: the lift at half a turn
 {
   const lift = JSON.parse(bench('lift'));
   const { components, mates, drive, partTrees } = await flatten(lift, benchRef, { facesOf });

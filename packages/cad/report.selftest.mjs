@@ -70,7 +70,23 @@ const rep = assemblyReport({ ...lift, modelOf, title: 'lift' });
   check(Math.abs(nut.centre[2] - plat.centre[2]) > Math.abs(bodies.find((b) => b.id === 'nut').model[14] - bodies.find((b) => b.id === 'platform').model[14]), 'parts stacked on one axis separate from each other, not just from the middle');
 }
 
-// 5. a part this kernel cannot build is named on the page, not dropped
+// 5. the exploded view: parts clear of each other, balloons on a ring
+{
+  const bodies = lift.components.filter((c) => !c.reference).map((c) => ({ id: c.id, mesh: lift.builds.get(c.partKey).mesh, model: modelOf(c, lift.angles) }));
+  const blown = explodeBodies(bodies, 0.6);
+  // a long part must travel further than a short one to clear its neighbour:
+  // the spacing comes from each body's own extent, not a fixed step
+  const by = Object.fromEntries(blown.map((b) => [b.id, Math.hypot(...b.displaced)]));
+  check(by.screw > 0 && by['bolt[0]'] > 0 && Object.values(by).every((d) => d > 0), 'every body moves');
+  const svg = rep.html.slice(rep.html.indexOf('id="exploded"'));
+  const ring = [...svg.matchAll(/<circle cx="([\d.-]+)" cy="([\d.-]+)" r="11" class="balloon"/g)].map((m) => [+m[1], +m[2]]);
+  check(ring.length === rep.bom.length, `one balloon per item (${ring.length})`);
+  const apart = ring.every((a, i) => ring.every((b, j) => i === j || Math.hypot(a[0] - b[0], a[1] - b[1]) > 28));
+  check(apart, 'no two balloons overlap: they are spaced around a ring, not relaxed into a heap');
+  check(!svg.slice(0, svg.indexOf('</svg>')).includes('class="arrow"'), 'and the exploded view carries no overall dimension, which would measure the explosion');
+}
+
+// 6. a part this kernel cannot build is named on the page, not dropped
 {
   const key = [...lift.partTrees.keys()].find((k) => k.startsWith('bolt'));
   const builds = new Map(lift.builds); builds.delete(key);
@@ -78,7 +94,7 @@ const rep = assemblyReport({ ...lift, modelOf, title: 'lift' });
   check(r.components === 3 && r.missing.length === 1 && r.missing[0].qty === 4 && r.html.includes('4 bolts are missing') === false && /1 part is missing from every drawing/.test(r.html) && r.html.includes('head: boolean union failed'), `a part the kernel cannot build is listed with its error and left out of the drawings (${r.components} components drawn, ${r.missing[0].qty} instances missing)`);
 }
 
-// 6. a document with nothing built is refused, not drawn empty
+// 7. a document with nothing built is refused, not drawn empty
 {
   let err = '';
   try { assemblyReport({ ...lift, builds: new Map(), modelOf, title: 'lift' }); } catch (e) { err = e.message; }

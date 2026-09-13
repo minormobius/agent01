@@ -170,11 +170,24 @@ documented in [`README.md`](README.md) next to this file.
   from its axis is a boss, not a hole. On an assembly every component is
   posed at `t` and `reference` ones are left out. The output is
   deterministic, so two drawings of one tree diff cleanly.
+  **Internal dimensions** (`internals`, on by default for a single body — a
+  part sheet; off for an assembly, where they would be a thicket): the
+  engine names every face after the sketch loop it came from
+  (`plate.slotRlo[3]`, `plate.tapA[3]`), so `featuresOf` groups the faces
+  back into the features the author drew. On the view that can actually be
+  dimensioned — the one with the most holes facing it and pockets it looks
+  into — every hole centre and pocket edge gets an **ordinate** from a datum
+  at the part's corner (a chain of a dozen stacked dimension lines is what
+  the alternative looks like), an evenly spaced run of holes collapses into
+  one `5× 15 = 75` pitch line, and each named pocket gets a leader note
+  (`slotRlo 47 × 9.8`). The sheet is **cropped to what was drawn**: every
+  draw helper marks the box it covers, so a ladder or a note simply makes
+  the sheet bigger instead of being guessed at with reserved margins.
 - **Assembly reports.** `lib/report.js` turns an assembly into one
   self-contained HTML page — the *report* button, `agent/report.mjs` and the
   MCP `report` tool all produce the same bytes: the assembly in three views,
   an **exploded** isometric with a numbered balloon per item (`drawing`'s
-  `balloons` option; the balloons de-overlap by relaxation), a parts list
+  `balloons` option, ringed around the figure), a parts list
   with quantities, volumes and sizes, a drawing of every distinct part, and
   the assembly steps. Every row links into the viewer (`#t=` of that part's
   own tree, `?at=` for the assembly when it came from a repo), so the page
@@ -188,9 +201,15 @@ documented in [`README.md`](README.md) next to this file.
   a reference must name a component declared before it; consecutive
   instances of one repeat collapse into a single step. `explodeBodies`
   pushes each part away from the centre — along its own axis where it is
-  concentric with it, and further out when it is behind another part going
-  the same way, so a stack separates from itself; the test asserts that
-  nothing touches once exploded. A part the exact kernel cannot build here
+  concentric with it — with the direction **snapped** to one of 26, so parts
+  leaving the same way form one train, and each one travels far enough that
+  **its own extent** clears the one before it. A fixed step per rank is what
+  crowded a 44-body assembly: a long rail and a washer got the same room.
+  The balloons ring the drawing in angular order (the ring grows until they
+  all fit), so no two overlap and no two leaders cross, and the exploded
+  figure is drawn on a wider sheet with `dimensions: false` — its extent is
+  the explosion's, not the assembly's. The test asserts that nothing touches
+  once exploded and that no two balloons overlap. A part the exact kernel cannot build here
   (a boolean Truck refuses, which OCCT does in the browser) is **named on
   the page with its error** and left out of the drawings, rather than
   silently dropped or failing the whole report — the clock reports 16 of 18
@@ -303,6 +322,19 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 
 ## Quirks
 
+- **A face's geometry is scored, not trusted.** An op hands the kernel one
+  geometry per profile segment, matched to faces by index — and the kernel
+  splits, merges and reorders them. On a revolve it does: a flanged nut came
+  back with its flat annuli labelled cylinders and its real bore labelled
+  nothing, so a drawing called the bore a boss and dimensioned neither
+  (measured 2026-09-13). `Geom::fits` scores a geometry against the face's
+  own measured normal and centroid — a plane's normal must agree, a
+  cylinder's axis must be across the normal and its radius must match the
+  centroid's distance from the axis (a tessellated wedge's centroid sits
+  inside its own radius, by 2/π for a half cylinder) — and `geom_for`
+  re-matches when the index is wrong. Hole detection on the JS side reads
+  the face's own normal against that radial direction, which is what tells
+  a bore from a boss and an annulus from either.
 - **`cad.wasm` is committed.** Rebuild with `engine/build.sh`, which runs the
   unit tests, both builds, and `cad.selftest.mjs`. Never hand-build. A
   failed union of a region's outer loops names the two loops (`union of

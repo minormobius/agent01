@@ -4,6 +4,39 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-13, second pass
+
+From a 44-component gripper assembly on a real repo.
+
+**Part sheets are dimensioned inside, not just around.** A sheet gave the
+overall size and the hole diameters, which is not enough to make anything.
+Now, on the view that can be dimensioned, every hole centre and pocket edge
+carries an **ordinate** from a datum at the part's corner; an evenly spaced
+run of holes reads as one `5× 15 = 75` pitch instead of five ordinates; and
+every named sketch loop gets a leader note with its own name and size
+(`slotRlo 47 × 9.8`). It comes from the engine's face names — a face is
+named after the loop it was drawn from, so the features come back grouped
+as the author drew them. Pass `internals: false` for the bare outline; an
+assembly sheet is bare by default.
+
+**The exploded view is readable at 44 bodies.** Parts now travel far enough
+that their own extent clears the part before them, along a direction
+snapped to one of 26 so a train leaves together; balloons ring the drawing
+in angular order, so none overlap and no two leaders cross; and the figure
+carries no overall dimension, which used to measure the explosion rather
+than the assembly.
+
+**Sheets are cropped to what is on them** instead of to reserved margins, so
+a drawing no longer sits in a field of white.
+
+**A bore on a turned part is a hole again.** The kernel is free to reorder
+the faces an op makes, and on a revolve it does: a flanged nut came back
+with its flat annuli labelled as cylinders and its bore labelled as
+nothing. Face geometry is now scored against the face the kernel actually
+made and re-matched when the index is wrong, so `measure`, the hole
+callouts and the ordinates all read a turned part correctly. (Rebuilt
+`cad.wasm`.)
+
 ## 2026-09-13
 
 **An assembly report.** A drawing of an assembly is a picture; this is the
