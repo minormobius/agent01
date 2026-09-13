@@ -1,0 +1,1 @@
+r=3/4 are provably solvable (Pokrovskiy); r=5 is open — nobody knows the true minimum there. Skipped the shared leaderboard: this kit has no global scoreboard, only per-handle lookups. Local best is saved for now; friend-compare via pds.js is next.

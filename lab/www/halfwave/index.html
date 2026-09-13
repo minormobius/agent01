@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>halfwave — radial Fourier warp of a checkerboard</title>
+<meta name="description" content="Set the odd-harmonic Fourier coefficients of a function f with f(θ+π)=−f(θ), then watch it push a polar checkerboard outward by t·f(θ), point by point.">
+<meta property="og:title" content="halfwave — radial Fourier warp of a checkerboard">
+<meta property="og:description" content="Set the odd-harmonic Fourier coefficients of a function f with f(θ+π)=−f(θ), then watch it push a polar checkerboard outward by t·f(θ), point by point.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  .stage { display: flex; justify-content: center; margin: 1.25rem 0; }
+  #warp {
+    width: 100%; max-width: 440px; aspect-ratio: 1 / 1;
+    background: #000; border: 1px solid var(--border); border-radius: var(--radius);
+    touch-action: none;
+  }
+  .row {
+    display: flex; align-items: center; justify-content: space-between; gap: .75rem;
+    padding: .6rem 0; border-bottom: 1px solid var(--border); font-size: .85rem;
+  }
+  .row span { color: var(--fg); white-space: nowrap; }
+  .row b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] { flex: 1; min-width: 0; height: 2rem; accent-color: var(--accent); }
+  .row.checkbox { justify-content: flex-start; gap: .6rem; }
+  .row.checkbox input { width: 1.4rem; height: 1.4rem; flex: none; }
+
+  .harmonic-row { border-bottom: 1px solid var(--border); padding: .6rem 0; }
+  .hlabel { font-size: .75rem; color: var(--accent); margin-bottom: .3rem; }
+  .slider-row { display: flex; align-items: center; gap: .6rem; padding: .3rem 0; }
+  .slider-row span { width: 1.6rem; color: var(--muted); font-size: .75rem; flex: none; }
+  .slider-row input { flex: 1; min-width: 0; height: 2rem; accent-color: var(--accent); }
+  .slider-row b { width: 3.2rem; text-align: right; color: var(--fg); font-size: .78rem;
+                  font-variant-numeric: tabular-nums; flex: none; }
+
+  .buttons { display: flex; gap: .75rem; margin-top: 1rem; flex-wrap: wrap; }
+  .buttons button { min-height: 44px; flex: 1; }
+
+  #plot {
+    width: 100%; max-width: 620px; height: 110px; display: block;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="/">minomobi.com</a> / user-inputs</div>
+  <h1>halfwave</h1>
+  <p class="sub">a polar checkerboard, pushed by r ↦ r + t·f(θ)</p>
+
+  <p>Pick coefficients for <code>f(θ) = Σ aₙcos(nθ) + bₙsin(nθ)</code>, restricted
+  to odd n. That restriction isn't cosmetic — it's exactly what
+  <code>f(θ+π) = −f(θ)</code> forces: plug θ+π into any harmonic and
+  <code>cos(n(θ+π)) = (−1)ⁿcos(nθ)</code>, so a term survives the antipodal
+  flip only when n is odd (and the constant term, n=0, can't survive at all).
+  Every slider below is one coefficient of that basis.</p>
+
+  <p>Each point of the canvas is read as <code>{r,θ}</code>, pushed out to
+  <code>{r + t·f(θ), θ}</code>, and converted back — then coloured by which
+  cell of a checkerboard it lands in. So the picture is the checkerboard
+  <em>pulled back</em> through the deformation: straight cell edges bend by
+  however much f leans at that angle.</p>
+
+  <div class="stage">
+    <canvas id="warp" width="440" height="440" aria-label="checkerboard warped by the chosen Fourier field"></canvas>
+  </div>
+
+  <div class="controls">
+    <label class="row"><span>t</span><input type="range" id="t" min="0" max="1" step="0.01" value="1"><b id="tVal">1.00</b></label>
+    <label class="row"><span>cell size</span><input type="range" id="cell" min="10" max="60" step="1" value="30"><b id="cellVal">30</b></label>
+    <label class="row checkbox"><input type="checkbox" id="animate"><span>animate t (sweeps 0→1→0)</span></label>
+
+    <div id="harmonics"></div>
+
+    <div class="buttons">
+      <button id="reset" type="button">reset</button>
+      <button id="random" type="button">randomize</button>
+    </div>
+  </div>
+
+  <h2>f(θ) over one turn</h2>
+  <canvas id="plot" width="620" height="110" aria-label="plot of f from 0 to 2π"></canvas>
+  <p style="font-size:.75rem">vertical scale is auto-fit to the current maximum of |f|, not absolute — read the shape, not the axis.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var HARMS = [1, 3, 5, 7, 9];
+  var coeffs = HARMS.map(function (n) { return { n: n, a: 0, b: 0 }; });
+  var DEFAULT = [[0.35, 0], [0, 0.15], [0, 0], [0, 0], [0, 0]];
+  function applyDefault() {
+    coeffs.forEach(function (c, i) { c.a = DEFAULT[i][0]; c.b = DEFAULT[i][1]; });
+  }
+  applyDefault();
+
+  var t = 1, cellSize = 30;
+
+  // ---- build harmonic sliders ----
+  var harmonicsEl = document.getElementById('harmonics');
+  coeffs.forEach(function (c, i) {
+    var row = document.createElement('div');
+    row.className = 'harmonic-row';
+    row.innerHTML =
+      '<div class="hlabel">n = ' + c.n + '</div>' +
+      '<label class="slider-row"><span>a</span>' +
+        '<input type="range" id="a' + i + '" min="-1" max="1" step="0.01" value="' + c.a + '">' +
+        '<b id="a' + i + 'val">' + c.a.toFixed(2) + '</b></label>' +
+      '<label class="slider-row"><span>b</span>' +
+        '<input type="range" id="b' + i + '" min="-1" max="1" step="0.01" value="' + c.b + '">' +
+        '<b id="b' + i + 'val">' + c.b.toFixed(2) + '</b></label>';
+    harmonicsEl.appendChild(row);
+  });
+
+  function bindCoeffInputs() {
+    coeffs.forEach(function (c, i) {
+      document.getElementById('a' + i).addEventListener('input', function (e) {
+        c.a = parseFloat(e.target.value);
+        document.getElementById('a' + i + 'val').textContent = c.a.toFixed(2);
+        scheduleRender();
+      });
+      document.getElementById('b' + i).addEventListener('input', function (e) {
+        c.b = parseFloat(e.target.value);
+        document.getElementById('b' + i + 'val').textContent = c.b.toFixed(2);
+        scheduleRender();
+      });
+    });
+  }
+  bindCoeffInputs();
+
+  // ---- canvas + precomputed polar fields ----
+  var canvas = document.getElementById('warp');
+  var ctx = canvas.getContext('2d');
+  var SIZE = canvas.width;
+  var VIEW_RADIUS = 200;
+  var N = SIZE * SIZE;
+  var thetaArr = new Float32Array(N);
+  var rArr = new Float32Array(N);
+  var cosT = new Float32Array(N);
+  var sinT = new Float32Array(N);
+
+  (function precompute() {
+    var worldPerPixel = (2 * VIEW_RADIUS) / SIZE;
+    var idx = 0;
+    for (var py = 0; py < SIZE; py++) {
+      var y = (SIZE / 2 - py) * worldPerPixel;
+      for (var px = 0; px < SIZE; px++) {
+        var x = (px - SIZE / 2) * worldPerPixel;
+        var r = Math.sqrt(x * x + y * y);
+        var theta = Math.atan2(y, x);
+        thetaArr[idx] = theta;
+        rArr[idx] = r;
+        cosT[idx] = Math.cos(theta);
+        sinT[idx] = Math.sin(theta);
+        idx++;
+      }
+    }
+  })();
+
+  var imgData = ctx.createImageData(SIZE, SIZE);
+  var data = imgData.data;
+  var COLOR_A = [232, 230, 227]; // --fg
+  var COLOR_B = [22, 22, 27];    // --bg-raised
+
+  function render() {
+    for (var i = 0; i < N; i++) {
+      var theta = thetaArr[i];
+      var fv = 0;
+      for (var k = 0; k < coeffs.length; k++) {
+        var c = coeffs[k];
+        if (c.a) fv += c.a * Math.cos(c.n * theta);
+        if (c.b) fv += c.b * Math.sin(c.n * theta);
+      }
+      var r2 = rArr[i] + t * fv;
+      var x2 = r2 * cosT[i];
+      var y2 = r2 * sinT[i];
+      var cx = Math.floor(x2 / cellSize);
+      var cy = Math.floor(y2 / cellSize);
+      var parity = (cx + cy) & 1;
+      var col = parity ? COLOR_B : COLOR_A;
+      var o = i * 4;
+      data[o] = col[0]; data[o + 1] = col[1]; data[o + 2] = col[2]; data[o + 3] = 255;
+    }
+    ctx.putImageData(imgData, 0, 0);
+    renderPlot();
+  }
+
+  var renderScheduled = false;
+  function scheduleRender() {
+    if (renderScheduled) return;
+    renderScheduled = true;
+    requestAnimationFrame(function () { renderScheduled = false; render(); });
+  }
+
+  // ---- f(θ) line plot ----
+  var plotCanvas = document.getElementById('plot');
+  var pctx = plotCanvas.getContext('2d');
+  function renderPlot() {
+    var w = plotCanvas.width, h = plotCanvas.height;
+    pctx.clearRect(0, 0, w, h);
+    pctx.strokeStyle = '#26242c';
+    pctx.lineWidth = 1;
+    pctx.beginPath(); pctx.moveTo(0, h / 2); pctx.lineTo(w, h / 2); pctx.stroke();
+
+    var steps = 300;
+    var vals = new Float32Array(steps);
+    var maxAbs = 1e-6;
+    for (var i = 0; i < steps; i++) {
+      var theta = (i / steps) * Math.PI * 2;
+      var fv = 0;
+      for (var k = 0; k < coeffs.length; k++) {
+        var c = coeffs[k];
+        fv += c.a * Math.cos(c.n * theta) + c.b * Math.sin(c.n * theta);
+      }
+      vals[i] = fv;
+      if (Math.abs(fv) > maxAbs) maxAbs = Math.abs(fv);
+    }
+    pctx.strokeStyle = '#e8a33d';
+    pctx.lineWidth = 2;
+    pctx.beginPath();
+    for (var j = 0; j < steps; j++) {
+      var x = (j / steps) * w;
+      var y = h / 2 - (vals[j] / maxAbs) * (h / 2 - 8);
+      if (j === 0) pctx.moveTo(x, y); else pctx.lineTo(x, y);
+    }
+    pctx.stroke();
+  }
+
+  // ---- controls ----
+  var tInput = document.getElementById('t');
+  var tVal = document.getElementById('tVal');
+  tInput.addEventListener('input', function (e) {
+    t = parseFloat(e.target.value);
+    tVal.textContent = t.toFixed(2);
+    scheduleRender();
+  });
+
+  var cellInput = document.getElementById('cell');
+  var cellVal = document.getElementById('cellVal');
+  cellInput.addEventListener('input', function (e) {
+    cellSize = parseFloat(e.target.value);
+    cellVal.textContent = cellSize;
+    scheduleRender();
+  });
+
+  var animating = false, animId = null, animStart = null;
+  document.getElementById('animate').addEventListener('change', function (e) {
+    animating = e.target.checked;
+    tInput.disabled = animating;
+    if (animating) {
+      animStart = null;
+      animId = requestAnimationFrame(step);
+    } else if (animId) {
+      cancelAnimationFrame(animId);
+    }
+  });
+  function step(ts) {
+    if (!animating) return;
+    if (animStart === null) animStart = ts;
+    var elapsed = (ts - animStart) / 1000;
+    t = (Math.sin(elapsed * 0.6) + 1) / 2;
+    tInput.value = t;
+    tVal.textContent = t.toFixed(2);
+    render();
+    animId = requestAnimationFrame(step);
+  }
+
+  function syncUI() {
+    tInput.value = t; tVal.textContent = t.toFixed(2);
+    cellInput.value = cellSize; cellVal.textContent = cellSize;
+    coeffs.forEach(function (c, i) {
+      document.getElementById('a' + i).value = c.a;
+      document.getElementById('a' + i + 'val').textContent = c.a.toFixed(2);
+      document.getElementById('b' + i).value = c.b;
+      document.getElementById('b' + i + 'val').textContent = c.b.toFixed(2);
+    });
+  }
+
+  document.getElementById('reset').addEventListener('click', function () {
+    applyDefault();
+    t = 1; cellSize = 30;
+    syncUI();
+    scheduleRender();
+  });
+
+  document.getElementById('random').addEventListener('click', function () {
+    coeffs.forEach(function (c) {
+      var scale = 0.6 / Math.sqrt(c.n);
+      c.a = (Math.random() * 2 - 1) * scale;
+      c.b = (Math.random() * 2 - 1) * scale;
+    });
+    syncUI();
+    scheduleRender();
+  });
+
+  syncUI();
+  render();
+})();
+</script>
+</body>
+</html>

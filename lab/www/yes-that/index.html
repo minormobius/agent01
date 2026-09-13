@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stallpoint — the exact moment a Stirling engine stops</title>
+<meta name="description" content="A low-temperature-differential Stirling engine dies at a homoclinic bifurcation, not a fuzzy threshold. Drag the temperature difference down and watch it live.">
+<meta property="og:title" content="Stallpoint — the exact moment a Stirling engine stops">
+<meta property="og:description" content="A live dynamical model of a Stirling engine's flywheel: drag the temperature difference toward zero and watch it cross its own closed-form stall curve, computed live, not simulated until it visibly dies.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --accent: #ff8a3d; }
+  body { max-width: 920px; margin: 0 auto; padding: 16px 16px 64px; }
+  h1 { font-size: clamp(1.4rem, 4vw, 2rem); margin: 8px 0 4px; }
+  .sub { color: var(--muted, #999); margin: 0 0 20px; font-size: 0.95rem; }
+  .layout { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 760px) { .layout { grid-template-columns: 1.1fr 0.9fr; } }
+  canvas#engine { width: 100%; height: auto; background: #10131a; border-radius: 12px; display: block; touch-action: none; }
+  .status { font-size: 1.1rem; font-weight: 700; padding: 10px 14px; border-radius: 8px; margin: 10px 0; text-align: center; }
+  .status.running { background: #163a1f; color: #7ee08a; }
+  .status.stalled { background: #3a1616; color: #f08a8a; }
+  .readout { font: 13px/1.5 var(--mono, monospace); background: #12141a; border-radius: 8px; padding: 10px 12px; color: #c9d0da; }
+  .readout b { color: #fff; }
+  fieldset { border: 1px solid #333; border-radius: 10px; margin: 0 0 14px; padding: 10px 14px 14px; }
+  legend { padding: 0 6px; font-size: 0.85rem; color: var(--muted, #999); }
+  .slider-row { margin: 10px 0; }
+  .slider-row label { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px; }
+  .slider-row output { font: 13px var(--mono, monospace); color: var(--accent); }
+  input[type=range] { width: 100%; height: 44px; touch-action: manipulation; }
+  input[type=text] { font-size: 16px; min-height: 44px; }
+  button { min-height: 44px; font-size: 16px; padding: 0 16px; }
+  .dial-row label { font-size: 1rem; font-weight: 600; }
+  svg#curve { width: 100%; height: auto; background: #12141a; border-radius: 8px; }
+  svg#curve text { fill: #999; font-size: 9px; font-family: var(--mono, monospace); }
+  .curve-caption { font-size: 0.8rem; color: var(--muted, #999); margin-top: 6px; }
+  .hunt-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+  .hunt-row input[type=text] { flex: 1; min-width: 160px; }
+  ul#rivals { list-style: none; padding: 0; margin: 10px 0 0; font: 13px var(--mono, monospace); }
+  ul#rivals li { padding: 6px 0; border-bottom: 1px solid #222; display: flex; justify-content: space-between; gap: 10px; }
+  details { margin-top: 14px; }
+  summary { cursor: pointer; font-size: 0.9rem; color: var(--muted, #999); min-height: 44px; display: flex; align-items: center; }
+  .eq { font: 14px var(--mono, monospace); background: #12141a; padding: 8px 12px; border-radius: 8px; margin: 8px 0; overflow-x: auto; }
+  #err { margin-top: 10px; }
+</style>
+</head>
+<body>
+<div id="crumb"></div>
+<h1>Stallpoint</h1>
+<p class="sub">A low-temperature-differential Stirling engine can run on a warm hand and a glass of ice water — until it can't. The moment it stops isn't a fuzzy threshold, it's a bifurcation of the engine's own equations of motion. This page computes that bifurcation live, from the parameters you set, and simulates the flywheel obeying it in real time.</p>
+
+<div class="layout">
+  <div>
+    <canvas id="engine" width="600" height="420"></canvas>
+    <div class="status" id="status">—</div>
+    <div class="readout" id="readout"></div>
+    <details>
+      <summary>the model</summary>
+      <p>Flywheel angle θ, driven by thermal torque, resisted by friction and by
+      the displacer's own geometry fighting the crank once per turn:</p>
+      <div class="eq">I·θ̈ + b·θ̇ + κ·sin(θ) = α·ΔT</div>
+      <p>Nondimensionalized (b̂ = b/√(Iκ), γ = αΔT/κ) this is the driven-damped-pendulum
+      equation, the same one that governs synchronous-motor pull-out and Josephson
+      junctions. For small damping the boundary between "settles at a fixed angle"
+      (stalled) and "keeps turning forever" (running) is a homoclinic bifurcation —
+      the driving torque exactly matches the energy the friction bleeds off over one
+      full swing. Melnikov's method gives the small-b̂ asymptotic for that boundary:</p>
+      <div class="eq">γ_c ≈ (4/π)·b̂ &nbsp;&nbsp;→&nbsp;&nbsp; ΔT_c = (4b)/(πα) · √(κ/I)</div>
+      <p>That's a genuine approximation, accurate for small friction — not exact for
+      every parameter combination, and it can drift from the true numerical boundary
+      as b̂ grows past roughly 1. α (thermal-torque gain from working-gas properties)
+      is held fixed this turn; see BRIEF.md for what that leaves out.</p>
+    </details>
+  </div>
+
+  <div>
+    <fieldset>
+      <legend>ambient</legend>
+      <div class="slider-row dial-row">
+        <label for="dT">temperature difference ΔT <output id="dTval"></output> K</label>
+        <input type="range" id="dT" min="0" max="80" step="0.5" value="30">
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>engine parameters</legend>
+      <div class="slider-row">
+        <label for="I">flywheel inertia I <output id="Ival"></output> kg·m²</label>
+        <input type="range" id="I" min="1" max="50" step="0.5" value="12">
+      </div>
+      <div class="slider-row">
+        <label for="b">friction b <output id="bval"></output> mN·m·s/rad</label>
+        <input type="range" id="b" min="0.2" max="20" step="0.1" value="3">
+      </div>
+      <div class="slider-row">
+        <label for="kappa">displacer geometry κ <output id="kval"></output> mN·m</label>
+        <input type="range" id="kappa" min="2" max="40" step="0.5" value="10">
+      </div>
+    </fieldset>
+
+    <svg id="curve" viewBox="0 0 320 180"></svg>
+    <p class="curve-caption">the stall curve: critical ΔT vs friction, at your current
+    inertia and displacer geometry. Above the line and it runs; below it, it can't —
+    the line itself moves when you touch the other sliders.</p>
+
+    <fieldset>
+      <legend>design hunt</legend>
+      <p style="font-size:.85rem; color:var(--muted,#999); margin-top:0;">Tune the
+      three sliders above for the lowest stall point you can find, then submit the
+      design. Your record carries the exact I, b, κ, so anyone can recompute ΔT_c
+      from the same closed form — there's nothing to fake.</p>
+      <div class="hunt-row" id="signinRow">
+        <input type="text" id="myHandle" placeholder="your handle: you.bsky.social">
+        <button id="submitBtn">sign in &amp; submit</button>
+      </div>
+      <div class="hunt-row"><span id="submitMsg" style="font-size:.85rem;"></span></div>
+      <div class="hunt-row" style="margin-top:14px;">
+        <input type="text" id="rivalHandle" placeholder="compare a handle: alice.bsky.social">
+      </div>
+      <ul id="rivals"></ul>
+    </fieldset>
+    <div id="err" hidden></div>
+  </div>
+</div>
+
+<script type="module">
+import { labPds } from '../_kit/pds.js';
+
+document.getElementById('crumb').innerHTML = kit.crumb('stallpoint');
+const store = labPds();
+const errEl = document.getElementById('err');
+
+// ---------- model ----------
+const els = {
+  dT: document.getElementById('dT'), I: document.getElementById('I'),
+  b: document.getElementById('b'), kappa: document.getElementById('kappa'),
+};
+const outs = {
+  dT: document.getElementById('dTval'), I: document.getElementById('Ival'),
+  b: document.getElementById('bval'), kappa: document.getElementById('kval'),
+};
+const ALPHA = 0.00018; // N·m per K — fixed thermal-torque gain, illustrative (see BRIEF)
+
+function params() {
+  return {
+    dT: +els.dT.value,
+    I: +els.I.value / 1000,      // slider in ×1e-3 kg·m^2
+    b: +els.b.value / 1000,      // slider in mN·m·s/rad -> N·m·s/rad
+    kappa: +els.kappa.value / 1000,
+  };
+}
+
+function stallDT(I, b, kappa) {
+  return (4 * b) / (Math.PI * ALPHA) * Math.sqrt(kappa / I);
+}
+
+function liveGamma(dT, I, b, kappa) {
+  const bhat = b / Math.sqrt(I * kappa);
+  const gamma = ALPHA * dT / kappa;
+  const gammaC = (4 / Math.PI) * bhat;
+  return { bhat, gamma, gammaC };
+}
+
+const statusEl = document.getElementById('status');
+const readoutEl = document.getElementById('readout');
+
+function updateReadout() {
+  const p = params();
+  const { bhat, gamma, gammaC } = liveGamma(p.dT, p.I, p.b, p.kappa);
+  const dTc = stallDT(p.I, p.b, p.kappa);
+  const running = gamma > gammaC;
+  statusEl.textContent = running ? 'RUNNING' : 'STALLED';
+  statusEl.className = 'status ' + (running ? 'running' : 'stalled');
+  readoutEl.innerHTML =
+    'γ (drive) = <b>' + gamma.toFixed(3) + '</b> &nbsp; γ_c (stall boundary) = <b>' + gammaC.toFixed(3) + '</b><br>' +
+    'b̂ (reduced friction) = <b>' + bhat.toFixed(3) + '</b><br>' +
+    'stall point at these settings: ΔT_c = <b>' + dTc.toFixed(1) + ' K</b> — ' +
+    (p.dT > dTc ? 'you are ' + (p.dT - dTc).toFixed(1) + ' K above it' : 'you are ' + (dTc - p.dT).toFixed(1) + ' K below it');
+  drawCurve(p, dTc);
+  return { p, running, dTc };
+}
+
+function fmt() {
+  outs.dT.textContent = els.dT.value;
+  outs.I.textContent = els.I.value;
+  outs.b.textContent = els.b.value;
+  outs.kappa.textContent = els.kappa.value;
+}
+[els.dT, els.I, els.b, els.kappa].forEach(el => el.addEventListener('input', () => { fmt(); updateReadout(); }));
+fmt();
+
+// ---------- stall curve SVG ----------
+const curveSvg = document.getElementById('curve');
+function drawCurve(p, dTc) {
+  const W = 320, H = 180, M = 28;
+  const bMax = 20; // mN·m·s/rad, matches slider range
+  const dTmax = 80;
+  const x = (bmN) => M + (bmN / bMax) * (W - M - 10);
+  const y = (dt) => H - 18 - (Math.min(dt, dTmax) / dTmax) * (H - 18 - 10);
+  let d = '';
+  for (let i = 0; i <= 60; i++) {
+    const bmN = (i / 60) * bMax;
+    const dt = stallDT(p.I, bmN / 1000, p.kappa);
+    d += (i === 0 ? 'M' : 'L') + x(bmN).toFixed(1) + ',' + y(dt).toFixed(1) + ' ';
+  }
+  const curBmN = p.b * 1000;
+  const parts = [
+    '<path d="' + d + '" fill="none" stroke="#ff8a3d" stroke-width="2"/>',
+    '<line x1="' + M + '" y1="' + (H - 18) + '" x2="' + (W - 10) + '" y2="' + (H - 18) + '" stroke="#444"/>',
+    '<line x1="' + M + '" y1="10" x2="' + M + '" y2="' + (H - 18) + '" stroke="#444"/>',
+    '<text x="' + (W / 2) + '" y="' + (H - 4) + '" text-anchor="middle">friction b (mN·m·s/rad) →</text>',
+    '<text x="8" y="14" transform="rotate(-90 8 90)" text-anchor="middle">ΔT_c (K)</text>',
+    '<circle cx="' + x(curBmN).toFixed(1) + '" cy="' + y(dTc).toFixed(1) + '" r="4" fill="#fff"/>',
+    '<line x1="' + x(curBmN).toFixed(1) + '" y1="' + y(Math.min(p.dT, dTmax)).toFixed(1) + '" x2="' + (W - 10) + '" y2="' + y(Math.min(p.dT, dTmax)).toFixed(1) + '" stroke="#7ee08a" stroke-width="1" stroke-dasharray="3,3"/>',
+    '<circle cx="' + x(curBmN).toFixed(1) + '" cy="' + y(Math.min(p.dT, dTmax)).toFixed(1) + '" r="3" fill="' + (p.dT > dTc ? '#7ee08a' : '#f08a8a') + '"/>',
+  ];
+  curveSvg.innerHTML = parts.join('');
+}
+
+// ---------- animated engine (real RK4 integration of the SAME equation) ----------
+const canvas = document.getElementById('engine');
+const ctx = canvas.getContext('2d');
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+let theta = 0.1, omega = 0.05;
+
+function deriv(th, om, p) {
+  const torque = ALPHA * p.dT - p.b * om - p.kappa * Math.sin(th);
+  return [om, torque / p.I];
+}
+function rk4Step(th, om, p, dt) {
+  const k1 = deriv(th, om, p);
+  const k2 = deriv(th + k1[0] * dt / 2, om + k1[1] * dt / 2, p);
+  const k3 = deriv(th + k2[0] * dt / 2, om + k2[1] * dt / 2, p);
+  const k4 = deriv(th + k3[0] * dt, om + k3[1] * dt, p);
+  return [th + (dt / 6) * (k1[0] + 2 * k2[0] + 2 * k3[0] + k4[0]),
+          om + (dt / 6) * (k1[1] + 2 * k2[1] + 2 * k3[1] + k4[1])];
+}
+
+function drawEngine(th) {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const cx = W * 0.32, cy = H * 0.55, R = 70;
+  // flywheel
+  ctx.strokeStyle = '#3a4152'; ctx.lineWidth = 10;
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+  ctx.strokeStyle = '#ff8a3d'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + R * Math.cos(th), cy + R * Math.sin(th)); ctx.stroke();
+  ctx.fillStyle = '#c9d0da'; ctx.beginPath(); ctx.arc(cx, cy, 6, 0, Math.PI * 2); ctx.fill();
+
+  // power piston, in phase with crank
+  const pistonX = W * 0.62;
+  const pistonY = cy - 100 + 40 * Math.cos(th);
+  ctx.strokeStyle = '#555'; ctx.lineWidth = 1;
+  ctx.strokeRect(pistonX - 20, cy - 145, 40, 90);
+  ctx.fillStyle = '#e6a15a';
+  ctx.fillRect(pistonX - 18, pistonY - 12, 36, 24);
+  ctx.strokeStyle = '#888'; ctx.beginPath();
+  ctx.moveTo(cx + R * Math.cos(th), cy + R * Math.sin(th)); ctx.lineTo(pistonX, pistonY + 12); ctx.stroke();
+
+  // displacer, ~90 degrees phase-lagged (classic beta/gamma Stirling kinematics)
+  const dispX = W * 0.84;
+  const dispY = cy - 145 + 60 + 45 * Math.cos(th - Math.PI / 2);
+  ctx.strokeStyle = '#555'; ctx.strokeRect(dispX - 16, cy - 175, 32, 140);
+  ctx.fillStyle = '#5aa7e6';
+  ctx.fillRect(dispX - 14, dispY - 10, 28, 20);
+  ctx.strokeStyle = '#888'; ctx.beginPath();
+  ctx.moveTo(cx + R * Math.cos(th), cy + R * Math.sin(th)); ctx.lineTo(dispX, dispY + 10); ctx.stroke();
+
+  ctx.fillStyle = '#6b7280'; ctx.font = '12px monospace';
+  ctx.fillText('power piston', pistonX - 34, cy - 150);
+  ctx.fillText('displacer', dispX - 24, cy - 180);
+}
+
+let lastT = null;
+function frame(now) {
+  if (lastT === null) lastT = now;
+  let dtReal = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+  const p = params();
+  if (!reduceMotion) {
+    const sub = 8;
+    const h = dtReal / sub;
+    for (let i = 0; i < sub; i++) {
+      const [nth, nom] = rk4Step(theta, omega, p, h);
+      theta = nth; omega = nom;
+    }
+    theta = ((theta % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+  }
+  drawEngine(theta);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// keep the readout / curve live even under reduced motion
+setInterval(updateReadout, 250);
+updateReadout();
+
+// ---------- design hunt ----------
+kit.handleInput(document.getElementById('rivalHandle'), {
+  onPick: (handle) => loadRivals(handle),
+});
+document.getElementById('rivalHandle').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') loadRivals(e.target.value.trim());
+});
+kit.handleInput(document.getElementById('myHandle'), { onPick: () => {} });
+
+async function loadRivals(handle) {
+  if (!handle) return;
+  kit.clear(errEl);
+  const list = document.getElementById('rivals');
+  list.innerHTML = '<li>looking up ' + handle + '…</li>';
+  try {
+    const scores = await store.scoresOf(handle);
+    const ranked = store.rank(scores.filter(s => s.game === 'design-hunt'));
+    if (!ranked.length) { list.innerHTML = '<li>no submitted designs from ' + handle + ' yet</li>'; return; }
+    list.innerHTML = ranked.slice(0, 10).map(s =>
+      '<li><span>' + (s.value / 1000).toFixed(1) + ' K stall</span><span>' + (s.detail || '') + '</span></li>'
+    ).join('');
+  } catch (e) {
+    list.innerHTML = '';
+    kit.showError(errEl, 'could not read designs for ' + handle + ': ' + e.message);
+  }
+}
+
+document.getElementById('submitBtn').addEventListener('click', async () => {
+  const msg = document.getElementById('submitMsg');
+  kit.clear(errEl);
+  const { p, dTc } = updateReadout();
+  try {
+    if (!store.user()) {
+      const handle = document.getElementById('myHandle').value.trim();
+      if (!handle) { kit.showError(errEl, 'type your handle above first'); return; }
+      msg.textContent = 'signing in…';
+      await store.signIn(handle, { scores: true });
+      return; // page redirects to Bluesky and back
+    }
+    msg.textContent = 'submitting…';
+    const detail = 'I=' + p.I.toFixed(4) + ' b=' + p.b.toFixed(5) + ' kappa=' + p.kappa.toFixed(4) + ' dT=' + p.dT;
+    await store.postScore(Math.round(dTc * 1000), { unit: 'mK-stall', higherIsBetter: false, detail, game: 'design-hunt' });
+    msg.textContent = 'submitted: ' + dTc.toFixed(1) + ' K stall point';
+  } catch (e) {
+    msg.textContent = '';
+    kit.showError(errEl, 'submit failed: ' + e.message);
+  }
+});
+
+store.ready().then(() => {
+  if (store.user()) {
+    document.getElementById('submitMsg').textContent = 'signed in as ' + store.user().handle;
+    document.getElementById('myHandle').hidden = true;
+    document.getElementById('submitBtn').textContent = 'submit this design';
+  }
+});
+</script>
+</body>
+</html>

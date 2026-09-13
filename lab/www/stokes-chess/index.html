@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stokes Chess</title>
+<meta property="og:title" content="Stokes Chess">
+<meta property="og:description" content="A real grid-based fluid solver (semi-Lagrangian advection, pressure projection, viscosity off) with six permanent pump/drain vents keeping every cell in violent motion, plus a chess set standing in the fluid. Pieces sway constantly like ships in a storm and slide a square when the current under them is strong enough; every move injects its own current on top.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root {
+    --accent: #57d8c9;
+    --accent-dim: #123a36;
+    --g1: #57d8c9; --g2: #7f8cf0; --g3: #e07be0;
+  }
+  main { max-width: 46rem; }
+  h1 {
+    font-size: clamp(1.8rem, 6vw, 2.6rem);
+    background: linear-gradient(90deg, var(--g1), var(--g2), var(--g3));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    background-size: 200% auto; animation: hueflow 8s linear infinite;
+  }
+  @keyframes hueflow { to { background-position: 200% center; } }
+  .lede { color: var(--muted); font-size: .88rem; margin: 0 0 1.25rem; }
+
+  .panel {
+    border-radius: 10px; padding: 1px;
+    background: linear-gradient(135deg, var(--g1), var(--g2), var(--g3));
+    margin-bottom: 1rem;
+  }
+  .panel-inner { background: var(--bg-raised); border-radius: 9px; padding: 1rem 1.1rem; }
+
+  .status-row {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: .75rem; flex-wrap: wrap; margin-bottom: .75rem; font-size: .85rem;
+  }
+  .turn { font-weight: 700; padding: .2rem .6rem; border-radius: 999px; }
+  .turn.w { color: #0e0e11; background: #eee; }
+  .turn.b { color: #eee; background: #2a2a33; }
+  #lastmove { color: var(--muted); min-height: 1.4em; }
+
+  .board-wrap {
+    position: relative;
+    width: min(100%, 620px);
+    aspect-ratio: 1;
+    margin: 0 auto 1rem;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px var(--border), 0 12px 40px rgba(0,0,0,.5);
+    touch-action: none;
+    background: #05080a;
+  }
+  .board-wrap canvas {
+    position: absolute; inset: 0; width: 100%; height: 100%; display: block;
+  }
+  .pieces {
+    position: absolute; inset: 0;
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(8, 1fr);
+  }
+  .sq {
+    background: transparent; border: none; padding: 0; margin: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.5rem, 6.8vw, 2.7rem);
+    line-height: 1; cursor: pointer;
+    -webkit-user-select: none; user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    position: relative; min-height: 44px;
+  }
+  .sq .glyph { display: block; transition: none; will-change: transform; }
+  .sq.white-piece .glyph { color: #fdfdfd; -webkit-text-stroke: 1.5px #10161a; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+  .sq.black-piece .glyph { color: #14181c; -webkit-text-stroke: 1px #cfd8dc; }
+  .sq::before {
+    content: ''; position: absolute; inset: 5%; border-radius: 3px;
+    background: rgba(255,255,255,.02);
+  }
+  .sq:nth-child(odd)::before { background: rgba(255,255,255,.045); }
+  .sq.sel::before { box-shadow: inset 0 0 0 3px var(--accent); background: rgba(87,216,201,.12); }
+  .sq.legal::after {
+    content: ''; position: absolute; width: 24%; height: 24%; border-radius: 50%;
+    background: rgba(87,216,201,.55);
+  }
+  .sq.legal.has::after {
+    width: 84%; height: 84%; border-radius: 8px; background: none;
+    box-shadow: inset 0 0 0 3px rgba(87,216,201,.75);
+  }
+  .sq.immune::before { box-shadow: inset 0 0 0 2px rgba(255,255,255,.5); }
+  .sq:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 1.1rem; font-size: .82rem; }
+  .ctl { flex: 1 1 200px; }
+  .ctl label { display: flex; justify-content: space-between; color: var(--muted); margin-bottom: .3rem; }
+  .ctl input[type=range] { width: 100%; accent-color: var(--accent); height: 44px; }
+
+  .btnrow { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: 1rem; }
+  .btnrow button { min-height: 44px; }
+  .btn-glow {
+    background: linear-gradient(120deg, var(--g1), var(--g2));
+    border: none; color: #04120f; font-weight: 700;
+    animation: pulseglow 2.4s ease-in-out infinite;
+  }
+  @keyframes pulseglow {
+    0%,100% { box-shadow: 0 0 0 0 rgba(87,216,201,.55); }
+    50% { box-shadow: 0 0 0 8px rgba(87,216,201,0); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    h1 { animation: none; }
+    .btn-glow { animation: none; }
+  }
+
+  .reveal {
+    margin-top: .6rem; font-size: .82rem; color: var(--muted);
+    border-top: 1px dashed var(--border); padding-top: .7rem;
+  }
+  .reveal.hidden { display: none; }
+  .reveal code { display: block; margin: .4rem 0; color: var(--fg); }
+
+  #gameOver {
+    text-align: center; font-weight: 700; font-size: 1.1rem; margin: .5rem 0;
+    color: var(--g1);
+  }
+  #gameOver.hidden { display: none; }
+
+  footer { margin-top: 1.75rem; font-size: .78rem; color: var(--muted); }
+  footer p { font-size: inherit; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Stokes Chess</h1>
+  <p class="lede">
+    This is a real fluid solver first: a 48&times;48 grid running Jos Stam's
+    stable-fluids method &mdash; semi-Lagrangian advection, a pressure
+    projection so the flow stays (nearly) incompressible, and viscosity
+    switched off entirely, so nothing damps a current except the solver's own
+    numerical decay. Flow strength defaults to a violent 100&times;. Six fixed
+    vents around the centre &mdash; alternating pump and drain, each wobbling
+    on its own slow schedule &mdash; keep pumping fluid in and draining it out
+    permanently, so the board is never still: every cell carries a strong
+    current at all times, the way water never actually stops moving in a
+    storm. <strong>Drag anywhere to stir on top of that</strong>
+    and watch your current join the ambient one and decay back into it. The
+    chess set stands in the middle of all this: each piece behaves like a
+    micron-scale object in a very viscous fluid &mdash; no coasting, no
+    inertia, it just gets carried while the local current pushes and stops
+    the instant it doesn't &mdash; so pieces sway constantly, like ships
+    riding a swell, and drift a square when the current under them is strong
+    enough. Moving a piece also releases its own current scaled to how far it
+    travelled. The piece that just moved is immune to its own wake and always
+    lands dead-centre on its target; every other occupied square samples the
+    live velocity field each frame, sways, and slides into the next square if
+    the drag wins &mdash; blocked, not captured, if that square is occupied.
+    Movement shapes only: no check, checkmate, castling or en passant, and
+    pawns auto-promote to a queen.
+  </p>
+
+  <div id="gameOver" class="hidden"></div>
+
+  <div class="status-row">
+    <span class="turn w" id="turnLabel">White to move</span>
+    <span id="lastmove"></span>
+  </div>
+
+  <div class="board-wrap" id="boardWrap">
+    <canvas id="fluid"></canvas>
+    <div class="pieces" id="pieces"></div>
+  </div>
+
+  <div class="panel"><div class="panel-inner">
+    <div class="controls">
+      <div class="ctl">
+        <label>Flow strength (storm &amp; moves) <span id="flowVal">100&times;</span></label>
+        <input type="range" id="flowStrength" min="0.5" max="200" step="0.5" value="100">
+      </div>
+    </div>
+    <div class="btnrow">
+      <button id="pauseBtn" type="button">Pause simulation</button>
+      <button id="resetBtn" type="button">Reset board &amp; fluid</button>
+      <button id="revealBtn" class="btn-glow" type="button" aria-expanded="false">How this works</button>
+    </div>
+    <div class="reveal hidden" id="revealPanel">
+      Each occupied square keeps a small offset <code>(ox, oy)</code> from
+      its square's centre. Every frame it relaxes toward the locally sampled
+      velocity <code>v</code> instead of accelerating toward it &mdash; there
+      is no momentum term, which is the correct model for a very small object
+      in a viscous fluid (low Reynolds number / Stokes drag: viscous forces
+      dominate inertia, so a particle's speed tracks the local flow directly
+      rather than building up over time):
+      <code>offset = RESTORE &middot; offset + RESTORE &middot; DRAG &middot; v / mass</code>
+      Heavier pieces (queen, king) divide DRAG by a larger mass and resist
+      more. When <code>|offset|</code> on the dominant axis crosses a
+      threshold, that piece's board position actually changes &mdash; a real
+      move, not a wobble &mdash; and its offset resets to zero. The arrows
+      drawn over the board are a live vector field, one direct sample per
+      grid point, not a traced or sketched line. Six fixed points around the
+      board's centre call <code>addVelocity</code>/<code>addDensity</code>
+      every frame &mdash; alternating pump (positive) and drain (density
+      clamped at zero, so it empties rather than going negative) &mdash; each
+      wobbling in strength and angle on its own slow, irregular sine
+      schedule. That is the permanent storm; a drag adds a second, temporary
+      current on top of it.
+    </div>
+  </div></div>
+
+  <footer>
+    <p>Approximate on purpose: 4 Jacobi iterations per projection (not a
+      true divergence-free solve, cheap enough to run every frame on a
+      phone), and the flow-strength/storm numbers were reasoned from the
+      relaxation's settle-time math rather than measured in a browser
+      &mdash; this build has neither. Viscosity is fixed at zero, so nothing
+      in the solver itself damps the current; only its own numerical decay
+      and the piece drag do. Move the slider if a push (or the permanent
+      storm) feels instant or inert; that is what it is for. Nothing here is
+      saved between visits.</p>
+  </footer>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('Stokes Chess');
+
+  // ---------- fluid solver (Stam stable fluids) ----------
+  var GRID_INNER = 48, N = GRID_INNER + 2, CELLS_PER_SQ = GRID_INNER / 8;
+  function IX(x, y) { return x + y * N; }
+
+  function Fluid() {
+    var sz = N * N;
+    this.dens = new Float32Array(sz);
+    this.densPrev = new Float32Array(sz);
+    this.Vx = new Float32Array(sz);
+    this.Vy = new Float32Array(sz);
+    this.Vx0 = new Float32Array(sz);
+    this.Vy0 = new Float32Array(sz);
+  }
+
+  function setBnd(b, x) {
+    for (var i = 1; i < N - 1; i++) {
+      x[IX(i, 0)]     = b === 2 ? -x[IX(i, 1)]     : x[IX(i, 1)];
+      x[IX(i, N - 1)] = b === 2 ? -x[IX(i, N - 2)] : x[IX(i, N - 2)];
+    }
+    for (var j = 1; j < N - 1; j++) {
+      x[IX(0, j)]     = b === 1 ? -x[IX(1, j)]     : x[IX(1, j)];
+      x[IX(N - 1, j)] = b === 1 ? -x[IX(N - 2, j)] : x[IX(N - 2, j)];
+    }
+    x[IX(0, 0)]         = 0.5 * (x[IX(1, 0)] + x[IX(0, 1)]);
+    x[IX(0, N - 1)]     = 0.5 * (x[IX(1, N - 1)] + x[IX(0, N - 2)]);
+    x[IX(N - 1, 0)]     = 0.5 * (x[IX(N - 2, 0)] + x[IX(N - 1, 1)]);
+    x[IX(N - 1, N - 1)] = 0.5 * (x[IX(N - 2, N - 1)] + x[IX(N - 1, N - 2)]);
+  }
+
+  function linSolve(b, x, x0, a, c, iter) {
+    var cRecip = 1 / c;
+    for (var k = 0; k < iter; k++) {
+      for (var j = 1; j < N - 1; j++) {
+        for (var i = 1; i < N - 1; i++) {
+          x[IX(i, j)] = (x0[IX(i, j)] + a * (
+            x[IX(i + 1, j)] + x[IX(i - 1, j)] +
+            x[IX(i, j + 1)] + x[IX(i, j - 1)]
+          )) * cRecip;
+        }
+      }
+      setBnd(b, x);
+    }
+  }
+
+  function diffuse(b, x, x0, diffAmt, dt, iter) {
+    var a = dt * diffAmt * (N - 2) * (N - 2);
+    linSolve(b, x, x0, a, 1 + 6 * a, iter);
+  }
+
+  function project(vx, vy, p, div, iter) {
+    for (var j = 1; j < N - 1; j++) {
+      for (var i = 1; i < N - 1; i++) {
+        div[IX(i, j)] = -0.5 * (
+          vx[IX(i + 1, j)] - vx[IX(i - 1, j)] +
+          vy[IX(i, j + 1)] - vy[IX(i, j - 1)]
+        ) / N;
+        p[IX(i, j)] = 0;
+      }
+    }
+    setBnd(0, div); setBnd(0, p);
+    linSolve(0, p, div, 1, 6, iter);
+    for (var j2 = 1; j2 < N - 1; j2++) {
+      for (var i2 = 1; i2 < N - 1; i2++) {
+        vx[IX(i2, j2)] -= 0.5 * (p[IX(i2 + 1, j2)] - p[IX(i2 - 1, j2)]) * N;
+        vy[IX(i2, j2)] -= 0.5 * (p[IX(i2, j2 + 1)] - p[IX(i2, j2 - 1)]) * N;
+      }
+    }
+    setBnd(1, vx); setBnd(2, vy);
+  }
+
+  function advect(b, d, d0, vx, vy, dt) {
+    var dtx = dt * (N - 2), dty = dt * (N - 2);
+    for (var j = 1; j < N - 1; j++) {
+      for (var i = 1; i < N - 1; i++) {
+        var x = i - dtx * vx[IX(i, j)];
+        var y = j - dty * vy[IX(i, j)];
+        if (x < 0.5) x = 0.5; if (x > N - 1.5) x = N - 1.5;
+        if (y < 0.5) y = 0.5; if (y > N - 1.5) y = N - 1.5;
+        var i0 = Math.floor(x), i1 = i0 + 1, j0 = Math.floor(y), j1 = j0 + 1;
+        var s1 = x - i0, s0 = 1 - s1, t1 = y - j0, t0 = 1 - t1;
+        d[IX(i, j)] =
+          s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) +
+          s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
+      }
+    }
+    setBnd(b, d);
+  }
+
+  var ITER = 4;
+  // viscosity removed by request: fixed at zero rather than slider-driven,
+  // so diffuse()'s Jacobi solve degenerates to a no-op and nothing damps
+  // velocity except the per-frame numerical decay in Fluid.prototype.step
+  var params = { visc: 0, diff: 0.00003, dt: 0.13 };
+
+  Fluid.prototype.step = function () {
+    diffuse(1, this.Vx0, this.Vx, params.visc, params.dt, ITER);
+    diffuse(2, this.Vy0, this.Vy, params.visc, params.dt, ITER);
+    project(this.Vx0, this.Vy0, this.Vx, this.Vy, ITER);
+    advect(1, this.Vx, this.Vx0, this.Vx0, this.Vy0, params.dt);
+    advect(2, this.Vy, this.Vy0, this.Vx0, this.Vy0, params.dt);
+    project(this.Vx, this.Vy, this.Vx0, this.Vy0, ITER);
+    diffuse(0, this.densPrev, this.dens, params.diff, params.dt, ITER);
+    advect(0, this.dens, this.densPrev, this.Vx, this.Vy, params.dt);
+    // numerical damping: keeps a repeatedly-stirred field from slowly
+    // accumulating energy across many frames at only 4 solver iterations
+    for (var k = 0; k < this.Vx.length; k++) {
+      this.Vx[k] *= 0.999; this.Vy[k] *= 0.999; this.dens[k] *= 0.994;
+    }
+  };
+
+  Fluid.prototype.addDensity = function (x, y, amt) {
+    x = Math.round(x); y = Math.round(y);
+    if (x < 1 || x > N - 2 || y < 1 || y > N - 2) return;
+    var i = IX(x, y);
+    this.dens[i] += amt;
+    if (this.dens[i] < 0) this.dens[i] = 0;
+  };
+  Fluid.prototype.addVelocity = function (x, y, ax, ay) {
+    x = Math.round(x); y = Math.round(y);
+    if (x < 1 || x > N - 2 || y < 1 || y > N - 2) return;
+    this.Vx[IX(x, y)] += ax; this.Vy[IX(x, y)] += ay;
+  };
+  Fluid.prototype.splat = function (x, y, ax, ay, dyeAmt) {
+    var R = 2;
+    for (var dj = -R; dj <= R; dj++) {
+      for (var di = -R; di <= R; di++) {
+        var d2 = di * di + dj * dj;
+        var w = Math.exp(-d2 / (R * R * 0.6));
+        this.addVelocity(x + di, y + dj, ax * w, ay * w);
+        if (dyeAmt) this.addDensity(x + di, y + dj, dyeAmt * w);
+      }
+    }
+  };
+
+  function sampleField(field, x, y) {
+    x = Math.min(Math.max(x, 0.001), N - 1.001);
+    y = Math.min(Math.max(y, 0.001), N - 1.001);
+    var i0 = Math.floor(x), i1 = i0 + 1, j0 = Math.floor(y), j1 = j0 + 1;
+    var sx = x - i0, sy = y - j0;
+    var v00 = field[IX(i0, j0)], v10 = field[IX(i1, j0)];
+    var v01 = field[IX(i0, j1)], v11 = field[IX(i1, j1)];
+    return v00 * (1 - sx) * (1 - sy) + v10 * sx * (1 - sy) +
+           v01 * (1 - sx) * sy + v11 * sx * sy;
+  }
+
+  var fluid = new Fluid();
+
+  // ---------- ambient storm: permanent pump/drain vents ----------
+  // "give every cell a constant flow, as though fluid is being pumped in
+  // and drained out" — six fixed points on a ring around the board centre,
+  // alternating pump/drain, each wobbling in strength and angle on its own
+  // slow, irregular schedule so the whole grid stays in motion even when
+  // nobody is touching the board. Diffusion carries it out to every cell;
+  // it does not force each cell directly.
+  var VENTS = (function () {
+    var list = [], n = 6, cx = 1 + (GRID_INNER - 2) * 0.5, cy = cx;
+    var rad = (GRID_INNER - 2) * 0.36;
+    for (var i = 0; i < n; i++) {
+      var ang = (i / n) * Math.PI * 2;
+      list.push({
+        gx: cx + Math.cos(ang) * rad,
+        gy: cy + Math.sin(ang) * rad,
+        ang: ang,
+        drain: i % 2 === 1,
+        phase: i * 1.91 + i * i * 0.37
+      });
+    }
+    return list;
+  })();
+  var simTime = 0;
+  function currentFlowStrength() { return parseFloat(document.getElementById('flowStrength').value); }
+  function applyAmbientFlow() {
+    simTime += params.dt;
+    var storm = STORM_BASE * (currentFlowStrength() / 2.5);
+    for (var i = 0; i < VENTS.length; i++) {
+      var v = VENTS[i];
+      var wobble = Math.sin(simTime * 0.21 + v.phase) * 0.6 + Math.sin(simTime * 0.073 + v.phase * 1.7) * 0.4;
+      var dirAng = v.ang + (v.drain ? Math.PI : 0) + wobble;
+      var amt = storm * (0.55 + 0.45 * Math.sin(simTime * 0.13 + v.phase * 2.3));
+      fluid.addVelocity(v.gx, v.gy, Math.cos(dirAng) * amt, Math.sin(dirAng) * amt);
+      fluid.addDensity(v.gx, v.gy, v.drain ? -5 : 6);
+    }
+  }
+
+  // ---------- chess ----------
+  var GLYPH = {
+    wk: '♔', wq: '♕', wr: '♖', wb: '♗', wn: '♘', wp: '♙',
+    bk: '♚', bq: '♛', br: '♜', bb: '♝', bn: '♞', bp: '♟'
+  };
+  var MASS = { p: 1, n: 1.1, b: 1.1, r: 1.4, q: 1.8, k: 2.1 };
+  var board, offsets, turn, sel, legal, lastMoved, gameOver;
+
+  function initGame() {
+    board = new Array(8);
+    for (var r = 0; r < 8; r++) board[r] = new Array(8).fill(null);
+    var back = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
+    for (var c = 0; c < 8; c++) {
+      board[0][c] = { type: back[c], color: 'b' };
+      board[1][c] = { type: 'p', color: 'b' };
+      board[6][c] = { type: 'p', color: 'w' };
+      board[7][c] = { type: back[c], color: 'w' };
+    }
+    offsets = new Array(8);
+    for (var r2 = 0; r2 < 8; r2++) {
+      offsets[r2] = [];
+      for (var c2 = 0; c2 < 8; c2++) offsets[r2].push({ x: 0, y: 0 });
+    }
+    turn = 'w'; sel = null; legal = []; lastMoved = null; gameOver = false;
+    fluid.dens.fill(0); fluid.Vx.fill(0); fluid.Vy.fill(0);
+    document.getElementById('gameOver').className = 'hidden';
+    document.getElementById('lastmove').textContent = '';
+    setTurnLabel();
+  }
+
+  function inBounds(r, c) { return r >= 0 && r < 8 && c >= 0 && c < 8; }
+
+  function slideMoves(r, c, color, dirs) {
+    var moves = [];
+    for (var d = 0; d < dirs.length; d++) {
+      var dr = dirs[d][0], dc = dirs[d][1];
+      var rr = r + dr, cc = c + dc;
+      while (inBounds(rr, cc)) {
+        var occ = board[rr][cc];
+        if (!occ) { moves.push({ r: rr, c: cc }); }
+        else { if (occ.color !== color) moves.push({ r: rr, c: cc }); break; }
+        rr += dr; cc += dc;
+      }
+    }
+    return moves;
+  }
+
+  function pieceMoves(r, c) {
+    var p = board[r][c]; if (!p) return [];
+    var color = p.color, moves = [];
+    if (p.type === 'p') {
+      var dir = color === 'w' ? -1 : 1, startRow = color === 'w' ? 6 : 1;
+      if (inBounds(r + dir, c) && !board[r + dir][c]) {
+        moves.push({ r: r + dir, c: c });
+        if (r === startRow && !board[r + 2 * dir][c]) moves.push({ r: r + 2 * dir, c: c });
+      }
+      [-1, 1].forEach(function (dc) {
+        var rr = r + dir, cc = c + dc;
+        if (inBounds(rr, cc) && board[rr][cc] && board[rr][cc].color !== color) moves.push({ r: rr, c: cc });
+      });
+    } else if (p.type === 'n') {
+      var deltas = [[1,2],[2,1],[-1,2],[-2,1],[1,-2],[2,-1],[-1,-2],[-2,-1]];
+      deltas.forEach(function (d) {
+        var rr = r + d[0], cc = c + d[1];
+        if (inBounds(rr, cc) && (!board[rr][cc] || board[rr][cc].color !== color)) moves.push({ r: rr, c: cc });
+      });
+    } else if (p.type === 'b') {
+      moves = slideMoves(r, c, color, [[1,1],[1,-1],[-1,1],[-1,-1]]);
+    } else if (p.type === 'r') {
+      moves = slideMoves(r, c, color, [[1,0],[-1,0],[0,1],[0,-1]]);
+    } else if (p.type === 'q') {
+      moves = slideMoves(r, c, color, [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]]);
+    } else if (p.type === 'k') {
+      for (var dr = -1; dr <= 1; dr++) for (var dc = -1; dc <= 1; dc++) {
+        if (dr === 0 && dc === 0) continue;
+        var rr2 = r + dr, cc2 = c + dc;
+        if (inBounds(rr2, cc2) && (!board[rr2][cc2] || board[rr2][cc2].color !== color)) moves.push({ r: rr2, c: cc2 });
+      }
+    }
+    return moves;
+  }
+
+  function setTurnLabel() {
+    var el = document.getElementById('turnLabel');
+    el.textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+    el.className = 'turn ' + turn;
+  }
+
+  var FLOW_BASE = 0.85;
+  function squareCenter(r, c) {
+    return { gx: 1 + (c + 0.5) * CELLS_PER_SQ, gy: 1 + (r + 0.5) * CELLS_PER_SQ };
+  }
+
+  function doMove(from, to) {
+    var piece = board[from.r][from.c];
+    var captured = board[to.r][to.c];
+    var dr = to.r - from.r, dc = to.c - from.c;
+    var dist = Math.max(Math.abs(dr), Math.abs(dc)) || 1;
+    var len = Math.sqrt(dr * dr + dc * dc) || 1;
+    var dirx = dc / len, diry = dr / len;
+    var flowStrength = parseFloat(document.getElementById('flowStrength').value);
+    var mag = FLOW_BASE * flowStrength * dist;
+
+    var steps = Math.max(3, dist * 2);
+    for (var s = 1; s <= steps; s++) {
+      var t = s / (steps + 1);
+      var gx = 1 + (from.c + dc * t + 0.5) * CELLS_PER_SQ;
+      var gy = 1 + (from.r + dr * t + 0.5) * CELLS_PER_SQ;
+      fluid.splat(gx, gy, dirx * mag, diry * mag, 18);
+    }
+
+    if (piece.type === 'p' && (to.r === 0 || to.r === 7)) piece = { type: 'q', color: piece.color };
+    board[to.r][to.c] = piece;
+    board[from.r][from.c] = null;
+    offsets[to.r][to.c] = { x: 0, y: 0 };
+    offsets[from.r][from.c] = { x: 0, y: 0 };
+    lastMoved = { r: to.r, c: to.c };
+    sel = null; legal = [];
+
+    var files = 'abcdefgh';
+    var note = (piece.color === 'w' ? 'White' : 'Black') + ' ' +
+      files[from.c] + (8 - from.r) + (captured ? '×' : '→') +
+      files[to.c] + (8 - to.r);
+    document.getElementById('lastmove').textContent = note;
+
+    if (captured && captured.type === 'k') {
+      gameOver = true;
+      var go = document.getElementById('gameOver');
+      go.textContent = (piece.color === 'w' ? 'White' : 'Black') + ' wins — king captured';
+      go.className = '';
+    } else {
+      turn = turn === 'w' ? 'b' : 'w';
+      setTurnLabel();
+    }
+  }
+
+  var RESTORE = 0.99, DRAG = 0.7, SLIDE_THRESHOLD = 0.5, MAX_OFFSET = 0.9, MAX_VISUAL_OFFSET = 0.34;
+  var STORM_BASE = 0.08;
+
+  function stepPiecePhysics() {
+    var pending = [];
+    for (var r = 0; r < 8; r++) {
+      for (var c = 0; c < 8; c++) {
+        var p = board[r][c]; if (!p) continue;
+        var off = offsets[r][c];
+        if (lastMoved && lastMoved.r === r && lastMoved.c === c) {
+          off.x = 0; off.y = 0; continue;
+        }
+        var ctr = squareCenter(r, c);
+        var gx = ctr.gx + off.x * CELLS_PER_SQ, gy = ctr.gy + off.y * CELLS_PER_SQ;
+        var vx = sampleField(fluid.Vx, gx, gy), vy = sampleField(fluid.Vy, gx, gy);
+        var drag = DRAG / MASS[p.type];
+        off.x = RESTORE * off.x + RESTORE * drag * vx;
+        off.y = RESTORE * off.y + RESTORE * drag * vy;
+        if (off.x > MAX_OFFSET) off.x = MAX_OFFSET; if (off.x < -MAX_OFFSET) off.x = -MAX_OFFSET;
+        if (off.y > MAX_OFFSET) off.y = MAX_OFFSET; if (off.y < -MAX_OFFSET) off.y = -MAX_OFFSET;
+
+        var ax = Math.abs(off.x), ay = Math.abs(off.y);
+        if (ax > SLIDE_THRESHOLD || ay > SLIDE_THRESHOLD) {
+          var nr = r, nc = c;
+          if (ax >= ay) nc = c + (off.x > 0 ? 1 : -1);
+          else nr = r + (off.y > 0 ? 1 : -1);
+          if (inBounds(nr, nc) && !board[nr][nc]) {
+            pending.push({ r: r, c: c, nr: nr, nc: nc, piece: p });
+          }
+        }
+      }
+    }
+    // apply slides against the pre-tick snapshot; two pieces racing for the
+    // same empty square both fire, so re-check occupancy as we go
+    for (var i = 0; i < pending.length; i++) {
+      var mv = pending[i];
+      if (board[mv.nr][mv.nc]) continue;
+      if (board[mv.r][mv.c] !== mv.piece) continue;
+      board[mv.nr][mv.nc] = mv.piece;
+      board[mv.r][mv.c] = null;
+      offsets[mv.nr][mv.nc] = { x: 0, y: 0 };
+      offsets[mv.r][mv.c] = { x: 0, y: 0 };
+      if (sel && sel.r === mv.r && sel.c === mv.c) { sel = null; legal = []; }
+    }
+  }
+
+  // ---------- rendering ----------
+  var wrap = document.getElementById('boardWrap');
+  var canvas = document.getElementById('fluid');
+  var ctx = canvas.getContext('2d');
+  var offC = document.createElement('canvas');
+  offC.width = GRID_INNER; offC.height = GRID_INNER;
+  var offCtx = offC.getContext('2d');
+  var offImg = offCtx.createImageData(GRID_INNER, GRID_INNER);
+
+  var piecesEl = document.getElementById('pieces');
+  var squares = [];
+  for (var r = 0; r < 8; r++) {
+    for (var c = 0; c < 8; c++) {
+      var btn = document.createElement('button');
+      btn.className = 'sq'; btn.type = 'button';
+      btn.dataset.r = r; btn.dataset.c = c;
+      btn.setAttribute('aria-label', 'square');
+      var span = document.createElement('span');
+      span.className = 'glyph';
+      btn.appendChild(span);
+      piecesEl.appendChild(btn);
+      squares.push(btn);
+    }
+  }
+
+  function resizeCanvas() {
+    var w = wrap.clientWidth, h = wrap.clientHeight;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  function renderFluid() {
+    var d = fluid.dens;
+    var data = offImg.data;
+    var accentR = 87, accentG = 216, accentB = 201;
+    for (var y = 0; y < GRID_INNER; y++) {
+      for (var x = 0; x < GRID_INNER; x++) {
+        var v = d[IX(x + 1, y + 1)];
+        var a = Math.min(1, v / 60);
+        var idx = (y * GRID_INNER + x) * 4;
+        data[idx]     = 6 + accentR * a * 0.6;
+        data[idx + 1] = 10 + accentG * a * 0.6;
+        data[idx + 2] = 14 + accentB * a * 0.6;
+        data[idx + 3] = 255;
+      }
+    }
+    offCtx.putImageData(offImg, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    ctx.fillStyle = '#05080a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(offC, 0, 0, GRID_INNER, GRID_INNER, 0, 0, canvas.width, canvas.height);
+  }
+
+  function drawVectorField() {
+    var cols = 12;
+    var cell = canvas.width / cols;
+    ctx.lineCap = 'round';
+    for (var yy = 0; yy < cols; yy++) {
+      for (var xx = 0; xx < cols; xx++) {
+        var gx = 1 + ((xx + 0.5) / cols) * GRID_INNER;
+        var gy = 1 + ((yy + 0.5) / cols) * GRID_INNER;
+        var vx = sampleField(fluid.Vx, gx, gy), vy = sampleField(fluid.Vy, gx, gy);
+        var speed = Math.sqrt(vx * vx + vy * vy);
+        var norm = Math.min(1, speed / 0.03);
+        if (norm < 0.03) continue;
+        var px = (xx + 0.5) * cell, py = (yy + 0.5) * cell;
+        var len = cell * 0.18 + norm * cell * 0.42;
+        var ang = Math.atan2(vy, vx);
+        var ex = px + Math.cos(ang) * len, ey = py + Math.sin(ang) * len;
+        var sx = px - Math.cos(ang) * len * 0.3, sy = py - Math.sin(ang) * len * 0.3;
+        var lightness = 40 + norm * 60;
+        ctx.strokeStyle = 'hsla(178, 70%, ' + lightness + '%, ' + (0.35 + norm * 0.55) + ')';
+        ctx.lineWidth = 1 + norm * 1.6;
+        ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex, ey); ctx.stroke();
+        var headLen = 4 + norm * 5;
+        ctx.beginPath();
+        ctx.moveTo(ex, ey);
+        ctx.lineTo(ex - headLen * Math.cos(ang - 0.4), ey - headLen * Math.sin(ang - 0.4));
+        ctx.lineTo(ex - headLen * Math.cos(ang + 0.4), ey - headLen * Math.sin(ang + 0.4));
+        ctx.closePath(); ctx.fillStyle = ctx.strokeStyle; ctx.fill();
+      }
+    }
+  }
+
+  function renderPieces() {
+    for (var i = 0; i < squares.length; i++) {
+      var btn = squares[i];
+      var r = +btn.dataset.r, c = +btn.dataset.c;
+      var p = board[r][c];
+      var span = btn.firstChild;
+      btn.classList.remove('white-piece', 'black-piece', 'sel', 'legal', 'has', 'immune');
+      if (p) {
+        span.textContent = GLYPH[p.color + p.type];
+        btn.classList.add(p.color === 'w' ? 'white-piece' : 'black-piece');
+        var off = offsets[r][c];
+        var vx = Math.max(-MAX_VISUAL_OFFSET, Math.min(MAX_VISUAL_OFFSET, off.x));
+        var vy = Math.max(-MAX_VISUAL_OFFSET, Math.min(MAX_VISUAL_OFFSET, off.y));
+        span.style.transform = 'translate(' + (vx * 100) + '%,' + (vy * 100) + '%)';
+        if (lastMoved && lastMoved.r === r && lastMoved.c === c) btn.classList.add('immune');
+      } else {
+        span.textContent = ''; span.style.transform = '';
+      }
+      if (sel && sel.r === r && sel.c === c) btn.classList.add('sel');
+      for (var m = 0; m < legal.length; m++) {
+        if (legal[m].r === r && legal[m].c === c) {
+          btn.classList.add('legal');
+          if (p) btn.classList.add('has');
+        }
+      }
+    }
+  }
+
+  // ---------- input: tap to move, drag to stir ----------
+  var dragging = false, dragStart = null, lastGrid = null, movedFar = false, suppressClick = false;
+
+  function eventToGrid(ev) {
+    var rect = wrap.getBoundingClientRect();
+    var px = (ev.clientX - rect.left) / rect.width;
+    var py = (ev.clientY - rect.top) / rect.height;
+    return { gx: 1 + px * GRID_INNER, gy: 1 + py * GRID_INNER };
+  }
+
+  piecesEl.addEventListener('pointerdown', function (ev) {
+    dragging = true; movedFar = false;
+    dragStart = { x: ev.clientX, y: ev.clientY };
+    lastGrid = eventToGrid(ev);
+    try { piecesEl.setPointerCapture(ev.pointerId); } catch (e) {}
+  });
+
+  piecesEl.addEventListener('pointermove', function (ev) {
+    if (!dragging) return;
+    var dx = ev.clientX - dragStart.x, dy = ev.clientY - dragStart.y;
+    if (Math.sqrt(dx * dx + dy * dy) > 6) movedFar = true;
+    if (!movedFar) return;
+    var g = eventToGrid(ev);
+    var vx = (g.gx - lastGrid.gx) * 0.9, vy = (g.gy - lastGrid.gy) * 0.9;
+    fluid.splat((g.gx + lastGrid.gx) / 2, (g.gy + lastGrid.gy) / 2, vx, vy, 10);
+    lastGrid = g;
+  });
+
+  function endDrag(ev) {
+    if (!dragging) return;
+    dragging = false;
+    // release capture before the follow-up click is dispatched, or its
+    // target stays pinned to piecesEl and every tap-to-move breaks
+    try { piecesEl.releasePointerCapture(ev.pointerId); } catch (e) {}
+    if (movedFar) { suppressClick = true; setTimeout(function () { suppressClick = false; }, 0); }
+  }
+  piecesEl.addEventListener('pointerup', endDrag);
+  piecesEl.addEventListener('pointercancel', endDrag);
+
+  piecesEl.addEventListener('click', function (ev) {
+    if (suppressClick || gameOver) return;
+    var target = ev.target.closest ? ev.target.closest('.sq') : null;
+    var btn = target || document.elementFromPoint(ev.clientX, ev.clientY);
+    btn = btn && btn.closest ? btn.closest('.sq') : null;
+    if (!btn) return;
+    var r = +btn.dataset.r, c = +btn.dataset.c;
+    if (sel) {
+      var isLegal = legal.some(function (m) { return m.r === r && m.c === c; });
+      if (isLegal) { doMove(sel, { r: r, c: c }); renderPieces(); return; }
+    }
+    var p = board[r][c];
+    if (p && p.color === turn) { sel = { r: r, c: c }; legal = pieceMoves(r, c); }
+    else { sel = null; legal = []; }
+    renderPieces();
+  });
+
+  // ---------- controls ----------
+  var flowRange = document.getElementById('flowStrength'), flowVal = document.getElementById('flowVal');
+  flowRange.addEventListener('input', function () {
+    var v = +flowRange.value;
+    flowVal.textContent = (v < 10 ? v.toFixed(2) : Math.round(v)) + '×';
+  });
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var paused = reduceMotion;
+  var pauseBtn = document.getElementById('pauseBtn');
+  function syncPauseBtn() { pauseBtn.textContent = paused ? 'Resume simulation' : 'Pause simulation'; }
+  pauseBtn.addEventListener('click', function () { paused = !paused; syncPauseBtn(); if (!paused) requestAnimationFrame(loop); });
+  syncPauseBtn();
+
+  document.getElementById('resetBtn').addEventListener('click', function () { initGame(); renderPieces(); });
+
+  var revealBtn = document.getElementById('revealBtn'), revealPanel = document.getElementById('revealPanel');
+  revealBtn.addEventListener('click', function () {
+    var open = revealPanel.classList.toggle('hidden') === false;
+    revealBtn.setAttribute('aria-expanded', String(open));
+  });
+
+  // ---------- main loop ----------
+  function loop() {
+    applyAmbientFlow();
+    fluid.step();
+    stepPiecePhysics();
+    renderFluid();
+    drawVectorField();
+    renderPieces();
+    if (!paused) requestAnimationFrame(loop);
+  }
+
+  initGame();
+  renderPieces();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
