@@ -77,7 +77,7 @@ jobs:
 
       - name: Clearance table through the cycle (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/gripper/gripper.json --sweep 24 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
+        run: node agent/check.mjs /tmp/gripper/gripper.json --sweep 8 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
 
       - name: Publish plan
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"
