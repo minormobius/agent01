@@ -1,0 +1,1 @@
+No check/checkmate — a king can walk into "check", nothing tracks it. Game ends by an actual king capture, or a side having zero legal moves. Said so on the page. Walks cap at 40 steps so an empty-board piece can't wander forever.

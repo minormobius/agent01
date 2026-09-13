@@ -404,6 +404,25 @@ embedded in arbitrary page content. Same requester, same topics (template
 adoption, pondertag), different and legitimate shape of ask; don't conflate
 the two when a future request touches either topic again.
 
+Twenty-ninth request (2026-09-13), "chess-except": another "chess but X" ask
+(cf. twenty-sixth/twenty-seventh "modular-group") — "chess except when you
+select a piece you dont decide where it moves it just does a whole random
+walk of legal moves until it cannot make another move." Unlike modular-group,
+this one already specified full standard chess as the base (no reduction to
+one-piece-per-side needed), so the twenty-seventh lesson was already priced
+in: built the complete 16-a-side set with all six piece types, not a
+miniature. New data point on the standing "flag the shortcut" habit: cutting
+check/checkmate entirely (win = actual king capture, since nothing evaluates
+attacked squares) is exactly the kind of rules-simplification this requester
+has previously pushed back on when found unannounced — said it plainly
+on-page this time, not just in BRIEF, following the domino-upright lesson
+that an ambiguous/simplified rule belongs in view where it's checkable.
+Also chose the more literal, more chaotic reading of "random walk... until it
+cannot move" over the safer one: a capture does not end the walk, so one tap
+can chain multiple captures if the piece keeps finding a legal square —
+consistent with this requester rewarding the reading that takes a spec at
+its most literal rather than the tamer one.
+
 Twenty-seventh request (2026-09-06), a same-thread follow-up on "modular-group"/
 farey-chess: "this is basically just king vs king? chess needs more pieces."
 Read as direct, mild feedback rather than a new ask — the first pass had
