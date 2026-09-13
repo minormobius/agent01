@@ -1,1 +1,1 @@
-Done: promotion gone, step cap gone, kings get 3 lives — first two attackers die, third one actually takes the king. Made it symmetric for both sides. Walks can run long now; New Game always exits cleanly mid-walk.
+Chose fast steps (50ms) over truly instant — a synchronous whole-walk could freeze on an endless king/queen shuffle. Square-height bug was CSS: rows had no explicit size, so glyph height changed row height; fixed with grid-template-rows.

@@ -1,5 +1,57 @@
 # chess-except — handoff
 
+## This turn (follow-up: "evaluate whole walk instantly or much more quickly,
+kings can't attack other pieces, every non-pawn gets 1 extra life kills its
+first attacker, board 4 spaces taller, extra row of pawns each side, fix
+issue where height of squares keeps changing")
+
+All six done:
+
+- **Walk speed.** `STEP_DELAY` cut from 380ms to 50ms (each step still waits
+  twice — once to highlight the piece, once after landing — so a step is now
+  ~100ms instead of ~760ms). Chose "much faster" over "fully instant":
+  computing the whole walk synchronously up front would mean a true infinite
+  shuffle (a king or queen alone with no lives-based stop, bouncing between
+  two open squares forever — a known, accepted risk noted in an earlier
+  turn) freezes the tab solid instead of just running a lot of cheap timeouts
+  in the background. The `setTimeout`-chained, cancellable architecture is
+  what makes an uncapped walk safe at all; going synchronous for speed would
+  have thrown that away for the one pathological case it exists to cover.
+- **Kings can't attack.** The king's move generator now only ever adds empty
+  squares (`!board[nr][nc]`, dropped the old "or enemy" branch). A king can
+  still walk right up next to any piece, including the enemy king, but can
+  never land on one. This also quietly retires the old "what if a king
+  attacks a king" gotcha — it's now structurally impossible.
+- **Extra life for every non-pawn.** Generalized the king's existing 3-lives
+  mechanic: knight/bishop/rook/queen now get `lives: 2` (kings keep 3,
+  unchanged). The hit-check in `walkStep` went from `target.type === 'k'` to
+  `target.lives > 0`, so the same code path handles both. A small accent-
+  coloured dot renders on any non-king piece still holding its extra life;
+  it disappears the moment that life is spent. Message line now names the
+  actual piece and colour ("The white knight kills the attacking black
+  pawn…") instead of assuming king.
+- **Board 4 rows taller + an extra pawn row each side, reconciled as one
+  change.** `ROWS` went from 8 to 12, `COLS` stayed 8. Laid out as: back
+  rank, two pawn ranks, six empty ranks, two pawn ranks, back rank. That's
+  +1 pawn row per side (the literal ask) *and* +2 extra empty ranks in the
+  middle to keep the board's proportions sane — together, exactly +4 rows.
+  Pawn double-step eligibility now checks `startRows.includes(r)` (both of a
+  side's pawn ranks) instead of a single hardcoded row number. The back
+  extra pawn rank is boxed in by its own front rank until a pawn there
+  moves — read as an intended consequence of literally doubling the pawns,
+  not a bug.
+- **Square-height bug, root cause found.** `.board` never had a
+  `grid-template-rows`, so with only `grid-template-columns` set, CSS Grid
+  auto-sized each row's height from its *tallest cell's content* — and glyph
+  metrics differ per Unicode chess symbol (a king glyph renders taller than
+  a pawn glyph in most fonts). So a row's height literally depended on which
+  pieces currently sat in it, and changed every time a walk moved a
+  differently-shaped piece into or out of a row. Fixed with one explicit
+  `grid-template-rows: repeat(12, 1fr)` — now every row is a fixed fraction
+  of the board's height regardless of content. `aspect-ratio` also changed
+  from `1` to `2 / 3` (COLS/ROWS = 8/12) so cells stay square with the new
+  proportions.
+
 ## What this is
 
 Request: "chess except when you select a piece you dont decide where it
@@ -57,6 +109,14 @@ standing habit for this requester of flagging a rules simplification
 rather than letting "chess" quietly mean "chess minus a rule" without
 comment.
 
+**Kings can't attack anything, full stop — not just "other kings."** The
+request said "make it so kings can't attack other pieces," read literally
+rather than as a narrower "kings can't attack kings" fix. A king's move list
+now excludes every occupied square, friend or foe, so it never needs a
+capture branch at all. This also means a king cannot be the piece that
+spends one of a lived piece's extra lives — only non-king attackers can
+trigger that mechanic against anything, kings included.
+
 **A walk continues after a capture.** Landing on an enemy piece takes it
 and keeps walking from the new square if there's still a legal move — read
 as the more literal, more chaotic reading of "does a whole random walk...
@@ -99,6 +159,18 @@ afterward. Only the third, fatal hit behaves like a normal chess capture
 
 ## The plan — not built yet, in order
 
+0. **A true "skip to the end" option, if 50ms/step still isn't fast enough.**
+   This turn traded "instant" for "much faster but still animated" to keep
+   the non-freezing, cancellable architecture (see Decisions). If a future
+   ask specifically wants the *result* instantly with no animation at all,
+   the honest way to get both is a `computeWalk()` that runs the exact same
+   random-move loop synchronously against a scratch copy of the board (with
+   a generous safety cap, since a king/queen shuffle can still be infinite),
+   collecting a list of steps, then either applying it all at once or
+   replaying it through the existing `setTimeout` loop at whatever speed is
+   wanted. Don't just lower `STEP_DELAY` to 0 — a same-tick recursive
+   `setTimeout(fn, 0)` chain for an unbounded walk is the tight-loop-that-
+   never-yields failure mode this turn deliberately avoided.
 1. **A "why did it do that" trace.** Right now the walk is just a sequence
    of board renders with a highlight; there's no log of the squares
    visited. A small collapsible move-list under the board (e1→e3→e5×,
@@ -123,9 +195,22 @@ afterward. Only the third, fatal hit behaves like a normal chess capture
 ## Gotchas
 
 - Board array is `board[row][col]`, row 0 = black's back rank (top of the
-  screen), row 7 = white's back rank (bottom). White pawns therefore move
-  in the `-1` row direction, black in `+1` — easy to get backwards if you
-  touch `legalMoves()`.
+  screen), row `ROWS - 1` (11) = white's back rank (bottom). White pawns
+  therefore move in the `-1` row direction, black in `+1` — easy to get
+  backwards if you touch `legalMoves()`. `ROWS`/`COLS` are now named
+  constants (12/8); the CSS `grid-template-columns`/`-rows` numbers are
+  hardcoded separately and have to be kept in sync by hand if either ever
+  changes again — there's no build step to derive one from the other.
+- `target.lives > 0` in `walkStep` is what makes a piece "have an extra
+  life"; pawns simply never get a `lives` field, so `undefined > 0` is
+  `false` and they fall straight through to a normal one-hit capture. Don't
+  add `lives: 1` to pawns to try to make this more "consistent" — it would
+  silently give every pawn the extra-life mechanic.
+- The old worry about "what happens when a king attacks a king" is gone,
+  not papered over: kings can't land on an occupied square at all any more
+  (`legalMoves`'s `'k'` case only pushes empty squares), so a king is never
+  the *attacker* in the lives-check branch of `walkStep`. It can still be
+  the *target* of another piece's attack, unchanged.
 - `legalMoves(r, c)` is called fresh on every step of a walk (not
   precomputed once), because the board changes after every step and a
   stale move list would let a piece "move" into a square that's since
@@ -133,22 +218,19 @@ afterward. Only the third, fatal hit behaves like a normal chess capture
 - No promotion any more (removed this turn) — a pawn's `type` never
   changes. Don't reintroduce it without also checking whether a future
   "trace" feature (plan item 1) wants to log a would-be promotion anyway.
-- Kings are the only pieces with a `lives` field; every other piece object
-  is just `{ color, type }`. `findKing(color)` scans the board rather than
-  keeping a cached reference, because a captured king (lives hit 0) is
-  removed from the board and there's then nothing to find — callers treat
-  `null` as "0 lives" rather than crashing.
+- Every piece except pawns now carries a `lives` field (`backPiece()` sets
+  `KING_LIVES` (3) for kings, `EXTRA_LIVES` (2) for everything else on the
+  back rank). `findKing(color)` still scans the board rather than keeping a
+  cached reference, because a captured king (lives hit 0) is removed from
+  the board and there's then nothing to find — callers treat `null` as "0
+  lives" rather than crashing.
 - `walkId` is the guard against a stale walk mutating a board that New
   Game already replaced. Every recursive `walkStep` and its `setTimeout`
   callback re-checks `id !== walkId` before touching `board`. If you add
   another async continuation to the walk, it needs the same check or it's
   a reintroduction of the bug this fixed.
-- The "attacker gets destroyed" rule is generic — it doesn't check what
-  the attacker *is*, only what it's landing on. Since there's no check
-  detection, a king can legally step next to and "capture" the enemy king;
-  if that hit isn't the fatal one, the attacking king itself gets deleted
-  by the same code path as a pawn would. Left as-is deliberately (it's
-  consistent with every other piece and it's a vanishingly rare board
-  state), but if a future turn wants kings immune to being the *destroyed*
-  piece, that's a one-line `attacker.type !== 'k'` guard right before
-  `board[r][c] = null` in the survive branch of `walkStep`.
+- The "attacker gets destroyed on a non-fatal hit" rule is generic — it
+  doesn't check what the attacker *is*, only whether the target still has
+  lives left. It no longer needs a king-specific carve-out: kings can't be
+  attackers any more (see above), so the only way this rule fires against a
+  king target is a non-king piece walking into it, exactly as intended.
