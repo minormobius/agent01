@@ -3,11 +3,11 @@
  "units": "mm",
  "_": "Floor plate, from the rear plate to the front wall’s outer face (the wall stands on it). Its top face is the carriage’s way. One extrude along +Z.",
  "params": {
-  "w": 112,
+  "w": 116,
   "y0": 8,
   "y1": 116,
   "t": 4,
-  "z0": -27
+  "z0": -26
  },
  "features": [
   {

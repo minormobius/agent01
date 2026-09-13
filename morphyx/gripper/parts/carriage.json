@@ -1,20 +1,17 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Nut carriage, 18 long: the nut bore with its four flange bolt holes; a 26 mm skid that runs on the floor; a 29 mm waist on the mid-plane with a through-slot each side (4 × 8.2) that the pivot arms key into; 18 mm bosses above and below the waist for the nut flange, narrow so the link eyes pass them. The housing aligns it — skid on the floor, arm tips at the walls — and the nut sees thrust only. One extrude along -Y.",
+ "_": "Nut carriage, 18 long: the nut bore with its four flange bolt holes, a 26 mm skid that runs on the floor, and a through-slot each side (4 × 22.2) that the pivot arms key into. The housing aligns it — skid on the floor, arm tips at the walls — and the nut sees thrust only. One extrude along -Y.",
  "params": {
   "t": 18,
   "sh": 13,
-  "sz0": -22.8,
-  "sz1": -21,
-  "bh": 9,
-  "bz0": -21,
-  "bz1": 11,
-  "mh": 14.5,
-  "mz": 6,
+  "sz0": -21.8,
+  "sz1": -20,
+  "ch": 14.5,
+  "ct": 15,
   "slx0": 9,
   "slx1": 13,
-  "slz": 4.1,
+  "slz": 11.1,
   "d_bore": 10.200000000000001,
   "pcd": 16,
   "d_bolt": 3.5
@@ -41,51 +38,19 @@
        "sz1"
       ],
       [
-       "bh",
+       "ch",
        "sz1"
       ],
       [
-       "bh",
-       "-mz"
+       "ch",
+       "ct"
       ],
       [
-       "mh",
-       "-mz"
+       "-ch",
+       "ct"
       ],
       [
-       "mh",
-       "mz"
-      ],
-      [
-       "bh",
-       "mz"
-      ],
-      [
-       "bh",
-       "bz1"
-      ],
-      [
-       "-bh",
-       "bz1"
-      ],
-      [
-       "-bh",
-       "mz"
-      ],
-      [
-       "-mh",
-       "mz"
-      ],
-      [
-       "-mh",
-       "-mz"
-      ],
-      [
-       "-bh",
-       "-mz"
-      ],
-      [
-       "-bh",
+       "-ch",
        "sz1"
       ],
       [

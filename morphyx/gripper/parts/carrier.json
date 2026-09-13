@@ -1,138 +1,142 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Jaw carrier — one part, section swept along X, 30 wide. Behind the block it is a tongue on the mid-plane (z ±4) carrying the Ø4 link pin; at the block it widens into a flange that backstops the block and is bolted to it (4 × M3 along Y, not drawn); the section then opens into a channel that wraps the rail, the block and the wall’s strip, with two feet either side that pass out through the wall’s slots; outside it closes into a web and ends in a 16 × 16 tenon standing 16 mm proud, with four M4 cross holes on an 8 × 10 rectangle — the finger mount. The pin hole is a cut along Z, the only boolean in this design. Built for the right side; the left is the same part turned 180° about Y.",
+ "_": "Jaw carrier: a 44 × 22 × 10 plate bolted to the outer face of its MGN9C block (four M3 on the block’s 10 × 15 pattern). The Ø4 link pin passes through its middle along Z with 22 mm of bearing, and a link seats on each face outside it. Its front face is the finger mount: four M4 and two Ø6 dowels, clear of the block behind. The pin hole is a cut along Z, the only boolean in this design. One extrude along +Y.",
  "params": {
-  "w": 30,
-  "tz": 4,
-  "fz": 19.5,
-  "cz": 10.5,
-  "ty0": 83,
-  "ty1": 96,
-  "cy0": 98,
-  "cy1": 116.5,
-  "ny0": 124.5,
-  "ny1": 140.5,
-  "nz": 8,
-  "d_bolt": 4.3,
-  "by0": 128.5,
-  "by1": 136.5,
-  "bz": 5,
-  "inset": 6,
-  "y_pin": 90,
-  "d_pin": 4
+  "half": 18,
+  "hz": 11,
+  "t": 10,
+  "y1": 138,
+  "px": 10,
+  "pz": 15,
+  "d_bolt": 3.4,
+  "fx": 13,
+  "fz": 7,
+  "d_finger": 4.3,
+  "dx": 13,
+  "d_dowel": 6,
+  "inset": 0,
+  "d_pin": 4,
+  "y_pin": 133
  },
  "features": [
   {
    "op": "sketch",
-   "id": "section",
+   "id": "face",
    "plane": {
-    "base": "YZ",
-    "offset": "-w/2"
+    "base": "XZ",
+    "offset": "-y1"
    },
    "loops": [
     {
      "name": "outline",
-     "polygon": [
-      [
-       83,
-       -4
-      ],
-      [
-       96,
-       -4
-      ],
-      [
-       96,
-       -19.5
-      ],
-      [
-       124.5,
-       -19.5
-      ],
-      [
-       124.5,
-       -8
-      ],
-      [
-       140.5,
-       -8
-      ],
-      [
-       140.5,
-       8
-      ],
-      [
-       124.5,
-       8
-      ],
-      [
-       124.5,
-       19.5
-      ],
-      [
-       96,
-       19.5
-      ],
-      [
-       96,
-       4
-      ],
-      [
-       83,
-       4
-      ]
-     ]
-    },
-    {
-     "name": "channel",
      "rect": {
       "c": [
-       "(cy0 + cy1) / 2",
+       0,
        0
       ],
-      "w": "cy1 - cy0",
-      "h": "2 * cz"
+      "w": "2 * half",
+      "h": "2 * hz"
      }
     },
     {
-     "name": "boltA",
+     "name": "blockA",
      "circle": {
       "c": [
-       "by0",
-       "-bz"
+       "-px/2",
+       "-pz/2"
       ],
       "r": "d_bolt / 2"
      }
     },
     {
-     "name": "boltB",
+     "name": "blockB",
      "circle": {
       "c": [
-       "by1",
-       "-bz"
+       "px/2",
+       "-pz/2"
       ],
       "r": "d_bolt / 2"
      }
     },
     {
-     "name": "boltC",
+     "name": "blockC",
      "circle": {
       "c": [
-       "by0",
-       "bz"
+       "-px/2",
+       "pz/2"
       ],
       "r": "d_bolt / 2"
      }
     },
     {
-     "name": "boltD",
+     "name": "blockD",
      "circle": {
       "c": [
-       "by1",
-       "bz"
+       "px/2",
+       "pz/2"
       ],
       "r": "d_bolt / 2"
+     }
+    },
+    {
+     "name": "fingerA",
+     "circle": {
+      "c": [
+       "-fx",
+       "-fz"
+      ],
+      "r": "d_finger / 2"
+     }
+    },
+    {
+     "name": "fingerB",
+     "circle": {
+      "c": [
+       "fx",
+       "-fz"
+      ],
+      "r": "d_finger / 2"
+     }
+    },
+    {
+     "name": "fingerC",
+     "circle": {
+      "c": [
+       "-fx",
+       "fz"
+      ],
+      "r": "d_finger / 2"
+     }
+    },
+    {
+     "name": "fingerD",
+     "circle": {
+      "c": [
+       "fx",
+       "fz"
+      ],
+      "r": "d_finger / 2"
+     }
+    },
+    {
+     "name": "dowelA",
+     "circle": {
+      "c": [
+       "-dx",
+       0
+      ],
+      "r": "d_dowel / 2"
+     }
+    },
+    {
+     "name": "dowelB",
+     "circle": {
+      "c": [
+       "dx",
+       0
+      ],
+      "r": "d_dowel / 2"
      }
     }
    ]
@@ -140,15 +144,15 @@
   {
    "op": "extrude",
    "id": "carrier",
-   "profile": "section",
-   "depth": "w"
+   "profile": "face",
+   "depth": "t"
   },
   {
    "op": "sketch",
    "id": "pinhole",
    "plane": {
     "base": "XY",
-    "offset": "-(tz + 3)"
+    "offset": "-(hz + 3)"
    },
    "loops": [
     {
@@ -167,7 +171,7 @@
    "op": "extrude",
    "id": "pincut",
    "profile": "pinhole",
-   "depth": "2 * tz + 6",
+   "depth": "2 * hz + 6",
    "mode": "cut"
   }
  ]
