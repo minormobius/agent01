@@ -39,11 +39,6 @@
   .sq .p.w { color: #f2efe9; }
   .sq .p.b { color: #6fa3e0; }
   .sq.active { box-shadow: inset 0 0 0 3px var(--accent); }
-  .sq .extra-life {
-    position: absolute; top: 3px; right: 3px;
-    width: 8px; height: 8px; border-radius: 50%;
-    background: var(--accent); border: 1px solid var(--border);
-  }
   .controls { display: flex; gap: .6rem; align-items: center; margin: 1rem 0; flex-wrap: wrap; }
   .legend { font-size: .8rem; color: var(--muted); }
   .rules { margin-top: 2rem; }
@@ -73,9 +68,9 @@
       <li>A walk can chain captures: land on an enemy piece, take it, and keep walking from that square if there's still somewhere legal to go.</li>
       <li>No pawn promotion — a pawn that reaches the back rank is just a pawn that reached the back rank. It often has no legal move left there, which ends the walk on its own.</li>
       <li>No castling, no en passant, no check or checkmate — this variant doesn't track attack squares.</li>
-      <li>Kings can't attack anything. A king only ever steps onto an empty square — it can walk right up next to an enemy piece, even the enemy king, but it never captures.</li>
+      <li>Kings can capture pawns, and only pawns — every other occupied square, including the enemy king, is still off-limits to a king.</li>
       <li>Kings get 3 lives: the first two pieces that land a capture on a king are destroyed instead of completing it, and the king loses one life each time. The third hit actually takes the king and ends the game.</li>
-      <li>Every other piece except pawns (knight, bishop, rook, queen) gets 1 extra life too, shown as a small dot on the piece. The first piece to capture it is destroyed instead and the dot disappears; the second capture actually lands.</li>
+      <li>Knight, bishop, rook and queen can't be captured at all — attack one and it destroys the attacker instead, every single time, and the turn ends right there. Only pawns and kings actually die.</li>
       <li>The board is 8 wide and 12 tall, with two ranks of pawns on each side instead of one — the back rank's pawns are boxed in until the front rank moves.</li>
       <li>A walk has no step limit — it runs until the piece has nowhere legal left to go, and steps play out quickly. New game abandons the current one at any point.</li>
       <li>The game also ends if a side has no legal move anywhere on its turn (a draw).</li>
@@ -95,7 +90,6 @@
   const STEP_DELAY = 50;
   const ROWS = 12, COLS = 8;
   const KING_LIVES = 3;
-  const EXTRA_LIVES = 2;
   const BLACK_PAWN_ROWS = [1, 2];
   const WHITE_PAWN_ROWS = [ROWS - 3, ROWS - 2];
   const PIECE_NAME = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
@@ -109,7 +103,7 @@
   let board, current, gameOver, walking, stepCount, activeSquare, walkId;
 
   function backPiece(color, type) {
-    return type === 'k' ? { color, type, lives: KING_LIVES } : { color, type, lives: EXTRA_LIVES };
+    return type === 'k' ? { color, type, lives: KING_LIVES } : { color, type };
   }
 
   function freshBoard() {
@@ -183,7 +177,10 @@
       case 'k':
         for (const [dr, dc] of DIAG.concat(ORTH)) {
           const nr = r + dr, nc = c + dc;
-          if (inBounds(nr, nc) && !board[nr][nc]) moves.push([nr, nc]);
+          if (!inBounds(nr, nc)) continue;
+          const t = board[nr][nc];
+          if (!t) moves.push([nr, nc]);
+          else if (t.color !== color && t.type === 'p') moves.push([nr, nc]);
         }
         break;
     }
@@ -218,12 +215,6 @@
           span.className = 'p ' + p.color;
           span.textContent = GLYPH[p.color][p.type];
           sq.appendChild(span);
-          if (p.type !== 'k' && p.lives > 1) {
-            const dot = document.createElement('span');
-            dot.className = 'extra-life';
-            dot.title = 'has an extra life';
-            sq.appendChild(dot);
-          }
         }
         sq.dataset.r = r; sq.dataset.c = c;
         sq.addEventListener('click', onSquareClick);
@@ -277,21 +268,17 @@
       const attackerName = PIECE_NAME[attacker.type];
       const targetColorName = target && target.color === 'w' ? 'white' : 'black';
       const targetName = target ? PIECE_NAME[target.type] : '';
-      if (target && target.lives > 0) {
+      if (target && target.type === 'k') {
         target.lives--;
         if (target.lives <= 0) {
           board[nr][nc] = attacker;
           board[r][c] = null;
           stepCount++;
-          if (target.type === 'k') {
-            walking = false;
-            gameOver = true;
-            activeSquare = [nr, nc];
-            render();
-            setMessage((current === 'w' ? 'White' : 'Black') + ' wins — the ' + targetColorName + ' king is out of lives.');
-            return;
-          }
-          setTimeout(function () { walkStep(nr, nc, id); }, STEP_DELAY);
+          walking = false;
+          gameOver = true;
+          activeSquare = [nr, nc];
+          render();
+          setMessage((current === 'w' ? 'White' : 'Black') + ' wins — the ' + targetColorName + ' king is out of lives.');
           return;
         }
         board[r][c] = null;
@@ -299,7 +286,17 @@
         walking = false;
         activeSquare = null;
         render();
-        setMessage('The ' + targetColorName + ' ' + targetName + ' kills the attacking ' + attackerName + ' — ' + target.lives + ' life' + (target.lives === 1 ? '' : 's') + ' left.');
+        setMessage('The ' + targetColorName + ' king kills the attacking ' + attackerName + ' — ' + target.lives + ' life' + (target.lives === 1 ? '' : 's') + ' left.');
+        endTurn();
+        return;
+      }
+      if (target && target.type !== 'p') {
+        board[r][c] = null;
+        stepCount++;
+        walking = false;
+        activeSquare = null;
+        render();
+        setMessage('The ' + targetColorName + ' ' + targetName + " can't be captured — it destroys the attacking " + attackerName + ', ending the turn.');
         endTurn();
         return;
       }

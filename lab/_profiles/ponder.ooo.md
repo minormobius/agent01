@@ -423,6 +423,26 @@ can chain multiple captures if the piece keeps finding a legal square —
 consistent with this requester rewarding the reading that takes a spec at
 its most literal rather than the tamer one.
 
+Follow-up on the twenty-ninth request (2026-09-13, same thread), on
+chess-except: after several iterations tuning the variant's mechanics, asked
+to let kings capture pawns (to help the "kings never stop moving" problem)
+and to "remove extra lives from other pieces without dying, but that ends
+their turn." The second phrase is genuinely ambiguous — it could mean drop
+the extra-life mechanic and go back to normal captures, or keep "doesn't
+die, attacker dies, turn ends" but make it permanent instead of a countable
+resource. Picked the second reading because "without dying" is doing load-
+bearing work in the sentence — it's specifying the piece's fate, not just
+describing the old mechanic in passing. Consistent with the standing
+literal-reading pattern (cyclotomic-Littlewood, "the whole gallery," "GL(2,Z)
+means det=±1"): when a short instruction has two plausible readings and one
+of them treats every word as meaningful while the other treats a clause as
+throwaway color, this requester rewards the reading that keeps every word
+load-bearing. Also explicitly said the requested king/pawn fix doesn't
+structurally solve the underlying infinite-shuffle problem they'd flagged
+(a lone king/queen can still bounce forever) rather than silently declaring
+it solved — consistent with the standing habit of naming when a fix is
+partial, not just when a shortcut was taken.
+
 Twenty-seventh request (2026-09-06), a same-thread follow-up on "modular-group"/
 farey-chess: "this is basically just king vs king? chess needs more pieces."
 Read as direct, mild feedback rather than a new ask — the first pass had

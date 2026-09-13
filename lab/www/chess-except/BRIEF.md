@@ -1,5 +1,39 @@
 # chess-except — handoff
 
+## This turn (follow-up: "kings can never stop moving lol, make it so kings
+can take pawns, and remove extra lives from other pieces without dying, but
+that ends their turn")
+
+Both done:
+
+- **Kings can capture pawns, and only pawns.** The `'k'` case in
+  `legalMoves()` used to push only empty squares; now it also pushes a square
+  holding an enemy pawn (`t.color !== color && t.type === 'p'`), everything
+  else occupied — friend, foe, the enemy king — stays off-limits, unchanged
+  from last turn. **This does not structurally fix "kings can never stop
+  moving."** A king alone in open space with no pawn nearby can still shuffle
+  between two empty squares forever; giving it pawns to eat just gives it one
+  more way to end a walk in the (common) case where a pawn is actually
+  adjacent. Said so plainly rather than claiming a fix that isn't one — if the
+  actual halting problem needs solving, see plan item 0 below, carried over
+  from last turn and now the more pressing one.
+- **Knight/bishop/rook/queen: not "1 extra life" any more, just plain
+  uncapturable.** Deleted `EXTRA_LIVES` and the `lives` field from every
+  non-king back-rank piece entirely — no counter, so nothing to run out.
+  `walkStep`'s hit logic now branches on `target.type` instead of
+  `target.lives`: hitting a king still runs the existing 3-lives countdown
+  (untouched); hitting anything else that isn't a pawn destroys the attacker,
+  leaves the target exactly where it stood, and ends the turn — *every single
+  time*, forever, not just the first. Read "remove extra lives... without
+  dying" as "stop counting lives, make not-dying the permanent rule" rather
+  than "give up the mechanic and go back to a normal one-hit capture" — the
+  request explicitly keeps "without dying" as the piece's fate, it's the
+  *counting* that goes. Removed the small accent dot that used to mark "still
+  has its extra life" along with it: there's no state left for a dot to track,
+  since the property is now permanent and uniform across all knights/
+  bishops/rooks/queens rather than something that can be spent. Only kings
+  and pawns can now actually leave the board.
+
 ## This turn (follow-up: "evaluate whole walk instantly or much more quickly,
 kings can't attack other pieces, every non-pawn gets 1 extra life kills its
 first attacker, board 4 spaces taller, extra row of pawns each side, fix
@@ -109,13 +143,28 @@ standing habit for this requester of flagging a rules simplification
 rather than letting "chess" quietly mean "chess minus a rule" without
 comment.
 
-**Kings can't attack anything, full stop — not just "other kings."** The
-request said "make it so kings can't attack other pieces," read literally
-rather than as a narrower "kings can't attack kings" fix. A king's move list
-now excludes every occupied square, friend or foe, so it never needs a
-capture branch at all. This also means a king cannot be the piece that
-spends one of a lived piece's extra lives — only non-king attackers can
-trigger that mechanic against anything, kings included.
+**Kings can't attack anything except pawns.** An earlier turn made kings
+unable to attack at all ("make it so kings can't attack other pieces," read
+as every piece). This turn's request narrowed that back open one square at a
+time: "make it so kings can take pawns." So the king's move list now allows
+one specific occupied-square case — an enemy pawn — and nothing else. A king
+still can never land on a knight/bishop/rook/queen or either king, so it
+still can't be the attacker that triggers the uncapturable-piece mechanic
+below; the only piece type it can ever remove from the board is a pawn.
+
+**Knight/bishop/rook/queen are uncapturable, permanently, not "1 extra
+life."** Last turn gave every non-king, non-pawn piece a 2-life counter
+(first hit survives and kills the attacker, second hit is a normal capture).
+This turn's request — "remove extra lives from other pieces without dying,
+but that ends their turn" — is read as: stop counting the lives (there's no
+counter left to run out), and keep "the piece doesn't die, the attacker does,
+and the turn ends" as the permanent, unconditional outcome of attacking one,
+forever. The alternative reading — drop the mechanic entirely and let these
+pieces be captured normally again — was rejected because the request
+explicitly says "without dying": that phrase is doing the work of keeping the
+survive-and-end-turn behavior, only the *counting* is what's being removed.
+Only kings (3-life countdown, unchanged) and pawns (always die on capture)
+can now actually come off the board.
 
 **A walk continues after a capture.** Landing on an enemy piece takes it
 and keeps walking from the new square if there's still a legal move — read
@@ -159,6 +208,21 @@ afterward. Only the third, fatal hit behaves like a normal chess capture
 
 ## The plan — not built yet, in order
 
+-1. **The actual halting fix, now the most-requested unsolved thing.** Two
+   turns running have poked at "a king (or queen) can shuffle forever" —
+   first with lives, now by letting kings eat pawns — and neither is a real
+   fix, because a king with no pawn adjacent, or a queen anywhere in open
+   space, still has zero structural reason to ever stop. The honest fix is a
+   **no-immediate-backtrack rule**: track the square a piece just came from
+   and exclude it from this step's move list (unless it's the only legal
+   move, so a piece never gets stuck with zero moves because of this rule
+   alone). That breaks the two-square infinite oscillation, which is the only
+   proven-infinite case today. It doesn't provably terminate longer cycles
+   (A→B→C→A→B→C…) but makes them require 3+ open squares in a specific
+   loop shape, which is far rarer than the trivial 2-square case that's
+   actually been reported. Explicitly flagged as a lever in "No
+   no-immediate-backtrack rule" below for two turns now — worth just doing
+   next time rather than re-flagging a third time.
 0. **A true "skip to the end" option, if 50ms/step still isn't fast enough.**
    This turn traded "instant" for "much faster but still animated" to keep
    the non-freezing, cancellable architecture (see Decisions). If a future
@@ -201,36 +265,42 @@ afterward. Only the third, fatal hit behaves like a normal chess capture
   constants (12/8); the CSS `grid-template-columns`/`-rows` numbers are
   hardcoded separately and have to be kept in sync by hand if either ever
   changes again — there's no build step to derive one from the other.
-- `target.lives > 0` in `walkStep` is what makes a piece "have an extra
-  life"; pawns simply never get a `lives` field, so `undefined > 0` is
-  `false` and they fall straight through to a normal one-hit capture. Don't
-  add `lives: 1` to pawns to try to make this more "consistent" — it would
-  silently give every pawn the extra-life mechanic.
-- The old worry about "what happens when a king attacks a king" is gone,
-  not papered over: kings can't land on an occupied square at all any more
-  (`legalMoves`'s `'k'` case only pushes empty squares), so a king is never
-  the *attacker* in the lives-check branch of `walkStep`. It can still be
-  the *target* of another piece's attack, unchanged.
+- `walkStep`'s hit branch is now keyed on `target.type`, not a `lives` field:
+  `target.type === 'k'` runs the 3-life countdown, `target.type !== 'p'` (and
+  not a king — checked first) means an uncapturable knight/bishop/rook/queen,
+  and anything else falls through to a normal capture (only ever a pawn,
+  since that's the only type left that isn't a king or a lived piece). Only
+  kings carry a `lives` field at all now.
+- Kings can land on an occupied square in exactly one case: an enemy pawn
+  (`legalMoves`'s `'k'` case, `t.type === 'p'`). Every other occupied square,
+  friend or foe, king included, is still excluded — so a king can be an
+  *attacker* in `walkStep` now, but only ever against a pawn, which always
+  falls through to a normal capture (pawns have no lives field). A king can
+  never trigger the uncapturable-piece branch, and the "king attacks king"
+  case is still structurally impossible.
 - `legalMoves(r, c)` is called fresh on every step of a walk (not
   precomputed once), because the board changes after every step and a
   stale move list would let a piece "move" into a square that's since
   filled up. Don't cache it across steps.
-- No promotion any more (removed this turn) — a pawn's `type` never
-  changes. Don't reintroduce it without also checking whether a future
-  "trace" feature (plan item 1) wants to log a would-be promotion anyway.
-- Every piece except pawns now carries a `lives` field (`backPiece()` sets
-  `KING_LIVES` (3) for kings, `EXTRA_LIVES` (2) for everything else on the
-  back rank). `findKing(color)` still scans the board rather than keeping a
-  cached reference, because a captured king (lives hit 0) is removed from
-  the board and there's then nothing to find — callers treat `null` as "0
-  lives" rather than crashing.
+- No promotion any more — a pawn's `type` never changes. Don't reintroduce it
+  without also checking whether a future "trace" feature (plan item 1) wants
+  to log a would-be promotion anyway.
+- Only kings carry a `lives` field now (`backPiece()` sets `KING_LIVES` (3)
+  for kings, nothing for anything else — knight/bishop/rook/queen are plain
+  `{ color, type }` objects, same shape as a pawn). `findKing(color)` still
+  scans the board rather than keeping a cached reference, because a captured
+  king (lives hit 0) is removed from the board and there's then nothing to
+  find — callers treat `null` as "0 lives" rather than crashing. Don't add a
+  `lives` field back to knight/bishop/rook/queen "for consistency" — it would
+  silently reintroduce the finite-life mechanic this turn deliberately
+  removed in favor of a permanent, uncounted one.
 - `walkId` is the guard against a stale walk mutating a board that New
   Game already replaced. Every recursive `walkStep` and its `setTimeout`
   callback re-checks `id !== walkId` before touching `board`. If you add
   another async continuation to the walk, it needs the same check or it's
   a reintroduction of the bug this fixed.
-- The "attacker gets destroyed on a non-fatal hit" rule is generic — it
-  doesn't check what the attacker *is*, only whether the target still has
-  lives left. It no longer needs a king-specific carve-out: kings can't be
-  attackers any more (see above), so the only way this rule fires against a
-  king target is a non-king piece walking into it, exactly as intended.
+- The "attacker gets destroyed, target survives, turn ends" rule now branches
+  on `target.type`, not on remaining lives — there's no countdown left to
+  check for knight/bishop/rook/queen, it just always fires. The king case is
+  still separate and still finite (3-life countdown, checked first in
+  `walkStep` so it doesn't fall into the uncapturable-piece branch below it).
