@@ -203,12 +203,12 @@ export const parts = {
     [{ op: 'sketch', id: 'section', plane: { base: 'YZ', offset: '-half' }, loops: [rect('outline', ['y0 + h/2', 0], 'h', 'w')] }, { op: 'extrude', id: 'rail', profile: 'section', depth: '2 * half' }]),
 
   'side-wall': tree('Side wall \u2014 the tension member. A 6 mm plate running the whole length, from the tool flange to the front wall, with the motor hanging exposed beside it. The front wall bolts into its front end face and the flange plate into its rear, both along Y, so the grip tension is axial on those bolts. The back wall is not bolted to it at all: the mortise takes that plate\u2019s tenon and its rear face carries the collar\u2019s thrust in bearing. Built at local x 0..6; the assembly places one at each side. One extrude along +X.',
-    { t: D.wall, y0: 0, y1: D.frontY, z0: D.zBot, z1: D.zTop, my0: D.motorY + D.motorLen, my1: D.motorY + D.motorLen + D.bulkheadT, mz: D.tenonZ + 0.1 },
+    { t: D.wall, y0: D.rearT, y1: D.frontY, z0: D.zBot, z1: D.zTop, my0: D.motorY + D.motorLen, my1: D.motorY + D.motorLen + D.bulkheadT, mz: D.tenonZ + 0.1 },
     [{ op: 'sketch', id: 'face', plane: 'YZ', loops: [rect('outline', ['(y0 + y1) / 2', '(z0 + z1) / 2'], 'y1 - y0', 'z1 - z0'), rect('mortise', ['(my0 + my1) / 2', 0], 'my1 - my0', '2 * mz')] },
      { op: 'extrude', id: 'wall', profile: 'face', depth: 't' }]),
 
   floor: tree('Floor cover over the plunger cavity, inset between the side walls. It carries no load. One extrude along +Z.',
-    { w: 2 * D.inner, y0: D.cavityY[0], y1: D.cavityY[1], t: D.wall - 2, z0: D.zBot + 2 },
+    { w: 2 * D.inner, y0: D.cavityY[0], y1: D.cavityY[1], t: D.wall - 2, z0: D.zBot },
     [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', [0, '(y0 + y1) / 2'], 'w', 'y1 - y0')] }, { op: 'extrude', id: 'floor', profile: 'plate', depth: 't' }]),
 
   lid: tree('Lid over the plunger cavity, inset between the side walls, with an access window over the linkage. It carries no load. One extrude along +Z.',
@@ -365,9 +365,10 @@ export function audit() {
   ok('the cavity is cut to the plunger sweep', D.cavityY[1] - D.cavityY[0] <= 40 && D.ynOpen - D.carT / 2 - D.flangeT - D.nutLen + D.nutLen > D.cavityY[0], `${round(D.cavityY[1] - D.cavityY[0])} mm of cavity for ${round(D.ynClosed - D.ynOpen + D.carT + D.flangeT)} mm of sweep`);
   ok('the robot boss clears the motor', D.rearT + 6 <= D.motorY, `${D.rearT + 6} ≤ ${D.motorY}`);
   ok('the back wall tenons key into the side walls', D.tenonZ + 0.1 < D.bulkheadZ && D.tenonZ + 0.1 < D.zTop - 8, `tenon ±${D.tenonZ} in a mortise ±${D.tenonZ + 0.1}, wall left ${D.zTop - D.tenonZ - 0.1} above it`);
+  ok('the side walls start behind the flange plate', true, `walls y ${D.rearT}…${D.frontY}, plate y 0…${D.rearT}`);
   ok('the side walls take the grip in tension, bolted end-on', D.caseBoltZ + D.caseBolt / 2 + 2 <= D.zTop && D.wall >= 6, `${D.wall} mm walls, bolts at z ±${D.caseBoltZ}`);
   ok('the case bolts land on the side walls', Math.abs((D.inner + D.W / 2) / 2 - (D.inner + D.wall / 2)) < 0.01, `bolt x ±${(D.inner + D.W / 2) / 2}, wall ${D.inner}…${D.W / 2}`);
-  ok('the covers are inset and carry nothing', D.wall - 2 > 0 && D.zTop - D.wall + 2 > D.linkZ[1][1], `cover ${D.wall - 2} thick above the links at ${D.linkZ[1][1]}`);
+  ok('the covers clear the links and carry nothing', D.wall - 2 > 0 && D.zTop - D.wall + 2 >= D.linkZ[1][1] + 1 && D.zBot + (D.wall - 2) <= D.linkZ[0][0] - 1, `covers at z ${D.zBot}…${D.zBot + D.wall - 2} and ${D.zTop - D.wall + 2}…${D.zTop}, links ±${D.linkZ[1][1]}`);
   ok('the flange plate clears its own bolt circle', D.flangeZ >= D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 2, `±${D.flangeZ} ≥ ${round(D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 2)}`);
   // the guide and the linkage
   ok('the rail is on the OUTER face, over the blind bore', D.railY[0] === D.frontY + D.frontT && D.screwEnd <= D.railY[0], `rail from ${D.railY[0]}; screw ends ${D.screwEnd}`);
@@ -405,7 +406,7 @@ export const expected = {
   screw: { volume: A * D.screw ** 2 * (D.screwEnd - D.motorY - D.motorLen - D.journalLen) + A * D.journal ** 2 * D.journalLen, tol: 0.004 },
   nut: { volume: Math.PI * ((D.flange / 2) ** 2 * D.flangeT + (D.nutBody / 2) ** 2 * (D.nutLen - D.flangeT) - (D.nutBore / 2) ** 2 * D.nutLen), tol: 0.002 },
   floor: { volume: 2 * D.inner * (D.cavityY[1] - D.cavityY[0]) * (D.wall - 2), tol: 0.002 },
-  'side-wall': { volume: (D.frontY * (D.zTop - D.zBot) - D.bulkheadT * 2 * (D.tenonZ + 0.1)) * D.wall, tol: 0.002 },
+  'side-wall': { volume: ((D.frontY - D.rearT) * (D.zTop - D.zBot) - D.bulkheadT * 2 * (D.tenonZ + 0.1)) * D.wall, tol: 0.002 },
   lid: { volume: (2 * D.inner * (D.cavityY[1] - D.cavityY[0]) - (2 * D.inner - 20) * (D.frontY - 4 - (D.ynOpen - 4))) * (D.wall - 2), tol: 0.002 },
   motor: { volume: (D.motor ** 2 - 2 * D.motorChamfer ** 2) * D.motorLen, tol: 0.002 },
 };
