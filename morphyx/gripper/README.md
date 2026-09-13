@@ -84,9 +84,12 @@ v9 deletes the flange and rebuilds the frame around the load path:
    y 22…28, rail plate at 64…70, 36 mm of cavity between them, all of it
    swept by the plunger. Nothing behind the motor plate but the motor.
 2. **Two pillars are the structure.** Ø10 bodies on the grip plane z = 0 at
-   x ±24, with an M8 end each: nutted behind the motor plate, threaded into
-   the rail plate. The threads take the tension, the shoulders set the
-   plate spacing and take the compression. They sit on the plane the grip
+   x ±24, with an M8 end each. Each threads into the rail plate ahead and
+   passes through the motor plate behind, where a nut on that plate's
+   **inner** face takes the tension — grip pulls the pillar forward and the
+   plate back, so that nut is exactly the load path, and nothing protrudes
+   behind the plate to foul the motor's 42.3 square. The shoulder takes the
+   compression. They sit on the plane the grip
    force acts in, so the frame sees no moment from carrying it.
 3. **Each pillar pierces its arm.** The arm has a Ø10.2 bore at x 24 and
    slides on the pillar. That is the plunger's alignment rail and its
@@ -118,7 +121,7 @@ the screw thrust.
 
 | member | what it carries | how |
 |---|---|---|
-| **pillars** (×2) | the whole grip tension, and compression on the return | M8 threads at both ends, Ø10 shoulders setting the plate spacing; on the grip plane, so no moment |
+| **pillars** (×2) | the whole grip tension, and compression on the return | M8 into the rail plate ahead, an M8 nut on the motor plate's inner face behind, Ø10 shoulder between; on the grip plane, so no moment |
 | side walls (×2) | torsion and shear | 4 mm, bolted to both plates |
 | motor plate | the screw's thrust, via the collar bearing on its inner face | the plane the load passes through, and where the tool interface belongs |
 | rail plate | the jaws' forward push, via the rail | tapped for the pillars, bolted to the walls |
@@ -159,8 +162,10 @@ back face of the motor.
   screw in a tapped hole is normally drawn. The rail plate's holes are the
   tap drill and are blind in practice: the rail covers them, as it covers
   the screw's journal bore.
-- The pillar nuts behind the motor plate are not drawn. They sit at x ±24,
-  clear of the motor's 42.3 square.
+- The pillar nuts are not drawn. They sit inside the cavity on the motor
+  plate's inner face, y 28…34.5, and the arms come no closer than 37.35 at
+  the open end. The first v9 push put them behind the plate instead and the
+  sweep gate found them buried 27 mm³ in the motor.
 - **Two parts carry a cut**: the jaw plate's pin hole and the arm's pillar
   bore. Both drop their part's face names, so both the arm pins and the jaw
   pins are placed by expression rather than by feature.

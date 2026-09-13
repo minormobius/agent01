@@ -48,7 +48,7 @@ export const D = {
   motor: 42.3, motorChamfer: 5, motorY: 0, motorLen: 22, pilot: 22.5, boltSquare: 31, bolt: 3.4, bulkheadT: 6,
   screw: 8, lead: 2, screwEnd: 70, journal: 6, journalLen: 6, endBore: 6.2, collarD: 14, collarL: 4, collarY: 28,
   // the pillars: Ø10 bodies on the grip plane, an M8 nutted end into the motor plate and an M8 thread into the rail plate
-  pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarNut: 6, pillarTap: 6, pillarClear: 8.4,
+  pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarNut: 6.5, pillarTap: 6, pillarClear: 8.4,
   // nut and carriage: the carriage hangs on the nut and runs on the pillars through its arms
   nutBore: 8.4, nutBody: 10, nutLen: 15, flange: 22, flangeT: 3.5, nutPcd: 16, nutBolt: 3.5,
   carT: 14, carHalf: 14.5, carZ: 14, slotX: [9, 13],
@@ -72,7 +72,8 @@ D.travel = D.xpOpen - D.xpClosed;
 D.inner = D.W / 2 - D.wall;
 D.bulkheadY = [D.motorY + D.motorLen, D.motorY + D.motorLen + D.bulkheadT];
 D.cavityY = [D.bulkheadY[1], D.frontY];                           // motor plate to rail plate: all of it swept
-D.pillarY = [D.bulkheadY[1] - D.bulkheadT - D.pillarNut, D.frontY + D.pillarTap];
+D.pillarY = [D.bulkheadY[0], D.frontY + D.pillarTap];            // flush with the motor plate's back face: nothing protrudes behind it
+D.pillarShoulder = D.bulkheadY[1] + D.pillarNut;                  // the nut sits on the plate's INNER face, inside the cavity
 D.railY = [D.frontY + D.frontT, D.frontY + D.frontT + D.railH];
 D.blockY = [D.railY[0] + D.blockH1, D.railY[0] + D.blockH1 + D.blockH];
 D.carrierY = [D.blockY[1], D.blockY[1] + D.carrierT];
@@ -187,8 +188,8 @@ export const parts = {
      { op: 'sketch', id: 'pinhole', plane: { base: 'XY', offset: '-(hz + 3)' }, loops: [circle('pin', ['-inset', 'y_pin'], 'd_pin / 2')] },
      { op: 'extrude', id: 'pincut', profile: 'pinhole', depth: '2 * hz + 6', mode: 'cut' }]),
 
-  pillar: tree('Pillar: the frame\u2019s primary member. A \u00d810 body 36 long between the motor plate and the rail plate, with an M8 end at each \u2014 the threads take the grip tension, the shoulders set the plate spacing and take the compression. It also pierces its pivot arm, so it is the plunger\u2019s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x \u00b124. Threads are modelled at their minor diameter. One revolve about local Z, placed along +Y.',
-    { d: D.pillarD, dt: D.pillarThread, dc: D.pillarCore, nut: D.pillarNut + D.bulkheadT, tap: D.pillarTap, body: D.frontY - D.bulkheadY[1] },
+  pillar: tree('Pillar: the frame\u2019s primary member. A \u00d810 body between the two plates, with an M8 end at each. It threads into the rail plate ahead and passes through the motor plate behind, where a nut on the plate\u2019s INNER face takes the tension \u2014 grip pulls the pillar forward and the plate back, so that nut is exactly the load path, and nothing protrudes behind the plate to foul the motor. The shoulder takes the compression. It also pierces its pivot arm, so it is the plunger\u2019s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x \u00b124. Threads are modelled at their minor diameter. One revolve about local Z, placed along +Y.',
+    { d: D.pillarD, dt: D.pillarThread, dc: D.pillarCore, nut: D.bulkheadT + D.pillarNut, tap: D.pillarTap, body: D.frontY - D.pillarShoulder },
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [[0, 0], ['dt/2', 0], ['dt/2', 'nut'], ['d/2', 'nut'], ['d/2', 'nut + body'], ['dc/2', 'nut + body'], ['dc/2', 'nut + body + tap'], [0, 'nut + body + tap']] }] },
      { op: 'revolve', id: 'pillar', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
@@ -358,15 +359,15 @@ export function audit() {
   ok('the ratio at closed beats v7', pose(D.xpClosed).ratio > 0.91, `${round(pose(D.xpClosed).ratio, 2)} > 0.91`);
   ok('coaxial: flange centre, rail centre, links and plates symmetric about z = 0', D.zc === 0 && (D.linkZ[0][0] + D.linkZ[1][1]) === 0 && (D.armZ0 + D.armT / 2) === 0, `links ${D.linkZ}, arm ${D.armZ0}..${D.armZ0 + D.armT}`);
   // the box
-  ok('the motor is outside, and the pillar nuts clear its square', D.motorY + D.motorLen === D.cavityY[0] - D.bulkheadT && D.pillarX - D.pillarClear / 2 > D.motor / 2 - 4, `motor ±${D.motor / 2}, pillar nuts at ±${D.pillarX}`);
+  ok('the motor is outside, and nothing of the frame reaches into its square', D.motorY + D.motorLen === D.cavityY[0] - D.bulkheadT && D.pillarY[0] >= D.motorY + D.motorLen, `motor to y ${D.motorY + D.motorLen}, pillars from ${D.pillarY[0]}`);
   ok('the cavity is cut to the plunger sweep', D.cavityY[1] - D.cavityY[0] <= 40 && D.ynOpen - D.carT / 2 - D.flangeT - D.nutLen + D.nutLen > D.cavityY[0], `${round(D.cavityY[1] - D.cavityY[0])} mm of cavity for ${round(D.ynClosed - D.ynOpen + D.carT + D.flangeT)} mm of sweep`);
-  ok('nothing behind the motor plate but the motor', D.motorY === 0 && D.pillarY[0] < D.bulkheadY[0], `motor ${D.motorY}…${D.motorY + D.motorLen}; the pillars' nuts reach back to ${D.pillarY[0]}`);
+  ok('nothing behind the motor plate but the motor', D.motorY === 0 && D.pillarY[0] >= D.bulkheadY[0], `motor ${D.motorY}…${D.motorY + D.motorLen}; the pillars stop flush at ${D.pillarY[0]}`);
   ok('the pillars pierce their arms and clear the pivot pins and the carriage', D.pillarX + D.pillarD / 2 < D.armHalf && D.pillarX - D.pillarD / 2 > D.carHalf + 3 && D.pivotX - D.pillarX > (D.pin + D.pillarD) / 2 + 2, `pillar x ${D.pillarX} ±${D.pillarD / 2}, pivot at ${D.pivotX}, carriage to ${D.carHalf}`);
   ok('the side walls span the cavity only', D.cavityY[0] === D.bulkheadY[1] && D.cavityY[1] === D.frontY, `walls y ${D.cavityY}`);
   ok('the pillars take the grip, the side walls take torsion', D.caseBoltZ + D.caseBolt / 2 + 2 <= D.zTop && D.pillarD >= 8 && D.pillarThread >= 8, `two Ø${D.pillarD} pillars with M${D.pillarThread} ends; ${D.wall} mm walls`);
   ok('the case bolts land on the side walls', Math.abs((D.inner + D.W / 2) / 2 - (D.inner + D.wall / 2)) < 0.01, `bolt x ±${(D.inner + D.W / 2) / 2}, wall ${D.inner}…${D.W / 2}`);
   ok('the covers clear the links and carry nothing', D.wall - 2 > 0 && D.zTop - D.wall + 2 >= D.linkZ[1][1] + 1 && D.zBot + (D.wall - 2) <= D.linkZ[0][0] - 1, `covers at z ${D.zBot}…${D.zBot + D.wall - 2} and ${D.zTop - D.wall + 2}…${D.zTop}, links ±${D.linkZ[1][1]}`);
-  ok('the pillars land on both plates, nutted behind and tapped ahead', D.pillarY[0] === D.bulkheadY[0] - D.pillarNut && D.pillarY[1] === D.frontY + D.pillarTap && D.pillarClear > D.pillarThread, `pillar y ${D.pillarY}, plates at ${D.bulkheadY[0]} and ${D.frontY}`);
+  ok('the pillars are flush behind and tapped ahead, and their nuts clear the arms', D.pillarY[0] === D.bulkheadY[0] && D.pillarY[1] === D.frontY + D.pillarTap && D.pillarClear > D.pillarThread && D.ynOpen - D.carT / 2 >= D.pillarShoulder + 2, `nut face ${D.pillarShoulder}, arm back to ${round(D.ynOpen - D.carT / 2, 1)}`);
   // the guide and the linkage
   ok('the rail is on the OUTER face, over the blind bore', D.railY[0] === D.frontY + D.frontT && D.screwEnd <= D.railY[0], `rail from ${D.railY[0]}; screw ends ${D.screwEnd}`);
   ok('the strip carries the rail, and the rail closes the pillar taps and the bore', D.wallSlotZ[0] > D.railW / 2 + 4 && D.railTapX[D.railTapX.length - 1] + D.railTap / 2 < D.railHalf && D.railTapX.every((x) => Math.abs(x - D.pillarX) > (D.railTap + D.pillarCore) / 2 + 2) && D.pillarX + D.pillarCore / 2 < D.railHalf, `strip ±${D.wallSlotZ[0]}, taps ${D.railTapX}, pillars ±${D.pillarX}`);
@@ -392,7 +393,7 @@ export const expected = {
   'front-wall': { volume: (D.frontW * (D.zTop - D.zBot) - A * D.endBore ** 2 - 4 * A * D.caseBolt ** 2 - 2 * A * D.pillarCore ** 2 - 4 * (D.wallSlotX[1] - D.wallSlotX[0]) * (D.wallSlotZ[1] - D.wallSlotZ[0]) - 2 * D.railTapX.length * A * D.railTap ** 2) * D.frontT, tol: 0.002 },
   carriage: { volume: (4 * D.carHalf * D.carZ - 2 * (D.slotX[1] - D.slotX[0]) * (D.armT + 0.2) - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * D.carT, tol: 0.002 },
   arm: { volume: ((D.armHalf - D.armX0) * D.carT - A * D.pin ** 2) * D.armT - A * D.pillarBore ** 2 * D.carT, tol: 0.004 },
-  pillar: { volume: A * (D.pillarThread ** 2 * (D.pillarNut + D.bulkheadT) + D.pillarD ** 2 * (D.frontY - D.bulkheadY[1]) + D.pillarCore ** 2 * D.pillarTap), tol: 0.004 },
+  pillar: { volume: A * (D.pillarThread ** 2 * (D.bulkheadT + D.pillarNut) + D.pillarD ** 2 * (D.frontY - D.pillarShoulder) + D.pillarCore ** 2 * D.pillarTap), tol: 0.004 },
   carrier: { volume: (4 * D.carrierHalf * D.carrierZ - 4 * A * D.blockBolt ** 2 - 4 * A * D.fingerBolt ** 2 - 2 * A * D.fingerDowel ** 2) * D.carrierT - A * D.pin ** 2 * 2 * D.carrierZ, tol: 0.004 },
   link: { volume: (D.link * D.linkW + A * D.linkW ** 2 - 2 * A * D.eye ** 2) * D.linkT, tol: 0.002 },
   bushing: { volume: A * (D.eye ** 2 - D.bushBore ** 2) * D.linkT, tol: 0.004 },
