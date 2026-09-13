@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>First Words — the reply grid of your mutuals</title>
 <meta property="og:title" content="First Words — the reply grid of your mutuals">
-<meta property="og:description" content="Type a Bluesky handle. For every pair of their mutuals — people who follow each other — this finds the earliest reply between them and lays it out as a grid.">
+<meta property="og:description" content="Type a Bluesky handle. Finds their mutuals, ranks them by how often the account replies to each one, and for every pair of the top mutuals lays out the earliest reply between them as a grid.">
 <link rel="stylesheet" href="../_kit/tokens.css">
 <script src="../_kit/kit.js"></script>
 <style>
@@ -47,7 +47,7 @@
 <main>
   <div id="crumb"></div>
   <h1>First Words</h1>
-  <p class="sub">Enter a handle. This finds their mutuals — people they follow who follow them back — and, for every pair, the earliest reply one sent the other.</p>
+  <p class="sub">Enter a handle. This finds their mutuals — people they follow who follow them back — ranks them by how often the account replies to each one, and for every pair among the top mutuals shows the earliest reply one sent the other.</p>
 
   <form id="f">
     <div class="field">
@@ -55,8 +55,9 @@
       <input id="handle" type="text" placeholder="you.bsky.social" autocomplete="off">
     </div>
     <div class="field">
-      <label for="cap">Mutuals to include: <span id="capVal">10</span></label>
-      <input id="cap" type="range" min="4" max="20" value="10" step="1">
+      <label for="cap">Top mutuals to include (by reply frequency): <span id="capVal">50</span></label>
+      <input id="cap" type="range" min="4" max="100" value="50" step="1">
+      <p class="note" style="margin-top:.3rem">Larger grids mean more requests — 100 mutuals can take a while.</p>
     </div>
     <button id="go" type="submit">build the grid</button>
   </form>
@@ -77,6 +78,12 @@
       <p><strong>Mutuals</strong> = accounts on both the follows and followers lists, read via
       <code>app.bsky.graph.getFollows</code>/<code>getFollowers</code>, up to 300 of each side. If either
       list is longer than that, the mutual count below is a lower bound, said as one.</p>
+      <p><strong>"Top" mutuals</strong> = among that mutual set, the ones the searched account replies to
+      most often — counted by scanning up to 300 of the searched account's own recent posts
+      (<code>getAuthorFeed</code>) for replies whose parent was authored by a mutual, and tallying by
+      target. Mutuals never replied to in that window sort last, in whatever order they came back from
+      <code>getFollows</code>. Only the top N (however many the slider is set to) go into the grid below —
+      this is a ranking of a 300-post sample, not the account's full history.</p>
       <p><strong>"First reply"</strong> is the earliest reply found while scanning up to 300 of each
       mutual's own recent posts (<code>getAuthorFeed</code>, replies included, reposts excluded) for one
       whose reply-parent was authored by another included mutual. It is the earliest reply <em>in that
@@ -183,6 +190,37 @@
       if (!cursor) break;
     }
     return edges;
+  }
+
+  async function countRepliesTo(did, dstSet) {
+    var counts = {};
+    var cursor;
+    for (var p = 0; p < FEED_PAGES; p++) {
+      var params = { actor: did, limit: 100, filter: 'posts_with_replies' };
+      if (cursor) params.cursor = cursor;
+      var res;
+      try {
+        res = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
+      } catch (e) { break; }
+      var items = kit.visible(res.feed || []);
+      for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (item.reason) continue;
+        var post = item.post;
+        var rec = post && post.record;
+        var reply = rec && rec.reply;
+        var parentUri = reply && reply.parent && reply.parent.uri;
+        if (!parentUri) continue;
+        var m = URI_DID.exec(parentUri);
+        if (!m) continue;
+        var parentDid = m[1];
+        if (!dstSet[parentDid]) continue;
+        counts[parentDid] = (counts[parentDid] || 0) + 1;
+      }
+      cursor = res.cursor;
+      if (!cursor) break;
+    }
+    return counts;
   }
 
   function rkeyOf(uri) { return uri.split('/').pop(); }
@@ -302,13 +340,23 @@
           ' for @' + typedHandle + ' — need at least 2 to build a grid.');
       }
 
+      var boundNote = (follows.truncated || followers.truncated) ? 'at least ' : '';
+
+      if (mutualsAll.length > cap) {
+        status('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') +
+          ' for @' + typedHandle + '. ranking by how often @' + typedHandle + ' replies to each…');
+        var dstSet = {};
+        mutualsAll.forEach(function (a) { dstSet[a.did] = true; });
+        var replyCounts = await countRepliesTo(did, dstSet);
+        mutualsAll.sort(function (a, b) { return (replyCounts[b.did] || 0) - (replyCounts[a.did] || 0); });
+      }
+
       var mutuals = mutualsAll.slice(0, cap);
       var idxOfDid = {};
       mutuals.forEach(function (a, i) { idxOfDid[a.did] = i; });
 
-      var boundNote = (follows.truncated || followers.truncated) ? 'at least ' : '';
       var cappedNote = mutualsAll.length > mutuals.length
-        ? ' — showing the first ' + mutuals.length + ' of ' + boundNote + mutualsAll.length + ' found'
+        ? ' — showing the top ' + mutuals.length + ' (by reply frequency) of ' + boundNote + mutualsAll.length + ' mutuals'
         : (boundNote ? ' (' + boundNote + mutualsAll.length + ' found)' : '');
 
       var done = 0;

@@ -16,6 +16,15 @@ intersection, concurrent per-mutual feed scanning with a live progress
 counter, and a scrollable sticky-header/sticky-column grid render with real
 links back to the actual reply post on bsky.app.
 
+**Turn 2 (this one):** the requester asked, in-thread, to "expand it to like,
+100? and get the 100 by the 100 'top' mutuals ie the ones the account
+responds to the most." Two changes: the cap slider now goes to 4–100
+(default 50, was 4–20/10), and mutual *selection* is no longer "first N
+returned by getFollows" — it's now ranked by how often the searched account
+replies to each mutual, measured by scanning the searched account's own
+last ~300 posts and tallying reply targets, then taking the top N. See
+`countRepliesTo()` and the ranking block in `build()`.
+
 ## Decisions
 
 - **Follow-graph intersection, not an interaction chart.** `BRIEF.md` for the
@@ -65,22 +74,49 @@ links back to the actual reply post on bsky.app.
   amber used unmodified across thirteen prior builds with no stated
   preference otherwise — kept as the safe default here too.
 
+## Decisions (turn 2)
+
+- **Ranked, not manually picked.** The turn-1 plan's item 1 proposed a
+  checkbox/multi-select for the visitor to choose which mutuals go in the
+  grid. The actual request superseded that with a concrete, specific
+  selection rule — "the 100 'top' mutuals ie the ones the account responds
+  to the most" — which is a fully automatic ranking, not a UI decision. Built
+  that instead: no picker needed, since the rule is well-defined. If a future
+  ask wants manual override *on top of* the ranking (e.g. pin/exclude one
+  person), that's additive, not a replacement of this.
+- **Ranking source is the searched account's own feed, not a follow-order
+  proxy.** "Responds to the most" only has one honest reading — actual reply
+  counts, tallied via `getAuthorFeed` the same way `scanReplies` already
+  reads them — so `countRepliesTo()` reuses that exact parent-URI→DID
+  extraction against a `dstSet` limited to the mutual pool, over the same
+  `FEED_PAGES` (300-post) window already used elsewhere on this page, for
+  consistency of "how deep does this page look" rather than introducing a
+  second, different depth budget.
+- **Ranking scan is skipped entirely when it can't matter** — only runs when
+  `mutualsAll.length > cap`, so a visitor with fewer mutuals than the cap
+  (the common case for most accounts) never pays for a sort that would be a
+  no-op.
+- **Ties sort last, in original `getFollows` order** (Array.sort is stable
+  across the JS engines this page runs in) — a mutual never replied to in
+  the 300-post ranking window isn't dropped, just pushed to the back, and
+  the "how this is computed" panel says so plainly rather than implying the
+  ranking is exhaustive.
+
 ## The plan (next turn, in order)
 
-1. **Let the visitor pick which mutuals, not just "first N found."** Right
-   now the cap just takes the first N mutuals in whatever order
-   `getFollows` returns (recency of follow, most likely) — a visitor with
-   more mutuals than the cap has no way to choose who's actually in the
-   grid. The natural next step: after mutuals are found, show the full list
-   with checkboxes (or a searchable multi-select) before scanning, so the
-   expensive feed-scan step only runs on people the visitor actually wants
-   in the grid.
-2. **Raise or make configurable the per-mutual scan depth.** 300 posts is a
+1. **Raise or make configurable the per-mutual scan depth.** 300 posts is a
    guess at a reasonable browser-runtime cost; if reports come back that
    real first replies are being missed for very active accounts, the fix is
    letting the scan go deeper (more pages) for a smaller mutual cap, trading
    grid size for depth, rather than raising both caps at once and making
    every run slower.
+2. **At cap=100 the grid does up to 100 concurrent-pool feed scans (300
+   posts each) plus the new ranking scan — that's a lot of requests from one
+   browser tab.** It isn't rate-limited or batched beyond `POOL_SIZE = 4`;
+   if visitors report the page stalling or the AppView throttling requests
+   at high caps, look at backing off `POOL_SIZE` adaptively or adding a
+   visible "this is taking a while, consider a smaller number" nudge past
+   some elapsed-time threshold, rather than just letting it spin.
 3. **A "both directions in one cell" compact mode.** The current grid shows
    A→B and B→A as two separate cells (upper and lower triangle), which is
    correct but means half the grid is "the same pair, other direction." A
@@ -117,3 +153,24 @@ links back to the actual reply post on bsky.app.
   explicitly rather than relying on the endpoint's default, since the two
   documented alternatives (`posts_no_replies`, `posts_with_media`) would
   silently drop exactly the posts this page exists to find.
+- **`countRepliesTo` (turn 2) reuses `scanReplies`'s exact field-path
+  assumptions** (`item.reason`, `record.reply.parent.uri`, the `at://<did>/`
+  regex) rather than duplicating and re-guessing them, so it inherits the
+  same "not fixture-verified against a real reply" caveat above — same risk,
+  same fix if it's wrong.
+- **`FOLLOW_PAGES = 3` (300 follows / 300 followers) is unchanged** even
+  though the cap now goes to 100. For an account with 100+ mutuals this is
+  probably still fine — 300 follows and 300 followers is a lot of room for
+  100 mutuals to hide in — but it hasn't been checked against a real
+  high-follow account. If a visitor with clearly >100 real mutuals gets a
+  grid capped by "found fewer mutuals than expected" rather than by the
+  slider, raising `FOLLOW_PAGES` is the fix, not the ranking logic.
+- **Screenshot check (turn 2):** the empty-state page at 1200x800 renders correctly under the production CSP — heading, description, handle input, the "Top mutuals to include (by reply frequency)" slider (labeled, thumb at its default of 50, track visible against the dark background), the caveat line, and the "build the grid" button all readable and properly laid out, nothing overlapping or off-screen. No changes made.
+- There is **no separate "site was built for buildoff" acknowledgment** on
+  the page and none was added — a competing build (`mootrace.bisks.net`,
+  reading full repos rather than a paginated feed sample) appeared in the
+  same thread as this request. That's a different technical approach
+  (whole-repo scan vs. bounded feed pagination) and out of scope for what
+  was actually asked here; not chased or referenced on-page since the
+  request was specifically "expand it to 100 with top-mutual ranking," not
+  "match the other build."

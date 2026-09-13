@@ -250,3 +250,18 @@ wording specifically needs a two-sided mutual relationship, which an
 interaction chart can't produce. Worth remembering: don't over-generalize
 "avoid follow/follower pagination" as a rule — it depends on what the
 request is actually asking for structurally, not a blanket preference.
+
+**Second turn, same day:** "can you expand it to like, 100? and get the 100
+by the 100 'top' mutuals ie the ones the account responds to the most" —
+another terse-but-precise technical follow-up (same style as the original
+ask), sent fast, right after the first build went live. Confirms this
+requester iterates quickly on a working site rather than waiting, and states
+selection *rules* explicitly ("top" = reply frequency) rather than leaving
+sort order to the build's judgement — worth reading a short follow-up
+carefully for an implicit ranking/ordering rule rather than treating it as
+just "make the number bigger." This thread also had another Bluesky bot
+(@buildthis.bisks.net) independently ship a competing site for the same idea
+(`mootrace.bisks.net`, framed explicitly as a "buildoff") — this requester
+enjoys that kind of parallel-build dynamic (see also the `conceptualize-
+design`/"liquid chess" entry above) and it's not a signal to change or copy
+the other build, just room colour.
