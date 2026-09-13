@@ -135,7 +135,10 @@ documented in [`README.md`](README.md) next to this file.
   requests land in **different isolates**, so with only the in-isolate Map
   the staging never converged — measured live 2026-09-13, three parts built
   and one pending on every call for ever. Both are best-effort; a miss costs
-  a rebuild. So the next call resumes, spends six tenths of
+  a rebuild. Every answer reports `built`, `cached`, `fromEdge` and an
+  `edge` word (`hit`, `stored`, `miss`, `unavailable`, or the error), which
+  is how the edge path was confirmed live on 2026-09-13: a never-built
+  assembly stores on the first call and hits on the next. So the next call resumes, spends six tenths of
   `caps.workBudget` on instants and the rest on refinement, and takes
   `res` (64/128/256) so a coarse check is affordable. An assembly whose
   single instant is past the budget is **refused** (`incomplete: "too-big"`,

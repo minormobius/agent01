@@ -44,7 +44,9 @@ map, which two consecutive requests do not share — different isolates — so
 a staged build never got past the first few parts on the live host. Meshes
 now also go to the runtime's Cache API, keyed by the tree and the
 resolution, so calling `interference` or `report` again really does get
-further.
+further. Confirmed on the live host: a never-built assembly reports
+`built: 2, edge: "stored"` on the first call and `fromEdge: 2, edge:
+"hit"` on the next. Every answer says where its meshes came from.
 
 ## 2026-09-12, second pass
 
