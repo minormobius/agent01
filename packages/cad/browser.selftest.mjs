@@ -53,7 +53,8 @@ const strangerFile = await new Drive(stranger).put('lib/cam', JSON.parse(fs.read
 const strangerAsm = await new Drive(stranger).put('lib/two-cams', { name: 'two-cams', parts: { cam: strangerFile.uri }, components: [{ id: 'a', part: 'cam' }, { id: 'b', part: 'cam', at: [30, 0, 0], params: { lift: 6 } }], mates: [], drive: { component: 'a', rpm: 6 } }, { message: 'two cams by at:// ref' });
 async function xrpcMock(req, res) {
   const u = new URL(req.url, 'http://x'); const q = Object.fromEntries(u.searchParams); const method = u.pathname.slice(6);
-  const send = (code, body) => { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*' }); res.end(JSON.stringify(body)); };
+  // no-store: the page re-reads these records to notice a revision it has not seen
+  const send = (code, body) => { res.writeHead(code, { 'content-type': 'application/json', 'access-control-allow-origin': '*', 'cache-control': 'no-store' }); res.end(JSON.stringify(body)); };
   if (!['did:plc:stranger', 'stranger.example'].includes(q.repo)) return send(400, { error: 'InvalidRequest', message: 'unknown repo' });
   if (method === 'com.atproto.repo.getRecord') { const r = await stranger.getRecord(q.collection, q.rkey); return r ? send(200, r) : send(404, { error: 'RecordNotFound' }); }
   if (method === 'com.atproto.repo.listRecords') return send(200, await stranger.listRecords(q.collection, Number(q.limit) || 50, q.cursor));
@@ -196,6 +197,9 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   const opened = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { at: window.__cad.state.at, name: window.__cad.state.name, vol: r.exact?.volume, groups: [...document.querySelectorAll('#files h3')].map((h) => h.textContent), on: document.querySelector('#files .f.on')?.textContent, hist: document.querySelectorAll('#history .r').length }; });
   check(opened.at === strangerFile.uri && opened.name === 'cam' && Math.abs(opened.vol - 1984.984) < 0.01, `?at= opens a stranger's file through the gateway and builds it (${opened.name}, ${opened.vol?.toFixed(3)} mm³)`);
   check(opened.groups.some((g) => g.startsWith('at://did:plc:stranger')) && /cam/.test(opened.on || '') && opened.hist === 1, `the files pane shows their repo with the open file lit (${opened.groups.join(', ')})`);
+  const picker = await page.evaluate(() => ({ groups: [...document.querySelectorAll('#part optgroup')].map((g) => g.label), value: document.querySelector('#part').value, sel: document.querySelector('#part').selectedOptions[0]?.textContent, repo: [...document.querySelectorAll('#part option')].map((o) => o.textContent), doc: document.querySelector('#doc').textContent, title: document.title }));
+  check(picker.value === strangerFile.uri && picker.sel === 'lib/cam' && picker.groups.includes('bench · assemblies') && picker.repo.includes('lib/two-cams'), `the picker names what is open and what else that repo holds, beside the bench: ${picker.groups.join(' | ')}`);
+  check(/\bcam\b/.test(picker.doc) && /part · \d+ features/.test(picker.doc) && /lib\/cam/.test(picker.doc) && picker.title === 'cam — cad', `the document panel describes the document that is loaded, not the demo: ${picker.doc.replace(/\s+/g, ' ').slice(0, 110)}`);
   await page.goto(`${base}/?at=${encodeURIComponent(strangerFile.head.uri)}`, { waitUntil: 'load' });
   const pinned = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { at: window.__cad.state.at, vol: r.exact?.volume, file: !!window.__cad.state.file }; });
   check(pinned.at === strangerFile.head.uri && Math.abs(pinned.vol - 1984.984) < 0.01 && !pinned.file, `?at= with a REVISION uri (what a parts post points at) opens the pinned tree as a document (${pinned.vol?.toFixed(3)} mm³)`);
@@ -214,6 +218,23 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   await page.goto(`${base}/?at=${encodeURIComponent(strangerAsm.uri)}`, { waitUntil: 'load' });
   const asm = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { mode: r.mode, components: r.components, slots: r.slots, timeout: r.timeout }; });
   check(!asm.timeout && asm.mode === 'asm' && asm.components === 2 && asm.slots === 2, `an assembly whose parts are at:// refs resolves them through the gateway and builds (${asm.components} components, ${asm.slots} distinct builds)`);
+  // …and it keeps itself current. The open document is a photograph of two
+  // records — its own head and the head of the part it references — and the
+  // page re-reads both, so a revision someone else saves lands here without a
+  // reload (and so without signing in again).
+  const watching = await page.evaluate(() => ({ n: window.__cad.state.watch.size, uris: [...window.__cad.state.watch.keys()], doc: document.querySelector('#doc').textContent, vol: [...window.__cad.state.slots.values()].reduce((a, s) => a + (s.exact?.invariants.volume || 0), 0) }));
+  check(watching.n === 2 && watching.uris.includes(strangerAsm.uri) && watching.uris.includes(strangerFile.uri) && /watching 2 records/.test(watching.doc) && /assembly · 2 components from 1 part/.test(watching.doc), `the assembly watches its own head and the part it references (${watching.uris.length}): ${watching.doc.replace(/\s+/g, ' ').slice(0, 140)}`);
+  const revised = JSON.parse(fs.readFileSync(path.join(here, 'bench', 'cam.json'), 'utf8'));
+  revised.params.r = 14; // a bigger base circle: the volume on screen must change on its own
+  await new Drive(stranger).put('lib/cam', revised, { message: 'a bigger base circle' });
+  const fresh = await page.evaluate(async () => { const stale = await window.__cad.checkFresh(); const r = await window.__cad.settled(); return { stale: (stale || []).map((s) => s.path), vol: [...window.__cad.state.slots.values()].reduce((a, s) => a + (s.exact?.invariants.volume || 0), 0), status: document.querySelector('#status').textContent, doc: document.querySelector('#doc').textContent, mode: r.mode }; });
+  check(fresh.stale.join() === 'lib/cam' && fresh.vol > watching.vol * 1.3 && /updated from the repo/.test(fresh.status), `a revision of the referenced part reaches the open assembly by itself: ${watching.vol.toFixed(0)} → ${fresh.vol.toFixed(0)} mm³ (${fresh.status})`);
+  // an edited document is never overwritten: it is told, and updates when asked
+  await new Drive(stranger).put('lib/cam', { ...revised, params: { ...revised.params, r: 16 } }, { message: 'bigger still' });
+  const held = await page.evaluate(async () => { document.querySelector('#json').value = '{"edited": true}'; const stale = await window.__cad.checkFresh(); const doc = document.querySelector('#doc'); return { stale: (stale || []).map((s) => s.path), text: doc.textContent, button: !!doc.querySelector('[data-act=update]'), tree: window.__cad.state.treeText.slice(0, 20) }; });
+  check(held.stale.join() === 'lib/cam' && held.button && /a newer revision of lib\/cam/.test(held.text), 'a document edited on screen is told about the new revision and offered the update, not overwritten');
+  const took = await page.evaluate(async () => { document.querySelector('#doc [data-act=update]').click(); for (let i = 0; i < 400 && !/updated from the repo/.test(document.querySelector('#status').textContent); i++) await new Promise((r) => setTimeout(r, 25)); await window.__cad.settled(); return { vol: [...window.__cad.state.slots.values()].reduce((a, s) => a + (s.exact?.invariants.volume || 0), 0), doc: document.querySelector('#doc').textContent }; });
+  check(took.vol > fresh.vol * 1.1 && /watching 2 records/.test(took.doc), `pressing update takes it (${fresh.vol.toFixed(0)} → ${took.vol.toFixed(0)} mm³)`);
   await page.goto(`${base}/?part=case`, { waitUntil: 'load' });
   await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
 }
@@ -342,6 +363,21 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
   const rep = await phone.evaluate(() => getComputedStyle(document.querySelector('#right')).display !== 'none' && getComputedStyle(document.querySelector('#left')).display === 'none');
   check(rep, 'phone: the report tab swaps the panel');
   await phone.screenshot({ path: path.join(shots, 'phone.png') });
+  // the on-screen keyboard: it covers the bottom of the screen, which is the
+  // whole control panel. Focusing a field and taking half the screen away (what
+  // a keyboard does to the layout viewport) must leave that field on screen.
+  await phone.click('[data-tab=files]');
+  await phone.focus('#path');
+  const kbOff = await phone.evaluate(() => ({ panel: document.querySelector('#left').getBoundingClientRect().height, kb: document.body.classList.contains('kb') }));
+  await phone.setViewportSize({ width: 390, height: 420 });
+  await phone.waitForFunction(() => document.body.classList.contains('kb'), null, { timeout: 5000 }).catch(() => {});
+  const kbOn = await phone.evaluate(() => { const p = document.querySelector('#left').getBoundingClientRect(), i = document.querySelector('#path').getBoundingClientRect(); return { kb: document.body.classList.contains('kb'), panel: p.height, share: p.height / innerHeight, inView: i.top >= 0 && i.bottom <= innerHeight + 1, header: getComputedStyle(document.querySelector('header')).display, h: innerHeight, scroll: scrollY }; });
+  check(kbOn.kb && kbOn.share > 0.5 && kbOn.inView && kbOn.header === 'none' && kbOn.scroll === 0, `phone: with the keyboard up the panel takes ${(kbOn.share * 100).toFixed(0)}% of what is left (${kbOn.panel.toFixed(0)} of ${kbOn.h} px, was ${kbOff.panel.toFixed(0)}) and the field being typed into is on screen`);
+  await phone.screenshot({ path: path.join(shots, 'phone-keyboard.png') });
+  await phone.setViewportSize({ width: 390, height: 844 });
+  await phone.waitForFunction(() => !document.body.classList.contains('kb'), null, { timeout: 5000 }).catch(() => {});
+  const kbBack = await phone.evaluate(() => ({ kb: document.body.classList.contains('kb'), view: document.querySelector('#view').getBoundingClientRect().height / innerHeight, header: getComputedStyle(document.querySelector('header')).display }));
+  check(!kbBack.kb && kbBack.view > 0.5 && kbBack.header !== 'none', `phone: the keyboard going away gives the part back its ${(kbBack.view * 100).toFixed(0)}% and the header returns`);
   await phone.close();
 }
 

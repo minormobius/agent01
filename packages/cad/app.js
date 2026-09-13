@@ -16,7 +16,10 @@ import { AuthClient } from './vendor/auth.js';
 import { attachHandleTypeahead } from './vendor/typeahead.js';
 
 const $ = (s) => document.querySelector(s);
-const BENCH = ['clock', 'train', 'crank', 'lift', 'gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
+// the bench this site ships (`bench/`), assemblies first: the picker groups them
+const BENCH_ASM = ['clock', 'train', 'crank', 'lift'];
+const BENCH_PART = ['gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
+const BENCH = [...BENCH_ASM, ...BENCH_PART];
 const q = new URLSearchParams(location.search);
 const OCCT_BASE = q.get('occt') || null;
 const occtAllowed = () => !!OCCT_BASE || localStorage.getItem('cad.occt') === '1';
@@ -29,6 +32,8 @@ const state = {
   // assembly
   asm: null, components: [], mates: [], drive: null, angles: new Map(), spin: false, t0: 0, tAcc: 0, fps: 0, speed: 1,
   hover: null, select: null, measureB: null, check: null, occt: 'idle',
+  // freshness: the repo records this document was read from, and the last check
+  watch: new Map(), fresh: null, checking: false,
 };
 
 const canvas = $('#view');
@@ -126,6 +131,7 @@ function build({ fit = false } = {}) {
 // ── trees, parts, assemblies ──────────────────────────────────────────────
 async function setDocument(obj, name, { at = null } = {}) {
   state.name = name || state.name; state.at = at;
+  state.watch = new Map(); state.fresh = null; // the records this document is a photograph of (filled by atRef / openFile)
   state.treeText = JSON.stringify(obj, null, 2);
   $('#json').value = state.treeText;
   for (const k of [...renderer.bodies.keys()]) renderer.removeBody(k);
@@ -136,6 +142,110 @@ async function setDocument(obj, name, { at = null } = {}) {
   renderParams(); renderTree();
   history.replaceState(null, '', at ? `?at=${encodeURIComponent(at)}` : name && BENCH.includes(name) ? `?part=${name}${OCCT_BASE ? '&occt=' + encodeURIComponent(OCCT_BASE) : ''}` : `#t=${b64(state.treeText)}`);
   if (!at) { state.file = null; renderHistory(); }
+  document.title = `${state.name} — cad`;
+  const path = $('#path'); if (path) path.placeholder = state.file?.entry.path || state.name;
+  renderPicker(); renderDoc();
+}
+
+/// What is on screen, said plainly: the document's own name, what it is made
+/// of, where it came from, and whether it is still what the repo holds. Every
+/// line comes from the loaded document — nothing here knows about the bench.
+function renderDoc() {
+  const box = $('#doc'); if (!box) return;
+  const d = state.mode === 'asm' ? state.asmDoc || {} : state.tree || {};
+  const what = state.mode === 'asm'
+    ? `assembly · ${state.components.length} component${state.components.length === 1 ? '' : 's'} from ${new Set(state.components.map((c) => c.part)).size} part${new Set(state.components.map((c) => c.part)).size === 1 ? '' : 's'} · ${state.mates.length} mate${state.mates.length === 1 ? '' : 's'}${state.drive ? ` · ${state.drive.kind === 'escapement' ? `escapement, ${state.drive.beat} s beat` : `${state.drive.component} at ${state.drive.rpm} rpm`}` : ' · no drive'}`
+    : `part · ${(d.features || []).length} feature${(d.features || []).length === 1 ? '' : 's'} · ${Object.keys(d.params || {}).length} param${Object.keys(d.params || {}).length === 1 ? '' : 's'}`;
+  const f = state.file;
+  const where = f ? `${f.drive === 'pds' ? 'my PDS' : f.drive === 'browse' ? `at://${drives.browse?.did.slice(0, 22)}…` : 'local drive'} · ${f.entry.path} · rev ${f.entry.head?.uri.slice(-10) || '—'}`
+    : state.at ? `pinned revision ${state.at.slice(-10)}` : BENCH.includes(state.name) ? 'bench — this site ships it' : 'a tree of your own';
+  box.innerHTML = `<div><b>${esc(state.name)}</b> <span class="dim">${esc(d.units || 'mm')}</span></div><div class="dim">${esc(what)}</div><div class="dim">${esc(where)}${d.description ? ` · ${esc(d.description)}` : ''}</div><div class="fresh">${freshLine()}</div>`;
+  $('#doc [data-act=update]')?.addEventListener('click', () => reloadDocument(state.fresh?.stale || []));
+  $('#doc [data-act=recheck]')?.addEventListener('click', () => checkFresh({ auto: false }));
+}
+const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ago = (ms) => (ms < 15000 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`);
+function freshLine() {
+  if (!state.watch?.size) return `<span class="dim">not from a repo — nothing to keep up to date</span>`;
+  const n = state.watch.size, subject = `${n} record${n === 1 ? '' : 's'}`;
+  const fr = state.fresh;
+  if (fr?.error) return `<span class="warn">could not reach the repo: ${esc(fr.error)}</span> <button data-act="recheck">check</button>`;
+  if (fr?.stale?.length) return `<span class="new">a newer revision of ${esc(fr.stale.map((s) => s.path).join(', '))} is in the repo</span> <button data-act="update">update</button>`;
+  return `<span class="dim">watching ${subject}${fr ? ` · checked ${ago(Date.now() - fr.at)}` : ''}${state.fresh?.updated ? ` · updated ${ago(Date.now() - state.fresh.updated)}` : ''}</span> <button data-act="recheck">check</button>`;
+}
+
+/// Freshness, so that evaluating a part never means a reload. An open document
+/// is a photograph of records — the file's own head, and the head of every part
+/// it references by AT URI — that whoever made the change has since moved on.
+/// They are re-read on a timer and whenever the tab comes back, and a document
+/// nobody has edited on screen is reloaded in place, camera and all. A `?at=`
+/// permalink to a head is therefore always current without a refresh; a
+/// permalink to a revision is pinned and is left alone.
+const WATCH_MS = 20000;
+const isDirty = () => ($('#json').value || '').trim() !== (state.treeText || '').trim();
+async function checkFresh({ auto = true } = {}) {
+  if (!state.watch?.size || state.checking) return null;
+  state.checking = true;
+  const watch = state.watch;
+  try {
+    const stale = [];
+    for (const [uri, seen] of watch) {
+      const { did } = parseAtUri(uri);
+      const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
+      const r = await d.fetchRecord(uri);
+      const now = r?.value?.head?.uri;
+      if (now && now !== seen.rev) stale.push({ uri, was: seen.rev, now, path: r.value.path || seen.path });
+    }
+    if (watch !== state.watch) return null; // the document changed under us
+    state.fresh = { at: Date.now(), stale, updated: state.fresh?.updated };
+    if (stale.length && auto && !isDirty()) { await reloadDocument(stale); return stale; }
+    renderDoc();
+    return stale;
+  } catch (e) {
+    if (watch === state.watch) { state.fresh = { at: Date.now(), error: e.message, stale: [] }; renderDoc(); }
+    return null;
+  } finally { state.checking = false; }
+}
+/// Re-read the document from where it came, keeping the camera: the same file
+/// (its head now points at the new revision), or the same text when an inline
+/// or bench document references parts that moved.
+async function reloadDocument(stale = []) {
+  const note = stale.map((s) => s.path).filter(Boolean).join(', ');
+  try {
+    if (state.file) await openFile(state.file.drive, state.file.entry.uri, { fit: false });
+    else { const obj = JSON.parse(state.treeText); const at = state.at; await setDocument(obj, state.name, { at }); build(); }
+    state.fresh = { at: Date.now(), stale: [], updated: Date.now() };
+    setStatus(`updated from the repo${note ? `: ${note}` : ''}`);
+    renderDoc();
+  } catch (e) { setStatus(`could not update: ${e.message}`); }
+}
+let watchTimer = null;
+function startWatch() {
+  clearInterval(watchTimer);
+  watchTimer = setInterval(() => { if (document.visibilityState === 'visible') checkFresh(); }, WATCH_MS);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkFresh(); });
+}
+
+/// The header picker is a list of what can be opened right now: the document on
+/// screen, the bench this site ships, and every assembly in each repo the files
+/// tab has open. Load a gripper from a PDS and the gripper is what the dropdown
+/// says — the bench is not the only thing that exists.
+function renderPicker() {
+  const sel = $('#part'); if (!sel) return;
+  const opt = (value, label, on) => `<option value="${esc(value)}"${on ? ' selected' : ''}>${esc(label)}</option>`;
+  const here = state.at || (BENCH.includes(state.name) && !state.file ? state.name : '');
+  const groups = [];
+  if (!here) groups.push(`<optgroup label="open">${opt('', state.name, true)}</optgroup>`);
+  else if (state.at) groups.push(`<optgroup label="open">${opt(state.at, `${state.file ? state.file.entry.path : state.name}${state.file ? '' : ' (pinned)'}`, true)}</optgroup>`);
+  groups.push(`<optgroup label="bench · assemblies">${BENCH_ASM.map((b) => opt(b, b, here === b)).join('')}</optgroup>`);
+  groups.push(`<optgroup label="bench · parts">${BENCH_PART.map((b) => opt(b, b, here === b)).join('')}</optgroup>`);
+  for (const [k, title] of [['pds', 'my PDS'], ['browse', drives.browse ? 'browsed repo' : null], ['local', 'local drive']]) {
+    if (!title) continue;
+    const asm = (state.repoList?.[k] || []).filter((e) => e.kind === 'assembly' && e.uri !== state.at);
+    if (asm.length) groups.push(`<optgroup label="${esc(title)} · assemblies">${asm.map((e) => opt(e.uri, e.path)).join('')}</optgroup>`);
+  }
+  sel.innerHTML = groups.join('');
+  sel.value = here;
 }
 
 const benchCache = new Map();
@@ -148,7 +258,7 @@ async function fetchBench(name) {
 async function atRef(uri) {
   const { did, collection } = parseAtUri(uri);
   const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
-  if (collection === PART) { const f = await d.get(uri); if (!f) throw new Error(`no file at ${uri}`); return f.revision.tree; }
+  if (collection === PART) { const f = await d.get(uri); if (!f) throw new Error(`no file at ${uri}`); state.watch.set(uri, { rev: f.revision.uri, path: f.path }); return f.revision.tree; }
   return d.treeAt(uri);
 }
 const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? fetchBench(ref.slice(6)) : typeof ref === 'string' && ref.startsWith('at://') ? atRef(ref) : structuredClone(ref));
@@ -397,6 +507,35 @@ function hoverAt(e) {
   if (key !== (state.hover ? state.hover.key : -1)) { state.hover = pick; renderer.hover = key; renderFace(); invalidate(); }
 }
 window.addEventListener('resize', invalidate);
+
+// ── phone: the on-screen keyboard ─────────────────────────────────────────
+// A keyboard covers the bottom of the screen, which on a phone is the whole
+// control panel — the thing being typed into. Browsers do this two ways: some
+// shrink the layout viewport (`interactive-widget=resizes-content`, which the
+// meta tag asks for), others shrink only the visual viewport and leave the page
+// where it was. Both are measured here against the height the screen had with
+// nothing focused. The page is then laid out into what is left — `--kb` takes
+// off the part the browser did not — and the panel takes two thirds of that, so
+// the field being typed into sits above the keyboard instead of under it.
+const vv = window.visualViewport;
+const typing = () => { const el = document.activeElement; return !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'file')); };
+let fullHeight = window.innerHeight;
+function applyViewport() {
+  if (!typing()) fullHeight = Math.max(window.innerHeight, vv ? vv.height : 0);
+  const layoutInset = Math.max(0, fullHeight - window.innerHeight);                        // the browser shrank the page for us
+  const visualInset = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0; // it did not: take it off ourselves
+  const up = typing() && layoutInset + visualInset > 80;
+  document.documentElement.style.setProperty('--kb', `${Math.round(up ? visualInset : 0)}px`);
+  document.body.classList.toggle('kb', up);
+  if (up) { window.scrollTo(0, 0); document.activeElement?.scrollIntoView?.({ block: 'nearest' }); }
+  invalidate();
+  return { up, layoutInset, visualInset, fullHeight };
+}
+vv?.addEventListener('resize', applyViewport);
+vv?.addEventListener('scroll', applyViewport);
+window.addEventListener('resize', applyViewport);
+document.addEventListener('focusin', () => setTimeout(applyViewport, 60));
+document.addEventListener('focusout', () => setTimeout(applyViewport, 60));
 window.addEventListener('keydown', (e) => {
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
   const k = e.key.toLowerCase();
@@ -414,7 +553,11 @@ $('#fit').addEventListener('click', () => { cam.fit(renderer.sceneBbox()); inval
 $('#ortho').addEventListener('click', () => { cam.ortho = !cam.ortho; invalidate(); });
 $('#edges').addEventListener('click', () => { renderer.showEdges = !renderer.showEdges; invalidate(); });
 $('#apply').addEventListener('click', async () => { try { const obj = JSON.parse($('#json').value); await setDocument(obj, obj.name || 'custom'); build({ fit: true }); } catch (err) { $('#error').textContent = `JSON: ${err.message}`; $('#error').className = 'bad'; } });
-$('#part').addEventListener('change', () => loadBench($('#part').value));
+$('#part').addEventListener('change', async () => {
+  const v = $('#part').value; if (!v) return;
+  if (v.startsWith('at://')) { try { await openAt(v); } catch (e) { setDriveStatus(`cannot open ${v}: ${e.message}`, true); renderPicker(); } return; }
+  await loadBench(v);
+});
 function exportPart(format) {
   const allowOcct = occtAllowed();
   let slot = 'main', name = state.name;
@@ -444,7 +587,7 @@ $('#asm-report').addEventListener('click', () => makeReport()); // #report is th
 /// parts list, a drawing per part and the steps — built from the same exact
 /// meshes on this page, so it needs every component's exact build.
 function makeReport() {
-  if (state.mode !== 'asm') return setStatus('a report is about an assembly — open one (the bench has lift, crank, clock, train)');
+  if (state.mode !== 'asm') return setStatus(`a report is about an assembly — open one (the bench has ${BENCH_ASM.join(', ')})`);
   const builds = new Map();
   for (const c of state.components) {
     if (c.reference) continue;
@@ -481,7 +624,15 @@ function makeDrawing() {
     window.__lastDrawing = { bytes: d.svg.length, views: d.views, holes: d.holes.length, scale: d.scale, bodies: bodies.length };
   } catch (e) { setStatus(`drawing failed: ${e.message}`, true); }
 }
-$('#share').addEventListener('click', async () => { const url = location.href; try { await navigator.clipboard.writeText(url); setStatus('link copied'); } catch { setStatus(url); } });
+/// The link is the permalink, and it says what kind it is: a `?at=` of a file's
+/// head always resolves to that file's newest revision (and the page keeps it
+/// current while it is open), a `?at=` of a revision is pinned for ever, and a
+/// `#t=` carries the whole tree for someone with no repo at all.
+$('#share').addEventListener('click', async () => {
+  const url = location.href;
+  const kind = state.file ? 'the file\'s head — always its newest revision' : state.at ? 'a pinned revision — it will never change' : url.includes('#t=') ? 'the whole tree, in the link' : 'a bench part';
+  try { await navigator.clipboard.writeText(url); setStatus(`link copied: ${kind}`); } catch { setStatus(url); }
+});
 $('#occt').addEventListener('click', () => { localStorage.setItem('cad.occt', '1'); worker.postMessage({ type: 'load-occt' }); build(); });
 $('#file').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const obj = JSON.parse(await f.text()); await setDocument(obj, f.name.replace(/\.json$/, '')); build({ fit: true }); } catch (err) { $('#error').textContent = `JSON: ${err.message}`; } });
 
@@ -568,6 +719,8 @@ async function initDrives() {
 }
 function onAuth() {
   const u = auth.getUser?.();
+  // remember the handle: a session that expires should cost a tap, not typing
+  try { if (u?.handle) localStorage.setItem('cad.handle', u.handle); else if (!$('#handle').value) $('#handle').value = localStorage.getItem('cad.handle') || ''; } catch {}
   drives.pds = u ? new Drive(new AuthBackend(auth), { pdsOf: gateway }) : null;
   $('#who').textContent = u ? `signed in as @${u.handle} — files save to your PDS` : 'local drive — this browser only';
   $('#signin').hidden = !!u; $('#handle').hidden = !!u; $('#signout').hidden = !u;
@@ -605,17 +758,19 @@ function renderNode(node, k, prefix, depth) {
 /// the folders on the way to the open file are always open, so it is never hidden
 function unfoldTo(k, path) { const segs = path.split('/').slice(0, -1); let p = ''; for (const d of segs) { p += d + '/'; state.folds.add(`${k}:${p}`); } }
 async function renderFiles() {
-  const box = $('#files'); const groups = [];
+  const box = $('#files'); const groups = []; state.repoList = {};
   if (state.file) unfoldTo(state.file.drive, state.file.entry.path);
   for (const [k, title] of [['local', 'local'], ['pds', 'my PDS'], ['browse', drives.browse ? `at://${drives.browse.did}` : null]]) {
     const d = drives[k]; if (!d) continue;
     let ls = [];
     try { ls = await d.list(); } catch (e) { groups.push(`<h3>${title}</h3><div class="bad">${e.message}</div>`); continue; }
+    state.repoList[k] = ls;
     const n = ls.length, asm = ls.filter((e) => e.kind === 'assembly').length;
     const rows = renderNode(fileTree(ls), k, '', 0);
     groups.push(`<h3>${title}${n ? ` <span class="cnt">${asm} ${asm === 1 ? 'assembly' : 'assemblies'} · ${n - asm} ${n - asm === 1 ? 'part' : 'parts'}</span>` : ''}</h3>${rows.join('') || '<div class="dim">(empty)</div>'}`);
   }
   box.innerHTML = groups.join('') + (groups.length ? '<div class="dim hint">a file is a <code>part</code> record naming a path; its folders are the path\'s slashes. Assemblies first; click a folder to open it.</div>' : '');
+  renderPicker();
 }
 $('#files').addEventListener('click', async (e) => {
   const dir = e.target.closest('.f.dir'); if (dir) { const key = dir.dataset.fold; if (state.folds.has(key)) state.folds.delete(key); else state.folds.add(key); return renderFiles(); }
@@ -629,13 +784,15 @@ $('#files').addEventListener('click', async (e) => {
     await renderFiles();
   } catch (err) { setDriveStatus(err.message, true); }
 });
-async function openFile(k, uri) {
+async function openFile(k, uri, { fit = true } = {}) {
   const f = await drives[k].get(uri); if (!f) throw new Error(`no file at ${uri}`);
   state.file = { drive: k, entry: f };
   $('#path').value = f.path; $('#message').value = '';
-  await setDocument(f.revision.tree, f.name, { at: f.uri }); build({ fit: true });
+  await setDocument(f.revision.tree, f.name, { at: f.uri }); build({ fit });
+  // the file's own head is watched too: a save from anywhere moves it
+  state.watch.set(f.uri, { rev: f.revision.uri, path: f.path });
   setDriveStatus(`opened ${f.path} @ ${f.revision.cid.slice(0, 16)}… (${k})`);
-  await renderFiles(); await renderHistory();
+  await renderFiles(); await renderHistory(); renderDoc();
 }
 /// Open any AT URI: ours, the signed-in user's, or a stranger's through the gateway.
 async function openAt(uri) {
@@ -671,6 +828,8 @@ $('#save').addEventListener('click', async () => {
     const main = state.mode === 'part' ? state.slots.get('main') : null;
     const r = await d.put(p, tree, { message, kernel: main?.exact ? { id: main.exact.kernel, version: String(state.engineVersion || '') } : undefined, invariants: main?.exact?.invariants });
     state.file = { drive: k, entry: r }; state.at = r.uri; history.replaceState(null, '', `?at=${encodeURIComponent(r.uri)}`);
+    state.watch.set(r.uri, { rev: r.revision.uri, path: r.path }); // our own save is not a change to notice
+    renderDoc(); renderPicker();
     $('#message').value = ''; setDriveStatus(`saved ${r.path} → ${r.head.uri}`);
     await renderFiles(); await renderHistory();
   } catch (e) { setDriveStatus(e.message, true); }
@@ -702,16 +861,20 @@ $('#signin').addEventListener('click', async () => {
 $('#signout').addEventListener('click', async () => { try { await auth.logout(); } catch {} onAuth(); });
 
 // ── boot ──────────────────────────────────────────────────────────────────
-const sel = $('#part'); for (const b of BENCH) { const o = document.createElement('option'); o.value = b; o.textContent = b; sel.append(o); }
+renderPicker();
 const boot = ready.then(async () => {
-  if (await initDrives()) return;
-  if (location.hash.startsWith('#t=')) { const obj = JSON.parse(unb64(location.hash.slice(3))); await setDocument(obj, obj.name || 'custom'); build({ fit: true }); }
-  else await loadBench(BENCH.includes(q.get('part')) ? q.get('part') : 'gear');
+  const opened = await initDrives();
+  if (!opened) {
+    if (location.hash.startsWith('#t=')) { const obj = JSON.parse(unb64(location.hash.slice(3))); await setDocument(obj, obj.name || 'custom'); build({ fit: true }); }
+    else await loadBench(BENCH.includes(q.get('part')) ? q.get('part') : 'gear');
+  }
+  startWatch();
 });
 
 window.__cad = {
   ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, modelOf, runCheck, exportPart,
   drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing, makeReport,
+  checkFresh, reloadDocument, renderDoc, renderPicker, keyboard: applyViewport,
   loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
   faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),
   checked: () => new Promise((resolve) => { const t = setInterval(() => { if (state.check && !state.check.pending) { clearInterval(t); resolve(state.check); } }, 50); }),

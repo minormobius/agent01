@@ -249,6 +249,14 @@ human can open, fork, and read the history of. The human sees the part,
 the report, the named faces, the measure tool and the interference check;
 give them the link and the numbers you judged by.
 
+**Hand over the `part` head, not a `revision`,** and hand it over once. A
+head link always resolves to that file's newest revision, and a page left
+open on one keeps itself there: it re-reads the head of the document and of
+every part the document references, and reloads in place when one moves. So
+the next revision you save reaches the page the person already has open —
+no new link, no reload, no signing in again. Use a `revision` URI only when
+you mean *this version for ever*.
+
 ## A worked task
 
 "Add a 72-tooth wheel to the train on a new arbor and prove it meshes."

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content">
 <title>cad — the feature-tree CAD engine, in the browser</title>
 <meta name="description" content="Parametric CAD in the browser. A feature tree in, solids out: the preview lands in milliseconds, the exact build with named faces behind it. Part of mino.mobi.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2713%27 fill=%27none%27 stroke=%27%23f2c14e%27 stroke-width=%273%27 stroke-dasharray=%274 3%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%274%27 fill=%27%23f2c14e%27/%3E%3C/svg%3E">
@@ -11,7 +11,7 @@
 <body>
 <header>
   <h1>cad<small>feature-tree CAD engine</small></h1>
-  <select id="part" title="bench part"></select>
+  <select id="part" title="open a document: this one, the bench, or an assembly from a repo you have open"></select>
   <input type="file" id="file" accept=".json" title="load a tree">
   <button id="fit" title="fit (f)">fit</button>
   <button data-view="iso" title="0">iso</button>
@@ -50,7 +50,7 @@
   <div id="files"></div>
   <div class="row"><input id="repo" placeholder="browse a repo: handle, did, or at://…" autocapitalize="off"><button id="browse">open</button></div>
   <h2>save</h2>
-  <div class="row"><input id="path" placeholder="clock/train/gear"><select id="target"><option value="local">local</option></select></div>
+  <div class="row"><input id="path" placeholder="folder/name"><select id="target"><option value="local">local</option></select></div>
   <div class="row"><input id="message" placeholder="what changed"><button id="save">save</button></div>
   <div id="drivestatus" class="dim"></div>
   <h2>history</h2>
@@ -61,6 +61,8 @@
 <main><canvas id="view"></canvas></main>
 <aside id="right">
   <section data-pane="report">
+  <h2>document</h2>
+  <div id="doc" class="dim">loading…</div>
   <h2>report</h2>
   <div id="report"></div>
   <div id="error"></div>

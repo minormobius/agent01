@@ -66,9 +66,20 @@ th small { color: var(--dim); }
 #strip img { width: 92px; height: 60px; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
 .keys { color: var(--dim); font-size: 11px; }
 .keys kbd { background: #2e3239; padding: 0 4px; border-radius: 3px; border: 1px solid var(--line); }
-/* Phone: the part in the top two thirds, one tabbed panel in the bottom third. */
+/* with the keyboard up a field is scrolled into the panel: leave it some room */
+#left input, #left textarea, #right input { scroll-margin: 16px 0 28px; }
+#doc b { color: var(--accent); }
+#doc .fresh { margin-top: 3px; }
+#doc .fresh button { padding: 1px 6px; font-size: 11px; margin-left: 4px; }
+#doc .new { color: var(--warn); }
+/* Phone: the part in the top two thirds, one tabbed panel in the bottom third.
+   When the on-screen keyboard is up the page is laid out into what is left of
+   the screen (--kb is what the keyboard covers, 0 when the browser shrinks the
+   layout viewport itself) and the panel being typed into takes most of it. */
 @media (max-width: 900px) {
-  body { grid-template-columns: 1fr; grid-template-rows: auto 1fr 32px minmax(0, 34vh); grid-template-areas: "bar" "view" "tabs" "panel"; height: 100vh; height: 100dvh; }
+  body { grid-template-columns: 1fr; grid-template-rows: auto 1fr 32px minmax(0, 34%); grid-template-areas: "bar" "view" "tabs" "panel"; height: 100vh; height: calc(100dvh - var(--kb, 0px)); }
+  body.kb { grid-template-rows: auto minmax(0, 1fr) 32px minmax(0, 66%); }
+  body.kb header { display: none; }
   header { flex-wrap: nowrap; overflow-x: auto; padding: 4px 8px; gap: 6px; }
   header h1 small { display: none; }
   #status { display: none; }

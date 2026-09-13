@@ -86,7 +86,15 @@ documented in [`README.md`](README.md) next to this file.
   runs it from a locally served copy.
 - **Phone.** One finger orbits, two fingers pan and pinch. Under 900 px the
   part takes the top of the screen and one tabbed panel (params, tree,
-  report) the bottom third.
+  report) the bottom third. **The on-screen keyboard used to cover that panel
+  entirely** — the thing being typed into. Browsers do a keyboard two ways:
+  some shrink the layout viewport (`interactive-widget=resizes-content`, which
+  the meta tag now asks for), others shrink only the visual viewport and leave
+  the page where it was. `applyViewport` measures both against the height the
+  screen had with nothing focused, lays the page out into what is left (`--kb`
+  takes off whatever the browser did not), gives the panel two thirds of it,
+  hides the header and scrolls the focused field into view. The browser test
+  proves it by focusing a field and taking half the viewport away.
 
 - **Measure.** Every face the exact kernel names carries its geometry — a
   plane or a cylinder (a circle is four exact arcs, so a bore is a real
@@ -248,6 +256,21 @@ documented in [`README.md`](README.md) next to this file.
   suggests accounts as you type** — `vendor/typeahead.js`, a copy of
   `packages/oauth-client/typeahead.js` kept by `sync-dataviz`, a native
   `<datalist>` fed by the gateway; the browse field skips DIDs and AT URIs.
+- **Current without a reload.** An open document is a photograph of records —
+  its own `part` head, and the head of every part it references by AT URI
+  (`state.watch`, filled by `atRef` and `openFile`). `checkFresh` re-reads them
+  every 20 s and whenever the tab becomes visible; a document nobody has edited
+  on screen is **reloaded in place** by `reloadDocument`, keeping the camera, so
+  a revision saved from anywhere lands on an open page without a reload — and
+  therefore without signing in again. An edited document (`isDirty`) is told
+  instead, with an *update* button. Our own save updates the watch rather than
+  tripping it. A `?at=` of a head is therefore always current and a `?at=` of a
+  revision is pinned for ever; *link* says which it copied. The **document**
+  panel (`renderDoc`) carries the name, what the document is made of, where it
+  came from, and what is being watched — all read off the loaded document,
+  which is why the header picker (`renderPicker`) lists the document on screen,
+  the bench (`BENCH_ASM` / `BENCH_PART`) and every assembly in each repo the
+  files tab has open, rather than the bench alone.
 - **Headless, for an agent.** `agent/build.mjs` (check and exact build
   over the wasm: invariants, named faces, STL/STEP — node only, no Rust),
   `agent/check.mjs`, `agent/measure.mjs`, `agent/export.mjs`,

@@ -35,7 +35,7 @@ The package is served as-is. Clone the mirror, or fetch the files: `cad.wasm` (t
 - Records: `com.minomobi.cad.part` (a head: `path`, `name`, `kind`, `head` strongRef) and `com.minomobi.cad.revision` (immutable: `tree`, `parents[]` strongRefs, `createdAt`, `message`, `kernel`, `invariants`). No floats in records: non-integers are decimal strings, which the tree language reads as expressions.
 - Read anyone's files without sign-in through this site's gateway: `https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=<handle or did>&collection=com.minomobi.cad.part` and `…/com.atproto.repo.getRecord?repo=&collection=&rkey=`. `com.minomobi.cad.*` only.
 - The published bench: repo `minomobi.com` — `parts/<name>`, `train`, `clock`; assemblies reference parts by AT URI.
-- Open a file in the viewer: `https://cad.mino.mobi/?at=<AT URI>`. Any tree: `https://cad.mino.mobi/#t=<base64url JSON>`.
+- Open a file in the viewer: `https://cad.mino.mobi/?at=<AT URI>`. Any tree: `https://cad.mino.mobi/#t=<base64url JSON>`. Hand over a `part` head, not a `revision`: a head always resolves to the newest revision, and an open page re-reads the heads of the document and of every part it references, reloading in place when one moves — so the next revision you save reaches a page someone already has open, with no new link and no reload. A `revision` URI is pinned for ever, which is what a `parts.mino.mobi` post points at.
 - Writing: sign in on the site (OAuth through auth.mino.mobi, scope `atproto repo:com.minomobi.cad.part repo:com.minomobi.cad.revision`), or headlessly with an app password (`agent/drive.mjs … --login`).
 
 ## The social layer

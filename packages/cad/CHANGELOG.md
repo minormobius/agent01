@@ -4,6 +4,35 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-13, third pass
+
+From evaluating a gripper on a phone, against a repo someone else is changing.
+
+**The page keeps itself current.** An open document is a photograph of
+records — its own `part` head, and the head of every part it references by
+AT URI. Both are re-read every 20 seconds and whenever the tab comes back,
+and a document nobody has edited on screen is **reloaded in place**, camera
+and all: a revision saved from anywhere reaches an open page without a
+reload and therefore without signing in again. A document that *has* been
+edited is told, and offered an *update* button, never overwritten. The
+**document** panel says what is being watched and when it was last checked;
+*link* now says which kind of permalink it copied — a file's head (always
+its newest revision), a pinned revision, or a whole tree in the URL.
+
+**Everything on screen is about the document that is loaded.** The header
+picker lists the document on screen, the bench, and every assembly in each
+repo the files tab has open — so a gripper opened from a PDS is what the
+dropdown says, and switching between two of your own assemblies is one
+click. The new document panel gives the name, what it is made of
+(components, parts, mates, drive — or features and params), and where it
+came from. The tab title follows it.
+
+**The phone keyboard no longer buries the controls.** The page is laid out
+into what is left of the screen when a keyboard is up — both ways browsers
+do it, the layout viewport shrinking or only the visual one — the panel
+being typed into takes two thirds of that, the header steps aside, and the
+focused field is scrolled onto the screen.
+
 ## 2026-09-13, second pass
 
 From a 44-component gripper assembly on a real repo.
