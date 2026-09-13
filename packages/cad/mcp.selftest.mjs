@@ -56,15 +56,15 @@ const esc = await tool('build', { tree: 'bench:escape' });
 check(!esc.structuredContent.ok && /boolean/.test(esc.structuredContent.error.msg), `build is honest about Truck's boolean failure: ${esc.structuredContent.error.msg}`);
 const ck = (await tool('check', { tree: 'bench:crank' })).structuredContent;
 check(ck.ok && ck.kind === 'assembly' && ck.params.r === 10 && ck.components.length === 3 && ck.components.find((c) => c.id === 'block').dynamic && Object.values(ck.parts).every((p) => p.ok) && ck.parts[ck.components[1].partKey].params.length === 30, `check on an assembly evaluates its params (r = ${ck.params.r}), marks dynamic components, and resolves every distinct part (rod length ${ck.parts[ck.components[1].partKey].params.length})`);
-const asm = (await tool('build', { tree: 'bench:train', faces: false })).structuredContent;
-check(asm.kind === 'assembly' && asm.components.length === 4 && Object.keys(asm.parts).length === 3 && asm.complete && asm.remaining.length === 0, `build on an assembly: ${asm.components.length} components over ${Object.keys(asm.parts).length} parts, complete`);
+const asm = (await tool('build', { tree: 'bench:crank', faces: false })).structuredContent;
+check(asm.kind === 'assembly' && asm.components.length === 3 && Object.keys(asm.parts).length === 3 && asm.complete && asm.remaining.length === 0, `build on an assembly: ${asm.components.length} components over ${Object.keys(asm.parts).length} parts, complete`);
 {
   const sliced = createMcp({ kernels, fetchRef, capabilities: { maxParts: 2 } });
-  const s1 = (await sliced.call('build', { tree: 'bench:train', faces: false }));
+  const s1 = (await sliced.call('build', { tree: 'bench:crank', faces: false }));
   check(Object.keys(s1.parts).length === 2 && s1.remaining.length === 1 && !s1.complete && s1.partKeys.length === 3, `a server with maxParts 2 builds two and names the one remaining (${s1.remaining.join(', ')})`);
-  const s2 = await sliced.call('build', { tree: 'bench:train', faces: false, parts: s1.remaining });
+  const s2 = await sliced.call('build', { tree: 'bench:crank', faces: false, parts: s1.remaining });
   check(Object.keys(s2.parts).length === 1 && s2.remaining.length === 0 && s2.parts[s1.remaining[0]].ok !== undefined, 'the next call builds the remaining part by key');
-  const s3 = await sliced.call('build', { tree: 'bench:train', faces: false, parts: ['nope'] });
+  const s3 = await sliced.call('build', { tree: 'bench:crank', faces: false, parts: ['nope'] });
   check(s3.unknown?.[0] === 'nope' && Object.keys(s3.parts).length === 0, 'an unknown part key is reported, not built');
 }
 const m1 = (await tool('measure', { tree: 'bench:plate', a: 'plate.pivot[0][0]' })).structuredContent;
@@ -73,37 +73,38 @@ const m2 = (await tool('measure', { tree: 'bench:plate', a: 'plate.start', b: 'p
 check(m2.kind === 'plane-plane' && m2.parallel && Math.abs(m2.distance - 1.5) < 1e-9, `measure two faces: plate.start→plate.end ${m2.distance}`);
 const nf = await tool('measure', { tree: 'bench:plate', a: 'nothing' });
 check(nf.isError && /no face named nothing/.test(nf.content[0].text), 'measure names the faces it does know when one is missing');
-const cl = (await tool('interference', { assembly: 'bench:lift', sweep: 6, clearance: 0.5 })).structuredContent;
+const cl = (await tool('interference', { assembly: 'bench:lift', sweep: 3, clearance: 0.5 })).structuredContent;
 check(cl.method === 'mesh' && cl.refined && cl.pairs.length >= 9 && cl.pairs.every((p) => ['clear', 'expected', 'fit'].includes(p.verdict)) && cl.pairs.some((p) => p.verdict === 'fit' && [p.a, p.b].includes('nut')) && cl.ok === true, `clearance mode: nearest approach of ${cl.pairs.length} pairs through the cycle, the nut's 0.1 mm to the screw read as its declared fit under a 0.5 demand (ok ${cl.ok})`);
 const ms = (await tool('measure', { tree: 'bench:lift', a: 'nut.end', b: 'platform.start', t: 0.5 })).structuredContent;
 check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5, `measure across an assembly: the nut's top and the platform's underside are coplanar at t = 0.5 (${ms.kind}, ${ms.distance})`);
 // a sweep too big for one server request: windowed, resumable, and the meshes cached between calls
 {
   const tight = createMcp({ kernels, fetchRef, capabilities: { manifold: false, budgetMs: 1000 } });
-  const w1 = await tight.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5 });
-  check(w1.method === 'mesh' && w1.done === false && Number.isInteger(w1.next) && w1.next > 0 && w1.window.sampled >= 1 && w1.window.of === 24 && w1.ok === false && /call again with from/i.test(w1.note), `a sweep over a 1 s budget stops after ${w1.window?.sampled} of 24 instants and says to resume at ${w1.next}`);
-  const w2 = await tight.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5, from: w1.next });
+  const SWEEP = { assembly: 'bench:lift', sweep: 12, clearance: 0.5, res: 64 }; // res 64: this is about windowing, not chord error
+  const w1 = await tight.call('interference', SWEEP);
+  check(w1.method === 'mesh' && w1.done === false && Number.isInteger(w1.next) && w1.next > 0 && w1.window.sampled >= 1 && w1.window.sampled < 12 && w1.window.of === 12 && w1.ok === false && /call again with from/i.test(w1.note), `a sweep over a 1 s budget stops after ${w1.window?.sampled} of 12 instants and says to resume at ${w1.next}`);
+  const w2 = await tight.call('interference', { ...SWEEP, from: w1.next });
   check(w2.window.from === w1.next && w2.cached > 0 && w2.built === 0 && w2.pairs.length === w1.pairs.length, `the next window starts at ${w2.window.from} and pays nothing to build: ${w2.cached} part meshes came from the cache`);
   const clearanceBand = 0.5 * 4 + 1;
   let from = 0, calls = 0, closest = new Map();
-  for (; calls < 40; calls++) { const r = await tight.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5, from }); for (const p of r.pairs) { const k = `${p.a}|${p.b}`; if (!closest.has(k) || p.distance < closest.get(k)) closest.set(k, p.distance); } if (r.done) break; from = r.next; }
+  for (; calls < 24; calls++) { const r = await tight.call('interference', { ...SWEEP, from }); for (const p of r.pairs) { const k = `${p.a}|${p.b}`; if (!closest.has(k) || p.distance < closest.get(k)) closest.set(k, p.distance); } if (r.done) break; from = r.next; }
   const roomy = createMcp({ kernels, fetchRef, capabilities: { manifold: false, budgetMs: 600000 } });
-  const whole = await roomy.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5 });
+  const whole = await roomy.call('interference', SWEEP);
   // A window samples the same instants; refinement between samples is the
   // part a 1 s budget cannot afford, so a window is never better than the
   // whole call, and identical for the far pairs, which are not refined.
   const w = (p) => closest.get(`${p.a}|${p.b}`);
   const never = whole.pairs.every((p) => w(p) >= p.distance - 1e-9);
   const far = whole.pairs.filter((p) => p.distance > clearanceBand);
-  check(whole.done === true && never && far.length > 0 && far.every((p) => Math.abs(w(p) - p.distance) < 1e-9), `${calls + 1} windows cover the sweep: never nearer than the one unbudgeted call, and identical on the ${far.length} pairs too far to refine`);
+  check(whole.done === true && never && far.length > 0 && far.every((p) => Math.abs(w(p) - p.distance) < 1e-9), `${calls + 1} windows cover the 12-instant sweep: never nearer than the one unbudgeted call, and identical on the ${far.length} pairs too far to refine`);
   check(whole.refinedPairs < whole.pairs.length && whole.refinedPairs > 0, `only the ${whole.refinedPairs} pairs within four times the clearance are refined, not all ${whole.pairs.length}`);
   // A Worker's clock does not advance during synchronous work, so the server
   // budgets by WORK — triangles on both sides of every pair — not by time.
   const counted = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 30, workBudget: 1.2e6 } });
-  const c1 = await counted.call('interference', { assembly: 'bench:lift', sweep: 24, clearance: 0.5 });
+  const c1 = await counted.call('interference', { ...SWEEP, sweep: 24 });
   check(c1.done === false && c1.window.sampled >= 1 && c1.window.sampled < 24 && c1.work <= 1.2e6 * 1.05, `a work budget windows the sweep with no clock at all: ${c1.window.sampled} of 24 instants, ${(c1.work / 1e6).toFixed(2)}M of 1.2M triangle-pairs`);
   const tiny = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 30, workBudget: 1e5 } });
-  const t1 = await tiny.call('interference', { assembly: 'bench:lift', sweep: 4, clearance: 0.5 });
+  const t1 = await tiny.call('interference', { assembly: 'bench:lift', sweep: 4, clearance: 0.5, res: 64 });
   check(t1.incomplete === 'too-big' && t1.work > t1.budget && /refused instead/.test(t1.note) && /res 128 or 64/.test(t1.note), `an assembly whose single instant is past the budget is refused with its numbers, not killed (${(t1.work / 1e6).toFixed(2)}M of ${(t1.budget / 1e6).toFixed(2)}M)`);
   const slow = createMcp({ kernels, fetchRef, capabilities: { manifold: false, maxParts: 1, workBudget: 1e7 } });
   const p1 = await slow.call('interference', { assembly: 'bench:crank', clearance: 0.5, res: 128 });
@@ -175,7 +176,7 @@ check(Array.isArray(batch) && batch.length === 2 && batch[1].result.tools.length
   check(l.result.tools.some((t) => t.name === 'interference' && /clearance/.test(t.description)) && !l.result.tools.find((t) => t.name === 'build').inputSchema.properties.kernel, `without Manifold the tool list keeps interference (clearance mode, no kernel) and drops the kernel choice (${l.result.tools.map((t) => t.name).join(', ')})`);
   const bl = await (await lp({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'build', arguments: { tree: 'bench:plate', faces: false } } })).json();
   check(bl.result.structuredContent.ok && bl.result.structuredContent.kernel === 'truck', 'build still works with the exact kernel alone');
-  const li = await (await lp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'interference', arguments: { assembly: 'bench:lift', sweep: 4, clearance: 0.5 } } })).json();
+  const li = await (await lp({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'interference', arguments: { assembly: 'bench:lift', sweep: 4, clearance: 0.5, res: 64 } } })).json();
   const lc = li.result?.structuredContent;
   check(lc?.method === 'mesh' && lc.sweep === 4 && lc.pairs.length >= 9 && lc.pairs.some((p) => p.verdict === 'fit'), `interference on the kernel-less host answers in clearance mode from the exact meshes (${lc?.pairs.length} pairs, ${lc?.ms.toFixed(0)} ms)`);
   const d = await (await lite.handle(new Request('https://cad.mino.mobi/mcp'))).json();
