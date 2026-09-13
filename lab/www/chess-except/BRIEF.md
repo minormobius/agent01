@@ -15,11 +15,31 @@ six piece types (pawn incl. double-step, knight, bishop, rook, queen,
 king), the walk itself with a visible per-step delay so you can watch it
 happen, chained captures (a walk can take more than one piece in a single
 turn if it lands on an enemy and still has somewhere legal to go from
-there), automatic queening on the back rank, a stalemate check (if the
-side to move has literally no piece with a legal move anywhere, the game
-is declared a draw), and a New Game button. Mobile-checked: viewport meta,
-board sized with `clamp(352px, 92vw, 480px)` so cells never drop below
-44px even at 360px wide, no hover-only affordances.
+there), a stalemate check (if the side to move has literally no piece with
+a legal move anywhere, the game is declared a draw), and a New Game button.
+Mobile-checked: viewport meta, board sized with `clamp(352px, 92vw, 480px)`
+so cells never drop below 44px even at 360px wide, no hover-only affordances.
+
+**This turn (follow-up request "pawns are overpowered, remove pawn
+promotion, remove the 40 move limit, give the king 3 lives"):** all three
+done.
+
+- **Pawn promotion removed.** Deleted the one line that flipped `type` to
+  `'q'` on the back rank. Needed no other change: a pawn on the back rank
+  already has zero legal moves under `legalMoves()` (the forward and both
+  diagonal targets are out of bounds), so it just sits there and the walk
+  ends on its own, same code path as any other piece running out of moves.
+- **40-step cap removed.** `MAX_STEPS` and its check are gone; a walk now
+  runs until the piece genuinely has nowhere legal to go. See Decisions
+  below for what that reopens and how it's covered.
+- **King: 3 lives.** Kings now carry a `lives` counter (3 at game start).
+  When a walk's random move would land on an enemy king, the king "kills"
+  the attacker instead: the attacking piece is deleted from the board, the
+  king loses one life, and the turn passes. Only on the life-costing move
+  where lives hit 0 does the capture actually complete (attacker occupies
+  the king's square, game over). Lives for both kings are shown live above
+  the board (♔/♚ counts), and every kill/loss is called out in the message
+  line.
 
 ## Decisions
 
@@ -45,18 +65,37 @@ running out of legal squares does), and it's the more fun outcome besides:
 a rook that opens with a clean diagonal-adjacent lane can occasionally
 clear two or three pieces in one tap.
 
-**A walk is capped at 40 steps.** A king or queen alone in open space can
+**The 40-step cap is gone, on explicit request, and the risk it existed
+for is real and still there.** A king or queen alone in open space can
 legally shuffle back and forth between two squares forever (there's no
-no-immediate-backtrack rule), so an uncapped walk can be a genuine infinite
-loop, not just a long one. 40 steps at 380ms apiece is under 16 seconds
-worst case. Flagged on-page and in NOTE.txt rather than silently truncating.
+no-immediate-backtrack rule), so a walk can now genuinely never stop on its
+own. Nothing here re-adds a limit — that would go against what was asked —
+but two things soften the actual risk: the recursion is `setTimeout`-chained
+rather than a tight loop, so a runaway walk burns time and battery, not a
+frozen tab; and walks are now cancellable — every `walkStep` carries the
+`walkId` it started with, and clicking New Game bumps `walkId`, so a stale
+walk's next step sees the mismatch and quietly stops instead of mutating
+the fresh board. Before this turn, New Game not checking `walking` was a
+latent bug masked by the cap; an uncapped walk exposes it, so it's fixed
+now rather than being a live footgun.
 
-**No no-immediate-backtrack rule.** Deliberately not added — it would have
-made the walk less random (biased away from the piece's own most recent
-square) in exchange for shortening the rare long walks, and the step cap
-already bounds the worst case for free. Worth naming as the alternative if
+**No no-immediate-backtrack rule.** Still not added — same reasoning as
+before, and now the main way a walk gets long rather than the only way. If
 a future turn wants "the walk should feel less like it's dithering in
-place."
+place," this is the lever, but it also makes the random walk less random.
+
+**Both kings get 3 lives, not just "the king."** The request said "the
+king" singular but didn't say whose; making it one-sided would mean one
+side's pieces die attacking a king that never has to spend a life itself,
+which reads as a bug, not a feature, in a two-player game. Symmetric was
+the only defensible reading.
+
+**On a life-losing hit, the attacker is deleted, not just repelled to its
+old square.** "It kills the first 2 pieces to try and take it" reads as
+the attacker being destroyed, not bounced — so the piece is gone, not
+moved back, which also means it can't be recaptured or block anything
+afterward. Only the third, fatal hit behaves like a normal chess capture
+(attacker occupies the king's square).
 
 ## The plan — not built yet, in order
 
@@ -91,6 +130,25 @@ place."
   precomputed once), because the board changes after every step and a
   stale move list would let a piece "move" into a square that's since
   filled up. Don't cache it across steps.
-- Promotion just overwrites `moved.type = 'q'` in place — there's no
-  underpromotion, which is fine since nothing here is a puzzle a human is
-  solving move-by-move anyway.
+- No promotion any more (removed this turn) — a pawn's `type` never
+  changes. Don't reintroduce it without also checking whether a future
+  "trace" feature (plan item 1) wants to log a would-be promotion anyway.
+- Kings are the only pieces with a `lives` field; every other piece object
+  is just `{ color, type }`. `findKing(color)` scans the board rather than
+  keeping a cached reference, because a captured king (lives hit 0) is
+  removed from the board and there's then nothing to find — callers treat
+  `null` as "0 lives" rather than crashing.
+- `walkId` is the guard against a stale walk mutating a board that New
+  Game already replaced. Every recursive `walkStep` and its `setTimeout`
+  callback re-checks `id !== walkId` before touching `board`. If you add
+  another async continuation to the walk, it needs the same check or it's
+  a reintroduction of the bug this fixed.
+- The "attacker gets destroyed" rule is generic — it doesn't check what
+  the attacker *is*, only what it's landing on. Since there's no check
+  detection, a king can legally step next to and "capture" the enemy king;
+  if that hit isn't the fatal one, the attacking king itself gets deleted
+  by the same code path as a pawn would. Left as-is deliberately (it's
+  consistent with every other piece and it's a vanishingly rare board
+  state), but if a future turn wants kings immune to being the *destroyed*
+  piece, that's a one-line `attacker.type !== 'k'` guard right before
+  `board[r][c] = null` in the survive branch of `walkStep`.
