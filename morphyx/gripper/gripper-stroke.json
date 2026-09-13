@@ -13,6 +13,7 @@
   "inset": 10.5,
   "flangeT": 3.5,
   "carT": 14,
+  "carFrontT": 10,
   "lo": -17,
   "hi": 11,
   "armZ": -11,
@@ -517,17 +518,14 @@
     }
    ]
   },
-  "carriage": {
+  "carriage-back": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Nut carriage, 14 long: the nut bore with its four flange bolt holes and a through-slot each side (4 × 22.2) that the pivot arms key into. It hangs on the nut — the screw takes its weight, the arm tips at the side walls take the screw’s friction torque — so there is no skid and no floor to run on. One extrude along -Y.",
+   "_": "Carriage back plate, 4 thick: the thrust plate. The nut’s flange bolts to its rear face and the pivot arms bottom on its front face, so gripping runs nut → plate → arm as pure compression through one Y-normal joint — no bolt sees the thrust. One extrude along -Y.",
    "params": {
-    "t": 14,
+    "t": 4,
     "ch": 14.5,
     "cz": 14,
-    "slx0": 9,
-    "slx1": 13,
-    "slz": 11.1,
     "d_bore": 10.200000000000001,
     "pcd": 16,
     "d_bolt": 3.5
@@ -558,27 +556,126 @@
         ],
         "r": "d_bore / 2"
        }
-      },
+      }
+     ]
+    },
+    {
+     "op": "sketch",
+     "id": "bolt",
+     "plane": "XZ",
+     "loops": [
       {
-       "name": "slotR",
-       "rect": {
+       "name": null,
+       "circle": {
         "c": [
-         "(slx0 + slx1) / 2",
-         0
+         "pcd/2 * cos(deg(45))",
+         "pcd/2 * sin(deg(45))"
         ],
-        "w": "slx1 - slx0",
-        "h": "2 * slz"
+        "r": "d_bolt / 2"
        }
+      }
+     ]
+    },
+    {
+     "op": "pattern",
+     "id": "bolts",
+     "of": "bolt",
+     "kind": "circular",
+     "count": 4,
+     "name": "bolt"
+    },
+    {
+     "op": "extrude",
+     "id": "plate",
+     "profile": [
+      "face",
+      "bolts"
+     ],
+     "depth": "t"
+    }
+   ]
+  },
+  "carriage": {
+   "$schema": "com.minomobi.cad.tree#v1",
+   "units": "mm",
+   "_": "Nut carriage, 10 thick: the key plate. Its outline is notched open to each side (from x ±9 to the edge, 22.2 tall) and a pivot arm drops into each notch from outside, so the arm is located in X and Z and held square, while its thrust goes straight back into the back plate. Open notches, not closed slots — a closed slot cannot be assembled around an arm that reaches past it. The four bolts through the nut flange carry on through both plates. One extrude along -Y.",
+   "params": {
+    "t": 10,
+    "ch": 14.5,
+    "cz": 14,
+    "nx": 9,
+    "slz": 11.1,
+    "d_bore": 10.200000000000001,
+    "pcd": 16,
+    "d_bolt": 3.5
+   },
+   "features": [
+    {
+     "op": "sketch",
+     "id": "face",
+     "plane": "XZ",
+     "loops": [
+      {
+       "name": "outline",
+       "polygon": [
+        [
+         "ch",
+         "-cz"
+        ],
+        [
+         "-ch",
+         "-cz"
+        ],
+        [
+         "-ch",
+         "-slz"
+        ],
+        [
+         "-nx",
+         "-slz"
+        ],
+        [
+         "-nx",
+         "slz"
+        ],
+        [
+         "-ch",
+         "slz"
+        ],
+        [
+         "-ch",
+         "cz"
+        ],
+        [
+         "ch",
+         "cz"
+        ],
+        [
+         "ch",
+         "slz"
+        ],
+        [
+         "nx",
+         "slz"
+        ],
+        [
+         "nx",
+         "-slz"
+        ],
+        [
+         "ch",
+         "-slz"
+        ]
+       ]
       },
       {
-       "name": "slotL",
-       "rect": {
+       "name": "bore",
+       "circle": {
         "c": [
-         "-(slx0 + slx1) / 2",
+         0,
          0
         ],
-        "w": "slx1 - slx0",
-        "h": "2 * slz"
+        "r": "d_bore / 2"
        }
       }
      ]
@@ -622,14 +719,14 @@
   "arm": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Pivot arm: a 22 mm block on the grip plane, keyed into the carriage’s through-slot, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored Ø10.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.",
+   "_": "Pivot arm: a 22 mm block on the grip plane, dropped into the carriage key plate’s open notch and bottomed on the back plate, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored Ø10.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.",
    "params": {
     "side": 1,
     "x0": 9.1,
     "x1": 39,
     "t": 22,
     "z0": -11,
-    "y0": -7,
+    "y0": -3,
     "y1": 7,
     "px": 34,
     "py": 4,
@@ -680,7 +777,7 @@
      "id": "bore",
      "plane": {
       "base": "XZ",
-      "offset": "-(y1 + 3)"
+      "offset": "-(y1 + 4)"
      },
      "loops": [
       {
@@ -699,7 +796,7 @@
      "op": "extrude",
      "id": "borecut",
      "profile": "bore",
-     "depth": "y1 - y0 + 6",
+     "depth": "y1 - y0 + 8",
      "mode": "cut"
     }
    ]
@@ -1642,6 +1739,15 @@
    ]
   },
   {
+   "id": "carriage-back",
+   "part": "carriage-back",
+   "at": [
+    0,
+    "ynOpen + carT / 2 - carFrontT",
+    0
+   ]
+  },
+  {
    "id": "arm",
    "part": "arm",
    "at": [
@@ -1779,6 +1885,11 @@
     0,
     1
    ]
+  },
+  {
+   "kind": "fixed",
+   "a": "carriage",
+   "b": "carriage-back"
   },
   {
    "kind": "fixed",
@@ -1983,13 +2094,23 @@
    "contact": true
   },
   {
-   "a": "nut",
+   "a": "carriage",
+   "b": "carriage-back",
+   "contact": true
+  },
+  {
+   "a": "carriage-back",
    "b": "arm[0]",
    "contact": true
   },
   {
-   "a": "nut",
+   "a": "carriage-back",
    "b": "arm[1]",
+   "contact": true
+  },
+  {
+   "a": "nut",
+   "b": "carriage-back",
    "contact": true
   },
   {

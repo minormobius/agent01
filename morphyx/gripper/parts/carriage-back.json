@@ -1,0 +1,77 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Carriage back plate, 4 thick: the thrust plate. The nut’s flange bolts to its rear face and the pivot arms bottom on its front face, so gripping runs nut → plate → arm as pure compression through one Y-normal joint — no bolt sees the thrust. One extrude along -Y.",
+ "params": {
+  "t": 4,
+  "ch": 14.5,
+  "cz": 14,
+  "d_bore": 10.200000000000001,
+  "pcd": 16,
+  "d_bolt": 3.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       0
+      ],
+      "w": "2 * ch",
+      "h": "2 * cz"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd/2 * cos(deg(45))",
+       "pcd/2 * sin(deg(45))"
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "plate",
+   "profile": [
+    "face",
+    "bolts"
+   ],
+   "depth": "t"
+  }
+ ]
+}

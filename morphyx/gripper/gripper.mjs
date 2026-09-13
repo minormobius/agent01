@@ -51,7 +51,7 @@ export const D = {
   pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarNut: 6.5, pillarTap: 6, pillarClear: 8.4,
   // nut and carriage: the carriage hangs on the nut and runs on the pillars through its arms
   nutBore: 8.4, nutBody: 10, nutLen: 15, flange: 22, flangeT: 3.5, nutPcd: 16, nutBolt: 3.5,
-  carT: 14, carHalf: 14.5, carZ: 14, slotX: [9, 13],
+  carT: 14, carBackT: 4, carHalf: 14.5, carZ: 14, notchX: 9,
   // the pivot arms: 22 thick so the links seat on them, keyed into the carriage, bored for the pillar
   armX0: 9.1, armHalf: 39, armT: 22, armZ0: -11, pivotX: 34, pivotY: 4,
   // the linkage: struts in compression during grip; Ø4 dowels in bronze bushings
@@ -72,6 +72,7 @@ D.travel = D.xpOpen - D.xpClosed;
 D.inner = D.W / 2 - D.wall;
 D.bulkheadY = [D.motorY + D.motorLen, D.motorY + D.motorLen + D.bulkheadT];
 D.cavityY = [D.bulkheadY[1], D.frontY];                           // motor plate to rail plate: all of it swept
+D.armY = [-D.carT / 2 + D.carBackT, D.carT / 2];                  // the arm fills the key plate only; its back face bears on the back plate
 D.pillarY = [D.bulkheadY[0], D.frontY + D.pillarTap];            // flush with the motor plate's back face: nothing protrudes behind it
 D.pillarShoulder = D.bulkheadY[1] + D.pillarNut;                  // the nut sits on the plate's INNER face, inside the cavity
 D.railY = [D.frontY + D.frontT, D.frontY + D.frontT + D.railH];
@@ -142,22 +143,30 @@ export const parts = {
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d_bore/2', 0], ['d_flange/2', 0], ['d_flange/2', 't_flange'], ['d_body/2', 't_flange'], ['d_body/2', 'L'], ['d_bore/2', 'L']] }] },
      { op: 'revolve', id: 'nut', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
-  carriage: tree('Nut carriage, 14 long: the nut bore with its four flange bolt holes and a through-slot each side (4 \u00d7 22.2) that the pivot arms key into. It hangs on the nut \u2014 the screw takes its weight, the arm tips at the side walls take the screw\u2019s friction torque \u2014 so there is no skid and no floor to run on. One extrude along -Y.',
-    { t: D.carT, ch: D.carHalf, cz: D.carZ, slx0: D.slotX[0], slx1: D.slotX[1], slz: D.armT / 2 + 0.1, d_bore: D.nutBore + 1.8, pcd: D.nutPcd, d_bolt: D.nutBolt },
+  'carriage-back': tree('Carriage back plate, 4 thick: the thrust plate. The nut\u2019s flange bolts to its rear face and the pivot arms bottom on its front face, so gripping runs nut \u2192 plate \u2192 arm as pure compression through one Y-normal joint \u2014 no bolt sees the thrust. One extrude along -Y.',
+    { t: D.carBackT, ch: D.carHalf, cz: D.carZ, d_bore: D.nutBore + 1.8, pcd: D.nutPcd, d_bolt: D.nutBolt },
+    [{ op: 'sketch', id: 'face', plane: 'XZ', loops: [rect('outline', [0, 0], '2 * ch', '2 * cz'), circle('bore', [0, 0], 'd_bore / 2')] },
+     { op: 'sketch', id: 'bolt', plane: 'XZ', loops: [circle(null, ['pcd/2 * cos(deg(45))', 'pcd/2 * sin(deg(45))'], 'd_bolt / 2')] },
+     { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: 4, name: 'bolt' },
+     { op: 'extrude', id: 'plate', profile: ['face', 'bolts'], depth: 't' }]),
+
+  carriage: tree('Nut carriage, 10 thick: the key plate. Its outline is notched open to each side (from x \u00b19 to the edge, 22.2 tall) and a pivot arm drops into each notch from outside, so the arm is located in X and Z and held square, while its thrust goes straight back into the back plate. Open notches, not closed slots \u2014 a closed slot cannot be assembled around an arm that reaches past it. The four bolts through the nut flange carry on through both plates. One extrude along -Y.',
+    { t: D.carT - D.carBackT, ch: D.carHalf, cz: D.carZ, nx: D.notchX, slz: D.armT / 2 + 0.1, d_bore: D.nutBore + 1.8, pcd: D.nutPcd, d_bolt: D.nutBolt },
     [{ op: 'sketch', id: 'face', plane: 'XZ', loops: [
-        rect('outline', [0, 0], '2 * ch', '2 * cz'),
-        circle('bore', [0, 0], 'd_bore / 2'),
-        rect('slotR', ['(slx0 + slx1) / 2', 0], 'slx1 - slx0', '2 * slz'), rect('slotL', ['-(slx0 + slx1) / 2', 0], 'slx1 - slx0', '2 * slz') ] },
+        { name: 'outline', polygon: [['ch', '-cz'], ['-ch', '-cz'], ['-ch', '-slz'], ['-nx', '-slz'], ['-nx', 'slz'], ['-ch', 'slz'],
+                                     ['-ch', 'cz'], ['ch', 'cz'], ['ch', 'slz'], ['nx', 'slz'], ['nx', '-slz'], ['ch', '-slz']] },
+        circle('bore', [0, 0], 'd_bore / 2') ] },
      { op: 'sketch', id: 'bolt', plane: 'XZ', loops: [circle(null, ['pcd/2 * cos(deg(45))', 'pcd/2 * sin(deg(45))'], 'd_bolt / 2')] },
      { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: 4, name: 'bolt' },
      { op: 'extrude', id: 'carriage', profile: ['face', 'bolts'], depth: 't' }]),
 
-  arm: tree('Pivot arm: a 22 mm block on the grip plane, keyed into the carriage\u2019s through-slot, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored \u00d810.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.',
-    { side: 1, x0: D.armX0, x1: D.armHalf, t: D.armT, z0: D.armZ0, y0: -D.carT / 2, y1: D.carT / 2, px: D.pivotX, py: D.pivotY, d_pin: D.pin, ppx: D.pillarX, d_pillar: D.pillarBore },
+  arm: tree('Pivot arm: a 22 mm block on the grip plane, dropped into the carriage key plate\u2019s open notch and bottomed on the back plate, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored \u00d810.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.',
+    { side: 1, x0: D.armX0, x1: D.armHalf, t: D.armT, z0: D.armZ0, y0: D.armY[0], y1: D.armY[1], px: D.pivotX, py: D.pivotY, d_pin: D.pin, ppx: D.pillarX, d_pillar: D.pillarBore },
     [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', ['side * (x0 + x1) / 2', '(y0 + y1) / 2'], 'x1 - x0', 'y1 - y0'), circle('pivot', ['side * px', 'py'], 'd_pin / 2')] },
      { op: 'extrude', id: 'arm', profile: 'plate', depth: 't' },
-     { op: 'sketch', id: 'bore', plane: { base: 'XZ', offset: '-(y1 + 3)' }, loops: [circle('pillar', ['side * ppx', 0], 'd_pillar / 2')] },
-     { op: 'extrude', id: 'borecut', profile: 'bore', depth: 'y1 - y0 + 6', mode: 'cut' }]),
+     // the cut clears both faces by 4: at 3 and at 6 this same boolean returns the same volume to four decimals but leaks (\u03c7 \u22126, four open edges), and `build` still says ok \u2014 the overhang is tuned by trial
+     { op: 'sketch', id: 'bore', plane: { base: 'XZ', offset: '-(y1 + 4)' }, loops: [circle('pillar', ['side * ppx', 0], 'd_pillar / 2')] },
+     { op: 'extrude', id: 'borecut', profile: 'bore', depth: 'y1 - y0 + 8', mode: 'cut' }]),
 
   link: tree('Link: a 43 mm dog-bone, 6 thick, with two Ø6 eyes for pressed bronze bushings. Four per gripper: one above and one below, at z ±11…17, clear of the blocks. From the arm pin, through a slot in the front wall, to the jaw carrier’s pin outside. Built along +X from eye 0; the assembly rotates it about Z. One extrude.',
     { L: D.link, r: D.linkW / 2, t: D.linkT, d_eye: D.eye },
@@ -229,7 +238,7 @@ const SPIN = '360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2';
 export function assembly(mode = 'cycle') {
   const stroke = mode === 'stroke';
   const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
-  const params = { ynOpen: round(D.ynOpen, 4), ynClosed: round(D.ynClosed, 4), lead: D.lead, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.inset, flangeT: D.flangeT, carT: D.carT,
+  const params = { ynOpen: round(D.ynOpen, 4), ynClosed: round(D.ynClosed, 4), lead: D.lead, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.inset, flangeT: D.flangeT, carT: D.carT, carFrontT: D.carT - D.carBackT,
     lo: D.linkZ[0][0], hi: D.linkZ[1][0], armZ: D.armZ0, blockL: D.blockL };
   const derived = {
     ...(stroke ? { turns: 'theta / 360' } : { spin: SPIN }),
@@ -253,6 +262,7 @@ export function assembly(mode = 'cycle') {
   };
   const side = '(1 - 2 * (i - 2 * floor(i / 2)))', level = 'floor(i / 2)'; // +1 right / −1 left for even / odd i; 0 lower / 1 upper — `i` is in scope only in a repeated component's own fields
   const carriageAt = stroke ? [0, 'ynOpen + carT / 2', 0] : [0, 'yn + carT / 2', 0];
+  const backAt = stroke ? [0, 'ynOpen + carT / 2 - carFrontT', 0] : [0, 'yn + carT / 2 - carFrontT', 0];
   const nutAt = stroke ? [0, 'ynOpen - carT / 2 - flangeT', 0] : [0, 'yn - carT / 2 - flangeT', 0];
   const armAt = stroke ? [0, 'ynOpen', 0] : [0, 'yn', 0];
   const components = [
@@ -266,6 +276,7 @@ export function assembly(mode = 'cycle') {
     { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
     c('nut', 'nut', nutAt, { rotate: alongY }),
     c('carriage', 'carriage', carriageAt),
+    c('carriage-back', 'carriage-back', backAt),
     c('arm', 'arm', armAt, { repeat: 2, params: { side } }),
     c('rail', 'rail', [0, 0, 0]),
     c('pillar', 'pillar', [`${side} * ${D.pillarX}`, D.pillarY[0], 0], { repeat: 2, rotate: alongY }),
@@ -286,7 +297,8 @@ export function assembly(mode = 'cycle') {
       { kind: 'screw', a: 'drivetrain/screw', b: 'carriage', lead: 'lead', axis: [0, 1, 0] },   // the physical joint
       // the nut is placed tilted (local +z = world +Y), and a fixed mate copies travel in the follower's own frame, so it gets its own screw mate along its local z
       { kind: 'screw', a: 'drivetrain/screw', b: 'nut', lead: 'lead', axis: [0, 0, 1] },
-    ] : [fixed('nut', 'carriage')]),                                    // the flange on the carriage's rear face: an expected touch
+    ] : [fixed('nut', 'carriage-back')]),                               // the flange on the back plate's rear face: an expected touch
+    fixed('carriage', 'carriage-back'),                                 // the two plates of the carriage, on the same four bolts
     fixed('carriage', 'arm[0]'), fixed('carriage', 'arm[1]'),           // keyed into the slots; in the stroke document this carries the mate's travel
     fixed('jaw-pin[0]', 'carrier[0]'), fixed('jaw-pin[1]', 'carrier[1]'),   // press fits
     // the arm pins are placed by expression on `yn`, and the arms travel by the screw mate through the carriage, so a fixed mate here would carry that travel a second time
@@ -308,7 +320,9 @@ export function assembly(mode = 'cycle') {
     { a: 'drivetrain/screw', b: 'nut', min: 0.1, max: 0.3 },           // thread clearance, thread not modelled
     { a: 'bulkhead', b: 'pillar[0]', min: 0.1, max: 0.3 }, { a: 'bulkhead', b: 'pillar[1]', min: 0.1, max: 0.3 },
     { a: 'carriage', b: 'arm[0]', contact: true }, { a: 'carriage', b: 'arm[1]', contact: true },
-    { a: 'nut', b: 'arm[0]', contact: true }, { a: 'nut', b: 'arm[1]', contact: true },
+    { a: 'carriage', b: 'carriage-back', contact: true },              // the two plates, bolted face to face
+    { a: 'carriage-back', b: 'arm[0]', contact: true }, { a: 'carriage-back', b: 'arm[1]', contact: true },   // the thrust joint: the arm bears on this face
+    { a: 'nut', b: 'carriage-back', contact: true },
     { a: 'carrier[0]', b: 'block[0]', contact: true }, { a: 'carrier[1]', b: 'block[1]', contact: true },
     { a: 'carrier[0]', b: 'carrier[1]', min: 0, max: 40 },             // they meet on the centre line at closed and part by the travel
     { a: 'motor', b: 'pillar[0]', contact: true }, { a: 'motor', b: 'pillar[1]', contact: true },
@@ -407,8 +421,9 @@ export function audit() {
     `columns at x ${D.fingerBoltX}, pin at ${-D.inset}, plate ±${D.carrierHalf} × ±${D.carrierZ}`);
   ok('the dowels sit between the bolt pairs', D.fingerBoltZ - D.fingerBolt / 2 > D.fingerDowel / 2 && D.fingerDowel < D.fingerBoltZ, `Ø${D.fingerDowel} at z 0 between bolts at ±${D.fingerBoltZ}`);
   ok('block wraps the rail', D.blockChannelH >= D.railH - D.blockH1 && D.blockChannelW > D.railW, `channel ${D.blockChannelW} × ${D.blockChannelH}`);
-  ok('arm keys into the carriage slot', D.armX0 > D.slotX[0] && D.armHalf > D.slotX[1] && D.armT / 2 + 0.1 < D.carZ, `arm x ${D.armX0}.., z ±${D.armT / 2} in ±${D.carZ}`);
-  ok('carriage slots clear the nut bolts and stay inside it', D.slotX[0] - (D.nutPcd / 2 * Math.SQRT1_2 + D.nutBolt / 2) >= 1.5 && D.slotX[1] + 1.5 <= D.carHalf && D.carZ >= D.flange / 2, `${round(D.slotX[0] - (D.nutPcd / 2 * Math.SQRT1_2 + D.nutBolt / 2))} ≥ 1.5`);
+  ok('the arm drops into an open notch and reaches past the key plate', D.armX0 > D.notchX && D.armHalf > D.carHalf && D.armT / 2 + 0.1 < D.carZ, `arm x ${D.armX0}…${D.armHalf}, notch root ${D.notchX}, plate to ${D.carHalf}`);
+  ok('the arm bottoms on the back plate, not on a bolt', D.armY[0] === -D.carT / 2 + D.carBackT && D.carBackT >= 3 && (D.armHalf - D.armX0) * 0 === 0, `arm back face at ${D.armY[0]} on a ${D.carBackT} mm plate`);
+  ok('the notches clear the nut bolts and leave a strap top and bottom', D.notchX - (D.nutPcd / 2 * Math.SQRT1_2 + D.nutBolt / 2) >= 1.5 && D.carZ - (D.armT / 2 + 0.1) >= 2.5 && D.carZ >= D.flange / 2, `${round(D.notchX - (D.nutPcd / 2 * Math.SQRT1_2 + D.nutBolt / 2))} ≥ 1.5, strap ${round(D.carZ - (D.armT / 2 + 0.1), 1)} mm`);
   ok('the screw reaches the nut and stops at the wall', D.screwEnd - D.journalLen >= D.ynClosed - D.carT / 2 + D.nutLen - D.flangeT && D.screwEnd <= D.frontY + D.frontT, `journal from ${D.screwEnd - D.journalLen}, nut front ${round(D.ynClosed - D.carT / 2 - D.flangeT + D.nutLen)}`);
   ok('no fingers in the assembly', !('finger' in parts), 'the finger is the customer\u2019s part');
   return out;
@@ -420,8 +435,9 @@ export const expected = {
   _: 'Closed-form volumes of every part; mm³. The kernel must land within tol (relative).',
   bulkhead: { volume: (D.W * (D.zTop - D.zBot) - A * D.pilot ** 2 - 4 * A * D.bolt ** 2 - 2 * A * D.pillarClear ** 2 - 4 * A * D.caseBolt ** 2) * D.bulkheadT, tol: 0.002 },
   'front-wall': { volume: (D.frontW * (D.zTop - D.zBot) - A * D.endBore ** 2 - 4 * A * D.caseBolt ** 2 - 2 * A * D.pillarCore ** 2 - 4 * (D.wallSlotX[1] - D.wallSlotX[0]) * (D.wallSlotZ[1] - D.wallSlotZ[0]) - 2 * D.railTapX.length * A * D.railTap ** 2) * D.frontT, tol: 0.002 },
-  carriage: { volume: (4 * D.carHalf * D.carZ - 2 * (D.slotX[1] - D.slotX[0]) * (D.armT + 0.2) - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * D.carT, tol: 0.002 },
-  arm: { volume: ((D.armHalf - D.armX0) * D.carT - A * D.pin ** 2) * D.armT - A * D.pillarBore ** 2 * D.carT, tol: 0.004 },
+  carriage: { volume: (4 * D.carHalf * D.carZ - 2 * (D.carHalf - D.notchX) * (D.armT + 0.2) - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * (D.carT - D.carBackT), tol: 0.002 },
+  'carriage-back': { volume: (4 * D.carHalf * D.carZ - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * D.carBackT, tol: 0.002 },
+  arm: { volume: ((D.armHalf - D.armX0) * (D.armY[1] - D.armY[0]) - A * D.pin ** 2) * D.armT - A * D.pillarBore ** 2 * (D.armY[1] - D.armY[0]), tol: 0.004 },
   pillar: { volume: A * (D.pillarThread ** 2 * (D.bulkheadT + D.pillarNut) + D.pillarD ** 2 * (D.frontY - D.pillarShoulder) + D.pillarCore ** 2 * D.pillarTap), tol: 0.004 },
   carrier: { volume: (4 * D.carrierHalf * D.carrierZ - 4 * A * D.blockBolt ** 2 - 4 * A * D.fingerBolt ** 2 - 2 * A * D.fingerDowel ** 2) * D.carrierT - A * D.pin ** 2 * 2 * D.carrierZ, tol: 0.004 },
   link: { volume: (D.link * D.linkW + A * D.linkW ** 2 - 2 * A * D.eye ** 2) * D.linkT, tol: 0.002 },

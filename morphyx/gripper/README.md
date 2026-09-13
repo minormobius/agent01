@@ -27,7 +27,7 @@ the tangled mirror.
 | | |
 |---|---|
 | `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment audit, the clearance audit, closed forms |
-| `parts/*.json` | the seventeen part trees, as generated |
+| `parts/*.json` | the nineteen part trees, as generated |
 | `gripper.json` | the demo cycle: a reference clock drives a cosine, so the viewer's spin closes and opens once per turn |
 | `gripper-stroke.json` | the physical stroke: the screw driven at rpm, a `screw` mate carrying the carriage and the nut by the lead |
 | `expected.json` | closed-form volumes for every part |
@@ -50,8 +50,9 @@ the tangled mirror.
   placement target nor measured by name. **Rule followed here: every part is
   exactly one sweep of one outer loop with holes.** Joints that need holes
   in two directions are split along real part lines and fixed-mated: the
-  arms key into through-slots in the carriage (bore along Y, pivots along
-  Z); the rail lies flat so the block's bolts, the link pin and the tenon's
+  carriage is two plates so that neither needs a pocket (a 10 mm key plate
+  notched open to each side, and a 4 mm back plate the arms bottom on); the
+  rail lies flat so the block's bolts, the link pin and the tenon's
   cross pin all run along Z and the slide is one sketch.
 - **Assemblies** are components with placements (`at`, `rotate`), `params`
   overrides that make distinct builds, `gear` and `fixed` mates, and one
@@ -121,6 +122,7 @@ the screw thrust.
 
 | member | what it carries | how |
 |---|---|---|
+| **carriage** (2 plates) | thrust, nut → arm | the nut flange bolts to the back plate's rear face and each arm's back face bears on its front face, so the thrust crosses one Y-normal joint in pure compression; the notched key plate ahead of it only locates the arms in X and Z |
 | **pillars** (×2) | the whole grip tension, and compression on the return | M8 into the rail plate ahead, an M8 nut on the motor plate's inner face behind, Ø10 shoulder between; on the grip plane, so no moment |
 | side walls (×2) | torsion and shear | 4 mm, bolted to both plates |
 | motor plate | the screw's thrust, via the collar bearing on its inner face | the plane the load passes through, and where the tool interface belongs |
@@ -138,7 +140,7 @@ back face of the motor.
   22–28    motor plate: the pilot and 4 × M3 outside, the thrust collar inside, Ø8.4 for the pillars
   28–64    the cavity, 36 long — all of it swept. Two Ø10 pillars span it at x ±24, z 0
   28–32    thrust collar Ø14, bearing on the motor plate's inner face
-  37–61    carriage sweep (14 long), hanging on the nut, its arms running on the pillars
+  37–61    carriage sweep (4 mm back plate + 10 mm key plate), hanging on the nut, its arms running on the pillars
   yn+4     arm pivot pins at x ±34, z ±17; the arms are 22 thick and the links seat on their faces
   64–70    rail plate, 98 wide: a slot each side at z ±(10.6…17.4); the screw's blind bore and the pillars' taps at the centre
   70–76.5  MGN9 rail on the OUTER face, 93 long, closing the bore and the taps

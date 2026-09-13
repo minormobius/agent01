@@ -1,14 +1,14 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Pivot arm: a 22 mm block on the grip plane, keyed into the carriage’s through-slot, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored Ø10.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.",
+ "_": "Pivot arm: a 22 mm block on the grip plane, dropped into the carriage key plate’s open notch and bottomed on the back plate, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored Ø10.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.",
  "params": {
   "side": 1,
   "x0": 9.1,
   "x1": 39,
   "t": 22,
   "z0": -11,
-  "y0": -7,
+  "y0": -3,
   "y1": 7,
   "px": 34,
   "py": 4,
@@ -59,7 +59,7 @@
    "id": "bore",
    "plane": {
     "base": "XZ",
-    "offset": "-(y1 + 3)"
+    "offset": "-(y1 + 4)"
    },
    "loops": [
     {
@@ -78,7 +78,7 @@
    "op": "extrude",
    "id": "borecut",
    "profile": "bore",
-   "depth": "y1 - y0 + 6",
+   "depth": "y1 - y0 + 8",
    "mode": "cut"
   }
  ]
