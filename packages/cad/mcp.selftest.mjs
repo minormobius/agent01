@@ -36,7 +36,7 @@ const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabiliti
 check(init.result?.protocolVersion && init.result.capabilities.tools && /SKILL\.md/.test(init.result.instructions), 'initialize answers with capabilities and instructions');
 check((await post({ jsonrpc: '2.0', method: 'notifications/initialized' })).status === 202, 'a notification gets 202 and no body');
 const list = await rpc('tools/list');
-check(list.result.tools.map((t) => t.name).join() === 'check,build,measure,interference,drawing,step,list_files,get_file', `tools/list: ${list.result.tools.map((t) => t.name).join(', ')}`);
+check(list.result.tools.map((t) => t.name).join() === 'check,build,measure,interference,drawing,report,step,list_files,get_file', `tools/list: ${list.result.tools.map((t) => t.name).join(', ')}`);
 check((await rpc('nope')).error?.code === -32601, 'an unknown method is -32601');
 check((await rpc('tools/call', { name: 'nope' })).error?.code === -32602, 'an unknown tool is -32602');
 const opts = await mcp.handle(new Request('https://cad.mino.mobi/mcp', { method: 'OPTIONS' }));
@@ -124,6 +124,17 @@ check(dws.svg.includes('>plate</text>'), 'the sheet is titled from the ref it ca
 const dwa = (await tool('drawing', { tree: 'bench:lift', t: 0.5, views: ['front', 'iso'], hidden: false, title: 'lift — half a turn' })).structuredContent;
 check(dwa.svg.includes('lift — half a turn'), 'a caller may name the sheet');
 check(dwa.kind === 'assembly' && dwa.views.map((v) => v.name).join() === 'front,iso' && dwa.views.every((v) => v.hidden === 0) && dwa.svg.includes('t = 0.5 s'), 'drawing an assembly posed at t, chosen views, no hidden lines');
+const rp = await tool('report', { assembly: 'bench:lift', t: 0.5 });
+const rps = rp.structuredContent;
+check(rps.ok && rps.bom.length === 4 && rps.bom.find((r) => r.part === 'bolt').qty === 4 && rps.sheets === 4 && rp.content[1]?.resource?.mimeType === 'text/html' && rp.content[1].resource.text.startsWith('<!doctype html>') && !rp.content[0].text.includes('<!doctype'), `report: the lift as one page (${(rps.bytes / 1024).toFixed(0)} kB) — ${rps.bom.length} items, ${rps.sheets} part sheets; the page travels as a resource, the numbers without it`);
+const stepIds = rps.steps.map((s) => s.id).join(', ');
+check(rps.steps.length === 4 && /bolt\[0…3\]/.test(stepIds) && rps.steps[1].lines.some((l) => /rides `screw` as a nut — 2 mm of travel per turn/.test(l)) && rps.steps[3].lines.some((l) => /sits on `platform`/.test(l)), `report steps read off the document: ${stepIds}`);
+const html = rp.content[1].resource.text;
+check(html.includes('#t=') && html.includes('id="exploded"') && html.includes('class="balloon"') && (html.match(/<svg/g) || []).length === 6, 'the page carries the assembly, the exploded view with balloons, four part sheets, and viewer links');
+const rpe = await tool('report', { assembly: 'bench:crank', t: 0, maxParts: 1 });
+check(rpe.structuredContent.truncated >= 1 && rpe.structuredContent.sheets === 1, `maxParts limits the part sheets (${rpe.structuredContent.sheets} drawn, ${rpe.structuredContent.truncated} not)`);
+const rpp = await tool('report', { tree: 'bench:plate', assembly: 'bench:plate' });
+check(rpp.isError && /not an assembly/.test(rpp.content[0].text), 'a part is not an assembly: the report says so and points at drawing');
 const st = (await tool('step', { tree: 'bench:cam' })).structuredContent;
 check(st.ok && st.bytes > 30000 && st.step.startsWith('ISO-10303-21'), `step: ${(st.bytes / 1e3).toFixed(0)} kB of STEP`);
 const lf = (await tool('list_files', { repo: 'stranger.example' })).structuredContent;

@@ -218,6 +218,14 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
 }
 
+// the report button: one HTML page about an assembly
+{
+  await page.goto(`${base}/?part=lift`, { waitUntil: 'load' });
+  await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
+  const rp = await page.evaluate(async () => { window.__lastReport = null; document.querySelector('#asm-report').click(); for (let i = 0; i < 300 && !window.__lastReport; i++) await new Promise((r) => setTimeout(r, 25)); return { r: window.__lastReport, status: document.querySelector('#status')?.textContent || '' }; });
+  check(rp.r?.items === 4 && rp.r.sheets === 4 && rp.r.steps === 4 && rp.r.components === 7 && rp.r.bytes > 100000 && /report:/.test(rp.status), `the report button writes the lift's page: ${rp.r?.components} components, ${rp.r?.items} items, ${rp.r?.sheets} sheets, ${rp.r?.steps} steps, ${((rp.r?.bytes || 0) / 1024).toFixed(0)} kB`);
+}
+
 // three views snapshot strip
 await page.click('#views');
 const imgs = await page.$$eval('#strip img', (els) => els.map((i) => i.src.length));

@@ -17,6 +17,8 @@
 // the top view, in mm, from the posed meshes. Callouts: every cylindrical
 // hole whose axis points at a view is called out there as `n× ⌀d` (`↧ depth`
 // when blind), from the exact faces the kernel names, grouped by diameter.
+// `balloons: [{ point: [x,y,z], text, away: [±1, ±1] }]` adds numbered item
+// balloons with leaders — how an exploded view is keyed to a parts list.
 // The output is deterministic for a given input, so a drawing can be diffed.
 import { BVH, posedTriangles } from './proximity.js';
 
@@ -158,7 +160,7 @@ const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replac
  * bodies: [{ id?, mesh: {pos, idx, fid?}, model?: 16 floats column-major, faces?: the kernel's face report }]
  * opts: views, hidden (default true), title, units, width (px, default 900), scale (px per mm, else fitted to a 1:n or n:1)
  */
-export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = true, title = 'part', units = 'mm', width = 900, scale: fixedScale, callouts = true, note } = {}) {
+export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = true, title = 'part', units = 'mm', width = 900, scale: fixedScale, callouts = true, note, balloons = [] } = {}) {
   const t0 = performance.now();
   bodies = bodies.filter((b) => b.mesh && b.mesh.idx.length);
   if (!bodies.length) throw new Error('nothing to draw: no mesh');
@@ -207,9 +209,10 @@ export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = tr
   // room on the right for the hole callouts of whichever view has the most text
   let calloutRoom = 0;
   for (const v of vs) { const g = new Map(); for (const m of v.marks) { const k = `${m.diameter.toFixed(4)}|${m.depth.toFixed(3)}`; g.set(k, (g.get(k) || 0) + 1); } for (const [k, n] of g) { const [dia, depth] = k.split('|').map(Number); calloutRoom = Math.max(calloutRoom, 28 + `${n > 1 ? n + '× ' : ''}⌀${fmt(dia)} ↧${fmt(depth)}`.length * 6.7); } }
-  const W = Math.ceil(sheetW * S + 2 * margin + dimRoom * S + calloutRoom), H = Math.ceil(sheetH * S + 2 * margin + below + titleH);
+  const balloonRoom = balloons.length ? 56 : 0;
+  const W = Math.ceil(sheetW * S + 2 * margin + dimRoom * S + calloutRoom + balloonRoom), H = Math.ceil(sheetH * S + 2 * margin + below + titleH + balloonRoom);
   // sheet mm → px: x right, y up
-  const X = (v, x) => margin + dimRoom * S + (v.sx + x) * S, Y = (v, y) => margin + (sheetH - (v.sy + y)) * S;
+  const X = (v, x) => margin + dimRoom * S + (v.sx + x) * S, Y = (v, y) => margin + balloonRoom + (sheetH - (v.sy + y)) * S;
   const parts = [];
   const line = (a, b, c, d, cls) => parts.push(`<line x1="${a.toFixed(2)}" y1="${b.toFixed(2)}" x2="${c.toFixed(2)}" y2="${d.toFixed(2)}" class="${cls}"/>`);
   const text = (x, y, s, cls = 't', anchor = 'middle', rot = 0) => parts.push(`<text x="${x.toFixed(2)}" y="${y.toFixed(2)}" class="${cls}" text-anchor="${anchor}"${rot ? ` transform="rotate(${rot} ${x.toFixed(2)} ${y.toFixed(2)})"` : ''}>${esc(s)}</text>`);
@@ -257,13 +260,40 @@ export function drawing(bodies, { views = ['front', 'top', 'right'], hidden = tr
       k++;
     }
   }
+  // item balloons: a numbered circle with a leader to a point in space, on
+  // every view — how an exploded assembly is keyed to its parts list
+  for (const v of vs) {
+    if (!balloons.length) continue;
+    const r = 11, gap = 2 * r + 5;
+    const cx0 = X(v, (v.box[0] + v.box[2]) / 2), cy0 = Y(v, (v.box[1] + v.box[3]) / 2);
+    // each balloon starts outside its own item, pushed away from the view's
+    // middle, then a few relaxation passes stop two of them overlapping
+    const at = balloons.map((b) => {
+      const px = X(v, dot(b.point, v.B.u)), py = Y(v, dot(b.point, v.B.v));
+      let dx = px - cx0, dy = py - cy0; const l = Math.hypot(dx, dy) || 1;
+      if (l < 1) { dx = 0; dy = -1; } else { dx /= l; dy /= l; }
+      return { px, py, bx: px + dx * 34, by: py + dy * 34, text: b.text };
+    });
+    for (let pass = 0; pass < 24; pass++) {
+      let moved = false;
+      for (let i = 0; i < at.length; i++) for (let j = i + 1; j < at.length; j++) {
+        let dx = at[j].bx - at[i].bx, dy = at[j].by - at[i].by; let d = Math.hypot(dx, dy);
+        if (d >= gap) continue;
+        if (d < 1e-6) { dx = 0; dy = 1; d = 1; }
+        const push = (gap - d) / 2 + 0.5;
+        at[i].bx -= (dx / d) * push; at[i].by -= (dy / d) * push; at[j].bx += (dx / d) * push; at[j].by += (dy / d) * push; moved = true;
+      }
+      if (!moved) break;
+    }
+    for (const b of at) parts.push(`<line x1="${b.px.toFixed(1)}" y1="${b.py.toFixed(1)}" x2="${b.bx.toFixed(1)}" y2="${b.by.toFixed(1)}" class="dim"/><circle cx="${b.bx.toFixed(1)}" cy="${b.by.toFixed(1)}" r="${r}" class="balloon"/><text x="${b.bx.toFixed(1)}" y="${(b.by + 4).toFixed(1)}" class="bnum" text-anchor="middle">${esc(b.text)}</text>`);
+  }
   // title block: sized to its own text (11 px monospace ≈ 6.7 px a character), under everything
   const lines = [`${units} · scale ${scaleText} · third angle`, `${overall.map(fmt).join(' × ')} ${units}${bodies.length > 1 ? ` · ${bodies.length} bodies` : ''}${note ? ' · ' + note : ''}`];
   const tbW = Math.max(180, Math.ceil(Math.max(title.length * 8, ...lines.map((l) => l.length * 6.7)) + 16));
   const tbH = 22 + 15 * lines.length, tbX = Math.max(margin, W - margin - tbW), tbY = H - margin - tbH;
   parts.push(`<g class="title"><rect x="${tbX}" y="${tbY}" width="${tbW}" height="${tbH}" class="tb"/><text x="${tbX + 8}" y="${tbY + 16}" class="tt">${esc(title)}</text>${lines.map((l, i) => `<text x="${tbX + 8}" y="${tbY + 32 + i * 14}" class="t">${esc(l)}</text>`).join('')}</g>`);
   parts.push(`<text x="${margin}" y="${H - margin + 14}" class="t dim">cad.mino.mobi</text>`);
-  const style = `<style>svg{background:#fff}.view line{stroke:#111;stroke-width:1.1;stroke-linecap:round;fill:none}.view line.h{stroke:#555;stroke-width:0.8;stroke-dasharray:5 3}.dim{stroke:#1a5cff;stroke-width:0.7;fill:none}.arrow{fill:#1a5cff;stroke:none}text{font:11px ui-monospace,Menlo,Consolas,monospace;fill:#1a5cff}text.label{fill:#111;font-weight:600;letter-spacing:.08em}text.t{fill:#333}.tb{fill:none;stroke:#111;stroke-width:1}.tt{font-size:13px;font-weight:600;fill:#111}</style>`;
+  const style = `<style>svg{background:#fff}.view line{stroke:#111;stroke-width:1.1;stroke-linecap:round;fill:none}.view line.h{stroke:#555;stroke-width:0.8;stroke-dasharray:5 3}.dim{stroke:#1a5cff;stroke-width:0.7;fill:none}.arrow{fill:#1a5cff;stroke:none}text{font:11px ui-monospace,Menlo,Consolas,monospace;fill:#1a5cff}text.label{fill:#111;font-weight:600;letter-spacing:.08em}.balloon{fill:#fff;stroke:#1a5cff;stroke-width:1.2}text.bnum{fill:#1a5cff;font-weight:700;font-size:11px}text.t{fill:#333}.tb{fill:none;stroke:#111;stroke-width:1}.tt{font-size:13px;font-weight:600;fill:#111}</style>`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">${style}<rect width="${W}" height="${H}" fill="#fff"/>${parts.join('\n')}</svg>`;
   return {
     svg, width: W, height: H, scale: scaleText, units, overall, dims,

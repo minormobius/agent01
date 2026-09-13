@@ -161,6 +161,32 @@ documented in [`README.md`](README.md) next to this file.
   from its axis is a boss, not a hole. On an assembly every component is
   posed at `t` and `reference` ones are left out. The output is
   deterministic, so two drawings of one tree diff cleanly.
+- **Assembly reports.** `lib/report.js` turns an assembly into one
+  self-contained HTML page — the *report* button, `agent/report.mjs` and the
+  MCP `report` tool all produce the same bytes: the assembly in three views,
+  an **exploded** isometric with a numbered balloon per item (`drawing`'s
+  `balloons` option; the balloons de-overlap by relaxation), a parts list
+  with quantities, volumes and sizes, a drawing of every distinct part, and
+  the assembly steps. Every row links into the viewer (`#t=` of that part's
+  own tree, `?at=` for the assembly when it came from a repo), so the page
+  is a handover document rather than a picture. **The steps are derived, not
+  inferred** (`assemblySteps`): a placement says where a component goes, a
+  `@comp.face` reference says what it sits on (recorded as `placedBy` by
+  `flatten`), a mate says what joins it and with which numbers, a `fits`
+  entry says the clearance the pair is designed to keep. Nothing is guessed
+  — `report.selftest.mjs` asserts that no step contains a word the document
+  did not state. Order is the document's own, which is a build order because
+  a reference must name a component declared before it; consecutive
+  instances of one repeat collapse into a single step. `explodeBodies`
+  pushes each part away from the centre — along its own axis where it is
+  concentric with it, and further out when it is behind another part going
+  the same way, so a stack separates from itself; the test asserts that
+  nothing touches once exploded. A part the exact kernel cannot build here
+  (a boolean Truck refuses, which OCCT does in the browser) is **named on
+  the page with its error** and left out of the drawings, rather than
+  silently dropped or failing the whole report — the clock reports 16 of 18
+  components that way. The MCP tool redraws without hidden lines and with
+  fewer part sheets when a page would come back over 3.5 MB, and says so.
 - **Export.** *stl* writes the mesh on the page (the exact one when it has
   landed, else the preview); *step* asks the worker to re-run the exact
   kernel that built the part with its STEP writer on — Truck's, or OCCT's
@@ -205,7 +231,7 @@ documented in [`README.md`](README.md) next to this file.
   `scripts/sync-dataviz.mjs` (edit it here, never the copy). `llms.txt` is
   the site's index for agents; `README.md` (the schema) is served too.
 - **MCP.** `mcp.js` is the headless library as Model Context Protocol tools
-  (`check`, `build`, `measure`, `interference`, `drawing`, `step`,
+  (`check`, `build`, `measure`, `interference`, `drawing`, `report`, `step`,
   `list_files`, `get_file`), mounted at `/mcp` by `worker.js` — GET the descriptor, POST
   JSON-RPC. The engine wasm runs *inside the worker*: imported as a wasm
   module (Workers cannot compile wasm from bytes) and instantiated once per
@@ -273,18 +299,20 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   failed union of a region's outer loops names the two loops (`union of
   outer loops \`body\` and \`slot\` failed — do their outlines overlap or
   touch?`): a kernel error reported as the design error it almost always is.
-- **Six selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
+- **Seven selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
   bytes under node), `drive.selftest.mjs` (the file tree and the gateway),
   `assembly.selftest.mjs` (expressions against the engine, kinematics
   against closed forms, the mates, repeat and references),
   `drawing.selftest.mjs` (the SVG drawing by its numbers: views, dimensions,
   hole callouts, hidden lines, and that it is deterministic),
+  `report.selftest.mjs` (the assembly report: the parts list, the steps and
+  what they refuse to invent, the exploded view actually separating parts),
   `mcp.selftest.mjs` (the tool surface, both hosts) and
   `browser.selftest.mjs` (headless Chromium loads the page, builds every
   bench part, checks the report against closed forms, spins the train and
   the crank, poses the lift, saves and forks files against a mocked repo,
-  draws, and screenshots; skips, saying so, without Playwright). Run all six
-  before pushing.
+  draws, reports, and screenshots; skips, saying so, without Playwright).
+  Run all seven before pushing.
 - **Truck's gear build is not deterministic.** The first thing the corpus
   audit found: the 60-tooth gear, built twice in one process, gives χ −40
   then −41, different triangle counts, and a volume that moves in the

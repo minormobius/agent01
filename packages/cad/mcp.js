@@ -18,6 +18,7 @@
 import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf, findFace } from './lib/assembly.js';
 import { clearanceAt, sweepClearance, verdictOf, OK_VERDICTS, pairWork } from './lib/sweep.js';
 import { drawing } from './lib/drawing.js';
+import { assemblyReport } from './lib/report.js';
 import { buildManifold } from './lib/manifold-kernel.js';
 import { interference } from './lib/interfere.js';
 import { weld, invariants } from './lib/mesh.js';
@@ -45,6 +46,8 @@ export const TOOLS = [
     inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0 }, eps: { type: 'number', default: 0.01 }, clearance: { type: 'number', description: 'mm: report every pair\'s nearest approach and flag those closer than this (0 flags only contact); this mode needs no kernel' }, sweep: { type: 'integer', description: 'check this many instants over one period instead of one time t' }, period: { type: 'number', description: 'seconds per cycle for a sweep; default one turn of the driven component' }, from: { type: 'integer', default: 0, description: 'clearance sweeps only: the first instant of this window. A server stops on its CPU budget and answers with `next`; pass that back as `from` to continue, and take the smallest distance per pair across the windows.' }, res: { type: 'integer', enum: [64, 128, 256], default: 256, description: 'clearance mode: mesh resolution. 256 is the default (chord error 0.0025 mm); 64 or 128 is coarser and much cheaper, for an assembly this server refuses at 256' }, budgetMs: { type: 'integer', description: 'local hosts only: stop after about this many ms (a Worker\'s clock does not run during synchronous work, so the server budgets by work instead)' } }, required: ['assembly'] } },
   { name: 'drawing', title: 'Draw a part or assembly', description: 'An engineering drawing as SVG from the exact mesh: third-angle views (front, top, right by default; any of front, back, top, bottom, left, right, iso), hidden lines dashed, the overall width, height and depth dimensioned, and every cylindrical hole called out with its count, diameter and depth when blind. On an assembly, pass `t` to pose it; reference components are left out. Returns the SVG as an embedded resource plus the numbers on it (overall size, dimensions, holes, lines per view). Deterministic, so two drawings of the same tree diff cleanly.',
     inputSchema: { type: 'object', properties: { tree: treeArg, views: { type: 'array', items: { type: 'string', enum: ['front', 'back', 'top', 'bottom', 'left', 'right', 'iso'] }, default: ['front', 'top', 'right'] }, hidden: { type: 'boolean', default: true, description: 'draw hidden lines (dashed)' }, t: { type: 'number', default: 0, description: 'seconds through the drive, for an assembly' }, width: { type: 'integer', default: 900, description: 'sheet width in px; the scale is fitted to it' }, title: { type: 'string', description: 'the name in the title block; defaults to the document\'s name or the ref it came from' } }, required: ['tree'] } },
+  { name: 'report', title: 'Report on an assembly', description: 'One self-contained HTML page about an assembly: the whole thing drawn in three views, an exploded isometric with a numbered balloon on every item, a parts list with quantities, volumes and sizes, a drawing of each distinct part with its holes called out, and the assembly steps. Every row links back into the viewer, so the page is a handover document, not a picture. The steps are read off the document — placements, `@comp.face` references, mates and their numbers, declared `fits` — never inferred; the order is the document\'s own, which is a build order because a reference must name a component declared before it. Returns the HTML as an embedded resource plus the parts list and steps as data. A server builds a few new parts per call and caches them, so a big assembly may take two or three calls (`incomplete: "parts"` says what is left).',
+    inputSchema: { type: 'object', properties: { assembly: treeArg, t: { type: 'number', default: 0, description: 'seconds through the drive: the pose the assembly is drawn in' }, explode: { type: 'number', default: 0.6, description: 'how far the exploded view pushes the parts apart, as a fraction of the assembly size' }, hidden: { type: 'boolean', default: true, description: 'hidden lines on the drawings' }, maxParts: { type: 'integer', default: 20, description: 'how many part sheets to draw' }, title: { type: 'string' } }, required: ['assembly'] } },
   { name: 'step', title: 'Export STEP', description: 'The exact B-rep as STEP text (Truck kernel). For other CAD systems.',
     inputSchema: { type: 'object', properties: { tree: treeArg }, required: ['tree'] } },
   { name: 'list_files', title: 'List a repo\'s CAD files', description: 'The file tree in anyone\'s public repo: path, kind, AT URI, updated. `minomobi.com` holds the published bench (parts/<name>, train, clock).',
@@ -76,7 +79,7 @@ function cachedMesh(engine, treeText, res) {
   const hit = MESH_CACHE.get(key);
   if (hit) { MESH_CACHE.delete(key); MESH_CACHE.set(key, hit); return { ...hit, cached: true }; }
   const r = engine.build(treeText, { kernel: 'truck', res });
-  const v = r.ok ? { mesh: r.mesh } : { error: r.report.error };
+  const v = r.ok ? { mesh: r.mesh, faces: r.report.faces, invariants: r.report.invariants } : { error: r.report.error };
   MESH_CACHE.set(key, v); if (MESH_CACHE.size > MESH_CACHE_MAX) MESH_CACHE.delete(MESH_CACHE.keys().next().value);
   return { ...v, cached: false };
 }
@@ -260,6 +263,34 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
       const d = drawing(bodies, { views: Array.isArray(views) && views.length ? views : undefined, hidden, width: Math.max(300, Math.min(4000, width | 0)), title: String(sheet).slice(0, 60), note });
       return { ok: true, kind: Array.isArray(doc.components) ? 'assembly' : 'part', ...d, link: link(doc) };
     },
+    async report({ assembly, t = 0, explode = 0.6, hidden = true, maxParts = 20, title }) {
+      const { engine } = await kernels();
+      const doc = await asTree(assembly);
+      if (!Array.isArray(doc.components)) throw new Error('not an assembly (no components) — a report is about how parts go together; for one part use `drawing`');
+      const { components, mates, drive, partTrees, fits } = await flatten(doc, resolveRef, { facesOf });
+      const angles = solveAngles(components, mates, drive, t);
+      // the same staged, cached build the clearance check uses: a big assembly takes a few calls
+      const builds = new Map(); const pending = []; const failed = []; let builtCount = 0, cachedCount = 0;
+      for (const [key, tree] of partTrees) {
+        const fresh = !MESH_CACHE.has(`64|${tree}`);
+        if (fresh && builtCount >= caps.maxParts) { pending.push(key); continue; }
+        const r = cachedMesh(engine, tree, 64);
+        if (r.cached) cachedCount++; else builtCount++;
+        if (r.mesh) builds.set(key, { mesh: r.mesh, faces: r.faces, invariants: r.invariants }); else failed.push({ key, error: r.error });
+      }
+      if (pending.length) return { ok: false, incomplete: 'parts', built: builtCount, cached: cachedCount, ready: [...builds.keys()], pending, failed, link: link(doc), note: `this server builds at most ${caps.maxParts} new part${caps.maxParts === 1 ? '' : 's'} per call; ${pending.length} still to build. Call again with the same arguments — what is built is cached, so the report comes back once every part is in.` };
+      if (!builds.size) throw new Error(`no part of this assembly builds with the exact kernel: ${failed.map((f) => `${f.key}: ${f.error?.op}: ${f.error?.msg}`).join('; ')}`);
+      const unbuilt = failed.map((f) => ({ partKey: f.key, part: f.key.split('|')[0], error: `${f.error?.op}: ${f.error?.msg}`, tree: partTrees.get(f.key) }));
+      const fromRef = typeof assembly === 'string' ? assembly.replace(/^bench:/, '').split('/').pop() : null;
+      const mkReport = (opts) => assemblyReport({ doc, components, mates, drive, fits, partTrees, builds, angles, modelOf, t, site: gateway === SITE ? SITE : gateway, ...opts });
+      const rep0 = mkReport({ title: String(title || doc.name || fromRef || 'assembly').slice(0, 60), explode, hidden, maxParts: Math.max(0, Math.min(60, maxParts | 0)), at: typeof assembly === 'string' && assembly.startsWith('at://') ? assembly : null, unbuilt });
+      // a page a client cannot hold is no use: over the cap, redraw without
+      // hidden lines and with fewer part sheets, and say what was dropped
+      const CAP = 3.5e6;
+      let rep = rep0, reduced = null;
+      if (rep.bytes > CAP) { const keep = Math.max(1, Math.floor(maxParts / 3)); rep = mkReport({ title: String(title || doc.name || fromRef || 'assembly').slice(0, 60), explode, hidden: false, maxParts: keep, at: typeof assembly === 'string' && assembly.startsWith('at://') ? assembly : null, unbuilt }); reduced = { was: rep0.bytes, hidden: false, maxParts: keep }; }
+      return { ok: unbuilt.length === 0, html: rep.html, ...(reduced ? { reduced, note: `the full page was ${(reduced.was / 1e6).toFixed(1)} MB, past what this server returns — this one drops the hidden lines and draws ${reduced.maxParts} part sheets. Run \`node agent/report.mjs\` locally for the whole thing.` } : {}), bytes: rep.bytes, missing: rep.missing.map((m) => ({ part: m.part, qty: m.qty, error: m.error })), components: rep.components, overall: rep.overall, volume: rep.volume, bom: rep.bom.map((r) => ({ item: r.item, part: r.part, qty: r.qty, ids: r.ids, volume: r.volume, faces: r.faces })), steps: rep.steps.map((s) => ({ n: s.n, id: s.id, qty: s.qty, part: s.part, lines: s.lines })), sheets: rep.sheets, truncated: rep.truncated, built: builtCount, cached: cachedCount, ms: rep.ms, link: link(doc) };
+    },
     async step({ tree }) {
       const { engine } = await kernels();
       const r = engine.build(JSON.stringify(await asTree(tree)), { kernel: 'truck', step: true });
@@ -305,6 +336,8 @@ export function createMcp({ kernels, fetchRef, gateway = SITE, fetch: f, capabil
           const result = await call(name, args);
           // a drawing's SVG travels once, as an embedded resource, beside the numbers
           if (typeof result?.svg === 'string') return reply({ content: [{ type: 'text', text: JSON.stringify({ ...result, svg: undefined }) }, { type: 'resource', resource: { uri: 'cad://drawing.svg', mimeType: 'image/svg+xml', text: result.svg } }], structuredContent: result, isError: false });
+          // a report's page travels once, as an embedded resource, beside its parts list and steps
+          if (typeof result?.html === 'string') return reply({ content: [{ type: 'text', text: JSON.stringify({ ...result, html: undefined }) }, { type: 'resource', resource: { uri: 'cad://report.html', mimeType: 'text/html', text: result.html } }], structuredContent: result, isError: false });
           return reply({ content: [{ type: 'text', text: JSON.stringify(result) }], structuredContent: result, isError: false });
         } catch (e) {
           if (!listed.has(name)) return fail(-32602, e.message);

@@ -10,6 +10,7 @@ import { flatten, solveAngles as solveKin, modelOf, expectedTouch } from './lib/
 import { measure, describe, faceWorld } from './lib/measure.js';
 import { writeStl } from './lib/mesh.js';
 import { drawing } from './lib/drawing.js';
+import { assemblyReport } from './lib/report.js';
 import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, PART, SCOPE as DRIVE_SCOPE } from './lib/drive.js';
 import { AuthClient } from './vendor/auth.js';
 import { attachHandleTypeahead } from './vendor/typeahead.js';
@@ -155,9 +156,9 @@ const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('be
 /// Flatten an assembly through the shared library; the page keeps the
 /// components, mates and drive and asks the library for angles and matrices.
 async function prepareAssembly(asm) {
-  const { components, mates, drive, partTrees } = await flatten(asm, resolveRef, { facesOf });
+  const { components, mates, drive, partTrees, fits } = await flatten(asm, resolveRef, { facesOf });
   for (const c of components) c.tint = c.reference ? 0.45 : 1;
-  state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive;
+  state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive; state.fits = fits; state.asmDoc = asm;
   state.spin = false; state.tAcc = 0; state.check = null;
   solveAngles(0);
 }
@@ -438,6 +439,30 @@ $('#stl').addEventListener('click', () => exportPart('stl'));
 $('#step').addEventListener('click', () => exportPart('step'));
 $('#views').addEventListener('click', () => snapshots());
 $('#drawing').addEventListener('click', () => makeDrawing());
+$('#asm-report').addEventListener('click', () => makeReport()); // #report is the invariants panel; this button is the assembly document
+/// The assembly report: one HTML page with the views, an exploded picture, a
+/// parts list, a drawing per part and the steps — built from the same exact
+/// meshes on this page, so it needs every component's exact build.
+function makeReport() {
+  if (state.mode !== 'asm') return setStatus('a report is about an assembly — open one (the bench has lift, crank, clock, train)');
+  const builds = new Map();
+  for (const c of state.components) {
+    if (c.reference) continue;
+    const s = state.slots.get(c.partKey);
+    if (!s?.exact?.mesh) return setStatus(`the report needs every exact build — ${c.id} has none yet`);
+    builds.set(c.partKey, { mesh: s.exact.mesh, faces: s.faces, invariants: s.exact.invariants });
+  }
+  try {
+    const rep = assemblyReport({
+      doc: state.asmDoc, components: state.components, mates: state.mates, drive: state.drive, fits: state.fits,
+      partTrees: state.partTrees, builds, angles: state.angles, modelOf, t: state.t || 0,
+      title: state.name, site: location.origin, at: state.at && state.at.startsWith('at://') ? state.at : null,
+    });
+    download(new Blob([rep.html], { type: 'text/html' }), `${state.name}-report.html`);
+    setStatus(`report: ${rep.components} components over ${rep.bom.length} parts, ${rep.sheets} part sheets, ${(rep.bytes / 1024).toFixed(0)} kB`);
+    window.__lastReport = { bytes: rep.bytes, items: rep.bom.length, sheets: rep.sheets, steps: rep.steps.length, components: rep.components };
+  } catch (e) { setStatus(`report failed: ${e.message}`, true); }
+}
 /// An SVG drawing of what is built: the part, or every posed component of the
 /// assembly (reference ones left out), from the exact meshes — so it waits
 /// for the exact build, and says so if a part only has a preview.
@@ -686,7 +711,7 @@ const boot = ready.then(async () => {
 
 window.__cad = {
   ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, modelOf, runCheck, exportPart,
-  drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing,
+  drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing, makeReport,
   loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
   faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),
   checked: () => new Promise((resolve) => { const t = setInterval(() => { if (state.check && !state.check.pending) { clearInterval(t); resolve(state.check); } }, 50); }),

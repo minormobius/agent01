@@ -226,8 +226,11 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
         const partKey = `${c.part}${params ? '|' + JSON.stringify(params) : ''}`;
         if (!partTrees.has(partKey)) partTrees.set(partKey, JSON.stringify(tree));
         // placed on another component's face: it follows that component's pose already, so a mate to it must not move it again
-        const anchor = [...myChain].reverse().find((l) => l.refs?.at)?.refs.at.comp.id ?? null;
-        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference, anchoredTo: anchor };
+        const anchorLink = [...myChain].reverse().find((l) => l.refs?.at);
+        const anchor = anchorLink?.refs.at.comp.id ?? null;
+        // how this component was placed, in words the report can use
+        const placedBy = anchor ? { on: anchor, face: anchorLink.refs.at.face.name, aligned: !!anchorLink.refs.align, offset: anchorLink.spec.offset || null } : null;
+        const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference, anchoredTo: anchor, placedBy };
         comp.place = placeAt(comp, 0, 0); // the pose at rest, for gear phases and static documents
         components.push(comp); byId.set(id, comp);
       }

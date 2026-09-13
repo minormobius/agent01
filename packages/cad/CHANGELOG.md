@@ -4,6 +4,41 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-13
+
+**An assembly report.** A drawing of an assembly is a picture; this is the
+document that goes with it. One self-contained HTML page:
+
+```bash
+node agent/report.mjs bench/lift.json --out lift.html [--t 0.5] [--explode 0.8]
+```
+
+the **report** button on the page, and the MCP `report` tool (the page comes
+back as an embedded resource, the parts list and steps as data). On it:
+
+- the assembly in three views, posed at `t`;
+- an **exploded** isometric with a numbered balloon on every item — parts
+  pushed out from the centre, along their own axis where they sit on it, and
+  further out when they are behind another part going the same way, so a
+  stack separates from itself;
+- a **parts list**: item, part, quantity, the component ids, volume, size —
+  every row links to that part's own sheet below and opens it in the viewer;
+- a **drawing of every distinct part**, with its holes called out;
+- the **assembly steps**.
+
+The steps are read off the document, never inferred: where a component is
+placed, what face it sits on (`@platform.pivot[i]` — "each sits on
+`platform`'s `pivot[0]`, `pivot[1]`… turned onto that face's axis"), what
+mates it and with which numbers ("rides `screw` as a nut — 2 mm of travel
+per turn"), and what clearance a pair is designed to keep. A repeat is one
+step, not four. Order is the document's own, which is a build order because
+a reference must name a component declared before it. A test asserts that no
+step contains a sentence the document does not state.
+
+A part the exact kernel cannot build here (a boolean Truck refuses; the
+viewer does it with OCCT) is named on the page with its error and left out
+of the drawings, rather than failing the whole report.
+
 ## 2026-09-12, second pass
 
 From a practitioner's findings on the first pass.
