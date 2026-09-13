@@ -66,6 +66,7 @@
   <div id="err" class="err" hidden></div>
 
   <div id="results" hidden>
+    <div id="warn" class="err" hidden></div>
     <div class="legend">
       <div><span class="dot">date</span> — a reply exists, click to open it</div>
       <div><span style="color:var(--border)">·</span> — no reply found in the scanned window</div>
@@ -81,9 +82,11 @@
       <p><strong>"Top" mutuals</strong> = among that mutual set, the ones the searched account replies to
       most often — counted by scanning up to 300 of the searched account's own recent posts
       (<code>getAuthorFeed</code>) for replies whose parent was authored by a mutual, and tallying by
-      target. Mutuals never replied to in that window sort last, in whatever order they came back from
-      <code>getFollows</code>. Only the top N (however many the slider is set to) go into the grid below —
-      this is a ranking of a 300-post sample, not the account's full history.</p>
+      target. This ranking always runs, whether or not the mutual count exceeds the slider, so the row/
+      column order is always "most-replied-to first," not just which ones make the cut. Mutuals never
+      replied to in that window sort last, in whatever order they came back from <code>getFollows</code>.
+      Only the top N (however many the slider is set to) go into the grid below — this is a ranking of a
+      300-post sample, not the account's full history.</p>
       <p><strong>"First reply"</strong> is the earliest reply found while scanning up to 300 of each
       mutual's own recent posts (<code>getAuthorFeed</code>, replies included, reposts excluded) for one
       whose reply-parent was authored by another included mutual. It is the earliest reply <em>in that
@@ -92,6 +95,10 @@
       dropped before anything is counted.</p>
       <p>A reply counts if it was posted directly under a post by the other mutual — not a reply
       somewhere further down the same thread, and not a mention or quote.</p>
+      <p>Every request retries a couple of times with backoff before giving up, since the public API can
+      rate-limit a burst of concurrent requests. If some still fail — more likely at a high mutual count —
+      a note appears above the grid saying which parts are incomplete, rather than the grid quietly
+      showing fewer replies than actually exist.</p>
     </details>
   </div>
 </main>
@@ -109,6 +116,7 @@
   var errEl = document.getElementById('err');
   var resultsEl = document.getElementById('results');
   var gridEl = document.getElementById('grid');
+  var warnEl = document.getElementById('warn');
 
   capEl.addEventListener('input', function () { capVal.textContent = capEl.value; });
 
@@ -118,11 +126,32 @@
 
   var FOLLOW_PAGES = 3;   // up to 300 follows / 300 followers
   var FEED_PAGES = 3;     // up to 300 posts scanned per mutual
-  var POOL_SIZE = 4;
+  var POOL_SIZE = 3;
+  var STAGGER_MS = 150;   // spread pooled workers' first request instead of firing them all at once
   var running = false;
 
   function status(msg) { kit.clear(errEl); statusEl.hidden = false; statusEl.textContent = msg; }
   function fail(msg) { statusEl.hidden = true; kit.showError(errEl, msg); }
+  function sleep(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+
+  // public.api.bsky.app rate-limits bursts of concurrent requests from one
+  // page. A single failed call used to just abort that mutual's whole scan
+  // silently — which, under a burst 429, could zero out every cell in the
+  // grid with no sign anything went wrong. Retry transient failures a couple
+  // of times with backoff before giving up on that page.
+  async function bskyRetry(method, params, tries) {
+    var attempts = tries || 3;
+    var lastErr;
+    for (var t = 0; t < attempts; t++) {
+      try {
+        return await kit.bskyGet(method, params);
+      } catch (e) {
+        lastErr = e;
+        if (t < attempts - 1) await sleep(400 * Math.pow(2, t));
+      }
+    }
+    throw lastErr;
+  }
 
   async function mapPool(items, limit, fn) {
     var out = new Array(items.length);
@@ -134,7 +163,10 @@
       }
     }
     var workers = [];
-    for (var w = 0; w < Math.min(limit, items.length); w++) workers.push(worker());
+    var n = Math.min(limit, items.length);
+    for (var w = 0; w < n; w++) {
+      workers.push((async function (delay) { await sleep(delay); return worker(); })(w * STAGGER_MS));
+    }
     await Promise.all(workers);
     return out;
   }
@@ -144,7 +176,7 @@
     for (var p = 0; p < maxPages; p++) {
       var params = { actor: did, limit: 100 };
       if (cursor) params.cursor = cursor;
-      var res = await kit.bskyGet(method, params);
+      var res = await bskyRetry(method, params);
       var arr = res[listKey] || [];
       out.push.apply(out, arr);
       cursor = res.cursor;
@@ -155,16 +187,16 @@
 
   var URI_DID = /^at:\/\/(did:[^/]+)\//;
 
-  async function scanReplies(did, idxOfDid, selfIdx) {
+  async function scanReplies(did, idxOfDid) {
     var edges = {}; // "toIdx" -> {uri, createdAt}
-    var cursor;
+    var cursor, incomplete = false;
     for (var p = 0; p < FEED_PAGES; p++) {
       var params = { actor: did, limit: 100, filter: 'posts_with_replies' };
       if (cursor) params.cursor = cursor;
       var res;
       try {
-        res = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
-      } catch (e) { break; }
+        res = await bskyRetry('app.bsky.feed.getAuthorFeed', params);
+      } catch (e) { incomplete = true; break; }
       var items = kit.visible(res.feed || []);
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
@@ -189,19 +221,19 @@
       cursor = res.cursor;
       if (!cursor) break;
     }
-    return edges;
+    return { edges: edges, incomplete: incomplete };
   }
 
   async function countRepliesTo(did, dstSet) {
     var counts = {};
-    var cursor;
+    var cursor, incomplete = false;
     for (var p = 0; p < FEED_PAGES; p++) {
       var params = { actor: did, limit: 100, filter: 'posts_with_replies' };
       if (cursor) params.cursor = cursor;
       var res;
       try {
-        res = await kit.bskyGet('app.bsky.feed.getAuthorFeed', params);
-      } catch (e) { break; }
+        res = await bskyRetry('app.bsky.feed.getAuthorFeed', params);
+      } catch (e) { incomplete = true; break; }
       var items = kit.visible(res.feed || []);
       for (var i = 0; i < items.length; i++) {
         var item = items[i];
@@ -220,7 +252,7 @@
       cursor = res.cursor;
       if (!cursor) break;
     }
-    return counts;
+    return { counts: counts, incomplete: incomplete };
   }
 
   function rkeyOf(uri) { return uri.split('/').pop(); }
@@ -312,6 +344,7 @@
     goBtn.disabled = true;
     goBtn.textContent = 'working…';
     kit.clear(errEl);
+    kit.clear(warnEl);
     resultsEl.hidden = true;
     var cap = parseInt(capEl.value, 10);
 
@@ -342,14 +375,16 @@
 
       var boundNote = (follows.truncated || followers.truncated) ? 'at least ' : '';
 
-      if (mutualsAll.length > cap) {
-        status('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') +
-          ' for @' + typedHandle + '. ranking by how often @' + typedHandle + ' replies to each…');
-        var dstSet = {};
-        mutualsAll.forEach(function (a) { dstSet[a.did] = true; });
-        var replyCounts = await countRepliesTo(did, dstSet);
-        mutualsAll.sort(function (a, b) { return (replyCounts[b.did] || 0) - (replyCounts[a.did] || 0); });
-      }
+      // Always rank, not just when trimming to the cap — otherwise an account
+      // with fewer mutuals than the slider (the common case) silently shows
+      // getFollows order while the page still calls it "top mutuals."
+      status('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') +
+        ' for @' + typedHandle + '. ranking by how often @' + typedHandle + ' replies to each…');
+      var dstSet = {};
+      mutualsAll.forEach(function (a) { dstSet[a.did] = true; });
+      var rankResult = await countRepliesTo(did, dstSet);
+      mutualsAll.sort(function (a, b) { return (rankResult.counts[b.did] || 0) - (rankResult.counts[a.did] || 0); });
+      var rankFailed = rankResult.incomplete;
 
       var mutuals = mutualsAll.slice(0, cap);
       var idxOfDid = {};
@@ -359,20 +394,29 @@
         ? ' — showing the top ' + mutuals.length + ' (by reply frequency) of ' + boundNote + mutualsAll.length + ' mutuals'
         : (boundNote ? ' (' + boundNote + mutualsAll.length + ' found)' : '');
 
-      var done = 0;
+      var done = 0, scanFailures = 0;
       status('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') + cappedNote +
         '. scanning replies… (0/' + mutuals.length + ')');
 
       var edgesByFrom = await mapPool(mutuals, POOL_SIZE, async function (m, i) {
-        var edges = await scanReplies(m.did, idxOfDid, i);
+        var r = await scanReplies(m.did, idxOfDid);
+        if (r.incomplete) scanFailures++;
         done++;
         status('found ' + mutualsAll.length + ' mutual' + (mutualsAll.length === 1 ? '' : 's') + cappedNote +
           '. scanning replies… (' + done + '/' + mutuals.length + ')');
-        return edges;
+        return r.edges;
       });
 
       statusEl.hidden = true;
       renderGrid(mutuals, edgesByFrom);
+      if (rankFailed || scanFailures) {
+        var bits = [];
+        if (rankFailed) bits.push('the ranking scan hit an error, so order falls back to follow order for any ties');
+        if (scanFailures) bits.push(scanFailures + ' of ' + mutuals.length + ' mutuals’ reply scans failed after retries (likely rate-limited) — those rows may show fewer replies than actually exist');
+        kit.showError(warnEl, 'Partial results: ' + bits.join('; ') + '. Try again in a minute, or with a smaller number.');
+      } else {
+        kit.clear(warnEl);
+      }
       resultsEl.hidden = false;
     } catch (e) {
       fail(e.message || String(e));

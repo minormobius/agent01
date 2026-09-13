@@ -102,6 +102,52 @@ last ~300 posts and tallying reply targets, then taking the top N. See
   the "how this is computed" panel says so plainly rather than implying the
   ranking is exhaustive.
 
+## Decisions (turn 3 — bug report)
+
+The requester reported, in-thread: (1) "doesn't populate the grid with any
+replies" and (2) "these aren't my most-replied to mutuals." Two real,
+independent bugs, both fixed this turn without live testing (still no
+network in this sandbox — reasoned from the code, not observed):
+
+- **Bug 2 (wrong "top" mutuals) had a findable root cause: the ranking scan
+  only ran `if (mutualsAll.length > cap)`.** For any account with fewer
+  mutuals than the slider — the common case, since the default is 50 — the
+  grid silently fell back to whatever order `getFollows` happened to return,
+  while the page still called it "top mutuals." Fixed by always running
+  `countRepliesTo` and sorting `mutualsAll`, regardless of whether trimming
+  is needed. This is the same 3-request scan either way; the only cost of
+  "always" is doing it on the (common) runs where it isn't strictly required
+  to decide inclusion — which is exactly the case it was wrongly skipping.
+- **Bug 1 (no replies at all) did not have one single findable root cause
+  in the code — the reply-detection logic (`record.reply.parent.uri`, the
+  `at://<did>/` extraction) is standard AT Proto and was already checked
+  against real lexicon knowledge last turn.** The strongest remaining
+  candidate, given the request volume this page generates (up to 100
+  mutuals × up to 3 pages each, at concurrency 4, immediately after a
+  3-request ranking scan against the same account), is `public.api.bsky.app`
+  rate-limiting a burst of concurrent requests — and every fetch failure in
+  `scanReplies`/`countRepliesTo` was `catch (e) { break; }`: silent, no
+  retry, no surfaced error. Under a rate-limit burst that reads exactly as
+  reported — a grid that renders with every cell a dot, no explanation.
+  Fixed three ways: (a) every AppView call in the scan paths now goes
+  through `bskyRetry` — up to 3 attempts, exponential backoff (400ms/800ms)
+  — before giving up on that page; (b) `POOL_SIZE` dropped 4→3 and
+  `mapPool` now staggers each worker's first request by `150ms × index`
+  instead of firing all of them in the same tick, to reduce the chance of
+  triggering the limit at all; (c) if a scan or the ranking call still fails
+  after retries, that's now tracked (`incomplete`/`scanFailures`) and shown
+  as a visible warning above the grid ("Partial results: N of M mutuals'
+  reply scans failed…") rather than presenting a degraded result as if it
+  were complete and correct. **This is a mitigation, not a confirmed fix** —
+  nobody has run it against a real high-mutual account to see the warning
+  actually fire or actually stay silent. If the next report says the same
+  two things again, the warning banner is the first thing to check: if it's
+  showing up, the request volume is genuinely the problem and the fix is
+  cutting `POOL_SIZE`/`FEED_PAGES` further or raising the retry budget; if
+  it's silent and the grid is still empty, the bug is a field-shape mismatch
+  this turn didn't find, and the fixture gap noted below is the place to
+  start.
+
 ## The plan (next turn, in order)
 
 1. **Raise or make configurable the per-mutual scan depth.** 300 posts is a
@@ -110,13 +156,14 @@ last ~300 posts and tallying reply targets, then taking the top N. See
    letting the scan go deeper (more pages) for a smaller mutual cap, trading
    grid size for depth, rather than raising both caps at once and making
    every run slower.
-2. **At cap=100 the grid does up to 100 concurrent-pool feed scans (300
-   posts each) plus the new ranking scan — that's a lot of requests from one
-   browser tab.** It isn't rate-limited or batched beyond `POOL_SIZE = 4`;
-   if visitors report the page stalling or the AppView throttling requests
-   at high caps, look at backing off `POOL_SIZE` adaptively or adding a
-   visible "this is taking a while, consider a smaller number" nudge past
-   some elapsed-time threshold, rather than just letting it spin.
+2. **Partially addressed turn 3:** at cap=100 the grid still does up to 100
+   pooled feed scans (300 posts each) plus the ranking scan — a lot of
+   requests from one tab. `POOL_SIZE` is now 3 (was 4), workers stagger
+   150ms apart, and each request retries with backoff before giving up —
+   but there's still no adaptive backoff or "this is taking a while"
+   time-based nudge. If the new partial-results warning starts firing
+   regularly at high caps, that's the next thing to add, plus consider
+   lowering `POOL_SIZE` further or widening the retry budget past 3 tries.
 3. **A "both directions in one cell" compact mode.** The current grid shows
    A→B and B→A as two separate cells (upper and lower triangle), which is
    correct but means half the grid is "the same pair, other direction." A
@@ -166,6 +213,7 @@ last ~300 posts and tallying reply targets, then taking the top N. See
   grid capped by "found fewer mutuals than expected" rather than by the
   slider, raising `FOLLOW_PAGES` is the fix, not the ranking logic.
 - **Screenshot check (turn 2):** the empty-state page at 1200x800 renders correctly under the production CSP — heading, description, handle input, the "Top mutuals to include (by reply frequency)" slider (labeled, thumb at its default of 50, track visible against the dark background), the caveat line, and the "build the grid" button all readable and properly laid out, nothing overlapping or off-screen. No changes made.
+- **Screenshot check (turn 3):** same empty-state view, same clean render — no visible regressions from the retry/backoff/warning-banner changes above. Still can't see the post-submission grid or the new partial-results warning from a static screenshot of the unsubmitted form, so the two reported bugs (no replies populating, wrong "top" mutuals) couldn't be visually confirmed fixed here — only reasoned about in code, per the section above. No changes made this pass.
 - There is **no separate "site was built for buildoff" acknowledgment** on
   the page and none was added — a competing build (`mootrace.bisks.net`,
   reading full repos rather than a paginated feed sample) appeared in the

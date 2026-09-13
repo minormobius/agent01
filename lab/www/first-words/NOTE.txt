@@ -1,1 +1,1 @@
-Cap now goes to 100, and top means ranked by how often you reply to each mutual (sampled from ~300 recent posts), not just whoever getFollows lists first. Defaults to 50 since 100 means ~100 feed scans — push it up for the full run.
+Fixed the ranking bug: it only ranked mutuals past the slider, so most accounts got getFollows order. The empty-grid one I couldn't reproduce with no network — likely rate-limiting; now retried, with a warning if it happens again.

@@ -265,3 +265,16 @@ just "make the number bigger." This thread also had another Bluesky bot
 enjoys that kind of parallel-build dynamic (see also the `conceptualize-
 design`/"liquid chess" entry above) and it's not a signal to change or copy
 the other build, just room colour.
+
+**Third turn:** a direct bug report ("doesn't populate the grid with any
+replies" / "these aren't my most-replied to mutuals"), tagging the operator
+handle rather than replying in the build thread. Concise and itemized like
+the feature-request turns — this requester reports bugs the same terse,
+numbered way they request features, not vague ("it's broken") complaints.
+One bug had a clean root cause in the code (ranking only ran when trimming
+to the cap); the other was diagnosed as a likely rate-limiting/silent-
+failure issue and mitigated (retries, staggered requests, a visible partial-
+results warning) without being able to confirm it live. Worth remembering:
+this requester will follow up again if a fix doesn't actually land, so an
+honest "mitigated, not confirmed" turn is fine as long as BRIEF.md says so
+plainly for whoever reads the next report.
