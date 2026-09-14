@@ -68,7 +68,13 @@ serves this directory with `engine/` and `bakeoff/` dropped by
   expression over those; so do a mate's numbers and `repeat`. Mates
   propagate turning and travel from the drive: `gear`, `belt`, `fixed`,
   `screw` (`lead`), `rack` (`r` or `m`,`z`), `slider` (`ratio`), each in
-  either direction. Expressions are how a crank moves a slider
+  either direction. **`inputs` declares the document's other axes of
+  motion** — `{ grip: { min, max, steps, unit } }` — each in scope by name in
+  every expression, and `revolute` / `prismatic` (`input`, `axis?`, `scale?`,
+  `offset?`) are the joints that consume one, so a gripper that grips and
+  rolls needs no drive and no placement expression. `at: "@comp.face"` with
+  `rigid: true` takes the anchor's whole pose rather than its point, so a part
+  can ride another and move relative to it (`bench/grip.json`). Expressions are how a crank moves a slider
   (`bench/crank.json`); a `screw` mate is how a nut climbs
   (`bench/lift.json`). `repeat: n` makes `id[i]` instances with `i` in
   scope, and `at: "@comp.face"` / `rotate.align` place a component on

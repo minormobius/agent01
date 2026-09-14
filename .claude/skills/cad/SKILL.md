@@ -28,8 +28,8 @@ write tree.json → build → measure → (check) → render → judge → edit 
 | build, exact | `node agent/build.mjs tree.json [--faces] [--json r.json] [--stl a.stl] [--step a.step]` | volume, area, bbox, centroid, χ, watertight; `--faces` lists every **named** face with its geometry (plane / cylinder); a typed error with `unsupported` when the kernel cannot. Exit 1 unless ok and watertight |
 | build, preview | `node agent/build.mjs tree.json --kernel manifold` | always builds, milliseconds, polygons, no names |
 | measure | `node agent/measure.mjs tree.json --list` · `… <face>` · `… <faceA> <faceB>` | a cylinder's diameter; plane-to-plane, axis-to-axis, axis-to-plane distances, from exact geometry |
-| interference (assemblies) | `node agent/check.mjs asm.json [--t seconds \| --sweep N [--period s]] [--json]` | interfering pairs with shared volume, at one instant or the worst through a cycle; exit 1 if any beyond expected touches (fixed- and screw-mated) |
-| clearance (assemblies) | `node agent/check.mjs asm.json --clearance 1 [--sweep N]` | every pair's nearest approach from the exact meshes — crossing, contained, touching, or the distance — with a verdict; in a sweep each minimum is chased between samples; exit 1 on a collision or a pair closer than 1 mm |
+| interference (assemblies) | `node agent/check.mjs asm.json [--t seconds \| --sweep N [--period s] \| --grid [n]] [--json]` | interfering pairs with shared volume, at one instant or the worst through a cycle; exit 1 if any beyond expected touches (fixed- and screw-mated) |
+| clearance (assemblies) | `node agent/check.mjs asm.json --clearance 1 [--sweep N \| --grid [n]]` | every pair's nearest approach from the exact meshes — crossing, contained, touching, or the distance — with a verdict; in a sweep each minimum is chased between samples; exit 1 on a collision or a pair closer than 1 mm |
 | measure across an assembly | `node agent/measure.mjs asm.json finger-r.pad finger-l.pad --t 0.5` | two parts' named faces posed at t: the kinematics measured directly |
 | drawing | `node agent/drawing.mjs tree.json --out a.svg [--views front,top,iso] [--no-hidden] [--t s]` | an SVG engineering drawing: third-angle views, hidden lines dashed, the overall width, height and depth, every hole called out by count, diameter and depth when blind — and on a part, **internal dimensions**: an ordinate from a datum at the corner to every hole centre and pocket edge, a pitch line for an evenly spaced run, and a note naming each sketch loop with its size. Name your loops (`"name": "slotRlo"`) and they appear on the drawing. On an assembly, posed at `t`, reference components left out |
 | report (assemblies) | `node agent/report.mjs asm.json --out asm.html [--t s] [--explode 0.6] [--max-parts 20]` | one self-contained HTML page: the assembly in three views, an exploded isometric with numbered balloons, a parts list, a drawing of every part, and the assembly steps read off the placements, references, mates and fits — every row linking back into the viewer. This is the thing to hand a person. A part the exact kernel cannot build is listed with its error, not dropped |
@@ -105,6 +105,31 @@ you when you have not.
 | `screw` | `lead`, `axis?` | travels `lead` per turn of a, along `axis` (b's local, default +z); does not turn |
 | `rack` | `r` (or `m`, `z`), `axis?` | travels r·θ along its axis per θ of a — a pinion on a rack |
 | `slider` | `ratio?` | travels ratio × a's travel |
+| `revolute` | `input`, `axis?`, `scale?`, `offset?` | carries a's travel and turns `scale·input + offset` degrees about `axis` (b's local, default +z) on top of a's turn |
+| `prismatic` | `input`, `axis?`, `scale?`, `offset?` | carries a's turn and travels `scale·input + offset` along `axis` (b's local, default +z) |
+
+**A document may have more than one input, and need no drive at all.**
+`drive` is the input that runs with time; `inputs` declares the others —
+named axes of the document's own motion, each with a range, in scope by
+name in every expression:
+
+```json
+"inputs": {
+  "grip": { "min": 0, "max": 12, "steps": 5, "unit": "mm" },
+  "roll": { "min": 0, "max": 180, "steps": 5, "unit": "deg" }
+}
+```
+
+A `revolute` or `prismatic` joint is what consumes one. Two jaws opening
+from one input are two prismatic joints, one with `scale: -1`. A wrist is a
+revolute. **Do not write an input into a placement expression and then mate
+the component as well** — that moves it twice, and `check` refuses it.
+
+A component placed on another's face with `at: "@rotor.end"` follows the
+anchor *point*; add `"rigid": true` to take the anchor's whole pose, so the
+component's `offset` and a joint's travel turn with it. That is how a jaw
+rides a rotor and slides on it at the same time — `bench/grip.json` is the
+worked example, and it is four components, three mates and no expressions.
 
 Numbers in a mate are expressions in the document's scope. A component's
 pose is its placement, then its travel, then its turn about its own z.
@@ -196,8 +221,17 @@ two travels add (measured: four pins placed over a derived `yn` and
 fixed-mated to the travelling arm stretched their links 40 → 34 mm).
 `check` refuses such a document and names the component.
 
+**Over two inputs the question is a grid, not a period.** `--grid` (and the
+MCP tool's `grid: true`) checks every combination of the document's inputs —
+grip × roll, every node — and reports the state where each pair came
+closest. A path through that space is not a proof: it visits a curve and
+says nothing about the corners it misses, and the corners are exactly where
+a jaw at full stroke meets a post at one angle of the wrist. There is no
+refinement between nodes (between two nodes of a grid lies a plane, not an
+interval); ask for more steps, and the answer prices them.
+
 Clearance needs no kernel, so the MCP `interference` tool runs it on the
-server (`clearance`, `sweep`, `period`); shared volumes still need Manifold,
+server (`clearance`, `sweep`, `grid`, `period`); shared volumes still need Manifold,
 which is local. **A big assembly does not fit in one server request**, and
 the server says so instead of dying:
 

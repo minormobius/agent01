@@ -227,14 +227,30 @@ export function surfacesCross(A, B) {
   }
   return false;
 }
-/// How far the vertices of A reach inside B (0 when none do).
+/// How far the surface of A reaches inside B (0 when none of it does).
+///
+/// Vertices alone are not enough, and the miss is not academic: two boxes
+/// crossing in a slab — a gripper jaw closing through a post — can have no
+/// vertex of either inside the other, so the depth came back 0 and a 6 mm
+/// interpenetration read as `touching`, which PASSES a check (measured on the
+/// grip bench document, 2026-09-14). Triangle centroids and edge midpoints are
+/// sampled too, so a crossing with no vertex in it still reports a depth. It
+/// remains an estimate over a mesh — the deepest sample, not the deepest
+/// point — which is why a designed touch is judged against a budget rather
+/// than against zero.
 function penetrationOf(A, B) {
   let worst = 0; const seen = new Set(); const n = A.tris.length / 9;
-  for (let t = 0; t < n; t++) for (let k = 0; k < 3; k++) {
-    const p = [A.tris[t * 9 + k * 3], A.tris[t * 9 + k * 3 + 1], A.tris[t * 9 + k * 3 + 2]];
-    const key = `${p[0]},${p[1]},${p[2]}`; if (seen.has(key)) continue; seen.add(key);
-    if (p[0] < B.box.min[0] || p[0] > B.box.max[0] || p[1] < B.box.min[1] || p[1] > B.box.max[1] || p[2] < B.box.min[2] || p[2] > B.box.max[2]) continue;
+  const inside = (p) => {
+    if (p[0] < B.box.min[0] || p[0] > B.box.max[0] || p[1] < B.box.min[1] || p[1] > B.box.max[1] || p[2] < B.box.min[2] || p[2] > B.box.max[2]) return;
+    const key = `${p[0]},${p[1]},${p[2]}`; if (seen.has(key)) return; seen.add(key);
     if (pointInside(p, B)) { const d = pointToSurface(p, B); if (d > worst) worst = d; }
+  };
+  for (let t = 0; t < n; t++) {
+    const o = t * 9;
+    const v = [[A.tris[o], A.tris[o + 1], A.tris[o + 2]], [A.tris[o + 3], A.tris[o + 4], A.tris[o + 5]], [A.tris[o + 6], A.tris[o + 7], A.tris[o + 8]]];
+    for (const p of v) inside(p);
+    inside([(v[0][0] + v[1][0] + v[2][0]) / 3, (v[0][1] + v[1][1] + v[2][1]) / 3, (v[0][2] + v[1][2] + v[2][2]) / 3]);
+    for (let k = 0; k < 3; k++) { const a = v[k], b = v[(k + 1) % 3]; inside([(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2]); }
   }
   return worst;
 }

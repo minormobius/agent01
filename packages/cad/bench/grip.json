@@ -1,0 +1,51 @@
+{
+  "$schema": "com.minomobi.cad.assembly#v1",
+  "name": "grip",
+  "_": "A gripper that grips AND rolls: two independent inputs, and the first document here whose motion is not a period. `inputs` declares grip (mm) and roll (deg); a `revolute` joint turns the rotor about the base by roll, and a `prismatic` joint on each jaw opens it by grip — one with scale -1, so one input moves both jaws apart. The jaws are placed ON the rotor's top face with `rigid: true`, which takes the rotor's whole pose rather than only the point, so their offsets and their sliding turn with it. Nothing here is an expression over the drive: that is the point. The interference question over two inputs is a GRID (check.mjs --grid), not a sweep — a path through grip × roll proves nothing about the corners it misses.",
+  "inputs": {
+    "grip": { "min": 0, "max": 12, "steps": 5, "unit": "mm", "description": "how far each jaw stands off its closed position" },
+    "roll": { "min": 0, "max": 180, "steps": 5, "unit": "deg", "description": "the wrist, about the rotor axis" }
+  },
+  "parts": {
+    "base": {
+      "units": "mm",
+      "params": { "w": 40, "t": 6 },
+      "features": [
+        { "op": "sketch", "id": "face", "loops": [{ "name": "outline", "rect": { "c": [0, 0], "w": "w", "h": "w" } }] },
+        { "op": "extrude", "id": "base", "profile": ["face"], "depth": "t" }
+      ]
+    },
+    "rotor": {
+      "units": "mm",
+      "params": { "d": 30, "t": 8 },
+      "features": [
+        { "op": "sketch", "id": "face", "loops": [{ "name": "rim", "circle": { "c": [0, 0], "r": "d/2" } }] },
+        { "op": "extrude", "id": "rotor", "profile": ["face"], "depth": "t" }
+      ]
+    },
+    "jaw": {
+      "units": "mm",
+      "params": { "w": 10, "d": 16, "h": 20 },
+      "features": [
+        { "op": "sketch", "id": "face", "loops": [{ "name": "outline", "rect": { "c": [0, 0], "w": "w", "h": "d" } }] },
+        { "op": "extrude", "id": "jaw", "profile": ["face"], "depth": "h" }
+      ]
+    }
+  },
+  "components": [
+    { "id": "base", "part": "base", "at": [0, 0, 0] },
+    { "id": "rotor", "part": "rotor", "at": [0, 0, 6] },
+    { "id": "jaw-l", "part": "jaw", "at": "@rotor.end", "rigid": true, "offset": [-6, 0, 0] },
+    { "id": "jaw-r", "part": "jaw", "at": "@rotor.end", "rigid": true, "offset": [6, 0, 0] }
+  ],
+  "mates": [
+    { "kind": "revolute", "a": "base", "b": "rotor", "input": "roll" },
+    { "kind": "prismatic", "a": "rotor", "b": "jaw-l", "input": "grip", "axis": [1, 0, 0], "scale": -1 },
+    { "kind": "prismatic", "a": "rotor", "b": "jaw-r", "input": "grip", "axis": [1, 0, 0], "scale": 1 }
+  ],
+  "fits": [
+    { "a": "base", "b": "rotor", "contact": true },
+    { "a": "rotor", "b": "jaw-l", "contact": true },
+    { "a": "rotor", "b": "jaw-r", "contact": true }
+  ]
+}

@@ -68,6 +68,13 @@ th small { color: var(--dim); }
 .keys kbd { background: #2e3239; padding: 0 4px; border-radius: 3px; border: 1px solid var(--line); }
 /* with the keyboard up a field is scrolled into the panel: leave it some room */
 #left input, #left textarea, #right input { scroll-margin: 16px 0 28px; }
+/* a document's own inputs: one control per degree of freedom */
+.inputs { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.inputs .in { display: grid; grid-template-columns: 64px 1fr 64px 22px; align-items: center; gap: 6px; }
+.inputs .in > span { color: var(--accent); overflow: hidden; text-overflow: ellipsis; }
+.inputs .in small { color: var(--dim); }
+.inputs input[type=range] { width: 100%; accent-color: var(--accent); }
+.inputs input[type=number] { width: 100%; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; font: inherit; }
 #doc b { color: var(--accent); }
 #doc .fresh { margin-top: 3px; }
 #doc .fresh button { padding: 1px 6px; font-size: 11px; margin-left: 4px; }

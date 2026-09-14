@@ -77,6 +77,20 @@ const cl = (await tool('interference', { assembly: 'bench:lift', sweep: 3, clear
 check(cl.method === 'mesh' && cl.refined && cl.pairs.length >= 9 && cl.pairs.every((p) => ['clear', 'expected', 'fit'].includes(p.verdict)) && cl.pairs.some((p) => p.verdict === 'fit' && [p.a, p.b].includes('nut')) && cl.ok === true, `clearance mode: nearest approach of ${cl.pairs.length} pairs through the cycle, the nut's 0.1 mm to the screw read as its declared fit under a 0.5 demand (ok ${cl.ok})`);
 const ms = (await tool('measure', { tree: 'bench:lift', a: 'nut.end', b: 'platform.start', t: 0.5 })).structuredContent;
 check(ms.kind === 'plane-plane' && Math.abs(ms.distance) < 1e-9 && ms.t === 0.5, `measure across an assembly: the nut's top and the platform's underside are coplanar at t = 0.5 (${ms.kind}, ${ms.distance})`);
+// a document with two inputs: the grid, not the period
+{
+  const g = await mcp.call('interference', { assembly: 'bench:grip', clearance: 0.5, grid: true, res: 64 });
+  check(g.ok && g.done && g.grid?.states === 25 && g.grid.inputs.map((i) => i.name).join() === 'grip,roll' && g.pairs.every((p) => p.state), `grid: every combination of two inputs in one answer (${g.grid?.states} states over ${g.grid?.inputs.map((i) => `${i.name} (${i.steps})`).join(' × ')})`);
+  const jaws = g.pairs.find((p) => p.a === 'jaw-l' && p.b === 'jaw-r');
+  check(jaws.verdict === 'clear' && Math.abs(jaws.distance - 2) < 1e-6 && /grip 0 mm/.test(jaws.state), `and each pair says WHERE it came closest: the jaws are ${jaws.distance.toFixed(3)} mm apart at ${jaws.state}`);
+  const coarse = await mcp.call('interference', { assembly: 'bench:grip', clearance: 0.5, grid: 3, res: 64 });
+  check(coarse.grid.states === 9 && coarse.cost.perInstant > 0, `a number of steps overrides the document's own (${coarse.grid.states} states, ${(coarse.cost.perInstant / 1e3).toFixed(0)}k triangle-pairs each)`);
+  const rest = await mcp.call('interference', { assembly: 'bench:grip', clearance: 0.5, res: 64 });
+  check(/at their rest values only/.test(rest.note) && /grid: true/.test(rest.note), 'without a grid the answer says so: one pose at the inputs\' rest values is not a proof over them');
+  let noInputs = ''; try { await mcp.call('interference', { assembly: 'bench:lift', clearance: 0.5, grid: true }); } catch (e) { noInputs = e.message; }
+  check(/declares none/.test(noInputs) && /pass `sweep` instead/.test(noInputs), `a grid on a document with one drive and no inputs is refused, with what to do instead: ${noInputs.slice(0, 72)}…`);
+}
+
 // a sweep too big for one server request: windowed, resumable, and the meshes cached between calls
 {
   const tight = createMcp({ kernels, fetchRef, capabilities: { manifold: false, budgetMs: 1000 } });

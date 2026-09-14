@@ -4,6 +4,48 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-14, second pass
+
+From a gripper that grips **and** rolls — the first document here whose
+motion is not a period.
+
+**A document may have more than one input, and need no drive at all.**
+`inputs` declares named axes of its own motion, each with a range and
+`steps`; every one is in scope by name in every expression, beside `t` and
+`theta`. `drive` remains the input that runs with time.
+
+**Two new mates consume one.** `revolute` turns its follower about an axis
+by `scale·input + offset` on top of its base's turn; `prismatic` travels it
+along one. Two jaws opening together are two prismatic joints, one with
+`scale: -1`. A joint drives its follower from its base and never the other
+way; two joints on one follower is a warning, because only the first moves
+it. A document with joints and no drive solves: each joint whose base
+nothing else reaches is its own root.
+
+**`rigid: true` on a `@comp.face` placement** takes the anchor's whole pose
+rather than only its point, so an `offset` and a joint's travel turn with
+it. A jaw can now ride a rotor *and* slide on it — the case that previously
+forced a placement expression over the drive, which is the double-driven
+mistake the last pass started warning about.
+
+**The question over two inputs is a grid, not a period.** `check.mjs
+--grid [n]` and the MCP tool's `grid: true` enumerate every combination of
+the inputs and report the state where each pair came closest, windowed
+against the same budget a sweep uses. There is no refinement between nodes:
+between two of them lies a plane, not an interval.
+
+**And a real hole in the clearance instrument, found by the new bench
+document.** Penetration was measured from one body's *vertices* inside the
+other, and two boxes crossing in a slab can have no vertex of either inside
+the other: a 6 mm interpenetration came back 0 mm deep and read as
+`touching`, which PASSES a check. Triangle centroids and edge midpoints are
+sampled now — the same case reads 4 mm and fails. Anything under a
+nanometre is contact rather than depth, so a face-to-face touch cannot read
+as a collision because a boundary point sampled at 2e-16.
+
+`bench/grip.json` is the worked example: a gripper with two inputs, four
+components, three mates and no expressions at all.
+
 ## 2026-09-14
 
 Seven things from a practitioner's session, in the order they cost time.

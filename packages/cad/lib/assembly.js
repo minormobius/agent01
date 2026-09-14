@@ -61,6 +61,22 @@
 //                                     `axis` (b's local, default +z); b does not turn
 //   rack   {a, b, r | m, z, axis?}    a's turns move b by r·θ along its axis (a pinion on a rack)
 //   slider {a, b, ratio?}             b travels ratio × a's travel
+//   revolute  {a, b, input, axis?, scale?, offset?}
+//                                     b is hinged to a: it carries a's travel
+//                                     and turns `scale·input + offset` degrees
+//                                     about `axis` (b's local, default +z) on
+//                                     top of a's turn
+//   prismatic {a, b, input, axis?, scale?, offset?}
+//                                     b slides on a: it carries a's turn and
+//                                     travels `scale·input + offset` along
+//                                     `axis` (b's local, default +z)
+// A document may declare `inputs` — named axes of its own motion, each with a
+// range — and those two joints are what consumes one. An input is in scope in
+// every expression by name, beside `t` and `theta`; `drive` remains the one
+// input that runs with time. Two inputs are two independent degrees of
+// freedom, and the interference question over them is a GRID, not a period:
+// `gridStates` enumerates it, because a path through a two-dimensional space
+// proves nothing about the corners it misses.
 // Travel carried by fixed and slider is turned into the follower's own frame
 // (through world, by the rest placements). A component placed on another's
 // face by reference follows it already; a mate between the two is ignored.
@@ -112,20 +128,23 @@ function makeScope(doc, name) {
 /// The variables in force at (t, theta): params, then derived resolved in
 /// dependency order over params + t + theta (+ i, for a repeat instance
 /// whose derived use it; 0 outside a repeat). Memoised per instant (and per i).
-function envAt(scope, t, theta, i) {
+const NO_VALUES = {};
+const valueKey = (v) => { let k = ''; for (const n of Object.keys(v).sort()) k += `|${n}=${v[n]}`; return k; };
+function envAt(scope, t, theta, i, values = NO_VALUES) {
   // outside a repeat (the document env, a non-repeated component) `i` is 0
+  const vk = values === NO_VALUES ? '' : valueKey(values);
   if (scope.usesI) { if (i === undefined) i = 0;
-    const key = `${t}|${theta}|${i}`; const hit = scope.memoI.get(key); if (hit) return hit;
+    const key = `${t}|${theta}|${i}${vk}`; const hit = scope.memoI.get(key); if (hit) return hit;
     let env;
-    try { env = resolveParams(scope.derived, { ...scope.params, t, theta, i }); } catch (e) { throw new Error(`${scope.name}[${i}]: derived ${e.message.replace(/^param /, '')}`); }
+    try { env = resolveParams(scope.derived, { ...scope.params, ...values, t, theta, i }); } catch (e) { throw new Error(`${scope.name}[${i}]: derived ${e.message.replace(/^param /, '')}`); }
     if (scope.memoI.size > 256) scope.memoI.clear();
     scope.memoI.set(key, env); return env;
   }
   const m = scope.memo;
-  if (m && m.t === t && m.theta === theta) return m.env;
+  if (m && m.t === t && m.theta === theta && m.vk === vk) return m.env;
   let env;
-  try { env = resolveParams(scope.derived, { ...scope.params, t, theta }); } catch (e) { throw new Error(`${scope.name}: derived ${e.message.replace(/^param /, '')}`); }
-  scope.memo = { t, theta, env };
+  try { env = resolveParams(scope.derived, { ...scope.params, ...values, t, theta }); } catch (e) { throw new Error(`${scope.name}: derived ${e.message.replace(/^param /, '')}`); }
+  scope.memo = { t, theta, vk, env };
   return env;
 }
 /// The names that move with the drive: `t`, `theta`, and every derived value
@@ -133,8 +152,8 @@ function envAt(scope, t, theta, i) {
 /// DOCUMENT — so a mate on that component drives it a second time, and the two
 /// travels add. (Measured on a gripper: four pins placed by an expression over
 /// `yn` and fixed-mated to the travelling arm stretched their links 40 → 34 mm.)
-function timedNames(scope) {
-  const timed = new Set(['t', 'theta']);
+function timedNames(scope, inputs = []) {
+  const timed = new Set(['t', 'theta', ...inputs.map((x) => x.name)]);
   const word = (n) => new RegExp(`(^|[^\\w.])${n}([^\\w]|$)`);
   for (let pass = 0; pass < 8; pass++) {
     let grew = false;
@@ -154,7 +173,7 @@ const usesTimed = (spec, timed) => {
   return strs.some((e) => [...timed].some((n) => new RegExp(`(^|[^\\w.])${n}([^\\w]|$)`).test(e)));
 };
 const isExpr = (v) => typeof v === 'string';
-const MATE_NUMBERS = ['lead', 'r', 'm', 'z', 'ratio', 'ra', 'rb', 'za', 'zb'];
+const MATE_NUMBERS = ['lead', 'r', 'm', 'z', 'ratio', 'ra', 'rb', 'za', 'zb', 'scale', 'offset'];
 const isRef = (v) => typeof v === 'string' && v.startsWith('@');
 const hasExpr = (c) => (Array.isArray(c.at) && c.at.some(isExpr)) || isRef(c.at) || (c.rotate ? isExpr(c.rotate.deg) || (c.rotate.axis || []).some(isExpr) || !!c.rotate.align : false) || (c.offset || []).some(isExpr);
 
@@ -188,14 +207,23 @@ async function resolveRefString(ref, env, prefix, byId, partTrees, facesOf, what
 /// when angles are known (so a bolt orbits with its plate), else its rest placement.
 const modelFor = (comp, t, theta, angles) => (angles ? modelOf(comp, angles) : placeAt(comp, t, theta));
 
-function placement(link, t, theta, angles) {
+function placement(link, t, theta, angles, values) {
   const { spec, scope, refs } = link;
   const name = `${scope.name}${spec.id ? ' ' + spec.id : ''}${link.i === undefined ? '' : `[${link.i}]`}`;
-  const base = envAt(scope, t, theta, link.i);
+  const base = envAt(scope, t, theta, link.i, values || angles?.values || NO_VALUES);
   const env = link.i === undefined ? base : { ...base, i: link.i };
   const field = (v, what) => { try { return num(v, env, what); } catch (e) { throw new Error(`${name}: ${what}: ${e.message}`); } };
   let m;
-  if (refs?.at) m = T(xform(modelFor(refs.at.comp, t, theta, angles), refs.at.face.anchor));
+  if (refs?.at) {
+    // A reference places a component at a point ON another: the anchor point
+    // follows that component, but the frame stays the world's. `rigid: true`
+    // takes the whole pose instead — the part's own axes, so an `offset` and a
+    // joint's travel turn with it. That is what a jaw riding a rotor needs,
+    // and there is no other way to say it without writing the rotation out as
+    // an expression over the drive, which is the double-driven mistake.
+    const parent = modelFor(refs.at.comp, t, theta, angles);
+    m = spec.rigid ? mul4(parent, T(refs.at.face.anchor)) : T(xform(parent, refs.at.face.anchor));
+  }
   else m = T((Array.isArray(spec.at) ? spec.at : [0, 0, 0]).map((v, i) => field(v, `at[${i}]`)));
   if (refs?.align) m = mul4(m, alignZ(norm(xformDir(modelFor(refs.align.comp, t, theta, angles), refs.align.face.axis))));
   if (spec.rotate && (spec.rotate.deg !== undefined || spec.rotate.axis)) {
@@ -208,9 +236,9 @@ function placement(link, t, theta, angles) {
 /// World placement of a component at an instant: the product of its chain of
 /// links from the root document down. `angles` (from solveAngles) lets
 /// references follow the components they point at through their motion.
-export function placeAt(c, t = 0, theta = 0, angles = null) {
+export function placeAt(c, t = 0, theta = 0, angles = null, values = null) {
   let m = IDENT;
-  for (const link of c.chain) m = mul4(m, placement(link, t, theta, angles));
+  for (const link of c.chain) m = mul4(m, placement(link, t, theta, angles, values));
   return m;
 }
 
@@ -220,10 +248,34 @@ export function placeAt(c, t = 0, theta = 0, angles = null) {
 /// references one). Returns {components, mates, drive, partTrees, params}.
 export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
   const components = [], mates = [], partTrees = new Map(), byId = new Map(), fits = [], warnings = [];
+  // ── inputs: the document's own axes of motion, before anything is placed
+  // (a placement may be an expression over one, so even the rest pose needs
+  // their values). `drive` is the input that runs with time; these are the
+  // ones a person or a sweep sets.
+  const inputs = [];
+  {
+    const scope = makeScope(asm, asm.name || 'assembly');
+    const env = envAt(scope, 0, 0);
+    const taken = new Set([...Object.keys(scope.params || {}), ...Object.keys(asm.derived || {}), 't', 'theta', 'i']);
+    for (const [name, spec] of Object.entries(asm.inputs || {})) {
+      if (!/^[A-Za-z_]\w*$/.test(name)) throw new Error(`input \`${name}\`: a name is a letter or underscore then letters, digits or underscores`);
+      if (taken.has(name)) throw new Error(`input \`${name}\`: that name is already a param, a derived value, or one of t, theta, i`);
+      if (!spec || typeof spec !== 'object') throw new Error(`input \`${name}\`: needs { min, max } (and optionally steps, unit, default)`);
+      const n = (v, what, dflt) => { if (v === undefined) return dflt; try { return num(v, env, what); } catch (e) { throw new Error(`input \`${name}\`: ${what}: ${e.message}`); } };
+      const min = n(spec.min, 'min', 0), max = n(spec.max, 'max', undefined);
+      if (max === undefined) throw new Error(`input \`${name}\`: needs a max — an input is a range, and a range is what a grid is built from`);
+      if (!(max > min)) throw new Error(`input \`${name}\`: max (${max}) must be greater than min (${min}); a value that does not move is a param`);
+      const steps = Math.round(n(spec.steps, 'steps', 5));
+      if (!(steps >= 2)) throw new Error(`input \`${name}\`: steps must be 2 or more`);
+      inputs.push({ name, min, max, steps, unit: typeof spec.unit === 'string' ? spec.unit : '', default: n(spec.default, 'default', min), description: typeof spec.description === 'string' ? spec.description : undefined });
+    }
+  }
+  const rest = restValues(inputs);
   async function walk(a, prefix, chain, docName) {
+    if (a.inputs && a !== asm) throw new Error(`${docName}: inputs belong to the top document — a sub-assembly cannot declare its own (its mates may consume any of the top document's by name)`);
     const scope = makeScope(a, docName);
     const env0 = envAt(scope, 0, 0);
-    const timed = timedNames(scope);
+    const timed = timedNames(scope, inputs);
     const parts = a.parts || {};
     for (const c of a.components || []) {
       if (!c.id) throw new Error(`${docName}: a component needs an id`);
@@ -257,7 +309,7 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
         // how this component was placed, in words the report can use
         const placedBy = anchor ? { on: anchor, face: anchorLink.refs.at.face.name, aligned: !!anchorLink.refs.align, offset: anchorLink.spec.offset || null } : null;
         const comp = { id, part: c.part, partKey, chain: myChain, dynamic: myChain.some((l) => hasExpr(l.spec)), timed: myChain.some((l) => usesTimed(l.spec, timed)), phase: c.phase || 0, phaseGiven: c.phase !== undefined, hidden: !!c.hidden, reference: !!c.reference, anchoredTo: anchor, placedBy };
-        comp.place = placeAt(comp, 0, 0); // the pose at rest, for gear phases and static documents
+        comp.place = placeAt(comp, 0, 0, null, rest); // the pose at rest, for gear phases and static documents
         components.push(comp); byId.set(id, comp);
       }
     }
@@ -304,6 +356,11 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
   // a fit that names nobody is a fit that has gone stale — the commonest way
   // an enumerated list rots when a repeat count changes
   for (const f of fits) for (const id of [f.a, f.b]) if (!id.includes('*') && !known.has(id)) throw new Error(`fits ${f.a} ↔ ${f.b}: no component \`${id}\``);
+  // two joints on one follower: the second is ignored, so say so rather than
+  // letting half a document's intent disappear
+  const driven = new Map();
+  for (const m of mates) if (m.kind === 'revolute' || m.kind === 'prismatic') driven.set(m.b, [...(driven.get(m.b) || []), m]);
+  for (const [id, ms] of driven) if (ms.length > 1) warnings.push({ code: 'two-joints', component: id, msg: `\`${id}\` is the follower of ${ms.length} joints (${ms.map((m) => `${m.kind} on ${m.input}`).join(', ')}) — only the first moves it. Split the motion across two components, one riding the other.` });
   // driven twice: a placement written over `t`/`theta` already moves the
   // component, so a mate moves it again and the two travels add
   for (const m of mates) {
@@ -312,8 +369,15 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
       if (c?.timed) warnings.push({ code: 'double-driven', component: id, mate: `${m.kind} ${m.a} ↔ ${m.b}`, msg: `\`${id}\` is placed by an expression over the drive (t or theta) AND carries a ${m.kind} mate — it travels twice. Place it at rest and let the mate move it, or drop the mate.` });
     }
   }
+  // a joint must name an input the document declares
+  const knownInputs = new Set(inputs.map((x) => x.name));
+  for (const m of mates) {
+    if (m.kind !== 'revolute' && m.kind !== 'prismatic') continue;
+    if (!m.input) throw new Error(`mate ${m.kind} ${m.a} ↔ ${m.b}: needs \`input\`, the name of one of the document's inputs`);
+    if (!knownInputs.has(m.input)) throw new Error(`mate ${m.kind} ${m.a} ↔ ${m.b}: no input \`${m.input}\`${knownInputs.size ? ` — the document declares ${[...knownInputs].join(', ')}` : ' — the document declares none'}`);
+  }
   autoPhase(components, mates);
-  return { components, mates, drive, partTrees, params: env0, fits, warnings };
+  return { components, mates, drive, inputs, partTrees, params: env0, fits, warnings };
 }
 
 /// Gear phases: unless the document gives one, a gear's tooth 0 (its local
@@ -332,6 +396,26 @@ export function autoPhase(components, mates) {
     if (!set.has(a.id)) { a.phase = mod(local(a, ab), 360 / m.za); set.add(a.id); }
     if (!set.has(b.id)) { b.phase = mod(local(b, ba) + 180 / m.zb, 360 / m.zb); set.add(b.id); }
   }
+}
+
+/// Every input at rest (its `default`, else the bottom of its range).
+export function restValues(inputs = []) { const v = {}; for (const x of inputs) v[x.name] = x.default; return v; }
+
+/// Every state of a document's inputs, as a grid: the cross product of each
+/// input's range at `steps` points. Two independent inputs make a
+/// two-dimensional question — does anything touch anywhere in grip × roll? —
+/// and a path through that space is not an answer, because the corners it
+/// misses are exactly where a gripper closes on its own rotor. One state per
+/// node, each carrying the values and a label; a document with no inputs is
+/// one state, which is how a period sweep and a grid stay the same machinery.
+export function gridStates(inputs = [], { steps = null, t = 0 } = {}) {
+  let out = [{ t, values: {}, label: '' }];
+  for (const x of inputs) {
+    const n = Math.max(2, Math.round(steps || x.steps));
+    const pts = Array.from({ length: n }, (_, k) => x.min + ((x.max - x.min) * k) / (n - 1));
+    out = out.flatMap((s) => pts.map((v) => ({ t, values: { ...s.values, [x.name]: v }, label: `${s.label ? s.label + ' · ' : ''}${x.name} ${+v.toFixed(4)}${x.unit ? ' ' + x.unit : ''}` })));
+  }
+  return out;
 }
 
 /// One period of the drive, in seconds: a turn of the driven component, or
@@ -401,13 +485,16 @@ export function touchLimit(rule, volumes = []) {
 /// components stay at rest. The map holds each component's angle about its
 /// own z; it also carries `t`, `theta` (the driven component's angle at t)
 /// and `slide`, a map of each component's travel in its own frame.
-export function solveAngles(components, mates, drive, t) {
+export function solveAngles(components, mates, drive, t, values = NO_VALUES) {
   const angles = new Map(components.map((c) => [c.id, 0]));
   const slide = new Map(components.map((c) => [c.id, [0, 0, 0]]));
-  angles.t = t; angles.theta = 0; angles.slide = slide;
-  if (!drive) return angles;
-  let root, theta;
-  if (drive.kind === 'escapement') {
+  const axes = new Map(); // a joint may turn its follower about something other than z
+  angles.t = t; angles.theta = 0; angles.slide = slide; angles.axis = axes; angles.values = values;
+  const hasJoints = mates.some((m) => m.kind === 'revolute' || m.kind === 'prismatic');
+  if (!drive && !hasJoints) return angles;
+  let root = null, theta = 0;
+  if (!drive) { /* inputs alone: every joint is its own root, seeded below */ }
+  else if (drive.kind === 'escapement') {
     const beats = t / drive.beat, n = Math.floor(beats), frac = beats - n;
     const e = Math.min(1, frac / 0.15); const ease = e * e * (3 - 2 * e);
     root = drive.wheel; theta = (360 / drive.teeth / 2) * (n + ease);
@@ -415,22 +502,37 @@ export function solveAngles(components, mates, drive, t) {
     angles.set(drive.pallet, drive.lift * (-sign + 2 * sign * ease));
     angles.set(drive.balance, (drive.swing / 2) * Math.cos(Math.PI * beats));
   } else { root = drive.component; theta = (drive.rpm * 360 * t) / 60; }
-  angles.set(root, theta); angles.theta = theta;
+  if (root !== null) { angles.set(root, theta); angles.theta = theta; }
   const byId = new Map(components.map((c) => [c.id, c]));
   // travel is kept in each component's own frame; carrying it across a mate
   // goes through world, using the rest placements' rotations (rigid, so the
   // inverse is the transpose) — a carriage sliding along its y moves a nut
   // fixed to it at 90° along the nut's x, not the nut's y
   const carry = (from, to, v) => { const pf = byId.get(from)?.place, pt = byId.get(to)?.place; if (!pf || !pt) return v; const w = xformDir(pf, v); return [w[0] * pt[0] + w[1] * pt[1] + w[2] * pt[2], w[0] * pt[4] + w[1] * pt[5] + w[2] * pt[6], w[0] * pt[8] + w[1] * pt[9] + w[2] * pt[10]]; };
-  const seen = new Set([root]); const queue = [root];
+  const seen = new Set(root === null ? [] : [root]); const queue = root === null ? [] : [root];
+  const add3 = (p, q) => [p[0] + q[0], p[1] + q[1], p[2] + q[2]];
+  /// A joint's value at this state: the input, scaled and offset, so one input
+  /// can drive two fingers in opposite directions (`scale: -1`).
+  const jointValue = (m) => (values[m.input] ?? 0) * (m.scale ?? 1) + (m.offset ?? 0);
+  const drain = () => {
   while (queue.length) {
     const cur = queue.shift();
     for (const m of mates) {
       const other = m.a === cur ? m.b : m.b === cur ? m.a : null;
       if (!other || seen.has(other)) continue;
-      // a component placed on cur's face already follows cur's pose: a mate between them would move it twice
-      if (byId.get(other)?.anchoredTo === cur) { seen.add(other); continue; }
       const forward = m.a === cur; // cur is a, other is b
+      // A component placed on cur's face already follows cur's pose, so a mate
+      // that would carry cur's motion again moves it twice — except a JOINT,
+      // whose whole purpose is the motion of its own that the reference cannot
+      // give: a jaw riding a rotor and sliding on it is both at once.
+      if (byId.get(other)?.anchoredTo === cur) {
+        if (forward && m.kind === 'revolute') { angles.set(other, jointValue(m)); if (m.axis) axes.set(other, norm(m.axis)); }
+        else if (forward && m.kind === 'prismatic') { slide.set(other, norm(m.axis || [0, 0, 1]).map((x) => x * jointValue(m))); }
+        seen.add(other); queue.push(other); continue;
+      }
+      // a joint drives its follower from its base, never the other way: the
+      // input turns b relative to a, and a is wherever the rest put it
+      if ((m.kind === 'revolute' || m.kind === 'prismatic') && !forward) continue;
       const θ = angles.get(cur), s = slide.get(cur);
       const axis = norm(m.axis || [0, 0, 1]);
       if (m.kind === 'gear') { const [zc, zo] = forward ? [m.za, m.zb] : [m.zb, m.za]; angles.set(other, -θ * (zc / zo)); }
@@ -442,9 +544,23 @@ export function solveAngles(components, mates, drive, t) {
         else angles.set(other, dot(s, axis) / per);
       }
       else if (m.kind === 'slider') { const ratio = m.ratio ?? 1; slide.set(other, carry(cur, other, forward ? s.map((x) => x * ratio) : s.map((x) => x / ratio))); }
+      else if (m.kind === 'revolute') { angles.set(other, θ + jointValue(m)); slide.set(other, carry(cur, other, s)); if (m.axis) axes.set(other, axis); }
+      else if (m.kind === 'prismatic') { angles.set(other, θ); slide.set(other, add3(carry(cur, other, s), axis.map((x) => x * jointValue(m)))); }
       else continue;
       seen.add(other); queue.push(other);
     }
+  }
+  };
+  drain();
+  // A document may have several independent inputs and no drive at all — a
+  // gripper that grips and rolls is two of them — so a joint whose base
+  // nothing has reached is its own root, at rest, and the chain runs on from
+  // its follower.
+  for (let guard = 0; guard <= mates.length; guard++) {
+    const m = mates.find((x) => (x.kind === 'revolute' || x.kind === 'prismatic') && !seen.has(x.b) && !seen.has(x.a));
+    if (!m) break;
+    seen.add(m.a); queue.push(m.a);
+    drain();
   }
   return angles;
 }
@@ -456,5 +572,9 @@ export function modelOf(c, angles) {
   const place = c.dynamic && angles.t !== undefined ? placeAt(c, angles.t, angles.theta || 0, angles) : c.place;
   const s = angles.slide?.get(c.id);
   const moved = s && (s[0] || s[1] || s[2]) ? mul4(place, T(s)) : place;
-  return mul4(moved, R([0, 0, 1], (angles.get(c.id) || 0) + c.phase));
+  // the gear phase is always about z; the turn is about the joint's axis when
+  // a revolute gave it one, and about z (every other mate) otherwise
+  const ax = angles.axis?.get(c.id);
+  const turned = c.phase ? mul4(moved, R([0, 0, 1], c.phase)) : moved;
+  return mul4(turned, R(ax || [0, 0, 1], angles.get(c.id) || 0));
 }

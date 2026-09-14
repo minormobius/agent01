@@ -29,7 +29,10 @@ const phi = (Math.sqrt(5) - 1) / 2;
 export const OK_VERDICTS = new Set(['clear', 'contact', 'expected', 'fit']);
 export function verdictOf(p, expect = () => false, clearance = 0) {
   const e = expect(p.a, p.b); const ex = typeof e === 'boolean' ? { touch: e, fit: null } : e || { touch: false, fit: null };
-  const deep = p.penetration > 0 || !!p.contained;
+  // below a nanometre is contact, not depth: the same threshold `touching`
+  // uses, so a face-to-face pair cannot read as a collision because the depth
+  // estimate sampled a boundary point and came back with 2e-16
+  const deep = p.penetration > 1e-9 || !!p.contained;
   if (ex.touch) {
     // how far a designed touch may go: `interfere: {depth}` per pair, else the
     // shared default. Past it, a touch is a collision like any other.
@@ -43,9 +46,10 @@ export function verdictOf(p, expect = () => false, clearance = 0) {
   return p.distance < clearance ? 'close' : 'clear';
 }
 
-/// Every pair's proximity at one instant.
-export function clearanceAt(bodies, kin, t, { within = Infinity, skip = () => false } = {}) {
-  const angles = solveAngles(kin.components, kin.mates, kin.drive, t);
+/// Every pair's proximity at one instant — and, for a document with inputs,
+/// at one setting of them (`values`).
+export function clearanceAt(bodies, kin, t, { within = Infinity, skip = () => false, values = undefined } = {}) {
+  const angles = solveAngles(kin.components, kin.mates, kin.drive, t, values);
   const posed = bodies.map((b) => ({ id: b.id, mesh: b.mesh, model: modelOf(b.comp, angles) }));
   return { t, ...clearances(posed, { within, skip }) };
 }
@@ -68,6 +72,39 @@ export function pairWork(bodies) {
   let w = 0;
   for (let i = 0; i < bodies.length; i++) for (let j = i + 1; j < bodies.length; j++) w += triCount(bodies[i]) + triCount(bodies[j]);
   return w;
+}
+
+/// Every pair's worst over a GRID of input states, windowed against a budget
+/// the same way a sweep is.
+///
+/// A document with two independent inputs — a gripper that grips and rolls —
+/// has no period to sweep. Its question is two-dimensional: does anything
+/// touch ANYWHERE in grip × roll? A path through that space (a Lissajous
+/// figure in the two inputs, which is the only thing a single drive could
+/// express) is not an answer: it visits a curve and says nothing about the
+/// corners it misses, and the corners are exactly where a jaw at full stroke
+/// meets a post at one angle of the wrist. So the states are enumerated, not
+/// traversed, and each pair keeps the state where it came closest.
+///
+/// There is no golden-section refinement here: between two nodes of a grid
+/// there is a plane, not an interval, and a search over it would be a
+/// different instrument. Ask for more steps instead — the cost is stated.
+export function gridClearance(bodies, kin, { states, from = 0, within = Infinity, skip = () => false, maxStates = Infinity, budgetMs = Infinity } = {}) {
+  const t0 = performance.now();
+  const worst = new Map(); let tested = 0;
+  const better = (p, q) => (p.penetration > q.penetration) || (p.penetration === q.penetration && p.distance < q.distance);
+  const start = Math.max(0, Math.min(states.length - 1, Math.floor(from) || 0));
+  let k = start;
+  for (; k < states.length; k++) {
+    if (k > start && (performance.now() - t0 >= budgetMs || k - start >= maxStates)) break;
+    const st = states[k];
+    const r = clearanceAt(bodies, kin, st.t || 0, { within, skip, values: st.values });
+    tested = Math.max(tested, r.tested);
+    for (const p of r.pairs) { const key = `${p.a}|${p.b}`; const w = worst.get(key); if (!w || better(p, w)) worst.set(key, { ...p, state: st.label, values: st.values, t: st.t || 0 }); }
+  }
+  const done = k >= states.length;
+  const pairs = [...worst.values()].sort((p, q) => q.penetration - p.penetration || p.distance - q.distance);
+  return { pairs, states: states.length, from: start, sampled: k - start, done, next: done ? null : k, tested, work: pairWork(bodies) * (k - start), ms: performance.now() - t0 };
 }
 
 /// N instants over `period`, each pair's worst, refined between samples.

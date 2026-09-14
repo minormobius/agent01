@@ -22,10 +22,10 @@
 // a clearance is demanded), and a document's `fits` say what clearance a
 // pair is designed to keep — so design intent and a mistake read apart.
 // Reference components are left out.
-import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf, touchLimit } from '../lib/assembly.js';
+import { flatten, solveAngles, modelOf, expectedTouch, expectations, periodOf, touchLimit, gridStates, restValues } from '../lib/assembly.js';
 import { buildManifold } from '../lib/manifold-kernel.js';
 import { interference } from '../lib/interfere.js';
-import { clearanceAt, sweepClearance, verdictOf, OK_VERDICTS } from '../lib/sweep.js';
+import { clearanceAt, sweepClearance, gridClearance, verdictOf, OK_VERDICTS } from '../lib/sweep.js';
 import { readDoc, isAssembly, benchRef, kernels, facesOf, arg, has } from './common.mjs';
 
 const doc = readDoc(process.argv[2]);
@@ -33,8 +33,16 @@ if (!isAssembly(doc)) { console.error('not an assembly (no components)'); proces
 const eps = Number(arg('--eps', '0.01')); // below 0.01 mm³ is polygon flank overlap at a mesh, not a clash
 const sweep = has('--sweep') ? Math.max(2, Math.round(Number(arg('--sweep', '12')))) : 0;
 const clearance = has('--clearance') ? Number(arg('--clearance', '0')) : null;
+// --grid: every combination of the document's inputs, at `steps` points each
+// (each input's own `steps` when not given). The instrument for a document
+// with more than one input, where there is no period to sweep.
+const grid = has('--grid') ? Math.max(0, Math.round(Number(arg('--grid', '0')) || 0)) : null;
 const { engine, manifold } = await kernels();
-const { components, mates, drive, partTrees, fits, warnings } = await flatten(doc, benchRef, { facesOf });
+const { components, mates, drive, inputs, partTrees, fits, warnings } = await flatten(doc, benchRef, { facesOf });
+const states = gridStates(inputs, { steps: grid || null });
+const rest = restValues(inputs);
+if (grid !== null && !inputs.length) { console.error('--grid needs the document to declare `inputs`; it has none'); process.exit(2); }
+if (inputs.length && grid === null && !has('--json')) console.error(`note: this document has ${inputs.length} input${inputs.length === 1 ? '' : 's'} (${inputs.map((i) => i.name).join(', ')}) — without --grid everything below is at their rest values only`);
 // a document that drives a component twice is wrong before anything is
 // measured: say so first, and fail on it
 for (const w of warnings) console.error(`✗ ${w.msg}`);
@@ -52,8 +60,8 @@ if (clearance === null) {
     if (!r.ok) { console.error(`${key}: ${r.error.op}: ${r.error.msg}`); continue; }
     built.set(key, r);
   }
-  const poseAt = (t) => {
-    const angles = solveAngles(components, mates, drive, t);
+  const poseAt = (t, values = rest) => {
+    const angles = solveAngles(components, mates, drive, t, values);
     const bodies = live.filter((c) => built.has(c.partKey)).map((c) => ({ id: c.id, manifold: built.get(c.partKey).manifold, bbox: built.get(c.partKey).bbox, model: modelOf(c, angles) }));
     const r = interference({ Manifold: manifold.Manifold }, bodies, { eps });
     // an expected touch is not a licence to share any amount of solid: it has
@@ -65,7 +73,22 @@ if (clearance === null) {
       return { ...p, fixed, limit, overBudget: fixed && p.volume > limit };
     }) };
   };
-  if (!sweep) {
+  if (grid !== null) {
+    const worst = new Map(); let tested = 0, ms = 0;
+    for (const st of states) {
+      const r = poseAt(st.t || 0, st.values);
+      tested = Math.max(tested, r.tested); ms += r.ms;
+      for (const p of r.pairs) { const key = `${p.a}|${p.b}`; const w = worst.get(key); if (!w || p.volume > w.volume) worst.set(key, { ...p, state: st.label }); }
+    }
+    const pairs = [...worst.values()].sort((a, b) => b.volume - a.volume);
+    out = { grid: states.length, inputs: inputs.map((i) => i.name), pairs, tested, ms };
+    if (has('--json')) console.log(JSON.stringify(out, null, 1));
+    else {
+      console.log(`${states.length} states over ${inputs.map((i) => `${i.name} (${i.steps})`).join(' × ')} · ${live.length} components · up to ${tested} overlapping pairs per state · ${ms.toFixed(0)} ms`);
+      if (!pairs.length) console.log('no interference anywhere in the grid');
+      for (const p of pairs) console.log(`${p.overBudget ? '✗' : p.fixed ? '~' : '✗'} ${p.a} × ${p.b}  worst ${f4(p.volume)} mm³ at ${p.state}${p.overBudget ? `  (expected touch, over its ${f4(p.limit)} mm³ budget)` : p.fixed ? '  (expected touch)' : ''}`);
+    }
+  } else if (!sweep) {
     out = poseAt(Number(arg('--t', '0')));
     if (has('--json')) console.log(JSON.stringify(out, null, 1));
     else {
@@ -107,8 +130,16 @@ const verdict = (p) => SYMBOL[verdictOf(p, expect, clearance)];
 const failing = (p) => !OK_VERDICTS.has(verdictOf(p, expect, clearance));
 const WORD = { '=': ' (designed fit)', '~': ' (expected touch)', '·': ' (contact)' };
 const row = (p) => `${verdict(p)} ${p.a} × ${p.b}  ${p.penetration > 0 ? `${p.contained ? p.contained : 'crossing'}, ${f4(p.penetration)} mm deep` : p.touching ? 'touching' : `${f4(p.distance)} mm`}${p.t !== undefined ? ` at t = ${p.t.toFixed(3)} s` : ''}${WORD[verdict(p)] || (verdictOf(p, expect, clearance) === 'loose' ? ' (looser than its fit)' : '')}`;
-if (!sweep) {
-  const r = clearanceAt(bodies, kin, Number(arg('--t', '0')), { within: Infinity, skip: () => false });
+if (grid !== null) {
+  const r = gridClearance(bodies, kin, { states });
+  out = { grid: states.length, inputs: inputs.map((i) => i.name), clearance, pairs: r.pairs, tested: r.tested, ms: r.ms };
+  if (has('--json')) console.log(JSON.stringify(out, null, 1));
+  else {
+    console.log(`${states.length} states over ${inputs.map((i) => `${i.name} ${i.min}…${i.max}${i.unit ? ' ' + i.unit : ''} (${grid || i.steps})`).join(' × ')} · ${bodies.length} components · ${r.pairs.length} pairs · ${r.ms.toFixed(0)} ms · flagging under ${clearance} mm`);
+    for (const p of r.pairs) console.log(`${row(p).replace(/ at t = [\d.]+ s/, '')}${p.state ? `  at ${p.state}` : ''}`);
+  }
+} else if (!sweep) {
+  const r = clearanceAt(bodies, kin, Number(arg('--t', '0')), { within: Infinity, skip: () => false, values: rest });
   out = { t: r.t, clearance, pairs: r.pairs, tested: r.tested, ms: r.ms };
   if (has('--json')) console.log(JSON.stringify(out, null, 1));
   else { console.log(`t = ${r.t} s · ${bodies.length} components · nearest approach of ${r.pairs.length} pairs in ${r.ms.toFixed(0)} ms · flagging under ${clearance} mm`); for (const p of r.pairs) console.log(row(p)); }

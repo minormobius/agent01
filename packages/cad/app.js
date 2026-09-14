@@ -6,7 +6,7 @@
 // `spin` drives it and reports the frame rate. `window.__cad` is the hook.
 import { Camera } from './camera.js';
 import { Renderer } from './gl.js';
-import { flatten, solveAngles as solveKin, modelOf, expectedTouch, expectations, touchLimit } from './lib/assembly.js';
+import { flatten, solveAngles as solveKin, modelOf, expectedTouch, expectations, touchLimit, restValues } from './lib/assembly.js';
 import { measure, describe, faceWorld } from './lib/measure.js';
 import { writeStl } from './lib/mesh.js';
 import { drawing } from './lib/drawing.js';
@@ -17,7 +17,7 @@ import { attachHandleTypeahead } from './vendor/typeahead.js';
 
 const $ = (s) => document.querySelector(s);
 // the bench this site ships (`bench/`), assemblies first: the picker groups them
-const BENCH_ASM = ['clock', 'train', 'crank', 'lift'];
+const BENCH_ASM = ['clock', 'train', 'crank', 'lift', 'grip'];
 const BENCH_PART = ['gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
 const BENCH = [...BENCH_ASM, ...BENCH_PART];
 const q = new URLSearchParams(location.search);
@@ -154,7 +154,7 @@ function renderDoc() {
   const box = $('#doc'); if (!box) return;
   const d = state.mode === 'asm' ? state.asmDoc || {} : state.tree || {};
   const what = state.mode === 'asm'
-    ? `assembly · ${state.components.length} component${state.components.length === 1 ? '' : 's'} from ${new Set(state.components.map((c) => c.part)).size} part${new Set(state.components.map((c) => c.part)).size === 1 ? '' : 's'} · ${state.mates.length} mate${state.mates.length === 1 ? '' : 's'}${state.drive ? ` · ${state.drive.kind === 'escapement' ? `escapement, ${state.drive.beat} s beat` : `${state.drive.component} at ${state.drive.rpm} rpm`}` : ' · no drive'}`
+    ? `assembly · ${state.components.length} component${state.components.length === 1 ? '' : 's'} from ${new Set(state.components.map((c) => c.part)).size} part${new Set(state.components.map((c) => c.part)).size === 1 ? '' : 's'} · ${state.mates.length} mate${state.mates.length === 1 ? '' : 's'}${state.drive ? ` · ${state.drive.kind === 'escapement' ? `escapement, ${state.drive.beat} s beat` : `${state.drive.component} at ${state.drive.rpm} rpm`}` : ''}${state.inputs?.length ? ` · ${state.inputs.length} input${state.inputs.length === 1 ? '' : 's'}: ${state.inputs.map((i) => `${i.name} ${i.min}…${i.max}${i.unit ? ' ' + i.unit : ''}`).join(', ')}` : state.drive ? '' : ' · no drive'}`
     : `part · ${(d.features || []).length} feature${(d.features || []).length === 1 ? '' : 's'} · ${Object.keys(d.params || {}).length} param${Object.keys(d.params || {}).length === 1 ? '' : 's'}`;
   const f = state.file;
   const where = f ? `${f.drive === 'pds' ? 'my PDS' : f.drive === 'browse' ? `at://${drives.browse?.did.slice(0, 22)}…` : 'local drive'} · ${f.entry.path} · rev ${f.entry.head?.uri.slice(-10) || '—'}`
@@ -269,13 +269,23 @@ const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('be
 /// Flatten an assembly through the shared library; the page keeps the
 /// components, mates and drive and asks the library for angles and matrices.
 async function prepareAssembly(asm) {
-  const { components, mates, drive, partTrees, fits, warnings } = await flatten(asm, resolveRef, { facesOf });
+  const { components, mates, drive, inputs, partTrees, fits, warnings } = await flatten(asm, resolveRef, { facesOf });
   for (const c of components) c.tint = c.reference ? 0.45 : 1;
   state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive; state.fits = fits; state.asmDoc = asm; state.warnings = warnings || [];
+  state.inputs = inputs || []; state.values = restValues(state.inputs); // a document's own axes of motion, at rest
   state.spin = false; state.tAcc = 0; state.check = null;
   solveAngles(0);
 }
-function solveAngles(t) { state.angles = solveKin(state.components, state.mates, state.drive, t); return state.angles; }
+function solveAngles(t) { state.angles = solveKin(state.components, state.mates, state.drive, t, state.values); return state.angles; }
+/// Set one of the document's inputs and re-pose everything. Two inputs are two
+/// independent degrees of freedom — a gripper that grips and rolls — so this is
+/// a control per input, not one timeline.
+function setInput(name, v) {
+  const x = state.inputs.find((i) => i.name === name); if (!x) return;
+  state.values = { ...state.values, [name]: Math.max(x.min, Math.min(x.max, Number(v))) };
+  solveAngles(state.tAcc || 0); updateModels(); state.check = null; renderCheck(); invalidate();
+  const box = $('#inputs'); if (box) for (const el of box.querySelectorAll(`[data-input="${name}"]`)) el.value = state.values[name];
+}
 function updateModels() { for (const c of state.components) renderer.setModel(c.id, modelOf(c, state.angles), c.tint); }
 
 // ── UI: params / tree ─────────────────────────────────────────────────────
@@ -284,12 +294,14 @@ function renderParams() {
   if (state.mode === 'asm') {
     const d = state.drive;
     const ctl = d?.kind === 'escapement' ? `<label>beat <input id="beat" type="number" step="any" min="0.01" value="${d.beat}"> s</label>` : `<label>rpm <input id="rpm" type="number" step="any" value="${d ? d.rpm : 0}" ${d ? '' : 'disabled'}></label>`;
-    box.innerHTML = `<div class="asm-ctl"><button id="spin">${state.spin ? 'stop' : 'spin'}</button> ${ctl} <label>×<input id="speed" type="number" step="any" min="0" value="${state.speed}" title="time scale"></label> <span id="fps" class="dim"></span></div><div class="asm-ctl"><button id="check" title="intersect every overlapping pair of components at the current pose (Manifold)">check interference</button> <span id="checkout" class="dim">${state.check ? checkSummary() : ''}</span></div>`;
-    $('#spin').addEventListener('click', toggleSpin);
+    const inputs = (state.inputs || []).map((x) => { const step = +((x.max - x.min) / 100).toPrecision(2); return `<label class="in"><span>${x.name}</span><input type="range" data-input="${x.name}" min="${x.min}" max="${x.max}" step="${step}" value="${state.values[x.name]}" title="${x.description ? x.description.replace(/"/g, '&quot;') + ' · ' : ''}${x.min}…${x.max}${x.unit ? ' ' + x.unit : ''}"><input type="number" data-input="${x.name}" min="${x.min}" max="${x.max}" step="${step}" value="${state.values[x.name]}"><small>${x.unit || ''}</small></label>`; }).join('');
+    box.innerHTML = `${state.drive ? `<div class="asm-ctl"><button id="spin">${state.spin ? 'stop' : 'spin'}</button> ${ctl} <label>×<input id="speed" type="number" step="any" min="0" value="${state.speed}" title="time scale"></label> <span id="fps" class="dim"></span></div>` : ''}${inputs ? `<div id="inputs" class="inputs">${inputs}</div>` : ''}<div class="asm-ctl"><button id="check" title="intersect every overlapping pair of components at the current pose (Manifold)">check interference</button> <span id="checkout" class="dim">${state.check ? checkSummary() : ''}</span></div>`;
+    for (const el of box.querySelectorAll('[data-input]')) el.addEventListener('input', () => setInput(el.dataset.input, el.value));
+    $('#spin')?.addEventListener('click', toggleSpin);
     $('#check').addEventListener('click', runCheck);
     $('#rpm')?.addEventListener('input', () => { if (state.drive) state.drive.rpm = Number($('#rpm').value) || 0; });
     $('#beat')?.addEventListener('input', () => { if (state.drive) state.drive.beat = Math.max(0.01, Number($('#beat').value) || 1); });
-    $('#speed').addEventListener('input', () => { state.speed = Math.max(0, Number($('#speed').value) || 0); });
+    $('#speed')?.addEventListener('input', () => { state.speed = Math.max(0, Number($('#speed').value) || 0); });
     const list = document.createElement('div');
     for (const c of state.components) {
       const row = document.createElement('div'); row.className = 'feat' + (c.hidden ? ' off' : ''); row.dataset.comp = c.id; row.innerHTML = `<b>${c.part}</b> <span>${c.id}${c.reference ? ' <small class="dim">reference</small>' : ''}</span>`;
@@ -884,7 +896,7 @@ const boot = ready.then(async () => {
 
 window.__cad = {
   ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, modelOf, runCheck, exportPart,
-  drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing, makeReport,
+  drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing, makeReport, setInput,
   checkFresh, reloadDocument, renderDoc, renderPicker, keyboard: applyViewport,
   loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
   faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),

@@ -332,6 +332,22 @@ await page.screenshot({ path: path.join(shots, 'ui.png') });
   check(/no interference/.test(fine), `…and a document that declares the interference it means is left alone (${fine})`);
 }
 
+// two inputs, two joints: the gripper that grips and rolls
+{
+  const g = await page.evaluate(async () => { await window.__cad.load('grip'); const r = await window.__cad.settled(); const at = (id) => window.__cad.modelOf(window.__cad.state.components.find((c) => c.id === id), window.__cad.state.angles).slice(12, 15).map((v) => +v.toFixed(3));
+    const sliders = [...document.querySelectorAll('#inputs .in')].map((el) => el.querySelector('span').textContent);
+    const rest = { l: at('jaw-l'), r: at('jaw-r') };
+    window.__cad.setInput('grip', 12); const open = { l: at('jaw-l'), r: at('jaw-r') };
+    window.__cad.setInput('roll', 90); const rolled = { l: at('jaw-l'), r: at('jaw-r') };
+    return { mode: r.mode, components: r.components, sliders, rest, open, rolled, doc: document.querySelector('#doc').textContent, spin: !!document.querySelector('#spin') };
+  });
+  check(g.mode === 'asm' && g.components === 4 && g.sliders.join() === 'grip,roll' && !g.spin, `a document with inputs and no drive gets a control per input, not a spin button (${g.sliders.join(', ')})`);
+  check(g.rest.r.join() === '6,0,14' && g.open.r.join() === '18,0,14' && g.rolled.r.join() === '0,18,14', `the jaws open on one input and ride the rotor on the other: ${g.rest.r.join(',')} → ${g.open.r.join(',')} → ${g.rolled.r.join(',')}`);
+  check(/2 inputs: grip 0…12 mm, roll 0…180 deg/.test(g.doc), `and the document panel says what its axes are: ${g.doc.replace(/\s+/g, ' ').slice(0, 120)}`);
+  await page.evaluate(() => { window.__cad.cam.preset('iso'); window.__cad.cam.fit(window.__cad.renderer.sceneBbox()); window.__cad.render(); });
+  await page.screenshot({ path: path.join(shots, 'grip.png') });
+}
+
 // the clock: 18 components, an escapement drive, hands at the right ratios, highlight follows the hover
 {
   const r = await Promise.race([page.evaluate(async () => { await window.__cad.load('clock'); return await window.__cad.settled(); }), new Promise((res) => setTimeout(() => res({ timeout: true }), 240000))]);

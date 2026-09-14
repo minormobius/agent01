@@ -69,6 +69,29 @@ documented in [`README.md`](README.md) next to this file.
   and `modelOf` re-evaluates their placement at the `t`/`theta` the angles
   map carries; static documents pay nothing. `bench/crank.json` is the
   crank–slider that proves it, in the node test and the browser test.
+  **A document may have more than one input, and need no drive.** `inputs`
+  declares named axes of its own motion, each with a range and `steps`
+  (`{grip: {min: 0, max: 12, unit: 'mm'}}`); every input is in scope by name
+  in every expression, beside `t` and `theta`. `revolute` and `prismatic`
+  mates (`input`, `axis?`, `scale?`, `offset?`) are what consume one: two jaws
+  opening from one input are two prismatic joints, one with `scale: -1`. A
+  joint drives its follower from its base and never the other way, and a
+  follower with two joints is a warning (`two-joints`), because only the first
+  moves it. `solveAngles` takes the values, seeds a root per joint whose base
+  nothing else reaches (so a document with inputs and no drive solves), and
+  carries a per-component axis so a revolute can turn about something other
+  than z. **`at: "@comp.face"` with `rigid: true`** takes the anchor's whole
+  pose rather than only its point, so an `offset` and a joint's travel turn
+  with it — that is how a jaw rides a rotor and slides on it, and a component
+  anchored to another may now also take a joint from it (any other mate would
+  still move it twice and is skipped). **The question over two inputs is a
+  GRID, not a period:** `gridStates` enumerates every combination,
+  `gridClearance` walks it with the same windowing a sweep has (`from`,
+  `next`, work budget), and `check.mjs --grid [n]` and the MCP tool's
+  `grid: true` are the instrument. There is no refinement between nodes —
+  between two of them lies a plane, not an interval. `bench/grip.json` is the
+  worked example: a gripper that grips and rolls, four components, three
+  mates, no expressions.
   **Fits are index-linked, not a cross product:** `[*]` on both sides of a
   `fits` entry means the SAME index (`arm-pin[*]` ↔ `bush[*]` is four pairs,
   not sixteen — the rest were spurious `loose` verdicts between parts 63 mm
@@ -376,6 +399,17 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
 
 ## Quirks
 
+- **Penetration is the deepest SAMPLE, over more than the vertices.**
+  `penetrationOf` measured how far one body's *vertices* reach inside the
+  other, and two boxes crossing in a slab — a jaw closing through a post —
+  can have no vertex of either inside the other: a 6 mm interpenetration came
+  back 0 and read as `touching`, which passes a check (measured on
+  `bench/grip.json`, 2026-09-14). Triangle centroids and edge midpoints are
+  sampled too. It is still an estimate over a mesh, which is why a designed
+  touch is judged against a budget and why `verdictOf` treats anything under
+  a nanometre as contact rather than depth (a boundary point sampled inside
+  the other body returns 2e-16, and that used to make a face-to-face contact
+  a collision).
 - **A boolean keeps the names, because it cannot destroy the surfaces.** It
   destroys every face INDEX — truck hands back a fresh shell in its own order
   — so until 2026-09-13 a cut threw away everything its ops had named, and a

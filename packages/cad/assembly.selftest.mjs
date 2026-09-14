@@ -14,10 +14,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadEngine } from './lib/engine.js';
 import { evaluate, resolveParams } from './lib/expr.js';
-import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, expectations, periodOf, touchLimit } from './lib/assembly.js';
+import { flatten, solveAngles, modelOf, placeAt, xform, xformDir, alignZ, findFace, expectedTouch, expectations, periodOf, touchLimit, gridStates, restValues } from './lib/assembly.js';
 import { facesOf, kernels } from './agent/common.mjs';
 import { clearances } from './lib/proximity.js';
-import { clearanceAt, sweepClearance, verdictOf } from './lib/sweep.js';
+import { clearanceAt, sweepClearance, verdictOf, gridClearance } from './lib/sweep.js';
 
 const here = path.dirname(new URL(import.meta.url).pathname);
 let fails = 0;
@@ -193,9 +193,14 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   const inside = one([{ id: 'a', mesh: cube(6), model: T(0, 0, 0) }, { id: 'b', mesh: m, model: T(2, 2, 2) }]);
   const touch = one([{ id: 'a', mesh: m, model: T(0, 0, 0) }, { id: 'b', mesh: m, model: T(2, 0, 0) }]);
   check(near(apart.distance, 3) && !apart.intersecting && near(diag.distance, Math.SQRT2), `two cubes 3 mm apart, and corner to corner at √2 (${diag.distance.toFixed(4)})`);
-  check(cross.intersecting && near(cross.penetration, 0.5) && cross.distance === 0, `crossing cubes: intersecting, ${cross.penetration} mm deep`);
+  // the depth is the deepest SAMPLE of either surface inside the other — over
+  // vertices, triangle centroids and edge midpoints. Here the true maximum is
+  // 1.0 mm (the middle of a's +x face, inside b); vertices alone would say
+  // 0.5, and for two boxes crossing in a slab with no vertex inside either
+  // they would say 0, which is how a 6 mm interpenetration once read as a touch
+  check(cross.intersecting && cross.penetration > 0.5 && cross.penetration <= 1 + 1e-9 && cross.distance === 0, `crossing cubes: intersecting, ${cross.penetration.toFixed(4)} mm deep (vertices alone said 0.5; the true maximum is 1.0)`);
   check(inside.contained === 'b in a' && near(inside.penetration, 2) && !inside.intersecting, `a cube inside a cube: contained, ${inside.penetration} mm deep`);
-  check(touch.touching && touch.intersecting && touch.penetration === 0 && verdictOf(touch) === 'contact' && verdictOf(touch, () => false, 1) === 'close' && verdictOf(touch, () => true) === 'expected' && verdictOf(cross) === 'collision' && verdictOf(apart, () => false, 4) === 'close', 'face-to-face contact is contact (close only when a clearance is demanded), depth is collision, a mated touch is expected');
+  check(touch.touching && touch.intersecting && touch.penetration < 1e-9 && verdictOf(touch) === 'contact' && verdictOf(touch, () => false, 1) === 'close' && verdictOf(touch, () => true) === 'expected' && verdictOf(cross) === 'collision' && verdictOf(apart, () => false, 4) === 'close', 'face-to-face contact is contact (close only when a clearance is demanded), depth is collision, a mated touch is expected');
   const fitOf = (min, max) => () => ({ touch: false, fit: { min, max } });
   check(verdictOf(apart, fitOf(2.5, 3.5)) === 'fit' && verdictOf(apart, fitOf(3.5, 4)) === 'close' && verdictOf(apart, fitOf(1, 2)) === 'loose' && verdictOf(touch, fitOf(0, 0.1)) === 'fit' && verdictOf(touch, fitOf(0.05, 0.1)) === 'collision' && verdictOf(cross, fitOf(0, 1)) === 'collision', 'a designed fit is judged against its own [min, max]: fit, close, loose; contact within a fit that allows 0 passes');
   // the lift's real meshes: nut on screw is an expected touch, bolts and screw keep their distance
@@ -283,6 +288,57 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   check(dbl.warnings.length === 1 && dbl.warnings[0].code === 'double-driven' && /travels twice/.test(dbl.warnings[0].msg), `a component placed over theta AND carrying a mate is reported: ${dbl.warnings[0]?.msg?.slice(0, 72)}…`);
   const okDoc = await flatten({ name: 'ok', params: { r: 5 }, components: [{ id: 'arm', part: 'p' }, { id: 'pin', part: 'p', at: [0, 'r', 0] }], mates: [{ kind: 'fixed', a: 'arm', b: 'pin' }], drive: { component: 'arm', rpm: 10 } }, ref);
   check(okDoc.warnings.length === 0, 'a placement that is merely an expression of the params is not double-driven');
+}
+
+// ── two inputs, two joints, and a grid rather than a period ──────────────
+{
+  const grip = bench('grip');
+  const g = await flatten(grip, benchRef, { facesOf });
+  check(g.inputs.length === 2 && g.inputs.map((i) => `${i.name}:${i.min}-${i.max}/${i.steps}`).join(' ') === 'grip:0-12/5 roll:0-180/5' && !g.drive, `a document declares its own inputs and needs no drive at all: ${g.inputs.map((i) => `${i.name} ${i.min}…${i.max} ${i.unit}`).join(', ')}`);
+  check(g.warnings.length === 0, 'and placing nothing by expression, it draws no double-driven warning — which is the point of the joints');
+  const at = (values) => { const a = solveAngles(g.components, g.mates, g.drive, 0, values); return Object.fromEntries(g.components.map((c) => [c.id, modelOf(c, a).slice(12, 15).map((v) => +v.toFixed(6))])); };
+  const p00 = at({ grip: 0, roll: 0 }), p120 = at({ grip: 12, roll: 0 }), p090 = at({ grip: 0, roll: 90 }), p1290 = at({ grip: 12, roll: 90 });
+  check(p00['jaw-l'].join() === '-6,0,14' && p00['jaw-r'].join() === '6,0,14' && p120['jaw-l'].join() === '-18,0,14' && p120['jaw-r'].join() === '18,0,14', `a prismatic joint opens both jaws from one input, one of them with scale -1: ±6 → ±18 mm`);
+  check(p090['jaw-r'].join() === '0,6,14' && p1290['jaw-r'].join() === '0,18,14', `a revolute joint rolls the rotor, and the jaws ride it: at roll 90° the open jaw is at ${p1290['jaw-r'].join(', ')}, not ${p120['jaw-r'].join(', ')}`);
+  check(p090.rotor.join() === '0,0,6' && p090.base.join() === '0,0,0', 'the rotor turns in place and the base does not move: only the jaws orbit');
+  // the two inputs are independent, which is what makes the question a grid
+  const states = gridStates(g.inputs);
+  check(states.length === 25 && states[0].label === 'grip 0 mm · roll 0 deg' && states.at(-1).label === 'grip 12 mm · roll 180 deg' && new Set(states.map((x) => x.values.grip)).size === 5, `the grid is every combination: ${states.length} states over ${g.inputs.map((i) => i.steps).join(' × ')}`);
+  check(gridStates(g.inputs, { steps: 3 }).length === 9 && gridStates([]).length === 1, 'steps overrides the document, and a document with no inputs is one state — the same machinery either way');
+  // a joint must name an input, and one follower may only have one
+  const bad = async (doc) => { try { await flatten(doc, benchRef, { facesOf }); return ''; } catch (e) { return e.message; } };
+  const noInput = await bad({ ...grip, mates: [{ kind: 'revolute', a: 'base', b: 'rotor', input: 'yaw' }] });
+  check(/no input `yaw`/.test(noInput) && /grip, roll/.test(noInput), `a joint on an input the document does not declare is an error: ${noInput}`);
+  const dupInput = await bad({ ...grip, params: { span: 5 }, inputs: { ...grip.inputs, span: { min: 0, max: 1 } } });
+  const flat = await bad({ ...grip, inputs: { roll: { min: 0, max: 0 } } });
+  check(/input `span`: that name is already a param/.test(dupInput) && /max \(0\) must be greater than min/.test(flat), `an input that shadows a param, or that does not move, is refused before anything is placed: ${dupInput.slice(0, 48)}…`);
+  const two = await flatten({ ...grip, mates: [...grip.mates, { kind: 'revolute', a: 'base', b: 'rotor', input: 'grip' }] }, benchRef, { facesOf });
+  check(two.warnings.some((w) => w.code === 'two-joints'), `two joints on one follower is reported, not silently half-applied: ${two.warnings.find((w) => w.code === 'two-joints')?.msg.slice(0, 70)}…`);
+}
+
+// the grid finds what a path through the same space would miss
+{
+  const grip = bench('grip');
+  // a post on the base that only the fully open jaw reaches, and only when the
+  // wrist is at one angle: a corner of grip × roll, which no single path visits
+  const doc = { ...grip, parts: { ...grip.parts, post: { units: 'mm', features: [{ op: 'sketch', id: 'f', loops: [{ name: 'outline', rect: { c: [0, 0], w: 6, h: 6 } }] }, { op: 'extrude', id: 'post', profile: ['f'], depth: 30 }] } },
+    components: [...grip.components, { id: 'post', part: 'post', at: [20, 0, 6] }] };
+  const f = await flatten(doc, benchRef, { facesOf });
+  const { engine } = await kernels();
+  const meshes = new Map(); for (const [k, tr] of f.partTrees) meshes.set(k, engine.build(tr, { kernel: 'truck', res: 64 }).mesh);
+  const bodies = f.components.map((c) => ({ id: c.id, mesh: meshes.get(c.partKey), comp: c }));
+  const kin = { components: f.components, mates: f.mates, drive: f.drive };
+  const ex = expectations(f.mates, f.fits);
+  const rest = clearanceAt(bodies, kin, 0, { values: restValues(f.inputs) });
+  const restPair = rest.pairs.find((p) => [p.a, p.b].includes('jaw-r') && [p.a, p.b].includes('post'));
+  check(verdictOf(restPair, ex, 0) === 'clear' && restPair.distance === 6, `at rest the open jaw is ${restPair.distance} mm clear of the post — a check at one pose says the design is fine`);
+  const grid = gridClearance(bodies, kin, { states: gridStates(f.inputs) });
+  const hit = grid.pairs.find((p) => [p.a, p.b].includes('jaw-r') && [p.a, p.b].includes('post'));
+  check(grid.done && grid.states === 25 && verdictOf(hit, ex, 0) === 'collision' && hit.penetration > 1 && /grip 12 mm · roll 0 deg/.test(hit.state), `the grid finds it: ${hit.penetration.toFixed(3)} mm deep at ${hit.state} — the corner where the jaw is fully open AND the wrist is square to the post`);
+  const missed = grid.pairs.filter((p) => verdictOf(p, ex, 0) === 'collision').map((p) => `${p.a}×${p.b}`);
+  check(missed.length === 2 && missed.every((x) => /post/.test(x)), `and only the post is hit (${missed.join(', ')}): the jaws, the rotor and the base are clear everywhere in grip × roll`);
+  const window = gridClearance(bodies, kin, { states: gridStates(f.inputs), maxStates: 6 });
+  check(!window.done && window.next === 6 && window.sampled === 6 && window.work > 0, `a grid windows against a budget like a sweep does: ${window.sampled} of ${window.states} states, resume at ${window.next}`);
 }
 
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ assembly selftest passed');
