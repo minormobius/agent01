@@ -44,6 +44,36 @@ $('queue').innerHTML = QUEUED.map((d) => `
   </li>
 `).join('');
 
+// ------------------------------------------------------------------- gate --
+//
+// The one claim on this site that has to stay true is the consent gate, and a
+// hand-typed date and count are exactly the things that rot. Both are derived:
+// the count from what is actually built, and the date from the newest thing
+// built — which is the last moment the statement was re-made. Ship a demo and
+// the gate re-dates itself; forget to, and it still cannot overstate.
+
+const NUM = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten'];
+
+{
+  const n = BUILT.length;
+  const count = $('gateCount');
+  if (count) {
+    count.textContent = n === 1
+      ? 'One demo is built.'
+      : `${NUM[n] ?? n} demos are built.`;
+  }
+
+  const latest = BUILT.map((d) => d.date).sort().pop();
+  const el = $('gateDate');
+  if (el && latest) {
+    const d = new Date(`${latest}T00:00:00Z`);
+    el.dateTime = latest;
+    el.textContent = d.toLocaleDateString('en-GB', {
+      day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+    });
+  }
+}
+
 // -------------------------------------------------------------------- hero --
 
 const HERO = [
