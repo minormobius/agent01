@@ -14,9 +14,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # --- the two wasm engines (/cf/ and /craft/) ---
+      # --- the three wasm engines (/cf/, /craft/ and /wheel/) ---
       #
-      # Both .wasm modules are committed, so the site is servable straight from
+      # All three .wasm modules are committed, so the site is servable straight from
       # the repo. CI does not trust those copies: it rebuilds from source and
       # deploys what it built, then runs the selftests against the modules it is
       # about to ship. A stale or hand-edited .wasm therefore cannot reach
@@ -33,15 +33,20 @@ jobs:
       - name: Engine tests — crafting automaton, against the game's recipes
         run: cargo test --manifest-path henderhead/craft/engine/Cargo.toml
 
+      - name: Engine tests — waterwheel, against the Lorenz equations
+        run: cargo test --manifest-path henderhead/wheel/engine/Cargo.toml
+
       - name: Build the engines → wasm
         run: |
           cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/cf/engine/Cargo.toml
           cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/craft/engine/Cargo.toml
+          cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/wheel/engine/Cargo.toml
 
       - name: Install the freshly built modules
         run: |
           cp henderhead/cf/engine/target/wasm32-unknown-unknown/release/cffourier.wasm henderhead/cf/cffourier.wasm
           cp henderhead/craft/engine/target/wasm32-unknown-unknown/release/craftca.wasm henderhead/craft/craftca.wasm
+          cp henderhead/wheel/engine/target/wasm32-unknown-unknown/release/waterwheel.wasm henderhead/wheel/waterwheel.wasm
 
       - uses: actions/setup-node@v4
         with:
@@ -51,12 +56,13 @@ jobs:
         run: |
           node henderhead/cf/cf.selftest.mjs
           node henderhead/craft/craft.selftest.mjs
+          node henderhead/wheel/wheel.selftest.mjs
 
       - name: The committed modules match the ones built here
         # Not a gate — toolchain drift changes the bytes legitimately. It is a
         # notice that the repo copies are behind what production is getting.
         continue-on-error: true
-        run: git diff --stat --exit-code -- henderhead/cf/cffourier.wasm henderhead/craft/craftca.wasm
+        run: git diff --stat --exit-code -- henderhead/cf/cffourier.wasm henderhead/craft/craftca.wasm henderhead/wheel/waterwheel.wasm
 
       - name: Install wrangler
         working-directory: henderhead
@@ -80,7 +86,8 @@ jobs:
             if curl -fsS https://henderhead.mino.mobi/ | grep -q 'henderhead' \
                && curl -fsS https://henderhead.mino.mobi/api/demos | grep -q '"automatedPipelineRunning": false' \
                && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/cf/cffourier.wasm | grep -q wasm \
-               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/craft/craftca.wasm | grep -q wasm; then
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/craft/craftca.wasm | grep -q wasm \
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/wheel/waterwheel.wasm | grep -q wasm; then
               echo "✓ henderhead is live"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 5

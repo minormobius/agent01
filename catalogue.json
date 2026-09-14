@@ -32,7 +32,7 @@
       "label": "tools"
     },
     {
-      "before": 215,
+      "before": 216,
       "label": "games"
     }
   ],
@@ -2795,6 +2795,23 @@
       "p": "henderhead",
       "surface": "henderhead",
       "d": "A cellular automaton whose transition rule is a table of Minecraft crafting recipes. Items drift around a grid of slots, and wherever they drift into the shape of a recipe — the empty squares included, so a chest is eight planks around a hole — they are consumed and the product is put down. Seeded with nothing but oak logs, oak planks and cobblestone; every boat, bowl and pickaxe after that is something the shuffling stumbled into. The rule was read off 40 seconds of video frame by frame and the page says which parts are certain and which are reconstruction; the recipe book is the whole rule and every entry is clickable, because switching one off is what his “banned buttons” was about. Rust→WASM, and all the item art is drawn by our own code.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "chaotic waterwheel",
+      "u": "https://henderhead.mino.mobi/wheel/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-13",
+      "b": "2026-09-13",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "A leaky waterwheel that is the Lorenz system exactly, not by analogy — the Malkus wheel of Strogatz §9.1. Buckets hang from the rim staying upright, water pours in at the top, every bucket leaks, and the only thing the water does to the wheel is pull on whatever is off-centre. Only the first Fourier harmonic of the water exerts any torque, so the machine closes into three equations that are Lorenz's with β = 1 — and the centre of mass moves in the Lorenz (Y, Z) plane, so the orange dot draws the attractor rather than something resembling it. Turn the inflow up through ρ = 1 and ρ_Hopf to go from standing to spinning to chaotic; turn the damping down until chaos is impossible at any flow. The wheel, a twin started a billionth apart, the continuum reduction and the Lorenz equations all run in lockstep.",
       "tags": [
         "rust",
         "wasm",

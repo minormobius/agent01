@@ -18,7 +18,9 @@ package-lock.json
 # read on GitHub, not fetched over HTTP.
 cf/engine
 craft/engine
+wheel/engine
 
 # The node selftests are run in CI, not by a browser.
 cf/cf.selftest.mjs
 craft/craft.selftest.mjs
+wheel/wheel.selftest.mjs

@@ -57,6 +57,7 @@ on the next deploy. Do not argue the point on his behalf in a commit message.
 | `_headers` | the CSP and friends. These cannot go in `worker.js` — see above |
 | `cf/` | demo #1 — continued-fraction Fourier curves |
 | `craft/` | demo #2 — a cellular automaton made of crafting recipes |
+| `wheel/` | demo #3 — a leaky waterwheel that is the Lorenz system |
 | `.assetsignore` | keeps `CLAUDE.md` and `cf/engine/` off the public site |
 
 ## `cf/` — continued fraction Fourier
@@ -178,6 +179,66 @@ node henderhead/craft/craft.selftest.mjs
 - **Ties are undecided.** Five planks in a U are a boat, a slab and a stick all
   at once. The one U in the video becomes a boat, so `Biggest` is the default —
   but it is a switch on the page and should stay one.
+
+## `wheel/` — the chaotic waterwheel
+
+After [his post of 2026-09-13](https://bsky.app/profile/matthen.com/post/3mvg57cbsuc23):
+*"Approximating the Lorenz attractor with a chaotic leaky water wheel."*
+
+**The odd one out: almost nothing here was reverse-engineered.** This is the
+Malkus waterwheel and it has a published derivation (Strogatz, *Nonlinear
+Dynamics and Chaos*, §9.1 — Matt linked the lecture himself). So the job was not
+to guess a rule but to *demonstrate* one, and the tests can be sharp in a way
+the other two demos' cannot: the continuum wheel must **be** the Lorenz system,
+not resemble it.
+
+    σ = ν/(I k)      β = 1      ρ = π g r q₁ / (ν k²)
+
+The derivation is redone in this repo's own coordinates at the top of
+`engine/src/wheel.rs`; read that before touching anything.
+
+| File | What |
+|---|---|
+| `wheel/engine/src/wheel.rs` | the physics: `Wheel` (n buckets, RK4), `Continuum` (the three-mode reduction), `Lorenz`, and the change of variables between them |
+| `wheel/engine/src/lib.rs` | the C ABI. Four systems step in lockstep: wheel, twin, continuum, Lorenz |
+| `wheel/waterwheel.wasm` | the built module, **committed**; CI rebuilds it and ships what it built |
+| `wheel/app.js` | the wheel drawing, the regime gauge, the divergence plot |
+| `wheel/wheel.selftest.mjs` | node, over the ABI — restates the headline results across the seam |
+
+```bash
+cargo test --manifest-path henderhead/wheel/engine/Cargo.toml
+cargo build --release --target wasm32-unknown-unknown \
+  --manifest-path henderhead/wheel/engine/Cargo.toml
+cp henderhead/wheel/engine/target/wasm32-unknown-unknown/release/waterwheel.wasm \
+   henderhead/wheel/waterwheel.wasm
+node henderhead/wheel/wheel.selftest.mjs
+```
+
+### Things that will bite you
+
+- **σ has to clear β+1 = 2 or there is no chaos at any flow rate.** σ = ν/(Ik),
+  so it is the *damping* that buys chaos. Picking parameters without checking
+  this is how the first draft of the engine ended up with a wheel that could
+  only ever spin steadily, and every regime test failed at once. The gauge on
+  the page says `ρ_Hopf = ∞` when this happens; believe it.
+- **The Lorenz run has to start where the wheel starts.** An evenly filled wheel
+  has a₁ = b₁ = 0, which is X = ω₀/k, **Y = 0, Z = ρ** — not Z = 0. Getting that
+  wrong puts the overlay a long way off and it spends the first minute flying in
+  from nowhere. The selftest catches it.
+- **The page starts the wheel already running** (`reset_running`), every bucket
+  holding q/(kn). From dry, the first bucket to fill throws the centre of mass
+  out to the rim and the trail's opening move is a huge arc that sits across the
+  picture for eight minutes. This is a presentation choice and it is commented
+  as one.
+- **Do not add the water's own moment of inertia to `I`.** It is a real effect
+  and it would break the exact correspondence the whole page is about. The
+  derivation assumes I constant; so does this.
+- **The overlay diverging is not a bug.** The wheel and the exact Lorenz
+  solution lie on top of each other for the first half-minute and then part,
+  because both are chaotic and the finite bucket count is a perturbation. That
+  is what the correspondence predicts. Do not "fix" it by syncing them.
+- Accuracy matters more here than in the other two demos, because the subject
+  *is* how fast small errors grow. RK4, substeps capped at 2 ms.
 
 ## Adding a demo
 

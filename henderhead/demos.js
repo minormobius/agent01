@@ -27,6 +27,18 @@ export const postURL = (rkey) => `${AUTHOR.bsky}/post/${rkey}`;
 
 export const DEMOS = [
   {
+    id: 'wheel',
+    state: 'built',
+    href: '/wheel/',
+    date: '2026-09-13',
+    post: '3mvg57cbsuc23',
+    title: 'Approximating the Lorenz attractor with a chaotic leaky water wheel',
+    quote: 'The orange dot is the centre of mass of the water. It traces (a projection of) the familiar attractor as the wheel spins seemingly randomly left and right.',
+    what: 'Buckets hang from a wheel, water is poured in at the top, every bucket leaks. That is the whole machine, and it is the Lorenz system exactly — not by analogy. The centre of mass of the water moves in the Lorenz (Y, Z) plane, so the orange dot is not drawing something that looks like the attractor, it is drawing the attractor.',
+    built: 'The wheel, its twin started a billionth apart, the continuum reduction and the Lorenz equations all run in lockstep from the same state. The knobs the video cannot have: turn the inflow up through ρ = 1 and ρ_Hopf and watch it go from standing to spinning to chaotic, and turn the damping down until it cannot be chaotic at any flow.',
+    tags: ['rust', 'wasm', 'canvas'],
+  },
+  {
     id: 'craft',
     state: 'built',
     href: '/craft/',
