@@ -1,6 +1,6 @@
 # gripper — a parallel-jaw robot gripper for cad.mino.mobi
 
-Version 9: two pillars, and no flange plate. A NEMA 17 linear stepper
+Version 10: it grips AND rolls. A NEMA 17 linear stepper
 bolted to the outside of a motor plate, an 88 × 44 × 48 mm frame ahead of
 it, and the jaws outside that. The frame is two plates — the motor plate
 and the rail plate — held apart by **two Ø10 pillars** on the grip plane at
@@ -206,6 +206,77 @@ and 42 fits in the compact form with `interfere` budgets on the two real
 press fits. The workflow's gate reads `volume > limit` off `--json` rather
 than the exit code, because of (1) and (2); `limit` is the platform's own
 budget, so the gate is stricter than the old one, not looser.
+
+## v10: it rolls
+
+The frame turns. A crossed-roller ring in the stator carries a rotor plate;
+the two pillars root in that plate; and everything from there forward — the
+plunger, the linkage, the rail and both jaws — is the rotating group. The
+stator is four parts: the motor, the web it bolts to, the bearing housing and
+a printed guard.
+
+```
+ −26 … 22   NEMA 17 external linear stepper, 48 mm stack — stator
+  22 … 30   motor web: Ø104 × 8, the only solid plate on the stator
+  30 … 43   crossed-roller ring, Ø60 bore × Ø90 × 13, in its housing
+  43 … 49   rotor plate: Ø84, both pillars M8 into it, shoulders on its front face
+  49 … 82   the cavity, 33 long — the plunger sweeps 27 of it
+  82 … 88   rail plate: Ø100, on the rotor, slotted
+  88 … 94.5 MGN9 rail · 90…100 blocks · 100…108 jaw carriers
+```
+
+Ø104 × 114 with the motor. The rotor sweeps Ø96.5 at open, so the bearing and
+the mechanism set nearly the same diameter — which is what the options paper
+predicted and why this layout won.
+
+**Why the ring and not a pair of bearings.** The sizing number is not torque,
+it is moment: 61 N at a fingertip 114 mm ahead of the race is 7.0 N·m. A
+crossed roller takes that alone. Two deep-groove bearings would do it too —
+238 N each at 30 mm of spacing — but there is nowhere in this module to put
+30 mm of spacing without eating the plunger's cavity or the motor's boss.
+
+**Why the pillars root in the rotor plate.** Grip pulls the rail plate forward
+and the rotor plate back, so both pillar threads are in tension and the Ø10
+shoulders take the compression — and all of it, tension and moment, arrives
+at the ring, which is the only joint to the stator. The stator's web carries
+a moment and nothing else.
+
+**One joint carries the rotor.** The rotor plate's local origin is the world
+origin, so a `revolute` about [0, 1, 0] turns it about the roll axis itself.
+Every other turning part is anchored on that plate with `rigid: true`, which
+takes the plate's whole pose rather than only its point. A sub-assembly cannot
+be mated — `flatten` dissolves it and there is no component left to name — so
+anchoring is the way, not grouping.
+
+One trap worth writing down: **`offset` is applied after `rotate`, in the
+rotated frame**, so a part that carries a rotation needs its offset expressed
+there, R⁻¹·(P − A). For `alongY` that is (Pₓ, −P_z, P_y − A). For the left jaw
+plate's 180° about Y it comes out identical to the right one's — which is also
+why both its joints take `scale: +1`.
+
+### What the drivetrain still owes
+
+The screw is on the stator, because it is axisymmetric and rolling it changes
+no geometry. What rolling changes is the **grip**: the nut rides the rotor, so
+a turn of the rotor walks it 2 mm along the screw, which is **3.13 mm of jaw**.
+The planetary that cancels it is not drawn yet. `verify.mjs` asserts the
+property the differential has to reproduce — each jaw's distance from the axis
+is a function of `grip` alone, and the pair's bearing is `roll` alone — so the
+geometry already states the contract the drivetrain must meet.
+
+### The Lissajous
+
+The gate is a grid, because a path through grip × roll proves nothing about
+the corners it misses. But the interior is worth walking, and two
+incommensurate rates walk it densely without ever revisiting a state — which
+is also the demo motion. `verify.mjs --lissajous 400` checks 400 of them:
+6000 comparisons over the grid corners and the interior, and the linkage is
+still a linkage and the grip is still independent of the roll at every one.
+
+It is a kinematic check, not an interference one — it costs no geometry at
+all. The animated version wants `drive` to be able to run an *input* with
+time, which it cannot: `drive` names a component. That is the one thing still
+missing for the demo.
 
 ## The motion is an input now (2026-09-14, second pass)
 

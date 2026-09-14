@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Guard: a Ø104 × 3 tube from the bearing housing to 1 mm short of the turning rail plate. It carries nothing — the pillars carry the grip and the bearing carries the moment — so it is printed, and its bore clears the arms’ Ø81 sweep by 11 mm a side. One extrude along -Y.",
+ "params": {
+  "d": 104,
+  "w": 3,
+  "t": 38,
+  "y1": 81
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2 - w"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "tube",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

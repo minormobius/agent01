@@ -1,14 +1,13 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Pillar: the frame’s primary member. A Ø10 body between the two plates, with an M8 end at each. It threads into the rail plate ahead and passes through the motor plate behind, where a nut on the plate’s INNER face takes the tension — grip pulls the pillar forward and the plate back, so that nut is exactly the load path, and nothing protrudes behind the plate to foul the motor. The shoulder takes the compression. It also pierces its pivot arm, so it is the plunger’s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x ±24. Threads are modelled at their minor diameter (Ø6.65 for M8), which is a real 0.075 mm clear of the Ø6.8 tap drill — drawing both at the tap drill made two coincident cylinders and 0.72 mm³ of mesh flank. One revolve about local Z, placed along +Y.",
+ "_": "Pillar: the frame’s primary member. A Ø10 body between the two plates of the ROTOR, with an M8 end at each: into the rotor plate behind and the rail plate ahead. Grip pulls the rail plate forward and the rotor plate back, so both threads are in tension and the Ø10 shoulders take the compression — and the whole of it, tension and moment, arrives at the crossed-roller ring, which is the only joint to the stator. It also pierces its pivot arm, so it is the plunger’s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x ±24. Threads are modelled at their minor diameter (Ø6.65 for M8), which is a real 0.075 mm clear of the Ø6.8 tap drill — drawing both at the tap drill made two coincident cylinders and 0.72 mm³ of mesh flank. One revolve about local Z, placed along +Y.",
  "params": {
   "d": 10,
-  "dt": 8,
   "dc": 6.65,
-  "nut": 12.5,
+  "root": 6,
   "tap": 6,
-  "body": 29.5
+  "body": 33
  },
  "features": [
   {
@@ -24,32 +23,32 @@
        0
       ],
       [
-       "dt/2",
+       "dc/2",
        0
       ],
       [
-       "dt/2",
-       "nut"
+       "dc/2",
+       "root"
       ],
       [
        "d/2",
-       "nut"
+       "root"
       ],
       [
        "d/2",
-       "nut + body"
+       "root + body"
       ],
       [
        "dc/2",
-       "nut + body"
+       "root + body"
       ],
       [
        "dc/2",
-       "nut + body + tap"
+       "root + body + tap"
       ],
       [
        0,
-       "nut + body + tap"
+       "root + body + tap"
       ]
      ]
     }

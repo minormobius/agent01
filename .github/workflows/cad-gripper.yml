@@ -90,18 +90,19 @@ jobs:
             process.exit(bad ? 1 : 0);'
 
       - name: The posed document against the closed form (the check the travel bugs would have failed)
-        run: node morphyx/gripper/verify.mjs /tmp/cad
+        run: node morphyx/gripper/verify.mjs /tmp/cad --lissajous 400
 
-      - name: Interference over the grip axis (Manifold, shared volume; the gate)
+      - name: Interference over grip × roll (Manifold, shared volume; the gate)
         working-directory: /tmp/cad
-        # A grid, not a sweep: this document's motion is an INPUT, not a period.
+        # A grid, not a sweep: this document's motion is two INPUTS, not a period,
+        # and a path through grip × roll proves nothing about the corners it misses.
         # And the gate is `volume > limit` read off --json, not check.mjs's exit
         # code — the volume instrument still marks an expected touch from MATES
         # only, so a pair declared `contact: true` in `fits` always fails it.
         # `limit` is the platform's own budget (the default, or a fit's
         # `interfere.max`), so this is stricter than the exit code, not looser.
         run: |
-          node agent/check.mjs /tmp/gripper/gripper.json --grid 25 --json > /tmp/check.json || true
+          node agent/check.mjs /tmp/gripper/gripper.json --grid 5 --json > /tmp/check.json || true
           [ -s /tmp/check.json ] || { echo "::error::check.mjs wrote no JSON — it failed before measuring"; exit 1; }
           node -e '
             const o = JSON.parse(require("fs").readFileSync("/tmp/check.json"));
@@ -110,9 +111,9 @@ jobs:
             console.log(`${o.grid} states over [${o.inputs}] · ${o.pairs.length} touching pairs, ${over.length} over budget`);
             process.exit(over.length ? 1 : 0);'
 
-      - name: Clearance table over the grip axis (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
+      - name: Clearance table over grip × roll (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/gripper/gripper.json --grid 5 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
+        run: node agent/check.mjs /tmp/gripper/gripper.json --grid 3 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
 
       - name: Publish plan
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"

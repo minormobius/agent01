@@ -1,0 +1,82 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Bearing housing: a Ø104 ring, 13 deep, bored Ø90 for the crossed-roller ring’s outer race and tapped four M3 for the guard. The race is a press fit and a retaining plate is not drawn. This ring and the web are the stator; everything ahead of the race turns. One extrude along -Y.",
+ "params": {
+  "d": 104,
+  "t": 13,
+  "d_bore": 90,
+  "tr": 48.5,
+  "d_tap": 2.5,
+  "y1": 43
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "tap",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "tr",
+       0
+      ],
+      "r": "d_tap / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "taps",
+   "of": "tap",
+   "kind": "circular",
+   "count": 4,
+   "name": "tap"
+  },
+  {
+   "op": "extrude",
+   "id": "ring",
+   "profile": [
+    "face",
+    "taps"
+   ],
+   "depth": "t"
+  }
+ ]
+}

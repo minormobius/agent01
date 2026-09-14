@@ -1,11 +1,27 @@
 {
  "_": "Closed-form volumes of every part; mm³. The kernel must land within tol (relative).",
- "bulkhead": {
-  "volume": 19745.539012862384,
+ "motor-web": {
+  "volume": 64330.45559941127,
+  "tol": 0.002
+ },
+ "bearing-housing": {
+  "volume": 27475.583950132932,
+  "tol": 0.002
+ },
+ "bearing": {
+  "volume": 45945.79255875073,
+  "tol": 0.002
+ },
+ "shroud": {
+  "volume": 36172.29781343287,
+  "tol": 0.002
+ },
+ "rotor-plate": {
+  "volume": 31918.330033060014,
   "tol": 0.002
  },
  "front-wall": {
-  "volume": 19696.94344372543,
+  "volume": 41166.73411402532,
   "tol": 0.002
  },
  "carriage": {
@@ -21,7 +37,7 @@
   "tol": 0.004
  },
  "pillar": {
-  "volume": 3153.636734425493,
+  "volume": 3008.601182581703,
   "tol": 0.004
  },
  "carrier": {
@@ -53,23 +69,11 @@
   "tol": 0.002
  },
  "screw": {
-  "volume": 2280.79626650619,
+  "volume": 3185.57495074005,
   "tol": 0.004
  },
  "nut": {
   "volume": 1402.4069605624836,
-  "tol": 0.002
- },
- "floor": {
-  "volume": 5760,
-  "tol": 0.002
- },
- "side-wall": {
-  "volume": 6336,
-  "tol": 0.002
- },
- "lid": {
-  "volume": 3401.6374647445564,
   "tol": 0.002
  },
  "motor": {

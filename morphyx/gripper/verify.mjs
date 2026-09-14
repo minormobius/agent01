@@ -1,15 +1,28 @@
-// verify.mjs — the posed document against the closed form, at every grip.
+// verify.mjs — the posed document against the closed form, everywhere.
 //
-// This is the check the two travel bugs would have failed. In v4 and again in
-// v9 a component was both placed by an expression and moved by a mate, and the
-// links stretched — 40 mm becoming 34 — while every part still built and the
+// This is the check the travel bugs would have failed. In v4 and again in v9 a
+// component was both placed by an expression and moved by a mate, and the links
+// stretched — 40 mm becoming 34 — while every part still built and the
 // interference gate stayed green, because a stretched linkage does not
 // necessarily collide with anything. So: pose the real document through the
 // kernel's own solver and compare it with `pose()`, which knows nothing about
-// the document. The invariant that matters is the last one — the distance from
-// an arm pin to its jaw pin IS the link's length, always.
+// the document.
 //
-//   node verify.mjs /path/to/cad            (a clone of the tangled mirror)
+// Two invariants carry the whole thing:
+//
+//   * an arm pin stands exactly the link's length from its jaw pin, at every
+//     grip and every roll — the linkage is a linkage;
+//   * ROLLING DOES NOT CHANGE THE GRIP. Each jaw's distance from the roll axis
+//     is a function of `grip` alone, and the pair's bearing is `roll` alone.
+//     That is the property the whole v10 frame exists to have, and it is the
+//     one a differential has to reproduce in the drivetrain.
+//
+// The grid checks the corners; a LISSAJOUS walks the interior. Two
+// incommensurate rates sweep grip × roll densely without ever repeating a
+// state, which is exactly the demo motion — and here it is 400 states of
+// kinematics for the price of no geometry at all.
+//
+//   node verify.mjs /path/to/cad [--lissajous 400]
 import fs from 'node:fs';
 import path from 'node:path';
 const cad = process.argv[2] || process.env.CAD || '/tmp/cad';
@@ -19,38 +32,55 @@ const here = path.dirname(new URL(import.meta.url).pathname);
 const g = await import(path.join(here, 'gripper.mjs'));
 const doc = JSON.parse(fs.readFileSync(path.join(here, 'gripper.json')));
 const { components, mates, drive, inputs, warnings } = await flatten(doc, benchRef, { facesOf });
-console.log(`${components.length} components, ${mates.length} joints, ${warnings.length} warnings`);
 const D = g.D;
-let bad = 0;
-const near = (a, b, tol, what) => { const ok = Math.abs(a - b) < tol; if (!ok) { bad++; console.log(`  ✗ ${what}: document ${a.toFixed(4)} vs analytic ${b.toFixed(4)}`); } return ok; };
-for (const st of gridStates(inputs, { steps: 5 })) {
-  const grip = st.values.grip;
-  const p = g.pose(D.xpClosed + grip);
-  const a = solveAngles(components, mates, drive, 0, st.values);
+console.log(`${components.length} components, ${mates.length} joints, ${inputs.map((i) => i.name).join(' × ')}, ${warnings.length} warnings`);
+for (const w of warnings) console.log(`  ! ${w.msg}`);
+
+let bad = 0, checked = 0;
+const near = (a, b, tol, what) => { checked++; if (!(Math.abs(a - b) < tol)) { bad++; if (bad < 25) console.log(`  ✗ ${what}: ${a.toFixed(5)} vs ${b.toFixed(5)}`); } };
+const deg = (v) => (v * 180) / Math.PI;
+
+function at(values) {
+  const a = solveAngles(components, mates, drive, 0, values);
   const M = Object.fromEntries(components.map((c) => [c.id, modelOf(c, a)]));
-  const x = (id) => M[id][12], y = (id) => M[id][13];
-  const n0 = bad;
-  near(x('carrier[0]'), p.xf, 1e-6, `grip ${grip}: carrier[0].x`);
-  near(x('carrier[1]'), -p.xf, 1e-6, `grip ${grip}: carrier[1].x`);
-  near(x('block[0]'), p.xf - D.blockL / 2, 1e-6, `grip ${grip}: block[0].x`);
-  near(x('block[1]'), -p.xf - D.blockL / 2, 1e-6, `grip ${grip}: block[1].x`);
-  near(x('jaw-pin[0]'), p.xp, 1e-6, `grip ${grip}: jaw-pin[0].x`);
-  near(x('jaw-pin[1]'), -p.xp, 1e-6, `grip ${grip}: jaw-pin[1].x`);
-  near(y('carriage'), p.yn + D.carT / 2, 1e-6, `grip ${grip}: carriage.y`);
-  near(y('arm[0]'), p.yn, 1e-6, `grip ${grip}: arm[0].y`);
-  near(y('nut'), p.yn - D.carT / 2 - D.flangeT, 1e-6, `grip ${grip}: nut.y`);
-  // the link must still be exactly its own length from arm pin to jaw pin
-  for (let k = 0; k < 4; k++) {
-    const sd = 1 - 2 * (k % 2), lv = Math.floor(k / 2), z = D.linkZ[0][0] + (D.linkZ[1][0] - D.linkZ[0][0]) * lv;
-    near(x(`bush[${2 * k}]`), sd * D.pivotX, 1e-6, `grip ${grip}: bush[${2 * k}].x on the arm pin`);
-    near(y(`bush[${2 * k}]`), p.yn + D.pivotY, 1e-6, `grip ${grip}: bush[${2 * k}].y`);
-    near(x(`bush[${2 * k + 1}]`), sd * p.xp, 1e-6, `grip ${grip}: bush[${2 * k + 1}].x on the jaw pin`);
-    near(y(`bush[${2 * k + 1}]`), D.pivotLine, 1e-6, `grip ${grip}: bush[${2 * k + 1}].y`);
-    near(M[`bush[${2 * k}]`][14], z, 1e-6, `grip ${grip}: bush[${2 * k}].z`);
+  const P = (id) => [M[id][12], M[id][13], M[id][14]];
+  const { grip, roll } = values;
+  const p = g.pose(D.xpClosed + grip);
+  // the linkage is still a linkage
+  for (const k of [0, 1]) {
+    const ap = P(`arm-pin[${k}]`), jp = P(`jaw-pin[${k}]`);
+    near(Math.hypot(jp[0] - ap[0], jp[1] - ap[1], jp[2] - ap[2]), D.link, 1e-6, `grip ${grip} roll ${roll}: arm pin to jaw pin [${k}]`);
   }
-  const d = Math.hypot(x('jaw-pin[0]') - x('arm-pin[0]'), y('jaw-pin[0]') - y('arm-pin[0]'));
-  near(d, D.link, 1e-6, `grip ${grip}: arm pin to jaw pin`);
-  if (bad === n0) console.log(`  ✓ grip ${String(grip).padStart(5)} mm — 30 positions match the analytic pose; pin to pin ${d.toFixed(4)} = link ${D.link}`);
+  // rolling does not change the grip: each jaw's radius from the axis is grip alone
+  for (const k of [0, 1]) {
+    const c = P(`carrier[${k}]`);
+    near(Math.hypot(c[0], c[2]), p.xf, 1e-6, `grip ${grip} roll ${roll}: carrier[${k}] off the axis`);
+    near(c[1], 0, 1e-9, `grip ${grip} roll ${roll}: carrier[${k}] stays on its own plane`);
+  }
+  // and the pair's bearing is roll alone
+  const c0 = P('carrier[0]');
+  const turn = (a) => { const d = (((a % 360) + 540) % 360) - 180; return d; };   // the shortest way round, so 0 and 360 are the same place
+  near(turn(deg(Math.atan2(-c0[2], c0[0])) - roll), 0, 1e-6, `grip ${grip} roll ${roll}: the jaw pair's bearing`);
+  // the plunger rides the rotor: its centre stays on the axis at every roll
+  for (const id of ['carriage', 'carriage-back', 'nut', 'rotor-plate']) near(Math.hypot(P(id)[0], P(id)[2]), 0, 1e-9, `grip ${grip} roll ${roll}: ${id} on the axis`);
+  // and the stator does not move at all
+  for (const id of ['motor-web', 'bearing-housing', 'shroud', 'motor']) { const q = P(id); near(Math.hypot(q[0], q[1], q[2]), 0, 1e-12, `roll ${roll}: ${id} is the stator`); }
 }
-console.log(bad ? `${bad} MISMATCHES` : 'the document and the closed form agree everywhere');
+
+console.log('— the grid, at its corners and middle —');
+for (const st of gridStates(inputs, { steps: 3 })) at(st.values);
+console.log(`  ${checked} comparisons, ${bad} off`);
+
+const N = Number((process.argv.find((a) => a.startsWith('--lissajous')) || '').split('=')[1] || (process.argv.includes('--lissajous') ? process.argv[process.argv.indexOf('--lissajous') + 1] : 0)) || 200;
+const before = checked;
+console.log(`— a Lissajous through the interior, ${N} states —`);
+const [gI, rI] = [inputs.find((i) => i.name === 'grip'), inputs.find((i) => i.name === 'roll')];
+const PHI = (1 + Math.sqrt(5)) / 2;                       // incommensurate, so no state is ever revisited
+for (let n = 0; n < N; n++) {
+  const t = n / N;
+  at({ grip: gI.min + (gI.max - gI.min) * (1 - Math.cos(2 * Math.PI * t)) / 2,
+       roll: rI.min + (rI.max - rI.min) * (1 - Math.cos(2 * Math.PI * PHI * t)) / 2 });
+}
+console.log(`  ${checked - before} comparisons, ${bad} off in total`);
+console.log(bad ? `${bad} MISMATCHES` : 'the document and the closed form agree at every grip and every roll');
 process.exit(bad ? 1 : 0);
