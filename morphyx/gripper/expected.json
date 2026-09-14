@@ -1,7 +1,7 @@
 {
  "_": "Closed-form volumes of every part; mm³. The kernel must land within tol (relative).",
  "motor-web": {
-  "volume": 64330.45559941127,
+  "volume": 64088.92995620328,
   "tol": 0.002
  },
  "bearing-housing": {
@@ -16,8 +16,28 @@
   "volume": 36172.29781343287,
   "tol": 0.002
  },
+ "brake-spring": {
+  "volume": 1055.5751316061705,
+  "tol": 0.002
+ },
+ "brake-ring": {
+  "volume": 4915.901352484237,
+  "tol": 0.002
+ },
+ "brake-hub": {
+  "volume": 24926.652750642857,
+  "tol": 0.002
+ },
+ "encoder-ring": {
+  "volume": 2161.4157456697776,
+  "tol": 0.002
+ },
+ "encoder-head": {
+  "volume": 210,
+  "tol": 0.002
+ },
  "rotor-plate": {
-  "volume": 31918.330033060014,
+  "volume": 31800.520308550396,
   "tol": 0.002
  },
  "front-wall": {
@@ -62,10 +82,6 @@
  },
  "block": {
   "volume": 4335,
-  "tol": 0.002
- },
- "collar": {
-  "volume": 409.63226610157307,
   "tol": 0.002
  },
  "screw": {

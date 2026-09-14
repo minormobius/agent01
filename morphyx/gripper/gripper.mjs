@@ -55,7 +55,18 @@ export const D = {
   // plate just ahead of it and nothing passes through the race but air.
   brgBore: 60, brgOD: 90, brgW: 13, housingTap: 2.5, housingTapR: 48.5, housingTapN: 4,
   rotorD: 84, rotorT: 6, rotorBolt: 3.4, rotorPcd: 68, rotorBoltN: 4, rotorClear: 12,   // four, not six: a circular pattern of Ø3.4 leaks at any multiple of three (see the README)
-  screw: 8, lead: 2, screwEnd: 88, journal: 6, journalLen: 6, endBore: 6.2, collarD: 14, collarL: 4, collarBore: 0.1, collarY: 32,
+  screw: 8, lead: 2, screwEnd: 88, journal: 6, journalLen: 6, endBore: 6.2,
+  // the roll brake: the rotor has to react the screw's thread friction, and how
+  // hard it is held is what decides the grip. Below the brake the machine grips;
+  // above it the rotor rolls. A stack inside the bearing's bore, between the
+  // web's front face and a hub on the back of the rotor plate.
+  brakeTorque: 0.112, brakeMu: 0.3,
+  brakeSpringT: 1, brakeSpringOD: 40, brakeSpringID: 16,   // inside the dowel circle, so it needs no holes of its own
+  brakeRingOD: 58, brakeRingID: 14, brakeRingT: 2, brakePinR: 22, brakePin: 3, brakePinLen: 6, brakePinN: 4,
+  brakeHubD: 58, brakeHubT: 10, brakeHubBore: 12, brakeBolt: 3.4, brakeTap: 2.5, brakePcd: 44, brakeBoltN: 4,
+  // the rotor's own encoder: roll happens when the torque says so, not when a
+  // step is commanded, so the angle has to be read rather than counted
+  encRingID: 84, encRingOD: 88, encRingT: 4, encHeadR: [45, 48.5], encHeadW: 10,
   // the pillars: Ø10 bodies on the grip plane, an M8 nutted end into the motor plate and an M8 thread into the rail plate
   pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarMinor: 6.65, pillarNut: 6.5, pillarTap: 6, pillarClear: 8.4,
   // nut and carriage: the carriage hangs on the nut and runs on the pillars through its arms
@@ -81,9 +92,15 @@ D.zc = 0;
 D.travel = D.xpOpen - D.xpClosed;
 D.webY = [D.motorY + D.motorLen, D.motorY + D.motorLen + D.webT];  // 22…30: the motor bolts here, and it is the only solid plate on the stator
 D.brgY = [D.webY[1], D.webY[1] + D.brgW];                          // 30…43: the ring, in its housing
+D.brakeSpringY = [D.webY[1], D.webY[1] + D.brakeSpringT];         // 30…31: the wave washer sets the preload
+D.brakeRingY = [D.brakeSpringY[1], D.brakeSpringY[1] + D.brakeRingT];  // 31…33: the friction face, keyed to the web
+D.brakeHubY = [D.brakeRingY[1], D.brakeRingY[1] + D.brakeHubT];   // 33…43: on the rotor, inside the race's bore
 D.rotorY = [D.brgY[1], D.brgY[1] + D.rotorT];                      // 43…49: the rotor plate, on the inner race
 D.cavityY = [D.rotorY[1], D.frontY];                               // 49…82: all of it swept by the plunger
 D.shroudY = [D.brgY[1], D.frontY - 1];                             // the guard: bolted to the housing's front face, 1 mm clear of the turning rail plate
+D.encY = [D.rotorY[0] + 1, D.rotorY[0] + 1 + D.encRingT];         // the magnet ring on the rotor plate's rim
+D.brakeR = (2 / 3) * ((D.brakeRingOD / 2) ** 3 - (D.brakeHubBore / 2) ** 3) / ((D.brakeRingOD / 2) ** 2 - (D.brakeHubBore / 2) ** 2);   // the effective radius of a uniform-pressure annulus
+D.brakePreload = D.brakeTorque * 1000 / (D.brakeMu * D.brakeR);   // N, and it is small
 D.pinZ0 = -D.pinLen / 2;                                          // ISO 8734 Ø4 m6 × 36: a stock length, centred on the links
 D.armY = [-D.carT / 2 + D.carBackT, D.carT / 2];                  // the arm fills the key plate only; its back face bears on the back plate
 D.pillarY = [D.rotorY[0], D.frontY + D.pillarTap];                // M8 into the rotor plate behind and the rail plate ahead: both ends on the rotor
@@ -98,6 +115,16 @@ D.ynClosed = D.pivotLine - D.pivotY - dyOf(D.xpClosed);
 D.ynOpen = D.pivotLine - D.pivotY - dyOf(D.xpOpen);
 D.xfClosed = D.xpClosed + D.inset;
 D.xfOpen = D.xpOpen + D.inset;
+
+// The screw's torque at a thrust, and the part of it the ROTOR has to react.
+// The useful part is F·lead per turn; everything above that is thread friction,
+// and thread friction is a torque on the nut — which in v10 is a torque on the
+// whole rotor. Hold the rotor below it and the machine grips; above it, it rolls.
+export const screwTorque = (F) => {
+  const dm = D.screw - D.lead / 2, a = (15 * Math.PI) / 180;
+  return (F * dm / 2 * (D.lead + (Math.PI * D.mu * dm) / Math.cos(a))) / (Math.PI * dm - (D.mu * D.lead) / Math.cos(a)) / 1000;
+};
+export const rotorReaction = (F) => screwTorque(F) - (F * D.lead) / (2000 * Math.PI);
 
 // ── kinematics: a crossed slider-crank per jaw ──────────────────────────────
 export function pose(xp) {
@@ -118,13 +145,15 @@ const xzPlate = (id, note, params, y1, loops, extra = []) => tree(note, { ...par
 export const parts = {
   // (v8's rear flange plate is gone: it carried nothing, and the tool interface belongs on the motor plate.)
   // ── the stator: two plates and a guard, and not one of them turns ──────────
-  'motor-web': xzPlate('plate', 'Motor web \u2014 the only solid plate on the stator and the whole of its structure. The NEMA 17 hangs on its outside on the pilot and four M3; the screw passes through the middle; four M3 on a \u00d897 circle carry the bearing housing. It takes no grip load at all now: the grip runs pillar to rotor plate to bearing, and the bearing hands it to this plate as a moment. The tool interface belongs here; it is not drawn yet. One extrude along -Y.',
-    { d: D.OD, t: D.webT, d_pilot: D.pilot, sq: D.boltSquare, d_bolt: D.bolt, tr: D.housingTapR, d_tap: D.housingTap }, D.webY[1],
+  'motor-web': xzPlate('plate', 'Motor web \u2014 the only solid plate on the stator and the whole of its structure. The NEMA 17 hangs on its outside on the pilot and four M3; the screw passes through the middle; four M3 on a \u00d897 circle carry the bearing housing, four \u00d83 dowels at r 22 key the brake ring. It takes no grip load at all now: the grip runs pillar to rotor plate to bearing, and the bearing hands it to this plate as a moment. The tool interface belongs here; it is not drawn yet. One extrude along -Y.',
+    { d: D.OD, t: D.webT, d_pilot: D.pilot, sq: D.boltSquare, d_bolt: D.bolt, tr: D.housingTapR, d_tap: D.housingTap, pr: D.brakePinR, d_pin: D.brakePin }, D.webY[1],
     [circle('outline', [0, 0], 'd / 2'), circle('pilot', [0, 0], 'd_pilot / 2')],
     [{ op: 'sketch', id: 'bolt', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['sq/2', 'sq/2'], 'd_bolt / 2')] },
      { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: 4, name: 'bolt' },
      { op: 'sketch', id: 'tap', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['tr', 0], 'd_tap / 2')] },
-     { op: 'pattern', id: 'taps', of: 'tap', kind: 'circular', count: D.housingTapN, name: 'tap' }]),
+     { op: 'pattern', id: 'taps', of: 'tap', kind: 'circular', count: D.housingTapN, name: 'tap' },
+     { op: 'sketch', id: 'dowel', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['pr', 0], 'd_pin / 2 + 0.05')] },
+     { op: 'pattern', id: 'dowels', of: 'dowel', kind: 'circular', count: D.brakePinN, name: 'dowel' }]),
 
   'bearing-housing': xzPlate('ring', 'Bearing housing: a \u00d8104 ring, 13 deep, bored \u00d890 for the crossed-roller ring\u2019s outer race and tapped four M3 for the guard. The race is a press fit and a retaining plate is not drawn. This ring and the web are the stator; everything ahead of the race turns. One extrude along -Y.',
     { d: D.OD, t: D.brgW, d_bore: D.brgOD, tr: D.housingTapR, d_tap: D.housingTap }, D.brgY[1],
@@ -142,11 +171,13 @@ export const parts = {
 
   // ── the rotor: this plate and everything ahead of it turns with `roll` ─────
   'rotor-plate': xzPlate('plate', 'Rotor plate: a \u00d884 disc on the bearing\u2019s inner race, four M3 on a \u00d868 circle. Both pillars thread M8 into it and their \u00d810 shoulders bear on its front face, so the grip tension arrives here and goes straight into the race. \u00d812 in the middle clears the screw; the nut never comes back this far. This is the root of the rotating group. One extrude along -Y.',
-    { d: D.rotorD, t: D.rotorT, d_clear: D.rotorClear, ppx: D.pillarX, d_pillar: D.pillarCore, pcd: D.rotorPcd, d_bolt: D.rotorBolt }, D.rotorY[1],
+    { d: D.rotorD, t: D.rotorT, d_clear: D.rotorClear, ppx: D.pillarX, d_pillar: D.pillarCore, pcd: D.rotorPcd, d_bolt: D.rotorBolt, bpcd: D.brakePcd, d_btap: D.brakeTap }, D.rotorY[1],
     [circle('outline', [0, 0], 'd / 2'), circle('clear', [0, 0], 'd_clear / 2'),
      circle('pillarR', ['ppx', 0], 'd_pillar / 2'), circle('pillarL', ['-ppx', 0], 'd_pillar / 2')],
     [{ op: 'sketch', id: 'bolt', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['pcd/2', 0], 'd_bolt / 2')] },
-     { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: D.rotorBoltN, name: 'bolt' }]),
+     { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: D.rotorBoltN, name: 'bolt' },
+     { op: 'sketch', id: 'btap', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['bpcd/2 * cos(deg(45))', 'bpcd/2 * sin(deg(45))'], 'd_btap / 2')] },
+     { op: 'pattern', id: 'btaps', of: 'btap', kind: 'circular', count: D.brakeBoltN, name: 'btap' }]),
 
   'front-wall': xzPlate('plate', 'Rail plate \u2014 the front of the rotating group. A \u00d8100 disc: the strip across its middle carries the MGN9 rail on its OUTER face, tapped M3 at the rail\u2019s own 20 mm pitch, and the screw\u2019s \u00d86.2 journal runs in a blind bore at its centre, closed by the rail itself. Either side of the strip a long slot lets a coupling link pass through, over and under the rail. Two M8 tapped holes at x \u00b124 take the pillars, drawn at the tap drill and blind because the rail closes them off. Nothing bolts to a case any more: the case does not turn and this does. One extrude along -Y.',
     { d: D.frontD, t: D.frontT, d_bore: D.endBore, sz0: D.wallSlotZ[0], sz1: D.wallSlotZ[1], sx0: D.wallSlotX[0], sx1: D.wallSlotX[1], d_tap: D.railTap, tx0: D.railTapX[0], tx1: D.railTapX[1], ppx: D.pillarX, d_pillar: D.pillarCore }, D.frontY + D.frontT,
@@ -168,10 +199,33 @@ export const parts = {
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'shaft', polygon: [[0, 0], ['d/2', 0], ['d/2', 'L - lj'], ['dj/2', 'L - lj'], ['dj/2', 'L'], [0, 'L']] }] },
      { op: 'revolve', id: 'screw', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
-  collar: tree('Thrust collar: clamped on the screw just ahead of the bulkhead. Gripping drives the nut forward and so pulls the screw back, and the collar bears on the bulkhead’s front face (thrust washer and set screw not modelled). One revolve about local Z.',
-    { D: D.collarD, L: D.collarL, d: D.screw + D.collarBore },
-    [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d/2', 0], ['D/2', 0], ['D/2', 'L'], ['d/2', 'L']] }] },
-     { op: 'revolve', id: 'collar', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
+
+  // ── the roll brake: what the rotor is held by, and so what sets the grip ───
+  'brake-spring': xzPlate('washer', 'Brake spring: a wave washer, drawn as the flat annulus it becomes when compressed. It is the whole adjustment \u2014 its preload times the friction radius is the torque the rotor is held by, and that torque is what the grip breaks away at. 18.6 N for 0.112 N\u00b7m, which is a light washer. One extrude along -Y.',
+    { d: D.brakeSpringOD, d_bore: D.brakeSpringID, t: D.brakeSpringT }, D.brakeSpringY[1],
+    [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')]),
+
+  'brake-ring': xzPlate('ring', 'Brake ring: the friction face, keyed to the motor web by four \u00d83 dowels so it cannot turn, and pushed onto the rotor\u2019s hub by the wave washer behind it. Bronze or a filled PTFE \u2014 \u03bc 0.3 is assumed and it is the one number here a bench would settle. One extrude along -Y.',
+    { d: D.brakeRingOD, d_bore: D.brakeRingID, t: D.brakeRingT, pr: D.brakePinR, d_pin: D.brakePin }, D.brakeRingY[1],
+    [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')],
+    [{ op: 'sketch', id: 'pin', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['pr', 0], 'd_pin / 2 + 0.05')] },
+     { op: 'pattern', id: 'pins', of: 'pin', kind: 'circular', count: D.brakePinN, name: 'pin' }]),
+
+  'brake-hub': xzPlate('hub', 'Brake hub: the rotor\u2019s half of the brake, a \u00d858 disc inside the bearing\u2019s bore, bolted to the back of the rotor plate. The screw runs through its \u00d812 bore. Everything the rotor is held by passes through this face, so the grip force is set here and not in software. One extrude along -Y.',
+    { d: D.brakeHubD, d_bore: D.brakeHubBore, t: D.brakeHubT, pcd: D.brakePcd, d_bolt: D.brakeBolt }, D.brakeHubY[1],
+    [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')],
+    [{ op: 'sketch', id: 'bolt', plane: { base: 'XZ', offset: '-y1' }, loops: [circle(null, ['pcd/2 * cos(deg(45))', 'pcd/2 * sin(deg(45))'], 'd_bolt / 2')] },
+     { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: D.brakeBoltN, name: 'bolt' }]),
+
+  // ── the rotor's encoder: the angle has to be read, because roll happens when
+  // the torque says so and not when a step is commanded ─────────────────────
+  'encoder-ring': xzPlate('ring', 'Encoder ring: a multipole magnet pressed onto the rotor plate\u2019s rim, read radially. The axis is taken by the screw, so an on-axis diametric magnet is not available and this is the way round it. One extrude along -Y.',
+    { d: D.encRingOD, d_bore: D.encRingID, t: D.encRingT }, D.encY[1],
+    [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')]),
+
+  'encoder-head': xzPlate('head', 'Encoder head: the sensor and its bracket in one, bolted to the bearing housing\u2019s front face and reaching forward past the rotor plate to read the ring across a 1 mm gap. It lives in the 4 mm of radial slot between the ring and the guard, which is the only stationary place left at this diameter. One extrude along -Y.',
+    { r0: D.encHeadR[0], r1: D.encHeadR[1], w: D.encHeadW, t: D.encY[1] - D.brgY[1] + 1 }, D.encY[1] + 1,
+    [rect('outline', [0, '(r0 + r1) / 2'], 'w', 'r1 - r0')]),
 
   nut: tree('Tr8 flange nut stand-in: 22 mm flange, 10 mm body, 8.4 mm bore (thread not modelled; the 0.2 mm is the thread clearance). The flange sits behind the carriage, so gripping loads it in compression. One revolve about local Z.',
     { d_bore: D.nutBore, d_body: D.nutBody, L: D.nutLen, d_flange: D.flange, t_flange: D.flangeT },
@@ -295,12 +349,11 @@ export function assembly(mode = 'inputs') {
     lead: D.lead, flangeT: D.flangeT, carT: D.carT, carFrontT: D.carT - D.carBackT, A,
     lo: D.linkZ[0][0], hi: D.linkZ[1][0], blockL: D.blockL, ynClosed: round(D.ynClosed, 4), pinZ0: D.pinZ0 };
   const drivetrain = {
-    _: 'The lead screw and its thrust collar — on the STATOR, because the screw is axisymmetric and rolling it changes no geometry. What rolling does change is the grip, by the lead, and that is the differential’s job: the screw has to turn with the rotor or the nut walks along it at 3.13 mm of jaw per revolution. The planetary that does it is not drawn yet.',
+    _: 'The lead screw, on the STATOR — it is axisymmetric, so rolling it changes no geometry. What rolling changes is the GRIP, by the lead, and in this machine that is a feature rather than a fault: rolling only happens once the nut has stopped, and then the screw and the rotor turn together and the nut does not move at all. (v9’s thrust collar is gone with this: the motor carries the thrust on its own bearing, a Tr8 screw has nowhere smooth to clamp a collar, and it sat exactly where the brake stack now goes.)',
     params: { ...params }, derived: { ...derived },
-    parts: { screw: structuredClone(parts.screw), collar: structuredClone(parts.collar) },
+    parts: { screw: structuredClone(parts.screw) },
     components: [
       c('screw', 'screw', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: '360 * (ynClosed - yn) / lead' } }),
-      c('collar', 'collar', [0, 0, D.collarY - (D.motorY + D.motorLen)]),
     ],
   };
   const side = '(1 - 2 * (i - 2 * floor(i / 2)))', level = 'floor(i / 2)'; // +1 right / −1 left for even / odd i; 0 lower / 1 upper — `i` is in scope only in a repeated component's own fields
@@ -312,10 +365,20 @@ export function assembly(mode = 'inputs') {
     c('bearing-housing', 'bearing-housing', [0, 0, 0]),
     c('bearing', 'bearing', [0, 0, 0]),
     c('shroud', 'shroud', [0, 0, 0]),
+    // the brake's stator half: the washer sets the preload, the ring is the
+    // friction face, four dowels stop it turning with the rotor
+    c('brake-spring', 'brake-spring', [0, 0, 0]),
+    c('brake-ring', 'brake-ring', [0, 0, 0]),
+    { id: 'brake-pin', part: 'pin', repeat: D.brakePinN, params: { d: D.brakePin, h: D.brakePinLen },
+      at: [`${D.brakePinR} * cos(deg(90 * i))`, D.brakeRingY[1] - D.brakePinLen, `${D.brakePinR} * sin(deg(90 * i))`], rotate: alongY },
+    c('encoder-head', 'encoder-head', [0, 0, 0]),
     { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
     // ── the rotor: one joint, and everything else anchored on this plate ─────
     c('rotor-plate', 'rotor-plate', [0, 0, 0], demo ? { rotate: { axis: [0, 1, 0], deg: 'roll' } } : {}),
     ...(demo ? [c('clock', 'pin', [0, -20, D.zc], { params: { h: 1 }, reference: true })] : []),
+    // the brake's rotor half, and the ring the head reads
+    r('brake-hub', 'brake-hub', [0, -A, 0]),
+    r('encoder-ring', 'encoder-ring', [0, -A, 0]),
     r('front-wall', 'front-wall', [0, -A, 0]),
     r('rail', 'rail', [0, -A, 0]),
     { id: 'pillar', part: 'pillar', repeat: 2, ...on([`${side} * ${D.pillarX}`, 0, D.pillarY[0] - A], { rotate: alongY }) },
@@ -365,10 +428,8 @@ export function assembly(mode = 'inputs') {
     { a: 'rail', b: 'block[*]', min: 0.3, max: 0.7 },
     { a: 'front-wall', b: 'link[*]', min: 0.25, max: 0.6 },
     { a: 'carrier[0]', b: 'carrier[1]', min: 0, max: 40 },             // they meet on the centre line at closed and part by the travel
-    // the drivetrain (its own `fixed screw ↔ collar` reaches up here on its own)
     { a: 'front-wall', b: 'drivetrain/screw', contact: true }, { a: 'rail', b: 'drivetrain/screw', contact: true },
     { a: 'motor', b: 'drivetrain/screw', contact: true },
-    { a: 'drivetrain/screw', b: 'drivetrain/collar', min: 0.03, max: 0.1 },   // a set-screw collar is a clearance bore, not a coincident surface
     // the plunger
     { a: 'carriage', b: 'carriage-back', contact: true },              // the two plates, bolted face to face
     { a: 'carriage-back', b: 'arm[*]', contact: true },                // the thrust joint: the arm bears on this face
@@ -383,6 +444,15 @@ export function assembly(mode = 'inputs') {
     { a: 'motor-web', b: 'bearing-housing', contact: true }, { a: 'bearing-housing', b: 'shroud', contact: true },
     { a: 'bearing-housing', b: 'bearing', contact: true },             // the outer race, pressed in
     { a: 'bearing', b: 'rotor-plate', contact: true },                 // the inner race, bolted to
+    // the brake: the one stack in this machine that is MEANT to rub
+    { a: 'motor-web', b: 'brake-spring', contact: true }, { a: 'brake-spring', b: 'brake-ring', contact: true },
+    { a: 'brake-ring', b: 'brake-hub', contact: true },                // the friction face itself
+    { a: 'brake-ring', b: 'brake-pin[*]', min: 0.02, max: 0.08 }, { a: 'motor-web', b: 'brake-pin[*]', min: 0.02, max: 0.08 },   // pressed in the web, sliding in the ring; drawn at the fit
+    { a: 'brake-hub', b: 'rotor-plate', contact: true },
+    { a: 'bearing', b: 'brake-hub', min: 0.8, max: 1.2 },              // the hub turns inside the race's bore
+    { a: 'encoder-ring', b: 'rotor-plate', contact: true },
+    { a: 'encoder-head', b: 'encoder-ring', min: 0.8, max: 1.2 },      // the read gap
+    { a: 'encoder-head', b: 'bearing-housing', contact: true },
     // each link k: its two bushings are pressed in, its arm-end bushing runs on
     // arm-pin[k mod 2] and its jaw-end one on jaw-pin[k mod 2], and the pin
     // stands 1 mm off the link's own eye wall through the bushing
@@ -419,6 +489,25 @@ export function forces() {
   return [0, 7.5, 15, 22.5, 2 * D.travel].map((w) => { const p = pose(D.xpClosed + w / 2); return { mount_travel_mm: w, link_deg: round(p.angle, 1), ratio: round(p.ratio, 2), jaw_N: round((D.thrust / 2) * p.ratio, 0) }; });
 }
 
+// ── the two modes, and the torque that separates them ────────────────────────
+// There is one motor. What decides whether it grips or rolls is how hard the
+// rotor is held: the screw's thread friction is a torque ON THE NUT, and the
+// nut is part of the rotor, so below the brake the nut advances and the jaws
+// close, and above it the nut stops and the whole rotor turns instead. Rolling
+// is therefore at constant grip — screw and rotor turn together, 1:1, and the
+// nut does not move at all.
+export function modes() {
+  const guideCap = (7.36 * 1000) / (D.fingerTipY - (D.blockY[0] + D.blockY[1]) / 2);   // the MGN9C's static yaw rating, as a jaw force
+  const at = (F, what) => ({ what, thrust_N: round(F), jaw_N: round((F / 2) * 1.02, 1), screw_Nm: round(screwTorque(F), 3),
+    rotor_Nm: round(rotorReaction(F), 3), roll_Nm: round(Math.max(0, rotorReaction(F) - D.brakeTorque), 3) });
+  return [
+    at(D.thrust / 6, 'closing: the jaws run in'),
+    at(D.thrust, 'BREAKAWAY: the brake lets go, the rotor rolls'),
+    at((guideCap * 2) / 1.02, 'the guide\u2019s ceiling (MGN9C yaw, 7.36 N\u00b7m static)'),
+    at(D.thrust * (0.44 / screwTorque(D.thrust)), 'motor stall \u2014 past what the guide takes'),
+  ];
+}
+
 // ── moments and friction ─────────────────────────────────────────────────────
 export function moments() {
   const F = forces()[1].jaw_N;
@@ -441,7 +530,6 @@ export function audit() {
   const inner = D.inner, r = D.linkW / 2, bh = D.blockL / 2;
   for (const xp of [D.xpClosed, (D.xpClosed + D.xpOpen) / 2, D.xpOpen]) {
     const p = pose(xp);
-    ok(`xp ${xp}: nut clear of the collar`, p.yn - D.carT / 2 - D.flangeT > D.collarY + D.collarL, `${round(p.yn - D.carT / 2 - D.flangeT)} > ${D.collarY + D.collarL}`);
     ok(`xp ${xp}: carriage 2 mm behind the front wall`, p.carFront + 2 <= D.frontY, `${round(p.carFront)} + 2 ≤ ${D.frontY}`);
     ok(`xp ${xp}: arms and link eyes inside the guard`, D.pivotX + r < D.OD / 2 - D.shroudT && D.armHalf < D.OD / 2 - D.shroudT, `${D.pivotX + r}, ${D.armHalf} < ${D.OD / 2 - D.shroudT}`);
     ok(`xp ${xp}: blocks on the rail`, p.xf - bh >= -D.railHalf && p.xf + bh <= D.railHalf, `${round(p.xf - bh)} … ${round(p.xf + bh)} on ±${D.railHalf}`);
@@ -467,7 +555,18 @@ export function audit() {
   ok('the cavity takes the whole plunger sweep', D.cavityY[1] - D.cavityY[0] >= D.ynClosed - D.ynOpen + D.carT + D.flangeT + 2, `${D.cavityY[1] - D.cavityY[0]} mm of cavity for ${round(D.ynClosed - D.ynOpen + D.carT + D.flangeT, 1)} mm of sweep`);
   ok('both pillar threads are on the rotor, so the grip never crosses the bearing as tension', D.pillarY[0] === D.rotorY[0] && D.pillarShoulder === D.rotorY[1] && D.pillarY[1] === D.frontY + D.pillarTap, `pillar ${D.pillarY}, shoulder at ${D.pillarShoulder}`);
   ok('the motor is outside, and the web is the only solid plate on the stator', D.motorY + D.motorLen === D.webY[0] && D.webT >= 6, `motor ${D.motorY}\u2026${D.motorY + D.motorLen}, web ${D.webY}`);
-  ok('every circular pattern is a count the kernel can close', [D.rotorBoltN, D.housingTapN, 4].every((n) => n === 4 || n === 8), `rotor ${D.rotorBoltN}, housing ${D.housingTapN}, motor 4 \u2014 3, 6, 9 and 12 leak at \u00d83.4`);
+  // ── the roll brake: what holds the rotor decides what the jaws squeeze ─────
+  ok('the brake stack fits between the web and the rotor plate, inside the race\u2019s bore', D.brakeSpringY[0] === D.webY[1] && D.brakeHubY[1] === D.rotorY[0] && D.brakeHubD < D.brgBore - 1 && D.brakeRingOD <= D.brakeHubD, `washer ${D.brakeSpringY}, ring ${D.brakeRingY}, hub ${D.brakeHubY} at \u00d8${D.brakeHubD} in a \u00d8${D.brgBore} bore`);
+  ok('the screw runs clear through the brake', D.brakeHubBore >= D.screw + 3 && D.brakeRingID >= D.screw + 3 && D.brakeSpringID >= D.screw + 3, `\u00d8${D.screw} screw through \u00d8${D.brakeHubBore}, \u00d8${D.brakeRingID}, \u00d8${D.brakeSpringID}`);
+  ok('the brake breaks away where the design grips, not before', Math.abs(D.brakeTorque - (rotorReaction(D.thrust))) < 0.005, `${D.brakeTorque} N\u00b7m held vs ${round(rotorReaction(D.thrust), 3)} reacted at ${D.thrust} N of thrust`);
+  ok('and the jaws close long before it', rotorReaction(D.thrust / 6) < D.brakeTorque / 3, `at a sixth of the thrust the rotor sees ${round(rotorReaction(D.thrust / 6), 4)} N\u00b7m`);
+  ok('the preload is a light washer, not a clamp', D.brakePreload < 40, `${round(D.brakePreload, 1)} N at an effective radius of ${round(D.brakeR, 1)} mm, \u03bc ${D.brakeMu}`);
+  ok('the dowels clear the screw, stay on the ring, and miss the washer', D.brakePinR - D.brakePin / 2 > D.brakeRingID / 2 + 2 && D.brakePinR + D.brakePin / 2 < D.brakeRingOD / 2 - 2 && D.brakeSpringOD / 2 < D.brakePinR - D.brakePin / 2, `\u00d8${D.brakePin} at r ${D.brakePinR}; ring ${D.brakeRingID / 2}\u2026${D.brakeRingOD / 2}, washer to r ${D.brakeSpringOD / 2}`);
+  // ── the encoder ────────────────────────────────────────────────────────────
+  ok('the encoder ring sits on the rotor plate\u2019s rim and the head reaches it', D.encRingID === D.rotorD && D.encHeadR[0] > D.encRingOD / 2 && D.encHeadR[0] - D.encRingOD / 2 <= 1.5, `ring \u00d8${D.encRingID}\u2026\u00d8${D.encRingOD}, head from r ${D.encHeadR[0]}: a ${round(D.encHeadR[0] - D.encRingOD / 2, 1)} mm gap`);
+  ok('the head fits the slot between the ring and the guard', D.encHeadR[1] + 0.5 <= D.OD / 2 - D.shroudT, `head to r ${D.encHeadR[1]}, guard bore at r ${D.OD / 2 - D.shroudT}`);
+  ok('nothing on the rotor reaches the head but the ring', Math.hypot(D.armHalf, D.armT / 2) < D.encHeadR[0] && D.rotorD / 2 < D.encHeadR[0], `arms to r ${round(Math.hypot(D.armHalf, D.armT / 2), 1)}, rotor plate to r ${D.rotorD / 2}, head from r ${D.encHeadR[0]}`);
+  ok('every circular pattern is a count the kernel can close', [D.rotorBoltN, D.housingTapN, D.brakeBoltN, D.brakePinN, 4].every((n) => n === 4 || n === 8), `rotor ${D.rotorBoltN}, housing ${D.housingTapN}, brake ${D.brakeBoltN} and ${D.brakePinN}, motor 4 \u2014 3, 6, 9 and 12 leak at \u00d83.4`);
   ok('the pillars pierce their arms and clear the pivot pins and the carriage', D.pillarX + D.pillarD / 2 < D.armHalf && D.pillarX - D.pillarD / 2 > D.carHalf + 3 && D.pivotX - D.pillarX > (D.pin + D.pillarD) / 2 + 2, `pillar x ${D.pillarX} ±${D.pillarD / 2}, pivot at ${D.pivotX}, carriage to ${D.carHalf}`);
   // the guide and the linkage
   ok('the rail is on the OUTER face, over the blind bore', D.railY[0] === D.frontY + D.frontT && D.screwEnd <= D.railY[0], `rail from ${D.railY[0]}; screw ends ${D.screwEnd}`);
@@ -493,11 +592,16 @@ export function audit() {
 const A = Math.PI / 4;
 export const expected = {
   _: 'Closed-form volumes of every part; mm³. The kernel must land within tol (relative).',
-  'motor-web': { volume: A * (D.OD ** 2 - D.pilot ** 2 - 4 * D.bolt ** 2 - D.housingTapN * D.housingTap ** 2) * D.webT, tol: 0.002 },
+  'motor-web': { volume: A * (D.OD ** 2 - D.pilot ** 2 - 4 * D.bolt ** 2 - D.housingTapN * D.housingTap ** 2 - D.brakePinN * (D.brakePin + 0.1) ** 2) * D.webT, tol: 0.002 },
   'bearing-housing': { volume: A * (D.OD ** 2 - D.brgOD ** 2 - D.housingTapN * D.housingTap ** 2) * D.brgW, tol: 0.002 },
   bearing: { volume: A * (D.brgOD ** 2 - D.brgBore ** 2) * D.brgW, tol: 0.002 },
   shroud: { volume: A * (D.OD ** 2 - (D.OD - 2 * D.shroudT) ** 2) * (D.shroudY[1] - D.shroudY[0]), tol: 0.002 },
-  'rotor-plate': { volume: A * (D.rotorD ** 2 - D.rotorClear ** 2 - 2 * D.pillarCore ** 2 - D.rotorBoltN * D.rotorBolt ** 2) * D.rotorT, tol: 0.002 },
+  'brake-spring': { volume: A * (D.brakeSpringOD ** 2 - D.brakeSpringID ** 2) * D.brakeSpringT, tol: 0.002 },
+  'brake-ring': { volume: A * (D.brakeRingOD ** 2 - D.brakeRingID ** 2 - D.brakePinN * (D.brakePin + 0.1) ** 2) * D.brakeRingT, tol: 0.002 },
+  'brake-hub': { volume: A * (D.brakeHubD ** 2 - D.brakeHubBore ** 2 - D.brakeBoltN * D.brakeBolt ** 2) * D.brakeHubT, tol: 0.002 },
+  'encoder-ring': { volume: A * (D.encRingOD ** 2 - D.encRingID ** 2) * D.encRingT, tol: 0.002 },
+  'encoder-head': { volume: D.encHeadW * (D.encHeadR[1] - D.encHeadR[0]) * (D.encY[1] + 1 - D.brgY[1]), tol: 0.002 },
+  'rotor-plate': { volume: A * (D.rotorD ** 2 - D.rotorClear ** 2 - 2 * D.pillarCore ** 2 - D.rotorBoltN * D.rotorBolt ** 2 - D.brakeBoltN * D.brakeTap ** 2) * D.rotorT, tol: 0.002 },
   'front-wall': { volume: (A * (D.frontD ** 2 - D.endBore ** 2 - 2 * D.pillarCore ** 2 - 2 * D.railTapX.length * D.railTap ** 2) - 4 * (D.wallSlotX[1] - D.wallSlotX[0]) * (D.wallSlotZ[1] - D.wallSlotZ[0])) * D.frontT, tol: 0.002 },
   carriage: { volume: (4 * D.carHalf * D.carZ - 2 * (D.carHalf - D.notchX) * (D.armT + 0.2) - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * (D.carT - D.carBackT), tol: 0.002 },
   'carriage-back': { volume: (4 * D.carHalf * D.carZ - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * D.carBackT, tol: 0.002 },
@@ -509,7 +613,6 @@ export const expected = {
   pin: { volume: A * D.pin ** 2 * D.pinLen, tol: 0.004 },
   rail: { volume: D.railW * D.railH * 2 * D.railHalf, tol: 0.002 },
   block: { volume: (D.blockW * (D.blockY[1] - D.blockY[0]) - D.blockChannelW * D.blockChannelH) * D.blockL, tol: 0.002 },
-  collar: { volume: A * (D.collarD ** 2 - (D.screw + D.collarBore) ** 2) * D.collarL, tol: 0.002 },
   screw: { volume: A * D.screw ** 2 * (D.screwEnd - D.motorY - D.motorLen - D.journalLen) + A * D.journal ** 2 * D.journalLen, tol: 0.004 },
   nut: { volume: Math.PI * ((D.flange / 2) ** 2 * D.flangeT + (D.nutBody / 2) ** 2 * (D.nutLen - D.flangeT) - (D.nutBore / 2) ** 2 * D.nutLen), tol: 0.002 },
   motor: { volume: (D.motor ** 2 - 2 * D.motorChamfer ** 2) * D.motorLen, tol: 0.002 },
@@ -529,6 +632,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url
   fs.writeFileSync(path.join(out, 'expected.json'), JSON.stringify(expected, null, 1) + '\n');
   console.table([D.xpClosed, (D.xpClosed + D.xpOpen) / 2, D.xpOpen].map((xp) => { const p = pose(xp); return { jaw_pin_x: xp, block_x: p.xf, nut_y: round(p.yn), link_deg: round(p.angle, 1), mount_centres: 2 * p.xf, carriage_front_y: round(p.carFront) }; }));
   console.table(forces());
+  console.table(modes());
   console.table(moments());
   const a = audit(); for (const r of a) console.log(`${r.ok ? '✓' : '✗'} ${r.name}  ${r.detail}`);
   console.log(`module Ø${D.OD} × ${D.L - D.motorY} mm with the motor; the rotor sweeps Ø${round(2 * Math.hypot(D.xfOpen + D.carrierHalf, D.carrierZ), 1)} at open and reaches y = ${D.carrierY[1]}; mount centres ${2 * D.xfClosed} → ${2 * D.xfOpen} mm; nut stroke ${round(D.ynClosed - D.ynOpen)} mm = ${round((D.ynClosed - D.ynOpen) / D.lead, 1)} turns of Tr8×${D.lead} for ${D.travel} mm of jaw; the physical stroke ${D.strokeSeconds} s.`);

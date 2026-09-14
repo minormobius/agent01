@@ -10,6 +10,8 @@
   "d_pillar": 6.8,
   "pcd": 68,
   "d_bolt": 3.4,
+  "bpcd": 44,
+  "d_btap": 2.5,
   "y1": 49
  },
  "features": [
@@ -92,11 +94,40 @@
    "name": "bolt"
   },
   {
+   "op": "sketch",
+   "id": "btap",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "bpcd/2 * cos(deg(45))",
+       "bpcd/2 * sin(deg(45))"
+      ],
+      "r": "d_btap / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "btaps",
+   "of": "btap",
+   "kind": "circular",
+   "count": 4,
+   "name": "btap"
+  },
+  {
    "op": "extrude",
    "id": "plate",
    "profile": [
     "face",
-    "bolts"
+    "bolts",
+    "btaps"
    ],
    "depth": "t"
   }

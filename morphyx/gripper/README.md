@@ -208,6 +208,67 @@ press fits. The workflow's gate reads `volume > limit` off `--json` rather
 than the exit code, because of (1) and (2); `limit` is the platform's own
 budget, so the gate is stricter than the old one, not looser.
 
+## One motor, two modes: the roll brake
+
+There is no second motor and no differential. The rotor is held by friction,
+and how hard it is held is what decides the grip.
+
+**The hole this closes.** v10's rotor sat on a bearing with nothing reacting
+the screw's thread friction. Turn the screw and that friction simply drags the
+nut — and so the whole rotor — round with it; the nut never advances. As drawn,
+it could not grip at all. Something has to hold the rotor, always.
+
+**The threshold is torque, not position**, which is what makes it work on an
+object as well as on a stop — the object *is* the stop.
+
+| | thrust | per jaw | screw | **the rotor must react** | roll available |
+|---|---|---|---|---|---|
+| closing | 20 N | 10 | 0.025 | **0.019 N·m** | — |
+| **breakaway** | 120 N | 61 | 0.150 | **0.112 N·m** | — |
+| the guide's ceiling | 212 N | 108 | 0.266 | 0.199 | **0.087 N·m** |
+| motor stall | 351 N | 179 | 0.441 | 0.328 | 0.216 — but 12.2 N·m of yaw on one MGN9C against 7.36 static |
+
+So the brake is set at **0.112 N·m**: the jaws close at a fifth of that and
+break away at 61 N a jaw. It is a wave washer — **18.6 N of preload** at an
+effective radius of 20.0 mm with µ 0.3 — dissipating 0.06 W at 5 rpm.
+
+**Three properties fall out.** The grip force is set by the brake, not the
+motor: repeatable and shimmable, but not commandable. Rolling is at constant
+grip, because once slipping the screw and the rotor turn together 1:1 and the
+nut does not move at all — which is the guarantee a differential existed to
+give, got by not having one. And the roll torque is whatever is left over
+after the brake, which the guide caps at about 0.09 N·m.
+
+**Two things it costs.** Roll is one-way under grip: reversing takes the
+lower-resistance path, and with an object in the jaws that is opening, so you
+roll one way and take the long way round for the other. And the holding torque
+IS the breakaway torque — they are the same number — so an external roll load
+over 0.112 N·m back-drives the wrist whatever the grip.
+
+The stack lives inside the bearing's bore, between the web's front face and a
+hub on the back of the rotor plate:
+
+```
+  30 … 31   brake-spring: the wave washer, Ø40 × Ø16, inside the dowel circle
+  31 … 33   brake-ring: the friction face, Ø58, keyed to the web by four Ø3 dowels
+  33 … 43   brake-hub: on the rotor, Ø58 in the race's Ø60 bore, Ø12 for the screw
+```
+
+v9's thrust collar is retired with this. The motor carries the thrust on its
+own bearing, a Tr8 screw has nowhere smooth to clamp a collar, and it sat
+exactly where the brake stack now goes.
+
+### The encoder
+
+Roll happens when the torque says so, not when a step is commanded, so the
+angle has to be read rather than counted. The axis is taken by the screw, so
+an on-axis diametric magnet is not available: instead a multipole ring is
+pressed onto the rotor plate's Ø84 rim and read **radially** by a head bolted
+to the bearing housing's front face, across a 1 mm gap. The head lives in the
+4 mm of radial slot between the ring at r 44 and the guard's bore at r 49 —
+the only stationary place left at this diameter, and the audit checks that
+nothing else on the rotor reaches it (the arms stop at r 40.5).
+
 ## v10: it rolls
 
 The frame turns. A crossed-roller ring in the stator carries a rotor plate;
