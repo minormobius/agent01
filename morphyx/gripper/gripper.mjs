@@ -74,7 +74,7 @@ export const D = {
   // the jaw plate: the pin off its centre line, the finger pattern on the outboard side of the pin
   carrierHalf: 16, carrierZ: 11, carrierT: 8, fingerBolt: 4.3, fingerBoltX: [0, 11], fingerBoltZ: 7, fingerDowel: 5,
   wallSlotZ: [10.6, 17.4], wallSlotX: [8, 40],
-  rpm: 5, mu: 0.25, muBall: 0.005, thrust: 120, fingerTipY: 163,
+  rpm: 5, rollRate: 1.618034, mu: 0.25, muBall: 0.005, thrust: 120, fingerTipY: 163,
   roll: 360,                                                      // the second input: the rotor turns without limit
 };
 D.zc = 0;
@@ -274,18 +274,29 @@ const DERIVED = {
   xp: 'xp0 + grip',                                      // the jaw pin
   phi: 'rad2deg(atan2(dy, -x))',                         // the right link, pointing inward and forward
 };
-export function assembly() {
+// The demo is the same machine with its two axes driven by TIME instead of set
+// by hand. `drive` names a component and spins it, so it cannot run an input —
+// the one thing still missing for this. What it can do is turn a reference
+// clock, and `theta` is then in scope everywhere: the grip swings on a cosine
+// of it and the roll advances at φ times its rate. φ is irrational, so the pair
+// never repeats — the pass through grip × roll is a Lissajous that keeps
+// filling in. It is for the eye. The GATE is the grid on the real document,
+// because a path proves nothing about the corners it misses.
+export function assembly(mode = 'inputs') {
+  const demo = mode === 'demo';
   const A = D.rotorY[1];                                 // the rotor plate's front face: the datum everything turning hangs from
   const on = (offset, extra = {}) => ({ at: '@rotor-plate.start', rigid: true, offset, ...extra });
   const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
   const r = (id, part, offset, extra = {}) => ({ id, part, ...on(offset, extra) });
-  const derived = { ...DERIVED };
+  const derived = demo
+    ? { grip: `${D.travel} * (1 - cos(deg(theta))) / 2`, roll: `theta * ${D.rollRate}`, ...DERIVED }
+    : { ...DERIVED };
   const params = { xp0: D.xpClosed, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.inset,
     lead: D.lead, flangeT: D.flangeT, carT: D.carT, carFrontT: D.carT - D.carBackT, A,
     lo: D.linkZ[0][0], hi: D.linkZ[1][0], blockL: D.blockL, ynClosed: round(D.ynClosed, 4), pinZ0: D.pinZ0 };
   const drivetrain = {
     _: 'The lead screw and its thrust collar — on the STATOR, because the screw is axisymmetric and rolling it changes no geometry. What rolling does change is the grip, by the lead, and that is the differential’s job: the screw has to turn with the rotor or the nut walks along it at 3.13 mm of jaw per revolution. The planetary that does it is not drawn yet.',
-    params: { ...params }, derived: { ...DERIVED },
+    params: { ...params }, derived: { ...derived },
     parts: { screw: structuredClone(parts.screw), collar: structuredClone(parts.collar) },
     components: [
       c('screw', 'screw', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: '360 * (ynClosed - yn) / lead' } }),
@@ -303,7 +314,8 @@ export function assembly() {
     c('shroud', 'shroud', [0, 0, 0]),
     { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
     // ── the rotor: one joint, and everything else anchored on this plate ─────
-    c('rotor-plate', 'rotor-plate', [0, 0, 0]),
+    c('rotor-plate', 'rotor-plate', [0, 0, 0], demo ? { rotate: { axis: [0, 1, 0], deg: 'roll' } } : {}),
+    ...(demo ? [c('clock', 'pin', [0, -20, D.zc], { params: { h: 1 }, reference: true })] : []),
     r('front-wall', 'front-wall', [0, -A, 0]),
     r('rail', 'rail', [0, -A, 0]),
     { id: 'pillar', part: 'pillar', repeat: 2, ...on([`${side} * ${D.pillarX}`, 0, D.pillarY[0] - A], { rotate: alongY }) },
@@ -320,17 +332,17 @@ export function assembly() {
       offset: [0, 0, `lo + (hi - lo) * ${level} - pinZ0`] },
     { id: 'bush', part: 'bushing', repeat: 8, at: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]', rotate: { align: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]' } },
     // the jaw side is linear in `grip`, so it is jointed. Placed at CLOSED; the joints open it.
-    { id: 'block', part: 'block', repeat: 2, ...on([`${side} * ${xf0} - blockL / 2`, -A, 0]) },
+    { id: 'block', part: 'block', repeat: 2, ...on([demo ? `${side} * (${xf0} + grip) - blockL / 2` : `${side} * ${xf0} - blockL / 2`, -A, 0]) },
     // the jaw plates: the pin is off the plate's centre line, so the left one is the right one turned 180° about Y (its section is symmetric about z = 0)
-    { id: 'carrier', part: 'carrier', repeat: 2, ...on([xf0, -A, 0], { rotate: { axis: [0, 1, 0], deg: `90 * (1 - ${side})` } }) },
-    { id: 'jaw-pin', part: 'pin', repeat: 2, ...on([`${side} * xp0`, `yf - A`, D.pinZ0]) },
+    { id: 'carrier', part: 'carrier', repeat: 2, ...on([demo ? `${xf0} + grip` : xf0, -A, 0], { rotate: { axis: [0, 1, 0], deg: `90 * (1 - ${side})` } }) },
+    { id: 'jaw-pin', part: 'pin', repeat: 2, ...on([`${side} * ${demo ? 'xp' : 'xp0'}`, `yf - A`, D.pinZ0]) },
   ];
   // One revolute carries the whole rotor; six prismatics carry the jaw side
   // along it. `a` is the member each travels against, which is the rotor plate
   // itself now rather than the rail plate — same relative motion, but it says
   // what is actually true: these ride the rotor.
   const slide = (b, scale) => ({ kind: 'prismatic', a: 'rotor-plate', b, input: 'grip', axis: [1, 0, 0], scale });
-  const mates = [
+  const mates = demo ? [] : [
     { kind: 'revolute', a: 'motor-web', b: 'rotor-plate', input: 'roll', axis: [0, 1, 0] },
     slide('carrier[0]', 1), slide('carrier[1]', 1),
     slide('block[0]', 1), slide('block[1]', -1),
@@ -386,15 +398,16 @@ export function assembly() {
   const o = pose(D.xpOpen), cl = pose(D.xpClosed);
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
-    name: 'gripper',
+    name: demo ? 'gripper-demo' : 'gripper',
     _: `Parallel-jaw robot gripper, v10 — it grips AND rolls: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×${D.lead} screw → flange nut in a two-plate carriage → two ${D.armT} mm pivot arms dropped into its notches and running on the pillars → four ${D.link} mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a ${2 * D.carrierHalf} × ${2 * D.carrierZ} × ${D.carrierT} jaw carrier plate per side, four M4 and two Ø${D.fingerDowel} dowels for the customer’s finger. ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm case, the mechanism outside it ${2 * D.linkZ[1][1]} mm tall and reaching y = ${D.carrierY[1]}. ` +
       `ONE input: \`grip\` is each jaw’s travel from closed, 0…${D.travel} mm, and mount centres go ${2 * D.xfClosed} → ${2 * D.xfOpen} mm with it. The carriers, their blocks and their pins are prismatic joints on it; the nut, the carriage, the arms and the links travel by the slider-crank’s own y (${round(cl.yn, 2)} closed … ${round(o.yn, 2)} open, ${round((D.ynClosed - D.ynOpen) / D.lead, 2)} turns of the screw), written into their placements because it is not linear in the input. Check it with \`--grid\`, not \`--sweep\`: a period is the wrong question for a document whose motion is an axis.`,
-    inputs: {
+    ...(demo ? { drive: { component: 'clock', rpm: D.rpm } } : {}),
+    ...(demo ? {} : { inputs: {
       grip: { min: 0, max: D.travel, steps: 7, unit: 'mm', default: 0,
         description: `each jaw’s travel from closed; mount centres ${2 * D.xfClosed} → ${2 * D.xfOpen} mm` },
       roll: { min: 0, max: D.roll, steps: 5, unit: 'deg', default: 0,
         description: 'the rotor, about the screw axis; unlimited, and it costs the grip 3.13 mm of jaw a turn unless the screw turns with it' },
-    },
+    } }),
     params, derived,
     parts: partsMap,
     components, mates, fits,
@@ -511,7 +524,8 @@ if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url
   for (const f of fs.readdirSync(path.join(out, 'parts'))) if (!(f.replace(/\.json$/, '') in parts)) fs.unlinkSync(path.join(out, 'parts', f));
   for (const [k, v] of Object.entries(parts)) fs.writeFileSync(path.join(out, 'parts', `${k}.json`), JSON.stringify(v, null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'gripper.json'), JSON.stringify(asm, null, 1) + '\n');
-  fs.rmSync(path.join(out, 'gripper-stroke.json'), { force: true });   // one document now: its motion is an input, not a period
+  fs.writeFileSync(path.join(out, 'gripper-demo.json'), JSON.stringify(assembly('demo'), null, 1) + '\n');
+  fs.rmSync(path.join(out, 'gripper-stroke.json'), { force: true });   // v9's second document; the demo replaces it
   fs.writeFileSync(path.join(out, 'expected.json'), JSON.stringify(expected, null, 1) + '\n');
   console.table([D.xpClosed, (D.xpClosed + D.xpOpen) / 2, D.xpOpen].map((xp) => { const p = pose(xp); return { jaw_pin_x: xp, block_x: p.xf, nut_y: round(p.yn), link_deg: round(p.angle, 1), mount_centres: 2 * p.xf, carriage_front_y: round(p.carFront) }; }));
   console.table(forces());

@@ -111,6 +111,10 @@ jobs:
             console.log(`${o.grid} states over [${o.inputs}] · ${o.pairs.length} touching pairs, ${over.length} over budget`);
             process.exit(over.length ? 1 : 0);'
 
+      - name: The demo document sweeps clean too (the Lissajous, for the eye — the grid above is the gate)
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/gripper/gripper-demo.json --sweep 24
+
       - name: Clearance table over grip × roll (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
         working-directory: /tmp/cad
         run: node agent/check.mjs /tmp/gripper/gripper.json --grid 3 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"

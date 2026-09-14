@@ -29,7 +29,8 @@ the tangled mirror.
 | `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment audit, the clearance audit, closed forms |
 | `parts/*.json` | the nineteen part trees, as generated |
 | `ringgear.mjs` | an internal ring gear as one drawn loop, for v10 — the `gear` op builds external gears only |
-| `gripper.json` | the assembly. One document, one input: `grip` is each jaw's travel from closed. There is no drive and no period |
+| `gripper.json` | the assembly, and the gate. Two inputs — `grip` 0…15 mm and `roll` 0…360° — six prismatic joints and one revolute. No drive and no period |
+| `gripper-demo.json` | the same machine with its two axes driven by TIME: a reference clock, grip on a cosine of it, roll at φ times its rate. A Lissajous, for the eye |
 | `expected.json` | closed-form volumes for every part |
 | `publish.mjs` | writes the parts then the assembly into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
 | `verify.mjs` | the posed document against `pose()` at every grip — the check the two travel bugs would have failed |
@@ -273,10 +274,19 @@ is also the demo motion. `verify.mjs --lissajous 400` checks 400 of them:
 6000 comparisons over the grid corners and the interior, and the linkage is
 still a linkage and the grip is still independent of the roll at every one.
 
-It is a kinematic check, not an interference one — it costs no geometry at
-all. The animated version wants `drive` to be able to run an *input* with
-time, which it cannot: `drive` names a component. That is the one thing still
-missing for the demo.
+It is a kinematic check, not an interference one — it costs no geometry at all.
+
+The **animated** version is a second document, `gripper-demo.json`, because
+`drive` names a component and cannot run an input. What it can do is turn a
+reference clock, and `theta` is then in scope everywhere: grip swings on a
+cosine of it and roll advances at φ = 1.618 times its rate. φ is irrational,
+so the pair never repeats — 222.5° of roll per grip cycle, filling in the
+matrix turn after turn. Measured over three clock turns: the jaw radius stays
+inside 16…31 mm and the arm pin stands 40.0000 mm from its jaw pin at every
+instant.
+
+The demo is for the eye and the gate is the grid on the real document. A path
+proves nothing about the corners it misses, and the demo is a path.
 
 ## The motion is an input now (2026-09-14, second pass)
 
