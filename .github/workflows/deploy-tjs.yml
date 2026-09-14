@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: ['claude/threejs-procgen-buildings-mprgs6']
+    branches: ['claude/mobile-support-attribution-abs7qz']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'

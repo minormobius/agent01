@@ -15,7 +15,7 @@ tjs.mino.mobi — three.js workbenches…
 | Dir | `tjs/` |
 | Endpoint | `tjs.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/threejs-procgen-buildings-mprgs6` |
+| Owning branch | `claude/mobile-support-attribution-abs7qz` |
 | Deploy | `.github/workflows/deploy-tjs.yml` |
 | Uses | — |
 | Provides | — |
@@ -32,11 +32,31 @@ MANAGED — new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static
 
 ## Deploying
 
-Pushes to `claude/threejs-procgen-buildings-mprgs6` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-tjs.yml`](../.github/workflows/deploy-tjs.yml).
-The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
+Pushes to **`claude/mobile-support-attribution-abs7qz`** that touch this surface's
+paths trigger [`.github/workflows/deploy-tjs.yml`](../.github/workflows/deploy-tjs.yml).
+`main` does not deploy this surface and no other branch does either — the registry
+is the authority and `gen-deploy-triggers` writes the YAML from it, so **move the
+`branch` field, never the workflow**.
+The sandbox cannot reach Cloudflare — **push to the owning branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
 or the deploy goes green while the site never changes.
+
+### Before you take ownership of this surface
+
+The worker serves `assets.directory: ./dist`, and **Workers Static Assets replaces
+the whole manifest — it does not merge**. So a branch that is missing any part of
+`tjs/` republishes the surface without it, from a green run. Ownership moved here
+only after:
+
+```bash
+git diff --stat HEAD origin/<previous-owner> -- tjs/     # must show only your own changes
+```
+
+Do that diff against the *previous owning branch*, not `main`: main is behind on
+several benches, and at the time of writing `claude/dragonfly-pursuit-sim-pv3e8p`
+was missing `/manifold` entirely and carried a stale `dragon` wasm. Deploying tjs
+from a branch like that would have taken a live bench down.
 
 
 ## /marbles — the Marbleworks builder
