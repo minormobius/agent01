@@ -206,6 +206,65 @@ press fits. The workflow's gate reads `volume > limit` off `--json` rather
 than the exit code, because of (1) and (2); `limit` is the platform's own
 budget, so the gate is stricter than the old one, not looser.
 
+## Probe: can we build a planetary? (2026-09-14)
+
+Ahead of v10 — grip-and-rotate, with the pillars as the torque fork and a
+planetary differential behind the motor plate. The question was whether the
+platform can make an internal ring gear. Short answer: not with the `gear`
+op, but yes if you draw it, and [`ringgear.mjs`](ringgear.mjs) does.
+
+**What the `gear` op can and cannot do.** `{op: 'gear', id, m, z, alpha?, b,
+bore?, plane?}` builds an external spur gear: exact involute flanks as
+Béziers, true arcs at tip and root, and a face name per flank
+(`sun.tooth[0].flank.r.1`, `sun.tooth[0].tip`). It is fast and clean — m1
+z54 with a bore is 262 ms, χ 0, watertight. But `z` is a `u32`, so a negative
+tooth count is refused; there is no `internal` flag; and the op has no
+`mode`, so it cannot be a cut tool. **An `internal: true` key and a
+`mode: "cut"` key are both accepted and silently dropped** — the same tree
+builds either way, byte for byte, which is how an hour went missing.
+
+**Drawing it instead.** An internal gear's tooth *space* is an external
+gear's tooth: same base circle, same involute, same phase, same thickness at
+the pitch line. Only the tip and root radii swap. So the ring is one closed
+`path` — four segments a tooth, 216 for z54 — placed as the inner loop of a
+disc. One sweep, no boolean: **330 ms, χ 0, watertight in Truck and in
+Manifold**, volumes agreeing to 0.15%.
+
+Two things cost the afternoon, and both are in the module's header:
+
+- **Rounding the coordinates leaks the solid.** `toFixed(6)` — a nanometre on
+  a 30 mm radius — takes the same loop from χ 0 to χ −165. The minimal
+  reproduction is not a gear at all: a regular N-gon extruded 6 mm is
+  watertight in Truck at full double precision for N = 50, 100 and 216, and
+  leaks at every one of them rounded to six decimals. Rounded, it is also
+  erratic in N and in scale: N = 40 ✓, 41 ✗, 46 ✓, 47 ✗, 48 ✓, 50 ✗ at r 30,
+  and N = 50 passes at r 60 while failing at r 5, 15 and 30. Whatever Truck
+  matches edges with is tighter than 1e-6 mm. The engine's own `gear_loop`
+  never trips it because it never goes through JSON.
+- **`spline` segments leak even at full precision** (χ −16 on the same ring),
+  so the flanks are cubic Béziers interpolating the involute at t = 0, ⅓, ⅔
+  and 1.
+
+**Meshing it.** Probed on a z54 ring and a z18 planet, clean through 48
+instants of a full turn:
+
+- the centre distance is `(z_ring − z_planet) · m / 2` — the difference;
+- **the `gear` mate's auto-phasing is external-only.** It offsets the
+  follower by half a tooth; an internal mesh wants none. Left to itself the
+  teeth overlap 41.6 mm³ at every instant. Give the planet `phase: 0`;
+- **a negative tooth count reverses the mate**, which is what an internal
+  mesh needs. The mate computes `−θ · za / zb`, so `zb: -18` gives `+3θ` for
+  a z54 ring. It is undocumented and it works; the wrong sign clashes
+  41.5 mm³, so the test has teeth.
+
+`node ringgear.selftest.mjs` checks all of it and `--write <dir>` emits the
+three trees the numbers came from.
+
+**Still missing for v10, and not worked around:** one `drive` per document
+and no revolute mate — both being fixed upstream — and the `gear` mate is
+fixed-centre with no carrier term, so an epicyclic's Willis relation cannot
+be written as mates. The planets will be placed by expression.
+
 ## Bill of materials: buy, cut, machine, print
 
 Nine of the nineteen trees are stand-ins for catalogue parts. The model now
