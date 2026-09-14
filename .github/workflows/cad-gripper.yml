@@ -89,7 +89,9 @@ jobs:
         run: |
           gate () {
             echo "── $1"
-            node agent/check.mjs "$2" --sweep 24 ${3:+--period "$3"} --json > /tmp/check.json
+            # its own exit code is what we are deliberately not using, and the shell is `bash -e`
+            node agent/check.mjs "$2" --sweep 24 ${3:+--period "$3"} --json > /tmp/check.json || true
+            [ -s /tmp/check.json ] || { echo "::error::check.mjs wrote no JSON — it failed before measuring"; exit 1; }
             node -e '
               const o = JSON.parse(require("fs").readFileSync("/tmp/check.json"));
               const over = o.pairs.filter((p) => p.volume > p.limit);
