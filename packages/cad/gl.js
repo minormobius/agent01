@@ -18,22 +18,30 @@ layout(location=1) in vec3 aNrm;
 layout(location=2) in float aFid;
 uniform mat4 uProj, uView, uModel;
 uniform float uBody;
-out vec3 vNrmV; out vec3 vPosV; flat out float vKey;
+out vec3 vNrmV; out vec3 vPosV; out vec3 vWorld; flat out float vKey;
 void main() {
-  vec4 eye = uView * uModel * vec4(aPos, 1.0);
+  vec4 world = uModel * vec4(aPos, 1.0);
+  vec4 eye = uView * world;
   gl_Position = uProj * eye;
   vPosV = eye.xyz;
+  vWorld = world.xyz;
   vNrmV = mat3(uView) * mat3(uModel) * aNrm;
   vKey = uBody * 65536.0 + aFid;
 }`;
 
 const FS_SOLID = `#version 300 es
 precision highp float;
-in vec3 vNrmV; in vec3 vPosV; flat in float vKey;
+in vec3 vNrmV; in vec3 vPosV; in vec3 vWorld; flat in float vKey;
 uniform float uHover, uSelect, uPreview;
 uniform vec3 uBase;
+// the section plane, in world: everything on the far side of it is not drawn.
+// Nothing fills the cut — the mesh has no geometry there — so what shows is the
+// inside of the back wall, which is why a sectioned back face is shaded flat
+// like cut material instead of dimmed like a shadowed one.
+uniform vec4 uClip; uniform float uClipOn;
 out vec4 o;
 void main() {
+  if (uClipOn > 0.5 && dot(vWorld, uClip.xyz) > uClip.w) discard;
   vec3 N = normalize(vNrmV);
   if (!gl_FrontFacing) N = -N;
   vec3 V = normalize(-vPosV);
@@ -46,7 +54,7 @@ void main() {
   vec3 c = uBase * (0.28 + 0.62 * d + 0.12 * hemi) + spec;
   if (vKey == uHover) c = mix(c, vec3(1.0, 0.82, 0.30), 0.55);
   if (vKey == uSelect) c = mix(c, vec3(0.35, 0.85, 1.0), 0.55);
-  if (!gl_FrontFacing) c *= 0.55;
+  if (!gl_FrontFacing) c = uClipOn > 0.5 ? uBase * 0.42 + vec3(0.07, 0.05, 0.02) : c * 0.55;
   o = vec4(c, 1.0);
 }`;
 
@@ -56,14 +64,18 @@ layout(location=0) in vec3 aPos;
 layout(location=2) in float aFid;
 uniform mat4 uProj, uView, uModel;
 uniform float uBody;
+out vec3 vWorld;
 flat out float vKey;
-void main() { gl_Position = uProj * uView * uModel * vec4(aPos, 1.0); vKey = uBody * 65536.0 + aFid; }`;
+void main() { vec4 world = uModel * vec4(aPos, 1.0); vWorld = world.xyz; gl_Position = uProj * uView * world; vKey = uBody * 65536.0 + aFid; }`;
 
 const FS_ID = `#version 300 es
 precision highp float;
+in vec3 vWorld;
 flat in float vKey;
+uniform vec4 uClip; uniform float uClipOn;
 out vec4 o;
 void main() {
+  if (uClipOn > 0.5 && dot(vWorld, uClip.xyz) > uClip.w) discard;
   float id = vKey + 1.0;
   o = vec4(mod(id, 256.0) / 255.0, mod(floor(id / 256.0), 256.0) / 255.0, floor(id / 65536.0) / 255.0, 1.0);
 }`;
@@ -73,13 +85,16 @@ precision highp float;
 layout(location=0) in vec3 aPos;
 uniform mat4 uProj, uView, uModel;
 uniform float uBias;
-void main() { vec4 p = uProj * uView * uModel * vec4(aPos, 1.0); p.z -= uBias * p.w; gl_Position = p; }`;
+out vec3 vWorld;
+void main() { vec4 w = uModel * vec4(aPos, 1.0); vWorld = w.xyz; vec4 p = uProj * uView * w; p.z -= uBias * p.w; gl_Position = p; }`;
 
 const FS_LINE = `#version 300 es
 precision highp float;
+in vec3 vWorld;
 uniform vec4 uColor;
+uniform vec4 uClip; uniform float uClipOn;
 out vec4 o;
-void main() { o = uColor; }`;
+void main() { if (uClipOn > 0.5 && dot(vWorld, uClip.xyz) > uClip.w) discard; o = uColor; }`;
 
 function compile(gl, vs, fs) {
   const mk = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
@@ -142,6 +157,9 @@ export class Renderer {
     this.vaoAxes = gl.createVertexArray(); this.bufAxes = gl.createBuffer();
     this.gridCount = 0;
     this.hover = -1; this.select = -1; this.preview = false;
+    /// The section plane, or null: `{ n: [x, y, z], d }` in world, keeping the
+    /// half where `dot(p, n) <= d`. The grid and the axes are never clipped.
+    this.clip = null;
     this.base = [0.62, 0.66, 0.72];
     this.showEdges = true; this.showGrid = true;
     this.idDirty = true;
@@ -198,6 +216,18 @@ export class Renderer {
     gl.bindVertexArray(null);
   }
 
+  /// Cut the model with a world plane, or `null` for none. The id buffer is
+  /// cached, so it has to be redrawn: a pick must agree with the picture.
+  setSection(clip) { this.clip = clip; this.idDirty = true; }
+
+  /// Hand the current section plane to a program (uClip / uClipOn).
+  setClip(u) {
+    const gl = this.gl, c = this.clip;
+    if (u.uClipOn === undefined) return;
+    gl.uniform1f(u.uClipOn, c ? 1 : 0);
+    if (c && u.uClip !== undefined) gl.uniform4f(u.uClip, c.n[0], c.n[1], c.n[2], c.d);
+  }
+
   resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const w = Math.max(1, Math.floor(this.canvas.clientWidth * dpr)), h = Math.max(1, Math.floor(this.canvas.clientHeight * dpr));
@@ -212,11 +242,13 @@ export class Renderer {
     const proj = cam.proj(W / H), view = cam.view();
     if (this.showGrid && this.gridCount) {
       gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, proj); gl.uniformMatrix4fv(this.line.u.uView, false, view); gl.uniformMatrix4fv(this.line.u.uModel, false, IDENT); gl.uniform1f(this.line.u.uBias, 0);
+      gl.uniform1f(this.line.u.uClipOn, 0);
       gl.bindVertexArray(this.vaoGrid); gl.uniform4f(this.line.u.uColor, 0.22, 0.24, 0.28, 1); gl.drawArrays(gl.LINES, 0, this.gridCount);
     }
     gl.useProgram(this.solid.p);
     gl.uniformMatrix4fv(this.solid.u.uProj, false, proj); gl.uniformMatrix4fv(this.solid.u.uView, false, view);
     gl.uniform1f(this.solid.u.uHover, this.hover); gl.uniform1f(this.solid.u.uSelect, this.select); gl.uniform1f(this.solid.u.uPreview, this.preview ? 1 : 0);
+    this.setClip(this.solid.u);
     let bi = 0;
     for (const b of this.bodies.values()) {
       if (b.count && !b.hidden) {
@@ -230,6 +262,7 @@ export class Renderer {
     if (this.showEdges) {
       gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, proj); gl.uniformMatrix4fv(this.line.u.uView, false, view); gl.uniform1f(this.line.u.uBias, 0.0006);
       gl.uniform4f(this.line.u.uColor, 0.06, 0.07, 0.09, 1);
+      this.setClip(this.line.u);
       for (const b of this.bodies.values()) if (b.edgeCount && !b.hidden) { gl.uniformMatrix4fv(this.line.u.uModel, false, b.model); gl.bindVertexArray(b.vaoEdges); gl.drawArrays(gl.LINES, 0, b.edgeCount); }
     }
     // axes triad, bottom-left
@@ -237,6 +270,7 @@ export class Renderer {
     gl.viewport(8, 8, s, s); gl.clear(gl.DEPTH_BUFFER_BIT);
     const c2 = Object.assign(Object.create(Object.getPrototypeOf(cam)), cam, { target: [0, 0, 0], distance: 3.2, ortho: true });
     gl.useProgram(this.line.p); gl.uniformMatrix4fv(this.line.u.uProj, false, c2.proj(1)); gl.uniformMatrix4fv(this.line.u.uView, false, c2.view()); gl.uniformMatrix4fv(this.line.u.uModel, false, IDENT); gl.uniform1f(this.line.u.uBias, 0);
+    gl.uniform1f(this.line.u.uClipOn, 0);
     gl.bindVertexArray(this.vaoAxes);
     gl.uniform4f(this.line.u.uColor, 0.95, 0.35, 0.35, 1); gl.drawArrays(gl.LINES, 0, 2);
     gl.uniform4f(this.line.u.uColor, 0.45, 0.9, 0.4, 1); gl.drawArrays(gl.LINES, 2, 2);
@@ -270,6 +304,7 @@ export class Renderer {
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.fbo); gl.viewport(0, 0, W, H);
       gl.clearColor(0, 0, 0, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.useProgram(this.id.p); gl.uniformMatrix4fv(this.id.u.uProj, false, this.lastProj || cam.proj(W / H)); gl.uniformMatrix4fv(this.id.u.uView, false, this.lastView || cam.view());
+      this.setClip(this.id.u); // a pick must land on what the eye can see, not on what the section cut away
       let bi = 0;
       for (const b of this.bodies.values()) { if (b.count && !b.hidden) { gl.uniformMatrix4fv(this.id.u.uModel, false, b.model); gl.uniform1f(this.id.u.uBody, bi); gl.bindVertexArray(b.vao); gl.drawArrays(gl.TRIANGLES, 0, b.count); } bi++; }
       gl.bindVertexArray(null);

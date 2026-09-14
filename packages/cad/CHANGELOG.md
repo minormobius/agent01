@@ -4,6 +4,24 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-15
+
+**Section.** Pin a face, press *section* (or `s`), and the model is cut by a
+plane taken from it: a plane face gives one parallel to itself, a bore gives
+one through its axis — the section that shows a counterbore. While the section
+is live, **pan moves the plane rather than the camera** (shift-drag, right-drag
+or two fingers); orbit and zoom keep working, so you can look around the cut
+while making it. Unpin the face, or press the button again, and the camera has
+its pan back. The measure panel carries a slider over the plane's whole travel
+through the model and a number to type an exact depth into.
+
+It is a clip plane in the shader, and the id pass is clipped with it, so a pick
+lands on what the eye can see rather than on the face the section cut away.
+Nothing fills the cut — the mesh has no geometry there — so what shows is the
+inside of the far wall, shaded flat like cut material instead of dimmed like a
+shadowed one. A hatched section view belongs in the drawing, where the geometry
+is exact; this is the viewer's.
+
 ## 2026-09-14, third pass
 
 **Measure moved to the top of the right-hand panel**, with the face under the

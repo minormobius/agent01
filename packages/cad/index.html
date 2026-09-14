@@ -22,6 +22,7 @@
   <button id="edges" title="e">edges</button>
   <span class="sp"></span>
   <button id="views" title="three views for the record">views</button>
+  <button id="section" title="cut the model with a plane taken from the pinned face (s). While it is on, pan moves the plane and orbit and zoom still work; unpin the face or press it again to stop">section</button>
   <button id="drawing" title="an SVG drawing: three views, hidden lines, dimensions, holes called out">drawing</button>
   <button id="asm-report" title="an assembly report: views, an exploded picture, a parts list, a drawing per part, and the assembly steps">report</button>
   <button id="stl" title="mesh for printing">stl</button>
@@ -76,7 +77,7 @@
   <h2>views</h2>
   <div id="strip"></div>
   <h2>keys</h2>
-  <div class="keys"><kbd>drag</kbd> orbit · <kbd>shift-drag</kbd>/<kbd>right-drag</kbd> pan · <kbd>wheel</kbd> zoom · <kbd>two fingers</kbd> pan + pinch · <kbd>f</kbd> fit · <kbd>o</kbd> ortho · <kbd>e</kbd> edges · <kbd>g</kbd> grid · <kbd>space</kbd> spin · <kbd>0</kbd> <kbd>1</kbd> <kbd>3</kbd> <kbd>7</kbd> views · tap a face to pin it</div>
+  <div class="keys"><kbd>drag</kbd> orbit · <kbd>shift-drag</kbd>/<kbd>right-drag</kbd> pan · <kbd>wheel</kbd> zoom · <kbd>two fingers</kbd> pan + pinch · <kbd>f</kbd> fit · <kbd>o</kbd> ortho · <kbd>e</kbd> edges · <kbd>g</kbd> grid · <kbd>space</kbd> spin · <kbd>s</kbd> section from the pinned face · <kbd>0</kbd> <kbd>1</kbd> <kbd>3</kbd> <kbd>7</kbd> views · tap a face to pin it</div>
   <p class="dim">Preview is Manifold (mesh booleans, milliseconds); exact is the Rust engine's Truck kernel, which names every face it makes, or OCCT for fillets and the booleans Truck cannot do. Assemblies: components (repeatable, placeable on each other's named faces), sub-assemblies, gear, belt, fixed, screw, rack and slider mates, revolute and prismatic joints on the document's own named inputs, and placements as expressions of time or of those inputs. Design record: <a href="https://github.com/minormobius/agent01/blob/main/docs/CAD.md" style="color:inherit">docs/CAD.md</a>.</p>
   </section>
 </aside>

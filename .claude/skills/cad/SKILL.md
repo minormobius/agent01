@@ -337,7 +337,8 @@ Any tree or assembly opens in the viewer as a link: base64url the JSON into
 `https://cad.mino.mobi/#t=<…>`, or `?part=<bench name>`, or — best — save
 it to a repo and hand over `https://cad.mino.mobi/?at=<AT URI>`: a file the
 human can open, fork, and read the history of. The human sees the part,
-the report, the named faces, the measure tool and the interference check;
+the report, the named faces, the measure tool, the section plane (pin a face,
+press `s`, and pan pushes the cut through the part) and the interference check;
 give them the link and the numbers you judged by.
 
 **Hand over the `part` head, not a `revision`,** and hand it over once. A

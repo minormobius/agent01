@@ -68,6 +68,14 @@ th small { color: var(--dim); }
 .keys kbd { background: #2e3239; padding: 0 4px; border-radius: 3px; border: 1px solid var(--line); }
 /* with the keyboard up a field is scrolled into the panel: leave it some room */
 #left input, #left textarea, #right input { scroll-margin: 16px 0 28px; }
+/* section: the button while it is on, and the cut-plane controls */
+button.on { border-color: var(--accent); color: var(--accent); }
+body.sectioning canvas#view { cursor: ns-resize; }
+#measurebox .sec { display: grid; grid-template-columns: auto 1fr 60px auto; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+#measurebox .sec b { color: var(--accent); }
+#measurebox .sec input[type=range] { width: 100%; accent-color: var(--accent); }
+#measurebox .sec input[type=number] { width: 100%; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; font: inherit; }
+#measurebox .sec .what { grid-column: 1 / -1; color: var(--dim); font-size: 11px; }
 /* a document's own inputs: one control per degree of freedom */
 .inputs { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
 .inputs .in { display: grid; grid-template-columns: 64px 1fr 64px 22px; align-items: center; gap: 6px; }

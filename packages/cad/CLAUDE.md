@@ -151,6 +151,22 @@ documented in [`README.md`](README.md) next to this file.
   then clicking another gives plane-to-plane, axis-to-axis (with both
   diameters and the wall between) or axis-to-plane distance. Numbers come
   from the geometry, never the mesh; the preview mesh is polygons.
+- **Section.** Pin a face, press *section* (or `s`), and the model is cut by a
+  plane taken from that face: a plane face gives one parallel to itself, a bore
+  gives one through its axis — the section that shows a counterbore. While it
+  is live **pan moves the plane instead of the camera** (shift-drag, right-drag
+  or two fingers), and orbit and zoom keep working, so you can look around the
+  cut while making it; unpin the face or press the button again and the camera
+  gets its pan back. The panel carries a slider over the plane's whole travel
+  through the model and a number to type an exact depth into. It is a clip
+  plane in the shader (`renderer.setSection({n, d})`, `uClip`/`uClipOn` in all
+  three programs) — **the id pass is clipped too, so a pick lands on what the
+  eye can see**, and the id buffer is redrawn when the plane moves. Nothing
+  fills the cut: the mesh has no geometry there, so what shows is the inside of
+  the far wall, which is why a sectioned back face is shaded flat like cut
+  material rather than dimmed like a shadowed one. The grid and the axis triad
+  are never clipped. A true hatched section VIEW belongs in `lib/drawing.js`,
+  where the geometry is exact; this is the viewer's.
 - **Interference.** *check interference* in an assembly poses every
   component at the current angles and intersects each overlapping pair
   with Manifold; pairs with more than 0.01 mm³ in common are listed,
@@ -518,5 +534,5 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   arbitrary tree — an agent can hand a human a link; `?at=<AT URI>` opens a
   file from any repo.
 - Keys: drag orbit, shift/right-drag pan, wheel zoom, two fingers pan and
-  pinch, `f` fit, `o` ortho, `e` edges, `g` grid, `space` spin, `0/1/3/7`
-  views.
+  pinch, `f` fit, `o` ortho, `e` edges, `g` grid, `space` spin, `s` section
+  from the pinned face, `0/1/3/7` views.

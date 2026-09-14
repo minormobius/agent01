@@ -132,6 +132,7 @@ function build({ fit = false } = {}) {
 async function setDocument(obj, name, { at = null } = {}) {
   state.name = name || state.name; state.at = at;
   state.watch = new Map(); state.pinned = new Set(); state.fresh = null; // the records this document is a photograph of (filled by atRef / openFile)
+  if (state.section) { state.section = null; renderer.setSection(null); document.body.classList.remove('sectioning'); $('#section')?.classList.remove('on'); }
   state.treeText = JSON.stringify(obj, null, 2);
   $('#json').value = state.treeText;
   for (const k of [...renderer.bodies.keys()]) renderer.removeBody(k);
@@ -436,16 +437,32 @@ function faceOptions() {
   for (const c of state.components) { const s = state.slots.get(c.partKey); if (!s?.faces?.length) continue; s.faces.forEach((f, i) => out.push({ key: `${c.id}.${nm(f, i)}`, label: `${c.id} · ${nm(f, i)}`, face: faceWorld(f, modelOf(c, state.angles)) })); }
   return out;
 }
+/// The section's own row, above the face pickers: where the plane is, in mm
+/// from the face it was taken from, as a slider over the model's own extent and
+/// a number to type an exact depth into.
+function sectionRow() {
+  if (!state.section) return '';
+  const [lo, hi] = sectionSpan();
+  const step = +((hi - lo) / 200).toPrecision(2) || 0.01;
+  return `<div class="sec"><b>section</b><input id="section-range" type="range" min="${lo}" max="${hi}" step="${step}" value="${state.section.offset}"><input id="section-at" type="number" step="${step}" value="${+state.section.offset.toFixed(3)}"><button id="section-off" title="stop sectioning (s)">off</button><div class="what">${esc(state.section.name)} — ${esc(state.section.what)} · drag with shift, right-drag or two fingers to move it; orbit and zoom still work</div></div>`;
+}
+function wireSection() {
+  const on = (id, fn) => $(id)?.addEventListener('input', fn);
+  on('#section-range', () => setSectionOffset(Number($('#section-range').value)));
+  on('#section-at', () => setSectionOffset(Number($('#section-at').value)));
+  $('#section-off')?.addEventListener('click', () => toggleSection());
+}
 function renderMeasure() {
   const box = $('#measurebox'); if (!box) return;
   const opts = faceOptions();
-  if (!opts.length) { box.innerHTML = '<span class="dim">faces arrive with the exact build</span>'; return; }
+  if (!opts.length) { box.innerHTML = `${sectionRow()}<span class="dim">faces arrive with the exact build</span>`; wireSection(); return; }
   const sel = (id) => `<select id="${id}"><option value="">— pick a face —</option>${opts.map((o) => `<option value="${o.key}"${state.measurePick?.[id] === o.key ? ' selected' : ''}>${o.label}</option>`).join('')}</select>`;
   const a = opts.find((o) => o.key === state.measurePick?.ma), b = opts.find((o) => o.key === state.measurePick?.mb);
   let out = '';
   if (a && !b) out = `<div>${geomLine(a.face)}</div>`;
   else if (a && b) out = `<div class="measure">${measureLine(a.face, b.face)}</div>`;
-  box.innerHTML = `<div class="row">${sel('ma')}</div><div class="row">${sel('mb')}</div>${out || '<div class="dim">one face: its size and geometry · two: the distance between them</div>'}`;
+  box.innerHTML = `${sectionRow()}<div class="row">${sel('ma')}</div><div class="row">${sel('mb')}</div>${out || '<div class="dim">one face: its size and geometry · two: the distance between them</div>'}`;
+  wireSection();
   for (const id of ['ma', 'mb']) $('#' + id).addEventListener('change', () => { state.measurePick ??= {}; state.measurePick[id] = $('#' + id).value; renderMeasure(); });
 }
 function renderFace() {
@@ -467,6 +484,71 @@ function renderFace() {
   box.innerHTML = html;
 }
 
+// ── section: cut the model with a plane taken from a pinned face ──────────
+// The plane starts ON the face — so nothing is cut until it is pushed — and
+// while a section is live, PAN MOVES THE PLANE instead of the camera: orbit and
+// zoom keep working, so you can look around the cut while making it. It ends
+// when the face is unpinned or the button is pressed again, and the camera gets
+// its pan back. A plane face gives a plane parallel to itself; a bore gives one
+// through its axis, which is the section that shows a counterbore.
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm3 = (v) => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+function planeFromFace(f) {
+  const d = describe(f);
+  if (d.kind === 'cylinder') {
+    // through the axis, cutting away the half the picked face is on
+    const rel = [f.centroid[0] - d.center[0], f.centroid[1] - d.center[1], f.centroid[2] - d.center[2]];
+    const along = dot3(rel, d.axis);
+    const radial = [rel[0] - d.axis[0] * along, rel[1] - d.axis[1] * along, rel[2] - d.axis[2] * along];
+    const n = Math.hypot(...radial) > 1e-9 ? norm3(radial) : norm3([d.axis[1], d.axis[2], d.axis[0]]);
+    return { n, d0: dot3(d.center, n), what: `⌀${fmt(d.diameter)} bore, through its axis` };
+  }
+  const n = d.kind === 'plane' ? norm3(d.normal) : norm3(f.normal);
+  const p = d.kind === 'plane' ? d.point : f.centroid;
+  return { n, d0: dot3(p, n), what: 'the face\'s own plane' };
+}
+function applySection() {
+  const sec = state.section;
+  renderer.setSection(sec ? { n: sec.n, d: sec.d0 + sec.offset } : null);
+  document.body.classList.toggle('sectioning', !!sec);
+  const b = $('#section'); if (b) b.classList.toggle('on', !!sec);
+  renderMeasure(); invalidate();
+}
+function toggleSection() {
+  if (state.section) { state.section = null; applySection(); return setStatus('section off — pan is the camera again'); }
+  const pick = state.select || state.hover;
+  const f = pick && faceOf(pick);
+  if (!f) return setStatus('pin a face first: the section plane is taken from it (click a face, then section)');
+  const { n, d0, what } = planeFromFace(f);
+  const name = (pick.name ? pick.name + ' · ' : '') + (f.names[f.names.length - 1] || `face[${pick.fid}]`);
+  state.section = { n, d0, offset: 0, name, what, key: pick.key };
+  applySection();
+  setStatus(`section on ${name} (${what}) — drag with shift, right-drag or two fingers to move the plane; orbit and zoom still work`);
+}
+/// Move the plane along its own normal. The scale is the camera's, so a drag
+/// moves the plane about as far as it would have moved the model.
+function moveSection(dy, viewportH) {
+  if (!state.section) return;
+  const s = (2 * cam.distance * Math.tan(cam.fov / 2)) / viewportH;
+  setSectionOffset(state.section.offset - dy * s);
+}
+function setSectionOffset(v) {
+  if (!state.section) return;
+  state.section.offset = v;
+  renderer.setSection({ n: state.section.n, d: state.section.d0 + v });
+  const el = $('#section-at'); if (el) el.value = +v.toFixed(3);
+  const r = $('#section-range'); if (r) r.value = v;
+  invalidate();
+}
+/// How far the plane can travel and still be inside the model, from the scene
+/// box projected onto the plane's normal — the range the slider spans.
+function sectionSpan() {
+  const bb = renderer.sceneBbox(); if (!bb || !state.section) return [-1, 1];
+  const n = state.section.n; let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < 8; i++) { const p = [i & 1 ? bb[1][0] : bb[0][0], i & 2 ? bb[1][1] : bb[0][1], i & 4 ? bb[1][2] : bb[0][2]]; const t = dot3(p, n) - state.section.d0; lo = Math.min(lo, t); hi = Math.max(hi, t); }
+  return [lo, hi];
+}
+
 function setStatus(s) { $('#status').textContent = s; }
 
 // ── interaction: mouse, touch (one finger orbit, two pan + pinch), keys ───
@@ -484,14 +566,16 @@ canvas.addEventListener('pointermove', (e) => {
     if (pointers.size === 1) {
       const dx = cur.x - prev.x, dy = cur.y - prev.y;
       if (Math.abs(dx) + Math.abs(dy) > 0) gesture.moved = true;
-      if (prev.b === 0 && !prev.shift) cam.orbit(dx, dy); else cam.pan(dx, dy, canvas.clientHeight);
+      if (prev.b === 0 && !prev.shift) cam.orbit(dx, dy);
+      else if (state.section) moveSection(dy, canvas.clientHeight); // pan moves the plane, not the camera
+      else cam.pan(dx, dy, canvas.clientHeight);
     } else if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
       const other = a === prev ? b : a;
       const c0 = [(prev.x + other.x) / 2, (prev.y + other.y) / 2], c1 = [(cur.x + other.x) / 2, (cur.y + other.y) / 2];
       const d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
-      cam.pan(c1[0] - c0[0], c1[1] - c0[1], canvas.clientHeight);
-      if (d0 > 0 && d1 > 0) cam.dolly(d0 / d1);
+      if (state.section) moveSection(c1[1] - c0[1], canvas.clientHeight); else cam.pan(c1[0] - c0[0], c1[1] - c0[1], canvas.clientHeight);
+      if (d0 > 0 && d1 > 0) cam.dolly(d0 / d1); // zoom keeps working while sectioning
       gesture.moved = true;
     }
     pointers.set(e.pointerId, cur);
@@ -506,6 +590,8 @@ const endPointer = (e) => {
     const r = canvas.getBoundingClientRect(); const pick = renderer.pick(e.clientX - r.left, e.clientY - r.top, cam);
     if (!pick || !state.select || pick.key === state.select.key || state.measureB) { state.select = pick && state.select && pick.key === state.select.key ? null : pick; state.measureB = null; }
     else state.measureB = pick;
+    // the section belongs to the face it was taken from: let that face go and it goes
+    if (state.section && (!state.select || state.select.key !== state.section.key)) { state.section = null; applySection(); }
     renderer.select = state.select ? state.select.key : -1; renderFace(); invalidate();
   }
   if (pointers.size === 0) gesture = null;
@@ -558,6 +644,7 @@ window.addEventListener('keydown', (e) => {
   else if (k === 'e') { renderer.showEdges = !renderer.showEdges; invalidate(); }
   else if (k === 'g') { renderer.showGrid = !renderer.showGrid; invalidate(); }
   else if (k === 'o') { cam.ortho = !cam.ortho; invalidate(); }
+  else if (k === 's') toggleSection();
   else if (k === ' ' && state.mode === 'asm') { e.preventDefault(); toggleSpin(); }
   else if ({ 1: 'front', 3: 'right', 7: 'top', 0: 'iso' }[k]) { cam.preset({ 1: 'front', 3: 'right', 7: 'top', 0: 'iso' }[k]); invalidate(); }
 });
@@ -596,6 +683,7 @@ function exportPart(format) {
 $('#stl').addEventListener('click', () => exportPart('stl'));
 $('#step').addEventListener('click', () => exportPart('step'));
 $('#views').addEventListener('click', () => snapshots());
+$('#section').addEventListener('click', () => toggleSection());
 $('#drawing').addEventListener('click', () => makeDrawing());
 $('#asm-report').addEventListener('click', () => makeReport()); // #report is the invariants panel; this button is the assembly document
 /// The assembly report: one HTML page with the views, an exploded picture, a
@@ -897,6 +985,7 @@ const boot = ready.then(async () => {
 window.__cad = {
   ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, modelOf, runCheck, exportPart,
   drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing, makeReport, setInput,
+  toggleSection, setSectionOffset, sectionSpan,
   checkFresh, reloadDocument, renderDoc, renderPicker, keyboard: applyViewport,
   loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
   faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),

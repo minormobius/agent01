@@ -252,6 +252,58 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   check(rp.r?.items === 4 && rp.r.sheets === 4 && rp.r.steps === 4 && rp.r.components === 7 && rp.r.bytes > 100000 && /report:/.test(rp.status), `the report button writes the lift's page: ${rp.r?.components} components, ${rp.r?.items} items, ${rp.r?.sheets} sheets, ${rp.r?.steps} steps, ${((rp.r?.bytes || 0) / 1024).toFixed(0)} kB`);
 }
 
+// section: a plane taken from a pinned face, pushed through the part, with pan
+// taken over and orbit and zoom left alone
+{
+  await page.goto(`${base}/?part=case`, { waitUntil: 'load' });
+  await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); window.__cad.cam.preset('iso'); window.__cad.cam.fit(window.__cad.renderer.sceneBbox()); window.__cad.render(); });
+  // what the eye — and the picker, which must agree with it — can reach, as a
+  // map of sample point → face
+  const seen = () => page.evaluate(() => { window.__cad.render(); const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const out = []; for (let y = 0.2; y <= 0.8; y += 0.025) for (let x = 0.2; x <= 0.8; x += 0.025) { const p = window.__cad.renderer.pick(r.width * x, r.height * y, window.__cad.cam); out.push(p ? p.key : -1); } return out; });
+  const before = await seen();
+  const on = await page.evaluate(() => {
+    const c = document.querySelector('#view'); const r = c.getBoundingClientRect();
+    // pin the face under the middle of the view, then section from it
+    const p = window.__cad.renderer.pick(r.width / 2, r.height * 0.35, window.__cad.cam);
+    window.__cad.state.select = p; window.__cad.renderer.select = p ? p.key : -1;
+    window.__cad.toggleSection();
+    const s = window.__cad.state.section;
+    return { pinned: window.__cad.state.slots.get('main').faces[p.fid]?.names[0], clip: window.__cad.renderer.clip && { n: window.__cad.renderer.clip.n.map((v) => +v.toFixed(3)), d: +window.__cad.renderer.clip.d.toFixed(3) }, name: s?.name, what: s?.what, button: document.querySelector('#section').classList.contains('on'), cursor: document.body.classList.contains('sectioning'), row: !!document.querySelector('#section-range') };
+  });
+  check(on.clip && on.button && on.cursor && on.row && /case/.test(on.name || ''), `section takes its plane from the pinned face (${on.name} — ${on.what}), n = (${on.clip?.n.join(', ')}), and the panel gets its control`);
+  // push it through the part: the faces the eye can reach change
+  const cut = await page.evaluate(() => { const [lo, hi] = window.__cad.sectionSpan(); window.__cad.setSectionOffset(lo + (hi - lo) * 0.45); return { offset: +window.__cad.state.section.offset.toFixed(3), span: [+lo.toFixed(2), +hi.toFixed(2)] }; });
+  const after = await seen();
+  const changed = before.filter((k, i) => k !== after[i]).length;
+  const hitBefore = before.filter((k) => k >= 0).length, hitAfter = after.filter((k) => k >= 0).length;
+  check(changed / before.length > 0.15 && hitAfter < hitBefore, `pushing the plane ${cut.offset} mm in (its travel through this part is ${cut.span[0]}…${cut.span[1]}) cuts the picture and the picker with it: ${changed} of ${before.length} sample points changed what they hit, and ${hitBefore - hitAfter} fewer land on the part at all`);
+  await page.screenshot({ path: path.join(shots, 'section.png') });
+  // pan is the plane; orbit and zoom are still the camera
+  const moved = await page.evaluate(() => {
+    const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const ev = (type, x, y, opts = {}) => c.dispatchEvent(new PointerEvent(type, { pointerId: 1, pointerType: 'mouse', clientX: x, clientY: y, bubbles: true, button: 0, isPrimary: true, ...opts }));
+    const before = { target: [...window.__cad.cam.target], offset: window.__cad.state.section.offset, yaw: window.__cad.cam.yaw, d: window.__cad.cam.distance };
+    ev('pointerdown', cx, cy, { shiftKey: true }); ev('pointermove', cx, cy - 60, { shiftKey: true }); ev('pointerup', cx, cy - 60, { shiftKey: true });
+    const afterPan = { target: [...window.__cad.cam.target], offset: window.__cad.state.section.offset };
+    ev('pointerdown', cx, cy); ev('pointermove', cx + 70, cy); ev('pointerup', cx + 70, cy);
+    c.dispatchEvent(new WheelEvent('wheel', { deltaY: -200, bubbles: true, cancelable: true }));
+    return { before, afterPan, yaw: window.__cad.cam.yaw, d: window.__cad.cam.distance };
+  });
+  check(moved.afterPan.offset !== moved.before.offset && moved.afterPan.target.join() === moved.before.target.join(), `a shift-drag moves the plane (${moved.before.offset.toFixed(3)} → ${moved.afterPan.offset.toFixed(3)} mm) and leaves the camera where it was`);
+  check(moved.yaw !== moved.before.yaw && moved.d !== moved.before.d, `orbit and zoom keep working while sectioning (yaw ${moved.before.yaw.toFixed(3)} → ${moved.yaw.toFixed(3)}, distance ${moved.before.d.toFixed(1)} → ${moved.d.toFixed(1)})`);
+  // unpinning the face ends it, and pan is the camera again
+  const off = await page.evaluate(() => {
+    const c = document.querySelector('#view'); const r = c.getBoundingClientRect(); const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+    const ev = (type, x, y, opts = {}) => c.dispatchEvent(new PointerEvent(type, { pointerId: 2, pointerType: 'mouse', clientX: x, clientY: y, bubbles: true, button: 0, isPrimary: true, ...opts }));
+    ev('pointerdown', r.left + 4, r.top + 4); ev('pointerup', r.left + 4, r.top + 4); // a click on empty space unpins
+    const cleared = { section: window.__cad.state.section, clip: window.__cad.renderer.clip, button: document.querySelector('#section').classList.contains('on') };
+    const t0 = [...window.__cad.cam.target];
+    ev('pointerdown', cx, cy, { shiftKey: true }); ev('pointermove', cx, cy - 40, { shiftKey: true }); ev('pointerup', cx, cy - 40, { shiftKey: true });
+    return { ...cleared, panned: window.__cad.cam.target.join() !== t0.join() };
+  });
+  check(off.section === null && off.clip === null && !off.button && off.panned, 'unpinning the face ends the section and gives the camera its pan back');
+}
+
 // the right panel's order: measure first, the face under the cursor above the
 // two pickers — it is the first half of every measurement
 {
