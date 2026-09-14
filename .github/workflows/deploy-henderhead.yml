@@ -50,7 +50,7 @@ jobs:
         run: |
           cp henderhead/cf/engine/target/wasm32-unknown-unknown/release/cffourier.wasm henderhead/cf/cffourier.wasm
           cp henderhead/craft/engine/target/wasm32-unknown-unknown/release/craftca.wasm henderhead/craft/craftca.wasm
-          cp henderhead/wheel/engine/target/wasm32-unknown-unknown/release/waterwheel.wasm henderhead/wheel/waterwheel.wasm henderhead/ball/bouncer.wasm
+          cp henderhead/wheel/engine/target/wasm32-unknown-unknown/release/waterwheel.wasm henderhead/wheel/waterwheel.wasm
           cp henderhead/ball/engine/target/wasm32-unknown-unknown/release/bouncer.wasm henderhead/ball/bouncer.wasm
 
       - uses: actions/setup-node@v4

@@ -90,9 +90,17 @@ impl State {
 }
 
 /// A bounce: where, when, and the state on either side of it.
+///
+/// Only `after` is read by the wasm build — the simulation carries on from it
+/// and forgets the rest. `t` and `before` are here for the tests, which need
+/// the incoming state to check that the ball landed exactly on the circle and
+/// that the reflection conserved the tangential component and the speed. Hence
+/// the allow: dead in the library, load-bearing in `tests.rs`.
 #[derive(Clone, Copy, Debug)]
 pub struct Bounce {
+    #[allow(dead_code)]
     pub t: f64,
+    #[allow(dead_code)]
     pub before: State,
     pub after: State,
 }

@@ -93,10 +93,11 @@ node henderhead/cf/cf.selftest.mjs                               # the seam
 
 ### Things that will bite you
 
-- **No wasm-bindgen and no wasm-pack, deliberately.** The module has *zero*
-  imports — `sin` and `cos` come from Rust's own libm — so it is 53 KB, needs no
-  import object and no generated shim, and the whole build is one `cargo build`.
-  Reaching for bindgen to pass one struct would throw all of that away.
+- **No wasm-bindgen and no wasm-pack, deliberately.** The modules have *zero*
+  imports — `sin` and `cos` come from Rust's own libm — so they are 52 to 74 KB,
+  need no import object and no generated shim, and the whole build is one
+  `cargo build`. Reaching for bindgen to pass one struct would throw all of that
+  away.
 - **`set_ratio` and `set_surd` take i64, so JS must pass `BigInt`.** A plain
   number throws.
 - **Undersampling does not look coarse, it looks *wrong*.** A curve with a

@@ -229,7 +229,7 @@
   <h2>How it computes</h2>
   <p>
     The expansion is done exactly, not in floating point, by a small Rust engine compiled to
-    WebAssembly (<code>engine/</code> here, 53 KB, no imports and no bindgen). Fractions go through
+    WebAssembly (<code>engine/</code> here, 52 KB, no imports and no bindgen). Fractions go through
     Euclid in 128-bit integers. Quadratic irrationals — √2, √3, φ, and anything you type as
     <code>(a+sqrt(n))/c</code> — take a separate exact route whose terms are eventually periodic and
     therefore never run out. Everything else is a decimal, given here to 40 significant figures and
