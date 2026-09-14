@@ -7,8 +7,9 @@ name: cad gripper
 #
 # Wakes on a push to its own branch that touches its own files (the sandbox
 # cannot dispatch workflows), or by hand. It writes to a public ATProto repo
-# only when asked — the `publish` input, or `[publish]` in the head commit
-# message — so read morphyx/gripper/README.md first.
+# every push, because the live document is the deliverable and a push that
+# changes nothing writes nothing; `[nopublish]` in the head commit message
+# skips it. Read morphyx/gripper/README.md first.
 on:
   push:
     branches:
@@ -22,13 +23,19 @@ on:
         description: nut bracket centre y for the analytic audit's reference pose (the document is kinematic)
         default: '53'
       publish:
-        description: write the parts and the assembly into the morphyx repo
+        description: write the parts and the assembly into the morphyx repo (a push publishes by default; this is for an out-of-band run)
         type: boolean
         default: false
 
 env:
   NUT: ${{ inputs.nut || '53' }}
-  PUBLISH: ${{ inputs.publish || contains(github.event.head_commit.message, '[publish]') }}
+  # The live document should track this branch. `publish.mjs` compares canonical
+  # trees and writes only what changed, so a push that changes nothing writes
+  # nothing — which is why this is opt-OUT now. It was opt-in, and the live
+  # assembly sat seven commits and a day behind the branch, still showing a
+  # 462 mm³ interference that had been fixed here on the first of them. Green
+  # is not published. `[nopublish]` in the commit message skips it.
+  PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish || (github.event_name == 'push' && !contains(github.event.head_commit.message, '[nopublish]')) }}
 
 jobs:
   gripper:

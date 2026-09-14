@@ -456,6 +456,20 @@ commodity part and the series description, not from a datasheet I opened.
 buckling and the frame's stiffness, both hand calculations away but not
 modelled; and the tool interface, which does not exist yet.
 
+## Publishing
+
+**A push to this branch publishes.** The live document is the deliverable —
+green CI is not — and `publish.mjs` compares canonical trees and writes only
+what changed, so a push that changes nothing writes nothing. `[nopublish]` in
+the commit message skips it; `workflow_dispatch` honours its own input.
+
+It used to be opt-in, with `[publish]` in the commit message, and on
+2026-09-14 the live assembly sat seven commits and a day behind the branch —
+still showing the 462 mm³ of arm buried in the carriage that had been fixed
+on the first of those seven, and still missing the back plate, the catalogue
+motor and rail, and the single-input rebuild. Nobody looking at
+cad.mino.mobi could have known any of that had happened.
+
 ## Open it
 
 Published by the `cad gripper` workflow into the morphyx repo,
