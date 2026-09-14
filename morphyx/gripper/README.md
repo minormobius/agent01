@@ -28,11 +28,12 @@ the tangled mirror.
 |---|---|
 | `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment audit, the clearance audit, closed forms |
 | `parts/*.json` | the nineteen part trees, as generated |
-| `gripper.json` | the demo cycle: a reference clock drives a cosine, so the viewer's spin closes and opens once per turn |
-| `gripper-stroke.json` | the physical stroke: the screw driven at rpm, a `screw` mate carrying the carriage and the nut by the lead |
+| `ringgear.mjs` | an internal ring gear as one drawn loop, for v10 — the `gear` op builds external gears only |
+| `gripper.json` | the assembly. One document, one input: `grip` is each jaw's travel from closed. There is no drive and no period |
 | `expected.json` | closed-form volumes for every part |
-| `publish.mjs` | writes parts then both assemblies into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
-| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 24-instant interference sweep of both documents (the gate), the clearance table, publish on request, then audit the published corpus |
+| `publish.mjs` | writes the parts then the assembly into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
+| `verify.mjs` | the posed document against `pose()` at every grip — the check the two travel bugs would have failed |
+| `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 25-state interference **grid** over `grip` (the gate), the clearance table, publish on request, then audit the published corpus |
 
 ## How cad.mino.mobi works, for the next agent
 
@@ -205,6 +206,56 @@ and 42 fits in the compact form with `interfere` budgets on the two real
 press fits. The workflow's gate reads `volume > limit` off `--json` rather
 than the exit code, because of (1) and (2); `limit` is the platform's own
 budget, so the gate is stricter than the old one, not looser.
+
+## The motion is an input now (2026-09-14, second pass)
+
+The platform grew `inputs` — a document declares named axes of its own motion
+— plus `revolute` and `prismatic` joints that consume one, `rigid: true`
+placements that take an anchor's whole pose, and `--grid`, which checks every
+combination rather than a path through them. That is exactly what v10 needs,
+and it lets v9 shed a lot first.
+
+**Two documents became one.** There was a cosine-driven demo cycle and an
+rpm-driven stroke, both faking a linear motion with a rotary drive. Now
+there is one document with one input — `grip`, each jaw's travel from closed,
+0…15 mm — and no drive at all. Every double-driven warning went with them:
+the document poses identically to the closed form at every grip value, and
+`check` has nothing to complain about.
+
+**Joints where the motion is linear, expressions where it is not.** The jaw
+carriers, their blocks and their pins travel exactly `grip`, so they are
+`prismatic` joints — the real joint, and the one that will ride the rotor in
+v10. The nut, the carriage, the arms, the links and the bushings all travel
+by the slider-crank's own y, which is not linear in the input, so they are
+placement expressions. Those carry no mate, so they warn about nothing. The
+signs are verified rather than reasoned: the left carrier is turned 180°
+about Y, so its joint takes the *same* scale as the right one, while the
+left block and pin, which are not turned, take the opposite.
+
+`verify` is the check that matters: at five grip values, thirty positions
+match `pose()` to 1e-6 and the arm pin stands 40.0000 mm from the jaw pin —
+the link's own length — which is the invariant the v4 and v9 double-travel
+bugs both broke.
+
+Two more platform edges found and reported:
+
+- **An input cannot be referenced from `derived`.** The `inputs` block is
+  parsed after the first env resolves, so a derived value over `grip` fails
+  with `unknown parameter`. The slider-crank chain is written out in the
+  placements instead — four lines of algebra, and arguably clearer there.
+- **Resolving a `@comp.face` anchor drops the input values.** `modelFor`
+  calls `placeAt` without them, so a component placed on the face of a
+  component whose own placement is an expression over an input dies at
+  flatten with `unknown parameter grip`. That is why the eight bushings are
+  placed by expression rather than on their link eyes, which is worse and is
+  the only thing here that wants changing back.
+
+And one of theirs that caught one of ours: the clearance instrument used to
+measure penetration from a body's *vertices* only, and now samples triangle
+centroids and edge midpoints. On this design it immediately found the thrust
+collar sitting on the screw with coincident surfaces — 0.0025 mm deep, which
+used to read as a zero-depth touch and pass. The collar has a Ø8.1 bore now,
+which is what a set-screw collar actually has.
 
 ## Probe: can we build a planetary? (2026-09-14)
 
@@ -391,8 +442,7 @@ components); the 49 analytic checks in `gripper.mjs`; and the clearance
 table on the pillar frame at both ends of the stroke — the arms run on the
 pillars at 0.098 mm and nothing else in that group touches.
 
-**Run by the workflow, not from here:** the Manifold volume sweep through
-the motion on both documents, and the publish.
+**Run by the workflow, not from here:** the publish.
 
 **From vendor data, read this session:** the MGN9C dimension table and its
 load and moment ratings (L 28.9, W 20, H 10, B 15, C 10, M3 × 3; rail P 20,

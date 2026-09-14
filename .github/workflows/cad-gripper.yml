@@ -75,36 +75,30 @@ jobs:
               console.log(`${ok ? "✓" : "✗"} ${n.padEnd(12)} ${v.toFixed(1)} vs ${e.volume.toFixed(1)}  ${(err * 100).toFixed(3)}%`); }
             process.exit(bad ? 1 : 0);'
 
-      - name: Interference through one grip cycle and through the physical stroke (Manifold, shared volume; the gate)
-        working-directory: /tmp/cad
-        # The gate is `volume > limit` read off --json, not check.mjs's exit
-        # code. Two reasons, both measured 2026-09-14 and reported upstream:
-        # the volume instrument marks an expected touch from MATES only, so a
-        # pair declared `contact: true` in `fits` always fails; and the new
-        # double-driven warning fires on any mated component placed over the
-        # drive, which in this document is every one of them and none of them
-        # actually travels twice. `limit` is the platform's own budget — the
-        # default, or `fits interfere.max` — so this rule is stricter than the
-        # old one, not looser, and it fails on a real overlap either way.
-        run: |
-          gate () {
-            echo "── $1"
-            # its own exit code is what we are deliberately not using, and the shell is `bash -e`
-            node agent/check.mjs "$2" --sweep 24 ${3:+--period "$3"} --json > /tmp/check.json || true
-            [ -s /tmp/check.json ] || { echo "::error::check.mjs wrote no JSON — it failed before measuring"; exit 1; }
-            node -e '
-              const o = JSON.parse(require("fs").readFileSync("/tmp/check.json"));
-              const over = o.pairs.filter((p) => p.volume > p.limit);
-              for (const p of o.pairs) console.log(`${p.volume > p.limit ? "✗" : "~"} ${p.a} × ${p.b}  ${p.volume.toFixed(4)} mm³ (budget ${p.limit.toFixed(4)}) at t = ${p.t.toFixed(3)}`);
-              console.log(`${o.pairs.length} touching pairs, ${over.length} over budget`);
-              process.exit(over.length ? 1 : 0);'
-          }
-          gate "gripper.json: 24 instants over one clock turn (12 s at rpm 5)" /tmp/gripper/gripper.json
-          gate "gripper-stroke.json: 24 instants over one stroke, open → closed" /tmp/gripper/gripper-stroke.json "$(node -e 'import(process.env.GITHUB_WORKSPACE + "/morphyx/gripper/gripper.mjs").then(m => console.log(m.D.strokeSeconds))')"
+      - name: The posed document against the closed form (the check the travel bugs would have failed)
+        run: node morphyx/gripper/verify.mjs /tmp/cad
 
-      - name: Clearance table through the cycle (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
+      - name: Interference over the grip axis (Manifold, shared volume; the gate)
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/gripper/gripper.json --sweep 8 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
+        # A grid, not a sweep: this document's motion is an INPUT, not a period.
+        # And the gate is `volume > limit` read off --json, not check.mjs's exit
+        # code — the volume instrument still marks an expected touch from MATES
+        # only, so a pair declared `contact: true` in `fits` always fails it.
+        # `limit` is the platform's own budget (the default, or a fit's
+        # `interfere.max`), so this is stricter than the exit code, not looser.
+        run: |
+          node agent/check.mjs /tmp/gripper/gripper.json --grid 25 --json > /tmp/check.json || true
+          [ -s /tmp/check.json ] || { echo "::error::check.mjs wrote no JSON — it failed before measuring"; exit 1; }
+          node -e '
+            const o = JSON.parse(require("fs").readFileSync("/tmp/check.json"));
+            const over = o.pairs.filter((p) => p.volume > p.limit);
+            for (const p of o.pairs) console.log(`${p.volume > p.limit ? "✗" : "~"} ${p.a} × ${p.b}  ${p.volume.toFixed(4)} mm³ (budget ${p.limit.toFixed(4)})`);
+            console.log(`${o.grid} states over [${o.inputs}] · ${o.pairs.length} touching pairs, ${over.length} over budget`);
+            process.exit(over.length ? 1 : 0);'
+
+      - name: Clearance table over the grip axis (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/gripper/gripper.json --grid 5 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
 
       - name: Publish plan
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"
@@ -121,7 +115,7 @@ jobs:
         run: |
           # the morphyx persona's public repo, through the site's read gateway; no credentials involved
           curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=morphyxmino.bsky.social&collection=com.minomobi.cad.part' \
-            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("gripper/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<19)process.exit(1)})'
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("gripper/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<18)process.exit(1)})'
 
       - name: Audit the published corpus (every head rebuilt against the invariants its revision recorded; Truck vs Manifold)
         if: ${{ env.PUBLISH == 'true' }}

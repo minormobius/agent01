@@ -1,32 +1,32 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "gripper",
- "_": "Parallel-jaw robot gripper, v7, links through the wall: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×2 screw → flange nut in a carriage on the floor → two 22 mm pivot arms keyed into it → four 40 mm links on bronze bushings that pass through the front wall’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a 44 × 22 × 10 jaw carrier plate per side, four M4 and two Ø6 dowels for the customer’s finger. The stroke closes until the two jaw plates meet on the centre line. 88 × 44 × 70 mm case, the mechanism outside it 34 mm tall and reaching y = 90; mount centres 32 → 62 mm apart. Demo cycle: the drive turns a reference clock (one turn = one grip cycle); the screw angle \\`spin\\` swings 0 → 4.793 turns → 0, the nut moves forward by the lead to close (y = 44.35 open … 53.93 closed), and the links draw the jaws in by 15 mm each.",
+ "_": "Parallel-jaw robot gripper, v9: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×2 screw → flange nut in a two-plate carriage → two 22 mm pivot arms dropped into its notches and running on the pillars → four 40 mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a 32 × 22 × 8 jaw carrier plate per side, four M4 and two Ø5 dowels for the customer’s finger. 88 × 44 × 70 mm case, the mechanism outside it 34 mm tall and reaching y = 90. ONE input: `grip` is each jaw’s travel from closed, 0…15 mm, and mount centres go 32 → 62 mm with it. The carriers, their blocks and their pins are prismatic joints on it; the nut, the carriage, the arms and the links travel by the slider-crank’s own y (53.93 closed … 44.35 open, 4.79 turns of the screw), written into their placements because it is not linear in the input. Check it with `--grid`, not `--sweep`: a period is the wrong question for a document whose motion is an axis.",
+ "inputs": {
+  "grip": {
+   "min": 0,
+   "max": 15,
+   "steps": 7,
+   "unit": "mm",
+   "default": 0,
+   "description": "each jaw’s travel from closed; mount centres 32 → 62 mm"
+  }
+ },
  "params": {
-  "ynOpen": 44.347,
-  "ynClosed": 53.9331,
-  "lead": 2,
+  "xp0": 5.5,
   "L": 40,
   "px": 34,
   "py": 4,
   "yf": 86,
   "inset": 10.5,
+  "lead": 2,
   "flangeT": 3.5,
   "carT": 14,
   "carFrontT": 10,
   "lo": -17,
   "hi": 11,
-  "armZ": -11,
-  "blockL": 28.9
- },
- "derived": {
-  "spin": "360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2",
-  "yn": "ynOpen + lead * spin / 360",
-  "dy": "yf - py - yn",
-  "x": "sqrt(L^2 - dy^2)",
-  "xp": "px - x",
-  "xf": "xp + inset",
-  "phi": "rad2deg(atan2(dy, -x))"
+  "blockL": 28.9,
+  "ynClosed": 53.9331
  },
  "parts": {
   "bulkhead": {
@@ -1486,19 +1486,6 @@
  },
  "components": [
   {
-   "id": "clock",
-   "part": "pin",
-   "at": [
-    0,
-    -20,
-    0
-   ],
-   "params": {
-    "h": 1
-   },
-   "reference": true
-  },
-  {
    "id": "floor",
    "part": "floor",
    "at": [
@@ -1554,16 +1541,51 @@
    ]
   },
   {
+   "id": "rail",
+   "part": "rail",
+   "at": [
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "id": "pillar",
+   "part": "pillar",
+   "at": [
+    "(1 - 2 * (i - 2 * floor(i / 2))) * 24",
+    22,
+    0
+   ],
+   "repeat": 2,
+   "rotate": {
+    "axis": [
+     1,
+     0,
+     0
+    ],
+    "deg": -90
+   }
+  },
+  {
    "id": "drivetrain",
    "assembly": {
-    "_": "The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement. Both spin by `spin`.",
+    "_": "The lead screw and its thrust collar, built along Z and tilted onto the +Y axis by this sub-assembly’s placement. The screw turns by the lead as the carriage travels — a top-level input reaches in here by name. Both bodies are revolves, so the angle is for the eye, not for the check.",
     "params": {
-     "ynOpen": 44.347,
-     "ynClosed": 53.9331,
-     "lead": 2
-    },
-    "derived": {
-     "spin": "360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2"
+     "xp0": 5.5,
+     "L": 40,
+     "px": 34,
+     "py": 4,
+     "yf": 86,
+     "inset": 10.5,
+     "lead": 2,
+     "flangeT": 3.5,
+     "carT": 14,
+     "carFrontT": 10,
+     "lo": -17,
+     "hi": 11,
+     "blockL": 28.9,
+     "ynClosed": 53.9331
     },
     "parts": {
      "screw": {
@@ -1637,7 +1659,7 @@
       "params": {
        "D": 14,
        "L": 4,
-       "d": 8
+       "d": 8.1
       },
       "features": [
        {
@@ -1701,7 +1723,7 @@
         0,
         1
        ],
-       "deg": "spin"
+       "deg": "360 * (ynClosed - (yf - py - sqrt(L^2 - (px - xp0 - grip)^2))) / lead"
       }
      },
      {
@@ -1711,15 +1733,7 @@
        0,
        0,
        6
-      ],
-      "rotate": {
-       "axis": [
-        0,
-        0,
-        1
-       ],
-       "deg": "spin"
-      }
+      ]
      }
     ]
    },
@@ -1742,7 +1756,7 @@
    "part": "nut",
    "at": [
     0,
-    "yn - carT / 2 - flangeT",
+    "yf - py - sqrt(L^2 - (px - xp0 - grip)^2) - carT / 2 - flangeT",
     0
    ],
    "rotate": {
@@ -1759,7 +1773,7 @@
    "part": "carriage",
    "at": [
     0,
-    "yn + carT / 2",
+    "yf - py - sqrt(L^2 - (px - xp0 - grip)^2) + carT / 2",
     0
    ]
   },
@@ -1768,7 +1782,7 @@
    "part": "carriage-back",
    "at": [
     0,
-    "yn + carT / 2 - carFrontT",
+    "yf - py - sqrt(L^2 - (px - xp0 - grip)^2) + carT / 2 - carFrontT",
     0
    ]
   },
@@ -1777,7 +1791,7 @@
    "part": "arm",
    "at": [
     0,
-    "yn",
+    "yf - py - sqrt(L^2 - (px - xp0 - grip)^2)",
     0
    ],
    "repeat": 2,
@@ -1786,37 +1800,48 @@
    }
   },
   {
-   "id": "rail",
-   "part": "rail",
+   "id": "arm-pin",
+   "part": "pin",
+   "repeat": 2,
    "at": [
-    0,
-    0,
-    0
+    "(1 - 2 * (i - 2 * floor(i / 2))) * px",
+    "yf - py - sqrt(L^2 - (px - xp0 - grip)^2) + py",
+    -18
    ]
   },
   {
-   "id": "pillar",
-   "part": "pillar",
+   "id": "link",
+   "part": "link",
+   "repeat": 4,
    "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * 24",
-    22,
-    0
+    "(1 - 2 * (i - 2 * floor(i / 2))) * px",
+    "yf - py - sqrt(L^2 - (px - xp0 - grip)^2) + py",
+    "lo + (hi - lo) * floor(i / 2)"
    ],
-   "repeat": 2,
    "rotate": {
     "axis": [
-     1,
      0,
-     0
+     0,
+     1
     ],
-    "deg": -90
+    "deg": "(rad2deg(atan2(sqrt(L^2 - (px - xp0 - grip)^2), -(px - xp0 - grip)))) + (180 - 2 * (rad2deg(atan2(sqrt(L^2 - (px - xp0 - grip)^2), -(px - xp0 - grip))))) * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
    }
+  },
+  {
+   "id": "bush",
+   "part": "bushing",
+   "repeat": 8,
+   "at": [
+    "(1 - 2 * (floor(i / 2) - 2 * floor(floor(i / 2) / 2))) * (px + (i - 2 * floor(i / 2)) * (xp0 + grip - px))",
+    "(yf - py - sqrt(L^2 - (px - xp0 - grip)^2) + py) + (i - 2 * floor(i / 2)) * (yf - (yf - py - sqrt(L^2 - (px - xp0 - grip)^2)) - py)",
+    "lo + (hi - lo) * (floor(floor(i / 2) / 2))"
+   ]
   },
   {
    "id": "block",
    "part": "block",
    "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * xf - blockL / 2",
+    "(1 - 2 * (i - 2 * floor(i / 2))) * 16 - blockL / 2",
     0,
     0
    ],
@@ -1826,7 +1851,7 @@
    "id": "carrier",
    "part": "carrier",
    "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * xf",
+    "(1 - 2 * (i - 2 * floor(i / 2))) * 16",
     0,
     0
    ],
@@ -1841,54 +1866,90 @@
    }
   },
   {
-   "id": "arm-pin",
-   "part": "pin",
-   "repeat": 2,
-   "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * px",
-    "yn + py",
-    -18
-   ]
-  },
-  {
    "id": "jaw-pin",
    "part": "pin",
    "repeat": 2,
    "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * xp",
+    "(1 - 2 * (i - 2 * floor(i / 2))) * xp0",
     "yf",
     -18
    ]
-  },
-  {
-   "id": "link",
-   "part": "link",
-   "repeat": 4,
-   "at": [
-    "(1 - 2 * (i - 2 * floor(i / 2))) * px",
-    "yn + py",
-    "lo + (hi - lo) * floor(i / 2)"
-   ],
-   "rotate": {
-    "axis": [
-     0,
-     0,
-     1
-    ],
-    "deg": "phi + (180 - 2 * phi) * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
-   }
-  },
-  {
-   "id": "bush",
-   "part": "bushing",
-   "repeat": 8,
-   "at": "@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]",
-   "rotate": {
-    "align": "@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]"
-   }
   }
  ],
- "mates": [],
+ "mates": [
+  {
+   "kind": "prismatic",
+   "a": "front-wall",
+   "b": "carrier[0]",
+   "input": "grip",
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "scale": 1
+  },
+  {
+   "kind": "prismatic",
+   "a": "front-wall",
+   "b": "carrier[1]",
+   "input": "grip",
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "scale": 1
+  },
+  {
+   "kind": "prismatic",
+   "a": "front-wall",
+   "b": "block[0]",
+   "input": "grip",
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "scale": 1
+  },
+  {
+   "kind": "prismatic",
+   "a": "front-wall",
+   "b": "block[1]",
+   "input": "grip",
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "scale": -1
+  },
+  {
+   "kind": "prismatic",
+   "a": "front-wall",
+   "b": "jaw-pin[0]",
+   "input": "grip",
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "scale": 1
+  },
+  {
+   "kind": "prismatic",
+   "a": "front-wall",
+   "b": "jaw-pin[1]",
+   "input": "grip",
+   "axis": [
+    1,
+    0,
+    0
+   ],
+   "scale": -1
+  }
+ ],
  "fits": [
   {
    "a": "arm[*]",
@@ -1952,6 +2013,12 @@
    "a": "motor",
    "b": "drivetrain/screw",
    "contact": true
+  },
+  {
+   "a": "drivetrain/screw",
+   "b": "drivetrain/collar",
+   "min": 0.03,
+   "max": 0.1
   },
   {
    "a": "carriage",
@@ -2160,9 +2227,5 @@
    },
    "min": 0.4
   }
- ],
- "drive": {
-  "component": "clock",
-  "rpm": 5
- }
+ ]
 }

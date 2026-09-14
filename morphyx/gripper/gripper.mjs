@@ -46,7 +46,7 @@ export const D = {
   W: 88, wall: 4, zBot: -22, zTop: 22, frontY: 64, frontT: 6, frontW: 98, caseBolt: 3.4, caseBoltZ: 16,
   // motor: NEMA 17 external linear stepper, 48 mm stack, Tr8×2 (StepperOnline 17E19S1684AF2), on the OUTSIDE of the motor plate, y −26…22
   motor: 42.3, motorChamfer: 5, motorY: -26, motorLen: 48, pilot: 22.5, boltSquare: 31, bolt: 3.4, bulkheadT: 6,
-  screw: 8, lead: 2, screwEnd: 70, journal: 6, journalLen: 6, endBore: 6.2, collarD: 14, collarL: 4, collarY: 28,
+  screw: 8, lead: 2, screwEnd: 70, journal: 6, journalLen: 6, endBore: 6.2, collarD: 14, collarL: 4, collarBore: 0.1, collarY: 28,
   // the pillars: Ø10 bodies on the grip plane, an M8 nutted end into the motor plate and an M8 thread into the rail plate
   pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarNut: 6.5, pillarTap: 6, pillarClear: 8.4,
   // nut and carriage: the carriage hangs on the nut and runs on the pillars through its arms
@@ -135,7 +135,7 @@ export const parts = {
      { op: 'revolve', id: 'screw', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
   collar: tree('Thrust collar: clamped on the screw just ahead of the bulkhead. Gripping drives the nut forward and so pulls the screw back, and the collar bears on the bulkhead’s front face (thrust washer and set screw not modelled). One revolve about local Z.',
-    { D: D.collarD, L: D.collarL, d: D.screw },
+    { D: D.collarD, L: D.collarL, d: D.screw + D.collarBore },
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d/2', 0], ['D/2', 0], ['D/2', 'L'], ['d/2', 'L']] }] },
      { op: 'revolve', id: 'collar', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
@@ -225,86 +225,88 @@ export const parts = {
     { w: 2 * D.inner, y0: D.cavityY[0], y1: D.cavityY[1], t: D.wall - 2, z0: D.zTop - D.wall + 2, win_w: 2 * D.inner - 20, win_y0: D.ynOpen - 4, win_y1: D.frontY - 4 },
     [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', [0, '(y0 + y1) / 2'], 'w', 'y1 - y0'), rect('window', [0, '(win_y0 + win_y1) / 2'], 'win_w', 'win_y1 - win_y0')] }, { op: 'extrude', id: 'lid', profile: 'plate', depth: 't' }]),
 };
-
 // ── the assembly, kinematic ──────────────────────────────────────────────────
-// Two documents from the same parts. `assembly()` is the demo cycle: a
-// reference clock is the driven component and the screw angle is a cosine of
-// its angle. `assembly('stroke')` is the physical stroke: the screw is driven
-// at rpm, a `screw` mate carries the carriage by the lead, `fixed` mates carry
-// the nut and the arms. Bushings sit on their link eyes by feature; the
-// carrier's own faces are unnamed (its pin hole is a cut), so its pins are
-// placed by expression.
-const alongY = { axis: [1, 0, 0], deg: -90 }; // local +Z → world +Y
-const SPIN = '360 * ((ynClosed - ynOpen) / lead) * (1 - cos(deg(theta))) / 2';
-export function assembly(mode = 'cycle') {
-  const stroke = mode === 'stroke';
+// ONE document, and its motion is an INPUT, not a period. `inputs` declares
+// `grip` — each jaw's travel from closed, in millimetres — and every expression
+// here reads it by name. That replaces the two documents this design used to
+// carry (a cosine-driven demo cycle and an rpm-driven stroke), and with them
+// the whole double-driven problem: nothing is mated to something the document
+// already places.
+//
+// Where the motion is LINEAR in `grip` — the jaw carriers, their blocks, their
+// pins — it is a `prismatic` joint, which is the real joint and is what will
+// ride the rotor in v10. Where it is not — the nut, the carriage, the arms and
+// the links all travel by the slider-crank's own y — it is a placement
+// expression, which carries no mate and so warns about nothing. An input
+// cannot be referenced from `derived` (the inputs block is parsed after the
+// first env resolves), so the chain is written out below instead.
+const alongY = { axis: [1, 0, 0], deg: -90 };            // local +Z → world +Y
+const X = 'px - xp0 - grip';                             // the link's X reach, from the arm pivot
+const DY = `sqrt(L^2 - (${X})^2)`;                       // and its Y reach
+const YN = `yf - py - ${DY}`;                            // the carriage: forward closes
+const PHI = `rad2deg(atan2(${DY}, -(${X})))`;            // the right link, pointing inward and forward
+export function assembly() {
   const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
-  const params = { ynOpen: round(D.ynOpen, 4), ynClosed: round(D.ynClosed, 4), lead: D.lead, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.inset, flangeT: D.flangeT, carT: D.carT, carFrontT: D.carT - D.carBackT,
-    lo: D.linkZ[0][0], hi: D.linkZ[1][0], armZ: D.armZ0, blockL: D.blockL };
-  const derived = {
-    ...(stroke ? { turns: 'theta / 360' } : { spin: SPIN }),
-    yn: stroke ? 'ynOpen + lead * turns' : 'ynOpen + lead * spin / 360',   // the nut moves forward to close
-    dy: 'yf - py - yn',
-    x: 'sqrt(L^2 - dy^2)',
-    xp: 'px - x',                                         // the jaw pin, inboard of the arm pivot
-    xf: 'xp + inset',                                     // the carrier and its block
-    phi: 'rad2deg(atan2(dy, -x))',                        // the right link, from its arm eye, points inward and forward
-  };
+  const params = { xp0: D.xpClosed, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.inset,
+    lead: D.lead, flangeT: D.flangeT, carT: D.carT, carFrontT: D.carT - D.carBackT,
+    lo: D.linkZ[0][0], hi: D.linkZ[1][0], blockL: D.blockL, ynClosed: round(D.ynClosed, 4) };
   const drivetrain = {
-    _: 'The lead screw and its thrust collar, built along Z, tilted onto the +Y axis by this sub-assembly’s placement.' + (stroke ? ' The screw is the driven component; the collar is fixed to it.' : ' Both spin by `spin`.'),
-    params: { ynOpen: round(D.ynOpen, 4), ynClosed: round(D.ynClosed, 4), lead: D.lead },
-    ...(stroke ? {} : { derived: { spin: SPIN } }),
+    _: 'The lead screw and its thrust collar, built along Z and tilted onto the +Y axis by this sub-assembly’s placement. The screw turns by the lead as the carriage travels — a top-level input reaches in here by name. Both bodies are revolves, so the angle is for the eye, not for the check.',
+    params: { ...params },
     parts: { screw: structuredClone(parts.screw), collar: structuredClone(parts.collar) },
     components: [
-      c('screw', 'screw', [0, 0, 0], stroke ? {} : { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
-      c('collar', 'collar', [0, 0, D.collarY - (D.motorY + D.motorLen)], stroke ? {} : { rotate: { axis: [0, 0, 1], deg: 'spin' } }),
+      c('screw', 'screw', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: `360 * (ynClosed - (${YN})) / lead` } }),
+      c('collar', 'collar', [0, 0, D.collarY - (D.motorY + D.motorLen)]),
     ],
-    ...(stroke ? { mates: [{ kind: 'fixed', a: 'screw', b: 'collar' }] } : {}),
   };
   const side = '(1 - 2 * (i - 2 * floor(i / 2)))', level = 'floor(i / 2)'; // +1 right / −1 left for even / odd i; 0 lower / 1 upper — `i` is in scope only in a repeated component's own fields
-  const carriageAt = stroke ? [0, 'ynOpen + carT / 2', 0] : [0, 'yn + carT / 2', 0];
-  const backAt = stroke ? [0, 'ynOpen + carT / 2 - carFrontT', 0] : [0, 'yn + carT / 2 - carFrontT', 0];
-  const nutAt = stroke ? [0, 'ynOpen - carT / 2 - flangeT', 0] : [0, 'yn - carT / 2 - flangeT', 0];
-  const armAt = stroke ? [0, 'ynOpen', 0] : [0, 'yn', 0];
+  const bk = 'floor(i / 2)', be = `i - 2 * ${bk}`;                         // for the bushings: which link, and which of its two eyes
+  const bsd = `(1 - 2 * (${bk} - 2 * floor(${bk} / 2)))`, blv = `floor(${bk} / 2)`;
+  const xf0 = round(D.xpClosed + D.inset, 4);            // the carrier and its block, at closed
   const components = [
-    ...(stroke ? [] : [c('clock', 'pin', [0, -20, D.zc], { params: { h: 1 }, reference: true })]),
     c('floor', 'floor', [0, 0, 0]),
     c('lid', 'lid', [0, 0, 0]),
     c('wall', 'side-wall', [`${side} * ${D.W / 2 - D.wall} - (1 - ${side}) / 2 * ${D.wall}`, 0, 0], { repeat: 2 }),
     c('bulkhead', 'bulkhead', [0, 0, 0]),
     c('front-wall', 'front-wall', [0, 0, 0]),
     c('motor', 'motor', [0, 0, 0]),
-    { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
-    c('nut', 'nut', nutAt, { rotate: alongY }),
-    c('carriage', 'carriage', carriageAt),
-    c('carriage-back', 'carriage-back', backAt),
-    c('arm', 'arm', armAt, { repeat: 2, params: { side } }),
     c('rail', 'rail', [0, 0, 0]),
     c('pillar', 'pillar', [`${side} * ${D.pillarX}`, D.pillarY[0], 0], { repeat: 2, rotate: alongY }),
-    c('block', 'block', [`${side} * xf - blockL / 2`, 0, 0], { repeat: 2 }),
-    // the jaw plates: the pin is off the plate's centre line, so the left one is the right one turned 180° about Y (its section is symmetric about z = 0)
-    c('carrier', 'carrier', [`${side} * xf`, 0, 0], { repeat: 2, rotate: { axis: [0, 1, 0], deg: `90 * (1 - ${side})` } }),
-    // the arm pins and the jaw pins are both placed by expression: the arm's pillar bore and the jaw plate's pin hole are cuts, so neither part's faces are named
-    { id: 'arm-pin', part: 'pin', repeat: 2, at: [`${side} * px`, 'yn + py', D.pinZ0] },
-    { id: 'jaw-pin', part: 'pin', repeat: 2, at: [`${side} * xp`, 'yf', D.pinZ0] },
+    { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
+    // the plunger: it travels by the slider-crank's own y, so it is written, not jointed
+    c('nut', 'nut', [0, `${YN} - carT / 2 - flangeT`, 0], { rotate: alongY }),
+    c('carriage', 'carriage', [0, `${YN} + carT / 2`, 0]),
+    c('carriage-back', 'carriage-back', [0, `${YN} + carT / 2 - carFrontT`, 0]),
+    c('arm', 'arm', [0, YN, 0], { repeat: 2, params: { side } }),
+    { id: 'arm-pin', part: 'pin', repeat: 2, at: [`${side} * px`, `${YN} + py`, D.pinZ0] },
     // four links: i = 0 right-lower, 1 left-lower, 2 right-upper, 3 left-upper; from the arm pivot toward the jaw pin
-    { id: 'link', part: 'link', repeat: 4, at: [`${side} * px`, 'yn + py', `lo + (hi - lo) * ${level}`], rotate: { axis: [0, 0, 1], deg: `phi + (180 - 2 * phi) * (1 - ${side}) / 2` } },
-    // eight bushings: one per link eye, placed on the eye itself
-    { id: 'bush', part: 'bushing', repeat: 8, at: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]', rotate: { align: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]' } },
+    { id: 'link', part: 'link', repeat: 4, at: [`${side} * px`, `${YN} + py`, `lo + (hi - lo) * ${level}`],
+      rotate: { axis: [0, 0, 1], deg: `(${PHI}) + (180 - 2 * (${PHI})) * (1 - ${side}) / 2` } },
+    // eight bushings, one per link eye. They used to be placed ON the eye by
+    // feature, which is better; they cannot be while the link's own placement
+    // is an expression over an input, because resolving an anchor at flatten
+    // time drops the input values (`modelFor` calls `placeAt` without them) and
+    // the reference dies with `unknown parameter grip`. Reported; until then,
+    // by expression. e = 0 is the arm eye, e = 1 the jaw eye.
+    { id: 'bush', part: 'bushing', repeat: 8,
+      at: [`${bsd} * (px + (${be}) * (xp0 + grip - px))`, `(${YN} + py) + (${be}) * (yf - (${YN}) - py)`, `lo + (hi - lo) * (${blv})`] },
+    // the jaw side is linear in `grip`, so it is jointed. Placed at CLOSED; the joints open it.
+    c('block', 'block', [`${side} * ${xf0} - blockL / 2`, 0, 0], { repeat: 2 }),
+    // the jaw plates: the pin is off the plate's centre line, so the left one is the right one turned 180° about Y (its section is symmetric about z = 0)
+    c('carrier', 'carrier', [`${side} * ${xf0}`, 0, 0], { repeat: 2, rotate: { axis: [0, 1, 0], deg: `90 * (1 - ${side})` } }),
+    { id: 'jaw-pin', part: 'pin', repeat: 2, at: [`${side} * xp0`, 'yf', D.pinZ0] },
   ];
-  // MATES CARRY MOTION; FITS DECLARE INTENT. Measured on 2026-09-14: of the 36
-  // mates this document used to carry, 35 moved nothing — every component is
-  // placed by an expression over the drive, so a fixed mate had no travel to
-  // pass on. They were there only to mark expected touches, which `fits` now
-  // does properly, and a mate on a component the drive already places is what
-  // `check` warns about. So the kinematic five stay and the rest are fits.
-  const mates = stroke ? [
-    { kind: 'screw', a: 'drivetrain/screw', b: 'carriage', lead: 'lead', axis: [0, 1, 0] },   // the physical joint
-    // the nut is placed tilted (local +z = world +Y), and a fixed mate copies travel in the follower's own frame, so it gets its own screw mate along its local z
-    { kind: 'screw', a: 'drivetrain/screw', b: 'nut', lead: 'lead', axis: [0, 0, 1] },
-    { kind: 'fixed', a: 'carriage', b: 'carriage-back' },               // the two plates of the carriage, on the same four bolts
-    { kind: 'fixed', a: 'carriage', b: 'arm[0]' }, { kind: 'fixed', a: 'carriage', b: 'arm[1]' },   // keyed into the notches: this is what carries the arms along
-  ] : [];
+  // The joints, each consuming the one input. `a` is the member they travel
+  // against — the rail plate today, the rotor in v10. `axis` is in the
+  // FOLLOWER's own frame, so the left carrier, turned 180° about Y, takes the
+  // same sign as the right, while the left block and pin, which are not turned,
+  // take the opposite. (Verified against the analytic pose, both ends.)
+  const slide = (b, scale) => ({ kind: 'prismatic', a: 'front-wall', b, input: 'grip', axis: [1, 0, 0], scale });
+  const mates = [
+    slide('carrier[0]', 1), slide('carrier[1]', 1),
+    slide('block[0]', 1), slide('block[1]', -1),
+    slide('jaw-pin[0]', 1), slide('jaw-pin[1]', -1),
+  ];
   // What this design intends at each interface, so the clearance table judges
   // it on its own numbers. `[*]` on both sides pairs by index and `over` walks
   // an index through an expression, so a repeat is stated once; the language
@@ -325,6 +327,7 @@ export function assembly(mode = 'cycle') {
     // the drivetrain (its own `fixed screw ↔ collar` reaches up here on its own)
     { a: 'front-wall', b: 'drivetrain/screw', contact: true }, { a: 'rail', b: 'drivetrain/screw', contact: true },
     { a: 'motor', b: 'drivetrain/screw', contact: true },
+    { a: 'drivetrain/screw', b: 'drivetrain/collar', min: 0.03, max: 0.1 },   // a set-screw collar is a clearance bore, not a coincident surface
     // the plunger
     { a: 'carriage', b: 'carriage-back', contact: true },              // the two plates, bolted face to face
     { a: 'carriage-back', b: 'arm[*]', contact: true },                // the thrust joint: the arm bears on this face
@@ -348,19 +351,21 @@ export function assembly(mode = 'cycle') {
     { a: `arm[${odd}]`, b: 'bush[2*k]', over, contact: true }, { a: `carrier[${odd}]`, b: 'bush[2*k + 1]', over, contact: true },
     { a: `arm[${even}]`, b: 'link[k]', over, min: 0.4 }, { a: `carrier[${even}]`, b: 'link[k]', over, min: 0.4 },
   ];
+
   const partsMap = Object.fromEntries(Object.entries(parts).filter(([k]) => !(k in drivetrain.parts)).map(([k, v]) => [k, structuredClone(v)]));
   const o = pose(D.xpOpen), cl = pose(D.xpClosed);
-  const turns = round((D.ynClosed - D.ynOpen) / D.lead, 3);
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
-    name: stroke ? 'gripper-stroke' : 'gripper',
-    _: `Parallel-jaw robot gripper, v7, links through the wall: ISO 9409-1-50-4-M6 flange → NEMA 17 pancake stepper with an integrated Tr8×${D.lead} screw → flange nut in a carriage on the floor → two 22 mm pivot arms keyed into it → four ${D.link} mm links on bronze bushings that pass through the front wall’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a 44 × 22 × 10 jaw carrier plate per side, four M4 and two Ø6 dowels for the customer’s finger. The stroke closes until the two jaw plates meet on the centre line. ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm case, the mechanism outside it ${2 * D.linkZ[1][1]} mm tall and reaching y = ${D.carrierY[1]}; mount centres ${2 * D.xfClosed} → ${2 * D.xfOpen} mm apart. ` + (stroke
-      ? `The physical stroke: the screw is driven at ${D.rpm} rpm, a screw mate moves the carriage ${D.lead} mm per turn (y = ${round(o.yn, 2)} open → ${round(cl.yn, 2)} closed in ${turns} turns, ${round(turns * 60 / D.rpm, 1)} s), fixed mates carry the nut and the arms, and the links draw the jaws in by ${D.travel} mm each. Sweep with period ${round(turns * 60 / D.rpm, 1)} s; beyond it the nut runs on, as it would.`
-      : `Demo cycle: the drive turns a reference clock (one turn = one grip cycle); the screw angle \\\`spin\\\` swings 0 → ${turns} turns → 0, the nut moves forward by the lead to close (y = ${round(o.yn, 2)} open … ${round(cl.yn, 2)} closed), and the links draw the jaws in by ${D.travel} mm each.`),
-    params, derived,
+    name: 'gripper',
+    _: `Parallel-jaw robot gripper, v9: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×${D.lead} screw → flange nut in a two-plate carriage → two ${D.armT} mm pivot arms dropped into its notches and running on the pillars → four ${D.link} mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a ${2 * D.carrierHalf} × ${2 * D.carrierZ} × ${D.carrierT} jaw carrier plate per side, four M4 and two Ø${D.fingerDowel} dowels for the customer’s finger. ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm case, the mechanism outside it ${2 * D.linkZ[1][1]} mm tall and reaching y = ${D.carrierY[1]}. ` +
+      `ONE input: \`grip\` is each jaw’s travel from closed, 0…${D.travel} mm, and mount centres go ${2 * D.xfClosed} → ${2 * D.xfOpen} mm with it. The carriers, their blocks and their pins are prismatic joints on it; the nut, the carriage, the arms and the links travel by the slider-crank’s own y (${round(cl.yn, 2)} closed … ${round(o.yn, 2)} open, ${round((D.ynClosed - D.ynOpen) / D.lead, 2)} turns of the screw), written into their placements because it is not linear in the input. Check it with \`--grid\`, not \`--sweep\`: a period is the wrong question for a document whose motion is an axis.`,
+    inputs: {
+      grip: { min: 0, max: D.travel, steps: 7, unit: 'mm', default: 0,
+        description: `each jaw’s travel from closed; mount centres ${2 * D.xfClosed} → ${2 * D.xfOpen} mm` },
+    },
+    params,
     parts: partsMap,
     components, mates, fits,
-    drive: stroke ? { component: 'drivetrain/screw', rpm: D.rpm } : { component: 'clock', rpm: D.rpm },
   };
 }
 D.strokeSeconds = round(((D.ynClosed - D.ynOpen) / D.lead) * 60 / D.rpm, 2);
@@ -452,7 +457,7 @@ export const expected = {
   pin: { volume: A * D.pin ** 2 * D.pinLen, tol: 0.004 },
   rail: { volume: D.railW * D.railH * 2 * D.railHalf, tol: 0.002 },
   block: { volume: (D.blockW * (D.blockY[1] - D.blockY[0]) - D.blockChannelW * D.blockChannelH) * D.blockL, tol: 0.002 },
-  collar: { volume: A * (D.collarD ** 2 - D.screw ** 2) * D.collarL, tol: 0.002 },
+  collar: { volume: A * (D.collarD ** 2 - (D.screw + D.collarBore) ** 2) * D.collarL, tol: 0.002 },
   screw: { volume: A * D.screw ** 2 * (D.screwEnd - D.motorY - D.motorLen - D.journalLen) + A * D.journal ** 2 * D.journalLen, tol: 0.004 },
   nut: { volume: Math.PI * ((D.flange / 2) ** 2 * D.flangeT + (D.nutBody / 2) ** 2 * (D.nutLen - D.flangeT) - (D.nutBore / 2) ** 2 * D.nutLen), tol: 0.002 },
   floor: { volume: 2 * D.inner * (D.cavityY[1] - D.cavityY[0]) * (D.wall - 2), tol: 0.002 },
@@ -470,7 +475,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url
   for (const f of fs.readdirSync(path.join(out, 'parts'))) if (!(f.replace(/\.json$/, '') in parts)) fs.unlinkSync(path.join(out, 'parts', f));
   for (const [k, v] of Object.entries(parts)) fs.writeFileSync(path.join(out, 'parts', `${k}.json`), JSON.stringify(v, null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'gripper.json'), JSON.stringify(asm, null, 1) + '\n');
-  fs.writeFileSync(path.join(out, 'gripper-stroke.json'), JSON.stringify(assembly('stroke'), null, 1) + '\n');
+  fs.rmSync(path.join(out, 'gripper-stroke.json'), { force: true });   // one document now: its motion is an input, not a period
   fs.writeFileSync(path.join(out, 'expected.json'), JSON.stringify(expected, null, 1) + '\n');
   console.table([D.xpClosed, (D.xpClosed + D.xpOpen) / 2, D.xpOpen].map((xp) => { const p = pose(xp); return { jaw_pin_x: xp, block_x: p.xf, nut_y: round(p.yn), link_deg: round(p.angle, 1), mount_centres: 2 * p.xf, carriage_front_y: round(p.carFront) }; }));
   console.table(forces());

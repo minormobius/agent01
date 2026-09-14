@@ -68,14 +68,17 @@ const rewrite = (a) => {
   for (const k of Object.keys(a.parts || {})) { const u = revs.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
   for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
 };
-for (const [pathName, mode, name] of [['gripper/assembly', 'cycle', 'assembly'], ['gripper/stroke', 'stroke', 'stroke']]) {
-  const asm = assembly(mode);
+{
+  const asm = assembly();
   rewrite(asm);
-  await publish(pathName, asm, { kind: 'assembly', name });
+  await publish('gripper/assembly', asm, { kind: 'assembly', name: 'assembly' });
 }
+// gripper/stroke was the second document, an rpm-driven stroke. One document
+// carries both now — its motion is the `grip` input — so the old head is retired.
+if (drive && await drive.find('gripper/stroke')) { await drive.rename('gripper/stroke', 'gripper/v9/stroke'); console.log('  moved  gripper/stroke → gripper/v9/stroke'); }
+else if (!drive) console.log('  plan  gripper/stroke → gripper/v9/stroke (if present)');
 if (drive) {
   console.log(`\n${wrote} written, ${kept} unchanged, in ${drive.did}`);
   console.log(`  open: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('assembly'))}`);
-  console.log(`  stroke: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('stroke'))}`);
-  for (const [n, u] of uris) if (n !== 'assembly' && n !== 'stroke') console.log(`  ${n}: https://cad.mino.mobi/?at=${encodeURIComponent(u)}`);
+  for (const [n, u] of uris) if (n !== 'assembly') console.log(`  ${n}: https://cad.mino.mobi/?at=${encodeURIComponent(u)}`);
 }
