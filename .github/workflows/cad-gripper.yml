@@ -77,11 +77,28 @@ jobs:
 
       - name: Interference through one grip cycle and through the physical stroke (Manifold, shared volume; the gate)
         working-directory: /tmp/cad
+        # The gate is `volume > limit` read off --json, not check.mjs's exit
+        # code. Two reasons, both measured 2026-09-14 and reported upstream:
+        # the volume instrument marks an expected touch from MATES only, so a
+        # pair declared `contact: true` in `fits` always fails; and the new
+        # double-driven warning fires on any mated component placed over the
+        # drive, which in this document is every one of them and none of them
+        # actually travels twice. `limit` is the platform's own budget — the
+        # default, or `fits interfere.max` — so this rule is stricter than the
+        # old one, not looser, and it fails on a real overlap either way.
         run: |
-          echo "── gripper.json: 24 instants over one clock turn (12 s at rpm 5)"
-          node agent/check.mjs /tmp/gripper/gripper.json --sweep 24
-          echo "── gripper-stroke.json: 24 instants over one stroke, open → closed"
-          node agent/check.mjs /tmp/gripper/gripper-stroke.json --sweep 24 --period "$(node -e 'import(process.env.GITHUB_WORKSPACE + "/morphyx/gripper/gripper.mjs").then(m => console.log(m.D.strokeSeconds))')"
+          gate () {
+            echo "── $1"
+            node agent/check.mjs "$2" --sweep 24 ${3:+--period "$3"} --json > /tmp/check.json
+            node -e '
+              const o = JSON.parse(require("fs").readFileSync("/tmp/check.json"));
+              const over = o.pairs.filter((p) => p.volume > p.limit);
+              for (const p of o.pairs) console.log(`${p.volume > p.limit ? "✗" : "~"} ${p.a} × ${p.b}  ${p.volume.toFixed(4)} mm³ (budget ${p.limit.toFixed(4)}) at t = ${p.t.toFixed(3)}`);
+              console.log(`${o.pairs.length} touching pairs, ${over.length} over budget`);
+              process.exit(over.length ? 1 : 0);'
+          }
+          gate "gripper.json: 24 instants over one clock turn (12 s at rpm 5)" /tmp/gripper/gripper.json
+          gate "gripper-stroke.json: 24 instants over one stroke, open → closed" /tmp/gripper/gripper-stroke.json "$(node -e 'import(process.env.GITHUB_WORKSPACE + "/morphyx/gripper/gripper.mjs").then(m => console.log(m.D.strokeSeconds))')"
 
       - name: Clearance table through the cycle (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
         working-directory: /tmp/cad

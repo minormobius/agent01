@@ -1900,168 +1900,12 @@
    "kind": "fixed",
    "a": "carriage",
    "b": "arm[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "jaw-pin[0]",
-   "b": "carrier[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "jaw-pin[1]",
-   "b": "carrier[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[0]",
-   "b": "link[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[1]",
-   "b": "link[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[2]",
-   "b": "link[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[3]",
-   "b": "link[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[4]",
-   "b": "link[2]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[5]",
-   "b": "link[2]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[6]",
-   "b": "link[3]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bush[7]",
-   "b": "link[3]"
-  },
-  {
-   "kind": "fixed",
-   "a": "carrier[0]",
-   "b": "block[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "carrier[1]",
-   "b": "block[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "rail",
-   "b": "front-wall"
-  },
-  {
-   "kind": "fixed",
-   "a": "front-wall",
-   "b": "wall[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "front-wall",
-   "b": "wall[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bulkhead",
-   "b": "wall[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bulkhead",
-   "b": "wall[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "bulkhead",
-   "b": "motor"
-  },
-  {
-   "kind": "fixed",
-   "a": "pillar[0]",
-   "b": "bulkhead"
-  },
-  {
-   "kind": "fixed",
-   "a": "pillar[1]",
-   "b": "bulkhead"
-  },
-  {
-   "kind": "fixed",
-   "a": "pillar[0]",
-   "b": "front-wall"
-  },
-  {
-   "kind": "fixed",
-   "a": "pillar[1]",
-   "b": "front-wall"
-  },
-  {
-   "kind": "fixed",
-   "a": "floor",
-   "b": "wall[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "floor",
-   "b": "wall[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "floor",
-   "b": "front-wall"
-  },
-  {
-   "kind": "fixed",
-   "a": "floor",
-   "b": "bulkhead"
-  },
-  {
-   "kind": "fixed",
-   "a": "lid",
-   "b": "wall[0]"
-  },
-  {
-   "kind": "fixed",
-   "a": "lid",
-   "b": "wall[1]"
-  },
-  {
-   "kind": "fixed",
-   "a": "lid",
-   "b": "front-wall"
-  },
-  {
-   "kind": "fixed",
-   "a": "lid",
-   "b": "bulkhead"
   }
  ],
  "fits": [
   {
-   "a": "arm[0]",
-   "b": "pillar[0]",
-   "min": 0.05,
-   "max": 0.2
-  },
-  {
-   "a": "arm[1]",
-   "b": "pillar[1]",
+   "a": "arm[*]",
+   "b": "pillar[*]",
    "min": 0.05,
    "max": 0.2
   },
@@ -2073,25 +1917,13 @@
   },
   {
    "a": "bulkhead",
-   "b": "pillar[0]",
-   "min": 0.1,
-   "max": 0.3
-  },
-  {
-   "a": "bulkhead",
-   "b": "pillar[1]",
+   "b": "pillar[*]",
    "min": 0.1,
    "max": 0.3
   },
   {
    "a": "carriage",
-   "b": "arm[0]",
-   "min": 0.05,
-   "max": 0.2
-  },
-  {
-   "a": "carriage",
-   "b": "arm[1]",
+   "b": "arm[*]",
    "min": 0.05,
    "max": 0.2
   },
@@ -2102,34 +1934,16 @@
    "max": 0.2
   },
   {
-   "a": "carriage",
-   "b": "carriage-back",
-   "contact": true
+   "a": "rail",
+   "b": "block[*]",
+   "min": 0.3,
+   "max": 0.7
   },
   {
-   "a": "carriage-back",
-   "b": "arm[0]",
-   "contact": true
-  },
-  {
-   "a": "carriage-back",
-   "b": "arm[1]",
-   "contact": true
-  },
-  {
-   "a": "nut",
-   "b": "carriage-back",
-   "contact": true
-  },
-  {
-   "a": "carrier[0]",
-   "b": "block[0]",
-   "contact": true
-  },
-  {
-   "a": "carrier[1]",
-   "b": "block[1]",
-   "contact": true
+   "a": "front-wall",
+   "b": "link[*]",
+   "min": 0.25,
+   "max": 0.6
   },
   {
    "a": "carrier[0]",
@@ -2138,36 +1952,6 @@
    "max": 40
   },
   {
-   "a": "motor",
-   "b": "pillar[0]",
-   "contact": true
-  },
-  {
-   "a": "motor",
-   "b": "pillar[1]",
-   "contact": true
-  },
-  {
-   "a": "rail",
-   "b": "pillar[0]",
-   "contact": true
-  },
-  {
-   "a": "rail",
-   "b": "pillar[1]",
-   "contact": true
-  },
-  {
-   "a": "front-wall",
-   "b": "pillar[0]",
-   "contact": true
-  },
-  {
-   "a": "front-wall",
-   "b": "pillar[1]",
-   "contact": true
-  },
-  {
    "a": "front-wall",
    "b": "drivetrain/screw",
    "contact": true
@@ -2183,324 +1967,210 @@
    "contact": true
   },
   {
-   "a": "drivetrain/screw",
-   "b": "drivetrain/collar",
+   "a": "carriage",
+   "b": "carriage-back",
+   "contact": true
+  },
+  {
+   "a": "carriage-back",
+   "b": "arm[*]",
+   "contact": true
+  },
+  {
+   "a": "nut",
+   "b": "carriage-back",
+   "contact": true
+  },
+  {
+   "a": "arm[*]",
+   "b": "arm-pin[*]",
+   "contact": true
+  },
+  {
+   "a": "carrier[*]",
+   "b": "jaw-pin[*]",
+   "contact": true
+  },
+  {
+   "a": "carrier[*]",
+   "b": "block[*]",
+   "contact": true
+  },
+  {
+   "a": "motor",
+   "b": "pillar[*]",
    "contact": true
   },
   {
    "a": "rail",
-   "b": "block[0]",
-   "min": 0.3,
-   "max": 0.7
-  },
-  {
-   "a": "front-wall",
-   "b": "link[0]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "front-wall",
-   "b": "link[1]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "front-wall",
-   "b": "link[2]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "front-wall",
-   "b": "link[3]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "rail",
-   "b": "block[1]",
-   "min": 0.3,
-   "max": 0.7
-  },
-  {
-   "a": "front-wall",
-   "b": "link[0]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "front-wall",
-   "b": "link[1]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "front-wall",
-   "b": "link[2]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "front-wall",
-   "b": "link[3]",
-   "min": 0.25,
-   "max": 0.6
-  },
-  {
-   "a": "link[0]",
-   "b": "bush[0]",
+   "b": "pillar[*]",
    "contact": true
   },
   {
-   "a": "link[0]",
-   "b": "bush[1]",
+   "a": "front-wall",
+   "b": "pillar[*]",
+   "contact": true,
+   "interfere": {
+    "max": 1,
+    "depth": 0.2
+   }
+  },
+  {
+   "a": "bulkhead",
+   "b": "motor",
    "contact": true
   },
   {
-   "a": "arm-pin[0]",
-   "b": "bush[0]",
+   "a": "front-wall",
+   "b": "rail",
+   "contact": true
+  },
+  {
+   "a": "bulkhead",
+   "b": "wall[*]",
+   "contact": true
+  },
+  {
+   "a": "floor",
+   "b": "bulkhead",
+   "contact": true
+  },
+  {
+   "a": "lid",
+   "b": "bulkhead",
+   "contact": true
+  },
+  {
+   "a": "front-wall",
+   "b": "wall[*]",
+   "contact": true
+  },
+  {
+   "a": "floor",
+   "b": "front-wall",
+   "contact": true
+  },
+  {
+   "a": "lid",
+   "b": "front-wall",
+   "contact": true
+  },
+  {
+   "a": "floor",
+   "b": "wall[*]",
+   "contact": true
+  },
+  {
+   "a": "lid",
+   "b": "wall[*]",
+   "contact": true
+  },
+  {
+   "a": "link[k]",
+   "b": "bush[2*k]",
+   "over": {
+    "k": 4
+   },
+   "contact": true,
+   "interfere": {
+    "max": 1,
+    "depth": 0.2
+   }
+  },
+  {
+   "a": "link[k]",
+   "b": "bush[2*k + 1]",
+   "over": {
+    "k": 4
+   },
+   "contact": true,
+   "interfere": {
+    "max": 1,
+    "depth": 0.2
+   }
+  },
+  {
+   "a": "arm-pin[k - 2 * floor(k / 2)]",
+   "b": "bush[2*k]",
+   "over": {
+    "k": 4
+   },
    "min": 0.02,
    "max": 0.1
   },
   {
-   "a": "jaw-pin[0]",
-   "b": "bush[1]",
+   "a": "jaw-pin[k - 2 * floor(k / 2)]",
+   "b": "bush[2*k + 1]",
+   "over": {
+    "k": 4
+   },
    "min": 0.02,
    "max": 0.1
   },
   {
-   "a": "arm-pin[0]",
-   "b": "link[0]",
+   "a": "arm-pin[k - 2 * floor(k / 2)]",
+   "b": "link[k]",
+   "over": {
+    "k": 4
+   },
    "min": 0.9,
    "max": 1.1
   },
   {
-   "a": "jaw-pin[0]",
-   "b": "link[0]",
+   "a": "jaw-pin[k - 2 * floor(k / 2)]",
+   "b": "link[k]",
+   "over": {
+    "k": 4
+   },
    "min": 0.9,
    "max": 1.1
   },
   {
-   "a": "arm[0]",
-   "b": "link[0]",
+   "a": "arm[k - 2 * floor(k / 2)]",
+   "b": "link[k]",
+   "over": {
+    "k": 4
+   },
    "contact": true
   },
   {
-   "a": "carrier[0]",
-   "b": "link[0]",
+   "a": "carrier[k - 2 * floor(k / 2)]",
+   "b": "link[k]",
+   "over": {
+    "k": 4
+   },
    "contact": true
   },
   {
-   "a": "arm[0]",
-   "b": "bush[0]",
+   "a": "arm[k - 2 * floor(k / 2)]",
+   "b": "bush[2*k]",
+   "over": {
+    "k": 4
+   },
    "contact": true
   },
   {
-   "a": "carrier[0]",
-   "b": "bush[1]",
+   "a": "carrier[k - 2 * floor(k / 2)]",
+   "b": "bush[2*k + 1]",
+   "over": {
+    "k": 4
+   },
    "contact": true
   },
   {
-   "a": "arm[1]",
-   "b": "link[0]",
+   "a": "arm[1 - (k - 2 * floor(k / 2))]",
+   "b": "link[k]",
+   "over": {
+    "k": 4
+   },
    "min": 0.4
   },
   {
-   "a": "carrier[1]",
-   "b": "link[0]",
-   "min": 0.4
-  },
-  {
-   "a": "link[1]",
-   "b": "bush[2]",
-   "contact": true
-  },
-  {
-   "a": "link[1]",
-   "b": "bush[3]",
-   "contact": true
-  },
-  {
-   "a": "arm-pin[1]",
-   "b": "bush[2]",
-   "min": 0.02,
-   "max": 0.1
-  },
-  {
-   "a": "jaw-pin[1]",
-   "b": "bush[3]",
-   "min": 0.02,
-   "max": 0.1
-  },
-  {
-   "a": "arm-pin[1]",
-   "b": "link[1]",
-   "min": 0.9,
-   "max": 1.1
-  },
-  {
-   "a": "jaw-pin[1]",
-   "b": "link[1]",
-   "min": 0.9,
-   "max": 1.1
-  },
-  {
-   "a": "arm[1]",
-   "b": "link[1]",
-   "contact": true
-  },
-  {
-   "a": "carrier[1]",
-   "b": "link[1]",
-   "contact": true
-  },
-  {
-   "a": "arm[1]",
-   "b": "bush[2]",
-   "contact": true
-  },
-  {
-   "a": "carrier[1]",
-   "b": "bush[3]",
-   "contact": true
-  },
-  {
-   "a": "arm[0]",
-   "b": "link[1]",
-   "min": 0.4
-  },
-  {
-   "a": "carrier[0]",
-   "b": "link[1]",
-   "min": 0.4
-  },
-  {
-   "a": "link[2]",
-   "b": "bush[4]",
-   "contact": true
-  },
-  {
-   "a": "link[2]",
-   "b": "bush[5]",
-   "contact": true
-  },
-  {
-   "a": "arm-pin[0]",
-   "b": "bush[4]",
-   "min": 0.02,
-   "max": 0.1
-  },
-  {
-   "a": "jaw-pin[0]",
-   "b": "bush[5]",
-   "min": 0.02,
-   "max": 0.1
-  },
-  {
-   "a": "arm-pin[0]",
-   "b": "link[2]",
-   "min": 0.9,
-   "max": 1.1
-  },
-  {
-   "a": "jaw-pin[0]",
-   "b": "link[2]",
-   "min": 0.9,
-   "max": 1.1
-  },
-  {
-   "a": "arm[0]",
-   "b": "link[2]",
-   "contact": true
-  },
-  {
-   "a": "carrier[0]",
-   "b": "link[2]",
-   "contact": true
-  },
-  {
-   "a": "arm[0]",
-   "b": "bush[4]",
-   "contact": true
-  },
-  {
-   "a": "carrier[0]",
-   "b": "bush[5]",
-   "contact": true
-  },
-  {
-   "a": "arm[1]",
-   "b": "link[2]",
-   "min": 0.4
-  },
-  {
-   "a": "carrier[1]",
-   "b": "link[2]",
-   "min": 0.4
-  },
-  {
-   "a": "link[3]",
-   "b": "bush[6]",
-   "contact": true
-  },
-  {
-   "a": "link[3]",
-   "b": "bush[7]",
-   "contact": true
-  },
-  {
-   "a": "arm-pin[1]",
-   "b": "bush[6]",
-   "min": 0.02,
-   "max": 0.1
-  },
-  {
-   "a": "jaw-pin[1]",
-   "b": "bush[7]",
-   "min": 0.02,
-   "max": 0.1
-  },
-  {
-   "a": "arm-pin[1]",
-   "b": "link[3]",
-   "min": 0.9,
-   "max": 1.1
-  },
-  {
-   "a": "jaw-pin[1]",
-   "b": "link[3]",
-   "min": 0.9,
-   "max": 1.1
-  },
-  {
-   "a": "arm[1]",
-   "b": "link[3]",
-   "contact": true
-  },
-  {
-   "a": "carrier[1]",
-   "b": "link[3]",
-   "contact": true
-  },
-  {
-   "a": "arm[1]",
-   "b": "bush[6]",
-   "contact": true
-  },
-  {
-   "a": "carrier[1]",
-   "b": "bush[7]",
-   "contact": true
-  },
-  {
-   "a": "arm[0]",
-   "b": "link[3]",
-   "min": 0.4
-  },
-  {
-   "a": "carrier[0]",
-   "b": "link[3]",
+   "a": "carrier[1 - (k - 2 * floor(k / 2))]",
+   "b": "link[k]",
+   "over": {
+    "k": 4
+   },
    "min": 0.4
   }
  ],

@@ -41,13 +41,15 @@ the tangled mirror.
   loop inside a loop is a hole), an extrude or revolve sweeps a region. Faces
   come out **named** (`bracket.pilot[0]`, `slider.railA[0]`) with exact
   geometry (a cylinder's axis and diameter, a plane's normal).
-- **Two kernels.** Manifold previews in milliseconds, always builds, no
-  names. Truck builds exact with names — and fails or leaks open edges on most
-  booleans. Probed again on 2026-09-12 for v5: a Ø4 hole cut through a plain
-  rectangular bar is watertight; the same hole through a polygon outline, or
-  a bar with one extra loop, leaks 4 to 72 open edges; and any boolean
-  strips every face name to `face[k]`, so a cut part can be neither a
-  placement target nor measured by name. **Rule followed here: every part is
+- **Two kernels.** Manifold previews in milliseconds, always builds. Truck
+  builds exact — and fails or leaks open edges on most booleans. Probed again
+  on 2026-09-12 for v5: a Ø4 hole cut through a plain rectangular bar is
+  watertight; the same hole through a polygon outline, or a bar with one
+  extra loop, leaks 4 to 72 open edges. Since 2026-09-14 a boolean **keeps**
+  the face names (a surviving face keeps its feature's, a face the tool made
+  carries the tool's loop name), which is new and good — but see *What the
+  2026-09-14 platform pass did and did not reach* below before relying on it.
+  **Rule followed here: every part is
   exactly one sweep of one outer loop with holes.** Joints that need holes
   in two directions are split along real part lines and fixed-mated: the
   carriage is two plates so that neither needs a pocket (a 10 mm key plate
@@ -153,6 +155,56 @@ back face of the motor.
 | 5.5 (closed) | 16 | 54.0 | 45.4° | 32 |
 | 13 | 23.5 | 48.6 | 31.7° | 47 |
 | 20.5 (open) | 31 | 44.4 | 19.7° | 62 |
+
+## What the 2026-09-14 platform pass did and did not reach
+
+Seven things were asked for and seven shipped. Verified here against a fresh
+mirror clone, each with the experiment that failed before:
+
+| asked | verified |
+|---|---|
+| a boolean must not strip face names | the arm carries a cut and now names `arm.pivot[3]`, `borecut.pillar[1]`, `arm.outline[*]`, `arm.start/end` |
+| a fixed mate must not excuse unlimited shared volume | 1344 mm³ between two fixed-mated plates now fails, naming its 2.769 mm³ budget; the v9 462 mm³ bug would have been caught |
+| the MCP `build`'s `ok` must mean what the CLI's exit code means | a leaky tree is `ok: false, built: true, open_edges: 16`, with a note pointing at `through: true` |
+| `fits` must pair by index | the 83 enumerated fits here became 31 with `[*]` and `over`, and the clearance table is identical (569 clear, 0 failures). A fit naming a missing component is an error |
+| a sub-assembly's mates must reach the top | `drivetrain/screw × drivetrain/collar` is an expected touch with the top-level workaround fit deleted |
+| `ok` must not be false merely because a window is unfinished | with nothing wrong and no warnings: `ok: true, done: false`. `cost` now gives work per instant against the budget and an estimate at each `res` |
+| a cut that misses its body must say so | *"the cut tool does not meet the body — it is 155.900 clear of it along x (tool x 194.900…205.100, body x 9.100…39.000)"*, plus the XZ sign rule |
+
+Three things this design ran into afterwards, all reported:
+
+1. **The double-driven warning is over-broad, and it fails the build.** It
+   fires on any mated component placed over `t`/`theta`, whether or not the
+   mate carries motion. Posing all 37 components with every mate deleted
+   gives byte-identical matrices at five instants in the cycle document — of
+   36 mates, **none** moved anything; in the stroke document exactly five
+   did. So all 28 warnings were false, and `warnings.length` alone forces
+   `exit 1`, with no flag to downgrade it.
+2. **The volume instrument still marks an expected touch from mates only.**
+   A pair declared `contact: true` in `fits` is honoured by the clearance
+   instrument and ignored by the volume one. With (1), that is a vice: keep
+   the mates and the warning fails the run; move them to fits and the volume
+   gate fails on the same touches.
+3. **`through: true` is Truck-only.** With it the arm is 5486.69 mm³ and
+   watertight in Truck and **6303.31 mm³ in Manifold** — the bore is simply
+   not cut — and both kernels report `ok, watertight`. The interference
+   sweep runs on Manifold, so it saw the arm solid and the pillar 785 mm³
+   inside it. Reverted to the hand-tuned overhang; the two kernels agree
+   again to 1.5 mm³ of discretisation.
+
+Two smaller ones: face names survive a boolean but the **assembly** resolver
+only knows each face's first name, so `@arm[i].pivot[3]` still fails where
+`measure` on the part succeeds — which is why the pins are still placed by
+expression; and the bracket index is not stable across a mirrored variant
+(`side: 1` → `arm.pivot[3]`, `side: -1` → `arm.pivot[2]`, same tree), so an
+`{"op": "name"}` alias written for one builds and the other does not.
+
+**What this design changed in response.** Mates now carry motion and `fits`
+declare intent — five mates in the stroke document, none in the cycle one,
+and 42 fits in the compact form with `interfere` budgets on the two real
+press fits. The workflow's gate reads `volume > limit` off `--json` rather
+than the exit code, because of (1) and (2); `limit` is the platform's own
+budget, so the gate is stricter than the old one, not looser.
 
 ## Bill of materials: buy, cut, machine, print
 

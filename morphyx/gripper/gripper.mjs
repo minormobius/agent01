@@ -165,7 +165,7 @@ export const parts = {
     { side: 1, x0: D.armX0, x1: D.armHalf, t: D.armT, z0: D.armZ0, y0: D.armY[0], y1: D.armY[1], px: D.pivotX, py: D.pivotY, d_pin: D.pin, ppx: D.pillarX, d_pillar: D.pillarBore },
     [{ op: 'sketch', id: 'plate', plane: { base: 'XY', offset: 'z0' }, loops: [rect('outline', ['side * (x0 + x1) / 2', '(y0 + y1) / 2'], 'x1 - x0', 'y1 - y0'), circle('pivot', ['side * px', 'py'], 'd_pin / 2')] },
      { op: 'extrude', id: 'arm', profile: 'plate', depth: 't' },
-     // the cut clears both faces by 4: at 3 and at 6 this same boolean returns the same volume to four decimals but leaks (\u03c7 \u22126, four open edges), and `build` still says ok \u2014 the overhang is tuned by trial
+     // The overhang is 4 by trial: at 3 and at 6 this same boolean returns the same volume to four decimals and leaks (χ −6), at 4 and 10 it does not. `through: true` fixes that in Truck, but Manifold ignores it and builds the arm SOLID (6303 mm³ against 5487), so the interference sweep would see no bore — measured 2026-09-14.
      { op: 'sketch', id: 'bore', plane: { base: 'XZ', offset: '-(y1 + 4)' }, loops: [circle('pillar', ['side * ppx', 0], 'd_pillar / 2')] },
      { op: 'extrude', id: 'borecut', profile: 'bore', depth: 'y1 - y0 + 8', mode: 'cut' }]),
 
@@ -292,57 +292,61 @@ export function assembly(mode = 'cycle') {
     // eight bushings: one per link eye, placed on the eye itself
     { id: 'bush', part: 'bushing', repeat: 8, at: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]', rotate: { align: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]' } },
   ];
-  const fixed = (a, b) => ({ kind: 'fixed', a, b });
-  const mates = [
-    ...(stroke ? [
-      { kind: 'screw', a: 'drivetrain/screw', b: 'carriage', lead: 'lead', axis: [0, 1, 0] },   // the physical joint
-      // the nut is placed tilted (local +z = world +Y), and a fixed mate copies travel in the follower's own frame, so it gets its own screw mate along its local z
-      { kind: 'screw', a: 'drivetrain/screw', b: 'nut', lead: 'lead', axis: [0, 0, 1] },
-    ] : [fixed('nut', 'carriage-back')]),                               // the flange on the back plate's rear face: an expected touch
-    fixed('carriage', 'carriage-back'),                                 // the two plates of the carriage, on the same four bolts
-    fixed('carriage', 'arm[0]'), fixed('carriage', 'arm[1]'),           // keyed into the slots; in the stroke document this carries the mate's travel
-    fixed('jaw-pin[0]', 'carrier[0]'), fixed('jaw-pin[1]', 'carrier[1]'),   // press fits
-    // the arm pins are placed by expression on `yn`, and the arms travel by the screw mate through the carriage, so a fixed mate here would carry that travel a second time
-    ...(stroke ? [] : [fixed('arm-pin[0]', 'arm[0]'), fixed('arm-pin[1]', 'arm[1]')]),
-    ...[0, 1, 2, 3].flatMap((k) => [fixed(`bush[${2 * k}]`, `link[${k}]`), fixed(`bush[${2 * k + 1}]`, `link[${k}]`)]),
-    fixed('carrier[0]', 'block[0]'), fixed('carrier[1]', 'block[1]'),   // 4 × M3 into the block's face
-    fixed('rail', 'front-wall'),                                        // M3 at 20 pitch into the strip
-    // the box: the side walls are the tension member. The flange plate and the front wall bolt into their end faces along Y; the back wall keys into a mortise in each and bears on it
-    fixed('front-wall', 'wall[0]'), fixed('front-wall', 'wall[1]'), fixed('bulkhead', 'wall[0]'), fixed('bulkhead', 'wall[1]'), fixed('bulkhead', 'motor'),
-    fixed('pillar[0]', 'bulkhead'), fixed('pillar[1]', 'bulkhead'), fixed('pillar[0]', 'front-wall'), fixed('pillar[1]', 'front-wall'),   // M8 each end: the frame's tension member
-    fixed('floor', 'wall[0]'), fixed('floor', 'wall[1]'), fixed('floor', 'front-wall'), fixed('floor', 'bulkhead'),
-    fixed('lid', 'wall[0]'), fixed('lid', 'wall[1]'), fixed('lid', 'front-wall'), fixed('lid', 'bulkhead'),
-  ];
-  // What this design intends at each interface, so the clearance table judges it on its own numbers.
-  // `[*]` is a cross product — it would match arm-pin[0] against every bushing, not the two it carries —
-  // so every pair a repeat makes is enumerated. k: 0 right-lower, 1 left-lower, 2 right-upper, 3 left-upper.
+  // MATES CARRY MOTION; FITS DECLARE INTENT. Measured on 2026-09-14: of the 36
+  // mates this document used to carry, 35 moved nothing — every component is
+  // placed by an expression over the drive, so a fixed mate had no travel to
+  // pass on. They were there only to mark expected touches, which `fits` now
+  // does properly, and a mate on a component the drive already places is what
+  // `check` warns about. So the kinematic five stay and the rest are fits.
+  const mates = stroke ? [
+    { kind: 'screw', a: 'drivetrain/screw', b: 'carriage', lead: 'lead', axis: [0, 1, 0] },   // the physical joint
+    // the nut is placed tilted (local +z = world +Y), and a fixed mate copies travel in the follower's own frame, so it gets its own screw mate along its local z
+    { kind: 'screw', a: 'drivetrain/screw', b: 'nut', lead: 'lead', axis: [0, 0, 1] },
+    { kind: 'fixed', a: 'carriage', b: 'carriage-back' },               // the two plates of the carriage, on the same four bolts
+    { kind: 'fixed', a: 'carriage', b: 'arm[0]' }, { kind: 'fixed', a: 'carriage', b: 'arm[1]' },   // keyed into the notches: this is what carries the arms along
+  ] : [];
+  // What this design intends at each interface, so the clearance table judges
+  // it on its own numbers. `[*]` on both sides pairs by index and `over` walks
+  // an index through an expression, so a repeat is stated once; the language
+  // has no `%`, hence `k - 2 * floor(k / 2)`. k: 0 right-lower, 1 left-lower,
+  // 2 right-upper, 3 left-upper. A fit naming a component that does not exist
+  // is an error, so this list cannot rot quietly when a repeat count changes.
+  const odd = 'k - 2 * floor(k / 2)', even = `1 - (${odd})`, over = { k: 4 };
   const fits = [
-    { a: 'arm[0]', b: 'pillar[0]', min: 0.05, max: 0.2 }, { a: 'arm[1]', b: 'pillar[1]', min: 0.05, max: 0.2 },   // the plunger's alignment rail
+    // running fits
+    { a: 'arm[*]', b: 'pillar[*]', min: 0.05, max: 0.2 },              // the plunger's alignment rail
     { a: 'drivetrain/screw', b: 'nut', min: 0.1, max: 0.3 },           // thread clearance, thread not modelled
-    { a: 'bulkhead', b: 'pillar[0]', min: 0.1, max: 0.3 }, { a: 'bulkhead', b: 'pillar[1]', min: 0.1, max: 0.3 },
-    { a: 'carriage', b: 'arm[0]', min: 0.05, max: 0.2 }, { a: 'carriage', b: 'arm[1]', min: 0.05, max: 0.2 },   // the arm in its notch: 22 in 22.2
-    { a: 'nut', b: 'carriage', min: 0.05, max: 0.2 },                  // the nut body passes through the key plate's bore, Ø10 in Ø10.2
-    { a: 'carriage', b: 'carriage-back', contact: true },              // the two plates, bolted face to face
-    { a: 'carriage-back', b: 'arm[0]', contact: true }, { a: 'carriage-back', b: 'arm[1]', contact: true },   // the thrust joint: the arm bears on this face
-    { a: 'nut', b: 'carriage-back', contact: true },
-    { a: 'carrier[0]', b: 'block[0]', contact: true }, { a: 'carrier[1]', b: 'block[1]', contact: true },
+    { a: 'bulkhead', b: 'pillar[*]', min: 0.1, max: 0.3 },
+    { a: 'carriage', b: 'arm[*]', min: 0.05, max: 0.2 },               // the arm in its notch: 22 in 22.2
+    { a: 'nut', b: 'carriage', min: 0.05, max: 0.2 },                  // the nut body through the key plate's bore, Ø10 in Ø10.2
+    { a: 'rail', b: 'block[*]', min: 0.3, max: 0.7 },
+    { a: 'front-wall', b: 'link[*]', min: 0.25, max: 0.6 },
     { a: 'carrier[0]', b: 'carrier[1]', min: 0, max: 40 },             // they meet on the centre line at closed and part by the travel
-    { a: 'motor', b: 'pillar[0]', contact: true }, { a: 'motor', b: 'pillar[1]', contact: true },
-    { a: 'rail', b: 'pillar[0]', contact: true }, { a: 'rail', b: 'pillar[1]', contact: true },
-    { a: 'front-wall', b: 'pillar[0]', contact: true }, { a: 'front-wall', b: 'pillar[1]', contact: true },
+    // the drivetrain (its own `fixed screw ↔ collar` reaches up here on its own)
     { a: 'front-wall', b: 'drivetrain/screw', contact: true }, { a: 'rail', b: 'drivetrain/screw', contact: true },
-    { a: 'motor', b: 'drivetrain/screw', contact: true }, { a: 'drivetrain/screw', b: 'drivetrain/collar', contact: true },
-    ...[0, 1].flatMap((i) => [{ a: 'rail', b: `block[${i}]`, min: 0.3, max: 0.7 }, ...[0, 1, 2, 3].map((k) => ({ a: 'front-wall', b: `link[${k}]`, min: 0.25, max: 0.6 }))]),
-    // each link k: its two bushings are pressed in, its arm-end bushing runs on arm-pin[k % 2] and its jaw-end one on jaw-pin[k % 2],
-    // and the pin stands 1 mm off the link's own eye wall through the bushing
-    ...[0, 1, 2, 3].flatMap((k) => [
-      { a: `link[${k}]`, b: `bush[${2 * k}]`, contact: true }, { a: `link[${k}]`, b: `bush[${2 * k + 1}]`, contact: true },
-      { a: `arm-pin[${k % 2}]`, b: `bush[${2 * k}]`, min: 0.02, max: 0.1 }, { a: `jaw-pin[${k % 2}]`, b: `bush[${2 * k + 1}]`, min: 0.02, max: 0.1 },
-      { a: `arm-pin[${k % 2}]`, b: `link[${k}]`, min: 0.9, max: 1.1 }, { a: `jaw-pin[${k % 2}]`, b: `link[${k}]`, min: 0.9, max: 1.1 },
-      { a: `arm[${k % 2}]`, b: `link[${k}]`, contact: true }, { a: `carrier[${k % 2}]`, b: `link[${k}]`, contact: true },
-      { a: `arm[${k % 2}]`, b: `bush[${2 * k}]`, contact: true }, { a: `carrier[${k % 2}]`, b: `bush[${2 * k + 1}]`, contact: true },
-      { a: `arm[${1 - k % 2}]`, b: `link[${k}]`, min: 0.4 }, { a: `carrier[${1 - k % 2}]`, b: `link[${k}]`, min: 0.4 },
-    ]),
+    { a: 'motor', b: 'drivetrain/screw', contact: true },
+    // the plunger
+    { a: 'carriage', b: 'carriage-back', contact: true },              // the two plates, bolted face to face
+    { a: 'carriage-back', b: 'arm[*]', contact: true },                // the thrust joint: the arm bears on this face
+    { a: 'nut', b: 'carriage-back', contact: true },
+    { a: 'arm[*]', b: 'arm-pin[*]', contact: true }, { a: 'carrier[*]', b: 'jaw-pin[*]', contact: true },   // Ø4 press fits
+    { a: 'carrier[*]', b: 'block[*]', contact: true },                 // 4 × M3 into the block's face
+    // the frame
+    { a: 'motor', b: 'pillar[*]', contact: true }, { a: 'rail', b: 'pillar[*]', contact: true },
+    { a: 'front-wall', b: 'pillar[*]', contact: true, interfere: { max: 1, depth: 0.2 } },   // the M8 stud is drawn at its minor diameter and the tap is drawn at the tap drill, so they share 0.72 mm³ of thread
+    { a: 'bulkhead', b: 'motor', contact: true }, { a: 'front-wall', b: 'rail', contact: true },
+    ...['bulkhead', 'front-wall'].flatMap((plate) => [{ a: plate, b: 'wall[*]', contact: true }, { a: 'floor', b: plate, contact: true }, { a: 'lid', b: plate, contact: true }]),
+    { a: 'floor', b: 'wall[*]', contact: true }, { a: 'lid', b: 'wall[*]', contact: true },
+    // each link k: its two bushings are pressed in, its arm-end bushing runs on
+    // arm-pin[k mod 2] and its jaw-end one on jaw-pin[k mod 2], and the pin
+    // stands 1 mm off the link's own eye wall through the bushing
+    { a: 'link[k]', b: 'bush[2*k]', over, contact: true, interfere: { max: 1, depth: 0.2 } },   // pressed in: 0.68 mm³ of mesh flank at the eye
+    { a: 'link[k]', b: 'bush[2*k + 1]', over, contact: true, interfere: { max: 1, depth: 0.2 } },
+    { a: `arm-pin[${odd}]`, b: 'bush[2*k]', over, min: 0.02, max: 0.1 }, { a: `jaw-pin[${odd}]`, b: 'bush[2*k + 1]', over, min: 0.02, max: 0.1 },
+    { a: `arm-pin[${odd}]`, b: 'link[k]', over, min: 0.9, max: 1.1 }, { a: `jaw-pin[${odd}]`, b: 'link[k]', over, min: 0.9, max: 1.1 },
+    { a: `arm[${odd}]`, b: 'link[k]', over, contact: true }, { a: `carrier[${odd}]`, b: 'link[k]', over, contact: true },
+    { a: `arm[${odd}]`, b: 'bush[2*k]', over, contact: true }, { a: `carrier[${odd}]`, b: 'bush[2*k + 1]', over, contact: true },
+    { a: `arm[${even}]`, b: 'link[k]', over, min: 0.4 }, { a: `carrier[${even}]`, b: 'link[k]', over, min: 0.4 },
   ];
   const partsMap = Object.fromEntries(Object.entries(parts).filter(([k]) => !(k in drivetrain.parts)).map(([k, v]) => [k, structuredClone(v)]));
   const o = pose(D.xpOpen), cl = pose(D.xpClosed);
