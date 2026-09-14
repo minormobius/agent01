@@ -205,7 +205,13 @@ async function resolveRefString(ref, env, prefix, byId, partTrees, facesOf, what
 
 /// The model matrix of a referenced component at an instant: its full pose
 /// when angles are known (so a bolt orbits with its plate), else its rest placement.
-const modelFor = (comp, t, theta, angles) => (angles ? modelOf(comp, angles) : placeAt(comp, t, theta));
+/// The model matrix of a referenced component at an instant: its full pose when
+/// angles are known (so a bolt orbits with its plate), else its rest placement
+/// — and either way at the SAME input values as the component referencing it.
+/// Dropping them here is what made a component placed on the face of one whose
+/// own placement is an expression over an input fail at flatten with `unknown
+/// parameter`, and sent eight bushings back to being placed by expression.
+const modelFor = (comp, t, theta, angles, values) => (angles ? modelOf(comp, angles) : placeAt(comp, t, theta, null, values));
 
 function placement(link, t, theta, angles, values) {
   const { spec, scope, refs } = link;
@@ -221,11 +227,11 @@ function placement(link, t, theta, angles, values) {
     // joint's travel turn with it. That is what a jaw riding a rotor needs,
     // and there is no other way to say it without writing the rotation out as
     // an expression over the drive, which is the double-driven mistake.
-    const parent = modelFor(refs.at.comp, t, theta, angles);
+    const parent = modelFor(refs.at.comp, t, theta, angles, values);
     m = spec.rigid ? mul4(parent, T(refs.at.face.anchor)) : T(xform(parent, refs.at.face.anchor));
   }
   else m = T((Array.isArray(spec.at) ? spec.at : [0, 0, 0]).map((v, i) => field(v, `at[${i}]`)));
-  if (refs?.align) m = mul4(m, alignZ(norm(xformDir(modelFor(refs.align.comp, t, theta, angles), refs.align.face.axis))));
+  if (refs?.align) m = mul4(m, alignZ(norm(xformDir(modelFor(refs.align.comp, t, theta, angles, values), refs.align.face.axis))));
   if (spec.rotate && (spec.rotate.deg !== undefined || spec.rotate.axis)) {
     const axis = (spec.rotate.axis || [0, 0, 1]).map((v, i) => field(v, `rotate.axis[${i}]`));
     m = mul4(m, R(axis, field(spec.rotate.deg ?? 0, 'rotate.deg')));
@@ -255,13 +261,17 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
   const inputs = [];
   {
     const scope = makeScope(asm, asm.name || 'assembly');
-    const env = envAt(scope, 0, 0);
+    // a range is an expression over `params` ALONE, deliberately: resolving
+    // `derived` first would make a document whose derived values use an input
+    // — which they may — impossible to read, and a range that depended on one
+    // would be circular. Everything after this point sees the inputs.
+    const env = { ...scope.params };
     const taken = new Set([...Object.keys(scope.params || {}), ...Object.keys(asm.derived || {}), 't', 'theta', 'i']);
     for (const [name, spec] of Object.entries(asm.inputs || {})) {
       if (!/^[A-Za-z_]\w*$/.test(name)) throw new Error(`input \`${name}\`: a name is a letter or underscore then letters, digits or underscores`);
       if (taken.has(name)) throw new Error(`input \`${name}\`: that name is already a param, a derived value, or one of t, theta, i`);
       if (!spec || typeof spec !== 'object') throw new Error(`input \`${name}\`: needs { min, max } (and optionally steps, unit, default)`);
-      const n = (v, what, dflt) => { if (v === undefined) return dflt; try { return num(v, env, what); } catch (e) { throw new Error(`input \`${name}\`: ${what}: ${e.message}`); } };
+      const n = (v, what, dflt) => { if (v === undefined) return dflt; try { return num(v, env, what); } catch (e) { throw new Error(`input \`${name}\`: ${what}: ${e.message}${/unknown parameter/.test(e.message) ? ' — an input\'s range is an expression over `params` only, since `derived` may itself use an input' : ''}`); } };
       const min = n(spec.min, 'min', 0), max = n(spec.max, 'max', undefined);
       if (max === undefined) throw new Error(`input \`${name}\`: needs a max — an input is a range, and a range is what a grid is built from`);
       if (!(max > min)) throw new Error(`input \`${name}\`: max (${max}) must be greater than min (${min}); a value that does not move is a param`);
@@ -274,7 +284,7 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
   async function walk(a, prefix, chain, docName) {
     if (a.inputs && a !== asm) throw new Error(`${docName}: inputs belong to the top document — a sub-assembly cannot declare its own (its mates may consume any of the top document's by name)`);
     const scope = makeScope(a, docName);
-    const env0 = envAt(scope, 0, 0);
+    const env0 = envAt(scope, 0, 0, undefined, rest);
     const timed = timedNames(scope, inputs);
     const parts = a.parts || {};
     for (const c of a.components || []) {
@@ -284,7 +294,7 @@ export async function flatten(asm, resolveRef, { facesOf = null } = {}) {
       for (let k = 0; k < n; k++) {
         const i = c.repeat === undefined ? undefined : k;
         const id = prefix + c.id + (i === undefined ? '' : `[${i}]`);
-        const env = i === undefined ? env0 : { ...envAt(scope, 0, 0, i), i };
+        const env = i === undefined ? env0 : { ...envAt(scope, 0, 0, i, rest), i };
         const link = { spec: c, scope, i, refs: null };
         const what = `${docName} ${c.id}${i === undefined ? '' : `[${i}]`}`;
         if (isRef(c.at) || c.rotate?.align) {

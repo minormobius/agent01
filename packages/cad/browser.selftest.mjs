@@ -252,6 +252,19 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   check(rp.r?.items === 4 && rp.r.sheets === 4 && rp.r.steps === 4 && rp.r.components === 7 && rp.r.bytes > 100000 && /report:/.test(rp.status), `the report button writes the lift's page: ${rp.r?.components} components, ${rp.r?.items} items, ${rp.r?.sheets} sheets, ${rp.r?.steps} steps, ${((rp.r?.bytes || 0) / 1024).toFixed(0)} kB`);
 }
 
+// the right panel's order: measure first, the face under the cursor above the
+// two pickers — it is the first half of every measurement
+{
+  const order = await page.evaluate(() => {
+    const pane = document.querySelector('#right section[data-pane=report]');
+    const ids = [...pane.children].map((el) => el.id || el.tagName.toLowerCase() + (el.textContent.trim().slice(0, 10) ? ':' + el.textContent.trim().slice(0, 10) : ''));
+    const top = (s) => document.querySelector(s).getBoundingClientRect().top;
+    return { ids: ids.slice(0, 6), faceAboveBox: top('#face') < top('#measurebox'), measureAboveDoc: top('#measurebox') < top('#doc'), hint: document.querySelector('#face').textContent };
+  });
+  check(order.ids[0] === 'h2:measure' && order.ids[1] === 'face' && order.ids[2] === 'measurebox' && order.faceAboveBox && order.measureAboveDoc, `measure is at the top of the panel and the face picker above its pickers: ${order.ids.join(' → ')}`);
+  check(/lists below/.test(order.hint), 'and the face panel points at the pickers below it, not above');
+}
+
 // three views snapshot strip
 await page.click('#views');
 const imgs = await page.$$eval('#strip img', (els) => els.map((i) => i.src.length));

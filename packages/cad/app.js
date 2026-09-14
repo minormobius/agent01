@@ -453,7 +453,7 @@ function renderFace() {
   const box = $('#face');
   const pick = state.select || state.hover;
   if (state.mode === 'asm') highlightComponent(pick ? pick.name : null);
-  if (!pick) { box.innerHTML = '<span class="dim">hover a face on the part · click to pin it · click a second face to measure between them — or pick both from the lists above</span>'; return; }
+  if (!pick) { box.innerHTML = '<span class="dim">hover a face on the part · click to pin it · click a second face to measure between them — or pick both from the lists below</span>'; return; }
   const comp = state.mode === 'asm' ? `<code class="comp">${pick.name}</code> ` : '';
   const f = faceOf(pick);
   const slotKey = state.mode === 'part' ? 'main' : state.components.find((c) => c.id === pick.name)?.partKey;

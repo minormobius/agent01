@@ -316,6 +316,28 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   check(two.warnings.some((w) => w.code === 'two-joints'), `two joints on one follower is reported, not silently half-applied: ${two.warnings.find((w) => w.code === 'two-joints')?.msg.slice(0, 70)}…`);
 }
 
+// an input is a value like any other: usable from `derived`, and carried into
+// the pose of a component another one is anchored to
+{
+  const part = { params: {}, features: [{ op: 'sketch', id: 's', loops: [{ name: 'o', rect: { c: [0, 0], w: 4, h: 4 } }] }, { op: 'extrude', id: 'e', profile: 's', depth: 2 }] };
+  const ref = async () => structuredClone(part);
+  const doc = { name: 'swing', params: { r: 10 }, inputs: { swing: { min: 0, max: 90, unit: 'deg' } }, derived: { yn: 'r * sin(deg(swing))' },
+    components: [{ id: 'arm', part: 'p', at: [0, 'yn', 0] }], mates: [] };
+  const d = await flatten(doc, ref);
+  const y = (v) => +modelOf(d.components[0], solveAngles(d.components, d.mates, d.drive, 0, v))[13].toFixed(4);
+  check(y({ swing: 0 }) === 0 && y({ swing: 30 }) === 5 && y({ swing: 90 }) === 10, `\`derived\` may be written over an input: r·sin(swing) is ${y({ swing: 30 })} at 30° and ${y({ swing: 90 })} at 90°`);
+  const badRange = await (async () => { try { await flatten({ ...doc, inputs: { swing: { min: 0, max: 'yn' } } }, ref); return ''; } catch (e) { return e.message; } })();
+  check(/range is an expression over `params` only/.test(badRange), `…which is why a range may not be written over a derived value: ${badRange.slice(0, 70)}…`);
+  // the bushings on their link eyes: an anchor whose own placement moves with an input
+  const anchored = { name: 'anchored', params: { lift: 10 }, inputs: { open: { min: 0, max: 1, steps: 3 } }, derived: { z: 'lift * open' },
+    parts: { plate: 'bench:plate', bolt: 'bench:arbor' },
+    components: [{ id: 'plate', part: 'plate', at: [0, 0, 'z'] }, { id: 'bush', part: 'bolt', at: '@plate.pivot[0]', rotate: { align: '@plate.pivot[0]' } }], mates: [] };
+  const a = await flatten(anchored, benchRef, { facesOf });
+  const pose = (v) => Object.fromEntries(a.components.map((c) => [c.id, modelOf(c, solveAngles(a.components, a.mates, a.drive, 0, v)).slice(12, 15).map((x) => +x.toFixed(3))]));
+  const p0 = pose({ open: 0 }), p1 = pose({ open: 1 });
+  check(p0.bush.join() === '12,0,0' && p1.bush.join() === '12,0,10' && p1.plate.join() === '0,0,10', `a component anchored to one whose placement is an expression over an input resolves, and rides it: the bush is at ${p1.bush.join(', ')} when the plate is at ${p1.plate.join(', ')}`);
+}
+
 // the grid finds what a path through the same space would miss
 {
   const grip = bench('grip');

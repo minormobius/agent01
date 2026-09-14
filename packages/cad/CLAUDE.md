@@ -77,7 +77,16 @@ documented in [`README.md`](README.md) next to this file.
   opening from one input are two prismatic joints, one with `scale: -1`. A
   joint drives its follower from its base and never the other way, and a
   follower with two joints is a warning (`two-joints`), because only the first
-  moves it. `solveAngles` takes the values, seeds a root per joint whose base
+  moves it. An input is a value like any other: `derived` may be written over
+  one, and every env the flatten builds carries the inputs at rest — which is
+  why an input's RANGE is an expression over `params` alone (a range over a
+  derived value that itself used an input would be circular, and the error
+  says so). `modelFor` carries the values into the pose of a component another
+  is anchored to: without that, a component placed on the face of one whose
+  own placement moves with an input failed at flatten with `unknown
+  parameter`, and eight bushings that belonged on their link eyes had to be
+  placed by expression instead.
+  `solveAngles` takes the values, seeds a root per joint whose base
   nothing else reaches (so a document with inputs and no drive solves), and
   carries a per-component axis so a revolute can turn about something other
   than z. **`at: "@comp.face"` with `rigid: true`** takes the anchor's whole
@@ -132,7 +141,11 @@ documented in [`README.md`](README.md) next to this file.
   hides the header and scrolls the focused field into view. The browser test
   proves it by focusing a field and taking half the viewport away.
 
-- **Measure.** Every face the exact kernel names carries its geometry — a
+- **Measure — the top of the right-hand panel**, because it is what a person
+  uses while looking at the part. The face under the cursor sits above the two
+  pickers: it is the first half of every measurement, and the pickers are the
+  way to name the other half when it is behind something. Every face the exact
+  kernel names carries its geometry — a
   plane or a cylinder (a circle is four exact arcs, so a bore is a real
   cylinder) — so hovering a bore reads its diameter, and pinning one face
   then clicking another gives plane-to-plane, axis-to-axis (with both

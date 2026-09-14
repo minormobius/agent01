@@ -4,6 +4,27 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-14, third pass
+
+**Measure moved to the top of the right-hand panel**, with the face under the
+cursor above the two pickers — it is the first half of every measurement, and
+what a person is looking at while they work.
+
+Two findings from the gripper session, both about inputs being values like
+any other:
+
+- **`derived` may be written over an input.** The inputs block was parsed
+  against an env that had already resolved `derived`, so `{yn: "…grip…"}`
+  died with `unknown parameter`. Ranges are now read against `params` alone
+  and everything after them — every `derived`, every placement, at flatten
+  and at solve — sees the inputs. A range written over a derived value is
+  refused, because it would be circular, and the error says which.
+- **A `@comp.face` anchor no longer drops the input values.** `modelFor`
+  resolved the anchor's own pose without them, so a component placed on the
+  face of one whose placement is an expression over an input failed at
+  flatten. That is eight bushings back on their link eyes rather than placed
+  by expression.
+
 ## 2026-09-14, second pass
 
 From a gripper that grips **and** rolls — the first document here whose

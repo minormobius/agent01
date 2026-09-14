@@ -61,21 +61,23 @@
 <main><canvas id="view"></canvas></main>
 <aside id="right">
   <section data-pane="report">
+  <!-- measure first: it is what a person uses while looking at the part, and
+       the face under the cursor is the first half of every measurement, so it
+       sits above the two pickers rather than below them -->
+  <h2>measure</h2>
+  <div id="face"><span class="dim">hover a face</span></div>
+  <div id="measurebox"><span class="dim">faces arrive with the exact build</span></div>
   <h2>document</h2>
   <div id="doc" class="dim">loading…</div>
   <h2>report</h2>
   <div id="report"></div>
   <div id="error"></div>
   <button id="occt" hidden title="the exact kernel the bake-off chose; fillets and every boolean. Loaded once from unpkg and cached by the browser.">exact with OCCT (66 MB)</button>
-  <h2>measure</h2>
-  <div id="measurebox"><span class="dim">faces arrive with the exact build</span></div>
-  <h2>face</h2>
-  <div id="face"><span class="dim">hover a face</span></div>
   <h2>views</h2>
   <div id="strip"></div>
   <h2>keys</h2>
   <div class="keys"><kbd>drag</kbd> orbit · <kbd>shift-drag</kbd>/<kbd>right-drag</kbd> pan · <kbd>wheel</kbd> zoom · <kbd>two fingers</kbd> pan + pinch · <kbd>f</kbd> fit · <kbd>o</kbd> ortho · <kbd>e</kbd> edges · <kbd>g</kbd> grid · <kbd>space</kbd> spin · <kbd>0</kbd> <kbd>1</kbd> <kbd>3</kbd> <kbd>7</kbd> views · tap a face to pin it</div>
-  <p class="dim">Preview is Manifold (mesh booleans, milliseconds); exact is the Rust engine's Truck kernel, which names every face it makes, or OCCT for fillets and the booleans Truck cannot do. Assemblies: components (repeatable, placeable on each other's named faces), sub-assemblies, gear, belt, fixed, screw, rack and slider mates, one driven component, placements as expressions of time. Design record: <a href="https://github.com/minormobius/agent01/blob/main/docs/CAD.md" style="color:inherit">docs/CAD.md</a>.</p>
+  <p class="dim">Preview is Manifold (mesh booleans, milliseconds); exact is the Rust engine's Truck kernel, which names every face it makes, or OCCT for fillets and the booleans Truck cannot do. Assemblies: components (repeatable, placeable on each other's named faces), sub-assemblies, gear, belt, fixed, screw, rack and slider mates, revolute and prismatic joints on the document's own named inputs, and placements as expressions of time or of those inputs. Design record: <a href="https://github.com/minormobius/agent01/blob/main/docs/CAD.md" style="color:inherit">docs/CAD.md</a>.</p>
   </section>
 </aside>
 <script type="module" src="./app.js"></script>

@@ -125,8 +125,13 @@ from one input are two prismatic joints, one with `scale: -1`. A wrist is a
 revolute. **Do not write an input into a placement expression and then mate
 the component as well** — that moves it twice, and `check` refuses it.
 
+`derived` may be written over an input (`{"yn": "r * sin(deg(swing))"}`), and
+so may any placement; an input's own `min`/`max` may not, since they are read
+before the derived values are.
+
 A component placed on another's face with `at: "@rotor.end"` follows the
-anchor *point*; add `"rigid": true` to take the anchor's whole pose, so the
+anchor *point* — including when that component's own placement is an
+expression over an input, so a bushing can sit on a link eye that moves; add `"rigid": true` to take the anchor's whole pose, so the
 component's `offset` and a joint's travel turn with it. That is how a jaw
 rides a rotor and slides on it at the same time — `bench/grip.json` is the
 worked example, and it is four components, three mates and no expressions.
