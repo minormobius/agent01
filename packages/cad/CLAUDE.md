@@ -334,6 +334,16 @@ documented in [`README.md`](README.md) next to this file.
   suggests accounts as you type** — `vendor/typeahead.js`, a copy of
   `packages/oauth-client/typeahead.js` kept by `sync-dataviz`, a native
   `<datalist>` fed by the gateway; the browse field skips DIDs and AT URIs.
+  **Every assembly in a repo is listed at the top of its group, by full path,
+  whatever folder it lives in.** Folders start folded, and only the ones on the
+  way to the open file are unfolded, so an assembly one folder deeper than its
+  neighbour was there and not visible: the gripper repo holds
+  `gripper/assembly` and `gripper/v9/stroke`, and browsing it showed the first
+  and not the second (measured 2026-09-15, 48 records, both `kind: assembly`).
+  Assemblies are few and they are what a person opens; the tree below is for
+  browsing the parts. A path comes from whoever wrote the record — another
+  person's repo — so it is escaped into the row rather than pasted in as
+  markup.
 - **Current without a reload.** An open document is a photograph of records —
   its own `part` head, and the head of every part it references by AT URI
   (`state.watch`, filled by `atRef` and `openFile`). `checkFresh` re-reads them

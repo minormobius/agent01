@@ -53,6 +53,10 @@ const strangerFile = await new Drive(stranger).put('lib/cam', JSON.parse(fs.read
 // one component by the file's HEAD (which moves with the file), one PINNED to
 // a revision — the shape a published assembly actually has, and the difference
 // the page must respect when the repo changes underneath it
+// …and a second assembly one folder deeper, which is the shape of a real repo:
+// `gripper/assembly` beside `gripper/v9/stroke`. The tree folds folders, so the
+// deeper one was there and not visible.
+const strangerDeep = await new Drive(stranger).put('lib/v9/pair', { name: 'pair', parts: { cam: 'bench:cam' }, components: [{ id: 'a', part: 'cam' }, { id: 'b', part: 'cam', at: [40, 0, 0] }], mates: [], drive: { component: 'a', rpm: 3 } }, { message: 'a deeper assembly' });
 const strangerAsm = await new Drive(stranger).put('lib/two-cams', { name: 'two-cams', parts: { cam: strangerFile.uri, camPinned: strangerFile.head.uri }, components: [{ id: 'a', part: 'cam' }, { id: 'b', part: 'camPinned', at: [30, 0, 0], params: { lift: 6 } }], mates: [], drive: { component: 'a', rpm: 6 } }, { message: 'one cam by head, one pinned' });
 async function xrpcMock(req, res) {
   const u = new URL(req.url, 'http://x'); const q = Object.fromEntries(u.searchParams); const method = u.pathname.slice(6);
@@ -216,8 +220,28 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   await page.fill('#repo', 'did:plc:x'); await new Promise((r) => setTimeout(r, 300));
   const ta = await page.evaluate(() => ({ h: !!document.querySelector('#handle').dataset.typeahead, r: document.querySelectorAll('.ta-list:not([hidden]) li').length }));
   check(ta.h && ta.r === 0 && below, 'both handle fields suggest accounts through the gateway, in a list under the field; a DID in the browse field gets none');
-  const browsed = await page.evaluate(async () => { document.querySelector('#repo').value = 'stranger.example'; document.querySelector('#browse').click(); for (let i = 0; i < 200 && ![...document.querySelectorAll('#files h3')].some((h) => h.textContent.startsWith('at://')); i++) await new Promise((r) => setTimeout(r, 25)); for (const d of document.querySelectorAll('#files .f.dir')) window.__cad.state.folds.add(d.dataset.fold); await window.__cad.renderFiles(); return document.querySelectorAll('#files .f[data-drive=browse]').length; });
-  check(browsed === 2, `browsing a repo by handle lists it (the gateway resolves the handle; ${browsed} files)`);
+  const browsed = await page.evaluate(async () => {
+    document.querySelector('#files').innerHTML = '';
+    document.querySelector('#repo').value = 'stranger.example'; document.querySelector('#browse').click();
+    for (let i = 0; i < 200 && ![...document.querySelectorAll('#files h3')].some((h) => h.textContent.startsWith('at://')); i++) await new Promise((r) => setTimeout(r, 25));
+    // then as a stranger's repo renders with nothing unfolded by hand: only the
+    // folders on the way to the open file are open, which is where the deeper
+    // assembly used to disappear
+    window.__cad.state.folds.clear(); await window.__cad.renderFiles();
+    const strip = [...document.querySelectorAll('#files .asmstrip .f')].map((el) => el.querySelector('.p').textContent);
+    const tree = [...document.querySelectorAll('#files .f[data-drive=browse]')].filter((el) => !el.closest('.asmstrip')).map((el) => el.dataset.uri);
+    const folded = [...document.querySelectorAll('#files .f.dir')].map((el) => el.textContent.trim().split(' ')[1]);
+    const picker = [...document.querySelectorAll('#part option')].map((o) => o.textContent);
+    const heading = [...document.querySelectorAll('#files h3')].find((h) => h.textContent.startsWith('at://'))?.textContent || '';
+    for (const d of document.querySelectorAll('#files .f.dir')) window.__cad.state.folds.add(d.dataset.fold);
+    await window.__cad.renderFiles();
+    return { strip, tree, folded, picker, heading, unfolded: [...document.querySelectorAll('#files .f[data-drive=browse]')].filter((el) => !el.closest('.asmstrip')).length };
+  });
+  check(browsed.unfolded === 3 && /2 assemblies · 1 part/.test(browsed.heading), `browsing a repo by handle lists it (the gateway resolves the handle; ${browsed.unfolded} files, "${browsed.heading.split(' ').slice(1).join(' ')}")`);
+  // the gripper repo's shape: two assemblies, one a folder deeper. Both are
+  // one click away before anything is unfolded — that is the whole point.
+  check(browsed.strip.join(' · ') === 'lib/two-cams · lib/v9/pair' && !browsed.tree.includes(strangerDeep.uri) && browsed.tree.length === 2, `every assembly in a repo is listed at its top by full path, whatever folder it lives in: ${browsed.strip.join(', ')} — where the tree, with only the open file's folders unfolded, offers ${browsed.tree.length} of the 3 files and not the deeper assembly at all`);
+  check(browsed.picker.includes('lib/two-cams') && browsed.picker.includes('lib/v9/pair'), 'and both are in the header picker too');
   await page.goto(`${base}/?at=${encodeURIComponent(strangerAsm.uri)}`, { waitUntil: 'load' });
   const asm = await page.evaluate(async () => { await window.__cad.ready; const r = await window.__cad.settled(); return { mode: r.mode, components: r.components, slots: r.slots, timeout: r.timeout }; });
   check(!asm.timeout && asm.mode === 'asm' && asm.components === 2 && asm.slots === 2, `an assembly whose parts are at:// refs resolves them through the gateway and builds (${asm.components} components, ${asm.slots} distinct builds)`);

@@ -4,6 +4,17 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-15, second pass
+
+**Every assembly in a repo is listed at the top of its group**, by full path,
+whatever folder it lives in. Folders start folded and only the ones on the way
+to the open file are unfolded, so an assembly a folder deeper than its
+neighbour was there and not visible — a real repo with `gripper/assembly` and
+`gripper/v9/stroke` showed the first and not the second. Assemblies are few and
+they are what a person opens; the tree below is for browsing the parts. Paths
+from someone else's repo are escaped into the row rather than pasted in as
+markup, which they were.
+
 ## 2026-09-15
 
 **Section.** Pin a face, press *section* (or `s`), and the model is cut by a

@@ -858,10 +858,12 @@ const countFiles = (n) => n.files.length + [...n.dirs.values()].reduce((a, d) =>
 function renderNode(node, k, prefix, depth) {
   const rows = [];
   const files = [...node.files].sort((a, b) => (a.kind === 'assembly' ? 0 : 1) - (b.kind === 'assembly' ? 0 : 1) || a.path.localeCompare(b.path));
-  for (const e of files) rows.push(`<div class="f${state.file?.entry.uri === e.uri ? ' on' : ''}${e.kind === 'assembly' ? ' asm' : ''}" style="padding-left:${4 + depth * 12}px" data-drive="${k}" data-uri="${e.uri}"><span class="p" title="${e.uri}">${e.path.slice(e.path.lastIndexOf('/') + 1)}</span><small>${e.kind === 'assembly' ? 'assembly' : 'part'}</small>${k !== 'browse' && drives.pds && k === 'local' ? '<button data-act="push" title="copy this file and its history to your PDS">push</button>' : ''}${k !== 'local' ? '<button data-act="fork" title="copy to the local drive, keeping the lineage">fork</button>' : ''}${k !== 'browse' ? '<button data-act="rm">×</button>' : ''}</div>`);
+  // a path comes from whoever wrote the record — another person's repo — so it
+  // is text, never markup
+  for (const e of files) rows.push(`<div class="f${state.file?.entry.uri === e.uri ? ' on' : ''}${e.kind === 'assembly' ? ' asm' : ''}" style="padding-left:${4 + depth * 12}px" data-drive="${k}" data-uri="${esc(e.uri)}"><span class="p" title="${esc(e.uri)}">${esc(e.path.slice(e.path.lastIndexOf('/') + 1))}</span><small>${e.kind === 'assembly' ? 'assembly' : 'part'}</small>${k !== 'browse' && drives.pds && k === 'local' ? '<button data-act="push" title="copy this file and its history to your PDS">push</button>' : ''}${k !== 'local' ? '<button data-act="fork" title="copy to the local drive, keeping the lineage">fork</button>' : ''}${k !== 'browse' ? '<button data-act="rm">×</button>' : ''}</div>`);
   for (const [name, dir] of [...node.dirs].sort((a, b) => a[0].localeCompare(b[0]))) {
     const key = `${k}:${prefix}${name}/`; const folded = !state.folds.has(key); const n = countFiles(dir);
-    rows.push(`<div class="f dir" style="padding-left:${4 + depth * 12}px" data-fold="${key}"><span class="p">${folded ? '▸' : '▾'} ${name}/</span><small>${n} ${n === 1 ? 'file' : 'files'}</small></div>`);
+    rows.push(`<div class="f dir" style="padding-left:${4 + depth * 12}px" data-fold="${esc(key)}"><span class="p">${folded ? '▸' : '▾'} ${esc(name)}/</span><small>${n} ${n === 1 ? 'file' : 'files'}</small></div>`);
     if (!folded) rows.push(...renderNode(dir, k, prefix + name + '/', depth + 1));
   }
   return rows;
@@ -876,11 +878,20 @@ async function renderFiles() {
     let ls = [];
     try { ls = await d.list(); } catch (e) { groups.push(`<h3>${title}</h3><div class="bad">${e.message}</div>`); continue; }
     state.repoList[k] = ls;
-    const n = ls.length, asm = ls.filter((e) => e.kind === 'assembly').length;
+    const n = ls.length, asms = ls.filter((e) => e.kind === 'assembly');
+    const asm = asms.length;
+    // Every assembly, by its full path, above the tree. Folders start folded —
+    // a repo of parts is busy — so an assembly one folder deeper than its
+    // neighbour was simply not there to be seen: the gripper repo has
+    // `gripper/assembly` and `gripper/v9/stroke`, and only the first showed.
+    // Assemblies are few and they are what a person opens; the tree below is
+    // for browsing the parts.
+    const strip = asms.sort((a, b) => a.path.localeCompare(b.path))
+      .map((e) => `<div class="f asm${state.file?.entry.uri === e.uri ? ' on' : ''}" data-drive="${k}" data-uri="${esc(e.uri)}"><span class="p" title="${esc(e.uri)}">${esc(e.path)}</span><small>assembly</small></div>`).join('');
     const rows = renderNode(fileTree(ls), k, '', 0);
-    groups.push(`<h3>${title}${n ? ` <span class="cnt">${asm} ${asm === 1 ? 'assembly' : 'assemblies'} · ${n - asm} ${n - asm === 1 ? 'part' : 'parts'}</span>` : ''}</h3>${rows.join('') || '<div class="dim">(empty)</div>'}`);
+    groups.push(`<h3>${title}${n ? ` <span class="cnt">${asm} ${asm === 1 ? 'assembly' : 'assemblies'} · ${n - asm} ${n - asm === 1 ? 'part' : 'parts'}</span>` : ''}</h3>${strip ? `<div class="asmstrip">${strip}</div>` : ''}${rows.join('') || '<div class="dim">(empty)</div>'}`);
   }
-  box.innerHTML = groups.join('') + (groups.length ? '<div class="dim hint">a file is a <code>part</code> record naming a path; its folders are the path\'s slashes. Assemblies first; click a folder to open it.</div>' : '');
+  box.innerHTML = groups.join('') + (groups.length ? '<div class="dim hint">a file is a <code>part</code> record naming a path; its folders are the path\'s slashes. Every assembly in a repo is listed at its top, wherever it lives; the tree below is the parts, folded — click a folder to open it.</div>' : '');
   renderPicker();
 }
 $('#files').addEventListener('click', async (e) => {

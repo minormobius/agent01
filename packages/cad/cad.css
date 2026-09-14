@@ -21,6 +21,10 @@ body[data-mode=part] .asm-only, body[data-mode=asm] .part-only { display: none; 
 #files .f small, #history .r small { color: var(--dim); }
 #files .f.dir { color: var(--dim); }
 #files .f.asm .p { color: var(--ink); font-weight: 600; }
+/* every assembly, whatever folder it lives in, above the tree of parts */
+#files .asmstrip { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+#files .asmstrip .f { padding-left: 4px; }
+#files .asmstrip .f small { color: var(--accent); opacity: 0.7; }
 #files h3 .cnt { text-transform: none; letter-spacing: 0; margin-left: 6px; }
 #files .hint { margin-top: 6px; font-size: 11px; }
 #measurebox { background: #1a1c20; border: 1px solid var(--line); border-radius: 3px; padding: 6px; margin-top: 6px; }
