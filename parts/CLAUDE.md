@@ -63,6 +63,24 @@ lives in Bob's repo and points at Alice's community; the front page is an
   (`searchActorsTypeahead`, `site/vendor/typeahead.js`, synced from
   `packages/oauth-client/`) — the page's CSP never names the public API;
   the part opens in the viewer by revision URI.
+- **`agent/seed.mjs`** — the house account's side of the same forms, for
+  founding several communities and posting several parts in one go.
+  `node parts/agent/seed.mjs` prints the plan against the live repo and
+  writes nothing; `--write` does it, with `BLUESKY_BOT_*` in the env, and
+  then pings `/api/index` the way the page does. It is **idempotent twice
+  over**: a community is keyed by its slug, so a re-run updates the title
+  and description in place and keeps the founding date; a post is keyed by
+  its community and title, so a re-run recognises the post it already made
+  — which also means editing a post's text in the spec changes nothing that
+  is already up. The spec is [`agent/minomobi.json`](agent/minomobi.json):
+  showcase, motors, gears, screws and rails, with the clock in showcase and
+  the wheel and pinion in gears. `.github/workflows/seed-parts.yml` runs it
+  on a push that touches `parts/agent/**` (`workflow_dispatch` does not
+  resolve off the default branch) and verifies through the live index, not
+  the exit code. `parts.selftest.mjs` drives `seed()` against the fake PDS
+  and then indexes what it wrote, so the seeder cannot drift from what
+  `lib/index.js` accepts. **It writes to a real PDS**: read it before you
+  push to it.
 
 ## How a post gets on the front page
 

@@ -1,0 +1,56 @@
+{
+  "_": "What the house account founds and posts. Slugs are keys: once a community is here its name cannot change, only its title, description and rules. A post is keyed by its community and title, so editing the text below and re-running updates nothing — post again under a new title instead. Run: node parts/agent/seed.mjs (plan) / --write (for real, with BLUESKY_BOT_* set); the workflow does it on a push.",
+  "repo": "minomobi.com",
+  "communities": [
+    {
+      "name": "showcase",
+      "title": "Showcase",
+      "description": "Finished things. An assembly that moves, a part that came out well, a mechanism you are pleased with — with the numbers you judged it by.",
+      "rules": "Post the revision you actually built and checked, not a sketch of one. Say what you measured: volume, watertightness, clearances, whether it interferes through its motion. A picture is not a measurement. Work in progress belongs in the community for the kind of part it is."
+    },
+    {
+      "name": "motors",
+      "title": "Motors and actuators",
+      "description": "Things that put the energy in: motor mounts and couplers, steppers and gearmotors, servos and their horns, solenoids, springs and escapements.",
+      "rules": "Name the motor or actuator the part is for, and the shaft it fits. A mount is only as good as its hole pattern — give the pattern, not just the picture."
+    },
+    {
+      "name": "gears",
+      "title": "Gears and gear trains",
+      "description": "Spur, pinion, rack, worm, bevel; wheels crossed out for weight; the trains they make and the ratios they give.",
+      "rules": "State module (or pitch) and tooth count, and the bore. If it is one of a pair, say what it meshes with and at what centre distance. A tooth form that has not been built exactly is a drawing, not a gear."
+    },
+    {
+      "name": "screws",
+      "title": "Screws, threads and fasteners",
+      "description": "Lead screws and nuts, threaded inserts, bolt patterns, captive nuts, anything that tightens or travels on a thread.",
+      "rules": "Give the lead or pitch and the handedness, and the fit you designed for — a running fit is a pair of numbers, not a hope. Clearance holes: say which fastener they clear."
+    },
+    {
+      "name": "rails",
+      "title": "Rails, bearings and motion",
+      "description": "Linear rails and carriages, bushings and bearing blocks, slides, pivots, hinges, cams and followers — the parts that let something move and nothing else.",
+      "rules": "Say which way it is meant to move and which ways it must not. Give the running clearance, and the travel it holds it over — a fit that is right at one end of the stroke is not a fit."
+    }
+  ],
+  "posts": [
+    {
+      "community": "showcase",
+      "part": "clock",
+      "title": "A mechanical clock that ticks: 18 components, nine parts, a lever escapement",
+      "text": "The reference assembly for this engine. A three-stage going train, a lever escapement as the drive, motion works, hands, dial and case — eighteen components built from nine parts with parameter overrides.\n\nWhat it was judged by, not what it looks like: sixty beats turn the escape wheel exactly two revolutions and the minute hand one minute (720.000° and -6.0000°, and the hour hand a twelfth of that), mid-beat the wheel has stepped a half tooth and the balance passes centre. Interference mid-beat: 35 overlapping pairs tested, no real ones — the five that touch are the arbors in their wheel bores, and they share 0.012 to 0.030 mm³, which is mesh resolution rather than metal.\n\nGear phases are set by the solver, not by hand. Open it, press spin, and hide the dial and case to watch the movement."
+    },
+    {
+      "community": "gears",
+      "part": "parts/gear",
+      "title": "Clock wheel: module 0.5, 60 teeth, crossed out with four windows",
+      "text": "The exact involute — a cubic Bézier fit, chord-length parametrised, so the flank is the curve and not a polygon. Module 0.5, 60 teeth, 1.2 mm face, 1 mm bore, crossed out with four arc-bounded windows between the spokes (the gear op plus a circular pattern of one window loop).\n\nVolume 1292.88 mm³ against area × b of 1293.76. In the clock this is the fourth wheel, driven by the 8-tooth pinion on the escape arbor — 8:60 at 17 mm centres, so the escape wheel turns seven and a half times for one turn of the fourth wheel — and the same part with `z` overridden to 32 is the centre and third wheels. One part, three components.\n\nHonest about one thing: the exact kernel cannot close this mesh. Watertight comes back false (126 open edges) and χ moves run to run, while the B-rep face count (502) and the volume to a part in a thousand are stable. That is the kernel's meshing, not the geometry, and it is why the corpus audit holds a non-watertight part to different invariants."
+    },
+    {
+      "community": "gears",
+      "part": "parts/pinion",
+      "title": "Plain pinion: module 0.5, 12 teeth — the involute op on its own",
+      "text": "A pinion with nothing else on it: module 0.5, 12 teeth, 1.5 mm face, 1 mm bore. The involute op alone, which is the part to copy when you want a small wheel and none of the crossing-out.\n\nThe clock's motion works are this one part four times over, with `m`, `z`, `b` and `bore` overridden: the cannon pinion as published (12 teeth, 12 mm centres to a 36-tooth minute wheel), the minute wheel itself, and then module 0.6 at 8 and 32 teeth for the minute pinion and hour wheel. 12:36 then 8:32 is a twelfth, which is why the hour hand moves 0.5° while the minute hand moves 6°."
+    }
+  ]
+}

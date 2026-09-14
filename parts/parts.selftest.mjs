@@ -92,5 +92,40 @@ check(st.repos === 3 && typeof st.lastSweep === 'number', `status: ${JSON.string
 const bad = new Index({ run: db.run, all: db.all }, { fetch: async (u) => (new URL(u).host === 'plc.directory' ? new Response('', { status: 404 }) : fakeFetch(u)), now: () => clock });
 check(await bad.indexRepo('did:plc:ghost').then(() => false, () => true) && db.all(`SELECT ok FROM repos WHERE did = 'did:plc:ghost'`)[0]?.ok === 0, 'an unresolvable repo is recorded with ok = 0');
 
+// ── the seeder writes what the index accepts, and only once ──────────────
+// agent/seed.mjs founds communities and posts parts for the house account.
+// It is driven here against the same fake PDS and then indexed, so what it
+// writes cannot drift from what lib/index.js will store.
+{
+  const { seed } = await import('./agent/seed.mjs');
+  const HOUSE = 'did:plc:house';
+  repos[HOUSE] = {};
+  const backend = {
+    did: HOUSE,
+    async getRecord(c, rkey) { return repos[HOUSE][c]?.get(`at://${HOUSE}/${c}/${rkey}`) || null; },
+    async listRecords(c) { return { records: [...(repos[HOUSE][c]?.values() || [])] }; },
+    async putRecord(c, rkey, value) { return put(HOUSE, c, value, rkey); },
+    async createRecord(c, value) { return put(HOUSE, c, value); },
+  };
+  const parts = new Map([['parts/gear', { uri: 'at://did:plc:gd6/com.minomobi.cad.revision/3mvdi6g4oep2i', cid: 'bafygear' }]]);
+  const spec = { communities: [{ name: 'gears', title: 'Gears', description: 'spur, pinion, rack' }], posts: [{ community: 'gears', part: 'parts/gear', title: 'A 60-tooth clock wheel', text: 'module 0.5' }] };
+  const first = await seed(backend, spec, { parts, write: true, log: () => {} });
+  check(first.communities.length === 1 && first.posts.length === 1 && first.skipped.length === 0, `seed founds a community and posts a part (${JSON.stringify({ c: first.communities, p: first.posts })})`);
+  const written = [...repos[HOUSE][COMMUNITY].values(), ...repos[HOUSE][POST].values()];
+  check(written.every((r) => shape(r.uri.includes(COMMUNITY) ? COMMUNITY : POST, r.uri, r.cid, HOUSE, r.value) !== null), 'every record it wrote is one the index accepts');
+  const again = await seed(backend, spec, { parts, write: true, log: () => {} });
+  check(again.communities.length === 0 && again.posts.length === 0 && again.skipped.length === 2, `running it twice writes nothing twice (${again.skipped.join(', ')})`);
+  const renamed = await seed(backend, { ...spec, communities: [{ name: 'gears', title: 'Gears and gear trains', description: 'spur, pinion, rack' }] }, { parts, write: true, log: () => {} });
+  const c = [...repos[HOUSE][COMMUNITY].values()][0];
+  check(renamed.communities.length === 1 && repos[HOUSE][COMMUNITY].size === 1 && c.value.title === 'Gears and gear trains' && c.value.createdAt === written[0].value.createdAt, 'a retitled community is updated in place and keeps the day it was founded');
+  const sq2 = new DatabaseSync(':memory:');
+  const ix2 = new Index({ run: (sql, ...p) => sq2.prepare(sql).run(...p), all: (sql, ...p) => sq2.prepare(sql).all(...p) }, { fetch: fakeFetch, now: () => clock });
+  const r = await ix2.indexRepo(HOUSE);
+  check(r.added === 2 && ix2.communities()[0]?.name === 'gears' && ix2.feed()[0]?.title === 'A 60-tooth clock wheel', `and the index reads them back: ${JSON.stringify({ added: r.added, community: ix2.communities()[0]?.name, post: ix2.feed()[0]?.title })}`);
+  let bad = '';
+  try { await seed(backend, { communities: [{ name: 'Gears', title: 'x' }] }, { parts, write: true, log: () => {} }); } catch (e) { bad = e.message; }
+  check(/a slug is lowercase/.test(bad), `a bad slug is refused before anything is written: ${bad.slice(0, 60)}`);
+}
+
 console.log(fails ? `\n✗ ${fails} failing` : '\n✓ parts selftest passed');
 process.exit(fails ? 1 : 0);

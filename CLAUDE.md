@@ -298,7 +298,7 @@ worker are grandfathered: [`docs/OAUTH.md`](docs/OAUTH.md).
 - **`time/posts/**.md`** — a push to `main` here **posts to real Bluesky
   accounts**. Never put test markdown there.
 - Workflows that write to a PDS, publish records, or commit data back to the
-  repo: `publish-*`, `sync-*`, `score-*`, `fetch-*`, `bisk-digest`,
+  repo: `publish-*`, `seed-*`, `sync-*`, `score-*`, `fetch-*`, `bisk-digest`,
   `illustrate`. Read the workflow before triggering one.
 - Shared D1 (`atpolls-db`) backs several surfaces. Migrations live in
   `poll/apps/api/migrations/`, numbered sequentially — never reuse a number; if
