@@ -48,14 +48,14 @@ export const D = {
   motor: 42.3, motorChamfer: 5, motorY: -26, motorLen: 48, pilot: 22.5, boltSquare: 31, bolt: 3.4, bulkheadT: 6,
   screw: 8, lead: 2, screwEnd: 70, journal: 6, journalLen: 6, endBore: 6.2, collarD: 14, collarL: 4, collarBore: 0.1, collarY: 28,
   // the pillars: Ø10 bodies on the grip plane, an M8 nutted end into the motor plate and an M8 thread into the rail plate
-  pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarNut: 6.5, pillarTap: 6, pillarClear: 8.4,
+  pillarX: 24, pillarD: 10, pillarBore: 10.2, pillarThread: 8, pillarCore: 6.8, pillarMinor: 6.65, pillarNut: 6.5, pillarTap: 6, pillarClear: 8.4,
   // nut and carriage: the carriage hangs on the nut and runs on the pillars through its arms
   nutBore: 8.4, nutBody: 10, nutLen: 15, flange: 22, flangeT: 3.5, nutPcd: 16, nutBolt: 3.5,
   carT: 14, carBackT: 4, carHalf: 14.5, carZ: 14, notchX: 9,
   // the pivot arms: 22 thick so the links seat on them, keyed into the carriage, bored for the pillar
   armX0: 9.1, armHalf: 39, armT: 22, armZ0: -11, pivotX: 34, pivotY: 4,
   // the linkage: struts in compression during grip; Ø4 dowels in bronze bushings
-  link: 40, linkW: 10, linkT: 6, eye: 6, pin: 4, bushBore: 4.1, pinLen: 36,
+  link: 40, linkW: 10, linkT: 6, eye: 6, bushOD: 5.96, pin: 4, bushBore: 4.1, pinLen: 36,
   linkZ: [[-17, -11], [11, 17]],
   // stroke: the jaw pin 5.5 mm from its plate's inner edge, so the plates meet on the centre line at closed
   xpClosed: 5.5, xpOpen: 20.5, pivotLine: 86, inset: 10.5,
@@ -178,7 +178,7 @@ export const parts = {
      { op: 'extrude', id: 'link', profile: ['outline', 'eyes'], depth: 't' }]),
 
   bushing: tree('Bronze bushing: Ø6 × 6 with a Ø4.1 bore, pressed into a link eye, running on a Ø4 dowel. Eight per gripper. One revolve about local Z.',
-    { D: D.eye, L: D.linkT, d: D.bushBore },
+    { D: D.bushOD, L: D.linkT, d: D.bushBore },
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [['d/2', 0], ['D/2', 0], ['D/2', 'L'], ['d/2', 'L']] }] },
      { op: 'revolve', id: 'bushing', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
@@ -198,8 +198,8 @@ export const parts = {
      { op: 'sketch', id: 'pinhole', plane: { base: 'XY', offset: '-(hz + 3)' }, loops: [circle('pin', ['-inset', 'y_pin'], 'd_pin / 2')] },
      { op: 'extrude', id: 'pincut', profile: 'pinhole', depth: '2 * hz + 6', mode: 'cut' }]),
 
-  pillar: tree('Pillar: the frame\u2019s primary member. A \u00d810 body between the two plates, with an M8 end at each. It threads into the rail plate ahead and passes through the motor plate behind, where a nut on the plate\u2019s INNER face takes the tension \u2014 grip pulls the pillar forward and the plate back, so that nut is exactly the load path, and nothing protrudes behind the plate to foul the motor. The shoulder takes the compression. It also pierces its pivot arm, so it is the plunger\u2019s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x \u00b124. Threads are modelled at their minor diameter. One revolve about local Z, placed along +Y.',
-    { d: D.pillarD, dt: D.pillarThread, dc: D.pillarCore, nut: D.bulkheadT + D.pillarNut, tap: D.pillarTap, body: D.frontY - D.pillarShoulder },
+  pillar: tree('Pillar: the frame\u2019s primary member. A \u00d810 body between the two plates, with an M8 end at each. It threads into the rail plate ahead and passes through the motor plate behind, where a nut on the plate\u2019s INNER face takes the tension \u2014 grip pulls the pillar forward and the plate back, so that nut is exactly the load path, and nothing protrudes behind the plate to foul the motor. The shoulder takes the compression. It also pierces its pivot arm, so it is the plunger\u2019s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x \u00b124. Threads are modelled at their minor diameter (\u00d86.65 for M8), which is a real 0.075 mm clear of the \u00d86.8 tap drill \u2014 drawing both at the tap drill made two coincident cylinders and 0.72 mm\u00b3 of mesh flank. One revolve about local Z, placed along +Y.',
+    { d: D.pillarD, dt: D.pillarThread, dc: D.pillarMinor, nut: D.bulkheadT + D.pillarNut, tap: D.pillarTap, body: D.frontY - D.pillarShoulder },
     [{ op: 'sketch', id: 'profile', plane: 'XZ', loops: [{ name: 'body', polygon: [[0, 0], ['dt/2', 0], ['dt/2', 'nut'], ['d/2', 'nut'], ['d/2', 'nut + body'], ['dc/2', 'nut + body'], ['dc/2', 'nut + body + tap'], [0, 'nut + body + tap']] }] },
      { op: 'revolve', id: 'pillar', profile: 'profile', axis: { p: [0, 0], d: [0, 1] } }]),
 
@@ -336,15 +336,15 @@ export function assembly() {
     { a: 'carrier[*]', b: 'block[*]', contact: true },                 // 4 × M3 into the block's face
     // the frame
     { a: 'motor', b: 'pillar[*]', contact: true }, { a: 'rail', b: 'pillar[*]', contact: true },
-    { a: 'front-wall', b: 'pillar[*]', contact: true, interfere: { max: 1, depth: 0.2 } },   // the M8 stud is drawn at its minor diameter and the tap is drawn at the tap drill, so they share 0.72 mm³ of thread
+    { a: 'front-wall', b: 'pillar[*]', contact: true },                // the Ø10 shoulder bears on the plate's inner face; the stud's Ø6.65 minor diameter runs 0.075 clear inside the Ø6.8 tap drill
     { a: 'bulkhead', b: 'motor', contact: true }, { a: 'front-wall', b: 'rail', contact: true },
     ...['bulkhead', 'front-wall'].flatMap((plate) => [{ a: plate, b: 'wall[*]', contact: true }, { a: 'floor', b: plate, contact: true }, { a: 'lid', b: plate, contact: true }]),
     { a: 'floor', b: 'wall[*]', contact: true }, { a: 'lid', b: 'wall[*]', contact: true },
     // each link k: its two bushings are pressed in, its arm-end bushing runs on
     // arm-pin[k mod 2] and its jaw-end one on jaw-pin[k mod 2], and the pin
     // stands 1 mm off the link's own eye wall through the bushing
-    { a: 'link[k]', b: 'bush[2*k]', over, contact: true, interfere: { max: 1, depth: 0.2 } },   // pressed in: 0.68 mm³ of mesh flank at the eye
-    { a: 'link[k]', b: 'bush[2*k + 1]', over, contact: true, interfere: { max: 1, depth: 0.2 } },
+    { a: 'link[k]', b: 'bush[2*k]', over, min: 0.01, max: 0.04 },      // pressed in for real; drawn clear, so the check sees a fit rather than a forgiven overlap
+    { a: 'link[k]', b: 'bush[2*k + 1]', over, min: 0.01, max: 0.04 },
     { a: `arm-pin[${odd}]`, b: 'bush[2*k]', over, min: 0.02, max: 0.1 }, { a: `jaw-pin[${odd}]`, b: 'bush[2*k + 1]', over, min: 0.02, max: 0.1 },
     { a: `arm-pin[${odd}]`, b: 'link[k]', over, min: 0.9, max: 1.1 }, { a: `jaw-pin[${odd}]`, b: 'link[k]', over, min: 0.9, max: 1.1 },
     { a: `arm[${odd}]`, b: 'link[k]', over, contact: true }, { a: `carrier[${odd}]`, b: 'link[k]', over, contact: true },
@@ -450,10 +450,10 @@ export const expected = {
   carriage: { volume: (4 * D.carHalf * D.carZ - 2 * (D.carHalf - D.notchX) * (D.armT + 0.2) - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * (D.carT - D.carBackT), tol: 0.002 },
   'carriage-back': { volume: (4 * D.carHalf * D.carZ - A * (D.nutBore + 1.8) ** 2 - 4 * A * D.nutBolt ** 2) * D.carBackT, tol: 0.002 },
   arm: { volume: ((D.armHalf - D.armX0) * (D.armY[1] - D.armY[0]) - A * D.pin ** 2) * D.armT - A * D.pillarBore ** 2 * (D.armY[1] - D.armY[0]), tol: 0.004 },
-  pillar: { volume: A * (D.pillarThread ** 2 * (D.bulkheadT + D.pillarNut) + D.pillarD ** 2 * (D.frontY - D.pillarShoulder) + D.pillarCore ** 2 * D.pillarTap), tol: 0.004 },
+  pillar: { volume: A * (D.pillarThread ** 2 * (D.bulkheadT + D.pillarNut) + D.pillarD ** 2 * (D.frontY - D.pillarShoulder) + D.pillarMinor ** 2 * D.pillarTap), tol: 0.004 },
   carrier: { volume: (4 * D.carrierHalf * D.carrierZ - 4 * A * D.blockBolt ** 2 - 4 * A * D.fingerBolt ** 2 - 2 * A * D.fingerDowel ** 2) * D.carrierT - A * D.pin ** 2 * 2 * D.carrierZ, tol: 0.004 },
   link: { volume: (D.link * D.linkW + A * D.linkW ** 2 - 2 * A * D.eye ** 2) * D.linkT, tol: 0.002 },
-  bushing: { volume: A * (D.eye ** 2 - D.bushBore ** 2) * D.linkT, tol: 0.004 },
+  bushing: { volume: A * (D.bushOD ** 2 - D.bushBore ** 2) * D.linkT, tol: 0.003 },
   pin: { volume: A * D.pin ** 2 * D.pinLen, tol: 0.004 },
   rail: { volume: D.railW * D.railH * 2 * D.railHalf, tol: 0.002 },
   block: { volume: (D.blockW * (D.blockY[1] - D.blockY[0]) - D.blockChannelW * D.blockChannelH) * D.blockL, tol: 0.002 },

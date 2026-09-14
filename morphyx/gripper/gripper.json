@@ -909,7 +909,7 @@
    "units": "mm",
    "_": "Bronze bushing: Ø6 × 6 with a Ø4.1 bore, pressed into a link eye, running on a Ø4 dowel. Eight per gripper. One revolve about local Z.",
    "params": {
-    "D": 6,
+    "D": 5.96,
     "L": 6,
     "d": 4.1
    },
@@ -1173,11 +1173,11 @@
   "pillar": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Pillar: the frame’s primary member. A Ø10 body between the two plates, with an M8 end at each. It threads into the rail plate ahead and passes through the motor plate behind, where a nut on the plate’s INNER face takes the tension — grip pulls the pillar forward and the plate back, so that nut is exactly the load path, and nothing protrudes behind the plate to foul the motor. The shoulder takes the compression. It also pierces its pivot arm, so it is the plunger’s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x ±24. Threads are modelled at their minor diameter. One revolve about local Z, placed along +Y.",
+   "_": "Pillar: the frame’s primary member. A Ø10 body between the two plates, with an M8 end at each. It threads into the rail plate ahead and passes through the motor plate behind, where a nut on the plate’s INNER face takes the tension — grip pulls the pillar forward and the plate back, so that nut is exactly the load path, and nothing protrudes behind the plate to foul the motor. The shoulder takes the compression. It also pierces its pivot arm, so it is the plunger’s alignment rail and its anti-rotation. Two per gripper, on the grip plane at x ±24. Threads are modelled at their minor diameter (Ø6.65 for M8), which is a real 0.075 mm clear of the Ø6.8 tap drill — drawing both at the tap drill made two coincident cylinders and 0.72 mm³ of mesh flank. One revolve about local Z, placed along +Y.",
    "params": {
     "d": 10,
     "dt": 8,
-    "dc": 6.8,
+    "dc": 6.65,
     "nut": 12.5,
     "tap": 6,
     "body": 29.5
@@ -2063,11 +2063,7 @@
   {
    "a": "front-wall",
    "b": "pillar[*]",
-   "contact": true,
-   "interfere": {
-    "max": 1,
-    "depth": 0.2
-   }
+   "contact": true
   },
   {
    "a": "bulkhead",
@@ -2125,11 +2121,8 @@
    "over": {
     "k": 4
    },
-   "contact": true,
-   "interfere": {
-    "max": 1,
-    "depth": 0.2
-   }
+   "min": 0.01,
+   "max": 0.04
   },
   {
    "a": "link[k]",
@@ -2137,11 +2130,8 @@
    "over": {
     "k": 4
    },
-   "contact": true,
-   "interfere": {
-    "max": 1,
-    "depth": 0.2
-   }
+   "min": 0.01,
+   "max": 0.04
   },
   {
    "a": "arm-pin[k - 2 * floor(k / 2)]",

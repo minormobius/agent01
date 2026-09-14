@@ -419,6 +419,16 @@ off, because at x ±34 there is no access past a wall at ±40.
   not modelled); pins Ø4 in Ø4.1 bushings; nut Ø10 in Ø10.2; screw Ø8 in
   the Ø8.4 nut and the Ø6 journal in the Ø6.2 bore; block 2 mm off the
   plate on the rail; links 0.4 mm inside the rail plate's slots.
+- **Nothing in this assembly interferes at any grip.** It used to share
+  0.72 mm³ at each pillar and 0.68 mm³ at each of eight bushings, and those
+  were not fits — they were coincident surfaces. A Ø6.8 tap drill was taking
+  a stud also drawn Ø6.8, and a Ø6 bushing was in a Ø6 eye. Both are drawn
+  at a real clearance now: the stud at its M8 minor diameter, Ø6.65, and the
+  bushing at Ø5.96, with the press allowance a note rather than geometry, the
+  way a thread is drawn at its minor diameter. Note the second number: at
+  Ø5.99 the pair still shared 0.21 mm³, because each cylinder is a 48-sided
+  prism and the facets cross. A modelled clearance has to clear the
+  tessellation as well as the nominal.
 - The pillars' threads are modelled at their minor diameter, which is how a
   screw in a tapped hole is normally drawn. The rail plate's holes are the
   tap drill and are blind in practice: the rail covers them, as it covers
