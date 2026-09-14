@@ -8,7 +8,7 @@ name: cad gripper
 # Wakes on a push to its own branch that touches its own files (the sandbox
 # cannot dispatch workflows), or by hand. It writes to a public ATProto repo
 # every push, because the live document is the deliverable and a push that
-# changes nothing writes nothing; `[nopublish]` in the head commit message
+# changes nothing writes nothing; the marker in the head commit's SUBJECT
 # skips it. Read morphyx/gripper/README.md first.
 on:
   push:
@@ -29,13 +29,6 @@ on:
 
 env:
   NUT: ${{ inputs.nut || '53' }}
-  # The live document should track this branch. `publish.mjs` compares canonical
-  # trees and writes only what changed, so a push that changes nothing writes
-  # nothing — which is why this is opt-OUT now. It was opt-in, and the live
-  # assembly sat seven commits and a day behind the branch, still showing a
-  # 462 mm³ interference that had been fixed here on the first of them. Green
-  # is not published. `[nopublish]` in the commit message skips it.
-  PUBLISH: ${{ github.event_name == 'workflow_dispatch' && inputs.publish || (github.event_name == 'push' && !contains(github.event.head_commit.message, '[nopublish]')) }}
 
 jobs:
   gripper:
@@ -45,6 +38,20 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      # Whether to publish, decided from the commit SUBJECT only. This is a
+      # step rather than an `env:` expression because `contains()` searches the
+      # whole message, body and all — so the very commit that documented the
+      # opt-out marker in its body opted itself out, and the live document
+      # stayed a day stale for one more run.
+      - name: Does this run publish?
+        id: pub
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then want='${{ inputs.publish }}'
+          elif git log -1 --pretty=%s | grep -qF '[nopublish]'; then want=false
+          else want=true; fi
+          echo "publish=$want" >> "$GITHUB_OUTPUT"
+          echo "publish: $want  (subject: $(git log -1 --pretty=%s))"
 
       - name: The cad package (the tangled mirror; node 22 and nothing else)
         run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
@@ -111,20 +118,20 @@ jobs:
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"
 
       - name: Publish into the morphyx repo
-        if: ${{ env.PUBLISH == 'true' }}
+        if: ${{ steps.pub.outputs.publish == 'true' }}
         env:
           CAD_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
           CAD_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT" --write
 
       - name: Verify on the live host
-        if: ${{ env.PUBLISH == 'true' }}
+        if: ${{ steps.pub.outputs.publish == 'true' }}
         run: |
           # the morphyx persona's public repo, through the site's read gateway; no credentials involved
           curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=morphyxmino.bsky.social&collection=com.minomobi.cad.part' \
             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("gripper/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<18)process.exit(1)})'
 
       - name: Audit the published corpus (every head rebuilt against the invariants its revision recorded; Truck vs Manifold)
-        if: ${{ env.PUBLISH == 'true' }}
+        if: ${{ steps.pub.outputs.publish == 'true' }}
         working-directory: /tmp/cad
         run: node agent/audit.mjs --at morphyxmino.bsky.social --kernels

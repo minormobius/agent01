@@ -460,8 +460,15 @@ modelled; and the tool interface, which does not exist yet.
 
 **A push to this branch publishes.** The live document is the deliverable —
 green CI is not — and `publish.mjs` compares canonical trees and writes only
-what changed, so a push that changes nothing writes nothing. `[nopublish]` in
-the commit message skips it; `workflow_dispatch` honours its own input.
+what changed, so a push that changes nothing writes nothing. To skip it, put
+the opt-out marker in the commit's **subject line**; `workflow_dispatch`
+honours its own input.
+
+The decision is a shell step reading `git log -1 --pretty=%s`, not a
+`contains(github.event.head_commit.message, …)` expression, because that
+searches the whole message including the body — so the commit that introduced
+the marker, and explained it in its body, opted itself out and left the live
+document stale for one more run. Marker in the subject, or not at all.
 
 It used to be opt-in, with `[publish]` in the commit message, and on
 2026-09-14 the live assembly sat seven commits and a day behind the branch —
