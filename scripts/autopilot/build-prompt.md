@@ -33,9 +33,9 @@ _Regenerated 2026-09-14 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-14, 98 members / 239 posts):
+**Neighborhood spark** (bisk 2026-09-14, 98 members / 272 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: llm, llms, linux
+- Distinctive words: linux, github, idk
 - Top post: "testing astra's parametric modeling capabilities by asking it to reconstruct these marble maze pieces from reference pho" — @vibe-coded.com
 <!-- BRIEF_END -->
 
