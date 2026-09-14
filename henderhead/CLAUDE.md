@@ -58,6 +58,7 @@ on the next deploy. Do not argue the point on his behalf in a commit message.
 | `cf/` | demo #1 — continued-fraction Fourier curves |
 | `craft/` | demo #2 — a cellular automaton made of crafting recipes |
 | `wheel/` | demo #3 — a leaky waterwheel that is the Lorenz system |
+| `ball/` | demo #4 — a ball bouncing under gravity in a circle |
 | `.assetsignore` | keeps `CLAUDE.md` and `cf/engine/` off the public site |
 
 ## `cf/` — continued fraction Fourier
@@ -239,6 +240,68 @@ node henderhead/wheel/wheel.selftest.mjs
   is what the correspondence predicts. Do not "fix" it by syncing them.
 - Accuracy matters more here than in the other two demos, because the subject
   *is* how fast small errors grow. RK4, substeps capped at 2 ms.
+
+## `ball/` — bouncing ball chaos
+
+After [his post of 2026-09-14](https://bsky.app/profile/matthen.com/post/3mvi6wjvk6k2p):
+*"chaos from bouncing a ball in a circle… The system seems to move between
+Stable Eras and Chaotic Eras."*
+
+**The trap here is a rule that looks right and is not.** A ball bouncing along
+straight chords inside a circle is *integrable*: the angle of incidence is
+conserved at every bounce, neighbours separate linearly, and four bounces ahead
+is perfectly predictable. Build that and the page looks plausible for five
+seconds and contradicts its own source. The rule was measured off the video
+instead — tracking the white dot frame by frame shows x constant while y
+accelerates, then dx constant while dy changes linearly. **Parabolas. There is
+gravity.** The ball is still reaching near its drop height at t = 78 s, so the
+bounces are elastic.
+
+| File | What |
+|---|---|
+| `ball/engine/src/ball.rs` | the physics: flight, the exact bounce solve, specular reflection, the cubic solver |
+| `ball/engine/src/lib.rs` | the C ABI, the fan of futures, the spread metric, the Poincaré section and survey, the Lyapunov shadow |
+| `ball/bouncer.wasm` | the built module, **committed**; CI rebuilds it and ships what it built |
+| `ball/app.js` | the arena, the spread plot, the clickable phase portrait |
+| `ball/ball.selftest.mjs` | node, over the ABI |
+
+```bash
+cargo test --manifest-path henderhead/ball/engine/Cargo.toml
+cargo build --release --target wasm32-unknown-unknown \
+  --manifest-path henderhead/ball/engine/Cargo.toml
+cp henderhead/ball/engine/target/wasm32-unknown-unknown/release/bouncer.wasm \
+   henderhead/ball/bouncer.wasm
+node henderhead/ball/ball.selftest.mjs
+```
+
+### Things that will bite you
+
+- **Do not step the flight.** Between bounces the path is a parabola, so the
+  wall hit is a quartic root — and because the ball sits exactly on the circle
+  after a bounce, the constant term vanishes and what is left is a closed-form
+  cubic. Stepping a small dt and testing for "outside" bleeds energy at every
+  bounce, and in a system whose entire subject is how fast small errors grow
+  that is not acceptable. There is a test asserting the drift stays under 1e-9
+  over five thousand bounces.
+- **The Lyapunov shadow lives in section coordinates**, not in full state
+  space. Renormalising a full state leaves the shadow a billionth *off* the
+  circle, and the exact cubic is only valid exactly on it; feeding it a near
+  miss solves the wrong polynomial and the exponent comes out around 100
+  instead of 0.3. The section representation is on the wall by construction.
+- **`clock` must accumulate the whole flight, not the part after the last step
+  boundary.** Getting that wrong made every per-unit-time rate on the page come
+  out about four times too big, and it is invisible unless you check a number
+  against the Rust tests.
+- **The eras are not islands, at this energy.** That was the first draft's
+  explanation and the phase portrait refuted it: at the video's drop height the
+  section is an almost uniform chaotic sea. The honest account is fluctuation in
+  the *local* stretching rate around a long-run average — and the islands are
+  real but live at lower energies, which is what the drop-height control is for.
+  Do not quietly put the islands story back.
+- **Gravity is not an energy control.** Rescale time and any g becomes 1, so the
+  phase portrait does not depend on it. The drop height is the energy: E = gy at
+  release and the ball can never rise above it. The survey is rebuilt when the
+  height changes and deliberately not when gravity does.
 
 ## Adding a demo
 

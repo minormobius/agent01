@@ -32,7 +32,7 @@
       "label": "tools"
     },
     {
-      "before": 216,
+      "before": 217,
       "label": "games"
     }
   ],
@@ -2812,6 +2812,23 @@
       "p": "henderhead",
       "surface": "henderhead",
       "d": "A leaky waterwheel that is the Lorenz system exactly, not by analogy — the Malkus wheel of Strogatz §9.1. Buckets hang from the rim staying upright, water pours in at the top, every bucket leaks, and the only thing the water does to the wheel is pull on whatever is off-centre. Only the first Fourier harmonic of the water exerts any torque, so the machine closes into three equations that are Lorenz's with β = 1 — and the centre of mass moves in the Lorenz (Y, Z) plane, so the orange dot draws the attractor rather than something resembling it. Turn the inflow up through ρ = 1 and ρ_Hopf to go from standing to spinning to chaotic; turn the damping down until chaos is impossible at any flow. The wheel, a twin started a billionth apart, the continuum reduction and the Lorenz equations all run in lockstep.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "bouncing ball chaos",
+      "u": "https://henderhead.mino.mobi/ball/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-14",
+      "b": "2026-09-14",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "A ball bouncing under gravity inside a circle, with a few hundred slightly-mistaken futures fanning out ahead of it. The gravity is the whole demo: a ball bouncing along straight chords in a circle is integrable — the angle of incidence never changes and four bounces ahead is perfectly predictable — so the rule was measured off the video frame by frame, and the paths are parabolas. Bounces are solved exactly rather than stepped, because on the wall the quartic loses its constant term and the next bounce is a closed-form cubic root; the energy drifts by under a part in a billion over five thousand bounces. The spread of the fan is plotted so the Stable and Chaotic Eras are measured, and the Poincaré section shows where they come from — which at this energy is not stable islands but the local stretching rate fluctuating inside one chaotic sea. Drop the ball lower and the islands appear.",
       "tags": [
         "rust",
         "wasm",

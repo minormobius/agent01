@@ -27,6 +27,18 @@ export const postURL = (rkey) => `${AUTHOR.bsky}/post/${rkey}`;
 
 export const DEMOS = [
   {
+    id: 'ball',
+    state: 'built',
+    href: '/ball/',
+    date: '2026-09-14',
+    post: '3mvi6wjvk6k2p',
+    title: 'Chaos from bouncing a ball in a circle',
+    quote: 'The system seems to move between Stable Eras and Chaotic Eras, where it is hard to predict four bounces ahead.',
+    what: 'A ball bouncing under gravity inside a circle, with a few hundred slightly-mistaken copies of it fanning out ahead. The gravity is the whole thing: without it the same picture is integrable and four bounces ahead is perfectly predictable.',
+    built: 'Bounces solved exactly rather than stepped — on the wall the quartic loses its constant term and the next bounce is a closed-form cubic root — so the energy drifts by less than a part in a billion over five thousand bounces. The spread of the fan is plotted, so the Eras are measured; and the phase portrait shows where they come from, which turned out not to be what we first assumed.',
+    tags: ['rust', 'wasm', 'canvas'],
+  },
+  {
     id: 'wheel',
     state: 'built',
     href: '/wheel/',

@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bouncing ball chaos — henderhead</title>
+<meta name="description" content="A ball bouncing under gravity inside a circle, with a fan of slightly-mistaken futures — and the measurement behind the Stable and Chaotic Eras. An interactive rebuild of a Matt Henderson demo, in Rust and WebAssembly.">
+<meta property="og:title" content="Bouncing ball chaos">
+<meta property="og:description" content="Chaos from bouncing a ball in a circle. After a demo by Matt Henderson.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='12' fill='none' stroke='%238fc0e8' stroke-width='1.6'/%3E%3Cpath d='M8 6q6 14 14 18' fill='none' stroke='%23ff9a4e' stroke-width='1.6'/%3E%3Ccircle cx='8' cy='6' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0a1a2b; --panel: #0f2437; --edge: #1e3d58;
+    --ink: #dbe8f4; --dim: #7b9cb8; --curve: #9fc9ee;
+    --near: #ff9a4e; --far: #8c6bd8; --ball: #ffffff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; -webkit-text-size-adjust: 100%; }
+  a { color: var(--curve); } a:hover { color: #fff; }
+
+  header { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: baseline; padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--edge); }
+  header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+  header .home { font-size: .85rem; color: var(--dim); text-decoration: none; }
+  header .home:hover { color: var(--ink); }
+  header .after { font-size: .85rem; color: var(--dim); margin-left: auto; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1.25rem; padding: 1.25rem; align-items: start; }
+  @media (max-width: 940px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { position: relative; width: min(100%, 78vh); margin-inline: auto; }
+  canvas#arena { display: block; width: 100%; aspect-ratio: 1/1; border-radius: 10px; background: #071624; border: 1px solid var(--edge); }
+  .status { display: flex; flex-wrap: wrap; gap: .1rem 1.1rem; font: .78rem/1.7 var(--mono); color: var(--dim); margin-top: .45rem; }
+  .status b { color: var(--ink); font-weight: 600; }
+  .era { font-weight: 600; }
+  .era.calm { color: #7fe3c4; } .era.wild { color: var(--near); }
+
+  .panel { display: grid; gap: .9rem; }
+  fieldset { border: 1px solid var(--edge); border-radius: 8px; margin: 0; padding: .6rem .8rem .8rem; background: var(--panel); }
+  legend { padding: 0 .35rem; font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }
+  button { font: inherit; color: var(--ink); background: #14314a; border: 1px solid var(--edge); border-radius: 6px; padding: .34rem .55rem; cursor: pointer; }
+  button:hover { background: #1b405e; }
+  button[aria-pressed="true"] { background: var(--curve); color: #071624; border-color: var(--curve); font-weight: 600; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; }
+  .actions button { font-size: .85rem; padding: .32rem .3rem; }
+  .row { display: grid; grid-template-columns: 5.2rem 1fr 3.4rem; gap: .5rem; align-items: center; margin-top: .4rem; }
+  .row label { font-size: .8rem; color: var(--dim); }
+  .row output { font: .78rem var(--mono); text-align: right; }
+  .row .hint { grid-column: 2 / -1; font-size: .72rem; color: var(--dim); margin-top: -.2rem; }
+  input[type=range] { width: 100%; accent-color: var(--curve); }
+  #spread, #section { display: block; width: 100%; border-radius: 6px; background: #0c1f31; border: 1px solid var(--edge); }
+  #section { cursor: crosshair; }
+  .capt { font-size: .73rem; color: var(--dim); margin: .4rem 0 0; }
+  .key { display: flex; gap: .8rem; flex-wrap: wrap; font-size: .75rem; color: var(--dim); margin-top: .45rem; }
+  .key i { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .25rem; vertical-align: -1px; }
+
+  .prose { max-width: 46rem; padding: 0 1.25rem 3rem; color: #b9cfe2; }
+  .prose h2 { font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 2.2rem 0 .5rem; }
+  .prose p { margin: .65rem 0; }
+  .prose code { font: .9em var(--mono); background: #0f2437; padding: .1em .35em; border-radius: 4px; }
+  .eq { font: .95rem/1.8 var(--mono); color: var(--ink); background: #0f2437; border: 1px solid var(--edge); border-radius: 8px; padding: .7rem .9rem; overflow-x: auto; white-space: pre; }
+  .credit { border-left: 2px solid var(--curve); padding-left: .9rem; }
+  noscript { display: block; padding: 1.25rem; color: var(--near); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home" href="/">← henderhead</a>
+  <h1>Bouncing ball chaos</h1>
+  <span class="after">after <a href="https://bsky.app/profile/matthen.com/post/3mvi6wjvk6k2p">a demo by Matt Henderson</a></span>
+</header>
+
+<noscript>This integrates a bouncing ball and a few hundred of its possible futures in WebAssembly, so it needs JavaScript on.</noscript>
+
+<main>
+  <div class="stage">
+    <canvas id="arena" width="1100" height="1100"></canvas>
+    <div class="status" id="status"></div>
+    <div class="key">
+      <span><i style="background:var(--ball)"></i>the ball</span>
+      <span><i style="background:var(--near)"></i>the next bounce</span>
+      <span><i style="background:var(--far)"></i>four bounces ahead</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <fieldset>
+      <legend>run</legend>
+      <div class="actions">
+        <button id="play" aria-pressed="true">❚❚ pause</button>
+        <button id="drop">drop again</button>
+        <button id="trail" aria-pressed="true">trail</button>
+      </div>
+      <div class="row">
+        <label for="speed">speed</label>
+        <input type="range" id="speed" min="0.1" max="4" step="0.1" value="1">
+        <output id="speed-o"></output>
+      </div>
+      <div class="row">
+        <label for="offset">drop at</label>
+        <input type="range" id="offset" min="-0.9" max="0.9" step="0.005" value="0.145">
+        <output id="offset-o"></output>
+        <div class="hint">dead centre bounces straight up and down forever</div>
+      </div>
+      <div class="row">
+        <label for="height">drop height</label>
+        <input type="range" id="height" min="-0.95" max="0.5" step="0.01" value="0">
+        <output id="height-o"></output>
+        <div class="hint">this is the energy. Drop near the bottom and the chaos goes away</div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>measurement error</legend>
+      <div class="row">
+        <label for="delta">error <i>δ</i></label>
+        <input type="range" id="delta" min="0" max="0.08" step="0.001" value="0.02">
+        <output id="delta-o"></output>
+        <div class="hint">how wrong the launch angle might be, in radians</div>
+      </div>
+      <div class="row">
+        <label for="depth">look ahead</label>
+        <input type="range" id="depth" min="1" max="8" step="1" value="4">
+        <output id="depth-o"></output>
+      </div>
+      <div class="row">
+        <label for="futures">futures</label>
+        <input type="range" id="futures" min="16" max="1024" step="16" value="384">
+        <output id="futures-o"></output>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>how predictable it is, now</legend>
+      <canvas id="spread" width="620" height="210"></canvas>
+      <p class="capt">Spread of the fan after the full look-ahead, over time. Near zero the futures all land together and the next few bounces are certain; near one they are scattered right round the rim. <strong>The peaks and troughs are his Stable and Chaotic Eras</strong>, measured rather than eyeballed.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>the phase portrait</legend>
+      <canvas id="section" width="620" height="420"></canvas>
+      <p class="capt">The Poincaré section: every bounce as a dot, at the angle round the rim and the sine of the angle it left at. Violet is hundreds of other orbits at the same energy, blue is this one. The right half is empty because at this energy the ball cannot reach above the middle. <strong>Drag the drop height down</strong> and the speckle collapses into nested loops. <strong>Click anywhere to launch the ball from there.</strong></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>the machine</legend>
+      <div class="row">
+        <label for="gravity">gravity</label>
+        <input type="range" id="gravity" min="0.02" max="3" step="0.02" value="1">
+        <output id="gravity-o"></output>
+        <div class="hint">at zero it is a chord billiard and perfectly predictable</div>
+      </div>
+      <div class="row">
+        <label for="rest">bounciness</label>
+        <input type="range" id="rest" min="0.5" max="1" step="0.005" value="1">
+        <output id="rest-o"></output>
+      </div>
+    </fieldset>
+  </div>
+</main>
+
+<div class="prose">
+  <h2>What this is</h2>
+  <p class="credit">
+    On 14 September 2026 Matt Henderson posted this: <em>chaos from bouncing a ball in a circle — at
+    each point, I simulate a bunch of futures with slightly different velocities, showing how
+    predictable the system would be with measurement error. The system seems to move between Stable
+    Eras and Chaotic Eras, where it is hard to predict four bounces ahead.</em> His
+    <a href="https://bsky.app/profile/matthen.com/post/3mvi6wjvk6k2p">original post</a> is worth
+    watching first.
+  </p>
+
+  <h2>The one thing that had to be got right</h2>
+  <p>
+    The video does not say what the rule is, and there is a version of this that looks identical for
+    a few seconds and is <strong>completely wrong</strong>: a ball bouncing in a circle along
+    straight lines. That system is <em>integrable</em>. The angle of incidence is conserved at every
+    bounce, the ball just rotates round a fixed inner circle forever, nearby trajectories separate
+    linearly rather than exponentially, and four bounces ahead is perfectly predictable. If that were
+    the rule, the post's own sentence could not be true.
+  </p>
+  <p>
+    So it was measured off the video instead — tracking the white dot frame by frame. Before the
+    first bounce x is constant while y accelerates; after it, x advances at a constant rate while y
+    changes linearly. <strong>Parabolas, not chords: there is gravity.</strong> And at the end of his
+    eighty seconds the ball is still rising to within a few pixels of the height it was dropped from,
+    so the bounces are elastic. That is the whole rule.
+  </p>
+  <div class="eq">between bounces   p(t) = p₀ + v₀t + ½gt²
+at the wall       v → v − (1+e)(v·n̂)n̂     n̂ the outward normal
+dropped from      rest, a seventh of a radius off centre</div>
+  <p>
+    Adding gravity is not a detail. It breaks the conservation law, the phase space goes mixed, and
+    every single thing he describes follows from that. There are tests here for both halves: without
+    gravity the sine of the launch angle is constant to one part in ten thousand over three hundred
+    bounces, and with it that number wanders across its entire range.
+  </p>
+
+  <h2>Chaos, as a number</h2>
+  <p>
+    Start a second ball a billionth away and watch the gap. Averaging the log of how much each
+    bounce stretches it gives the Lyapunov exponent, and over a couple of thousand bounces it settles
+    at about <strong>0.44 nats per bounce</strong> — half again as big at every bounce, and about six
+    times as big after four. That is an <em>average</em>, though, and the whole story of the eras is
+    that the actual stretching over any particular four bounces is nothing like it. Turn gravity down
+    to nothing and the same measurement gives essentially zero, because linear separation is not
+    exponential separation.
+  </p>
+
+  <h2>The Eras, and where they come from</h2>
+  <p>
+    The fan above is his: a few hundred copies of the ball, each launched with the velocity turned by
+    up to δ, each followed four bounces. Turning the velocity rather than changing its size keeps
+    every future on the same energy surface as the real ball, so the comparison means "error in
+    direction" and nothing else.
+  </p>
+  <p>
+    What a page can add is the number. The <em>spread</em> plot measures how far apart those futures
+    end up — zero if they all land in the same place, one if they are scattered right round the rim —
+    and the Stable and Chaotic Eras stop being an impression and become peaks and troughs you can
+    point at.
+  </p>
+  <p>
+    The obvious explanation for the eras would be a mixed phase space — stable islands sitting in a
+    chaotic sea, with the ball getting stuck near an island for a while. That is what these systems
+    usually do, and it is what this page said in its first draft. <strong>It is not what is
+    happening here</strong>: plot the section at the energy the video uses and it is an almost
+    uniform speckle. There are no islands worth the name to get stuck near.
+  </p>
+  <p>
+    What is left is the honest answer, and it is a better one. The Lyapunov exponent is a
+    <em>long-run average</em>. Over any four bounces the actual stretching is nothing like that
+    average — sometimes the fan is squeezed and sometimes it is torn apart, and those fluctuations
+    are large. A stable era is a run of bounces that happened to squeeze. Nothing is stabilising it
+    and nothing is holding it there; it is the same chaotic sea all the way through, being locally
+    uneven. Watch the spread plot with the fan and you can see an era end.
+  </p>
+  <p>
+    The islands are real, though — just not at this energy. Drag the <em>drop height</em> down and
+    the section collapses from a speckle into a stack of nested closed loops around the ball that
+    bounces straight up and down at the bottom. That slider is the energy control and the only one:
+    E = gy at the moment of release, and the ball can never get back above that height. Gravity,
+    counter-intuitively, is <em>not</em> an energy control — rescale time and any value of g becomes
+    1, so the portrait does not depend on it at all. Click a point on the section to start the ball
+    from there.
+  </p>
+
+  <h2>How it computes</h2>
+  <p>
+    Bounces are solved exactly, not stepped. Between bounces the path is a parabola, so the next wall
+    hit is a root of a quartic in t — and because the ball sits exactly on the circle after every
+    bounce, the constant term vanishes, t factors out, and what is left is a cubic with a closed
+    form. That matters here more than in most simulations: in a system whose entire subject is how
+    fast small errors grow, an integrator that manufactures its own errors is not acceptable. Over
+    five thousand bounces the energy drifts by less than a part in a billion, and there is a test that
+    says so.
+  </p>
+  <p>
+    All of it is a small Rust engine compiled to WebAssembly (<code>engine/</code> here, 49 KB, no
+    imports and no bindgen), rebuilding the whole fan — up to a thousand futures, four bounces each —
+    from scratch every frame.
+  </p>
+
+  <h2>Credit, and a request</h2>
+  <p>
+    This is a fan page. The demo is Matt Henderson's
+    (<a href="https://matthen.com">matthen.com</a>, <a href="https://bsky.app/profile/matthen.com">@matthen.com</a>);
+    the code here is ours and none of his video is copied onto this site. If he would rather this did
+    not exist, or wants anything about it changed, that decision is his and we will act on it — see
+    <a href="/#consent">the note on the front page</a>.
+  </p>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

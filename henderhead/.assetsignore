@@ -19,8 +19,10 @@ package-lock.json
 cf/engine
 craft/engine
 wheel/engine
+ball/engine
 
 # The node selftests are run in CI, not by a browser.
 cf/cf.selftest.mjs
 craft/craft.selftest.mjs
 wheel/wheel.selftest.mjs
+ball/ball.selftest.mjs
