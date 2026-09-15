@@ -34,6 +34,7 @@ the tangled mirror.
 | `expected.json` | closed-form volumes for every part |
 | `publish.mjs` | writes the parts then the assembly into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
 | `verify.mjs` | the posed document against `pose()` at every grip — the check the two travel bugs would have failed |
+| `jacobian.mjs` | **not part of the gripper** — a platform proposal, and the evidence for it: a virtual-work instrument on the poser the platform already has, reproducing the hand-derived force curve in 30 lines and 40 ms |
 | `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 25-state interference **grid** over `grip` (the gate), the clearance table, publish on request, then audit the published corpus |
 
 ## How cad.mino.mobi works, for the next agent
