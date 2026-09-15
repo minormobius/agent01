@@ -274,6 +274,9 @@ check(after > before, `editing wall 1 → 3 rebuilds and adds volume (${before.t
   await page.evaluate(async () => { await window.__cad.ready; await window.__cad.settled(); });
   const rp = await page.evaluate(async () => { window.__lastReport = null; document.querySelector('#asm-report').click(); for (let i = 0; i < 300 && !window.__lastReport; i++) await new Promise((r) => setTimeout(r, 25)); return { r: window.__lastReport, status: document.querySelector('#status')?.textContent || '' }; });
   check(rp.r?.items === 4 && rp.r.sheets === 4 && rp.r.steps === 4 && rp.r.components === 7 && rp.r.bytes > 100000 && /report:/.test(rp.status), `the report button writes the lift's page: ${rp.r?.components} components, ${rp.r?.items} items, ${rp.r?.sheets} sheets, ${rp.r?.steps} steps, ${((rp.r?.bytes || 0) / 1024).toFixed(0)} kB`);
+  // and the motion section, which needs no geometry: the drive is an axis and
+  // everything but the screw's own origin travels along it
+  check(rp.r?.motion?.length === 1 && rp.r.motion[0].axis === 't' && rp.r.motion[0].unit === 's' && rp.r.motion[0].moving === 7 && rp.r.motion[0].still === 0, `…with a motion section on the page: ${rp.r?.motion?.[0]?.moving} components move over ${rp.r?.motion?.[0]?.axis}, ${rp.r?.motion?.[0]?.still} still`);
 }
 
 // section: a plane taken from a pinned face, pushed through the part, with pan

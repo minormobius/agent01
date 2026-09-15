@@ -24,7 +24,7 @@ if (!isAssembly(doc)) { console.error(`${src} is a part, not an assembly — a r
 const out = arg('--out', `${name}.html`);
 const t = Number(arg('--t', '0'));
 const { engine } = await kernels();
-const { components, mates, drive, partTrees, fits } = await flatten(doc, benchRef, { facesOf });
+const { components, mates, drive, inputs, partTrees, fits } = await flatten(doc, benchRef, { facesOf });
 const angles = solveAngles(components, mates, drive, t);
 const builds = new Map(); const unbuilt = [];
 for (const [key, tree] of partTrees) {
@@ -35,7 +35,7 @@ for (const [key, tree] of partTrees) {
 }
 if (!builds.size) { console.error('✗ no part of this assembly builds with the exact kernel — nothing to report'); process.exit(1); }
 const rep = assemblyReport({
-  doc, components, mates, drive, fits, partTrees, builds, angles, modelOf, t,
+  doc, components, mates, drive, fits, inputs, partTrees, builds, angles, modelOf, t,
   title: arg('--title', name), site: arg('--site', 'https://cad.mino.mobi'),
   explode: Number(arg('--explode', '0.6')), hidden: !has('--no-hidden'),
   maxParts: Number(arg('--max-parts', '20')), width: Number(arg('--width', '900')), unbuilt,

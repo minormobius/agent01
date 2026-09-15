@@ -700,13 +700,13 @@ function makeReport() {
   }
   try {
     const rep = assemblyReport({
-      doc: state.asmDoc, components: state.components, mates: state.mates, drive: state.drive, fits: state.fits,
+      doc: state.asmDoc, components: state.components, mates: state.mates, drive: state.drive, fits: state.fits, inputs: state.inputs,
       partTrees: state.partTrees, builds, angles: state.angles, modelOf, t: state.t || 0,
       title: state.name, site: location.origin, at: state.at && state.at.startsWith('at://') ? state.at : null,
     });
     download(new Blob([rep.html], { type: 'text/html' }), `${state.name}-report.html`);
     setStatus(`report: ${rep.components} components over ${rep.bom.length} parts, ${rep.sheets} part sheets, ${(rep.bytes / 1024).toFixed(0)} kB`);
-    window.__lastReport = { bytes: rep.bytes, items: rep.bom.length, sheets: rep.sheets, steps: rep.steps.length, components: rep.components };
+    window.__lastReport = { bytes: rep.bytes, items: rep.bom.length, sheets: rep.sheets, steps: rep.steps.length, components: rep.components, motion: rep.motion ? rep.motion.map((m) => ({ axis: m.axis, unit: m.unit, moving: m.moving.length, still: m.still.length })) : null };
   } catch (e) { setStatus(`report failed: ${e.message}`, true); }
 }
 /// An SVG drawing of what is built: the part, or every posed component of the

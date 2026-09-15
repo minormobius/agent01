@@ -912,3 +912,54 @@ that with two in-memory repos standing in for a PDS and a stranger.
   This is the feasibility record's Tier 2, scoped to one lexicon namespace.
 - **No `.stl` / `.png` faces on an AT URI** (§2.2). The gateway is the
   first step; content negotiation is the next.
+
+---
+
+## 16. The solver question — what "free until it's not" buys, and where it stops
+
+The ask that reached this branch was for a solver, and the useful part of the
+argument was that "a solver" is four different things with four different
+price tags. Taking them in order:
+
+**Tier A — virtual work, over the poser that already exists.** The forward
+kinematics are already solved: a document's placements, mates and joints put
+every component somewhere for any state of its inputs. Finite-difference that
+against one input and every velocity ratio in the assembly falls out; the
+mechanical advantage is the reciprocal of a ratio, and the effort at an input
+that holds a load is Σ F·∂p/∂q. No constraint solving, no Newton iteration, no
+stiffness matrix — because the only question asked is about a degree of freedom
+the document already has. **Built** (`packages/cad/lib/mechanism.js`), at two
+poses per number and no geometry at all.
+
+What it gives that nothing here gave before:
+
+- a mechanical-advantage curve per input, and the travel of every component;
+- dead points and toggles — a ratio through zero or to infinity — found by
+  sweeping rather than argued about;
+- an **oracle the platform owns**. Before it, an author who wanted to assert
+  "rolling does not change the grip" or "this link is a link" wrote a hundred
+  lines of bespoke verification beside their document. That is what
+  `d(distance)/d(input) = 0` is, in one call. A claim about a ratio can now be
+  graded against a number instead of against someone's prose.
+- the statics that actually bite. The missing solver was never kinematics:
+  a screw's **whole** torque reaches its nut, and taking `F·lead/2π` off as
+  "useful work" under-sizes a brake by a quarter. Virtual work says so in one
+  line, and says it about every path through the mechanism at once, because
+  the poser already counted them.
+
+Its limits are stated where it is used: it is **lossless** (friction, preload
+and backlash are not modelled, so an effort is a floor), and it asks only
+about degrees of freedom the document has.
+
+**Tier B — a constraint solver** (close a loop numerically instead of by
+expression), **Tier C — contact statics** (a force carried through a touch
+rather than a joint: grasp stability, force closure), **Tier D — FEA**. None
+of these is built, and none is free: B is Newton over a residual with the
+indeterminacy that implies, C needs friction cones and a contact set that
+changes with the pose, D is a different program. Tier A is worth having on its
+own precisely because it is not a step toward them — it is the part of the
+question that the existing poser answers exactly.
+
+The record of the argument, including the thirty lines that proved it against
+a 45-component gripper before the platform had it: `morphyx/gripper/jacobian.mjs`
+on `claude/gripper-mechanism-design-efcdzz`.

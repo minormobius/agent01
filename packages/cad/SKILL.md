@@ -30,6 +30,7 @@ write tree.json → build → measure → (check) → render → judge → edit 
 | measure | `node agent/measure.mjs tree.json --list` · `… <face>` · `… <faceA> <faceB>` | a cylinder's diameter; plane-to-plane, axis-to-axis, axis-to-plane distances, from exact geometry |
 | interference (assemblies) | `node agent/check.mjs asm.json [--t seconds \| --sweep N [--period s] \| --grid [n]] [--json]` | interfering pairs with shared volume, at one instant or the worst through a cycle; exit 1 if any beyond expected touches (fixed- and screw-mated) |
 | clearance (assemblies) | `node agent/check.mjs asm.json --clearance 1 [--sweep N \| --grid [n]]` | every pair's nearest approach from the exact meshes — crossing, contained, touching, or the distance — with a verdict; in a sweep each minimum is chased between samples; exit 1 on a collision or a pair closer than 1 mm |
+| mechanism (assemblies) | `node agent/mechanism.mjs asm.json [--input NAME] [--at a=1,b=2] [--steps N] [--of COMP] [--span A B] [--point COMP=x,y,z] [--load COMP=fx,fy,fz]` | **what it DOES**: per input, every component's rate and its mechanical advantage (the reciprocal), travel and turn end to end, what stays still, and the dead points. `--span a b` is an invariant when it reads zero ("the link is a link"); `--load` gives the effort at the input that holds a force — newtons for an input in mm, N·m for one in degrees, watts for a drive — **lossless**, so a floor. No geometry is built: two poses per rate |
 | measure across an assembly | `node agent/measure.mjs asm.json finger-r.pad finger-l.pad --t 0.5` | two parts' named faces posed at t: the kinematics measured directly |
 | drawing | `node agent/drawing.mjs tree.json --out a.svg [--views front,top,iso] [--no-hidden] [--t s]` | an SVG engineering drawing: third-angle views, hidden lines dashed, the overall width, height and depth, every hole called out by count, diameter and depth when blind — and on a part, **internal dimensions**: an ordinate from a datum at the corner to every hole centre and pocket edge, a pitch line for an evenly spaced run, and a note naming each sketch loop with its size. Name your loops (`"name": "slotRlo"`) and they appear on the drawing. On an assembly, posed at `t`, reference components left out |
 | report (assemblies) | `node agent/report.mjs asm.json --out asm.html [--t s] [--explode 0.6] [--max-parts 20]` | one self-contained HTML page: the assembly in three views, an exploded isometric with numbered balloons, a parts list, a drawing of every part, and the assembly steps read off the placements, references, mates and fits — every row linking back into the viewer. This is the thing to hand a person. A part the exact kernel cannot build is listed with its error, not dropped |
@@ -271,6 +272,39 @@ finger-r.pad finger-l.pad --t 0.5` (and the MCP `measure` tool with `t`)
 poses the assembly and measures two parts' named faces against each other
 — plane to plane, axis to axis — which tests the kinematics directly
 instead of your own pose arithmetic.
+
+**What the mechanism DOES: rates, advantage, effort, dead points.**
+`node agent/mechanism.mjs asm.json` (and the MCP `mechanism` tool)
+differentiates the poser against each of the document's inputs — and
+against `t` when it has a drive — so every velocity ratio in the assembly
+falls out of two poses per number. It builds **no geometry** and runs no
+kernel, so it costs nothing next to a clearance sweep, and it is the
+instrument for the questions `check` cannot answer:
+
+| ask | how |
+|---|---|
+| how far does this part move per unit of the input? | the rate, per component |
+| what does the linkage multiply the force by? | the **mechanical advantage** — the reciprocal of that rate, by virtual work |
+| what torque holds this load? | `--load jaw-r=0,100,0` → N for an input in mm, N·m for one in degrees, W for a drive |
+| is this invariant actually invariant? | `--span a b` reading **zero everywhere on the input** — "the link is a link", "rolling does not change the grip". It reports the rate at the state you asked about *and* at its worst over the whole input, because a zero at one state may only be a dead point |
+| where does it go dead or toggle? | a rate passing through zero — reported per input, with the state it happens at |
+| how far does everything travel, end to end? | travel and turn, read from the two END poses (so an escapement's impulsive motion is not under-resolved by sampling) |
+| what does the tip of this arm do? | `--point hand=24,0,0` — a point in the part's own coordinates, so a hand pinned at its boss reads zero at the origin and r·ω at its tip |
+
+Two things it is not. It is **lossless**: friction, preload and backlash
+are not modelled, so an effort is a FLOOR, not the answer — size a brake
+above it, not at it. And it asks only about degrees of freedom the
+document already has: it is not a constraint solver (a loop you closed by
+expression is still yours to get right), not contact statics (where a
+force is carried through a touch rather than a joint), and not FEA. Those
+are not built. What it replaces is the hand-written oracle: a ratio a
+document claims can be graded against a number here instead of against
+someone's prose.
+
+The **assembly report** carries all of this as its *Motion* section — a
+rate curve per input with the dead points marked, and a table of rate,
+advantage, travel and turn — so it reaches a person without their running
+anything.
 
 **Audit a corpus.** Every published revision carries the invariants it
 was judged by. `node agent/audit.mjs --at <handle> --kernels` rebuilds

@@ -17,11 +17,11 @@ const { engine } = await kernels();
 
 async function load(name, t = 0) {
   const doc = bench(name);
-  const { components, mates, drive, partTrees, fits } = await flatten(doc, benchRef, { facesOf });
+  const { components, mates, drive, inputs, partTrees, fits } = await flatten(doc, benchRef, { facesOf });
   const angles = solveAngles(components, mates, drive, t);
   const builds = new Map();
   for (const [key, tree] of partTrees) { const r = engine.build(tree, { kernel: 'truck' }); builds.set(key, { mesh: r.mesh, faces: r.report.faces, invariants: r.report.invariants }); }
-  return { doc, components, mates, drive, partTrees, fits, angles, builds, t };
+  return { doc, components, mates, drive, inputs, partTrees, fits, angles, builds, t };
 }
 
 // 1. the lift: a page that counts what is there and links where it came from
@@ -31,7 +31,11 @@ const rep = assemblyReport({ ...lift, modelOf, title: 'lift' });
   check(rep.components === 7 && rep.bom.length === 4 && rep.bom.find((r) => r.part === 'bolt').qty === 4 && rep.bom.find((r) => r.part === 'bolt').ids.length === 4, `the parts list: ${rep.bom.map((r) => `${r.qty}× ${r.part}`).join(', ')}`);
   check(rep.bom[0].item === 1 && rep.bom.every((r, i) => r.item === i + 1 && r.volume > 0), 'every item is numbered and carries its volume');
   const svgs = (rep.html.match(/<svg/g) || []).length;
-  check(svgs === 2 + rep.sheets && rep.sheets === 4 && rep.html.includes('id="exploded"') && rep.html.includes('class="balloon"'), `one page holds the assembly, the exploded view with balloons and ${rep.sheets} part sheets (${svgs} drawings, ${(rep.bytes / 1024).toFixed(0)} kB)`);
+  const charts = (rep.motion || []).filter((m) => m.curves?.length).length;
+  check(svgs === 2 + rep.sheets + charts && rep.sheets === 4 && rep.html.includes('id="exploded"') && rep.html.includes('class="balloon"'), `one page holds the assembly, the exploded view with balloons, ${charts} rate chart and ${rep.sheets} part sheets (${svgs} drawings, ${(rep.bytes / 1024).toFixed(0)} kB)`);
+  // the motion section: what the thing DOES, from the poser, with no geometry
+  const mo = rep.motion[0], nut = mo.moving.find((m) => m.id === 'nut');
+  check(rep.motion.length === 1 && mo.axis === 't' && mo.time && nut && Math.abs(nut.advantage - 1 / nut.rate) < 1e-9 && mo.curves.length && rep.html.includes('id="motion"'), `the motion section differentiates the drive: ${mo.moving.length} of ${mo.moving.length + mo.still.length} components move over ${mo.states} states, the nut at ${nut.rate.toFixed(4)} mm/s for an advantage of ${nut.advantage.toFixed(3)}`);
   const link = `https://cad.mino.mobi/#t=${b64url(lift.partTrees.get(rep.bom[0].partKey))}`;
   check(rep.html.includes(link) && rep.html.includes('#item-4') && rep.html.includes('open the assembly in the viewer'), 'each part links into the viewer by its own tree, and the item links into its sheet');
   const again = assemblyReport({ ...lift, modelOf, title: 'lift' });

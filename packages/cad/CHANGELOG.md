@@ -4,6 +4,34 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-15, third pass
+
+**What a mechanism DOES, not only what it is.** `agent/mechanism.mjs`, the MCP
+`mechanism` tool and a *Motion* section in every assembly report answer the
+question `check` never could: how far each part moves per unit of an input, and
+therefore the **mechanical advantage** — the reciprocal of that rate, by virtual
+work. Also the travel and turn of every component end to end, what stays still,
+the **dead points** where a rate passes through zero (self-locking, infinite
+advantage), and `--load comp=fx,fy,fz`: the **effort at the input that holds a
+load**, in newtons for an input in mm, N·m for one in degrees, watts for a drive.
+
+It builds no geometry and runs no kernel — two poses per number, out of the
+poser that was already there — so it is free on the server and costs nothing
+next to a clearance sweep.
+
+Two of its answers replace hand-written oracles outright. `--span a b` reading
+zero IS an invariant ("the link is a link", "rolling does not change the grip").
+And an effort is the WHOLE effort: taking `F·lead/2π` off a screw as "useful
+work" under-sizes a brake by a quarter, and this says so in one line. It is
+lossless — friction, preload and backlash are not modelled — so every effort is
+a floor, not the answer. It is not a constraint solver, not contact statics and
+not FEA; it asks only about degrees of freedom the document already has.
+
+`mechanism.selftest.mjs` holds it to closed forms: a crank–slider's block
+against the derivative of `r cosθ + √(L² − r²sin²θ)` to 2e-5, a jaw at radius r
+moving exactly `r·π/180` per degree, `F·r` at a wrist, and the clock's 12:1
+motion works. It is the eighth selftest gating the deploy.
+
 ## 2026-09-15, second pass
 
 **Every assembly in a repo is listed at the top of its group**, by full path,

@@ -236,6 +236,35 @@ documented in [`README.md`](README.md) next to this file.
   carries `cost` — the work in one instant, the budget, the instants that buys,
   and an estimate at the other resolutions — so `res` is chosen from numbers
   rather than by probing for the cliff.
+- **What it DOES — the virtual-work instrument.** `lib/mechanism.js` is the
+  answer to a question `check` cannot reach: interference says nothing
+  touches, not what the thing is *for*. The poser IS the mechanism, so
+  finite-differencing the forward pose against each input (and against `t`
+  when there is a drive) gives every velocity ratio in the assembly out of
+  **two poses per number** — no constraint solving, no Newton iteration, no
+  stiffness matrix, because the only question asked is about a degree of
+  freedom the document already has. `axesOf` lists what can be
+  differentiated, `rates` does it (central difference; a **time axis is never
+  clamped**, since a period has no ends and the dead point at t = 0 lives
+  exactly there, while a declared input goes one-sided at its ends rather
+  than stepping outside its range), `ratioOf` is one component's motion and
+  the **mechanical advantage** — the reciprocal, by virtual work — `spanRate`
+  is an invariant when it reads zero, `pointRate` differentiates a point in a
+  part's own coordinates (a hand pinned at its boss reads zero at the origin
+  and r·ω at its tip), `effortFor` is Σ F·∂p/∂q, and `sweepRates` walks a
+  whole input for the dead points and the travel. **Travel and turn come from
+  the two END poses, not the samples**: an escapement is locked for most of a
+  beat and slides over the rest, so twelve uniform samples integrate a
+  turning train to zero, and two end poses cannot. Units are stated once: an
+  input in mm answers in newtons, one in degrees in newton-metres, a drive in
+  watts. It is **lossless** — an effort is a floor, not the answer — and it
+  is not contact statics and not FEA; those are not built. `agent/mechanism.mjs`,
+  the MCP `mechanism` tool (free on the Worker: no meshes, no kernel) and the
+  report's *Motion* section are the three surfaces. The argument for it, and
+  the thirty lines that proved it against a 45-component gripper, came from
+  the practitioner: `morphyx/gripper/jacobian.mjs` on
+  `claude/gripper-mechanism-design-efcdzz`. It replaces the hand-written
+  oracle — `verify.mjs` existed only because the platform had none.
 - **Audit.** `agent/audit.mjs --at <repo> [--kernels]` rebuilds every
   part in a repo and diffs volume, χ, watertightness and face count against
   the invariants its revision recorded (`publish.mjs` stores them on every
@@ -274,7 +303,11 @@ documented in [`README.md`](README.md) next to this file.
   MCP `report` tool all produce the same bytes: the assembly in three views,
   an **exploded** isometric with a numbered balloon per item (`drawing`'s
   `balloons` option, ringed around the figure), a parts list
-  with quantities, volumes and sizes, a drawing of every distinct part, and
+  with quantities, volumes and sizes, a drawing of every distinct part, a
+  **Motion** section (`motionOf` + a hand-rolled rate chart: per input, what
+  moves and how fast, the mechanical advantage, travel and turn end to end,
+  the dead points marked as hollow dots, and what stays still — free, since
+  no geometry is involved, and it does not depend on a part building), and
   the assembly steps. Every row links into the viewer (`#t=` of that part's
   own tree, `?at=` for the assembly when it came from a repo), so the page
   is a handover document rather than a picture. **The steps are derived, not
@@ -375,8 +408,8 @@ documented in [`README.md`](README.md) next to this file.
   `scripts/sync-dataviz.mjs` (edit it here, never the copy). `llms.txt` is
   the site's index for agents; `README.md` (the schema) is served too.
 - **MCP.** `mcp.js` is the headless library as Model Context Protocol tools
-  (`check`, `build`, `measure`, `interference`, `drawing`, `report`, `step`,
-  `list_files`, `get_file`), mounted at `/mcp` by `worker.js` — GET the descriptor, POST
+  (`check`, `build`, `measure`, `mechanism`, `interference`, `drawing`,
+  `report`, `step`, `list_files`, `get_file`), mounted at `/mcp` by `worker.js` — GET the descriptor, POST
   JSON-RPC. The engine wasm runs *inside the worker*: imported as a wasm
   module (Workers cannot compile wasm from bytes) and instantiated once per
   isolate on first call. **Manifold cannot run there**: its embind glue
@@ -504,10 +537,15 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   failed union of a region's outer loops names the two loops (`union of
   outer loops \`body\` and \`slot\` failed — do their outlines overlap or
   touch?`): a kernel error reported as the design error it almost always is.
-- **Seven selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
+- **Eight selftests gate the deploy:** `cad.selftest.mjs` (the ABI, from
   bytes under node), `drive.selftest.mjs` (the file tree and the gateway),
   `assembly.selftest.mjs` (expressions against the engine, kinematics
   against closed forms, the mates, repeat and references),
+  `mechanism.selftest.mjs` (the virtual-work instrument against numbers a
+  person can derive on paper: one-for-one prismatic joints, r·π/180 at two
+  radii, a span rate of zero, F·r at a wrist, a crank–slider against the
+  derivative of `r cos θ + √(L² − r²sin²θ)` to 2e-5 with its two dead points,
+  and the clock's 12:1 motion works from two end poses),
   `drawing.selftest.mjs` (the SVG drawing by its numbers: views, dimensions,
   hole callouts, hidden lines, and that it is deterministic),
   `report.selftest.mjs` (the assembly report: the parts list, the steps and
@@ -517,7 +555,7 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   bench part, checks the report against closed forms, spins the train and
   the crank, poses the lift, saves and forks files against a mocked repo,
   draws, reports, and screenshots; skips, saying so, without Playwright).
-  Run all seven before pushing.
+  Run all eight before pushing.
 - **Truck's gear build is not deterministic.** The first thing the corpus
   audit found: the 60-tooth gear, built twice in one process, gives χ −40
   then −41, different triangle counts, and a volume that moves in the

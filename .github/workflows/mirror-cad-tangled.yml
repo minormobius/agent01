@@ -91,6 +91,7 @@ jobs:
           node cad.selftest.mjs | tail -1
           node drive.selftest.mjs | tail -1
           node assembly.selftest.mjs | tail -1
+          node mechanism.selftest.mjs | tail -1
           node drawing.selftest.mjs | tail -1
           node report.selftest.mjs | tail -1
           node agent/check.mjs bench/crank.json --t 0.7 | tail -1

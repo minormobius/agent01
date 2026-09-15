@@ -23,6 +23,7 @@ serves this directory with `engine/` and `bakeoff/` dropped by
 | `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
 | `drive.selftest.mjs` | the file tree over records (`lib/drive.js`) and the site worker's `/xrpc/` read gateway, with in-memory repos and a fake PDS |
 | `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form, the six mates in both directions, repeat, place-by-feature on the lift; `lib/proximity.js` on cube pairs and the lift's meshes, and a sweep that finds a 1 mm graze between samples |
+| `mechanism.selftest.mjs` | the virtual-work instrument against numbers a person can derive on paper: a prismatic joint moving its follower one for one, a jaw at radius r moving exactly `r·π/180` per degree, a span rate of zero as an invariant, `F·r` at a wrist, a crank–slider's block against the derivative of `r cosθ + √(L² − r²sin²θ)` to 2e-5, its two dead points, and the clock's 12:1 motion works from two end poses |
 | `drawing.selftest.mjs` | the SVG drawing by its numbers: the plate's nine holes grouped from their arc faces and called out by count and diameter, the case's blind bore with its depth, the overall dimensions written on the sheet, hidden lines where a bore is seen through the plate, views on demand, and that the same input draws the same SVG |
 | `report.selftest.mjs` | the assembly report: the lift's parts list and quantities, steps that carry each mate's own numbers and the declared fits, a repeat collapsed into one step, no sentence the document does not state, the exploded view separating every touching pair, and one document giving one page byte for byte |
 | `agent/audit.mjs` | rebuilds every part in a published repo and diffs it against the invariants its revision recorded; `--kernels` checks Truck and Manifold agree on volume. The publish workflow runs it on the bench |
@@ -156,6 +157,7 @@ node agent/measure.mjs bench/case.json case.cup[0] case.cup[2]     # plane to pl
 node agent/check.mjs   bench/clock.json --t 0.5                    # interfering pairs at half a beat; exit 1 on a real clash
 node agent/check.mjs   bench/lift.json --sweep 24 --clearance 1     # nearest approach per pair through a cycle, minima refined; exit 1 under 1 mm
 node agent/measure.mjs bench/lift.json nut.end platform.start --t 0.5   # two parts' faces at an instant
+node agent/mechanism.mjs bench/grip.json --input roll --load jaw-r=0,100,0   # ratios, mechanical advantage, dead points, and the torque that holds 100 N
 node agent/audit.mjs   --at minomobi.com --kernels                  # every published part rebuilt against its recorded invariants
 node agent/drawing.mjs bench/plate.json --out plate.svg             # three views, hidden lines, dimensions, holes called out
 node agent/drawing.mjs bench/lift.json --t 0.5 --out lift.svg      # an assembly, posed
@@ -174,11 +176,12 @@ node agent/drive.mjs   ls --at minomobi.com                        # the publish
   Two transitive deps link wasm-bindgen shims that are never called; the
   selftest and the harness stub them.
 - Tests are invariants with tolerances, never mesh bits.
-- **Six selftests before a push:** `npm test` (`cad.selftest.mjs`, the
+- **Seven selftests before a push:** `npm test` (`cad.selftest.mjs`, the
   ABI; `drive.selftest.mjs`, the file tree and the gateway;
   `assembly.selftest.mjs`, expressions and kinematics;
-  `drawing.selftest.mjs`, the drawing; `report.selftest.mjs`, the assembly
-  report; `mcp.selftest.mjs`) and
+  `mechanism.selftest.mjs`, the virtual-work instrument against closed
+  forms; `drawing.selftest.mjs`, the drawing; `report.selftest.mjs`, the
+  assembly report; `mcp.selftest.mjs`) and
   `npm run test:browser` (the page, in Chromium; `npm install` here or in
   `bakeoff/` first).
 - **This package is mirrored** to a small repo on tangled —

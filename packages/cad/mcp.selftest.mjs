@@ -36,11 +36,26 @@ const init = await rpc('initialize', { protocolVersion: '2025-06-18', capabiliti
 check(init.result?.protocolVersion && init.result.capabilities.tools && /SKILL\.md/.test(init.result.instructions), 'initialize answers with capabilities and instructions');
 check((await post({ jsonrpc: '2.0', method: 'notifications/initialized' })).status === 202, 'a notification gets 202 and no body');
 const list = await rpc('tools/list');
-check(list.result.tools.map((t) => t.name).join() === 'check,build,measure,interference,drawing,report,step,list_files,get_file', `tools/list: ${list.result.tools.map((t) => t.name).join(', ')}`);
+check(list.result.tools.map((t) => t.name).join() === 'check,build,measure,mechanism,interference,drawing,report,step,list_files,get_file', `tools/list: ${list.result.tools.map((t) => t.name).join(', ')}`);
 check((await rpc('nope')).error?.code === -32601, 'an unknown method is -32601');
 check((await rpc('tools/call', { name: 'nope' })).error?.code === -32602, 'an unknown tool is -32602');
 const opts = await mcp.handle(new Request('https://cad.mino.mobi/mcp', { method: 'OPTIONS' }));
 check(opts.status === 204 && opts.headers.get('access-control-allow-origin') === '*', 'OPTIONS answers CORS');
+
+// mechanism: no kernel, no meshes — the ratios, the advantage and the statics
+{
+  const m = (await tool('mechanism', { assembly: 'bench:grip', input: 'roll', at: { grip: 12 }, span: ['jaw-l', 'jaw-r'], loads: [{ component: 'jaw-r', force: [0, 100, 0] }] })).structuredContent;
+  const jaw = m.per[0].moving.find((x) => x.id === 'jaw-r');
+  check(m.ok && m.per.length === 1 && m.per[0].axis === 'roll' && Math.abs(jaw.rate - (18 * Math.PI) / 180) < 1e-6 && Math.abs(jaw.advantage - 180 / (18 * Math.PI)) < 1e-6, `mechanism: a degree of roll moves the jaw ${jaw.rate.toFixed(5)} mm — r·π/180 at r = 18 — for an advantage of ${jaw.advantage.toFixed(3)}`);
+  check(Math.abs(m.per[0].span.distance - 36) < 1e-9 && Math.abs(m.per[0].span.rate) < 1e-9 && m.per[0].span.invariant && Math.abs(m.per[0].span.worst) < 1e-9 && m.per[0].effort.unit === 'N·m' && Math.abs(m.per[0].effort.effort - 1.8) < 1e-6 && m.per[0].effort.lossless, `…the jaws stay ${m.per[0].span.distance} mm apart through the roll (rate ${m.per[0].span.rate.toExponential(0)}, and at most ${m.per[0].span.worst.toExponential(0)} anywhere on the roll — an invariant, not a dead point), and holding 100 N at one of them needs ${m.per[0].effort.effort.toFixed(2)} N·m at the wrist`);
+  const cl = (await tool('mechanism', { assembly: 'bench:crank', steps: 12, of: 'block' })).structuredContent;
+  const blk = cl.per[0].moving.find((x) => x.id === 'block');
+  check(cl.axes[0].name === 't' && cl.axes[0].time && blk.deadAt.length === 2 && cl.per[0].curve.length === 12 && cl.per[0].curve[0].advantage === null, `…and on a driven document it differentiates against time: the slider's advantage curve over ${cl.per[0].curve.length} states, infinite (null) at the two dead points t = ${blk.deadAt.join(' and ')} s`);
+  const part = await tool('mechanism', { assembly: 'bench:plate' });
+  const block = { units: 'mm', features: [{ op: 'sketch', id: 's', loops: [{ name: 'o', rect: { c: [0, 0], w: 10, h: 10 } }] }, { op: 'extrude', id: 'e', profile: ['s'], depth: 5 }] };
+  const frozen = await tool('mechanism', { assembly: { name: 'frozen', parts: { block }, components: [{ id: 'a', part: 'block' }, { id: 'b', part: 'block', at: [20, 0, 0] }] } });
+  check(part.isError && /parts DO to each other/.test(part.content[0].text) && frozen.isError && /neither `inputs` nor a `drive`/.test(frozen.content[0].text), `mechanism refuses what has nothing to differentiate: a part ("${part.content[0].text.slice(0, 44)}…") and a document with no degree of freedom ("${frozen.content[0].text.slice(0, 44)}…")`);
+}
 
 // tools
 const c = await tool('check', { tree: bench('gear') });
@@ -167,7 +182,8 @@ check(rps.ok && rps.bom.length === 4 && rps.bom.find((r) => r.part === 'bolt').q
 const stepIds = rps.steps.map((s) => s.id).join(', ');
 check(rps.steps.length === 4 && /bolt\[0…3\]/.test(stepIds) && rps.steps[1].lines.some((l) => /rides `screw` as a nut — 2 mm of travel per turn/.test(l)) && rps.steps[3].lines.some((l) => /sits on `platform`/.test(l)), `report steps read off the document: ${stepIds}`);
 const html = rp.content[1].resource.text;
-check(html.includes('#t=') && html.includes('id="exploded"') && html.includes('class="balloon"') && (html.match(/<svg/g) || []).length === 6, 'the page carries the assembly, the exploded view with balloons, four part sheets, and viewer links');
+check(html.includes('#t=') && html.includes('id="exploded"') && html.includes('class="balloon"') && (html.match(/<svg/g) || []).length === 7, 'the page carries the assembly, the exploded view with balloons, four part sheets, the rate chart, and viewer links');
+check(html.includes('id="motion"') && rps.motion?.[0]?.axis === 't' && rps.motion[0].moving.some((m) => m.id === 'nut' && m.advantage > 0), `and the motion section: ${rps.motion[0].moving.length} components move over the drive, the nut at ${rps.motion[0].moving.find((m) => m.id === 'nut').rate.toFixed(3)} mm/s`);
 const rpe = await tool('report', { assembly: 'bench:crank', t: 0, maxParts: 1 });
 check(rpe.structuredContent.truncated >= 1 && rpe.structuredContent.sheets === 1, `maxParts limits the part sheets (${rpe.structuredContent.sheets} drawn, ${rpe.structuredContent.truncated} not)`);
 const rpp = await tool('report', { tree: 'bench:plate', assembly: 'bench:plate' });

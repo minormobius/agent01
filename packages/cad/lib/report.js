@@ -22,6 +22,7 @@
 // which is a build order because a reference must name a component declared
 // before it.
 import { drawing } from './drawing.js';
+import { axesOf, sweepRates, ratioOf } from './mechanism.js';
 
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const fmt = (x, n = 3) => (x === null || x === undefined || Number.isNaN(x) ? '–' : String(+Number(x).toFixed(n)));
@@ -158,6 +159,59 @@ export function assemblySteps({ components, mates = [], drive = null, fits = [] 
 }
 
 /**
+ * What the mechanism DOES, for the report: per input, what moves and how fast,
+ * the mechanical advantage, how far everything travels end to end, and where
+ * the thing goes dead. No geometry is needed for any of it — the poser is
+ * differenced against each input — so this section costs nothing next to the
+ * drawings above it and is still the part an engineer reads first.
+ *
+ * Returns null when the document has no degree of freedom: a frozen assembly
+ * has no motion to report, and an empty table would imply it had been checked.
+ */
+export function motionOf({ components, mates = [], drive = null, inputs = [], steps = null, top = 4 }) {
+  const kin = { components, mates, drive, inputs };
+  const axes = axesOf(kin);
+  if (!axes.length) return null;
+  const out = [];
+  for (const axis of axes) {
+    let sw;
+    try { sw = sweepRates(kin, axis, { steps: steps || null }); } catch (e) { out.push({ axis: axis.name, unit: axis.unit, error: e.message }); continue; }
+    const moving = sw.moving.map((p) => ({ id: p.id, rate: p.max, slowest: p.min, turnRate: p.turn, travel: p.travel, turned: p.turned, net: p.net, netTurn: p.netTurn, advantage: p.max > 1e-12 ? 1 / p.max : null, deadAt: p.deadAt }));
+    // the curve the designer asks for: the rate of the few fastest components
+    // through the whole input, from the samples already taken
+    const curves = moving.filter((m) => m.rate > 1e-12).slice(0, top).map((m) => ({ id: m.id, points: sw.samples.map((x) => ({ at: x.at, rate: ratioOf(x, m.id).rate })) }));
+    out.push({ axis: axis.name, unit: axis.unit, min: axis.min, max: axis.max, time: !!axis.time, description: axis.description, states: sw.samples.length, moving, still: sw.per.filter((p) => !p.moves).map((p) => p.id), curves });
+  }
+  return out;
+}
+
+/// A rate-through-the-input chart as an SVG string: no library, no build step,
+/// and it prints. One polyline per component, a zero line where a rate crosses
+/// it (that crossing is a dead point), and the axis labelled in its own unit.
+function rateChart(sec, { w = 900, h = 190 } = {}) {
+  if (!sec.curves?.length) return '';
+  const L = 58, R = 130, T = 14, B = 30, iw = w - L - R, ih = h - T - B;
+  const xs = sec.curves[0].points.map((p) => p.at);
+  const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const all = sec.curves.flatMap((c) => c.points.map((p) => p.rate));
+  const lo = Math.min(0, ...all), hi = Math.max(0, ...all) || 1;
+  const X = (v) => L + (x1 === x0 ? 0 : ((v - x0) / (x1 - x0)) * iw);
+  const Y = (v) => T + ih - ((v - lo) / (hi - lo || 1)) * ih;
+  const ink = ['#1a5cff', '#c0392b', '#1e8449', '#8e44ad'];
+  const lines = sec.curves.map((c, i) => `<polyline fill="none" stroke="${ink[i % ink.length]}" stroke-width="1.8" points="${c.points.map((p) => `${fmt(X(p.at), 1)},${fmt(Y(p.rate), 1)}`).join(' ')}"/>`).join('');
+  const dots = sec.curves.map((c, i) => c.points.filter((p) => Math.abs(p.rate) <= 1e-9).map((p) => `<circle cx="${fmt(X(p.at), 1)}" cy="${fmt(Y(p.rate), 1)}" r="3.2" fill="#fff" stroke="${ink[i % ink.length]}" stroke-width="1.6"/>`).join('')).join('');
+  const key = sec.curves.map((c, i) => `<g transform="translate(${w - R + 8},${T + 12 + i * 16})"><rect width="9" height="9" y="-8" fill="${ink[i % ink.length]}"/><text x="14" font-size="11">${esc(c.id)}</text></g>`).join('');
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map((f) => { const v = x0 + (x1 - x0) * f; return `<text x="${fmt(X(v), 1)}" y="${h - 10}" font-size="11" text-anchor="middle" fill="#555">${fmt(v, 2)}</text>`; }).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" xmlns="http://www.w3.org/2000/svg" font-family="ui-monospace,Menlo,Consolas,monospace">
+<rect width="${w}" height="${h}" fill="#fff"/>
+<line x1="${L}" y1="${T}" x2="${L}" y2="${T + ih}" stroke="#bbb"/><line x1="${L}" y1="${fmt(Y(0), 1)}" x2="${L + iw}" y2="${fmt(Y(0), 1)}" stroke="#bbb" stroke-dasharray="3 3"/>
+<text x="${L - 6}" y="${fmt(Y(hi), 1) + 4}" font-size="11" text-anchor="end" fill="#555">${fmt(hi, 3)}</text>
+<text x="${L - 6}" y="${fmt(Y(lo), 1) + 4}" font-size="11" text-anchor="end" fill="#555">${fmt(lo, 3)}</text>
+${lines}${dots}${key}${ticks}
+<text x="${L + iw / 2}" y="${h - 22}" font-size="11" text-anchor="middle" fill="#555">${esc(sec.axis)} (${esc(sec.unit || '')})</text></svg>`;
+}
+
+/**
  * The report. Everything it needs is already in hand from `flatten` plus one
  * exact build per distinct part:
  *   doc          the assembly document (for the viewer link)
@@ -167,7 +221,7 @@ export function assemblySteps({ components, mates = [], drive = null, fits = [] 
  * Options: site, title, t, at (an AT URI, if it came from a repo), explode,
  * hidden (hidden lines), maxParts (part sheets), width.
  */
-export function assemblyReport({ doc, components, mates = [], drive = null, fits = [], partTrees, builds, angles, modelOf, t = 0, site = 'https://cad.mino.mobi', title = 'assembly', at = null, explode = 0.6, hidden = true, maxParts = 20, width = 900, unbuilt = [] }) {
+export function assemblyReport({ doc, components, mates = [], drive = null, fits = [], inputs = [], partTrees, builds, angles, modelOf, t = 0, site = 'https://cad.mino.mobi', title = 'assembly', at = null, explode = 0.6, hidden = true, maxParts = 20, width = 900, unbuilt = [] }) {
   const t0 = Date.now();
   const live = components.filter((c) => !c.reference && builds.get(c.partKey)?.mesh);
   if (!live.length) throw new Error('nothing to report: no component has an exact build');
@@ -193,6 +247,10 @@ export function assemblyReport({ doc, components, mates = [], drive = null, fits
   // relative to them once the page scales the whole thing to fit
   const exploded = drawing(blown, { views: ['iso'], hidden: false, title: `${title} — exploded`, width: Math.round(width * 1.8), note: `exploded ${Math.round(explode * 100)} %`, callouts: false, balloons, internals: false, dimensions: false });
   const steps = assemblySteps({ components, mates, drive, fits });
+  // what it DOES, not only what it is: the ratios, the advantage and the dead
+  // points, from the poser alone. Reference components are left in — a fixed
+  // datum that does not move is exactly what the "still" list is for.
+  const motion = motionOf({ components, mates, drive, inputs });
 
   // one sheet per distinct part, the part alone at its own origin
   const sheets = [];
@@ -233,13 +291,27 @@ footer{margin-top:50px;color:#666;font-size:12px;border-top:1px solid #ccc;paddi
 <p class="facts">volume ${fmt(row.volume, 3)} mm³ · ${d.overall.map((x) => fmt(x, 2)).join(' × ')} mm · ${row.faces} faces · holes: ${esc(holeLine(d))} · <a href="${esc(treeLink(site, row.tree))}">open this part in the viewer</a> · <a href="#bom">back to the parts list</a></p>
 <div class="sheet">${d.svg}</div>`).join('\n');
 
+  const motionSections = (motion || []).map((sec) => {
+    if (sec.error) return `<h3>${esc(sec.axis)}</h3><p class="note">could not be differentiated: ${esc(sec.error)}</p>`;
+    const rows = sec.moving.map((m) => `<tr><td><code>${esc(m.id)}</code></td><td class="n">${fmt(m.rate, 4)}</td><td class="n">${m.advantage === null ? '–' : fmt(m.advantage, 3)}</td><td class="n">${fmt(m.travel, 3)}</td><td class="n">${fmt(m.turned, 2)}</td><td>${m.deadAt.length ? m.deadAt.map((x) => fmt(x, 3)).join(', ') : '–'}</td></tr>`).join('\n');
+    const unit = esc(sec.unit || 'unit');
+    return `<h3>${esc(sec.axis)} <span class="facts">${fmt(sec.min)}…${fmt(sec.max)} ${unit}${sec.time ? ' — one period of the drive' : ''}${sec.description ? ` · ${esc(sec.description)}` : ''}</span></h3>
+<div class="sheet">${rateChart(sec, { w: width })}</div>
+<p class="note">Rate of each of the fastest components through the whole of <code>${esc(sec.axis)}</code>. A hollow dot is a <b>dead point</b>: the rate passes through zero, so the mechanism self-locks there and the advantage is infinite.</p>
+<table><thead><tr><th>component</th><th class="n">fastest rate (per ${unit})</th><th class="n">advantage</th><th class="n">travel mm</th><th class="n">turn °</th><th>dead at</th></tr></thead><tbody>${rows}</tbody></table>
+${sec.still.length ? `<p class="note">Still through this input: ${sec.still.map((i) => `<code>${esc(i)}</code>`).join(' ')}</p>` : ''}`;
+  }).join('\n');
+  const motionHtml = motion ? `<h2 id="motion">Motion</h2>
+<p class="note">By virtual work, from the document's own kinematics — no geometry is involved, so nothing here depends on a part building. A component's <b>rate</b> is how far it moves per unit of the input; the <b>mechanical advantage</b> is the reciprocal of that rate, so a part moving half as far carries twice the force. Travel and turn are end to end over the whole input, read from its two end poses. Efforts and advantages are <b>lossless</b>: friction is not modelled, so they are floors.</p>
+${motionSections}` : `<h2 id="motion">Motion</h2><p class="note">This assembly has no degree of freedom — it declares neither <code>inputs</code> nor a <code>drive</code>, so there is nothing to differentiate and nothing here has been checked for motion.</p>`;
+
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)} — assembly report</title><style>${css}</style></head>
 <body><main>
 <h1>${esc(title)} — assembly report</h1>
 <p class="sub">${live.length} component${live.length === 1 ? '' : 's'} drawn${missing.length ? ` (${missing.length} part${missing.length === 1 ? '' : 's'} this kernel cannot build, listed below)` : ''} · ${bom.length} distinct part${bom.length === 1 ? '' : 's'} · ${assembled.overall.map((x) => fmt(x, 2)).join(' × ')} mm · ${fmt(totalVolume, 2)} mm³ of material · posed at t = ${fmt(t)} s${drive ? ` · driven: <code>${esc(drive.component || drive.escapement?.wheel || '')}</code>${drive.rpm ? ` at ${fmt(drive.rpm)} rpm` : ''}` : ''}<br>
-<a href="${esc(asmLink)}">open the assembly in the viewer</a>${at ? ` · <code>${esc(at)}</code>` : ''} · <a href="#exploded">exploded view</a> · <a href="#bom">parts list</a> · <a href="#steps">assembly steps</a></p>
+<a href="${esc(asmLink)}">open the assembly in the viewer</a>${at ? ` · <code>${esc(at)}</code>` : ''} · <a href="#exploded">exploded view</a> · <a href="#bom">parts list</a> · <a href="#motion">motion</a> · <a href="#steps">assembly steps</a></p>
 
 <h2 id="views">Assembly, as built</h2>
 <div class="sheet">${assembled.svg}</div>
@@ -258,6 +330,8 @@ ${missingNote}
 <p class="note">Read off the document: where each component is placed, what it is located on, what mates it and with which numbers, and the clearances the design declares. Nothing here is inferred — order is the document's own, which is a build order because a reference must name a component declared before it.</p>
 <ol class="steps">${stepList}</ol>
 
+${motionHtml}
+
 <h2 id="parts">Part drawings</h2>
 ${partSheets}
 ${truncated > 0 ? `<p class="note">${truncated} more part${truncated === 1 ? '' : 's'} not drawn here (the sheet limit is ${maxParts}).</p>` : ''}
@@ -265,5 +339,5 @@ ${truncated > 0 ? `<p class="note">${truncated} more part${truncated === 1 ? '' 
 <footer>Generated by <a href="${esc(site)}">cad.mino.mobi</a> from the feature trees themselves — <a href="${esc(site)}/SKILL.md">how to make one</a>. Drawings are deterministic: the same document gives the same bytes.</footer>
 </main></body></html>`;
 
-  return { html, bytes: html.length, bom, steps, sheets: sheets.length, truncated, missing, overall: assembled.overall, volume: totalVolume, components: live.length, ms: Date.now() - t0 };
+  return { html, bytes: html.length, bom, steps, motion, sheets: sheets.length, truncated, missing, overall: assembled.overall, volume: totalVolume, components: live.length, ms: Date.now() - t0 };
 }
