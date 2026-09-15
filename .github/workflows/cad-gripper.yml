@@ -90,7 +90,7 @@ jobs:
             process.exit(bad ? 1 : 0);'
 
       - name: The posed document against the closed form (the check the travel bugs would have failed)
-        run: node morphyx/gripper/verify.mjs /tmp/cad --lissajous 400
+        run: node morphyx/gripper/verify.mjs /tmp/cad --walk 400
 
       - name: Interference over grip × roll (Manifold, shared volume; the gate)
         working-directory: /tmp/cad
@@ -111,9 +111,9 @@ jobs:
             console.log(`${o.grid} states over [${o.inputs}] · ${o.pairs.length} touching pairs, ${over.length} over budget`);
             process.exit(over.length ? 1 : 0);'
 
-      - name: The demo document sweeps clean too (the Lissajous, for the eye — the grid above is the gate)
+      - name: The duty cycle sweeps clean too (close → roll −360 → open → roll +360; the grid above is still the gate)
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/gripper/gripper-demo.json --sweep 24
+        run: node agent/check.mjs /tmp/gripper/gripper-demo.json --sweep 48
 
       - name: Clearance table over grip × roll (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
         working-directory: /tmp/cad

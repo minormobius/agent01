@@ -10,7 +10,7 @@ pierces its pivot arm so it is also the plunger's alignment rail and its
 anti-rotation. Two 4 mm side walls stiffen the frame in torsion and shear.
 The rail plate carries the MGN9 rail on its outer face; the links pass out
 through its two slots and pin onto 32 × 22 × 8 jaw plates, which meet on
-the centre line at closed. Mount centres 32 → 62 mm. Seventeen parts, two
+the centre line at closed. Mount centres 32 → 62 mm. Twenty-four parts, two
 documents. Versions 1 to 8 are the earlier revisions of the same files.
 
 The tool interface is deliberately absent. v8's flange plate carried
@@ -27,10 +27,10 @@ the tangled mirror.
 | | |
 |---|---|
 | `gripper.mjs` | the design: every part as a parametric tree, the kinematic assembly, the force curve, the moment audit, the clearance audit, closed forms |
-| `parts/*.json` | the nineteen part trees, as generated |
+| `parts/*.json` | the twenty-four part trees, as generated |
 | `ringgear.mjs` | an internal ring gear as one drawn loop, for v10 — the `gear` op builds external gears only |
 | `gripper.json` | the assembly, and the gate. Two inputs — `grip` 0…15 mm and `roll` 0…360° — six prismatic joints and one revolute. No drive and no period |
-| `gripper-demo.json` | the same machine with its two axes driven by TIME: a reference clock, grip on a cosine of it, roll at φ times its rate. A Lissajous, for the eye |
+| `gripper-demo.json` | the DUTY CYCLE: one turn of a reference clock is close → roll −360° → open → roll +360°, 46.3 s, one axis at a time because that is all the machine can do |
 | `expected.json` | closed-form volumes for every part |
 | `publish.mjs` | writes the parts then the assembly into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
 | `verify.mjs` | the posed document against `pose()` at every grip — the check the two travel bugs would have failed |
@@ -221,29 +221,71 @@ it could not grip at all. Something has to hold the rotor, always.
 **The threshold is torque, not position**, which is what makes it work on an
 object as well as on a stop — the object *is* the stop.
 
-| | thrust | per jaw | screw | **the rotor must react** | roll available |
-|---|---|---|---|---|---|
-| closing | 20 N | 10 | 0.025 | **0.019 N·m** | — |
-| **breakaway** | 120 N | 61 | 0.150 | **0.112 N·m** | — |
-| the guide's ceiling | 212 N | 108 | 0.266 | 0.199 | **0.087 N·m** |
-| motor stall | 351 N | 179 | 0.441 | 0.328 | 0.216 — but 12.2 N·m of yaw on one MGN9C against 7.36 static |
+| | thrust | per jaw | screw torque = **what the rotor must react** | left over for the roll |
+|---|---|---|---|---|
+| closing | 20 N | 10 | **0.025 N·m** | — |
+| **breakaway** | 120 N | 61 | **0.150 N·m** | — |
+| the guide's ceiling | 212 N | 108 | 0.266 | **0.116 N·m** |
+| motor stall | 351 N | 179 | 0.440 | 0.290 — but 12.2 N·m of yaw on one MGN9C against 7.36 static |
 
-So the brake is set at **0.112 N·m**: the jaws close at a fifth of that and
-break away at 61 N a jaw. It is a wave washer — **18.6 N of preload** at an
-effective radius of 20.0 mm with µ 0.3 — dissipating 0.06 W at 5 rpm.
+> **Corrected 2026-09-15.** An earlier revision of this table had a fifth
+> column: the rotor reacted only the *friction* part of the screw torque,
+> F·lead/2π having been subtracted off as "the useful work". That is wrong, and
+> it under-sized the brake by a quarter — 0.112 N·m would have broken away at
+> **89 N**, not 120. Take the screw as a free body: the motor's torque and the
+> thread's reaction are the only two torques about the axis acting on it, so the
+> thread hands the nut exactly the motor's torque, the whole of it. A
+> *frictionless* screw still puts F·lead/2π into its nut — which is why every
+> nut in the world needs an anti-rotation feature. The grip load never enters
+> the ledger at all: it is axial, and it closes inside the rotor, jaw to link to
+> arm to nut, with no moment about the axis anywhere in the loop.
+
+So the brake is set at **0.150 N·m**: the jaws close at a sixth of that and
+break away at 61 N a jaw. It is a wave washer — **25.0 N of preload** at an
+effective radius of 20.0 mm with µ 0.3 — dissipating 0.24 W, and only while it
+is actually slipping, which is two turns in a 46 s cycle.
+
+### Does the grip tension actuate the brake?
+
+No, and it must not. The brake is **one spring at one preload**, the same
+whether the jaws are empty or crushing. That independence is the whole scheme:
+a brake that clamped harder the harder you gripped would be positive feedback
+round the loop, and the machine would never break away at all — it would just
+grip until something yielded. Anything ball-ramp-ish, anything that converts
+thrust into clamp, has exactly the wrong sign here.
+
+Where the grip reaction actually goes is worth being precise about, because it
+is not through the case. The screw pushes the nut forward with F; the rotor is
+pushed forward with F; and the only thing holding the rotor is the
+crossed-roller ring. So the axial loop is **screw → nut → rotor plate → the
+main bearing → housing → web → motor → the motor's own thrust bearing →
+screw**, closed. The pillars and the front wall carry the *transverse* half —
+the arms' side load on the pillars, the links' pin loads in the wall — and see
+no part of the thrust; the screw's front journal is a plain Ø6 in Ø6.2 bore
+with no shoulder, so it takes no axial load either.
+
+The brake stack does sit axially **in parallel** with that bearing, between the
+web's front face and the hub on the back of the rotor plate, so a real answer
+has to admit that thrust modulates the preload a little. The bearing deflects a
+few microns at 120 N; the wave washer has of order a millimetre of working
+travel; so it is a percent or two. And the sign is benign: forward thrust opens
+the stack rather than closing it, so more grip means very slightly *less*
+holding, which sharpens the release instead of fighting it.
 
 **Three properties fall out.** The grip force is set by the brake, not the
 motor: repeatable and shimmable, but not commandable. Rolling is at constant
-grip, because once slipping the screw and the rotor turn together 1:1 and the
-nut does not move at all — which is the guarantee a differential existed to
-give, got by not having one. And the roll torque is whatever is left over
-after the brake, which the guide caps at about 0.09 N·m.
+grip — once slipping, the screw and the rotor turn together 1:1, the nut does
+not move relative to the screw at all, and the grip is held by a self-locking
+thread with nothing in the loop moving, so it costs no motor effort to keep.
+And the roll torque is whatever is left after the brake, which the guide caps
+at about 0.12 N·m.
 
-**Two things it costs.** Roll is one-way under grip: reversing takes the
-lower-resistance path, and with an object in the jaws that is opening, so you
-roll one way and take the long way round for the other. And the holding torque
-IS the breakaway torque — they are the same number — so an external roll load
-over 0.112 N·m back-drives the wrist whatever the grip.
+**Two things it costs.** Roll is one-way under grip — reversing takes the
+lower-resistance path, and with an object in the jaws that is opening, so a
+held part turns one way only and the return spin happens empty. (That is the
+duty cycle, and the section on it spells out why.) And the holding torque IS
+the breakaway torque — the same number — so an external roll load over
+0.150 N·m back-drives the wrist whatever the grip.
 
 The stack lives inside the bearing's bore, between the web's front face and a
 hub on the back of the rotor plate:
@@ -268,6 +310,54 @@ to the bearing housing's front face, across a 1 mm gap. The head lives in the
 4 mm of radial slot between the ring at r 44 and the guard's bore at r 49 —
 the only stationary place left at this diameter, and the audit checks that
 nothing else on the rotor reaches it (the arms stop at r 40.5).
+
+**The encoder is not an accessory; it is what makes one motor into two axes.**
+The nut's advance is exactly the *relative* rotation of screw and nut, so with
+the motor's own step count θₘ and the encoder's rotor angle θᵣ:
+
+```
+  jaw travel  =  (θₘ − θᵣ) · lead / 360  · (the linkage's ratio at that point)
+  roll        =   θᵣ
+```
+
+Both axes, from one actuator and one sensor, exactly. Without θᵣ the two are
+indistinguishable: every step spent rolling is a step the jaw did not take, and
+counting alone cannot tell you which happened. So losing the encoder does not
+degrade the machine to one axis — it degrades it to none.
+
+### Homing
+
+Homing used to be trivial (drive to the stop, count from there) and is not any
+more, because "the stop" is now two different things and the motor cannot tell
+you which one it reached. But the same signal that makes the machine work also
+homes it, and one move does both axes:
+
+1. Drive the motor in the opening direction at reduced current, watching θᵣ.
+2. While θᵣ holds still, the nut is still travelling. Keep going.
+3. **θᵣ starts to move.** The nut has reached the open stop and the rotor has
+   broken away against it. At that instant the jaws are at exactly 15 mm, which
+   is a machined dimension and not a calibration — zero the differential count.
+   Use a threshold (a few degrees accumulated, not the first count) so that
+   bearing wind-up and thread backlash do not trip it early.
+4. Keep going until the ring's index mark passes the head. At most one more
+   turn, and it is free: the machine is already spinning, at the one place it is
+   guaranteed to be holding nothing. The rotor is now absolute too.
+
+Three things worth saying about that:
+
+- **Home open, never closed.** The jaws meeting on the centre line is just as
+  good a hard stop and works identically — but only with nothing in them. With
+  a part in the jaws the "stop" is the part, so the reference becomes the part's
+  width rather than the machine's. Homing open is unconditional; homing closed
+  is only valid when you already know what you are holding.
+- **Homing drops whatever you are holding.** There is no way round this: the
+  only unconditional reference is the open stop, and reaching it means opening.
+  A gripper that lost its count while loaded has to put the part down.
+- **The limit switch and the force sensor are the same instrument.** "The jaws
+  have reached the stop", "the jaws have reached the part", and "the grip force
+  has hit 120 N" are one event — θᵣ beginning to move — and the machine reads it
+  on the axis it is not currently using. That is the part of this design worth
+  keeping even if nothing else is.
 
 ## v10: it rolls
 
@@ -319,35 +409,69 @@ why both its joints take `scale: +1`.
 ### What the drivetrain still owes
 
 The screw is on the stator, because it is axisymmetric and rolling it changes
-no geometry. What rolling changes is the **grip**: the nut rides the rotor, so
-a turn of the rotor walks it 2 mm along the screw, which is **3.13 mm of jaw**.
-The planetary that cancels it is not drawn yet. `verify.mjs` asserts the
-property the differential has to reproduce — each jaw's distance from the axis
-is a function of `grip` alone, and the pair's bearing is `roll` alone — so the
-geometry already states the contract the drivetrain must meet.
+no geometry. What a bare turn of the rotor would change is the **grip**: the
+nut rides the rotor, so turning the rotor alone walks it 2 mm along the screw,
+which is 3.13 mm of jaw. Nothing cancels that with a differential, because
+nothing has to — in this machine the rotor never turns alone. It only turns
+when the motor is turning the screw and the brake has let go, and then the two
+turn together at 1:1 and the nut does not move relative to the screw at all.
+The document says so too: the screw component is driven at
+`360·(ynClosed − yn)/lead + roll`, so `roll` moves it exactly as much as it
+moves the rotor. `verify.mjs` asserts what falls out — each jaw's distance from
+the axis is a function of `grip` alone, and the pair's bearing is `roll`
+alone.
 
-### The Lissajous
+### The walk, and the cycle
 
 The gate is a grid, because a path through grip × roll proves nothing about
 the corners it misses. But the interior is worth walking, and two
-incommensurate rates walk it densely without ever revisiting a state — which
-is also the demo motion. `verify.mjs --lissajous 400` checks 400 of them:
-6000 comparisons over the grid corners and the interior, and the linkage is
-still a linkage and the grip is still independent of the roll at every one.
+incommensurate rates walk it densely without ever revisiting a state.
+`verify.mjs --walk 400` checks 400 of them: 6000 comparisons over the grid
+corners and the interior, and the linkage is still a linkage and the grip is
+still independent of the roll at every one. It is a kinematic check, not an
+interference one — it costs no geometry at all.
 
-It is a kinematic check, not an interference one — it costs no geometry at all.
+That walk is a **sampling pattern and not a trajectory**. Every state on it is
+reachable; no path through it is, because grip and roll are sequential. There
+was a version of this document that animated the walk, and it was a picture of
+a machine with two motors. It is gone.
 
-The **animated** version is a second document, `gripper-demo.json`, because
-`drive` names a component and cannot run an input. What it can do is turn a
-reference clock, and `theta` is then in scope everywhere: grip swings on a
-cosine of it and roll advances at φ = 1.618 times its rate. φ is irrational,
-so the pair never repeats — 222.5° of roll per grip cycle, filling in the
-matrix turn after turn. Measured over three clock turns: the jaw radius stays
-inside 16…31 mm and the arm pin stands 40.0000 mm from its jaw pin at every
-instant.
+What `gripper-demo.json` animates now is the **duty cycle**, which is the only
+motion this machine has:
 
-The demo is for the eye and the gate is the grid on the real document. A path
-proves nothing about the corners it misses, and the demo is a path.
+| phase | shaft | what moves | why it stops |
+|---|---|---|---|
+| close | 4.79 turns | the nut, full open → the jaws meeting | the jaws meet, the force rises |
+| grip-roll | 1 turn, −360° | the whole rotor | the cycle says so |
+| open | 4.79 turns | the nut, back out | the open stop |
+| spin-home | 1 turn, +360° | the whole rotor | back where it started |
+
+One turn of the clock is one cycle, 46.3 s at 15 motor rpm, which is what one
+really takes. **The shaft turns at one constant rate through all four phases**
+— that is the point of the picture. Nothing in it changes speed; what changes
+is which axis is receiving the turns, and the brake is what decides. So the
+cycle drives `yn`, the nut's position, linearly, and inverts the slider-crank
+to get the jaw travel back out of it (`dy = yf − py − yn`, `x = √(L² − dy²)`,
+`grip = px − xp₀ − x`). Driving the *jaw* linearly instead would have made the
+motor speed up and slow down through the stroke, which is the opposite of true.
+
+The expression language has no `clamp` and no `%`, so the four phases are
+`min(1, max(0, (u − a) / b))` ramps summed, and `u` is
+`11.586137 · (theta − 360·floor(theta/360))` — one clock turn scaled back up
+into degrees of motor shaft, which is what the phase boundaries are written in.
+
+**Roll is negative while gripping and positive while open.** That is not a
+drawing convention. The motor does not reverse in order to start rolling — it
+just keeps going past the point where the jaws stopped — so the screw's hand
+fixes which way a held part turns, and the return spin happens with the jaws
+open. This machine is a **one-way indexer**: grip, turn the part a revolution,
+let go, spin back empty, grip again. It is a ratchet, not a wrist. To turn a
+held part the other way you would need a left-hand screw, or a second brake
+that only bites one way.
+
+The gate is still the grid on the real document. The cycle is a path, and a
+path proves nothing about the corners it misses — `--sweep 48` on the demo is
+a second opinion, not the gate.
 
 ## The motion is an input now (2026-09-14, second pass)
 
@@ -507,7 +631,8 @@ and the mechanism did not move.
 
 The torque check comes out fine: 120 N of thrust on Tr8×2 at µ = 0.25 needs
 0.150 N·m, against about 0.44 N·m of holding torque for that motor, and at
-5 rpm a stepper gives nearly all of it — a margin near 3.
+15 rpm a stepper gives nearly all of it — a margin near 3. The brake takes the
+same 0.150, so rolling and gripping ask the motor for the same thing.
 
 ### The two numbers that bound the design
 
@@ -589,10 +714,19 @@ off, because at x ±34 there is no access past a wall at ±40.
 
 **Verified from this sandbox:** every part builds exact and watertight
 through `/mcp`, each within its closed-form tolerance, including both cut
-parts; both documents resolve through the `/mcp` `check` tool (37 and 36
-components); the 49 analytic checks in `gripper.mjs`; and the clearance
+parts; both documents resolve (45 components each); the **62** analytic checks
+in `gripper.mjs`; a 25-state interference grid over grip × roll with nothing
+over budget; the 48-instant sweep of the duty cycle, likewise clean; 6000
+kinematic comparisons against the closed form, none off; and the clearance
 table on the pillar frame at both ends of the stroke — the arms run on the
 pillars at 0.098 mm and nothing else in that group touches.
+
+**Calculated, not measured:** every number in the torque ledger. The brake
+sizing in particular rests on µ = 0.25 in the thread and µ = 0.3 at the
+friction face; both are handbook values for dry steel-on-steel and both move
+by a third with surface finish, so the wave washer wants to be a shim stack on
+the first article, and the number that gets shimmed to is the *measured*
+breakaway, not this table.
 
 **Run by the workflow, not from here:** the publish.
 

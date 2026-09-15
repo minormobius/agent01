@@ -17,12 +17,14 @@
 //     That is the property the whole v10 frame exists to have, and it is the
 //     one a differential has to reproduce in the drivetrain.
 //
-// The grid checks the corners; a LISSAJOUS walks the interior. Two
-// incommensurate rates sweep grip × roll densely without ever repeating a
-// state, which is exactly the demo motion — and here it is 400 states of
-// kinematics for the price of no geometry at all.
+// The grid checks the corners; a WALK fills the interior. Two incommensurate
+// rates sweep grip × roll densely without ever repeating a state — 400 states
+// of kinematics for the price of no geometry at all. It is a SAMPLING PATTERN
+// and nothing more: the machine cannot move along it, because grip and roll
+// are sequential (one motor, and the brake decides which one gets the turns).
+// Every state on it is reachable; no trajectory through it is.
 //
-//   node verify.mjs /path/to/cad [--lissajous 400]
+//   node verify.mjs /path/to/cad [--walk 400]
 import fs from 'node:fs';
 import path from 'node:path';
 const cad = process.argv[2] || process.env.CAD || '/tmp/cad';
@@ -71,9 +73,9 @@ console.log('— the grid, at its corners and middle —');
 for (const st of gridStates(inputs, { steps: 3 })) at(st.values);
 console.log(`  ${checked} comparisons, ${bad} off`);
 
-const N = Number((process.argv.find((a) => a.startsWith('--lissajous')) || '').split('=')[1] || (process.argv.includes('--lissajous') ? process.argv[process.argv.indexOf('--lissajous') + 1] : 0)) || 200;
+const N = Number((process.argv.find((a) => a.startsWith('--walk')) || '').split('=')[1] || (process.argv.includes('--walk') ? process.argv[process.argv.indexOf('--walk') + 1] : 0)) || 200;
 const before = checked;
-console.log(`— a Lissajous through the interior, ${N} states —`);
+console.log(`— a walk through the interior, ${N} states —`);
 const [gI, rI] = [inputs.find((i) => i.name === 'grip'), inputs.find((i) => i.name === 'roll')];
 const PHI = (1 + Math.sqrt(5)) / 2;                       // incommensurate, so no state is ever revisited
 for (let n = 0; n < N; n++) {

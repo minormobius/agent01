@@ -1,10 +1,10 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "gripper-demo",
- "_": "Parallel-jaw robot gripper, v10 — it grips AND rolls: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×2 screw → flange nut in a two-plate carriage → two 22 mm pivot arms dropped into its notches and running on the pillars → four 40 mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a 32 × 22 × 8 jaw carrier plate per side, four M4 and two Ø5 dowels for the customer’s finger. undefined × 44 × 88 mm case, the mechanism outside it 34 mm tall and reaching y = 108. ONE input: `grip` is each jaw’s travel from closed, 0…15 mm, and mount centres go 32 → 62 mm with it. The carriers, their blocks and their pins are prismatic joints on it; the nut, the carriage, the arms and the links travel by the slider-crank’s own y (71.93 closed … 62.35 open, 4.79 turns of the screw), written into their placements because it is not linear in the input. Check it with `--grid`, not `--sweep`: a period is the wrong question for a document whose motion is an axis.",
+ "_": "The DUTY CYCLE, one turn of the clock — 46.3 s at 15 motor rpm, which is what one really takes. There is one motor and one axis at a time: the brake decides whether its turns go into the nut or into the rotor, so grip and roll are SEQUENTIAL and never simultaneous. Four phases, and the shaft turns at the same rate through all of them — 4.79 turns closing from full open to the jaws meeting; one turn of roll at −360°, because the jaws have stopped and the rotor is what gives; then the motor reverses and the nut backs off AT ONCE (a Tr8×2's lowering torque is below the brake's 0.15 N·m, so the grip always releases before the rotor moves), 4.79 turns back to the open stop; and one turn of roll at +360° off that stop, home. A held part therefore only ever turns ONE way and the return spin happens empty: this is a ratchet, not a wrist. Parallel-jaw robot gripper, v10 — it grips AND rolls: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×2 screw → flange nut in a two-plate carriage → two 22 mm pivot arms dropped into its notches and running on the pillars → four 40 mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a 32 × 22 × 8 jaw carrier plate per side, four M4 and two Ø5 dowels for the customer’s finger. undefined × 44 × 88 mm case, the mechanism outside it 34 mm tall and reaching y = 108. ONE input: `grip` is each jaw’s travel from closed, 0…15 mm, and mount centres go 32 → 62 mm with it. The carriers, their blocks and their pins are prismatic joints on it; the nut, the carriage, the arms and the links travel by the slider-crank’s own y (71.93 closed … 62.35 open, 4.79 turns of the screw), written into their placements because it is not linear in the input. Check it with `--grid`, not `--sweep`: a period is the wrong question for a document whose motion is an axis.",
  "drive": {
   "component": "clock",
-  "rpm": 5
+  "rpm": 1.2947
  },
  "params": {
   "xp0": 5.5,
@@ -25,13 +25,13 @@
   "pinZ0": -18
  },
  "derived": {
-  "grip": "15 * (1 - cos(deg(theta))) / 2",
-  "roll": "theta * 1.618034",
-  "x": "px - xp0 - grip",
-  "dy": "sqrt(L^2 - x^2)",
-  "yn": "yf - py - dy",
+  "yn": "62.347 + 9.5861 * (min(1, (11.586137 * (theta - 360 * floor(theta / 360))) / 1725.5046) - min(1, max(0, ((11.586137 * (theta - 360 * floor(theta / 360))) - 2085.5046) / 1725.5046)))",
+  "dy": "yf - py - yn",
+  "x": "sqrt(L^2 - dy^2)",
+  "grip": "px - xp0 - x",
   "xp": "xp0 + grip",
-  "phi": "rad2deg(atan2(dy, -x))"
+  "phi": "rad2deg(atan2(dy, -x))",
+  "roll": "-360 * min(1, max(0, ((11.586137 * (theta - 360 * floor(theta / 360))) - 1725.5046) / 360)) + 360 * min(1, max(0, ((11.586137 * (theta - 360 * floor(theta / 360))) - 3811.0092) / 360))"
  },
  "parts": {
   "motor-web": {
@@ -2038,13 +2038,13 @@
      "pinZ0": -18
     },
     "derived": {
-     "grip": "15 * (1 - cos(deg(theta))) / 2",
-     "roll": "theta * 1.618034",
-     "x": "px - xp0 - grip",
-     "dy": "sqrt(L^2 - x^2)",
-     "yn": "yf - py - dy",
+     "yn": "62.347 + 9.5861 * (min(1, (11.586137 * (theta - 360 * floor(theta / 360))) / 1725.5046) - min(1, max(0, ((11.586137 * (theta - 360 * floor(theta / 360))) - 2085.5046) / 1725.5046)))",
+     "dy": "yf - py - yn",
+     "x": "sqrt(L^2 - dy^2)",
+     "grip": "px - xp0 - x",
      "xp": "xp0 + grip",
-     "phi": "rad2deg(atan2(dy, -x))"
+     "phi": "rad2deg(atan2(dy, -x))",
+     "roll": "-360 * min(1, max(0, ((11.586137 * (theta - 360 * floor(theta / 360))) - 1725.5046) / 360)) + 360 * min(1, max(0, ((11.586137 * (theta - 360 * floor(theta / 360))) - 3811.0092) / 360))"
     },
     "parts": {
      "screw": {
@@ -2127,7 +2127,7 @@
         0,
         1
        ],
-       "deg": "360 * (ynClosed - yn) / lead"
+       "deg": "360 * (ynClosed - yn) / lead + roll"
       }
      }
     ]

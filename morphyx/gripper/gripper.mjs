@@ -60,7 +60,7 @@ export const D = {
   // hard it is held is what decides the grip. Below the brake the machine grips;
   // above it the rotor rolls. A stack inside the bearing's bore, between the
   // web's front face and a hub on the back of the rotor plate.
-  brakeTorque: 0.112, brakeMu: 0.3,
+  brakeTorque: 0.15, brakeMu: 0.3,
   brakeSpringT: 1, brakeSpringOD: 40, brakeSpringID: 16,   // inside the dowel circle, so it needs no holes of its own
   brakeRingOD: 58, brakeRingID: 14, brakeRingT: 2, brakePinR: 22, brakePin: 3, brakePinLen: 6, brakePinN: 4,
   brakeHubD: 58, brakeHubT: 10, brakeHubBore: 12, brakeBolt: 3.4, brakeTap: 2.5, brakePcd: 44, brakeBoltN: 4,
@@ -85,7 +85,7 @@ export const D = {
   // the jaw plate: the pin off its centre line, the finger pattern on the outboard side of the pin
   carrierHalf: 16, carrierZ: 11, carrierT: 8, fingerBolt: 4.3, fingerBoltX: [0, 11], fingerBoltZ: 7, fingerDowel: 5,
   wallSlotZ: [10.6, 17.4], wallSlotX: [8, 40],
-  rpm: 5, rollRate: 1.618034, mu: 0.25, muBall: 0.005, thrust: 120, fingerTipY: 163,
+  rpm: 15, mu: 0.25, muBall: 0.005, thrust: 120, fingerTipY: 163,
   roll: 360,                                                      // the second input: the rotor turns without limit
 };
 D.zc = 0;
@@ -116,15 +116,31 @@ D.ynOpen = D.pivotLine - D.pivotY - dyOf(D.xpOpen);
 D.xfClosed = D.xpClosed + D.inset;
 D.xfOpen = D.xpOpen + D.inset;
 
-// The screw's torque at a thrust, and the part of it the ROTOR has to react.
-// The useful part is F·lead per turn; everything above that is thread friction,
-// and thread friction is a torque on the nut — which in v10 is a torque on the
-// whole rotor. Hold the rotor below it and the machine grips; above it, it rolls.
+// The screw's torque at a thrust — and ALL of it is what the rotor has to react.
+// (An earlier revision of this file held that only the friction part is, on the
+// grounds that F·lead/2π is the useful work. That is wrong, and it under-sized
+// the brake by a quarter. Take the screw as a free body: the motor's torque T
+// and the thread's reaction are the only two torques about the axis on it, so
+// the thread hands the nut exactly T — the whole of it, friction and helix
+// alike. A frictionless screw still puts F·lead/2π into the nut, which is why
+// every nut needs an anti-rotation feature. The grip load does not enter: it is
+// axial and it closes inside the rotor, jaw to link to arm to nut, with no
+// moment about the axis at all.) Hold the rotor below T and the machine grips;
+// above it, the brake lets go and it rolls instead.
 export const screwTorque = (F) => {
   const dm = D.screw - D.lead / 2, a = (15 * Math.PI) / 180;
   return (F * dm / 2 * (D.lead + (Math.PI * D.mu * dm) / Math.cos(a))) / (Math.PI * dm - (D.mu * D.lead) / Math.cos(a)) / 1000;
 };
-export const rotorReaction = (F) => screwTorque(F) - (F * D.lead) / (2000 * Math.PI);
+// Backing OFF is the other direction: the thread friction now subtracts from
+// the load's own helix torque instead of adding to it, which is why a reversal
+// releases the grip before it ever turns the rotor. Tr8×2 is self-locking, so
+// this stays positive — the load cannot drive the screw — but it is well under
+// the brake, and that is the whole reason the cycle has the shape it has.
+export const loweringTorque = (F) => {
+  const dm = D.screw - D.lead / 2, a = (15 * Math.PI) / 180;
+  return (F * dm / 2 * ((Math.PI * D.mu * dm) / Math.cos(a) - D.lead)) / (Math.PI * dm + (D.mu * D.lead) / Math.cos(a)) / 1000;
+};
+export const rotorReaction = screwTorque;                  // the whole of it, per the note above
 
 // ── kinematics: a crossed slider-crank per jaw ──────────────────────────────
 export function pose(xp) {
@@ -328,23 +344,61 @@ const DERIVED = {
   xp: 'xp0 + grip',                                      // the jaw pin
   phi: 'rad2deg(atan2(dy, -x))',                         // the right link, pointing inward and forward
 };
-// The demo is the same machine with its two axes driven by TIME instead of set
-// by hand. `drive` names a component and spins it, so it cannot run an input —
-// the one thing still missing for this. What it can do is turn a reference
-// clock, and `theta` is then in scope everywhere: the grip swings on a cosine
-// of it and the roll advances at φ times its rate. φ is irrational, so the pair
-// never repeats — the pass through grip × roll is a Lissajous that keeps
-// filling in. It is for the eye. The GATE is the grid on the real document,
-// because a path proves nothing about the corners it misses.
+// ── the duty cycle, as the machine can actually perform it ────────────────
+// There is one motor, and the brake decides where its turns go, so grip and
+// roll are SEQUENTIAL — the machine cannot do both at once, and a demo that
+// shows it doing both is a picture of a different machine. `drive` turns a
+// reference clock and puts `theta` in scope everywhere; here the clock IS the
+// motor shaft. Every phase advances the screw one degree per degree of theta,
+// so what you watch is a motor running at one constant rate while the machine
+// changes which axis it is spending those turns on.
+//
+//   u ∈ [0, s)            close: full open → the jaws meet. s = 360·Nt of shaft
+//   u ∈ [s, s+360)        the jaws are stopped, so the rotor breaks away: roll −360
+//   u ∈ [s+360, 2s+360)   the motor reverses and the nut backs off AT ONCE: open
+//   u ∈ [2s+360, T)       the open stop is a stop too: roll +360, back to home
+//
+// Roll is negative while gripping and positive while open, because the motor
+// does not reverse in order to start rolling — it just keeps going, and the
+// screw's hand therefore fixes which way a held part turns. That asymmetry is
+// real and not a drawing convention: this is a one-way indexer, and the return
+// spin happens with the jaws open, which is what makes it a ratchet.
+// The GATE is still the grid on the real document. A cycle is a path, and a
+// path proves nothing about the corners it misses.
+const CYCLE = (() => {
+  const Nt = (D.ynClosed - D.ynOpen) / D.lead;           // turns of shaft for one full stroke
+  const s = round(360 * Nt, 4), T = round(2 * (s + 360), 4);
+  // One turn of the clock is one duty cycle, so the sweep covers the whole of
+  // it; `u` scales that turn back up into degrees of MOTOR shaft, which is what
+  // the boundaries below are written in. The clock's own rpm is then set so a
+  // turn takes exactly as long as the real cycle does at D.rpm.
+  const u = `(${round(T / 360, 6)} * (theta - 360 * floor(theta / 360)))`;
+  const ramp = (a, b) => `min(1, max(0, (${u} - ${a}) / ${b}))`;   // the language has no clamp; min/max build one
+  // The NUT is what moves linearly with the shaft, not the jaw — a lead is a
+  // lead. So the cycle drives `yn` and the slider-crank is inverted to get the
+  // grip back out of it, which is the same chain the real document runs, read
+  // the other way. Written the other way round the motor would have to speed up
+  // and slow down through the stroke, and the whole point of the picture is
+  // that it does not: one rate, four phases, a different axis moving in each.
+  const yn = `${round(D.ynOpen, 4)} + ${round(D.ynClosed - D.ynOpen, 4)} * (min(1, ${u} / ${s}) - ${ramp(round(s + 360, 4), s)})`;
+  return { Nt, s, T, seconds: round((T / 360) * 60 / D.rpm, 1), rpm: round(D.rpm * 360 / T, 4),
+    derived: {
+      yn,
+      dy: 'yf - py - yn',                                // the link's Y reach follows from where the nut is
+      x: 'sqrt(L^2 - dy^2)',                             // … and its X reach from the link length
+      grip: 'px - xp0 - x',                              // the inverse slider-crank: jaw travel out of nut travel
+      xp: 'xp0 + grip',
+      phi: 'rad2deg(atan2(dy, -x))',
+      roll: `-360 * ${ramp(s, 360)} + 360 * ${ramp(round(2 * s + 360, 4), 360)}`,
+    } };
+})();
 export function assembly(mode = 'inputs') {
   const demo = mode === 'demo';
   const A = D.rotorY[1];                                 // the rotor plate's front face: the datum everything turning hangs from
   const on = (offset, extra = {}) => ({ at: '@rotor-plate.start', rigid: true, offset, ...extra });
   const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
   const r = (id, part, offset, extra = {}) => ({ id, part, ...on(offset, extra) });
-  const derived = demo
-    ? { grip: `${D.travel} * (1 - cos(deg(theta))) / 2`, roll: `theta * ${D.rollRate}`, ...DERIVED }
-    : { ...DERIVED };
+  const derived = demo ? { ...CYCLE.derived } : { ...DERIVED };
   const params = { xp0: D.xpClosed, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.inset,
     lead: D.lead, flangeT: D.flangeT, carT: D.carT, carFrontT: D.carT - D.carBackT, A,
     lo: D.linkZ[0][0], hi: D.linkZ[1][0], blockL: D.blockL, ynClosed: round(D.ynClosed, 4), pinZ0: D.pinZ0 };
@@ -353,7 +407,7 @@ export function assembly(mode = 'inputs') {
     params: { ...params }, derived: { ...derived },
     parts: { screw: structuredClone(parts.screw) },
     components: [
-      c('screw', 'screw', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: '360 * (ynClosed - yn) / lead' } }),
+      c('screw', 'screw', [0, 0, 0], { rotate: { axis: [0, 0, 1], deg: '360 * (ynClosed - yn) / lead + roll' } }),
     ],
   };
   const side = '(1 - 2 * (i - 2 * floor(i / 2)))', level = 'floor(i / 2)'; // +1 right / −1 left for even / odd i; 0 lower / 1 upper — `i` is in scope only in a repeated component's own fields
@@ -469,14 +523,14 @@ export function assembly(mode = 'inputs') {
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
     name: demo ? 'gripper-demo' : 'gripper',
-    _: `Parallel-jaw robot gripper, v10 — it grips AND rolls: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×${D.lead} screw → flange nut in a two-plate carriage → two ${D.armT} mm pivot arms dropped into its notches and running on the pillars → four ${D.link} mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a ${2 * D.carrierHalf} × ${2 * D.carrierZ} × ${D.carrierT} jaw carrier plate per side, four M4 and two Ø${D.fingerDowel} dowels for the customer’s finger. ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm case, the mechanism outside it ${2 * D.linkZ[1][1]} mm tall and reaching y = ${D.carrierY[1]}. ` +
+    _: (demo ? `The DUTY CYCLE, one turn of the clock — ${CYCLE.seconds} s at ${D.rpm} motor rpm, which is what one really takes. There is one motor and one axis at a time: the brake decides whether its turns go into the nut or into the rotor, so grip and roll are SEQUENTIAL and never simultaneous. Four phases, and the shaft turns at the same rate through all of them — ${round(CYCLE.Nt, 2)} turns closing from full open to the jaws meeting; one turn of roll at −360°, because the jaws have stopped and the rotor is what gives; then the motor reverses and the nut backs off AT ONCE (a Tr8×${D.lead}'s lowering torque is below the brake's ${D.brakeTorque} N·m, so the grip always releases before the rotor moves), ${round(CYCLE.Nt, 2)} turns back to the open stop; and one turn of roll at +360° off that stop, home. A held part therefore only ever turns ONE way and the return spin happens empty: this is a ratchet, not a wrist. ` : '') + `Parallel-jaw robot gripper, v10 — it grips AND rolls: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×${D.lead} screw → flange nut in a two-plate carriage → two ${D.armT} mm pivot arms dropped into its notches and running on the pillars → four ${D.link} mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a ${2 * D.carrierHalf} × ${2 * D.carrierZ} × ${D.carrierT} jaw carrier plate per side, four M4 and two Ø${D.fingerDowel} dowels for the customer’s finger. ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm case, the mechanism outside it ${2 * D.linkZ[1][1]} mm tall and reaching y = ${D.carrierY[1]}. ` +
       `ONE input: \`grip\` is each jaw’s travel from closed, 0…${D.travel} mm, and mount centres go ${2 * D.xfClosed} → ${2 * D.xfOpen} mm with it. The carriers, their blocks and their pins are prismatic joints on it; the nut, the carriage, the arms and the links travel by the slider-crank’s own y (${round(cl.yn, 2)} closed … ${round(o.yn, 2)} open, ${round((D.ynClosed - D.ynOpen) / D.lead, 2)} turns of the screw), written into their placements because it is not linear in the input. Check it with \`--grid\`, not \`--sweep\`: a period is the wrong question for a document whose motion is an axis.`,
-    ...(demo ? { drive: { component: 'clock', rpm: D.rpm } } : {}),
+    ...(demo ? { drive: { component: 'clock', rpm: CYCLE.rpm } } : {}),
     ...(demo ? {} : { inputs: {
       grip: { min: 0, max: D.travel, steps: 7, unit: 'mm', default: 0,
         description: `each jaw’s travel from closed; mount centres ${2 * D.xfClosed} → ${2 * D.xfOpen} mm` },
       roll: { min: 0, max: D.roll, steps: 5, unit: 'deg', default: 0,
-        description: 'the rotor, about the screw axis; unlimited, and it costs the grip 3.13 mm of jaw a turn unless the screw turns with it' },
+        description: 'the rotor, about the screw axis; unlimited, and free of the grip — the screw is driven at `roll` too, which is what the machine does when the rotor breaks away and the two turn together' },
     } }),
     params, derived,
     parts: partsMap,
@@ -499,7 +553,7 @@ export function forces() {
 export function modes() {
   const guideCap = (7.36 * 1000) / (D.fingerTipY - (D.blockY[0] + D.blockY[1]) / 2);   // the MGN9C's static yaw rating, as a jaw force
   const at = (F, what) => ({ what, thrust_N: round(F), jaw_N: round((F / 2) * 1.02, 1), screw_Nm: round(screwTorque(F), 3),
-    rotor_Nm: round(rotorReaction(F), 3), roll_Nm: round(Math.max(0, rotorReaction(F) - D.brakeTorque), 3) });
+    roll_Nm: round(Math.max(0, screwTorque(F) - D.brakeTorque), 3) });
   return [
     at(D.thrust / 6, 'closing: the jaws run in'),
     at(D.thrust, 'BREAKAWAY: the brake lets go, the rotor rolls'),
@@ -584,6 +638,8 @@ export function audit() {
   ok('the arm bottoms on the back plate, not on a bolt', D.armY[0] === -D.carT / 2 + D.carBackT && D.carBackT >= 3 && (D.armHalf - D.armX0) * 0 === 0, `arm back face at ${D.armY[0]} on a ${D.carBackT} mm plate`);
   ok('the notches clear the nut bolts and leave a strap top and bottom', D.notchX - (D.nutPcd / 2 * Math.SQRT1_2 + D.nutBolt / 2) >= 1.5 && D.carZ - (D.armT / 2 + 0.1) >= 2.5 && D.carZ >= D.flange / 2, `${round(D.notchX - (D.nutPcd / 2 * Math.SQRT1_2 + D.nutBolt / 2))} ≥ 1.5, strap ${round(D.carZ - (D.armT / 2 + 0.1), 1)} mm`);
   ok('the screw reaches the nut and stops at the plate', D.screwEnd - D.journalLen >= D.ynClosed - D.carT / 2 + D.nutLen - D.flangeT && D.screwEnd <= D.frontY + D.frontT, `journal from ${D.screwEnd - D.journalLen}, nut front ${round(D.ynClosed - D.carT / 2 - D.flangeT + D.nutLen)}`);
+  ok('the duty cycle closes on itself and the shaft never changes rate', CYCLE.T === round(2 * (CYCLE.s + 360), 4) && CYCLE.s === round(360 * CYCLE.Nt, 4) && round(CYCLE.rpm * CYCLE.seconds / 60, 2) === 1, `${round(CYCLE.Nt, 2)} + 1 turns each way, ${CYCLE.seconds} s at ${D.rpm} rpm, clock ${CYCLE.rpm} rpm`);
+  ok('the breakaway is one-way: backing off always releases the grip first', D.brakeTorque <= screwTorque(D.thrust) && loweringTorque(D.thrust) < D.brakeTorque / 2, `lowering ${round(loweringTorque(D.thrust), 3)} — less than half the brake's ${D.brakeTorque}, which itself lets go at ${round(screwTorque(D.thrust), 3)} N·m`);
   ok('no fingers in the assembly', !('finger' in parts), 'the finger is the customer\u2019s part');
   return out;
 }

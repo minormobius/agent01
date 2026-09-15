@@ -17,7 +17,7 @@
    "steps": 5,
    "unit": "deg",
    "default": 0,
-   "description": "the rotor, about the screw axis; unlimited, and it costs the grip 3.13 mm of jaw a turn unless the screw turns with it"
+   "description": "the rotor, about the screw axis; unlimited, and free of the grip — the screw is driven at `roll` too, which is what the machine does when the rotor breaks away and the two turn together"
   }
  },
  "params": {
@@ -2137,7 +2137,7 @@
         0,
         1
        ],
-       "deg": "360 * (ynClosed - yn) / lead"
+       "deg": "360 * (ynClosed - yn) / lead + roll"
       }
      }
     ]
