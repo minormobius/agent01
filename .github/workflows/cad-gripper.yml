@@ -122,25 +122,45 @@ jobs:
         working-directory: /tmp/cad
         run: node agent/check.mjs /tmp/gripper/gripper-demo.json --sweep 48
 
+      # Concurrency stops runs that START after it exists; it does nothing about
+      # ones already in flight, and nothing at all about runs whose own commit
+      # predates the setting. On 2026-09-15 that cost us: run 35 was still
+      # grinding through the old in-line clearance step when a later push
+      # changed the brake stack, so 35 finished afterwards and republished the
+      # superseded geometry over the fix. A publish from a commit the branch
+      # has already moved past is never the one you want — so check.
+      - name: Still the branch tip?
+        id: tip
+        run: |
+          git fetch --depth 1 origin "$GITHUB_REF_NAME"
+          tip=$(git rev-parse FETCH_HEAD)
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::warning::superseded: branch tip is $tip, this run is $GITHUB_SHA — not publishing"
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tip $tip / run $GITHUB_SHA"
+
       - name: Publish plan
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"
 
       - name: Publish into the morphyx repo
-        if: ${{ steps.pub.outputs.publish == 'true' }}
+        if: ${{ steps.pub.outputs.publish == 'true' && steps.tip.outputs.fresh == 'true' }}
         env:
           CAD_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
           CAD_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT" --write
 
       - name: Verify on the live host
-        if: ${{ steps.pub.outputs.publish == 'true' }}
+        if: ${{ steps.pub.outputs.publish == 'true' && steps.tip.outputs.fresh == 'true' }}
         run: |
           # the morphyx persona's public repo, through the site's read gateway; no credentials involved
           curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=morphyxmino.bsky.social&collection=com.minomobi.cad.part' \
             | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("gripper/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<18)process.exit(1)})'
 
       - name: Audit the published corpus (every head rebuilt against the invariants its revision recorded; Truck vs Manifold)
-        if: ${{ steps.pub.outputs.publish == 'true' }}
+        if: ${{ steps.pub.outputs.publish == 'true' && steps.tip.outputs.fresh == 'true' }}
         working-directory: /tmp/cad
         run: node agent/audit.mjs --at morphyxmino.bsky.social --kernels
 
