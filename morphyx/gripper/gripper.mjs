@@ -61,9 +61,14 @@ export const D = {
   // above it the rotor rolls. A stack inside the bearing's bore, between the
   // web's front face and a hub on the back of the rotor plate.
   brakeTorque: 0.15, brakeMu: 0.3,
-  brakeSpringT: 1, brakeSpringOD: 40, brakeSpringID: 16,   // inside the dowel circle, so it needs no holes of its own
-  brakeRingOD: 58, brakeRingID: 14, brakeRingT: 2, brakePinR: 22, brakePin: 3, brakePinLen: 6, brakePinN: 4,
-  brakeHubD: 58, brakeHubT: 10, brakeHubBore: 12, brakeBolt: 3.4, brakeTap: 2.5, brakePcd: 44, brakeBoltN: 4,
+  // 3 mm of gap, not 1. The brake sets the grip, so face wear is GRIP DRIFT,
+  // and a stiff spring in a thin gap turns a little wear into a lot of it:
+  // at 1 mm the rate is 45 N/mm and 0.1 mm of wear costs 18% of the grip; at
+  // 3 mm it is 15 N/mm and 6%. The 2 mm comes off the hub, which had 10 and
+  // needs 8, so the stack still fits the same 13 mm of bearing bore. See wear.mjs.
+  brakeSpringT: 3, brakeSpringOD: 40, brakeSpringID: 16,   // inside the dowel circle, so it needs no holes of its own
+  brakeRingOD: 58, brakeRingID: 14, brakeRingT: 2, brakePinR: 22, brakePin: 3, brakePinLen: 8, brakePinN: 4,   // 8, so the dowels still bite 3 mm of web with the ring 2 mm further forward
+  brakeHubD: 58, brakeHubT: 8, brakeHubBore: 12, brakeBolt: 3.4, brakeTap: 2.5, brakePcd: 44, brakeBoltN: 4,
   // the rotor's own encoder: roll happens when the torque says so, not when a
   // step is commanded, so the angle has to be read rather than counted
   encRingID: 84, encRingOD: 88, encRingT: 4, encHeadR: [45, 48.5], encHeadW: 10,
@@ -501,7 +506,8 @@ export function assembly(mode = 'inputs') {
     // the brake: the one stack in this machine that is MEANT to rub
     { a: 'motor-web', b: 'brake-spring', contact: true }, { a: 'brake-spring', b: 'brake-ring', contact: true },
     { a: 'brake-ring', b: 'brake-hub', contact: true },                // the friction face itself
-    { a: 'brake-ring', b: 'brake-pin[*]', min: 0.02, max: 0.08 }, { a: 'motor-web', b: 'brake-pin[*]', min: 0.02, max: 0.08 },   // pressed in the web, sliding in the ring; drawn at the fit
+    { a: 'brake-ring', b: 'brake-pin[*]', min: 0.02, max: 0.08 }, { a: 'motor-web', b: 'brake-pin[*]', min: 0.02, max: 0.08 },
+    { a: 'brake-spring', b: 'brake-pin[*]', min: 0.3 },              // the dowels now run alongside the washer's 3 mm, clearing its Ø40 rim by 0.5   // pressed in the web, sliding in the ring; drawn at the fit
     { a: 'brake-hub', b: 'rotor-plate', contact: true },
     { a: 'bearing', b: 'brake-hub', min: 0.8, max: 1.2 },              // the hub turns inside the race's bore
     { a: 'encoder-ring', b: 'rotor-plate', contact: true },

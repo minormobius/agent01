@@ -34,6 +34,7 @@ the tangled mirror.
 | `expected.json` | closed-form volumes for every part |
 | `publish.mjs` | writes the parts then the assembly into a repo; idempotent; retires superseded parts under `gripper/v<n>/` |
 | `verify.mjs` | the posed document against `pose()` at every grip — the check the two travel bugs would have failed |
+| `wear.mjs` | the DUTY model: how far every interface slides per cycle, under what pressure, at what PV — and an epistemic tier on each row, because duty is geometry and life is tribology |
 | `jacobian.mjs` | **not part of the gripper** — a platform proposal, and the evidence for it: a virtual-work instrument on the poser the platform already has, reproducing the hand-derived force curve in 30 lines and 40 ms |
 | `../../.github/workflows/cad-gripper.yml` | build exact, closed forms, a 25-state interference **grid** over `grip` (the gate), the clearance table, publish on request, then audit the published corpus |
 
@@ -325,6 +326,56 @@ Both axes, from one actuator and one sensor, exactly. Without θᵣ the two are
 indistinguishable: every step spent rolling is a step the jaw did not take, and
 counting alone cannot tell you which happened. So losing the encoder does not
 degrade the machine to one axis — it degrades it to none.
+
+### Wear, and how we would know
+
+Run `node wear.mjs`. It reports duty rather than life, and says which is which:
+
+| tier | what it is | what it is worth |
+|---|---|---|
+| **0** | pure kinematics — rub per cycle, pressure, PV, reversals | exact, and derivable from the document |
+| **1** | vendor L10, from a standardised test | a comparison number, 90% survival, derate 2–5× |
+| **2** | Archard and friends | the equation is sound, the coefficient spans three decades. **Bands only** |
+| **3** | stick-slip, bedding-in, spring relaxation, debris | no equation exists. Only a test knows |
+
+The duty is undramatic. The brake rubs 252 mm per cycle at **0.0099 MPa** and
+a **PV of 3.1 × 10⁻⁴ MPa·m/s** — three to four decades under any friction
+material's limit — dissipating 1.9 J, and only while it is actually slipping.
+The MGN9C's L10 works out at 608 km, about 2 × 10⁷ cycles. The roller ring sees
+two revolutions a cycle at a fraction of its rating. None of those is the limit.
+
+The life is undecidable to within three orders of magnitude, and that is the
+honest result rather than a gap in the work. Cycles to 0.1 mm of brake wear:
+**6 × 10⁷** with a bedded friction facing, **6 × 10⁵** for moderate dry steel,
+**6 × 10⁴** for severe. Every path to a life number in this machine runs
+through a friction coefficient, and µ is the least repeatable quantity in
+mechanical engineering. Anyone quoting a single number here is quoting their
+choice of k.
+
+**But the analysis is still worth doing, because it finds sensitivities even
+when it cannot find lives** — and it found one. The brake sets the grip, so
+face wear is *grip drift*, and the spring's stiffness decides the exchange rate:
+
+```
+  spring gap 1 mm  rate 45 N/mm   0.1 mm of wear costs 18.2% of the grip   ← v10 as first drawn
+  spring gap 2 mm  rate 23 N/mm                          9.1%
+  spring gap 3 mm  rate 15 N/mm                          6.1%   ← now
+  spring gap 4 mm  rate 11 N/mm                          4.5%
+```
+
+A wave washer in a 1 mm gap has about half a millimetre of working deflection,
+which made the preload — and therefore the grip force — three times more
+sensitive to wear than it needed to be. The fix cost nothing: the hub had
+10 mm and needs 8, so the washer gets 3 mm and the stack still fits the same
+13 mm of bearing bore. The dowels grew 6 → 8 mm to keep 3 mm of bite in the web.
+
+**And the machine measures its own wear.** There is no equation for tier 3, but
+there does not have to be: homing already drives to the open stop and watches
+for θᵣ to move, and the motor steps between those two events *are* the
+breakaway calibration. Brake wear, µ drift and thread backlash all show up in
+that one number, every cycle, on hardware that is already fitted. The right
+answer to "how long does the brake last" is not a prediction. It is: log the
+breakaway count, and the gripper will tell you.
 
 ### Homing
 
