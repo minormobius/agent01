@@ -27,6 +27,13 @@ on:
         type: boolean
         default: false
 
+# A push supersedes the run before it. Two runs publishing the same records
+# into the same repo is a race with nothing to win, and a queue of them is how
+# the live document ends up lagging the branch by hours.
+concurrency:
+  group: cad-gripper-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NUT: ${{ inputs.nut || '53' }}
 
@@ -115,10 +122,6 @@ jobs:
         working-directory: /tmp/cad
         run: node agent/check.mjs /tmp/gripper/gripper-demo.json --sweep 48
 
-      - name: Clearance table over grip × roll (exact meshes; for the record, not a gate — running fits and sliding faces read as close and contact)
-        working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/gripper/gripper.json --grid 3 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
-
       - name: Publish plan
         run: node morphyx/gripper/publish.mjs --cad /tmp/cad --reports /tmp/gripper/reports --nut "$NUT"
 
@@ -140,3 +143,23 @@ jobs:
         if: ${{ steps.pub.outputs.publish == 'true' }}
         working-directory: /tmp/cad
         run: node agent/audit.mjs --at morphyxmino.bsky.social --kernels
+
+  # The clearance table is a RECORD, not a gate: exact meshes, every pair's
+  # nearest approach, and running fits and sliding faces read as close by
+  # design. It also costs an hour and a half, which is why it is its own job.
+  # It sat at step 13 of the gating job for four runs, after every gate had
+  # passed in 69 seconds, holding the publish behind it — so the live document
+  # trailed the branch by two hours for no check anyone was waiting on.
+  clearance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
+      - run: node morphyx/gripper/gripper.mjs --nut "$NUT" --out /tmp/gripper
+      - name: Clearance table over grip × roll (exact meshes; for the record, not a gate)
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/gripper/gripper.json --grid 3 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
