@@ -1,0 +1,76 @@
+name: Seed the parts communities
+
+# Founds the house communities on cad.mino.mobi/parts/ and posts the parts
+# named in parts/agent/minomobi.json. WRITES TO A REAL PDS — the same service
+# account publish-cad.yml writes the bench as, the identity that owns
+# minomobi.com. Founding a community does not make that account host anyone's
+# posts: a community is a record in its founder's repo, a post is a record in
+# the poster's, and the front page is an index either of them could rebuild.
+#
+# Idempotent: a community is keyed by its slug, so a re-run updates its title
+# and description in place and keeps its founding date; a post is keyed by its
+# community and title, so a re-run recognises the post it already made and
+# writes nothing. Editing a post's text in the spec therefore changes nothing
+# that is already up — post again under a new title instead.
+#
+# workflow_dispatch does not resolve for workflows off the default branch, so
+# a push that touches the spec, the seeder or this file is the trigger.
+
+on:
+  push:
+    branches: ['claude/browser-cad-ideation-ollmd3']
+    paths:
+      - 'parts/agent/**'
+      - '.github/workflows/seed-parts.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: seed-parts
+  cancel-in-progress: false
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # what it would do, against the live repo, writing nothing
+      - name: Plan
+        run: node parts/agent/seed.mjs
+
+      - name: Seed
+        id: seed
+        env:
+          BLUESKY_BOT_HANDLE: ${{ secrets.BLUESKY_BOT_HANDLE }}
+          BLUESKY_BOT_APP_PASSWORD: ${{ secrets.BLUESKY_BOT_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          node parts/agent/seed.mjs --write | tee /tmp/seed.log
+          DID=$(grep -oE 'did=did:[a-z0-9:._%-]+' /tmp/seed.log | head -1 | cut -d= -f2)
+          [ -n "$DID" ] || { echo "::error::seeded, but could not read the DID back out of the log"; exit 1; }
+          echo "did=$DID" >> "$GITHUB_OUTPUT"
+          {
+            echo "### parts communities seeded"
+            echo
+            echo "- repo: \`$DID\`"
+            echo '```'
+            cat /tmp/seed.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # GREEN IS NOT PROOF. Read it back the way a visitor does: through the
+      # live index, which only knows what it has been told or has swept.
+      - name: Verify through the live index
+        run: |
+          set -uo pipefail
+          for attempt in 1 2 3 4 5; do
+            C=$(curl -sS https://cad.mino.mobi/parts/api/communities | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log((JSON.parse(s).communities||[]).length)}catch{console.log(0)}})')
+            P=$(curl -sS "https://cad.mino.mobi/parts/api/feed?sort=new" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log((JSON.parse(s).posts||[]).length)}catch{console.log(0)}})')
+            if [ "$C" -ge 5 ] && [ "$P" -ge 3 ]; then echo "the index lists $C communities and $P posts"; exit 0; fi
+            echo "  attempt $attempt: $C communities, $P posts, waiting…"; sleep $((attempt * 5))
+          done
+          echo "::error::the live index does not list five communities and three posts"
+          exit 1

@@ -1,0 +1,118 @@
+:root { --bg: #1c1e22; --panel: #24272c; --line: #33373e; --ink: #e6e8ec; --dim: #8a8f98; --accent: #f2c14e; --bad: #ff6b6b; --warn: #f0a050; --ok: #7bd88f; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+body { display: grid; grid-template-rows: 40px 1fr; grid-template-columns: 300px 1fr 320px; grid-template-areas: "bar bar bar" "left view right"; height: 100vh; }
+#tabs { display: none; }
+body[data-mode=part] .asm-only, body[data-mode=asm] .part-only { display: none; }
+.asm-ctl { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
+.asm-ctl input { width: 64px; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; font: inherit; }
+#face code.comp { background: #3a2f12; color: var(--accent); }
+#face .measure { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); }
+#checks .feat.bad { border-left-color: var(--bad); }
+#occt { margin-top: 6px; border-color: var(--accent); }
+.files .row { display: flex; gap: 4px; }
+.files .row input { flex: 1; min-width: 0; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; font: inherit; }
+.files h3 { font-size: 11px; color: var(--dim); margin: 6px 0 2px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.05em; }
+#files .f, #history .r { display: flex; gap: 6px; align-items: baseline; padding: 2px 4px; border-radius: 3px; cursor: pointer; }
+#files .f:hover, #history .r:hover { background: #2e3239; }
+#files .f.on, #history .r.on { color: var(--accent); }
+#files .f .p { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#files .f button, #history .r button { padding: 0 5px; font-size: 11px; }
+#files .f small, #history .r small { color: var(--dim); }
+#files .f.dir { color: var(--dim); }
+#files .f.asm .p { color: var(--ink); font-weight: 600; }
+/* every assembly, whatever folder it lives in, above the tree of parts */
+#files .asmstrip { margin-bottom: 4px; padding-bottom: 4px; border-bottom: 1px solid var(--line); }
+#files .asmstrip .f { padding-left: 4px; }
+#files .asmstrip .f small { color: var(--accent); opacity: 0.7; }
+#files h3 .cnt { text-transform: none; letter-spacing: 0; margin-left: 6px; }
+#files .hint { margin-top: 6px; font-size: 11px; }
+#measurebox { background: #1a1c20; border: 1px solid var(--line); border-radius: 3px; padding: 6px; margin-top: 6px; }
+#measurebox .row { display: flex; margin-bottom: 4px; }
+#measurebox select { flex: 1; min-width: 0; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 3px; font: inherit; font-size: 11px; }
+#measurebox .measure { margin-top: 4px; }
+#history .r .m { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+header { grid-area: bar; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--line); background: var(--panel); }
+header h1 { font-size: 14px; margin: 0 12px 0 0; font-weight: 600; letter-spacing: 0.02em; }
+header h1 small { color: var(--dim); font-weight: 400; margin-left: 6px; }
+header .sp { flex: 1; }
+#status { color: var(--dim); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
+button, select, input[type=file]::file-selector-button { background: #2e3239; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px 8px; font: inherit; cursor: pointer; }
+button:hover { border-color: var(--accent); }
+aside { background: var(--panel); border-color: var(--line); overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+#left { grid-area: left; border-right: 1px solid var(--line); }
+#right { grid-area: right; border-left: 1px solid var(--line); }
+main { grid-area: view; position: relative; min-width: 0; }
+canvas#view { width: 100%; height: 100%; display: block; touch-action: none; cursor: crosshair; }
+h2 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim); margin: 6px 0 2px; }
+.param { display: grid; grid-template-columns: 1fr 96px; align-items: center; gap: 8px; padding: 2px 0; }
+.param span { cursor: ew-resize; user-select: none; color: var(--accent); }
+.param input { width: 100%; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 3px 6px; font: inherit; }
+.feat { padding: 3px 6px; border-left: 2px solid var(--line); margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.feat b { color: var(--accent); font-weight: 600; margin-right: 6px; }
+.feat span { color: var(--dim); }
+.feat.hl, tr.hl td { background: #3a2f12; }
+.feat.hl span, tr.hl td { color: var(--ink); }
+.feat[data-comp] { cursor: pointer; }
+.feat.off { opacity: 0.4; text-decoration: line-through; }
+textarea#json { width: 100%; min-height: 220px; flex: 1; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; font: 11px/1.35 ui-monospace, Menlo, monospace; padding: 6px; resize: vertical; }
+table { border-collapse: collapse; width: 100%; }
+td, th { text-align: right; padding: 2px 4px; border-bottom: 1px solid var(--line); font-weight: 400; vertical-align: top; }
+td:first-child, th:first-child { text-align: left; color: var(--dim); }
+th small { color: var(--dim); }
+#face { min-height: 48px; background: #1a1c20; border: 1px solid var(--line); border-radius: 3px; padding: 6px; }
+#face .names code { background: #2e3239; padding: 1px 4px; border-radius: 3px; margin: 0 4px 4px 0; display: inline-block; color: var(--accent); }
+.dim { color: var(--dim); }
+.bad { color: var(--bad); }
+.warn { color: var(--warn); }
+#error { min-height: 1.4em; white-space: pre-wrap; }
+#strip { display: flex; gap: 6px; flex-wrap: wrap; }
+#strip img { width: 92px; height: 60px; object-fit: cover; border: 1px solid var(--line); border-radius: 3px; }
+.keys { color: var(--dim); font-size: 11px; }
+.keys kbd { background: #2e3239; padding: 0 4px; border-radius: 3px; border: 1px solid var(--line); }
+/* with the keyboard up a field is scrolled into the panel: leave it some room */
+#left input, #left textarea, #right input { scroll-margin: 16px 0 28px; }
+/* section: the button while it is on, and the cut-plane controls */
+button.on { border-color: var(--accent); color: var(--accent); }
+body.sectioning canvas#view { cursor: ns-resize; }
+#measurebox .sec { display: grid; grid-template-columns: auto 1fr 60px auto; align-items: center; gap: 6px; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+#measurebox .sec b { color: var(--accent); }
+#measurebox .sec input[type=range] { width: 100%; accent-color: var(--accent); }
+#measurebox .sec input[type=number] { width: 100%; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; font: inherit; }
+#measurebox .sec .what { grid-column: 1 / -1; color: var(--dim); font-size: 11px; }
+/* a document's own inputs: one control per degree of freedom */
+.inputs { display: flex; flex-direction: column; gap: 4px; margin-bottom: 6px; }
+.inputs .in { display: grid; grid-template-columns: 64px 1fr 64px 22px; align-items: center; gap: 6px; }
+.inputs .in > span { color: var(--accent); overflow: hidden; text-overflow: ellipsis; }
+.inputs .in small { color: var(--dim); }
+.inputs input[type=range] { width: 100%; accent-color: var(--accent); }
+.inputs input[type=number] { width: 100%; background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; font: inherit; }
+#doc b { color: var(--accent); }
+#doc .fresh { margin-top: 3px; }
+#doc .fresh button { padding: 1px 6px; font-size: 11px; margin-left: 4px; }
+#doc .new { color: var(--warn); }
+/* Phone: the part in the top two thirds, one tabbed panel in the bottom third.
+   When the on-screen keyboard is up the page is laid out into what is left of
+   the screen (--kb is what the keyboard covers, 0 when the browser shrinks the
+   layout viewport itself) and the panel being typed into takes most of it. */
+@media (max-width: 900px) {
+  body { grid-template-columns: 1fr; grid-template-rows: auto 1fr 32px minmax(0, 34%); grid-template-areas: "bar" "view" "tabs" "panel"; height: 100vh; height: calc(100dvh - var(--kb, 0px)); }
+  body.kb { grid-template-rows: auto minmax(0, 1fr) 32px minmax(0, 66%); }
+  body.kb header { display: none; }
+  header { flex-wrap: nowrap; overflow-x: auto; padding: 4px 8px; gap: 6px; }
+  header h1 small { display: none; }
+  #status { display: none; }
+  #tabs { grid-area: tabs; display: flex; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--panel); }
+  #tabs button { flex: 1; border: none; border-radius: 0; background: none; color: var(--dim); }
+  #tabs button.on { color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+  aside, #left, #right { grid-area: panel; border: none; padding: 8px 12px; display: none; }
+  #left, #right { min-height: 0; overflow: auto; }
+  body[data-tab=params] #left, body[data-tab=tree] #left, body[data-tab=files] #left, body[data-tab=report] #right, body:not([data-tab]) #left { display: block; }
+  section[data-pane] { display: none; }
+  body[data-tab=params] section[data-pane=params], body:not([data-tab]) section[data-pane=params], body[data-tab=tree] section[data-pane=tree], body[data-tab=report] section[data-pane=report], body[data-tab=files] section[data-pane=files] { display: block; }
+  textarea#json { min-height: 22vh; }
+  button, select { padding: 6px 10px; }
+}
+
+header .doclink { color: var(--dim); font-size: 12px; text-decoration: none; padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; }
+header .doclink:hover { color: var(--accent); border-color: var(--accent); }

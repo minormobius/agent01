@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "parts",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": "site",
+    "binding": "ASSETS"
+  },
+  // The index lives in one Durable Object's own SQLite: no D1 to provision, no
+  // migrations to run, and the same SQL the selftest runs under node:sqlite.
+  "durable_objects": {
+    "bindings": [
+      { "name": "INDEX", "class_name": "PartsIndex" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PartsIndex"] }
+  ],
+  // Discovery through Constellation backlinks and a refresh of stale repos.
+  // Each tick wakes the object for a few HTTP calls, then it sleeps; there is
+  // no firehose socket, on purpose (lib/index.js explains).
+  "triggers": {
+    "crons": ["*/15 * * * *"]
+  },
+  // No domain of its own. This was to be parts.mino.mobi, but the mino.mobi
+  // zone is at Cloudflare's ceiling of 100 Workers custom domains (the first
+  // deploy failed with code 100122 after uploading the worker), and the deploy
+  // token cannot write the DNS record a `routes` entry would need. So the cad
+  // worker mounts this one at cad.mino.mobi/parts/ through a service binding
+  // (packages/cad/wrangler.jsonc `services`), prefix stripped. No workers.dev
+  // either: the only front door is the mount. If a domain is ever freed
+  // (detaching one is dashboard-only, docs/DEPLOYS.md §7), a
+  // `routes: [{ pattern, custom_domain: true }]` block here gives it back its
+  // own host — the page uses relative URLs, so nothing else changes.
+  "workers_dev": false
+}

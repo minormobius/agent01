@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **102 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -36,7 +36,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `atlas` | frontend | `atlas` | [atlas.mino.mobi](https://atlas.mino.mobi) | `claude/county-level-data-maps-s9u3qx` | [`atlas/CLAUDE.md`](../atlas/CLAUDE.md) | Every county in the United States, every Canadian census division and every Mexican municipio, drawn from the statistical agencies’ own boundary files onto a watertight equal-area map—then redrawn int… |
 | `aub` | frontend | `aub` | [aub.mino.mobi](https://aub.mino.mobi) | `claude/game-website-deploy-2ffuu2` | [`aub/CLAUDE.md`](../aub/CLAUDE.md) | Ecdysium (aubrika/ecdysium) — a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown… (full description: aub/CLAUDE.md) |
 | `audio` | fullstack | `audio` | [audio.mino.mobi (pending attach)](https://audio.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`audio/CLAUDE.md`](../audio/CLAUDE.md) | Audio Rooms — a voice-room app (Vite monorepo web + worker with a RoomCoordinator Durable Object for signaling). Deployed to workers.dev; audio.mino.mobi not yet attached. |
-| `auth` | backend | `workers/auth` | [auth.mino.mobi](https://auth.mino.mobi) | `claude/bsky-app-view-feasibility-8sdflz` | [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md) | The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie… |
+| `auth` | backend | `workers/auth` | [auth.mino.mobi](https://auth.mino.mobi) | `claude/browser-cad-ideation-ollmd3` | [`workers/auth/CLAUDE.md`](../workers/auth/CLAUDE.md) | The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + private_key_jwt). One login = SSO across every *.mino.mobi site via a domain cookie… |
 | `autopilot` | backend | `auto` | `auto` | `claude/landing-projects-takeover-pKkmW` | [`auto/CLAUDE.md`](../auto/CLAUDE.md) | The unattended site factory. A daily routine builds one self-contained site per run under auto/<slug>/, deploys it to auto-<slug>.workers.dev, and announces from the bot account… |
 | `b` | frontend | `b` | [b.mino.mobi](https://b.mino.mobi) | `claude/bsky-follow-grooming-gjkops` | [`b/CLAUDE.md`](../b/CLAUDE.md) | Portal to every Bluesky tool here—feeds, network maps, account analysis, and the shared OAuth worker in one place. |
 | `bakery` | frontend | `bakery` | [bake.mino.mobi](https://bake.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`bakery/CLAUDE.md`](../bakery/CLAUDE.md) | Flour blend calculator—protein math, hydration targets, blend ratios. |
@@ -49,6 +49,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `bsky` | frontend | `bsky` | [bsky.mino.mobi](https://bsky.mino.mobi) | `claude/bsky-app-view-feasibility-8sdflz` | [`bsky/CLAUDE.md`](../bsky/CLAUDE.md) | An AppView with no database… |
 | `bsky-bot` | backend | `workers/bsky-bot` | `mino-bsky-bot` | `claude/minomobi-landing-page-vg37b8` | [`workers/bsky-bot/CLAUDE.md`](../workers/bsky-bot/CLAUDE.md) | The lab factory's outer loop… |
 | `cable` | frontend | `cable` | [cable.mino.mobi](https://cable.mino.mobi) | `claude/cable-definition-website-yrwv41` | [`cable/CLAUDE.md`](../cable/CLAUDE.md) | Progressive cable-drawing solver for custom instrument cabling… |
+| `cad` | frontend | `packages/cad` | [cad.mino.mobi](https://cad.mino.mobi) | `claude/browser-cad-ideation-ollmd3` | [`packages/cad/CLAUDE.md`](../packages/cad/CLAUDE.md) | Parametric CAD in the browser. A feature tree in, solids out—the Manifold preview lands in milliseconds and the exact build with every face named lands behind it… |
 | `canvas` | frontend | `draw` | [canvas.mino.mobi](https://canvas.mino.mobi) | `claude/pizza-cutting-game-7VvX2` | [`draw/CLAUDE.md`](../draw/CLAUDE.md) | Massively multiplayer paint. Shared canvases with append-only stroke log, tamper-evident chain, and ATProto identity gating. |
 | `cards` | frontend | `cards` | [cards.mino.mobi](https://cards.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`cards/CLAUDE.md`](../cards/CLAUDE.md) | Wiki Cards. A deep Wikipedia card game—Lucky, Transmute, Nexus, and Library modes built on neural embeddings. |
 | `chat` | fullstack | `chat` | [chat.mino.mobi](https://chat.mino.mobi) | `claude/conversation-practice-website-he3t8x` | [`chat/CLAUDE.md`](../chat/CLAUDE.md) | Conversation-practice dojo. An AI partner (Workers AI Llama 3.3 70B) plays your counterpart and a theory-grounded rubric scores the exchange; multiplayer DO rooms are roadmap. |
@@ -98,6 +99,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `org` | frontend | `org` | [org.mino.mobi](https://org.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`org/CLAUDE.md`](../org/CLAUDE.md) | Organization hub. Create orgs, manage members and tiers, with calendar, CRM, PM, and Wave apps built in. |
 | `os` | frontend | `os` | [os.mino.mobi](https://os.mino.mobi) | `claude/os-deploy-surface-474bz3` | [`os/CLAUDE.md`](../os/CLAUDE.md) | Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. |
 | `os-api` | backend | `os/api` | [os-api.minomobi.com](https://os-api.minomobi.com) | `claude/os-deploy-surface-474bz3` | [`os/api/CLAUDE.md`](../os/api/CLAUDE.md) | The agent-platform backend behind os.mino.mobi — a per-DID Cloudflare Container (bash + git, running Claude Code as the harness for open models via AGENT_PROFILES) with a PTY over WebSocket and DO-syn… |
+| `parts` | frontend | `parts` | [cad.mino.mobi/parts](https://cad.mino.mobi) | `claude/browser-cad-ideation-ollmd3` | [`parts/CLAUDE.md`](../parts/CLAUDE.md) | Communities of CAD parts, Reddit-shaped, with nothing stored on our side that your repo does not hold: found a community (a record in your repo), post a part (a record pointing at one revision of it… |
 | `perp` | frontend | `perp` | [perp.mino.mobi](https://perp.mino.mobi) | `claude/futures-finance-learning-r7p47e` | [`perp/CLAUDE.md`](../perp/CLAUDE.md) | A perpetual future never expires, so nothing forces it to converge on spot — instead it pays funding, an hourly cash transfer between longs and shorts… |
 | `photo` | frontend | `photo` | [photo.mino.mobi](https://photo.mino.mobi) | `claude/usda-fruit-paintings-dashboard-kxn1c1` | [`photo/CLAUDE.md`](../photo/CLAUDE.md) | The index of the image surface — fourteen tools sharing one origin: a layered editor, projections and warps, optical instruments, and an explorer that renders every image from any Bluesky account as a… |
 | `phylofiction` | frontend | `phylofiction` | [phylofiction.mino.mobi](https://phylofiction.mino.mobi) | `claude/phylofiction-world-generation-3zd33u` | [`phylofiction/CLAUDE.md`](../phylofiction/CLAUDE.md) | Seeded deterministic tree-of-life generator: a Rust/WASM evolution engine (engine-rs/, artifact committed by build-phylofiction-wasm.yml) drives a microbial phylogeny that any page-seed reproduces ide… |
@@ -138,12 +140,13 @@ A change here ripples to every dependent surface listed.
 
 | Resource | Dependents | Surfaces |
 |---|---|---|
-| `auth.mino.mobi` | 12 | `bakery`, `board`, `canvas`, `clef`, `farm`, `farm-next`, `games`, `io`, `photo`, `rant`, `scores`, `wave` |
+| `auth.mino.mobi` | 13 | `bakery`, `board`, `canvas`, `clef`, `farm`, `farm-next`, `games`, `io`, `parts`, `photo`, `rant`, `scores`, `wave` |
 | `atpolls-db` | 10 | `airchat`, `canvas`, `feed`, `human`, `io`, `poll`, `reef`, `rite`, `words`, `zest` |
 | `mino-auth-db` | 1 | `auth` |
 | `bounty-board` | 1 | `bounty` |
 | `scores.mino.mobi` | 1 | `canvas` |
 | `os-api.minomobi.com` | 1 | `os` |
+| `cad.mino.mobi` | 1 | `parts` |
 | `civ` | 1 | `polis` |
 | `mino-scores-db` | 1 | `scores` |
 | `feed.mino.mobi` | 1 | `zoom` |
