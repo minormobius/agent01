@@ -6,12 +6,20 @@ Cloudflare Container yet; §6 is the list of things that can only be settled
 there.
 
 **Short version.** Device-code auth is real and it does solve the "no browser in
-the container" problem — but that was never the hard part. The hard parts are
-(a) Codex dropped the Chat Completions wire format, which is what `kimi3` and
-`ds4-*` speak, and (b) a ChatGPT login is a *rotating single-use* credential,
-which collides head-on with this backend's snapshot-and-restore persistence
-model. There is a cheap version of this feature that avoids both, and an
-expensive one that has to solve both. They are described in §5.
+the container" problem — but that was never the hard part. Three things are:
+
+1. A ChatGPT login is a **rotating single-use** credential, and this backend
+   tars `$HOME` and restores it into a fresh container on every wake. Snapshot
+   and rotation are incompatible by construction (D3).
+2. Measured per-endpoint, the **only** step blocked from datacenter egress is
+   *starting* a device login. Token refresh and subscription inference both
+   answer normally (D1) — so the fragile step is acquiring a credential in the
+   container, not using one there. That inverts the obvious design.
+3. Codex dropped the Chat Completions wire format, so it cannot drive `kimi3`
+   or `ds4-*` at all without a translating shim (D6).
+
+Putting the principal in the auth flow does dissolve (1), and §5 works through
+where they have to stand for it to also survive (2).
 
 ---
 
@@ -45,37 +53,40 @@ working — see §3.
 
 ## 2. The difficulties, in the order they will bite
 
-### D1 — the ChatGPT auth plane is bot-challenged from datacenter egress
+### D1 — exactly one step of the login is bot-challenged: starting the device flow
 
-This is the finding I did not expect and the one that most threatens the
-device-auth plan.
+This is the finding I did not expect, and it is narrower and more actionable
+than "OpenAI blocks datacenters". Measured per-endpoint from this sandbox's
+egress, reproducible across attempts and independent of User-Agent:
 
-From this sandbox's egress:
+| endpoint | result | meaning |
+|---|---|---|
+| `POST auth.openai.com/oauth/device/code` | **403 Cloudflare challenge** | **starting a device login fails** |
+| `POST auth.openai.com/oauth/token` (refresh grant) | 401 JSON, *"Could not validate your token"* | **refresh works** — it processed the request and rejected the fake token |
+| `POST chatgpt.com/backend-api/codex/responses` | 401 JSON `{"detail":"Unauthorized"}` | **subscription inference works** |
+| `GET auth.openai.com/`, `chatgpt.com/`, `/backend-api/me` | 403 Cloudflare challenge | browser-facing HTML pages |
+| `api.openai.com`, `api.moonshot.ai`, `api.anthropic.com` | 401 | clean |
 
-```
-auth.openai.com  -> 403   (Cloudflare "Just a moment..." managed challenge)
-chatgpt.com      -> 403   (same)
-api.openai.com   -> 401   (clean — reachable, just unauthenticated)
-api.moonshot.ai  -> 401
-api.anthropic.com-> 401
-```
+So it is **not** the case that the ChatGPT plane is unreachable. The
+machine-to-machine endpoints — token refresh, and the Responses endpoint that a
+subscription cell actually runs on — both answer normally. The single blocked
+step is the one that *initiates* an interactive login, which is exactly where a
+bot check belongs and exactly what `codex login --device-auth` calls first.
+That is why it logged `starting device code login flow`, printed nothing, and
+hung until killed: the failure is silent, with no error, no code and no timeout
+message, so **a user watching the os.mino.mobi terminal would see a hung command
+with no diagnosis**.
 
-So the *API plane* is fine and the *consumer account plane* is behind a managed
-challenge that a non-browser client from a datacenter IP cannot pass. And this
-is exactly what `codex login --device-auth` does here: it logs
-`starting device code login flow`, prints nothing, and hangs until killed. The
-failure is silent — no error, no code, no timeout message. That matches the
-"the failure is silent and the cause is far away from the terminal" complaint in
-the community writeups, and it means **a user staring at the os.mino.mobi
-terminal would see a hung command with no diagnosis**.
+The consequence for design is the important part, and it inverts the obvious
+plan: *getting* a credential inside the container is the fragile step, while
+*using and refreshing* one there is fine. A token minted where a real browser
+lives — the principal's own machine — then refreshed and spent from the
+container, only touches endpoints that work.
 
-Caveat, stated plainly: I cannot tell from here whether the 403 is this
-sandbox's proxy egress reputation or datacenter IPs generally. Cloudflare
-Containers egress from Cloudflare's own network, which may be treated
-differently — better or worse. **This is test #1 in §6 and it is a go/no-go for
-the whole ChatGPT-subscription cell.** If `auth.openai.com` is challenged from
-the container, device auth is not available to us at any price and only the
-API-key path remains.
+Caveat, stated plainly: this is the sandbox's proxy egress, not Cloudflare
+Containers. The per-endpoint *pattern* is likely to hold (it tracks which
+endpoints are browser-facing, not which IP asked), but the specific verdict for
+device-code initiation must be confirmed from a container shell — test #1 in §6.
 
 ### D2 — device auth is off until someone flips an account setting
 
@@ -247,10 +258,11 @@ build times out.
 
 With a fully custom provider and no OpenAI credential, startup still opens
 `https://chatgpt.com/` (the `list_models` / models-cache refresh) before any
-provider call, and it ships OpenTelemetry. On an egress where `chatgpt.com` is
-403-challenged (D1) that request fails; in my run it did not block the session,
-but it is startup latency and noise on every boot, and it is a dependency on a
-host we otherwise would not need.
+provider call, and it ships OpenTelemetry. Per D1 the browser-facing paths on
+that host are challenged while the `backend-api` ones are not, so whether this
+call succeeds depends on which path it lands on; in my run it did not block the
+session either way. It is startup latency and noise on every boot, and a
+dependency on a host we otherwise would not need.
 
 ### D11 — `CODEX_HOME` must not be under a temp dir
 
@@ -316,50 +328,139 @@ vocabulary, so the chat path is no harder than OpenCode's was.
 
 ---
 
-## 5. Recommendation
+## 5. Putting the human in the auth flow
 
-Split it, because the two halves have completely different risk.
+The stated goal is the ChatGPT-subscription models, under Codex, on Cloudflare.
+Involving the principal in the login is the right instinct — it dissolves most
+of D3 — but D1 decides *where* they have to be involved, and the answer is not
+the obvious one.
 
-**Phase 1 — `--harness=codex` on an OpenAI platform API key.** One new worker
-secret (`OPENAI_API_KEY`), one `AGENT_PROFILES` entry with a `respBase` of
-`https://api.openai.com/v1`, `env_key` indirection exactly as OpenCode does it.
-No device auth, no token custody, no shim, no rotation hazard, nothing written
-to disk. It gets a real third harness and a real OpenAI cell into the matrix,
-and it is the configuration OpenAI itself recommends for automation. Everything
-in §2 except D7/D9/D10/D11 simply does not apply.
+**Why human-in-the-loop helps at all.** The rotation hazard (D3) is not "the
+token rotates", it is "an *old copy* gets replayed". Rotation is only dangerous
+where a credential is duplicated: a tarball snapshot, two awake instances, a
+secret store rewritten from the original each run. If exactly one live copy
+exists and it dies with the container, rotation is a non-event. So any design
+where the credential is never snapshotted is already most of the way there —
+and note that `~/.codex` being absent from the sync tar today (D4) is, by
+accident, the correct behaviour.
 
-**Phase 2a — the open models under Codex.** Needs the Responses↔Chat shim (D6).
-I would treat this as its own piece of work with its own fidelity test, not as a
-footnote to phase 1, because a lossy shim quietly corrupts every bake-off
-comparison that uses it.
+### Design A — device login inside the container, each wake
 
-**Phase 2b — the ChatGPT-subscription cell via device auth.** Only worth doing
-after test #1 in §6 says the container can reach `auth.openai.com` at all. Even
-then it should be `cli_auth_credentials_store = "ephemeral"` with re-auth on
-each wake, single-instance, and explicitly *not* persisted into the workspace
-tarball — because D3 and D4 together mean the persistent version trades "log in
-once" for "risk logging the principal out of ChatGPT everywhere, from a stale
-snapshot, with no obvious cause".
+The user is already in a browser, on a PTY, with the terminal in front of them.
+They run `codex login --device-auth`, approve the code on their phone, work,
+and the credential dies with the container. No snapshot, no replay, one holder
+ever. Almost no code: leave `.codex` out of the tar and it is done.
 
-That is the honest trade, and it is why I would not lead with device auth even
-though it is the thing that newly became possible.
+Two verified constraints:
+
+- **It must use the `file` store, not `ephemeral`.** I tested both: with
+  `cli_auth_credentials_store = "ephemeral"` a login reports *"Successfully
+  logged in"* and the very next process reports *"Not logged in"*, with no
+  `auth.json` on disk. Ephemeral is per-process — fine for a single long-lived
+  app-server, useless when `codex login` and `codex` are separate commands in a
+  shell. `file` plus an ephemeral container disk gets the same property with the
+  process boundary respected.
+- **It is the design D1 threatens.** Initiating a device flow is the one step
+  measured as blocked. If that holds inside Containers, Design A is dead on
+  arrival however elegant it is.
+
+Its real cost even when it works: the container sleeps after 10 minutes idle, so
+"each wake" means re-authenticating every time you come back from a coffee. That
+is a tax on the principal, not on the machine.
+
+### Design B — mint on the laptop, refresh from the Durable Object
+
+This is the design D1's per-endpoint result actually points at. The principal
+logs in **where a real browser already lives** — their own machine, `codex
+login` — which is the only step that needs to pass a bot check. The resulting
+credential goes into the DO once. Thereafter the DO refreshes it and hands each
+container session a short-lived token; the container never holds the refresh
+token and never writes it anywhere that syncs.
+
+The reason this is more than a workaround: **a Durable Object is single-threaded
+by construction**, so OpenAI's requirement — one holder, serialized, never
+concurrent — stops being a discipline we have to maintain and becomes a property
+of the runtime. The DO is genuinely the right primitive for custody of a
+rotating single-use token, in a way a GitHub secret or a tarball never is.
+
+And the endpoints it depends on are the ones that work: refresh answered 401-
+with-JSON on a fake token, and `chatgpt.com/backend-api/codex/responses`
+answered 401-with-JSON, both from this datacenter egress.
+
+**The gap, stated honestly: Codex has no supported way to accept a
+brokered ChatGPT token.** I checked the obvious candidates:
+
+- `codex login --with-access-token` wants an *agent identity JWT* — feeding it
+  anything else gives `Error logging in with access token: invalid agent
+  identity JWT format`. That is the Enterprise access-token path, not a way to
+  pass a ChatGPT OAuth token.
+- The binary does carry an external-auth path (`app-server/src/external_auth.rs`,
+  a `has_external_auth` flag, the string *"externally provided auth is never
+  loaded from auth storage"*) and override hooks
+  (`CODEX_REFRESH_TOKEN_URL_OVERRIDE`, `CODEX_AUTHAPI_BASE_URL`), but none of it
+  is documented and the published app-server protocol exposes no host-supplied
+  auth method. Building on it means building on private surface.
+- So today Design B means the DO writes `auth.json` into the container at
+  session start — which is literally OpenAI's own CI/CD recipe with the DO as
+  the secret store, including its two rules: **one holder at a time**
+  (so `max_instances = 1` for this path) and **write the rotated file back**
+  (if the container dies without writing back, the DO's copy is burned and the
+  next session poisons the family). The write-back is the part that has to be
+  engineered carefully, not bolted on.
+
+### What I would actually do
+
+1. **`--harness=codex` on a platform API key first.** One worker secret, one
+   `AGENT_PROFILES` entry, `env_key` indirection exactly as OpenCode does it.
+   No login, no custody, no shim, nothing on disk. It proves the harness, the
+   `server.js` event normalisation and the UI wiring against a real OpenAI
+   model, so that when subscription auth lands it is *only* auth that is new.
+   Everything in §2 except D7/D9/D10/D11 drops away.
+2. **Run test #1** (§6) from a container shell. It is one `curl`, it costs
+   nothing, and it decides between Design A and Design B.
+3. **Then the subscription cell**, shaped by that answer — A if device-code
+   initiation passes from Containers, B if it does not.
+
+Design B is the one I would bet on, on the current evidence.
+
+The open models under Codex (D6, needing the Responses↔Chat shim) stay a
+separate piece of work with its own fidelity test — a lossy shim quietly
+corrupts every bake-off comparison that uses it, so it should not ride along
+with the auth work.
 
 ---
 
 ## 6. What can only be answered from inside the container
 
-1. **Does `auth.openai.com` answer a non-browser POST from Cloudflare Containers
-   egress, or is it 403-challenged as it is here?** Go/no-go for 2b.
-   `curl -sS -o /dev/null -w '%{http_code}' https://auth.openai.com/` from a
-   container shell settles it in one line.
-2. Does `codex login --device-auth` print its code on the xterm PTY (it needs a
-   TTY; the browser terminal is one, `codex exec` is not)?
-3. Does the device-auth toggle exist on the account in question (D2), and does
-   the approved login actually land tokens?
-4. Image build time and cold-start after +324 MB.
-5. Whether `chatgpt.com`'s models-cache call (D10) adds meaningful latency or
-   errors noisily on every boot behind a challenged egress.
+1. **Is device-code *initiation* challenged from Containers egress?** The single
+   question that chooses between Design A and Design B. Needs no Codex install
+   at all — one `curl` from any container shell:
 
-Tests 1 and 2 need nothing built — they need `@openai/codex` in the image and a
-shell. That is the cheapest next commit if you want the device-auth question
-answered before committing to phase 1.
+   ```bash
+   curl -sS -o /dev/null -w 'device/code -> %{http_code}\n' -X POST \
+     https://auth.openai.com/oauth/device/code \
+     -H 'Content-Type: application/x-www-form-urlencoded' \
+     -d 'client_id=app_EMoamEEZ73f0CkXaXp7hrann&scope=openid+profile+email+offline_access'
+   ```
+
+   A JSON body (even an error) means Design A is live. A `403` with
+   `Just a moment...` means it is not, and Design B is the path.
+2. Confirm the other two planes still answer from Containers as they do here —
+   `POST /oauth/token` and `POST chatgpt.com/backend-api/codex/responses` should
+   both give JSON 401s. Design B depends on both.
+3. Does `codex login --device-auth` print its code on the xterm PTY (it needs a
+   TTY; the browser terminal is one, `codex exec` is not)? Only matters if 1
+   passes.
+4. Does the device-auth toggle exist on the account in question (D2), and does
+   the approved login actually land tokens?
+5. Does Containers' egress intercept HTTPS? If so the container must trust
+   `/etc/cloudflare/certs/cloudflare-containers-ca.crt` — Codex honours
+   `CODEX_CA_CERTIFICATE` (and `SSL_CERT_FILE`), so this is configuration rather
+   than a blocker, but it fails confusingly if missed.
+6. Image build time and cold-start after +324 MB.
+7. Whether the models-cache call to `chatgpt.com` (D10) adds meaningful latency
+   or errors noisily on every boot.
+
+Tests 1 and 2 need nothing built and nothing installed — just a shell in the
+existing container. That is the cheapest possible next step, and it is worth
+doing before any code is written, because it picks the architecture.
