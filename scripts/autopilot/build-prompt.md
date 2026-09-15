@@ -33,9 +33,9 @@ _Regenerated 2026-09-15 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-15, 98 members / 297 posts):
+**Neighborhood spark** (bisk 2026-09-15, 98 members / 274 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: suno, anthropic, idk
+- Distinctive words: suno, gpt, openai
 - Top post: "AI safety people are always like "what if they hack the nukes" instead of "what if self-propagating LLM script kiddie sw" — @hikikomorphism.bsky.social
 <!-- BRIEF_END -->
 
