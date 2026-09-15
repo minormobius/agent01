@@ -15,7 +15,7 @@ The agent-platform backend for os.mino.mobi: per-DID Cloudflare Container (bash 
 | Dir | `os/api/` |
 | Endpoint | `os-api.minomobi.com` |
 | Type | backend |
-| Owning branch | `claude/os-deploy-surface-474bz3` |
+| Owning branch | `claude/codex-containers-research-58t9ad` |
 | Deploy | `.github/workflows/deploy-os-api.yml` |
 | Uses | — |
 | Provides | `os-api.minomobi.com` |
@@ -61,13 +61,21 @@ event degrades to "shown as raw text", never to "silently dropped".
 
 The same cells run headless in CI for comparison: [`bakeoff/`](../../bakeoff/CLAUDE.md).
 
+**A third harness (Codex) is researched, not built** — [`CODEX.md`](CODEX.md).
+Device-code auth solves the no-browser problem but is not the hard part: Codex
+0.154 removed `wire_api = "chat"`, so it cannot drive the `kimi3`/`ds4-*`
+Chat-Completions endpoints without a translating shim, and a ChatGPT login is a
+rotating single-use credential that this backend's tar-and-restore persistence
+would replay. Codex needs **no** OpenAI login to drive a custom provider, so the
+cheap version of the feature is an API-key cell with no device auth at all.
+
 ## Deploy status
 
 MANAGED — SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com — golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY <- GH secret; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 — learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets — see os/RUNBOOK.md.
 
 ## Deploying
 
-Pushes to `claude/os-deploy-surface-474bz3` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml).
+Pushes to `claude/codex-containers-research-58t9ad` that touch this surface's paths trigger [`.github/workflows/deploy-os-api.yml`](../../.github/workflows/deploy-os-api.yml). `main` is **not** a trigger — see the root `CLAUDE.md`: a merge to main is an integration event, not a deploy.
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

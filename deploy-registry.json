@@ -1225,7 +1225,7 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/os-deploy-surface-474bz3",
+      "branch": "claude/codex-containers-research-58t9ad",
       "uses": [
         "os-api.minomobi.com"
       ],
@@ -1242,7 +1242,7 @@
       "dir": "os/api",
       "endpoint": "os-api.minomobi.com",
       "type": "backend",
-      "branch": "claude/os-deploy-surface-474bz3",
+      "branch": "claude/codex-containers-research-58t9ad",
       "uses": [],
       "provides": "os-api.minomobi.com",
       "status": "MANAGED \u2014 SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com \u2014 golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 \u2014 learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets \u2014 see os/RUNBOOK.md.",
