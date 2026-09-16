@@ -640,31 +640,38 @@ the capability gate works and the failure names itself instead of 500ing.
 
 ### 7.3 The one step that needs the principal
 
-On a machine with a real browser (device-code initiation is bot-walled from
-container egress — D1, measured twice):
+On a machine with a real browser — device-code initiation is bot-walled from
+container egress (D1, measured twice), so this cannot happen in the container:
 
 ```bash
-codex login                      # normal browser flow
-cat ~/.codex/auth.json           # contains tokens.access_token + refresh_token
+codex login                                  # normal browser flow
+bash os/api/deposit-credential.sh            # deposits it, once
 ```
 
-Deposit it once. The route takes the owner identity, the same gate as `/ws`:
+The script reads `~/.codex/auth.json`, takes only `access_token` /
+`refresh_token` / `account_id` (never `id_token` — an identity assertion we
+have no use for), gets an accessJwt from an app-password session, and `PUT`s to
+`/openai/credential`. The app password is read interactively or from
+`OS_APP_PASSWORD`, never from argv, so it stays out of shell history.
+
+It refuses an API-key-only `auth.json` rather than depositing something that
+cannot refresh. Status afterwards, secrets excluded from the reply:
 
 ```bash
-curl -X PUT "https://os-api.mino.mobi/openai/credential?session=<did>&authMode=pds" \
-  -H "Authorization: Bearer <accessJwt>" \
-  -d '{"access_token":"…","refresh_token":"…"}'
-
 curl "https://os-api.mino.mobi/openai/credential?session=<did>&authMode=pds" \
-  -H "Authorization: Bearer <accessJwt>"      # status, no secrets in the reply
+  -H "Authorization: Bearer <accessJwt>"
 ```
 
 Then, in the container: `agent --harness=codex astra`.
 
 **This is the moment unknown 1 gets answered** — whether
-`backend-api/codex/responses` accepts what Codex sends. If it wants an account
-id, `PUT` an `account_id` alongside the tokens and the proxy will send it as
-`chatgpt-account-id`.
+`backend-api/codex/responses` accepts what Codex sends. Watch for three things:
+
+| what you see | what it means |
+|---|---|
+| a normal Astra reply | Design C works end to end |
+| `Model metadata for gpt-6-astra not found` | it fell back to generic metadata — set `OPENAI_CODEX_CONTEXT_WINDOW` |
+| a 4xx mentioning an account | the upstream wants `chatgpt-account-id`; re-deposit with `account_id` and the proxy forwards it |
 
 ### What is deliberately not built yet
 
