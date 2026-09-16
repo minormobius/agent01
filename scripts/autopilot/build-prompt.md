@@ -33,7 +33,7 @@ _Regenerated 2026-09-16 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-16, 98 members / 264 posts):
+**Neighborhood spark** (bisk 2026-09-16, 98 members / 282 posts):
 - Mood: Overcast ☁ (trust)
 - Distinctive words: llms, jev, llm
 - Top post: "One of the aims of democratic society is to prevent you from needing to know the proclivities of particular individuals " — @eugenevinitsky.bsky.social
