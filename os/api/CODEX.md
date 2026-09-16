@@ -595,3 +595,81 @@ Still open, and all of them now only matter once step 1 of the plan is built:
 The cheap architectural question is now settled, and it was settled by a
 measurement rather than by reasoning about it — which is the only reason the
 plan above changed from "I would bet on B" to "B is what is left".
+
+---
+
+## 7. Verifying Design C (steps 1–2 are built)
+
+The harness and the proxy are in the tree. Everything below except §7.3 runs
+**with no OpenAI credential and no contact with OpenAI**.
+
+### 7.1 The harness, against a local mock
+
+`container/mock-openai.mjs` is a complete Responses-API stand-in — it answers
+`response.created` / `output_item.done` / `response.completed`, which is what
+Codex needs to finish a turn rather than hang. From a container shell:
+
+```bash
+node ~/workspace/agent01/os/api/container/mock-openai.mjs &     # :8899
+AGENT_PROFILES='{"mock":{"respBase":"http://127.0.0.1:8899/v1","model":"mock-model","key":"cap-token-stand-in"}}' \
+  agent --harness=codex mock exec --skip-git-repo-check "say hi"
+```
+
+Pass condition: the turn completes and prints the mock's reply, and the mock
+logs `authorization: Bearer cap-token-stand-i…`. **That header is the whole
+assertion** — the container is sending a capability token, never a credential.
+
+Verified in the sandbox against codex 0.154.0: turn completed, wire keys
+`model,instructions,input,tools,tool_choice,parallel_tool_calls,reasoning,store,stream,include,prompt_cache_key,client_metadata`.
+
+### 7.2 The worker route, before any credential exists
+
+```bash
+# no capability token -> 401
+curl -sS -o /dev/null -w '%{http_code}\n' -X POST \
+  https://os-api.mino.mobi/openai/v1/responses -d '{}'
+
+# real capability token, nothing deposited yet -> 503 no_credential
+curl -sS -H "Authorization: Bearer $CAP_TOKEN" -X POST \
+  https://os-api.mino.mobi/openai/v1/responses -d '{}'
+```
+
+`401` then `503 {"error":{"message":"os-api: no_credential",…}}` is the pass:
+the capability gate works and the failure names itself instead of 500ing.
+`$CAP_TOKEN` is already in the container's environment.
+
+### 7.3 The one step that needs the principal
+
+On a machine with a real browser (device-code initiation is bot-walled from
+container egress — D1, measured twice):
+
+```bash
+codex login                      # normal browser flow
+cat ~/.codex/auth.json           # contains tokens.access_token + refresh_token
+```
+
+Deposit it once. The route takes the owner identity, the same gate as `/ws`:
+
+```bash
+curl -X PUT "https://os-api.mino.mobi/openai/credential?session=<did>&authMode=pds" \
+  -H "Authorization: Bearer <accessJwt>" \
+  -d '{"access_token":"…","refresh_token":"…"}'
+
+curl "https://os-api.mino.mobi/openai/credential?session=<did>&authMode=pds" \
+  -H "Authorization: Bearer <accessJwt>"      # status, no secrets in the reply
+```
+
+Then, in the container: `agent --harness=codex gpt5`.
+
+**This is the moment unknown 1 gets answered** — whether
+`backend-api/codex/responses` accepts what Codex sends. If it wants an account
+id, `PUT` an `account_id` alongside the tokens and the proxy will send it as
+`chatgpt-account-id`.
+
+### What is deliberately not built yet
+
+- **The browser deposit UI.** `PUT /openai/credential` is the API; pasting an
+  `auth.json` into os.mino.mobi should replace curl once the path is proven.
+  Building the UI first would be building on an unverified assumption.
+- **Anything for the open models under Codex** (D6). Still needs a shim, still
+  its own piece of work.
