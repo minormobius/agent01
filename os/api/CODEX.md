@@ -432,6 +432,21 @@ with the auth work.
 
 ## 6. What can only be answered from inside the container
 
+> **Tests 1, 2 and 5 are automated** — [`probe-egress.sh`](probe-egress.sh) runs
+> them from inside the container, writes `EGRESS-PROBE.md` with a verdict, and
+> pushes it to `kimi/egress-probe` so the answer can be read from GitHub instead
+> of copied off a terminal. From a container shell:
+>
+> ```bash
+> cd ~/workspace/agent01 \
+>   && git fetch origin claude/codex-containers-research-58t9ad \
+>   && git checkout FETCH_HEAD -- os/api/probe-egress.sh \
+>   && bash os/api/probe-egress.sh
+> ```
+>
+> It sends no credentials and prints no environment; the only secret in the
+> container is `GITHUB_TOKEN`, used solely by the final `git push`.
+
 1. **Is device-code *initiation* challenged from Containers egress?** The single
    question that chooses between Design A and Design B. Needs no Codex install
    at all — one `curl` from any container shell:
