@@ -1,0 +1,52 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J5 yoke: carries the pitch axis at the wrist centre and hands the tool axis to J6. One extrude along -Y.",
+ "params": {
+  "t": 40,
+  "y1": "t / 2",
+  "w": 40,
+  "L": 60,
+  "g": 12,
+  "d": 14
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "(L - g) / 2",
+       0
+      ],
+      "w": "L + g",
+      "h": "w"
+     }
+    },
+    {
+     "name": "axis",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "yoke",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

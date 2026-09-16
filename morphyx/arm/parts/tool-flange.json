@@ -1,0 +1,82 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Tool flange, ISO 9409-1-50-4-M6: Ø63 × 8, four M6 on a Ø50 circle, Ø31.5 pilot. The gripper's own web bolts to this — its README calls this interface out and does not draw it, so this is the half that exists. One extrude along +X.",
+ "params": {
+  "d": 63,
+  "t": 8,
+  "x0": 0,
+  "pcd": 50,
+  "d_bolt": 6.6,
+  "d_pilot": 31.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "YZ",
+    "offset": "x0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "pilot",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_pilot / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": {
+    "base": "YZ",
+    "offset": "x0"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd / 2",
+       0
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "fl",
+   "profile": [
+    "face",
+    "bolts"
+   ],
+   "depth": "t"
+  }
+ ]
+}

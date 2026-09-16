@@ -1,0 +1,62 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Upper arm, J2 to the elbow, 250 mm, with a 300 mm rear extension carrying CW1. 60 × 20 on the centre plane. One extrude along -Y.",
+ "params": {
+  "a": 250,
+  "b": 340,
+  "w": 60,
+  "t": 20,
+  "y1": 10,
+  "d": 12.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "(a + w / 2 - b) / 2",
+       0
+      ],
+      "w": "a + w / 2 + b",
+      "h": "w"
+     }
+    },
+    {
+     "name": "pivot",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "far",
+     "circle": {
+      "c": [
+       "a",
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "arm",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

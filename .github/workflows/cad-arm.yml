@@ -1,0 +1,174 @@
+name: cad arm
+
+# The headless loop for morphyx/arm, run where node and the cad package are:
+# generate the trees at a pose, build every part exact, check interference at
+# closed, reference and open, and — only when asked — publish the parts and the
+# assembly into the morphyx repo as cad.mino.mobi files.
+#
+# Wakes on a push to its own branch that touches its own files (the sandbox
+# cannot dispatch workflows), or by hand. It writes to a public ATProto repo
+# every push, because the live document is the deliverable and a push that
+# changes nothing writes nothing; the marker in the head commit's SUBJECT
+# skips it. Read morphyx/arm/README.md first.
+on:
+  push:
+    branches:
+      - claude/gripper-mechanism-design-efcdzz
+    paths:
+      - 'morphyx/arm/**'
+      - '.github/workflows/cad-arm.yml'
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: write the parts and the assembly into the morphyx repo (a push publishes by default; this is for an out-of-band run)
+        type: boolean
+        default: false
+
+# A push supersedes the run before it. Two runs publishing the same records
+# into the same repo is a race with nothing to win, and a queue of them is how
+# the live document ends up lagging the branch by hours.
+concurrency:
+  group: cad-arm-${{ github.ref }}
+  cancel-in-progress: true
+
+
+jobs:
+  arm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # Whether to publish, decided from the commit SUBJECT only. This is a
+      # step rather than an `env:` expression because `contains()` searches the
+      # whole message, body and all — so the very commit that documented the
+      # opt-out marker in its body opted itself out, and the live document
+      # stayed a day stale for one more run.
+      - name: Does this run publish?
+        id: pub
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then want='${{ inputs.publish }}'
+          elif git log -1 --pretty=%s | grep -qF '[nopublish]'; then want=false
+          else want=true; fi
+          echo "publish=$want" >> "$GITHUB_OUTPUT"
+          echo "publish: $want  (subject: $(git log -1 --pretty=%s))"
+
+      - name: The cad package (the tangled mirror; node 22 and nothing else)
+        run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
+
+      - name: Generate the trees at the pose
+        run: |
+          node morphyx/arm/arm.mjs --out /tmp/arm
+
+      - name: The committed trees match the generator
+        run: |
+          node morphyx/arm/arm.mjs
+          git diff --exit-code --stat morphyx/arm || {
+            echo "::error::morphyx/arm/*.json is stale — run 'node morphyx/arm/arm.mjs' and commit"
+            exit 1
+          }
+
+      - name: Exact build of every part (Truck) — must be ok and watertight
+        working-directory: /tmp/cad
+        run: |
+          mkdir -p /tmp/arm/reports
+          for f in /tmp/arm/parts/*.json; do
+            n=$(basename "$f" .json)
+            echo "── $n"
+            node agent/build.mjs "$f" --json "/tmp/arm/reports/$n.json"
+          done
+
+      # NOT YET, and the arm is weaker than the gripper for their absence:
+      #   * closed-form volumes per part (../gripper/expected.json)
+      #   * a verifier posing the document against the closed-form kinematics
+      #     (../gripper/verify.mjs), which is what caught two travel bugs there.
+      # The analytic audit in arm.mjs runs above and gates the run; it checks the
+      # balance, the swing clearances and the pour's reachability, but nothing
+      # yet checks that the DOCUMENT poses where fk() says it should.
+
+      - name: Interference over all six joints at their corners (64 states; the gate)
+        working-directory: /tmp/cad
+        # A grid, not a sweep: this document's motion is two INPUTS, not a period,
+        # and a path through grip × roll proves nothing about the corners it misses.
+        # And the gate is `volume > limit` read off --json, not check.mjs's exit
+        # code — the volume instrument still marks an expected touch from MATES
+        # only, so a pair declared `contact: true` in `fits` always fails it.
+        # `limit` is the platform's own budget (the default, or a fit's
+        # `interfere.max`), so this is stricter than the exit code, not looser.
+        run: |
+          node agent/check.mjs /tmp/arm/arm.json --grid 2 --json > /tmp/check.json || true
+          [ -s /tmp/check.json ] || { echo "::error::check.mjs wrote no JSON — it failed before measuring"; exit 1; }
+          node -e '
+            const o = JSON.parse(require("fs").readFileSync("/tmp/check.json"));
+            const over = o.pairs.filter((p) => p.volume > p.limit);
+            for (const p of o.pairs) console.log(`${p.volume > p.limit ? "✗" : "~"} ${p.a} × ${p.b}  ${p.volume.toFixed(4)} mm³ (budget ${p.limit.toFixed(4)})`);
+            console.log(`${o.grid} states over [${o.inputs}] · ${o.pairs.length} touching pairs, ${over.length} over budget`);
+            process.exit(over.length ? 1 : 0);'
+
+      - name: The solved pour sweeps clean (the 64-corner grid above is the gate; this is the trajectory that has to work)
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/arm/arm-pour.json --sweep 32
+
+      # Concurrency stops runs that START after it exists; it does nothing about
+      # ones already in flight, and nothing at all about runs whose own commit
+      # predates the setting. On 2026-09-15 that cost us: run 35 was still
+      # grinding through the old in-line clearance step when a later push
+      # changed the brake stack, so 35 finished afterwards and republished the
+      # superseded geometry over the fix. A publish from a commit the branch
+      # has already moved past is never the one you want — so check.
+      - name: Still the branch tip?
+        id: tip
+        run: |
+          git fetch --depth 1 origin "$GITHUB_REF_NAME"
+          tip=$(git rev-parse FETCH_HEAD)
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::warning::superseded: branch tip is $tip, this run is $GITHUB_SHA — not publishing"
+            echo "fresh=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "fresh=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "tip $tip / run $GITHUB_SHA"
+
+      - name: Publish plan
+        run: node morphyx/arm/publish.mjs --cad /tmp/cad --reports /tmp/arm/reports
+
+      - name: Publish into the morphyx repo
+        if: ${{ steps.pub.outputs.publish == 'true' && steps.tip.outputs.fresh == 'true' }}
+        env:
+          CAD_HANDLE: ${{ secrets.BLUESKY_MORPHYX_HANDLE }}
+          CAD_APP_PASSWORD: ${{ secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node morphyx/arm/publish.mjs --cad /tmp/cad --reports /tmp/arm/reports --write
+
+      - name: Verify on the live host
+        if: ${{ steps.pub.outputs.publish == 'true' && steps.tip.outputs.fresh == 'true' }}
+        run: |
+          # the morphyx persona's public repo, through the site's read gateway; no credentials involved
+          curl -sS 'https://cad.mino.mobi/xrpc/com.atproto.repo.listRecords?repo=morphyxmino.bsky.social&collection=com.minomobi.cad.part&limit=100' \
+            | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const r=JSON.parse(s).records||[];const g=r.filter(x=>x.value.path.startsWith("arm/"));console.log(`${g.length} gripper files visible through the gateway`);for(const x of g)console.log("  "+x.value.path+"  "+x.uri);if(g.length<18)process.exit(1)})'
+
+      - name: Audit the published corpus (every head rebuilt against the invariants its revision recorded; Truck vs Manifold)
+        if: ${{ steps.pub.outputs.publish == 'true' && steps.tip.outputs.fresh == 'true' }}
+        working-directory: /tmp/cad
+        run: node agent/audit.mjs --at morphyxmino.bsky.social --kernels
+
+  # The clearance table is a RECORD, not a gate: exact meshes, every pair's
+  # nearest approach, and running fits and sliding faces read as close by
+  # design. It also costs an hour and a half, which is why it is its own job.
+  # It sat at step 13 of the gating job for four runs, after every gate had
+  # passed in 69 seconds, holding the publish behind it — so the live document
+  # trailed the branch by two hours for no check anyone was waiting on.
+  clearance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
+      - run: node morphyx/arm/arm.mjs --out /tmp/arm
+      - name: Clearance table over the joint corners (exact meshes; for the record, not a gate)
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/arm/arm.json --grid 2 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"

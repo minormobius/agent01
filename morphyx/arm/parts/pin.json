@@ -1,0 +1,38 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Ø12 ground dowel through a parallelogram joint. One extrude along -Y.",
+ "params": {
+  "d": 12,
+  "t": 90,
+  "y1": "t / 2"
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "od",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pin",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}
