@@ -659,7 +659,7 @@ curl "https://os-api.mino.mobi/openai/credential?session=<did>&authMode=pds" \
   -H "Authorization: Bearer <accessJwt>"      # status, no secrets in the reply
 ```
 
-Then, in the container: `agent --harness=codex gpt5`.
+Then, in the container: `agent --harness=codex astra`.
 
 **This is the moment unknown 1 gets answered** — whether
 `backend-api/codex/responses` accepts what Codex sends. If it wants an account

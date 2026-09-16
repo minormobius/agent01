@@ -17,7 +17,7 @@
 #
 #   respBase OpenAI Responses API endpoint   → what Codex speaks (0.154 dropped
 #                                              Chat Completions entirely). For
-#                                              the `gpt5` cell this points at
+#                                              the `astra` cell this points at
 #                                              os-api itself, which swaps the
 #                                              capability token for the real
 #                                              ChatGPT bearer — see run_codex.
@@ -113,6 +113,8 @@ fi
 OAI_BASE=$(pfield oaiBase)
 RESP_BASE=$(pfield respBase)
 MODEL=$(pfield model)
+EFFORT=$(pfield effort)
+CONTEXT_WINDOW=$(pfield contextWindow)
 KEY=$(pfield key)
 
 # ─── harness: claude (Claude Code CLI) ──────────────────────────────
@@ -216,7 +218,7 @@ run_opencode() {
 # ─── harness: codex (OpenAI Codex CLI) ──────────────────────────────
 # Codex 0.154 removed wire_api="chat", so it speaks ONLY the Responses API and
 # cannot drive the Chat-Completions endpoints in `oaiBase` (CODEX.md D6). It
-# therefore runs against `respBase` — which for the `gpt5` cell is THIS
+# therefore runs against `respBase` — which for the `astra` cell is THIS
 # DEPLOYMENT'S OWN WORKER, not OpenAI.
 #
 # That indirection is the design. Codex sends exactly one credential-bearing
@@ -262,6 +264,21 @@ model_provider = "$PROFILE"
 model = "$MODEL"
 approval_policy = "never"
 sandbox_mode = "danger-full-access"
+CONFIG
+
+  # Reasoning effort is the knob that actually matters on a reasoning model, and
+  # it is also what a run costs. Pinned from the profile rather than left to
+  # Codex's default, so a cell means one configuration.
+  [ -n "$EFFORT" ] && echo "model_reasoning_effort = \"$EFFORT\"" >> "$root/config.toml"
+
+  # Codex resolves model metadata from a catalog it fetches from chatgpt.com.
+  # Through a custom provider that lookup can miss — it warns "Model metadata
+  # for <model> not found. Defaulting to fallback metadata", which silently
+  # guesses the context window. Pinning it is the escape hatch; empty means
+  # "trust whatever Codex resolved".
+  [ -n "$CONTEXT_WINDOW" ] && echo "model_context_window = $CONTEXT_WINDOW" >> "$root/config.toml"
+
+  cat >> "$root/config.toml" <<CONFIG
 
 [model_providers.$PROFILE]
 name = "mino cell: $PROFILE"

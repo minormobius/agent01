@@ -38,12 +38,12 @@ Runs paid containers — cost bounded by max_instances=3 + 10-min idle sleep.
 | | `opencode` (OpenCode) | OpenAI Chat Completions |
 | | `codex` (OpenAI Codex CLI) | OpenAI **Responses** |
 | model | `kimi3` (Moonshot), `ds4-flash` / `ds4-pro` (DeepSeek V4), `claude` (native) | both, per provider |
-| | `gpt5` — the ChatGPT **subscription** cell, via this worker's own proxy | Responses only |
+| | `astra` — **GPT-6 Astra** on the ChatGPT subscription, via this worker's own proxy | Responses only |
 
 **The matrix is not full, and that is a fact about Codex.** It removed
 `wire_api = "chat"` in 0.154, so it speaks only the Responses API and cannot
 drive `kimi3` or `ds4-*` at all — those expose Chat Completions. Codex runs the
-`gpt5` cell and nothing else until someone writes a Responses↔Chat shim
+`astra` cell and nothing else until someone writes a Responses↔Chat shim
 ([`CODEX.md`](CODEX.md) D6). A profile carries `base` / `oaiBase` / `respBase`
 for the three wire formats, and `agent` with no args prints which harnesses each
 profile can actually run under.
@@ -72,7 +72,7 @@ event degrades to "shown as raw text", never to "silently dropped".
 
 The same cells run headless in CI for comparison: [`bakeoff/`](../../bakeoff/CLAUDE.md).
 
-**The subscription cell keeps its credential out of the container.** `gpt5`'s
+**The subscription cell keeps its credential out of the container.** `astra`'s
 `respBase` points at **this worker**, not at OpenAI, and its `key` is the
 per-instance capability token the container already holds. Codex sends exactly
 one credential-bearing header (`Authorization: Bearer <env_key>` — measured), so

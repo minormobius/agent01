@@ -466,8 +466,8 @@ export class ContainerShell extends Container {
         // claude — native Anthropic; key comes per-connection from the browser
         // (?apiKey → ANTHROPIC_API_KEY in the spawned shell), not from here.
         claude: { base: '', model: '', key: '' },
-        // gpt5 — the ChatGPT SUBSCRIPTION cell, and the reason `respBase`
-        // exists. Codex 0.154 removed wire_api="chat", so it speaks only the
+        // astra — the ChatGPT SUBSCRIPTION cell (GPT-6 Astra), and the reason
+        // `respBase` exists. Codex 0.154 removed wire_api="chat", so it speaks only the
         // Responses API and cannot use oaiBase at all (os/api/CODEX.md D6).
         //
         // `respBase` points at THIS WORKER, not at OpenAI, and `key` is the
@@ -478,9 +478,18 @@ export class ContainerShell extends Container {
         // swaps it for the real ChatGPT bearer held in this DO. Rotation
         // happens here, where the DO's single-threaded execution serializes it
         // by construction. See CODEX.md §5 Design C.
-        gpt5: {
+        astra: {
           respBase: `${this.env.SYNC_URL || 'https://os-api.mino.mobi'}/openai/v1`,
-          model: this.env.OPENAI_CODEX_MODEL || 'gpt-5.3-codex',
+          model: this.env.OPENAI_CODEX_MODEL || 'gpt-6-astra',
+          effort: this.env.OPENAI_CODEX_EFFORT || 'high',
+          // Optional. Codex resolves model metadata from a catalog it fetches
+          // from chatgpt.com at startup; `gpt-6-astra` is NOT in 0.154.0's
+          // bundled catalog (which stops at gpt-5.6), and it ships
+          // visibility="hide" during its gated rollout. If a run reports
+          // "Model metadata for `gpt-6-astra` not found" it fell back to
+          // generic metadata — set OPENAI_CODEX_CONTEXT_WINDOW to pin it
+          // rather than leaving the context window guessed.
+          contextWindow: this.env.OPENAI_CODEX_CONTEXT_WINDOW || '',
           key: this._capToken || '',
         },
       }),
