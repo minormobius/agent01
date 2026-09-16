@@ -1,9 +1,10 @@
 # Codex as a third harness — the technical difficulties
 
-Research record, 2026-09-15. Tested against `@openai/codex` **0.154.0** (linux
-x64, static musl binary) in the agent sandbox. Nothing here has run inside a
-Cloudflare Container yet; §6 is the list of things that can only be settled
-there.
+Research record, 2026-09-15, updated 2026-09-16. Tested against
+`@openai/codex` **0.154.0** (linux x64, static musl binary) in the agent
+sandbox; the egress findings in D1 are **confirmed from inside a real Cloudflare
+Container** ([`EGRESS-PROBE.md`](EGRESS-PROBE.md)). §6 tracks what is answered
+and what is left.
 
 **Short version.** Device-code auth is real and it does solve the "no browser in
 the container" problem — but that was never the hard part. Three things are:
@@ -11,10 +12,11 @@ the container" problem — but that was never the hard part. Three things are:
 1. A ChatGPT login is a **rotating single-use** credential, and this backend
    tars `$HOME` and restores it into a fresh container on every wake. Snapshot
    and rotation are incompatible by construction (D3).
-2. Measured per-endpoint, the **only** step blocked from datacenter egress is
-   *starting* a device login. Token refresh and subscription inference both
-   answer normally (D1) — so the fragile step is acquiring a credential in the
-   container, not using one there. That inverts the obvious design.
+2. Measured per-endpoint — in the sandbox **and confirmed from inside the
+   container** — the only step blocked is *starting* a device login. Token
+   refresh and subscription inference both answer normally (D1). So the fragile
+   step is acquiring a credential in the container, not using one there. That
+   inverts the obvious design, and it settles the choice in §5: **Design B**.
 3. Codex dropped the Chat Completions wire format, so it cannot drive `kimi3`
    or `ds4-*` at all without a translating shim (D6).
 
@@ -83,10 +85,26 @@ plan: *getting* a credential inside the container is the fragile step, while
 lives — the principal's own machine — then refreshed and spent from the
 container, only touches endpoints that work.
 
-Caveat, stated plainly: this is the sandbox's proxy egress, not Cloudflare
-Containers. The per-endpoint *pattern* is likely to hold (it tracks which
-endpoints are browser-facing, not which IP asked), but the specific verdict for
-device-code initiation must be confirmed from a container shell — test #1 in §6.
+**Confirmed from inside the container, 2026-09-16** ([`EGRESS-PROBE.md`](EGRESS-PROBE.md)
+on `kimi/egress-probe`, produced by [`probe-egress.sh`](probe-egress.sh)). Every
+row above reproduced exactly, from a genuinely different network:
+
+| | agent sandbox | Cloudflare Container |
+|---|---|---|
+| egress IP | `160.79.106.128` (Anthropic) | `104.28.153.8` (Cloudflare) |
+| colo | IAD | SEA |
+| node | v22.22.2 | v22.23.2 |
+
+Two independent networks, same per-endpoint result. That closes the caveat this
+section used to carry: the challenge is not about one proxy's IP reputation, and
+being on Cloudflare's own network does not help. **It is the endpoint, not the
+asker.** `auth.openai.com`'s interactive surfaces are bot-walled to
+non-browsers; its machine-to-machine surfaces are not.
+
+The probe also answered §6 test 5 in passing:
+`/etc/cloudflare/certs/cloudflare-containers-ca.crt` is **absent**, so this
+environment's egress does not intercept HTTPS and `CODEX_CA_CERTIFICATE` is not
+needed.
 
 ### D2 — device auth is off until someone flips an account setting
 
@@ -344,7 +362,13 @@ where the credential is never snapshotted is already most of the way there —
 and note that `~/.codex` being absent from the sync tar today (D4) is, by
 accident, the correct behaviour.
 
-### Design A — device login inside the container, each wake
+### Design A — device login inside the container, each wake — ❌ RULED OUT
+
+**Measured dead, 2026-09-16.** The container gets the Cloudflare challenge on
+`POST /oauth/device/code` exactly as the sandbox does (D1), so
+`codex login --device-auth` cannot start a login from there at all. Kept here
+because the reasoning still explains *why* human-in-the-loop helps, and because
+the `ephemeral` finding below is a real constraint on any future design.
 
 The user is already in a browser, on a PTY, with the terminal in front of them.
 They run `codex login --device-auth`, approve the code on their phone, work,
@@ -360,9 +384,9 @@ Two verified constraints:
   app-server, useless when `codex login` and `codex` are separate commands in a
   shell. `file` plus an ephemeral container disk gets the same property with the
   process boundary respected.
-- **It is the design D1 threatens.** Initiating a device flow is the one step
-  measured as blocked. If that holds inside Containers, Design A is dead on
-  arrival however elegant it is.
+- **It is the design D1 threatens — and D1 won.** Initiating a device flow is
+  the one step measured as blocked, and it is blocked from Containers too. Dead
+  on arrival, however elegant.
 
 Its real cost even when it works: the container sleeps after 10 minutes idle, so
 "each wake" means re-authenticating every time you come back from a coffee. That
@@ -408,20 +432,34 @@ brokered ChatGPT token.** I checked the obvious candidates:
   next session poisons the family). The write-back is the part that has to be
   engineered carefully, not bolted on.
 
-### What I would actually do
+### The plan, now that the measurement is in
+
+Design B is no longer a bet; it is the only remaining option for a
+subscription cell. The route:
 
 1. **`--harness=codex` on a platform API key first.** One worker secret, one
    `AGENT_PROFILES` entry, `env_key` indirection exactly as OpenCode does it.
    No login, no custody, no shim, nothing on disk. It proves the harness, the
    `server.js` event normalisation and the UI wiring against a real OpenAI
    model, so that when subscription auth lands it is *only* auth that is new.
-   Everything in §2 except D7/D9/D10/D11 drops away.
-2. **Run test #1** (§6) from a container shell. It is one `curl`, it costs
-   nothing, and it decides between Design A and Design B.
-3. **Then the subscription cell**, shaped by that answer — A if device-code
-   initiation passes from Containers, B if it does not.
+   Everything in §2 except D7/D9/D10/D11 drops away. This is worth doing on its
+   own merits even if the subscription cell never ships.
+2. **Mint the credential where a browser lives** — `codex login` on the
+   principal's own machine. This is now a required manual step, not a
+   convenience; nothing in the container can produce it.
+3. **Build the DO custody path**: the ContainerShell DO holds the refresh
+   token, refreshes it (the endpoint answers from container egress — measured),
+   writes `auth.json` into the container per session, and takes the rotated
+   token back on exit. Two hard requirements fall out of D3 and OpenAI's own
+   CI/CD guidance: `max_instances = 1` on this path, and a write-back that is
+   engineered rather than bolted on, because a container that dies without
+   writing back leaves the DO holding a burned token that poisons the next
+   session.
 
-Design B is the one I would bet on, on the current evidence.
+The unresolved risk in step 3 is not the network any more — it is that Codex
+has no supported way to accept a brokered ChatGPT token (see above), so the
+`auth.json` handoff is built on a file format that can change under us. That is
+the thing to prototype before committing to it.
 
 The open models under Codex (D6, needing the Responses↔Chat shim) stay a
 separate piece of work with its own fidelity test — a lossy shim quietly
@@ -447,35 +485,29 @@ with the auth work.
 > It sends no credentials and prints no environment; the only secret in the
 > container is `GITHUB_TOKEN`, used solely by the final `git push`.
 
-1. **Is device-code *initiation* challenged from Containers egress?** The single
-   question that chooses between Design A and Design B. Needs no Codex install
-   at all — one `curl` from any container shell:
+**Answered 2026-09-16** by [`probe-egress.sh`](probe-egress.sh), recorded in
+[`EGRESS-PROBE.md`](EGRESS-PROBE.md) on `kimi/egress-probe`:
 
-   ```bash
-   curl -sS -o /dev/null -w 'device/code -> %{http_code}\n' -X POST \
-     https://auth.openai.com/oauth/device/code \
-     -H 'Content-Type: application/x-www-form-urlencoded' \
-     -d 'client_id=app_EMoamEEZ73f0CkXaXp7hrann&scope=openid+profile+email+offline_access'
-   ```
+1. ~~Is device-code *initiation* challenged from Containers egress?~~ **Yes —
+   403 Cloudflare challenge.** Design A is out, Design B is the path (D1).
+2. ~~Do refresh and the subscription Responses endpoint answer?~~ **Both JSON
+   401s**, so Design B's network dependencies are sound (D1).
+3. ~~Does Containers' egress intercept HTTPS?~~ **No** — the Cloudflare
+   containers CA is absent, so `CODEX_CA_CERTIFICATE` is not needed.
 
-   A JSON body (even an error) means Design A is live. A `403` with
-   `Just a moment...` means it is not, and Design B is the path.
-2. Confirm the other two planes still answer from Containers as they do here —
-   `POST /oauth/token` and `POST chatgpt.com/backend-api/codex/responses` should
-   both give JSON 401s. Design B depends on both.
-3. Does `codex login --device-auth` print its code on the xterm PTY (it needs a
-   TTY; the browser terminal is one, `codex exec` is not)? Only matters if 1
-   passes.
-4. Does the device-auth toggle exist on the account in question (D2), and does
-   the approved login actually land tokens?
-5. Does Containers' egress intercept HTTPS? If so the container must trust
-   `/etc/cloudflare/certs/cloudflare-containers-ca.crt` — Codex honours
-   `CODEX_CA_CERTIFICATE` (and `SSL_CERT_FILE`), so this is configuration rather
-   than a blocker, but it fails confusingly if missed.
+Still open, and all of them now only matter once step 1 of the plan is built:
+
+4. Does the DO→container `auth.json` handoff survive real use — in particular,
+   does the rotated token reliably make it back to the DO when a container is
+   reclaimed rather than exiting cleanly? This is the load-bearing unknown in
+   Design B, and it is a prototype question, not a measurement.
+5. Does the device-auth toggle exist on the account (D2)? Only relevant if
+   OpenAI ever opens the device endpoint to non-browser clients — parked, not
+   dead.
 6. Image build time and cold-start after +324 MB.
 7. Whether the models-cache call to `chatgpt.com` (D10) adds meaningful latency
    or errors noisily on every boot.
 
-Tests 1 and 2 need nothing built and nothing installed — just a shell in the
-existing container. That is the cheapest possible next step, and it is worth
-doing before any code is written, because it picks the architecture.
+The cheap architectural question is now settled, and it was settled by a
+measurement rather than by reasoning about it — which is the only reason the
+plan above changed from "I would bet on B" to "B is what is left".
