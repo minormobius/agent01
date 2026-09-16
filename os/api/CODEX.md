@@ -16,12 +16,17 @@ the container" problem — but that was never the hard part. Three things are:
    container** — the only step blocked is *starting* a device login. Token
    refresh and subscription inference both answer normally (D1). So the fragile
    step is acquiring a credential in the container, not using one there. That
-   inverts the obvious design, and it settles the choice in §5: **Design B**.
+   inverts the obvious design.
 3. Codex dropped the Chat Completions wire format, so it cannot drive `kimi3`
    or `ds4-*` at all without a translating shim (D6).
 
-Putting the principal in the auth flow does dissolve (1), and §5 works through
-where they have to stand for it to also survive (2).
+**Where §5 lands: Design C.** Codex sends exactly one credential-bearing header
+to a custom provider — measured — so the worker can stand between it and OpenAI,
+holding the tokens and handing the container a per-session capability token
+instead. The container then never holds an OpenAI credential, which deletes (1)
+rather than managing it, and makes "does auth stick through a session" the
+worker's problem instead of the container's. It is the same shape
+`workers/auth` already uses to keep PDS tokens out of browsers.
 
 ---
 
@@ -432,34 +437,111 @@ brokered ChatGPT token.** I checked the obvious candidates:
   next session poisons the family). The write-back is the part that has to be
   engineered carefully, not bolted on.
 
+### Design C — the token proxy: the container never holds a credential ⭐
+
+Design B still puts an OpenAI credential inside the container, which is what
+drags D3 and D4 along with it. There is a way not to, and it is the pattern this
+repo already runs for the PDS.
+
+**The measurement that makes it possible.** Codex sends exactly one
+credential-bearing header to a custom provider. Captured from 0.154.0 against a
+local listener:
+
+```
+authorization: Bearer cap_token_abc     ← the env_key value, verbatim
+originator: codex_exec
+session-id / thread-id / x-client-request-id / x-codex-window-id
+x-codex-turn-metadata: {"installation_id":…,"session_id":…}
+x-codex-beta-features: remote_compaction_v2
+accept: text/event-stream
+```
+
+Everything but `authorization` is metadata. So if `base_url` points at *our*
+worker and `env_key` holds a per-session **capability token**, the worker can
+swap that header for the real ChatGPT bearer and forward to
+`chatgpt.com/backend-api/codex/responses` — which we have measured answering
+from container egress.
+
+```
+container                worker / DO                     OpenAI
+  codex ──Bearer cap──▶  verify cap (CAP_SIGNING_KEY)
+                         swap in real access token ──▶  backend-api/codex
+                         sole refresher, serialized
+```
+
+This is not a new idea in this codebase — it is what `workers/auth` already does
+for ATProto, in its own words: *"It holds the tokens and proxies PDS calls
+through `/pds/*`, so browsers never hold a PDS token."* Design C is that
+sentence with a different provider, and the worker already mints and verifies
+capability tokens (`CAP_SIGNING_KEY`) for exactly this kind of per-instance
+delegation.
+
+What it buys, against the difficulties in §2:
+
+| | Design B | Design C |
+|---|---|---|
+| credential in container | `auth.json` on disk | **none, ever** |
+| D3 rotation hazard | managed by discipline | **gone** — only the DO refreshes |
+| D4 token in the sync tar | must be excluded, carefully | **nothing to exclude** |
+| write-back on dirty exit | load-bearing, must be engineered | **no write-back exists** |
+| `max_instances` | must drop to 1 | unchanged |
+| revoking one session | log out everywhere | drop one capability token |
+
+And it answers the question that actually matters — *does auth stick through a
+session?* — by moving the question somewhere it can be answered. Auth sticking
+becomes the worker's job, the container becomes stateless with respect to
+credentials, and the 10-minute idle sleep stops being an auth event at all: a
+container that sleeps and wakes mid-session never had a credential to lose.
+
+**What is still unknown, and honestly:**
+
+1. **Does `backend-api/codex/responses` accept what Codex sends, with a real
+   subscription bearer?** Cannot be answered without a real token: the endpoint
+   checks auth *before* payload shape. A well-formed Responses body with no
+   bearer returns `401 {"detail":"Unauthorized"}`, and with a bogus bearer
+   returns `401 "Could not parse your authentication token"` — it is parsing the
+   bearer as a JWT and never reaches the body. So payload compatibility is a
+   real-credential test, full stop.
+2. **Does it need headers Codex does not send** — e.g. a ChatGPT account id? The
+   binary carries `CODEX_EXEC_SERVER_NOISE_CHATGPT_ACCOUNT_ID`, which hints at
+   one. If so the worker adds it; it is a proxy, that is what it is for.
+3. **Getting the token in once.** `codex login` on the principal's own machine,
+   then the resulting `auth.json` handed to the worker one time through the
+   os.mino.mobi UI. That is a manual step and it should stay visible as one.
+4. **Terms.** This is the principal's own subscription, their own infrastructure,
+   one user, no sharing. That is a personal-use judgement for the account holder
+   to make deliberately, not something this document can settle.
+
 ### The plan, now that the measurement is in
 
-Design B is no longer a bet; it is the only remaining option for a
-subscription cell. The route:
+Design A is measured dead. Between B and C, **C** — it deletes the two
+difficulties B has to manage rather than managing them better. The route:
 
-1. **`--harness=codex` on a platform API key first.** One worker secret, one
-   `AGENT_PROFILES` entry, `env_key` indirection exactly as OpenCode does it.
-   No login, no custody, no shim, nothing on disk. It proves the harness, the
-   `server.js` event normalisation and the UI wiring against a real OpenAI
-   model, so that when subscription auth lands it is *only* auth that is new.
-   Everything in §2 except D7/D9/D10/D11 drops away. This is worth doing on its
-   own merits even if the subscription cell never ships.
-2. **Mint the credential where a browser lives** — `codex login` on the
-   principal's own machine. This is now a required manual step, not a
-   convenience; nothing in the container can produce it.
-3. **Build the DO custody path**: the ContainerShell DO holds the refresh
-   token, refreshes it (the endpoint answers from container egress — measured),
-   writes `auth.json` into the container per session, and takes the rotated
-   token back on exit. Two hard requirements fall out of D3 and OpenAI's own
-   CI/CD guidance: `max_instances = 1` on this path, and a write-back that is
-   engineered rather than bolted on, because a container that dies without
-   writing back leaves the DO holding a burned token that poisons the next
-   session.
+1. **Install `@openai/codex` in the image and drive a full turn through a local
+   mock, from inside the container.** No credential, no OpenAI contact. It
+   proves the pieces Design C rests on: that the binary runs there, that
+   `base_url` + `env_key` reaches an arbitrary host from container egress, and
+   that a turn completes end to end against a Responses-shaped endpoint we
+   control. Everything after this is auth.
+2. **Stand up the proxy route on the worker** — `/openai/responses`, verifying a
+   capability token exactly as `/sync` already does, forwarding to
+   `chatgpt.com/backend-api/codex/responses`. Testable against the mock before a
+   real token exists anywhere.
+3. **Mint the credential where a browser lives** — `codex login` on the
+   principal's own machine, `auth.json` handed to the worker once through the
+   os.mino.mobi UI. A visible manual step, by design.
+4. **First real turn**, which is also the answer to unknown 1 above: does the
+   subscription endpoint accept what Codex sends? If it wants an account-id
+   header, the worker adds it.
+5. **Then refresh in the DO** — it is the sole refresher, serialized by
+   construction, and by this point it is the only component that has ever seen
+   a refresh token.
 
-The unresolved risk in step 3 is not the network any more — it is that Codex
-has no supported way to accept a brokered ChatGPT token (see above), so the
-`auth.json` handoff is built on a file format that can change under us. That is
-the thing to prototype before committing to it.
+An API-key Codex cell (`env_key` pointing at a platform key, no proxy) remains
+the cheapest way to exercise the harness wiring — `run_codex()` in `agent.sh`,
+the `server.js` event normalisation, the UI. But it is **not** the goal and does
+not substitute for it: the whole point is the subscription. Treat it as a test
+fixture for step 1 if it helps, not as phase one of the product.
 
 The open models under Codex (D6, needing the Responses↔Chat shim) stay a
 separate piece of work with its own fidelity test — a lossy shim quietly
@@ -497,10 +579,12 @@ with the auth work.
 
 Still open, and all of them now only matter once step 1 of the plan is built:
 
-4. Does the DO→container `auth.json` handoff survive real use — in particular,
-   does the rotated token reliably make it back to the DO when a container is
-   reclaimed rather than exiting cleanly? This is the load-bearing unknown in
-   Design B, and it is a prototype question, not a measurement.
+4. **Does `backend-api/codex/responses` accept what Codex sends, with a real
+   subscription bearer?** The load-bearing unknown now. It cannot be probed
+   unauthenticated: the endpoint checks the bearer *before* the payload (a
+   well-formed body with no bearer gives `401 {"detail":"Unauthorized"}`; with a
+   bogus bearer, `401 "Could not parse your authentication token"`). This one
+   costs a real credential, and nothing else can answer it.
 5. Does the device-auth toggle exist on the account (D2)? Only relevant if
    OpenAI ever opens the device endpoint to non-browser clients — parked, not
    dead.
