@@ -1,0 +1,50 @@
+# Runs the three-tier decision cascade end to end with real keys and reports
+# what it routed, what it got right, and what it cost.
+#
+# workflow_dispatch ONLY, deliberately. This spends model budget on every
+# run, and a push trigger would spend it on every unrelated edit to the jev
+# surface. Trigger it when you want the number, not continuously.
+name: jev cascade eval
+
+on:
+  workflow_dispatch:
+    inputs:
+      tier3_model:
+        description: 'Top-tier model (the one the cascade tries not to call)'
+        required: false
+        default: 'claude-opus-5'
+
+permissions:
+  contents: read
+
+jobs:
+  cascade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The cascade module itself has no dependencies; only the eval runner
+      # needs the SDK, so it is installed here rather than vendored.
+      - name: install the Anthropic SDK
+        run: npm install --no-save --no-package-lock @anthropic-ai/sdk
+
+      - name: the router's own selftest
+        run: node mega/jev/test/cascade.selftest.mjs
+
+      - name: run the cascade
+        env:
+          # Tier 1 goes through the deployed proxy, which holds the Jev key
+          # itself — nothing to inject here.
+          JEV_ENDPOINT: https://mega.mino.mobi/jev/api/ask
+          # Tier 2. The key lives under any of four names in this repo; the
+          # first one set wins, matching deploy-os-api.yml.
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+          # Tier 3.
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TIER3_MODEL: ${{ inputs.tier3_model }}
+        run: node mega/jev/eval/run.mjs

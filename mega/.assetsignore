@@ -10,6 +10,7 @@ CLAUDE.md
 # mega.mino.mobi/jev/...
 jev/CLAUDE.md
 jev/test/
+jev/eval/
 
 # NOTE: jev/fixtures/ is deliberately NOT ignored. The page fetches it at
 # runtime as the fallback dungeon when foam.mino.mobi is unreachable.
