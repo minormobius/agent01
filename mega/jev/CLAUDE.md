@@ -770,6 +770,105 @@ arithmetic, simulation, traversal or counting before the judgement, do that
 work first and put the result in the state. It costs you a few tokens and it
 is the difference between 60% and 100%.
 
+## The trading hypothesis, tested on real bars (2026-09-17)
+
+The other obvious "go wide" target is markets: a big model enumerates regimes
+and metrics, Jev classifies the regime from pre-computed metrics, and the
+feedback is objective. The architecture is right-shaped, and most of it
+survives testing. One part of it does not, and it is the part that feels
+strongest.
+
+Setup: 721 hourly BTC-USD bars from Kraken (2026-08-18 → 09-17), 120
+non-overlapping six-hour windows. All metrics computed here — return,
+bar-volatility, lag-1 autocorrelation, up-bar fraction, longest run,
+drawdown, range, volume — and only the numbers put to Jev, per the
+compute-first rule. Each question carries its own window's figures in its
+instructions so no question can see another's future. Three targets:
+
+| task | target | truth |
+|---|---|---|
+| A **determinate** | was THIS window trending? | Kaufman efficiency ratio vs median |
+| B **forecastable** | will the NEXT window be more volatile? | vol clusters, so signal exists |
+| C **not forecastable** | will the NEXT window close higher? | a coin flip |
+
+### Result 1 — the ≥0.9 gate never fires. Not once.
+
+**0 of 342 market answers cleared 0.9 confidence**, against 41% on the
+computed ground-truth set. The safety property that makes Jev trustworthy
+everywhere else is simply *unavailable* here, because it comes from questions
+that have determinate answers and market questions do not. Any design that
+says "act on high confidence, escalate the rest" will never act.
+
+### Result 2 — it is honest about what it cannot know, and that is the win
+
+On task C the whole returned range was **0.36–0.60**. Mean confidence 54.7%,
+nothing above 0.7, accuracy 51.4%. Asked to call direction, it declines. A
+logistic regression on the identical inputs scored 62.1% in-sample and
+**37.8% out of sample** — worse than a coin flip, i.e. confidently wrong in a
+way that would lose money. Jev was the honest one.
+
+### Result 3 — zero-shot judgement beat a fitted model on the determinate task
+
+| task | Jev | logistic, in-sample | logistic, **out of sample** | trivial baseline |
+|---|---|---|---|---|
+| A determinate | **69.2%** | 70.8% | 58.3% | 50.0% |
+| B forecastable | 52.3% | 69.7% | 55.6% | **57.8%** (persistence) |
+| C not forecastable | 51.4% | 62.1% | 37.8% | 53.3% |
+
+On A, Jev with no training data matched the regression's *in-sample* score
+and beat its out-of-sample score by 11 points. With n=120 that is suggestive
+(≈1.5σ), not established — but it is the right direction, and it is the
+use this architecture should be built around.
+
+On B it **lost to a one-line rule** ("it was volatile, so it will be"). The
+compute-first lesson generalises: *where a clean estimator exists, use the
+estimator.* Jev is for the judgements no estimator covers.
+
+### Result 4 — the outer loop is the hazard, not the asset
+
+The appeal of markets is objective feedback. Objective is not the same as
+informative. Simulating "the big model experiments with regimes and metrics"
+— 127 metric subsets fitted against task C, a target with **no signal in it
+at all**:
+
+```
+best IN-sample accuracy found      : 69.7%   (looks like a strategy)
+that same model, OUT of sample     : 51.1%   (is nothing)
+average out-of-sample over all 127 : 46.6%
+rank correlation, in- vs out-of-sample: -0.112
+```
+
+Picking the best backtest was **not better than picking at random**. 127
+trials is nothing; an outer loop searches millions. The feedback signal is
+so weak relative to the hypothesis space that an unbudgeted search converges
+on noise with high confidence — and the better the search, the worse this
+gets. Any version of this needs a pre-registered metric set, a counted trial
+budget, and a multiple-testing correction (deflated Sharpe or equivalent)
+before a number means anything.
+
+### What this says to build
+
+- **Jev as a classifier of observable state, never as a predictor.** "What
+  regime is this?" is determinate and it is good at it. "What happens next?"
+  is not, and it correctly refuses.
+- **As a veto, not an entry.** It is honest about not knowing direction and
+  competent at reading current character. That is a position-consistency and
+  risk-off check — "does this position still match the regime it was opened
+  under?" — not an alpha source.
+- **Latch every regime call.** The withdrawal-dithering bug earlier in this
+  file is the same bug, and here it costs spread × turnover every flip.
+  Enter and exit thresholds must differ.
+- **Determinism is the underrated property.** Identical inputs give identical
+  answers, so the backtest *is* the strategy. Almost no LLM-based signal can
+  say that.
+- **Prompt-injection immunity matters more here than anywhere.** Any headline
+  or social feed is adversarial input; the state has no instruction channel
+  to hijack.
+
+Caveats worth keeping: one asset, thirty days, one volatility era, ±9 points
+at 95% on each accuracy. This shows the shape, not the magnitude. Nothing
+here trades; it is a measurement harness.
+
 ## The CAD demo that is NOT built yet
 
 `cad.mino.mobi` was the other candidate for a Jev demo, and it is a good one —
