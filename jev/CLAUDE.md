@@ -345,6 +345,15 @@ Overall 19/20 on the clear-truth items — and **the single wrong answer carried
 while giving up only three correct answers to human review. That is the case
 for confidence-gating, measured rather than asserted.
 
+**`noul` criteria only matter at the boundary.** Asking the same noul with
+and without explicit `true`/`false` criteria, in one call so both see
+identical conditions: on an obvious case the answer was identical
+(0.980 vs 0.980, Δ 0.000); on a borderline one it moved 0.46 → 0.36, and on a
+near-contentless state 0.18 → 0.13. So criteria are not decoration and not
+overhead — they are a tie-breaker that sharpens where the line falls, which is
+precisely where a 0.5 threshold is about to be decided. Worth writing for any
+noul whose answer is not obvious.
+
 **Negation is the weak spot.** Every failure and near-failure was a double
 negative: *"This is not terrible"* → negative at 0.18 (wrong), *"I would not
 call it a failure"* → 0.23 (right, barely), *"I cannot say I am
