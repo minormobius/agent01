@@ -1,12 +1,19 @@
 # Runs the three-tier decision cascade end to end with real keys and reports
 # what it routed, what it got right, and what it cost.
 #
-# workflow_dispatch ONLY, deliberately. This spends model budget on every
-# run, and a push trigger would spend it on every unrelated edit to the jev
-# surface. Trigger it when you want the number, not continuously.
+# This spends model budget on every run, so the triggers are deliberately
+# narrow: by hand, or when the router or its eval actually changes. NOT on
+# `mega/jev/**`, which would bill a run for every unrelated edit to the
+# dungeon demo sitting next to it.
 name: jev cascade eval
 
 on:
+  push:
+    branches: [claude/jev-demo-website-pw3us1]
+    paths:
+      - 'mega/jev/cascade.mjs'
+      - 'mega/jev/eval/**'
+      - '.github/workflows/jev-cascade.yml'
   workflow_dispatch:
     inputs:
       tier3_model:
