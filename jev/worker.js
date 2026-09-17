@@ -27,6 +27,46 @@ const MAX_BODY_BYTES = 64 * 1024; // a delve state is ~2-4KB; 64K is generous
 const MAX_QUESTIONS = 12; // the demo asks 5
 const UPSTREAM_TIMEOUT_MS = 20_000;
 
+// ------------------------------------------------------------ throttling ---
+// The key behind this proxy is metered and real, and /api/ask is reachable by
+// anyone who knows the URL (CORS only binds browsers; curl ignores it). So
+// bound what one caller can spend.
+//
+// BE HONEST ABOUT WHAT THIS IS: a per-isolate sliding window. Workers isolates
+// are per-colo and get recycled, so a determined caller spread across colos
+// gets more than RATE_LIMIT. It is a guard against naive hammering and a stuck
+// browser tab, NOT a security control. The real fix is a Durable Object or
+// KV counter, or a Cloudflare Rate Limiting rule on the zone — noted in
+// CLAUDE.md.
+//
+// The page ticks every 10s (6/min), so 30/min leaves room for several tabs.
+const RATE_LIMIT = 30;
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX_KEYS = 5_000; // bound the map so a spray of IPs can't grow it forever
+const hits = new Map();
+
+function rateLimited(ip) {
+  const now = Date.now();
+  const cutoff = now - RATE_WINDOW_MS;
+
+  if (hits.size > RATE_MAX_KEYS) {
+    for (const [k, times] of hits) {
+      if (times.length === 0 || times[times.length - 1] < cutoff) hits.delete(k);
+    }
+    // still too big? it is a spray; drop the oldest wholesale rather than grow
+    if (hits.size > RATE_MAX_KEYS) hits.clear();
+  }
+
+  const times = (hits.get(ip) || []).filter((t) => t >= cutoff);
+  if (times.length >= RATE_LIMIT) {
+    hits.set(ip, times);
+    return Math.ceil((times[0] + RATE_WINDOW_MS - now) / 1000);
+  }
+  times.push(now);
+  hits.set(ip, times);
+  return 0;
+}
+
 const json = (obj, status = 200, extra = {}) =>
   new Response(JSON.stringify(obj), {
     status,
@@ -80,6 +120,17 @@ function buildUpstreamBody(payload) {
 
 async function handleAsk(request, env) {
   if (request.method !== 'POST') return json({ error: 'POST only' }, 405);
+
+  // Throttle before doing anything that costs money.
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown';
+  const retryAfter = rateLimited(ip);
+  if (retryAfter) {
+    return json(
+      { error: 'rate_limited', detail: `more than ${RATE_LIMIT} calls in a minute from this address`, retry_after_s: retryAfter },
+      429,
+      { 'retry-after': String(retryAfter) },
+    );
+  }
 
   if (!env.TYPESAFE_API_KEY) {
     return json({

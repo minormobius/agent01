@@ -83,8 +83,10 @@ only inside `worker.js`:
 wrangler secret put TYPESAFE_API_KEY     # one-off, from the dashboard key
 ```
 
-…or set the `TYPESAFE_API_KEY` **GitHub** secret and let `deploy-jev.yml` push
-it on every run. Never put it in `wrangler.jsonc`, in `app.js`, or in any file
+…or let `deploy-jev.yml` push it on every run. **Mind the two names:** the key
+is stored as the GitHub repo secret **`jev_key`**, and the workflow writes it
+into Cloudflare as **`TYPESAFE_API_KEY`**, which is what `worker.js` reads.
+(`TYPESAFE_API_KEY` is also accepted as a repo-secret name, as a fallback.) Never put it in `wrangler.jsonc`, in `app.js`, or in any file
 under `jev/`. `test/worker.selftest.mjs` asserts the key never appears in any
 response the proxy returns, on the happy path *and* on every error path — if
 you touch `worker.js`, that test is the thing that has to stay green.
@@ -100,10 +102,17 @@ metered API is somebody else's free API key:
 - every question's `type` is checked against the three primitives before
   anything is spent
 
-**What it does NOT have: per-caller rate limiting.** That needs KV or a
-Durable Object and this surface has neither. The caps above bound the cost of
-a single call, not the number of calls. If this demo is ever linked somewhere
-busy, add a limiter before it becomes a bill.
+It also throttles: **30 calls per minute per client IP**, checked before
+anything is spent, returning 429 with `Retry-After`. The page ticks every 10 s
+(6/min), so several tabs are fine.
+
+**Be honest about what that throttle is.** It is a per-isolate sliding window.
+Workers isolates are per-colo and get recycled, so a caller spread across
+colos gets more than 30. It stops naive hammering and a stuck browser tab; it
+is **not** a security control. `/api/ask` is reachable by anyone who knows the
+URL — CORS only binds browsers, and curl ignores it. If this demo ever gets
+linked somewhere busy, put a real limiter in front: a Durable Object or KV
+counter, or a Cloudflare Rate Limiting rule on the zone.
 
 ### 2. It never pretends to be Jev
 

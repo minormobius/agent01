@@ -13,14 +13,22 @@ const SECRET = 'sk-test-DO-NOT-LEAK-6c1f9a';
 let passed = 0;
 const failures = [];
 const ok = (cond, label) => { cond ? passed++ : failures.push(label); };
+const ok_ = ok; // alias, for scopes that use `ok` as a local counter
 
 const ASSETS = { fetch: async () => new Response('asset', { status: 200 }) };
 const envWith = (key) => ({ TYPESAFE_API_KEY: key, ASSETS });
 
-const post = (body, { raw = false } = {}) =>
+// Each call gets its own client IP by default, so the per-isolate throttle
+// cannot make one test's requests affect another's. Pass an explicit `ip` to
+// exercise the throttle itself.
+let ipSeq = 0;
+const post = (body, { raw = false, ip = null } = {}) =>
   new Request('https://jev.mino.mobi/api/ask', {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
+    headers: {
+      'content-type': 'application/json',
+      'cf-connecting-ip': ip || `10.0.0.${++ipSeq % 250}-${ipSeq}`,
+    },
     body: raw ? body : JSON.stringify(body),
   });
 
@@ -164,6 +172,45 @@ await (async () => {
       ok(res.status === 502, 'non-JSON upstream -> 502');
     },
   );
+
+  // ---------------------------------------------------------- throttling ----
+  // The proxy spends real money, so one caller must not be able to hammer it.
+  await withStub(upstreamOK, async (calls) => {
+    const ip = '203.0.113.99';
+    let ok = 0, limited = 0, firstLimitedAt = -1;
+    for (let i = 0; i < 40; i++) {
+      const res = await worker.fetch(post(goodBody, { ip }), envWith(SECRET));
+      if (res.status === 200) ok++;
+      else if (res.status === 429) {
+        if (firstLimitedAt < 0) firstLimitedAt = i;
+        limited++;
+        const body = await res.json();
+        ok_(body.error === 'rate_limited', 'a throttled call is named rate_limited');
+        ok_(typeof body.retry_after_s === 'number' && body.retry_after_s > 0, 'throttling reports retry_after_s');
+        ok_(res.headers.get('retry-after'), 'throttling sets a Retry-After header');
+        ok_(!JSON.stringify(body).includes(SECRET), 'the throttled path leaks no key');
+      }
+    }
+    ok_(limited > 0, 'hammering one IP eventually gets throttled');
+    ok_(ok <= 30, `no more than the limit got through (got ${ok})`);
+    ok_(firstLimitedAt === 30, `throttling starts exactly at the limit (started at ${firstLimitedAt})`);
+    // and it throttled BEFORE spending anything upstream
+    ok_(calls.length === ok, `upstream was called only for the calls that passed (${calls.length} vs ${ok})`);
+  });
+  // a different caller is unaffected by the one that got throttled
+  await withStub(upstreamOK, async () => {
+    const res = await worker.fetch(post(goodBody, { ip: '203.0.113.7' }), envWith(SECRET));
+    ok_(res.status === 200, 'a different IP is not punished for another IP hammering');
+  });
+  // the throttle must not gate the free endpoints
+  {
+    let allOk = true;
+    for (let i = 0; i < 50; i++) {
+      const res = await worker.fetch(new Request('https://jev.mino.mobi/api/health'), envWith(SECRET));
+      if (res.status !== 200) allOk = false;
+    }
+    ok_(allOk, '/api/health is never throttled');
+  }
 
   // ------------------------------------------------------------ assets ----
   {
