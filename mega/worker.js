@@ -9,6 +9,11 @@ import { buildQuadGenome, quadSVG, quadFrame, FAMILIES as QUAD_FAMILIES } from '
 import { buildPolyGenome, polySVG, polyFrame, FAMILIES as POLY_FAMILIES } from './sprite/poly/poly.js';
 import { buildAxialGenome, axialSVG, axialFrame, FAMILIES as AXIAL_FAMILIES } from './sprite/axial/axial.js';
 import { buildIsopodGenome, isopodSVG, isopodFrame, FAMILIES as ISOPOD_FAMILIES } from './sprite/isopod/isopod.js';
+// /jev is a sub-site of this surface (mega.mino.mobi/jev/): the TypeSafe Jev
+// demo. It needs one server-side route, to keep the TypeSafe API key off the
+// browser — the key is a Cloudflare secret (TYPESAFE_API_KEY) on THIS worker,
+// read only inside jev/api.mjs. See mega/jev/CLAUDE.md.
+import { handleJevApi } from './jev/api.mjs';
 
 const CORS = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,OPTIONS', 'Access-Control-Allow-Headers':'*' };
 const json = (o,status)=> new Response(JSON.stringify(o,null,2), {status:status||200, headers:{'content-type':'application/json; charset=utf-8', ...CORS}});
@@ -23,6 +28,14 @@ export default {
     if(url.pathname.startsWith('/bees/api')){
       if(req.method==='OPTIONS') return new Response(null,{headers:CORS});
       try { return beesApi(url); } catch(e){ return json({error:String(e&&e.message||e)},400); }
+    }
+    // /jev/api/* — the Jev demo's proxy. Deliberately NOT wrapped in the CORS
+    // headers above: it spends a metered API key, so it stays same-origin.
+    // Returns null for any other /jev/ path, which then falls through to the
+    // asset store like the rest of the sub-site.
+    if(url.pathname.startsWith('/jev/api')){
+      const res = await handleJevApi(req, env, url.pathname);
+      if(res) return res;
     }
     // every other path is a static asset (dashboard at /, lab at /sprite, core.js, etc.)
     if(env.ASSETS) return env.ASSETS.fetch(req);

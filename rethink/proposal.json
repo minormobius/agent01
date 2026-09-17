@@ -615,6 +615,12 @@
             {
               "u": "+mega.mino.mobi/bees",
               "action": "new"
+            },
+            {
+              "u": "mega.mino.mobi/jev",
+              "action": "new",
+              "note": "TypeSafe AI's Jev — a model that returns typed decisions instead of text — given a body: it delves a live foam dungeon one typed call at a time",
+              "domain": "agents"
             }
           ]
         },
@@ -2085,14 +2091,6 @@
           "action": "keep",
           "kind": "toy",
           "domain": "science",
-          "wing": "play"
-        },
-        {
-          "u": "jev.mino.mobi",
-          "action": "new",
-          "kind": "toy",
-          "domain": "agents",
-          "note": "TypeSafe AI's Jev — a model that returns typed decisions instead of text — given a body: it delves a live foam dungeon one typed call at a time",
           "wing": "play"
         },
         {

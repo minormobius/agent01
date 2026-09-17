@@ -338,20 +338,6 @@
       ]
     },
     {
-      "surface": "jev",
-      "dir": "jev",
-      "endpoint": "jev.mino.mobi",
-      "type": "frontend",
-      "branch": "claude/jev-demo-website-pw3us1",
-      "uses": [],
-      "provides": null,
-      "note": "A demo of TypeSafe AI's Jev (a System One decision model: typed answers, no text generation) driving a delver through a live foam dungeon. Each tick posts ONE call carrying the delver's state plus five typed questions — a choice over the real doors, a score for danger, three nouls (fight / take_loot / withdraw) — and renders the probabilities, confidence and raw wire bytes as they come back. Map and contents come from foam.mino.mobi's public dungeon API (CORS-open, deterministic), with a bundled fixture when it is unreachable; delve.mjs is pure and runs identically in node and the browser. The worker exists to hold TYPESAFE_API_KEY as a Cloudflare secret and proxy /api/ask — the key never reaches the browser. With no key set the page runs a clearly-labelled offline stand-in rather than pretending. No D1, no DO.",
-      "paths": [
-        "jev/**",
-        ".github/workflows/deploy-jev.yml"
-      ]
-    },
-    {
       "surface": "perp",
       "dir": "perp",
       "endpoint": "perp.mino.mobi",
@@ -1097,11 +1083,11 @@
       "dir": "mega",
       "endpoint": "mega.mino.mobi",
       "type": "frontend",
-      "branch": "claude/integrate-v091-v092-v093-4yie2i",
+      "branch": "claude/jev-demo-website-pw3us1",
       "uses": [],
       "provides": null,
       "status": "MANAGED \u2014 owned by claude/integrate-v091-v092-v093-4yie2i (the v091\u00d7v092 synthesis: /v093). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
-      "note": "Interactive map of global megaprojects\u2014construction, timelines, costs, and deep context on a 3D globe. (full description: mega/CLAUDE.md)",
+      "note": "Interactive map of global megaprojects\u2014construction, timelines, costs, and deep context on a 3D globe. Also hosts two sub-sites on the same worker: /sprite (the procedural-sprite lab and its /sprite/api) and /jev (the TypeSafe Jev demo, mega.mino.mobi/jev/, whose /jev/api/ask proxy holds the TYPESAFE_API_KEY secret). jev rides this surface because the mino.mobi zone is at Cloudflare's hard cap of 100 Workers custom domains and cannot issue another subdomain. (full description: mega/CLAUDE.md, mega/jev/CLAUDE.md)",
       "paths": [
         "mega/**"
       ]

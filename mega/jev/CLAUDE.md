@@ -29,36 +29,45 @@ response are shown verbatim. Nothing is scripted.
 
 ---
 
-## The domain: jev.mino.mobi
+## Where this lives: a sub-site of `mega`, not its own surface
 
-This surface targets **jev.mino.mobi**, bound the normal way — a
-`custom_domain` route in `wrangler.jsonc`, deployed by pushing to this
-surface's owning branch. Nothing bespoke.
+**jev is served at `mega.mino.mobi/jev/`.** It is NOT a surface of its own —
+it has no `wrangler.jsonc`, no worker and no deploy workflow. It rides the
+**mega** surface: mega's worker serves its files as assets, and mounts its one
+server-side route the same way it already mounts `/sprite/api` and
+`/bees/api`.
 
-**The obstacle to know about.** The first deploy (run 35188612508) uploaded
-the worker and then failed on the domain record:
+**Why.** The `mino.mobi` zone is at Cloudflare's hard cap of **100 Workers
+custom domains**, so no new surface can claim a subdomain. Two deploys proved
+it (runs 35188612508 and 35238965517), both failing with:
 
 > You have exceeded the limit of 100 Workers custom domains on zone
 > `mino.mobi` — `[code: 100122]`
 
-That is a hard Cloudflare per-zone cap, and the zone was at it. It cannot be
-fixed from this directory. The fix is to free a slot by detaching a custom
-domain from a retired surface in the dashboard
-([`docs/DEPLOYS.md`](../docs/DEPLOYS.md) §7) — worth doing regardless, since a
-full zone blocks the *next* new surface too. (If the zone genuinely needs more
-than 100 hostnames, a Workers Route is the other route: routes cap far higher,
-but need a proxied DNS record for `jev`, which wrangler cannot create.)
+Riding an existing worker costs the zone nothing. (An earlier attempt shipped
+to a `workers.dev` host and repointed the catalogue at it — that was wrong and
+was reverted: it named a host that was not the surface's home, and quietly
+redefined where the surface lived instead of reporting a blocked deploy.)
 
-**Do not work around it by shipping to workers.dev and repointing the
-catalogue at that URL.** That was tried and reverted: it leaves the registry,
-the catalogue and the landing page all naming a host that is not this
-surface's home, and it quietly redefines where the surface lives. The
-established routine targets the mino.mobi subdomain; if the domain cannot
-bind, that is a blocked deploy to report, not a different destination to
-adopt.
+### What that means when you work on this
 
-As always: a green run is not proof. **Confirm the deploy log binds
-`jev.mino.mobi (custom domain)`.**
+| | |
+|---|---|
+| deploys via | `.github/workflows/deploy-mega.yml`, on **`mega/**`** paths |
+| owning branch | `claude/jev-demo-website-pw3us1` — **this branch now owns the whole `mega` surface**, transferred from `claude/integrate-v091-v092-v093-4yie2i`. A surface has exactly one owning branch, and jev cannot deploy unless the branch that owns mega is the one carrying it. |
+| the API key | a Cloudflare secret on the **`mega`** worker, not a `jev` one |
+| the tests | run from `mega/`, and the worker selftest drives the **real `mega/worker.js`** — so it also asserts that mounting jev has not disturbed `/sprite/api` or `/bees/api` |
+| assets | `mega/.assetsignore` excludes `jev/CLAUDE.md` and `jev/test/`. jev's own `.assetsignore` was deleted; that file only has effect at the root of `assets.directory`, which is `mega/`. |
+
+**The ownership transfer is the load-bearing bit.** If mega's registry entry
+were left pointing at its old branch, a push there would republish mega from a
+tree with no `jev/` in it and the sub-site would silently vanish. Before
+handing mega back, move jev somewhere that branch also carries, or keep the
+ownership where it is.
+
+Paths are relative throughout (`fetch('api/health')`, `fetch('fixtures/…')`),
+so the page works unchanged at whatever prefix it is mounted under. The dev
+server mounts it at `/jev/` too, so local and production resolve identically.
 
 ---
 
@@ -66,9 +75,9 @@ As always: a green run is not proof. **Confirm the deploy log binds
 
 ### 1. The key lives in the worker, and only in the worker
 
-`assets.directory` is `"."`, so **every file in this directory is served to the
-public internet.** The TypeSafe API key is therefore a Cloudflare secret read
-only inside `worker.js`:
+`mega`’s `assets.directory` is `"."`, so **every file under `mega/` — this
+directory included — is served to the public internet.** The TypeSafe API key is therefore a Cloudflare secret read
+only inside `api.mjs`:
 
 ```bash
 wrangler secret put TYPESAFE_API_KEY     # one-off, from the dashboard key
@@ -76,11 +85,13 @@ wrangler secret put TYPESAFE_API_KEY     # one-off, from the dashboard key
 
 …or let `deploy-jev.yml` push it on every run. **Mind the two names:** the key
 is stored as the GitHub repo secret **`jev_key`**, and the workflow writes it
-into Cloudflare as **`TYPESAFE_API_KEY`**, which is what `worker.js` reads.
-(`TYPESAFE_API_KEY` is also accepted as a repo-secret name, as a fallback.) Never put it in `wrangler.jsonc`, in `app.js`, or in any file
-under `jev/`. `test/worker.selftest.mjs` asserts the key never appears in any
+into Cloudflare as **`TYPESAFE_API_KEY`** on the `mega` worker, which is what
+`jev/api.mjs` reads.
+(`TYPESAFE_API_KEY` is also accepted as a repo-secret name, as a fallback.) Never put it in `mega/wrangler.jsonc`, in `app.js`, or in any file
+under `mega/`. `test/worker.selftest.mjs` asserts the key never appears in any
 response the proxy returns, on the happy path *and* on every error path — if
-you touch `worker.js`, that test is the thing that has to stay green.
+you touch `api.mjs` or its mount in `mega/worker.js`, that test is the thing
+that has to stay green.
 
 `POST /api/ask` is deliberately narrow, because an open pass-through to a
 metered API is somebody else's free API key:
@@ -135,8 +146,10 @@ TypeSafe changes it, this test is where it should break — not in a live demo
 in front of an audience.
 
 ```bash
-node jev/test/delve.selftest.mjs     # 405 checks, offline
-node jev/test/worker.selftest.mjs    # 44 checks, stubbed upstream
+node mega/jev/test/delve.selftest.mjs     # 456 checks, offline
+node mega/jev/test/worker.selftest.mjs    # 104 checks, stubbed upstream
+                                         #   (also asserts mega's own
+                                         #    /sprite and /bees APIs still work)
 ```
 
 Both run with no network and no key, and both gate the deploy.
@@ -159,8 +172,8 @@ the selftests run on, so they must stay valid `foam-dungeon` /
 `foam-dungeon-content` documents — regenerate with:
 
 ```bash
-curl -s 'https://foam.mino.mobi/api/dungeon?seed=7&n=3&size=s'          > jev/fixtures/dungeon-seed7-s.json
-curl -s 'https://foam.mino.mobi/api/content?seed=7&n=3&size=s&roll=1'   > jev/fixtures/content-seed7-s-roll1.json
+curl -s 'https://foam.mino.mobi/api/dungeon?seed=7&n=3&size=s'          > mega/jev/fixtures/dungeon-seed7-s.json
+curl -s 'https://foam.mino.mobi/api/content?seed=7&n=3&size=s&roll=1'   > mega/jev/fixtures/content-seed7-s-roll1.json
 ```
 
 ---
@@ -168,8 +181,9 @@ curl -s 'https://foam.mino.mobi/api/content?seed=7&n=3&size=s&roll=1'   > jev/fi
 ## Running it here
 
 ```bash
-node jev/test/devserver.mjs                 # offline mode, http://localhost:8787
-node jev/test/devserver.mjs --stub-live     # pretend a key is set; canned jev-shaped answers
+node mega/jev/test/devserver.mjs                 # offline mode, http://localhost:8787/jev/
+node mega/jev/test/devserver.mjs --stub-live     # pretend a key is set; canned jev-shaped answers
+                                                 # (mounted at /jev/, as production is)
 ```
 
 `--stub-live` exercises the live rendering path without a key. Its answers are
@@ -179,7 +193,7 @@ to stand in for the model.
 To check a key actually works, before wiring anything up:
 
 ```bash
-TYPESAFE_API_KEY=sk-... node jev/test/live-check.mjs
+TYPESAFE_API_KEY=sk-... node mega/jev/test/live-check.mjs
 ```
 
 That is the only file here that talks to `api.typesafe.ai`. It makes ONE real

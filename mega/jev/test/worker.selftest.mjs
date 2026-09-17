@@ -1,13 +1,15 @@
 // worker.selftest.mjs — exercises the proxy with a stubbed upstream.
 //
-//   node jev/test/worker.selftest.mjs
+//   node mega/jev/test/worker.selftest.mjs
 //
 // No network, no real key. The stub captures the outgoing request so we can
 // assert the two things that actually matter:
 //   1. the secret goes UP to TypeSafe and never comes BACK to the caller
 //   2. the caller cannot steer the proxy anywhere we did not intend
 
-import worker from '../worker.js';
+// Drives the REAL mega worker, so the mount itself is under test, not just
+// the handler in isolation.
+import worker from '../../worker.js';
 
 const SECRET = 'sk-test-DO-NOT-LEAK-6c1f9a';
 let passed = 0;
@@ -23,7 +25,7 @@ const envWith = (key) => ({ TYPESAFE_API_KEY: key, ASSETS });
 // exercise the throttle itself.
 let ipSeq = 0;
 const post = (body, { raw = false, ip = null } = {}) =>
-  new Request('https://jev.mino.mobi/api/ask', {
+  new Request('https://mega.mino.mobi/jev/api/ask', {
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -57,7 +59,7 @@ const upstreamOK = () =>
 await (async () => {
   // ---------------------------------------------------------- health ----
   {
-    const res = await worker.fetch(new Request('https://jev.mino.mobi/api/health'), envWith(SECRET));
+    const res = await worker.fetch(new Request('https://mega.mino.mobi/jev/api/health'), envWith(SECRET));
     const body = await res.json();
     ok(res.status === 200, 'health returns 200');
     ok(body.configured === true, 'health reports configured when a key is set');
@@ -65,14 +67,14 @@ await (async () => {
     ok(!JSON.stringify(body).includes(SECRET.slice(0, 8)), 'health leaks no prefix of the key');
   }
   {
-    const res = await worker.fetch(new Request('https://jev.mino.mobi/api/health'), envWith(undefined));
+    const res = await worker.fetch(new Request('https://mega.mino.mobi/jev/api/health'), envWith(undefined));
     const body = await res.json();
     ok(body.configured === false, 'health reports unconfigured with no key');
   }
 
   // ------------------------------------------------------- method/shape ----
   {
-    const res = await worker.fetch(new Request('https://jev.mino.mobi/api/ask'), envWith(SECRET));
+    const res = await worker.fetch(new Request('https://mega.mino.mobi/jev/api/ask'), envWith(SECRET));
     ok(res.status === 405, 'GET /api/ask is 405');
   }
   {
@@ -241,15 +243,42 @@ await (async () => {
   {
     let allOk = true;
     for (let i = 0; i < 50; i++) {
-      const res = await worker.fetch(new Request('https://jev.mino.mobi/api/health'), envWith(SECRET));
+      const res = await worker.fetch(new Request('https://mega.mino.mobi/jev/api/health'), envWith(SECRET));
       if (res.status !== 200) allOk = false;
     }
     ok_(allOk, '/api/health is never throttled');
   }
 
+  // ------------------------------------- mega's own routes still work ----
+  // jev is a guest on this worker. Mounting it must not disturb the surface
+  // it is riding on.
+  {
+    const res = await worker.fetch(
+      new Request('https://mega.mino.mobi/sprite/api/sprite.svg?seed=3'), envWith(SECRET));
+    ok(res.status === 200, "mega's /sprite/api still responds");
+    const ct = res.headers.get('content-type') || '';
+    ok(/svg|xml/.test(ct), `/sprite/api returns an image (${ct})`);
+    ok(res.headers.get('access-control-allow-origin') === '*',
+      "mega's own API keeps its CORS header");
+  }
+  {
+    const res = await worker.fetch(
+      new Request('https://mega.mino.mobi/bees/api/atlas.json'), envWith(SECRET));
+    ok(res.status === 200 || res.status === 400, "mega's /bees/api still routes (not swallowed)");
+  }
+  {
+    // a /jev path that is NOT an api route must fall through to the assets
+    const res = await worker.fetch(new Request('https://mega.mino.mobi/jev/'), envWith(SECRET));
+    ok((await res.text()) === 'asset', '/jev/ itself falls through to the asset store');
+  }
+  {
+    const res = await worker.fetch(new Request('https://mega.mino.mobi/jev/api/nope'), envWith(SECRET));
+    ok((await res.text()) === 'asset', 'an unknown /jev/api path falls through rather than 500ing');
+  }
+
   // ------------------------------------------------------------ assets ----
   {
-    const res = await worker.fetch(new Request('https://jev.mino.mobi/'), envWith(SECRET));
+    const res = await worker.fetch(new Request('https://mega.mino.mobi/'), envWith(SECRET));
     ok(res.status === 200 && (await res.text()) === 'asset', 'non-api paths fall through to ASSETS');
   }
 })();

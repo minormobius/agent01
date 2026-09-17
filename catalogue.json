@@ -2908,13 +2908,13 @@
     },
     {
       "n": "jev",
-      "u": "https://jev.mino.mobi",
+      "u": "https://mega.mino.mobi/jev/",
       "c": "games",
       "k": 2,
       "a": "hot",
       "t": "2026-09-17",
       "b": "2026-09-17",
-      "surface": "jev",
+      "surface": "mega",
       "d": "TypeSafe AI’s Jev is a decision model — it returns typed answers and never text. Here it is given a body: every few seconds one call carries a delver’s state inside a live foam dungeon plus five typed questions — which door, how dangerous, fight, take the loot, turn back — and Jev answers all five in parallel. The probabilities and confidence are drawn as they arrive, next to the raw request and response. When confidence falls under the gate the delver refuses to act on the pick and falls back to the dungeon’s own descent rule, which is the whole argument for a typed answer that knows how sure it is.",
       "tags": [
         "typesafe",

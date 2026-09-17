@@ -1,6 +1,6 @@
 // live-check.mjs — the ONE real call, for checking a key works.
 //
-//   TYPESAFE_API_KEY=sk-... node jev/test/live-check.mjs
+//   TYPESAFE_API_KEY=sk-... node mega/jev/test/live-check.mjs
 //
 // This is the only file in this repo that talks to api.typesafe.ai. It builds
 // a real delve state from the bundled fixture, asks the same five typed
@@ -19,7 +19,7 @@ import { makeWorld, newRun, buildState, buildQuestions } from '../delve.mjs';
 
 const key = process.env.TYPESAFE_API_KEY;
 if (!key) {
-  console.error('TYPESAFE_API_KEY is not set.\n\n  TYPESAFE_API_KEY=sk-... node jev/test/live-check.mjs\n');
+  console.error('TYPESAFE_API_KEY is not set.\n\n  TYPESAFE_API_KEY=sk-... node mega/jev/test/live-check.mjs\n');
   process.exit(2);
 }
 

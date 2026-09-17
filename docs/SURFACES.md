@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **102 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -84,7 +84,6 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `io` | fullstack | `io` | [io.mino.mobi](https://io.mino.mobi) | `claude/landing-page-architecture-1igui5` | [`io/CLAUDE.md`](../io/CLAUDE.md) | ATProto issue tracker. Bug reports and feature requests live on your own PDS; doubles as a StumbleUpon-style portal across the mino.mobi sites. |
 | `iris` | frontend | `iris` | [iris.mino.mobi](https://iris.mino.mobi) | `claude/oneill-cylinder-solver-djdpdm` | [`iris/CLAUDE.md`](../iris/CLAUDE.md) | The END-ON cross-section view of an O'Neill cylinder — looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'… |
 | `j` | frontend | `j` | [j.mino.mobi](https://j.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`j/CLAUDE.md`](../j/CLAUDE.md) | ImageJ in the browser. Confocal analysis, edge detection, circle fitting, and radial sampling compiled to WASM—every pixel stays client-side. |
-| `jev` | frontend | `jev` | [jev.mino.mobi](https://jev.mino.mobi) | `claude/jev-demo-website-pw3us1` | [`jev/CLAUDE.md`](../jev/CLAUDE.md) | TypeSafe AI’s Jev is a decision model — it returns typed answers and never text… |
 | `jurassic` | frontend | `jurassic` | [jurassic.mino.mobi](https://jurassic.mino.mobi) | `claude/jurassic-forest-sounds-iym7ya` | [`jurassic/CLAUDE.md`](../jurassic/CLAUDE.md) | A Middle Jurassic forest floor in the dark, walked by ear. The nine ensiferans of Gu et al… |
 | `ken` | frontend | `ken` | [ken.mino.mobi](https://ken.mino.mobi) | `claude/repo-study-fields-0ftd34` | [`ken/CLAUDE.md`](../ken/CLAUDE.md) | The study programme behind the loop next door: how do you know whether work you did not supervise was any good? A six-unit curriculum with real primary sources — construct validity, the design of expe… |
 | `lab` | frontend | `lab/www` | [minomobi.com](https://minomobi.com) | `claude/lab-www` | [`lab/www/CLAUDE.md`](../lab/www/CLAUDE.md) | The site factory. Ask for a website in a Bluesky mention and an agent builds it, then replies with the link… |
@@ -92,7 +91,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `loop` | frontend | `loop` | [loop.mino.mobi](https://loop.mino.mobi) | `claude/loop-graph-ticketing-surface-7qxu7c` | [`loop/CLAUDE.md`](../loop/CLAUDE.md) | The apparatus for a budget-governed agent loop, shown while it runs: the ticket graph it reasons over (dependencies, findings, and the dead ends that stop turn 30 repeating turn 4), the ready queue, t… |
 | `mappa` | frontend | `mappa` | [mappa.mino.mobi](https://mappa.mino.mobi) | `claude/civ-deploy-unification-vt35ju` | [`mappa/CLAUDE.md`](../mappa/CLAUDE.md) | The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis)… |
 | `math` | frontend | `geometry` | [math.mino.mobi](https://math.mino.mobi) | `claude/holder-continuous-procgen-arqnj4` | [`geometry/CLAUDE.md`](../geometry/CLAUDE.md) | Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status — and an explicit roadmap of next entries (szemerédi–trotter, heilbronn, borsuk, viazovska, ...)… |
-| `mega` | frontend | `mega` | [mega.mino.mobi](https://mega.mino.mobi) | `claude/integrate-v091-v092-v093-4yie2i` | [`mega/CLAUDE.md`](../mega/CLAUDE.md) | Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe. |
+| `mega` | frontend | `mega` | [mega.mino.mobi](https://mega.mino.mobi) | `claude/jev-demo-website-pw3us1` | [`mega/CLAUDE.md`](../mega/CLAUDE.md) | Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe. |
 | `moji` | frontend | `moji` | [moji.mino.mobi](https://moji.mino.mobi) | `claude/emoji-wiki-platform-support-v6ubju` | [`moji/CLAUDE.md`](../moji/CLAUDE.md) | The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) — no build, no D1, no AI, no secrets… |
 | `neuro` | frontend | `neuro` | [neuro.mino.mobi](https://neuro.mino.mobi) | `claude/website-hidden-paper-8vum5k` | [`neuro/CLAUDE.md`](../neuro/CLAUDE.md) | Cognitive-science models rebuilt from their papers in Rust, compiled to WASM, and made runnable in a tab — each shown against the published result it replicates. |
 | `ocr` | frontend | `ocr` | [ocr.mino.mobi](https://ocr.mino.mobi) | `claude/image-text-extraction-gH8UH` | [`ocr/CLAUDE.md`](../ocr/CLAUDE.md) | Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/)… (full description: ocr/CLAUDE.md) |

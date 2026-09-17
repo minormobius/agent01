@@ -1,9 +1,12 @@
 // devserver.mjs — serve jev/ locally with a STUBBED /api, so the page can be
 // driven in a browser without Cloudflare and without a TypeSafe key.
 //
-//   node jev/test/devserver.mjs              # offline mode (no key configured)
-//   node jev/test/devserver.mjs --stub-live  # pretend a key is configured and
-//                                            # return canned jev-shaped answers
+//   node mega/jev/test/devserver.mjs              # offline (no key configured)
+//   node mega/jev/test/devserver.mjs --stub-live  # pretend a key is configured
+//
+// Mounts the site at /jev/ exactly as mega.mino.mobi does, so the relative
+// fetches in app.js resolve to the same paths they will in production. / just
+// redirects to /jev/.
 //
 // --stub-live exercises the LIVE rendering path. The answers it returns are
 // canned, not Jev's; it exists to prove the page renders a real response
@@ -67,11 +70,16 @@ createServer(async (req, res) => {
     res.end(body);
   };
 
-  if (url.pathname === '/api/health') {
+  if (url.pathname === '/' || url.pathname === '') {
+    res.writeHead(302, { location: '/jev/' });
+    return res.end();
+  }
+
+  if (url.pathname === '/jev/api/health') {
     return send(200, TYPES['.json'], JSON.stringify({ ok: true, configured: stubLive, model: 'jev-latest' }));
   }
 
-  if (url.pathname === '/api/ask') {
+  if (url.pathname === '/jev/api/ask') {
     if (!stubLive) {
       return send(503, TYPES['.json'], JSON.stringify({ error: 'no_api_key', detail: 'dev server has no key' }));
     }
@@ -84,8 +92,9 @@ createServer(async (req, res) => {
     return send(200, TYPES['.json'], JSON.stringify(out));
   }
 
-  let p = normalize(url.pathname).replace(/^(\.\.[/\\])+/, '');
-  if (p === '/' || p === '\\') p = '/index.html';
+  // strip the /jev mount prefix before hitting the filesystem
+  let p = normalize(url.pathname.replace(/^\/jev/, '')).replace(/^(\.\.[/\\])+/, '');
+  if (p === '/' || p === '' || p === '\\') p = '/index.html';
   const file = join(root, p);
   if (!file.startsWith(root)) return send(403, 'text/plain', 'forbidden');
   try {

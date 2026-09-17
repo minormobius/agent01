@@ -1,14 +1,19 @@
-// jev worker — static assets + the ONE server-side route this demo needs.
+// jev/api.mjs — the /jev/api/* routes, mounted by mega/worker.js.
 //
-//   POST /api/ask     { state, questions } -> TypeSafe /v1/systemone
-//   GET  /api/health  -> { configured: bool }   (never the key itself)
+// jev is a SUB-SITE of the mega surface (mega.mino.mobi/jev/), not its own
+// worker: the mino.mobi zone is at Cloudflare's hard cap of 100 Workers
+// custom domains, so a new surface cannot claim its own subdomain. It rides
+// mega's worker and mega's domain, the same way /sprite/api and /bees/api do.
 //
-// WHY THIS WORKER EXISTS AT ALL: the TypeSafe API key is a paid credential.
-// It lives here as a Cloudflare secret (`wrangler secret put TYPESAFE_API_KEY`)
-// and is read only inside this file. It is never sent to the browser, never
-// written into an asset, and never echoed in an error — the page calls this
-// worker, this worker calls TypeSafe. A demo that put the key in app.js
-// would be handing it to every viewer with devtools open.
+//   POST /jev/api/ask     { state, questions } -> TypeSafe /v1/systemone
+//   GET  /jev/api/health  -> { configured: bool }   (never the key itself)
+//
+// WHY THIS EXISTS AT ALL: the TypeSafe API key is a paid credential. It lives
+// as a Cloudflare secret on the `mega` worker and is read only inside this
+// file. It is never sent to the browser, never written into an asset, and
+// never echoed in an error — the page calls this handler, this handler calls
+// TypeSafe. A demo that put the key in app.js would hand it to every viewer
+// with devtools open.
 //
 // THE PROXY IS DELIBERATELY NARROW. An open pass-through to a metered API is
 // somebody else's free API key. So:
@@ -16,9 +21,8 @@
 //     so a browser on another origin cannot read the response)
 //   - the request body is rebuilt from a whitelist: only `state` and
 //     `questions` survive, and `model` is forced to MODEL
-//   - hard caps on body size and question count
-// See CLAUDE.md for the limits this does NOT provide (per-caller rate limits
-// need KV or a Durable Object; this surface has neither).
+//   - hard caps on body size and question count, plus a per-IP throttle
+// See CLAUDE.md for the limits this does NOT provide.
 
 const MODEL = 'jev-latest';
 const UPSTREAM = 'https://api.typesafe.ai/v1/systemone';
@@ -206,22 +210,28 @@ async function handleAsk(request, env) {
   return json(parsed);
 }
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url);
+/**
+ * Handle a /jev/api/* request.
+ *
+ * Returns a Response when the path is ours, or `null` when it is not — so
+ * mega/worker.js can fall through to the asset store without this module
+ * needing to know anything about the rest of the surface.
+ */
+export async function handleJevApi(request, env, pathname) {
+  if (pathname === '/jev/api/ask') return handleAsk(request, env);
 
-    if (url.pathname === '/api/ask') return handleAsk(request, env);
+  if (pathname === '/jev/api/health') {
+    return json({
+      ok: true,
+      // A boolean. Never the key, never a prefix of it, never its length.
+      configured: Boolean(env.TYPESAFE_API_KEY),
+      model: MODEL,
+      max_questions: MAX_QUESTIONS,
+    });
+  }
 
-    if (url.pathname === '/api/health') {
-      return json({
-        ok: true,
-        // A boolean. Never the key, never a prefix of it, never its length.
-        configured: Boolean(env.TYPESAFE_API_KEY),
-        model: MODEL,
-        max_questions: MAX_QUESTIONS,
-      });
-    }
+  return null;
+}
 
-    return env.ASSETS.fetch(request);
-  },
-};
+// exported for the selftest
+export { MODEL, MAX_QUESTIONS, MAX_BODY_BYTES, RATE_LIMIT, UPSTREAM };

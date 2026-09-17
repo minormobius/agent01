@@ -5,6 +5,22 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
+> **This surface hosts sub-sites on the same worker.** `/sprite` is the
+> procedural-sprite lab (plus its `/sprite/api`), and **`/jev` is the TypeSafe
+> Jev demo** ([`jev/CLAUDE.md`](jev/CLAUDE.md)) — mounted in `worker.js`
+> alongside `/sprite/api` and `/bees/api`. jev rides this surface because the
+> `mino.mobi` zone is at Cloudflare's hard cap of 100 Workers custom domains
+> and cannot issue another subdomain.
+>
+> Two consequences worth knowing before you touch this surface:
+> - **`/jev/api/ask` holds a paid credential.** `TYPESAFE_API_KEY` is a
+>   Cloudflare secret on THIS worker, read only inside `jev/api.mjs`. Never
+>   log it, never echo it, never move it into an asset.
+> - **The deploy runs jev's selftests first**, and its worker selftest drives
+>   this worker, so it will fail if a change here breaks `/sprite/api`,
+>   `/bees/api`, or the jev mount.
+
+
 Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe.
 
 ## Facts

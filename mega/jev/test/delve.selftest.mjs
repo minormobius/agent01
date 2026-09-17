@@ -4,7 +4,7 @@
 // Runs with no network and no API key: the fixtures are a real foam-dungeon
 // map + content roll (seed 7, size s) captured from foam.mino.mobi.
 //
-//   node jev/test/delve.selftest.mjs
+//   node mega/jev/test/delve.selftest.mjs
 //
 // The question-shape assertions are the load-bearing ones. They encode the
 // TypeSafe request contract (docs.typesafe.ai/primitives):

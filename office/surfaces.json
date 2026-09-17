@@ -1978,7 +1978,7 @@
   {
    "id": "jev",
    "name": "jev",
-   "url": "https://jev.mino.mobi",
+   "url": "https://mega.mino.mobi/jev/",
    "cat": "games",
    "commits": 2,
    "age": "hot",
@@ -4974,6 +4974,16 @@
    "commits": 0,
    "age": "cold",
    "parent": "mega/bees",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev",
+   "name": "jev",
+   "url": "https://mino.mobi/mega/jev/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega",
    "discovered": true
   },
   {
