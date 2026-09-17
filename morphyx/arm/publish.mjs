@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { parts, assembly } from './arm.mjs';
+import { parts, assembly, wrist } from './arm.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -42,7 +42,7 @@ async function publish(p, tree, { kind, name }) {
   console.log(`  ${existing ? 'new revision' : 'created'}  ${p}  ${f.uri}`);
 }
 console.log(write ? 'publishing the arm' : 'plan, no writes');
-const RETIRED = { v1: ['wrist-housing', 'wrist-yoke'] };   // the implied wrist joint: two parts touching in mid-air, replaced by a real clevis
+const RETIRED = { v1: ['wrist-housing', 'wrist-yoke', 'roll-tube'] };   // roll-tube -> roll-drum, which now houses the J5 motor   // the implied wrist joint: two parts touching in mid-air, replaced by a real clevis
 for (const [ver, names] of Object.entries(RETIRED)) for (const name of names) {
   if (name in parts) continue;
   if (!drive) { console.log(`  plan  arm/parts/${name} → arm/${ver}/${name} (if present)`); continue; }
@@ -54,11 +54,12 @@ const rewrite = (a) => {
   for (const k of Object.keys(a.parts || {})) { const u = revs.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
   for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
 };
-for (const [pathName, mode, name] of [['arm/assembly', 'inputs', 'assembly'], ['arm/pour', 'demo', 'pour']]) {
-  const asm = assembly(mode); rewrite(asm); await publish(pathName, asm, { kind: 'assembly', name });
+for (const [pathName, asm, name] of [['arm/assembly', assembly('inputs'), 'assembly'], ['arm/pour', assembly('demo'), 'pour'], ['arm/wrist', wrist(), 'wrist']]) {
+  rewrite(asm); await publish(pathName, asm, { kind: 'assembly', name });
 }
 if (drive) {
   console.log(`\n${wrote} written, ${kept} unchanged, in ${drive.did}`);
   console.log(`  arm:  https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('assembly'))}`);
   console.log(`  pour: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('pour'))}`);
+  console.log(`  wrist: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('wrist'))}`);
 }

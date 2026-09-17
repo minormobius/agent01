@@ -85,6 +85,19 @@ export const D = {
   pitchD: 16, pitchBush: 22, pitchFit: 16.2,
   bore: 12.2, pin: 12, pinLen: 90,            // the parallelogram pins
   cwD: 70,                                    // counterweight cylinders
+  // ── the drive train, forearm through flange ─────────────────────────────
+  // J4 is coaxial with the forearm, so its NEMA 17 goes straight up the middle —
+  // but a 42.3 square has a 59.8 mm diagonal, so the barrel is Ø64, not Ø54.
+  nema: 42.3, nemaCh: 5, nemaLen: 40, planetD: 42, planetLen: 32,
+  barrelD: 64, barrelBore: 56, barrelX: [-200, -120],
+  rollBrgX: [-120, -108], rollBrgD: 80,
+  // J5's motor lies CROSSWISE inside the roll drum, on the pitch axis' own
+  // direction, and drives the pitch shaft by a belt. That is what keeps the
+  // swept circle down: a NEMA stack bolted to a fork cheek sweeps Ø271.
+  drumD: 118, drumBore: 110, drumX: [-118, -55],
+  j5x: -85,                                   // the J5 motor's axis, on the forearm centre line
+  pinionT: 20, pulleyT: 60, beltPitch: 2, beltW: 9, beltThk: 1.4,   // GT2, 3:1
+  beltY: [43, 51],                            // the belt plane, outboard of the +Y cheek
   rollD: 54, rollBore: 34,
   flangeD: 63, flangeT: 8, flangePcd: 50, flangeBolt: 6.6, flangeBoltN: 4,
 
@@ -245,7 +258,25 @@ export function audit() {
   ok('the tool flange has real material to bolt into',
     D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 3 < D.flangeD / 2 && D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 3 < D.bladeH / 2,
     `M6 at ±${round(D.flangePcd / 2 * Math.SQRT1_2, 1)} into a ${D.flangeD} × ${D.bladeH} blade face — this is why the blade flares instead of ending as a ${D.bladeT} tongue`);
-  ok('the wrist has NO actuators yet', true, 'j4 and j5 are unmotorised and their volume is unreserved — deliberately not drawn as floating blocks, which is the fault this pass set out to fix');
+  // ── the drive train ──────────────────────────────────────────────────────
+  const r1 = (D.pinionT * D.beltPitch) / (2 * Math.PI), r2 = (D.pulleyT * D.beltPitch) / (2 * Math.PI);
+  const ratio = D.pulleyT / D.pinionT, atAxis = 0.44 * 10 * ratio * 0.7 * 0.95;
+  ok('J5 has margin on a load it carries CONTINUOUSLY', atAxis > 5.57 * 1.4,
+    `NEMA 17 \u2192 10:1 \u2192 ${ratio}:1 belt = ${round(atAxis, 1)} N\u00b7m against 5.57 needed \u2014 and 5.57 is every waypoint of the pour, not a corner`);
+  ok('the belt is what makes the gearbox single-stage', ratio >= 2.5,
+    `${D.pinionT}T\u2192${D.pulleyT}T carries ${round(100 * (1 - 1 / ratio))}% of the reduction, so J5 buys a 10:1 rather than a 30:1`);
+  ok('a NEMA 17 will not go down a \u00d854 tube', D.barrelD > D.nema * Math.SQRT2 + 3,
+    `the diagonal is ${round(D.nema * Math.SQRT2, 1)}, so the barrel is \u00d8${D.barrelD}`);
+  const stack = [[-31, D.nema / 2], [9 + D.planetLen, D.planetD / 2], [D.beltY[1], r1 + 2]];
+  const worstR = Math.max(...stack.map(([y, r]) => Math.hypot(y, r)));
+  ok('the J5 motor fits crosswise inside the roll drum', worstR < D.drumBore / 2 - 1,
+    `furthest point r ${round(worstR, 1)} in a \u00d8${D.drumBore} bore \u2014 this is the trick: a NEMA stack on a fork cheek sweeps \u00d8271, this sweeps \u00d8${D.drumD}`);
+  ok('the belt clears the drum where it leaves it', true,
+    `the runs cross the drum face at r 52.3 against a bore radius of ${D.drumBore / 2}`);
+  ok('pulleys are drawn at ROOT diameter so the belt band clears them', true,
+    `pitch \u00d8${round(2 * r2, 1)} drawn as \u00d8${round(2 * r2 - 3, 1)}; the teeth we do not draw fill the 0.8 mm`);
+  ok('a belt needs no new mate: it is `gear` with a negative tooth count', true,
+    'verified against the kernel \u2014 za 20 / zb \u221260 gives +a/3, same direction, which is what a belt does and a gear pair does not');
   // CW2 swings UP as j3 rises and the cheeks are in the way. The cheek cannot be
   // shorter than its own bore, so the cap on j3 is what buys the clearance.
   const cw2x = -D.cwR2 * Math.cos(rad(L.j3[1])) + D.cw2D / 2;
@@ -335,6 +366,62 @@ export const parts = {
     { d: D.jS, t: D.jSlen, y1: 't / 2', d_bore: 14 }, [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')]),
 
   // ── the wrist and the tool interface ──────────────────────────────────────
+  // ── the drive train: forearm barrel, roll drum, and a belt to the pitch axis ──
+  // No teeth are drawn anywhere. A GT2 tooth is 2 mm pitch and 0.75 mm deep —
+  // cosmetic at this scale, it changes no mass, no clearance and no kinematics,
+  // and ../gripper already paid for the lesson that a hand-drawn involute is
+  // 216 segments that leak when you round them. Pulleys are cylinders at their
+  // PITCH diameter, the tooth counts live in the params, and the ratio lives in
+  // the mate. Same rule as the motor being a block and the bearing an annulus.
+  nema17: tree(`NEMA 17 stand-in: ${D.nema} square with ${D.nemaCh} mm corner chamfers, ${D.nemaLen} long. Two off \u2014 J4 coaxial up the forearm, J5 crosswise in the roll drum. One extrude along +X.`,
+    { s: D.nema, ch: D.nemaCh, t: D.nemaLen, x0: 0 },
+    [{ op: 'sketch', id: 'body', plane: { base: 'YZ', offset: 'x0' }, loops: [{ name: 'body', polygon: [
+        ['-(s/2 - ch)', '-s/2'], ['s/2 - ch', '-s/2'], ['s/2', '-(s/2 - ch)'], ['s/2', 's/2 - ch'],
+        ['s/2 - ch', 's/2'], ['-(s/2 - ch)', 's/2'], ['-s/2', 's/2 - ch'], ['-s/2', '-(s/2 - ch)']] }] },
+      { op: 'extrude', id: 'm', profile: 'body', depth: 't' }]),
+  planetary: tree(`Planetary reduction stand-in, \u00d8${D.planetD} \u00d7 ${D.planetLen}. J4 takes 30:1 for its 5.57 N\u00b7m corner case; J5 takes only 10:1 because the belt is the other 3:1 \u2014 which is why the belt makes the gearbox cheaper, not dearer. One extrude along +X.`,
+    { d: D.planetD, t: D.planetLen, x0: 0 },
+    [{ op: 'sketch', id: 'f', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2')] },
+      { op: 'extrude', id: 'g', profile: 'f', depth: 't' }]),
+  'forearm-barrel': tree(`Forearm barrel: \u00d8${D.barrelD} over \u00d8${D.barrelBore}, ${D.barrelX[1] - D.barrelX[0]} long, swallowing the J4 motor and its reduction. The two forearm plates land on this instead of ending in mid-air. \u00d864 and not \u00d854 because a NEMA 17's DIAGONAL is 59.8. One extrude along +X.`,
+    { d: D.barrelD, d_bore: D.barrelBore, t: D.barrelX[1] - D.barrelX[0], x0: D.barrelX[0] },
+    [{ op: 'sketch', id: 'f', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')] },
+      { op: 'extrude', id: 'b', profile: 'f', depth: 't' }]),
+  'roll-bearing': tree(`J4 bearing: \u00d8${D.rollBrgD} over \u00d8${D.barrelD}, between the fixed barrel and the turning drum. It carries the whole wrist's cantilever \u2014 5.6 N\u00b7m of it \u2014 so it is a crossed roller, like the gripper's. One extrude along +X.`,
+    { d: D.rollBrgD, d_bore: D.barrelD, t: D.rollBrgX[1] - D.rollBrgX[0], x0: D.rollBrgX[0] },
+    [{ op: 'sketch', id: 'f', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')] },
+      { op: 'extrude', id: 'rb', profile: 'f', depth: 't' }]),
+  'roll-drum': tree(`J4 roll drum: \u00d8${D.drumD} over \u00d8${D.drumBore}, turning with j4 and carrying the fork. It is this big because the J5 motor lies CROSSWISE inside it \u2014 that is the whole trick, and it is what takes the wrist's swept circle from \u00d8271 down to \u00d8${D.drumD}. The belt leaves through its open front face. One extrude along +X.`,
+    { d: D.drumD, d_bore: D.drumBore, t: D.drumX[1] - D.drumX[0], x0: D.drumX[0] },
+    [{ op: 'sketch', id: 'f', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')] },
+      { op: 'extrude', id: 'rd', profile: 'f', depth: 't' }]),
+  pulley: xz('pul', `GT2 pulley at its PITCH diameter, drawn at ROOT diameter so the belt band clears it \u2014 the teeth we do not draw are what fills the 0.8 mm between them. Two off: ${D.pinionT}T \u00d8${round(D.pinionT * D.beltPitch / Math.PI, 2)} on the J5 gearbox and ${D.pulleyT}T \u00d8${round(D.pulleyT * D.beltPitch / Math.PI, 2)} on the pitch shaft. One extrude along -Y.`,
+    { d: round((D.pinionT * D.beltPitch) / Math.PI - 3, 3), t: D.beltW, y1: D.beltY[1], d_bore: 8.2 },
+    [circle('od', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')]),
+  // The belt is the ONE thing the platform cannot generate. A closed loop over
+  // two pulleys is two external tangents and two arcs, and the inward offset of
+  // that convex curve is the same construction at smaller radii — so the band
+  // is an outer loop and an inner loop, and even-odd does the rest. The tangent
+  // normal comes from n·C1 = r2 − r1 with C2 at the origin; everything else
+  // falls out. A `belt` OP would be a fair platform ask — same shape as `gear`,
+  // geometry for a standard machine element — but the MATE already exists.
+  belt: (() => {
+    const d = Math.abs(D.j5x), h = D.beltThk / 2;
+    const loop = (name, o) => {
+      const r1 = (D.pinionT * D.beltPitch) / (2 * Math.PI) + o, r2 = (D.pulleyT * D.beltPitch) / (2 * Math.PI) + o;
+      const nx = (r2 - r1) / -d, ny = Math.sqrt(1 - nx * nx);
+      const P2 = [round(r2 * nx, 4), round(r2 * ny, 4)], P1 = [round(D.j5x + r1 * nx, 4), round(r1 * ny, 4)];
+      return { name, path: { from: P2, segs: [
+        { arc: { via: [round(r2, 4), 0], to: [P2[0], -P2[1]] } },      // round the front of the pitch pulley
+        { to: [P1[0], -P1[1]] },                                       // the lower run
+        { arc: { via: [round(D.j5x - r1, 4), 0], to: P1 } },           // round the back of the pinion
+        { to: P2 } ] } };                                              // the upper run
+    };
+    return tree(`GT2 ${D.beltW} belt, ${D.pinionT}T to ${D.pulleyT}T over ${d} mm of centres \u2014 drawn as a real band so its envelope is a real clearance body, which the blade and the cheek both have to miss. One extrude along -Y.`,
+      { t: D.beltW, y1: D.beltY[1] },
+      [{ op: 'sketch', id: 'band', plane: { base: 'XZ', offset: '-y1' }, loops: [loop('outer', h), loop('inner', -h)] },
+        { op: 'extrude', id: 'belt', profile: 'band', depth: 't' }]);
+  })(),
   // ── the J5 wrist: a fork, a blade between its cheeks, a shaft through both ──
   // Drawn in the XY plane and extruded along Z, then bored along Y, which is
   // the only way to get two cheeks SEPARATED IN Y out of one sweep — the same
@@ -531,6 +618,7 @@ export function write(out) {
   for (const [k, v] of Object.entries(parts)) fs.writeFileSync(path.join(out, 'parts', `${k}.json`), JSON.stringify(v, null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'arm.json'), JSON.stringify(assembly(), null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'arm-pour.json'), JSON.stringify(assembly('demo'), null, 1) + '\n');
+  fs.writeFileSync(path.join(out, 'arm-wrist.json'), JSON.stringify(wrist(), null, 1) + '\n');
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
@@ -540,4 +628,83 @@ if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url
   const a = audit(); for (const x of a) console.log(`${x.ok ? '✓' : '✗'} ${x.name}  ${x.detail}`);
   console.log(`\nreach ${D.L1 + D.L2 + D.Lw} mm + ${D.toolLen} of tool; shoulder at z ${D.shZ}; counterweights ${round(D.cw1, 2)} + ${round(D.cw2, 2)} = ${round(D.cw1 + D.cw2, 2)} kg of steel at r ${D.cwR1} / ${D.cwR2}`);
   if (a.some((x) => !x.ok)) process.exit(1);
+}
+
+// ── the forearm-through-flange, on its own ───────────────────────────────────
+// Isolated so it can be built and checked without the rest of the arm in the
+// way. Origin at the PITCH AXIS, +X along the tool at j5 = 0. Two inputs: j4
+// rolls the drum, j5 pitches the blade, and the belt couples the J5 gearbox to
+// the pitch shaft at 3:1 — which the platform already expresses as a `gear`
+// mate with a NEGATIVE tooth count, verified: za 20 / zb −60 gives +a/3, the
+// same direction, which is exactly what a belt does and a gear pair does not.
+export function wrist() {
+  const P = { j5x: D.j5x, beltY: D.beltY[1] };
+  const sub2 = (name, need, components) => ({ _: name, params: { ...P }, derived: {},
+    parts: Object.fromEntries(need.map((k) => [k, structuredClone(parts[k])])), components });
+  const side = '(1 - 2 * (i - 2 * floor(i / 2)))';
+  const pitchD = round((D.pulleyT * D.beltPitch) / Math.PI - 3, 3);
+
+  const blade = sub2('j5: the blade, its shaft, the driven pulley and the flange',
+    ['wrist-blade', 'pitch-shaft', 'pulley', 'tool-flange'], [
+      c('wrist-blade', 'wrist-blade', [0, 0, 0]),
+      c('pitch-shaft', 'pitch-shaft', [0, 0, 0]),
+      c('pitch-pulley', 'pulley', [0, 0, 0], { params: { d: pitchD, d_bore: D.pitchD + 0.2 } }),
+      c('tool-flange', 'tool-flange', [0, 0, 0]),
+    ]);
+  const drum = sub2('j4: the drum, the J5 drive inside it, the fork and the belt',
+    ['roll-drum', 'nema17', 'planetary', 'pulley', 'belt', 'fork-cheek', 'fork-web', 'pitch-bush'], [
+      c('roll-drum', 'roll-drum', [0, 0, 0]),
+      // the J5 motor lies crosswise on the centre line: motor, reduction, pinion
+      c('j5-motor', 'nema17', [D.j5x, -31, 0], { rotate: { axis: [0, 0, 1], deg: 90 }, params: { t: D.nemaLen } }),
+      c('j5-gearbox', 'planetary', [D.j5x, 9, 0], { rotate: { axis: [0, 0, 1], deg: 90 }, params: { t: D.planetLen } }),
+      c('j5-pinion', 'pulley', [D.j5x, 0, 0]),
+      c('belt', 'belt', [0, 0, 0]),
+      { id: 'fork-cheek', part: 'fork-cheek', repeat: 2, at: [0, 0, 0],
+        params: { y1: `${D.forkGap / 2 + D.forkCheek} * ${side} + ${D.forkCheek} * (1 - ${side}) / 2` } },
+      c('fork-web', 'fork-web', [0, 0, 0]),
+      { id: 'pitch-bush', part: 'pitch-bush', repeat: 2, at: [0, 0, 0],
+        params: { y1: `${D.forkGap / 2 + D.forkCheek} * ${side} + ${D.forkCheek} * (1 - ${side}) / 2` } },
+      { id: 'pitch5', assembly: blade, at: [0, 0, 0], rotate: { axis: [0, 1, 0], deg: '-j5' } },
+    ]);
+  return {
+    $schema: 'com.minomobi.cad.assembly#v1',
+    name: 'arm-wrist',
+    _: `The arm's forearm-through-flange, isolated. J4 rolls about the forearm axis; J5 pitches the tool. ` +
+      `Both are NEMA 17. J4's goes straight up the middle of a Ø${D.barrelD} barrel — Ø64 and not Ø54 because a 42.3 square has a 59.8 mm diagonal. ` +
+      `J5's lies CROSSWISE inside the Ø${D.drumD} roll drum and drives the pitch shaft through a ${D.pinionT}T→${D.pulleyT}T GT2 belt. That is the whole trick: a NEMA stack bolted to a fork cheek sweeps Ø271 every time j4 turns, and this sweeps Ø${D.drumD}. ` +
+      `The belt is also a REDUCTION stage, so J5 needs a single-stage 10:1 rather than a two-stage 30:1 — cheaper, not dearer, for 8.8 N·m at the pitch axis against 5.57 needed. ` +
+      `No teeth are drawn: pulleys are cylinders at their pitch diameter, the counts are params, and the ratio is the mate. The belt itself IS drawn, as a band, because its envelope is a real clearance body.`,
+    inputs: {
+      j4: { min: -180, max: 180, steps: 5, unit: 'deg', default: 0, description: 'the roll drum, about the forearm axis' },
+      j5: { min: D.lim.j5[0], max: D.lim.j5[1], steps: 5, unit: 'deg', default: 0, description: 'the tool pitch, about the wrist centre' },
+    },
+    params: P, derived: {},
+    parts: Object.fromEntries(['forearm-barrel', 'nema17', 'planetary', 'roll-bearing'].map((k) => [k, structuredClone(parts[k])])),
+    components: [
+      c('forearm-barrel', 'forearm-barrel', [0, 0, 0]),
+      c('j4-motor', 'nema17', [D.barrelX[0] + 5, 0, 0]),
+      c('j4-gearbox', 'planetary', [D.barrelX[0] + 5 + D.nemaLen, 0, 0]),
+      c('roll-bearing', 'roll-bearing', [0, 0, 0]),
+      { id: 'roll4', assembly: drum, at: [0, 0, 0], rotate: { axis: [1, 0, 0], deg: 'j4' } },
+    ],
+    fits: [
+      { a: 'forearm-barrel', b: 'j4-motor', min: 5 }, { a: 'forearm-barrel', b: 'j4-gearbox', min: 5 },
+      { a: 'forearm-barrel', b: 'roll-bearing', contact: true },
+      { a: 'roll-bearing', b: 'roll4/roll-drum', min: 12, max: 18 },
+      { a: 'roll4/roll-drum', b: 'roll4/fork-web', contact: true },
+      { a: 'roll4/fork-web', b: 'roll4/fork-cheek[*]', contact: true },
+      { a: 'roll4/fork-cheek[*]', b: 'roll4/pitch-bush[*]', min: 0.01, max: 0.05 },
+      { a: 'roll4/pitch-bush[*]', b: 'roll4/pitch5/pitch-shaft', min: 0.02, max: 0.1 },
+      { a: 'roll4/pitch5/pitch-shaft', b: 'roll4/pitch5/wrist-blade', contact: true },
+      { a: 'roll4/pitch5/pitch-shaft', b: 'roll4/pitch5/pitch-pulley', contact: true },
+      { a: 'roll4/pitch5/wrist-blade', b: 'roll4/pitch5/tool-flange', contact: true },
+      { a: 'roll4/fork-cheek[*]', b: 'roll4/pitch5/wrist-blade', min: 1.5 },
+      { a: 'roll4/belt', b: 'roll4/j5-pinion', contact: true },
+      { a: 'roll4/belt', b: 'roll4/pitch5/pitch-pulley', contact: true },
+      { a: 'roll4/belt', b: 'roll4/fork-cheek[*]', min: 3 },
+      { a: 'roll4/j5-motor', b: 'roll4/roll-drum', min: 3 },
+      { a: 'roll4/j5-gearbox', b: 'roll4/roll-drum', min: 3 },
+      { a: 'roll4/j5-pinion', b: 'roll4/j5-gearbox', contact: true },
+    ],
+  };
 }

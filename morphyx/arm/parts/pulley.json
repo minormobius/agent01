@@ -1,24 +1,24 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "J4 roll tube: Ø54 over Ø34, 40 long on the forearm's own axis, ending at the fork's back face. This is what j4 turns. One extrude along +X.",
+ "_": "GT2 pulley at its PITCH diameter, drawn at ROOT diameter so the belt band clears it — the teeth we do not draw are what fills the 0.8 mm between them. Two off: 20T Ø12.73 on the J5 gearbox and 60T Ø38.2 on the pitch shaft. One extrude along -Y.",
  "params": {
-  "d": 54,
-  "d_bore": 34,
-  "t": 40,
-  "x0": -95
+  "d": 9.732,
+  "t": 9,
+  "y1": 51,
+  "d_bore": 8.2
  },
  "features": [
   {
    "op": "sketch",
    "id": "face",
    "plane": {
-    "base": "YZ",
-    "offset": "x0"
+    "base": "XZ",
+    "offset": "-y1"
    },
    "loops": [
     {
-     "name": "outline",
+     "name": "od",
      "circle": {
       "c": [
        0,
@@ -41,7 +41,7 @@
   },
   {
    "op": "extrude",
-   "id": "rt",
+   "id": "pul",
    "profile": "face",
    "depth": "t"
   }

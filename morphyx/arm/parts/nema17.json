@@ -1,0 +1,66 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "NEMA 17 stand-in: 42.3 square with 5 mm corner chamfers, 40 long. Two off — J4 coaxial up the forearm, J5 crosswise in the roll drum. One extrude along +X.",
+ "params": {
+  "s": 42.3,
+  "ch": 5,
+  "t": 40,
+  "x0": 0
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "body",
+   "plane": {
+    "base": "YZ",
+    "offset": "x0"
+   },
+   "loops": [
+    {
+     "name": "body",
+     "polygon": [
+      [
+       "-(s/2 - ch)",
+       "-s/2"
+      ],
+      [
+       "s/2 - ch",
+       "-s/2"
+      ],
+      [
+       "s/2",
+       "-(s/2 - ch)"
+      ],
+      [
+       "s/2",
+       "s/2 - ch"
+      ],
+      [
+       "s/2 - ch",
+       "s/2"
+      ],
+      [
+       "-(s/2 - ch)",
+       "s/2"
+      ],
+      [
+       "-s/2",
+       "s/2 - ch"
+      ],
+      [
+       "-s/2",
+       "-(s/2 - ch)"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "m",
+   "profile": "body",
+   "depth": "t"
+  }
+ ]
+}

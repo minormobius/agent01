@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Forearm barrel: Ø64 over Ø56, 80 long, swallowing the J4 motor and its reduction. The two forearm plates land on this instead of ending in mid-air. Ø64 and not Ø54 because a NEMA 17's DIAGONAL is 59.8. One extrude along +X.",
+ "params": {
+  "d": 64,
+  "d_bore": 56,
+  "t": 80,
+  "x0": -200
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "f",
+   "plane": {
+    "base": "YZ",
+    "offset": "x0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "b",
+   "profile": "f",
+   "depth": "t"
+  }
+ ]
+}
