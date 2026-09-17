@@ -92,6 +92,10 @@ await (async () => {
     [{ state: 'x', questions: {} }, 'empty questions'],
     [{ state: 'x', questions: { q: { type: 'essay', instructions: 'hi' } } }, 'unknown question type'],
     [{ state: 'x', questions: { q: { type: 'noul' } } }, 'question without instructions'],
+    [{ state: 'x', questions: { q: { type: 'noul', instructions: '' } } }, 'empty string instructions'],
+    [{ state: 'x', questions: { q: { type: 'noul', instructions: {} } } }, 'empty object instructions'],
+    [{ state: 'x', questions: { q: { type: 'noul', instructions: [] } } }, 'empty array instructions'],
+    [{ state: 'x', questions: { q: { type: 'noul', instructions: 42 } } }, 'numeric instructions'],
   ]) {
     const res = await worker.fetch(post(bad), envWith(SECRET));
     ok(res.status === 422, `${label} -> 422`);
@@ -172,6 +176,37 @@ await (async () => {
       ok(res.status === 502, 'non-JSON upstream -> 502');
     },
   );
+
+  // ------------------------------------- structured instructions are legal ----
+  // docs.typesafe.ai/primitives/advanced: `instructions` and criteria values
+  // accept JSON objects/arrays, not just strings. This proxy must not be
+  // stricter than the service it fronts.
+  await withStub(upstreamOK, async (calls) => {
+    const structured = {
+      state: { x: 1 },
+      questions: {
+        move: {
+          type: 'choice',
+          instructions: { task: 'Pick a door.', objective: 'Go deeper.', health: { current: 9, max: 12 } },
+          criteria: { a: { direction: 'DOWN', note: 'toward the vaults' }, b: 'plain string is fine too' },
+        },
+      },
+    };
+    const res = await worker.fetch(post(structured), envWith(SECRET));
+    ok_(res.status === 200, 'object instructions are accepted, not 422');
+    const sent = JSON.parse(calls[0].init.body);
+    ok_(typeof sent.questions.move.instructions === 'object',
+      'structured instructions reach upstream unflattened');
+    ok_(typeof sent.questions.move.criteria.a === 'object',
+      'structured criteria values reach upstream unflattened');
+  });
+  await withStub(upstreamOK, async () => {
+    const res = await worker.fetch(post({
+      state: 'x',
+      questions: { q: { type: 'noul', instructions: ['line one', 'line two'] } },
+    }), envWith(SECRET));
+    ok_(res.status === 200, 'array instructions are accepted');
+  });
 
   // ---------------------------------------------------------- throttling ----
   // The proxy spends real money, so one caller must not be able to hammer it.

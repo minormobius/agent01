@@ -108,8 +108,17 @@ function buildUpstreamBody(payload) {
     if (!['choice', 'score', 'noul'].includes(q.type)) {
       return { error: `question "${k}" has unknown type ${JSON.stringify(q.type)} (want choice|score|noul)` };
     }
-    if (typeof q.instructions !== 'string' || !q.instructions.trim()) {
-      return { error: `question "${k}" needs instructions` };
+    // `instructions` may be a string OR a JSON object/array — the API accepts
+    // structure here (docs.typesafe.ai/primitives/advanced), and an earlier
+    // version of this guard rejected structured instructions with a 422 that
+    // the upstream would have accepted. A guard that is stricter than the
+    // service it protects is a bug, not caution.
+    const ins = q.instructions;
+    const hasText = typeof ins === 'string' && ins.trim().length > 0;
+    const hasStructure = typeof ins === 'object' && ins !== null
+      && (Array.isArray(ins) ? ins.length > 0 : Object.keys(ins).length > 0);
+    if (!hasText && !hasStructure) {
+      return { error: `question "${k}" needs instructions (a non-empty string, object, or array)` };
     }
   }
 
