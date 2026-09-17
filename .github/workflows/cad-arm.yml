@@ -88,7 +88,7 @@ jobs:
       # balance, the swing clearances and the pour's reachability, but nothing
       # yet checks that the DOCUMENT poses where fk() says it should.
 
-      - name: Interference over all six joints at their corners (64 states; the gate)
+      - name: Interference over all six joints at their corners (243 states; the gate)
         working-directory: /tmp/cad
         # A grid, not a sweep: this document's motion is two INPUTS, not a period,
         # and a path through grip × roll proves nothing about the corners it misses.
@@ -98,7 +98,7 @@ jobs:
         # `limit` is the platform's own budget (the default, or a fit's
         # `interfere.max`), so this is stricter than the exit code, not looser.
         run: |
-          node agent/check.mjs /tmp/arm/arm.json --grid 2 --json > /tmp/check.json || true
+          node agent/check.mjs /tmp/arm/arm.json --grid 3 --json > /tmp/check.json || true
           [ -s /tmp/check.json ] || { echo "::error::check.mjs wrote no JSON — it failed before measuring"; exit 1; }
           node -e '
             const o = JSON.parse(require("fs").readFileSync("/tmp/check.json"));
@@ -107,7 +107,7 @@ jobs:
             console.log(`${o.grid} states over [${o.inputs}] · ${o.pairs.length} touching pairs, ${over.length} over budget`);
             process.exit(over.length ? 1 : 0);'
 
-      - name: The solved pour sweeps clean (the 64-corner grid above is the gate; this is the trajectory that has to work)
+      - name: The solved pour sweeps clean (the 243-state grid above is the gate; this is the trajectory that has to work)
         working-directory: /tmp/cad
         run: node agent/check.mjs /tmp/arm/arm-pour.json --sweep 32
 
@@ -171,4 +171,4 @@ jobs:
       - run: node morphyx/arm/arm.mjs --out /tmp/arm
       - name: Clearance table over the joint corners (exact meshes; for the record, not a gate)
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/arm/arm.json --grid 2 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
+        run: node agent/check.mjs /tmp/arm/arm.json --grid 3 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"

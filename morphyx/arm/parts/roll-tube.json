@@ -1,12 +1,12 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "J4 roll housing: a Ø54 tube on the forearm's own axis, 60 long. One extrude along +X.",
+ "_": "J4 roll tube: Ø54 over Ø34, 40 long on the forearm's own axis, ending at the fork's back face. This is what j4 turns. One extrude along +X.",
  "params": {
   "d": 54,
-  "d_bore": 30,
+  "d_bore": 34,
   "t": 40,
-  "x0": -66
+  "x0": -95
  },
  "features": [
   {
@@ -41,7 +41,7 @@
   },
   {
    "op": "extrude",
-   "id": "wh",
+   "id": "rt",
    "profile": "face",
    "depth": "t"
   }

@@ -1,0 +1,88 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J5 blade: the tool-side member, 50 thick between the fork's cheeks, bored on the pitch axis and flaring from x 45 to a 63 face for the tool flange. The flare starts where it does because everything on this part sweeps r = hypot(x, z) about the pitch axis, and inside r 43.01 it would find a fork cheek. One extrude along +Z, then the pitch bore as a cut along Y.",
+ "params": {
+  "rear": -20,
+  "flare": 45,
+  "front": 60,
+  "hw": 25,
+  "fw": 31.5,
+  "h": 60,
+  "d": 16.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plan",
+   "plane": {
+    "base": "XY",
+    "offset": "-h / 2"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "polygon": [
+      [
+       "rear",
+       "-hw"
+      ],
+      [
+       "flare",
+       "-hw"
+      ],
+      [
+       "front",
+       "-fw"
+      ],
+      [
+       "front",
+       "fw"
+      ],
+      [
+       "flare",
+       "hw"
+      ],
+      [
+       "rear",
+       "hw"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "bl",
+   "profile": "plan",
+   "depth": "h"
+  },
+  {
+   "op": "sketch",
+   "id": "bore",
+   "plane": {
+    "base": "XZ",
+    "offset": "-(hw + 4)"
+   },
+   "loops": [
+    {
+     "name": "pitch",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "borecut",
+   "profile": "bore",
+   "depth": "2 * (hw + 4)",
+   "mode": "cut"
+  }
+ ]
+}

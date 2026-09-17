@@ -1,0 +1,41 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J5 fork web: the 54 mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.",
+ "params": {
+  "back": 55,
+  "web": 12,
+  "h": 70,
+  "t": 54,
+  "y1": 27
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "-back + web / 2",
+       0
+      ],
+      "w": "web",
+      "h": "h"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "web",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

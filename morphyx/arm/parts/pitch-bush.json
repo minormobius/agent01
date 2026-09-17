@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Flanged bush in a fork cheek, Ø22 outside on Ø16. Two off. One extrude along -Y.",
+ "params": {
+  "d": 22,
+  "d_bore": 16.1,
+  "t": 12,
+  "y1": "t / 2"
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "od",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "id",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pb",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

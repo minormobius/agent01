@@ -42,14 +42,6 @@
    "unit": "deg",
    "default": 0,
    "description": "wrist pitch; −j3 keeps the tool level"
-  },
-  "j6": {
-   "min": -360,
-   "max": 360,
-   "steps": 3,
-   "unit": "deg",
-   "default": 0,
-   "description": "tool roll — the pour"
   }
  },
  "params": {
@@ -883,7 +875,7 @@
       "units": "mm",
       "_": "Forearm, elbow to the J4 roll section, 180 mm of a 250 mm reach. It carries no actuator: j3 arrives through the elbow crank from the shoulder. One extrude along -Y.",
       "params": {
-       "a": 154,
+       "a": 125,
        "b": 30,
        "w": 60,
        "t": 14,
@@ -1129,71 +1121,12 @@
         "c2x": "-cwR2 * cos(deg(j3))",
         "c2z": "shZ - cwR2 * sin(deg(j3))"
        },
-       "parts": {
-        "wrist-housing": {
-         "$schema": "com.minomobi.cad.tree#v1",
-         "units": "mm",
-         "_": "J4 roll housing: a Ø54 tube on the forearm's own axis, 60 long. One extrude along +X.",
-         "params": {
-          "d": 54,
-          "d_bore": 30,
-          "t": 40,
-          "x0": -66
-         },
-         "features": [
-          {
-           "op": "sketch",
-           "id": "face",
-           "plane": {
-            "base": "YZ",
-            "offset": "x0"
-           },
-           "loops": [
-            {
-             "name": "outline",
-             "circle": {
-              "c": [
-               0,
-               0
-              ],
-              "r": "d / 2"
-             }
-            },
-            {
-             "name": "bore",
-             "circle": {
-              "c": [
-               0,
-               0
-              ],
-              "r": "d_bore / 2"
-             }
-            }
-           ]
-          },
-          {
-           "op": "extrude",
-           "id": "wh",
-           "profile": "face",
-           "depth": "t"
-          }
-         ]
-        }
-       },
+       "parts": {},
        "components": [
-        {
-         "id": "wrist-housing",
-         "part": "wrist-housing",
-         "at": [
-          0,
-          0,
-          0
-         ]
-        },
         {
          "id": "roll4",
          "assembly": {
-          "_": "j4, the forearm roll",
+          "_": "j4, the forearm roll — the tube, the fork and the pitch bearing",
           "params": {
            "L1": 250,
            "L2": 250,
@@ -1215,12 +1148,295 @@
            "c2x": "-cwR2 * cos(deg(j3))",
            "c2z": "shZ - cwR2 * sin(deg(j3))"
           },
-          "parts": {},
+          "parts": {
+           "roll-tube": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "J4 roll tube: Ø54 over Ø34, 40 long on the forearm's own axis, ending at the fork's back face. This is what j4 turns. One extrude along +X.",
+            "params": {
+             "d": 54,
+             "d_bore": 34,
+             "t": 40,
+             "x0": -95
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "face",
+              "plane": {
+               "base": "YZ",
+               "offset": "x0"
+              },
+              "loops": [
+               {
+                "name": "outline",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d / 2"
+                }
+               },
+               {
+                "name": "bore",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d_bore / 2"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "rt",
+              "profile": "face",
+              "depth": "t"
+             }
+            ]
+           },
+           "fork-cheek": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "J5 fork cheek, two off at |y| 27…39: carries the pitch bush at the wrist centre. `y1` is overridden per side. One extrude along -Y.",
+            "params": {
+             "back": 55,
+             "prong": 25,
+             "h": 70,
+             "t": 12,
+             "y1": 39,
+             "d": 22
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "face",
+              "plane": {
+               "base": "XZ",
+               "offset": "-y1"
+              },
+              "loops": [
+               {
+                "name": "outline",
+                "rect": {
+                 "c": [
+                  "(prong - back) / 2",
+                  0
+                 ],
+                 "w": "back + prong",
+                 "h": "h"
+                }
+               },
+               {
+                "name": "pitch",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d / 2"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "cheek",
+              "profile": "face",
+              "depth": "t"
+             }
+            ]
+           },
+           "fork-web": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "J5 fork web: the 54 mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.",
+            "params": {
+             "back": 55,
+             "web": 12,
+             "h": 70,
+             "t": 54,
+             "y1": 27
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "face",
+              "plane": {
+               "base": "XZ",
+               "offset": "-y1"
+              },
+              "loops": [
+               {
+                "name": "outline",
+                "rect": {
+                 "c": [
+                  "-back + web / 2",
+                  0
+                 ],
+                 "w": "web",
+                 "h": "h"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "web",
+              "profile": "face",
+              "depth": "t"
+             }
+            ]
+           },
+           "pitch-shaft": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "Ø16 pitch shaft, pressed into the blade and running in a bush in each cheek. One extrude along -Y.",
+            "params": {
+             "d": 16,
+             "t": 86,
+             "y1": "t / 2"
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "face",
+              "plane": {
+               "base": "XZ",
+               "offset": "-y1"
+              },
+              "loops": [
+               {
+                "name": "od",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d / 2"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "ps",
+              "profile": "face",
+              "depth": "t"
+             }
+            ]
+           },
+           "pitch-bush": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "Flanged bush in a fork cheek, Ø22 outside on Ø16. Two off. One extrude along -Y.",
+            "params": {
+             "d": 22,
+             "d_bore": 16.1,
+             "t": 12,
+             "y1": "t / 2"
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "face",
+              "plane": {
+               "base": "XZ",
+               "offset": "-y1"
+              },
+              "loops": [
+               {
+                "name": "od",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d / 2"
+                }
+               },
+               {
+                "name": "id",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d_bore / 2"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "pb",
+              "profile": "face",
+              "depth": "t"
+             }
+            ]
+           }
+          },
           "components": [
+           {
+            "id": "roll-tube",
+            "part": "roll-tube",
+            "at": [
+             0,
+             0,
+             0
+            ]
+           },
+           {
+            "id": "fork-cheek",
+            "part": "fork-cheek",
+            "repeat": 2,
+            "at": [
+             0,
+             0,
+             0
+            ],
+            "params": {
+             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+            }
+           },
+           {
+            "id": "fork-web",
+            "part": "fork-web",
+            "at": [
+             0,
+             0,
+             0
+            ]
+           },
+           {
+            "id": "pitch-shaft",
+            "part": "pitch-shaft",
+            "at": [
+             0,
+             0,
+             0
+            ]
+           },
+           {
+            "id": "pitch-bush",
+            "part": "pitch-bush",
+            "repeat": 2,
+            "at": [
+             0,
+             0,
+             0
+            ],
+            "params": {
+             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+            }
+           },
            {
             "id": "pitch5",
             "assembly": {
-             "_": "j5, the wrist pitch, about the wrist centre",
+             "_": "j5, the wrist pitch — the blade between the fork’s cheeks",
              "params": {
               "L1": 250,
               "L2": 250,
@@ -1243,40 +1459,75 @@
               "c2z": "shZ - cwR2 * sin(deg(j3))"
              },
              "parts": {
-              "wrist-yoke": {
+              "wrist-blade": {
                "$schema": "com.minomobi.cad.tree#v1",
                "units": "mm",
-               "_": "J5 yoke: carries the pitch axis at the wrist centre and hands the tool axis to J6. One extrude along -Y.",
+               "_": "J5 blade: the tool-side member, 50 thick between the fork's cheeks, bored on the pitch axis and flaring from x 45 to a 63 face for the tool flange. The flare starts where it does because everything on this part sweeps r = hypot(x, z) about the pitch axis, and inside r 43.01 it would find a fork cheek. One extrude along +Z, then the pitch bore as a cut along Y.",
                "params": {
-                "t": 40,
-                "y1": "t / 2",
-                "w": 40,
-                "L": 60,
-                "g": 12,
-                "d": 14
+                "rear": -20,
+                "flare": 45,
+                "front": 60,
+                "hw": 25,
+                "fw": 31.5,
+                "h": 60,
+                "d": 16.2
                },
                "features": [
                 {
                  "op": "sketch",
-                 "id": "face",
+                 "id": "plan",
                  "plane": {
-                  "base": "XZ",
-                  "offset": "-y1"
+                  "base": "XY",
+                  "offset": "-h / 2"
                  },
                  "loops": [
                   {
                    "name": "outline",
-                   "rect": {
-                    "c": [
-                     "(L - g) / 2",
-                     0
+                   "polygon": [
+                    [
+                     "rear",
+                     "-hw"
                     ],
-                    "w": "L + g",
-                    "h": "w"
-                   }
-                  },
+                    [
+                     "flare",
+                     "-hw"
+                    ],
+                    [
+                     "front",
+                     "-fw"
+                    ],
+                    [
+                     "front",
+                     "fw"
+                    ],
+                    [
+                     "flare",
+                     "hw"
+                    ],
+                    [
+                     "rear",
+                     "hw"
+                    ]
+                   ]
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "bl",
+                 "profile": "plan",
+                 "depth": "h"
+                },
+                {
+                 "op": "sketch",
+                 "id": "bore",
+                 "plane": {
+                  "base": "XZ",
+                  "offset": "-(hw + 4)"
+                 },
+                 "loops": [
                   {
-                   "name": "axis",
+                   "name": "pitch",
                    "circle": {
                     "c": [
                      0,
@@ -1289,8 +1540,91 @@
                 },
                 {
                  "op": "extrude",
-                 "id": "yoke",
-                 "profile": "face",
+                 "id": "borecut",
+                 "profile": "bore",
+                 "depth": "2 * (hw + 4)",
+                 "mode": "cut"
+                }
+               ]
+              },
+              "tool-flange": {
+               "$schema": "com.minomobi.cad.tree#v1",
+               "units": "mm",
+               "_": "Tool flange, ISO 9409-1-50-4-M6: Ø63 × 8, four M6 on a Ø50 circle, Ø31.5 pilot. The gripper's own web bolts to this — its README calls this interface out and does not draw it, so this is the half that exists. One extrude along +X.",
+               "params": {
+                "d": 63,
+                "t": 8,
+                "x0": 60,
+                "pcd": 50,
+                "d_bolt": 6.6,
+                "d_pilot": 31.5
+               },
+               "features": [
+                {
+                 "op": "sketch",
+                 "id": "face",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "x0"
+                 },
+                 "loops": [
+                  {
+                   "name": "outline",
+                   "circle": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "r": "d / 2"
+                   }
+                  },
+                  {
+                   "name": "pilot",
+                   "circle": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "r": "d_pilot / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "sketch",
+                 "id": "bolt",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "x0"
+                 },
+                 "loops": [
+                  {
+                   "name": null,
+                   "circle": {
+                    "c": [
+                     "pcd / 2",
+                     0
+                    ],
+                    "r": "d_bolt / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "pattern",
+                 "id": "bolts",
+                 "of": "bolt",
+                 "kind": "circular",
+                 "count": 4,
+                 "name": "bolt"
+                },
+                {
+                 "op": "extrude",
+                 "id": "fl",
+                 "profile": [
+                  "face",
+                  "bolts"
+                 ],
                  "depth": "t"
                 }
                ]
@@ -1298,8 +1632,8 @@
              },
              "components": [
               {
-               "id": "wrist-yoke",
-               "part": "wrist-yoke",
+               "id": "wrist-blade",
+               "part": "wrist-blade",
                "at": [
                 0,
                 0,
@@ -1307,126 +1641,8 @@
                ]
               },
               {
-               "id": "roll6",
-               "assembly": {
-                "_": "the tool roll, j6 — this is the pour",
-                "params": {
-                 "L1": 250,
-                 "L2": 250,
-                 "Lw": 60,
-                 "crank": 80,
-                 "cwR1": 300,
-                 "cwR2": 200,
-                 "shZ": 400
-                },
-                "derived": {
-                 "ex": "L1 * cos(deg(j2))",
-                 "ez": "L1 * sin(deg(j2))",
-                 "px": "crank * cos(deg(j3))",
-                 "pz": "crank * sin(deg(j3))",
-                 "wx": "ex + L2 * cos(deg(j3))",
-                 "wz": "ez + L2 * sin(deg(j3))",
-                 "c1x": "-cwR1 * cos(deg(j2))",
-                 "c1z": "shZ - cwR1 * sin(deg(j2))",
-                 "c2x": "-cwR2 * cos(deg(j3))",
-                 "c2z": "shZ - cwR2 * sin(deg(j3))"
-                },
-                "parts": {
-                 "tool-flange": {
-                  "$schema": "com.minomobi.cad.tree#v1",
-                  "units": "mm",
-                  "_": "Tool flange, ISO 9409-1-50-4-M6: Ø63 × 8, four M6 on a Ø50 circle, Ø31.5 pilot. The gripper's own web bolts to this — its README calls this interface out and does not draw it, so this is the half that exists. One extrude along +X.",
-                  "params": {
-                   "d": 63,
-                   "t": 8,
-                   "x0": 0,
-                   "pcd": 50,
-                   "d_bolt": 6.6,
-                   "d_pilot": 31.5
-                  },
-                  "features": [
-                   {
-                    "op": "sketch",
-                    "id": "face",
-                    "plane": {
-                     "base": "YZ",
-                     "offset": "x0"
-                    },
-                    "loops": [
-                     {
-                      "name": "outline",
-                      "circle": {
-                       "c": [
-                        0,
-                        0
-                       ],
-                       "r": "d / 2"
-                      }
-                     },
-                     {
-                      "name": "pilot",
-                      "circle": {
-                       "c": [
-                        0,
-                        0
-                       ],
-                       "r": "d_pilot / 2"
-                      }
-                     }
-                    ]
-                   },
-                   {
-                    "op": "sketch",
-                    "id": "bolt",
-                    "plane": {
-                     "base": "YZ",
-                     "offset": "x0"
-                    },
-                    "loops": [
-                     {
-                      "name": null,
-                      "circle": {
-                       "c": [
-                        "pcd / 2",
-                        0
-                       ],
-                       "r": "d_bolt / 2"
-                      }
-                     }
-                    ]
-                   },
-                   {
-                    "op": "pattern",
-                    "id": "bolts",
-                    "of": "bolt",
-                    "kind": "circular",
-                    "count": 4,
-                    "name": "bolt"
-                   },
-                   {
-                    "op": "extrude",
-                    "id": "fl",
-                    "profile": [
-                     "face",
-                     "bolts"
-                    ],
-                    "depth": "t"
-                   }
-                  ]
-                 }
-                },
-                "components": [
-                 {
-                  "id": "tool-flange",
-                  "part": "tool-flange",
-                  "at": [
-                   "Lw",
-                   0,
-                   0
-                  ]
-                 }
-                ]
-               },
+               "id": "tool-flange",
+               "part": "tool-flange",
                "at": [
                 0,
                 0,
@@ -1434,11 +1650,11 @@
                ],
                "rotate": {
                 "axis": [
-                 1,
                  0,
-                 0
+                 0,
+                 1
                 ],
-                "deg": "j6"
+                "deg": 0
                }
               }
              ]
@@ -1567,8 +1783,50 @@
   },
   {
    "a": "yaw/forearm[*]",
-   "b": "yaw/wrist/wrist-housing",
+   "b": "yaw/wrist/roll4/roll-tube",
    "min": 0.5
+  },
+  {
+   "a": "yaw/wrist/roll4/roll-tube",
+   "b": "yaw/wrist/roll4/fork-web",
+   "contact": true
+  },
+  {
+   "a": "yaw/wrist/roll4/fork-web",
+   "b": "yaw/wrist/roll4/fork-cheek[*]",
+   "contact": true
+  },
+  {
+   "a": "yaw/wrist/roll4/fork-cheek[*]",
+   "b": "yaw/wrist/roll4/pitch-bush[*]",
+   "min": 0.01,
+   "max": 0.05
+  },
+  {
+   "a": "yaw/wrist/roll4/pitch-bush[*]",
+   "b": "yaw/wrist/roll4/pitch-shaft",
+   "min": 0.02,
+   "max": 0.1
+  },
+  {
+   "a": "yaw/wrist/roll4/pitch-shaft",
+   "b": "yaw/wrist/roll4/pitch5/wrist-blade",
+   "contact": true
+  },
+  {
+   "a": "yaw/wrist/roll4/fork-cheek[*]",
+   "b": "yaw/wrist/roll4/pitch5/wrist-blade",
+   "min": 1.5
+  },
+  {
+   "a": "yaw/wrist/roll4/fork-web",
+   "b": "yaw/wrist/roll4/pitch5/wrist-blade",
+   "min": 4
+  },
+  {
+   "a": "yaw/wrist/roll4/pitch5/wrist-blade",
+   "b": "yaw/wrist/roll4/pitch5/tool-flange",
+   "contact": true
   },
   {
    "a": "yaw/upper-arm",

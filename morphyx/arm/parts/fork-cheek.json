@@ -1,14 +1,14 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "J5 yoke: carries the pitch axis at the wrist centre and hands the tool axis to J6. One extrude along -Y.",
+ "_": "J5 fork cheek, two off at |y| 27…39: carries the pitch bush at the wrist centre. `y1` is overridden per side. One extrude along -Y.",
  "params": {
-  "t": 40,
-  "y1": "t / 2",
-  "w": 40,
-  "L": 60,
-  "g": 12,
-  "d": 14
+  "back": 55,
+  "prong": 25,
+  "h": 70,
+  "t": 12,
+  "y1": 39,
+  "d": 22
  },
  "features": [
   {
@@ -23,15 +23,15 @@
      "name": "outline",
      "rect": {
       "c": [
-       "(L - g) / 2",
+       "(prong - back) / 2",
        0
       ],
-      "w": "L + g",
-      "h": "w"
+      "w": "back + prong",
+      "h": "h"
      }
     },
     {
-     "name": "axis",
+     "name": "pitch",
      "circle": {
       "c": [
        0,
@@ -44,7 +44,7 @@
   },
   {
    "op": "extrude",
-   "id": "yoke",
+   "id": "cheek",
    "profile": "face",
    "depth": "t"
   }

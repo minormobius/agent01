@@ -48,7 +48,7 @@ export const D = {
                                               // Different radii because the same one puts them in the
                                               // same place whenever j2 = j3, which is most of the pour.
   cw2D: 90,                                   // CW2's pucks are fatter so they stay short in Y
-  j4Len: 40,                                  // the J4 roll section, the forearm's last 40 mm
+  j4Len: 40,                                  // the J4 roll tube
   shoulderZ: 400,                             // J2 height above the bench plate — set by the
                                               // COUNTERWEIGHT SWING, not by the wrist: CW1 rides
                                               // the upper arm's rear extension and is the lowest
@@ -74,16 +74,23 @@ export const D = {
   crankW: 44, crankT: 12, crankY: 40,         // the J3 cranks: 28…40
   ecW: 22, ecT: 14, ecY: 40,                  // the elbow cranks, bolted to the forearm's outer face: 26…40
   rodW: 22, rodT: 10, rodY: 52,               // the push rods: 42…52
-  yokeW: 40,                                  // the J5 yoke's height
-  wristGap: 26,                               // the roll housing's front face, back from the wrist centre
+  // ── the J5 wrist, as a real clevis ──────────────────────────────────────
+  // A fork on the J4 roll tube, a blade between its cheeks, a shaft through
+  // both. The numbers come out of the SWEEP, not out of taste: every point of
+  // the blade traces r = hypot(x, z) about the pitch axis, so the fork has to
+  // be clear of that whole circle everywhere the blade can reach.
+  forkBack: 55, forkWeb: 12, forkProng: 25,   // x −55…25, web inner face at −43
+  forkGap: 54, forkCheek: 12, forkH: 70,      // cheeks |y| 27…39, z ±35
+  bladeT: 50, bladeH: 60, bladeRear: -20, bladeFlare: 45,   // |y| ≤ 25, z ±30
+  pitchD: 16, pitchBush: 22, pitchFit: 16.2,
   bore: 12.2, pin: 12, pinLen: 90,            // the parallelogram pins
   cwD: 70,                                    // counterweight cylinders
-  wristD: 54, wristYoke: 40, wristT: 10,
+  rollD: 54, rollBore: 34,
   flangeD: 63, flangeT: 8, flangePcd: 50, flangeBolt: 6.6, flangeBoltN: 4,
 
   // joint limits, degrees. j2's ceiling is what keeps CW1 off the bench; j5's
   // range is what a level tool needs when reaching down to it (87° at r 500).
-  lim: { j1: [-170, 170], j2: [-30, 60], j3: [-95, 50], j4: [-180, 180], j5: [-100, 100], j6: [-360, 360] },
+  lim: { j1: [-170, 170], j2: [-30, 60], j3: [-95, 50], j4: [-180, 180], j5: [-100, 100] },
   rpm: 3,                                     // the pour demo's clock
 };
 
@@ -125,22 +132,22 @@ const Rx = (d) => { const [c, s] = cs(d); return [[1, 0, 0], [0, c, -s], [0, s, 
 const vadd = (a, b) => a.map((v, i) => v + b[i]);
 const vscale = (v, k) => v.map((x) => x * k);
 
-export function fk([j1, j2, j3, j4, j5, j6]) {
+export function fk([j1, j2, j3, j4, j5]) {
   const T1 = Rz(j1), shoulder = [0, 0, D.shZ];
   const Rua = mul(T1, Ry(-j2)), Rfa = mul(T1, Ry(-j3));      // the forearm takes j3 ABSOLUTELY
   const elbow = vadd(shoulder, vscale(apply(Rua, [1, 0, 0]), D.L1));
   const wrist = vadd(elbow, vscale(apply(Rfa, [1, 0, 0]), D.L2));
-  const Rw = mul(mul(mul(Rfa, Rx(j4)), Ry(-j5)), Rx(j6));    // roll, pitch, roll
+  const Rw = mul(mul(Rfa, Rx(j4)), Ry(-j5));                 // roll then pitch; the third axis is the GRIPPER's
   const tool = apply(Rw, [1, 0, 0]);
   return { shoulder, elbow, wrist, tool, R: Rw,
     flange: vadd(wrist, vscale(tool, D.Lw)),
-    held: vadd(wrist, vscale(tool, D.Lw + D.toolLen)), j: [j1, j2, j3, j4, j5, j6] };
+    held: vadd(wrist, vscale(tool, D.Lw + D.toolLen)), j: [j1, j2, j3, j4, j5] };
 }
 
 // Inverse: put the held object at P with the tool axis LEVEL and pointing out
 // from the column. Closed form — the parallelogram does not change the 2R
 // position problem, it only renames the second angle.
-export function ik(P, roll = 0) {
+export function ik(P) {
   const j1 = (Math.atan2(P[1], P[0]) * 180) / Math.PI;
   const r = Math.hypot(P[0], P[1]) - (D.Lw + D.toolLen), dz = P[2] - D.shZ;
   const c = (r * r + dz * dz - D.L1 ** 2 - D.L2 ** 2) / (2 * D.L1 * D.L2);
@@ -148,7 +155,7 @@ export function ik(P, roll = 0) {
   const phi = -Math.acos(c);                                  // elbow up
   const j2 = ((Math.atan2(dz, r) - Math.atan2(D.L2 * Math.sin(phi), D.L1 + D.L2 * Math.cos(phi))) * 180) / Math.PI;
   const j3 = j2 + (phi * 180) / Math.PI;
-  return { ok: true, j: [j1, j2, j3, 0, -j3, roll].map((v) => round(v, 3)) };   // j5 levels the tool
+  return { ok: true, j: [j1, j2, j3, 0, -j3].map((v) => round(v, 3)) };   // j5 levels the tool
 }
 
 // ── what each joint has to hold, before and after the counterweights ─────────
@@ -171,17 +178,17 @@ export const loadTable = () => [-30, 0, 30, 60, 90].map((a) => ({ arm_deg: a,
 export const CAN = [500, 0, D.canZ];
 export const GLASS = [320, 380, D.glassH + 70];
 export function pour() {
-  const via = (P, roll, name) => ({ name, P, roll, ...ik(P, roll) });
+  const via = (P, name) => ({ name, P, ...ik(P) });
   const up = (P, dz) => [P[0], P[1], P[2] + dz];
   return [
-    via(up(CAN, 170), 0, 'home, clear of the bench'),
-    via(up(CAN, 60), 0, 'approach above the can'),
-    via(CAN, 0, 'down onto the can, and grip'),
-    via(up(CAN, 150), 0, 'lift clear'),
-    via(up(GLASS, 60), 0, 'traverse to the glass'),
-    via(GLASS, 0, 'over the glass'),
-    via(GLASS, 120, 'POUR — 120° of tool roll'),
-    via(up(GLASS, 95), 120, 'lift away, still tipped'),
+    via(up(CAN, 170), 'home, clear of the bench'),
+    via(up(CAN, 60), 'approach above the can'),
+    via(CAN, 'down onto the can, and grip'),
+    via(up(CAN, 150), 'lift clear'),
+    via(up(GLASS, 60), 'traverse to the glass'),
+    via(GLASS, 'over the glass'),
+    via(GLASS, 'over the glass — the TIP is the gripper’s own roll, not an arm axis'),
+    via(up(GLASS, 95), 'lift away'),
   ];
 }
 
@@ -224,9 +231,21 @@ export function audit() {
   ok('the rear extensions clear the turret through the whole j2 range', sweepOk(L.j2[1], D.linkW),
     `shoulder ${D.shZ} over a Ø${D.turretD} turret topping out at ${D.turretZ[1]}, ${round(D.shZ - (D.turretD / 2) * Math.tan(rad(L.j2[1])) - (D.linkW / 2) / Math.cos(rad(L.j2[1])) - D.turretZ[1])} mm to spare at j2 = ${L.j2[1]}°`);
   ok('and through the whole j3 range', sweepOk(L.j3[1], D.crankW), `crank ${D.crankW} wide at j3 = ${L.j3[1]}°`);
-  const swing = Math.hypot(12, D.yokeW / 2);
-  ok('the J5 yoke clears the roll housing at every pitch', D.wristGap > swing + 2,
-    `the yoke's rear corner sweeps r ${round(swing)} about the wrist centre; the housing face is ${D.wristGap} back. A BIGGER overhang makes this worse, not better.`);
+  // Every point of the blade sweeps r = hypot(x, z) about the pitch axis, so
+  // inside r = hypot(prong tip, cheek half-height) it would find a fork cheek.
+  // The blade is only as wide as the slot until it is outside that circle.
+  const rSafe = Math.hypot(D.forkProng, D.forkH / 2);
+  ok('the blade only flares where it is clear of the fork', D.bladeFlare > rSafe + 1.5,
+    `flare at x ${D.bladeFlare} against a swept-clear radius of ${round(rSafe)}`);
+  ok('the blade’s rear corner clears the fork web at every pitch',
+    Math.hypot(D.bladeRear, D.bladeH / 2) < D.forkBack - D.forkWeb - 5,
+    `corner sweeps r ${round(Math.hypot(D.bladeRear, D.bladeH / 2))}, web face at ${D.forkBack - D.forkWeb}`);
+  ok('the blade fits the slot with a running clearance', D.forkGap - D.bladeT >= 3 && D.forkGap - D.bladeT <= 6,
+    `${D.bladeT} blade in a ${D.forkGap} slot`);
+  ok('the tool flange has real material to bolt into',
+    D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 3 < D.flangeD / 2 && D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 3 < D.bladeH / 2,
+    `M6 at ±${round(D.flangePcd / 2 * Math.SQRT1_2, 1)} into a ${D.flangeD} × ${D.bladeH} blade face — this is why the blade flares instead of ending as a ${D.bladeT} tongue`);
+  ok('the wrist has NO actuators yet', true, 'j4 and j5 are unmotorised and their volume is unreserved — deliberately not drawn as floating blocks, which is the fault this pass set out to fix');
   // CW2 swings UP as j3 rises and the cheeks are in the way. The cheek cannot be
   // shorter than its own bore, so the cap on j3 is what buys the clearance.
   const cw2x = -D.cwR2 * Math.cos(rad(L.j3[1])) + D.cw2D / 2;
@@ -302,7 +321,7 @@ export const parts = {
   'elbow-crank': bar('ec', `Elbow crank, two off, ${D.crank} mm — the parallelogram's fourth bar, rigid with the forearm and reaching from its side face out under the push rod. One extrude along -Y.`,
     D.crank, 18, D.ecW, D.ecT, D.ecY, D.bore),
   forearm: bar('fore', `Forearm, elbow to the J4 roll section, ${D.L2 - D.j4Len - D.linkW / 2} mm of a ${D.L2} mm reach. It carries no actuator: j3 arrives through the elbow crank from the shoulder. One extrude along -Y.`,
-    D.L2 - D.j4Len - D.wristGap - D.linkW / 2, 30, D.linkW, D.foreT, D.foreY, D.bore),
+    D.L2 - D.j4Len - D.forkBack - D.linkW / 2, 30, D.linkW, D.foreT, D.foreY, D.bore),
   counterweight: xz('cw', `Counterweight: a plain steel cylinder Ø${D.cwD} on a link's rear extension. CW1 is ${round(D.cw1, 2)} kg (× ${D.cw1Len} long) on the upper arm and CW2 ${round(D.cw2, 2)} kg (× ${D.cw2Len}) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.`,
     { d: D.cwD, t: D.cw1Len, y1: 't / 2', d_bore: D.pin + 0.2 },
     [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')]),
@@ -316,15 +335,39 @@ export const parts = {
     { d: D.jS, t: D.jSlen, y1: 't / 2', d_bore: 14 }, [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')]),
 
   // ── the wrist and the tool interface ──────────────────────────────────────
-  'wrist-housing': tree(`J4 roll housing: a Ø${D.wristD} tube on the forearm's own axis, ${D.wristYoke + 20} long. One extrude along +X.`,
-    { d: D.wristD, d_bore: 30, t: D.j4Len, x0: -(D.j4Len + D.wristGap) },
+  // ── the J5 wrist: a fork, a blade between its cheeks, a shaft through both ──
+  // Drawn in the XY plane and extruded along Z, then bored along Y, which is
+  // the only way to get two cheeks SEPARATED IN Y out of one sweep — the same
+  // trick ../gripper's arm uses for its perpendicular bores.
+  'roll-tube': tree(`J4 roll tube: \u00d8${D.rollD} over \u00d8${D.rollBore}, ${D.j4Len} long on the forearm's own axis, ending at the fork's back face. This is what j4 turns. One extrude along +X.`,
+    { d: D.rollD, d_bore: D.rollBore, t: D.j4Len, x0: -(D.forkBack + D.j4Len) },
     [{ op: 'sketch', id: 'face', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')] },
-      { op: 'extrude', id: 'wh', profile: 'face', depth: 't' }]),
-  'wrist-yoke': xz('yoke', `J5 yoke: carries the pitch axis at the wrist centre and hands the tool axis to J6. One extrude along -Y.`,
-    { t: D.wristYoke, y1: 't / 2', w: D.yokeW, L: D.Lw, g: 12, d: 14 },
-    [rect('outline', ['(L - g) / 2', 0], 'L + g', 'w'), circle('axis', [0, 0], 'd / 2')]),
+      { op: 'extrude', id: 'rt', profile: 'face', depth: 't' }]),
+  // A single U-shaped fork will not build: the pitch bore enters and leaves the
+  // solid TWICE, once per cheek, and Truck refuses that boolean. So the fork is
+  // two cheeks and a web, which is how you would fabricate it anyway — two
+  // waterjet plates on a machined spacer — and each is one simple sweep with
+  // one contained hole. The shoulder is built the same way.
+  'fork-cheek': xz('cheek', `J5 fork cheek, two off at |y| ${D.forkGap / 2}\u2026${D.forkGap / 2 + D.forkCheek}: carries the pitch bush at the wrist centre. \`y1\` is overridden per side. One extrude along -Y.`,
+    { back: D.forkBack, prong: D.forkProng, h: D.forkH, t: D.forkCheek, y1: D.forkGap / 2 + D.forkCheek, d: D.pitchBush },
+    [rect('outline', ['(prong - back) / 2', 0], 'back + prong', 'h'), circle('pitch', [0, 0], 'd / 2')]),
+  'fork-web': xz('web', `J5 fork web: the ${D.forkGap} mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.`,
+    { back: D.forkBack, web: D.forkWeb, h: D.forkH, t: D.forkGap, y1: D.forkGap / 2 },
+    [rect('outline', ['-back + web / 2', 0], 'web', 'h')]),
+  'wrist-blade': tree(`J5 blade: the tool-side member, ${D.bladeT} thick between the fork's cheeks, bored on the pitch axis and flaring from x ${D.bladeFlare} to a ${D.flangeD} face for the tool flange. The flare starts where it does because everything on this part sweeps r = hypot(x, z) about the pitch axis, and inside r ${round(Math.hypot(D.forkProng, D.forkH / 2))} it would find a fork cheek. One extrude along +Z, then the pitch bore as a cut along Y.`,
+    { rear: D.bladeRear, flare: D.bladeFlare, front: D.Lw, hw: D.bladeT / 2, fw: D.flangeD / 2, h: D.bladeH, d: D.pitchFit },
+    [{ op: 'sketch', id: 'plan', plane: { base: 'XY', offset: '-h / 2' }, loops: [{ name: 'outline', polygon: [
+        ['rear', '-hw'], ['flare', '-hw'], ['front', '-fw'], ['front', 'fw'], ['flare', 'hw'], ['rear', 'hw']] }] },
+      { op: 'extrude', id: 'bl', profile: 'plan', depth: 'h' },
+      { op: 'sketch', id: 'bore', plane: { base: 'XZ', offset: '-(hw + 4)' }, loops: [circle('pitch', [0, 0], 'd / 2')] },
+      { op: 'extrude', id: 'borecut', profile: 'bore', depth: '2 * (hw + 4)', mode: 'cut' }]),
+  'pitch-shaft': xz('ps', `\u00d8${D.pitchD} pitch shaft, pressed into the blade and running in a bush in each cheek. One extrude along -Y.`,
+    { d: D.pitchD, t: D.forkGap + 2 * D.forkCheek + 8, y1: 't / 2' }, [circle('od', [0, 0], 'd / 2')]),
+  'pitch-bush': xz('pb', `Flanged bush in a fork cheek, \u00d8${D.pitchBush} outside on \u00d8${D.pitchD}. Two off. One extrude along -Y.`,
+    { d: D.pitchBush, d_bore: D.pitchD + 0.1, t: D.forkCheek, y1: 't / 2' },
+    [circle('od', [0, 0], 'd / 2'), circle('id', [0, 0], 'd_bore / 2')]),
   'tool-flange': tree(`Tool flange, ISO 9409-1-50-4-M6: Ø${D.flangeD} × ${D.flangeT}, four M6 on a Ø${D.flangePcd} circle, Ø31.5 pilot. The gripper's own web bolts to this — its README calls this interface out and does not draw it, so this is the half that exists. One extrude along +X.`,
-    { d: D.flangeD, t: D.flangeT, x0: 0, pcd: D.flangePcd, d_bolt: D.flangeBolt, d_pilot: 31.5 },
+    { d: D.flangeD, t: D.flangeT, x0: D.Lw, pcd: D.flangePcd, d_bolt: D.flangeBolt, d_pilot: 31.5 },
     [{ op: 'sketch', id: 'face', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2'), circle('pilot', [0, 0], 'd_pilot / 2')] },
       { op: 'sketch', id: 'bolt', plane: { base: 'YZ', offset: 'x0' }, loops: [circle(null, ['pcd / 2', 0], 'd_bolt / 2')] },
       { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: D.flangeBoltN, name: 'bolt' },
@@ -387,23 +430,28 @@ export function assembly(mode = 'inputs') {
   // A sub-assembly inherits neither parts NOR derived values, so in the pour
   // document every level carries the six trajectories as well as the chain.
   CHAIN = demo
-    ? { ...Object.fromEntries([1, 2, 3, 4, 5, 6].map((k) => [`jj${k}`, trajectory(k - 1)])), ...chain('jj') }
+    ? { ...Object.fromEntries([1, 2, 3, 4, 5].map((k) => [`jj${k}`, trajectory(k - 1)])), ...chain('jj') }
     : chain('j');
-  const tool = sub('the tool roll, j6 — this is the pour', ['tool-flange'], [
-    c('tool-flange', 'tool-flange', ['Lw', 0, 0]),
+  const side = '(1 - 2 * (i - 2 * floor(i / 2)))';           // +1 / -1 for even / odd i
+  // j5: the blade and the tool flange, pitching about the wrist centre.
+  const pitch = sub('j5, the wrist pitch — the blade between the fork’s cheeks', ['wrist-blade', 'tool-flange'], [
+    c('wrist-blade', 'wrist-blade', [0, 0, 0]),
+    c('tool-flange', 'tool-flange', [0, 0, 0], spin([0, 0, 1], 0)),
   ]);
-  const pitch = sub('j5, the wrist pitch, about the wrist centre', ['wrist-yoke'], [
-    c('wrist-yoke', 'wrist-yoke', [0, 0, 0]),
-    { id: 'roll6', assembly: tool, at: [0, 0, 0], ...spin([1, 0, 0], J(6)) },
-  ]);
-  const roll = sub('j4, the forearm roll', [], [
+  // j4: the roll tube and the fork it carries, and the pitch bearing itself.
+  const roll = sub('j4, the forearm roll — the tube, the fork and the pitch bearing', ['roll-tube', 'fork-cheek', 'fork-web', 'pitch-shaft', 'pitch-bush'], [
+    c('roll-tube', 'roll-tube', [0, 0, 0]),
+    { id: 'fork-cheek', part: 'fork-cheek', repeat: 2, at: [0, 0, 0],
+      params: { y1: `${D.forkGap / 2 + D.forkCheek} * ${side} + ${D.forkCheek} * (1 - ${side}) / 2` } },
+    c('fork-web', 'fork-web', [0, 0, 0]),
+    c('pitch-shaft', 'pitch-shaft', [0, 0, 0]),
+    { id: 'pitch-bush', part: 'pitch-bush', repeat: 2, at: [0, 0, 0],
+      params: { y1: `${D.forkGap / 2 + D.forkCheek} * ${side} + ${D.forkCheek} * (1 - ${side}) / 2` } },
     { id: 'pitch5', assembly: pitch, at: [0, 0, 0], ...spin([0, 1, 0], `-${J(5)}`) },
   ]);
-  const wrist = sub('the wrist, at the forearm’s far end', ['wrist-housing'], [
-    c('wrist-housing', 'wrist-housing', [0, 0, 0]),
+  const wrist = sub('the wrist, at the forearm’s far end', [], [
     { id: 'roll4', assembly: roll, at: [0, 0, 0], ...spin([1, 0, 0], J(4)) },
   ]);
-  const side = '(1 - 2 * (i - 2 * floor(i / 2)))';           // +1 / -1 for even / odd i
   const yaw = sub('everything above the column, yawing with j1', ['turret', 'cheek', 'joint-large', 'upper-arm', 'counterweight', 'crank', 'push-rod', 'elbow-crank', 'forearm'], [
     c('turret', 'turret', [0, 0, 0]),
     { id: 'cheek', part: 'cheek', repeat: 2, at: [0, 0, 0], params: { y1: `${D.cheekY} * ${side} + ${D.cheekT} * (1 - ${side}) / 2` } },
@@ -443,9 +491,9 @@ export function assembly(mode = 'inputs') {
       `J2 and J3 are COAXIAL at the shoulder: J2 swings the upper arm and J3 a crank whose push rod drives an elbow crank rigid with the forearm, so the forearm's ABSOLUTE angle is j3 and nothing about j2 reaches it. Three things follow — both big actuators sit at the shoulder, gravity splits into two independent one-DOF problems, and a counterweight on each rear extension balances both EXACTLY at every pose, because load and counterweight go as the cosine of the same angle. ` +
       `${round(D.cw1, 2)} + ${round(D.cw2, 2)} = ${round(D.cw1 + D.cw2, 2)} kg of steel (CW1 at r ${D.cwR1}, CW2 as two pucks at r ${D.cwR2}) takes ${100 * D.balance}% of it, leaving ${torques(0, 0).j2} N·m at J2 against 9.4 bare. Deliberately not 100%: a perfectly balanced arm drifts anywhere when the power dies, an 80% one settles downward.`,
     ...(demo ? { drive: { component: 'clock', rpm: D.rpm } } : {}),
-    ...(demo ? {} : { inputs: Object.fromEntries([1, 2, 3, 4, 5, 6].map((k) => {
+    ...(demo ? {} : { inputs: Object.fromEntries([1, 2, 3, 4, 5].map((k) => {
       const n = `j${k}`, unit = 'deg';
-      const desc = ['yaw, about the column', 'the upper arm’s ABSOLUTE elevation', 'the FOREARM’s absolute elevation — not the included elbow angle; that is what the parallelogram buys', 'forearm roll', 'wrist pitch; −j3 keeps the tool level', 'tool roll — the pour'][k - 1];
+      const desc = ['yaw, about the column', 'the upper arm’s ABSOLUTE elevation', 'the FOREARM’s absolute elevation — not the included elbow angle; that is what the parallelogram buys', 'forearm roll', 'wrist pitch; −j3 keeps the tool level'][k - 1];
       return [n, { min: L[n][0], max: L[n][1], steps: 3, unit, default: 0, description: desc }];
     })) }),
     params: PARAMS, derived,
@@ -459,7 +507,15 @@ export function assembly(mode = 'inputs') {
       { a: 'yaw/upper-arm', b: 'yaw/cw1[*]', min: 1.5, max: 2.5 },   // spaced off the web, bolted through
       { a: 'yaw/crank[*]', b: 'yaw/cw2[*]', min: 1.5, max: 2.5 },
       { a: 'yaw/forearm[*]', b: 'yaw/elbow-crank[*]', contact: true },
-      { a: 'yaw/forearm[*]', b: 'yaw/wrist/wrist-housing', min: 0.5 },
+      { a: 'yaw/forearm[*]', b: 'yaw/wrist/roll4/roll-tube', min: 0.5 },
+      { a: 'yaw/wrist/roll4/roll-tube', b: 'yaw/wrist/roll4/fork-web', contact: true },
+      { a: 'yaw/wrist/roll4/fork-web', b: 'yaw/wrist/roll4/fork-cheek[*]', contact: true },
+      { a: 'yaw/wrist/roll4/fork-cheek[*]', b: 'yaw/wrist/roll4/pitch-bush[*]', min: 0.01, max: 0.05 },
+      { a: 'yaw/wrist/roll4/pitch-bush[*]', b: 'yaw/wrist/roll4/pitch-shaft', min: 0.02, max: 0.1 },
+      { a: 'yaw/wrist/roll4/pitch-shaft', b: 'yaw/wrist/roll4/pitch5/wrist-blade', contact: true },
+      { a: 'yaw/wrist/roll4/fork-cheek[*]', b: 'yaw/wrist/roll4/pitch5/wrist-blade', min: 1.5 },
+      { a: 'yaw/wrist/roll4/fork-web', b: 'yaw/wrist/roll4/pitch5/wrist-blade', min: 4 },
+      { a: 'yaw/wrist/roll4/pitch5/wrist-blade', b: 'yaw/wrist/roll4/pitch5/tool-flange', contact: true },
       { a: 'yaw/upper-arm', b: 'yaw/forearm[*]', min: 1.5 }, { a: 'yaw/upper-arm', b: 'yaw/crank[*]', min: 17 },
       { a: 'yaw/crank[*]', b: 'yaw/push-rod[*]', min: 1.5 },
       { a: 'yaw/upper-arm', b: 'yaw/push-rod[*]', min: 30 },

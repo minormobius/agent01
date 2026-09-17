@@ -42,7 +42,7 @@ async function publish(p, tree, { kind, name }) {
   console.log(`  ${existing ? 'new revision' : 'created'}  ${p}  ${f.uri}`);
 }
 console.log(write ? 'publishing the arm' : 'plan, no writes');
-const RETIRED = {};                       // v1 is the first published arm; nothing to retire yet
+const RETIRED = { v1: ['wrist-housing', 'wrist-yoke'] };   // the implied wrist joint: two parts touching in mid-air, replaced by a real clevis
 for (const [ver, names] of Object.entries(RETIRED)) for (const name of names) {
   if (name in parts) continue;
   if (!drive) { console.log(`  plan  arm/parts/${name} → arm/${ver}/${name} (if present)`); continue; }
