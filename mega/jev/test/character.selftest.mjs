@@ -153,14 +153,15 @@ const ok = (c, l) => { c ? passed++ : failures.push(l); };
   ok(!usableItems(ch, full).includes('potion'), 'a potion is not offered at full health');
   ok(!usableItems(ch, full).includes('arrow'), 'an arrow is not offered with nothing to shoot');
   ok(!usableItems(ch, full).includes('ward'), 'a ward is not offered with no traps');
-  ok(!usableItems(ch, full).includes('rope'), 'a rope is not offered with no trapdoor');
+  ok(!usableItems(ch, full).includes('rope'), 'a rope is not offered with no hatch');
   ok(usableItems(ch, full).length === 0, 'nothing at all is usable in an empty, safe chamber at full health');
 
   const busy = {
     hp: 4, maxHp: 10,
     creatures: [{ id: 1, type: 'wraith', hp: 3 }],
     traps: [{ trap: 'spike', dmg: 2 }],
-    trapdoor: { toRoom: 5, drop: 4 },
+    // the shape situation() actually produces, both-ways hatch included
+    trapdoor: { fromRoom: 9, toRoom: 5, toChamber: 5, direction: 'down', drop: 4 },
   };
   ok(usableItems(ch, busy).length === 4, 'all four are usable when each has something to act on');
 

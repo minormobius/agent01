@@ -65,9 +65,15 @@ export function knownExits(world, run, id) {
   const room = world.rooms.get(id);
   if (!room) return [];
   const out = room.exits.map((x) => ({ to: x.to, via: 'door' }));
+  // A hatch is an exit from BOTH its ends: a rope is tied off and climbed in
+  // either direction, and a shaft in the ceiling is as visible as one in the
+  // floor. Treating it as one-way sealed a live run into a pocket it had
+  // roped into — see delve.mjs trapdoorHere().
   for (const t of world.trapdoors || []) {
     if (t.fromRoom === id && world.rooms.has(t.toRoom)) {
-      out.push({ to: t.toRoom, via: 'trapdoor', drop: t.drop });
+      out.push({ to: t.toRoom, via: 'hatch', direction: 'down', drop: t.drop });
+    } else if (t.toRoom === id && world.rooms.has(t.fromRoom)) {
+      out.push({ to: t.fromRoom, via: 'hatch', direction: 'up', drop: t.drop });
     }
   }
   return out;
@@ -110,9 +116,9 @@ export function routeToFrontier(world, run) {
         steps: path.length,
         // A trapdoor is not a door: it is entered with a rope, not walked
         // through, so the first move is naming an item rather than an exit.
-        first_step: path[0].via === 'trapdoor' ? 'use the rope here' : `to_${path[0].to}`,
+        first_step: path[0].via === 'hatch' ? 'use the rope here' : `to_${path[0].to}`,
         first_step_via: path[0].via,
-        needs_rope: path.some((p) => p.via === 'trapdoor'),
+        needs_rope: path.some((p) => p.via === 'hatch'),
         path: path.map((p) => p.to),
         last_leg_via: last ? last.via : 'door',
       };
@@ -137,25 +143,37 @@ export function atDeadEnd(world, run) {
   return room.exits.every((x) => run.visited.has(x.to));
 }
 
-/** Shortest route home, through visited ground. Used when withdrawing. */
+/**
+ * Shortest route home, over ground already walked.
+ *
+ * HATCHES COUNT. An earlier version walked doors only, on the theory that a
+ * trapdoor is a one-way drop — and a live run paid for it. Having roped down
+ * into the sealed pocket (69, 68, 67), the delver stood in chamber 67
+ * directly on a working hatch out to 92 and was told `route_to_entrance:
+ * null`. There was a way home under its feet and the memory denied it existed.
+ */
 export function routeToEntrance(world, run) {
   const start = run.at;
-  if (start === world.entrance) return { steps: 0, first_step: null, path: [] };
+  if (start === world.entrance) return { steps: 0, first_step: null, path: [], needs_rope: false };
   const queue = [[start, []]];
   const seen = new Set([start]);
   while (queue.length) {
     const [id, path] = queue.shift();
     if (id === world.entrance) {
-      return { steps: path.length, first_step: `to_${path[0]}`, path: path.slice() };
+      const needsRope = path.some((p) => p.via === 'hatch');
+      return {
+        steps: path.length,
+        first_step: path[0].via === 'hatch' ? 'use the rope here' : `to_${path[0].to}`,
+        first_step_via: path[0].via,
+        needs_rope: needsRope,
+        path: path.map((p) => p.to),
+      };
     }
     if (id !== start && !run.visited.has(id)) continue;
-    const room = world.rooms.get(id);
-    if (!room) continue;
-    // climbing out uses doors only — a trapdoor is a one-way drop
-    for (const x of room.exits) {
+    for (const x of knownExits(world, run, id)) {
       if (seen.has(x.to)) continue;
       seen.add(x.to);
-      queue.push([x.to, [...path, x.to]]);
+      queue.push([x.to, [...path, { to: x.to, via: x.via }]]);
     }
   }
   return null;
@@ -197,7 +215,17 @@ export function memoryFor(world, run) {
             : `Reaching it means retracing ${route.steps - 1} chamber(s) already walked, then one new door.`),
       }
       : null,
-    route_to_entrance: home ? { steps_away: home.steps, first_step: home.first_step } : null,
+    route_to_entrance: home
+      ? {
+        steps_away: home.steps,
+        first_step: home.first_step,
+        needs_rope: Boolean(home.needs_rope),
+        ropes_carried: run.char?.inventory?.rope ?? 0,
+        ...(home.needs_rope && (run.char?.inventory?.rope ?? 0) === 0
+          ? { warning: 'The only way back from here is a hatch, and there is no rope left.' }
+          : {}),
+      }
+      : { steps_away: null, first_step: null, warning: 'No route back to the entrance is known from here.' },
     note: front.length === 0
       ? 'Every chamber this delver has seen has been entered. There is nothing left to find by exploring.'
       : deadEnd

@@ -368,6 +368,53 @@ chambers are reachable by doors at all. Memory that forgets a door it was
 shown is not memory, so `knownExits()` now includes trapdoors, and a route
 that ends in one is flagged `needs_rope` alongside the ropes carried.
 
+### A rope works both ways — found by Jev getting stuck
+
+The first version let a rope go **down** a hatch only, and routed home through
+**doors** only. Both were wrong, and together they built a perfect trap.
+
+Having roped down the hatch from 93 into the sealed pocket, the delver was
+finished: chamber 69 has one door and no hatch of its own, so the rope could
+not climb back up the shaft it had just come down. Worse, standing in chamber
+67 — *directly on a working hatch out to 92* — the memory still reported
+`route_to_entrance: null`, because routes walked doors only. There was a way
+home under its feet and the memory denied it existed.
+
+Physically a rope is tied off and climbed in both directions, and a shaft in
+the ceiling is as visible as one in the floor. So:
+
+- `trapdoorHere()` returns a hatch from **either** of its ends, with a
+  `direction`, and the rope moves the delver to the other end whichever way
+  that is
+- `knownExits()` lists a hatch as a way out of both chambers it joins
+- `routeToEntrance()` traverses hatches, flagged `needs_rope` beside the ropes
+  carried, and says outright when there is no rope left to climb one
+
+**And then it still did not work**, which is the more interesting half. With
+all of the above, the delver sat in chamber 67 for ten ticks with
+`route_to_entrance` reading *"6 steps via use the rope here"* — and chose
+`none` every time, at confidence 0.40. The fact was in the state document but
+not on the **option being chosen**. Exactly the same mistake as writing bad
+criteria: the rope entry said "climbs down to chamber 92, skipping the walk"
+and nothing more.
+
+Attaching `starts_route_to_entrance` to the rope option fixed it on the first
+tick: `item=rope(0.84)` — *"Roped up the hatch into chamber 93."* From ten
+ticks of refusal to an immediate, confident escape, with no change to the
+model and no change to the facts available, only to **which option carried
+them**.
+
+The confidence gate's fallback was fighting too, and got the same treatment:
+when the delver is withdrawing it now follows the route home it actually
+knows, instead of the old "prefer whichever door ascends" heuristic — which
+had been bouncing it between two chambers of a pocket whose only exit was a
+hatch, because ascending by depth number and getting closer to the entrance
+are not the same thing.
+
+Spending the last rope to go somewhere whose only way back is another hatch is
+still possible, and still a real decision — but the `use_item` criteria now
+carry a `caution` naming it *before* the trip rather than after.
+
 ### Measured, on the run that started it
 
 Same seed, same dungeon, live `jev-1.13.0`:

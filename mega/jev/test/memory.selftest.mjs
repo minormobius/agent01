@@ -122,13 +122,13 @@ const ok = (c, l) => { c ? passed++ : failures.push(l); };
   r.at = td.fromRoom;
 
   const exits = knownExits(w, r, td.fromRoom);
-  ok(exits.some((x) => x.via === 'trapdoor' && x.to === td.toRoom),
+  ok(exits.some((x) => x.via === 'hatch' && x.to === td.toRoom),
     'a chamber with a trapdoor lists it among the ways out');
   ok(exits.filter((x) => x.via === 'door').length === w.rooms.get(td.fromRoom).exits.length,
     'and its doors are all still there');
 
   const f = frontier(w, r);
-  ok(f.some((x) => x.chamber === td.toRoom && x.via === 'trapdoor'),
+  ok(f.some((x) => x.chamber === td.toRoom && x.via === 'hatch'),
     'the chamber below a trapdoor is on the frontier');
 
   const route = routeToFrontier(w, r);
@@ -174,6 +174,68 @@ const ok = (c, l) => { c ? passed++ : failures.push(l); };
   ok(mem.nearest_unentered === null, 'the memory reports no target rather than inventing one');
   ok(/nothing left to find/.test(mem.note || ''), 'and says exploration is exhausted');
   ok(!JSON.stringify(mem).includes('undefined'), 'no undefined leaks into the state document');
+}
+
+// ------------------------------- a hatch is an exit from BOTH of its ends ---
+// Found by watching a live run: Jev roped down into the sealed pocket and was
+// then stuck. Chamber 69 has one door and no hatch of its own, the rope only
+// worked at a hatch's upper end, and standing in 67 — directly on a working
+// hatch out to 92 — the memory still reported no route home.
+{
+  const w = mk();
+  const td = w.trapdoors.find((t) => w.rooms.has(t.fromRoom) && w.rooms.has(t.toRoom));
+  const r = newRun(w, { seed: 7 });
+  r.visited.add(td.fromRoom);
+  r.visited.add(td.toRoom);
+
+  r.at = td.toRoom;
+  const up = knownExits(w, r, td.toRoom).find((x) => x.via === 'hatch');
+  ok(up && up.to === td.fromRoom, 'the chamber below a hatch lists it as a way UP');
+  ok(up.direction === 'up', 'and the direction is recorded');
+
+  r.at = td.fromRoom;
+  const down = knownExits(w, r, td.fromRoom).find((x) => x.via === 'hatch');
+  ok(down && down.to === td.toRoom && down.direction === 'down', 'and as a way DOWN from above');
+}
+{
+  // the pocket that trapped him: every chamber in it must know a way home
+  const w = mk();
+  const r = newRun(w, { seed: 7 });
+  for (const id of [114, 88, 89, 94, 93, 92, 87, 61, 62, 37, 38, 42, 41, 40, 46, 35, 30, 69, 68, 67]) {
+    r.visited.add(id);
+  }
+  r.char.inventory.rope = 3;
+  for (const at of [69, 68, 67]) {
+    r.at = at;
+    const home = routeToEntrance(w, r);
+    ok(home !== null, `from sealed chamber ${at} a route home exists`);
+    ok(home.needs_rope === true, `from ${at} that route needs a rope, and says so`);
+    ok(home.steps > 0, `from ${at} the route has real length`);
+    const mem = memoryFor(w, r);
+    ok(mem.route_to_entrance.steps_away === home.steps, `${at}: the memory reports it`);
+    ok(mem.route_to_entrance.ropes_carried === 3, `${at}: and how many ropes are carried`);
+    ok(!mem.route_to_entrance.warning, `${at}: no warning while a rope is carried`);
+  }
+  // with no rope left, the memory must SAY it is a trap rather than stay quiet
+  r.at = 69;
+  r.char.inventory.rope = 0;
+  const stuck = memoryFor(w, r).route_to_entrance;
+  ok(/no rope left/i.test(stuck.warning || ''), 'with no rope the memory warns outright');
+  ok(stuck.steps_away !== null, 'and still names the route, so the cost is legible');
+}
+{
+  // the last-rope caution must appear BEFORE the one-way trip, not after
+  const w = mk();
+  const td = w.trapdoors[0];
+  const r = newRun(w, { seed: 7 });
+  r.at = td.fromRoom;
+  r.visited.add(td.fromRoom);
+  r.char.inventory.rope = 2;
+  let qs = buildQuestions(w, r);
+  ok(qs.use_item && !qs.use_item.criteria.rope.caution, 'no caution with ropes to spare');
+  r.char.inventory.rope = 1;
+  qs = buildQuestions(w, r);
+  ok(/last rope/i.test(qs.use_item.criteria.rope.caution || ''), 'the last rope is flagged before it is spent');
 }
 
 // ------------------------------------------------------------- the journal ---

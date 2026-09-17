@@ -61,10 +61,18 @@ export const ITEMS = {
   },
   rope: {
     label: 'Rope',
-    blurb: 'Descends a trapdoor safely, skipping straight to the chamber below.',
+    blurb: 'Climbs a hatch, up or down, straight into the chamber at its other end.',
     usable: (ch, ctx) => ch.inventory.rope > 0 && ctx.trapdoor != null,
-    why: (ch, ctx) => `Drops straight to chamber ${ctx.trapdoor.toRoom}, `
-      + `${ctx.trapdoor.drop.toFixed(1)} m down, skipping the walk.`,
+    why: (ch, ctx) => {
+      const t = ctx.trapdoor || {};
+      // `toChamber` and `direction` are set by situation(); tolerate a bare
+      // trapdoor record so a shape drift renders plainly instead of printing
+      // "undefined" into the option the model is choosing between.
+      const other = t.toChamber ?? t.toRoom ?? t.fromRoom;
+      const dir = t.direction === 'up' ? 'up to' : t.direction === 'down' ? 'down to' : 'through to';
+      const drop = Number.isFinite(t.drop) ? `, ${t.drop.toFixed(1)} m` : '';
+      return `Climbs ${dir} chamber ${other}${drop}, skipping the walk.`;
+    },
   },
 };
 export const ITEM_KEYS = Object.keys(ITEMS);

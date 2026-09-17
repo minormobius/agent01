@@ -155,9 +155,30 @@ export function newRun(world, { seed = 1, character = null } = {}) {
   return run;
 }
 
-/** The trapdoor leading out of the delver's current chamber, if any. */
+/**
+ * The hatch connecting the delver's chamber to another, in EITHER direction.
+ *
+ * A rope works both ways, and it took a live run to notice that it did not.
+ * Jev roped down the hatch from 93 into the sealed pocket (69, 68, 67), and
+ * was then stuck: 69 has one door and no hatch of its own, and the rope could
+ * only ever be used at a hatch's upper end. Standing in 67 — directly on a
+ * working hatch out to chamber 92 — the memory still reported no route home,
+ * because routes walked doors only.
+ *
+ * Physically a rope is tied off and climbed in both directions, and a shaft in
+ * the ceiling is as visible as one in the floor. So a hatch is an exit from
+ * both of its ends, and `direction` says which way this one goes.
+ */
 export function trapdoorHere(world, run) {
-  return (world.trapdoors || []).find((t) => t.fromRoom === run.at && world.rooms.has(t.toRoom)) || null;
+  for (const t of world.trapdoors || []) {
+    if (t.fromRoom === run.at && world.rooms.has(t.toRoom)) {
+      return { ...t, direction: 'down', toChamber: t.toRoom, otherEnd: t.toRoom };
+    }
+    if (t.toRoom === run.at && world.rooms.has(t.fromRoom)) {
+      return { ...t, direction: 'up', toChamber: t.fromRoom, otherEnd: t.fromRoom };
+    }
+  }
+  return null;
 }
 
 /** What the delver faces right now — the context item legality is judged on. */
@@ -264,8 +285,16 @@ export function buildState(world, run) {
       loot_present: loot.map((l) => ({ kind: l.kind, gold: l.gold })),
       traps_present: traps.map((t) => ({ trap: t.trap, damage: t.dmg, span: t.span })),
       obstacles_present: here.obstacles.length,
-      trapdoor: sit.trapdoor
-        ? { drops_to_chamber: sit.trapdoor.toRoom, drop_metres: sit.trapdoor.drop }
+      hatch: sit.trapdoor
+        ? {
+          direction: sit.trapdoor.direction,
+          connects_to_chamber: sit.trapdoor.toChamber,
+          height_metres: sit.trapdoor.drop,
+          already_entered: run.visited.has(sit.trapdoor.toChamber),
+          note: sit.trapdoor.direction === 'down'
+            ? 'A shaft in the floor. A rope goes down it.'
+            : 'A shaft in the ceiling. A rope climbs up it.',
+        }
         : null,
       already_visited: run.trail.filter((id) => id === here.id).length > 1,
     },
@@ -494,6 +523,14 @@ function buildEngage(world, run) {
 function buildUseItem(world, run) {
   const sit = situation(world, run);
   const usable = usableItems(run.char, sit);
+  // The route home may START with the rope in this chamber. Knowing that and
+  // not saying it on the rope OPTION is the same mistake as writing the
+  // criteria badly: a live run sat in chamber 67 with `route_to_entrance`
+  // reading "6 steps via use the rope here", chose `none` every tick, and
+  // shuffled between two chambers until the run ended. The fact has to travel
+  // on the thing being chosen, not merely somewhere in the state.
+  const home = routeToEntrance(world, run);
+  const ropeIsTheWayHome = Boolean(home && home.first_step === 'use the rope here');
   const criteria = {
     none: {
       action: 'Use nothing this turn.',
@@ -507,6 +544,25 @@ function buildUseItem(world, run) {
       remaining_after_use: run.char.inventory[k] - 1,
       note: ITEMS[k].blurb,
     };
+    // Roping into somewhere whose only way back is another hatch, on the last
+    // rope, is a one-way trip. That should be a decision taken knowingly, not
+    // a trap sprung afterwards — so the risk is stated before the choice.
+    if (k === 'rope' && ropeIsTheWayHome) {
+      criteria[k].starts_route_to_entrance = {
+        steps_away: home.steps,
+        note: 'This hatch is the first step of the only known way back to the entrance. '
+          + 'There is no door route out of here.',
+      };
+    }
+    if (k === 'rope' && run.char.inventory.rope - 1 === 0) {
+      const dest = world.rooms.get(sit.trapdoor.toChamber);
+      const doorRoutes = dest ? dest.exits.length : 0;
+      criteria[k].caution = doorRoutes === 0
+        ? 'This is the LAST rope, and the chamber at the other end has no doors at all. '
+          + 'Using it here is one-way.'
+        : 'This is the last rope. If the way back from there turns out to be another hatch, '
+          + 'there will be nothing left to climb it with.';
+    }
   }
   return {
     type: 'choice',
@@ -520,8 +576,12 @@ function buildUseItem(world, run) {
         held: run.char.inventory[k],
         reason: run.char.inventory[k] === 0 ? 'none carried' : 'nothing here for it to act on',
       })),
+      route_home: home
+        ? { steps_away: home.steps, first_step: home.first_step, needs_rope: Boolean(home.needs_rope) }
+        : { first_step: null, warning: 'No route back to the entrance is known from here.' },
       rule: 'Nothing refills. A potion spent at 2 health is worth far more than one spent at 10, '
-        + 'and an arrow spent on a mite is an arrow not spent on a wraith.',
+        + 'and an arrow spent on a mite is an arrow not spent on a wraith. '
+        + 'A rope, though, is sometimes the only way out of somewhere.',
     },
     criteria,
   };
@@ -582,6 +642,18 @@ function buildLevelUp(world, run) {
 export function fallbackMove(world, run, { climbing = false } = {}) {
   const exits = visibleExits(world, run);
   if (!exits.length) return 'hold';
+
+  // When the gate fires and the delver is heading out, follow the route home
+  // it actually knows rather than the crude "prefer ascent" heuristic. The
+  // heuristic bounced a withdrawing delver between two chambers of a pocket
+  // whose only exit was a hatch, because ascending by depth number and
+  // getting closer to the entrance are not the same thing.
+  if (climbing) {
+    const home = routeToEntrance(world, run);
+    if (home && home.first_step && exits.some((x) => x.option === home.first_step)) {
+      return home.first_step;
+    }
+  }
   const scored = exits.map((x) => {
     const visits = run.trail.filter((id) => id === x.room).length;
     // climbing out: prefer ascent; delving: prefer descent
@@ -682,13 +754,14 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
         say(`Ward flared: ${sit.traps.length} trap(s) here are dead.`, 'item');
       } else if (wanted === 'rope') {
         const td = sit.trapdoor;
-        run.at = td.toRoom;
-        run.visited.add(td.toRoom);
-        run.trail.push(td.toRoom);
+        const target = td.toChamber;
+        run.at = target;
+        run.visited.add(target);
+        run.trail.push(target);
         movedByRope = true;
-        const dest = world.rooms.get(td.toRoom);
+        const dest = world.rooms.get(target);
         if (dest.depth > run.deepest) { xp += 2 * (dest.depth - run.deepest); run.deepest = dest.depth; }
-        say(`Roped down the trapdoor into chamber ${td.toRoom} (depth ${dest.depth}).`, 'item');
+        say(`Roped ${td.direction} the hatch into chamber ${target} (depth ${dest.depth}).`, 'item');
       }
     }
   }
