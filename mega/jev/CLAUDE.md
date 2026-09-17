@@ -1,7 +1,8 @@
 # jev — CLAUDE.md (a decision model with a body)
 
-You are working on **jev**, the TypeSafe AI demo at `jev.mino.mobi`. It exists
-to answer one question in public: *what is a model that only makes decisions
+You are working on **jev**, the TypeSafe AI demo at `mega.mino.mobi/jev/` —
+a sub-site of the [`mega`](../CLAUDE.md) surface, not a surface of its own
+(see below). It exists to answer one question in public: *what is a model that only makes decisions
 actually good for?*
 
 [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) is
@@ -83,7 +84,7 @@ only inside `api.mjs`:
 wrangler secret put TYPESAFE_API_KEY     # one-off, from the dashboard key
 ```
 
-…or let `deploy-jev.yml` push it on every run. **Mind the two names:** the key
+…or let `deploy-mega.yml` push it on every run. **Mind the two names:** the key
 is stored as the GitHub repo secret **`jev_key`**, and the workflow writes it
 into Cloudflare as **`TYPESAFE_API_KEY`** on the `mega` worker, which is what
 `jev/api.mjs` reads.
@@ -93,7 +94,7 @@ response the proxy returns, on the happy path *and* on every error path — if
 you touch `api.mjs` or its mount in `mega/worker.js`, that test is the thing
 that has to stay green.
 
-`POST /api/ask` is deliberately narrow, because an open pass-through to a
+`POST /jev/api/ask` is deliberately narrow, because an open pass-through to a
 metered API is somebody else's free API key:
 
 - POST + JSON only, and **no CORS headers are emitted**, so only this origin
@@ -111,7 +112,7 @@ anything is spent, returning 429 with `Retry-After`. The page ticks every 10 s
 **Be honest about what that throttle is.** It is a per-isolate sliding window.
 Workers isolates are per-colo and get recycled, so a caller spread across
 colos gets more than 30. It stops naive hammering and a stuck browser tab; it
-is **not** a security control. `/api/ask` is reachable by anyone who knows the
+is **not** a security control. `/jev/api/ask` is reachable by anyone who knows the
 URL — CORS only binds browsers, and curl ignores it. If this demo ever gets
 linked somewhere busy, put a real limiter in front: a Durable Object or KV
 counter, or a Cloudflare Rate Limiting rule on the zone.

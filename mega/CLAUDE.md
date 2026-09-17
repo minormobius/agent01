@@ -31,7 +31,7 @@ Interactive map of global megaprojects—construction, timelines, costs, and dee
 | Dir | `mega/` |
 | Endpoint | `mega.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/integrate-v091-v092-v093-4yie2i` |
+| Owning branch | `claude/jev-demo-website-pw3us1` (transferred from `claude/integrate-v091-v092-v093-4yie2i` when the `/jev` sub-site landed — a surface has exactly one owning branch, and jev cannot deploy unless the branch carrying it is the one that owns mega) |
 | Deploy | `.github/workflows/deploy-mega.yml` |
 | Uses | — |
 | Provides | — |
@@ -44,11 +44,11 @@ Static worker-assets (Worker `mega`, directory '.'). Wings: `/` — megaproject 
 
 ## Deploy status
 
-MANAGED — owned by claude/integrate-v091-v092-v093-4yie2i (the v091×v092 synthesis: /v093). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.
+MANAGED — owned by claude/jev-demo-website-pw3us1. Worker `mega` + custom_domain route (mega.mino.mobi), and now a Cloudflare secret `TYPESAFE_API_KEY` for the `/jev` sub-site. Previously owned by claude/integrate-v091-v092-v093-4yie2i (the v091×v092 synthesis: /v093); that branch's `mega/` tree was verified to be a strict subset of this one before the transfer. CLEANUP: delete the orphan `mega-minomobi` worker.
 
 ## Deploying
 
-Pushes to `claude/integrate-v091-v092-v093-4yie2i` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-mega.yml`](../.github/workflows/deploy-mega.yml).
+Pushes to `claude/jev-demo-website-pw3us1` that touch this surface's paths trigger [`.github/workflows/deploy-mega.yml`](../.github/workflows/deploy-mega.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
