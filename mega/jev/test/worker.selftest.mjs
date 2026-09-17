@@ -105,12 +105,12 @@ await (async () => {
   }
   {
     const many = {};
-    for (let i = 0; i < 200; i++) many[`q${i}`] = { type: 'noul', instructions: 'x' };
+    for (let i = 0; i < 2000; i++) many[`q${i}`] = { type: 'noul', instructions: 'x' };
     const res = await worker.fetch(post({ state: 'x', questions: many }), envWith(SECRET));
     ok(res.status === 422, 'too many questions -> 422');
   }
   {
-    const huge = JSON.stringify({ state: 'x'.repeat(300_000), questions: goodQuestions });
+    const huge = JSON.stringify({ state: 'x'.repeat(3_000_000), questions: goodQuestions });
     const res = await worker.fetch(post(huge, { raw: true }), envWith(SECRET));
     ok(res.status === 413, 'oversized body -> 413');
   }

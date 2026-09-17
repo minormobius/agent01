@@ -31,8 +31,8 @@ const UPSTREAM = 'https://api.typesafe.ai/v1/systemone';
 // rather than where mine were guessed. These are deliberately generous for
 // measurement and get tightened to an informed value once the ceiling is
 // known — see CLAUDE.md. The per-IP throttle still bounds the spend.
-const MAX_BODY_BYTES = 256 * 1024;
-const MAX_QUESTIONS = 64;
+const MAX_BODY_BYTES = 2 * 1024 * 1024;
+const MAX_QUESTIONS = 1024;
 const UPSTREAM_TIMEOUT_MS = 20_000;
 
 // Backoff for the two statuses the docs say to retry (429 rate limited,
