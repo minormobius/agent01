@@ -17,6 +17,7 @@ import {
   rollCharacter, sheet, grantXp, availableSkills, takeSkill, usableItems,
   healAmount, meleeCost, arrowRecoveryChance, maxHpOf, nextBonusMaxHp, ITEMS, ITEM_KEYS, SKILLS,
 } from './character.mjs';
+import { memoryFor, routeToFrontier, routeToEntrance, recordJournal } from './memory.mjs';
 
 export const DELVE_VERSION = 2;
 
@@ -143,6 +144,7 @@ export function newRun(world, { seed = 1, character = null } = {}) {
     sprung: new Set(), // rooms whose traps already fired
     warded: new Set(), // rooms whose traps were disarmed by a ward
     withdrawing: false, // latched: see applyAnswers
+    journal: [],        // the delver's own record of its decisions (memory.mjs)
     kills: 0,
     itemsUsed: {},
     deepest: world.rooms.get(world.entrance)?.depth ?? 0,
@@ -268,6 +270,12 @@ export function buildState(world, run) {
       already_visited: run.trail.filter((id) => id === here.id).length > 1,
     },
     available_exits: visibleExits(world, run),
+
+    // WHAT THE DELVER REMEMBERS. Without this it cannot retrace: a live run
+    // sat in a dead end at the bottom of the dungeon, four steps from the one
+    // chamber it had never entered, and bounced between two rooms — because
+    // nothing in the state document mentioned that chamber existed.
+    memory: memoryFor(world, run),
     recent_events: run.log.slice(-6).map((l) => l.text),
   };
 }
@@ -312,8 +320,13 @@ export function buildQuestions(world, run) {
   // your question, not weakness in the model. Labelled keys beat a sentence
   // because nothing has to be parsed out of prose.
   const moveCriteria = {};
+  // Retracing is only a real option if the delver can see where it leads.
+  // These routes are computed over VISITED ground only — memory, not a map.
+  const toFrontier = routeToFrontier(world, run);
+  const toHome = routeToEntrance(world, run);
   for (const x of exits) {
     const isVault = world.endpoints.includes(x.room);
+    const startsRetrace = Boolean(toFrontier && toFrontier.first_step === x.option);
     moveCriteria[x.option] = {
       leads_to_chamber: x.room,
       direction: x.descends > 0 ? 'DOWN, toward the vaults'
@@ -325,11 +338,34 @@ export function buildQuestions(world, run) {
       still_unexplored: x.times_entered === 0,
       creatures_known_left: x.known?.creatures_left ?? null,
       loot_known_left: x.known?.loot_left ?? null,
+      // The note must not fight the retrace hint below it. A door that is the
+      // first step toward unentered ground is NOT "gains nothing", even though
+      // the chamber immediately through it is stripped — and handing the model
+      // two criteria that contradict each other is the same mistake as writing
+      // one badly.
       note: isVault
         ? 'This is the objective itself.'
-        : x.times_entered > 0
-          ? 'Already stripped; returning repeats ground already covered and gains nothing.'
-          : 'Unentered chambers are the only ones still holding loot, and the only route to a vault.',
+        : startsRetrace && x.times_entered > 0
+          ? 'This chamber is already stripped, but it is the way back toward ground never walked — '
+            + 'see starts_route_to_unentered.'
+          : x.times_entered > 0
+            ? 'Already stripped, and it leads nowhere new; returning repeats ground already covered.'
+            : 'Unentered chambers are the only ones still holding loot, and the only route to a vault.',
+      // The difference between "everywhere from here is already walked" and
+      // "this door starts a four-step route to the one chamber you have never
+      // entered". Only set on the door that actually starts that route.
+      ...(startsRetrace
+        ? {
+          starts_route_to_unentered: {
+            chamber: toFrontier.target,
+            steps_away: toFrontier.steps,
+            note: 'The shortest way to ground this delver has never walked starts here.',
+          },
+        }
+        : {}),
+      ...(toHome && toHome.first_step === x.option && toHome.steps > 0
+        ? { starts_route_to_entrance: { steps_away: toHome.steps } }
+        : {}),
     };
   }
   moveCriteria.hold = {
@@ -574,6 +610,8 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
   };
 
   const here = world.rooms.get(run.at);
+  // Captured up front so the journal can record what this tick actually cost.
+  const journalStart = { chamber: run.at, depth: here.depth, hpBefore: run.hp, goldBefore: run.gold };
   // WITHDRAWAL LATCHES, and that is a deliberate fix rather than a tweak.
   // Reading `withdraw > 0.5` fresh each tick made the endgame dither: measured
   // against jev-1.13.0, a delver at 20/38 health sat on withdraw 0.51–0.57 for
@@ -725,6 +763,7 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
     run.hp = 0;
     run.status = 'dead';
     say(`${ch.name} died in chamber ${room.id} at depth ${room.depth}, carrying ${run.gold} gold.`, 'death');
+    recordJournal(run, { ...journalStart, answers });
     run.tick += 1;
     return { events, usedFallback: false, withdrawing };
   }
@@ -789,6 +828,7 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
     say(`Climbed out at the entrance with ${run.gold} gold and ${run.hp}/${run.maxHp} health.`, 'escape');
   }
 
+  recordJournal(run, { ...journalStart, answers });
   run.tick += 1;
   return { events, usedFallback, withdrawing };
 }

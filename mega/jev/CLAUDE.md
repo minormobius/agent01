@@ -324,6 +324,77 @@ and retrying it would spend the budget twice for nothing.
 
 ---
 
+## Memory: the log of his own decisions
+
+**The symptom.** A live run was going well and then simply stopped getting
+anywhere. At tick 18 the delver stood in chamber 30 — a dead end at the bottom
+of the dungeon, one door — having entered 16 chambers, and bounced between two
+rooms until the run ended. It looked like giving up.
+
+**The cause.** It had nothing to go on. The state document gave it the last
+six events as prose, a *count* of rooms visited, and the single exit in front
+of it. Exactly one chamber it had ever seen was still unentered — 46, four
+steps back the way it came — and nothing in the state mentioned that chamber
+existed. A person in that spot retraces their steps; the delver could not,
+because it had never been given the trail.
+
+`memory.mjs` supplies the three things retracing needs:
+
+1. **a journal** — its own decisions, structured rather than narrated:
+   `{ tick, chamber, depth, chose, engaged, used, health_change, gold_change }`
+2. **a frontier** — chambers it has seen the way into but never walked through
+3. **a route** to the nearest one, and one home, over ground it has actually
+   been in
+
+The `move` criteria then mark the single door that starts that route with
+`starts_route_to_unentered: { chamber, steps_away }`.
+
+### Fog of war is preserved, deliberately
+
+The route is computed over the **visited subgraph only**. The delver knows the
+ways out of chambers it has stood in and nothing else. This is memory, not a
+map, and not an oracle: being told "the nearest chamber you have never entered
+is eleven steps back" leaves the actual decision — worth it at 18 health, or
+time to climb out? — entirely open. The selftest asserts every step of a route
+except the last is ground already walked.
+
+### Trapdoors are exits too, and forgetting that hid a whole wing
+
+The first version walked doors only. A finished run then reported the frontier
+as **empty** with three chambers (67, 68, 69) never entered — a pocket
+reachable *only* through the trapdoor in chamber 93, which the delver had
+stood in and been told about, while carrying five ropes. Only 17 of the 20
+chambers are reachable by doors at all. Memory that forgets a door it was
+shown is not memory, so `knownExits()` now includes trapdoors, and a route
+that ends in one is flagged `needs_rope` alongside the ropes carried.
+
+### Measured, on the run that started it
+
+Same seed, same dungeon, live `jev-1.13.0`:
+
+| | before memory | after |
+|---|---|---|
+| chambers entered | 17 / 20 | **20 / 20** |
+| gold recovered | 297 / 311 | **311 / 311** |
+| behaviour at a dead end | bounced between two rooms | retraced |
+| dead-end ticks where it took the retrace door | — | **12 of 12 (100%)** |
+
+From chamber 30 it retraced **ten consecutive chambers**, the route counting
+down 11 → 10 → 9 … → 2, roped down the trapdoor in 93, and cleared the sealed
+wing. Confidence on those retrace picks sat around 0.85–0.95: with the route
+in front of it, going backwards was not a hesitant choice.
+
+The two ticks it did not follow the hint were both cases where it chose a
+*different* unexplored door — a competing frontier branch, not a refusal.
+
+**The general lesson.** Twice now a "the model is behaving badly" reading has
+turned out to be a missing input: first the move criteria, then the game
+balance, now the memory. A decision model answers the question you ask against
+the state you hand it. If it looks lost, check what it was told before
+concluding anything about the model.
+
+---
+
 ## The 3D view and the telemetry
 
 **`scene.mjs` — the spinnable dungeon.** three.js r160, vendored at `vendor/`

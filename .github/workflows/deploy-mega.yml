@@ -42,6 +42,8 @@ jobs:
         run: node jev/test/telemetry.selftest.mjs
       - name: jev character selftest (the pack, the tree, and item legality)
         run: node jev/test/character.selftest.mjs
+      - name: jev memory selftest (the frontier, and the fog of war it keeps)
+        run: node jev/test/memory.selftest.mjs
 
       - name: Deploy static site
         run: npx wrangler deploy
