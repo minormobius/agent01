@@ -33,9 +33,9 @@ _Regenerated 2026-09-17 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-17, 99 members / 286 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: yud, jev, anthropic
+**Neighborhood spark** (bisk 2026-09-17, 99 members / 285 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: yud, jev, bluesky
 - Top post: "I'm back, I missed you all. Since this is an important subject I know too much about, here's a 🧵 explaining that AI Saf" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
