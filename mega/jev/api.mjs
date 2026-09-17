@@ -27,12 +27,17 @@
 const MODEL = 'jev-latest';
 const UPSTREAM = 'https://api.typesafe.ai/v1/systemone';
 
-// Raised from 64KB / 12 to probe where the SERVICE's limits actually are
-// rather than where mine were guessed. These are deliberately generous for
-// measurement and get tightened to an informed value once the ceiling is
-// known — see CLAUDE.md. The per-IP throttle still bounds the spend.
-const MAX_BODY_BYTES = 2 * 1024 * 1024;
-const MAX_QUESTIONS = 1024;
+// Measured, not guessed. The binding constraint upstream is a 32,768-token
+// INPUT budget shared by the state and the questions: 32,213 tokens of state
+// returns 200, ~33.5k returns `max_tokens_exceeded`. In this ledger-shaped
+// text that ceiling landed at 79,198 bytes, so 96KB rejects locally just
+// past the real wall instead of paying a round trip for a 400. Question
+// count is not separately limited as far as it was probed — 1024 noul
+// questions against one state came back in 549ms, all 1024 correct — so the
+// token budget is what actually binds; 256 is generous headroom over the
+// demo's dozen while keeping one request's spend bounded. See CLAUDE.md.
+const MAX_BODY_BYTES = 96 * 1024;
+const MAX_QUESTIONS = 256;
 const UPSTREAM_TIMEOUT_MS = 20_000;
 
 // Backoff for the two statuses the docs say to retry (429 rate limited,

@@ -662,6 +662,114 @@ confidence gate does.
 
 ---
 
+## Where the limits actually are (measured 2026-09-17)
+
+The caps in `api.mjs` used to be guesses. These are not.
+
+### The only ceiling is a 32,768-token input budget
+
+Not a question count, not a byte count — **input tokens, shared between the
+state and the questions.** Past it the service returns HTTP 400
+`{"error_type":"max_tokens_exceeded"}`.
+
+| state | bytes | input tokens | result |
+|---|---|---|---|
+| 400 ledger records | 63,364 | 25,855 | 200 |
+| 500 records | 79,198 | **32,213** | 200 |
+| 520 records | 82,360 | ~33.5k | **400 max_tokens_exceeded** |
+
+`MAX_BODY_BYTES` is set to 96KB: just past the real wall for text of this
+shape, so an oversized body is rejected here instead of paying a round trip
+to be rejected there. Denser text will hit the token budget below 96KB — that
+is the upstream 400's job to report, and it does so clearly.
+
+### Breadth is close to free, and it does not degrade
+
+64 questions, then 1024, against one shared state — every one correct:
+
+| questions | latency | input tok | output tok |
+|---|---|---|---|
+| 1 | 231 ms | 976 | 21 |
+| 64 | 165 ms | 2,677 | 1,146 |
+| 256 | 416 ms | 5,533 | 4,758 |
+| **1024** | **549 ms** | 21,685 | **19,374** |
+
+1024 independent decisions in 549 ms, 1024/1024 correct. Output ran at
+roughly 35,000 tokens/second. No accuracy decay with width at all: accuracy
+was 100% at n=1 and 100% at n=1024. Question count was never the binding
+constraint — the token budget was. `MAX_QUESTIONS = 256` is a spend bound for
+a public endpoint, not a discovered limit.
+
+### Latency barely notices the state
+
+660 bytes → 340 ms. 79KB (32,213 tokens, a 48× increase) → 797 ms. A needle
+planted at 72% depth was found at confidence 1.00 at **every** size. There is
+no "lost in the middle" effect to design around here.
+
+## Calibration: trust ≥0.9, and nothing else
+
+160 items across four domains, every answer's ground truth *computed* — sums
+recomputed, entailments derived from a closed rule base, strings counted,
+code snippets actually executed. Nothing hand-labelled, nothing labelled by
+a model. All `noul`, so the returned probability *is* the confidence claim.
+
+| stated confidence | n | mean stated | actually correct | gap |
+|---|---|---|---|---|
+| 0.50–0.60 | 27 | 54.9% | 63.0% | −8.0 |
+| 0.60–0.70 | 31 | 64.0% | 64.5% | −0.5 |
+| 0.70–0.80 | 20 | 73.8% | 60.0% | **+13.8** |
+| 0.80–0.90 | 16 | 85.0% | 56.3% | **+28.7** |
+| 0.90–0.99 | 39 | 96.4% | **100.0%** | −3.6 |
+| 0.99–1.00 | 27 | 99.0% | **100.0%** | −1.0 |
+
+**The ≥0.9 band was perfect: 66 of 66, and in all four domains separately.**
+Below it, 61.7%. The 0.7–0.9 band is where it is genuinely overconfident, and
+it is the band to escalate, not to accept. Pooled ECE 7.1 points — but that
+single number hides the shape, which is the actionable part. The gate the
+delve loop already uses is the right pattern; 0.9 is the right threshold.
+
+Accuracy falls monotonically with item difficulty (100% at the easiest band,
+50% at the hardest) while stated confidence falls only from 91% to 69% — so
+on hard items the *ranking* is informative and the *level* is not.
+
+### Phrasing spread does not beat it (so don't pay for it)
+
+Each item was also asked four ways, in four separate calls. As an error
+alarm, spread scored AUC **0.729** against stated confidence's **0.743** —
+no better, and combining them (0.736) helped neither. The reason is that 144
+of 160 items were unanimous across all four phrasings: the model is
+phrasing-stable, so paraphrase ensembling has almost nothing to average over.
+Voting the four moved accuracy 77.5% → 78.1%, for 4× the cost. **Don't.**
+(Disagreement, when it does happen, is a real signal — 43.8% wrong versus
+20.1% — it is just too rare to carry a detector.)
+
+## The finding that matters most: compute first, then ask
+
+Two of the four domains scored ~60%. It would be easy to call that a
+weakness. It is not — it is the harness asking a decision model to do
+arithmetic. Same items, same ground truth, same seed; only the state changed
+from *the inputs to a computation* to *the result of it*:
+
+| domain | state holds | accuracy | items at ≥0.9 conf |
+|---|---|---|---|
+| arithmetic | 30 monthly rows, Jev must sum them | 62.5% | 2 / 40 |
+| arithmetic | the five totals, pre-summed | **100.0%** | **40 / 40** |
+| code | the JavaScript source, Jev must trace it | 52.5% | 3 / 40 |
+| code | the return values, already executed | **100.0%** | **40 / 40** |
+
+Note the confidence column. It did not quietly get these wrong: it claimed
+≥0.9 on 3 of 40 code items and was right on all 3. **It knows it cannot
+compute, and says so.** The 60% was honest uncertainty being read as an
+answer by a caller that shouldn't have asked.
+
+This is the same lesson this file records four other times — Jev behaving
+badly is Jev being handed the wrong input — in its most general form. The
+rule for any new harness: **the caller computes, the model decides.** Every
+number Jev needs should already be in the state. If a question requires
+arithmetic, simulation, traversal or counting before the judgement, do that
+work first and put the result in the state. It costs you a few tokens and it
+is the difference between 60% and 100%.
+
 ## The CAD demo that is NOT built yet
 
 `cad.mino.mobi` was the other candidate for a Jev demo, and it is a good one —
@@ -702,3 +810,73 @@ at: a choice constrained to legal operations cannot produce an invalid model,
 so the expensive exact kernel never runs on a proposal the type system could
 have rejected. That is a real benchmark, not a toy — and worth doing properly
 once the geometry is reachable.
+
+### Is CAD a reasonable target for the wide hypothesis? Yes — with one rewrite
+
+The wide hypothesis is now measured, not speculated: 1024 independent
+decisions against one shared state, 549 ms, all correct, no degradation with
+width. CAD fits that shape better than almost anything, because a feature
+tree *is* a few hundred small independent judgements sharing one state, and
+the state — parameters, mates, the named face and edge tree — is a few KB,
+comfortably inside the 32k budget with room for the questions.
+
+Concretely, the per-tick call is one state and a few hundred questions:
+
+- one `noul` per named face: *will this edit orphan you?* — 200 faces is 200
+  questions, and it costs about what 20 would
+- one `noul` per feature pair already in the tree: *does A have to rebuild
+  before B?* — the ordering constraints, asked all at once
+- one `choice` per open edge loop over the operations the kernel says are
+  legal there
+- one `score` for manufacturability on the whole part
+
+That is the dungeon's `buildQuestions()` at 50× the width, which the
+measurements say is roughly free.
+
+**The "CAD diffusion" framing works, with a correction.** The loop is real —
+propose, evaluate, keep, repeat — and 549 ms per round means hundreds of
+rounds in a sitting. But the analogy has a trap in it. Diffusion denoises by
+*generating* a slightly better state each step. Jev generates nothing. It
+only ranks options someone else enumerated. So the harness must supply the
+proposal set, and the quality ceiling of the whole loop is the quality of
+that enumeration, not of Jev. That is a feature, not a limitation: an
+enumerator that only emits kernel-legal operations gives you a search that
+*cannot* propose an invalid model, which is the thing the expensive exact
+kernel currently spends its time discovering.
+
+**The part that will decide whether it works is the feedback harness, and
+the calibration results say exactly how to build it.**
+
+1. **The kernel computes; Jev decides.** This is the 60%-versus-100% finding
+   above, and CAD is the domain most likely to trip on it. Never ask "is this
+   fillet radius larger than the wall thickness?" — that is arithmetic, and
+   it scored 62.5%. Compute the clearance, put `clearance = -0.4mm` in the
+   state, and ask whether that is acceptable for this part. Every tolerance,
+   volume, draft angle, minimum wall and interference check must be a
+   *number already in the state*, measured by Manifold or OCCT. Jev judges;
+   it does not measure.
+2. **Gate at 0.9 and escalate the rest.** 66 of 66 correct at ≥0.9, 61.7%
+   below it. In a CAD loop that means: accept high-confidence operations
+   automatically, and send the 0.7–0.9 band — the genuinely overconfident
+   band — to the exact kernel or to a person. Roughly 40% of decisions were
+   auto-acceptable on the general set; on a well-fed CAD state, where the
+   numbers are pre-computed, that share should be far higher (it was 40/40
+   once the arithmetic was done for it).
+3. **Don't buy ensembling.** Four phrasings bought 0.6 points. Spend the
+   same calls on more *distinct* questions instead — that is where the width
+   actually pays.
+4. **The type constraint is the safety property.** It never once returned an
+   option outside `criteria`, including when none fitted. So the enumerator
+   is the invariant: if it only emits legal operations, no round of the loop
+   can produce an invalid model, and the search never wastes an exact rebuild
+   on a proposal that was always going to fail.
+
+What is still unknown, and is the thing to measure first when `cad/` is
+reachable: whether it is any *good* at geometric judgement. Everything above
+establishes it is fast, wide, honest about what it cannot compute, and
+correct on judgements whose inputs are handed to it. None of it establishes
+that it has a feel for feature order or manufacturability. That needs a
+ground-truth set of real parts with known rebuild failures — the same
+methodology as the calibration set above, where truth is computed by the
+kernel rather than labelled by hand. That set is the actual prerequisite,
+more than the branch merge is.
