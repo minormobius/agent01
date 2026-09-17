@@ -110,7 +110,10 @@ jobs:
       - name: The solved pour sweeps clean (the 243-state grid above is the gate; this is the trajectory that has to work)
         working-directory: /tmp/cad
         run: node agent/check.mjs /tmp/arm/arm-pour.json --sweep 32
-          node agent/check.mjs /tmp/arm/arm-wrist.json --grid 5
+
+      - name: The forearm-through-flange, on its own — j4 × j5 at their corners
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/arm/arm-wrist.json --grid 5
 
       # Concurrency stops runs that START after it exists; it does nothing about
       # ones already in flight, and nothing at all about runs whose own commit
