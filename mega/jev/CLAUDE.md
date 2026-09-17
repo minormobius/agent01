@@ -770,6 +770,89 @@ arithmetic, simulation, traversal or counting before the judgement, do that
 work first and put the result in the state. It costs you a few tokens and it
 is the difference between 60% and 100%.
 
+## The escalation primitive: ask for it, never infer it
+
+The general pattern behind both the dungeon and the trading idea is a **fast
+reactive tier that handles the routine and calls a slower, smarter one when
+it is out of its depth**. That only works if the fast tier can tell when it
+is out of its depth. Measured 2026-09-17, and the result changes how to build
+it.
+
+A 40-device telemetry table, and 75 questions in four classes: 30
+**answerable** from the table, 15 about a **device not in it**, 15 about a
+**field it does not carry**, 15 whose terms are all present but whose answer
+**does not follow**. Two candidate alarms, both asked in the same call:
+
+- **IMPLICIT** — read the confidence of the substantive answer.
+- **EXPLICIT** — ask, as its own separate question, *"does the state actually
+  contain the information needed to answer this?"*
+
+| class | n | answer confidence | ≥0.9 | self-check p(have) |
+|---|---|---|---|---|
+| ANSWERABLE | 30 | 97.0–100.0% | 30/30 | **98–99%** |
+| NO_ENTITY | 15 | **94.0–97.0%** | **15/15** | 12–36% |
+| NO_FIELD | 15 | 79.0–83.0% | 0/15 | 2% |
+| NOT_DERIVABLE | 15 | 75.0–85.0% | 0/15 | 8–15% |
+
+**The implicit signal has a margin of 0.0 points. The explicit one has 62.**
+
+Read the NO_ENTITY row twice. Asked about devices that are **not in the state
+at all**, it answered at 94–97% confidence, 15 out of 15 above the 0.9 gate.
+A plain confidence threshold — the gate that was 66/66 perfect on the
+computed ground-truth set — would have confidently answered every single
+question about a machine that does not exist. The worst answerable item and
+the best unanswerable item both sit at 97.0%: the classes touch.
+
+The explicit self-check separated them completely. Routing on it at 0.5:
+
+```
+handled locally : 30/75 (40%), of which 0 should have gone up
+escalated       : 45/75 (60%), of which 0 needn't have
+accuracy of what it handled alone: 100.0%
+```
+
+Zero errors in both directions, and 100% on everything it kept.
+
+### Why this is the same lesson as all the others
+
+Every failure in this file has been the caller inferring something it could
+have asked for. The route home was in the state and Jev refused until the
+rope *option* said so. The arithmetic scored 62.5% until the caller did the
+summing. Here, "am I in trouble?" is a judgement like any other — so make it
+a question. Confidence is a property of the answer it gave, not a measure of
+whether it should have been asked.
+
+**And it is free.** Breadth costs nothing (1024 questions, 549 ms), so the
+self-check rides along in the same call as the decision. In most
+architectures a second opinion doubles the bill; here it is rounding error.
+That is what makes the whole cascade viable.
+
+### When this pattern is worth building
+
+Four conditions, all of them measured above rather than assumed:
+
+1. **The fast tier can detect its own incompetence** — yes, via the explicit
+   check, with a 62-point margin.
+2. **Escalating is nearly free** — yes, same call, no extra round trip.
+3. **The routine cases are determinate.** This is the binding one. On market
+   questions nothing was determinate, ≥0.9 fired 0 times in 342, and the gate
+   would have forwarded everything — a triage layer that escalates 100% of
+   traffic is just latency. Check this first.
+4. **Volume × latency asymmetry.** If the expensive tier could handle all the
+   traffic anyway, skip the cascade.
+
+Where all four hold: high-rate event triage, control loops that must act at
+10Hz and can consult a planner at 0.1Hz, and — closest to home — an agent's
+inner loop deciding whether a step needs a frontier-model turn at all.
+
+### One caveat
+
+75 questions, one state shape, classes designed by the same person reading
+the results. The margins are wide enough that the direction is not in doubt,
+but before trusting this in anything load-bearing, rebuild the four classes
+against your own state and re-measure. The recipe is the finding; the numbers
+are from one afternoon.
+
 ## The trading hypothesis, tested on real bars (2026-09-17)
 
 The other obvious "go wide" target is markets: a big model enumerates regimes
