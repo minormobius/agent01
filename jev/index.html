@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev delves the foam dungeon</title>
+<meta name="description" content="A live demo of TypeSafe AI's Jev — a decision-only model — steering a delver through a procedurally generated foam dungeon, one typed decision every few seconds.">
+<meta property="og:title" content="Jev delves the foam dungeon">
+<meta property="og:description" content="TypeSafe AI's Jev returns typed decisions, not text. Here it plays a dungeon crawler: five typed questions per tick, one call, no parsing.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="masthead">
+      <div>
+        <div class="eyebrow">TypeSafe AI · jev-latest · System One</div>
+        <h1>Jev delves the foam dungeon</h1>
+      </div>
+    </div>
+
+    <p class="prose" style="margin-top:14px">
+      <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev" rel="noopener">Jev</a>
+      is a decision model: it does not generate text. You hand it a <b>state</b> and some
+      <b>typed questions</b>, and it hands back typed answers — a <code>choice</code> from a
+      fixed set, a <code>score</code> on an ordered scale, a <code>noul</code> between 0 and 1.
+      There is no prose to parse and no invalid answer to retry.
+    </p>
+    <p class="prose">
+      So: give it a body. Every tick, this page sends one call describing where a delver
+      stands inside a live dungeon from
+      <a href="https://foam.mino.mobi/dungeon/" rel="noopener">foam.mino.mobi</a> — its health,
+      the creatures in the room, what lies through each door — along with five questions.
+      Jev answers all five in parallel, and the delver acts on them. Nothing here is
+      scripted; the run goes where the answers take it.
+    </p>
+
+    <div class="mode" id="mode" data-mode="offline" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="mode-text">Checking for an API key…</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <div class="controls">
+    <div class="field">
+      <label for="seed">Dungeon seed</label>
+      <input id="seed" type="number" value="7" min="1" step="1" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="size">Size</label>
+      <select id="size">
+        <option value="s">small</option>
+        <option value="m" selected>medium</option>
+        <option value="l">large</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="roll">Content roll</label>
+      <input id="roll" type="number" value="1" min="1" step="1" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="tick">Seconds per decision</label>
+      <input id="tick" type="number" value="10" min="2" max="120" step="1" inputmode="numeric">
+    </div>
+    <div class="field">
+      <label for="gate">Confidence gate</label>
+      <input id="gate" type="number" value="0.45" min="0" max="1" step="0.05" inputmode="decimal">
+    </div>
+    <div class="spacer"></div>
+    <button id="run" class="primary" type="button">Start delve</button>
+    <button id="step" type="button">Step once</button>
+    <button id="reset" type="button">New dungeon</button>
+  </div>
+
+  <div class="grid">
+
+    <!-- ------------------------------------------------------- the map -- -->
+    <section class="panel mapwrap" aria-labelledby="map-h">
+      <h2 id="map-h">The dungeon</h2>
+      <div class="sub" id="map-sub">Loading a dungeon from foam.mino.mobi…</div>
+
+      <div class="tiles" id="tiles"></div>
+
+      <svg class="map" id="map" viewBox="0 0 520 360" role="img" aria-labelledby="map-h map-desc">
+        <desc id="map-desc">A plan view of the dungeon. Chambers are circles shaded by depth; lines are doors. The delver's position is ringed.</desc>
+      </svg>
+
+      <div class="ramp" aria-hidden="true">
+        <span class="muted">shallow</span>
+        <span class="steps" id="ramp"></span>
+        <span class="muted">deep</span>
+      </div>
+      <div class="legend">
+        <span class="item"><svg width="13" height="13" aria-hidden="true"><rect x="2" y="2" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1.6"/></svg> entrance</span>
+        <span class="item"><svg width="13" height="13" aria-hidden="true"><path d="M6.5 1.5 11.5 6.5 6.5 11.5 1.5 6.5Z" fill="none" stroke="currentColor" stroke-width="1.6"/></svg> vault chamber</span>
+        <span class="item"><svg width="13" height="13" aria-hidden="true"><circle cx="6.5" cy="6.5" r="4.6" fill="none" stroke="#D64C77" stroke-width="2.4"/></svg> the delver</span>
+        <span class="item muted">faded = not yet visited</span>
+      </div>
+
+    </section>
+
+    <!-- --------------------------------------------------- the answers -- -->
+    <section class="panel" aria-labelledby="ans-h">
+      <h2 id="ans-h">This tick's decision</h2>
+      <div class="sub" id="ans-sub">Five typed questions, one call, answered in parallel.</div>
+      <div id="answers">
+        <p class="muted" style="font-size:.86rem">Press <b>Start delve</b> — or <b>Step once</b> to take a single decision.</p>
+      </div>
+      <div id="gatenote"></div>
+    </section>
+  </div>
+
+
+  <!-- The wire panel is full-width on purpose: the actual request and
+       response ARE the demo. Cramped into a column they are unreadable. -->
+  <section class="panel wirepanel" aria-labelledby="wire-h">
+    <h2 id="wire-h">The wire</h2>
+    <div class="sub">Exactly what went out and came back this tick &mdash; no reformatting.</div>
+    <details class="wire" id="wire" open>
+      <summary>Request &amp; response</summary>
+      <div class="body">
+        <div>
+          <h3>Request &rarr; POST /v1/systemone</h3>
+          <pre id="req" class="mono">&mdash;</pre>
+        </div>
+        <div>
+          <h3>Response &larr; jev-latest</h3>
+          <pre id="res" class="mono">&mdash;</pre>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <div class="grid">
+    <section class="panel" aria-labelledby="log-h">
+      <h2 id="log-h">Delve log</h2>
+      <div class="sub">What each decision actually cost.</div>
+      <div class="log" id="log" role="log" aria-live="polite"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="sum-h">
+      <h2 id="sum-h">Run summary</h2>
+      <div class="sub">The same numbers as the tiles, as a table.</div>
+      <table class="summary" id="summary">
+        <thead><tr><th scope="col">Measure</th><th scope="col" style="text-align:right">Value</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+  </div>
+
+</main>
+
+<footer class="foot">
+  <div class="wrap">
+    <p>
+      Dungeon geometry and contents from the
+      <a href="https://foam.mino.mobi/api" rel="noopener">foam dungeon API</a> (deterministic —
+      the same seed always builds the same dungeon).
+      Decisions from <a href="https://docs.typesafe.ai/" rel="noopener">TypeSafe AI</a>'s
+      <code>jev-latest</code>, proxied through this site's worker so the API key stays server-side.
+    </p>
+  </div>
+</footer>
+
+<div class="tip" id="tip" role="tooltip" aria-hidden="true"></div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

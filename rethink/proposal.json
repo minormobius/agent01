@@ -2088,6 +2088,14 @@
           "wing": "play"
         },
         {
+          "u": "jev.mino.mobi",
+          "action": "new",
+          "kind": "toy",
+          "domain": "agents",
+          "note": "TypeSafe AI's Jev — a model that returns typed decisions instead of text — given a body: it delves a live foam dungeon one typed call at a time",
+          "wing": "play"
+        },
+        {
           "u": "mino.mobi/phylo",
           "action": "keep",
           "kind": "app",

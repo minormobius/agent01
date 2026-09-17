@@ -1,0 +1,72 @@
+name: Deploy jev (Jev delves the foam dungeon)
+
+on:
+  push:
+    branches: ['claude/jev-demo-website-pw3us1']
+    paths:
+      - 'jev/**'
+      - '.github/workflows/deploy-jev.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: jev
+    # Mapped to env at the job level because step-level `if:` cannot read the
+    # `secrets` context — only `env`. GitHub still masks the value in logs.
+    env:
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Both selftests run offline against the bundled fixtures — no API key,
+      # no network. They gate the deploy on purpose: the question shapes are
+      # the contract with TypeSafe, and the worker test is what proves the
+      # secret cannot come back out of the proxy.
+      - name: Delve selftest (question shapes, gate, a full run)
+        run: node test/delve.selftest.mjs
+      - name: Worker selftest (the proxy never leaks the key)
+        run: node test/worker.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Push the TypeSafe key as a worker secret. Skipped (not failed) when the
+      # repo secret is unset — the site still deploys and says, on the page,
+      # that it is running the offline stand-in rather than pretending.
+      - name: Sync the TypeSafe API key
+        if: ${{ env.TYPESAFE_API_KEY != '' }}
+        run: printf '%s' "$TYPESAFE_API_KEY" | npx wrangler secret put TYPESAFE_API_KEY
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Report whether the key is configured
+        if: ${{ env.TYPESAFE_API_KEY == '' }}
+        run: |
+          echo "::notice::TYPESAFE_API_KEY is not set on this repo, so jev.mino.mobi will run its offline stand-in."
+          echo "Set it in Settings -> Secrets -> Actions, or run: wrangler secret put TYPESAFE_API_KEY"
+
+      - name: Verify the site is live
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5; do
+            if curl -fsS https://jev.mino.mobi/ | grep -qi 'foam dungeon'; then
+              echo "✓ jev.mino.mobi is live"
+              curl -fsS https://jev.mino.mobi/api/health || true
+              exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ jev.mino.mobi didn't respond within ~25s — a FIRST deploy also creates the custom domain, which can take a few minutes to propagate."

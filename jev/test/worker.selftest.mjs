@@ -1,0 +1,180 @@
+// worker.selftest.mjs — exercises the proxy with a stubbed upstream.
+//
+//   node jev/test/worker.selftest.mjs
+//
+// No network, no real key. The stub captures the outgoing request so we can
+// assert the two things that actually matter:
+//   1. the secret goes UP to TypeSafe and never comes BACK to the caller
+//   2. the caller cannot steer the proxy anywhere we did not intend
+
+import worker from '../worker.js';
+
+const SECRET = 'sk-test-DO-NOT-LEAK-6c1f9a';
+let passed = 0;
+const failures = [];
+const ok = (cond, label) => { cond ? passed++ : failures.push(label); };
+
+const ASSETS = { fetch: async () => new Response('asset', { status: 200 }) };
+const envWith = (key) => ({ TYPESAFE_API_KEY: key, ASSETS });
+
+const post = (body, { raw = false } = {}) =>
+  new Request('https://jev.mino.mobi/api/ask', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: raw ? body : JSON.stringify(body),
+  });
+
+const goodQuestions = {
+  move: { type: 'choice', instructions: 'Which way?', criteria: { a: 'A', b: 'B' } },
+  danger: { type: 'score', instructions: 'How bad?', criteria: ['calm', 'bad'] },
+  fight: { type: 'noul', instructions: 'Fight?' },
+};
+const goodBody = { state: { room: 1 }, questions: goodQuestions };
+
+// Swap global fetch for a capturing stub.
+function withStub(handler, fn) {
+  const real = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init) => { calls.push({ url, init }); return handler(url, init); };
+  return fn(calls).finally(() => { globalThis.fetch = real; });
+}
+
+const upstreamOK = () =>
+  new Response(JSON.stringify({
+    model: 'jev-latest',
+    answers: { move: { type: 'choice', choice: 'a', probabilities: { a: 0.9, b: 0.1 }, confidence: 0.88 } },
+    usage: { input_tokens: 312, output_tokens: 48 },
+  }), { status: 200, headers: { 'content-type': 'application/json' } });
+
+await (async () => {
+  // ---------------------------------------------------------- health ----
+  {
+    const res = await worker.fetch(new Request('https://jev.mino.mobi/api/health'), envWith(SECRET));
+    const body = await res.json();
+    ok(res.status === 200, 'health returns 200');
+    ok(body.configured === true, 'health reports configured when a key is set');
+    ok(!JSON.stringify(body).includes(SECRET), 'health NEVER echoes the key');
+    ok(!JSON.stringify(body).includes(SECRET.slice(0, 8)), 'health leaks no prefix of the key');
+  }
+  {
+    const res = await worker.fetch(new Request('https://jev.mino.mobi/api/health'), envWith(undefined));
+    const body = await res.json();
+    ok(body.configured === false, 'health reports unconfigured with no key');
+  }
+
+  // ------------------------------------------------------- method/shape ----
+  {
+    const res = await worker.fetch(new Request('https://jev.mino.mobi/api/ask'), envWith(SECRET));
+    ok(res.status === 405, 'GET /api/ask is 405');
+  }
+  {
+    const res = await worker.fetch(post(goodBody), envWith(undefined));
+    const body = await res.json();
+    ok(res.status === 503, 'no key configured -> 503');
+    ok(body.error === 'no_api_key', 'no key is reported as no_api_key');
+  }
+  {
+    const res = await worker.fetch(post('{not json', { raw: true }), envWith(SECRET));
+    ok(res.status === 400, 'malformed JSON -> 400');
+  }
+  for (const [bad, label] of [
+    [{ questions: goodQuestions }, 'missing state'],
+    [{ state: 'x' }, 'missing questions'],
+    [{ state: 'x', questions: [] }, 'questions as an array'],
+    [{ state: 'x', questions: {} }, 'empty questions'],
+    [{ state: 'x', questions: { q: { type: 'essay', instructions: 'hi' } } }, 'unknown question type'],
+    [{ state: 'x', questions: { q: { type: 'noul' } } }, 'question without instructions'],
+  ]) {
+    const res = await worker.fetch(post(bad), envWith(SECRET));
+    ok(res.status === 422, `${label} -> 422`);
+  }
+  {
+    const many = {};
+    for (let i = 0; i < 20; i++) many[`q${i}`] = { type: 'noul', instructions: 'x' };
+    const res = await worker.fetch(post({ state: 'x', questions: many }), envWith(SECRET));
+    ok(res.status === 422, 'too many questions -> 422');
+  }
+  {
+    const huge = JSON.stringify({ state: 'x'.repeat(70_000), questions: goodQuestions });
+    const res = await worker.fetch(post(huge, { raw: true }), envWith(SECRET));
+    ok(res.status === 413, 'oversized body -> 413');
+  }
+
+  // ---------------------------------------------------- the happy path ----
+  await withStub(upstreamOK, async (calls) => {
+    const res = await worker.fetch(
+      // extra fields the caller must NOT be able to smuggle through
+      post({ ...goodBody, model: 'something-expensive', max_tokens: 99999, stream: true }),
+      envWith(SECRET),
+    );
+    const body = await res.json();
+    ok(res.status === 200, 'happy path -> 200');
+    ok(calls.length === 1, 'exactly one upstream call');
+
+    const { url, init } = calls[0];
+    ok(url === 'https://api.typesafe.ai/v1/systemone', 'calls the documented endpoint');
+    ok(init.method === 'POST', 'calls upstream with POST');
+    ok(init.headers.authorization === `Bearer ${SECRET}`, 'sends the key as a bearer token UPSTREAM');
+
+    const sent = JSON.parse(init.body);
+    ok(sent.model === 'jev-latest', 'model is forced to jev-latest, not the caller value');
+    ok(!('max_tokens' in sent), 'unknown caller fields are stripped');
+    ok(!('stream' in sent), 'stream cannot be smuggled through');
+    ok(Object.keys(sent).sort().join() === 'model,questions,state', 'upstream body is exactly {state,questions,model}');
+
+    // THE assertion this whole file exists for.
+    const out = JSON.stringify(body);
+    ok(!out.includes(SECRET), 'the key NEVER appears in the proxied response');
+    ok(body.source === 'typesafe', 'real answers are stamped source=typesafe');
+    ok(typeof body.latency_ms === 'number', 'latency is reported');
+    ok(body.answers.move.choice === 'a', 'the answer passes through intact');
+
+    // no CORS headers -> a browser on another origin cannot read this
+    ok(!res.headers.get('access-control-allow-origin'), 'no CORS header is emitted (same-origin only)');
+  });
+
+  // ------------------------------------------------- upstream failures ----
+  for (const [status, label] of [[401, 'bad key'], [422, 'validation'], [429, 'rate limit'], [529, 'overloaded']]) {
+    await withStub(
+      async () => new Response(JSON.stringify({ error: { message: `upstream says ${status}`, key: SECRET } }), { status }),
+      async () => {
+        const res = await worker.fetch(post(goodBody), envWith(SECRET));
+        const out = JSON.stringify(await res.json());
+        ok(res.status !== 200, `upstream ${label} is not reported as success`);
+        // Even if the upstream echoed something secret-shaped, we must not
+        // widen the blast radius by returning our own key.
+        ok(!out.includes(`Bearer ${SECRET}`), `upstream ${label}: no bearer header leaks`);
+      },
+    );
+  }
+  await withStub(
+    async () => { throw new Error('connect ETIMEDOUT'); },
+    async () => {
+      const res = await worker.fetch(post(goodBody), envWith(SECRET));
+      const body = await res.json();
+      ok(res.status === 502, 'upstream unreachable -> 502');
+      ok(body.error === 'upstream_unreachable', 'unreachable upstream is named');
+      ok(!JSON.stringify(body).includes(SECRET), 'unreachable path leaks no key');
+    },
+  );
+  await withStub(
+    async () => new Response('<html>not json</html>', { status: 200 }),
+    async () => {
+      const res = await worker.fetch(post(goodBody), envWith(SECRET));
+      ok(res.status === 502, 'non-JSON upstream -> 502');
+    },
+  );
+
+  // ------------------------------------------------------------ assets ----
+  {
+    const res = await worker.fetch(new Request('https://jev.mino.mobi/'), envWith(SECRET));
+    ok(res.status === 200 && (await res.text()) === 'asset', 'non-api paths fall through to ASSETS');
+  }
+})();
+
+if (failures.length) {
+  console.error(`✗ worker selftest: ${failures.length} failure(s) of ${passed + failures.length} checks\n`);
+  for (const f of failures) console.error('  - ' + f);
+  process.exit(1);
+}
+console.log(`✓ worker selftest: ${passed} checks passed`);

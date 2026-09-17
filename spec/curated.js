@@ -59,7 +59,7 @@ window.SPEC_CURATED = {
     g: 'games', torus: 'games', canvas: 'games', pokemon: 'games',
     ink: 'generative',
     aub: 'games', fluoddity: 'games', cards: 'games', human: 'games',
-    foam: 'games', farm: 'games', 'farm-next': 'games', words: 'games', hopper: 'games',
+    foam: 'games', jev: 'games', farm: 'games', 'farm-next': 'games', words: 'games', hopper: 'games',
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     atlas: 'science',
     read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',

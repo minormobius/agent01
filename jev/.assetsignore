@@ -1,0 +1,13 @@
+# assets.directory is this dir, so anything not listed here is served at the
+# surface's public URL. Keep the site; drop the workshop.
+
+# Internal instructions for whoever works on this surface, not part of the site.
+CLAUDE.md
+
+# Selftests and the local dev server. They run in CI and on a laptop; nothing
+# on jev.mino.mobi loads them.
+test/
+
+# NOTE: fixtures/ is deliberately NOT ignored. The page fetches it at runtime
+# as the fallback dungeon when foam.mino.mobi is unreachable, so it has to be
+# served.
