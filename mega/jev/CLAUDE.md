@@ -290,6 +290,29 @@ decisive call (> 0.65) and leaves only once health is genuinely back above
 70%. A 0.51 is the model saying "I am not sure", and the right answer to that
 is not to reverse course every ten seconds.
 
+**Measured, before and after that fix** (22 ticks, seed 7, live jev-1.13.0):
+
+| | dominant Toughness | diminishing |
+|---|---|---|
+| level-up picks | Toughness x6, then Second Wind | fletcher, marksman, trapsense, climber, second_wind, toughness, toughness |
+| arrows used | 1 | **13** |
+| wards used | 0 | 2 |
+| gold recovered | 207 / 311 | **297 / 311** |
+| vaults | 3 / 3 | 3 / 3 |
+| finished | 21/42 health | 18/25 health |
+
+The pack went from decoration to the thing the run is actually about, and
+the tier-2 tree gets climbed properly — Fletcher, then Marksman. Nothing
+about the criteria changed between those two runs; only the balance did.
+
+**One nuance worth knowing.** When Jev decides to stand and shoot, `move`
+confidence collapses (measured 0.06 and 0.01 on those ticks) because holding
+and moving really are balanced at that moment — so the confidence gate fires
+and the descent rule moves it on. The creature still dies, because `engage`
+resolves before the move. It is arguably the gate overriding a deliberate
+`hold`, and it is left as is: the gate firing visibly is the point of that
+part of the demo. Worth revisiting if `hold` ever needs to mean "stay put".
+
 ### And the proxy now backs off
 
 `/jev/api/ask` retries **429 and 529** with exponential backoff and jitter
