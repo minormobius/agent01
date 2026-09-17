@@ -11,19 +11,34 @@
     // them; everything else is served straight off the asset store.
   },
 
-  // GOLDEN RULE: this `name` must be the worker that owns the live custom
-  // domain, and that domain must appear here as a custom_domain route —
-  // otherwise `wrangler deploy` quietly updates a stray jev.workers.dev and
-  // the subdomain never changes.
+  // ⚠️ READ THIS BEFORE ASSUMING jev.mino.mobi WORKS. It does not, yet.
   //
-  // jev.mino.mobi is a FRESH domain: verified unclaimed 2026-09-17 (it
-  // answers identically to a nonsense subdomain — no DNS record), so the
-  // FIRST deploy creates the DNS record and the binding, which can take a
-  // few minutes to propagate. Verify the deploy log binds
-  // "jev.mino.mobi (custom domain)" — a green run is not proof.
-  "routes": [
-    { "pattern": "jev.mino.mobi", "custom_domain": true }
-  ]
+  // The intended route is the one commented out below. The first deploy
+  // (2026-09-17, run 35188612508) uploaded the worker fine and then failed
+  // binding the domain:
+  //
+  //   You have exceeded the limit of 100 Workers custom domains on zone
+  //   'mino.mobi'  [code: 100122]
+  //
+  // That is a hard Cloudflare per-zone limit, and the zone is AT it. Nothing
+  // in this directory can fix that: a slot has to be freed by detaching a
+  // custom domain from a retired surface, which is dashboard-only work
+  // (docs/DEPLOYS.md §7), or the hostname has to be served by a Workers
+  // *Route* instead — routes cap far higher than 100, but need a proxied DNS
+  // record for `jev` on the zone, which wrangler cannot create.
+  //
+  // So until a slot exists this surface ships to workers.dev, which costs the
+  // zone nothing. This is NOT the golden-rule trap (a deploy that goes green
+  // while the real domain never changes) — there is deliberately no custom
+  // domain to be out of sync with, and the deploy log prints the workers.dev
+  // URL it actually served.
+  //
+  // TO RESTORE, once a slot is free: delete `workers_dev`, uncomment `routes`,
+  // push, and confirm the log binds "jev.mino.mobi (custom domain)".
+  "workers_dev": true
+  // "routes": [
+  //   { "pattern": "jev.mino.mobi", "custom_domain": true }
+  // ]
 
   // The TypeSafe API key is NOT here. It is a secret:
   //   wrangler secret put TYPESAFE_API_KEY

@@ -36,8 +36,20 @@ jobs:
       - name: Install wrangler
         run: npm install wrangler
 
+      # Capture the deploy output so the verify step can check the URL that
+      # was ACTUALLY served, rather than a hostname we assumed.
       - name: Deploy worker + assets
-        run: npx wrangler deploy
+        id: deploy
+        run: |
+          set -o pipefail
+          npx wrangler deploy 2>&1 | tee deploy.log
+          url=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1)
+          if grep -q 'custom domain' deploy.log; then
+            url="https://jev.mino.mobi"
+            echo "bound the custom domain"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "Serving at: $url"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -61,12 +73,23 @@ jobs:
       - name: Verify the site is live
         continue-on-error: true
         run: |
+          url="${{ steps.deploy.outputs.url }}"
+          if [ -z "$url" ]; then
+            echo "⚠️ the deploy printed no URL — check the log above"; exit 0
+          fi
           for attempt in 1 2 3 4 5; do
-            if curl -fsS https://jev.mino.mobi/ | grep -qi 'foam dungeon'; then
-              echo "✓ jev.mino.mobi is live"
-              curl -fsS https://jev.mino.mobi/api/health || true
+            if curl -fsS "$url/" | grep -qi 'foam dungeon'; then
+              echo "✓ live at $url"
+              echo "  /api/health: $(curl -fsS "$url/api/health" || echo unreachable)"
               exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 5
           done
-          echo "⚠️ jev.mino.mobi didn't respond within ~25s — a FIRST deploy also creates the custom domain, which can take a few minutes to propagate."
+          echo "⚠️ $url didn't respond within ~25s. A first deploy (or a newly bound custom domain) can take a few minutes to propagate."
+
+      # jev.mino.mobi is NOT bound: the mino.mobi zone is at Cloudflare's hard
+      # limit of 100 Workers custom domains. See the long note in
+      # jev/wrangler.jsonc for what to do about it.
+      - name: Note the custom-domain situation
+        run: |
+          echo "::notice::jev ships to workers.dev because zone mino.mobi is at the 100 custom-domain limit. Free a slot, then restore the routes[] block in jev/wrangler.jsonc."

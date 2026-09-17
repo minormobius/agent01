@@ -29,6 +29,37 @@ response are shown verbatim. Nothing is scripted.
 
 ---
 
+## ⚠️ The domain is not bound yet
+
+**`jev.mino.mobi` does not resolve.** The first deploy (2026-09-17) uploaded
+the worker and then failed on the domain record:
+
+> You have exceeded the limit of 100 Workers custom domains on zone
+> `mino.mobi` — `[code: 100122]`
+
+That is a hard Cloudflare per-zone limit and the zone is at it (this repo
+alone declares 87 `custom_domain` patterns; lab tenants on other branches
+make up the rest). So this surface currently ships to **workers.dev** — the
+deploy log prints the URL it served, and the workflow verifies that URL
+rather than an assumed one.
+
+Three ways out, in the order I would try them:
+
+1. **Free a slot.** Detach a custom domain from a retired surface in the
+   Cloudflare dashboard (dashboard-only — `docs/DEPLOYS.md` §7), then restore
+   the `routes[]` block in `wrangler.jsonc` and push. Best long-term: the zone
+   is full and this will bite the next new surface too.
+2. **Serve it by Workers Route instead of Custom Domain.** Routes cap far
+   above 100 per zone. A route needs a proxied DNS record for `jev` on the
+   zone, which wrangler cannot create — one dashboard record, then
+   `routes: [{ pattern: "jev.mino.mobi/*", zone_name: "mino.mobi" }]`.
+3. **Leave it on workers.dev.** Fine for a demo link; not a `*.mino.mobi` URL.
+
+Whichever is chosen, the golden rule still applies on the way back: confirm
+the deploy log binds `jev.mino.mobi (custom domain)` before believing it.
+
+---
+
 ## The four things worth knowing
 
 ### 1. The key lives in the worker, and only in the worker
