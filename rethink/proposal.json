@@ -2088,11 +2088,11 @@
           "wing": "play"
         },
         {
-          "u": "jev.majormobius.workers.dev",
+          "u": "jev.mino.mobi",
           "action": "new",
           "kind": "toy",
           "domain": "agents",
-          "note": "TypeSafe AI's Jev — a model that returns typed decisions instead of text — given a body: it delves a live foam dungeon one typed call at a time. On workers.dev until a custom-domain slot frees up on the mino.mobi zone",
+          "note": "TypeSafe AI's Jev — a model that returns typed decisions instead of text — given a body: it delves a live foam dungeon one typed call at a time",
           "wing": "play"
         },
         {

@@ -340,12 +340,12 @@
     {
       "surface": "jev",
       "dir": "jev",
-      "endpoint": "jev.majormobius.workers.dev",
+      "endpoint": "jev.mino.mobi",
       "type": "frontend",
       "branch": "claude/jev-demo-website-pw3us1",
       "uses": [],
       "provides": null,
-      "note": "NOT ON jev.mino.mobi YET \u2014 the mino.mobi zone is at Cloudflare's hard limit of 100 Workers custom domains, so this ships to workers.dev until a slot is freed (the intended routes[] block is commented out in jev/wrangler.jsonc with the restore steps). A demo of TypeSafe AI's Jev (a System One decision model: typed answers, no text generation) driving a delver through a live foam dungeon. Each tick posts ONE call carrying the delver's state plus five typed questions — a choice over the real doors, a score for danger, three nouls (fight / take_loot / withdraw) — and renders the probabilities, confidence and raw wire bytes as they come back. Map and contents come from foam.mino.mobi's public dungeon API (CORS-open, deterministic), with a bundled fixture when it is unreachable; delve.mjs is pure and runs identically in node and the browser. The worker exists to hold TYPESAFE_API_KEY as a Cloudflare secret and proxy /api/ask — the key never reaches the browser. With no key set the page runs a clearly-labelled offline stand-in rather than pretending. No D1, no DO.",
+      "note": "A demo of TypeSafe AI's Jev (a System One decision model: typed answers, no text generation) driving a delver through a live foam dungeon. Each tick posts ONE call carrying the delver's state plus five typed questions — a choice over the real doors, a score for danger, three nouls (fight / take_loot / withdraw) — and renders the probabilities, confidence and raw wire bytes as they come back. Map and contents come from foam.mino.mobi's public dungeon API (CORS-open, deterministic), with a bundled fixture when it is unreachable; delve.mjs is pure and runs identically in node and the browser. The worker exists to hold TYPESAFE_API_KEY as a Cloudflare secret and proxy /api/ask — the key never reaches the browser. With no key set the page runs a clearly-labelled offline stand-in rather than pretending. No D1, no DO.",
       "paths": [
         "jev/**",
         ".github/workflows/deploy-jev.yml"
