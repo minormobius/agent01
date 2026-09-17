@@ -58,6 +58,17 @@ Three ways out, in the order I would try them:
 Whichever is chosen, the golden rule still applies on the way back: confirm
 the deploy log binds `jev.mino.mobi (custom domain)` before believing it.
 
+**It is live right now at <https://jev.majormobius.workers.dev>.** That URL is
+written into three places, because a catalogue of "what a person can visit"
+should not carry a dead link. When the domain does bind, change all three and
+re-run `node scripts/preflight.mjs --fix`:
+
+| File | Field |
+|---|---|
+| `catalogue.json` | the `jev` entry's `u` |
+| `rethink/proposal.json` | the `jev` row in the `sites` group, keyed by host |
+| `deploy-registry.json` | the `jev` surface's `endpoint`, and the warning at the head of its `note` |
+
 ---
 
 ## The four things worth knowing
@@ -164,6 +175,19 @@ node jev/test/devserver.mjs --stub-live     # pretend a key is set; canned jev-s
 `--stub-live` exercises the live rendering path without a key. Its answers are
 canned, not Jev's — it is there to prove the page renders a real response, not
 to stand in for the model.
+
+To check a key actually works, before wiring anything up:
+
+```bash
+TYPESAFE_API_KEY=sk-... node jev/test/live-check.mjs
+```
+
+That is the only file here that talks to `api.typesafe.ai`. It makes ONE real
+call with the same five questions the site asks, prints the answers with their
+probability bars, and then asserts the thing a decision model promises: every
+question answered, nothing extra, and `move.choice` inside the option set it
+was given. It is not part of the deploy — the two gating selftests are offline
+and need no key.
 
 `window.__jev` is the headless harness hook (the `__foam` / `__dungeon`
 pattern): `.tick()`, `.state()`, `.questions()`, `.summary()`. Keep it.
