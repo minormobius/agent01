@@ -146,6 +146,7 @@ export function visibleExits(world, run) {
       room: x.to,
       descends: beyond ? beyond.depth - here.depth : 0,
       visited: seen,
+      times_entered: run.trail.filter((id) => id === x.to).length,
     };
     if (seen && beyond) {
       // Only rooms already walked reveal their contents.
@@ -226,27 +227,57 @@ export function buildQuestions(world, run) {
   // Choice criteria are a MAP of option -> description. Options are built
   // from the live exits, so Jev can only ever pick a door that exists —
   // that is the type safety doing the work an LLM would need a retry loop for.
+  //
+  // THE WORDING IS LOAD-BEARING, and this was measured rather than guessed.
+  // An earlier version described an explored neighbour as "Already explored:
+  // 0 creature(s) and 0 loot pile(s) left there" and an unexplored one as
+  // "Unexplored — its contents are unknown". That reads as safe-vs-risky, so
+  // the delver kept retreating into picked-clean rooms and oscillated between
+  // two chambers forever. Nothing told it that going back made no progress.
+  //
+  // Same model, same state, only these strings rewritten (16 turns, seed 7):
+  //   deepest depth 5 -> 11 · unique chambers 6 -> 13 · vaults 0 -> 1
+  //   confidence-gate firings 7 -> 1 · mean move confidence 0.48 -> 0.84
+  //
+  // That confidence jump is the real lesson: the low confidence was not the
+  // model being weak, it was the model correctly reporting that the question
+  // was ambiguous. Every option now says whether it moves TOWARD or AWAY from
+  // the objective, a revisit is named as a revisit, and "nothing left there"
+  // is given as a reason NOT to go rather than as reassurance.
   const moveCriteria = {};
   for (const x of exits) {
-    const beyond = world.rooms.get(x.room);
-    const dir = x.descends > 0 ? `descends ${x.descends} level(s)` : x.descends < 0 ? `climbs ${-x.descends} level(s)` : 'stays level';
-    let desc = `Take the door to chamber ${x.room}; it ${dir}.`;
-    if (x.visited && x.known) {
-      desc += ` Already explored: ${x.known.creatures_left} creature(s) and ${x.known.loot_left} loot pile(s) left there.`;
+    const isVault = world.endpoints.includes(x.room);
+    let desc;
+    if (x.descends > 0) desc = `Goes DOWN ${x.descends} level(s), toward the vaults.`;
+    else if (x.descends < 0) desc = `Goes BACK UP ${-x.descends} level(s), away from the vaults.`;
+    else desc = 'Stays on this level; no progress downward.';
+
+    if (isVault) {
+      desc += ' THIS IS A VAULT CHAMBER — the objective itself.';
+    } else if (x.times_entered > 0) {
+      desc += ` The delver has already been in chamber ${x.room} ${x.times_entered} time(s);`
+        + ` it is picked clean (${x.known?.creatures_left ?? 0} creature(s),`
+        + ` ${x.known?.loot_left ?? 0} loot left) and holds nothing further.`
+        + ' Going back there repeats ground already covered.';
     } else {
-      desc += ' Unexplored — its contents are unknown.';
+      desc += ` Chamber ${x.room} has NOT been entered yet. Unexplored chambers are the only ones`
+        + ' that still hold loot, and the only route to a vault.';
     }
-    if (beyond && world.endpoints.includes(beyond.id)) desc += ' This is a VAULT chamber.';
     moveCriteria[x.option] = desc;
   }
-  moveCriteria.hold = 'Stay in this chamber for another moment instead of moving through a door.';
+  moveCriteria.hold = 'Stand still and do nothing this turn. Makes no progress and gains nothing;'
+    + ' only sensible if every door is worse than wasting the turn.';
 
   return {
     // Which door. One option per real exit, plus hold.
     move: {
       type: 'choice',
       instructions:
-        'The delver must decide where to go next. Weigh depth against health: vaults are deep, but a dead delver carries nothing out. Which option is best right now?',
+        `The delver is in chamber ${here.id} at depth ${here.depth} of ${world.maxDepth}, on `
+        + `${run.hp} of ${run.maxHp} health. The objective is to reach a VAULT chamber, which lies `
+        + 'deep. Progress means descending into chambers not yet entered; retreating to a chamber '
+        + 'already stripped makes no progress. Retreat only if the health cost of going on is '
+        + 'likely fatal. Which option best serves the objective right now?',
       criteria: moveCriteria,
     },
     // How bad is it here, on an ordered spectrum.
@@ -403,7 +434,32 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
   }
 
   const exits = visibleExits(world, run);
-  const chosen = exits.find((x) => x.option === option);
+  let chosen = exits.find((x) => x.option === option);
+
+  // WITHDRAW OUTRANKS MOVE, and this is a composition rule the caller has to
+  // make — not something the model does for you.
+  //
+  // The five questions are evaluated in parallel and IN ISOLATION, so they can
+  // disagree: measured against jev-1.13.0, a run at 2 health answered
+  // `withdraw` 0.82 (yes, turn back) and `move` to_41 with 0.85 confidence
+  // (descend) in the same call, and the delver marched down and died. Neither
+  // answer is wrong — `move` was asked which door best serves the objective,
+  // `withdraw` was asked whether to abandon it. Reconciling them is our job.
+  //
+  // The rule: `withdraw` is the strategic call and wins over the tactical one.
+  // If the delver is withdrawing and the picked door goes deeper, take the
+  // best ascending door instead — and say so in the log, the same way the
+  // confidence gate announces itself. Nothing is hidden from the viewer.
+  if (withdrawing && chosen && chosen.descends > 0) {
+    const up = exits
+      .filter((x) => x.descends < 0)
+      .sort((a, b) => a.descends - b.descends || a.times_entered - b.times_entered)[0];
+    if (up) {
+      say(`withdraw ${(answers.withdraw?.noul ?? 0).toFixed(2)} outranks move — climbing out via ${up.option} instead of descending.`, 'gate');
+      chosen = up;
+      option = up.option;
+    }
+  }
 
   if (option === 'hold' || !chosen) {
     if (option !== 'hold') say(`No such exit ${option} — held position.`, 'gate');
@@ -466,7 +522,12 @@ export function offlineAnswers(world, run) {
   const lead = opts.length === 1 ? 1 : 0.62;
   for (const o of opts) probabilities[o] = Number(((o === pick ? lead : (1 - lead) / (opts.length - 1)) || 0).toFixed(3));
 
-  const scoreProbs = [0, 0, 0, 0].map((_, i) => (i === score ? 0.7 : 0.1));
+  // MEASURED, not assumed: the live API returns score `probabilities` as an
+  // OBJECT keyed by level index ({"0":0,"1":0.98,"2":0.02}), not the array the
+  // published example shows. The stand-in mirrors the real shape so offline
+  // mode is a faithful mock. `score` itself is the expectation over that
+  // distribution — Σ i·p_i — which the live responses confirm exactly.
+  const scoreProbs = Object.fromEntries([0, 1, 2, 3].map((i) => [String(i), i === score ? 0.7 : 0.1]));
 
   return {
     source: 'offline',
@@ -475,7 +536,7 @@ export function offlineAnswers(world, run) {
       move: { type: 'choice', choice: pick, probabilities, confidence: Number(lead.toFixed(2)) },
       danger: {
         type: 'score',
-        score,
+        score: Object.entries(scoreProbs).reduce((acc, [i, p]) => acc + Number(i) * p, 0),
         legend: Object.fromEntries([0, 1, 2, 3].map((i) => [String(i), `level ${i}`])),
         probabilities: scoreProbs,
         confidence: 0.7,

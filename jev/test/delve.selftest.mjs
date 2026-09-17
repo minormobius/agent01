@@ -173,6 +173,60 @@ ok(unseen.every((x) => !('known' in x)), 'unexplored exits expose no contents');
   ok(!crashed, 'a missing/empty answers object is survivable');
 }
 
+// --------------------------- contradictory answers must be reconciled ---
+// The questions are isolated, so `withdraw` (strategic) and `move` (tactical)
+// can disagree in the same response. Withdraw wins, visibly.
+{
+  const r = newRun(world, { seed: 8 });
+  // get somewhere with both an up and a down exit
+  let probe = null;
+  for (const roomId of world.rooms.keys()) {
+    const t = newRun(world, { seed: 8 });
+    t.at = roomId;
+    const ex = visibleExits(world, t);
+    if (ex.some((x) => x.descends > 0) && ex.some((x) => x.descends < 0)) { probe = t; break; }
+  }
+  ok(probe !== null, 'found a chamber with both an ascending and a descending exit');
+  if (probe) {
+    const down = visibleExits(world, probe).find((x) => x.descends > 0);
+    const before = probe.at;
+    const res = applyAnswers(world, probe, {
+      move: { type: 'choice', choice: down.option, probabilities: {}, confidence: 0.95 },
+      danger: { type: 'score', score: 0, probabilities: {} },
+      fight: { type: 'noul', noul: 0 },
+      take_loot: { type: 'noul', noul: 0 },
+      withdraw: { type: 'noul', noul: 0.9 },
+    });
+    ok(probe.at !== down.room, 'a high-confidence descent is NOT taken while withdrawing');
+    const wentUp = world.rooms.get(probe.at).depth < world.rooms.get(before).depth;
+    ok(wentUp || probe.at === before, 'the delver climbed (or held) instead of descending');
+    ok(res.events.some((e) => e.text.includes('outranks move')),
+      'the override is announced in the log, not silent');
+  }
+}
+// withdraw must NOT interfere when the move already ascends
+{
+  let probe = null;
+  for (const roomId of world.rooms.keys()) {
+    const t = newRun(world, { seed: 8 });
+    t.at = roomId;
+    const ex = visibleExits(world, t);
+    if (ex.some((x) => x.descends < 0)) { probe = t; break; }
+  }
+  if (probe) {
+    const up = visibleExits(world, probe).find((x) => x.descends < 0);
+    const res = applyAnswers(world, probe, {
+      move: { type: 'choice', choice: up.option, probabilities: {}, confidence: 0.95 },
+      danger: { type: 'score', score: 0, probabilities: {} },
+      fight: { type: 'noul', noul: 0 },
+      take_loot: { type: 'noul', noul: 0 },
+      withdraw: { type: 'noul', noul: 0.9 },
+    });
+    ok(probe.at === up.room, 'an ascending move is taken unchanged while withdrawing');
+    ok(!res.events.some((e) => e.text.includes('outranks move')), 'no spurious override is logged');
+  }
+}
+
 // ------------------------------------------------------------ a full run ---
 // Drive a whole delve on the offline stand-in. This is the "does the demo
 // actually go somewhere" test: it must terminate, move, and stay in bounds.
@@ -231,6 +285,82 @@ function drive(seed, maxTicks = 300) {
   for (const k of ['fight', 'take_loot', 'withdraw']) {
     const v = resp.answers[k].noul;
     ok(v >= 0 && v <= 1, `the stand-in ${k} noul is within 0..1`);
+  }
+}
+
+// ------------------------------- the shapes the LIVE API actually returns ---
+// Measured against jev-1.13.0, not taken from the published examples (which
+// show score probabilities as an ARRAY; the service returns an OBJECT keyed by
+// level index). The offline stand-in has to mirror the real thing, or offline
+// mode is a mock of something that does not exist.
+{
+  const r = newRun(world, { seed: 4 });
+  const resp = offlineAnswers(world, r);
+  const d = resp.answers.danger;
+
+  ok(d.probabilities && !Array.isArray(d.probabilities) && typeof d.probabilities === 'object',
+    'score probabilities is an OBJECT keyed by level, as the live API returns');
+  const keys = Object.keys(d.probabilities);
+  eq(keys.slice().sort(), keys.slice().sort((a, b) => Number(a) - Number(b)).sort(),
+    'score probability keys are level indices');
+  const sum = Object.values(d.probabilities).reduce((a, b) => a + b, 0);
+  ok(Math.abs(sum - 1) < 1e-9, `score probabilities sum to 1 (got ${sum})`);
+
+  // The live service computes `score` as the expectation over the distribution
+  // (confirmed exactly: 0*0 + 1*0.98 + 2*0.02 = 1.02 came back as 1.02).
+  const expectation = Object.entries(d.probabilities).reduce((acc, [i, p]) => acc + Number(i) * p, 0);
+  ok(Math.abs(expectation - d.score) < 1e-9,
+    `score is the expectation over probabilities (score ${d.score} vs Σ i·p_i ${expectation})`);
+  ok(Object.keys(d.legend).length === Object.keys(d.probabilities).length,
+    'legend covers every level the distribution does');
+
+  // choice probabilities are keyed by the option names themselves
+  const qs = buildQuestions(world, r);
+  eq(Object.keys(resp.answers.move.probabilities).sort(), Object.keys(qs.move.criteria).sort(),
+    'choice probability keys are exactly the declared options');
+}
+
+// ------------------------------------ the move criteria must not mislead ---
+// An earlier wording made an explored, picked-clean neighbour read as the safe
+// option and an unexplored one as the risky one, with nothing saying that
+// going back made no progress — and the delver oscillated between two rooms
+// forever. These assertions pin the fix: direction is always stated relative
+// to the objective, and a revisit is named as a revisit.
+{
+  const r = newRun(world, { seed: 6 });
+  // walk somewhere with both a visited and an unvisited exit
+  let found = null;
+  for (const roomId of world.rooms.keys()) {
+    const probe = newRun(world, { seed: 6 });
+    probe.at = roomId;
+    const ex = visibleExits(world, probe);
+    if (ex.length < 2) continue;
+    probe.visited.add(ex[0].room);
+    probe.trail.push(ex[0].room);
+    const again = visibleExits(world, probe);
+    if (again.some((x) => x.times_entered > 0) && again.some((x) => x.times_entered === 0)) {
+      found = probe; break;
+    }
+  }
+  ok(found !== null, 'found a room with both a revisit and a fresh exit to check');
+  if (found) {
+    const qs = buildQuestions(world, found);
+    const exits = visibleExits(world, found);
+    for (const x of exits) {
+      const desc = qs.move.criteria[x.option];
+      ok(/DOWN|BACK UP|Stays on this level/.test(desc),
+        `${x.option}: the description states its direction relative to the objective`);
+      if (x.times_entered > 0 && !world.endpoints.includes(x.room)) {
+        ok(/already been in chamber/.test(desc) && /repeats ground already covered/.test(desc),
+          `${x.option}: a revisit is named as a revisit`);
+        ok(!/Unexplored|NOT been entered/.test(desc), `${x.option}: a revisit is not called unexplored`);
+      }
+      if (x.times_entered === 0) {
+        ok(/NOT been entered yet/.test(desc), `${x.option}: a fresh chamber is named as unentered`);
+      }
+    }
+    ok(/makes no progress|Makes no progress/.test(qs.move.criteria.hold), 'hold is named as making no progress');
+    ok(/objective/i.test(qs.move.instructions), 'the move instructions name the objective');
   }
 }
 

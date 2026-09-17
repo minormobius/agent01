@@ -37,14 +37,19 @@ function cannedAnswers(body) {
   const probabilities = {};
   for (const o of opts) probabilities[o] = Number((o === pick ? 0.71 : 0.29 / Math.max(1, opts.length - 1)).toFixed(3));
   const levels = (qs.danger?.criteria || ['a', 'b']).length;
+  // the live API returns score probabilities as an OBJECT keyed by level index
+  const dangerProbs = Object.fromEntries(
+    Array.from({ length: levels }, (_, i) => [String(i), i === 1 ? 0.6 : 0.4 / (levels - 1)]),
+  );
+  const dangerScore = Object.entries(dangerProbs).reduce((a, [i, p]) => a + Number(i) * p, 0);
   return {
     model: 'jev-latest',
     answers: {
       move: { type: 'choice', choice: pick, probabilities, confidence: 0.71 },
       danger: {
-        type: 'score', score: 1.4,
+        type: 'score', score: dangerScore,
         legend: Object.fromEntries(Array.from({ length: levels }, (_, i) => [String(i), `level ${i}`])),
-        probabilities: Array.from({ length: levels }, (_, i) => (i === 1 ? 0.6 : 0.4 / (levels - 1))),
+        probabilities: dangerProbs,
         confidence: 0.66,
       },
       fight: { type: 'noul', noul: 0.72 },
