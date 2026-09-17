@@ -9,6 +9,7 @@
 <meta property="og:description" content="TypeSafe AI's Jev returns typed decisions, not text. Here it plays a dungeon crawler: five typed questions per tick, one call, no parsing.">
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
 </head>
 <body>
 
@@ -86,7 +87,22 @@
 
       <div class="tiles" id="tiles"></div>
 
-      <svg class="map" id="map" viewBox="0 0 520 360" role="img" aria-labelledby="map-h map-desc">
+      <div class="viewbar">
+        <div class="seg-toggle" role="group" aria-label="Dungeon view">
+          <button type="button" id="view-3d" class="on" aria-pressed="true">3D</button>
+          <button type="button" id="view-plan" aria-pressed="false">Plan</button>
+        </div>
+        <label class="chk"><input type="checkbox" id="spin" checked> spin</label>
+        <button type="button" id="recentre">Recentre</button>
+        <span class="muted hint">drag to orbit · scroll to zoom</span>
+      </div>
+
+      <div class="stage" id="stage">
+        <canvas id="scene" aria-label="Three-dimensional view of the dungeon. Drag to orbit."></canvas>
+        <div class="stage-note" id="stage-note" hidden></div>
+      </div>
+
+      <svg class="map" id="map" viewBox="0 0 520 360" role="img" aria-labelledby="map-h map-desc" hidden>
         <desc id="map-desc">A plan view of the dungeon. Chambers are circles shaded by depth; lines are doors. The delver's position is ringed.</desc>
       </svg>
 
@@ -115,6 +131,23 @@
     </section>
   </div>
 
+
+  <!-- Telemetry. The whole argument for a decision model in one panel: the
+       answers come back in the same typed fields every tick, so they stack
+       into series with nothing to parse. -->
+  <section class="panel" aria-labelledby="tel-h">
+    <h2 id="tel-h">Telemetry</h2>
+    <div class="sub">Every tick, the same typed fields — so they stack into series with nothing to parse.
+      <span id="tel-count" class="muted"></span></div>
+    <div class="charts" id="charts"></div>
+  </section>
+
+  <section class="panel" aria-labelledby="prof-h">
+    <h2 id="prof-h">Is there a personality in there?</h2>
+    <div class="sub" id="prof-caveat">Let it run for a while.</div>
+    <div class="profile" id="profile"></div>
+    <div class="findings" id="findings"></div>
+  </section>
 
   <!-- The wire panel is full-width on purpose: the actual request and
        response ARE the demo. Cramped into a column they are unreadable. -->

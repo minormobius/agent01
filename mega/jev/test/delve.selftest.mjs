@@ -45,6 +45,22 @@ ok(world.entrance === dungeon.entrance, 'entrance carried over');
 eq(world.endpoints, dungeon.endpoints, 'endpoints carried over');
 ok(world.maxDepth > 0, 'maxDepth derived');
 
+// the 3D view needs real geometry, not a plan projection — assert it is there
+for (const r of world.rooms.values()) {
+  ok(typeof r.floorY === 'number' && Number.isFinite(r.floorY), `room ${r.id} carries a floorY`);
+  ok(Array.isArray(r.outline), `room ${r.id} carries an outline`);
+  if (r.outline.length) {
+    const ring = r.outline[0];
+    ok(Array.isArray(ring) && ring.length >= 3, `room ${r.id} outer ring has at least 3 points`);
+    ok(ring.every((pt) => Array.isArray(pt) && pt.length === 2 && pt.every(Number.isFinite)),
+      `room ${r.id} ring points are finite [x, z] pairs`);
+  }
+}
+ok(Array.isArray(world.trapdoors), 'trapdoors are carried through');
+ok(world.trapdoors.length === dungeon.trapdoors.length, 'every trapdoor is carried');
+ok(world.trapdoors.every((t) => world.rooms.has(t.fromRoom) && world.rooms.has(t.toRoom)),
+  'every trapdoor links two real rooms');
+
 // every agent and effect landed in a room
 const placedAgents = [...world.rooms.values()].reduce((s, r) => s + r.agents.length, 0);
 ok(placedAgents === content.agents.length, 'every agent placed in a room');

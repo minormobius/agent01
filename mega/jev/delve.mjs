@@ -67,6 +67,11 @@ export function makeWorld(dungeon, content) {
       depth: r.depth,
       area: r.area,
       centroid: r.centroid,
+      // carried for the 3D view: the dungeon is genuinely 3D and rooms stack,
+      // so the renderer needs the true floor height and the wall outline
+      // rather than a plan projection. scene.mjs reads both.
+      floorY: r.floorY,
+      outline: r.outline || [],
       // `doors` is the room's own outgoing list: { to, face, at, tile }
       exits: r.doors.map((d) => ({ to: d.to, face: d.face, at: d.at })),
       agents: [],
@@ -100,6 +105,9 @@ export function makeWorld(dungeon, content) {
     endpoints: dungeon.endpoints.slice(),
     maxDepth,
     bounds: dungeon.bounds,
+    // vertical links between rooms — drawn as dashed drops in the 3D view
+    trapdoors: dungeon.trapdoors || [],
+    paths: dungeon.paths || [],
     seed: dungeon.generator?.seed ?? 0,
     roll: content.roll ?? 1,
     mapSig: content.mapSig ?? null,

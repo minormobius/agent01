@@ -16,6 +16,7 @@ import {
   makeWorld, newRun, buildState, buildQuestions, applyAnswers,
   offlineAnswers, runSummary, TICK_MS_DEFAULT,
 } from './delve.mjs';
+import { newTelemetry, record, series, profile, SIGNALS } from './telemetry.mjs';
 
 const FOAM = 'https://foam.mino.mobi';
 const $ = (id) => document.getElementById(id);
@@ -25,6 +26,10 @@ const el = {
   seed: $('seed'), size: $('size'), roll: $('roll'), tick: $('tick'), gate: $('gate'),
   run: $('run'), step: $('step'), reset: $('reset'),
   map: $('map'), mapSub: $('map-sub'), ramp: $('ramp'), tiles: $('tiles'),
+  scene: $('scene'), stage: $('stage'), stageNote: $('stage-note'),
+  view3d: $('view-3d'), viewPlan: $('view-plan'), spin: $('spin'), recentre: $('recentre'),
+  charts: $('charts'), telCount: $('tel-count'),
+  profile: $('profile'), profCaveat: $('prof-caveat'), findings: $('findings'),
   answers: $('answers'), ansSub: $('ans-sub'), gatenote: $('gatenote'),
   log: $('log'), summary: $('summary').querySelector('tbody'),
   req: $('req'), res: $('res'), tip: $('tip'),
@@ -42,6 +47,9 @@ const app = {
   lastLatency: null,
   lastUsage: null,
   fixtureMode: false,
+  tel: newTelemetry(),
+  scene: null,
+  view: '3d',
 };
 
 // ---------------------------------------------------------------- helpers ---
@@ -117,6 +125,7 @@ async function reset() {
   app.world = await loadDungeon();
   app.run = newRun(app.world, { seed: Math.max(1, parseInt(el.seed.value, 10) || 1) });
   app.questions = buildQuestions(app.world, app.run);
+  app.tel = newTelemetry();
   app.lastLatency = null;
   app.lastUsage = null;
   el.req.textContent = '—';
@@ -128,7 +137,45 @@ async function reset() {
     ? '<b>Bundled fixture</b> — foam.mino.mobi was unreachable, so this is the saved seed 7 dungeon.'
     : `Seed ${w.seed}, roll ${w.roll} — ${w.rooms.size} chambers, ${w.endpoints.length} vaults, `
       + `${w.maxDepth} levels down, ${w.goldOnFloor} gold on the floor.`;
+  await initScene();
   renderAll();
+}
+
+// ------------------------------------------------------------- the 3D view --
+/**
+ * three.js is loaded with a DYNAMIC import on purpose. A static one would put
+ * the whole vendored bundle on app.js's critical path, and a failure there —
+ * no WebGL, a blocked asset, a stale importmap — would take the entire page
+ * down with it. This way the demo degrades to the plan view and says so.
+ */
+async function initScene() {
+  if (app.scene) { app.scene.dispose(); app.scene = null; }
+  try {
+    const { createScene } = await import('./scene.mjs');
+    const dark = window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches;
+    app.scene = createScene(el.scene, app.world, { dark });
+    app.scene.setSpin(el.spin.checked);
+    app.scene.update(app.run);
+    el.stageNote.hidden = true;
+  } catch (err) {
+    console.warn('3D view unavailable:', err);
+    app.scene = null;
+    el.stageNote.hidden = false;
+    el.stageNote.textContent = `The 3D view could not start (${err?.message || err}). Showing the plan instead.`;
+    setView('plan');
+  }
+}
+
+function setView(v) {
+  app.view = v;
+  const is3d = v === '3d';
+  el.stage.hidden = !is3d;
+  el.map.hidden = is3d;
+  el.view3d.classList.toggle('on', is3d);
+  el.viewPlan.classList.toggle('on', !is3d);
+  el.view3d.setAttribute('aria-pressed', String(is3d));
+  el.viewPlan.setAttribute('aria-pressed', String(!is3d));
+  if (!is3d) renderMap();
 }
 
 // --------------------------------------------------------------- the tick ---
@@ -190,6 +237,20 @@ async function tick() {
 
     const gate = Math.min(1, Math.max(0, parseFloat(el.gate.value) || 0));
     const result = applyAnswers(app.world, app.run, response.answers, { moveConfidenceGate: gate });
+
+    // Telemetry is recorded from the answer AS RETURNED, before anything is
+    // derived from it — the series are the model's own output, not our
+    // interpretation of it.
+    record(app.tel, {
+      tick: app.run.tick - 1,
+      answers: response.answers,
+      run: app.run,
+      world: app.world,
+      usedFallback: result.usedFallback,
+      latencyMs: response.latency_ms ?? null,
+      source: response.source ?? null,
+      inputTokens: response.usage?.input_tokens ?? null,
+    });
 
     renderAnswers(questions, response, result);
     renderAll();
@@ -433,9 +494,168 @@ function renderSummary() {
     `<tr><td>${esc(k)}</td><td class="n">${esc(v)}</td></tr>`).join('');
 }
 
+
+// ------------------------------------------------------------- telemetry ---
+// Small multiples, never a dual axis. Health, depth, perceived danger and
+// confidence live on different scales, so each gets its own panel with its own
+// y-domain; the three nouls share one chart because they genuinely share 0–1.
+//
+// The three-series palette is validated for both themes (lightness band,
+// chroma floor, CVD separation, contrast). Its worst adjacent tritan ΔE sits
+// in the 6–8 band, which is only legal with secondary encoding — hence the
+// legend AND the direct label on each series' last value.
+const NOUL_COLORS = { fight: '#D64C77', take_loot: '#B8720C', withdraw: '#7B5FD6' };
+
+const CW = 264, CH = 88, PL = 28, PR = 30, PT = 8, PB = 15;
+
+function plotPoints(values, domain) {
+  const n = values.length;
+  const [lo, hi] = domain;
+  const span = hi - lo || 1;
+  const xw = CW - PL - PR;
+  const x = (i) => PL + (n <= 1 ? xw / 2 : (i / (n - 1)) * xw);
+  const y = (v) => PT + (1 - (v - lo) / span) * (CH - PT - PB);
+  return { x, y, n };
+}
+
+function pathFor(values, domain) {
+  const { x, y } = plotPoints(values, domain);
+  let d = '';
+  let pen = false;
+  values.forEach((v, i) => {
+    if (v == null || !Number.isFinite(v)) { pen = false; return; }
+    d += `${pen ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`;
+    pen = true;
+  });
+  return d;
+}
+
+function lastDefined(values) {
+  for (let i = values.length - 1; i >= 0; i--) {
+    if (values[i] != null && Number.isFinite(values[i])) return { i, v: values[i] };
+  }
+  return null;
+}
+
+function chartSVG({ lines, domain, threshold, fmt }) {
+  const [lo, hi] = domain;
+  const { x, y } = plotPoints(lines[0].values, domain);
+  const n = lines[0].values.length;
+
+  let g = '';
+  // recessive grid: just the two bounds
+  for (const v of [lo, hi]) {
+    g += `<line class="gridline" x1="${PL}" y1="${y(v).toFixed(1)}" x2="${CW - PR}" y2="${y(v).toFixed(1)}"/>`;
+    g += `<text class="ylab" x="${PL - 4}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end">${fmt(v)}</text>`;
+  }
+  if (threshold != null && threshold > lo && threshold < hi) {
+    g += `<line class="thresh" x1="${PL}" y1="${y(threshold).toFixed(1)}" x2="${CW - PR}" y2="${y(threshold).toFixed(1)}"/>`;
+  }
+
+  for (const ln of lines) {
+    const d = pathFor(ln.values, domain);
+    if (!d) continue;
+    if (lines.length === 1) {
+      const base = y(Math.max(lo, Math.min(hi, lo)));
+      const first = plotPoints(ln.values, domain).x(0);
+      g += `<path class="area" fill="${ln.color}" d="${d}L${x(n - 1).toFixed(1)} ${base.toFixed(1)}L${first.toFixed(1)} ${base.toFixed(1)}Z"/>`;
+    }
+    g += `<path class="lineplot" stroke="${ln.color}" d="${d}"/>`;
+    const last = lastDefined(ln.values);
+    if (last) {
+      g += `<circle class="lastdot" cx="${x(last.i).toFixed(1)}" cy="${y(last.v).toFixed(1)}" r="3" fill="${ln.color}"/>`;
+      g += `<text class="lastval" x="${CW - PR + 4}" y="${(y(last.v) + 3.5).toFixed(1)}" fill="${ln.color}">${fmt(last.v)}</text>`;
+    }
+  }
+  g += `<line class="axis" x1="${PL}" y1="${CH - PB}" x2="${CW - PR}" y2="${CH - PB}"/>`;
+  g += `<text class="xlab" x="${PL}" y="${CH - 4}">0</text>`;
+  g += `<text class="xlab" x="${CW - PR}" y="${CH - 4}" text-anchor="end">${Math.max(0, n - 1)}</text>`;
+  g += `<rect class="hit" x="${PL}" y="${PT}" width="${CW - PL - PR}" height="${CH - PT - PB}"/>`;
+  return `<svg viewBox="0 0 ${CW} ${CH}" role="img">${g}</svg>`;
+}
+
+function renderCharts() {
+  const s = series(app.tel);
+  const n = s.tick.length;
+  el.telCount.textContent = n ? `· ${n} decision${n === 1 ? '' : 's'} recorded` : '';
+
+  if (!n) {
+    el.charts.innerHTML = '<div class="chart empty">Nothing recorded yet — take a step.</div>';
+    return;
+  }
+
+  const maxHp = app.run.maxHp;
+  const maxDepth = Math.max(1, app.world.maxDepth);
+  const int = (v) => String(Math.round(v));
+  const two = (v) => v.toFixed(2);
+  const one = (v) => v.toFixed(1);
+
+  const panels = [
+    { key: 'health', title: 'Health', note: 'What it actually cost. The ground truth the model is reacting to.',
+      lines: [{ key: 'health', label: 'health', color: 'var(--accent)', values: s.health }],
+      domain: [0, maxHp], fmt: int },
+    { key: 'depth', title: 'Depth reached', note: 'Down is progress. Flat stretches are a delver going in circles.',
+      lines: [{ key: 'depth', label: 'depth', color: 'var(--accent)', values: s.depth }],
+      domain: [0, maxDepth], fmt: int },
+    { key: 'danger', title: 'Perceived danger', note: 'The `danger` score — what the model THINKS is happening. Read it against health.',
+      lines: [{ key: 'danger', label: 'danger', color: 'var(--bad)', values: s.danger }],
+      domain: [0, 3], fmt: one },
+    { key: 'confidence', title: 'Move confidence', note: 'Dips mark junctions the model found genuinely hard. Below the dashed line the gate fires.',
+      lines: [{ key: 'confidence', label: 'confidence', color: 'var(--accent)', values: s.confidence }],
+      domain: [0, 1], threshold: Math.min(1, Math.max(0, parseFloat(el.gate.value) || 0.45)), fmt: two },
+    { key: 'nouls', title: 'Fight · loot · withdraw', note: 'The three nouls, on their shared 0–1 scale. The dashed line is the 0.5 decision threshold.',
+      lines: [
+        { key: 'fight', label: 'fight', color: NOUL_COLORS.fight, values: s.fight },
+        { key: 'take_loot', label: 'take_loot', color: NOUL_COLORS.take_loot, values: s.take_loot },
+        { key: 'withdraw', label: 'withdraw', color: NOUL_COLORS.withdraw, values: s.withdraw },
+      ],
+      domain: [0, 1], threshold: 0.5, fmt: two },
+  ];
+
+  el.charts.innerHTML = panels.map((p) => {
+    const legend = p.lines.length > 1
+      ? `<div class="clegend">${p.lines.map((l) =>
+        `<span class="k"><i class="sw" style="background:${l.color}"></i>${esc(l.label)}</span>`).join('')}</div>`
+      : '';
+    return `<div class="chart" data-chart="${p.key}">
+      <h3>${esc(p.title)}</h3>
+      <div class="cnote">${esc(p.note)}</div>
+      ${chartSVG({ lines: p.lines, domain: p.domain, threshold: p.threshold, fmt: p.fmt })}
+      ${legend}
+    </div>`;
+  }).join('');
+}
+
+// --------------------------------------------------------------- profile ---
+function renderProfile() {
+  const p = profile(app.tel);
+  el.profCaveat.textContent = p.caveat;
+
+  el.profile.innerHTML = p.traits.map((t) => {
+    const pctv = t.value == null ? 0 : Math.round(t.value * 100);
+    return `<div class="trait">
+      <span class="tname">${esc(t.label)}</span>
+      <span class="tband num">${t.value == null ? '—' : t.value.toFixed(2)} · ${esc(t.band)}</span>
+      <span class="tbar"><i style="width:${pctv}%"></i></span>
+      <span class="tbasis">${esc(t.basis)} · n=${t.n}</span>
+    </div>`;
+  }).join('');
+
+  const findings = p.findings.map((f) => {
+    const weak = Math.abs(f.r) < 0.3;
+    return `<div class="finding${weak ? ' weak' : ''}"><b>${esc(f.label)}</b>${esc(f.text)}</div>`;
+  }).join('');
+
+  el.findings.innerHTML = findings
+    + (p.n >= 8 ? `<div class="profsum">${esc(p.summary)}</div>` : '');
+}
+
 function renderAll() {
   renderTiles();
-  renderMap();
+  if (app.view === 'plan' || !app.scene) renderMap();
+  if (app.scene) app.scene.update(app.run);
+  renderCharts();
+  renderProfile();
   renderLog();
   renderSummary();
 }
@@ -463,6 +683,61 @@ function wireTooltip() {
   window.addEventListener('scroll', hide, { passive: true });
 }
 
+// A crosshair + tooltip over every chart: an SVG chart is interactive by
+// default, and reading a value off a sparkline otherwise means squinting.
+// One handler is delegated over the whole grid rather than per-chart.
+function wireChartHover() {
+  el.charts.addEventListener('mousemove', (ev) => {
+    const hit = ev.target.closest('.hit');
+    if (!hit) return;
+    const svg = hit.ownerSVGElement;
+    const box = svg.getBoundingClientRect();
+    const n = app.tel.samples.length;
+    if (!n) return;
+
+    // map the pointer into the plot's own viewBox coordinates
+    const px = ((ev.clientX - box.left) / box.width) * CW;
+    const frac = Math.max(0, Math.min(1, (px - PL) / (CW - PL - PR)));
+    const i = Math.round(frac * (n - 1));
+
+    el.charts.querySelectorAll('.crosshair').forEach((c) => c.remove());
+    const cx = PL + (n <= 1 ? (CW - PL - PR) / 2 : (i / (n - 1)) * (CW - PL - PR));
+    for (const sv of el.charts.querySelectorAll('svg')) {
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('class', 'crosshair');
+      line.setAttribute('x1', cx); line.setAttribute('x2', cx);
+      line.setAttribute('y1', PT); line.setAttribute('y2', CH - PB);
+      sv.appendChild(line);
+    }
+
+    const smp = app.tel.samples[i];
+    if (!smp) return;
+    const num = (v) => (v == null || !Number.isFinite(v) ? '\u2014' : v.toFixed(2));
+    const rows = [
+      ['health', `${smp.health}/${smp.maxHealth}`],
+      ['depth', String(smp.depth)],
+      ['danger', num(smp.danger)],
+      ['confidence', num(smp.confidence)],
+      ['fight', num(smp.fight)],
+      ['take_loot', num(smp.take_loot)],
+      ['withdraw', num(smp.withdraw)],
+    ];
+    el.tip.innerHTML = `<div class="th">decision ${smp.tick} \u00b7 chamber ${smp.room}</div>`
+      + rows.map(([k, v]) => `<div class="tr">${esc(k)}: ${esc(v)}</div>`).join('')
+      + (smp.usedFallback ? '<div class="tr">\u2014 gate fired, fallback used</div>' : '');
+    el.tip.dataset.show = '1';
+    el.tip.setAttribute('aria-hidden', 'false');
+    const r = el.tip.getBoundingClientRect();
+    el.tip.style.left = `${Math.min(window.innerWidth - r.width - 10, ev.clientX + 14)}px`;
+    el.tip.style.top = `${Math.max(8, ev.clientY - r.height - 10)}px`;
+  });
+  el.charts.addEventListener('mouseleave', () => {
+    el.charts.querySelectorAll('.crosshair').forEach((c) => c.remove());
+    el.tip.dataset.show = '0';
+    el.tip.setAttribute('aria-hidden', 'true');
+  });
+}
+
 // ------------------------------------------------------------------ boot ---
 async function boot() {
   renderRamp();
@@ -478,6 +753,13 @@ async function boot() {
   announceMode();
 
   await reset();
+
+  el.view3d.addEventListener('click', () => setView('3d'));
+  el.viewPlan.addEventListener('click', () => setView('plan'));
+  el.spin.addEventListener('change', () => app.scene && app.scene.setSpin(el.spin.checked));
+  el.recentre.addEventListener('click', () => app.scene && app.scene.resetView());
+  el.gate.addEventListener('change', () => renderCharts()); // the gate line moves
+  wireChartHover();
 
   el.run.addEventListener('click', () => (app.running ? stop() : start()));
   el.step.addEventListener('click', () => { stop(); tick(); });
@@ -499,6 +781,10 @@ window.__jev = {
   state: () => (app.run ? buildState(app.world, app.run) : null),
   questions: () => (app.run ? buildQuestions(app.world, app.run) : null),
   summary: () => (app.run ? runSummary(app.world, app.run) : null),
+  telemetry: () => app.tel,
+  series: () => series(app.tel),
+  profile: () => profile(app.tel),
+  setView,
 };
 
 boot();

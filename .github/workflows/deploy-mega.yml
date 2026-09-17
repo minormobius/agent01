@@ -38,6 +38,8 @@ jobs:
         run: node jev/test/delve.selftest.mjs
       - name: jev worker selftest (the proxy never leaks the key)
         run: node jev/test/worker.selftest.mjs
+      - name: jev telemetry selftest (the stats, and what they refuse to claim)
+        run: node jev/test/telemetry.selftest.mjs
 
       - name: Deploy static site
         run: npx wrangler deploy

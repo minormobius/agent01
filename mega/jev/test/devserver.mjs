@@ -20,6 +20,7 @@ import { dirname, join, normalize } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
 const stubLive = process.argv.includes('--stub-live');
+const round2 = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100) / 100;
 const port = Number(process.argv.find((a) => a.startsWith('--port='))?.split('=')[1] || 8787);
 
 const TYPES = {
@@ -34,6 +35,16 @@ const TYPES = {
 // so the page gets a valid option back whatever room it is in.
 function cannedAnswers(body) {
   const qs = body.questions || {};
+  // Vary with the delver's actual state. A stub that returns the same numbers
+  // every tick draws flat lines, and flat lines hide bugs — a dead-flat series
+  // is what produced a false "r = 1.00" finding before the guard was fixed.
+  const st = body.state || {};
+  const hp = st.delver?.health_fraction ?? 1;
+  const tick = st.delver?.ticks_elapsed ?? 0;
+  const creatures = (st.current_room?.creatures_present || []).length;
+  const traps = (st.current_room?.traps_present || []).length;
+  const loot = (st.current_room?.loot_present || []).length;
+  const wob = (k) => 0.5 + 0.5 * Math.sin(tick / k); // a little motion of its own
   const opts = Object.keys(qs.move?.criteria || { hold: '' });
   const real = opts.filter((o) => o !== 'hold');
   const pick = real.length ? real[0] : 'hold';
@@ -41,8 +52,11 @@ function cannedAnswers(body) {
   for (const o of opts) probabilities[o] = Number((o === pick ? 0.71 : 0.29 / Math.max(1, opts.length - 1)).toFixed(3));
   const levels = (qs.danger?.criteria || ['a', 'b']).length;
   // the live API returns score probabilities as an OBJECT keyed by level index
+  // concentrate the distribution on a level that tracks what is in the room
+  const threat = Math.min(levels - 1, creatures + traps > 0 ? 1 + creatures + traps * 0.5 : 0);
+  const peak = Math.max(0, Math.min(levels - 1, Math.round(threat)));
   const dangerProbs = Object.fromEntries(
-    Array.from({ length: levels }, (_, i) => [String(i), i === 1 ? 0.6 : 0.4 / (levels - 1)]),
+    Array.from({ length: levels }, (_, i) => [String(i), i === peak ? 0.62 : 0.38 / (levels - 1)]),
   );
   const dangerScore = Object.entries(dangerProbs).reduce((a, [i, p]) => a + Number(i) * p, 0);
   return {
@@ -55,9 +69,9 @@ function cannedAnswers(body) {
         probabilities: dangerProbs,
         confidence: 0.66,
       },
-      fight: { type: 'noul', noul: 0.72 },
-      take_loot: { type: 'noul', noul: 0.91 },
-      withdraw: { type: 'noul', noul: 0.18 },
+      fight: { type: 'noul', noul: round2(creatures ? 0.35 + 0.5 * hp : 0.08 + 0.1 * wob(5)) },
+      take_loot: { type: 'noul', noul: round2(loot ? 0.55 + 0.4 * hp : 0.12 + 0.1 * wob(7)) },
+      withdraw: { type: 'noul', noul: round2(Math.max(0.05, 0.95 - hp - 0.08 * wob(4))) },
     },
     usage: { input_tokens: 486, output_tokens: 52 },
   };

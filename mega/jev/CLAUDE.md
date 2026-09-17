@@ -229,6 +229,75 @@ Mind the worker's `MAX_QUESTIONS` cap (12) if the set ever grows.
 
 ---
 
+## The 3D view and the telemetry
+
+**`scene.mjs` — the spinnable dungeon.** three.js r160, vendored at `vendor/`
+(the same pinned build foam uses; the repo already carries copies in foam,
+pokemon and lab/_kit, so this is the house pattern, not a new one). Loaded
+through an importmap in `index.html`.
+
+The geometry is the canonical document used as-is: `room.outline` rings are
+extruded into floor slabs at `room.floorY`, doors are placed at their true
+`[x,y,z]`, and trapdoors are dashed drops between rooms. **The dungeon is
+genuinely 3D and rooms stack**, which is exactly why the flat plan overlaps
+them — the plan is still there behind the 3D/Plan toggle because it is the
+readable view when you want the whole layout at a glance.
+
+Two things to keep:
+
+- **`scene.mjs` is loaded with a DYNAMIC import**, inside a try/catch. A static
+  import would put the vendored bundle on `app.js`'s critical path, and any
+  failure there — no WebGL, a blocked asset, a stale importmap — would take
+  the whole page down. Instead the stage shows why it failed and switches to
+  the plan.
+- **The camera fits the bounding sphere of the real 3D extent**, not the plan
+  bounds. Framing from x/z alone leaves the model floating in the top of the
+  canvas, because 14 levels of depth are a large part of what has to fit.
+
+**`telemetry.mjs` — the series.** Pure and node-tested, like `delve.mjs`. It
+records each tick's answer *verbatim*, before anything is derived from it.
+
+This is the part of the demo that makes the argument on its own: because the
+answers come back in the same typed fields every tick, they stack into clean
+series with **nothing to parse**. `danger` is on one fixed scale forever;
+`withdraw` is always a number in 0..1. Telemetry over a text model's output
+would need a scraper and would break the first time it phrased something
+differently.
+
+Charts are small multiples, never a dual axis — health, depth, danger and
+confidence are different scales, so each gets its own panel; the three nouls
+share one chart because they genuinely share 0–1. The three-series palette is
+validated for both themes, and its worst adjacent tritan ΔE sits in the 6–8
+band, which is only legal with secondary encoding — hence the legend *and* the
+direct label on each last value.
+
+### The profile panel, and why it keeps refusing to speak
+
+`profile()` describes **one run**, from a handful of decisions. It is not a
+trait of the model, and the code is built to keep saying so: every figure
+carries its `n`, no summary sentence is offered below 8 decisions, and no
+correlation is reported below 5 usable pairs.
+
+**The bug worth remembering.** The first version guarded flat series with
+`if (sxx === 0 || syy === 0) return null`. That is not enough. Summing
+`(x - mean)²` over a constant series leaves floating-point crumbs — measured
+`sxx = 5.9e-31` on a dead-flat run — so the guard missed, the division became
+noise over noise, and the panel reported
+
+> **Danger drives retreat** — Yes: rooms it read as dangerous are the ones it
+> wanted to leave (r = 1.00).
+
+…from two series that never changed. A confident fabricated finding is the
+worst thing this panel could do. It now compares each series' spread against
+its own magnitude (`isFlat`), which is exact for genuinely constant input, and
+the selftest pins it with the exact values that produced the false claim.
+
+Related: the dev server's stub now **varies with the delver's state**. A stub
+that returns the same numbers every tick draws flat lines, and flat lines are
+what hid this bug in the first place.
+
+---
+
 ## What the live API actually does (measured 2026-09-17, jev-1.13.0)
 
 Roughly 60 real calls through the proxy. Recorded here because several of
