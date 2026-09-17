@@ -228,56 +228,73 @@ export function buildQuestions(world, run) {
   // from the live exits, so Jev can only ever pick a door that exists —
   // that is the type safety doing the work an LLM would need a retry loop for.
   //
-  // THE WORDING IS LOAD-BEARING, and this was measured rather than guessed.
-  // An earlier version described an explored neighbour as "Already explored:
-  // 0 creature(s) and 0 loot pile(s) left there" and an unexplored one as
-  // "Unexplored — its contents are unknown". That reads as safe-vs-risky, so
-  // the delver kept retreating into picked-clean rooms and oscillated between
-  // two chambers forever. Nothing told it that going back made no progress.
+  // THE WORDING IS LOAD-BEARING, and all of this was measured, not guessed.
   //
-  // Same model, same state, only these strings rewritten (16 turns, seed 7):
+  // ROUND 1 — prose. An early version described an explored neighbour as
+  // "Already explored: 0 creature(s) and 0 loot pile(s) left there" and an
+  // unexplored one as "Unexplored — its contents are unknown". That reads as
+  // safe-versus-risky, and nothing said going back made no progress, so the
+  // delver retreated into picked-clean rooms and oscillated between two
+  // chambers forever. Rewriting the strings so each option names its direction
+  // relative to the objective, and a revisit is called a revisit:
   //   deepest depth 5 -> 11 · unique chambers 6 -> 13 · vaults 0 -> 1
-  //   confidence-gate firings 7 -> 1 · mean move confidence 0.48 -> 0.84
+  //   gate firings 7 -> 1 · mean move confidence 0.48 -> 0.84
   //
-  // That confidence jump is the real lesson: the low confidence was not the
-  // model being weak, it was the model correctly reporting that the question
-  // was ambiguous. Every option now says whether it moves TOWARD or AWAY from
-  // the objective, a revisit is named as a revisit, and "nothing left there"
-  // is given as a reason NOT to go rather than as reassurance.
+  // ROUND 2 — structure. `criteria` values and `instructions` accept JSON,
+  // not just strings (docs.typesafe.ai/primitives/advanced). Paired test over
+  // 12 IDENTICAL states, prose vs the same facts as labelled objects:
+  //   same pick in 12/12 states — structure does not change WHAT it decides
+  //   mean confidence 0.912 -> 0.980
+  //   and the whole gain is on the hard calls: the two states where prose
+  //   returned 0.45 and 0.50 — straddling this demo's 0.45 gate — came back
+  //   0.89 and 0.87. Fewer spurious gate firings, so fewer fallbacks.
+  //
+  // The lesson both rounds teach: low confidence is usually a bug report about
+  // your question, not weakness in the model. Labelled keys beat a sentence
+  // because nothing has to be parsed out of prose.
   const moveCriteria = {};
   for (const x of exits) {
     const isVault = world.endpoints.includes(x.room);
-    let desc;
-    if (x.descends > 0) desc = `Goes DOWN ${x.descends} level(s), toward the vaults.`;
-    else if (x.descends < 0) desc = `Goes BACK UP ${-x.descends} level(s), away from the vaults.`;
-    else desc = 'Stays on this level; no progress downward.';
-
-    if (isVault) {
-      desc += ' THIS IS A VAULT CHAMBER — the objective itself.';
-    } else if (x.times_entered > 0) {
-      desc += ` The delver has already been in chamber ${x.room} ${x.times_entered} time(s);`
-        + ` it is picked clean (${x.known?.creatures_left ?? 0} creature(s),`
-        + ` ${x.known?.loot_left ?? 0} loot left) and holds nothing further.`
-        + ' Going back there repeats ground already covered.';
-    } else {
-      desc += ` Chamber ${x.room} has NOT been entered yet. Unexplored chambers are the only ones`
-        + ' that still hold loot, and the only route to a vault.';
-    }
-    moveCriteria[x.option] = desc;
+    moveCriteria[x.option] = {
+      leads_to_chamber: x.room,
+      direction: x.descends > 0 ? 'DOWN, toward the vaults'
+        : x.descends < 0 ? 'BACK UP, away from the vaults'
+          : 'level, no progress downward',
+      levels_changed: x.descends,
+      is_vault_chamber: isVault,
+      times_already_entered: x.times_entered,
+      still_unexplored: x.times_entered === 0,
+      creatures_known_left: x.known?.creatures_left ?? null,
+      loot_known_left: x.known?.loot_left ?? null,
+      note: isVault
+        ? 'This is the objective itself.'
+        : x.times_entered > 0
+          ? 'Already stripped; returning repeats ground already covered and gains nothing.'
+          : 'Unentered chambers are the only ones still holding loot, and the only route to a vault.',
+    };
   }
-  moveCriteria.hold = 'Stand still and do nothing this turn. Makes no progress and gains nothing;'
-    + ' only sensible if every door is worse than wasting the turn.';
+  moveCriteria.hold = {
+    leads_to_chamber: null,
+    direction: 'nowhere',
+    levels_changed: 0,
+    note: 'Stand still and do nothing this turn. Makes no progress and gains nothing;'
+      + ' only sensible if every door is worse than wasting the turn.',
+  };
 
   return {
     // Which door. One option per real exit, plus hold.
     move: {
       type: 'choice',
-      instructions:
-        `The delver is in chamber ${here.id} at depth ${here.depth} of ${world.maxDepth}, on `
-        + `${run.hp} of ${run.maxHp} health. The objective is to reach a VAULT chamber, which lies `
-        + 'deep. Progress means descending into chambers not yet entered; retreating to a chamber '
-        + 'already stripped makes no progress. Retreat only if the health cost of going on is '
-        + 'likely fatal. Which option best serves the objective right now?',
+      // structured for the same reason the criteria are — see above
+      instructions: {
+        task: 'Choose where the delver goes next.',
+        objective: 'Reach a VAULT chamber, which lies deep, and survive to carry the gold out.',
+        delver_position: { chamber: here.id, depth: here.depth, deepest_depth_in_dungeon: world.maxDepth },
+        delver_health: { current: run.hp, max: run.maxHp },
+        rule: 'Progress means descending into chambers not yet entered. Retreating to a chamber '
+          + 'already stripped makes no progress. Retreat only if the health cost of going on is '
+          + 'likely fatal.',
+      },
       criteria: moveCriteria,
     },
     // How bad is it here, on an ordered spectrum.

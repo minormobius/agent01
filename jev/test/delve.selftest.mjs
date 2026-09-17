@@ -72,8 +72,12 @@ for (const roomId of world.rooms.keys()) {
   const types = Object.values(qs).map((q) => q.type);
   ok(types.every((t) => ['choice', 'score', 'noul'].includes(t)),
     `room ${roomId}: every question is a documented primitive`);
-  ok(Object.values(qs).every((q) => typeof q.instructions === 'string' && q.instructions.length > 0),
-    `room ${roomId}: every question carries instructions`);
+  // instructions may be a string OR a JSON object/array — the API accepts
+  // structure there, and `move` uses it.
+  const hasInstructions = (q) => (typeof q.instructions === 'string' && q.instructions.length > 0)
+    || (typeof q.instructions === 'object' && q.instructions !== null
+        && Object.keys(q.instructions).length > 0);
+  ok(Object.values(qs).every(hasInstructions), `room ${roomId}: every question carries instructions`);
 
   // choice: criteria is a map, one key per real exit, plus hold
   const mv = qs.move;
@@ -84,8 +88,12 @@ for (const roomId of world.rooms.keys()) {
   const wantKeys = [...exits.map((x) => x.option), 'hold'].sort();
   eq(optKeys, wantKeys, `room ${roomId}: choice options are exactly the real exits + hold`);
   ok(optKeys.length >= 2, `room ${roomId}: choice offers at least 2 options`);
-  ok(Object.values(mv.criteria).every((d) => typeof d === 'string' && d.length > 0),
+  ok(Object.values(mv.criteria).every((d) => (typeof d === 'string' && d.length > 0)
+    || (typeof d === 'object' && d !== null && Object.keys(d).length > 0)),
     `room ${roomId}: every option has a description`);
+  // structured criteria must stay JSON-clean — they become a request body
+  ok(JSON.stringify(mv.criteria).indexOf('undefined') === -1,
+    `room ${roomId}: no undefined leaks into the move criteria`);
 
   // score: ordered array, >= 2 levels
   const sc = qs.danger;
@@ -347,20 +355,29 @@ function drive(seed, maxTicks = 300) {
     const qs = buildQuestions(world, found);
     const exits = visibleExits(world, found);
     for (const x of exits) {
-      const desc = qs.move.criteria[x.option];
-      ok(/DOWN|BACK UP|Stays on this level/.test(desc),
-        `${x.option}: the description states its direction relative to the objective`);
+      const c = qs.move.criteria[x.option];
+      ok(typeof c === 'object' && c !== null, `${x.option}: criteria value is structured`);
+      ok(/DOWN|BACK UP|level, no progress/.test(c.direction),
+        `${x.option}: direction is stated relative to the objective`);
+      ok(c.levels_changed === x.descends, `${x.option}: levels_changed matches the geometry`);
+      ok(c.times_already_entered === x.times_entered, `${x.option}: revisit count matches the trail`);
+      ok(typeof c.still_unexplored === 'boolean', `${x.option}: still_unexplored is a flag`);
       if (x.times_entered > 0 && !world.endpoints.includes(x.room)) {
-        ok(/already been in chamber/.test(desc) && /repeats ground already covered/.test(desc),
-          `${x.option}: a revisit is named as a revisit`);
-        ok(!/Unexplored|NOT been entered/.test(desc), `${x.option}: a revisit is not called unexplored`);
+        ok(c.still_unexplored === false, `${x.option}: a revisited chamber is not flagged unexplored`);
+        ok(/repeats ground already covered/.test(c.note), `${x.option}: a revisit is named as a revisit`);
       }
       if (x.times_entered === 0) {
-        ok(/NOT been entered yet/.test(desc), `${x.option}: a fresh chamber is named as unentered`);
+        ok(c.still_unexplored === true, `${x.option}: a fresh chamber is flagged unexplored`);
+        ok(/Unentered chambers/.test(c.note), `${x.option}: a fresh chamber is named as unentered`);
+      }
+      if (world.endpoints.includes(x.room)) {
+        ok(c.is_vault_chamber === true, `${x.option}: a vault is flagged as the objective`);
       }
     }
-    ok(/makes no progress|Makes no progress/.test(qs.move.criteria.hold), 'hold is named as making no progress');
-    ok(/objective/i.test(qs.move.instructions), 'the move instructions name the objective');
+    ok(/Makes no progress/.test(qs.move.criteria.hold.note), 'hold is named as making no progress');
+    ok(/objective/i.test(JSON.stringify(qs.move.instructions)), 'the move instructions name the objective');
+    ok(qs.move.instructions.delver_health.current === found.hp, 'instructions carry the live health');
+    ok(qs.move.instructions.delver_position.chamber === found.at, 'instructions carry the live position');
   }
 }
 

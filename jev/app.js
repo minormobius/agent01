@@ -49,6 +49,22 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const pct = (n) => `${(n * 100).toFixed(0)}%`;
 
+// `instructions` and `criteria` values may be strings OR JSON objects/arrays —
+// the API accepts structure there, and the move question uses it (labelled
+// keys measurably raise confidence on the hard calls; see delve.mjs). So
+// everything that puts one on screen goes through here, or it renders
+// "[object Object]".
+function asText(v) {
+  if (v == null) return '';
+  if (typeof v === 'string') return v;
+  if (Array.isArray(v)) return v.map(asText).join(' · ');
+  if (typeof v !== 'object') return String(v);
+  return Object.entries(v)
+    .filter(([, val]) => val !== null && val !== undefined && val !== '')
+    .map(([k, val]) => `${k.replace(/_/g, ' ')}: ${asText(val)}`)
+    .join(' · ');
+}
+
 function setMode(kind, text) {
   el.mode.dataset.mode = kind;
   el.modeText.innerHTML = text;
@@ -328,7 +344,7 @@ function renderAnswers(questions, response, result) {
     const rows = opts.map((o) => {
       const p = probs[o] ?? 0;
       const picked = o === a.move.choice;
-      return `<div class="bar${picked ? ' picked' : ''}" data-title="${esc(o)}" data-detail="${esc(questions.move.criteria[o])}">
+      return `<div class="bar${picked ? ' picked' : ''}" data-title="${esc(o)}" data-detail="${esc(asText(questions.move.criteria[o]))}">
         <span class="lbl">${picked ? '▸ ' : ''}${esc(o)}</span>
         <span class="track"><span class="fill" style="width:${Math.max(0, Math.min(1, p)) * 100}%"></span></span>
         <span class="pct num">${pct(p)}</span>
@@ -337,7 +353,7 @@ function renderAnswers(questions, response, result) {
     out.push(`<div class="answer">
       <div class="qhead"><span class="qid">move</span><span class="qtype">choice</span>
         ${confBadge(a.move.confidence ?? 0, result.usedFallback)}</div>
-      <div class="qtext">${esc(questions.move.instructions)}</div>
+      <div class="qtext">${esc(asText(questions.move.instructions))}</div>
       <div class="bars">${rows}</div>
     </div>`);
   }
@@ -355,7 +371,7 @@ function renderAnswers(questions, response, result) {
     out.push(`<div class="answer">
       <div class="qhead"><span class="qid">danger</span><span class="qtype">score</span>
         ${confBadge(a.danger.confidence ?? 0, false)}</div>
-      <div class="qtext">${esc(questions.danger.instructions)}</div>
+      <div class="qtext">${esc(asText(questions.danger.instructions))}</div>
       <div class="meter">${segs}</div>
       <div class="scorelegend"><b class="num">${s.toFixed(2)}</b> — ${esc(levels[nearest] ?? '')}</div>
     </div>`);
@@ -368,7 +384,7 @@ function renderAnswers(questions, response, result) {
     const yes = v > 0.5;
     out.push(`<div class="answer">
       <div class="qhead"><span class="qid">${key}</span><span class="qtype">noul</span></div>
-      <div class="qtext">${esc(questions[key].instructions)}</div>
+      <div class="qtext">${esc(asText(questions[key].instructions))}</div>
       <div class="noul">
         <span class="track"><span class="fill" data-yes="${yes ? 1 : 0}" style="width:${v * 100}%"></span><span class="thresh"></span></span>
         <span class="verdict" data-yes="${yes ? 1 : 0}">${yes ? 'YES' : 'no'} ${v.toFixed(2)}</span>

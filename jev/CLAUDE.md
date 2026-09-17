@@ -311,6 +311,47 @@ The confidence nearly doubling is the tell. It was not hedging; it was
 correctly reporting that the question I asked was ambiguous. **Treat a low
 average confidence as a bug report about your criteria.**
 
+**Round two: structure beats prose, on the hard calls only.** `instructions`
+and `criteria` values accept JSON objects, not just strings
+([advanced](https://docs.typesafe.ai/primitives/advanced)). Paired test — the
+same 12 states, prose criteria versus the identical facts as labelled keys:
+
+- **the pick was the same in 12 of 12 states.** Structure does not change
+  *what* it decides.
+- mean confidence **0.912 → 0.980**, and the entire gain is concentrated where
+  the decision was hard: the two states where prose returned **0.45 and 0.50**
+  — straddling this demo's 0.45 gate — came back **0.89 and 0.87**.
+
+So structure did not make it smarter; it stopped borderline states from
+rattling the gate, which is worth more here than a better pick would have
+been. `move` now ships structured, and anything rendering a question has to
+handle non-string fields (`asText()` in `app.js`).
+
+### Confidence calibration, measured
+
+24 sentiment items with known ground truth, in 2 calls of 12 questions
+(~2,000 input tokens each, 165–412 ms). Questions addressed items by index
+into a state array — `items` whose `index` is 7 — and that indexing worked
+perfectly.
+
+| confidence | correct |
+|---|---|
+| ≥ 0.99 | **14 / 14 (100%)** |
+| 0.7 – 0.9 | 2 / 2 |
+| < 0.7 | 3 / 4 |
+
+Overall 19/20 on the clear-truth items — and **the single wrong answer carried
+0.18, the lowest confidence in the set**. A gate at 0.7 would have caught it
+while giving up only three correct answers to human review. That is the case
+for confidence-gating, measured rather than asserted.
+
+**Negation is the weak spot.** Every failure and near-failure was a double
+negative: *"This is not terrible"* → negative at 0.18 (wrong), *"I would not
+call it a failure"* → 0.23 (right, barely), *"I cannot say I am
+disappointed"* → 0.62. Plain statements and even sarcasm (*"Oh fantastic,
+another broken one"* → negative, 0.99) were solid. If your criteria involve
+negated conditions, rewrite them positively.
+
 ### Isolated questions can contradict each other
 
 Because every question is answered in isolation, they can disagree in the same
