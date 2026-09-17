@@ -117,8 +117,22 @@ const ok = (c, l) => { c ? passed++ : failures.push(l); };
 
   const hpBefore = ch.maxHp;
   takeSkill(ch, 'toughness');
-  ok(ch.maxHp === hpBefore + 4, 'Toughness raises maximum health');
+  ok(ch.maxHp === hpBefore + 4, 'the first Toughness raises maximum health by 4');
   ok(availableSkills(ch).includes('toughness'), 'Toughness is repeatable');
+
+  // DIMINISHING RETURNS. A flat, repeatable +4 that also healed on the spot
+  // was strictly better than carrying potions, and the live model took it six
+  // level-ups running. Each repeat is now worth less, with a floor of 1.
+  const gains = [];
+  for (let i = 0; i < 5; i++) {
+    ch.pendingLevels = 1;
+    const before = ch.maxHp;
+    takeSkill(ch, 'toughness');
+    gains.push(ch.maxHp - before);
+  }
+  ok(gains.every((g, i) => i === 0 || g <= gains[i - 1]), `repeat Toughness never gains more than the last (${gains})`);
+  ok(gains.every((g) => g >= 1), 'it never stops giving something');
+  ok(gains[gains.length - 1] < 4, 'the late repeats are clearly worse than the first');
 
   // there is never a level-up with nothing to pick
   const empty = rollCharacter(rng(6));
@@ -162,6 +176,29 @@ const ok = (c, l) => { c ? passed++ : failures.push(l); };
   }
   ok(ITEM_KEYS.every((k) => typeof ITEMS[k].blurb === 'string'), 'every item has a blurb');
   ok(SKILL_KEYS.every((k) => typeof SKILLS[k].blurb === 'string'), 'every skill has a blurb');
+}
+
+// ------------------------------------ raising the ceiling does not heal ---
+// It used to, which made Toughness a free potion stapled to a permanent
+// upgrade — a foregone conclusion at every level-up.
+{
+  const w = makeWorld(fix('dungeon-seed7-s.json'), fix('content-seed7-s-roll1.json'));
+  const r = newRun(w, { seed: 5 });
+  r.at = w.entrance;
+  r.hp = 5;
+  r.char.pendingLevels = 1;
+  const hpBefore = r.hp;
+  const maxBefore = r.maxHp;
+  applyAnswers(w, r, {
+    move: { type: 'choice', choice: 'hold', probabilities: {}, confidence: 1 },
+    danger: { type: 'score', score: 0, probabilities: {} },
+    take_loot: { type: 'noul', noul: 0 },
+    withdraw: { type: 'noul', noul: 0 },
+    level_up: { type: 'choice', choice: 'toughness', probabilities: {}, confidence: 1 },
+  });
+  ok(r.maxHp > maxBefore, 'Toughness raises the ceiling');
+  ok(r.hp === hpBefore, 'but it heals nothing on the spot');
+  ok(r.hp < r.maxHp, 'the delver is left hurt, with more room to heal into');
 }
 
 // ------------------------------------------------- items actually do things --

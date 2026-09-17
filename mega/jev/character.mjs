@@ -117,8 +117,9 @@ export const SKILLS = {
   },
   toughness: {
     tier: 1, label: 'Toughness', requires: null, repeatable: true,
-    blurb: '+4 maximum health, permanently. Always available.',
-    grants: {}, bonusMaxHp: 4,
+    blurb: 'Raises maximum health permanently. Always available, but each one '
+      + 'is worth less than the last, and it heals nothing now.',
+    grants: {}, bonusMaxHp: 4, diminishing: true,
   },
 };
 export const SKILL_KEYS = Object.keys(SKILLS);
@@ -197,13 +198,32 @@ export function availableSkills(ch) {
   });
 }
 
+/**
+ * What the NEXT take of a repeatable skill is worth.
+ *
+ * Toughness used to be a flat +4 max health that also healed +4 on the spot,
+ * repeatable, with no condition attached. That is strictly better than
+ * carrying potions — same healing, no turn spent drinking, and a permanent
+ * ceiling on top — and jev-1.13.0 duly took it six level-ups running. The
+ * model was right; the design was wrong. It now heals nothing immediately and
+ * each repeat is worth less than the last, so stacking it has a real cost.
+ */
+export function nextBonusMaxHp(ch, id) {
+  const sk = SKILLS[id];
+  if (!sk?.bonusMaxHp) return 0;
+  if (!sk.diminishing) return sk.bonusMaxHp;
+  const taken = ch.skills.filter((x) => x === id).length;
+  return Math.max(1, sk.bonusMaxHp - taken);
+}
+
 export function takeSkill(ch, id) {
   if (!availableSkills(ch).includes(id)) return { ok: false, reason: `skill ${id} is not available` };
   const sk = SKILLS[id];
+  const hpBonus = nextBonusMaxHp(ch, id);
   ch.skills.push(id);
   for (const [item, n] of Object.entries(sk.grants || {})) ch.inventory[item] += n;
   if (sk.passive) ch.passives[sk.passive] = true;
-  if (sk.bonusMaxHp) ch.bonusMaxHp += sk.bonusMaxHp;
+  if (hpBonus) ch.bonusMaxHp += hpBonus;
   ch.maxHp = maxHpOf(ch);
   ch.pendingLevels = Math.max(0, ch.pendingLevels - 1);
   ch.log.push({ kind: 'skill', text: `Took ${sk.label}.` });

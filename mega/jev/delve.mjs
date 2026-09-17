@@ -15,7 +15,7 @@
 
 import {
   rollCharacter, sheet, grantXp, availableSkills, takeSkill, usableItems,
-  healAmount, meleeCost, arrowRecoveryChance, maxHpOf, ITEMS, ITEM_KEYS, SKILLS,
+  healAmount, meleeCost, arrowRecoveryChance, maxHpOf, nextBonusMaxHp, ITEMS, ITEM_KEYS, SKILLS,
 } from './character.mjs';
 
 export const DELVE_VERSION = 2;
@@ -513,7 +513,8 @@ function buildLevelUp(world, run) {
       tier: sk.tier,
       effect: sk.blurb,
       restocks,
-      raises_max_health_by: sk.bonusMaxHp || null,
+      raises_max_health_by: nextBonusMaxHp(run.char, id) || null,
+      heals_now: 0,
       times_already_taken: run.char.skills.filter((x) => x === id).length,
     };
   }
@@ -606,7 +607,9 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
       const res = takeSkill(ch, id);
       if (res.ok) {
         run.maxHp = ch.maxHp;
-        if (SKILLS[id].bonusMaxHp) run.hp += SKILLS[id].bonusMaxHp; // new max is real health
+        // NOTE: raising the ceiling does NOT heal. It used to, which quietly
+        // made Toughness a free potion on top of a permanent upgrade and made
+        // the level-up choice a foregone conclusion.
         say(`Level ${ch.level}: took ${res.skill.label}.`, 'level');
         if (pick && pick !== id) say(`(asked for ${pick}, which was not available)`, 'gate');
       }
