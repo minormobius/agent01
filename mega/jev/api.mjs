@@ -27,8 +27,12 @@
 const MODEL = 'jev-latest';
 const UPSTREAM = 'https://api.typesafe.ai/v1/systemone';
 
-const MAX_BODY_BYTES = 64 * 1024; // a delve state is ~2-4KB; 64K is generous
-const MAX_QUESTIONS = 12; // the demo asks 5
+// Raised from 64KB / 12 to probe where the SERVICE's limits actually are
+// rather than where mine were guessed. These are deliberately generous for
+// measurement and get tightened to an informed value once the ceiling is
+// known — see CLAUDE.md. The per-IP throttle still bounds the spend.
+const MAX_BODY_BYTES = 256 * 1024;
+const MAX_QUESTIONS = 64;
 const UPSTREAM_TIMEOUT_MS = 20_000;
 
 // Backoff for the two statuses the docs say to retry (429 rate limited,
