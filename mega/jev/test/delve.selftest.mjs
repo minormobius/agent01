@@ -19,8 +19,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   makeWorld, newRun, buildState, buildQuestions, applyAnswers,
-  offlineAnswers, fallbackMove, visibleExits, runSummary, rng,
+  offlineAnswers, fallbackMove, visibleExits, runSummary, rng, situation,
 } from '../delve.mjs';
+import { usableItems, availableSkills, SKILLS, ITEM_KEYS } from '../character.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'fixtures', n), 'utf8'));
@@ -111,6 +112,40 @@ for (const roomId of world.rooms.keys()) {
   ok(JSON.stringify(mv.criteria).indexOf('undefined') === -1,
     `room ${roomId}: no undefined leaks into the move criteria`);
 
+  // engage / use_item / level_up are CONDITIONAL: asked only when there is a
+  // real decision behind them. A one-option choice is a forced move dressed up
+  // as a decision, and it still costs tokens.
+  const sit0 = situation(world, r);
+  ok(('engage' in qs) === (sit0.creatures.length > 0),
+    `room ${roomId}: engage is asked exactly when something hostile is here`);
+  ok(('use_item' in qs) === (usableItems(r.char, sit0).length > 0),
+    `room ${roomId}: use_item is asked exactly when a charge is usable here`);
+  ok(!('level_up' in qs), `room ${roomId}: no level_up question with nothing pending`);
+  for (const key of ['engage', 'use_item']) {
+    if (!(key in qs)) continue;
+    const q = qs[key];
+    ok(q.type === 'choice', `room ${roomId}: ${key} is a choice`);
+    const keys2 = Object.keys(q.criteria || {});
+    ok(keys2.length >= 2, `room ${roomId}: ${key} offers at least 2 options`);
+    ok(keys2.every((k) => typeof k === 'string' && k.length > 0), `room ${roomId}: ${key} option keys are named`);
+  }
+  // `shoot` may only be offered when there is actually an arrow AND a target
+  if ('engage' in qs) {
+    const sit2 = situation(world, r);
+    const offersShoot = 'shoot' in (qs.engage.criteria || {});
+    ok(!offersShoot || (r.char.inventory.arrow > 0 && sit2.creatures.length > 0),
+      `room ${roomId}: shoot is only offered with an arrow and a target`);
+  }
+  // use_item may only offer what is legal HERE, and always offers `none`
+  if ('use_item' in qs) {
+    const sit2 = situation(world, r);
+    const legal = new Set(usableItems(r.char, sit2));
+    for (const k of Object.keys(qs.use_item.criteria)) {
+      ok(k === 'none' || legal.has(k), `room ${roomId}: use_item offers only legal items (${k})`);
+    }
+    ok('none' in qs.use_item.criteria, `room ${roomId}: use_item always allows using nothing`);
+  }
+
   // score: ordered array, >= 2 levels
   const sc = qs.danger;
   ok(Array.isArray(sc.criteria), `room ${roomId}: score criteria is an array`);
@@ -118,7 +153,7 @@ for (const roomId of world.rooms.keys()) {
   ok(sc.criteria.every((s) => typeof s === 'string'), `room ${roomId}: score levels are strings`);
 
   // noul: criteria, when present, is exactly { true, false }
-  for (const key of ['fight', 'take_loot', 'withdraw']) {
+  for (const key of ['take_loot', 'withdraw']) {
     const n = qs[key];
     ok(n.type === 'noul', `room ${roomId}: ${key} is a noul`);
     if (n.criteria) {
@@ -154,7 +189,7 @@ ok(unseen.every((x) => !('known' in x)), 'unexplored exits expose no contents');
   const res = applyAnswers(world, r, {
     move: { type: 'choice', choice: wrongWay, probabilities: {}, confidence: 0.11 },
     danger: { type: 'score', score: 0, probabilities: [] },
-    fight: { type: 'noul', noul: 0 },
+    engage: { type: 'choice', choice: 'avoid', probabilities: {}, confidence: 1 },
     take_loot: { type: 'noul', noul: 0 },
     withdraw: { type: 'noul', noul: 0 },
   }, { moveConfidenceGate: 0.45 });
@@ -168,7 +203,7 @@ ok(unseen.every((x) => !('known' in x)), 'unexplored exits expose no contents');
   const res = applyAnswers(world, r, {
     move: { type: 'choice', choice: target.option, probabilities: {}, confidence: 0.95 },
     danger: { type: 'score', score: 0, probabilities: [] },
-    fight: { type: 'noul', noul: 0 },
+    engage: { type: 'choice', choice: 'avoid', probabilities: {}, confidence: 1 },
     take_loot: { type: 'noul', noul: 0 },
     withdraw: { type: 'noul', noul: 0 },
   });
@@ -182,7 +217,7 @@ ok(unseen.every((x) => !('known' in x)), 'unexplored exits expose no contents');
   const res = applyAnswers(world, r, {
     move: { type: 'choice', choice: 'to_999999', probabilities: {}, confidence: 0.99 },
     danger: { type: 'score', score: 0, probabilities: [] },
-    fight: { type: 'noul', noul: 0 },
+    engage: { type: 'choice', choice: 'avoid', probabilities: {}, confidence: 1 },
     take_loot: { type: 'noul', noul: 0 },
     withdraw: { type: 'noul', noul: 0 },
   });
@@ -217,14 +252,14 @@ ok(unseen.every((x) => !('known' in x)), 'unexplored exits expose no contents');
     const res = applyAnswers(world, probe, {
       move: { type: 'choice', choice: down.option, probabilities: {}, confidence: 0.95 },
       danger: { type: 'score', score: 0, probabilities: {} },
-      fight: { type: 'noul', noul: 0 },
+      engage: { type: 'choice', choice: 'avoid', probabilities: {}, confidence: 1 },
       take_loot: { type: 'noul', noul: 0 },
       withdraw: { type: 'noul', noul: 0.9 },
     });
     ok(probe.at !== down.room, 'a high-confidence descent is NOT taken while withdrawing');
     const wentUp = world.rooms.get(probe.at).depth < world.rooms.get(before).depth;
     ok(wentUp || probe.at === before, 'the delver climbed (or held) instead of descending');
-    ok(res.events.some((e) => e.text.includes('outranks move')),
+    ok(res.events.some((e) => /climbing out via/.test(e.text)),
       'the override is announced in the log, not silent');
   }
 }
@@ -242,13 +277,54 @@ ok(unseen.every((x) => !('known' in x)), 'unexplored exits expose no contents');
     const res = applyAnswers(world, probe, {
       move: { type: 'choice', choice: up.option, probabilities: {}, confidence: 0.95 },
       danger: { type: 'score', score: 0, probabilities: {} },
-      fight: { type: 'noul', noul: 0 },
+      engage: { type: 'choice', choice: 'avoid', probabilities: {}, confidence: 1 },
       take_loot: { type: 'noul', noul: 0 },
       withdraw: { type: 'noul', noul: 0.9 },
     });
     ok(probe.at === up.room, 'an ascending move is taken unchanged while withdrawing');
-    ok(!res.events.some((e) => e.text.includes('outranks move')), 'no spurious override is logged');
+    ok(!res.events.some((e) => /climbing out via/.test(e.text)), 'no spurious override is logged');
   }
+}
+
+// ------------------------------------- withdrawal latches with hysteresis ---
+// Reading `withdraw > 0.5` fresh each tick made the endgame dither: a delver
+// sitting on 0.51-0.57 climbed, descended, climbed, descended. A retreat is a
+// decision about the RUN, so it enters on a decisive call and leaves only on
+// genuine recovery.
+{
+  const base = () => ({
+    move: { type: 'choice', choice: 'hold', probabilities: {}, confidence: 1 },
+    danger: { type: 'score', score: 0, probabilities: {} },
+    take_loot: { type: 'noul', noul: 0 },
+  });
+  const r = newRun(world, { seed: 12 });
+  r.hp = Math.round(r.maxHp * 0.5);
+
+  applyAnswers(world, r, { ...base(), withdraw: { type: 'noul', noul: 0.55 } });
+  ok(r.withdrawing === false, 'an indecisive 0.55 does NOT start a withdrawal');
+
+  applyAnswers(world, r, { ...base(), withdraw: { type: 'noul', noul: 0.8 } });
+  ok(r.withdrawing === true, 'a decisive 0.8 starts the withdrawal');
+
+  applyAnswers(world, r, { ...base(), withdraw: { type: 'noul', noul: 0.45 } });
+  ok(r.withdrawing === true, 'a wobble back to 0.45 does not cancel it');
+
+  applyAnswers(world, r, { ...base(), withdraw: { type: 'noul', noul: 0.1 } });
+  ok(r.withdrawing === true, 'nor does a low value while still hurt');
+
+  r.hp = r.maxHp;
+  applyAnswers(world, r, { ...base(), withdraw: { type: 'noul', noul: 0.1 } });
+  ok(r.withdrawing === false, 'it clears once decisively low AND back above 70% health');
+
+  // and the latch must not oscillate across a long borderline stretch
+  const r2 = newRun(world, { seed: 13 });
+  r2.hp = Math.round(r2.maxHp * 0.5);
+  let flips = 0, prev = r2.withdrawing;
+  for (let i = 0; i < 12; i++) {
+    applyAnswers(world, r2, { ...base(), withdraw: { type: 'noul', noul: 0.52 + (i % 2) * 0.04 } });
+    if (r2.withdrawing !== prev) { flips++; prev = r2.withdrawing; }
+  }
+  ok(flips === 0, `a borderline withdraw signal never flips the latch (flips=${flips})`);
 }
 
 // ------------------------------------------------------------ a full run ---
@@ -306,7 +382,7 @@ function drive(seed, maxTicks = 300) {
   ok(resp.answers.move.choice in qs.move.criteria, 'the stand-in picks a real option');
   ok(resp.answers.danger.score >= 0 && resp.answers.danger.score <= qs.danger.criteria.length - 1,
     'the stand-in score is within the legend');
-  for (const k of ['fight', 'take_loot', 'withdraw']) {
+  for (const k of ['take_loot', 'withdraw']) {
     const v = resp.answers[k].noul;
     ok(v >= 0 && v <= 1, `the stand-in ${k} noul is within 0..1`);
   }

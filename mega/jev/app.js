@@ -17,6 +17,7 @@ import {
   offlineAnswers, runSummary, TICK_MS_DEFAULT,
 } from './delve.mjs';
 import { newTelemetry, record, series, profile, SIGNALS } from './telemetry.mjs';
+import { STATS, ITEMS, ITEM_KEYS, SKILLS, usableItems } from './character.mjs';
 
 const FOAM = 'https://foam.mino.mobi';
 const $ = (id) => document.getElementById(id);
@@ -28,7 +29,7 @@ const el = {
   map: $('map'), mapSub: $('map-sub'), ramp: $('ramp'), tiles: $('tiles'),
   scene: $('scene'), stage: $('stage'), stageNote: $('stage-note'),
   view3d: $('view-3d'), viewPlan: $('view-plan'), spin: $('spin'), recentre: $('recentre'),
-  charts: $('charts'), telCount: $('tel-count'),
+  charts: $('charts'), telCount: $('tel-count'), sheet: $('sheet'),
   profile: $('profile'), profCaveat: $('prof-caveat'), findings: $('findings'),
   answers: $('answers'), ansSub: $('ans-sub'), gatenote: $('gatenote'),
   log: $('log'), summary: $('summary').querySelector('tbody'),
@@ -394,81 +395,133 @@ function confBadge(conf, gated) {
   return `<span class="conf" data-gate="${gated ? 1 : 0}"><span class="pip"></span>confidence ${conf.toFixed(2)}${gated ? ' — below gate' : ''}</span>`;
 }
 
+// Renders whatever questions were asked, dispatching on the declared type.
+// Deliberately NOT a special case per question: `engage`, `use_item` and
+// `level_up` come and go tick by tick, and a renderer that hard-coded the set
+// would silently drop them.
+const QUESTION_ORDER = ['level_up', 'move', 'engage', 'use_item', 'danger', 'take_loot', 'withdraw'];
+
+function renderChoice(id, q, a, { gated = false, highlight = false } = {}) {
+  const probs = a.probabilities || {};
+  const opts = Object.keys(q.criteria || {});
+  const rows = opts.map((o) => {
+    const p = probs[o] ?? 0;
+    const picked = o === a.choice;
+    return `<div class="bar${picked ? ' picked' : ''}" data-title="${esc(o)}" data-detail="${esc(asText(q.criteria[o]))}">
+      <span class="lbl">${picked ? '\u25b8 ' : ''}${esc(o)}</span>
+      <span class="track"><span class="fill" style="width:${Math.max(0, Math.min(1, p)) * 100}%"></span></span>
+      <span class="pct num">${pct(p)}</span>
+    </div>`;
+  }).join('');
+  return `<div class="answer${highlight ? ' levelup' : ''}">
+    <div class="qhead"><span class="qid">${esc(id)}</span><span class="qtype">choice</span>
+      ${confBadge(a.confidence ?? 0, gated)}</div>
+    <div class="qtext">${esc(asText(q.instructions))}</div>
+    <div class="bars">${rows}</div>
+  </div>`;
+}
+
+function renderScore(id, q, a) {
+  const levels = q.criteria;
+  const sc = a.score ?? 0;
+  const nearest = Math.round(sc);
+  const segs = levels.map((txt, i) => {
+    const on = i === nearest;
+    return `<span class="seg" data-on="${on ? 1 : 0}" style="${on ? `background:var(${RAMP[Math.min(RAMP.length - 1, i + 1)]})` : ''}"
+      data-title="level ${i}" data-detail="${esc(txt)}">${i}</span>`;
+  }).join('');
+  return `<div class="answer">
+    <div class="qhead"><span class="qid">${esc(id)}</span><span class="qtype">score</span>
+      ${confBadge(a.confidence ?? 0, false)}</div>
+    <div class="qtext">${esc(asText(q.instructions))}</div>
+    <div class="meter">${segs}</div>
+    <div class="scorelegend"><b class="num">${sc.toFixed(2)}</b> \u2014 ${esc(levels[nearest] ?? '')}</div>
+  </div>`;
+}
+
+function renderNoul(id, q, a) {
+  const v = Math.max(0, Math.min(1, a.noul ?? 0));
+  const yes = v > 0.5;
+  return `<div class="answer">
+    <div class="qhead"><span class="qid">${esc(id)}</span><span class="qtype">noul</span></div>
+    <div class="qtext">${esc(asText(q.instructions))}</div>
+    <div class="noul">
+      <span class="track"><span class="fill" data-yes="${yes ? 1 : 0}" style="width:${v * 100}%"></span><span class="thresh"></span></span>
+      <span class="verdict" data-yes="${yes ? 1 : 0}">${yes ? 'YES' : 'no'} ${v.toFixed(2)}</span>
+    </div>
+  </div>`;
+}
+
 function renderAnswers(questions, response, result) {
-  const a = response.answers || {};
-  const out = [];
+  const answers = response.answers || {};
+  const ids = [
+    ...QUESTION_ORDER.filter((k) => k in questions),
+    ...Object.keys(questions).filter((k) => !QUESTION_ORDER.includes(k)),
+  ];
 
-  // --- move: a choice. Probability per option, single hue, pick emphasised.
-  if (a.move && questions.move) {
-    const probs = a.move.probabilities || {};
-    const opts = Object.keys(questions.move.criteria);
-    const rows = opts.map((o) => {
-      const p = probs[o] ?? 0;
-      const picked = o === a.move.choice;
-      return `<div class="bar${picked ? ' picked' : ''}" data-title="${esc(o)}" data-detail="${esc(asText(questions.move.criteria[o]))}">
-        <span class="lbl">${picked ? '▸ ' : ''}${esc(o)}</span>
-        <span class="track"><span class="fill" style="width:${Math.max(0, Math.min(1, p)) * 100}%"></span></span>
-        <span class="pct num">${pct(p)}</span>
-      </div>`;
-    }).join('');
-    out.push(`<div class="answer">
-      <div class="qhead"><span class="qid">move</span><span class="qtype">choice</span>
-        ${confBadge(a.move.confidence ?? 0, result.usedFallback)}</div>
-      <div class="qtext">${esc(asText(questions.move.instructions))}</div>
-      <div class="bars">${rows}</div>
-    </div>`);
-  }
+  const out = ids.map((id) => {
+    const q = questions[id];
+    const a = answers[id];
+    if (!q || !a) return '';
+    if (q.type === 'choice') {
+      return renderChoice(id, q, a, {
+        gated: id === 'move' && result.usedFallback,
+        highlight: id === 'level_up',
+      });
+    }
+    if (q.type === 'score') return renderScore(id, q, a);
+    if (q.type === 'noul') return renderNoul(id, q, a);
+    return '';
+  }).join('');
 
-  // --- danger: a score on an ordered scale.
-  if (a.danger && questions.danger) {
-    const levels = questions.danger.criteria;
-    const s = a.danger.score ?? 0;
-    const nearest = Math.round(s);
-    const segs = levels.map((txt, i) => {
-      const on = i === nearest;
-      return `<span class="seg" data-on="${on ? 1 : 0}" style="${on ? `background:var(${RAMP[Math.min(RAMP.length - 1, i + 1)]})` : ''}"
-        data-title="level ${i}" data-detail="${esc(txt)}">${i}</span>`;
-    }).join('');
-    out.push(`<div class="answer">
-      <div class="qhead"><span class="qid">danger</span><span class="qtype">score</span>
-        ${confBadge(a.danger.confidence ?? 0, false)}</div>
-      <div class="qtext">${esc(asText(questions.danger.instructions))}</div>
-      <div class="meter">${segs}</div>
-      <div class="scorelegend"><b class="num">${s.toFixed(2)}</b> — ${esc(levels[nearest] ?? '')}</div>
-    </div>`);
-  }
-
-  // --- the nouls: 0..1 with the 0.5 decision threshold drawn in.
-  for (const key of ['fight', 'take_loot', 'withdraw']) {
-    if (!a[key] || !questions[key]) continue;
-    const v = Math.max(0, Math.min(1, a[key].noul ?? 0));
-    const yes = v > 0.5;
-    out.push(`<div class="answer">
-      <div class="qhead"><span class="qid">${key}</span><span class="qtype">noul</span></div>
-      <div class="qtext">${esc(asText(questions[key].instructions))}</div>
-      <div class="noul">
-        <span class="track"><span class="fill" data-yes="${yes ? 1 : 0}" style="width:${v * 100}%"></span><span class="thresh"></span></span>
-        <span class="verdict" data-yes="${yes ? 1 : 0}">${yes ? 'YES' : 'no'} ${v.toFixed(2)}</span>
-      </div>
-    </div>`);
-  }
-
-  el.answers.innerHTML = out.join('') || '<p class="muted">No answers this tick.</p>';
+  el.answers.innerHTML = out || '<p class="muted">No answers this tick.</p>';
 
   el.gatenote.innerHTML = result.usedFallback
     ? `<div class="gatenote"><b>Confidence gate fired.</b> The <code>move</code> confidence came back under
-       the gate, so the delver did <i>not</i> act on the model's pick — it fell back to the dungeon's own
+       the gate, so the delver did <i>not</i> act on the model's pick \u2014 it fell back to the dungeon's own
        descent rule. This is the documented
        <a href="https://docs.typesafe.ai/patterns/confidence-routing" rel="noopener">confidence-gated routing</a>
        pattern: a typed answer still carries how sure it is, and you decide what that is worth.</div>`
     : '';
 
-  const bits = [];
-  bits.push(`${Object.keys(questions).length} typed questions, one call`);
+  const bits = [`${ids.length} typed question${ids.length === 1 ? '' : 's'}, one call`];
   if (app.lastUsage?.input_tokens) bits.push(`${app.lastUsage.input_tokens} input tokens`);
   if (app.lastLatency != null) bits.push(`${app.lastLatency} ms`);
-  if (!app.live) bits.push('offline stand-in — not Jev');
-  el.ansSub.textContent = bits.join(' · ');
+  if (!app.live) bits.push('offline stand-in \u2014 not Jev');
+  el.ansSub.textContent = bits.join(' \u00b7 ');
+}
+
+// ------------------------------------------------------- character sheet ---
+function renderSheet() {
+  const run = app.run;
+  if (!run) return;
+  const ch = run.char;
+  const sit = app.world ? { hp: run.hp, maxHp: run.maxHp,
+    creatures: run.cleared.has(run.at) ? [] : (app.world.rooms.get(run.at)?.agents || []),
+    traps: run.sprung.has(run.at) || run.warded.has(run.at) ? [] : (app.world.rooms.get(run.at)?.traps || []),
+    trapdoor: (app.world.trapdoors || []).find((t) => t.fromRoom === run.at) || null } : null;
+  const usable = new Set(sit ? usableItems(ch, sit) : []);
+  const xpPct = Math.round((ch.xp / Math.max(1, ch.xpToNext)) * 100);
+
+  el.sheet.innerHTML = `
+    <div class="who"><b>${esc(ch.name)}</b><span class="lvl">level ${ch.level}</span></div>
+    <div class="xpwrap">
+      <span class="xlab">xp ${ch.xp}/${ch.xpToNext}${ch.pendingLevels ? ` \u00b7 ${ch.pendingLevels} to spend` : ''}</span>
+      <span class="xpbar"><i style="width:${xpPct}%"></i></span>
+    </div>
+    <div class="statrow">${STATS.map((st) =>
+      `<div class="stat" data-title="${esc(st.label)}" data-detail="${esc(st.note)}">
+         <div class="sv">${ch.stats[st.key]}</div><div class="sk">${esc(st.key)}</div>
+       </div>`).join('')}</div>
+    <div class="pack">${ITEM_KEYS.map((k) => {
+      const n = ch.inventory[k] || 0;
+      return `<span class="it" data-empty="${n === 0 ? 1 : 0}" data-usable="${usable.has(k) ? 1 : 0}"
+        data-title="${esc(ITEMS[k].label)}" data-detail="${esc(ITEMS[k].blurb)}${usable.has(k) ? ' \u2014 usable here' : ''}">
+        ${esc(ITEMS[k].label)} <b>${n}</b></span>`;
+    }).join('')}</div>
+    <div class="skillrow">${ch.skills.length
+      ? ch.skills.map((id) => `<span class="sb" data-title="${esc(SKILLS[id].label)}" data-detail="${esc(SKILLS[id].blurb)}">${esc(SKILLS[id].label)}</span>`).join('')
+      : '<span class="none">no skills yet</span>'}</div>`;
 }
 
 function renderLog() {
@@ -603,9 +656,13 @@ function renderCharts() {
     { key: 'confidence', title: 'Move confidence', note: 'Dips mark junctions the model found genuinely hard. Below the dashed line the gate fires.',
       lines: [{ key: 'confidence', label: 'confidence', color: 'var(--accent)', values: s.confidence }],
       domain: [0, 1], threshold: Math.min(1, Math.max(0, parseFloat(el.gate.value) || 0.45)), fmt: two },
-    { key: 'nouls', title: 'Fight · loot · withdraw', note: 'The three nouls, on their shared 0–1 scale. The dashed line is the 0.5 decision threshold.',
+    { key: 'level', title: 'Level', note: 'Experience comes from kills, loot and going deeper. Every level is a skill to spend.',
+      lines: [{ key: 'level', label: 'level', color: 'var(--warn)', values: s.level }],
+      domain: [1, Math.max(2, ...s.level.filter((v) => Number.isFinite(v)))], fmt: int },
+    { key: 'nouls', title: 'Aggression, loot, withdraw',
+      note: 'Aggression is P(melee or shoot) from the engage choice; the other two are nouls. The dashed line is the 0.5 threshold.',
       lines: [
-        { key: 'fight', label: 'fight', color: NOUL_COLORS.fight, values: s.fight },
+        { key: 'aggression', label: 'aggression', color: NOUL_COLORS.fight, values: s.aggression },
         { key: 'take_loot', label: 'take_loot', color: NOUL_COLORS.take_loot, values: s.take_loot },
         { key: 'withdraw', label: 'withdraw', color: NOUL_COLORS.withdraw, values: s.withdraw },
       ],
@@ -652,6 +709,7 @@ function renderProfile() {
 
 function renderAll() {
   renderTiles();
+  renderSheet();
   if (app.view === 'plan' || !app.scene) renderMap();
   if (app.scene) app.scene.update(app.run);
   renderCharts();

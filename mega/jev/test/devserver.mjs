@@ -45,8 +45,17 @@ function cannedAnswers(body) {
   const traps = (st.current_room?.traps_present || []).length;
   const loot = (st.current_room?.loot_present || []).length;
   const wob = (k) => 0.5 + 0.5 * Math.sin(tick / k); // a little motion of its own
+  // Prefer somewhere NEW and downward. Always taking the first option makes
+  // the delver oscillate between two chambers, which earns no experience and
+  // leaves levelling, skills and the whole pack untouched in local testing.
+  const exits = st.available_exits || [];
+  const rank = (o) => {
+    const x = exits.find((e) => e.option === o);
+    if (!x) return -99;
+    return (x.times_entered === 0 ? 10 : 0) + x.descends * 3 - (x.times_entered || 0);
+  };
   const opts = Object.keys(qs.move?.criteria || { hold: '' });
-  const real = opts.filter((o) => o !== 'hold');
+  const real = opts.filter((o) => o !== 'hold').sort((a, b) => rank(b) - rank(a));
   const pick = real.length ? real[0] : 'hold';
   const probabilities = {};
   for (const o of opts) probabilities[o] = Number((o === pick ? 0.71 : 0.29 / Math.max(1, opts.length - 1)).toFixed(3));
@@ -59,22 +68,47 @@ function cannedAnswers(body) {
     Array.from({ length: levels }, (_, i) => [String(i), i === peak ? 0.62 : 0.38 / (levels - 1)]),
   );
   const dangerScore = Object.entries(dangerProbs).reduce((a, [i, p]) => a + Number(i) * p, 0);
-  return {
-    model: 'jev-latest',
-    answers: {
-      move: { type: 'choice', choice: pick, probabilities, confidence: 0.71 },
-      danger: {
-        type: 'score', score: dangerScore,
-        legend: Object.fromEntries(Array.from({ length: levels }, (_, i) => [String(i), `level ${i}`])),
-        probabilities: dangerProbs,
-        confidence: 0.66,
-      },
-      fight: { type: 'noul', noul: round2(creatures ? 0.35 + 0.5 * hp : 0.08 + 0.1 * wob(5)) },
-      take_loot: { type: 'noul', noul: round2(loot ? 0.55 + 0.4 * hp : 0.12 + 0.1 * wob(7)) },
-      withdraw: { type: 'noul', noul: round2(Math.max(0.05, 0.95 - hp - 0.08 * wob(4))) },
-    },
-    usage: { input_tokens: 486, output_tokens: 52 },
+  // Answer only the questions that were actually asked — engage, use_item and
+  // level_up are conditional, and a stub that always emitted them would be
+  // answering questions the page never sent.
+  const dist = (q, picked) => {
+    const keys = Object.keys(q.criteria || {});
+    if (!keys.length) return {};
+    const lead = keys.length === 1 ? 1 : 0.64;
+    return Object.fromEntries(keys.map((k) => [k, Number((k === picked ? lead : (1 - lead) / (keys.length - 1)).toFixed(3))]));
   };
+  const answers = {
+    move: { type: 'choice', choice: pick, probabilities, confidence: 0.71 },
+    danger: {
+      type: 'score', score: dangerScore,
+      legend: Object.fromEntries(Array.from({ length: levels }, (_, i) => [String(i), `level ${i}`])),
+      probabilities: dangerProbs,
+      confidence: 0.66,
+    },
+
+    take_loot: { type: 'noul', noul: round2(loot ? 0.55 + 0.4 * hp : 0.12 + 0.1 * wob(7)) },
+    withdraw: { type: 'noul', noul: round2(Math.max(0.05, 0.95 - hp - 0.08 * wob(4))) },
+  };
+
+  if (qs.engage) {
+    const keys = Object.keys(qs.engage.criteria);
+    const want = hp > 0.6 ? ['melee', 'shoot', 'avoid'] : ['shoot', 'avoid', 'melee'];
+    const p = want.find((k) => keys.includes(k)) || keys[0];
+    answers.engage = { type: 'choice', choice: p, probabilities: dist(qs.engage, p), confidence: round2(0.5 + 0.45 * wob(5)) };
+  }
+  if (qs.use_item) {
+    const keys = Object.keys(qs.use_item.criteria);
+    const want = hp < 0.5 ? ['potion', 'ward', 'arrow', 'rope', 'none'] : ['none'];
+    const p = want.find((k) => keys.includes(k)) || 'none';
+    answers.use_item = { type: 'choice', choice: p, probabilities: dist(qs.use_item, p), confidence: 0.72 };
+  }
+  if (qs.level_up) {
+    const keys = Object.keys(qs.level_up.criteria);
+    const p = keys[Math.floor(wob(3) * keys.length) % keys.length];
+    answers.level_up = { type: 'choice', choice: p, probabilities: dist(qs.level_up, p), confidence: 0.6 };
+  }
+
+  return { model: 'jev-latest', answers, usage: { input_tokens: 486, output_tokens: 52 } };
 }
 
 createServer(async (req, res) => {

@@ -229,6 +229,78 @@ Mind the worker's `MAX_QUESTIONS` cap (12) if the set ever grows.
 
 ---
 
+## The character sheet, the pack and the skill tree
+
+**Why any of this exists.** With only "which door / fight / loot / withdraw"
+there was nothing to weigh, and every run had the same shape: descend, take a
+few hits, climb out. `character.mjs` adds the cheapest thing that creates real
+tradeoffs — scarce charges. A potion is only interesting because drinking it
+now means not having it later; an arrow is only interesting because there are
+three of them and four wraiths.
+
+It also buys the demo its best showcase: **the legal option set changes every
+tick.** `usableItems()` decides what can be used HERE, so the `use_item`
+choice literally cannot offer a potion Jev does not carry, or a rope where
+there is no trapdoor. A text model needs a validator and a retry loop for
+that; a typed choice gets it from the question.
+
+| Piece | What it is |
+|---|---|
+| sheet | Vigour / Might / Aim, rolled 4d6-drop-lowest from the run seed, so a replay is exact. Vigour sets max health, Might turns aside melee damage, Aim is the chance an arrow is recovered. |
+| pack | `potion` (heal), `arrow` (kill the toughest outright, no retaliation), `ward` (disarm this chamber's traps), `rope` (drop through a trapdoor, skipping the walk). Nothing refills on its own. |
+| tree | Tier 1 grants charges (Second Wind, Fletcher, Trapsense, Climber) plus two standalone passives (Butcher, Toughness — repeatable). Tier 2 upgrades its parent (Alchemy needs Second Wind, Marksman needs Fletcher). |
+| xp | Kills, loot, new ground and depth. Each level is a skill to spend. |
+
+### The question set now varies tick to tick
+
+`engage`, `use_item` and `level_up` are **conditional** — asked only when
+there is a real decision behind them:
+
+- `engage` only when something hostile is actually in the chamber
+- `use_item` only when at least one charge is usable *here*
+- `level_up` only when a level is waiting to be spent
+
+A `choice` with one option is a forced move dressed up as a decision, and it
+still costs tokens. This is easy precisely because the question set is just
+data — it can vary per call with no protocol ceremony. `renderAnswers()`
+dispatches on the declared `type` rather than hard-coding the five questions,
+so a question that comes and goes still draws itself.
+
+`engage` replaced the old `fight` noul, because with arrows there are three
+real answers rather than two — and `shoot` simply is not in the option set
+with an empty quiver. Telemetry therefore tracks **aggression** as the
+probability mass on `melee` + `shoot`, derived from the typed distribution.
+
+### Two things the live model taught us here
+
+**Jev took Toughness five level-ups running, carrying an empty pack.** The
+first `level_up` criteria listed each skill's effect and nothing else, which
+makes "+4 maximum health, always available" a perfectly defensible read.
+Nothing said the quiver was empty. Each option now states what it would do to
+the stock actually carried (`restocks: { item, carried_now, carried_after }`),
+and the instructions name what the delver is out of. Same lesson as the move
+question, in a new place: **low-quality choices usually mean the criteria are
+underspecified, not that the model is weak.**
+
+**Withdrawal had to become a latch.** Reading `withdraw > 0.5` fresh each tick
+made the endgame dither — measured, a delver at 20/38 health sat on 0.51–0.57
+for six straight ticks and climbed, descended, climbed, descended. A retreat
+is a decision about the *run*, so it now has hysteresis: it enters only on a
+decisive call (> 0.65) and leaves only once health is genuinely back above
+70%. A 0.51 is the model saying "I am not sure", and the right answer to that
+is not to reverse course every ten seconds.
+
+### And the proxy now backs off
+
+`/jev/api/ask` retries **429 and 529** with exponential backoff and jitter
+(honouring `Retry-After` when given), up to two retries. This is what the
+TypeSafe docs ask for, and a real `529 system_overloaded` on 2026-09-17 is
+what prompted it: without a retry, one blip drops the page out of live mode
+mid-demo. Nothing else is retried — a 401 or 422 will fail again just as fast,
+and retrying it would spend the budget twice for nothing.
+
+---
+
 ## The 3D view and the telemetry
 
 **`scene.mjs` — the spinnable dungeon.** three.js r160, vendored at `vendor/`

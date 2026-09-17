@@ -40,6 +40,8 @@ jobs:
         run: node jev/test/worker.selftest.mjs
       - name: jev telemetry selftest (the stats, and what they refuse to claim)
         run: node jev/test/telemetry.selftest.mjs
+      - name: jev character selftest (the pack, the tree, and item legality)
+        run: node jev/test/character.selftest.mjs
 
       - name: Deploy static site
         run: npx wrangler deploy

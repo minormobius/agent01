@@ -24,6 +24,7 @@ const envWith = (key) => ({ TYPESAFE_API_KEY: key, ASSETS });
 // cannot make one test's requests affect another's. Pass an explicit `ip` to
 // exercise the throttle itself.
 let ipSeq = 0;
+let stubCalls = 0;
 const post = (body, { raw = false, ip = null } = {}) =>
   new Request('https://mega.mino.mobi/jev/api/ask', {
     method: 'POST',
@@ -209,6 +210,52 @@ await (async () => {
     }), envWith(SECRET));
     ok_(res.status === 200, 'array instructions are accepted');
   });
+
+  // ----------------------------------------------- retrying 429 and 529 ----
+  // The docs ask for backoff on these two, and a real 529 (2026-09-17) is what
+  // prompted it. Everything else must fail fast rather than spend the budget
+  // twice on an error that will repeat.
+  for (const status of [429, 529]) {
+    await withStub(
+      async () => {
+        // fail twice, then succeed
+        return (++stubCalls <= 2)
+          ? new Response(JSON.stringify({ error: 'busy' }), { status })
+          : upstreamOK();
+      },
+      async (calls) => {
+        stubCalls = 0;
+        const res = await worker.fetch(post(goodBody), envWith(SECRET));
+        const body = await res.json();
+        ok_(res.status === 200, `a ${status} is retried until it succeeds`);
+        ok_(calls.length === 3, `${status}: it took all three attempts (got ${calls.length})`);
+        ok_(body.attempts === 3, `${status}: the retry count is reported`);
+        ok_(!JSON.stringify(body).includes(SECRET), `${status}: the retry path leaks no key`);
+      },
+    );
+  }
+  {
+    // a persistent 529 gives up rather than hanging, and says how many it tried
+    await withStub(
+      async () => new Response(JSON.stringify({ error: 'busy' }), { status: 529 }),
+      async (calls) => {
+        const res = await worker.fetch(post(goodBody), envWith(SECRET));
+        const body = await res.json();
+        ok_(res.status === 529, 'a persistent 529 is surfaced, not swallowed');
+        ok_(calls.length === 3, `it stops after the retry limit (got ${calls.length})`);
+        ok_(body.attempts === 3, 'the attempt count is reported on failure too');
+      },
+    );
+  }
+  for (const status of [401, 422, 400]) {
+    await withStub(
+      async () => new Response(JSON.stringify({ error: 'nope' }), { status }),
+      async (calls) => {
+        await worker.fetch(post(goodBody), envWith(SECRET));
+        ok_(calls.length === 1, `a ${status} is NOT retried (got ${calls.length} call(s))`);
+      },
+    );
+  }
 
   // ---------------------------------------------------------- throttling ----
   // The proxy spends real money, so one caller must not be able to hammer it.

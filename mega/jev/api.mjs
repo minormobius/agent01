@@ -31,6 +31,14 @@ const MAX_BODY_BYTES = 64 * 1024; // a delve state is ~2-4KB; 64K is generous
 const MAX_QUESTIONS = 12; // the demo asks 5
 const UPSTREAM_TIMEOUT_MS = 20_000;
 
+// Backoff for the two statuses the docs say to retry (429 rate limited,
+// 529 overloaded). Kept small: the page ticks every 10s, so a retry that
+// outlasts the tick is worse than failing over to the stand-in.
+const RETRY_LIMIT = 2;
+const RETRY_BASE_MS = 350;
+const RETRY_MAX_WAIT_MS = 2_000;
+const RETRY_JITTER_MS = 200;
+
 // ------------------------------------------------------------ throttling ---
 // The key behind this proxy is metered and real, and /api/ask is reachable by
 // anyone who knows the URL (CORS only binds browsers; curl ignores it). So
@@ -170,30 +178,53 @@ async function handleAsk(request, env) {
 
   const started = Date.now();
   let upstream;
-  try {
-    upstream = await fetch(UPSTREAM, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${env.TYPESAFE_API_KEY}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify(built.body),
-      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-    });
-  } catch (err) {
-    // Network/timeout. Never include the request headers in the message.
-    return json({ error: 'upstream_unreachable', detail: String(err?.message || err) }, 502);
+  let text;
+  let attempts = 0;
+
+  // RETRY 429 AND 529 WITH BACKOFF, which is what the TypeSafe docs ask for
+  // and what a demo ticking every ten seconds actually needs: a single
+  // `529 system_overloaded` (hit for real on 2026-09-17) would otherwise drop
+  // the page out of live mode for that tick and show an error to the room.
+  // Only these two statuses are retried — a 401 or a 422 will fail again just
+  // as fast, and retrying them would just spend the budget twice.
+  for (;;) {
+    attempts += 1;
+    try {
+      upstream = await fetch(UPSTREAM, {
+        method: 'POST',
+        headers: {
+          authorization: `Bearer ${env.TYPESAFE_API_KEY}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify(built.body),
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // Network/timeout. Never include the request headers in the message.
+      return json({ error: 'upstream_unreachable', detail: String(err?.message || err), attempts }, 502);
+    }
+
+    text = await upstream.text();
+    const retryable = upstream.status === 429 || upstream.status === 529;
+    if (!retryable || attempts > RETRY_LIMIT) break;
+
+    // Honour Retry-After when the service names a delay, else back off
+    // exponentially with jitter so a roomful of tabs does not resynchronise.
+    const stated = Number(upstream.headers.get('retry-after'));
+    const wait = Number.isFinite(stated) && stated > 0
+      ? Math.min(stated * 1000, RETRY_MAX_WAIT_MS)
+      : Math.min(RETRY_BASE_MS * 2 ** (attempts - 1), RETRY_MAX_WAIT_MS);
+    await new Promise((r) => setTimeout(r, wait + Math.random() * RETRY_JITTER_MS));
   }
 
   const elapsed = Date.now() - started;
-  const text = await upstream.text();
 
   if (!upstream.ok) {
     // Surface the upstream status so the page can say something true about
     // WHY (401 bad key, 422 malformed question, 429 rate limited, 529 busy).
     let detail = text.slice(0, 600);
     try { detail = JSON.parse(text); } catch { /* keep the text */ }
-    return json({ error: 'upstream_error', status: upstream.status, detail, latency_ms: elapsed },
+    return json({ error: 'upstream_error', status: upstream.status, detail, latency_ms: elapsed, attempts },
       upstream.status === 401 ? 502 : upstream.status);
   }
 
@@ -207,6 +238,7 @@ async function handleAsk(request, env) {
   // Stamp provenance + latency so the UI can prove which answers are real.
   parsed.source = 'typesafe';
   parsed.latency_ms = elapsed;
+  if (attempts > 1) parsed.attempts = attempts;
   return json(parsed);
 }
 

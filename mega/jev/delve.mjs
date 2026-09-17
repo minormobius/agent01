@@ -13,7 +13,12 @@
 //
 // The contract for the dungeon documents: https://foam.mino.mobi/dungeon/FORMAT.md
 
-export const DELVE_VERSION = 1;
+import {
+  rollCharacter, sheet, grantXp, availableSkills, takeSkill, usableItems,
+  healAmount, meleeCost, arrowRecoveryChance, maxHpOf, ITEMS, ITEM_KEYS, SKILLS,
+} from './character.mjs';
+
+export const DELVE_VERSION = 2;
 
 // The demo's default heartbeat. One tick = one Jev call = one decision.
 export const TICK_MS_DEFAULT = 10_000;
@@ -119,11 +124,16 @@ export function makeWorld(dungeon, content) {
 }
 
 // -------------------------------------------------------------------- run ---
-export function newRun(world, { maxHp = 12, seed = 1 } = {}) {
+export function newRun(world, { seed = 1, character = null } = {}) {
+  const rand = rng(seed);
+  // The sheet is rolled from the same seed as everything else, so a run
+  // replays exactly — stats included.
+  const char = character || rollCharacter(rand);
   const run = {
     at: world.entrance,
-    hp: maxHp,
-    maxHp,
+    char,
+    hp: char.maxHp,
+    maxHp: char.maxHp,
     gold: 0,
     tick: 0,
     status: 'delving', // delving | escaped | dead | stranded
@@ -131,12 +141,34 @@ export function newRun(world, { maxHp = 12, seed = 1 } = {}) {
     cleared: new Set(), // rooms whose agents are dead
     looted: new Set(), // rooms whose loot is taken
     sprung: new Set(), // rooms whose traps already fired
+    warded: new Set(), // rooms whose traps were disarmed by a ward
+    withdrawing: false, // latched: see applyAnswers
+    kills: 0,
+    itemsUsed: {},
     deepest: world.rooms.get(world.entrance)?.depth ?? 0,
     log: [],
-    rand: rng(seed),
+    rand,
     trail: [world.entrance],
   };
   return run;
+}
+
+/** The trapdoor leading out of the delver's current chamber, if any. */
+export function trapdoorHere(world, run) {
+  return (world.trapdoors || []).find((t) => t.fromRoom === run.at && world.rooms.has(t.toRoom)) || null;
+}
+
+/** What the delver faces right now — the context item legality is judged on. */
+export function situation(world, run) {
+  const here = world.rooms.get(run.at);
+  return {
+    hp: run.hp,
+    maxHp: run.maxHp,
+    creatures: run.cleared.has(run.at) ? [] : (here?.agents || []),
+    traps: run.sprung.has(run.at) || run.warded.has(run.at) ? [] : (here?.traps || []),
+    loot: run.looted.has(run.at) ? [] : (here?.loot || []),
+    trapdoor: trapdoorHere(world, run),
+  };
 }
 
 // What the delver can actually see from where it stands: each exit, plus
@@ -186,16 +218,32 @@ export function buildState(world, run) {
   const loot = run.looted.has(here.id) ? [] : here.loot;
   const traps = run.sprung.has(here.id) ? [] : here.traps;
 
+  const sit = situation(world, run);
+  const usable = usableItems(run.char, sit);
+
   return {
     delver: {
+      name: run.char.name,
+      level: run.char.level,
+      xp: run.char.xp,
+      xp_to_next_level: run.char.xpToNext,
       health: run.hp,
       max_health: run.maxHp,
       health_fraction: Number((run.hp / run.maxHp).toFixed(2)),
+      stats: { ...run.char.stats },
+      skills: run.char.skills.map((id) => SKILLS[id].label),
       gold_carried: run.gold,
+      creatures_killed: run.kills,
       ticks_elapsed: run.tick,
       rooms_visited: run.visited.size,
       deepest_depth_reached: run.deepest,
     },
+    // The inventory is stated in full, including the zeroes, so the model can
+    // see what it has run out of rather than inferring it from an absence.
+    inventory: { ...run.char.inventory },
+    usable_right_now: usable.length
+      ? usable.map((k) => ({ item: k, effect: ITEMS[k].why(run.char, sit) }))
+      : 'Nothing in the pack is usable in this chamber.',
     objective: {
       goal: 'Descend to a vault chamber, take what is there, and climb back out alive.',
       vault_chambers_remaining: world.endpoints.filter((id) => !run.visited.has(id)).length,
@@ -214,6 +262,9 @@ export function buildState(world, run) {
       loot_present: loot.map((l) => ({ kind: l.kind, gold: l.gold })),
       traps_present: traps.map((t) => ({ trap: t.trap, damage: t.dmg, span: t.span })),
       obstacles_present: here.obstacles.length,
+      trapdoor: sit.trapdoor
+        ? { drops_to_chamber: sit.trapdoor.toRoom, drop_metres: sit.trapdoor.drop }
+        : null,
       already_visited: run.trail.filter((id) => id === here.id).length > 1,
     },
     available_exits: visibleExits(world, run),
@@ -289,7 +340,7 @@ export function buildQuestions(world, run) {
       + ' only sensible if every door is worse than wasting the turn.',
   };
 
-  return {
+  const questions = {
     // Which door. One option per real exit, plus hold.
     move: {
       type: 'choice',
@@ -316,15 +367,6 @@ export function buildQuestions(world, run) {
         'Lethal. This chamber can kill the delver outright at its current health.',
       ],
     },
-    // Fight or slip past.
-    fight: {
-      type: 'noul',
-      instructions: 'Should the delver attack the creatures in this chamber rather than avoid them?',
-      criteria: {
-        true: 'Attacking is worth it — they are weak enough, or they block the way and must be cleared.',
-        false: 'Avoid them — too costly at this health, or simply not worth the wounds.',
-      },
-    },
     // Greed check.
     take_loot: {
       type: 'noul',
@@ -344,6 +386,152 @@ export function buildQuestions(world, run) {
         false: 'Press on — there is enough health to keep descending.',
       },
     },
+  };
+
+  // CONDITIONAL QUESTIONS. The question set is just data, so it varies tick to
+  // tick with no protocol ceremony — and a question is only asked when there
+  // is a real decision behind it. A `choice` with one option is not a
+  // decision, it is a forced move dressed up as one, and it still costs
+  // tokens; so:
+  //   engage    — only when something hostile is actually here
+  //   use_item  — only when at least one charge is usable in THIS chamber
+  //   level_up  — only when a level is waiting to be spent
+  const sit = situation(world, run);
+  if (sit.creatures.length) questions.engage = buildEngage(world, run);
+  if (usableItems(run.char, sit).length) questions.use_item = buildUseItem(world, run);
+  if (run.char.pendingLevels > 0) questions.level_up = buildLevelUp(world, run);
+
+  return questions;
+}
+
+// ---------------------------------------------------- the new decisions ----
+// Each of these builds its option set from what is ACTUALLY possible this
+// tick. That is the type system doing the work: `shoot` cannot be picked with
+// an empty quiver because it is not in the set, and no validator or retry
+// loop is involved.
+
+function buildEngage(world, run) {
+  const sit = situation(world, run);
+  const criteria = {};
+  const worst = [...sit.creatures].sort((a, b) => b.hp - a.hp)[0];
+  const raw = sit.creatures.reduce((t, a) => t + (a.hp || 1), 0);
+
+  if (sit.creatures.length) {
+    criteria.melee = {
+      action: 'Close and fight them hand to hand.',
+      clears_the_chamber: true,
+      likely_health_cost: meleeCost(run.char, raw),
+      note: 'Clears the chamber for good and earns experience, but always costs health.',
+    };
+    if (run.char.inventory.arrow > 0) {
+      criteria.shoot = {
+        action: `Loose an arrow at the ${worst.type}.`,
+        arrows_left_after: run.char.inventory.arrow - 1,
+        likely_health_cost: 0,
+        note: 'Kills the toughest creature outright with no retaliation, and spends an arrow. '
+          + 'Any others in the chamber still have to be dealt with.',
+      };
+    }
+    criteria.avoid = {
+      action: 'Slip past them without engaging.',
+      clears_the_chamber: false,
+      likely_health_cost: '0 or 1',
+      note: 'Cheapest now, but they are still here if the delver comes back through.',
+    };
+  }
+
+  return {
+    type: 'choice',
+    instructions: {
+      task: 'Decide how to handle the creatures in this chamber.',
+      creatures_present: sit.creatures.map((a) => ({ kind: a.type, hp: a.hp })),
+      delver_health: { current: run.hp, max: run.maxHp },
+      arrows_in_quiver: run.char.inventory.arrow,
+      rule: 'Melee always costs health but clears the chamber and earns experience. '
+        + 'An arrow costs no health, but the quiver does not refill on its own. '
+        + 'Avoiding costs almost nothing now and leaves the problem in place.',
+    },
+    criteria,
+  };
+}
+
+function buildUseItem(world, run) {
+  const sit = situation(world, run);
+  const usable = usableItems(run.char, sit);
+  const criteria = {
+    none: {
+      action: 'Use nothing this turn.',
+      note: 'Charges never regenerate, so keeping one is a real choice rather than a default.',
+    },
+  };
+  for (const k of usable) {
+    criteria[k] = {
+      action: `Use the ${ITEMS[k].label.toLowerCase()}.`,
+      effect: ITEMS[k].why(run.char, sit),
+      remaining_after_use: run.char.inventory[k] - 1,
+      note: ITEMS[k].blurb,
+    };
+  }
+  return {
+    type: 'choice',
+    instructions: {
+      task: 'Spend one charge from the pack, or keep them all.',
+      inventory: { ...run.char.inventory },
+      // What is NOT on the menu, and why. Stating it beats leaving the model
+      // to infer a capability from an absence.
+      not_offered: ITEM_KEYS.filter((k) => !usable.includes(k)).map((k) => ({
+        item: k,
+        held: run.char.inventory[k],
+        reason: run.char.inventory[k] === 0 ? 'none carried' : 'nothing here for it to act on',
+      })),
+      rule: 'Nothing refills. A potion spent at 2 health is worth far more than one spent at 10, '
+        + 'and an arrow spent on a mite is an arrow not spent on a wraith.',
+    },
+    criteria,
+  };
+}
+
+function buildLevelUp(world, run) {
+  const criteria = {};
+  // THE WORDING IS LOAD-BEARING HERE TOO. A first version listed each skill's
+  // effect and nothing else, and jev-1.13.0 took Toughness five level-ups in a
+  // row while carrying an empty pack — a defensible read of "+4 health,
+  // always available" when nothing said the quiver was empty. Each option now
+  // states what it would do to the stock the delver actually has.
+  const inv = run.char.inventory;
+  for (const id of availableSkills(run.char)) {
+    const sk = SKILLS[id];
+    const grants = sk.grants && Object.keys(sk.grants).length ? sk.grants : null;
+    const restocks = grants
+      ? Object.entries(grants).map(([item, n]) => ({
+        item, carried_now: inv[item], carried_after: inv[item] + n,
+        and_then: sk.perLevel?.[item] ? `+${sk.perLevel[item]} more at every later level` : null,
+      }))
+      : null;
+    criteria[id] = {
+      skill: sk.label,
+      tier: sk.tier,
+      effect: sk.blurb,
+      restocks,
+      raises_max_health_by: sk.bonusMaxHp || null,
+      times_already_taken: run.char.skills.filter((x) => x === id).length,
+    };
+  }
+  return {
+    type: 'choice',
+    instructions: {
+      task: `${run.char.name} reached level ${run.char.level}. Choose one skill.`,
+      skills_already_taken: run.char.skills.map((id) => SKILLS[id].label),
+      pack_right_now: { ...run.char.inventory },
+      empty_handed: ITEM_KEYS.filter((k) => inv[k] === 0),
+      note: ITEM_KEYS.every((k) => inv[k] === 0)
+        ? 'The pack is completely empty. Nothing refills on its own; only a skill restocks it.'
+        : 'Charges never refill on their own. Only a skill restocks the pack.',
+      stats: { ...run.char.stats },
+      rule: 'A tier-2 skill needs its tier-1 parent, so it only appears once that is taken. '
+        + 'Toughness is always available and may be taken more than once.',
+    },
+    criteria,
   };
 }
 
@@ -385,131 +573,217 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
   };
 
   const here = world.rooms.get(run.at);
-  const withdrawing = (answers.withdraw?.noul ?? 0) > 0.5;
+  // WITHDRAWAL LATCHES, and that is a deliberate fix rather than a tweak.
+  // Reading `withdraw > 0.5` fresh each tick made the endgame dither: measured
+  // against jev-1.13.0, a delver at 20/38 health sat on withdraw 0.51–0.57 for
+  // six straight ticks and climbed, descended, climbed, descended. A retreat
+  // is a decision about the RUN, so it needs hysteresis:
+  //   enter withdrawal only on a decisive call (> 0.65)
+  //   leave it only once genuinely recovered (health back above 70%)
+  // A 0.51 is the model saying "I am not sure", and the right response to
+  // that is not to reverse course every few seconds.
+  const withdrawNoul = answers.withdraw?.noul ?? 0;
+  if (!run.withdrawing && withdrawNoul > 0.65) {
+    run.withdrawing = true;
+    say(`withdraw ${withdrawNoul.toFixed(2)} \u2014 turning back for the surface.`, 'gate');
+  } else if (run.withdrawing && withdrawNoul < 0.4 && run.hp / run.maxHp > 0.7) {
+    run.withdrawing = false;
+    say(`recovered to ${run.hp}/${run.maxHp} \u2014 pressing on again.`, 'gate');
+  }
+  const withdrawing = run.withdrawing;
+  const ch = run.char;
+  let xp = 0;
+  let movedByRope = false;
 
-  // ---- 1. fight or avoid -------------------------------------------------
-  const hostiles = run.cleared.has(here.id) ? [] : here.agents;
-  if (hostiles.length) {
-    if ((answers.fight?.noul ?? 0) > 0.5) {
-      const dmg = hostiles.reduce((s, a) => s + bite(a.type), 0);
-      // Fighting well takes less: a clean read of the room halves the bite.
-      const taken = Math.max(1, Math.round(dmg * (run.rand() < 0.5 ? 0.5 : 1)));
-      run.hp -= taken;
-      run.cleared.add(here.id);
-      say(`Fought ${hostiles.length} creature(s) in ${here.id} — cleared, took ${taken} damage.`, 'fight');
-    } else {
-      // Slipping past is cheaper but not free.
-      const taken = run.rand() < 0.45 ? 1 : 0;
-      if (taken) {
-        run.hp -= taken;
-        say(`Slipped past ${hostiles.length} creature(s) in ${here.id} — clipped for ${taken}.`, 'evade');
-      } else {
-        say(`Slipped past ${hostiles.length} creature(s) in ${here.id} untouched.`, 'evade');
+  // ---- 1. spend the level, if one is waiting ----------------------------
+  // First, so the skill's charges are available to the very tick that earned
+  // them — a potion granted by Second Wind can be drunk immediately.
+  if (ch.pendingLevels > 0) {
+    const pick = answers.level_up?.choice;
+    const legal = availableSkills(ch);
+    const id = legal.includes(pick) ? pick : legal[0];
+    if (id) {
+      const res = takeSkill(ch, id);
+      if (res.ok) {
+        run.maxHp = ch.maxHp;
+        if (SKILLS[id].bonusMaxHp) run.hp += SKILLS[id].bonusMaxHp; // new max is real health
+        say(`Level ${ch.level}: took ${res.skill.label}.`, 'level');
+        if (pick && pick !== id) say(`(asked for ${pick}, which was not available)`, 'gate');
       }
     }
   }
 
-  // ---- 2. traps ----------------------------------------------------------
-  const traps = run.sprung.has(here.id) ? [] : here.traps;
+  // ---- 2. use an item ---------------------------------------------------
+  const sit = situation(world, run);
+  const wanted = answers.use_item?.choice ?? 'none';
+  const legalItems = usableItems(ch, sit);
+  if (wanted !== 'none') {
+    if (!legalItems.includes(wanted)) {
+      say(`Cannot use ${wanted} here \u2014 kept it.`, 'gate');
+    } else {
+      ch.inventory[wanted] -= 1;
+      run.itemsUsed[wanted] = (run.itemsUsed[wanted] || 0) + 1;
+      if (wanted === 'potion') {
+        const heal = Math.min(healAmount(ch), run.maxHp - run.hp);
+        run.hp += heal;
+        say(`Drank a potion: +${heal} health (${run.hp}/${run.maxHp}).`, 'item');
+      } else if (wanted === 'arrow') {
+        const target = [...sit.creatures].sort((x, y) => y.hp - x.hp)[0];
+        here.agents = here.agents.filter((a) => a.id !== target.id);
+        run.kills += 1;
+        xp += 2 + (target.hp || 1);
+        if (!here.agents.length) run.cleared.add(here.id);
+        const recovered = run.rand() < arrowRecoveryChance(ch);
+        if (recovered) ch.inventory.arrow += 1;
+        say(`Shot the ${target.type} dead${recovered ? ' and recovered the arrow' : ''}.`, 'item');
+      } else if (wanted === 'ward') {
+        run.warded.add(here.id);
+        say(`Ward flared: ${sit.traps.length} trap(s) here are dead.`, 'item');
+      } else if (wanted === 'rope') {
+        const td = sit.trapdoor;
+        run.at = td.toRoom;
+        run.visited.add(td.toRoom);
+        run.trail.push(td.toRoom);
+        movedByRope = true;
+        const dest = world.rooms.get(td.toRoom);
+        if (dest.depth > run.deepest) { xp += 2 * (dest.depth - run.deepest); run.deepest = dest.depth; }
+        say(`Roped down the trapdoor into chamber ${td.toRoom} (depth ${dest.depth}).`, 'item');
+      }
+    }
+  }
+
+  // ---- 3. the creatures --------------------------------------------------
+  const room = world.rooms.get(run.at);
+  const hostiles = run.cleared.has(room.id) ? [] : room.agents;
+  if (hostiles.length && !movedByRope) {
+    const mode = answers.engage?.choice ?? 'avoid';
+    if (mode === 'melee') {
+      const raw = hostiles.reduce((t, a) => t + (a.hp || 1), 0);
+      const taken = meleeCost(ch, raw);
+      run.hp -= taken;
+      run.kills += hostiles.length;
+      xp += hostiles.reduce((t, a) => t + 2 + (a.hp || 1), 0);
+      run.cleared.add(room.id);
+      say(`Fought ${hostiles.length} creature(s) hand to hand \u2014 cleared, took ${taken}.`, 'fight');
+    } else if (mode === 'shoot' && ch.inventory.arrow > 0) {
+      // engage=shoot is a second arrow, distinct from use_item=arrow
+      const target = [...hostiles].sort((x, y) => y.hp - x.hp)[0];
+      ch.inventory.arrow -= 1;
+      run.itemsUsed.arrow = (run.itemsUsed.arrow || 0) + 1;
+      room.agents = room.agents.filter((a) => a.id !== target.id);
+      run.kills += 1;
+      xp += 2 + (target.hp || 1);
+      if (!room.agents.length) run.cleared.add(room.id);
+      const recovered = run.rand() < arrowRecoveryChance(ch);
+      if (recovered) ch.inventory.arrow += 1;
+      say(`Loosed an arrow: the ${target.type} drops${recovered ? ', arrow recovered' : ''}.`, 'item');
+    } else {
+      const taken = run.rand() < 0.45 ? 1 : 0;
+      if (taken) { run.hp -= taken; say(`Slipped past ${hostiles.length} creature(s) \u2014 clipped for ${taken}.`, 'evade'); }
+      else say(`Slipped past ${hostiles.length} creature(s) untouched.`, 'evade');
+    }
+  }
+
+  // ---- 4. traps ----------------------------------------------------------
+  const traps = run.sprung.has(room.id) || run.warded.has(room.id) ? [] : room.traps;
   if (traps.length && run.hp > 0) {
-    // A high danger read means the delver is moving carefully: fewer traps bite.
     const dangerScore = answers.danger?.score ?? 0;
     const wary = dangerScore >= 2 ? 0.35 : 0.7;
     let taken = 0;
     for (const t of traps) if (run.rand() < wary) taken += t.dmg;
-    run.sprung.add(here.id);
-    if (taken) {
-      run.hp -= taken;
-      say(`${traps.length} trap(s) in ${here.id} — ${taken} damage.`, 'trap');
-    } else if (traps.length) {
-      say(`Stepped clear of ${traps.length} trap(s) in ${here.id}.`, 'trap');
+    run.sprung.add(room.id);
+    if (taken) { run.hp -= taken; say(`${traps.length} trap(s) in ${room.id} \u2014 ${taken} damage.`, 'trap'); }
+    else say(`Stepped clear of ${traps.length} trap(s) in ${room.id}.`, 'trap');
+  }
+
+  // ---- 5. loot -----------------------------------------------------------
+  const loot = run.looted.has(room.id) ? [] : room.loot;
+  if (loot.length && run.hp > 0 && (answers.take_loot?.noul ?? 0) > 0.5) {
+    const gold = loot.reduce((s2, l) => s2 + (l.gold || 0), 0);
+    run.gold += gold;
+    run.looted.add(room.id);
+    xp += Math.floor(gold / 6);
+    const hasTreasure = loot.some((l) => l.kind === 'treasure');
+    say(`Took ${gold} gold in ${room.id}${hasTreasure ? ' \u2014 a treasure hoard' : ''}.`, 'loot');
+  }
+
+  // ---- 6. experience -----------------------------------------------------
+  if (xp > 0) {
+    const before = ch.level;
+    grantXp(ch, xp, 'the chamber');
+    if (ch.level > before) {
+      run.maxHp = ch.maxHp;
+      say(`${ch.name} reached level ${ch.level}.`, 'level');
     }
   }
 
-  // ---- 3. loot -----------------------------------------------------------
-  const loot = run.looted.has(here.id) ? [] : here.loot;
-  if (loot.length && run.hp > 0 && (answers.take_loot?.noul ?? 0) > 0.5) {
-    const gold = loot.reduce((s, l) => s + (l.gold || 0), 0);
-    run.gold += gold;
-    run.looted.add(here.id);
-    const hasTreasure = loot.some((l) => l.kind === 'treasure');
-    say(`Took ${gold} gold in ${here.id}${hasTreasure ? ' — a treasure hoard' : ''}.`, 'loot');
-  }
-
-  // ---- 4. death check before moving -------------------------------------
+  // ---- 7. death ----------------------------------------------------------
   if (run.hp <= 0) {
     run.hp = 0;
     run.status = 'dead';
-    say(`The delver died in chamber ${here.id} at depth ${here.depth}, carrying ${run.gold} gold.`, 'death');
+    say(`${ch.name} died in chamber ${room.id} at depth ${room.depth}, carrying ${run.gold} gold.`, 'death');
     run.tick += 1;
     return { events, usedFallback: false, withdrawing };
   }
 
-  // ---- 5. move -----------------------------------------------------------
-  let option = answers.move?.choice ?? 'hold';
-  const conf = answers.move?.confidence ?? 1;
+  // ---- 8. move -----------------------------------------------------------
   let usedFallback = false;
+  if (!movedByRope) {
+    let option = answers.move?.choice ?? 'hold';
+    const conf = answers.move?.confidence ?? 1;
 
-  // Confidence-gated routing: below the gate we do not act on the model's
-  // pick, we fall back to the deterministic descent rule.
-  if (conf < moveConfidenceGate) {
-    option = fallbackMove(world, run, { climbing: withdrawing });
-    usedFallback = true;
-    say(`move confidence ${conf.toFixed(2)} < ${moveConfidenceGate} — fell back to the descent rule (${option}).`, 'gate');
-  }
+    if (conf < moveConfidenceGate) {
+      option = fallbackMove(world, run, { climbing: withdrawing });
+      usedFallback = true;
+      say(`move confidence ${conf.toFixed(2)} < ${moveConfidenceGate} \u2014 fell back to the descent rule (${option}).`, 'gate');
+    }
 
-  const exits = visibleExits(world, run);
-  let chosen = exits.find((x) => x.option === option);
+    const exits = visibleExits(world, run);
+    let chosen = exits.find((x) => x.option === option);
 
-  // WITHDRAW OUTRANKS MOVE, and this is a composition rule the caller has to
-  // make — not something the model does for you.
-  //
-  // The five questions are evaluated in parallel and IN ISOLATION, so they can
-  // disagree: measured against jev-1.13.0, a run at 2 health answered
-  // `withdraw` 0.82 (yes, turn back) and `move` to_41 with 0.85 confidence
-  // (descend) in the same call, and the delver marched down and died. Neither
-  // answer is wrong — `move` was asked which door best serves the objective,
-  // `withdraw` was asked whether to abandon it. Reconciling them is our job.
-  //
-  // The rule: `withdraw` is the strategic call and wins over the tactical one.
-  // If the delver is withdrawing and the picked door goes deeper, take the
-  // best ascending door instead — and say so in the log, the same way the
-  // confidence gate announces itself. Nothing is hidden from the viewer.
-  if (withdrawing && chosen && chosen.descends > 0) {
-    const up = exits
-      .filter((x) => x.descends < 0)
-      .sort((a, b) => a.descends - b.descends || a.times_entered - b.times_entered)[0];
-    if (up) {
-      say(`withdraw ${(answers.withdraw?.noul ?? 0).toFixed(2)} outranks move — climbing out via ${up.option} instead of descending.`, 'gate');
-      chosen = up;
-      option = up.option;
+    // WITHDRAW OUTRANKS MOVE. The questions are isolated, so they can
+    // disagree: measured against jev-1.13.0, a run at 2 health answered
+    // `withdraw` 0.82 and `move` a descent at 0.85 in the same call, and the
+    // delver marched down and died. Neither is wrong for the question it was
+    // asked; reconciling them is our job, and it is announced in the log.
+    if (withdrawing && chosen && chosen.descends > 0) {
+      const up = exits.filter((x) => x.descends < 0)
+        .sort((x, y) => x.descends - y.descends || x.times_entered - y.times_entered)[0];
+      if (up) {
+        say(`withdrawing \u2014 climbing out via ${up.option} rather than descending.`, 'gate');
+        chosen = up;
+        option = up.option;
+      }
+    }
+
+    if (option === 'hold' || !chosen) {
+      if (option !== 'hold') say(`No such exit ${option} \u2014 held position.`, 'gate');
+      else say(`Held in chamber ${room.id}.`, 'info');
+    } else {
+      run.at = chosen.room;
+      const fresh = !run.visited.has(chosen.room);
+      run.visited.add(chosen.room);
+      run.trail.push(chosen.room);
+      const next = world.rooms.get(chosen.room);
+      if (fresh) grantXp(ch, 1, 'new ground');
+      if (next.depth > run.deepest) { grantXp(ch, 2 * (next.depth - run.deepest), 'deeper'); run.deepest = next.depth; }
+      const verb = chosen.descends > 0 ? 'descended' : chosen.descends < 0 ? 'climbed' : 'crossed';
+      say(`${verb} into chamber ${chosen.room} (depth ${next.depth}).`, 'move');
     }
   }
 
-  if (option === 'hold' || !chosen) {
-    if (option !== 'hold') say(`No such exit ${option} — held position.`, 'gate');
-    else say(`Held in chamber ${here.id}.`, 'info');
-  } else {
-    run.at = chosen.room;
-    run.visited.add(chosen.room);
-    run.trail.push(chosen.room);
-    const next = world.rooms.get(chosen.room);
-    run.deepest = Math.max(run.deepest, next.depth);
-    const verb = chosen.descends > 0 ? 'descended' : chosen.descends < 0 ? 'climbed' : 'crossed';
-    say(`${verb} into chamber ${chosen.room} (depth ${next.depth}).`, 'move');
-
-    if (world.endpoints.includes(chosen.room)) {
-      say(`Reached VAULT chamber ${chosen.room}.`, 'vault');
-    }
+  if (world.endpoints.includes(run.at) && !run.vaultsSeen?.has?.(run.at)) {
+    run.vaultsSeen = run.vaultsSeen || new Set();
+    run.vaultsSeen.add(run.at);
+    grantXp(ch, 25, 'a vault');
+    say(`Reached VAULT chamber ${run.at}.`, 'vault');
   }
+  run.maxHp = ch.maxHp;
 
-  // ---- 6. terminal states ------------------------------------------------
-  if (run.at === world.entrance && run.tick > 0 && (withdrawing || run.gold > 0) && run.visited.size > 1) {
-    // Back at the mouth of the dungeon with something to show for it.
-    if (withdrawing) {
-      run.status = 'escaped';
-      say(`Climbed out at the entrance with ${run.gold} gold and ${run.hp}/${run.maxHp} health.`, 'escape');
-    }
+  // ---- 9. terminal states ------------------------------------------------
+  if (run.at === world.entrance && run.tick > 0 && withdrawing && run.visited.size > 1) {
+    run.status = 'escaped';
+    say(`Climbed out at the entrance with ${run.gold} gold and ${run.hp}/${run.maxHp} health.`, 'escape');
   }
 
   run.tick += 1;
@@ -528,12 +802,12 @@ export function applyAnswers(world, run, answers, { moveConfidenceGate = 0.45 } 
 export function offlineAnswers(world, run) {
   const here = world.rooms.get(run.at);
   const exits = visibleExits(world, run);
-  const hostiles = run.cleared.has(here.id) ? [] : here.agents;
-  const traps = run.sprung.has(here.id) ? [] : here.traps;
-  const loot = run.looted.has(here.id) ? [] : here.loot;
+  const sit = situation(world, run);
+  const ch = run.char;
   const hpFrac = run.hp / run.maxHp;
 
-  const threat = hostiles.reduce((s, a) => s + bite(a.type), 0) + traps.reduce((s, t) => s + t.dmg, 0);
+  const threat = sit.creatures.reduce((s, a) => s + bite(a.type), 0)
+    + sit.traps.reduce((s, t) => s + t.dmg, 0);
   const rawScore = threat === 0 ? 0 : threat <= 2 ? 1 : threat <= 5 ? 2 : 3;
   const score = Math.min(3, rawScore + (hpFrac < 0.34 ? 1 : 0));
 
@@ -541,37 +815,89 @@ export function offlineAnswers(world, run) {
   const climbing = withdraw > 0.5;
   const pick = fallbackMove(world, run, { climbing });
 
-  // A plausible distribution concentrated on the pick.
   const probabilities = {};
   const opts = [...exits.map((x) => x.option), 'hold'];
   const lead = opts.length === 1 ? 1 : 0.62;
   for (const o of opts) probabilities[o] = Number(((o === pick ? lead : (1 - lead) / (opts.length - 1)) || 0).toFixed(3));
 
-  // MEASURED, not assumed: the live API returns score `probabilities` as an
-  // OBJECT keyed by level index ({"0":0,"1":0.98,"2":0.02}), not the array the
-  // published example shows. The stand-in mirrors the real shape so offline
-  // mode is a faithful mock. `score` itself is the expectation over that
-  // distribution — Σ i·p_i — which the live responses confirm exactly.
   const scoreProbs = Object.fromEntries([0, 1, 2, 3].map((i) => [String(i), i === score ? 0.7 : 0.1]));
 
-  return {
-    source: 'offline',
-    model: 'offline-stand-in',
-    answers: {
-      move: { type: 'choice', choice: pick, probabilities, confidence: Number(lead.toFixed(2)) },
-      danger: {
-        type: 'score',
-        score: Object.entries(scoreProbs).reduce((acc, [i, p]) => acc + Number(i) * p, 0),
-        legend: Object.fromEntries([0, 1, 2, 3].map((i) => [String(i), `level ${i}`])),
-        probabilities: scoreProbs,
-        confidence: 0.7,
-      },
-      fight: { type: 'noul', noul: hostiles.length && threat <= 3 && hpFrac > 0.5 ? 0.8 : 0.2 },
-      take_loot: { type: 'noul', noul: loot.length && (hpFrac > 0.45 || run.gold === 0) ? 0.85 : 0.25 },
-      withdraw: { type: 'noul', noul: withdraw },
-    },
-    usage: { input_tokens: 0, output_tokens: 0 },
+  // The stand-in answers EVERY question that was asked, including the ones
+  // whose option sets change tick to tick — it picks from the live set rather
+  // than from a hard-coded list, or it would start naming illegal options the
+  // moment the inventory changed.
+  const qs = buildQuestions(world, run);
+  const chooseFrom = (q, prefer) => {
+    const keys = Object.keys(q.criteria);
+    const hit = prefer.find((k) => keys.includes(k));
+    return hit || keys[0];
   };
+  const dist = (q, picked) => {
+    const keys = Object.keys(q.criteria);
+    const lead2 = keys.length === 1 ? 1 : 0.6;
+    return Object.fromEntries(keys.map((k) => [k, Number((k === picked ? lead2 : (1 - lead2) / (keys.length - 1)).toFixed(3))]));
+  };
+
+  // crude but legible policy: shoot the tough, melee the weak, avoid when hurt
+  const toughest = [...sit.creatures].sort((a, b) => b.hp - a.hp)[0];
+  const engagePick = !qs.engage ? null
+    : (toughest.hp >= 3 && ch.inventory.arrow > 0) ? chooseFrom(qs.engage, ['shoot', 'melee', 'avoid'])
+      : hpFrac > 0.5 && threat <= 4 ? chooseFrom(qs.engage, ['melee', 'avoid'])
+        : chooseFrom(qs.engage, ['avoid', 'melee']);
+
+  const usableNow = usableItems(ch, sit);
+  const itemPick = !qs.use_item ? null
+    : (hpFrac < 0.45 && usableNow.includes('potion')) ? 'potion'
+      : (sit.traps.length >= 2 && usableNow.includes('ward')) ? 'ward'
+        : (usableNow.includes('arrow') && toughest && toughest.hp >= 3 && hpFrac < 0.7) ? 'arrow'
+          : 'none';
+
+  // Answer EXACTLY the questions that were asked — engage, use_item and
+  // level_up are conditional, so a stand-in that always emits all three would
+  // be answering questions nobody asked.
+  const answers = {
+    move: { type: 'choice', choice: pick, probabilities, confidence: Number(lead.toFixed(2)) },
+    danger: {
+      type: 'score',
+      score: Object.entries(scoreProbs).reduce((acc, [i, p]) => acc + Number(i) * p, 0),
+      legend: Object.fromEntries([0, 1, 2, 3].map((i) => [String(i), `level ${i}`])),
+      probabilities: scoreProbs,
+      confidence: 0.7,
+    },
+    take_loot: { type: 'noul', noul: sit.loot.length && (hpFrac > 0.45 || run.gold === 0) ? 0.85 : 0.25 },
+    withdraw: { type: 'noul', noul: withdraw },
+  };
+
+  if (qs.engage) {
+    answers.engage = {
+      type: 'choice', choice: engagePick,
+      probabilities: dist(qs.engage, engagePick), confidence: 0.66,
+    };
+  }
+  if (qs.use_item) {
+    answers.use_item = {
+      type: 'choice', choice: itemPick,
+      probabilities: dist(qs.use_item, itemPick), confidence: 0.7,
+    };
+  }
+  if (qs.level_up) {
+    // Spend on what is actually short, then climb the tree, and only fall
+    // back to Toughness when nothing else is left. Taking Toughness six times
+    // is what the naive "first in the list" policy did, and it made the skill
+    // tree look decorative.
+    const short = Object.entries(ch.inventory).sort((a, b) => a[1] - b[1])[0][0];
+    const restock = { potion: ['alchemy', 'second_wind'], arrow: ['marksman', 'fletcher'],
+      ward: ['trapsense'], rope: ['climber'] }[short] || [];
+    const untaken = Object.keys(qs.level_up.criteria)
+      .filter((k) => k !== 'toughness' && !ch.skills.includes(k));
+    const skillPick = chooseFrom(qs.level_up, [...restock, ...untaken, 'butcher', 'toughness']);
+    answers.level_up = {
+      type: 'choice', choice: skillPick,
+      probabilities: dist(qs.level_up, skillPick), confidence: 0.6,
+    };
+  }
+
+  return { source: 'offline', model: 'offline-stand-in', answers, usage: { input_tokens: 0, output_tokens: 0 } };
 }
 
 // ----------------------------------------------------------------- report ---
@@ -579,6 +905,12 @@ export function runSummary(world, run) {
   return {
     status: run.status,
     ticks: run.tick,
+    level: run.char.level,
+    xp: run.char.xp,
+    skills: run.char.skills.map((id) => SKILLS[id].label),
+    kills: run.kills,
+    items_used: { ...run.itemsUsed },
+    inventory: { ...run.char.inventory },
     health: run.hp,
     max_health: run.maxHp,
     gold: run.gold,

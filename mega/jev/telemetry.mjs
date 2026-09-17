@@ -26,10 +26,27 @@ export const SIGNALS = [
     note: 'The `danger` score. What the model THINKS is happening — compare it against health.' },
   { key: 'confidence', label: 'Move confidence', kind: 'answer', domain: 'unit', unit: '0–1',
     note: 'How concentrated the `move` distribution was. Dips mark genuinely hard junctions.' },
-  { key: 'fight', label: 'Fight', kind: 'answer', domain: 'unit', unit: 'noul' },
+  { key: 'aggression', label: 'Aggression', kind: 'answer', domain: 'unit', unit: 'P(engage)',
+    note: 'Probability mass the `engage` choice put on melee or shoot, rather than avoiding.' },
+  { key: 'level', label: 'Level', kind: 'world', domain: 'level', unit: 'lvl',
+    note: 'Experience is earned by killing, looting and going deeper.' },
   { key: 'take_loot', label: 'Take loot', kind: 'answer', domain: 'unit', unit: 'noul' },
   { key: 'withdraw', label: 'Withdraw', kind: 'answer', domain: 'unit', unit: 'noul' },
 ];
+
+/** Probability the `engage` choice put on acting (melee or shoot) at all. */
+export function engageAggression(engage) {
+  if (!engage) return null;
+  const p = engage.probabilities;
+  if (p && typeof p === 'object') {
+    const act = (p.melee || 0) + (p.shoot || 0);
+    if (Number.isFinite(act)) return Math.max(0, Math.min(1, act));
+  }
+  // no distribution? fall back to the pick itself
+  if (engage.choice === 'melee' || engage.choice === 'shoot') return 1;
+  if (engage.choice === 'avoid') return 0;
+  return null;
+}
 
 export function newTelemetry() {
   return { version: TELEMETRY_VERSION, samples: [] };
@@ -51,6 +68,15 @@ export function record(tel, { tick, answers = {}, run, world, usedFallback = fal
     room: run.at,
     // the model's own answers
     danger: answers.danger?.score ?? null,
+    // `engage` is a CHOICE, so "how aggressive was it" is the probability mass
+    // it put on acting rather than avoiding — a number derived from the typed
+    // distribution, not from parsing a sentence.
+    aggression: engageAggression(answers.engage),
+    engage: answers.engage?.choice ?? null,
+    use_item: answers.use_item?.choice ?? null,
+    level_up: answers.level_up?.choice ?? null,
+    level: run.char?.level ?? null,
+    maxHp: run.maxHp,
     confidence: answers.move?.confidence ?? null,
     choice: answers.move?.choice ?? null,
     fight: answers.fight?.noul ?? null,
@@ -155,8 +181,8 @@ export function profile(tel) {
   const n = tel.samples.length;
 
   const traits = [
-    { key: 'aggression', label: 'Aggression', value: mean(s.fight),
-      basis: 'mean `fight` noul', hi: 'picks fights', lo: 'avoids creatures' },
+    { key: 'aggression', label: 'Aggression', value: mean(s.aggression),
+      basis: 'mean P(melee or shoot)', hi: 'picks fights', lo: 'avoids creatures' },
     { key: 'greed', label: 'Greed', value: mean(s.take_loot),
       basis: 'mean `take_loot` noul', hi: 'stops for every coin', lo: 'leaves gold behind' },
     { key: 'caution', label: 'Caution', value: mean(s.withdraw),
@@ -171,7 +197,7 @@ export function profile(tel) {
   // worth making, and only if the numbers support it.
   const healthFrac = tel.samples.map((x) => (x.maxHealth ? x.health / x.maxHealth : null));
   const rHealthWithdraw = correlation(healthFrac, s.withdraw);
-  const rHealthFight = correlation(healthFrac, s.fight);
+  const rHealthFight = correlation(healthFrac, s.aggression);
   const rDangerWithdraw = correlation(s.danger, s.withdraw);
 
   const findings = [];

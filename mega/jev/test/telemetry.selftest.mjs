@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
-  newTelemetry, record, series, profile, mean, correlation, SIGNALS,
+  newTelemetry, record, series, profile, mean, correlation, SIGNALS, engageAggression,
 } from '../telemetry.mjs';
 import { makeWorld, newRun, applyAnswers, offlineAnswers } from '../delve.mjs';
 
@@ -76,14 +76,17 @@ const world = makeWorld(fix('dungeon-seed7-s.json'), fix('content-seed7-s-roll1.
     answers: {
       move: { type: 'choice', choice: 'to_88', probabilities: {}, confidence: 0.9 },
       danger: { type: 'score', score: 1.5, probabilities: {} },
-      fight: { type: 'noul', noul: 0.3 },
+      engage: { type: 'choice', choice: 'melee', probabilities: { melee: 0.7, shoot: 0.2, avoid: 0.1 }, confidence: 0.8 },
       take_loot: { type: 'noul', noul: 0.8 },
       withdraw: { type: 'noul', noul: 0.1 },
     },
   });
   const s = tel.samples[0];
   ok(s.danger === 1.5 && s.confidence === 0.9, 'answers are recorded verbatim');
-  ok(s.fight === 0.3 && s.take_loot === 0.8 && s.withdraw === 0.1, 'every noul is kept');
+  ok(s.take_loot === 0.8 && s.withdraw === 0.1, 'every noul is kept');
+  ok(Math.abs(s.aggression - 0.9) < 1e-9,
+    'aggression is the probability mass on acting (melee + shoot), read off the typed distribution');
+  ok(s.engage === 'melee', 'the engage pick itself is kept alongside the derived scalar');
   ok(s.health === run.maxHp && s.depth === 0, 'world truth is recorded alongside');
   ok(s.source === 'typesafe' && s.latencyMs === 180, 'provenance and latency are kept');
 
@@ -111,9 +114,28 @@ const world = makeWorld(fix('dungeon-seed7-s.json'), fix('content-seed7-s-roll1.
   ok(s.tick.every((v, i) => i === 0 || v >= s.tick[i - 1]), 'ticks are non-decreasing');
   ok(s.health.every((v) => v >= 0 && v <= run.maxHp), 'health series stays in range');
   ok(s.danger.every((v) => v === null || (v >= 0 && v <= 3)), 'danger stays on its declared scale');
-  for (const k of ['fight', 'take_loot', 'withdraw', 'confidence']) {
+  for (const k of ['aggression', 'take_loot', 'withdraw', 'confidence']) {
     ok(s[k].every((v) => v === null || (v >= 0 && v <= 1)), `${k} stays within 0..1`);
   }
+  ok(s.level.every((v) => v === null || v >= 1), 'level never drops below 1');
+}
+
+// ------------------------------------------------- the derived aggression ---
+// `engage` is a choice, so "how aggressive" has to be derived from the typed
+// distribution rather than read off a noul. It must never invent a number.
+{
+  ok(engageAggression(null) === null, 'no engage answer yields null, not 0');
+  // 0.6 + 0.3 is 0.8999999999999999 in binary floating point, so compare with
+  // a tolerance rather than ===. Rounding inside the implementation would
+  // throw away precision that the means and correlations want.
+  near(engageAggression({ choice: 'melee', probabilities: { melee: 0.6, shoot: 0.3, avoid: 0.1 } }), 0.9, 1e-9,
+    'aggression sums melee and shoot');
+  ok(engageAggression({ choice: 'avoid', probabilities: { melee: 0, avoid: 1 } }) === 0,
+    'pure avoidance is zero');
+  ok(engageAggression({ choice: 'shoot' }) === 1, 'with no distribution it falls back to the pick');
+  ok(engageAggression({ choice: 'avoid' }) === 0, 'the fallback reads avoid as zero');
+  ok(engageAggression({ choice: 'melee', probabilities: {} }) === 0,
+    'an empty distribution sums to zero rather than NaN');
 }
 
 // --------------------------------------------------- the profile's honesty ---
@@ -180,7 +202,7 @@ const world = makeWorld(fix('dungeon-seed7-s.json'), fix('content-seed7-s-roll1.
       answers: {
         move: { type: 'choice', choice: 'hold', probabilities: {}, confidence: 0.5 },
         danger: { type: 'score', score: 1, probabilities: {} },
-        fight: { type: 'noul', noul: 0.5 },
+        engage: { type: 'choice', choice: 'avoid', probabilities: { melee: 0.5, avoid: 0.5 }, confidence: 0.5 },
         take_loot: { type: 'noul', noul: 0.5 },
         withdraw: { type: 'noul', noul: 0.5 }, // dead flat
       },
