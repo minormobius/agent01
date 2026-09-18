@@ -514,6 +514,42 @@ function wireHover(svg, tip, pts, text, W) {
 let raf = 0;
 function draw() { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { drawPrice(); drawExposure(); drawPnl(); }); }
 
+// ------------------------------------------------- the forward test ----
+// prereg-results.json is written by a scheduled job, not by this page, and the
+// page only ever DISPLAYS it. Nothing here may compute a verdict: the verdict
+// is bound by the registered minimum sample and is written into the file by
+// the collector, so a page refresh can never cash a result in early.
+async function paintPrereg() {
+  const fill = document.getElementById('pregFill');
+  const count = document.getElementById('pregCount');
+  if (!fill || !count) return;
+  let r;
+  try {
+    const res = await fetch('prereg-results.json', { cache: 'no-store' });
+    if (!res.ok) throw new Error(String(res.status));
+    r = await res.json();
+  } catch {
+    // Say the record is unreadable rather than leaving a zero standing, which
+    // would look like a test that is running and finding nothing.
+    count.textContent = 'the record could not be read';
+    document.getElementById('pregEta').textContent = '';
+    return;
+  }
+  const n = r.verdict?.n ?? 0, min = r.minimum_n ?? 200;
+  fill.style.width = `${Math.min(100, n / min * 100).toFixed(1)}%`;
+  count.textContent = `${n} of ${min}`;
+  const eta = document.getElementById('pregEta');
+  eta.textContent = n >= min ? '' : ` — about ${r.eta_days ?? '?'} days to go at the measured rate`;
+  const acc = document.getElementById('pregAcc');
+  // Below the minimum the running accuracy is shown but explicitly disowned,
+  // because an interim number on screen with no caveat IS the early stop the
+  // registration forbids.
+  acc.textContent = !n ? ''
+    : n < min ? `  ·  running ${(r.verdict.accuracy * 100).toFixed(1)}%, which means nothing yet`
+    : `  ·  ${r.verdict.status}`;
+}
+
 paintTiles();
 paintBoard();
+paintPrereg();
 addEventListener('beforeunload', () => feed?.stop());

@@ -15,6 +15,7 @@ import { toCandles, isUp, extent, BUCKET_MS } from '../lab/candles.mjs';
 import { ORACLES, readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, T } from '../lab/oracles.mjs';
 import * as B from '../lab/streamb.mjs';
 import { captureStats, describe } from '../lab/bigmove.mjs';
+import { pearson, windows as pWindows, evaluate as pEval, binomialTailP, verdict } from '../lab/prereg.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -22,6 +23,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'lab', 'fixtures', n), 'utf8'));
+const fix2 = (n) => JSON.parse(readFileSync(join(here, '..', 'lab', n), 'utf8'));
 
 let passed = 0;
 const failures = [];
@@ -815,6 +817,138 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   ok(!s.enough, 'a tape that never moves has no big windows to rank, and says so');
   ok(/too few|not enough/.test(describe(s)), 'and the description refuses to speak');
   ok(/not enough/.test(describe(null)), 'as does the null case');
+}
+
+// ------------------------------------------- the pre-registered rule ----
+const SPEC = fix2('preregister.json');
+{
+  ok(SPEC.id === 'jev-lab-polarity-12h-v1', 'the registration has an id');
+  ok(SPEC.rule.K === 20 && SPEC.rule.gate_abs_r === 0.15, 'K and the gate are frozen in the spec file');
+  ok(SPEC.rule.stride_bars === 2 * SPEC.rule.horizon_bars,
+    'the stride is exactly twice the horizon, so no window shares a bar with another');
+  ok(SPEC.minimum_n_before_any_claim >= 200, 'a minimum sample is registered before any claim');
+  ok(Array.isArray(SPEC.falsified_if) && SPEC.falsified_if.length >= 2,
+    'and what would falsify it is written down, not left to taste');
+  ok(/THIRTY|thirty/.test(SPEC.selection_disclosure), 'the selection is disclosed rather than buried');
+}
+{
+  near(pearson([1, 2, 3, 4], [2, 4, 6, 8]), 1, 1e-9, 'a perfect line is r = 1');
+  near(pearson([1, 2, 3, 4], [8, 6, 4, 2]), -1, 1e-9, 'and its mirror is -1');
+  ok(pearson([1, 1, 1, 1], [1, 2, 3, 4]) === null, 'a flat series has no correlation, and says null');
+  // The exact values that once produced a confident r = 1.00 from two
+  // constant series, via floating-point crumbs in the sum of squares.
+  ok(pearson([5, 5, 5, 5, 5], [7, 7, 7, 7, 7]) === null,
+    'two constant series stay null rather than becoming a fabricated 1.00');
+  ok(pearson([1, 2], [1, 2]) === null, 'too few points is null, not a coincidence');
+}
+{
+  // Windows must not overlap, which is the whole reason for the stride.
+  const px = Array.from({ length: 200 }, (_, i) => 100 + i);
+  const w = pWindows(px, SPEC);
+  ok(w.length > 3, 'windows are produced');
+  for (let i = 1; i < w.length; i++) {
+    ok(w[i].index - w[i - 1].index === SPEC.rule.stride_bars, 'each window starts exactly one stride after the last');
+  }
+  ok(w[0].index - SPEC.rule.horizon_bars >= 0, 'and the first one has its full trailing leg');
+  ok(pWindows([1, 2, 3], SPEC).length === 0, 'too short a series yields nothing rather than a partial window');
+  ok(pWindows([100, 0, -5, NaN, 100], SPEC).length === 0, 'and bad prices are never turned into returns');
+}
+{
+  // THE DEFECT THAT ONLY APPEARS ON THE SECOND SCHEDULED RUN. Anchored to the
+  // array, one extra bar in the fetch moves every pivot, so a collector
+  // refetching a growing series records a different — and overlapping — set of
+  // windows each time. Anchored to the clock, the same bar is the same window
+  // however much history came with it.
+  const BAR = 3600_000;
+  const t0 = Date.UTC(2026, 0, 1);                       // a midnight, so pivot phase 0
+  const px = Array.from({ length: 220 }, (_, i) => 100 + i);
+  const ts = Array.from({ length: 220 }, (_, i) => t0 + i * BAR);
+  const full = pWindows(px, SPEC, ts);
+  ok(full.length > 3, 'the clock-anchored grid still produces windows');
+  const STRIDE_MS = SPEC.rule.stride_bars * BAR;
+  for (const w of full) ok(ts[w.index] % STRIDE_MS === 0, 'every pivot sits on a stride boundary of the clock');
+  for (let i = 1; i < full.length; i++) {
+    ok(full[i].index - full[i - 1].index === SPEC.rule.stride_bars, 'and consecutive pivots are still one stride apart');
+  }
+  // Refetch returning one fewer leading bar: the SAME bars must be the SAME windows.
+  const cut = 1;
+  const shifted = pWindows(px.slice(cut), SPEC, ts.slice(cut));
+  const stamp = (ws, off) => ws.map((w) => ts[w.index + off]).join();
+  ok(stamp(shifted, cut) === stamp(full, 0).slice(-stamp(shifted, cut).length),
+    'dropping a leading bar does not move a single pivot — the grid is the clock, not the array');
+  // And the array-anchored form is exactly what it must not be, so the test
+  // fails if someone quietly drops the timestamps again.
+  ok(pWindows(px.slice(cut), SPEC).map((w) => w.index + cut).join() !== full.map((w) => w.index).join(),
+    'while the array-anchored form DOES move, which is why the stamps are passed');
+}
+{
+  // A constant-return exponential is NOT a test of this: every window's
+  // return is identical, so the correlation is undefined and pearson
+  // correctly returns null. Momentum has to be built as persistence in the
+  // returns themselves — r_t = 0.75 r_(t-1) + noise, integrated.
+  const build = (persistence, seed) => {
+    let a = seed >>> 0;
+    const rnd = () => { a = (a + 0x6D2B79F5) | 0; let x = Math.imul(a ^ (a >>> 15), 1 | a);
+      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296 - 0.5; };
+    const px = [100]; let r = 0;
+    for (let i = 1; i < 1400; i++) { r = persistence * r + rnd() * 0.004; px.push(px[i - 1] * (1 + r)); }
+    return px;
+  };
+  const mom = build(0.75, 11);
+  const rowsT = pEval({ BTC: mom, ETH: build(0.75, 12), SOL: build(0.75, 13) }, SPEC);
+  const tradedT = rowsT.filter((r) => r.side !== undefined);
+  ok(tradedT.length > 0, `a persistently-trending series clears the gate (${tradedT.length} predictions)`);
+  ok(tradedT.every((r) => r.r > 0), 'and the estimated polarity is positive, so the rule FOLLOWS the trailing move');
+  ok(tradedT.filter((r) => r.correct).length / tradedT.length > 0.6,
+    'which is right well over half the time on a series built to persist');
+
+  // Built to alternate instead, the same rule must flip to fading.
+  const rev = pEval({ BTC: build(-0.75, 21), ETH: build(-0.75, 22), SOL: build(-0.75, 23) }, SPEC)
+    .filter((r) => r.side !== undefined);
+  ok(rev.length > 0 && rev.every((r) => r.r < 0),
+    'on a series built to alternate, the estimate goes negative and the rule FADES — the polarity is learned, not assumed');
+}
+{
+  // Nothing may look at the bar it is predicting. Corrupting the FUTURE of
+  // the last window must not change any earlier decision.
+  const base = Array.from({ length: 1400 }, (_, i) => 100 + Math.sin(i / 9) * 5 + i * 0.01);
+  const a = pEval({ BTC: base, ETH: base, SOL: base }, SPEC);
+  const tampered = base.slice(); for (let i = tampered.length - 20; i < tampered.length; i++) tampered[i] *= 3;
+  const b = pEval({ BTC: tampered, ETH: tampered, SOL: tampered }, SPEC);
+  const sides = (rs) => rs.slice(0, rs.length - 6).map((r) => `${r.t}:${r.side}`).join();
+  ok(sides(a) === sides(b), 'mangling the end of the series leaves every earlier decision untouched — no lookahead');
+}
+{
+  const rows = pEval({ BTC: [], ETH: [], SOL: [] }, SPEC);
+  ok(rows.length === 0, 'no data, no predictions');
+}
+{
+  near(binomialTailP(50, 100), 0.5398, 0.001, 'the binomial tail is exact at the midpoint');
+  ok(binomialTailP(60, 100) < 0.03 && binomialTailP(60, 100) > 0.02, 'and correct in the tail');
+  near(binomialTailP(120, 200), 0.00284, 0.0002, 'it survives n = 200 without overflowing a factorial');
+  ok(binomialTailP(100, 200) > 0.4, 'and stays near a half at the midpoint of a large n');
+}
+{
+  // The minimum sample is binding. A perfect record below it claims NOTHING.
+  const perfect = Array.from({ length: 50 }, (_, i) => ({ side: 1, correct: true, earnedBps: 40, t: i }));
+  const v = verdict(perfect, SPEC);
+  ok(v.claim === null, 'fifty perfect predictions make no claim, because the registration forbids it');
+  ok(/to go/.test(v.status), 'and the status says how many are still needed');
+
+  const enough = Array.from({ length: 220 }, (_, i) => ({ side: 1, correct: i % 100 < 62, earnedBps: i % 100 < 62 ? 40 : -35, t: i }));
+  const v2 = verdict(enough, SPEC);
+  ok(v2.claim !== null, 'past the minimum a verdict is given');
+  ok(v2.accuracy > 0.5 && v2.p < 0.05, 'and reads the registered criterion, not the curve');
+
+  const coin = Array.from({ length: 220 }, (_, i) => ({ side: 1, correct: i % 2 === 0, earnedBps: i % 2 === 0 ? 10 : -10, t: i }));
+  ok(verdict(coin, SPEC).claim === 'falsified', 'a coin flip at n >= 200 is reported as falsified, in those words');
+}
+{
+  // Costs are subtracted, and a rule that is right but not right ENOUGH says so.
+  const thin = Array.from({ length: 220 }, (_, i) => ({ side: 1, correct: i % 100 < 62, earnedBps: i % 100 < 62 ? 6 : -5, t: i }));
+  const v = verdict(thin, SPEC);
+  ok(v.netBps < 0, 'a 6bp edge does not survive a 9.4bp round trip');
+  ok(/not after costs/.test(v.claim), 'and the verdict says directionally supported but not after costs');
 }
 
 if (failures.length) {

@@ -119,3 +119,9 @@ table.log td{padding:4px 7px;border-bottom:1px solid var(--line-2);color:var(--i
 .verdict{font-family:var(--display);font-size:1rem;margin:0 0 4px}
 .verdict.null{color:var(--ink-2)} .verdict.real{color:var(--ink)}
 .trials{font-size:.76rem;color:var(--ink-3)}
+
+/* The forward-test progress bar. Deliberately not coloured by how the test is
+   going — it measures elapsed sample, not success, and a green bar creeping
+   rightwards would read as a result accruing. It is the neutral accent. */
+.prereg-bar{height:8px;background:var(--line);border-radius:999px;overflow:hidden}
+.prereg-fill{height:100%;background:var(--accent);border-radius:999px;transition:width .4s ease}

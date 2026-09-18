@@ -256,6 +256,77 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>So it was pre-registered, and it is running now</h2>
+    <p class="cap" style="margin:0 0 10px">
+      <code style="font-family:var(--mono);font-size:.9em">jev-lab-polarity-12h-v1</code> &middot; committed
+      2026-09-18 22:29 UTC, in commit <code style="font-family:var(--mono);font-size:.9em">54531db6</code>,
+      <b>alone and before the code that evaluates it existed</b>. Git holds the proof.
+    </p>
+
+    <div class="prereg-bar" role="img" aria-label="Forward test progress toward the registered minimum sample">
+      <div class="prereg-fill" id="pregFill" style="width:0%"></div>
+    </div>
+    <p style="font-size:.95rem;margin:8px 0 12px">
+      <b id="pregCount">0 of 200</b> predictions
+      <span style="color:var(--ink-2)" id="pregEta">&mdash; about 114 days to go at the measured rate</span>
+      <span style="color:var(--ink-2)" id="pregAcc"></span>
+    </p>
+
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      <b>The rule, frozen.</b> Pool the lag-1 correlation of non-overlapping 12h returns across BTC, ETH and SOL
+      over the trailing 20 windows. If |r| &ge; 0.15, take the side <em>sign(r) &times; sign(the trailing 12h
+      move)</em> — follow the move when the regime trends, fade it when the regime reverts. Otherwise no
+      prediction. Success is accuracy above 50% at a one-sided binomial p &lt; 0.05.
+      <b>No claim is made in either direction before n = 200, and there is no early stop for a good result.</b>
+    </p>
+
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      <b>What is disclosed, because it has to be.</b> K = 20 and the 0.15 gate were the <em>best of thirty</em>
+      configurations on the discovery data, where they scored 56.4% on n = 365. The forward test therefore tests
+      that selected configuration as a whole — which is the point: a number chosen as the best of thirty is
+      exactly the kind that needs data it was not chosen on.
+    </p>
+
+    <p class="cap" style="margin:0 0 6px">And a secondary test that could run immediately: the same polarity,
+      estimated from the registered three, applied unchanged to <b>twelve assets never examined</b>.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>size of the move</th><th>accuracy</th><th>bp per prediction</th>
+      </tr></thead><tbody>
+        <tr><td>0 &ndash; 63bp</td><td>53.1%</td><td>+1.4</td></tr>
+        <tr><td>63 &ndash; 145bp</td><td>55.7%</td><td>+13.2</td></tr>
+        <tr><td>147 &ndash; 272bp</td><td>55.2%</td><td>+18.1</td></tr>
+        <tr><td><b>273 &ndash; 2473bp</b></td><td><b style="color:var(--bad)">45.1%</b></td><td><b style="color:var(--bad)">&minus;85.4</b></td></tr>
+        <tr><td>the biggest 20%</td><td style="color:var(--bad)">44.2%</td><td style="color:var(--bad)">&minus;104.0</td></tr>
+        <tr><td><b>all of them</b></td><td><b>52.3%</b> (n=777)</td><td><b>&minus;13.3</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      52.3% on 777 predictions is a one-sided p of <b>0.11</b> — not significant — and it loses money gross.
+      The quartiles say something sharper than the total does: it is <b>right on small moves and wrong on big
+      ones</b>, which is the exact inverse of the thesis that made the horizon interesting. The big-move card
+      above is where the money was supposed to be.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>The registration forbids changing the rule in response to that</b>, which is the whole reason for
+      writing it down first. Twelve fresh assets are a different cross-section, not a different month, so it is
+      evidence and not the verdict. The verdict waits for n = 200.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>One correction to the registration, published rather than edited in.</b> Its own notes say the windows
+      accrue at two per asset per day and that n = 200 takes about 33 days. Measured against the 208-day
+      history, a 24-bar stride puts <b>one</b> window per asset per day and the gate passes 64.7% of them:
+      <b>1.75 predictions a day, so n = 200 is about 114 days.</b> The frozen file is left exactly as committed —
+      a registration that gets edited when its schedule turns out inconvenient is not a registration.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      Collection is a scheduled job, not this page: it runs twice a day, applies the frozen rule to whatever
+      closed, and commits the result. It calls Hyperliquid and never calls Jev — <b>this measures the rule, not
+      the model</b>, and the model is why the rule was worth registering.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>The only scoreboard that matters if the money is in a few windows</h2>
     <p class="cap" id="capWhy" style="margin:0 0 10px">not enough price history yet.</p>
     <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">

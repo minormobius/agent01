@@ -1161,6 +1161,82 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+### Pre-registered, and running (2026-09-18)
+
+`preregister.json` was committed **alone, and before the code that evaluates
+it existed** — commit `54531db6`, 22:29:14 UTC. That ordering is the whole
+point and git is the proof: everything else on this page was written after the
+numbers were seen.
+
+The registered rule, `jev-lab-polarity-12h-v1`: pool the lag-1 correlation of
+non-overlapping 12h returns across BTC/ETH/SOL over the trailing 20 windows;
+if |r| >= 0.15 take `sign(r) x sign(the trailing 12h move)`; otherwise no
+prediction. Success is accuracy > 50% at a one-sided binomial p < 0.05.
+**No claim before n = 200, in either direction, and no early stop for a good
+result.** `prereg.mjs` reads every constant from the JSON so the two cannot
+drift, and the whole thing is deliberately unable to grow options.
+
+**Collection is `.github/workflows/jev-prereg.yml`**, twice a day, committing
+`prereg-results.json` and deploying so the page's counter moves. It calls
+Hyperliquid and never calls Jev — this measures the *rule*, not the model. The
+page displays the file and computes no verdict of its own, so a refresh cannot
+cash a result in early; below n = 200 it prints the running accuracy and says
+on the same line that it means nothing yet.
+
+#### The defect that would only have appeared on the second run
+
+`windows()` anchored the grid to the **start of the price array**. One extra
+bar in a fetch moves every pivot, so a collector refetching a growing series
+records a *different, overlapping* set of windows each run — silently
+destroying the non-overlap the registration rests on, which is the exact error
+that already produced a fake 75.7% on this surface once. The grid is now
+anchored to the clock: a pivot is a bar whose stamp is an exact multiple of
+the stride in hours. Same grid every run, every asset, forever.
+
+That phase was pinned while the forward test stood at **n = 0**, so no result
+could have influenced it, and it resolves a gap in the spec rather than
+changing a parameter in it. The selftest pins both halves — that dropping a
+leading bar moves nothing, *and* that the array-anchored form does move, so
+the stamps cannot be quietly dropped again.
+
+#### A correction to the registration, published rather than edited in
+
+Its own `known_weaknesses` says the windows accrue at two per asset per day
+and that n >= 200 takes about 33 days. Measured against the 208-day history:
+a 24-bar stride puts **one** window per asset per day (0.993), and the gate
+passes **64.7%** of them. **1.75 predictions a day — n = 200 is about 114
+days.**
+
+The frozen file is left exactly as committed. A registration that gets edited
+when its schedule turns out inconvenient is not a registration, and 114 days
+is the correct answer rather than an inconvenience: a pre-registration you can
+cash in three days would not have been worth writing.
+
+#### The secondary test that could run immediately, and it is discouraging
+
+The registered polarity, estimated from BTC/ETH/SOL and applied **unchanged**
+to twelve assets never examined (ATOM, DYDX, AVAX, BNB, APE, OP, LTC, ARB,
+DOGE, INJ, SUI, kPEPE):
+
+| size of the move | accuracy | bp per prediction |
+|---|---|---|
+| 0-63bp | 53.1% | +1.4 |
+| 63-145bp | 55.7% | +13.2 |
+| 147-272bp | 55.2% | +18.1 |
+| **273-2473bp** | **45.1%** | **-85.4** |
+| biggest 20% | 44.2% | -104.0 |
+| **all** | **52.3%** (n=777) | **-13.3** |
+
+52.3% is a one-sided p of **0.11** — not significant — and it loses money
+gross. The quartiles say more than the total: it is **right on small moves and
+wrong on big ones**, the exact inverse of the thesis that made this horizon
+interesting, and the big-move card is where the money was supposed to be.
+
+**The registration forbids changing the rule in response to that**, which is
+precisely why it was written first. Twelve fresh assets are a different
+cross-section, not a different month, so this is evidence and not the verdict.
+The verdict waits for n = 200.
+
 ### Why this is the most Jev-shaped result on the page
 
 The regime is (a) a property of *observable current state*, (b) readable from
