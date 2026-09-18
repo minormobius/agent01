@@ -22,6 +22,31 @@ confirms the 3D-over-UI preference generalizes beyond the space-colony
 concept to any physical/geographic idea they hand over, even a one-line
 joke-shaped ask. First turn on this site; no follow-up yet to learn from.
 
+Third site (`download-few`, "A Few Good Solids"): asked for "download a few
+cool obj files ... UV mapped textures ... simple gallery" — built as an
+interactive WebGL viewer (drag-to-rotate per model) rather than a static
+image grid, a third confirmation that any request touching 3D/geometric
+content gets the full interactive-scene treatment from this requester by
+default, not a flatter gallery/grid presentation. First turn; no follow-up
+yet. Second turn: no new message from the requester, but thread reactions to
+the procedural-solids-instead-of-real-downloads workaround were positive
+("those are good solids fr") — the substitution landed. The literal original
+ask (real downloaded assets) is still open, though: the thread also surfaced
+specific candidate links (poly.pizza model pages) unprompted, suggesting
+"actually fetched from the internet" still matters to this room and isn't
+fully satisfied by a good-looking procedural stand-in. Worth revisiting with
+real assets the moment build-time network access is available.
+Turns 3-5: kept trying different link shapes for the same underlying ask —
+a raw opengameart.org file URL (twice), then graphics.stanford.edu/bunny.obj —
+after being told each one couldn't be used. Doesn't drop the ask when told
+"no," tries a different concrete link instead; also relays links credited to
+another assistant ("sonnet says") rather than only sourcing their own, so a
+message may carry a byline for who actually found the URL. Worth explaining
+*why* a link fails in terms specific enough that they can pick a different one
+(e.g. "link the item page, not the raw file" landed a specific-but-still-wrong
+retry, whereas "this host isn't wired into the pipeline at all" would rule out
+a category rather than one URL).
+
 ## Palette and type
 No explicit preference stated yet. Went with the kit defaults (dark,
 amber/gold accent) plus warm pastoral greens/golds for the 3D scene itself,

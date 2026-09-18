@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shepherd — an unseen planet stirring a dust disk</title>
+<meta property="og:title" content="Shepherd — an unseen planet stirring a dust disk">
+<meta property="og:description" content="Tune a hidden planet's eccentric, tilted orbit and a stellar-wind threshold, and watch it kick a ring of dust into clumps that light up and race outward on one side while barely stirring on the other. A simplified model, inspired by a real paper explaining the AU Microscopii debris disk.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<style>
+  #stage { position: relative; width: 100%; aspect-ratio: 16/10; background: #000;
+           border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin: 1rem 0; }
+  #stage canvas { display: block; width: 100%; height: 100%; }
+  #legend { font-size: .75rem; color: var(--muted); margin: -.5rem 0 1.5rem; }
+  #legend span { display: inline-block; margin-right: 1rem; }
+  .dot { display:inline-block; width:.7rem; height:.7rem; border-radius:50%; margin-right:.3rem; vertical-align:middle; }
+
+  .controls { display: grid; gap: 1.1rem; margin: 1.5rem 0; }
+  .row { display: grid; grid-template-columns: 1fr; gap: .3rem; }
+  .row .label-line { display: flex; justify-content: space-between; font-size: .85rem; color: var(--fg); }
+  .row .label-line b { color: var(--muted); font-weight: normal; }
+  .row .val { color: var(--accent); font-variant-numeric: tabular-nums; }
+
+  input[type=range] {
+    -webkit-appearance: none; width: 100%; height: 44px; background: transparent; margin: 0; padding: 0;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 3px; background: var(--border);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px;
+    border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  input[type=range]::-moz-range-track { height: 6px; border-radius: 3px; background: var(--border); }
+  input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
+  }
+
+  .buttons { display: flex; gap: .75rem; flex-wrap: wrap; }
+  .buttons button { min-height: 44px; flex: 1 1 auto; }
+
+  .about h2 { margin-top: 2.5rem; }
+  .about p { line-height: 1.6; }
+  .about code { font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / shepherd</div>
+  <h1>Shepherd</h1>
+  <p class="sub">An unseen planet stirs a ring of dust as it passes through the disk. Its closest pass kicks dust hard enough to catch the stellar wind and race outward; its farthest pass, on the opposite side, barely stirs anything.</p>
+
+  <div id="stage"><canvas id="c"></canvas></div>
+  <div id="legend">
+    <span><i class="dot" style="background:#e8a33d"></i>lofted above plane, wind-pushed outward</span>
+    <span><i class="dot" style="background:#6fb1e0"></i>lofted below plane</span>
+    <span><i class="dot" style="background:#55525c"></i>undisturbed dust</span>
+    <span><i class="dot" style="background:#fff"></i>the planet</span>
+  </div>
+
+  <div class="controls">
+    <div class="row">
+      <div class="label-line"><span>Planet mass <b>(kick strength)</b></span><span class="val" id="vMass">1.0 M♃</span></div>
+      <input type="range" id="mass" min="0.2" max="3" step="0.05" value="1" aria-label="Planet mass, controls kick strength">
+    </div>
+    <div class="row">
+      <div class="label-line"><span>Semi-major axis</span><span class="val" id="vA">3.5 AU</span></div>
+      <input type="range" id="a" min="2" max="6" step="0.1" value="3.5" aria-label="Planet semi-major axis in AU">
+    </div>
+    <div class="row">
+      <div class="label-line"><span>Eccentricity <b>(sets the asymmetry)</b></span><span class="val" id="vE">0.37</span></div>
+      <input type="range" id="e" min="0" max="0.8" step="0.01" value="0.37" aria-label="Planet orbital eccentricity, sets the asymmetry">
+    </div>
+    <div class="row">
+      <div class="label-line"><span>Inclination to the disk</span><span class="val" id="vI">30°</span></div>
+      <input type="range" id="incl" min="0" max="60" step="1" value="30" aria-label="Planet orbital inclination relative to the disk, in degrees">
+    </div>
+    <div class="row">
+      <div class="label-line"><span>Stellar-wind height threshold</span><span class="val" id="vW">0.30 AU</span></div>
+      <input type="range" id="wind" min="0.05" max="1.5" step="0.01" value="0.3" aria-label="Stellar wind height threshold in AU">
+    </div>
+    <div class="buttons">
+      <button id="pause">pause</button>
+      <button id="regen">regenerate disk</button>
+    </div>
+  </div>
+
+  <div class="about">
+    <h2>what this is</h2>
+    <p>A 2026 paper models the real debris disk around the star AU Microscopii, whose images show dust clumps that race outward above the disk's mid-plane on one side, and drift near it on the other — with no confirmed cause. The paper's mechanism: an unconfirmed planet, on an eccentric orbit tilted relative to the disk, punches through the disk plane twice per orbit. Stellar wind only pushes a dust grain outward once a kick has lofted it above a threshold height. Their best match to the images used a roughly Jupiter-mass planet a few AU out, on a fairly eccentric, moderately tilted orbit.</p>
+    <p>This toy is a simplified, honest caricature of that idea, not a reproduction of the real images or the paper's own numbers. Because the planet's closest approach to the star (periapsis) is where the disk-crossing happens to land in this model, that crossing kicks hard; the far crossing (apoapsis), on the opposite side of the disk, is much gentler — that asymmetry is exactly what the eccentricity slider controls. Push it to zero and both sides kick equally; push it up and one side does almost all the work, same as the paper's finding.</p>
+    <p>The wind threshold is the other half of the trade-off: set it low and almost every kicked grain gets swept outward, emptying that side of the ring quickly; set it high and even a strong kick fades back into the plane before the wind ever catches it.</p>
+    <h2>what isn't real physics here</h2>
+    <p>No self-gravity, no real radiation-pressure dynamics, no attempt to match AU Mic's actual clump speeds or the paper's own five numbers. The kick and wind strengths, the "spring" that settles a kicked grain back toward the plane, and the recycling of grains that wander too far out are all invented constants tuned by eye, not fit to data — untested in a live browser before this shipped, so they may want retuning. Read <code>arXiv:2607.27186</code> for the real thing.</p>
+  </div>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+const canvas = document.getElementById('c');
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera.position.set(0, -17.5, 1.4);
+camera.up.set(0, 0, 1);
+camera.lookAt(0, 0, 0);
+
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+
+// --- the star -------------------------------------------------------------
+const starTex = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(0.3, 'rgba(255,230,180,0.8)');
+  grad.addColorStop(1, 'rgba(255,230,180,0)');
+  g.fillStyle = grad; g.fillRect(0, 0, 64, 64);
+  return new THREE.CanvasTexture(c);
+})();
+const star = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, transparent: true, depthWrite: false }));
+star.scale.set(1.6, 1.6, 1);
+scene.add(star);
+
+// --- the planet -------------------------------------------------------------
+const planetMesh = new THREE.Mesh(
+  new THREE.SphereGeometry(0.09, 12, 12),
+  new THREE.MeshBasicMaterial({ color: 0xffffff })
+);
+scene.add(planetMesh);
+
+const orbitLine = new THREE.Line(
+  new THREE.BufferGeometry(),
+  new THREE.LineBasicMaterial({ color: 0x444455, transparent: true, opacity: 0.6 })
+);
+scene.add(orbitLine);
+
+function rebuildOrbitLine(a, e, inclRad) {
+  const pts = [];
+  for (let k = 0; k <= 128; k++) {
+    const nu = (k / 128) * Math.PI * 2;
+    const r = a * (1 - e * e) / (1 + e * Math.cos(nu));
+    const xo = r * Math.cos(nu), yo = r * Math.sin(nu);
+    pts.push(new THREE.Vector3(xo, yo * Math.cos(inclRad), yo * Math.sin(inclRad)));
+  }
+  orbitLine.geometry.setFromPoints(pts);
+}
+
+// --- the debris ring --------------------------------------------------------
+const N = 2200;
+const R_MIN = 4.3, R_MAX = 6.7, RECYCLE_R = 9.5;
+const OMEGA0 = 5.8; // tuned so a grain at r=5.5 AU orbits in ~14s of real time
+
+const radius = new Float32Array(N);
+const theta = new Float32Array(N);
+const zpos = new Float32Array(N);
+const vz = new Float32Array(N);
+
+function seedDisk() {
+  for (let i = 0; i < N; i++) {
+    radius[i] = R_MIN + Math.random() * (R_MAX - R_MIN);
+    theta[i] = Math.random() * Math.PI * 2;
+    zpos[i] = 0; vz[i] = 0;
+  }
+}
+seedDisk();
+
+const geo = new THREE.BufferGeometry();
+const posAttr = new Float32Array(N * 3);
+const colAttr = new Float32Array(N * 3);
+geo.setAttribute('position', new THREE.BufferAttribute(posAttr, 3));
+geo.setAttribute('color', new THREE.BufferAttribute(colAttr, 3));
+const points = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.09, vertexColors: true, sizeAttenuation: true }));
+scene.add(points);
+
+const COL_DIM = new THREE.Color(0x55525c);
+const COL_UP = new THREE.Color(0xe8a33d);
+const COL_DOWN = new THREE.Color(0x6fb1e0);
+
+// --- controls ---------------------------------------------------------------
+const els = {
+  mass: document.getElementById('mass'), a: document.getElementById('a'),
+  e: document.getElementById('e'), incl: document.getElementById('incl'),
+  wind: document.getElementById('wind'),
+};
+const outs = {
+  mass: document.getElementById('vMass'), a: document.getElementById('vA'),
+  e: document.getElementById('vE'), incl: document.getElementById('vI'),
+  wind: document.getElementById('vW'),
+};
+function readParams() {
+  return {
+    mass: parseFloat(els.mass.value),
+    a: parseFloat(els.a.value),
+    e: parseFloat(els.e.value),
+    inclRad: parseFloat(els.incl.value) * Math.PI / 180,
+    wind: parseFloat(els.wind.value),
+  };
+}
+function syncReadouts(p) {
+  outs.mass.textContent = p.mass.toFixed(2) + ' M♃';
+  outs.a.textContent = p.a.toFixed(1) + ' AU';
+  outs.e.textContent = p.e.toFixed(2);
+  outs.incl.textContent = (p.inclRad * 180 / Math.PI).toFixed(0) + '°';
+  outs.wind.textContent = p.wind.toFixed(2) + ' AU';
+}
+let params = readParams();
+syncReadouts(params);
+rebuildOrbitLine(params.a, params.e, params.inclRad);
+Object.values(els).forEach((el) => el.addEventListener('input', () => {
+  params = readParams();
+  syncReadouts(params);
+  rebuildOrbitLine(params.a, params.e, params.inclRad);
+}));
+
+let running = true;
+document.getElementById('pause').addEventListener('click', (e) => {
+  running = !running;
+  e.target.textContent = running ? 'pause' : 'resume';
+});
+document.getElementById('regen').addEventListener('click', seedDisk);
+
+// --- planet mean-anomaly state ----------------------------------------------
+let M = 0;       // mean anomaly, radians
+let prevZp = 0;  // planet's disk-plane height last frame, for crossing detection
+
+function solveKepler(Mnorm, e) {
+  let E = Mnorm;
+  for (let i = 0; i < 6; i++) E -= (E - e * Math.sin(E) - Mnorm) / (1 - e * Math.cos(E));
+  return E;
+}
+function angDiff(a, b) {
+  let d = a - b;
+  d = ((d + Math.PI) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2) - Math.PI;
+  return d;
+}
+
+const KICK_BASE = 6.0, CAPTURE_A = 0.32, CAPTURE_R = 0.8;
+const SPRING_K = 1.2, GAMMA = 0.8, WIND_RATE = 0.4;
+
+let last = performance.now();
+function tick(now) {
+  requestAnimationFrame(tick);
+  const dt = Math.min((now - last) / 1000, 0.05);
+  last = now;
+  if (!running) { renderer.render(scene, camera); return; }
+
+  const { mass, a, e, inclRad, wind } = params;
+
+  // advance the planet
+  const n = OMEGA0 / Math.pow(a, 1.5);
+  M = (M + n * dt) % (Math.PI * 2);
+  const E = solveKepler(M, e);
+  const nu = 2 * Math.atan2(Math.sqrt(1 + e) * Math.sin(E / 2), Math.sqrt(1 - e) * Math.cos(E / 2));
+  const rp = a * (1 - e * Math.cos(E));
+  const xo = rp * Math.cos(nu), yo = rp * Math.sin(nu);
+  const px = xo, py = yo * Math.cos(inclRad), pz = yo * Math.sin(inclRad);
+  planetMesh.position.set(px, py, pz);
+
+  if (Math.sign(pz) !== 0 && Math.sign(prevZp) !== 0 && Math.sign(pz) !== Math.sign(prevZp)) {
+    const kickSign = pz > prevZp ? 1 : -1;
+    const rhoP = Math.hypot(px, py);
+    const phiP = Math.atan2(py, px);
+    const strength = KICK_BASE * mass / (rhoP * rhoP);
+    for (let i = 0; i < N; i++) {
+      const dr = radius[i] - rhoP;
+      const dth = angDiff(theta[i], phiP);
+      const falloff = Math.exp(-(dr * dr) / (2 * CAPTURE_R * CAPTURE_R)) *
+                       Math.exp(-(dth * dth) / (2 * CAPTURE_A * CAPTURE_A));
+      vz[i] += kickSign * strength * falloff;
+    }
+  }
+  prevZp = pz;
+
+  // advance the debris
+  for (let i = 0; i < N; i++) {
+    theta[i] += (OMEGA0 / Math.pow(radius[i], 1.5)) * dt;
+    vz[i] += (-SPRING_K * zpos[i] - GAMMA * vz[i]) * dt;
+    zpos[i] += vz[i] * dt;
+
+    const lofted = Math.abs(zpos[i]) > wind;
+    if (lofted) radius[i] += WIND_RATE * dt;
+    if (radius[i] > RECYCLE_R) {
+      radius[i] = R_MIN + Math.random() * (R_MAX - R_MIN);
+      theta[i] = Math.random() * Math.PI * 2;
+      zpos[i] = 0; vz[i] = 0;
+    }
+
+    const x = radius[i] * Math.cos(theta[i]), y = radius[i] * Math.sin(theta[i]);
+    posAttr[3 * i] = x; posAttr[3 * i + 1] = y; posAttr[3 * i + 2] = zpos[i];
+
+    const c = zpos[i] > wind ? COL_UP : (zpos[i] < -wind ? COL_DOWN : COL_DIM);
+    colAttr[3 * i] = c.r; colAttr[3 * i + 1] = c.g; colAttr[3 * i + 2] = c.b;
+  }
+  geo.attributes.position.needsUpdate = true;
+  geo.attributes.color.needsUpdate = true;
+
+  renderer.render(scene, camera);
+}
+resize();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

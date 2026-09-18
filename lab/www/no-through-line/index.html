@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>No Through Line — general position sets in a graph product</title>
+<meta name="description" content="A 5-cycle stacked s copies deep, rendered as a real 3D cylinder you drag to spin — click dots on it to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack.">
+<meta property="og:title" content="No Through Line — general position sets in a graph product">
+<meta property="og:description" content="A 5-cycle stacked s copies deep, rendered as a real 3D cylinder you drag to spin — click dots on it to build a set where no point sits on a shortest path between two others. A theorem says the best you can ever do is twice the cycle's own best, no matter how deep you stack.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 34rem; }
+  #stage {
+    display: flex; flex-direction: column; align-items: center; margin: 1.25rem 0; gap: .4rem;
+  }
+  #stageInner { width: 100%; max-width: 30rem; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--bg-raised); }
+  #glCanvas { display: block; width: 100%; touch-action: none; cursor: grab; }
+  #glCanvas:active { cursor: grabbing; }
+  #dragHint { font-size: .75rem; color: var(--muted); text-align: center; }
+
+  #status { text-align: center; font-size: .8rem; color: var(--muted); min-height: 2.2em; }
+  .controls { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; justify-content: center; margin: .75rem 0 1.5rem; }
+  .controls label { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: .5rem; }
+  #sSlider { width: 8rem; height: 44px; }
+  .controls button { min-height: 44px; font-size: .85rem; }
+  .shiny {
+    background: linear-gradient(135deg, var(--accent), #f2c66b);
+    color: #1a1206; border: none; font-weight: 700;
+    box-shadow: 0 0 0 1px var(--accent), 0 0 18px -4px var(--accent);
+  }
+  .shiny:hover { filter: brightness(1.08); }
+
+  details.kbdAlt { margin: .5rem 0 1.5rem; font-size: .8rem; color: var(--muted); }
+  details.kbdAlt summary { cursor: pointer; min-height: 44px; display: flex; align-items: center; }
+  .kbdGrid { display: flex; flex-wrap: wrap; gap: .4rem; margin: .5rem 0; }
+  .kbdGrid button {
+    min-width: 44px; min-height: 44px; font-size: .75rem; padding: .3rem;
+    background: var(--bg-raised); color: var(--fg); border: 1px solid var(--border);
+  }
+  .kbdGrid button.selected { background: var(--accent); color: #1a1206; border-color: var(--accent); }
+  .kbdGrid button.violate { background: var(--error); color: #1a0606; border-color: var(--error); }
+
+  .row { display: flex; gap: .6rem; margin: .5rem 0; flex-wrap: wrap; }
+  .row input[type=text] { flex: 1; min-width: 12rem; }
+  .row button { min-height: 44px; }
+  #rivalResult, #meStatus { font-size: .8rem; color: var(--muted); min-height: 1.4em; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>No Through Line</h1>
+  <p class="sub">Every dot is a pair <code>(h, ℓ)</code>: <code>h</code> is a position on a 5-cycle
+    wrapped around the tube, <code>ℓ</code> is which of <code>s</code> stacked copies it lives on —
+    literal floors of a cylindrical building. Drag to spin it, scroll to zoom (mouse/trackpad for now),
+    click a dot to
+    select it. A dot turns red the instant it lands on the shortest path between two other dots you've
+    picked — "shortest" is computed on the real graph, wraparound included, not by eye. When that
+    happens a red line lights up too, straight from the two dots it's between through the one that
+    broke it: the actual route being killed, not just a dot changing colour.</p>
+
+  <div id="stage">
+    <div id="stageInner">
+      <canvas id="glCanvas" tabindex="0" aria-label="3D cylinder of a 5-cycle stacked s copies deep. Drag to rotate, scroll to zoom, click a dot to select it. A keyboard alternative for selecting dots is below."></canvas>
+    </div>
+    <p id="dragHint">drag to rotate · scroll to zoom (desktop only for now) · tap a dot to select</p>
+  </div>
+  <p id="status" aria-live="polite"></p>
+
+  <div class="controls">
+    <label for="sSlider">stack depth s: <span id="sVal">3</span></label>
+    <input type="range" id="sSlider" min="2" max="6" value="3" step="1">
+    <button id="resetBtn">clear</button>
+    <button id="copyBtn" class="shiny">copy image</button>
+  </div>
+  <div id="err" class="err hidden"></div>
+
+  <details class="kbdAlt">
+    <summary>keyboard / screen-reader alternative — select dots without the 3D view</summary>
+    <div class="kbdGrid" id="kbdGrid"></div>
+  </details>
+
+  <h2>the surprise</h2>
+  <p>A general position set here can never beat <strong>2·gp(H)</strong>, where <code>gp(H)</code>
+    is the best you can do on the 5-cycle alone — computed above, live, by brute force over all 32
+    of its subsets. That ceiling does not move when you drag the slider. The bundle can be three
+    copies deep or thirty; the theorem this page is built on says the maximum is the same number
+    either way. Try to beat it — you can't, but finding a clean set of exactly that size is the game.</p>
+
+  <h2>compare</h2>
+  <p>No global scoreboard — type a handle you know and this reads <em>their</em> own saved
+    records, straight from their repo.</p>
+  <div class="row">
+    <input id="rivalHandle" type="text" placeholder="a bluesky handle">
+    <button id="rivalBtn">check</button>
+  </div>
+  <p id="rivalResult"></p>
+
+  <div class="row">
+    <input id="meHandle" type="text" placeholder="your bluesky handle">
+    <button id="signInBtn">sign in to save your best</button>
+    <button id="saveBtn" class="hidden">save</button>
+  </div>
+  <p id="meStatus"></p>
+
+  <p class="approx">Rendered on the cylinder are only the cycle's own edges (the pentagon ring at
+    each level) and the path's edges (the vertical struts) — the strong product also has diagonal
+    edges, and the distance function below accounts for them correctly via the exact theorem for
+    strong products (<code>d = max(d_H, d_path)</code>), they're just left off the drawing so it
+    doesn't turn into a tangle. One thing the cylinder gets for free that the old flat grid couldn't:
+    the wraparound from position 4 back to position 0 is just where the ring closes — no dashed
+    "this bends around" line needed, because it actually does. Stack depth is capped at 6 here to
+    keep every dot a real thumb-sized target; the paper's result holds for any depth from 2 upward,
+    this is just as deep as a clear picture goes. The red route-lines drawn on a violation are a
+    straight guide between the two endpoints and the dot between them, not literal drawn graph
+    edges — the actual shortest path may run along diagonal strong-product edges this picture
+    doesn't render (see above), so the line is honest about showing <em>which three points</em>,
+    not <em>which edges</em>.</p>
+</main>
+<script type="module">
+import { labPds } from '/_kit/pds.js';
+import * as THREE from '/_kit/three.module.min.js';
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('No Through Line');
+
+  const H_SIZE = 5; // C5, fixed for this first build
+  const R = 2.4;      // cylinder radius
+  const SPACING = 1.15; // vertical gap between stacked layers
+
+  const stageInner = document.getElementById('stageInner');
+  const canvas = document.getElementById('glCanvas');
+  const sSlider = document.getElementById('sSlider');
+  const sVal = document.getElementById('sVal');
+  const status = document.getElementById('status');
+  const resetBtn = document.getElementById('resetBtn');
+  const copyBtn = document.getElementById('copyBtn');
+  const errEl = document.getElementById('err');
+  const kbdGrid = document.getElementById('kbdGrid');
+
+  // ---- graph distances: real BFS-equivalent formulas, not a geometric proxy ----
+  function dCycle(n, a, b) { const d = Math.abs(a - b); return Math.min(d, n - d); }
+  function dPath(a, b) { return Math.abs(a - b); }
+  // Strong product distance theorem: d((h1,l1),(h2,l2)) = max(d_H(h1,h2), d_path(l1,l2)).
+  function dist(v1, v2) { return Math.max(dCycle(H_SIZE, v1.h, v2.h), dPath(v1.l, v2.l)); }
+
+  function isGeneralPosition(verts, dfn) {
+    for (let i = 0; i < verts.length; i++) {
+      for (let j = 0; j < verts.length; j++) {
+        if (j === i) continue;
+        for (let m = 0; m < verts.length; m++) {
+          if (m === i || m === j) continue;
+          if (dfn(verts[i], verts[m]) + dfn(verts[m], verts[j]) === dfn(verts[i], verts[j])) return false;
+        }
+      }
+    }
+    return true;
+  }
+  function generalPositionNumber(n, dfn) {
+    let best = 0;
+    for (let mask = 1; mask < (1 << n); mask++) {
+      const verts = [];
+      for (let i = 0; i < n; i++) if (mask & (1 << i)) verts.push(i);
+      if (verts.length <= best) continue;
+      if (isGeneralPosition(verts, dfn)) best = verts.length;
+    }
+    return best;
+  }
+
+  const gpH = generalPositionNumber(H_SIZE, (a, b) => dCycle(H_SIZE, a, b));
+  const target = 2 * gpH;
+
+  let s = parseInt(sSlider.value, 10);
+  let selected = new Set(); // "h-l" keys
+  let bestValid = 0;
+  function key(h, l) { return h + '-' + l; }
+
+  // ---- colours pulled from the shared tokens, with hard fallbacks ----
+  const cssVar = (name, fallback) => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  };
+  const COL_BG = cssVar('--bg', '#0e0e11');
+  const COL_RAISED = cssVar('--bg-raised', '#16161b');
+  const COL_BORDER = cssVar('--border', '#26242c');
+  const COL_ACCENT = cssVar('--accent', '#e8a33d');
+  const COL_ERROR = cssVar('--error', '#f2777a');
+
+  // ---- three.js scene, built once ----
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.setClearColor(new THREE.Color(COL_BG), 1);
+
+  const group = new THREE.Group();
+  scene.add(group);
+
+  const sphereGeom = new THREE.SphereGeometry(0.26, 16, 12);
+  const matDefault = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_RAISED) });
+  const matSelected = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ACCENT) });
+  const matViolate = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ERROR) });
+  const edgeMat = new THREE.LineBasicMaterial({ color: new THREE.Color(COL_BORDER), transparent: true, opacity: 0.85 });
+  const guideMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(COL_ACCENT), transparent: true, opacity: 0.06, side: THREE.DoubleSide, depthWrite: false });
+  const violateLineMat = new THREE.LineBasicMaterial({ color: new THREE.Color(COL_ERROR), transparent: true, opacity: 0.9 });
+
+  // the killed-route highlight lives outside `group` so build3D()'s full-clear
+  // (which fires on every slider move) never has to know about it — refresh()
+  // owns this group's contents exclusively.
+  const violateLineGroup = new THREE.Group();
+  scene.add(violateLineGroup);
+
+  let vertexMeshes = []; // { mesh, h, l, k }
+
+  function vpos(h, l) {
+    const angle = (h / H_SIZE) * Math.PI * 2;
+    return {
+      x: R * Math.sin(angle),
+      z: R * Math.cos(angle),
+      y: (l - (s - 1) / 2) * SPACING,
+    };
+  }
+
+  function build3D() {
+    while (group.children.length) group.remove(group.children[0]);
+    selected.clear();
+    vertexMeshes = [];
+
+    const guideHeight = s * SPACING;
+    const guide = new THREE.Mesh(new THREE.CylinderGeometry(R, R, guideHeight, 48, 1, true), guideMat);
+    group.add(guide);
+
+    // cycle edges: a real closed pentagon at each level, wraparound included for free.
+    const cycPts = [];
+    for (let l = 0; l < s; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const a = vpos(h, l), b = vpos((h + 1) % H_SIZE, l);
+        cycPts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      }
+    }
+    const cycGeom = new THREE.BufferGeometry();
+    cycGeom.setAttribute('position', new THREE.Float32BufferAttribute(cycPts, 3));
+    group.add(new THREE.LineSegments(cycGeom, edgeMat));
+
+    // path (stacking) edges: vertical struts.
+    const pathPts = [];
+    for (let l = 0; l < s - 1; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const a = vpos(h, l), b = vpos(h, l + 1);
+        pathPts.push(a.x, a.y, a.z, b.x, b.y, b.z);
+      }
+    }
+    const pathGeom = new THREE.BufferGeometry();
+    pathGeom.setAttribute('position', new THREE.Float32BufferAttribute(pathPts, 3));
+    group.add(new THREE.LineSegments(pathGeom, edgeMat));
+
+    for (let l = 0; l < s; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const p = vpos(h, l);
+        const mesh = new THREE.Mesh(sphereGeom, matDefault);
+        mesh.position.set(p.x, p.y, p.z);
+        mesh.userData = { h, l, k: key(h, l) };
+        group.add(mesh);
+        vertexMeshes.push(mesh);
+      }
+    }
+
+    buildKbdGrid();
+    refresh();
+  }
+
+  function buildKbdGrid() {
+    kbdGrid.textContent = '';
+    for (let l = 0; l < s; l++) {
+      for (let h = 0; h < H_SIZE; h++) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.dataset.h = h; b.dataset.l = l;
+        b.textContent = 'h' + h + ' s' + l;
+        b.setAttribute('aria-label', 'vertex h=' + h + ', level ' + l);
+        b.setAttribute('aria-pressed', 'false');
+        b.addEventListener('click', () => toggle(h, l));
+        kbdGrid.appendChild(b);
+      }
+    }
+  }
+
+  function toggle(h, l) {
+    const k = key(h, l);
+    if (selected.has(k)) selected.delete(k); else selected.add(k);
+    refresh();
+  }
+
+  function refresh() {
+    const verts = [...selected].map((k) => {
+      const [h, l] = k.split('-').map(Number);
+      return { h, l, k };
+    });
+    const violating = new Set();
+    const routesSeen = new Set();
+    const routes = []; // { a, m, b } — the pair a-b whose shortest path m sits on, deduped
+    for (let i = 0; i < verts.length; i++) {
+      for (let j = 0; j < verts.length; j++) {
+        if (j === i) continue;
+        for (let m = 0; m < verts.length; m++) {
+          if (m === i || m === j) continue;
+          if (dist(verts[i], verts[m]) + dist(verts[m], verts[j]) === dist(verts[i], verts[j])) {
+            violating.add(verts[m].k);
+            const rk = [verts[i].k, verts[j].k].sort().join('|') + '~' + verts[m].k;
+            if (!routesSeen.has(rk)) { routesSeen.add(rk); routes.push({ a: verts[i], m: verts[m], b: verts[j] }); }
+          }
+        }
+      }
+    }
+
+    // draw the actual route each violation kills: a straight highlighted a→m→b
+    // guide, so the judging isn't just "this dot turned red" but "here is the
+    // shortest-path connection it sat down on".
+    while (violateLineGroup.children.length) violateLineGroup.remove(violateLineGroup.children[0]);
+    routes.forEach(({ a, m, b }) => {
+      const pa = vpos(a.h, a.l), pm = vpos(m.h, m.l), pb = vpos(b.h, b.l);
+      const pts = [pa.x, pa.y, pa.z, pm.x, pm.y, pm.z, pm.x, pm.y, pm.z, pb.x, pb.y, pb.z];
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.Float32BufferAttribute(pts, 3));
+      violateLineGroup.add(new THREE.LineSegments(g, violateLineMat));
+    });
+
+    vertexMeshes.forEach((mesh) => {
+      const k = mesh.userData.k;
+      const isSel = selected.has(k), isViol = violating.has(k);
+      mesh.material = isViol ? matViolate : (isSel ? matSelected : matDefault);
+    });
+    kbdGrid.querySelectorAll('button').forEach((b) => {
+      const k = key(+b.dataset.h, +b.dataset.l);
+      const isSel = selected.has(k), isViol = violating.has(k);
+      b.classList.toggle('selected', isSel);
+      b.classList.toggle('violate', isViol);
+      b.setAttribute('aria-pressed', String(isSel));
+    });
+    const n = verts.length, v = violating.size;
+    if (v === 0 && n > bestValid) bestValid = n;
+    let routeMsg = '';
+    if (routes.length) {
+      const r = routes[0], extra = routes.length > 1 ? ' (+' + (routes.length - 1) + ' more route' + (routes.length > 2 ? 's' : '') + ')' : '';
+      routeMsg = ' · killed: (h' + r.a.h + ',ℓ' + r.a.l + ')–(h' + r.b.h + ',ℓ' + r.b.l + ') is a shortest path, and (h'
+        + r.m.h + ',ℓ' + r.m.l + ') sits right on it — see the highlighted line' + extra;
+    }
+    status.textContent = n + ' selected · ' + (v ? v + ' break general position' : 'no violations')
+      + ' · target 2·gp(H) = ' + target + ' (gp(H)=' + gpH + ')'
+      + ' · best clean set so far: ' + bestValid + routeMsg;
+    updateSaveBtn();
+    renderScene();
+  }
+
+  // ---- camera: manual orbit, no OrbitControls addon vendored ----
+  let theta = 0.6, phi = 1.05, camRadius = 8.5;
+  const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+  function updateCamera() {
+    camera.position.set(
+      camRadius * Math.sin(phi) * Math.sin(theta),
+      camRadius * Math.cos(phi),
+      camRadius * Math.sin(phi) * Math.cos(theta)
+    );
+    camera.lookAt(0, 0, 0);
+  }
+  function renderScene() { renderer.render(scene, camera); }
+
+  function resizeRenderer() {
+    const w = stageInner.clientWidth || 480;
+    const h = Math.round(w * 0.8);
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderScene();
+  }
+  window.addEventListener('resize', () => { clearTimeout(window.__nlResize); window.__nlResize = setTimeout(resizeRenderer, 150); });
+
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  function pickAt(clientX, clientY) {
+    const rect = canvas.getBoundingClientRect();
+    ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(vertexMeshes);
+    if (hits.length) toggle(hits[0].object.userData.h, hits[0].object.userData.l);
+  }
+
+  let dragStart = null, isDragging = false;
+  canvas.addEventListener('pointerdown', (e) => {
+    dragStart = { x: e.clientX, y: e.clientY, theta, phi };
+    isDragging = false;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    if (!dragStart) return;
+    const dx = e.clientX - dragStart.x, dy = e.clientY - dragStart.y;
+    if (!isDragging && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) isDragging = true;
+    if (isDragging) {
+      theta = dragStart.theta - dx * 0.008;
+      phi = clamp(dragStart.phi - dy * 0.008, 0.2, Math.PI - 0.2);
+      updateCamera(); renderScene();
+    }
+  });
+  canvas.addEventListener('pointerup', (e) => {
+    if (!isDragging) pickAt(e.clientX, e.clientY);
+    dragStart = null; isDragging = false;
+  });
+  canvas.addEventListener('pointercancel', () => { dragStart = null; isDragging = false; });
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    camRadius = clamp(camRadius + e.deltaY * 0.01, 5, 16);
+    updateCamera(); renderScene();
+  }, { passive: false });
+  canvas.addEventListener('keydown', (e) => {
+    let moved = true;
+    if (e.key === 'ArrowLeft') theta -= 0.15;
+    else if (e.key === 'ArrowRight') theta += 0.15;
+    else if (e.key === 'ArrowUp') phi = clamp(phi - 0.12, 0.2, Math.PI - 0.2);
+    else if (e.key === 'ArrowDown') phi = clamp(phi + 0.12, 0.2, Math.PI - 0.2);
+    else moved = false;
+    if (moved) { e.preventDefault(); updateCamera(); renderScene(); }
+  });
+
+  sSlider.addEventListener('input', () => {
+    s = parseInt(sSlider.value, 10);
+    sVal.textContent = String(s);
+    build3D();
+    resizeRenderer();
+  });
+  resetBtn.addEventListener('click', () => { selected.clear(); refresh(); });
+
+  copyBtn.addEventListener('click', () => {
+    try {
+      renderScene();
+      canvas.toBlob((blob) => {
+        if (!blob) { kit.showError(errEl, 'could not render the diagram'); return; }
+        if (navigator.clipboard && window.ClipboardItem) {
+          navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]).then(() => {
+            const was = copyBtn.textContent; copyBtn.textContent = 'copied!';
+            setTimeout(() => { copyBtn.textContent = was; }, 1200);
+          }).catch(() => downloadBlob(blob));
+        } else {
+          downloadBlob(blob);
+        }
+      });
+    } catch (e) { kit.showError(errEl, 'copy failed: ' + e.message); }
+  });
+  function downloadBlob(blob) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = 'no-through-line.png'; a.click();
+  }
+
+  // ---- the visitor's own repo is the only backend ----
+  const store = labPds();
+  const rivalHandleInput = document.getElementById('rivalHandle');
+  const rivalBtn = document.getElementById('rivalBtn');
+  const rivalResult = document.getElementById('rivalResult');
+  const meHandleInput = document.getElementById('meHandle');
+  const signInBtn = document.getElementById('signInBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const meStatus = document.getElementById('meStatus');
+
+  updateCamera();
+  build3D();
+  resizeRenderer();
+
+  kit.handleInput(rivalHandleInput, { onPick: (h) => checkRival(h) });
+  kit.handleInput(meHandleInput, { onPick: (h) => doSignIn(h) });
+
+  async function checkRival(handle) {
+    rivalResult.textContent = 'checking…';
+    try {
+      const scores = await store.scoresOf(handle);
+      if (!scores.length) { rivalResult.textContent = '@' + handle + ' has not saved a find here yet.'; return; }
+      const ranked = store.rank(scores);
+      rivalResult.textContent = '@' + handle + '’s best clean set: ' + ranked[0].value
+        + (ranked[0].detail ? ' (' + ranked[0].detail + ')' : '');
+    } catch (e) { rivalResult.textContent = "couldn't look that handle up: " + e.message; }
+  }
+  rivalBtn.addEventListener('click', () => {
+    const h = rivalHandleInput.value.trim().replace(/^@/, '');
+    if (h) checkRival(h);
+  });
+
+  async function doSignIn(handle) {
+    try { await store.signIn(handle); } catch (e) { kit.showError(errEl, 'sign-in failed: ' + e.message); }
+  }
+  signInBtn.addEventListener('click', () => {
+    const h = meHandleInput.value.trim().replace(/^@/, '');
+    if (h) doSignIn(h); else meHandleInput.focus();
+  });
+
+  function updateSaveBtn() {
+    if (!store.user()) return;
+    saveBtn.classList.remove('hidden');
+    signInBtn.classList.add('hidden');
+    meHandleInput.classList.add('hidden');
+    saveBtn.textContent = bestValid > 0 ? 'save best clean set (' + bestValid + ')' : 'find a clean set first';
+    saveBtn.disabled = bestValid === 0;
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    try {
+      await store.postScore(bestValid, {
+        unit: 'points', detail: 'gp(H)=' + gpH + ', target=' + target, game: 'no-through-line',
+      });
+      const was = saveBtn.textContent; saveBtn.textContent = 'saved!';
+      setTimeout(() => { saveBtn.textContent = was; }, 1500);
+    } catch (e) { kit.showError(errEl, 'could not save: ' + e.message); }
+  });
+
+  store.onChange(() => updateSaveBtn());
+  store.ready().then(() => {
+    updateSaveBtn();
+    if (store.user()) meStatus.textContent = 'signed in as @' + store.user().handle;
+  }).catch(() => { /* not signed in yet — fine, saving is optional */ });
+})();
+</script>
+</body>
+</html>

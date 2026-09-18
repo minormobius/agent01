@@ -1,0 +1,1 @@
+Found two real bugs: a scan error could silently freeze the page with no visible sign, and the loading text was too small to notice — could easily look dead while it was actually still scanning. Fixed both; added a visible spinner.
