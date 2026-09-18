@@ -102,6 +102,17 @@ export function mul4(a, b) {
   for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) o[c * 4 + r] = a[r] * b[c * 4] + a[4 + r] * b[c * 4 + 1] + a[8 + r] * b[c * 4 + 2] + a[12 + r] * b[c * 4 + 3];
   return o;
 }
+/// The inverse of a rigid placement. Every placement here is built from `T`,
+/// `R` and `mul4`, so there is no scale and no shear: the inverse is the
+/// transposed rotation and the rotated-back translation. What it is FOR: a
+/// reference resolves in WORLD (`modelFor` walks the other component's whole
+/// chain), so a link inside a sub-assembly has to divide out the frame its own
+/// chain has already established, or that frame is applied to it twice.
+export function invRigid(m) {
+  const t = [m[12], m[13], m[14]];
+  return [m[0], m[4], m[8], 0, m[1], m[5], m[9], 0, m[2], m[6], m[10], 0,
+    -(m[0] * t[0] + m[1] * t[1] + m[2] * t[2]), -(m[4] * t[0] + m[5] * t[1] + m[6] * t[2]), -(m[8] * t[0] + m[9] * t[1] + m[10] * t[2]), 1];
+}
 export const xform = (m, p) => [m[0] * p[0] + m[4] * p[1] + m[8] * p[2] + m[12], m[1] * p[0] + m[5] * p[1] + m[9] * p[2] + m[13], m[2] * p[0] + m[6] * p[1] + m[10] * p[2] + m[14]];
 export const xformDir = (m, d) => [m[0] * d[0] + m[4] * d[1] + m[8] * d[2], m[1] * d[0] + m[5] * d[1] + m[9] * d[2], m[2] * d[0] + m[6] * d[1] + m[10] * d[2]];
 const mod = (x, n) => ((x % n) + n) % n;
@@ -213,8 +224,16 @@ async function resolveRefString(ref, env, prefix, byId, partTrees, facesOf, what
 /// parameter`, and sent eight bushings back to being placed by expression.
 const modelFor = (comp, t, theta, angles, values) => (angles ? modelOf(comp, angles) : placeAt(comp, t, theta, null, values));
 
-function placement(link, t, theta, angles, values) {
+/// `outer` is the product of the links BEFORE this one — the frame this link's
+/// result will be composed into by `placeAt`. Anything a reference resolves is
+/// in world coordinates, so it is brought back into that frame here; without
+/// that, a component anchored with `@comp.face` inside a sub-assembly took the
+/// sub-assembly's own placement TWICE (an arm at x = 100 put its anchored pin
+/// at 210 instead of 110). At the top level `outer` is the identity, which is
+/// why this only ever went wrong one level down.
+function placement(link, t, theta, angles, values, outer = null) {
   const { spec, scope, refs } = link;
+  const intoFrame = refs && outer ? invRigid(outer) : null;
   const name = `${scope.name}${spec.id ? ' ' + spec.id : ''}${link.i === undefined ? '' : `[${link.i}]`}`;
   const base = envAt(scope, t, theta, link.i, values || angles?.values || NO_VALUES);
   const env = link.i === undefined ? base : { ...base, i: link.i };
@@ -228,10 +247,21 @@ function placement(link, t, theta, angles, values) {
     // and there is no other way to say it without writing the rotation out as
     // an expression over the drive, which is the double-driven mistake.
     const parent = modelFor(refs.at.comp, t, theta, angles, values);
-    m = spec.rigid ? mul4(parent, T(refs.at.face.anchor)) : T(xform(parent, refs.at.face.anchor));
+    const world = spec.rigid ? mul4(parent, T(refs.at.face.anchor)) : T(xform(parent, refs.at.face.anchor));
+    m = intoFrame ? mul4(intoFrame, world) : world;
   }
   else m = T((Array.isArray(spec.at) ? spec.at : [0, 0, 0]).map((v, i) => field(v, `at[${i}]`)));
-  if (refs?.align) m = mul4(m, alignZ(norm(xformDir(modelFor(refs.align.comp, t, theta, angles, values), refs.align.face.axis))));
+  // An axis read off another component points somewhere in WORLD. Whether that
+  // needs the frame taken off it depends on what `m` is at this point: with an
+  // anchor, `m` already cancels the outer frame (above), so the alignment is
+  // composed in a world-based frame and the direction is used as it is; with a
+  // plain `at`, `m` is local and the outer frame is still to come, so the
+  // direction has to be brought into it or a turned sub-assembly aims the
+  // component at its own rotation of the axis instead of at the axis.
+  if (refs?.align) {
+    const world = xformDir(modelFor(refs.align.comp, t, theta, angles, values), refs.align.face.axis);
+    m = mul4(m, alignZ(norm(!refs.at && intoFrame ? xformDir(intoFrame, world) : world)));
+  }
   if (spec.rotate && (spec.rotate.deg !== undefined || spec.rotate.axis)) {
     const axis = (spec.rotate.axis || [0, 0, 1]).map((v, i) => field(v, `rotate.axis[${i}]`));
     m = mul4(m, R(axis, field(spec.rotate.deg ?? 0, 'rotate.deg')));
@@ -244,7 +274,7 @@ function placement(link, t, theta, angles, values) {
 /// references follow the components they point at through their motion.
 export function placeAt(c, t = 0, theta = 0, angles = null, values = null) {
   let m = IDENT;
-  for (const link of c.chain) m = mul4(m, placement(link, t, theta, angles, values));
+  for (const link of c.chain) m = mul4(m, placement(link, t, theta, angles, values, m));
   return m;
 }
 

@@ -4,6 +4,32 @@ Newest first. For an agent or a person who used this before: what is new,
 what moved, and what to stop working around. Served at
 `cad.mino.mobi/CHANGELOG.md`, mirrored with the package.
 
+## 2026-09-18
+
+**An `@comp.face` anchor inside a sub-assembly took the parent transform
+twice.** A reference resolves in WORLD — the resolver walks the referenced
+component's whole chain — and the placement walk then multiplied that by the
+chain prefix it had already accumulated. An arm moved 100 mm put its anchored
+pin at 210 instead of 110. At the top level the prefix is the identity, so every
+bench document and every existing test was right: it only went wrong one level
+down, which is why it survived this long.
+
+`rotate.align` had the same fault in its other half: the axis is read in world
+and was applied in the sub-assembly's local frame, so aligning inside a TURNED
+sub-assembly aimed the component at the sub-assembly's rotation of the axis
+instead of at the axis.
+
+Both are fixed by taking the outer frame off whatever a reference resolved.
+Nothing at the top level moves. If you worked around this by writing a nested
+anchor's placement out as an expression, **that workaround is now the bug** — it
+will place the component correctly only while the sub-assembly sits at the
+origin. Delete it and anchor properly.
+
+The regression test is a relation rather than a number: through three rotations
+of the arm, the pin sits on the plate's face, and the two anchors keep their
+documented difference — a plain anchor stays in the world frame, a `rigid` one
+turns with the parent.
+
 ## 2026-09-15, third pass
 
 **What a mechanism DOES, not only what it is.** `agent/mechanism.mjs`, the MCP

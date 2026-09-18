@@ -482,6 +482,27 @@ named face's centroid and normal pick the OCCT face whose edges get rounded.
   a nanometre as contact rather than depth (a boundary point sampled inside
   the other body returns 2e-16, and that used to make a face-to-face contact
   a collision).
+- **A reference resolves in WORLD, so a nested one has to divide its own frame
+  out.** `@comp.face` is resolved by `modelFor`, which walks the referenced
+  component's whole chain and hands back a world pose. `placeAt` then multiplied
+  that by the chain prefix it had already accumulated — so a component anchored
+  inside a SUB-ASSEMBLY took the sub-assembly's placement twice: an arm moved
+  100 mm put its anchored pin at 210 instead of 110 (measured 2026-09-18). At
+  the top level the prefix is the identity, which is why every existing test and
+  every bench document was right and this only ever went wrong one level down.
+  `placement` now takes the outer prefix and brings anything a reference
+  resolved back through `invRigid` — every placement here is `T`, `R` and
+  `mul4`, so there is no scale and the inverse is the transposed rotation.
+  `rotate.align` had the same fault in its other half: the axis is read in world
+  and was being applied in the sub-assembly's local frame, so aligning inside a
+  turned sub-assembly aimed at the sub-assembly's rotation of the axis rather
+  than at the axis. Which correction an `align` needs depends on what it is
+  composed into: with an anchor the frame is already world-based and the
+  direction is used as it is; with a plain `at` the outer frame is still to
+  come, so the direction is brought into it. The two anchors differ here and the
+  test asserts both — a plain anchor keeps the WORLD frame (its axis must NOT
+  follow the parent round), `rigid` and `align` take the anchor's pose (theirs
+  must).
 - **A boolean keeps the names, because it cannot destroy the surfaces.** It
   destroys every face INDEX — truck hands back a fresh shell in its own order
   — so until 2026-09-13 a cut threw away everything its ops had named, and a

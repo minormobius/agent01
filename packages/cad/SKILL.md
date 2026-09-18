@@ -136,6 +136,15 @@ expression over an input, so a bushing can sit on a link eye that moves; add `"r
 component's `offset` and a joint's travel turn with it. That is how a jaw
 rides a rotor and slides on it at the same time — `bench/grip.json` is the
 worked example, and it is four components, three mates and no expressions.
+An anchor works the same at any depth: inside a sub-assembly it takes that
+sub-assembly's placement **once**, whatever the sub-assembly is doing. (It took
+it twice before 2026-09-18 — an arm moved 100 mm put its anchored pin at 210
+instead of 110. If you have a nested anchor written out as an expression to
+work around that, the workaround is now the bug: it is right only while the
+sub-assembly sits at the origin.) The difference between the two anchors is a
+frame: a plain one puts the component at a point ON the other and leaves its
+axes the WORLD's, so it does not turn when the sub-assembly turns; `rigid` and
+`rotate.align` take the anchor's pose, so they do.
 
 Numbers in a mate are expressions in the document's scope. A component's
 pose is its placement, then its travel, then its turn about its own z.

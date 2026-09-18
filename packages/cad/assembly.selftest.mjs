@@ -336,6 +336,41 @@ check(pt.pin_z === 6 && pt.r_body === 'r_pivot * 3' && near(engine.resolve(pass.
   const pose = (v) => Object.fromEntries(a.components.map((c) => [c.id, modelOf(c, solveAngles(a.components, a.mates, a.drive, 0, v)).slice(12, 15).map((x) => +x.toFixed(3))]));
   const p0 = pose({ open: 0 }), p1 = pose({ open: 1 });
   check(p0.bush.join() === '12,0,0' && p1.bush.join() === '12,0,10' && p1.plate.join() === '0,0,10', `a component anchored to one whose placement is an expression over an input resolves, and rides it: the bush is at ${p1.bush.join(', ')} when the plate is at ${p1.plate.join(', ')}`);
+
+  // AN ANCHOR INSIDE A SUB-ASSEMBLY TOOK THE PARENT TRANSFORM TWICE. A
+  // reference resolves in WORLD — `modelFor` walks the other component's whole
+  // chain — and `placeAt` then multiplied that by the chain prefix again, so an
+  // arm moved 100 mm put its anchored pin at 210 instead of 110. At the top
+  // level the prefix is the identity, which is why it only went wrong one level
+  // down. The test is a relation, not a number: whatever the arm is doing, the
+  // pin sits on the plate's face, so the offset between them must be the
+  // plate's own rotation of the offset the arm has when it stands alone.
+  const armOf = (extra) => ({ name: 'arm', parts: { plate: 'bench:plate', pin: 'bench:arbor' },
+    components: [{ id: 'plate', part: 'plate' }, { id: 'pin', part: 'pin', at: '@plate.pivot[0]', ...extra }] });
+  const posed = async (doc) => { const k = await flatten(doc, benchRef, { facesOf }); return new Map(k.components.map((c) => [c.id.split('/').pop(), placeAt(c)])); };
+  const at3 = (m) => [m[12], m[13], m[14]], zOf = (m) => [m[8], m[9], m[10]];
+  const gap = (p, a, b) => at3(p.get(a)).map((v, i) => v - at3(p.get(b))[i]);
+  // `turns` is the documented difference between the two anchors: a plain one
+  // puts the component at a point ON another and leaves the frame the WORLD's,
+  // so its axis must NOT follow the arm round; `rigid` and `align` take the
+  // anchor's pose, so theirs must. Both are a way to get the frame wrong, so
+  // both are asserted.
+  for (const [label, extra, turns] of [['a plain anchor', {}, false], ['a rigid one', { rigid: true }, true], ['one with an offset', { rigid: true, offset: [0, 0, 8] }, true], ['one aligned to the bore', { rotate: { align: '@plate.pivot[0]' } }, true]]) {
+    const alone = await posed(armOf(extra));
+    let worst = 0, worstAxis = 0;
+    for (const rot of [{ deg: 90 }, { axis: [1, 0, 0], deg: 90 }, { axis: [1, 1, 1], deg: 120 }]) {
+      const nested = await posed({ name: 'top', components: [{ id: 'arm', assembly: armOf(extra), at: [100, -30, 7], rotate: rot }] });
+      const want = xformDir(nested.get('plate'), gap(alone, 'pin', 'plate')), got = gap(nested, 'pin', 'plate');
+      worst = Math.max(worst, ...want.map((v, i) => Math.abs(v - got[i])));
+      // turning: the arm's rotation of the axis it had alone; not turning: the axis it had alone, untouched
+      const wantZ = turns ? xformDir(nested.get('plate'), zOf(alone.get('pin'))) : zOf(alone.get('pin'));
+      worstAxis = Math.max(worstAxis, ...wantZ.map((v, i) => Math.abs(v - zOf(nested.get('pin'))[i])));
+    }
+    check(worst < 1e-9 && worstAxis < 1e-9, `${label} inside a sub-assembly takes the arm's placement ONCE, through three rotations of it, and its axis ${turns ? 'turns with the arm' : 'stays the world\'s'} — position off by ${worst.toExponential(0)}, axis by ${worstAxis.toExponential(0)}`);
+  }
+  const flat = await posed(armOf({}));
+  const moved = await posed({ name: 'top', components: [{ id: 'arm', assembly: armOf({}), at: [100, 0, 0] }] });
+  check(Math.abs(at3(moved.get('pin'))[0] - (at3(flat.get('pin'))[0] + 100)) < 1e-9, `…and the plain case in numbers: the pin is at x = ${+at3(moved.get('pin'))[0].toFixed(3)} when the arm moves 100 mm, not ${+(at3(flat.get('pin'))[0] + 200).toFixed(3)}`);
 }
 
 // the grid finds what a path through the same space would miss
