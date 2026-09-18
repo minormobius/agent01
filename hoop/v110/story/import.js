@@ -282,15 +282,24 @@ function regateAnchor(anchor, byScope) {
   return a;
 }
 
+// items[] (live, tombstones already dropped) → JUST the anchors the graft would add, re-gated for this
+// run; [] when the run brought its own / sets no gates at all. Separated from the graft because
+// scripts/reactivate-anchors.mjs publishes exactly these records back to the service repo — so what goes
+// upstream is byte-identical to what the graft serves, and the graft then stands down on its own. Pure.
+export function spineAnchorsFor(items, anchors = SPINE_ANCHORS) {
+  const live = items || [];
+  if (!anchors || !anchors.length || hasLoadBearing(live)) return [];
+  const byScope = liveGatesByScope(live);
+  if (!Object.keys(byScope).length) return [];                  // no gates → nothing for an anchor to want
+  const have = new Set(live.map((r) => r && r.id).filter(Boolean));
+  return anchors.filter((a) => a && !have.has(a.id)).map((a) => regateAnchor(a, byScope));
+}
+
 // items[] (live, tombstones already dropped) → the same pool with the carried spine grafted on, or
 // UNCHANGED when the run brought its own anchors / sets no gates at all. Pure.
 export function graftSpineAnchors(items, anchors = SPINE_ANCHORS) {
-  const live = items || [];
-  if (!anchors || !anchors.length || hasLoadBearing(live)) return live;
-  const byScope = liveGatesByScope(live);
-  if (!Object.keys(byScope).length) return live;                // no gates → nothing for an anchor to want
-  const have = new Set(live.map((r) => r && r.id).filter(Boolean));
-  return [...live, ...anchors.filter((a) => a && !have.has(a.id)).map((a) => regateAnchor(a, byScope))];
+  const add = spineAnchorsFor(items, anchors);
+  return add.length ? [...(items || []), ...add] : (items || []);
 }
 
 // ── STABLE ID DE-COLLISION (the Kaelen Voss soft-lock, systemic fix) ─────────────────────────────────

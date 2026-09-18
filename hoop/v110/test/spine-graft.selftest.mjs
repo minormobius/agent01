@@ -10,7 +10,7 @@
 //   • our old `seed-anchor-briefings` splices (the anchor setting its own gate) retire themselves,
 //   • pure: SPINE_ANCHORS is never mutated, and servePool stays idempotent.
 
-import { servePool, graftSpineAnchors, liveGatesByScope, hasLoadBearing } from '../story/import.js';
+import { servePool, graftSpineAnchors, spineAnchorsFor, liveGatesByScope, hasLoadBearing } from '../story/import.js';
 import { SPINE_ANCHORS, SPINE_PROVENANCE } from '../story/spine-anchors.js';
 import { anchorChain } from '../story/anchors.js';
 import { proveProgression } from '../story/solvable.js';
@@ -101,6 +101,16 @@ for (const a of servePool(raw).filter((c) => SPINE_ANCHORS.some((s) => s.id === 
   for (const n of Object.values(dlg.nodes)) for (const ch of (n.choices || [])) if (ch.goto) reached.add(ch.goto);
   ok(nodes.every((id) => reached.has(id)), `${(a.content.name)}: no orphaned dialogue node left behind`);
 }
+
+// ── 6b. what scripts/reactivate-anchors.mjs publishes IS what the graft serves ───────────────────
+// The two mechanisms must never disagree: reactivation writes spineAnchorsFor() upstream, and once
+// those records are live the graft no-ops. If these drifted apart, reactivating would change the world.
+ok(JSON.stringify(graftSpineAnchors(raw)) === JSON.stringify([...raw, ...spineAnchorsFor(raw)]),
+  'graftSpineAnchors(x) is exactly x + spineAnchorsFor(x) — the records reactivation would publish');
+const reactivated = [...raw, ...spineAnchorsFor(raw)];   // as if they were live upstream
+ok(spineAnchorsFor(reactivated).length === 0, 'once those records are live upstream the graft adds nothing');
+ok(JSON.stringify(servePool(reactivated)) === JSON.stringify(servePool(raw)),
+  'reactivating upstream changes NOTHING about the served world');
 
 // ── 7. purity + idempotency ──────────────────────────────────────────────────────────────────────
 const before = JSON.stringify(SPINE_ANCHORS);

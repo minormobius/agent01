@@ -49,6 +49,12 @@
 > run — see **hoop/CLAUDE.md § Content runs**. With the graft the live pool proves PASS in `--strict`
 > and 200/200 seeds weave progressable. The two `gate_no_setter` holes §4 and `anchor-briefings.json`
 > were built to close are gone: every gate has six setters.
+>
+> **Later the same day the four were reactivated upstream** (785 live records now, the four anchors back
+> at `status: 'active'` with the obsolete briefing splices stripped — byte-identical to what the graft
+> was serving). So the graft is dormant and the live pool is whole on its own. It stays in place as the
+> net for the next run, and `scripts/reactivate-anchors.mjs` is how the same repair is made from a
+> credentialed runner rather than from the client.
 
 ---
 

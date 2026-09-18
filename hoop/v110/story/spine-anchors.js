@@ -5,16 +5,19 @@
 // The four LOAD-BEARING anchors (one per narrative tier) from the service repo's story.content
 // collection. Every gate flag the keeper corpus sets is turned in at one of these four, so without them
 // the pool is a set of rooms and not a campaign — `proveProgression` reports `no_anchors` and no seed is
-// progressable. hoopy's runs regenerate the keepers; the 2026-09-16 run tombstoned the anchors without
-// replacing them (its prose still names all four), so `servePool` grafts these back whenever the live
-// pool carries no load-bearing anchor of its own, re-gated against the gates that run actually sets.
-// The moment a run publishes its own anchors the graft stands down — see graftSpineAnchors in import.js.
+// progressable. hoopy's runs regenerate the keepers and tombstone the previous corpus wholesale; the
+// 2026-09-16 run took the anchors with it (its prose still names all four). `servePool` therefore grafts
+// these back whenever the live pool carries no load-bearing anchor of its own, re-gated against the gates
+// that run actually sets, and STANDS DOWN the moment the pool has a spine of its own.
+//
+// AT THIS PULL: all 4 anchors are LIVE upstream, so the graft is dormant — these are the net for
+// the next run, which will tombstone them again unless it republishes them.
 //
 // Records are hoopy's, verbatim, as `listRecords` served them (`id` = rkey, `status` forced to 'active'):
-//   t1  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-e9ec2eaa  — Olo Vashti, Reconstruction Bay 14 (tombstoned upstream)
-//   t2  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-69ff9f3f  — Factor Solen, The Slate Quorum (tombstoned upstream)
-//   t3  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-5fecbbad  — Sevin, The Confluence of Gears (tombstoned upstream)
-//   t4  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-1ac7d2dc  — Luna, The Silver Vestibule (tombstoned upstream)
+//   t1  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-e9ec2eaa  — Olo Vashti, Reconstruction Bay 14
+//   t2  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-69ff9f3f  — Factor Solen, The Slate Quorum
+//   t3  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-5fecbbad  — Sevin, The Confluence of Gears
+//   t4  at://did:plc:yivyyp54vddf7qf2lpsikhe4/com.minomobi.hoop.story.content/room_bundle-1ac7d2dc  — Luna, The Silver Vestibule
 
 export const SPINE_PROVENANCE = {
   "service": "did:plc:yivyyp54vddf7qf2lpsikhe4",
@@ -26,28 +29,28 @@ export const SPINE_PROVENANCE = {
       "tier": 1,
       "name": "Olo Vashti",
       "room": "Reconstruction Bay 14",
-      "recovered": true
+      "recovered": false
     },
     {
       "rkey": "room_bundle-69ff9f3f",
       "tier": 2,
       "name": "Factor Solen",
       "room": "The Slate Quorum",
-      "recovered": true
+      "recovered": false
     },
     {
       "rkey": "room_bundle-5fecbbad",
       "tier": 3,
       "name": "Sevin",
       "room": "The Confluence of Gears",
-      "recovered": true
+      "recovered": false
     },
     {
       "rkey": "room_bundle-1ac7d2dc",
       "tier": 4,
       "name": "Luna",
       "room": "The Silver Vestibule",
-      "recovered": true
+      "recovered": false
     }
   ]
 };
@@ -242,16 +245,6 @@ export const SPINE_ANCHORS = [
               "says": "The city wears a mask of stone and smoke, but down here the metal remembers its true face. Let the three great currents show themselves at their proper scale. When their weight settles in your chest, you will know where your hands belong.",
               "choices": [
                 {
-                  "id": "brief_scale_a",
-                  "goto": "brief_scale_a",
-                  "text": "Before I go — teach me the first scale. How do the rindwalkers read the hull?",
-                  "effects": {
-                    "set_facts": {
-                      "flag.rind.rindwalker_scale_a": true
-                    }
-                  }
-                },
-                {
                   "id": "ack",
                   "text": "Understood. I will delve deep.",
                   "effects": {
@@ -315,18 +308,6 @@ export const SPINE_ANCHORS = [
                   }
                 }
               ]
-            },
-            "brief_scale_a": {
-              "says": "Good. You ask the right question before the long walk. The rindwalkers do not read the hull as engineers do — they read it as scripture. Every weld is a verse; every stress-line a psalm of the load the skin carries as the world turns. Go to where the Mars deck meets the outer plate and lay your palm flat against the cold: you will feel the whole cylinder leaning into its own spin. That leaning is the first scale — the weight a rindwalker carries in the chest before they carry anything in the hands. Hold it now. Then go and find where the other two currents run.",
-              "choices": [
-                {
-                  "id": "go",
-                  "text": "(I will find the other currents)",
-                  "effects": {
-                    "end": true
-                  }
-                }
-              ]
             }
           },
           "start": "greet"
@@ -383,16 +364,6 @@ export const SPINE_ANCHORS = [
             "greet": {
               "says": "The deep does not yield its coordinates to the hurried. Walk the silent arteries, listen to the ship’s dreaming, and let the architecture of the lower rind speak its own name. When the chamber’s position crystallizes, return. I will be waiting.",
               "choices": [
-                {
-                  "id": "brief_chamber_key",
-                  "goto": "brief_chamber_key",
-                  "text": "Then give me the key. Where does the chamber's language begin?",
-                  "effects": {
-                    "set_facts": {
-                      "flag.signal.chamber_key": true
-                    }
-                  }
-                },
                 {
                   "id": "ack",
                   "text": "(understood)",
@@ -464,18 +435,6 @@ export const SPINE_ANCHORS = [
                       "flag.signal.disposition": "suppress",
                       "flag.deck.lower_rind.cleared": true
                     }
-                  }
-                }
-              ]
-            },
-            "brief_chamber_key": {
-              "says": "The key is not a shape you can carry in your hand — it is a cadence you must carry in your blood. Listen: the ship counts its own heartbeat in the silence between the pumps, a rhythm older than any crew aboard. The chamber will not open for a stranger who merely arrives; it answers only to those who already keep its time. Take this beat down into the dark with you — one, and the long rest, and one — and let the deep name the rest of its secrets in its own slow hour.",
-              "choices": [
-                {
-                  "id": "go",
-                  "text": "(I descend into the silence)",
-                  "effects": {
-                    "end": true
                   }
                 }
               ]

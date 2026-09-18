@@ -108,10 +108,14 @@ const main = async () => {
 // The four LOAD-BEARING anchors (one per narrative tier) from the service repo's story.content
 // collection. Every gate flag the keeper corpus sets is turned in at one of these four, so without them
 // the pool is a set of rooms and not a campaign — \`proveProgression\` reports \`no_anchors\` and no seed is
-// progressable. hoopy's runs regenerate the keepers; the 2026-09-16 run tombstoned the anchors without
-// replacing them (its prose still names all four), so \`servePool\` grafts these back whenever the live
-// pool carries no load-bearing anchor of its own, re-gated against the gates that run actually sets.
-// The moment a run publishes its own anchors the graft stands down — see graftSpineAnchors in import.js.
+// progressable. hoopy's runs regenerate the keepers and tombstone the previous corpus wholesale; the
+// 2026-09-16 run took the anchors with it (its prose still names all four). \`servePool\` therefore grafts
+// these back whenever the live pool carries no load-bearing anchor of its own, re-gated against the gates
+// that run actually sets, and STANDS DOWN the moment the pool has a spine of its own.
+//
+// AT THIS PULL: ${liveAnchors.length === anchors.length
+    ? 'all ' + anchors.length + ' anchors are LIVE upstream, so the graft is dormant — these are the net for\n// the next run, which will tombstone them again unless it republishes them.'
+    : (anchors.length - liveAnchors.length) + ' of ' + anchors.length + ' anchors are TOMBSTONED upstream and the graft is load-bearing.\n// scripts/reactivate-anchors.mjs publishes these back to the service repo to fix it at the source.'}
 //
 // Records are hoopy's, verbatim, as \`listRecords\` served them (\`id\` = rkey, \`status\` forced to 'active'):
 ${anchors.map((a) => `//   t${a.content.load_bearing.tier}  at://${SERVICE_DID}/${NSID}/${a.id}  — ${(a.content.npc || {}).name}, ${a.content.name}${live.some((r) => r.id === a.id) ? '' : ' (tombstoned upstream)'}`).join('\n')}
