@@ -897,9 +897,19 @@ tier 3  —        0 calls
 cascade   ~$0.00036     all-to-QB ~$0.72213     1981x
 ```
 
-**Tier 3 was never called, and nothing was missed.** Every escalation was a
-genuinely unanswerable question, and tier 2 said so on all 30 rather than
-inventing an answer. The routing was perfect in both directions.
+**The routing was perfect in both directions**, and tier 2 declared all 30
+escalations genuinely unanswerable rather than inventing an answer for any of
+them.
+
+**Read the "tier 3: 0 calls" row carefully: tier 3 was ABSENT, not unneeded.**
+The run log says so — `tier 3: ABSENT (no Anthropic key)` — because this
+repo's Claude workflows authenticate with `CLAUDE_CODE_OAUTH_TOKEN` rather
+than an `ANTHROPIC_API_KEY`, and an OAuth token goes on
+`Authorization: Bearer` with the oauth beta header, not on `apiKey`. With no
+tier 3 configured, `runCascade` correctly ends the climb at tier 2, so zero
+tier-3 calls was a configuration fact, not a saving. The runner now accepts
+either credential and prints a loud warning when neither is present, because
+that number is exactly the kind that gets quoted out of context.
 
 ### What the run exposed
 
@@ -914,10 +924,10 @@ inventing an answer. The routing was perfect in both directions.
   rates are not published in this repo, so tier 2 is reported in tokens only.
   The comparison it wins is against sending all 62 decisions to
   `claude-opus-5` with the whole state each — which is the thing it replaces.
-- **Tier 3 is untested by this run.** It was never reached, which is the
-  desired outcome and also means the top of the cascade has not been
-  exercised end to end. A corpus containing genuinely hard *answerable*
-  questions would reach it.
+- **Tier 3 is untested by this run** — see above; it was not configured. Once
+  it is, the corpus still will not reach it, because tier 2 resolves every
+  escalation here. Exercising the top of the cascade needs questions that are
+  answerable but genuinely hard, which this corpus does not contain.
 
 ### Running it
 

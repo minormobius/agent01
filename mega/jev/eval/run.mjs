@@ -74,12 +74,22 @@ function makeUpperTier(client, model, bucket, times, extra = {}) {
 
 const dsKey = process.env.DEEPSEEK_API_KEY || '';
 const anKey = process.env.ANTHROPIC_API_KEY || '';
+// This repo's Claude workflows mostly authenticate with an OAuth token
+// rather than an API key. An OAuth token goes on Authorization: Bearer (the
+// SDK's `authToken`) and needs the oauth beta header — it is not a drop-in
+// for `apiKey`, which is why the first run found no tier 3 at all.
+const anOauth = process.env.ANTHROPIC_AUTH_TOKEN || '';
+const tier3Client = anKey
+  ? new Anthropic({ apiKey: anKey })
+  : anOauth
+    ? new Anthropic({ authToken: anOauth, defaultHeaders: { 'anthropic-beta': 'oauth-2025-04-20' } })
+    : null;
 const tier2 = dsKey
   ? makeUpperTier(new Anthropic({ apiKey: dsKey, baseURL: 'https://api.deepseek.com/anthropic' }),
       TIER2_MODEL, 't2', timing.t2)
   : null;
-const tier3 = anKey
-  ? makeUpperTier(new Anthropic({ apiKey: anKey }), TIER3_MODEL, 't3', timing.t3,
+const tier3 = tier3Client
+  ? makeUpperTier(tier3Client, TIER3_MODEL, 't3', timing.t3,
       // Thinking is on by default on Opus 5; low effort is right for a single
       // narrow yes/no and keeps the tier we are trying to avoid from being
       // gratuitously expensive when it does get called.
@@ -88,7 +98,10 @@ const tier3 = anKey
 
 const { state, decisions, surfaceCount } = buildCorpus(process.env.REGISTRY || 'deploy-registry.json');
 console.log(`corpus: ${decisions.length} decisions over ${surfaceCount} real surfaces, state ${sizeOf(state)}B`);
-console.log(`tier 2: ${tier2 ? TIER2_MODEL : 'ABSENT (no DeepSeek key)'}   tier 3: ${tier3 ? TIER3_MODEL : 'ABSENT (no Anthropic key)'}\n`);
+console.log(`tier 2: ${tier2 ? TIER2_MODEL : 'ABSENT (no DeepSeek key)'}   ` +
+  `tier 3: ${tier3 ? `${TIER3_MODEL} (${anKey ? 'api key' : 'oauth token'})` : 'ABSENT — no ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN'}`);
+if (!tier3) console.log('  ! with no tier 3, tier 2 is the end of the line: a "0 tier-3 calls" below means\n' +
+  '    NOT REACHABLE, not "not needed". Do not read it as the cascade saving a call.\n');
 
 const { resolved, stats } = await runCascade({
   state, decisions, tier1, tier2, tier3,
