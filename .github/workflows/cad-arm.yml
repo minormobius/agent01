@@ -128,7 +128,18 @@ jobs:
       # design declares `contact: true` always trips the exit code, and the
       # gripper brings 40-odd declared touches in with it. `limit` is the
       # platform's own budget, so this is stricter than the exit code, not looser.
+      # BLOCKED on a platform bug — morphyx/arm/anchor-bug.mjs has the two-part
+      # repro. An @anchor-placed component inside a sub-assembly takes the
+      # parent transform twice, so every anchored part of the gripper scatters
+      # once it is nested. Until that is fixed the robot document CANNOT be
+      # gated: it reports "no interference" because the strays are in empty
+      # space. Running the repro as the gate instead, so this turns green by
+      # itself the day the platform fixes it.
+      - name: Is the sub-assembly anchor bug still there?
+        run: node morphyx/arm/anchor-bug.mjs /tmp/cad || echo "::warning::anchor bug still present — arm/robot is not gated and is not published"
+
       - name: The whole machine — shoulder + wrist + gripper, 7 axes at their corners
+        if: false   # see above
         working-directory: /tmp/cad
         run: |
           node agent/check.mjs /tmp/arm/arm-robot.json --grid 2 --json > /tmp/robot.json || true

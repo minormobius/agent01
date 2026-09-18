@@ -64,7 +64,7 @@ const rewrite = (a) => {
   for (const k of Object.keys(a.parts || {})) { const u = revs.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
   for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
 };
-for (const [pathName, asm, name] of [['arm/assembly', assembly('inputs'), 'assembly'], ['arm/pour', assembly('demo'), 'pour'], ['arm/wrist', wrist(), 'wrist'], ['arm/robot', robot(), 'robot']]) {
+for (const [pathName, asm, name] of [['arm/assembly', assembly('inputs'), 'assembly'], ['arm/pour', assembly('demo'), 'pour'], ['arm/wrist', wrist(), 'wrist']]   // arm/robot is NOT published: see anchor-bug.mjs) {
   rewrite(asm); await publish(pathName, asm, { kind: 'assembly', name });
 }
 if (drive) {
@@ -72,5 +72,4 @@ if (drive) {
   console.log(`  arm:  https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('assembly'))}`);
   console.log(`  pour: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('pour'))}`);
   console.log(`  wrist: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('wrist'))}`);
-  console.log(`  ROBOT: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('robot'))}`);
 }

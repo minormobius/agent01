@@ -525,13 +525,20 @@ const sub = (name, need, components) => ({ _: name, params: { ...PARAMS }, deriv
 // A clamped ramp, as in ../gripper: the language has no clamp, so min/max build
 // one. `u` is the fraction of one clock turn.
 const ramp = (u, a, b) => `min(1, max(0, (${u} - ${a}) / ${b - a}))`;
-function trajectory(key) {
-  const W = pour().filter((v) => v.ok);
-  const u = '(theta / 360 - floor(theta / 360))';
-  const t = W.map((_, i) => i / (W.length - 1));
-  return W[0].j[key] + W.slice(1).map((w, i) =>
-    ` + ${round(w.j[key] - W[i].j[key], 3)} * ${ramp(u, round(t[i], 4), round(t[i + 1], 4))}`).join('');
+const U = '(theta / 360 - floor(theta / 360))';
+// A piecewise-linear channel through the pour's waypoints, as ramps summed.
+function channel(values) {
+  const t = values.map((_, i) => i / (values.length - 1));
+  return values[0] + values.slice(1).map((v, i) =>
+    ` + ${round(v - values[i], 3)} * ${ramp(U, round(t[i], 4), round(t[i + 1], 4))}`).join('');
 }
+const trajectory = (key) => channel(pour().filter((v) => v.ok).map((w) => w.j[key]));
+// The TOOL's two channels, over the same eight waypoints. The gripper opens to
+// meet the can, closes on it at waypoint 2 and stays closed; the tip is roll,
+// and it is NEGATIVE because ../gripper's roll under grip is a one-way
+// indexer — the motor never reverses to start rolling.
+const GRIP = [GD.travel, GD.travel, 0, 0, 0, 0, 0, 0];
+const ROLL = [0, 0, 0, 0, 0, 0, -120, -120];
 
 export function assembly(mode = 'inputs') {
   const demo = mode === 'demo';
@@ -642,6 +649,7 @@ export function write(out) {
   fs.writeFileSync(path.join(out, 'arm-pour.json'), JSON.stringify(assembly('demo'), null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'arm-wrist.json'), JSON.stringify(wrist(), null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'arm-robot.json'), JSON.stringify(robot(), null, 1) + '\n');
+  fs.writeFileSync(path.join(out, 'arm-robot-pour.json'), JSON.stringify(robot('demo'), null, 1) + '\n');
 }
 
 
@@ -652,9 +660,14 @@ export function write(out) {
 // the pitch shaft at 3:1 — which the platform already expresses as a `gear`
 // mate with a NEGATIVE tooth count, verified: za 20 / zb −60 gives +a/3, the
 // same direction, which is exactly what a belt does and a gear pair does not.
-export function wrist() {
+export function wrist(mode = 'inputs') {
+  const demo = mode === 'demo';
+  const J = (k) => (demo ? `jj${k}` : `j${k}`);
+  // every level carries the two channels itself, because a sub-assembly
+  // inherits no derived values from its parent
+  const DER = demo ? { jj4: trajectory(3), jj5: trajectory(4) } : {};
   const P = { j5x: D.j5x, beltY: D.beltY[1] };
-  const sub2 = (name, need, components) => ({ _: name, params: { ...P }, derived: {},
+  const sub2 = (name, need, components) => ({ _: name, params: { ...P }, derived: { ...DER },
     parts: Object.fromEntries(need.map((k) => [k, structuredClone(parts[k])])), components });
   const side = '(1 - 2 * (i - 2 * floor(i / 2)))';
   const pitchD = round((D.pulleyT * D.beltPitch) / Math.PI - 3, 3);
@@ -679,28 +692,28 @@ export function wrist() {
       c('fork-web', 'fork-web', [0, 0, 0]),
       { id: 'pitch-bush', part: 'pitch-bush', repeat: 2, at: [0, 0, 0],
         params: { y1: `${D.forkGap / 2 + D.forkCheek} * ${side} + ${D.forkCheek} * (1 - ${side}) / 2` } },
-      { id: 'pitch5', assembly: blade, at: [0, 0, 0], rotate: { axis: [0, 1, 0], deg: '-j5' } },
+      { id: 'pitch5', assembly: blade, at: [0, 0, 0], rotate: { axis: [0, 1, 0], deg: `-${J(5)}` } },
     ]);
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
-    name: 'arm-wrist',
+    name: demo ? 'arm-wrist-pour' : 'arm-wrist',
     _: `The arm's forearm-through-flange, isolated. J4 rolls about the forearm axis; J5 pitches the tool. ` +
       `Both are NEMA 17. J4's goes straight up the middle of a Ø${D.barrelD} barrel — Ø64 and not Ø54 because a 42.3 square has a 59.8 mm diagonal. ` +
       `J5's lies CROSSWISE inside the Ø${D.drumD} roll drum and drives the pitch shaft through a ${D.pinionT}T→${D.pulleyT}T GT2 belt. That is the whole trick: a NEMA stack bolted to a fork cheek sweeps Ø271 every time j4 turns, and this sweeps Ø${D.drumD}. ` +
       `The belt is also a REDUCTION stage, so J5 needs a single-stage 10:1 rather than a two-stage 30:1 — cheaper, not dearer, for 8.8 N·m at the pitch axis against 5.57 needed. ` +
       `No teeth are drawn: pulleys are cylinders at their pitch diameter, the counts are params, and the ratio is the mate. The belt itself IS drawn, as a band, because its envelope is a real clearance body.`,
-    inputs: {
+    ...(demo ? {} : { inputs: {
       j4: { min: -180, max: 180, steps: 5, unit: 'deg', default: 0, description: 'the roll drum, about the forearm axis' },
       j5: { min: D.lim.j5[0], max: D.lim.j5[1], steps: 5, unit: 'deg', default: 0, description: 'the tool pitch, about the wrist centre' },
-    },
-    params: P, derived: {},
+    } }),
+    params: P, derived: { ...DER },
     parts: Object.fromEntries(['forearm-barrel', 'nema17', 'planetary', 'roll-bearing'].map((k) => [k, structuredClone(parts[k])])),
     components: [
       c('forearm-barrel', 'forearm-barrel', [0, 0, 0]),
       c('j4-motor', 'nema17', [D.barrelX[0] + 5, 0, 0]),
       c('j4-gearbox', 'planetary', [D.barrelX[0] + 5 + D.nemaLen, 0, 0]),
       c('roll-bearing', 'roll-bearing', [0, 0, 0]),
-      { id: 'roll4', assembly: drum, at: [0, 0, 0], rotate: { axis: [1, 0, 0], deg: 'j4' } },
+      { id: 'roll4', assembly: drum, at: [0, 0, 0], rotate: { axis: [1, 0, 0], deg: J(4) } },
     ],
     fits: [
       { a: 'forearm-barrel', b: 'j4-motor', min: 5 }, { a: 'forearm-barrel', b: 'j4-gearbox', min: 5 },
@@ -744,52 +757,72 @@ const MATERIAL = {                                        // g/mm³, or a catalo
   catalogue: { motor: 390, bearing: 360, 'encoder-head': 10, nema17: 280, planetary: 190, 'roll-bearing': 260 },
 };
 
-function gripperModule() {
+// push the channels down into every nested scope a sub-assembly opens
+function inject(components, demo) {
+  if (!demo) return components;
+  for (const c of components) if (c.assembly) {
+    c.assembly.derived = { grip: channel(GRIP), roll: channel(ROLL), ...(c.assembly.derived || {}) };
+    inject(c.assembly.components || [], demo);
+  }
+  return components;
+}
+function gripperModule(demo = false) {
   const g = gAssembly('embedded');
   // Its FITS travel with it. They are the gripper's own statement of what
   // touches what by design, and without them every declared contact inside it
   // reads as an undeclared overlap the moment it is someone else's sub-assembly.
   return { _: 'the gripper — ../gripper v10, whole, with the adapter its own motor forces',
-    fits: structuredClone(g.fits), params: g.params, derived: g.derived,
+    fits: structuredClone(g.fits), params: g.params,
+    // A sub-assembly inherits no derived values, so in the pour document EVERY
+    // level of the gripper — including its own nested drivetrain — carries its
+    // own copy of the two channels the clock drives. This is the third time
+    // that rule has cost a debugging round; it is worth stating plainly:
+    // nothing flows down a scope boundary except inputs, params and the clock.
+    derived: demo ? { grip: channel(GRIP), roll: channel(ROLL), ...g.derived } : g.derived,
     parts: { ...Object.fromEntries(Object.entries(g.parts).map(([k, v]) => [k, structuredClone(v)])),
       'tool-adapter': structuredClone(parts['tool-adapter']) },
     components: [
       { id: 'tool-adapter', part: 'tool-adapter', at: [0, 0, 0], rotate: { axis: [1, 0, 0], deg: -90 } },
-      ...structuredClone(g.components),
+      ...inject(structuredClone(g.components), demo),
     ] };
 }
 
-export function robot() {
-  const w = wrist();                                       // the forearm-through-flange, already checked on its own
+export function robot(mode = 'inputs') {
+  const demo = mode === 'demo';
+  const a = assembly(demo ? 'demo' : 'inputs');
+  const G = 'shoulder/wrist/roll4/pitch5';               // where the tool flange lives
+  const g0 = gAssembly('embedded');
+  const w = wrist(demo ? 'demo' : 'inputs');                // the forearm-through-flange, already checked on its own
   const flangeFace = D.Lw + D.flangeT;
   // the gripper's +Y is its tool axis; Rz(−90) lays it onto the arm's +X, and
   // the adapter's back face (gripper y = adapterBack) lands on the arm flange.
-  const gripperOn = { id: 'gripper', assembly: gripperModule(),
+  const gripperOn = { id: 'gripper', assembly: gripperModule(demo),
     at: [flangeFace - D.adapterBack, 0, 0], rotate: { axis: [0, 0, 1], deg: -90 } };
   // drop the gripper into the wrist's j5 frame, where the flange already is
   const wristMod = structuredClone(w);
   const roll4 = wristMod.components.find((x) => x.id === 'roll4');
   roll4.assembly.components.find((x) => x.id === 'pitch5').assembly.components.push(gripperOn);
-  const shoulder = structuredClone(assembly()).components.find((x) => x.id === 'yaw');
+  const shoulder = structuredClone(a).components.find((x) => x.id === 'yaw');
   // swap the arm's own bare wrist for the real one
   const yawComps = shoulder.assembly.components.filter((x) => x.id !== 'wrist');
   yawComps.push({ id: 'wrist', assembly: { _: 'the wrist — ../arm/wrist, whole', params: wristMod.params,
     derived: wristMod.derived, parts: wristMod.parts, components: wristMod.components },
-    at: ['wx', 0, 'shZ + wz'], rotate: { axis: [0, 1, 0], deg: '-j3' } });
+    at: ['wx', 0, 'shZ + wz'], rotate: { axis: [0, 1, 0], deg: demo ? '-jj3' : '-j3' } });
   shoulder.assembly.components = yawComps;
 
-  const a = assembly();
-  const G = 'shoulder/wrist/roll4/pitch5';               // where the tool flange lives
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
-    name: 'arm-robot',
+    name: demo ? 'arm-robot-pour' : 'arm-robot',
     _: `The whole machine: a SHOULDER carrying a WRIST carrying a GRIPPER, each one a real sub-assembly. ` +
       `Seven axes — j1…j5 on the arm, grip and roll in the tool. ` +
       `The gripper arrives whole from ../gripper in its embedded mode, and it brings a finding with it: ISO 9409-1-50-4-M6 puts four M6 on a Ø50 circle, r 25, and the gripper's NEMA 17 sits on the back of its own web at ${GD.motor} square — half-diagonal ${round(GD.motor * Math.SQRT2 / 2, 1)}. The standard's bolt circle falls INSIDE the motor, so the two cannot be bolted face to face. The tool adapter is a cup that reaches back past the motor and picks up the web's r ${GD.housingTapR} circle instead: 54 mm of extra tool length and 360 g at the very tip, which is the worst place on the machine to spend either.`,
-    inputs: { ...a.inputs,
+    ...(demo ? { drive: { component: 'clock', rpm: D.rpm } } : { inputs: { ...a.inputs,
       grip: { min: 0, max: GD.travel, steps: 3, unit: 'mm', default: 0, description: 'the jaws, from closed — the gripper’s own axis' },
-      roll: { min: 0, max: 360, steps: 3, unit: 'deg', default: 0, description: 'the gripper’s rotor: this is what tips the can' } },
-    params: { ...a.params }, derived: { ...a.derived },
+      roll: { min: 0, max: 360, steps: 3, unit: 'deg', default: 0, description: 'the gripper’s rotor: this is what tips the can' } } }),
+    params: { ...a.params },
+    // In the pour document the tool's two channels ride the same clock as the
+    // five joints, so the whole machine performs the job in one turn of it.
+    derived: demo ? { ...a.derived, grip: channel(GRIP), roll: channel(ROLL) } : { ...a.derived },
     parts: a.parts,
     components: [...a.components.filter((x) => x.id !== 'yaw'), { ...shoulder, id: 'shoulder',
       assembly: { ...shoulder.assembly, _: 'the shoulder — pedestal, parallelogram and forearm' } }],
@@ -800,7 +833,7 @@ export function robot() {
       ...a.fits.filter((f) => !/wrist/.test(f.a + f.b)).map((f) => ({ ...f,
         a: f.a.replace(/^yaw\//, 'shoulder/'), b: f.b.replace(/^yaw\//, 'shoulder/') })),
       ...w.fits.map((f) => ({ ...f, a: `shoulder/wrist/${f.a}`, b: `shoulder/wrist/${f.b}` })),
-      ...gAssembly('embedded').fits.map((f) => ({ ...f, a: `${G}/gripper/${f.a}`, b: `${G}/gripper/${f.b}` })),
+      ...g0.fits.map((f) => ({ ...f, a: `${G}/gripper/${f.a}`, b: `${G}/gripper/${f.b}` })),
       { a: 'shoulder/forearm[*]', b: 'shoulder/wrist/forearm-barrel', contact: true },
       { a: `${G}/tool-flange`, b: `${G}/gripper/tool-adapter`, contact: true },
       { a: `${G}/gripper/tool-adapter`, b: `${G}/gripper/motor-web`, contact: true },
