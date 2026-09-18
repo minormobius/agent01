@@ -228,20 +228,21 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   // continuous. Same job — stop paying for noise — measured in exposure
   // rather than in confidence.
   const at = (score) => ({ exposure: { score, confidence: 0.7 }, have_figures: { noul: 0.95 } });
-  ok(decide(at(3.2), 0).action === 'hold', 'a target a hair off flat does not open a position');
-  ok(decide(at(4.5), 0).exposure === 1.5, 'a target well clear of it does');
-  ok(decide(at(4.6), 1.5).action === 'hold', 'and a small drift from an existing position is ignored');
-  ok(decide(at(3), 1.5).exposure === 0, 'but the flat rung always gets out, deadband or not');
+  const LG = { response: { deadZone: 0, floor: 0 } };
+  ok(decide(at(3.2), 0, LG).action === 'hold', 'a target a hair off flat does not open a position');
+  ok(decide(at(4.5), 0, LG).exposure === 1.5, 'a target well clear of it does');
+  ok(decide(at(4.6), 1.5, LG).action === 'hold', 'and a small drift from an existing position is ignored');
+  ok(decide(at(3), 1.5, LG).exposure === 0, 'but the flat rung always gets out, deadband or not');
   ok(GATE.deadband > 0, 'there is a deadband at all, which is what stops the resize dithering');
-  ok(decide(at(4.6), 1.5, { deadband: 0 }).exposure === 1.6,
+  ok(decide(at(4.6), 1.5, { ...LG, deadband: 0 }).exposure === 1.6,
     'and it is a parameter, not a constant');
-  ok(Number.isInteger(decide(at(4.6), 0).exposure * 100),
+  ok(Number.isInteger(decide(at(4.6), 0, LG).exposure * 100),
     'the target is rounded to 0.01x, so float dust cannot trip the deadband or litter the log');
 
   // A blocked-by-deadband decision is still reported as blocked, so the page
   // can show how often the harness is declining to act on a real read.
-  ok(decide(at(4.6), 1.5).blocked === true, 'a deadband hold is reported as blocked, not as a free hold');
-  ok(decide(at(4.5), 1.5).blocked === false, 'and an exact match is not');
+  ok(decide(at(4.6), 1.5, LG).blocked === true, 'a deadband hold is reported as blocked, not as a free hold');
+  ok(decide(at(4.5), 1.5, LG).blocked === false, 'and an exact match is not');
 }
 {
   const q = buildQuestions();
@@ -281,18 +282,52 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   ok(EXPOSURE_LEVELS.every((d, i) => i === 0 || d !== EXPOSURE_LEVELS[i - 1]), 'and no duplicates');
 
   // The ladder is discrete, the output is continuous: that is the whole
-  // reason `score` was chosen over `choice` here.
-  near(exposureFromScore(0), -3, 1e-9, 'level 0 is max short');
-  near(exposureFromScore(3), 0, 1e-9, 'the middle rung is flat');
-  near(exposureFromScore(6), 3, 1e-9, 'the top rung is max long');
-  near(exposureFromScore(1.28), -1.72, 1e-9, 'a fractional score interpolates — the continuum');
-  near(exposureFromScore(4.5), 1.5, 1e-9, 'and does so on the long side too');
+  // reason `score` was chosen over `choice` here. LIN is the original plain
+  // interpolation, kept as the control the response shape is measured against.
+  const LIN = { deadZone: 0, floor: 0 };
+  near(exposureFromScore(0, 3, LIN), -3, 1e-9, 'level 0 is max short');
+  near(exposureFromScore(3, 3, LIN), 0, 1e-9, 'the middle rung is flat');
+  near(exposureFromScore(6, 3, LIN), 3, 1e-9, 'the top rung is max long');
+  near(exposureFromScore(1.28, 3, LIN), -1.72, 1e-9, 'a fractional score interpolates — the continuum');
+  near(exposureFromScore(4.5, 3, LIN), 1.5, 1e-9, 'and does so on the long side too');
 
   // The type is what enforces the ceiling. Nothing off the end gets through.
-  near(exposureFromScore(99), 3, 1e-9, 'a score past the top of the ladder cannot exceed the cap');
-  near(exposureFromScore(-99), -3, 1e-9, 'nor past the bottom');
-  near(exposureFromScore(6, 1), 1, 1e-9, 'and a lower cap clamps the whole ladder');
+  near(exposureFromScore(99, 3, LIN), 3, 1e-9, 'a score past the top of the ladder cannot exceed the cap');
+  near(exposureFromScore(-99, 3, LIN), -3, 1e-9, 'nor past the bottom');
+  near(exposureFromScore(6, 1, LIN), 1, 1e-9, 'and a lower cap clamps the whole ladder');
+  near(exposureFromScore(99), 3, 1e-9, 'the cap holds under the commit response too');
   ok(exposureFromScore(NaN) === 0 && exposureFromScore(undefined) === 0, 'a missing score is flat, never a guess');
+
+  // The commit response: a dead zone, then never a position too small to pay
+  // for its own round trip.
+  const R = { deadZone: 0.25, floor: 0.6 };
+  // THE bug this shape was nearly shipped with: a dead zone that returns 0
+  // forces an exit, and exits are exempt from the deadband, so the setting
+  // meant to cut turnover doubles it. "No view" must mean "keep what you
+  // have", which is what null says.
+  ok(exposureFromScore(3, 3, R) === null, 'dead centre is NO VIEW, not a view that flat is right');
+  ok(exposureFromScore(3.6, 3, R) === null, 'and so is a weak view inside the dead zone');
+  ok(exposureFromScore(3, 3, LIN) === 0, 'while under the linear control the middle rung really is flat');
+  ok(exposureFromScore(4.0, 3, R) >= 3 * 0.6,
+    'the first position it DOES take is already past the floor, not a token size');
+  near(exposureFromScore(6, 3, R), 3, 1e-9, 'and a maximal view is still the full cap');
+  ok(exposureFromScore(2.0, 3, R) <= -3 * 0.6, 'symmetric on the short side');
+  ok(exposureFromScore(4.2, 3, R) < exposureFromScore(5.4, 3, R),
+    'past the dead zone it still grades rather than being a pure step');
+  ok(exposureFromScore(4.0, 3, R) > exposureFromScore(4.0, 3, LIN),
+    'and the same score commits harder than the linear mapping did — the point');
+}
+{
+  // and the caller must honour it: a dead-zone read keeps the position.
+  const R = { deadZone: 0.25, floor: 0.6 };
+  const at = (score) => ({ exposure: { score, confidence: 0.7 }, have_figures: { noul: 0.95 } });
+  const d = decide(at(3.4), 2.4, { response: R });
+  ok(d.exposure === 2.4 && d.action === 'hold', 'a dead-zone read holds the position it already had');
+  ok(/dead zone/.test(d.reason), 'and says so');
+  ok(d.blocked === false, 'this is a decision to hold, not a gate refusing to act');
+  ok(decide(at(3.4), 0, { response: R }).exposure === 0, 'from flat, a dead-zone read stays flat');
+  ok(decide(at(5.5), 2.4, { response: R, deadband: 0 }).exposure > 2.4,
+    'while a conviction outside the zone still moves it');
 }
 {
   ok(applyDeadband(-1.72, -1.7, 0.35) === -1.7, 'a target inside the deadband does not move the book');
@@ -363,11 +398,15 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
 {
   const A = (score, have = 0.9) => ({ exposure: { score, confidence: 0.7 },
     have_figures: { noul: have }, have_decidable: { noul: 0.24 }, regime: { choice: 'ranging' } });
-  near(decide(A(1.28), 0).exposure, -1.72, 1e-9, 'the ladder score becomes the target exposure');
-  ok(decide(A(1.28), 0).action === 'sell', 'and the mark reflects the direction of the change');
+  const LINGATE = { response: { deadZone: 0, floor: 0 } };
+  near(decide(A(1.28), 0, LINGATE).exposure, -1.72, 1e-9, 'the ladder score becomes the target exposure');
+  ok(decide(A(1.28), 0, LINGATE).action === 'sell', 'and the mark reflects the direction of the change');
   ok(decide(A(5), -1).action === 'buy', 'increasing exposure marks as a buy whichever side it starts');
-  ok(decide(A(3), -2).action === 'bail' && decide(A(3), -2).exposure === 0, 'the flat rung is a bail');
-  ok(decide(A(1.28), -1.7).action === 'hold', 'a target inside the deadband holds');
+  ok(decide(A(3), -2, LINGATE).action === 'bail' && decide(A(3), -2, LINGATE).exposure === 0,
+    'under the linear control the flat rung is a bail');
+  ok(decide(A(3), -2).action === 'hold' && decide(A(3), -2).exposure === -2,
+    'but with a dead zone the same score is no view, and the position stands');
+  ok(decide(A(1.28), -1.72, LINGATE).action === 'hold', 'a target inside the deadband holds');
 
   // The gate still outranks everything, exactly as it does without leverage.
   const g = decide(A(0, 0.11), 2);
@@ -613,6 +652,56 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   const b = newBook({ risk: { cap: 1 }, costs: { feeBps: 0, payHalfSpread: false } });
   step(b, { px: 100, action: 'buy', exposure: 1, oracleTargets: { r: 9 } });
   ok(b.oracles.r.pos === 1, 'a rule cannot exceed the cap either');
+}
+
+// ------------------------------------------- gross, drag, and doing nothing ---
+{
+  // The decomposition that found the problem. Gross is the SAME trades run
+  // free, so net-minus-gross is the drag exactly, not a fee times a turnover.
+  const b = newBook();
+  let px = 100;
+  for (let i = 0; i < 40; i++) { px *= 1 + (i % 2 ? 0.004 : -0.004);
+    step(b, { px, spreadBps: 2, action: 'buy', exposure: i % 2 ? 2 : -2 }); }
+  const s = summary(b);
+  ok(s.gross > s.jev, 'gross is above net, because the trades were free in the gross book');
+  near(s.drag, s.gross - s.jev, 1e-9, 'and the drag is exactly the difference');
+  ok(s.drag > 0.5, `flipping 2x every bar into a 2-sided spread costs real money (${s.drag.toFixed(2)}%)`);
+  ok(s.dragShareOfLoss > 0 && s.dragShareOfLoss < 100,
+    'here the gross loss dominates, so the fees are only part of it — the share says so');
+}
+{
+  // The case that actually happened on the tape, and the reason the tile
+  // exists: the timing was mildly POSITIVE and the fees alone made the run
+  // negative, so the drag is more than 100% of the loss.
+  const b = newBook({ costs: { feeBps: 8, payHalfSpread: false } });
+  let px = 100;
+  for (let i = 0; i < 30; i++) { px *= 1.0004;      // a gentle, genuine uptrend
+    step(b, { px, spreadBps: 0, action: 'buy', exposure: i % 2 ? 1 : 0.2 }); }
+  const s = summary(b);
+  ok(s.gross > 0, `the trades themselves made money (${s.gross.toFixed(2)}%)`);
+  ok(s.jev < 0, `and the run still finished down (${s.jev.toFixed(2)}%)`);
+  ok(s.dragShareOfLoss > 100,
+    `so the fees are MORE than the whole loss (${s.dragShareOfLoss.toFixed(0)}%) — which is what the tape showed`);
+}
+{
+  const b = newBook();
+  for (let i = 0; i < 10; i++) step(b, { px: 100 + i, spreadBps: 2, action: 'buy', exposure: 3 });
+  ok(summary(b).dragShareOfLoss === null,
+    'and on a WINNING run it declines to express the drag as a share of a loss that is not there');
+}
+{
+  // Doing nothing. When the gross edge is near zero, trading less always
+  // moves toward flat — so "closer to zero" needs the zero on the board to
+  // be readable as what it is.
+  const b = newBook();
+  let px = 77000;
+  for (let i = 0; i < 60; i++) { px *= 1 + Math.sin(i / 5) * 0.001;
+    step(b, { px, spreadBps: 2, action: 'buy', exposure: i % 3 - 1 }); }
+  near(pct(b.flat), 0, 1e-9, 'the do-nothing leg returns exactly zero, whatever the tape did');
+  ok(b.flat.fills === 0 && b.flat.costPaid === 0, 'having never traded and never paid');
+  const s = summary(b);
+  ok(s.ranking.some((x) => x[0] === 'do nothing'), 'and it is ranked alongside everything else');
+  ok(s.ranking.find((x) => x[0] === 'do nothing')[1] === 0, 'at exactly zero');
 }
 
 if (failures.length) {

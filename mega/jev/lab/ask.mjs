@@ -15,7 +15,7 @@
 //               returned 0.36-0.60 across the board, which is the honest
 //               answer and the reason this page does not ask.
 
-import { exposureFromScore, applyDeadband } from './book.mjs';
+import { exposureFromScore, applyDeadband, DEFAULT_RESPONSE } from './book.mjs';
 
 export const ENDPOINT = '/jev/api/ask';
 
@@ -130,6 +130,8 @@ export const GATE = {
   // The ceiling. The ladder is what makes this enforceable: Jev cannot
   // return a level off the end of the array, so it cannot ask for more.
   cap: 3,
+  // How the ladder score becomes a size. See DEFAULT_RESPONSE.
+  response: DEFAULT_RESPONSE,
 };
 
 /**
@@ -163,9 +165,17 @@ export function decide(answers, current, gate = GATE) {
       reason: `state insufficient (${have.toFixed(2)}) — escalate, do not act`, blocked: true };
   }
 
-  const raw = typeof sc?.score === 'number'
-    ? exposureFromScore(sc.score, g.cap)
+  const rawOrNull = typeof sc?.score === 'number'
+    ? exposureFromScore(sc.score, g.cap, g.response)
     : targetExposureFromStance(a.choice, current, g.cap);
+  // null is the dead zone saying "nothing new" — keep the position rather
+  // than paying to flatten it and paying again to get back on.
+  if (rawOrNull === null) {
+    return { ...base, exposure: current, action: 'hold',
+      reason: `ladder ${sc.score.toFixed(2)} is inside the dead zone — no new view, holding`,
+      blocked: false };
+  }
+  const raw = rawOrNull;
   const target = applyDeadband(raw, current, g.deadband);
   const moved = target !== current;
 

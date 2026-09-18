@@ -29,16 +29,43 @@ export const ACTIONS = ['buy', 'hold', 'sell', 'bail'];
 // not a choice here; score is both.
 export const LADDER = [-3, -2, -1, 0, 1, 2, 3];
 
-/** Ladder score (0 … LADDER.length-1) → signed leverage, clamped to cap. */
-export function exposureFromScore(score, cap = 3) {
+export const DEFAULT_RESPONSE = {
+  // Conviction inside this band of the middle rung is no view at all.
+  deadZone: 0.25,
+  // And once there IS a view, the smallest position allowed, as a fraction
+  // of the cap. This is NOT a fitted number: a round trip costs about 10bp
+  // of the size traded, so a 0.2x position needs a 50bp move just to pay for
+  // itself. Positions too small to cover their own round trip are a way of
+  // paying to be almost flat.
+  floor: 0.6,
+};
+
+/**
+ * Ladder score (0 … LADDER.length-1) → signed leverage, clamped to cap.
+ *
+ * With `deadZone: 0, floor: 0` this is the plain linear interpolation across
+ * the rungs, which is what shipped first and is kept as the control.
+ */
+export function exposureFromScore(score, cap = 3, response = {}) {
   if (!Number.isFinite(score)) return 0;
+  const { deadZone, floor } = { ...DEFAULT_RESPONSE, ...response };
+  const mid = (LADDER.length - 1) / 2;
   const i = Math.min(LADDER.length - 1, Math.max(0, score));
-  const lo = Math.floor(i), hi = Math.min(LADDER.length - 1, lo + 1);
-  const lerp = LADDER[lo] + (LADDER[hi] - LADDER[lo]) * (i - lo);
-  // Rounded to 0.01x — far below any granularity that means anything, and it
-  // keeps float dust (1.5999999999999996) out of the deadband comparison and
-  // out of the log.
-  return Math.round(Math.max(-cap, Math.min(cap, lerp)) * 100) / 100;
+  const u = (i - mid) / mid;                       // -1 … +1
+  const r2 = (x) => Math.round(Math.max(-cap, Math.min(cap, x)) * 100) / 100;
+  if (!deadZone && !floor) {
+    const lo = Math.floor(i), hi = Math.min(LADDER.length - 1, lo + 1);
+    return r2(LADDER[lo] + (LADDER[hi] - LADDER[lo]) * (i - lo));
+  }
+  // NO VIEW is not the same as a view that the right position is flat, and
+  // conflating them was a real bug: mapping the dead zone to 0 forced a full
+  // exit every time conviction dipped, and exits are exempt from the
+  // deadband, so the setting meant to cut turnover doubled it. `null` means
+  // "nothing new to say" and the caller keeps what it has. Genuinely wanting
+  // to be flat is the middle rung ARRIVED at from outside the zone, or bail.
+  if (Math.abs(u) < deadZone) return null;
+  const past = (Math.abs(u) - deadZone) / Math.max(1e-9, 1 - deadZone);
+  return r2(Math.sign(u) * cap * (floor + (1 - floor) * Math.min(1, past)));
 }
 
 /**
@@ -95,7 +122,11 @@ function mulberry(seed) {
 export function newBook({ seed = 1, costs = {}, risk = {} } = {}) {
   const c = { ...DEFAULT_COSTS, ...costs };
   const rk = { ...DEFAULT_RISK, ...risk };
-  const mk = () => ({ pos: 0, equity: 1, turnover: 0, fills: 0, costPaid: 0, peak: 1, maxDD: 0, liquidated: false });
+  // `gross` is the same leg's equity with every cost waived — the same
+  // trades at the same moments, free. net minus gross IS the drag, exactly,
+  // rather than inferred from a fee times a turnover.
+  const mk = () => ({ pos: 0, equity: 1, gross: 1, turnover: 0, fills: 0, costPaid: 0,
+    peak: 1, maxDD: 0, liquidated: false });
   return {
     costs: c,
     risk: rk,
@@ -106,6 +137,11 @@ export function newBook({ seed = 1, costs = {}, risk = {} } = {}) {
     jev: mk(),
     hold: mk(),
     rand: mk(),
+    // Doing nothing. The reference that any turnover-reducing change has to
+    // beat before it counts as an improvement: when the gross edge is near
+    // zero, trading less always moves toward flat, and "closer to zero" is
+    // not the same thing as "better".
+    flat: mk(),
     // One leg per deterministic rule, plus the two mechanical controls that
     // matter once Jev has SEEN the rules: following whichever is ahead on
     // past performance, and averaging what they all say. Beating the rules
@@ -132,6 +168,7 @@ function applyTo(leg, book, ret, want, spreadBps) {
   // Mark to market at the OLD position — you earn the move you were holding
   // through, not the one you are about to take.
   leg.equity *= 1 + leg.pos * ret;
+  leg.gross *= 1 + leg.pos * ret;
 
   // Ruin, modelled rather than assumed away. At 3x a 33% adverse move is the
   // whole account; the multiplier above can go negative, and an equity curve
@@ -197,6 +234,7 @@ export function step(book, { px, spreadBps = 0, action = null, exposure = null, 
   applyTo(book.jev, book, ret, wantJev, spreadBps);
   applyTo(book.rand, book, ret, wantRand, spreadBps);
   applyTo(book.hold, book, ret, wantHold, spreadBps);
+  applyTo(book.flat, book, ret, 0, spreadBps);
 
   // The rules trade on exactly the same ticks, at exactly the same costs, and
   // only on decision ticks — so they are not quietly given a finer clock
@@ -266,6 +304,11 @@ export function summary(book) {
     jev: pct(book.jev), hold: pct(book.hold), rand: pct(book.rand),
     edgeVsHold, edgeVsRand, edgeVsMajority, edgeVsBest,
     costPaid: book.jev.costPaid * 100,
+    // The decomposition that found the problem: the same trades run free.
+    gross: (book.jev.gross - 1) * 100,
+    drag: (book.jev.gross - book.jev.equity) * 100,
+    dragShareOfLoss: book.jev.equity < 1
+      ? (book.jev.gross - book.jev.equity) / (1 - book.jev.equity) * 100 : null,
     fills: book.jev.fills,
     position: book.jev.pos,
     // The counterweight to a leveraged return. A 3x curve that finishes up
@@ -283,7 +326,7 @@ export function summary(book) {
     // so a claim of an edge has to survive being put next to six rules.
     ranking: [
       ['jev', book.jev], ['best oracle', book.best], ['majority', book.majority],
-      ['buy & hold', book.hold], ['random', book.rand],
+      ['buy & hold', book.hold], ['random', book.rand], ['do nothing', book.flat],
       ...Object.entries(book.oracles),
     ].map(([id, leg]) => [id, pct(leg), leg.maxDD * 100, leg.fills])
       .sort((a, b) => b[1] - a[1]),

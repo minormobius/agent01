@@ -102,7 +102,8 @@ async function takeDecision() {
   try {
     const reply = await ask(doc, { questions: buildQuestions({ oracleCriteria: oracleCriteria(reads) }) });
     const d = decide(reply.answers, book.jev.pos, {
-      ...GATE, cap: Number($('cap').value) || 3, deadband: Number($('deadband').value) || 0 });
+      ...GATE, cap, deadband: Number($('deadband').value) || 0,
+      response: { deadZone: Number($('deadzone').value) || 0, floor: Number($('floor').value) || 0 } });
     lastDecision = { ...d, t: tapeNow, mid: lastMetrics.mid };
     // Equities as of BEFORE this bar, so the best-oracle control cannot see
     // the move it is about to trade.
@@ -150,7 +151,7 @@ $('resetBtn').addEventListener('click', () => {
   $('logBody').innerHTML = ''; $('ansRow').innerHTML = '<span class="why">no decision yet</span>';
   paintTiles(); paintBoard(); draw();
 });
-for (const id of ['cap', 'deadband']) $(id).addEventListener('change', () => trials(1));
+for (const id of ['cap', 'deadband', 'deadzone', 'floor']) $(id).addEventListener('change', () => trials(1));
 $('interval').addEventListener('change', () => {
   if (running) { clearInterval(timer); timer = setInterval(takeDecision, Number($('interval').value)); }
 });
@@ -178,6 +179,13 @@ function paintTiles(tick) {
   $('tCost').textContent = `cost paid ${fmt(book.jev.costPaid * 100)}%`;
   // The counterweight to a leveraged return, beside it rather than below it.
   const sDD = summary(book);
+  // The same trades run free. When this sits above the net number, the fees
+  // are the whole story and no amount of better timing is the fix.
+  $('tGross').textContent = signed(sDD.gross);
+  $('tGross').className = `v ${cls(sDD.gross)}`;
+  $('tDrag').textContent = sDD.dragShareOfLoss != null
+    ? `drag ${fmt(sDD.drag)}% — ${sDD.dragShareOfLoss.toFixed(0)}% of the loss`
+    : `drag ${fmt(sDD.drag)}%`;
   $('tDD').textContent = signed(-sDD.maxDD).replace('-0.00%', '0.00%');
   $('tDD').className = `v ${sDD.maxDD > 0 ? 'down' : ''}`;
   $('tDDref').textContent = `unlevered ref ${signed(-sDD.holdMaxDD)}`;
@@ -226,7 +234,7 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
 function paintBoard() {
   const s = summary(book);
   const names = { jev: 'Jev', 'best oracle': 'best rule so far', majority: 'average of the rules',
-    'buy & hold': 'buy & hold (1x)', random: 'random control' };
+    'buy & hold': 'buy & hold (1x)', random: 'random control', 'do nothing': 'do nothing (never trades)' };
   const nice = Object.fromEntries(ORACLES.map((o) => [o.id, o.name]));
   const rows = s.ranking.map(([id, v, dd, fills], i) => {
     const isJev = id === 'jev';

@@ -876,6 +876,74 @@ sixteen windows `have_decidable` moved 0.256 → 0.237 and `have_figures` 0.831
 distinction the whole surface is built around, and a useful warning against
 reading a richer state document as a better forecast.
 
+### The drag is the whole loss, and what that does and does not license
+
+The operator looked at a run and said the drag was mostly fees, the timing
+was not bad, and the fix was to hold far more and commit hard when it moved.
+The first half is confirmed exactly; the second half is confirmed as a
+*mechanism* and NOT as a set of numbers, and the difference matters.
+
+Every leg now carries a `gross` equity: the same trades, at the same moments,
+with every cost waived. `net - gross` is therefore the drag **measured**, not
+inferred from a fee times a turnover. On the first recorded run of 50
+decisions:
+
+```
+net -0.50%    gross +0.06%    drag 0.56%
+15 fills, 12.2x turned over  →  the fees were 111% of the loss
+```
+
+The timing was mildly *positive* and the fees alone made it negative. That
+decomposition is now a permanent tile.
+
+**Recording the decision stream once was the thing that made this cheap.**
+Jev's answers do not depend on how the book turns them into positions, so 50
+recorded answers replay against any harness variant offline: the model held
+fixed, only the harness varied, no further calls. Every parameter claim
+below came from that, and anyone repeating it should record a fresh stream
+rather than reuse this one.
+
+| harness setting | beats shipped | mean fills | mean drag |
+|---|---|---|---|
+| as shipped (deadband 0.35) | 0 / 5 | 8.8 | 0.36% |
+| deadband 0.8 | 4 / 5 | 4.2 | 0.26% |
+| deadband 1.5 | **5 / 5** | 2.2 | 0.21% |
+| dead zone 0.25, min size 0.75 | 3 / 5 | 1.6 | 0.26% |
+| dead zone 0.30, min size 1.00 | 4 / 5 | 1.4 | 0.25% |
+| dead zone 0.40, min size 1.00 | 4 / 5 | 1.4 | 0.25% |
+
+Five overlapping segments, so a setting has to win on parts of the tape it
+was not chosen on. Fewer fills → less drag is monotone and holds everywhere.
+The last two rows are *identical* because both saturate to the same
+behaviour: a plateau, which is what a mechanism looks like, as against the
+lone 5/5 cell surrounded by 2/5 neighbours that the first (buggy) version
+produced — that was a spike, and spikes are noise.
+
+**The defaults are argued from cost arithmetic, not fitted.** A round trip
+costs about 10bp of the size traded, so a 0.2x position needs a 50bp move
+just to pay for itself: a position too small to cover its own round trip is a
+way of paying to be almost flat. Hence a `deadZone` of conviction with no
+view at all, and a `floor` on size once there is one. Both are controls on
+the page, both count as trials when moved, and `{deadZone: 0, floor: 0}` is
+the original linear mapping kept as the control.
+
+**The bug that shipping this nearly introduced.** The dead zone first mapped
+to *flat*. But exits are exempt from the deadband — getting out is meant to
+stay cheap — so every dip in conviction forced a full exit and the next
+reading paid to get back on. The setting meant to cut turnover doubled it,
+and the first live run came back worse than before the change. **"No view"
+and "a view that flat is correct" are different things.** The dead zone now
+returns `null`, meaning keep the position you have; fills fell from 3.0 to
+1.4. Nothing in the unit tests caught this — the live render did.
+
+**And the trap underneath all of it.** Gross edge is about +0.06% over 50
+decisions, which is indistinguishable from zero. **When the edge is zero,
+trading less always looks better, because the limit of trading less is not
+trading — which returns exactly 0% and beats every negative on the board.**
+So `do nothing` is now a ranked leg. Any turnover-reducing change has to beat
+*it* before it is an improvement rather than a retreat, and on this tape none
+of them does.
+
 ### What stops it flattering itself
 
 Every one of these is a line that a dishonest version of this page omits, and

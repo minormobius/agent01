@@ -49,7 +49,9 @@
         <option value="1">1x</option><option value="2">2x</option>
         <option value="3" selected>3x</option><option value="5">5x</option>
       </select></label>
-    <label>deadband (x)<input id="deadband" type="number" value="0.35" step="0.05" min="0" max="3"></label>
+    <label>deadband (x)<input id="deadband" type="number" value="1.2" step="0.1" min="0" max="6"></label>
+    <label>dead zone<input id="deadzone" type="number" value="0.25" step="0.05" min="0" max="0.9"></label>
+    <label>min size (× cap)<input id="floor" type="number" value="0.6" step="0.05" min="0" max="1"></label>
     <button id="runBtn" type="button">start run</button>
     <button class="ghost" id="resetBtn" type="button">reset</button>
   </div>
@@ -57,7 +59,9 @@
   <div class="tiles">
     <div class="tile"><div class="k">BTC-PERP mid</div><div class="v" id="tMid">—</div><div class="m" id="tSpread">spread —</div></div>
     <div class="tile"><div class="k">exposure</div><div class="v" id="tPos">flat</div><div class="m" id="tFills">0 fills</div></div>
-    <div class="tile"><div class="k">jev</div><div class="v" id="tJev">—</div><div class="m" id="tCost">cost paid —</div></div>
+    <div class="tile"><div class="k">jev, net</div><div class="v" id="tJev">—</div><div class="m" id="tCost">cost paid —</div></div>
+    <div class="tile"><div class="k">jev, before fees</div><div class="v" id="tGross">—</div>
+      <div class="m" id="tDrag">drag —</div></div>
     <div class="tile"><div class="k">worst drawdown</div><div class="v" id="tDD">—</div><div class="m" id="tDDref">unlevered ref —</div></div>
     <div class="tile"><div class="k">buy &amp; hold</div><div class="v" id="tHold">—</div><div class="m">the curve people quote</div></div>
     <div class="tile"><div class="k">random control</div><div class="v" id="tRand">—</div><div class="m">same trade frequency</div></div>
@@ -126,6 +130,58 @@
         </tr></thead><tbody id="logBody"></tbody></table>
       </div>
     </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Where the money actually went</h2>
+    <p class="cap" style="margin-bottom:8px">The same trades, at the same moments, run once with fees and once
+      without. The difference is the drag — measured, not inferred from a fee times a turnover.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      On the first recorded run of 50 decisions the answer was stark: <b>net −0.50%, gross +0.06%, drag 0.56%</b>.
+      The timing was mildly <em>positive</em> and the fees alone made the run negative — <b>the drag was 111% of
+      the loss</b>. That is why the tile above shows both numbers, permanently.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The fix that follows is to hold far more often and, when it does move, to move properly. A round trip costs
+      roughly <b>10bp of the size traded</b>, so a 0.2× position needs a <b>50bp move just to pay for itself</b>.
+      Positions too small to cover their own round trip are a way of paying to be almost flat. Hence two controls
+      above: a <b>dead zone</b> of conviction inside which there is no view at all, and a <b>minimum size</b>
+      below which a position is not worth opening. Both default from that cost arithmetic, not from a fitted run.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Replaying the <b>identical</b> 50 recorded answers — the model held
+      fixed, only the harness varied — across five overlapping segments of the tape:</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>harness setting</th><th>beats the shipped one</th><th>mean fills</th><th>mean drag</th>
+      </tr></thead><tbody>
+        <tr><td>as shipped (deadband 0.35)</td><td>0 / 5</td><td>8.8</td><td>0.36%</td></tr>
+        <tr><td>deadband 0.8</td><td>4 / 5</td><td>4.2</td><td>0.26%</td></tr>
+        <tr><td>deadband 1.5</td><td><b>5 / 5</b></td><td>2.2</td><td>0.21%</td></tr>
+        <tr><td>dead zone 0.25, min size 0.75</td><td>3 / 5</td><td>1.6</td><td>0.26%</td></tr>
+        <tr><td>dead zone 0.30, min size 1.00</td><td>4 / 5</td><td>1.4</td><td>0.25%</td></tr>
+        <tr><td>dead zone 0.40, min size 1.00</td><td>4 / 5</td><td>1.4</td><td>0.25%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Fewer fills means less drag: 8.8 → 4.2 → 2.2 → 1.4, and 0.36% → 0.26% → 0.21% → 0.25%. That part is
+      monotone, mechanical, and holds on every segment. The last two rows now give <em>identical</em> results
+      because both saturate to the same behaviour — a plateau, which is what a mechanism looks like.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Building this found a real bug worth stating.</b> The dead zone first mapped to <em>flat</em>. But
+      exits are exempt from the deadband — getting out is meant to stay cheap — so every dip in conviction
+      forced a full exit and the next reading paid to get back on. The setting meant to cut turnover doubled
+      it, and the first live run came back <em>worse</em>. &ldquo;No view&rdquo; and &ldquo;a view that flat is
+      correct&rdquo; are different things: the dead zone now means <b>keep the position you have</b>, and
+      fills fell from 3.0 to 1.4.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      And there is a trap underneath all of it. <b>Gross edge here is about +0.06%, which is indistinguishable
+      from zero.</b> When the edge is zero, trading less always looks better, because the limit of trading less
+      is not trading — which returns exactly 0% and beats every negative on the board. That is why
+      <b>do nothing</b> is a ranked leg in the leaderboard below. Any change that reduces turnover has to beat
+      <em>it</em> before it counts as an improvement rather than a retreat.
+    </p>
   </div>
 
   <div class="card" style="margin-bottom:16px">
