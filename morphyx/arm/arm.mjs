@@ -746,8 +746,11 @@ const MATERIAL = {                                        // g/mm³, or a catalo
 
 function gripperModule() {
   const g = gAssembly('embedded');
+  // Its FITS travel with it. They are the gripper's own statement of what
+  // touches what by design, and without them every declared contact inside it
+  // reads as an undeclared overlap the moment it is someone else's sub-assembly.
   return { _: 'the gripper — ../gripper v10, whole, with the adapter its own motor forces',
-    params: g.params, derived: g.derived,
+    fits: structuredClone(g.fits), params: g.params, derived: g.derived,
     parts: { ...Object.fromEntries(Object.entries(g.parts).map(([k, v]) => [k, structuredClone(v)])),
       'tool-adapter': structuredClone(parts['tool-adapter']) },
     components: [
@@ -797,6 +800,7 @@ export function robot() {
       ...a.fits.filter((f) => !/wrist/.test(f.a + f.b)).map((f) => ({ ...f,
         a: f.a.replace(/^yaw\//, 'shoulder/'), b: f.b.replace(/^yaw\//, 'shoulder/') })),
       ...w.fits.map((f) => ({ ...f, a: `shoulder/wrist/${f.a}`, b: `shoulder/wrist/${f.b}` })),
+      ...gAssembly('embedded').fits.map((f) => ({ ...f, a: `${G}/gripper/${f.a}`, b: `${G}/gripper/${f.b}` })),
       { a: 'shoulder/forearm[*]', b: 'shoulder/wrist/forearm-barrel', contact: true },
       { a: `${G}/tool-flange`, b: `${G}/gripper/tool-adapter`, contact: true },
       { a: `${G}/gripper/tool-adapter`, b: `${G}/gripper/motor-web`, contact: true },

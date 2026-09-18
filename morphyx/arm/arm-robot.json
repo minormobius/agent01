@@ -2274,6 +2274,301 @@
                "id": "gripper",
                "assembly": {
                 "_": "the gripper — ../gripper v10, whole, with the adapter its own motor forces",
+                "fits": [
+                 {
+                  "a": "arm[*]",
+                  "b": "pillar[*]",
+                  "min": 0.05,
+                  "max": 0.2
+                 },
+                 {
+                  "a": "drivetrain/screw",
+                  "b": "nut",
+                  "min": 0.1,
+                  "max": 0.3
+                 },
+                 {
+                  "a": "rotor-plate",
+                  "b": "pillar[*]",
+                  "contact": true
+                 },
+                 {
+                  "a": "carriage",
+                  "b": "arm[*]",
+                  "min": 0.05,
+                  "max": 0.2
+                 },
+                 {
+                  "a": "nut",
+                  "b": "carriage",
+                  "min": 0.05,
+                  "max": 0.2
+                 },
+                 {
+                  "a": "rail",
+                  "b": "block[*]",
+                  "min": 0.3,
+                  "max": 0.7
+                 },
+                 {
+                  "a": "front-wall",
+                  "b": "link[*]",
+                  "min": 0.25,
+                  "max": 0.6
+                 },
+                 {
+                  "a": "carrier[0]",
+                  "b": "carrier[1]",
+                  "min": 0,
+                  "max": 40
+                 },
+                 {
+                  "a": "front-wall",
+                  "b": "drivetrain/screw",
+                  "contact": true
+                 },
+                 {
+                  "a": "rail",
+                  "b": "drivetrain/screw",
+                  "contact": true
+                 },
+                 {
+                  "a": "motor",
+                  "b": "drivetrain/screw",
+                  "contact": true
+                 },
+                 {
+                  "a": "carriage",
+                  "b": "carriage-back",
+                  "contact": true
+                 },
+                 {
+                  "a": "carriage-back",
+                  "b": "arm[*]",
+                  "contact": true
+                 },
+                 {
+                  "a": "nut",
+                  "b": "carriage-back",
+                  "contact": true
+                 },
+                 {
+                  "a": "arm[*]",
+                  "b": "arm-pin[*]",
+                  "contact": true
+                 },
+                 {
+                  "a": "carrier[*]",
+                  "b": "jaw-pin[*]",
+                  "contact": true
+                 },
+                 {
+                  "a": "carrier[*]",
+                  "b": "block[*]",
+                  "contact": true
+                 },
+                 {
+                  "a": "rail",
+                  "b": "pillar[*]",
+                  "contact": true
+                 },
+                 {
+                  "a": "front-wall",
+                  "b": "pillar[*]",
+                  "contact": true
+                 },
+                 {
+                  "a": "motor-web",
+                  "b": "motor",
+                  "contact": true
+                 },
+                 {
+                  "a": "front-wall",
+                  "b": "rail",
+                  "contact": true
+                 },
+                 {
+                  "a": "motor-web",
+                  "b": "bearing-housing",
+                  "contact": true
+                 },
+                 {
+                  "a": "bearing-housing",
+                  "b": "shroud",
+                  "contact": true
+                 },
+                 {
+                  "a": "bearing-housing",
+                  "b": "bearing",
+                  "contact": true
+                 },
+                 {
+                  "a": "bearing",
+                  "b": "rotor-plate",
+                  "contact": true
+                 },
+                 {
+                  "a": "motor-web",
+                  "b": "brake-spring",
+                  "contact": true
+                 },
+                 {
+                  "a": "brake-spring",
+                  "b": "brake-ring",
+                  "contact": true
+                 },
+                 {
+                  "a": "brake-ring",
+                  "b": "brake-hub",
+                  "contact": true
+                 },
+                 {
+                  "a": "brake-ring",
+                  "b": "brake-pin[*]",
+                  "min": 0.02,
+                  "max": 0.08
+                 },
+                 {
+                  "a": "motor-web",
+                  "b": "brake-pin[*]",
+                  "min": 0.02,
+                  "max": 0.08
+                 },
+                 {
+                  "a": "brake-spring",
+                  "b": "brake-pin[*]",
+                  "min": 0.3
+                 },
+                 {
+                  "a": "brake-hub",
+                  "b": "rotor-plate",
+                  "contact": true
+                 },
+                 {
+                  "a": "bearing",
+                  "b": "brake-hub",
+                  "min": 0.8,
+                  "max": 1.2
+                 },
+                 {
+                  "a": "encoder-ring",
+                  "b": "rotor-plate",
+                  "contact": true
+                 },
+                 {
+                  "a": "encoder-head",
+                  "b": "encoder-ring",
+                  "min": 0.8,
+                  "max": 1.2
+                 },
+                 {
+                  "a": "encoder-head",
+                  "b": "bearing-housing",
+                  "contact": true
+                 },
+                 {
+                  "a": "link[k]",
+                  "b": "bush[2*k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.01,
+                  "max": 0.04
+                 },
+                 {
+                  "a": "link[k]",
+                  "b": "bush[2*k + 1]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.01,
+                  "max": 0.04
+                 },
+                 {
+                  "a": "arm-pin[k - 2 * floor(k / 2)]",
+                  "b": "bush[2*k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.02,
+                  "max": 0.1
+                 },
+                 {
+                  "a": "jaw-pin[k - 2 * floor(k / 2)]",
+                  "b": "bush[2*k + 1]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.02,
+                  "max": 0.1
+                 },
+                 {
+                  "a": "arm-pin[k - 2 * floor(k / 2)]",
+                  "b": "link[k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.9,
+                  "max": 1.1
+                 },
+                 {
+                  "a": "jaw-pin[k - 2 * floor(k / 2)]",
+                  "b": "link[k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.9,
+                  "max": 1.1
+                 },
+                 {
+                  "a": "arm[k - 2 * floor(k / 2)]",
+                  "b": "link[k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "contact": true
+                 },
+                 {
+                  "a": "carrier[k - 2 * floor(k / 2)]",
+                  "b": "link[k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "contact": true
+                 },
+                 {
+                  "a": "arm[k - 2 * floor(k / 2)]",
+                  "b": "bush[2*k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "contact": true
+                 },
+                 {
+                  "a": "carrier[k - 2 * floor(k / 2)]",
+                  "b": "bush[2*k + 1]",
+                  "over": {
+                   "k": 4
+                  },
+                  "contact": true
+                 },
+                 {
+                  "a": "arm[1 - (k - 2 * floor(k / 2))]",
+                  "b": "link[k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.4
+                 },
+                 {
+                  "a": "carrier[1 - (k - 2 * floor(k / 2))]",
+                  "b": "link[k]",
+                  "over": {
+                   "k": 4
+                  },
+                  "min": 0.4
+                 }
+                ],
                 "params": {
                  "xp0": 5.5,
                  "L": 40,
@@ -4970,6 +5265,299 @@
    "a": "shoulder/wrist/roll4/j5-pinion",
    "b": "shoulder/wrist/roll4/j5-gearbox",
    "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/arm[*]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/pillar[*]",
+   "min": 0.05,
+   "max": 0.2
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/drivetrain/screw",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/nut",
+   "min": 0.1,
+   "max": 0.3
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/rotor-plate",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/pillar[*]",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carriage",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/arm[*]",
+   "min": 0.05,
+   "max": 0.2
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/nut",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/carriage",
+   "min": 0.05,
+   "max": 0.2
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/rail",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/block[*]",
+   "min": 0.3,
+   "max": 0.7
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/front-wall",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/link[*]",
+   "min": 0.25,
+   "max": 0.6
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carrier[0]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/carrier[1]",
+   "min": 0,
+   "max": 40
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/front-wall",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/drivetrain/screw",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/rail",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/drivetrain/screw",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/motor",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/drivetrain/screw",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carriage",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/carriage-back",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carriage-back",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/arm[*]",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/nut",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/carriage-back",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/arm[*]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/arm-pin[*]",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carrier[*]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/jaw-pin[*]",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carrier[*]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/block[*]",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/rail",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/pillar[*]",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/front-wall",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/pillar[*]",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/motor-web",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/motor",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/front-wall",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/rail",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/motor-web",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bearing-housing",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/bearing-housing",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/shroud",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/bearing-housing",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bearing",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/bearing",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/rotor-plate",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/motor-web",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/brake-spring",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/brake-spring",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/brake-ring",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/brake-ring",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/brake-hub",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/brake-ring",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/brake-pin[*]",
+   "min": 0.02,
+   "max": 0.08
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/motor-web",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/brake-pin[*]",
+   "min": 0.02,
+   "max": 0.08
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/brake-spring",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/brake-pin[*]",
+   "min": 0.3
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/brake-hub",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/rotor-plate",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/bearing",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/brake-hub",
+   "min": 0.8,
+   "max": 1.2
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/encoder-ring",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/rotor-plate",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/encoder-head",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/encoder-ring",
+   "min": 0.8,
+   "max": 1.2
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/encoder-head",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bearing-housing",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bush[2*k]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.01,
+   "max": 0.04
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bush[2*k + 1]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.01,
+   "max": 0.04
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/arm-pin[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bush[2*k]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.02,
+   "max": 0.1
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/jaw-pin[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bush[2*k + 1]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.02,
+   "max": 0.1
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/arm-pin[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.9,
+   "max": 1.1
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/jaw-pin[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.9,
+   "max": 1.1
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/arm[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "over": {
+    "k": 4
+   },
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carrier[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "over": {
+    "k": 4
+   },
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/arm[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bush[2*k]",
+   "over": {
+    "k": 4
+   },
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carrier[k - 2 * floor(k / 2)]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/bush[2*k + 1]",
+   "over": {
+    "k": 4
+   },
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/arm[1 - (k - 2 * floor(k / 2))]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.4
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/carrier[1 - (k - 2 * floor(k / 2))]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/link[k]",
+   "over": {
+    "k": 4
+   },
+   "min": 0.4
   },
   {
    "a": "shoulder/forearm[*]",

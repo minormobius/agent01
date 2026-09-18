@@ -124,9 +124,21 @@ jobs:
             [ -f "/tmp/arm/reports/$n.json" ] || node agent/build.mjs "$f" --json "/tmp/arm/reports/$n.json"
           done
 
+      # Gated on `volume > limit` off --json, not on the exit code: a pair the
+      # design declares `contact: true` always trips the exit code, and the
+      # gripper brings 40-odd declared touches in with it. `limit` is the
+      # platform's own budget, so this is stricter than the exit code, not looser.
       - name: The whole machine — shoulder + wrist + gripper, 7 axes at their corners
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/arm/arm-robot.json --grid 2
+        run: |
+          node agent/check.mjs /tmp/arm/arm-robot.json --grid 2 --json > /tmp/robot.json || true
+          [ -s /tmp/robot.json ] || { echo "::error::check.mjs wrote no JSON — it failed before measuring"; exit 1; }
+          node -e '
+            const o = JSON.parse(require("fs").readFileSync("/tmp/robot.json"));
+            const over = o.pairs.filter((p) => p.volume > p.limit);
+            for (const p of over) console.log(`✗ ${p.a} × ${p.b}  ${p.volume.toFixed(3)} mm³ (budget ${p.limit.toFixed(3)})`);
+            console.log(`${o.grid} states over [${o.inputs}] · ${o.pairs.length} touching pairs, ${over.length} over budget`);
+            process.exit(over.length ? 1 : 0);'
 
       - name: Indented bill of materials
         run: node morphyx/arm/arm.mjs --bom --reports /tmp/arm/reports
