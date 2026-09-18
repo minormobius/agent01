@@ -25,6 +25,7 @@
 // failure direction. The 20% residual is held by the gearbox, not the motor.
 import fs from 'node:fs';
 import path from 'node:path';
+import { parts as gParts, assembly as gAssembly, D as GD } from '../gripper/gripper.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -63,17 +64,20 @@ export const D = {
   baseD: 182, baseT: 12, baseBolt: 8.4, baseBoltR: 72, baseBoltN: 4,
   colD: 84, colBore: 60, colZ: [12, 240],
   turretD: 92, turretT: 14, turretBore: 40,
-  cheekT: 12, cheekH: 80, cheekL: 110, cheekY: 68,   // the shoulder cheeks: 56…68, clear of the rods
+  cheekT: 12, cheekH: 80, cheekL: 110, cheekY: 74,   // the shoulder cheeks: 56…68, clear of the rods
   jL: 80, jLlen: 70,                          // large joint module: Ø80 × 70
   jS: 50, jSlen: 45,                          // small joint module
   linkW: 60, linkT: 20,                       // upper arm and forearm section
   // The Y stack-up, outward from the centre plane. The forearm STRADDLES the
   // upper arm: two bars pinned on a common pivot cannot share a plane, and a
   // clevis is the only thing that makes an elbow assemblable.
-  foreT: 14, foreY: 26,                       // forearm, two plates: 12…26
+  foreT: 14, foreY: 26, foreA: 20,            // the forearm plates are only the ELBOW CLEVIS now:
+                                              // the wrist module is 268 mm long against an L2 of 250,
+                                              // so the Ø64 barrel IS the forearm and the plates just
+                                              // carry the elbow bore and hand off to it.
   crankW: 44, crankT: 12, crankY: 40,         // the J3 cranks: 28…40
-  ecW: 22, ecT: 14, ecY: 40,                  // the elbow cranks, bolted to the forearm's outer face: 26…40
-  rodW: 22, rodT: 10, rodY: 52,               // the push rods: 42…52
+  ecW: 22, ecT: 14, ecY: 48,                  // the elbow cranks, bolted to the forearm's outer face: 26…40
+  rodW: 22, rodT: 10, rodY: 60,               // the push rods: 42…52
   // ── the J5 wrist, as a real clevis ──────────────────────────────────────
   // A fork on the J4 roll tube, a blade between its cheeks, a shaft through
   // both. The numbers come out of the SWEEP, not out of taste: every point of
@@ -98,12 +102,20 @@ export const D = {
   j5x: -85,                                   // the J5 motor's axis, on the forearm centre line
   pinionT: 20, pulleyT: 60, beltPitch: 2, beltW: 9, beltThk: 1.4,   // GT2, 3:1
   beltY: [43, 51],                            // the belt plane, outboard of the +Y cheek
-  rollD: 54, rollBore: 34,
   flangeD: 63, flangeT: 8, flangePcd: 50, flangeBolt: 6.6, flangeBoltN: 4,
 
   // joint limits, degrees. j2's ceiling is what keeps CW1 off the bench; j5's
   // range is what a level tool needs when reaching down to it (87° at r 500).
   lim: { j1: [-170, 170], j2: [-30, 60], j3: [-95, 50], j4: [-180, 180], j5: [-100, 100] },
+  // ── the tool adapter, which the gripper's own layout forces on us ───────
+  // ISO 9409-1-50-4-M6 puts four M6 on a Ø50 circle, r 25. The gripper's NEMA
+  // 17 sits on the BACK of its motor web, 42.3 square — half-diagonal 29.9. So
+  // the flange's bolts land INSIDE the motor and the two cannot be bolted face
+  // to face. The adapter is a cup that reaches back past the motor's end and
+  // bolts to the web's OUTER circle instead, at r 48.5 where the housing taps
+  // already are. It costs 54 mm of tool length and ~360 g at the very tip.
+  adapterBack: -32, adapterBore: 64, adapterOD: 104, adapterWall: 76,
+  adapterBase: 6, adapterRim: 6, adapterPilot: 31.5,
   rpm: 3,                                     // the pour demo's clock
 };
 
@@ -285,8 +297,13 @@ export function audit() {
   ok('the parallelogram closes', D.crank > 0 && D.crank < D.L1 / 2, `crank ${D.crank} on a ${D.L1} upper arm`);
   ok('the counterweights cannot occupy the same place when j2 = j3',
     Math.abs(D.cwR1 - D.cwR2) > (D.cwD + D.cw2D) / 2, `CW1 at r ${D.cwR1}, CW2 at r ${D.cwR2}, ${round(Math.abs(D.cwR1 - D.cwR2) - (D.cwD + D.cw2D) / 2)} mm apart at worst`);
+  ok('the elbow cranks clear the forearm barrel', D.ecY - D.ecT > D.barrelD / 2 + 1,
+    `elbow cranks ${D.ecY - D.ecT}\u2026${D.ecY} against a \u00d8${D.barrelD} barrel reaching \u00b1${D.barrelD / 2}`);
+  ok('the forearm plates hand off to the barrel rather than running through it',
+    D.foreA + D.linkW / 2 <= D.L2 + D.barrelX[0] + 1,
+    `plates end at ${D.foreA + D.linkW / 2} from the elbow, barrel starts at ${D.L2 + D.barrelX[0]}`);
   ok('nothing in the parallelogram fouls anything else in Y',
-    D.foreY - D.foreT > D.linkT / 2 && D.crankY - D.crankT > D.foreY && D.rodY - D.rodT > D.crankY && D.cheekY - D.cheekT > D.rodY,
+    D.foreY - D.foreT > D.linkT / 2 && D.crankY - D.crankT > D.foreY && D.rodY - D.rodT > D.ecY && D.cheekY - D.cheekT > D.rodY,
     `arm ±${D.linkT / 2} | forearm ${D.foreY - D.foreT}…${D.foreY} | crank ${D.crankY - D.crankT}…${D.crankY} | rod ${D.rodY - D.rodT}…${D.rodY} | cheek ${D.cheekY - D.cheekT}…${D.cheekY}`);
   // 6. the motors, after the counterweights
   const worst = Math.max(...[-30, 0, 30, 60].map((x) => Math.abs(torques(x, x).j2)));
@@ -352,7 +369,7 @@ export const parts = {
   'elbow-crank': bar('ec', `Elbow crank, two off, ${D.crank} mm — the parallelogram's fourth bar, rigid with the forearm and reaching from its side face out under the push rod. One extrude along -Y.`,
     D.crank, 18, D.ecW, D.ecT, D.ecY, D.bore),
   forearm: bar('fore', `Forearm, elbow to the J4 roll section, ${D.L2 - D.j4Len - D.linkW / 2} mm of a ${D.L2} mm reach. It carries no actuator: j3 arrives through the elbow crank from the shoulder. One extrude along -Y.`,
-    D.L2 - D.j4Len - D.forkBack - D.linkW / 2, 30, D.linkW, D.foreT, D.foreY, D.bore),
+    D.foreA, 30, D.linkW, D.foreT, D.foreY, D.bore),
   counterweight: xz('cw', `Counterweight: a plain steel cylinder Ø${D.cwD} on a link's rear extension. CW1 is ${round(D.cw1, 2)} kg (× ${D.cw1Len} long) on the upper arm and CW2 ${round(D.cw2, 2)} kg (× ${D.cw2Len}) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.`,
     { d: D.cwD, t: D.cw1Len, y1: 't / 2', d_bore: D.pin + 0.2 },
     [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')]),
@@ -426,10 +443,6 @@ export const parts = {
   // Drawn in the XY plane and extruded along Z, then bored along Y, which is
   // the only way to get two cheeks SEPARATED IN Y out of one sweep — the same
   // trick ../gripper's arm uses for its perpendicular bores.
-  'roll-tube': tree(`J4 roll tube: \u00d8${D.rollD} over \u00d8${D.rollBore}, ${D.j4Len} long on the forearm's own axis, ending at the fork's back face. This is what j4 turns. One extrude along +X.`,
-    { d: D.rollD, d_bore: D.rollBore, t: D.j4Len, x0: -(D.forkBack + D.j4Len) },
-    [{ op: 'sketch', id: 'face', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2'), circle('bore', [0, 0], 'd_bore / 2')] },
-      { op: 'extrude', id: 'rt', profile: 'face', depth: 't' }]),
   // A single U-shaped fork will not build: the pitch bore enters and leaves the
   // solid TWICE, once per cheek, and Truck refuses that boolean. So the fork is
   // two cheeks and a web, which is how you would fabricate it anyway — two
@@ -459,6 +472,15 @@ export const parts = {
       { op: 'sketch', id: 'bolt', plane: { base: 'YZ', offset: 'x0' }, loops: [circle(null, ['pcd / 2', 0], 'd_bolt / 2')] },
       { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: D.flangeBoltN, name: 'bolt' },
       { op: 'extrude', id: 'fl', profile: ['face', 'bolts'], depth: 't' }]),
+
+  'tool-adapter': tree(`Tool adapter: the cup that bolts ISO 9409-1-50-4-M6 on the arm to the gripper's \u00d8${GD.OD} web on its r ${GD.housingTapR} circle, reaching back past the motor's end because the standard's own bolt circle (r 25) falls inside a ${GD.motor} square motor (half-diagonal ${round(GD.motor * Math.SQRT2 / 2, 1)}). The two CANNOT be bolted face to face; this part is what that costs. One revolve about the tool axis.`,
+    { pilot: D.adapterPilot, od: D.adapterOD, bore: D.adapterBore, wall: D.adapterWall,
+      y0: D.adapterBack, y1: D.adapterBack + D.adapterBase, y2: GD.webY[0] - D.adapterRim, y3: GD.webY[0] },
+    [{ op: 'sketch', id: 'section', plane: 'XZ', loops: [{ name: 'cup', polygon: [
+        ['pilot / 2', 'y0'], ['od / 2', 'y0'], ['od / 2', 'y1'], ['wall / 2', 'y1'],
+        ['wall / 2', 'y2'], ['od / 2', 'y2'], ['od / 2', 'y3'], ['bore / 2', 'y3'],
+        ['bore / 2', 'y1'], ['pilot / 2', 'y1']] }] },
+      { op: 'revolve', id: 'adapter', profile: 'section', axis: { p: [0, 0], d: [0, 1] } }]),
 
   // ── reference only: what the task is ──────────────────────────────────────
   can: xy('can', `A 330 ml can, Ø${D.canD} × ${D.canH}. Reference geometry — it is the task, not the machine.`,
@@ -619,16 +641,9 @@ export function write(out) {
   fs.writeFileSync(path.join(out, 'arm.json'), JSON.stringify(assembly(), null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'arm-pour.json'), JSON.stringify(assembly('demo'), null, 1) + '\n');
   fs.writeFileSync(path.join(out, 'arm-wrist.json'), JSON.stringify(wrist(), null, 1) + '\n');
+  fs.writeFileSync(path.join(out, 'arm-robot.json'), JSON.stringify(robot(), null, 1) + '\n');
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
-  console.table(loadTable());
-  console.table(pour().map((v) => ({ step: v.name, P: v.P.join(','), j: v.ok ? v.j.map((x) => round(x, 1)).join(' ') : 'UNREACHABLE' })));
-  write(opt('--out', path.dirname(new URL(import.meta.url).pathname)));
-  const a = audit(); for (const x of a) console.log(`${x.ok ? '✓' : '✗'} ${x.name}  ${x.detail}`);
-  console.log(`\nreach ${D.L1 + D.L2 + D.Lw} mm + ${D.toolLen} of tool; shoulder at z ${D.shZ}; counterweights ${round(D.cw1, 2)} + ${round(D.cw2, 2)} = ${round(D.cw1 + D.cw2, 2)} kg of steel at r ${D.cwR1} / ${D.cwR2}`);
-  if (a.some((x) => !x.ok)) process.exit(1);
-}
 
 // ── the forearm-through-flange, on its own ───────────────────────────────────
 // Isolated so it can be built and checked without the rest of the arm in the
@@ -707,4 +722,146 @@ export function wrist() {
       { a: 'roll4/j5-pinion', b: 'roll4/j5-gearbox', contact: true },
     ],
   };
+}
+
+// ── the whole machine, as assemblies of assemblies ───────────────────────────
+// Three modules in a chain, because that is what the machine is: a SHOULDER
+// carries a WRIST carries a GRIPPER. The kinematic nesting lives inside each —
+// one level per joint, since a single `rotate` cannot compose — but the module
+// boundaries are the ones a person cares about and the ones the BOM indents by.
+// The gripper comes in whole, from ../gripper, in its `embedded` mode: placed
+// by expression with no mates (a sub-assembly cannot be mated) and with grip
+// and roll left free for this document's inputs to supply.
+const MATERIAL = {                                        // g/mm³, or a catalogue mass in g
+  _default: 2.70e-3,
+  steel: 7.85e-3, brass: 8.50e-3, poly: 1.27e-3,
+  byPart: {
+    pin: 'steel', pillar: 'steel', rail: 'steel', block: 'steel', screw: 'steel',
+    'brake-hub': 'steel', 'brake-ring': 'steel', 'brake-spring': 'steel', 'encoder-ring': 'steel',
+    nut: 'brass', bushing: 'poly', shroud: 'poly',
+    counterweight: 'steel', 'pitch-shaft': 'steel', 'pitch-bush': 'brass', belt: 'poly',
+  },
+  catalogue: { motor: 390, bearing: 360, 'encoder-head': 10, nema17: 280, planetary: 190, 'roll-bearing': 260 },
+};
+
+function gripperModule() {
+  const g = gAssembly('embedded');
+  return { _: 'the gripper — ../gripper v10, whole, with the adapter its own motor forces',
+    params: g.params, derived: g.derived,
+    parts: { ...Object.fromEntries(Object.entries(g.parts).map(([k, v]) => [k, structuredClone(v)])),
+      'tool-adapter': structuredClone(parts['tool-adapter']) },
+    components: [
+      { id: 'tool-adapter', part: 'tool-adapter', at: [0, 0, 0], rotate: { axis: [1, 0, 0], deg: -90 } },
+      ...structuredClone(g.components),
+    ] };
+}
+
+export function robot() {
+  const w = wrist();                                       // the forearm-through-flange, already checked on its own
+  const flangeFace = D.Lw + D.flangeT;
+  // the gripper's +Y is its tool axis; Rz(−90) lays it onto the arm's +X, and
+  // the adapter's back face (gripper y = adapterBack) lands on the arm flange.
+  const gripperOn = { id: 'gripper', assembly: gripperModule(),
+    at: [flangeFace - D.adapterBack, 0, 0], rotate: { axis: [0, 0, 1], deg: -90 } };
+  // drop the gripper into the wrist's j5 frame, where the flange already is
+  const wristMod = structuredClone(w);
+  const roll4 = wristMod.components.find((x) => x.id === 'roll4');
+  roll4.assembly.components.find((x) => x.id === 'pitch5').assembly.components.push(gripperOn);
+  const shoulder = structuredClone(assembly()).components.find((x) => x.id === 'yaw');
+  // swap the arm's own bare wrist for the real one
+  const yawComps = shoulder.assembly.components.filter((x) => x.id !== 'wrist');
+  yawComps.push({ id: 'wrist', assembly: { _: 'the wrist — ../arm/wrist, whole', params: wristMod.params,
+    derived: wristMod.derived, parts: wristMod.parts, components: wristMod.components },
+    at: ['wx', 0, 'shZ + wz'], rotate: { axis: [0, 1, 0], deg: '-j3' } });
+  shoulder.assembly.components = yawComps;
+
+  const a = assembly();
+  const G = 'shoulder/wrist/roll4/pitch5';               // where the tool flange lives
+  return {
+    $schema: 'com.minomobi.cad.assembly#v1',
+    name: 'arm-robot',
+    _: `The whole machine: a SHOULDER carrying a WRIST carrying a GRIPPER, each one a real sub-assembly. ` +
+      `Seven axes — j1…j5 on the arm, grip and roll in the tool. ` +
+      `The gripper arrives whole from ../gripper in its embedded mode, and it brings a finding with it: ISO 9409-1-50-4-M6 puts four M6 on a Ø50 circle, r 25, and the gripper's NEMA 17 sits on the back of its own web at ${GD.motor} square — half-diagonal ${round(GD.motor * Math.SQRT2 / 2, 1)}. The standard's bolt circle falls INSIDE the motor, so the two cannot be bolted face to face. The tool adapter is a cup that reaches back past the motor and picks up the web's r ${GD.housingTapR} circle instead: 54 mm of extra tool length and 360 g at the very tip, which is the worst place on the machine to spend either.`,
+    inputs: { ...a.inputs,
+      grip: { min: 0, max: GD.travel, steps: 3, unit: 'mm', default: 0, description: 'the jaws, from closed — the gripper’s own axis' },
+      roll: { min: 0, max: 360, steps: 3, unit: 'deg', default: 0, description: 'the gripper’s rotor: this is what tips the can' } },
+    params: { ...a.params }, derived: { ...a.derived },
+    parts: a.parts,
+    components: [...a.components.filter((x) => x.id !== 'yaw'), { ...shoulder, id: 'shoulder',
+      assembly: { ...shoulder.assembly, _: 'the shoulder — pedestal, parallelogram and forearm' } }],
+    // Fits compose too: the arm's own, re-rooted from `yaw/` to `shoulder/` and
+    // stripped of the ones that named the bare clevis; the wrist module's own,
+    // re-rooted under `shoulder/wrist/`; and the two that join the modules.
+    fits: [
+      ...a.fits.filter((f) => !/wrist/.test(f.a + f.b)).map((f) => ({ ...f,
+        a: f.a.replace(/^yaw\//, 'shoulder/'), b: f.b.replace(/^yaw\//, 'shoulder/') })),
+      ...w.fits.map((f) => ({ ...f, a: `shoulder/wrist/${f.a}`, b: `shoulder/wrist/${f.b}` })),
+      { a: 'shoulder/forearm[*]', b: 'shoulder/wrist/forearm-barrel', contact: true },
+      { a: `${G}/tool-flange`, b: `${G}/gripper/tool-adapter`, contact: true },
+      { a: `${G}/gripper/tool-adapter`, b: `${G}/gripper/motor-web`, contact: true },
+      { a: `${G}/gripper/tool-adapter`, b: `${G}/gripper/motor`, min: 2 },
+    ],
+  };
+}
+
+// ── the indented BOM ─────────────────────────────────────────────────────────
+// Walks the hierarchy the document actually has and rolls quantities up. A
+// `repeat` counts as its quantity; a sub-assembly indents. Mass is per the
+// MATERIAL table — catalogue masses where the part is bought, density × the
+// part's own closed-form volume where it is made.
+export function bom(doc = robot(), reports = null) {
+  const vol = (name) => {
+    if (reports) { try { return JSON.parse(fs.readFileSync(path.join(reports, `${name}.json`))).invariants.volume; } catch { /* fall through */ } }
+    return null;
+  };
+  const massOf = (part) => {
+    if (part in MATERIAL.catalogue) return MATERIAL.catalogue[part];
+    const v = vol(part); if (v == null) return null;
+    const m = MATERIAL.byPart[part];
+    return v * (m ? MATERIAL[m] : MATERIAL._default);
+  };
+  const rows = [], leaves = new Map();
+  const walk = (node, depth, qty) => {
+    for (const c of node.components || []) {
+      const n = c.repeat || 1;
+      if (c.assembly) {
+        rows.push({ depth, kind: 'asm', id: c.id, qty: n, note: (c.assembly._ || '').split(' — ')[0] });
+        walk(c.assembly, depth + 1, qty * n);
+      } else {
+        const g = massOf(c.part);
+        rows.push({ depth, kind: 'part', id: c.id, part: c.part, qty: n, g, ref: !!c.reference });
+        if (!c.reference) leaves.set(c.part, (leaves.get(c.part) || 0) + qty * n);
+      }
+    }
+  };
+  walk(doc, 0, 1);
+  return { rows, leaves, massOf };
+}
+export function printBom(reports = null) {
+  const doc = robot(), { rows, leaves, massOf } = bom(doc, reports);
+  console.log(`\n${doc.name} — indented bill of materials\n`);
+  let total = 0, unknown = 0;
+  for (const r of rows) {
+    const pad = '  '.repeat(r.depth);
+    if (r.kind === 'asm') console.log(`${pad}■ ${r.id}${r.qty > 1 ? ` ×${r.qty}` : ''}${r.note ? `   ${r.note}` : ''}`);
+    else console.log(`${pad}· ${r.id.padEnd(22 - r.depth * 2)} ${String(r.part).padEnd(16)}${r.qty > 1 ? `×${r.qty}` : '  '}${r.ref ? '   (reference)' : r.g != null ? `   ${r.g.toFixed(0).padStart(5)} g` : '       ?'}`);
+  }
+  console.log(`\nrolled up, ${leaves.size} distinct parts:\n`);
+  for (const [part, n] of [...leaves].sort((a, b) => (massOf(b[0]) || 0) * b[1] - (massOf(a[0]) || 0) * a[1])) {
+    const g = massOf(part); if (g == null) { unknown++; continue; }
+    total += g * n;
+    console.log(`  ${String(n).padStart(3)} × ${part.padEnd(18)} ${(g * n).toFixed(0).padStart(6)} g`);
+  }
+  console.log(`\n  TOTAL ${(total / 1000).toFixed(2)} kg${unknown ? `  (${unknown} parts without a volume — run with --reports)` : ''}`);
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === new URL(import.meta.url).pathname) {
+  console.table(loadTable());
+  console.table(pour().map((v) => ({ step: v.name, P: v.P.join(','), j: v.ok ? v.j.map((x) => round(x, 1)).join(' ') : 'UNREACHABLE' })));
+  write(opt('--out', path.dirname(new URL(import.meta.url).pathname)));
+  if (has('--bom')) { printBom(opt('--reports', null)); process.exit(0); }
+  const a = audit(); for (const x of a) console.log(`${x.ok ? '✓' : '✗'} ${x.name}  ${x.detail}`);
+  console.log(`\nreach ${D.L1 + D.L2 + D.Lw} mm + ${D.toolLen} of tool; shoulder at z ${D.shZ}; counterweights ${round(D.cw1, 2)} + ${round(D.cw2, 2)} = ${round(D.cw1 + D.cw2, 2)} kg of steel at r ${D.cwR1} / ${D.cwR2}`);
+  if (a.some((x) => !x.ok)) process.exit(1);
 }

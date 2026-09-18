@@ -3,7 +3,7 @@
  "units": "mm",
  "_": "Forearm, elbow to the J4 roll section, 180 mm of a 250 mm reach. It carries no actuator: j3 arrives through the elbow crank from the shoulder. One extrude along -Y.",
  "params": {
-  "a": 125,
+  "a": 20,
   "b": 30,
   "w": 60,
   "t": 14,

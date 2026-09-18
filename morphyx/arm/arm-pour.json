@@ -446,10 +446,10 @@
      "cheek": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Shoulder cheek, two off at |y| 56…68: they straddle the whole parallelogram and carry the COAXIAL J2 and J3 bores at z 400. Coaxial is the architecture — it is what puts the elbow's actuator at the shoulder and lets one counterweight per crank balance the arm exactly. `y1` is overridden per side. One extrude along -Y.",
+      "_": "Shoulder cheek, two off at |y| 62…74: they straddle the whole parallelogram and carry the COAXIAL J2 and J3 bores at z 400. Coaxial is the architecture — it is what puts the elbow's actuator at the shoulder and lets one counterweight per crank balance the arm exactly. `y1` is overridden per side. One extrude along -Y.",
       "params": {
        "t": 12,
-       "y1": 68,
+       "y1": 74,
        "h": 80,
        "L": 110,
        "z": 400,
@@ -727,7 +727,7 @@
        "b": 18,
        "w": 22,
        "t": 10,
-       "y1": 52,
+       "y1": 60,
        "d": 12.2
       },
       "features": [
@@ -789,7 +789,7 @@
        "b": 18,
        "w": 22,
        "t": 14,
-       "y1": 40,
+       "y1": 48,
        "d": 12.2
       },
       "features": [
@@ -847,7 +847,7 @@
       "units": "mm",
       "_": "Forearm, elbow to the J4 roll section, 180 mm of a 250 mm reach. It carries no actuator: j3 arrives through the elbow crank from the shoulder. One extrude along -Y.",
       "params": {
-       "a": 125,
+       "a": 20,
        "b": 30,
        "w": 60,
        "t": 14,
@@ -925,7 +925,7 @@
        0
       ],
       "params": {
-       "y1": "68 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "74 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -934,7 +934,7 @@
       "repeat": 2,
       "at": [
        0,
-       "(1 - 2 * (i - 2 * floor(i / 2))) * 105",
+       "(1 - 2 * (i - 2 * floor(i / 2))) * 111",
        400
       ]
      },
@@ -1023,7 +1023,7 @@
        "deg": "-jj2"
       },
       "params": {
-       "y1": "52 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "60 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1044,7 +1044,7 @@
        "deg": "-jj3"
       },
       "params": {
-       "y1": "40 * (1 - 2 * (i - 2 * floor(i / 2))) + 14 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "48 * (1 - 2 * (i - 2 * floor(i / 2))) + 14 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1131,55 +1131,6 @@
            "c2z": "shZ - cwR2 * sin(deg(jj3))"
           },
           "parts": {
-           "roll-tube": {
-            "$schema": "com.minomobi.cad.tree#v1",
-            "units": "mm",
-            "_": "J4 roll tube: Ø54 over Ø34, 40 long on the forearm's own axis, ending at the fork's back face. This is what j4 turns. One extrude along +X.",
-            "params": {
-             "d": 54,
-             "d_bore": 34,
-             "t": 40,
-             "x0": -95
-            },
-            "features": [
-             {
-              "op": "sketch",
-              "id": "face",
-              "plane": {
-               "base": "YZ",
-               "offset": "x0"
-              },
-              "loops": [
-               {
-                "name": "outline",
-                "circle": {
-                 "c": [
-                  0,
-                  0
-                 ],
-                 "r": "d / 2"
-                }
-               },
-               {
-                "name": "bore",
-                "circle": {
-                 "c": [
-                  0,
-                  0
-                 ],
-                 "r": "d_bore / 2"
-                }
-               }
-              ]
-             },
-             {
-              "op": "extrude",
-              "id": "rt",
-              "profile": "face",
-              "depth": "t"
-             }
-            ]
-           },
            "fork-cheek": {
             "$schema": "com.minomobi.cad.tree#v1",
             "units": "mm",

@@ -1,0 +1,84 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Tool adapter: the cup that bolts ISO 9409-1-50-4-M6 on the arm to the gripper's Ø104 web on its r 48.5 circle, reaching back past the motor's end because the standard's own bolt circle (r 25) falls inside a 42.3 square motor (half-diagonal 29.9). The two CANNOT be bolted face to face; this part is what that costs. One revolve about the tool axis.",
+ "params": {
+  "pilot": 31.5,
+  "od": 104,
+  "bore": 64,
+  "wall": 76,
+  "y0": -32,
+  "y1": -26,
+  "y2": 16,
+  "y3": 22
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "section",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "cup",
+     "polygon": [
+      [
+       "pilot / 2",
+       "y0"
+      ],
+      [
+       "od / 2",
+       "y0"
+      ],
+      [
+       "od / 2",
+       "y1"
+      ],
+      [
+       "wall / 2",
+       "y1"
+      ],
+      [
+       "wall / 2",
+       "y2"
+      ],
+      [
+       "od / 2",
+       "y2"
+      ],
+      [
+       "od / 2",
+       "y3"
+      ],
+      [
+       "bore / 2",
+       "y3"
+      ],
+      [
+       "bore / 2",
+       "y1"
+      ],
+      [
+       "pilot / 2",
+       "y1"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "revolve",
+   "id": "adapter",
+   "profile": "section",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

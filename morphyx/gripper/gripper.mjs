@@ -397,13 +397,19 @@ const CYCLE = (() => {
       roll: `-360 * ${ramp(s, 360)} + 360 * ${ramp(round(2 * s + 360, 4), 360)}`,
     } };
 })();
+// Three modes. `inputs` is the standalone document with its own grip/roll axes
+// and real joints. `demo` drives those axes from a clock. `embedded` is the
+// same geometry as demo — placed by EXPRESSION, no mates, because a
+// sub-assembly cannot be mated — but grip and roll are left free for a parent
+// document to supply. That is what lets the whole gripper hang off the arm.
 export function assembly(mode = 'inputs') {
   const demo = mode === 'demo';
+  const posed = demo || mode === 'embedded';
   const A = D.rotorY[1];                                 // the rotor plate's front face: the datum everything turning hangs from
   const on = (offset, extra = {}) => ({ at: '@rotor-plate.start', rigid: true, offset, ...extra });
   const c = (id, part, at, extra = {}) => ({ id, part, at, ...extra });
   const r = (id, part, offset, extra = {}) => ({ id, part, ...on(offset, extra) });
-  const derived = demo ? { ...CYCLE.derived } : { ...DERIVED };
+  const derived = demo ? { ...CYCLE.derived } : { ...DERIVED };   // `embedded` takes DERIVED, whose chain starts at `grip` — supplied by the parent
   const params = { xp0: D.xpClosed, L: D.link, px: D.pivotX, py: D.pivotY, yf: D.pivotLine, inset: D.inset,
     lead: D.lead, flangeT: D.flangeT, carT: D.carT, carFrontT: D.carT - D.carBackT, A,
     lo: D.linkZ[0][0], hi: D.linkZ[1][0], blockL: D.blockL, ynClosed: round(D.ynClosed, 4), pinZ0: D.pinZ0 };
@@ -433,7 +439,7 @@ export function assembly(mode = 'inputs') {
     c('encoder-head', 'encoder-head', [0, 0, 0]),
     { id: 'drivetrain', assembly: drivetrain, at: [0, D.motorY + D.motorLen, 0], rotate: alongY },
     // ── the rotor: one joint, and everything else anchored on this plate ─────
-    c('rotor-plate', 'rotor-plate', [0, 0, 0], demo ? { rotate: { axis: [0, 1, 0], deg: 'roll' } } : {}),
+    c('rotor-plate', 'rotor-plate', [0, 0, 0], posed ? { rotate: { axis: [0, 1, 0], deg: 'roll' } } : {}),
     ...(demo ? [c('clock', 'pin', [0, -20, D.zc], { params: { h: 1 }, reference: true })] : []),
     // the brake's rotor half, and the ring the head reads
     r('brake-hub', 'brake-hub', [0, -A, 0]),
@@ -454,17 +460,17 @@ export function assembly(mode = 'inputs') {
       offset: [0, 0, `lo + (hi - lo) * ${level} - pinZ0`] },
     { id: 'bush', part: 'bushing', repeat: 8, at: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]', rotate: { align: '@link[floor(i / 2)].eye[i - 2 * floor(i / 2)][0]' } },
     // the jaw side is linear in `grip`, so it is jointed. Placed at CLOSED; the joints open it.
-    { id: 'block', part: 'block', repeat: 2, ...on([demo ? `${side} * (${xf0} + grip) - blockL / 2` : `${side} * ${xf0} - blockL / 2`, -A, 0]) },
+    { id: 'block', part: 'block', repeat: 2, ...on([posed ? `${side} * (${xf0} + grip) - blockL / 2` : `${side} * ${xf0} - blockL / 2`, -A, 0]) },
     // the jaw plates: the pin is off the plate's centre line, so the left one is the right one turned 180° about Y (its section is symmetric about z = 0)
-    { id: 'carrier', part: 'carrier', repeat: 2, ...on([demo ? `${xf0} + grip` : xf0, -A, 0], { rotate: { axis: [0, 1, 0], deg: `90 * (1 - ${side})` } }) },
-    { id: 'jaw-pin', part: 'pin', repeat: 2, ...on([`${side} * ${demo ? 'xp' : 'xp0'}`, `yf - A`, D.pinZ0]) },
+    { id: 'carrier', part: 'carrier', repeat: 2, ...on([posed ? `${xf0} + grip` : xf0, -A, 0], { rotate: { axis: [0, 1, 0], deg: `90 * (1 - ${side})` } }) },
+    { id: 'jaw-pin', part: 'pin', repeat: 2, ...on([`${side} * ${posed ? 'xp' : 'xp0'}`, `yf - A`, D.pinZ0]) },
   ];
   // One revolute carries the whole rotor; six prismatics carry the jaw side
   // along it. `a` is the member each travels against, which is the rotor plate
   // itself now rather than the rail plate — same relative motion, but it says
   // what is actually true: these ride the rotor.
   const slide = (b, scale) => ({ kind: 'prismatic', a: 'rotor-plate', b, input: 'grip', axis: [1, 0, 0], scale });
-  const mates = demo ? [] : [
+  const mates = posed ? [] : [
     { kind: 'revolute', a: 'motor-web', b: 'rotor-plate', input: 'roll', axis: [0, 1, 0] },
     slide('carrier[0]', 1), slide('carrier[1]', 1),
     slide('block[0]', 1), slide('block[1]', -1),
@@ -532,7 +538,7 @@ export function assembly(mode = 'inputs') {
     _: (demo ? `The DUTY CYCLE, one turn of the clock — ${CYCLE.seconds} s at ${D.rpm} motor rpm, which is what one really takes. There is one motor and one axis at a time: the brake decides whether its turns go into the nut or into the rotor, so grip and roll are SEQUENTIAL and never simultaneous. Four phases, and the shaft turns at the same rate through all of them — ${round(CYCLE.Nt, 2)} turns closing from full open to the jaws meeting; one turn of roll at −360°, because the jaws have stopped and the rotor is what gives; then the motor reverses and the nut backs off AT ONCE (a Tr8×${D.lead}'s lowering torque is below the brake's ${D.brakeTorque} N·m, so the grip always releases before the rotor moves), ${round(CYCLE.Nt, 2)} turns back to the open stop; and one turn of roll at +360° off that stop, home. A held part therefore only ever turns ONE way and the return spin happens empty: this is a ratchet, not a wrist. ` : '') + `Parallel-jaw robot gripper, v10 — it grips AND rolls: ISO 9409-1-50-4-M6 flange → NEMA 17 external linear stepper, 48 mm stack, with an integrated Tr8×${D.lead} screw → flange nut in a two-plate carriage → two ${D.armT} mm pivot arms dropped into its notches and running on the pillars → four ${D.link} mm links on bronze bushings that pass through the rail plate’s two slots, over and under the MGN9 rail on its OUTER face, and pin onto the outside of each block → a ${2 * D.carrierHalf} × ${2 * D.carrierZ} × ${D.carrierT} jaw carrier plate per side, four M4 and two Ø${D.fingerDowel} dowels for the customer’s finger. ${D.W} × ${D.zTop - D.zBot} × ${D.L} mm case, the mechanism outside it ${2 * D.linkZ[1][1]} mm tall and reaching y = ${D.carrierY[1]}. ` +
       `ONE input: \`grip\` is each jaw’s travel from closed, 0…${D.travel} mm, and mount centres go ${2 * D.xfClosed} → ${2 * D.xfOpen} mm with it. The carriers, their blocks and their pins are prismatic joints on it; the nut, the carriage, the arms and the links travel by the slider-crank’s own y (${round(cl.yn, 2)} closed … ${round(o.yn, 2)} open, ${round((D.ynClosed - D.ynOpen) / D.lead, 2)} turns of the screw), written into their placements because it is not linear in the input. Check it with \`--grid\`, not \`--sweep\`: a period is the wrong question for a document whose motion is an axis.`,
     ...(demo ? { drive: { component: 'clock', rpm: CYCLE.rpm } } : {}),
-    ...(demo ? {} : { inputs: {
+    ...(mode !== 'inputs' ? {} : { inputs: {
       grip: { min: 0, max: D.travel, steps: 7, unit: 'mm', default: 0,
         description: `each jaw’s travel from closed; mount centres ${2 * D.xfClosed} → ${2 * D.xfOpen} mm` },
       roll: { min: 0, max: D.roll, steps: 5, unit: 'deg', default: 0,

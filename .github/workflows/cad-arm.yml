@@ -115,6 +115,22 @@ jobs:
         working-directory: /tmp/cad
         run: node agent/check.mjs /tmp/arm/arm-wrist.json --grid 5
 
+      - name: The gripper's own parts, built here too so the BOM can weigh them
+        working-directory: /tmp/cad
+        run: |
+          node /home/runner/work/agent01/agent01/morphyx/gripper/gripper.mjs --out /tmp/gr
+          for f in /tmp/gr/parts/*.json; do
+            n=$(basename "$f" .json)
+            [ -f "/tmp/arm/reports/$n.json" ] || node agent/build.mjs "$f" --json "/tmp/arm/reports/$n.json"
+          done
+
+      - name: The whole machine — shoulder + wrist + gripper, 7 axes at their corners
+        working-directory: /tmp/cad
+        run: node agent/check.mjs /tmp/arm/arm-robot.json --grid 2
+
+      - name: Indented bill of materials
+        run: node morphyx/arm/arm.mjs --bom --reports /tmp/arm/reports
+
       # Concurrency stops runs that START after it exists; it does nothing about
       # ones already in flight, and nothing at all about runs whose own commit
       # predates the setting. On 2026-09-15 that cost us: run 35 was still

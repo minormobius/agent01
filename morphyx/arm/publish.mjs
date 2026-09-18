@@ -12,7 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { parts, assembly, wrist } from './arm.mjs';
+import { parts, assembly, wrist, robot } from './arm.mjs';
+import { parts as gParts } from '../gripper/gripper.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -49,12 +50,21 @@ for (const [ver, names] of Object.entries(RETIRED)) for (const name of names) {
   if (await drive.find(`arm/parts/${name}`)) { await drive.rename(`arm/parts/${name}`, `arm/${ver}/${name}`); console.log(`  moved  arm/parts/${name} → arm/${ver}/${name}`); }
 }
 for (const [name, tree] of Object.entries(parts)) await publish(`arm/parts/${name}`, tree, { kind: 'part', name });
+// The gripper's parts are already published under gripper/parts/ by its own
+// workflow; the robot document must reference THOSE, not copies. Resolve them
+// off the live repo so the record graph has one gripper, not two.
+if (drive) for (const name of Object.keys(gParts)) {
+  const f = await drive.get(`gripper/parts/${name}`);
+  if (!f) throw new Error(`gripper/parts/${name} is not published \u2014 run the gripper workflow first`);
+  revs.set(name, f.revision.uri);
+  console.log(`  reuse gripper/parts/${name}  ${f.revision.uri}`);
+}
 // recursive: every sub-assembly carries its own parts map, so every level is rewritten
 const rewrite = (a) => {
   for (const k of Object.keys(a.parts || {})) { const u = revs.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
   for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
 };
-for (const [pathName, asm, name] of [['arm/assembly', assembly('inputs'), 'assembly'], ['arm/pour', assembly('demo'), 'pour'], ['arm/wrist', wrist(), 'wrist']]) {
+for (const [pathName, asm, name] of [['arm/assembly', assembly('inputs'), 'assembly'], ['arm/pour', assembly('demo'), 'pour'], ['arm/wrist', wrist(), 'wrist'], ['arm/robot', robot(), 'robot']]) {
   rewrite(asm); await publish(pathName, asm, { kind: 'assembly', name });
 }
 if (drive) {
@@ -62,4 +72,5 @@ if (drive) {
   console.log(`  arm:  https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('assembly'))}`);
   console.log(`  pour: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('pour'))}`);
   console.log(`  wrist: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('wrist'))}`);
+  console.log(`  ROBOT: https://cad.mino.mobi/?at=${encodeURIComponent(uris.get('robot'))}`);
 }
