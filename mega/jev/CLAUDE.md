@@ -1183,6 +1183,16 @@ page displays the file and computes no verdict of its own, so a refresh cannot
 cash a result in early; below n = 200 it prints the running accuracy and says
 on the same line that it means nothing yet.
 
+> **The workflow does not fire until it is on `main`.** GitHub runs `schedule`
+> only for workflows on the default branch, whatever branch the job then checks
+> out — which is exactly why `refresh-perp-data.yml`, which also collects onto
+> a feature branch, lives on main. Until this branch is merged the forward test
+> is committed, tested and correct, and **accruing nothing**. That is inert
+> rather than broken: the collector is idempotent and keyed on close time, and
+> it reaches back 208 days, so the first run after the merge picks up every
+> window that closed in the meantime. The counter on the page will read `0 of
+> 200` until then, which is the truth.
+
 #### The defect that would only have appeared on the second run
 
 `windows()` anchored the grid to the **start of the price array**. One extra

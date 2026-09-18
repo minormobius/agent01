@@ -9,6 +9,15 @@
 # Schedule only — no push trigger — so an edit to the lab can never wake this
 # and quietly add predictions outside the schedule.
 #
+# ⚠️ THIS FILE MUST REACH `main` OR IT NEVER FIRES. GitHub runs `schedule` only
+# for workflows on the DEFAULT branch, whatever branch the job then checks out.
+# That is why refresh-perp-data.yml — which likewise collects onto a feature
+# branch — lives on main. Until this is merged, the forward test is committed,
+# tested and correct, and accruing nothing. It is inert, not broken: the
+# collector is idempotent, so the first run after the merge picks up every
+# window that closed in the meantime, and windows are keyed by close time so
+# nothing is lost by the delay.
+#
 # WHY IT RUNS TWICE A DAY FOR A ONCE-A-DAY GRID. Windows pivot on a 24h clock
 # boundary, so at most one per asset closes per day; the second run is there so
 # a failed or throttled run is picked up within 12 hours rather than losing a
