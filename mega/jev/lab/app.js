@@ -8,6 +8,7 @@ import { connect, replay } from './feed.mjs';
 import { newRing, push, compute, stateDoc } from './metrics.mjs';
 import { ask, decide, GATE, buildQuestions } from './ask.mjs';
 import { readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, ORACLES } from './oracles.mjs';
+import { journalDoc } from './journal.mjs';
 import { newBook, step, summary, pct } from './book.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from './candles.mjs';
 
@@ -97,7 +98,12 @@ async function takeDecision() {
   inFlight = true;
   const cap = Number($('cap').value) || 3;
   const reads = readOracles(lastMetrics, cap);
-  const doc = stateDoc(lastMetrics, book.jev.pos, book, { oracles: oracleDoc(reads) });
+  const doc = stateDoc(lastMetrics, book.jev.pos, book, {
+    oracles: oracleDoc(reads),
+    // His own recent decisions, and what each has earned since. The dungeon
+    // needed exactly this and for exactly the same reason.
+    journal: $('memory').checked ? journalDoc(book, lastMetrics.mid) : '',
+  });
   $('stateDoc').textContent = doc;
   try {
     const reply = await ask(doc, { questions: buildQuestions({ oracleCriteria: oracleCriteria(reads) }) });
@@ -151,7 +157,7 @@ $('resetBtn').addEventListener('click', () => {
   $('logBody').innerHTML = ''; $('ansRow').innerHTML = '<span class="why">no decision yet</span>';
   paintTiles(); paintBoard(); draw();
 });
-for (const id of ['cap', 'deadband', 'deadzone', 'floor']) $(id).addEventListener('change', () => trials(1));
+for (const id of ['cap', 'deadband', 'deadzone', 'floor', 'memory']) $(id).addEventListener('change', () => trials(1));
 $('interval').addEventListener('change', () => {
   if (running) { clearInterval(timer); timer = setInterval(takeDecision, Number($('interval').value)); }
 });
@@ -349,6 +355,58 @@ function drawPrice() {
   }, W);
 }
 
+function drawExposure() {
+  const svg = $('expChart'), W = 640, H = 96, L = 6, R = 52, T = 8, B = 16;
+  // The SAME margins and the same candle count as the price chart above, so
+  // a position lines up with the bar it was taken on. A position chart on its
+  // own axis would be a second chart about a different thing.
+  const t = ring.buf.slice(-180);
+  const candles = toCandles(t, BUCKET_MS);
+  if (candles.length < 2) { svg.innerHTML = ''; return; }
+  const cap = Math.max(0.01, book.risk.cap);
+  const y = (v) => T + (H - B - T) * (1 - (v + cap) / (2 * cap));
+  const x = (i) => L + (W - L - R) * ((i + 0.5) / candles.length);
+
+  // Position is a step function: it holds whatever the last decision set
+  // until the next one, so the series is built by carrying forward, not by
+  // interpolating between decisions.
+  const hist = book.history;
+  let hi = 0, pos = 0;
+  const series = candles.map((c) => {
+    while (hi < hist.length && hist[hi].t <= c.t1) pos = hist[hi++].pos;
+    return pos;
+  });
+
+  const pts = [];
+  series.forEach((v, i) => { pts.push([x(i), y(v)]); if (i < series.length - 1) pts.push([x(i + 1), y(v)]); });
+  const area = `M${x(0).toFixed(1)} ${y(0).toFixed(1)} ` +
+    pts.map((p) => `L${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ') +
+    ` L${pts.at(-1)[0].toFixed(1)} ${y(0).toFixed(1)} Z`;
+
+  svg.innerHTML =
+    [cap, cap / 2, 0, -cap / 2, -cap].map((v) =>
+      `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"` +
+      `${Math.abs(v) === cap ? ' stroke-dasharray="2 3"' : ''}/>`).join('') +
+    // One clip per side, so the fill above the line and the fill below it can
+    // carry different hues from a single path.
+    `<defs>
+       <clipPath id="clipUp"><rect x="0" y="0" width="${W}" height="${y(0).toFixed(1)}"/></clipPath>
+       <clipPath id="clipDn"><rect x="0" y="${y(0).toFixed(1)}" width="${W}" height="${H}"/></clipPath>
+     </defs>` +
+    `<path d="${area}" fill="var(--up-c)" opacity="0.28" clip-path="url(#clipUp)"/>` +
+    `<path d="${area}" fill="var(--down-c)" opacity="0.28" clip-path="url(#clipDn)"/>` +
+    `<path d="${'M' + pts.map((p) => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' L')}" fill="none" stroke="var(--ink-2)" stroke-width="1.4"/>` +
+    `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(0).toFixed(1)}" y2="${y(0).toFixed(1)}" stroke="var(--ink-3)"/>` +
+    [[cap, `+${cap}x`], [0, 'flat'], [-cap, `-${cap}x`]].map(([v, lab]) =>
+      `<text class="endlab" x="${W - R + 5}" y="${(y(v) + 3).toFixed(1)}" fill="var(--ink-3)">${lab}</text>`).join('') +
+    `<line class="crosshair" x1="0" x2="0" y1="${T}" y2="${H - B}" style="opacity:0"/>`;
+
+  wireHover(svg, $('expTip'), candles.map((_, i) => [x(i), 0]), (i) => {
+    const v = series[i];
+    return `${new Date(candles[i].t0).toLocaleTimeString()}\n${v === 0 ? 'flat' : `${v > 0 ? 'long' : 'short'} ${Math.abs(v).toFixed(2)}x`}\n${((Math.abs(v) / cap) * 100).toFixed(0)}% of the cap`;
+  }, W);
+}
+
 function drawPnl() {
   const svg = $('pnlChart'), W = 420, H = 190, L = 6, R = 46, T = 12, B = 22;
   const h = book.history.slice(-240);
@@ -415,7 +473,7 @@ function wireHover(svg, tip, pts, text, W) {
 }
 
 let raf = 0;
-function draw() { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { drawPrice(); drawPnl(); }); }
+function draw() { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { drawPrice(); drawExposure(); drawPnl(); }); }
 
 paintTiles();
 paintBoard();

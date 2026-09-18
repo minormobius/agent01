@@ -52,6 +52,8 @@
     <label>deadband (x)<input id="deadband" type="number" value="1.2" step="0.1" min="0" max="6"></label>
     <label>dead zone<input id="deadzone" type="number" value="0.25" step="0.05" min="0" max="0.9"></label>
     <label>min size (× cap)<input id="floor" type="number" value="0.6" step="0.05" min="0" max="1"></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:.8rem;color:var(--ink-2)">
+      <input id="memory" type="checkbox" checked style="min-width:auto;width:auto">show him his own history</label>
     <button id="runBtn" type="button">start run</button>
     <button class="ghost" id="resetBtn" type="button">reset</button>
   </div>
@@ -87,6 +89,12 @@
       <div class="chartbox">
         <svg id="pxChart" viewBox="0 0 640 240" role="img" aria-label="BTC perpetual mid price with decision marks"></svg>
         <div class="tip" id="pxTip"></div>
+      </div>
+      <p class="cap" style="margin:8px 0 2px">Exposure carried, on the same time axis — above the line is long,
+        below is short, and the faint rails are the leverage cap.</p>
+      <div class="chartbox">
+        <svg id="expChart" viewBox="0 0 640 96" role="img" aria-label="Leveraged exposure carried over time"></svg>
+        <div class="tip" id="expTip"></div>
       </div>
       <div class="legend" aria-hidden="true">
         <span><i style="background:var(--st-good)"></i>B add</span>
@@ -181,6 +189,72 @@
       is not trading — which returns exactly 0% and beats every negative on the board. That is why
       <b>do nothing</b> is a ranked leg in the leaderboard below. Any change that reduces turnover has to beat
       <em>it</em> before it counts as an improvement rather than a retreat.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Does more leverage outrun the fees?</h2>
+    <p class="cap" style="margin-bottom:8px">BTC on this platform caps at <b>40×</b> — the only asset there that
+      does. The same 50 recorded answers, replayed at every cap, each run twice so gross and drag are exact.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>cap</th><th>net</th><th>gross</th><th>drag</th><th>drag ÷ gross</th><th>worst drawdown</th>
+      </tr></thead><tbody>
+        <tr><td>1×</td><td>−0.13%</td><td>−0.02%</td><td>0.11%</td><td>6.74</td><td>0.17%</td></tr>
+        <tr><td>3×</td><td>−0.39%</td><td>−0.05%</td><td>0.34%</td><td>6.68</td><td>0.50%</td></tr>
+        <tr><td>10×</td><td>−1.29%</td><td>−0.17%</td><td>1.12%</td><td>6.60</td><td>1.67%</td></tr>
+        <tr><td>20×</td><td>−2.58%</td><td>−0.35%</td><td>2.24%</td><td>6.48</td><td>3.32%</td></tr>
+        <tr><td><b>40×</b></td><td><b>−5.14%</b></td><td>−0.71%</td><td>4.44%</td><td><b>6.26</b></td><td><b>6.57%</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>No — and the reason is arithmetic, not opinion.</b> Costs scale with the size traded, so leverage
+      multiplies the gross result and the drag by the same factor: gross scaled <b>42.4×</b> from 1× to 40×
+      while drag scaled <b>39.4×</b>, leaving drag-as-a-share-of-gross essentially flat (6.74 → 6.26). Leverage
+      is a magnifying glass held over whatever the edge already is. Held over a negative one it magnifies that.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      What it <em>does</em> change is ruin. A cap of N× is wiped out by an adverse move of 100/N percent — 33%
+      at 3×, <b>2.5% at 40×</b>. The recorded tape's worst move inside any five minutes was 0.16%, so 40× looks
+      survivable on this tape and would not be on a worse one. The slider goes to 40 because that is the real
+      platform limit; the book models the liquidation because a leveraged demo that cannot be ruined is lying.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Giving him his own history</h2>
+    <p class="cap" style="margin-bottom:8px">He had been deciding a position every few seconds with no idea what
+      he decided last time, how long he had held it, or what it had earned since. In the dungeon the same gap
+      had the same shape — he walked into dead ends and gave up in them.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The journal gives him his last eight decisions, what each one went to, and — the column he has never had —
+      <b>what the position has earned on the move since it was taken</b>. Two arms walked the identical tape with
+      identical book logic; the only difference was whether that block was in the document.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:400px"><thead><tr>
+        <th></th><th>no journal</th><th>with journal</th>
+      </tr></thead><tbody>
+        <tr><td>net</td><td>−0.37%</td><td>−0.37%</td></tr>
+        <tr><td>fills</td><td>2</td><td>2</td></tr>
+        <tr><td>turnover</td><td>6.8×</td><td>6.9×</td></tr>
+        <tr><td><b>mean &ldquo;is this decidable?&rdquo;</b></td><td>0.411</td><td><b>0.537</b></td></tr>
+        <tr><td>mean &ldquo;are the figures present?&rdquo;</td><td>0.821</td><td>0.867</td></tr>
+        <tr><td>mean confidence</td><td>0.688</td><td>0.643</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>His decisions barely moved.</b> The ladder scores track each other almost exactly — 4.6/4.7, 4.9/4.7,
+      5.2/5.3 — and net, fills and turnover are unchanged. But his own sense that the decision is
+      <em>decidable</em> rose by 0.13, and it rose by 0.16 when the rule-based strategies were added earlier.
+      <b>Twice now, extra context has moved the self-check without moving the behaviour.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      That is worth stating as a limit rather than a win. The self-check appears to track <em>how much context
+      it has</em> rather than <em>how much that context helps</em> — so it is a good detector of a missing value
+      and a poor proxy for decision quality. It is still the right thing to gate on, and it is still the only
+      number here that separates an answerable question from an unanswerable one by 62 points. It just should
+      not be read as a scoreboard.
     </p>
   </div>
 

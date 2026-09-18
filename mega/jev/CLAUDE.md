@@ -944,6 +944,64 @@ So `do nothing` is now a ranked leg. Any turnover-reducing change has to beat
 *it* before it is an improvement rather than a retreat, and on this tape none
 of them does.
 
+### Leverage does not outrun the drag, and the arithmetic says so
+
+BTC on Hyperliquid caps at 40x — checked against their `meta` endpoint rather
+than assumed, and it is the only asset in the universe at that tier. The
+slider goes there. It does not help, and the decomposition proves it rather
+than asserting it: the same 50 recorded answers replayed at every cap, each
+run twice.
+
+| cap | net | gross | drag | drag ÷ gross | worst DD |
+|---|---|---|---|---|---|
+| 1x | −0.13% | −0.02% | 0.11% | 6.74 | 0.17% |
+| 3x | −0.39% | −0.05% | 0.34% | 6.68 | 0.50% |
+| 10x | −1.29% | −0.17% | 1.12% | 6.60 | 1.67% |
+| 40x | −5.14% | −0.71% | 4.44% | **6.26** | **6.57%** |
+
+Costs scale with the size traded, so leverage multiplies the gross result and
+the drag by the same factor: gross scaled 42.4x from 1x to 40x, drag scaled
+39.4x, and the ratio barely moved. **Leverage is a magnifying glass held over
+whatever the edge already is.** What it does change is ruin: a cap of Nx is
+wiped out by an adverse move of 100/N percent — 33% at 3x, 2.5% at 40x. The
+recorded tape's worst five-minute move was 0.16%, so 40x survives *this* tape
+and would not survive a worse one.
+
+### His own decision log, and the limit it exposed
+
+`journal.mjs` hands him his last eight decisions: what each went to, how long
+the current one has stood, how many side changes there have been, and the
+column he had never had — **what the position has earned on the move since it
+was taken.** The dungeon needed exactly this, for exactly the same reason.
+
+Two arms walked the identical tape with identical book logic; the only
+difference was whether that block was in the document.
+
+| | no journal | with journal |
+|---|---|---|
+| net | −0.37% | −0.37% |
+| fills | 2 | 2 |
+| turnover | 6.8x | 6.9x |
+| **mean "is this decidable?"** | 0.411 | **0.537** |
+| mean "are the figures present?" | 0.821 | 0.867 |
+| mean confidence | 0.688 | 0.643 |
+
+**His decisions barely moved.** The ladder scores track each other almost
+exactly (4.6/4.7, 4.9/4.7, 5.2/5.3) and net, fills and turnover are
+unchanged. But `have_decidable` rose 0.13 — and it rose 0.16 when the
+rule-based strategies were added earlier.
+
+**Twice now, extra context has moved the self-check without moving the
+behaviour.** That is a limit worth stating plainly: the self-check appears to
+track *how much context it has* rather than *how much that context helps*. It
+remains the right thing to gate on — it is still the only number here that
+separates an answerable question from an unanswerable one by 62 points — but
+it must not be read as a scoreboard for decision quality. Earlier this file
+noted it catches a missing value and not a missing concept; this is the other
+half of the same limitation.
+
+The journal is a checkbox, defaulting on, and toggling it counts as a trial.
+
 ### What stops it flattering itself
 
 Every one of these is a line that a dishonest version of this page omits, and
