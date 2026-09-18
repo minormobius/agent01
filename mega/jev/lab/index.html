@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Jev Harness Lab</title>
-<meta name="description" content="A live one-second BTC perpetual feed and a levered, liquidatable paper book, with Jev sizing exposure on an ordered ladder against two baselines.">
+<meta name="description" content="A live one-second BTC perpetual feed and a levered, liquidatable paper book, with Jev sizing exposure on an ordered ladder against six deterministic rules, mechanical controls, a floats-only second stream, and doing nothing.">
 <link rel="icon" href="../favicon.svg">
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="./style.css">
@@ -16,7 +16,8 @@
     <div>
       <h1>Jev harness lab</h1>
       <p class="sub">Live one-second BTC perpetual from Hyperliquid. Jev sizes a long/short book on an
-        ordered exposure ladder — continuous, capped by the type — against two baselines.</p>
+        ordered exposure ladder — continuous, capped by the type — against six fixed rules, two mechanical
+        controls, a second stream that gets nothing but floats, and doing nothing at all.</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <span class="pill" id="feedStatus" data-status="connecting"><span class="dot"></span><span id="feedText">connecting</span></span>
@@ -30,7 +31,8 @@
     spread, and the book is <b>levered and liquidatable</b>: pushed far enough the wrong way it goes to
     zero and the run ends, because a leveraged demo that cannot be ruined is lying about what leverage is.
     Nothing on this page is advice, and a single run of a few hundred decisions cannot establish an edge:
-    the verdict below is drawn from a t-statistic against a random control, not from the curve.
+    the verdict below is drawn from a t-statistic against the average of the rules it was shown, not from
+    the curve.
   </p>
 
   <div class="ctl">
@@ -48,12 +50,15 @@
     <label>max leverage<select id="cap">
         <option value="1">1x</option><option value="2">2x</option>
         <option value="3" selected>3x</option><option value="5">5x</option>
+        <option value="10">10x</option><option value="20">20x</option>
+        <option value="40">40x — the platform cap for BTC</option>
       </select></label>
     <label>deadband (x)<input id="deadband" type="number" value="1.2" step="0.1" min="0" max="6"></label>
     <label>dead zone<input id="deadzone" type="number" value="0.25" step="0.05" min="0" max="0.9"></label>
     <label>min size (× cap)<input id="floor" type="number" value="0.6" step="0.05" min="0" max="1"></label>
     <label style="flex-direction:row;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:.8rem;color:var(--ink-2)">
       <input id="memory" type="checkbox" checked style="min-width:auto;width:auto">show him his own history</label>
+    <label>stream B dead zone (bp)<input id="bdead" type="number" value="0" step="0.5" min="0" max="20"></label>
     <button id="runBtn" type="button">start run</button>
     <button class="ghost" id="resetBtn" type="button">reset</button>
   </div>
@@ -68,6 +73,8 @@
     <div class="tile"><div class="k">buy &amp; hold</div><div class="v" id="tHold">—</div><div class="m">the curve people quote</div></div>
     <div class="tile"><div class="k">random control</div><div class="v" id="tRand">—</div><div class="m">same trade frequency</div></div>
     <div class="tile"><div class="k">decisions</div><div class="v" id="tDec">0</div><div class="m" id="tTicks">0 ticks</div></div>
+    <div class="tile"><div class="k">stream B forecast</div><div class="v" id="tB">—</div>
+      <div class="m" id="tBnet">leg —</div></div>
     <div class="tile"><div class="k">is this decidable?</div><div class="v" id="tDecidable">—</div>
       <div class="m" id="tGated">Jev's own answer · 0 gated</div></div>
   </div>
@@ -106,8 +113,9 @@
 
     <div class="card">
       <h2>Paper return, after costs</h2>
-      <p class="cap">All three legs trade the same ticks and pay the same costs. The one that matters is the
-        gap to <b>random</b>, not to buy &amp; hold.</p>
+      <p class="cap">He has <b>seen</b> the rules, so beating one is not evidence. The line that matters is
+        <b>the average of them</b>: does choosing beat aggregating? Everything else — buy &amp; hold, random,
+        stream B, each rule, and doing nothing — is in the leaderboard.</p>
       <div class="chartbox">
         <svg id="pnlChart" viewBox="0 0 420 190" role="img" aria-label="Paper return of Jev, buy and hold, and a random control"></svg>
         <div class="tip" id="pnlTip"></div>
@@ -189,6 +197,66 @@
       is not trading — which returns exactly 0% and beats every negative on the board. That is why
       <b>do nothing</b> is a ranked leg in the leaderboard below. Any change that reduces turnover has to beat
       <em>it</em> before it counts as an improvement rather than a retreat.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Stream B — thirty floats, and nothing else</h2>
+    <p class="cap" style="margin-bottom:8px">A second stream running beside the first, on the same ticks. It is
+      sent <b>thirty numbers</b>, one per line. No units, no labels, no mention of a price, a market, or what
+      any of it is for. It is asked one thing: <em>&ldquo;The next value in this sequence will be:&rdquo;</em>
+      — and max leverage is slammed in whichever direction it says.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      It deliberately breaks every rule the rest of this page obeys, which is why it is worth running: the
+      contrast is the experiment. (Jev cannot return a free float — the primitives are <code
+      style="font-family:var(--mono)">choice</code>, <code style="font-family:var(--mono)">score</code> and
+      <code style="font-family:var(--mono)">noul</code> — but a <code style="font-family:var(--mono)">score</code>
+      over an ordered ladder <em>is</em> a continuous number, so thirty in and one out survives intact.)
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:440px"><thead><tr>
+        <th>what it was sent</th><th>windows</th><th>directional accuracy</th><th>correlation</th>
+      </tr></thead><tbody>
+        <tr><td>30 raw prices</td><td>120</td><td>51.7% <span style="color:var(--ink-3)">(±9.0)</span></td><td>r = −0.000</td></tr>
+        <tr><td>29 returns in bp</td><td>120</td><td>49.2% <span style="color:var(--ink-3)">(±8.9)</span></td><td>r = −0.176</td></tr>
+        <tr><td>30 raw prices, contiguous</td><td>150</td><td>51.0%</td><td>—</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Three runs, ~390 windows across 3.5 days of minute candles: <b>noise</b>. Normalising the floats into
+      returns did not rescue it. Worth noting what it did instead of guessing — it hedged to the middle rung,
+      forecasting a mean of 0.7bp against actual moves averaging 4.0bp. Asked to predict, it declines, the same
+      way it declined on six-hour windows. That is the honest answer to an unanswerable question.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>But the accuracy turns out not to be the deciding number.</b> Trading a per-bar forecast has a
+      break-even accuracy set purely by arithmetic: a full reversal trades twice the size, so it costs
+      2 × cost × size, while a correct call earns the move × size. <b>Leverage appears on both sides and
+      cancels.</b> It multiplies the edge and the fees by the same factor — a magnifying glass, not an engine.
+    </p>
+    <div class="scroll" style="max-height:none;margin-top:8px">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>holding period</th><th>mean move</th><th>break-even accuracy, flipping</th>
+      </tr></thead><tbody>
+        <tr><td>10 seconds</td><td>2.0bp</td><td class="down"><b>impossible</b></td></tr>
+        <tr><td>1 minute</td><td>4.8bp</td><td class="down"><b>impossible — 148%</b></td></tr>
+        <tr><td>5 minutes</td><td>10.7bp</td><td>93.9%</td></tr>
+        <tr><td>15 minutes</td><td>18.5bp</td><td>75.3%</td></tr>
+        <tr><td>1 hour</td><td>37.1bp</td><td>62.7%</td></tr>
+        <tr><td>1 day</td><td>181.7bp</td><td>52.6%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>The only lever that moves that column is how long you hold.</b> Traded every minute at 40× on the real
+      forecasts, the leg returned <b>−75.7%</b> over 150 minutes: 37 fills, 2840× turned over, and 70 points of
+      the 76 were fees. The configurations that did not lose were the ones that barely traded — three fills in
+      150 minutes — and their gains are one held position getting lucky at 40×, not a strategy.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      So stream B stays on the board as what it is: the control that shows what breaking the compute-first rule
+      costs, and the demonstration that at this cadence the fee structure decides the outcome before the model
+      is even consulted. The live stream runs at ten-second buckets, where the break-even is not merely high
+      but unreachable.
     </p>
   </div>
 

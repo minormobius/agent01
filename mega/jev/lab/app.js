@@ -9,6 +9,7 @@ import { newRing, push, compute, stateDoc } from './metrics.mjs';
 import { ask, decide, GATE, buildQuestions } from './ask.mjs';
 import { readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, ORACLES } from './oracles.mjs';
 import { journalDoc } from './journal.mjs';
+import * as B from './streamb.mjs';
 import { newBook, step, summary, pct } from './book.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from './candles.mjs';
 
@@ -106,7 +107,19 @@ async function takeDecision() {
   });
   $('stateDoc').textContent = doc;
   try {
-    const reply = await ask(doc, { questions: buildQuestions({ oracleCriteria: oracleCriteria(reads) }) });
+    // Both streams, same tick. Stream B gets thirty raw floats and no
+    // context whatever — it is the control, not a second opinion, so it is
+    // deliberately NOT told anything stream A knows.
+    const bCloses = B.closes(ring.buf, 10_000, B.LOOKBACK);
+    const [reply, bReply] = await Promise.all([
+      ask(doc, { questions: buildQuestions({ oracleCriteria: oracleCriteria(reads) }) }),
+      bCloses.length >= B.LOOKBACK
+        ? ask(B.stateFrom(bCloses), { questions: B.QUESTION }).catch(() => null)
+        : Promise.resolve(null),
+    ]);
+    const bBps = bReply ? B.forecastBps(bReply.answers?.next?.score) : null;
+    const bTarget = bBps == null ? book.streamb.pos
+      : B.targetFrom(bBps, cap, Number($('bdead').value) || 0, book.streamb.pos);
     const d = decide(reply.answers, book.jev.pos, {
       ...GATE, cap, deadband: Number($('deadband').value) || 0,
       response: { deadZone: Number($('deadzone').value) || 0, floor: Number($('floor').value) || 0 } });
@@ -117,11 +130,12 @@ async function takeDecision() {
     const best = bestOracleTarget(reads, eqBefore, { decisions: book.decisions });
     lastDecision.follows = best.follows;
     lastDecision.rule = reply.answers?.which_rule?.choice;
+    lastDecision.bBps = bBps;
     lastDecision.ruleConf = reply.answers?.which_rule?.confidence;
     step(book, {
       px: lastMetrics.mid, spreadBps: lastMetrics.spreadBps, action: d.action, exposure: d.exposure, t: tapeNow,
       oracleTargets: Object.fromEntries(reads.map((r) => [r.id, r.target])),
-      bestTarget: best.target, majorityTarget: majorityTarget(reads, cap),
+      bestTarget: best.target, majorityTarget: majorityTarget(reads, cap), streambTarget: bTarget,
       meta: { confidence: d.confidence, have: d.have, decidable: d.decidable, regime: d.regime,
         score: d.score, target: d.exposure, reason: d.reason, blocked: !!d.blocked,
         rule: reply.answers?.which_rule?.choice, follows: best.follows },
@@ -187,6 +201,10 @@ function paintTiles(tick) {
   const sDD = summary(book);
   // The same trades run free. When this sits above the net number, the fees
   // are the whole story and no amount of better timing is the fix.
+  const bd = lastDecision?.bBps;
+  $('tB').textContent = Number.isFinite(bd) ? `${bd >= 0 ? '+' : ''}${bd.toFixed(1)}bp` : '—';
+  $('tB').className = `v ${Number.isFinite(bd) ? cls(bd) : ''}`;
+  $('tBnet').textContent = `leg ${signed(sDD.streamb)}`;
   $('tGross').textContent = signed(sDD.gross);
   $('tGross').className = `v ${cls(sDD.gross)}`;
   $('tDrag').textContent = sDD.dragShareOfLoss != null
@@ -239,8 +257,9 @@ const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
 
 function paintBoard() {
   const s = summary(book);
-  const names = { jev: 'Jev', 'best oracle': 'best rule so far', majority: 'average of the rules',
-    'buy & hold': 'buy & hold (1x)', random: 'random control', 'do nothing': 'do nothing (never trades)' };
+  const names = { jev: 'Jev (stream A)', 'best oracle': 'best rule so far', majority: 'average of the rules',
+    'buy & hold': 'buy & hold (1x)', random: 'random control', 'do nothing': 'do nothing (never trades)',
+    'stream B': 'stream B — 30 floats, max leverage' };
   const nice = Object.fromEntries(ORACLES.map((o) => [o.id, o.name]));
   const rows = s.ranking.map(([id, v, dd, fills], i) => {
     const isJev = id === 'jev';

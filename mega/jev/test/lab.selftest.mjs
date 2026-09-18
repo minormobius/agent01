@@ -13,6 +13,7 @@ import { newRing, push, compute, returnsBps, stateDoc, RING } from '../lab/metri
 import { fold, newState, drain, replay } from '../lab/feed.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from '../lab/candles.mjs';
 import { ORACLES, readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, T } from '../lab/oracles.mjs';
+import * as B from '../lab/streamb.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -702,6 +703,69 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   const s = summary(b);
   ok(s.ranking.some((x) => x[0] === 'do nothing'), 'and it is ranked alongside everything else');
   ok(s.ranking.find((x) => x[0] === 'do nothing')[1] === 0, 'at exactly zero');
+}
+
+// ------------------------------------------------------------ stream B ----
+{
+  const cs = B.closes([
+    { t: 0, mid: 10 }, { t: 4000, mid: 12 }, { t: 9000, mid: 11 },
+    { t: 10_000, mid: 20 }, { t: 19_000, mid: 25 },
+    { t: 20_000, mid: 30 },
+  ], 10_000, 30);
+  ok(cs.length === 3, 'ticks fold into buckets of the asked-for width');
+  ok(cs[0] === 11 && cs[1] === 25 && cs[2] === 30, 'and each bucket keeps its CLOSE, not its open or its mean');
+  ok(B.closes([], 10_000).length === 0, 'no ticks, no closes');
+  ok(B.closes([{ t: 0, mid: 0 }, { t: 0, mid: NaN }], 10_000).length === 0, 'a bad price never opens a bucket');
+  ok(B.closes([{ t: 0, mid: 5 }], 10_000, 30).length === 1, 'a short history is short, not padded with invention');
+}
+{
+  const s = B.stateFrom([1.05, 2.5, 3]);
+  ok(s === '1.1\n2.5\n3.0', 'the state is literally the numbers, one per line');
+  ok(!/price|BTC|market|bp|value/i.test(s), 'with no units, no labels and no mention of what any of it is');
+  ok(B.QUESTION.next.type === 'score', 'the forecast is a score, because a ladder is the only way to get a number out');
+  ok(B.QUESTION.next.criteria.length === B.CENTRES.length, 'one bucket centre per rung');
+  ok(!/price|market|trade|buy|sell/i.test(JSON.stringify(B.QUESTION)),
+    'and the question never says what the sequence is either — that is the whole design');
+}
+{
+  near(B.forecastBps(3), 0, 1e-9, 'the middle rung forecasts no change');
+  near(B.forecastBps(0), -15, 1e-9, 'the bottom rung forecasts the largest fall');
+  near(B.forecastBps(6), 15, 1e-9, 'and the top the largest rise');
+  ok(B.forecastBps(4.5) > 0 && B.forecastBps(4.5) < 8, 'a fractional score interpolates between centres');
+  ok(B.forecastBps(NaN) === 0 && B.forecastBps(undefined) === 0, 'no score, no forecast');
+}
+{
+  ok(B.targetFrom(5, 40) === 40, 'a positive forecast slams the cap long');
+  ok(B.targetFrom(-5, 40) === -40, 'and a negative one short');
+  ok(B.targetFrom(1, 40, 3, -40) === -40, 'a forecast inside the dead zone keeps the position');
+  ok(B.targetFrom(0, 40, 0, 12) === 12, 'and a forecast of exactly nothing changes nothing');
+  ok(B.targetFrom(NaN, 40, 0, 7) === 7, 'as does a missing one');
+}
+{
+  // THE arithmetic. Leverage must not appear, because it multiplies the gain
+  // and the cost by the same factor — that is the finding, not an omission.
+  const m = B.meanAbsAt(1);
+  near(m, 4.79, 0.05, 'mean |move| at one minute, from a 6.0bp standard deviation');
+  ok(B.breakEven({ meanAbsMoveBps: m }) > 1,
+    `flipping every minute needs an IMPOSSIBLE accuracy (${(B.breakEven({ meanAbsMoveBps: m }) * 100).toFixed(0)}%)`);
+  ok(B.breakEven({ meanAbsMoveBps: B.meanAbsAt(60) }) < 0.7, 'at an hour it comes back inside the possible');
+  ok(B.breakEven({ meanAbsMoveBps: B.meanAbsAt(1440) }) < 0.55, 'and at a day it is nearly a coin flip');
+  ok(B.breakEven({ meanAbsMoveBps: m, flip: false }) < B.breakEven({ meanAbsMoveBps: m }),
+    'going flat and back is cheaper than reversing, because it trades half the size');
+  ok(B.breakEven({ meanAbsMoveBps: 20, costBps: 4.7 }) === B.breakEven({ meanAbsMoveBps: 20, costBps: 4.7 }),
+    'the calculation is deterministic');
+  ok(B.breakEven({ meanAbsMoveBps: 0 }) === Infinity, 'a market that never moves can never pay for a trade');
+}
+{
+  // The two streams must be separately scored, never blended.
+  const b = newBook({ costs: { feeBps: 0, payHalfSpread: false } });
+  step(b, { px: 100, action: 'buy', exposure: 1, streambTarget: -3 });
+  step(b, { px: 110, action: null });
+  near(pct(b.jev), 10, 1e-6, 'stream A earns its own position');
+  near(pct(b.streamb), -30, 1e-6, 'and stream B its own, in the other direction');
+  const s = summary(b);
+  ok(s.ranking.some((x) => x[0] === 'stream B'), 'stream B is ranked beside everything else');
+  ok(Number.isFinite(s.streamb), 'and reported in the summary');
 }
 
 if (failures.length) {

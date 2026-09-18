@@ -1002,6 +1002,57 @@ half of the same limitation.
 
 The journal is a checkbox, defaulting on, and toggling it counts as a trial.
 
+### Stream B: thirty floats, and the arithmetic that decides it
+
+A second stream beside the first, on the same ticks. It is sent **thirty
+numbers, one per line** — no units, no labels, no mention of a price, a
+market, or what any of it is for — and asked one thing: *"The next value in
+this sequence will be:"*. Max leverage is then slammed in whichever direction
+it says. It deliberately breaks every rule the rest of the surface obeys,
+which is why it is worth running: the contrast is the experiment.
+
+Jev cannot return a free float — the primitives are `choice`, `score` and
+`noul` — but a `score` over an ordered ladder *is* a continuous number, so
+thirty in and one out survives intact.
+
+**It is noise.** 3.5 days of minute candles pulled from Hyperliquid's
+`candleSnapshot`, windows spread across the whole history:
+
+| what it was sent | windows | directional accuracy | correlation |
+|---|---|---|---|
+| 30 raw prices | 120 | 51.7% (±9.0) | r = −0.000 |
+| 29 returns in bp | 120 | 49.2% (±8.9) | r = −0.176 |
+| 30 raw prices, contiguous | 150 | 51.0% | — |
+
+Normalising the floats did not rescue it. What it did instead of guessing is
+worth noting: it hedged to the middle rung, forecasting a mean of 0.7bp
+against actual moves averaging 4.0bp. **Asked to predict, it declines** — the
+same refusal measured on six-hour windows, reproduced with no context at all.
+
+**But accuracy turns out not to be the deciding number.** A full reversal
+trades twice the size, so it costs `2 × cost × size`; a correct call earns
+`move × size`. **Leverage appears on both sides and cancels.**
+
+| holding period | mean move | break-even accuracy, flipping |
+|---|---|---|
+| 10 seconds | 2.0bp | **impossible** |
+| 1 minute | 4.8bp | **impossible — 148%** |
+| 5 minutes | 10.7bp | 93.9% |
+| 1 hour | 37.1bp | 62.7% |
+| 1 day | 181.7bp | 52.6% |
+
+**The only lever that moves that column is how long you hold.** Traded every
+minute at 40x on the real forecasts, the leg returned **−75.7%** over 150
+minutes: 37 fills, 2840x turned over, 70 of the 76 points lost were fees. The
+settings that did not lose were the ones that barely traded — three fills in
+150 minutes — and their gains are one held position getting lucky at 40x.
+
+So stream B stays on the board as what it is: the control that shows what
+breaking the compute-first rule costs, and the demonstration that at this
+cadence **the fee structure decides the outcome before the model is
+consulted**. Its live form runs ten-second buckets, where the break-even is
+not merely high but unreachable.
+
 ### What stops it flattering itself
 
 Every one of these is a line that a dishonest version of this page omits, and

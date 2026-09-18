@@ -142,6 +142,10 @@ export function newBook({ seed = 1, costs = {}, risk = {} } = {}) {
     // zero, trading less always moves toward flat, and "closer to zero" is
     // not the same thing as "better".
     flat: mk(),
+    // Stream B: thirty raw floats in, a forecast out, max leverage slammed
+    // in that direction. Its own leg so the two streams are compared rather
+    // than blended.
+    streamb: mk(),
     // One leg per deterministic rule, plus the two mechanical controls that
     // matter once Jev has SEEN the rules: following whichever is ahead on
     // past performance, and averaging what they all say. Beating the rules
@@ -201,7 +205,7 @@ function applyTo(leg, book, ret, want, spreadBps) {
 const clampCap = (book, x) => Math.max(-book.risk.cap, Math.min(book.risk.cap, x));
 
 export function step(book, { px, spreadBps = 0, action = null, exposure = null, t = Date.now(), meta = {},
-  oracleTargets = null, bestTarget = null, majorityTarget = null }) {
+  oracleTargets = null, bestTarget = null, majorityTarget = null, streambTarget = null }) {
   if (!Number.isFinite(px) || px <= 0) return null;
   const ret = book.lastPx == null ? 0 : (px - book.lastPx) / book.lastPx;
   book.lastPx = px;
@@ -235,6 +239,8 @@ export function step(book, { px, spreadBps = 0, action = null, exposure = null, 
   applyTo(book.rand, book, ret, wantRand, spreadBps);
   applyTo(book.hold, book, ret, wantHold, spreadBps);
   applyTo(book.flat, book, ret, 0, spreadBps);
+  applyTo(book.streamb, book, ret,
+    decided && Number.isFinite(streambTarget) ? clampCap(book, streambTarget) : book.streamb.pos, spreadBps);
 
   // The rules trade on exactly the same ticks, at exactly the same costs, and
   // only on decision ticks — so they are not quietly given a finer clock
@@ -254,7 +260,7 @@ export function step(book, { px, spreadBps = 0, action = null, exposure = null, 
     pos: book.jev.pos,
     liquidated: book.jev.liquidated,
     jev: book.jev.equity, hold: book.hold.equity, rand: book.rand.equity,
-    best: book.best.equity, majority: book.majority.equity,
+    best: book.best.equity, majority: book.majority.equity, streamb: book.streamb.equity,
     ...meta,
   };
   if (decided) book.history.push(row);
@@ -319,7 +325,7 @@ export function summary(book) {
     randMaxDD: book.rand.maxDD * 100,
     liquidated: book.jev.liquidated,
     grossExposure: Math.abs(book.jev.pos),
-    best: pct(book.best), majority: pct(book.majority),
+    best: pct(book.best), majority: pct(book.majority), streamb: pct(book.streamb),
     oracles: Object.fromEntries(Object.entries(book.oracles)
       .map(([id, leg]) => [id, { pct: pct(leg), pos: leg.pos, fills: leg.fills, maxDD: leg.maxDD * 100 }])),
     // Ranked so the page can show who is actually winning, Jev included, and
@@ -327,6 +333,7 @@ export function summary(book) {
     ranking: [
       ['jev', book.jev], ['best oracle', book.best], ['majority', book.majority],
       ['buy & hold', book.hold], ['random', book.rand], ['do nothing', book.flat],
+      ['stream B', book.streamb],
       ...Object.entries(book.oracles),
     ].map(([id, leg]) => [id, pct(leg), leg.maxDD * 100, leg.fills])
       .sort((a, b) => b[1] - a[1]),
