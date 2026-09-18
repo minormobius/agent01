@@ -1,0 +1,95 @@
+{
+  "$schema": "com.minomobi.cad.assembly#v1",
+  "name": "train",
+  "_": "A two-stage gear train from the bench parts: each arbor carries an 8-leaf pinion (module 0.5) driving a 60-tooth wheel on the next arbor, 17 mm over. The second stage is a sub-assembly. Drive the first arbor and the whole train turns through the gear mates — the spin gate.",
+  "parts": {
+    "arbor": "bench:arbor",
+    "wheel": "bench:gear"
+  },
+  "components": [
+    {
+      "id": "arbor1",
+      "part": "arbor",
+      "at": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "id": "wheel1",
+      "part": "wheel",
+      "at": [
+        17,
+        0,
+        5.4
+      ],
+      "phase": 3
+    },
+    {
+      "id": "stage2",
+      "assembly": {
+        "parts": {
+          "arbor": "bench:arbor",
+          "wheel": "bench:gear"
+        },
+        "components": [
+          {
+            "id": "arbor",
+            "part": "arbor",
+            "params": {
+              "pin_z": 9
+            },
+            "at": [
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "id": "wheel",
+            "part": "wheel",
+            "at": [
+              17,
+              0,
+              9.4
+            ],
+            "phase": 3
+          }
+        ],
+        "mates": [
+          {
+            "kind": "gear",
+            "a": "arbor",
+            "b": "wheel",
+            "za": 8,
+            "zb": 60
+          }
+        ]
+      },
+      "at": [
+        17,
+        0,
+        0
+      ]
+    }
+  ],
+  "mates": [
+    {
+      "kind": "gear",
+      "a": "arbor1",
+      "b": "wheel1",
+      "za": 8,
+      "zb": 60
+    },
+    {
+      "kind": "fixed",
+      "a": "wheel1",
+      "b": "stage2/arbor"
+    }
+  ],
+  "drive": {
+    "component": "arbor1",
+    "rpm": 6
+  }
+}

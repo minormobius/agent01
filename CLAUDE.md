@@ -25,6 +25,7 @@ surface lives in that surface's own `CLAUDE.md`.
 | how a loop is actually wired: chain-reaction Actions, the ticket graph, the contagion firewall | [`docs/LOOPS.md`](docs/LOOPS.md) — built and **disabled**; the **how** |
 | what gets built in what order, and what would stop the programme | [`docs/LOOP-WBS.md`](docs/LOOP-WBS.md) — phases, gates, kill criteria, and the Definition of Ready |
 | where loop output lands, and how six parallel agents' work comes back together | [`docs/LOOP-SPRINTS.md`](docs/LOOP-SPRINTS.md) — the three surfaces, path leases, the barrier, the integrator |
+| the browser CAD — tree-as-model, the kernel bake-off and what it decided, ATProto lexicons, headless-first | [`docs/CAD.md`](docs/CAD.md) — the design record; phases 0–1 and the viewer (`cad.mino.mobi`) are built under [`packages/cad/`](packages/cad/) |
 | **how to steer the loop**, and how it asks you for the things no gate can measure | [`.github/loop/vision.md`](.github/loop/vision.md) — the operator's channel in; every planning turn reads it verbatim. Answer its asks with `beads answer <id> --body-file` |
 
 ## The shape of a surface
@@ -260,6 +261,7 @@ No build step, no dependencies. Import these instead of reimplementing.
 | [`packages/atproto/`](packages/atproto/) | `pds.js` identity + authenticated PDS ops; `bsky.js` public read APIs; `crypto.js` vault encryption |
 | [`packages/dataviz/`](packages/dataviz/) | `stats.js` estimators, `charts.js` SVG-string charts. Run its known-answer selftest before touching it |
 | [`packages/oauth-client/`](packages/oauth-client/) | `auth.js` — browser `AuthClient` for the shared OAuth worker |
+| [`packages/cad/`](packages/cad/) | `cad.wasm` + `engine/` — the feature-tree CAD engine (Rust, Truck kernel, raw C ABI); `lib/` the kernel adapters, mesh toolkit, assemblies and measure; `agent/` the headless tools (build, measure, check, export, render, drive — node only). `cad.selftest.mjs`, `drive.selftest.mjs` and `browser.selftest.mjs` gate it; `bakeoff/` measures kernels. To CAD as an agent: [`packages/cad/SKILL.md`](packages/cad/SKILL.md) (synced to `.claude/skills/cad/`, served at `cad.mino.mobi/SKILL.md`); the package is mirrored to tangled for use without this repo. Design record: [`docs/CAD.md`](docs/CAD.md) |
 | [`packages/pressure-lab/`](packages/pressure-lab/) | `lab.mjs` — node-only measurement scaffolding for the `/pressure/` games: policy spreads, tightness bands, the generator contract loop. Not a solver — read its README before adding a game |
 
 Older projects each carry their own copy of the ATProto code. Don't bulk-rewrite
@@ -296,7 +298,7 @@ worker are grandfathered: [`docs/OAUTH.md`](docs/OAUTH.md).
 - **`time/posts/**.md`** — a push to `main` here **posts to real Bluesky
   accounts**. Never put test markdown there.
 - Workflows that write to a PDS, publish records, or commit data back to the
-  repo: `publish-*`, `sync-*`, `score-*`, `fetch-*`, `bisk-digest`,
+  repo: `publish-*`, `seed-*`, `sync-*`, `score-*`, `fetch-*`, `bisk-digest`,
   `illustrate`. Read the workflow before triggering one.
 - Shared D1 (`atpolls-db`) backs several surfaces. Migrations live in
   `poll/apps/api/migrations/`, numbered sequentially — never reuse a number; if
@@ -336,6 +338,7 @@ here, you want to push to a branch the workflow recognises.
 | ATProto auth fails | expired app password | regenerate in Bluesky settings |
 | DID resolution fails | missing `.well-known/atproto-did` | verify the file and its DID |
 | CI fails on a generated file | a generator wasn't re-run | `node scripts/preflight.mjs --fix` |
+| deploy red on `100122`, worker uploaded, domain not bound | the zone is at Cloudflare's 100-custom-domain ceiling | mount the worker under an existing host via a service binding — [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §6, `packages/cad` ↔ `parts` |
 
 ## Infrastructure
 

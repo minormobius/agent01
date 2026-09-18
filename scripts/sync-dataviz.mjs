@@ -34,6 +34,9 @@ const CONSUMERS = ["wormhole"];
  *  domain full of agent-written pages. */
 const EXTRA = [
   ["packages/oauth-client/auth.js", "lab/_kit/auth.js"],
+  // handle typeahead on every handle field, through the cad gateway
+  ["packages/oauth-client/typeahead.js", "packages/cad/vendor/typeahead.js"],
+  ["packages/oauth-client/typeahead.js", "parts/site/vendor/typeahead.js"],
   // photo/public/shop/ is served verbatim as static assets (Vite copies public/
   // into dist/ without touching it), so /shop cannot import across directories
   // any more than a lab tenant can. It needs the client to post a finished
@@ -53,6 +56,16 @@ const EXTRA = [
   // hopper publishes runs to the player's own PDS through the shared OAuth
   // worker, so it links the client like every other static site does.
   ["packages/oauth-client/auth.js", "hopper/js/auth.js"],
+  // cad.mino.mobi saves a user's parts to their own PDS (packages/cad/lib/drive.js)
+  // through the same client; the site is packages/cad served as static assets.
+  ["packages/oauth-client/auth.js", "packages/cad/vendor/auth.js"],
+  // parts (cad.mino.mobi/parts/) writes communities, posts, comments and votes to the
+  // person's own repo through the same client; the site is parts/site/.
+  ["packages/oauth-client/auth.js", "parts/site/vendor/auth.js"],
+  // The cad skill is written next to the code it describes and served from
+  // cad.mino.mobi/SKILL.md, so an agent that never clones this repo can read
+  // it; Claude Code loads skills from .claude/skills/, so that copy follows.
+  ["packages/cad/SKILL.md", ".claude/skills/cad/SKILL.md"],
   ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],

@@ -20,6 +20,7 @@
 //   node scripts/build-spec.mjs --write    # write spec/data.js
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -111,11 +112,15 @@ function parseTomlLoose(raw) {
 
 // ------------------------------------------------------ host/dir -> surface --
 const hostToSurface = new Map([['mino.mobi', 'root'], ['www.mino.mobi', 'root'], ['minomobi.com', 'root']]);
+// `host/seg` for a worker mounted under another surface's host (scripts/lib/landing.mjs explains)
+const mountToSurface = new Map();
 const dirToSurface = new Map();
 for (const s of reg.surfaces) {
-  for (const raw of String(s.endpoint || '').split(/[,/]/)) {
-    const host = raw.replace(/\(.*?\)/g, '').trim().split('/')[0];
-    if (host.includes('.') && !hostToSurface.has(host)) hostToSurface.set(host, s.surface);
+  for (const raw of String(s.endpoint || '').split(',')) {
+    const [host, seg] = raw.replace(/\(.*?\)/g, '').trim().split(/\s+/)[0].split('/');
+    if (!host || !host.includes('.')) continue;
+    if (seg) mountToSurface.set(`${host}/${seg}`, s.surface);
+    else if (!hostToSurface.has(host)) hostToSurface.set(host, s.surface);
   }
   const dirs = s.dirs ?? [s.dir];
   for (const d of dirs) if (d && d !== '.') dirToSurface.set(d.split('/')[0], s.surface);
@@ -124,11 +129,11 @@ for (const s of reg.surfaces) {
 // resolve a P node URL to its owning surface key (or 'root' for bundled subsites)
 function ownerOf(url) {
   const u = norm(url);
-  const host = u.split('/')[0];
+  const [host, seg] = u.split('/');
+  if (seg && mountToSurface.has(`${host}/${seg}`)) return mountToSurface.get(`${host}/${seg}`);
   const surf = hostToSurface.get(host);
   if (!surf) return null;
   if (surf !== 'root') return surf;
-  const seg = u.split('/')[1];
   if (seg && dirToSurface.has(seg)) return dirToSurface.get(seg);
   return 'root';
 }
@@ -149,7 +154,7 @@ for (const p of P) {
   const slot = bySurface.get(owner);
   const u = norm(p.u), host = u.split('/')[0];
   const isHome = owner !== 'root'
-    ? (u === host || u === `${host}`)
+    ? (u === host || mountToSurface.get(u) === owner)
     : false; // root's own home is the landing page itself
   if (isHome && !slot.primary) slot.primary = node;
   else slot.features.push(node);
@@ -228,10 +233,29 @@ const surfaces = reg.surfaces.map((s) => {
   };
 });
 
-let gitMeta = { commit: 'unknown', date: new Date().toISOString().slice(0, 10) };
+// Provenance: the last commit that touched anything this generator READS —
+// not HEAD. Recording HEAD made the file stale the moment it was committed,
+// so CI's "would --fix rewrite anything?" gate failed on the next push, and
+// committing the regeneration only moved the hash again (measured
+// 2026-09-13, three pushes chasing their own tails). This is stable: it
+// changes when the spec's inputs change, which is what provenance means.
+// (the generator itself is deliberately not in this list: the provenance of
+// the DATA is where the data came from, and including it would make every
+// edit to this file need a second commit to settle)
+const SPEC_INPUTS = ['deploy-registry.json', 'catalogue.json', 'index.html', 'spec/curated.js'];
+// A COMMIT hash cannot go in here: the file is part of the commit that would
+// name it, so the stamp is stale the instant it is written and CI's "would
+// --fix rewrite anything?" gate fails on the next push for ever (three
+// pushes chased their own tails on 2026-09-13). The stamp is a hash of the
+// inputs themselves, which is what provenance actually means: it changes
+// when the data changes and holds still otherwise.
+let gitMeta = { inputs: 'unknown', date: new Date().toISOString().slice(0, 10) };
 try {
-  const [commit, date] = execSync('git log -1 "--format=%h %cI"', { cwd: ROOT }).toString().trim().split(' ');
-  gitMeta = { commit, date: date.slice(0, 10) };
+  const paths = [...SPEC_INPUTS, ...reg.surfaces.map((s) => `${s.dir}/CLAUDE.md`)].filter((f) => existsSync(join(ROOT, f))).sort();
+  const h = createHash('sha256');
+  for (const f of paths) { h.update(f); h.update(readFileSync(join(ROOT, f))); }
+  const dates = execSync(`git log -1 "--format=%cI" -- ${paths.map((p) => `"${p}"`).join(' ')}`, { cwd: ROOT }).toString().trim();
+  gitMeta = { inputs: h.digest('hex').slice(0, 12), date: (dates || new Date().toISOString()).slice(0, 10) };
 } catch { /* fine — keep fallback */ }
 
 // ------------------------------------------------------------------- probe --

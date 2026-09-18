@@ -171,6 +171,20 @@ Shapes:
 - **The root bundle.** The root Pages project serves `.` and bundles ~19 static
   subsites at `mino.mobi/<name>/`. They **cannot** be deployed independently of
   each other; carving one out to its own subdomain is a deliberate operation.
+- **The zone's custom-domain ceiling: 100.** Cloudflare allows 100 Workers
+  custom domains per zone, and `mino.mobi` reached it on 2026-09-12: the
+  `parts` deploy uploaded the worker, then failed binding `parts.mino.mobi`
+  with code `100122` ("Trigger configuration was only partially updated").
+  The worker exists and the run is red. A `routes: [{ pattern, zone_name }]`
+  route is not a way round it from CI — it needs a proxied DNS record for the
+  host, and this token cannot write DNS (measured 2026-07-29, see
+  `publish-lexicons.yml`). What works without a dashboard: **mount the new
+  worker under an existing host through a service binding** — the owner's
+  `wrangler.jsonc` gets `services: [{ binding, service }]`, its worker strips
+  the prefix and forwards, the mounted worker declares no route and
+  `workers_dev: false`, and its page uses relative URLs. `packages/cad/` ↔
+  `parts/` is the worked example. Freeing a domain (detaching one from a dead
+  worker) is dashboard-only, §7.
 - **Container worker.** `os/api` (`os-mino-api`) is a Cloudflare **Containers**
   worker — its `deploy-os-api.yml` is **`workflow_dispatch`-only and
   prerequisite-gated** so it never surprise-builds paid containers.
