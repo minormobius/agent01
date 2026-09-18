@@ -1161,6 +1161,67 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+### The first five minutes of every run were a lie (2026-09-18)
+
+The operator's reading — *"Jev is flying off half cocked with less than half a
+minute of data"* — is exactly right, and the cause is the seventh instance of
+this file's one recurring bug: **a badly-shaped input, not a weak model.**
+
+The metrics ring holds five minutes. `compute()` returned at 20 ticks and then
+described all three windows from whatever was in the buffer. At the first
+decision the document said, verbatim:
+
+| what it said | what it was |
+|---|---|
+| `last 300s return 5.553bp` | the 20-second return — **byte-identical to the 60s line above it** |
+| `price vs its own 300s mean 1.186 sd` | the same number as the 60s line, again |
+| `position in the last 300s range 1.00` | the top of a 20-second range |
+| `below the 300s high by 0.0bp, set 0s ago` | structurally forced: the max of a 20-tick buffer ending on its own highest tick |
+| `volatility at the 50th percentile` | the `vols.length > 3` fallback, printed as a measurement |
+
+Read together: *price is at the top of its five-minute range, it just set a
+five-minute high this second, and volatility is exactly average.* Three
+assertions, none measured, all leaning the same way.
+
+**Blast radius.** On the default 10s cadence that is the **first 28 decisions
+of every run**. And `fixtures/btc-ticks.json` is 190 seconds, so it never
+reaches 300 — **every replay measurement on this page was taken in that
+regime**, including the rates-versus-levels comparison. That comparison
+survives, because its ground truth was computed from the same short window, so
+both arms were consistently mislabelled rather than differently wrong; but the
+label was false and it should not have been.
+
+**The fix: never describe a window the tape does not reach.** `compute` returns
+`windows` (the covered subset), `longWindow` and `tapeLen`; uncovered metrics
+are `null`, not approximations. `stateDoc` leads with `TAPE SO FAR 47s`, names
+the boundary, omits every uncovered window, drops the volatility percentile
+rather than defaulting it, and drops the MA cross until both means exist.
+
+**The decision gate waits for two windows — 60s — not three.** Every
+deterministic oracle keys off the 60s window, so one window is not worth a
+call; but five minutes of blank page is not honesty, it is a blank page. In
+between, the document says so in its first line.
+
+#### The oracles crashed on the fix, which is how the silent version was found
+
+They had been consuming those fabricated numbers without complaint. Now each
+declares what it `needs` and **abstains** when any of it is missing:
+`conviction: null`, `side: 'no data'`, excluded from `oracleCriteria` (a typed
+choice's guarantee is its option set — offering an option that cannot be right
+spends that guarantee for nothing), and counted apart from flat in the tally.
+`majorityTarget` averages only the rules that have a view.
+
+Six abstentions averaged as zeros would have shown Jev six rules agreeing the
+tape was balanced, and would have dragged every real signal toward flat in
+exact proportion to how little data there was. **"No data" and "a view that
+flat is right" are different things** — the identical distinction the dead zone
+already makes, two sections above, for the identical reason.
+
+One nuance kept on purpose: a window that **is** covered but perfectly flat
+reads **zero**, not null. That is a measurement of no dispersion. Collapsing
+the two made a dead-calm tape indistinguishable from a page four seconds old,
+and the selftest pins both cases.
+
 ### Pre-registered, and running (2026-09-18)
 
 `preregister.json` was committed **alone, and before the code that evaluates
@@ -1176,22 +1237,49 @@ prediction. Success is accuracy > 50% at a one-sided binomial p < 0.05.
 result.** `prereg.mjs` reads every constant from the JSON so the two cannot
 drift, and the whole thing is deliberately unable to grow options.
 
-**Collection is `.github/workflows/jev-prereg.yml`**, twice a day, committing
-`prereg-results.json` and deploying so the page's counter moves. It calls
+**Collection is a Cloudflare cron on the `mega` worker**, twice a day, writing
+into a Durable Object that the page reads. It calls
 Hyperliquid and never calls Jev — this measures the *rule*, not the model. The
 page displays the file and computes no verdict of its own, so a refresh cannot
 cash a result in early; below n = 200 it prints the running accuracy and says
 on the same line that it means nothing yet.
 
-> **The workflow does not fire until it is on `main`.** GitHub runs `schedule`
-> only for workflows on the default branch, whatever branch the job then checks
-> out — which is exactly why `refresh-perp-data.yml`, which also collects onto
-> a feature branch, lives on main. Until this branch is merged the forward test
-> is committed, tested and correct, and **accruing nothing**. That is inert
-> rather than broken: the collector is idempotent and keyed on close time, and
-> it reaches back 208 days, so the first run after the merge picks up every
-> window that closed in the meantime. The counter on the page will read `0 of
-> 200` until then, which is the truth.
+#### The schedule had to move to Cloudflare
+
+The first version of this was a GitHub Actions cron, and it does not fire.
+**GitHub runs `schedule` only for workflows on the DEFAULT branch**, whatever
+branch the job then checks out — which is exactly why `refresh-perp-data.yml`,
+which also collects onto a feature branch, lives on main. So the forward test
+was committed, tested, correct and **accruing nothing** until somebody merged.
+
+It now collects from a **Worker cron trigger on `mega` writing into a Durable
+Object**, both declared in `mega/wrangler.jsonc`. Neither needs a dashboard
+step or an id to paste in — `triggers.crons` and `durable_objects` +
+`migrations` are pure config, which is the whole reason this works where a KV
+namespace or a D1 database would not. It ships on this surface's own deploy.
+
+| piece | where |
+|---|---|
+| the rule and the record logic | `lab/collect-core.mjs` — no fs, no process, so node and the Worker run the **same** code |
+| the store | `jev/prereg-do.mjs`, class `PreregLog`, SQLite-backed |
+| the trigger | `mega/wrangler.jsonc` → `triggers.crons`, 01:25 and 13:25 UTC |
+| the read | `GET /jev/lab/api/prereg`; the page falls back to the committed JSON |
+| the node host | `lab/collect-prereg.mjs`, unchanged in behaviour |
+
+**What it costs, and why the git path is kept.** A git-committed record is
+append-only in public history, and that is a real part of why a
+pre-registration is believable; a store the operator can write is not. So the
+**registration itself stays in git** (commit `54531db6`, before any evaluating
+code existed), the DO holds only the accumulating record, and
+`.github/workflows/jev-prereg.yml` is kept so that once it *can* fire it
+snapshots the same record back into git. **Cloudflare is what makes the test
+run; git is what makes it auditable.** Do not delete the workflow.
+
+Twice a day for a once-a-day grid is deliberate: windows pivot on a 24h clock
+boundary, so at most one per asset closes per day, and the second run picks up
+a failed or throttled one within twelve hours. The collector is idempotent —
+keyed on `asset@close-time`, and it reaches back 208 days — so an extra run
+adds nothing and the first run after an outage picks up the whole backlog.
 
 #### The defect that would only have appeared on the second run
 

@@ -35,6 +35,7 @@ export const ORACLES = [
   {
     id: 'ma_cross', name: 'MA cross',
     blurb: `15s mean against 60s mean, sized by the gap in sd of the 60s window`,
+    needs: ['maSpreadZ', 'maSpreadBps'],
     rule: (m) => clamp(m.maSpreadZ),
     says: (m) => `fast mean ${m.maSpreadBps >= 0 ? 'above' : 'below'} slow by ` +
       `${Math.abs(m.maSpreadBps).toFixed(2)}bp (${m.maSpreadZ.toFixed(2)} sd)`,
@@ -42,6 +43,7 @@ export const ORACLES = [
   {
     id: 'zscore_rev', name: 'Mean reversion',
     blurb: `fades price beyond ${T.Z_STRETCH} sd from its own 60s mean`,
+    needs: ['z60'],
     rule: (m) => (Math.abs(m.z60) < T.Z_STRETCH ? 0 : clamp(-m.z60 / 3)),
     says: (m) => (Math.abs(m.z60) < T.Z_STRETCH
       ? `price ${m.z60.toFixed(2)} sd from its mean — inside the band, no view`
@@ -50,12 +52,14 @@ export const ORACLES = [
   {
     id: 'breakout', name: 'Breakout',
     blurb: `buys the top ${((1 - T.BREAK_EDGE) * 100).toFixed(0)}% of the 60s range, sells the bottom`,
+    needs: ['rangePos60'],
     rule: (m) => (m.rangePos60 >= T.BREAK_EDGE ? 1 : m.rangePos60 <= 1 - T.BREAK_EDGE ? -1 : 0),
     says: (m) => `sitting at ${(m.rangePos60 * 100).toFixed(0)}% of the 60s range`,
   },
   {
     id: 'momentum', name: 'Momentum',
     blurb: `follows the 60s move, but only while efficiency is over ${T.EFF_TREND}`,
+    needs: ['w60_efficiency', 'w60_retBps'],
     rule: (m) => (m.w60_efficiency < T.EFF_TREND ? 0 : clamp(m.w60_retBps / 10)),
     says: (m) => (m.w60_efficiency < T.EFF_TREND
       ? `efficiency ${m.w60_efficiency.toFixed(2)} — too much churn to follow`
@@ -64,12 +68,14 @@ export const ORACLES = [
   {
     id: 'flow', name: 'Taker flow',
     blurb: `follows the aggressor imbalance once it passes ${T.SKEW_STRONG}`,
+    needs: ['w60_takerSkew'],
     rule: (m) => (Math.abs(m.w60_takerSkew) < T.SKEW_STRONG ? 0 : clamp(m.w60_takerSkew * 1.5)),
     says: (m) => `aggressors ${m.w60_takerSkew >= 0 ? 'lifting' : 'hitting'} at skew ${m.w60_takerSkew.toFixed(2)}`,
   },
   {
     id: 'carry', name: 'Funding carry',
     blurb: `leans against funding: paid to be short when longs are paying`,
+    needs: ['fundingBps'],
     rule: (m) => (Math.abs(m.fundingBps) < T.CARRY_BP ? 0 : clamp(-m.fundingBps * 4)),
     says: (m) => `funding ${m.fundingBps.toFixed(3)}bp — ${m.fundingBps >= 0 ? 'longs pay' : 'shorts pay'}`,
   },
@@ -77,10 +83,27 @@ export const ORACLES = [
 
 const clamp = (x) => (Number.isFinite(x) ? Math.max(-1, Math.min(1, x)) : 0);
 
-/** Read every rule against one metric snapshot. */
+/**
+ * Read every rule against one metric snapshot.
+ *
+ * An oracle whose inputs are not there yet ABSTAINS. It does not return 0.
+ *
+ * That distinction is the same one the position sizing already makes between
+ * a dead zone and flat, and it matters for the same reason: every one of these
+ * rules keys off the 60s window, so during warmup a 0 would mean "six rules
+ * all see a balanced tape" — six fabricated votes, averaged into `majority`
+ * and shown to Jev as agreement. `metrics.compute` started returning null for
+ * an uncovered window and this function CRASHED on it, which is how the
+ * silent version was found.
+ */
 export function readOracles(m, cap = 3) {
   if (!m) return [];
   return ORACLES.map((o) => {
+    const missing = (o.needs || []).filter((k) => !Number.isFinite(m[k]));
+    if (missing.length) {
+      return { id: o.id, name: o.name, conviction: null, target: null, side: 'no data',
+        says: `no reading yet — needs ${missing.join(', ')}`, unavailable: true };
+    }
     const conviction = clamp(o.rule(m));
     return { id: o.id, name: o.name, conviction,
       target: Math.round(conviction * cap * 100) / 100,
@@ -89,10 +112,18 @@ export function readOracles(m, cap = 3) {
   });
 }
 
-/** Mechanical aggregation: the average of what they all say. */
+/**
+ * Mechanical aggregation: the average of what they all say.
+ *
+ * Averaged over the rules that HAVE a view, not over all six. An abstaining
+ * rule is not half a vote each way — counting it as 0 would drag every real
+ * signal toward flat in exact proportion to how little data there is, which
+ * is the opposite of what missing data should do.
+ */
 export function majorityTarget(reads, cap = 3) {
-  if (!reads.length) return 0;
-  const mean = reads.reduce((s, r) => s + r.conviction, 0) / reads.length;
+  const voting = reads.filter((r) => Number.isFinite(r.conviction));
+  if (!voting.length) return 0;
+  const mean = voting.reduce((s, r) => s + r.conviction, 0) / voting.length;
   return Math.round(clamp(mean) * cap * 100) / 100;
 }
 
@@ -118,12 +149,18 @@ export function oracleDoc(reads) {
   if (!reads.length) return '';
   const long = reads.filter((r) => r.side === 'long').length;
   const short = reads.filter((r) => r.side === 'short').length;
+  const blind = reads.filter((r) => r.unavailable).length;
+  const flat = reads.length - long - short - blind;
   return [
     'WHAT THE RULE-BASED STRATEGIES SAY RIGHT NOW. Each is a fixed formula run',
     'on this same tape; none of them can see the future either.',
     ...reads.map((r) =>
-      `${r.name.padEnd(15)} ${r.side.toUpperCase().padEnd(6)} ${String(r.target).padStart(6)}x   ${r.says}`),
-    `tally: ${long} long, ${short} short, ${reads.length - long - short} flat`,
+      `${r.name.padEnd(15)} ${r.side.toUpperCase().padEnd(7)} ` +
+      `${(r.unavailable ? '—' : `${r.target}x`).padStart(7)}   ${r.says}`),
+    // A rule with no data is counted apart from a rule reading flat. Folding
+    // them together would report agreement that nobody expressed.
+    `tally: ${long} long, ${short} short, ${flat} flat` +
+      (blind ? `, ${blind} with no reading yet` : ''),
   ].join('\n');
 }
 
@@ -131,6 +168,10 @@ export function oracleDoc(reads) {
 export function oracleCriteria(reads) {
   const c = {};
   for (const r of reads) {
+    // A rule with no reading is not an option. The set of legal options is
+    // the thing a typed choice guarantees, and offering one that cannot be
+    // right spends that guarantee for nothing.
+    if (r.unavailable) continue;
     const o = ORACLES.find((x) => x.id === r.id);
     c[r.id] = `${r.name}: ${o.blurb}. It currently reads ${r.side} (${r.says}).`;
   }

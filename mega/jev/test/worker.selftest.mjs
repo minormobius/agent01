@@ -328,6 +328,45 @@ await (async () => {
     const res = await worker.fetch(new Request('https://mega.mino.mobi/'), envWith(SECRET));
     ok(res.status === 200 && (await res.text()) === 'asset', 'non-api paths fall through to ASSETS');
   }
+
+  // ------------------------------------------- the forward test's record ----
+  //
+  // The cron and its Durable Object are the whole reason the pre-registered
+  // test accrues at all, so the wiring is pinned here: both must degrade to
+  // the committed file rather than erroring, and the cron must never take a
+  // record away.
+  {
+    const res = await worker.fetch(
+      new Request('https://mega.mino.mobi/jev/lab/api/prereg'), envWith(SECRET));
+    ok((await res.text()) === 'asset',
+      'with no PREREG_LOG binding the record route falls through to the committed file');
+  }
+  {
+    // A stand-in DO: the real class is exercised by lab.selftest against the
+    // collector core. Here the question is only whether the worker routes to
+    // it, and whether `scheduled` asks it to collect.
+    let got = null;
+    const stub = { fetch: async (req) => { got = new URL(req.url); return Response.json({ n: 7 }); } };
+    const env = { ...envWith(SECRET), PREREG_LOG: { idFromName: () => 'id', get: () => stub } };
+
+    const res = await worker.fetch(new Request('https://mega.mino.mobi/jev/lab/api/prereg'), env);
+    ok((await res.json()).n === 7, 'with the binding present the record route reaches the log');
+    ok(!got.searchParams.has('collect'), 'and a plain read does NOT trigger a collection');
+
+    got = null;
+    const waited = [];
+    await worker.scheduled({ cron: '25 1 * * *' }, env, { waitUntil: (p) => waited.push(p) });
+    await Promise.all(waited);
+    ok(waited.length === 1, 'the cron hands its work to waitUntil rather than dropping it');
+    ok(got && got.searchParams.get('collect') === '1', 'and it asks for a collection');
+  }
+  {
+    // No binding, no crash — a deploy that predates the migration must not
+    // throw on every scheduled invocation.
+    let threw = false;
+    try { await worker.scheduled({}, envWith(SECRET), { waitUntil: () => {} }); } catch { threw = true; }
+    ok(!threw, 'a scheduled run with no binding is a no-op rather than an error');
+  }
 })();
 
 if (failures.length) {

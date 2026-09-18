@@ -46,6 +46,24 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
   if (t.length < 20) return null;
   const now = t[t.length - 1];
 
+  // ---- COVERAGE: never describe a window the tape does not reach ----------
+  //
+  // This used to compute all three windows from whatever was in the ring. At
+  // the first decision — 21 ticks — that produced a document which said, with
+  // a straight face, "last 300s return 5.553bp" (it was the 20-second return,
+  // byte-identical to the 60s line printed above it), "position in the last
+  // 300s range 1.00", and "below the 300s high by 0.0bp, set 0s ago" — the
+  // last one structurally forced, because the maximum of a 20-tick buffer
+  // whose newest tick is the highest can only ever be now.
+  //
+  // Three assertions, none of them measured, all leaning the same way, handed
+  // to a model whose entire documented failure mode on this surface is being
+  // given a badly-shaped input. A window is now reported only when the tape
+  // actually covers it, and the document says how much tape there is.
+  const covered = windows.filter((w) => t.length >= w);
+  if (!covered.length) return null;
+  const longW = covered[covered.length - 1];
+
   const m = {
     mid: now.mid,
     mark: now.mark,
@@ -59,9 +77,14 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
     openInterest: now.openInterest ?? 0,
     premiumBps: (now.premium ?? 0) * 1e4,
     ticks: t.length,
+    // What the document is allowed to talk about, and how much tape there is.
+    windows: covered,
+    longWindow: longW,
+    tapeLen: t.length,
+    warm: covered.length === windows.length,
   };
 
-  for (const w of windows) {
+  for (const w of covered) {
     const win = last(t, w + 1);
     const r = returnsBps(win);
     const px = win.map((x) => x.mid);
@@ -84,7 +107,7 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
   // genuinely forecastable thing measured earlier (vol clusters), and the
   // one where a one-line persistence rule BEAT Jev. It is here as context
   // for a judgement, never as a prediction to be asked for.
-  m.volRatio = m.w300_volBps > 1e-9 ? m.w15_volBps / m.w300_volBps : 1;
+  m.volRatio = m[`w${longW}_volBps`] > 1e-9 ? m[`w${covered[0]}_volBps`] / m[`w${longW}_volBps`] : 1;
 
   // ---- LEVELS -------------------------------------------------------------
   // Everything above this line is a RATE: how fast, how far, which way. None
@@ -98,12 +121,15 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
   // inputs to a computation.
   const px = t.map((x) => x.mid);
   const sma = (w) => mean(last(px, w));
-  m.sma15 = sma(15); m.sma60 = sma(60); m.sma300 = sma(300);
+  // A mean over a window the tape does not reach is the mean of the whole
+  // tape wearing that window's label, so it is null rather than a number.
+  for (const w of windows) m[`sma${w}`] = covered.includes(w) ? sma(w) : null;
 
   // Band position: how many standard deviations the current price sits from
   // its own mean, over each window. This is the Bollinger question asked as
   // a number — +2 means stretched high, -2 stretched low, 0 at the mean.
   for (const w of [60, 300]) {
+    if (!covered.includes(w)) { m[`z${w}`] = null; continue; }
     const win = last(px, w);
     const sd_ = sd(win), mu = mean(win);
     m[`z${w}`] = sd_ > 1e-9 ? (now.mid - mu) / sd_ : 0;
@@ -112,13 +138,24 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
   // The fast/slow cross, in basis points and in units of the slow window's
   // own noise — a 3bp gap means one thing in a quiet tape and another in a
   // wild one, and only the second form is comparable across regimes.
-  m.maSpreadBps = m.sma60 > 0 ? (m.sma15 - m.sma60) / m.sma60 * 1e4 : 0;
+  // Both null unless BOTH means exist. A fallback of 0 would have been just
+  // as wrong in the other direction — "the fast and slow means are exactly
+  // level" is a claim, not an absence — and letting a null through the
+  // arithmetic printed a 4485.77 sd cross from a tape 21 seconds long.
+  //
+  // NULL means "the tape does not reach the 60s window". ZERO means "it does,
+  // and the two means are level". Collapsing those two would make a dead-flat
+  // tape — where every rule correctly has no view — indistinguishable from a
+  // page that started four seconds ago.
+  const haveCross = Number.isFinite(m.sma15) && Number.isFinite(m.sma60);
   const sd60 = sd(last(px, 60));
-  m.maSpreadZ = sd60 > 1e-9 ? (m.sma15 - m.sma60) / sd60 : 0;
+  m.maSpreadBps = !haveCross ? null : (m.sma60 > 0 ? (m.sma15 - m.sma60) / m.sma60 * 1e4 : 0);
+  m.maSpreadZ = !haveCross ? null : (sd60 > 1e-9 ? (m.sma15 - m.sma60) / sd60 : 0);
 
   // Where in the recent range, 0 = the low of the window, 1 = the high.
   // Scale-free and instantly legible in a way a raw price is not.
   for (const w of [60, 300]) {
+    if (!covered.includes(w)) { m[`rangePos${w}`] = null; continue; }
     const win = last(px, w);
     const lo = Math.min(...win), hi = Math.max(...win);
     m[`rangePos${w}`] = hi - lo > 1e-9 ? (now.mid - lo) / (hi - lo) : 0.5;
@@ -127,13 +164,16 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
   // How far the tape has come off its own extremes, and how long ago those
   // were set. A high made four minutes ago is a different fact from one made
   // four seconds ago, and nothing above carried the difference.
-  const w300 = last(px, 300);
-  const hi300 = Math.max(...w300), lo300 = Math.min(...w300);
-  m.offHighBps = hi300 > 0 ? (now.mid - hi300) / hi300 * 1e4 : 0;
-  m.offLowBps = lo300 > 0 ? (now.mid - lo300) / lo300 * 1e4 : 0;
-  const idxHi = w300.lastIndexOf(hi300), idxLo = w300.lastIndexOf(lo300);
-  m.secsSinceHigh = w300.length - 1 - idxHi;
-  m.secsSinceLow = w300.length - 1 - idxLo;
+  // Against the longest window the tape actually covers, not against 300
+  // regardless. The age of an extreme is bounded by the buffer that holds it,
+  // so quoting a five-minute age off twenty seconds of tape is not a slightly
+  // wrong number — it is a number that cannot exceed twenty.
+  const wl = last(px, longW);
+  const hiL = Math.max(...wl), loL = Math.min(...wl);
+  m.offHighBps = hiL > 0 ? (now.mid - hiL) / hiL * 1e4 : 0;
+  m.offLowBps = loL > 0 ? (now.mid - loL) / loL * 1e4 : 0;
+  m.secsSinceHigh = wl.length - 1 - wl.lastIndexOf(hiL);
+  m.secsSinceLow = wl.length - 1 - wl.lastIndexOf(loL);
 
   // Where the CURRENT short-window volatility sits inside the distribution
   // of short-window volatilities over the long window. A ratio says "1.2x";
@@ -141,8 +181,11 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
   // the form a judgement can act on.
   const vols = [];
   for (let i = 15; i < t.length; i += 5) vols.push(sd(returnsBps(t.slice(i - 15, i))));
+  // 0.5 used to be the fallback here, which is a measurement-shaped way of
+  // saying "no idea": exactly average, printed as if it had been observed.
+  // It is null now, and the document leaves the line out.
   m.volPctile = vols.length > 3
-    ? vols.filter((v) => v < m.w15_volBps).length / vols.length : 0.5;
+    ? vols.filter((v) => v < m[`w${covered[0]}_volBps`]).length / vols.length : null;
 
   return m;
 }
@@ -161,8 +204,15 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
  * document must not say "last 15s" when it means fifteen minutes, or the
  * judgement is being handed a lie about its own timescale.
  */
-export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = '', unit = 's', windows = [15, 60, 300] } = {}) {
+export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = '', unit = 's', windows = null } = {}) {
   const n = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '—');
+  // Default to the windows `compute` actually filled. A caller may still pass
+  // its own — the minute-bar harness does — but it may not conjure a window
+  // out of a tape that does not reach it.
+  const all = windows || m.windows || [15, 60, 300];
+  const W = all.filter((w) => Number.isFinite(m[`w${w}_retBps`]));
+  const longW = m.longWindow ?? W[W.length - 1];
+  const shortW = W[0];
   const lines = [
     'BTC PERPETUAL, Hyperliquid. Live one-second book. All figures are already',
     'computed from the tick stream; bp = basis points (0.01%).',
@@ -171,9 +221,18 @@ export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = 
     `funding ${n(m.fundingBps, 3)}bp   premium ${n(m.premiumBps)}bp   open interest ${n(m.openInterest, 0)}`,
     `top-of-book size ratio (bid/ask) ${n(m.bookImbalance)}`,
     '',
+    // How much tape there is, stated before any window is described. Without
+    // this line a short document reads like a calm market rather than like a
+    // page that has just started.
+    Number.isFinite(m.tapeLen)
+      ? `TAPE SO FAR ${m.tapeLen}${unit}` + (m.warm === false
+        ? `. Windows longer than ${longW}${unit} are not covered yet and are left out below — nothing here describes them.`
+        : '.')
+      : null,
+    '',
     'RATES — how fast, how far, which way.',
     'WINDOW      return   volatility   range   up-share   efficiency   taker-skew',
-    ...windows.map((w) =>
+    ...W.map((w) =>
       `last ${String(w).padStart(3)}${unit}  ${n(m[`w${w}_retBps`]).padStart(7)}bp ${n(m[`w${w}_volBps`]).padStart(9)}bp ` +
       `${n(m[`w${w}_rangeBps`]).padStart(7)}bp ${n(m[`w${w}_upFrac`]).padStart(8)} ${n(m[`w${w}_efficiency`]).padStart(11)} ` +
       `${n(m[`w${w}_takerSkew`]).padStart(11)}`),
@@ -183,22 +242,29 @@ export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = 
     // probe go 93.8% -> 81.3%: two views of one fact is reconciliation work
     // handed back. The percentile is the more legible of the two, so the
     // ratio rides along on the same line rather than in a block of its own.
-    `volatility right now sits at the ${n(m.volPctile * 100, 0)}th percentile of the last five minutes ` +
-      `(100 = the most volatile it has been, 0 = the calmest), which is ${n(m.volRatio)}x the five-minute average`,
+    // Omitted rather than defaulted when there are too few samples to rank
+    // against: a printed "50th percentile" is a guess wearing a measurement's
+    // clothes, and this whole surface exists to not do that.
+    Number.isFinite(m.volPctile)
+      ? `volatility right now sits at the ${n(m.volPctile * 100, 0)}th percentile of the last ${longW}${unit} ` +
+        `(100 = the most volatile it has been, 0 = the calmest), which is ${n(m.volRatio)}x the ${longW}${unit} average`
+      : null,
   ];
 
   if (levels) lines.push(
     '',
     'LEVELS — where the price actually is. Rates alone cannot tell selling into',
-    'a five-minute low from selling into a five-minute high.',
-    `mean price   last ${windows[0]}${unit} ${n(m.sma15, 1)}   last ${windows[1]}${unit} ${n(m.sma60, 1)}   last ${windows[2]}${unit} ${n(m.sma300, 1)}`,
-    `price vs its own ${windows[1]}${unit} mean  ${n(m.z60)} standard deviations`,
-    `price vs its own ${windows[2]}${unit} mean ${n(m.z300)} standard deviations`,
-    `${windows[0]}${unit} mean minus ${windows[1]}${unit} mean    ${n(m.maSpreadBps)}bp  (${n(m.maSpreadZ)} sd of the ${windows[1]}${unit} window)`,
-    `position in the last ${windows[1]}${unit} range  ${n(m.rangePos60)}   (0 = the low, 1 = the high)`,
-    `position in the last ${windows[2]}${unit} range ${n(m.rangePos300)}`,
-    `below the ${windows[2]}${unit} high by ${n(Math.abs(m.offHighBps))}bp, set ${n(m.secsSinceHigh, 0)}${unit} ago`,
-    `above the ${windows[2]}${unit} low by  ${n(Math.abs(m.offLowBps))}bp, set ${n(m.secsSinceLow, 0)}${unit} ago`,
+    `a ${longW}${unit} low from selling into a ${longW}${unit} high.`,
+    `mean price   ${W.map((w) => `last ${w}${unit} ${n(m[`sma${w}`], 1)}`).join('   ')}`,
+    ...[60, 300].filter((w) => Number.isFinite(m[`z${w}`]))
+      .map((w) => `price vs its own ${w}${unit} mean  ${n(m[`z${w}`])} standard deviations`),
+    Number.isFinite(m.maSpreadBps)
+      ? `${shortW}${unit} mean minus ${W[1]}${unit} mean    ${n(m.maSpreadBps)}bp  (${n(m.maSpreadZ)} sd of the ${W[1]}${unit} window)`
+      : null,
+    ...[60, 300].filter((w) => Number.isFinite(m[`rangePos${w}`]))
+      .map((w) => `position in the last ${w}${unit} range  ${n(m[`rangePos${w}`])}   (0 = the low, 1 = the high)`),
+    `below the ${longW}${unit} high by ${n(Math.abs(m.offHighBps))}bp, set ${n(m.secsSinceHigh, 0)}${unit} ago`,
+    `above the ${longW}${unit} low by  ${n(Math.abs(m.offLowBps))}bp, set ${n(m.secsSinceLow, 0)}${unit} ago`,
   );
 
   if (oracles) lines.push('', oracles);
@@ -217,5 +283,6 @@ export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = 
     `paper return so far ${n((book.jev.equity - 1) * 100)}%  over ${book.decisions} decisions`,
     `round-trip cost of changing position by 1x right now: about ${n(m.spreadBps / 2 + 4.5)}bp`,
   );
-  return lines.join('\n');
+  // A null is a line that had nothing true to say, so it says nothing.
+  return lines.filter((l) => l !== null).join('\n');
 }

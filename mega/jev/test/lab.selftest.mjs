@@ -16,6 +16,7 @@ import { ORACLES, readOracles, majorityTarget, bestOracleTarget, oracleDoc, orac
 import * as B from '../lab/streamb.mjs';
 import { captureStats, describe } from '../lab/bigmove.mjs';
 import { pearson, windows as pWindows, evaluate as pEval, binomialTailP, verdict } from '../lab/prereg.mjs';
+import { collect, emptyStore, REGISTERED_AT } from '../lab/collect-core.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -601,8 +602,82 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   ok(up.find((x) => x.id === 'zscore_rev').side !== 'long', 'while the reversion rule does NOT chase it');
 }
 {
+  // ---- THE EARLY-MOVER BUG -------------------------------------------------
+  // At the first decision the ring held 21 ticks and the document described
+  // all three windows from it: "last 300s return" was the 20-second return,
+  // byte-identical to the 60s line above it; "position in the last 300s range"
+  // was 1.00; "below the 300s high, set 0s ago" was structurally forced,
+  // because the max of a 20-tick buffer ending on its own highest tick can
+  // only ever be now. Three assertions, none measured, all leaning one way.
+  const young = newRing();
+  for (let i = 0; i < 21; i++) young.buf.push({ mid: 77000 + i, spreadBps: 1, funding: 0 });
+  const my = compute(young);
+  ok(JSON.stringify(my.windows) === '[15]', 'a 21-second tape covers only the 15s window');
+  ok(my.warm === false, 'and says it is not warm');
+  for (const k of ['w60_retBps', 'w300_retBps', 'sma60', 'sma300', 'z60', 'z300',
+    'rangePos60', 'rangePos300', 'maSpreadBps', 'maSpreadZ']) {
+    ok(my[k] === null || my[k] === undefined, `${k} is absent rather than computed from 21 ticks`);
+  }
+  ok(my.volPctile === null, 'and volatility percentile is absent, not the 0.5 that used to stand in for it');
+  const dy = stateDoc(my, 0, { jev: { equity: 1 }, decisions: 0 });
+  ok(/TAPE SO FAR 21s/.test(dy), 'the document leads with how much tape there is');
+  ok(!/300s/.test(dy), 'and never once mentions a 300s window it cannot see');
+  ok(!/percentile/.test(dy), 'the volatility percentile line is omitted rather than defaulted');
+  ok((dy.match(/^last /gm) || []).length === 1, 'exactly one window row is printed');
+
+  // The extreme's age is bounded by the buffer that holds it, so quoting a
+  // five-minute age off a twenty-second tape is not slightly wrong — it is a
+  // number that CANNOT exceed twenty.
+  ok(my.longWindow === 15 && my.secsSinceHigh <= 15,
+    'the age of an extreme is measured against the window the tape actually covers');
+
+  // Sixty seconds in, two real windows and still no 300s claim.
+  const mid = newRing();
+  for (let i = 0; i < 90; i++) mid.buf.push({ mid: 77000 + Math.sin(i / 7) * 20, spreadBps: 1, funding: 0 });
+  const mm = compute(mid);
+  ok(JSON.stringify(mm.windows) === '[15,60]', '90 seconds covers 15s and 60s and no more');
+  ok(Number.isFinite(mm.z60) && mm.z300 === null, 'the 60s band exists and the 300s one does not');
+  const dm = stateDoc(mm, 0, { jev: { equity: 1 }, decisions: 0 });
+  ok(!/300s/.test(dm), 'and the document still never mentions 300s');
+  ok(/Windows longer than 60s are not covered/.test(dm), 'it states the boundary rather than leaving it implied');
+
+  // Full tape: everything comes back.
+  const old = newRing();
+  for (let i = 0; i < 300; i++) old.buf.push({ mid: 77000 + Math.sin(i / 30) * 40, spreadBps: 1, funding: 0 });
+  const mo = compute(old);
+  ok(JSON.stringify(mo.windows) === '[15,60,300]' && mo.warm === true, 'a full ring is warm and carries all three');
+  ok(Number.isFinite(mo.z300) && Number.isFinite(mo.rangePos300), 'and the 300s levels are real');
+  ok(/TAPE SO FAR 300s\./.test(stateDoc(mo, 0, { jev: { equity: 1 }, decisions: 0 })),
+    'a warm document states the tape length without the not-covered caveat');
+}
+{
+  // NO DATA is not FLAT, for the oracles exactly as for the position sizing.
+  const young = newRing();
+  for (let i = 0; i < 21; i++) young.buf.push({ mid: 77000 + i, spreadBps: 1, funding: 0.00001 });
+  const reads = readOracles(compute(young), 3);
+  ok(reads.every((r) => r.unavailable || r.id === 'carry'),
+    'on 21 seconds every rule that needs the 60s window abstains');
+  ok(reads.filter((r) => r.unavailable).every((r) => r.conviction === null && r.side === 'no data'),
+    'an abstaining rule has a null conviction, not a zero one');
+  ok(!(('ma_cross') in oracleCriteria(reads)),
+    'and is not offered as an option, because a typed choice guarantees its option set');
+  // Six abstentions must not average to a confident flat.
+  const blind = reads.map((r) => ({ ...r, conviction: null, unavailable: true }));
+  ok(majorityTarget(blind, 3) === 0, 'with nobody voting the majority is flat');
+  const oneVote = blind.map((r, i) => (i ? r : { ...r, conviction: 1, unavailable: false }));
+  ok(majorityTarget(oneVote, 3) === 3,
+    'and one rule at full conviction is NOT diluted to a sixth by five abstainers');
+  ok(/no reading yet/.test(oracleDoc(reads)) && /with no reading yet/.test(oracleDoc(reads)),
+    'the tally counts no-reading apart from flat');
+}
+{
   const flat = newRing(); for (let i = 0; i < 120; i++) push(flat, { mid: 77000, spreadBps: 1, funding: 0 });
-  const reads = readOracles(compute(flat), 3);
+  const mflat = compute(flat);
+  // A covered window with no dispersion is a MEASUREMENT of zero, and must not
+  // look like the missing data above it.
+  ok(mflat.maSpreadZ === 0 && mflat.maSpreadBps === 0,
+    'a covered but perfectly flat window reads zero, which is not the same as null');
+  const reads = readOracles(mflat, 3);
   ok(reads.every((x) => x.side === 'flat'), 'a dead flat tape gives every rule no view at all');
   ok(majorityTarget(reads, 3) === 0, 'so the average of them is flat too');
 }
@@ -949,6 +1024,88 @@ const SPEC = fix2('preregister.json');
   const v = verdict(thin, SPEC);
   ok(v.netBps < 0, 'a 6bp edge does not survive a 9.4bp round trip');
   ok(/not after costs/.test(v.claim), 'and the verdict says directionally supported but not after costs');
+}
+
+// ------------------------------------ the collector, on a stubbed exchange ----
+// The core runs in node AND in the Worker's cron, so it is tested through a
+// fake `fetch` rather than against the real exchange: a scheduled job whose
+// tests need the internet is a job that goes untested.
+{
+  const BAR = 3600_000;
+  const N = 1400;
+  // The real registration instant is essentially now, so real forward bars do
+  // not exist yet. The tape runs up to now and the cutoff is moved back with
+  // it — the shape of the test is identical, only the clock is stubbed.
+  const end = Math.floor(Date.now() / BAR) * BAR;
+  const start = end - (N - 1) * BAR;
+  // Part-way through the tape, so the run has windows on BOTH sides of the
+  // cutoff — the discard path is the one that matters and it needs exercising.
+  const CUT = start + 700 * BAR;
+  const mk = (seed) => {
+    let a = seed >>> 0;
+    const rnd = () => { a = (a + 0x6D2B79F5) | 0; let x = Math.imul(a ^ (a >>> 15), 1 | a);
+      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x; return ((x ^ (x >>> 14)) >>> 0) / 4294967296 - 0.5; };
+    const out = []; let px = 100, r = 0;
+    for (let i = 0; i < N; i++) { r = 0.75 * r + rnd() * 0.004; px *= (1 + r);
+      out.push({ t: start + i * BAR, c: String(px) }); }
+    return out;
+  };
+  const tapes = { BTC: mk(31), ETH: mk(32), SOL: mk(33) };
+  let calls = 0;
+  const fakeFetch = async (_url, opts) => {
+    calls++;
+    const { req } = JSON.parse(opts.body);
+    const rows = tapes[req.coin].filter((c) => c.t >= req.startTime && c.t <= req.endTime);
+    return { ok: true, json: async () => rows };
+  };
+
+  const opt = { fetchImpl: fakeFetch, pages: 3, registeredAt: CUT };
+  const a = await collect(SPEC, null, opt);
+  ok(a.added > 0, `the collector records predictions from a stubbed exchange (${a.added})`);
+  ok(a.store.predictions.every((p) => p.closes_ms >= CUT),
+    'and every one closed after the registration cutoff');
+  ok(a.skippedEarly > 0, 'while windows that closed before it are counted and discarded');
+
+  // IDEMPOTENCE is what makes running it twice a day for a once-a-day grid
+  // safe, and what makes the first run after an outage pick up the backlog
+  // without double-counting.
+  const b = await collect(SPEC, a.store, opt);
+  ok(b.added === 0, 'running it again adds nothing');
+  ok(b.store.predictions.length === a.store.predictions.length, 'and the record does not grow');
+  ok(JSON.stringify(b.store.predictions) === JSON.stringify(a.store.predictions),
+    'the recorded predictions are byte-identical on a re-run');
+
+  // Non-overlap must survive the round trip, since that is the property the
+  // whole registration rests on.
+  for (const asset of SPEC.rule.universe) {
+    const mine = a.store.predictions.filter((p) => p.asset === asset).map((p) => p.closes_ms);
+    for (let i = 1; i < mine.length; i++) {
+      ok(mine[i] - mine[i - 1] >= SPEC.rule.stride_bars * BAR,
+        `${asset}: consecutive predictions are at least one stride apart`);
+    }
+  }
+
+  // The input record is never mutated — the DO writes only what comes back.
+  const before = JSON.stringify(a.store);
+  await collect(SPEC, a.store, opt);
+  ok(JSON.stringify(a.store) === before, 'collect does not mutate the record it was given');
+
+  // A spec id that does not match the record is refused rather than merged.
+  let refused = false;
+  try { await collect({ ...SPEC, id: 'other-v2' }, a.store, opt); }
+  catch { refused = true; }
+  ok(refused, 'a record from a different registration is refused, not appended to');
+
+  // And an exchange failure throws rather than returning an empty record that
+  // would overwrite a good one.
+  let threw = false;
+  try { await collect(SPEC, a.store, { ...opt, fetchImpl: async () => ({ ok: false, status: 503 }) }); }
+  catch { threw = true; }
+  ok(threw, 'an exchange failure throws rather than quietly producing an empty record');
+
+  // Below the registered minimum there is no claim, whatever the numbers say.
+  ok(a.store.verdict.claim === null && /before any claim/.test(a.store.verdict.status),
+    'and under the registered minimum the verdict refuses to speak');
 }
 
 if (failures.length) {

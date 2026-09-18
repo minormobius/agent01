@@ -103,8 +103,37 @@ if (tape) {
 }
 
 // ------------------------------------------------------------- decisions ---
+/**
+ * Two real windows before anything is asked.
+ *
+ * `compute` now refuses to describe a window the tape does not reach, so a
+ * 21-second document honestly carries ONE window and no moving-average cross.
+ * That is truthful but it is not a state worth spending a call on, and the
+ * deterministic oracles read z60, rangePos60 and maSpreadZ — every one of
+ * which needs sixty seconds to mean anything. So the run waits for the second
+ * window rather than flying off half-cocked on twenty seconds of tape.
+ *
+ * It waits for TWO windows and not for all three on purpose: the third is five
+ * minutes away, and a page that shows nothing for five minutes is a page
+ * nobody watches. Between 60s and 300s the document says so in its first line
+ * and leaves the 300s block out entirely, which is the honest middle.
+ */
+const MIN_WINDOWS = 2;
+function warmupNote(m) {
+  if (!m) return 'waiting for the first ticks';
+  if ((m.windows?.length ?? 0) >= MIN_WINDOWS) return null;
+  return `warming up — ${m.tapeLen}s of tape, needs 60s before the first decision`;
+}
+
 async function takeDecision() {
   if (!running || inFlight || !lastMetrics) return;
+  const warming = warmupNote(lastMetrics);
+  if (warming) {
+    // Say why nothing is happening. A silent gate looks like a broken page.
+    lastDecision = { action: 'hold', reason: warming, blocked: true };
+    paintAnswer(lastDecision);
+    return;
+  }
   inFlight = true;
   const cap = Number($('cap').value) || 3;
   const reads = readOracles(lastMetrics, cap);
@@ -519,15 +548,28 @@ function draw() { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => {
 // page only ever DISPLAYS it. Nothing here may compute a verdict: the verdict
 // is bound by the registered minimum sample and is written into the file by
 // the collector, so a page refresh can never cash a result in early.
+async function firstOk(urls) {
+  let lastErr;
+  for (const u of urls) {
+    try {
+      const res = await fetch(u, { cache: 'no-store' });
+      if (!res.ok) throw new Error(String(res.status));
+      return await res.json();
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr;
+}
+
 async function paintPrereg() {
   const fill = document.getElementById('pregFill');
   const count = document.getElementById('pregCount');
   if (!fill || !count) return;
+  // The live record first — a Durable Object the worker's cron writes into.
+  // The committed JSON is the fallback, because the DO only exists on a deploy
+  // that carried the migration, and a dev server has no bindings at all.
   let r;
   try {
-    const res = await fetch('prereg-results.json', { cache: 'no-store' });
-    if (!res.ok) throw new Error(String(res.status));
-    r = await res.json();
+    r = await firstOk(['api/prereg', 'prereg-results.json']);
   } catch {
     // Say the record is unreadable rather than leaving a zero standing, which
     // would look like a test that is running and finding nothing.

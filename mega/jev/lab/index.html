@@ -256,6 +256,54 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>The first five minutes were a lie, and that is now fixed</h2>
+    <p class="cap" style="margin:0 0 10px">The state document described windows the tape did not reach.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The metrics ring holds five minutes, but the decision loop started at <b>twenty seconds</b> and computed
+      all three windows from whatever was in it. At the first decision the document said this, in these words:
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:460px"><thead><tr>
+        <th>what it said</th><th>what it actually was</th>
+      </tr></thead><tbody>
+        <tr><td><code>last 300s return 5.553bp</code></td><td>the 20-second return &mdash; <b>byte-identical to the 60s line printed above it</b></td></tr>
+        <tr><td><code>price vs its own 300s mean 1.186 sd</code></td><td>the same number as the 60s line, again</td></tr>
+        <tr><td><code>position in the last 300s range 1.00</code></td><td>the top of a 20-second range</td></tr>
+        <tr><td><code>below the 300s high by 0.0bp, set 0s ago</code></td><td>structurally forced: the max of a 20-tick buffer ending on its own highest tick</td></tr>
+        <tr><td><code>volatility at the 50th percentile</code></td><td>the fallback for <em>too few samples to rank</em>, printed as a measurement</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Read together that is <em>&ldquo;price is at the top of its five-minute range, it just set a five-minute
+      high this second, and volatility is exactly average&rdquo;</em> &mdash; three assertions, none of them
+      measured, all leaning the same way. On the default ten-second cadence <b>the first 28 decisions of every
+      run</b> were made against a document like that, and the 190-second fixture never reaches 300s at all, so
+      every replay measurement on this page was taken in that regime.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>A window is now reported only when the tape covers it.</b> The document leads with
+      <code>TAPE SO FAR 47s</code> and names the boundary; anything longer is left out rather than approximated;
+      the volatility percentile is omitted rather than defaulted to a half; and the moving-average cross is
+      absent until both means exist. The first call waits for the second window &mdash; sixty seconds &mdash;
+      because every deterministic rule below keys off it. It does <em>not</em> wait for all three: five minutes
+      of blank page is not honesty, it is just a blank page.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>The oracles crashed on the fix, which is how the silent version was found.</b> They had been reading
+      those fabricated numbers without complaint. A rule whose inputs are missing now <b>abstains</b> &mdash; it
+      does not vote zero, it is not offered as an option in the typed choice, and the tally counts it apart from
+      flat. Six abstentions averaged as zeros would have shown Jev six rules agreeing that the tape was
+      balanced. <em>No data</em> and <em>a view that flat is right</em> are different things, which is the same
+      distinction the dead zone already makes one card below.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      One nuance kept deliberately: a window that IS covered but perfectly flat reads <b>zero</b>, not null.
+      That is a measurement of no dispersion, and collapsing it into &ldquo;no data&rdquo; would make a dead
+      calm tape indistinguishable from a page that started four seconds ago.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>So it was pre-registered, and it is running now</h2>
     <p class="cap" style="margin:0 0 10px">
       <code style="font-family:var(--mono);font-size:.9em">jev-lab-polarity-12h-v1</code> &middot; committed
@@ -321,8 +369,24 @@
     </p>
     <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
       Collection is a scheduled job, not this page: it runs twice a day, applies the frozen rule to whatever
-      closed, and commits the result. It calls Hyperliquid and never calls Jev — <b>this measures the rule, not
-      the model</b>, and the model is why the rule was worth registering.
+      closed, and records the result. It calls Hyperliquid and never calls Jev &mdash; <b>this measures the
+      rule, not the model</b>, and the model is why the rule was worth registering.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the schedule runs on Cloudflare, because the GitHub one does not.</b> GitHub fires
+      <code>schedule</code> only for workflows on the default branch, and this surface's workflows live on its
+      owning branch &mdash; so the first version of this was committed, tested, correct and <em>accruing
+      nothing</em>. The trigger moved to where the surface already deploys: a Worker cron writing into a
+      Durable Object, both declared in <code>wrangler.jsonc</code>, with no dashboard step and nothing outside
+      this surface's own deploy. The counter above reads that record, and falls back to the committed file.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>What that costs, stated plainly.</b> A git-committed record is append-only in public history, and that
+      is a real part of why a pre-registration is believable at all; a store the operator can write is not.
+      So the split is deliberate: <b>the registration stays in git</b> &mdash; commit <code>54531db6</code>,
+      before any evaluating code existed &mdash; the Durable Object holds only the accumulating record, and the
+      GitHub workflow is kept so that once it can fire it snapshots the same record back into git. Cloudflare is
+      what makes the test <em>run</em>; git is what makes it <em>auditable</em>.
     </p>
   </div>
 
