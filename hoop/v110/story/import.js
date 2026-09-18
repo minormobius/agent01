@@ -11,6 +11,10 @@
 //   • requires as gate-strings ["flag.x=True"] OR his {flag,item} object → {facts,items,min_rep}
 //   • refs / revelation_hint / produces / rumor's source — carried first-class (great signal for spine + gates)
 // rumor is a first-class type here, in KNOWN_TYPES (review.js), and in the lexicon enum.
+//
+// ONE import, and it is data: `spine-anchors.js` carries the four load-bearing anchors a content run may
+// have tombstoned without replacing (see THE SPINE GRAFT below). Still pure — no DOM, no I/O, no LLM.
+import { SPINE_ANCHORS } from './spine-anchors.js';
 
 // His three prefixed axes → our three engine axes. ONE place to flip if hoopy's intent differs (the r/n/p
 // prefixes read as revelation/narrative/plot; "plot" is the surfacing/progression axis = our power_tier).
@@ -124,6 +128,23 @@ export function expandRoomBundle(rec, { provider = 'hoopy-export', lane = 'spine
     if (C.load_bearing && typeof C.load_bearing === 'object') c.load_bearing = C.load_bearing;
     if (C.zone) c.zone = C.zone;
     if (C.nave_faction) c.nave_faction = C.nave_faction;
+    // hoopy's twelve-slot REACTION TABLE (grief/shock/bribed/…) — how this keeper answers a situation
+    // that isn't a dialogue node. It was being dropped here, which quietly binned 37.7% of the prose in
+    // the 2026-08 rev. Carry it verbatim; `story/statblock.js` fills whatever slots he left empty from
+    // the NPC's rolled cast, so a partial table is now a legitimate way to author one.
+    if (npc.reactions && typeof npc.reactions === 'object') c.reactions = npc.reactions;
+    // A bundle carries THREE distinct pieces of prose and the explode used to keep one. `description`
+    // takes the ROOM's ("The floor yields slightly under your boots…") and hoopy's separate NPC
+    // description ("Shaban checks the water lines. Blue sleeves cover their forearms…") was dropped
+    // outright — so the figure you talk to was being described by the floor they stand on.
+    //
+    // Keep all three, under names that say which is which. `description` is left AS-IS (the room's
+    // prose) so nothing that reads it changes behaviour; the two new fields are additive:
+    //   description — the ROOM. What you see on entering the chamber.
+    //   figure      — the PERSON. What you see when the talk card opens.
+    //   voice       — the MANNER. A tone hint, not player-facing prose.
+    if (npc.description) c.figure = npc.description;
+    if (npc.voice) c.voice = npc.voice;
     out.push({ id: roomId, type: 'npc', content: c, tags: tags.slice(), room: roomId, roomName: C.name || null, ...(C.lore ? { lore: loreId } : {}), verb: C.verb || null, ...meta });
   }
   if (C.lore) {
@@ -184,6 +205,101 @@ const TOMBSTONE_STATUS = new Set(['retired', 'tombstoned', 'deleted']);
 export function isTombstoned(ci) {
   if (!ci) return true;
   return TOMBSTONE_STATUS.has(ci.status) || ci.tombstone === true || ci.deleted === true || ci.deletedAt != null;
+}
+
+// ── THE SPINE GRAFT (the 2026-09-16 run) ─────────────────────────────────────────────────────────────
+// hoopy regenerates the corpus in RUNS, tombstoning the previous one in place. A run publishes the
+// KEEPERS — the room bundles whose dialogue sets the per-tier gate flags — but the campaign those gates
+// feed is four LOAD-BEARING ANCHORS (Olo · Solen · Sevin · Luna): the only records that consume a gate,
+// via a turn-in choice that sets `flag.deck.<deck>.cleared`. The 2026-09-16 run regenerated 781 keepers
+// setting all 23 gates and did NOT republish the anchors, so the live pool tombstoned the spine: every
+// gate in the world and nothing to turn one in at. `proveProgression` calls that `no_anchors`, and it is
+// right — a set of rooms is not a campaign.
+//
+// So the four anchors are CARRIED (`spine-anchors.js`, pulled by scripts/pull-world.mjs) and grafted back
+// on the way out of the repo. Two properties make this a bridge and not a fork:
+//
+//   1. IT STANDS DOWN. If the live pool carries ANY load-bearing anchor of its own, nothing is grafted —
+//      the moment hoopy republishes a spine, his wins, with no code change here.
+//   2. IT RE-GATES AGAINST THE LIVE RUN. An anchor's gates are NOT the frozen list it was authored with;
+//      they are recomputed as the gates THIS run actually sets in that anchor's scope (commons/ward/rind/
+//      signal), and its turn-in `requires` is rewritten to match. A run that adds, drops or renames a gate
+//      stays solvable. A scope the run sets NOTHING in keeps its authored gates, so the oracle reports the
+//      hole (`gate_no_setter`) instead of a tier that silently walks through.
+//      The same recompute retires our own `seed-anchor-briefings` splices: a choice where the ANCHOR sets
+//      a gate is dropped once the run provides keepers for it (this run provides six per gate).
+const GATE_SCOPE_RE = /^flag\.(commons|ward|rind|signal)\./;
+const DECK_CLEAR_RE = /^flag\.deck\.[a-z_]+\.cleared$/;
+const isSpineChoiceFlag = (k) => /^flag\.chose\./.test(k) || k === 'flag.signal.disposition';
+const isGateFlag = (k) => GATE_SCOPE_RE.test(k) && !DECK_CLEAR_RE.test(k) && !isSpineChoiceFlag(k);
+// both record shapes: a RAW bundle nests its tree under content.npc.dialogue, a served npc under content.dialogue.
+const treeNodes = (r) => (r && r.content && ((r.content.npc && r.content.npc.dialogue && r.content.npc.dialogue.nodes)
+  || (r.content.dialogue && r.content.dialogue.nodes))) || {};
+const eachChoiceOf = function* (r) { for (const n of Object.values(treeNodes(r))) for (const ch of (n.choices || [])) yield ch; };
+
+export const hasLoadBearing = (items) => (items || []).some((r) => r && r.content && r.content.load_bearing);
+
+// items[] → { scope: Set(gateFlag) } — every gate flag this pool's dialogue actually sets, by scope.
+export function liveGatesByScope(items) {
+  const byScope = {};
+  for (const r of items || []) for (const ch of eachChoiceOf(r)) {
+    for (const k of Object.keys((ch.effects && ch.effects.set_facts) || {})) {
+      const m = isGateFlag(k) && GATE_SCOPE_RE.exec(k);
+      if (m) (byScope[m[1]] || (byScope[m[1]] = new Set())).add(k);
+    }
+  }
+  return byScope;
+}
+
+// One carried anchor + the live gates → the anchor re-gated for THIS run (a deep copy; the module-level
+// SPINE_ANCHORS are never mutated). Returns it unchanged when its scope has no live gates.
+function regateAnchor(anchor, byScope) {
+  const authored = ((anchor.content || {}).load_bearing || {}).gates || [];
+  const scope = (GATE_SCOPE_RE.exec(authored.find((g) => GATE_SCOPE_RE.test(g)) || '') || [])[1];
+  const live = scope && byScope[scope];
+  if (!live || !live.size) return anchor;                       // no keeper sets this tier's gates — say so
+  const gates = [...live].sort();
+  const a = JSON.parse(JSON.stringify(anchor));
+  a.content.load_bearing = { ...a.content.load_bearing, gates };
+  const facts = Object.fromEntries(gates.map((g) => [g, true]));
+  for (const node of Object.values(treeNodes(a))) {
+    node.choices = (node.choices || []).filter((ch) => {
+      // an anchor-set gate is a briefing splice for a gate nobody else set — the run sets it now.
+      const sets = Object.keys((ch.effects && ch.effects.set_facts) || {});
+      if (sets.length && sets.every(isGateFlag)) return false;
+      // the turn-in: the choice gated on this scope's gates. Re-point it at the live set.
+      const req = Object.keys((ch.requires && ch.requires.facts) || {});
+      if (req.length && req.every(isGateFlag)) ch.requires = { ...ch.requires, facts };
+      return true;
+    });
+  }
+  // a briefing splice's destination node is now unreachable — drop it (danglingGoto would end the talk).
+  const start = ((a.content.npc && a.content.npc.dialogue) || a.content.dialogue || {}).start || 'greet';
+  const reached = new Set([start]);
+  for (const ch of eachChoiceOf(a)) if (ch.goto) reached.add(ch.goto);
+  const nodes = treeNodes(a);
+  for (const id of Object.keys(nodes)) if (!reached.has(id)) delete nodes[id];
+  return a;
+}
+
+// items[] (live, tombstones already dropped) → JUST the anchors the graft would add, re-gated for this
+// run; [] when the run brought its own / sets no gates at all. Separated from the graft because
+// scripts/reactivate-anchors.mjs publishes exactly these records back to the service repo — so what goes
+// upstream is byte-identical to what the graft serves, and the graft then stands down on its own. Pure.
+export function spineAnchorsFor(items, anchors = SPINE_ANCHORS) {
+  const live = items || [];
+  if (!anchors || !anchors.length || hasLoadBearing(live)) return [];
+  const byScope = liveGatesByScope(live);
+  if (!Object.keys(byScope).length) return [];                  // no gates → nothing for an anchor to want
+  const have = new Set(live.map((r) => r && r.id).filter(Boolean));
+  return anchors.filter((a) => a && !have.has(a.id)).map((a) => regateAnchor(a, byScope));
+}
+
+// items[] (live, tombstones already dropped) → the same pool with the carried spine grafted on, or
+// UNCHANGED when the run brought its own anchors / sets no gates at all. Pure.
+export function graftSpineAnchors(items, anchors = SPINE_ANCHORS) {
+  const add = spineAnchorsFor(items, anchors);
+  return add.length ? [...(items || []), ...add] : (items || []);
 }
 
 // ── STABLE ID DE-COLLISION (the Kaelen Voss soft-lock, systemic fix) ─────────────────────────────────
@@ -258,6 +374,9 @@ export function dedupeRawIds(items) {
 // so a clean served pool is:
 //   1. DROP tombstones (isTombstoned — else a republish double-serves old + new, and stale/nuked content
 //      leaks back into the gate, the oracle, and the game).
+//   1b. GRAFT THE SPINE (graftSpineAnchors) — a run that tombstones the load-bearing anchors without
+//      republishing them leaves gates with nothing to turn them in at; put the carried four back,
+//      re-gated against this run. Stands down the moment the run brings its own.
 //   2. EXPLODE room_bundle → npc + lore_fragment   (the principals + their ground).
 //   3. MAP wanderer → ambient npc                  (the authored crowd one-liners).
 //   4. pass everything else through VERBATIM — it is already engine-shaped, and re-normalizing it through
@@ -270,8 +389,11 @@ export function servePool(items, opts = {}) {
   // LIVE ids (the Kaelen fix) before exploding — so npc id, lore id (`<id>:lore`), and every cross-ref
   // derive from the deduped, unique base.
   const live = (items || []).filter((ci) => !isTombstoned(ci));
+  // 1b. GRAFT THE SPINE — put the load-bearing anchors back when the run shipped none (no-op otherwise),
+  // re-gated against the gates this run actually sets. Opt out with {spineAnchors: false} / supply your own.
+  const withSpine = opts.spineAnchors === false ? live : graftSpineAnchors(live, opts.spineAnchors || SPINE_ANCHORS);
   const out = [];
-  for (const ci of dedupeRawIds(live)) {
+  for (const ci of dedupeRawIds(withSpine)) {
     if (ci.type === 'room_bundle') { out.push(...expandRoomBundle(ci, opts)); continue; }
     if (ci.type === 'wanderer') { out.push(...expandWanderer(ci, opts)); continue; }
     // v106 (the ONE-SIDE-THREAD bug): a record with NO explicit id and a UNIQUE base slug used to flow
@@ -347,5 +469,9 @@ export function importWorldExport(json, opts = {}) {
   // serving rule 1 (drop retired tombstones) applies to the fallback export too; dedupeRawIds de-collides
   // the live ids (the Kaelen fix) before expandRecord covers 2–4.
   const live = items.filter((r) => r && r.status !== 'retired');
+  // NO spine graft here. This is the NORMALIZER, and its callers include hoopy's review harness output
+  // (a 16-bundle content rev is a sample to inspect, not a world to play) — grafting four anchors into
+  // one would be lying about what he sent. The graft is a SERVING rule (servePool); the offline
+  // fallback export gets its anchors bundled in by scripts/pull-world.mjs instead.
   return { content: dedupeRawIds(live).flatMap((r) => expandRecord(r, opts)), bible: (json && json.story_bible) || null };
 }

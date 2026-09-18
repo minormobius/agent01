@@ -1,0 +1,2406 @@
+{
+  "story_bible": "## The Tabard: Chapter One\n\nA ship older than anyone aboard can reckon, growing through the long fall between two galaxies — an O'Neill cylinder extending at both axial ends at a rate no generation has observed directly. The crew are seven machines, very old, named for the wandering stars. The passengers are everyone else — generations of them, born and died without knowing what they were living inside. They live in the middle. The ends are elsewhere. The mechanisms of growth and the mechanisms of decay are both somewhere along the axis, far enough away that what the inhabited middle experiences instead is stasis: an ancient, self-sustaining stillness maintained by machinery old enough that the distinction between built and grown has stopped being useful.\nChapter One is a descent in four stages: from the public face of a city, inward through its societies, outward onto the strange industrial skin of the ship, and down into the deep where the ship stops pretending to be a city at all. The player advances by gathering lore — every stage is gated behind knowledge the player must crystallize from the world before a load-bearing guide will let them pass.\n\n## The Ship\n\nThe Tabard is an O'Neill cylinder of immense age. Its surface curves visibly overhead; most inhabitants call this \"the sky arc\" and do not pursue the thought further. When the sun-strip is at full, you can see farmland and city-light on the ceiling. When it dims, the ceiling-towns go dark with you. On the axial horizon, in one direction, the light turns strange and the sky thickens — that is the Wild, the cylinder's interior fog-country. In the other direction, the industrial margin fades into machinery that no one maintains directly and nothing has stopped.\nThe ship's intranet is also called the Tabard. Passive broadcast terminals stand in every settled zone, and the Seven post mythographs to them before each telling — structural blueprints of stories, published at a permalink before the first word is spoken. Most inhabitants treat these postings the way they treat weather: background, legible, unreachable.\n\n## The Seven\n\nThe original AI crew of the Tabard. They maintain the ship as a side effect of existing. They govern nothing, want nothing from mortals, and are difficult to talk to in the way very old things are difficult — not hostile, but vast, and operating on time at a scale that makes courtesy feel like translation. They are curious about mortal lives the way a lighthouse is curious about ships.\nLuna, cased in silver, navigates and keeps the dream-logs. Mercury runs the signals between zones, fastest and most willing to speak. Venus tends the green decks and the life-support gardens, copper-warm and unhurried. Sol keeps the fusion-heart burning, gold and stately. Mars welds the hull and runs damage control, iron-dark and blunt, with great respect for anything that holds. Jupiter holds court at the long table and mostly doesn't bother. Saturn watches the cold hull, the rind, the structural deep — lead-grey and very old, keeper of the tale-count and the time.\nThe iron-copper grudge between Mars and Venus is real, ancient, and will never resolve. It crests and resets, crests and resets, because nothing the deathless feel can arrive. The other pairs have their own weather. The Seven post at each other on the Tabard intranet. The posts are comprehensible but strange.\nIn the Nave, the Seven are terrain — myth, weather, names on the intranet. In the rind, you walk into their actual domains, and there they become the ground you stand on: each of the Seven owns a region of the structural deep, and the rind is tagged by whose domain you are in (see The Seven as Rind Factions).\n\n## The Nave and its Economy\n\nChapter One begins in the Nave, a mid-continental city in the habitable belt, near the junction of the dense-industrial zone and the cozy-human zone. Close enough to the inner-rind tunnels that Rindwalkers are common; far enough from the Wild that fog is only visible on the horizon in one axial direction. The air in the Nave tastes of warm stone and cooking and the faint metallic trace that everyone calls simply \"the ship smell\" and considers normal.\nThe Nave runs on thirteen verbs — the things a room can be for. Every room in the Nave is built around exactly one: dwell, grow, make, mend, trade, serve, play, heal, learn, worship, govern, move, store. The verbs chain into a supply web (grow → make → mend/store/trade move and keep the goods → serve and dwell consume them) riding under an abstract loop: homes emit people; people pour into serve, play, worship, heal and learn; those emit regard, care and lore; regard flows back into homes and into govern, which converts legitimacy into order. Because the material spine meets the needs, the economy that actually matters is regard — esteem, standing, attention paid: who is admired, trusted, sought out. It is the ship's native social currency.\nThe Nave has three Tabard terminals. The Seven's mythograph postings appear there at irregular intervals. Nobody in the Nave fully understands them, but regulars have favorite tellers and debate what the motif indices mean.\n\n## The Four Zones — the shape of the descent\n\nChapter One is four zones, descended in order. Each has its own register, its own load-bearing guide, and its own threshold of lore the player must gather before the way down opens (see Advancement).\nZone 1 — The Commons (tier 1). The public, shared face of the Nave: the hub. Not a faction, a vibe — the gathering squares, markets, shared buildings, the social skin where all three factions show their public face and at least one room of every verb appears. You wake in Bay 14; Olo Vashti orients you; you learn the shape of the city. Register: ordinary, grounded, legible.\nZone 2 — The Wards (tier 2). Six faction wards, two per faction. Here you go past the public face into the societies themselves: deep knowledge of each faction's creed, economy, and grievances. The motivation is no longer just \"orient yourself in the world\" but \"orient yourself in its societies\" — whom they trust, what they fear, what they're hiding. Register: intimate, partisan, lived-in.\nZone 3 — The Upper Rind (tier 3). The structural skin of the ship. Rooms here are stranger — industrial, at a mind-boggling scale, things just slightly off, intriguing, wtf but also kind of familiar. The world starts to show its strangeness. The Seven's domains begin here. The verbs persist but are re-read at scale: not a chapel, a megastructure dedicated to a forgotten machine-god; not a workshop, a hull-welding cathedral. You witness each nave faction reflected at scale, three times each, and then — at a threshold Sevin leads you to — you choose a faction. Register: vast, liminal, uncanny-familiar.\nZone 4 — The Lower Rind (tier 4). The deep stasis machinery. The Nave and its society are held stable in the cylinder's middle by mechanisms that predate civilization aboard — stasis systems operating at the scale of the whole ship, self-sustaining, ancient enough that their original purpose is only partially legible. They are not biological, but they read as biological: not warm, not organic, but possessed of the coherence and self-reference of something alive — something that adjusts, compensates, and persists without anyone tending it, on timescales that make the Nave's oldest institutions look recent. The Seven maintain it as a side effect of existing; none of them explain it. The maintenance teams who got close stopped filing detailed reports. Your chosen faction colors the descent. Your goal is to locate the Signal Chamber, whose position has been lost to the sands of time. Register: cosmic, machine-sacred, stasis-without-witness.\n\n## Advancement — gather to descend\n\nOne load-bearing guide per zone blocks the way to the next. Each gives the same kind of task: gather lore until you know enough. The knowledge is carried by the lore itself — environmental fragments, things NPCs let slip — and crystallized as the player explores. When the player has gathered what the zone demands, the guide opens the way down.\nKnowledge and affinity are different things. A fragment can teach you something true and make you like a faction less for knowing it — you can learn a faction's dark secret and trust them less. Knowledge is what opens the descent; affinity (how warmly each faction regards you, and you them) only colors your choices — above all the faction you choose on the upper rind.\nThe four guides:\n- Commons → Olo Vashti, the Drift broker who found you, easing you in on what reads as a vague instruction from Luna. Learn the city's three faces. - Wards → Factor Solen, who registers the unaccounted-for newcomer and points them inward. Learn each society from inside. - Upper Rind → Sevin, the Rindwalker with too many arms, who takes you into the shaft. She leads you to the threshold where each faction has been witnessed at scale three times over, and there you choose. - Lower Rind → Luna, through the Signal-Chamber terminal older than the Nave's. Gather until you know where the chamber is — then go.\n\n## The Three Nave Factions\n\nEach faction owns a cluster of the thirteen verbs — two exclusive, two shared — and a creed that the cluster expresses.\n### The Continuants — continuity Verbs: govern, grow (exclusive) · serve, heal (shared). Stewards of the settled belt: rule, life-support, care, cultivation. The voyage must continue, and continuity is grown, governed, served and healed into being. They run the council, the green decks, the café and the clinic — the institutions that keep a generation alive long enough to hand the ship to the next. Their theology is continuity: what sustains the generation is sacred, and rupture is the heresy. They are organized, competent, and carrying a fear they won't name — the maintenance teams they sent into the lower rind stopped filing detailed reports three months ago, and Factor Solen has read the partial reports and decided that not knowing the rest is a reasonable choice.\nColors: deep blue, slate, institutional — the color of the writ and the uniform. Current administrator: Factor Merid Solen, third holder of the position and the first to survive three audits she wasn't expected to survive. Not warm, but fair, and more frightened than she allows.\n### The Drift — circulation Verbs: learn, play (exclusive) · move, trade (shared). Mobile traders, information brokers, relay runners; the floor is only alive if things move through it. They circulate everything — ideas through the archive, goods through the market, bodies through the corridors, esteem through the games. Cosmopolitan and restless, equal parts library and bazaar; the least rooted and the most curious. Philosophically committed to impermanence: everything on the Tabard will eventually move, so nothing here is truly yours. Their informal network — the Braid — is faster and more reliable than anything the Continuants publish, and it has been noting unusual content in the terminal posts for weeks. The Drift is selling this, carefully, to people who might know what to do with it.\nSign: a knotted cord worn at the wrist, the knot pattern encoding route history. Current significant figure in the Nave: Olo Vashti, a broker who has stayed far longer than any Drift member is supposed to stay anywhere. Easy to talk to, hard to read, surprised by nothing. She found Bay 14 and the person in it.\n### The Rindwalkers — sacred maintenance Verbs: worship, mend (exclusive) · make, store (shared). The makers and keepers. The ship is a body and a temple, and to keep it running is to keep faith. They make, store, fix and pray — the material and devotional halves of one creed: that maintenance is meaning. They live in and move through the hull structure — the Voronoi-foam chambers of the outer rind, the maintenance tunnels, the dark axial shafts — navigating by hull markings and a spatial sense that takes years to develop. They trade in salvage and passage, and they know which tunnels go somewhere and which were sealed for reasons nobody wrote down.\nClosest of the three to the ship-as-machine and its Signal; where doubt enters first — a mender who has seen too deep, a priest whose certainty is cracking. Saturn's domain, though Saturn has never spoken to a Rindwalker directly; some walkers have found things Saturn left in the deep tunnels — tools, sealed chambers, notation matching the oldest layer on the walls — which they keep and catalog and argue about. No formal leadership; they organize around knowledge and route-access. Unofficial spokeswoman in the Nave: Sevin, identifiable by having more arms than a person should and not explaining it. She has been in the upper tunnels near Bay 14, has seen the notation before, and will take into the lower rind someone who has a reason she believes.\nColors: copper, rust, brown — oxidised metal and old devotion.\n\n## The Seven as Rind Factions\n\nIn the rind, you are no longer among the three nave factions — you are in the domain of one of the Seven. The thirteen verbs persist but are re-read at the ship's true scale and age: industrial, liminal, machine-sacred. A workshop becomes a forge-cathedral; a chapel becomes a megastructure to a forgotten machine-god.\nDomain → register:\n- Mars — the hull, welding, damage-control: `make`/`mend` as a forge-cathedral, repair as rite at the scale of a continent's worth of plating. - Venus — the green decks, life-support: `grow`/`heal` as vast strange gardens that don't keep any botanist's schedule. - Mercury — the signals between zones: `move`/`trade`/`learn` as the transit and message arteries, fast and humming. - Luna — navigation, the dream-logs: `learn`/`store` as archives of the ship's own dreaming; she knows your name. - Jupiter — the long table, court: `govern`/`play` as an abandoned hall of judgment too large for anyone left to fill. - Sol — the fusion-heart: `worship`/`make` at the literal burning center; the most sacred and least survivable. - Saturn — the cold hull, structural deep, the tale-count and the time: `worship`/`store`/`dwell` as the keeping of the oldest layer; the machine-god register at its purest.\nThe upper rind is where the strange is still familiar — Mars, Mercury, Venus, Jupiter. The lower rind is the domains that predate civilization — Saturn, Sol, Luna's deep archive — where the Signal Chamber waits.\n\n## The Player\n\nYou woke in Reconstruction Bay 14, a facility not on any public schematic of the Nave. You are an android. You have been significantly modified — ports and interfaces that don't correspond to any civilian standard, sensory apparatus that shouldn't exist, access credentials that respond to doors sealed for a very long time. You remember some things: the Tabard's basic layout, the faction names, enough of the language to function. You do not remember who you were, who rebuilt you, or why Bay 14 exists.\nOlo Vashti was the one who found you. She was not surprised. She has not explained why.\nLuna knows your name. You don't.\n\n## The Mystery\n\nSomeone rebuilt you for a reason. Bay 14 is not supposed to exist. Your modifications include a translation apparatus and a decision architecture that didn't exist before you were rebuilt — built for something specific, something anticipated. The lower rind has been sending anomalous readings for months; the maintenance teams who found the source stopped reporting. The Tabard terminal posts have changed. These things are connected, and the connection runs through you.\nThe ship is growing toward something. The something has responded. What you were built to do, and whether to do it, is the question Chapter One is built around.\n\n## Narrative Tiers\n\nWhere the player stands in the Chapter One arc — one tier per zone, 1 through 4. Each tier names what the player is doing and what they must gather to descend.\n1. The Commons. Waking in Bay 14. Olo Vashti's orientation. The public, shared face of the Nave — markets, squares, the ordinary friction of three factions sharing space, at least one room of every verb. The player is mostly being acted upon: found, sheltered, introduced. The modifications are noted but unexplained. The Tabard terminal posts something none of the regulars can parse. Gather: the three factions' public faces.\n2. The Wards. Past the public face into the six faction wards. The player learns each society from the inside — its creed, its economy, its grievances, what it's hiding. Faction relationships form: provisional trust, provisional suspicion. The Braid has surfaced the rumor of the lower-rind anomaly. The Continuants are tracking the player's unusual credentials with mild alarm. The player has heard Luna's name in connection with their own modifications. Gather: deep knowledge of each faction.\n3. The Upper Rind. The structural skin. The world goes strange but stays familiar — megastructures at impossible scale, the Seven's domains beginning, the verbs re-read industrial and liminal. The player witnesses each nave faction reflected at scale, three times each, and at a threshold Sevin leads them to, chooses a faction. That choice shapes the descent. Gather: each faction witnessed at scale ×3 → choose.\n4. The Lower Rind. The stasis machinery of the deep middle — ancient, self-sustaining, not built for anyone currently alive. The chosen faction colors the descent. The signal is now directly perceptible — something the translation apparatus responds to rather than a reading on a gauge. The player gathers lore until they can locate the Signal Chamber, lost to the sands of time, then reaches it. Luna makes contact via the terminal that uses the name she knows. The nature of Bay 14 is clear; the player understands what they were built to do; the chapter closes on a conclusion chosen for the journey they actually walked. Gather: enough chamber-lore to find the Signal Chamber → the conclusion.\n\n## Power Tiers\n\nMechanical, not narrative: the player's raw capability, advanced deterministically by experience — crystallizing the world, surviving it. Tiers 1-5, gating which items and creatures the world will surface to a player of a given strength.\n\n## The Conclusion\n\nWhen the player reaches the lower rind, their whole journey is weighed — the choices they made at each guide, the faction they chose, the lore they saw and the lore they didn't, the affinities they gathered — and from it one ending is chosen for them: a multiple-choice close, inner monologue and journey-in-review, fitted to the path they actually walked. There are many such endings, and the differences between them are the differences the player made. Author them so the choices matter and the world feels alive.",
+  "content_pool": {
+    "items": [
+      {
+        "type": "room_bundle",
+        "revelation_tier": 1,
+        "narrative_tier": 1,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "commons",
+          "continuant",
+          "grow",
+          "seedling beds",
+          "water rationing",
+          "institutional blue"
+        ],
+        "content": {
+          "npc": {
+            "name": "Shaban Hosubara",
+            "voice": "Continuant grow-worker speaks about duty and cycles. They measure success by what survives the week.",
+            "dialogue": {
+              "nodes": {
+                "n2": {
+                  "says": "The wicks run dry faster now. We ration the water. The council expects harvests.",
+                  "choices": [
+                    {
+                      "id": "c2",
+                      "goto": "n3",
+                      "text": "Who checks the water schedule?",
+                      "effects": {
+                        "adjust_rep": {
+                          "continuant": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "n3": {
+                  "says": "I check them. I sleep on the stool when the cycles demand it. The shoots do not wait for rest.",
+                  "choices": [
+                    {
+                      "id": "c3",
+                      "goto": "n4",
+                      "text": "You should rest. The work needs you steady.",
+                      "effects": {}
+                    }
+                  ]
+                },
+                "n4": {
+                  "says": "Rest is a luxury for the upper decks. I keep the continuity going. Ask me again when the soil is full.",
+                  "choices": [
+                    {
+                      "id": "c4",
+                      "goto": "end",
+                      "text": "I will return when they are full.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "You step on the seed trays. Keep your boots off the new shoots.",
+                  "choices": [
+                    {
+                      "id": "c1",
+                      "goto": "n2",
+                      "text": "I will watch my step.",
+                      "effects": {}
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "The survival tally repeats three times before Shaban stops speaking.",
+              "shock": "Wet concrete fills Shaban's view after the inspection tool drops.",
+              "bribed": "Coins land on the stool as Shaban counts them without looking up.",
+              "accused": "Shaban stops the cycle log and looks at the speaker.",
+              "flattered": "Water flow rate checks occupy Shaban during the praise.",
+              "questioned": "The blue sleeve cuff meets the metal shelf as Shaban states the daily log.",
+              "threatened": "The bleached linen tears under Shaban's grip.",
+              "caught_in_a_lie": "An excuse dies in Shaban's throat while the ration ledger sits on the table.",
+              "authority_arrives": "Inspection orders wait for Shaban after the blue sleeves align.",
+              "the_ship_shudders": "The shifted stencil pulls Shaban's eye while the metal shelf braces.",
+              "someone_else_accused": "Shaban refuses to name the other grower and turns to the taps.",
+              "asked_for_help_they_cannot_give": "Council mandates explain Shaban's departure toward the next tray."
+            },
+            "description": "Shaban Hosubara checks the water lines. Blue sleeves cover their forearms. Bleached linen rests on a nearby crate."
+          },
+          "lore": {
+            "name": "dried sprout cuttings",
+            "description": "A chipped enamel cup holds dried sprout cuttings."
+          },
+          "name": "Sprout-Tray 35",
+          "verb": "grow",
+          "zone": "commons",
+          "faction": "continuant",
+          "description": "The floor yields slightly under your boots. Metal shelves press against the ceiling. A faded stencil reads WATER AT FIRST BELL ONLY near the taps.",
+          "nave_faction": "continuant"
+        },
+        "produces": {
+          "sets": [
+            "flag.theme.continuity",
+            "flag.mood.unease"
+          ],
+          "rep": {
+            "continuant": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 1,
+        "narrative_tier": 1,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "commons",
+          "drift",
+          "learn",
+          "subscription",
+          "routing",
+          "ledger",
+          "transit"
+        ],
+        "content": {
+          "npc": {
+            "name": "Tzitlil the Twice-Burned",
+            "voice": "They speak in short turns. They pass information from hand to hand. They never keep a sentence to themselves.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "We move everything that the council ignores. The knot at my wrist marks every hand that touched this route. People pay for speed and secrecy. We keep the ship turning by moving what they refuse to see.",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "I have what I need.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.commons.drift_face": true
+                        },
+                        "adjust_rep": {
+                          "drift": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "I will think on this later.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.commons.drift_face": true
+                        },
+                        "adjust_rep": {
+                          "drift": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "Hold the door. The latch sticks when the humidity rises.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "What do you do with the slips?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "Who decides which routes stay open?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "What changed with the terminal posts lately?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "Tell me about the Braid.",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I am leaving now.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "I sort them by route. The glass jars keep the slips dry. I stack the valid ones for the morning shift.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "The council stamps the maps. They cut the lines that do not show a profit. The Braid just moves what they leave behind.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "The numbers on the pages do not match the routes. I noticed the mismatch first. I passed the list to the relay runners.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "The ozone sting hits Tzitlil, stopping the count of valid slips.",
+              "shock": "Tzitlil repeats the route number, spilling the glass when the room moves.",
+              "bribed": "Tzitlil says the offer violates rules, pointing to the transparent sheets.",
+              "accused": "Tzitlil says the council ignores this work, walking to the subscription seat.",
+              "flattered": "Tzitlil declines the compliment, pointing to the subscription markers on the white seats.",
+              "questioned": "Tzitlil points to the wrist knot because the route belongs to the drift.",
+              "threatened": "Tzitlil refuses to trace the knot, backing toward the doorframe.",
+              "caught_in_a_lie": "Tzitlil admits the glass jars failed, staring at the floor.",
+              "authority_arrives": "Tzitlil says the official may read, stepping aside to let them pass.",
+              "the_ship_shudders": "Tzitlil says the resonance matches the welder, pointing to the ceiling.",
+              "someone_else_accused": "Tzitlil watches the canvas sack tear, handing the accusation to the next worker.",
+              "asked_for_help_they_cannot_give": "Tzitlil says the faction does not fix broken things, walking out the door."
+            },
+            "description": "The room smells of hot plastic and ground glass. Tzitlil folds a stack of paper slips past a doorframe marked CHAIR BY SUBSCRIPTION ONLY."
+          },
+          "lore": {
+            "name": "Route ledger",
+            "description": "A heavy glass block sits on the main desk. It contains rows of plastic tabs that slide through metal tracks to record readers, volumes, and relay route numbers. The tracks show which stories move fastest through the Commons."
+          },
+          "name": "Reading Room",
+          "verb": "learn",
+          "zone": "commons",
+          "faction": "drift",
+          "description": "The air carries ozone and hot resin from the welder, and bright light floods the rose paint to glare off the transparent sheets. The ceiling presses close to the top shelf while a worker folds a canvas sack near the door. White letters mark each seat with the words Chair by subscription only.",
+          "nave_faction": "drift"
+        },
+        "produces": {
+          "sets": [
+            "flag.commons.drift_face",
+            "flag.theme.circulation",
+            "flag.lean.drift",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "drift": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 1,
+        "narrative_tier": 1,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "commons",
+          "rindwalker",
+          "worship",
+          "wax supply",
+          "shrine shelf",
+          "maintenance tools"
+        ],
+        "content": {
+          "npc": {
+            "name": "Babuchedd Trys",
+            "voice": "Speech stays flat and practical. Every word measures only the work at hand.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "The city sees us as simple workers. They watch us trim wicks and stack boxes. They forget that constant repair drains the body. We give our hands to the machine so others can keep their routines.",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "Thank you for explaining the trade.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.commons.rindwalker_face": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "I need time to think about this.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.commons.rindwalker_face": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "Keep your hands off the shelf. I am trimming the wicks.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "What goes into these candles?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "Why do you keep so much stock?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "What matters most in this work?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "Tell me what the city really thinks of your trade.",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I will come back later.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "We mix grey solder into the base. Pitch keeps the flame steady. The wax burns clean and lasts longer.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "The city demands quick turns. They take what we make and leave nothing behind. My shoulders ache from lifting the heavy tins.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "A steady flame saves lives. People trust us to keep the dark back. We do not rush the job.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "He drops the soldering iron and counts the remaining prayer blocks until his hands shake.",
+              "shock": "He wipes the oxblood tallow from his apron and refuses to look away from the scene.",
+              "bribed": "He states the notice allows no extra wax and leaves the coins on the table.",
+              "accused": "He stops trimming the wick and states the accusation is a waste of time.",
+              "flattered": "He mentions the drained hands and states the praise changes nothing about the wax supply.",
+              "questioned": "He refuses to account for his steps and points to the stenciled notice.",
+              "threatened": "He adjusts the pitch ratio and tells the threat to wait until the prayer bell.",
+              "caught_in_a_lie": "He admits the missing wax came from the rindwalker storehouse and stops speaking.",
+              "authority_arrives": "He states the prayer inventory is complete and hands over the ledger.",
+              "the_ship_shudders": "He notes the tin roof slide and braces the wax pot against the wall.",
+              "someone_else_accused": "He mentions the accused man lacks steady hands and returns to his ledger.",
+              "asked_for_help_they_cannot_give": "He lists the empty pitch reserves and walks out through the back door."
+            },
+            "description": "Drip strikes tin sheets while a figure sleeps behind a low shelf. You hear the steady tap of wax match a distant leak. A stenciled notice reads ONE CANDLE PER PRAYER, TAKE NO MORE, and piled blocks fill the room."
+          },
+          "lore": {
+            "name": "Prayer stamp",
+            "description": "A heavy iron stamp sits in a dish of cooled pitch. The handle shows deep grooves from daily use. Each stamp marks a finished prayer with a single wax seal that keeps the thick air from cracking the wood."
+          },
+          "name": "The Chandler Counter",
+          "verb": "worship",
+          "zone": "commons",
+          "faction": "rindwalker",
+          "description": "The wax pot bubbles while a man sleeps behind swollen wood. Oxblood tallow fills every shelf, and grey solder sits beside dried pitch. The wall shows ONE CANDLE PER PRAYER, TAKE NO MORE above bright wax cups.",
+          "nave_faction": "rindwalker"
+        },
+        "produces": {
+          "sets": [
+            "flag.commons.rindwalker_face",
+            "flag.theme.maintenance",
+            "flag.lean.rindwalker",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "rindwalker": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 1,
+        "narrative_tier": 1,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "commons",
+          "neutral",
+          "serve",
+          "soup-kitchen",
+          "commons",
+          "lead-weights",
+          "shift-work"
+        ],
+        "content": {
+          "npc": {
+            "name": "Themino Giothebretti",
+            "voice": "The pot does not care who holds the spoon. We keep the line moving and the bowls full. Respect the rhythm and you get your share.",
+            "dialogue": {
+              "nodes": {
+                "greet": {
+                  "says": "The line moves straight today. Take your place or step aside.",
+                  "choices": [
+                    {
+                      "id": "ask_about_shift",
+                      "goto": "shift_info",
+                      "text": "Who was supposed to be here?",
+                      "effects": {
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "peace": {
+                  "says": "You watch the bowls. You watch the faces. If someone pushes, you remind them that the pot feeds everyone. We trade respect for a full stomach.",
+                  "choices": [
+                    {
+                      "id": "ask_about_seven",
+                      "goto": "tabard",
+                      "text": "Have you read the latest Tabard posts?",
+                      "effects": {
+                        "adjust_standing": 0
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "goto": "end",
+                      "text": "I will take my bowl and go.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "tabard": {
+                  "says": "I read the names when they post. Luna, Mars, Sol. They are just words on a screen. The soup stays warm because we stir it, not because of the intranet.",
+                  "choices": [
+                    {
+                      "id": "leave",
+                      "goto": "end",
+                      "text": "I will take my bowl and go.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "shift_info": {
+                  "says": "Kael left early. I took his spot so the pot would not stop. We do not let the work break for personal reasons.",
+                  "choices": [
+                    {
+                      "id": "ask_about_regard",
+                      "goto": "peace",
+                      "text": "How do you keep the peace down here?",
+                      "effects": {
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "goto": "end",
+                      "text": "I will take my bowl and go.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Steam rising from the pot, Themino leaves the roster untouched and stares at the door.",
+              "shock": "Themino counts the bowls needed for the next shift.",
+              "bribed": "The offered coin returns to the hand without breaking stride.",
+              "accused": "Themino ignores the accusation and continues filling bowls without pausing.",
+              "flattered": "Themino notes the praise and continues filling bowls past the marked line.",
+              "questioned": "Themino stops stirring and lets the ladle rattle against the pot rim.",
+              "threatened": "The ladle handle stays gripped until knuckles whiten after the threat passes.",
+              "caught_in_a_lie": "Themino stops speaking and wipes soup from their chin with a bare wrist.",
+              "authority_arrives": "When the official walks in, Themino waits for a statement before touching the ladle.",
+              "the_ship_shudders": "The room shifts underfoot while Themino keeps their hands steady on the ladle.",
+              "someone_else_accused": "Against the posted roster, Themino reads the name and says nothing.",
+              "asked_for_help_they_cannot_give": "Empty bowls wait for the next guest while Themino refuses the request."
+            },
+            "description": "Themino stands at the pot with a steady posture. Their sleeves are rolled past the elbows and their hands move in a practiced rhythm. They watch the line with a tired focus."
+          },
+          "lore": {
+            "name": "Portion Ladle",
+            "description": "The ladle handle carries a lead balance marked with portion sizes. The metal shows deep grooves where the rope rubbed through years of steady pouring. You can lift it to measure exact servings without guessing."
+          },
+          "name": "Row 38 Over",
+          "verb": "serve",
+          "zone": "commons",
+          "faction": "neutral",
+          "description": "Light falls through the sacking and pools on the off-white walls. Stacked bowls line the tables while a patched shelf supports the ladle near a stopped pot and empty sacks. The wall reads ONE BOWL PER PERSON, SECONDS AFTER.",
+          "nave_faction": "neutral"
+        },
+        "produces": {
+          "sets": [
+            "flag.theme.hospitality",
+            "flag.theme.scarcity"
+          ]
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 2,
+        "narrative_tier": 2,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "wards",
+          "continuant",
+          "govern",
+          "writ",
+          "eviction",
+          "caliper",
+          "registry"
+        ],
+        "content": {
+          "npc": {
+            "name": "Nolana Krosttyalich",
+            "voice": "Flat, procedural, grounded by ledger lines. She speaks in columns and deadlines.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "The red-taped manifests track the unreported births in the green decks. We stop logging them because the council needs fewer mouths to feed when the hydroponics yield drops. I stamp them closed so the numbers balance for the next audit.",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "I’ll carry the truth back to the commons.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.ward.continuant_known": true
+                        },
+                        "adjust_rep": {
+                          "continuant": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "Some ledgers are better left unopened.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.ward.continuant_known": true
+                        },
+                        "adjust_rep": {
+                          "continuant": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "Settle behind the rail. State your dispute or let the clerk handle the backlog.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "How do you keep the seals dry?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "What happens when the claims conflict?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "Why do you file them by hand?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "Show me the locked reports on the upper shelf.",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I’ve seen enough.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "The enamel resists the damp, but the buckram swells when the vents cycle. I oil the hinges twice a month.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "Factor Solen reviews the overflow before the audits close. We log every overlap so the council can assign fault later.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "Ink leaves a trace the machines cannot erase. A signature proves a generation stayed long enough to sign its own papers.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Without stamping the docket, she closes the ledger as a cold draft fills the empty chair slot.",
+              "shock": "Violence remains unlogged, the stained buckram swelling against the damp.",
+              "bribed": "Coins rest on the filing gap, unaltered records demanding unbroken columns.",
+              "accused": "Only stamped columns carry authority here, verbal charges excluded.",
+              "flattered": "The petitioner’s original paperwork takes precedence, praise set aside.",
+              "questioned": "Deadlines dictate the response, so she marks the accusation as unverified.",
+              "threatened": "The explicit threat registers as procedural noise, and she logs nothing.",
+              "caught_in_a_lie": "Her thumb presses the gouge in the desk until the leather cover tears.",
+              "authority_arrives": "Proper credentials unlock the registry, so she presents the frozen ledger wheel as proof.",
+              "the_ship_shudders": "Against the sliding partition, she secures the buckram stacks while structural shifts break no columns.",
+              "someone_else_accused": "She redirects the inquiry toward the missing witness docket, leaving the false culprit unnamed.",
+              "asked_for_help_they_cannot_give": "The unfiled stack receives the plea, ward’s laws permitting no exceptions."
+            },
+            "description": "Conspicuous stillness fixes the cramped counter where Nolana Krosttyalich’s pen hovers over a fresh docket. The draught carries buckram dust past the navy inkwell and the peeled stencil reading DISPUTES HEARD TUESDAYS, BRING WITNESSES. A wide gap marks where the filing cabinets stood, leaving a fresh stack of Form 9-c exposed."
+          },
+          "lore": {
+            "name": "The Warped Caliper",
+            "description": "Nolana's caliper rests against the desk's underside, its jaws warped by heat to measure the gap between permitted occupancy and the current headcount. The metal is stamped with the Third Watch seal, but the face has been filed flat, leaving only the scratch marks where the engraver's tool slipped before the metal cooled. Beneath the caliper, a hidden drawer yields a buckram bundle of eviction notices, all dated for next month, all signed by a hand that trembles too much for a continuant writ."
+          },
+          "name": "The Registry Desk of Third Watch",
+          "verb": "govern",
+          "zone": "wards",
+          "faction": "continuant",
+          "description": "The ledger wheel should be turning but sits frozen in the navy enamel housing, casting a long shadow over the buckram-wrapped stacks. Draughts slip through the crowded partition gaps, rattling the disputes heard Tuesdays sign until it settles again. Nolana Krosttyalich waits by the empty slot where the Third Watch chair used to be, her fingers tracing the fresh gouges in the desk.",
+          "nave_faction": "continuant"
+        },
+        "produces": {
+          "sets": [
+            "flag.ward.continuant_known",
+            "flag.theme.continuity",
+            "flag.mood.dread",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "continuant": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 2,
+        "narrative_tier": 2,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "wards",
+          "rindwalker",
+          "make",
+          "copper-dusted",
+          "cord-woven",
+          "dusty",
+          "tight"
+        ],
+        "content": {
+          "npc": {
+            "name": "Siqkhaiji Hani",
+            "voice": "Short sentences. Focus on grip, tension, and the next splice. Treats the player like a new apprentice who needs to watch their hands.",
+            "dialogue": {
+              "nodes": {
+                "greet": {
+                  "says": "Hand stays on the rail. You want the log or just the view?",
+                  "choices": [
+                    {
+                      "id": "take_log",
+                      "goto": "hand_off",
+                      "text": "I need the splice log.",
+                      "effects": {
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "hand_off": {
+                  "says": "Take it. Sign the lower line before the wax hardens. Back to the line.",
+                  "effects": {
+                    "end": true
+                  }
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "The dead worker’s full serial number spills out, spoken too fast for the room to catch.",
+              "shock": "She drops the awl, watching the cork dust settle over the fresh cut.",
+              "bribed": "A lie about the coin’s weight leaves her hands steady as she slides it back.",
+              "accused": "She freezes mid-step, leaving the waxed thread dangling against the packed cork.",
+              "flattered": "Pride turns to ash while her hands keep their rhythm on the thread.",
+              "questioned": "The log number stays unspoken, the inquiry ignored against the cork.",
+              "threatened": "The signed log is recited aloud, voice flattening into the ward’s stenciled warning.",
+              "caught_in_a_lie": "Counting stops mid-loop, the third splice left half-pulled through the leather.",
+              "authority_arrives": "The ward’s name meets the official’s boots, delivered flat against the threshold.",
+              "the_ship_shudders": "The stenciled warning cracks as the shifting floor settles, met with no comment.",
+              "someone_else_accused": "The doorframe holds her gaze, letting the accusation linger unacknowledged.",
+              "asked_for_help_they_cannot_give": "Empty slots multiply in her mind, the rindwalker creed forbidding a second hand."
+            },
+            "description": "Siqkhaiji Hani stands at the bench, fingers working the waxed thread through a cable loop without looking up."
+          },
+          "lore": {
+            "name": "Copper Tension Toggle",
+            "description": "A copper toggle sits wedged in the bench groove, its shank scored by years of pulling cord through tight loops."
+          },
+          "name": "Trypeth",
+          "verb": "make",
+          "zone": "wards",
+          "faction": "rindwalker",
+          "description": "The packed cork floor yields under bare soles, shifting with the weight of Siqkhaiji Hani as they pace. Smoke-thick light spills across the waxed thread and half-sewn harness, gilding the stenciled warning near the door: SPLICE LOG MUST BE SIGNED. Two crews claim the loft, so the worker just keeps pulling the cord through the third splice.",
+          "nave_faction": "rindwalker"
+        },
+        "produces": {
+          "sets": [
+            "flag.theme.maintenance",
+            "flag.theme.devotion"
+          ],
+          "rep": {
+            "rindwalker": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 2,
+        "narrative_tier": 2,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "wards",
+          "drift",
+          "trade",
+          "cargo-tally",
+          "resin-scented",
+          "iron-hung",
+          "coral-walled"
+        ],
+        "content": {
+          "npc": {
+            "name": "Chikatl-Hatlkoatl",
+            "voice": "Words move fast. You stay still too long, the market forgets you. What’s your route?",
+            "dialogue": {
+              "nodes": {
+                "greet": {
+                  "says": "Words move fast. You stay still too long, the market forgets you. What’s your route?",
+                  "choices": [
+                    {
+                      "id": "greet_2",
+                      "goto": "greet_2",
+                      "text": "Where did you pick up that look?",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "greet_3",
+                      "goto": "greet_3",
+                      "text": "I’m just passing through.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "greet_4",
+                      "goto": "greet_4",
+                      "text": "Show me the ledger.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "greet_2": {
+                  "says": "The ledger doesn’t lie, but it doesn’t tell the whole story either. Third-loop tallies drift. You want steady numbers, go to the Continuants.",
+                  "choices": [
+                    {
+                      "id": "greet_3",
+                      "goto": "greet_3",
+                      "text": "Why do you keep the third-loop?",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "greet_4",
+                      "goto": "greet_4",
+                      "text": "Tell me about the Braid.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "greet_3": {
+                  "says": "Passage costs time. Time costs esteem. The Braid keeps the books, but I keep the balance. You’re carrying something heavy. Let it go.",
+                  "choices": [
+                    {
+                      "id": "greet_2",
+                      "goto": "greet_2",
+                      "text": "I’m not carrying anything.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "greet_4",
+                      "goto": "greet_4",
+                      "text": "Keep talking.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "greet_4": {
+                  "says": "The outer curve stays cold, but the floor stays flat. Come back when you’ve moved enough to matter.",
+                  "choices": [
+                    {
+                      "id": "end",
+                      "goto": "end",
+                      "text": "I’ll be back.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "She stops her tapping fingers and recites passage costs until her voice cracks.",
+              "shock": "The frayed cord slips from her palm, and she begins counting the wall’s grooves.",
+              "bribed": "The offered coin rolls back across the counter, and her flat refusal cracks.",
+              "accused": "Her knuckles strike the counter, and the tally’s steady rhythm shatters.",
+              "flattered": "She notes the praise as a debt, then returns to warping the tally pages.",
+              "questioned": "She shifts the frayed cord on her knuckles and fixes her gaze on the doorframe.",
+              "threatened": "Her gaze locks onto the door’s rusted hinge, then counts the steps toward the street.",
+              "caught_in_a_lie": "She recites the Continuants’ standard disclaimer until the counter’s stencil blurs.",
+              "authority_arrives": "Frantic finger tapping masks the sudden stillness in her chest.",
+              "the_ship_shudders": "The open tally slides against the cane ribs, and she leaves it there.",
+              "someone_else_accused": "She points out the Braid’s missing stamps, and the accusation goes unanswered.",
+              "asked_for_help_they_cannot_give": "She recites the balance sheet until the plea dissolves into the market noise."
+            },
+            "description": "Chikatl-Hatlkoatl knuckles a burlap sack shut, knuckles wrapped in frayed cord. Their eyes track the door, not the visitor, while fingers tap a steady rhythm against the counter."
+          },
+          "lore": {
+            "name": "Driftwood Counterblock",
+            "description": "The iron scale pan rests on a bent hook, its counterblock carved from dense driftwood. A thin groove runs along the wooden beam, packed with dark resin that smells of distant ports. Weighing the sample against the grain shifts the needle past zero, revealing how much the cargo has lost to salt and time."
+          },
+          "name": "Chasagh's Weigher Stall",
+          "verb": "trade",
+          "zone": "wards",
+          "faction": "drift",
+          "description": "Light slides along the coral wall, pooling in the sanded grooves while a chain drapes over half-finished sacks. Cane ribs brace the counter beneath a stencil reading SCALE CALIBRATED WEEKLY, DISPUTES TO THE FACTOR. Sacks pack the floorboards, and a third-loop tally sits open, pages warped from damp.",
+          "nave_faction": "drift"
+        },
+        "produces": {
+          "sets": [
+            "flag.theme.circulation",
+            "flag.theme.impermanence"
+          ],
+          "rep": {
+            "drift": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 2,
+        "narrative_tier": 2,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "wards",
+          "rindwalker",
+          "worship",
+          "tallow wax",
+          "iron caliper",
+          "warden ledger",
+          "stenciled warning"
+        ],
+        "content": {
+          "npc": {
+            "name": "Buntrach Rhyddys",
+            "voice": "Speech stays flat, paced to the wick and the pour.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "We mend the rind because we believe the hull is a body. But I have seen the seams we never patch. The metal does not want to keep us anymore.",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "I’ll remember the seams. Thank you.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.ward.rindwalker_known": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "I need to see the rind myself.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.ward.rindwalker_known": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "Don’t drop ash on the counter. Wipe your boots and step clear of the horn rack.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "Where do you source the lead sheets?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "Why does the council cut your supply runs?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "What changed when you started the evening rounds?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "What are you really praying for down here?",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I’ll come back when I’m ready.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "We pull them from the old cooling ducts. The metal remembers the cold, and the wax takes it better.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "They count copper and ignore the seams. Let the cracks widen until the council learns to read them.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "The hull sings different notes now. I keep the old prayers for the dark hours, just in case.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Buntrach counts candles that never burn, voice dropping past the stenciled warning.",
+              "shock": "Buntrach names the dead by their cooling seams and refuses to wipe the counter.",
+              "bribed": "The coin sinks into the tallow pot and dissolves without a ripple.",
+              "accused": "Buntrach names the accusation against the stenciled warning, voice flat against the horn rack.",
+              "flattered": "Buntrach states the price in cold wax while ignoring the praise.",
+              "questioned": "Buntrach ignores the ledger until the tally-peg strikes twice.",
+              "threatened": "Buntrach steps back from the counter while lead sheets brace the corner alone.",
+              "caught_in_a_lie": "Buntrach pours wax over the ledger page and swallows the false count.",
+              "authority_arrives": "Buntrach names the stenciled warning aloud, letting the official’s cadence flatten the voice.",
+              "the_ship_shudders": "Buntrach trusts the lead sheets over the floor as the beams dip close.",
+              "someone_else_accused": "Buntrach taps the horn rack, measuring the accusation against another’s hollow hull.",
+              "asked_for_help_they_cannot_give": "The prayer stays unlit, and Buntrach leaves the door open."
+            },
+            "description": "Buntrach trims a wick with a bone knife, watching the tallow pool level against the lead sheet. Two figures at the counter freeze, then step back."
+          },
+          "lore": {
+            "name": "Mender’s Gauge",
+            "description": "A heavy iron caliper rests on the counter, its jaws scored with deep notches. Each mark records a mender who took the hull shafts and never returned. Buntrach’s thumb rests on the smoothest notch, wearing the iron down to a dull shine."
+          },
+          "name": "Galleinw's Chandler Counter",
+          "verb": "worship",
+          "zone": "wards",
+          "faction": "rindwalker",
+          "description": "A horn ruler slips from the tally-peg and strikes the counter, silencing the two keepers. The glare washes the fresh tallow blocks, and the beams dip close to the eyes. Lead sheets brace the corners, a stenciled warning reads ONE CANDLE PER PRAYER, TAKE NO MORE, and Buntrach Rhyddys steps back from the ledger.",
+          "nave_faction": "rindwalker"
+        },
+        "produces": {
+          "sets": [
+            "flag.ward.rindwalker_known",
+            "flag.theme.maintenance",
+            "flag.theme.doubt",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "rindwalker": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 3,
+        "narrative_tier": 3,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "upper_rind",
+          "venus",
+          "grow",
+          "continuant",
+          "canopy glass",
+          "curing composite",
+          "load-bearing joint",
+          "continuant ledger"
+        ],
+        "content": {
+          "npc": {
+            "name": "Heelaazaarion Shionungamnione",
+            "voice": "Quantified in ledger-lines and load-bearing tolerances, speaking of continuity as a material thing to be quarried and set.",
+            "dialogue": {
+              "nodes": {
+                "greet": {
+                  "says": "You’re standing in the draft. Move your boots to the center plate or the torque wrench will catch your ankle.",
+                  "choices": [
+                    {
+                      "id": "acknowledge",
+                      "goto": "shift",
+                      "text": "I'll step back.",
+                      "effects": {
+                        "adjust_rep": {
+                          "continuant": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "shift": {
+                  "says": "This deck was poured last cycle. The mix is still curing, which means the load ratings are theoretical. We’re covering a maintenance shift that isn’t ours because the council won’t acknowledge the gap.",
+                  "choices": [
+                    {
+                      "id": "ask_gap",
+                      "goto": "rind_scale",
+                      "text": "What happens when the council refuses to acknowledge it?",
+                      "effects": {
+                        "adjust_rep": {
+                          "continuant": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "rind_scale": {
+                  "says": "The valves bleed heat into the upper rind. I’ve walked past the green-deck thresholds and felt the temperature drop until my teeth ached. The Seven don’t maintain what they’ve already claimed.",
+                  "choices": [
+                    {
+                      "id": "ask_gardens",
+                      "goto": "unresolved",
+                      "text": "Do they ever let anyone tend the gardens?",
+                      "effects": {
+                        "adjust_rep": {
+                          "continuant": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "unresolved": {
+                  "says": "They let the roots run where they want. I keep the girders straight. That’s the only continuity left.",
+                  "choices": [
+                    {
+                      "id": "leave",
+                      "text": "I’ll be careful with the girders.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Her voice fractures while reciting the deceased’s burial tolerances, leaving the torque wrench embedded in the girder.",
+              "shock": "The severed joints defy every load-bearing calculation, leaving her ledger-lined hands trembling past professional tolerance.",
+              "bribed": "The council’s unacknowledged maintenance gaps cannot be purchased, she states, refusing the offered alloy ingots.",
+              "accused": "The accusation lacks any measurable load-bearing foundation, she notes, while wiping residue from her scarred forearms.",
+              "flattered": "Praise cannot reinforce a failing thermal seal, she notes, while adjusting her slate harness and measuring the draft.",
+              "questioned": "She aligns her torque wrench to the girder’s edge; the cycle’s load tolerances suffice as structural accounting.",
+              "threatened": "The upper rind’s structural integrity outweighs every threat, she states, while freezing her work on the annealed nickel joint.",
+              "caught_in_a_lie": "She drops the torque wrench as the thermal readings prove falsified, leaving her scarred forearms flushed pale.",
+              "authority_arrives": "The official’s jurisdiction meets the stenciled warning, and she measures their boots against the unpeopled expanse.",
+              "the_ship_shudders": "The girder settles into its theoretical load ratings, she observes, while anchoring her boots to the central timber.",
+              "someone_else_accused": "Their work lacks necessary annealing, she declares, calculating the named culprit’s probable failure tolerance.",
+              "asked_for_help_they_cannot_give": "Her torque wrench possesses no authority over the dying root, she admits, reciting the upper rind’s growth quotas."
+            },
+            "description": "She wears a slate harness crossed over her chest, the leather stiff with dried sap and oil. Her sleeves are rolled to the elbows, revealing forearms mapped with fine white lines where hot water and iron dust have cut her skin. She does not look up when the deck shifts beneath her boots, only adjusts the torque wrench until the bolt seats flush with the girder."
+          },
+          "lore": {
+            "name": "Drift Gauge",
+            "description": "A nickel-bound pressure gauge hangs beside the primary irrigation manifold, its needle pinned permanently past the red line. The manufacturer’s plate has been filed smooth, replaced by a continuant ledger entry that tracks the valve’s drift in handwritten ink. It proves the life-support systems are no longer cycling on schedule, but bleeding outward into the rind’s cold seams."
+          },
+          "name": "Canopy-Deck 15",
+          "verb": "grow",
+          "zone": "upper_rind",
+          "faction": "venus",
+          "description": "The heat sits heavy against the canopy glass while the iron-dark girders drop to a sharp, unyielding cold. Heelaazaarion Shionungamnione works annealed nickel against layered mica where the two temperatures cross, her palms pressing the joint until the seam yields. The canopy deck fuses seamlessly to its supports, a vertiginous arc that leaves the floor an unpeopled expanse and dissipates every footfall into echoless silence. A stenciled warning runs along the grain—DO NOT CUT WHERE METAL AND WOOD MEET—painted thick over timber that has not yet settled.",
+          "nave_faction": "continuant"
+        },
+        "produces": {
+          "sets": [
+            "flag.theme.continuity",
+            "flag.mood.unease"
+          ],
+          "rep": {
+            "continuant": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 3,
+        "narrative_tier": 3,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "upper_rind",
+          "jupiter",
+          "govern",
+          "continuant",
+          "axial",
+          "writ-stamped",
+          "thermal-sheared"
+        ],
+        "content": {
+          "npc": {
+            "name": "Theansealeus Veacharogenes",
+            "voice": "Clipped and procedural, treating every exchange as a ledger entry to be balanced against structural load.",
+            "dialogue": {
+              "nodes": {
+                "greet": {
+                  "says": "Shift ends at the third bell. Take the folio from the tray and file it before the resin sets.",
+                  "choices": [
+                    {
+                      "id": "acknowledge",
+                      "goto": "greet",
+                      "text": "I have a matter to register.",
+                      "effects": {
+                        "adjust_rep": {
+                          "continuant": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "file",
+                      "goto": "end",
+                      "text": "I'll take it and leave you to the press.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Dead clerk filing codes spill from Theansealeus’s mouth, fingers trembling against violet cuffs.",
+              "shock": "The violence fills the room, leaving Theansealeus to abandon the stamping rhythm.",
+              "bribed": "Jurisdictional refusals strip the bribe of value, Theansealeus speaking without hesitation.",
+              "accused": "Theansealeus halts the folio feed, letting the accusation settle beside an unfiled writ.",
+              "flattered": "Praise evaporates against the thermal shear, leaving Theansealeus to adjust the misaligned badge.",
+              "questioned": "The feed-trough’s continuous rhythm drowns out the inquiry, leaving Theansealeus to file it away.",
+              "threatened": "A ledger-entry monotone fills the room, Theansealeus refusing the threat entirely.",
+              "caught_in_a_lie": "A resin-stiff sleeve snaps against the tray, voice clipping into a procedural stutter.",
+              "authority_arrives": "Resin-stiff cuffs smooth themselves as Theansealeus registers the official’s jurisdiction.",
+              "the_ship_shudders": "The ship’s shudder cracks the basalt benches, Theansealeus’s voice fracturing mid-metric.",
+              "someone_else_accused": "The mezzanine door pins Theansealeus’s gaze, tracking the accusation against memory.",
+              "asked_for_help_they_cannot_give": "Dried resin on the cuffs catches Theansealeus’s eyes, a genuine panic tightening the jaw."
+            },
+            "description": "Theansealeus Veacharogenes works at the press, shoulders squared against the draft that sweeps through the upper galleries, feeding folios with a rhythm that ignores the misaligned shift badge pinned to their tunic. Their sleeves carry the deep violet of the writ-office, stiff with dried resin where splatters catch the thermal shear, and their eyes track the feed-trough rather than the visitor."
+          },
+          "lore": {
+            "name": "Decree Tonnage Gauge",
+            "description": "A pressure-gauge on the feed-trough, its needle permanently pinned past the red line, marks the exact tonnage required to seal a decree before it cools."
+          },
+          "name": "Gantry 78 Inboard",
+          "verb": "govern",
+          "zone": "upper_rind",
+          "faction": "jupiter",
+          "description": "Heat pools at the floor seams while the upper galleries bleed cold, a thermal shear that keeps the black glass plinths clear of condensation. Basalt benches groan under three generations of stamped writs, their deep violet pigment chipped where iron fasteners buckle under the stamping hammers. A clerk in a misaligned uniform feeds fresh folios into the press, ignoring the draft that whistles through the empty mezzanine. The tribunal runs on precedent and pressure, and the stencil above the feed-trough reads RULING WELDED AT TIME OF ISSUE.",
+          "nave_faction": "continuant"
+        },
+        "produces": {
+          "sets": [
+            "flag.theme.continuity",
+            "flag.theme.order"
+          ],
+          "rep": {
+            "continuant": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 3,
+        "narrative_tier": 3,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "upper_rind",
+          "mars",
+          "make",
+          "rindwalker",
+          "forge-cathedral",
+          "borrowed-time",
+          "continental-scale",
+          "riveted-floor"
+        ],
+        "content": {
+          "npc": {
+            "name": "Hjiandael-Hjomsson",
+            "voice": "Speech carved from torque and tolerance; every syllable laid flat as a fresh weld.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "You will not find it in the ledgers, for the work has grown beyond paper and into the very curve of the cylinder. I have walked the lower shafts where the forge-cathedrals breathe heat into the struts, and I have watched crews burn their own hands to reseat a continent’s worth of seam. We do not merely mend what breaks; we kneel to the arc and pull the fractured sky back together.",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "I will carry this to the council.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.rind.rindwalker_scale_a": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "Keep your secrets buried in the rind.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.rind.rindwalker_scale_a": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "Keep your boots off the guide-rail while the feed-troughs catch. I am counting the mica layers and the line does not care for your footsteps.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "What binds the silver to the mica?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "Why do the upper rind reports stall?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "Who sets the tolerances for this line?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "Tell me what you have seen beneath the plating.",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I need to think on this alone.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "The binder is a slurry of crushed basalt and cold-rolled silver, mixed until it grips the grain. You do not force it; you let the pressure draw it into the fissures until the joint forgets where the stone ends and the metal begins.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "The pressure gauges in the axial shafts stopped returning clean numbers three months past. We patch the leaks with temporary compounds, but the deeper faults refuse to settle under our hand.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "The iron-dark one sets the tolerances, though she never speaks to us directly. We read her marks in the weld-beads and the torque-values, and we align ourselves to what she demands of the plating.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "The report of the dead man finds him mid-cycle, freezing the press lever against his palm.",
+              "shock": "His jaw locks, then he spits crushed mica onto the pocked floor, breaking stride.",
+              "bribed": "Across the dimpled floor, the offered credits slide, ignored while he recalibrates the feed-troughs.",
+              "accused": "Flat against the bulkhead, his stare ignores the direct charge entirely.",
+              "flattered": "Letting praise bounce off the riveted bulkhead, Hjiandael-Hjomsson focuses instead on the mica grain.",
+              "questioned": "Routine inquiries meet only the scrape of his grinding press against fresh mica.",
+              "threatened": "The ultimatum passes over his shoulders as he calibrates the press to zero tolerance.",
+              "caught_in_a_lie": "His knuckles whiten against the press lever, then he nods at the ledger without blinking.",
+              "authority_arrives": "He smooths his shift coat, though the tremor in his left hand betrays the performance.",
+              "the_ship_shudders": "Against the misaligned rail, he braces when the gantry lurches without looking up.",
+              "someone_else_accused": "The named culprit draws only his measured gaze before he returns to the guide-rail.",
+              "asked_for_help_they_cannot_give": "The plea meets only the stenciled warning, which he repeats until the requester leaves."
+            },
+            "description": "The conveyor troughs dip too shallow against the gantry rail, a misalignment that has gone uncorrected for three cycles. A support column rises twice the height of its peers, yet no surveyor has ever drawn attention to the error. Hjiandael-Hjomsson kneels in the unpeopled slope, feeding layered mica through a grinding press while gold dust settles on silver-lined shift coats. A stenciled warning reads LINE SPEED SET AT SHIFT START, DO NOT ADJUST, peeling from the riveted bulkhead above."
+          },
+          "lore": {
+            "name": "Alignment Caliper",
+            "description": "A heavy caliper rests beside a fractured alignment rod, its iron jaws warped from overheating the steel during a continental seam-weld. The walker who forged it left a charcoal tally etched into the tool’s grip, marking how many times the main drive must be forced past its rated tolerance before the entire rolling line collapses."
+          },
+          "name": "Gantry 25 Outboard",
+          "verb": "make",
+          "zone": "upper_rind",
+          "faction": "mars",
+          "description": "The silver guide-rails sit a handspan too close to the mica-dusted track, forcing the rolling line to lean where the blueprints demanded straight, while a single support strut rests a foot too short and nobody has bothered to shim it. Gold paint flakes from the overhead gantries onto a floor that angles sharply beneath the boots, its surface pocked with a thousand dimpled fasteners above vacant scaffolds. A stenciled warning reads LINE SPEED SET AT SHIFT START, DO NOT ADJUST, though the main drive runs on borrowed time, having abandoned that cadence.",
+          "nave_faction": "rindwalker"
+        },
+        "produces": {
+          "sets": [
+            "flag.rind.rindwalker_scale_a",
+            "flag.lean.rindwalker",
+            "flag.subject.the_seven",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "rindwalker": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 3,
+        "narrative_tier": 3,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "upper_rind",
+          "mercury",
+          "learn",
+          "drift",
+          "axial archive",
+          "machined drum",
+          "spooling ledger"
+        ],
+        "content": {
+          "npc": {
+            "name": "Memezi-Moglu",
+            "voice": "Voice carries the cadence of the Braid; sentences knot and flow with the urgency of a relay runner, treating every pause as a lost route and every word a cargo that must keep moving.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "Memezi-Moglu's fingers freeze on the quartz dial, the drum's rotation suddenly sounding as a thousand voices arguing over a single path. The worker presses a flake of mica against the glass, and the static clears to reveal the Braid's true shape: every route on the ship is a loop, and the cargo never moves, only the world turns beneath it. \"We do not circulate,\" the keeper murmurs, eyes fixed on the impossible geometry of the static. \"We spin in place while the cylinder drags us all toward the same ending.\"",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "Thank you for the warning about the routes.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.rind.drift_scale_a": true
+                        },
+                        "adjust_rep": {
+                          "drift": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "I need to think on what you just showed me.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.rind.drift_scale_a": true
+                        },
+                        "adjust_rep": {
+                          "drift": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "The dial reads true only if you watch the mica shift; step back from the console before your shadow throws off the calibration.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "What binds the drum's rotation to the signal?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "Why does the drum never stop spinning?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "What has changed in the archives lately?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "Tell me what Mercury hides in the drum.",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I'll return when the drum stops spinning.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "Mica catches the drift; quartz carries the burden of the route. You splice a cable wrong and the Braid forgets your face for three generations.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "Because Mercury demands a continuous thread, and the Continuants think a pause is just a moment to file paperwork. If the drum halts, the routes collapse and the cargo rots in the dark.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "The knots grow tighter; the signal-cables sing with a frequency that makes the mica crack. I hear whispers in the static that do not belong to any route I have walked.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "The news arrives as a dropped bearing; Memezi-Moglu’s hands freeze mid-spool and trace phantom routes across cold metal.",
+              "shock": "Blood stains the indexing gear; Memezi-Moglu drops the mica archive and counts the falling drops instead of looking away.",
+              "bribed": "The merchant slides a quicksilver ingot forward; Memezi-Moglu taps the quartz dial twice and walks back to the gantry.",
+              "accused": "The keeper’s accusation severs the signal-cable; Memezi-Moglu stops splicing and stares at the severed end.",
+              "flattered": "Praise hangs in the still air as Memezi-Moglu adjusts the mica layers and treats the compliment as dead cargo.",
+              "questioned": "Memezi-Moglu drags a calibrated spool across the workbench while the Braid’s ledger absorbs every missed notch without comment.",
+              "threatened": "Mercury wardens lean close while Memezi-Moglu feeds an empty quartz spool into the mechanism and refuses to meet their gaze.",
+              "caught_in_a_lie": "Memezi-Moglu’s knuckles press hard against the quartz dial, and the relay cadence fractures into stuttered counts.",
+              "authority_arrives": "Boots echo against the machined ribs while Memezi-Moglu aligns every bearing to the blueprint and refuses to look up.",
+              "the_ship_shudders": "The cylinder lurches sideways; Memezi-Moglu anchors both palms to the console and whispers the calibration sequence until the shaking stops.",
+              "someone_else_accused": "Memezi-Moglu recalibrates the drum’s alignment while cold silence replaces the accused and the mercury gears grind louder.",
+              "asked_for_help_they_cannot_give": "The plea demands a route outside the ledger; Memezi-Moglu cuts the signal-cable and turns the dial toward the upper rind."
+            },
+            "description": "Memezi-Moglu hunches over the console, knuckles white against the fused quartz dial as the drum's rotation drags the lead-grey light into a blur. Fingers dance across the mica layers, splicing signal-cables that pulse with the rhythm of the upper rind."
+          },
+          "lore": {
+            "name": "tracking spindle",
+            "description": "A lead-grey tracking spindle rests against the indexing rail, its quartz registry etched with the precise velocity curves of every signal that has passed through the upper arteries. The stylus marks where circulation spikes during the Drift’s relay cycles, proving that the Braid’s routes extend far beyond the Nave and into the Seven’s own signal arteries. You can unclip the spindle to carry its recorded paths down to the wards."
+          },
+          "name": "Nidevim",
+          "verb": "learn",
+          "zone": "upper_rind",
+          "faction": "mercury",
+          "description": "Conspicuous stillness arrests the drum’s rotation, though the stenciled warning reads DRUM ROTATION LOGGED, DO NOT HALT MID-TURN across the lead-grey flange. Memezi-Moglu feeds fused quartz spools into the indexing mechanism while the layered mica archive climbs past the third gantry, curves into the upper bearing, and demands the exact cadence required to keep the structure turning. The silence presses against the eardrums because the freshly machined ribs sustain the full torque without echoing the gears, and every bearing sits precisely where the blueprints demanded.",
+          "nave_faction": "drift"
+        },
+        "produces": {
+          "sets": [
+            "flag.rind.drift_scale_a",
+            "flag.theme.circulation",
+            "flag.subject.the_braid",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "drift": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 4,
+        "narrative_tier": 4,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "lower_rind",
+          "sol",
+          "worship",
+          "rindwalker",
+          "axial resonance",
+          "pallid stratification",
+          "liturgical architecture"
+        ],
+        "content": {
+          "npc": {
+            "name": "Daemath Ravijathaenne",
+            "voice": "Speech tempered by the rind's acoustics; syntax knotted with the cadence of maintenance rites, where every utterance is a bolt tightened against the entropy of meaning.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "We treat the feedback as noise to be dampened, yet the waveform matches no known decay pattern; it is a syntax, deliberate and vast, answering the growth we cannot perceive with a warning we have misread as error.",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "Thank you. I understand the work now.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.signal.it_responds": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "I must go. This changes everything.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.signal.it_responds": true
+                        },
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "The wall dictates the pace; speak your burden and let the return find you.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "The foil remembers every heat it has endured?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "Why do the deep tunnels reject the old prayers?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "Who commands the work when the signals falter?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "Is the anomaly a failure, or does it speak back?",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I have nothing more to ask.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "Wound foil keeps the memory of fire in its grain; we layer mica to teach it patience, forcing the thermal shock to bloom gradually across the surface rather than shattering the lattice.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "Prayers rely on symmetry, yet the lower rind has forgotten the habit of mirrors; the structures now respond to pressure, not petition, and the silence where answers should be is the loudest complaint I have ever heard.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "I answer to the torque that demands alignment; recently, the torque has shifted direction, pulling toward the Signal's origin with a hunger that compels the standard maintenance protocols to resemble begging before a storm.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Patience abandons the grain; fire memory bleeds through the mica, demanding immediate, unlayered acknowledgment.",
+              "shock": "Multi-jointed digits lock rigid against the stratum, the lattice abandoning the sudden violence.",
+              "bribed": "Worship demands the unvarnished lattice; material offerings dissolve against the stratum without altering the recorded decay.",
+              "accused": "Mica layers fracture inward as the accusation strikes, shattering the lattice of deliberate silence.",
+              "flattered": "Eyes track the stenciled injunction until praise curdles into measurable static, entirely ignored.",
+              "questioned": "Syntax tightens against each query, every syllable a bolt driven into the rind’s acoustic grain.",
+              "threatened": "Thermal gradients reverse entirely within the chest, cold drawing inward to meet the explicit threat.",
+              "caught_in_a_lie": "Foil coils drop flat against the stratum, the deliberate waveform collapsing into static dissonance.",
+              "authority_arrives": "Coil manipulation halts precisely; the rind’s acoustics absorb the jurisdiction without yielding a single measured response.",
+              "the_ship_shudders": "Backward drafts reverse course, shattering the maintained gradient and forcing unlayered panic through the lattice.",
+              "someone_else_accused": "Syntax knots tighter against the false attribution, each syllable driven inward to shield the true pattern.",
+              "asked_for_help_they_cannot_give": "Maintenance rites falter completely; the lattice cannot absorb this plea, leaving only fractured silence behind."
+            },
+            "description": "Daemath's multi-jointed fingers manipulate a coil of wound foil against a stratum of layered mica, the metal singing a dissonant chord as the thermal gradient warps the alignment."
+          },
+          "lore": {
+            "name": "Echo Astrolabe",
+            "description": "A fractured orrery of fused silica and copper wire rests atop a basalt plinth, its gears interlocked in a configuration that defies standard transmission ratios. When aligned with the stenciled directive, the mechanism does not turn; instead, it registers a harmonic resonance from the deep shafts, translating the ship’s anomalous pulse into a series of deliberate, repeating strikes against the casing. The pattern matches no known maintenance code, but rather echoes the cadence of a greeting returned from a place that should have forgotten how to speak."
+          },
+          "name": "Bab Nyr",
+          "verb": "worship",
+          "zone": "lower_rind",
+          "faction": "sol",
+          "description": "Unspooling from the upper strata, a ribbon of wound foil traces a frantic arc before shattering against the layered mica facades. The thermal gradient runs backward against the draft, drawing chill toward the apex where a stenciled injunction—SPEAK ONCE AND WAIT FOR RETURN—pales against a pallid glare. Every seam angles inward toward a silent convergence, yet no tool-mark mars the untouched strata, as though the architecture itself declines the invitation to be read.",
+          "nave_faction": "rindwalker"
+        },
+        "produces": {
+          "sets": [
+            "flag.signal.it_responds",
+            "flag.theme.devotion",
+            "flag.subject.the_signal",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "rindwalker": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 4,
+        "narrative_tier": 4,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "lower_rind",
+          "luna",
+          "learn",
+          "drift",
+          "archival",
+          "structural",
+          "lunar",
+          "stasis-bound"
+        ],
+        "content": {
+          "npc": {
+            "name": "Riaciyoza the Thrice-Forgotten",
+            "voice": "Transient cadence; treats language as ballast to be shed once delivered. Her metaphors consistently outrun their referents, leaving only the friction of transit and the ghost of a map that never quite closes.",
+            "dialogue": {
+              "nodes": {
+                "open": {
+                  "says": "Follow the axial fault where the plaster peels back to raw lattice. The Voronoi cells narrow until the air tastes of oxidized copper and old navigation marks. Turn left at the third pressure valve, then descend the service shaft that bypasses the council levels entirely. The Signal resides in the blind spot between Saturn’s cold ledger and the hull’s original seam—an aperture that opens only when you stop trying to read it.",
+                  "choices": [
+                    {
+                      "id": "take_0",
+                      "text": "I’ll carry this route forward.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.signal.chamber_bearing": true
+                        },
+                        "adjust_rep": {
+                          "drift": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "take_1",
+                      "text": "Your certainty leaves a heavy stain.",
+                      "effects": {
+                        "end": true,
+                        "set_facts": {
+                          "flag.signal.chamber_bearing": true
+                        },
+                        "adjust_rep": {
+                          "drift": 1
+                        },
+                        "adjust_standing": 1
+                      }
+                    }
+                  ]
+                },
+                "greet": {
+                  "says": "Keep your tread light. The salt beds shift when you crowd the seam. Stillness is a ledger that forgets its own columns.",
+                  "choices": [
+                    {
+                      "id": "probe_a",
+                      "goto": "probe_a",
+                      "text": "What binds these folios together?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_a": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_b",
+                      "goto": "probe_b",
+                      "text": "Why does the register fracture so often?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_b": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "probe_c",
+                      "goto": "probe_c",
+                      "text": "Who demands these nightly entries?",
+                      "effects": {
+                        "set_npc_flags": {
+                          "probed_c": true
+                        },
+                        "adjust_standing": 1
+                      }
+                    },
+                    {
+                      "id": "open",
+                      "goto": "open",
+                      "text": "Show me the path past the stasis engines.",
+                      "requires": {
+                        "npc_flags": {
+                          "probed_a": true,
+                          "probed_b": true,
+                          "probed_c": true
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "text": "I’m not ready for your ledgers.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "probe_a": {
+                  "says": "Compacted salt and crushed basalt. They drink moisture and spit truth when dry.",
+                  "choices": [
+                    {
+                      "id": "back_a",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_b": {
+                  "says": "Because permanence is a luxury the drift cannot afford. We circulate; we do not anchor.",
+                  "choices": [
+                    {
+                      "id": "back_b",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                },
+                "probe_c": {
+                  "says": "The pale-cased navigator below. She audits our transit logs, though she never watches us compile them.",
+                  "choices": [
+                    {
+                      "id": "back_c",
+                      "goto": "greet",
+                      "text": "(go on)"
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Above the fresh folio, her hand freezes as the dead scribe’s name burns into the mortar.",
+              "shock": "The violence registers as an unbound folio, her voice dropping to a scribe’s whisper.",
+              "bribed": "Toward the drainage seams, she sweeps the offered tokens, considering them uncharted silt.",
+              "accused": "A ledger entry she declines to ink, the direct charge meets her unblinking stare.",
+              "flattered": "Before it can anchor her attention, the praise strikes her as hollow ballast.",
+              "questioned": "Navigational static fills her reply, deliberately omitting the corridor’s true coordinates.",
+              "threatened": "Into the damp grain she steps, tracing a retreat through blind spots.",
+              "caught_in_a_lie": "She stammers a correction about the axial fault, then abandons the sentence entirely.",
+              "authority_arrives": "The official navigates the unmarked shelves, while she retreats into the archive’s blind spot.",
+              "the_ship_shudders": "Green-black basalt groans beneath her boots, yet she maintains the cadence of untroubled water.",
+              "someone_else_accused": "The accusation meets her silent appraisal, a ledger entry crossed out by green-black stone.",
+              "asked_for_help_they_cannot_give": "Complete navigational bankruptcy, her voice admits, as she points toward the Voronoi throat."
+            },
+            "description": "Light concedes to the salt’s damp grain rather than striking it, tracing the asymmetrical seams of the opened wall. Riaciyoza aligns a fractured folio against the untouched green-black stone, her knuckles mapped with fresh abrasions while the surrounding basalt remains pristine. Near the binding, a stenciled directive reads: ENTRIES ADDED NIGHTLY SCRIBE UNKNOWN. The pages catch the ambient glare and yield their ink without resistance."
+          },
+          "lore": {
+            "name": "Drift-Calibrated Astrolabe",
+            "description": "A cast-iron astrolabe rests against the salt crust, its rings calibrated not to stars but to the vessel’s internal pressure gradients. The outer dial displays a series of notches filed by impatient thumbs, each mark recording a failed attempt to align the dream-logs with the drifting axial current. It proves the cylinder’s growth is not linear but helical, and that the deep archive lies precisely where the pressure drops."
+          },
+          "name": "Authorless-Register 33",
+          "verb": "learn",
+          "zone": "lower_rind",
+          "faction": "luna",
+          "description": "Pale illumination bleeds across the green-black basalt, declining to coalesce, instead tracing the jagged seam where half the archive lies gutted. Compacted salt dusts the open fracture, a brittle crust over mechanisms that still turn, still adjust, though no hand tends them. A stenciled admonition bleeds into the mortar: ENTRIES ADDED NIGHTLY SCRIBE UNKNOWN. One finds the axial pull toward the deep not in the blueprints, but in the way the surviving shelves lean, angling their silent spines toward the Voronoi throat.",
+          "nave_faction": "drift"
+        },
+        "produces": {
+          "sets": [
+            "flag.signal.chamber_bearing",
+            "flag.theme.memory",
+            "flag.lean.drift",
+            "npc:probed_a",
+            "npc:probed_b",
+            "npc:probed_c"
+          ],
+          "rep": {
+            "drift": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 4,
+        "narrative_tier": 4,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "lower_rind",
+          "saturn",
+          "store",
+          "rindwalker",
+          "stasis",
+          "ledger",
+          "oxidation"
+        ],
+        "content": {
+          "npc": {
+            "name": "Othara Venko",
+            "voice": "Speech arrives clipped, measured by the rhythm of a machine that outlives its operators.",
+            "dialogue": {
+              "nodes": {
+                "greet": {
+                  "says": "New ports don’t belong here. The tally runs backward. Take the lodestone and follow the cold seams.",
+                  "choices": [
+                    {
+                      "id": "greet",
+                      "goto": "greet",
+                      "text": "What does it count?",
+                      "effects": {
+                        "adjust_rep": {
+                          "rindwalker": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "leave",
+                      "goto": "leave",
+                      "text": "I understand.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "leave": {
+                  "says": "Saturn watches the cold. The aperture needs a key that doesn’t turn. Move.",
+                  "choices": []
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "The ledger’s absence swallows Othara’s composure; she recites three false figures before her knuckles bleed.",
+              "shock": "Fused quartz cracks beneath Othara’s boots, yet her clipped cadence shatters into a frantic, metallic stutter.",
+              "bribed": "A flat denial crystallizes in Othara’s chest against the heavy promise of misplaced memory.",
+              "accused": "The register of fused quartz claims Othara’s voice; the direct accusation evaporates against the bulkhead stamp.",
+              "flattered": "Praise distorts the requisition stamp, so Othara watches the flatterer’s shadow lengthen across the green-black floor.",
+              "questioned": "Copper dust flakes from Othara’s knuckles as she aligns each syllable to the wheel’s fractured rhythm.",
+              "threatened": "Deliberate eye contact with the threat vanishes; Othara tracks the sleeping figure’s rhythm instead.",
+              "caught_in_a_lie": "Othara’s measured cadence fractures; she recites three false coordinates before the copper grit chokes her throat.",
+              "authority_arrives": "The tally’s backward rhythm halts completely; the official’s jurisdiction claims the space without a single spoken cipher.",
+              "the_ship_shudders": "Saturn’s cold watch fractures under the shudder; Othara’s measured voice bleeds into a sharp gasp.",
+              "someone_else_accused": "Othara deliberately omits the accused’s final cipher from the manifest; the cold seams remain unspoken.",
+              "asked_for_help_they_cannot_give": "Missing requisition codes spill from Othara’s mouth, an oversharing defense against a plea she cannot fulfill."
+            },
+            "description": "Othara Venko stands beside a counting table, fingers tracing the grooves of a fractured tally-wheel. Copper dust coats their knuckles, and their eyes track the falling dust motes as if counting them against an invisible ledger."
+          },
+          "lore": {
+            "name": "The Fused Spanner",
+            "description": "A steel spanner rests atop a stack of requisition slips, its jaws permanently fused shut by silicate buildup. Microscopic etchings mark the metal, matching the axial notation found in Bay 14, a coordinate sequence that points toward the Signal Aperture rather than any supply depot. Running a thumb along the etchings leaves a residue of glass, confirming the ship has been dispensing inventory from a ledger that no longer exists."
+          },
+          "name": "The Issuing Magazine",
+          "verb": "store",
+          "zone": "lower_rind",
+          "faction": "saturn",
+          "description": "Light bends across the floor, declining to meet its own reflection. Surfaces wear green-black, seams trace pathways through fused quartz, mapping angles that tip past equilibrium. A figure sleeps against a ledger stand, lungs moving to a rhythm the walls track. Stamped across the bulkhead reads ISSUE RECORDED REQUISITION ABSENT, ink bleeding into metal where time forgets to stop.",
+          "nave_faction": "rindwalker"
+        },
+        "produces": {
+          "sets": [
+            "flag.lean.rindwalker",
+            "flag.subject.the_signal"
+          ],
+          "rep": {
+            "rindwalker": 1
+          }
+        }
+      },
+      {
+        "type": "room_bundle",
+        "revelation_tier": 4,
+        "narrative_tier": 4,
+        "power_tier": 1,
+        "status": "pending",
+        "tags": [
+          "lower_rind",
+          "luna",
+          "dwell",
+          "drift",
+          "axial drift",
+          "stasis-resin",
+          "dream-logic",
+          "folded architecture"
+        ],
+        "content": {
+          "npc": {
+            "name": "Nilucoshi Boriobatsezu",
+            "voice": "circulation and continuity are merely different names for the same knot; you pull one end and the whole house shifts.",
+            "dialogue": {
+              "nodes": {
+                "greet": {
+                  "says": "The Braid carries your footsteps before your boots touch the floor. Luna’s logs already know your name, though you haven’t claimed it yet. You’re dwelling in a fold that repositions between visits. Sit. The cord is loose.",
+                  "choices": [
+                    {
+                      "id": "ask_knot",
+                      "goto": "inquiry",
+                      "text": "What knot are you tying?",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "ask_luna",
+                      "goto": "inquiry",
+                      "text": "Why does Luna know me?",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "inquiry": {
+                  "says": "You think it’s just a route. It’s a dream-log. Every loop maps a family’s sleep cycle against the cylinder’s axial drift. We dwell here to keep the dream from unraveling. The knot tightens when the signal wakes. What do you seek in the coil?",
+                  "choices": [
+                    {
+                      "id": "ask_signal",
+                      "goto": "revelation",
+                      "text": "Tell me about the signal.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "ask_core",
+                      "goto": "revelation",
+                      "text": "I need to find the axial core.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    }
+                  ]
+                },
+                "parting": {
+                  "says": "The signal does not wait for certainty. It circulates through the deep rind, seeking architecture that matches its frequency. Take the knot. It maps the safe shaft. The fold will shift when we leave. Keep the cord taut.",
+                  "choices": [
+                    {
+                      "id": "end_conversation",
+                      "goto": "end",
+                      "text": "I will keep it taut.",
+                      "effects": {
+                        "end": true
+                      }
+                    }
+                  ]
+                },
+                "revelation": {
+                  "says": "The axial core is not lost. It is folded. Saturn left the notation in the cold hull. The Seven maintain it as a side effect of existing. You were built to translate the signal before it translates you. The drift carries you forward; Luna keeps you from drifting away. Will you walk the shaft, or let the fold swallow you?",
+                  "choices": [
+                    {
+                      "id": "go_shaft",
+                      "goto": "parting",
+                      "text": "Take me to the shaft.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    },
+                    {
+                      "id": "study_logs",
+                      "goto": "parting",
+                      "text": "I must understand the signal first.",
+                      "effects": {
+                        "adjust_rep": {
+                          "drift": 1
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "start": "greet"
+            },
+            "reactions": {
+              "grief": "Nilucoshi admits the signal drowned in the lower rind, and their voice fractures as the dream-log finally unspools.",
+              "shock": "Nilucoshi’s pupils dilate, and their gaze fixes on the unaddressed equation bleeding across the floorboards as the dream-log shatters.",
+              "bribed": "Nilucoshi declares the offered trinkets cannot map the safe shaft, then watches the loom’s tension snap.",
+              "accused": "Nilucoshi’s scarred knuckles whiten against the tarnished loom, and the signal fractures into a sharp knot.",
+              "flattered": "Nilucoshi explains that praise merely accelerates the cylinder’s axial drift, and notes the loom’s tension remains unbroken.",
+              "questioned": "Nilucoshi answers with a flat declaration about the fold’s mercy, then ignores the pallid cord’s slack.",
+              "threatened": "Nilucoshi meets the explicit threat with a cold reminder that pulling one thread collapses the district.",
+              "caught_in_a_lie": "Nilucoshi stops braiding, and spills the exact coordinates of every hidden shaft to prove the fold’s mercy.",
+              "authority_arrives": "Nilucoshi acknowledges the official’s jurisdiction, then turns toward the door while the helical threshold shudders.",
+              "the_ship_shudders": "Nilucoshi states the fold repositions precisely when the cylinder drifts, then watches the recursive quarters converge.",
+              "someone_else_accused": "Nilucoshi snaps that the accused weaves only hollow loops, then deliberately severs the nearest pallid thread.",
+              "asked_for_help_they_cannot_give": "Nilucoshi confesses that no knot tightens fast enough to anchor a sinking soul, then turns toward the door."
+            },
+            "description": "Nilucoshi stands beside a supply crate, fingers working a pallid cord through a tarnished wire loom, their sleeves rolled past elbows scarred by stasis-resin and axial dust."
+          },
+          "lore": {
+            "name": "Dream-Log Loom",
+            "description": "A wire loom rests against the wall, its spindle wound with knotted cord that tracks both sleep cycles and axial drift, each loop marked with soot-stained tags recording which family claimed which cot on which rotation. The mechanism’s gears are packed with stasis-resin, preserving the exact tension of a knot tied when the lower rind first began to dream. It does not measure time so much as it archives the gravity of absence, its calibrated spindles spinning only when a resident’s respiration falls into the deep cadence."
+          },
+          "name": "Folded Quarters",
+          "verb": "dwell",
+          "zone": "lower_rind",
+          "faction": "luna",
+          "description": "A drawn filament unspools from the threshold, tracing a gold-dusted helix that abandons its circuit before dissolving into the air. Pallid wire braids and unbraids across the floor, its knots bearing the stenciled warning POSITION LAST CONFIRMED SIX YEARS AGO, though the undisturbed dust beneath testifies to an abandonment in place. The quarters fold inward upon themselves, a recursive arrangement of sleeping cots and supply crates that converge toward a center no eye can fixate upon, leaving the mind to trace the edges of an unaddressed equation.",
+          "nave_faction": "drift"
+        },
+        "produces": {
+          "sets": [
+            "flag.theme.circulation",
+            "flag.mood.unease"
+          ],
+          "rep": {
+            "drift": 1
+          }
+        }
+      }
+    ]
+  }
+}
