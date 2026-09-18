@@ -28,6 +28,27 @@
 >
 > The nave half of the work now lives in **[`NAVE-CONTENT-BRIEF.md`](NAVE-CONTENT-BRIEF.md)**, with
 > `scripts/nave-readiness.mjs` as its gate. The rinds (§6) are being reworked separately.
+>
+> ---
+>
+> **Update 2026-09-18 — the run landed, and the readings below are now historical.** hoopy published a
+> full content run on 2026-09-16 and tombstoned the entire previous corpus in place (1309 records
+> `status: 'retired'`). The census in §0 is obsolete: the live pool is **781 records — 415 `room_bundle`,
+> 213 `wanderer`, 71 `rumor`, 70 `creature`, 12 `plot_beat`** and **zero** standalone `npc`/`item`/
+> `lore_fragment`. So the answer to §0's "two correct halves of one system, neither of which has met the
+> other" is: they have now met, at 781 records rather than 16, and the meeting mostly worked —
+> `expandRoomBundle` and `expandWanderer` are no longer 🟡, all 415 bundles carry the full twelve-slot
+> reaction table (§4.1's worry is closed by the content, not by code), and zone↔tier is exact
+> (commons 1 · wards 2 · upper_rind 3 · lower_rind 4).
+>
+> **What the run did NOT bring is the spine.** The four load-bearing anchors went out with the
+> tombstones and were not republished, while the 23 gate flags they consume are each authored *six*
+> times over and the new prose names all four characters throughout. The live pool therefore read
+> `no_anchors` / 0 of 100 seeds progressable. The anchors are now carried in
+> `v110/story/spine-anchors.js` and grafted by `servePool` (`graftSpineAnchors`), re-gated against the
+> run — see **hoop/CLAUDE.md § Content runs**. With the graft the live pool proves PASS in `--strict`
+> and 200/200 seeds weave progressable. The two `gate_no_setter` holes §4 and `anchor-briefings.json`
+> were built to close are gone: every gate has six setters.
 
 ---
 

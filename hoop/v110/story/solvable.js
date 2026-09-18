@@ -14,9 +14,11 @@
 // What is PROVEN here (the content/placement contract):
 //   • the anchor chain is contiguous from tier 1 and every anchor has a turn-in (cleared flag),
 //   • every gate flag has a setter in the pool,
-//   • every gate's setter is PLACEABLE when the player needs it: visible at the anchor's tier (or
-//     force-placed via requiredKeeperIds), not ambient, active + approved, its own requires
-//     satisfiable from flags obtainable at earlier tiers, and seated in a zone whose deck is open,
+//   • at least ONE of each gate's setters is PLACEABLE when the player needs it: visible at the anchor's
+//     tier (or force-placed via requiredKeeperIds), not ambient, active + approved, its own requires
+//     satisfiable from flags obtainable at earlier tiers, and seated in a zone whose deck is open.
+//     Gates are FUNGIBLE (v105) — hoopy's runs author several setters each and the waypoint picks the
+//     nearest placeable one — so the gate is judged on its best candidate, not an arbitrary first,
 //   • the gate's setting choice is REACHABLE inside the setter's dialogue (v105): walking from `start`
 //     over choices whose own requires are meetable — a flag parked on an orphaned node, or behind a
 //     choice gated on an unearnable fact, used to pass the proof and soft-lock the game anyway,
@@ -33,7 +35,7 @@
 // Pure, DOM-free, node-tested (test/solvable.selftest.mjs). Run against the LIVE pool with
 // hoop/scripts/prove-solvable.mjs.
 
-import { anchorChain, gateSetters, advanceState } from './anchors.js';
+import { anchorChain, gateSetters, gateSettersMulti, advanceState } from './anchors.js';
 import { worldExternal } from './import.js';
 
 const ERROR = 'error', WARN = 'warn';
@@ -87,6 +89,7 @@ export function proveProgression(content, opts = {}) {
   const issues = [];
   const chain = anchorChain(content);
   const setters = gateSetters(content);
+  const settersMulti = gateSettersMulti(content);
   const byId = new Map((content || []).map((c) => [c.id, c]));
 
   if (!chain.length) {
@@ -126,33 +129,55 @@ export function proveProgression(content, opts = {}) {
     if (az > a.tier) issues.push(issue(ERROR, 'anchor_zone_locked', a.tier, `anchor '${a.name}' sits in ${a.zone} which only opens at tier ${az} — it can't be reached to turn in`, { contentId: a.id }));
 
     const earned = obtainableBefore(a.tier);
-    for (const g of a.gates) {
-      const s = setters[g];
-      if (!s) { issues.push(issue(ERROR, 'gate_no_setter', a.tier, `gate '${g}' has NO setter anywhere in the pool — the turn-in can never open`, { gate: g })); continue; }
+    // Everything a ONE setter of gate `g` would be faulted for. Returns the issues WITHOUT pushing them,
+    // so a FUNGIBLE gate (v105: hoopy's runs author ~6 setters per gate) can be judged on its best
+    // candidate instead of an arbitrary first one — see the loop below.
+    const faultsOf = (g, s) => {
+      const found = [];
       const c = byId.get(s.contentId);
-      if (!c) { issues.push(issue(ERROR, 'gate_no_setter', a.tier, `gate '${g}' names setter ${s.contentId} which is not in the pool`, { gate: g })); continue; }
+      if (!c) return [issue(ERROR, 'gate_no_setter', a.tier, `gate '${g}' names setter ${s.contentId} which is not in the pool`, { gate: g })];
       const who = `'${s.name}'${s.room ? ' (' + s.room + ')' : ''}`;
-      if (c.content && c.content.ambient) issues.push(issue(ERROR, 'setter_ambient', a.tier, `gate '${g}' is set by ${who} who is AMBIENT — wanderers are never placed as keepers`, { gate: g, contentId: c.id }));
-      if (c.status && c.status !== 'active') issues.push(issue(ERROR, 'setter_unservable', a.tier, `gate '${g}' is set by ${who} whose status is '${c.status}'`, { gate: g, contentId: c.id }));
-      if (c.approved === false) issues.push(issue(ERROR, 'setter_unservable', a.tier, `gate '${g}' is set by ${who} who is unapproved`, { gate: g, contentId: c.id }));
+      if (c.content && c.content.ambient) found.push(issue(ERROR, 'setter_ambient', a.tier, `gate '${g}' is set by ${who} who is AMBIENT — wanderers are never placed as keepers`, { gate: g, contentId: c.id }));
+      if (c.status && c.status !== 'active') found.push(issue(ERROR, 'setter_unservable', a.tier, `gate '${g}' is set by ${who} whose status is '${c.status}'`, { gate: g, contentId: c.id }));
+      if (c.approved === false) found.push(issue(ERROR, 'setter_unservable', a.tier, `gate '${g}' is set by ${who} who is unapproved`, { gate: g, contentId: c.id }));
       // the tier-filter trap: placement's pool query hides narrative_tier > player tier. requiredKeeperIds
       // bypasses it at runtime, so this is a WARN when the bypass is in play (opts.forcePlaced) and an
       // ERROR for a surface that hasn't wired the bypass.
       const nt = c.narrative_tier || 1;
-      if (nt > a.tier) issues.push(issue(opts.forcePlaced ? WARN : ERROR, 'setter_invisible', a.tier, `gate '${g}' is set by ${who} at narrative_tier ${nt} — invisible to the tier-${a.tier} placement pool${opts.forcePlaced ? ' (force-placed via requiredKeeperIds)' : ''}`, { gate: g, contentId: c.id }));
+      if (nt > a.tier) found.push(issue(opts.forcePlaced ? WARN : ERROR, 'setter_invisible', a.tier, `gate '${g}' is set by ${who} at narrative_tier ${nt} — invisible to the tier-${a.tier} placement pool${opts.forcePlaced ? ' (force-placed via requiredKeeperIds)' : ''}`, { gate: g, contentId: c.id }));
       // the setter's own gates must be meetable from flags earnable at earlier tiers (or this tier's other gates).
       const need = Object.keys((c.requires && c.requires.facts) || {});
       const thisTier = new Set(a.gates);
       const unmeetable = need.filter((k) => !earned.has(k) && !thisTier.has(k));
-      if (unmeetable.length) issues.push(issue(ERROR, 'setter_gated', a.tier, `gate '${g}' is set by ${who} who requires ${JSON.stringify(unmeetable)} — not obtainable by tier ${a.tier}`, { gate: g, contentId: c.id }));
+      if (unmeetable.length) found.push(issue(ERROR, 'setter_gated', a.tier, `gate '${g}' is set by ${who} who requires ${JSON.stringify(unmeetable)} — not obtainable by tier ${a.tier}`, { gate: g, contentId: c.id }));
       // the flag-setting choice must be REACHABLE inside the setter's own dialogue (v105): from `start`,
       // over choices meetable from what the player can hold while working this tier.
       const earnable = [...earned, ...a.gates];
-      if (!canReachFlag(c, g, earnable)) issues.push(issue(ERROR, 'setter_flag_unreachable', a.tier, `gate '${g}' is set by ${who} but the setting choice is UNREACHABLE in their dialogue (orphaned node, or gated on facts not earnable at tier ${a.tier})`, { gate: g, contentId: c.id }));
+      if (!canReachFlag(c, g, earnable)) found.push(issue(ERROR, 'setter_flag_unreachable', a.tier, `gate '${g}' is set by ${who} but the setting choice is UNREACHABLE in their dialogue (orphaned node, or gated on facts not earnable at tier ${a.tier})`, { gate: g, contentId: c.id }));
       // zone: the keeper's seat must be on a deck that's open while the player works this tier.
       const z = s.zone || gateZone(g);
       const zt = ZONE_TIER[z] || 1;
-      if (zt > a.tier) issues.push(issue(ERROR, 'setter_zone_locked', a.tier, `gate '${g}' is set by ${who} seated in ${z}, which only opens at tier ${zt}`, { gate: g, contentId: c.id }));
+      if (zt > a.tier) found.push(issue(ERROR, 'setter_zone_locked', a.tier, `gate '${g}' is set by ${who} seated in ${z}, which only opens at tier ${zt}`, { gate: g, contentId: c.id }));
+      return found;
+    };
+
+    for (const g of a.gates) {
+      // FUNGIBLE (v105): a gate is satisfiable if ANY of its setters is placeable — the surface points the
+      // waypoint at the nearest one (anchors.js nextKeeper), so faulting the arbitrary FIRST setter blocked
+      // campaigns that were provably fine. The live case: the tier-2 mystery retires its victim, who was
+      // one of six authored setters of a ward gate; the other five were alive and seated, and the seed
+      // still read BLOCK. Judge the gate on its BEST candidate; only when every setter fails does the gate
+      // fail, and then we report the least-broken one's faults (with the count, so the report says why).
+      const raw = settersMulti[g] || (setters[g] ? [setters[g]] : []);
+      if (!raw.length) { issues.push(issue(ERROR, 'gate_no_setter', a.tier, `gate '${g}' has NO setter anywhere in the pool — the turn-in can never open`, { gate: g })); continue; }
+      const tried = raw.map((s) => faultsOf(g, s));
+      const errsOf = (f) => f.filter((i) => i.level === ERROR).length;
+      const clean = tried.find((f) => errsOf(f) === 0);
+      if (clean) { issues.push(...clean); continue; }                       // satisfiable — carry only its WARNs
+      let best = tried[0];
+      for (const f of tried) if (errsOf(f) < errsOf(best)) best = f;
+      const tail = raw.length > 1 ? ` (all ${raw.length} setters of this gate fail)` : '';
+      for (const i of best) issues.push(tail && i.level === ERROR ? { ...i, msg: i.msg + tail } : i);
     }
   }
 

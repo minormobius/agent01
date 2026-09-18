@@ -46,8 +46,55 @@ base tag with everything else; just don't drop it. Check with:
 | `vendor/` | **verbatim copy** of `packages/oauth-client/auth.js` — re-sync from source, never fork. |
 | `docs/` | the world-side documentation at `/docs`. Links to archived versions resolve through the redirects. |
 | `lexicons/` | the ATProto lexicon JSON (`com.minomobi.hoop.*`). |
-| `scripts/` | live tooling: `prove-solvable.mjs` + `prove-weave.mjs` (both proving the v110 story engine against the live morphyx pool — they import `../v110/story/`, so a promotion must repoint them), `seed-anchor-briefings.mjs`, `seed-story-pool.mjs`. The v097-era pool seeder moved to `hoop-archive/scripts/`. |
+| `scripts/` | live tooling: `pull-world.mjs` (re-form the bundled world around the current content run — see below), `prove-solvable.mjs` + `prove-weave.mjs` (both proving the v110 story engine against the live morphyx pool — they import `../v110/story/`, so a promotion must repoint them), `seed-anchor-briefings.mjs`, `seed-story-pool.mjs`. The v097-era pool seeder moved to `hoop-archive/scripts/`. |
 | `test/` | root tests for the kept wings (story, econ, paint). Tests of archived code moved to `hoop-archive/test/`. |
+
+## Content runs — and the spine graft
+
+The story pool is hoopy's, not ours. He regenerates it in **runs**: a run publishes a fresh set of
+`com.minomobi.hoop.story.content` records to the service repo (morphyx,
+`did:plc:yivyyp54vddf7qf2lpsikhe4`) and **soft-deletes the previous set in place** — the old records
+stay in `listRecords` with `status: 'retired'`. `servePool` drops those tombstones, so the game
+follows the newest run automatically. Two things do not follow automatically:
+
+- **The four LOAD-BEARING ANCHORS** (Olo Vashti · Factor Solen · Sevin · Luna) are the campaign. Every
+  keeper in the corpus sets a gate flag; the anchors are the only records that *consume* one, via a
+  turn-in choice that sets `flag.deck.<deck>.cleared`. **The 2026-09-16 run regenerated 781 keepers
+  setting all 23 gates and did not republish the anchors** — so the live pool had every gate in the
+  world and nothing to turn one in at (`proveProgression` → `no_anchors`, 0/100 seeds progressable),
+  while the new prose still names all four throughout. They are therefore **carried**, in
+  `v110/story/spine-anchors.js`, and `servePool` grafts them back (`graftSpineAnchors`). The graft
+  **stands down** the moment a run brings its own anchor, and **re-gates** the carried ones against the
+  gates *that* run actually sets — so a run that adds, drops or renames a gate stays solvable, and a
+  scope a run sets nothing in keeps its authored gates so the oracle reports the hole instead of a tier
+  that silently walks through. It also retires our own `seed-anchor-briefings` splices: this run
+  authors six fungible setters for every gate, including the two that used to have none.
+- **`v110/story/world_export.json`** is the offline fallback the client loads when the service repo is
+  unreachable. Holding a previous run, it is a museum of records the live world has retired.
+
+After a run lands, re-pull both and re-prove:
+
+```bash
+node hoop/scripts/pull-world.mjs --report   # census: live vs tombstoned, the run date, the anchors
+node hoop/scripts/pull-world.mjs            # rewrite spine-anchors.js + world_export.json
+node hoop/scripts/prove-solvable.mjs --strict && node hoop/scripts/prove-weave.mjs --sweep 200
+```
+
+Gates are **fungible** — a run authors several setters per gate and the waypoint picks the nearest
+placeable one — so the oracle judges a gate on its best candidate, not an arbitrary first. (That is why
+the tier-2 mystery retiring its victim, who is also one of six setters of a ward gate, no longer reads
+as a blocked campaign.)
+
+Two things a run's sheer size breaks that its predecessors didn't:
+
+- **Gates are fungible.** A run authors several setters per gate (this one: six) and the waypoint picks
+  the nearest placeable one, so the oracle judges a gate on its **best** candidate, not an arbitrary
+  first. Otherwise the tier-2 mystery retiring its victim — who is also one of six setters of a ward
+  gate, five of them alive and seated — reads as a blocked campaign.
+- **Never match a character by bare substring.** `pickBibleGuides` looked up the tier-1 guide with
+  `name.includes('olo')`, and among 409 new names that is "Skerry, called the Col**olo**phon". It ranks
+  now (a load-bearing anchor first, then a whole-word hit), and `guides.selftest` pins each guide to its
+  tier's anchor by **id** rather than by the substring that caused the bug.
 
 ## Run / test (all run from the sandbox; deploy does not)
 
@@ -57,6 +104,11 @@ for t in hoop/v110/test/*.selftest.mjs; do node "$t" || echo "FAIL $t"; done
 node hoop/scripts/prove-solvable.mjs        # prove the LIVE morphyx pool against the v110 oracle
 node hoop/scripts/prove-weave.mjs --sweep 100   # prove seeded casts progressable per world seed
 ```
+
+Both must be clean against the live pool: `prove-solvable` PASSes in `--strict` (no force-place
+bypass) and `prove-weave` takes every seed. A regression there usually means a new content run —
+`pull-world.mjs --report` says so in one line.
+
 
 `nave/`, `rind/`, `forge/`, `chunkroller/` each carry their own `test/` dirs too.
 
