@@ -40,3 +40,13 @@ b/packages/
 # lab tenant manifests are build artefacts (scripts/gen-lab-tenants.mjs)
 lab/*/tenants.json
 lab/*/_kit/
+
+# Per-session prompt log written by the local stop hook. The principal's own
+# conversation data, and the repo root is internet-facing (the root worker serves
+# assets.directory "."), so it is never committed and never served — preflight's
+# "prompt log stays unserved" check asserts the second half. Mirrors main.
+packages/homunculus/log/
+
+# Recovery-pass transcripts: force-added onto feature branches by the snippet,
+# collected at merge time, and asserted absent before the repo goes public.
+homunculus/inbox/
