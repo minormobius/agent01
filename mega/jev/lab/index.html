@@ -159,6 +159,51 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>Doing the arithmetic for him</h2>
+    <p class="cap" style="margin-bottom:8px">Every metric in the first version was a <b>rate</b> — how fast, how far,
+      which way. None of them said <b>where</b>.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Rates alone cannot tell selling into a five-minute low from selling into a five-minute high, which is most
+      of what a person means by reading a chart. So the page now computes the levels too — moving averages, the
+      distance from them in standard deviations, position in the recent range, distance from and age of the
+      recent extremes, and where current volatility ranks. All of it arithmetic done here so the judgement does
+      not have to do it.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Six questions about the tape whose answers were <b>computed</b>, asked
+      of both documents over sixteen windows — 80 paired items each.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:460px"><thead><tr>
+        <th>determinate probe</th><th>rates only</th><th>with levels</th><th>base rate</th>
+      </tr></thead><tbody>
+        <tr><td>is price above its five-minute mean?</td><td>56.3%</td><td><b>87.5%</b></td><td>50%</td></tr>
+        <tr><td>upper half of the last 60s range?</td><td>43.8%</td><td><b>100.0%</b></td><td>56%</td></tr>
+        <tr><td>is the 15s mean above the 60s mean?</td><td>56.3%</td><td><b>100.0%</b></td><td>63%</td></tr>
+        <tr><td>more than 1 sd from the 60s mean?</td><td>50.0%</td><td><b>93.8%</b></td><td>50%</td></tr>
+        <tr><td>volatility in the top third?</td><td>87.5%</td><td>87.5%</td><td>69%</td></tr>
+        <tr><td><b>all of them</b></td><td><b>58.8%</b></td><td><b>93.8%</b></td><td>—</td></tr>
+        <tr><td>mean confidence</td><td>0.670</td><td><b>0.886</b></td><td>—</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Paired over identical states, a sign test gives <b>rich won 30, thin won 2, tied 48 — z = 4.95</b>. A sixth
+      probe was thrown out: its answer never changed on this tape, so a constant guesser scores 100% on it for
+      free and it measures nothing.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      Two things this cost, both worth knowing. Writing the volatility line as <em>&ldquo;calmer than 20%&rdquo;</em>
+      sent that probe from 80% to 40% — answering <em>&ldquo;is volatility high?&rdquo;</em> then needs an
+      inversion, which is arithmetic handed back after all the trouble of handing it over. And shipping
+      <em>both</em> a volatility ratio and a volatility percentile cost another 12 points: two views of one fact
+      is reconciliation work. One line, pointing the way the question points.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      What it did <b>not</b> do is make the future more knowable. Over the same sixteen windows the
+      <em>is this decidable?</em> answer moved 0.256 → 0.237, and <em>are the figures present?</em> 0.831 → 0.816.
+      Better informed, not more clairvoyant — which is the whole distinction this lab is built around.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>The most interesting number on this page</h2>
     <p class="cap" style="margin-bottom:8px">Four availability questions, one real state document, one call.</p>
     <table class="log" style="max-width:640px">

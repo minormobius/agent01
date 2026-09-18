@@ -378,6 +378,83 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   ok(/not a forecast/.test(q.exposure.instructions), 'and it is still a description, not a prediction');
 }
 
+// ------------------------------------------------------------- levels -----
+// Everything above the level block is a RATE. These say WHERE, and without
+// them a decision cannot tell selling into a five-minute low from selling
+// into a five-minute high. Measured: 58.8% -> 93.8% on determinate probes.
+{
+  // A clean ramp: price ends at the top of every window, above every mean.
+  const r = newRing();
+  for (let i = 0; i < 120; i++) push(r, { mid: 77000 + i, spreadBps: 1 });
+  const m = compute(r);
+  ok(m.mid > m.sma60 && m.sma60 > m.sma300, 'on a ramp, price leads the fast mean which leads the slow one');
+  ok(m.z60 > 1, `price is well above its own 60s mean in sd units (${m.z60.toFixed(2)})`);
+  near(m.rangePos60, 1, 1e-9, 'and sits exactly at the top of the 60s range');
+  ok(m.maSpreadBps > 0 && m.maSpreadZ > 0, 'the fast mean is above the slow one, in bp and in sd');
+  near(m.offHighBps, 0, 1e-9, 'a new high means zero distance from the high');
+  ok(m.offLowBps > 0, 'and a positive distance from the low');
+  ok(m.secsSinceHigh === 0, 'the high was set on this very tick');
+  ok(m.secsSinceLow > m.secsSinceHigh, 'and the low was set before it');
+}
+{
+  const r = newRing();
+  for (let i = 0; i < 120; i++) push(r, { mid: 77000 - i, spreadBps: 1 });
+  const m = compute(r);
+  ok(m.z60 < -1 && m.maSpreadBps < 0, 'the signs all invert on the way down');
+  near(m.rangePos60, 0, 1e-9, 'and price sits at the bottom of the range');
+  ok(m.secsSinceLow === 0 && m.secsSinceHigh > 0, 'with the low the fresher extreme');
+}
+{
+  // A flat tape has no level information to give, and must not invent any.
+  const r = newRing();
+  for (let i = 0; i < 120; i++) push(r, { mid: 77000, spreadBps: 1 });
+  const m = compute(r);
+  near(m.z60, 0, 1e-9, 'a flat tape is zero deviations from its own mean, not NaN');
+  near(m.rangePos60, 0.5, 1e-9, 'and its range position is the midpoint by convention, not a divide by zero');
+  near(m.maSpreadBps, 0, 1e-9, 'with no gap between the means');
+  ok(Number.isFinite(m.volPctile), 'and a finite volatility percentile');
+}
+{
+  // Scale-freedom is the point of the sd forms: the same SHAPE at a
+  // different price and a different volatility must read the same.
+  const mk = (base, amp) => { const r = newRing();
+    for (let i = 0; i < 120; i++) push(r, { mid: base + Math.sin(i / 9) * amp, spreadBps: 1 });
+    return compute(r); };
+  const a = mk(77000, 30), b = mk(3000, 30 * 3000 / 77000);
+  near(a.z60, b.z60, 0.05, 'the same shape at a tenth the price gives the same z-score');
+  near(a.rangePos60, b.rangePos60, 0.02, 'and the same range position');
+  ok(Math.abs(a.maSpreadBps - b.maSpreadBps) < 0.5, 'bp forms are scale-free too');
+}
+{
+  const quiet = newRing(); for (let i = 0; i < 120; i++) push(quiet, { mid: 77000 + (i % 2), spreadBps: 1 });
+  const wild = newRing();
+  for (let i = 0; i < 100; i++) push(wild, { mid: 77000 + (i % 2), spreadBps: 1 });
+  for (let i = 0; i < 20; i++) push(wild, { mid: 77000 + (i % 2) * 90, spreadBps: 1 });
+  ok(compute(wild).volPctile > compute(quiet).volPctile,
+    'a tape that just turned wild ranks its own volatility higher than one that never did');
+}
+
+// --------------------------------------------- the state document, both ways ---
+{
+  const r = newRing();
+  for (let i = 0; i < 120; i++) push(r, { mid: 77000 + i, spreadBps: 1, mark: 77000 + i, oracle: 77000 + i });
+  const m = compute(r);
+  const b = { jev: { equity: 1.01 }, decisions: 7 };
+  const rich = stateDoc(m, -1.5, b);
+  const thin = stateDoc(m, -1.5, b, { levels: false });
+
+  ok(rich.includes('LEVELS'), 'the rich document has a level block');
+  ok(!thin.includes('LEVELS'), 'and the control does not — it is the version the block was measured against');
+  ok(rich.length > thin.length, 'so the rich one is longer');
+  ok(thin.includes('RATES'), 'both carry the rates');
+  ok(/standard deviations/.test(rich), 'the bands are stated in sd, not raw price');
+  ok(/0 = the low, 1 = the high/.test(rich), 'and the range position defines its own ends');
+  ok(/percentile/.test(rich) && (rich.match(/volatility right now/g) || []).length === 1,
+    'volatility is stated ONCE — two views of one fact cost 12 points on a probe');
+  ok(/SHORT 1.50x/.test(rich), 'the document states the levered position, not just a direction');
+  ok(!/\d{5}\.\d,\s*\d{5}/.test(rich), 'and still carries no price series');
+}
+
 if (failures.length) {
   console.error(`✗ lab selftest: ${failures.length} failure(s) of ${passed + failures.length} checks\n`);
   for (const f of failures) console.error(`  - ${f}`);

@@ -826,6 +826,56 @@ and shows `have_decidable` permanently on screen where it can never gate
 anything. A trading demo that hides that number is hiding the only honest
 thing it knows.
 
+### Rates and levels: doing the arithmetic for him
+
+The first version of the state document carried only **rates** — return,
+volatility, range, up-share, efficiency, taker skew. Every one of them says
+how fast, how far or which way. **None of them says where.** Rates alone
+cannot tell selling into a five-minute low from selling into a five-minute
+high, which is most of what a person means by reading a chart.
+
+So `compute()` now also produces the levels: moving averages over 15/60/300s,
+the distance from them in standard deviations (the band question as a
+number), position in the recent range on 0–1, distance from and *age of* the
+recent extremes, and where current volatility ranks. All of it arithmetic
+done by the caller so the judgement does not have to — the 62.5%-versus-100%
+finding applied to a live tape.
+
+**Measured, not assumed.** Six questions about the tape whose answers are
+computed from it, asked of the rates-only document and the rates+levels
+document over sixteen windows — 80 paired items each:
+
+| determinate probe | rates only | with levels | base rate |
+|---|---|---|---|
+| is price above its five-minute mean? | 56.3% | **87.5%** | 50% |
+| upper half of the last 60s range? | 43.8% | **100.0%** | 56% |
+| is the 15s mean above the 60s mean? | 56.3% | **100.0%** | 63% |
+| more than 1 sd from the 60s mean? | 50.0% | **93.8%** | 50% |
+| volatility in the top third? | 87.5% | 87.5% | 69% |
+| **all** | **58.8%** | **93.8%** | — |
+| mean confidence | 0.670 | **0.886** | — |
+
+Paired over identical states, a sign test gives **rich 30, thin 2, tied 48 —
+z = 4.95**. A sixth probe (*was the high set more recently than the low?*) was
+thrown out: its answer never changes on this tape, so a constant guesser
+scores 100% on it for free and it measures nothing. `stateDoc(..., {levels:
+false})` keeps the control alive, because a claim that more metrics helped is
+worth nothing without the version that did not have them.
+
+**Two mistakes it cost, both the same mistake.** Writing the volatility line
+as *"calmer than 20%"* sent that probe from 80% to 40% — answering "is
+volatility high?" then needs an inversion, which is arithmetic handed back
+after all the trouble of handing it over. Then shipping *both* a volatility
+ratio and a volatility percentile cost another 12 points: two views of one
+fact is reconciliation work. One line, phrased pointing the way the question
+points. **Hand over the result, once, in the direction it will be read.**
+
+**What it did not do is make the future more knowable.** Over the same
+sixteen windows `have_decidable` moved 0.256 → 0.237 and `have_figures` 0.831
+→ 0.816. Better informed, not more clairvoyant — which is exactly the
+distinction the whole surface is built around, and a useful warning against
+reading a richer state document as a better forecast.
+
 ### What stops it flattering itself
 
 Every one of these is a line that a dishonest version of this page omits, and
