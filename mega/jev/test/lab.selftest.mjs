@@ -7,10 +7,11 @@
 //
 //   node mega/jev/test/lab.selftest.mjs
 
-import { newBook, step, summary, pct, targetPosition, changeCost, ACTIONS } from '../lab/book.mjs';
+import { newBook, step, summary, pct, targetPosition, changeCost, ACTIONS,
+  LADDER, exposureFromScore, applyDeadband } from '../lab/book.mjs';
 import { newRing, push, compute, returnsBps, stateDoc, RING } from '../lab/metrics.mjs';
 import { fold, newState, drain } from '../lab/feed.mjs';
-import { decide, buildQuestions, GATE, ACTION_CRITERIA } from '../lab/ask.mjs';
+import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 let passed = 0;
 const failures = [];
@@ -201,7 +202,8 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   const d = decide(absent, 0);
   ok(d.action === 'hold' && d.blocked, 'a CONFIDENT action on an insufficient state is refused');
   ok(/insufficient/.test(d.reason), 'and says so');
-  ok(full.action.confidence > GATE.enter, 'the refused case would have cleared the confidence bar — the point');
+  ok(full.action.confidence > 0.8,
+    'the refused case was a high-confidence answer — which is exactly the 15/15 case a confidence gate got wrong');
 
   ok(decide({ ...full, have_figures: undefined }, 0).blocked, 'a missing self-check blocks rather than defaulting to trust');
   ok(decide({ ...full, have_figures: undefined, have_state: { noul: 0.97 } }, 0).action === 'buy',
@@ -211,15 +213,24 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   ok(decide({}, 0).blocked, 'so does a missing answer');
 }
 {
-  // Hysteresis: the bar to open is higher than the bar to stay.
-  const at = (c) => ({ action: { choice: 'buy', confidence: c }, have_figures: { noul: 0.95 } });
-  ok(decide(at(0.5), 0).action === 'hold', 'a lukewarm buy does not open a position');
-  ok(decide(at(0.5), 1).action === 'buy', 'but does keep one already held');
-  ok(decide(at(0.3), 1).action === 'hold', 'and a cold one lets it go to the hold path');
-  ok(decide(at(0.9), 0, { ...GATE, enter: 0.95 }).action === 'hold', 'the bar is a parameter, not a constant');
-  ok(GATE.enter > GATE.exit, 'the enter bar is above the exit bar, which is what stops dithering');
-  const bail = { action: { choice: 'bail', confidence: 0.2 }, have_figures: { noul: 0.95 } };
-  ok(decide(bail, 1).action === 'bail', 'bail is never blocked by the confidence bar — getting out stays cheap');
+  // The deadband replaced the confidence latch when the target went
+  // continuous. Same job — stop paying for noise — measured in exposure
+  // rather than in confidence.
+  const at = (score) => ({ exposure: { score, confidence: 0.7 }, have_figures: { noul: 0.95 } });
+  ok(decide(at(3.2), 0).action === 'hold', 'a target a hair off flat does not open a position');
+  ok(decide(at(4.5), 0).exposure === 1.5, 'a target well clear of it does');
+  ok(decide(at(4.6), 1.5).action === 'hold', 'and a small drift from an existing position is ignored');
+  ok(decide(at(3), 1.5).exposure === 0, 'but the flat rung always gets out, deadband or not');
+  ok(GATE.deadband > 0, 'there is a deadband at all, which is what stops the resize dithering');
+  ok(decide(at(4.6), 1.5, { deadband: 0 }).exposure === 1.6,
+    'and it is a parameter, not a constant');
+  ok(Number.isInteger(decide(at(4.6), 0).exposure * 100),
+    'the target is rounded to 0.01x, so float dust cannot trip the deadband or litter the log');
+
+  // A blocked-by-deadband decision is still reported as blocked, so the page
+  // can show how often the harness is declining to act on a real read.
+  ok(decide(at(4.6), 1.5).blocked === true, 'a deadband hold is reported as blocked, not as a free hold');
+  ok(decide(at(4.5), 1.5).blocked === false, 'and an exact match is not');
 }
 {
   const q = buildQuestions();
@@ -249,6 +260,122 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
     'and they are different questions — 0.84 against 0.24 on the same state, which is the finding');
   ok(/spread|volatility|efficiency/.test(q.have_figures.instructions),
     'the gating one names the figures it is asking about the presence of');
+}
+
+// ------------------------------------------------------- the exposure ladder ---
+{
+  ok(LADDER.length === 7 && LADDER[0] === -3 && LADDER[6] === 3 && LADDER[3] === 0,
+    'the ladder is symmetric with flat in the middle');
+  ok(EXPOSURE_LEVELS.length === LADDER.length, 'one written level per rung');
+  ok(EXPOSURE_LEVELS.every((d, i) => i === 0 || d !== EXPOSURE_LEVELS[i - 1]), 'and no duplicates');
+
+  // The ladder is discrete, the output is continuous: that is the whole
+  // reason `score` was chosen over `choice` here.
+  near(exposureFromScore(0), -3, 1e-9, 'level 0 is max short');
+  near(exposureFromScore(3), 0, 1e-9, 'the middle rung is flat');
+  near(exposureFromScore(6), 3, 1e-9, 'the top rung is max long');
+  near(exposureFromScore(1.28), -1.72, 1e-9, 'a fractional score interpolates — the continuum');
+  near(exposureFromScore(4.5), 1.5, 1e-9, 'and does so on the long side too');
+
+  // The type is what enforces the ceiling. Nothing off the end gets through.
+  near(exposureFromScore(99), 3, 1e-9, 'a score past the top of the ladder cannot exceed the cap');
+  near(exposureFromScore(-99), -3, 1e-9, 'nor past the bottom');
+  near(exposureFromScore(6, 1), 1, 1e-9, 'and a lower cap clamps the whole ladder');
+  ok(exposureFromScore(NaN) === 0 && exposureFromScore(undefined) === 0, 'a missing score is flat, never a guess');
+}
+{
+  ok(applyDeadband(-1.72, -1.7, 0.35) === -1.7, 'a target inside the deadband does not move the book');
+  ok(applyDeadband(-1.72, 0, 0.35) === -1.72, 'a target outside it does');
+  ok(applyDeadband(0, -0.1, 0.35) === 0, 'going flat is exempt — getting out stays cheap');
+  ok(applyDeadband(2, 1.8, 0) === 2, 'a zero deadband moves on anything');
+}
+
+// ------------------------------------------------------- leverage and ruin ---
+{
+  // Exposure scales the return, and the cost scales with the SIZE of the
+  // change, so 0 → 3x costs three times what 0 → 1x does.
+  const b = newBook({ costs: { feeBps: 10, payHalfSpread: false } });
+  near(changeCost(b, 0, 3, 0) * 1e4, 30, 1e-9, 'a three-unit move pays three units of fee');
+  near(changeCost(b, -3, 3, 0) * 1e4, 60, 1e-9, 'and a full flip pays six');
+}
+{
+  const b = newBook({ costs: { feeBps: 0, payHalfSpread: false } });
+  step(b, { px: 100, exposure: 3, action: 'buy' });
+  step(b, { px: 101, action: null });
+  near(pct(b.jev), 3, 1e-6, '3x earns three times the move');
+  near(pct(b.hold), 1, 1e-6, 'while buy-and-hold stays unlevered at 1x');
+}
+{
+  // Ruin, which is the thing leverage actually introduces. A demo that
+  // cannot be liquidated is lying about what leverage is.
+  const b = newBook({ costs: { feeBps: 0, payHalfSpread: false } });
+  step(b, { px: 100, exposure: 3, action: 'buy' });
+  step(b, { px: 60, action: null });                 // a 40% drop at 3x
+  ok(b.jev.liquidated, 'a move past the account is a liquidation');
+  ok(b.jev.equity === 0 && pct(b.jev) === -100, 'equity stops at zero rather than going negative');
+  ok(b.jev.pos === 0, 'and the position is forced flat');
+  step(b, { px: 120, exposure: 3, action: 'buy' });
+  ok(b.jev.equity === 0 && b.jev.pos === 0, 'a liquidated leg cannot take a new position and cannot recover');
+  ok(summary(b).verdict === 'liquidated — the run ended in ruin', 'and the verdict says so before anything else');
+  ok(!b.hold.liquidated, 'the unlevered reference survives the same move');
+}
+{
+  const b = newBook({ costs: { feeBps: 0, payHalfSpread: false } });
+  step(b, { px: 100, exposure: 2, action: 'buy' });
+  step(b, { px: 90, action: null });
+  step(b, { px: 100, action: null });
+  const s = summary(b);
+  ok(s.maxDD > 15, `max drawdown is reported, and leverage makes it bigger (${s.maxDD.toFixed(1)}%)`);
+  ok(s.maxDD > s.holdMaxDD, 'larger than the unlevered reference over the identical ticks');
+  // Volatility drag, which is the other thing leverage does and the one
+  // demos leave out: the price came back to exactly where it started and the
+  // levered book did not. 100 → 90 → 100 at 2x compounds to -2.2%.
+  near(s.jev, -2.22, 0.05, 'a levered round trip finishes DOWN on a price that finished flat');
+  near(s.hold, 0, 1e-6, 'while the unlevered reference finishes where it started');
+}
+{
+  // The cap is enforced by the book too, not only by the ladder.
+  const b = newBook({ risk: { cap: 1 }, costs: { feeBps: 0, payHalfSpread: false } });
+  step(b, { px: 100, exposure: 9, action: 'buy' });
+  ok(b.jev.pos === 1, 'the book clamps an out-of-range exposure to its own cap');
+}
+{
+  // The control must be leverage-matched, or the comparison measures size.
+  const b = newBook({ seed: 3, costs: { feeBps: 0, payHalfSpread: false } });
+  for (let i = 0; i < 120; i++) step(b, { px: 77000 + Math.sin(i / 5) * 40, exposure: (i % 7) - 3, action: 'buy' });
+  ok(Math.abs(b.rand.pos) > 0 || b.rand.fills > 0, 'the random control trades the ladder as well');
+  ok(b.rand.turnover > 0 && b.jev.turnover > 0, 'both legs carry real turnover');
+  ok(Math.abs(b.rand.pos) <= 3, 'and stays inside the same cap');
+}
+
+// -------------------------------------------- deciding a continuous target ---
+{
+  const A = (score, have = 0.9) => ({ exposure: { score, confidence: 0.7 },
+    have_figures: { noul: have }, have_decidable: { noul: 0.24 }, regime: { choice: 'ranging' } });
+  near(decide(A(1.28), 0).exposure, -1.72, 1e-9, 'the ladder score becomes the target exposure');
+  ok(decide(A(1.28), 0).action === 'sell', 'and the mark reflects the direction of the change');
+  ok(decide(A(5), -1).action === 'buy', 'increasing exposure marks as a buy whichever side it starts');
+  ok(decide(A(3), -2).action === 'bail' && decide(A(3), -2).exposure === 0, 'the flat rung is a bail');
+  ok(decide(A(1.28), -1.7).action === 'hold', 'a target inside the deadband holds');
+
+  // The gate still outranks everything, exactly as it does without leverage.
+  const g = decide(A(0, 0.11), 2);
+  ok(g.exposure === 2 && g.blocked, 'an insufficient state does NOT resize, however extreme the ladder reads');
+  ok(/insufficient/.test(g.reason), 'and says why');
+  ok(decide({ ...A(0), have_figures: undefined }, 1).exposure === 1, 'a missing self-check leaves the book alone');
+
+  // Conviction must not be counted twice.
+  const sure = { ...A(0), exposure: { score: 0, confidence: 0.99 } };
+  const hedged = { ...A(0), exposure: { score: 0, confidence: 0.30 } };
+  ok(decide(sure, 0).exposure === decide(hedged, 0).exposure,
+    'the target is NOT scaled again by confidence — the score is already the expectation over the distribution');
+}
+{
+  const q = buildQuestions();
+  ok(q.exposure.type === 'score', 'exposure is asked as a score, not a choice');
+  ok(Array.isArray(q.exposure.criteria) && q.exposure.criteria.length === 7,
+    'with an ordered array of rungs, which is what makes it a ladder rather than a set');
+  ok(/not a forecast/.test(q.exposure.instructions), 'and it is still a description, not a prediction');
 }
 
 if (failures.length) {

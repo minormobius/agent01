@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Jev Harness Lab</title>
-<meta name="description" content="A live one-second BTC perpetual feed, a paper book, and Jev deciding buy / hold / sell / bail against two baselines.">
+<meta name="description" content="A live one-second BTC perpetual feed and a levered, liquidatable paper book, with Jev sizing exposure on an ordered ladder against two baselines.">
 <link rel="icon" href="../favicon.svg">
 <link rel="stylesheet" href="../style.css">
 <link rel="stylesheet" href="./style.css">
@@ -15,8 +15,8 @@
   <header class="lab-head">
     <div>
       <h1>Jev harness lab</h1>
-      <p class="sub">Live one-second BTC perpetual from Hyperliquid. Jev decides buy / hold / sell / bail
-        against a paper book, measured against two baselines.</p>
+      <p class="sub">Live one-second BTC perpetual from Hyperliquid. Jev sizes a long/short book on an
+        ordered exposure ladder — continuous, capped by the type — against two baselines.</p>
     </div>
     <div style="display:flex;gap:8px;align-items:center">
       <span class="pill" id="feedStatus" data-status="connecting"><span class="dot"></span><span id="feedText">connecting</span></span>
@@ -27,8 +27,10 @@
   <p class="note">
     <b>This is paper only.</b> No exchange account, no keys, no orders — the feed is a public read-only
     websocket and every position here is simulated. Fills are charged a taker fee plus half the observed
-    spread. Nothing on this page is advice, and a single run of a few hundred decisions cannot establish
-    an edge: the verdict below is drawn from a t-statistic against a random control, not from the curve.
+    spread, and the book is <b>levered and liquidatable</b>: pushed far enough the wrong way it goes to
+    zero and the run ends, because a leveraged demo that cannot be ruined is lying about what leverage is.
+    Nothing on this page is advice, and a single run of a few hundred decisions cannot establish an edge:
+    the verdict below is drawn from a t-statistic against a random control, not from the curve.
   </p>
 
   <div class="ctl">
@@ -43,15 +45,20 @@
     <label>taker fee (bp)<input id="fee" type="number" value="4.5" step="0.5" min="0"></label>
     <label>extra slippage (bp)<input id="slip" type="number" value="0" step="0.5" min="0"></label>
     <label>random seed<input id="seed" type="number" value="1" step="1"></label>
-    <label>confidence to open<input id="enter" type="number" value="0.55" step="0.05" min="0" max="1"></label>
+    <label>max leverage<select id="cap">
+        <option value="1">1x</option><option value="2">2x</option>
+        <option value="3" selected>3x</option><option value="5">5x</option>
+      </select></label>
+    <label>deadband (x)<input id="deadband" type="number" value="0.35" step="0.05" min="0" max="3"></label>
     <button id="runBtn" type="button">start run</button>
     <button class="ghost" id="resetBtn" type="button">reset</button>
   </div>
 
   <div class="tiles">
     <div class="tile"><div class="k">BTC-PERP mid</div><div class="v" id="tMid">—</div><div class="m" id="tSpread">spread —</div></div>
-    <div class="tile"><div class="k">paper position</div><div class="v sm" id="tPos">flat</div><div class="m" id="tFills">0 fills</div></div>
+    <div class="tile"><div class="k">exposure</div><div class="v" id="tPos">flat</div><div class="m" id="tFills">0 fills</div></div>
     <div class="tile"><div class="k">jev</div><div class="v" id="tJev">—</div><div class="m" id="tCost">cost paid —</div></div>
+    <div class="tile"><div class="k">worst drawdown</div><div class="v" id="tDD">—</div><div class="m" id="tDDref">unlevered ref —</div></div>
     <div class="tile"><div class="k">buy &amp; hold</div><div class="v" id="tHold">—</div><div class="m">the curve people quote</div></div>
     <div class="tile"><div class="k">random control</div><div class="v" id="tRand">—</div><div class="m">same trade frequency</div></div>
     <div class="tile"><div class="k">decisions</div><div class="v" id="tDec">0</div><div class="m" id="tTicks">0 ticks</div></div>
@@ -69,8 +76,8 @@
   <div class="grid2" style="margin-bottom:16px">
     <div class="card">
       <h2>Price, and where Jev acted</h2>
-      <p class="cap">One-second mid. Each mark is a decision — <b>B</b> buy, <b>H</b> hold, <b>S</b> sell,
-        <b>X</b> bail — labelled as well as coloured.</p>
+      <p class="cap">One-second mid. Each mark is a decision — <b>B</b> add, <b>H</b> hold, <b>S</b> reduce,
+        <b>X</b> flat — labelled as well as coloured.</p>
       <div class="chartbox">
         <svg id="pxChart" viewBox="0 0 640 190" role="img" aria-label="BTC perpetual mid price with decision marks"></svg>
         <div class="tip" id="pxTip"></div>
@@ -113,10 +120,42 @@
       <p class="cap">The table view of both charts, for when colour is not available.</p>
       <div class="scroll">
         <table class="log"><thead><tr>
-          <th>time</th><th>mid</th><th>action</th><th>conf</th><th>state?</th><th>regime</th><th>pos</th><th>jev</th><th>rand</th>
+          <th>time</th><th>mid</th><th>action</th><th>target</th><th>conf</th><th>state?</th><th>regime</th><th>pos</th><th>jev</th><th>rand</th>
         </tr></thead><tbody id="logBody"></tbody></table>
       </div>
     </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Continuum or quanta? <code style="font-family:var(--mono);font-size:.9em">score</code> is both</h2>
+    <p class="cap" style="margin-bottom:8px">Why the exposure ladder is a <b>score</b> and not a <b>choice</b>.
+      Six real states, both questions in the same call.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>tape</th><th>score ladder</th><th>choice over the same quanta</th>
+      </tr></thead><tbody>
+        <tr><td>eff 0.14 · skew −0.91</td><td>0.17 → <b>−2.83x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.18 · skew −0.91</td><td>0.90 → <b>−2.10x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.84 · skew −0.94</td><td>0.63 → <b>−2.37x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.19 · skew −0.99</td><td>0.86 → <b>−2.14x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.34 · skew −0.89</td><td>1.28 → <b>−1.72x</b></td><td>−2x</td></tr>
+        <tr><td>eff 0.19 · skew −0.89</td><td>0.94 → <b>−2.06x</b></td><td>−3x</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <code style="font-family:var(--mono)">score</code> takes an <b>ordered</b> array of rungs and returns the
+      <b>expectation over the distribution across them</b> — so the ladder is discrete, which is what makes the
+      ceiling enforceable (it cannot return a rung off the end, so it cannot ask for 50x), while the output is
+      continuous. A <code style="font-family:var(--mono)">choice</code> over the identical seven quanta throws
+      the ordering away and takes the argmax: it answered the extreme <b>−3x on five of six</b> states where the
+      ladder graded them −2.83x to −1.72x.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      One thing this page deliberately does <em>not</em> do: scale the target down again by the score's
+      confidence. The score is already the expectation over the whole distribution, so a hedged read has
+      <em>already</em> been pulled toward the middle rung — which is flat. Scaling again would count the same
+      uncertainty twice. A bimodal read lands near flat for the same reason, which is the right size for it.
+    </p>
   </div>
 
   <div class="card" style="margin-bottom:16px">

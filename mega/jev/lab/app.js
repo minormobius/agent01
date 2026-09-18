@@ -92,14 +92,13 @@ async function takeDecision() {
   $('stateDoc').textContent = doc;
   try {
     const reply = await ask(doc);
-    const enter = Number($('enter').value);
-    const gate = Number.isFinite(enter) ? { ...GATE, enter, exit: Math.min(GATE.exit, enter) } : GATE;
-    const d = decide(reply.answers, book.jev.pos, gate);
+    const d = decide(reply.answers, book.jev.pos, {
+      ...GATE, cap: Number($('cap').value) || 3, deadband: Number($('deadband').value) || 0 });
     lastDecision = { ...d, t: Date.now(), mid: lastMetrics.mid };
     step(book, {
-      px: lastMetrics.mid, spreadBps: lastMetrics.spreadBps, action: d.action, t: Date.now(),
+      px: lastMetrics.mid, spreadBps: lastMetrics.spreadBps, action: d.action, exposure: d.exposure, t: Date.now(),
       meta: { confidence: d.confidence, have: d.have, decidable: d.decidable, regime: d.regime,
-        reason: d.reason, blocked: !!d.blocked },
+        score: d.score, target: d.exposure, reason: d.reason, blocked: !!d.blocked },
     });
     paintAnswer(d);
     paintLog();
@@ -125,12 +124,13 @@ $('runBtn').addEventListener('click', () => {
 $('resetBtn').addEventListener('click', () => {
   running = false; clearInterval(timer); $('runBtn').textContent = 'start run';
   book = newBook({ seed: Number($('seed').value) || 1,
-    costs: { feeBps: Number($('fee').value) || 0, slippageBps: Number($('slip').value) || 0 } });
+    costs: { feeBps: Number($('fee').value) || 0, slippageBps: Number($('slip').value) || 0 },
+    risk: { cap: Number($('cap').value) || 3 } });
   lastDecision = null;
   $('logBody').innerHTML = ''; $('ansRow').innerHTML = '<span class="why">no decision yet</span>';
   paintTiles(); draw();
 });
-$('enter').addEventListener('change', () => trials(1));
+for (const id of ['cap', 'deadband']) $(id).addEventListener('change', () => trials(1));
 $('interval').addEventListener('change', () => {
   if (running) { clearInterval(timer); timer = setInterval(takeDecision, Number($('interval').value)); }
 });
@@ -146,14 +146,21 @@ function paintTiles(tick) {
     $('tSpread').textContent = `spread ${fmt(tick.spreadBps)}bp · book ${fmt(tick.bookImbalance)}×`;
   }
   const p = book.jev.pos;
-  $('tPos').textContent = p > 0 ? 'LONG' : p < 0 ? 'SHORT' : 'flat';
-  $('tPos').className = `v sm ${p > 0 ? 'up' : p < 0 ? 'down' : ''}`;
-  $('tFills').textContent = `${book.jev.fills} fills`;
+  $('tPos').textContent = book.jev.liquidated ? 'LIQUIDATED'
+    : p === 0 ? 'flat' : `${p > 0 ? '+' : ''}${p.toFixed(2)}x`;
+  $('tPos').className = `v ${book.jev.liquidated ? 'down' : p > 0 ? 'up' : p < 0 ? 'down' : ''}`;
+  $('tFills').textContent = book.jev.liquidated
+    ? `wiped out after ${book.jev.fills} fills` : `${book.jev.fills} fills · ${book.jev.turnover.toFixed(1)}x turned over`;
   for (const [id, leg] of [['tJev', book.jev], ['tHold', book.hold], ['tRand', book.rand]]) {
     const v = pct(leg);
     $(id).textContent = signed(v); $(id).className = `v ${cls(v)}`;
   }
   $('tCost').textContent = `cost paid ${fmt(book.jev.costPaid * 100)}%`;
+  // The counterweight to a leveraged return, beside it rather than below it.
+  const sDD = summary(book);
+  $('tDD').textContent = signed(-sDD.maxDD).replace('-0.00%', '0.00%');
+  $('tDD').className = `v ${sDD.maxDD > 0 ? 'down' : ''}`;
+  $('tDDref').textContent = `unlevered ref ${signed(-sDD.holdMaxDD)}`;
   $('tDec').textContent = String(book.decisions);
   $('tTicks').textContent = `${book.ticks} ticks`;
 
@@ -165,13 +172,16 @@ function paintTiles(tick) {
   const gated = book.history.filter((r) => r.blocked).length;
   $('tGated').textContent = `Jev's own answer · ${gated} of ${book.decisions} gated`;
 
-  const s = summary(book);
-  const real = s.verdict.includes('better') || s.verdict.includes('worse');
-  $('verdictH').textContent = s.decisions < 30
-    ? `${s.decisions} decisions — ${30 - s.decisions} more before this says anything.`
+  const s = sDD;
+  const real = s.verdict.includes('better') || s.verdict.includes('worse') || s.liquidated;
+  $('verdictH').textContent = s.liquidated ? 'Liquidated — the run ended in ruin.'
+    : s.decisions < 30 ? `${s.decisions} decisions — ${30 - s.decisions} more before this says anything.`
     : `${s.verdict}.`;
   $('verdictH').className = `verdict ${real ? 'real' : 'null'}`;
-  $('verdictWhy').textContent = s.decisions < 30
+  $('verdictWhy').textContent = s.liquidated
+    ? `The levered book went to zero and stopped. Worst drawdown ${fmt(s.maxDD)}%, against ${fmt(s.holdMaxDD)}% ` +
+      `for the same ticks unlevered. This is what the leverage control buys and costs.`
+    : s.decisions < 30
     ? 'A verdict needs at least 30 decisions, and then it is read off t against the random control — not off whichever line is highest.'
     : `t = ${fmt(s.tStat)} on the per-decision difference against the random control. |t| under 2 means the run ` +
       `says nothing, whatever the curve looks like. Jev ${signed(s.jev)} · random ${signed(s.rand)} · ` +
@@ -195,8 +205,8 @@ function paintLog() {
   const rows = book.history.slice(-120).reverse();
   $('logBody').innerHTML = rows.map((r) => `<tr>
     <td>${new Date(r.t).toLocaleTimeString()}</td><td>${fmt(r.px, 1)}</td>
-    <td>${r.action}${r.blocked ? ' (gated)' : ''}</td><td>${fmt(r.confidence)}</td><td>${fmt(r.have)}</td>
-    <td>${escapeHtml(r.regime || '—')}</td><td>${r.pos > 0 ? 'long' : r.pos < 0 ? 'short' : 'flat'}</td>
+    <td>${r.action}${r.blocked ? ' (held)' : ''}</td><td>${Number.isFinite(r.target) ? `${r.target > 0 ? '+' : ''}${r.target.toFixed(2)}x` : '—'}</td><td>${fmt(r.confidence)}</td><td>${fmt(r.have)}</td>
+    <td>${escapeHtml(r.regime || '—')}</td><td>${r.pos === 0 ? 'flat' : `${r.pos > 0 ? '+' : ''}${r.pos.toFixed(2)}x`}</td>
     <td>${signed((r.jev - 1) * 100)}</td><td>${signed((r.rand - 1) * 100)}</td></tr>`).join('');
 }
 

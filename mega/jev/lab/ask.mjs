@@ -15,6 +15,8 @@
 //               returned 0.36-0.60 across the board, which is the honest
 //               answer and the reason this page does not ask.
 
+import { exposureFromScore, applyDeadband } from './book.mjs';
+
 export const ENDPOINT = '/jev/api/ask';
 
 // Measured, not assumed. The same five states, one call, two framings:
@@ -46,8 +48,27 @@ export const REGIME_CRITERIA = {
   quiet: 'Little movement of any kind: low volatility, small range, thin flow.',
 };
 
+// The exposure ladder, as an ORDERED array — which is what `score` takes,
+// and the ordering is the whole point: leverage has a direction and a
+// magnitude, and a `choice` throws the ordering away. Measured on six real
+// states, `choice` over these same seven quanta answered the extreme -3x on
+// five of them while the ladder graded them -2.8x to -1.7x.
+export const EXPOSURE_LEVELS = [
+  'Maximum short: the tape is being sold hard and holding it — heavy selling flow, high efficiency downward.',
+  'Moderate short: selling clearly has the upper hand, but not overwhelmingly.',
+  'Light short: a mild downward lean, enough to tilt but not to commit.',
+  'Flat: no side has the upper hand, or conditions are too unclear or too costly to carry exposure at all.',
+  'Light long: a mild upward lean, enough to tilt but not to commit.',
+  'Moderate long: buying clearly has the upper hand, but not overwhelmingly.',
+  'Maximum long: the tape is being bought hard and holding it — heavy buying flow, high efficiency upward.',
+];
+
 export function buildQuestions() {
   return {
+    exposure: { type: 'score',
+      instructions: 'Which level of exposure MATCHES what the market is observably doing right now? ' +
+        'This describes the tape in front of you, not a forecast. Pick the level the figures fit best.',
+      criteria: EXPOSURE_LEVELS },
     action: { type: 'choice',
       instructions: 'Which of these stances MATCHES what the market is observably doing right now? ' +
         'This is a description of the tape in front of you, not a forecast. Pick the one the figures fit best.',
@@ -85,44 +106,77 @@ export const GATE = {
   // Below this, the state is judged insufficient and the lab does not act on
   // the answer. 0.5 is the midpoint of the 62-point gulf that was measured.
   haveThreshold: 0.5,
-  // Hysteresis. The delve loop dithered on a bare threshold until it was
-  // latched; here every flip costs fee plus half spread, so it matters more.
-  // A NEW position needs this much confidence; keeping one needs only `exit`.
-  //
-  // These are exposed as a control on the page rather than tuned in private.
-  // Measured action confidences sit around 0.4-0.6, so the bar decides how
-  // often the lab acts at all — which makes it exactly the kind of knob that
-  // should be visible, and counted as a trial when you move it.
-  enter: 0.55,
-  exit: 0.40,
+  // How far the ladder target must sit from the current position before it
+  // is worth the trip. This REPLACES the old confidence latch: with a
+  // continuous target, a wobble of 1.4 → 1.6 → 1.3 would resize on nothing
+  // and pay for it every time. Going flat is exempt — getting out stays
+  // cheap.
+  deadband: 0.35,
+  // The ceiling. The ladder is what makes this enforceable: Jev cannot
+  // return a level off the end of the array, so it cannot ask for more.
+  cap: 3,
 };
 
 /**
- * Turn a reply into something the book can execute, applying the gate and
- * the latch. Returns the action plus exactly why it was chosen, so the page
- * can show the reason rather than just the outcome.
+ * Turn a reply into a target exposure the book can carry, applying the gate
+ * and the deadband. Returns the number plus exactly why, so the page can
+ * show the reason rather than just the outcome.
+ *
+ * Note what is deliberately NOT done: the target is never scaled down by the
+ * score's confidence. The score is already the expectation over the whole
+ * distribution, so a hedged read has ALREADY been pulled toward the middle
+ * of the ladder — which is flat. Scaling it again by confidence would count
+ * the same uncertainty twice. A bimodal read (mass at both extremes) lands
+ * near flat for the same reason, which is the right answer for sizing.
  */
 export function decide(answers, current, gate = GATE) {
-  const a = answers?.action, reg = answers?.regime;
-  // Back-compat with the single-self-check shape the selftest also covers.
+  const g = { ...GATE, ...gate };
+  const a = answers?.action, reg = answers?.regime, sc = answers?.exposure;
   const have = answers?.have_figures?.noul ?? answers?.have_state?.noul;
   const decidable = answers?.have_decidable?.noul;
-  if (!a?.choice) return { action: 'hold', reason: 'no answer from the model', blocked: true, decidable };
-  if (typeof have !== 'number') return { action: 'hold', reason: 'no self-check returned', blocked: true, decidable };
-  if (have < gate.haveThreshold) {
-    return { action: 'hold', reason: `state insufficient (${have.toFixed(2)}) — escalate, do not act`,
-      blocked: true, have, decidable, regime: reg?.choice };
+  const base = { have, decidable, regime: reg?.choice, stance: a?.choice,
+    confidence: sc?.confidence ?? a?.confidence, score: sc?.score };
+
+  if (typeof sc?.score !== 'number' && !a?.choice) {
+    return { ...base, action: 'hold', exposure: current, reason: 'no answer from the model', blocked: true };
   }
-  const conf = a.confidence ?? 0;
-  const wanted = a.choice;
-  const holdingSame = (wanted === 'buy' && current > 0) || (wanted === 'sell' && current < 0);
-  const needed = holdingSame ? gate.exit : gate.enter;
-  if (wanted !== 'hold' && wanted !== 'bail' && conf < needed) {
-    return { action: 'hold', reason: `${wanted} at ${conf.toFixed(2)} is under the ${holdingSame ? 'keep' : 'enter'} bar of ${needed}`,
-      blocked: true, have, decidable, confidence: conf, regime: reg?.choice };
+  if (typeof have !== 'number') {
+    return { ...base, action: 'hold', exposure: current, reason: 'no self-check returned', blocked: true };
   }
-  return { action: wanted, reason: `${wanted} at ${conf.toFixed(2)}`, have, decidable, confidence: conf,
-    regime: reg?.choice, regimeConfidence: reg?.confidence };
+  if (have < g.haveThreshold) {
+    return { ...base, action: 'hold', exposure: current,
+      reason: `state insufficient (${have.toFixed(2)}) — escalate, do not act`, blocked: true };
+  }
+
+  const raw = typeof sc?.score === 'number'
+    ? exposureFromScore(sc.score, g.cap)
+    : targetExposureFromStance(a.choice, current, g.cap);
+  const target = applyDeadband(raw, current, g.deadband);
+  const moved = target !== current;
+
+  return { ...base,
+    exposure: target,
+    action: labelFor(target, current),
+    reason: moved
+      ? `ladder ${sc?.score != null ? sc.score.toFixed(2) : '—'} → ${target.toFixed(2)}x`
+      : `ladder ${sc?.score != null ? sc.score.toFixed(2) : '—'} → ${raw.toFixed(2)}x, inside the ${g.deadband} deadband`,
+    blocked: !moved && Math.abs(raw - current) > 1e-9,
+  };
+}
+
+/** Fallback when only the categorical stance came back. */
+function targetExposureFromStance(stance, current, cap) {
+  if (stance === 'buy') return cap;
+  if (stance === 'sell') return -cap;
+  if (stance === 'bail') return 0;
+  return current;
+}
+
+/** The mark on the price chart: what this decision DID, not what it wanted. */
+function labelFor(target, current) {
+  if (target === current) return 'hold';
+  if (target === 0) return 'bail';
+  return target > current ? 'buy' : 'sell';
 }
 
 export async function ask(state, { endpoint = ENDPOINT, signal } = {}) {
