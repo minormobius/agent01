@@ -10,8 +10,15 @@
 import { newBook, step, summary, pct, targetPosition, changeCost, ACTIONS,
   LADDER, exposureFromScore, applyDeadband } from '../lab/book.mjs';
 import { newRing, push, compute, returnsBps, stateDoc, RING } from '../lab/metrics.mjs';
-import { fold, newState, drain } from '../lab/feed.mjs';
+import { fold, newState, drain, replay } from '../lab/feed.mjs';
+import { toCandles, isUp, extent, BUCKET_MS } from '../lab/candles.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
+
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+const here = dirname(fileURLToPath(import.meta.url));
+const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'lab', 'fixtures', n), 'utf8'));
 
 let passed = 0;
 const failures = [];
@@ -453,6 +460,73 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
     'volatility is stated ONCE — two views of one fact cost 12 points on a probe');
   ok(/SHORT 1.50x/.test(rich), 'the document states the levered position, not just a direction');
   ok(!/\d{5}\.\d,\s*\d{5}/.test(rich), 'and still carries no price series');
+}
+
+// ------------------------------------------------------------- candles ----
+{
+  const mk = (t, mid) => ({ t, mid });
+  const ticks = [
+    mk(10_000, 100), mk(11_000, 104), mk(12_000, 98), mk(13_000, 102), mk(14_000, 101),
+    mk(15_000, 101), mk(16_000, 99), mk(17_000, 97), mk(18_000, 95), mk(19_000, 96),
+  ];
+  const cs = toCandles(ticks, 5000);
+  ok(cs.length === 2, 'ten one-second ticks make two five-second candles');
+  const [a, b] = cs;
+  ok(a.o === 100 && a.c === 101 && a.h === 104 && a.l === 98, 'open, close, high and low are the right four numbers');
+  ok(a.n === 5 && b.n === 5, 'and each carries how many ticks went into it');
+  ok(isUp(a) && !isUp(b), 'up and down are decided by close against open');
+  ok(a.t0 === 10_000 && b.t0 === 15_000, 'buckets are aligned to absolute time, not to the first tick');
+}
+{
+  // Alignment is what stops candles sliding sideways as ticks arrive.
+  const base = Array.from({ length: 12 }, (_, i) => ({ t: 20_000 + i * 1000, mid: 100 + i }));
+  const first = toCandles(base, 5000);
+  const later = toCandles([{ t: 17_000, mid: 90 }, ...base], 5000);
+  const same = later.filter((c) => c.t0 >= 20_000);
+  ok(JSON.stringify(same) === JSON.stringify(first),
+    'an earlier tick arriving does not shift the candles that follow it');
+}
+{
+  ok(toCandles([], 5000).length === 0 && toCandles(null).length === 0, 'no ticks, no candles');
+  ok(toCandles([{ t: 1000, mid: 0 }, { t: 1000, mid: NaN }], 5000).length === 0,
+    'a bad price never opens a candle');
+  ok(toCandles([{ t: 1000, mid: 5 }], 0).length === 0, 'a zero bucket is refused rather than looping');
+  const one = toCandles([{ t: 1000, mid: 7 }], 5000);
+  ok(one.length === 1 && one[0].o === 7 && one[0].h === 7 && one[0].l === 7 && one[0].c === 7,
+    'a single tick is a doji — all four prices equal, not a crash');
+  ok(isUp(one[0]), 'and counts as up rather than being undefined');
+}
+{
+  const cs = toCandles([{ t: 0, mid: 10 }, { t: 1000, mid: 30 }, { t: 6000, mid: 5 }], 5000);
+  const e = extent(cs);
+  ok(e.lo === 5 && e.hi === 30, 'the extent spans every wick, not just the closes');
+  ok(extent([]) === null, 'and an empty set has no extent rather than an infinite one');
+  ok(BUCKET_MS === 5000, 'five-second candles by default');
+}
+{
+  // Real tape, real shape.
+  const { ticks: real } = fix('btc-ticks.json');
+  const cs = toCandles(real, 5000);
+  ok(cs.length > 30, `the recorded tape makes a usable number of candles (${cs.length})`);
+  ok(cs.every((c) => c.h >= Math.max(c.o, c.c) && c.l <= Math.min(c.o, c.c)),
+    'every candle body sits inside its own wick');
+  ok(cs.every((c) => c.n > 0), 'and no candle is empty');
+}
+
+// ------------------------------------------------------- replay stamping ---
+{
+  // The tape is one-second data and its stamps must say so however fast it
+  // is played. Stamping with Date.now() folded 180 ticks into three candles.
+  const tape = Array.from({ length: 12 }, (_, i) => ({ mid: 100 + i, t: 999 }));
+  const got = [];
+  const h = replay(tape, { onTick: (k) => got.push(k), speed: 1000 });
+  await new Promise((r) => setTimeout(r, 120));
+  h.stop();
+  ok(got.length >= 6, `the tape plays fast when asked (${got.length} ticks in 120ms)`);
+  const gaps = got.slice(1).map((k, i) => k.t - got[i].t);
+  ok(gaps.every((g) => g === 1000), 'yet every stamp is exactly one second after the last');
+  ok(toCandles(got, 5000).length >= 2, 'so the candles come out right regardless of playback speed');
+  ok(got[0].mid === 100 && got[1].mid === 101, 'and the prices are the tape\'s own, in order');
 }
 
 if (failures.length) {

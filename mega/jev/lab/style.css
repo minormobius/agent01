@@ -13,14 +13,20 @@
   --st-good:#0ca30c; --st-warning:#fab219; --st-serious:#ec835a; --st-critical:#d03b3b;
   --neutral:#f0efec;
   --grid:var(--line-2);
+  /* Candle direction. Validated as a diverging pair in both modes (worst
+     all-pairs CVD ΔE 21.6 protan light, 19.2 dark) — but hue is the REDUNDANT
+     channel here: up candles are hollow and down candles filled, which is how
+     candlesticks read before colour existed and how they read without it. */
+  --up-c:#2a78d6; --down-c:#e34948;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
     --s1:#3987e5; --s2:#d95926; --s3:#199e70;
-    --neutral:#383835;
+    --neutral:#383835; --up-c:#3987e5; --down-c:#e66767;
   }
 }
-:root[data-theme="dark"]{ --s1:#3987e5; --s2:#d95926; --s3:#199e70; --neutral:#383835; }
+:root[data-theme="dark"]{ --s1:#3987e5; --s2:#d95926; --s3:#199e70; --neutral:#383835;
+  --up-c:#3987e5; --down-c:#e66767; }
 
 .lab-wrap{max-width:1180px;margin:0 auto;padding:0 16px 64px}
 .lab-head{display:flex;flex-wrap:wrap;gap:12px;align-items:baseline;justify-content:space-between;padding:22px 0 10px}
@@ -66,6 +72,11 @@
 .crosshair{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:3 3;pointer-events:none}
 .endlab{font-family:var(--mono);font-size:9px;font-weight:600}
 
+.wick{stroke-width:1.2}
+.candle{stroke-width:1.2}
+.ins-k{font-family:var(--mono);font-size:8px;fill:var(--ink-3)}
+.ins-v{font-family:var(--mono);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.ins-p{font-family:var(--mono);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
 .mark{stroke:var(--paper);stroke-width:2}
 .mark-glyph{font-family:var(--mono);font-size:7.5px;font-weight:700;text-anchor:middle;pointer-events:none}
 

@@ -8,11 +8,16 @@ import { connect, replay } from './feed.mjs';
 import { newRing, push, compute, stateDoc } from './metrics.mjs';
 import { ask, decide, GATE } from './ask.mjs';
 import { newBook, step, summary, pct } from './book.mjs';
+import { toCandles, isUp, extent, BUCKET_MS } from './candles.mjs';
 
 const $ = (id) => document.getElementById(id);
 const ring = newRing();
 let book = newBook();
 let running = false, feed = null, timer = null, lastMetrics = null, lastDecision = null, inFlight = false;
+// The clock the CHART runs on. Under replay this is tape time, not wall
+// time, and a decision stamped with Date.now() could never be matched to the
+// candle it happened in.
+let tapeNow = Date.now();
 
 // ---------------------------------------------------------------- theme ----
 const themeBtn = $('themeBtn');
@@ -50,6 +55,7 @@ function setStatus(s) {
 }
 
 function onTick(tick) {
+  tapeNow = tick.t;
   push(ring, tick);
   lastMetrics = compute(ring);
   // Every tick marks the book to market; only decision ticks carry an action.
@@ -94,9 +100,9 @@ async function takeDecision() {
     const reply = await ask(doc);
     const d = decide(reply.answers, book.jev.pos, {
       ...GATE, cap: Number($('cap').value) || 3, deadband: Number($('deadband').value) || 0 });
-    lastDecision = { ...d, t: Date.now(), mid: lastMetrics.mid };
+    lastDecision = { ...d, t: tapeNow, mid: lastMetrics.mid };
     step(book, {
-      px: lastMetrics.mid, spreadBps: lastMetrics.spreadBps, action: d.action, exposure: d.exposure, t: Date.now(),
+      px: lastMetrics.mid, spreadBps: lastMetrics.spreadBps, action: d.action, exposure: d.exposure, t: tapeNow,
       meta: { confidence: d.confidence, have: d.have, decidable: d.decidable, regime: d.regime,
         score: d.score, target: d.exposure, reason: d.reason, blocked: !!d.blocked },
     });
@@ -225,35 +231,76 @@ function scale(vals, h, pad) {
 const path = (pts) => pts.map((p, i) => `${i ? 'L' : 'M'}${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join(' ');
 
 function drawPrice() {
-  const svg = $('pxChart'), W = 640, H = 190, L = 6, R = 52, T = 10, B = 22;
+  const svg = $('pxChart'), W = 640, H = 240, L = 6, R = 52, T = 10, B = 22;
   const t = ring.buf.slice(-180);
-  if (t.length < 2) { svg.innerHTML = ''; return; }
-  const px = t.map((x) => x.mid);
-  const y = scale(px, H - B, T);
-  const x = (i) => L + (W - L - R) * (i / Math.max(1, t.length - 1));
-  const pts = px.map((v, i) => [x(i), y(v)]);
-  const lo = Math.min(...px), hi = Math.max(...px);
+  const candles = toCandles(t, BUCKET_MS);
+  if (candles.length < 2) { svg.innerHTML = ''; return; }
+  const ext = extent(candles);
+  // Room above and below for the annotation marks, so they never sit on a wick.
+  const padPx = 14;
+  const y = (v) => {
+    const span = Math.max(1e-9, ext.hi - ext.lo);
+    return T + padPx + (H - B - T - 2 * padPx) * (1 - (v - ext.lo) / span);
+  };
+  const cw = Math.max(2, Math.min(14, (W - L - R) / candles.length * 0.62));
+  const x = (i) => L + (W - L - R) * ((i + 0.5) / candles.length);
 
-  const marks = book.history.slice(-60).map((r) => {
-    // Place each decision at the nearest tick we still hold.
+  const body = candles.map((c, i) => {
+    const up = isUp(c);
+    const cx = x(i);
+    const yo = y(c.o), yc = y(c.c);
+    const top = Math.min(yo, yc), h = Math.max(1.2, Math.abs(yc - yo));
+    // Hollow for up, filled for down — the encoding that predates colour and
+    // survives without it. The hue is redundancy, not the signal.
+    return `<line class="wick" x1="${cx.toFixed(1)}" x2="${cx.toFixed(1)}" y1="${y(c.h).toFixed(1)}" y2="${y(c.l).toFixed(1)}" stroke="${up ? 'var(--up-c)' : 'var(--down-c)'}"/>` +
+      `<rect class="candle" x="${(cx - cw / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${cw.toFixed(1)}" height="${h.toFixed(1)}" rx="1"
+         fill="${up ? 'var(--paper)' : 'var(--down-c)'}" stroke="${up ? 'var(--up-c)' : 'var(--down-c)'}"/>`;
+  }).join('');
+
+  // Annotations sit ABOVE the candle for a reduce and BELOW for an add, so
+  // they never cover the price they are commenting on.
+  const marks = book.history.slice(-40).map((r) => {
     let best = -1, bd = Infinity;
-    for (let i = 0; i < t.length; i++) { const d = Math.abs(t[i].t - r.t); if (d < bd) { bd = d; best = i; } }
-    return best >= 0 && bd < 8000 ? { ...r, cx: x(best), cy: y(t[best].mid) } : null;
-  }).filter(Boolean);
+    for (let i = 0; i < candles.length; i++) {
+      const mid = (candles[i].t0 + candles[i].t1) / 2, d = Math.abs(mid - r.t);
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best < 0 || bd > BUCKET_MS * 2) return '';
+    const c = candles[best], cx = x(best);
+    const below = r.action === 'buy';
+    const cy = below ? y(c.l) + 10 : y(c.h) - 10;
+    return `<circle class="mark" cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="6.5" fill="${STATUS[r.action]}"/>` +
+      `<text class="mark-glyph" x="${cx.toFixed(1)}" y="${(cy + 2.6).toFixed(1)}" fill="${GLYPH_INK[r.action]}">${GLYPH[r.action]}</text>`;
+  }).join('');
+
+  const s = summary(book);
+  // Jev's number lives ON the chart rather than in a tile across the page.
+  // Laid out as three rows with the right-hand column anchored to the far
+  // edge, because the first attempt let a long "b&h … · rnd …" line run
+  // underneath the position and the call count.
+  const IW = 188;
+  const inset = `<g class="inset" transform="translate(${L + 4}, ${T + 2})">
+      <rect x="0" y="0" width="${IW}" height="56" rx="4" fill="var(--paper)" stroke="var(--line)" opacity="0.95"/>
+      <text class="ins-k" x="9" y="14">JEV, after costs</text>
+      <text class="ins-k" x="${IW - 9}" y="14" text-anchor="end">${s.decisions} calls</text>
+      <text class="ins-v" x="9" y="34" fill="${s.jev > 0 ? 'var(--ok)' : s.jev < 0 ? 'var(--bad)' : 'var(--ink)'}">${signed(s.jev)}</text>
+      <text class="ins-p" x="${IW - 9}" y="34" text-anchor="end" fill="${book.jev.liquidated ? 'var(--bad)' : book.jev.pos > 0 ? 'var(--ok)' : book.jev.pos < 0 ? 'var(--bad)' : 'var(--ink-2)'}">${
+        book.jev.liquidated ? 'LIQUIDATED' : book.jev.pos === 0 ? 'flat' : `${book.jev.pos > 0 ? '+' : ''}${book.jev.pos.toFixed(2)}x`}</text>
+      <text class="ins-k" x="9" y="49">b&amp;h ${signed(s.hold)}</text>
+      <text class="ins-k" x="${IW - 9}" y="49" text-anchor="end">rnd ${signed(s.rand)}</text>
+    </g>`;
 
   svg.innerHTML =
-    [hi, (hi + lo) / 2, lo].map((v) =>
+    [ext.hi, (ext.hi + ext.lo) / 2, ext.lo].map((v) =>
       `<line class="gridline" x1="${L}" x2="${W - R}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>` +
       `<text class="endlab" x="${W - R + 5}" y="${(y(v) + 3).toFixed(1)}" fill="var(--ink-3)">${v.toFixed(0)}</text>`).join('') +
-    `<path class="pxline" d="${path(pts)}"/>` +
-    marks.map((m) =>
-      `<circle class="mark" cx="${m.cx.toFixed(1)}" cy="${m.cy.toFixed(1)}" r="7" fill="${STATUS[m.action]}"/>` +
-      `<text class="mark-glyph" x="${m.cx.toFixed(1)}" y="${(m.cy + 2.7).toFixed(1)}" fill="${GLYPH_INK[m.action]}">${GLYPH[m.action]}</text>`).join('') +
-    `<g class="axis"><text x="${L}" y="${H - 6}">${t.length}s of one-second ticks</text></g>` +
+    body + marks + inset +
+    `<g class="axis"><text x="${L}" y="${H - 6}">${candles.length} candles of ${BUCKET_MS / 1000}s, built from one-second mid samples</text></g>` +
     `<line class="crosshair" id="pxCross" x1="0" x2="0" y1="${T}" y2="${H - B}" style="opacity:0"/>`;
-  wireHover(svg, $('pxTip'), pts, (i) => {
-    const k = t[i];
-    return `${new Date(k.t).toLocaleTimeString()}\nmid   ${k.mid.toFixed(1)}\nspread ${k.spreadBps.toFixed(2)}bp\nbook  ${k.bookImbalance.toFixed(2)}×`;
+
+  wireHover(svg, $('pxTip'), candles.map((_, i) => [x(i), 0]), (i) => {
+    const c = candles[i];
+    return `${new Date(c.t0).toLocaleTimeString()}  ${BUCKET_MS / 1000}s\nopen  ${c.o.toFixed(1)}\nhigh  ${c.h.toFixed(1)}\nlow   ${c.l.toFixed(1)}\nclose ${c.c.toFixed(1)}\n${c.n} ticks`;
   }, W);
 }
 

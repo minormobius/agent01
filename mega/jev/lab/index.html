@@ -76,17 +76,19 @@
   <div class="grid2" style="margin-bottom:16px">
     <div class="card">
       <h2>Price, and where Jev acted</h2>
-      <p class="cap">One-second mid. Each mark is a decision — <b>B</b> add, <b>H</b> hold, <b>S</b> reduce,
-        <b>X</b> flat — labelled as well as coloured.</p>
+      <p class="cap">Five-second candles — <b>hollow up, filled down</b>, which is how candlesticks read without
+        colour. Marks sit <b>below</b> for an add and <b>above</b> for a reduce: <b>B</b> add, <b>H</b> hold,
+        <b>S</b> reduce, <b>X</b> flat. The wick is the range of the one-second <em>mid</em> samples in the
+        bucket, not every print that crossed — a real exchange candle would be wider.</p>
       <div class="chartbox">
-        <svg id="pxChart" viewBox="0 0 640 190" role="img" aria-label="BTC perpetual mid price with decision marks"></svg>
+        <svg id="pxChart" viewBox="0 0 640 240" role="img" aria-label="BTC perpetual mid price with decision marks"></svg>
         <div class="tip" id="pxTip"></div>
       </div>
       <div class="legend" aria-hidden="true">
-        <span><i style="background:var(--st-good)"></i>B buy</span>
+        <span><i style="background:var(--st-good)"></i>B add</span>
         <span><i style="background:var(--neutral);outline:1px solid var(--line)"></i>H hold</span>
-        <span><i style="background:var(--st-serious)"></i>S sell</span>
-        <span><i style="background:var(--st-critical)"></i>X bail</span>
+        <span><i style="background:var(--st-serious)"></i>S reduce</span>
+        <span><i style="background:var(--st-critical)"></i>X flat</span>
       </div>
     </div>
 

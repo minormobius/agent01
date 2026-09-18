@@ -903,6 +903,35 @@ each is pinned by `test/lab.selftest.mjs` (81 checks, no network):
   action confidences sit around 0.4–0.9, so the bar decides how often the lab
   acts at all — which is exactly the kind of knob that must not be hidden.
 
+### The chart: candles, annotations, and the number on the chart
+
+Five-second OHLC buckets built from the one-second mid samples, not exchange
+candles — the wick is the range of those samples, so a real candle would be
+wider, and the page says so rather than letting it pass.
+
+**Hollow up, filled down** is the primary encoding, which is how
+candlesticks read before colour existed and how they read without it. The
+blue/red pair is redundancy on top (validated as a diverging pair in both
+modes, worst all-pairs CVD ΔE 21.6 protan light / 19.2 dark). Decision marks
+sit **below** the low for an add and **above** the high for a reduce, so they
+never cover the price they are commenting on, and each still carries its
+letter.
+
+Jev's running number lives in an inset in the corner of the price chart
+rather than in a tile across the page — it is the thing you are watching the
+candles for.
+
+**Two bugs the render caught, both invisible to the tests:**
+
+- Replay stamped every tick with `Date.now()` to make the clocks look live.
+  At speed 14 that folded 180 one-second ticks into 13 seconds of wall time
+  and therefore into **three** five-second candles. The tape *is* one-second
+  data and its stamps have to say so, so `replay()` now runs a synthetic
+  clock advancing 1000ms per tick whatever the playback rate. 36 candles, and
+  a selftest pins the stamp spacing.
+- Decisions were stamped in wall time while candles were in tape time, so a
+  mark could never find the candle it happened in. Both are on tape time now.
+
 ### Colour
 
 The three P&L series are categorical slots 1–3 of the validated palette,

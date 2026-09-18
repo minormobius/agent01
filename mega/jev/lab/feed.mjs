@@ -116,15 +116,20 @@ export function replay(ticks, { onTick, onStatus = () => {}, speed = 1, loop = f
   let i = 0, stopped = false, timer = null;
   const gap = Math.max(20, 1000 / Math.max(0.01, speed));
   onStatus({ status: 'replay', total: ticks.length });
+  // A synthetic clock that advances one second per tick regardless of how
+  // fast the tape is played. Stamping with Date.now() instead looked live
+  // and quietly broke the candles: at speed 14, 180 one-second ticks landed
+  // inside 13 seconds of wall time and folded into three five-second
+  // buckets. The tape IS one-second data and its stamps have to say so.
+  let clock = Date.now();
   const beat = () => {
     if (stopped) return;
     if (i >= ticks.length) {
       if (!loop) { onStatus({ status: 'replay-done', total: ticks.length }); return; }
       i = 0;
     }
-    // Stamp with now, so the page's clocks and the decision log read as a
-    // live run rather than showing the recording's original timestamps.
-    onTick({ ...ticks[i++], t: Date.now() });
+    onTick({ ...ticks[i++], t: clock });
+    clock += 1000;
     timer = setTimeout(beat, gap);
   };
   timer = setTimeout(beat, 0);
