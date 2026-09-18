@@ -1096,6 +1096,80 @@ alone, but it points the same way).
 | breakout | 41.2% | 40.2% |
 | **mean reversion** | 52.6% (n=19) | **60.7%** (n=89) |
 
+### Another month: the reversal did NOT replicate, but something better did
+
+The reversal finding came from 3.5 days of one asset at one horizon. Tested
+against **208 days of hourly candles across BTC, ETH and SOL** (Hyperliquid
+retains ~5 days of 1m, ~17 of 5m, ~52 of 15m and ~208 of 1h — so the longer
+history has to come from coarser bars), non-overlapping windows throughout:
+
+| timescale, full history | r |
+|---|---|
+| 5m bars, 1h → 1h | +0.016 |
+| 15m bars, 1h → 1h | +0.015 |
+| 1h bars, 1h → 1h | +0.030 |
+
+**Essentially zero. The −0.179 that started this was noise** — a short sample
+at a short horizon, and it should be read as a caution about every other
+single-sample number on this page.
+
+### What replicated instead: polarity is a market-wide regime
+
+Splitting the 208 days into monthly blocks, 1h bars, 4h → 4h:
+
+| month | BTC | ETH | SOL | agree? |
+|---|---|---|---|---|
+| 02-22 → 03-24 | −0.20 | −0.09 | −0.09 | revert |
+| 03-24 → 04-23 | +0.06 | +0.10 | +0.08 | trend |
+| 04-23 → 05-23 | −0.15 | −0.27 | −0.22 | revert |
+| 05-23 → 06-22 | −0.42 | −0.19 | −0.23 | revert |
+| 06-22 → 07-22 | −0.02 | −0.13 | −0.10 | revert |
+| 07-22 → 08-21 | +0.36 | +0.65 | +0.38 | trend |
+| 08-21 → 09-18 | +0.07 | +0.09 | +0.03 | trend |
+
+**Seven of seven, all three assets agreeing on the sign — p ≈ 6×10⁻⁵ under
+independent coin flips.** Whether the market trends or fades is a regime, it
+flips, and it is market-wide. Three assets are three readings of one
+underlying state, so pooling them roughly halves the error bar (±0.12 pooled
+against ±0.21 single-asset), and four of the seven blocks become individually
+significant once pooled.
+
+Two complications, both important:
+
+- **It does not persist.** Month to month the sign held 3 times out of 6. Last
+  month's regime says nothing about next month's, so it cannot be
+  extrapolated — only estimated from a trailing window.
+- **It is timescale-specific.** Over the last four weeks the 1h and 4h
+  horizons read ≈0 while 12h reads +0.39 / +0.23 / +0.37, all three agreeing
+  again.
+
+### Is it tradeable? Right on the bar, which is where results go to be wrong
+
+Estimating the pooled polarity on a trailing window and applying it forward,
+nothing from the future: the best of **30 configurations** reached **60.6%
+±6.7** directional accuracy (1h bars, 1-day horizon, 10-window estimate,
+gated at |r| > 0.15), worth 45bp a window against a ~9bp round trip.
+
+That is z = 3.12, against an **expected maximum of z = 2.61 from thirty pure
+noise trials** and a Bonferroni bar of 2.94. It clears, and only just. And
+simply **always fading** at that same horizon scored 55.2%, so the adaptive
+part bought 5.4 points on n=216 with a standard error of 3.4.
+
+**One robust finding and one suggestive one.** The cross-asset agreement was a
+single pre-specified test and it is overwhelming. The tradeable version is the
+best of thirty and sits on the corrected bar. The only clean next step is to
+**pre-register the horizon and test forward on data that does not exist yet**;
+everything else is re-reading the same 208 days.
+
+### Why this is the most Jev-shaped result on the page
+
+The regime is (a) a property of *observable current state*, (b) readable from
+several assets at once, and (c) a **classification**, not a forecast — which
+is the exact shape that measured well everywhere else on this surface and the
+exact shape that failed everywhere a prediction was asked for. It is also the
+first thing that makes the multi-asset direction worth building: three assets
+are not three demos, they are three measurements of one regime.
+
 ### An error worth publishing
 
 The first pass of that table used **overlapping** windows and showed a

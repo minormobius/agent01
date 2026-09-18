@@ -203,6 +203,59 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>Another month — and the reversal did not replicate</h2>
+    <p class="cap" style="margin-bottom:8px">208 days of hourly candles across BTC, ETH and SOL, pulled from
+      Hyperliquid. Non-overlapping windows throughout. The original finding — <em>big moves reverse</em> — came
+      from 3.5 days of one asset at one horizon, and it does not hold up as a general fact.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Across timescales on the full history, trailing move against forward move is essentially <b>zero</b>:
+      +0.016 at 5m bars, +0.015 at 15m, +0.030 at 1h. The −0.179 that started this was a short sample at a
+      short horizon. <b>It was noise.</b>
+    </p>
+    <p class="cap" style="margin:0 0 6px">But splitting by month found something much better.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>month</th><th>BTC</th><th>ETH</th><th>SOL</th><th>all three agree?</th>
+      </tr></thead><tbody>
+        <tr><td>02-22 → 03-24</td><td>−0.20</td><td>−0.09</td><td>−0.09</td><td class="down">yes — revert</td></tr>
+        <tr><td>03-24 → 04-23</td><td>+0.06</td><td>+0.10</td><td>+0.08</td><td class="up">yes — trend</td></tr>
+        <tr><td>04-23 → 05-23</td><td>−0.15</td><td>−0.27</td><td>−0.22</td><td class="down">yes — revert</td></tr>
+        <tr><td>05-23 → 06-22</td><td>−0.42</td><td>−0.19</td><td>−0.23</td><td class="down">yes — revert</td></tr>
+        <tr><td>06-22 → 07-22</td><td>−0.02</td><td>−0.13</td><td>−0.10</td><td class="down">yes — revert</td></tr>
+        <tr><td>07-22 → 08-21</td><td>+0.36</td><td>+0.65</td><td>+0.38</td><td class="up">yes — trend</td></tr>
+        <tr><td>08-21 → 09-18</td><td>+0.07</td><td>+0.09</td><td>+0.03</td><td class="up">yes — trend</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>Seven blocks out of seven, all three assets agree on the sign.</b> Under independent coin flips that
+      happens with probability (¼)⁷ ≈ 6×10⁻⁵. Whether the market trends or fades is <b>a regime, it flips, and
+      it is market-wide</b> — three assets are three readings of one underlying state, which is why pooling
+      them roughly halves the error bar (±0.12 pooled against ±0.21 single-asset).
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      Two things immediately complicate it. The polarity <b>does not persist</b>: month to month the sign held
+      3 times out of 6, a coin flip — so last month's regime tells you nothing about next month's. And it is
+      <b>timescale-specific</b>: over the last four weeks the 1h and 4h horizons read ≈0 while 12h reads
+      +0.39 / +0.23 / +0.37, all three agreeing again.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>So: is it tradeable?</b> Estimating the pooled polarity on a trailing window and applying it forward —
+      nothing from the future — the best of <b>30 configurations</b> reached 60.6% ±6.7 directional accuracy
+      (1h bars, 1-day horizon, 10-window estimate, gated at |r|&gt;0.15), worth 45bp a window against a ~9bp
+      round trip. That is z = 3.12, against an expected maximum of z = 2.61 from thirty pure-noise trials and a
+      Bonferroni bar of 2.94. <b>It clears, and only just.</b> Worse, simply <em>always fading</em> at that same
+      horizon scored 55.2% — so the adaptive part bought 5.4 points on n=216, with a standard error of 3.4.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      The honest summary: <b>one robust finding and one suggestive one.</b> The cross-asset agreement was a
+      single pre-specified test and it is overwhelming. The tradeable version is the best of thirty and sits
+      right on the corrected significance bar, which is exactly where a result goes to be wrong. The only clean
+      next step is to <b>pre-register the horizon and test it forward on data that does not exist yet</b> —
+      everything else is re-reading the same 208 days.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>The only scoreboard that matters if the money is in a few windows</h2>
     <p class="cap" id="capWhy" style="margin:0 0 10px">not enough price history yet.</p>
     <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
