@@ -155,7 +155,7 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
  * against, and a claim that more metrics helped is worth nothing without the
  * version that did not have them.
  */
-export function stateDoc(m, pos, book, { levels = true } = {}) {
+export function stateDoc(m, pos, book, { levels = true, oracles = '' } = {}) {
   const n = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '—');
   const lines = [
     'BTC PERPETUAL, Hyperliquid. Live one-second book. All figures are already',
@@ -194,6 +194,8 @@ export function stateDoc(m, pos, book, { levels = true } = {}) {
     `below the 300s high by ${n(Math.abs(m.offHighBps))}bp, set ${n(m.secsSinceHigh, 0)}s ago`,
     `above the 300s low by  ${n(Math.abs(m.offLowBps))}bp, set ${n(m.secsSinceLow, 0)}s ago`,
   );
+
+  if (oracles) lines.push('', oracles);
 
   lines.push(
     '',

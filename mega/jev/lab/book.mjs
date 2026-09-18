@@ -106,6 +106,15 @@ export function newBook({ seed = 1, costs = {}, risk = {} } = {}) {
     jev: mk(),
     hold: mk(),
     rand: mk(),
+    // One leg per deterministic rule, plus the two mechanical controls that
+    // matter once Jev has SEEN the rules: following whichever is ahead on
+    // past performance, and averaging what they all say. Beating the rules
+    // he was shown is not evidence; beating the mechanical way of combining
+    // them is.
+    oracles: {},
+    best: mk(),
+    majority: mk(),
+    mkLeg: mk,
     history: [],          // one row per decision, for the chart and the table
     actions: { buy: 0, hold: 0, sell: 0, bail: 0 },
   };
@@ -152,7 +161,10 @@ function applyTo(leg, book, ret, want, spreadBps) {
  * Advance one tick. `action` is null on ticks where no decision was taken —
  * the price still moves and the position still earns it.
  */
-export function step(book, { px, spreadBps = 0, action = null, exposure = null, t = Date.now(), meta = {} }) {
+const clampCap = (book, x) => Math.max(-book.risk.cap, Math.min(book.risk.cap, x));
+
+export function step(book, { px, spreadBps = 0, action = null, exposure = null, t = Date.now(), meta = {},
+  oracleTargets = null, bestTarget = null, majorityTarget = null }) {
   if (!Number.isFinite(px) || px <= 0) return null;
   const ret = book.lastPx == null ? 0 : (px - book.lastPx) / book.lastPx;
   book.lastPx = px;
@@ -186,11 +198,25 @@ export function step(book, { px, spreadBps = 0, action = null, exposure = null, 
   applyTo(book.rand, book, ret, wantRand, spreadBps);
   applyTo(book.hold, book, ret, wantHold, spreadBps);
 
+  // The rules trade on exactly the same ticks, at exactly the same costs, and
+  // only on decision ticks — so they are not quietly given a finer clock
+  // than the thing they are the control for.
+  for (const [id, target] of Object.entries(oracleTargets || {})) {
+    if (!book.oracles[id]) book.oracles[id] = book.mkLeg();
+    const leg = book.oracles[id];
+    applyTo(leg, book, ret, decided ? clampCap(book, target) : leg.pos, spreadBps);
+  }
+  applyTo(book.best, book, ret,
+    decided && Number.isFinite(bestTarget) ? clampCap(book, bestTarget) : book.best.pos, spreadBps);
+  applyTo(book.majority, book, ret,
+    decided && Number.isFinite(majorityTarget) ? clampCap(book, majorityTarget) : book.majority.pos, spreadBps);
+
   const row = {
     t, px, ret, action, spreadBps,
     pos: book.jev.pos,
     liquidated: book.jev.liquidated,
     jev: book.jev.equity, hold: book.hold.equity, rand: book.rand.equity,
+    best: book.best.equity, majority: book.majority.equity,
     ...meta,
   };
   if (decided) book.history.push(row);
@@ -208,24 +234,37 @@ export function summary(book) {
   const n = book.history.length;
   const edgeVsHold = pct(book.jev) - pct(book.hold);
   const edgeVsRand = pct(book.jev) - pct(book.rand);
+  const edgeVsMajority = pct(book.jev) - pct(book.majority);
+  const edgeVsBest = pct(book.jev) - pct(book.best);
 
   // Per-decision standard error of the Jev-minus-random difference, from the
   // realised per-decision differences. Without this, "+0.4%" means nothing.
-  const diffs = [];
-  for (let i = 1; i < book.history.length; i++) {
-    const a = book.history[i], b = book.history[i - 1];
-    diffs.push((a.jev / b.jev - 1) - (a.rand / b.rand - 1));
-  }
-  const mean = diffs.length ? diffs.reduce((s, x) => s + x, 0) / diffs.length : 0;
-  const sd = diffs.length > 1
-    ? Math.sqrt(diffs.reduce((s, x) => s + (x - mean) ** 2, 0) / (diffs.length - 1)) : 0;
-  const se = diffs.length ? sd / Math.sqrt(diffs.length) : 0;
-  const tStat = se > 0 ? mean / se : 0;
+  const tAgainst = (key) => {
+    const d = [];
+    for (let i = 1; i < book.history.length; i++) {
+      const a = book.history[i], b = book.history[i - 1];
+      if (!Number.isFinite(a[key]) || !Number.isFinite(b[key]) || b[key] === 0) continue;
+      d.push((a.jev / b.jev - 1) - (a[key] / b[key] - 1));
+    }
+    if (d.length < 2) return { t: 0, n: d.length };
+    const mu = d.reduce((s, x) => s + x, 0) / d.length;
+    const sd_ = Math.sqrt(d.reduce((s, x) => s + (x - mu) ** 2, 0) / (d.length - 1));
+    const se = sd_ / Math.sqrt(d.length);
+    return { t: se > 0 ? mu / se : 0, n: d.length };
+  };
+  const vsRand = tAgainst('rand');
+  // Once Jev has been SHOWN the rules, beating them is not independent
+  // evidence — he could be copying the best one. The sharp test is whether
+  // his choosing beats the mechanical way of combining them, so the verdict
+  // is read off THIS one and the random control becomes a sanity floor.
+  const vsMajority = tAgainst('majority');
+  const diffs = { length: vsRand.n };
+  const tStat = vsRand.t;
 
   return {
     ticks: book.ticks, decisions: n,
     jev: pct(book.jev), hold: pct(book.hold), rand: pct(book.rand),
-    edgeVsHold, edgeVsRand,
+    edgeVsHold, edgeVsRand, edgeVsMajority, edgeVsBest,
     costPaid: book.jev.costPaid * 100,
     fills: book.jev.fills,
     position: book.jev.pos,
@@ -237,13 +276,27 @@ export function summary(book) {
     randMaxDD: book.rand.maxDD * 100,
     liquidated: book.jev.liquidated,
     grossExposure: Math.abs(book.jev.pos),
+    best: pct(book.best), majority: pct(book.majority),
+    oracles: Object.fromEntries(Object.entries(book.oracles)
+      .map(([id, leg]) => [id, { pct: pct(leg), pos: leg.pos, fills: leg.fills, maxDD: leg.maxDD * 100 }])),
+    // Ranked so the page can show who is actually winning, Jev included, and
+    // so a claim of an edge has to survive being put next to six rules.
+    ranking: [
+      ['jev', book.jev], ['best oracle', book.best], ['majority', book.majority],
+      ['buy & hold', book.hold], ['random', book.rand],
+      ...Object.entries(book.oracles),
+    ].map(([id, leg]) => [id, pct(leg), leg.maxDD * 100, leg.fills])
+      .sort((a, b) => b[1] - a[1]),
     actions: { ...book.actions },
-    tStat,
+    tStat, tStatVsMajority: vsMajority.t, nVsMajority: vsMajority.n,
     // The honest headline. At |t| < 2 the run says nothing whatever the
     // curve looks like, and it will say so on screen.
     verdict: book.jev.liquidated ? 'liquidated — the run ended in ruin'
       : diffs.length < 30 ? 'too few decisions to say anything'
-      : Math.abs(tStat) < 2 ? 'indistinguishable from random'
-      : tStat > 0 ? 'better than random on this run — one run' : 'worse than random on this run',
+      : Math.abs(vsMajority.t) < 2
+        ? (Math.abs(tStat) < 2 ? 'indistinguishable from random, let alone from the rules'
+          : 'beats random, but not the rules it was shown')
+      : vsMajority.t > 0 ? 'beats averaging the rules on this run — one run'
+      : 'loses to simply averaging the rules it was shown',
   };
 }

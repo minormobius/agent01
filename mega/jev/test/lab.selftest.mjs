@@ -12,6 +12,7 @@ import { newBook, step, summary, pct, targetPosition, changeCost, ACTIONS,
 import { newRing, push, compute, returnsBps, stateDoc, RING } from '../lab/metrics.mjs';
 import { fold, newState, drain, replay } from '../lab/feed.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from '../lab/candles.mjs';
+import { ORACLES, readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, T } from '../lab/oracles.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -118,10 +119,13 @@ ok(ACTIONS.length === 4, 'four actions');
   }
   const s = summary(b);
   ok(Number.isFinite(s.tStat), 't is computed');
-  ok(s.verdict.includes('indistinguishable') || s.verdict.includes('than random'),
+  ok(/indistinguishable|random|rules/.test(s.verdict),
     'a long run gets a verdict drawn from t, not from the raw curve');
-  ok(Math.abs(s.tStat) < 2 ? s.verdict === 'indistinguishable from random' : true,
+  // With no oracles running, the majority leg never moves, so the verdict
+  // falls back to the random comparison and must still say when it is null.
+  ok(Math.abs(s.tStat) < 2 ? /indistinguishable/.test(s.verdict) : true,
     'and below |t| = 2 it says so in as many words');
+  ok(Number.isFinite(s.tStatVsMajority), 'the comparison against averaging the rules is always computed');
 }
 
 // --------------------------------------------------------------- metrics ---
@@ -527,6 +531,88 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   ok(gaps.every((g) => g === 1000), 'yet every stamp is exactly one second after the last');
   ok(toCandles(got, 5000).length >= 2, 'so the candles come out right regardless of playback speed');
   ok(got[0].mid === 100 && got[1].mid === 101, 'and the prices are the tape\'s own, in order');
+}
+
+// ------------------------------------------------------------- oracles ----
+{
+  const { ticks: real } = fix('btc-ticks.json');
+  const r = newRing(); for (const k of real) push(r, k);
+  const m = compute(r);
+  const reads = readOracles(m, 3);
+  ok(reads.length === ORACLES.length, 'every rule reports');
+  ok(reads.every((x) => Math.abs(x.target) <= 3), 'and none can exceed the cap it was given');
+  ok(reads.every((x) => ['long', 'short', 'flat'].includes(x.side)), 'each takes a side or declines to');
+  ok(new Set(reads.map((x) => x.side)).size > 1,
+    'on the real tape they DISAGREE — which is the whole reason to ask which one fits');
+  ok(reads.every((x) => x.says.length > 10), 'each says why in words Jev can read');
+  ok(readOracles(null).length === 0, 'no metrics, no readings — never a default view');
+}
+{
+  // The rules must be rules: same input, same output, always.
+  const r = newRing(); for (let i = 0; i < 120; i++) push(r, { mid: 77000 + i, spreadBps: 1, funding: 0.00001 });
+  const m = compute(r);
+  ok(JSON.stringify(readOracles(m, 3)) === JSON.stringify(readOracles(m, 3)), 'deterministic');
+  const up = readOracles(m, 3);
+  ok(up.find((x) => x.id === 'ma_cross').side === 'long', 'a clean ramp is long on the cross');
+  ok(up.find((x) => x.id === 'breakout').side === 'long', 'and long on the breakout');
+  ok(up.find((x) => x.id === 'zscore_rev').side !== 'long', 'while the reversion rule does NOT chase it');
+}
+{
+  const flat = newRing(); for (let i = 0; i < 120; i++) push(flat, { mid: 77000, spreadBps: 1, funding: 0 });
+  const reads = readOracles(compute(flat), 3);
+  ok(reads.every((x) => x.side === 'flat'), 'a dead flat tape gives every rule no view at all');
+  ok(majorityTarget(reads, 3) === 0, 'so the average of them is flat too');
+}
+{
+  const reads = [{ id: 'a', conviction: 1 }, { id: 'b', conviction: -1 }, { id: 'c', conviction: 0 }];
+  ok(majorityTarget(reads, 3) === 0, 'rules in perfect disagreement average to flat');
+  ok(majorityTarget([{ id: 'a', conviction: 1 }, { id: 'b', conviction: 1 }], 3) === 3,
+    'and in agreement to the cap');
+  ok(majorityTarget([], 3) === 0, 'with none of them, flat');
+}
+{
+  // best-oracle must never see the bar it is about to trade.
+  const reads = [{ id: 'a', target: 3 }, { id: 'b', target: -3 }];
+  const eq = { a: 1.05, b: 0.9 };
+  ok(bestOracleTarget(reads, eq, { decisions: 3, warmup: 10 }).target === 0,
+    'before warmup it has no basis for a pick and stays flat');
+  const pick = bestOracleTarget(reads, eq, { decisions: 40, warmup: 10 });
+  ok(pick.target === 3 && pick.follows === 'a', 'after warmup it follows whoever is ahead on PAST equity');
+  ok(bestOracleTarget(reads, {}, { decisions: 40 }).target === 0,
+    'and with no equity history yet, flat rather than a guess');
+}
+{
+  const reads = readOracles(compute((() => { const r = newRing();
+    for (let i = 0; i < 120; i++) push(r, { mid: 77000 + i, spreadBps: 1 }); return r; })()), 3);
+  const doc = oracleDoc(reads);
+  ok(doc.includes('tally:'), 'the block tallies the sides so the disagreement is legible at a glance');
+  ok(doc.includes('none of them can see the future either'),
+    'and says plainly that the rules are not oracles in the prophetic sense');
+  const crit = oracleCriteria(reads);
+  ok(Object.keys(crit).length === reads.length + 1, 'the choice offers one option per rule plus none');
+  ok(/None of them fits/.test(crit.none), 'and "none" is a real option, not an implied one');
+}
+{
+  // The rules trade in the book, at the same costs, only on decision ticks.
+  const b = newBook({ costs: { feeBps: 0, payHalfSpread: false } });
+  step(b, { px: 100, action: 'buy', exposure: 1, oracleTargets: { r1: 2, r2: -2 }, majorityTarget: 0, bestTarget: 0 });
+  step(b, { px: 110, action: null, oracleTargets: { r1: 2, r2: -2 } });
+  near(pct(b.oracles.r1), 20, 1e-6, 'a rule leg earns its own exposure');
+  near(pct(b.oracles.r2), -20, 1e-6, 'including on the short side');
+  ok(b.oracles.r1.fills === 1, 'and pays for its fills like everyone else');
+  const s = summary(b);
+  ok(s.oracles.r1 && Number.isFinite(s.oracles.r1.pct), 'the summary reports each rule');
+  ok(s.ranking[0][0] === 'r1', 'and ranks every leg, Jev included, best first');
+  ok(s.ranking.some((x) => x[0] === 'jev'), 'Jev is in the ranking rather than above it');
+  ok(s.ranking.every((x) => Number.isFinite(x[2]) && Number.isFinite(x[3])),
+    'every leg carries its own drawdown and fill count, not just the rules');
+  ok(s.ranking.some((x) => x[0] === 'majority') && s.ranking.some((x) => x[0] === 'best oracle'),
+    'the two mechanical controls are ranked alongside everything else');
+}
+{
+  const b = newBook({ risk: { cap: 1 }, costs: { feeBps: 0, payHalfSpread: false } });
+  step(b, { px: 100, action: 'buy', exposure: 1, oracleTargets: { r: 9 } });
+  ok(b.oracles.r.pos === 1, 'a rule cannot exceed the cap either');
 }
 
 if (failures.length) {

@@ -102,8 +102,8 @@
       </div>
       <div class="legend">
         <span><i style="background:var(--s1)"></i>jev</span>
-        <span><i style="background:var(--s2)"></i>buy &amp; hold</span>
-        <span><i style="background:var(--s3)"></i>random control</span>
+        <span><i style="background:var(--s2)"></i>average of the rules</span>
+        <span><i style="background:var(--s3)"></i>best rule so far</span>
       </div>
     </div>
   </div>
@@ -122,10 +122,28 @@
       <p class="cap">The table view of both charts, for when colour is not available.</p>
       <div class="scroll">
         <table class="log"><thead><tr>
-          <th>time</th><th>mid</th><th>action</th><th>target</th><th>conf</th><th>state?</th><th>regime</th><th>pos</th><th>jev</th><th>rand</th>
+          <th>time</th><th>mid</th><th>action</th><th>target</th><th>conf</th><th>state?</th><th>backs</th><th>pos</th><th>jev</th><th>rand</th>
         </tr></thead><tbody id="logBody"></tbody></table>
       </div>
     </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Leaderboard</h2>
+    <p class="cap" id="boardWhy" style="margin:0 0 10px">—</p>
+    <div class="scroll">
+      <table class="log" style="min-width:380px"><thead><tr>
+        <th>#</th><th>leg</th><th>return</th><th>worst drawdown</th><th>fills</th>
+      </tr></thead><tbody id="boardBody"></tbody></table>
+    </div>
+    <p style="font-size:.82rem;color:var(--ink-2);margin:10px 0 0">
+      Six fixed rules run on the identical ticks at identical costs — MA cross, mean reversion, breakout,
+      momentum, taker flow and funding carry — and <b>Jev is shown what each one currently says</b> before he
+      decides. Their thresholds are textbook defaults, stated in the code, and deliberately not tuned: picking
+      them to make a run look good is the exact failure this page exists to avoid. Two of the legs are not
+      strategies but controls — <b>the average of the rules</b>, and <b>whichever rule is ahead on past
+      performance only</b>.
+    </p>
   </div>
 
   <div class="card" style="margin-bottom:16px">

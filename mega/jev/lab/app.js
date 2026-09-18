@@ -6,7 +6,8 @@
 // decision mark carries a letter as well as a colour.
 import { connect, replay } from './feed.mjs';
 import { newRing, push, compute, stateDoc } from './metrics.mjs';
-import { ask, decide, GATE } from './ask.mjs';
+import { ask, decide, GATE, buildQuestions } from './ask.mjs';
+import { readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, ORACLES } from './oracles.mjs';
 import { newBook, step, summary, pct } from './book.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from './candles.mjs';
 
@@ -94,20 +95,33 @@ if (tape) {
 async function takeDecision() {
   if (!running || inFlight || !lastMetrics) return;
   inFlight = true;
-  const doc = stateDoc(lastMetrics, book.jev.pos, book);
+  const cap = Number($('cap').value) || 3;
+  const reads = readOracles(lastMetrics, cap);
+  const doc = stateDoc(lastMetrics, book.jev.pos, book, { oracles: oracleDoc(reads) });
   $('stateDoc').textContent = doc;
   try {
-    const reply = await ask(doc);
+    const reply = await ask(doc, { questions: buildQuestions({ oracleCriteria: oracleCriteria(reads) }) });
     const d = decide(reply.answers, book.jev.pos, {
       ...GATE, cap: Number($('cap').value) || 3, deadband: Number($('deadband').value) || 0 });
     lastDecision = { ...d, t: tapeNow, mid: lastMetrics.mid };
+    // Equities as of BEFORE this bar, so the best-oracle control cannot see
+    // the move it is about to trade.
+    const eqBefore = Object.fromEntries(Object.entries(book.oracles).map(([id, leg]) => [id, leg.equity]));
+    const best = bestOracleTarget(reads, eqBefore, { decisions: book.decisions });
+    lastDecision.follows = best.follows;
+    lastDecision.rule = reply.answers?.which_rule?.choice;
+    lastDecision.ruleConf = reply.answers?.which_rule?.confidence;
     step(book, {
       px: lastMetrics.mid, spreadBps: lastMetrics.spreadBps, action: d.action, exposure: d.exposure, t: tapeNow,
+      oracleTargets: Object.fromEntries(reads.map((r) => [r.id, r.target])),
+      bestTarget: best.target, majorityTarget: majorityTarget(reads, cap),
       meta: { confidence: d.confidence, have: d.have, decidable: d.decidable, regime: d.regime,
-        score: d.score, target: d.exposure, reason: d.reason, blocked: !!d.blocked },
+        score: d.score, target: d.exposure, reason: d.reason, blocked: !!d.blocked,
+        rule: reply.answers?.which_rule?.choice, follows: best.follows },
     });
     paintAnswer(d);
     paintLog();
+    paintBoard();
   } catch (e) {
     lastDecision = { action: 'hold', reason: `call failed: ${String(e.message || e).slice(0, 90)}`, blocked: true };
     paintAnswer(lastDecision);
@@ -134,7 +148,7 @@ $('resetBtn').addEventListener('click', () => {
     risk: { cap: Number($('cap').value) || 3 } });
   lastDecision = null;
   $('logBody').innerHTML = ''; $('ansRow').innerHTML = '<span class="why">no decision yet</span>';
-  paintTiles(); draw();
+  paintTiles(); paintBoard(); draw();
 });
 for (const id of ['cap', 'deadband']) $(id).addEventListener('change', () => trials(1));
 $('interval').addEventListener('change', () => {
@@ -201,18 +215,41 @@ function paintAnswer(d) {
     (d.blocked ? '<span class="act" data-a="hold" title="the gate held this">gated</span>' : '') +
     `<span class="why">${escapeHtml(d.reason || '')}${d.regime ? ` · regime: ${escapeHtml(d.regime)}` : ''}` +
     `${typeof d.have === 'number' ? ` · figures present ${fmt(d.have)}` : ''}` +
-    `${typeof d.decidable === 'number' ? ` · decidable ${fmt(d.decidable)}` : ''}</span>`;
+    `${typeof d.decidable === 'number' ? ` · decidable ${fmt(d.decidable)}` : ''}` +
+    `${d.rule ? ` · backs <b>${escapeHtml(d.rule)}</b>${typeof d.ruleConf === 'number' ? ` (${fmt(d.ruleConf)})` : ''}` : ''}` +
+    `${d.follows ? ` · best-so-far is ${escapeHtml(d.follows)}` : ''}</span>`;
 }
 
 const escapeHtml = (s) => String(s).replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function paintBoard() {
+  const s = summary(book);
+  const names = { jev: 'Jev', 'best oracle': 'best rule so far', majority: 'average of the rules',
+    'buy & hold': 'buy & hold (1x)', random: 'random control' };
+  const nice = Object.fromEntries(ORACLES.map((o) => [o.id, o.name]));
+  const rows = s.ranking.map(([id, v, dd, fills], i) => {
+    const isJev = id === 'jev';
+    return `<tr${isJev ? ' style="background:var(--accent-soft)"' : ''}>
+      <td>${i + 1}</td><td>${escapeHtml(names[id] || nice[id] || id)}${isJev ? ' ←' : ''}</td>
+      <td class="${cls(v)}">${signed(v)}</td>
+      <td>${Number.isFinite(dd) && dd > 0 ? signed(-dd) : '0.00%'}</td>
+      <td>${fills}</td></tr>`;
+  }).join('');
+  $('boardBody').innerHTML = rows;
+  $('boardWhy').textContent = s.decisions < 30
+    ? `${s.decisions} decisions — a leaderboard this short is noise, not a ranking.`
+    : `t = ${fmt(s.tStatVsMajority)} against simply averaging the rules, over ${s.nVsMajority} paired decisions. ` +
+      `Jev has SEEN every rule below, so beating one is not evidence he could not have copied it; ` +
+      `beating the average of them is the test that means something.`;
+}
 
 function paintLog() {
   const rows = book.history.slice(-120).reverse();
   $('logBody').innerHTML = rows.map((r) => `<tr>
     <td>${new Date(r.t).toLocaleTimeString()}</td><td>${fmt(r.px, 1)}</td>
     <td>${r.action}${r.blocked ? ' (held)' : ''}</td><td>${Number.isFinite(r.target) ? `${r.target > 0 ? '+' : ''}${r.target.toFixed(2)}x` : '—'}</td><td>${fmt(r.confidence)}</td><td>${fmt(r.have)}</td>
-    <td>${escapeHtml(r.regime || '—')}</td><td>${r.pos === 0 ? 'flat' : `${r.pos > 0 ? '+' : ''}${r.pos.toFixed(2)}x`}</td>
+    <td>${escapeHtml(r.rule || '—')}</td><td>${r.pos === 0 ? 'flat' : `${r.pos > 0 ? '+' : ''}${r.pos.toFixed(2)}x`}</td>
     <td>${signed((r.jev - 1) * 100)}</td><td>${signed((r.rand - 1) * 100)}</td></tr>`).join('');
 }
 
@@ -308,10 +345,15 @@ function drawPnl() {
   const svg = $('pnlChart'), W = 420, H = 190, L = 6, R = 46, T = 12, B = 22;
   const h = book.history.slice(-240);
   if (h.length < 2) { svg.innerHTML = ''; return; }
+  // THREE lines, because three is what the palette clears on the all-pairs
+  // CVD check — and these three because the question changed. Once Jev has
+  // been shown the rules, "does he beat buy-and-hold" stops being the
+  // interesting comparison and "does choosing beat aggregating" starts.
+  // Buy-and-hold, random and the six rules are all in the leaderboard.
   const legs = [
     { k: 'jev', label: 'jev', c: 'var(--s1)', v: h.map((r) => (r.jev - 1) * 100) },
-    { k: 'hold', label: 'b&h', c: 'var(--s2)', v: h.map((r) => (r.hold - 1) * 100) },
-    { k: 'rand', label: 'rnd', c: 'var(--s3)', v: h.map((r) => (r.rand - 1) * 100) },
+    { k: 'majority', label: 'avg', c: 'var(--s2)', v: h.map((r) => (r.majority - 1) * 100) },
+    { k: 'best', label: 'best', c: 'var(--s3)', v: h.map((r) => (r.best - 1) * 100) },
   ];
   const all = legs.flatMap((l) => l.v).concat([0]);
   const y = scale(all, H - B, T);
@@ -368,4 +410,5 @@ let raf = 0;
 function draw() { cancelAnimationFrame(raf); raf = requestAnimationFrame(() => { drawPrice(); drawPnl(); }); }
 
 paintTiles();
+paintBoard();
 addEventListener('beforeunload', () => feed?.stop());

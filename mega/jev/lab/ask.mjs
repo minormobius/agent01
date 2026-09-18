@@ -63,8 +63,15 @@ export const EXPOSURE_LEVELS = [
   'Maximum long: the tape is being bought hard and holding it — heavy buying flow, high efficiency upward.',
 ];
 
-export function buildQuestions() {
-  return {
+/**
+ * `oracleCriteria` turns the rule-based strategies into a closed set, so the
+ * extra question can never name a strategy that is not running. Passing it is
+ * what turns this from "what should I do" into "which of these fits", which
+ * is the shape measured to work: a choice over options someone else
+ * enumerated, judged against figures someone else computed.
+ */
+export function buildQuestions({ oracleCriteria = null } = {}) {
+  const q = {
     exposure: { type: 'score',
       instructions: 'Which level of exposure MATCHES what the market is observably doing right now? ' +
         'This describes the tape in front of you, not a forecast. Pick the level the figures fit best.',
@@ -100,6 +107,14 @@ export function buildQuestions() {
         'This is a description of what has already happened, not a forecast.',
       criteria: REGIME_CRITERIA },
   };
+  if (oracleCriteria && Object.keys(oracleCriteria).length > 1) {
+    q.which_rule = { type: 'choice',
+      instructions: 'Several fixed rule-based strategies are stated above and they disagree. ' +
+        'Which ONE of them is reading the tape correctly right now? Judge each against the figures, ' +
+        'not against how it usually performs. "None" is a real answer.',
+      criteria: oracleCriteria };
+  }
+  return q;
 }
 
 export const GATE = {
@@ -179,10 +194,10 @@ function labelFor(target, current) {
   return target > current ? 'buy' : 'sell';
 }
 
-export async function ask(state, { endpoint = ENDPOINT, signal } = {}) {
+export async function ask(state, { endpoint = ENDPOINT, signal, questions = null } = {}) {
   const res = await fetch(endpoint, {
     method: 'POST', headers: { 'content-type': 'application/json' }, signal,
-    body: JSON.stringify({ state, questions: buildQuestions() }),
+    body: JSON.stringify({ state, questions: questions || buildQuestions() }),
   });
   const body = await res.json().catch(() => ({ error: 'unparseable reply' }));
   if (!res.ok) throw new Error(body?.error || `HTTP ${res.status}`);
