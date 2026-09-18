@@ -56,14 +56,23 @@ function parseUpper(text) {
   } catch { return { answer: null, sufficient: false, why: 'unparseable' }; }
 }
 
+export const upperErrors = [];
+
 function makeUpperTier(client, model, bucket, times, extra = {}) {
   return async (payload) => {
     const t0 = Date.now();
-    const res = await client.messages.create({
+    let res;
+    try {
+      res = await client.messages.create({
       model, max_tokens: 256, system: SYSTEM, ...extra,
       messages: [{ role: 'user', content:
-        `REGISTRY FRAGMENT:\n${payload.context || '(nothing was provided)'}\n\nQUESTION: ${payload.question}` }],
-    });
+          `REGISTRY FRAGMENT:\n${payload.context || '(nothing was provided)'}\n\nQUESTION: ${payload.question}` }],
+      });
+    } catch (e) {
+      const msg = `${model}: ${e?.status || ''} ${String(e?.message || e).slice(0, 220)}`;
+      if (upperErrors.length < 3) upperErrors.push(msg);
+      throw new Error(msg);
+    }
     times.push(Date.now() - t0);
     usage[`${bucket}_in`] += res.usage?.input_tokens || 0;
     usage[`${bucket}_out`] += res.usage?.output_tokens || 0;
@@ -85,7 +94,11 @@ const tier3Client = anKey
     ? new Anthropic({ authToken: anOauth, defaultHeaders: { 'anthropic-beta': 'oauth-2025-04-20' } })
     : null;
 const tier2 = dsKey
-  ? makeUpperTier(new Anthropic({ apiKey: dsKey, baseURL: 'https://api.deepseek.com/anthropic' }),
+  // authToken: null is load-bearing. The SDK falls back to ANTHROPIC_AUTH_TOKEN
+  // from the environment, and once that was set for tier 3 this client started
+  // sending Authorization: Bearer alongside x-api-key — which DeepSeek rejects.
+  // Tier 2 had worked in the two runs before the token existed.
+  ? makeUpperTier(new Anthropic({ apiKey: dsKey, authToken: null, baseURL: 'https://api.deepseek.com/anthropic' }),
       TIER2_MODEL, 't2', timing.t2)
   : null;
 const tier3 = tier3Client
@@ -131,8 +144,11 @@ const right = keptAnswerable.filter((d) => {
 console.log(`\n  accuracy of what tier 1 kept: ${keptAnswerable.length ? (right / keptAnswerable.length * 100).toFixed(1) : '—'}% (${right}/${keptAnswerable.length})`);
 
 const upper = resolved.filter((r) => r.tier > 1);
+const upperErr = upper.filter((r) => r.final?.error || r.final == null).length;
 const upperSuff = upper.filter((r) => r.final?.sufficient === true).length;
-console.log(`  escalated decisions: ${upper.length}, of which the upper tiers called ${upperSuff} answerable and ${upper.length - upperSuff} genuinely unanswerable`);
+console.log(`  escalated decisions: ${upper.length} — ${upperSuff} the upper tiers called answerable, ` +
+  `${upper.length - upperSuff - upperErr} genuinely unanswerable, ${upperErr} FAILED`);
+for (const e of upperErrors) console.log(`    upper-tier error: ${e}`);
 
 // ---------------------------------------------------------------- cost ----
 const med = (xs) => xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : null;
@@ -165,8 +181,10 @@ if (process.env.GITHUB_STEP_SUMMARY) {
 }
 
 // The dangerous cell is the one that decides whether this is shippable.
-if (localBad > 0) {
-  console.error(`\n✗ ${localBad} unanswerable decision(s) were answered locally.`);
-  process.exit(1);
-}
-console.log('\n✓ nothing unanswerable was answered locally');
+let bad = 0;
+if (localBad > 0) { console.error(`\n✗ ${localBad} unanswerable decision(s) were answered locally.`); bad++; }
+// A green run with every escalation erroring is worse than a red one: it
+// reports a perfect cascade while the upper tiers are unreachable.
+if (upperErr > 0) { console.error(`✗ ${upperErr}/${upper.length} escalations failed at the upper tiers.`); bad++; }
+if (bad) process.exit(1);
+console.log('\n✓ nothing unanswerable was answered locally, and every escalation was resolved');
