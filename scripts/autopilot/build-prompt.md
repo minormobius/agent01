@@ -33,9 +33,9 @@ _Regenerated 2026-09-18 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-18, 99 members / 323 posts):
+**Neighborhood spark** (bisk 2026-09-18, 99 members / 328 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: jev, rationalist, aella
+- Distinctive words: jev, rationalist, yud
 - Top post: "for the record i think my suspension was bullshit and i also support it. i have been saying for some time that moderatio" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
