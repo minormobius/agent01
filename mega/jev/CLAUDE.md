@@ -853,6 +853,83 @@ but before trusting this in anything load-bearing, rebuild the four classes
 against your own state and re-measure. The recipe is the finding; the numbers
 are from one afternoon.
 
+## The cascade, built and run (2026-09-18)
+
+`cascade.mjs` is the escalation recipe as a working router, and
+`.github/workflows/jev-cascade.yml` runs it end to end with real keys. Three
+tiers:
+
+| tier | model | why it is there |
+|---|---|---|
+| 1 | Jev, via the deployed proxy | absorbs the whole state, decides, and flags what it cannot decide |
+| 2 | `ds4-flash` (`deepseek-v4-flash`) | the bailout — cheap, and Anthropic-compatible, so one client class serves both upper tiers |
+| 3 | `claude-opus-5` | the one the whole design exists to avoid calling |
+
+### The shape
+
+Every decision goes to tier 1 **twice in one call** — as itself, and as
+"does the state contain what this needs?" — and the routing reads the second.
+That is forced by the measurement above: answer-confidence separated
+answerable from unanswerable by 0.0 points; the self-check separated them by
+62. Doubling the question count is affordable only because breadth is free.
+
+`narrow()` is the choke: an upper tier is handed one question and its own
+slice of state, never the stream tier 1 read. `runCascade` reports the ratio
+rather than assuming it.
+
+### First real run — 62 decisions over this repo's own 102 surfaces
+
+The corpus is built from `deploy-registry.json`, so the state is real and the
+ground truth is computed from it. 32 answerable, 30 not (10 naming a surface
+that does not exist, 10 asking for a field the registry does not carry, 10
+whose terms are all present but whose answer does not follow).
+
+```
+answerable kept at tier 1   : 32/32
+answerable sent up (wasted) : 0/32
+unanswerable sent up        : 30/30
+unanswerable answered anyway: 0/30   <- the dangerous cell
+accuracy of what tier 1 kept: 100.0% (32/32)
+
+tier 1  729ms    1 call    8679 in / 2568 out tokens
+tier 2  1027ms   30 calls  4670 in / 2074 out tokens (median latency)
+tier 3  —        0 calls
+cascade   ~$0.00036     all-to-QB ~$0.72213     1981x
+```
+
+**Tier 3 was never called, and nothing was missed.** Every escalation was a
+genuinely unanswerable question, and tier 2 said so on all 30 rather than
+inventing an answer. The routing was perfect in both directions.
+
+### What the run exposed
+
+- **Escalations were serial** — 30 of the 32.7 second wall clock was tier 2
+  calls waiting in line. Now bounded-concurrent (`concurrency: 6`), with the
+  overlap and the bound both pinned by selftest.
+- **The choke ratio was 26%, not 2%.** One 7.5KB state against 30 small
+  payloads: the choke is per-decision, and it stops being impressive when
+  almost half the batch escalates. It is worth reporting precisely because it
+  is not always flattering.
+- **The 1981× is honest about tier 3 and silent about tier 2.** DeepSeek's
+  rates are not published in this repo, so tier 2 is reported in tokens only.
+  The comparison it wins is against sending all 62 decisions to
+  `claude-opus-5` with the whole state each — which is the thing it replaces.
+- **Tier 3 is untested by this run.** It was never reached, which is the
+  desired outcome and also means the top of the cascade has not been
+  exercised end to end. A corpus containing genuinely hard *answerable*
+  questions would reach it.
+
+### Running it
+
+The workflow fires on a push that touches `cascade.mjs`, `eval/` or the
+workflow itself — deliberately not `mega/jev/**`, which would bill a run for
+every unrelated edit to the dungeon demo beside it — and on
+`workflow_dispatch`. It spends real model budget per run.
+
+```bash
+node mega/jev/test/cascade.selftest.mjs   # offline, no keys, 48 checks
+```
+
 ## The trading hypothesis, tested on real bars (2026-09-17)
 
 The other obvious "go wide" target is markets: a big model enumerates regimes

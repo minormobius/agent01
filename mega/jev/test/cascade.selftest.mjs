@@ -168,6 +168,43 @@ ok(confidenceOf(null) === 0 && confidenceOf({}) === 0, 'a missing answer has no 
   ok(r.resolved[0].tier === 2 && r.stats.tier3_calls === 0, 'without a tier 3, tier 2 is final');
 }
 
+// ------------------------------------------------- concurrent escalation ---
+{
+  // Escalations are independent, so they must overlap — and must not overlap
+  // more than the bound allows.
+  const many = Array.from({ length: 12 }, (_, i) => D(`e${i}`, `q${i}`));
+  const answers = {};
+  many.forEach((d) => { answers[d.id] = { noul: 0.99 }; answers[`have__${d.id}`] = { noul: 0.05 }; });
+  let inFlight = 0, peak = 0;
+  const r = await runCascade({
+    state: 's', decisions: many,
+    tier1: async () => ({ answers }),
+    tier2: async () => {
+      peak = Math.max(peak, ++inFlight);
+      await new Promise((res) => setTimeout(res, 20));
+      inFlight--;
+      return { answer: true, sufficient: true };
+    },
+    options: { maxEscalationRate: 1, concurrency: 4 },
+  });
+  ok(peak > 1, `escalations overlap rather than queueing one at a time (peak ${peak})`);
+  ok(peak <= 4, `and never exceed the concurrency bound (peak ${peak})`);
+  ok(r.stats.tier2_calls === 12, 'every escalation still runs exactly once');
+  ok(r.resolved.length === 12, 'and every one comes back');
+  ok(new Set(r.resolved.map((x) => x.decision.id)).size === 12, 'with no duplicates or losses from the shared queue');
+}
+{
+  // concurrency 1 must still work, and a batch with nothing to escalate must
+  // not hang on an empty worker pool.
+  const r = await runCascade({
+    state: 's', decisions: [D('a', 'q'), D('b', 'q')],
+    tier1: async () => ({ answers: { a: { noul: 0.99 }, have__a: { noul: 0.99 }, b: { noul: 0.99 }, have__b: { noul: 0.99 } } }),
+    tier2: async () => ({ answer: true, sufficient: true }),
+    options: { concurrency: 1 },
+  });
+  ok(r.stats.escalated === 0 && r.resolved.length === 2, 'a batch with nothing to escalate resolves without hanging');
+}
+
 if (failures.length) {
   console.error(`✗ cascade selftest: ${failures.length} failure(s) of ${passed + failures.length} checks\n`);
   for (const f of failures) console.error(`  - ${f}`);

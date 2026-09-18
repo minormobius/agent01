@@ -34,6 +34,10 @@ export const DEFAULTS = {
   confThreshold: 0.75,
   // Stop a runaway: at most this share of a batch may leave tier 1.
   maxEscalationRate: 0.6,
+  // How many escalations may be in flight at once. Bounded rather than
+  // unlimited so a large batch cannot open 200 sockets to a rate-limited
+  // upper tier and turn a latency win into a wall of 429s.
+  concurrency: 6,
 };
 
 const SELF_CHECK_PREFIX = 'have__';
@@ -154,6 +158,7 @@ export const sizeOf = (x) => new TextEncoder().encode(typeof x === 'string' ? x 
  */
 export async function runCascade({ state, decisions, tier1, tier2, tier3, options = {} }) {
   const questions = buildCascadeQuestions(decisions);
+  const { concurrency } = { ...DEFAULTS, ...options };
   const t0 = Date.now();
   const res = await tier1(state, questions);
   const tier1Ms = Date.now() - t0;
@@ -173,7 +178,11 @@ export async function runCascade({ state, decisions, tier1, tier2, tier3, option
 
   const resolved = local.map((r) => ({ ...r, tier: 1, final: r.answer }));
 
-  for (const row of escalate) {
+  // Escalations run concurrently, bounded. They are independent by
+  // construction — each carries only its own slice — and the first real run
+  // spent 30 of its 32.7 seconds walking them one at a time. A reactive tier
+  // whose escalation path is serial is not reactive.
+  const climb = async (row) => {
     const payload = narrow(row);
     stats.upper_bytes += sizeOf(payload);
     let out = null;
@@ -184,11 +193,16 @@ export async function runCascade({ state, decisions, tier1, tier2, tier3, option
     if (tier3 && (!out || out.error || out.sufficient === false)) {
       stats.tier3_calls++;
       const up = await tier3(payload).catch((e) => ({ error: String(e?.message || e) }));
-      resolved.push({ ...row, tier: 3, final: up, tier2: out });
-    } else {
-      resolved.push({ ...row, tier: tier2 ? 2 : 1, final: out });
+      return { ...row, tier: 3, final: up, tier2: out };
     }
-  }
+    return { ...row, tier: tier2 ? 2 : 1, final: out };
+  };
+
+  const queue = [...escalate];
+  const workers = Array.from({ length: Math.min(concurrency, queue.length || 1) }, async () => {
+    for (let row = queue.shift(); row; row = queue.shift()) resolved.push(await climb(row));
+  });
+  await Promise.all(workers);
   for (const row of capped) resolved.push({ ...row, tier: 1, final: row.answer, capped: true });
 
   // What the choke actually bought: the upper tiers saw this share of the
