@@ -46,6 +46,8 @@ jobs:
         run: node jev/test/memory.selftest.mjs
       - name: jev cascade selftest (the router escalates on state, not confidence)
         run: node jev/test/cascade.selftest.mjs
+      - name: jev lab selftest (paper book costs, controls, the gate and the latch)
+        run: node jev/test/lab.selftest.mjs
 
       - name: Deploy static site
         run: npx wrangler deploy

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev Harness Lab</title>
+<meta name="description" content="A live one-second BTC perpetual feed, a paper book, and Jev deciding buy / hold / sell / bail against two baselines.">
+<link rel="icon" href="../favicon.svg">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="lab-wrap">
+
+  <header class="lab-head">
+    <div>
+      <h1>Jev harness lab</h1>
+      <p class="sub">Live one-second BTC perpetual from Hyperliquid. Jev decides buy / hold / sell / bail
+        against a paper book, measured against two baselines.</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="pill" id="feedStatus" data-status="connecting"><span class="dot"></span><span id="feedText">connecting</span></span>
+      <button class="ghost" id="themeBtn" type="button" aria-label="Toggle colour theme">theme</button>
+    </div>
+  </header>
+
+  <p class="note">
+    <b>This is paper only.</b> No exchange account, no keys, no orders — the feed is a public read-only
+    websocket and every position here is simulated. Fills are charged a taker fee plus half the observed
+    spread. Nothing on this page is advice, and a single run of a few hundred decisions cannot establish
+    an edge: the verdict below is drawn from a t-statistic against a random control, not from the curve.
+  </p>
+
+  <div class="ctl">
+    <label>decision every
+      <select id="interval">
+        <option value="3000">3s</option>
+        <option value="5000" selected>5s</option>
+        <option value="10000">10s</option>
+        <option value="30000">30s</option>
+      </select>
+    </label>
+    <label>taker fee (bp)<input id="fee" type="number" value="4.5" step="0.5" min="0"></label>
+    <label>extra slippage (bp)<input id="slip" type="number" value="0" step="0.5" min="0"></label>
+    <label>random seed<input id="seed" type="number" value="1" step="1"></label>
+    <label>confidence to open<input id="enter" type="number" value="0.55" step="0.05" min="0" max="1"></label>
+    <button id="runBtn" type="button">start run</button>
+    <button class="ghost" id="resetBtn" type="button">reset</button>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">BTC-PERP mid</div><div class="v" id="tMid">—</div><div class="m" id="tSpread">spread —</div></div>
+    <div class="tile"><div class="k">paper position</div><div class="v sm" id="tPos">flat</div><div class="m" id="tFills">0 fills</div></div>
+    <div class="tile"><div class="k">jev</div><div class="v" id="tJev">—</div><div class="m" id="tCost">cost paid —</div></div>
+    <div class="tile"><div class="k">buy &amp; hold</div><div class="v" id="tHold">—</div><div class="m">the curve people quote</div></div>
+    <div class="tile"><div class="k">random control</div><div class="v" id="tRand">—</div><div class="m">same trade frequency</div></div>
+    <div class="tile"><div class="k">decisions</div><div class="v" id="tDec">0</div><div class="m" id="tTicks">0 ticks</div></div>
+    <div class="tile"><div class="k">is this decidable?</div><div class="v" id="tDecidable">—</div>
+      <div class="m" id="tGated">Jev's own answer · 0 gated</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2 id="verdictH" class="verdict null">Waiting for a run.</h2>
+    <p class="cap" id="verdictWhy" style="margin:0 0 6px">A verdict needs at least 30 decisions, and then it is
+      read off <span style="font-family:var(--mono)">t</span> against the random control — not off whichever line is highest.</p>
+    <p class="trials" id="trials"></p>
+  </div>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Price, and where Jev acted</h2>
+      <p class="cap">One-second mid. Each mark is a decision — <b>B</b> buy, <b>H</b> hold, <b>S</b> sell,
+        <b>X</b> bail — labelled as well as coloured.</p>
+      <div class="chartbox">
+        <svg id="pxChart" viewBox="0 0 640 190" role="img" aria-label="BTC perpetual mid price with decision marks"></svg>
+        <div class="tip" id="pxTip"></div>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i style="background:var(--st-good)"></i>B buy</span>
+        <span><i style="background:var(--neutral);outline:1px solid var(--line)"></i>H hold</span>
+        <span><i style="background:var(--st-serious)"></i>S sell</span>
+        <span><i style="background:var(--st-critical)"></i>X bail</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Paper return, after costs</h2>
+      <p class="cap">All three legs trade the same ticks and pay the same costs. The one that matters is the
+        gap to <b>random</b>, not to buy &amp; hold.</p>
+      <div class="chartbox">
+        <svg id="pnlChart" viewBox="0 0 420 190" role="img" aria-label="Paper return of Jev, buy and hold, and a random control"></svg>
+        <div class="tip" id="pnlTip"></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>jev</span>
+        <span><i style="background:var(--s2)"></i>buy &amp; hold</span>
+        <span><i style="background:var(--s3)"></i>random control</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <h2>The last decision</h2>
+      <div class="ans" id="ansRow"><span class="why">no decision yet</span></div>
+      <p class="cap" style="margin:0 0 6px">Exactly what Jev was sent — numbers only, never a price series.
+        Handed the inputs to a computation instead of its result, it scored 62.5%; handed the result, 100%.
+        It is asked which stance <em>matches</em> the tape, never what to do about it.</p>
+      <pre class="state" id="stateDoc">The state document appears here once the feed has enough history.</pre>
+    </div>
+    <div class="card">
+      <h2>Decision log</h2>
+      <p class="cap">The table view of both charts, for when colour is not available.</p>
+      <div class="scroll">
+        <table class="log"><thead><tr>
+          <th>time</th><th>mid</th><th>action</th><th>conf</th><th>state?</th><th>regime</th><th>pos</th><th>jev</th><th>rand</th>
+        </tr></thead><tbody id="logBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The most interesting number on this page</h2>
+    <p class="cap" style="margin-bottom:8px">Four availability questions, one real state document, one call.</p>
+    <table class="log" style="max-width:640px">
+      <tbody>
+        <tr><td>are the figures present and readable?</td><td style="text-align:right;color:var(--ok)"><b>0.95</b></td></tr>
+        <tr><td>enough to judge whether a change beats its cost? <em>(this is what gates)</em></td><td style="text-align:right;color:var(--ok)"><b>0.84</b></td></tr>
+        <tr><td>enough to decide what the position should do?</td><td style="text-align:right;color:var(--bad)"><b>0.24</b></td></tr>
+        <tr><td>enough to know which way the price goes next?</td><td style="text-align:right;color:var(--bad)"><b>0.06</b></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      That is one model, one state, four phrasings — cleanly separating <b>the data is here</b> from
+      <b>this is not decidable</b>. It is not a wording artefact, and it is the reason the live
+      <em>is this decidable?</em> tile above sits where it sits and is never allowed to gate anything.
+      A trading demo that hides this number is hiding the only honest thing it knows.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>What this lab is for</h2>
+    <p class="cap" style="margin-bottom:8px">And what it deliberately refuses to do.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      Jev is never asked what happens next. Asked to call direction on 111 six-hour windows it returned
+      probabilities spanning only 0.36–0.60 and never once cleared 0.7 — which is the honest answer, and the
+      reason this page asks it to <em>classify what is happening</em> rather than to forecast.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      That distinction is worth more than it sounds. On five identical states, asked <em>&ldquo;what should the
+      position do?&rdquo;</em> it answered <b>hold five times out of five</b> at 0.46–0.79 confidence. Asked
+      <em>&ldquo;which stance matches what the tape is doing?&rdquo;</em> it answered <b>sell five out of five</b>
+      at 0.70–0.96 — and taker skew on every one of those windows was between −0.89 and −0.98, so the tape
+      really was being sold hard. Weighing a trade is a prediction, and it declines to make those. Describing
+      what is in front of it is a judgement, and it makes those confidently. So the page asks for the stance
+      and the <em>harness</em> pays the cost of acting on it.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0">
+      Every decision also carries a self-check: <em>does the state contain what this needs?</em> Reading the
+      action's own confidence separated answerable from unanswerable by 0.0 points in measurement; asking
+      the question separately separated them by 62. When the self-check says no, the lab holds and says so
+      rather than acting on a confident-looking answer.
+    </p>
+  </div>
+
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -621,6 +621,12 @@
               "action": "new",
               "note": "TypeSafe AI's Jev — a model that returns typed decisions instead of text — given a body: it delves a live foam dungeon one typed call at a time",
               "domain": "agents"
+            },
+            {
+              "u": "mega.mino.mobi/jev/lab",
+              "action": "new",
+              "note": "the same decision model against a live one-second BTC perpetual: metrics computed on the page, a paper book that charges taker fee plus half the spread, and a verdict read off a t-statistic against a random control rather than off the prettiest line",
+              "domain": "agents"
             }
           ]
         },

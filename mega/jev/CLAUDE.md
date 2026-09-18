@@ -770,6 +770,97 @@ arithmetic, simulation, traversal or counting before the judgement, do that
 work first and put the result in the state. It costs you a few tokens and it
 is the difference between 60% and 100%.
 
+## The harness lab: /jev/lab/ (2026-09-18)
+
+A live one-second BTC perpetual from Hyperliquid's public websocket, a paper
+book, and Jev choosing buy / hold / sell / bail. Paper only — no account, no
+keys, no orders, and the feed is read-only. Its value is not the P&L; it is
+that the market is the fastest honest feedback a decision model can be put
+in front of, and everything measured on this surface applies at once.
+
+### The feed
+
+`activeAssetCtx` fires at exactly 1 Hz and carries mid, mark, oracle,
+funding, premium and open interest — the heartbeat. `l2Book` gives the spread
+we charge and the resting-size imbalance; `trades` gives aggressor flow. The
+two faster channels accumulate into mutable state and are sampled by the
+heartbeat, so a tick is one second of flow rather than a running total.
+
+`?replay=<same-origin tape>&speed=N&loop` runs the whole harness against a
+recorded tape instead of the socket. That is not a test stub: a run you can
+repeat is the only kind worth comparing, and it is how the lab runs in CI.
+`fixtures/btc-ticks.json` is 190 real recorded seconds.
+
+### What it asks, and the framing that decides everything
+
+The sixth time on this surface that "the model is being useless" was the
+question's fault. Five identical states, one call, two framings:
+
+| question | answer | confidence |
+|---|---|---|
+| "what should the paper position do?" | **hold 5/5** | 0.46–0.79 |
+| "which stance matches what the tape is doing?" | **sell 5/5** | 0.70–0.96 |
+
+Taker skew on every one of those windows was between −0.89 and −0.98: the
+tape *was* being sold hard, so `sell` is the correct description and `hold`
+is a refusal. **Weighing a trade is a prediction and it does not make those.
+Describing what is in front of it is a judgement and it makes those well.**
+So the page asks for a stance and the harness pays the cost of acting on it —
+the caller computes, the model decides, one more time.
+
+### The most interesting number the lab produced
+
+Four availability questions, one real state document, one call:
+
+| question | answer |
+|---|---|
+| are the figures present and readable? | **0.95** |
+| enough to judge whether a change beats its cost? *(this gates)* | **0.84** |
+| enough to decide what the position should do? | **0.24** |
+| enough to know which way the price goes next? | **0.06** |
+
+That is one model cleanly separating *the data is here* from *this is not
+decidable*, and it is not a wording artefact — the four were asked together.
+So the lab gates on `have_figures`, which the state can genuinely satisfy,
+and shows `have_decidable` permanently on screen where it can never gate
+anything. A trading demo that hides that number is hiding the only honest
+thing it knows.
+
+### What stops it flattering itself
+
+Every one of these is a line that a dishonest version of this page omits, and
+each is pinned by `test/lab.selftest.mjs` (81 checks, no network):
+
+- **Costs are charged on every size change** — taker fee plus half the
+  *observed* spread. Flipping 60 times in a dead flat market must lose money,
+  and the test asserts it does.
+- **Two baselines on the identical ticks.** Buy-and-hold is the one people
+  quote. The **random control**, forced to trade exactly as often, is the one
+  that tests whether the decisions carry information. Beating buy-and-hold in
+  a downtrend is not a result.
+- **Mark-to-market cannot peek.** A position taken on the tick that jumped
+  earns nothing from that jump — the most flattering bug available, so it has
+  its own test.
+- **The verdict comes from `t`, not the curve.** Under 30 decisions it says
+  "too few decisions to say anything"; under |t| = 2 against the random
+  control it says "indistinguishable from random", whatever the lines look
+  like.
+- **The trial counter is on screen.** Every configuration change is a trial,
+  and the measured lesson (127 metric subsets against a no-signal target:
+  best in-sample 69.7%, worth 51.1% out of sample, rank correlation −0.11) is
+  printed next to the count.
+- **The confidence bar is a visible control**, not a private tuning. Measured
+  action confidences sit around 0.4–0.9, so the bar decides how often the lab
+  acts at all — which is exactly the kind of knob that must not be hidden.
+
+### Colour
+
+The three P&L series are categorical slots 1–3 of the validated palette,
+which clear the all-pairs CVD check in both modes; slot 4 does not, which is
+why the decision marks use the reserved status palette instead and every one
+of them carries a letter glyph (**B H S X**) and a text label. No meaning on
+this page is carried by hue alone.
+
 ## The escalation primitive: ask for it, never infer it
 
 The general pattern behind both the dungeon and the trading idea is a **fast

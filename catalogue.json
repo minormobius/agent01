@@ -2923,6 +2923,23 @@
       ]
     },
     {
+     "n": "jev lab",
+     "u": "https://mega.mino.mobi/jev/lab/",
+     "c": "tools",
+     "k": 2,
+     "a": "hot",
+     "t": "2026-09-18",
+     "b": "2026-09-18",
+     "surface": "mega",
+     "d": "A harness for a decision model against the fastest honest feedback there is. Hyperliquid's public websocket streams the BTC perpetual at one tick a second; the page computes the metrics itself — efficiency, taker skew, spread, funding, the volatility ratio — and sends Jev numbers, never a price series, because handed the inputs to a computation instead of its result the same model scores 62.5% rather than 100%. Jev answers three typed questions per decision: which of buy, hold, sell or bail, whether the state even contains enough to decide, and which regime the last minute was. It is never asked what happens next. The paper book charges a taker fee plus half the observed spread on every fill and runs two baselines on the identical ticks — buy-and-hold, and a random control forced to trade exactly as often — and the verdict is read off a t-statistic against that control rather than off whichever line is highest, with the count of runs you have tried kept on screen. Paper only: no account, no keys, no orders.",
+     "tags": [
+      "typesafe",
+      "decision-model",
+      "markets",
+      "live-data"
+     ]
+    },
+    {
       "n": "golem",
       "u": "https://golem.mino.mobi",
       "c": "games",

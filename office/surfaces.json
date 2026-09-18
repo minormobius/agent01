@@ -1985,6 +1985,15 @@
    "parent": null
   },
   {
+   "id": "jev lab",
+   "name": "jev lab",
+   "url": "https://mega.mino.mobi/jev/lab/",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "golem",
    "name": "golem",
    "url": "https://golem.mino.mobi",
@@ -4984,6 +4993,16 @@
    "commits": 0,
    "age": "cold",
    "parent": "mega",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/lab",
+   "name": "lab",
+   "url": "https://mino.mobi/mega/jev/lab/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev",
    "discovered": true
   },
   {
