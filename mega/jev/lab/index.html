@@ -73,6 +73,8 @@
     <div class="tile"><div class="k">buy &amp; hold</div><div class="v" id="tHold">—</div><div class="m">the curve people quote</div></div>
     <div class="tile"><div class="k">random control</div><div class="v" id="tRand">—</div><div class="m">same trade frequency</div></div>
     <div class="tile"><div class="k">decisions</div><div class="v" id="tDec">0</div><div class="m" id="tTicks">0 ticks</div></div>
+    <div class="tile"><div class="k">big-move capture</div><div class="v" id="tCapture">—</div>
+      <div class="m" id="tOffsides">of the biggest windows</div></div>
     <div class="tile"><div class="k">stream B forecast</div><div class="v" id="tB">—</div>
       <div class="m" id="tBnet">leg —</div></div>
     <div class="tile"><div class="k">is this decidable?</div><div class="v" id="tDecidable">—</div>
@@ -197,6 +199,57 @@
       is not trading — which returns exactly 0% and beats every negative on the board. That is why
       <b>do nothing</b> is a ranked leg in the leaderboard below. Any change that reduces turnover has to beat
       <em>it</em> before it counts as an improvement rather than a retreat.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The only scoreboard that matters if the money is in a few windows</h2>
+    <p class="cap" id="capWhy" style="margin:0 0 10px">not enough price history yet.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Average return says <em>do nothing wins</em>. That is the right answer to the wrong question if the P&amp;L
+      lives in a handful of windows. Measured on 3.5 days of minute candles: the biggest <b>5% of hour-long
+      windows carry 24%</b> of all movement, and — the number the whole thesis rests on — <b>a p95 hour-move
+      pays 8.6× what a round trip costs, at any leverage.</b> The drag is affordable. Being on the right side
+      when it happens is the entire problem.
+    </p>
+    <p class="cap" style="margin:0 0 6px">So: are big moves continuations you can ride into, or reversals that
+      run you over? Non-overlapping windows, 3.5 days.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>window size</th><th>n</th><th>correlation with the prior hour</th><th>same direction as it</th>
+      </tr></thead><tbody>
+        <tr><td>all hour-long windows</td><td>5084</td><td>r = −0.069</td><td>41.4%</td></tr>
+        <tr><td>the biggest 10%</td><td>509</td><td>r = −0.113</td><td>36.5%</td></tr>
+        <tr><td><b>the biggest 5%</b></td><td>255</td><td><b>r = −0.179</b></td><td class="down"><b>34.1%</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>On this sample they reverse — and the bigger the move, the more strongly.</b> A trend follower is
+      offsides on <b>66%</b> of exactly the windows that carry the money, capturing −8.5% of them. That is the
+      opposite of the intuition, and it matters because Jev's stance criteria are <em>trend-descriptive</em>:
+      &ldquo;the tape is being bought and holding it&rdquo; → buy. On data shaped like this, the framing itself
+      is the losing side.
+    </p>
+    <div class="scroll" style="max-height:none;margin-top:8px">
+      <table class="log" style="min-width:450px"><thead><tr>
+        <th>rule, non-overlapping 15m windows</th><th>big windows (n=66)</th><th>all windows (n=325)</th>
+      </tr></thead><tbody>
+        <tr><td>follow the prior hour</td><td>40.9% <span style="color:var(--ink-3)">±12.1</span></td><td class="down">43.1%</td></tr>
+        <tr><td>MA cross</td><td>40.9%</td><td>48.2%</td></tr>
+        <tr><td>breakout</td><td>41.2%</td><td>40.2%</td></tr>
+        <tr><td><b>mean reversion</b></td><td>52.6% <span style="color:var(--ink-3)">(n=19)</span></td><td class="up"><b>60.7%</b> <span style="color:var(--ink-3)">(n=89)</span></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>An error worth publishing.</b> The first pass of that table used <em>overlapping</em> windows and had a
+      momentum rule at 75.7% accuracy over 4,844 of them. Non-overlapping, that rule fires on <b>four</b>
+      windows. Adjacent overlapping windows share 59 of their 60 minutes: it was one trend counted hundreds of
+      times. Every figure above is non-overlapping, and the capture metric enforces it in code.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      And the caveat that outranks all of it: <b>3.5 days is one regime.</b> That mean reversion won here is a
+      fact about this sample, not about markets — which is exactly why the polarity is not hardcoded anywhere,
+      and why the honest next step is the same test on a different month rather than a rule change.
     </p>
   </div>
 

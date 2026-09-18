@@ -10,11 +10,18 @@ import { ask, decide, GATE, buildQuestions } from './ask.mjs';
 import { readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, ORACLES } from './oracles.mjs';
 import { journalDoc } from './journal.mjs';
 import * as B from './streamb.mjs';
+import { captureStats, describe as describeCapture } from './bigmove.mjs';
 import { newBook, step, summary, pct } from './book.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from './candles.mjs';
 
 const $ = (id) => document.getElementById(id);
 const ring = newRing();
+// The metrics ring holds five minutes, which is right for the metrics and
+// far too short to rank big moves: at a 60-second horizon it yields four
+// non-overlapping windows. So the capture analysis keeps its own longer
+// price log — numbers only, an hour of them, bounded.
+const PRICE_LOG = 3600;
+const priceLog = [];
 let book = newBook();
 let running = false, feed = null, timer = null, lastMetrics = null, lastDecision = null, inFlight = false;
 // The clock the CHART runs on. Under replay this is tape time, not wall
@@ -60,6 +67,8 @@ function setStatus(s) {
 function onTick(tick) {
   tapeNow = tick.t;
   push(ring, tick);
+  priceLog.push({ t: tick.t, mid: tick.mid });
+  if (priceLog.length > PRICE_LOG) priceLog.shift();
   lastMetrics = compute(ring);
   // Every tick marks the book to market; only decision ticks carry an action.
   step(book, { px: tick.mid, spreadBps: tick.spreadBps, action: null, t: tick.t });
@@ -164,6 +173,7 @@ $('runBtn').addEventListener('click', () => {
 });
 $('resetBtn').addEventListener('click', () => {
   running = false; clearInterval(timer); $('runBtn').textContent = 'start run';
+  priceLog.length = 0;
   book = newBook({ seed: Number($('seed').value) || 1,
     costs: { feeBps: Number($('fee').value) || 0, slippageBps: Number($('slip').value) || 0 },
     risk: { cap: Number($('cap').value) || 3 } });
@@ -221,6 +231,16 @@ function paintTiles(tick) {
   const dec = lastDecision?.decidable;
   $('tDecidable').textContent = Number.isFinite(dec) ? fmt(dec) : '—';
   $('tDecidable').className = `v ${Number.isFinite(dec) ? (dec < 0.5 ? 'down' : 'up') : ''}`;
+  // The scoreboard that matters if the P&L lives in a few windows: when a
+  // big move happened, was the book on it, under it, or facing it?
+  const capStats = captureStats(priceLog, book.history, { horizon: 60, topPct: 0.2 });
+  $('tCapture').textContent = capStats?.enough ? `${(capStats.capture * 100).toFixed(0)}%` : '—';
+  $('tCapture').className = `v ${capStats?.enough ? cls(capStats.capture) : ''}`;
+  $('tOffsides').textContent = capStats?.enough
+    ? `offsides ${capStats.offsides}/${capStats.big - capStats.flatThrough} · flat through ${capStats.flatThrough}`
+    : 'of the biggest windows';
+  $('capWhy').textContent = describeCapture(capStats);
+
   const gated = book.history.filter((r) => r.blocked).length;
   $('tGated').textContent = `Jev's own answer · ${gated} of ${book.decisions} gated`;
 

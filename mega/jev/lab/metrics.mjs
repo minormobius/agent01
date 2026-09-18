@@ -155,7 +155,13 @@ export function compute(ring, { windows = [15, 60, 300] } = {}) {
  * against, and a claim that more metrics helped is worth nothing without the
  * version that did not have them.
  */
-export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = '' } = {}) {
+/**
+ * `unit` labels the windows. The maths is identical whatever a "tick" is, so
+ * the same code serves one-second ticks and one-minute candles — but the
+ * document must not say "last 15s" when it means fifteen minutes, or the
+ * judgement is being handed a lie about its own timescale.
+ */
+export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = '', unit = 's', windows = [15, 60, 300] } = {}) {
   const n = (x, d = 2) => (Number.isFinite(x) ? x.toFixed(d) : '—');
   const lines = [
     'BTC PERPETUAL, Hyperliquid. Live one-second book. All figures are already',
@@ -167,8 +173,8 @@ export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = 
     '',
     'RATES — how fast, how far, which way.',
     'WINDOW      return   volatility   range   up-share   efficiency   taker-skew',
-    ...[15, 60, 300].map((w) =>
-      `last ${String(w).padStart(3)}s  ${n(m[`w${w}_retBps`]).padStart(7)}bp ${n(m[`w${w}_volBps`]).padStart(9)}bp ` +
+    ...windows.map((w) =>
+      `last ${String(w).padStart(3)}${unit}  ${n(m[`w${w}_retBps`]).padStart(7)}bp ${n(m[`w${w}_volBps`]).padStart(9)}bp ` +
       `${n(m[`w${w}_rangeBps`]).padStart(7)}bp ${n(m[`w${w}_upFrac`]).padStart(8)} ${n(m[`w${w}_efficiency`]).padStart(11)} ` +
       `${n(m[`w${w}_takerSkew`]).padStart(11)}`),
     '',
@@ -185,14 +191,14 @@ export function stateDoc(m, pos, book, { levels = true, oracles = '', journal = 
     '',
     'LEVELS — where the price actually is. Rates alone cannot tell selling into',
     'a five-minute low from selling into a five-minute high.',
-    `mean price   last 15s ${n(m.sma15, 1)}   last 60s ${n(m.sma60, 1)}   last 300s ${n(m.sma300, 1)}`,
-    `price vs its own 60s mean  ${n(m.z60)} standard deviations`,
-    `price vs its own 300s mean ${n(m.z300)} standard deviations`,
-    `15s mean minus 60s mean    ${n(m.maSpreadBps)}bp  (${n(m.maSpreadZ)} sd of the 60s window)`,
-    `position in the last 60s range  ${n(m.rangePos60)}   (0 = the low, 1 = the high)`,
-    `position in the last 300s range ${n(m.rangePos300)}`,
-    `below the 300s high by ${n(Math.abs(m.offHighBps))}bp, set ${n(m.secsSinceHigh, 0)}s ago`,
-    `above the 300s low by  ${n(Math.abs(m.offLowBps))}bp, set ${n(m.secsSinceLow, 0)}s ago`,
+    `mean price   last ${windows[0]}${unit} ${n(m.sma15, 1)}   last ${windows[1]}${unit} ${n(m.sma60, 1)}   last ${windows[2]}${unit} ${n(m.sma300, 1)}`,
+    `price vs its own ${windows[1]}${unit} mean  ${n(m.z60)} standard deviations`,
+    `price vs its own ${windows[2]}${unit} mean ${n(m.z300)} standard deviations`,
+    `${windows[0]}${unit} mean minus ${windows[1]}${unit} mean    ${n(m.maSpreadBps)}bp  (${n(m.maSpreadZ)} sd of the ${windows[1]}${unit} window)`,
+    `position in the last ${windows[1]}${unit} range  ${n(m.rangePos60)}   (0 = the low, 1 = the high)`,
+    `position in the last ${windows[2]}${unit} range ${n(m.rangePos300)}`,
+    `below the ${windows[2]}${unit} high by ${n(Math.abs(m.offHighBps))}bp, set ${n(m.secsSinceHigh, 0)}${unit} ago`,
+    `above the ${windows[2]}${unit} low by  ${n(Math.abs(m.offLowBps))}bp, set ${n(m.secsSinceLow, 0)}${unit} ago`,
   );
 
   if (oracles) lines.push('', oracles);

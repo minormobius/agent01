@@ -14,6 +14,7 @@ import { fold, newState, drain, replay } from '../lab/feed.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from '../lab/candles.mjs';
 import { ORACLES, readOracles, majorityTarget, bestOracleTarget, oracleDoc, oracleCriteria, T } from '../lab/oracles.mjs';
 import * as B from '../lab/streamb.mjs';
+import { captureStats, describe } from '../lab/bigmove.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -766,6 +767,54 @@ ok(compute(newRing()) === null, 'with no history, compute returns null rather th
   const s = summary(b);
   ok(s.ranking.some((x) => x[0] === 'stream B'), 'stream B is ranked beside everything else');
   ok(Number.isFinite(s.streamb), 'and reported in the summary');
+}
+
+// ------------------------------------------------------- capture on big moves ---
+{
+  // A tape with one big move in the middle and quiet either side.
+  const ticks = []; let px = 100;
+  for (let i = 0; i < 660; i++) {                  // 11 windows at a 60 horizon
+    if (i >= 300 && i < 360) px *= 1.002;          // the move
+    else px *= 1 + (i % 2 ? 0.00002 : -0.00002);   // the noise
+    ticks.push({ t: i * 1000, mid: px });
+  }
+  const longThrough = [{ t: 0, pos: 2 }];
+  const shortThrough = [{ t: 0, pos: -2 }];
+  const flat = [{ t: 0, pos: 0 }];
+
+  const L = captureStats(ticks, longThrough, { horizon: 60, topPct: 0.15 });
+  ok(L.enough && L.big >= 1, 'the big window is found');
+  ok(L.capture > 1.5, `being 2x the right way captures more than the move itself (${L.capture.toFixed(2)})`);
+  ok(L.offsides === 0, 'and is never offsides');
+
+  const S = captureStats(ticks, shortThrough, { horizon: 60, topPct: 0.15 });
+  ok(S.capture < 0, 'being the wrong way captures a NEGATIVE share, not zero');
+  ok(S.offsides >= 1, 'and is counted as offsides');
+  ok(S.worstOffsideBps > 100, 'with the size of the worst one reported');
+
+  const F = captureStats(ticks, flat, { horizon: 60, topPct: 0.15 });
+  near(F.capture, 0, 1e-9, 'being flat captures exactly nothing');
+  ok(F.offsides === 0 && F.flatThrough >= 1,
+    'and is counted as flat-through rather than offsides — missing a move is not the same mistake as fading it');
+}
+{
+  // Windows must not overlap. An earlier pass of this analysis reported a
+  // rule at 75.7% off 4,844 OVERLAPPING windows; non-overlapping it fired on
+  // four. Overlap is one event counted hundreds of times.
+  const ticks = Array.from({ length: 660 }, (_, i) => ({ t: i * 1000, mid: 100 + i }));
+  const s = captureStats(ticks, [{ t: 0, pos: 1 }], { horizon: 60, topPct: 0.5 });
+  ok(s.windows === 10, `660 ticks at a 60-tick horizon give ${s.windows} windows, not 600`);
+  ok(s.windows * 60 <= ticks.length, 'so no window can share data with the next');
+}
+{
+  ok(captureStats([], []) === null, 'no ticks, no statistics');
+  ok(captureStats(Array.from({ length: 50 }, (_, i) => ({ t: i, mid: 100 })), []) === null,
+    'and too short a history returns null rather than a number built on nothing');
+  const flatTape = Array.from({ length: 660 }, (_, i) => ({ t: i * 1000, mid: 100 }));
+  const s = captureStats(flatTape, [{ t: 0, pos: 3 }], { horizon: 60 });
+  ok(!s.enough, 'a tape that never moves has no big windows to rank, and says so');
+  ok(/too few|not enough/.test(describe(s)), 'and the description refuses to speak');
+  ok(/not enough/.test(describe(null)), 'as does the null case');
 }
 
 if (failures.length) {

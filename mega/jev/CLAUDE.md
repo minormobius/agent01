@@ -1053,6 +1053,83 @@ cadence **the fee structure decides the outcome before the model is
 consulted**. Its live form runs ten-second buckets, where the break-even is
 not merely high but unreachable.
 
+### Big moves: the right scoreboard, and what it says
+
+"Do nothing wins" is the correct answer to *average* return and the wrong
+answer if the P&L lives in a handful of windows. The operator's reframe —
+*the drag is neutral or fantastic as long as you are allocated during the big
+move and not caught offsides* — is testable, and the first half of it is
+right.
+
+Measured on 3.5 days of minute candles:
+
+- the biggest **5% of hour-long windows carry 24%** of all movement
+- a **p95 hour-move (81bp) pays 8.6x what a round trip costs — at any
+  leverage**, because leverage multiplies both sides
+
+**So the drag is affordable. Being on the right side is the entire problem.**
+
+### And on this sample, big moves REVERSE
+
+Non-overlapping windows, trailing hour against forward hour:
+
+| | n | r | same direction as the prior hour |
+|---|---|---|---|
+| all hour-long windows | 5084 | −0.069 | 41.4% |
+| the biggest 10% | 509 | −0.113 | 36.5% |
+| **the biggest 5%** | 255 | **−0.179** | **34.1%** |
+
+The bigger the move, the more strongly it reverses. A trend follower is
+offsides on **66%** of exactly the windows that carry the money, capturing
+−8.5% of them.
+
+That matters because **Jev's stance criteria are trend-descriptive** — "the
+tape is being bought and holding it" → buy. On data shaped like this the
+framing itself is the losing side, which is the likeliest explanation for a
+44.4% directional accuracy on big windows (n=18, ±23 — too thin to conclude
+alone, but it points the same way).
+
+| rule, non-overlapping 15m windows | big (n=66) | all (n=325) |
+|---|---|---|
+| follow the prior hour | 40.9% ±12.1 | **43.1%** |
+| MA cross | 40.9% | 48.2% |
+| breakout | 41.2% | 40.2% |
+| **mean reversion** | 52.6% (n=19) | **60.7%** (n=89) |
+
+### An error worth publishing
+
+The first pass of that table used **overlapping** windows and showed a
+momentum rule at **75.7%** accuracy over 4,844 of them. Non-overlapping, that
+rule fires on **four** windows. Adjacent overlapping windows share 59 of their
+60 minutes: it was one trend counted hundreds of times, and it would have
+been the most exciting-looking number on the page. `bigmove.mjs` enforces
+non-overlapping windows in code and the selftest pins the stride.
+
+### `bigmove.mjs` — capture and offsides, measured every run
+
+Two numbers a flattering version of this page would omit:
+
+- **CAPTURE** — the signed move earned during big windows as a share of what
+  was available. Can exceed 100% with leverage, can go negative; neither is
+  clipped.
+- **OFFSIDES** — how often the position pointed the wrong way when a big move
+  arrived, reported *separately* because a decent capture average can hide a
+  few catastrophic wrong-way events, and those are what end a leveraged
+  account.
+
+Being flat through a big move is counted as **flat-through**, not offsides:
+missing a move and fading one are different mistakes and the page says which.
+The analysis keeps its own hour-long price log, because the five-minute
+metrics ring yields four non-overlapping windows and cannot rank anything.
+
+### The caveat that outranks all of it
+
+**3.5 days is one regime.** That mean reversion won here is a fact about this
+sample, not about markets. Nothing is hardcoded to it, the polarity is not
+flipped anywhere, and the honest next step is the same test on a different
+month rather than a rule change. Picking the winning polarity from one sample
+is precisely the trial-mining this whole surface exists to warn about.
+
 ### What stops it flattering itself
 
 Every one of these is a line that a dishonest version of this page omits, and
