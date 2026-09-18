@@ -118,7 +118,10 @@ if (!tier3) console.log('  ! with no tier 3, tier 2 is the end of the line: a "0
 
 const { resolved, stats } = await runCascade({
   state, decisions, tier1, tier2, tier3,
-  options: { maxEscalationRate: 0.8 },
+  // 30 escalations hitting claude-opus-5 at once returned 429 on all 30.
+  // The top tier's rate limit is a real constraint of this architecture, so
+  // the eval respects it rather than pretending it is not there.
+  options: { maxEscalationRate: 0.8, concurrency: 3, tier3Budget: 5 },
 });
 
 // ------------------------------------------------------------- routing ----
@@ -144,10 +147,12 @@ const right = keptAnswerable.filter((d) => {
 console.log(`\n  accuracy of what tier 1 kept: ${keptAnswerable.length ? (right / keptAnswerable.length * 100).toFixed(1) : '—'}% (${right}/${keptAnswerable.length})`);
 
 const upper = resolved.filter((r) => r.tier > 1);
-const upperErr = upper.filter((r) => r.final?.error || r.final == null).length;
+const upperErr = upper.filter((r) => (r.final?.error || r.final == null) && !r.tier3_budget_exhausted).length;
+const declined = upper.filter((r) => r.tier3_budget_exhausted).length;
 const upperSuff = upper.filter((r) => r.final?.sufficient === true).length;
 console.log(`  escalated decisions: ${upper.length} — ${upperSuff} the upper tiers called answerable, ` +
   `${upper.length - upperSuff - upperErr} genuinely unanswerable, ${upperErr} FAILED`);
+if (declined) console.log(`  ${declined} escalation(s) kept tier 2's answer because the tier-3 budget was spent`);
 for (const e of upperErrors) console.log(`    upper-tier error: ${e}`);
 
 // ---------------------------------------------------------------- cost ----

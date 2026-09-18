@@ -205,6 +205,44 @@ ok(confidenceOf(null) === 0 && confidenceOf({}) === 0, 'a missing answer has no 
   ok(r.stats.escalated === 0 && r.resolved.length === 2, 'a batch with nothing to escalate resolves without hanging');
 }
 
+// ----------------------------------------------------- the tier-3 budget ---
+{
+  // The expensive tier's rate limit is the cascade's real ceiling, so the
+  // budget must be honoured exactly, and a declined escalation must keep
+  // tier 2's answer rather than coming back empty.
+  const many = Array.from({ length: 9 }, (_, i) => D(`b${i}`, `q${i}`));
+  const answers = {};
+  many.forEach((d) => { answers[d.id] = { noul: 0.99 }; answers[`have__${d.id}`] = { noul: 0.02 }; });
+  let t3 = 0;
+  const r = await runCascade({
+    state: 's', decisions: many,
+    tier1: async () => ({ answers }),
+    tier2: async () => ({ answer: null, sufficient: false, why: 'tier 2 could not' }),
+    tier3: async () => { t3++; return { answer: true, sufficient: true }; },
+    options: { maxEscalationRate: 1, tier3Budget: 4, concurrency: 3 },
+  });
+  ok(t3 === 4, `the tier-3 budget is honoured exactly (got ${t3})`);
+  ok(r.stats.tier3_calls === 4 && r.stats.tier3_declined === 5, 'calls and declines are both counted');
+  const declined = r.resolved.filter((x) => x.tier3_budget_exhausted);
+  ok(declined.length === 5, 'the over-budget escalations are marked');
+  ok(declined.every((x) => x.final?.why === 'tier 2 could not'), 'and keep tier 2\'s answer rather than coming back empty');
+  ok(r.resolved.length === 9, 'every decision still resolves');
+  ok(r.stats.tier2_calls === 9, 'the budget caps tier 3 only — tier 2 still sees them all');
+}
+{
+  // The default must not cap anything.
+  let t3 = 0;
+  await runCascade({
+    state: 's', decisions: Array.from({ length: 5 }, (_, i) => D(`n${i}`, 'q')),
+    tier1: async () => ({ answers: Object.fromEntries(Array.from({ length: 5 }, (_, i) =>
+      [[`n${i}`, { noul: 0.99 }], [`have__n${i}`, { noul: 0.01 }]]).flat()) }),
+    tier2: async () => ({ sufficient: false }),
+    tier3: async () => { t3++; return { answer: true, sufficient: true }; },
+    options: { maxEscalationRate: 1 },
+  });
+  ok(t3 === 5, 'with no budget set, nothing is declined');
+}
+
 if (failures.length) {
   console.error(`✗ cascade selftest: ${failures.length} failure(s) of ${passed + failures.length} checks\n`);
   for (const f of failures) console.error(`  - ${f}`);

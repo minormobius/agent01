@@ -38,6 +38,12 @@ export const DEFAULTS = {
   // unlimited so a large batch cannot open 200 sockets to a rate-limited
   // upper tier and turn a latency win into a wall of 429s.
   concurrency: 6,
+  // A hard ceiling on how many decisions may reach the top tier in one
+  // batch. Measured the hard way: 30 escalations reaching claude-opus-5 at
+  // once returned 429 on all 30, so the cascade's real throughput ceiling is
+  // the expensive tier's rate limit, not tier 1's speed. Past the budget a
+  // decision keeps tier 2's answer and is marked, rather than failing.
+  tier3Budget: Infinity,
 };
 
 const SELF_CHECK_PREFIX = 'have__';
@@ -158,7 +164,8 @@ export const sizeOf = (x) => new TextEncoder().encode(typeof x === 'string' ? x 
  */
 export async function runCascade({ state, decisions, tier1, tier2, tier3, options = {} }) {
   const questions = buildCascadeQuestions(decisions);
-  const { concurrency } = { ...DEFAULTS, ...options };
+  const { concurrency, tier3Budget } = { ...DEFAULTS, ...options };
+  let tier3Left = tier3Budget;
   const t0 = Date.now();
   const res = await tier1(state, questions);
   const tier1Ms = Date.now() - t0;
@@ -174,6 +181,7 @@ export async function runCascade({ state, decisions, tier1, tier2, tier3, option
     upper_bytes: 0,
     tier2_calls: 0,
     tier3_calls: 0,
+    tier3_declined: 0,
   };
 
   const resolved = local.map((r) => ({ ...r, tier: 1, final: r.answer }));
@@ -191,6 +199,11 @@ export async function runCascade({ state, decisions, tier1, tier2, tier3, option
       out = await tier2(payload).catch((e) => ({ error: String(e?.message || e) }));
     }
     if (tier3 && (!out || out.error || out.sufficient === false)) {
+      if (tier3Left <= 0) {
+        stats.tier3_declined++;
+        return { ...row, tier: tier2 ? 2 : 1, final: out, tier3_budget_exhausted: true };
+      }
+      tier3Left--;
       stats.tier3_calls++;
       const up = await tier3(payload).catch((e) => ({ error: String(e?.message || e) }));
       return { ...row, tier: 3, final: up, tier2: out };
