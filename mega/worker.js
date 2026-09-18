@@ -45,7 +45,11 @@ export default {
     // is absent (a dev server, or a deploy predating the migration), so the
     // page's static-file fallback still answers.
     if(url.pathname === '/jev/lab/api/prereg'){
-      if(env.PREREG_LOG) return preregStub(env).fetch(req);
+      // READ ONLY from the outside. Collection is the cron's job and nobody
+      // else's — it spends ~30 upstream requests, and a pre-registered record
+      // that any caller can advance is not a record. The request is rebuilt as
+      // a bare GET so no method or query string can reach the collect path.
+      if(env.PREREG_LOG) return preregStub(env).fetch(new Request(url.origin + url.pathname));
     }
     if(url.pathname.startsWith('/jev/api')){
       const res = await handleJevApi(req, env, url.pathname);

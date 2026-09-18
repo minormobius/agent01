@@ -33,15 +33,17 @@ export class PreregLog {
     const spec = JSON.parse(await (await this.env.ASSETS.fetch(
       new URL('/jev/lab/preregister.json', url.origin))).text());
 
-    // GET: hand back the record. This is the only thing the page ever calls.
-    if (req.method === 'GET' && !url.searchParams.has('collect')) {
-      return Response.json(await this.read(spec));
-    }
+    // GET: hand back the record. This is the only thing the page ever calls,
+    // and the only thing the PUBLIC route forwards.
+    if (req.method !== 'POST') return Response.json(await this.read(spec));
 
-    // The collection pass. Reached from the cron trigger, and from a GET with
-    // ?collect=1 for an out-of-band run. It is idempotent either way: a window
-    // already recorded is keyed by asset@close-time and never added twice, so
-    // an extra call adds nothing and costs nothing.
+    // The collection pass, reached only from the cron. It is not on the public
+    // route: one collection is ~30 requests to Hyperliquid, so an open trigger
+    // would be a way to spend somebody else's rate limit, and a record anyone
+    // can advance is not much of a record either.
+    //
+    // Idempotent regardless: a window already recorded is keyed by
+    // asset@close-time and never added twice, so an extra call adds nothing.
     const prev = await this.read(spec);
     try {
       const { store, added, skippedEarly } = await collect(spec, prev);

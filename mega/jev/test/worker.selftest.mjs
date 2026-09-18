@@ -353,6 +353,16 @@ await (async () => {
     ok((await res.json()).n === 7, 'with the binding present the record route reaches the log');
     ok(!got.searchParams.has('collect'), 'and a plain read does NOT trigger a collection');
 
+    // The public route is READ ONLY. A collection is ~30 upstream requests and
+    // a record anyone can advance is not a record, so neither a POST nor a
+    // hand-added query string may reach the collect path.
+    let method = null;
+    const sniff = { fetch: async (r) => { got = new URL(r.url); method = r.method; return Response.json({ n: 7 }); } };
+    const env2 = { ...envWith(SECRET), PREREG_LOG: { idFromName: () => 'id', get: () => sniff } };
+    await worker.fetch(new Request('https://mega.mino.mobi/jev/lab/api/prereg?collect=1', { method: 'POST' }), env2);
+    ok(method === 'GET', 'a POST from outside is rebuilt as a GET before it reaches the log');
+    ok(!got.searchParams.has('collect'), 'and the collect parameter is stripped');
+
     got = null;
     const waited = [];
     await worker.scheduled({ cron: '25 1 * * *' }, env, { waitUntil: (p) => waited.push(p) });
