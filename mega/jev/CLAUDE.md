@@ -924,10 +924,23 @@ that number is exactly the kind that gets quoted out of context.
   rates are not published in this repo, so tier 2 is reported in tokens only.
   The comparison it wins is against sending all 62 decisions to
   `claude-opus-5` with the whole state each — which is the thing it replaces.
-- **Tier 3 is untested by this run** — see above; it was not configured. Once
-  it is, the corpus still will not reach it, because tier 2 resolves every
-  escalation here. Exercising the top of the cascade needs questions that are
-  answerable but genuinely hard, which this corpus does not contain.
+- **Tier 3 is off by default, and for a concrete reason.** Wired to
+  `CLAUDE_CODE_OAUTH_TOKEN` it *authenticates* — the failures came back 429
+  `rate_limit_error`, not 401 — but carries no Messages API quota: every call
+  failed, at 30 concurrent and again at 5. There is no `ANTHROPIC_API_KEY`
+  repo secret. So `TIER3_BUDGET` defaults to 0 and the workflow takes it as
+  an input; raise it once a real API key exists.
+- **The top tier's rate limit is the cascade's real throughput ceiling.**
+  Tier 1 answering 62 decisions in 731 ms buys nothing if the escalation path
+  throttles at a handful. Hence `tier3Budget`: past it a decision keeps tier
+  2's answer and is marked `tier3_budget_exhausted` rather than failing. It
+  is also the strongest argument for a capable tier 2 — on this corpus tier 2
+  resolved every escalation correctly and the top tier was never needed.
+- **The eval went green once while every escalation was failing.** The only
+  gate was "was anything unanswerable answered locally", which stayed true
+  through 30 thrown calls, so it printed a perfect routing table and a 1981×
+  cost win over a completely broken upper path. Failed escalations now fail
+  the run, and are counted separately from budget declines.
 
 ### Running it
 

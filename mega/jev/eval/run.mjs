@@ -88,11 +88,16 @@ const anKey = process.env.ANTHROPIC_API_KEY || '';
 // SDK's `authToken`) and needs the oauth beta header — it is not a drop-in
 // for `apiKey`, which is why the first run found no tier 3 at all.
 const anOauth = process.env.ANTHROPIC_AUTH_TOKEN || '';
-const tier3Client = anKey
-  ? new Anthropic({ apiKey: anKey })
-  : anOauth
-    ? new Anthropic({ authToken: anOauth, defaultHeaders: { 'anthropic-beta': 'oauth-2025-04-20' } })
-    : null;
+// Budget of 0 disables tier 3 entirely. That is the DEFAULT because the only
+// Claude credential this repo holds is CLAUDE_CODE_OAUTH_TOKEN, which
+// authenticates (429, not 401) but carries no Messages API quota: every call
+// through it came back rate_limit_error, at 30 concurrent and again at 5.
+// Raise the budget once a real ANTHROPIC_API_KEY exists as a repo secret.
+const TIER3_BUDGET = Number(process.env.TIER3_BUDGET ?? 0);
+const tier3Client = TIER3_BUDGET <= 0 ? null
+  : anKey ? new Anthropic({ apiKey: anKey })
+  : anOauth ? new Anthropic({ authToken: anOauth, defaultHeaders: { 'anthropic-beta': 'oauth-2025-04-20' } })
+  : null;
 const tier2 = dsKey
   // authToken: null is load-bearing. The SDK falls back to ANTHROPIC_AUTH_TOKEN
   // from the environment, and once that was set for tier 3 this client started
@@ -112,7 +117,9 @@ const tier3 = tier3Client
 const { state, decisions, surfaceCount } = buildCorpus(process.env.REGISTRY || 'deploy-registry.json');
 console.log(`corpus: ${decisions.length} decisions over ${surfaceCount} real surfaces, state ${sizeOf(state)}B`);
 console.log(`tier 2: ${tier2 ? TIER2_MODEL : 'ABSENT (no DeepSeek key)'}   ` +
-  `tier 3: ${tier3 ? `${TIER3_MODEL} (${anKey ? 'api key' : 'oauth token'})` : 'ABSENT — no ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN'}`);
+  `tier 3: ${tier3 ? `${TIER3_MODEL} (${anKey ? 'api key' : 'oauth token'}, budget ${TIER3_BUDGET})`
+    : TIER3_BUDGET <= 0 ? 'OFF (TIER3_BUDGET=0)'
+    : 'ABSENT — no ANTHROPIC_API_KEY or ANTHROPIC_AUTH_TOKEN'}`);
 if (!tier3) console.log('  ! with no tier 3, tier 2 is the end of the line: a "0 tier-3 calls" below means\n' +
   '    NOT REACHABLE, not "not needed". Do not read it as the cascade saving a call.\n');
 
@@ -121,7 +128,7 @@ const { resolved, stats } = await runCascade({
   // 30 escalations hitting claude-opus-5 at once returned 429 on all 30.
   // The top tier's rate limit is a real constraint of this architecture, so
   // the eval respects it rather than pretending it is not there.
-  options: { maxEscalationRate: 0.8, concurrency: 3, tier3Budget: 5 },
+  options: { maxEscalationRate: 0.8, concurrency: 3, tier3Budget: TIER3_BUDGET },
 });
 
 // ------------------------------------------------------------- routing ----
