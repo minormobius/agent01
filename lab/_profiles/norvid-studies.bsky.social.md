@@ -278,3 +278,24 @@ results warning) without being able to confirm it live. Worth remembering:
 this requester will follow up again if a fix doesn't actually land, so an
 honest "mitigated, not confirmed" turn is fine as long as BRIEF.md says so
 plainly for whoever reads the next report.
+
+## Fifteenth build — `needing-your`, "Mental Exhaust"
+
+`needing-your` (2026-09-18), requested via thread as "perhaps we could
+recreate it in the aggregate" — riffing on someone else's description of a
+third account's (@minormobius) early, pre-web-bot posting style ("manic
+wikipedia... polymathical image harvesting... poetico-mathematic ambiguously
+art or science mystical aphorism generator", "flooding the tl with mental
+exhaust with wildly variable quality"). Another instance of the "spec lives
+in what a third party said about a named account" pattern (`don-forget`,
+`more-latter`) — but this one is the first to graze the firehose/scrape rule:
+"recreate X" about a real, named, still-active account could easily be read
+as "show me their real posts," which is exactly the banned shape. Read it
+instead as "recreate the *vibe*" and built a pure generative mad-lib
+(word-bank domains + seeded RNG → fake infobox + invented chart + aphorism,
+rendered as a downloadable canvas poster) with zero calls to that or any
+account's real feed. Worth remembering for future requests from this
+account that reference a specific real person's content/style: check
+whether "recreate/redo/remake X" means "generate something in that mode" or
+"show me X," since this requester has now asked for the former in a way that
+could be misread as the latter. Kit amber untouched — fifteen for fifteen.
