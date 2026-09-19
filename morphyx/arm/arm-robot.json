@@ -85,7 +85,7 @@
   "base-plate": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 73 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
+   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 74 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
    "params": {
     "d": 182,
     "t": 12,
@@ -674,7 +674,7 @@
      "counterweight": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.55 kg (× 42.3 long) on the upper arm and CW2 4.07 kg (× 40.8) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
+      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.56 kg (× 42.3 long) on the upper arm and CW2 4.07 kg (× 40.8) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
       "params": {
        "d": 70,
        "t": 42.3,
@@ -4613,6 +4613,130 @@
                     "depth": "2 * half"
                    }
                   ]
+                 },
+                 "finger": {
+                  "$schema": "com.minomobi.cad.tree#v1",
+                  "units": "mm",
+                  "_": "Jaw finger, two off: a 120° V that takes the can on four lines instead of two. The apex stands 18 mm outboard of the carrier's centre, which puts a Ø66 can at 4.1 mm of the 15 mm travel, with the V opening to Ø84.9 to get around it and closing to Ø58.9. The V is 13 deep in x and sits in the GAP between the carrier's two bolt columns, which is what lets the inboard pair be driven from the front into solid material — at 45° the V is 23 deep, covers both columns, and the counterbore has to break out obliquely on the gripping face. Two M4 there, and the two Ø5 dowels take the couple in shear. One extrude along +Z, then the bolts and the dowels as cuts along −Y.",
+                  "params": {
+                   "mx": 108,
+                   "ap": 18,
+                   "ry": 46,
+                   "dx": 13,
+                   "dy": 22.5167,
+                   "h": 26,
+                   "bk": 6,
+                   "fin": 7,
+                   "pad": 8,
+                   "d_b": 4.3,
+                   "d_d": 5,
+                   "dd": 8,
+                   "bx0": 0,
+                   "bx1": 11,
+                   "bz": 7
+                  },
+                  "features": [
+                   {
+                    "op": "sketch",
+                    "id": "plan",
+                    "plane": {
+                     "base": "XY",
+                     "offset": "-h / 2"
+                    },
+                    "loops": [
+                     {
+                      "name": "outline",
+                      "polygon": [
+                       [
+                        "-fin",
+                        "mx"
+                       ],
+                       [
+                        "ap + bk",
+                        "mx"
+                       ],
+                       [
+                        "ap + bk",
+                        "mx + ry + dy"
+                       ],
+                       [
+                        "ap - dx",
+                        "mx + ry + dy"
+                       ],
+                       [
+                        "ap",
+                        "mx + ry"
+                       ],
+                       [
+                        "ap - dx",
+                        "mx + ry - dy"
+                       ],
+                       [
+                        "ap - dx",
+                        "mx + pad"
+                       ],
+                       [
+                        "-fin",
+                        "mx + pad"
+                       ]
+                      ]
+                     }
+                    ]
+                   },
+                   {
+                    "op": "extrude",
+                    "id": "fing",
+                    "profile": "plan",
+                    "depth": "h"
+                   },
+                   {
+                    "op": "sketch",
+                    "id": "mount",
+                    "plane": {
+                     "base": "XZ",
+                     "offset": "-(mx + pad + 4)"
+                    },
+                    "loops": [
+                     {
+                      "name": "boltA",
+                      "circle": {
+                       "c": [
+                        "bx0",
+                        "-bz"
+                       ],
+                       "r": "d_b / 2"
+                      }
+                     },
+                     {
+                      "name": "boltB",
+                      "circle": {
+                       "c": [
+                        "bx0",
+                        "bz"
+                       ],
+                       "r": "d_b / 2"
+                      }
+                     },
+                     {
+                      "name": "dowel",
+                      "circle": {
+                       "c": [
+                        "bx1",
+                        0
+                       ],
+                       "r": "d_d / 2"
+                      }
+                     }
+                    ]
+                   },
+                   {
+                    "op": "extrude",
+                    "id": "mountcut",
+                    "profile": "mount",
+                    "depth": "pad + 8",
+                    "mode": "cut"
+                   }
+                  ]
                  }
                 },
                 "components": [
@@ -5060,6 +5184,26 @@
                    "yf - A",
                    -18
                   ]
+                 },
+                 {
+                  "id": "finger",
+                  "part": "finger",
+                  "repeat": 2,
+                  "at": "@rotor-plate.start",
+                  "rigid": true,
+                  "offset": [
+                   "16 + grip",
+                   -49,
+                   0
+                  ],
+                  "rotate": {
+                   "axis": [
+                    0,
+                    1,
+                    0
+                   ],
+                   "deg": "90 * (1 - (1 - 2 * (i - 2 * floor(i / 2))))"
+                  }
                  }
                 ]
                },
@@ -5700,6 +5844,11 @@
   {
    "a": "shoulder/forearm[*]",
    "b": "shoulder/wrist/forearm-barrel",
+   "contact": true
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/gripper/finger[*]",
+   "b": "shoulder/wrist/roll4/pitch5/gripper/carrier[*]",
    "contact": true
   },
   {

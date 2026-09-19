@@ -3,7 +3,7 @@
   "doc": "robot",
   "tolerance": 0.25,
   "unit": "deg",
-  "worstPourMargin": 20,
+  "worstPourMargin": 16.3,
   "map": [
     {
       "j2": -30,
@@ -31,15 +31,15 @@
     },
     {
       "j2": 0,
-      "fold": -115.5
+      "fold": -110.6
     },
     {
       "j2": 5,
-      "fold": -119.2
+      "fold": -115
     },
     {
       "j2": 10,
-      "fold": -119.2
+      "fold": -118.4
     },
     {
       "j2": 15,

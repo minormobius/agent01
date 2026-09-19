@@ -91,6 +91,59 @@ grid tests that corner every run.
 The pocketed section carries J5's continuous 5.57 N·m at **0.25 MPa**. It costs
 nothing structural.
 
+## The fingers, and where the can actually sits
+
+There weren't any. `mFingers: 0.15` sat in the balance and `toolLen` assumed "a
+40 mm customer finger", and nothing drew one: the gripper's jaw carriers ended
+33 mm short of the can's axis with nothing spanning the gap.
+
+The gripper ends at a finger **mount** and says so — four M4 and two Ø5 dowels
+in two columns on the carrier's front face. Fingers are application tooling, so
+they live here with the can and the glass.
+
+**A V, not a flat.** A flat face touches a cylinder on one line and leaves it
+free to slide fore and aft in the grip; a V touches on two lines per finger,
+locates the can's axis in both directions, and carries 2.31× the jaw force in
+normal force against 2× for a flat. For a ØD cylinder in a V of half-angle α the
+apex sits D/2/sinα from the axis — so the apex offset is what decides where in
+the 15 mm of travel a given can lands. At 18 mm outboard of the carrier's
+centre, a Ø66 can grips at **4.1 mm of travel**, with the V opening to Ø84.9 to
+get around it and closing to Ø58.9.
+
+**α is 60°, and the bolts are why.** At 45° the V is 23 mm deep in x, its flanks
+pass over both bolt columns, and a bolt driven from the front has to counterbore
+*through* a flank — which breaks out obliquely on the gripping face. Truck would
+not build it at any diameter or depth (χ −13, −12, −6, −9 across four attempts).
+At 60° the V is 13 mm deep, sits in the gap between the two columns, and the
+inboard column has clear air in front of it. **The kernel refusing to build it
+is what found the access problem**; the geometry was wrong before it was
+unbuildable.
+
+Three more things the geometry decided rather than the designer:
+
+- **The pad's depth is set by the can.** At the finger's inboard corner the can's
+  own surface is only 15.7 mm ahead of the mount face, so the pad stops at 8 and
+  the bolt heads stand proud on it — there is 5.5 mm of room for a socket head.
+- **The inboard dowel is not used.** Its Ø5 at z 0 leaves a 2.35 mm web against
+  the Ø4.3 bolts at z ±7, and all four holes together will not build while any
+  three of them will. Two bolts and the outboard dowel is a determinate mount
+  anyway: the dowel takes the shear, the bolts the clamp.
+- **Blind flat-bottomed bores do not build in this pad** — five diameters, three
+  depths, three heights, every one refused. The same bores as through-holes
+  build first time.
+
+What it comes to: friction holds the can at **9.6×** its own weight (μ 0.3, bare
+aluminium, no pad), and each MGN9C sees **2.77 N·m** of yaw — less than the
+3.2 N·m `../gripper`'s own moment model already assumed for a finger tip at
+y 163. The gripper's assumption was conservative and the real part fits inside
+it. That 2.77 is 55% of the block's static rating, and **that rating is the one
+number in this directory I could not verify** — a vendor figure from memory, not
+a datasheet. It is fine standing still and it is not a life calculation.
+
+The fingers cost 13 mm of tool length (toolLen 127 → 140) and weigh 0.153 kg the
+pair, from their own closed form — the hand-set 0.15 was, as it happens, very
+nearly right.
+
 ## The wrist camera, and what it cannot see
 
 `cam-pod` and `camera` ride the **blade**, so they pitch with the tool and the
@@ -131,6 +184,7 @@ blade. 31 g of bracket, 12 g of camera.
 | `arm-robot.json` / `arm-robot-pour.json` | the whole machine, gripper fitted: seven axes, or all seven on one clock |
 | `fold.mjs` | **where does this arm hit itself?** A bisection against the kernel, per j2, and the pour measured against the result. Six minutes on the whole machine, so it runs in the parallel job |
 | `fold-map.json` | its output — the measured boundary. The audit consumes it; CI re-measures and fails if it has moved |
+| `finger` | the jaw fingers, two off — application tooling, bolted to the gripper's own finger mount |
 | `cam-pod` / `camera` | the wrist camera, on the blade — see above for what it can and cannot see |
 | `verify.mjs` | the document posed against `fk()`; the gripper standalone against the same gripper four levels deep; and frame independence — displace a sub-assembly and assert every descendant moves rigidly |
 | `anchor-bug.mjs` | the minimal repro for the platform's nested-anchor bug (fixed 2026-09-19), kept as a gate |

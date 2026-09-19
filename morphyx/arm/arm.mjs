@@ -25,7 +25,7 @@
 // failure direction. The 20% residual is held by the gearbox, not the motor.
 import fs from 'node:fs';
 import path from 'node:path';
-import { parts as gParts, assembly as gAssembly, D as GD } from '../gripper/gripper.mjs';
+import { parts as gParts, assembly as gAssembly, D as GD, forces as gForces } from '../gripper/gripper.mjs';
 
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
@@ -58,7 +58,7 @@ export const D = {
 
   // ── masses that set the balance (kg) ──────────────────────────────────────
   mUpper: 0.35, mFore: 0.30, mWrist: 1.00,
-  mGripper: 1.86, mFingers: 0.15,             // ../gripper, from its own closed forms
+  mGripper: 1.86,                             // ../gripper, from its own closed forms; mFingers is DERIVED below, from the part
   // The adapter's 360 g used to hang here — an ARM part missing from a tip mass
   // made of GRIPPER parts, 0.7 kg of counterweight nobody was carrying. The
   // pocket deleted the part, so the gap closed itself.
@@ -120,6 +120,47 @@ export const D = {
   flangeD: 110, flangeT: 8, flangePcd: 97, flangeBolt: 3.4, flangeBoltN: 4,   // Ø110 so the bolts keep a 3 mm rim; the gripper's own web is Ø104 and leaves them 1.75
   discLap: 4,                                 // the disc reaches 4 mm INTO the slab; a union on a shared face will not build
 
+  // ── the fingers ─────────────────────────────────────────────────
+  // There were none. `mFingers: 0.15` sat in the balance and `toolLen` assumed
+  // "a 40 mm customer finger", and nothing drew one: the gripper's jaw carriers
+  // ended 33 mm short of the can's axis and nothing spanned the gap.
+  //
+  // The gripper ends at a finger MOUNT and says so — four M4 and two Ø5 dowels
+  // in two columns on the carrier's front face, tapped 8 deep. Fingers are
+  // application tooling, so they belong here with the can and the glass.
+  //
+  // A V, not a flat: a flat touches a cylinder on ONE line and leaves it free
+  // to slide fore and aft in the grip; a V touches on two lines per finger and
+  // locates the can's axis in both directions. For a ØD cylinder in a V of
+  // half-angle α the apex sits D/2/sinα from the axis, the contacts at D/2·sinα
+  // either side of it, and the four contacts carry 2/cos(90−α) times the jaw
+  // force in total — 2.31× here, against 2× for a flat.
+  //
+  // α IS 60°, AND THE BOLTS ARE WHY. At 45° the V is 23 mm deep in x, its
+  // flanks pass over both bolt columns, and a bolt driven from the front has to
+  // counterbore THROUGH a flank — which breaks out obliquely on the gripping
+  // face, and which Truck will not build at any diameter or depth (χ −13, −12,
+  // −6, −9 across four attempts). At 60° the V is 12 mm deep, it sits in the gap
+  // between the two columns, and the inboard column has solid material in front
+  // of it for a plain counterbore. The kernel refusing to build it is what
+  // found the access problem; the geometry was wrong before it was unbuildable.
+  fingerAlpha: 60,                            // half-angle from the bisector
+  fingerApex: 18,                             // apex, outboard of the carrier's centre
+  fingerReach: 46,                            // apex, forward of the carrier's front face
+  fingerFlank: 26,                            // contact is at 19.05 along it, so 7 mm of flank beyond
+  fingerH: 26, fingerBack: 6,
+  // The pad reaches INBOARD past the V's mouth to get to the bolts, and how far
+  // forward it may reach is set by the can itself: at the inboard edge the can's
+  // own surface is only 9.7 mm ahead of the mount face, so the pad stops at 8
+  // and the bolt heads are counterbored flush into it. Everything on this part
+  // hugs the can — the blade's front face clears its far side by 1.1 mm.
+  fingerIn: 7, fingerPad: 8,
+  fingerDowelY: 8,
+  // The ONE number in this file I could not verify from the sandbox: MGN9C
+  // static yaw. Vendor figure from memory, not a datasheet. Everything else
+  // here is measured or derived; this is not, and its check says so.
+  blockYaw: 5.0,
+
   // ── the wrist camera ──────────────────────────────────────────
   // It rides the BLADE, so it pitches with the tool and its relation to the tool
   // axis is a constant — which is what makes a hand-eye calibration a number
@@ -160,6 +201,20 @@ export const D = {
 };
 
 // ── derived: the balance, which is the architecture's whole point ────────────
+// The fingers used to be 0.15 kg of assumption. They are a drawn part now, so
+// their mass comes out of their own closed form — a rectangle less the V notch,
+// less the bolt holes — and it cannot drift from the geometry again.
+{
+  const cosA = Math.cos(rad(D.fingerAlpha)), sinA = Math.sin(rad(D.fingerAlpha));
+  const dx = D.fingerFlank * cosA, dy = D.fingerFlank * sinA;   // the notch: dx deep in x, 2*dy in y
+  const W = D.fingerApex + D.fingerBack + D.fingerIn, H = D.fingerReach + dy;
+  const strip = (D.fingerApex - dx + D.fingerIn) * (H - D.fingerPad);   // the pad's step, inboard of the blade
+  const area = W * H - strip - dx * dy;                                  // rect, less the step, less the notch
+  const shank = 2 * Math.PI * (GD.fingerBolt / 2) ** 2 * D.fingerPad;   // through the pad
+  const dowel = Math.PI * (GD.fingerDowel / 2) ** 2 * (D.fingerPad + 4);  // one, into the blade behind the V
+  D.fingerVol = area * D.fingerH - shank - dowel;
+  D.mFingers = round((2 * D.fingerVol * 2.7e-3) / 1000, 3);   // two of them, aluminium
+}
 D.mTip = D.mGripper + D.mFingers + D.canMass;             // what hangs off the flange
 // moment per unit cos(angle), kg·mm. M3 is delivered to the J3 crank 1:1 by the
 // push rod; M2 is everything outboard of the elbow, acting through the elbow.
@@ -184,7 +239,15 @@ D.shZ = D.shoulderZ;
 // DERIVED now, from where the gripper's web actually lands: the pocket puts
 // that web straight onto the blade's flange face, so the number moves by itself
 // if either side's geometry does.
-D.gripperReach = 141;
+// The can's axis sits on the V's bisector, at the apex's own y. So the reach is
+// the finger's, not a guess: carrier front face + the apex's offset forward.
+D.gripperReach = GD.carrierY[1] + D.fingerReach;
+D.sinA = Math.sin(rad(D.fingerAlpha));
+D.apexFor = (dia) => dia / 2 / D.sinA;                  // where the V's apex must be, for Ødia
+D.xf0 = GD.xpClosed + GD.inset;                         // the jaw carrier's centre, at closed
+D.gripAt = (dia) => D.apexFor(dia) - D.fingerApex - D.xf0;   // the jaw travel that grips Ødia
+D.diaAt = (g) => 2 * (D.xf0 + g + D.fingerApex) * D.sinA;    // and the inverse
+D.contactAt = (dia) => (dia / 2) * D.sinA;              // how far off the tool axis the can is touched
 D.gripX = D.Lw + D.flangeT - GD.webY[0];       // where the gripper's own origin lands
 D.pocketDepth = GD.motorLen;                   // the motor's stack, and nothing else
 D.pocketBack = D.Lw + D.flangeT - D.pocketDepth;
@@ -344,6 +407,42 @@ export function audit() {
     `corner sweeps r ${round(Math.hypot(D.bladeRear, D.bladeH / 2))}, web face at ${D.forkBack - D.forkWeb}`);
   ok('the blade fits the slot with a running clearance', D.forkGap - D.bladeT >= 3 && D.forkGap - D.bladeT <= 6,
     `${D.bladeT} blade in a ${D.forkGap} slot`);
+  // ── the fingers ────────────────────────────────────────────────
+  const gCan = D.gripAt(D.canD);
+  ok('the V grips the can inside the travel, off both stops', gCan > 3 && gCan < GD.travel - 3,
+    `Ø${D.canD} at ${round(gCan, 1)} mm of the ${GD.travel} mm travel — the V opens to Ø${round(D.diaAt(GD.travel), 1)} to get around it and closes to Ø${round(D.diaAt(0), 1)}`);
+  ok('and there is room to get around the can before closing on it', D.diaAt(GD.travel) > D.canD + 12,
+    `${round(D.diaAt(GD.travel) - D.canD, 1)} mm of diametral clearance at full open`);
+  // Four contact lines, not two, and that is what a V buys: the jaw force F
+  // becomes 2F/cos(90−α) of normal force spread over four lines, and the can
+  // is located fore-and-aft instead of free to slide.
+  const alpha = rad(D.fingerAlpha);
+  const mult = 2 / Math.cos(Math.PI / 2 - alpha);
+  const jawF = gForces().reduce((a, b) => (Math.abs(b.mount_travel_mm - 2 * gCan) < Math.abs(a.mount_travel_mm - 2 * gCan) ? b : a)).jaw_N;
+  const hold = 0.3 * mult * jawF;                            // μ 0.3, bare aluminium on aluminium, no pad
+  ok('friction holds the can against its own weight with margin', hold > 4 * D.canMass * 9.81,
+    `${round(hold, 1)} N of axial friction against ${round(D.canMass * 9.81, 2)} N of can — safety ${round(hold / (D.canMass * 9.81), 1)}×, at μ 0.3 and no pad, from ${jawF} N of jaw at this travel`);
+  ok('a V is worth having over a flat', mult > 2,
+    `${round(mult, 2)}× the jaw force in normal force, against 2× for a flat face — and the flat would not locate the can fore and aft at all`);
+  // The gripper's own moment model assumed a finger. This is that assumption
+  // meeting the real part, and it is the good kind of integration result.
+  const blockMid = (GD.blockY[0] + GD.blockY[1]) / 2;
+  const yaw = (jawF * (D.gripperReach - blockMid)) / 1000;
+  ok('the real finger is kinder to the carriage than the gripper assumed',
+    yaw < (gForces()[1].jaw_N * (GD.fingerTipY - blockMid)) / 1000,
+    `${round(yaw, 2)} N·m of yaw on each MGN9C, against the ${round((gForces()[1].jaw_N * (GD.fingerTipY - blockMid)) / 1000, 2)} ../gripper assumed for a tip at y ${GD.fingerTipY}`);
+  ok('and inside the block’s rating — THE ONE UNVERIFIED NUMBER HERE', yaw < D.blockYaw * 0.8,
+    `${round(yaw, 2)} N·m, which is ${Math.round((100 * yaw) / D.blockYaw)}% of a ${D.blockYaw} N·m static rating — and THAT rating is a vendor figure from memory, not a datasheet. Every other number in this audit is measured or derived. 55% of a static rating is fine standing still and is NOT a life calculation; if this arm is ever meant to do the pour ten thousand times, the MGN9C sheet is the first thing to read`);
+  // The part hugs the can, so the clearances that matter are millimetres.
+  const rCan = D.canD / 2, axY = D.fingerReach;
+  const clearAt = (x, y) => Math.hypot(D.gripAt(D.canD) + D.xf0 + x, y - axY) - rCan;
+  ok('the pad clears the can at its inboard corner', clearAt(-D.fingerIn, D.fingerPad) > 1,
+    `${round(clearAt(-D.fingerIn, D.fingerPad), 1)} mm at the inboard corner — this is what sets the pad's depth, and why the bolt heads stand proud rather than sitting in a counterbore`);
+  ok('and the blade clears it at the V’s mouth', clearAt(D.fingerApex - D.fingerFlank * Math.cos(alpha), axY + D.fingerFlank * Math.sin(alpha)) > 0.3,
+    `${round(clearAt(D.fingerApex - D.fingerFlank * Math.cos(alpha), axY + D.fingerFlank * Math.sin(alpha)), 2)} mm at the mouth corner — by construction, since the flank is tangent and the mouth is past the contact`);
+  ok('the finger’s mass is its own volume, not an assumption', Math.abs(D.mFingers - 0.153) < 0.02,
+    `${D.mFingers} kg the pair, from ${Math.round(D.fingerVol)} mm³ of closed form — the old hand-set 0.15 was, as it happens, very nearly right`);
+
   // ── the wrist camera: what it can see, computed rather than claimed ──────
   const lens = [(D.podX[0] + D.podX[1]) / 2, D.podY[1] - D.cam / 2 - 1, D.podZ[0]];
   const R = GD.OD / 2, gripNose = D.gripX + GD.webY[0];       // the tool's Ø104 body starts here
@@ -660,6 +759,45 @@ export const parts = {
   // this part sweeps r = hypot(x, z) about the pitch axis and the fork reaches
   // r 43 — the same circle that sizes the blade. One extrude along +Z, and the
   // board's pocket is open at the bottom, because the lens looks through it.
+  // Drawn for the RIGHT jaw and mirrored by the same 180°-about-Y the carrier
+  // uses, which its own section is symmetric in z for. Local origin is the
+  // carrier's centre in x and z; y is the gripper's own, so the mount face sits
+  // on the carrier's front face and the whole thing rides `grip` for free.
+  finger: (() => {
+    const a = rad(D.fingerAlpha), dx = round(D.fingerFlank * Math.cos(a), 4), dy = round(D.fingerFlank * Math.sin(a), 4);
+    return tree(`Jaw finger, two off: a ${2 * D.fingerAlpha}° V that takes the can on four lines instead of two. The apex stands ${D.fingerApex} mm outboard of the carrier's centre, which puts a Ø${D.canD} can at ${round(D.gripAt(D.canD), 1)} mm of the ${GD.travel} mm travel, with the V opening to Ø${round(D.diaAt(GD.travel), 1)} to get around it and closing to Ø${round(D.diaAt(0), 1)}. The V is ${dx} deep in x and sits in the GAP between the carrier's two bolt columns, which is what lets the inboard pair be driven from the front into solid material — at 45° the V is 23 deep, covers both columns, and the counterbore has to break out obliquely on the gripping face. Two M4 there, and the two Ø5 dowels take the couple in shear. One extrude along +Z, then the bolts and the dowels as cuts along −Y.`,
+      { mx: GD.carrierY[1], ap: D.fingerApex, ry: D.fingerReach, dx, dy,
+        h: D.fingerH, bk: D.fingerBack, fin: D.fingerIn, pad: D.fingerPad,
+        d_b: GD.fingerBolt, d_d: GD.fingerDowel, dd: D.fingerDowelY,
+        bx0: GD.fingerBoltX[0], bx1: GD.fingerBoltX[1], bz: GD.fingerBoltZ },
+      [{ op: 'sketch', id: 'plan', plane: { base: 'XY', offset: '-h / 2' }, loops: [{ name: 'outline', polygon: [
+          ['-fin', 'mx'], ['ap + bk', 'mx'], ['ap + bk', 'mx + ry + dy'], ['ap - dx', 'mx + ry + dy'],
+          ['ap', 'mx + ry'], ['ap - dx', 'mx + ry - dy'], ['ap - dx', 'mx + pad'], ['-fin', 'mx + pad']] }] },
+        { op: 'extrude', id: 'fing', profile: 'plan', depth: 'h' },
+        // the shank, through the pad from behind the mount face, and the
+        // counterbore over it with 2 mm of overlap — two cuts that meet on a
+        // shared face do not build
+        // Both cuts run THROUGH the pad and overshoot it at each end. A blind
+        // flat-bottomed bore in this pad does not build — Ø5, Ø6, Ø7, Ø7.5,
+        // three depths and three heights, every one either "boolean cut failed"
+        // or a shell with handles it should not have. The same bores as
+        // through-holes build first time. So the bolts are plain clearance
+        // holes and their heads stand proud on the pad, which the can has room
+        // for: over the head's own width its surface is 17.5 mm ahead of the
+        // mount face and a socket head is 4.
+        // ONE cut, not two — two cut features on the same plane over the same
+        // slab left a shell with handles it should not have. And the carrier's
+        // INBOARD dowel is not used: its Ø5 at z 0 leaves a 2.35 mm web against
+        // the Ø4.3 bolts at z ±7, and all four holes together will not build
+        // while any three of them will. Two bolts and the outboard dowel is a
+        // determinate mount anyway — the dowel takes the shear, the bolts the
+        // clamp — and it is what the carrier's own note describes.
+        { op: 'sketch', id: 'mount', plane: { base: 'XZ', offset: '-(mx + pad + 4)' }, loops: [
+          circle('boltA', ['bx0', '-bz'], 'd_b / 2'), circle('boltB', ['bx0', 'bz'], 'd_b / 2'),
+          circle('dowel', ['bx1', 0], 'd_d / 2')] },
+        { op: 'extrude', id: 'mountcut', profile: 'mount', depth: 'pad + 8', mode: 'cut' }]);
+  })(),
+
   'cam-pod': tree(`Wrist camera bracket: an L reaching from the flange disc's rear face out past the fork cheeks, holding a ${D.cam} square board camera looking DOWN the tool's −Z. It is on the blade, so J5 aims it and the hand-eye transform is a constant. It cannot see the grip point — nothing on the wrist can, with a Ø${GD.OD} tool in front of it — and it does not pretend to: this is the camera that finds the can on the bench, not the one that watches the jaws close. One extrude along +Z, one pocket.`,
     { x0: D.podX[0], x1: D.podX[1], y0: D.podY[0], y1: D.podY[1], fy: D.podFootY, fx: D.podX[1] - 8,
       z0: D.podZ[0], t: D.podZ[1] - D.podZ[0], c: D.cam, ct: D.camT,
@@ -959,10 +1097,19 @@ function gripperModule(demo = false) {
     // nothing flows down a scope boundary except inputs, params and the clock.
     derived: demo ? { grip: channel(GRIP), roll: channel(ROLL), ...g.derived } : g.derived,
     parts: { ...Object.fromEntries(Object.entries(g.parts).map(([k, v]) => [k, structuredClone(v)])),
-    },
-    components: [
-      ...inject(structuredClone(g.components), demo),
-    ] };
+      finger: structuredClone(parts.finger) },
+    components: (() => {
+      // The fingers ride the jaw carriers, so they take the carrier's own
+      // placement verbatim — the same `grip` expression, the same repeat, the
+      // same 180°-about-Y that makes the left one out of the right. Copying it
+      // rather than restating it is the point: the finger cannot drift from the
+      // jaw it is bolted to.
+      const c = inject(structuredClone(g.components), demo);
+      const carrier = c.find((x) => x.id === 'carrier');
+      if (!carrier) throw new Error('the gripper has no `carrier` to hang a finger on');
+      c.push({ ...structuredClone(carrier), id: 'finger', part: 'finger' });
+      return c;
+    })() };
 }
 
 export function robot(mode = 'inputs') {
@@ -1010,6 +1157,7 @@ export function robot(mode = 'inputs') {
       { a: 'shoulder/forearm[*]', b: 'shoulder/wrist/forearm-barrel', contact: true },
       // The gripper's web bolts straight onto the blade's own flange face now,
       // and its motor lives inside the blade. That second pair is the pocket.
+      { a: `${G}/gripper/finger[*]`, b: `${G}/gripper/carrier[*]`, contact: true },
       { a: `${G}/wrist-blade`, b: `${G}/gripper/motor-web`, contact: true },
       { a: `${G}/wrist-blade`, b: `${G}/gripper/motor`, min: 0.5 },
     ],
