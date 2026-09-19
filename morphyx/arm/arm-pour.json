@@ -1,7 +1,7 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "arm-pour",
- "_": "THE POUR, one turn of the clock: home → over the can → down and grip → lift → traverse → over the glass → 120° of tool roll → away. Eight waypoints solved by closed-form IK from task space, not posed by hand. The tip is a roll of the TOOL, because the can is held with its own axis perpendicular to the tool axis — which is also why ../gripper's one-way indexer could do this move itself. Six-DOF bench arm, counterweighted parallelogram. 250 + 250 + 60 mm of arm and 181 mm of tool, shoulder at z 400, reaching a 66 × 123 can at r 500. J2 and J3 are COAXIAL at the shoulder: J2 swings the upper arm and J3 a crank whose push rod drives an elbow crank rigid with the forearm, so the forearm's ABSOLUTE angle is j3 and nothing about j2 reaches it. Three things follow — both big actuators sit at the shoulder, gravity splits into two independent one-DOF problems, and a counterweight on each rear extension balances both EXACTLY at every pose, because load and counterweight go as the cosine of the same angle. 2.55 + 4.07 = 6.62 kg of steel (CW1 at r 300, CW2 as two pucks at r 200) takes 80% of it, leaving 1.88 N·m at J2 against 9.4 bare. Deliberately not 100%: a perfectly balanced arm drifts anywhere when the power dies, an 80% one settles downward.",
+ "_": "THE POUR, one turn of the clock: home → over the can → down and grip → lift → traverse → over the glass → 120° of tool roll → away. Eight waypoints solved by closed-form IK from task space, not posed by hand. The tip is a roll of the TOOL, because the can is held with its own axis perpendicular to the tool axis — which is also why ../gripper's one-way indexer could do this move itself. Six-DOF bench arm, counterweighted parallelogram. 250 + 250 + 60 mm of arm and 181 mm of tool, shoulder at z 400, reaching a 66 × 123 can at r 500. J2 and J3 are COAXIAL at the shoulder: J2 swings the upper arm and J3 a crank whose push rod drives an elbow crank rigid with the forearm, so the forearm's ABSOLUTE angle is j3 and nothing about j2 reaches it. Three things follow — both big actuators sit at the shoulder, gravity splits into two independent one-DOF problems, and a counterweight on each rear extension balances both EXACTLY at every pose, because load and counterweight go as the cosine of the same angle. 2.79 + 4.52 = 7.31 kg of steel (CW1 at r 300, CW2 as two pucks at r 200) takes 80% of it, leaving 2.06 N·m at J2 against 9.4 bare. Deliberately not 100%: a perfectly balanced arm drifts anywhere when the power dies, an 80% one settles downward.",
  "drive": {
   "component": "clock",
   "rpm": 3
@@ -36,7 +36,7 @@
   "base-plate": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 73 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
+   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 79 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
    "params": {
     "d": 182,
     "t": 12,
@@ -610,10 +610,10 @@
      "counterweight": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.55 kg (× 42.3 long) on the upper arm and CW2 4.07 kg (× 40.8) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
+      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.79 kg (× 46.2 long) on the upper arm and CW2 4.52 kg (× 45.2) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
       "params": {
        "d": 70,
-       "t": 42.3,
+       "t": 46.2,
        "y1": "t / 2",
        "d_bore": 12.2
       },
@@ -965,8 +965,8 @@
        "c1z"
       ],
       "params": {
-       "t": 42.3,
-       "y1": "12 * (1 - 2 * (i - 2 * floor(i / 2))) + 42.3 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "t": 46.2,
+       "y1": "12 * (1 - 2 * (i - 2 * floor(i / 2))) + 46.2 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1000,9 +1000,9 @@
        "c2z"
       ],
       "params": {
-       "t": 40.8,
+       "t": 45.2,
        "d": 90,
-       "y1": "42 * (1 - 2 * (i - 2 * floor(i / 2))) + 40.8 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "42 * (1 - 2 * (i - 2 * floor(i / 2))) + 45.2 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {

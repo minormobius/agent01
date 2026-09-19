@@ -59,6 +59,11 @@ export const D = {
   // ── masses that set the balance (kg) ──────────────────────────────────────
   mUpper: 0.35, mFore: 0.30, mWrist: 1.00,
   mGripper: 1.86, mFingers: 0.15,             // ../gripper, from its own closed forms
+  // The tool adapter was NOT in the tip mass, and it is 360 g at the far end of
+  // the longest lever on the machine — 0.7 kg of counterweight that the balance
+  // was not carrying. It is an arm part, not a gripper part, which is exactly
+  // how it fell through: neither side's own numbers included it.
+  mAdapter: 0.36,                             // Ø104 cup, 133378 mm³ closed form, aluminium
 
   // ── structure ─────────────────────────────────────────────────────────────
   baseD: 182, baseT: 12, baseBolt: 8.4, baseBoltR: 72, baseBoltN: 4,
@@ -106,7 +111,7 @@ export const D = {
 
   // joint limits, degrees. j2's ceiling is what keeps CW1 off the bench; j5's
   // range is what a level tool needs when reaching down to it (87° at r 500).
-  lim: { j1: [-170, 170], j2: [-30, 0], j3: [-90, 50], j4: [-180, 180], j5: [-100, 100] },
+  lim: { j1: [-170, 170], j2: [-30, 40], j3: [-90, 50], j4: [-180, 180], j5: [-100, 100] },
   // ── the tool adapter, which the gripper's own layout forces on us ───────
   // ISO 9409-1-50-4-M6 puts four M6 on a Ø50 circle, r 25. The gripper's NEMA
   // 17 sits on the BACK of its motor web, 42.3 square — half-diagonal 29.9. So
@@ -120,7 +125,7 @@ export const D = {
 };
 
 // ── derived: the balance, which is the architecture's whole point ────────────
-D.mTip = D.mGripper + D.mFingers + D.canMass;             // what hangs off the flange
+D.mTip = D.mGripper + D.mFingers + D.canMass + D.mAdapter;  // what hangs off the flange
 // moment per unit cos(angle), kg·mm. M3 is delivered to the J3 crank 1:1 by the
 // push rod; M2 is everything outboard of the elbow, acting through the elbow.
 D.M3 = D.mFore * (D.L2 / 2) + D.mWrist * D.L2 + D.mTip * (D.L2 + D.Lw);
@@ -195,6 +200,29 @@ export function torques(j2, j3) {
 export const loadTable = () => [-30, 0, 30, 60, 90].map((a) => ({ arm_deg: a,
   J2_bare: torques(a, 0).raw2, J2_motor: torques(a, 0).j2,
   J3_bare: torques(0, a).raw3, J3_motor: torques(0, a).j3 }));
+
+// ── the self-collision boundary, MEASURED ───────────────────────────
+// The forearm folds back onto the upper arm; the limit is on the INCLUDED elbow
+// angle j3 − j2, which a box of independent inputs cannot express. This carried
+// a single guessed number for six commits. It is not a number — it is a CURVE,
+// and below j2 ≈ 10 the thing the tool reaches is not the upper arm at all but
+// the BASE PLATE, 190000 mm³ deep against a 2500 mm³ corner graze. fold.mjs
+// measures it against the kernel and writes fold-map.json; this reads it.
+let FOLD_MAP = null;
+try { FOLD_MAP = JSON.parse(fs.readFileSync(new URL('./fold-map.json', import.meta.url), 'utf8')); } catch { /* not measured yet */ }
+export function foldEdge(j2) {
+  const k = (FOLD_MAP?.map || []).filter((m) => m.fold !== null);
+  if (!k.length) return null;
+  const lo = [...k].reverse().find((m) => m.j2 <= j2) ?? k[0];
+  const hi = k.find((m) => m.j2 >= j2) ?? k[k.length - 1];
+  return lo.j2 === hi.j2 ? lo.fold : lo.fold + ((hi.fold - lo.fold) * (j2 - lo.j2)) / (hi.j2 - lo.j2);
+}
+export function foldMargins() {
+  return pour().filter((v) => v.ok).map((v) => {
+    const fold = v.j[2] - v.j[1], edge = foldEdge(v.j[1]);
+    return { name: v.name, j2: v.j[1], fold, edge, margin: edge === null ? null : fold - edge };
+  });
+}
 
 // ── the pour, solved rather than guessed ─────────────────────────────────────
 // Task space in, joint space out. The can stands on the bench; the glass is to
@@ -304,20 +332,29 @@ export function audit() {
   // THE JOINT BOX CANNOT EXPRESS THIS ONE, and that is the finding rather than
   // a shortfall. The forearm folding back onto the upper arm is inherent to an
   // articulated arm; the real constraint is on the INCLUDED elbow angle j3 − j2,
-  // and a box of independent inputs cannot say that. Measured: the wrist reaches
-  // the upper arm at a fold near −120°, and the POUR needs −114°. Any box that
-  // contains the pour (j2 up to 37, j3 down to −88) therefore also contains the
-  // collision, because its worst corner is j3min − j2max ≤ −125.
+  // and a box of independent inputs cannot say that. Any box that contains the
+  // pour (j2 up to 37, j3 down to −88) therefore also contains the collision,
+  // because its worst corner is j3min − j2max ≤ −125.
+  //
+  // What the boundary IS, rather than what it is not, is measured by fold.mjs
+  // and read from fold-map.json above — a curve in j2, not the single number
+  // this file carried for six commits.
   //
   // So the box is NOT claimed collision-free, and the grid is not the gate for
   // this document — the trajectory is. That is the honest position for a
   // multi-DOF arm: every real one has a self-collision map its controller
   // enforces, because the corners of a 5-D box are poses no task ever asks for.
-  const FOLD_LIMIT = -118;                                  // measured, not assumed
-  const pourFold = Math.min(...pour().filter((v) => v.ok).map((v) => v.j[2] - v.j[1]));
-  ok('the pour stays clear of the fold where the wrist meets the upper arm', pourFold > FOLD_LIMIT + 3,
-    `the pour folds to ${round(pourFold)}\u00b0 at worst; the wrist reaches the upper arm near ${FOLD_LIMIT}\u00b0`);
-  ok('and the box is honest about containing that region', L.j3[0] - L.j2[1] < FOLD_LIMIT,
+  const M = foldMargins();
+  const worstFold = M.length && M.every((m) => m.margin !== null) ? M.reduce((a, b) => (b.margin < a.margin ? b : a)) : null;
+  // The gate is 3° — below that the arm is about to touch itself. The margin we
+  // actually have is 5.3°, which is THIN for a first article, and the detail
+  // line says so rather than hiding behind a pass. fold.mjs prints the levers.
+  ok('the pour clears the MEASURED self-collision boundary, waypoint by waypoint', worstFold && worstFold.margin > 3,
+    worstFold ? `worst margin ${round(worstFold.margin)}\u00b0 at "${worstFold.name}" \u2014 folds to ${round(worstFold.fold)}\u00b0 against a boundary of ${round(worstFold.edge)}\u00b0 at j2 ${round(worstFold.j2)}${worstFold.margin < 10 ? ' \u2014 THIN; 0.27\u00b0 per mm of tool is the rate' : ''}` : 'fold-map.json is missing \u2014 run fold.mjs --write');
+  ok('the boundary is measured at the j2 the pour actually uses, not assumed flat',
+    FOLD_MAP && Math.abs(foldEdge(-30) - foldEdge(40)) > 10,
+    FOLD_MAP ? `the boundary moves ${round(foldEdge(-30))}\u00b0 \u2192 ${round(foldEdge(40))}\u00b0 across the j2 range; a single number would have been wrong at one end or the other` : 'no map');
+  ok('and the box is honest about containing that region', FOLD_MAP && L.j3[0] - L.j2[1] < foldEdge(L.j2[1]),
     `the box allows ${L.j3[0] - L.j2[1]}\u00b0, which INCLUDES the collision \u2014 no box can exclude it and still hold the pour, so the trajectory is the gate`);
   ok('the push rods run outboard of the roll drum', D.rodY - D.rodT > D.drumD / 2 + 2,
     `rods ${D.rodY - D.rodT}\u2026${D.rodY} against a \u00d8${D.drumD} drum reaching \u00b1${D.drumD / 2}`);

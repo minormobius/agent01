@@ -208,3 +208,22 @@ jobs:
       - name: Clearance table over the joint corners (exact meshes; for the record, not a gate)
         working-directory: /tmp/cad
         run: node agent/check.mjs /tmp/arm/arm.json --grid 3 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
+
+      # WHERE DOES THIS ARM HIT ITSELF? The audit used to carry a single guessed
+      # number for that, FOLD_LIMIT = -118, bracketed at two points. It is not a
+      # number: the boundary moves with j2, and with the gripper fitted the
+      # thing the tool reaches below j2 = 10 is the BASE PLATE, not the upper
+      # arm — 190000 mm³ deep rather than a 2500 mm³ corner graze. fold.mjs
+      # bisects the real boundary against the kernel, per j2, and writes
+      # fold-map.json; the audit in the gating job reads that map and checks the
+      # pour against it waypoint by waypoint. Six minutes on the whole machine,
+      # so it lives here rather than in front of the publish — but it IS a gate
+      # for this job: a boundary that has moved means the audit upstream has
+      # been checking the pour against the wrong curve.
+      - name: The self-collision boundary is still where the committed map says
+        run: |
+          node morphyx/arm/fold.mjs /tmp/cad --doc robot --write
+          git diff --exit-code morphyx/arm/fold-map.json || {
+            echo "::error::the self-collision boundary MOVED — morphyx/arm/fold-map.json is stale, so the audit checked the pour against the wrong curve. Re-run: node morphyx/arm/fold.mjs /tmp/cad --doc robot --write"
+            exit 1
+          }
