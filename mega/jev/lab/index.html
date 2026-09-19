@@ -151,6 +151,24 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>Three tapes, one clock</h2>
+    <p class="cap" style="margin:0 0 8px" id="xsWhy">waiting for the cross-section feed&hellip;</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>asset</th><th>mid</th><th>60s</th><th>15s</th><th>vol</th><th>efficiency</th><th>range pos</th>
+      </tr></thead><tbody id="xsBody"><tr><td colspan="7" class="why">no ticks yet</td></tr></tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0" id="xsRead">&mdash;</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0" id="xsRegime"></p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      <b>Nothing here trades.</b> The relative-value leg does not clear its costs &mdash; the three move together
+      ~76% of the time and the median best-minus-worst spread is 4.1bp over a minute against ~19bp for the two
+      round trips a pair costs. These three are here because together they make a market question that has an
+      answer, which is what the card above measures.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>Where the money actually went</h2>
     <p class="cap" style="margin-bottom:8px">The same trades, at the same moments, run once with fees and once
       without. The difference is the drag — measured, not inferred from a fee times a turnover.</p>
@@ -252,6 +270,79 @@
       right on the corrected significance bar, which is exactly where a result goes to be wrong. The only clean
       next step is to <b>pre-register the horizon and test it forward on data that does not exist yet</b> —
       everything else is re-reading the same 208 days.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The gate fires on markets &mdash; when the question has an answer</h2>
+    <p class="cap" style="margin:0 0 10px">Two numbers on this page had never been reconciled. Now they are.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The &ge;0.9 confidence gate is <b>66/66 perfect</b> on determinate questions and fires <b>0 times in 342</b>
+      on market questions. The standing explanation was that market questions are predictions and predictions
+      have no determinate answer &mdash; which had never been tested, because no determinate market question was
+      ever asked. Three tapes on one clock make one possible: <em>which of these is strongest right now</em> has
+      an answer you can compute.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Six determinate and four predictive probes, <b>same document, same
+      call</b>, 41 non-overlapping windows of 1m bars. Ground truth computed, never labelled.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>arm</th><th>n</th><th>accuracy</th><th>mean conf</th><th>&ge;0.9 fired</th><th>&hellip;and was right</th>
+      </tr></thead><tbody>
+        <tr><td><b>determinate</b></td><td>246</td><td><b>87.0%</b></td><td>0.864</td><td><b>172 (69.9%)</b></td><td><b style="color:var(--ok)">97.1%</b></td></tr>
+        <tr><td>predictive <em>(control)</em></td><td>164</td><td style="color:var(--bad)">31.1%</td><td>0.708</td><td>40 (24.4%)</td><td style="color:var(--bad)">30.0%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>So the 0/342 was about the questions, not the domain.</b> Given a market question with an answer, the
+      gate fires on seven in ten and is right 97% of the time when it does. That is the headline and it is good
+      news for every cascade built on this pattern.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the second row is the warning.</b> Confidence alone let <b>40 predictive answers through at 30%
+      accuracy</b>. <code>p_weakest_next</code> cleared 0.9 on <b>20 of 41</b> windows and scored <b>19.5%</b> &mdash;
+      well <em>below</em> the 33% a coin-flip gets on a three-way choice. That is the same confidently-wrong
+      failure already measured on questions about machines that did not exist, reproduced here in a new domain.
+      <b>A plain confidence gate is not safe on market questions.</b>
+    </p>
+    <p class="cap" style="margin:14px 0 6px">The fix was already on this page. Asking
+      <em>&ldquo;does the state contain what this needs?&rdquo;</em> as its own question, in the same call:</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>router</th><th>keeps</th><th>accuracy of what it kept</th><th>predictive wrongly kept</th>
+      </tr></thead><tbody>
+        <tr><td>confidence &ge; 0.9</td><td>212</td><td>84.4%</td><td style="color:var(--bad)"><b>40</b></td></tr>
+        <tr><td>p(have) &gt; 0.5</td><td>246</td><td>87.0%</td><td style="color:var(--ok)"><b>0</b></td></tr>
+        <tr><td><b>both</b></td><td>172</td><td><b style="color:var(--ok)">97.1%</b></td><td style="color:var(--ok)"><b>0</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>The self-check was perfect: 246/246 determinate above 0.5, 0/164 predictive above it.</b> Mean p(have)
+      0.808 against 0.046 &mdash; a <b>76-point margin</b> where answer-confidence managed 15. The worst
+      determinate case (0.750) and the best predictive one (0.061) are <b>69 points apart</b>; the two classes do
+      not come close to touching. The 62-point margin measured earlier on a telemetry table replicates on live
+      market data, and is <em>wider</em> here.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Compute-first replicated inside the same call.</b> Five of the six determinate probes are a lookup and a
+      comparison over figures the document prints; they averaged <b>89.3% at 0.908 confidence</b>. The sixth,
+      <em>which asset is furthest from the average of the three</em>, needs one subtraction the document does not
+      carry &mdash; it scored <b>75.6%</b>, and said so: confidence <b>0.642</b>, gate fired on <b>5 of 41</b>.
+      The one question requiring arithmetic was the worst one AND knew it, with everything else held identical.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>One number worth staring at.</b> Asked whether all three would move together over the next hour, it
+      answered <b>no on 41 windows out of 41</b> &mdash; while the truth was <em>yes</em> on 82.9% of them. A
+      constant &ldquo;yes&rdquo; scores 82.9%; it scored <b>17.1%</b>. That is not a bad forecast, it is a
+      refusal shaped like one, and the self-check flagged every single one of those answers at p(have) = 0.048.
+      <b>The model told us not to read them.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>What this does not license.</b> No position was opened and none should be. The relative-value trade dies
+      on arithmetic before the model is consulted: the three majors move the same way ~76% of the time, the
+      leader changes in 61&ndash;70% of windows, and the median best-minus-worst spread is 4.1bp over a minute
+      and 14.7bp over fifteen &mdash; against ~19bp for the two round trips a pair costs. This is a measurement
+      of the gate, not a strategy. And it is 3.5 days: one regime, as ever.
     </p>
   </div>
 

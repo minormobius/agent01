@@ -13,6 +13,8 @@ import * as B from './streamb.mjs';
 import { captureStats, describe as describeCapture } from './bigmove.mjs';
 import { newBook, step, summary, pct } from './book.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from './candles.mjs';
+import { connectMany, UNIVERSE as XS_UNIVERSE } from './multifeed.mjs';
+import { assetFigures, crossSection } from './cross.mjs';
 
 const $ = (id) => document.getElementById(id);
 const ring = newRing();
@@ -591,7 +593,103 @@ async function paintPrereg() {
     : `  ·  ${r.verdict.status}`;
 }
 
+// ------------------------------------------------ three tapes, one clock ----
+//
+// A second socket connection for the other two assets, and a third ring each.
+// This does NOT trade and must not be made to: the relative-value case dies on
+// arithmetic before the model is consulted. It is here so the page can show
+// the one market question that has a computable answer — see the card above
+// and mega/jev/lab/cross.mjs.
+const xsRings = Object.fromEntries(XS_UNIVERSE.map((c) => [c, newRing()]));
+let xsFeed = null;
+
+function paintCross() {
+  const figs = {}, mids = {};
+  for (const c of XS_UNIVERSE) {
+    const buf = xsRings[c].buf;
+    mids[c] = buf.length ? buf[buf.length - 1].mid : null;
+    const px = buf.map((t) => t.mid);
+    figs[c] = assetFigures(px, px.length - 1, [15, 60]);
+  }
+  const ready = XS_UNIVERSE.filter((c) => figs[c]);
+  const why = $('xsWhy');
+  if (ready.length < 2) {
+    // Same rule as the single-asset document: describe no window the tape does
+    // not reach, and say how much tape there is rather than showing a blank.
+    const have = XS_UNIVERSE.map((c) => `${c} ${xsRings[c].buf.length}s`).join(' · ');
+    why.textContent = `warming up — needs 60s per asset. ${have}`;
+    return;
+  }
+  const xs = crossSection(Object.fromEntries(ready.map((c) => [c, figs[c]])), { window: 60 });
+  why.textContent = `trailing 60 seconds, computed here — the same figures the probe set is asked about.`;
+  const fmtBps = (v) => `<span class="${v > 0 ? 'up' : v < 0 ? 'down' : ''}">${signed2(v)}bp</span>`;
+  $('xsBody').innerHTML = ready.map((c) => {
+    const f = figs[c];
+    return `<tr><td><b>${c}</b>${c === xs.strongest ? ' ▲' : c === xs.weakest ? ' ▼' : ''}</td>` +
+      `<td>${f.px.toFixed(f.px > 1000 ? 1 : 3)}</td>` +
+      `<td>${fmtBps(f.ret60)}</td><td>${fmtBps(f.ret15)}</td>` +
+      `<td>${f.vol60.toFixed(2)}bp</td><td>${f.eff60.toFixed(2)}</td><td>${f.rangePos.toFixed(2)}</td></tr>`;
+  }).join('');
+  $('xsRead').innerHTML =
+    `<b>${xs.strongest}</b> strongest, <b>${xs.weakest}</b> weakest — spread <b>${xs.spreadBps.toFixed(1)}bp</b>` +
+    ` against a ~19bp round trip for a pair. ` +
+    `${xs.allSameDirection ? 'All three are moving the same way.' : 'They are not all moving the same way.'}` +
+    ` Most dislocated from the group average: <b>${xs.mostDislocated}</b>.`;
+}
+
+/**
+ * The registered polarity, shown and never acted on.
+ *
+ * It is estimated from 1h bars on a 24h stride and moves 0.0003 over ten
+ * minutes — it is a standing fact about the week, not a reading of the tape,
+ * and an oracle whose value cannot change during a run is not an oracle. It is
+ * displayed, labelled as background, and is not an input to any question.
+ */
+async function paintRegime() {
+  const el = $('xsRegime');
+  if (!el) return;
+  try {
+    const r = await firstOk(['api/prereg', 'prereg-results.json']);
+    const last = r.predictions?.[r.predictions.length - 1];
+    if (!last) { el.innerHTML = '<b>Background:</b> the registered 12h polarity has no reading yet — the forward test starts at zero.'; return; }
+    el.innerHTML = `<b>Background:</b> the registered 12h polarity currently reads <b>r = ${last.r.toFixed(3)}</b> ` +
+      `(${last.r > 0 ? 'trending' : 'reverting'}), from ${new Date(last.closes_ms).toISOString().slice(0, 10)}. ` +
+      `It is re-estimated once a day, moves about 0.0003 over ten minutes, and <b>nothing on this page acts on it</b> — ` +
+      `it is evaluated by the pre-registered forward test below, not by this loop.`;
+  } catch { el.textContent = ''; }
+}
+
+const signed2 = (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}`;
+
+xsFeed = connectMany({
+  onTick: (coin, tick) => { if (xsRings[coin]) { push(xsRings[coin], tick); } },
+  onStatus: () => {},
+});
+setInterval(paintCross, 1000);
+paintCross();
+paintRegime();
+
+// The headless harness hook, the same `__foam` / `__dungeon` / `__jev` pattern
+// the rest of this surface uses. The cross-section panel is fed by a live
+// websocket, which a sandbox cannot reach — without a way to push ticks in,
+// the only part of it anyone could ever verify is the warming-up message.
+window.__jevlab = {
+  feedCross(coin, tick) { if (xsRings[coin]) push(xsRings[coin], tick); },
+  cross() {
+    const figs = Object.fromEntries(XS_UNIVERSE.map((c) => {
+      const px = xsRings[c].buf.map((t) => t.mid);
+      return [c, assetFigures(px, px.length - 1, [15, 60])];
+    }));
+    const ready = XS_UNIVERSE.filter((c) => figs[c]);
+    return ready.length < 2 ? null : crossSection(Object.fromEntries(ready.map((c) => [c, figs[c]])), { window: 60 });
+  },
+  paintCross,
+  metrics: () => lastMetrics,
+  decision: () => lastDecision,
+  summary: () => summary(book),
+};
+
 paintTiles();
 paintBoard();
 paintPrereg();
-addEventListener('beforeunload', () => feed?.stop());
+addEventListener('beforeunload', () => { feed?.stop(); xsFeed?.stop(); });

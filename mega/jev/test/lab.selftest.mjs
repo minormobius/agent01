@@ -17,6 +17,9 @@ import * as B from '../lab/streamb.mjs';
 import { captureStats, describe } from '../lab/bigmove.mjs';
 import { pearson, windows as pWindows, evaluate as pEval, binomialTailP, verdict } from '../lab/prereg.mjs';
 import { collect, emptyStore, REGISTERED_AT } from '../lab/collect-core.mjs';
+import { assetFigures, crossSection, crossDoc, buildProbes, groundTruth, readAnswer, isDeterminate }
+  from '../lab/cross.mjs';
+import { routeMessage, UNIVERSE } from '../lab/multifeed.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -1106,6 +1109,143 @@ const SPEC = fix2('preregister.json');
   // Below the registered minimum there is no claim, whatever the numbers say.
   ok(a.store.verdict.claim === null && /before any claim/.test(a.store.verdict.status),
     'and under the registered minimum the verdict refuses to speak');
+}
+
+// --------------------------------------------- the cross-section layer ----
+{
+  // Three series built so the ANSWER IS KNOWN: A rises steadily, B rises more,
+  // C falls. Ground truth here is arithmetic, not a label, which is the whole
+  // reason this probe set is worth asking at all.
+  const n = 200;
+  const A = Array.from({ length: n }, (_, i) => 100 * (1 + 0.0001 * i));
+  const B = Array.from({ length: n }, (_, i) => 50 * (1 + 0.0004 * i));
+  const C = Array.from({ length: n }, (_, i) => 10 * (1 - 0.0002 * i));
+  const i = n - 1;
+  const figs = { A: assetFigures(A, i, [15, 60]), B: assetFigures(B, i, [15, 60]), C: assetFigures(C, i, [15, 60]) };
+  ok(Object.values(figs).every(Boolean), 'figures computed for all three');
+  ok(assetFigures(A, 10, [15, 60]) === null,
+    'and a series that does not reach the longest window returns null rather than a shorter one wearing its label');
+
+  const xs = crossSection(figs, { window: 60 });
+  ok(xs.strongest === 'B' && xs.weakest === 'C', 'the cross-section ranks by trailing return');
+  ok(xs.allSameDirection === false, 'and notices when one moves against the others');
+  ok(xs.spreadBps > 0, 'the best-minus-worst spread is reported');
+  near(xs.spreadBps, xs.returns.B - xs.returns.C, 1e-9, 'and it IS best minus worst, not something else');
+  ok(crossSection({ A: figs.A }, { window: 60 }) === null, 'one asset is not a cross-section');
+
+  // Dislocation is distance from the group's own average, not distance from
+  // zero — otherwise it would just be "whichever moved most".
+  const flatish = {
+    A: assetFigures(Array.from({ length: n }, (_, k) => 100 * (1 + 0.0003 * k)), i, [15, 60]),
+    B: assetFigures(Array.from({ length: n }, (_, k) => 100 * (1 + 0.00031 * k)), i, [15, 60]),
+    C: assetFigures(Array.from({ length: n }, (_, k) => 100 * (1 + 0.00032 * k)), i, [15, 60]),
+  };
+  const fx = crossSection(flatish, { window: 60 });
+  ok(fx.allSameDirection === true, 'three that all rise are all the same direction');
+  ok(fx.mostDislocated === 'A' || fx.mostDislocated === 'C',
+    'and the outlier is an end of the range, not the middle');
+
+  // GROUND TRUTH MUST MATCH THE DOCUMENT. If the truth were computed from
+  // anything the document does not print, the determinate probes would not be
+  // determinate and the whole experiment would be measuring something else.
+  const t = groundTruth(figs, xs, null);
+  ok(t.d_strongest === xs.strongest && t.d_weakest === xs.weakest, 'truth tracks the cross-section');
+  ok(t.d_spread_over_20 === (xs.spreadBps > 20), 'including the threshold probe');
+  ok(t.p_strongest_next === undefined, 'and with no forward bars there is no predictive truth at all');
+
+  const fwd = { A: 5, B: -3, C: 9 };
+  const t2 = groundTruth(figs, xs, fwd);
+  ok(t2.p_strongest_next === 'C' && t2.p_weakest_next === 'B',
+    'predictive truth comes from the FORWARD bars, which the document never sees');
+  ok(t2.p_all_same_next === false, 'and reads their agreement from those same forward bars');
+
+  const doc = crossDoc(figs, xs, { unit: 'm', windows: [15, 60] });
+  ok(/THREE PERPETUALS/.test(doc) && /CROSS-SECTION/.test(doc), 'the document has both blocks');
+  ok(!/300s|60s/.test(doc), 'and never labels minute bars as seconds — the timescale-lie bug, in a new file');
+  for (const a of ['A', 'B', 'C']) ok(doc.includes(a), `${a} appears in the document`);
+  ok(!/BACKGROUND/.test(doc), 'the regime line is absent unless a regime is passed');
+  ok(/BACKGROUND/.test(crossDoc(figs, xs, { regime: { r: 0.15, updated: 'x' } })),
+    'and present when it is');
+  ok(/does not change within a session/.test(crossDoc(figs, xs, { regime: { r: 0.15 } })),
+    'labelled as the standing multi-day fact it is, so nothing here reads it as a live signal');
+}
+{
+  // The probe set, and the property that makes the experiment clean.
+  const figs = {
+    X: assetFigures(Array.from({ length: 200 }, (_, i) => 100 + i), 199, [15, 60]),
+    Y: assetFigures(Array.from({ length: 200 }, (_, i) => 100 + i * 2), 199, [15, 60]),
+    Z: assetFigures(Array.from({ length: 200 }, (_, i) => 100 - i * 0.5), 199, [15, 60]),
+  };
+  const xs = crossSection(figs, { window: 60 });
+  const p = buildProbes(xs);
+  const det = Object.keys(p).filter(isDeterminate);
+  const pre = Object.keys(p).filter((k) => !isDeterminate(k));
+  ok(det.length >= 4 && pre.length >= 4, 'both arms are substantial');
+  ok(det.length + pre.length === Object.keys(p).length, 'and every probe belongs to exactly one arm');
+  for (const [id, q] of Object.entries(p)) {
+    ok(['choice', 'noul', 'score'].includes(q.type), `${id} uses a real primitive`);
+    if (q.type === 'choice') {
+      ok(Object.keys(q.criteria).every((k) => xs.assets.includes(k)),
+        `${id} can only name an asset that exists — the typed guarantee`);
+    }
+    if (q.type === 'noul') {
+      ok('true' in q.criteria && 'false' in q.criteria, `${id} writes both sides of the noul`);
+    }
+  }
+  for (const id of pre) ok(/NEXT/.test(p[id].instructions), `${id} is visibly about the future`);
+  for (const id of det) ok(!/NEXT|will /.test(p[id].instructions), `${id} asks nothing about the future`);
+
+  // The self-check rides along, one per probe, in the same call.
+  const withSelf = buildProbes(xs, { selfCheck: true });
+  ok(Object.keys(withSelf).length === 2 * Object.keys(p).length, 'every probe gets its own self-check');
+  for (const id of Object.keys(p)) {
+    ok(withSelf[`have__${id}`]?.type === 'noul', `${id} has a noul self-check`);
+    ok(withSelf[`have__${id}`].instructions.includes(p[id].instructions),
+      'which quotes the question it is checking, so it cannot drift from it');
+  }
+}
+{
+  // Reading an answer. A noul's confidence is how far it sits from a half —
+  // "how concentrated is the distribution" — while p(have) is read RAW,
+  // because there a low number is a claim of absence, not low confidence.
+  near(readAnswer({ noul: 0.95 }).confidence, 0.95, 1e-9, 'a confident yes');
+  near(readAnswer({ noul: 0.04 }).confidence, 0.96, 1e-9, 'a confident no is equally confident');
+  ok(readAnswer({ noul: 0.95 }).value === true && readAnswer({ noul: 0.04 }).value === false, 'and reads as a boolean');
+  ok(readAnswer({ choice: 'BTC', confidence: 0.8 }).value === 'BTC', 'a choice reads its option');
+  ok(readAnswer(null).value === null && readAnswer({}).value === null, 'a missing answer is null, never a default');
+}
+
+// --------------------------------------------------- the three-tape feed ----
+{
+  // One socket, three assets, three accumulators. A message folded into the
+  // wrong one is a corruption that looks like a real cross-asset signal, and
+  // nothing downstream could detect it — so routing is pinned hard.
+  const ctx = { channel: 'activeAssetCtx', data: { coin: 'ETH', ctx: { midPx: '3000' } } };
+  ok(JSON.stringify(routeMessage(ctx)) === JSON.stringify([['ETH', ctx]]), 'activeAssetCtx routes by data.coin');
+
+  const book = { channel: 'l2Book', data: { coin: 'SOL', time: 1, levels: [[], []] } };
+  ok(routeMessage(book)[0][0] === 'SOL', 'l2Book routes by data.coin');
+
+  // trades arrives as an ARRAY. Routing it wholesale by its first element
+  // would put one asset's aggressor flow into another's taker skew.
+  const mixed = { channel: 'trades', data: [
+    { coin: 'BTC', side: 'B', sz: '1' }, { coin: 'ETH', side: 'A', sz: '2' }, { coin: 'BTC', side: 'A', sz: '3' },
+  ] };
+  const routed = routeMessage(mixed);
+  ok(routed.length === 2, 'a mixed trades batch splits into one message per asset');
+  const btc = routed.find(([c]) => c === 'BTC')[1].data;
+  const eth = routed.find(([c]) => c === 'ETH')[1].data;
+  ok(btc.length === 2 && btc.every((t) => t.coin === 'BTC'), "BTC's message carries only BTC fills");
+  ok(eth.length === 1 && eth[0].coin === 'ETH', "and ETH's only ETH's");
+  ok(routed.every(([, m]) => m.channel === 'trades'), 'the channel survives the split, so fold still recognises it');
+
+  // Anything unplaceable is DROPPED, never folded into whichever asset is first.
+  ok(routeMessage({ channel: 'trades', data: [{ coin: 'DOGE', side: 'B', sz: '1' }] }).length === 0,
+    'an asset outside the universe is dropped rather than misrouted');
+  ok(routeMessage({ channel: 'l2Book', data: { levels: [[], []] } }).length === 0, 'a message with no coin is dropped');
+  ok(routeMessage({ channel: 'subscriptionResponse', data: {} }).length === 0, 'and so is a message with no asset in it');
+  ok(routeMessage(null).length === 0 && routeMessage({}).length === 0, 'null and empty are handled without throwing');
+  ok(UNIVERSE.length === 3, 'the universe is the registered three');
 }
 
 if (failures.length) {

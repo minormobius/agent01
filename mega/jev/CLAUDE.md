@@ -1161,6 +1161,114 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+## Three tapes, and the gate's best day (2026-09-19)
+
+The operator asked whether a multi-asset portfolio plus a regime oracle was
+worth building. Half of it was, and not the half proposed.
+
+**The regime oracle: no, measured.** The registered polarity is estimated from
+1h bars on a 24h stride. It updates **once per day** and moves 0.046 per
+update — **0.0003 over ten minutes**. An oracle whose reading cannot change
+during a run is not an oracle, it is a constant bias with a dial on it. Worse,
+the pre-registered forward test is already evaluating that exact rule under a
+no-amendment policy; a second live evaluation with different framing would be
+the 31st configuration wearing a demo costume. It ships as a **display line**,
+labelled as a standing multi-day fact, and is not an input to any question.
+
+**Multi-asset: yes — and for nothing to do with P&L.** The relative-value case
+dies on arithmetic before the model is consulted. Measured over 3.5 days of
+1m bars across BTC/ETH/SOL:
+
+| window | all three same direction | median best-vs-worst | a pair's round trip |
+|---|---|---|---|
+| 1m | 75.7% | 4.1bp | ~19bp |
+| 15m | 76.8% | 14.7bp | ~19bp |
+| 60m | 78.3% | 29.7bp | ~19bp |
+
+The majors move as one ~76% of the time and the leader changes in **61–70% of
+windows**, so a relative-value leg re-trades constantly for a spread that does
+not cover two round trips until 60m, where it is 1.6× and the leader has
+already turned over. **`multifeed.mjs` opens no position and must not be made
+to.**
+
+### What three tapes DO buy: the first determinate market question
+
+Two numbers on this surface had never been reconciled. The ≥0.9 gate is
+**66/66 perfect** on determinate questions and fires **0 times in 342** on
+market questions. The stated reason — market questions are predictions, and
+predictions have no determinate answer — had never been tested, because no
+determinate market question was ever asked. *"Which of these three is
+strongest right now"* is one: it has an answer you can compute.
+
+`cross.mjs` asks six determinate and four predictive probes **in the same call
+against the same document**, so nothing differs between the arms but whether
+the answer exists yet. 41 non-overlapping windows, ground truth computed.
+
+| arm | n | accuracy | mean conf | ≥0.9 fired | and was right |
+|---|---|---|---|---|---|
+| **determinate** | 246 | **87.0%** | 0.864 | **172 (69.9%)** | **97.1%** |
+| predictive *(control)* | 164 | 31.1% | 0.708 | 40 (24.4%) | 30.0% |
+
+**The 0/342 was about the questions, not the domain.** Given a market question
+with an answer, the gate fires on seven in ten and is right 97% of the time.
+That is good news for every cascade built on this pattern.
+
+### And the warning in the second row
+
+Confidence alone let **40 predictive answers through at 30% accuracy**.
+`p_weakest_next` cleared 0.9 on **20 of 41** windows and scored **19.5%** —
+below the 33% a coin flip gets on a three-way choice. That is the
+confidently-wrong failure already measured on questions about machines that did
+not exist, reproduced in a new domain. **A plain confidence gate is not safe on
+market questions.**
+
+The fix was already on this page. Asking *"does the state contain what this
+needs?"* as its own question, same call:
+
+| router | keeps | accuracy of what it kept | predictive wrongly kept |
+|---|---|---|---|
+| confidence ≥ 0.9 | 212 | 84.4% | **40** |
+| p(have) > 0.5 | 246 | 87.0% | **0** |
+| **both** | 172 | **97.1%** | **0** |
+
+**The self-check was perfect: 246/246 determinate above 0.5, 0/164 predictive
+above it.** Mean p(have) 0.808 against 0.046 — a **76-point margin** where
+answer-confidence managed 15. The worst determinate case (0.750) and the best
+predictive one (0.061) are **69 points apart**; the classes do not come close
+to touching. The 62-point margin measured on a telemetry table replicates on
+live market data, and is *wider* here.
+
+### Two things the same call reproduced for free
+
+**Compute-first, inside one call.** Five of the six determinate probes are a
+lookup and a comparison over figures the document prints: **89.3% at 0.908
+confidence**. The sixth — *which asset is furthest from the average of the
+three* — needs one subtraction the document does not carry. It scored
+**75.6%** and said so: confidence **0.642**, gate fired **5 of 41**. The one
+question requiring arithmetic was the worst AND knew it, with the state,
+the moment and the model held identical.
+
+**A refusal shaped like a forecast.** Asked whether all three would move
+together over the next hour, it answered **no on 41 of 41 windows** — while
+the truth was *yes* on 82.9% of them. A constant "yes" scores 82.9%; it scored
+**17.1%**, sixty-six points below the base rate. That is not a bad forecast,
+and reading it as one is the mistake: the self-check flagged every one of those
+answers at p(have) = 0.048. **The model told us not to read them.**
+
+Caveats that outrank the numbers: 3.5 days is one regime; the probe set was
+designed by the same person reading the results; and `d_most_dislocated` shows
+how quickly a "determinate" question stops being one if the document does not
+already carry the arithmetic. Re-run it before trusting the shape:
+
+```bash
+node mega/jev/eval/cross-gate.mjs --windows 48 --out mega/jev/lab/cross-gate.json
+```
+
+It spends real budget (one call per window, paced under the proxy's 30/min).
+An earlier run without the self-check, on a differently-aligned 41 windows,
+gave 87.8% / 98.2% / 69.5% against this run's 87.0% / 97.1% / 69.9% — so the
+determinate arm replicates closely across two independent samples.
+
 ### The first five minutes of every run were a lie (2026-09-18)
 
 The operator's reading — *"Jev is flying off half cocked with less than half a
