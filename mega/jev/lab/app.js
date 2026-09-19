@@ -15,6 +15,7 @@ import { newBook, step, summary, pct } from './book.mjs';
 import { toCandles, isUp, extent, BUCKET_MS } from './candles.mjs';
 import { connectMany, UNIVERSE as XS_UNIVERSE } from './multifeed.mjs';
 import { assetFigures, crossSection } from './cross.mjs';
+import { carryStats, rankCarry, FUNDING_FLOOR_PCT } from './carry.mjs';
 
 const $ = (id) => document.getElementById(id);
 const ring = newRing();
@@ -728,7 +729,99 @@ window.__jevlab = {
   summary: () => summary(book),
 };
 
+/**
+ * The carry cross-section, which is the first signal on this page that is
+ * OBSERVED rather than forecast.
+ *
+ * It calls Hyperliquid for 90 days of hourly funding per asset and computes
+ * everything here — mean, z against the asset's own history, worst drawdown,
+ * underwater duration, carry per unit of drawdown. That is the compute-first
+ * rule: hand over the result, never the inputs to a computation.
+ *
+ * It opens nothing and recommends nothing. The richest funding is usually
+ * richest BECAUSE its spot leg is hard to source, which is a liquidity premium
+ * and not free money.
+ */
+const CARRY_UNIVERSE = ['BTC', 'ETH', 'SOL', 'HYPE', 'UNI', 'ARB', 'XMR'];
+
+async function hlInfo(body) {
+  const r = await fetch('https://api.hyperliquid.xyz/info', {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) throw new Error(String(r.status));
+  return r.json();
+}
+
+// Hyperliquid returns the FIRST 500 prints from startTime, so this pages
+// FORWARD. Paging backwards silently returns the OLDEST window and reports
+// months-old funding as current — which it did, on the first attempt.
+async function fundingHistory(coin, hours) {
+  const out = new Map();
+  let s = Date.now() - hours * 3600_000;
+  for (let i = 0; i < 24; i++) {
+    const h = await hlInfo({ type: 'fundingHistory', coin, startTime: s, endTime: Date.now() });
+    if (!h?.length) break;
+    let fresh = 0;
+    for (const x of h) if (!out.has(x.time)) { out.set(x.time, Number(x.fundingRate)); fresh++; }
+    if (!fresh) break;
+    s = h[h.length - 1].time + 1;
+  }
+  return [...out.entries()].sort((a, b) => a[0] - b[0]).map((x) => x[1]);
+}
+
+async function paintCarry() {
+  const why = $('carryWhy'); const body = $('carryBody');
+  if (!why || !body) return;
+  let stats = {};
+  try {
+    const [meta, ctxs] = await hlInfo({ type: 'metaAndAssetCtxs' });
+    const idx = Object.fromEntries(meta.universe.map((u, i) => [u.name, i]));
+    for (const c of CARRY_UNIVERSE) {
+      if (idx[c] == null) continue;
+      const hist = await fundingHistory(c, 24 * 90);
+      stats[c] = carryStats(hist, { current: Number(ctxs[idx[c]].funding) });
+    }
+  } catch (e) {
+    // Say the feed failed rather than leaving a stale or empty table standing.
+    why.textContent = `the funding cross-section could not be loaded (${e.message})`;
+    return;
+  }
+  const rank = rankCarry(stats);
+  if (!rank) { why.textContent = 'not enough funding history to rank anything'; return; }
+  const n = (x, d = 1) => (Number.isFinite(x) ? x.toFixed(d) : '—');
+  why.textContent = `${rank.rows.length} assets, 90 days of hourly funding, everything computed here.`;
+  body.innerHTML = rank.rows.map((r) => {
+    const tag = r.coin === rank.bestRiskAdjusted ? ' ★' : r.coin === rank.mostStretched ? ' ⚠' : '';
+    return `<tr><td><b>${r.coin}</b>${tag}</td>` +
+      `<td class="${r.currentPct > 0 ? 'up' : 'down'}">${n(r.currentPct)}%</td>` +
+      `<td>${n(r.meanPct)}%</td><td${r.z > 2 ? ' class="down"' : ''}>${n(r.z, 2)}</td>` +
+      `<td>${n(r.drawdownPct, 3)}%</td><td>${r.underwaterHours}h</td>` +
+      `<td>${r.recoverDays == null ? '—' : n(r.recoverDays) + 'd'}</td>` +
+      `<td>${n(r.negHoursPct)}%</td>` +
+      `<td>${r.carryPerDrawdown == null ? '—' : n(r.carryPerDrawdown, 0)}</td></tr>`;
+  }).join('');
+  // The headline read, and the trap under it. ★ marks best carry per unit of
+  // drawdown; ⚠ marks the print furthest above its own history.
+  // `bestRiskAdjusted` is null when NO asset has had a funding drawdown in the
+  // window — there is then no ratio to rank by. Saying "★ null" would be
+  // nonsense, and quietly falling back to the richest would be worse: it would
+  // present the headline as if it were the risk-adjusted answer, which is the
+  // exact confusion this column exists to prevent.
+  const riskLine = rank.bestRiskAdjusted == null
+    ? 'no asset has taken a funding drawdown in this window, so <b>carry per drawdown cannot be ranked</b> — ' +
+      'which is not the same as every asset being safe.'
+    : `the best carry per unit of drawdown is <b>★ ${rank.bestRiskAdjusted}</b>` +
+      (rank.richest === rank.bestRiskAdjusted
+        ? ' — the same asset today, which is unusual.'
+        : ' — <b>not the same asset</b>, which is the whole reason for the column.');
+  $('carryRead').innerHTML = rank.allAtFloor
+    ? 'Every asset is at the funding floor today: <b>the cross-section carries no information.</b>'
+    : `Richest is <b>${rank.richest}</b>, but ${riskLine} ` +
+      `Furthest above its own history: <b>⚠ ${rank.mostStretched}</b>. ` +
+      `Cross-sectional spread <b>${n(rank.spreadPct)} points a year</b>.`;
+}
+
 paintTiles();
 paintBoard();
 paintPrereg();
+paintCarry();
 addEventListener('beforeunload', () => { feed?.stop(); xsFeed?.stop(); });

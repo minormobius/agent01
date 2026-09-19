@@ -20,6 +20,8 @@ import { collect, emptyStore, REGISTERED_AT } from '../lab/collect-core.mjs';
 import { assetFigures, crossSection, crossDoc, buildProbes, groundTruth, readAnswer, isDeterminate }
   from '../lab/cross.mjs';
 import { routeMessage, UNIVERSE } from '../lab/multifeed.mjs';
+import { carryStats, rankCarry, carryDoc, buildCarryProbes, carryTruth, positionRisk,
+  toAnnualPct, FUNDING_FLOOR_PCT } from '../lab/carry.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 
 import { readFileSync } from 'node:fs';
@@ -1307,6 +1309,133 @@ const SPEC = fix2('preregister.json');
   step(gap, { px: 100, t: 0, exposure: 1, action: 'buy' });
   step(gap, { px: 100, t: 48 * HOUR });
   near((1 - gap.jev.equity) * 1e4, 0.12, 0.02, 'a two-day gap in the feed bills one hour, not forty-eight');
+}
+
+// ------------------------------------------------ carry, and its drawdown ----
+{
+  const HR = 1 / (24 * 365);            // one unit of hourly rate = 100%/yr
+  near(toAnnualPct(HR), 100, 1e-9, 'an hourly rate annualises over 8760 hours');
+
+  // A steady positive rate: carry with no drawdown at all.
+  const steady = Array.from({ length: 500 }, () => HR * 0.1);
+  const ss = carryStats(steady);
+  near(ss.meanPct, 10, 1e-6, 'a steady rate reports its own annualised mean');
+  near(ss.drawdownPct, 0, 1e-9, 'and a monotonically rising cumulative has NO drawdown');
+  ok(ss.carryPerDrawdown === null, 'so carry-per-drawdown is null rather than an infinity');
+  ok(ss.negHoursPct === 0, 'and no negative hours');
+  ok(carryStats([1, 2]) === null, 'too little history returns null rather than a number built on nothing');
+
+  // A run of negative funding: the drawdown is the peak-to-trough of what a
+  // short COLLECTED, which is the risk number a flattering version omits.
+  const dip = [...Array.from({ length: 100 }, () => HR * 0.1),
+    ...Array.from({ length: 50 }, () => -HR * 0.2),
+    ...Array.from({ length: 100 }, () => HR * 0.1)];
+  const ds = carryStats(dip);
+  ok(ds.drawdownPct > 0, 'a negative run produces a real drawdown');
+  near(ds.drawdownPct, 50 * HR * 0.2 * 100, 1e-6, 'exactly the sum of the negative run');
+  ok(ds.underwaterHours === 150,
+    'and the UNDERWATER duration is 150h — 50 falling plus 100 climbing back, not the 50 of the run itself');
+  near(ds.negHoursPct, 100 * 50 / 250, 1e-9, 'with the negative share reported');
+  ok(ds.recoverDays > 0, 'and how long the mean carry needs to earn it back');
+  ok(ds.carryPerDrawdown > 0, 'carry per unit of drawdown is computed HERE, not left as a division for the model');
+
+  // The z is against the asset's OWN history, which is the whole point: a 100%
+  // print means one thing on an asset that averages 90% and another on one
+  // that averages 4%.
+  // A series with real variance, because a perfectly constant one has no sd to
+  // measure against and correctly reports z = 0 rather than an invented number.
+  const noisy = Array.from({ length: 500 }, (_, i) => HR * (0.1 + 0.02 * Math.sin(i / 7)));
+  const spike = carryStats(noisy, { current: HR * 10 });
+  ok(spike.z > 3, 'a print far above an asset\'s own history is flagged in its own sd');
+  ok(carryStats(steady, { current: HR * 10 }).z === 0,
+    'while a constant history has no sd to measure against and says 0 rather than inventing one');
+  near(spike.currentPct, 1000, 1e-6, 'and the current print is reported separately from the mean');
+}
+{
+  // The ranking is a SORT, never a forecast.
+  const mk = (mean, dd) => ({ currentPct: mean, meanPct: mean, z: 0,
+    drawdownPct: dd, negHoursPct: 0, recoverDays: 1, underwaterHours: 1, hours: 100,
+    carryPerDrawdown: dd > 0 ? mean / dd : null });
+  const r = rankCarry({ A: { ...mk(100, 1), z: 0.5 }, B: { ...mk(40, 0.01), z: 3 }, C: { ...mk(11, 0.5), z: 0.1 } });
+  ok(r.richest === 'A', 'the richest headline funding is A');
+  ok(r.bestRiskAdjusted === 'B', 'but the best carry per unit of drawdown is B — which is the entire point');
+  ok(r.mostStretched === 'B', 'and the most stretched against its own history is flagged separately');
+  ok(r.worstDrawdown === 'A', 'as is the worst drawdown');
+  near(r.spreadPct, 89, 1e-9, 'the cross-sectional spread is richest minus cheapest');
+  ok(r.cheapest === 'C', 'and the cheapest is named');
+  ok(rankCarry({}) === null, 'an empty cross-section is null, not an empty ranking');
+
+  // A window in which NOTHING drew down: there is no ratio to rank by, so
+  // bestRiskAdjusted is null. The render must say that rather than printing
+  // "null" or quietly falling back to the richest — which would present the
+  // headline as if it were the risk-adjusted answer. Caught by the render.
+  const noDd = rankCarry({ A: mk(50, 0), B: mk(20, 0) });
+  ok(noDd.bestRiskAdjusted === null, 'with no drawdown anywhere there is no risk-adjusted winner');
+  ok(noDd.richest === 'A', 'while the richest is still well defined');
+
+  // When every asset sits at the venue's floor the cross-section says nothing,
+  // and the document must say THAT rather than rank noise.
+  const floorAll = rankCarry({ A: mk(FUNDING_FLOOR_PCT, 0.1), B: mk(FUNDING_FLOOR_PCT, 0.1) });
+  ok(floorAll.allAtFloor === true, 'all-at-the-floor is detected');
+  ok(/carries no information/.test(carryDoc(floorAll)), 'and the document says so outright');
+  ok(!/carries no information/.test(carryDoc(r)), 'while a real spread does not trigger it');
+}
+{
+  // Position risk. A delta-neutral book is still liquidatable — the legs are on
+  // different venues and the perp margin does not know the spot leg exists.
+  const p1 = positionRisk({ fundingPct: 10, spotYieldPct: 5, leverage: 1 });
+  near(p1.leveredCarryPct, 15, 1e-9, 'at 1x the carry is funding plus spot yield');
+  near(p1.moveToLiquidationPct, 98, 1e-9, 'and almost the whole position must move to break it');
+  const p3 = positionRisk({ fundingPct: 10, spotYieldPct: 5, leverage: 3 });
+  near(p3.leveredCarryPct, 45, 1e-9, 'leverage multiplies the carry');
+  near(p3.moveToLiquidationPct, 100 / 3 - 2, 1e-9, 'and shrinks the move that ruins it');
+  const p10 = positionRisk({ fundingPct: 10, spotYieldPct: 5, leverage: 10 });
+  ok(p10.moveToLiquidationPct < p3.moveToLiquidationPct, 'more leverage, less room — monotone');
+  ok(p3.breakEvenDays > 0 && p10.breakEvenDays < p3.breakEvenDays,
+    'and the round trip costs fewer days of carry at higher leverage');
+  ok(positionRisk({ fundingPct: 10, leverage: 0 }) === null, 'zero leverage is not a position');
+  ok(positionRisk({ fundingPct: -20, leverage: 3 }).breakEvenDays === null,
+    'negative carry never breaks even, and says null rather than a negative number of days');
+}
+{
+  // The document, and the warning it is required to carry.
+  const mk = (c, m, dd, z) => ({ currentPct: c, meanPct: m, z, drawdownPct: dd,
+    negHoursPct: 5, recoverDays: 2, underwaterHours: 10, hours: 2000,
+    carryPerDrawdown: dd > 0 ? m / dd : null });
+  const r = rankCarry({ XMR: mk(105, 33, 0.25, 1.3), UNI: mk(42, 12, 0.013, 2.2), SOL: mk(11, 6, 0.15, 0.6) });
+  const doc = carryDoc(r, { position: positionRisk({ fundingPct: 11, spotYieldPct: 4.86, leverage: 3 }) });
+  ok(/short-volatility/.test(doc), 'the document states the shape of the risk');
+  ok(/tail is not in this data/.test(doc), 'and says outright that the tail is missing from it');
+  ok(/still liquidatable/.test(doc), 'and that a delta-neutral book can still be liquidated');
+  ok(/floor of about/.test(doc), 'and names the funding floor, which is the mechanism behind the whole structure');
+  for (const c of ['XMR', 'UNI', 'SOL']) ok(doc.includes(c), `${c} appears`);
+
+  const t = carryTruth(r);
+  ok(t.d_richest === 'XMR' && t.d_best_per_drawdown === 'UNI',
+    'the richest and the best risk-adjusted are DIFFERENT assets, which is why the column exists');
+  ok(t.d_most_stretched === 'UNI' && t.d_worst_drawdown === 'XMR', 'stretch and drawdown are their own answers');
+  ok(t.d_spread_over_20 === true && t.d_any_stretched === true, 'the threshold probes read off the table');
+  ok(t.p_richest_next === undefined, 'with no forward data there is no predictive truth');
+  const t2 = carryTruth(r, { XMR: 5, UNI: 90, SOL: -3 });
+  ok(t2.p_richest_next === 'UNI', 'predictive truth comes from forward funding the document never saw');
+  ok(t2.p_stays_positive === false, 'and a negative forward rate makes that false');
+
+  const p = buildCarryProbes(r);
+  const det = Object.keys(p).filter((k) => k.startsWith('d_'));
+  const pre = Object.keys(p).filter((k) => k.startsWith('p_'));
+  ok(det.length >= 4 && pre.length >= 3, 'both arms are substantial');
+  for (const id of pre) ok(/NEXT|will /i.test(p[id].instructions), `${id} is visibly about the future`);
+  for (const id of det) ok(!/NEXT/i.test(p[id].instructions), `${id} asks nothing about the future`);
+  for (const [id, q] of Object.entries(p)) {
+    if (q.type === 'choice') ok(Object.keys(q.criteria).every((k) => r.rows.some((x) => x.coin === k)),
+      `${id} can only name an asset in the cross-section`);
+  }
+  // Nothing may ask whether to put the trade on. Five times over this surface
+  // measured that weighing a future is refused and describing state is not.
+  for (const q of Object.values(p)) ok(!/should|worth putting|recommend/i.test(q.instructions),
+    'no probe asks whether to take the trade — the harness owns that, the model classifies');
+  const withSelf = buildCarryProbes(r, { selfCheck: true });
+  ok(Object.keys(withSelf).length === 2 * Object.keys(p).length, 'every probe carries its own self-check');
 }
 
 if (failures.length) {

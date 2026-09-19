@@ -1161,6 +1161,118 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+## Carry: the first signal here that is observed, not forecast (2026-09-19)
+
+Everything else on this surface tried to predict direction and failed honestly.
+Carry needs no prediction: **the funding rate is printed, the staking yield is
+printed, the distance to liquidation is arithmetic over printed numbers.** That
+is the compute-first shape, and it produced the best gate result on the page.
+
+Same experiment as `cross.mjs`: determinate and predictive probes, same
+document, same call, 30 evaluation points over 90 days of hourly funding across
+7 assets, ground truth computed.
+
+| arm | n | accuracy | mean conf | ≥0.9 fired | and was right |
+|---|---|---|---|---|---|
+| **determinate** | 180 | **93.3%** | 0.823 | **93 (51.7%)** | **100.0%** |
+| predictive *(control)* | 90 | 52.2% | 0.670 | 10 (11.1%) | 90.0% |
+
+**93 of 93 correct above the gate.** Routing on confidence *and* the self-check
+keeps those 93 at 100.0% with **zero** predictive answers wrongly kept;
+confidence alone would have kept 10. Self-check margin **65.5 points** (0.832
+vs 0.178) against 15 for answer-confidence.
+
+### The cross-section, and why the ranking is not the obvious one
+
+| asset | funding now | 90d mean | z vs own | worst dd | recover | carry/dd |
+|---|---|---|---|---|---|---|
+| XMR | 105.6% | 32.7% | 1.26 | 0.247% | 2.8d | 132 |
+| ARB | 63.4% | 4.3% | **4.94** | 0.181% | 15.2d | 24 |
+| UNI | 42.3% | 12.3% | 2.19 | 0.013% | 0.4d | **966** |
+| BTC/ETH/SOL/HYPE | 10.9% | 6–10% | ~0.5 | — | — | — |
+
+**XMR pays the most and has the worst drawdown. UNI carries the best ratio by
+~7×. ARB sat 4.94 sd above its own mean** with 27% negative hours and a 15-day
+recovery — the one that looks best and is worst. *Short the richest* is the
+wrong trade, and the column that says so is a **sort, not a forecast**.
+
+Four assets sitting at exactly 10.9% is Hyperliquid's fixed interest-rate
+component — the **funding floor of ~10.95%/yr**. That is the mechanism behind
+the whole structure: be long via spot, be short via the perp.
+
+### Two failures replicated, which matter more than the successes
+
+- **`p_richest_next` scored 66.7% by restating the present.** It answered XMR on
+  **28 of 30** windows. Funding is sticky enough that repeating the current
+  ranking scores 67% — it did not forecast, it echoed, and the same shape lost
+  to a one-line persistence rule on volatility earlier in this file.
+- **`p_stays_positive` answered false on 30 of 30** while the truth was true on
+  17. A refusal shaped like a forecast — the **second independent replication**
+  after the 41-of-41 "no" on the cross-section card. Two question sets, two
+  domains, same behaviour: **asked to predict, it emits a constant.**
+
+### And one honest limit of the self-check
+
+`d_any_stretched` was **100% correct while p(have) read 0.352** — it under-rated
+a question it could in fact answer. A **false escalation**: it costs calls, not
+errors, and it is why the determinate arm clears p(have) > 0.5 on 84% rather
+than 100%. Earlier this file noted the self-check tracks *how much context
+there is* rather than *how much it helps*; this is the same limit from the
+other side.
+
+### What the DeFi "juice" actually pays, measured
+
+- **The LST loop is dead right now.** jitoSOL yields 4.86%/yr against a
+  cheapest SOL borrow of 5.92% — **net −1.06%/yr per turn**, and a 3× loop just
+  multiplies a negative. Measured, not assumed.
+- **A money-market short costs 16 points/yr more than a perp short** (Kamino
+  SOL borrow 8.94% less USDC supply 3.84% = −5.10%, against +10.95% funding
+  received).
+- **Delta-neutral SOL basis**: +10.95% funding +4.86% staking ≈ **15.7%/yr**
+  with no directional view.
+
+### The risk, stated properly
+
+Worst peak-to-trough of collected funding over 90 days: **−0.016% (BTC) to
+−0.247% (XMR)**, recovered in 0.4–15.2 days. **Those numbers being small is the
+warning, not the reassurance.** Carry is a short-volatility profile — steady
+small gains, rare large losses — and a 90-day window containing no crisis
+measures the gains and not the losses.
+
+The split that answers *"can we manage risk effectively?"*:
+
+- **Monitorable**, because it is observable current state: funding against its
+  own trailing mean, drawdown and underwater duration, distance to liquidation,
+  LST peg, money-market utilisation, exit depth. All printed numbers, all
+  determinate — and the measurement above says the gate is 100% reliable on
+  exactly this shape.
+- **Not monitorable at all**: contract exploit, bridge failure, venue
+  insolvency, a gap through the liquidation price. No monitor helps. Only
+  sizing does, and a page that implied otherwise would be the most dangerous
+  thing on this surface.
+
+### A bug the render caught, again
+
+With no drawdown anywhere in the window, `bestRiskAdjusted` is null and the
+read line printed **"★ null"**. Quietly falling back to the richest would have
+been worse — it would present the headline as the risk-adjusted answer, which
+is the exact confusion the column exists to prevent. It now says the ratio
+cannot be ranked, "which is not the same as every asset being safe". Pinned by
+selftest.
+
+Re-run it (spends real budget, one call per point, paced under the proxy's
+30/min):
+
+```bash
+node mega/jev/eval/carry-gate.mjs --windows 30 --out mega/jev/lab/carry-gate.json
+```
+
+**One API gotcha that cost a wrong answer.** Hyperliquid's `fundingHistory`
+returns the **first 500 prints from `startTime`**, so pagination must walk
+FORWARD. Walking backwards returns the *oldest* window and reports months-old
+funding as current — it gave BTC 6.8%/yr against the true 8.0%, and XMR 21.8%
+against 32.7%, before it was caught.
+
 ## What execution actually costs (2026-09-19)
 
 Everything here was queried live, not recalled. The lab spent its whole life

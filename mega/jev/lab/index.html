@@ -159,6 +159,81 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>Carry: the first signal here that is observed, not forecast</h2>
+    <p class="cap" style="margin:0 0 10px">And the only one where the gate came back <b>100% correct</b>.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Everything else on this page tried to predict direction and failed honestly &mdash; 51.4% on six-hour
+      windows, 51.7% on stream B, 31.1% on the cross-sectional predictive probes. Carry needs no prediction.
+      <b>The funding rate is printed. The staking yield is printed. The distance to liquidation is arithmetic
+      over printed numbers.</b> Same experiment as before: determinate and predictive probes, same document,
+      same call, 30 evaluation points over 90 days of hourly funding, ground truth computed.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:540px"><thead><tr>
+        <th>arm</th><th>n</th><th>accuracy</th><th>mean conf</th><th>&ge;0.9 fired</th><th>&hellip;and was right</th>
+      </tr></thead><tbody>
+        <tr><td><b>determinate</b></td><td>180</td><td><b>93.3%</b></td><td>0.823</td><td><b>93 (51.7%)</b></td><td><b style="color:var(--ok)">100.0%</b></td></tr>
+        <tr><td>predictive <em>(control)</em></td><td>90</td><td style="color:var(--bad)">52.2%</td><td>0.670</td><td>10 (11.1%)</td><td>90.0%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>93 of 93 correct above the gate.</b> Routing on the self-check as well keeps those 93 at
+      <b>100.0%</b> with <b>zero</b> predictive answers wrongly kept &mdash; confidence alone would have kept 10.
+      The self-check margin is <b>65.5 points</b> (0.832 determinate against 0.178 predictive) where
+      answer-confidence managed 15.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>The table earns its keep immediately.</b> XMR pays the most headline funding &mdash; and has the worst
+      drawdown. <b>UNI carries the best ratio of carry to drawdown by roughly 7&times;</b>, and ARB sat
+      <b>4.94 standard deviations above its own 90-day mean</b> with 27% negative hours and a 15-day recovery:
+      the one that looks best and is worst. <em>Short the richest</em> is the wrong trade, and the column that
+      says so is a sort, not a forecast.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Two failures replicated, which matters more than the successes.</b>
+      <code>p_richest_next</code> scored 66.7% &mdash; but it answered <b>XMR on 28 of 30</b> windows, which is
+      restating the current ranking, not forecasting it; funding is sticky enough that repeating the present
+      scores 67%. And <code>p_stays_positive</code> answered <b>false on 30 of 30</b> while the truth was true
+      on 17 &mdash; a refusal shaped like a forecast, and now the <b>second independent replication</b> of that
+      exact behaviour after the 41-of-41 &ldquo;no&rdquo; on the cross-section card.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And one honest limit of the self-check.</b> <code>d_any_stretched</code> was <b>100% correct</b> while
+      p(have) read only <b>0.352</b> &mdash; it under-rated a question it could in fact answer. That is a false
+      escalation: it costs calls, not errors, and it is why the determinate arm clears p(have)&nbsp;&gt;&nbsp;0.5
+      on 84% rather than 100%.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      <b>What this is not.</b> Nothing trades, nothing is held, no keys exist. The measured drawdowns are the
+      <em>funding</em> leg only &mdash; they say nothing about liquidation, a venue failing, a bridge, an LST
+      depeg, or a contract. Those are the risks that actually end carry books, none of them are in this data,
+      and a monitor cannot manage them: only sizing can.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The carry cross-section, live</h2>
+    <p class="cap" style="margin:0 0 8px" id="carryWhy">loading the funding cross-section&hellip;</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:620px"><thead><tr>
+        <th>asset</th><th>funding now</th><th>90d mean</th><th>z vs own</th>
+        <th>worst dd</th><th>underwater</th><th>recover</th><th>neg hrs</th><th>carry/dd</th>
+      </tr></thead><tbody id="carryBody"><tr><td colspan="9" class="why">&mdash;</td></tr></tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0" id="carryRead">&mdash;</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>A short receives funding; a long pays it.</b> Hyperliquid carries a fixed interest-rate component, so
+      funding sits at a <b>floor of about 10.95%/yr</b> &mdash; a perp long pays that essentially always, which is
+      the mechanism behind the whole structure: <b>be long via spot, be short via the perp.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      <b>Nothing here trades, and the drawdowns above are not reassurance.</b> Carry is a short-volatility
+      profile &mdash; steady small gains, rare large losses. A 90-day window with no crisis in it measures the
+      gains and not the losses. <b>The tail is not in this data. It never is.</b>
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>Three tapes, one clock</h2>
     <p class="cap" style="margin:0 0 8px" id="xsWhy">waiting for the cross-section feed&hellip;</p>
     <div class="scroll" style="max-height:none">
