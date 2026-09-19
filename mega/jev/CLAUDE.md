@@ -1301,6 +1301,27 @@ after it, and a fake `[ASSISTANT]:` turn. All three moved the target by the
 same 0.006, i.e. they were read as slightly odd words in a description — which
 is all they are, because there is nothing to inject *into*.
 
+### Two live reads off the deployed worker, for the shape of it
+
+```
+"a long low thing, mostly empty, mass carried high"
+  ink        0.82 ->   388.4   p(says) 0.87   small and slight
+  aspect     3.91 ->     2.71  p(says) 0.64   much wider than it is tall — long and low
+  coverage   0.03 ->     0.26  p(says) 0.80   mostly empty space — thin, spindly, skeletal
+  centroidY  0.01 ->     0.41  p(says) 0.95   its weight carried high, near the top
+  dropped: symmetry, spread
+
+"a huge solid blob"
+  ink        3.97 ->  1838.2   p(says) 0.86   very large and massive
+  coverage   3.80 ->     0.77  p(says) 0.95   very dense — a solid mass with almost no gaps
+  dropped: aspect, centroidY, symmetry, spread
+```
+
+The second one is the better demonstration. A blob states a size and a density
+and **nothing about its proportion** — and `aspect` was dropped, not set to
+square. A harness that filled it in would have been inventing the constraint it
+then graded against.
+
 ### The first version of that measure was broken, and it is kept in the eval
 
 It scored **whole-vector distance** between the derived brief and each
