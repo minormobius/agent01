@@ -1161,6 +1161,76 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+## CAD, unblocked — and we were the blocker (2026-09-19)
+
+**Correction first.** This file claimed a cad demo was impossible because
+`cad.mino.mobi/api`, `/api/health` and `/docs/CAD.md` all 404. Those 404s are
+real and **all three are paths that were never the API.** The endpoint has been
+live for weeks at **`https://cad.mino.mobi/mcp`** — JSON-RPC over HTTP, GET
+returns a descriptor. We did not probe hard enough, published the wrong
+blocker, and the cad branch manager corrected us.
+
+| tool | what it returns |
+|---|---|
+| `check` | resolves a tree — params, sketch/op counts, first error with its op id. ~40ms |
+| `build` | **Truck kernel**: volume, area, bbox, centroid, Euler, **watertight**, open/flipped edges, every named face. ~90ms for `plate` |
+| `measure` / `interference` / `mechanism` | named faces, assembly clearance and sweeps, ratios and dead points |
+| `drawing` / `report` / `step` | views, assembly reports, STEP export |
+
+Plus a bench (`gear`, `plate`, `case`, `cam`, `crank`, `lift`, `grip`,
+`clock`) as `bench:<name>`, and a tree schema whose `params` block is plain
+numbers — a ready-made enumerable decision space.
+
+### The composition chain, with a real kernel underneath
+
+`cad.mjs` + `eval/cad-gate.mjs`. Bench part `plate`, three briefs over
+kernel-measured invariants, six edits each.
+
+| arm | mean gap start | mean gap end | improved | abs regret | took worst |
+|---|---|---|---|---|---|
+| **Jev** | 0.530 | **0.118** | **94.4%** | **0.0007** | 0.00 |
+| greedy *(myopic ceiling)* | 0.530 | 0.113 | 100.0% | 0.0000 | 0.00 |
+| random *(same legal set)* | 0.530 | 0.480 | 50.0% | 0.1436 | 0.00 |
+
+Beat random **3/3**, within 5% of greedy **2/3**, **every part watertight**,
+312 distinct kernel builds at 89ms. Gate fired 7/18 with **100% improving**.
+
+**And the self-check failure replicates exactly: p(have) 0.113, 0 of 18 above
+0.5**, against 0.10–0.12 on the sprite chain. Different domain, different
+kernel, different question, same number. The composition finding is now an
+independent replication rather than a quirk of one generator.
+
+### Two things the kernel taught us that a cheap check cannot
+
+**`check` does not validate geometry.** It passed a tree with the pillar holes
+**999mm off a 20mm disc**, a **negative thickness**, and `R = 0` — only `build`
+rejected the last. So "a search that cannot propose an invalid model" lives
+**entirely in the enumerator**; a kernel's fast path does not hand it to you.
+`PLATE.valid` encodes the coherence rules explicitly and refused **20 of 696**
+candidates as not-a-part, never shown as options.
+
+**And valid is not correct.** `r_centre = 25` on a disc of R = 20 builds
+cleanly — watertight, volume 1065, bbox grown to 24mm — because the even-odd
+composition flipped which region was solid. A part can resolve, build, be
+watertight and still be the wrong part. That is the strongest argument for
+writing constraints down rather than trusting a green build.
+
+### A metric artifact caught before it was published
+
+The first run reported **mean regret 6.354** beside 88.9% of edits improving
+and an end distance level with greedy. Those cannot all be true. Relative
+regret divides by the best gain available, and near the optimum that is ~0, so
+a rounding difference became a 6.35. It now reports **absolute regret** (gap
+units, always meaningful) as the primary, and relative regret only over steps
+where a gain > 0.01 was genuinely on offer.
+
+```bash
+node mega/jev/eval/cad-gate.mjs --chains 3 --steps 6 --out mega/jev/lab/cad-gate.json
+```
+
+Caveats: one bench part, three briefs, six edits, briefs written by the same
+person reading the results, and greedy is a **myopic** ceiling.
+
 ## Composition: the hypothesis nobody had tested (2026-09-19)
 
 Every measurement on this surface had been **independent** questions against
@@ -1265,12 +1335,12 @@ node mega/jev/eval/compose-gate.mjs --thin    # the control: predictive question
 | **Escalation / cascade** — the fast tier detects its own incompetence | ✅ replicated 3× (62 / 76 / 65-point margins), perfect routing each time |
 | **Markets** | ❌ as a predictor (refuses, correctly) / ✅ as a determinate classifier (93/93 at the gate) |
 | **Composition** — a chain where each decision changes the state | ✅ at the myopic ceiling, and it broke the self-check |
-| **CAD** | ⬜ blocked on branch + API. Sprites were its dress rehearsal and it passed |
+| **CAD** | ✅ **unblocked and run.** `cad.mino.mobi/mcp` was live all along; beat random 3/3, every part watertight, self-check failure replicated |
 | **Procgen beyond one family** | ⬜ radial / poly / axial / isopod all exist and none is tested |
 | **Non-myopic composition** | ⬜ the real open question: a brief reachable only via a temporarily-worse step |
 | **Game balance** (`packages/pressure-lab/`) | ⬜ policy spreads and tightness bands are computed = determinate. Untested |
 | **The repo as corpus** | ⬜ 566 endpoints needing categorisation; pure wide-hypothesis, real utility |
-| **Jev swarm** | ⬜ see below |
+| **Jev swarm** | ⬜ see below — and `mappa`/polis NPCs are the right testbed, because NPCs have genuinely different states |
 
 ### Jev swarm — the multi-agent idea, and what would actually be new
 
@@ -1299,6 +1369,26 @@ Warning worth writing down before anyone builds it: with determinism, running
 the same instance twice is **exactly** free of information. A swarm only means
 anything if the instances see *different states*. Anything else is one answer
 counted N times, which is the overlapping-windows error wearing a new hat.
+
+**Which is exactly why `mappa` / the polis city sim is the right testbed**, and
+better than anything we would have invented. NPCs in a city have *genuinely
+different states* by construction — each one sees its own location, needs,
+neighbours and history — so the one precondition a swarm has to meet is met by
+the domain rather than engineered in. The three properties then line up:
+questions are isolated (so NPCs cannot contaminate each other, which no
+text-model crowd can claim), determinism means two NPCs disagreeing proves
+their *states* differed rather than that a sampler wandered, and breadth is
+free **within** one NPC's call — so the natural unit is one call per NPC with
+many questions, not many calls per decision.
+
+The measurable question is then sharp and not a vibe: **when does splitting the
+state beat sharing it?** Run the same population as (a) one call with a global
+state and N questions, against (b) N calls each with one NPC's slice. (a) is
+nearly free and (b) costs N× the state. If (a) matches (b), a swarm is a
+wasteful way to draw the same conclusions; if (b) wins, the disagreement
+between agents is a measurement of *which slice mattered*, and the per-agent
+self-check localises it. That comparison has never been run and it is the first
+experiment here where the cost model bites.
 
 ## Carry: the first signal here that is observed, not forecast (2026-09-19)
 

@@ -71,12 +71,41 @@ Alongside it, in the same call (breadth is free):
 - **`manufacturability`** — a `score` from "3-axis millable as-is" to "needs
   5-axis or a redesign".
 
-**What we'd need from your side, and it's small:** a **read-only JSON endpoint**
-for a model's feature tree — params, mates, the named face/edge tree — plus the
-list of operations legal on a given selection. CORS-open and deterministic, the
-way `foam.mino.mobi/api` is; that endpoint is the single reason the foam demo
-was buildable from a sandbox and cad wasn't. Probed 2026-09-17,
-`cad.mino.mobi/api`, `/api/health` and `/docs/CAD.md` all 404.
+**CORRECTION (2026-09-19), and it was ours.** An earlier version of this brief
+claimed the blocker was a missing API, citing 404s on `cad.mino.mobi/api`,
+`/api/health` and `/docs/CAD.md`. Those 404s are real and **all three are paths
+that were never the API.** The endpoint has been live for weeks at
+**`https://cad.mino.mobi/mcp`** — JSON-RPC over HTTP, GET returns a descriptor
+— and it is not merely what we asked for, it is considerably more:
+
+| tool | what it gives |
+|---|---|
+| `check` | resolves a tree without building geometry — params, sketch and op counts, or **the first error with its op id**. Cheap. |
+| `build` | the **Truck kernel**: volume, area, bbox, centroid, Euler characteristic, **watertightness**, every named face with its geometry |
+| `measure` | named faces, distances between them |
+| `interference` | assembly clearance and collision, with sweeps |
+| `mechanism` | ratios, advantage, effort, dead points |
+| `drawing` / `report` / `step` | views, assembly reports, STEP export |
+
+Plus a **bench** of worked parts (`gear`, `plate`, `case`, `cam`, `crank`,
+`lift`, `grip`, `clock`) addressable as `bench:<name>`, and a documented tree
+schema at `/README.md` with a `params` block of plain numbers.
+
+We did not probe hard enough and we published the wrong blocker. Sorry — the
+correction is in the repo, not just here.
+
+**This changes the plan for the better, in two specific ways:**
+
+1. **`check` is the enumerator's validator, from the real kernel.** "A search
+   that cannot propose an invalid model" stops being a claim and becomes a
+   measurement: enumerate only `check`-passing candidates, then count how many
+   `build` calls come back not-ok. **How well the cheap check predicts the
+   expensive build is a number worth having whether or not Jev is involved**,
+   and we would like to report it either way.
+2. **`build.ok` means built AND watertight — that is computed ground truth for
+   rebuild failure.** We said the real prerequisite was "a set of parts with
+   known rebuild failures, truth computed by the kernel rather than labelled by
+   hand". `build` *is* that oracle. The prerequisite is already met.
 
 **Two things to design in from the start**, both learned the hard way:
 

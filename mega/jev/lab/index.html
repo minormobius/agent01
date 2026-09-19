@@ -159,6 +159,66 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>CAD, unblocked &mdash; and the composition result replicates</h2>
+    <p class="cap" style="margin:0 0 10px">We said CAD was blocked on a missing API. <b>It wasn't. We probed the
+      wrong paths.</b></p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      This page claimed for two days that a cad demo was impossible because
+      <code>cad.mino.mobi/api</code>, <code>/api/health</code> and <code>/docs/CAD.md</code> all 404. Those 404s
+      are real and <b>all three are paths that were never the API.</b> It has been live for weeks at
+      <code>cad.mino.mobi/mcp</code> &mdash; JSON-RPC, GET returns a descriptor &mdash; with <code>check</code>
+      (resolve a tree, ~40ms), <code>build</code> (the <b>Truck kernel</b>: volume, area, bbox, centroid, Euler
+      characteristic, <b>watertightness</b>, every named face, ~90ms for this part), plus
+      <code>measure</code>, <code>interference</code>, <code>mechanism</code>, <code>drawing</code> and STEP
+      export, and a bench of worked parts. Correcting it in public because the claim was published in public.
+    </p>
+    <p class="cap" style="margin:0 0 6px">So the sprite chain ran again, with a real kernel supplying both the
+      legality and the ground truth. Bench part <code>plate</code>, three briefs over kernel-measured invariants.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:560px"><thead><tr>
+        <th>arm</th><th>mean gap start</th><th>mean gap end</th><th>edits that improved</th><th>abs regret</th><th>took worst</th>
+      </tr></thead><tbody>
+        <tr><td><b>Jev</b></td><td>0.530</td><td><b>0.118</b></td><td><b>94.4%</b></td><td><b>0.0007</b></td><td><b>0.00</b></td></tr>
+        <tr><td>greedy <em>(myopic ceiling)</em></td><td>0.530</td><td>0.113</td><td>100.0%</td><td>0.0000</td><td>0.00</td></tr>
+        <tr><td>random <em>(same legal set)</em></td><td>0.530</td><td style="color:var(--bad)">0.480</td><td style="color:var(--bad)">50.0%</td><td style="color:var(--bad)">0.1436</td><td>0.00</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Beat random <b>3/3</b>, within 5% of the greedy ceiling <b>2/3</b>, and
+      <b>every part built along every chain came back watertight.</b> 312 distinct kernel builds at 89ms each.
+      The gate fired on 7 of 18 edits and <b>100% of those improved</b>.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the self-check failure replicates exactly.</b> <code>p(have)</code> came back <b>0.113, 0 of 18
+      above 0.5</b> &mdash; against 0.10&ndash;0.12 on the sprite chain. Different domain, different kernel,
+      different question, <b>same number</b>. That makes the composition finding an independent replication
+      rather than a quirk of one generator: <b>in a sequential loop the self-check says &ldquo;no&rdquo; to
+      everything and confidence is the informative signal</b>, which is the reverse of every frozen-state
+      result on this page.
+    </p>
+    <h2 style="margin-top:18px">Two things the kernel taught us that a cheap check cannot</h2>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      <b><code>check</code> does not validate geometry.</b> It passed a tree with the pillar holes
+      <b>999mm off a 20mm disc</b>, a <b>negative thickness</b>, and <code>R = 0</code>. Only <code>build</code>
+      rejected the last one. So the &ldquo;search that cannot propose an invalid model&rdquo; property lives
+      <b>entirely in the enumerator</b> &mdash; it is not something a kernel's fast path hands you. Ours encodes
+      the coherence rules explicitly (centre hole inside the rim, bolt circles fitting within the disc) and
+      <b>refused 20 of 696 candidates as not-a-part</b>, which were never shown as options.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      <b>And valid is not correct.</b> Setting <code>r_centre</code> to 25 on a disc of R = 20 <em>builds
+      cleanly</em>: watertight, volume 1065, bbox grown to 24mm &mdash; the even-odd composition flipped which
+      region was solid. A part can resolve, build, be watertight and still be the wrong part. Nothing on the
+      kernel side catches that, which is the strongest argument for writing the constraints down rather than
+      trusting a green build.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      Caveats: one bench part, three briefs, six edits, and greedy is a <em>myopic</em> ceiling &mdash; matching
+      it is not evidence of planning. The briefs were written by the same person reading the results.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>Composition: the hypothesis nobody had tested</h2>
     <p class="cap" style="margin:0 0 10px">Breadth was proven long ago. A <b>chain</b> had never been run once.</p>
     <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
