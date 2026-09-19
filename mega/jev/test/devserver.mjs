@@ -192,7 +192,13 @@ createServer(async (req, res) => {
   const base = inJev ? root : megaRoot;
   let p = normalize(inJev ? url.pathname.replace(/^\/jev/, '') : url.pathname)
     .replace(/^(\.\.[/\\])+/, '');
+  // A directory resolves to its index, at any depth. Workers Static Assets
+  // does this in production, so a dev server that only did it at the root
+  // 404'd /jev/composer/ — the page served fine by its full filename and not
+  // at all by the URL anyone actually visits.
   if (p === '/' || p === '' || p === '\\') p = '/index.html';
+  else if (p.endsWith('/')) p += 'index.html';
+  else if (!p.slice(p.lastIndexOf('/')).includes('.')) p += '/index.html';
   const file = join(base, p);
   // Still confined: the jev tree for /jev/*, the mega tree for everything else.
   if (!file.startsWith(base)) return send(403, 'text/plain', 'forbidden');

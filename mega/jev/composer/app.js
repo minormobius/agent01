@@ -10,6 +10,7 @@
 // affordable. The one network call per step is the decision itself.
 import { GENERATORS, BRIEFS, TRAITS, legalMoves, traitsOf, briefDistance,
   moveCriteria, composeDoc } from '../lab/gen.mjs';
+import { briefFromText } from '../lab/steer.mjs';
 
 const $ = (id) => document.getElementById(id);
 const ENDPOINT = '../api/ask';
@@ -90,12 +91,72 @@ function paintOptions(moves, chosenId, conf) {
 
 let currentGen = 'quad';
 
+// ------------------------------------------------------- the typed brief ----
+// A brief derived from someone's sentence is an ordinary brief: a label and a
+// partial target. `briefDistance` and `composeDoc` already ignore absent
+// traits, so a three-trait brief needs no special case anywhere downstream —
+// which is the whole reason the self-check is allowed to drop traits.
+let typedBrief = null;
+const activeBrief = () => ($('brief').value === '__typed' && typedBrief ? typedBrief : BRIEFS[$('brief').value]);
+
+/** Show what the words became, including — especially — what they did not. */
+function paintDerived(b) {
+  if (!b) { $('derived').innerHTML = ''; return; }
+  const rows = TRAITS.filter((t) => b.detail[t]).map((t) => {
+    const d = b.detail[t];
+    return `<tr><td>${t}</td><td>${d.score.toFixed(2)}</td><td>${d.value}</td>` +
+      `<td>${d.have == null ? '—' : d.have.toFixed(2)}</td><td>${d.rung}</td></tr>`;
+  }).join('');
+  const drops = b.dropped.length
+    ? `<p class="note drop">left out, and deliberately: ` +
+      b.dropped.map((d) => `<b>${d.trait}</b> — ${d.why}`).join('; ') + `.</p>`
+    : '';
+  const head = b.empty
+    ? `<p class="note"><b>Nothing was constrained.</b> The self-check said this description does not decide any
+       of the six measured traits, so there is no brief to compose against — it would be a random walk with a
+       caption. Try naming a size, a proportion, how solid it is, or where the weight sits.</p>`
+    : `<p class="note">${Object.keys(b.target).length} of ${TRAITS.length} traits constrained by your words` +
+      `${b.source ? ` · ${b.source === 'typesafe' ? 'live jev' : b.source}` : ''}. ` +
+      `<b>score</b> is the expectation over the ordered rungs (a 2.4 really is between rung 2 and rung 3); ` +
+      `<b>p(says)</b> is the self-check that decides whether the trait is used at all.</p>`;
+  $('derived').innerHTML = head + (rows
+    ? `<table><thead><tr><th>trait</th><th>score</th><th>target</th><th>p(says)</th><th>what that rung reads as</th>` +
+      `</tr></thead><tbody>${rows}</tbody></table>` : '') + drops;
+}
+
+async function readText() {
+  const text = $('text').value.trim();
+  if (!text || running) return;
+  $('read').disabled = true;
+  $('derived').innerHTML = '<p class="note">asking — twelve typed questions in one call…</p>';
+  try {
+    const b = await briefFromText(text, ask);
+    typedBrief = b;
+    paintDerived(b);
+    if (!b.empty) {
+      if (!$('brief').querySelector('option[value="__typed"]')) {
+        $('brief').insertAdjacentHTML('beforeend', '<option value="__typed"></option>');
+      }
+      const o = $('brief').querySelector('option[value="__typed"]');
+      o.textContent = `your words — ${b.label}`;
+      $('brief').value = '__typed';
+      preview();
+      $('mode').textContent = 'brief read from your words — press compose';
+    }
+  } catch (e) {
+    // Same rule as the chain: say the call failed. A steering box that quietly
+    // fell back to keyword matching would be claiming a result it did not get.
+    $('derived').innerHTML = `<p class="note">the call failed — ${String(e.message).slice(0, 120)}. ` +
+      `Nothing was derived; the brief is unchanged.</p>`;
+  } finally { $('read').disabled = false; }
+}
+
 async function compose() {
   if (running) return;
   running = true;
   $('run').disabled = true; $('shuffle').disabled = true;
   const genId = currentGen = $('gen').value;
-  const brief = BRIEFS[$('brief').value];
+  const brief = activeBrief();
   const steps = Number($('steps').value);
   const start = { ...GENERATORS[genId].defaults };
 
@@ -189,7 +250,7 @@ for (const [id, b] of Object.entries(BRIEFS)) {
 
 function preview() {
   currentGen = $('gen').value;
-  const brief = BRIEFS[$('brief').value];
+  const brief = activeBrief();
   const start = { ...GENERATORS[currentGen].defaults };
   const t = traitsOf(currentGen, start);
   draw($('cvStart'), cellsOf(currentGen, start));
@@ -213,8 +274,11 @@ $('shuffle').addEventListener('click', () => {
 $('gen').addEventListener('change', preview);
 $('brief').addEventListener('change', preview);
 $('run').addEventListener('click', compose);
+$('read').addEventListener('click', readText);
+$('text').addEventListener('keydown', (e) => { if (e.key === 'Enter') readText(); });
 preview();
 
 // The headless hook, the house `__foam` / `__jev` / `__jevlab` pattern.
-window.__composer = { compose, preview, enumerate, draw,
+window.__composer = { compose, preview, enumerate, draw, readText,
+  typed: () => typedBrief,
   state: () => ({ gen: currentGen, brief: $('brief').value }) };

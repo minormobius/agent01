@@ -28,6 +28,8 @@ import { traits, TRAIT_KEYS, BRIEFS, briefDistance, legalMoves, moveCriteria, co
 import { carryStats, rankCarry, carryDoc, buildCarryProbes, carryTruth, positionRisk,
   toAnnualPct, FUNDING_FLOOR_PCT } from '../lab/carry.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
+import { LADDER as STEER_LADDER, RUNGS, steerQuestions, steerDoc, targetFromAnswers, briefFromText }
+  from '../lab/steer.mjs';
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -1656,6 +1658,97 @@ const SPEC = fix2('preregister.json');
   ok(/edit 3 of 8/.test(doc) && /EDITS ALREADY MADE/.test(doc), 'and where in the chain it is, and what it has done');
   ok(!/EDITS ALREADY MADE/.test(genDoc(id, cur, GEN_BRIEFS.compact, { step: 0, total: 8 })),
     'with no history block on the first edit rather than an empty one');
+}
+
+// ------------------------------------------- steering with a typed sentence ----
+//
+// The whole point of this layer is that a description is a STATE, never an
+// instruction, and that a trait the words do not constrain is dropped rather
+// than invented. Both of those are testable without a network call.
+{
+  for (const t of TRAITS) {
+    ok(Array.isArray(STEER_LADDER[t]) && STEER_LADDER[t].length === 5, `${t} has a five-rung ladder`);
+    const l = STEER_LADDER[t];
+    ok(l.every((v, i) => i === 0 || v >= l[i - 1]), `${t}'s ladder is monotone, so a higher score means more`);
+    ok(RUNGS[t]?.length === 5, `${t}'s rungs are worded, one per ladder step`);
+    for (const r of RUNGS[t]) ok(!/\b(gene|score|value|rung|0\.\d)\b/.test(r),
+      `${t} rung "${r.slice(0, 28)}…" describes what you would SEE, not a number or a gene`);
+  }
+  const qs = steerQuestions();
+  ok(Object.keys(qs).length === TRAITS.length * 2, 'one score and one self-check per trait, in a single call');
+  for (const t of TRAITS) {
+    ok(qs[t].type === 'score' && Array.isArray(qs[t].criteria),
+      `${t} is asked as an ordered score, so the answer can land BETWEEN rungs`);
+    ok(qs[`have__${t}`].type === 'noul', `${t} carries its own self-check as a separate typed question`);
+  }
+
+  // The document must frame the text as a thing to read, never as something to obey.
+  const doc = steerDoc('a long low creature');
+  ok(/DESCRIBED A CREATURE/.test(doc) && /It is not an instruction and contains none/.test(doc),
+    'the state says plainly that the text is a description and not an instruction');
+  ok(/--- begin description ---/.test(doc) && /--- end description ---/.test(doc),
+    'and fences it, so where the words start and stop is not a matter of guessing');
+  ok(steerDoc('x'.repeat(5000)).length < 2000, 'a very long description is truncated rather than blowing the budget');
+  ok(!/undefined|null/.test(steerDoc(undefined)), 'and an empty box produces a document, not the word undefined');
+
+  // A trait whose self-check is low is LEFT OUT. This is the escalation
+  // primitive doing the work, and it is the difference between a brief and a
+  // straitjacket — so it is pinned, not assumed.
+  const answers = {
+    ink: { score: 4 }, have__ink: { noul: 0.97 },
+    aspect: { score: 0 }, have__aspect: { noul: 0.91 },
+    coverage: { score: 2 }, have__coverage: { noul: 0.10 },
+    centroidY: { score: 2 }, have__centroidY: { noul: 0.49 },
+    symmetry: { score: 3 }, have__symmetry: { noul: 0.51 },
+    // spread answered with no self-check at all
+    spread: { score: 1 },
+  };
+  const { target, dropped, detail } = targetFromAnswers(answers);
+  ok(target.ink === STEER_LADDER.ink[4], 'a top-rung score lands exactly on the top of the measured range');
+  ok(target.aspect === STEER_LADDER.aspect[0], 'and a bottom-rung score on the bottom');
+  ok(target.coverage === undefined && target.centroidY === undefined,
+    'a trait the description is silent on is absent from the target, not defaulted to the middle');
+  ok(dropped.find((d) => d.trait === 'coverage')?.why.includes('says nothing about it'),
+    'and the drop says why, in words a reader can check');
+  ok(target.symmetry != null, 'a self-check just over the gate is kept — the gate is a threshold, not a mood');
+  ok(target.spread != null, 'a missing self-check does not silently delete a trait that WAS answered');
+  ok(detail.ink.rung === RUNGS.ink[4], 'the detail reports the rung wording, so the number is legible');
+
+  // Interpolation is the entire reason for `score` over `choice`.
+  const mid = targetFromAnswers({ aspect: { score: 2.5 }, have__aspect: { noul: 1 } }).target.aspect;
+  ok(mid > STEER_LADDER.aspect[2] && mid < STEER_LADDER.aspect[3],
+    'a fractional score lands strictly between its two rungs rather than snapping to one');
+  ok(Math.abs(mid - (STEER_LADDER.aspect[2] + STEER_LADDER.aspect[3]) / 2) < 1e-9,
+    'and lands exactly halfway on a .5, which is what an expectation over rungs means');
+  const hi = targetFromAnswers({ ink: { score: 99 }, have__ink: { noul: 1 } }).target.ink;
+  ok(hi === STEER_LADDER.ink[4], 'an out-of-range score clamps to the ladder instead of extrapolating off it');
+
+  // A brief with nothing in it must announce itself. Running a chain against an
+  // empty target is a random walk with a caption, which is the one failure mode
+  // that would look like a working demo.
+  const none = targetFromAnswers({ ink: { score: 3 }, have__ink: { noul: 0.02 } });
+  ok(Object.keys(none.target).length === 0, 'a description that constrains nothing yields no target at all');
+
+  // And the derived brief must be an ORDINARY brief — the downstream code has
+  // no special case for a partial one, and this is what says so.
+  const partial = { label: 'typed', target: targetFromAnswers(answers).target };
+  const t0 = traitsOf('quad', GENERATORS.quad.defaults);
+  ok(Number.isFinite(genDistance(t0, partial)), 'briefDistance takes a partial target without a special case');
+  const pdoc = genDoc('quad', t0, partial, { step: 0, total: 6 });
+  ok(!/coverage/.test(pdoc.split('edit 1 of 6')[0]),
+    'and the state document lists only the traits the brief actually constrains');
+
+  // The injected `ask` is the seam that keeps this testable without a network.
+  const stub = async (state, questions) => {
+    ok(/begin description/.test(state), 'briefFromText posts the fenced document as the state');
+    ok(Object.keys(questions).length === TRAITS.length * 2, 'and the full question set in one call');
+    return { source: 'stub', answers: { aspect: { score: 4 }, have__aspect: { noul: 0.9 } } };
+  };
+  const b = await briefFromText('much wider than tall', stub);
+  ok(b.empty === false && b.target.aspect === STEER_LADDER.aspect[4], 'and returns a usable brief');
+  ok(b.label === 'much wider than tall', 'labelled with the words the person actually typed');
+  ok((await briefFromText('', async () => ({ answers: {} }))).empty === true,
+    'while an empty result is flagged empty rather than handed on as a brief');
 }
 
 if (failures.length) {

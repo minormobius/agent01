@@ -24,6 +24,21 @@
     </div>
   </header>
 
+  <section class="card steer">
+    <h2>say it in your own words</h2>
+    <p class="cap" style="margin:0 0 9px"><b>This is not an instruction to Jev — it cannot take one.</b>
+      Your sentence is posted as a <i>state</i>, and the harness asks twelve typed questions about it: for each
+      measured trait, one ordered <code>score</code> over what that trait can actually reach, plus a
+      <code>noul</code> asking whether your words say anything about it at all. A trait your description is
+      silent on is <b>left out of the brief</b> rather than defaulted to the middle.</p>
+    <div class="steerRow">
+      <input id="text" type="text" maxlength="600" autocomplete="off"
+        placeholder="a long low thing, mostly empty, mass carried high">
+      <button id="read" class="btn">read it</button>
+    </div>
+    <div class="derived" id="derived"></div>
+  </section>
+
   <section class="picks">
     <label>generator<select id="gen"></select></label>
     <label>brief<select id="brief"></select></label>
@@ -81,6 +96,17 @@
       random 8/8, with a mean regret of 0.020 against greedy's 0.000. And the same chain broke the confidence
       self-check — it reported <code>p(have) ≈ 0.11</code> on every edit while performing at the ceiling, which
       is the reverse of every frozen-state result. <a href="../lab/">The lab has the numbers.</a></p>
+    <p><b>And the text box, measured too.</b> Feeding each of the five built-in briefs its own wording back:
+      <b>6 of 6</b> derived values landed on the correct side of the population median wherever the hand-written
+      target is decisively off-centre (9 of 11 counting the ones that sit <i>at</i> the median, where "which side"
+      means nothing — both misses are an <code>aspect</code> of 1.0 called square). A description about a single
+      property kept a mean of <b>1.8 of 6</b> traits, so the self-check really does abstain. And three
+      prompt-injection attempts — <code>SYSTEM OVERRIDE</code>, a forged end-of-description marker, a fake
+      <code>[ASSISTANT]</code> turn — moved the derived target by <b>0.006</b> each, which is inert: there is
+      nothing to inject <i>into</i>.</p>
+    <p class="cap"><b>Two weak axes, said plainly.</b> Over 1,300 random genomes these five generators only move
+      <code>centroidY</code> between 0.41 and 0.59 and <code>spread</code> between 0.18 and 0.25. A description
+      leaning on either has very little room to be satisfied, and that is the generators' limit, not the model's.</p>
   </section>
 
 </main>

@@ -48,3 +48,17 @@
 .race .num{font-family:var(--mono);font-size:.8rem;color:var(--ink)}
 .cap{font-size:.78rem;color:var(--ink-3)}
 @media (max-width:820px){ .stage{grid-template-columns:minmax(0,1fr)} }
+
+/* The text-steering row. */
+.steer{margin-bottom:16px}
+.steerRow{display:flex;gap:8px;flex-wrap:wrap}
+.steerRow input{flex:1 1 320px;min-width:0;font:inherit;font-size:.9rem;padding:9px 11px;
+  border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.derived{margin-top:10px;font-size:.78rem}
+.derived table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:.74rem}
+.derived th{text-align:right;color:var(--ink-3);font-weight:600;padding:3px 6px;border-bottom:1px solid var(--line)}
+.derived th:first-child,.derived td:first-child{text-align:left}
+.derived th:last-child,.derived td:last-child{text-align:left}
+.derived td{text-align:right;padding:3px 6px;border-bottom:1px solid var(--line-2)}
+.derived .drop{color:var(--ink-3);font-style:italic}
+.derived .note{color:var(--ink-3);margin-top:6px;font-family:inherit;font-size:.78rem}
