@@ -13,14 +13,14 @@
   },
   "j2": {
    "min": -30,
-   "max": 60,
+   "max": 0,
    "steps": 3,
    "unit": "deg",
    "default": 0,
    "description": "the upper arm’s ABSOLUTE elevation"
   },
   "j3": {
-   "min": -95,
+   "min": -90,
    "max": 50,
    "steps": 3,
    "unit": "deg",
@@ -474,10 +474,10 @@
      "cheek": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Shoulder cheek, two off at |y| 62…74: they straddle the whole parallelogram and carry the COAXIAL J2 and J3 bores at z 400. Coaxial is the architecture — it is what puts the elbow's actuator at the shoulder and lets one counterweight per crank balance the arm exactly. `y1` is overridden per side. One extrude along -Y.",
+      "_": "Shoulder cheek, two off at |y| 74…86: they straddle the whole parallelogram and carry the COAXIAL J2 and J3 bores at z 400. Coaxial is the architecture — it is what puts the elbow's actuator at the shoulder and lets one counterweight per crank balance the arm exactly. `y1` is overridden per side. One extrude along -Y.",
       "params": {
        "t": 12,
-       "y1": 74,
+       "y1": 86,
        "h": 80,
        "L": 110,
        "z": 400,
@@ -755,7 +755,7 @@
        "b": 18,
        "w": 22,
        "t": 10,
-       "y1": 60,
+       "y1": 72,
        "d": 12.2
       },
       "features": [
@@ -953,7 +953,7 @@
        0
       ],
       "params": {
-       "y1": "74 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "86 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -962,7 +962,7 @@
       "repeat": 2,
       "at": [
        0,
-       "(1 - 2 * (i - 2 * floor(i / 2))) * 111",
+       "(1 - 2 * (i - 2 * floor(i / 2))) * 123",
        400
       ]
      },
@@ -1051,7 +1051,7 @@
        "deg": "-j2"
       },
       "params": {
-       "y1": "60 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "72 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1099,56 +1099,586 @@
      {
       "id": "wrist",
       "assembly": {
-       "_": "the wrist, at the forearm’s far end",
+       "_": "the wrist — ../arm/wrist, whole",
        "params": {
-        "L1": 250,
-        "L2": 250,
-        "Lw": 60,
-        "crank": 80,
-        "cwR1": 300,
-        "cwR2": 200,
-        "shZ": 400
+        "j5x": -85,
+        "beltY": 51
        },
-       "derived": {
-        "ex": "L1 * cos(deg(j2))",
-        "ez": "L1 * sin(deg(j2))",
-        "px": "crank * cos(deg(j3))",
-        "pz": "crank * sin(deg(j3))",
-        "wx": "ex + L2 * cos(deg(j3))",
-        "wz": "ez + L2 * sin(deg(j3))",
-        "c1x": "-cwR1 * cos(deg(j2))",
-        "c1z": "shZ - cwR1 * sin(deg(j2))",
-        "c2x": "-cwR2 * cos(deg(j3))",
-        "c2z": "shZ - cwR2 * sin(deg(j3))"
+       "derived": {},
+       "parts": {
+        "forearm-barrel": {
+         "$schema": "com.minomobi.cad.tree#v1",
+         "units": "mm",
+         "_": "Forearm barrel: Ø64 over Ø56, 80 long, swallowing the J4 motor and its reduction. The two forearm plates land on this instead of ending in mid-air. Ø64 and not Ø54 because a NEMA 17's DIAGONAL is 59.8. One extrude along +X.",
+         "params": {
+          "d": 64,
+          "d_bore": 56,
+          "t": 80,
+          "x0": -200
+         },
+         "features": [
+          {
+           "op": "sketch",
+           "id": "f",
+           "plane": {
+            "base": "YZ",
+            "offset": "x0"
+           },
+           "loops": [
+            {
+             "name": "outline",
+             "circle": {
+              "c": [
+               0,
+               0
+              ],
+              "r": "d / 2"
+             }
+            },
+            {
+             "name": "bore",
+             "circle": {
+              "c": [
+               0,
+               0
+              ],
+              "r": "d_bore / 2"
+             }
+            }
+           ]
+          },
+          {
+           "op": "extrude",
+           "id": "b",
+           "profile": "f",
+           "depth": "t"
+          }
+         ]
+        },
+        "nema17": {
+         "$schema": "com.minomobi.cad.tree#v1",
+         "units": "mm",
+         "_": "NEMA 17 stand-in: 42.3 square with 5 mm corner chamfers, 40 long. Two off — J4 coaxial up the forearm, J5 crosswise in the roll drum. One extrude along +X.",
+         "params": {
+          "s": 42.3,
+          "ch": 5,
+          "t": 40,
+          "x0": 0
+         },
+         "features": [
+          {
+           "op": "sketch",
+           "id": "body",
+           "plane": {
+            "base": "YZ",
+            "offset": "x0"
+           },
+           "loops": [
+            {
+             "name": "body",
+             "polygon": [
+              [
+               "-(s/2 - ch)",
+               "-s/2"
+              ],
+              [
+               "s/2 - ch",
+               "-s/2"
+              ],
+              [
+               "s/2",
+               "-(s/2 - ch)"
+              ],
+              [
+               "s/2",
+               "s/2 - ch"
+              ],
+              [
+               "s/2 - ch",
+               "s/2"
+              ],
+              [
+               "-(s/2 - ch)",
+               "s/2"
+              ],
+              [
+               "-s/2",
+               "s/2 - ch"
+              ],
+              [
+               "-s/2",
+               "-(s/2 - ch)"
+              ]
+             ]
+            }
+           ]
+          },
+          {
+           "op": "extrude",
+           "id": "m",
+           "profile": "body",
+           "depth": "t"
+          }
+         ]
+        },
+        "planetary": {
+         "$schema": "com.minomobi.cad.tree#v1",
+         "units": "mm",
+         "_": "Planetary reduction stand-in, Ø42 × 32. J4 takes 30:1 for its 5.57 N·m corner case; J5 takes only 10:1 because the belt is the other 3:1 — which is why the belt makes the gearbox cheaper, not dearer. One extrude along +X.",
+         "params": {
+          "d": 42,
+          "t": 32,
+          "x0": 0
+         },
+         "features": [
+          {
+           "op": "sketch",
+           "id": "f",
+           "plane": {
+            "base": "YZ",
+            "offset": "x0"
+           },
+           "loops": [
+            {
+             "name": "outline",
+             "circle": {
+              "c": [
+               0,
+               0
+              ],
+              "r": "d / 2"
+             }
+            }
+           ]
+          },
+          {
+           "op": "extrude",
+           "id": "g",
+           "profile": "f",
+           "depth": "t"
+          }
+         ]
+        },
+        "roll-bearing": {
+         "$schema": "com.minomobi.cad.tree#v1",
+         "units": "mm",
+         "_": "J4 bearing: Ø80 over Ø64, between the fixed barrel and the turning drum. It carries the whole wrist's cantilever — 5.6 N·m of it — so it is a crossed roller, like the gripper's. One extrude along +X.",
+         "params": {
+          "d": 80,
+          "d_bore": 64,
+          "t": 12,
+          "x0": -120
+         },
+         "features": [
+          {
+           "op": "sketch",
+           "id": "f",
+           "plane": {
+            "base": "YZ",
+            "offset": "x0"
+           },
+           "loops": [
+            {
+             "name": "outline",
+             "circle": {
+              "c": [
+               0,
+               0
+              ],
+              "r": "d / 2"
+             }
+            },
+            {
+             "name": "bore",
+             "circle": {
+              "c": [
+               0,
+               0
+              ],
+              "r": "d_bore / 2"
+             }
+            }
+           ]
+          },
+          {
+           "op": "extrude",
+           "id": "rb",
+           "profile": "f",
+           "depth": "t"
+          }
+         ]
+        }
        },
-       "parts": {},
        "components": [
+        {
+         "id": "forearm-barrel",
+         "part": "forearm-barrel",
+         "at": [
+          0,
+          0,
+          0
+         ]
+        },
+        {
+         "id": "j4-motor",
+         "part": "nema17",
+         "at": [
+          -195,
+          0,
+          0
+         ]
+        },
+        {
+         "id": "j4-gearbox",
+         "part": "planetary",
+         "at": [
+          -155,
+          0,
+          0
+         ]
+        },
+        {
+         "id": "roll-bearing",
+         "part": "roll-bearing",
+         "at": [
+          0,
+          0,
+          0
+         ]
+        },
         {
          "id": "roll4",
          "assembly": {
-          "_": "j4, the forearm roll — the tube, the fork and the pitch bearing",
+          "_": "j4: the drum, the J5 drive inside it, the fork and the belt",
           "params": {
-           "L1": 250,
-           "L2": 250,
-           "Lw": 60,
-           "crank": 80,
-           "cwR1": 300,
-           "cwR2": 200,
-           "shZ": 400
+           "j5x": -85,
+           "beltY": 51
           },
-          "derived": {
-           "ex": "L1 * cos(deg(j2))",
-           "ez": "L1 * sin(deg(j2))",
-           "px": "crank * cos(deg(j3))",
-           "pz": "crank * sin(deg(j3))",
-           "wx": "ex + L2 * cos(deg(j3))",
-           "wz": "ez + L2 * sin(deg(j3))",
-           "c1x": "-cwR1 * cos(deg(j2))",
-           "c1z": "shZ - cwR1 * sin(deg(j2))",
-           "c2x": "-cwR2 * cos(deg(j3))",
-           "c2z": "shZ - cwR2 * sin(deg(j3))"
-          },
+          "derived": {},
           "parts": {
+           "roll-drum": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "J4 roll drum: Ø118 over Ø110, turning with j4 and carrying the fork. It is this big because the J5 motor lies CROSSWISE inside it — that is the whole trick, and it is what takes the wrist's swept circle from Ø271 down to Ø118. The belt leaves through its open front face. One extrude along +X.",
+            "params": {
+             "d": 118,
+             "d_bore": 110,
+             "t": 63,
+             "x0": -118
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "f",
+              "plane": {
+               "base": "YZ",
+               "offset": "x0"
+              },
+              "loops": [
+               {
+                "name": "outline",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d / 2"
+                }
+               },
+               {
+                "name": "bore",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d_bore / 2"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "rd",
+              "profile": "f",
+              "depth": "t"
+             }
+            ]
+           },
+           "nema17": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "NEMA 17 stand-in: 42.3 square with 5 mm corner chamfers, 40 long. Two off — J4 coaxial up the forearm, J5 crosswise in the roll drum. One extrude along +X.",
+            "params": {
+             "s": 42.3,
+             "ch": 5,
+             "t": 40,
+             "x0": 0
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "body",
+              "plane": {
+               "base": "YZ",
+               "offset": "x0"
+              },
+              "loops": [
+               {
+                "name": "body",
+                "polygon": [
+                 [
+                  "-(s/2 - ch)",
+                  "-s/2"
+                 ],
+                 [
+                  "s/2 - ch",
+                  "-s/2"
+                 ],
+                 [
+                  "s/2",
+                  "-(s/2 - ch)"
+                 ],
+                 [
+                  "s/2",
+                  "s/2 - ch"
+                 ],
+                 [
+                  "s/2 - ch",
+                  "s/2"
+                 ],
+                 [
+                  "-(s/2 - ch)",
+                  "s/2"
+                 ],
+                 [
+                  "-s/2",
+                  "s/2 - ch"
+                 ],
+                 [
+                  "-s/2",
+                  "-(s/2 - ch)"
+                 ]
+                ]
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "m",
+              "profile": "body",
+              "depth": "t"
+             }
+            ]
+           },
+           "planetary": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "Planetary reduction stand-in, Ø42 × 32. J4 takes 30:1 for its 5.57 N·m corner case; J5 takes only 10:1 because the belt is the other 3:1 — which is why the belt makes the gearbox cheaper, not dearer. One extrude along +X.",
+            "params": {
+             "d": 42,
+             "t": 32,
+             "x0": 0
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "f",
+              "plane": {
+               "base": "YZ",
+               "offset": "x0"
+              },
+              "loops": [
+               {
+                "name": "outline",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d / 2"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "g",
+              "profile": "f",
+              "depth": "t"
+             }
+            ]
+           },
+           "pulley": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "GT2 pulley at its PITCH diameter, drawn at ROOT diameter so the belt band clears it — the teeth we do not draw are what fills the 0.8 mm between them. Two off: 20T Ø12.73 on the J5 gearbox and 60T Ø38.2 on the pitch shaft. One extrude along -Y.",
+            "params": {
+             "d": 9.732,
+             "t": 9,
+             "y1": 51,
+             "d_bore": 8.2
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "face",
+              "plane": {
+               "base": "XZ",
+               "offset": "-y1"
+              },
+              "loops": [
+               {
+                "name": "od",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d / 2"
+                }
+               },
+               {
+                "name": "bore",
+                "circle": {
+                 "c": [
+                  0,
+                  0
+                 ],
+                 "r": "d_bore / 2"
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "pul",
+              "profile": "face",
+              "depth": "t"
+             }
+            ]
+           },
+           "belt": {
+            "$schema": "com.minomobi.cad.tree#v1",
+            "units": "mm",
+            "_": "GT2 9 belt, 20T to 60T over 85 mm of centres — drawn as a real band so its envelope is a real clearance body, which the blade and the cheek both have to miss. One extrude along -Y.",
+            "params": {
+             "t": 9,
+             "y1": 51
+            },
+            "features": [
+             {
+              "op": "sketch",
+              "id": "band",
+              "plane": {
+               "base": "XZ",
+               "offset": "-y1"
+              },
+              "loops": [
+               {
+                "name": "outer",
+                "path": {
+                 "from": [
+                  -2.9657,
+                  19.5752
+                 ],
+                 "segs": [
+                  {
+                   "arc": {
+                    "via": [
+                     19.7986,
+                     0
+                    ],
+                    "to": [
+                     -2.9657,
+                     -19.5752
+                    ]
+                   }
+                  },
+                  {
+                   "to": [
+                    -86.0585,
+                    -6.9865
+                   ]
+                  },
+                  {
+                   "arc": {
+                    "via": [
+                     -92.0662,
+                     0
+                    ],
+                    "to": [
+                     -86.0585,
+                     6.9865
+                    ]
+                   }
+                  },
+                  {
+                   "to": [
+                    -2.9657,
+                    19.5752
+                   ]
+                  }
+                 ]
+                }
+               },
+               {
+                "name": "inner",
+                "path": {
+                 "from": [
+                  -2.756,
+                  18.191
+                 ],
+                 "segs": [
+                  {
+                   "arc": {
+                    "via": [
+                     18.3986,
+                     0
+                    ],
+                    "to": [
+                     -2.756,
+                     -18.191
+                    ]
+                   }
+                  },
+                  {
+                   "to": [
+                    -85.8488,
+                    -5.6023
+                   ]
+                  },
+                  {
+                   "arc": {
+                    "via": [
+                     -90.6662,
+                     0
+                    ],
+                    "to": [
+                     -85.8488,
+                     5.6023
+                    ]
+                   }
+                  },
+                  {
+                   "to": [
+                    -2.756,
+                    18.191
+                   ]
+                  }
+                 ]
+                }
+               }
+              ]
+             },
+             {
+              "op": "extrude",
+              "id": "belt",
+              "profile": "band",
+              "depth": "t"
+             }
+            ]
+           },
            "fork-cheek": {
             "$schema": "com.minomobi.cad.tree#v1",
             "units": "mm",
@@ -1242,44 +1772,6 @@
              }
             ]
            },
-           "pitch-shaft": {
-            "$schema": "com.minomobi.cad.tree#v1",
-            "units": "mm",
-            "_": "Ø16 pitch shaft, pressed into the blade and running in a bush in each cheek. One extrude along -Y.",
-            "params": {
-             "d": 16,
-             "t": 86,
-             "y1": "t / 2"
-            },
-            "features": [
-             {
-              "op": "sketch",
-              "id": "face",
-              "plane": {
-               "base": "XZ",
-               "offset": "-y1"
-              },
-              "loops": [
-               {
-                "name": "od",
-                "circle": {
-                 "c": [
-                  0,
-                  0
-                 ],
-                 "r": "d / 2"
-                }
-               }
-              ]
-             },
-             {
-              "op": "extrude",
-              "id": "ps",
-              "profile": "face",
-              "depth": "t"
-             }
-            ]
-           },
            "pitch-bush": {
             "$schema": "com.minomobi.cad.tree#v1",
             "units": "mm",
@@ -1332,8 +1824,66 @@
           },
           "components": [
            {
-            "id": "roll-tube",
-            "part": "roll-tube",
+            "id": "roll-drum",
+            "part": "roll-drum",
+            "at": [
+             0,
+             0,
+             0
+            ]
+           },
+           {
+            "id": "j5-motor",
+            "part": "nema17",
+            "at": [
+             -85,
+             -31,
+             0
+            ],
+            "rotate": {
+             "axis": [
+              0,
+              0,
+              1
+             ],
+             "deg": 90
+            },
+            "params": {
+             "t": 40
+            }
+           },
+           {
+            "id": "j5-gearbox",
+            "part": "planetary",
+            "at": [
+             -85,
+             9,
+             0
+            ],
+            "rotate": {
+             "axis": [
+              0,
+              0,
+              1
+             ],
+             "deg": 90
+            },
+            "params": {
+             "t": 32
+            }
+           },
+           {
+            "id": "j5-pinion",
+            "part": "pulley",
+            "at": [
+             -85,
+             0,
+             0
+            ]
+           },
+           {
+            "id": "belt",
+            "part": "belt",
             "at": [
              0,
              0,
@@ -1363,15 +1913,6 @@
             ]
            },
            {
-            "id": "pitch-shaft",
-            "part": "pitch-shaft",
-            "at": [
-             0,
-             0,
-             0
-            ]
-           },
-           {
             "id": "pitch-bush",
             "part": "pitch-bush",
             "repeat": 2,
@@ -1387,28 +1928,12 @@
            {
             "id": "pitch5",
             "assembly": {
-             "_": "j5, the wrist pitch — the blade between the fork’s cheeks",
+             "_": "j5: the blade, its shaft, the driven pulley and the flange",
              "params": {
-              "L1": 250,
-              "L2": 250,
-              "Lw": 60,
-              "crank": 80,
-              "cwR1": 300,
-              "cwR2": 200,
-              "shZ": 400
+              "j5x": -85,
+              "beltY": 51
              },
-             "derived": {
-              "ex": "L1 * cos(deg(j2))",
-              "ez": "L1 * sin(deg(j2))",
-              "px": "crank * cos(deg(j3))",
-              "pz": "crank * sin(deg(j3))",
-              "wx": "ex + L2 * cos(deg(j3))",
-              "wz": "ez + L2 * sin(deg(j3))",
-              "c1x": "-cwR1 * cos(deg(j2))",
-              "c1z": "shZ - cwR1 * sin(deg(j2))",
-              "c2x": "-cwR2 * cos(deg(j3))",
-              "c2z": "shZ - cwR2 * sin(deg(j3))"
-             },
+             "derived": {},
              "parts": {
               "wrist-blade": {
                "$schema": "com.minomobi.cad.tree#v1",
@@ -1495,6 +2020,93 @@
                  "profile": "bore",
                  "depth": "2 * (hw + 4)",
                  "mode": "cut"
+                }
+               ]
+              },
+              "pitch-shaft": {
+               "$schema": "com.minomobi.cad.tree#v1",
+               "units": "mm",
+               "_": "Ø16 pitch shaft, pressed into the blade and running in a bush in each cheek. One extrude along -Y.",
+               "params": {
+                "d": 16,
+                "t": 86,
+                "y1": "t / 2"
+               },
+               "features": [
+                {
+                 "op": "sketch",
+                 "id": "face",
+                 "plane": {
+                  "base": "XZ",
+                  "offset": "-y1"
+                 },
+                 "loops": [
+                  {
+                   "name": "od",
+                   "circle": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "r": "d / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "ps",
+                 "profile": "face",
+                 "depth": "t"
+                }
+               ]
+              },
+              "pulley": {
+               "$schema": "com.minomobi.cad.tree#v1",
+               "units": "mm",
+               "_": "GT2 pulley at its PITCH diameter, drawn at ROOT diameter so the belt band clears it — the teeth we do not draw are what fills the 0.8 mm between them. Two off: 20T Ø12.73 on the J5 gearbox and 60T Ø38.2 on the pitch shaft. One extrude along -Y.",
+               "params": {
+                "d": 9.732,
+                "t": 9,
+                "y1": 51,
+                "d_bore": 8.2
+               },
+               "features": [
+                {
+                 "op": "sketch",
+                 "id": "face",
+                 "plane": {
+                  "base": "XZ",
+                  "offset": "-y1"
+                 },
+                 "loops": [
+                  {
+                   "name": "od",
+                   "circle": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "r": "d / 2"
+                   }
+                  },
+                  {
+                   "name": "bore",
+                   "circle": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "r": "d_bore / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "pul",
+                 "profile": "face",
+                 "depth": "t"
                 }
                ]
               },
@@ -1592,21 +2204,35 @@
                ]
               },
               {
+               "id": "pitch-shaft",
+               "part": "pitch-shaft",
+               "at": [
+                0,
+                0,
+                0
+               ]
+              },
+              {
+               "id": "pitch-pulley",
+               "part": "pulley",
+               "at": [
+                0,
+                0,
+                0
+               ],
+               "params": {
+                "d": 35.197,
+                "d_bore": 16.2
+               }
+              },
+              {
                "id": "tool-flange",
                "part": "tool-flange",
                "at": [
                 0,
                 0,
                 0
-               ],
-               "rotate": {
-                "axis": [
-                 0,
-                 0,
-                 1
-                ],
-                "deg": 0
-               }
+               ]
               }
              ]
             },
@@ -1639,6 +2265,101 @@
           ],
           "deg": "j4"
          }
+        }
+       ],
+       "fits": [
+        {
+         "a": "forearm-barrel",
+         "b": "j4-motor",
+         "min": 5
+        },
+        {
+         "a": "forearm-barrel",
+         "b": "j4-gearbox",
+         "min": 5
+        },
+        {
+         "a": "forearm-barrel",
+         "b": "roll-bearing",
+         "contact": true
+        },
+        {
+         "a": "roll-bearing",
+         "b": "roll4/roll-drum",
+         "min": 12,
+         "max": 18
+        },
+        {
+         "a": "roll4/roll-drum",
+         "b": "roll4/fork-web",
+         "contact": true
+        },
+        {
+         "a": "roll4/fork-web",
+         "b": "roll4/fork-cheek[*]",
+         "contact": true
+        },
+        {
+         "a": "roll4/fork-cheek[*]",
+         "b": "roll4/pitch-bush[*]",
+         "min": 0.01,
+         "max": 0.05
+        },
+        {
+         "a": "roll4/pitch-bush[*]",
+         "b": "roll4/pitch5/pitch-shaft",
+         "min": 0.02,
+         "max": 0.1
+        },
+        {
+         "a": "roll4/pitch5/pitch-shaft",
+         "b": "roll4/pitch5/wrist-blade",
+         "contact": true
+        },
+        {
+         "a": "roll4/pitch5/pitch-shaft",
+         "b": "roll4/pitch5/pitch-pulley",
+         "contact": true
+        },
+        {
+         "a": "roll4/pitch5/wrist-blade",
+         "b": "roll4/pitch5/tool-flange",
+         "contact": true
+        },
+        {
+         "a": "roll4/fork-cheek[*]",
+         "b": "roll4/pitch5/wrist-blade",
+         "min": 1.5
+        },
+        {
+         "a": "roll4/belt",
+         "b": "roll4/j5-pinion",
+         "contact": true
+        },
+        {
+         "a": "roll4/belt",
+         "b": "roll4/pitch5/pitch-pulley",
+         "contact": true
+        },
+        {
+         "a": "roll4/belt",
+         "b": "roll4/fork-cheek[*]",
+         "min": 3
+        },
+        {
+         "a": "roll4/j5-motor",
+         "b": "roll4/roll-drum",
+         "min": 3
+        },
+        {
+         "a": "roll4/j5-gearbox",
+         "b": "roll4/roll-drum",
+         "min": 3
+        },
+        {
+         "a": "roll4/j5-pinion",
+         "b": "roll4/j5-gearbox",
+         "contact": true
         }
        ]
       },
@@ -1730,53 +2451,6 @@
   {
    "a": "yaw/forearm[*]",
    "b": "yaw/elbow-crank[*]",
-   "contact": true
-  },
-  {
-   "a": "yaw/forearm[*]",
-   "b": "yaw/wrist/roll4/roll-tube",
-   "min": 0.5
-  },
-  {
-   "a": "yaw/wrist/roll4/roll-tube",
-   "b": "yaw/wrist/roll4/fork-web",
-   "contact": true
-  },
-  {
-   "a": "yaw/wrist/roll4/fork-web",
-   "b": "yaw/wrist/roll4/fork-cheek[*]",
-   "contact": true
-  },
-  {
-   "a": "yaw/wrist/roll4/fork-cheek[*]",
-   "b": "yaw/wrist/roll4/pitch-bush[*]",
-   "min": 0.01,
-   "max": 0.05
-  },
-  {
-   "a": "yaw/wrist/roll4/pitch-bush[*]",
-   "b": "yaw/wrist/roll4/pitch-shaft",
-   "min": 0.02,
-   "max": 0.1
-  },
-  {
-   "a": "yaw/wrist/roll4/pitch-shaft",
-   "b": "yaw/wrist/roll4/pitch5/wrist-blade",
-   "contact": true
-  },
-  {
-   "a": "yaw/wrist/roll4/fork-cheek[*]",
-   "b": "yaw/wrist/roll4/pitch5/wrist-blade",
-   "min": 1.5
-  },
-  {
-   "a": "yaw/wrist/roll4/fork-web",
-   "b": "yaw/wrist/roll4/pitch5/wrist-blade",
-   "min": 4
-  },
-  {
-   "a": "yaw/wrist/roll4/pitch5/wrist-blade",
-   "b": "yaw/wrist/roll4/pitch5/tool-flange",
    "contact": true
   },
   {

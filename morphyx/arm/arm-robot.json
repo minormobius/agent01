@@ -13,14 +13,14 @@
   },
   "j2": {
    "min": -30,
-   "max": 60,
+   "max": 0,
    "steps": 3,
    "unit": "deg",
    "default": 0,
    "description": "the upper arm’s ABSOLUTE elevation"
   },
   "j3": {
-   "min": -95,
+   "min": -90,
    "max": 50,
    "steps": 3,
    "unit": "deg",
@@ -510,10 +510,10 @@
      "cheek": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Shoulder cheek, two off at |y| 62…74: they straddle the whole parallelogram and carry the COAXIAL J2 and J3 bores at z 400. Coaxial is the architecture — it is what puts the elbow's actuator at the shoulder and lets one counterweight per crank balance the arm exactly. `y1` is overridden per side. One extrude along -Y.",
+      "_": "Shoulder cheek, two off at |y| 74…86: they straddle the whole parallelogram and carry the COAXIAL J2 and J3 bores at z 400. Coaxial is the architecture — it is what puts the elbow's actuator at the shoulder and lets one counterweight per crank balance the arm exactly. `y1` is overridden per side. One extrude along -Y.",
       "params": {
        "t": 12,
-       "y1": 74,
+       "y1": 86,
        "h": 80,
        "L": 110,
        "z": 400,
@@ -791,7 +791,7 @@
        "b": 18,
        "w": 22,
        "t": 10,
-       "y1": 60,
+       "y1": 72,
        "d": 12.2
       },
       "features": [
@@ -989,7 +989,7 @@
        0
       ],
       "params": {
-       "y1": "74 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "86 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -998,7 +998,7 @@
       "repeat": 2,
       "at": [
        0,
-       "(1 - 2 * (i - 2 * floor(i / 2))) * 111",
+       "(1 - 2 * (i - 2 * floor(i / 2))) * 123",
        400
       ]
      },
@@ -1087,7 +1087,7 @@
        "deg": "-j2"
       },
       "params": {
-       "y1": "60 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "72 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -5075,6 +5075,101 @@
           ],
           "deg": "j4"
          }
+        }
+       ],
+       "fits": [
+        {
+         "a": "forearm-barrel",
+         "b": "j4-motor",
+         "min": 5
+        },
+        {
+         "a": "forearm-barrel",
+         "b": "j4-gearbox",
+         "min": 5
+        },
+        {
+         "a": "forearm-barrel",
+         "b": "roll-bearing",
+         "contact": true
+        },
+        {
+         "a": "roll-bearing",
+         "b": "roll4/roll-drum",
+         "min": 12,
+         "max": 18
+        },
+        {
+         "a": "roll4/roll-drum",
+         "b": "roll4/fork-web",
+         "contact": true
+        },
+        {
+         "a": "roll4/fork-web",
+         "b": "roll4/fork-cheek[*]",
+         "contact": true
+        },
+        {
+         "a": "roll4/fork-cheek[*]",
+         "b": "roll4/pitch-bush[*]",
+         "min": 0.01,
+         "max": 0.05
+        },
+        {
+         "a": "roll4/pitch-bush[*]",
+         "b": "roll4/pitch5/pitch-shaft",
+         "min": 0.02,
+         "max": 0.1
+        },
+        {
+         "a": "roll4/pitch5/pitch-shaft",
+         "b": "roll4/pitch5/wrist-blade",
+         "contact": true
+        },
+        {
+         "a": "roll4/pitch5/pitch-shaft",
+         "b": "roll4/pitch5/pitch-pulley",
+         "contact": true
+        },
+        {
+         "a": "roll4/pitch5/wrist-blade",
+         "b": "roll4/pitch5/tool-flange",
+         "contact": true
+        },
+        {
+         "a": "roll4/fork-cheek[*]",
+         "b": "roll4/pitch5/wrist-blade",
+         "min": 1.5
+        },
+        {
+         "a": "roll4/belt",
+         "b": "roll4/j5-pinion",
+         "contact": true
+        },
+        {
+         "a": "roll4/belt",
+         "b": "roll4/pitch5/pitch-pulley",
+         "contact": true
+        },
+        {
+         "a": "roll4/belt",
+         "b": "roll4/fork-cheek[*]",
+         "min": 3
+        },
+        {
+         "a": "roll4/j5-motor",
+         "b": "roll4/roll-drum",
+         "min": 3
+        },
+        {
+         "a": "roll4/j5-gearbox",
+         "b": "roll4/roll-drum",
+         "min": 3
+        },
+        {
+         "a": "roll4/j5-pinion",
+         "b": "roll4/j5-gearbox",
+         "contact": true
         }
        ]
       },

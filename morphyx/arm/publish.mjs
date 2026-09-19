@@ -64,7 +64,7 @@ const rewrite = (a) => {
   for (const k of Object.keys(a.parts || {})) { const u = revs.get(k); if (u) a.parts[k] = u; else if (drive) throw new Error(`${k} was not published`); }
   for (const c of a.components || []) if (c.assembly && typeof c.assembly === 'object') rewrite(c.assembly);
 };
-for (const [pathName, asm, name] of [['arm/assembly', assembly('inputs'), 'assembly'], ['arm/pour', assembly('demo'), 'pour'], ['arm/wrist', wrist(), 'wrist']]   // arm/robot is NOT published: see anchor-bug.mjs) {
+for (const [pathName, asm, name] of [['arm/assembly', assembly('inputs'), 'assembly'], ['arm/pour', assembly('demo'), 'pour'], ['arm/wrist', wrist(), 'wrist'], ['arm/robot', robot(), 'robot'], ['arm/robot-pour', robot('demo'), 'robot-pour']]) {
   rewrite(asm); await publish(pathName, asm, { kind: 'assembly', name });
 }
 if (drive) {

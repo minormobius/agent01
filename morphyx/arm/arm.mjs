@@ -64,7 +64,7 @@ export const D = {
   baseD: 182, baseT: 12, baseBolt: 8.4, baseBoltR: 72, baseBoltN: 4,
   colD: 84, colBore: 60, colZ: [12, 240],
   turretD: 92, turretT: 14, turretBore: 40,
-  cheekT: 12, cheekH: 80, cheekL: 110, cheekY: 74,   // the shoulder cheeks: 56…68, clear of the rods
+  cheekT: 12, cheekH: 80, cheekL: 110, cheekY: 86,   // the shoulder cheeks: 56…68, clear of the rods
   jL: 80, jLlen: 70,                          // large joint module: Ø80 × 70
   jS: 50, jSlen: 45,                          // small joint module
   linkW: 60, linkT: 20,                       // upper arm and forearm section
@@ -77,7 +77,7 @@ export const D = {
                                               // carry the elbow bore and hand off to it.
   crankW: 44, crankT: 12, crankY: 40,         // the J3 cranks: 28…40
   ecW: 22, ecT: 14, ecY: 48,                  // the elbow cranks, bolted to the forearm's outer face: 26…40
-  rodW: 22, rodT: 10, rodY: 60,               // the push rods: 42…52
+  rodW: 22, rodT: 10, rodY: 72,               // the push rods: 42…52
   // ── the J5 wrist, as a real clevis ──────────────────────────────────────
   // A fork on the J4 roll tube, a blade between its cheeks, a shaft through
   // both. The numbers come out of the SWEEP, not out of taste: every point of
@@ -106,7 +106,7 @@ export const D = {
 
   // joint limits, degrees. j2's ceiling is what keeps CW1 off the bench; j5's
   // range is what a level tool needs when reaching down to it (87° at r 500).
-  lim: { j1: [-170, 170], j2: [-30, 60], j3: [-95, 50], j4: [-180, 180], j5: [-100, 100] },
+  lim: { j1: [-170, 170], j2: [-30, 0], j3: [-90, 50], j4: [-180, 180], j5: [-100, 100] },
   // ── the tool adapter, which the gripper's own layout forces on us ───────
   // ISO 9409-1-50-4-M6 puts four M6 on a Ø50 circle, r 25. The gripper's NEMA
   // 17 sits on the BACK of its motor web, 42.3 square — half-diagonal 29.9. So
@@ -297,6 +297,30 @@ export function audit() {
   ok('the parallelogram closes', D.crank > 0 && D.crank < D.L1 / 2, `crank ${D.crank} on a ${D.L1} upper arm`);
   ok('the counterweights cannot occupy the same place when j2 = j3',
     Math.abs(D.cwR1 - D.cwR2) > (D.cwD + D.cw2D) / 2, `CW1 at r ${D.cwR1}, CW2 at r ${D.cwR2}, ${round(Math.abs(D.cwR1 - D.cwR2) - (D.cwD + D.cw2D) / 2)} mm apart at worst`);
+  // The push rods and the roll drum shared a 9 mm band in Y, so at a folded
+  // elbow they met whatever the joint limits said. A limit cannot fix a shared
+  // band — only geometry can, and the real constraint was on the INCLUDED elbow
+  // angle, which a box of independent inputs cannot express anyway.
+  // THE JOINT BOX CANNOT EXPRESS THIS ONE, and that is the finding rather than
+  // a shortfall. The forearm folding back onto the upper arm is inherent to an
+  // articulated arm; the real constraint is on the INCLUDED elbow angle j3 − j2,
+  // and a box of independent inputs cannot say that. Measured: the wrist reaches
+  // the upper arm at a fold near −120°, and the POUR needs −114°. Any box that
+  // contains the pour (j2 up to 37, j3 down to −88) therefore also contains the
+  // collision, because its worst corner is j3min − j2max ≤ −125.
+  //
+  // So the box is NOT claimed collision-free, and the grid is not the gate for
+  // this document — the trajectory is. That is the honest position for a
+  // multi-DOF arm: every real one has a self-collision map its controller
+  // enforces, because the corners of a 5-D box are poses no task ever asks for.
+  const FOLD_LIMIT = -118;                                  // measured, not assumed
+  const pourFold = Math.min(...pour().filter((v) => v.ok).map((v) => v.j[2] - v.j[1]));
+  ok('the pour stays clear of the fold where the wrist meets the upper arm', pourFold > FOLD_LIMIT + 3,
+    `the pour folds to ${round(pourFold)}\u00b0 at worst; the wrist reaches the upper arm near ${FOLD_LIMIT}\u00b0`);
+  ok('and the box is honest about containing that region', L.j3[0] - L.j2[1] < FOLD_LIMIT,
+    `the box allows ${L.j3[0] - L.j2[1]}\u00b0, which INCLUDES the collision \u2014 no box can exclude it and still hold the pour, so the trajectory is the gate`);
+  ok('the push rods run outboard of the roll drum', D.rodY - D.rodT > D.drumD / 2 + 2,
+    `rods ${D.rodY - D.rodT}\u2026${D.rodY} against a \u00d8${D.drumD} drum reaching \u00b1${D.drumD / 2}`);
   ok('the elbow cranks clear the forearm barrel', D.ecY - D.ecT > D.barrelD / 2 + 1,
     `elbow cranks ${D.ecY - D.ecT}\u2026${D.ecY} against a \u00d8${D.barrelD} barrel reaching \u00b1${D.barrelD / 2}`);
   ok('the forearm plates hand off to the barrel rather than running through it',
@@ -549,25 +573,14 @@ export function assembly(mode = 'inputs') {
     ? { ...Object.fromEntries([1, 2, 3, 4, 5].map((k) => [`jj${k}`, trajectory(k - 1)])), ...chain('jj') }
     : chain('j');
   const side = '(1 - 2 * (i - 2 * floor(i / 2)))';           // +1 / -1 for even / odd i
-  // j5: the blade and the tool flange, pitching about the wrist centre.
-  const pitch = sub('j5, the wrist pitch — the blade between the fork’s cheeks', ['wrist-blade', 'tool-flange'], [
-    c('wrist-blade', 'wrist-blade', [0, 0, 0]),
-    c('tool-flange', 'tool-flange', [0, 0, 0], spin([0, 0, 1], 0)),
-  ]);
-  // j4: the roll tube and the fork it carries, and the pitch bearing itself.
-  const roll = sub('j4, the forearm roll — the tube, the fork and the pitch bearing', ['roll-tube', 'fork-cheek', 'fork-web', 'pitch-shaft', 'pitch-bush'], [
-    c('roll-tube', 'roll-tube', [0, 0, 0]),
-    { id: 'fork-cheek', part: 'fork-cheek', repeat: 2, at: [0, 0, 0],
-      params: { y1: `${D.forkGap / 2 + D.forkCheek} * ${side} + ${D.forkCheek} * (1 - ${side}) / 2` } },
-    c('fork-web', 'fork-web', [0, 0, 0]),
-    c('pitch-shaft', 'pitch-shaft', [0, 0, 0]),
-    { id: 'pitch-bush', part: 'pitch-bush', repeat: 2, at: [0, 0, 0],
-      params: { y1: `${D.forkGap / 2 + D.forkCheek} * ${side} + ${D.forkCheek} * (1 - ${side}) / 2` } },
-    { id: 'pitch5', assembly: pitch, at: [0, 0, 0], ...spin([0, 1, 0], `-${J(5)}`) },
-  ]);
-  const wrist = sub('the wrist, at the forearm’s far end', [], [
-    { id: 'roll4', assembly: roll, at: [0, 0, 0], ...spin([1, 0, 0], J(4)) },
-  ]);
+  // ONE wrist. This used to carry a second, bare version of the clevis with a
+  // roll-tube that the drive train superseded — two definitions of the same
+  // joint, and the stale one kept a deleted part alive. arm/assembly and
+  // arm/robot now share the module from wrist(), which is the one that is
+  // checked on its own.
+  const wm = wrist(demo ? 'demo' : 'inputs');
+  const wrist_ = { _: 'the wrist — ../arm/wrist, whole', params: wm.params, derived: wm.derived,
+    parts: wm.parts, components: wm.components, fits: wm.fits };
   const yaw = sub('everything above the column, yawing with j1', ['turret', 'cheek', 'joint-large', 'upper-arm', 'counterweight', 'crank', 'push-rod', 'elbow-crank', 'forearm'], [
     c('turret', 'turret', [0, 0, 0]),
     { id: 'cheek', part: 'cheek', repeat: 2, at: [0, 0, 0], params: { y1: `${D.cheekY} * ${side} + ${D.cheekT} * (1 - ${side}) / 2` } },
@@ -586,7 +599,7 @@ export function assembly(mode = 'inputs') {
     // the elbow cranks and the forearm: both at j3, both at the elbow
     { id: 'elbow-crank', part: 'elbow-crank', repeat: 2, at: ['ex', 0, `shZ + ez`], ...spin([0, 1, 0], `-${J(3)}`), params: { y1: `${D.ecY} * ${side} + ${D.ecT} * (1 - ${side}) / 2` } },
     { id: 'forearm', part: 'forearm', repeat: 2, at: ['ex', 0, `shZ + ez`], ...spin([0, 1, 0], `-${J(3)}`), params: { y1: `${D.foreY} * ${side} + ${D.foreT} * (1 - ${side}) / 2` } },
-    { id: 'wrist', assembly: wrist, at: ['wx', 0, `shZ + wz`], ...spin([0, 1, 0], `-${J(3)}`) },
+    { id: 'wrist', assembly: wrist_, at: ['wx', 0, `shZ + wz`], ...spin([0, 1, 0], `-${J(3)}`) },
   ]);
   const components = [
     c('base-plate', 'base-plate', [0, 0, 0]),
@@ -623,15 +636,6 @@ export function assembly(mode = 'inputs') {
       { a: 'yaw/upper-arm', b: 'yaw/cw1[*]', min: 1.5, max: 2.5 },   // spaced off the web, bolted through
       { a: 'yaw/crank[*]', b: 'yaw/cw2[*]', min: 1.5, max: 2.5 },
       { a: 'yaw/forearm[*]', b: 'yaw/elbow-crank[*]', contact: true },
-      { a: 'yaw/forearm[*]', b: 'yaw/wrist/roll4/roll-tube', min: 0.5 },
-      { a: 'yaw/wrist/roll4/roll-tube', b: 'yaw/wrist/roll4/fork-web', contact: true },
-      { a: 'yaw/wrist/roll4/fork-web', b: 'yaw/wrist/roll4/fork-cheek[*]', contact: true },
-      { a: 'yaw/wrist/roll4/fork-cheek[*]', b: 'yaw/wrist/roll4/pitch-bush[*]', min: 0.01, max: 0.05 },
-      { a: 'yaw/wrist/roll4/pitch-bush[*]', b: 'yaw/wrist/roll4/pitch-shaft', min: 0.02, max: 0.1 },
-      { a: 'yaw/wrist/roll4/pitch-shaft', b: 'yaw/wrist/roll4/pitch5/wrist-blade', contact: true },
-      { a: 'yaw/wrist/roll4/fork-cheek[*]', b: 'yaw/wrist/roll4/pitch5/wrist-blade', min: 1.5 },
-      { a: 'yaw/wrist/roll4/fork-web', b: 'yaw/wrist/roll4/pitch5/wrist-blade', min: 4 },
-      { a: 'yaw/wrist/roll4/pitch5/wrist-blade', b: 'yaw/wrist/roll4/pitch5/tool-flange', contact: true },
       { a: 'yaw/upper-arm', b: 'yaw/forearm[*]', min: 1.5 }, { a: 'yaw/upper-arm', b: 'yaw/crank[*]', min: 17 },
       { a: 'yaw/crank[*]', b: 'yaw/push-rod[*]', min: 1.5 },
       { a: 'yaw/upper-arm', b: 'yaw/push-rod[*]', min: 30 },
@@ -798,17 +802,12 @@ export function robot(mode = 'inputs') {
   // the adapter's back face (gripper y = adapterBack) lands on the arm flange.
   const gripperOn = { id: 'gripper', assembly: gripperModule(demo),
     at: [flangeFace - D.adapterBack, 0, 0], rotate: { axis: [0, 0, 1], deg: -90 } };
-  // drop the gripper into the wrist's j5 frame, where the flange already is
-  const wristMod = structuredClone(w);
-  const roll4 = wristMod.components.find((x) => x.id === 'roll4');
-  roll4.assembly.components.find((x) => x.id === 'pitch5').assembly.components.push(gripperOn);
+  // assembly() already carries the real wrist module, so robot() only has to
+  // drop the gripper into the j5 frame that is already there.
   const shoulder = structuredClone(a).components.find((x) => x.id === 'yaw');
-  // swap the arm's own bare wrist for the real one
-  const yawComps = shoulder.assembly.components.filter((x) => x.id !== 'wrist');
-  yawComps.push({ id: 'wrist', assembly: { _: 'the wrist — ../arm/wrist, whole', params: wristMod.params,
-    derived: wristMod.derived, parts: wristMod.parts, components: wristMod.components },
-    at: ['wx', 0, 'shZ + wz'], rotate: { axis: [0, 1, 0], deg: demo ? '-jj3' : '-j3' } });
-  shoulder.assembly.components = yawComps;
+  const wristC = shoulder.assembly.components.find((x) => x.id === 'wrist');
+  wristC.assembly.components.find((x) => x.id === 'roll4').assembly
+    .components.find((x) => x.id === 'pitch5').assembly.components.push(gripperOn);
 
   return {
     $schema: 'com.minomobi.cad.assembly#v1',
