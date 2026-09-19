@@ -33,10 +33,10 @@ _Regenerated 2026-09-19 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-19, 99 members / 313 posts):
+**Neighborhood spark** (bisk 2026-09-19, 99 members / 303 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: jev, idk, anthropic
-- Top post: "@safety.bsky.app should suspend accounts that are obviously llms but do not have the bot tag. i don’t need “tech lead an" — @hailey.at
+- Distinctive words: jev, anthropic, personhood
+- Top post: "it is hard to figure out how to convey this fact in words but there is so much rationalist pro-rape propaganda that it i" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
