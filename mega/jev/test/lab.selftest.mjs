@@ -21,7 +21,8 @@ import { assetFigures, crossSection, crossDoc, buildProbes, groundTruth, readAns
   from '../lab/cross.mjs';
 import { routeMessage, UNIVERSE } from '../lab/multifeed.mjs';
 import { GENERATORS, TRAITS, measure, traitsOf, legalMoves as genMoves, BRIEFS as GEN_BRIEFS,
-  briefDistance as genDistance, moveCriteria as genCriteria, composeDoc as genDoc } from '../lab/gen.mjs';
+  briefDistance as genDistance, moveCriteria as genCriteria, composeDoc as genDoc,
+  BRIEF_KEYS, CIRCULAR, COLOURS, hueName, hueGap } from '../lab/gen.mjs';
 import { traits, TRAIT_KEYS, BRIEFS, briefDistance, legalMoves, moveCriteria, composeDoc,
   runChain, chainStats, greedyPick, randomPick, MOVABLE, BOUNDS, STEP, DEFAULT_GENES, FAMILIES }
   from '../lab/compose.mjs';
@@ -1675,7 +1676,8 @@ const SPEC = fix2('preregister.json');
       `${t} rung "${r.slice(0, 28)}…" describes what you would SEE, not a number or a gene`);
   }
   const qs = steerQuestions();
-  ok(Object.keys(qs).length === TRAITS.length * 2, 'one score and one self-check per trait, in a single call');
+  ok(Object.keys(qs).length === TRAITS.length * 2 + 2,
+    'one score and one self-check per geometric trait, plus the colour pair, in a single call');
   for (const t of TRAITS) {
     ok(qs[t].type === 'score' && Array.isArray(qs[t].criteria),
       `${t} is asked as an ordered score, so the answer can land BETWEEN rungs`);
@@ -1741,7 +1743,7 @@ const SPEC = fix2('preregister.json');
   // The injected `ask` is the seam that keeps this testable without a network.
   const stub = async (state, questions) => {
     ok(/begin description/.test(state), 'briefFromText posts the fenced document as the state');
-    ok(Object.keys(questions).length === TRAITS.length * 2, 'and the full question set in one call');
+    ok(Object.keys(questions).length === TRAITS.length * 2 + 2, 'and the full question set in one call');
     return { source: 'stub', answers: { aspect: { score: 4 }, have__aspect: { noul: 0.9 } } };
   };
   const b = await briefFromText('much wider than tall', stub);
@@ -1749,6 +1751,118 @@ const SPEC = fix2('preregister.json');
   ok(b.label === 'much wider than tall', 'labelled with the words the person actually typed');
   ok((await briefFromText('', async () => ({ answers: {} }))).empty === true,
     'while an empty result is flagged empty rather than handed on as a brief');
+}
+
+// ------------------------------------------------ colour, a circular axis ----
+//
+// Hue breaks two things built for the geometric traits, and each break is
+// pinned here rather than trusted: Euclidean distance is the wrong geometry
+// for a wrapping scale, and the ordered `score` ladder does not exist for a
+// quantity with no order.
+{
+  // The circle.
+  ok(hueGap(350, 10) === 20, '350 and 10 are 20 apart, not 340 — the axis wraps');
+  ok(hueGap(0, 180) === 180 && hueGap(0, 190) === 170, 'and 180 is the maximum separation there is');
+  ok(hueGap(215, 215) === 0, 'a hue is zero from itself');
+  ok(hueName(0) === 'red' && hueName(359) === 'red', 'and the name wraps with it');
+  ok(hueName(217) === 'blue' && hueName(120) === 'green', 'named colours land where a person would put them');
+
+  // briefDistance MUST use the angular form, or a red creature reads as
+  // maximally far from a slightly different red.
+  const near = genDistance({ hue: 5 }, { target: { hue: 355 } });
+  const far = genDistance({ hue: 5 }, { target: { hue: 185 } });
+  ok(near < 0.06, 'two nearly-identical reds either side of 0 are close, not opposite');
+  ok(Math.abs(far - 1) < 1e-9, 'and true opposites are the maximum, which fixes the scale');
+  ok(near < far, 'so the circular axis is not simply linear distance wearing a hat');
+
+  // Measured off the render, like everything else.
+  for (const [id, g] of Object.entries(GENERATORS)) {
+    const m = measure(g.cells(g.defaults));
+    ok(Number.isFinite(m.hue) && m.hue >= 0 && m.hue < 360, `${id} has a measured hue in range`);
+    ok(m.hueSpread > 0.5, `${id}'s colours concentrate, so its mean hue means something`);
+  }
+  // Greys have no hue, and saying so beats reporting an angle computed from nothing.
+  const grey = measure([{ x: 0, y: 0, c: '#808080' }, { x: 1, y: 0, c: '#404040' }]);
+  ok(grey.hue === null && grey.hueSpread === 0, 'an all-grey sprite reports no hue rather than an arbitrary angle');
+  ok(!Number.isFinite(grey.hue) && genDistance(grey, { target: { hue: 215 } }) === Infinity,
+    'and a colour brief against it is undefined, not silently zero');
+
+  // The gene named `hue` is NOT the colour on every family. This is the one
+  // that would have shipped broken if the axis were wired to the gene name.
+  for (const [id, g] of Object.entries(GENERATORS)) {
+    ok(typeof g.hueGene === 'string', `${id} declares which gene actually moves its colour`);
+    const moved = measure(g.cells({ ...g.defaults, [g.hueGene]: 215 }));
+    ok(hueGap(moved.hue, 215) < 25, `${id}: setting ${g.hueGene} to blue actually renders blue (measured ${moved.hue?.toFixed(0)})`);
+  }
+  ok(GENERATORS.radial.hueGene === 'accentHue',
+    'radial is coloured by accentHue — its gene called `hue` leaves the render violet');
+  const radialHueGene = measure(GENERATORS.radial.cells({ ...GENERATORS.radial.defaults, hue: 215 }));
+  ok(hueGap(radialHueGene.hue, 215) > 40,
+    'which is exactly why the gene name is not trusted: moving radial.hue to blue does NOT make it blue');
+
+  // Colour moves: jumps, only when asked for, and they reach the colour.
+  const blue = { label: 'blue', target: { hue: 215 } };
+  for (const [id, g] of Object.entries(GENERATORS)) {
+    const without = genMoves(id, g.defaults);
+    const with_ = genMoves(id, g.defaults, blue);
+    ok(!without.some((m) => m.dir === 0), `${id} offers no colour moves when the brief asks for no colour`);
+    const cols = with_.filter((m) => m.dir === 0);
+    ok(cols.length === Object.keys(COLOURS).length - (hueName(g.defaults[g.hueGene]) ? 0 : 0) || cols.length >= 7,
+      `${id} offers the named colours as one-edit jumps when the brief does ask`);
+    ok(cols.every((m) => m.gene === g.hueGene), `${id} recolours via the gene that actually works`);
+    const best = cols.map((m) => ({ m, d: genDistance(traitsOf(id, m.genes), blue) })).sort((a, b) => a.d - b.d)[0];
+    ok(best.m.colour === 'blue' && best.d < 0.12,
+      `${id} can reach blue in ONE edit, and the blue option is the one that does it`);
+  }
+  ok(!genMoves('quad', GENERATORS.quad.defaults, blue).some((m) => m.dir === 0 && m.to === (GENERATORS.quad.defaults.hue)),
+    'a recolour to the colour it already is would be a move that does nothing, so it is not offered');
+
+  // The criteria must talk colour, never degrees.
+  const id = 'quad';
+  const cur = traitsOf(id, GENERATORS.quad.defaults);
+  const ms = genMoves(id, GENERATORS.quad.defaults, blue).map((m) => ({ ...m, traits: traitsOf(id, m.genes) }));
+  const crit = genCriteria(ms, cur, blue);
+  const cBlue = crit.hue_blue;
+  ok(/recolour to blue/.test(cBlue), 'a colour option says what it recolours TO, in words');
+  ok(/colour now blue/.test(cBlue), 'and states the colour it would then measure as, also in words');
+  ok(!/\b\d{2,3} degrees|hue 215\b/.test(cBlue), 'and never asks the model to reason about an angle');
+
+  // And the state document.
+  const doc = genDoc(id, cur, blue, { step: 0, total: 6 });
+  ok(/hue\s+yellow\s+blue\s+wrong/.test(doc.replace(/ +/g, ' ')),
+    'the brief table names both colours and says wrong rather than printing a signed gap');
+  ok(/either the colour asked for or a[\s\S]{0,3}different one/.test(doc),
+    'and the legend says colour is not a more-or-less quantity');
+  ok(!/COLOUR is/.test(genDoc(id, cur, GEN_BRIEFS.compact, { step: 0, total: 6 })),
+    'with no colour legend at all on a brief that does not mention colour');
+
+  ok(BRIEF_KEYS.length === TRAITS.length + 1 && BRIEF_KEYS.includes('hue'),
+    'hue is a brief axis without being folded into the sampled geometric trait space');
+  ok(CIRCULAR.includes('hue') && !CIRCULAR.includes('aspect'), 'and only it is circular');
+}
+
+// ---------------------------------------- steering asks for colour as a choice ----
+{
+  const qs = steerQuestions();
+  ok(qs.hue?.type === 'choice',
+    'colour is asked as a choice — `score` averages over an ORDER, and hue has none');
+  ok(Object.keys(qs.hue.criteria).length === Object.keys(COLOURS).length,
+    'over exactly the colours the enumerator can actually reach');
+  ok(qs.have__hue?.type === 'noul', 'and it carries its own self-check like every other axis');
+  ok(!Object.keys(steerQuestions(TRAITS, { colour: false })).includes('hue'),
+    'and the colour axis can be switched off without disturbing the other six');
+
+  const got = targetFromAnswers({ hue: { choice: 'blue' }, have__hue: { noul: 0.98 } });
+  ok(got.target.hue === COLOURS.blue, 'a named colour becomes its degrees on the circle');
+  ok(got.detail.hue.score === null && got.detail.hue.rung === 'blue',
+    'and reports a colour name rather than a rung score it does not have');
+  const silent = targetFromAnswers({ hue: { choice: 'blue' }, have__hue: { noul: 0.04 } });
+  ok(silent.target.hue === undefined, 'a description that names no colour gets no colour target');
+  ok(silent.dropped.find((d) => d.trait === 'hue')?.why.includes('names no colour'),
+    'and says so in words a reader can check');
+  const junk = targetFromAnswers({ hue: { choice: 'chartreuse' }, have__hue: { noul: 0.9 } });
+  ok(junk.target.hue === undefined,
+    'a colour outside the option set cannot enter the brief — though the typed answer makes that unreachable');
 }
 
 if (failures.length) {

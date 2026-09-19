@@ -62,3 +62,7 @@
 .derived td{text-align:right;padding:3px 6px;border-bottom:1px solid var(--line-2)}
 .derived .drop{color:var(--ink-3);font-style:italic}
 .derived .note{color:var(--ink-3);margin-top:6px;font-family:inherit;font-size:.78rem}
+/* A colour is shown as a swatch AND its name — never the swatch alone, the
+   same rule the option strip follows for the chosen move. */
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;
+  vertical-align:-1px;border:1px solid var(--line)}

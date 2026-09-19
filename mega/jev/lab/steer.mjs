@@ -27,7 +27,7 @@
 //    can draw would set every chain an impossible brief and read as the model
 //    failing.
 
-import { TRAITS } from './gen.mjs';
+import { TRAITS, COLOURS } from './gen.mjs';
 
 /**
  * What each trait can actually reach, as percentiles over 1,300 random genomes
@@ -81,7 +81,7 @@ const QUESTION = {
  * continuous number out of discrete options. A `choice` would throw the
  * ordering away and snap every answer to a rung.
  */
-export function steerQuestions(traits = TRAITS) {
+export function steerQuestions(traits = TRAITS, { colour = true } = {}) {
   const qs = {};
   for (const t of traits) {
     qs[t] = { type: 'score', criteria: RUNGS[t], instructions: QUESTION[t] };
@@ -90,6 +90,24 @@ export function steerQuestions(traits = TRAITS) {
       criteria: {
         true: 'The description constrains this — it says something that decides the answer.',
         false: 'The description is silent on this. Answering would mean inventing a constraint it does not state.',
+      } };
+  }
+  // COLOUR IS A `choice`, NOT A `score`, AND THAT IS THE POINT OF THE AXIS.
+  //
+  // `score` returns the expectation over an ORDERED set of rungs. Hue has no
+  // order — the scale wraps, there is no "more hue", and red sits next to
+  // magenta at one end and orange at the other. Averaging over an ordering
+  // that does not exist would put "red or violet" at green. So the primitive
+  // changes with the shape of the variable, which is the general rule this
+  // axis exists to demonstrate.
+  if (colour) {
+    qs.hue = { type: 'choice', instructions: 'What colour does this description ask for?',
+      criteria: Object.fromEntries(Object.keys(COLOURS).map((k) => [k, `The creature described is ${k}.`])) };
+    qs.have__hue = { type: 'noul',
+      instructions: 'Does the description above actually name or imply a colour?',
+      criteria: {
+        true: 'The description says or clearly implies what colour the creature is.',
+        false: 'The description says nothing about colour. Picking one would mean inventing it.',
       } };
   }
   return qs;
@@ -126,8 +144,21 @@ export function steerDoc(text) {
  * simply has nothing to say about it, and `briefDistance` already ignores
  * absent targets. That is the difference between a brief and a straitjacket.
  */
-export function targetFromAnswers(answers, { haveGate = 0.5, traits = TRAITS } = {}) {
+export function targetFromAnswers(answers, { haveGate = 0.5, traits = TRAITS, colour = true } = {}) {
   const target = {}, dropped = [], detail = {};
+  if (colour) {
+    const pick = answers?.hue?.choice;
+    const have = answers?.have__hue?.noul;
+    if (pick == null || COLOURS[pick] == null) {
+      dropped.push({ trait: 'hue', why: 'no answer' });
+    } else if (typeof have === 'number' && have < haveGate) {
+      dropped.push({ trait: 'hue', why: `the description names no colour (p ${have.toFixed(2)})` });
+    } else {
+      target.hue = COLOURS[pick];
+      detail.hue = { score: null, have: have ?? null, rung: pick, value: COLOURS[pick],
+        confidence: answers.hue.confidence ?? null };
+    }
+  }
   for (const t of traits) {
     const a = answers?.[t];
     const have = answers?.[`have__${t}`]?.noul;
@@ -153,7 +184,7 @@ export function targetFromAnswers(answers, { haveGate = 0.5, traits = TRAITS } =
 
 /** Everything a caller needs, minus the network. `ask` is injected. */
 export async function briefFromText(text, ask, opts = {}) {
-  const reply = await ask(steerDoc(text), steerQuestions(opts.traits));
+  const reply = await ask(steerDoc(text), steerQuestions(opts.traits, opts));
   const { target, dropped, detail } = targetFromAnswers(reply.answers, opts);
   return {
     label: String(text || '').trim().slice(0, 120) || 'an unnamed creature',

@@ -31,6 +31,11 @@
       measured trait, one ordered <code>score</code> over what that trait can actually reach, plus a
       <code>noul</code> asking whether your words say anything about it at all. A trait your description is
       silent on is <b>left out of the brief</b> rather than defaulted to the middle.</p>
+    <p class="cap" style="margin:0 0 9px"><b>Colour is asked differently, and that is the interesting part.</b>
+      The six geometric traits are ordered, so they are asked with a <code>score</code> over a ladder. Hue has no
+      order — the scale <i>wraps</i>, there is no "more hue", and red sits beside magenta at one end and orange at
+      the other. So colour is a <code>choice</code> over named colours, and its gap is measured as an angle.
+      <b>The primitive follows the shape of the variable</b>, which is the whole reason this axis is here.</p>
     <div class="steerRow">
       <input id="text" type="text" maxlength="600" autocomplete="off"
         placeholder="a long low thing, mostly empty, mass carried high">
@@ -104,6 +109,24 @@
       prompt-injection attempts — <code>SYSTEM OVERRIDE</code>, a forged end-of-description marker, a fake
       <code>[ASSISTANT]</code> turn — moved the derived target by <b>0.006</b> each, which is inert: there is
       nothing to inject <i>into</i>.</p>
+    <p><b>Colour, measured separately.</b> Eight descriptions put to the live model: <code>"blue"</code>,
+      <code>"a blue creature"</code>, <code>"deep sea blue, long and low"</code>, <code>"the colour of rust"</code>,
+      <code>"bright arterial red"</code> and <code>"like moss on a wet stone"</code> all named the right colour —
+      <b>6 of 6</b> — and the two descriptions that mention no colour had it <b>dropped, not invented</b>, at
+      p&nbsp;0.04 and p&nbsp;0.03. Rust came back <code>orange</code> at confidence 0.49, which is the right
+      amount of hedging for a red-brown; moss came back <code>green</code> with p(says&nbsp;colour) 0.76 rather
+      than 0.98, correctly lower because the colour is implied and not stated.</p>
+    <p><b>And it acts on it.</b> Given <i>"a blue creature, much wider than it is tall, mostly empty space"</i>
+      the chain took <code>hue_blue</code> as its <b>first</b> edit — the single largest gap reduction on offer,
+      found among 26 options — then matched the greedy ceiling on all eight edits, 0.440 against random's 0.988.
+      Worth saying plainly: <b>colour is a one-edit axis.</b> It tests whether the model classifies and acts, not
+      whether it can search, and those are different claims.</p>
+    <p class="cap"><b>The gene called <code>hue</code> is not the colour, on one family in five.</b> Moving
+      <code>radial.hue</code> across the whole circle leaves the rendered creature violet, because its psychic
+      accent is 298 of its 366 cells and dominates the average. <code>accentHue</code> is the gene that works.
+      Wiring the axis to the obviously-named gene would have failed silently on that family and looked like the
+      model ignoring the brief — <b>only measuring the render catches it</b>, which is the same reason the other
+      six traits are counted from cells rather than read off the parameters.</p>
     <p class="cap"><b>Two weak axes, said plainly.</b> Over 1,300 random genomes these five generators only move
       <code>centroidY</code> between 0.41 and 0.59 and <code>spread</code> between 0.18 and 0.25. A description
       leaning on either has very little room to be satisfied, and that is the generators' limit, not the model's.</p>

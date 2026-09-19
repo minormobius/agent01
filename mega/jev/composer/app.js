@@ -8,8 +8,8 @@
 // Everything renders from cells the generator emits, client-side — no API round
 // trip per candidate, which is what makes showing the whole option set
 // affordable. The one network call per step is the decision itself.
-import { GENERATORS, BRIEFS, TRAITS, legalMoves, traitsOf, briefDistance,
-  moveCriteria, composeDoc } from '../lab/gen.mjs';
+import { GENERATORS, BRIEFS, TRAITS, BRIEF_KEYS, CIRCULAR, legalMoves, traitsOf, briefDistance,
+  moveCriteria, composeDoc, hueName, hueGap, COLOURS } from '../lab/gen.mjs';
 import { briefFromText } from '../lab/steer.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -56,14 +56,24 @@ let running = false;
 
 /** Enumerate, redraw, measure. The caller computes; the model decides. */
 function enumerate(genId, genes, brief) {
-  return legalMoves(genId, genes).map((m) => {
+  return legalMoves(genId, genes, brief).map((m) => {
     const t = traitsOf(genId, m.genes);
     return { ...m, traits: t, d: briefDistance(t, brief) };
   }).filter((m) => m.traits);
 }
 
+const swatch = (deg) => `<span class="sw" style="background:hsl(${deg} 62% 55%)"></span>`;
+
 function paintTraits(t, brief) {
-  $('traitBody').innerHTML = TRAITS.filter((k) => brief.target[k] != null).map((k) => {
+  $('traitBody').innerHTML = BRIEF_KEYS.filter((k) => brief.target[k] != null).map((k) => {
+    // A circular axis has no signed gap, so it does not get a column pretending
+    // it has one. It is either the colour asked for or a different colour.
+    if (CIRCULAR.includes(k)) {
+      const on = hueGap(t[k], brief.target[k]) < 20;
+      return `<tr><td>${k}</td><td>${swatch(t[k])}${hueName(t[k])}</td>` +
+        `<td>${swatch(brief.target[k])}${hueName(brief.target[k])}</td>` +
+        `<td>${on ? 'on target' : 'wrong'}</td></tr>`;
+    }
     const gap = brief.target[k] - t[k];
     return `<tr><td>${k}</td><td>${t[k].toFixed(2)}</td><td>${brief.target[k].toFixed(2)}</td>` +
       `<td>${gap > 0 ? '+' : ''}${gap.toFixed(2)}</td></tr>`;
@@ -78,7 +88,8 @@ function paintOptions(moves, chosenId, conf) {
     el.className = 'opt' + (m.id === chosenId ? ' chosen' : '') + (Math.abs(m.d - best) < 1e-9 ? ' best' : '');
     el.innerHTML = `${m.id === chosenId ? '<span class="tick">✓</span>' : ''}` +
       `<canvas width="80" height="80"></canvas>` +
-      `<div class="lab">${m.id === chosenId ? 'chosen · ' : ''}${m.gene} ${m.dir > 0 ? '↑' : '↓'}</div>` +
+      `<div class="lab">${m.id === chosenId ? 'chosen · ' : ''}` +
+      `${m.dir === 0 ? `${swatch(COLOURS[m.colour])}${m.colour}` : `${m.gene} ${m.dir > 0 ? '↑' : '↓'}`}</div>` +
       `<div class="d">${m.d.toFixed(3)}</div>`;
     $('opts').appendChild(el);
     draw(el.querySelector('canvas'), cellsOf(currentGen, m.genes));
@@ -102,10 +113,12 @@ const activeBrief = () => ($('brief').value === '__typed' && typedBrief ? typedB
 /** Show what the words became, including — especially — what they did not. */
 function paintDerived(b) {
   if (!b) { $('derived').innerHTML = ''; return; }
-  const rows = TRAITS.filter((t) => b.detail[t]).map((t) => {
+  const rows = BRIEF_KEYS.filter((t) => b.detail[t]).map((t) => {
     const d = b.detail[t];
-    return `<tr><td>${t}</td><td>${d.score.toFixed(2)}</td><td>${d.value}</td>` +
-      `<td>${d.have == null ? '—' : d.have.toFixed(2)}</td><td>${d.rung}</td></tr>`;
+    return `<tr><td>${t}</td><td>${d.score == null ? '—' : d.score.toFixed(2)}</td>` +
+      `<td>${CIRCULAR.includes(t) ? `${swatch(d.value)}${d.rung}` : d.value}</td>` +
+      `<td>${d.have == null ? '—' : d.have.toFixed(2)}</td>` +
+      `<td>${CIRCULAR.includes(t) ? 'a choice, not a rung — hue has no order' : d.rung}</td></tr>`;
   }).join('');
   const drops = b.dropped.length
     ? `<p class="note drop">left out, and deliberately: ` +
@@ -115,7 +128,7 @@ function paintDerived(b) {
     ? `<p class="note"><b>Nothing was constrained.</b> The self-check said this description does not decide any
        of the six measured traits, so there is no brief to compose against — it would be a random walk with a
        caption. Try naming a size, a proportion, how solid it is, or where the weight sits.</p>`
-    : `<p class="note">${Object.keys(b.target).length} of ${TRAITS.length} traits constrained by your words` +
+    : `<p class="note">${Object.keys(b.target).length} of ${BRIEF_KEYS.length} traits constrained by your words` +
       `${b.source ? ` · ${b.source === 'typesafe' ? 'live jev' : b.source}` : ''}. ` +
       `<b>score</b> is the expectation over the ordered rungs (a 2.4 really is between rung 2 and rung 3); ` +
       `<b>p(says)</b> is the self-check that decides whether the trait is used at all.</p>`;

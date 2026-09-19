@@ -1339,6 +1339,74 @@ method deleted — this is the second time in this project that "the model looks
 bad" turned out to be the harness's measure, and the first was the composition
 question itself.
 
+### Colour: the primitive has to follow the shape of the variable (2026-09-19)
+
+"Can it classify *blue*?" was a fair expectation and the answer was **yes, and
+nothing happened** — because the harness had no colour axis. `hue` was a gene
+on all five generators, deliberately outside `movable`, and the trait space was
+six geometric numbers. Jev's answer had nowhere to land and no move to act on.
+**Compute-first, the fourth time: the ceiling is the enumerator.**
+
+It is *not* a second Jev pass. Steering already is pass one (classify the
+guidance) and composing pass two (execute) — that architecture was there. What
+was missing was an **axis**, and adding it broke two things built for the other
+six:
+
+1. **Hue is circular.** 350 and 10 are 20 apart, not 340. Euclidean
+   `briefDistance` would rate a red creature as maximally far from a slightly
+   different red. `CIRCULAR` now dispatches to angular distance.
+2. **Hue has no order.** `score` returns the expectation over an *ordered* set
+   of rungs. There is no "more hue" — the scale wraps, red sits beside magenta
+   at one end and orange at the other, and averaging over an ordering that does
+   not exist would put "red or violet" at green. So colour is asked as a
+   **`choice`** over named colours.
+
+That is the general rule this axis exists to demonstrate, and it is worth more
+than the feature: **choose the primitive from the shape of the variable, not
+from what the other questions happen to use.**
+
+### The gene called `hue` is not the colour, on one family in five
+
+| generator | `hue` gene 0→280 renders as | which gene actually works |
+|---|---|---|
+| quad, poly, axial, isopod | tracks faithfully (+13–15° ramp offset) | `hue` |
+| **radial** | **273–291 throughout — it barely moves** | **`accentHue`** |
+
+The violet psychic accent is 298 of radial's 366 cells and dominates the
+circular mean. Wiring a colour axis to the obviously-named gene would have
+failed silently on one family in five and read as *the model ignoring the
+brief*. **Only measuring the render catches it** — the same reason the other
+six traits are counted from cells rather than read off the parameters. Each
+generator now declares `hueGene`, and a selftest asserts that setting it to
+blue actually renders blue on all five.
+
+### Colour moves are jumps, and only offered when asked for
+
+Nudging a circular gene by a fixed step would take six edits to cross from
+amber to blue, eating a ten-edit chain on an axis that is not a search problem.
+So the enumerator offers the named colours directly, and only when the brief
+constrains hue — the move set follows the brief's axes, the same way the trait
+table does.
+
+**Colour is therefore a one-edit axis, and the page says so.** It tests whether
+the model classifies and acts; it does not test search. Those are different
+claims and conflating them would have been the flattering version.
+
+### Measured, live
+
+| test | result |
+|---|---|
+| colour named correctly (`"blue"`, `"deep sea blue…"`, `"the colour of rust"`, `"bright arterial red"`, `"like moss on a wet stone"`) | **6 / 6** |
+| colour correctly **dropped** where none was mentioned | **2 / 2**, at p 0.04 and p 0.03 |
+| chain on *"a blue creature, much wider than it is tall, mostly empty space"* | took `hue_blue` **first** of 26 options, then matched greedy 8/8 — 0.440 vs random 0.988 |
+
+Two answers worth keeping. `"the colour of rust"` → `orange` at **confidence
+0.49**: the right amount of hedging for a red-brown. `"like moss on a wet
+stone"` → `green` with p(says colour) **0.76** rather than 0.98 — correctly
+lower, because the colour is implied and not stated. The self-check is
+grading the *description*, not its own answer, and here that distinction shows
+up as a number.
+
 ### The dev server 404'd `/jev/composer/`
 
 It resolved a directory to its index only at the root, so the page served fine

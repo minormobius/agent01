@@ -31,6 +31,72 @@ import { buildRadialGenome, radialFrame, DEFAULT_GENES as RADIAL } from '../../s
  */
 export const TRAITS = ['ink', 'aspect', 'coverage', 'centroidY', 'symmetry', 'spread'];
 
+/**
+ * HUE IS A SEVENTH AXIS AND IT IS NOT LIKE THE OTHER SIX.
+ *
+ * It is measured off the render like everything else — the circular mean of
+ * every cell's colour, weighted by how much colour that cell actually carries,
+ * so a near-black outline cell does not drag the mean the way a saturated body
+ * cell does. But it differs from the geometric traits in two ways that each
+ * break a piece of machinery built for them:
+ *
+ * 1. IT IS CIRCULAR. 350 and 10 are 20 apart, not 340. Euclidean distance
+ *    would rate a red creature as maximally far from a slightly-different red.
+ *    So `briefDistance` dispatches on `CIRCULAR`.
+ * 2. IT HAS NO ORDER. There is no "more hue" — the ladder that `score` needs
+ *    does not exist, because the scale wraps. So steering asks for it with a
+ *    `choice` over named colours instead. The primitive follows the shape of
+ *    the variable; that is the whole lesson of this axis.
+ *
+ * `BRIEF_KEYS` is what a brief may constrain; `TRAITS` stays the geometric
+ * space so the sampled ladder and everything measured against it are unchanged.
+ */
+export const CIRCULAR = ['hue'];
+export const BRIEF_KEYS = [...TRAITS, 'hue'];
+
+/** Named colours, in degrees, as a person would say them. */
+export const COLOURS = { red: 0, orange: 30, yellow: 55, green: 120, teal: 175,
+  blue: 215, violet: 275, magenta: 320 };
+
+/** The nearest colour word to a measured hue, on the circle. */
+export function hueName(h) {
+  if (!Number.isFinite(h)) return null;
+  let best = null, bd = Infinity;
+  for (const [k, v] of Object.entries(COLOURS)) {
+    const d = hueGap(h, v);
+    if (d < bd) { bd = d; best = k; }
+  }
+  return best;
+}
+
+/** Angular separation in degrees, 0..180. */
+export function hueGap(a, b) {
+  const d = Math.abs(((a - b) % 360 + 360) % 360);
+  return d > 180 ? 360 - d : d;
+}
+
+/**
+ * Parse a cell colour to {h, chroma}. The generators emit `hsl(H S% L%)` for
+ * everything that carries the creature's colour and hex for the few fixed
+ * details — eyes, catchlights — so both are read rather than one silently
+ * skipped, which would bias the mean toward whichever form dominates.
+ */
+function cellHue(str) {
+  const m = /hsl\(\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%/.exec(str || '');
+  if (m) {
+    const s = +m[2] / 100, l = +m[3] / 100;
+    return { h: +m[1], chroma: s * (1 - Math.abs(2 * l - 1)) };
+  }
+  const x = /^#([0-9a-f]{6})$/i.exec(str || '');
+  if (!x) return null;
+  const n = parseInt(x[1], 16);
+  const r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255;
+  const mx = Math.max(r, g, b), mn = Math.min(r, g, b), c = mx - mn;
+  if (c === 0) return { h: 0, chroma: 0 };
+  const h = mx === r ? ((g - b) / c % 6) : mx === g ? ((b - r) / c + 2) : ((r - g) / c + 4);
+  return { h: (h * 60 + 360) % 360, chroma: c };
+}
+
 export function measure(cells) {
   if (!cells?.length) return null;
   let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
@@ -63,7 +129,30 @@ export function measure(cells) {
     centroidY: h > 1 ? (cy - y0) / (h - 1) : 0.5,
     symmetry: mirrored / ink,
     spread: (d / ink) / diag,
+    ...hueOf(cells),
   };
+}
+
+/**
+ * The circular mean hue, and how concentrated it is.
+ *
+ * `hueSpread` near 1 means the creature is essentially one colour; near 0 means
+ * its colours cancel around the circle and the mean hue is close to meaningless.
+ * It is reported rather than hidden, because a mean of a circular quantity with
+ * no concentration is exactly the kind of number that reads as a fact.
+ */
+function hueOf(cells) {
+  let sx = 0, sy = 0, w = 0;
+  for (const c of cells) {
+    const p = cellHue(c.c);
+    if (!p || p.chroma <= 0) continue;
+    sx += p.chroma * Math.cos(p.h * Math.PI / 180);
+    sy += p.chroma * Math.sin(p.h * Math.PI / 180);
+    w += p.chroma;
+  }
+  if (!w) return { hue: null, hueSpread: 0 };
+  return { hue: (Math.atan2(sy, sx) * 180 / Math.PI + 360) % 360,
+    hueSpread: Math.hypot(sx, sy) / w };
 }
 
 /**
@@ -80,6 +169,7 @@ export const GENERATORS = {
     bounds: { body: [0.4, 1.8], depth: [0.4, 1.8], leg: [0.4, 1.8], neck: [0.4, 1.8],
       head: [0.4, 1.8], snout: [0.4, 1.8], tail: [0.3, 1.8], ear: [0.3, 1.8], stance: [0, 1] },
     step: { stance: 0.2, _default: 0.15 },
+    hueGene: 'hue',
     cells: (genes) => quadFrame(buildQuadGenome(7, genes), 0, false),
   },
   poly: {
@@ -90,6 +180,7 @@ export const GENERATORS = {
       legLen: [0.5, 1.8], legGirth: [0.5, 1.8], claws: [0, 1], antennae: [0, 1] },
     step: { legs: 1, segs: 1, claws: 0.25, antennae: 0.25, _default: 0.15 },
     int: ['legs', 'segs'],
+    hueGene: 'hue',
     cells: (genes) => polyFrame(buildPolyGenome(7, genes), 0),
   },
   axial: {
@@ -100,6 +191,7 @@ export const GENERATORS = {
       waves: [0.5, 3.5], headSize: [0.5, 1.8], fins: [0, 1], segments: [4, 20] },
     step: { segments: 2, waves: 0.25, fins: 0.25, _default: 0.15 },
     int: ['segments'],
+    hueGene: 'hue',
     cells: (genes) => axialFrame(buildAxialGenome(7, genes), 0),
   },
   isopod: {
@@ -110,6 +202,7 @@ export const GENERATORS = {
       legGirth: [0.5, 1.8], armor: [0, 1.8], antennae: [0, 1.8], tailFan: [0, 1.8] },
     step: { segments: 1, _default: 0.15 },
     int: ['segments'],
+    hueGene: 'hue',
     cells: (genes) => isopodFrame(buildIsopodGenome(7, genes), 0),
   },
   radial: {
@@ -120,6 +213,13 @@ export const GENERATORS = {
       reach: [0.4, 1], writhe: [0, 1.5], glow: [0, 2] },
     step: { arms: 1, depth: 1, _default: 0.1 },
     int: ['arms', 'depth'],
+    // THE GENE CALLED `hue` IS NOT THIS CREATURE'S COLOUR. Moving it 0->280
+    // leaves the measured hue at 273-291, because the violet psychic accent
+    // is 298 of its 366 cells and dominates the circular mean. `accentHue` is
+    // the one that moves the render. Only measuring catches this; a colour
+    // axis wired to the obviously-named gene would have silently failed on
+    // one family in five and looked like the model ignoring the brief.
+    hueGene: 'accentHue',
     cells: (genes) => radialFrame(buildRadialGenome(7, genes), 0, genes.size ?? RADIAL.size),
   },
 };
@@ -132,7 +232,7 @@ const round = (x, d = 4) => Number(x.toFixed(d));
  * is kept whole; a move that lands where it started is dropped, because an
  * option that does nothing is a forced move dressed up as a decision.
  */
-export function legalMoves(genId, genes) {
+export function legalMoves(genId, genes, brief = null) {
   const gen = GENERATORS[genId];
   const out = [];
   for (const k of gen.movable) {
@@ -144,6 +244,24 @@ export function legalMoves(genId, genes) {
       if (Math.abs(next - (genes[k] ?? gen.defaults[k])) < 1e-9) continue;
       out.push({ id: `${k}_${dir > 0 ? 'up' : 'down'}`, gene: k, dir,
         from: genes[k] ?? gen.defaults[k], to: next, genes: { ...genes, [k]: next } });
+    }
+  }
+  // COLOUR MOVES ARE JUMPS, NOT STEPS, and they are offered only when the
+  // brief asks for a colour.
+  //
+  // Nudging a circular gene by a fixed step is the wrong move set: it would
+  // take six edits to cross from amber to blue, eating a ten-edit chain to
+  // satisfy an axis that is not a search problem at all. So the enumerator
+  // offers the named colours directly. That makes colour a ONE-EDIT axis,
+  // which is worth saying plainly — it tests whether the model classifies and
+  // acts, not whether it can search, and those are different claims.
+  if (brief?.target?.hue != null && gen.hueGene) {
+    const k = gen.hueGene;
+    const at = genes[k] ?? gen.defaults[k];
+    for (const [name, deg] of Object.entries(COLOURS)) {
+      if (hueGap(at, deg) < 1e-9) continue;
+      out.push({ id: `hue_${name}`, gene: k, dir: 0, colour: name,
+        from: at, to: deg, genes: { ...genes, [k]: deg } });
     }
   }
   return out;
@@ -179,9 +297,15 @@ const SCALE = { ink: 400, aspect: 0.8, coverage: 0.25, centroidY: 0.25, symmetry
 export function briefDistance(t, brief) {
   if (!t) return Infinity;
   let s = 0, n = 0;
-  for (const k of TRAITS) {
+  for (const k of BRIEF_KEYS) {
     if (brief.target[k] == null || !Number.isFinite(t[k])) continue;
-    s += ((t[k] - brief.target[k]) / SCALE[k]) ** 2; n++;
+    // A circular axis gets angular distance. Using the Euclidean form here
+    // would rate a red creature as maximally far from a slightly different
+    // red, which is not a rounding error — it is the wrong geometry.
+    const e = CIRCULAR.includes(k)
+      ? hueGap(t[k], brief.target[k]) / 180
+      : (t[k] - brief.target[k]) / SCALE[k];
+    s += e ** 2; n++;
   }
   return n ? Math.sqrt(s / n) : Infinity;
 }
@@ -198,13 +322,19 @@ export function moveCriteria(moves, current, brief) {
   const c = {};
   for (const m of moves) {
     if (!m.traits) continue;
-    const deltas = TRAITS
+    const deltas = BRIEF_KEYS
       .filter((k) => brief.target[k] != null)
-      .map((k) => ({ k, d: m.traits[k] - current[k] }))
-      .filter((x) => Math.abs(x.d) > 1e-3)
-      .sort((a, b) => Math.abs(b.d) - Math.abs(a.d)).slice(0, 3)
-      .map((x) => `${x.k} ${x.d > 0 ? '+' : ''}${x.d.toFixed(2)}`);
-    c[m.id] = `${m.gene} ${m.dir > 0 ? 'up' : 'down'} (${m.from} to ${m.to}). ` +
+      .map((k) => ({ k, d: CIRCULAR.includes(k) ? null : m.traits[k] - current[k],
+        was: current[k], now: m.traits[k] }))
+      .filter((x) => (x.d === null
+        ? hueGap(x.was, x.now) > 1
+        : Math.abs(x.d) > 1e-3))
+      .sort((a, b) => Math.abs(b.d ?? 999) - Math.abs(a.d ?? 999)).slice(0, 3)
+      // A hue delta in degrees is not something to reason about. The colour it
+      // BECOMES is, so that is what the option says.
+      .map((x) => (x.d === null ? `colour now ${hueName(x.now)}` : `${x.k} ${x.d > 0 ? '+' : ''}${x.d.toFixed(2)}`));
+    const what = m.dir === 0 ? `recolour to ${m.colour}` : `${m.gene} ${m.dir > 0 ? 'up' : 'down'} (${m.from} to ${m.to})`;
+    c[m.id] = `${what}. ` +
       `Measured from the redrawn sprite: ${deltas.join(', ') || 'no measurable change'}. ` +
       `Overall gap to the brief would go from ${curD.toFixed(3)} to ${briefDistance(m.traits, brief).toFixed(3)} (lower is closer).`;
   }
@@ -223,8 +353,13 @@ export function composeDoc(genId, t, brief, { step = 0, total = 0, history = [] 
     '',
     `THE BRIEF: ${brief.label}`,
     `${'trait'.padEnd(11)}${'now'.padStart(9)}${'wanted'.padStart(9)}${'gap'.padStart(9)}`,
-    ...TRAITS.filter((k) => brief.target[k] != null).map((k) =>
-      k.padEnd(11) + n(t[k]).padStart(9) + n(brief.target[k]).padStart(9) + n(brief.target[k] - t[k]).padStart(9)),
+    // A hue is reported as a colour WORD in every column. "43 -> 215, gap 172"
+    // is a number about a circle presented as if it were a number about a
+    // line, and it is also just not how anyone thinks about colour.
+    ...BRIEF_KEYS.filter((k) => brief.target[k] != null).map((k) => (CIRCULAR.includes(k)
+      ? k.padEnd(11) + String(hueName(t[k])).padStart(9) + String(hueName(brief.target[k])).padStart(9) +
+        (hueGap(t[k], brief.target[k]) < 1 ? 'on target' : 'wrong').padStart(9)
+      : k.padEnd(11) + n(t[k]).padStart(9) + n(brief.target[k]).padStart(9) + n(brief.target[k] - t[k]).padStart(9))),
     '',
     `edit ${step + 1} of ${total}.`,
   ];
@@ -236,5 +371,9 @@ export function composeDoc(genId, t, brief, { step = 0, total = 0, history = [] 
     'bounding box — how solid it is. CENTROIDY is 0 at the top of the box and 1 at',
     'the bottom. SYMMETRY is the left-right mirror match. SPREAD is how far the ink',
     'sits from its own centre. A positive gap means the trait needs to go UP.');
+  if (brief.target.hue != null) lines.push(
+    'COLOUR is the average colour of the cells as drawn, named. It is not a',
+    'quantity that can be more or less — it is either the colour asked for or a',
+    'different one, and one edit sets it.');
   return lines.join('\n');
 }
