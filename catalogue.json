@@ -20,19 +20,19 @@
       "label": "bluesky"
     },
     {
-      "before": 74,
+      "before": 75,
       "label": "work"
     },
     {
-      "before": 84,
+      "before": 85,
       "label": "data"
     },
     {
-      "before": 147,
+      "before": 148,
       "label": "tools"
     },
     {
-      "before": 212,
+      "before": 213,
       "label": "games"
     }
   ],
@@ -563,6 +563,19 @@
       "b": "2026-06-26",
       "p": "atmosphere",
       "surface": "b"
+    },
+    {
+      "n": "orbit",
+      "u": "https://b.mino.mobi/orbit/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-19",
+      "b": "2026-09-19",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "Your closest circle as a guessing game. A month of your own likes, replies, reposts and quotes rings the people you actually talk to around an arena; their posts are dealt into the middle and you say who wrote each one. Graded against blind guessing, because 50% out of four seats is not 50% out of twenty. Then the expensive half: analyse the circle and every member's whole repository is streamed, reduced to one row of a closeness matrix and thrown away \u2014 who replied to whom first, and how much they have interacted since, in both directions. The finished matrix packs into a link.",
+      "tags": ["atproto", "canvas", "game"]
     },
     {
       "n": "quarter",

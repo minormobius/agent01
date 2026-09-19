@@ -6,6 +6,7 @@
 import { evaluate } from './feedgen/pipeline.js';
 import * as gc from './lib/gc.js';
 import { circle as squaresCircle } from './squares/circle.js';
+import { circle as orbitCircle, deck as orbitDeck, avatar as orbitAvatar } from './orbit/api.js';
 import { scan as uniqueScan, search as uniqueSearch, novelty as uniqueNovelty, meme as uniqueMeme } from './unique/unique.js';
 
 const FEED_HOST = 'b.mino.mobi';
@@ -171,6 +172,22 @@ export default {
     // ── squares — closest-circle picture toy (server-side fan-out, authed) ────
     if (path === '/api/squares/circle') {
       try { return json(await squaresCircle(url.searchParams, env, await serviceToken(env))); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
+
+    // ── orbit — the closest-circle guessing game (ring + deck + avatar proxy) ─
+    if (path === '/api/orbit/circle') {
+      try { return json(await orbitCircle(url.searchParams, env, await serviceToken(env))); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
+    if (path === '/api/orbit/deck') {
+      try { return json(await orbitDeck(url.searchParams, env, await serviceToken(env))); }
+      catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
+    }
+    // The share card is a canvas, and a canvas that has drawn a cross-origin
+    // image with no CORS headers cannot be read back. cdn.bsky.app sends none.
+    if (path === '/api/orbit/av') {
+      try { return await orbitAvatar(url.searchParams); }
       catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
     }
 
