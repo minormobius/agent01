@@ -205,21 +205,38 @@ jobs:
           node-version: 22
       - run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
       - run: node morphyx/arm/arm.mjs --out /tmp/arm
+      # --grid 2 (32 states), not 3 (243). At 3 this step has NEVER FINISHED:
+      # it ran 119m56s against a 120-minute timeout on run 10 and was killed,
+      # and was cancelled by the next push on run 9. A report that never
+      # completes is not a report.
       - name: Clearance table over the joint corners (exact meshes; for the record, not a gate)
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/arm/arm.json --grid 3 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
+        run: node agent/check.mjs /tmp/arm/arm.json --grid 2 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
 
-      # WHERE DOES THIS ARM HIT ITSELF? The audit used to carry a single guessed
-      # number for that, FOLD_LIMIT = -118, bracketed at two points. It is not a
-      # number: the boundary moves with j2, and with the gripper fitted the
-      # thing the tool reaches below j2 = 10 is the BASE PLATE, not the upper
-      # arm — 190000 mm³ deep rather than a 2500 mm³ corner graze. fold.mjs
-      # bisects the real boundary against the kernel, per j2, and writes
-      # fold-map.json; the audit in the gating job reads that map and checks the
-      # pour against it waypoint by waypoint. Six minutes on the whole machine,
-      # so it lives here rather than in front of the publish — but it IS a gate
-      # for this job: a boundary that has moved means the audit upstream has
-      # been checking the pour against the wrong curve.
+  # WHERE DOES THIS ARM HIT ITSELF? The audit used to carry a single guessed
+  # number for that, FOLD_LIMIT = -118, bracketed at two points. It is not a
+  # number: the boundary moves with j2, and with the gripper fitted the thing
+  # the tool reaches below j2 = 5 is the BASE PLATE, not the upper arm — 190000
+  # mm³ deep rather than a 2500 mm³ corner graze. fold.mjs bisects the real
+  # boundary against the kernel, per j2, and writes fold-map.json; the audit in
+  # the gating job reads that map and checks the pour against it waypoint by
+  # waypoint. A boundary that has moved means that audit has been checking the
+  # pour against the wrong curve.
+  #
+  # ITS OWN JOB, and that is the point. It was a step in `clearance`, behind the
+  # table above — which exhausts that job's whole timeout, so the boundary check
+  # was SKIPPED on both runs it has existed for. That is the same mistake this
+  # file already documents once: a gate parked behind a slow non-gate does not
+  # run. Eight minutes, alone, beholden to nothing.
+  boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
       - name: The self-collision boundary is still where the committed map says
         run: |
           node morphyx/arm/fold.mjs /tmp/cad --doc robot --write
