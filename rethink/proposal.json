@@ -619,7 +619,13 @@
             {
               "u": "mega.mino.mobi/jev",
               "action": "new",
-              "note": "TypeSafe AI's Jev — a model that returns typed decisions instead of text — given a body: it delves a live foam dungeon one typed call at a time",
+              "note": "seven experiments on a model that returns typed decisions instead of text, indexed — three you can run, four that ran headless, and the finding that the hard part is projecting a design space onto axes a typed question can land on",
+              "domain": "agents"
+            },
+            {
+              "u": "mega.mino.mobi/jev/delve",
+              "action": "new",
+              "note": "the decision model given a body: it delves a live foam dungeon one typed call at a time, five questions in parallel, refusing to act when the gate says it is not sure enough",
               "domain": "agents"
             },
             {

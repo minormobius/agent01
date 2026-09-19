@@ -15,13 +15,13 @@ import { dirname, join } from 'node:path';
 import {
   frontier, routeToFrontier, routeToEntrance, atDeadEnd, memoryFor,
   recordJournal, knownExits, JOURNAL_WINDOW,
-} from '../memory.mjs';
+} from '../delve/memory.mjs';
 import {
   makeWorld, newRun, buildState, buildQuestions, applyAnswers, offlineAnswers,
-} from '../delve.mjs';
+} from '../delve/delve.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'fixtures', n), 'utf8'));
+const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'delve', 'fixtures', n), 'utf8'));
 const mk = () => makeWorld(fix('dungeon-seed7-s.json'), fix('content-seed7-s-roll1.json'));
 const world = mk();
 

@@ -1979,6 +1979,15 @@
    "id": "jev",
    "name": "jev",
    "url": "https://mega.mino.mobi/jev/",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "jev delve",
+   "name": "jev delve",
+   "url": "https://mega.mino.mobi/jev/delve/",
    "cat": "games",
    "commits": 2,
    "age": "hot",
@@ -5008,6 +5017,16 @@
    "id": "mega/jev/composer",
    "name": "composer",
    "url": "https://mino.mobi/mega/jev/composer/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/delve",
+   "name": "delve",
+   "url": "https://mino.mobi/mega/jev/delve/",
    "cat": "data",
    "commits": 0,
    "age": "cold",

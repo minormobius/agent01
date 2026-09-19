@@ -2909,6 +2909,23 @@
     {
       "n": "jev",
       "u": "https://mega.mino.mobi/jev/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-19",
+      "b": "2026-09-17",
+      "surface": "mega",
+      "d": "Seven experiments putting TypeSafe AI’s Jev — a decision-only model that returns typed answers and never text — to work, with what it refused to do published as plainly as what it did. Three you can run: a delver in a live foam dungeon taking five typed decisions per call, a harness against Hyperliquid’s public tick stream that sizes a paper book on an ordered ladder, and a composer that builds a procedural creature one legal edit at a time across five generators. Four that ran headless: the same composition loop against a real B-rep CAD kernel, every part watertight; an escalation router that beats reading the model’s own confidence by 62, 76 and 65 points across three replications; and a pre-registered 12-hour forward test, frozen before any data was collected and still accruing. The throughline is the finding: across every experiment, “the model is behaving badly” has been a missing or badly-shaped input about ten times out of ten, and the real work is projecting a design space onto axes a typed question can land on — ordered, nominal, circular, compositional, set-valued — because the primitive has to follow the shape of the variable, and asked to predict instead of to classify it simply emits a constant.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "research",
+        "workers"
+      ]
+    },
+    {
+      "n": "jev delve",
+      "u": "https://mega.mino.mobi/jev/delve/",
       "c": "games",
       "k": 2,
       "a": "hot",
@@ -2919,42 +2936,43 @@
       "tags": [
         "typesafe",
         "decision-model",
-        "workers"
+        "procgen",
+        "3d"
       ]
     },
     {
-     "n": "jev composer",
-     "u": "https://mega.mino.mobi/jev/composer/",
-     "c": "tools",
-     "k": 2,
-     "a": "hot",
-     "t": "2026-09-19",
-     "b": "2026-09-19",
-     "surface": "mega",
-     "d": "A decision model composing a procedural creature, one legal edit at a time, across five generators \u2014 quadruped, polypod, undulator, isopod, echinoderm. It draws nothing: the page enumerates every legal single-gene edit, redraws and measures each one, and Jev picks. Every option is shown as a thumbnail with the gap it would produce, and the one it chose carries a tick \u2014 so the whole loop is visible rather than asserted. The traits are measured off the render, not derived from the genes: filled cells, bounding box, density, where the mass sits, left-right symmetry, how far the ink sprawls. That is why one brief means the same thing to a hound, a spider, an eel and a brittle-star, and why shuffle is the fastest way to see it. An edit that would leave the generator's own bounds is never offered, so the answer cannot be an illegal creature \u2014 the quality ceiling of the loop is the enumerator, not the model. Greedy and random replay the identical enumerated sets beside it, because beating random is the only thing that makes a chain evidence rather than a demo.",
-     "tags": [
-      "typesafe",
-      "decision-model",
-      "procgen",
-      "sprites"
-     ]
+      "n": "jev composer",
+      "u": "https://mega.mino.mobi/jev/composer/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-19",
+      "b": "2026-09-19",
+      "surface": "mega",
+      "d": "A decision model composing a procedural creature, one legal edit at a time, across five generators — quadruped, polypod, undulator, isopod, echinoderm. It draws nothing: the page enumerates every legal single-gene edit, redraws and measures each one, and Jev picks. Every option is shown as a thumbnail with the gap it would produce, and the one it chose carries a tick — so the whole loop is visible rather than asserted. The traits are measured off the render, not derived from the genes: filled cells, bounding box, density, where the mass sits, left-right symmetry, how far the ink sprawls. That is why one brief means the same thing to a hound, a spider, an eel and a brittle-star, and why shuffle is the fastest way to see it. An edit that would leave the generator's own bounds is never offered, so the answer cannot be an illegal creature — the quality ceiling of the loop is the enumerator, not the model. Greedy and random replay the identical enumerated sets beside it, because beating random is the only thing that makes a chain evidence rather than a demo.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "procgen",
+        "sprites"
+      ]
     },
     {
-     "n": "jev lab",
-     "u": "https://mega.mino.mobi/jev/lab/",
-     "c": "tools",
-     "k": 2,
-     "a": "hot",
-     "t": "2026-09-18",
-     "b": "2026-09-18",
-     "surface": "mega",
-     "d": "A harness for a decision model against the fastest honest feedback there is. Hyperliquid's public websocket streams the BTC perpetual at one tick a second; the page computes the metrics itself — efficiency, taker skew, spread, funding, the volatility ratio — and sends Jev numbers, never a price series, because handed the inputs to a computation instead of its result the same model scores 62.5% rather than 100%. Jev sizes a levered long/short book on an ordered seven-rung exposure ladder, asked as a score rather than a choice: the rungs are discrete so the type enforces the ceiling \u2014 it cannot return a rung off the end, so it cannot ask for 50x \u2014 while the returned value is the expectation over the distribution across them, so the size is continuous. On six real states a choice over the identical quanta collapsed to the extreme -3x five times where the ladder graded them -2.83x to -1.72x. It also answers whether the state even contains enough to decide, and which regime the last minute was. It is never asked what happens next. The paper book is levered and liquidatable \u2014 pushed far enough the wrong way it goes to zero and the run ends \u2014 charges a taker fee plus half the observed spread on every size change, and runs two baselines on the identical ticks — buy-and-hold, and a random control forced to trade exactly as often — and the verdict is read off a t-statistic against that control rather than off whichever line is highest, with the count of runs you have tried kept on screen. Paper only: no account, no keys, no orders.",
-     "tags": [
-      "typesafe",
-      "decision-model",
-      "markets",
-      "live-data"
-     ]
+      "n": "jev lab",
+      "u": "https://mega.mino.mobi/jev/lab/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-18",
+      "b": "2026-09-18",
+      "surface": "mega",
+      "d": "A harness for a decision model against the fastest honest feedback there is. Hyperliquid's public websocket streams the BTC perpetual at one tick a second; the page computes the metrics itself — efficiency, taker skew, spread, funding, the volatility ratio — and sends Jev numbers, never a price series, because handed the inputs to a computation instead of its result the same model scores 62.5% rather than 100%. Jev sizes a levered long/short book on an ordered seven-rung exposure ladder, asked as a score rather than a choice: the rungs are discrete so the type enforces the ceiling — it cannot return a rung off the end, so it cannot ask for 50x — while the returned value is the expectation over the distribution across them, so the size is continuous. On six real states a choice over the identical quanta collapsed to the extreme -3x five times where the ladder graded them -2.83x to -1.72x. It also answers whether the state even contains enough to decide, and which regime the last minute was. It is never asked what happens next. The paper book is levered and liquidatable — pushed far enough the wrong way it goes to zero and the run ends — charges a taker fee plus half the observed spread on every size change, and runs two baselines on the identical ticks — buy-and-hold, and a random control forced to trade exactly as often — and the verdict is read off a t-statistic against that control rather than off whichever line is highest, with the count of runs you have tried kept on screen. Paper only: no account, no keys, no orders.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "markets",
+        "live-data"
+      ]
     },
     {
       "n": "golem",

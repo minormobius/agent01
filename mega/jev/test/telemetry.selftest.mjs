@@ -9,11 +9,11 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
   newTelemetry, record, series, profile, mean, correlation, SIGNALS, engageAggression,
-} from '../telemetry.mjs';
-import { makeWorld, newRun, applyAnswers, offlineAnswers } from '../delve.mjs';
+} from '../delve/telemetry.mjs';
+import { makeWorld, newRun, applyAnswers, offlineAnswers } from '../delve/delve.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'fixtures', n), 'utf8'));
+const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'delve', 'fixtures', n), 'utf8'));
 
 let passed = 0;
 const failures = [];

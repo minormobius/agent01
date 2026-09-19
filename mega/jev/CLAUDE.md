@@ -1,6 +1,6 @@
 # jev — CLAUDE.md (a decision model with a body)
 
-You are working on **jev**, the TypeSafe AI demo at `mega.mino.mobi/jev/` —
+You are working on **jev**, the TypeSafe AI experiments at `mega.mino.mobi/jev/` —
 a sub-site of the [`mega`](../CLAUDE.md) surface, not a surface of its own
 (see below). It exists to answer one question in public: *what is a model that only makes decisions
 actually good for?*
@@ -20,6 +20,33 @@ depends on, are:
 Every question in one call is evaluated **in parallel and in isolation**
 against the same state. The docs are at <https://docs.typesafe.ai/>; the
 endpoint is `POST https://api.typesafe.ai/v1/systemone`, model `jev-latest`.
+
+## The shape of this sub-site (2026-09-19)
+
+`/jev/` is a **landing that indexes the experiments**, not a demo. It was the
+dungeon until the programme outgrew one page: three live sub-sites and four
+headless results do not fit under a title about a delver, and the most useful
+thing on the surface — the finding that the hard part is projecting a design
+space onto classifiable axes — had nowhere to live.
+
+| path | what it is |
+|---|---|
+| `/jev/` | the index: what each experiment found, the two rules, the axis-shape table |
+| `/jev/delve/` | **the dungeon**, moved here from the root |
+| `/jev/lab/` | the market harness |
+| `/jev/composer/` | the procgen composer |
+
+Things that moved with the dungeon and must stay together: `app.js`,
+`delve.mjs`, `scene.mjs`, `character.mjs`, `memory.mjs`, `telemetry.mjs`,
+`fixtures/`, `vendor/`, `favicon.svg`. Things that stayed at the root because
+more than one sub-site uses them: `style.css`, `api.mjs` (the worker's key
+proxy), `prereg-do.mjs`, `cascade.mjs`, `eval/`, `test/`, `docs/`.
+
+**The one path that breaks silently on a move like this** is the API. The
+dungeon fetched `api/ask` — relative with no leading slash — which resolved to
+`/jev/api/ask` from the root and would have resolved to `/jev/delve/api/ask`
+from the new home. It is now `../api/ask`, the same form the composer uses.
+A page that 404s its own model call still renders perfectly.
 
 **The demo.** A delver stands in a chamber of a procedurally generated
 dungeon. Every tick (10 s by default) the page posts ONE call: the delver's

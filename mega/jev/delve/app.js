@@ -181,7 +181,7 @@ function setView(v) {
 
 // --------------------------------------------------------------- the tick ---
 async function askJev(state, questions) {
-  const res = await fetch('api/ask', {
+  const res = await fetch('../api/ask', {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ state, questions }),
@@ -802,7 +802,7 @@ async function boot() {
   wireTooltip();
 
   try {
-    const health = await fetch('api/health').then((r) => r.json());
+    const health = await fetch('../api/health').then((r) => r.json());
     app.keyConfigured = Boolean(health.configured);
   } catch {
     // Opening index.html off a static server (no worker) lands here.

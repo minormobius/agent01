@@ -15,7 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { makeWorld, newRun, buildState, buildQuestions } from '../delve.mjs';
+import { makeWorld, newRun, buildState, buildQuestions } from '../delve/delve.mjs';
 
 const key = process.env.TYPESAFE_API_KEY;
 if (!key) {
@@ -24,7 +24,7 @@ if (!key) {
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
-const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'fixtures', n), 'utf8'));
+const fix = (n) => JSON.parse(readFileSync(join(here, '..', 'delve', 'fixtures', n), 'utf8'));
 
 const world = makeWorld(fix('dungeon-seed7-s.json'), fix('content-seed7-s-roll1.json'));
 const run = newRun(world, { seed: 1 });
