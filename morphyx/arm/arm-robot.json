@@ -36,8 +36,8 @@
    "description": "forearm roll"
   },
   "j5": {
-   "min": -100,
-   "max": 100,
+   "min": -88,
+   "max": 88,
    "steps": 3,
    "unit": "deg",
    "default": 0,
@@ -85,7 +85,7 @@
   "base-plate": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 79 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
+   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 73 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
    "params": {
     "d": 182,
     "t": 12,
@@ -674,10 +674,10 @@
      "counterweight": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.79 kg (× 46.2 long) on the upper arm and CW2 4.52 kg (× 45.2) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
+      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.55 kg (× 42.3 long) on the upper arm and CW2 4.07 kg (× 40.8) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
       "params": {
        "d": 70,
-       "t": 46.2,
+       "t": 42.3,
        "y1": "t / 2",
        "d_bore": 12.2
       },
@@ -1029,8 +1029,8 @@
        "c1z"
       ],
       "params": {
-       "t": 46.2,
-       "y1": "12 * (1 - 2 * (i - 2 * floor(i / 2))) + 46.2 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "t": 42.3,
+       "y1": "12 * (1 - 2 * (i - 2 * floor(i / 2))) + 42.3 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1064,9 +1064,9 @@
        "c2z"
       ],
       "params": {
-       "t": 45.2,
+       "t": 40.8,
        "d": 90,
-       "y1": "42 * (1 - 2 * (i - 2 * floor(i / 2))) + 45.2 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "42 * (1 - 2 * (i - 2 * floor(i / 2))) + 40.8 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1718,12 +1718,12 @@
            "fork-cheek": {
             "$schema": "com.minomobi.cad.tree#v1",
             "units": "mm",
-            "_": "J5 fork cheek, two off at |y| 27…39: carries the pitch bush at the wrist centre. `y1` is overridden per side. One extrude along -Y.",
+            "_": "J5 fork cheek, two off at |y| 29…39: carries the pitch bush at the wrist centre. `y1` is overridden per side. One extrude along -Y.",
             "params": {
              "back": 55,
              "prong": 25,
              "h": 70,
-             "t": 12,
+             "t": 10,
              "y1": 39,
              "d": 22
             },
@@ -1770,13 +1770,13 @@
            "fork-web": {
             "$schema": "com.minomobi.cad.tree#v1",
             "units": "mm",
-            "_": "J5 fork web: the 54 mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.",
+            "_": "J5 fork web: the 58 mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.",
             "params": {
              "back": 55,
              "web": 12,
              "h": 70,
-             "t": 54,
-             "y1": 27
+             "t": 58,
+             "y1": 29
             },
             "features": [
              {
@@ -1815,7 +1815,7 @@
             "params": {
              "d": 22,
              "d_bore": 16.1,
-             "t": 12,
+             "t": 10,
              "y1": "t / 2"
             },
             "features": [
@@ -1936,7 +1936,7 @@
              0
             ],
             "params": {
-             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
             }
            },
            {
@@ -1958,7 +1958,7 @@
              0
             ],
             "params": {
-             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
             }
            },
            {
@@ -1974,15 +1974,20 @@
               "wrist-blade": {
                "$schema": "com.minomobi.cad.tree#v1",
                "units": "mm",
-               "_": "J5 blade: the tool-side member, 50 thick between the fork's cheeks, bored on the pitch axis and flaring from x 45 to a 63 face for the tool flange. The flare starts where it does because everything on this part sweeps r = hypot(x, z) about the pitch axis, and inside r 43.01 it would find a fork cheek. One extrude along +Z, then the pitch bore as a cut along Y.",
+               "_": "J5 blade: the tool-side member, 54 thick between the fork's cheeks, bored on the pitch axis, and carrying its own Ø110 tool flange rather than a bolted-on plate. Through both runs a 44 square blind pocket, 48 deep — THE GRIPPER'S MOTOR LIVES IN HERE. That is what buys back the 54 mm the adapter cup used to cost: the actuator is behind the gripper's mounting face, so either the flange sits behind the motor or the wrist swallows it. Slab extruded along +Z, disc along +X, then the pocket and the pitch bore as cuts.",
                "params": {
                 "rear": -20,
-                "flare": 45,
                 "front": 60,
-                "hw": 25,
-                "fw": 31.5,
+                "hw": 27,
                 "h": 60,
-                "d": 16.2
+                "d": 16.2,
+                "dx": 56,
+                "fd": 110,
+                "fl": 12,
+                "pk": 44,
+                "pkx": 20,
+                "pcd": 97,
+                "dbolt": 3.4
                },
                "features": [
                 {
@@ -1995,32 +2000,14 @@
                  "loops": [
                   {
                    "name": "outline",
-                   "polygon": [
-                    [
-                     "rear",
-                     "-hw"
+                   "rect": {
+                    "c": [
+                     "(rear + front) / 2",
+                     0
                     ],
-                    [
-                     "flare",
-                     "-hw"
-                    ],
-                    [
-                     "front",
-                     "-fw"
-                    ],
-                    [
-                     "front",
-                     "fw"
-                    ],
-                    [
-                     "flare",
-                     "hw"
-                    ],
-                    [
-                     "rear",
-                     "hw"
-                    ]
-                   ]
+                    "w": "front - rear",
+                    "h": "2 * hw"
+                   }
                   }
                  ]
                 },
@@ -2032,10 +2019,95 @@
                 },
                 {
                  "op": "sketch",
+                 "id": "disc",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "dx"
+                 },
+                 "loops": [
+                  {
+                   "name": "outline",
+                   "circle": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "r": "fd / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "sketch",
+                 "id": "bolt",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "dx"
+                 },
+                 "loops": [
+                  {
+                   "name": null,
+                   "circle": {
+                    "c": [
+                     "pcd / 2",
+                     0
+                    ],
+                    "r": "dbolt / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "pattern",
+                 "id": "bolts",
+                 "of": "bolt",
+                 "kind": "circular",
+                 "count": 4,
+                 "name": "bolt"
+                },
+                {
+                 "op": "extrude",
+                 "id": "fla",
+                 "profile": [
+                  "disc",
+                  "bolts"
+                 ],
+                 "depth": "fl"
+                },
+                {
+                 "op": "sketch",
+                 "id": "pocket",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "pkx"
+                 },
+                 "loops": [
+                  {
+                   "name": "sq",
+                   "rect": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "w": "pk",
+                    "h": "pk"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "pkcut",
+                 "profile": "pocket",
+                 "depth": "front + fl - pkx",
+                 "mode": "cut"
+                },
+                {
+                 "op": "sketch",
                  "id": "bore",
                  "plane": {
                   "base": "XZ",
-                  "offset": "-(hw + 4)"
+                  "offset": "-(hw + 8)"
                  },
                  "loops": [
                   {
@@ -2054,7 +2126,7 @@
                  "op": "extrude",
                  "id": "borecut",
                  "profile": "bore",
-                 "depth": "2 * (hw + 4)",
+                 "depth": "2 * (hw + 8)",
                  "mode": "cut"
                 }
                ]
@@ -2146,84 +2218,137 @@
                 }
                ]
               },
-              "tool-flange": {
+              "cam-pod": {
                "$schema": "com.minomobi.cad.tree#v1",
                "units": "mm",
-               "_": "Tool flange, ISO 9409-1-50-4-M6: Ø63 × 8, four M6 on a Ø50 circle, Ø31.5 pilot. The gripper's own web bolts to this — its README calls this interface out and does not draw it, so this is the half that exists. One extrude along +X.",
+               "_": "Wrist camera bracket: an L reaching from the flange disc's rear face out past the fork cheeks, holding a 16 square board camera looking DOWN the tool's −Z. It is on the blade, so J5 aims it and the hand-eye transform is a constant. It cannot see the grip point — nothing on the wrist can, with a Ø104 tool in front of it — and it does not pretend to: this is the camera that finds the can on the bench, not the one that watches the jaws close. One extrude along +Z, one pocket.",
                "params": {
-                "d": 63,
-                "t": 8,
-                "x0": 60,
-                "pcd": 50,
-                "d_bolt": 6.6,
-                "d_pilot": 31.5
+                "x0": 26,
+                "x1": 56,
+                "y0": 41,
+                "y1": 59,
+                "fy": 27,
+                "fx": 48,
+                "z0": -18,
+                "t": 22,
+                "c": 16,
+                "ct": 10,
+                "cx": 41,
+                "cy": 50
                },
                "features": [
                 {
                  "op": "sketch",
-                 "id": "face",
+                 "id": "plan",
                  "plane": {
-                  "base": "YZ",
-                  "offset": "x0"
+                  "base": "XY",
+                  "offset": "z0"
                  },
                  "loops": [
                   {
                    "name": "outline",
-                   "circle": {
-                    "c": [
-                     0,
-                     0
+                   "polygon": [
+                    [
+                     "fx",
+                     "fy"
                     ],
-                    "r": "d / 2"
-                   }
-                  },
-                  {
-                   "name": "pilot",
-                   "circle": {
-                    "c": [
-                     0,
-                     0
+                    [
+                     "x1",
+                     "fy"
                     ],
-                    "r": "d_pilot / 2"
-                   }
+                    [
+                     "x1",
+                     "y1"
+                    ],
+                    [
+                     "x0",
+                     "y1"
+                    ],
+                    [
+                     "x0",
+                     "y0"
+                    ],
+                    [
+                     "fx",
+                     "y0"
+                    ]
+                   ]
                   }
                  ]
-                },
-                {
-                 "op": "sketch",
-                 "id": "bolt",
-                 "plane": {
-                  "base": "YZ",
-                  "offset": "x0"
-                 },
-                 "loops": [
-                  {
-                   "name": null,
-                   "circle": {
-                    "c": [
-                     "pcd / 2",
-                     0
-                    ],
-                    "r": "d_bolt / 2"
-                   }
-                  }
-                 ]
-                },
-                {
-                 "op": "pattern",
-                 "id": "bolts",
-                 "of": "bolt",
-                 "kind": "circular",
-                 "count": 4,
-                 "name": "bolt"
                 },
                 {
                  "op": "extrude",
-                 "id": "fl",
-                 "profile": [
-                  "face",
-                  "bolts"
-                 ],
+                 "id": "pod",
+                 "profile": "plan",
+                 "depth": "t"
+                },
+                {
+                 "op": "sketch",
+                 "id": "well",
+                 "plane": {
+                  "base": "XY",
+                  "offset": "z0 - 2"
+                 },
+                 "loops": [
+                  {
+                   "name": "sq",
+                   "rect": {
+                    "c": [
+                     "cx",
+                     "cy"
+                    ],
+                    "w": "c + 0.6",
+                    "h": "c + 0.6"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "wellcut",
+                 "profile": "well",
+                 "depth": "ct + 2",
+                 "mode": "cut"
+                }
+               ]
+              },
+              "camera": {
+               "$schema": "com.minomobi.cad.tree#v1",
+               "units": "mm",
+               "_": "16 × 16 × 10 board camera, looking along the tool's −Z. A 25 mm Pi Camera Module 3 would do the job optically and take the wrist's swept circle from Ø118 to Ø136; this class of module costs Ø5. The requirement is the envelope. One extrude along +Z.",
+               "params": {
+                "c": 16,
+                "t": 10,
+                "z0": -18,
+                "cx": 41,
+                "cy": 50
+               },
+               "features": [
+                {
+                 "op": "sketch",
+                 "id": "board",
+                 "plane": {
+                  "base": "XY",
+                  "offset": "z0"
+                 },
+                 "loops": [
+                  {
+                   "name": "sq",
+                   "rect": {
+                    "c": [
+                     "cx",
+                     "cy"
+                    ],
+                    "w": "c",
+                    "h": "c"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "cam",
+                 "profile": "board",
                  "depth": "t"
                 }
                ]
@@ -2262,8 +2387,17 @@
                }
               },
               {
-               "id": "tool-flange",
-               "part": "tool-flange",
+               "id": "cam-pod",
+               "part": "cam-pod",
+               "at": [
+                0,
+                0,
+                0
+               ]
+              },
+              {
+               "id": "camera",
+               "part": "camera",
                "at": [
                 0,
                 0,
@@ -2273,7 +2407,7 @@
               {
                "id": "gripper",
                "assembly": {
-                "_": "the gripper — ../gripper v10, whole, with the adapter its own motor forces",
+                "_": "the gripper — ../gripper v10, whole, its motor inside the wrist blade",
                 "fits": [
                  {
                   "a": "arm[*]",
@@ -4479,110 +4613,9 @@
                     "depth": "2 * half"
                    }
                   ]
-                 },
-                 "tool-adapter": {
-                  "$schema": "com.minomobi.cad.tree#v1",
-                  "units": "mm",
-                  "_": "Tool adapter: the cup that bolts ISO 9409-1-50-4-M6 on the arm to the gripper's Ø104 web on its r 48.5 circle, reaching back past the motor's end because the standard's own bolt circle (r 25) falls inside a 42.3 square motor (half-diagonal 29.9). The two CANNOT be bolted face to face; this part is what that costs. One revolve about the tool axis.",
-                  "params": {
-                   "pilot": 31.5,
-                   "od": 104,
-                   "bore": 64,
-                   "wall": 76,
-                   "y0": -32,
-                   "y1": -26,
-                   "y2": 16,
-                   "y3": 22
-                  },
-                  "features": [
-                   {
-                    "op": "sketch",
-                    "id": "section",
-                    "plane": "XZ",
-                    "loops": [
-                     {
-                      "name": "cup",
-                      "polygon": [
-                       [
-                        "pilot / 2",
-                        "y0"
-                       ],
-                       [
-                        "od / 2",
-                        "y0"
-                       ],
-                       [
-                        "od / 2",
-                        "y1"
-                       ],
-                       [
-                        "wall / 2",
-                        "y1"
-                       ],
-                       [
-                        "wall / 2",
-                        "y2"
-                       ],
-                       [
-                        "od / 2",
-                        "y2"
-                       ],
-                       [
-                        "od / 2",
-                        "y3"
-                       ],
-                       [
-                        "bore / 2",
-                        "y3"
-                       ],
-                       [
-                        "bore / 2",
-                        "y1"
-                       ],
-                       [
-                        "pilot / 2",
-                        "y1"
-                       ]
-                      ]
-                     }
-                    ]
-                   },
-                   {
-                    "op": "revolve",
-                    "id": "adapter",
-                    "profile": "section",
-                    "axis": {
-                     "p": [
-                      0,
-                      0
-                     ],
-                     "d": [
-                      0,
-                      1
-                     ]
-                    }
-                   }
-                  ]
                  }
                 },
                 "components": [
-                 {
-                  "id": "tool-adapter",
-                  "part": "tool-adapter",
-                  "at": [
-                   0,
-                   0,
-                   0
-                  ],
-                  "rotate": {
-                   "axis": [
-                    1,
-                    0,
-                    0
-                   ],
-                   "deg": -90
-                  }
-                 },
                  {
                   "id": "motor",
                   "part": "motor",
@@ -5031,7 +5064,7 @@
                 ]
                },
                "at": [
-                100,
+                46,
                 0,
                 0
                ],
@@ -5127,13 +5160,18 @@
          "contact": true
         },
         {
-         "a": "roll4/pitch5/pitch-shaft",
-         "b": "roll4/pitch5/pitch-pulley",
+         "a": "roll4/pitch5/cam-pod",
+         "b": "roll4/pitch5/wrist-blade",
          "contact": true
         },
         {
-         "a": "roll4/pitch5/wrist-blade",
-         "b": "roll4/pitch5/tool-flange",
+         "a": "roll4/pitch5/camera",
+         "b": "roll4/pitch5/cam-pod",
+         "min": 0.1
+        },
+        {
+         "a": "roll4/pitch5/pitch-shaft",
+         "b": "roll4/pitch5/pitch-pulley",
          "contact": true
         },
         {
@@ -5317,13 +5355,18 @@
    "contact": true
   },
   {
-   "a": "shoulder/wrist/roll4/pitch5/pitch-shaft",
-   "b": "shoulder/wrist/roll4/pitch5/pitch-pulley",
+   "a": "shoulder/wrist/roll4/pitch5/cam-pod",
+   "b": "shoulder/wrist/roll4/pitch5/wrist-blade",
    "contact": true
   },
   {
-   "a": "shoulder/wrist/roll4/pitch5/wrist-blade",
-   "b": "shoulder/wrist/roll4/pitch5/tool-flange",
+   "a": "shoulder/wrist/roll4/pitch5/camera",
+   "b": "shoulder/wrist/roll4/pitch5/cam-pod",
+   "min": 0.1
+  },
+  {
+   "a": "shoulder/wrist/roll4/pitch5/pitch-shaft",
+   "b": "shoulder/wrist/roll4/pitch5/pitch-pulley",
    "contact": true
   },
   {
@@ -5660,19 +5703,14 @@
    "contact": true
   },
   {
-   "a": "shoulder/wrist/roll4/pitch5/tool-flange",
-   "b": "shoulder/wrist/roll4/pitch5/gripper/tool-adapter",
-   "contact": true
-  },
-  {
-   "a": "shoulder/wrist/roll4/pitch5/gripper/tool-adapter",
+   "a": "shoulder/wrist/roll4/pitch5/wrist-blade",
    "b": "shoulder/wrist/roll4/pitch5/gripper/motor-web",
    "contact": true
   },
   {
-   "a": "shoulder/wrist/roll4/pitch5/gripper/tool-adapter",
+   "a": "shoulder/wrist/roll4/pitch5/wrist-blade",
    "b": "shoulder/wrist/roll4/pitch5/gripper/motor",
-   "min": 2
+   "min": 0.5
   }
  ]
 }

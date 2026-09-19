@@ -1,0 +1,41 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "16 × 16 × 10 board camera, looking along the tool's −Z. A 25 mm Pi Camera Module 3 would do the job optically and take the wrist's swept circle from Ø118 to Ø136; this class of module costs Ø5. The requirement is the envelope. One extrude along +Z.",
+ "params": {
+  "c": 16,
+  "t": 10,
+  "z0": -18,
+  "cx": 41,
+  "cy": 50
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "board",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "sq",
+     "rect": {
+      "c": [
+       "cx",
+       "cy"
+      ],
+      "w": "c",
+      "h": "c"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "cam",
+   "profile": "board",
+   "depth": "t"
+  }
+ ]
+}

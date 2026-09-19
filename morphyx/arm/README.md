@@ -7,9 +7,9 @@ rather than a wrist joint — J6 was killed once it was clear the tip is a tool
 roll and the gripper already has one.
 
 `arm/robot` is the whole machine as a real hierarchy: a **shoulder** carrying a
-**wrist** carrying a **gripper**, six levels deep, 85 components, 50 distinct
-parts. The gripper arrives whole from [`../gripper`](../gripper) — imported,
-not copied, so there is one gripper in the repo and one in the record graph.
+**wrist** carrying a **gripper**, six levels deep, 83 components, 20.05 kg. The
+gripper arrives whole from [`../gripper`](../gripper) — imported, not copied,
+so there is one gripper in the repo and one in the record graph.
 
 Designed from the live site alone, by an agent, through the site's own doors:
 the docs page, `SKILL.md`, the bench trees, the `/mcp` server and the tangled
@@ -24,7 +24,7 @@ angle, so the residual is the same fraction at every pose — 20% by choice,
 under-balanced so a power cut settles the arm downward. That is a property a
 spring cannot give, and it is checked across the range rather than at a point.
 
-It costs 7.3 kg of steel to balance a 345 g can. That is the honest price and
+It costs 6.6 kg of steel to balance a 345 g can. That is the honest price and
 the BOM shows it as the largest line on the machine.
 
 ## Where it hits itself, and how we know
@@ -44,65 +44,94 @@ not the upper arm at all but the **base plate**, 190 000 mm³ deep rather than a
 kernel, per j2, and writes `fold-map.json`; the audit reads that map and checks
 the pour waypoint by waypoint, against the boundary at *that waypoint's own* j2.
 
-Worst margin: **5.3° at "lift away"**, folding to −113.9° against −119.2°.
+Worst margin: **20.0° at "lift away"**, folding to −99.2° against −119.2°.
+It was 5.3° before the pocket — the whole gain is 54 mm off the tool, at a
+measured rate of **0.27° per mm**.
 
-Levers on that margin, measured rather than guessed — the rate is about
-**0.27° per mm of tool**:
+Levers, if more is ever wanted:
 
 | lever | from → to | margin |
 |---|---|---|
-| — | as it stands | 5.3° |
-| tool length | 181 → 127 mm (the adapter deleted) | 20.0° |
-| forearm L2 | 250 → 220 mm | 9.9° |
-| forearm L2 | 250 → 280 mm | **0.9°** — longer is *worse* |
-| shoulder | z 400 → 430 | 8.6° |
-| both | tool 127 and L2 220 | 26.1° |
-| the glass | r 497 → 537 mm | 15.5°, and free — then the *can*'s own waypoints bind |
+| — | as it stands | 20.0° |
+| forearm L2 | 250 → 220 | 26.1° |
+| shoulder | z 400 → 430 | 21.8° |
+| forearm L2 | 250 → 280 | **13.1°** — longer is *worse* |
+| the glass | r 497 → 537 | free, until the *can*'s own waypoints bind |
 
-The last row is the cheapest of all and the one a workcell designer reaches for
-first: the arm folds because the work is **close in** — r 497 of an 801 mm
-reach, 62% extension. Reaching further out unfolds the elbow.
+The last row is the one a workcell designer reaches for first: the arm folds
+because the work is **close in**. Reaching further out unfolds the elbow.
 
-## The tool interface, and what it really costs
+## The tool interface: the wrist swallows the motor
 
 The gripper's actuator sits **behind its own mounting face** — a NEMA 17
-external linear stepper, 48 mm of stack, whose shaft is the Tr8×2 screw. So any
-tool flange must either sit behind the motor (today's `tool-adapter` cup: 48 mm
-of motor plus a 6 mm base = **54 mm of tool length and 360 g at the very tip**)
-or the wrist must carry a Ø60 × 48 pocket to swallow it.
+external linear stepper, 48 mm of stack, whose shaft is the Tr8×2 screw. So a
+tool flange either sits behind the motor, or the wrist swallows it.
 
-ISO 9409-1-50-4-M6 is a *second*, independent blocker — four M6 on a Ø50
-circle, r 25, against a 42.3 square motor whose half-diagonal is 29.9, so the
-standard's bolts land inside the motor — but it is not the one that costs the
-54 mm. Even an unbounded bolt circle saves only the 6 mm base plate. **The
-motor is what is in the way.**
+It used to sit behind: a `tool-adapter` cup reaching back past the motor's end,
+**54 mm of tool length and 360 g at the very tip**. Now the blade has a **44
+square pocket, 48 deep**, running back from its own flange face, and the motor
+lives in it. The adapter and the separate `tool-flange` are both gone; the
+blade carries a Ø110 disc on its nose with four M3 on the gripper's own r 48.5
+housing circle, which is the circle the adapter already used. **What was
+deleted is the cup, not the interface.**
 
-It also cost 0.7 kg of counterweight that nobody was carrying: the adapter is
-an **arm** part and the balance's tip mass was a list of **gripper** parts, so
-360 g at the end of the longest lever on the machine fell through the gap
-between two sets of honest numbers. It is in `mTip` now, and the counterweights
-went 6.62 → 7.31 kg.
+ISO 9409-1-50-4-M6 is a second, independent blocker — four M6 on a Ø50 circle,
+r 25, against a 42.3 square motor whose half-diagonal is 29.9 — but it never
+was the one that cost the 54 mm. An unbounded bolt circle saves the 6 mm base
+plate. **The motor is what is in the way.**
 
-**Swallowing the motor in the wrist looks credible and wants a pass.** A 44
-square pocket, 48 deep, running from the blade face at 60 to 12 mm short of the
-pitch axis; the blade grows 50 → ~56 thick and the fork gap 54 → 60, which puts
-the fork's outer width at 84 against the drum's Ø110 bore — it fits. The catch
-is the bolt circle: the pocket's half-diagonal is 31, so the flange bolts must
-move out past it onto a ~Ø72 circle, and the blade's tip face has to grow to
-about 85 across to hold them. That is a non-standard flange, which this machine
-is forced into anyway. It buys the whole 54 mm and the whole 360 g.
+What the pocket cost, honestly: the slot grew (blade 50 → 54, fork gap 54 → 58,
+cheeks 12 → 10 so the belt plane did not have to move — it cannot, it has
+0.7 mm on the drum bore), and **j5's limit is no longer a round number**. The
+Ø110 disc swings back into the roll drum at a steep pitch: clean at −91°,
+156 mm³ at −92°, measured. ±88°, which still leaves 13° over what the pour
+asks. Unlike the elbow fold, a joint box *can* express this one, so the wrist
+grid tests that corner every run.
+
+The pocketed section carries J5's continuous 5.57 N·m at **0.25 MPa**. It costs
+nothing structural.
+
+## The wrist camera, and what it cannot see
+
+`cam-pod` and `camera` ride the **blade**, so they pitch with the tool and the
+hand-eye transform is a constant rather than a function of pose. Three measured
+facts set every dimension of it:
+
+1. **It cannot see the grip point, and no wrist mounting can.** The gripper is a
+   Ø104 body 86 mm long starting 6 mm in front of any wrist-mounted lens, and
+   the grip point is on its axis 33 mm past its end. For a sightline to clear
+   it, the lens would have to sit at **r > 230** from the tool axis, or forward
+   of the gripper's own front. Neither belongs on a wrist. **The camera that
+   watches the jaws belongs on the gripper**, and that is a v11 job.
+2. **Looking down it is completely clear**, because it sits *behind* the tool.
+   A ray leaving the lens within **62° of straight down** is out of the Ø104
+   cylinder before it reaches the tool's nose; a 102° lens is ±51°. So the
+   bench under and ahead is unobstructed and the arm is in look-then-move: it
+   sees the can until the last 60 mm of descent.
+3. **Its size is set by the swept circle, not by the sensor.** The wrist sweeps
+   Ø118 because the J5 motor lies crosswise inside the drum, and that was
+   expensive. A 25 mm Pi Camera Module 3 takes it to Ø136. A 16 mm square board
+   camera costs Ø5 — Ø123.4 fitted. The requirement is the envelope; the
+   catalogue has several parts that meet it.
+
+The pod is an L: an arm outboard of the fork cheeks (y > 39, so no pitch can
+reach one) reaching forward to a foot that bolts to the disc's rear face. The
+foot starts at x 48 because everything on the blade sweeps r = hypot(x, z)
+about the pitch axis and the fork reaches r 43 — the same circle that sizes the
+blade. 31 g of bracket, 12 g of camera.
 
 ## Files
 
 | | |
 |---|---|
-| `arm.mjs` | the design: every part as a parametric tree, the hierarchy, the closed-form FK and IK, the pour solved in task space, the balance, the BOM and 29 analytic checks |
+| `arm.mjs` | the design: every part as a parametric tree, the hierarchy, the closed-form FK and IK, the pour solved in task space, the balance, the BOM and 44 analytic checks |
 | `parts/*.json` | the part trees, as generated |
 | `arm.json` / `arm-pour.json` | the arm with real inputs; the same arm performing the pour on one clock |
-| `arm-wrist.json` | the forearm through the tool flange, on its own — j4 × j5 at their corners |
+| `arm-wrist.json` | the forearm through the flange face, camera and all — j4 × j5 at their corners, and this one IS a gate |
 | `arm-robot.json` / `arm-robot-pour.json` | the whole machine, gripper fitted: seven axes, or all seven on one clock |
 | `fold.mjs` | **where does this arm hit itself?** A bisection against the kernel, per j2, and the pour measured against the result. Six minutes on the whole machine, so it runs in the parallel job |
 | `fold-map.json` | its output — the measured boundary. The audit consumes it; CI re-measures and fails if it has moved |
+| `cam-pod` / `camera` | the wrist camera, on the blade — see above for what it can and cannot see |
 | `verify.mjs` | the document posed against `fk()`; the gripper standalone against the same gripper four levels deep; and frame independence — displace a sub-assembly and assert every descendant moves rigidly |
 | `anchor-bug.mjs` | the minimal repro for the platform's nested-anchor bug (fixed 2026-09-19), kept as a gate |
 | `publish.mjs` | writes the parts and the documents into the morphyx repo; resolves the gripper's parts off `gripper/parts/` rather than republishing copies |

@@ -59,11 +59,9 @@ export const D = {
   // ── masses that set the balance (kg) ──────────────────────────────────────
   mUpper: 0.35, mFore: 0.30, mWrist: 1.00,
   mGripper: 1.86, mFingers: 0.15,             // ../gripper, from its own closed forms
-  // The tool adapter was NOT in the tip mass, and it is 360 g at the far end of
-  // the longest lever on the machine — 0.7 kg of counterweight that the balance
-  // was not carrying. It is an arm part, not a gripper part, which is exactly
-  // how it fell through: neither side's own numbers included it.
-  mAdapter: 0.36,                             // Ø104 cup, 133378 mm³ closed form, aluminium
+  // The adapter's 360 g used to hang here — an ARM part missing from a tip mass
+  // made of GRIPPER parts, 0.7 kg of counterweight nobody was carrying. The
+  // pocket deleted the part, so the gap closed itself.
 
   // ── structure ─────────────────────────────────────────────────────────────
   baseD: 182, baseT: 12, baseBolt: 8.4, baseBoltR: 72, baseBoltN: 4,
@@ -89,8 +87,15 @@ export const D = {
   // the blade traces r = hypot(x, z) about the pitch axis, so the fork has to
   // be clear of that whole circle everywhere the blade can reach.
   forkBack: 55, forkWeb: 12, forkProng: 25,   // x −55…25, web inner face at −43
-  forkGap: 54, forkCheek: 12, forkH: 70,      // cheeks |y| 27…39, z ±35
-  bladeT: 50, bladeH: 60, bladeRear: -20, bladeFlare: 45,   // |y| ≤ 25, z ±30
+  forkGap: 58, forkCheek: 10, forkH: 70,      // cheeks |y| 29…39, z ±35 — thinner by 2, so the wider slot does not push the belt out
+  bladeT: 54, bladeH: 60, bladeRear: -20,     // |y| ≤ 27, z ±30
+  // THE POCKET. The gripper's actuator is BEHIND its own mounting face — a
+  // NEMA 17 linear stepper, 48 mm of stack, whose shaft is the Tr8×2 screw. So
+  // a tool flange either sits behind the motor, which is what the 54 mm adapter
+  // cup used to do, or the wrist swallows it. This is the wrist swallowing it:
+  // a 44 square blind pocket running back from the flange face, and the flange
+  // is now the blade's own front end rather than a bolted-on plate.
+  pocket: 44, pocketWall: 5,                  // 42.3 motor + 0.85 a side; walls 5 in y, 8 in z
   pitchD: 16, pitchBush: 22, pitchFit: 16.2,
   bore: 12.2, pin: 12, pinLen: 90,            // the parallelogram pins
   cwD: 70,                                    // counterweight cylinders
@@ -106,26 +111,56 @@ export const D = {
   drumD: 118, drumBore: 110, drumX: [-118, -55],
   j5x: -85,                                   // the J5 motor's axis, on the forearm centre line
   pinionT: 20, pulleyT: 60, beltPitch: 2, beltW: 9, beltThk: 1.4,   // GT2, 3:1
-  beltY: [43, 51],                            // the belt plane, outboard of the +Y cheek
-  flangeD: 63, flangeT: 8, flangePcd: 50, flangeBolt: 6.6, flangeBoltN: 4,
+  beltY: [42, 51],                            // the belt plane, outboard of the +Y cheek. It CANNOT move out: see the drum-bore check
+  // The flange is the gripper's OWN housing circle, not ISO 9409-1-50: four M3
+  // at r 48.5 where its housing taps already are. The standard's bolts land
+  // inside the motor (Ø50 circle, r 25, against a 42.3 square whose
+  // half-diagonal is 29.9), and the adapter already used this circle — all
+  // that is deleted here is the cup, not the interface.
+  flangeD: 110, flangeT: 8, flangePcd: 97, flangeBolt: 3.4, flangeBoltN: 4,   // Ø110 so the bolts keep a 3 mm rim; the gripper's own web is Ø104 and leaves them 1.75
+  discLap: 4,                                 // the disc reaches 4 mm INTO the slab; a union on a shared face will not build
+
+  // ── the wrist camera ──────────────────────────────────────────
+  // It rides the BLADE, so it pitches with the tool and its relation to the tool
+  // axis is a constant — which is what makes a hand-eye calibration a number
+  // rather than a function of pose. Three measured facts set every dimension:
+  //
+  //  1. IT CANNOT SEE THE GRIP POINT, and no wrist mounting can. The gripper is
+  //     a Ø104 body 86 mm long starting 6 mm in front of any wrist-mounted lens,
+  //     and the grip point is on its axis 33 mm past its end. For a sightline
+  //     from the wrist to clear it the lens would have to sit at r > 200 from
+  //     the tool axis, or forward of the gripper's own front. THE CAMERA THAT
+  //     SEES THE JAWS BELONGS ON THE GRIPPER.
+  //  2. But looking DOWN it is completely clear, because it sits BEHIND the
+  //     gripper: a ray leaving it at any angle within 63° of straight down has
+  //     left the Ø104 cylinder before reaching x 68. A 102° lens is ±51°. So
+  //     the bench under and ahead of the tool is unobstructed, and the arm is
+  //     in look-then-move: it sees the can until the last 60 mm of descent.
+  //  3. ITS SIZE IS SET BY THE SWEPT CIRCLE, NOT BY THE SENSOR. The wrist sweeps
+  //     Ø118 because the J5 motor lies crosswise inside the drum, and that was
+  //     expensive to get. A 25 mm Pi Camera Module 3 pushes it to Ø136; a 16 mm
+  //     square board camera costs Ø5. The requirement is the envelope; the
+  //     catalogue has several parts that meet it.
+  cam: 16, camT: 10, camBolt: 12,             // 16 square board, 10 deep with the lens, M2 at 12 centres
+  podX: [26, 56], podY: [41, 59], podZ: [-18, 4],   // the bracket: an L, in past the cheeks to the disc's rear face
+  podFootY: 27,                               // the foot reaches in to the blade's own width to bolt up
+  mCam: 0.012,                                // board plus flex, catalogue
+  camSeesGrip: false,                         // stated, checked, and true of every wrist mounting on this tool
 
   // joint limits, degrees. j2's ceiling is what keeps CW1 off the bench; j5's
   // range is what a level tool needs when reaching down to it (87° at r 500).
-  lim: { j1: [-170, 170], j2: [-30, 40], j3: [-90, 50], j4: [-180, 180], j5: [-100, 100] },
-  // ── the tool adapter, which the gripper's own layout forces on us ───────
-  // ISO 9409-1-50-4-M6 puts four M6 on a Ø50 circle, r 25. The gripper's NEMA
-  // 17 sits on the BACK of its motor web, 42.3 square — half-diagonal 29.9. So
-  // the flange's bolts land INSIDE the motor and the two cannot be bolted face
-  // to face. The adapter is a cup that reaches back past the motor's end and
-  // bolts to the web's OUTER circle instead, at r 48.5 where the housing taps
-  // already are. It costs 54 mm of tool length and ~360 g at the very tip.
-  adapterBack: -32, adapterBore: 64, adapterOD: 104, adapterWall: 76,
-  adapterBase: 6, adapterRim: 6, adapterPilot: 31.5,
+  // j5's range is no longer a round number: the Ø110 flange disc on the blade's
+  // nose swings back into the roll drum at a steep pitch, and where it starts to
+  // is MEASURED — clean at −91°, 156 mm³ at −92°. ±88 keeps 3.5° off that and
+  // still leaves 13° over the 74.9° the pour asks for. Unlike the elbow fold,
+  // this one a box CAN express, so the wrist grid tests the corner every run.
+  lim: { j1: [-170, 170], j2: [-30, 40], j3: [-90, 50], j4: [-180, 180], j5: [-88, 88] },
+  j5Edge: -91.5,                              // measured: -91 clean, -92 dirty
   rpm: 3,                                     // the pour demo's clock
 };
 
 // ── derived: the balance, which is the architecture's whole point ────────────
-D.mTip = D.mGripper + D.mFingers + D.canMass + D.mAdapter;  // what hangs off the flange
+D.mTip = D.mGripper + D.mFingers + D.canMass;             // what hangs off the flange
 // moment per unit cos(angle), kg·mm. M3 is delivered to the J3 crank 1:1 by the
 // push rod; M2 is everything outboard of the elbow, acting through the elbow.
 D.M3 = D.mFore * (D.L2 / 2) + D.mWrist * D.L2 + D.mTip * (D.L2 + D.Lw);
@@ -140,12 +175,20 @@ D.turretZ = [D.colTop, D.colTop + D.turretT];
 D.shZ = D.shoulderZ;
 
 // ── the tool ─────────────────────────────────────────────────────────────────
-// Flange to the CENTRE OF THE HELD OBJECT, along the tool axis: 141 mm of
-// gripper (its web face to the jaw carriers) plus a 40 mm customer finger. The
-// can is held with its own axis PERPENDICULAR to the tool axis, so a roll of
-// the tool tips it — which is what makes the pour a roll rather than a wrist
-// move, and why the gripper's own one-way roll could do this job instead.
-D.toolLen = 181;
+// 141 mm of gripper, its own web face to the centre of what the jaws hold. The
+// can is held with its axis PERPENDICULAR to the tool axis, so a roll of the
+// tool tips it — which is what makes the pour a roll rather than a wrist move,
+// and why the gripper's own one-way roll can do this job at all.
+//
+// This used to be a hand-written 181, and 54 of that was the adapter cup. It is
+// DERIVED now, from where the gripper's web actually lands: the pocket puts
+// that web straight onto the blade's flange face, so the number moves by itself
+// if either side's geometry does.
+D.gripperReach = 141;
+D.gripX = D.Lw + D.flangeT - GD.webY[0];       // where the gripper's own origin lands
+D.pocketDepth = GD.motorLen;                   // the motor's stack, and nothing else
+D.pocketBack = D.Lw + D.flangeT - D.pocketDepth;
+D.toolLen = D.gripX + D.gripperReach - D.Lw;
 D.canZ = D.canH / 2;                        // grip height for a can standing on the bench
 
 // ── kinematics ───────────────────────────────────────────────────────────────
@@ -286,19 +329,76 @@ export function audit() {
   ok('and through the whole j3 range', sweepOk(L.j3[1], D.crankW), `crank ${D.crankW} wide at j3 = ${L.j3[1]}°`);
   // Every point of the blade sweeps r = hypot(x, z) about the pitch axis, so
   // inside r = hypot(prong tip, cheek half-height) it would find a fork cheek.
-  // The blade is only as wide as the slot until it is outside that circle.
+  // The blade used to flare to meet a Ø63 flange and stay outside that circle;
+  // now the flange is a Ø104 disc on its nose, and the same circle is what says
+  // the disc may be that big at all.
   const rSafe = Math.hypot(D.forkProng, D.forkH / 2);
-  ok('the blade only flares where it is clear of the fork', D.bladeFlare > rSafe + 1.5,
-    `flare at x ${D.bladeFlare} against a swept-clear radius of ${round(rSafe)}`);
+  const discNear = D.Lw - D.discLap;                 // the disc's own back face
+  ok('j5’s limit is a MEASURED collision, not a round number',
+    D.lim.j5[1] < -D.j5Edge - 2 && D.lim.j5[1] > Math.max(...pour().filter((v) => v.ok).map((v) => Math.abs(v.j[4]))) + 5,
+    `the disc reaches the drum at ${D.j5Edge}° (clean at −91, 156 mm³ at −92); the limit is ±${D.lim.j5[1]} and the pour asks for ${round(Math.max(...pour().filter((v) => v.ok).map((v) => Math.abs(v.j[4]))), 1)}°`);
+  ok(`the Ø${D.flangeD} flange disc never reaches the fork, at any pitch`, discNear > rSafe + 5,
+    `every point of the disc is at least r ${discNear} from the pitch axis; the fork reaches r ${round(rSafe)}`);
   ok('the blade’s rear corner clears the fork web at every pitch',
     Math.hypot(D.bladeRear, D.bladeH / 2) < D.forkBack - D.forkWeb - 5,
     `corner sweeps r ${round(Math.hypot(D.bladeRear, D.bladeH / 2))}, web face at ${D.forkBack - D.forkWeb}`);
   ok('the blade fits the slot with a running clearance', D.forkGap - D.bladeT >= 3 && D.forkGap - D.bladeT <= 6,
     `${D.bladeT} blade in a ${D.forkGap} slot`);
-  ok('the tool flange has real material to bolt into',
-    D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 3 < D.flangeD / 2 && D.flangePcd / 2 * Math.SQRT1_2 + D.flangeBolt / 2 + 3 < D.bladeH / 2,
-    `M6 at ±${round(D.flangePcd / 2 * Math.SQRT1_2, 1)} into a ${D.flangeD} × ${D.bladeH} blade face — this is why the blade flares instead of ending as a ${D.bladeT} tongue`);
-  // ── the drive train ──────────────────────────────────────────────────────
+  // ── the wrist camera: what it can see, computed rather than claimed ──────
+  const lens = [(D.podX[0] + D.podX[1]) / 2, D.podY[1] - D.cam / 2 - 1, D.podZ[0]];
+  const R = GD.OD / 2, gripNose = D.gripX + GD.webY[0];       // the tool's Ø104 body starts here
+  // Looking DOWN it is clear, because it sits behind the tool: a ray has to be
+  // out of the cylinder by the time it reaches the nose, and it only has to
+  // fall sqrt(R² − y²) to be, because the lens is already offset in y.
+  const dropNeeded = lens[1] >= R ? 0 : Math.sqrt(R ** 2 - lens[1] ** 2);
+  const coneDeg = dropNeeded === 0 ? 90 : (180 / Math.PI) * Math.atan((gripNose - lens[0]) / dropNeeded);
+  ok('the camera’s downward cone is wider than its lens', coneDeg > 51 + 5,
+    `clear to ${round(coneDeg)}° off vertical before the Ø${GD.OD} tool gets in the way; a 102° lens is ±51°`);
+  // And it CANNOT see the grip point. This is not a shortfall of the mounting,
+  // it is the tool: the sightline has to pass the tool's own far end.
+  const toolEnd = D.gripX + 108;                              // the jaws' outermost hardware
+  const held = D.Lw + D.toolLen;
+  const rNeeded = (R * (held - lens[0])) / (held - toolEnd);
+  ok('and the design does NOT claim to see the grip point — nothing on the wrist can',
+    lens[1] < rNeeded && D.camSeesGrip === false,
+    `a lens at x ${lens[0]} would need r ${Math.round(rNeeded)} from the tool axis to clear the tool's far end; this one is at r ${lens[1]}. THE CAMERA THAT WATCHES THE JAWS BELONGS ON THE GRIPPER`);
+  // The pod's own envelope. Ø118 was bought with the crosswise J5 motor and it
+  // is worth knowing exactly what the camera spends of it.
+  const podR = Math.hypot(D.podY[1], Math.max(-D.podZ[0], D.podZ[1]));
+  ok('the camera costs the swept circle less than 10 mm of diameter', 2 * podR < D.drumD + 10,
+    `the wrist sweeps Ø${round(2 * podR, 1)} with the pod against Ø${D.drumD} without it — a 25 mm module would have made it Ø136`);
+  ok('the pod runs outboard of the fork cheeks, so no pitch can reach one',
+    D.podY[0] > D.forkGap / 2 + D.forkCheek + 1,
+    `pod at y ${D.podY[0]}…${D.podY[1]}, cheek outer face at ${D.forkGap / 2 + D.forkCheek}`);
+  const beltNose = (D.pulleyT * D.beltPitch) / (2 * Math.PI) + D.beltThk;
+  ok('and clear of the belt, which shares its y band', D.podX[0] > beltNose + 4,
+    `pod starts at x ${D.podX[0]}, the belt's band reaches x ${round(beltNose, 1)}`);
+  ok('the pod’s foot is outside the circle the fork sweeps', D.podX[1] - 8 > rSafe + 4,
+    `foot from x ${D.podX[1] - 8} against a swept-clear radius of ${round(rSafe)}`);
+  // THE POCKET, which is the whole point of this revision.
+  const wallY = (D.bladeT - D.pocket) / 2, wallZ = (D.bladeH - D.pocket) / 2;
+  ok('the pocket swallows the WHOLE motor, which is what deletes the adapter',
+    D.pocketDepth >= GD.motorLen && D.pocket >= GD.motor + 1.5,
+    `${D.pocket} square × ${D.pocketDepth} deep for a ${GD.motor} square × ${GD.motorLen} stack — ${round((D.pocket - GD.motor) / 2, 2)} mm a side, and it costs the tool ${round(GD.motorLen + GD.webT - GD.webT)} mm less than the cup did`);
+  ok('the pocket leaves real wall on every side', Math.min(wallY, wallZ) >= 5,
+    `${wallY} mm in y, ${wallZ} mm in z — the y walls are shear webs, the z walls carry the bending`);
+  ok('the pocket’s blind end clears the pitch shaft', D.pocketBack > D.pitchD / 2 + 8,
+    `pocket bottoms out at x ${D.pocketBack}, the Ø${D.pitchD} shaft reaches x ${D.pitchD / 2}`);
+  // The blade is a cantilever carrying J5's whole load, and the pocket takes the
+  // middle out of it. This is the number that says that is fine: bending about
+  // the pitch axis, the section is a box, and the z walls are its flanges.
+  const I = (D.bladeT * D.bladeH ** 3 - D.pocket ** 4) / 12, Z = I / (D.bladeH / 2);
+  ok('the pocketed section is nowhere near its limit in bending', (5.57e3 / Z) < 25,
+    `${round(5.57e3 / Z, 2)} MPa at J5's continuous 5.57 N·m, section modulus ${Math.round(Z)} mm³ — aluminium yields near 250, so the pocket costs nothing structural`);
+  // The gripper's own housing taps are the bolt circle. Four M3 is light for a
+  // tool interface and it is the interface the adapter already used; what the
+  // pocket changes is the cup, not this.
+  const bolt = D.flangePcd / 2;
+  ok('the flange bolts clear the pocket and stay on the disc',
+    bolt > D.pocket * Math.SQRT2 / 2 + D.flangeBolt / 2 + 3 && bolt + D.flangeBolt / 2 + 3 < D.flangeD / 2,
+    `M3 at r ${bolt} — outside the pocket's ${round(D.pocket * Math.SQRT2 / 2, 1)} half-diagonal, inside the Ø${D.flangeD} rim, on the gripper's own r ${GD.housingTapR} circle`);
+  ok('and they are reachable from behind', bolt > D.bladeT / 2 + 5,
+    `the slab is ${D.bladeT} wide, so a head at r ${bolt} on the y axis has open air behind it`);
   const r1 = (D.pinionT * D.beltPitch) / (2 * Math.PI), r2 = (D.pulleyT * D.beltPitch) / (2 * Math.PI);
   const ratio = D.pulleyT / D.pinionT, atAxis = 0.44 * 10 * ratio * 0.7 * 0.95;
   ok('J5 has margin on a load it carries CONTINUOUSLY', atAxis > 5.57 * 1.4,
@@ -311,8 +411,20 @@ export function audit() {
   const worstR = Math.max(...stack.map(([y, r]) => Math.hypot(y, r)));
   ok('the J5 motor fits crosswise inside the roll drum', worstR < D.drumBore / 2 - 1,
     `furthest point r ${round(worstR, 1)} in a \u00d8${D.drumBore} bore \u2014 this is the trick: a NEMA stack on a fork cheek sweeps \u00d8271, this sweeps \u00d8${D.drumD}`);
-  ok('the belt clears the drum where it leaves it', true,
-    `the runs cross the drum face at r 52.3 against a bore radius of ${D.drumBore / 2}`);
+  // This was an `ok(..., true, ...)` with a number in the prose and nothing
+  // computing it. The belt's furthest point from the DRUM's axis is its outer
+  // band at the pitch pulley, offset in y by the belt plane.
+  // The band's furthest point from the DRUM's axis, measured where it matters:
+  // at the drum's open front face, on the upper run, offset in y by the belt
+  // plane. The big pulley is outside the drum, so its radius is not the number.
+  const nx = (r2 - r1) / -Math.abs(D.j5x), ny = Math.sqrt(1 - nx * nx);
+  const P2 = [r2 * nx, r2 * ny], P1 = [D.j5x + r1 * nx, r1 * ny];
+  const zAt = (x) => P1[1] + ((P2[1] - P1[1]) * (x - P1[0])) / (P2[0] - P1[0]);
+  const beltR = Math.hypot(D.beltY[1], zAt(D.drumX[1]) + D.beltThk / 2);
+  ok('the belt stays inside the drum bore where it runs through it', beltR < D.drumBore / 2,
+    `the run crosses the drum's front face at z ${round(zAt(D.drumX[1]), 1)}, so r ${round(beltR, 1)} against a bore radius of ${D.drumBore / 2} — this is why the belt plane cannot move outboard`);
+  ok('the belt plane clears the fork cheek it runs outboard of', D.beltY[1] - D.beltW > D.forkGap / 2 + D.forkCheek,
+    `belt at y ${D.beltY[1] - D.beltW}…${D.beltY[1]}, cheek outer face at ${D.forkGap / 2 + D.forkCheek}`);
   ok('pulleys are drawn at ROOT diameter so the belt band clears them', true,
     `pitch \u00d8${round(2 * r2, 1)} drawn as \u00d8${round(2 * r2 - 3, 1)}; the teeth we do not draw fill the 0.8 mm`);
   ok('a belt needs no new mate: it is `gear` with a negative tooth count', true,
@@ -515,34 +627,58 @@ export const parts = {
   'fork-web': xz('web', `J5 fork web: the ${D.forkGap} mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.`,
     { back: D.forkBack, web: D.forkWeb, h: D.forkH, t: D.forkGap, y1: D.forkGap / 2 },
     [rect('outline', ['-back + web / 2', 0], 'web', 'h')]),
-  'wrist-blade': tree(`J5 blade: the tool-side member, ${D.bladeT} thick between the fork's cheeks, bored on the pitch axis and flaring from x ${D.bladeFlare} to a ${D.flangeD} face for the tool flange. The flare starts where it does because everything on this part sweeps r = hypot(x, z) about the pitch axis, and inside r ${round(Math.hypot(D.forkProng, D.forkH / 2))} it would find a fork cheek. One extrude along +Z, then the pitch bore as a cut along Y.`,
-    { rear: D.bladeRear, flare: D.bladeFlare, front: D.Lw, hw: D.bladeT / 2, fw: D.flangeD / 2, h: D.bladeH, d: D.pitchFit },
-    [{ op: 'sketch', id: 'plan', plane: { base: 'XY', offset: '-h / 2' }, loops: [{ name: 'outline', polygon: [
-        ['rear', '-hw'], ['flare', '-hw'], ['front', '-fw'], ['front', 'fw'], ['flare', 'hw'], ['rear', 'hw']] }] },
+  // The blade is a plain 54 slab with a Ø104 disc on its nose and a 44 square
+  // pocket bored back through both — the motor's hole. Three notes, each of
+  // which cost a build:
+  //   * the disc reaches `discLap` INTO the slab. Two sweeps that meet on a
+  //     shared face do not union; Truck answers "this shell is not oriented
+  //     and closed" and says nothing about which face.
+  //   * the pocket cut overshoots the front by 4, for the same reason.
+  //   * the pitch bore needs an overshoot of 5 or more on a slab this size.
+  //     Four — the number that worked when the slab was 50 — builds a solid
+  //     that is NOT WATERTIGHT while reporting no error. Measured: 4 fails, 5
+  //     passes, and nothing in between was tested because nothing in between
+  //     is a number anyone would choose.
+  'wrist-blade': tree(`J5 blade: the tool-side member, ${D.bladeT} thick between the fork's cheeks, bored on the pitch axis, and carrying its own Ø${D.flangeD} tool flange rather than a bolted-on plate. Through both runs a ${D.pocket} square blind pocket, ${D.pocketDepth} deep — THE GRIPPER'S MOTOR LIVES IN HERE. That is what buys back the 54 mm the adapter cup used to cost: the actuator is behind the gripper's mounting face, so either the flange sits behind the motor or the wrist swallows it. Slab extruded along +Z, disc along +X, then the pocket and the pitch bore as cuts.`,
+    { rear: D.bladeRear, front: D.Lw, hw: D.bladeT / 2, h: D.bladeH, d: D.pitchFit,
+      dx: D.Lw - D.discLap, fd: D.flangeD, fl: D.flangeT + D.discLap,
+      pk: D.pocket, pkx: D.pocketBack, pcd: D.flangePcd, dbolt: D.flangeBolt },
+    [{ op: 'sketch', id: 'plan', plane: { base: 'XY', offset: '-h / 2' },
+        loops: [rect('outline', ['(rear + front) / 2', 0], 'front - rear', '2 * hw')] },
       { op: 'extrude', id: 'bl', profile: 'plan', depth: 'h' },
-      { op: 'sketch', id: 'bore', plane: { base: 'XZ', offset: '-(hw + 4)' }, loops: [circle('pitch', [0, 0], 'd / 2')] },
-      { op: 'extrude', id: 'borecut', profile: 'bore', depth: '2 * (hw + 4)', mode: 'cut' }]),
+      { op: 'sketch', id: 'disc', plane: { base: 'YZ', offset: 'dx' }, loops: [circle('outline', [0, 0], 'fd / 2')] },
+      { op: 'sketch', id: 'bolt', plane: { base: 'YZ', offset: 'dx' }, loops: [circle(null, ['pcd / 2', 0], 'dbolt / 2')] },
+      { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: D.flangeBoltN, name: 'bolt' },
+      { op: 'extrude', id: 'fla', profile: ['disc', 'bolts'], depth: 'fl' },
+      { op: 'sketch', id: 'pocket', plane: { base: 'YZ', offset: 'pkx' }, loops: [rect('sq', [0, 0], 'pk', 'pk')] },
+      { op: 'extrude', id: 'pkcut', profile: 'pocket', depth: 'front + fl - pkx', mode: 'cut' },
+      { op: 'sketch', id: 'bore', plane: { base: 'XZ', offset: '-(hw + 8)' }, loops: [circle('pitch', [0, 0], 'd / 2')] },
+      { op: 'extrude', id: 'borecut', profile: 'bore', depth: '2 * (hw + 8)', mode: 'cut' }]),
+  // The bracket is an L in plan: an arm outboard of the fork cheeks (y > 39, so
+  // it cannot meet one at any pitch) reaching forward to a foot that bolts to
+  // the flange disc's rear face. The foot starts at x 48 because everything on
+  // this part sweeps r = hypot(x, z) about the pitch axis and the fork reaches
+  // r 43 — the same circle that sizes the blade. One extrude along +Z, and the
+  // board's pocket is open at the bottom, because the lens looks through it.
+  'cam-pod': tree(`Wrist camera bracket: an L reaching from the flange disc's rear face out past the fork cheeks, holding a ${D.cam} square board camera looking DOWN the tool's −Z. It is on the blade, so J5 aims it and the hand-eye transform is a constant. It cannot see the grip point — nothing on the wrist can, with a Ø${GD.OD} tool in front of it — and it does not pretend to: this is the camera that finds the can on the bench, not the one that watches the jaws close. One extrude along +Z, one pocket.`,
+    { x0: D.podX[0], x1: D.podX[1], y0: D.podY[0], y1: D.podY[1], fy: D.podFootY, fx: D.podX[1] - 8,
+      z0: D.podZ[0], t: D.podZ[1] - D.podZ[0], c: D.cam, ct: D.camT,
+      cx: (D.podX[0] + D.podX[1]) / 2, cy: D.podY[1] - D.cam / 2 - 1 },
+    [{ op: 'sketch', id: 'plan', plane: { base: 'XY', offset: 'z0' }, loops: [{ name: 'outline', polygon: [
+        ['fx', 'fy'], ['x1', 'fy'], ['x1', 'y1'], ['x0', 'y1'], ['x0', 'y0'], ['fx', 'y0']] }] },
+      { op: 'extrude', id: 'pod', profile: 'plan', depth: 't' },
+      { op: 'sketch', id: 'well', plane: { base: 'XY', offset: 'z0 - 2' }, loops: [rect('sq', ['cx', 'cy'], 'c + 0.6', 'c + 0.6')] },
+      { op: 'extrude', id: 'wellcut', profile: 'well', depth: 'ct + 2', mode: 'cut' }]),
+  camera: tree(`${D.cam} × ${D.cam} × ${D.camT} board camera, looking along the tool's −Z. A 25 mm Pi Camera Module 3 would do the job optically and take the wrist's swept circle from Ø${D.drumD} to Ø136; this class of module costs Ø5. The requirement is the envelope. One extrude along +Z.`,
+    { c: D.cam, t: D.camT, z0: D.podZ[0], cx: (D.podX[0] + D.podX[1]) / 2, cy: D.podY[1] - D.cam / 2 - 1 },
+    [{ op: 'sketch', id: 'board', plane: { base: 'XY', offset: 'z0' }, loops: [rect('sq', ['cx', 'cy'], 'c', 'c')] },
+      { op: 'extrude', id: 'cam', profile: 'board', depth: 't' }]),
+
   'pitch-shaft': xz('ps', `\u00d8${D.pitchD} pitch shaft, pressed into the blade and running in a bush in each cheek. One extrude along -Y.`,
     { d: D.pitchD, t: D.forkGap + 2 * D.forkCheek + 8, y1: 't / 2' }, [circle('od', [0, 0], 'd / 2')]),
   'pitch-bush': xz('pb', `Flanged bush in a fork cheek, \u00d8${D.pitchBush} outside on \u00d8${D.pitchD}. Two off. One extrude along -Y.`,
     { d: D.pitchBush, d_bore: D.pitchD + 0.1, t: D.forkCheek, y1: 't / 2' },
     [circle('od', [0, 0], 'd / 2'), circle('id', [0, 0], 'd_bore / 2')]),
-  'tool-flange': tree(`Tool flange, ISO 9409-1-50-4-M6: Ø${D.flangeD} × ${D.flangeT}, four M6 on a Ø${D.flangePcd} circle, Ø31.5 pilot. The gripper's own web bolts to this — its README calls this interface out and does not draw it, so this is the half that exists. One extrude along +X.`,
-    { d: D.flangeD, t: D.flangeT, x0: D.Lw, pcd: D.flangePcd, d_bolt: D.flangeBolt, d_pilot: 31.5 },
-    [{ op: 'sketch', id: 'face', plane: { base: 'YZ', offset: 'x0' }, loops: [circle('outline', [0, 0], 'd / 2'), circle('pilot', [0, 0], 'd_pilot / 2')] },
-      { op: 'sketch', id: 'bolt', plane: { base: 'YZ', offset: 'x0' }, loops: [circle(null, ['pcd / 2', 0], 'd_bolt / 2')] },
-      { op: 'pattern', id: 'bolts', of: 'bolt', kind: 'circular', count: D.flangeBoltN, name: 'bolt' },
-      { op: 'extrude', id: 'fl', profile: ['face', 'bolts'], depth: 't' }]),
-
-  'tool-adapter': tree(`Tool adapter: the cup that bolts ISO 9409-1-50-4-M6 on the arm to the gripper's \u00d8${GD.OD} web on its r ${GD.housingTapR} circle, reaching back past the motor's end because the standard's own bolt circle (r 25) falls inside a ${GD.motor} square motor (half-diagonal ${round(GD.motor * Math.SQRT2 / 2, 1)}). The two CANNOT be bolted face to face; this part is what that costs. One revolve about the tool axis.`,
-    { pilot: D.adapterPilot, od: D.adapterOD, bore: D.adapterBore, wall: D.adapterWall,
-      y0: D.adapterBack, y1: D.adapterBack + D.adapterBase, y2: GD.webY[0] - D.adapterRim, y3: GD.webY[0] },
-    [{ op: 'sketch', id: 'section', plane: 'XZ', loops: [{ name: 'cup', polygon: [
-        ['pilot / 2', 'y0'], ['od / 2', 'y0'], ['od / 2', 'y1'], ['wall / 2', 'y1'],
-        ['wall / 2', 'y2'], ['od / 2', 'y2'], ['od / 2', 'y3'], ['bore / 2', 'y3'],
-        ['bore / 2', 'y1'], ['pilot / 2', 'y1']] }] },
-      { op: 'revolve', id: 'adapter', profile: 'section', axis: { p: [0, 0], d: [0, 1] } }]),
-
   // ── reference only: what the task is ──────────────────────────────────────
   can: xy('can', `A 330 ml can, Ø${D.canD} × ${D.canH}. Reference geometry — it is the task, not the machine.`,
     { d: D.canD, t: D.canH, z0: 0 }, [circle('outline', [0, 0], 'd / 2')]),
@@ -714,11 +850,12 @@ export function wrist(mode = 'inputs') {
   const pitchD = round((D.pulleyT * D.beltPitch) / Math.PI - 3, 3);
 
   const blade = sub2('j5: the blade, its shaft, the driven pulley and the flange',
-    ['wrist-blade', 'pitch-shaft', 'pulley', 'tool-flange'], [
+    ['wrist-blade', 'pitch-shaft', 'pulley', 'cam-pod', 'camera'], [
       c('wrist-blade', 'wrist-blade', [0, 0, 0]),
       c('pitch-shaft', 'pitch-shaft', [0, 0, 0]),
       c('pitch-pulley', 'pulley', [0, 0, 0], { params: { d: pitchD, d_bore: D.pitchD + 0.2 } }),
-      c('tool-flange', 'tool-flange', [0, 0, 0]),
+      c('cam-pod', 'cam-pod', [0, 0, 0]),
+      c('camera', 'camera', [0, 0, 0]),
     ]);
   const drum = sub2('j4: the drum, the J5 drive inside it, the fork and the belt',
     ['roll-drum', 'nema17', 'planetary', 'pulley', 'belt', 'fork-cheek', 'fork-web', 'pitch-bush'], [
@@ -765,8 +902,9 @@ export function wrist(mode = 'inputs') {
       { a: 'roll4/fork-cheek[*]', b: 'roll4/pitch-bush[*]', min: 0.01, max: 0.05 },
       { a: 'roll4/pitch-bush[*]', b: 'roll4/pitch5/pitch-shaft', min: 0.02, max: 0.1 },
       { a: 'roll4/pitch5/pitch-shaft', b: 'roll4/pitch5/wrist-blade', contact: true },
+      { a: 'roll4/pitch5/cam-pod', b: 'roll4/pitch5/wrist-blade', contact: true },
+      { a: 'roll4/pitch5/camera', b: 'roll4/pitch5/cam-pod', min: 0.1 },
       { a: 'roll4/pitch5/pitch-shaft', b: 'roll4/pitch5/pitch-pulley', contact: true },
-      { a: 'roll4/pitch5/wrist-blade', b: 'roll4/pitch5/tool-flange', contact: true },
       { a: 'roll4/fork-cheek[*]', b: 'roll4/pitch5/wrist-blade', min: 1.5 },
       { a: 'roll4/belt', b: 'roll4/j5-pinion', contact: true },
       { a: 'roll4/belt', b: 'roll4/pitch5/pitch-pulley', contact: true },
@@ -795,7 +933,7 @@ const MATERIAL = {                                        // g/mm³, or a catalo
     nut: 'brass', bushing: 'poly', shroud: 'poly',
     counterweight: 'steel', 'pitch-shaft': 'steel', 'pitch-bush': 'brass', belt: 'poly',
   },
-  catalogue: { motor: 390, bearing: 360, 'encoder-head': 10, nema17: 280, planetary: 190, 'roll-bearing': 260 },
+  catalogue: { motor: 390, bearing: 360, 'encoder-head': 10, nema17: 280, planetary: 190, 'roll-bearing': 260, camera: 12 },
 };
 
 // push the channels down into every nested scope a sub-assembly opens
@@ -812,7 +950,7 @@ function gripperModule(demo = false) {
   // Its FITS travel with it. They are the gripper's own statement of what
   // touches what by design, and without them every declared contact inside it
   // reads as an undeclared overlap the moment it is someone else's sub-assembly.
-  return { _: 'the gripper — ../gripper v10, whole, with the adapter its own motor forces',
+  return { _: 'the gripper — ../gripper v10, whole, its motor inside the wrist blade',
     fits: structuredClone(g.fits), params: g.params,
     // A sub-assembly inherits no derived values, so in the pour document EVERY
     // level of the gripper — including its own nested drivetrain — carries its
@@ -821,9 +959,8 @@ function gripperModule(demo = false) {
     // nothing flows down a scope boundary except inputs, params and the clock.
     derived: demo ? { grip: channel(GRIP), roll: channel(ROLL), ...g.derived } : g.derived,
     parts: { ...Object.fromEntries(Object.entries(g.parts).map(([k, v]) => [k, structuredClone(v)])),
-      'tool-adapter': structuredClone(parts['tool-adapter']) },
+    },
     components: [
-      { id: 'tool-adapter', part: 'tool-adapter', at: [0, 0, 0], rotate: { axis: [1, 0, 0], deg: -90 } },
       ...inject(structuredClone(g.components), demo),
     ] };
 }
@@ -834,11 +971,11 @@ export function robot(mode = 'inputs') {
   const G = 'shoulder/wrist/roll4/pitch5';               // where the tool flange lives
   const g0 = gAssembly('embedded');
   const w = wrist(demo ? 'demo' : 'inputs');                // the forearm-through-flange, already checked on its own
-  const flangeFace = D.Lw + D.flangeT;
   // the gripper's +Y is its tool axis; Rz(−90) lays it onto the arm's +X, and
-  // the adapter's back face (gripper y = adapterBack) lands on the arm flange.
+  // its web's BACK face (gripper y = webY[0]) lands on the blade's flange face.
+  // The motor behind that face goes into the pocket, which is the whole change.
   const gripperOn = { id: 'gripper', assembly: gripperModule(demo),
-    at: [flangeFace - D.adapterBack, 0, 0], rotate: { axis: [0, 0, 1], deg: -90 } };
+    at: [D.gripX, 0, 0], rotate: { axis: [0, 0, 1], deg: -90 } };
   // assembly() already carries the real wrist module, so robot() only has to
   // drop the gripper into the j5 frame that is already there.
   const shoulder = structuredClone(a).components.find((x) => x.id === 'yaw');
@@ -871,9 +1008,10 @@ export function robot(mode = 'inputs') {
       ...w.fits.map((f) => ({ ...f, a: `shoulder/wrist/${f.a}`, b: `shoulder/wrist/${f.b}` })),
       ...g0.fits.map((f) => ({ ...f, a: `${G}/gripper/${f.a}`, b: `${G}/gripper/${f.b}` })),
       { a: 'shoulder/forearm[*]', b: 'shoulder/wrist/forearm-barrel', contact: true },
-      { a: `${G}/tool-flange`, b: `${G}/gripper/tool-adapter`, contact: true },
-      { a: `${G}/gripper/tool-adapter`, b: `${G}/gripper/motor-web`, contact: true },
-      { a: `${G}/gripper/tool-adapter`, b: `${G}/gripper/motor`, min: 2 },
+      // The gripper's web bolts straight onto the blade's own flange face now,
+      // and its motor lives inside the blade. That second pair is the pocket.
+      { a: `${G}/wrist-blade`, b: `${G}/gripper/motor-web`, contact: true },
+      { a: `${G}/wrist-blade`, b: `${G}/gripper/motor`, min: 0.5 },
     ],
   };
 }

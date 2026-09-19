@@ -3,39 +3,39 @@
   "doc": "robot",
   "tolerance": 0.25,
   "unit": "deg",
-  "worstPourMargin": 5.3,
+  "worstPourMargin": 20,
   "map": [
     {
       "j2": -30,
-      "fold": -79.4
+      "fold": -78.6
     },
     {
       "j2": -25,
-      "fold": -81.1
+      "fold": -80.6
     },
     {
       "j2": -20,
-      "fold": -88.7
+      "fold": -86.2
     },
     {
       "j2": -15,
-      "fold": -92.5
+      "fold": -91.4
     },
     {
       "j2": -10,
-      "fold": -96.1
+      "fold": -96.6
     },
     {
       "j2": -5,
-      "fold": -100.6
+      "fold": -105.8
     },
     {
       "j2": 0,
-      "fold": -105
+      "fold": -115.5
     },
     {
       "j2": 5,
-      "fold": -109.8
+      "fold": -119.2
     },
     {
       "j2": 10,

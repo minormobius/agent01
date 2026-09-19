@@ -1,7 +1,7 @@
 {
  "$schema": "com.minomobi.cad.assembly#v1",
  "name": "arm-pour",
- "_": "THE POUR, one turn of the clock: home → over the can → down and grip → lift → traverse → over the glass → 120° of tool roll → away. Eight waypoints solved by closed-form IK from task space, not posed by hand. The tip is a roll of the TOOL, because the can is held with its own axis perpendicular to the tool axis — which is also why ../gripper's one-way indexer could do this move itself. Six-DOF bench arm, counterweighted parallelogram. 250 + 250 + 60 mm of arm and 181 mm of tool, shoulder at z 400, reaching a 66 × 123 can at r 500. J2 and J3 are COAXIAL at the shoulder: J2 swings the upper arm and J3 a crank whose push rod drives an elbow crank rigid with the forearm, so the forearm's ABSOLUTE angle is j3 and nothing about j2 reaches it. Three things follow — both big actuators sit at the shoulder, gravity splits into two independent one-DOF problems, and a counterweight on each rear extension balances both EXACTLY at every pose, because load and counterweight go as the cosine of the same angle. 2.79 + 4.52 = 7.31 kg of steel (CW1 at r 300, CW2 as two pucks at r 200) takes 80% of it, leaving 2.06 N·m at J2 against 9.4 bare. Deliberately not 100%: a perfectly balanced arm drifts anywhere when the power dies, an 80% one settles downward.",
+ "_": "THE POUR, one turn of the clock: home → over the can → down and grip → lift → traverse → over the glass → 120° of tool roll → away. Eight waypoints solved by closed-form IK from task space, not posed by hand. The tip is a roll of the TOOL, because the can is held with its own axis perpendicular to the tool axis — which is also why ../gripper's one-way indexer could do this move itself. Six-DOF bench arm, counterweighted parallelogram. 250 + 250 + 60 mm of arm and 127 mm of tool, shoulder at z 400, reaching a 66 × 123 can at r 500. J2 and J3 are COAXIAL at the shoulder: J2 swings the upper arm and J3 a crank whose push rod drives an elbow crank rigid with the forearm, so the forearm's ABSOLUTE angle is j3 and nothing about j2 reaches it. Three things follow — both big actuators sit at the shoulder, gravity splits into two independent one-DOF problems, and a counterweight on each rear extension balances both EXACTLY at every pose, because load and counterweight go as the cosine of the same angle. 2.55 + 4.07 = 6.62 kg of steel (CW1 at r 300, CW2 as two pucks at r 200) takes 80% of it, leaving 1.88 N·m at J2 against 9.4 bare. Deliberately not 100%: a perfectly balanced arm drifts anywhere when the power dies, an 80% one settles downward.",
  "drive": {
   "component": "clock",
   "rpm": 3
@@ -17,10 +17,10 @@
  },
  "derived": {
   "jj1": "0 + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 49.899 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-  "jj2": "18.784 + -25.382 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -14.459 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 35.168 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 13.928 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -14.232 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 22.744 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-  "jj3": "-84.879 + -2.678 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 3.456 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + -2.105 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 4.285 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -5.095 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 9.715 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
+  "jj2": "16.393 + -24.977 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -15.887 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 36.463 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 13.028 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -13.163 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 20.699 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
+  "jj3": "-72.983 + -1.757 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 4.729 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + -4.097 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 3.559 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -4.351 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 8.247 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
   "jj4": "0 + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-  "jj5": "84.879 + 2.678 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -3.456 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 2.105 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -4.285 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 5.095 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -9.715 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
+  "jj5": "72.983 + 1.757 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -4.729 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 4.097 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -3.559 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 4.351 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -8.247 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
   "ex": "L1 * cos(deg(jj2))",
   "ez": "L1 * sin(deg(jj2))",
   "px": "crank * cos(deg(jj3))",
@@ -36,7 +36,7 @@
   "base-plate": {
    "$schema": "com.minomobi.cad.tree#v1",
    "units": "mm",
-   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 79 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
+   "_": "Bench plate: Ø182 × 12, four M8 on a Ø144 circle into the bench. The whole machine's overturning moment lands here — 73 N·m of it with the arm out and the counterweights swung — so it is bolted down, not weighted down. One extrude along +Z.",
    "params": {
     "d": 182,
     "t": 12,
@@ -378,10 +378,10 @@
     },
     "derived": {
      "jj1": "0 + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 49.899 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-     "jj2": "18.784 + -25.382 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -14.459 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 35.168 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 13.928 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -14.232 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 22.744 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-     "jj3": "-84.879 + -2.678 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 3.456 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + -2.105 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 4.285 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -5.095 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 9.715 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
+     "jj2": "16.393 + -24.977 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -15.887 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 36.463 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 13.028 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -13.163 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 20.699 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
+     "jj3": "-72.983 + -1.757 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 4.729 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + -4.097 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 3.559 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + -4.351 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 8.247 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
      "jj4": "0 + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-     "jj5": "84.879 + 2.678 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -3.456 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 2.105 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -4.285 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 5.095 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -9.715 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
+     "jj5": "72.983 + 1.757 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -4.729 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 4.097 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -3.559 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 4.351 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -8.247 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
      "ex": "L1 * cos(deg(jj2))",
      "ez": "L1 * sin(deg(jj2))",
      "px": "crank * cos(deg(jj3))",
@@ -610,10 +610,10 @@
      "counterweight": {
       "$schema": "com.minomobi.cad.tree#v1",
       "units": "mm",
-      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.79 kg (× 46.2 long) on the upper arm and CW2 4.52 kg (× 45.2) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
+      "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.55 kg (× 42.3 long) on the upper arm and CW2 4.07 kg (× 40.8) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
       "params": {
        "d": 70,
-       "t": 46.2,
+       "t": 42.3,
        "y1": "t / 2",
        "d_bore": 12.2
       },
@@ -965,8 +965,8 @@
        "c1z"
       ],
       "params": {
-       "t": 46.2,
-       "y1": "12 * (1 - 2 * (i - 2 * floor(i / 2))) + 46.2 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "t": 42.3,
+       "y1": "12 * (1 - 2 * (i - 2 * floor(i / 2))) + 42.3 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1000,9 +1000,9 @@
        "c2z"
       ],
       "params": {
-       "t": 45.2,
+       "t": 40.8,
        "d": 90,
-       "y1": "42 * (1 - 2 * (i - 2 * floor(i / 2))) + 45.2 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+       "y1": "42 * (1 - 2 * (i - 2 * floor(i / 2))) + 40.8 * (1 + (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
       }
      },
      {
@@ -1078,7 +1078,7 @@
        },
        "derived": {
         "jj4": "0 + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-        "jj5": "84.879 + 2.678 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -3.456 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 2.105 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -4.285 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 5.095 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -9.715 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))"
+        "jj5": "72.983 + 1.757 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -4.729 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 4.097 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -3.559 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 4.351 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -8.247 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))"
        },
        "parts": {
         "forearm-barrel": {
@@ -1331,7 +1331,7 @@
           },
           "derived": {
            "jj4": "0 + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-           "jj5": "84.879 + 2.678 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -3.456 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 2.105 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -4.285 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 5.095 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -9.715 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))"
+           "jj5": "72.983 + 1.757 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -4.729 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 4.097 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -3.559 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 4.351 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -8.247 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))"
           },
           "parts": {
            "roll-drum": {
@@ -1660,12 +1660,12 @@
            "fork-cheek": {
             "$schema": "com.minomobi.cad.tree#v1",
             "units": "mm",
-            "_": "J5 fork cheek, two off at |y| 27…39: carries the pitch bush at the wrist centre. `y1` is overridden per side. One extrude along -Y.",
+            "_": "J5 fork cheek, two off at |y| 29…39: carries the pitch bush at the wrist centre. `y1` is overridden per side. One extrude along -Y.",
             "params": {
              "back": 55,
              "prong": 25,
              "h": 70,
-             "t": 12,
+             "t": 10,
              "y1": 39,
              "d": 22
             },
@@ -1712,13 +1712,13 @@
            "fork-web": {
             "$schema": "com.minomobi.cad.tree#v1",
             "units": "mm",
-            "_": "J5 fork web: the 54 mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.",
+            "_": "J5 fork web: the 58 mm spacer the two cheeks bolt to, closing the back of the slot and taking the roll tube's face. One extrude along -Y.",
             "params": {
              "back": 55,
              "web": 12,
              "h": 70,
-             "t": 54,
-             "y1": 27
+             "t": 58,
+             "y1": 29
             },
             "features": [
              {
@@ -1757,7 +1757,7 @@
             "params": {
              "d": 22,
              "d_bore": 16.1,
-             "t": 12,
+             "t": 10,
              "y1": "t / 2"
             },
             "features": [
@@ -1878,7 +1878,7 @@
              0
             ],
             "params": {
-             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
             }
            },
            {
@@ -1900,7 +1900,7 @@
              0
             ],
             "params": {
-             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 12 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
+             "y1": "39 * (1 - 2 * (i - 2 * floor(i / 2))) + 10 * (1 - (1 - 2 * (i - 2 * floor(i / 2)))) / 2"
             }
            },
            {
@@ -1913,21 +1913,26 @@
              },
              "derived": {
               "jj4": "0 + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))",
-              "jj5": "84.879 + 2.678 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -3.456 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 2.105 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -4.285 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 5.095 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -9.715 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))"
+              "jj5": "72.983 + 1.757 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0) / 0.1429)) + -4.729 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.1429) / 0.1428)) + 4.097 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.2857) / 0.14289999999999997)) + -3.559 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.4286) / 0.14280000000000004)) + 4.351 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.5714) / 0.14290000000000003)) + 0 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.7143) / 0.14279999999999993)) + -8.247 * min(1, max(0, ((theta / 360 - floor(theta / 360)) - 0.8571) / 0.14290000000000003))"
              },
              "parts": {
               "wrist-blade": {
                "$schema": "com.minomobi.cad.tree#v1",
                "units": "mm",
-               "_": "J5 blade: the tool-side member, 50 thick between the fork's cheeks, bored on the pitch axis and flaring from x 45 to a 63 face for the tool flange. The flare starts where it does because everything on this part sweeps r = hypot(x, z) about the pitch axis, and inside r 43.01 it would find a fork cheek. One extrude along +Z, then the pitch bore as a cut along Y.",
+               "_": "J5 blade: the tool-side member, 54 thick between the fork's cheeks, bored on the pitch axis, and carrying its own Ø110 tool flange rather than a bolted-on plate. Through both runs a 44 square blind pocket, 48 deep — THE GRIPPER'S MOTOR LIVES IN HERE. That is what buys back the 54 mm the adapter cup used to cost: the actuator is behind the gripper's mounting face, so either the flange sits behind the motor or the wrist swallows it. Slab extruded along +Z, disc along +X, then the pocket and the pitch bore as cuts.",
                "params": {
                 "rear": -20,
-                "flare": 45,
                 "front": 60,
-                "hw": 25,
-                "fw": 31.5,
+                "hw": 27,
                 "h": 60,
-                "d": 16.2
+                "d": 16.2,
+                "dx": 56,
+                "fd": 110,
+                "fl": 12,
+                "pk": 44,
+                "pkx": 20,
+                "pcd": 97,
+                "dbolt": 3.4
                },
                "features": [
                 {
@@ -1940,32 +1945,14 @@
                  "loops": [
                   {
                    "name": "outline",
-                   "polygon": [
-                    [
-                     "rear",
-                     "-hw"
+                   "rect": {
+                    "c": [
+                     "(rear + front) / 2",
+                     0
                     ],
-                    [
-                     "flare",
-                     "-hw"
-                    ],
-                    [
-                     "front",
-                     "-fw"
-                    ],
-                    [
-                     "front",
-                     "fw"
-                    ],
-                    [
-                     "flare",
-                     "hw"
-                    ],
-                    [
-                     "rear",
-                     "hw"
-                    ]
-                   ]
+                    "w": "front - rear",
+                    "h": "2 * hw"
+                   }
                   }
                  ]
                 },
@@ -1977,10 +1964,95 @@
                 },
                 {
                  "op": "sketch",
+                 "id": "disc",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "dx"
+                 },
+                 "loops": [
+                  {
+                   "name": "outline",
+                   "circle": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "r": "fd / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "sketch",
+                 "id": "bolt",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "dx"
+                 },
+                 "loops": [
+                  {
+                   "name": null,
+                   "circle": {
+                    "c": [
+                     "pcd / 2",
+                     0
+                    ],
+                    "r": "dbolt / 2"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "pattern",
+                 "id": "bolts",
+                 "of": "bolt",
+                 "kind": "circular",
+                 "count": 4,
+                 "name": "bolt"
+                },
+                {
+                 "op": "extrude",
+                 "id": "fla",
+                 "profile": [
+                  "disc",
+                  "bolts"
+                 ],
+                 "depth": "fl"
+                },
+                {
+                 "op": "sketch",
+                 "id": "pocket",
+                 "plane": {
+                  "base": "YZ",
+                  "offset": "pkx"
+                 },
+                 "loops": [
+                  {
+                   "name": "sq",
+                   "rect": {
+                    "c": [
+                     0,
+                     0
+                    ],
+                    "w": "pk",
+                    "h": "pk"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "pkcut",
+                 "profile": "pocket",
+                 "depth": "front + fl - pkx",
+                 "mode": "cut"
+                },
+                {
+                 "op": "sketch",
                  "id": "bore",
                  "plane": {
                   "base": "XZ",
-                  "offset": "-(hw + 4)"
+                  "offset": "-(hw + 8)"
                  },
                  "loops": [
                   {
@@ -1999,7 +2071,7 @@
                  "op": "extrude",
                  "id": "borecut",
                  "profile": "bore",
-                 "depth": "2 * (hw + 4)",
+                 "depth": "2 * (hw + 8)",
                  "mode": "cut"
                 }
                ]
@@ -2091,84 +2163,137 @@
                 }
                ]
               },
-              "tool-flange": {
+              "cam-pod": {
                "$schema": "com.minomobi.cad.tree#v1",
                "units": "mm",
-               "_": "Tool flange, ISO 9409-1-50-4-M6: Ø63 × 8, four M6 on a Ø50 circle, Ø31.5 pilot. The gripper's own web bolts to this — its README calls this interface out and does not draw it, so this is the half that exists. One extrude along +X.",
+               "_": "Wrist camera bracket: an L reaching from the flange disc's rear face out past the fork cheeks, holding a 16 square board camera looking DOWN the tool's −Z. It is on the blade, so J5 aims it and the hand-eye transform is a constant. It cannot see the grip point — nothing on the wrist can, with a Ø104 tool in front of it — and it does not pretend to: this is the camera that finds the can on the bench, not the one that watches the jaws close. One extrude along +Z, one pocket.",
                "params": {
-                "d": 63,
-                "t": 8,
-                "x0": 60,
-                "pcd": 50,
-                "d_bolt": 6.6,
-                "d_pilot": 31.5
+                "x0": 26,
+                "x1": 56,
+                "y0": 41,
+                "y1": 59,
+                "fy": 27,
+                "fx": 48,
+                "z0": -18,
+                "t": 22,
+                "c": 16,
+                "ct": 10,
+                "cx": 41,
+                "cy": 50
                },
                "features": [
                 {
                  "op": "sketch",
-                 "id": "face",
+                 "id": "plan",
                  "plane": {
-                  "base": "YZ",
-                  "offset": "x0"
+                  "base": "XY",
+                  "offset": "z0"
                  },
                  "loops": [
                   {
                    "name": "outline",
-                   "circle": {
-                    "c": [
-                     0,
-                     0
+                   "polygon": [
+                    [
+                     "fx",
+                     "fy"
                     ],
-                    "r": "d / 2"
-                   }
-                  },
-                  {
-                   "name": "pilot",
-                   "circle": {
-                    "c": [
-                     0,
-                     0
+                    [
+                     "x1",
+                     "fy"
                     ],
-                    "r": "d_pilot / 2"
-                   }
+                    [
+                     "x1",
+                     "y1"
+                    ],
+                    [
+                     "x0",
+                     "y1"
+                    ],
+                    [
+                     "x0",
+                     "y0"
+                    ],
+                    [
+                     "fx",
+                     "y0"
+                    ]
+                   ]
                   }
                  ]
-                },
-                {
-                 "op": "sketch",
-                 "id": "bolt",
-                 "plane": {
-                  "base": "YZ",
-                  "offset": "x0"
-                 },
-                 "loops": [
-                  {
-                   "name": null,
-                   "circle": {
-                    "c": [
-                     "pcd / 2",
-                     0
-                    ],
-                    "r": "d_bolt / 2"
-                   }
-                  }
-                 ]
-                },
-                {
-                 "op": "pattern",
-                 "id": "bolts",
-                 "of": "bolt",
-                 "kind": "circular",
-                 "count": 4,
-                 "name": "bolt"
                 },
                 {
                  "op": "extrude",
-                 "id": "fl",
-                 "profile": [
-                  "face",
-                  "bolts"
-                 ],
+                 "id": "pod",
+                 "profile": "plan",
+                 "depth": "t"
+                },
+                {
+                 "op": "sketch",
+                 "id": "well",
+                 "plane": {
+                  "base": "XY",
+                  "offset": "z0 - 2"
+                 },
+                 "loops": [
+                  {
+                   "name": "sq",
+                   "rect": {
+                    "c": [
+                     "cx",
+                     "cy"
+                    ],
+                    "w": "c + 0.6",
+                    "h": "c + 0.6"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "wellcut",
+                 "profile": "well",
+                 "depth": "ct + 2",
+                 "mode": "cut"
+                }
+               ]
+              },
+              "camera": {
+               "$schema": "com.minomobi.cad.tree#v1",
+               "units": "mm",
+               "_": "16 × 16 × 10 board camera, looking along the tool's −Z. A 25 mm Pi Camera Module 3 would do the job optically and take the wrist's swept circle from Ø118 to Ø136; this class of module costs Ø5. The requirement is the envelope. One extrude along +Z.",
+               "params": {
+                "c": 16,
+                "t": 10,
+                "z0": -18,
+                "cx": 41,
+                "cy": 50
+               },
+               "features": [
+                {
+                 "op": "sketch",
+                 "id": "board",
+                 "plane": {
+                  "base": "XY",
+                  "offset": "z0"
+                 },
+                 "loops": [
+                  {
+                   "name": "sq",
+                   "rect": {
+                    "c": [
+                     "cx",
+                     "cy"
+                    ],
+                    "w": "c",
+                    "h": "c"
+                   }
+                  }
+                 ]
+                },
+                {
+                 "op": "extrude",
+                 "id": "cam",
+                 "profile": "board",
                  "depth": "t"
                 }
                ]
@@ -2207,8 +2332,17 @@
                }
               },
               {
-               "id": "tool-flange",
-               "part": "tool-flange",
+               "id": "cam-pod",
+               "part": "cam-pod",
+               "at": [
+                0,
+                0,
+                0
+               ]
+              },
+              {
+               "id": "camera",
+               "part": "camera",
                "at": [
                 0,
                 0,
@@ -2298,13 +2432,18 @@
          "contact": true
         },
         {
-         "a": "roll4/pitch5/pitch-shaft",
-         "b": "roll4/pitch5/pitch-pulley",
+         "a": "roll4/pitch5/cam-pod",
+         "b": "roll4/pitch5/wrist-blade",
          "contact": true
         },
         {
-         "a": "roll4/pitch5/wrist-blade",
-         "b": "roll4/pitch5/tool-flange",
+         "a": "roll4/pitch5/camera",
+         "b": "roll4/pitch5/cam-pod",
+         "min": 0.1
+        },
+        {
+         "a": "roll4/pitch5/pitch-shaft",
+         "b": "roll4/pitch5/pitch-pulley",
          "contact": true
         },
         {

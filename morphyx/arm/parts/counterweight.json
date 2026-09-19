@@ -1,10 +1,10 @@
 {
  "$schema": "com.minomobi.cad.tree#v1",
  "units": "mm",
- "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.79 kg (× 46.2 long) on the upper arm and CW2 4.52 kg (× 45.2) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
+ "_": "Counterweight: a plain steel cylinder Ø70 on a link's rear extension. CW1 is 2.55 kg (× 42.3 long) on the upper arm and CW2 4.07 kg (× 40.8) on the J3 cranks. Length is overridden per instance — the mass IS the tuning, and it is shimmable with washers. One extrude along -Y.",
  "params": {
   "d": 70,
-  "t": 46.2,
+  "t": 42.3,
   "y1": "t / 2",
   "d_bore": 12.2
  },

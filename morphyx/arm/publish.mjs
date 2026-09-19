@@ -43,7 +43,14 @@ async function publish(p, tree, { kind, name }) {
   console.log(`  ${existing ? 'new revision' : 'created'}  ${p}  ${f.uri}`);
 }
 console.log(write ? 'publishing the arm' : 'plan, no writes');
-const RETIRED = { v1: ['wrist-housing', 'wrist-yoke', 'roll-tube'] };   // roll-tube -> roll-drum, which now houses the J5 motor   // the implied wrist joint: two parts touching in mid-air, replaced by a real clevis
+const RETIRED = {
+  v1: ['wrist-housing', 'wrist-yoke', 'roll-tube'],
+
+  // v2: the pocket. The blade swallowed the gripper's motor and the flange
+  // with it, so both of these are gone — 54 mm of tool length and 360 g at
+  // the very tip, which is the worst place on the machine to spend either.
+  v2: ['tool-adapter', 'tool-flange'],
+};   // roll-tube -> roll-drum, which now houses the J5 motor; wrist-housing/-yoke were the implied joint, two parts touching in mid-air
 for (const [ver, names] of Object.entries(RETIRED)) for (const name of names) {
   if (name in parts) continue;
   if (!drive) { console.log(`  plan  arm/parts/${name} → arm/${ver}/${name} (if present)`); continue; }
