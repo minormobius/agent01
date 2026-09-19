@@ -1248,6 +1248,67 @@ const SPEC = fix2('preregister.json');
   ok(UNIVERSE.length === 3, 'the universe is the registered three');
 }
 
+// ------------------------------------------------- funding, the carry cost ----
+{
+  // THE BUG THIS FIXES. The book charged fees on every size change and NOTHING
+  // on the position held between them, so a perp long carried none of the
+  // funding it really pays. Measured on Hyperliquid over 21 days: BTC funding
+  // averaged 0.1201bp/hour = 2.88bp/day, positive — longs paying — in 96.2% of
+  // hours. Every long leg in this lab was flattered and every short paid.
+  const HOUR = 3600_000;
+  // Stepped hour by hour rather than in one 24-hour jump: the per-tick clamp
+  // below deliberately refuses to bill a feed gap as carry, so a realistic
+  // cadence is the only way to accumulate a real day of it.
+  const run = (pos, hours, costs = {}) => {
+    const b = newBook({ costs: { feeBps: 0, payHalfSpread: false, ...costs }, risk: { cap: 3 } });
+    step(b, { px: 100, t: 0, exposure: pos, action: 'buy' });
+    for (let h = 1; h <= hours; h++) step(b, { px: 100, t: h * HOUR });
+    return b;
+  };
+  const long = run(1, 24);
+  const short = run(-1, 24);
+  ok(long.jev.equity < 1, 'a long that never moves still LOSES, because it pays funding');
+  near((1 - long.jev.equity) * 1e4, 0.12 * 24, 0.02, 'and pays 0.12bp an hour — 2.88bp over a day at 1x');
+  ok(Math.abs((1 - long.jev.equity) * 1e4 - 2.88) < 0.02,
+    'which is the 2.88bp/day measured on Hyperliquid over 21 days, not a round number picked to look tidy');
+  ok(short.jev.equity > 1, 'while a short holding the same position is PAID it');
+  near(short.jev.equity - 1, 1 - long.jev.equity, 1e-6, 'the two are equal and opposite, which is what funding is');
+
+  // It scales with exposure, so leverage multiplies the carry exactly as it
+  // multiplies everything else.
+  const l3 = run(3, 24);
+  near((1 - l3.jev.equity) / (1 - long.jev.equity), 3, 0.01, 'three times the position is three times the carry');
+
+  // A flat position pays nothing at all.
+  const flat = run(0, 24);
+  ok(flat.jev.equity === 1, 'a flat position pays no funding');
+  ok(flat.flat.equity === 1, 'and neither does the do-nothing leg, which never holds anything');
+
+  // Funding is a COST, so it belongs in the drag and not in gross. gross is
+  // defined as "the same trades with every cost waived"; if funding leaked
+  // into it, `equity - gross` would stop being the measured drag.
+  ok(long.jev.gross === 1, 'gross is untouched by funding, so the drag stays measurable');
+  ok(long.jev.equity < long.jev.gross, 'and the carry shows up as drag');
+
+  // It is a carry on TIME, not on trading — which is why leaving it out also
+  // flattered buy-and-hold, the leg that trades least of all.
+  const bh = run(1, 24);
+  ok(bh.hold.equity < 1, 'buy-and-hold pays it too: it is a cost of holding, not of trading');
+
+  // Switchable, because it is a real number that changes and a run that wants
+  // the old behaviour as a control must be able to have it.
+  ok(run(1, 24, { chargeFunding: false }).jev.equity === 1, 'and it can be turned off as a control');
+  near((1 - run(1, 24, { fundingBpsPerHour: 0.24 }).jev.equity) / (1 - long.jev.equity), 2, 0.01,
+    'the rate is a parameter, not a constant of nature');
+
+  // TAPE TIME, not wall time — the same fix the candles needed. And a gap in
+  // the feed must not bill an hour of carry in a single tick.
+  const gap = newBook({ costs: { feeBps: 0, payHalfSpread: false }, risk: { cap: 3 } });
+  step(gap, { px: 100, t: 0, exposure: 1, action: 'buy' });
+  step(gap, { px: 100, t: 48 * HOUR });
+  near((1 - gap.jev.equity) * 1e4, 0.12, 0.02, 'a two-day gap in the feed bills one hour, not forty-eight');
+}
+
 if (failures.length) {
   console.error(`✗ lab selftest: ${failures.length} failure(s) of ${passed + failures.length} checks\n`);
   for (const f of failures) console.error(`  - ${f}`);

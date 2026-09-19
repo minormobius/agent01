@@ -205,14 +205,53 @@ $('runBtn').addEventListener('click', () => {
 $('resetBtn').addEventListener('click', () => {
   running = false; clearInterval(timer); $('runBtn').textContent = 'start run';
   priceLog.length = 0;
-  book = newBook({ seed: Number($('seed').value) || 1,
-    costs: { feeBps: Number($('fee').value) || 0, slippageBps: Number($('slip').value) || 0 },
+  book = newBook({ seed: Number($('seed').value) || 1, costs: readCosts(),
     risk: { cap: Number($('cap').value) || 3 } });
   lastDecision = null;
   $('logBody').innerHTML = ''; $('ansRow').innerHTML = '<span class="why">no decision yet</span>';
   paintTiles(); paintBoard(); draw();
 });
-for (const id of ['cap', 'deadband', 'deadzone', 'floor', 'memory']) $(id).addEventListener('change', () => trials(1));
+/**
+ * Hyperliquid's real fee ladder, 2026-09-19, and the one honest caveat.
+ *
+ * Maker is a far bigger lever than any venue change: 4.5bp taker down to 1.5bp
+ * maker, 0.0bp above $500M/30d, and a rebate of up to -0.3bp for a large share
+ * of maker volume — you are paid to trade. A maker also does not cross the
+ * book, so `payHalfSpread` goes off with it.
+ *
+ * WHICH IS WHERE THIS FLATTERS. A resting order is not a fill. You get filled
+ * when the other side chose to cross you, which is disproportionately when
+ * they know something — and nothing in this book models that adverse
+ * selection. So the maker rows are a QUOTE for an order that may not execute,
+ * and when it does may execute for a bad reason. Treat them as the ceiling of
+ * what cheaper execution could buy, never as a result.
+ */
+const EXEC = {
+  taker:        { feeBps: 4.5,  payHalfSpread: true },
+  taker_top:    { feeBps: 2.4,  payHalfSpread: true },
+  maker:        { feeBps: 1.5,  payHalfSpread: false },
+  maker_free:   { feeBps: 0.0,  payHalfSpread: false },
+  maker_rebate: { feeBps: -0.3, payHalfSpread: false },
+};
+function readCosts() {
+  const mode = EXEC[$('exec').value] || EXEC.taker;
+  return {
+    feeBps: Number($('fee').value) || 0,
+    payHalfSpread: mode.payHalfSpread,
+    slippageBps: Number($('slip').value) || 0,
+    fundingBpsPerHour: Number($('funding').value) || 0,
+    chargeFunding: true,
+  };
+}
+// Picking a mode writes its fee into the box, which stays editable — the
+// ladder is a set of real published numbers, not a set of allowed answers.
+$('exec').addEventListener('change', () => {
+  const mode = EXEC[$('exec').value];
+  if (mode) $('fee').value = String(mode.feeBps);
+  trials(1);
+});
+for (const id of ['cap', 'deadband', 'deadzone', 'floor', 'memory', 'fee', 'funding'])
+  $(id).addEventListener('change', () => trials(1));
 $('interval').addEventListener('change', () => {
   if (running) { clearInterval(timer); timer = setInterval(takeDecision, Number($('interval').value)); }
 });

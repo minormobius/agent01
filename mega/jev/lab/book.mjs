@@ -100,15 +100,42 @@ export const DEFAULT_RISK = {
 };
 
 export const DEFAULT_COSTS = {
-  // Hyperliquid taker fee, in basis points of notional. Configurable because
+  // Hyperliquid TAKER fee, in basis points of notional. Configurable because
   // it is a real number that changes, not a constant of nature.
+  //
+  // Measured from Hyperliquid's published schedule, 2026-09-19: perp taker
+  // runs 4.5bp at tier 0 down to 2.4bp above $7B, and perp MAKER runs 1.5bp
+  // down to 0.0bp above $500M — with a rebate of up to -0.3bp for a large
+  // share of maker volume. Maker is the real lever and it is a bigger one
+  // than any venue change: see `feeBps` on the page's cost control.
   feeBps: 4.5,
   // Crossing the book costs half the spread. Measured per tick from the
   // live book rather than assumed, so a thin market is charged for.
+  //
+  // A MAKER does not cross it — they post and are crossed — so setting a
+  // maker fee without also clearing this would charge a cost the strategy
+  // does not pay. It is left as a separate switch rather than tied to the
+  // fee, because the honest maker model is not "cheaper taker": a resting
+  // order is not a fill, and you get filled when the other side knows
+  // something. Nothing here models that adverse selection, and turning the
+  // spread off without it flatters the maker case.
   payHalfSpread: true,
   // Extra pessimism, in bps, for the slippage a 1-second paper fill cannot
   // observe. Zero is a choice; it is not a safe one.
   slippageBps: 0,
+  // ---- FUNDING: the cost this book did not charge at all until 2026-09-19 --
+  //
+  // A perp long pays funding to the shorts (or is paid, when it is negative).
+  // Measured on Hyperliquid over 21 days: BTC funding averaged 0.1201bp/hour
+  // = 2.88bp/day = 10.5%/yr, and was POSITIVE — longs paying — in 96.2% of
+  // hours. This book charged none of it, so every long leg has been flattered
+  // and every short leg penalised for the whole life of the lab. At a 40x cap
+  // that is ~115bp/day of carry silently missing.
+  //
+  // It is charged per tick on the position actually held, signed: a long pays,
+  // a short is paid. Per HOUR, scaled by the elapsed tick.
+  fundingBpsPerHour: 0.12,
+  chargeFunding: true,
 };
 
 function mulberry(seed) {
@@ -132,6 +159,7 @@ export function newBook({ seed = 1, costs = {}, risk = {} } = {}) {
     risk: rk,
     rnd: mulberry(seed),
     lastPx: null,
+    lastT: null,
     ticks: 0,
     decisions: 0,
     jev: mk(),
@@ -168,11 +196,25 @@ export function changeCost(book, from, to, spreadBps) {
   return delta * (book.costs.feeBps + half + book.costs.slippageBps) / 1e4;
 }
 
-function applyTo(leg, book, ret, want, spreadBps) {
+function applyTo(leg, book, ret, want, spreadBps, hours = 0) {
   // Mark to market at the OLD position — you earn the move you were holding
   // through, not the one you are about to take.
   leg.equity *= 1 + leg.pos * ret;
   leg.gross *= 1 + leg.pos * ret;
+
+  // Funding, on the position held through the interval. This is a carry on
+  // EXPOSURE, not a transaction cost, so it belongs here and not in
+  // changeCost: a position that never trades still pays it, which is exactly
+  // why leaving it out flattered the `hold` and `do nothing` legs too.
+  //
+  // It is charged against `equity` and not `gross`, because `gross` is defined
+  // as "the same trades with every cost waived" and funding is a cost. That
+  // keeps `equity - gross` the measured drag, now including carry.
+  if (book.costs.chargeFunding && hours > 0 && leg.pos !== 0) {
+    const carry = leg.pos * (book.costs.fundingBpsPerHour / 1e4) * hours;
+    leg.equity *= 1 - carry;
+    leg.fundingPaid = (leg.fundingPaid || 0) + carry;
+  }
 
   // Ruin, modelled rather than assumed away. At 3x a 33% adverse move is the
   // whole account; the multiplier above can go negative, and an equity curve
@@ -208,6 +250,13 @@ export function step(book, { px, spreadBps = 0, action = null, exposure = null, 
   oracleTargets = null, bestTarget = null, majorityTarget = null, streambTarget = null }) {
   if (!Number.isFinite(px) || px <= 0) return null;
   const ret = book.lastPx == null ? 0 : (px - book.lastPx) / book.lastPx;
+  // Elapsed time on the TAPE, for funding. Taken from the tick stamps rather
+  // than the wall clock, for the same reason the candles are: a replay at
+  // speed 14 is still one-second data, and charging a 14x-compressed carry
+  // would be a different kind of the lie already fixed in the chart.
+  // Clamped so a gap in the feed cannot bill an hour of carry in one tick.
+  const hours = book.lastT == null ? 0 : Math.min(1, Math.max(0, (t - book.lastT) / 3600_000));
+  book.lastT = t;
   book.lastPx = px;
   book.ticks++;
 
@@ -235,12 +284,12 @@ export function step(book, { px, spreadBps = 0, action = null, exposure = null, 
   // levering it would just be a second strategy nobody chose.
   const wantHold = 1;
 
-  applyTo(book.jev, book, ret, wantJev, spreadBps);
-  applyTo(book.rand, book, ret, wantRand, spreadBps);
-  applyTo(book.hold, book, ret, wantHold, spreadBps);
-  applyTo(book.flat, book, ret, 0, spreadBps);
+  applyTo(book.jev, book, ret, wantJev, spreadBps, hours);
+  applyTo(book.rand, book, ret, wantRand, spreadBps, hours);
+  applyTo(book.hold, book, ret, wantHold, spreadBps, hours);
+  applyTo(book.flat, book, ret, 0, spreadBps, hours);
   applyTo(book.streamb, book, ret,
-    decided && Number.isFinite(streambTarget) ? clampCap(book, streambTarget) : book.streamb.pos, spreadBps);
+    decided && Number.isFinite(streambTarget) ? clampCap(book, streambTarget) : book.streamb.pos, spreadBps, hours);
 
   // The rules trade on exactly the same ticks, at exactly the same costs, and
   // only on decision ticks — so they are not quietly given a finer clock
@@ -248,12 +297,12 @@ export function step(book, { px, spreadBps = 0, action = null, exposure = null, 
   for (const [id, target] of Object.entries(oracleTargets || {})) {
     if (!book.oracles[id]) book.oracles[id] = book.mkLeg();
     const leg = book.oracles[id];
-    applyTo(leg, book, ret, decided ? clampCap(book, target) : leg.pos, spreadBps);
+    applyTo(leg, book, ret, decided ? clampCap(book, target) : leg.pos, spreadBps, hours);
   }
   applyTo(book.best, book, ret,
-    decided && Number.isFinite(bestTarget) ? clampCap(book, bestTarget) : book.best.pos, spreadBps);
+    decided && Number.isFinite(bestTarget) ? clampCap(book, bestTarget) : book.best.pos, spreadBps, hours);
   applyTo(book.majority, book, ret,
-    decided && Number.isFinite(majorityTarget) ? clampCap(book, majorityTarget) : book.majority.pos, spreadBps);
+    decided && Number.isFinite(majorityTarget) ? clampCap(book, majorityTarget) : book.majority.pos, spreadBps, hours);
 
   const row = {
     t, px, ret, action, spreadBps,

@@ -44,7 +44,15 @@
         <option value="30000">30s</option>
       </select>
     </label>
-    <label>taker fee (bp)<input id="fee" type="number" value="4.5" step="0.5" min="0"></label>
+    <label>execution<select id="exec">
+      <option value="taker" selected>taker — cross the book (4.5bp)</option>
+      <option value="taker_top">taker, top volume tier (2.4bp)</option>
+      <option value="maker">maker — post and wait (1.5bp, no spread)</option>
+      <option value="maker_free">maker, &gt;$500M/30d (0.0bp)</option>
+      <option value="maker_rebate">maker + rebate (−0.3bp, paid to trade)</option>
+    </select></label>
+    <label>fee (bp)<input id="fee" type="number" value="4.5" step="0.5"></label>
+    <label>funding (bp/hr)<input id="funding" type="number" value="0.12" step="0.01"></label>
     <label>extra slippage (bp)<input id="slip" type="number" value="0" step="0.5" min="0"></label>
     <label>random seed<input id="seed" type="number" value="1" step="1"></label>
     <label>max leverage<select id="cap">
@@ -270,6 +278,109 @@
       right on the corrected significance bar, which is exactly where a result goes to be wrong. The only clean
       next step is to <b>pre-register the horizon and test it forward on data that does not exist yet</b> —
       everything else is re-reading the same 208 days.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>What execution actually costs, measured</h2>
+    <p class="cap" style="margin:0 0 10px">Everything below was queried live on 2026-09-19, not recalled.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      This lab spent its whole life fighting transaction drag while charging one number: a 4.5bp taker fee.
+      The obvious move &mdash; <em>trade the spot instead, drop the leverage</em> &mdash; is wrong twice over, and
+      the right move was hiding in the same fee schedule.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:560px"><thead><tr>
+        <th>venue / mode</th><th>fee each way</th><th>observed spread</th><th>round trip</th>
+      </tr></thead><tbody>
+        <tr><td><b>HL perp, taker</b></td><td>4.5bp</td><td>0.123bp (BTC)</td><td><b>9.12bp</b></td></tr>
+        <tr><td>HL perp, taker, top tier</td><td>2.4bp</td><td>0.123bp</td><td>4.92bp</td></tr>
+        <tr><td><b>HL perp, maker</b></td><td>1.5bp</td><td>&mdash; you post it</td><td><b>3.00bp</b></td></tr>
+        <tr><td>HL perp, maker &gt;$500M/30d</td><td>0.0bp</td><td>&mdash;</td><td><b style="color:var(--ok)">0.00bp</b></td></tr>
+        <tr><td>HL perp, maker + rebate</td><td>&minus;0.3bp</td><td>&mdash;</td><td><b style="color:var(--ok)">&minus;0.60bp</b></td></tr>
+        <tr><td>HL <b>spot</b>, taker</td><td>7.0bp</td><td>26.3bp (best native pair)</td><td style="color:var(--bad)"><b>40.3bp</b></td></tr>
+        <tr><td>Binance spot, taker</td><td>10bp</td><td>&mdash;</td><td style="color:var(--bad)">~21bp</td></tr>
+        <tr><td>Kraken spot, taker</td><td>40bp</td><td>&mdash;</td><td style="color:var(--bad)">~81bp</td></tr>
+        <tr><td>Coinbase Advanced, taker</td><td>60bp</td><td>&mdash;</td><td style="color:var(--bad)">~121bp</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>The perp is the cheapest instrument in crypto</b>, and it is not close. Spot on the same venue costs 56%
+      more in fees and its best native book is <b>214&times; wider</b> than the BTC perp&rsquo;s 0.123bp. The
+      wrapped-BTC spot pair there has <b>$0 of 24h volume</b> &mdash; there is no BTC spot market to trade.
+      Venue-wide it is $8.9B of perp against $426M of spot.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the lever was never leverage.</b> This page already measured drag &divide; gross at
+      <b>6.74 / 6.68 / 6.60 / 6.26</b> at 1&times; / 3&times; / 10&times; / 40&times;. Costs scale with size
+      traded, so leverage multiplies the result and the drag by the same factor. Dropping it does not improve the
+      economics per unit of exposure &mdash; it just risks less money at the same ratio. <b>The lever is
+      taker&nbsp;&rarr;&nbsp;maker</b>, which is a 3&times; cut at the base tier and goes to zero, then negative.
+    </p>
+
+    <h2 style="margin-top:18px">And DeFi, which turns out to be the story</h2>
+    <p class="cap" style="margin:0 0 8px">Round-trip cost through a Solana aggregator, five repeated quotes each,
+      SOL&nbsp;&rarr;&nbsp;USDC&nbsp;&rarr;&nbsp;SOL. Everything included: LP fees, price impact, routing.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:480px"><thead><tr>
+        <th>notional</th><th>median round trip</th><th>range over 5 quotes</th><th>vs HL perp taker (9.9bp)</th>
+      </tr></thead><tbody>
+        <tr><td>$1,130</td><td><b style="color:var(--ok)">0.10bp</b></td><td>&minus;0.34 &hellip; 0.39</td><td>99&times; cheaper</td></tr>
+        <tr><td>$11,300</td><td><b style="color:var(--ok)">0.66bp</b></td><td>0.58 &hellip; 0.81</td><td>15&times; cheaper</td></tr>
+        <tr><td>$113,000</td><td><b style="color:var(--ok)">1.78bp</b></td><td>1.38 &hellip; 2.25</td><td>5.6&times; cheaper</td></tr>
+        <tr><td>$565,000</td><td>6.60bp</td><td>6.42 &hellip; 7.55</td><td>1.5&times; cheaper</td></tr>
+        <tr><td>$2,260,000</td><td style="color:var(--bad)">36.3bp</td><td>36.3 &hellip; 38.3</td><td style="color:var(--bad)">3.7&times; dearer</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>Below about $150k, on-chain spot beats the perp outright</b> &mdash; and beats even the maker perp.
+      Aggregated Solana liquidity for a major pair is genuinely deeper than the fee schedules suggest, and
+      <b>gas is dead as a cost</b>: a swap is $0.0006 on Solana, $0.0024 on Base, $0.0004 on Optimism, and even
+      Ethereum L1 at 0.0885&nbsp;gwei is <b>3.5&nbsp;cents</b> &mdash; 0.003bp on a $100k trade.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Three things that table does not say.</b> A quote is not a fill &mdash; one of the first attempts came
+      back at <b>2100bp</b> through a bad route before settling down, which is a real risk you manage with
+      slippage limits, not a number you can average away. It is spot: no leverage and <b>no shorting</b>. And it
+      is one pair on one chain at one moment.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      The framing worth keeping: <b>the cheapest venue measured anywhere here is itself a DEX.</b> Hyperliquid is
+      an on-chain order book on its own L1. The interesting split is not centralised against decentralised, it is
+      <b>order book against AMM</b> &mdash; and AMMs win at small size while order books win at large, which is
+      exactly what the shape of the two cost curves says.
+    </p>
+
+    <h2 style="margin-top:18px">The cost this book was not charging at all</h2>
+    <p class="cap" style="margin:0 0 8px">A perp long pays funding. Ours never did.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Measured on Hyperliquid over 21 days: BTC funding averaged <b>0.1201bp/hour = 2.88bp/day = 10.5%/yr</b>,
+      and was positive &mdash; longs paying &mdash; in <b>96.2% of hours</b>. <code>book.mjs</code> charged fees on
+      every size change and <b>nothing on the position held between them</b>, so every long leg on this page has
+      been flattered and every short paid, for the lab&rsquo;s entire life.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>held</th><th>1&times;</th><th>3&times;</th><th>10&times;</th><th>40&times;</th>
+      </tr></thead><tbody>
+        <tr><td>190s (the fixture)</td><td>0.01bp</td><td>0.02bp</td><td>0.06bp</td><td>0.25bp</td></tr>
+        <tr><td>1 hour</td><td>0.12bp</td><td>0.36bp</td><td>1.20bp</td><td>4.80bp</td></tr>
+        <tr><td>1 day</td><td>2.88bp</td><td>8.64bp</td><td>28.76bp</td><td><b style="color:var(--bad)">114.6bp</b></td></tr>
+        <tr><td>1 week</td><td>20.1bp</td><td>60.3bp</td><td>199.6bp</td><td><b style="color:var(--bad)">774.8bp</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>On the 190-second fixture it is 0.01&ndash;0.25bp, so no measurement already on this page is overturned.</b>
+      But look at what it taxes. The conclusion drawn from the break-even table was <em>&ldquo;the only lever that
+      moves that column is how long you hold&rdquo;</em> &mdash; and funding is the one cost that grows with
+      exactly that. Holding is not free; it was only free here because the book forgot to bill it.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Who actually pays it.</b> A strategy that flips long and short roughly equally is near-neutral to
+      funding &mdash; it pays on the longs and is paid on the shorts. It is a tax on <b>long-biased holding</b>
+      specifically, and a subsidy to short-biased holding. So the one place the instinct that started all this is
+      dead right: <b>a long-only buy-and-hold as a perp bleeds 10.5%/yr that spot simply does not pay.</b>
+      That is the honest case for the underlying, and it has nothing to do with fees.
     </p>
   </div>
 

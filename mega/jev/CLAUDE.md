@@ -1161,6 +1161,110 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+## What execution actually costs (2026-09-19)
+
+Everything here was queried live, not recalled. The lab spent its whole life
+fighting transaction drag while charging one number — a 4.5bp taker fee — and
+the obvious escape (*trade spot, drop the leverage*) is wrong twice over while
+the real lever sat in the same fee schedule.
+
+### Spot is dearer than the perp, and far thinner
+
+| venue / mode | fee each way | observed spread | round trip |
+|---|---|---|---|
+| **HL perp, taker** | 4.5bp | 0.123bp (BTC) | **9.12bp** |
+| HL perp, taker, top tier | 2.4bp | 0.123bp | 4.92bp |
+| **HL perp, maker** | 1.5bp | — you post it | **3.00bp** |
+| HL perp, maker >$500M/30d | 0.0bp | — | **0.00bp** |
+| HL perp, maker + rebate | −0.3bp | — | **−0.60bp** |
+| HL **spot**, taker | 7.0bp | 26.3bp | **40.3bp** |
+| Binance spot, taker | 10bp | — | ~21bp |
+| Kraken spot, taker | 40bp | — | ~81bp |
+| Coinbase Advanced, taker | 60bp | — | ~121bp |
+
+**The perp is the cheapest instrument in crypto and it is not close.** Spot on
+the same venue costs 56% more in fees, and its best native book is **214×
+wider** than the BTC perp's 0.123bp. `UBTC/USDC` has **$0 of 24h volume** —
+there is no BTC spot market on Hyperliquid at all. Venue-wide: $8.9B perp
+against $426M spot.
+
+**The lever was never leverage.** Already measured here: drag ÷ gross was
+6.74 / 6.68 / 6.60 / 6.26 at 1× / 3× / 10× / 40×. Costs scale with size traded.
+Dropping leverage risks less money at the same ratio. **The lever is
+taker → maker** — 3× at the base tier, then zero, then negative.
+
+### DeFi: the cheapest venue measured is itself a DEX
+
+Hyperliquid is an on-chain order book on its own L1. The interesting axis is
+not centralised vs decentralised, it is **order book vs AMM** — and the two
+cost curves cross.
+
+Round trip through a Solana aggregator (SOL→USDC→SOL), five repeated quotes,
+everything included:
+
+| notional | median round trip | range | vs HL perp taker |
+|---|---|---|---|
+| $1,130 | **0.10bp** | −0.34 … 0.39 | 99× cheaper |
+| $11,300 | **0.66bp** | 0.58 … 0.81 | 15× cheaper |
+| $113,000 | **1.78bp** | 1.38 … 2.25 | 5.6× cheaper |
+| $565,000 | 6.60bp | 6.42 … 7.55 | 1.5× cheaper |
+| $2,260,000 | 36.3bp | 36.3 … 38.3 | 3.7× **dearer** |
+
+**Below ~$150k, on-chain spot beats the perp outright** — and beats the maker
+perp too. AMMs win small, order books win large. **Gas is dead as a cost**:
+$0.0006 on Solana, $0.0024 on Base, $0.0004 on Optimism, and Ethereum L1 at
+0.0885 gwei is **3.5 cents**, or 0.003bp on $100k.
+
+Three caveats that outrank the table: a quote is not a fill (one early attempt
+came back at **2100bp** through a bad route before the numbers settled — a real
+risk you manage with slippage limits, not one you average away); it is spot, so
+no leverage and **no shorting**; and it is one pair, one chain, one moment.
+
+### The cost this book was not charging at all
+
+`book.mjs` charged fees on every size change and **nothing on the position held
+between them**. A perp long pays funding: measured on Hyperliquid over 21 days,
+BTC funding averaged **0.1201bp/hour = 2.88bp/day = 10.5%/yr**, positive —
+longs paying — in **96.2% of hours**. Every long leg on this page was flattered
+and every short penalised, for the lab's whole life.
+
+| held | 1× | 3× | 10× | 40× |
+|---|---|---|---|---|
+| 190s (the fixture) | 0.01bp | 0.02bp | 0.06bp | 0.25bp |
+| 1 hour | 0.12bp | 0.36bp | 1.20bp | 4.80bp |
+| 1 day | 2.88bp | 8.64bp | 28.76bp | **114.6bp** |
+| 1 week | 20.1bp | 60.3bp | 199.6bp | **774.8bp** |
+
+**On the 190-second fixture it is 0.01–0.25bp, so nothing already measured here
+is overturned.** But note what it taxes: the conclusion drawn from the
+break-even table was *"the only lever that moves that column is how long you
+hold"* — and funding is the one cost that grows with exactly that. Holding was
+only free because the book forgot to bill it.
+
+**Who pays it.** A strategy flipping long and short roughly equally is
+near-neutral — it pays on the longs and is paid on the shorts. It is a tax on
+**long-biased holding** and a subsidy to short-biased holding. Which is the one
+place the "just buy the underlying" instinct is dead right: **a long-only
+buy-and-hold as a perp bleeds 10.5%/yr that spot does not pay.** That is the
+real case for the underlying, and it is nothing to do with fees.
+
+Implementation notes:
+
+- Funding is charged in `applyTo`, on the position **held**, not in
+  `changeCost` — it is a carry on exposure, so a leg that never trades still
+  pays it. That is why leaving it out flattered `hold` and `do nothing` too.
+- It hits `equity` and not `gross`, because `gross` is "the same trades with
+  every cost waived"; letting funding into it would stop `equity − gross` being
+  the measured drag.
+- Elapsed time comes from **tape stamps**, not the wall clock — the same fix
+  the candles needed — and is clamped to one hour per tick so a feed gap cannot
+  bill a day of carry in one step.
+- The page's `execution` control carries the real published ladder. Selecting a
+  maker mode also clears `payHalfSpread`, because a maker does not cross the
+  book. **This flatters**: a resting order is not a fill, you are crossed when
+  the other side knows something, and no adverse selection is modelled. Treat
+  the maker rows as a ceiling on what cheaper execution could buy.
+
 ## Three tapes, and the gate's best day (2026-09-19)
 
 The operator asked whether a multi-asset portfolio plus a regime oracle was
