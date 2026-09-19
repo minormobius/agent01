@@ -627,6 +627,12 @@
               "action": "new",
               "note": "the same decision model against a live one-second BTC perpetual: metrics computed on the page, a paper book that charges taker fee plus half the spread, and a verdict read off a t-statistic against a random control rather than off the prettiest line",
               "domain": "agents"
+            },
+            {
+              "u": "mega.mino.mobi/jev/composer",
+              "action": "new",
+              "note": "the same model composing a procedural creature across five generators, one legal edit at a time: every legal move is redrawn and measured as a thumbnail before it chooses, and the traits are counted off the render rather than derived from the genes, so one brief means the same thing to a hound, an eel and a brittle-star",
+              "domain": "agents"
             }
           ]
         },

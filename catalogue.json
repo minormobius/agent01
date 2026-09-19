@@ -2923,6 +2923,23 @@
       ]
     },
     {
+     "n": "jev composer",
+     "u": "https://mega.mino.mobi/jev/composer/",
+     "c": "tools",
+     "k": 2,
+     "a": "hot",
+     "t": "2026-09-19",
+     "b": "2026-09-19",
+     "surface": "mega",
+     "d": "A decision model composing a procedural creature, one legal edit at a time, across five generators \u2014 quadruped, polypod, undulator, isopod, echinoderm. It draws nothing: the page enumerates every legal single-gene edit, redraws and measures each one, and Jev picks. Every option is shown as a thumbnail with the gap it would produce, and the one it chose carries a tick \u2014 so the whole loop is visible rather than asserted. The traits are measured off the render, not derived from the genes: filled cells, bounding box, density, where the mass sits, left-right symmetry, how far the ink sprawls. That is why one brief means the same thing to a hound, a spider, an eel and a brittle-star, and why shuffle is the fastest way to see it. An edit that would leave the generator's own bounds is never offered, so the answer cannot be an illegal creature \u2014 the quality ceiling of the loop is the enumerator, not the model. Greedy and random replay the identical enumerated sets beside it, because beating random is the only thing that makes a chain evidence rather than a demo.",
+     "tags": [
+      "typesafe",
+      "decision-model",
+      "procgen",
+      "sprites"
+     ]
+    },
+    {
      "n": "jev lab",
      "u": "https://mega.mino.mobi/jev/lab/",
      "c": "tools",

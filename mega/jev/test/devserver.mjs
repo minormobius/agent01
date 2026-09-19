@@ -19,6 +19,8 @@ import { dirname, join, normalize } from 'node:path';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..');
+// The surface root: in production mega serves all of `mega/`, not just `mega/jev/`.
+const megaRoot = join(root, '..');
 const stubLive = process.argv.includes('--stub-live');
 const round2 = (v) => Math.round(Math.max(0, Math.min(1, v)) * 100) / 100;
 const port = Number(process.argv.find((a) => a.startsWith('--port='))?.split('=')[1] || 8787);
@@ -108,6 +110,46 @@ function cannedAnswers(body) {
     answers.level_up = { type: 'choice', choice: p, probabilities: dist(qs.level_up, p), confidence: 0.6 };
   }
 
+  // ANY QUESTION THE DELVE STUB DOES NOT KNOW still gets a shaped answer.
+  //
+  // The stub was written for the dungeon's five questions, so every later
+  // sub-site — the lab, and now the composer — got an empty `answers` object
+  // and a loop that correctly reported "no choice" and stopped. That is the
+  // right behaviour from the caller and a useless dev server.
+  //
+  // It answers from the criteria ALONE and is deliberately dumb: for a choice
+  // it takes the option whose description reads best against the question's
+  // own words, which is nothing like judgement. It exists to prove the page
+  // renders a real response shape, never to stand in for the model — the live
+  // banner still says `typesafe` only because that is what the worker stamps,
+  // and every page here repeats which source produced its numbers.
+  for (const [id, q] of Object.entries(qs)) {
+    if (answers[id] !== undefined) continue;
+    if (q?.type === 'choice') {
+      const keys = Object.keys(q.criteria || {});
+      if (!keys.length) continue;
+      // Prefer the option whose description contains the smallest stated
+      // number, which on a "smallest gap" question is usually sane and on
+      // anything else is arbitrary — as a stand-in should be.
+      const num = (k) => {
+        const m = String(q.criteria[k]).match(/to (\d+\.\d+)/);
+        return m ? Number(m[1]) : Number.POSITIVE_INFINITY;
+      };
+      const ranked = [...keys].sort((a, b) => num(a) - num(b));
+      const choice = Number.isFinite(num(ranked[0])) ? ranked[0] : keys[tick % keys.length];
+      const probs = {};
+      for (const k of keys) probs[k] = Number((k === choice ? 0.62 : 0.38 / Math.max(1, keys.length - 1)).toFixed(3));
+      answers[id] = { choice, probabilities: probs, confidence: 0.62 };
+    } else if (q?.type === 'noul') {
+      answers[id] = { noul: Number(wob(7).toFixed(2)) };
+    } else if (q?.type === 'score') {
+      const n = (q.criteria || ['a', 'b']).length;
+      const at = Math.min(n - 1, Math.round(wob(5) * (n - 1)));
+      const probs = {};
+      for (let i = 0; i < n; i++) probs[String(i)] = i === at ? 0.8 : Number((0.2 / Math.max(1, n - 1)).toFixed(3));
+      answers[id] = { score: at, legend: q.criteria?.[at] ?? String(at), probabilities: probs, confidence: 0.6 };
+    }
+  }
   return { model: 'jev-latest', answers, usage: { input_tokens: 486, output_tokens: 52 } };
 }
 
@@ -140,11 +182,20 @@ createServer(async (req, res) => {
     return send(200, TYPES['.json'], JSON.stringify(out));
   }
 
-  // strip the /jev mount prefix before hitting the filesystem
-  let p = normalize(url.pathname.replace(/^\/jev/, '')).replace(/^(\.\.[/\\])+/, '');
+  // Paths OUTSIDE /jev/ are served from the mega surface root, because in
+  // production they are: mega's `assets.directory` is ".", so /jev/composer/
+  // importing ../../sprite/quad/quad.js resolves. Serving only mega/jev/ here
+  // made the composer impossible to test locally while working live — a
+  // sub-site that cannot be run in the dev server is a sub-site nobody checks
+  // before deploying.
+  const inJev = url.pathname === '/jev' || url.pathname.startsWith('/jev/');
+  const base = inJev ? root : megaRoot;
+  let p = normalize(inJev ? url.pathname.replace(/^\/jev/, '') : url.pathname)
+    .replace(/^(\.\.[/\\])+/, '');
   if (p === '/' || p === '' || p === '\\') p = '/index.html';
-  const file = join(root, p);
-  if (!file.startsWith(root)) return send(403, 'text/plain', 'forbidden');
+  const file = join(base, p);
+  // Still confined: the jev tree for /jev/*, the mega tree for everything else.
+  if (!file.startsWith(base)) return send(403, 'text/plain', 'forbidden');
   try {
     const ext = file.slice(file.lastIndexOf('.'));
     send(200, TYPES[ext] || 'application/octet-stream', await readFile(file));

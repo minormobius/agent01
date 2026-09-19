@@ -20,6 +20,8 @@ import { collect, emptyStore, REGISTERED_AT } from '../lab/collect-core.mjs';
 import { assetFigures, crossSection, crossDoc, buildProbes, groundTruth, readAnswer, isDeterminate }
   from '../lab/cross.mjs';
 import { routeMessage, UNIVERSE } from '../lab/multifeed.mjs';
+import { GENERATORS, TRAITS, measure, traitsOf, legalMoves as genMoves, BRIEFS as GEN_BRIEFS,
+  briefDistance as genDistance, moveCriteria as genCriteria, composeDoc as genDoc } from '../lab/gen.mjs';
 import { traits, TRAIT_KEYS, BRIEFS, briefDistance, legalMoves, moveCriteria, composeDoc,
   runChain, chainStats, greedyPick, randomPick, MOVABLE, BOUNDS, STEP, DEFAULT_GENES, FAMILIES }
   from '../lab/compose.mjs';
@@ -1543,6 +1545,117 @@ const SPEC = fix2('preregister.json');
     'with the sign convention spelled out, pointing the way the question points');
   ok(!/EDITS ALREADY MADE/.test(composeDoc(g, legalMoves(g), BRIEFS.grazer, { step: 0, total: 10 })),
     'and no history block on the first edit, rather than an empty one');
+}
+
+// ------------------------------------- the composer's measured trait space ----
+{
+  // THE TRAITS ARE COUNTED FROM THE CELLS, so they can be checked against
+  // shapes whose answers are known by hand. This is the part that could
+  // silently lie — a trait that is subtly wrong would still produce a tidy
+  // chain, and the model would be judging my arithmetic back to me.
+  const rect = (w, h) => { const c = []; for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) c.push({ x, y }); return c; };
+  const sq = measure(rect(10, 10));
+  near(sq.aspect, 1, 1e-9, 'a square reads aspect 1');
+  near(sq.coverage, 1, 1e-9, 'a solid block is fully covered');
+  near(sq.symmetry, 1, 1e-9, 'and perfectly symmetric about its own centre line');
+  near(sq.centroidY, 0.5, 1e-9, 'with its mass in the middle');
+  ok(sq.ink === 100, 'ink counts the cells');
+
+  const wide = measure(rect(20, 5));
+  near(wide.aspect, 4, 1e-9, 'a 20x5 block reads aspect 4');
+  const tall = measure(rect(5, 20));
+  near(tall.aspect, 0.25, 1e-9, 'and its transpose reads 0.25');
+
+  // Top-heavy: mass in the upper half of its own bounding box.
+  const topHeavy = [...rect(10, 3), { x: 4, y: 12 }];
+  ok(measure(topHeavy).centroidY < 0.2, 'mass gathered at the top reads a low centroidY');
+  const botHeavy = [{ x: 4, y: 0 }, ...rect(10, 3).map((c) => ({ x: c.x, y: c.y + 10 }))];
+  ok(measure(botHeavy).centroidY > 0.8, 'and gathered at the bottom, a high one');
+
+  // Sparse vs solid, at the SAME bounding box — coverage must separate them.
+  const sparse = rect(10, 10).filter((c) => (c.x + c.y) % 3 === 0);
+  ok(measure(sparse).coverage < 0.4 && measure(sparse).ink < sq.ink,
+    'a lattice in the same box is less covered, and lighter');
+  near(measure(sparse).aspect, 1, 0.2, 'while its aspect is unchanged — the traits are independent');
+
+  // Asymmetry must actually register.
+  const lop = [...rect(10, 10), ...rect(4, 4).map((c) => ({ x: c.x + 12, y: c.y }))];
+  ok(measure(lop).symmetry < 0.95, 'a lump on one side costs symmetry');
+  ok(measure([]) === null, 'no cells is null rather than a shape with no ink');
+  ok(measure(null) === null, 'and so is nothing at all');
+}
+{
+  // Every generator must draw, measure, and offer moves. A family that throws
+  // or draws nothing would show as an empty panel on the page and as a silent
+  // skip here, so it is asserted per family rather than in aggregate.
+  for (const [id, g] of Object.entries(GENERATORS)) {
+    const t = traitsOf(id, { ...g.defaults });
+    ok(t !== null, `${id} renders cells at its defaults`);
+    for (const k of TRAITS) ok(Number.isFinite(t[k]), `${id} measures ${k}`);
+    ok(t.ink > 50, `${id} draws a real creature, not a speck (${t?.ink} cells)`);
+    ok(t.coverage > 0 && t.coverage <= 1, `${id} coverage is a fraction`);
+    ok(t.symmetry >= 0 && t.symmetry <= 1, `${id} symmetry is a fraction`);
+
+    const moves = genMoves(id, { ...g.defaults });
+    ok(moves.length >= 8, `${id} offers a real option set (${moves.length})`);
+    for (const mv of moves) {
+      const [lo, hi] = g.bounds[mv.gene];
+      ok(mv.to >= lo - 1e-9 && mv.to <= hi + 1e-9,
+        `${id}/${mv.id} stays inside the generator's own bounds — the safety property`);
+      ok(Math.abs(mv.to - mv.from) > 1e-9, `${id}/${mv.id} actually changes something`);
+      if (g.int?.includes(mv.gene)) {
+        ok(Number.isInteger(mv.to), `${id}/${mv.id} keeps ${mv.gene} a whole number`);
+      }
+      ok(traitsOf(id, mv.genes) !== null, `${id}/${mv.id} still renders — no move produces a blank`);
+    }
+    // A gene pinned at its bound offers no move in that direction.
+    const k = g.movable[0], [lo] = g.bounds[k];
+    ok(!genMoves(id, { ...g.defaults, [k]: lo }).some((mv) => mv.id === `${k}_down`),
+      `${id}: a gene at its floor offers no downward move`);
+  }
+}
+{
+  // The trait space must actually SEPARATE the families, or a shared brief is
+  // meaningless and the overlay is decoration.
+  const t = Object.fromEntries(Object.keys(GENERATORS).map((id) =>
+    [id, traitsOf(id, { ...GENERATORS[id].defaults })]));
+  ok(t.axial.aspect > t.isopod.aspect, 'an undulator is wider-than-tall against an isopod');
+  ok(t.isopod.symmetry > t.quad.symmetry, 'a top-down isopod is more symmetric than a quadruped in profile');
+  ok(t.radial.coverage < t.isopod.coverage, 'a brittle-star is sparser than an armoured pillbug');
+  const aspects = Object.values(t).map((x) => x.aspect);
+  ok(Math.max(...aspects) - Math.min(...aspects) > 1.5, 'and the families spread across the aspect axis');
+}
+{
+  // The briefs are written ONCE in the measured space, so the same one has to
+  // be reachable-ish from every family rather than being secretly per-family.
+  for (const [bid, brief] of Object.entries(GEN_BRIEFS)) {
+    ok(typeof brief.label === 'string' && brief.label.length > 8, `${bid} has a readable label`);
+    for (const id of Object.keys(GENERATORS)) {
+      const d = genDistance(traitsOf(id, { ...GENERATORS[id].defaults }), brief);
+      ok(Number.isFinite(d) && d > 0, `${bid} is a finite, non-zero distance from ${id}'s default`);
+    }
+  }
+  ok(genDistance(null, GEN_BRIEFS.compact) === Infinity, 'an unrenderable genome is infinitely far, not zero');
+}
+{
+  // The criteria must pre-combine the gap — the lesson that cost 0.717 regret.
+  const id = 'quad';
+  const genes = { ...GENERATORS[id].defaults };
+  const cur = traitsOf(id, genes);
+  const moves = genMoves(id, genes).map((m) => ({ ...m, traits: traitsOf(id, m.genes) }));
+  const c = genCriteria(moves, cur, GEN_BRIEFS.compact);
+  ok(Object.keys(c).length === moves.length, 'every legal move gets criteria and no others do');
+  for (const k of Object.keys(c)) {
+    ok(/Overall gap to the brief would go from [\d.]+ to [\d.]+/.test(c[k]),
+      `${k} states the resulting gap already combined, in the direction the question is read`);
+    ok(/Measured from the redrawn sprite/.test(c[k]),
+      `${k} says the figures come from the render, not from the genes`);
+  }
+  const doc = genDoc(id, cur, GEN_BRIEFS.compact, { step: 2, total: 8, history: [{ id: 'leg_up', before: 1, after: 0.9 }] });
+  ok(/MEASURED from the sprite as actually drawn/.test(doc), 'the document says where its numbers come from');
+  ok(/edit 3 of 8/.test(doc) && /EDITS ALREADY MADE/.test(doc), 'and where in the chain it is, and what it has done');
+  ok(!/EDITS ALREADY MADE/.test(genDoc(id, cur, GEN_BRIEFS.compact, { step: 0, total: 8 })),
+    'with no history block on the first edit rather than an empty one');
 }
 
 if (failures.length) {

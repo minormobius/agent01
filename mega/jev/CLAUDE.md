@@ -1161,6 +1161,88 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+## The composer: `/jev/composer/` (2026-09-19)
+
+The interface to the composition loop, and deliberately **not** "the sprite
+composer". The machinery is about the SHAPE of a problem — enumerate the legal
+moves, compute what each does, pick, repeat — and nothing in it is about
+quadrupeds. Five procedural families in `mega/sprite/` share one interface
+(`build*Genome` → genome, `*Frame` → `{x,y,c}` cells), so the composer rides
+all of them from one page and a brief written once transfers between them.
+
+### The trait space is measured off the render, not derived from the params
+
+This is the whole reason it was worth building rather than reskinning. The CAD
+chain used a real kernel's invariants; the first sprite chain used ratios
+**I wrote myself**, which is the weak form — my formula, my brief, and the
+model handing my arithmetic back to me. Here every trait is counted from the
+cells the generator actually emits:
+
+| trait | counted as |
+|---|---|
+| `ink` | filled cells |
+| `aspect` | bounding-box width ÷ height |
+| `coverage` | ink ÷ bbox area — how solid |
+| `centroidY` | 0 at the top of its own box, 1 at the bottom |
+| `symmetry` | left-right mirror match about the ink's own centre line |
+| `spread` | mean distance from the centroid, over the bbox diagonal |
+
+A hound, a spider, an eel and a brittle-star are all just filled cells, so the
+same six numbers describe all of them. Measured at their defaults, and they
+separate exactly as they should:
+
+| family | ink | aspect | coverage | symmetry | spread |
+|---|---|---|---|---|---|
+| quad | 578 | 1.48 | 0.41 | 0.61 | 0.219 |
+| poly | 480 | 1.48 | 0.34 | 0.79 | 0.176 |
+| axial | 641 | **2.85** | 0.56 | 0.70 | 0.217 |
+| isopod | 1245 | **0.81** | 0.52 | **0.90** | 0.202 |
+| radial | 366 | **1.00** | 0.28 | 0.58 | 0.204 |
+
+The eel is long, the isopod is taller than wide and the most symmetric, the
+brittle-star is radially symmetric to 1.00 and the sparsest, and the quadruped
+is the least symmetric because it is drawn in profile. None of that was put
+there by hand.
+
+### What the page shows, and why the option strip is the point
+
+Every legal move is **redrawn and measured as a thumbnail before Jev sees it**,
+with the gap it would produce printed under it, the best-available one in bold,
+and a ✓ on the one taken. The loop is visible rather than asserted: you can see
+that the model is choosing among options the harness built, and that an edit
+which would leave the generator's own bounds is never offered — so the answer
+**cannot** be an illegal creature. Greedy and random replay the identical
+enumerated sets beside it, and cost nothing, which is why there is no excuse
+for omitting them.
+
+**Shuffle** is the stumble move: a random generator and a random brief. It is
+the fastest way to see that one brief means the same thing to five different
+bodies.
+
+### Two things it must keep doing
+
+- **No silent fallback.** If the call fails the page says so and stops the
+  chain. A composer that quietly became greedy would be the worst possible
+  demo — it would look like the model working.
+- **The controls are free and always drawn.** Beating random is the only thing
+  that makes a chain evidence rather than a demo, and both controls replay the
+  same enumerated sets with no model call at all.
+
+### The dev server could not run it, which was a real gap
+
+`gen.mjs` imports `../../sprite/quad/quad.js`. In production that resolves
+because mega's `assets.directory` is `"."` — the whole surface. The dev server
+served only `mega/jev/`, so the module failed to load and the page came up
+empty. **A sub-site that cannot be run in the dev server is a sub-site nobody
+checks before deploying**, so the server now serves the mega root for anything
+outside `/jev/`, still confined to one tree or the other.
+
+And `--stub-live` only knew the dungeon's five questions, so every later
+sub-site got an empty `answers` object and a loop that correctly reported "no
+choice" and stopped. It now answers ANY typed question from the criteria alone
+— deliberately dumb, and visibly worse than the real model on the page's own
+scoreboard, which is the right way for a stand-in to behave.
+
 ## CAD, unblocked — and we were the blocker (2026-09-19)
 
 **Correction first.** This file claimed a cad demo was impossible because
