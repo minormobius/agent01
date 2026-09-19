@@ -20,6 +20,9 @@ import { collect, emptyStore, REGISTERED_AT } from '../lab/collect-core.mjs';
 import { assetFigures, crossSection, crossDoc, buildProbes, groundTruth, readAnswer, isDeterminate }
   from '../lab/cross.mjs';
 import { routeMessage, UNIVERSE } from '../lab/multifeed.mjs';
+import { traits, TRAIT_KEYS, BRIEFS, briefDistance, legalMoves, moveCriteria, composeDoc,
+  runChain, chainStats, greedyPick, randomPick, MOVABLE, BOUNDS, STEP, DEFAULT_GENES, FAMILIES }
+  from '../lab/compose.mjs';
 import { carryStats, rankCarry, carryDoc, buildCarryProbes, carryTruth, positionRisk,
   toAnnualPct, FUNDING_FLOOR_PCT } from '../lab/carry.mjs';
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
@@ -1436,6 +1439,110 @@ const SPEC = fix2('preregister.json');
     'no probe asks whether to take the trade — the harness owns that, the model classifies');
   const withSelf = buildCarryProbes(r, { selfCheck: true });
   ok(Object.keys(withSelf).length === 2 * Object.keys(p).length, 'every probe carries its own self-check');
+}
+
+// ------------------------------------------------------- the composition loop ----
+{
+  // THE SAFETY PROPERTY. Every enumerated move is a clamped, buildable genome,
+  // so no round of the loop can produce an invalid creature WHATEVER the model
+  // answers — including if it answers nonsense. That is the claim the CAD
+  // section only gestured at, and it lives entirely in the enumerator.
+  const g = { ...DEFAULT_GENES };
+  const moves = legalMoves(g);
+  ok(moves.length === 2 * MOVABLE.length, 'both directions are offered for every movable gene');
+  for (const mv of moves) {
+    for (const k of MOVABLE) {
+      const v = mv.genes[k];
+      const lo = k === 'stance' ? BOUNDS.stanceLo : BOUNDS.lo;
+      const hi = k === 'stance' ? BOUNDS.stanceHi : BOUNDS.hi;
+      ok(v >= lo - 1e-9 && v <= hi + 1e-9, `${mv.id} leaves ${k} inside the generator's own bounds`);
+    }
+    ok(Object.keys(mv.genes).length === Object.keys(g).length, `${mv.id} adds no gene the generator does not know`);
+  }
+  // A move that would change nothing is not offered: a choice carrying an
+  // option that does nothing is a forced move dressed up as a decision.
+  const atTop = { ...DEFAULT_GENES, leg: BOUNDS.hi };
+  ok(!legalMoves(atTop).some((mv) => mv.id === 'leg_up'), 'a gene at its bound offers no move in that direction');
+  ok(legalMoves(atTop).some((mv) => mv.id === 'leg_down'), 'but still offers the other way');
+
+  // Traits are computed from the genome, never asked for.
+  const t = traits(g);
+  for (const k of TRAIT_KEYS) ok(Number.isFinite(t[k]), `${k} is a number`);
+  ok(traits({ ...g, leg: 1.8 }).legToBody > t.legToBody, 'longer legs read as leggier');
+  ok(traits({ ...g, depth: 1.8 }).bulk > t.bulk, 'a thicker trunk reads as bulkier');
+
+  // A brief is a TARGET in trait space, so "did it get there" is a distance and
+  // not a matter of taste — which is the only reason sprites can carry a
+  // rigorous experiment at all.
+  for (const [k, b] of Object.entries(BRIEFS)) {
+    ok(typeof b.label === 'string' && b.label.length > 4, `${k} has a readable label`);
+    for (const tk of TRAIT_KEYS) ok(Number.isFinite(b.target[tk]), `${k} targets ${tk}`);
+  }
+  ok(briefDistance(g, BRIEFS.sprinter) > 0, 'a default genome is some distance from a brief');
+}
+{
+  // THE CRITERIA FIX, pinned. The thin form hands over several trait deltas per
+  // option and leaves the model to combine them — multi-step arithmetic, which
+  // scored 62.5% on this surface until the caller did it. The default hands
+  // over the single resulting gap, already combined.
+  const g = { ...DEFAULT_GENES };
+  const moves = legalMoves(g);
+  const thin = moveCriteria(moves, g, BRIEFS.sprinter, { computed: false });
+  const rich = moveCriteria(moves, g, BRIEFS.sprinter);
+  for (const id of Object.keys(rich)) {
+    ok(!/Overall gap/.test(thin[id]), `${id}: the thin control does NOT pre-combine the traits`);
+    ok(/Overall gap to the brief would go from [\d.]+ to [\d.]+/.test(rich[id]),
+      `${id}: the shipped form states the resulting gap, in the direction the question is read`);
+  }
+  ok(Object.keys(rich).length === moves.length, 'every legal move gets criteria and no others do');
+}
+{
+  // The chain. Greedy is the myopic ceiling, random the floor — on the SAME
+  // start, because a chain can reach a good place by luck.
+  const run = async (pick) => runChain({ genes: { ...DEFAULT_GENES, ...FAMILIES.hound },
+    brief: BRIEFS.sprinter, steps: 12, pick });
+  const grd = await run(greedyPick);
+  const rnd = await run(randomPick(11));
+  const gs = chainStats(grd), rs = chainStats(rnd);
+  ok(grd.end < grd.start, 'greedy closes the gap');
+  near(gs.meanRegret, 0, 1e-9, 'and by construction has zero regret — it IS the myopic optimum');
+  ok(gs.tookWorst === 0, 'greedy never takes the worst move on offer');
+  ok(rs.meanRegret > gs.meanRegret, 'random regrets more than greedy');
+  ok(rnd.end > grd.end, 'and ends further from the brief');
+  ok(gs.steps === 12 && rs.steps === 12, 'both ran the full chain');
+
+  // The trace is the unit of analysis, not the final artifact: only per-step
+  // regret separates "picked well" from "started somewhere lucky".
+  for (const st of grd.trace.filter((x) => x.step >= 0)) {
+    ok(Number.isFinite(st.bestAvailable) && Number.isFinite(st.worstAvailable),
+      'each step records the best and worst move that was ON OFFER at the time');
+    ok(st.bestAvailable <= st.worstAvailable, 'and they are the right way round');
+    near(st.distance, st.bestAvailable, 1e-9, 'greedy always lands on the best available');
+  }
+  // A picker that refuses must not corrupt the chain.
+  const refused = await run(() => null);
+  ok(refused.end === refused.start, 'a picker that chooses nothing leaves the genome untouched');
+  ok(chainStats(refused) === null, 'and reports no stats rather than inventing them');
+
+  // Determinism: the same seed gives the same chain, so a run is repeatable.
+  const a = await run(randomPick(5)), b = await run(randomPick(5));
+  ok(JSON.stringify(a.trace.map((x) => x.id)) === JSON.stringify(b.trace.map((x) => x.id)),
+    'a seeded control replays exactly');
+}
+{
+  // The document states the gap in the direction the question is read, and
+  // carries the chain's own history — the dungeon needed exactly this, for
+  // exactly the same reason.
+  const g = { ...DEFAULT_GENES };
+  const doc = composeDoc(g, legalMoves(g), BRIEFS.grazer, { step: 3, total: 10,
+    history: [{ id: 'neck_up', before: 0.5, after: 0.4 }] });
+  ok(/THE BRIEF: a long-necked grazer/.test(doc), 'the brief is stated');
+  ok(/edit 4 of 10/.test(doc), 'and where in the chain it is');
+  ok(/EDITS ALREADY MADE/.test(doc) && /neck_up/.test(doc), 'and what it has already done');
+  ok(/positive gap means the trait needs to go UP/.test(doc),
+    'with the sign convention spelled out, pointing the way the question points');
+  ok(!/EDITS ALREADY MADE/.test(composeDoc(g, legalMoves(g), BRIEFS.grazer, { step: 0, total: 10 })),
+    'and no history block on the first edit, rather than an empty one');
 }
 
 if (failures.length) {

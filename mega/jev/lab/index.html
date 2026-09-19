@@ -159,6 +159,93 @@
   </div>
 
   <div class="card" style="margin-bottom:16px">
+    <h2>Composition: the hypothesis nobody had tested</h2>
+    <p class="cap" style="margin:0 0 10px">Breadth was proven long ago. A <b>chain</b> had never been run once.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Every measurement on this page has been <b>independent</b> questions against one frozen state &mdash; 1024 at
+      once, 549ms, all correct. But a sequence where each decision changes the state the next question is asked
+      against is a different animal, and it is what procgen and CAD both actually need.
+      <b>The harness enumerates the legal edits, computes what each would do, and Jev picks.</b> The enumerator
+      only emits clamped, buildable genomes, so <b>no round of the loop can produce an invalid creature</b>
+      whatever the model answers &mdash; the safety property, doing real work at last.
+    </p>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:0 0 12px">
+      <figure style="margin:0;text-align:center">
+        <img src="../../sprite/api/quad.svg?seed=7&amp;family=hound&amp;body=1.00&depth=0.82&leg=1.15&neck=0.95&head=0.90&snout=1.15&tail=1.10&stance=0.30&amp;scale=5" alt="the starting quadruped, a hound preset" width="150" height="120" style="background:var(--paper);border:1px solid var(--line);border-radius:8px">
+        <figcaption class="cap" style="margin-top:4px">start &mdash; gap 0.384</figcaption>
+      </figure>
+      <div style="font-size:1.4rem;color:var(--ink-3)">&rarr;</div>
+      <figure style="margin:0;text-align:center">
+        <img src="../../sprite/api/quad.svg?seed=7&amp;family=hound&amp;body=0.55&depth=1.12&leg=1.15&neck=0.95&head=0.90&snout=1.15&tail=1.10&stance=0.30&amp;scale=5" alt="the quadruped after ten edits, lighter-built" width="150" height="120" style="background:var(--paper);border:1px solid var(--line);border-radius:8px">
+        <figcaption class="cap" style="margin-top:4px">after 10 edits &mdash; gap 0.132</figcaption>
+      </figure>
+      <p class="cap" style="margin:0;max-width:300px">brief: <b>a fast, lightly-built runner</b>.<br>
+        <span style="font-family:var(--mono);font-size:.72rem">depth_up → body_down → body_down → stride_up → depth_up → stride_up → ear_down → ear_down → ear_down → body_down</span></p>
+    </div>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>arm</th><th>mean gap start</th><th>mean gap end</th><th>edits that improved</th><th>mean regret</th><th>took the worst move</th>
+      </tr></thead><tbody>
+        <tr><td><b>Jev</b></td><td>0.510</td><td><b>0.161</b></td><td><b>97.5%</b></td><td><b>0.020</b></td><td><b>0.00</b></td></tr>
+        <tr><td>greedy <em>(myopic ceiling)</em></td><td>0.510</td><td>0.155</td><td>97.5%</td><td>0.000</td><td>0.00</td></tr>
+        <tr><td>random <em>(same legal set)</em></td><td>0.510</td><td style="color:var(--bad)">0.580</td><td style="color:var(--bad)">36.3%</td><td style="color:var(--bad)">1.120</td><td style="color:var(--bad)">0.75</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>It composes.</b> Beat the random control on <b>8 of 8</b> chains, landed within 5% of the greedy ceiling
+      on <b>7 of 8</b>, and never once took the worst move on offer. Regret 0.020 against greedy's 0.000 &mdash;
+      it is doing what an optimal myopic rule does, by judgement rather than by search.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>But the first version was mediocre, and the fix is this page's oldest lesson.</b> It scored regret
+      <b>0.717</b>, beat random only 6/8, and one chain <em>diverged to 3&times; worse than its start</em>.
+      Two things were wrong and both are in the archive above: the question asked which edit
+      <em>&ldquo;best moves toward&rdquo;</em> the brief &mdash; which is about a <b>path</b>, i.e. a forecast &mdash;
+      and the criteria handed over <b>six trait deltas per option</b> for the model to combine, which is the
+      multi-step arithmetic that scored 62.5% until the caller did it. Asking <em>&ldquo;which leaves the
+      smallest gap&rdquo;</em> with that gap pre-computed moved regret <b>0.717 &rarr; 0.020</b> and the gate from
+      <b>0/80</b> to <b>21/80, every one of which improved</b>. Same model, same enumerator, same chains.
+    </p>
+    <h2 style="margin-top:18px">And the self-check broke, for the first time</h2>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      <code>p(have)</code> sat at <b>0.10&ndash;0.12 on all 80 edits</b> and never once cleared 0.5 &mdash; while the
+      chain ran at the greedy ceiling with 97.5% of edits improving. On four prior datasets the self-check was
+      the reliable signal; here it says <em>unanswerable</em> about the one question it exists to gate, and is
+      <b>wrong</b>.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Isolating it &mdash; same document, same call, two determinate questions:</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>question</th><th>correct</th><th>p(have)</th>
+      </tr></thead><tbody>
+        <tr><td>which trait has the biggest gap right now</td><td>83%</td><td><b style="color:var(--ok)">0.962</b></td></tr>
+        <tr><td>which edit leaves the smallest gap</td><td><b>100%</b></td><td><b style="color:var(--bad)">0.112</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>So it is not the composition context.</b> The same document answers 0.962 for a lookup. It is specifically
+      the <em>edit</em> question &mdash; and the best reading, offered as a hypothesis rather than a finding, is
+      that the self-check separates <b>facts about now</b> from <b>facts about a hypothetical</b>, and a
+      counterfactual stays a hypothetical <em>even when you have computed it and printed it in the option</em>.
+      It is a good detector of &ldquo;is this a description or a projection&rdquo;, and an <b>action's outcome
+      reads as a projection.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Which inverts the routing rule, and that is the finding.</b> On frozen state the self-check is reliable
+      (62&ndash;76 point margins) and confidence leaks. <b>In a chain it is the other way round</b>: confidence
+      was informative &mdash; 21/80 above 0.9 and <b>100% of those improved</b> &mdash; while the self-check would
+      have escalated every single edit, which is condition 3 of &ldquo;when this pattern is worth building&rdquo;
+      failing in a new way. <b>You cannot reuse the frozen-state routing rule in a sequential loop.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      Caveats: 8 chains, 10 edits, one generator family, four briefs, and the briefs were written by the same
+      person reading the results. Greedy is a <em>myopic</em> ceiling, so matching it is not evidence of
+      planning &mdash; a chain that needs a temporarily-worse step to reach a better place is exactly what this
+      design cannot yet test.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
     <h2>Carry: the first signal here that is observed, not forecast</h2>
     <p class="cap" style="margin:0 0 10px">And the only one where the gate came back <b>100% correct</b>.</p>
     <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">

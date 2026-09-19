@@ -1161,6 +1161,145 @@ best of thirty and sits on the corrected bar. The only clean next step is to
 **pre-register the horizon and test forward on data that does not exist yet**;
 everything else is re-reading the same 208 days.
 
+## Composition: the hypothesis nobody had tested (2026-09-19)
+
+Every measurement on this surface had been **independent** questions against
+one frozen state — 1024 at once, 549ms, all correct. Breadth was proven. A
+**chain**, where each decision changes the state the next question is asked
+against, had never been run once. That is what procgen and CAD both need, and
+it is what the "CAD diffusion" framing was reaching for.
+
+`compose.mjs` builds a quadruped from `mega/sprite/` by repeated single-gene
+edits toward a **brief** — a target in trait space, so "did it get there" is a
+distance and not a matter of taste. The harness enumerates the legal edits,
+computes what each would do, and Jev picks. **The enumerator only emits
+clamped, buildable genomes, so no round can produce an invalid creature
+whatever the model answers.** That is the safety property doing real work for
+the first time.
+
+### Sprites, not CAD, and deliberately
+
+`mega/sprite/` is **in this surface, on this branch**, seed-deterministic, has
+a mounted API, and is **visual** — you can look at twenty outputs and tell
+whether composition produced coherent creatures or mush. CAD is on an
+unreachable branch with no public API. **If composition failed here it would
+have failed there, for a tenth of the cost.** It did not fail.
+
+| arm | mean gap start | mean gap end | edits that improved | mean regret | took the worst move |
+|---|---|---|---|---|---|
+| **Jev** | 0.510 | **0.161** | **97.5%** | **0.020** | **0.00** |
+| greedy *(myopic ceiling)* | 0.510 | 0.155 | 97.5% | 0.000 | 0.00 |
+| random *(same legal set)* | 0.510 | 0.580 | 36.3% | 1.120 | 0.75 |
+
+**It composes.** Beat random on **8/8** chains, within 5% of the greedy ceiling
+on **7/8**, never once took the worst move on offer.
+
+### The first version was mediocre, and the fix is this file's oldest lesson
+
+It scored regret **0.717**, beat random only 6/8, and one chain **diverged to
+3× worse than its start**. Two things were wrong, both already documented here:
+
+- the question asked which edit **"best moves toward"** the brief — which is
+  about a **path**, i.e. a forecast, and this file records five times that a
+  question about a future is declined;
+- the criteria handed over **six trait deltas per option** for the model to
+  combine — the multi-step arithmetic that scored 62.5% until the caller did it.
+
+Asking *"which leaves the smallest gap"* with that gap **pre-computed** moved
+regret **0.717 → 0.020** and the gate from **0/80** to **21/80, every one of
+which improved**. Same model, same enumerator, same chains, same starting
+points. **Composition amplifies the criteria problem rather than introducing a
+new one.**
+
+### And the self-check broke, for the first time on this surface
+
+`p(have)` sat at **0.10–0.12 on all 80 edits** and never cleared 0.5 — while
+the chain ran at the greedy ceiling. I first assumed the self-check had drifted
+from its question (cross.mjs interpolates the real instructions and has a test
+asserting exactly that; this runner had hardcoded the old predictive phrasing).
+Fixing that changed nothing: still 0.10–0.12.
+
+Isolated — same document, same call, two determinate questions:
+
+| question | correct | p(have) |
+|---|---|---|
+| which trait has the biggest gap right now | 83% | **0.962** |
+| which edit leaves the smallest gap | **100%** | **0.112** |
+
+**So it is not the composition context.** The same document answers 0.962 for a
+lookup. It is specifically the *edit* question, which it then answers perfectly.
+
+The best reading, **offered as a hypothesis and not a finding**: the self-check
+separates *facts about now* from *facts about a hypothetical*, and a
+counterfactual remains a hypothetical **even when you have computed it and
+printed it in the option**. It is a good detector of "description or
+projection", and an action's outcome reads as a projection.
+
+### Which inverts the routing rule — the actual finding
+
+| | frozen state | in a chain |
+|---|---|---|
+| self-check | **reliable** (62–76 point margins) | **stuck at "no"** — would escalate 100% of edits |
+| confidence | leaks (40 predictive answers kept at 30%) | **informative** — 21/80 above 0.9, **100% of those improved** |
+
+**You cannot reuse the frozen-state routing rule in a sequential loop.** A
+triage layer that forwards everything is condition 3 of "when this pattern is
+worth building" failing in a new way, and it fails *only* in the sequential
+case.
+
+Caveats: 8 chains, 10 edits, one generator family, four briefs written by the
+same person reading the results. And greedy is a **myopic** ceiling, so matching
+it is not evidence of planning — a chain needing a temporarily-worse step to
+reach a better place is exactly what this design cannot yet test.
+
+```bash
+node mega/jev/eval/compose-gate.mjs --chains 8 --steps 10 --out mega/jev/lab/compose-gate.json
+node mega/jev/eval/compose-gate.mjs --thin    # the control: predictive question, uncombined deltas
+```
+
+## The concept pile — what is built, what is measured, what is next
+
+| idea | state |
+|---|---|
+| **Wide** — many small decisions, one shared state | ✅ 1024 questions, 549ms, 1024/1024 |
+| **Escalation / cascade** — the fast tier detects its own incompetence | ✅ replicated 3× (62 / 76 / 65-point margins), perfect routing each time |
+| **Markets** | ❌ as a predictor (refuses, correctly) / ✅ as a determinate classifier (93/93 at the gate) |
+| **Composition** — a chain where each decision changes the state | ✅ at the myopic ceiling, and it broke the self-check |
+| **CAD** | ⬜ blocked on branch + API. Sprites were its dress rehearsal and it passed |
+| **Procgen beyond one family** | ⬜ radial / poly / axial / isopod all exist and none is tested |
+| **Non-myopic composition** | ⬜ the real open question: a brief reachable only via a temporarily-worse step |
+| **Game balance** (`packages/pressure-lab/`) | ⬜ policy spreads and tightness bands are computed = determinate. Untested |
+| **The repo as corpus** | ⬜ 566 endpoints needing categorisation; pure wide-hypothesis, real utility |
+| **Jev swarm** | ⬜ see below |
+
+### Jev swarm — the multi-agent idea, and what would actually be new
+
+Many Jev instances deciding against **different slices** of one world, with
+the harness composing their answers. What makes it more than a gimmick is that
+three measured properties collide in an interesting way:
+
+- **Questions are isolated** (a neighbour shouting instructions moved an answer
+  by 0.000) — so parallel agents genuinely cannot contaminate each other, which
+  no text-model swarm can claim.
+- **Determinism** — identical state gives an identical answer, so a swarm is
+  reproducible and disagreement between two instances means their *states*
+  differed, never that the sampler wandered.
+- **Breadth is free** — a hundred agents' worth of questions costs about what
+  one does, *if they share a state*. They do not, which is the interesting part:
+  a swarm is the case where the wide hypothesis's cheapness stops applying,
+  because each agent pays for its own state.
+
+So the question a swarm actually answers is **not** "is a committee smarter". It
+is: *when does splitting the state beat sharing it?* Disagreement between
+instances is then a measurable signal about which slice was missing something —
+the self-check per agent, across a partition. That is a genuinely new
+experiment and the first one on this surface where the cost model bites.
+
+Warning worth writing down before anyone builds it: with determinism, running
+the same instance twice is **exactly** free of information. A swarm only means
+anything if the instances see *different states*. Anything else is one answer
+counted N times, which is the overlapping-windows error wearing a new hat.
+
 ## Carry: the first signal here that is observed, not forecast (2026-09-19)
 
 Everything else on this surface tried to predict direction and failed honestly.
