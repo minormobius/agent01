@@ -142,12 +142,21 @@ async function readText() {
       $('brief').value = '__typed';
       preview();
       $('mode').textContent = 'brief read from your words — press compose';
+    } else if ($('brief').value === '__typed') {
+      // A second read that constrains nothing must not leave the previous
+      // sentence's brief selected under a caption saying nothing was
+      // constrained. Fall back to a real brief rather than composing against
+      // an empty target, which has no gap to close and would wander.
+      $('brief').value = Object.keys(BRIEFS)[0];
+      preview();
+      $('mode').textContent = 'nothing was constrained — back to a written brief';
     }
   } catch (e) {
     // Same rule as the chain: say the call failed. A steering box that quietly
     // fell back to keyword matching would be claiming a result it did not get.
-    $('derived').innerHTML = `<p class="note">the call failed — ${String(e.message).slice(0, 120)}. ` +
-      `Nothing was derived; the brief is unchanged.</p>`;
+    // The message is inserted as text, never as markup — it comes off the wire.
+    $('derived').textContent =
+      `the call failed — ${String(e.message).slice(0, 120)}. Nothing was derived; the brief is unchanged.`;
   } finally { $('read').disabled = false; }
 }
 
