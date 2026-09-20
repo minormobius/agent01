@@ -120,6 +120,8 @@
         <tr><td>r₁+r₂ varies by</td><td id="pct">—</td></tr>
         <tr><td>fit residual</td><td id="rms">—</td></tr>
         <tr><td>curve points</td><td id="nPoints">—</td></tr>
+        <tr><td>curve traced</td><td id="arc">—</td></tr>
+        <tr><td>apex drift</td><td id="drift">—</td></tr>
       </table>
       <p class="hint"><strong>The fitter is told nothing.</strong> It gets the
       points scraped out of the sand and no hint of where the pour point or the
@@ -210,15 +212,75 @@ the directrix made out of something you can cut with a knife.</p>
 <p>Which is a pleasing way round: the case you cannot reach by moving holes is
 the one you reach by changing what a hole is.</p>
 
-<h2>The spokes in the sand are real</h2>
-<p>The pile has faint radial seams running out to its corners, and they are not
-a rendering artefact — they are the simulation being honest about its grid. Each
-cell topples against eight neighbours, four of them √2 further away than the
-others, and no amount of care makes that perfectly round: the pile here is
-circular to about six per cent, which there is a test for. The facets matter
-beyond looking odd, too. They are very shallow folds, and the first version of
-the curve-finder looked for folds in the height field and dutifully reported a
-streak of them down the middle of an untroubled funnel.</p>
+<h2>The octagon, and getting rid of it</h2>
+<p>An early version of this page had a pile with a distinctly octagonal
+cross-section and faint spokes running out to its corners. That is worth
+keeping in the write-up, because the cause is more interesting than the fix.</p>
+<p>A toppling rule that compares each cell only with its eight nearest
+neighbours is not measuring Euclidean distance. It is measuring the
+<em>chamfer</em> distance built from steps of 1 and √2 — and the unit ball of
+that metric is an octagon, with its corners on the axes and the diagonals. The
+pile was a perfect cone the whole time. It was a cone in the wrong metric,
+7.3% wider at 0° and 45° than at 22.5°.</p>
+<p>The weights cannot save you: √2 is already the ratio that minimises the
+distortion, and scaling both of them changes the pile's size without touching
+its shape. The only lever is more directions, and there is a formula for what
+each one buys. Reaching a direction the stencil does not have means combining
+two that it does, and the combination is longer than the straight line by
+exactly <code>sec(half the gap between them) − 1</code>. So the error is set by
+the <em>widest</em> angular gap, and each rung has to split whichever gap is
+currently widest — not fill a box.</p>
+<p>Measured against that formula, on the metric itself rather than on sand:</p>
+<table class="fam">
+  <tr><th>directions</th><th>what they add</th><th>formula</th><th>measured</th></tr>
+  <tr><td>8</td><td>axes and diagonals</td><td>8.24%</td><td>8.11%</td></tr>
+  <tr><td>16</td><td>+ knight's moves, √5</td><td>2.75%</td><td>2.74%</td></tr>
+  <tr><td>24</td><td>+ (3,1), √10</td><td>1.31%</td><td>1.30%</td></tr>
+  <tr><td>40</td><td>+ (3,2) and (5,1)</td><td>0.49%</td><td>0.48%</td></tr>
+</table>
+<p>The page ships the forty-direction rule. Note what is <em>not</em> on that
+list: (4,3) would cost eight more comparisons and improve nothing, because it
+subdivides a gap that was already the smaller one — which is also why a plain
+7×7 or 11×11 block is the wrong way to spend the budget.</p>
+<p>None of that is a change to the physics. The model is <code>|∇z| ≤ k</code>
+— sand stands no steeper than repose in <em>any</em> direction — and checking
+only eight of them was simply a coarse way to enforce it.</p>
+
+<h2>Two errors underneath the octagon</h2>
+<p>The settled pile does not get as round as the metric does, and chasing that
+gap turned up two more error terms that had been hiding under the first.</p>
+<p>The first is the <strong>pour itself</strong>. "No pair stands steeper than
+repose" is satisfied by a whole family of surfaces, not one, and which member
+you land on is decided by how the sand arrived. It is not under-settling —
+driving the worst remaining overshoot from 10⁻² down to 10⁻⁶ does not move the
+outline by a thousandth of a percent — it is a record of the cascade. Deliver
+the same mass in four times as many helpings, so the toe creeps forward instead
+of avalanching, and it goes away: on the forty-direction rule the pile drops
+from 1.83% out of round to 0.73%, and pouring gentler still changes nothing
+further.</p>
+<p>The second is the <strong>grid</strong>, and it identifies itself the way a
+discretisation error should — by shrinking when you refine. The same gentle
+pour gives 1.26% out of round at an apex of 16 cells, 0.73% at 18, 0.63% at 21.
+(Compare the fitter's eccentricity bias, found earlier in this project, which
+came back the same at every resolution. That is how you tell a discretisation
+error from a mistake.)</p>
+<p>So the account of a round pile is three terms, and the visible spokes were
+only ever the first of them: the metric, the pour, and the grid — 8.2% down to
+about 0.5% down to about 0.6%, in that order of attack. What the eye actually
+judges is none of these, incidentally, but the <em>direction</em> of the
+surface normal, since that is what shading reads: it wanders 9.8° from radial
+on the eight-direction rule and 2.7° on the forty-direction one.</p>
+<p>The cost would have been prohibitive, though, and dodging it is the part
+worth stealing. In the original rule a cell sheds <code>c × overshoot</code> to
+<em>every</em> neighbour it stands over, so the most it can lose in a pass grows
+with the stencil, and keeping that under one forces <code>c</code> down as the
+stencil grows — which triples the passes just as each pass gets three times
+dearer. Sharing one overshoot's worth <em>among</em> those neighbours instead
+removes the dependence entirely. The settled surface is identical, because
+settled means no pair stands too steep and that condition never mentions
+<code>c</code>; only the route changes. It converges in about sixty passes
+where the original took two thousand, so the forty-direction pile costs about
+what the octagonal eight-direction one used to.</p>
 
 <h2>Two limits you cannot reach</h2>
 <p>The parabola is one of them. The circle is the other, and it fails for a
@@ -231,9 +293,10 @@ ends are where the construction stops constructing.</p>
 
 <h2>How it computes</h2>
 <p>The sand here is <strong>simulated, not drawn</strong>. Every cell of the
-plate topples against its eight neighbours whenever it stands steeper than
-repose, and every transfer is paired so no grain is invented or lost. That rule
-is not new and is not ours: this repository already runs it behind
+plate topples against each of forty neighbouring directions whenever it stands
+steeper than repose, and every transfer is paired so no grain is invented or
+lost. The eight-direction version of that rule is not new and is not ours: this
+repository already runs it behind
 <a href="https://g.mino.mobi/soil/">g.mino.mobi/soil</a>, and the engine here is
 that same rule ported to Rust, with a test pinning the two against each other.
 What is new is the part this construction needs and a soil table has no notion
@@ -248,11 +311,62 @@ becomes something to go and <em>measure</em>.</p>
 slope is aimed at <em>and</em> where the surface folds — both, because each
 covers the other's blind spot. Slope direction alone is fooled along the line
 joining the pour point to the hole, where the cone and the funnel fall the same
-way; folds alone are fooled by the faint facets a square grid leaves along a
-cone's diagonals. The points that survive both are handed to a general conic fit
+way; folds alone are fooled by the faint facets a square grid leaves on a cone.
+(The facets turn out not to be what limits the fold threshold — a facet sits
+inside one basin, and a seam is a boundary <em>between</em> two, so the
+label test throws them out for free. What the threshold is really keeping out
+is the near-tie stripe along the line joining the two features.)
+The points that survive both are handed to a general conic fit
 that is told nothing else — not where the pour point is, not where the hole is,
 not which of the six cases it is looking at. When it reports back an ellipse
-whose 2c⁄2a is 0.73 against his 0.737, that is a result rather than an echo.</p>
+whose 2c⁄2a is 0.78 against his 0.737 — measured on his geometry, over 304° of
+the curve — that is a result rather than an echo. (It read 0.75 while the
+tracer was returning only part of the curve. The whole curve is the honest
+measurement and it is the further of the two from his number, for the reason in
+the section above: taken about the spout it carries the pile's drift.)</p>
+
+<h2>The focus is the pile's peak, not the spout</h2>
+<p>His claim is that the crease's foci are the pour point and the hole, and it
+is very nearly true. What is left over is a real effect and it is more
+interesting than a tolerance.</p>
+<p>Traced all the way round, <code>r₁ + r₂</code> measured about the pour point
+is not flat: it runs about 12% high on one side of the curve and 13% low on the
+other, in one clean cycle. A single cycle like that is a <em>translation</em> —
+the curve is offset bodily from the ellipse the hypothesis predicts. And the
+direction it is offset in is exactly the bearing of the pile's peak from the
+pour point.</p>
+<p>Which is what you would expect once you look. The hole eats the sand on its
+own side, so the pile does not build symmetrically about where it is poured:
+its peak sits three or four cells away, on the side <em>away</em> from the
+drain. The cone whose surface meets the funnel is the cone about that peak, not
+about the spout. Take the peak as the focus instead and the same curve's
+scatter halves, from 8.3% to 4.1%.</p>
+<p>On a tray the size of his, three cells is nothing and the drift is
+invisible. On a 145-cell plate it is the largest single error in the reading,
+which is why the readout shows it.</p>
+
+<h2>How much curve the fit is standing on</h2>
+<p>A conic has five free parameters, and a short arc does not pin them down. On
+<em>exact</em> points, laid on a known ellipse and quantised to the half cell
+this tracer works to, 45° of arc recovers the eccentricity to no better than
+±0.24; 90° to about ±0.1; and it is not until roughly 135° that it is reliably
+inside 0.06. More points do not help at all — the failure is that many conics
+pass through a short arc within half a cell, not that the arc is
+under-sampled.</p>
+<p class="warn">This page printed a wrong number for a while because of it. The
+seam tracer insists on a fold of at least some fraction of <code>k</code>
+before it will believe a crease, and that threshold was set far too high: it
+was returning ten points spanning 35° of the ellipse, and the fit taken off
+that quadrant reported an eccentricity of 0.587 where the focal distances said
+0.760. Lowering the threshold from 0.25 <code>k</code> to 0.09 <code>k</code>
+returns the whole closed curve — 79 points over 345° — and fit and measurement
+then agree to 0.02. So the readout now reports <em>how much of a closed curve
+was traced</em>, and dims the fit when there is not enough of it to mean
+anything.</p>
+<p>The trade runs the other way too, and it is worth being plain about: the
+long curve made <code>r₁ + r₂</code> look <em>worse</em>, from about 3% to
+about 8%. That is not a curve gone vaguer. It is the quadrant having sat on the
+far side from the drift described above, and so never sampling it.</p>
 
 <h2>What it gets wrong</h2>
 <p class="warn"><strong>Both rows of the table involving two holes are
@@ -282,7 +396,7 @@ and never visits the tail, and the parabola escapes it because a slot has no
 tail to visit. Fixing the rest needs a tracer that follows the curve outward
 from a known crossing instead of scanning the whole plate, which is more than
 this page needed.</p>
-<p>Two smaller things. The plate is 145 cells across, so the curve is tens of
+<p>Two smaller things. The plate is 113 to 145 cells across, so the curve is tens of
 cells long and half a cell of quantisation is a real part of the error — his
 0.16% came off a rendered line in a 1024-pixel video and nothing here will
 match it. And the blind fit's <em>eccentricity</em> wanders more than its

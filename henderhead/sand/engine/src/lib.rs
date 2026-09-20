@@ -72,7 +72,7 @@ pub extern "C" fn init(n: usize, repose_deg: f64) {
             seam_a: 0,
             seam_b: 1,
             relax_passes: 4,
-            relax_c: 0.12,
+            relax_c: field::SHARED_C,
             brush_r: 2.5,
             hole_r: 2.0,
         });
@@ -206,8 +206,14 @@ pub extern "C" fn measure() -> usize {
     let w = w();
     let flat = w.f.k * 0.25;
     w.labels = seam::label(&w.f, &w.feats, flat);
-    w.labels = seam::label(&w.f, &w.feats, flat);
-    let pts = seam::trace_between(&w.f, &w.labels, &w.feats, w.seam_a, w.seam_b, w.hole_r + 3.0);
+    // `hole_r + 1`, not `hole_r + 3`. Only the pinned cells themselves and the
+    // lip right against them are artefacts of the pinning, and every cell
+    // excluded past that is real curve thrown away — at `+3` the page traced
+    // 151 degrees of an ellipse where the same field at `+1` gives 345, which
+    // is the difference between a fit that means something and one that does
+    // not. The Rust suite has always used `+1`; this was where the page and
+    // its own tests disagreed.
+    let pts = seam::trace_between(&w.f, &w.labels, &w.feats, w.seam_a, w.seam_b, w.hole_r + 1.0);
     w.seam_pts.clear();
     for (x, y) in &pts {
         w.seam_pts.push(*x);
@@ -308,10 +314,15 @@ pub extern "C" fn conic_type(tol: f64) -> i32 {
     }
 }
 
+/// The fitted eccentricity, with `tol` the same parabola tolerance the page
+/// classifies at. Passing it matters: on the parabolic locus the invariant
+/// formula is a difference of nearly equal numbers, so a curve the classifier
+/// calls a parabola can carry an eccentricity of 45. See
+/// `Conic::eccentricity_at`.
 #[no_mangle]
-pub extern "C" fn conic_eccentricity() -> f64 {
+pub extern "C" fn conic_eccentricity(tol: f64) -> f64 {
     match w().last {
-        Some(c) => c.eccentricity(),
+        Some(c) => c.eccentricity_at(tol),
         None => f64::NAN,
     }
 }
@@ -473,7 +484,7 @@ pub extern "C" fn feature_xy(i: usize, j: usize) -> f64 {
 pub extern "C" fn set_relax(passes: usize, c: f64) {
     let w = w();
     w.relax_passes = passes.clamp(1, 64);
-    w.relax_c = c.clamp(0.001, 0.2);
+    w.relax_c = c.clamp(0.001, 0.95);
 }
 
 #[no_mangle]

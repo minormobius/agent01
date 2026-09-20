@@ -116,6 +116,26 @@ impl Conic {
         (num / den).max(0.0).sqrt()
     }
 
+    /// Eccentricity, but reported as 1 exactly when the curve classifies as a
+    /// parabola at `tol`.
+    ///
+    /// Not a cosmetic clamp. The invariant formula's denominator is
+    /// `+/-(A + C) + sqrt((A - C)^2 + B^2)`, and on the parabolic locus those
+    /// two terms are equal — so right where the answer is *known* to be 1, the
+    /// formula is a difference of nearly equal numbers and returns whatever
+    /// the rounding left behind. One traced parabola here came back at 45.1.
+    ///
+    /// A parabola's eccentricity is 1 by definition, so once the classifier
+    /// has said parabola there is nothing left to compute and nothing is being
+    /// hidden: the page shows the classification next to it.
+    pub fn eccentricity_at(&self, tol: f64) -> f64 {
+        if self.classify(tol) == ConicType::Parabola {
+            1.0
+        } else {
+            self.eccentricity()
+        }
+    }
+
     fn det3(&self) -> f64 {
         let (a, b, c, d, e, f) = (self.a, self.b, self.c, self.d, self.e, self.f);
         // |  a   b/2  d/2 |

@@ -353,15 +353,88 @@ node henderhead/sand/sand.selftest.mjs
   sweep, same overshoot, same paired transfer.
   `the_rust_and_the_repo_js_relax_identically` pins it. If you change the rule,
   change it there too or drop the claim.
+- **An eight-neighbour toppling rule measures the wrong distance.** It
+  enforces repose in eight directions, which is the chamfer metric built from
+  steps of 1 and √2 — and that metric's unit ball is an octagon. The pile comes
+  out a perfect cone 7% wider at 0° and 45° than at 22.5°. Tuning the weights
+  cannot fix it (√2 already minimises the spread; scaling both changes size,
+  not shape); only more directions can, and there is a formula for how many:
+  the metric's anisotropy is `sec(half the widest angular gap between its
+  directions) − 1`, measured to within 0.15 percentage points at every rung by
+  `the_stencils_metric_is_exactly_what_the_formula_says`. So each rung has to
+  split whichever gap is *widest*, not fill a box — `(4,3)` would cost eight
+  more comparisons and buy nothing, as `(3,2)` would have one rung earlier.
+  8 → 16 → 24 → 40 directions gives 8.24 → 2.75 → 1.31 → 0.49%.
+  `Stencil::Fine40` is what ships. `Stencil::Near8` is kept only so the
+  soil.js port test has something to pin against.
+- **Two more error terms hide under the octagon, and they are why a wider
+  stencil stops paying.** Neither is the measurement (an analytic cone through
+  the same sweep reads 0.00%) and neither is under-settling (driving the worst
+  overshoot from 1e-2 to 1e-6 does not move the outline at all).
+  (1) **The pour.** "No pair steeper than repose" admits a *family* of
+  surfaces and the cascade picks one: the same mass in four times as many
+  helpings takes Fine40 from 1.83% to 0.73% out of round, and gentler than
+  that changes nothing. (2) **The grid**, which announces itself properly by
+  shrinking with refinement — 1.26% at apex 16, 0.73% at 18, 0.63% at 21.
+- **What the eye judges is the normal's direction, not the outline.** Lambert
+  shading reads direction, so a pile round to 2% still shows radial spokes.
+  That wobble is 9.8° rms at eight directions and 2.7° at forty. Smoothing the
+  normals is not a fix — it is not noise but broad facets, so three Jacobi
+  passes take 4.3° to 2.8° while costing a quarter of the seam's fold.
+- **A test that compares the axis with the diagonal cannot detect any of
+  that.** Those are the two bearings where the chamfer metric is exact. The old
+  roundness test did exactly this and passed while the pile was visibly
+  octagonal; the one that replaced it sweeps every bearing and asserts the
+  eight-neighbour case *fails*, so it cannot quietly stop measuring.
+- **Use `relax_step_shared`, not `relax_step`, and never mix their
+  coefficients.** The strict rule sheds `c × overshoot` to every neighbour at
+  once, so `c` has to shrink as the stencil grows and the passes needed grow
+  with it — four times the work for twice the directions. The shared one
+  divides one overshoot's worth among them, so `c` stays at 0.8 whatever the
+  stencil and a settle takes about sixty passes instead of two thousand. Same
+  fixed point, and there is a test. Handing the shared `c` to the strict rule
+  on a wide stencil diverges to NaN in a few passes, which is exactly what it
+  did the first time they were wired together.
+- **Do not settle to `1e-2` on a flooded plate.** The drains are pinned cells
+  and the worst slope overshoot never stops twitching there; one case was still
+  running after five thousand passes with 0.00% of the sand too steep and the
+  mass changing in the fourth decimal. 0.04 is 6% of tan(repose) and below
+  anything the curve can see.
 - **`cargo test` is optimised on purpose** (`[profile.test] opt-level = 3`). A
   settle is thousands of O(n²) passes; unoptimised the suite takes minutes.
 - **Finding the seam needs labels AND folds, and each covers the other's blind
   spot.** Slope direction alone is blind along the line joining the pour point
   to the hole, where cone and funnel fall the same way — one run gave 44
   spurious points out of 83, every one at `r₁+r₂` exactly the focal separation.
-  Folds alone are fooled by the facets a square grid leaves along a cone's
-  diagonals. Three other fixes were tried and are written up in `seam.rs`;
-  read that before "simplifying" this.
+  Folds alone are fooled by the facets a square grid leaves on a cone. Three
+  other fixes were tried and are written up in `seam.rs`; read that before
+  "simplifying" this.
+- **A fitted conic off a short arc is meaningless, and the page printed one for
+  a while.** Five free parameters; on *exact* points quantised to the tracer's
+  half cell, 45° of arc recovers the eccentricity to ±0.24 and 90° to ±0.1, and
+  more points do not help — see `a_short_arc_does_not_determine_a_conic`. Two
+  settings were throwing the curve away. `Stencil::fold_floor` was 0.25 k, and
+  the sweep (floor → coverage on his geometry) is 0.06→345°, 0.09→345°,
+  0.12→345°, 0.15→237°, 0.18→83°, 0.25→35°: a cliff between 0.15 and 0.18, so
+  Fine40 uses 0.09. And `measure()` excluded `hole_r + 3` around the drain
+  where the Rust suite always excluded `hole_r + 1` — that alone was 151°
+  against 345° on the identical field. **The page and its own tests were
+  measuring different things**; if you change one exclusion radius, change
+  both. The page now reports the coverage and dims the fit below 135°.
+  The stencil's facets are *not* what the floor is keeping out: a facet lies
+  inside one basin and a seam is a boundary between two, so the label test
+  rejects them for free. It is the near-tie stripe along the feature-to-feature
+  line.
+- **The focus is the pile's peak, not the pour point.** The hole drains the
+  sand on its own side, so the pile builds up 3–4 cells away from the spout, on
+  the side away from the drain — and traced right round, `r₁+r₂` about the
+  spout is not flat but runs +12%/−13% in one clean cycle, whose direction is
+  exactly that of the peak. Measured about the peak instead, the same curve's
+  scatter roughly halves on every geometry tested. This is why the focal
+  constancy thresholds are ~12% and not the ~7% they were: **the old number was
+  not better physics, it was a shorter curve** — a quadrant on the far side
+  from the drift never samples it. Both readings are on the page and in the
+  tests; assert the pair, never just the loose one.
 - **Nothing between two holes can be measured** — not the hyperbola, not the
   straight line. Both put their features on a line with a long tail of plate
   beyond, and out there both features lie in the same direction. A

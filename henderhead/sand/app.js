@@ -41,7 +41,7 @@ const PRESETS = {
       E.clearFeatures();
       E.addFeature(KIND.POINT_SINK, 72, 95);
       E.addFeature(KIND.LINE_SINK, 72, 44, { nx: 0, ny: 1 });
-      return { mode: 'flood', depth: 38, sum: false, pair: [0, 1] };
+      return { mode: 'flood', depth: 24, sum: false, pair: [0, 1] };
     },
     note: 'A hole and a straight slot. This is the only way to reach e = 1 exactly — see the note below the table.',
   },
@@ -209,7 +209,7 @@ function report() {
   if (found < 8) {
     $('conicType').textContent = 'no curve yet';
     $('conicType').className = 'v dim';
-    ['ecc', 'pct', 'rms', 'predicted', 'agree'].forEach((k) => {
+    ['ecc', 'pct', 'rms', 'predicted', 'agree', 'arc', 'drift'].forEach((k) => {
       $(k).textContent = '—';
     });
     return;
@@ -220,17 +220,75 @@ function report() {
   // wildly (1.003 settled, 53.2 a few seconds earlier on the same table). Say
   // so rather than printing it straight.
   const moving = E.oversteep() > 0.02;
+
+  // How much of a closed curve was traced. A conic has five free parameters
+  // and a 90 degree arc does not determine them: on exact points at the
+  // tracer's own half-cell precision, a quadrant recovers the eccentricity to
+  // only about 0.1 and a 45 degree arc not at all, while more points change
+  // nothing. So a short arc is reported as a short arc, and the fit taken off
+  // it is dimmed rather than printed as if it meant something.
+  const [a0, b0] = state.pair;
+  const [f0x, f0y] = E.featureXY(a0);
+  const [f1x, f1y] = E.featureXY(b0);
+  // Only a curve that closes has a coverage to report. A parabola is open by
+  // construction — a slot is a focus at infinity — so the bearing sweep about
+  // the midpoint of the two features is meaningless there and must not be
+  // allowed to dim a reading it does not apply to.
+  const closed = E.featureKind(a0) <= 1 && E.featureKind(b0) <= 1;
+  const arc = closed ? E.arcCovered((f0x + f1x) / 2, (f0y + f1y) / 2) : NaN;
+  const short = closed && arc < 135;
+  $('arc').textContent = closed
+    ? fmt(arc, 0) + '° of a closed curve' + (short ? ' — too little to fit' : '')
+    : 'n/a (a parabola does not close)';
+
   const t = E.conicType(0.08);
-  $('conicType').textContent = (t ?? '—') + (moving ? ' (still settling)' : '');
-  $('conicType').className = moving ? 'v dim' : 'v hot';
+  $('conicType').textContent = (t ?? '—') + (moving ? ' (still settling)' : short ? ' (arc too short)' : '');
+  $('conicType').className = moving || short ? 'v dim' : 'v hot';
   $('readings').className = moving ? 'read moving' : 'read';
   $('predicted').textContent = E.predictedType() ?? '—';
   $('ecc').textContent = fmt(E.eccentricity(), 3);
   $('rms').textContent = fmt(E.rms(), 2) + ' cells';
 
+  // Where the pile's peak actually is. The hole drains the sand on its own
+  // side, so the pile builds off-centre, away from it — and the cone whose
+  // surface meets the funnel is the cone about the *peak*, not about the spout.
+  // At this plate size that drift is three or four cells and it is the largest
+  // error in the reading below.
+  const [apx, apy] = E.apexXY();
+  let src = -1;
+  for (let i = 0; i < E.featureCount(); i++) {
+    if (E.featureKind(i) === KIND.POINT_SOURCE) { src = i; break; }
+  }
+  if (Number.isFinite(apx) && src >= 0) {
+    const [sx, sy] = E.featureXY(src);
+    $('drift').textContent = fmt(Math.hypot(apx - sx, apy - sy), 1) + ' cells from the pour';
+  } else {
+    $('drift').textContent = 'n/a (nothing is being poured)';
+  }
+
   const [a, b] = state.pair;
   const pct = E.focalConstancy(a, b, state.sum);
-  $('pct').textContent = Number.isFinite(pct) ? fmt(pct, 2) + '%' : '—';
+  // Both readings, because the difference between them is the finding. The
+  // first takes his hypothesis literally — the spout and the hole are the foci
+  // — and the second swaps the spout for where the pile actually peaks. On
+  // every geometry here the second is roughly 40% tighter, which is what says
+  // the scatter in the first is an offset rather than a vagueness.
+  let pctText = Number.isFinite(pct) ? fmt(pct, 2) + '%' : '—';
+  if (Number.isFinite(pct) && Number.isFinite(apx) && state.sum && src >= 0) {
+    const other = src === a ? b : a;
+    const [ox, oy] = E.featureXY(other);
+    const pts = E.seam();
+    const v = [];
+    for (let i = 0; i < pts.length; i += 2) {
+      v.push(Math.hypot(pts[i] - apx, pts[i + 1] - apy) + Math.hypot(pts[i] - ox, pts[i + 1] - oy));
+    }
+    if (v.length) {
+      const m = v.reduce((p, q) => p + q, 0) / v.length;
+      const sd = Math.sqrt(v.reduce((p, q) => p + (q - m) * (q - m), 0) / v.length);
+      pctText += ` (${fmt((sd / m) * 100, 2)}% about the peak)`;
+    }
+  }
+  $('pct').textContent = pctText;
 
   // 2c / 2a, measured: the separation of the two features over the constant
   if (E.featureKind(a) <= 1 && E.featureKind(b) <= 1) {
@@ -292,9 +350,12 @@ function tick() {
   } else {
     let n = 0;
     while (performance.now() - t0 < 32 && n < 200) {
-      const v = E.settle(1e-2, 400);
+      // 0.04, not 1e-2: the drains are pinned cells and the worst overshoot
+      // on the plate keeps twitching there long after the sand has stopped
+      // moving. 6% of tan(repose) is below anything the curve can see.
+      const v = E.settle(0.04, 400);
       n++;
-      if (v < 1e-2) {
+      if (v < 0.04) {
         running = false;
         $('run').textContent = '▶ drain';
         break;

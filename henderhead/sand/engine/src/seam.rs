@@ -95,7 +95,7 @@ pub fn label(field: &Field, feats: &[Feature], flat: f64) -> Vec<i32> {
 /// How sharply the sand bends across the step from one cell to its neighbour.
 /// Flat or smoothly curving ground reads near zero; a crest or valley where
 /// two surfaces meet reads about `k`.
-fn fold_across(f: &Field, x: i32, y: i32, nx: i32, ny: i32, dx: i32, dy: i32) -> f64 {
+pub(crate) fn fold_across(f: &Field, x: i32, y: i32, nx: i32, ny: i32, dx: i32, dy: i32) -> f64 {
     let n = f.n as i32;
     let at = |cx: i32, cy: i32| -> Option<f64> {
         let (ax, ay) = (cx - dx, cy - dy);
@@ -131,9 +131,12 @@ fn fold_across(f: &Field, x: i32, y: i32, nx: i32, ny: i32, dx: i32, dy: i32) ->
 /// outvote the true bisector at x = 56.
 ///
 /// *Folds alone* ask the sand where it is bent, which is a fact about the
-/// surface rather than an inference about its cause. But a square grid leaves
-/// a cone faintly faceted along its diagonals, and a facet is a fold too, so
-/// this returns a streak down the middle of an untroubled funnel.
+/// surface rather than an inference about its cause. But a grid leaves a cone
+/// faintly faceted, and a facet is a fold too, so this returns a streak down
+/// the middle of an untroubled funnel. How faint those facets are depends
+/// entirely on the stencil: at eight neighbours they needed a threshold of
+/// 0.30 k to reject, and widening to twenty-four weakened them enough to drop
+/// it to 0.25 k, which keeps a third more of the real curve.
 ///
 /// Together they are clean: the stripe runs across smooth funnel and has no
 /// fold, and the facets lie deep inside one basin and have no boundary. What
@@ -168,7 +171,7 @@ pub fn trace_between(
                 if labels[field.idx(nx as usize, ny as usize)] != b {
                     continue;
                 }
-                if fold_across(field, x, y, nx, ny, dx, dy) < field.k * 0.30 {
+                if fold_across(field, x, y, nx, ny, dx, dy) < field.k * field.fold_floor {
                     continue;
                 }
                 let (mxp, myp) = ((x + nx) as f64 * 0.5, (y + ny) as f64 * 0.5);

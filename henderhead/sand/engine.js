@@ -128,6 +128,51 @@ export async function loadEngine(url = './sandconic.wasm') {
       return u8s(e.shade(zScale, lx, ly, lz), e.grid_n() * e.grid_n());
     },
 
+    /**
+     * How much of a closed curve the traced seam actually covers, in degrees:
+     * the full turn less the widest gap between consecutive points, as
+     * bearings about `(cx, cy)`.
+     *
+     * This is not decoration. A conic has five free parameters and a short arc
+     * does not pin them down: on exact points quantised to the half cell the
+     * tracer works to, 45 degrees of arc recovers the eccentricity to only
+     * +0.24, 90 degrees to -0.03..-0.12, and it is not until about 135 that it
+     * is reliably inside 0.06. More points do not help — the failure is that
+     * many conics pass through a short arc, not that it is under-sampled — so
+     * the page reports this and dims the fit when it is small.
+     */
+    arcCovered(cx, cy) {
+      const p = this.seam();
+      if (p.length < 6) return 0;
+      const b = [];
+      for (let i = 0; i < p.length; i += 2) b.push(Math.atan2(p[i + 1] - cy, p[i] - cx));
+      b.sort((u, v) => u - v);
+      let gap = b[0] + 2 * Math.PI - b[b.length - 1];
+      for (let i = 1; i < b.length; i++) gap = Math.max(gap, b[i] - b[i - 1]);
+      return ((2 * Math.PI - gap) * 180) / Math.PI;
+    },
+
+    /**
+     * Where the pile's peak actually is — the centroid of the cells within 1%
+     * of the maximum. Not the same place as the pour point: the hole eats the
+     * sand on its own side, so the pile builds up off-centre, away from the
+     * drain. That drift is the largest single error in the measurement at this
+     * plate size, and the page shows it rather than hiding it.
+     */
+    apexXY() {
+      const h = this.heights();
+      const n = this.n;
+      const max = e.max_height();
+      if (!(max > 0)) return [NaN, NaN];
+      let sx = 0, sy = 0, sw = 0;
+      for (let y = 0; y < n; y++) {
+        for (let x = 0; x < n; x++) {
+          if (h[y * n + x] > max * 0.99) { sx += x; sy += y; sw++; }
+        }
+      }
+      return sw ? [sx / sw, sy / sw] : [NaN, NaN];
+    },
+
     maxHeight: () => e.max_height(),
     totalMass: () => e.total_mass(),
     poured: () => e.poured(),
@@ -137,7 +182,12 @@ export async function loadEngine(url = './sandconic.wasm') {
 
     // ---- what the fit found, having been told nothing ----
     conicType: (tol = 0.08) => CONIC[e.conic_type(tol)] ?? null,
-    eccentricity: () => e.conic_eccentricity(),
+    /** The fitted eccentricity. `tol` is the same parabola tolerance used to
+     *  classify: on the parabolic locus the coefficient formula is a
+     *  difference of nearly equal numbers, so a curve that classifies as a
+     *  parabola reports 1 — which is its eccentricity by definition — rather
+     *  than the rounding noise the formula leaves behind. */
+    eccentricity: (tol = 0.08) => e.conic_eccentricity(tol),
     rms: () => e.conic_rms(),
     coeffs: () => [0, 1, 2, 3, 4, 5].map((i) => e.conic_coeff(i)),
     focus: (i) => [e.conic_focus(i, 0), e.conic_focus(i, 1)],
