@@ -195,9 +195,14 @@ jobs:
   # It sat at step 13 of the gating job for four runs, after every gate had
   # passed in 69 seconds, holding the publish behind it — so the live document
   # trailed the branch by two hours for no check anyone was waiting on.
+  # NOT A GATE, AND NOW IT CANNOT PRETEND TO BE ONE. `continue-on-error` is
+  # here because this job's failure was poisoning the run's conclusion: runs 10
+  # and 12 both read "cancelled" with every real gate green and the publish
+  # done, purely because the table below ran out of clock.
   clearance:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 45
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -205,13 +210,19 @@ jobs:
           node-version: 22
       - run: git clone --depth 1 https://tangled.org/morphyxmino.bsky.social/cad /tmp/cad
       - run: node morphyx/arm/arm.mjs --out /tmp/arm
-      # --grid 2 (32 states), not 3 (243). At 3 this step has NEVER FINISHED:
-      # it ran 119m56s against a 120-minute timeout on run 10 and was killed,
-      # and was cancelled by the next push on run 9. A report that never
-      # completes is not a report.
-      - name: Clearance table over the joint corners (exact meshes; for the record, not a gate)
+      # ONE POSE, no grid. The history of this step is a lesson in guessing:
+      #   run 9   --grid 3 (243 states)  cancelled by the next push
+      #   run 10  --grid 3               killed at 119m56s by the timeout
+      #   run 12  --grid 2  (32 states)  killed at 120m00s by the timeout
+      # I dropped 243 to 32 and assumed that was eight times faster and
+      # therefore enough. It was not, and I had no measurement behind it — each
+      # state is minutes, not seconds, once the exact meshes are posed. So the
+      # table is what it was always useful as: every pair's nearest approach at
+      # ONE pose, which is a record a reviewer actually reads. The trajectory
+      # sweeps in the gating job are what covers motion.
+      - name: Clearance table at the rest pose (exact meshes; for the record, not a gate)
         working-directory: /tmp/cad
-        run: node agent/check.mjs /tmp/arm/arm.json --grid 2 --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
+        run: node agent/check.mjs /tmp/arm/arm.json --clearance 1 || echo "::warning::clearance table has close or contact pairs — read the table above"
 
   # WHERE DOES THIS ARM HIT ITSELF? The audit used to carry a single guessed
   # number for that, FOLD_LIMIT = -118, bracketed at two points. It is not a
