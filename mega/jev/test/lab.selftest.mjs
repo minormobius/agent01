@@ -31,6 +31,12 @@ import { carryStats, rankCarry, carryDoc, buildCarryProbes, carryTruth, position
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 import { LADDER as STEER_LADDER, RUNGS, steerQuestions, steerDoc, targetFromAnswers, briefFromText }
   from '../lab/steer.mjs';
+import { Field } from '../swarm/field.mjs';
+import { h1, evalRule, sense, ruleTurn, matchedBrush, DEFAULT_CFG } from '../swarm/rule.mjs';
+import { verdict as swVerdict, fitness as swFitness, order } from '../swarm/probe.mjs';
+import { makeSwarm, senseAll, step as swStep, ruleDecider, frozenDecider, randomDecider,
+  TURN_RUNGS, TURN_WORDS, rungOf } from '../swarm/swarm.mjs';
+import { swarmDoc, swarmQuestions, turnFromScore } from '../swarm/ask.mjs';
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -1863,6 +1869,125 @@ const SPEC = fix2('preregister.json');
   const junk = targetFromAnswers({ hue: { choice: 'chartreuse' }, have__hue: { noul: 0.9 } });
   ok(junk.target.hue === undefined,
     'a colour outside the option set cannot enter the brief — though the typed answer makes that unreachable');
+}
+
+// ------------------------------------------------- the swarm, and its port ----
+{
+  // THE DRIFT GUARD. `verdict` and `fitness` are copied verbatim out of
+  // fluoddity, which another branch owns. If that branch changes them, this
+  // must fail loudly rather than quietly measuring something else — the whole
+  // value of reusing their measure is that we cannot bend it.
+  const src = readFileSync(join(here, '..', '..', '..', 'fluoddity', 'descriptors.js'), 'utf8');
+  const mine = readFileSync(join(here, '..', 'swarm', 'probe.mjs'), 'utf8');
+  const grab = (text, name) => {
+    const i = text.indexOf(`export function ${name}(`);
+    if (i < 0) return null;
+    let d = 0, started = false;
+    for (let j = i; j < text.length; j++) {
+      if (text[j] === '{') { d++; started = true; }
+      else if (text[j] === '}') { d--; if (started && d === 0) return text.slice(i, j + 1); }
+    }
+    return null;
+  };
+  for (const fn of ['verdict', 'fitness', 'fitness2', 'vec', 'dist']) {
+    const a = grab(src, fn), b = grab(mine, fn);
+    ok(a && b, `${fn} is findable in both fluoddity's descriptors.js and our copy`);
+    ok(a === b, `${fn} is byte-identical to fluoddity's — if this fails, THEIRS CHANGED and ours must be resynced, not patched`);
+  }
+
+  // The substrate axis, which fluoddity's own engine.js warns about.
+  ok(Math.abs(matchedBrush(0.003, 55000, 55000) - 0.003) < 1e-12, 'matching a count to itself changes nothing');
+  const b256 = matchedBrush(0.003, 55000, 256);
+  ok(Math.abs(256 * b256 * b256 - 55000 * 0.003 * 0.003) < 1e-9,
+    'energy (count x brush^2) is what the match preserves — which is exactly NOT the trail geometry');
+  ok(b256 > 0.003 * 14 && b256 < 0.003 * 15, 'a 256-particle brush is ~14.6x fluoddity\'s, which is why its trails vanish');
+
+  // The port's hash must run on the float BIT PATTERN, as the shader's does.
+  ok(h1(0, 0) >= 0 && h1(0, 0) <= 1, 'h1 returns a unit float');
+  ok(h1(1, 2) !== h1(2, 1), 'and is not symmetric in its arguments, as pcg(x ^ pcg(y)) is not');
+  ok(h1(0.5, 3) === h1(0.5, 3), 'and is deterministic, which the whole comparison rests on');
+  const r1 = evalRule(0.5, 0.02, 0, [1, 2, 3, 4]);
+  ok(r1.length === 4 && r1.every(Number.isFinite), 'evalRule returns four finite numbers');
+  ok(JSON.stringify(evalRule(0.5, 0.02, 0, [1, 2, 3, 4])) === JSON.stringify(r1), 'and is deterministic');
+  ok(JSON.stringify(evalRule(0.6, 0.02, 0, [1, 2, 3, 4])) !== JSON.stringify(r1), 'and a different seed is a different brain');
+
+  // The field is a torus with no edges, like the simulation.
+  const f = new Field(64, { trail_persistence: 1, trail_diffusion: 0, inkScale: 1, brush: 0.02 });
+  f.deposit(0.99, 0, [1, 1, 1]);
+  const rightEdge = f.sample(0.99, 0), wrapped = f.sample(-0.99, 0);
+  ok(rightEdge[0] > 0, 'a deposit is readable where it was made');
+  ok(wrapped[0] > 0, 'and wraps around the seam — the field has no edges');
+  const f2 = new Field(64, { trail_persistence: 0.5, trail_diffusion: 0, inkScale: 1, brush: 0.02 });
+  f2.deposit(0, 0, [1, 1, 1]);
+  const before = f2.sample(0, 0)[0];
+  f2.settle();
+  ok(Math.abs(f2.sample(0, 0)[0] - before * 0.5) < 1e-5, 'persistence decays the field by exactly its factor');
+
+  // Every arm must share everything except the decider. This is the claim the
+  // whole comparison rests on, so it is asserted rather than trusted.
+  const a = makeSwarm({ n: 32, dim: 64 }), b = makeSwarm({ n: 32, dim: 64 });
+  ok(JSON.stringify(a.parts) === JSON.stringify(b.parts), 'two swarms at the same seed start byte-identical');
+  ok(a.field.brush === b.field.brush && a.field.inkScale === b.field.inkScale, 'and on the same substrate');
+  const sa = senseAll(a);
+  ok(sa.length === 32 && sa.every((x) => x.s.sig.length === 4), 'every particle senses four body-frame numbers');
+  ok(sa.every((x) => x.s.sig.every(Number.isFinite)), 'all finite, even on an empty field');
+
+  // THE RULE CANNOT TURN ON A SYMMETRIC SIGNAL, and finding that out is what
+  // this test was originally wrong about. `ruleTurn` evaluates the brain twice
+  // — once on (L,R) and once on the mirrored (R,L) — and subtracts. On an
+  // empty field both sensors read 0, the two evaluations are identical, and
+  // the turn is EXACTLY zero. So the first tick of every arm is the same tick,
+  // and a test of "does the decider do anything" has to warm the field first.
+  const sym = sense({ x: 0, y: 0, vx: 0.01, vy: 0 }, new Field(64, { inkScale: 1 }), DEFAULT_CFG);
+  ok(sym.sig.every((v) => v === 0), 'an empty field gives a perfectly symmetric reading');
+  ok(ruleTurn(sym, DEFAULT_CFG).turn === 0,
+    'and the mirror-symmetrised rule turns EXACTLY zero on it — the brain has no handedness of its own');
+
+  // Axial thrust is the rule's in EVERY arm — only steering is under test.
+  const c1 = makeSwarm({ n: 16, dim: 64 }), c2 = makeSwarm({ n: 16, dim: 64 });
+  for (const c of [c1, c2]) { for (let t = 0; t < 12; t++) { const w = senseAll(c); swStep(c, w, ruleDecider(c, w)); } }
+  const s1 = senseAll(c1);
+  swStep(c1, s1, ruleDecider(c1, s1));
+  const s2 = senseAll(c2);
+  swStep(c2, s2, frozenDecider(c2, s2));
+  const moved = c1.parts.some((p, i) => Math.abs(p.x - c2.parts[i].x) > 1e-12);
+  ok(moved, 'once the field is warm and asymmetric, a different turn moves the particles');
+  const speeds1 = c1.parts.map((p) => Math.hypot(p.vx, p.vy));
+  ok(speeds1.every((v) => v > 0), 'and every particle still has thrust, because thrust is never the model\'s');
+
+  // The turn ladder: ordered and bounded, which is why it is a `score`.
+  ok(TURN_RUNGS.length === TURN_WORDS.length, 'every rung has words');
+  ok(TURN_RUNGS.every((v, i) => i === 0 || v > TURN_RUNGS[i - 1]), 'and the ladder is strictly ordered');
+  ok(TURN_RUNGS[0] === -1 && TURN_RUNGS[TURN_RUNGS.length - 1] === 1, 'spanning hard-left to hard-right');
+  ok(TURN_RUNGS[(TURN_RUNGS.length - 1) / 2] === 0, 'with "do not turn" exactly in the middle, so the ladder is symmetric');
+  ok(Math.abs(turnFromScore(2.5, TURN_RUNGS) - 0.25) < 1e-9,
+    'a fractional score interpolates between rungs — a continuous turn out of discrete options');
+  ok(turnFromScore(99, TURN_RUNGS) === 1 && turnFromScore(-99, TURN_RUNGS) === -1, 'and clamps rather than extrapolating');
+  ok(rungOf(-0.9) === 0 && rungOf(0.1) === 2, 'rungOf bins a continuous turn back for the agreement measure');
+
+  // The question set: one per particle, addressed by index, framing in the state.
+  const qs = swarmQuestions(sa);
+  ok(Object.keys(qs).length === 32, 'one question per particle and no others');
+  ok(Object.values(qs).every((q) => q.type === 'score'), 'each a score over the ordered ladder');
+  ok(qs.p7.instructions.includes('particle 7'), 'each naming the row it is about');
+  ok(!qs.p7.instructions.includes('swarm should'),
+    'and carrying ONLY what differs — the framing is in the state, sent once, or 256 copies blow the body cap');
+  const doc = swarmDoc(sa, { note: 'OBJECTIVE HERE' });
+  ok(/OBJECTIVE HERE/.test(doc), 'the framing rides the state');
+  ok(/LEFT minus RIGHT/.test(doc), 'and the document states the subtraction it already did for the model');
+  ok(doc.split('\n').filter((l) => /^\s*\d+\s+-?[\d.]/.test(l)).length === 32, 'one row per particle');
+
+  // Order parameters, against shapes whose answers are known by hand.
+  const aligned = Array.from({ length: 8 }, (_, i) => ({ x: i * 0.1, y: 0, vx: 0.01, vy: 0 }));
+  ok(Math.abs(order(aligned).polarization - 1) < 1e-9, 'a perfectly aligned flock reads polarization 1');
+  const opposed = [{ x: 0, y: 0, vx: 1, vy: 0 }, { x: 0.1, y: 0, vx: -1, vy: 0 }];
+  ok(Math.abs(order(opposed).polarization) < 1e-9, 'and two particles head-on read 0');
+  const ring = Array.from({ length: 16 }, (_, i) => {
+    const a2 = i / 16 * 2 * Math.PI;
+    return { x: 0.5 * Math.cos(a2), y: 0.5 * Math.sin(a2), vx: -Math.sin(a2), vy: Math.cos(a2) };
+  });
+  ok(order(ring).polarization < 0.01, 'a mill reads polarization ~0 — which is why milling is measured separately');
+  ok(order(ring).milling > 0.99, 'and milling ~1, so a rotating ring is not mistaken for disorder');
 }
 
 if (failures.length) {

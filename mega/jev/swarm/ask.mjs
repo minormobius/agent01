@@ -52,12 +52,19 @@ export function swarmDoc(senses, { note = '' } = {}) {
   ].join('\n');
 }
 
-/** One `score` over the turn ladder per particle, addressed by its row. */
-export function swarmQuestions(senses, instruction) {
+/**
+ * One `score` over the turn ladder per particle, addressed by its row.
+ *
+ * The instruction carries ONLY the id — the part that differs. The framing is
+ * in the state, sent once. Repeating a 130-character objective 256 times put
+ * the body 4KB over the proxy's 96KB cap, and it was the wrong shape anyway:
+ * the objective is a property of the situation, not of each question.
+ */
+export function swarmQuestions(senses) {
   const qs = {};
   for (let i = 0; i < senses.length; i++) {
     qs[`p${i}`] = { type: 'score', criteria: TURN_WORDS,
-      instructions: `${instruction} This question is about the particle whose id is ${i}.` };
+      instructions: `Which way should particle ${i} turn?` };
   }
   return qs;
 }
@@ -71,8 +78,14 @@ export function swarmQuestions(senses, instruction) {
  * handing over the rule would make agreement with the rule a tautology.
  */
 export const FRAMINGS = {
-  mimic: 'Which way should this particle turn, given what its sensors read?',
-  goal: 'This particle should move so the swarm forms strong, lasting trails rather than scattering. Which way should it turn?',
+  mimic: 'Each question below asks which way one particle should turn, given what its own sensors read.',
+  goal: [
+    'Each question below asks which way one particle should turn.',
+    '',
+    'WHAT THE SWARM IS FOR: the particles should end up moving together and',
+    'laying down strong, lasting trails, rather than scattering and leaving',
+    'nothing behind. Each turn should serve that.',
+  ].join('\n'),
 };
 
 /** Score (0..4 over the rungs) back to a turn in [-1, 1]. */
