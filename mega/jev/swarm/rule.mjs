@@ -27,12 +27,21 @@
 // comparison would have been between two things neither of which was
 // fluoddity.
 
-/** A default genome, taken from `fluoddity/engine.js` `defaultConfig()`. */
+/**
+ * Fluoddity's `defaultConfig()`, copied field for field.
+ *
+ * THE FIRST VERSION OF THIS WAS WRONG IN NINE PLACES and its comment claimed
+ * it had been taken from `defaultConfig()`. It had not: drag, force,
+ * persistence, ink and hue were all off, `mutation_scale` was invented, and —
+ * the three that actually mattered — `cohorts`, `initial_conditions` and
+ * `hazard_rate` were simply absent. Every swarm measurement taken before this
+ * ran on a genome fluoddity would not recognise.
+ */
 export const DEFAULT_CFG = {
-  sensor_gain: 4.0, sensor_angle: -0.14, sensor_distance: 1.2,
-  mutation_scale: 0.02, global_force_mult: 1.0, drag: 0.94,
-  strafe_power: 0.17, axial_force: 0.04, lateral_force: -0.25,
-  trail_persistence: 0.93, trail_diffusion: 0.6, ink: 2.0, hue: 0.6,
+  cohorts: 16, sensor_gain: 4.0, sensor_angle: -0.14, sensor_distance: 1.2,
+  global_force_mult: 0.6, drag: 0.9, strafe_power: 0.17, axial_force: 0.04,
+  lateral_force: -0.25, hazard_rate: 0.0, trail_persistence: 0.95,
+  trail_diffusion: 0.6, initial_conditions: 0, ink: 3.0, hue: 0.0,
 };
 
 // ---------------------------------------------------------------- hashing ---
@@ -134,8 +143,9 @@ const yref = (v) => [v[0], -v[1]];
  * then asking which one mattered is not an experiment.
  */
 export function ruleTurn(s, cfg, cohort = 0) {
-  const base = evalRule(0.5, cfg.mutation_scale, Math.floor(cohort), s.sig);
-  const m = evalRule(0.5, cfg.mutation_scale, Math.floor(cohort),
+  const mut = cfg.mutation_scale ?? 0;
+  const base = evalRule(0.5, mut, Math.floor(cohort), s.sig);
+  const m = evalRule(0.5, mut, Math.floor(cohort),
     [...yref([s.sig[2], s.sig[3]]), ...yref([s.sig[0], s.sig[1]])]);
   const lateral = base[1] + -m[1];
   const axial = base[0] + m[0];
@@ -149,3 +159,52 @@ export function ruleTurn(s, cfg, cohort = 0) {
  */
 export const matchedBrush = (baseBrush, baseCount, count) =>
   baseBrush * Math.sqrt(baseCount / Math.max(1, count));
+
+/**
+ * COHORTS: the same swarm is SIXTEEN SPECIES, not one.
+ *
+ * `cohortOf` spreads an index over `cohorts`, and the integer part is fed to
+ * `evalRule` as its third argument — so each cohort gets a DIFFERENT brain
+ * out of the same rule seed. The first port passed 0 for every particle and
+ * therefore ran one species where fluoddity runs sixteen.
+ */
+export const cohortOf = (idx, count, cohorts) => cohorts * idx / Math.max(1, count);
+
+/**
+ * WHERE THE PARTICLES START, and this is the one that changes the regime.
+ *
+ * `initial_conditions: 0` — the default — lays the cohorts out on a grid and
+ * spawns each one as a TIGHT BLOB: the jitter is 0.019 on a torus spanning 2,
+ * so a cohort is about 1% of the world across. Thousands of particles begin
+ * on top of each other.
+ *
+ * That density is the whole of fluoddity's interaction. A trail field is
+ * stigmergic — a particle can only steer on what other particles have already
+ * laid down — so particles that start packed together immediately have a
+ * strong local gradient to read, and particles scattered uniformly over the
+ * torus have nothing and never will. The first port scattered them uniformly.
+ * It was not a weaker version of fluoddity; it was a non-interacting one.
+ *
+ * Mode 1 is uniform-random, mode 2 is a ring of cohorts at radius 0.6.
+ */
+export function resetState(idx, count, cfg) {
+  const cohorts = cfg.cohorts ?? 16;
+  const cv = cohortOf(idx, count, cohorts);
+  const jx = 0.019 * (h1(cv, cv) - 0.5);
+  const jy = 0.019 * (h1(cv + idx + 2.142, cv + idx + 2.142) - 0.5);
+  const vx = 0.00005 * (h1(cv, idx) * 2 - 1);
+  const vy = 0.00005 * (h1(cv, jy) * 2 - 1);
+  let x, y;
+  const mode = cfg.initial_conditions ?? 0;
+  if (mode === 1) { x = h1(cv, 1) * 2 - 1; y = h1(cv, 2) * 2 - 1; }
+  else if (mode === 2) {
+    const ang = (cv / cohorts) * 2 * Math.PI;
+    x = jx + Math.cos(ang) * 0.6; y = jy + Math.sin(ang) * 0.6;
+  } else {
+    const rows = Math.ceil(Math.sqrt(cohorts));
+    const gx = Math.floor(cv) % rows, gy = Math.floor(Math.floor(cv) / rows);
+    x = jx + 1.8 * (gx / rows + 0.5 * (1 / rows - 1));
+    y = jy + 1.8 * (gy / rows + 0.5 * (1 / rows - 1));
+  }
+  return { i: idx, x, y, vx, vy, cohort: Math.floor(cv) };
+}

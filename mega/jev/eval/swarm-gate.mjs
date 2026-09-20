@@ -87,6 +87,8 @@ async function runArm(name, decide) {
       const v = probe(sw), o = orderOf(sw);
       traj.push({ t, pol: +o.polarization.toFixed(4), mill: +o.milling.toFixed(4),
         nn: +o.nnDist.toFixed(4), speed: +o.meanSpeed.toFixed(5),
+        dispersal: +o.dispersal.toFixed(5), coherence: +o.coherence.toFixed(4),
+        spread: +o.spread.toFixed(5),
         fill: +v.fill.toFixed(4), struct: +v.struct.toFixed(3), verdict: verdict(v, false) });
     }
   }
@@ -122,7 +124,7 @@ for (const [name, dec] of [
   const t0 = Date.now();
   const a = await runArm(name, dec);
   arms.push(a);
-  console.log(`${name.padEnd(10)} pol ${a.order.polarization.toFixed(3)}  mill ${a.order.milling.toFixed(3)}` +
+  console.log(`${name.padEnd(10)} dispersal ${a.order.dispersal.toFixed(4)}  coherence ${a.order.coherence.toFixed(3)}` +
     `  nn ${a.order.nnDist.toFixed(4)}  |  ${a.verdict.padEnd(7)} fill ${a.v2.fill.toFixed(3)}` +
     `  |  agree(sign) ${(100 * a.agreeSign).toFixed(1)}%  |turn| ${a.meanAbsTurn}` +
     `  distinct ${a.distinctTurns}  ${((Date.now() - t0) / 1000).toFixed(0)}s`);
@@ -135,8 +137,8 @@ for (const j of ['jev-mimic', 'jev-goal']) {
   const row = ['rule', 'random', 'frozen'].map((k) => `${k} ${dist(by[j].vec, by[k].vec).toFixed(3)}`);
   console.log(`  ${j.padEnd(10)} ${row.join('   ')}`);
 }
-console.log('\norder-parameter distance (polarization, milling, nn):');
-const ovec = (a) => [a.order.polarization, a.order.milling, a.order.nnDist * 10];
+console.log('\norder-parameter distance (dispersal, cohort coherence, nn):');
+const ovec = (a) => [a.order.dispersal * 10, a.order.coherence, a.order.nnDist * 10];
 for (const j of ['jev-mimic', 'jev-goal']) {
   const row = ['rule', 'random', 'frozen'].map((k) => `${k} ${dist(ovec(by[j]), ovec(by[k])).toFixed(3)}`);
   console.log(`  ${j.padEnd(10)} ${row.join('   ')}`);

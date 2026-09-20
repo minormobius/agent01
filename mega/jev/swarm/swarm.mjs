@@ -22,8 +22,8 @@
 // options. This is the same reasoning the exposure ladder uses in the lab.
 
 import { Field, hsv2rgb } from './field.mjs';
-import { sense, ruleTurn, evalRule, DEFAULT_CFG, matchedBrush } from './rule.mjs';
-import { readDescriptors, order } from './probe.mjs';
+import { sense, ruleTurn, evalRule, DEFAULT_CFG, matchedBrush, resetState } from './rule.mjs';
+import { readDescriptors, order, cohortOrder } from './probe.mjs';
 
 /** The turn ladder: five rungs, symmetric, in units of the rule's own scale. */
 export const TURN_RUNGS = [-1, -0.5, 0, 0.5, 1];
@@ -55,14 +55,20 @@ export function rng(seed) {
 
 export function makeSwarm({ n = 256, dim = 128, seed = 7, cfg = DEFAULT_CFG,
   baseBrush = 0.0015 * 2, baseCount = 55000, inkScale = INK_SCALE } = {}) {
-  const r = rng(seed);
   const field = new Field(dim, { ...cfg, inkScale, brush: matchedBrush(baseBrush, baseCount, n) });
+  // Fluoddity's own `resetState`, not a uniform scatter. The cohorts spawn as
+  // tight blobs, which is where ALL of the interaction comes from: a
+  // stigmergic swarm can only steer on trail other particles have already
+  // laid down, so starting packed is the difference between a system and a
+  // field of loners. `seed` no longer does anything here — the spawn is a
+  // deterministic function of the index, as it is on the GPU.
   const parts = [];
   for (let i = 0; i < n; i++) {
-    const a = r() * Math.PI * 2, sp = 0.002 + r() * 0.004;
-    parts.push({ i, x: r() * 2 - 1, y: r() * 2 - 1, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp });
+    const p = resetState(i, n, cfg);
+    p.x0 = p.x; p.y0 = p.y;          // its own spawn point, for dispersal
+    parts.push(p);
   }
-  return { field, parts, cfg, n, t: 0, prevLum: null };
+  return { field, parts, cfg, n, t: 0, prevLum: null, seed };
 }
 
 /**
@@ -84,7 +90,7 @@ export function step(sw, senses, turns) {
   const { cfg, field } = sw;
   for (let k = 0; k < senses.length; k++) {
     const { p, s } = senses[k];
-    const det = ruleTurn(s, cfg);
+    const det = ruleTurn(s, cfg, p.cohort || 0);
     const turn = turns[k];
     const fx = s.fwd[0] * det.axial * cfg.axial_force + s.lft[0] * turn * cfg.lateral_force;
     const fy = s.fwd[1] * det.axial * cfg.axial_force + s.lft[1] * turn * cfg.lateral_force;
@@ -95,7 +101,7 @@ export function step(sw, senses, turns) {
     // The torus, exactly as the shader wraps it.
     p.x = 2 * (((p.x * 0.5 - 0.5) % 1 + 1) % 1 - 0.5);
     p.y = 2 * (((p.y * 0.5 - 0.5) % 1 + 1) % 1 - 0.5);
-    const raw = evalRule(0.5, cfg.mutation_scale, 0, s.sig);
+    const raw = evalRule(0.5, cfg.mutation_scale ?? 0, Math.floor(p.cohort || 0), s.sig);
     const hue = ((Math.atan2(raw[1], raw[0]) / (2 * Math.PI) + 0.5) % 1 + 1) % 1;
     const mag = Math.max(0.06, Math.min(1.1, Math.hypot(raw[0], raw[1]) * 0.55));
     field.deposit(p.x, p.y, hsv2rgb(hue, 0.85, mag));
@@ -112,10 +118,10 @@ export function probe(sw) {
   return v;
 }
 
-export const orderOf = (sw) => order(sw.parts);
+export const orderOf = (sw) => ({ ...order(sw.parts), ...cohortOrder(sw.parts) });
 
 /** The deterministic arm, and the reference every other arm is scored against. */
-export const ruleDecider = (sw, senses) => senses.map(({ s }) => ruleTurn(s, sw.cfg).turn);
+export const ruleDecider = (sw, senses) => senses.map(({ p, s }) => ruleTurn(s, sw.cfg, p.cohort || 0).turn);
 
 /** The random control, on the identical rung set. */
 export function randomDecider(seedRef) {

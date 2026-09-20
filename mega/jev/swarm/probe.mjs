@@ -122,3 +122,61 @@ export function order(parts) {
   }
   return { polarization, milling: Math.abs(ang) / n, nnDist: nn / n, meanSpeed: speed / n };
 }
+
+/**
+ * COHORT-AWARE ORDER PARAMETERS, because global polarization is the wrong
+ * measure for this system and using it was a mistake.
+ *
+ * Fluoddity spawns its particles as tight per-cohort blobs, and each blob
+ * expands as a starburst — particles radiate OUTWARD in every direction. So
+ * their headings cancel and global polarization reads ~0 no matter how
+ * structured the swarm is. Measuring it was measuring the wrong thing: the
+ * first swarm run reported 0.767 for the rule only because it had been given
+ * the wrong initial conditions, which put every particle in open space where
+ * there was nothing to radiate from.
+ *
+ * What actually distinguishes these arms:
+ *   dispersal   — how far a cohort has travelled from where it spawned.
+ *                 A swarm that holds together and one that evaporates are
+ *                 the two ends of this axis.
+ *   coherence   — polarization computed WITHIN each cohort and averaged, so a
+ *                 blob moving as a unit scores high even when sixteen blobs
+ *                 point sixteen ways.
+ *   spread      — mean distance from a cohort's own centroid: the size of
+ *                 the structure, independent of where it went.
+ */
+export function cohortOrder(parts) {
+  const by = new Map();
+  for (const p of parts) {
+    const k = p.cohort ?? 0;
+    if (!by.has(k)) by.set(k, []);
+    by.get(k).push(p);
+  }
+  let coh = 0, spread = 0, disp = 0, n = 0;
+  for (const group of by.values()) {
+    let sx = 0, sy = 0, cx = 0, cy = 0;
+    for (const p of group) {
+      const sp = Math.hypot(p.vx, p.vy) || 1e-9;
+      sx += p.vx / sp; sy += p.vy / sp; cx += p.x; cy += p.y;
+    }
+    const m = group.length;
+    coh += Math.hypot(sx, sy) / m;
+    cx /= m; cy /= m;
+    let sd = 0, dd = 0;
+    for (const p of group) {
+      // On the torus, the short way round.
+      let ax = Math.abs(p.x - cx), ay = Math.abs(p.y - cy);
+      if (ax > 1) ax = 2 - ax;
+      if (ay > 1) ay = 2 - ay;
+      sd += Math.hypot(ax, ay);
+      if (p.x0 !== undefined) {
+        let bx = Math.abs(p.x - p.x0), byy = Math.abs(p.y - p.y0);
+        if (bx > 1) bx = 2 - bx;
+        if (byy > 1) byy = 2 - byy;
+        dd += Math.hypot(bx, byy);
+      }
+    }
+    spread += sd / m; disp += dd / m; n++;
+  }
+  return { coherence: coh / n, spread: spread / n, dispersal: disp / n, cohorts: n };
+}
