@@ -13,10 +13,13 @@
 //!   * the ball, its trail, and the fan of futures — the picture
 //!   * **the spread of that fan, as a number**, so his "Stable Eras and
 //!     Chaotic Eras" is a measured time series rather than an impression
-//!   * **the Poincaré section**, which is where the eras come from: a mixed
-//!     phase space of islands and chaotic sea, and an era is the orbit
-//!     loitering near an island
-//!   * a running Lyapunov exponent, for the same reason
+//!   * **the Poincaré section**, which is what rules the obvious explanation
+//!     OUT: at the video's energy it is an almost uniform chaotic sea, with no
+//!     islands worth the name for the orbit to loiter near. An era is instead
+//!     the local stretching rate wandering around its long-run average. The
+//!     islands are real but live at lower drop heights, which is what that
+//!     control is for.
+//!   * a running Lyapunov exponent, which is that long-run average
 //!
 //! Every pointer here is invalidated by the next call that can resize its
 //! buffer, so read before you step.
