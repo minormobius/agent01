@@ -1922,6 +1922,15 @@
    "parent": "henderhead"
   },
   {
+   "id": "conics out of sand",
+   "name": "conics out of sand",
+   "url": "https://henderhead.mino.mobi/sand/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "henderhead"
+  },
+  {
    "id": "bouncing ball chaos",
    "name": "bouncing ball chaos",
    "url": "https://henderhead.mino.mobi/ball/",

@@ -27,6 +27,18 @@ export const postURL = (rkey) => `${AUTHOR.bsky}/post/${rkey}`;
 
 export const DEMOS = [
   {
+    id: 'sand',
+    state: 'built',
+    href: './sand/',
+    title: 'How to make an ellipse, using sand and physics',
+    date: '2026-09-20',
+    post: '3mvxdzadgds2z',
+    quote: 'How to make an ellipse, using sand and physics',
+    tags: ['geometry', 'granular', 'rust→wasm'],
+    what: 'Sand pours onto a plate with a hole in it. A cone builds under the pour, a funnel opens around the hole, and the crease where the two surfaces meet is an ellipse whose foci are the pour point and the hole.',
+    built: 'The sand is simulated rather than drawn — every cell topples against its neighbours until nothing stands steeper than the angle of repose — and the curve is then measured off it by a fitter told nothing about where the two features are. It comes back with 2c/2a = 0.73 against the 0.737 measured off his own video. The page also answers the obvious follow-up: you cannot get a parabola out of two holes, because two points can only give you a sum or a difference of distances. The missing focus is a slot.',
+  },
+  {
     id: 'ball',
     state: 'built',
     href: '/ball/',

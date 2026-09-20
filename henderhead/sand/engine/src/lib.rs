@@ -171,6 +171,22 @@ pub extern "C" fn reset() {
     w.seam_pts.clear();
 }
 
+/// Bury the whole plate to a uniform depth, then let the drains open. The
+/// other way to run the experiment, and the quicker one for everything that
+/// does not need a pile.
+#[no_mangle]
+pub extern "C" fn flood(depth: f64) {
+    w().f.flood(depth);
+}
+
+/// Topple without pouring until settled or `cap` passes have gone by. Returns
+/// the worst remaining overshoot.
+#[no_mangle]
+pub extern "C" fn settle(eps: f64, cap: usize) -> f64 {
+    let w = w();
+    w.f.settle(w.relax_c, eps, cap).1
+}
+
 /// Run `ticks` table steps. Returns the largest remaining slope overshoot,
 /// which is how far the sand still is from settled.
 #[no_mangle]
@@ -328,6 +344,26 @@ pub extern "C" fn conic_focus(i: usize, j: usize) -> f64 {
                 f.0
             } else {
                 f.1
+            }
+        }
+        None => f64::NAN,
+    }
+}
+
+/// The fitted conic's centre, component `j` (0 = x, 1 = y).
+///
+/// Steadier than the foci: both come from the same fit, but the foci sit on
+/// the major axis and slide a long way along it for a small error in
+/// eccentricity, while the centre stays put.
+#[no_mangle]
+pub extern "C" fn conic_center(j: usize) -> f64 {
+    let Some(c) = w().last else { return f64::NAN };
+    match c.center() {
+        Some((x, y)) => {
+            if j == 0 {
+                x
+            } else {
+                y
             }
         }
         None => f64::NAN,

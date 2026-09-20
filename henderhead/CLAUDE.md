@@ -38,7 +38,7 @@ demo automatically. **It does not exist, and building it is out of scope for any
 task that has not cleared the consent gate on the front page** (`/#consent`):
 he has to have been asked, in plain words, and have said yes.
 
-As of 2026-09-09 he has not been asked. Nothing watches his feed. `/api/demos`
+As of 2026-09-20 he has not been asked. Nothing watches his feed. `/api/demos`
 reports `consent.asked: false` and `automatedPipelineRunning: false`, and
 `demos.js` has no state meaning "a bot is working on this". If you are here to
 add automation, the first step is not code.
@@ -59,6 +59,7 @@ on the next deploy. Do not argue the point on his behalf in a commit message.
 | `craft/` | demo #2 — a cellular automaton made of crafting recipes |
 | `wheel/` | demo #3 — a leaky waterwheel that is the Lorenz system |
 | `ball/` | demo #4 — a ball bouncing under gravity in a circle |
+| `sand/` | demo #5 — conic sections out of sand at the angle of repose |
 | `.assetsignore` | keeps `CLAUDE.md` and `cf/engine/` off the public site |
 
 ## `cf/` — continued fraction Fourier
@@ -303,6 +304,76 @@ node henderhead/ball/ball.selftest.mjs
   phase portrait does not depend on it. The drop height is the energy: E = gy at
   release and the ball can never rise above it. The survey is rebuilt when the
   height changes and deliberately not when gravity does.
+
+## `sand/` — conics out of sand
+
+After [his post of 2026-09-20](https://bsky.app/profile/matthen.com/post/3mvxdzadgds2z):
+*"How to make an ellipse, using sand and physics."*
+
+Sand cannot stand steeper than its angle of repose, so every feature on the
+plate is a ceiling on the surface — a hole imposes `z ≤ h + k·d`, a pour that
+has built to apex A imposes `z ≤ A − k·d`. The sand takes the lower, and the
+crease is where the two are equal:
+
+    pour + hole   d₁ + d₂ = (A−h)/k    ellipse, foci on the two
+    two holes     d₁ − d₂ = Δh/k       hyperbola
+    point + line  d_pt ± d_line = c    parabola
+
+Measured off his video before any of this was built: his two dots are the foci
+to 0.16% (sd 0.61 px on a mean 2a of 375.2 px), against 57% for the hyperbola
+test and 21% for a deliberately wrong pair. e = 0.737.
+
+| File | What |
+|---|---|
+| `sand/engine/src/field.rs` | the sand: the mass-conserving repose relaxation, plus the sources and sinks `soil.js` has no notion of |
+| `sand/engine/src/conic.rs` | the algebra of the whole family, the gradient-weighted fit, and the focal-constancy statistic |
+| `sand/engine/src/seam.rs` | reading the curve back out of the simulated field |
+| `sand/sandconic.wasm` | the built module, **committed**; CI rebuilds it and ships what it built |
+| `sand/app.js` | the plate, the presets, the readouts |
+| `sand/sand.selftest.mjs` | node, over the ABI |
+
+```bash
+cargo test --manifest-path henderhead/sand/engine/Cargo.toml
+cargo build --release --target wasm32-unknown-unknown \
+  --manifest-path henderhead/sand/engine/Cargo.toml
+cp henderhead/sand/engine/target/wasm32-unknown-unknown/release/sandconic.wasm \
+   henderhead/sand/sandconic.wasm
+node henderhead/sand/sand.selftest.mjs
+```
+
+### Things that will bite you
+
+- **Do not replace the simulation with `min(A − k·d₁, h + k·d₂)`.** It is the
+  same picture in a millisecond and it proves nothing, because the ellipse
+  would have been put there by hand. The whole value of the page is that the
+  curve is *measured* off toppling grains. The same argument rules out solving
+  the steady state with a fast-sweeping eikonal solver, which would be the
+  obvious optimisation.
+- **The relaxation is `clock/lib/soil.js`'s rule, ported.** Same 8-neighbour
+  sweep, same overshoot, same paired transfer.
+  `the_rust_and_the_repo_js_relax_identically` pins it. If you change the rule,
+  change it there too or drop the claim.
+- **`cargo test` is optimised on purpose** (`[profile.test] opt-level = 3`). A
+  settle is thousands of O(n²) passes; unoptimised the suite takes minutes.
+- **Finding the seam needs labels AND folds, and each covers the other's blind
+  spot.** Slope direction alone is blind along the line joining the pour point
+  to the hole, where cone and funnel fall the same way — one run gave 44
+  spurious points out of 83, every one at `r₁+r₂` exactly the focal separation.
+  Folds alone are fooled by the facets a square grid leaves along a cone's
+  diagonals. Three other fixes were tried and are written up in `seam.rs`;
+  read that before "simplifying" this.
+- **Nothing between two holes can be measured** — not the hyperbola, not the
+  straight line. Both put their features on a line with a long tail of plate
+  beyond, and out there both features lie in the same direction. A
+  straight-line test passed for a while *only because it stopped the
+  relaxation early*; settling properly moved the answer thirty cells. Do not
+  re-add it without fixing the tracer.
+- **The plain algebraic conic fit is biased toward high eccentricity** and it
+  does not go away with resolution — that is how it was caught. The fit is
+  gradient-weighted (Sampson) now. Keep it that way.
+- **Readings taken while the sand is still moving are not readings.** The page
+  dims them when `oversteep > 2%`; the same table read e = 53.2 mid-drain and
+  1.001 once settled.
 
 ## Adding a demo
 

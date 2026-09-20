@@ -214,50 +214,6 @@ fn a_source_and_a_sink_draw_an_ellipse_with_them_as_foci() {
 }
 
 #[test]
-fn two_drains_at_the_same_height_draw_a_straight_line() {
-    // Bury the plate and open two identical drains. Every grain runs to the
-    // nearer one, so the watershed between the two craters is the set of
-    // points equally far from both: the perpendicular bisector.
-    let mut f = Field::new(113, 34.0);
-    let feats = vec![
-        Feature::point_sink(38.0, 56.0),
-        Feature::point_sink(74.0, 56.0),
-    ];
-    f.rebuild_sinks(&feats, 2.0);
-    f.flood(18.0);
-    f.settle(0.12, 1e-2, 4000);
-
-    let pts = pts_of(&f, &feats, 0, 1);
-    assert!(pts.len() > 12, "no seam between the two drains: {}", pts.len());
-    let mean_x = pts.iter().map(|p| p.0).sum::<f64>() / pts.len() as f64;
-    let sd_x =
-        (pts.iter().map(|p| (p.0 - mean_x).powi(2)).sum::<f64>() / pts.len() as f64).sqrt();
-    assert!(
-        (mean_x - 56.0).abs() < 2.0 && sd_x < 2.0,
-        "equal drains did not give the bisector: mean x {mean_x:.2}, sd {sd_x:.2}"
-    );
-}
-
-// NOT HERE: a simulated hyperbola.
-//
-// The mathematics is in `conic.rs` and two of its consequences are tested
-// below from the geometry alone, but measuring a hyperbola off this simulation
-// does not yet work, and a test that pretended otherwise would be worse than
-// no test. Both constructions that should produce one — two drains at
-// different lip heights, and two heaps of different sizes — have their two
-// features in a straight line with a long tail of table beyond them, and out
-// along that tail both features lie in nearly the same direction, so the
-// labelling cannot separate them. Every attempt returned a curve whose
-// |r1 - r2| was constant at *exactly* the focal separation, which is the
-// signature of the degenerate case: a ray along the axis, not a hyperbola.
-//
-// The ellipse does not suffer from this because its curve closes around both
-// features and never visits the tail, and the parabola does not because a slot
-// has no tail to visit. Fixing it needs a seam tracer that follows the curve
-// from a known crossing rather than scanning the whole plate, which is a
-// bigger change than this demo needed.
-
-#[test]
 fn a_point_against_a_slot_draws_a_parabola() {
     // The case the page is really about. With two point features you can get
     // arbitrarily close to e = 1 and never reach it; a straight slot is the

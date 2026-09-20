@@ -225,9 +225,15 @@ fn largest_component(pts: Vec<(f64, f64)>) -> Vec<(f64, f64)> {
                 }
                 let dx = pts[k].0 - pts[j].0;
                 let dy = pts[k].1 - pts[j].1;
-                // a boundary steps a whole cell at a time; two and a half
-                // cells bridges the gap left where the curve passes close to
-                // a drain and its pinned lip is cut out
+                // A boundary steps a whole cell at a time; two and a half
+                // cells bridges the gap where the curve passes close to a
+                // drain and its pinned lip is cut out. Widening it further is
+                // a bad trade and was measured to be one: at three and a half
+                // cells the parabola's two halves join into one run of 113
+                // points instead of 55, and the extra reach also bridges out
+                // to a wedge, which moves the fitted eccentricity from 1.001
+                // to 1.42. Half a curve measured well beats a whole one
+                // measured badly.
                 if dx * dx + dy * dy <= 6.25 {
                     comp[j] = ncomp;
                     stack.push(j);

@@ -32,7 +32,7 @@
       "label": "tools"
     },
     {
-      "before": 217,
+      "before": 218,
       "label": "games"
     }
   ],
@@ -2812,6 +2812,23 @@
       "p": "henderhead",
       "surface": "henderhead",
       "d": "A leaky waterwheel that is the Lorenz system exactly, not by analogy — the Malkus wheel of Strogatz §9.1. Buckets hang from the rim staying upright, water pours in at the top, every bucket leaks, and the only thing the water does to the wheel is pull on whatever is off-centre. Only the first Fourier harmonic of the water exerts any torque, so the machine closes into three equations that are Lorenz's with β = 1 — and the centre of mass moves in the Lorenz (Y, Z) plane, so the orange dot draws the attractor rather than something resembling it. Turn the inflow up through ρ = 1 and ρ_Hopf to go from standing to spinning to chaotic; turn the damping down until chaos is impossible at any flow. The wheel, a twin started a billionth apart, the continuum reduction and the Lorenz equations all run in lockstep.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "conics out of sand",
+      "u": "https://henderhead.mino.mobi/sand/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-20",
+      "b": "2026-09-20",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "Sand poured onto a plate with a hole in it makes an ellipse, and the pour point and the hole are its foci. Sand cannot stand steeper than its angle of repose, so a pour imposes z ≤ A − k·d and a hole imposes z ≤ h + k·d; the sand takes the lower, and where the two are equal the sum of the distances is constant. Change which two features are on the plate and you get the rest of the family — except a parabola, which two holes can never give you, because two points only ever hand you a sum or a difference of distances. A parabola is an ellipse with one focus at infinity, and infinity is not somewhere you can drill: the missing focus is a straight slot. The sand is simulated rather than drawn, cell by cell at the angle of repose, and the curve is then measured off it by a conic fit told nothing about where the features are — it returns 2c/2a = 0.73 against the 0.737 measured off his video.",
       "tags": [
         "rust",
         "wasm",
