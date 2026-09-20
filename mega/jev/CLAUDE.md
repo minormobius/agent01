@@ -1637,13 +1637,18 @@ it, never write it.
 256 questions. Only steering varies; genome, field, thrust, seed and initial
 conditions are identical in every arm.
 
-| arm | polarization | nearest arm in order-parameter space |
+> **These numbers are RETRACTED — see the correction below.** They were
+> measured on a port with the wrong genome and uniform spawn, where
+> polarization is not the right order parameter. Kept for the record because
+> a wrong result published is worth more than a wrong result deleted.
+
+| arm | polarization *(retracted)* | nearest arm |
 |---|---|---|
-| **rule** — fluoddity's own brain | **0.767** | — |
-| **frozen** — no steering at all | **0.317** | — |
-| **jev-mimic** | **0.226** | **frozen** (0.096) |
-| **jev-goal** | **0.196** | **frozen** (0.124) |
-| **random** | 0.026 | — |
+| rule | ~~0.767~~ | — |
+| frozen | ~~0.317~~ | — |
+| jev-mimic | ~~0.226~~ | frozen |
+| jev-goal | ~~0.196~~ | frozen |
+| random | ~~0.026~~ | — |
 
 | | steers toward the stronger trail | corr with sensor asymmetry |
 |---|---|---|
@@ -1669,6 +1674,84 @@ conformity is exactly what stops the interesting behaviour emerging.
 44.1% vs 44.2%). Stating the swarm's objective in the state barely moved
 anything, which is what "there is no instruction channel" looks like when you
 try to use one as if there were.
+
+### CORRECTION: the port had the wrong genome and the wrong world
+
+Published and retracted the same day. The operator: *"interactionmaxxed
+fluoddity comes from all the particles starting in a dense cluster."*
+
+Diffed against fluoddity's `defaultConfig()` — **nine of fifteen fields
+wrong**, and `rule.mjs`'s comment claimed the genome had been *taken from*
+that function. It had not.
+
+| | fluoddity | the port |
+|---|---|---|
+| `cohorts` | 16 | **absent** |
+| `initial_conditions` | 0 | **absent** |
+| `hazard_rate` | 0.0 | absent |
+| `drag` | 0.9 | 0.94 |
+| `global_force_mult` | 0.6 | 1.0 |
+| `trail_persistence` | 0.95 | 0.93 |
+| `ink` | 3.0 | 2.0 |
+| `hue` | 0.0 | 0.6 |
+| `mutation_scale` | — | **invented, 0.02** |
+
+**The one that invalidates everything.** `initial_conditions: 0` spawns the
+cohorts as tight blobs on a grid — jitter 0.019 on a torus spanning 2, about
+1% of the world across. The port scattered every particle uniformly. A trail
+field is **stigmergic**: a particle can only steer on trail others have
+already laid. Packed particles have a gradient immediately; particles spread
+thin over a torus have nothing and never will. **The port was not a weaker
+fluoddity, it was a non-interacting one.**
+
+And `cohorts: 16` feeds the cohort index into `evalRule`, so fluoddity runs
+**sixteen species with different brains**. The port passed 0 and ran one.
+
+Corrected, it renders as **sixteen starbursts on a 4×4 grid**. Field
+brightness 21.9/255 → 133–255; sensor asymmetry 6.7% → 9.7%.
+
+**Polarization was also the wrong measure.** Each blob radiates outward, so
+headings cancel and global polarization reads ≈0 however structured the swarm
+is. The 0.767 was an artefact of the wrong spawn.
+
+**Retracted:** rule 0.767 / frozen 0.317 / jev 0.226 / random 0.026, and *"the
+flock needs someone to turn the wrong way"* with it.
+
+### Re-measured on the corrected simulation
+
+| arm | dispersal | coherence | nn | mean \|turn\| | verdict |
+|---|---|---|---|---|---|
+| **rule** | **0.0284** | 0.189 | 0.0124 | **0.717** | sparse |
+| random | 0.0249 | 0.170 | 0.0116 | 0.597 | sparse |
+| **jev-goal** | 0.0168 | 0.284 | 0.0075 | 0.331 | sparse |
+| **jev-mimic** | 0.0154 | 0.198 | 0.0076 | **0.363** | dead |
+| frozen | 0.0088 | 0.227 | 0.0052 | 0.000 | dead |
+
+| | toward the stronger trail | r with sensor asymmetry |
+|---|---|---|
+| **jev** | **94.4%** | **−0.644** |
+| the rule | **50.1%** | **0.005** |
+
+**What survives, and is sharper.** The genome is now an exact coin flip with
+respect to the only quantity a particle can steer on — 50.1%, r = 0.005 —
+while Jev applies one consistent policy to 1024 heterogeneous states. *It
+legislates where the genome improvises* reads better on the correct world
+than it did on the broken one.
+
+**Both Jev arms still land nearest `frozen`** in order-parameter space (0.076,
+0.101) rather than near the rule (0.139, 0.158). That conclusion survived
+being measured on a different world, which is about the only reason to still
+trust it.
+
+**What had to change.** Jev is not "worse than doing nothing" — it disperses
+*more* than frozen and *less* than random. The accurate statement is narrower
+and better: **it is the most conservative active steerer on the board**, mean
+turn 0.363 against the rule's 0.717 on the identical ladder. Conformity, but
+measured as gentleness rather than as underperformance.
+
+**What was already right.** The field still reads `sparse`/`dead` at
+fluoddity's own 468-tick protocol, so `fitness2` remains untestable at 256
+particles — the substrate limit is real and independent of this bug.
 
 ### Shared state vs split state — the arrangement, finally tested
 

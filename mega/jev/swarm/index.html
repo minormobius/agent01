@@ -29,6 +29,35 @@
       and does Jev rebel?</i> The answer is neither. <b>It legislates.</b></p>
   </header>
 
+  <section class="card finding" style="border-color:var(--s2)">
+    <h2>Correction — the first version of this page measured the wrong world</h2>
+    <p class="prose">Published 2026-09-20, corrected the same day. The operator pointed out that
+      fluoddity's interaction comes from <b>all the particles starting in a dense cluster</b>. It
+      does, and chasing that found <b>nine divergences</b> between this port's genome and
+      fluoddity's own <code>defaultConfig()</code> — three of them structural:</p>
+    <ul class="prose caveats">
+      <li><b><code>initial_conditions: 0</code> spawns the cohorts as tight blobs on a grid</b>,
+        jitter 0.019 on a torus spanning 2 — about 1% of the world across. This port scattered every
+        particle uniformly instead. A trail field is <i>stigmergic</i>: a particle can only steer on
+        what others have already laid down. So packed particles have a gradient immediately, and
+        particles spread thin over a torus have nothing and never will. <b>It was not a weaker
+        fluoddity, it was a non-interacting one.</b></li>
+      <li><b><code>cohorts: 16</code></b>, and the cohort index is fed to the brain — so fluoddity
+        runs <b>sixteen species</b> with different rules. This port ran one.</li>
+      <li>Six more fields were simply wrong: drag, force, trail persistence, ink, hue, and an
+        invented <code>mutation_scale</code>. The code comment claimed the genome was
+        <i>"taken from <code>defaultConfig()</code>"</i>. It was not.</li>
+    </ul>
+    <p class="prose"><b>And polarization was the wrong measure.</b> Each cohort expands as a
+      starburst, so particles radiate outward, their headings cancel, and global polarization reads
+      ≈0 however structured the swarm is. The <b>0.767</b> first reported for the rule was an
+      artefact of the wrong spawn putting every particle alone in open space.</p>
+    <p class="prose"><b>Retracted:</b> rule 0.767 / frozen 0.317 / jev 0.226 / random 0.026, and the
+      reading that went with it — <i>"the flock needs someone to turn the wrong way"</i> — which
+      rested on the rule producing an alignment it does not in fact produce. Everything below is
+      re-measured on the corrected simulation.</p>
+  </section>
+
   <section class="card">
     <div class="runbar">
       <button id="run" class="btn primary">run all four</button>
@@ -61,7 +90,13 @@
     <p class="prose" style="margin:12px 0 0"><b>Jev's dots fall on a line. The rule's are a cloud.</b>
       The model found one stateable policy — follow the trail — and applied it to every particle.
       The fluoddity genome has no such policy: it is an arbitrary point in rule space, not a rule
-      anyone would write down, and its response barely correlates with its own input.</p>
+      anyone would write down.</p>
+    <p class="prose" style="margin:8px 0 0">Measured over 1024 particle-decisions on the corrected
+      simulation: <b>Jev steers toward the stronger trail on 94.4%</b> of them,
+      <code>r = −0.644</code>. <b>The genome does so on 50.1%, <code>r = 0.005</code></b> — a coin
+      flip with respect to the one quantity a particle can steer on. On the first, broken version
+      those read 92.5% and 34.8%; correcting the world made the contrast <i>cleaner</i>, not
+      weaker.</p>
   </section>
 
   <section class="card">
@@ -74,30 +109,30 @@
   </section>
 
   <section class="card finding">
-    <h2>Measured headless, over 100 ticks</h2>
-    <p class="cap" style="margin:0 0 10px">The canvases above are a demonstration and run for as
-      long as you leave them. <b>These are the measurement</b> — 100 ticks, 256 particles, 202 calls,
-      from <code>eval/swarm-gate.mjs</code>, and they are what the claims rest on.</p>
+    <h2>Measured headless, over 100 ticks — corrected</h2>
+    <p class="cap" style="margin:0 0 10px">256 particles, 202 calls, <code>eval/swarm-gate.mjs</code>,
+      on the corrected genome and spawn. <b>Dispersal</b> is how far a cohort has travelled from where
+      it spawned — the axis that actually separates these arms, where polarization does not.</p>
     <div class="tablewrap"><table class="dt">
-      <thead><tr><th>arm</th><th>polarization</th><th>milling</th><th>nn distance</th><th>nearest arm</th></tr></thead>
+      <thead><tr><th>arm</th><th>dispersal</th><th>cohort coherence</th><th>nn distance</th><th>mean |turn|</th><th>verdict</th></tr></thead>
       <tbody>
-        <tr><td><span class="sw-dot s1"></span>rule — fluoddity's own brain</td><td class="num">0.767</td><td class="num">0.042</td><td class="num">0.0632</td><td>—</td></tr>
-        <tr><td><span class="sw-dot s4"></span>frozen — no steering at all</td><td class="num">0.317</td><td class="num">0.037</td><td class="num">0.0595</td><td>—</td></tr>
-        <tr><td><span class="sw-dot s2"></span>jev — plain framing</td><td class="num">0.226</td><td class="num">0.054</td><td class="num">0.0619</td><td><b>frozen</b></td></tr>
-        <tr><td><span class="sw-dot s2"></span>jev — told the swarm's objective</td><td class="num">0.196</td><td class="num">0.032</td><td class="num">0.0621</td><td><b>frozen</b></td></tr>
-        <tr><td><span class="sw-dot s3"></span>random — same rungs</td><td class="num">0.026</td><td class="num">0.044</td><td class="num">0.0639</td><td>—</td></tr>
+        <tr><td><span class="sw-dot s1"></span>rule — fluoddity's own brain</td><td class="num">0.0284</td><td class="num">0.189</td><td class="num">0.0124</td><td class="num">0.717</td><td>sparse</td></tr>
+        <tr><td><span class="sw-dot s3"></span>random — same rungs</td><td class="num">0.0249</td><td class="num">0.170</td><td class="num">0.0116</td><td class="num">0.597</td><td>sparse</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — told the swarm's objective</td><td class="num">0.0168</td><td class="num">0.284</td><td class="num">0.0075</td><td class="num">0.331</td><td>sparse</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — plain framing</td><td class="num">0.0154</td><td class="num">0.198</td><td class="num">0.0076</td><td class="num">0.363</td><td>dead</td></tr>
+        <tr><td><span class="sw-dot s4"></span>frozen — no steering at all</td><td class="num">0.0088</td><td class="num">0.227</td><td class="num">0.0052</td><td class="num">0.000</td><td>dead</td></tr>
       </tbody></table></div>
-
-    <p class="prose" style="margin-top:14px"><b>The consistent policy produced less order than no
-      steering at all.</b> 0.226 against frozen's 0.317. The rule's alignment comes <i>from</i> its
-      arbitrariness: “everyone follow the trail” is a consensus rule, and consensus rules smooth
-      rather than break symmetry. <b>The flock needs someone to turn the wrong way.</b></p>
-    <p class="prose">So the failure mode of a decision model in the decider seat is not rebellion.
-      It is <b>conformity</b> — and here conformity is exactly what stops the interesting behaviour
-      emerging.</p>
-    <p class="prose">Telling it the swarm's purpose barely moved anything (0.226 → 0.196, agreement
-      with the rule 44.1% → 44.2%). That is what “there is no instruction channel” looks like when
-      you try to use one as if there were.</p>
+    <p class="prose" style="margin-top:14px"><b>Jev is the most conservative active steerer on the
+      board.</b> Its mean turn is <b>0.363</b> against the rule's 0.717 and random's 0.597 — about
+      half the magnitude, on the identical five-rung ladder. It disperses the swarm more than not
+      steering at all, and less than steering at random.</p>
+    <p class="prose">In order-parameter space both Jev arms land <b>nearest <code>frozen</code></b>
+      (0.076 and 0.101) rather than near the rule (0.139, 0.158). That was the first version's
+      conclusion too, and it is the one thing in this table that survived being measured on a
+      different world.</p>
+    <p class="prose">Agreement with the rule sits at <b>50.5%</b> and <b>50.0%</b> — chance, on a
+      symmetric ladder. And the two framings remain nearly indistinguishable, which is still what
+      "there is no instruction channel" looks like when you try to use one.</p>
   </section>
 
   <section class="card finding">
