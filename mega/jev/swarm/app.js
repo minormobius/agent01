@@ -13,6 +13,11 @@ const $ = (id) => document.getElementById(id);
 const ENDPOINT = '../api/ask';
 const CONF = { dim: 480, baseBrush: 0.006 };
 
+// Particle colours: lightened variants of the four series hues. Identity is
+// already carried by the card's top border, its name and its legend dot, so
+// the canvas hue is reinforcement and never the only cue.
+const PARTICLE_COL = { 1: [120, 185, 250], 2: [250, 160, 120], 3: [80, 225, 175], 4: [235, 140, 215] };
+
 // The arms, in the fixed order the palette slots are assigned in. Colour never
 // changes with rank or with which arm happens to be winning.
 const ARMS = [
@@ -26,22 +31,70 @@ let state = null, running = false, stopFlag = false;
 
 // ------------------------------------------------------------- rendering ----
 /**
- * Paint a field to its canvas. The field is float RGB with no upper bound, so
- * it is clamped here exactly as a canvas would clamp it — the same clamp the
- * descriptors apply, so what you see is what is measured.
+ * Draw the SWARM, not the field.
+ *
+ * The first version of this painted the trail field, and on the live page it
+ * was black — correctly. At dim 480 with fluoddity's own brush and 256
+ * particles the field's brightest pixel is 21.9 of 255 and only 2.4% of
+ * channels survive rounding to a byte. That is the same fact this page already
+ * publishes as a finding ("the field reads dead at the resolution the sensors
+ * need") — so making that field the hero image was incoherent: a picture of
+ * something already measured as empty.
+ *
+ * What actually differs between the arms is the PARTICLES, which is also what
+ * the order parameters read. So each one is drawn as a short tail along its
+ * own heading: when the swarm aligns, every tail points the same way and
+ * polarization is visible rather than merely reported. The field stays as a
+ * faint auto-exposed backdrop, because it is the medium they are steering on
+ * and it should be visible that it exists.
  */
-function paint(cv, field) {
-  const d = field.dim;
-  if (cv.width !== d) { cv.width = d; cv.height = d; }
+function paint(cv, sw, col) {
+  const D = cv.width || 300;
+  if (cv.width !== D) { cv.width = D; cv.height = D; }
   const ctx = cv.getContext('2d');
-  const img = ctx.createImageData(d, d);
-  const px = img.data, src = field.rgb;
-  for (let i = 0, p = 0; p < d * d; i += 4, p++) {
-    const o = p * 3;
-    px[i] = Math.min(255, src[o] * 255);
-    px[i + 1] = Math.min(255, src[o + 1] * 255);
-    px[i + 2] = Math.min(255, src[o + 2] * 255);
-    px[i + 3] = 255;
+  const img = ctx.createImageData(D, D);
+  const out = img.data;
+
+  const d = sw.field.dim, rgb = sw.field.rgb;
+  // Auto-exposure: the field is faint by construction here, so it is scaled by
+  // its own maximum. The gain is capped so an EMPTY field stays dark instead of
+  // being amplified into noise that would look like structure.
+  let mx = 0;
+  for (let i = 0; i < rgb.length; i++) if (rgb[i] > mx) mx = rgb[i];
+  const gain = mx > 1e-6 ? Math.min(60, 0.55 / mx) : 0;
+  const s = d / D;
+  for (let y = 0; y < D; y++) {
+    for (let x = 0; x < D; x++) {
+      const o = (Math.floor(y * s) * d + Math.floor(x * s)) * 3, i = (y * D + x) * 4;
+      out[i] = Math.min(255, rgb[o] * 255 * gain);
+      out[i + 1] = Math.min(255, rgb[o + 1] * 255 * gain);
+      out[i + 2] = Math.min(255, rgb[o + 2] * 255 * gain);
+      out[i + 3] = 255;
+    }
+  }
+  const put = (px, py, r, g, b, a) => {
+    px = ((px % D) + D) % D; py = ((py % D) + D) % D;
+    const i = (py * D + px) * 4;
+    out[i] = out[i] * (1 - a) + r * a;
+    out[i + 1] = out[i + 1] * (1 - a) + g * a;
+    out[i + 2] = out[i + 2] * (1 - a) + b * a;
+  };
+  const TAIL = 13;
+  for (const p of sw.parts) {
+    const px = (p.x * 0.5 + 0.5) * D, py = (p.y * 0.5 + 0.5) * D;
+    const sp = Math.hypot(p.vx, p.vy) || 1e-9;
+    const ux = p.vx / sp, uy = p.vy / sp;
+    for (let k = TAIL; k >= 0; k--) {
+      const a = 0.10 + 0.90 * (1 - k / TAIL) ** 1.6;   // brightest at the head
+      const bx = px - ux * k, by = py - uy * k;
+      put(Math.round(bx), Math.round(by), col[0], col[1], col[2], a);
+      // A one-pixel line reads as dotted at this scale, so the tail is two
+      // pixels wide across its own direction of travel.
+      if (k < TAIL * 0.6) put(Math.round(bx - uy), Math.round(by + ux), col[0], col[1], col[2], a * 0.5);
+    }
+    for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+      put(Math.round(px) + ox, Math.round(py) + oy, 255, 255, 255, ox || oy ? 0.5 : 1);
+    }
   }
   ctx.putImageData(img, 0, 0);
 }
@@ -163,7 +216,7 @@ function build() {
         <div>mean |turn|<b id="trn_${a.id}">—</b></div>
       </div>
     </div>`).join('');
-  for (const a of state.arms) paint($(`cv_${a.id}`), a.sw.field);
+  for (const a of state.arms) paint($(`cv_${a.id}`), a.sw, PARTICLE_COL[a.slot]);
   redraw();
 }
 
@@ -201,7 +254,7 @@ async function oneTick() {
     const o = orderOf(a.sw);
     a.pol.push(o.polarization);
     if (a.pol.length > 240) a.pol.shift();
-    paint($(`cv_${a.id}`), a.sw.field);
+    paint($(`cv_${a.id}`), a.sw, PARTICLE_COL[a.slot]);
     $(`pol_${a.id}`).textContent = o.polarization.toFixed(3);
     $(`trn_${a.id}`).textContent = (turns.reduce((x, y) => x + Math.abs(y), 0) / turns.length).toFixed(2);
   }
