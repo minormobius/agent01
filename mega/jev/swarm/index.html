@@ -95,6 +95,44 @@
       you try to use one as if there were.</p>
   </section>
 
+  <section class="card finding">
+    <h2>Is this even a swarm? The arrangement, tested</h2>
+    <p class="prose">Everything above runs <b>one call</b> carrying a table of every particle, with
+      one question per row. That is the <i>wide</i> arrangement, and it is not really a swarm — the
+      question about particle 37 can see all 256 rows, which is <b>more</b> context than a local
+      agent has, not less. So “it applied one uniform policy” might have been an artefact of the
+      arrangement rather than a fact about the model.</p>
+    <p class="prose">The control is the real swarm: <b>256 separate calls, each carrying only that
+      particle's own two sensor readings and nothing else.</b> Same tick, same readings, so nothing
+      differs but how the state is carried.</p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th></th><th>shared — 1 call</th><th>split — 256 calls</th></tr></thead>
+      <tbody>
+        <tr><td>input tokens</td><td class="num">25,667</td><td class="num">114,432 <b>(4.5×)</b></td></tr>
+        <tr><td>follows the trail</td><td class="num">88.3%</td><td class="num"><b>92.6%</b></td></tr>
+        <tr><td>correlation with sensor asymmetry</td><td class="num">−0.564</td><td class="num">−0.604</td></tr>
+        <tr><td>mean confidence</td><td class="num"><b>0.512</b></td><td class="num">0.377</td></tr>
+        <tr><td colspan="3" style="padding-top:10px">agreement between the two: <b>r = 0.832</b>,
+          same rung <b>71.5%</b>, same sign <b>84.8%</b>, mean turn difference <b>0.120</b> on a ladder spanning 2.0</td></tr>
+      </tbody></table></div>
+    <p class="prose" style="margin-top:12px"><b>Splitting the state does not beat sharing it here.</b>
+      It costs 4.5× the tokens for decisions that agree on sign 85% of the time and differ by 6% of
+      the ladder's range. If your agents' slices are this small and this independent, the wide
+      arrangement is the right one on cost alone.</p>
+    <p class="prose"><b>And the conformity finding survives the control — it is stronger in the real
+      swarm.</b> The split arrangement follows the trail on 92.6% of decisions against the shared
+      one's 88.3%. So the uniform policy was never an artefact of letting one call see everything.
+      Determinism explains why: when the slice is the whole input, two particles with identical
+      readings <i>must</i> get identical answers.</p>
+    <p class="prose"><b>The odd number is the confidence.</b> Seeing all 256 rows made it markedly
+      more confident about each individual particle — 0.512 against 0.377 — while making it
+      slightly <i>less</i> policy-consistent. More context, more confidence, no more agreement with
+      itself. That is a limit this project has now measured three times in three domains: the
+      self-check tracks how much context it has rather than how much that context helps.</p>
+    <p class="cap">Wall clock was 1.2 s against 590 s, but that is <b>our own proxy's 30-per-minute
+      rate limit</b>, not the model's throughput. The token ratio is the honest comparison.</p>
+  </section>
+
   <section class="card">
     <h2>What this page will not claim</h2>
     <ul class="prose caveats">

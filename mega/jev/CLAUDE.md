@@ -1670,6 +1670,48 @@ conformity is exactly what stops the interesting behaviour emerging.
 anything, which is what "there is no instruction channel" looks like when you
 try to use one as if there were.
 
+### Shared state vs split state — the arrangement, finally tested
+
+The gate above ran **one call** with a global table and 256 questions. That is
+arrangement (a), the wide hypothesis, and **it is not a swarm** — the question
+about particle 37 can see all 256 rows, which is *more* context than a local
+agent has. The concept pile named (b), N calls each with one slice, as the
+thing worth measuring. The operator caught that only (a) had been run.
+
+Same tick, same readings, both arrangements:
+
+| | shared (1 call) | split (256 calls) |
+|---|---|---|
+| input tokens | 25,667 | **114,432 (4.5×)** |
+| follows the trail | 88.3% | **92.6%** |
+| corr with sensor asymmetry | −0.564 | −0.604 |
+| mean confidence | **0.512** | 0.377 |
+
+Agreement: **r = 0.832**, same rung 71.5%, same sign 84.8%, mean turn
+difference 0.120 on a ladder spanning 2.0.
+
+**Splitting does not beat sharing here** — 4.5× the tokens for decisions that
+agree on sign 85% of the time. Where the slices are this small and this
+independent, the wide arrangement wins on cost alone.
+
+**And the conformity finding survives its control, more strongly.** The real
+swarm follows the trail on 92.6% against the shared arrangement's 88.3%, so
+the uniform policy was never an artefact of one call seeing everything.
+Determinism explains it: when the slice is the whole input, identical readings
+*must* give identical answers.
+
+**The odd number is confidence.** Seeing all 256 rows made it markedly more
+confident about each particle — 0.512 against 0.377 — while making it slightly
+*less* policy-consistent. **Third measurement in three domains of the same
+limit: the self-check tracks how much context it has, not how much it helps.**
+
+Wall clock was 1.2s against 590s, but that is our proxy's 30/min limit, not the
+model's throughput. The token ratio is the honest comparison.
+
+```bash
+node mega/jev/eval/swarm-split.mjs --n 256    # 257 calls
+```
+
 ### The harness was lying about which way was left
 
 The worst bug on this surface so far, and it nearly shipped as a finding.
