@@ -1972,6 +1972,36 @@ const SPEC = fix2('preregister.json');
   ok(qs.p7.instructions.includes('particle 7'), 'each naming the row it is about');
   ok(!qs.p7.instructions.includes('swarm should'),
     'and carrying ONLY what differs — the framing is in the state, sent once, or 256 copies blow the body cap');
+  // THE HANDEDNESS, pinned against the geometry rather than against my memory
+  // of it. This inverted the whole experiment once: the state called sig[0]
+  // the LEFT sensor while a positive turn — the ladder's "right" — steers
+  // toward sig[0]'s side. Trail-following therefore came out of the harness
+  // as avoidance, and the model took the blame for it.
+  {
+    const ff = new Field(512, { trail_persistence: 1, trail_diffusion: 0, inkScale: 1, brush: 0.02 });
+    ff.deposit(0, 0.02, [1, 1, 1]);                       // a patch at +y
+    const heading = { x: 0, y: 0, vx: 0.01, vy: 0 };      // pointing +x
+    const sg = sense(heading, ff, DEFAULT_CFG);
+    ok(sg.sig[0] > sg.sig[2], 'a patch at +y is read more strongly by sig[0] than by sig[2]');
+
+    const one = makeSwarm({ n: 1, dim: 64 });
+    one.parts[0] = { i: 0, x: 0, y: 0, vx: 0.01, vy: 0 };
+    swStep(one, senseAll(one), [+1]);
+    ok(one.parts[0].vy > 0, 'and a POSITIVE turn steers toward +y — the same side sig[0] reads');
+
+    // Therefore the document must call sig[0] "right", because the ladder
+    // calls a positive turn "right". These two must agree or the harness lies.
+    const probe1 = [{ p: heading, s: { ...sg, sig: [100, 0, 1, 0] } }];   // sig[0] strong
+    const row = swarmDoc(probe1).split('\n').find((l) => /^\s*0\s/.test(l));
+    const cols = row.trim().split(/\s+/).map(Number);      // id, left, right, diff, ahead
+    ok(cols[2] === 100, 'so the RIGHT column carries sig[0]');
+    ok(cols[1] === 1, 'and the LEFT column carries sig[2]');
+    ok(cols[3] === cols[1] - cols[2], 'with DIFF = left - right, as the document says it is');
+    ok(cols[3] < 0, 'a strong sig[0] therefore reads as a NEGATIVE diff — more trail to the right');
+    ok(TURN_WORDS[TURN_RUNGS.indexOf(1)].includes('right'),
+      'and the top rung is the one that steers toward it, so "follow the trail" is a consistent policy');
+  }
+
   const doc = swarmDoc(sa, { note: 'OBJECTIVE HERE' });
   ok(/OBJECTIVE HERE/.test(doc), 'the framing rides the state');
   ok(/LEFT minus RIGHT/.test(doc), 'and the document states the subtraction it already did for the model');

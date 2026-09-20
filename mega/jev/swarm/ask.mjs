@@ -27,7 +27,15 @@ import { TURN_WORDS } from './swarm.mjs';
 export function swarmDoc(senses, { note = '' } = {}) {
   const rows = senses.map(({ s }, i) => {
     const ahead = (s.sig[0] + s.sig[2]) / 2;
-    const left = s.sig[0], right = s.sig[2];
+    // WHICH SENSOR IS "LEFT" IS NOT A MATTER OF TASTE, and getting it wrong
+    // inverted this whole experiment once. Measured directly: sig[0] is the
+    // sensor on the side that a POSITIVE turn steers toward, and the ladder
+    // calls a positive turn "toward the right". So sig[0] is the RIGHT sensor.
+    // Labelling it "left" — as this did — meant that "the left sensor is
+    // stronger, so turn left" applied a force AWAY from the stronger trail,
+    // and ordinary trail-following came out of the harness as avoidance.
+    // `swarm/probe.mjs`'s selftest pins the convention against the geometry.
+    const right = s.sig[0], left = s.sig[2];
     const diff = left - right;
     const n = (x) => (Math.abs(x) < 1000 ? x.toFixed(2) : x.toExponential(1));
     return `${String(i).padStart(3)}  ${n(left).padStart(9)} ${n(right).padStart(9)} ` +
