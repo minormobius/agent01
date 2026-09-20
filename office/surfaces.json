@@ -788,13 +788,22 @@
    "parent": null
   },
   {
-   "id": "finance",
-   "name": "finance",
-   "url": "https://fin.mino.mobi/pm/",
+   "id": "fin",
+   "name": "fin",
+   "url": "https://fin.mino.mobi",
    "cat": "data",
    "commits": 28,
    "age": "hot",
    "parent": null
+  },
+  {
+   "id": "finance",
+   "name": "finance",
+   "url": "https://fin.mino.mobi/pm/",
+   "cat": "data",
+   "commits": 2,
+   "age": "warm",
+   "parent": "fin"
   },
   {
    "id": "bogo",
@@ -803,7 +812,7 @@
    "cat": "data",
    "commits": 2,
    "age": "hot",
-   "parent": "finance"
+   "parent": "fin"
   },
   {
    "id": "agimet",
@@ -812,7 +821,7 @@
    "cat": "data",
    "commits": 2,
    "age": "hot",
-   "parent": "finance"
+   "parent": "fin"
   },
   {
    "id": "stocks",
@@ -821,16 +830,16 @@
    "cat": "data",
    "commits": 2,
    "age": "hot",
-   "parent": "finance"
+   "parent": "fin"
   },
   {
    "id": "speclab",
    "name": "speclab",
-   "url": "https://fin.mino.mobi",
+   "url": "https://fin.mino.mobi/speclab/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
-   "parent": null
+   "parent": "fin"
   },
   {
    "id": "wars",

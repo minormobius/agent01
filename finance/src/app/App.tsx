@@ -44,6 +44,7 @@ export function App() {
         <h1>fin · speculative-feedback playground</h1>
         <span className="sub">prediction-market ↔ asset feedback · contract-first research sandbox</span>
         <span className="spacer" />
+        <a href="/" className="small">← periodic table</a>
         <a href="/pm" className="small">/pm finance tools →</a>
       </header>
 

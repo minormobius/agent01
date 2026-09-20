@@ -1,28 +1,41 @@
-# fin.mino.mobi — Speculative-Feedback Playground
+# fin.mino.mobi — The Financial Periodic Table
 
-A research sandbox for studying how **prediction-market data streams** interact
-with **speculative-feedback dynamics** in a related asset market. Not a product,
-not a trading system: **paper / research only.**
+**The root app** is a research project: all 118 elements, sized by the economy
+each one stands under. For every element — how it is actually extracted, the
+form it is really traded in (sulfur as sulfuric acid, nitrogen as ammonia,
+titanium as white pigment), what a year of world extraction is worth, and the
+first-order markets that cannot exist without it. The ratio between the last
+two is the finding.
 
-The one thing that stays stable is the **input/output contract** (see
-[`CONTRACTS.md`](CONTRACTS.md)). Everything between *what goes in* and *what comes
-out* — data sources, models, metrics, regimes, charts — is swappable.
+The dataset is [`ptable/elements.js`](ptable/elements.js); the attribution
+rules, sources and limitations are in [`ptable/METHOD.md`](ptable/METHOD.md).
+Upstream figures are mostly USGS Mineral Commodity Summaries 2026; downstream
+figures are estimates under a stated rule, and every record carries a
+confidence tier saying which is which.
 
-This surface also hosts the previous **personal-finance planning SPA at
-[`/pm`](https://fin.mino.mobi/pm)**, unchanged in behaviour.
+This surface also hosts two earlier apps, unchanged in behaviour:
+
+- **[`/speclab`](https://fin.mino.mobi/speclab)** — the speculative-feedback
+  playground: a research sandbox for how **prediction-market data streams**
+  interact with **speculative-feedback dynamics** in a related asset market.
+  Not a product, not a trading system: **paper / research only.** The one thing
+  that stays stable is its **input/output contract** (see
+  [`CONTRACTS.md`](CONTRACTS.md)); everything between *what goes in* and *what
+  comes out* is swappable.
+- **[`/pm`](https://fin.mino.mobi/pm)** — the personal-finance planning SPA.
 
 ## Run it locally
 
 ```bash
 cd finance
 npm install
-npm run dev        # http://localhost:5173  — the playground at /, PM at /pm
+npm run dev        # http://localhost:5173  — table at /, speclab at /speclab, PM at /pm
 ```
 
 Other commands:
 
 ```bash
-npm run build      # builds both apps into dist/ (Vite multipage)
+npm run build      # builds all three apps into dist/ (Vite multipage)
 npm run typecheck  # tsc --noEmit
 npm test           # vitest — leakage guarantee + contract schemas
 npm run preview    # serve the production build
@@ -58,18 +71,21 @@ npm run preview    # serve the production build
 
 ## Architecture / deploy
 
-Two apps build into one `dist/`, served by `worker.js` (Cloudflare Worker +
+Three apps build into one `dist/`, served by `worker.js` (Cloudflare Worker +
 ASSETS binding):
 
 ```
-/            -> playground   (dist/index.html)      [src/, TS/React]
-/pm, /pm/*   -> finance SPA  (dist/pm/index.html)    [pm/src, JS/React]
-/api/*       -> backend (reserved; M2)
+/                      -> periodic table (dist/index.html)          [ptable/, plain ES modules]
+/speclab, /speclab/*   -> playground     (dist/speclab/index.html)  [src/, TS/React]
+/pm, /pm/*             -> finance SPA    (dist/pm/index.html)       [pm/src, JS/React]
+/api/*                 -> speclab backend (experiment store + proxies)
 ```
 
-`worker.js` does **subtree-aware SPA fallback** so `/pm/*` deep links boot the PM
-app, not the playground. Deploys via `.github/workflows/deploy-finance.yml` on
-push to this branch (worker name `fin`, custom domain `fin.mino.mobi`).
+`worker.js` does **subtree-aware SPA fallback** via its `SPA_ROOTS` list, so
+`/pm/*` and `/speclab/*` deep links boot their own app rather than the root one.
+Adding a fourth app means adding its prefix there. Deploys via
+`.github/workflows/deploy-finance.yml` on push to this branch (worker name
+`fin`, custom domain `fin.mino.mobi`).
 
 ---
 

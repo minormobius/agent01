@@ -3,16 +3,146 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>fin.mino.mobi · speculative-feedback playground</title>
-    <meta name="description" content="A research sandbox for studying how prediction-market data streams interact with speculative-feedback dynamics in a related asset market. Contract-first, everything-else-pluggable. Paper/research only." />
-    <meta name="theme-color" content="#0d1117" />
-    <style>
-      html, body { margin: 0; padding: 0; background: #0d1117; }
-      #root { min-height: 100vh; }
-    </style>
+    <title>The Financial Periodic Table</title>
+    <meta
+      name="description"
+      content="All 118 elements sized by the economy each one stands under. For every element: how it is actually extracted, the form it is really traded in (sulfur as sulfuric acid, nitrogen as ammonia, titanium as TiO₂ pigment), what that extraction is worth, and the first-order downstream markets it makes possible."
+    />
+    <meta name="theme-color" content="#f7f7f4" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231c5cab'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='600' fill='%23fff' text-anchor='middle'%3E$%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/ptable/styles.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div class="wrap">
+      <header class="masthead">
+        <p class="eyebrow"><a href="https://mino.mobi">mino.mobi</a> / fin</p>
+        <h1>The Financial Periodic Table</h1>
+        <p class="standfirst">
+          Every element, sized by the economy it stands under rather than by its atomic weight.
+          For each one: how it actually comes out of the ground, the form it is really traded in —
+          sulfur as sulfuric acid, nitrogen as ammonia, titanium as white pigment — what a year of
+          world extraction is worth, and the first-order markets that cannot exist without it.
+          The ratio between those last two is the point.
+        </p>
+      </header>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="controls">
+        <div class="segmented" id="modes" role="group" aria-label="Colour the table by"></div>
+        <p class="mode-blurb" id="mode-blurb"></p>
+        <button type="button" class="ghost" id="gates" aria-pressed="false">◆ Chokepoints only</button>
+      </div>
+
+      <div class="board">
+        <div class="grid" id="grid" role="group" aria-label="Periodic table, coloured by economic value"></div>
+      </div>
+
+      <div class="legend">
+        <div class="ramp" id="ramp"></div>
+        <span class="note" id="legend-note"></span>
+        <span class="key-chip"><i class="hatch"></i> no priced market</span>
+        <span class="key-chip" style="color: var(--gate)">◆ chokepoint</span>
+      </div>
+
+      <section class="panel" id="panel" aria-live="polite"></section>
+
+      <details class="tableview">
+        <summary>Every priced element as a table, ranked by leverage</summary>
+        <div class="scroll">
+          <table class="data" id="datatable">
+            <thead>
+              <tr>
+                <th>Z</th><th>Sym</th><th>Element</th><th>Traded form</th>
+                <th>Upstream</th><th>Downstream</th><th>Leverage</th><th>Conf.</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </details>
+
+      <section class="prose">
+        <h2>How the numbers were built</h2>
+        <p>
+          <strong>Upstream</strong> is world annual production times a representative price at the
+          first marketable form. Production and price come from the
+          <a href="https://pubs.usgs.gov/periodicals/mcs2026/mcs2026.pdf">USGS Mineral Commodity
+          Summaries 2026</a> wherever that publication covers the commodity, which is about
+          seventy of them; the rest are from industry bodies, named on each element.
+          Quantity and price are always quoted on the <em>same</em> basis — element content,
+          oxide content or gross ore — because mixing them is the fastest way to publish a wrong
+          number.
+        </p>
+        <h3>Most elements are not sold as elements</h3>
+        <p>
+          That is the whole reason this table is not just a price list. Almost no sulfur is bought
+          as sulfur: about 90% of it is consumed as sulfuric acid, and roughly half of that acid
+          goes into digesting phosphate rock. Nitrogen is bought as ammonia and urea. Nineteen of
+          every twenty tonnes of titanium becomes white pigment rather than an aerospace part.
+          Sodium is really chlor-alkali. Each record names the form the element is actually traded
+          in, and prices that form separately where a market for it exists.
+        </p>
+        <h3>Downstream is one hop, counted once</h3>
+        <p>
+          <strong>Downstream</strong> is the annual revenue of the first-order product markets in
+          which the element is a non-substitutable input — steel for iron, semiconductors and solar
+          modules for silicon, lithium-ion cells for lithium. It deliberately stops at one hop.
+          Following iron all the way to "buildings and vehicles" would reach most of world GDP and
+          would double-count every other element in the same car. Where the wider claim is the
+          interesting one — nitrogen underwriting roughly half the protein in living humans, for
+          instance — it is stated in that element's note rather than smuggled into the number.
+        </p>
+        <h3>What to trust</h3>
+        <p>
+          Upstream figures are good to the significant figures shown. Downstream figures are not:
+          published market sizes for the same industry routinely differ by a factor of two or three
+          between research houses, and the attribution rule above is a judgement, not a
+          measurement. Every element therefore carries a confidence tier, shown in its panel:
+          <code>high</code> means both ends are sourced, <code>med</code> means the downstream is a
+          reasoned estimate, <code>low</code> means read the exponent and ignore the mantissa, and
+          <code>nil</code> means no extraction economy exists at all. About a quarter of the table
+          is <code>nil</code> — everything above fermium is made one atom at a time in an
+          accelerator, and the honest economic answer for those elements is zero.
+        </p>
+        <h3>Things the table makes visible</h3>
+        <ul>
+          <li>
+            <strong>Leverage is inversely related to size.</strong> Iron has the largest economy on
+            the board and one of the lower ratios. The extreme ratios belong to tiny by-products —
+            neon, erbium, indium, rhenium — where a market worth a few hundred million dollars
+            gates hundreds of billions.
+          </li>
+          <li>
+            <strong>By-products cannot respond to price.</strong> Cobalt, selenium, tellurium,
+            gallium, indium, rhenium and sulfur are all produced as a fixed fraction of something
+            else. Demand can triple and supply will not move, which is what makes them fragile in a
+            way that reserves data never shows.
+          </li>
+          <li>
+            <strong>Gold runs backwards.</strong> It is the one element whose downstream is smaller
+            than its upstream, because it is bought to be held rather than consumed.
+          </li>
+        </ul>
+        <p>
+          The full dataset, including the attribution rule for every figure, is in
+          <code>finance/ptable/elements.js</code>, and the method is written out in
+          <code>finance/ptable/METHOD.md</code>. Corrections are welcome and expected.
+        </p>
+      </section>
+
+      <footer class="foot">
+        <a href="/speclab">/speclab — speculative-feedback playground</a>
+        <a href="/pm">/pm — personal finance tools</a>
+        <a href="https://mino.mobi/elements/">the other periodic table</a>
+      </footer>
+    </div>
+
+    <div id="tip" role="tooltip" data-show="0"></div>
+    <script type="module" src="/ptable/main.js"></script>
   </body>
 </html>

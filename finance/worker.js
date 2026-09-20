@@ -1,9 +1,14 @@
 // fin.mino.mobi — surface worker.
 //
-// Serves two static apps and a backend API:
-//   /            -> speculative-feedback playground (TS SPA, dist/index.html)
-//   /pm, /pm/*   -> personal-finance planning SPA   (dist/pm/index.html)
-//   /api/*       -> backend (experiment store in D1 + real-data proxies)
+// Serves three static apps and a backend API:
+//   /                      -> financial periodic table    (dist/index.html)
+//   /speclab, /speclab/*   -> speculative-feedback lab    (dist/speclab/index.html)
+//   /pm, /pm/*             -> personal-finance planning   (dist/pm/index.html)
+//   /api/*                 -> backend (experiment store in D1 + real-data proxies)
+//
+// SPA_ROOTS below is the whole of the subtree-aware fallback: a 404 under a
+// listed prefix boots THAT app's index, not the root one, so a deep link like
+// /pm/networth survives a refresh instead of landing on the periodic table.
 //
 // Backend (M2):
 //   GET    /api/health
@@ -38,8 +43,7 @@ export default {
     // Static assets with subtree-aware SPA fallback.
     const res = await env.ASSETS.fetch(request);
     if (res.status !== 404) return res;
-    const indexPath =
-      pathname === "/pm" || pathname.startsWith("/pm/") ? "/pm/index.html" : "/index.html";
+    const indexPath = spaIndexFor(pathname);
     const indexRes = await env.ASSETS.fetch(new Request(new URL(indexPath, url.origin), request));
     return new Response(indexRes.body, { status: 200, headers: indexRes.headers });
   },
@@ -50,6 +54,17 @@ export default {
     ctx.waitUntil(snapshotPm(env).catch(() => {}));
   },
 };
+
+// Mounted SPAs, longest prefix wins. Anything not under one of these falls
+// back to the root app.
+const SPA_ROOTS = ["/pm", "/speclab"];
+
+export function spaIndexFor(pathname) {
+  for (const root of SPA_ROOTS) {
+    if (pathname === root || pathname.startsWith(root + "/")) return `${root}/index.html`;
+  }
+  return "/index.html";
+}
 
 async function handleApi(request, env, _ctx, url) {
   const { pathname, searchParams } = url;

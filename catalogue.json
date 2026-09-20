@@ -28,11 +28,11 @@
       "label": "data"
     },
     {
-      "before": 147,
+      "before": 148,
       "label": "tools"
     },
     {
-      "before": 212,
+      "before": 213,
       "label": "games"
     }
   ],
@@ -1143,13 +1143,29 @@
       ]
     },
     {
-      "n": "finance",
-      "u": "https://fin.mino.mobi/pm/",
+      "n": "fin",
+      "u": "https://fin.mino.mobi",
       "c": "data",
       "k": 28,
       "a": "hot",
+      "t": "2026-09-20",
+      "b": "2026-03-14",
+      "surface": "finance",
+      "d": "The financial periodic table. All 118 elements sized by the economy each one stands under: how it is actually extracted, the form it is really traded in \u2014 sulfur as sulfuric acid, nitrogen as ammonia, titanium as white pigment \u2014 what a year of world extraction is worth, and the first-order markets that cannot exist without it. Upstream from USGS; downstream estimated under a stated rule, with a confidence tier on every record.",
+      "tags": [
+        "data",
+        "chem"
+      ]
+    },
+    {
+      "n": "finance",
+      "u": "https://fin.mino.mobi/pm/",
+      "c": "data",
+      "k": 2,
+      "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-14",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1160,7 +1176,7 @@
       "a": "hot",
       "t": "2026-05-14",
       "b": "2026-03-31",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1169,7 +1185,7 @@
       "c": "data",
       "k": 2,
       "a": "hot",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1178,17 +1194,18 @@
       "c": "data",
       "k": 2,
       "a": "hot",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
       "n": "speclab",
-      "u": "https://fin.mino.mobi",
+      "u": "https://fin.mino.mobi/speclab/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-06-21",
       "b": "2026-06-21",
+      "p": "fin",
       "surface": "finance"
     },
     {

@@ -1583,7 +1583,7 @@
       "kind": "app",
       "domain": "finance",
       "action": "regroup",
-      "why": "fin.mino.mobi is the finance surface. The catalogue still pointed at mino.mobi/finance/…, which the root serves as the landing page: stocks, agimet and bogo were dead by URL, not by code. The dashboard itself moved under /pm when the surface was taken over for the speculative-feedback playground (speclab).",
+      "why": "fin.mino.mobi is the finance surface. The catalogue still pointed at mino.mobi/finance/…, which the root serves as the landing page: stocks, agimet and bogo were dead by URL, not by code. The surface has been taken over twice: the personal-finance dashboard moved to /pm for the speculative-feedback playground, and the playground then moved to /speclab for the financial periodic table, which is now the door.",
       "members": [
         {
           "u": "fin.mino.mobi/pm",
@@ -1601,7 +1601,12 @@
         {
           "u": "fin.mino.mobi",
           "action": "keep",
-          "note": "speclab: the speculative-feedback playground that took over the surface; the door"
+          "note": "the financial periodic table: every element sized by the economy it stands under; the door"
+        },
+        {
+          "u": "fin.mino.mobi/speclab",
+          "action": "keep",
+          "note": "speclab: the speculative-feedback playground, relocated under /speclab"
         },
         {
           "u": "perp.mino.mobi",
