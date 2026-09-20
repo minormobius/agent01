@@ -635,6 +635,12 @@
               "domain": "agents"
             },
             {
+              "u": "mega.mino.mobi/jev/swarm",
+              "action": "new",
+              "note": "the decision model in the steering seat of a particle swarm, live beside the rule it replaced: it does not rebel, it legislates \u2014 one policy applied to every particle, and less alignment than no steering at all",
+              "domain": "agents"
+            },
+            {
               "u": "mega.mino.mobi/jev/composer",
               "action": "new",
               "note": "the same model composing a procedural creature across five generators, one legal edit at a time: every legal move is redrawn and measured as a thumbnail before it chooses, and the traits are counted off the render rather than derived from the genes, so one brief means the same thing to a hound, an eel and a brittle-star",

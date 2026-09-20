@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev in the decider seat</title>
+<meta name="description" content="A decision model replaces the steering brain of a particle swarm, live, beside the rule it replaced and two controls. It does not rebel — it legislates, and consensus produces less order than no steering at all.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="swarm.css">
+</head>
+<body>
+<main class="wrap sw">
+
+  <header class="swhead">
+    <div class="eyebrow">TypeSafe AI · jev-latest · a fluoddity swarm</div>
+    <h1>Jev in the decider seat</h1>
+    <p class="sub"><a href="../">← all the experiments</a> ·
+      <a href="../composer/">the composer</a> · <a href="../lab/">the lab</a> ·
+      <a href="https://fluoddity.mino.mobi/" rel="noopener">fluoddity</a></p>
+    <p class="prose lede">
+      <a href="https://fluoddity.mino.mobi/" rel="noopener">Fluoddity</a> is a particle swarm that
+      paints a trail field and then steers on it. Each particle senses the field at two points off
+      its own heading and a nonlinear brain turns those readings into a force. <b>Here that brain is
+      replaced by one typed question per particle</b> — and the rule it replaced runs beside it, on
+      the same genome, the same field and the same starting conditions.
+    </p>
+    <p class="prose">The question this answers is the operator's: <i>does the same system emerge,
+      and does Jev rebel?</i> The answer is neither. <b>It legislates.</b></p>
+  </header>
+
+  <section class="card">
+    <div class="runbar">
+      <button id="run" class="btn primary">run all four</button>
+      <button id="reset" class="btn">reset</button>
+      <label>particles<select id="n">
+        <option>64</option><option selected>128</option><option>256</option>
+      </select></label>
+      <span class="mode" id="mode">idle</span>
+    </div>
+    <p class="cap" style="margin:10px 0 0">Every arm shares the genome, the field, the integration,
+      the axial thrust, the seed and the initial conditions. <b>The only thing that differs is who
+      answers “how hard should this particle turn?”</b> Jev's arm costs one call per tick carrying
+      every particle's reading and one question each; the other three cost nothing, which is why
+      there is no excuse for leaving them out.</p>
+  </section>
+
+  <section class="arms" id="arms"></section>
+
+  <section class="card">
+    <h2>The finding, in one chart</h2>
+    <p class="cap" style="margin:0 0 10px">Each dot is one particle's decision at one tick. Across
+      is the only thing it can steer on — how much more trail lies to its left than its right, as
+      the state document already computed for it. Up is the turn that was chosen.</p>
+    <div id="scatter" class="chartbox"></div>
+    <p class="prose" style="margin:12px 0 0"><b>Jev's dots fall on a line. The rule's are a cloud.</b>
+      The model found one stateable policy — follow the trail — and applied it to every particle.
+      The fluoddity genome has no such policy: it is an arbitrary point in rule space, not a rule
+      anyone would write down, and its response barely correlates with its own input.</p>
+  </section>
+
+  <section class="card">
+    <h2>Alignment over time</h2>
+    <p class="cap" style="margin:0 0 10px">Polarization is the classical swarm order parameter — the
+      length of the mean heading, 1 when every particle points the same way and 0 when they cancel.
+      It reads the particles, not the picture.</p>
+    <div id="polchart" class="chartbox"></div>
+    <div class="tablewrap"><table class="dt" id="poltable"></table></div>
+  </section>
+
+  <section class="card finding">
+    <h2>Measured headless, over 100 ticks</h2>
+    <p class="cap" style="margin:0 0 10px">The canvases above are a demonstration and run for as
+      long as you leave them. <b>These are the measurement</b> — 100 ticks, 256 particles, 202 calls,
+      from <code>eval/swarm-gate.mjs</code>, and they are what the claims rest on.</p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th>arm</th><th>polarization</th><th>milling</th><th>nn distance</th><th>nearest arm</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw-dot s1"></span>rule — fluoddity's own brain</td><td class="num">0.767</td><td class="num">0.042</td><td class="num">0.0632</td><td>—</td></tr>
+        <tr><td><span class="sw-dot s4"></span>frozen — no steering at all</td><td class="num">0.317</td><td class="num">0.037</td><td class="num">0.0595</td><td>—</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — plain framing</td><td class="num">0.226</td><td class="num">0.054</td><td class="num">0.0619</td><td><b>frozen</b></td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — told the swarm's objective</td><td class="num">0.196</td><td class="num">0.032</td><td class="num">0.0621</td><td><b>frozen</b></td></tr>
+        <tr><td><span class="sw-dot s3"></span>random — same rungs</td><td class="num">0.026</td><td class="num">0.044</td><td class="num">0.0639</td><td>—</td></tr>
+      </tbody></table></div>
+
+    <p class="prose" style="margin-top:14px"><b>The consistent policy produced less order than no
+      steering at all.</b> 0.226 against frozen's 0.317. The rule's alignment comes <i>from</i> its
+      arbitrariness: “everyone follow the trail” is a consensus rule, and consensus rules smooth
+      rather than break symmetry. <b>The flock needs someone to turn the wrong way.</b></p>
+    <p class="prose">So the failure mode of a decision model in the decider seat is not rebellion.
+      It is <b>conformity</b> — and here conformity is exactly what stops the interesting behaviour
+      emerging.</p>
+    <p class="prose">Telling it the swarm's purpose barely moved anything (0.226 → 0.196, agreement
+      with the rule 44.1% → 44.2%). That is what “there is no instruction channel” looks like when
+      you try to use one as if there were.</p>
+  </section>
+
+  <section class="card">
+    <h2>What this page will not claim</h2>
+    <ul class="prose caveats">
+      <li><b>This is a CPU port of fluoddity's shader, not fluoddity.</b> It was written from the
+        GLSL and has never been compared against the live WebGL engine, because there is no GPU in
+        the sandbox that built it. Every arm runs the same port, so the comparison is fair; the
+        absolute numbers are not fluoddity's.</li>
+      <li><b>One constant was calibrated, not ported.</b> The GPU blends alpha into an 8-bit canvas;
+        this accumulates float. It was fitted once on the deterministic arm and frozen before any
+        arm involving the model was run.</li>
+      <li><b>One genome.</b> Fluoddity's evolvable box has 13 knobs and all of them are fixed here.
+        A different seed is a different brain and could give a different answer.</li>
+      <li><b>Only steering is under test.</b> Axial thrust comes from the deterministic rule in
+        every arm, including Jev's.</li>
+      <li><b>The field reads “dead” in every arm</b>, so fluoddity's own interestingness score could
+        not be compared at all — see below. That is stated as untestable rather than quietly
+        dropped.</li>
+    </ul>
+  </section>
+
+  <section class="card">
+    <h2>At this scale you get fluoddity's measure or its dynamics, not both</h2>
+    <p class="prose">Fluoddity runs 55,000 particles. A typed question per particle caps out around
+      256, because 256 questions is already <b>30,559 input tokens against a 32,768 ceiling</b>.
+      That gap is not a detail — it decides what can be measured.</p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th>configuration</th><th>the field</th><th>sensor asymmetry</th><th>the arms</th></tr></thead>
+      <tbody>
+        <tr><td>dim 128, energy-matched brush</td><td><code>alive</code>, fill 0.43</td><td class="num">1.3%</td><td><b>identical</b> — frozen scores the same as the rule</td></tr>
+        <tr><td>dim 480, fluoddity's own brush</td><td><code>dead</code>, fill 0.000</td><td class="num">6.7%</td><td>separate hard — 0.767 vs 0.026</td></tr>
+      </tbody></table></div>
+    <p class="prose" style="margin-top:12px">At dim 128 the two sensors sit <b>0.38 pixels apart and
+      read the same texel</b>. There is no gradient, so no decider can matter, and steering that does
+      nothing scores the same as fluoddity's brain. Fluoddity's own engine warns that
+      <code>(dim, count, brush)</code> is a hidden substrate axis and that field energy goes as
+      <code>count·brush²</code> — true, but <b>energy is not the thing to preserve</b>. Matching it at
+      256 particles gives each one a brush 14.6× fluoddity's while it moves 0.10 px per tick: a
+      stationary blob 60× wider than its own motion. Structure needs path-per-tick greater than brush
+      radius. And <b>sensor separation is an absolute length that does not scale with particle count
+      at all</b>, so below a resolution the swarm is simply blind.</p>
+  </section>
+
+  <section class="card">
+    <h2>The harness was lying about which way was left</h2>
+    <p class="prose">Worth publishing because it nearly shipped as the finding. The state document
+      called one sensor <b>LEFT</b>. Measured directly, it is the sensor on the side a
+      <i>positive</i> turn steers toward — and the ladder calls a positive turn <b>“toward the
+      right”</b>. The two labels named opposite sides of the same physical direction.</p>
+    <p class="prose">So when the model read “the left sensor is stronger” and answered “turn left”
+      — ordinary trail-following, the most sensible policy available — the harness applied a force
+      <i>away</i> from the stronger trail.</p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th>over 1024 particle-decisions</th><th>before the fix</th><th>after</th></tr></thead>
+      <tbody>
+        <tr><td>Jev steers toward the stronger trail</td><td class="num">1.8%</td><td class="num"><b>92.5%</b></td></tr>
+        <tr><td>the fluoddity rule does</td><td class="num">39.2%</td><td class="num">34.8%</td></tr>
+      </tbody></table></div>
+    <p class="prose" style="margin-top:12px">Every previous instance of this project's recurring
+      lesson was a <i>missing</i> input. This one was a <b>wrong</b> input — and a wrong input
+      produces a coherent, confident, exactly-backwards result rather than a visibly bad one. It is
+      pinned by a test now: a patch is deposited on one side, and the test asserts which sensor
+      reads it, which turn steers toward it, and that the document's columns agree with both.</p>
+  </section>
+
+  <footer class="swfoot">
+    <p class="prose muted">Pre-registered before the run — the prediction, what would falsify it,
+      and the scoring afterwards are in <code>swarm/PREDICTION.md</code>, committed with no results
+      in it. Two of five predictions were wrong. Reproduce with
+      <code>node mega/jev/eval/swarm-gate.mjs --ticks 100</code> and
+      <code>node mega/jev/eval/swarm-policy.mjs</code>.</p>
+  </footer>
+
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

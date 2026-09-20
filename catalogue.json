@@ -2958,6 +2958,23 @@
       ]
     },
     {
+      "n": "jev swarm",
+      "u": "https://mega.mino.mobi/jev/swarm/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-20",
+      "b": "2026-09-20",
+      "surface": "mega",
+      "d": "A decision model put in the steering seat of a particle swarm, live, beside the rule it replaced and two controls. Fluoddity's particles paint a trail field and steer on it: each one senses the field at two points off its own heading and a nonlinear brain turns those four numbers into a force. Here that brain is one typed question per particle — 256 questions in a single call — running against the same genome, the same field, the same seed and the same starting conditions, so the only thing that differs between the four canvases is who answers “how hard should this particle turn?”. The finding is one chart: Jev's decisions fall on a line and the genome's are a cloud. The model found one stateable policy, follow the trail, and applied it to every particle; the genome is an arbitrary point in rule space and has no policy at all. And the consistent policy produced LESS collective alignment than no steering whatsoever — 0.226 against 0.317 — because a consensus rule smooths rather than breaks symmetry, and a flock needs someone to turn the wrong way. It does not rebel; it legislates, and conformity is what stops the interesting behaviour emerging. Pre-registered before the run, with two of five predictions wrong and the scoring published, plus the harness bug that had trail-following coming out as avoidance until the handedness was checked.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "swarm",
+        "procgen"
+      ]
+    },
+    {
       "n": "jev lab",
       "u": "https://mega.mino.mobi/jev/lab/",
       "c": "tools",
