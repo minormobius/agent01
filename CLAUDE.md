@@ -225,6 +225,32 @@ surface's owning branch, which is what deploys it.**
 > `<domain> (custom domain)`** — green is not proof. Detection and fix:
 > [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §4.
 
+> ⭐ **The golden rule's sibling: DEPLOY DRIFT.** The golden rule catches a green run that
+> updated the wrong worker. This catches a green run that updated the right worker with a **stale
+> tree**. Because `main` does not deploy, a surface ships whatever its owning branch holds — and a
+> branch that forked from trunk and never came back keeps shipping the tree it had that day. Static
+> Assets replaces the whole manifest, so everything trunk added since is simply *absent* from the
+> live site, from a run that went green and bound the right domain. `hoop` was found this way on
+> 2026-09-18: a month and ~5300 lines of merged work (statblock and its worker endpoint, rindmap,
+> reactions.html, the mystery rewrite) that had never once reached production.
+>
+> ```bash
+> node scripts/deploy-drift.mjs           # per surface: does its branch's tree match trunk's?
+> node scripts/deploy-drift.mjs --check   # the preflight form
+> ```
+>
+> **Read it per surface, never as a commit count.** "1731 commits behind main" is almost always
+> meaningless — those commits are other surfaces' work. The tool compares trees over each surface's
+> own registry `paths:` and says which side moved: `same` (in sync, however far behind it looks),
+> `behind` (**shipping stale code**), `diverged` (needs judgment), `ahead` (unmerged work, not a
+> deploy problem), `missing` (the owning branch is gone — that surface cannot deploy at all, and is
+> the only condition preflight treats as fatal).
+>
+> Repairing a `behind` surface is a push to its owning branch, and **that push deploys**. Where the
+> branch is a strict ancestor of trunk the tool marks it `ff` — a pure fast-forward, no merge commit
+> and no conflict — but it still fires the deploy, so stage them and verify each run binds its custom
+> domain. Never batch them blind: one owning branch here carries **25 surfaces**.
+
 `workflow_dispatch` is on every deploy workflow for out-of-band runs. Build
 commands, migration order and secrets live in the workflow — read it rather
 than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
@@ -320,6 +346,15 @@ node, cargo, bash, background jobs.
 Does not work: `wrangler deploy` (no Cloudflare auth), live PDS/Bluesky writes,
 remote D1 writes, and there is no `gh` CLI — use the GitHub MCP tools.
 
+**The clone is SHALLOW, and git lies about history until you fix that.** Below the shallow
+boundary there is no ancestry, so `git merge-base` finds nothing and `git merge` says
+**"refusing to merge unrelated histories"** — for branches that share a root perfectly well.
+`git rev-list --count` lies too (`main` reads as ~55 commits; it is ~3700). This has already
+produced one confident, wrong diagnosis of "disjoint histories" that nearly led to rebuilding
+`main`. **Run `git fetch --unshallow` before concluding anything about branch topology**, and
+treat any "unrelated histories" error here as a shallow artefact until proven otherwise. (Two
+branches genuinely are orphans — `claude/homunculus-sweeptest` and `corpus/*` — by design.)
+
 **The deploy workflows are your network.** If you want to `wrangler deploy` from
 here, you want to push to a branch the workflow recognises.
 
@@ -328,6 +363,8 @@ here, you want to push to a branch the workflow recognises.
 | Symptom | Cause | Fix |
 |---|---|---|
 | deploy green, live site unchanged | `wrangler.jsonc` `name` ≠ domain owner | the golden rule — check the log binds `(custom domain)` |
+| deploy green, live site missing work that is on `main` | the owning branch forked from trunk and never came back — Static Assets republished a stale manifest | `node scripts/deploy-drift.mjs` |
+| `git merge` says "unrelated histories" | the sandbox clone is shallow, not a real fork | `git fetch --unshallow`, then re-check |
 | push didn't deploy | branch not in the workflow's triggers, or paths untouched | check the registry entry, then `gen-deploy-triggers --write` |
 | worker 500s for no reason | compatibility-date drift | that surface's own `wrangler.jsonc` |
 | D1 error about a missing column | migration not applied | `d1-migrate.yml`, or let the deploy workflow apply it |
