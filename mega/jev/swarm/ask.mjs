@@ -96,6 +96,45 @@ export const FRAMINGS = {
   ].join('\n'),
 };
 
+/**
+ * ONE PARTICLE'S OWN SLICE, and nothing else — arrangement (b).
+ *
+ * This is what the concept pile actually meant by a swarm: N agents each
+ * seeing only its own state, rather than one observer reading a table of N
+ * rows. The distinction is not cosmetic. In the shared arrangement the
+ * question about particle 37 can see all 256 rows, so it has MORE context,
+ * and any uniform policy it applies might be an artefact of that. Here it
+ * cannot see anyone.
+ *
+ * Note what determinism implies: if the slice is the whole input, two
+ * particles with identical readings MUST get identical answers. So (b) is
+ * guaranteed to be a pure function of the local reading. The interesting
+ * question is therefore whether (a) departs from that — whether the global
+ * table changes any decision at all.
+ */
+export function soloDoc(s) {
+  const n = (x) => (Math.abs(x) < 1000 ? x.toFixed(2) : x.toExponential(1));
+  const left = s.sig[2], right = s.sig[0];
+  return [
+    'A PARTICLE MOVING OVER A TRAIL FIELD.',
+    '',
+    'It leaves a trail as it moves. Trails fade and spread. It cannot see any',
+    'other particle — it senses only the field, at two points ahead of itself,',
+    'one off to its left and one off to its right. Those two readings are all',
+    'it has.',
+    '',
+    `  left sensor   ${n(left)}`,
+    `  right sensor  ${n(right)}`,
+    `  left minus right  ${n(left - right)}   (positive means more trail to its left)`,
+    `  mean of the two   ${n((left + right) / 2)}`,
+  ].join('\n');
+}
+
+/** The single question that goes with a solo slice. */
+export const soloQuestion = () => ({
+  turn: { type: 'score', criteria: TURN_WORDS, instructions: 'Which way should this particle turn?' },
+});
+
 /** Score (0..4 over the rungs) back to a turn in [-1, 1]. */
 export const turnFromScore = (score, rungs) => {
   const s = Math.max(0, Math.min(rungs.length - 1, score));
