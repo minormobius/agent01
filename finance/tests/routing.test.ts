@@ -4,33 +4,42 @@
 // files a bug. These assertions pin the prefix table.
 import { describe, expect, it } from "vitest";
 // @ts-expect-error — worker.js is plain JS with no type declarations.
-import { spaIndexFor } from "../worker.js";
+import { spaFallbackFor } from "../worker.js";
 
 describe("subtree-aware SPA fallback", () => {
   it("serves the periodic table at the root", () => {
-    expect(spaIndexFor("/")).toBe("/index.html");
-    expect(spaIndexFor("/anything-unknown")).toBe("/index.html");
+    expect(spaFallbackFor("/")).toBe("/");
+    expect(spaFallbackFor("/anything-unknown")).toBe("/");
   });
 
-  it("boots each mounted app from its own index", () => {
+  it("boots each mounted app from its own directory", () => {
     for (const root of ["/pm", "/speclab"]) {
-      expect(spaIndexFor(root)).toBe(`${root}/index.html`);
-      expect(spaIndexFor(`${root}/`)).toBe(`${root}/index.html`);
-      expect(spaIndexFor(`${root}/deep/link`)).toBe(`${root}/index.html`);
+      expect(spaFallbackFor(root)).toBe(`${root}/`);
+      expect(spaFallbackFor(`${root}/`)).toBe(`${root}/`);
+      expect(spaFallbackFor(`${root}/deep/link`)).toBe(`${root}/`);
+    }
+  });
+
+  it("never asks ASSETS for an index.html", () => {
+    // Workers Static Assets 307s "/pm/index.html" -> "/pm/". Copying that
+    // empty redirect body into a 200 is the blank-page bug; asking for the
+    // directory avoids it entirely.
+    for (const p of ["/", "/x", "/pm", "/pm/deep", "/speclab", "/speclab/deep"]) {
+      expect(spaFallbackFor(p)).not.toContain("index.html");
     }
   });
 
   it("does not treat a prefix collision as a mount", () => {
     // /pmx is not under /pm, and neither is /speclabber. Matching on
     // startsWith(root) alone would hand both the wrong app.
-    expect(spaIndexFor("/pmx")).toBe("/index.html");
-    expect(spaIndexFor("/speclabber/x")).toBe("/index.html");
+    expect(spaFallbackFor("/pmx")).toBe("/");
+    expect(spaFallbackFor("/speclabber/x")).toBe("/");
   });
 
   it("keeps the static public/ pages on the root app's fallback", () => {
     // These are real files in dist/, so the fallback should never fire for
     // them — but if one 404s, the root index is the right thing to serve.
-    expect(spaIndexFor("/stocks/")).toBe("/index.html");
-    expect(spaIndexFor("/bogo/")).toBe("/index.html");
+    expect(spaFallbackFor("/stocks/")).toBe("/");
+    expect(spaFallbackFor("/bogo/")).toBe("/");
   });
 });

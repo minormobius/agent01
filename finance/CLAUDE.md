@@ -101,9 +101,27 @@ cd finance
 npm install && npm run build          # all three apps into dist/
 node ptable/ptable.selftest.mjs       # dataset invariants
 npm test                              # speclab contract + leakage tests
-npx vite preview                      # look at it
-rm -rf dist                           # see below before running repo preflight
+npx vite preview                      # look at the pages
+npx wrangler dev --local              # ...but routing needs the real worker
+rm -rf dist .wrangler                 # see below before running repo preflight
 ```
+
+**`vite preview` does not run `worker.js`.** It serves `dist/` directly, so it
+cannot see anything wrong with the fallback — which is how `/pm/networth`
+shipped as a blank page. `wrangler dev --local` runs the worker under miniflare,
+needs no Cloudflare credentials, and reproduces routing bugs in one `curl`.
+**Run it before pushing any change to `worker.js` or `SPA_ROOTS`**, and check a
+deep link under each mount, not just the mount points:
+
+```bash
+for p in / /pm/ /pm/networth /speclab/ /speclab/whatever /unknown /pmx; do
+  printf '%-18s %s bytes\n' "$p" "$(curl -s localhost:8787$p | wc -c)"
+done
+```
+
+A 200 with a zero-byte body is the failure to watch for: Workers Static Assets
+answers `/pm/index.html` with a 307 to `/pm/`, so fetching the index path and
+restatusing it to 200 yields an empty page. Fetch the directory instead.
 
 `dist/` is gitignored but `scripts/catalogue-coverage.mjs` walks the working
 tree, not the index — so a local build leaves six "UNDECLARED endpoint"
