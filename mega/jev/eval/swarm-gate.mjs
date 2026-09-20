@@ -31,14 +31,41 @@ const OUT = arg('out', null);
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
 const CONF = { n: N, dim: 480, baseBrush: 0.006, baseCount: N };
 
-let calls = 0;
+let calls = 0, retries = 0;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * One transient blip must not cost a hundred calls of work.
+ *
+ * A single upstream timeout killed the first corrected run at tick 1 of the
+ * fourth arm, discarding 100 completed calls. The proxy retries 429 and 529;
+ * it does not retry a 502 or a dropped connection, and this runner retried
+ * nothing at all. A long unattended run needs its own retry — the same lesson
+ * the proxy already learned one level down.
+ *
+ * Only transient classes are retried. A 400 or a 413 will fail again just as
+ * fast and retrying it spends the budget twice for nothing.
+ */
+const TRANSIENT = new Set([429, 500, 502, 503, 504, 529]);
 const ask = async (state, questions) => {
-  if (calls++) await new Promise((r) => setTimeout(r, 2200));
-  const r = await fetch(ENDPOINT, { method: 'POST',
-    headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state, questions }) });
-  const b = await r.json();
-  if (!r.ok) throw new Error(`jev ${r.status}: ${JSON.stringify(b).slice(0, 180)}`);
-  return b;
+  if (calls) await sleep(2200);
+  const body = JSON.stringify({ state, questions });
+  let last;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    if (attempt) { retries++; await sleep(2000 * 2 ** attempt + Math.random() * 500); }
+    try {
+      const r = await fetch(ENDPOINT, { method: 'POST',
+        headers: { 'content-type': 'application/json' }, body });
+      const b = await r.json();
+      if (r.ok) { calls++; return b; }
+      last = new Error(`jev ${r.status}: ${JSON.stringify(b).slice(0, 180)}`);
+      if (!TRANSIENT.has(r.status)) throw last;
+    } catch (e) {
+      if (/jev \d+/.test(e.message) && !/jev (429|500|502|503|504|529)/.test(e.message)) throw e;
+      last = e;
+    }
+  }
+  throw new Error(`gave up after 4 attempts: ${last?.message}`);
 };
 
 /** Run one arm for TICKS, recording the trajectory. `decide` may be async. */
@@ -114,6 +141,6 @@ for (const j of ['jev-mimic', 'jev-goal']) {
   const row = ['rule', 'random', 'frozen'].map((k) => `${k} ${dist(ovec(by[j]), ovec(by[k])).toFixed(3)}`);
   console.log(`  ${j.padEnd(10)} ${row.join('   ')}`);
 }
-console.log(`\n${calls} calls.`);
+console.log(`\n${calls} calls, ${retries} retries.`);
 if (OUT) { writeFileSync(OUT, JSON.stringify({ when: new Date().toISOString(), conf: CONF, ticks: TICKS, arms }, null, 1));
   console.log(`wrote ${OUT}`); }
