@@ -1608,6 +1608,134 @@ node mega/jev/eval/compose-gate.mjs --chains 8 --steps 10 --out mega/jev/lab/com
 node mega/jev/eval/compose-gate.mjs --thin    # the control: predictive question, uncombined deltas
 ```
 
+## The swarm, on fluoddity: it does not rebel, it legislates (2026-09-20)
+
+**Pre-registered** in [`swarm/PREDICTION.md`](swarm/PREDICTION.md), committed
+`dc75ea34` with no results in it and pushed before the run. Two of five
+predictions were wrong and the wrongness is the finding.
+
+The question was the operator's: *put Jev in the decider seat for evolving the
+system — does the same system emerge, and does it rebel?*
+
+### Why fluoddity, and not boids
+
+Not because the prior work there is deep, though it is. Because **its particle
+rule is already the shape a typed question takes.** Each particle senses the
+trail field at two points off its heading, projects both into its own body
+frame, and a nonlinear brain maps those four scalars to a force. The caller
+already does all the arithmetic. Nothing had to be bent to fit the model.
+
+And fluoddity already owns the measure — `verdict` and `fitness2` predate this
+experiment and the whole site leans on them, so they are not ours to tune. The
+copy in [`swarm/probe.mjs`](swarm/probe.mjs) is verbatim and a selftest asserts
+it is byte-identical to theirs. fluoddity is owned by another branch: we read
+it, never write it.
+
+### The result
+
+100 ticks, 256 particles, one call per tick carrying every particle's slice and
+256 questions. Only steering varies; genome, field, thrust, seed and initial
+conditions are identical in every arm.
+
+| arm | polarization | nearest arm in order-parameter space |
+|---|---|---|
+| **rule** — fluoddity's own brain | **0.767** | — |
+| **frozen** — no steering at all | **0.317** | — |
+| **jev-mimic** | **0.226** | **frozen** (0.096) |
+| **jev-goal** | **0.196** | **frozen** (0.124) |
+| **random** | 0.026 | — |
+
+| | steers toward the stronger trail | corr with sensor asymmetry |
+|---|---|---|
+| **jev** | **92.5%** | **−0.583** |
+| the rule | 34.8% | 0.120 |
+
+**The model adopted one consistent, stateable policy — follow the trail — and
+applied it to 1024 heterogeneous states. The genome has no policy at all**: its
+response barely correlates with the one quantity the particle can steer on,
+because it is an arbitrary point in rule space rather than a rule anyone would
+write down.
+
+**And the consistent policy produced LESS collective order than no steering.**
+0.226 against frozen's 0.317. The rule's alignment comes *from* its
+arbitrariness: a uniform "everyone follow the trail" is a consensus rule, and
+consensus rules smooth rather than break symmetry. **The flock needs someone to
+turn the wrong way.**
+
+So the failure mode is not rebellion. It is **conformity** — and here
+conformity is exactly what stops the interesting behaviour emerging.
+
+**The two framings were nearly indistinguishable** (0.226 vs 0.196, agreement
+44.1% vs 44.2%). Stating the swarm's objective in the state barely moved
+anything, which is what "there is no instruction channel" looks like when you
+try to use one as if there were.
+
+### The harness was lying about which way was left
+
+The worst bug on this surface so far, and it nearly shipped as a finding.
+
+The state called `sig[0]` the LEFT sensor. Measured: `sig[0]` is the sensor on
+the side a **positive** turn steers toward, and the ladder calls a positive
+turn *"toward the right"*. **The two labels named opposite sides for the same
+physical direction.** So when the model read "left is stronger" and answered
+"turn left" — ordinary trail-following — the harness applied a force *away*
+from the stronger trail.
+
+| over 1024 decisions | before fix | after fix |
+|---|---|---|
+| jev steers toward the stronger trail | **1.8%** | **92.5%** |
+
+I was one step from publishing "the model avoids the trail" as its behaviour.
+Every previous instance of this file's recurring lesson was a **missing**
+input; this one was a **wrong** input, and a wrong input produces a coherent,
+confident, exactly-backwards result rather than a visibly bad one. It is pinned
+now: the selftest deposits a patch at +y, asserts which index reads it, asserts
+which turn steers toward it, and asserts the document's columns agree with both.
+
+### At 256 particles you get fluoddity's measure or its dynamics, not both
+
+| configuration | field | the arms |
+|---|---|---|
+| dim 128, energy-matched brush | `alive`, fill 0.43 | **identical** — sensor asymmetry 1.3% |
+| dim 480, fluoddity's brush | `dead`, fill 0.000 | separate hard — asymmetry 6.7% |
+
+At dim 128 the two sensors sit 0.38px apart and **read the same texel**. No
+gradient, so no decider can matter, and frozen steering scores the same as the
+rule.
+
+This sharpens fluoddity's own substrate note rather than just obeying it.
+`engine.js` warns that `(dim, count, brush)` is a hidden axis and energy goes as
+`count·brush²` — true, but **energy is not the thing to preserve.** Matching it
+at 256 particles gives each one a brush 14.6× fluoddity's while it moves 0.10px
+per tick: a stationary blob 60× wider than its own motion. Structure needs
+path-per-tick > brush radius. And **sensor separation is an absolute length
+that does not scale with particle count at all**, so below a resolution the
+swarm is simply blind.
+
+So `fitness2` could not be compared — every arm reads `dead` — and that is
+stated as untestable rather than quietly dropped.
+
+### The cost model bites exactly where the concept pile said it would
+
+256 questions is **30,559 input tokens against the 32,768 ceiling.** This runs
+at the model's actual edge; a slightly richer per-particle state does not fit.
+The swarm is the case where breadth stops being free, as predicted — one call
+per tick, 202 calls per run, ~1.4s each.
+
+Two runner lessons: the `goal` framing repeated 256× put the body 4KB over the
+96KB cap (the framing belongs in the state, sent once), and a single upstream
+502 discarded 100 completed calls because the runner retried nothing.
+
+```bash
+node mega/jev/eval/swarm-gate.mjs --ticks 100 --out mega/jev/lab/swarm-gate.json
+node mega/jev/eval/swarm-policy.mjs --ticks 4     # the diagnostic that decided the reading
+```
+
+Caveats that outrank the numbers: **one genome** (fluoddity's box has 13 knobs,
+all fixed at `defaultConfig()`), a **CPU port never compared against the WebGL
+engine** because there is no GPU here, one calibrated constant, 256 particles
+rather than 55,000, and only steering under test.
+
 ## The concept pile — what is built, what is measured, what is next
 
 | idea | state |
@@ -1621,7 +1749,7 @@ node mega/jev/eval/compose-gate.mjs --thin    # the control: predictive question
 | **Non-myopic composition** | ⬜ the real open question: a brief reachable only via a temporarily-worse step |
 | **Game balance** (`packages/pressure-lab/`) | ⬜ policy spreads and tightness bands are computed = determinate. Untested |
 | **The repo as corpus** | ⬜ 566 endpoints needing categorisation; pure wide-hypothesis, real utility |
-| **Jev swarm** | ⬜ see below — and `mappa`/polis NPCs are the right testbed, because NPCs have genuinely different states |
+| **Jev swarm** | ✅ **run on fluoddity.** It does not rebel, it *legislates*: one consistent policy (92.5%) where the genome improvises (34.8%) — and consensus produced LESS order than no steering. `mappa`/polis NPCs remain the richer testbed |
 
 ### Jev swarm — the multi-agent idea, and what would actually be new
 

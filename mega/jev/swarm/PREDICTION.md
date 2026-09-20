@@ -73,3 +73,74 @@ question per particle, keep everything else byte-identical, and compare.
   magnitude smaller is a smaller swarm.
 - **Only steering is under test.** Axial thrust comes from the deterministic
   rule in every arm.
+
+
+---
+
+# RESULTS — scored against the above, 2026-09-20
+
+Added after the run. **Nothing above this line was edited.** Two predictions
+were wrong, one was untestable, and the wrongness is the interesting part.
+
+Controls (100 ticks, 256 particles, dim 480). These never read the document,
+so the handedness bug did not touch them:
+
+| arm | polarization | milling | nn distance |
+|---|---|---|---|
+| **rule** (fluoddity's own brain) | **0.767** | 0.042 | 0.0632 |
+| **frozen** (no steering at all) | **0.317** | 0.037 | 0.0595 |
+| **jev-mimic** | **0.226** | 0.054 | 0.0619 |
+| **jev-goal** | **0.196** | 0.032 | 0.0621 |
+| **random** | **0.026** | 0.044 | 0.0639 |
+
+Nearest neighbour in order-parameter space: **both Jev arms are nearest
+`frozen`** (0.096 and 0.124), then random, and far from the rule (0.541,
+0.571).
+
+And the policy diagnostic, 1024 particle-decisions:
+
+| | steers toward the stronger trail | corr with sensor asymmetry |
+|---|---|---|
+| **jev** | **92.5%** | **−0.583** |
+| **the rule** | 34.8% | 0.120 |
+
+## Scoring
+
+**1. "Coherent but different — trail-following aggregation." HALF RIGHT, and
+the halves are the finding.** The *policy* is exactly as predicted: Jev
+follows the trail, 92.5% consistent across 1024 heterogeneous states. The
+*outcome* is not: it produces no aggregation and no coherent structure, and
+lands **below `frozen`** — a consistent, sensible per-particle policy produced
+*less* collective order than no steering at all.
+
+**2. "Agreement near chance, 45–60%." Essentially right**, marginally below
+the band I named: **44.1% and 44.2%**. Uninformative, and no sign the state
+leaked the rule.
+
+**3. "Worse `fitness2`, reading alive or frozen." UNTESTABLE, not merely
+unmeasured.** Every arm reads `dead` at the resolution the sensors require.
+This was known before the run and is the substrate limit, not a result.
+
+**4. "Both will beat random and frozen." WRONG.** Both beat random
+(0.226/0.196 against 0.026) and both **lose to frozen** (0.317).
+
+**5. "The goal framing will clump harder." WRONG.** The two framings are
+nearly indistinguishable — polarization 0.226 vs 0.196, agreement 44.1% vs
+44.2%, mean |turn| 0.328 vs 0.297. Stating the swarm's objective in the state
+barely moved the behaviour, which is what "there is no instruction channel"
+looks like when you try to use one.
+
+## What this says, stated once
+
+**It does not rebel. It legislates.** The model adopted one consistent,
+stateable policy and applied it everywhere. The fluoddity genome has no such
+policy — its correlation with the same input is 0.120, because it is an
+arbitrary point in rule space, not a rule anyone would write down.
+
+And the alignment the rule produces comes *from* that arbitrariness. A uniform
+"everyone follow the trail" is a consensus rule, and consensus rules smooth
+rather than break symmetry. **The flock needs someone to turn the wrong way.**
+
+So the failure mode of a decision model in the decider seat is not rebellion.
+It is conformity — and on this substrate conformity is the thing that
+prevents the interesting behaviour from emerging at all.
