@@ -33,10 +33,10 @@ _Regenerated 2026-09-20 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-20, 99 members / 230 posts):
+**Neighborhood spark** (bisk 2026-09-20, 99 members / 217 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: jev, personhood, utilitarianism
-- Top post: "Frog built a wet lab for the AI model. "There," he said. "Now it can do its own experiments." "What the fuck?" said Toad" — @gracekind.net
+- Distinctive words: jev, utilitarianism, llm
+- Top post: "you do have to respect will stancil's utterly dogged determination to teach philosophy of mind 101 to bluesky" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
