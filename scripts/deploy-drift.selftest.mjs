@@ -6,7 +6,7 @@
 //   • a branch thousands of commits "behind main" but IN SYNC on its own paths is `same`, not a finding
 //   • a branch with trunk commits and none of its own on those paths is `behind` — the hoop bug
 
-import { classify, pathspec, CATEGORIES } from './deploy-drift.mjs';
+import { classify, pathspec, CATEGORIES, environmentSkip } from './deploy-drift.mjs';
 
 let pass = 0, fail = 0;
 const ok = (c, m) => { if (c) pass++; else { fail++; console.error('  ✗ ' + m); } };
@@ -41,6 +41,18 @@ eq(classify({}), 'same', 'an empty survey → no finding');
 eq(pathspec('hoop/**'), "':(glob)hoop/**'", 'a directory glob becomes a glob pathspec');
 eq(pathspec('.github/workflows/deploy-hoop.yml'), "':(glob).github/workflows/deploy-hoop.yml'", 'a bare file path is quoted too');
 ok(pathspec('a/**').startsWith("':(glob)") && pathspec('a/**').endsWith("'"), 'pathspecs are quoted for the shell');
+
+// ── the environment guard: red-vs-green in CI turns on this ─────────────────────────────
+// A check must fail on a REPO problem, never on how the repo was cloned. Without this guard a
+// single-branch checkout reports all 102 surfaces as `missing` and turns a healthy repo red.
+ok(environmentSkip({ shallow: true }), 'a shallow clone skips (no merge base to find down there)');
+ok(environmentSkip({ haveTrunk: false }), 'no trunk ref skips');
+ok(environmentSkip({ absent: 102, total: 102 }), 'a single-branch checkout skips instead of calling every surface missing');
+ok(environmentSkip({ absent: 60, total: 102 }), 'most branches absent → the checkout is the problem, not the repo');
+ok(!environmentSkip({ absent: 2, total: 102 }), 'a HANDFUL of absent branches is a real finding — do not skip it away');
+ok(!environmentSkip({ absent: 0, total: 102 }), 'a healthy full checkout proceeds');
+ok(!environmentSkip(), 'defaults proceed');
+ok(/fetch-depth/.test(environmentSkip({ absent: 102, total: 102 })), 'the skip reason names the remedy');
 
 console.log((fail ? '✗ ' : '✓ ') + 'deploy-drift.selftest — ' + pass + '/' + (pass + fail) + ' checks');
 process.exit(fail ? 1 : 0);

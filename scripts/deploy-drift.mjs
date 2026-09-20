@@ -63,6 +63,18 @@ export function classify({ onRemote = true, treeDiff = 0, branchCommits = 0, tru
 // registry glob → git pathspec. `hoop/**` and a bare file path both work.
 export const pathspec = (p) => `':(glob)${p}'`;
 
+// Can this checkout answer the question at all? Returns a reason to SKIP, or null to proceed.
+// A check must fail on a REPO problem, never on how the repo was cloned — so a shallow clone (no
+// merge base to find), a missing trunk, or a single-branch checkout (trunk visible, siblings not,
+// which would report every surface as `missing`) all skip loudly. A handful of absent branches is
+// a genuine finding and proceeds.
+export function environmentSkip({ shallow = false, haveTrunk = true, trunk = 'origin/main', absent = 0, total = 0 } = {}) {
+  if (shallow) return 'shallow clone, needs `git fetch --unshallow`';
+  if (!haveTrunk) return `no ${trunk} — fetch the remote branches`;
+  if (total && absent > total / 2) return `this checkout cannot see sibling branches (${absent}/${total} owning branches absent) — needs the remote branches, e.g. actions/checkout fetch-depth: 0`;
+  return null;
+}
+
 export function surveyOne(surface, remoteBranches) {
   const br = 'origin/' + surface.branch;
   if (!remoteBranches.has(br)) return { surface: surface.surface, branch: surface.branch, category: 'missing' };
@@ -100,14 +112,17 @@ if (isMain) {
   // one branch has no siblings to compare against. Either way: say so, don't guess.
   const shallow = existsSync(join(ROOT, '.git', 'shallow'));
   const haveTrunk = !!sh(`git rev-parse --verify -q ${TRUNK}`);
-  if (shallow || !haveTrunk) {
-    const why = shallow ? 'shallow clone, needs `git fetch --unshallow`' : `no ${TRUNK} — fetch the remote branches`;
+  let why = environmentSkip({ shallow, haveTrunk, trunk: TRUNK });
+  const rows = why ? [] : survey();
+  if (!why && rows.length) {
+    why = environmentSkip({ absent: rows.filter((r) => r.category === 'missing').length, total: rows.length });
+  }
+  if (why) {
     if (JSON_OUT) console.log(JSON.stringify({ skipped: why }, null, 2));
     else console.log(`deploy drift: SKIPPED — ${why}`);
     process.exit(0);                                    // never a finding we cannot stand behind
   }
 
-  const rows = survey();
   const by = (c) => rows.filter((r) => r.category === c);
   const [missing, behind, diverged, ahead, same] = CATEGORIES.map(by);
 
