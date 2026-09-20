@@ -13,16 +13,18 @@ node_modules/
 package.json
 package-lock.json
 
-# Rust sources and build output for the two wasm engines. The built modules are
+# Rust sources and build output for the wasm engines. The built modules are
 # committed next to their pages and served from there; the crates themselves are
 # read on GitHub, not fetched over HTTP.
 cf/engine
 craft/engine
 wheel/engine
 ball/engine
+sand/engine
 
 # The node selftests are run in CI, not by a browser.
 cf/cf.selftest.mjs
 craft/craft.selftest.mjs
 wheel/wheel.selftest.mjs
 ball/ball.selftest.mjs
+sand/sand.selftest.mjs
