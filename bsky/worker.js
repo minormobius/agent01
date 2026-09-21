@@ -50,9 +50,25 @@ const json = (body, status = 200) =>
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 
+/**
+ * dweet.mino.mobi rides on this worker rather than getting its own, because
+ * the account is at its worker cap and a second custom-domain route costs
+ * nothing. The surface's assets already live under /dweet/ and reference each
+ * other by absolute path, so exactly one thing needs mapping: the bare root.
+ *
+ * Deliberately narrow. Rewriting every path on this host would shadow
+ * /packages/* and /lib/*, which the dweet page imports from the shared asset
+ * root — the same files the AppView uses.
+ */
+const DWEET_HOST = 'dweet.mino.mobi';
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (url.hostname === DWEET_HOST && (url.pathname === '/' || url.pathname === '')) {
+      return env.ASSETS.fetch(new Request(new URL('/dweet/index.html', url), request));
+    }
 
     if (url.pathname === '/api/health') {
       return json({

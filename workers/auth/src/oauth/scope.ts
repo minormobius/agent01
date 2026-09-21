@@ -54,6 +54,11 @@ const WRITE_COLLECTIONS = [
   // board (infinite whiteboard) — one record per board, including every child
   // board a nesting gesture mints, so a single collection covers the whole tree
   'com.minomobi.board.canvas',
+  // dweet (dweet.mino.mobi) — one 140-character animation per record. The
+  // source is the whole artwork, so there is no blob type to add alongside it.
+  // The surface requests THIS ALONE rather than the unified union: it executes
+  // code from strangers, and a one-line consent screen is part of earning that.
+  'com.minomobi.dweet.dweet',
   // org / calendar
   'com.minomobi.cal.event',
   // cards

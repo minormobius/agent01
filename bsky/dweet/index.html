@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>dweet — 140 characters of animation</title>
+<meta name="description" content="A feed of animations that are 140 characters of JavaScript, stored in their author's own ATProto repo. Small enough that the whole artwork fits inside a firehose event — so the feed needs no backend at all.">
+<style>
+:root{
+  --bg:#0b0d12; --panel:#11141c; --line:#1e2330; --line-soft:#171b25;
+  --text:#e6eaf1; --muted:#79839a; --accent:#ff3d68; --live:#3ddc84; --dead:#e0576a;
+  --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#fbfaf8; --panel:#ffffff; --line:#e2e0da; --line-soft:#eeece7;
+    --text:#1b1e24; --muted:#5f6672; --accent:#d61d4e;
+  }
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:var(--bg);color:var(--text);font:15px/1.6 var(--sans);
+  -webkit-font-smoothing:antialiased}
+a{color:var(--accent)}
+[hidden]{display:none!important}
+
+/* ── chrome ─────────────────────────────────────────────── */
+header{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+.bar{max-width:760px;margin:0 auto;padding:12px 16px;display:flex;align-items:center;gap:14px}
+.brand{font:600 17px/1 var(--mono);letter-spacing:-.02em;color:var(--text);text-decoration:none}
+.brand b{color:var(--accent)}
+nav{display:flex;gap:2px;margin-left:auto}
+nav button{font:500 13px var(--sans);color:var(--muted);background:none;border:0;
+  padding:7px 13px;border-radius:99px;cursor:pointer}
+nav button[aria-current="page"]{background:var(--line-soft);color:var(--text)}
+#who{font:500 12px var(--mono);color:var(--muted);background:none;border:1px solid var(--line);
+  padding:6px 11px;border-radius:99px;cursor:pointer;white-space:nowrap}
+
+main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
+.lede{color:var(--muted);font-size:13.5px;margin-bottom:20px;line-height:1.65}
+.lede code{font:12px var(--mono);background:var(--line-soft);padding:1px 5px;border-radius:4px}
+
+/* ── the canvas frame ───────────────────────────────────── */
+.stage{position:relative;aspect-ratio:16/9;background:#000;border-radius:10px;
+  overflow:hidden;border:1px solid var(--line)}
+.dweet-frame{width:100%;height:100%;border:0;display:block;background:#000}
+.stage .placeholder{position:absolute;inset:0;display:grid;place-items:center;
+  color:var(--muted);font:12px var(--mono)}
+.stage .fault{position:absolute;inset:0;display:grid;place-items:center;padding:20px;
+  background:#000c;color:var(--dead);font:12px/1.5 var(--mono);text-align:center}
+
+/* ── a card ─────────────────────────────────────────────── */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:12px;margin-bottom:18px}
+.card .meta{display:flex;align-items:center;gap:9px;margin-bottom:10px;min-width:0}
+.card .meta img{width:26px;height:26px;border-radius:99px;background:var(--line);flex:none}
+.card .meta .name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;min-width:0}
+.card .meta .handle{font:12px var(--mono);color:var(--muted);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card .meta .when{margin-left:auto;font:11px var(--mono);color:var(--muted);flex:none}
+.card pre{margin-top:11px;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:break-all;
+  color:var(--text);background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;padding:10px 11px;user-select:all}
+.card .foot{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.tag{font:11px var(--mono);color:var(--muted);border:1px solid var(--line);
+  padding:3px 8px;border-radius:99px}
+.tag.lang{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,transparent)}
+.act{margin-left:auto;display:flex;gap:7px}
+.act button,.act a{font:500 12px var(--sans);color:var(--text);background:var(--line-soft);
+  border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;
+  text-decoration:none;display:inline-block}
+.act button:hover,.act a:hover{border-color:var(--accent)}
+
+/* ── composer ───────────────────────────────────────────── */
+.composer label{display:block;font:500 12px var(--sans);color:var(--muted);margin:16px 0 7px}
+.composer textarea{width:100%;min-height:96px;resize:vertical;font:13px/1.6 var(--mono);
+  color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;
+  padding:12px;outline:none}
+.composer textarea:focus{border-color:var(--accent)}
+.composer textarea.over{border-color:var(--dead)}
+.row{display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap}
+.count{font:12px var(--mono);color:var(--muted)}
+.count.over{color:var(--dead)}
+.count b{color:var(--text);font-weight:600}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:500 12px var(--mono);color:var(--muted);background:var(--panel);
+  border:0;padding:6px 13px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.primary{margin-left:auto;font:600 13px var(--sans);color:#fff;background:var(--accent);
+  border:0;border-radius:8px;padding:9px 18px;cursor:pointer}
+.primary:disabled{opacity:.4;cursor:not-allowed}
+.note{font:12px/1.6 var(--mono);color:var(--muted);margin-top:12px}
+.note.err{color:var(--dead)}
+.examples{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.examples button{font:11px var(--mono);color:var(--muted);background:var(--line-soft);
+  border:1px solid var(--line);border-radius:99px;padding:5px 11px;cursor:pointer}
+.examples button:hover{color:var(--text);border-color:var(--accent)}
+
+.empty{text-align:center;color:var(--muted);padding:34px 16px;font-size:13.5px;line-height:1.7}
+.status{display:flex;align-items:center;gap:7px;font:11px var(--mono);color:var(--muted);
+  margin-bottom:16px}
+.dot{width:7px;height:7px;border-radius:99px;background:var(--muted);flex:none}
+.dot.on{background:var(--live);box-shadow:0 0 8px var(--live)}
+.dot.off{background:var(--dead)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <a class="brand" href="/">d<b>weet</b></a>
+    <nav>
+      <button id="tab-feed" aria-current="page">feed</button>
+      <button id="tab-compose">compose</button>
+    </nav>
+    <button id="who">sign in</button>
+  </div>
+</header>
+
+<main>
+  <!-- ── feed ─────────────────────────────────────────── -->
+  <section id="view-feed">
+    <p class="lede">
+      140 characters of JavaScript, called 60 times a second over a 1920&times;1080 canvas.
+      Each one is a record in its author's own ATProto repo — small enough that the whole
+      artwork arrives inside a single firehose event, which is why this page has no backend.
+      Every dweet runs in a sandboxed frame at an opaque origin with <code>default-src 'none'</code>.
+    </p>
+    <div class="status"><span class="dot" id="live-dot"></span><span id="live-text">connecting to the firehose…</span></div>
+    <div id="feed"></div>
+    <div class="empty" id="feed-empty" hidden>
+      Nothing on the wire yet — dweets appear here the moment anyone posts one.<br>
+      Meanwhile, here is the house set.
+    </div>
+  </section>
+
+  <!-- ── compose ──────────────────────────────────────── -->
+  <section id="view-compose" hidden>
+    <div class="composer">
+      <div class="stage" id="preview-stage"></div>
+      <div class="row">
+        <span class="count" id="count"><b>0</b>/140</span>
+        <div class="seg">
+          <button id="lang-js" aria-pressed="true">js</button>
+          <button id="lang-glsl" aria-pressed="false">glsl</button>
+        </div>
+        <button class="primary" id="run">run</button>
+      </div>
+
+      <label for="src">source <span id="lang-hint"></span></label>
+      <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"
+        placeholder="c.width|=0;x.fillRect(960+S(t)*400,540,40,40)"></textarea>
+      <div class="examples" id="examples"></div>
+
+      <label for="title">title <span style="color:var(--muted);font-weight:400">— optional</span></label>
+      <textarea id="title" rows="1" style="min-height:0;height:42px" spellcheck="false"
+        placeholder="heartbeat"></textarea>
+
+      <div class="row">
+        <span class="note" id="post-note">Posting writes one <code>com.minomobi.dweet.dweet</code> record to your repo.</span>
+        <button class="primary" id="post" disabled>post</button>
+      </div>
+      <p class="note err" id="post-err" hidden></p>
+    </div>
+  </section>
+</main>
+
+<script type="module" src="/dweet/app.js"></script>
+</body>
+</html>

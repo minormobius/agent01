@@ -4,7 +4,17 @@
   "main": "worker.js",
   "compatibility_date": "2026-02-20",
   "routes": [
-    { "pattern": "bsky.mino.mobi", "custom_domain": true }
+    { "pattern": "bsky.mino.mobi", "custom_domain": true },
+    // dweet.mino.mobi is a SECOND custom domain on this SAME worker, not a
+    // second worker — the account is at its worker cap, and an extra route is
+    // free where an extra worker is not. worker.js maps this host's `/` to
+    // /dweet/index.html; every asset under /dweet/ is already reachable by its
+    // own absolute path, so nothing else needs rewriting.
+    //
+    // Both patterns must appear in the deploy log as `(custom domain)`. If
+    // only bsky.mino.mobi binds, dweet.mino.mobi is being served by something
+    // else and this deploy did not change it — see the golden rule, below.
+    { "pattern": "dweet.mino.mobi", "custom_domain": true }
   ],
   // bsky.mino.mobi — a frontend-only AppView. The page assembles its own
   // timeline from Jetstream v2 (live tail, unauthenticated, server-side `dids`

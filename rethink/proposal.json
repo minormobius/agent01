@@ -2002,6 +2002,14 @@
           "wing": "bluesky"
         },
         {
+          "u": "dweet.mino.mobi",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "note": "140 characters of animation per post; the same no-backend trick as bsky, because the artwork fits in the firehose event",
+          "wing": "bluesky"
+        },
+        {
           "u": "words.mino.mobi",
           "action": "keep",
           "kind": "game",

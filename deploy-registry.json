@@ -1625,10 +1625,14 @@
         "bsky/**",
         "packages/atproto/jetstream.js",
         "packages/atproto/constellation.js",
-        "packages/atproto/bsky.js"
+        "packages/atproto/bsky.js",
+        "packages/oauth-client/auth.js"
       ],
-      "note": "An AppView with no database… (full description: bsky/CLAUDE.md)",
-      "status": "NEW 2026-09-05 — scaffold. Domain bsky.mino.mobi did not resolve before this branch; the custom-domain route is attached by the first wrangler deploy. VERIFY the run log binds `bsky.mino.mobi (custom domain)` before believing it (golden rule)."
+      "serves": [
+        "dweet"
+      ],
+      "note": "An AppView with no database… (full description: bsky/CLAUDE.md) ALSO serves dweet at dweet.mino.mobi — a feed of 140-character canvas animations, each one a com.minomobi.dweet.dweet record in its author's own repo. That is a SECOND custom_domain route on THIS worker, not a second worker: the account is at its worker cap, and a route is free where a worker is not. worker.js maps only that host's bare / to /dweet/index.html, so /packages/* and /lib/* stay shared with the AppView. The surface executes untrusted code, so its isolation is asserted by bsky/dweet/sandbox.selftest.mjs — read bsky/dweet/CLAUDE.md before changing anything that touches a frame.",
+      "status": "NEW 2026-09-05 — scaffold. Domain bsky.mino.mobi did not resolve before this branch; the custom-domain route is attached by the first wrangler deploy. VERIFY the run log binds `bsky.mino.mobi (custom domain)` before believing it (golden rule). 2026-09-21 — dweet.mino.mobi added as a SECOND custom_domain route on this same worker. Its first deploy must bind BOTH patterns: confirm the log shows `bsky.mino.mobi (custom domain)` AND `dweet.mino.mobi (custom domain)`, because one without the other is a half-applied deploy in which the dweet surface is simply not live. This branch also owns workers/auth, where com.minomobi.dweet.dweet enters WRITE_COLLECTIONS, so surface and scope ship on one push — BUT read the auth entry first: that tree is BEHIND main, and deploying it as-is narrows the ceiling from 75 collections and drops the loop.mino.mobi origin."
     },
     {
       "surface": "atlas",
