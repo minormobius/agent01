@@ -27,16 +27,16 @@ current ground truth — the taken-slug list prevents collisions and the
 neighborhood spark is your fresh inspiration seed.
 
 <!-- BRIEF_START -->
-_Regenerated 2026-09-20 by build-brief.mjs — do not edit by hand._
+_Regenerated 2026-09-21 by build-brief.mjs — do not edit by hand._
 
 **Already taken** (never reuse these slugs/sites): ai-edu, airchat, answers, ar, archive, arnold, assets, astra, atlas, atproto-data, aub, audio, auto, aztec, b, bakeoff, bakery, biome, bisk, bismuth, board, borges, borsuk, bounty, bsky, cable, canvas, capset, cards, chat, civ, clef, clock, cluster, cohomology, conjectures, crm, crucible, curve, data, density, descent, docs, draw, duck, echo, elements, empathy, erdos, fable, farm, fifty, finance, fipo, fix, flights, flows, fluoddity, foam, fold, functions, g, games, geometry, golem, guthkatz, hadwiger, heilbronn, hoop, hoop-archive, hoop-backend, hoop-history, hopper, human, idol, ink, io, iris, ising, j, js, judge, jurassic, kakeya, ken, lab, labglass, loop, mappa, markov, math, meander, mega, mmo, modulo, moji, morphyx, music, neuro, next, noise, notes, novelty, ocr, office, org, orrery, os, packages, paint, pds, perp, photo, phylo, phylofiction, pizza, plant, pm, pod, pokemon, polis, poll, procgen, prop, range, rant, read, reef, rethink, rind, rite, runner, sci, scripts, seek, silk, spec, splice, src, stats, sweat, szemeredi-trotter, table, tape, temperley-lieb, ternary, ternary2, ternary3, tide, time, tjs, torus, track, traffic, uni, unit, vault, viazovska, voronoi, wars, wave, weft, wiki, wild, words, workers, wormhole, zest, zoom
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-20, 99 members / 217 posts):
+**Neighborhood spark** (bisk 2026-09-21, 99 members / 194 posts):
 - Mood: Overcast ☁ (trust)
-- Distinctive words: jev, utilitarianism, llm
-- Top post: "you do have to respect will stancil's utterly dogged determination to teach philosophy of mind 101 to bluesky" — @segyges.bsky.social
+- Distinctive words: jev, idk, heartpunk
+- Top post: "Teaching Neuromancer this semester, and I'm proud to say that a CS undergrad in my class invented this joke independentl" — @tedunderwood.com
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
