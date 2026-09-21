@@ -147,9 +147,19 @@ export function ruleTurn(s, cfg, cohort = 0) {
   const base = evalRule(0.5, mut, Math.floor(cohort), s.sig);
   const m = evalRule(0.5, mut, Math.floor(cohort),
     [...yref([s.sig[2], s.sig[3]]), ...yref([s.sig[0], s.sig[1]])]);
+  // `evalRule` returns FOUR numbers and the shader uses all four:
+  //   base.xy + yref(mirr.xy) = force   — goes through velocity and drag
+  //   base.zw + yref(mirr.zw) = STRAFE  — displaces position DIRECTLY
+  // The first port used components 0 and 1 and threw 2 and 3 away, which
+  // dropped the strafe term entirely. Strafe is scaled by
+  // `global_force_mult/20` against force's `/400` — twenty times larger — and
+  // it bypasses drag, so leaving it out is not a detail. It is most of how a
+  // fluoddity particle moves, and without it the swarm barely travels.
   const lateral = base[1] + -m[1];
   const axial = base[0] + m[0];
-  return { turn: Math.tanh(lateral), axial };
+  const strafeAxial = base[2] + m[2];
+  const strafeLateral = base[3] + -m[3];
+  return { turn: Math.tanh(lateral), axial, strafeAxial, strafeLateral };
 }
 
 /**

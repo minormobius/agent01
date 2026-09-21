@@ -98,6 +98,15 @@ export function step(sw, senses, turns) {
     p.vx = p.vx * cfg.drag + fx * m;
     p.vy = p.vy * cfg.drag + fy * m;
     p.x += p.vx; p.y += p.vy;
+    // STRAFE: a direct position displacement, scaled by global_force_mult/20
+    // against force's /400, and not subject to drag. Its LATERAL component is
+    // steering, so it is handed to whoever is deciding — `turn` scales it the
+    // same way it scales the force term. Its axial component stays on the
+    // deterministic rule, like axial thrust.
+    const sm = (cfg.global_force_mult / 20) * cfg.strafe_power;
+    const sx = s.fwd[0] * det.strafeAxial * cfg.axial_force + s.lft[0] * turn * Math.abs(det.strafeLateral) * cfg.lateral_force;
+    const sy = s.fwd[1] * det.strafeAxial * cfg.axial_force + s.lft[1] * turn * Math.abs(det.strafeLateral) * cfg.lateral_force;
+    p.x += sx * sm; p.y += sy * sm;
     // The torus, exactly as the shader wraps it.
     p.x = 2 * (((p.x * 0.5 - 0.5) % 1 + 1) % 1 - 0.5);
     p.y = 2 * (((p.y * 0.5 - 0.5) % 1 + 1) % 1 - 0.5);
