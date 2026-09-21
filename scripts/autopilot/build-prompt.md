@@ -33,9 +33,9 @@ _Regenerated 2026-09-21 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-21, 99 members / 194 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: jev, idk, heartpunk
+**Neighborhood spark** (bisk 2026-09-21, 99 members / 206 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: idk, jev, heartpunk
 - Top post: "Teaching Neuromancer this semester, and I'm proud to say that a CS undergrad in my class invented this joke independentl" — @tedunderwood.com
 <!-- BRIEF_END -->
 
