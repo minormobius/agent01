@@ -1,6 +1,8 @@
-# fin.mino.mobi — The Financial Periodic Table
+# fin.mino.mobi
 
-**The root app** is a research project: all 118 elements, sized by the economy
+The root is an **index** over everything on the surface. The headline entry is
+[**The Financial Periodic Table**](https://fin.mino.mobi/elements/) at
+`/elements`: a research project on all 118 elements, sized by the economy
 each one stands under. For every element — how it is actually extracted, the
 form it is really traded in (sulfur as sulfuric acid, nitrogen as ammonia,
 titanium as white pigment), what a year of world extraction is worth, and the
@@ -13,7 +15,7 @@ Upstream figures are mostly USGS Mineral Commodity Summaries 2026; downstream
 figures are estimates under a stated rule, and every record carries a
 confidence tier saying which is which.
 
-This surface also hosts two earlier apps, unchanged in behaviour:
+Also on the surface:
 
 - **[`/speclab`](https://fin.mino.mobi/speclab)** — the speculative-feedback
   playground: a research sandbox for how **prediction-market data streams**
@@ -23,19 +25,22 @@ This surface also hosts two earlier apps, unchanged in behaviour:
   [`CONTRACTS.md`](CONTRACTS.md)); everything between *what goes in* and *what
   comes out* is swappable.
 - **[`/pm`](https://fin.mino.mobi/pm)** — the personal-finance planning SPA.
+- **[`/stocks`](https://fin.mino.mobi/stocks/)** — daily price archive and options reference.
+- **[`/agimet`](https://fin.mino.mobi/agimet/)** — FRED labor-market dashboard.
+- **[`/bogo`](https://fin.mino.mobi/bogo/)** — ice cream deals near you.
 
 ## Run it locally
 
 ```bash
 cd finance
 npm install
-npm run dev        # http://localhost:5173  — table at /, speclab at /speclab, PM at /pm
+npm run dev        # http://localhost:5173  — index at /, table at /elements, speclab, pm
 ```
 
 Other commands:
 
 ```bash
-npm run build      # builds all three apps into dist/ (Vite multipage)
+npm run build      # builds all four pages into dist/ (Vite multipage)
 npm run typecheck  # tsc --noEmit
 npm test           # vitest — leakage guarantee + contract schemas
 npm run preview    # serve the production build
@@ -71,13 +76,14 @@ npm run preview    # serve the production build
 
 ## Architecture / deploy
 
-Three apps build into one `dist/`, served by `worker.js` (Cloudflare Worker +
+Four pages build into one `dist/`, served by `worker.js` (Cloudflare Worker +
 ASSETS binding):
 
 ```
-/                      -> periodic table (dist/index.html)          [ptable/, plain ES modules]
-/speclab, /speclab/*   -> playground     (dist/speclab/index.html)  [src/, TS/React]
-/pm, /pm/*             -> finance SPA    (dist/pm/index.html)       [pm/src, JS/React]
+/                      -> surface index  (dist/index.html)           [static]
+/elements              -> periodic table (dist/elements/index.html)  [ptable/, plain ES modules]
+/speclab, /speclab/*   -> playground     (dist/speclab/index.html)   [src/, TS/React]
+/pm, /pm/*             -> finance SPA    (dist/pm/index.html)        [pm/src, JS/React]
 /api/*                 -> speclab backend (experiment store + proxies)
 ```
 

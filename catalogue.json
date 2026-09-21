@@ -28,11 +28,11 @@
       "label": "data"
     },
     {
-      "before": 148,
+      "before": 149,
       "label": "tools"
     },
     {
-      "before": 213,
+      "before": 214,
       "label": "games"
     }
   ],
@@ -1148,8 +1148,23 @@
       "c": "data",
       "k": 28,
       "a": "hot",
-      "t": "2026-09-20",
+      "t": "2026-09-21",
       "b": "2026-03-14",
+      "surface": "finance",
+      "d": "The index for everything on fin.mino.mobi: the financial periodic table, a speculative-feedback research playground, the personal-finance planning tools, a labor-market dashboard, a daily price archive, and an ice cream deal finder.",
+      "tags": [
+        "index"
+      ]
+    },
+    {
+      "n": "periodic-table",
+      "u": "https://fin.mino.mobi/elements/",
+      "c": "data",
+      "k": 4,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-20",
+      "p": "fin",
       "surface": "finance",
       "d": "The financial periodic table. All 118 elements sized by the economy each one stands under: how it is actually extracted, the form it is really traded in \u2014 sulfur as sulfuric acid, nitrogen as ammonia, titanium as white pigment \u2014 what a year of world extraction is worth, and the first-order markets that cannot exist without it. Upstream from USGS; downstream estimated under a stated rule, with a confidence tier on every record.",
       "tags": [

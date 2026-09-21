@@ -4,9 +4,12 @@
      overwrite it. Repo-wide rules live in ../CLAUDE.md; the index of all
      surfaces is ../docs/SURFACES.md. -->
 
-Three apps behind one worker. The root is **the financial periodic table** — a
-research dataset on how each of the 118 elements is extracted, what form it is
-actually traded in, and the size of the economy that extraction stands under.
+Four pages behind one worker. **The root is an index**, by house convention:
+the top level of a surface lists everything under it rather than being one of
+the apps. The headline entry is **the financial periodic table** at
+`/elements` — a research dataset on how each of the 118 elements is extracted,
+what form it is actually traded in, and the size of the economy that extraction
+stands under.
 
 ## Facts
 
@@ -23,17 +26,26 @@ actually traded in, and the size of the economy that extraction stands under.
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `surfaces[]` where `surface == "finance"`.
 
-## The three apps
+## What is on the surface
 
-| Route | App | Stack | Source |
+| Route | What | Stack | Source |
 |---|---|---|---|
-| `/` | financial periodic table | plain ES modules, no framework | `ptable/`, `index.html` |
-| `/speclab` | speculative-feedback research playground | TS + React | `src/`, `speclab/index.html` |
+| `/` | the surface index | static HTML | `index.html`, `landing.css` |
+| `/elements` | financial periodic table | plain ES modules, no framework | `elements/index.html`, `ptable/` |
+| `/speclab` | speculative-feedback research playground | TS + React | `speclab/index.html`, `src/` |
 | `/pm` | personal-finance planning SPA | JS + React | `pm/` |
+| `/stocks` | daily price archive + options reference | static | `public/stocks/` |
+| `/agimet` | FRED labor-market dashboard | static | `public/agimet/` |
+| `/bogo` | ice cream deal finder | static | `public/bogo/` |
 
-Plus `/stocks`, `/bogo`, `/agimet` — static pages copied verbatim from
-`public/` — and `/api/*`, which belongs to speclab (experiment store in D1 and
-the Coinbase/Kalshi proxies; hourly cron writes `spec_pm_snapshots`).
+Plus `/universe.json` and `/lexicons/*` from `public/`, and `/api/*`, which
+belongs to speclab (experiment store in D1 and the Coinbase/Kalshi proxies;
+hourly cron writes `spec_pm_snapshots`).
+
+**Add a page and it goes in three places**: a vite `input` in
+`vite.config.js`, a card on `index.html`, and a `catalogue.json` entry with
+`p: "fin"`. The index is the only thing that makes the rest of the surface
+discoverable — the table sat at `/` for one afternoon and buried five sites.
 
 Vite builds all three into one `dist/`; `worker.js` serves it with
 **subtree-aware SPA fallback**. `SPA_ROOTS` in `worker.js` is the whole of that
@@ -48,12 +60,18 @@ The interesting part is the dataset, not the rendering.
 
 | File | What it is |
 |---|---|
+| `elements/index.html` | the page: masthead, controls, the prose under the table |
 | `ptable/elements.js` | **the research dataset** — 118 hand-written records. The only place the figures live. |
 | `ptable/METHOD.md` | **read this before changing a number.** The attribution rules, the sources, the known limitations. |
 | `ptable/layout.js` | grid geometry, the three log scales, formatters. Pure — imported by both the browser and the selftest. |
 | `ptable/main.js` | DOM rendering. No framework and no dependency; that is deliberate. |
-| `ptable/styles.css` | roles as CSS custom properties |
+| `ptable/styles.css` | the ramp and the page's components; `@import`s `../tokens.css` |
 | `ptable/ptable.selftest.mjs` | dataset invariants — `preflight` runs it when `finance/` changes |
+
+`tokens.css` at the surface root holds the theme (surfaces, inks, rules,
+fonts) and is imported by both the landing and the table, so the two cannot
+drift apart on a colour tweak. speclab and pm predate it and keep their own
+styling.
 
 Three things to know before editing:
 

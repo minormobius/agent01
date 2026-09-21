@@ -36,10 +36,18 @@ describe("subtree-aware SPA fallback", () => {
     expect(spaFallbackFor("/speclabber/x")).toBe("/");
   });
 
+  it("does not mount /elements — it is one static page, not an SPA", () => {
+    // The table routes with location.hash, so it needs no fallback of its own.
+    // If it ever grows real paths, add it to SPA_ROOTS and change this.
+    expect(spaFallbackFor("/elements")).toBe("/");
+    expect(spaFallbackFor("/elements/anything")).toBe("/");
+  });
+
   it("keeps the static public/ pages on the root app's fallback", () => {
     // These are real files in dist/, so the fallback should never fire for
     // them — but if one 404s, the root index is the right thing to serve.
-    expect(spaFallbackFor("/stocks/")).toBe("/");
-    expect(spaFallbackFor("/bogo/")).toBe("/");
+    for (const p of ["/stocks/", "/bogo/", "/agimet/", "/universe.json"]) {
+      expect(spaFallbackFor(p)).toBe("/");
+    }
   });
 });

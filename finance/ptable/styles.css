@@ -1,23 +1,18 @@
-/* finance/ptable/styles.css — fin.mino.mobi root app.
-   Colours are roles; the sequential ramp lives in layout.js so node can read it
-   too. Dark mode is selected, not an inversion: the ramp anchor flips so low
-   values sit near the dark surface instead of glowing off it. */
+/* finance/ptable/styles.css — the financial periodic table at /elements/.
+   Surface tokens live in ../tokens.css; this file adds the page's own
+   components and the sequential ramp. The ramp is here rather than in the
+   shared tokens because nothing else on the surface encodes magnitude.
+
+   Dark mode is selected, not an inversion: the ramp anchor FLIPS so low values
+   sit near the dark surface instead of glowing off it. Every step is paired
+   with the ink that clears 4.5:1 on it, so a cell's value label is readable on
+   all seven fills in both modes. --ramp-ink-N is the label colour for step N;
+   --ink-N (in tokens.css) is the theme's text hierarchy. They are different
+   things, and conflating them once made every muted string on the page
+   invisible in dark mode. */
+@import "/tokens.css";
 
 :root {
-  color-scheme: light;
-  --surface-0: #f7f7f4;
-  --surface-1: #fcfcfb;
-  --surface-2: #eeeeea;
-  --rule: #d9d9d2;
-  --rule-strong: #b6b6ad;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
-  --ink-3: #7c7b75;
-  --accent: #1c5cab;
-  --gate: #eb6834;
-  /* Sequential ramp, low -> high. Light mode: near-white at the bottom so the
-     smallest values recede toward the surface. Every step is paired with the
-     ink that clears 4.5:1 on it, so cell labels stay legible on all seven. */
   --ramp-0: #b7d3f6; --ramp-ink-0: #0b0b0b;
   --ramp-1: #9ec5f4; --ramp-ink-1: #0b0b0b;
   --ramp-2: #6da7ec; --ramp-ink-2: #0b0b0b;
@@ -25,28 +20,9 @@
   --ramp-4: #256abf; --ramp-ink-4: #ffffff;
   --ramp-5: #184f95; --ramp-ink-5: #ffffff;
   --ramp-6: #0d366b; --ramp-ink-6: #ffffff;
-  --shadow: 0 1px 2px rgba(11, 11, 11, 0.06), 0 8px 24px rgba(11, 11, 11, 0.07);
-  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
-  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --surface-0: #0d1117;
-    --surface-1: #12161c;
-    --surface-2: #1b212a;
-    --rule: #2a323d;
-    --rule-strong: #45505f;
-    --ink: #f2f4f7;
-    --ink-2: #b6bec9;
-    --ink-3: #8b94a1;
-    --accent: #86b6ef;
-    --gate: #f08a5d;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.45);
-
-    /* Dark mode flips the anchor: low values sit near the dark surface and high
-       values are the bright end. Same seven hexes, reversed, with their inks. */
     --ramp-0: #0d366b; --ramp-ink-0: #ffffff;
     --ramp-1: #184f95; --ramp-ink-1: #ffffff;
     --ramp-2: #256abf; --ramp-ink-2: #ffffff;
@@ -57,21 +33,6 @@
   }
 }
 :root[data-theme="dark"] {
-  color-scheme: dark;
-  --surface-0: #0d1117;
-  --surface-1: #12161c;
-  --surface-2: #1b212a;
-  --rule: #2a323d;
-  --rule-strong: #45505f;
-  --ink: #f2f4f7;
-  --ink-2: #b6bec9;
-  --ink-3: #8b94a1;
-  --accent: #86b6ef;
-  --gate: #f08a5d;
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.45);
-
-  /* Dark mode flips the anchor: low values sit near the dark surface and high
-     values are the bright end. Same seven hexes, reversed, with their inks. */
   --ramp-0: #0d366b; --ramp-ink-0: #ffffff;
   --ramp-1: #184f95; --ramp-ink-1: #ffffff;
   --ramp-2: #256abf; --ramp-ink-2: #ffffff;

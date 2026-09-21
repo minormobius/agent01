@@ -797,6 +797,15 @@
    "parent": null
   },
   {
+   "id": "periodic-table",
+   "name": "periodic-table",
+   "url": "https://fin.mino.mobi/elements/",
+   "cat": "data",
+   "commits": 4,
+   "age": "hot",
+   "parent": "fin"
+  },
+  {
    "id": "finance",
    "name": "finance",
    "url": "https://fin.mino.mobi/pm/",

@@ -1,10 +1,15 @@
 // fin.mino.mobi — surface worker.
 //
-// Serves three static apps and a backend API:
-//   /                      -> financial periodic table    (dist/index.html)
+// Serves four static pages and a backend API:
+//   /                      -> the surface index           (dist/index.html)
+//   /elements              -> financial periodic table    (dist/elements/index.html)
 //   /speclab, /speclab/*   -> speculative-feedback lab    (dist/speclab/index.html)
 //   /pm, /pm/*             -> personal-finance planning   (dist/pm/index.html)
 //   /api/*                 -> backend (experiment store in D1 + real-data proxies)
+//
+// /elements is NOT in SPA_ROOTS: it is one static page that routes with the
+// location hash, so it needs no fallback of its own. /stocks, /bogo, /agimet
+// and the lexicons come straight from public/.
 //
 // SPA_ROOTS below is the whole of the subtree-aware fallback: a 404 under a
 // listed prefix boots THAT app, not the root one, so a deep link like

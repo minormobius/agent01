@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 
 // Tiny path-based router. The PM app is mounted under /pm on fin.mino.mobi
-// (the financial periodic table owns the root). BASE strips/prepends
+// (the surface index owns the root). BASE strips/prepends
 // that prefix so the route table can stay declared as "/", "/networth", …
 // unchanged. The surface worker (finance/worker.js) serves /pm/* with
 // subtree-aware SPA fallback, so deep links like /pm/networth boot this app
