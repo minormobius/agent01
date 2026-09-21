@@ -1958,7 +1958,7 @@
     },
     {
       "n": "szilassi",
-      "u": "https://mino.mobi/szilassi/",
+      "u": "https://math.mino.mobi/szilassi/",
       "c": "data",
       "k": 1,
       "a": "hot",
@@ -4281,6 +4281,11 @@
       "glob": "conjectures",
       "kind": "pending",
       "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "szilassi",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/szilassi/, which is the surface that deploys it; the root worker serves the whole repo, so the apex copy becomes real only when the root surface next deploys from its own branch — same situation as conjectures"
     },
     {
       "glob": "ising",

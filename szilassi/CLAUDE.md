@@ -112,10 +112,17 @@ clearance and minDihedral**, then re-run the selftest.
 
 ## Deploying
 
-This directory is staged into `math/dist/szilassi/` by
-[`../.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml);
-it is also served from the repo root, so the page lives at both
-`math.mino.mobi/szilassi/` and `mino.mobi/szilassi/`. A push to the math
-surface's owning branch that touches `szilassi/**` deploys it. Adding a file
-here needs no workflow change; adding a *sibling* directory does — the staging
-loop names its directories explicitly.
+[`../.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml)
+stages this directory into `math/dist/szilassi/` and serves it at
+**`math.mino.mobi/szilassi/`**. A push to the math surface's owning branch that
+touches `szilassi/**` deploys it. Adding a file here needs no workflow change;
+adding a *sibling* directory does — the staging loop names its directories
+explicitly.
+
+The root worker serves the whole repo, so this will *also* answer at
+`mino.mobi/szilassi/` — but only once the **root** surface next deploys, and
+that is another branch's push to make. Until then the apex returns the landing
+page's SPA fallback with a 200, which is why the catalogue URL and the hub's
+crossref point at `math.mino.mobi`, exactly as `conjectures` does. When root
+does redeploy, both URLs work and the catalogue can move to the apex if the
+pack prefers it.
