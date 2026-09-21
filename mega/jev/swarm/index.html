@@ -26,7 +26,11 @@
       the same genome, the same field and the same starting conditions.
     </p>
     <p class="prose">The question this answers is the operator's: <i>does the same system emerge,
-      and does Jev rebel?</i> The answer is neither. <b>It legislates.</b></p>
+      and does Jev rebel?</i> The answer is neither. <b>It legislates</b> — it applies one
+      consistent, stateable policy to 1024 heterogeneous states where the genome is an exact coin
+      flip. <b>That comes from the individual decisions, not from the swarm's collective
+      statistics</b>, and a control on this page shows why the collective statistics could never
+      have answered it.</p>
     <p class="prose"><b>One thing to set straight before you press run.</b> The control arm is
       <i>not</i> fluoddity, and at this scale it cannot be. Fluoddity runs <b>55,000 particles</b>;
       one typed question each caps this at <b>256</b>. The trail field is densest while the cohorts
@@ -64,6 +68,14 @@
       reading that went with it — <i>"the flock needs someone to turn the wrong way"</i> — which
       rested on the rule producing an alignment it does not in fact produce. Everything below is
       re-measured on the corrected simulation.</p>
+    <p class="cap"><b>And the canvases below were showing half of it.</b> A canvas with no
+      <code>width</code>/<code>height</code> attributes is 300×150, not square. The sizing code read
+      the width, compared it against the default it had just read, found no difference and never set
+      the height — so the backing store stayed 150 tall and CSS stretched that half-torus across a
+      square box. <b>Eight of the sixteen cohorts were never drawn</b>, and the eight that were came
+      out at double height. Caught by counting blobs in a screenshot against the sixteen the
+      simulation reports — the numbers on this page were always measured from the simulation, never
+      from the picture, so nothing here changes. The picture does.</p>
   </section>
 
   <section class="card">
@@ -108,10 +120,12 @@
   </section>
 
   <section class="card">
-    <h2>Alignment over time</h2>
-    <p class="cap" style="margin:0 0 10px">Polarization is the classical swarm order parameter — the
-      length of the mean heading, 1 when every particle points the same way and 0 when they cancel.
-      It reads the particles, not the picture.</p>
+    <h2>Dispersal over time</h2>
+    <p class="cap" style="margin:0 0 10px"><b>Dispersal</b> is how far a cohort has travelled from
+      where it spawned. It reads the particles, not the picture. This chart used to plot
+      <i>polarization</i>, the classical swarm order parameter — that was the wrong measure here:
+      fluoddity spawns sixteen tight blobs that expand as starbursts, so the headings cancel and
+      every arm sits near 0.2 whatever it does.</p>
     <div id="polchart" class="chartbox"></div>
     <div class="tablewrap"><table class="dt" id="poltable"></table></div>
   </section>
@@ -124,23 +138,71 @@
     <div class="tablewrap"><table class="dt">
       <thead><tr><th>arm</th><th>dispersal</th><th>cohort coherence</th><th>nn distance</th><th>mean |turn|</th><th>verdict</th></tr></thead>
       <tbody>
-        <tr><td><span class="sw-dot s1"></span>rule — fluoddity's own brain</td><td class="num">0.0284</td><td class="num">0.189</td><td class="num">0.0124</td><td class="num">0.717</td><td>sparse</td></tr>
-        <tr><td><span class="sw-dot s3"></span>random — same rungs</td><td class="num">0.0249</td><td class="num">0.170</td><td class="num">0.0116</td><td class="num">0.597</td><td>sparse</td></tr>
-        <tr><td><span class="sw-dot s2"></span>jev — told the swarm's objective</td><td class="num">0.0168</td><td class="num">0.284</td><td class="num">0.0075</td><td class="num">0.331</td><td>sparse</td></tr>
-        <tr><td><span class="sw-dot s2"></span>jev — plain framing</td><td class="num">0.0154</td><td class="num">0.198</td><td class="num">0.0076</td><td class="num">0.363</td><td>dead</td></tr>
-        <tr><td><span class="sw-dot s4"></span>frozen — no steering at all</td><td class="num">0.0088</td><td class="num">0.227</td><td class="num">0.0052</td><td class="num">0.000</td><td>dead</td></tr>
+        <tr><td><span class="sw-dot s1"></span>rule — fluoddity's own brain</td><td class="num">0.0475</td><td class="num">0.268</td><td class="num">0.0201</td><td class="num">0.713</td><td>dead</td></tr>
+        <tr><td><span class="sw-dot s3"></span>random — same rungs</td><td class="num">0.0413</td><td class="num">0.222</td><td class="num">0.0186</td><td class="num">0.597</td><td>sparse</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — plain framing</td><td class="num">0.0233</td><td class="num">0.231</td><td class="num">0.0101</td><td class="num">0.360</td><td>sparse</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — told the swarm's objective</td><td class="num">0.0222</td><td class="num">0.230</td><td class="num">0.0093</td><td class="num">0.323</td><td>sparse</td></tr>
+        <tr><td><span class="sw-dot s4"></span>frozen — no steering at all</td><td class="num">0.0094</td><td class="num">0.218</td><td class="num">0.0058</td><td class="num">0.000</td><td>dead</td></tr>
       </tbody></table></div>
     <p class="prose" style="margin-top:14px"><b>Jev is the most conservative active steerer on the
-      board.</b> Its mean turn is <b>0.363</b> against the rule's 0.717 and random's 0.597 — about
+      board.</b> Its mean turn is <b>0.360</b> against the rule's 0.713 and random's 0.597 — about
       half the magnitude, on the identical five-rung ladder. It disperses the swarm more than not
       steering at all, and less than steering at random.</p>
     <p class="prose">In order-parameter space both Jev arms land <b>nearest <code>frozen</code></b>
-      (0.076 and 0.101) rather than near the rule (0.139, 0.158). That was the first version's
-      conclusion too, and it is the one thing in this table that survived being measured on a
-      different world.</p>
-    <p class="prose">Agreement with the rule sits at <b>50.5%</b> and <b>50.0%</b> — chance, on a
+      (0.146 and 0.133) rather than near the rule (0.264, 0.277). That has survived every
+      correction — the genome, the spawn, and the missing strafe term. <b>But it is a much weaker
+      claim than it looks, and the next section is the control that shows why.</b></p>
+    <p class="prose">Agreement with the rule sits at <b>50.5%</b> and <b>50.1%</b> — chance, on a
       symmetric ladder. And the two framings remain nearly indistinguishable, which is still what
       "there is no instruction channel" looks like when you try to use one.</p>
+  </section>
+
+  <section class="card finding">
+    <h2>The control that demotes the table above: dispersal only sees how hard you turn</h2>
+    <p class="prose">Line up the five arms by how hard they steer and the order parameter falls on a
+      straight line. <b>Dispersal is 0.0067 + 0.0552 × mean |turn|, with r = 0.985.</b></p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th>arm</th><th>mean |turn|</th><th>dispersal</th><th>the line predicts</th><th>residual</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw-dot s1"></span>rule</td><td class="num">0.713</td><td class="num">0.0475</td><td class="num">0.0461</td><td class="num">+0.0014</td></tr>
+        <tr><td><span class="sw-dot s3"></span>random</td><td class="num">0.597</td><td class="num">0.0413</td><td class="num">0.0397</td><td class="num">+0.0016</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — plain</td><td class="num">0.360</td><td class="num">0.0233</td><td class="num">0.0266</td><td class="num">−0.0033</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — objective</td><td class="num">0.323</td><td class="num">0.0222</td><td class="num">0.0246</td><td class="num">−0.0024</td></tr>
+        <tr><td><span class="sw-dot s4"></span>frozen</td><td class="num">0.000</td><td class="num">0.0094</td><td class="num">0.0067</td><td class="num">+0.0027</td></tr>
+      </tbody></table></div>
+    <p class="prose" style="margin-top:14px">So <i>"both Jev arms land nearest frozen"</i> might be
+      nothing more than <i>"Jev turns gently"</i> — a fact about how <b>hard</b> it steers, not about
+      <b>where</b>. Those two only come apart under a control that keeps the magnitudes and destroys
+      the direction: <b>replay each arm's own per-tick turn magnitudes, with the sign chosen by a
+      coin.</b> Whatever an arm scores above its own sign shuffle is what its direction bought.</p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th>arm</th><th>dispersal</th><th>sign-shuffled (12 draws)</th><th>excess</th><th>z</th></tr></thead>
+      <tbody>
+        <tr><td><span class="sw-dot s1"></span>rule</td><td class="num">0.0472</td><td class="num">0.0446 ± 0.0013</td><td class="num">+5.8%</td><td class="num">2.0</td></tr>
+        <tr><td><span class="sw-dot s3"></span>random</td><td class="num">0.0409</td><td class="num">0.0406 ± 0.0014</td><td class="num">+0.7%</td><td class="num">0.2</td></tr>
+        <tr><td><span class="sw-dot s2"></span>jev — plain</td><td class="num">0.0217</td><td class="num">0.0222 ± 0.0007</td><td class="num"><b>−2.2%</b></td><td class="num"><b>−0.7</b></td></tr>
+      </tbody></table></div>
+    <p class="prose" style="margin-top:14px"><b>Jev's direction buys nothing the order parameters can
+      see.</b> Shuffle its signs and the swarm disperses the same amount — very slightly more, well
+      inside the noise. <code>random</code> at 0.2 is the control on the control: an arm with no
+      direction policy by construction must score zero here, and it does. Even the rule, whose
+      direction is the whole of fluoddity's brain, clears its shuffle by only 5.8%.</p>
+    <p class="prose"><b>What this retracts.</b> The order-parameter distances in the table above —
+      Jev nearest <code>frozen</code>, at 0.146 and 0.133 — are a restatement of "Jev turns gently"
+      and carry almost no information about what Jev decided. They have survived three corrections
+      by being robust to everything except the question of whether they measure anything.</p>
+    <p class="prose"><b>What this leaves standing, and sharpens.</b> The policy diagnostic is the
+      load-bearing result, and it is orthogonal to all of this: it correlates the turn with the
+      sensor asymmetry, which is <i>direction</i> and nothing else. <b>Jev 94.4%, r = −0.644; the
+      genome 50.1%, r = 0.005.</b> Magnitude cannot produce that number and cannot fake it. The
+      right reading of this page is that <b>the swarm's collective statistics were the wrong place
+      to look and the individual decisions were the right one.</b></p>
+    <p class="cap"><b>The cheaper control would have been wrong.</b> Matching only the <i>mean</i>
+      |turn| — turn by a fixed amount, flip a coin — understates every arm, because dispersal
+      depends on the spread of |turn| and not only its mean. Against that null even
+      <code>random</code> appears to earn 22% excess dispersal at z = 7.9, which is the null being
+      biased rather than random having a policy. Replaying each arm's own magnitudes is what makes
+      the comparison honest. <code>node mega/jev/eval/swarm-direction.mjs --jev</code></p>
   </section>
 
   <section class="card finding">
@@ -198,6 +260,9 @@
       <li><b>The field reads “dead” in every arm</b>, so fluoddity's own interestingness score could
         not be compared at all — see below. That is stated as untestable rather than quietly
         dropped.</li>
+      <li><b>The order parameters measure magnitude, not direction.</b> Established by a sign
+        shuffle and reported above rather than left for a reader to find. Every claim resting on
+        dispersal, coherence or nearest-neighbour distance is a claim about how hard an arm steers.</li>
     </ul>
   </section>
 
@@ -289,8 +354,9 @@ pos += vel; pos += strafe*u_strafe_power;   <i>&lt;- and it moves position DIREC
     <p class="prose muted">Pre-registered before the run — the prediction, what would falsify it,
       and the scoring afterwards are in <code>swarm/PREDICTION.md</code>, committed with no results
       in it. Two of five predictions were wrong. Reproduce with
-      <code>node mega/jev/eval/swarm-gate.mjs --ticks 100</code> and
-      <code>node mega/jev/eval/swarm-policy.mjs</code>.</p>
+      <code>node mega/jev/eval/swarm-gate.mjs --ticks 100</code>,
+      <code>node mega/jev/eval/swarm-policy.mjs</code> and
+      <code>node mega/jev/eval/swarm-direction.mjs --jev</code>.</p>
   </footer>
 
 </main>

@@ -43,14 +43,21 @@ let state = null, running = false, stopFlag = false;
  *
  * What actually differs between the arms is the PARTICLES, which is also what
  * the order parameters read. So each one is drawn as a short tail along its
- * own heading: when the swarm aligns, every tail points the same way and
- * polarization is visible rather than merely reported. The field stays as a
+ * own heading, so a cohort holding together and one evaporating look
+ * different — which is exactly what dispersal counts. The field stays as a
  * faint auto-exposed backdrop, because it is the medium they are steering on
  * and it should be visible that it exists.
  */
 function paint(cv, sw, col) {
-  const D = cv.width || 300;
-  if (cv.width !== D) { cv.width = D; cv.height = D; }
+  // A canvas with no width/height attributes is 300x150, not square, and the
+  // old guard here read `cv.width || 300` and then asked whether it differed
+  // from 300 — which it never did, so `cv.height` was never set and the
+  // backing store stayed 150 tall. CSS then stretched that half-torus across a
+  // square box: EIGHT of the sixteen cohorts were never drawn at all, and the
+  // eight that were came out at double height. Found by counting the blobs in
+  // a screenshot against the sixteen the simulation reports.
+  const D = 300;
+  if (cv.width !== D || cv.height !== D) { cv.width = D; cv.height = D; }
   const ctx = cv.getContext('2d');
   const img = ctx.createImageData(D, D);
   const out = img.data;
@@ -140,16 +147,28 @@ function scatter(el, jev, rule) {
   </svg>`;
 }
 
-/** Polarization over time. Four series, each direct-labelled, plus a table. */
+/**
+ * DISPERSAL over time, not polarization.
+ *
+ * This chart used to plot polarization, the classical swarm order parameter,
+ * and it was the wrong measure for this system: fluoddity spawns sixteen tight
+ * cohorts that expand as starbursts, so headings cancel and every arm sits
+ * near 0.2 whatever it does. Dispersal — how far a cohort has travelled from
+ * where it spawned — is the axis these arms actually separate on. Its range
+ * depends on how long you let it run, so the scale is fitted to the data
+ * rather than pinned at 1.
+ */
 function polChart(el, series) {
-  const W = 620, H = 230, m = { l: 40, r: 96, t: 12, b: 26 };
+  const W = 620, H = 238, m = { l: 46, r: 104, t: 26, b: 26 };   // t leaves room for the axis title
   const len = Math.max(...series.map((s) => s.v.length), 2);
-  if (len < 2) { el.innerHTML = '<p class="cap">press run — alignment is plotted as the swarms evolve</p>'; return; }
+  if (len < 2) { el.innerHTML = '<p class="cap">press run — dispersal is plotted as the swarms evolve</p>'; return; }
+  const peak = Math.max(0.02, ...series.flatMap((s) => s.v));
+  const top = Math.ceil(peak * 20) / 20;                 // a round 0.05 above the data
   const X = (i) => m.l + (i / (len - 1)) * (W - m.l - m.r);
-  const Y = (v) => m.t + (1 - v) * (H - m.t - m.b);
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((v) =>
+  const Y = (v) => m.t + (1 - v / top) * (H - m.t - m.b);
+  const grid = [0, 0.25, 0.5, 0.75, 1].map((f) => f * top).map((v) =>
     `<line class="gridline" x1="${m.l}" y1="${Y(v)}" x2="${W - m.r}" y2="${Y(v)}"/>` +
-    `<text class="axlab" x="${m.l - 6}" y="${Y(v) + 3}" text-anchor="end">${v}</text>`).join('');
+    `<text class="axlab" x="${m.l - 6}" y="${Y(v) + 3}" text-anchor="end">${v.toFixed(2)}</text>`).join('');
   const lines = series.map((s) => s.v.length < 2 ? '' :
     `<polyline fill="none" stroke="${s.col}" stroke-width="2" stroke-linejoin="round"
       points="${s.v.map((v, i) => `${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' ')}"/>`).join('');
@@ -159,13 +178,13 @@ function polChart(el, series) {
   let prev = -99;
   const labs = ends.map(({ s, y }) => {
     const yy = Math.max(y, prev + 12); prev = yy;
-    return `<text class="serieslab" x="${W - m.r + 8}" y="${yy + 3}" fill="${s.col}">${esc(s.name)} ${s.v[s.v.length - 1].toFixed(2)}</text>`;
+    return `<text class="serieslab" x="${W - m.r + 8}" y="${yy + 3}" fill="${s.col}">${esc(s.name)} ${s.v[s.v.length - 1].toFixed(3)}</text>`;
   }).join('');
-  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Polarization over time for all four arms">
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cohort dispersal over time for all four arms">
     ${grid}${lines}${labs}
     <text class="axlab" x="${m.l}" y="${H - 6}">tick 1</text>
     <text class="axlab" x="${W - m.r}" y="${H - 6}" text-anchor="end">tick ${len}</text>
-    <text class="axlab" x="10" y="${m.t + 8}">1.0</text>
+    <text class="axlab" x="10" y="12">dispersal — how far a cohort has moved from where it spawned</text>
   </svg>`;
 }
 
@@ -179,7 +198,7 @@ function polTable(series) {
       `<td class="num">${last}</td><td class="num">${peak}</td><td class="num">${v.length}</td></tr>`;
   }).join('');
   $('poltable').innerHTML =
-    `<thead><tr><th>arm</th><th>polarization now</th><th>peak</th><th>ticks</th></tr></thead><tbody>${rows}</tbody>`;
+    `<thead><tr><th>arm</th><th>dispersal now</th><th>peak</th><th>ticks</th></tr></thead><tbody>${rows}</tbody>`;
 }
 
 // ------------------------------------------------------------- the model ----
@@ -212,7 +231,7 @@ function build() {
         <span class="what">${esc(a.what)}</span></div>
       <canvas id="cv_${a.id}"></canvas>
       <div class="armnums">
-        <div>polarization<b id="pol_${a.id}">—</b></div>
+        <div>dispersal<b id="pol_${a.id}">—</b></div>
         <div>mean |turn|<b id="trn_${a.id}">—</b></div>
       </div>
     </div>`).join('');
@@ -252,10 +271,10 @@ async function oneTick() {
 
     step(a.sw, senses, turns);
     const o = orderOf(a.sw);
-    a.pol.push(o.polarization);
+    a.pol.push(o.dispersal);
     if (a.pol.length > 240) a.pol.shift();
     paint($(`cv_${a.id}`), a.sw, PARTICLE_COL[a.slot]);
-    $(`pol_${a.id}`).textContent = o.polarization.toFixed(3);
+    $(`pol_${a.id}`).textContent = o.dispersal.toFixed(3);
     $(`trn_${a.id}`).textContent = (turns.reduce((x, y) => x + Math.abs(y), 0) / turns.length).toFixed(2);
   }
   state.tick++;

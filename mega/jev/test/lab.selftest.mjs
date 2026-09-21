@@ -1083,7 +1083,18 @@ const SPEC = fix2('preregister.json');
   ok(a.added > 0, `the collector records predictions from a stubbed exchange (${a.added})`);
   ok(a.store.predictions.every((p) => p.closes_ms >= CUT),
     'and every one closed after the registration cutoff');
-  ok(a.skippedEarly > 0, 'while windows that closed before it are counted and discarded');
+  // THE DISCARD PATH, PINNED. This used to assert `a.skippedEarly > 0` on the
+  // run above, and that assertion is clock-flaky: the window grid is anchored
+  // to the Unix epoch while this synthetic tape is anchored to "now", so which
+  // prices land in which window slides by one bar every hour — and whether any
+  // window BEFORE the mid-tape cutoff also clears the correlation gate is then
+  // luck. It fails outright in roughly one hour in twelve. Asserted here with a
+  // cutoff past the end of the tape instead, where every window the gate
+  // selects MUST be discarded, which is the same code path with no luck in it.
+  const late = await collect(SPEC, null, { ...opt, registeredAt: end + BAR });
+  ok(late.added === 0, 'a cutoff past the whole tape records nothing at all');
+  ok(late.skippedEarly > 0,
+    `and every window the gate selected is counted as predating the registration (${late.skippedEarly})`);
 
   // IDEMPOTENCE is what makes running it twice a day for a once-a-day grid
   // safe, and what makes the first run after an outage pick up the backlog

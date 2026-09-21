@@ -83,3 +83,12 @@
   padding:10px 12px;font-family:var(--mono);font-size:.74rem;line-height:1.6;
   overflow-x:auto;color:var(--ink-2);margin:10px 0}
 .codeblock b{color:var(--ink)} .codeblock i{color:var(--ink-3)}
+
+/* `.finding` is ALREADY a component in ../style.css — a small left-bordered
+   note whose `<b>` is its heading line, so it is set `display:block` at
+   0.8rem. This page reuses the class name on full-width cards, which turned
+   every inline `<b>` in a finding card into its own shrunken line: sentences
+   broke mid-clause around every emphasis. Rendered and looked at, not
+   asserted — the same lesson this page's own canvases taught. Scoped tightly
+   so the original component is untouched. */
+.sw .card.finding b{display:inline;font-size:inherit}

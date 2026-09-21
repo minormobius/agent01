@@ -1721,11 +1721,15 @@ flock needs someone to turn the wrong way"* with it.
 
 | arm | dispersal | coherence | nn | mean \|turn\| | verdict |
 |---|---|---|---|---|---|
-| **rule** | **0.0284** | 0.189 | 0.0124 | **0.717** | sparse |
-| random | 0.0249 | 0.170 | 0.0116 | 0.597 | sparse |
-| **jev-goal** | 0.0168 | 0.284 | 0.0075 | 0.331 | sparse |
-| **jev-mimic** | 0.0154 | 0.198 | 0.0076 | **0.363** | dead |
-| frozen | 0.0088 | 0.227 | 0.0052 | 0.000 | dead |
+| **rule** | **0.0475** | 0.268 | 0.0201 | **0.713** | dead |
+| random | 0.0413 | 0.222 | 0.0186 | 0.597 | sparse |
+| **jev-mimic** | 0.0233 | 0.231 | 0.0101 | **0.360** | sparse |
+| **jev-goal** | 0.0222 | 0.230 | 0.0093 | 0.323 | sparse |
+| frozen | 0.0094 | 0.218 | 0.0058 | 0.000 | dead |
+
+*(Table updated to the strafe-corrected run — `lab/swarm-gate.json`. The
+pre-strafe values were rule 0.0284 / random 0.0249 / jev 0.0168, 0.0154 /
+frozen 0.0088; the ORDER was the same, every value about 40% smaller.)*
 
 | | toward the stronger trail | r with sensor asymmetry |
 |---|---|---|
@@ -1738,15 +1742,15 @@ while Jev applies one consistent policy to 1024 heterogeneous states. *It
 legislates where the genome improvises* reads better on the correct world
 than it did on the broken one.
 
-**Both Jev arms still land nearest `frozen`** in order-parameter space (0.076,
-0.101) rather than near the rule (0.139, 0.158). That conclusion survived
-being measured on a different world, which is about the only reason to still
-trust it.
+**Both Jev arms still land nearest `frozen`** in order-parameter space (0.146,
+0.133) rather than near the rule (0.264, 0.277). That conclusion survived
+being measured on a different world — **and then a control showed it is nearly
+vacuous anyway. See "the order parameters only see magnitude" below.**
 
 **What had to change.** Jev is not "worse than doing nothing" — it disperses
 *more* than frozen and *less* than random. The accurate statement is narrower
 and better: **it is the most conservative active steerer on the board**, mean
-turn 0.363 against the rule's 0.717 on the identical ladder. Conformity, but
+turn 0.360 against the rule's 0.713 on the identical ladder. Conformity, but
 measured as gentleness rather than as underperformance.
 
 **What was already right.** The field still reads `sparse`/`dead` at
@@ -1802,6 +1806,87 @@ than the brush geometry, and it is why **the control is a control and not a
 reproduction**. The comparison between deciders on one shared substrate stands;
 any claim that this reproduces fluoddity's emergent behaviour does not, and the
 page says so above the fold.
+
+### The page was drawing half the torus, and had been since it shipped
+
+A `<canvas>` with no `width`/`height` attributes is **300×150**, not square.
+`paint()` read `cv.width || 300`, then asked whether `cv.width !== D` — which
+it never was — so `cv.height` was never set. The backing store stayed 150 tall
+while CSS stretched it across a square box: **eight of the sixteen cohorts
+were never drawn**, and the eight that were came out at double height.
+
+Caught by counting blobs in a screenshot (8) against the cohorts the
+simulation reports (16), not by any assertion. Every number on the page comes
+from the headless runs, so nothing measured changes — but the page's own
+claim that the corrected spawn "renders as sixteen starbursts on a 4×4 grid"
+was true of the simulation and false of the picture beside it.
+
+That is **three** rendering faults on one page that no test caught: the field
+was too faint to see, the `.finding` class inherited `display:block` on its
+`<b>` and broke every emphasised sentence into stubs, and this. The rule this
+surface keeps relearning: **assert what you can see, or go and look.**
+
+### The order parameters only see magnitude — the control that demotes them
+
+The five arms line up on a straight line in how hard they steer. Dispersal is
+**0.0067 + 0.0552 × mean |turn|, r = 0.985**:
+
+| arm | mean \|turn\| | dispersal | the line predicts | residual |
+|---|---|---|---|---|
+| rule | 0.713 | 0.0475 | 0.0461 | +0.0014 |
+| random | 0.597 | 0.0413 | 0.0397 | +0.0016 |
+| jev-mimic | 0.360 | 0.0233 | 0.0266 | −0.0033 |
+| jev-goal | 0.323 | 0.0222 | 0.0246 | −0.0024 |
+| frozen | 0.000 | 0.0094 | 0.0067 | +0.0027 |
+
+So *"both Jev arms land nearest frozen"* may be nothing but *"Jev turns
+gently"* — a fact about how **hard** it steers, not **where**. The only way to
+separate those is a control that keeps the magnitudes and destroys the
+direction: **replay each arm's own per-tick turn magnitudes with the sign
+chosen by a coin.** Whatever it scores above its own shuffle is what its
+direction bought.
+
+| arm | dispersal | sign-shuffled (12 draws) | excess | z |
+|---|---|---|---|---|
+| rule | 0.0472 | 0.0446 ± 0.0013 | +5.8% | 2.0 |
+| random | 0.0409 | 0.0406 ± 0.0014 | +0.7% | 0.2 |
+| **jev-mimic** | 0.0217 | 0.0222 ± 0.0007 | **−2.2%** | **−0.7** |
+
+**Jev's direction buys nothing dispersal can see.** Shuffling its signs gives
+very slightly *more* dispersal, well inside the noise. `random` at z = 0.2 is
+the control on the control — an arm with no direction policy by construction
+must score zero, and does. Even the rule, whose direction is the whole of
+fluoddity's brain, clears its shuffle by only 5.8%.
+
+**Retracted:** the order-parameter distances (jev nearest `frozen` at 0.146 /
+0.133 against the rule at 0.264 / 0.277) as evidence about *what Jev decided*.
+They restate its mean turn. They had survived three corrections by being
+robust to everything except whether they measure anything.
+
+**Standing, and sharper:** the policy diagnostic, which correlates the turn
+against the sensor asymmetry — direction and nothing else, orthogonal to
+magnitude. Jev 94.4%, r = −0.644; the genome 50.1%, r = 0.005. Magnitude
+cannot produce that and cannot fake it. **The collective statistics were the
+wrong place to look; the individual decisions were the right one.**
+
+**The cheaper control would have been wrong, and this is the transferable
+part.** Matching only the *mean* |turn| — fixed magnitude, coin-flip sign —
+understates every arm, because dispersal depends on the spread of |turn| and
+not only its mean. Against that null even `random` appears to earn **22%
+excess dispersal at z = 7.9**, and jev 11% at z = 2.4. All of that is the null
+being biased. A magnitude-matched control has to match the magnitude
+*distribution*, which means replaying the arm's own numbers.
+
+```bash
+node mega/jev/eval/swarm-direction.mjs          # rule + random, no calls
+node mega/jev/eval/swarm-direction.mjs --jev --out mega/jev/lab/swarm-direction.json   # 100 calls
+```
+
+One discrepancy worth knowing before diffing the two files: the gate reads its
+order parameters **after one extra step** (it needs two frames for `fitness2`),
+so its rule dispersal is 0.0475 at tick 101 against 0.0472 here at tick 100.
+Both arms and both shuffles inside `swarm-direction.mjs` are read at the same
+tick, so its comparison is exact; the 0.6% is not worth 202 calls to reconcile.
 
 ### Shared state vs split state — the arrangement, finally tested
 
@@ -1924,7 +2009,7 @@ rather than 55,000, and only steering under test.
 | **Non-myopic composition** | ⬜ the real open question: a brief reachable only via a temporarily-worse step |
 | **Game balance** (`packages/pressure-lab/`) | ⬜ policy spreads and tightness bands are computed = determinate. Untested |
 | **The repo as corpus** | ⬜ 566 endpoints needing categorisation; pure wide-hypothesis, real utility |
-| **Jev swarm** | ✅ **run on fluoddity.** It does not rebel, it *legislates*: one consistent policy (92.5%) where the genome improvises (34.8%) — and consensus produced LESS order than no steering. `mappa`/polis NPCs remain the richer testbed |
+| **Jev swarm** | ✅ **run on fluoddity.** It does not rebel, it *legislates*: one consistent policy (94.4%, r −0.644) where the genome is an exact coin flip (50.1%, r 0.005). The order-parameter comparison is the weak half — a sign shuffle shows it reads magnitude, not direction. `mappa`/polis NPCs remain the richer testbed |
 
 ### Jev swarm — the multi-agent idea, and what would actually be new
 
