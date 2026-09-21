@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>szilassi — seven faces, all touching</title>
+<title>császár — seven points, no diagonals</title>
 <link rel="icon" href="data:,">
-<meta name="theme-color" content="#8b1f7a">
-<meta name="description" content="The Szilassi polyhedron, spinnable: seven hexagons on a torus, every one sharing an edge with every other — the only such solid known besides the tetrahedron. Seven planes are all it is, so the shape has 14 degrees of freedom; turn them and watch the solid hold, or break.">
+<meta name="theme-color" content="#4a7c18">
+<meta name="description" content="The Császár polyhedron, spinnable: seven corners, and every segment between two of them is an edge — no diagonals anywhere. Drag the corners and the fourteen triangles stay flat for free, but the solid does not: its realizations fall into separate pieces you cannot deform between, and the page shows you the wall.">
 
 <style>
 :root {
@@ -14,9 +14,9 @@
   --fg: #222;
   --muted: #777;
   --rule: #d5d2ca;
-  --accent: #8b1f7a;
-  --accent-faint: rgba(139, 31, 122, 0.12);
-  --accent-tint: rgba(139, 31, 122, 0.06);
+  --accent: #4a7c18;
+  --accent-faint: rgba(74, 124, 24, 0.14);
+  --accent-tint: rgba(74, 124, 24, 0.07);
   --panel: #f2efe8;
   --stage: #eceae3;
   --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
@@ -27,15 +27,15 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #100e11;
+    --bg: #0f100d;
     --fg: #ddd;
     --muted: #8a8a8a;
-    --rule: #34303a;
-    --accent: #e07ad0;
-    --accent-faint: rgba(224, 122, 208, 0.16);
-    --accent-tint: rgba(224, 122, 208, 0.07);
-    --panel: #18151b;
-    --stage: #0a090b;
+    --rule: #343a30;
+    --accent: #9ecb63;
+    --accent-faint: rgba(158, 203, 99, 0.16);
+    --accent-tint: rgba(158, 203, 99, 0.07);
+    --panel: #171a14;
+    --stage: #0a0b09;
     --good: #6ec48f;
     --bad: #d36a6a;
     --warn: #d9974a;
@@ -91,34 +91,33 @@ canvas:active { cursor: grabbing; }
 .hint.gone { opacity: 0; }
 .nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; text-align: center; font-size: 0.85rem; color: var(--muted); }
 
-/* ---- tabs + panes inside the bottom third ------------------------------- */
+/* ---- tabs + panes ------------------------------------------------------- */
 nav.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
 .tab {
-  flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em;
+  flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em;
   text-transform: uppercase; background: none; border: none;
   border-bottom: 2px solid transparent; color: var(--muted);
-  padding: 0.55rem 0.2rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem;
+  padding: 0.55rem 0.1rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem;
 }
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
 .panes { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .pane { display: none; padding: 0.6rem 0.9rem 1rem; }
 .pane.active { display: block; }
 
-/* ---- shape controls ----------------------------------------------------- */
 .chips { display: flex; gap: 0.3rem; margin-bottom: 0.55rem; }
 .chip {
   flex: 1 1 0; min-width: 0; height: 2.1rem; border-radius: 6px;
   border: 2px solid transparent; cursor: pointer; position: relative;
   font-family: var(--mono); font-size: 0.68rem; font-weight: 700;
-  color: rgba(255,255,255,0.92); text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  color: rgba(255,255,255,0.94); text-shadow: 0 1px 2px rgba(0,0,0,0.35);
   display: grid; place-items: center; padding: 0;
 }
 .chip[aria-pressed="true"] { border-color: var(--fg); box-shadow: 0 0 0 2px var(--bg) inset; }
 .chip .pin { position: absolute; top: 1px; right: 3px; font-size: 0.5rem; opacity: 0.85; }
 
-.knob { display: grid; grid-template-columns: 4.1rem 1fr 3.2rem; align-items: center; gap: 0.4rem; margin: 0.18rem 0; }
-.knob label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
-.knob output { font-family: var(--mono); font-size: 0.64rem; text-align: right; color: var(--fg); }
+.knob { display: grid; grid-template-columns: 2.4rem 1fr 3.4rem; align-items: center; gap: 0.4rem; margin: 0.18rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.64rem; text-align: right; }
 .knob.off { opacity: 0.4; }
 input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
 input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
@@ -136,14 +135,19 @@ button.act:hover, select.act:hover { border-color: var(--accent); color: var(--a
 button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
 .toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.35rem; }
 
-/* ---- readouts ----------------------------------------------------------- */
 table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.66rem; }
 table.facts td { padding: 0.28rem 0.2rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
 table.facts td:first-child { color: var(--muted); white-space: nowrap; padding-right: 0.5rem; }
 table.facts td:last-child { text-align: right; }
-table.facts b { font-weight: 700; }
 .good { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
 .note { font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 0; }
+.note b { color: var(--fg); }
+
+.walkbar { position: relative; height: 1.5rem; margin: 0.15rem 0 0.4rem; border-radius: 3px; background: var(--rule); overflow: hidden; }
+.walkbar .solidzone { position: absolute; top: 0; bottom: 0; background: var(--accent-faint); border-right: 2px solid var(--bad); }
+.walkbar .flip { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--warn); }
+.walkbar .now { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--fg); }
+.walkbar span { position: absolute; left: 0.35rem; top: 50%; transform: translateY(-50%); font-family: var(--mono); font-size: 0.55rem; color: var(--muted); }
 
 .prose { font-size: 0.86rem; }
 .prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
@@ -152,12 +156,9 @@ table.facts b { font-weight: 700; }
 .prose a { color: var(--accent); text-decoration: none; }
 .prose a:hover { text-decoration: underline; }
 .prose code { font-family: var(--mono); font-size: 0.8em; background: var(--accent-tint); padding: 0.05em 0.3em; border-radius: 3px; }
-.prose ul { margin: 0.4rem 0; padding-left: 1.1rem; }
-.prose li { margin: 0.25rem 0; }
 .crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
 .crossref a { color: var(--accent); text-decoration: none; }
 
-/* ---- wide screens: put the controls beside the object ------------------- */
 @media (min-width: 860px) {
   .app { flex-direction: row; }
   .top { flex: 1 1 auto; }
@@ -178,8 +179,8 @@ table.facts b { font-weight: 700; }
   <div class="top">
     <div class="head">
       <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
-      <h1>szilassi</h1>
-      <span class="tagline">7 faces · all touching</span>
+      <h1>császár</h1>
+      <span class="tagline">7 corners · no diagonals</span>
     </div>
     <div class="stage">
       <canvas id="gl"></canvas>
@@ -191,6 +192,7 @@ table.facts b { font-weight: 700; }
   <div class="panel">
     <nav class="tabs" role="tablist">
       <button class="tab active" data-pane="shape">shape</button>
+      <button class="tab" data-pane="walk">walk</button>
       <button class="tab" data-pane="view">view</button>
       <button class="tab" data-pane="check">check</button>
       <button class="tab" data-pane="about">about</button>
@@ -199,73 +201,71 @@ table.facts b { font-weight: 700; }
 
       <div class="pane active" id="pane-shape">
         <div class="chips" id="chips"></div>
-        <div class="knob" id="knob-tiltA">
-          <label for="tiltA">tilt ↻</label>
-          <input type="range" id="tiltA" min="-0.5" max="0.5" step="0.002" value="0">
-          <output id="tiltAv">0.0°</output>
-        </div>
-        <div class="knob" id="knob-tiltB">
-          <label for="tiltB">tilt ↺</label>
-          <input type="range" id="tiltB" min="-0.5" max="0.5" step="0.002" value="0">
-          <output id="tiltBv">0.0°</output>
-        </div>
-        <div class="knob" id="knob-slide">
-          <label for="slide">slide</label>
-          <input type="range" id="slide" min="-0.5" max="0.5" step="0.002" value="0">
-          <output id="slidev">0.00</output>
-        </div>
+        <div class="knob" id="knob-kx"><label for="kx">x</label>
+          <input type="range" id="kx" min="-1" max="1" step="0.004" value="0"><output id="kxv">0.00</output></div>
+        <div class="knob" id="knob-ky"><label for="ky">y</label>
+          <input type="range" id="ky" min="-1" max="1" step="0.004" value="0"><output id="kyv">0.00</output></div>
+        <div class="knob" id="knob-kz"><label for="kz">z</label>
+          <input type="range" id="kz" min="-1" max="1" step="0.004" value="0"><output id="kzv">0.00</output></div>
         <div class="row">
           <button class="act" id="lock" aria-pressed="true">180° lock</button>
           <button class="act" id="randomise">jiggle</button>
           <button class="act" id="reset">reset</button>
-          <select class="act" id="preset" aria-label="preset shapes"></select>
+          <select class="act" id="preset" aria-label="the published realizations"></select>
         </div>
         <p class="note" id="shapeNote"></p>
       </div>
 
-      <div class="pane" id="pane-view">
-        <div class="toggles">
-          <button class="act" id="tFaces" aria-pressed="true">faces</button>
-          <button class="act" id="tEdges" aria-pressed="true">edges</button>
-          <button class="act" id="tCorners" aria-pressed="true">corners</button>
-          <button class="act" id="tHide" aria-pressed="false">hide picked face</button>
-          <button class="act" id="tSpin" aria-pressed="true">spin</button>
-          <button class="act" id="tHome">recentre</button>
+      <div class="pane" id="pane-walk">
+        <div class="row" style="margin-top:0">
+          <span style="font-family:var(--mono);font-size:0.62rem;letter-spacing:0.06em;text-transform:uppercase;color:var(--muted)">walk to</span>
+          <select class="act" id="target" aria-label="walk towards"></select>
         </div>
-        <p class="note">One finger turns it, two fingers pinch to zoom and drag to pan; a mouse wheel zooms. Double-tap recentres. The seven colours are not decoration: because every face touches every other, no fewer than seven will do — which is the whole reason this solid is famous.</p>
+        <div class="walkbar" id="walkbar"><span id="walklabel"></span></div>
+        <div class="knob"><label for="walkT">t</label>
+          <input type="range" id="walkT" min="0" max="1" step="0.002" value="0"><output id="walkTv">0.000</output></div>
+        <p class="note" id="walkNote"></p>
+      </div>
+
+      <div class="pane" id="pane-view">
+        <div class="toggles" id="viewToggles"></div>
+        <p class="note">One finger turns it, two fingers pinch to zoom and drag to pan; a mouse wheel zooms, and a double-tap recentres. <b>Star of corner</b> keeps only the six triangles that meet the corner picked on the <i>shape</i> tab — the ring of them is what has to stay unfolded for the surface to be a surface there.</p>
+        <p class="note">The seven colours belong to the seven corners, and each triangle blends the three it hangs from. Because every pair of corners is joined by an edge, every pair of colours meets along one.</p>
       </div>
 
       <div class="pane" id="pane-check">
         <table class="facts"><tbody id="checks"></tbody></table>
-        <p class="note">Everything here is measured from the seven planes you are looking at, on every frame — nothing is asserted. The same code, unchanged, is held to these claims by <code>poly.selftest.mjs</code>.</p>
+        <p class="note">Measured from the seven points on screen, every frame. The same module, unchanged, is held to these claims by <code>poly.selftest.mjs</code> — including by a second, differently-built test that has to agree with the first.</p>
       </div>
 
       <div class="pane prose" id="pane-about">
-        <h2>Seven hexagons, every pair touching</h2>
-        <p>Colour a map so that countries sharing a border get different colours. On a sphere four colours always suffice; on a torus you sometimes need seven. To <em>need</em> seven you want seven countries that all border one another — and the Szilassi polyhedron is that map, built as a solid: <strong>7 hexagonal faces, 21 edges, 14 corners</strong>, every one of the <strong>C(7,2) = 21</strong> face pairs sharing an edge.</p>
-        <p>Its dual, with seven corners and no diagonals at all, is on the next page: <a href="https://math.mino.mobi/csaszar/">császár</a>. The tetrahedron does the same trick with 4 triangles. Those two are the <em>only</em> polyhedra known where every face touches every other. Euler forces such a solid with <code>f</code> faces onto a surface with <code>h = (f−4)(f−3)/12</code> holes, so the next candidate is 12 faces on a 6-holed surface — nobody has built one. Lajos Szilassi found this one in 1977; its dual, with 7 vertices and no diagonals at all, is Ákos Császár's 1949 polyhedron.</p>
-        <p>The 14 corners and 21 edges, taken as a graph, are the <a href="https://en.wikipedia.org/wiki/Heawood_graph">Heawood graph</a> — the smallest cubic graph of girth 6. The <em>check</em> tab verifies that from the shape on screen: 3-regular, bipartite, girth 6, which pins it down uniquely.</p>
+        <h2>A polyhedron without diagonals</h2>
+        <p>In 1949 a Hungarian competition asked students to prove that the tetrahedron is the <em>only</em> polyhedron in which every pair of corners is joined by an edge — no diagonals anywhere. The proof is short: <code>V − E + F = 2</code> forces <code>V = 4</code>. The question forgot to say <em>simple</em> polyhedron. On a torus the 2 becomes a 0, and out falls <code>V = 7</code>, <code>E = 21</code>, <code>F = 14</code>. Ákos Császár built it.</p>
+        <p>So here are seven points with every one of the 21 segments between them an edge of the solid, and fourteen triangles hung on them. Its skeleton is the complete graph <strong>K₇</strong>, drawn on a torus without crossings. Its dual is the <a href="https://math.mino.mobi/szilassi/">Szilassi polyhedron</a>: seven hexagons, every pair touching.</p>
 
-        <h2>Are there degrees of freedom? Fourteen.</h2>
-        <p>Every corner has exactly three faces, so every corner is where three face planes cross — and there are only seven planes in the whole solid. <strong>Seven planes are the entire object.</strong> Nothing here is ever solved for: move a plane, re-intersect, done, and the faces are flat by construction rather than by approximation.</p>
-        <p>That makes the arithmetic easy. Seven planes × three numbers each = <strong>21</strong>. Sliding, turning and scaling the whole solid in space uses up <strong>7</strong> of those without changing its shape. So the Szilassi polyhedron is not one shape but a <strong>14-parameter family</strong>, and the published solid is one point in it. Hold the 180° half-turn symmetry and <strong>7</strong> are left. Both numbers are measured on the shape you are looking at — see <em>check</em> — as the rank of the map from knobs to corners, not counted on paper.</p>
-        <p>The <em>shape</em> tab hands you those knobs three at a time: pick a face, tilt its plane two ways, slide it along its own normal. What you cannot do is leave the family — flatness survives anything. What you <em>can</em> do is break the <em>solid</em>: the region of the 14 where the seven hexagons still bound a body rather than slicing through one another is open, and it is not very large. Push a slider far enough and the verdict under the object turns red and says which two faces crossed.</p>
+        <h2>Flatness is free here</h2>
+        <p>On the dual page, flatness is the hard part — seven hexagons have to stay planar, and the trick is that seven <em>planes</em> are the whole solid. Here it is the other way round. Faces are triangles, and three points are always coplanar, so <strong>you cannot make a face non-flat</strong>. Drag the corners anywhere you like.</p>
+        <p>The arithmetic comes out the same, as duals must: 7 points × 3 numbers = <strong>21</strong>, minus the <strong>7</strong> similarities of space that move the solid without changing its shape, leaves <strong>14</strong> shape degrees of freedom. Measured on both pages, live.</p>
 
-        <h2>How the verdict is decided</h2>
-        <p>Two faces lie in two planes, so they can only meet on the line where those planes cross. Walk that line, mark every place either hexagon's boundary touches it, and test the middle of each stretch for being inside both. What both cover <em>is</em> the intersection. A solid needs it to be exactly their shared edge — and no more. Twenty-one pairs, and the answer is exact.</p>
-        <p>The naive shortcut fails here, which is worth knowing before you optimise it: faces 1 and 2 of the published solid have corners on <em>both</em> sides of each other's plane. They reach past one another without meeting. These hexagons are not convex.</p>
+        <h2>But you cannot go everywhere</h2>
+        <p>What can go wrong is the surface passing through itself, and the way it goes wrong has structure. For each of the 35 quadruples of corners, record which side of the plane of the first three the fourth lies on. Those 35 signs are the shape's <em>oriented matroid</em>, and here is the point:</p>
+        <p><strong>No solid can have four corners in one plane.</strong> Every pair of corners is an edge, so four coplanar corners would put two whole edges in one plane — and two edges in a plane, in a complete graph, have to cross. A crossing is not a solid. So along any continuous path of solids the 35 signs never pass through zero, which means <em>they never change at all</em>.</p>
+        <p>Different signs, different piece of the space. The four published realizations have four different sign patterns, so no amount of careful dragging takes you from one to another — the <em>walk</em> tab walks straight at a target and shows you exactly where the wall is. The four differ in one visible way: the order in which the three mirror pairs and the lone corner stack up the symmetry axis.</p>
 
-        <h2>The presets</h2>
-        <p><strong>Szilassi 1977</strong> is Table 3 of Grünbaum &amp; Szilassi's <a href="https://doi.org/10.11575/cdm.v4i1.61986">Geometric realizations of special toroidal complexes</a> (2009), to the last decimal. Its faces are planar to the last bit of a double, which the selftest checks rather than trusts. The others were found by hill-climbing the knobs offline: <strong>roomy</strong> more than doubles the space between the tightest corner and the face it nearly touches, <strong>blunt</strong> opens the sharpest crease from 49° to 75°. Every shape you make is in the URL.</p>
+        <h2>How many are there?</h2>
+        <p>Bokowski and Eggert answered this in 1991, in <a href="https://www.researchgate.net/publication/265705954_All_Realizations_of_Mobius'_Torus_with_7_Vertices">All realizations of Möbius' torus with 7 vertices</a>: up to equivalence there are <strong>72</strong>, and all of them can be built. So the four here are four of seventy-two — Lajos Szilassi's models, the first being Császár's own 1949 coordinates. Anywhere you read that there are only four essentially different Császár polyhedra, that is four models being mistaken for the classification.</p>
+        <p>You can go and look. Throw seven points into a cube at random and hang the Möbius triangulation on them: about <strong>one roll in 5,800</strong> is already an embedded torus. Twenty-four million rolls gave 4,139 solids in <strong>62</strong> of the 72 types, all four of the published ones among them — the missing ten sit in slices of the space too thin for that many darts to hit. <code>csaszar/census.mjs</code> is that experiment, and it prints those numbers.</p>
+
+        <h2>What the check tab is doing</h2>
+        <p>Two triangles lie in two planes, so they can only meet on the line where those planes cross. Walk that line, find the stretch each triangle covers, and where the stretches overlap is exactly where the triangles touch. A solid needs that overlap to be no more than what the two already share — an edge, a corner, or nothing. Parallel planes are the case to be careful with: distinct ones never meet and are perfectly fine, and the two far triangles of an octahedron are the everyday example.</p>
 
         <div class="crossref">
           dual ·
-          <a href="https://math.mino.mobi/csaszar/">császár</a> · sisters ·
+          <a href="https://math.mino.mobi/szilassi/">szilassi</a> · sisters ·
           <a href="https://mino.mobi/geometry/">geometry</a> ·
           <a href="https://mino.mobi/cohomology/">cohomology</a> ·
           <a href="https://mino.mobi/voronoi/">voronoi</a> ·
-          <a href="https://mino.mobi/arnold/">arnold</a> ·
-          <a href="https://mino.mobi/elements/">elements</a>
+          <a href="https://mino.mobi/arnold/">arnold</a>
         </div>
       </div>
 
@@ -278,18 +278,20 @@ import * as P from './poly.js';
 
 const $ = (id) => document.getElementById(id);
 
-// ============================================================== the state ===
 const state = {
+  preset: 0,
   knobs: P.ZERO_KNOBS(),
-  face: 0,
+  vertex: 0,
   lock: true,
-  show: { faces: true, edges: true, corners: true, hide: false },
+  show: { faces: true, edges: true, corners: true, star: false },
   spin: true,
+  walk: { target: 1, t: 0 },
 };
+const basePoints = () => P.PRESETS[state.preset].points;
 
 // ============================================================ the renderer ==
 const canvas = $('gl');
-const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: false });
+const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
 if (!gl) {
   canvas.remove();
   const d = document.createElement('div');
@@ -302,16 +304,13 @@ const VERT = `
 attribute vec3 aPos;
 attribute vec3 aNormal;
 attribute vec3 aColor;
-attribute float aFace;
 uniform mat4 uMVP;
 uniform mat3 uNormalMat;
 varying vec3 vNormal;
 varying vec3 vColor;
-varying float vFace;
 void main() {
   vNormal = uNormalMat * aNormal;
   vColor = aColor;
-  vFace = aFace;
   gl_Position = uMVP * vec4(aPos, 1.0);
 }`;
 
@@ -319,8 +318,6 @@ const FRAG = `
 precision mediump float;
 varying vec3 vNormal;
 varying vec3 vColor;
-varying float vFace;
-uniform float uHighlight;
 uniform float uFlat;
 void main() {
   vec3 n = normalize(vNormal);
@@ -331,9 +328,8 @@ void main() {
   float rim  = max(dot(n, normalize(vec3(0.10, -0.60, -0.55))), 0.0);
   float lit = 0.40 + 0.58 * key + 0.24 * fill + 0.12 * rim;
   vec3 c = vColor * mix(lit, 1.0, uFlat);
-  // the inside of the torus reads cooler and darker, so the tunnel is legible
+  // the tunnel of the torus reads darker and cooler, so inside looks inside
   if (back && uFlat < 0.5) c = c * 0.55 + vec3(0.0, 0.012, 0.035);
-  if (uHighlight >= 0.0 && abs(vFace - uHighlight) < 0.5) c = mix(c, vec3(1.0), 0.28);
   gl_FragColor = vec4(c, 1.0);
 }`;
 
@@ -341,8 +337,7 @@ let prog, loc, buf;
 if (gl) {
   const compile = (type, src) => {
     const s = gl.createShader(type);
-    gl.shaderSource(s, src);
-    gl.compileShader(s);
+    gl.shaderSource(s, src); gl.compileShader(s);
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
     return s;
   };
@@ -356,59 +351,56 @@ if (gl) {
     aPos: gl.getAttribLocation(prog, 'aPos'),
     aNormal: gl.getAttribLocation(prog, 'aNormal'),
     aColor: gl.getAttribLocation(prog, 'aColor'),
-    aFace: gl.getAttribLocation(prog, 'aFace'),
     uMVP: gl.getUniformLocation(prog, 'uMVP'),
     uNormalMat: gl.getUniformLocation(prog, 'uNormalMat'),
-    uHighlight: gl.getUniformLocation(prog, 'uHighlight'),
     uFlat: gl.getUniformLocation(prog, 'uFlat'),
   };
   buf = gl.createBuffer();
   gl.enable(gl.DEPTH_TEST);
-  gl.disable(gl.CULL_FACE);   // a torus shows you its inside; both sides are drawn
+  gl.disable(gl.CULL_FACE);
 }
 
-// -------------------------------------------------------------- geometry ----
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
-const FACE_RGB = P.FACE_COLOURS.map(hex);
-const INK = [0.10, 0.10, 0.12];
-const INK_DARK = [0.86, 0.86, 0.90];
-const inkColour = () => (matchMedia('(prefers-color-scheme: dark)').matches ? INK_DARK : INK);
+const RGB = P.VERTEX_COLOURS.map(hex);
+const inkColour = () => (matchMedia('(prefers-color-scheme: dark)').matches ? [0.86, 0.86, 0.9] : [0.1, 0.1, 0.12]);
 
-/** Pack the solid into one interleaved buffer: hexagons first, then the wire. */
-function buildGeometry(verts) {
-  const planes = P.planesFromVertices(verts);
-  const { radius } = P.bounds(verts);
-  const V = [];
-  const push = (p, n, c, f) => { V.push(p[0], p[1], p[2], n[0], n[1], n[2], c[0], c[1], c[2], f); };
+/**
+ * The triangles are painted by their three corners, so the surface is a blend
+ * of seven colours — and because every pair of corners is joined by an edge,
+ * every pair of colours meets along one.
+ */
+function buildGeometry(V) {
+  const { radius } = P.bounds(V);
+  const out = [];
+  const push = (p, n, c) => { out.push(p[0], p[1], p[2], n[0], n[1], n[2], c[0], c[1], c[2]); };
+  const bg = matchMedia('(prefers-color-scheme: dark)').matches ? [0.06, 0.07, 0.055] : [0.925, 0.918, 0.89];
+  const dim = (c) => c.map((x, i) => x * 0.22 + bg[i] * 0.78);
 
   let faceVerts = 0;
   if (state.show.faces) {
-    for (let f = 0; f < 7; f++) {
-      if (state.show.hide && f === state.face) continue;
-      const n = [planes[f][0], planes[f][1], planes[f][2]];
-      for (const t of P.triangulateFace(verts, P.FACES[f], planes[f])) {
-        for (const i of t) push(verts[i], n, FACE_RGB[f], f);
-        faceVerts += 3;
-      }
-    }
+    P.FACES.forEach((f, fi) => {
+      const n = P.planeOfFace(V, f).n;
+      const faded = state.show.star && !f.includes(state.vertex);
+      for (const i of f) push(V[i], n, faded ? dim(RGB[i]) : RGB[i]);
+      faceVerts += 3;
+    });
   }
-
   const wireStart = faceVerts;
   const ink = inkColour();
-  const rTube = 0.0092 * radius, rBall = 0.019 * radius;
   if (state.show.edges) {
-    // every edge is drawn even when a face is hidden, so the opening keeps its outline
-    for (const [a, b] of P.EDGES) tube(verts[a], verts[b], rTube, ink, push);
+    for (const [a, b] of P.EDGES) tube(V[a], V[b], 0.0085 * radius, ink, push);
   }
-  if (state.show.corners) for (let i = 0; i < 14; i++) ball(verts[i], rBall, ink, push);
-
-  return { data: new Float32Array(V), faceVerts, wireStart, wireVerts: V.length / 10 - wireStart };
+  if (state.show.corners) {
+    for (let i = 0; i < 7; i++) {
+      ball(V[i], (i === state.vertex ? 0.042 : 0.028) * radius, RGB[i], push);
+    }
+  }
+  return { data: new Float32Array(out), faceVerts, wireStart, wireVerts: out.length / 9 - wireStart };
 }
 
 /** An 8-sided prism along an edge — 1px lines vanish on a phone. */
 function tube(a, b, r, colour, push) {
-  const axis = P.sub(b, a);
-  const L = P.len(axis);
+  const axis = P.sub(b, a), L = P.len(axis);
   if (!(L > 0)) return;
   const u = P.mul(axis, 1 / L);
   const t = Math.abs(u[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
@@ -422,51 +414,37 @@ function tube(a, b, r, colour, push) {
     const p = ring[i], q = ring[(i + 1) % N];
     const n1 = P.unit(p), n2 = P.unit(q);
     const A = P.add(a, p), B = P.add(a, q), C = P.add(b, q), D = P.add(b, p);
-    push(A, n1, colour, -1); push(B, n2, colour, -1); push(C, n2, colour, -1);
-    push(A, n1, colour, -1); push(C, n2, colour, -1); push(D, n1, colour, -1);
+    push(A, n1, colour); push(B, n2, colour); push(C, n2, colour);
+    push(A, n1, colour); push(C, n2, colour); push(D, n1, colour);
   }
 }
 
-/** A subdivided octahedron at each corner. */
 const BALL = (() => {
-  let tris = [];
   const o = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  let tris = [];
   for (const a of [4, 5]) for (const b of [0, 2, 1, 3]) {
     const c = a === 4 ? { 0: 2, 2: 1, 1: 3, 3: 0 }[b] : { 0: 3, 3: 1, 1: 2, 2: 0 }[b];
     tris.push([o[a], o[b], o[c]]);
   }
-  for (let s = 0; s < 1; s++) {
-    const out = [];
+  for (let s = 0; s < 2; s++) {
+    const next = [];
     for (const [a, b, c] of tris) {
       const ab = P.unit(P.add(a, b)), bc = P.unit(P.add(b, c)), ca = P.unit(P.add(c, a));
-      out.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]);
+      next.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]);
     }
-    tris = out;
+    tris = next;
   }
   return tris;
 })();
 function ball(centre, r, colour, push) {
-  for (const t of BALL) for (const n of t) push(P.add(centre, P.mul(n, r)), n, colour, -1);
+  for (const t of BALL) for (const n of t) push(P.add(centre, P.mul(n, r)), n, colour);
 }
 
 // ---------------------------------------------------------------- camera ----
-// `zoom` is a multiple of the distance at which the solid exactly fills the
-// canvas, so the framing survives a portrait phone, a landscape phone and a
-// desktop panel without three sets of numbers.
-const cam = { yaw: 0.8, pitch: 0.85, zoom: 1, pan: [0, 0], spun: 0, fit: 3, centre: 0 };
+const cam = { yaw: 0.9, pitch: 0.9, zoom: 1, pan: [0, 0], spun: 0, fit: 3, centre: 0 };
 const HOME = { yaw: cam.yaw, pitch: cam.pitch, zoom: cam.zoom };
 const FOVY = 0.85;
 
-/**
- * How far back the camera has to sit for the solid to fill the canvas.
- *
- * Fitting the bounding sphere wastes most of a phone screen — this solid is a
- * thin wedge, and its silhouette is barely a third of the disc it fits inside.
- * So the distance is fitted to the silhouette instead, maximised over every
- * turn about the vertical axis: tight framing, and the apparent size does not
- * breathe while the thing spins. The same sweep gives the vertical offset that
- * centres it — the solid's corners are not spread evenly about its middle.
- */
 let fitCache = { key: '', dist: 3, shift: 0 };
 function fitDistance(pitch, aspect) {
   const key = `${pitch.toFixed(4)}|${aspect.toFixed(3)}|${fitVersion}`;
@@ -485,14 +463,12 @@ function fitDistance(pitch, aspect) {
       ]);
     }
   }
-  // the distance a given vertical offset demands; convex in the offset, so a
-  // ternary search finds the framing that wastes the least screen
   const need = (s) => {
     let d = 0;
     for (const [x, y, z] of seen) {
-      const a2 = z + Math.abs(x) / tanH, b2 = z + Math.abs(y - s) / tanV;
-      if (a2 > d) d = a2;
-      if (b2 > d) d = b2;
+      const a = z + Math.abs(x) / tanH, b = z + Math.abs(y - s) / tanV;
+      if (a > d) d = a;
+      if (b > d) d = b;
     }
     return d;
   };
@@ -502,19 +478,14 @@ function fitDistance(pitch, aspect) {
     if (need(m1) < need(m2)) hi = m2; else lo = m1;
   }
   const dist = Math.max(1.25, need((lo + hi) / 2) * 1.09);
-
-  // At that distance, sit the solid in the middle of the canvas: the offset
-  // that centres the projected extent also minimises it, so the fit above
-  // cannot be spoilt by this. Binary search, because the projected height of
-  // an offset is monotone in it.
-  const offset = (s2) => {
-    let a = Infinity, b2 = -Infinity;
+  const offset = (s) => {
+    let a = Infinity, b = -Infinity;
     for (const [, y, z] of seen) {
-      const yp = (y - s2) / (dist - z);
+      const yp = (y - s) / (dist - z);
       if (yp < a) a = yp;
-      if (yp > b2) b2 = yp;
+      if (yp > b) b = yp;
     }
-    return a + b2;
+    return a + b;
   };
   let slo = -1.5, shi = 1.5;
   for (let i = 0; i < 40; i++) {
@@ -541,7 +512,6 @@ function perspective(fovy, aspect, near, far) {
 function viewMatrix() {
   const cy = Math.cos(cam.yaw + cam.spun), sy = Math.sin(cam.yaw + cam.spun);
   const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
-  // rows of the rotation: camera right / up / back, in world coordinates
   const right = [cy, 0, -sy];
   const up = [-sy * sp, cp, -cy * sp];
   const back = [sy * cp, sp, cy * cp];
@@ -563,7 +533,7 @@ function viewMatrix() {
 }
 
 // ------------------------------------------------------------------ draw ----
-let geo = null, frame = 0, needDraw = true, lastVerts = null;
+let geo = null, frame = 0, needDraw = true, lastPoints = null;
 let modelRadius = 1, modelCentre = [0, 0, 0], normVerts = [[1, 0, 0]], fitVersion = 0;
 
 function resize() {
@@ -584,7 +554,6 @@ function draw() {
 
   ({ dist: cam.fit, shift: cam.centre } = fitDistance(cam.pitch, canvas.width / canvas.height));
   const { view, normal } = viewMatrix();
-  // the model is normalised to radius 1 about its own centre before viewing
   const s = 1 / modelRadius;
   const model = new Float32Array([s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0,
     -modelCentre[0] * s, -modelCentre[1] * s, -modelCentre[2] * s, 1]);
@@ -593,28 +562,18 @@ function draw() {
 
   gl.bindBuffer(gl.ARRAY_BUFFER, buf);
   gl.bufferData(gl.ARRAY_BUFFER, geo.data, gl.DYNAMIC_DRAW);
-  const stride = 10 * 4;
+  const stride = 9 * 4;
   gl.enableVertexAttribArray(loc.aPos);
   gl.vertexAttribPointer(loc.aPos, 3, gl.FLOAT, false, stride, 0);
   gl.enableVertexAttribArray(loc.aNormal);
   gl.vertexAttribPointer(loc.aNormal, 3, gl.FLOAT, false, stride, 12);
   gl.enableVertexAttribArray(loc.aColor);
   gl.vertexAttribPointer(loc.aColor, 3, gl.FLOAT, false, stride, 24);
-  gl.enableVertexAttribArray(loc.aFace);
-  gl.vertexAttribPointer(loc.aFace, 1, gl.FLOAT, false, stride, 36);
   gl.uniformMatrix4fv(loc.uMVP, false, mvp);
   gl.uniformMatrix3fv(loc.uNormalMat, false, normal);
 
-  if (geo.faceVerts) {
-    gl.uniform1f(loc.uHighlight, state.show.hide ? -1 : state.face);
-    gl.uniform1f(loc.uFlat, 0);
-    gl.drawArrays(gl.TRIANGLES, 0, geo.faceVerts);
-  }
-  if (geo.wireVerts) {
-    gl.uniform1f(loc.uHighlight, -1);
-    gl.uniform1f(loc.uFlat, 0.45);
-    gl.drawArrays(gl.TRIANGLES, geo.wireStart, geo.wireVerts);
-  }
+  if (geo.faceVerts) { gl.uniform1f(loc.uFlat, 0); gl.drawArrays(gl.TRIANGLES, 0, geo.faceVerts); }
+  if (geo.wireVerts) { gl.uniform1f(loc.uFlat, 0.4); gl.drawArrays(gl.TRIANGLES, geo.wireStart, geo.wireVerts); }
 }
 
 function loop() {
@@ -624,64 +583,63 @@ function loop() {
 }
 
 // ======================================================= shape -> screen ====
-let dofTimer = 0, dofFree = null, dofSym = null;
+function currentPoints() {
+  const A = P.build(basePoints(), state.knobs);
+  if (state.walk.t <= 0) return A;
+  return P.morph(A, P.PRESETS[state.walk.target].points, state.walk.t);
+}
 
+let walkCache = null;
 function rebuild() {
-  const verts = P.build(state.knobs);
-  const info = verts ? P.inspect(verts) : { ok: false, reason: 'three faces of a corner became parallel', clearance: -1 };
-  if (verts) {
-    lastVerts = verts;
-    const b = P.bounds(verts);
-    modelRadius = b.radius; modelCentre = b.centre;
-    normVerts = verts.map((v) => P.mul(P.sub(v, b.centre), 1 / b.radius));
-    fitVersion++;
-    geo = buildGeometry(verts);
-  }
+  const V = currentPoints();
+  lastPoints = V;
+  const b = P.bounds(V);
+  modelRadius = b.radius; modelCentre = b.centre;
+  normVerts = V.map((p) => P.mul(P.sub(p, b.centre), 1 / b.radius));
+  fitVersion++;
+  geo = buildGeometry(V);
   needDraw = true;
 
+  const info = P.inspect(V);
   const v = $('verdict');
   v.className = 'verdict ' + (info.ok ? 'solid' : 'broken');
   v.textContent = info.ok
-    ? `a solid · ${(info.clearance * 100).toFixed(1)}% clearance`
+    ? `${info.type.index >= 0 ? P.PRESETS[info.type.index].name : 'a solid, type unlisted'} · ${(info.clearance * 100).toFixed(1)}% clearance`
     : `not a solid · ${info.reason}`;
 
-  clearTimeout(dofTimer);
-  dofTimer = setTimeout(() => {
-    dofFree = P.degreesOfFreedom(state.knobs);
-    dofSym = P.isSymmetric(state.knobs) ? P.degreesOfFreedom(state.knobs, { symmetric: true }) : null;
-    writeChecks(info);
-  }, 180);
   writeChecks(info);
   writeShapeNote();
+  writeWalk(info);
   pushURL();
 }
 
 function writeChecks(info) {
-  const verts = lastVerts;
-  if (!verts) return;
-  const faceCount = 7, edgeCount = P.EDGES.length;
-  const pairs = new Set(P.EDGES.map(([, , f, g]) => `${f}-${g}`)).size;
-  const deg = new Array(14).fill(0);
+  const pairs = new Set(P.EDGES.map(([a, b]) => `${a}-${b}`)).size;
+  const deg = new Array(7).fill(0);
   for (const [a, b] of P.EDGES) { deg[a]++; deg[b]++; }
+  const dof = P.degreesOfFreedom(lastPoints);
   const rows = [
-    ['verdict', info.ok
-      ? '<b class="good">a solid</b>'
-      : `<b class="bad">broken</b><br><span class="bad">${info.reason}</span>`],
-    ['clearance', info.ok
-      ? `${(info.clearance * 100).toFixed(2)}% of radius`
-      : '<span class="bad">—</span>'],
+    ['verdict', info.ok ? '<b class="good">a solid</b>' : `<b class="bad">broken</b><br><span class="bad">${info.reason}</span>`],
+    ['which realization', info.type.general
+      ? (info.type.index >= 0
+        ? `<b>${P.PRESETS[info.type.index].name}</b><br><span style="color:var(--muted)">${P.PRESETS[info.type.index].stack}</span>`
+        : '<span class="warn">not one of the four</span>')
+      : '<span class="bad">four corners in a plane</span>'],
+    ['clearance', info.ok ? `${(info.clearance * 100).toFixed(2)}% of radius` : '<span class="bad">—</span>'],
     ['sharpest crease', `${info.minDihedral.toFixed(1)}°`],
-    ['faces flat to', `${info.planarity.toExponential(1)}`],
     ['—', ''],
-    ['shape degrees of freedom', dofFree ? `<b>${dofFree.shapes}</b> <span style="color:var(--muted)">= ${dofFree.moves} − ${dofFree.rigid}</span>` : '…'],
-    ['…with the 180° lock', dofSym ? `<b>${dofSym.shapes}</b> <span style="color:var(--muted)">= ${dofSym.moves} − ${dofSym.rigid}</span>` : '<span style="color:var(--muted)">not symmetric</span>'],
-    ['half-turn symmetry', P.isSymmetric(state.knobs) ? '<b class="good">yes</b>' : '<span style="color:var(--muted)">no</span>'],
+    ['corners · edges · triangles', `7 · ${P.EDGES.length} · ${P.FACES.length}`],
+    ['V − E + F', `${7 - P.EDGES.length + P.FACES.length} <span style="color:var(--muted)">(a torus)</span>`],
+    ['vertex pairs that are edges', `<b class="${pairs === 21 ? 'good' : 'bad'}">${pairs} / 21</b>`],
+    ['diagonals', `<b class="good">0</b>`],
+    ['every corner meets', deg.every((d) => d === 6) ? '<b class="good">6 edges</b>' : '<b class="bad">mixed</b>'],
+    ['faces flat', '<b class="good">always</b> <span style="color:var(--muted)">(3 points)</span>'],
     ['—', ''],
-    ['faces · edges · corners', `${faceCount} · ${edgeCount} · 14`],
-    ['V − E + F', `${14 - edgeCount + faceCount} <span style="color:var(--muted)">(a torus)</span>`],
-    ['face pairs sharing an edge', `<b class="${pairs === 21 ? 'good' : 'bad'}">${pairs} / 21</b>`],
-    ['corner degrees', deg.every((d) => d === 3) ? '<b class="good">all 3</b>' : '<b class="bad">mixed</b>'],
-    ['edge graph', `<b class="good">Heawood</b> <span style="color:var(--muted)">(cubic, bipartite, girth 6)</span>`],
+    ['shape degrees of freedom', `<b>${dof.shapes}</b> <span style="color:var(--muted)">= ${dof.moves} − ${dof.rigid}</span>`],
+    ['nearest 4 corners to a plane', `${info.type.margin.toExponential(2)}`],
+    ['half-turn symmetry', P.isSymmetric(basePoints(), state.knobs) && state.walk.t === 0
+      ? '<b class="good">yes</b>' : '<span style="color:var(--muted)">no</span>'],
+    ['enclosed volume', `${info.volume.toFixed(0)}`],
   ];
   $('checks').innerHTML = rows.map(([k, val]) => (k === '—'
     ? '<tr><td colspan="2" style="border:none;height:0.5rem"></td></tr>'
@@ -689,113 +647,135 @@ function writeChecks(info) {
 }
 
 function writeShapeNote() {
-  const f = state.face + 1;
-  const fixed = state.lock && state.face === P.C2.fixedFace;
-  const partner = P.C2.faceOf[state.face] + 1;
+  const i = state.vertex;
+  const fixed = state.lock && i === P.C2.fixedVertex;
+  const partner = P.C2.vertexOf[i] + 1;
   $('shapeNote').innerHTML = fixed
-    ? `Face ${f} is the one the half-turn leaves where it is, so with the lock on it may only slide along the axis — tilting it would break the symmetry.`
+    ? `Corner ${i + 1} is the one the half-turn leaves where it is, so with the lock on it may only slide along the axis.`
     : state.lock
-      ? `Face ${f} and face ${partner} are a mirror pair; the lock moves both, keeping the 180° symmetry and <b>7</b> of the 14 freedoms.`
-      : `Face ${f}'s plane, on its own. All <b>14</b> freedoms are live.`;
+      ? `Corner ${i + 1} and corner ${partner} are a mirror pair; the lock moves both, and the mirror image of a nudge points the other way.`
+      : `Corner ${i + 1}, on its own. All <b>14</b> shape freedoms are live — and every triangle stays flat whatever you do.`;
+}
+
+function writeWalk(info) {
+  const A = P.build(basePoints(), state.knobs);
+  const B = P.PRESETS[state.walk.target].points;
+  const keyStr = `${state.preset}|${state.walk.target}|${JSON.stringify(state.knobs)}`;
+  if (!walkCache || walkCache.key !== keyStr) walkCache = { key: keyStr, ...P.morphBreak(A, B, 220) };
+  const bar = $('walkbar');
+  const pct = (x) => `${Math.max(0, Math.min(1, x)) * 100}%`;
+  const broke = walkCache.broke;
+  bar.innerHTML =
+    `<div class="solidzone" style="left:0;width:${pct(broke === null ? 1 : broke)}"></div>` +
+    (walkCache.flipped !== null ? `<div class="flip" style="left:${pct(walkCache.flipped)}"></div>` : '') +
+    `<div class="now" style="left:${pct(state.walk.t)}"></div>` +
+    `<span>${broke === null ? 'no wall on this line' : `solid until t = ${broke.toFixed(3)}`}</span>`;
+  const here = state.walk.t;
+  $('walkNote').innerHTML = broke === null
+    ? `This straight line never leaves the solids — which means both ends are the <b>same</b> realization.`
+    : `Walk straight at <b>${P.PRESETS[state.walk.target].name}</b> and the surface cuts through itself at <b>t = ${broke.toFixed(3)}</b>` +
+      (walkCache.flipped !== null ? `, with the 35 signs flipping at <b>t = ${walkCache.flipped.toFixed(3)}</b>` : '') +
+      `. That wall is not an artefact of walking in a straight line: no path avoids it, because the signs cannot change while the shape stays a solid. ` +
+      `Here at t = ${here.toFixed(3)} it is <b>${info.ok ? 'a solid' : 'broken'}</b>.`;
 }
 
 // ============================================================== controls ====
 const chips = $('chips');
-P.FACE_COLOURS.forEach((c, i) => {
+P.VERTEX_COLOURS.forEach((c, i) => {
   const b = document.createElement('button');
   b.className = 'chip';
   b.style.background = c;
   b.textContent = String(i + 1);
   b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
-  b.setAttribute('aria-label', `face ${i + 1}`);
-  if (i === P.C2.fixedFace) {
+  b.setAttribute('aria-label', `corner ${i + 1}`);
+  if (i === P.C2.fixedVertex) {
     const pin = document.createElement('span');
-    pin.className = 'pin';
-    pin.textContent = '↻';
-    pin.title = 'the face the half-turn fixes';
+    pin.className = 'pin'; pin.textContent = '↻';
+    pin.title = 'the corner the half-turn fixes';
     b.appendChild(pin);
   }
-  b.addEventListener('click', () => { state.face = i; syncControls(); rebuild(); });
+  b.addEventListener('click', () => { state.vertex = i; syncControls(); rebuild(); });
   chips.appendChild(b);
 });
 
-const sliders = [['tiltA', 0], ['tiltB', 1], ['slide', 2]];
-for (const [id, k] of sliders) {
+for (const [id, k] of [['kx', 0], ['ky', 1], ['kz', 2]]) {
   $(id).addEventListener('input', () => {
     let kn = state.knobs.map((r) => r.slice());
-    kn[state.face][k] = Number($(id).value);
-    if (state.lock) kn = P.symmetrize(kn, state.face);
+    kn[state.vertex][k] = Number($(id).value);
+    if (state.lock) kn = P.symmetrize(kn, state.vertex);
     state.knobs = kn;
     syncOutputs();
     rebuild();
   });
 }
-
 function syncOutputs() {
-  const k = state.knobs[state.face];
-  $('tiltA').value = k[0]; $('tiltAv').textContent = `${((k[0] * 180) / Math.PI).toFixed(1)}°`;
-  $('tiltB').value = k[1]; $('tiltBv').textContent = `${((k[1] * 180) / Math.PI).toFixed(1)}°`;
-  $('slide').value = k[2]; $('slidev').textContent = k[2].toFixed(3);
+  const k = state.knobs[state.vertex];
+  $('kx').value = k[0]; $('kxv').textContent = k[0].toFixed(2);
+  $('ky').value = k[1]; $('kyv').textContent = k[1].toFixed(2);
+  $('kz').value = k[2]; $('kzv').textContent = k[2].toFixed(2);
 }
-
 function syncControls() {
-  [...chips.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === state.face)));
-  const fixed = state.lock && state.face === P.C2.fixedFace;
-  for (const id of ['tiltA', 'tiltB']) {
-    $(id).disabled = fixed;
-    $(`knob-${id}`).classList.toggle('off', fixed);
-  }
+  [...chips.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === state.vertex)));
+  const fixed = state.lock && state.vertex === P.C2.fixedVertex;
+  for (const id of ['kx', 'ky']) { $(id).disabled = fixed; $(`knob-${id}`).classList.toggle('off', fixed); }
   $('lock').setAttribute('aria-pressed', String(state.lock));
-  for (const [id, key] of [['tFaces', 'faces'], ['tEdges', 'edges'], ['tCorners', 'corners'], ['tHide', 'hide']]) {
-    $(id).setAttribute('aria-pressed', String(state.show[key]));
+  for (const [id, key] of [['tFaces', 'faces'], ['tEdges', 'edges'], ['tCorners', 'corners'], ['tStar', 'star']]) {
+    const el = $(id);
+    if (el) el.setAttribute('aria-pressed', String(state.show[key]));
   }
-  $('tSpin').setAttribute('aria-pressed', String(state.spin));
+  if ($('tSpin')) $('tSpin').setAttribute('aria-pressed', String(state.spin));
+  $('preset').value = P.PRESETS[state.preset].id;
+  $('target').value = P.PRESETS[state.walk.target].id;
+  $('walkT').value = state.walk.t;
+  $('walkTv').textContent = state.walk.t.toFixed(3);
   syncOutputs();
   writeShapeNote();
 }
 
 $('lock').addEventListener('click', () => {
   state.lock = !state.lock;
-  if (state.lock) state.knobs = P.symmetrize(state.knobs, state.face);
-  syncControls();
-  rebuild();
+  if (state.lock) state.knobs = P.symmetrize(state.knobs, state.vertex);
+  syncControls(); rebuild();
 });
-$('reset').addEventListener('click', () => { state.knobs = P.ZERO_KNOBS(); $('preset').value = 'szilassi'; syncControls(); rebuild(); });
+$('reset').addEventListener('click', () => {
+  state.knobs = P.ZERO_KNOBS(); state.walk.t = 0; syncControls(); rebuild();
+});
 $('randomise').addEventListener('click', () => {
-  // a nudge that keeps the solid: try a few, take the first that survives
   const base = state.knobs;
-  for (let attempt = 0; attempt < 60; attempt++) {
-    const amp = 0.14 * (1 - attempt / 70);
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const amp = 0.22 * (1 - attempt / 90);
     let kn = base.map((r) => r.map((x) => x + (Math.random() * 2 - 1) * amp));
-    if (state.lock) kn = P.symmetrize(kn, state.face);
-    const v = P.build(kn);
-    if (v && P.inspect(v).ok) { state.knobs = kn; break; }
+    if (state.lock) kn = P.symmetrize(kn, state.vertex);
+    const V = P.build(basePoints(), kn);
+    if (P.inspect(V).ok) { state.knobs = kn; state.walk.t = 0; break; }
   }
-  syncControls();
-  rebuild();
+  syncControls(); rebuild();
 });
 
-const preset = $('preset');
-for (const p of P.PRESETS) {
-  const o = document.createElement('option');
-  o.value = p.id; o.textContent = p.name;
-  preset.appendChild(o);
+for (const sel of ['preset', 'target']) {
+  for (const p of P.PRESETS) {
+    const o = document.createElement('option');
+    o.value = p.id; o.textContent = p.name;
+    $(sel).appendChild(o);
+  }
 }
-preset.addEventListener('change', () => {
-  const p = P.PRESETS.find((x) => x.id === preset.value);
-  if (!p) return;
-  state.knobs = p.knobs.map((r) => r.slice());
-  state.lock = p.symmetric;
-  syncControls();
+$('preset').addEventListener('change', () => {
+  state.preset = P.PRESETS.findIndex((p) => p.id === $('preset').value);
+  state.knobs = P.ZERO_KNOBS();
+  state.walk.t = 0;
+  if (state.walk.target === state.preset) state.walk.target = (state.preset + 1) % 4;
+  syncControls(); rebuild();
+});
+$('target').addEventListener('change', () => {
+  state.walk.target = P.PRESETS.findIndex((p) => p.id === $('target').value);
+  state.walk.t = 0;
+  syncControls(); rebuild();
+});
+$('walkT').addEventListener('input', () => {
+  state.walk.t = Number($('walkT').value);
+  $('walkTv').textContent = state.walk.t.toFixed(3);
   rebuild();
 });
-
-for (const [id, key] of [['tFaces', 'faces'], ['tEdges', 'edges'], ['tCorners', 'corners'], ['tHide', 'hide']]) {
-  $(id).addEventListener('click', () => { state.show[key] = !state.show[key]; syncControls(); rebuild(); });
-}
-$('tSpin').addEventListener('click', () => { state.spin = !state.spin; syncControls(); needDraw = true; });
-$('tHome').addEventListener('click', home);
-function home() { Object.assign(cam, HOME, { pan: [0, 0] }); cam.spun = 0; needDraw = true; }
 
 for (const tab of document.querySelectorAll('.tab')) {
   tab.addEventListener('click', () => {
@@ -807,7 +787,6 @@ for (const tab of document.querySelectorAll('.tab')) {
 // ========================================================== the gestures ====
 const pointers = new Map();
 let pinch = null, lastTap = 0;
-
 canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture(e.pointerId);
   pointers.set(e.pointerId, [e.clientX, e.clientY]);
@@ -851,6 +830,7 @@ canvas.addEventListener('wheel', (e) => {
   cam.zoom = Math.max(0.42, Math.min(4, cam.zoom * Math.exp(e.deltaY * 0.0012)));
   needDraw = true;
 }, { passive: false });
+function home() { Object.assign(cam, HOME, { pan: [0, 0] }); cam.spun = 0; needDraw = true; }
 addEventListener('keydown', (e) => {
   const step = 0.09;
   if (e.key === 'ArrowLeft') cam.yaw -= step;
@@ -861,29 +841,61 @@ addEventListener('keydown', (e) => {
   else if (e.key === '-') cam.zoom = Math.min(4, cam.zoom * 1.12);
   else if (e.key === '0') home();
   else return;
-  e.preventDefault();
-  needDraw = true;
+  e.preventDefault(); needDraw = true;
 });
+
+// ---- the view toggles ------------------------------------------------------
+{
+  const holder = $('viewToggles');
+  const mk = (id, label, on) => {
+    const b = document.createElement('button');
+    b.className = 'act'; b.id = id; b.textContent = label;
+    b.setAttribute('aria-pressed', String(on));
+    holder.appendChild(b);
+    return b;
+  };
+  const defs = [['tFaces', 'faces', 'faces'], ['tEdges', 'edges', 'edges'],
+                ['tCorners', 'corners', 'corners'], ['tStar', 'star of corner', 'star']];
+  for (const [id, label, key] of defs) {
+    mk(id, label, state.show[key]).addEventListener('click', () => {
+      state.show[key] = !state.show[key]; syncControls(); rebuild();
+    });
+  }
+  mk('tSpin', 'spin', state.spin).addEventListener('click', () => {
+    state.spin = !state.spin; syncControls(); needDraw = true;
+  });
+  mk('tHome', 'recentre', false).addEventListener('click', home);
+}
 
 // ================================================== every shape is a URL ====
 function pushURL() {
-  const flat = state.knobs.flat().map((x) => (Math.abs(x) < 5e-5 ? '0' : x.toFixed(4))).join(',');
-  const q = flat === new Array(21).fill('0').join(',') ? '' : `#k=${flat}${state.lock ? '' : '&free=1'}`;
-  history.replaceState(null, '', q || location.pathname);
+  const flat = state.knobs.flat().map((x) => (Math.abs(x) < 5e-4 ? '0' : x.toFixed(3))).join(',');
+  const zero = new Array(21).fill('0').join(',');
+  const parts = [];
+  if (state.preset) parts.push(`p=${state.preset}`);
+  if (flat !== zero) parts.push(`k=${flat}`);
+  if (state.walk.t > 0) parts.push(`w=${state.walk.target}:${state.walk.t.toFixed(3)}`);
+  history.replaceState(null, '', parts.length ? `#${parts.join('&')}` : location.pathname);
 }
 function readURL() {
-  const m = /[#&]k=([-\d.,]+)/.exec(location.hash);
-  if (!m) return;
-  const nums = m[1].split(',').map(Number);
-  if (nums.length !== 21 || nums.some((x) => !Number.isFinite(x))) return;
-  state.knobs = [0, 1, 2, 3, 4, 5, 6].map((i) => nums.slice(i * 3, i * 3 + 3));
-  state.lock = !/[#&]free=1/.test(location.hash) && P.isSymmetric(state.knobs, 1e-4);
-  const hit = P.PRESETS.find((p) => p.knobs.flat().every((x, i) => Math.abs(x - state.knobs.flat()[i]) < 1e-4));
-  if (hit) preset.value = hit.id;
+  const h = location.hash;
+  const p = /[#&]p=(\d)/.exec(h);
+  if (p && +p[1] >= 0 && +p[1] < 4) state.preset = +p[1];
+  const k = /[#&]k=([-\d.,]+)/.exec(h);
+  if (k) {
+    const nums = k[1].split(',').map(Number);
+    if (nums.length === 21 && nums.every(Number.isFinite)) {
+      state.knobs = [0, 1, 2, 3, 4, 5, 6].map((i) => nums.slice(i * 3, i * 3 + 3));
+      state.lock = P.isSymmetric(basePoints(), state.knobs, 1e-3);
+    }
+  }
+  const w = /[#&]w=(\d):([\d.]+)/.exec(h);
+  if (w) { state.walk.target = +w[1] % 4; state.walk.t = Math.max(0, Math.min(1, +w[2])); }
+  if (state.walk.target === state.preset) state.walk.target = (state.preset + 1) % 4;
 }
 
 // ======================================================================= go =
-matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { rebuild(); });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => rebuild());
 addEventListener('resize', () => { needDraw = true; });
 new ResizeObserver(() => { needDraw = true; }).observe(canvas);
 
@@ -893,8 +905,7 @@ rebuild();
 if (gl) frame = requestAnimationFrame(loop);
 setTimeout(() => $('hint').classList.add('gone'), 6000);
 
-// console hook, for poking at it and for the selftest-in-a-browser
-window.szilassi = { P, state, cam, rebuild, get verts() { return lastVerts; } };
+window.csaszar = { P, state, cam, rebuild, get points() { return lastPoints; } };
 </script>
 </body>
 </html>

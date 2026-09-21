@@ -869,7 +869,8 @@
         "cohomology",
         "voronoi",
         "arnold",
-        "szilassi"
+        "szilassi",
+        "csaszar"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
@@ -897,7 +898,8 @@
         "cohomology/**",
         "voronoi/**",
         "arnold/**",
-        "szilassi/**"
+        "szilassi/**",
+        "csaszar/**"
       ]
     },
     {

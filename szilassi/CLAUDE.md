@@ -100,6 +100,14 @@ face it is not a corner of — and it is what the verdict chip shows as
   the selftest rebuilds each from its knobs and checks the clearance and
   dihedral it claims.
 
+## The dual
+
+[`../csaszar/`](../csaszar/) is the Császár polyhedron, this solid's dual, and
+the two are written as a pair — seven planes against seven points, flatness
+bought against flatness free, both landing on 14. `csaszar/poly.selftest.mjs`
+imports **this** module and checks the duality, so a change to `FACES`,
+`VERTEX_PLANES` or `FACE_COLOURS` here will fail over there. That is deliberate.
+
 ## Regenerating the presets
 
 ```bash

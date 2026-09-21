@@ -28,11 +28,11 @@
       "label": "data"
     },
     {
-      "before": 148,
+      "before": 149,
       "label": "tools"
     },
     {
-      "before": 213,
+      "before": 214,
       "label": "games"
     }
   ],
@@ -1967,6 +1967,23 @@
       "p": "geometry",
       "surface": "math",
       "d": "Seven hexagons on a torus, every one of them sharing an edge with every other — which is why a map on a torus can need seven colours, and why this and the tetrahedron are the only two solids known where every face touches every other. Spin it, pinch it, look through the tunnel. Each corner is where three face planes cross and there are only seven planes, so the shape is not one solid but a 14-parameter family: pick a face, tilt its plane, and watch the whole thing re-form around it — still exactly flat, until you push far enough that it stops being a solid at all and the verdict says which two faces crossed.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
+    },
+    {
+      "n": "csaszar",
+      "u": "https://math.mino.mobi/csaszar/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-21",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Seven corners with no diagonals — every segment between two of them is already an edge, which only the tetrahedron manages otherwise, and only a torus makes room for a second. The dual of szilassi, and the mirror of its puzzle: there the seven faces have to stay flat and seven planes make that free; here the faces are triangles, so flatness costs nothing and you can drag the corners anywhere. Both come out at fourteen shape freedoms. What you cannot do is travel: for each of the 35 quadruples of corners record which side of a plane the fourth lies on, and those signs can never change while the thing stays a solid — so the realizations sit in separate pieces, and the walk tab shows you the wall. Four published ones ship; a census of 24 million random rolls finds 62 of the 72 that exist.",
       "tags": [
         "webgl",
         "math",
@@ -4286,6 +4303,11 @@
       "glob": "szilassi",
       "kind": "pending",
       "reason": "catalogued at math.mino.mobi/szilassi/, which is the surface that deploys it; the root worker serves the whole repo, so the apex copy becomes real only when the root surface next deploys from its own branch — same situation as conjectures"
+    },
+    {
+      "glob": "csaszar",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/csaszar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi and conjectures"
     },
     {
       "glob": "ising",

@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -155,6 +155,34 @@ Full notes, and the things not to break, in
 published coordinates are exact and are not to be tidied, the acopticity test
 must stay the line-walk (the cheap one-sided test is wrong on this very solid),
 and the camera fit is silhouette-based over a whole turn on purpose.
+
+## `/csaszar/` — the dual of `/szilassi/`, and the pack's first pair
+
+`csaszar/` is the same solid seen from the other side: 7 corners, 21 edges, 14
+triangles, and **no diagonals** — every segment between two of its corners is
+already an edge of it. Its engine is **`csaszar/poly.js`**, and
+**`csaszar/poly.selftest.mjs` imports both that and `../szilassi/poly.js`**,
+because the duality is one of the things it checks.
+
+```bash
+node csaszar/poly.selftest.mjs   # ~3 s, 168 checks
+```
+
+The two pages invert each other and are meant to be read as a pair. Szilassi is
+seven *planes*, and flatness is the thing that has to be bought; Császár is
+seven *points*, and flatness is free because three points are always coplanar.
+Both come out at 21 numbers and, after the similarities, **14** shape freedoms.
+
+Where Szilassi's extra content is the acoptic region, Császár's is a
+classification: the 35 signs of the oriented matroid cannot change while the
+shape stays a solid, so its realizations fall into separate connected pieces
+that no deformation joins. Four ship, from Szilassi's own models; the count in
+the literature is 72, and the shipped census finds 62 of them.
+
+Full notes in [`../csaszar/CLAUDE.md`](../csaszar/CLAUDE.md). The short
+version: keep the acopticity line-walk (distinct parallel planes are fine,
+coincident ones are not), keep the selftest's second independent verdict, and
+remember that `symmetrize()` rotates displacements rather than copying them.
 
 ## Deploying
 

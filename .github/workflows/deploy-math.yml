@@ -40,6 +40,7 @@ on:
       - 'voronoi/**'
       - 'arnold/**'
       - 'szilassi/**'
+      - 'csaszar/**'
       - 'math/**'
       - '.github/workflows/deploy-math.yml'
   workflow_dispatch:
@@ -55,7 +56,7 @@ jobs:
         run: |
           rm -rf dist && mkdir -p dist
           for d in geometry conjectures meander temperley-lieb aztec markov descent traffic ising erdos guthkatz hadwiger heilbronn kakeya runner \
-                   szemeredi-trotter viazovska capset borsuk elements prop cohomology voronoi arnold szilassi; do
+                   szemeredi-trotter viazovska capset borsuk elements prop cohomology voronoi arnold szilassi csaszar; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"
           done

@@ -42,6 +42,7 @@
   --c-voronoi:  #7b2d8b;
   --c-arnold:   #b5521b;
   --c-szilassi: #8b1f7a;
+  --c-csaszar:  #4a7c18;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -82,6 +83,7 @@
     --c-voronoi:  #d38ce0;
     --c-arnold:   #e8905c;
     --c-szilassi: #e07ad0;
+    --c-csaszar:  #9ecb63;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -383,6 +385,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/voronoi/">voronoi</a> ·
     <a href="https://mino.mobi/arnold/">arnold</a> ·
     <a href="https://math.mino.mobi/szilassi/">szilassi</a> ·
+    <a href="https://math.mino.mobi/csaszar/">császár</a> ·
     <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
     · sibling hub: <a href="https://math.mino.mobi/conjectures/">conjectures</a>
@@ -553,6 +556,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/voronoi/">voronoi</a>
   <a href="https://mino.mobi/arnold/">arnold</a>
   <a href="https://math.mino.mobi/szilassi/">szilassi</a>
+  <a href="https://math.mino.mobi/csaszar/">császár</a>
   <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
@@ -657,6 +661,18 @@ const PACK = [
     status: 'open',
     statusRank: 3,
     statusText: 'no classification',
+  },
+  {
+    name: 'császár',
+    url:  'https://math.mino.mobi/csaszar/',
+    accent: 'var(--c-csaszar)',
+    problem: 'A polyhedron without diagonals',
+    era: 1949,
+    eraText: 'Császár 1949, 72 realizations',
+    tech: 'oriented matroids',
+    status: 'proved',
+    statusRank: 0,
+    statusText: 'only 4 and 7 vertices',
   },
   {
     name: 'szilassi',
