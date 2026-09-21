@@ -15,7 +15,7 @@ Hub for the extremal-geometry pack. Family-resemblance table sortable by era, te
 | Dir | `geometry/` |
 | Endpoint | `math.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/holder-continuous-procgen-arqnj4` |
+| Owning branch | `claude/szilassi-polyhedron-3d-cmwpb9` |
 | Deploy | `.github/workflows/deploy-math.yml` |
 | Uses | — |
 | Provides | — |
@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -126,9 +126,39 @@ button compares the two. Seeds vary the image only through area-preserving maps
 of the torus and cube symmetries, so the flatness is never lost. Full notes and
 the four things not to break in [`../arnold/CLAUDE.md`](../arnold/CLAUDE.md).
 
+## `/szilassi/` — the fourth engine module, and the pack's one 3-D object
+
+`szilassi/` follows `cohomology/`, `voronoi/` and `arnold/`: the maths is
+**`szilassi/poly.js`**, an ES module the page loads, and
+**`szilassi/poly.selftest.mjs` imports the exact file the browser runs**.
+
+```bash
+node szilassi/poly.selftest.mjs   # ~1 s, 449 checks
+```
+
+The Szilassi polyhedron — 7 hexagons on a torus, every one of the 21 face pairs
+sharing an edge — as a WebGL model laid out for a phone: object in the top two
+thirds, controls in the bottom third. It is the pack's first page whose subject
+*is* a solid, and its engine rests on one observation: every corner is 3-valent,
+so every corner is where three face planes cross, and there are only seven
+faces. **Seven planes are the whole object**, nothing is solved for, and the
+faces are planar by construction rather than by tolerance.
+
+That also answers the obvious question with a number: 21 plane parameters minus
+7 similarities of space is a **14-parameter family**, 7 of them if you hold the
+180° symmetry, both measured as a Jacobian rank on the shape on screen. The
+sliders are those freedoms, and pushing them far enough stops the hexagons
+bounding a solid — which the page detects exactly and names.
+
+Full notes, and the things not to break, in
+[`../szilassi/CLAUDE.md`](../szilassi/CLAUDE.md). The short version: the
+published coordinates are exact and are not to be tidied, the acopticity test
+must stay the line-walk (the cheap one-sided test is wrong on this very solid),
+and the camera fit is silhouette-based over a whole turn on purpose.
+
 ## Deploying
 
-Pushes to `claude/holder-continuous-procgen-arqnj4` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
+Pushes to `claude/szilassi-polyhedron-3d-cmwpb9` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

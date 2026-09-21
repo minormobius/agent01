@@ -41,6 +41,7 @@
   --c-cohom:    #5f6b16;
   --c-voronoi:  #7b2d8b;
   --c-arnold:   #b5521b;
+  --c-szilassi: #8b1f7a;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -80,6 +81,7 @@
     --c-cohom:    #c0c65e;
     --c-voronoi:  #d38ce0;
     --c-arnold:   #e8905c;
+    --c-szilassi: #e07ad0;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -380,6 +382,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/cohomology/">cohomology</a> ·
     <a href="https://mino.mobi/voronoi/">voronoi</a> ·
     <a href="https://mino.mobi/arnold/">arnold</a> ·
+    <a href="https://mino.mobi/szilassi/">szilassi</a> ·
     <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
     · sibling hub: <a href="https://math.mino.mobi/conjectures/">conjectures</a>
@@ -549,6 +552,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/cohomology/">cohomology</a>
   <a href="https://mino.mobi/voronoi/">voronoi</a>
   <a href="https://mino.mobi/arnold/">arnold</a>
+  <a href="https://mino.mobi/szilassi/">szilassi</a>
   <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
@@ -653,6 +657,18 @@ const PACK = [
     status: 'open',
     statusRank: 3,
     statusText: 'no classification',
+  },
+  {
+    name: 'szilassi',
+    url:  'https://mino.mobi/szilassi/',
+    accent: 'var(--c-szilassi)',
+    problem: 'Every face touching every other',
+    era: 1977,
+    eraText: 'Szilassi 1977, f = 12 open',
+    tech: 'seven planes, no solver',
+    status: 'partial',
+    statusRank: 2,
+    statusText: 'only f = 4 and 7 built',
   },
   {
     name: 'arnold',

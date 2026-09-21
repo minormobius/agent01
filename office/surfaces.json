@@ -1337,6 +1337,15 @@
    "parent": "geometry"
   },
   {
+   "id": "szilassi",
+   "name": "szilassi",
+   "url": "https://mino.mobi/szilassi/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "geometry"
+  },
+  {
    "id": "loop",
    "name": "loop",
    "url": "https://loop.mino.mobi",

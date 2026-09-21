@@ -868,11 +868,12 @@
         "prop",
         "cohomology",
         "voronoi",
-        "arnold"
+        "arnold",
+        "szilassi"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/holder-continuous-procgen-arqnj4",
+      "branch": "claude/szilassi-polyhedron-3d-cmwpb9",
       "uses": [],
       "provides": null,
       "status": "MANAGED \u2014 additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
@@ -895,7 +896,8 @@
         "prop/**",
         "cohomology/**",
         "voronoi/**",
-        "arnold/**"
+        "arnold/**",
+        "szilassi/**"
       ]
     },
     {

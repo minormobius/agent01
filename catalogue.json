@@ -28,11 +28,11 @@
       "label": "data"
     },
     {
-      "before": 147,
+      "before": 148,
       "label": "tools"
     },
     {
-      "before": 212,
+      "before": 213,
       "label": "games"
     }
   ],
@@ -1954,6 +1954,23 @@
         "canvas",
         "math",
         "procgen"
+      ]
+    },
+    {
+      "n": "szilassi",
+      "u": "https://mino.mobi/szilassi/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-21",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Seven hexagons on a torus, every one of them sharing an edge with every other — which is why a map on a torus can need seven colours, and why this and the tetrahedron are the only two solids known where every face touches every other. Spin it, pinch it, look through the tunnel. Each corner is where three face planes cross and there are only seven planes, so the shape is not one solid but a 14-parameter family: pick a face, tilt its plane, and watch the whole thing re-form around it — still exactly flat, until you push far enough that it stops being a solid at all and the verdict says which two faces crossed.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
       ]
     },
     {

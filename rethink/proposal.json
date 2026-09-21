@@ -1064,6 +1064,12 @@
           "group": "tilings and loops"
         },
         {
+          "u": "mino.mobi/szilassi",
+          "action": "keep",
+          "group": "tilings and loops",
+          "note": "seven hexagons on a torus, every pair touching; the 7-colour map as a solid"
+        },
+        {
           "u": "mino.mobi/markov",
           "action": "keep",
           "group": "dynamics"
