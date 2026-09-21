@@ -27,6 +27,14 @@
     </p>
     <p class="prose">The question this answers is the operator's: <i>does the same system emerge,
       and does Jev rebel?</i> The answer is neither. <b>It legislates.</b></p>
+    <p class="prose"><b>One thing to set straight before you press run.</b> The control arm is
+      <i>not</i> fluoddity, and at this scale it cannot be. Fluoddity runs <b>55,000 particles</b>;
+      one typed question each caps this at <b>256</b>. The trail field is densest while the cohorts
+      are still packed together and thins out as they spread, so the flowing organism you see on
+      fluoddity itself never forms here — there are not enough particles to keep the field alive
+      across that spread. What this page compares is <b>four deciders on one shared substrate</b>,
+      which is a narrower claim than “this reproduces fluoddity” and the only one the numbers
+      support.</p>
   </header>
 
   <section class="card finding" style="border-color:var(--s2)">
@@ -191,6 +199,46 @@
         not be compared at all — see below. That is stated as untestable rather than quietly
         dropped.</li>
     </ul>
+  </section>
+
+  <section class="card finding">
+    <h2>Two reasons the control did not look like fluoddity</h2>
+    <p class="prose">The operator again: <i>"it's not currently fluoddity I see on the control. Are
+      we painfully short here or is there a bug?"</i> Both, and the bug was the bigger half.</p>
+    <p class="prose"><b>The bug: the strafe term was missing entirely.</b> Fluoddity's shader moves a
+      particle two ways, and this port implemented only the smaller one:</p>
+    <pre class="codeblock">force  *= u_global_force_mult/<b>400.0</b>;
+strafe *= u_global_force_mult/<b>20.0</b>;     <i>&lt;- twenty times larger</i>
+vel = vel*u_drag + force;
+pos += vel; pos += strafe*u_strafe_power;   <i>&lt;- and it moves position DIRECTLY</i></pre>
+    <p class="prose">The rule's brain returns four numbers: the first two are force, <b>the second
+      two are strafe</b>. The port used the first two and discarded the rest. So it ran the term
+      that passes through drag and dropped the one that is twenty times bigger and bypasses drag
+      altogether. Fixing it took dispersal at 300 ticks from <b>0.028 to 0.117</b> and gave the
+      cohorts real internal structure instead of leaving them sitting still.</p>
+    <p class="prose"><b>The part that is not a bug.</b> Running the control at 1024 particles and
+      letting the clock run far past anything the model arm could afford:</p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th>tick</th><th>dispersal</th><th>field fill</th><th>fluoddity's verdict</th></tr></thead>
+      <tbody>
+        <tr><td class="num">200</td><td class="num">0.063</td><td class="num"><b>0.055</b></td><td>frozen</td></tr>
+        <tr><td class="num">600</td><td class="num">0.148</td><td class="num">0.015</td><td>sparse</td></tr>
+        <tr><td class="num">1200</td><td class="num">0.305</td><td class="num">0.003</td><td><b>dead</b></td></tr>
+        <tr><td class="num">2000</td><td class="num">0.551</td><td class="num">0.003</td><td>dead</td></tr>
+      </tbody></table></div>
+    <p class="prose" style="margin-top:12px">A cohort has to travel about 0.22 before it touches its
+      neighbour on the grid. It gets there around tick 1200 — <b>and by then the field is dead</b>,
+      so there is nothing left for the cohorts to interact <i>through</i>. Fluoddity survives that
+      same spread because it has fifty-four times more particles to spread with.</p>
+    <p class="prose"><b>So the substrate limit is really about density.</b> Fluoddity's behaviour
+      depends on a dense field; a dense field needs particles; and particles are exactly what the
+      32,768-token ceiling caps, at one typed question each. That is a harder wall than the brush
+      geometry below, and it is why the control is a control rather than a reproduction.</p>
+    <p class="cap"><b>One invention, flagged.</b> Strafe has a lateral component, which is steering.
+      Giving it entirely to the rule would leave the model controlling a sliver of the lateral
+      response; giving it entirely to the model would hand over a magnitude the rule should set. So
+      the model's turn scales the lateral strafe while the rule sets its magnitude and its axial
+      part. That is a design decision, not a port, and it is marked as one in the code.</p>
   </section>
 
   <section class="card">

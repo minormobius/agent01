@@ -78,3 +78,8 @@
 .swfoot{margin-top:28px;padding-top:16px;border-top:1px solid var(--line)}
 .swfoot p{font-size:.8rem}
 @media (max-width:720px){ .arms{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))} }
+/* A shader excerpt, shown because the bug is only legible as code. */
+.codeblock{background:var(--line-2);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;font-family:var(--mono);font-size:.74rem;line-height:1.6;
+  overflow-x:auto;color:var(--ink-2);margin:10px 0}
+.codeblock b{color:var(--ink)} .codeblock i{color:var(--ink-3)}

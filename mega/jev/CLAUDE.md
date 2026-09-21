@@ -1753,6 +1753,56 @@ measured as gentleness rather than as underperformance.
 fluoddity's own 468-tick protocol, so `fitness2` remains untestable at 256
 particles — the substrate limit is real and independent of this bug.
 
+### And the strafe term was missing, which is most of how a particle moves
+
+Operator: *"it's not currently fluoddity I see on the control. Are we
+painfully short here or is there a bug?"* Both, and the bug was the bigger
+half.
+
+The shader moves a particle **two** ways:
+
+```glsl
+force  *= u_global_force_mult/400.0;
+strafe *= u_global_force_mult/20.0;      // twenty times larger
+vel = vel*u_drag + force;
+pos += vel; pos += strafe*u_strafe_power; // and it moves position DIRECTLY
+```
+
+`evalRule` returns four numbers: `base.xy` is force, **`base.zw` is strafe**.
+The port used components 0 and 1 and discarded 2 and 3 — so it ran the term
+that passes through drag and dropped the one twenty times bigger that bypasses
+drag entirely. Dispersal at 300 ticks: **0.028 → 0.117**.
+
+**One invention, flagged.** Strafe has a lateral component, which is steering.
+All to the rule would leave the model controlling a sliver of the lateral
+response; all to the model would hand over a magnitude the rule should set. So
+`turn` scales the lateral strafe while the rule sets its magnitude and its
+axial part. That is a design decision, not a port.
+
+### The part that is not a bug: density is what the token budget caps
+
+Control arm at 1024 particles, run far past anything the model arm can afford:
+
+| tick | dispersal | field fill | verdict |
+|---|---|---|---|
+| 200 | 0.063 | **0.055** | frozen |
+| 600 | 0.148 | 0.015 | sparse |
+| 1200 | 0.305 | 0.003 | **dead** |
+| 2000 | 0.551 | 0.003 | dead |
+
+A cohort must travel ~0.22 to touch its neighbour on the grid. It gets there
+around tick 1200 — **and by then the field is dead**, so there is nothing left
+to interact *through*. Fluoddity survives that same spread because it has 54×
+more particles to spread with.
+
+**So the substrate limit is really about density.** Fluoddity's behaviour needs
+a dense field; a dense field needs particles; particles are exactly what the
+32,768-token ceiling caps at one typed question each. That is a harder wall
+than the brush geometry, and it is why **the control is a control and not a
+reproduction**. The comparison between deciders on one shared substrate stands;
+any claim that this reproduces fluoddity's emergent behaviour does not, and the
+page says so above the fold.
+
 ### Shared state vs split state — the arrangement, finally tested
 
 The gate above ran **one call** with a global table and 256 questions. That is
