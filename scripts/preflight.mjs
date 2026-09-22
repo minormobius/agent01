@@ -715,6 +715,13 @@ if (!quick) {
     }
   }
 
+  // How long a selftest gets. 120 s catches a hang in something that should
+  // take seconds, which is nearly everything here — but a test that drives a
+  // REAL BROWSER is legitimately slower, and capping it at the same number
+  // turns a passing test red on a machine one second slower than the last one.
+  // Give the browser tests room; leave the tight cap where it does its job.
+  const SLOW = [/browser\.selftest\.mjs$/];
+  const timeoutFor = (f) => (SLOW.some((re) => re.test(f)) ? 420000 : 120000);
   console.log(`\nselftests (${scope.length} of ${found.length} — ${scopeLabel}; --all-tests for every one)`);
   let pass = 0; const failed = [];
   // SHOW WHAT A FAILING TEST SAID. This used to be `stdio: 'ignore'`, so a red
@@ -730,13 +737,22 @@ if (!quick) {
   // Only failures print, tail only, and `timeout` is called out by name because
   // a killed test otherwise looks identical to one that failed an assertion.
   for (const f of scope) {
+    const ms = timeoutFor(f);
     try {
-      execFileSync('node', [f], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000 });
+      execFileSync('node', [f], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: ms });
       pass++;
     } catch (e) {
       failed.push(f);
       const out = `${e.stdout ?? ''}${e.stderr ?? ''}`.split('\n').filter(Boolean);
-      const why = e.signal === 'SIGTERM' ? `killed after 120s — it hung` : `exit ${e.status ?? '?'}`;
+      // A TIMED-OUT TEST IS NOT A FAILING ONE, and telling them apart needs
+      // more than `signal === 'SIGTERM'`: execFileSync's timeout sends SIGTERM,
+      // but a child that HANDLES it — anything driving Playwright does — exits
+      // on its own terms, and node then reports `signal: null, status: 1,
+      // code: 'ETIMEDOUT'`. That reads as a failed assertion. It cost an hour
+      // on 2026-09-22: browser.selftest.mjs had grown to 125 s against the
+      // 120 s cap, printed every check green, and was reported as `exit 1`.
+      const timedOut = e.signal === 'SIGTERM' || e.code === 'ETIMEDOUT';
+      const why = timedOut ? `killed after ${ms / 1000}s — it hung, or it needs longer than its cap` : `exit ${e.status ?? '?'}`;
       console.log(`  ✗ ${f} (${why})`);
       for (const line of out.slice(-25)) console.log(`      ${line}`);
       if (!out.length) console.log('      (no output)');
