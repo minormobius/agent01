@@ -15,14 +15,17 @@
  * safe to build at all — read that file's header before changing anything here
  * that touches a frame.
  */
-import { JetstreamClient, KIND, eventUri } from '/packages/atproto/jetstream.js';
+import { JetstreamClient, KIND } from '/packages/atproto/jetstream.js';
 import { countDistinct } from '/packages/atproto/constellation.js';
 import { getProfiles } from '/packages/atproto/bsky.js';
 import { AuthClient } from '/packages/oauth-client/auth.js';
 import {
   DweetFrame, captureFrames, validate, countChars, sizeClass, dwitterPortable,
-  MAX_CHARS, DWITTER_CHARS, LANGS, CAPTURE_W, CAPTURE_H, CAPTURE_FPS,
+  MAX_CHARS, DWITTER_CHARS, CAPTURE_W, CAPTURE_H, CAPTURE_FPS,
 } from '/dweet/sandbox.js';
+// One place that knows what a Jetstream v2 payload looks like. See its header:
+// the payload is FLAT, and reading it as nested is silent, total failure.
+import { dweetFromEvent } from '/dweet/event.js';
 import { SEEDS } from '/dweet/seeds.js';
 import { encodeGif } from '/dweet/gif.js';
 import {
@@ -72,6 +75,8 @@ const auth = new AuthClient('https://auth.mino.mobi');
 const seen = new Map();
 /** Frames currently mounted, keyed by card, so the observer can start/stop them. */
 const frames = new WeakMap();
+/** at:// URI -> card element. A WeakMap cannot answer this, and a delete needs to. */
+const cards = new Map();
 const profiles = new Map();
 
 /**
@@ -232,6 +237,7 @@ async function flushHydrate() {
 function addCard(d, { prepend = false, into = 'feed' } = {}) {
   const feed = $(into);
   const node = card(d);
+  if (d.uri) cards.set(d.uri, node);
   if (prepend && feed.firstChild) feed.insertBefore(node, feed.firstChild);
   else feed.append(node);
 }
@@ -339,32 +345,30 @@ function startFeed() {
     onConnect: () => status.onConnect(),
     onDisconnect: () => status.onDisconnect(),
     onError: (err) => status.fault(String(err?.message || err || 'unknown')),
+    // The wire shape lives in event.js, with its own selftest pinned to a
+    // payload captured off the live firehose. This handler used to read
+    // `payload.commit.operation` — the ARCHIVE's shape — so every event was
+    // dropped on the first line. Two bugs, one symptom: fixing the socket
+    // alone would have left the feed just as empty.
     onEvent: (payload) => {
-      const commit = payload?.commit;
-      if (!commit || commit.operation !== 'create') return;
-      const rec = commit.record;
-      if (!rec || typeof rec.src !== 'string') return;
-      const uri = eventUri(payload);
-      if (!uri || seen.has(uri)) return;           // delivery is at-least-once
+      const d = dweetFromEvent(payload);
+      if (!d) return;
 
-      // The record is a stranger's JSON. Everything below treats it as data:
-      // `src` is never interpolated into markup (it goes to a <pre> as
-      // textContent and to the frame by postMessage), and a record that fails
-      // validation is dropped rather than repaired.
-      const v = validate({ src: rec.src, lang: rec.lang });
-      if (!v.ok) return;
+      if (d.kind === 'delete') {
+        // A deletion is an event like any other, and a feed that ignores one
+        // leaves work on screen that its author has withdrawn.
+        const card = cards.get(d.uri);
+        if (card) {
+          frames.get(card)?.destroy();
+          card.remove();
+          cards.delete(d.uri);
+          seen.delete(d.uri);
+        }
+        return;
+      }
 
-      const d = {
-        uri,
-        did: payload.did,
-        src: rec.src,
-        lang: LANGS.includes(rec.lang) ? rec.lang : 'js',
-        title: typeof rec.title === 'string' ? rec.title.slice(0, 64) : '',
-        createdAt: rec.createdAt || new Date().toISOString(),
-        captureTime: Number.isInteger(rec.captureTime) && rec.captureTime >= 0
-          ? rec.captureTime : undefined,
-      };
-      seen.set(uri, d);
+      if (seen.has(d.uri)) return;                 // delivery is at-least-once
+      seen.set(d.uri, d);
       if (live === 0) $('feed-empty').hidden = true;
       live++;
       status.bump();

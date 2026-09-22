@@ -373,6 +373,50 @@ whole class loud:
   inclusive-seq cursor, and `since` clamping to the 36h window.
 - the status line stopped reporting socket transitions. See below.
 
+### …and it would still have been empty, because the payload is FLAT
+
+The socket fix alone would not have shown a single dweet. The handler began:
+
+```js
+const commit = payload?.commit;
+if (!commit || commit.operation !== 'create') return;
+```
+
+and **there is no `payload.commit`**. A v2 payload, captured off the live wire
+2026-09-22, is flat:
+
+```json
+{ "$type": "network.bsky.jetstream.subscribeEvents#commit",
+  "did": "did:plc:…", "collection": "app.bsky.feed.post",
+  "rkey": "3mw4nco5knc25", "rev": "3mw4ncoxwsq2j", "cid": "bafyrei…",
+  "operation": "create", "record": { … },
+  "seq": 26210877813, "time": "2026-09-22T16:25:42.157412Z" }
+```
+
+Two independent bugs, one symptom, and **either alone empties the feed**. The
+AppView next door reads the flat shape correctly (`onLiveEvent`), and so does
+`eventUri()`; only this surface read it as nested.
+
+The confusion has a real source, and `bsky/CLAUDE.md` records the same mistake
+made in the *other* direction: the ARCHIVE's snapshot events genuinely are
+nested (`{did, seq, time, kind, commit:{operation, collection, rkey, rev, cid,
+record}}`), and the archive paths once read `evt.collection` and silently
+discarded 16,234 events. Two shapes, one field name, and both failures are
+silence.
+
+So the wire format now lives in **one file**, `event.js`, with
+`event.selftest.mjs` pinned to a payload captured from the live firehose —
+including a real delete, which carries no `record` and no `cid`. The test
+asserts the nested shape comes back `null` rather than half-parsed, because a
+half-parse is a dweet with no source, which is worse than nothing.
+
+`dweetFromEvent` also fixed two things the old handler got wrong and one it
+did not do at all: a missing `createdAt` now falls back to the EVENT's time
+rather than to *now* (which sorted old replays to the top), `update` is
+accepted (an edited dweet is still a dweet), and **deletes are honoured** —
+`cards` maps `at://` to element, the frame is destroyed before the element is
+removed, and the withdrawn dweet leaves the feed.
+
 ### The status line was lying in both directions
 
 `onDisconnect` went straight through to *"disconnected — retrying"*. That is
@@ -396,6 +440,35 @@ has no way to say that, and silence reads as failure. So it says it:
 
 That last row exists because "connecting…" that never resolves is its own
 answer and the page should give it rather than spinning forever.
+
+### Verified against the real firehose, and then against the real path
+
+Both halves, 2026-09-22, and the first one settles a caveat this repo has
+carried for weeks — **this sandbox can open a WebSocket after all**, given
+`NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`:
+
+```
+kinds=undefined  opened=false  ERROR Received network error or non-101 status code
+kinds=commit     opened=true   still open after 8s, 0 events
+```
+
+That is the A/B, over a real socket, of exactly the two URLs the code built
+before and after. The zero events on the good one is not a failure: nothing
+has posted to this collection yet, which is the state the status line now has
+words for. The post firehose over the same transport gives **456 events in
+10s — 47/s, 43 KB/s**, matching the 40/s and 37 KB/s `measure-firehose.yml`
+recorded from a runner.
+
+Then the whole feed path in Chromium, with `routeWebSocket` standing in for
+Jetstream and serving real-shaped v2 messages: the client's own URL carries
+`kinds=commit`, the status reads **live · 2 dweets seen** with a green dot, two
+cards render, **a duplicate is deduped** (delivery is at-least-once), a record
+over the cap is **dropped not truncated**, an `app.bsky.feed.post` event is
+ignored, the house seeds are hidden once real work arrives, a **delete removes
+its card and its iframe** leaving exactly one behind, and there are no page
+errors. A deliberately broken shader in that run rendered
+`compile: ERROR: 0:2: 'S' : no matching overloaded function found` inside its
+own frame, which is the fault path working.
 
 ## Sharing a dweet — and why it is not a GIF
 

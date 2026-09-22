@@ -1731,12 +1731,17 @@ was never affected; the guard is so that the next caller cannot be.
   (`@bokuweb/zstd-wasm` handles the dictionary; `fzstd` does not — it throws).
   See docs/APPVIEW-FEASIBILITY.md §3. That path pools no quota and makes us
   custodian of no credential.
-- **The live tail is the one path never exercised in a browser.** The DOM,
-  routing, lightbox, masonry, feeds, threads, search and notifications have all
-  been driven by a real page load. `WebSocket` subprotocol negotiation has not:
-  this sandbox's proxy blocks WebSockets, so the `live` and `following` chips
-  are verified in node against the real host and untested in Chromium. Same for
-  **reach further back**, which needs the archive.
+- **The live tail is no longer unreachable from here.** This file said for
+  weeks that the sandbox's proxy blocks WebSockets. It does not, given
+  `NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`: measured 2026-09-22, a v2
+  socket to `jetstream.us-east.bsky.network` opens, negotiates `xrpc.v1.json`,
+  and delivers **456 post events in 10s (47/s, 43 KB/s)** — which matches what
+  `measure-firehose.yml` saw from a runner. Worth knowing before believing the
+  next "the proxy refuses it": a bad `kinds` value produces the SAME non-101
+  symptom (see `dweet/CLAUDE.md`), so that diagnosis is not self-evident.
+  The `live` and `following` chips remain untested **in Chromium** against the
+  real host; dweet's equivalent path now is, via `routeWebSocket`. Same caveat
+  still stands for **reach further back**, which needs the archive.
 - **The install prompt is unverified.** Registration, caching, offline, the
   update path and the two safety rules are all exercised in Chromium, but
   `beforeinstallprompt` does not fire headless and iOS has no API at all, so
