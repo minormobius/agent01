@@ -167,12 +167,20 @@ bug here. `ceilingAllows()` reads that metadata first and returns `{ok, known}`:
   could not make says nothing about what the server would grant, and reporting
   it as "unshipped" is a different claim from the truth.
 
-> ⚠️ **Repo sync is inert until `workers/auth` deploys.** `com.minomobi.sharp.word`
-> is in this branch's `scope.ts`, but `auth` is owned by
-> `claude/bsky-app-view-feasibility-8sdflz` and **this branch must not deploy it**
-> — see the registry note. Run `node scripts/check-auth-scope.mjs` before any
-> auth change: this branch's tree was 7 collections behind the live ceiling
-> (`cad.*`, `dweet.dweet`) and would have silently narrowed it.
+**Repo sync is live** since 2026-09-22: `com.minomobi.sharp.word` is in the
+deployed ceiling (88 collections), so the page offers sign-in and writes
+records with no redeploy here — it reads the ceiling at load, which is the
+whole point of checking it there.
+
+> **`auth` is not this branch's to deploy.** It is owned by
+> `claude/bsky-app-view-feasibility-8sdflz`; adding `sharp.word` meant asking
+> that owner, not taking the surface. Run `node scripts/check-auth-scope.mjs`
+> before **any** auth change, from any branch: this tree was 7 collections
+> behind the live ceiling (`cad.*`, `dweet.dweet`, recoverable from
+> `claude/browser-cad-ideation-ollmd3`) and that owner's tree was 9 behind
+> (those plus `hopper.run` and `app.bsky.graph.follow`). Either would have
+> narrowed the ceiling from a green build, and every site writing a dropped
+> collection would start failing PAR with `invalid_scope`.
 
 `rite/sharp/auth.js` is a byte-identical copy of
 `packages/oauth-client/auth.js` — static sites cannot import across directories.
