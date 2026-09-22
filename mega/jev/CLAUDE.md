@@ -1855,14 +1855,21 @@ velocities in the same units; there is nothing free to fit.
 `rule_seed: Math.random()`, and `engine.js` says outright: *"The rule_seed (a
 10-term Fourier black box) still dominates whether a given draw is alive, so
 callers that want a guaranteed-lively organism should reject-sample on fitness
-on top."* This port ran `evalRule(0.5, …)` — the literal 0.5, chosen by nobody,
-never looked at. On the corrected field, at the same 256 particles and the same
-matched brush that make `wurms01` read `alive` at fill 0.55, **seed 0.5 reads
-`dead` at fill 0.000**. The **121 organisms people have published to
-fluoddity's gallery** are pulled from ATProto into
-`lab/fluoddity-gallery.json`; `eval/swarm-brains.mjs` ranks them on fluoddity's
-own `fitness2`, which is how `wurms01` was chosen and is what fluoddity's own
-engine says to do.
+on top."* This port ran `evalRule(0.5, …)` — the literal 0.5, chosen by nobody, never
+looked at. The **121 organisms people have published to fluoddity's gallery**
+are pulled from ATProto into `lab/fluoddity-gallery.json` and ranked by
+`eval/swarm-brains.mjs` on fluoddity's own `fitness2`, at 256 particles and 200
+steps. **Seed 0.5 ranks 121st of 121, `fitness2` exactly 0, dead — while 100 of
+the 121 read `alive`.** The particle count was never the wall.
+
+**And the brain shipped is NOT the top of that ranking, which is the more
+useful half.** `wurms01` sits **67th**; first place is four big smeared
+streaks. That is not `fitness2` being wrong, it is `fitness2` read off a
+substrate it was not tuned on: at 55,000 particles a fill of 0.31 is hundreds
+of thin filaments, and at 256 with a brush 13× wider the same fill is four fat
+ones. A good aliveness filter, a poor *looks like fluoddity* filter at this
+density — so the ranking chose the shortlist and a person chose from it, which
+is what fluoddity's gallery is. Both are in the page's brain picker.
 
 **3. And the brush was fluoddity's raw one, not fluoddity's matched one.**
 `viewcontrols.js` already solves "the same organism at a different particle

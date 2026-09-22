@@ -81,8 +81,18 @@
       that make <code>wurms01</code> read <code>alive</code> at fill 0.55, <b>seed 0.5 reads
       <code>dead</code> at fill 0.000</b> — the fourth frame below. The 121 organisms people have
       published to fluoddity's gallery are pulled into <code>lab/fluoddity-gallery.json</code> and
-      ranked by <code>eval/swarm-brains.mjs</code> on fluoddity's own <code>fitness2</code>; that is
-      how <code>wurms01</code> was chosen, and it is how fluoddity itself says to choose one.</p>
+      ranked by <code>eval/swarm-brains.mjs</code> on fluoddity's own <code>fitness2</code>.
+      <b>Seed 0.5 ranks 121st of 121 there</b>, with <code>fitness2</code> exactly 0 — while
+      <b>100 of the 121 read <code>alive</code></b> at the same 256 particles. The particle count
+      was never the wall.</p>
+    <p class="prose"><b>And the brain this page runs is NOT the top of that ranking, which is worth
+      knowing before you trust the ranking.</b> <code>wurms01</code> sits 67th; the first-placed
+      organism, on the picker above, is four big smeared streaks. That is not <code>fitness2</code>
+      being wrong — it is <code>fitness2</code> read off a substrate it was not tuned on. At 55,000
+      particles a fill of 0.31 is hundreds of thin filaments; at 256, with a brush 13× wider, the
+      same 0.31 is four fat ones. The score is a good aliveness filter and a poor <i>looks like
+      fluoddity</i> filter at this density, so the ranking picked the shortlist and a person picked
+      from it — which is exactly what fluoddity's gallery is. Switch the brain and look.</p>
 
     <h3 style="font-size:.95rem;margin:16px 0 4px">3. And the brush was fluoddity's raw one, not fluoddity's matched one</h3>
     <p class="prose">fluoddity's <code>viewcontrols.js</code> already solves "the same organism on a
@@ -193,7 +203,9 @@
         <option>1</option><option selected>8</option><option>24</option>
       </select></label>
       <label>brain<select id="brain">
-        <option value="wurms01" selected>wurms01 — published to the gallery</option>
+        <option value="wurms01" selected>wurms01 — 67th of 121, and the one that looks right</option>
+        <option value="topfit">1st of 121 on fitness2 — four fat smears</option>
+        <option value="fivepoints">fivepoints_addstrafe — 2nd, spawned as a ring</option>
         <option value="seed05">seed 0.5 — what this page used to run</option>
       </select></label>
       <span class="mode" id="mode">idle</span>
