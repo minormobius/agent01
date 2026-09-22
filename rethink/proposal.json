@@ -1076,6 +1076,12 @@
           "note": "the dual of szilassi: seven corners, no diagonals, and a realization space in separate pieces"
         },
         {
+          "u": "math.mino.mobi/equivelar",
+          "action": "keep",
+          "group": "tilings and loops",
+          "note": "eight faces all touching on a genus-3 surface; the first past szilassi's seven, via overarching pairs"
+        },
+        {
           "u": "mino.mobi/markov",
           "action": "keep",
           "group": "dynamics"

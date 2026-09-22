@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -183,6 +183,37 @@ Full notes in [`../csaszar/CLAUDE.md`](../csaszar/CLAUDE.md). The short
 version: keep the acopticity line-walk (distinct parallel planes are fine,
 coincident ones are not), keep the selftest's second independent verdict, and
 remember that `symmetrize()` rotates displacements rather than copying them.
+
+## `/equivelar/` — eight faces all touching, and what that does and does not settle
+
+`equivelar/` is the sequel to the open question `/szilassi/` prints in its own
+unsolved box. Eight planar nonagons on a genus-3 surface with every one of the
+28 face pairs adjacent — the first solid known past seven — from an integer
+certificate published in September 2026 (arXiv:2609.17700).
+
+```bash
+node equivelar/poly.selftest.mjs   # ~2 s, 288 checks
+```
+
+That is a v1 preprint whose own acknowledgments mention model-assisted
+calculation, so **the selftest re-derives the entire certificate from the
+published integers before anything uses it**, in exact integer arithmetic with
+no tolerance anywhere, plus an independent 30 000-point resampling of the 28
+crossing lines. It all checks out.
+
+The thing to get right when talking about it: it beats the classical count
+`h = (f−4)(f−3)/12` by breaking that count's hidden assumption. Eight of the 28
+pairs share **two** edges, not one — Grünbaum & Szilassi's *overarching* case,
+which they set aside by hypothesis. So it answers the question as usually
+written and leaves `f = 12, h = 6` exactly where it was.
+
+Engine is the `/szilassi/` architecture with one more plane (every corner is
+3-valent, so eight planes are the whole solid) giving **17** shape freedoms
+against Szilassi's 14 — but with only 4.1% clearance it is a far more fragile
+object. Full notes in [`../equivelar/CLAUDE.md`](../equivelar/CLAUDE.md); the
+two that bite are that the pair test must compare against a *set* of shared
+edges, and that the symmetry is a rotary reflection (S₄, det −1), so the lock
+flips the tilt sign round each orbit instead of copying it.
 
 ## Deploying
 

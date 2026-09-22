@@ -1355,6 +1355,15 @@
    "parent": "geometry"
   },
   {
+   "id": "equivelar",
+   "name": "equivelar",
+   "url": "https://math.mino.mobi/equivelar/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "geometry"
+  },
+  {
    "id": "loop",
    "name": "loop",
    "url": "https://loop.mino.mobi",

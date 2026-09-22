@@ -43,6 +43,7 @@
   --c-arnold:   #b5521b;
   --c-szilassi: #8b1f7a;
   --c-csaszar:  #4a7c18;
+  --c-equiv:    #4146bd;
   /* Status colours */
   --st-proved:    #3a8a40;
   --st-tight:     #1a7a5e;
@@ -84,6 +85,7 @@
     --c-arnold:   #e8905c;
     --c-szilassi: #e07ad0;
     --c-csaszar:  #9ecb63;
+    --c-equiv:    #9aa2f2;
     --st-proved:    #6abf6f;
     --st-tight:     #4ec0a0;
     --st-partial:   #d4a850;
@@ -386,6 +388,7 @@ footer a:hover { color: var(--accent); }
     <a href="https://mino.mobi/arnold/">arnold</a> ·
     <a href="https://math.mino.mobi/szilassi/">szilassi</a> ·
     <a href="https://math.mino.mobi/csaszar/">császár</a> ·
+    <a href="https://math.mino.mobi/equivelar/">equivelar</a> ·
     <a href="https://mino.mobi/viazovska/">viazovska</a>
     · adjacent: <a href="https://mino.mobi/elements/">elements</a>
     · sibling hub: <a href="https://math.mino.mobi/conjectures/">conjectures</a>
@@ -557,6 +560,7 @@ footer a:hover { color: var(--accent); }
   <a href="https://mino.mobi/arnold/">arnold</a>
   <a href="https://math.mino.mobi/szilassi/">szilassi</a>
   <a href="https://math.mino.mobi/csaszar/">császár</a>
+  <a href="https://math.mino.mobi/equivelar/">equivelar</a>
   <a href="https://mino.mobi/viazovska/">viazovska</a>
   <a href="https://mino.mobi/elements/">elements</a>
 </footer>
@@ -661,6 +665,18 @@ const PACK = [
     status: 'open',
     statusRank: 3,
     statusText: 'no classification',
+  },
+  {
+    name: 'equivelar',
+    url:  'https://math.mino.mobi/equivelar/',
+    accent: 'var(--c-equiv)',
+    problem: 'More than seven faces, all touching',
+    era: 2026,
+    eraText: 'Mizhaev 2026, f = 12 open',
+    tech: 'integer certificate',
+    status: 'partial',
+    statusRank: 2,
+    statusText: '8 via overarching',
   },
   {
     name: 'császár',
