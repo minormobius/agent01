@@ -295,6 +295,9 @@ contract than picking a unit.
 | `video.selftest.mjs` | codec selection, the MP4 box walker, the job state machine, polling |
 | `event.js` | one place that knows the Jetstream wire shape |
 | `event.selftest.mjs` | pinned to a payload captured off the live firehose |
+| `SKILL.md` · `llms.txt` | the agent's way in — served, and a Claude Code skill |
+| `agent/*.mjs` | the headless tools: `check`, `render`, `link`, `feed` |
+| `agent/agent.selftest.mjs` | their exit-code contract, the trust rule, the skill's own claims |
 | `seeds.js` | the house set, shown when the wire is quiet |
 | `index.html` | shell, styles, and the two sheets |
 
@@ -840,6 +843,102 @@ its scope, so nothing can be posted. `client-metadata.json` is also edge-cached
 at `max-age=60` and the authorization server caches independently, so allow a
 minute after that deploy before concluding it failed — and confirm with a real
 PAR, per the auth docs.
+
+## Driven headlessly
+
+`agent/`, `SKILL.md` and `llms.txt`, modelled on `packages/cad/` — the other
+surface in this repo built to be driven by an agent. Same shape: a front door
+(`llms.txt`), an instruction sheet that is also a Claude Code skill
+(`SKILL.md`), and a handful of small node scripts with one job each,
+structured `--json` output and exit codes that mean something.
+
+| | |
+|---|---|
+| `check.mjs` | everything knowable without a browser |
+| `render.mjs` | real pixels from the real sandbox; needs Chromium |
+| `link.mjs` | the permalink and the exact post text |
+| `feed.mjs` | what exists on the network |
+
+Exit codes are a three-way contract, and conflating the last two is what makes
+a tool useless to an agent: **0** usable, **1** your dweet is wrong, **2** the
+tool could not run. `render.mjs` without a Chromium exits **2**, not 1 — it is
+not a verdict on the dweet.
+
+### The one thing check.mjs is for
+
+```
+  t=0           0 ink       0 calls   <- draws NOTHING here
+  t=2         200 ink     200 calls
+  t=8           0 ink       0 calls   <- draws NOTHING here
+```
+
+That is `heartbeat`, whose loop is `for(a=t%8;a>0;a-=.01)` — zero iterations
+at t=0 and again at t=8, its period. Finding that cost a browser, a capture
+path and a screenshot the first time (see *The still was black*, above); it
+now costs milliseconds and no browser. **A dweet that draws nothing in its
+first seconds is the commonest way one looks broken**, and it is invisible in
+the source.
+
+It runs the dweet in a `node:worker_threads` Worker against an INSTRUMENTED
+2D context — a Proxy that records every call and draws nothing. The worker is
+there for the same reason the browser uses one: `terminate()` is the only
+primitive that reliably stops `while(1)`.
+
+Three honesty constraints fall out of that and all three are reported:
+
+- **Draw calls are not pixels.** A thousand rectangles off-screen or black on
+  black is not a picture. `check` says a dweet did something, never that it
+  looks like anything.
+- **Ink is not calls.** A path built and never filled draws nothing, so
+  `beginPath`/`arc`/`lineTo` count as calls and only `fill`, `stroke`,
+  `fillRect` and friends count as ink. Counting the former as drawing would
+  report a blank dweet as working.
+- **A dweet that reads the canvas back** (`getImageData`, `createPattern`,
+  `drawImage` of itself) branches on pixels this harness never produced, so
+  its counts are not what a browser would do. `readsBack: true` says so.
+
+### The trust rule, which cad does not need
+
+A CAD tree is **data**. A dweet is **code**, and that single difference
+decides the design of these tools. `sandbox.js` exists because running a
+stranger's dweet in a page would be an account takeover; running one in
+**node** is worse, because node has no sandbox to reach for — a worker thread
+bounds the CPU and nothing else, and can still read your files and open
+sockets.
+
+So source you wrote runs; source that came from the network (`at://`, a
+permalink) is analysed but **not executed** unless you pass
+`--run-untrusted`. The static half — length, tier, dialect, the post budget —
+works on anything, because it never executes. `render.mjs` is the exception
+and the reason it is a separate script: it runs everything inside the real
+browser boundary, which is the only place a stranger's dweet is safe to run
+at all — and it loads the *shipped* `sandbox.js` over HTTP rather than a copy,
+so a render is also an exercise of the boundary.
+
+### What was borrowed, and what was left
+
+Taken from cad: `llms.txt` as the front door; `SKILL.md` served *and* placed
+at `.claude/skills/`; uniform source addressing (a file, `-`, `seed:<name>`,
+an `at://` uri, a permalink — every tool takes all five); `--json` beside a
+readable table rather than instead of it; worked examples addressable by name;
+an *Honesty* section that says what to report.
+
+**Improved on:** cad keeps `packages/cad/SKILL.md` and
+`.claude/skills/cad/SKILL.md` byte-identical with nothing enforcing it. Ours
+are checked equal by `agent.selftest.mjs`, the same way `sync-dataviz.mjs
+--check` guards the dataviz copies.
+
+**Not taken:** cad's MCP server. It is the right idea and the reason it is not
+here yet is honest rather than principled — the tools are four files and a
+`SKILL.md` away from being useful today, and an MCP endpoint on this worker
+would want `check` and `link` (both pure) but could not offer `render`
+(Chromium) or `publish` (a browser sign-in), which is most of the value. Worth
+doing when there is a second consumer.
+
+**No headless publish, deliberately.** Writing needs a browser sign-in. A
+script holding a PDS credential is exactly what the shared OAuth worker
+exists to avoid, and a dweet is 256 characters — the cost of pasting one into
+the composer is not the bottleneck.
 
 ## Moderation
 
