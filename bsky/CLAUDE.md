@@ -1688,7 +1688,11 @@ worth knowing before anyone adds another route here:
 - **The failure lands AFTER the asset upload**, at the trigger step, so the run
   goes red while the new assets are already live. An unbindable route therefore
   makes every push red *and* still deploys. `worker.js` keeps an inert hostname
-  dispatch so re-adding the route is one line once a domain is freed.
+  dispatch so re-adding the route is one line once the hostname exists.
+- **The cap is escapable** — a plain route (`zone_name`, no `custom_domain`) is
+  capped at 1000/zone, not 100. But it does not create DNS, and
+  `dweet.mino.mobi` has no record, so route-first would mean a green deploy and
+  a dead host. DNS, then route, then verify. See `docs/DEPLOYS.md` §4.
 
 `dweet/` shares `/packages/*` and `/lib/*` with the AppView from the same asset
 root, which is why the dispatch is narrow rather than a blanket rewrite.

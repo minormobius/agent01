@@ -22,7 +22,7 @@ stored to remember one.
 | Owning branch | `claude/dwitter-animation-feed-rufn9o` |
 | Deploy | [`deploy-bsky.yml`](../../.github/workflows/deploy-bsky.yml) |
 | Lexicon | [`../lexicons/com.minomobi.dweet.dweet.json`](../lexicons/com.minomobi.dweet.dweet.json) |
-| Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone, **staged, awaiting the auth owner's deploy** |
+| Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone. **LIVE** since 2026-09-22 (ceiling 87; a real PAR accepted) |
 | Cap | 256 graphemes — which is also the top size **category** (64b/128b/256b, in bytes) |
 
 **It shares the `bsky` worker, and it is a PATH rather than a subdomain.** The
@@ -43,8 +43,16 @@ stays red on every push while an unbindable route sits in `wrangler.jsonc`.
 
 So the route is removed and dweet lives at `bsky.mino.mobi/dweet/`.
 `../worker.js` keeps a hostname dispatch for `dweet.mino.mobi`, **inert** until
-somebody frees a custom domain (dashboard-only, `docs/DEPLOYS.md` §7) and
-re-adds the one line. The dispatch is deliberately narrow — only that host's
+the hostname exists.
+
+**There is a way out of the cap, and it needs one thing first.** A plain route
+(`{ pattern, zone_name }`, no `custom_domain`) is capped at 1000 per zone rather
+than 100 — so the ceiling is not really the blocker. But a plain route does NOT
+create DNS: it only matches a hostname that already resolves through
+Cloudflare's proxy, and `dweet.mino.mobi` has no DNS record at all. Adding the
+route alone would give a **green deploy and a dead hostname**. Order: proxied
+DNS record, then the route, then verify the host serves. Full write-up in
+`docs/DEPLOYS.md` §4. The dispatch is deliberately narrow — only that host's
 bare `/` — because rewriting every path would shadow `/packages/*` and `/lib/*`,
 which this page imports from the same asset root the AppView uses.
 
@@ -315,7 +323,19 @@ an edge anywhere.
   `*.mino.mobi` site may not cover this collection. The composer calls
   `ensureScope()` from the click, because the redirect needs a user gesture.
 
-## Posting needs one deploy this branch cannot make
+## Posting: shipped
+
+`com.minomobi.dweet.dweet` went live on 2026-09-22 — the auth owner
+(`claude/browser-cad-ideation-ollmd3`) took the hunk and deployed it. Live
+ceiling is **87 collections**, the `com.minomobi.cad.*` family intact, and a
+real PAR against `bsky.social` carrying `atproto repo:com.minomobi.dweet.dweet`
+came back with an `authUrl` — which is the check that proves the authorization
+server agrees, not just that the metadata says so.
+
+What follows is kept because it is the protocol for the NEXT collection anyone
+here needs.
+
+### How that request was made
 
 `com.minomobi.dweet.dweet` is in `workers/auth/src/oauth/scope.ts` on this
 branch, and the gate is green:
@@ -326,8 +346,8 @@ adding: com.minomobi.dweet.dweet
 ✓ no live scope would be dropped
 ```
 
-**But the `auth` surface is owned by `claude/browser-cad-ideation-ollmd3`, so a
-push here deploys nothing for it** — which is the correct state, not an
+**The `auth` surface is owned by `claude/browser-cad-ideation-ollmd3`, so a push
+from here deploys nothing for it** — which is the correct state, not an
 oversight. `workers/auth/CLAUDE.md` documents the protocol verbatim: *"Other
 branches add a collection to `WRITE_COLLECTIONS` on their own tree and then ask
 the owner to deploy, because only the owning branch's push deploys."* So the ask

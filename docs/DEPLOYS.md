@@ -116,6 +116,59 @@ name mismatch can't silently strand the domain. Surfaces that declare it are
 self-healing; surfaces that rely on a dashboard-attached domain are one rename
 away from breakage.
 
+### ⚠️ `mino.mobi` is AT the custom-domain cap — read this before adding one
+
+A Worker Custom Domain is not free. There are **100 per zone**, and the zone is
+full. Measured 2026-09-22, deploy-bsky run #43, adding `dweet.mino.mobi`:
+
+```
+✘ Trigger configuration for "bsky" was only partially updated:
+    You have exceeded the limit of 100 Workers custom domains
+    on zone 'mino.mobi'  [code: 100122]
+```
+
+**The failure mode is nasty**, and it is the opposite of the golden rule above:
+the bind happens at the TRIGGER step, *after* the assets upload. So the run goes
+**red while the new assets are already live**, and every subsequent push stays
+red for as long as an unbindable route sits in the config. A half-applied deploy,
+not a no-op.
+
+(83 of this repo's `wrangler.jsonc` files declare `custom_domain`; each spends
+one of the 100. That is the budget.)
+
+**Two ways out, and they are not equivalent:**
+
+**1. Prune stale slots.** Custom domains outlive the workers that made them —
+renames, abandoned surfaces, `op: create` entries that never shipped. Reported
+from a sibling project that hit this in July: 64 of their slots were stale.
+Dashboard-only (§7). This is the cheapest fix and it is probably the right first
+move here.
+
+**2. Claim the hostname with a PLAIN ROUTE instead** —
+`{ pattern: "x.mino.mobi/*", zone_name: "mino.mobi" }` with **no**
+`custom_domain`. Worker *Routes* are capped at **1000** per zone rather than
+100, so the ceiling effectively disappears.
+
+> **A plain route does NOT create DNS, and that is the whole catch.**
+> `custom_domain: true` makes Cloudflare create the DNS record and manage the
+> certificate. A route only *matches requests for a hostname that already
+> resolves through Cloudflare's proxy*. Verified: `dweet.mino.mobi` has no DNS
+> record at all (`getent hosts` returns nothing), so a route alone would give a
+> **green deploy and a dead hostname** — precisely the failure the golden rule
+> exists to catch, arriving through a different door.
+>
+> So the order is: **proxied DNS record first** (an `AAAA` to `100::` or a CNAME,
+> orange-clouded — dashboard/API, §7), **then** the route, **then** verify the
+> host actually serves. Do not add the route first and assume.
+
+Nothing in this repo uses `zone_name` yet (0 of 83), so the first surface to try
+it is doing something new — verify the hostname end to end rather than trusting
+the green run.
+
+The caps themselves (100 custom domains, 1000 routes) are Cloudflare's published
+per-zone limits; the 100 is confirmed by the error above, the 1000 is taken from
+the docs and has not been tested here.
+
 ### How to detect a mismatch (from outside the dashboard)
 - Probe `https://<config-name>.<acct>.workers.dev/` **and**
   `https://<domain-label>.<acct>.workers.dev/`. **Both resolving = twin workers =
