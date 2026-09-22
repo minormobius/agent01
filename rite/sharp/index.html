@@ -140,6 +140,32 @@ input[type=range] { width: 10rem; accent-color: var(--accent); }
 .dcell.taken { opacity: 0.55; } .dcell.taken .dot2 { background: var(--accent); }
 .dcell.unverifiable .dot2, .dcell.unknown .dot2 { background: transparent; border: 1px solid var(--muted); }
 .dcell .why { font-size: 0.68rem; color: var(--muted); margin-left: auto; }
+.shelfhead { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: baseline; margin: 2.4rem 0 0.4rem; }
+.shelfhead .tools { margin-left: auto; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.shelfhead .tools button { font-size: 0.8rem; padding: 0.24rem 0.6rem; }
+#shelf { background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px; padding: 0.4rem 0.6rem; }
+.row {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.45rem 0.35rem; border-bottom: 1px solid var(--rule);
+}
+.row:last-child { border-bottom: 0; }
+.row .w { font-weight: 700; font-size: 1.1rem; cursor: pointer; }
+.row .w:hover { color: var(--accent); }
+.row .ipa { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+.row .tag {
+  font-family: var(--mono); font-size: 0.68rem; border: 1px solid var(--rule);
+  border-radius: 999px; padding: 0.02rem 0.45rem; color: var(--muted);
+}
+.row .tag.ok { border-color: var(--good); color: var(--good); }
+.row .tag.synced { border-color: var(--accent); color: var(--accent); }
+.row .acts { margin-left: auto; display: flex; gap: 0.3rem; }
+.row .acts button { font-size: 0.75rem; padding: 0.15rem 0.5rem; }
+.empty { color: var(--muted); font-style: italic; font-size: 0.9rem; padding: 0.5rem 0.35rem; }
+.signin { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; margin: 0.6rem 0 0; font-size: 0.86rem; color: var(--muted); }
+.signin input { width: 12rem; font-size: 0.88rem; }
+.signin .who { font-family: var(--mono); font-size: 0.78rem; color: var(--text); }
+.notice { font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 0.45rem 0 0; }
+.notice b { font-style: normal; }
 .legend { font-size: 0.72rem; color: var(--muted); margin: 0.5rem 0 0; font-family: var(--mono); }
 .caveat { font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 0.6rem 0 0; }
 .checkrow { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch; margin: 0.6rem 0 0; }
@@ -250,6 +276,19 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 </div>
 <div class="dom" id="domout"></div>
 
+<div class="shelfhead">
+  <h2 style="margin:0">the shelf <span class="hint">&mdash; words you kept</span></h2>
+  <div class="tools">
+    <button id="shelfSync" hidden>sync</button>
+    <button id="shelfCopy">copy</button>
+    <button id="shelfExport">export</button>
+    <button id="shelfClear">clear</button>
+  </div>
+</div>
+<div id="shelf"><p class="empty">Nothing kept yet. Press <b>keep &amp; check</b> on a word you like.</p></div>
+<div class="signin" id="signin"></div>
+<p class="notice" id="shelfNote"></p>
+
 <h2>how it works</h2>
 <p style="font-size:.95rem">
   The wardrobe is not hand-written. Every real English monosyllable is cut into
@@ -287,6 +326,16 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   <code>github.io</code> is going spare.
 </p>
 
+<p style="font-size:.95rem">
+  <b>The shelf</b> keeps what you liked. By default it lives in this browser and nowhere else &mdash;
+  no account, no server, and no survival: a cleared cache, another device or a private window and it
+  is gone. Sign in with a Bluesky handle and each kept word is also written to
+  <b>your own ATProto repo</b> as one <code>com.minomobi.sharp.word</code> record: portable, readable
+  by anything on the network, and stored here not at all. The two reconcile by word, newest wins, so
+  keeping something on a phone and opening this on a laptop converges instead of forking.
+  The consent screen asks for that one collection and nothing else.
+</p>
+
 <h2>API <span class="hint">&mdash; open, CORS on, no key</span></h2>
 <pre id="apiEx">GET /api/sharp?style=blunt&amp;count=12
 GET /api/sharp?mode=real&amp;obscurity=0.2&amp;count=12
@@ -319,6 +368,9 @@ GET /api/sharp/tlds?endswith=flash</pre>
 </div>
 
 <script type="module">
+import { AuthClient } from './auth.js';
+import { Shelf, browserStore, freeCount, toRecord, fromRecord, rkeyOf, ceilingAllows, COLLECTION, SCOPE } from './shelf.js';
+
 const $ = (id) => document.getElementById(id);
 const API = '/api/sharp';
 const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
@@ -466,7 +518,24 @@ $('obsc').oninput = () => { state.obscurity = Number($('obsc').value) / 100; };
 $('obsc').onchange = () => reset();
 $('seed').onchange = () => { state.seed = $('seed').value.trim(); reset(); };
 $('go').onclick = () => next();
-$('keep').onclick = () => { if (state.current) { $('q').value = state.current.word; runCheck(); $('checkout').scrollIntoView({ behavior: 'smooth', block: 'center' }); } };
+$('keep').onclick = async () => {
+  const w = state.current;
+  if (!w) return;
+  shelf.keep({
+    word: w.word, score: w.score, taken: w.taken, syllables: w.syllables, say: w.say,
+    rhymes: w.rhymes, homophones: w.homophones, origin: state.mode === 'real' ? 'real' : 'mint',
+    style: state.mode === 'real' ? null : state.style, seed: state.dealtFrom || null,
+  });
+  drawShelf();
+  $('q').value = w.word;
+  $('dq').value = w.word;
+  runCheck();
+  $('checkout').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // The registries are the slow half, so they run after the word facts are up.
+  const results = await lookup(w.word);
+  if (results) { shelf.setDomains(w.word, results); drawShelf(); }
+  syncOne(w.word);
+};
 
 document.addEventListener('keydown', (e) => {
   if (e.target.matches('input, select, textarea')) return;
@@ -564,13 +633,13 @@ $('domMint').onclick = async () => {
 async function lookup(raw) {
   const label = String(raw || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
   const out = $('domout');
-  if (!label) { out.innerHTML = ''; return; }
+  if (!label) { out.innerHTML = ''; return null; }
   out.innerHTML = `<p class="caveat">asking ${DOM_TLDS.length} registries about <b>${esc(label)}</b>&hellip;</p>`;
   let r;
   try {
     r = await (await fetch(`${API}/domain?label=${encodeURIComponent(label)}&tlds=${DOM_TLDS.join(',')}`)).json();
-  } catch { out.innerHTML = '<p class="caveat">could not reach the engine</p>'; return; }
-  if (r.error) { out.innerHTML = `<p class="caveat">${esc(r.error)}</p>`; return; }
+  } catch { out.innerHTML = '<p class="caveat">could not reach the engine</p>'; return null; }
+  if (r.error) { out.innerHTML = `<p class="caveat">${esc(r.error)}</p>`; return null; }
 
   const why = { free: '', taken: 'taken', unverifiable: 'no RDAP', unknown: 'no answer', invalid: 'invalid' };
   const cells = r.results.map((x) => {
@@ -588,15 +657,197 @@ async function lookup(raw) {
     `<div class="domgrid">${cells}</div>` + hacks +
     `<p class="legend">● free &nbsp; ● registered &nbsp; ○ no answer — the TLD publishes no RDAP service, or its registry declined to serve this lookup</p>` +
     `<p class="caveat">${esc(r.caveat)}</p>`;
+  // If this word is on the shelf, the shelf should know what the registries said.
+  if (shelf.has(label)) { shelf.setDomains(label, r.results); drawShelf(); }
+  return r.results;
+}
+
+
+// ---------- the shelf ----------
+//
+// Local first, always. The repo copy is an upgrade, not a requirement: every
+// path below works signed out, and nothing here waits on the network before
+// the shelf renders.
+
+const shelf = new Shelf(browserStore(window.localStorage));
+const auth = new AuthClient();
+let ceiling = null;          // null = not asked yet
+
+function drawShelf() {
+  const el = $('shelf');
+  if (!shelf.size) {
+    el.innerHTML = '<p class="empty">Nothing kept yet. Press <b>keep &amp; check</b> on a word you like.</p>';
+    $('shelfNote').textContent = '';
+    return;
+  }
+  el.innerHTML = shelf.entries.map((e) => {
+    const free = freeCount(e);
+    const tags = [
+      e.score !== null ? `<span class="tag">${e.score}/100</span>` : '',
+      e.taken ? '<span class="tag">real word</span>' : '',
+      e.domains.length ? `<span class="tag ${free ? 'ok' : ''}">${free} free / ${e.domains.length}</span>` : '',
+      e.uri ? '<span class="tag synced" title="written to your repo">in your repo</span>' : '',
+    ].filter(Boolean).join(' ');
+    return `<div class="row" data-w="${esc(e.word)}">` +
+      `<span class="w" title="click to copy">${esc(e.word)}</span>` +
+      (e.say && e.say.ipa ? `<span class="ipa">/${esc(e.say.ipa)}/</span>` : '') +
+      tags +
+      `<span class="acts">` +
+      `<button data-act="check">check</button>` +
+      `<button data-act="drop">remove</button>` +
+      `</span></div>`;
+  }).join('');
+  note();
+}
+
+function note() {
+  const bits = [`${shelf.size} kept`];
+  if (!shelf.durable) bits.push('this browser will not remember them — storage is blocked here');
+  else if (!auth.isLoggedIn()) bits.push('kept in this browser only');
+  if (auth.isLoggedIn()) {
+    const pending = shelf.entries.filter((e) => !e.uri).length;
+    bits.push(pending ? `${pending} not yet in your repo` : 'all of them in your repo');
+  }
+  if (ceiling && !ceiling.ok) {
+    bits.push(ceiling.known ? `repo sync is not live yet — ${ceiling.reason}` : ceiling.reason);
+  }
+  $('shelfNote').innerHTML = bits.map(esc).join(' · ');
+}
+
+$('shelf').onclick = (e) => {
+  const row = e.target.closest('.row');
+  if (!row) return;
+  const word = row.dataset.w;
+  const act = e.target.dataset.act;
+  if (act === 'drop') { unsync(word); shelf.drop(word); drawShelf(); return; }
+  if (act === 'check') {
+    $('q').value = word; runCheck();
+    $('dq').value = word; lookup(word);
+    $('checkout').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  if (e.target.classList.contains('w')) copy(word, e.target);
+};
+
+$('shelfCopy').onclick = () => { if (shelf.size) copy(shelf.entries.map((e) => e.word).join('\n'), $('shelfCopy')); };
+$('shelfExport').onclick = () => {
+  const blob = new Blob([JSON.stringify(shelf.toJSON(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sharp-shelf.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('shelfClear').onclick = () => {
+  if (!shelf.size) return;
+  if (!confirm(`Remove all ${shelf.size} kept words from this browser? Anything already written to your repo stays there.`)) return;
+  shelf.clear();
+  drawShelf();
+};
+
+// ---------- your repo ----------
+
+function drawSignin() {
+  const el = $('signin');
+  const user = auth.getUser();
+  if (user) {
+    el.innerHTML = `<span class="who">@${esc(user.handle)}</span>` +
+      `<button id="pull">pull from repo</button><button id="out">sign out</button>`;
+    $('pull').onclick = pull;
+    $('out').onclick = async () => { await auth.logout(); drawSignin(); drawShelf(); };
+    $('shelfSync').hidden = false;
+    return;
+  }
+  if (ceiling && !ceiling.ok && ceiling.known) {
+    el.innerHTML = `<span>Keeping words in your own ATProto repo is built and waiting on the shared auth worker to publish <code>${esc(COLLECTION)}</code>. Until then the shelf is local.</span>`;
+    $('shelfSync').hidden = true;
+    return;
+  }
+  el.innerHTML = '<span>Keep them in your own repo instead:</span>' +
+    '<input type="text" id="handle" placeholder="you.bsky.social" autocomplete="username" spellcheck="false">' +
+    '<button id="in">sign in</button>';
+  $('in').onclick = signIn;
+  $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn(); });
+  $('shelfSync').hidden = true;
+}
+
+async function signIn() {
+  const handle = ($('handle') || {}).value?.trim();
+  if (!handle) return;
+  // Check the ceiling BEFORE redirecting. Asking for a scope the authorization
+  // server will not grant fails after the redirect, where the error belongs to
+  // somebody else and reads like a bug in this page.
+  ceiling = ceiling || await ceilingAllows(fetch);
+  // Only a ceiling we actually READ is a reason not to try. A request we could
+  // not make says nothing about what the authorization server will grant.
+  if (!ceiling.ok && ceiling.known) { drawSignin(); note(); return; }
+  try { await auth.login(handle, { scope: SCOPE }); }
+  catch (e) { $('shelfNote').textContent = `sign-in failed: ${(e && e.message) || e}`; }
+}
+
+/** Write one word to the repo, if we can. Silent and harmless when we cannot. */
+async function syncOne(word) {
+  if (!auth.isLoggedIn()) return;
+  if (ceiling && !ceiling.ok && ceiling.known) return;   // known-short: do not bother the PDS
+  const e = shelf.get(word);
+  if (!e || e.uri) return;
+  try {
+    const res = await auth.pds.createRecord(COLLECTION, toRecord(e));
+    e.uri = res.uri;
+    shelf.save();
+    drawShelf();
+  } catch (err) {
+    $('shelfNote').textContent = `could not write to your repo: ${(err && err.message) || err}`;
+  }
+}
+
+async function unsync(word) {
+  const e = shelf.get(word);
+  if (!e || !e.uri || !auth.isLoggedIn()) return;
+  const rkey = rkeyOf(e.uri);
+  if (rkey) { try { await auth.pds.deleteRecord(COLLECTION, rkey); } catch { /* the local drop still stands */ } }
+}
+
+$('shelfSync').onclick = async () => {
+  const pending = shelf.entries.filter((e) => !e.uri).map((e) => e.word);
+  for (const w of pending) await syncOne(w);
+  await pull();
+};
+
+async function pull() {
+  if (!auth.isLoggedIn()) return;
+  try {
+    const res = await auth.pds.listRecords(COLLECTION, 100);
+    const remote = (res.records || []).map(fromRecord).filter(Boolean);
+    shelf.merge(remote);
+    drawShelf();
+  } catch (err) {
+    $('shelfNote').textContent = `could not read your repo: ${(err && err.message) || err}`;
+  }
 }
 
 // ---------- go ----------
 // Last, and only now: every handler above is bound, so a throw in here cannot
 // leave the page with dead buttons.
 
+drawShelf();
+drawSignin();
 if (params.get('check')) { $('q').value = params.get('check'); runCheck(); }
 if (params.get('domain')) { $('dq').value = params.get('domain'); lookup(params.get('domain')); }
 next();
+
+// The repo is the slow, optional half: resolve the session and the scope
+// ceiling after the page is usable, never in front of it.
+(async () => {
+  try {
+    await auth.init();
+    drawSignin();
+    if (auth.isLoggedIn()) { ceiling = await ceilingAllows(fetch); await pull(); }
+    else { ceiling = await ceilingAllows(fetch); }
+    drawSignin();
+    note();
+  } catch { /* signed out is a fine place to be */ }
+})();
 </script>
 </body>
 </html>

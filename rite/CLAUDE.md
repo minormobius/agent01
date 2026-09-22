@@ -89,6 +89,9 @@ Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-pro
 | `rite/sharp/tld.js` | TLD verifier + what an RDAP response means. Pure: decides, never fetches |
 | `rite/sharp/rdap.js` | The only code that talks to registries — caps, backoff, memo |
 | `rite/sharp/hunt.mjs` | CLI: mint words, ask the registries which are free |
+| `rite/sharp/shelf.js` | Kept words — local store, ATProto records, the scope-ceiling check |
+| `rite/sharp/auth.js` | Byte-identical copy of `packages/oauth-client/auth.js`. **Never edit** |
+| `rite/sharp/lexicons/` | `com.minomobi.sharp.word` — the record a kept word becomes |
 | `rite/sharp/data/` | `taken.txt` (250k claimed words + CMUdict syllable counts), `mono.json` (7,625 real monosyllables with pronunciations), `phono.json` (the model), `tlds.json` (IANA's TLDs + RDAP bootstrap) |
 | `rite/sharp/build-corpus.mjs`, `build-tlds.mjs` | Rebuild those four. **Need the network** — not part of preflight |
 
@@ -131,6 +134,50 @@ five minutes, not a day — a stale yes reaches someone about to spend money.
 **`free` means unregistered, not purchasable.** Premium, reserved and
 registry-held names all answer 404. The API says so in every response.
 
+### /sharp — the shelf, and words in your own repo
+
+`sharp/shelf.js` holds what someone decided to keep. **Keep & check** mints the
+entry, runs the word checker, then asks the registries and files the verdicts on
+the same entry — one gesture, three answers.
+
+Two places a kept word lives:
+
+- **local** — `localStorage`, always on, no account. Storage is *injected*
+  (`browserStore` / `memoryStore`), which is what makes the logic testable in
+  node and what keeps the module honest that localStorage can simply refuse: in
+  a private window every call throws, the shelf falls back to memory for the
+  session and says so rather than pretending it saved.
+- **the keeper's repo** — one `com.minomobi.sharp.word` record each. Lexicon at
+  `sharp/lexicons/`, collection in the auth worker's `WRITE_COLLECTIONS`, scope
+  `atproto repo:com.minomobi.sharp.word` and nothing else, so consent is one
+  line. This site stores none of it.
+
+They reconcile by word, newest wins; an older repo copy still teaches a newer
+local one where its record lives, so nothing gets written twice.
+
+**The ceiling check is the part worth keeping.** A new collection only works
+once the auth worker has been *redeployed* — the authorization server validates
+against the live `client-metadata.json`, so requesting a scope above it fails
+after the redirect, where the error belongs to somebody else and reads like a
+bug here. `ceilingAllows()` reads that metadata first and returns `{ok, known}`:
+
+- `known && !ok` → say plainly that repo sync is waiting on the auth worker, and
+  stay local. It starts working by itself the day that worker ships.
+- `!known` (a 5xx, a dropped request) → **offer sign-in anyway**. A request we
+  could not make says nothing about what the server would grant, and reporting
+  it as "unshipped" is a different claim from the truth.
+
+> ⚠️ **Repo sync is inert until `workers/auth` deploys.** `com.minomobi.sharp.word`
+> is in this branch's `scope.ts`, but `auth` is owned by
+> `claude/bsky-app-view-feasibility-8sdflz` and **this branch must not deploy it**
+> — see the registry note. Run `node scripts/check-auth-scope.mjs` before any
+> auth change: this branch's tree was 7 collections behind the live ceiling
+> (`cad.*`, `dweet.dweet`) and would have silently narrowed it.
+
+`rite/sharp/auth.js` is a byte-identical copy of
+`packages/oauth-client/auth.js` — static sites cannot import across directories.
+**Edit the package, never the copy**; `shelf.selftest.mjs` fails if they diverge.
+
 ### Hunting domains from the command line
 
 ```bash
@@ -161,6 +208,7 @@ node rite/sharp/build-corpus.mjs            # fetches CMUdict, writes the three 
 node rite/sharp/build-tlds.mjs              # fetches IANA's TLD list + RDAP bootstrap
 node rite/sharp/engine.selftest.mjs         # gates segmentation, syllable accuracy, the mint contract
 node rite/sharp/tld.selftest.mjs            # gates the verifier + RDAP reader against a stub registry
+node rite/sharp/shelf.selftest.mjs          # gates the shelf, the record shape, the lexicon, the vendored client
 node rite/sharp/routes.selftest.mjs         # gates the worker routes against the real data
 ```
 

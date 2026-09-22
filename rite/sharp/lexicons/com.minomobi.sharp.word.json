@@ -1,0 +1,51 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.sharp.word",
+  "defs": {
+    "main": {
+      "type": "record",
+      "description": "A word somebody decided to keep, from rite.mino.mobi/sharp. Usually a minted monosyllable — one syllable, English-shaped, and claimed by no dictionary — but a real word kept for its sound is the same record with `taken: true`. The point of putting it in the signer's own repo rather than in a table here: a shortlist of names you are thinking about is exactly the kind of small, personal, long-lived list that should not depend on one site continuing to exist, and /sharp stores none of it. The snapshot fields (`score`, `say`, `rhymes`, `domains`) are what the engine and the registries said AT THE MOMENT IT WAS KEPT — `domains` especially goes stale, because registrations change and a 404 was never a promise. Re-check before spending money.",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["word", "createdAt"],
+        "properties": {
+          "word": { "type": "string", "minLength": 1, "maxLength": 63, "description": "The word itself, lowercase. Constrained to a length a domain label could hold, because that is usually why it was kept." },
+          "createdAt": { "type": "string", "format": "datetime", "description": "When it was kept. Also the basis of the TID rkey, so a listRecords sweep comes back in the order they were kept." },
+          "syllables": { "type": "integer", "minimum": 1, "description": "Syllable count. From CMUdict when the word is real, from the heuristic in rite/sharp/engine.js when it is not." },
+          "taken": { "type": "boolean", "description": "Was the word already an English word when it was kept? false for a minted one, true for a real one kept for its sound." },
+          "score": { "type": "integer", "minimum": 0, "maximum": 100, "description": "English-ness: the word's percentile against the log-probability of real English monosyllables under the phonotactic model. 50 is as ordinary as the median real monosyllable." },
+          "origin": { "type": "string", "description": "Where it came from: 'mint' (procgen), 'real' (drawn from the corpus), or 'check' (typed into the checker)." },
+          "style": { "type": "string", "description": "The mint style that produced it — native, blunt, liquid, gnarly, old, bright, wide." },
+          "seed": { "type": "string", "maxLength": 128, "description": "The seed of the set it came out of. The minter is deterministic, so this plus the style reproduces the whole batch." },
+          "say": {
+            "type": "object",
+            "description": "How it is pronounced. For a minted word this is a GUESS, assembled from real words spelled the same way — the onset's usual phones plus the rime's.",
+            "properties": {
+              "ipa": { "type": "string", "maxLength": 64 },
+              "arpabet": { "type": "string", "maxLength": 128 }
+            }
+          },
+          "rhymes": { "type": "array", "maxLength": 8, "items": { "type": "string", "maxLength": 63 }, "description": "Real English monosyllables sharing its phonetic rime — the evidence that an invented word still works in English." },
+          "homophones": { "type": "array", "maxLength": 4, "items": { "type": "string", "maxLength": 63 }, "description": "Real words pronounced identically. A word can be unclaimed on the page and already taken in the ear." },
+          "domains": {
+            "type": "array",
+            "maxLength": 24,
+            "description": "What the registries said, when they were asked. A SNAPSHOT, not a reservation.",
+            "items": { "type": "ref", "ref": "#domainCheck" }
+          },
+          "note": { "type": "string", "maxLength": 280, "description": "Why you kept it." }
+        }
+      }
+    },
+    "domainCheck": {
+      "type": "object",
+      "required": ["domain", "verdict"],
+      "properties": {
+        "domain": { "type": "string", "maxLength": 253, "description": "The full name asked about, e.g. lounce.dev." },
+        "verdict": { "type": "string", "knownValues": ["free", "taken", "unverifiable", "unknown", "invalid"], "description": "free: the registry had no registration on file. taken: it did. unverifiable: the TLD is real but publishes no RDAP service, so nobody asked. unknown: the registry declined — rate limit, block or timeout. Only 'free' and 'taken' are answers, and 'free' means unregistered, never purchasable." },
+        "checkedAt": { "type": "string", "format": "datetime", "description": "When the registry was asked. Registrations change; an old check is a rumour." }
+      }
+    }
+  }
+}

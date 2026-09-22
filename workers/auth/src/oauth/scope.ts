@@ -54,6 +54,22 @@ const WRITE_COLLECTIONS = [
   // board (infinite whiteboard) — one record per board, including every child
   // board a nesting gesture mints, so a single collection covers the whole tree
   'com.minomobi.board.canvas',
+  // cad (cad.mino.mobi) — a file tree over records (packages/cad/lib/drive.js):
+  // a `part` head names a path and points by strongRef at an immutable
+  // `revision` (the feature tree, its parents, the kernel and invariants it
+  // was judged by). Written to the designer's own repo; anyone can open a
+  // file by AT URI and fork it with the lineage intact.
+  'com.minomobi.cad.part',
+  'com.minomobi.cad.revision',
+  // parts (cad.mino.mobi/parts/) — the Reddit-shaped front for CAD parts. A
+  // community is a record in its founder's repo (rkey = the slug); a post
+  // is a record in the poster's repo pointing at a community and at one
+  // revision of a part; comments thread by strongRef; a vote is a record the
+  // voter owns. The site indexes them; it never writes on anyone's behalf.
+  'com.minomobi.cad.community',
+  'com.minomobi.cad.post',
+  'com.minomobi.cad.comment',
+  'com.minomobi.cad.vote',
   // org / calendar
   'com.minomobi.cal.event',
   // cards
@@ -67,6 +83,12 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.crm.contact',
   'com.minomobi.crm.deal',
   'com.minomobi.crm.expense',
+  // dweet (bsky.mino.mobi/dweet/) — one 256-character animation per record; the
+  // source IS the artwork, so there is no blob type to add alongside it. The
+  // surface requests THIS ALONE rather than the unified union, which matters
+  // more than usual there: it executes code from strangers in the reader's
+  // browser, and a one-line consent screen is part of earning that.
+  'com.minomobi.dweet.dweet',
   // fluoddity
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
@@ -122,6 +144,13 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.music.composition',
   // sprite — portable NPC sprite sets (mega.mino.mobi/sprite)
   'com.minomobi.sprite.set',
+  // sharp (rite.mino.mobi/sharp) — a word somebody decided to keep: a minted
+  // monosyllable, or a real one kept for its sound, with what the phonotactic
+  // model and the domain registries said at the time. A shortlist of names you
+  // are mulling over is small, personal and long-lived, which is exactly the
+  // kind of list that should not depend on one site staying up — so it lives in
+  // the keeper's own repo and /sharp stores none of it.
+  'com.minomobi.sharp.word',
   // poll
   'com.minomobi.poll.ballot',
   'com.minomobi.poll.def',
