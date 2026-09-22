@@ -3,7 +3,7 @@ name: Deploy Rite
 on:
   push:
     branches:
-      - 'claude/procedural-name-generator-2qqwfq'
+      - 'claude/syllable-word-generator-yhw8wj'
     paths:
       - 'rite/**'
       - 'poll/apps/api/migrations/0014_fodder.sql'

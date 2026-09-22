@@ -15,7 +15,7 @@ Sentence editing drill plus a dozen surfaces over Bluesky prose and English itse
 | Dir | `rite/` |
 | Endpoint | `rite.mino.mobi` |
 | Type | fullstack |
-| Owning branch | `claude/procedural-name-generator-2qqwfq` |
+| Owning branch | `claude/syllable-word-generator-yhw8wj` |
 | Deploy | `.github/workflows/deploy-rite.yml` |
 | Uses | `atpolls-db` |
 | Provides | — |
@@ -91,7 +91,7 @@ Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-pro
 
 ## Deploy workflow (`deploy-rite.yml`)
 
-Triggers on push to `main` or `claude/sentence-editing-drill-*` that touches `rite/**`. Steps:
+Triggers on push to `claude/syllable-word-generator-yhw8wj` that touches `rite/**`. (`main` does not deploy — see the repo-wide `CLAUDE.md`.) Steps:
 
 1. Apply `poll/apps/api/migrations/0014_fodder.sql` to `atpolls-db` (idempotent — failure is treated as already-applied and continues).
 2. `npx wrangler deploy` from `rite/` — uploads worker + assets, provisions `rite.mino.mobi`.
@@ -144,7 +144,7 @@ Idempotent: candidate IDs (`f-2833-abc1234`) live in a different namespace from 
 
 ## Deploying
 
-Pushes to `claude/procedural-name-generator-2qqwfq` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-rite.yml`](../.github/workflows/deploy-rite.yml).
+Pushes to `claude/syllable-word-generator-yhw8wj` that touch this surface's paths trigger [`.github/workflows/deploy-rite.yml`](../.github/workflows/deploy-rite.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

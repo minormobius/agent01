@@ -729,7 +729,7 @@
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/procedural-name-generator-2qqwfq",
+      "branch": "claude/syllable-word-generator-yhw8wj",
       "uses": [
         "atpolls-db"
       ],
