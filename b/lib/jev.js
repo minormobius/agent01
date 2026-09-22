@@ -76,12 +76,49 @@ function rateLimited(ip) {
   return 0;
 }
 
+// ── the cache, in two tiers, because one was measured not to be enough ──────
+//
 // A ring is stable over the minutes somebody spends looking at it, and ten
-// people opening the same account should not be ten calls. This is the main
-// thing standing between a public toy and a bill.
+// people opening the same account should not be ten model calls. This is the
+// main thing standing between a public toy and a bill, so it is worth being
+// precise about what each tier does and does not do.
+//
+// L1 is a Map in the isolate: free and instant, and it only helps a caller who
+// lands on the same isolate. MEASURED IN PRODUCTION: two requests 1.4 s apart
+// both missed, because Workers spread requests across isolates freely — an
+// isolate-local cache is a hit-rate bonus, not a budget control.
+//
+// L2 is the Cache API, which is shared across every isolate in a colo and
+// survives isolate recycling. That is the tier that actually bounds the spend.
+// It is still per-colo, so a globally viral ring costs one call per colo rather
+// than one call — an honest ceiling, and a far lower one than per-isolate.
 const CACHE = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX = 200;
+
+// A synthetic same-shape key, normalised on the DID, so @handle, handle and the
+// raw DID all share one entry. The host is never fetched.
+const cacheKey = (did) => new Request(`https://mood.cache.invalid/${encodeURIComponent(did)}`);
+
+async function l2Get(did) {
+  if (typeof caches === 'undefined' || !caches.default) return null;   // node, tests
+  try {
+    const hit = await caches.default.match(cacheKey(did));
+    return hit ? await hit.json() : null;
+  } catch { return null; }
+}
+
+async function l2Put(did, data) {
+  if (typeof caches === 'undefined' || !caches.default) return;
+  try {
+    await caches.default.put(cacheKey(did), new Response(JSON.stringify(data), {
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': `public, s-maxage=${Math.floor(CACHE_TTL / 1000)}`,
+      },
+    }));
+  } catch { /* a cache that refuses a put is not a reason to fail the request */ }
+}
 
 const err = (message, status) => { const e = new Error(message); e.status = status; return e; };
 
@@ -179,7 +216,13 @@ export async function mood(params, env, token, ip) {
   }
 
   const hit = CACHE.get(did);
-  if (hit && Date.now() - hit.at < CACHE_TTL) return { ...hit.data, cached: true };
+  if (hit && Date.now() - hit.at < CACHE_TTL) return { ...hit.data, cached: 'isolate' };
+
+  const shared = await l2Get(did);
+  if (shared) {
+    CACHE.set(did, { at: Date.now(), data: shared });                  // warm L1 from L2
+    return { ...shared, cached: 'colo' };
+  }
 
   // Throttle only what would actually cost money — a cache hit is free, so it
   // is served above this line.
@@ -219,6 +262,7 @@ export async function mood(params, env, token, ip) {
 
   if (CACHE.size >= CACHE_MAX) CACHE.delete(CACHE.keys().next().value);
   CACHE.set(did, { at: Date.now(), data });
+  await l2Put(did, data);
   return data;
 }
 

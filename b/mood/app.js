@@ -119,7 +119,7 @@ function drawStone(data, moods) {
       spread across the ten — ${esc(spreadWord)}
       <div class="track"><i style="width:${Math.round(Math.min(1, sp / 0.9) * 100)}%;background:${agg.solid}"></i></div>
       mean confidence ${Math.round(agg.confidence * 100)}%${unread ? ` · ${unread} post${unread === 1 ? '' : 's'} the model would not read` : ''}<br>
-      ${data.cached ? 'from cache' : `${data.latency_ms} ms · ${data.usage ? `${data.usage.input_tokens} tokens in, ${data.usage.output_tokens} out` : ''}`}
+      ${data.cached ? `from cache (${data.cached})` : `${data.latency_ms} ms · ${data.usage ? `${data.usage.input_tokens} tokens in, ${data.usage.output_tokens} out` : ''}`}
     </div>`;
 }
 
