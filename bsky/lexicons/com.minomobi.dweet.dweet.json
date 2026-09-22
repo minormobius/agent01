@@ -12,9 +12,9 @@
         "properties": {
           "src": {
             "type": "string",
-            "maxLength": 2240,
-            "maxGraphemes": 280,
-            "description": "The program. In `js` it is the body of dwitter's `u(t)`, called at 60fps with `t` in seconds and `S`/`C`/`T`/`R`/`c`/`x` pre-bound over a 1920x1080 canvas that is NOT auto-cleared. In `glsl` it is the body of `main()` in the tweet-shader dialect: `t` seconds, `r` resolution, `FC` fragment coordinate, `o` the out colour. maxLength is the byte guard; maxGraphemes is the limit people actually type against. 280 rather than dwitter's 140 so the whole sketch plus a hashtag fits inside one 300-grapheme Bluesky post; a sketch of 140 or fewer in `js` is additionally postable to dwitter.net verbatim, which clients may surface as a badge. In `glsl` a top-level `mainImage(out vec4, in vec2)` is accepted as well as a bare `main()` body, so Shadertoy- and demosky.app-dialect sketches are valid here."
+            "maxLength": 2048,
+            "maxGraphemes": 256,
+            "description": "The program. In `js` it is the body of dwitter's `u(t)`, called at 60fps with `t` in seconds and `S`/`C`/`T`/`R`/`c`/`x` pre-bound over a 1920x1080 canvas that is NOT auto-cleared. In `glsl` it is the body of `main()` in the tweet-shader dialect: `t` seconds, `r` resolution, `FC` fragment coordinate, `o` the out colour. maxLength is the byte guard; maxGraphemes is the limit people actually type against. 256 rather than dwitter's 140 so the whole sketch, a hashtag AND a permalink fit inside one 300-grapheme Bluesky post (295 of 300), and so the cap coincides with the top demoscene size category; a sketch of 140 or fewer in `js` is additionally postable to dwitter.net verbatim, which clients may surface as a badge. In `glsl` a top-level `mainImage(out vec4, in vec2)` is accepted as well as a bare `main()` body, so Shadertoy- and demosky.app-dialect sketches are valid here."
           },
           "lang": {
             "type": "string",

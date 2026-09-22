@@ -109,12 +109,21 @@ console.log('\nthe cap, and the Bluesky post arithmetic');
 // 280 exists so a whole sketch fits in one 300-grapheme Bluesky post with a
 // tag. If MAX_CHARS ever moves, this arithmetic is the thing to re-check.
 const BLUESKY_POST = 300, TAG = ' #dweet'.length, LINK = ' dweet.mino.mobi/p/3l4abcdefghij'.length;
-ok(MAX_CHARS === 280, 'cap is 280 graphemes', `${MAX_CHARS}`);
+ok(MAX_CHARS === 256, 'cap is 256 graphemes', `${MAX_CHARS}`);
 ok(MAX_CHARS + TAG <= BLUESKY_POST,
   'code + tag fits a Bluesky post', `${MAX_CHARS + TAG}/${BLUESKY_POST}`);
-// Documented as NOT fitting, on purpose — so nobody later assumes it does.
-ok(MAX_CHARS + TAG + LINK > BLUESKY_POST,
-  'code + tag + permalink does NOT fit (256 would)', `${MAX_CHARS + TAG + LINK}/${BLUESKY_POST}`);
+// The whole reason for 256 over 280. If MAX_CHARS ever rises again, THIS is
+// the assertion that should stop it.
+ok(MAX_CHARS + TAG + LINK <= BLUESKY_POST,
+  'code + tag + permalink also fits', `${MAX_CHARS + TAG + LINK}/${BLUESKY_POST}`);
+// The cap coincides with the top tier, so every ASCII sketch is in a named
+// category and `open` means "you spent multi-byte characters".
+ok(MAX_CHARS === SIZE_TIERS[SIZE_TIERS.length - 1],
+  'the cap IS the top size category', `${MAX_CHARS} = ${SIZE_TIERS.at(-1)}b`);
+ok(sizeClass('a'.repeat(MAX_CHARS)).label === '256b',
+  'a full-length ASCII sketch is 256b');
+ok(sizeClass('\u{1F984}'.repeat(MAX_CHARS)).label === 'open',
+  'a full-length emoji sketch overflows to open', `${sizeClass('\u{1F984}'.repeat(MAX_CHARS)).bytes} bytes`);
 ok(DWITTER_CHARS === 140, 'dwitter mark kept as a badge, not a rule');
 
 console.log('\nsize categories (bytes, demoscene convention)');

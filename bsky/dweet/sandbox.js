@@ -104,20 +104,26 @@ export const FRAME_CSP = [
 /**
  * The cap, in graphemes.
  *
- * 280 rather than dwitter's 140, for one concrete reason: a Bluesky post is
- * 300 graphemes, so 280 of code plus ` #dweet` (7) is 287 and fits — the whole
- * sketch can be an ordinary post that any client renders as text. Dwitter's 140
- * was a Twitter-era number and nothing here depends on it.
+ * 256, and the number is doing three jobs at once:
  *
- * What does NOT fit is code + tag + a permalink (~32 more, so 319). If that
- * matters more than the extra room, the number to use is 256: a power of two,
- * a size category in its own right, and it leaves 44 graphemes for both.
+ *  1. A whole sketch fits in ONE Bluesky post WITH a tag AND a permalink.
+ *     A post is 300 graphemes; 256 + ` #dweet` (7) + a permalink (~32) is 295.
+ *     280 would have fitted the tag but not the link (319), which is the only
+ *     reason it was ever considered.
+ *  2. It IS the top size category, so every ASCII sketch lands in a named
+ *     demoscene tier — 64b, 128b or 256b — with no escape hatch. `open` is
+ *     then reachable only by spending multi-byte characters, which genuinely
+ *     do cost more bytes, so the ladder stays honest rather than decorative.
+ *  3. It is a power of two, which is the tradition's own unit.
  *
- * The architectural argument is unaffected — it was never about 140. A record
- * this small still rides whole inside a firehose event, which is what lets the
- * feed work with no index. 280 bytes is as small as 140 for that purpose.
+ * Dwitter's 140 was a Twitter-era number and nothing here depends on it; it
+ * survives as DWITTER_CHARS, a portability badge rather than a rule.
+ *
+ * The architectural claim is unaffected — it was never about any particular
+ * limit, only about being small enough to ride whole inside a firehose event,
+ * which is what lets the feed work with no index.
  */
-export const MAX_CHARS = 280;
+export const MAX_CHARS = 256;
 
 /**
  * Dwitter's limit, kept as a BADGE rather than a rule.

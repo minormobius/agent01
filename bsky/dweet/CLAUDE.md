@@ -3,7 +3,7 @@
 <!-- HAND-OWNED. Repo-wide rules live in ../../CLAUDE.md; this surface's host
      worker is documented in ../CLAUDE.md. -->
 
-A feed of **280-character animations**, and a place to write one. Each dweet is
+A feed of **256-character animations**, and a place to write one. Each dweet is
 the body of a function called 60 times a second over a 1920×1080 canvas, stored
 as a `com.minomobi.dweet.dweet` record in its author's own repo.
 
@@ -23,7 +23,7 @@ stored to remember one.
 | Deploy | [`deploy-bsky.yml`](../../.github/workflows/deploy-bsky.yml) |
 | Lexicon | [`../lexicons/com.minomobi.dweet.dweet.json`](../lexicons/com.minomobi.dweet.dweet.json) |
 | Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone |
-| Cap | 280 graphemes; size **categories** 64b/128b/256b in bytes |
+| Cap | 256 graphemes — which is also the top size **category** (64b/128b/256b, in bytes) |
 
 **It shares the `bsky` worker because the account is at its worker cap.** An
 extra custom-domain route costs nothing; an extra worker was not available.
@@ -169,21 +169,28 @@ The 2D canvas is **not auto-cleared between frames**, exactly as on dwitter.
 Trails are the default and clearing costs you characters — `c.width|=0` is the
 standard ten-character sacrifice. Half the idiom of the form comes from this.
 
-## The cap is 280, and the tiers are the interesting part
+## The cap is 256, and the tiers are the interesting part
 
-**280 graphemes, not dwitter's 140.** The reason is arithmetic, not taste: a
-Bluesky post is 300 graphemes, so 280 of code plus ` #dweet` is 287 and the
-whole sketch can *be* an ordinary post that every client renders as text.
+**256 graphemes, not dwitter's 140.** The number does three jobs at once:
 
-What does **not** fit is code + tag + a permalink (~32 more, so 319). If that
-ever matters more than the extra room, the number is **256** — a power of two,
-a size category in its own right, and it leaves 44 for both. It is one constant
-(`MAX_CHARS`) and `sandbox.selftest.mjs` pins the arithmetic either way.
+1. **A whole sketch fits in one Bluesky post, with a tag *and* a permalink.**
+   A post is 300 graphemes; `256 + " #dweet" (7) + a permalink (~32) = 295`.
+   280 was considered and rejected for exactly this: it fits the tag (287) but
+   not the link (319).
+2. **It *is* the top size category**, so every ASCII sketch lands in a named
+   demoscene tier with no escape hatch. `open` becomes reachable only by
+   spending multi-byte characters — which genuinely do cost more bytes — so the
+   ladder stays honest instead of decorative.
+3. **It is a power of two**, which is the tradition's own unit.
 
-**The architectural claim is unaffected.** It was never about 140 — only about
-being small enough to ride whole inside a firehose event, so the feed needs no
-index. 280 bytes is as small as 140 for that purpose. Raise it to a kilobyte and
-the argument starts to bend; 280 does not touch it.
+`sandbox.selftest.mjs` pins all of that arithmetic. If `MAX_CHARS` ever rises
+again, the `code + tag + permalink also fits` assertion is the one that should
+stop it.
+
+**The architectural claim is unaffected.** It was never about 140, or 256 — only
+about being small enough to ride whole inside a firehose event, so the feed
+needs no index. Raise it to a kilobyte and the argument starts to bend; 256 does
+not touch it.
 
 ### Size categories, after the demoscene
 
