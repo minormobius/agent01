@@ -944,7 +944,7 @@
     },
     {
       "n": "dweet",
-      "u": "https://dweet.mino.mobi",
+      "u": "https://bsky.mino.mobi/dweet/",
       "c": "bluesky",
       "k": 0,
       "a": "hot",
@@ -4485,11 +4485,6 @@
       "glob": "b/groom",
       "kind": "content",
       "reason": "the follow-grooming pass inside the already-listed b site"
-    },
-    {
-      "glob": "bsky/dweet",
-      "kind": "content",
-      "reason": "the path-form of the already-listed dweet.mino.mobi. dweet rides the bsky worker as a second custom_domain route, so its assets live under bsky/ and are also reachable at bsky.mino.mobi/dweet/ — the same site by its host's path, not a second destination"
     },
     {
       "glob": "foam/dungeon",

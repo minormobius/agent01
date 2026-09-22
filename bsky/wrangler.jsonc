@@ -4,17 +4,23 @@
   "main": "worker.js",
   "compatibility_date": "2026-02-20",
   "routes": [
-    { "pattern": "bsky.mino.mobi", "custom_domain": true },
-    // dweet.mino.mobi is a SECOND custom domain on this SAME worker, not a
-    // second worker — the account is at its worker cap, and an extra route is
-    // free where an extra worker is not. worker.js maps this host's `/` to
-    // /dweet/index.html; every asset under /dweet/ is already reachable by its
-    // own absolute path, so nothing else needs rewriting.
+    { "pattern": "bsky.mino.mobi", "custom_domain": true }
+    // NO dweet.mino.mobi ROUTE, and the reason is a hard platform limit rather
+    // than a preference. It was here, and run #43 failed on it:
     //
-    // Both patterns must appear in the deploy log as `(custom domain)`. If
-    // only bsky.mino.mobi binds, dweet.mino.mobi is being served by something
-    // else and this deploy did not change it — see the golden rule, below.
-    { "pattern": "dweet.mino.mobi", "custom_domain": true }
+    //   You have exceeded the limit of 100 Workers custom domains
+    //   on zone 'mino.mobi'  [code: 100122]
+    //
+    // An extra custom_domain route is NOT free: it costs one of 100 custom
+    // domains on the zone, and the zone is full. (That is a different cap from
+    // the worker count, which is what this surface's docs originally blamed.)
+    // Worse, the failure is at the TRIGGER step AFTER the assets upload, so the
+    // run goes red while the new assets are already live — every push stays red
+    // for as long as an unbindable route sits in this list.
+    //
+    // dweet therefore ships as a PATH: bsky.mino.mobi/dweet/. worker.js keeps
+    // its hostname dispatch, inert until somebody frees a custom domain (that
+    // is dashboard-only, docs/DEPLOYS.md §7) and re-adds the line above.
   ],
   // bsky.mino.mobi — a frontend-only AppView. The page assembles its own
   // timeline from Jetstream v2 (live tail, unauthenticated, server-side `dids`

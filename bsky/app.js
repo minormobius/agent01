@@ -32,13 +32,15 @@ import { renderEmbed, imageUrl, videoUrls } from '/lib/blobs.js';
 import { installVideo } from '/lib/video.js';
 import { attachTypeahead } from '/lib/typeahead.js';
 import * as cache from '/lib/cache.js';
-import { auth, publish, graphemeLength, MAX_GRAPHEMES, MAX_IMAGES, SCOPE,
+import { auth, publish, graphemeLength, MAX_GRAPHEMES, SCOPE,
          extractCard, firstLink } from '/lib/compose.js';
 import * as theme from '/lib/theme.js';
 import * as lightbox from '/lib/lightbox.js';
 import * as share from '/lib/share.js';
 import * as feedgen from '/lib/feedgen.js';
 import * as actions from '/lib/actions.js';
+import * as shuffle from '/lib/shuffle.js';
+import * as attach from '/lib/attach.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -1536,9 +1538,14 @@ async function renderThread(uri) {
   catch (err) { v.innerHTML = `<div class="empty"><strong>Thread unavailable.</strong>${esc(err.message)}</div>`; return; }
 
   v.innerHTML = '';
-  const back = el('<div class="backbar"><button class="pill" id="tback">← back</button></div>');
+  // The thread screen is where a shuffle quote is actually decided on — you
+  // have just read the whole thing and know whether you have something to say
+  // about each post. Offering it only from the ↻ menu buried it.
+  const back = el('<div class="backbar"><button class="pill" id="tback">← back</button>'
+    + '<button class="pill" id="tshuffle">🔀 shuffle quote</button></div>');
   v.append(back);
   $('tback').addEventListener('click', () => history.back());
+  on('tshuffle', 'click', () => openShuffle(data.post));
 
   for (const a of data.ancestors) {
     const n = postNode(a);
@@ -1598,15 +1605,18 @@ function replyBox(parent) {
   const images = [];
 
   const drawThumbs = () => {
-    thumbs.innerHTML = '';
-    images.forEach((img, i) => {
-      thumbs.append(el(`<div class="cthumb">
-        <img alt="" src="${esc(img.url)}">
-        <button type="button" data-rm="${i}" aria-label="Remove image">×</button>
-        <input type="text" data-alt="${i}" placeholder="alt text" value="${esc(img.alt || '')}">
-      </div>`));
-    });
+    thumbs.innerHTML = thumbHtml(images);
     count();
+  };
+
+  // Attaching, from the picker or from a paste. One rule set, shared with the
+  // composer and the shuffle cards — this box used to say "images only for now"
+  // where the composer named the type it had refused and why.
+  const addToReply = (files) => {
+    const { accept, reasons } = attach.takeImages(files, images.length);
+    for (const r of reasons) say(r);
+    for (const file of accept) images.push({ file, url: URL.createObjectURL(file), alt: '' });
+    drawThumbs();
   };
 
   thumbs.addEventListener('click', (e) => {
@@ -1622,12 +1632,14 @@ function replyBox(parent) {
   });
 
   box.querySelector('#rfile').addEventListener('change', (e) => {
-    for (const file of [...e.target.files].slice(0, MAX_IMAGES - images.length)) {
-      if (!file.type.startsWith('image/')) { say('images only for now'); continue; }
-      images.push({ file, url: URL.createObjectURL(file), alt: '' });
-    }
+    addToReply(e.target.files);
     e.target.value = '';
-    drawThumbs();
+  });
+  ta.addEventListener('paste', (e) => {
+    const files = attach.imagesFrom(e.clipboardData);
+    if (!files.length) return;        // an ordinary text paste is the browser's
+    e.preventDefault();
+    addToReply(files);
   });
 
   const count = () => {
@@ -1959,15 +1971,7 @@ function renderQuotePreview() {
 function renderThumbs() {
   const box = $('cthumbs');
   if (!box) return;
-  box.innerHTML = '';
-  draft.images.forEach((img, i) => {
-    const t = el(`<div class="cthumb">
-      <img alt="" src="${esc(img.url)}">
-      <button type="button" data-rm="${i}" aria-label="Remove image">×</button>
-      <input type="text" data-alt="${i}" placeholder="alt text" value="${esc(img.alt || '')}">
-    </div>`);
-    box.append(t);
-  });
+  box.innerHTML = thumbHtml(draft.images);
   countChars();
 }
 
@@ -2030,20 +2034,15 @@ function renderCard() {
   });
 }
 
-async function addImages(files) {
-  const room = MAX_IMAGES - draft.images.length;
-  if (room <= 0) return say(`${MAX_IMAGES} images is the limit`);
-  for (const file of [...files].slice(0, room)) {
-    if (!file.type.startsWith('image/')) {
-      // Video needs Bluesky's transcoding service, not a PDS blob — see the
-      // note in this surface's CLAUDE.md. Saying so beats a silent skip.
-      say(file.type.startsWith('video/')
-        ? 'video needs Bluesky\'s transcoder — images only for now'
-        : `not an image: ${file.type || 'unknown type'}`);
-      continue;
-    }
-    draft.images.push({ file, url: URL.createObjectURL(file), alt: '' });
-  }
+/**
+ * Attach files to the composer. The rules — images only, why a video is
+ * refused, and the four-image cap — live in lib/attach.js, because the reply
+ * box and every shuffle card apply the same ones and their copies drifted.
+ */
+function addImages(files) {
+  const { accept, reasons } = attach.takeImages(files, draft.images.length);
+  for (const r of reasons) say(r);
+  for (const file of accept) draft.images.push({ file, url: URL.createObjectURL(file), alt: '' });
   renderThumbs();
   // Images and a card are both `embed`; the pictures win.
   if (draft.images.length) { draft.card = null; renderCard(); }
@@ -2075,6 +2074,243 @@ async function sendPost() {
     $('cs').textContent = err.message;
     $('sheet-post').disabled = false;
   }
+}
+
+// ─── shuffle quote ───────────────────────────────────────────────
+//
+// A repost passes a post on; a quote passes it on with a sentence attached.
+// Neither is what you want when somebody posts a seven-post thread and you have
+// a different thing to say about each of the seven. A shuffle quote builds one
+// thread of YOURS, each post quoting one of theirs and replying to your own
+// previous post — so your reactions read in order, in your own feed, instead of
+// being scattered down somebody else's replies.
+//
+// The chaining, the cap, and the resume-after-a-partial-publish all live in
+// lib/shuffle.js and are tested there against a fake publish(). Everything below
+// is the sheet.
+
+/** The deck the shuffle sheet is holding: the thread, the cards, and progress. */
+const EMPTY_DECK = () => ({ posts: [], steps: [], dropped: 0, capped: 0, busy: false,
+                            focus: null, pickFor: null });
+let deck = EMPTY_DECK();
+
+/**
+ * Read the thread behind a post and deal it into the sheet.
+ *
+ * A thread has to be FETCHED before the composer can exist — the feed only ever
+ * holds one post of it — so this is the one composer on this surface that opens
+ * asynchronously, and it says so while it waits.
+ */
+async function openShuffle(post) {
+  if (!auth().isLoggedIn()) return signIn();
+  if (!post?.uri) return say('no post to shuffle');
+
+  say('reading the thread…');
+  let thread;
+  try { thread = await getThread(post.uri, { depth: 10, parentHeight: 40 }); }
+  catch (err) { return say(`could not read that thread — ${err.message}`); }
+
+  const plan = shuffle.planFrom(thread, post.uri);
+  // One card is not a shuffle, it is a quote post — and this app already has a
+  // composer for that. Offering an explanation instead of the thing they wanted
+  // would be worse than just doing it.
+  if (plan.steps.length < 2) {
+    say('nothing else in that thread to quote — opening a plain quote instead');
+    return openQuote(post);
+  }
+
+  deck = { ...plan, busy: false, focus: post.uri };
+  $('sh-status').textContent = '';
+  renderShuffle();
+  $('shuffle').hidden = false;
+  say(`shuffle quote · ${plan.steps.length} posts`);
+}
+
+/**
+ * Thumbnails with their own ALT boxes. The composer, a reply and a shuffle card
+ * all draw the same thing, so they draw it from here — the reply box's copy had
+ * already drifted from the composer's before this existed.
+ */
+function thumbHtml(images) {
+  return images.map((img, j) => `<div class="cthumb">
+      <img alt="" src="${esc(img.url)}">
+      <button type="button" data-rm="${j}" aria-label="Remove image">×</button>
+      <input type="text" data-alt="${j}" placeholder="alt text" value="${esc(img.alt || '')}">
+    </div>`).join('');
+}
+
+/** One card: the post being quoted, what you have to say, and your pictures. */
+function shuffleCard(step, i) {
+  const who = step.target.handle || `${step.target.did.slice(0, 18)}…`;
+  const n = graphemeLength(step.text);
+  const done = Boolean(step.posted);
+  const locked = done || deck.busy;
+  const images = step.images || [];
+  return el(`<div class="shstep${done ? ' done' : ''}${step.error ? ' failed' : ''}" data-i="${i}">
+    <div class="shhead">
+      <span class="shnum">${done ? '✓' : i + 1}</span>
+      <span>quoting @${esc(who)}</span>
+    </div>
+    <div class="shq">${esc(step.target.text.slice(0, 200)) || '<i>no text — media or a quote</i>'}</div>
+    <textarea data-say="${i}" maxlength="3000" ${locked ? 'disabled' : ''}
+      placeholder="say something, or paste a picture — or nothing, and let the quote speak">${esc(step.text)}</textarea>
+    ${images.length ? `<div class="cthumbs">${thumbHtml(images)}</div>` : ''}
+    <div class="shrow">
+      <button type="button" data-pick aria-label="Add pictures to this post" ${locked ? 'disabled' : ''}>🖼</button>
+      <button type="button" data-mv="up" aria-label="Move up" ${locked || i === 0 ? 'disabled' : ''}>↑</button>
+      <button type="button" data-mv="down" aria-label="Move down" ${locked || i === deck.steps.length - 1 ? 'disabled' : ''}>↓</button>
+      <button type="button" data-drop aria-label="Drop this one" ${locked ? 'disabled' : ''}>✕</button>
+      <span class="cc${n > MAX_GRAPHEMES ? ' over' : ''}">${n}/${MAX_GRAPHEMES}</span>
+    </div>
+    ${step.error ? `<div class="sherr">${esc(step.error)}</div>` : ''}
+    ${done ? '<div class="shdone">published</div>' : ''}
+  </div>`);
+}
+
+/**
+ * Attach files to one card, from its 🖼 button or from a paste into its box.
+ *
+ * Re-renders rather than appending, because a card that had no pictures has no
+ * thumbnail strip to append to — and the strip is where the alt boxes live.
+ */
+function addShuffleImages(i, files) {
+  const step = deck.steps[i];
+  if (!step || step.posted || deck.busy) return;
+  const { accept, reasons } = attach.takeImages(files, step.images.length);
+  for (const r of reasons) say(r);
+  if (!accept.length) return;
+  for (const file of accept) step.images.push({ file, url: URL.createObjectURL(file), alt: '' });
+  renderShuffle();
+}
+
+/** Object URLs are not garbage collected; a session of picking leaks one each. */
+function revokeImages(images) {
+  for (const img of images || []) URL.revokeObjectURL(img.url);
+}
+
+/**
+ * The header, the button and the note.
+ *
+ * Split out from renderShuffle because typing must not rebuild the list — a
+ * re-render mid-keystroke moves the caret to the end of the box, which on a
+ * phone is indistinguishable from the app eating your text.
+ */
+function shuffleButton() {
+  const p = shuffle.progress(deck.steps);
+  const over = deck.steps.some((s) => graphemeLength(s.text) > MAX_GRAPHEMES);
+  const btn = $('sh-post');
+  btn.disabled = deck.busy || !p.remaining || over;
+  btn.textContent = deck.busy ? 'posting…'
+    : p.started ? `resume from #${p.done + 1}` : `post all ${p.total}`;
+  $('sh-count').textContent = p.started ? `${p.done}/${p.total} posted` : `${p.total} posts`;
+  // Once anything is published there is no cancelling it, and a button that
+  // says "cancel" over four public posts is a lie.
+  $('sh-cancel').textContent = p.started && !deck.busy ? 'close' : 'cancel';
+  return p;
+}
+
+function renderShuffle() {
+  const box = $('sh-steps');
+  box.innerHTML = '';
+  deck.steps.forEach((step, i) => box.append(shuffleCard(step, i)));
+
+  // Whatever is in the thread but not in the deck, so a card dropped by mistake
+  // — or one the default selection left out — can be dealt back in.
+  const inDeck = new Set(deck.steps.map((s) => s.target.uri));
+  const spare = deck.posts.filter((p) => shuffle.quotable(p) && !inDeck.has(p.uri));
+  const pool = $('sh-pool');
+  pool.hidden = spare.length === 0 || deck.busy;
+  pool.innerHTML = spare.length
+    ? `<h4>also in this thread</h4>` + spare.map((p) => `<button type="button" class="shadd" data-add="${esc(p.uri)}">`
+        + `<b>@${esc(p.author?.handle || p.did.slice(0, 18))}</b> ${esc((p.record?.text || '').slice(0, 120))}</button>`).join('')
+    : '';
+
+  const p = shuffleButton();
+  const notes = [
+    'Each card is one post: it <b>quotes</b> the post shown and <b>replies</b> to your previous card.'
+    + ' Reorder or drop them — thread order is only the default.',
+  ];
+  if (deck.capped) notes.push(`${deck.capped} more post${deck.capped === 1 ? '' : 's'} in this thread were left out — ${shuffle.MAX_STEPS} is the cap.`);
+  if (deck.dropped) notes.push(`${deck.dropped} post${deck.dropped === 1 ? ' is' : 's are'} not quotable here (no cid) and are not offered.`);
+  if (p.started) notes.push(`<b>${p.done} already published.</b> Those cannot be unposted; resuming continues the thread from where it stopped.`);
+  $('sh-note').innerHTML = notes.join(' ');
+}
+
+/** Reorder. A published card is pinned — its place in the chain already exists. */
+function moveStep(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= deck.steps.length) return;
+  if (deck.steps[i].posted || deck.steps[j].posted) return say('a published post cannot be moved');
+  [deck.steps[i], deck.steps[j]] = [deck.steps[j], deck.steps[i]];
+  renderShuffle();
+}
+
+/**
+ * Deal the whole deck.
+ *
+ * Sequential and not parallel by necessity: each post replies to the one before
+ * it, so it cannot be written until the PDS has answered with that post's cid.
+ * A failure stops the run and leaves the sheet open with the landed posts
+ * locked — tapping again resumes rather than restarting, which is the only
+ * behaviour that does not risk publishing a duplicate.
+ */
+async function sendShuffle() {
+  if (deck.busy || !deck.steps.length) return;
+
+  /**
+   * A missing blob scope is caught HERE, before anything is published.
+   *
+   * `publish()` escalates a missing `blob:image/*` with `ensureScope`, which
+   * REDIRECTS to the consent screen — and a redirect at card 3 of 9 walks away
+   * from a thread that is already half published, taking the resume with it.
+   * A session minted before this site asked for blobs is exactly the case, so
+   * it is asked while nothing is at stake and fixed from the reader's own tap.
+   */
+  if (shuffle.hasImages(deck.steps) && !auth().hasScope('blob:image/*')) {
+    const st = $('sh-status');
+    st.innerHTML = 'this sign-in predates pictures, so it cannot upload them yet — '
+      + 'authorising takes one tap and brings you back here.<br>'
+      + '<button type="button" class="btn small" id="sh-rescope">authorise pictures</button>';
+    on('sh-rescope', 'click', () => auth().ensureScope('blob:image/*'));
+    return;
+  }
+
+  deck.busy = true;
+  renderShuffle();
+
+  const res = await shuffle.postShuffle(deck.steps, {
+    publish,
+    publishOpts: { resolveHandle: (h) => resolveActor(h).catch(() => null) },
+    onStep: (i, st) => {
+      if (st === 'posting') $('sh-status').textContent = `posting ${i + 1} of ${deck.steps.length}…`;
+      renderShuffle();
+      if (st === 'posting') $('sh-steps').children[i]?.classList.add('posting');
+    },
+  });
+
+  deck.busy = false;
+  const p = shuffle.progress(deck.steps);
+
+  if (res.done) {
+    const first = deck.steps[0].posted;
+    closeShuffle();
+    say(`shuffle quote posted — ${p.total} posts`);
+    if (first) location.hash = `#/thread/${encodeURIComponent(first.uri)}`;
+    return;
+  }
+
+  renderShuffle();
+  $('sh-status').textContent = `stopped at #${res.failedAt + 1} — ${res.error?.message || 'unknown error'}. `
+    + `${p.done} of ${p.total} are published; resume picks up from there.`;
+}
+
+function closeShuffle() {
+  for (const step of deck.steps) revokeImages(step.images);
+  $('shuffle').hidden = true;
+  $('sh-steps').innerHTML = '';
+  $('sh-pool').innerHTML = '';
+  $('sh-status').textContent = '';
+  deck = EMPTY_DECK();
 }
 
 /**
@@ -2285,6 +2521,7 @@ function askRepostKind(btn, post) {
   const menu = el(`<div class="repostmenu">
     <button type="button" data-kind="repost">↻ Repost</button>
     <button type="button" data-kind="quote">❝ Quote post</button>
+    <button type="button" data-kind="shuffle">🔀 Shuffle quote</button>
   </div>`);
   const r = btn.getBoundingClientRect();
   menu.style.left = `${Math.max(8, Math.min(window.innerWidth - 188, r.left))}px`;
@@ -2302,6 +2539,10 @@ function askRepostKind(btn, post) {
     if (!kind) return;
     close();
     if (kind === 'repost') { toggleAction(btn, post, 'repost'); return; }
+    // A shuffle is a quote of the whole thread, one post at a time — it reads
+    // the thread first, so it can only be offered from here optimistically and
+    // falls back to a plain quote when there is no thread behind the post.
+    if (kind === 'shuffle') { openShuffle(post); return; }
     openQuote(post);
   });
 }
@@ -2379,10 +2620,116 @@ $('cthumbs')?.addEventListener('input', (e) => {
   if (alt) draft.images[Number(alt.dataset.alt)].alt = alt.value;
 });
 $('ct').addEventListener('input', () => { countChars(); scheduleCard(); });
+/**
+ * Paste a picture into the box and it is attached.
+ *
+ * `preventDefault` only when there IS an image: a plain text paste has to stay
+ * the browser's, and a clipboard carrying both text and an image (copying a
+ * region out of a document does this) would otherwise lose its text.
+ */
+$('ct').addEventListener('paste', (e) => {
+  const files = attach.imagesFrom(e.clipboardData);
+  if (!files.length) return;
+  e.preventDefault();
+  addImages(files);
+});
+
+// Shuffle quote. All three are delegated to containers that outlive the cards,
+// which are rebuilt on every reorder, drop and publish.
+on('sh-cancel', 'click', closeShuffle);
+on('sh-post', 'click', sendShuffle);
+$('sh-steps')?.addEventListener('input', (e) => {
+  const ta = e.target.closest('[data-say]');
+  if (!ta) return;
+  // Written straight back into the step, so a re-render never loses what is
+  // typed — and only this card's counter is touched, because rebuilding the
+  // list on a keystroke would throw the caret to the end of the box.
+  const step = deck.steps[Number(ta.dataset.say)];
+  if (!step) return;
+  step.text = ta.value;
+  const n = graphemeLength(ta.value);
+  const cc = ta.closest('.shstep')?.querySelector('.cc');
+  if (cc) { cc.textContent = `${n}/${MAX_GRAPHEMES}`; cc.className = 'cc' + (n > MAX_GRAPHEMES ? ' over' : ''); }
+  shuffleButton();
+});
+// Alt text on a card's thumbnails. Same container, a different target from the
+// textarea above — a [data-alt] input is never inside a [data-say].
+$('sh-steps')?.addEventListener('input', (e) => {
+  const alt = e.target.closest('[data-alt]');
+  if (!alt) return;
+  const i = Number(e.target.closest('.shstep')?.dataset.i);
+  const img = deck.steps[i]?.images[Number(alt.dataset.alt)];
+  if (img) img.alt = alt.value;
+});
+
+// Paste a picture straight into a card. `paste` bubbles, so one listener on the
+// container covers every card including the ones drawn after it.
+$('sh-steps')?.addEventListener('paste', (e) => {
+  const ta = e.target.closest('[data-say]');
+  if (!ta) return;
+  const files = attach.imagesFrom(e.clipboardData);
+  if (!files.length) return;          // an ordinary text paste is the browser's
+  e.preventDefault();
+  addShuffleImages(Number(ta.dataset.say), files);
+});
+
+on('shfile', 'change', (e) => {
+  const i = deck.pickFor;
+  deck.pickFor = null;
+  // Copy the FileList BEFORE clearing the input. Clearing `value` empties
+  // `files` in the same breath, so reading it afterwards hands back nothing and
+  // the picked image simply never appears — which looks exactly like a picker
+  // that does not work. (Caught by the browser test, not by reading this.)
+  const files = [...e.target.files];
+  e.target.value = '';                // re-picking the same file must fire again
+  if (i !== null && i !== undefined) addShuffleImages(i, files);
+});
+
+$('sh-steps')?.addEventListener('click', (e) => {
+  if (deck.busy) return;
+  const card = e.target.closest('.shstep');
+  if (!card) return;
+  const i = Number(card.dataset.i);
+
+  // One file input for the whole sheet rather than one per card: the card that
+  // asked is remembered, so a 25-card deck does not put 25 inputs in the DOM.
+  if (e.target.closest('[data-pick]')) {
+    deck.pickFor = i;
+    return $('shfile')?.click();
+  }
+  // A thumbnail's ×. The card is the scope, so the index is per-card.
+  const rm = e.target.closest('[data-rm]');
+  if (rm) {
+    const [img] = deck.steps[i].images.splice(Number(rm.dataset.rm), 1);
+    if (img) URL.revokeObjectURL(img.url);
+    return renderShuffle();
+  }
+  const mv = e.target.closest('[data-mv]');
+  if (mv) return moveStep(i, mv.dataset.mv === 'up' ? -1 : 1);
+  if (e.target.closest('[data-drop]')) {
+    if (deck.steps[i]?.posted) return say('a published post cannot be dropped');
+    const [gone] = deck.steps.splice(i, 1);
+    revokeImages(gone?.images);
+    renderShuffle();
+  }
+});
+$('sh-pool')?.addEventListener('click', (e) => {
+  const add = e.target.closest('[data-add]');
+  if (!add || deck.busy) return;
+  if (deck.steps.length >= shuffle.MAX_STEPS) return say(`${shuffle.MAX_STEPS} posts is the cap`);
+  const p = deck.posts.find((x) => x.uri === add.dataset.add);
+  if (!p) return;
+  deck.steps.push(shuffle.stepFor(p));
+  renderShuffle();
+});
+
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Escape') return;
   if (!$('postmenu').hidden) return closeMenu();
   if (!$('sheet').hidden) return closeSheet();
+  // Escape must not discard a shuffle that is mid-publish: the posts already
+  // out there are real, and closing the sheet is how you lose the resume.
+  if (!$('shuffle').hidden) { if (!deck.busy) closeShuffle(); return; }
   if (!$('signin').hidden) { signinTypeahead?.close(); $('signin').hidden = true; }
 });
 // A scroll under an open menu leaves it floating over the wrong post, so it

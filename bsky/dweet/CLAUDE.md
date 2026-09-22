@@ -16,24 +16,37 @@ stored to remember one.
 
 | | |
 |---|---|
-| Endpoint | `dweet.mino.mobi` |
+| Endpoint | **`bsky.mino.mobi/dweet/`** — a path, not a subdomain (see below) |
 | Dir | `bsky/dweet/` |
 | Worker | **`bsky`** — a second `custom_domain` route, *not* a second worker |
-| Owning branch | `claude/bsky-app-view-feasibility-8sdflz` |
+| Owning branch | `claude/dwitter-animation-feed-rufn9o` |
 | Deploy | [`deploy-bsky.yml`](../../.github/workflows/deploy-bsky.yml) |
 | Lexicon | [`../lexicons/com.minomobi.dweet.dweet.json`](../lexicons/com.minomobi.dweet.dweet.json) |
 | Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone |
 | Cap | 256 graphemes — which is also the top size **category** (64b/128b/256b, in bytes) |
 
-**It shares the `bsky` worker because the account is at its worker cap.** An
-extra custom-domain route costs nothing; an extra worker was not available.
-`../worker.js` maps only this host's bare `/` to `/dweet/index.html` — narrow on
-purpose, because rewriting every path would shadow `/packages/*` and `/lib/*`,
-which this page imports from the same asset root the AppView uses.
+**It shares the `bsky` worker, and it is a PATH rather than a subdomain.** The
+first version of this file said an extra custom-domain route "costs nothing".
+That was wrong, and run #43 proved it:
 
-> ⭐ A deploy must bind **both** patterns. If the log shows
-> `bsky.mino.mobi (custom domain)` but not `dweet.mino.mobi (custom domain)`,
-> this surface is not live however green the run was.
+```
+✘ Trigger configuration for "bsky" was only partially updated:
+    You have exceeded the limit of 100 Workers custom domains
+    on zone 'mino.mobi'  [code: 100122]
+```
+
+A `custom_domain` route spends one of **100 custom domains per zone**, and the
+zone is full. That is a different cap from the worker count, which is what the
+design originally blamed. Worse, the bind fails at the TRIGGER step *after* the
+assets upload — so the run goes red while the new assets are already live, and
+stays red on every push while an unbindable route sits in `wrangler.jsonc`.
+
+So the route is removed and dweet lives at `bsky.mino.mobi/dweet/`.
+`../worker.js` keeps a hostname dispatch for `dweet.mino.mobi`, **inert** until
+somebody frees a custom domain (dashboard-only, `docs/DEPLOYS.md` §7) and
+re-adds the one line. The dispatch is deliberately narrow — only that host's
+bare `/` — because rewriting every path would shadow `/packages/*` and `/lib/*`,
+which this page imports from the same asset root the AppView uses.
 
 ## Read this before touching a frame
 

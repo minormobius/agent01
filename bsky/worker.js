@@ -51,10 +51,13 @@ const json = (body, status = 200) =>
   });
 
 /**
- * dweet.mino.mobi rides on this worker rather than getting its own, because
- * the account is at its worker cap and a second custom-domain route costs
- * nothing. The surface's assets already live under /dweet/ and reference each
- * other by absolute path, so exactly one thing needs mapping: the bare root.
+ * dweet is served as a PATH on this worker: bsky.mino.mobi/dweet/.
+ *
+ * This dispatch is for the dweet.mino.mobi HOSTNAME and is currently INERT —
+ * that route is not in wrangler.jsonc, because zone mino.mobi is at
+ * Cloudflare's limit of 100 Workers custom domains per zone and the bind fails
+ * (run #43, code 100122). It is kept so that freeing a domain and re-adding the
+ * route is a one-line change; until then nothing reaches this branch.
  *
  * Deliberately narrow. Rewriting every path on this host would shadow
  * /packages/* and /lib/*, which the dweet page imports from the shared asset

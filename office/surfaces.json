@@ -673,7 +673,7 @@
   {
    "id": "dweet",
    "name": "dweet",
-   "url": "https://dweet.mino.mobi",
+   "url": "https://bsky.mino.mobi/dweet/",
    "cat": "bluesky",
    "commits": 0,
    "age": "hot",
@@ -4844,16 +4844,6 @@
    "commits": 0,
    "age": "hot",
    "parent": "pod",
-   "discovered": true
-  },
-  {
-   "id": "bsky/dweet",
-   "name": "dweet",
-   "url": "https://bsky.mino.mobi/dweet/",
-   "cat": "bluesky",
-   "commits": 0,
-   "age": "hot",
-   "parent": "bsky",
    "discovered": true
   },
   {
