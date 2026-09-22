@@ -83,6 +83,12 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.crm.contact',
   'com.minomobi.crm.deal',
   'com.minomobi.crm.expense',
+  // dweet (bsky.mino.mobi/dweet/) — one 256-character animation per record; the
+  // source IS the artwork, so there is no blob type to add alongside it. The
+  // surface requests THIS ALONE rather than the unified union, which matters
+  // more than usual there: it executes code from strangers in the reader's
+  // browser, and a one-line consent screen is part of earning that.
+  'com.minomobi.dweet.dweet',
   // fluoddity
   'com.minomobi.fluoddity.expedition',
   'com.minomobi.fluoddity.organism',
