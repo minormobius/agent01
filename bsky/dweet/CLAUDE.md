@@ -22,7 +22,7 @@ stored to remember one.
 | Owning branch | `claude/dwitter-animation-feed-rufn9o` |
 | Deploy | [`deploy-bsky.yml`](../../.github/workflows/deploy-bsky.yml) |
 | Lexicon | [`../lexicons/com.minomobi.dweet.dweet.json`](../lexicons/com.minomobi.dweet.dweet.json) |
-| Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone |
+| Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone, **staged, awaiting the auth owner's deploy** |
 | Cap | 256 graphemes — which is also the top size **category** (64b/128b/256b, in bytes) |
 
 **It shares the `bsky` worker, and it is a PATH rather than a subdomain.** The
@@ -314,6 +314,47 @@ an edge anywhere.
 - **Scope is fixed at authorization**, so a session minted on another
   `*.mino.mobi` site may not cover this collection. The composer calls
   `ensureScope()` from the click, because the redirect needs a user gesture.
+
+## Posting needs one deploy this branch cannot make
+
+`com.minomobi.dweet.dweet` is in `workers/auth/src/oauth/scope.ts` on this
+branch, and the gate is green:
+
+```
+live ceiling: 86 collections · this tree: 87
+adding: com.minomobi.dweet.dweet
+✓ no live scope would be dropped
+```
+
+**But the `auth` surface is owned by `claude/browser-cad-ideation-ollmd3`, so a
+push here deploys nothing for it** — which is the correct state, not an
+oversight. `workers/auth/CLAUDE.md` documents the protocol verbatim: *"Other
+branches add a collection to `WRITE_COLLECTIONS` on their own tree and then ask
+the owner to deploy, because only the owning branch's push deploys."* So the ask
+is one line, and that file's own checklist is the acceptance test:
+
+| its rule | here |
+|---|---|
+| the diff only inserts | vs the owner: **nothing removed**, added exactly `com.minomobi.dweet.dweet` |
+| additive vs `main` | **nothing removed**; +7 (their 6 `cad.*` and this one) |
+| `check-auth-scope` green | ✓ above |
+| origins preserved | 31 = 31, none dropped |
+| `tsc --noEmit` | clean |
+
+**Do not take the auth surface to ship this.** That file records what ownership
+churn costs: run #38 deployed a stale tree and took the ceiling 66 → 61 in one
+green build, breaking sign-in on four sites. And this branch was itself 102
+lines behind the owner across `src/index.ts` and `src/oauth/flow.ts` — the fix
+that stopped a `refresh_token` grant per request from revoking token families
+and killing live sessions. **`check-auth-scope` would have gone green while that
+regressed**, because it guards the ceiling and not the code. The auth tree here
+was therefore taken byte-identical from the owner first, and only then added to.
+
+Until it ships, dweet reads, renders, previews and remixes; sign-in cannot grant
+its scope, so nothing can be posted. `client-metadata.json` is also edge-cached
+at `max-age=60` and the authorization server caches independently, so allow a
+minute after that deploy before concluding it failed — and confirm with a real
+PAR, per the auth docs.
 
 ## Moderation
 
