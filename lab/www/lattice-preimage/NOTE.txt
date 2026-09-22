@@ -1,0 +1,1 @@
+Point radius now caps at half the on-screen spacing between lattice points, so dots shrink instead of merging when zoomed way out. Tradeoff: very zoomed-out views may look faint/sparse rather than blobby — say if that's worse.

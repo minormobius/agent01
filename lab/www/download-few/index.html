@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Few Good Solids — hand-built OBJ gems, UV mapped and lit</title>
+<meta name="description" content="Six small solids, written out as real Wavefront OBJ text and rebuilt in the browser by a loader made for this page, each wrapped in its own procedural UV texture. Drag any of them to turn it in the light.">
+<meta property="og:title" content="A Few Good Solids — hand-built OBJ gems, UV mapped and lit">
+<meta property="og:description" content="Six small solids, written out as real Wavefront OBJ text and rebuilt in the browser by a loader made for this page, each wrapped in its own procedural UV texture. Drag any of them to turn it in the light.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1.25rem;
+    margin: 1.5rem 0;
+  }
+  .card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    overflow: hidden;
+  }
+  .card .view {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    touch-action: none;
+    cursor: grab;
+    display: block;
+  }
+  .card .view:active { cursor: grabbing; }
+  .card .info { padding: .8rem 1rem 1rem; }
+  .card h2 { margin: 0 0 .3rem; font-size: 1.05rem; color: var(--fg); }
+  .card p { margin: 0; font-size: .82rem; }
+  .hint { font-size: .75rem; color: var(--muted); margin: -.75rem 0 1.5rem; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>A Few Good Solids</h1>
+  <p class="sub">Six small shapes, each one written out as real Wavefront OBJ text —
+    vertex positions, UV coordinates, triangle faces — then rebuilt into geometry by a
+    loader written for this page, and wrapped in a procedural texture. Nothing here was
+    fetched from anywhere; drag any of them to turn it in the light.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div class="gallery" id="gallery"></div>
+  <p class="hint">Drag to spin. They turn on their own until you touch one.</p>
+
+  <footer class="foot">
+    Every model on this page starts life as plain text — a handful of <code>v</code> lines
+    for vertex positions and <code>vt</code> lines for UV coordinates, one full 0–1 UV
+    triangle per face, then <code>f</code> lines tying the two together. That text is parsed
+    by a small loader written from scratch for this page (it understands <code>v/vt/vn</code>
+    faces of any vertex count, triangulating as it goes), turned into a <code>THREE.BufferGeometry</code>,
+    and painted with a texture drawn on a canvas rather than loaded from a file. Built with
+    three.js. Honours "reduce motion" by holding each shape still — drag still works.
+  </footer>
+</main>
+
+<script type="module">
+import * as THREE from '/_kit/three.module.min.js';
+
+function main() {
+  document.getElementById('crumb').innerHTML = kit.crumb('a few good solids');
+
+  const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- OBJ text, in and out
+  //
+  // Serialises plain position/face arrays into real Wavefront OBJ text, then a
+  // from-scratch parser reads that text back into geometry. Every model on this
+  // page really does round-trip through .obj text — there is no shortcut that
+  // hands positions straight to three.js.
+
+  function makeObjText(positions, faces) {
+    const lines = positions.map((p) => `v ${p[0]} ${p[1]} ${p[2]}`);
+    const uvTri = ['0 0', '1 0', '0.5 1'];
+    const vtLines = [];
+    const fLines = [];
+    let vtCount = 0;
+    for (const face of faces) {
+      const idx = [];
+      for (let i = 0; i < 3; i++) {
+        vtCount++;
+        vtLines.push(`vt ${uvTri[i]}`);
+        idx.push(`${face[i] + 1}/${vtCount}`);
+      }
+      fLines.push(`f ${idx.join(' ')}`);
+    }
+    return lines.concat(vtLines, fLines).join('\n') + '\n';
+  }
+
+  // Handles v/vt/vn faces of any vertex count (fan-triangulating anything
+  // with more than three corners), faces missing a uv (f v//vn or bare f v —
+  // those default to (0,0)), and negative/relative indices, since a real
+  // downloaded OBJ is more likely to use one of those than this page's own
+  // makeObjText is. vn is parsed-and-discarded either way: computeVertexNormals
+  // below recomputes them, matching the flat-shaded look every model here
+  // already has. Still assumes vertices/uvs are declared before the faces that
+  // reference them (true of every real-world exporter) and has no material
+  // library (usemtl) support.
+  function resolveIndex(token, count) {
+    const n = Number(token);
+    return n < 0 ? count + n : n - 1;
+  }
+  function parseObj(text) {
+    const positions = [];
+    const uvs = [];
+    const outPos = [];
+    const outUv = [];
+    for (const raw of text.split('\n')) {
+      const line = raw.trim();
+      if (!line || line[0] === '#') continue;
+      const parts = line.split(/\s+/);
+      const tag = parts[0];
+      if (tag === 'v') {
+        positions.push([+parts[1], +parts[2], +parts[3]]);
+      } else if (tag === 'vt') {
+        uvs.push([+parts[1], +parts[2]]);
+      } else if (tag === 'f') {
+        const corners = parts.slice(1).map((tok) => {
+          const [viRaw, vtiRaw] = tok.split('/');
+          const p = positions[resolveIndex(viRaw, positions.length)];
+          const uv = vtiRaw ? uvs[resolveIndex(vtiRaw, uvs.length)] : null;
+          return { p, uv: uv || [0, 0] };
+        });
+        for (let i = 1; i < corners.length - 1; i++) {
+          for (const c of [corners[0], corners[i], corners[i + 1]]) {
+            outPos.push(c.p[0], c.p[1], c.p[2]);
+            outUv.push(c.uv[0], c.uv[1]);
+          }
+        }
+      }
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(outPos, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(outUv, 2));
+    geo.computeVertexNormals();
+    return geo;
+  }
+
+  // ---------------------------------------------------------------- procedural textures
+  //
+  // No image file was fetched or vendored — each texture is drawn on a canvas at
+  // load time and used as a THREE.CanvasTexture.
+
+  function makeGemTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    const g = ctx.createRadialGradient(128, 90, 8, 128, 140, 190);
+    g.addColorStop(0, '#fff6d9');
+    g.addColorStop(0.35, '#e8a33d');
+    g.addColorStop(0.75, '#7a4a12');
+    g.addColorStop(1, '#241505');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.strokeStyle = 'rgba(255,255,255,.3)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(128, 128);
+      ctx.lineTo(128 + 150 * Math.cos(a), 128 + 150 * Math.sin(a));
+      ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  function makeShardTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#0d2b2a';
+    ctx.fillRect(0, 0, 256, 256);
+    ctx.strokeStyle = '#3ddfc9';
+    ctx.lineWidth = 10;
+    for (let x = -256; x < 512; x += 34) {
+      ctx.beginPath();
+      ctx.moveTo(x, 256);
+      ctx.lineTo(x + 256, 0);
+      ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  function makeSpireTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#241033';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let i = 0; i < 40; i++) {
+      const px = Math.random() * 256;
+      const py = Math.random() * 256;
+      const r = 10 + Math.random() * 34;
+      const grd = ctx.createRadialGradient(px, py, 0, px, py, r);
+      grd.addColorStop(0, 'rgba(200,150,255,.55)');
+      grd.addColorStop(1, 'rgba(200,150,255,0)');
+      ctx.fillStyle = grd;
+      ctx.beginPath();
+      ctx.arc(px, py, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // A faint grid on top of the marbling — the blobs alone don't trace the
+    // UV triangle the way Block's checkerboard or Drum's rings do, so this
+    // gives Spire the same "you can see the wrapping" legibility.
+    ctx.strokeStyle = 'rgba(255,255,255,.14)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++) {
+      const p = (i / 8) * 256;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, 256); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(256, p); ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  // Checkerboard: unlike the other three textures, this one makes the UV
+  // wrapping itself legible — you can see the seams and orientation of each
+  // triangle's 0-1 UV square, not just a colour.
+  function makeBlockTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    const n = 8;
+    const cell = 256 / n;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        ctx.fillStyle = (x + y) % 2 === 0 ? '#e8dcc8' : '#a5432c';
+        ctx.fillRect(x * cell, y * cell, cell, cell);
+      }
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  function makeDrumTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#3a3f47';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let r = 130; r > 0; r -= 9) {
+      ctx.strokeStyle = r % 18 === 0 ? '#c9d4de' : '#5b636e';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(128, 128, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  // Icing gradient plus scattered sprinkles, with the same faint grid trick
+  // Spire uses — a torus has a UV triangle on every one of its many small
+  // facets, so without a grid the sprinkles alone wouldn't show the seams.
+  function makeLoopTexture() {
+    const c = document.createElement('canvas');
+    c.width = c.height = 256;
+    const ctx = c.getContext('2d');
+    const g = ctx.createLinearGradient(0, 0, 0, 256);
+    g.addColorStop(0, '#ffd1e6');
+    g.addColorStop(1, '#ff8fc0');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 256, 256);
+    const sprinkles = ['#4fd1c5', '#f6e05e', '#7c6df2', '#f56565', '#ffffff'];
+    for (let i = 0; i < 60; i++) {
+      const px = Math.random() * 256, py = Math.random() * 256;
+      ctx.save();
+      ctx.translate(px, py);
+      ctx.rotate(Math.random() * Math.PI);
+      ctx.fillStyle = sprinkles[i % sprinkles.length];
+      ctx.fillRect(-6, -1.5, 12, 3);
+      ctx.restore();
+    }
+    ctx.strokeStyle = 'rgba(255,255,255,.3)';
+    ctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++) {
+      const p = (i / 8) * 256;
+      ctx.beginPath(); ctx.moveTo(p, 0); ctx.lineTo(p, 256); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, p); ctx.lineTo(256, p); ctx.stroke();
+    }
+    return new THREE.CanvasTexture(c);
+  }
+
+  // ---------------------------------------------------------------- the models
+  //
+  // Downloading real OBJ files needed a network this build has none of, so these
+  // six are authored here instead — plain vertex/face data below, turned into
+  // real OBJ text by makeObjText, then read back by parseObj like any other file.
+
+  const PHI = (1 + Math.sqrt(5)) / 2;
+  const ring = [];
+  for (let k = 0; k < 5; k++) {
+    const a = (k / 5) * Math.PI * 2;
+    ring.push([Math.cos(a), 0, Math.sin(a)]);
+  }
+
+  // Two six-point rings, one per end — the generated topology behind Drum,
+  // a stand-in for a true curved surface (a cylinder is exactly this, more
+  // segments) without hand-deriving vertex data the way the other shapes do.
+  const topRing = [];
+  const bottomRing = [];
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2;
+    topRing.push([Math.cos(a), 1, Math.sin(a)]);
+    bottomRing.push([Math.cos(a), -1, Math.sin(a)]);
+  }
+  const drumPositions = [[0, 1, 0], [0, -1, 0], ...topRing, ...bottomRing];
+  const TC = 0, BC = 1, T0 = 2, B0 = 8; // topRing[k] = T0+k, bottomRing[k] = B0+k
+  const drumFaces = [];
+  for (let k = 0; k < 6; k++) {
+    const k1 = (k + 1) % 6;
+    drumFaces.push([TC, T0 + k, T0 + k1]);           // top cap fan
+    drumFaces.push([BC, B0 + k1, B0 + k]);            // bottom cap fan
+    drumFaces.push([T0 + k, B0 + k, B0 + k1]);        // side, triangle 1
+    drumFaces.push([T0 + k, B0 + k1, T0 + k1]);       // side, triangle 2
+  }
+
+  // A torus: a small ring swept around a big ring, both loop-generated. Unlike
+  // Drum, there are no open ends to cap — the tube closes on itself in both
+  // directions — so this is the "push the generated-ring idea further" step
+  // the plan called for: a genuinely smooth curved surface, not a prism.
+  const LOOP_MAJOR = 20, LOOP_MINOR = 10, LOOP_R = 1, LOOP_r = 0.4;
+  const loopPositions = [];
+  for (let i = 0; i < LOOP_MAJOR; i++) {
+    const theta = (i / LOOP_MAJOR) * Math.PI * 2;
+    for (let j = 0; j < LOOP_MINOR; j++) {
+      const phi = (j / LOOP_MINOR) * Math.PI * 2;
+      const tubeR = LOOP_R + LOOP_r * Math.cos(phi);
+      loopPositions.push([tubeR * Math.cos(theta), LOOP_r * Math.sin(phi), tubeR * Math.sin(theta)]);
+    }
+  }
+  const loopFaces = [];
+  for (let i = 0; i < LOOP_MAJOR; i++) {
+    const i1 = (i + 1) % LOOP_MAJOR;
+    for (let j = 0; j < LOOP_MINOR; j++) {
+      const j1 = (j + 1) % LOOP_MINOR;
+      const a = i * LOOP_MINOR + j, b = i1 * LOOP_MINOR + j;
+      const c = i1 * LOOP_MINOR + j1, d = i * LOOP_MINOR + j1;
+      loopFaces.push([a, b, c]);
+      loopFaces.push([a, c, d]);
+    }
+  }
+
+  const MODELS = [
+    {
+      title: 'Gem',
+      blurb: 'An icosahedron — 20 faces, each its own gold-foil facet.',
+      positions: [
+        [-1, PHI, 0], [1, PHI, 0], [-1, -PHI, 0], [1, -PHI, 0],
+        [0, -1, PHI], [0, 1, PHI], [0, -1, -PHI], [0, 1, -PHI],
+        [PHI, 0, -1], [PHI, 0, 1], [-PHI, 0, -1], [-PHI, 0, 1],
+      ],
+      faces: [
+        [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+        [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+        [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+        [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1],
+      ],
+      texture: makeGemTexture,
+      material: { roughness: 0.25, metalness: 0.55 },
+    },
+    {
+      title: 'Shard',
+      blurb: 'An octahedron — 8 faces, striped like a mineral cross-section.',
+      positions: [
+        [1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1],
+      ],
+      faces: [
+        [0, 2, 4], [2, 1, 4], [1, 3, 4], [3, 0, 4],
+        [2, 0, 5], [1, 2, 5], [3, 1, 5], [0, 3, 5],
+      ],
+      texture: makeShardTexture,
+      material: { roughness: 0.5, metalness: 0.1 },
+    },
+    {
+      title: 'Spire',
+      blurb: 'A pentagonal bipyramid — 10 faces, marbled violet.',
+      positions: [[0, 1.3, 0], [0, -1.3, 0], ...ring],
+      faces: [
+        [0, 2, 3], [0, 3, 4], [0, 4, 5], [0, 5, 6], [0, 6, 2],
+        [1, 3, 2], [1, 4, 3], [1, 5, 4], [1, 6, 5], [1, 2, 6],
+      ],
+      texture: makeSpireTexture,
+      material: { roughness: 0.35, metalness: 0.2 },
+    },
+    {
+      title: 'Block',
+      blurb: 'A cube — 12 triangles, checkerboard so the UV wrapping itself is visible.',
+      positions: [
+        [-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1],
+        [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1],
+      ],
+      faces: [
+        [0, 1, 2], [0, 2, 3],
+        [5, 4, 7], [5, 7, 6],
+        [0, 4, 5], [0, 5, 1],
+        [3, 2, 6], [3, 6, 7],
+        [0, 3, 7], [0, 7, 4],
+        [1, 5, 6], [1, 6, 2],
+      ],
+      texture: makeBlockTexture,
+      material: { roughness: 0.7, metalness: 0.0 },
+    },
+    {
+      title: 'Drum',
+      blurb: 'A hexagonal drum — two six-point rings and two fan caps, brushed steel.',
+      positions: drumPositions,
+      faces: drumFaces,
+      texture: makeDrumTexture,
+      material: { roughness: 0.4, metalness: 0.75 },
+    },
+    {
+      title: 'Loop',
+      blurb: 'A torus — a small ring swept around a big one, iced and sprinkled.',
+      positions: loopPositions,
+      faces: loopFaces,
+      texture: makeLoopTexture,
+      material: { roughness: 0.5, metalness: 0.05 },
+    },
+  ];
+
+  // ---------------------------------------------------------------- viewer
+
+  function createViewer(container, geometry, texture, matOpts) {
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0e0e11);
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 50);
+    camera.position.set(0, 0, 4.2);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    container.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(4, 6, 5);
+    scene.add(key);
+    const fill = new THREE.DirectionalLight(0xffffff, 0.35);
+    fill.position.set(-5, -2, -4);
+    scene.add(fill);
+
+    const material = new THREE.MeshStandardMaterial({
+      map: texture,
+      flatShading: true,
+      side: THREE.DoubleSide,
+      roughness: matOpts.roughness,
+      metalness: matOpts.metalness,
+    });
+    const mesh = new THREE.Mesh(geometry, material);
+    geometry.computeBoundingSphere();
+    const r = (geometry.boundingSphere && geometry.boundingSphere.radius) || 1;
+    mesh.scale.setScalar(1.35 / r);
+    scene.add(mesh);
+
+    const dom = renderer.domElement;
+    dom.style.display = 'block';
+    dom.style.width = '100%';
+    dom.style.height = '100%';
+    let dragging = false, lastX = 0, lastY = 0;
+    dom.addEventListener('pointerdown', (e) => {
+      dragging = true; lastX = e.clientX; lastY = e.clientY;
+      dom.setPointerCapture(e.pointerId);
+    });
+    dom.addEventListener('pointerup', () => { dragging = false; });
+    dom.addEventListener('pointercancel', () => { dragging = false; });
+    dom.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - lastX, dy = e.clientY - lastY;
+      lastX = e.clientX; lastY = e.clientY;
+      mesh.rotation.y += dx * 0.008;
+      mesh.rotation.x += dy * 0.008;
+    });
+
+    function resize() {
+      const w = container.clientWidth, h = container.clientHeight;
+      if (!w || !h) return;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    if (window.ResizeObserver) {
+      new ResizeObserver(resize).observe(container);
+    } else {
+      window.addEventListener('resize', resize);
+    }
+    resize();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      if (!dragging && !reducedMotion) {
+        mesh.rotation.y += 0.006;
+        mesh.rotation.x += 0.0015;
+      }
+      renderer.render(scene, camera);
+    }
+    animate();
+  }
+
+  // ---------------------------------------------------------------- build the gallery
+
+  const gallery = document.getElementById('gallery');
+  const pending = [];
+  for (const model of MODELS) {
+    const objText = makeObjText(model.positions, model.faces);
+    const geometry = parseObj(objText);
+    const texture = model.texture();
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    const view = document.createElement('div');
+    view.className = 'view';
+    card.appendChild(view);
+    const info = document.createElement('div');
+    info.className = 'info';
+    const h2 = document.createElement('h2');
+    h2.textContent = model.title;
+    const p = document.createElement('p');
+    p.textContent = model.blurb;
+    info.appendChild(h2);
+    info.appendChild(p);
+    card.appendChild(info);
+    gallery.appendChild(card);
+
+    pending.push({ view, geometry, texture, material: model.material });
+  }
+  // Every card's grid column width shifts as siblings are appended, so the
+  // viewers aren't created until the whole gallery is in the DOM — otherwise
+  // the first cards measure a transient, too-wide column and render non-square.
+  for (const { view, geometry, texture, material } of pending) {
+    createViewer(view, geometry, texture, material);
+  }
+}
+
+try {
+  main();
+} catch (e) {
+  const el = document.getElementById('err');
+  kit.showError(el, 'Something broke: ' + (e && e.message ? e.message : e));
+  console.error(e);
+}
+</script>
+</body>
+</html>

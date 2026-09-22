@@ -1,0 +1,388 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>wingfold — draw on the complex plane, watch it fold</title>
+<meta property="og:title" content="wingfold — draw on the complex plane, watch it fold">
+<meta property="og:description" content="Draw freehand on a complex plane on the left; the Joukowski map w = z + k/z redraws it live on the right, folding circles into airfoil-shaped curves. Drag the k slider, or watch a circle become a wing.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 62rem; }
+  .planes {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    margin: 1.5rem 0 1rem;
+  }
+  @media (max-width: 700px) {
+    .planes { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--bg-raised); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: .6rem;
+  }
+  .panel h2 { margin: 0 0 .5rem; font-size: .8rem; color: var(--muted); }
+  .panel h2 b { color: var(--fg); }
+  .stage { position: relative; width: 100%; aspect-ratio: 1 / 1; }
+  canvas {
+    width: 100%; height: 100%; display: block;
+    border-radius: var(--radius); background: #08080a;
+    touch-action: none;
+  }
+  #wCanvas { touch-action: auto; cursor: default; }
+  #zCanvas { cursor: crosshair; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: .6rem .9rem; align-items: center;
+    margin: 1rem 0;
+  }
+  .controls .grp { display: flex; align-items: center; gap: .5rem; }
+  .controls button {
+    min-height: 44px; padding: .5rem 1rem;
+  }
+  .controls input[type=range] { width: 11rem; accent-color: var(--accent); }
+  label { font-size: .8rem; color: var(--muted); }
+  #kVal, #zoomVal { color: var(--accent); font-weight: 600; }
+  #info { font-size: .78rem; color: var(--muted); margin-top: .5rem; }
+  .checkline { display: flex; align-items: center; gap: .5rem; }
+  .checkline input { width: 20px; height: 20px; accent-color: var(--accent); }
+  .pole-note { font-size: .78rem; color: var(--muted); margin-top: .6rem; }
+  .pole-note b { color: var(--error); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>wingfold</h1>
+  <p class="sub">
+    Draw on the left plane. The right plane shows the same points run through the
+    <b>Joukowski transform</b>, <code>w = z + k/z</code> — the map that turns a circle
+    into an airfoil, which is why the classic demo below is a circle, not a scribble.
+  </p>
+
+  <div class="planes">
+    <div class="panel">
+      <h2><b>z</b>-plane — draw here (mouse or finger)</h2>
+      <div class="stage"><canvas id="zCanvas"></canvas></div>
+    </div>
+    <div class="panel">
+      <h2><b>w</b>-plane — w = z + k / z, live</h2>
+      <div class="stage"><canvas id="wCanvas"></canvas></div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="grp">
+      <button id="btnClear" type="button">clear</button>
+      <button id="btnUndo" type="button">undo stroke</button>
+      <button id="btnAirfoil" type="button">circle → airfoil</button>
+    </div>
+    <div class="grp">
+      <label for="kSlider">k = <span id="kVal">1.00</span></label>
+      <input id="kSlider" type="range" min="0" max="2.5" step="0.05" value="1">
+    </div>
+    <div class="grp">
+      <label>zoom (z-plane) <span id="zoomVal">2.5</span></label>
+      <button id="zoomIn" type="button" aria-label="zoom in">+</button>
+      <button id="zoomOut" type="button" aria-label="zoom out">−</button>
+    </div>
+  </div>
+  <div class="checkline">
+    <input id="chkCircle" type="checkbox">
+    <label for="chkCircle" style="font-size:.85rem">show the unit circle and its image (the textbook case)</label>
+  </div>
+
+  <p id="info"></p>
+  <p class="pole-note">
+    <b>z = 0</b> is a pole of the map — 1/z blows up there. Any stroke that passes
+    near the origin (small red ring on the z-plane) is cut where it gets too close;
+    the w-plane can't show what doesn't converge to a point.
+  </p>
+  <p class="pole-note">
+    The w-plane's axis range is <b>fit automatically</b> to whatever you've drawn —
+    strokes near the pole map to huge values, so a fixed scale would either clip them
+    or make everything else microscopic.
+  </p>
+</main>
+
+<script>
+document.getElementById('crumb').innerHTML = kit.crumb('wingfold');
+
+(function () {
+  'use strict';
+
+  var zCanvas = document.getElementById('zCanvas');
+  var wCanvas = document.getElementById('wCanvas');
+  var zCtx = zCanvas.getContext('2d');
+  var wCtx = wCanvas.getContext('2d');
+
+  var kSlider = document.getElementById('kSlider');
+  var kVal = document.getElementById('kVal');
+  var chkCircle = document.getElementById('chkCircle');
+  var info = document.getElementById('info');
+  var zoomVal = document.getElementById('zoomVal');
+
+  var EPS = 0.06;          // world-unit radius around the pole treated as "too close"
+  var MIN_SPAN = 1.5;      // smallest half-width the w-view will ever shrink to
+  var zHalf = 2.5;         // half-width of the fixed z-plane view
+
+  // strokes: array of arrays of {re, im}
+  var strokes = [];
+  var curStroke = null;
+  var drawing = false;
+
+  var zSize = 0, wSize = 0; // CSS-pixel side length of each square canvas
+
+  function k() { return parseFloat(kSlider.value); }
+
+  // ---- complex arithmetic -------------------------------------------------
+  function jouk(z, kk) {
+    var m2 = z.re * z.re + z.im * z.im;
+    if (Math.sqrt(m2) < EPS) return null;
+    // 1/z = conj(z) / |z|^2
+    var invRe = z.re / m2, invIm = -z.im / m2;
+    return { re: z.re + kk * invRe, im: z.im + kk * invIm };
+  }
+
+  // ---- view <-> canvas mapping --------------------------------------------
+  function toPx(z, view, size) {
+    var x = (z.re - view.xmin) / (view.xmax - view.xmin) * size;
+    var y = size - (z.im - view.ymin) / (view.ymax - view.ymin) * size;
+    return { x: x, y: y };
+  }
+  function toComplex(px, py, view, size) {
+    return {
+      re: view.xmin + (px / size) * (view.xmax - view.xmin),
+      im: view.ymin + ((size - py) / size) * (view.ymax - view.ymin)
+    };
+  }
+  function squareView(half) { return { xmin: -half, xmax: half, ymin: -half, ymax: half }; }
+
+  function zView() { return squareView(zHalf); }
+
+  function wView() {
+    var minRe = Infinity, maxRe = -Infinity, minIm = Infinity, maxIm = -Infinity;
+    var found = false;
+    var kk = k();
+    function consider(z) {
+      var w = jouk(z, kk);
+      if (!w || !isFinite(w.re) || !isFinite(w.im)) return;
+      found = true;
+      if (w.re < minRe) minRe = w.re;
+      if (w.re > maxRe) maxRe = w.re;
+      if (w.im < minIm) minIm = w.im;
+      if (w.im > maxIm) maxIm = w.im;
+    }
+    strokes.forEach(function (s) { s.forEach(consider); });
+    if (curStroke) curStroke.forEach(consider);
+    if (chkCircle.checked) {
+      for (var i = 0; i <= 128; i++) {
+        var a = (i / 128) * Math.PI * 2;
+        consider({ re: Math.cos(a), im: Math.sin(a) });
+      }
+    }
+    if (!found) return squareView(3);
+    var cx = (minRe + maxRe) / 2, cy = (minIm + maxIm) / 2;
+    var half = Math.max((maxRe - minRe) / 2, (maxIm - minIm) / 2, MIN_SPAN) * 1.25;
+    return { xmin: cx - half, xmax: cx + half, ymin: cy - half, ymax: cy + half };
+  }
+
+  // ---- rendering -----------------------------------------------------------
+  function drawGrid(ctx, view, size) {
+    ctx.save();
+    ctx.clearRect(0, 0, size, size);
+    var span = view.xmax - view.xmin;
+    var step = niceStep(span / 8);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 1;
+    var x = Math.ceil(view.xmin / step) * step;
+    for (; x <= view.xmax; x += step) {
+      var px = toPx({ re: x, im: 0 }, view, size).x;
+      ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, size); ctx.stroke();
+    }
+    var y = Math.ceil(view.ymin / step) * step;
+    for (; y <= view.ymax; y += step) {
+      var py = toPx({ re: 0, im: y }, view, size).y;
+      ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(size, py); ctx.stroke();
+    }
+    // axes
+    ctx.strokeStyle = 'rgba(255,255,255,0.28)';
+    var origin = toPx({ re: 0, im: 0 }, view, size);
+    ctx.beginPath(); ctx.moveTo(0, origin.y); ctx.lineTo(size, origin.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(origin.x, 0); ctx.lineTo(origin.x, size); ctx.stroke();
+    ctx.restore();
+  }
+  function niceStep(rough) {
+    var pow = Math.pow(10, Math.floor(Math.log10(rough)));
+    var n = rough / pow;
+    var f = n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10;
+    return f * pow;
+  }
+
+  function strokePath(ctx, pts, view, size, color, dashed) {
+    if (!pts || pts.length < 1) return;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    if (dashed) ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    var open = false;
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i];
+      if (!p) { open = false; continue; }
+      var px = toPx(p, view, size);
+      if (!open) { ctx.moveTo(px.x, px.y); open = true; }
+      else ctx.lineTo(px.x, px.y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function transformedPoints(pts, kk) {
+    return pts.map(function (z) {
+      var w = jouk(z, kk);
+      return (w && isFinite(w.re) && isFinite(w.im)) ? w : null;
+    });
+  }
+
+  function render() {
+    var zv = zView(), wv = wView();
+    var kk = k();
+
+    drawGrid(zCtx, zv, zSize);
+    drawGrid(wCtx, wv, wSize);
+
+    // pole marker on z-plane
+    var o = toPx({ re: 0, im: 0 }, zv, zSize);
+    zCtx.save();
+    zCtx.strokeStyle = '#f2777a';
+    zCtx.lineWidth = 2;
+    zCtx.beginPath();
+    zCtx.arc(o.x, o.y, Math.max(4, EPS / (zv.xmax - zv.xmin) * zSize), 0, Math.PI * 2);
+    zCtx.stroke();
+    zCtx.restore();
+
+    if (chkCircle.checked) {
+      var circle = [];
+      for (var i = 0; i <= 128; i++) {
+        var a = (i / 128) * Math.PI * 2;
+        circle.push({ re: Math.cos(a), im: Math.sin(a) });
+      }
+      strokePath(zCtx, circle, zv, zSize, 'rgba(122,195,135,0.85)', true);
+      strokePath(wCtx, transformedPoints(circle, kk), wv, wSize, 'rgba(122,195,135,0.85)', true);
+    }
+
+    strokes.forEach(function (s) {
+      strokePath(zCtx, s, zv, zSize, '#e8a33d', false);
+      strokePath(wCtx, transformedPoints(s, kk), wv, wSize, '#e8a33d', false);
+    });
+    if (curStroke) {
+      strokePath(zCtx, curStroke, zv, zSize, '#e8a33d', false);
+      strokePath(wCtx, transformedPoints(curStroke, kk), wv, wSize, '#e8a33d', false);
+    }
+
+    info.textContent = 'w = z + ' + kk.toFixed(2) + '/z  ·  w-plane view: Re ∈ [' +
+      wv.xmin.toFixed(2) + ', ' + wv.xmax.toFixed(2) + '], Im ∈ [' +
+      wv.ymin.toFixed(2) + ', ' + wv.ymax.toFixed(2) + '] (auto-fit)';
+  }
+
+  // ---- resizing -------------------------------------------------------------
+  function sizeCanvas(canvas) {
+    var rect = canvas.getBoundingClientRect();
+    var dpr = window.devicePixelRatio || 1;
+    var size = rect.width;
+    canvas.width = Math.round(size * dpr);
+    canvas.height = Math.round(size * dpr);
+    var ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return size;
+  }
+  function resizeAll() {
+    zSize = sizeCanvas(zCanvas);
+    wSize = sizeCanvas(wCanvas);
+    render();
+  }
+  window.addEventListener('resize', resizeAll);
+
+  // ---- drawing input on the z-plane ------------------------------------------
+  function pointerToZ(e) {
+    var rect = zCanvas.getBoundingClientRect();
+    var px = e.clientX - rect.left, py = e.clientY - rect.top;
+    return toComplex(px, py, zView(), zSize);
+  }
+  zCanvas.addEventListener('pointerdown', function (e) {
+    drawing = true;
+    curStroke = [pointerToZ(e)];
+    try { zCanvas.setPointerCapture(e.pointerId); } catch (err) {}
+    render();
+  });
+  zCanvas.addEventListener('pointermove', function (e) {
+    if (!drawing) return;
+    curStroke.push(pointerToZ(e));
+    render();
+  });
+  function endStroke() {
+    if (!drawing) return;
+    drawing = false;
+    if (curStroke && curStroke.length > 1) strokes.push(curStroke);
+    curStroke = null;
+    render();
+  }
+  zCanvas.addEventListener('pointerup', endStroke);
+  zCanvas.addEventListener('pointercancel', endStroke);
+  zCanvas.addEventListener('pointerleave', function (e) { if (drawing && e.buttons === 0) endStroke(); });
+
+  // ---- controls ---------------------------------------------------------------
+  document.getElementById('btnClear').addEventListener('click', function () {
+    strokes = []; curStroke = null; render();
+  });
+  document.getElementById('btnUndo').addEventListener('click', function () {
+    strokes.pop(); render();
+  });
+  document.getElementById('btnAirfoil').addEventListener('click', function () {
+    var cx = -0.08, cy = 0.08;
+    var r = Math.hypot(1 - cx, 0 - cy);
+    var pts = [];
+    for (var i = 0; i <= 200; i++) {
+      var a = (i / 200) * Math.PI * 2;
+      pts.push({ re: cx + r * Math.cos(a), im: cy + r * Math.sin(a) });
+    }
+    strokes = [pts];
+    kSlider.value = '1';
+    kVal.textContent = '1.00';
+    render();
+  });
+  kSlider.addEventListener('input', function () {
+    kVal.textContent = k().toFixed(2);
+    render();
+  });
+  chkCircle.addEventListener('change', render);
+  document.getElementById('zoomIn').addEventListener('click', function () {
+    zHalf = Math.max(0.5, zHalf / 1.25);
+    zoomVal.textContent = zHalf.toFixed(2);
+    render();
+  });
+  document.getElementById('zoomOut').addEventListener('click', function () {
+    zHalf = Math.min(10, zHalf * 1.25);
+    zoomVal.textContent = zHalf.toFixed(2);
+    render();
+  });
+
+  // ---- boot: seed with the textbook example so the page isn't blank ----------
+  (function seed() {
+    var cx = -0.08, cy = 0.08;
+    var r = Math.hypot(1 - cx, 0 - cy);
+    var pts = [];
+    for (var i = 0; i <= 200; i++) {
+      var a = (i / 200) * Math.PI * 2;
+      pts.push({ re: cx + r * Math.cos(a), im: cy + r * Math.sin(a) });
+    }
+    strokes = [pts];
+  })();
+
+  resizeAll();
+})();
+</script>
+</body>
+</html>
