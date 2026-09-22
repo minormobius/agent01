@@ -144,6 +144,13 @@ const WRITE_COLLECTIONS = [
   'com.minomobi.music.composition',
   // sprite — portable NPC sprite sets (mega.mino.mobi/sprite)
   'com.minomobi.sprite.set',
+  // sharp (rite.mino.mobi/sharp) — a word somebody decided to keep: a minted
+  // monosyllable, or a real one kept for its sound, with what the phonotactic
+  // model and the domain registries said at the time. A shortlist of names you
+  // are mulling over is small, personal and long-lived, which is exactly the
+  // kind of list that should not depend on one site staying up — so it lives in
+  // the keeper's own repo and /sharp stores none of it.
+  'com.minomobi.sharp.word',
   // poll
   'com.minomobi.poll.ballot',
   'com.minomobi.poll.def',
