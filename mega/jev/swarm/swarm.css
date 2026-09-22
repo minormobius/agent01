@@ -40,7 +40,21 @@
 .runbar label{font-size:.8rem;color:var(--ink-3);display:flex;gap:6px;align-items:center}
 .runbar select{font:inherit;font-size:.82rem;padding:5px 7px;border-radius:7px;
   border:1px solid var(--line);background:var(--bg);color:var(--ink)}
-.mode{font-family:var(--mono);font-size:.74rem;color:var(--ink-3);margin-left:auto}
+/* The tick status line. Fixed at two lines: the message changes on every tick
+   — "idle" / "tick 12 — asking (256 questions in one call)…" / an error — and
+   inside the flex run bar its wrapping changed the bar's height, which moved
+   the canvases 39-48px up and down between consecutive ticks. Clamped rather
+   than ellipsised so a long error stays readable onto its second line.
+
+   It is `.tick` and NOT `.mode` on purpose. `.mode` is already a component in
+   ../style.css — the dungeon's live/offline banner, a bordered chip with a dot
+   and `data-mode` states — and borrowing the name gave this plain status
+   string a whole component's chrome, so it rendered as an empty text input.
+   Second class collision on this page after `.finding`; the lesson is the
+   same one. */
+.tickline{height:2.5em;margin-top:8px;overflow:hidden}
+.tick{font-family:var(--mono);font-size:.74rem;line-height:1.25;color:var(--ink-3);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0}
 
 /* The four simulations. Each one names itself and carries its own number, so
    the canvases are never told apart by their border colour alone. */
@@ -62,6 +76,10 @@
 .arm.a3{border-top:3px solid var(--s3)} .arm.a4{border-top:3px solid var(--s4)}
 
 .chartbox{width:100%;overflow-x:auto}
+/* The chart swaps a one-line "press run" placeholder for a 620x238 SVG on the
+   first tick. Reserving the aspect keeps that swap from moving the page too. */
+#polchart{aspect-ratio:620/238}
+#polchart > p{margin:0;padding-top:1em}
 .chartbox svg{display:block;max-width:100%;height:auto}
 .gridline{stroke:var(--line-2);stroke-width:1}
 .axis{stroke:var(--line);stroke-width:1}

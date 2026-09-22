@@ -2069,6 +2069,41 @@ const SPEC = fix2('preregister.json');
   ok(order(ring).milling > 0.99, 'and milling ~1, so a rotating ring is not mistaken for disorder');
 }
 
+// ---- the swarm page's layout, pinned where it cost the operator something ----
+// Neither of these needs a browser, and both are regressions that a node test
+// would otherwise never see.
+{
+  const html = readFileSync(join(here, '..', 'swarm', 'index.html'), 'utf8');
+  const css = readFileSync(join(here, '..', 'swarm', 'swarm.css'), 'utf8');
+
+  // THE STATUS LINE MUST NOT LIVE IN THE RUN BAR. It changes on every tick —
+  // "idle" / "tick 12 — asking (256 questions in one call)…" / an error — and
+  // inside the flex row its wrapping changed the bar's height, which moved the
+  // canvases 39-48px up and down between consecutive ticks. Measured before
+  // and after in a headless browser; asserted here so it cannot come back.
+  const runbar = html.slice(html.indexOf('<div class="runbar">'), html.indexOf('</div>', html.indexOf('<div class="runbar">')));
+  ok(!runbar.includes('id="mode"'), 'the tick status line is NOT inside the flex run bar');
+  ok(/<div class="tickline"><span class="tick" id="mode">/.test(html), 'it has its own row');
+  ok(/\.tickline\{[^}]*height:[\d.]+em/.test(css), 'whose height is fixed, so no message length can move the page');
+  ok(/\.tick\{[^}]*line-clamp:2/.test(css), 'and the message is clamped to the two lines that box reserves');
+  // ../style.css's `.mode` is the dungeon's live/offline banner — a bordered
+  // chip with a dot. Borrowing the name dressed this plain status line as an
+  // empty text input, which is the same class collision `.finding` caused.
+  ok(!/class="mode"/.test(html), 'and it does NOT borrow ../style.css\'s `.mode` banner component');
+
+  // Tag balance: the fitness2 table was once appended after a section's last
+  // paragraph and left it unclosed. Browsers recover; the next edit does not.
+  const open = (html.match(/<section\b/g) || []).length;
+  const close = (html.match(/<\/section>/g) || []).length;
+  ok(open === close, `every <section> on the swarm page is closed (${open} open, ${close} closed)`);
+
+  // Results first, corrections last — the order the operator asked for.
+  ok(html.indexOf('id="corrections"') > html.indexOf('Measured headless'),
+    'the corrections come AFTER the results, not before them');
+  ok(html.indexOf('href="#corrections"') < html.indexOf('id="corrections"'),
+    'and the lede links down to them');
+}
+
 if (failures.length) {
   console.error(`✗ lab selftest: ${failures.length} failure(s) of ${passed + failures.length} checks\n`);
   for (const f of failures) console.error(`  - ${f}`);

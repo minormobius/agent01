@@ -34,163 +34,13 @@
     <p class="prose"><b>This page spent three revisions saying the opposite of what it says now.</b>
       It said the control arm could not be fluoddity at 256 particles, that the field was dead by
       necessity, and that fluoddity's own interestingness score was therefore untestable here. All
-      three were wrong, and they were wrong because of <b>three faults in the port</b>, not because
-      of the particle count. Fixed, the same 256 particles reproduce fluoddity — verified against
-      fluoddity's actual WebGL engine, which this port had never once been compared with.</p>
+      three were wrong, because of <b>three faults in the port</b> rather than the particle count.
+      Fixed, the same 256 particles reproduce fluoddity — verified against fluoddity's actual WebGL
+      engine, which this port had never once been compared with. Every one of those wrong turns is
+      written up in <a href="#corrections">corrections</a>, at the foot of the page.</p>
   </header>
 
-  <section class="card finding" style="border-color:var(--s2)">
-    <h2>Correction — it was not fluoddity's field, and the brain was nobody's</h2>
-    <p class="prose">The operator, a third time: <i>"it still doesn't look right on fluoddity.
-      Maybe you could find a particularly active brain?"</i> There was a brain to find. There were
-      also two deeper faults, and the brain only mattered once they were fixed.</p>
 
-    <h3 style="font-size:.95rem;margin:16px 0 4px">1. The canvas holds velocity. This port put a colour in it.</h3>
-    <p class="prose">fluoddity's brush pass writes <code>vec4(v_vel*k, 0, 0)</code> — the particle's
-      own velocity vector — and the sensors read that vector back. This port <b>invented a colour</b>
-      (hue from <code>atan2</code> of the brain's force output) and deposited that instead, so the
-      quantity the swarm steered on was not the quantity fluoddity's swarm steers on. Three more
-      defects rode along with it:</p>
-    <ul class="prose caveats">
-      <li><b>The blend is a lerp, not an accumulation.</b>
-        <code>canvas = blur(canvas)·persistence + (1−persistence)·brush</code>. The port multiplied
-        and added, which is unbounded and in no particular unit — and therefore needed a fudge
-        factor to sit in a plausible range. <b>That fudge factor is the "one constant calibrated
-        rather than ported" this page has been listing as a caveat. It is gone.</b> With the right
-        blend there is nothing to calibrate.</li>
-      <li><b><code>ink</code> is render-only.</b> It appears in <code>FRAG_DISPLAY</code> and
-        nowhere else; fluoddity's own config files it under <i>"// render-only"</i>. The port put it
-        in the deposit, where it changed the physics — so two genomes differing only in exposure
-        were two different organisms.</li>
-      <li><b>The descriptors were reading the wrong image.</b> <code>fluoddity/descriptors.js</code>
-        reads the <i>displayed</i> canvas — tone-mapped, the picture a person sees. The port read
-        the raw trail, so every <code>fill</code> and <code>struct</code> on this page was measured
-        on an image nobody ever looked at.</li>
-    </ul>
-
-    <h3 style="font-size:.95rem;margin:16px 0 4px">2. There is no default brain, and 0.5 was the worst one</h3>
-    <p class="prose"><code>defaultConfig()</code> sets <code>rule_seed: Math.random()</code>.
-      The seed is the brain — it generates the ten Gaussian centres that are the whole
-      sensor→force map — and fluoddity's own engine says what to do about that:</p>
-    <p class="prose" style="padding-left:14px;border-left:3px solid var(--line)"><i>"The rule_seed
-      (a 10-term Fourier black box) still dominates whether a given draw is alive, so callers that
-      want a guaranteed-lively organism should reject-sample on fitness on top."</i>
-      — <code>engine.js</code></p>
-    <p class="prose">This port ran <code>evalRule(0.5, …)</code>: the literal 0.5, chosen by nobody,
-      never looked at. On the corrected field, at the same 256 particles and the same matched brush
-      that make <code>wurms01</code> read <code>alive</code> at fill 0.55, <b>seed 0.5 reads
-      <code>dead</code> at fill 0.000</b> — the fourth frame below. The 121 organisms people have
-      published to fluoddity's gallery are pulled into <code>lab/fluoddity-gallery.json</code> and
-      ranked by <code>eval/swarm-brains.mjs</code> on fluoddity's own <code>fitness2</code>.
-      <b>Seed 0.5 ranks 121st of 121 there</b>, with <code>fitness2</code> exactly 0 — while
-      <b>100 of the 121 read <code>alive</code></b> at the same 256 particles. The particle count
-      was never the wall.</p>
-    <p class="prose"><b>And the brain this page runs is NOT the top of that ranking, which is worth
-      knowing before you trust the ranking.</b> <code>wurms01</code> sits 67th; the first-placed
-      organism, on the picker above, is four big smeared streaks. That is not <code>fitness2</code>
-      being wrong — it is <code>fitness2</code> read off a substrate it was not tuned on. At 55,000
-      particles a fill of 0.31 is hundreds of thin filaments; at 256, with a brush 13× wider, the
-      same 0.31 is four fat ones. The score is a good aliveness filter and a poor <i>looks like
-      fluoddity</i> filter at this density, so the ranking picked the shortlist and a person picked
-      from it — which is exactly what fluoddity's gallery is. Switch the brain and look.</p>
-
-    <h3 style="font-size:.95rem;margin:16px 0 4px">3. And the brush was fluoddity's raw one, not fluoddity's matched one</h3>
-    <p class="prose">fluoddity's <code>viewcontrols.js</code> already solves "the same organism on a
-      surface with a different particle count": scale the brush by
-      <code>√(M_REF / count·brush²)</code>, which at 256 particles is <b>×13.1</b>. This page was
-      using the unscaled brush, so the field really was near-empty — by our choice, not by the
-      token budget's.</p>
-
-    <h3 style="font-size:.95rem;margin:16px 0 4px">What it looks like fixed</h3>
-    <div class="proof">
-      <figure><img src="img/engine-wurms01-40000.png" alt="wurms01 rendered by fluoddity's own WebGL engine at 40,000 particles: dense coloured worms filling the frame" loading="lazy">
-        <figcaption><b>fluoddity's real engine</b>, 40,000 particles. Run headless in this sandbox
-          with SwiftShader — the first time this port has had anything to be compared against.</figcaption></figure>
-      <figure><img src="img/port-wurms01-40000.png" alt="The same genome on the CPU port at 40,000 particles: visibly the same worms" loading="lazy">
-        <figcaption><b>this port</b>, same genome, 40,000 particles. Same organism.</figcaption></figure>
-      <figure><img src="img/port-wurms01-256.png" alt="The same genome on the CPU port at 256 particles: the same worms, softer" loading="lazy">
-        <figcaption><b>this port at 256 particles</b> — the count the token budget allows. Softer,
-          because each splat is 13× wider, and the same creature.</figcaption></figure>
-      <figure><img src="img/port-seed05-256.png" alt="Seed 0.5 at 256 particles: an almost entirely black frame" loading="lazy">
-        <figcaption><b>seed 0.5</b>, same everything else. This is what the page showed for three
-          revisions, and what "the field is dead at 256 particles" was actually describing.</figcaption></figure>
-    </div>
-    <p class="prose" style="margin-top:12px"><b>The organism is <code>wurms01</code>, and it is
-      <code>defaultConfig()</code> with two fields changed</b> — 64 cohorts and that seed. Every
-      other knob is the default. The difference between the last frame and the first three is the
-      brain and the number of species, and nothing else.</p>
-    <p class="prose"><b>Verified numerically as well as by eye.</b> Same genome, same settings
-      (256 particles, dim 480, 400 steps), the port against fluoddity's real engine:</p>
-    <div class="tablewrap"><table class="dt">
-      <thead><tr><th></th><th>fluoddity's engine</th><th>this port</th><th>ratio</th></tr></thead>
-      <tbody>
-        <tr><td>canvas |v|, mean</td><td class="num">7.53e−10</td><td class="num">9.07e−10</td><td class="num">1.21×</td></tr>
-        <tr><td>canvas |v|, max</td><td class="num">2.35e−7</td><td class="num">3.41e−7</td><td class="num">1.45×</td></tr>
-      </tbody></table></div>
-    <p class="cap">Float64 against the GPU's float32, 400 steps into a chaotic system, with a
-      diffusion kernel that is a texture fetch there and an array read here. Agreement to 20–45% is
-      as close as those two things get, and the page had been carrying "never compared against the
-      WebGL engine" as its top caveat since it shipped.</p>
-
-    <h3 style="font-size:.95rem;margin:16px 0 4px">What this retracts</h3>
-    <ul class="prose caveats">
-      <li><b>"At 256 particles you get fluoddity's measure or its dynamics, not both."</b> Wrong.
-        Measured across a sweep from 256 to 40,000 on the corrected port, <b>256 gives the FULLEST
-        and most structured field of the whole range</b> — fill 0.574, struct 0.90 — because
-        fluoddity's own energy match keeps the field constant as the count falls.</li>
-      <li><b>"The field reads dead in every arm, so <code>fitness2</code> is untestable here."</b>
-        Wrong, and it was the most costly one: <code>fitness2</code> is the measure this whole
-        experiment should have been scored on, and it is not only testable but decisive.</li>
-      <li><b>"The substrate limit is really about density; the control is a control and not a
-        reproduction."</b> The density argument was arithmetic laid over three bugs.</li>
-      <li><b>"One constant was calibrated, not ported."</b> There is no such constant now.</li>
-      <li>And the order-parameter numbers below it, which were measured on the old field.</li>
-    </ul>
-    <p class="cap"><b>One fault the fix exposed, and it is the worst of them.</b> The port returned
-      <code>tanh(lateral)</code> and called it "the turn, in units of the rule's own scale". That is
-      only a unit conversion if the argument is already about 1 — and on the correct field the
-      rule's own <code>lateral</code> is ~0.002, so the rule was steering on a ladder three orders
-      of magnitude below the one the model answers on. <b>The old field's 1000× over-strength was
-      hiding it</b> by driving the brain into saturation. The scale is now MEASURED from the rule
-      arm, before any other arm runs, so ±1 means "as hard as this brain itself ever turns".</p>
-  </section>
-
-  <section class="card finding" style="border-color:var(--s2)">
-    <h2>Correction — the first version of this page measured the wrong world</h2>
-    <p class="prose">Published 2026-09-20, corrected the same day. The operator pointed out that
-      fluoddity's interaction comes from <b>all the particles starting in a dense cluster</b>. It
-      does, and chasing that found <b>nine divergences</b> between this port's genome and
-      fluoddity's own <code>defaultConfig()</code> — three of them structural:</p>
-    <ul class="prose caveats">
-      <li><b><code>initial_conditions: 0</code> spawns the cohorts as tight blobs on a grid</b>,
-        jitter 0.019 on a torus spanning 2 — about 1% of the world across. This port scattered every
-        particle uniformly instead. A trail field is <i>stigmergic</i>: a particle can only steer on
-        what others have already laid down. So packed particles have a gradient immediately, and
-        particles spread thin over a torus have nothing and never will. <b>It was not a weaker
-        fluoddity, it was a non-interacting one.</b></li>
-      <li><b><code>cohorts: 16</code></b>, and the cohort index is fed to the brain — so fluoddity
-        runs <b>sixteen species</b> with different rules. This port ran one.</li>
-      <li>Six more fields were simply wrong: drag, force, trail persistence, ink, hue, and an
-        invented <code>mutation_scale</code>. The code comment claimed the genome was
-        <i>"taken from <code>defaultConfig()</code>"</i>. It was not.</li>
-    </ul>
-    <p class="prose"><b>And polarization was the wrong measure.</b> Each cohort expands as a
-      starburst, so particles radiate outward, their headings cancel, and global polarization reads
-      ≈0 however structured the swarm is. The <b>0.767</b> first reported for the rule was an
-      artefact of the wrong spawn putting every particle alone in open space.</p>
-    <p class="prose"><b>Retracted:</b> rule 0.767 / frozen 0.317 / jev 0.226 / random 0.026, and the
-      reading that went with it — <i>"the flock needs someone to turn the wrong way"</i> — which
-      rested on the rule producing an alignment it does not in fact produce. Everything below is
-      re-measured on the corrected simulation.</p>
-    <p class="cap"><b>And the canvases below were showing half of it.</b> A canvas with no
-      <code>width</code>/<code>height</code> attributes is 300×150, not square. The sizing code read
-      the width, compared it against the default it had just read, found no difference and never set
-      the height — so the backing store stayed 150 tall and CSS stretched that half-torus across a
-      square box. <b>Eight of the sixteen cohorts were never drawn</b>, and the eight that were came
-      out at double height. Caught by counting blobs in a screenshot against the sixteen the
-      simulation reports — the numbers on this page were always measured from the simulation, never
-      from the picture, so nothing here changes. The picture does.</p>
-  </section>
 
   <section class="card">
     <div class="runbar">
@@ -208,8 +58,13 @@
         <option value="fivepoints">fivepoints_addstrafe — 2nd, spawned as a ring</option>
         <option value="seed05">seed 0.5 — what this page used to run</option>
       </select></label>
-      <span class="mode" id="mode">idle</span>
     </div>
+    <!-- The status line lives on its OWN row with a height reserved for two
+         lines. In the flex row it changed the run bar's height whenever the
+         message changed length — "idle" against "tick 12 — asking (256
+         questions in one call)…" against an error — and every tick nudged the
+         whole page up and down. -->
+    <div class="tickline"><span class="tick" id="mode">idle</span></div>
     <p class="cap" style="margin:10px 0 0"><b>What you are looking at is fluoddity's own display
       pass</b> — the trail field coloured by flow direction and tone-mapped exactly as
       <code>FRAG_DISPLAY</code> does it, with no exposure gain to flatter it. The white dots are the
@@ -221,7 +76,7 @@
       call on each one. Holding a decision for eight steps is how it gets far enough to form
       anything inside a watchable number of calls. It is a deviation and it is flagged as one: the
       shader re-evaluates its rule every step. Set it to 1 for the configuration the measurements
-      below were taken at.</p>
+      on this page were taken at.</p>
     <p class="cap" style="margin:10px 0 0">Every arm shares the genome, the field, the integration,
       the axial thrust, the seed and the initial conditions. <b>The only thing that differs is who
       answers “how hard should this particle turn?”</b> Jev's arm costs one call per tick carrying
@@ -356,6 +211,7 @@
       order parameters simply could not read it. That is the honest verdict on the section above —
       not that the rule's steering did not matter, but that this page was measuring it with the
       wrong instrument, on a substrate where the right instrument could not be used.</p>
+  </section>
 
   <section class="card finding">
     <h2>Is this even a swarm? The arrangement, tested</h2>
@@ -418,6 +274,167 @@
         two float32-vs-float64 trajectories in a chaotic system diverge whatever the pictures
         look like.</li>
     </ul>
+  </section>
+
+  <section class="card" id="corrections" style="background:transparent;border:0;padding:18px 0 0">
+    <h2 style="font-size:1.25rem">Corrections, retractions and bugs</h2>
+    <p class="prose" style="margin-bottom:0">Everything below is what this page got wrong and how it
+      was found. It is at the bottom because the results belong at the top, and it is still here
+      because a wrong result published is worth more than a wrong result deleted. Newest first.</p>
+  </section>
+
+  <section class="card finding" style="border-color:var(--s2)">
+    <h2>Correction — it was not fluoddity's field, and the brain was nobody's</h2>
+    <p class="prose">The operator, a third time: <i>"it still doesn't look right on fluoddity.
+      Maybe you could find a particularly active brain?"</i> There was a brain to find. There were
+      also two deeper faults, and the brain only mattered once they were fixed.</p>
+
+    <h3 style="font-size:.95rem;margin:16px 0 4px">1. The canvas holds velocity. This port put a colour in it.</h3>
+    <p class="prose">fluoddity's brush pass writes <code>vec4(v_vel*k, 0, 0)</code> — the particle's
+      own velocity vector — and the sensors read that vector back. This port <b>invented a colour</b>
+      (hue from <code>atan2</code> of the brain's force output) and deposited that instead, so the
+      quantity the swarm steered on was not the quantity fluoddity's swarm steers on. Three more
+      defects rode along with it:</p>
+    <ul class="prose caveats">
+      <li><b>The blend is a lerp, not an accumulation.</b>
+        <code>canvas = blur(canvas)·persistence + (1−persistence)·brush</code>. The port multiplied
+        and added, which is unbounded and in no particular unit — and therefore needed a fudge
+        factor to sit in a plausible range. <b>That fudge factor is the "one constant calibrated
+        rather than ported" this page has been listing as a caveat. It is gone.</b> With the right
+        blend there is nothing to calibrate.</li>
+      <li><b><code>ink</code> is render-only.</b> It appears in <code>FRAG_DISPLAY</code> and
+        nowhere else; fluoddity's own config files it under <i>"// render-only"</i>. The port put it
+        in the deposit, where it changed the physics — so two genomes differing only in exposure
+        were two different organisms.</li>
+      <li><b>The descriptors were reading the wrong image.</b> <code>fluoddity/descriptors.js</code>
+        reads the <i>displayed</i> canvas — tone-mapped, the picture a person sees. The port read
+        the raw trail, so every <code>fill</code> and <code>struct</code> on this page was measured
+        on an image nobody ever looked at.</li>
+    </ul>
+
+    <h3 style="font-size:.95rem;margin:16px 0 4px">2. There is no default brain, and 0.5 was the worst one</h3>
+    <p class="prose"><code>defaultConfig()</code> sets <code>rule_seed: Math.random()</code>.
+      The seed is the brain — it generates the ten Gaussian centres that are the whole
+      sensor→force map — and fluoddity's own engine says what to do about that:</p>
+    <p class="prose" style="padding-left:14px;border-left:3px solid var(--line)"><i>"The rule_seed
+      (a 10-term Fourier black box) still dominates whether a given draw is alive, so callers that
+      want a guaranteed-lively organism should reject-sample on fitness on top."</i>
+      — <code>engine.js</code></p>
+    <p class="prose">This port ran <code>evalRule(0.5, …)</code>: the literal 0.5, chosen by nobody,
+      never looked at. On the corrected field, at the same 256 particles and the same matched brush
+      that make <code>wurms01</code> read <code>alive</code> at fill 0.55, <b>seed 0.5 reads
+      <code>dead</code> at fill 0.000</b> — the fourth frame in the strip below. The 121 organisms people have
+      published to fluoddity's gallery are pulled into <code>lab/fluoddity-gallery.json</code> and
+      ranked by <code>eval/swarm-brains.mjs</code> on fluoddity's own <code>fitness2</code>.
+      <b>Seed 0.5 ranks 121st of 121 there</b>, with <code>fitness2</code> exactly 0 — while
+      <b>100 of the 121 read <code>alive</code></b> at the same 256 particles. The particle count
+      was never the wall.</p>
+    <p class="prose"><b>And the brain this page runs is NOT the top of that ranking, which is worth
+      knowing before you trust the ranking.</b> <code>wurms01</code> sits 67th; the first-placed
+      organism, in the brain picker at the top of the page, is four big smeared streaks. That is not <code>fitness2</code>
+      being wrong — it is <code>fitness2</code> read off a substrate it was not tuned on. At 55,000
+      particles a fill of 0.31 is hundreds of thin filaments; at 256, with a brush 13× wider, the
+      same 0.31 is four fat ones. The score is a good aliveness filter and a poor <i>looks like
+      fluoddity</i> filter at this density, so the ranking picked the shortlist and a person picked
+      from it — which is exactly what fluoddity's gallery is. Switch the brain and look.</p>
+
+    <h3 style="font-size:.95rem;margin:16px 0 4px">3. And the brush was fluoddity's raw one, not fluoddity's matched one</h3>
+    <p class="prose">fluoddity's <code>viewcontrols.js</code> already solves "the same organism on a
+      surface with a different particle count": scale the brush by
+      <code>√(M_REF / count·brush²)</code>, which at 256 particles is <b>×13.1</b>. This page was
+      using the unscaled brush, so the field really was near-empty — by our choice, not by the
+      token budget's.</p>
+
+    <h3 style="font-size:.95rem;margin:16px 0 4px">What it looks like fixed</h3>
+    <div class="proof">
+      <figure><img src="img/engine-wurms01-40000.png" alt="wurms01 rendered by fluoddity's own WebGL engine at 40,000 particles: dense coloured worms filling the frame" loading="lazy">
+        <figcaption><b>fluoddity's real engine</b>, 40,000 particles. Run headless in this sandbox
+          with SwiftShader — the first time this port has had anything to be compared against.</figcaption></figure>
+      <figure><img src="img/port-wurms01-40000.png" alt="The same genome on the CPU port at 40,000 particles: visibly the same worms" loading="lazy">
+        <figcaption><b>this port</b>, same genome, 40,000 particles. Same organism.</figcaption></figure>
+      <figure><img src="img/port-wurms01-256.png" alt="The same genome on the CPU port at 256 particles: the same worms, softer" loading="lazy">
+        <figcaption><b>this port at 256 particles</b> — the count the token budget allows. Softer,
+          because each splat is 13× wider, and the same creature.</figcaption></figure>
+      <figure><img src="img/port-seed05-256.png" alt="Seed 0.5 at 256 particles: an almost entirely black frame" loading="lazy">
+        <figcaption><b>seed 0.5</b>, same everything else. This is what the page showed for three
+          revisions, and what "the field is dead at 256 particles" was actually describing.</figcaption></figure>
+    </div>
+    <p class="prose" style="margin-top:12px"><b>The organism is <code>wurms01</code>, and it is
+      <code>defaultConfig()</code> with two fields changed</b> — 64 cohorts and that seed. Every
+      other knob is the default. The difference between the last frame and the first three is the
+      brain and the number of species, and nothing else.</p>
+    <p class="prose"><b>Verified numerically as well as by eye.</b> Same genome, same settings
+      (256 particles, dim 480, 400 steps), the port against fluoddity's real engine:</p>
+    <div class="tablewrap"><table class="dt">
+      <thead><tr><th></th><th>fluoddity's engine</th><th>this port</th><th>ratio</th></tr></thead>
+      <tbody>
+        <tr><td>canvas |v|, mean</td><td class="num">7.53e−10</td><td class="num">9.07e−10</td><td class="num">1.21×</td></tr>
+        <tr><td>canvas |v|, max</td><td class="num">2.35e−7</td><td class="num">3.41e−7</td><td class="num">1.45×</td></tr>
+      </tbody></table></div>
+    <p class="cap">Float64 against the GPU's float32, 400 steps into a chaotic system, with a
+      diffusion kernel that is a texture fetch there and an array read here. Agreement to 20–45% is
+      as close as those two things get, and the page had been carrying "never compared against the
+      WebGL engine" as its top caveat since it shipped.</p>
+
+    <h3 style="font-size:.95rem;margin:16px 0 4px">What this retracts</h3>
+    <ul class="prose caveats">
+      <li><b>"At 256 particles you get fluoddity's measure or its dynamics, not both."</b> Wrong.
+        Measured across a sweep from 256 to 40,000 on the corrected port, <b>256 gives the FULLEST
+        and most structured field of the whole range</b> — fill 0.574, struct 0.90 — because
+        fluoddity's own energy match keeps the field constant as the count falls.</li>
+      <li><b>"The field reads dead in every arm, so <code>fitness2</code> is untestable here."</b>
+        Wrong, and it was the most costly one: <code>fitness2</code> is the measure this whole
+        experiment should have been scored on, and it is not only testable but decisive.</li>
+      <li><b>"The substrate limit is really about density; the control is a control and not a
+        reproduction."</b> The density argument was arithmetic laid over three bugs.</li>
+      <li><b>"One constant was calibrated, not ported."</b> There is no such constant now.</li>
+      <li>And every order-parameter number this page carried before it, which was measured on the
+        old field.</li>
+    </ul>
+    <p class="cap"><b>One fault the fix exposed, and it is the worst of them.</b> The port returned
+      <code>tanh(lateral)</code> and called it "the turn, in units of the rule's own scale". That is
+      only a unit conversion if the argument is already about 1 — and on the correct field the
+      rule's own <code>lateral</code> is ~0.002, so the rule was steering on a ladder three orders
+      of magnitude below the one the model answers on. <b>The old field's 1000× over-strength was
+      hiding it</b> by driving the brain into saturation. The scale is now MEASURED from the rule
+      arm, before any other arm runs, so ±1 means "as hard as this brain itself ever turns".</p>
+  </section>
+
+  <section class="card finding" style="border-color:var(--s2)">
+    <h2>Correction — the first version of this page measured the wrong world</h2>
+    <p class="prose">Published 2026-09-20, corrected the same day. The operator pointed out that
+      fluoddity's interaction comes from <b>all the particles starting in a dense cluster</b>. It
+      does, and chasing that found <b>nine divergences</b> between this port's genome and
+      fluoddity's own <code>defaultConfig()</code> — three of them structural:</p>
+    <ul class="prose caveats">
+      <li><b><code>initial_conditions: 0</code> spawns the cohorts as tight blobs on a grid</b>,
+        jitter 0.019 on a torus spanning 2 — about 1% of the world across. This port scattered every
+        particle uniformly instead. A trail field is <i>stigmergic</i>: a particle can only steer on
+        what others have already laid down. So packed particles have a gradient immediately, and
+        particles spread thin over a torus have nothing and never will. <b>It was not a weaker
+        fluoddity, it was a non-interacting one.</b></li>
+      <li><b><code>cohorts: 16</code></b>, and the cohort index is fed to the brain — so fluoddity
+        runs <b>sixteen species</b> with different rules. This port ran one.</li>
+      <li>Six more fields were simply wrong: drag, force, trail persistence, ink, hue, and an
+        invented <code>mutation_scale</code>. The code comment claimed the genome was
+        <i>"taken from <code>defaultConfig()</code>"</i>. It was not.</li>
+    </ul>
+    <p class="prose"><b>And polarization was the wrong measure.</b> Each cohort expands as a
+      starburst, so particles radiate outward, their headings cancel, and global polarization reads
+      ≈0 however structured the swarm is. The <b>0.767</b> first reported for the rule was an
+      artefact of the wrong spawn putting every particle alone in open space.</p>
+    <p class="prose"><b>Retracted:</b> rule 0.767 / frozen 0.317 / jev 0.226 / random 0.026, and the
+      reading that went with it — <i>"the flock needs someone to turn the wrong way"</i> — which
+      rested on the rule producing an alignment it does not in fact produce. Everything on this page
+      was re-measured after it — and then re-measured again, see the correction above.</p>
+    <p class="cap"><b>And the canvases were showing half of it.</b> A canvas with no
+      <code>width</code>/<code>height</code> attributes is 300×150, not square. The sizing code read
+      the width, compared it against the default it had just read, found no difference and never set
+      the height — so the backing store stayed 150 tall and CSS stretched that half-torus across a
+      square box. <b>Eight of the sixteen cohorts were never drawn</b>, and the eight that were came
+      out at double height. Caught by counting blobs in a screenshot against the sixteen the
+      simulation reports — the numbers on this page were always measured from the simulation, never
+      from the picture, so nothing here changes. The picture does.</p>
   </section>
 
   <section class="card finding">
