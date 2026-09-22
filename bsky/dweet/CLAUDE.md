@@ -657,6 +657,22 @@ app.bsky.embed.video.presentation   knownValues: ["default", "gif"]
 loops in the feed with no scrubber**: a dweet, moving, in somebody's timeline.
 That is the thing the GIF was reaching for and could not have.
 
+**And it is not theoretical.** Counted off the live firehose, 75 seconds,
+2026-09-22:
+
+| | |
+|---|---|
+| posts sampled | 3,020 |
+| carrying a video embed | 62 |
+| `presentation: "gif"` | **13** |
+| `presentation: "default"` | 37 |
+| field absent | 12 |
+
+A fifth of the video posts crossing the network use it. The field is also on
+the **view** type (`app.bsky.embed.video#view` declares `presentation`), so it
+survives the AppView and reaches readers rather than being a write-only hint —
+which was worth checking, because a hint the view drops would be decorative.
+
 ### It needs no worker change, and no credential of ours
 
 Measured 2026-09-22:
