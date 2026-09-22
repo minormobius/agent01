@@ -12,7 +12,12 @@
 
 import { rdapUrl, readRdap, summariseRecord, validLabel } from './tld.js';
 
-export const LIMITS = { maxTlds: 16, concurrency: 5, timeoutMs: 6000, retries: 1, delayMs: 0 };
+// delayMs is not politeness theatre: the bootstrap points several TLDs at one
+// operator (.ai, .run and .fyi are all Identity Digital), and asking them back
+// to back earns a 429 — which this reports honestly as `unknown`, and `unknown`
+// is useless to whoever asked. A third of a second between queries to the same
+// host buys real answers for about a second of latency.
+export const LIMITS = { maxTlds: 16, concurrency: 5, timeoutMs: 6000, retries: 2, delayMs: 350 };
 
 const memo = new Map();                       // "label.tld" -> result
 const MEMO_MAX = 5000;
