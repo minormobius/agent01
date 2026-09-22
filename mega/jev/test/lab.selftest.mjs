@@ -31,8 +31,8 @@ import { carryStats, rankCarry, carryDoc, buildCarryProbes, carryTruth, position
 import { decide, buildQuestions, GATE, ACTION_CRITERIA, EXPOSURE_LEVELS } from '../lab/ask.mjs';
 import { LADDER as STEER_LADDER, RUNGS, steerQuestions, steerDoc, targetFromAnswers, briefFromText }
   from '../lab/steer.mjs';
-import { Field } from '../swarm/field.mjs';
-import { h1, evalRule, sense, ruleTurn, matchedBrush, DEFAULT_CFG } from '../swarm/rule.mjs';
+import { Field, baseBrushFor, matchSubstrate } from '../swarm/field.mjs';
+import { h1, evalRule, sense, ruleTurn, DEFAULT_CFG } from '../swarm/rule.mjs';
 import { verdict as swVerdict, fitness as swFitness, order } from '../swarm/probe.mjs';
 import { makeSwarm, senseAll, step as swStep, ruleDecider, frozenDecider, randomDecider,
   TURN_RUNGS, TURN_WORDS, rungOf } from '../swarm/swarm.mjs';
@@ -1906,12 +1906,16 @@ const SPEC = fix2('preregister.json');
     ok(a === b, `${fn} is byte-identical to fluoddity's — if this fails, THEIRS CHANGED and ours must be resynced, not patched`);
   }
 
-  // The substrate axis, which fluoddity's own engine.js warns about.
-  ok(Math.abs(matchedBrush(0.003, 55000, 55000) - 0.003) < 1e-12, 'matching a count to itself changes nothing');
-  const b256 = matchedBrush(0.003, 55000, 256);
-  ok(Math.abs(256 * b256 * b256 - 55000 * 0.003 * 0.003) < 1e-9,
+  // The substrate axis, using FLUODDITY'S OWN normalisation rather than one of
+  // ours: `viewcontrols.js` sets the multiplier to sqrt(M_REF / count·brush²).
+  ok(Math.abs(baseBrushFor(360) * 360 / 2 - baseBrushFor(1024) * 1024 / 2) < 1e-9,
+    'fluoddity\'s brush is a constant ~1.54px radius at every dim, by construction');
+  const m256 = matchSubstrate(480, 256), m200k = matchSubstrate(1024, 200000);
+  ok(Math.abs(m200k - 1) < 0.02, 'the playground\'s own density is the reference, so its multiplier is 1');
+  ok(m256 > 12 && m256 < 14, 'and 256 particles need ~13x the brush to carry the same field energy');
+  const eN = (dim, n) => n * Math.pow(baseBrushFor(dim) * matchSubstrate(dim, n), 2);
+  ok(Math.abs(eN(480, 256) - eN(1024, 200000)) < 1e-9,
     'energy (count x brush^2) is what the match preserves — which is exactly NOT the trail geometry');
-  ok(b256 > 0.003 * 14 && b256 < 0.003 * 15, 'a 256-particle brush is ~14.6x fluoddity\'s, which is why its trails vanish');
 
   // The port's hash must run on the float BIT PATTERN, as the shader's does.
   ok(h1(0, 0) >= 0 && h1(0, 0) <= 1, 'h1 returns a unit float');
@@ -1923,22 +1927,56 @@ const SPEC = fix2('preregister.json');
   ok(JSON.stringify(evalRule(0.6, 0.02, 0, [1, 2, 3, 4])) !== JSON.stringify(r1), 'and a different seed is a different brain');
 
   // The field is a torus with no edges, like the simulation.
-  const f = new Field(64, { trail_persistence: 1, trail_diffusion: 0, inkScale: 1, brush: 0.02 });
-  f.deposit(0.99, 0, [1, 1, 1]);
+  const f = new Field(64, { trail_persistence: 0, trail_diffusion: 0, substrate: 40 });
+  f.clearBrush(); f.splat(0.99, 0, 1, 1); f.settle();
   const rightEdge = f.sample(0.99, 0), wrapped = f.sample(-0.99, 0);
   ok(rightEdge[0] > 0, 'a deposit is readable where it was made');
   ok(wrapped[0] > 0, 'and wraps around the seam — the field has no edges');
-  const f2 = new Field(64, { trail_persistence: 0.5, trail_diffusion: 0, inkScale: 1, brush: 0.02 });
-  f2.deposit(0, 0, [1, 1, 1]);
-  const before = f2.sample(0, 0)[0];
-  f2.settle();
-  ok(Math.abs(f2.sample(0, 0)[0] - before * 0.5) < 1e-5, 'persistence decays the field by exactly its factor');
+
+  // THE BLEND IS A LERP, NOT AN ACCUMULATION — `FRAG_CANVAS` is
+  // `canvas·persistence + (1 - persistence)·brush`, so with no new deposit the
+  // field decays by exactly `persistence`, and a held deposit converges TO the
+  // brush value rather than growing without bound. The first port added, which
+  // is why it needed a fudge factor to sit in a plausible range.
+  const f2 = new Field(64, { trail_persistence: 0.5, trail_diffusion: 0, substrate: 40 });
+  f2.clearBrush(); f2.splat(0, 0, 1, 0); f2.settle();
+  const after1 = f2.sample(0, 0)[0];
+  f2.clearBrush(); f2.settle();
+  ok(Math.abs(f2.sample(0, 0)[0] - after1 * 0.5) < 1e-6, 'persistence decays the field by exactly its factor');
+  const f3 = new Field(64, { trail_persistence: 0.5, trail_diffusion: 0, substrate: 40 });
+  for (let i = 0; i < 40; i++) { f3.clearBrush(); f3.splat(0, 0, 1, 0); f3.settle(); }
+  const peak = f3.sample(0, 0)[0];
+  ok(peak > 0 && peak < 1.0001, 'and a deposit held forever converges to the brush value, never past it');
+
+  // WHAT IS DEPOSITED IS VELOCITY. Two particles moving opposite ways cancel
+  // in the field, which a colour deposit could never do — and the sensors read
+  // that vector, so cancellation is a real part of the signal.
+  const f4 = new Field(64, { trail_persistence: 0, trail_diffusion: 0, substrate: 40 });
+  f4.clearBrush(); f4.splat(0, 0, 1, 0); f4.settle();
+  const one4 = Math.abs(f4.sample(0, 0)[0]);
+  f4.clearBrush(); f4.splat(0, 0, 1, 0); f4.splat(0, 0, -1, 0); f4.settle();
+  // Not exactly zero: the brush target is a Float32Array and addition is not
+  // associative, so adding a splat and then subtracting it term by term leaves
+  // rounding crumbs. Six orders of magnitude down is cancellation.
+  ok(Math.abs(f4.sample(0, 0)[0]) < one4 * 1e-6,
+    'two opposed velocities deposited together cancel — the field is a vector, not a brightness');
+
+  // `ink` is RENDER-ONLY. It must change the picture and not the physics.
+  const cfgA = { ...DEFAULT_CFG, ink: 3 }, cfgB = { ...DEFAULT_CFG, ink: 8 };
+  const inkA = makeSwarm({ n: 24, dim: 64, cfg: cfgA, turnScale: 1 });
+  const inkB = makeSwarm({ n: 24, dim: 64, cfg: cfgB, turnScale: 1 });
+  for (const w of [inkA, inkB]) for (let t = 0; t < 8; t++) { const q = senseAll(w); swStep(w, q, ruleDecider(w, q)); }
+  ok(JSON.stringify(inkA.parts) === JSON.stringify(inkB.parts),
+    'two genomes differing only in ink are the same organism at two exposures — the particles are identical');
+  ok(inkA.field.displayRGB()[0] !== inkB.field.displayRGB()[0]
+    || inkA.field.displayRGB().some((v, i) => v !== inkB.field.displayRGB()[i]),
+    'and only the rendered image differs');
 
   // Every arm must share everything except the decider. This is the claim the
   // whole comparison rests on, so it is asserted rather than trusted.
   const a = makeSwarm({ n: 32, dim: 64 }), b = makeSwarm({ n: 32, dim: 64 });
   ok(JSON.stringify(a.parts) === JSON.stringify(b.parts), 'two swarms at the same seed start byte-identical');
-  ok(a.field.brush === b.field.brush && a.field.inkScale === b.field.inkScale, 'and on the same substrate');
+  ok(a.field.brushSize === b.field.brushSize, 'and on the same substrate');
   const sa = senseAll(a);
   ok(sa.length === 32 && sa.every((x) => x.s.sig.length === 4), 'every particle senses four body-frame numbers');
   ok(sa.every((x) => x.s.sig.every(Number.isFinite)), 'all finite, even on an empty field');
@@ -1949,7 +1987,7 @@ const SPEC = fix2('preregister.json');
   // empty field both sensors read 0, the two evaluations are identical, and
   // the turn is EXACTLY zero. So the first tick of every arm is the same tick,
   // and a test of "does the decider do anything" has to warm the field first.
-  const sym = sense({ x: 0, y: 0, vx: 0.01, vy: 0 }, new Field(64, { inkScale: 1 }), DEFAULT_CFG);
+  const sym = sense({ x: 0, y: 0, vx: 0.01, vy: 0 }, new Field(64), DEFAULT_CFG);
   ok(sym.sig.every((v) => v === 0), 'an empty field gives a perfectly symmetric reading');
   ok(ruleTurn(sym, DEFAULT_CFG).turn === 0,
     'and the mirror-symmetrised rule turns EXACTLY zero on it — the brain has no handedness of its own');
@@ -1989,13 +2027,13 @@ const SPEC = fix2('preregister.json');
   // toward sig[0]'s side. Trail-following therefore came out of the harness
   // as avoidance, and the model took the blame for it.
   {
-    const ff = new Field(512, { trail_persistence: 1, trail_diffusion: 0, inkScale: 1, brush: 0.02 });
-    ff.deposit(0, 0.02, [1, 1, 1]);                       // a patch at +y
+    const ff = new Field(512, { trail_persistence: 0, trail_diffusion: 0, substrate: 14 });
+    ff.clearBrush(); ff.splat(0, 0.02, 1, 1); ff.settle();   // a patch at +y
     const heading = { x: 0, y: 0, vx: 0.01, vy: 0 };      // pointing +x
     const sg = sense(heading, ff, DEFAULT_CFG);
     ok(sg.sig[0] > sg.sig[2], 'a patch at +y is read more strongly by sig[0] than by sig[2]');
 
-    const one = makeSwarm({ n: 1, dim: 64 });
+    const one = makeSwarm({ n: 1, dim: 64, turnScale: 1 });
     one.parts[0] = { i: 0, x: 0, y: 0, vx: 0.01, vy: 0 };
     swStep(one, senseAll(one), [+1]);
     ok(one.parts[0].vy > 0, 'and a POSITIVE turn steers toward +y — the same side sig[0] reads');

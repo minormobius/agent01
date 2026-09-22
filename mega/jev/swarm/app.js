@@ -5,13 +5,14 @@
 // and every arm waits for it, so all four always show the same tick number. A
 // side-by-side where the arms had run different lengths would not be a
 // comparison of deciders.
-import { makeSwarm, senseAll, step, orderOf, ruleDecider, randomDecider,
+import { makeSwarm, senseAll, step, advance, orderOf, ruleDecider, randomDecider,
   frozenDecider, TURN_RUNGS } from './swarm.mjs';
 import { swarmDoc, swarmQuestions, FRAMINGS, turnFromScore } from './ask.mjs';
+import { brainById } from './brains.mjs';
 
 const $ = (id) => document.getElementById(id);
 const ENDPOINT = '../api/ask';
-const CONF = { dim: 480, baseBrush: 0.006 };
+const CONF = { dim: 480 };
 
 // Particle colours: lightened variants of the four series hues. Identity is
 // already carried by the card's top border, its name and its legend dot, so
@@ -41,12 +42,15 @@ let state = null, running = false, stopFlag = false;
  * need") — so making that field the hero image was incoherent: a picture of
  * something already measured as empty.
  *
- * What actually differs between the arms is the PARTICLES, which is also what
- * the order parameters read. So each one is drawn as a short tail along its
- * own heading, so a cohort holding together and one evaporating look
- * different — which is exactly what dispersal counts. The field stays as a
- * faint auto-exposed backdrop, because it is the medium they are steering on
- * and it should be visible that it exists.
+ * THAT FINDING IS RETRACTED AND THE FIELD IS BACK. It was empty because of
+ * three faults at once, not because 256 particles cannot carry it: the canvas
+ * held an invented colour instead of the velocity fluoddity deposits, the
+ * brain was a seed nobody chose, and the brush was fluoddity's raw one rather
+ * than fluoddity's own energy-matched one. Fixed, the same 256 particles give
+ * fill 0.55 and struct 0.90 — the fullest reading in a sweep that runs to
+ * 40,000. So the field is drawn straight through `FRAG_DISPLAY`, with no
+ * auto-exposure to flatter it, and the particles ride on top as white heads
+ * with short tails so you can still see WHO is painting it.
  */
 function paint(cv, sw, col) {
   // A canvas with no width/height attributes is 300x150, not square, and the
@@ -62,20 +66,16 @@ function paint(cv, sw, col) {
   const img = ctx.createImageData(D, D);
   const out = img.data;
 
-  const d = sw.field.dim, rgb = sw.field.rgb;
-  // Auto-exposure: the field is faint by construction here, so it is scaled by
-  // its own maximum. The gain is capped so an EMPTY field stays dark instead of
-  // being amplified into noise that would look like structure.
-  let mx = 0;
-  for (let i = 0; i < rgb.length; i++) if (rgb[i] > mx) mx = rgb[i];
-  const gain = mx > 1e-6 ? Math.min(60, 0.55 / mx) : 0;
+  // fluoddity's own display pass, at face value. No gain, no auto-exposure:
+  // what you see is what `verdict` and `fitness2` are reading.
+  const d = sw.field.dim, rgb = sw.field.displayRGB();
   const s = d / D;
   for (let y = 0; y < D; y++) {
     for (let x = 0; x < D; x++) {
       const o = (Math.floor(y * s) * d + Math.floor(x * s)) * 3, i = (y * D + x) * 4;
-      out[i] = Math.min(255, rgb[o] * 255 * gain);
-      out[i + 1] = Math.min(255, rgb[o + 1] * 255 * gain);
-      out[i + 2] = Math.min(255, rgb[o + 2] * 255 * gain);
+      out[i] = Math.min(255, rgb[o] * 255);
+      out[i + 1] = Math.min(255, rgb[o + 1] * 255);
+      out[i + 2] = Math.min(255, rgb[o + 2] * 255);
       out[i + 3] = 255;
     }
   }
@@ -86,22 +86,16 @@ function paint(cv, sw, col) {
     out[i + 1] = out[i + 1] * (1 - a) + g * a;
     out[i + 2] = out[i + 2] * (1 - a) + b * a;
   };
-  const TAIL = 13;
+  const TAIL = 6;
   for (const p of sw.parts) {
     const px = (p.x * 0.5 + 0.5) * D, py = (p.y * 0.5 + 0.5) * D;
     const sp = Math.hypot(p.vx, p.vy) || 1e-9;
     const ux = p.vx / sp, uy = p.vy / sp;
-    for (let k = TAIL; k >= 0; k--) {
-      const a = 0.10 + 0.90 * (1 - k / TAIL) ** 1.6;   // brightest at the head
-      const bx = px - ux * k, by = py - uy * k;
-      put(Math.round(bx), Math.round(by), col[0], col[1], col[2], a);
-      // A one-pixel line reads as dotted at this scale, so the tail is two
-      // pixels wide across its own direction of travel.
-      if (k < TAIL * 0.6) put(Math.round(bx - uy), Math.round(by + ux), col[0], col[1], col[2], a * 0.5);
+    for (let k = TAIL; k >= 1; k--) {
+      const a = 0.30 * (1 - k / TAIL) ** 1.4;
+      put(Math.round(px - ux * k), Math.round(py - uy * k), col[0], col[1], col[2], a);
     }
-    for (const [ox, oy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
-      put(Math.round(px) + ox, Math.round(py) + oy, 255, 255, 255, ox || oy ? 0.5 : 1);
-    }
+    put(Math.round(px), Math.round(py), 255, 255, 255, 0.85);
   }
   ctx.putImageData(img, 0, 0);
 }
@@ -219,10 +213,16 @@ async function askJev(senses) {
 // --------------------------------------------------------------- the run ----
 function build() {
   const n = Number($('n').value);
+  const brain = brainById($('brain') ? $('brain').value : 'wurms01');
   const rnd = randomDecider(99);
+  // Built ONCE and shared, so every arm runs the identical genome and the
+  // identical measured turn scale. Rebuilding it per arm would let the
+  // calibration differ between them, which is the one thing that must not.
+  const ref = makeSwarm({ n, ...CONF, cfg: brain.cfg });
   state = {
-    n,
-    arms: ARMS.map((a) => ({ ...a, sw: makeSwarm({ n, ...CONF, baseCount: n }), pol: [] })),
+    n, brain,
+    arms: ARMS.map((a) => ({ ...a,
+      sw: makeSwarm({ n, ...CONF, cfg: brain.cfg, turnScale: ref.turnScale }), pol: [] })),
     rnd, scatterJev: [], scatterRule: [], tick: 0,
   };
   $('arms').innerHTML = state.arms.map((a) => `
@@ -269,7 +269,11 @@ async function oneTick() {
     else if (a.id === 'random') turns = state.rnd(a.sw, senses);
     else turns = frozenDecider(a.sw, senses);
 
+    // One decision, then fluoddity's own `substeps` physics steps with it held.
+    // Every arm gets the same number, so the comparison is untouched.
     step(a.sw, senses, turns);
+    const extra = Number($('sub').value) - 1;
+    if (extra > 0) advance(a.sw, turns, extra);
     const o = orderOf(a.sw);
     a.pol.push(o.dispersal);
     if (a.pol.length > 240) a.pol.shift();
@@ -304,6 +308,8 @@ async function loop() {
 $('run').addEventListener('click', () => { if (running) { stopFlag = true; } else loop(); });
 $('reset').addEventListener('click', () => { stopFlag = true; build(); $('mode').textContent = 'idle'; });
 $('n').addEventListener('change', build);
+$('sub').addEventListener('change', () => { stopFlag = true; build(); $('mode').textContent = 'idle'; });
+$('brain').addEventListener('change', () => { stopFlag = true; build(); $('mode').textContent = 'idle'; });
 build();
 
 // The headless hook, the house `__foam` / `__jev` / `__composer` pattern.

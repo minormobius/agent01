@@ -33,7 +33,7 @@ const ask = async (state, questions) => {
   return b;
 };
 
-const sw = makeSwarm({ n: 256, dim: 480, baseBrush: 0.006, baseCount: 256 });
+const sw = makeSwarm({ n: 256, dim: 480 });
 for (let t = 0; t < 40; t++) { const s = senseAll(sw); step(sw, s, ruleDecider(sw, s)); }
 
 const D = [], J = [], R = [];

@@ -1826,6 +1826,147 @@ was too faint to see, the `.finding` class inherited `display:block` on its
 `<b>` and broke every emphasised sentence into stubs, and this. The rule this
 surface keeps relearning: **assert what you can see, or go and look.**
 
+### It was not fluoddity's field, and the brain was nobody's (2026-09-22)
+
+Operator, a third time: *"it still doesn't look right on fluoddity. Maybe you
+could find a particularly active brain?"* There was a brain to find. There were
+also two deeper faults, and the brain only mattered once they were fixed.
+
+**1. The canvas holds VELOCITY. This port put a colour in it.** `FRAG_BRUSH`
+writes `vec4(v_vel*k, 0, 0)` — the particle's own velocity — and the sensors
+read that vector back. `step()` invented a colour instead (hue from `atan2` of
+the brain's force output, value from its magnitude) and deposited that, calling
+`evalRule(0.5, …)` a second time to make it up. So the stigmergic signal was a
+different quantity in a different unit from fluoddity's. Three more defects
+rode along:
+
+| | fluoddity | the port |
+|---|---|---|
+| blend | `blur(canvas)·p + (1−p)·brush` — a **lerp** | `canvas *= p; canvas += deposit` |
+| `ink` | in `FRAG_DISPLAY` only — **render-only** | in the deposit, changing the physics |
+| diffusion | `(c·K + n+s+e+w)/(4+K)`, `K = 4/(5^d²−1)`, **before** the lerp | lerp toward the 4-neighbour mean, after decay |
+| descriptors read | the **displayed** canvas (`drawImage`) | the raw trail |
+
+**The "one constant calibrated rather than ported" caveat is gone.** `inkScale`
+existed to hold up a blend that was wrong. Both sides of fluoddity's lerp are
+velocities in the same units; there is nothing free to fit.
+
+**2. There is no default brain.** `defaultConfig()` sets
+`rule_seed: Math.random()`, and `engine.js` says outright: *"The rule_seed (a
+10-term Fourier black box) still dominates whether a given draw is alive, so
+callers that want a guaranteed-lively organism should reject-sample on fitness
+on top."* This port ran `evalRule(0.5, …)` — the literal 0.5, chosen by nobody,
+never looked at. On the corrected field, at the same 256 particles and the same
+matched brush that make `wurms01` read `alive` at fill 0.55, **seed 0.5 reads
+`dead` at fill 0.000**. The **121 organisms people have published to
+fluoddity's gallery** are pulled from ATProto into
+`lab/fluoddity-gallery.json`; `eval/swarm-brains.mjs` ranks them on fluoddity's
+own `fitness2`, which is how `wurms01` was chosen and is what fluoddity's own
+engine says to do.
+
+**3. And the brush was fluoddity's raw one, not fluoddity's matched one.**
+`viewcontrols.js` already solves "the same organism at a different particle
+count": `sqrt(M_REF / count·brush²)`, which at 256 particles is **×13.1**. We
+were running unscaled, so the field really was near-empty — by our choice.
+
+#### The port now reproduces fluoddity, and that is checked rather than claimed
+
+`fluoddity/engine.js` runs headless in this sandbox under SwiftShader (chromium
+`--use-angle=swiftshader`), so `FluoddityEngine` can be driven and its canvas
+texture read back with `readPixels`. **The first comparison this port has ever
+had.** Same genome, 256 particles, dim 480, 400 steps:
+
+| | fluoddity's engine | this port | ratio |
+|---|---|---|---|
+| canvas \|v\| mean | 7.53e−10 | 9.07e−10 | 1.21× |
+| canvas \|v\| max | 2.35e−7 | 3.41e−7 | 1.45× |
+
+And by eye at 40,000 particles the same genome renders as visibly the same
+creature — the four proof images are on the page. Float64 against float32, 400
+steps into a chaotic system: 20–45% is as close as those two get.
+
+#### What this retracts
+
+- **"At 256 particles you get fluoddity's measure or its dynamics, not both."**
+  Measured across a sweep from 256 to 40,000 on the corrected port
+  (`eval/swarm-density.mjs`), **256 gives the FULLEST and most structured field
+  of the whole range** — fill 0.574, struct 0.90 — because the energy match
+  holds the field constant as the count falls.
+- **"The field reads dead, so `fitness2` is untestable."** The most costly one.
+  `fitness2` is the measure this experiment should always have been scored on.
+- **"The substrate limit is really about density."** Arithmetic over three bugs.
+- **"One constant was calibrated, not ported."** No such constant now.
+
+#### The fault the fix exposed, and it is the worst of them
+
+`ruleTurn` returned `tanh(lateral)` and the comment called it *"the turn, in
+units of the rule's own scale"*. `tanh` is only a unit conversion when its
+argument is already about 1. On the correct field the rule's own `lateral` is
+**~0.002**, so the rule was steering on a ladder **three orders of magnitude**
+below the one the model answers on — and only the old field's 1000×
+over-strength hid it, by driving the brain into saturation.
+
+`calibrateTurn` now measures the scale from the rule arm over a 120-step
+warm-up, before any other arm runs, and `step` multiplies every arm's answer by
+it. It is computed from the rule alone and from the genome alone, so no arm
+involving the model can influence it and it cannot be tuned to a result.
+
+#### Re-measured, on fluoddity's own scoreboard
+
+Genome `wurms01` — **`defaultConfig()` with two fields changed**, 64 cohorts
+and that seed. 200 ticks, 256 particles, 402 calls.
+
+| arm | fitness2 | coherence | fill | struct | mean \|turn\| | verdict |
+|---|---|---|---|---|---|---|
+| **rule** | **0.0975** | **0.679** | 0.627 | 0.86 | 0.468 | frozen |
+| jev-mimic | 0.0335 | 0.473 | 0.731 | 0.82 | 0.176 | alive |
+| jev-goal | 0.0320 | 0.467 | 0.734 | 0.82 | 0.152 | alive |
+| frozen | 0.0265 | 0.445 | 0.750 | 0.82 | 0.000 | alive |
+| random | 0.0253 | 0.446 | 0.754 | 0.82 | 0.597 | alive |
+
+**The rule scores 2.9× Jev and 3.9× random on the measure fluoddity itself uses
+to decide what is worth keeping.** Jev is a small but real step above doing
+nothing (+26% on frozen, +32% on random) and is again the most conservative
+active steerer — 0.176 against the rule's 0.468. In fluoddity's phenotype space
+both Jev arms land essentially **on top of frozen and random** (0.002–0.004)
+and far from the rule (0.045).
+
+**The original reading survives on a better scoreboard and sharpens.** One
+consistent, stateable policy applied to 256 heterogeneous states produces a
+wash; an arbitrary nonlinear brain that follows nothing produces the organism.
+*It does not rebel, it legislates* — and legislating is what stops the
+interesting thing happening.
+
+#### And `fitness2` sees direction, where the order parameters did not
+
+The previous session's control, re-run on the corrected simulation against
+fluoddity's measure instead of dispersal — same shuffle, the rule's own
+per-step magnitudes with signs by coin:
+
+| the rule's own turns | fitness2 | coherence |
+|---|---|---|
+| as the rule chose them | **0.1433** | **0.679** |
+| same magnitudes, signs shuffled (8 draws) | 0.0342 ± 0.0035 | 0.447 ± 0.006 |
+| what the direction bought | **+319%, z ≈ 31** | +52% |
+
+**Dispersal saw 5.8% of the rule's direction; `fitness2` sees 319% of it.** The
+direction was always there. The instrument could not read it, and the
+substrate the right instrument needed was three bugs away.
+
+```bash
+node mega/jev/eval/swarm-brains.mjs --steps 200          # rank the 121 published organisms
+node mega/jev/eval/swarm-density.mjs --organism wurms01  # the 256 -> 40,000 sweep
+node mega/jev/eval/swarm-gate.mjs --ticks 200 --organism wurms01 --out mega/jev/lab/swarm-gate.json
+```
+
+**Two things to know before touching this again.** The page's live arms hold
+one decision for `substeps` physics steps — fluoddity's own frame structure,
+default 8 — because a tick is one physics step and a second of watching
+fluoddity is ~480 of them; the gate is measured at 1 and the page says so. And
+`lab/fluoddity-gallery.json` is a **read-only snapshot** of other people's
+published records; fluoddity is owned by another branch and we do not write to
+it or to them.
+
 ### The order parameters only see magnitude — the control that demotes them
 
 The five arms line up on a straight line in how hard they steer. Dispersal is
@@ -2009,7 +2150,7 @@ rather than 55,000, and only steering under test.
 | **Non-myopic composition** | ⬜ the real open question: a brief reachable only via a temporarily-worse step |
 | **Game balance** (`packages/pressure-lab/`) | ⬜ policy spreads and tightness bands are computed = determinate. Untested |
 | **The repo as corpus** | ⬜ 566 endpoints needing categorisation; pure wide-hypothesis, real utility |
-| **Jev swarm** | ✅ **run on fluoddity.** It does not rebel, it *legislates*: one consistent policy (94.4%, r −0.644) where the genome is an exact coin flip (50.1%, r 0.005). The order-parameter comparison is the weak half — a sign shuffle shows it reads magnitude, not direction. `mappa`/polis NPCs remain the richer testbed |
+| **Jev swarm** | ✅ **run on fluoddity, and the port now reproduces it** (checked against the real WebGL engine). On fluoddity's own `fitness2` the rule scores **0.0975** against Jev's 0.0335 and random's 0.0253: one consistent policy (94.4%, r −0.644) makes a wash where an arbitrary brain (50.1%, r 0.005) makes the organism. `mappa`/polis NPCs remain the richer testbed |
 
 ### Jev swarm — the multi-agent idea, and what would actually be new
 

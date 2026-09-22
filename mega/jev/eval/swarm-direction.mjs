@@ -37,7 +37,7 @@ const REPS = Number(arg('reps', 12));
 const OUT = arg('out', null);
 const WITH_JEV = process.argv.includes('--jev');
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
-const CONF = { n: N, dim: 480, baseBrush: 0.006, baseCount: N };
+const CONF = { n: N, dim: 480 };   // substrate defaults to fluoddity's own matchSubstrate()
 
 function rng(seed) {
   let a = seed >>> 0;

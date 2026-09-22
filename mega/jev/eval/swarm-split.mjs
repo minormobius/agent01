@@ -53,7 +53,7 @@ const pearson = (x, y) => {
   return sxx < 1e-18 || syy < 1e-18 ? NaN : sxy / Math.sqrt(sxx * syy);
 };
 
-const sw = makeSwarm({ n: N, dim: 480, baseBrush: 0.006, baseCount: N });
+const sw = makeSwarm({ n: N, dim: 480 });
 for (let t = 0; t < 40; t++) { const s = senseAll(sw); step(sw, s, ruleDecider(sw, s)); }
 const senses = senseAll(sw);
 console.log(`${N} particles, one tick, identical readings put to both arrangements.\n`);

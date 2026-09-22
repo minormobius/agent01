@@ -18,18 +18,29 @@
 // So this runs the second, and reports fluoddity's descriptors anyway, marked
 // for what they are. The primary measure is the swarm order parameters, which
 // read the particles rather than the picture and work at any count.
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { makeSwarm, senseAll, step, probe, orderOf, ruleDecider, randomDecider,
   frozenDecider, TURN_RUNGS, rungOf } from '../swarm/swarm.mjs';
+import { DEFAULT_CFG } from '../swarm/rule.mjs';
 import { verdict, fitness2, vec, dist } from '../swarm/probe.mjs';
 import { swarmDoc, swarmQuestions, FRAMINGS, turnFromScore } from '../swarm/ask.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf(`--${k}`); return i > 0 ? process.argv[i + 1] : d; };
-const TICKS = Number(arg('ticks', 100));
+const TICKS = Number(arg('ticks', 200));
 const N = Number(arg('n', 256));
 const OUT = arg('out', null);
+const NAME = arg('organism', 'wurms01');
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
-const CONF = { n: N, dim: 480, baseBrush: 0.006, baseCount: N };
+// THE GENOME IS ONE PEOPLE CHOSE, not one we did. `defaultConfig()` sets
+// `rule_seed: Math.random()` — there is no default brain — and the seed this
+// port used to hard-code, 0.5, scored LAST of the 121 organisms published to
+// fluoddity's gallery. See `eval/swarm-brains.mjs`.
+const gal = JSON.parse(readFileSync(new URL('../lab/fluoddity-gallery.json', import.meta.url)));
+const org = gal.organisms.find((o) => (o.name || '').toLowerCase() === NAME.toLowerCase())
+  || gal.organisms.find((o) => o.rkey === NAME);
+if (!org) { console.error(`no organism "${NAME}"`); process.exit(1); }
+const CFG = { ...DEFAULT_CFG, ...org.config };
+const CONF = { n: N, dim: 480, cfg: CFG };   // substrate defaults to fluoddity's own matchSubstrate()
 
 let calls = 0, retries = 0;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -113,7 +124,7 @@ const jevArm = (framing) => async (sw, senses) => {
 };
 
 const arms = [];
-console.log(`${TICKS} ticks, ${N} particles, dim ${CONF.dim}\n`);
+console.log(`"${org.name}" (seed ${CFG.rule_seed}), ${TICKS} ticks, ${N} particles, dim ${CONF.dim}\n`);
 for (const [name, dec] of [
   ['rule', async (sw, s) => ruleDecider(sw, s)],
   ['random', (() => { const d = randomDecider(99); return async (sw, s) => d(sw, s); })()],
@@ -124,14 +135,16 @@ for (const [name, dec] of [
   const t0 = Date.now();
   const a = await runArm(name, dec);
   arms.push(a);
-  console.log(`${name.padEnd(10)} dispersal ${a.order.dispersal.toFixed(4)}  coherence ${a.order.coherence.toFixed(3)}` +
-    `  nn ${a.order.nnDist.toFixed(4)}  |  ${a.verdict.padEnd(7)} fill ${a.v2.fill.toFixed(3)}` +
+  console.log(`${name.padEnd(10)} fitness2 ${a.fitness2.toFixed(4)}  ${a.verdict.padEnd(8)} fill ${a.v2.fill.toFixed(3)}` +
+    ` struct ${a.v2.struct.toFixed(2)}  |  coherence ${a.order.coherence.toFixed(3)} dispersal ${a.order.dispersal.toFixed(4)}` +
     `  |  agree(sign) ${(100 * a.agreeSign).toFixed(1)}%  |turn| ${a.meanAbsTurn}` +
-    `  distinct ${a.distinctTurns}  ${((Date.now() - t0) / 1000).toFixed(0)}s`);
+    `  ${((Date.now() - t0) / 1000).toFixed(0)}s`);
 }
 
 // Which arm is each Jev arm nearest, in fluoddity's own phenotype space?
 const by = Object.fromEntries(arms.map((a) => [a.name, a]));
+console.log('\nfitness2 is FLUODDITY\'S OWN interestingness score, and it is testable now:');
+for (const a of arms) console.log(`  ${a.name.padEnd(10)} ${a.fitness2.toFixed(4)}`);
 console.log('\nphenotype distance (fluoddity vec), lower is more alike:');
 for (const j of ['jev-mimic', 'jev-goal']) {
   const row = ['rule', 'random', 'frozen'].map((k) => `${k} ${dist(by[j].vec, by[k].vec).toFixed(3)}`);
@@ -144,5 +157,5 @@ for (const j of ['jev-mimic', 'jev-goal']) {
   console.log(`  ${j.padEnd(10)} ${row.join('   ')}`);
 }
 console.log(`\n${calls} calls, ${retries} retries.`);
-if (OUT) { writeFileSync(OUT, JSON.stringify({ when: new Date().toISOString(), conf: CONF, ticks: TICKS, arms }, null, 1));
+if (OUT) { writeFileSync(OUT, JSON.stringify({ when: new Date().toISOString(), organism: { name: org.name, rkey: org.rkey, config: CFG }, conf: { n: CONF.n, dim: CONF.dim }, ticks: TICKS, arms }, null, 1));
   console.log(`wrote ${OUT}`); }

@@ -92,3 +92,14 @@
    asserted — the same lesson this page's own canvases taught. Scoped tightly
    so the original component is untouched. */
 .sw .card.finding b{display:inline;font-size:inherit}
+
+/* The proof strip: four renders of the same genome, side by side, because the
+   claim they support ("this port reproduces fluoddity") is a claim about a
+   picture and cannot be made in a table. */
+.proof{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:12px}
+.proof figure{margin:0}
+.proof img{width:100%;aspect-ratio:1;display:block;border-radius:8px;border:1px solid var(--line);
+  background:#05060a}
+.proof figcaption{font-size:.72rem;color:var(--ink-3);line-height:1.45;margin-top:6px}
+.proof figcaption b{color:var(--ink)}
+.sw h3{color:var(--ink);letter-spacing:-.01em}

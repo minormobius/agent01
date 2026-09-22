@@ -1,0 +1,114 @@
+{
+ "when": "2026-09-22T03:40:26.841Z",
+ "organism": {
+  "name": "wurms01",
+  "rkey": "3mmtu3afsth2i",
+  "did": "did:plc:7zre4plmd5jllccww575j6sb",
+  "createdAt": "2026-05-27T15:46:05.045Z",
+  "config": {
+   "cohorts": 64,
+   "rule_seed": 0.9712491059092194,
+   "sensor_gain": 4,
+   "sensor_angle": -0.14,
+   "sensor_distance": 1.2,
+   "mutation_scale": 0.02,
+   "global_force_mult": 0.6,
+   "drag": 0.9,
+   "strafe_power": 0.17,
+   "axial_force": 0.04,
+   "lateral_force": -0.25,
+   "hazard_rate": 0,
+   "trail_persistence": 0.95,
+   "trail_diffusion": 0.6,
+   "initial_conditions": 0,
+   "ink": 3,
+   "hue": 0,
+   "substeps": 8
+  }
+ },
+ "steps": 400,
+ "dim": 360,
+ "substrate": "match",
+ "rows": [
+  {
+   "n": 256,
+   "verdict": "frozen",
+   "fill": 0.57421875,
+   "struct": 0.8996234740300995,
+   "fitness2": 0.14772947995085917,
+   "dispersal": 0.5276373557045475,
+   "vmean": 0.00048745788381374463,
+   "seconds": 16.315
+  },
+  {
+   "n": 512,
+   "verdict": "frozen",
+   "fill": 0.59375,
+   "struct": 0.8456897692490567,
+   "fitness2": 0.11748362717781415,
+   "dispersal": 0.5140105564286919,
+   "vmean": 0.00048240647017193145,
+   "seconds": 18.094
+  },
+  {
+   "n": 1024,
+   "verdict": "frozen",
+   "fill": 0.62353515625,
+   "struct": 0.7792946637702656,
+   "fitness2": 0.08392470827349066,
+   "dispersal": 0.5359839327287558,
+   "vmean": 0.0004802883993459848,
+   "seconds": 21.673
+  },
+  {
+   "n": 2048,
+   "verdict": "frozen",
+   "fill": 0.671630859375,
+   "struct": 0.7009062813421659,
+   "fitness2": 0.04730458716619339,
+   "dispersal": 0.5392220377499937,
+   "vmean": 0.000483836061138065,
+   "seconds": 28.794
+  },
+  {
+   "n": 4096,
+   "verdict": "frozen",
+   "fill": 0.663818359375,
+   "struct": 0.6688460567716812,
+   "fitness2": 0.04572907404596125,
+   "dispersal": 0.4827227472423813,
+   "vmean": 0.0004672857181048124,
+   "seconds": 43.325
+  },
+  {
+   "n": 8192,
+   "verdict": "frozen",
+   "fill": 0.615234375,
+   "struct": 0.678600034109836,
+   "fitness2": 0.06868143258228372,
+   "dispersal": 0.4608202061937588,
+   "vmean": 0.000442424082000027,
+   "seconds": 73.947
+  },
+  {
+   "n": 16384,
+   "verdict": "frozen",
+   "fill": 0.64501953125,
+   "struct": 0.6868758201280913,
+   "fitness2": 0.05386934919091804,
+   "dispersal": 0.456980446871504,
+   "vmean": 0.00043153951168274055,
+   "seconds": 135.419
+  },
+  {
+   "n": 40000,
+   "verdict": "frozen",
+   "fill": 0.57275390625,
+   "struct": 0.653691959234625,
+   "fitness2": 0.08453449753911207,
+   "dispersal": 0.3619599103640481,
+   "vmean": 0.0004565977297501904,
+   "seconds": 321.514
+  }
+ ]
+}

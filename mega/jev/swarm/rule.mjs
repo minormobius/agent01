@@ -28,18 +28,36 @@
 // fluoddity.
 
 /**
- * Fluoddity's `defaultConfig()`, copied field for field.
+ * Fluoddity's `defaultConfig()`, copied field for field — INCLUDING the field
+ * that decides everything, which two earlier versions of this file dropped.
  *
- * THE FIRST VERSION OF THIS WAS WRONG IN NINE PLACES and its comment claimed
- * it had been taken from `defaultConfig()`. It had not: drag, force,
- * persistence, ink and hue were all off, `mutation_scale` was invented, and —
- * the three that actually mattered — `cohorts`, `initial_conditions` and
- * `hazard_rate` were simply absent. Every swarm measurement taken before this
- * ran on a genome fluoddity would not recognise.
+ * `rule_seed` is the brain. It seeds ten Gaussian centres that make up the
+ * whole nonlinear map from sensors to force, and `defaultConfig()` sets it to
+ * `Math.random()` — so **fluoddity has no default brain**. It has a
+ * continuum of them, and its own engine says which ones are worth running:
+ *
+ *   "The rule_seed (a 10-term Fourier black box) still dominates whether a
+ *    given draw is alive, so callers that want a guaranteed-lively organism
+ *    should reject-sample on fitness on top."   — engine.js, PARAMS
+ *
+ * This port hard-coded `evalRule(0.5, …)`. Not a seed fluoddity chose, not a
+ * seed anyone looked at — the literal 0.5, picked because a port needs some
+ * number. Every swarm run so far drove **one arbitrary brain out of a
+ * continuum, selected by nobody**, and the operator's "it still doesn't look
+ * right on fluoddity" is what that looks like from outside.
+ *
+ * `DEFAULT_SEED` below is chosen the way fluoddity says to choose one — see
+ * `eval/swarm-brains.mjs`, which scores the 120 organisms published to
+ * fluoddity's gallery and reports which are alive at this particle count.
+ *
+ * (The nine-field correction that preceded this got one thing wrong in the
+ * other direction: `mutation_scale: 0.02` is NOT an invention of the port, it
+ * is in `defaultConfig()`. Dropping it left this running at 0. Restored.)
  */
 export const DEFAULT_CFG = {
-  cohorts: 16, sensor_gain: 4.0, sensor_angle: -0.14, sensor_distance: 1.2,
-  global_force_mult: 0.6, drag: 0.9, strafe_power: 0.17, axial_force: 0.04,
+  cohorts: 16, rule_seed: 0.5, sensor_gain: 4.0, sensor_angle: -0.14,
+  sensor_distance: 1.2, mutation_scale: 0.02, global_force_mult: 0.6,
+  drag: 0.9, strafe_power: 0.17, axial_force: 0.04,
   lateral_force: -0.25, hazard_rate: 0.0, trail_persistence: 0.95,
   trail_diffusion: 0.6, initial_conditions: 0, ink: 3.0, hue: 0.0,
 };
@@ -144,8 +162,9 @@ const yref = (v) => [v[0], -v[1]];
  */
 export function ruleTurn(s, cfg, cohort = 0) {
   const mut = cfg.mutation_scale ?? 0;
-  const base = evalRule(0.5, mut, Math.floor(cohort), s.sig);
-  const m = evalRule(0.5, mut, Math.floor(cohort),
+  const seed = cfg.rule_seed ?? 0.5;          // the brain — see DEFAULT_CFG
+  const base = evalRule(seed, mut, Math.floor(cohort), s.sig);
+  const m = evalRule(seed, mut, Math.floor(cohort),
     [...yref([s.sig[2], s.sig[3]]), ...yref([s.sig[0], s.sig[1]])]);
   // `evalRule` returns FOUR numbers and the shader uses all four:
   //   base.xy + yref(mirr.xy) = force   — goes through velocity and drag
@@ -159,7 +178,18 @@ export function ruleTurn(s, cfg, cohort = 0) {
   const axial = base[0] + m[0];
   const strafeAxial = base[2] + m[2];
   const strafeLateral = base[3] + -m[3];
-  return { turn: Math.tanh(lateral), axial, strafeAxial, strafeLateral };
+  // `lateral` is RAW — it is `force.y` in the shader, which is multiplied by
+  // `lateral_force` and nothing else. The first port returned `tanh(lateral)`
+  // and called the result "the turn, in units of the rule's own scale". It was
+  // not: `tanh` is only a unit conversion when the argument is already O(1),
+  // and on the CORRECT field it is not. Measured on a published organism at
+  // 256 particles, the rule's own |lateral| is ~2e-3, so `tanh` returned ~2e-3
+  // while the model's ladder spans ±1 — the arms were steering in units that
+  // differed by three orders of magnitude, and only the old field's 1000×
+  // over-strength hid it by driving the brain into saturation.
+  // `turnScale` in swarm.mjs converts, and it is MEASURED from the rule arm
+  // before any other arm runs.
+  return { turn: lateral, lateral, axial, strafeAxial, strafeLateral };
 }
 
 /**
