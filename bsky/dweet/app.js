@@ -19,7 +19,10 @@ import { JetstreamClient, KIND, eventUri } from '/packages/atproto/jetstream.js'
 import { countDistinct } from '/packages/atproto/constellation.js';
 import { getProfiles } from '/packages/atproto/bsky.js';
 import { AuthClient } from '/packages/oauth-client/auth.js';
-import { DweetFrame, validate, countChars, MAX_CHARS, LANGS } from '/dweet/sandbox.js';
+import {
+  DweetFrame, validate, countChars, sizeClass, dwitterPortable,
+  MAX_CHARS, DWITTER_CHARS, LANGS,
+} from '/dweet/sandbox.js';
 import { SEEDS } from '/dweet/seeds.js';
 
 const NSID = 'com.minomobi.dweet.dweet';
@@ -62,7 +65,14 @@ const visibility = new IntersectionObserver((entries) => {
     if (e.isIntersecting) f.start();
     else f.stop();
   }
-}, { rootMargin: '200px' });
+  // No rootMargin. Pre-warming one card off-screen sounds friendly and is not:
+  // a 16:9 card is most of a phone screen, so a 200px margin ran three dweets
+  // at once, and three concurrent full-screen shaders on a device without a
+  // GPU starved each other badly enough to trip the watchdog on an innocent
+  // sketch. Measured, not guessed — see WATCHDOG_MS. Starting on the
+  // intersection costs a few frames of black at the top of a card and buys
+  // every other card its full frame budget.
+}, { rootMargin: '0px' });
 
 function timeAgo(iso) {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -102,7 +112,20 @@ function card(d) {
 
   const foot = el('div', 'foot');
   foot.append(el('span', 'tag lang', d.lang));
+  // The size CATEGORY leads, because that is the achievement; the raw count
+  // follows, because a badge that hides how close you are to the next tier
+  // down is no use to anyone golfing toward it.
+  const sz = sizeClass(d.src);
+  const tier = el('span', 'tag tier', sz.label);
+  tier.title = `${sz.bytes} bytes`
+    + (sz.tier ? ` — inside the ${sz.label} category` : ' — above 256b');
+  foot.append(tier);
   foot.append(el('span', 'tag', `${countChars(d.src)}/${MAX_CHARS}`));
+  if (dwitterPortable(d)) {
+    const port = el('span', 'tag port', 'dwitter');
+    port.title = `${DWITTER_CHARS} chars or fewer of js — runs on dwitter.net unchanged`;
+    foot.append(port);
+  }
   const remixTag = el('span', 'tag');
   remixTag.hidden = true;
   foot.append(remixTag);
@@ -129,6 +152,12 @@ function card(d) {
     },
   });
   frame.mount(stage);
+  // captureTime: draw the author's chosen moment now, so a paused card shows a
+  // composed frame instead of whatever t=0 looks like — which, for anything
+  // that draws itself over time, is an empty canvas.
+  if (typeof d.captureTime === 'number' && d.captureTime > 0) {
+    frame.poster(d.captureTime / 1000);
+  }
   frames.set(root, frame);
   visibility.observe(root);
 
@@ -237,6 +266,8 @@ function startFeed() {
         lang: LANGS.includes(rec.lang) ? rec.lang : 'js',
         title: typeof rec.title === 'string' ? rec.title.slice(0, 64) : '',
         createdAt: rec.createdAt || new Date().toISOString(),
+        captureTime: Number.isInteger(rec.captureTime) && rec.captureTime >= 0
+          ? rec.captureTime : undefined,
       };
       seen.set(uri, d);
       if (live === 0) $('feed-empty').hidden = true;
@@ -274,7 +305,11 @@ function refreshCount() {
   const src = $('src').value;
   const n = countChars(src);
   const over = n > MAX_CHARS;
-  $('count').innerHTML = `<b>${n}</b>/${MAX_CHARS}`;
+  const sz = sizeClass(src);
+  const port = dwitterPortable({ src, lang: composeLang });
+  $('count').innerHTML = `<b>${n}</b>/${MAX_CHARS}`
+    + ` <span class="tier">${sz.label}</span>`
+    + (port ? ' <span class="port">dwitter</span>' : '');
   $('count').classList.toggle('over', over);
   $('src').classList.toggle('over', over);
   const v = validate({ src, lang: composeLang });
@@ -341,6 +376,11 @@ async function post() {
     const title = $('title').value.trim();
     if (title) record.title = title.slice(0, 64);
     if (remixOf) record.remixOf = remixOf;
+    // Where the preview happens to be when you press post IS the framing you
+    // chose — no separate "capture" gesture, because one more button to get a
+    // good thumbnail is a button nobody presses.
+    const frames = previewFrame?.lastFrame ?? 0;
+    if (frames > 0) record.captureTime = Math.round((frames / 60) * 1000);
 
     await auth.pds.createRecord(NSID, record);
     $('post').textContent = 'posted';

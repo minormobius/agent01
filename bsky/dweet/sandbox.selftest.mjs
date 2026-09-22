@@ -10,8 +10,8 @@
  * to revert the change, not to relax the test.
  */
 import {
-  SANDBOX_TOKENS, FRAME_CSP, MAX_CHARS, LANGS,
-  harnessDoc, countChars, validate,
+  SANDBOX_TOKENS, FRAME_CSP, MAX_CHARS, LANGS, DWITTER_CHARS, SIZE_TIERS,
+  harnessDoc, countChars, validate, sizeClass, dwitterPortable, wrapFragment,
 } from './sandbox.js';
 
 let fail = 0;
@@ -104,6 +104,57 @@ ok(!validate({ src: 'x', lang: 'wasm' }).ok, 'rejects an unknown lang');
 ok(LANGS.length === 2 && LANGS.includes('js') && LANGS.includes('glsl'), 'js + glsl');
 // A dweet full of emoji must not sneak past on UTF-16 length.
 ok(!validate({ src: family.repeat(MAX_CHARS + 1), lang: 'js' }).ok, 'counts emoji as graphemes');
+
+console.log('\nthe cap, and the Bluesky post arithmetic');
+// 280 exists so a whole sketch fits in one 300-grapheme Bluesky post with a
+// tag. If MAX_CHARS ever moves, this arithmetic is the thing to re-check.
+const BLUESKY_POST = 300, TAG = ' #dweet'.length, LINK = ' dweet.mino.mobi/p/3l4abcdefghij'.length;
+ok(MAX_CHARS === 280, 'cap is 280 graphemes', `${MAX_CHARS}`);
+ok(MAX_CHARS + TAG <= BLUESKY_POST,
+  'code + tag fits a Bluesky post', `${MAX_CHARS + TAG}/${BLUESKY_POST}`);
+// Documented as NOT fitting, on purpose — so nobody later assumes it does.
+ok(MAX_CHARS + TAG + LINK > BLUESKY_POST,
+  'code + tag + permalink does NOT fit (256 would)', `${MAX_CHARS + TAG + LINK}/${BLUESKY_POST}`);
+ok(DWITTER_CHARS === 140, 'dwitter mark kept as a badge, not a rule');
+
+console.log('\nsize categories (bytes, demoscene convention)');
+ok(SIZE_TIERS.join() === '64,128,256', 'tiers are 64/128/256', SIZE_TIERS.join('/'));
+ok(sizeClass('a'.repeat(64)).label === '64b', '64 bytes -> 64b');
+ok(sizeClass('a'.repeat(65)).label === '128b', '65 bytes -> 128b');
+ok(sizeClass('a'.repeat(256)).label === '256b', '256 bytes -> 256b');
+ok(sizeClass('a'.repeat(257)).label === 'open', '257 bytes -> open');
+ok(sizeClass('').label === '64b', 'empty is the smallest tier');
+// Bytes, not graphemes: one emoji is 4 bytes and must count as 4.
+const emoji = '\u{1F984}';
+ok(sizeClass(emoji).bytes === 4, 'tier counts UTF-8 bytes', `${sizeClass(emoji).bytes} bytes`);
+ok(countChars(emoji) === 1, 'cap counts graphemes', '1 grapheme');
+
+console.log('\ndwitter portability');
+ok(dwitterPortable({ src: 'a'.repeat(140), lang: 'js' }), '140 js is portable');
+ok(!dwitterPortable({ src: 'a'.repeat(141), lang: 'js' }), '141 js is not');
+ok(!dwitterPortable({ src: 'a'.repeat(10), lang: 'glsl' }), 'glsl is never portable');
+
+console.log('\nglsl interop — both dialects compile');
+const ours = wrapFragment('o=vec4(1);');
+const theirs = wrapFragment('void mainImage(out vec4 fragColor, in vec2 fragCoord){fragColor=vec4(1);}');
+ok(/void main\(\)\{vec2 FC=gl_FragCoord\.xy;o=vec4\(1\);\}$/.test(ours),
+  'our dialect becomes the body of main()');
+ok(/void main\(\)\{mainImage\(o,gl_FragCoord\.xy\);\}$/.test(theirs),
+  'a mainImage sketch is called from main()');
+ok(!/void main\(\)\{vec2 FC/.test(theirs), 'and is NOT also inlined');
+for (const name of ['uniform float t', 'uniform float iTime', 'uniform float u_Time',
+                    'uniform vec2 r', 'uniform vec2 iResolution', 'const float PI']) {
+  ok(ours.includes(name), `head declares ${name}`);
+}
+// demosky hardcodes iResolution as a const; ours is a real uniform, so a
+// sketch can know the viewport. Assert it is not a const here.
+ok(!/const vec2 iResolution/.test(ours), 'iResolution is a uniform, not a const');
+ok(ours.startsWith('#version 300 es\n'), 'GLSL ES 3.0');
+// Detection must not fire on a mere mention in a comment-free false positive.
+ok(/mainImage/.test(wrapFragment('mainImage (o,FC);')), 'tolerates a space before the paren');
+// The shipped worker uses THIS function, not a copy.
+ok(harnessDoc().includes('function wrapFragment'), 'the worker carries wrapFragment itself');
+ok(!/\bwrapFragment\b[^(]*=[^=]/.test(wrapFragment.toString()), 'wrapFragment is closure-free');
 
 console.log('\nthe seed dweet still fits');
 const SEED = "c.width|=0;x.fillStyle='#f36';p=33+S(t*5)**8*4;for(a=t%8;a>0;a-=.01)"

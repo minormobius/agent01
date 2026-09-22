@@ -951,7 +951,7 @@
       "t": "2026-09-21",
       "b": "2026-09-21",
       "surface": "bsky",
-      "d": "A feed of animations that are 140 characters of JavaScript, called 60 times a second over a canvas. Each one is a record in its author's own repo, and at that size the whole artwork fits inside a single firehose event — so the feed needs no index and no backend, the way the AppView beside it needs none. Every dweet runs in a sandboxed frame at an opaque origin under default-src 'none', because a feed of strangers' code on a domain with an SSO cookie is otherwise an account takeover. Write in JS or in GLSL, which is the same 140 characters on the GPU.",
+      "d": "A feed of animations that are 280 characters of JavaScript or GLSL, called 60 times a second over a canvas. Each one is a record in its author's own repo, and at that size the whole artwork fits inside a single firehose event — so the feed needs no index and no backend, the way the AppView beside it needs none. Every dweet runs in a sandboxed frame at an opaque origin under default-src 'none', because a feed of strangers' code on a domain with an SSO cookie is otherwise an account takeover. Write in JS or in GLSL, which is the same 280 characters on the GPU \u2014 and a shader written for demosky.app's mainImage dialect runs here unchanged. Sketches are badged by demoscene size category (64b/128b/256b) rather than only by a limit.",
       "tags": [
         "atproto",
         "canvas",

@@ -101,8 +101,67 @@ export const FRAME_CSP = [
   "style-src 'unsafe-inline'",
 ].join('; ');
 
-/** Dwitter's limit, kept deliberately. See CLAUDE.md for why. */
-export const MAX_CHARS = 140;
+/**
+ * The cap, in graphemes.
+ *
+ * 280 rather than dwitter's 140, for one concrete reason: a Bluesky post is
+ * 300 graphemes, so 280 of code plus ` #dweet` (7) is 287 and fits — the whole
+ * sketch can be an ordinary post that any client renders as text. Dwitter's 140
+ * was a Twitter-era number and nothing here depends on it.
+ *
+ * What does NOT fit is code + tag + a permalink (~32 more, so 319). If that
+ * matters more than the extra room, the number to use is 256: a power of two,
+ * a size category in its own right, and it leaves 44 graphemes for both.
+ *
+ * The architectural argument is unaffected — it was never about 140. A record
+ * this small still rides whole inside a firehose event, which is what lets the
+ * feed work with no index. 280 bytes is as small as 140 for that purpose.
+ */
+export const MAX_CHARS = 280;
+
+/**
+ * Dwitter's limit, kept as a BADGE rather than a rule.
+ *
+ * It stopped being a constraint and became an interop fact: a js dweet of 140
+ * graphemes or fewer uses exactly dwitter.net's own namespace (`t` `S` `C` `T`
+ * `R` `c` `x` over a 1920x1080 canvas that is not auto-cleared), so it can be
+ * pasted there verbatim and will run. That is worth surfacing; nostalgia is
+ * not.
+ */
+export const DWITTER_CHARS = 140;
+
+/**
+ * Size categories, in BYTES, after the demoscene convention demosky.app uses —
+ * 64b / 128b / 256b intros, where the tier is the achievement and there is no
+ * hard limit inside it.
+ *
+ * Two different units on purpose, and it is not sloppiness: the CAP is counted
+ * in graphemes because that is what a person types against, while the TIER is
+ * counted in UTF-8 bytes because that is what the tradition measures and what
+ * the record actually costs. For ASCII — which golfed code very nearly always
+ * is — they coincide.
+ */
+export const SIZE_TIERS = Object.freeze([64, 128, 256]);
+
+/**
+ * Which size category a source lands in. Returns the byte count too, because a
+ * badge that shows only the tier hides how close you are to the next one.
+ */
+export function sizeClass(src) {
+  const bytes = new TextEncoder().encode(String(src ?? '')).length;
+  for (const tier of SIZE_TIERS) {
+    if (bytes <= tier) return { bytes, tier, label: `${tier}b` };
+  }
+  return { bytes, tier: null, label: 'open' };
+}
+
+/**
+ * Could this dweet be posted to dwitter.net unchanged? Only js qualifies: the
+ * glsl mode is ours, and dwitter has no shader harness to run it in.
+ */
+export function dwitterPortable(dweet) {
+  return dweet?.lang !== 'glsl' && countChars(dweet?.src ?? '') <= DWITTER_CHARS;
+}
 
 /** Canvas size, also dwitter's. */
 export const WIDTH = 1920;
@@ -122,12 +181,27 @@ export const BEAT_MS = 250;
  *
  * Deliberately a clock, not a frame count. An earlier version beat every 30
  * frames, which measures progress in the wrong unit: a legitimate but
- * expensive dweet — a full-screen shader under software rasterisation, or
- * anything on a weak GPU — misses that deadline while working perfectly. A
- * clock separates "slow" from "stuck", which is the only distinction the
- * watchdog is entitled to make.
+ * expensive dweet misses that deadline while working perfectly.
+ *
+ * And deliberately GENEROUS, which cost a second measurement to learn. At
+ * 2500ms the `ribbon` seed — 121 characters, measured at 0.6 ms/frame — was
+ * being reaped in the feed while passing in isolation. Nothing was wrong with
+ * it: five cards were mounted and two of them were full-screen shaders being
+ * rasterised in SOFTWARE, which starved the 2D worker past its deadline.
+ *
+ * That is the watchdog's blind spot. It cannot distinguish "this dweet is
+ * stuck" from "this dweet is being starved by its neighbours", and on a weak
+ * phone the second is ordinary. So the budget is set where no legitimate
+ * SINGLE frame could plausibly land, and the thing it actually detects is the
+ * case that matters: a dweet which never acknowledges a frame AT ALL, however
+ * long you wait, because it never returns from its own loop. `while(1)` is
+ * still caught — just six seconds later, which costs one worker and nothing
+ * else.
+ *
+ * Paired with only running cards that are actually on screen (see app.js), so
+ * the contention that caused this stays bounded in the first place.
  */
-export const WATCHDOG_MS = 2500;
+export const WATCHDOG_MS = 6000;
 
 /**
  * Count the way dwitter counts: user-perceived characters, not UTF-16 code
@@ -161,6 +235,44 @@ export function validate(dweet) {
 }
 
 /**
+ * Build the fragment shader around a sketch, accepting EITHER dialect.
+ *
+ * This is the interop shim. demosky.app (and Shadertoy, and twigl's various
+ * modes) put a top-level `mainImage(out vec4 fragColor, in vec2 fragCoord)` in
+ * the source; ours is the bare body of `main()` writing to `o`. Both are
+ * detected and both compile, so a sketch written for either renders here.
+ *
+ * The head declares BOTH vocabularies, which costs nothing — an unused uniform
+ * is free — and means a sketch may mix them:
+ *
+ *   ours      t   r             FC   o
+ *   theirs    iTime u_Time      iResolution   (fragColor, via mainImage)
+ *   both      PI
+ *
+ * One deliberate improvement on the source dialect: demosky hardcodes
+ * `const vec2 iResolution = vec2(512.0)`, so a sketch there cannot know the
+ * viewport. Here it is a real uniform carrying the true canvas size. A sketch
+ * that only READS it is unaffected; one that used it in a constant expression
+ * would not compile, which is the single known incompatibility.
+ *
+ * Defined at module scope and injected into the worker by `.toString()` so
+ * there is exactly one copy — the function the selftest exercises IS the
+ * function that ships. It must therefore stay closure-free.
+ */
+export function wrapFragment(src) {
+  var head = '#version 300 es\n'
+    + 'precision highp float;'
+    + 'uniform float t;uniform float iTime;uniform float u_Time;'
+    + 'uniform vec2 r;uniform vec2 iResolution;'
+    + 'const float PI=3.14159265359;'
+    + 'out vec4 o;';
+  if (/\bmainImage\s*\(/.test(src)) {
+    return head + src + '\nvoid main(){mainImage(o,gl_FragCoord.xy);}';
+  }
+  return head + 'void main(){vec2 FC=gl_FragCoord.xy;' + src + '}';
+}
+
+/**
  * The worker program. CONSTANT — the dweet arrives by postMessage.
  *
  * Workers have no requestAnimationFrame, which is why the frame drives the
@@ -168,8 +280,10 @@ export function validate(dweet) {
  */
 const WORKER_SRC = `
 'use strict';
+${wrapFragment.toString()}
 var canvas = null, mode = 'js', dead = false;
-var x = null, gl = null, uT = null, uR = null, u = null;
+var x = null, gl = null, u = null;
+var uT = null, uR = null, uIT = null, uUT = null, uIR = null;
 var S = Math.sin, C = Math.cos, T = Math.tan;
 function R(r, g, b, a) {
   return 'rgba(' + (r|0) + ',' + (g|0) + ',' + (b|0) + ',' + (a === undefined ? 1 : a) + ')';
@@ -184,8 +298,7 @@ var VERT = '#version 300 es\\nin vec2 p;void main(){gl_Position=vec4(p,0,1);}';
 function initGL(src) {
   gl = canvas.getContext('webgl2', { antialias: false });
   if (!gl) return fail('compile', new Error('WebGL2 unavailable here'));
-  var frag = '#version 300 es\\nprecision highp float;uniform float t;uniform vec2 r;out vec4 o;'
-           + 'void main(){vec2 FC=gl_FragCoord.xy;' + src + '}';
+  var frag = wrapFragment(src);
   function sh(type, text) {
     var s = gl.createShader(type);
     gl.shaderSource(s, text); gl.compileShader(s);
@@ -212,16 +325,22 @@ function initGL(src) {
   var loc = gl.getAttribLocation(prog, 'p');
   gl.enableVertexAttribArray(loc);
   gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  // Both dialects' names. A uniform the sketch never mentions is optimised
+  // out and its location comes back null, which uniform1f/2f accept as a no-op.
   uT = gl.getUniformLocation(prog, 't');
   uR = gl.getUniformLocation(prog, 'r');
+  uIT = gl.getUniformLocation(prog, 'iTime');
+  uUT = gl.getUniformLocation(prog, 'u_Time');
+  uIR = gl.getUniformLocation(prog, 'iResolution');
   gl.viewport(0, 0, canvas.width, canvas.height);
 }
 
 function draw(f) {
   var t = f / 60;
   if (mode === 'glsl') {
-    gl.uniform1f(uT, t);
+    gl.uniform1f(uT, t); gl.uniform1f(uIT, t); gl.uniform1f(uUT, t);
     gl.uniform2f(uR, canvas.width, canvas.height);
+    gl.uniform2f(uIR, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   } else {
     u(t, S, C, T, R, canvas, x);
@@ -279,6 +398,7 @@ export function harnessDoc() {
   var c = document.getElementById('c');
   var started = false, stopped = false, paused = false, worker = null;
   var f = 0, pending = false, lastAck = 0, lastRelay = 0, raf = 0;
+  var posterAt = null;
 
   function up(m){ try { window.parent.postMessage(m, '*'); } catch (e) {} }
   function die(stage, message){
@@ -288,7 +408,8 @@ export function harnessDoc() {
     up({ type:'dweet:error', stage: stage, message: message });
   }
 
-  function run(src, lang){
+  function run(src, lang, at){
+    posterAt = (typeof at === 'number' && isFinite(at) && at >= 0) ? at : null;
     var off;
     try { off = c.transferControlToOffscreen(); }
     catch (e) { return die('compile', 'OffscreenCanvas unavailable: ' + e.message); }
@@ -303,7 +424,22 @@ export function harnessDoc() {
       var d = e.data;
       if (!d) return;
       if (d.type === 'fail') return die(d.stage, d.message);
-      if (d.type === 'ready') { lastAck = Date.now(); tick(); return; }
+      if (d.type === 'ready') {
+        lastAck = Date.now();
+        // captureTime: draw exactly ONE frame at the author's chosen moment and
+        // stop there. The card then shows the picture the author framed instead
+        // of a black rectangle, and a resume carries on from that same moment,
+        // so there is no jump when it starts moving.
+        if (posterAt !== null) {
+          paused = true;
+          f = Math.round(posterAt * 60);
+          pending = true;
+          worker.postMessage({ type: 'tick', f: f++ });
+          return;
+        }
+        tick();
+        return;
+      }
       if (d.type === 'drew') {
         pending = false;
         lastAck = Date.now();
@@ -366,7 +502,7 @@ export function harnessDoc() {
     if (d.type !== 'dweet:run' || started) return;
     started = true;
     if (typeof d.src !== 'string') return die('compile', 'no source');
-    run(d.src, d.lang === 'glsl' ? 'glsl' : 'js');
+    run(d.src, d.lang === 'glsl' ? 'glsl' : 'js', d.at);
   });
 
   up({ type: 'dweet:ready' });
@@ -399,6 +535,8 @@ export class DweetFrame {
     this._timer = 0;
     this._launched = false;
     this._live = false;
+    this._posterAt = null;
+    this.lastFrame = 0;
     this._onMessage = this._onMessage.bind(this);
   }
 
@@ -415,6 +553,21 @@ export class DweetFrame {
     window.addEventListener('message', this._onMessage);
     container.appendChild(el);
     return this;
+  }
+
+  /**
+   * Draw one frame at `t` and stop — the author's `captureTime`.
+   *
+   * Lifted from demosky.app, which records the moment its still was grabbed so
+   * the thumbnail and the live render agree. Here there is no thumbnail to
+   * agree with; the win is that a paused card shows a composed frame rather
+   * than whatever t=0 happens to look like, which for anything that draws
+   * itself over time is nothing at all.
+   */
+  poster(at) {
+    if (this._launched || !this.el) return this;
+    this._posterAt = at;
+    return this.start();
   }
 
   /** Hand the frame its program. Idempotent. */
@@ -437,7 +590,7 @@ export class DweetFrame {
     const post = () => {
       if (!this.el?.contentWindow) return;
       this.el.contentWindow.postMessage(
-        { type: 'dweet:run', src: this.opts.src, lang: this.lang },
+        { type: 'dweet:run', src: this.opts.src, lang: this.lang, at: this._posterAt },
         '*', // an opaque origin cannot be named; the source is public anyway
       );
     };
@@ -469,6 +622,7 @@ export class DweetFrame {
     if (!d || typeof d !== 'object') return;
     if (d.type === 'dweet:beat' || d.type === 'dweet:ready') {
       this.lastBeat = Date.now();
+      if (typeof d.frame === 'number') this.lastFrame = d.frame;
       // A beat means the worker acknowledged a drawn frame, so there are
       // pixels now — the right moment to drop any placeholder, and the only
       // signal that distinguishes "running" from "mounted but blank".

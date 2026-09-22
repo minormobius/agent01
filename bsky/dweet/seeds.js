@@ -54,4 +54,16 @@ export const SEEDS = [
         + 'independently — which is the whole argument for the glsl mode: far '
         + 'more headroom, and still short enough to read.',
   },
+  {
+    local: true,
+    title: 'interop',
+    lang: 'glsl',
+    author: 'the house',
+    src: 'void mainImage(out vec4 fragColor,in vec2 fragCoord){vec2 u=(fragCoord-.5*iResolution)/iResolution.y;'
+       + 'float a=atan(u.y,u.x),d=length(u);fragColor=vec4(.5+.5*cos(a*3.+iTime+vec3(0,2,4)),1)*(1.-d);}',
+    note: 'Written in demosky.app\u2019s dialect, not ours \u2014 a top-level '
+        + 'mainImage(out vec4, in vec2) reading iTime and iResolution. It runs here unchanged, '
+        + 'which is the point: the harness accepts either vocabulary. And it fills a real '
+        + '1920x1080 frame, where demosky pins iResolution to a constant 512.',
+  },
 ];

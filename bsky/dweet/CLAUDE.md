@@ -3,12 +3,12 @@
 <!-- HAND-OWNED. Repo-wide rules live in ../../CLAUDE.md; this surface's host
      worker is documented in ../CLAUDE.md. -->
 
-A feed of **140-character animations**, and a place to write one. Each dweet is
+A feed of **280-character animations**, and a place to write one. Each dweet is
 the body of a function called 60 times a second over a 1920×1080 canvas, stored
 as a `com.minomobi.dweet.dweet` record in its author's own repo.
 
 It is the dwitter.net form, moved onto ATProto — and the move is not decorative.
-At 140 characters the *entire artwork* fits inside a firehose event, so tailing
+At this size the *entire artwork* fits inside a firehose event, so tailing
 Jetstream **is** the feed. Nothing is fetched to render a card, nothing is
 stored to remember one.
 
@@ -23,6 +23,7 @@ stored to remember one.
 | Deploy | [`deploy-bsky.yml`](../../.github/workflows/deploy-bsky.yml) |
 | Lexicon | [`../lexicons/com.minomobi.dweet.dweet.json`](../lexicons/com.minomobi.dweet.dweet.json) |
 | Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone |
+| Cap | 280 graphemes; size **categories** 64b/128b/256b in bytes |
 
 **It shares the `bsky` worker because the account is at its worker cap.** An
 extra custom-domain route costs nothing; an extra worker was not available.
@@ -110,6 +111,22 @@ beat every 30 frames, which reaps a dweet that is merely expensive; it killed
 the glsl seed under software rasterisation and would kill a heavy shader on a
 weak phone.
 
+**And keep the budget generous — 6s, not 2.5s.** This cost a second
+measurement. At 2500ms the `ribbon` seed (121 characters, measured at
+**0.6 ms/frame**) was reaped in the feed while passing in isolation. Nothing was
+wrong with it: five cards were mounted and two were full-screen shaders being
+rasterised in software, which starved the 2D worker past its deadline. That is
+the watchdog's blind spot — **it cannot tell "stuck" from "starved by its
+neighbours"**, and on a weak phone the second is ordinary. So the budget sits
+where no legitimate single frame could land, and what it actually detects is the
+case that matters: a dweet that never acknowledges a frame at all. `while(1)` is
+still caught, six seconds later, costing one worker.
+
+The other half of that fix is in `app.js`: the IntersectionObserver uses
+**`rootMargin: 0`**. Pre-warming a card off-screen sounds friendly and is not —
+a 16:9 card is most of a phone screen, so a 200px margin had three dweets
+animating at once.
+
 **Pause is not teardown.** A card scrolled out of view is paused and resumed
 constantly, and a terminated worker cannot be restarted — so `dweet:pause` stops
 the ticks while `dweet:stop` kills the worker, and only the latter runs when a
@@ -152,17 +169,88 @@ The 2D canvas is **not auto-cleared between frames**, exactly as on dwitter.
 Trails are the default and clearing costs you characters — `c.width|=0` is the
 standard ten-character sacrifice. Half the idiom of the form comes from this.
 
-## Why the limit stays at 140
+## The cap is 280, and the tiers are the interesting part
 
-Not nostalgia — architecture. A record small enough to ride inside a firehose
-event needs no index to read. Raise the limit and cards must be fetched;
-fetching needs an index; an index is the backend this surface and the AppView
-beside it both exist to do without. The constraint that makes the art form also
-makes the architecture free.
+**280 graphemes, not dwitter's 140.** The reason is arithmetic, not taste: a
+Bluesky post is 300 graphemes, so 280 of code plus ` #dweet` is 287 and the
+whole sketch can *be* an ordinary post that every client renders as text.
 
-Counting is by **grapheme**, not UTF-16 code unit, matching the lexicon's
-`maxGraphemes` and what a person typing actually perceives. `countChars()` uses
-`Intl.Segmenter`; the selftest pins the emoji case.
+What does **not** fit is code + tag + a permalink (~32 more, so 319). If that
+ever matters more than the extra room, the number is **256** — a power of two,
+a size category in its own right, and it leaves 44 for both. It is one constant
+(`MAX_CHARS`) and `sandbox.selftest.mjs` pins the arithmetic either way.
+
+**The architectural claim is unaffected.** It was never about 140 — only about
+being small enough to ride whole inside a firehose event, so the feed needs no
+index. 280 bytes is as small as 140 for that purpose. Raise it to a kilobyte and
+the argument starts to bend; 280 does not touch it.
+
+### Size categories, after the demoscene
+
+Borrowed from [demosky.app](https://demosky.app), which badges sketches
+`64b / 128b / 256b / …` with no hard limit at all — the 256-byte-intro
+tradition, where the tier is the achievement rather than the ceiling.
+
+| | counted in | why |
+|---|---|---|
+| the **cap** (280) | graphemes | it is what a person types against, and what `maxGraphemes` means |
+| the **tier** (64b/128b/256b) | UTF-8 bytes | it is what the tradition measures, and what the record costs |
+
+Two units on purpose. For ASCII — which golfed code nearly always is — they
+coincide, so the distinction only shows up for someone doing Unicode tricks,
+where bytes is the honest number. Above 256 bytes the tier reads `open`.
+
+### 140 survived as a badge, and it earns its keep
+
+A `js` dweet of 140 graphemes or fewer uses *exactly* dwitter.net's own
+namespace, so it can be pasted there and will run. That is an **interop fact**,
+not nostalgia, and `dwitterPortable()` surfaces it as a `dwitter` chip. `glsl`
+never qualifies — dwitter has no shader harness.
+
+## Both GLSL dialects run here
+
+`wrapFragment()` in `sandbox.js` accepts either vocabulary, chosen by whether
+the source defines a top-level `mainImage`:
+
+| | ours | Shadertoy / demosky |
+|---|---|---|
+| shape | bare body of `main()` | `void mainImage(out vec4, in vec2)` |
+| time | `t` | `iTime`, `u_Time` |
+| resolution | `r` | `iResolution` |
+| fragcoord | `FC` | the second parameter |
+| output | `o` | the out parameter |
+| also | `PI` | `PI` |
+
+The head declares **all** of it — an unused uniform is free — so a sketch may
+mix the two. This is what makes us a superset rather than a competitor: a
+demosky sketch pastes in and runs, and the `interop` seed is exactly that, kept
+in their dialect on purpose so a regression in the shim breaks a visible card.
+
+One deliberate improvement: demosky hardcodes
+`const vec2 iResolution = vec2(512.0)`, so a sketch there cannot know its
+viewport. Here it is a real uniform carrying the true canvas size. A sketch that
+only *reads* it is unaffected; one that used it in a constant expression would
+not compile, and that is the single known incompatibility.
+
+**`wrapFragment` is defined once** and injected into the worker with
+`.toString()`, so the function the selftest exercises is the function that
+ships. It must stay closure-free; the selftest asserts that.
+
+## captureTime
+
+Also from demosky, and the best small idea they have. The composer records where
+the live preview happened to be when you pressed post — no separate "capture"
+gesture, because one more button to get a good thumbnail is a button nobody
+presses — and stores it as integer milliseconds.
+
+A card then draws **that one frame** while paused, so a scrolled-past dweet
+shows the moment its author framed rather than whatever `t=0` looks like — which,
+for anything that draws itself over time, is an empty canvas. Resuming carries
+on from the same moment, so there is no jump.
+
+Integer milliseconds, not a float of seconds: the lexicon language has no float,
+and demosky's own `captureTime` is a *stringified* float, which is a worse
+contract than picking a unit.
 
 ## Files
 
@@ -194,9 +282,10 @@ an edge anywhere.
   house set after four seconds of silence. Seeds are marked `local: true`,
   carry no `at://` URI, and cannot be remixed onto — nothing should ever imply
   they are records.
-- **Only visible dweets run.** An `IntersectionObserver` starts and stops
-  frames. A column of 60fps canvases all animating at once is the one way this
-  page could be heavier than the AppView it shares a worker with.
+- **Only visible dweets run**, with no `rootMargin` — see the watchdog note. A
+  column of 60fps canvases all animating at once is the one way this page could
+  be heavier than the AppView it shares a worker with, and it was also what
+  tripped the watchdog on an innocent sketch.
 - **Every run gets a new frame.** Re-running destroys and rebuilds, which is
   also the cheapest guarantee that one dweet cannot leave state for the next.
 - **Records off the wire are data, never markup.** `src` goes to a `<pre>` as
@@ -231,6 +320,11 @@ about:
   too. Probed directly before the rewrite, because if it were false the worker
   design would have handed the dweet its network back.
 - **Both languages render**, and feed cards resume after being scrolled away.
+- **The interop shim works on a real demosky-dialect sketch** — a top-level
+  `mainImage` reading `iTime` and `iResolution` compiles and animates through
+  our harness, at a true 1920×1080 rather than their fixed square.
+- **`ribbon` at 0.6 ms/frame** — the number that proved the 2.5s watchdog was
+  reaping healthy dweets rather than the dweet being slow.
 - Every seed was rendered frame-by-frame and eyeballed before being committed.
 
 **Not verified:** anything requiring a real session. No `createRecord` has ever
