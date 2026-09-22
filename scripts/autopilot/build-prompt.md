@@ -33,9 +33,9 @@ _Regenerated 2026-09-22 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-22, 99 members / 289 posts):
+**Neighborhood spark** (bisk 2026-09-22, 99 members / 309 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: jev, llms, org
+- Distinctive words: jev, llms, openai
 - Top post: "having fun wit da rats" — @segyges.bsky.social
 <!-- BRIEF_END -->
 
