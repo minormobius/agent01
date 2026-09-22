@@ -1695,7 +1695,21 @@ worth knowing before anyone adds another route here:
   a dead host. DNS, then route, then verify. See `docs/DEPLOYS.md` §4.
 
 `dweet/` shares `/packages/*` and `/lib/*` with the AppView from the same asset
-root, which is why the dispatch is narrow rather than a blanket rewrite.
+root, which is why the dispatch is narrow rather than a blanket rewrite — and
+that sharing is now load-bearing rather than incidental: dweet's sign-in sheet
+uses **this** surface's `lib/typeahead.js`, abort race and ARIA roles included,
+instead of a second copy.
+
+**One bug in `packages/atproto/jetstream.js` came out of dweet and affects
+everything here.** `url()` used to pass `kinds` straight through, so
+`KIND.COMMIT` — the constants are lowercase — became the literal string
+`undefined` in the query, which the server rejects with
+`400 unknown kind "undefined"` **before the WebSocket upgrade**. No open socket,
+no error event, just a reconnect loop: dweet had never once connected. `url()`
+now throws on an unknown kind, which `connect()` catches and hands to the
+caller's `onError`, and `packages/atproto/jetstream.selftest.mjs` pins that plus
+the rest of the query string. This surface passed `KIND.commit` correctly and
+was never affected; the guard is so that the next caller cannot be.
 
 ## Not done yet
 

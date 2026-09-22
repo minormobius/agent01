@@ -112,6 +112,54 @@ main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
 .dot{width:7px;height:7px;border-radius:99px;background:var(--muted);flex:none}
 .dot.on{background:var(--live);box-shadow:0 0 8px var(--live)}
 .dot.off{background:var(--dead)}
+
+/* ── sheets ─────────────────────────────────────────────── */
+.sheet{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;flex-direction:column;
+  overflow-y:auto;overscroll-behavior:contain}
+.sheethead{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:12px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+  background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(12px)}
+.sheethead .spacer{margin-left:auto}
+.sheethead .title{font:600 14px var(--sans)}
+.sheetbody{max-width:640px;width:100%;margin:0 auto;padding:18px 16px 60px}
+.sheet .pill{font:500 12px var(--sans);color:var(--muted);background:none;
+  border:1px solid var(--line);border-radius:99px;padding:6px 13px;cursor:pointer}
+.sheet input[type=text]{width:100%;font:15px var(--mono);color:var(--text);background:var(--bg);
+  border:1px solid var(--line);border-radius:10px;padding:12px;outline:none}
+.sheet input[type=text]:focus{border-color:var(--accent)}
+.sheetbody label{display:block;font:500 12px var(--sans);color:var(--muted);margin:16px 0 7px}
+body.sheet-open{overflow:hidden}
+
+/* handle typeahead — same class names as the AppView's lib/typeahead.js */
+.ta-wrap{position:relative;width:100%}
+.ta-menu{position:absolute;top:calc(100% + 5px);left:0;right:0;z-index:70;list-style:none;
+  background:var(--panel);border:1px solid var(--line);border-radius:11px;overflow:hidden;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);max-height:52vh;overflow-y:auto}
+.ta-menu li{display:flex;align-items:center;gap:9px;padding:11px 13px;font-size:14px;
+  min-height:46px;cursor:pointer}
+.ta-menu li.on{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+.ta-menu img{width:26px;height:26px;border-radius:50%;background:var(--line);flex:none;
+  object-fit:cover}
+.ta-menu .h{font:13px var(--mono)}
+.ta-menu .d{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+
+/* ── share ──────────────────────────────────────────────── */
+.shot{width:100%;height:auto;display:block;border-radius:10px;border:1px solid var(--line);
+  background:#000}
+#share-shot{min-height:120px;display:grid;place-items:center}
+.share-pre{margin-top:10px;font:12px/1.55 var(--mono);white-space:pre-wrap;word-break:break-word;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:11px}
+.count .drop{color:var(--muted)}
+.sheet textarea{width:100%;min-height:52px;resize:vertical;font:13px/1.6 var(--sans);
+  color:var(--text);background:var(--bg);border:1px solid var(--line);border-radius:10px;
+  padding:10px 12px;outline:none}
+.sheet textarea:focus{border-color:var(--accent)}
+.ghost{font:600 13px var(--sans);color:var(--text);background:var(--line-soft);
+  border:1px solid var(--line);border-radius:8px;padding:9px 16px;cursor:pointer}
+.ghost:disabled{opacity:.4;cursor:not-allowed}
+.pinned-note{font:12px var(--mono);color:var(--muted);border:1px dashed var(--line);
+  border-radius:10px;padding:9px 12px;margin-bottom:14px}
 </style>
 </head>
 <body>
@@ -142,6 +190,11 @@ main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
       <code>default-src 'none'</code>.
     </p>
     <div class="status"><span class="dot" id="live-dot"></span><span id="live-text">connecting to the firehose…</span></div>
+    <p class="pinned-note" id="shared-note" hidden>
+      Somebody shared this one with you — the whole dweet travelled inside the link, so it plays
+      here whether or not it was ever posted. <b>remix</b> opens it in the composer.
+    </p>
+    <div id="pinned"></div>
     <div id="feed"></div>
     <div class="empty" id="feed-empty" hidden>
       Nothing on the wire yet — dweets appear here the moment anyone posts one.<br>
@@ -161,6 +214,11 @@ main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
         </div>
         <button class="primary" id="run">run</button>
       </div>
+      <div class="row">
+        <button class="ghost" id="share-draft">share this &hellip;</button>
+        <span class="note" style="margin:0">a still, a link that runs it, or a GIF &mdash;
+          no posting required.</span>
+      </div>
 
       <label for="src">source <span id="lang-hint"></span></label>
       <textarea id="src" spellcheck="false" autocapitalize="off" autocomplete="off"
@@ -179,6 +237,55 @@ main{max-width:760px;margin:0 auto;padding:20px 16px 80px}
     </div>
   </section>
 </main>
+
+<!-- ── sign in ────────────────────────────────────────── -->
+<div class="sheet" id="signin" hidden role="dialog" aria-modal="true" aria-label="Sign in">
+  <div class="sheethead">
+    <button id="signin-cancel" class="pill">cancel</button>
+    <span class="spacer"></span>
+    <button id="signin-go" class="primary" style="margin:0" disabled>sign in</button>
+  </div>
+  <div class="sheetbody">
+    <p class="note" style="margin:0 0 14px">
+      Reading needs no account. Signing in is for posting a dweet, and asks for exactly one
+      collection &mdash; <code>com.minomobi.dweet.dweet</code>. The shared OAuth worker holds the
+      token, so this page never does.
+    </p>
+    <label for="signin-handle">your Bluesky handle</label>
+    <input type="text" id="signin-handle" placeholder="alice.bsky.social">
+    <div id="signin-status" class="note"></div>
+  </div>
+</div>
+
+<!-- ── share ──────────────────────────────────────────── -->
+<div class="sheet" id="share" hidden role="dialog" aria-modal="true" aria-label="Share this dweet">
+  <div class="sheethead">
+    <button id="share-close" class="pill">close</button>
+    <span class="title">share</span>
+    <span class="spacer"></span>
+    <button id="share-gif" class="ghost" disabled>save GIF</button>
+    <button id="share-post" class="primary" style="margin:0" disabled>post to Bluesky</button>
+  </div>
+  <div class="sheetbody">
+    <div id="share-shot"></div>
+    <div class="note" id="share-status" style="margin-top:12px"></div>
+
+    <label for="share-note">say something <span style="color:var(--muted);font-weight:400">&mdash; optional</span></label>
+    <textarea id="share-note" placeholder="made this on the bus"></textarea>
+
+    <div class="row"><span class="count" id="share-count"></span></div>
+    <pre class="share-pre" id="share-preview"></pre>
+
+    <p class="note">
+      The post carries the <b>source</b>, one <b>still</b> at the frame you were on, and a
+      <b>link</b> that runs it. Not a GIF: Bluesky&rsquo;s image CDN re-encodes every upload
+      (the bare URL answers <code>image/webp</code>), and motion in that app is an external
+      player on a host allowlist &mdash; tenor, giphy and the video sites &mdash; so no file
+      we upload animates there. The GIF button saves one to your device instead, where it
+      plays anywhere.
+    </p>
+  </div>
+</div>
 
 <script type="module" src="/dweet/app.js"></script>
 </body>

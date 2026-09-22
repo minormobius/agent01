@@ -169,6 +169,74 @@ The caps themselves (100 custom domains, 1000 routes) are Cloudflare's published
 per-zone limits; the 100 is confirmed by the error above, the 1000 is taken from
 the docs and has not been tested here.
 
+#### `zone_name` does not move a hostname out of the zone
+
+This is worth stating flatly because the intuition runs the other way. Asked
+directly: *does converting `bsky.mino.mobi` to a route mean it no longer belongs
+to the `mino.mobi` zone?*
+
+**No — and if anything it is the reverse.** `zone_name` is not a change of
+ownership. It is how wrangler tells the API *which zone a route belongs to*, and
+a route is a thing that exists **inside** a zone; Cloudflare's own docs describe
+routes as adding "Workers functionality to your existing proxied hostnames, in
+front of your application server". Both forms live in `mino.mobi`. What actually
+differs is which of them owns the DNS:
+
+| | Custom Domain | Plain Route (`zone_name`) |
+|---|---|---|
+| DNS record | **Cloudflare creates and manages it** | **you must already have one**, proxied |
+| certificate | issued for you | the zone's existing coverage |
+| the Worker is | "treated as an origin" | a proxy in front of an origin |
+| refuses to attach if | a CNAME already exists on the hostname | — |
+| per zone | **100** | **1000** |
+
+The grain of truth behind the intuition is that a Custom Domain's hostname *is*
+special-cased — the Worker becomes the origin, so it is not resolved the way an
+ordinary proxied record is, and Cloudflare refuses to create one on a hostname
+that already has a CNAME. Converting **to** a plain route puts the hostname back
+under ordinary zone handling, it does not take it out.
+
+#### Can GitHub Actions declare it? Partly — and the missing half is DNS
+
+| Step | Who can do it | What it needs |
+|---|---|---|
+| create/update the **route** | ✅ `wrangler deploy`, already in every workflow | the token's zone-level **Workers Routes: Edit** |
+| create the **DNS record** | ✅ the Cloudflare API, ❌ **not wrangler** | the token's **DNS: Edit** on the zone |
+
+`wrangler deploy` reads `routes` from `wrangler.jsonc` and creates them through
+the API using `CLOUDFLARE_API_TOKEN`, which the workflows already hold. It has
+**no DNS command at all** — Cloudflare's docs are explicit that "before you set
+up a route, make sure you have a DNS record set up", and that without one
+"any request to `myname.example.com` will result in the error
+`ERR_NAME_NOT_RESOLVED`".
+
+But DNS is an ordinary API call —
+`POST /zones/{zone_id}/dns_records`, permission group **DNS Write** — so a
+workflow step can absolutely make the record. **The dashboard is not required;
+the right token scopes are.** Whether *this* repo's `CLOUDFLARE_API_TOKEN` has
+them is a fact about one secret, and §7's "dashboard-only" list assumes the
+narrow deploy token it was written for.
+
+`.github/workflows/cf-capability-probe.yml` answers it. It is **read-only** —
+every call is a GET — and it reports:
+
+- how many of the 100 custom-domain slots on `mino.mobi` are taken, **grouped by
+  worker**, so a prune can start with whoever holds the most;
+- whether the token can list Workers Routes;
+- whether it can read DNS at all, and whether `dweet.mino.mobi` really has no
+  record;
+
+and it says plainly what it cannot settle: **a read does not prove a write.**
+Cloudflare's Read and Edit permission groups are separate, and the only honest
+test of DNS:Edit is to create a record and delete it again — which is not a
+thing to do to a production zone unasked. Run it from the Actions tab, or by
+touching the workflow file.
+
+So the shape of the answer: **yes, a workflow can do the whole job, provided the
+token carries DNS:Edit and Workers Routes:Edit for `mino.mobi`.** If it does
+not, the fix is a new token scope, not a person in the dashboard — and the probe
+tells you which case you are in.
+
 ### How to detect a mismatch (from outside the dashboard)
 - Probe `https://<config-name>.<acct>.workers.dev/` **and**
   `https://<domain-label>.<acct>.workers.dev/`. **Both resolving = twin workers =

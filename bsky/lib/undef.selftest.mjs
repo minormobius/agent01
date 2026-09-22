@@ -48,6 +48,9 @@ const GLOBALS = [
   'indexedDB', 'IDBKeyRange', 'ClipboardItem', 'Intl', 'CSS', 'DOMParser', 'XMLHttpRequest', 'performance',
   'IntersectionObserver', 'MutationObserver', 'ResizeObserver', 'structuredClone', 'BigInt', 'WebAssembly',
   'self', 'globalThis', 'atob', 'btoa', 'createImageBitmap', 'HTMLCanvasElement', 'Uint8Array', 'DataView', 'ArrayBuffer', 'requestIdleCallback',
+  // dweet's capture path: raw RGBA comes out of the sandbox as a clamped array
+  // and goes into a canvas as an ImageData.
+  'ImageData', 'Uint8ClampedArray',
 ];
 
 const config = join(bsky, '.eslint.undef.mjs');

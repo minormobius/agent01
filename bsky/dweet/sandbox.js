@@ -279,6 +279,53 @@ export function wrapFragment(src) {
 }
 
 /**
+ * Box-filter an RGBA buffer down to w x h, optionally flipping it vertically.
+ *
+ * Injected into the worker by `.toString()`, the same way `wrapFragment` is, so
+ * the arithmetic can be unit-tested in node rather than only observed as a
+ * picture. Three things here fail SILENTLY and all three are in the tests:
+ *
+ *   • the flip. `gl.readPixels` is bottom-up and `getImageData` is top-down, so
+ *     a shader captured without the flip exports upside down while looking
+ *     perfectly correct live.
+ *   • the box bounds. `Math.max(y0 + 1, …)` matters when the target is close to
+ *     the source size: without it a box can be empty and the pixel comes out
+ *     NaN, which a Uint8ClampedArray silently stores as 0 — a black speckle.
+ *   • averaging at all. Point sampling a 1920-wide canvas down to 320 throws
+ *     away 5 pixels in 6, and for a shader full of thin bright lines that is
+ *     the difference between an animation and a field of flicker.
+ *
+ * Downsampling INSIDE the sandbox is also what keeps a capture affordable: a
+ * full frame is 8.3 MB and a capture is dozens of them, every one of which has
+ * to cross a postMessage boundary.
+ *
+ * @param {ArrayLike<number>} src  RGBA, W*H*4
+ * @returns {Uint8ClampedArray} RGBA, w*h*4, alpha forced opaque
+ */
+export function downsample(src, W, H, w, h, flip) {
+  var out = new Uint8ClampedArray(w * h * 4);
+  for (var oy = 0; oy < h; oy++) {
+    var y0 = Math.floor(oy * H / h), y1 = Math.max(y0 + 1, Math.floor((oy + 1) * H / h));
+    for (var ox = 0; ox < w; ox++) {
+      var x0 = Math.floor(ox * W / w), x1 = Math.max(x0 + 1, Math.floor((ox + 1) * W / w));
+      var r = 0, g = 0, b = 0, n = 0;
+      for (var yy = y0; yy < y1; yy++) {
+        var row = (flip ? (H - 1 - yy) : yy) * W;
+        for (var xx = x0; xx < x1; xx++) {
+          var i = (row + xx) * 4;
+          r += src[i]; g += src[i + 1]; b += src[i + 2]; n++;
+        }
+      }
+      var o = (oy * w + ox) * 4;
+      // Opaque, always. A dweet draws onto black and a GIF has no alpha; a
+      // half-transparent pixel would composite against whatever is behind it.
+      out[o] = r / n; out[o + 1] = g / n; out[o + 2] = b / n; out[o + 3] = 255;
+    }
+  }
+  return out;
+}
+
+/**
  * The worker program. CONSTANT — the dweet arrives by postMessage.
  *
  * Workers have no requestAnimationFrame, which is why the frame drives the
@@ -287,6 +334,7 @@ export function wrapFragment(src) {
 const WORKER_SRC = `
 'use strict';
 ${wrapFragment.toString()}
+${downsample.toString()}
 var canvas = null, mode = 'js', dead = false;
 var x = null, gl = null, u = null;
 var uT = null, uR = null, uIT = null, uUT = null, uIR = null;
@@ -353,6 +401,21 @@ function draw(f) {
   }
 }
 
+function readback(w, h) {
+  var W = canvas.width, H = canvas.height;
+  var src;
+  if (mode === 'glsl') {
+    src = new Uint8Array(W * H * 4);
+    gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, src);
+  } else {
+    src = x.getImageData(0, 0, W, H).data;
+  }
+  // readPixels is bottom-up and getImageData is top-down. Get that wrong and
+  // the export is a perfectly plausible UPSIDE-DOWN animation, which nothing
+  // about the live render would ever reveal.
+  return downsample(src, W, H, w, h, mode === 'glsl');
+}
+
 self.onmessage = function (e) {
   var d = e.data;
   if (!d || typeof d !== 'object') return;
@@ -377,6 +440,20 @@ self.onmessage = function (e) {
     // The ack IS the liveness signal. The frame will not send another tick
     // until it arrives, which bounds the queue and makes a stall unambiguous.
     self.postMessage({ type: 'drew', f: d.f });
+    return;
+  }
+
+  // Draw one frame and hand its pixels back. Same liveness contract as a tick:
+  // exactly one is in flight, and the reply is the ack — a dweet that hangs
+  // during a capture is caught by the same watchdog as one that hangs live.
+  if (d.type === 'grab') {
+    if (dead) return;
+    try { draw(d.f); }
+    catch (err) { return fail('runtime', err); }
+    var px;
+    try { px = readback(d.w, d.h); }
+    catch (err) { return fail('capture', err); }
+    self.postMessage({ type: 'grabbed', f: d.f, w: d.w, h: d.h, data: px }, [px.buffer]);
   }
 };
 `;
@@ -405,8 +482,9 @@ export function harnessDoc() {
   var started = false, stopped = false, paused = false, worker = null;
   var f = 0, pending = false, lastAck = 0, lastRelay = 0, raf = 0;
   var posterAt = null;
+  var cap = null;                 // an in-progress capture, or null
 
-  function up(m){ try { window.parent.postMessage(m, '*'); } catch (e) {} }
+  function up(m, transfer){ try { window.parent.postMessage(m, '*', transfer || []); } catch (e) {} }
   function die(stage, message){
     stopped = true;
     if (raf) cancelAnimationFrame(raf);
@@ -436,6 +514,7 @@ export function harnessDoc() {
         // stop there. The card then shows the picture the author framed instead
         // of a black rectangle, and a resume carries on from that same moment,
         // so there is no jump when it starts moving.
+        if (cap) { grab(); return; }
         if (posterAt !== null) {
           paused = true;
           f = Math.round(posterAt * 60);
@@ -451,6 +530,18 @@ export function harnessDoc() {
         lastAck = Date.now();
         var n = lastAck;
         if (n - lastRelay > ${BEAT_MS}) { lastRelay = n; up({ type:'dweet:beat', frame: d.f }); }
+        return;
+      }
+      if (d.type === 'grabbed' && cap) {
+        lastAck = Date.now();
+        // The pixels are TRANSFERRED on, not copied. A capture is tens of
+        // megabytes in flight; copying it twice on the way out of the sandbox
+        // is the difference between smooth and a visible stall.
+        up({ type:'dweet:shot', i: cap.done, count: cap.count, w: d.w, h: d.h, data: d.data },
+            [d.data.buffer]);
+        cap.done++;
+        if (cap.done >= cap.count) { cap = null; up({ type:'dweet:captured' }); return; }
+        grab();
       }
     };
 
@@ -463,6 +554,20 @@ export function harnessDoc() {
       if (Date.now() - lastAck < ${WATCHDOG_MS}) return;
       die('hang', 'stopped — this dweet did not yield for ${WATCHDOG_MS / 1000}s');
     }, 500);
+  }
+
+  /**
+   * Ask for the next frame of a capture.
+   *
+   * Capture drives the clock by ARITHMETIC, not by rAF: frame i is at
+   * cap.at + i*cap.step, so the result is the same on a fast machine and a
+   * slow one. A capture paced by real time would be a different animation on
+   * every device, which for a file somebody is about to publish is not a
+   * subtlety.
+   */
+  function grab(){
+    if (stopped || !worker || !cap) return;
+    worker.postMessage({ type:'grab', f: cap.at + cap.done * cap.step, w: cap.w, h: cap.h });
   }
 
   function tick(){
@@ -505,6 +610,26 @@ export function harnessDoc() {
       if (worker) { try { worker.terminate(); } catch (err) {} worker = null; }
       return;
     }
+    // CAPTURE is its own entry point, not a mode of the live loop. A frame
+    // opened to capture never enters rAF at all: it compiles, grabs its
+    // frames by frame NUMBER, and is thrown away. Keeping the two paths
+    // separate is what stops a capture from disturbing a card that is
+    // playing, and stops a card's pause/resume from landing mid-capture.
+    if (d.type === 'dweet:capture' && !started) {
+      started = true;
+      if (typeof d.src !== 'string') return die('compile', 'no source');
+      cap = {
+        at: Math.max(0, Math.round(Number(d.at) || 0)),
+        step: Math.max(1, Math.round(Number(d.step) || 5)),
+        count: Math.max(1, Math.min(600, Math.round(Number(d.count) || 1))),
+        w: Math.max(1, Math.min(1920, Math.round(Number(d.w) || 320))),
+        h: Math.max(1, Math.min(1080, Math.round(Number(d.h) || 180))),
+        done: 0,
+      };
+      run(d.src, d.lang === 'glsl' ? 'glsl' : 'js', null);
+      return;
+    }
+
     if (d.type !== 'dweet:run' || started) return;
     started = true;
     if (typeof d.src !== 'string') return die('compile', 'no source');
@@ -669,4 +794,120 @@ export class DweetFrame {
     // document is discarded.
     setTimeout(() => el?.remove(), 0);
   }
+}
+
+/** Frames per second the capture path renders at, and what a GIF is written at. */
+export const CAPTURE_FPS = 12.5;
+
+/** The default capture size. 320x180 is 1920x1080 / 6 exactly, so the box
+ *  filter in the worker is a clean 6x6 average with no resampling artefacts. */
+export const CAPTURE_W = 320;
+export const CAPTURE_H = 180;
+
+/**
+ * Run a dweet off-screen and hand back its pixels.
+ *
+ * A capture gets its own throwaway frame, never a card's. Three reasons, and
+ * the third is the one that bites:
+ *
+ *   • a card that is playing must not stutter because somebody pressed share;
+ *   • the clock has to be arithmetic, not rAF, or the same dweet exports
+ *     differently on a fast machine and a slow one;
+ *   • and a frame runs exactly ONE program for its whole life. Re-using a
+ *     card's frame would mean running a second program in it, which the
+ *     harness refuses — silently, because `started` is already true.
+ *
+ * The frame is removed on every exit path, including the rejections. A leaked
+ * capture frame is a leaked worker, and a worker that is mid-`while(1)` is
+ * exactly the thing this whole file exists to be able to kill.
+ *
+ * @param {object} o
+ * @param {string} o.src
+ * @param {'js'|'glsl'} [o.lang]
+ * @param {number} [o.at=0]         first frame, in SECONDS
+ * @param {number} [o.seconds=2]    how much to capture
+ * @param {number} [o.fps=CAPTURE_FPS]
+ * @param {number} [o.width=CAPTURE_W]
+ * @param {number} [o.height=CAPTURE_H]
+ * @param {(done:number, total:number) => void} [o.onProgress]
+ * @param {number} [o.timeoutMs]
+ * @returns {Promise<{width:number,height:number,fps:number,frames:Uint8ClampedArray[]}>}
+ */
+export function captureFrames(o) {
+  const width = Math.round(o.width ?? CAPTURE_W);
+  const height = Math.round(o.height ?? CAPTURE_H);
+  const fps = o.fps ?? CAPTURE_FPS;
+  const step = Math.max(1, Math.round(60 / fps));
+  const count = Math.max(1, Math.round((o.seconds ?? 2) * fps));
+  // A frame that never boots would otherwise hang the promise forever, and the
+  // share sheet would spin with no end state — the same shape of bug the
+  // AppView's video button had.
+  const timeoutMs = o.timeoutMs ?? (8000 + count * 900);
+
+  return new Promise((resolve, reject) => {
+    const host = document.createElement('div');
+    // Off-screen rather than display:none: a hidden iframe may never be given
+    // a WebGL context at all, and a shader capture would come back black.
+    host.style.cssText =
+      'position:fixed;left:-10000px;top:0;width:640px;height:360px;pointer-events:none;opacity:0';
+    document.body.appendChild(host);
+
+    const el = document.createElement('iframe');
+    el.setAttribute('sandbox', SANDBOX_TOKENS.join(' '));
+    el.setAttribute('referrerpolicy', 'no-referrer');
+    el.setAttribute('title', 'dweet capture');
+    el.style.cssText = 'width:100%;height:100%;border:0';
+    el.srcdoc = harnessDoc();
+
+    const frames = [];
+    let settled = false;
+    const timer = setTimeout(
+      () => finish(new Error('capture timed out — this dweet may be too slow to record')),
+      timeoutMs);
+
+    function finish(err, value) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      window.removeEventListener('message', onMessage);
+      try { el.contentWindow?.postMessage({ type: 'dweet:stop' }, '*'); } catch { /* gone */ }
+      setTimeout(() => host.remove(), 0);
+      err ? reject(err) : resolve(value);
+    }
+
+    function onMessage(e) {
+      if (e.source !== el.contentWindow) return;
+      const d = e.data;
+      if (!d || typeof d !== 'object') return;
+      if (d.type === 'dweet:shot') {
+        frames.push(new Uint8ClampedArray(d.data.buffer ?? d.data));
+        o.onProgress?.(frames.length, count);
+        return;
+      }
+      if (d.type === 'dweet:captured') {
+        return frames.length
+          ? finish(null, { width, height, fps, frames })
+          : finish(new Error('capture produced no frames'));
+      }
+      if (d.type === 'dweet:error') {
+        finish(new Error(`${d.stage}: ${d.message}`));
+      }
+    }
+
+    window.addEventListener('message', onMessage);
+
+    const post = () => {
+      if (settled || !el.contentWindow) return;
+      el.contentWindow.postMessage({
+        type: 'dweet:capture',
+        src: o.src,
+        lang: o.lang === 'glsl' ? 'glsl' : 'js',
+        at: Math.round((o.at ?? 0) * 60),
+        step, count, w: width, h: height,
+      }, '*');
+    };
+    el.addEventListener('load', post, { once: true });
+    host.appendChild(el);
+    if (el.contentWindow) post();
+  });
 }

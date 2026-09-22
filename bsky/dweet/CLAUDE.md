@@ -286,9 +286,13 @@ contract than picking a unit.
 |---|---|
 | `sandbox.js` | the execution boundary. Read its header first |
 | `sandbox.selftest.mjs` | asserts the isolation invariants; preflight runs it |
-| `app.js` | feed (Jetstream) + composer (auth) + remix counts (Constellation) |
+| `app.js` | feed (Jetstream) + composer (auth) + share sheet + remix counts |
+| `share.js` | what a Bluesky post of a dweet *is* — pure, so the budgets are testable |
+| `share.selftest.mjs` | grapheme budgets, UTF-8 facet offsets, the still picker |
+| `gif.js` | animated-GIF encoder: median cut, Bayer dither, LZW. No dependencies |
+| `gif.selftest.mjs` | encodes, then DECODES with an independent reader, and compares |
 | `seeds.js` | the house set, shown when the wire is quiet |
-| `index.html` | shell and styles |
+| `index.html` | shell, styles, and the two sheets |
 
 ## Data sources
 
@@ -305,6 +309,20 @@ an edge anywhere.
 
 ## Quirks
 
+- **Refresh stays on `/dweet/`.** `show()` used to `history.replaceState` a
+  hardcoded `'/'`, written when the plan was a subdomain of its own — so at
+  `bsky.mino.mobi/dweet/` every tab switch rewrote the URL to the AppView's
+  root and a refresh left the surface entirely. The base is now derived from
+  `location.pathname`, which is right wherever this is mounted, including if
+  the subdomain ever does get bound.
+- **The handle field has typeahead**, from the AppView's own `lib/typeahead.js`
+  — same asset root, same origin, one implementation, including the abort race
+  and the ARIA combobox roles. It replaced a `prompt()`, which has no
+  completion, no validation and nowhere to say what is being consented to.
+  `doSignIn()` calls `typeahead.close()` FIRST: a debounced request fired just
+  before Enter otherwise lands afterwards and drops its menu over the sheet,
+  where it silently intercepts the taps meant for the button underneath. That
+  bug was live on the AppView until a click test caught it.
 - **The feed starts empty and that is correct.** A brand-new lexicon has no
   volume. `app.js` asks for the full 36h replay window and falls back to the
   house set after four seconds of silence. Seeds are marked `local: true`,
@@ -322,6 +340,241 @@ an edge anywhere.
 - **Scope is fixed at authorization**, so a session minted on another
   `*.mino.mobi` site may not cover this collection. The composer calls
   `ensureScope()` from the click, because the redirect needs a user gesture.
+
+## The socket had never once connected
+
+Reported as *"I appear to be disconnected always"*, and it was not the status
+line being pessimistic. `app.js` passed `kinds: [KIND.COMMIT]`. **The constants
+are lowercase** — `KIND.commit` — so the value was `undefined`, which
+stringifies into a query parameter perfectly happily. Measured against the live
+host on 2026-09-22:
+
+```
+?collections=com.minomobi.dweet.dweet&kinds=undefined
+  -> 400 {"error":"InvalidRequest",
+          "message":"subscribe: invalid options: unknown kind \"undefined\""}
+?collections=com.minomobi.dweet.dweet&kinds=commit
+  -> 426   (i.e. the options were fine; it only wanted a real upgrade)
+```
+
+The rejection happens **before the WebSocket upgrade**, so there is no open
+socket, no error event on the wire, and nothing to see except a reconnect loop
+whose backoff grows to 30s. This surface therefore never received a single
+event from the day it shipped. One character of case.
+
+Two fixes, because one of them would have caught it and the other makes the
+whole class loud:
+
+- `packages/atproto/jetstream.js` **throws** on a kind the server does not
+  know, naming the value and listing the valid ones. `connect()` builds the URL
+  inside its `try`, so this reaches the caller's `onError` instead of looking
+  like an unreachable host. `packages/atproto/jetstream.selftest.mjs` pins it,
+  along with the rest of the query string — the collection cap, the
+  inclusive-seq cursor, and `since` clamping to the 36h window.
+- the status line stopped reporting socket transitions. See below.
+
+### The status line was lying in both directions
+
+`onDisconnect` went straight through to *"disconnected — retrying"*. That is
+the same bug the AppView next door fixed in `connectionStatus()`, and the same
+fix is ported here: a drop is only reported if it has not repaired itself
+within `RECONNECT_GRACE_MS` (2.5s), because **a Jetstream socket ending is
+normal** — a replay finishing, an idle timeout, a host rotation.
+
+But dweet needed a third state the AppView does not. This socket is filtered to
+**one** collection, and that collection is new, so *connected and silent* is
+the correct state for hours at a time. A line that can only say live or dead
+has no way to say that, and silence reads as failure. So it says it:
+
+| | |
+|---|---|
+| connected, nothing seen | `live · tailing com.minomobi.dweet.dweet — nothing posted yet` |
+| connected, events flowing | `live · N dweets seen` (counted per delivered event) |
+| dropped, inside the grace | *nothing changes on screen* |
+| dropped, past the grace | `reconnecting…` |
+| never connected, 3+ attempts | `cannot reach the firehose — still retrying` |
+
+That last row exists because "connecting…" that never resolves is its own
+answer and the page should give it rather than spinning forever.
+
+## Sharing a dweet — and why it is not a GIF
+
+`share.js` (pure), `gif.js` (pure), the capture path in `sandbox.js`, and the
+share sheet in `app.js`. A **share** button sits on every card and in the
+composer.
+
+### The measurement that decided the design
+
+The obvious idea is to attach the animated GIF to the post. It does not work,
+and these are the three facts, measured 2026-09-22 rather than recalled:
+
+- **The AppView never hands out the blob you uploaded.** It hands out a
+  `cdn.bsky.app/img/...` URL, and that CDN is a **transcoder**. The bare URL
+  as the API returns it answers `image/webp`; `@jpeg` answers `image/jpeg`;
+  `@png` answers `image/png`. The output format is chosen by the reader's
+  client, so the uploaded bytes are not what anybody sees.
+- **The official composer re-encodes every picture to JPEG before upload**
+  (`social-app/src/state/gallery.ts`: `format: SaveFormat.JPEG`).
+- **Motion in the Bluesky app is an external-embed PLAYER on a host
+  allowlist** — tenor, giphy, klipy and the video sites
+  (`social-app/src/lib/strings/embed-player.ts`). It is keyed on where a link
+  points, not on what a file is, so nothing we upload can join it.
+
+The one in-feed animated path is `app.bsky.embed.video`, which needs a
+transcode through `app.bsky.video.uploadVideo` at `did:web:video.bsky.app`
+with a service-auth JWT — the same wall the AppView records for video posting,
+and a real piece of work rather than a mystery. Not done.
+
+**Not verified:** an actual animated-GIF upload, which needs a session this
+sandbox cannot mint. Every observable signal says it would be shown as a still;
+none of them is the experiment itself.
+
+### So the post is three things
+
+| | |
+|---|---|
+| **text** | the source, verbatim | 
+| **image** | one still, at a moment that is not blank |
+| **link** | one tap to the same dweet, running |
+
+The budget is the whole design and it is why the cap is 256: 256 graphemes of
+source, two blank lines, and a 22-character shortened link text is 280, inside
+Bluesky's 300. **So the source always fits and is never truncated** — a
+truncated dweet is not a dweet, it is a typo. The optional credit line
+(`"title" · N chars of JavaScript · 256b`) is what gives way, as a whole rather
+than trimmed to a stub, and the sheet says which part it dropped.
+
+The link's *text* is short while its facet's `uri` is the real one, which is
+exactly how every client shortens a long URL. Facet offsets are **UTF-8
+bytes**, not string indices — and golfed JavaScript is full of non-ASCII, so
+this is the one place that arithmetic visibly breaks. The selftest builds a
+post around `"héllo→✨"` and decodes the byte range back out.
+
+### The permalink carries the dweet, not a reference to it
+
+`?s=<base64url of the source>&l=glsl&t=<title>`. Deliberately **not**
+`?at=<uri>`, though that would be canonical: a record URI needs a DID document
+lookup, a PDS round trip, and a record that has actually landed — three ways
+for a shared link to be dead in the first minute after posting, which is the
+minute it gets clicked. The source is 256 characters and fits in a query
+string, so the link is true offline, true for a draft that was never posted,
+and true for a house seed that is not a record at all.
+
+Arriving with one pins that dweet **above** the feed in its own container, so a
+live dweet landing a second later cannot push the thing somebody clicked on off
+the top, and it plays immediately — arriving at a still of the thing you
+clicked to see move would be the wrong first second.
+
+### Capture: pixels come OUT of the sandbox
+
+`captureFrames()` in `sandbox.js`, plus a `grab` message in the worker.
+
+The dweet's pixels leave the sandbox as raw RGBA and the parent writes them
+into a canvas or a GIF. **Nothing was relaxed for it** — no sandbox token, no
+CSP source — because pixels are data and nothing on the way out is evaluated.
+`sandbox.selftest.mjs` asserts exactly that, alongside the two guards that
+matter: only `window.parent` may send a capture, and a capture is refused if
+the frame has already `started`, so it can never become a second program inside
+a card that is playing.
+
+A capture gets its **own throwaway frame**, for three reasons and the third is
+the one that bites:
+
+- a card that is playing must not stutter because somebody pressed share;
+- the clock has to be arithmetic, not rAF, or the same dweet exports
+  differently on a fast machine and a slow one;
+- and a frame runs exactly one program for its whole life, so re-using a card's
+  frame would be refused — *silently*, because `started` is already true.
+
+Downsampling happens **inside** the worker: a full frame is 1920×1080×4 =
+8.3 MB and a capture is dozens of them, all crossing a postMessage boundary.
+`downsample()` is hoisted out and injected by `.toString()`, the same way
+`wrapFragment` is, so its three silent failures are unit-tested rather than
+observed as a picture:
+
+- **the flip.** `gl.readPixels` is bottom-up and `getImageData` is top-down, so
+  a shader captured without the flip exports upside down while looking
+  perfectly correct live.
+- **empty boxes.** Without the `max(y0+1, …)` guard a box can be zero-high, the
+  divide gives NaN, and a `Uint8ClampedArray` stores NaN as 0 — a black speckle.
+- **averaging at all.** Point-sampling 1920 down to 320 throws away five pixels
+  in six, which for a shader of thin bright lines is the difference between an
+  animation and a field of flicker.
+
+320×180 and 1280×720 are not round numbers picked for looks: 1920/320 = 6 and
+1080/180 = 6 exactly, so the box filter is a clean 6×6 average.
+
+### The still was black, and the fix is a measurement
+
+The first working capture produced a **perfectly black 1280×720 still** — 0 lit
+pixels of 921,600. Not a capture bug. The house heartbeat's loop is
+`for(a=t%8;a>0;a-=.01)`, which **at t=0 runs zero times**. A dweet that draws
+nothing at the start is the common case, not an edge.
+
+A fixed non-zero default would have been a guess. Instead the sheet captures
+**four candidates three seconds apart** in one compile and `pickStill()` chooses:
+
+1. **if candidate 0 has anything in it, take it** — that is the author's own
+   `captureTime`, a moment they chose on purpose, and a busier later frame is
+   not a reason to overrule them;
+2. otherwise take the **fullest** of the rest. Progressive-draw sketches
+   accumulate, so the fullest is also the most finished-looking; first
+   non-blank caught the heart one quarter drawn.
+
+The 12-second window is itself measured against a real sketch: the heartbeat
+redraws over an **eight**-second cycle, so anything shorter only ever catches a
+partial heart. Brightness is sampled on a **prime** stride so a regular pattern
+— a grid, a column of bars — cannot alias into "empty", and the threshold is
+generous so a dark sparse sketch is kept rather than hunted past. If every
+candidate is under it, the first is used and the sheet *says* the dweet draws
+almost nothing, instead of showing a black rectangle that reads as a fault.
+
+### The GIF
+
+`gif.js`: a 5:5:5 histogram, median cut to a global palette, a 32768-entry
+nearest-colour cache, Bayer 4×4 ordered dithering, and GIF's variable-width
+LZW in 255-byte sub-blocks. Defaults to 320×180, 25 frames at 12.5fps, 128
+colours. Measured output for the house heartbeat: **77 KB**.
+
+Two details that are not arbitrary:
+
+- **Median cut splits the box with the widest channel spread, not the most
+  pixels.** One flat background can hold 90% of a frame's pixels and would eat
+  the whole palette while the moving part got two entries.
+- **The cut is at the weighted median.** Cutting the range at its midpoint
+  gives near-empty boxes whenever the distribution is lopsided, which it always
+  is.
+
+Dithering is on by default because a shader's gradient banding into stripes is
+the commonest ugly GIF, and the amplitude scales with the palette's own step
+size — a fixed amplitude does nothing at 256 colours and shreds the image at 16.
+
+**It is verified by decoding, twice, neither time by the encoder.** A broken
+GIF encoder does not throw: it writes a file of the right length with a valid
+header that renders as coloured static from the byte where the LZW code width
+first sheared, and every byte in the shear is a legal byte. So
+`gif.selftest.mjs` carries a decoder written from the GIF89a spec and round-trips
+known images through it — flat colours exactly, 16,384 pseudo-random pixels
+across every code-width step, frame counts, delays and the loop block. Then the
+real file is opened by **Chromium's own decoder** and compared pixel by pixel:
+40×24, 960 pixels, 0 wrong.
+
+(ffmpeg refuses these files. That is not a finding: the ffmpeg shipped with
+Playwright's browsers has **no GIF decoder compiled in** — `-decoders` lists
+mjpeg and nothing else — so "Invalid data found" is what it says about any GIF.
+Checking the tool before believing the tool saved a day of chasing a bug that
+was not there.)
+
+### Scopes
+
+Sharing needs `repo:app.bsky.feed.post` and `blob:image/*` on top of the dweet
+collection. **Both are already in the live ceiling** — verified 2026-09-22
+against `auth.mino.mobi/client-metadata.json`: 87 collections, both present —
+so this needed **no deploy of `workers/auth`**. But a scope is only granted if
+it is asked for, and a session minted for the dweet collection alone does not
+have them, so `postToBsky()` calls `ensureScope(SHARE_SCOPES)` **from the
+click**, before the blob upload rather than between the upload and the record.
+A redirect in that gap would leave an orphan blob and lose the author's text.
 
 ## Posting: shipped
 

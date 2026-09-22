@@ -12,6 +12,7 @@
 import {
   SANDBOX_TOKENS, FRAME_CSP, MAX_CHARS, LANGS, DWITTER_CHARS, SIZE_TIERS,
   harnessDoc, countChars, validate, sizeClass, dwitterPortable, wrapFragment,
+  downsample, WIDTH, HEIGHT, CAPTURE_W, CAPTURE_H,
 } from './sandbox.js';
 
 let fail = 0;
@@ -164,6 +165,66 @@ ok(/mainImage/.test(wrapFragment('mainImage (o,FC);')), 'tolerates a space befor
 // The shipped worker uses THIS function, not a copy.
 ok(harnessDoc().includes('function wrapFragment'), 'the worker carries wrapFragment itself');
 ok(!/\bwrapFragment\b[^(]*=[^=]/.test(wrapFragment.toString()), 'wrapFragment is closure-free');
+
+console.log('\ncapture — it must not widen anything');
+// Capture moves PIXELS out of the sandbox. Pixels are data: nothing on the way
+// out is evaluated, and no CSP token or sandbox token was relaxed for it. These
+// assert that that is still true, because "just one more capability for the
+// export path" is exactly how a boundary like this erodes.
+ok(!/allow-/.test(SANDBOX_TOKENS.filter((t) => t !== 'allow-scripts').join('')),
+  'capture added no sandbox token', SANDBOX_TOKENS.join(' '));
+ok(FRAME_CSP.startsWith("default-src 'none'"), 'capture added no CSP source');
+ok(!/connect-src|img-src|media-src/.test(FRAME_CSP), 'still no way to reach the network');
+// The parent guard. Without it, any frame with a handle to this one could
+// start a capture — or, worse, run a program of its own choosing.
+ok(doc.includes('e.source !== window.parent'),
+  'only the embedder may send a capture');
+// A frame runs ONE program for its whole life. `!started` is what stops a
+// capture request from being a second program in a card that is already live.
+ok(/d\.type === 'dweet:capture' && !started/.test(doc),
+  'a capture cannot be injected into a running frame');
+ok(!/dweet:capture[\s\S]{0,400}\$\{/.test(doc),
+  'the capture branch interpolates nothing');
+
+console.log('\ndownsample — the silent failures');
+// Build a source where every pixel is its own row index, so a flip is
+// unmistakable rather than "looks about right".
+const SW = 8, SH = 4;
+const ramp = new Uint8ClampedArray(SW * SH * 4);
+for (let y = 0; y < SH; y++) {
+  for (let x = 0; x < SW; x++) {
+    const i = (y * SW + x) * 4;
+    ramp[i] = y * 60; ramp[i + 1] = x * 30; ramp[i + 2] = 7; ramp[i + 3] = 0;
+  }
+}
+const same = downsample(ramp, SW, SH, SW, SH, false);
+ok(same[0] === 0 && same[1] === 0, '1:1 leaves the first pixel alone');
+ok(same[3] === 255, 'alpha is forced opaque', `got ${same[3]}`);
+ok(same[(3 * SW) * 4] === 180, 'last row keeps its value', `got ${same[(3 * SW) * 4]}`);
+
+const flipped = downsample(ramp, SW, SH, SW, SH, true);
+ok(flipped[0] === 180 && flipped[(3 * SW) * 4] === 0,
+  'flip reverses the rows — the GL path',
+  `top ${flipped[0]}, bottom ${flipped[(3 * SW) * 4]}`);
+
+// A 2x box average: rows 0 and 1 are 0 and 60, so the top half is 30.
+const half = downsample(ramp, SW, SH, SW / 2, SH / 2, false);
+ok(half[0] === 30, 'boxes are AVERAGED, not point-sampled', `got ${half[0]}`);
+
+// The case the max() guard exists for: a target almost the size of the source
+// makes some boxes zero-wide, which would divide by zero and store NaN as 0.
+const awkward = downsample(ramp, SW, SH, SW - 1, SH - 1, false);
+ok([...awkward].every((v) => Number.isFinite(v)), 'no NaN when boxes go empty');
+ok([...awkward].some((v) => v > 0), 'and the result is not all black');
+
+// The shipped ratio is exact, which is why these numbers were chosen.
+ok(WIDTH % CAPTURE_W === 0 && HEIGHT % CAPTURE_H === 0,
+  'the capture size divides the canvas exactly',
+  `${WIDTH}/${CAPTURE_W} = ${WIDTH / CAPTURE_W}, ${HEIGHT}/${CAPTURE_H} = ${HEIGHT / CAPTURE_H}`);
+ok(WIDTH / CAPTURE_W === HEIGHT / CAPTURE_H, 'and squarely — same ratio on both axes');
+// The worker uses THIS function, not a copy that could drift from the tests.
+ok(doc.includes('function downsample'), 'the worker carries downsample itself');
+ok(!/\bdownsample\b[^(]*=[^=]/.test(downsample.toString()), 'downsample is closure-free');
 
 console.log('\nthe seed dweet still fits');
 const SEED = "c.width|=0;x.fillStyle='#f36';p=33+S(t*5)**8*4;for(a=t%8;a>0;a-=.01)"
