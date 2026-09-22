@@ -14,9 +14,25 @@ jobs:
     defaults:
       run:
         working-directory: b
+    # Mapped to env at the job level because a step-level `if:` cannot read the
+    # `secrets` context — only `env`. GitHub still masks the value in logs.
+    #
+    # NAME MAPPING, and it is the SAME credential mega uses: the key is stored
+    # as the GitHub repo secret `jev_key`; the worker reads the Cloudflare
+    # secret TYPESAFE_API_KEY. One credential, installed in two places — see
+    # b/lib/jev.js for why /mood does not just call mega's proxy instead.
+    env:
+      TYPESAFE_API_KEY: ${{ secrets.JEV_KEY || secrets.TYPESAFE_API_KEY }}
 
     steps:
       - uses: actions/checkout@v4
+
+      # /mood is the only thing on this surface that spends money, and the
+      # question SHAPES are the contract with TypeSafe — a malformed one is a
+      # 422 that still cost a round trip. Gate the deploy on them, the way
+      # deploy-mega.yml gates on jev's. Runs offline: no key, no network.
+      - name: mood selftest (the question shapes, and the averaging trap)
+        run: node mood/mood.selftest.mjs
 
       # Stage the shared OAuth client lib under the assets dir so the /coin
       # posting box can `import` it from b.mino.mobi/packages/oauth-client/auth.js
@@ -43,6 +59,22 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Without this the /mood page says it is unconfigured rather than
+      # pretending — `configured: false` on /api/mood/health, and a 503 with a
+      # sentence instead of a blank ring.
+      - name: Sync the Jev API key to Cloudflare (for /mood)
+        if: ${{ env.TYPESAFE_API_KEY != '' }}
+        run: |
+          echo "found a repo secret; writing it to the b worker as TYPESAFE_API_KEY"
+          printf '%s' "$TYPESAFE_API_KEY" | npx wrangler secret put TYPESAFE_API_KEY
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: Report when the mood ring has no model to ask
+        if: ${{ env.TYPESAFE_API_KEY == '' }}
+        run: echo "::notice::Neither jev_key nor TYPESAFE_API_KEY is set on this repo, so b.mino.mobi/mood/ will report itself unconfigured."
 
       - name: Set feedgen worker secrets (modulo/morphyx search + gemini regex)
         env:

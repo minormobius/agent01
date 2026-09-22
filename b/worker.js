@@ -7,6 +7,7 @@ import { evaluate } from './feedgen/pipeline.js';
 import * as gc from './lib/gc.js';
 import { circle as squaresCircle } from './squares/circle.js';
 import { circle as orbitCircle, deck as orbitDeck, avatar as orbitAvatar } from './orbit/api.js';
+import { mood as moodRing, health as moodHealth } from './lib/jev.js';
 import { scan as uniqueScan, search as uniqueSearch, novelty as uniqueNovelty, meme as uniqueMeme } from './unique/unique.js';
 
 const FEED_HOST = 'b.mino.mobi';
@@ -190,6 +191,18 @@ export default {
       try { return await orbitAvatar(url.searchParams); }
       catch (e) { return json({ error: String((e && e.message) || e) }, (e && e.status) || 500); }
     }
+
+    // ── mood — a jev tone reading of the last ten posts (the ONE metered call
+    // on this surface). Not a proxy: the caller supplies a handle and nothing
+    // else, so no request shape can spend the key on questions of their own.
+    if (path === '/api/mood') {
+      try {
+        return json(await moodRing(url.searchParams, env, await serviceToken(env), request.headers.get('cf-connecting-ip')));
+      } catch (e) {
+        return json({ error: String((e && e.message) || e) }, (e && e.status) || 500);
+      }
+    }
+    if (path === '/api/mood/health') return json(moodHealth(env));
 
     // ── unique — "hapax" phrase finder (scan repo → verify against search) ────
     if (path === '/api/unique/scan') {
