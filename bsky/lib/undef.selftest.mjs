@@ -51,6 +51,8 @@ const GLOBALS = [
   // dweet's capture path: raw RGBA comes out of the sandbox as a clamped array
   // and goes into a canvas as an ImageData.
   'ImageData', 'Uint8ClampedArray',
+  // …and its video path records the canvas through the platform's own encoder.
+  'MediaRecorder',
 ];
 
 const config = join(bsky, '.eslint.undef.mjs');

@@ -29,6 +29,10 @@ import { dweetFromEvent } from '/dweet/event.js';
 import { SEEDS } from '/dweet/seeds.js';
 import { encodeGif } from '/dweet/gif.js';
 import {
+  mp4Support, recordMp4, uploadLimits, uploadVideo, awaitJob, videoEmbed, jobLabel,
+  VIDEO_SERVICE_DID, UPLOAD_LXM,
+} from '/dweet/video.js';
+import {
   composePost, altText, feedPost, permalink, fromPermalink, pickStill,
   SHARE_SCOPES, graphemes, POST_MAX,
 } from '/dweet/share.js';
@@ -531,10 +535,20 @@ const STILL_FPS = 1 / 3;        // one candidate every three seconds
  */
 const MAX_BLOB_BYTES = 950_000;
 
+/**
+ * Minting a service-auth JWT needs one more scope. It is an RPC, not a write:
+ * `com.atproto.server.getServiceAuth` runs on the reader's OWN PDS and returns
+ * a token narrowed to one audience and one method, valid for about a minute.
+ * It is already in the auth worker's RPC_SCOPES and therefore in the live
+ * ceiling, so this needs no deploy of `workers/auth` — but a scope is only
+ * granted if it is ASKED for.
+ */
+const VIDEO_SCOPES = [...SHARE_SCOPES, 'rpc:com.atproto.server.getServiceAuth'];
+
 /** The dweet the share sheet is currently about, and what has been captured. */
 let shareOf = null;
 let shareStill = null;    // { canvas, width, height }
-let shareGifBytes = null;
+let shareGif = null;      // { bytes, blob, url, name }
 
 function rgbaCanvas(data, width, height) {
   const canvas = document.createElement('canvas');
@@ -597,13 +611,15 @@ function refreshSharePost() {
 async function openShare(d) {
   shareOf = { src: d.src, lang: d.lang, title: d.title || '' };
   shareStill = null;
-  shareGifBytes = null;
   openSheet('share');
   $('share-note').value = '';
   $('share-shot').textContent = '';
+  $('share-gifout').textContent = '';
+  if (shareGif?.url) { URL.revokeObjectURL(shareGif.url); shareGif = null; }
   $('share-gif').disabled = true;
   $('share-post').disabled = true;
-  $('share-gif').textContent = 'save GIF';
+  $('share-gif').textContent = 'make GIF';
+  paintMovingToggle();
   refreshSharePost();
 
   // The author's chosen moment, exactly as the card uses it.
@@ -678,28 +694,154 @@ async function saveGif() {
     // A frame yields to the browser before the encoder takes the main thread,
     // so the button's own label actually paints before it blocks.
     await new Promise((r) => requestAnimationFrame(r));
-    shareGifBytes = encodeGif({
+    const bytes = encodeGif({
       width: shot.width, height: shot.height, frames: shot.frames,
       delayMs: 1000 / shot.fps, colors: 128,
     });
 
-    const name = (shareOf.title || 'dweet').replace(/[^\w.-]+/g, '-').slice(0, 40) || 'dweet';
-    const url = URL.createObjectURL(new Blob([shareGifBytes], { type: 'image/gif' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${name}.gif`;
-    a.click();
-    // Revoked late: Safari has been known to abandon the download if the URL
-    // dies in the same turn as the click.
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    shareSay(`saved ${name}.gif — ${(shareGifBytes.length / 1024).toFixed(0)} KB, `
-      + `${shot.frames.length} frames at ${shot.width}x${shot.height}.`);
+    const name = `${(shareOf.title || 'dweet').replace(/[^\w.-]+/g, '-').slice(0, 40) || 'dweet'}.gif`;
+    const blob = new Blob([bytes], { type: 'image/gif' });
+    if (shareGif?.url) URL.revokeObjectURL(shareGif.url);
+    shareGif = { bytes, blob, url: URL.createObjectURL(blob), name };
+
+    // NOT a synthetic click on a hidden anchor. That pattern is the reason a
+    // "save" button does nothing on a phone: by the time the encode finishes
+    // the tap's transient activation is seconds gone, and iOS Safari has never
+    // handled a programmatic blob: download well in the first place. So the
+    // GIF is PUT ON SCREEN and the reader is given the three ways out that
+    // actually work everywhere:
+    //
+    //   • the image itself — long-press → Save Image on iOS and Android,
+    //     right-click → Save on a desktop;
+    //   • the share sheet, where the platform offers Photos, Messages, and
+    //     any app registered for image/gif — including Bluesky's;
+    //   • a REAL anchor the reader clicks themselves, which carries its own
+    //     activation and needs none of ours.
+    const holder = $('share-gifout');
+    holder.textContent = '';
+    const img = el('img', 'shot');
+    img.src = shareGif.url;
+    img.alt = `an animated GIF of ${shareOf.title || 'this dweet'}`;
+    holder.append(img);
+
+    const row = el('div', 'row');
+    const a = el('a', 'ghost', `save ${name}`);
+    a.href = shareGif.url;
+    a.download = name;
+    row.append(a);
+
+    // Web Share is the right affordance on a phone and simply absent on most
+    // desktops, so it is offered only when the platform will take this file.
+    const file = typeof File !== 'undefined'
+      ? new File([blob], name, { type: 'image/gif' }) : null;
+    if (file && navigator.canShare?.({ files: [file] })) {
+      const sh = el('button', 'ghost', 'share…');
+      sh.onclick = () => navigator.share({ files: [file], title: shareOf.title || 'a dweet' })
+        .catch(() => { /* dismissing the sheet is not an error */ });
+      row.append(sh);
+    }
+    holder.append(row);
+
+    shareSay(`${name} — ${(bytes.length / 1024).toFixed(0)} KB, ${shot.frames.length} frames at `
+      + `${shot.width}\u00d7${shot.height}. Long-press or right-click the image to save it.`);
   } catch (err) {
     shareSay(String(err?.message || err), true);
   } finally {
-    btn.textContent = 'save GIF';
+    btn.textContent = 'make GIF';
     btn.disabled = false;
   }
+}
+
+/**
+ * Mint a service-auth JWT for the video service.
+ *
+ * The credential is the READER's, not ours: their own PDS issues it, bound to
+ * one audience (`did:web:video.bsky.app`) and one method
+ * (`com.atproto.repo.uploadBlob`), and it lives about a minute. This page
+ * never holds a PDS token and the video bytes never touch our worker.
+ */
+/**
+ * The toggle explains itself rather than sitting greyed out.
+ *
+ * A disabled control with no reason is the same bug as a control that does
+ * nothing: from the outside they are indistinguishable. Safari and Chrome can
+ * record H.264; a browser built without it cannot, and should be told so along
+ * with what it CAN have.
+ */
+function paintMovingToggle() {
+  const support = mp4Support();
+  const box = $('share-moving');
+  box.disabled = !support;
+  box.checked = !!support;
+  $('share-moving-note').textContent = !support
+    ? 'this browser cannot record MP4 at all, so a moving post is not available here — the still and the GIF both are'
+    : `records ${GIF_SECONDS}s and posts it looping — costs one of your daily video uploads, and takes about half a minute`
+      + (support.certain ? ''
+        // Honest about what is not yet known. The recorder checks the file it
+        // actually produced and will say so if it is not H.264.
+        : '. Your browser did not say which codec it will use; if it is not H.264 this will stop and tell you');
+}
+
+async function videoToken() {
+  const params = new URLSearchParams({ aud: VIDEO_SERVICE_DID, lxm: UPLOAD_LXM });
+  const res = await auth.request(`/pds/server/getServiceAuth?${params}`);
+  if (!res.ok) {
+    throw new Error(`your PDS would not mint an upload token (${res.status})`);
+  }
+  const token = (await res.json())?.token;
+  if (!token) throw new Error('your PDS returned no token');
+  return token;
+}
+
+/**
+ * Record the dweet and hand Bluesky a looping video.
+ *
+ * Returns the embed, or throws. Everything it spends is checked first:
+ * `getUploadLimits` before the recording, because finding out the daily quota
+ * is gone AFTER two seconds of recording and thirty of transcoding is the
+ * worst possible moment.
+ */
+async function makeVideoEmbed(support) {
+  shareSay('checking your video quota…');
+  const token = await videoToken();
+  const limits = await uploadLimits({ token });
+  if (limits?.canUpload === false) {
+    throw new Error(limits.message || limits.error || 'your account cannot upload video right now');
+  }
+  const left = limits?.remainingDailyVideos;
+
+  const shot = await captureFrames({
+    src: shareOf.src, lang: shareOf.lang, at: shareOf.at,
+    seconds: GIF_SECONDS, fps: CAPTURE_FPS, width: CAPTURE_W, height: CAPTURE_H,
+    onProgress: (d, n) => shareSay(`capturing ${d}/${n}…`),
+  });
+
+  const { blob } = await recordMp4({
+    frames: shot.frames, width: shot.width, height: shot.height, fps: shot.fps, mimeType: support,
+    // Real-time paced, by MediaRecorder's nature — say so rather than looking stuck.
+    onProgress: (d, n) => shareSay(`recording ${(d / shot.fps).toFixed(1)}s of ${(n / shot.fps).toFixed(1)}s…`),
+  });
+
+  shareSay(`uploading ${(blob.size / 1024).toFixed(0)} KB…`);
+  const me = auth.getUser();
+  const job = await uploadVideo({
+    data: await blob.arrayBuffer(), did: me.did, token,
+    name: `${(shareOf.title || 'dweet').replace(/[^\w.-]+/g, '-').slice(0, 40) || 'dweet'}.mp4`,
+  });
+
+  const ref = await awaitJob({
+    jobId: job.jobId, token,
+    onState: (st) => shareSay(`Bluesky is ${jobLabel(st.state)}${st.progress ? ` (${st.progress}%)` : ''}…`
+      + (left != null ? `  ·  ${left - 1} video uploads left today` : '')),
+  });
+
+  return videoEmbed({
+    blob: ref, width: shot.width, height: shot.height,
+    alt: altText({
+      title: shareOf.title, lang: shareOf.lang,
+      chars: countChars(shareOf.src), src: shareOf.src, atSeconds: shareOf.at,
+    }),
+  });
 }
 
 async function postToBsky() {
@@ -707,14 +849,22 @@ async function postToBsky() {
   const built = refreshSharePost();
   if (!built) return;
 
+  // Moving or still? The toggle only offers moving where the browser can
+  // actually encode H.264 — see video.js on why a bare `video/mp4` probe is
+  // not that question.
+  const support = mp4Support();
+  const moving = support && $('share-moving').checked;
+
   // Scope is fixed at authorization, so a session minted for the dweet
-  // collection alone does not cover a feed post or a blob. Escalate from the
-  // CLICK, which is the gesture the redirect needs — and escalate BEFORE the
-  // upload, not between the upload and the record, because a redirect there
-  // would leave an orphan blob and lose the author's note.
-  if (!auth.hasScope(SHARE_SCOPES)) {
+  // collection alone does not cover a feed post, a blob, or minting a service
+  // token. Escalate from the CLICK, which is the gesture the redirect needs —
+  // and escalate BEFORE anything is spent, not between an upload and the
+  // record, because a redirect there would leave an orphan blob, burn a video
+  // quota slot and lose the author's note.
+  const need = moving ? VIDEO_SCOPES : SHARE_SCOPES;
+  if (!auth.hasScope(need)) {
     shareSay('this session needs one more consent — redirecting…');
-    await auth.ensureScope(SHARE_SCOPES);
+    await auth.ensureScope(need);
     return;
   }
 
@@ -722,28 +872,31 @@ async function postToBsky() {
   btn.disabled = true;
   btn.textContent = 'posting…';
   try {
-    shareSay('preparing the picture…');
-    const { blob, mime } = await stillBlob(shareStill.canvas);
-    shareSay(`uploading ${(blob.size / 1024).toFixed(0)} KB…`);
-    // Blobs go up FIRST. A createRecord naming a blob that does not exist is
-    // rejected, and the author would lose the post to an error mentioning
-    // neither the picture nor the text.
-    const uploaded = await auth.pds.uploadBlob(new Uint8Array(await blob.arrayBuffer()), mime);
-    const ref = uploaded?.blob ?? uploaded;
+    let embed;
+    if (moving) {
+      embed = { video: await makeVideoEmbed(support) };
+    } else {
+      shareSay('preparing the picture…');
+      const { blob, mime: imgMime } = await stillBlob(shareStill.canvas);
+      shareSay(`uploading ${(blob.size / 1024).toFixed(0)} KB…`);
+      // Blobs go up FIRST. A createRecord naming a blob that does not exist is
+      // rejected, and the author would lose the post to an error mentioning
+      // neither the picture nor the text.
+      const uploaded = await auth.pds.uploadBlob(new Uint8Array(await blob.arrayBuffer()), imgMime);
+      embed = {
+        image: {
+          blob: uploaded?.blob ?? uploaded,
+          width: shareStill.width,
+          height: shareStill.height,
+          alt: altText({
+            title: shareOf.title, lang: shareOf.lang,
+            chars: countChars(shareOf.src), src: shareOf.src, atSeconds: shareOf.at,
+          }),
+        },
+      };
+    }
 
-    const record = feedPost({
-      text: built.text,
-      facets: built.facets,
-      image: {
-        blob: ref,
-        width: shareStill.width,
-        height: shareStill.height,
-        alt: altText({
-          title: shareOf.title, lang: shareOf.lang,
-          chars: countChars(shareOf.src), src: shareOf.src, atSeconds: shareOf.at,
-        }),
-      },
-    });
+    const record = feedPost({ text: built.text, facets: built.facets, ...embed });
     shareSay('writing the post…');
     const res = await auth.pds.createRecord('app.bsky.feed.post', record);
     const rkey = String(res?.uri || '').split('/').pop();

@@ -291,6 +291,10 @@ contract than picking a unit.
 | `share.selftest.mjs` | grapheme budgets, UTF-8 facet offsets, the still picker |
 | `gif.js` | animated-GIF encoder: median cut, Bayer dither, LZW. No dependencies |
 | `gif.selftest.mjs` | encodes, then DECODES with an independent reader, and compares |
+| `video.js` | the MOVING post: MediaRecorder → the Bluesky video service → `presentation: "gif"` |
+| `video.selftest.mjs` | codec selection, the MP4 box walker, the job state machine, polling |
+| `event.js` | one place that knows the Jetstream wire shape |
+| `event.selftest.mjs` | pinned to a payload captured off the live firehose |
 | `seeds.js` | the house set, shown when the wire is quiet |
 | `index.html` | shell, styles, and the two sheets |
 
@@ -638,16 +642,135 @@ mjpeg and nothing else — so "Invalid data found" is what it says about any GIF
 Checking the tool before believing the tool saved a day of chasing a bug that
 was not there.)
 
+## Posting it MOVING — which does work
+
+`video.js`. The GIF never could animate on Bluesky, for the three measured
+reasons above. This does, and it turns on one field in the lexicon:
+
+```
+app.bsky.embed.video.presentation   knownValues: ["default", "gif"]
+```
+
+`presentation: "gif"` is honoured by the official client — branched on in
+`social-app/src/components/Post/Embed/VideoEmbed/index.tsx`, which swaps in
+`GifPresentationControls`. So a two-second clip posted this way **autoplays and
+loops in the feed with no scrubber**: a dweet, moving, in somebody's timeline.
+That is the thing the GIF was reaching for and could not have.
+
+### It needs no worker change, and no credential of ours
+
+Measured 2026-09-22:
+
+```
+video.bsky.app  OPTIONS  -> 204, access-control-allow-origin: *
+                            allow-headers authorization,content-type
+getUploadLimits unauthed -> 401 {"canUpload":false,"error":"missing_token"}
+uploadVideo     unauthed -> 401 {"error":"missing token"}
+```
+
+CORS `*`, so **the browser uploads directly** — no relay, and this surface's
+worker never sees the bytes. The credential is the reader's own: their PDS
+mints a service-auth JWT with `aud: did:web:video.bsky.app` and
+`lxm: com.atproto.repo.uploadBlob`, exactly what the official client asks for.
+`/pds/server/getServiceAuth` is already on the auth worker's allowlist with
+`repoScoped: false`, and `rpc:com.atproto.server.getServiceAuth` is already in
+`RPC_SCOPES` and therefore in the live ceiling. **Nothing to deploy.** The page
+asks for that scope only when the reader chooses a moving post.
+
+### Not ffmpeg, and the reason is size
+
+ffmpeg in a browser means ffmpeg.wasm: ~25 MB of download before a single frame
+is encoded, on a page whose whole premise is that the artwork is 256 bytes. The
+browser already ships an encoder, usually a hardware one, and `MediaRecorder`
+is the two-line way to reach it.
+
+WebCodecs `VideoEncoder` is the other route and beats MediaRecorder in one
+respect — it runs faster than real time, where a stream is paced by the clock,
+so a 2s clip currently takes 2s to record. It loses on two: it emits raw H.264
+chunks with **no container**, so it needs an MP4 muxer we would have to write
+and keep correct, and it is absent in more browsers (including, notably, the
+Chromium in this sandbox — `VideoEncoder` is `undefined` there under every flag
+combination tried). If the pacing ever becomes the complaint, WebCodecs plus a
+muxer is the upgrade. ffmpeg is not.
+
+### `isTypeSupported` lies, so the file is opened and asked
+
+This is the trap, and it would have shipped. Measured in Chromium 1194:
+
+```
+MediaRecorder.isTypeSupported('video/mp4')                -> true
+MediaRecorder.isTypeSupported('video/mp4;codecs=avc1')    -> false
+…and the file it then writes: ftyp isom, stsd sample entry `vp09`
+```
+
+That file is an mp4 by extension, by mime type, and by
+`app.bsky.embed.video`'s own `accept: ["video/mp4"]`. **Nothing downstream
+would have caught it** before a transcoder expecting H.264 did.
+
+Two defences, because either alone is wrong:
+
+- **Ask for the codec by name.** `MP4_TYPES` are all explicit `avc1` strings.
+- **Then check what came back.** `mp4Codec()` walks
+  `moov > trak > mdia > minf > stbl > stsd` and reads the sample entry's type,
+  which IS the codec. `recordMp4` rejects anything that is not `avc1`/`avc3`
+  with a message naming what it got.
+
+The second exists because refusing the bare type outright is the safe-*looking*
+choice and is wrong in the direction that matters: a browser accepting only the
+short form is quite likely a Safari, which is most of this surface's traffic,
+and "no H.264 encoder" would be a false negative it could do nothing about. So
+`pickMimeType` returns `{type, certain}`, an uncertain pick is still tried, and
+the **output** is the arbiter. Verified against a real recording from this
+Chromium: `mp4Codec()` returned `vp09`, which is the upload it would have
+blocked.
+
+### Everything is checked before anything is spent
+
+`getUploadLimits` runs **before** the recording, because a daily video quota
+discovered after two seconds of recording and thirty of transcoding is the
+worst possible moment — the same principle as the shuffle composer checking its
+blob scope while nothing is at stake. The scope escalation happens before that
+again, since `ensureScope` redirects and a redirect between an upload and its
+record would leave an orphan blob, burn a quota slot and lose the author's text.
+
+`awaitJob` honours the lexicon's own rule — *"All values not listed as a known
+value indicate that the job is in process"* — so an unrecognised state means
+**keep waiting**, not fail. Reading it the other way would abandon good uploads
+the day Bluesky adds a stage. It also always ends: a job that never settles
+times out saying what stage it reached and that **nothing was posted**, rather
+than spinning forever, which is the exact shape of bug the AppView's video
+button once had.
+
+### The GIF stays, and stopped depending on a download
+
+The GIF is still the right artifact for everywhere that is not Bluesky — a
+chat, a wiki, a README, a Mastodon post. What changed is how it leaves the
+page. It used to be a synthetic click on a hidden anchor, which is the classic
+way to make a save button that does nothing on a phone: by the time a 2s
+recording and an encode have finished, the tap's transient activation is long
+gone, and iOS Safari has never handled a programmatic `blob:` download well
+regardless. (Chromium still fires it after a 3.5s await — tested — so this is
+not a universal failure, which is exactly why it is easy to ship.)
+
+So the GIF is now **put on screen**, and the reader gets the three exits that
+work everywhere: the image itself (long-press → Save Image on a phone,
+right-click on a desktop), `navigator.share({files})` where the platform takes
+it — which on iOS is the share sheet, Photos included — and a **real anchor**
+they click themselves, carrying its own activation and needing none of ours.
+
 ### Scopes
 
 Sharing needs `repo:app.bsky.feed.post` and `blob:image/*` on top of the dweet
 collection. **Both are already in the live ceiling** — verified 2026-09-22
 against `auth.mino.mobi/client-metadata.json`: 87 collections, both present —
-so this needed **no deploy of `workers/auth`**. But a scope is only granted if
-it is asked for, and a session minted for the dweet collection alone does not
-have them, so `postToBsky()` calls `ensureScope(SHARE_SCOPES)` **from the
-click**, before the blob upload rather than between the upload and the record.
-A redirect in that gap would leave an orphan blob and lose the author's text.
+so this needed **no deploy of `workers/auth`**. A moving post adds
+`rpc:com.atproto.server.getServiceAuth`, which is likewise already in the
+ceiling. But a scope is only granted if it is asked for, and a session minted
+for the dweet collection alone does not have any of them, so `postToBsky()`
+calls `ensureScope()` **from the click** with whichever set the chosen mode
+needs — before anything is spent, rather than between an upload and the record.
+A redirect in that gap would leave an orphan blob, burn a video quota slot and
+lose the author's text.
 
 ## Posting: shipped
 

@@ -148,6 +148,19 @@ const BASE = 'https://bsky.mino.mobi/dweet/';
   eq('record: alt is carried', withImage.embed.images[0].alt, 'a still');
   ok('record: the blob goes in as a ref, not as bytes',
     withImage.embed.images[0].image.$type === 'blob');
+
+  // embed is ONE field, so a caller passing both has a bug. The video is the
+  // richer thing and the still is its fallback, so the video wins — pinned so
+  // the precedence cannot drift into "whichever branch came first".
+  const both = feedPost({
+    text, facets,
+    image: { blob: { $type: 'blob' }, width: 1, height: 1, alt: 'still' },
+    video: { $type: 'app.bsky.embed.video', video: { $type: 'blob' }, presentation: 'gif' },
+  });
+  eq('record: video beats image when both are passed', both.embed.$type, 'app.bsky.embed.video');
+  eq('record: a video-only post carries the video embed',
+    feedPost({ text, facets, video: { $type: 'app.bsky.embed.video' } }).embed.$type,
+    'app.bsky.embed.video');
 }
 
 // ── 7. pickStill — the black-thumbnail bug ──────────────────────

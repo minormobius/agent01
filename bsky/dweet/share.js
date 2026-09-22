@@ -217,12 +217,18 @@ export function altText({ title, lang, chars, src, atSeconds }) {
 /**
  * The record.
  *
+ * `image` and `video` are mutually exclusive, because `embed` is one field. A
+ * caller that passes both has a bug, and silently preferring one would hide
+ * it — so the video wins and the fact is asserted in the selftest, since the
+ * video is the strictly richer thing and the still is its fallback.
+ *
  * @param {object} o
  * @param {string} o.text
  * @param {object[]} o.facets
  * @param {{blob:object, width:number, height:number, alt:string}} [o.image]
+ * @param {object} [o.video]  a built `app.bsky.embed.video` — see video.js
  */
-export function feedPost({ text, facets, image }) {
+export function feedPost({ text, facets, image, video }) {
   const record = {
     $type: 'app.bsky.feed.post',
     text,
@@ -230,7 +236,9 @@ export function feedPost({ text, facets, image }) {
     langs: ['en'],
   };
   if (facets?.length) record.facets = facets;
-  if (image) {
+  if (video) {
+    record.embed = video;
+  } else if (image) {
     record.embed = {
       $type: 'app.bsky.embed.images',
       images: [{
