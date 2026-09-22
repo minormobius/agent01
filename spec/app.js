@@ -31,7 +31,7 @@
 
   // ---------------------------------------------------------------- header --
   const featCount = surfaces.reduce((n, s) => n + s.features.length, 0);
-  $('stamp').textContent = `generated from commit ${D.generated.commit} · ${D.generated.date}` +
+  $('stamp').textContent = `generated from inputs ${D.generated.inputs || D.generated.commit} · ${D.generated.date}` +
     (D.probe ? ` · endpoints last verified ${D.probe.at} (HTTP status from CI/sandbox)` : '');
   $('counts').innerHTML = [
     [surfaces.length, 'deploy surfaces'],

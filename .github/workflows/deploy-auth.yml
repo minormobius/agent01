@@ -2,7 +2,7 @@ name: Deploy Auth Worker
 
 on:
   push:
-    branches: ['claude/bsky-app-view-feasibility-8sdflz']
+    branches: ['claude/browser-cad-ideation-ollmd3']
     paths:
       - 'workers/auth/**'
       - '.github/workflows/deploy-auth.yml'

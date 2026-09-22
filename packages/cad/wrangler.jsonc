@@ -1,0 +1,33 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cad",
+  "main": "worker.js",
+  "compatibility_date": "2026-08-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  // /mcp builds parts with the Rust engine inside the worker. Truck is slow on
+  // the booleans it can do (the 60-tooth crossed gear is ~17 s under node,
+  // 27 s here), so the default 30 s CPU budget is one gear away from a 1102.
+  // Same precedent as civ/. An assembly is built in slices of `maxParts`
+  // (mcp.js) so one request never asks for the whole clock.
+  "limits": { "cpu_ms": 120000 },
+  // /parts/* is the social layer (../../parts/), a separate worker with its
+  // own Durable Object, reached through this binding: cad.mino.mobi/parts/.
+  // It was meant to be parts.mino.mobi, but the zone is at Cloudflare's
+  // ceiling of 100 Workers custom domains (API code 100122, measured on its
+  // first deploy), and the deploy token cannot write DNS for a route. Same
+  // origin as the viewer, so the auth cookie and the gateway are 'self'.
+  "services": [
+    { "binding": "PARTS", "service": "parts" }
+  ],
+  // Golden rule (docs/DEPLOYS.md §4): the worker name must be the one that owns
+  // the live custom domain, and the domain must be declared here — otherwise
+  // `wrangler deploy` goes green against a stray cad.workers.dev and the live
+  // site never changes. cad.mino.mobi had no worker before this surface, so
+  // the first deploy provisions the custom domain from this block.
+  "routes": [
+    { "pattern": "cad.mino.mobi", "custom_domain": true }
+  ]
+}

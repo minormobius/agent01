@@ -1,0 +1,10 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Case: a cup revolved from an L profile. Closed form: pi*R^2*floor + pi*(R^2-(R-wall)^2)*(H-floor).",
+  "params": { "R": 22, "H": 8, "wall": 1, "floor": 1 },
+  "features": [
+    { "op": "sketch", "id": "section", "plane": "XZ", "loops": [ { "name": "cup", "polygon": [ [0, 0], ["R", 0], ["R", "H"], ["R - wall", "H"], ["R - wall", "floor"], [0, "floor"] ] } ] },
+    { "op": "revolve", "id": "case", "profile": "section", "axis": { "p": [0, 0], "d": [0, 1] } }
+  ]
+}

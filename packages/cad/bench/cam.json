@@ -1,0 +1,18 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "A cam: a closed spline through twelve polar points — a base circle with a rise over a third of the turn — extruded, with a keyed bore. The spline is a periodic Catmull–Rom, one exact cubic Bézier per span in the kernel.",
+  "params": { "r": 10, "lift": 4, "b": 5, "bore": 4, "key": 1.2 },
+  "features": [
+    { "op": "sketch", "id": "profile", "loops": [
+      { "name": "cam", "spline": { "through": [
+        ["r", 0], ["r*cos(deg(30))", "r*sin(deg(30))"], ["r*cos(deg(60))", "r*sin(deg(60))"], [0, "r"],
+        ["(r+lift*0.5)*cos(deg(120))", "(r+lift*0.5)*sin(deg(120))"], ["(r+lift)*cos(deg(150))", "(r+lift)*sin(deg(150))"], ["-(r+lift)", 0],
+        ["(r+lift)*cos(deg(210))", "(r+lift)*sin(deg(210))"], ["(r+lift*0.5)*cos(deg(240))", "(r+lift*0.5)*sin(deg(240))"], [0, "-r"],
+        ["r*cos(deg(300))", "r*sin(deg(300))"], ["r*cos(deg(330))", "r*sin(deg(330))"] ] } },
+      { "name": "bore", "path": { "from": ["bore/2", "-key/2"], "segs": [
+        { "to": ["bore/2 + key/2", "-key/2"] }, { "to": ["bore/2 + key/2", "key/2"] }, { "to": ["bore/2", "key/2"] },
+        { "arc": { "via": ["-bore/2", 0], "to": ["bore/2", "-key/2"] } } ] } } ] },
+    { "op": "extrude", "id": "cam", "profile": "profile", "depth": "b" }
+  ]
+}

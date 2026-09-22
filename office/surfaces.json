@@ -1886,6 +1886,24 @@
    "parent": null
   },
   {
+   "id": "cad",
+   "name": "cad",
+   "url": "https://cad.mino.mobi",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "parts",
+   "name": "parts",
+   "url": "https://cad.mino.mobi/parts/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "hopper",
    "name": "hopper",
    "url": "https://hopper.mino.mobi",
@@ -5995,6 +6013,16 @@
    "commits": 0,
    "age": "hot",
    "parent": "bismuth",
+   "discovered": true
+  },
+  {
+   "id": "cad/docs",
+   "name": "docs",
+   "url": "https://cad.mino.mobi/docs/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "cad",
    "discovered": true
   },
   {
