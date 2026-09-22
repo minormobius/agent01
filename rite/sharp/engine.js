@@ -522,6 +522,12 @@ const INFLECTION = /ed$|(?:^|[^s])s$/;
  *                                tense of a word that does not exist (`stalms`,
  *                                `sunked`). Off by default: a minted word should
  *                                be a root, not an inflection of nothing.
+ * @param {number} [o.distinct]   reject a candidate that sits one edit from a
+ *                                real word this common (per million). `grought`
+ *                                and `fruilt` are perfectly legal shapes that
+ *                                read as typos of `brought` and `built`; a word
+ *                                you have to spell out loud is worth less than
+ *                                one you do not. 0 (default) keeps them.
  */
 export function mint(o = {}) {
   const seed = String(o.seed ?? '').trim() || 'sharp';
@@ -529,12 +535,13 @@ export function mint(o = {}) {
   const count = Math.max(1, Math.min(MAX_COUNT, Math.floor(Number(o.count) || DEFAULT_COUNT)));
   const minLen = Math.max(1, Math.floor(Number(o.minLen) || 2));
   const maxLen = Math.min(12, Math.floor(Number(o.maxLen) || 9));
-  const model = o.model, lexicon = o.lexicon;
+  const model = o.model, lexicon = o.lexicon, corpus = o.corpus;
   const inflected = !!o.inflected;
+  const distinct = Math.max(0, Number(o.distinct) || 0);
   if (!model) throw new Error('mint: model is required');
 
   const st = STYLES[style];
-  const rng = rngFrom(`sharp|${seed}|${style}|${count}|${minLen}|${maxLen}|${inflected ? 'i' : 'r'}`);
+  const rng = rngFrom(`sharp|${seed}|${style}|${count}|${minLen}|${maxLen}|${inflected ? 'i' : 'r'}|${distinct}`);
   const words = [];
   const seen = new Set();
   let tries = 0;
@@ -567,11 +574,12 @@ export function mint(o = {}) {
     if (countSyllables(word) !== 1) continue;
     // must be unclaimed
     if (lexicon && lexicon.has(word)) continue;
+    // must not read as a misspelling of something common
+    if (distinct && corpus && nearestCommon(corpus, word) >= distinct) continue;
 
     seen.add(word);
     const { logp, score } = plausibility(model, seg);
     const say = pronounce(model, seg);
-    const corpus = o.corpus;
     const rimeArpa = model.rimePhone[rimeKey(seg)] || null;
     words.push({
       word,
@@ -590,7 +598,7 @@ export function mint(o = {}) {
 
   return {
     seed, style, requested: count, count: words.length, tries,
-    inflected,
+    inflected, distinct,
     styleBlurb: st.blurb,
     words,
   };
@@ -681,6 +689,17 @@ export function homophonesFor(corpus, arpa, { limit = 4 } = {}) {
   const key = arpa.split(' ').map((p) => p.replace(/\d$/, '')).join(' ');
   const bucket = corpus.byPhones[key];
   return bucket ? bucket.map((i) => corpus.words[i]).filter(showable).slice(0, limit) : [];
+}
+
+/**
+ * How common the commonest real word one edit away is, per million. A high
+ * number means the word reads as a typo of that word rather than as itself.
+ */
+export function nearestCommon(corpus, word) {
+  if (!corpus) return 0;
+  const near = neighboursFor(corpus, word, { limit: 1 });
+  if (!near.length) return 0;
+  return corpus.freq[corpus.index.get(near[0])] / 100;
 }
 
 /** Real monosyllables one edit away — the word's immediate lexical neighbours. */

@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import worker from '../worker.js';
+import { clearMemo } from './rdap.js';
 
 const RITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -86,10 +87,67 @@ console.log('— /api/sharp/check —');
   check(long.word.length === 64, 'a very long input is clipped rather than refused');
 }
 
+console.log('— /api/sharp/tlds —');
+{
+  const res = await get('/api/sharp/tlds');
+  const body = await res.json();
+  check(res.status === 200 && body.counts.tlds > 1000, `${body.counts.tlds} delegated TLDs, ${body.counts.verifiable} with RDAP`);
+  check(Object.keys(body.verdicts).length === 5, 'the verdicts are published, so a caller can read the answers');
+  const hack = await (await get('/api/sharp/tlds?endswith=flash')).json();
+  check(hack.endswith.some((h) => h.domain === 'fla.sh'), `endswith=flash -> ${hack.endswith.map((h) => h.domain).join(' ')}`);
+}
+
+console.log('— /api/sharp/domain, against a stub registry —');
+{
+  // The worker's RDAP client uses global fetch; swap it so the selftest never
+  // touches a real registry. Preflight has to run offline and identically.
+  const real = globalThis.fetch;
+  const asked = [];
+  globalThis.fetch = async (url, init) => {
+    const u = String(url);
+    if (!u.startsWith('http')) return real(url, init);
+    asked.push(u);
+    if (u.includes('taken.com')) return new Response('{"objectClassName":"domain","events":[{"eventAction":"registration","eventDate":"2008-11-10T00:00:00Z"}]}', { status: 200 });
+    return new Response('{"errorCode":404,"title":"Domain not found"}', { status: 404 });
+  };
+  try {
+    clearMemo();
+    const one = await (await get('/api/sharp/domain?name=taken.com')).json();
+    check(one.results[0].verdict === 'taken' && one.results[0].detail.registered.startsWith('2008'),
+      'a whole name resolves and the record comes back summarised');
+
+    clearMemo(); asked.length = 0;
+    const many = await (await get('/api/sharp/domain?label=thrimp&tlds=com,dev,sh,thistldnotexist')).json();
+    const by = Object.fromEntries(many.results.map((r) => [r.tld, r.verdict]));
+    check(by.com === 'free' && by.dev === 'free', 'registry 404s read as free');
+    check(by.sh === 'unverifiable', '.sh has no RDAP service, so the answer is unverifiable — not free');
+    check(by.thistldnotexist === 'invalid', 'an unreal TLD is invalid');
+    check(!asked.some((u) => u.includes('.sh')), 'nothing was asked of a registry that does not exist');
+    check(many.free.length === 2 && !many.free.includes('thrimp.sh'), '`free` lists only what a registry actually said');
+    check(typeof many.caveat === 'string' && /not purchasable/.test(many.caveat), 'the response says what "free" does not mean');
+
+    clearMemo();
+    const bad = await get('/api/sharp/domain?label=-nope-&tlds=com');
+    check(bad.status === 400, 'an unusable label is a 400, not a registry query');
+    const none = await get('/api/sharp/domain');
+    check(none.status === 400, 'no label is a 400');
+
+    clearMemo();
+    const cap = await (await get(`/api/sharp/domain?label=thrimp&tlds=${Array.from({length:40},(_, i)=>'com').join(',')}`)).json();
+    check(cap.checked <= 16, `one request cannot ask for more than 16 TLDs (got ${cap.checked})`);
+
+    const res = await get('/api/sharp/domain?label=thrimp&tlds=com');
+    check(res.headers.get('cache-control') === 'public, max-age=300', 'availability is cached briefly, not for a day');
+  } finally {
+    globalThis.fetch = real;
+  }
+}
+
 console.log('— health —');
 {
   const h = await (await get('/api/health')).json();
-  check(h.routes.includes('/api/sharp') && h.routes.includes('/api/sharp/check'), 'health lists the sharp routes');
+  check(h.routes.includes('/api/sharp') && h.routes.includes('/api/sharp/check')
+    && h.routes.includes('/api/sharp/domain') && h.routes.includes('/api/sharp/tlds'), 'health lists the sharp routes');
 }
 
 console.log('— the page is served —');

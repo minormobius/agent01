@@ -43,7 +43,7 @@ Single Worker that hosts twelve surfaces, most over the same shared `rite/lib/at
 - **`/org/`** — procedural org-chart generator, sister to `/names/` (imports its engine to name the people). One seed → one whole organisation: 8 **verticals** (corp / startup / military / feudal / crime / monastic / academic / ecclesiastic — each a rank ladder + title vocabulary + departments) × 7 **shapes** (pyramid / tall / flat / wide / matrix / cellular / fractal — a topology transform over the ladder). A per-seed charter picks which departments the org runs and its name; titles are built from per-rank templates over `{dept}/{ic}/{spec}/{unit}/{ord}` tokens, people minted by the names engine (so crime reads *Salvatore the Rusted*, a duchy reads *Roderick the Grim, Baron of Aldermoor*). **The infinite org chart:** the bounded tree stops at the IC, but `/api/org/node?id=r.2.1.0` expands any node one level and *wraps* at the bottom — the lowest clerk is the apex of their own shadow sub-org, with its own C-suite, forever. Deterministic (xmur3+mulberry32) so a node id is a permanent address in an unbounded company. Engine (`rite/org/engine.js`) shared verbatim by worker, page, and node selftest (`rite/org/engine.selftest.mjs` — run it before touching the engine). Public API, CORS open, pure compute: `GET /api/org?seed=&vertical=&shape=&depth=&maxNodes=&names=`, `GET /api/org/node?…&id=`, `GET /api/org/verticals`. The browser page ships a canvas diagram (`rite/org/diagram.js`, no deps) with four mobile-first layouts — **radial** (default; tidy-tree in rings, fills a portrait screen), **tree** (left→right node-link, tall & narrow), **icicle** (rank strata as scrollable columns), and **force** (best for the `matrix` shape's dotted cross-links); pan/pinch-zoom, tap a node to select + drill through it (the infinite lens), and a **colour-by** selector that paints the chart by morale/output/competence/manager-load/flight-risk.
   **People + performance (`rite/org/person.js`).** Every box holds a deterministic *person* (demographics, a work-triad **craft/drive/wit** expressed into nine attributes, a temperament `cast`, quirks, `output` + `leadership`), rhyming with hoop's `stats.js` (same triad×power shape) and tagged with one of hoop's 13 civic **vocations** so an org person is a valid hoop NPC (the city-sim bridge). `generateOrg` then rolls the whole tree into a **performance** oracle: leadership multiplies reports, overloaded spans leak throughput, each management layer skims a depth tax, morale flows down from manager quality + workload → `{score, tier, efficiency, avgMorale, overloadedManagers, attritionRate, highlights}` — tiers borrowed verbatim from hoop/econ's vitality oracle (**Thriving/Healthy/Stable/Fragile/Failing**). The point: *same seed + people, different `shape` → different score* (a `flat` or `wide` org overloads its managers into Failing; `tall`/`cellular` keep spans sane). `/api/org/node` and `/api/org/person?id=` carry a local perf snapshot; `siteSeed(worldSeed, city, cell)` is the forward hook to reproducibly site an org into a **mappa** world (mappa seeds int→mulberry32; rite hashes the string first).
 
-- **`/sharp/`** — a monosyllable engine, in three parts. **Mint**: procgen single-syllable words that obey English phonotactics and have no English definition — the wardrobe is not hand-written, it is *measured*. `build-corpus.mjs` cuts every real English monosyllable into onset/nucleus/coda (`str·e·ngth`, `m·o(e)·l`) and tallies P(nucleus | onset) and P(coda | nucleus); the minter samples those tables, so a minted word is shaped by English's own habits. A candidate ships only if it re-segments to the parts it was built from, reads as one syllable, does not look like an inflection of a word that does not exist, and appears in **no** word list (~250k strings). **Draw**: a real single-syllable word from the 7,625 English has, dialled from commonest to most obscure by SUBTLEX frequency. **Check**: any string — how many syllables, and is it taken, and by which list. Every word carries a guessed pronunciation (the onset's usual phones plus the rime's, both learned from real words spelled the same way), so it also knows its real-word rhymes and its homophones — `cind` is free on the page and already taken in the ear. Deterministic (xmur3+mulberry32, same lineage as `/names/`). Public API, CORS open, no D1 and no AI: `GET /api/sharp?seed=&style=&count=&mode=mint|real&obscurity=&inflected=`, `GET /api/sharp/check?w=`, `GET /api/sharp/styles`. Engine (`rite/sharp/engine.js`) shared verbatim by worker and node selftest; **run both selftests before touching it** (`engine.selftest.mjs`, `routes.selftest.mjs`).
+- **`/sharp/`** — a monosyllable engine, in three parts. **Mint**: procgen single-syllable words that obey English phonotactics and have no English definition — the wardrobe is not hand-written, it is *measured*. `build-corpus.mjs` cuts every real English monosyllable into onset/nucleus/coda (`str·e·ngth`, `m·o(e)·l`) and tallies P(nucleus | onset) and P(coda | nucleus); the minter samples those tables, so a minted word is shaped by English's own habits. A candidate ships only if it re-segments to the parts it was built from, reads as one syllable, does not look like an inflection of a word that does not exist, and appears in **no** word list (~250k strings). **Draw**: a real single-syllable word from the 7,625 English has, dialled from commonest to most obscure by SUBTLEX frequency. **Check**: any string — how many syllables, and is it taken, and by which list. Every word carries a guessed pronunciation (the onset's usual phones plus the rime's, both learned from real words spelled the same way), so it also knows its real-word rhymes and its homophones — `cind` is free on the page and already taken in the ear. Deterministic (xmur3+mulberry32, same lineage as `/names/`). **Is it free?**: the same string put to the registries over **RDAP**, routed through IANA's own bootstrap — see below. Public API, CORS open, no D1 and no AI: `GET /api/sharp?seed=&style=&count=&mode=mint|real&obscurity=&inflected=&distinct=`, `GET /api/sharp/check?w=`, `GET /api/sharp/styles`, `GET /api/sharp/domain?label=&tlds=`, `GET /api/sharp/tlds?endswith=`. Engine (`rite/sharp/engine.js`) shared verbatim by worker and node selftest; **run all three selftests before touching it** (`engine.selftest.mjs`, `tld.selftest.mjs`, `routes.selftest.mjs`).
 
 ## Architecture
 
@@ -86,8 +86,11 @@ Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-pro
 | `scripts/sync-fodder-to-rite.mjs` | Pulls approved fodder back into `rite/corpus.json` (idempotent) |
 | `rite/sharp/engine.js` | Monosyllable engine — segmentation, syllable counting, mint, draw, check |
 | `rite/sharp/corpus.js` | Runtime indexes over the built data (rimes, homophones, ranks) |
-| `rite/sharp/data/` | `taken.txt` (250k claimed words + CMUdict syllable counts), `mono.json` (7,625 real monosyllables with pronunciations), `phono.json` (the model) |
-| `rite/sharp/build-corpus.mjs` | Rebuilds those three. **Needs the network** (CMUdict) — not part of preflight |
+| `rite/sharp/tld.js` | TLD verifier + what an RDAP response means. Pure: decides, never fetches |
+| `rite/sharp/rdap.js` | The only code that talks to registries — caps, backoff, memo |
+| `rite/sharp/hunt.mjs` | CLI: mint words, ask the registries which are free |
+| `rite/sharp/data/` | `taken.txt` (250k claimed words + CMUdict syllable counts), `mono.json` (7,625 real monosyllables with pronunciations), `phono.json` (the model), `tlds.json` (IANA's TLDs + RDAP bootstrap) |
+| `rite/sharp/build-corpus.mjs`, `build-tlds.mjs` | Rebuild those four. **Need the network** — not part of preflight |
 
 ## Deploy workflow (`deploy-rite.yml`)
 
@@ -101,6 +104,52 @@ Required secrets:
 - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — already set, shared with poll/feed deploys.
 - `RITE_ADMIN_KEY` (optional) — must match the worker's `ADMIN_KEY` to enable post-deploy seed.
 
+### /sharp — the TLD verifier and RDAP
+
+Two facts from IANA, both baked into `sharp/data/tlds.json`: the list of every
+delegated TLD, and the **RDAP bootstrap** mapping a TLD to its registry's
+service. `sharp/tld.js` is pure — it decides what a response *means* and never
+fetches one, which is why the interesting part is testable offline.
+
+**The trap, and why the code is shaped this way.** The public `rdap.org`
+redirector answers `404 {"title":"No RDAP service is available for this
+resource"}` for `.io`, `.sh`, `.co` and `.me` — for *every* name, registered or
+not. Read that as "available" and the tool reports that `github.io` is going
+spare. So:
+
+- a `404` counts as **free** only from a registry resolved through the bootstrap,
+  and never when the body says the *service* is missing;
+- a TLD absent from the bootstrap is **unverifiable** — real, but uncheckable
+  (236 of 1,438), and it costs no request;
+- a 429, a 5xx or a timeout is **unknown**. Nothing is ever rounded down to free.
+
+`sharp/rdap.js` is the only code that talks to registries, and they are somebody
+else's infrastructure: 16 TLDs per request, one host at a time, a 6s timeout,
+exponential backoff on 429, and a per-isolate memo. Availability is cached for
+five minutes, not a day — a stale yes reaches someone about to spend money.
+
+**`free` means unregistered, not purchasable.** Premium, reserved and
+registry-held names all answer 404. The API says so in every response.
+
+### Hunting domains from the command line
+
+```bash
+node rite/sharp/hunt.mjs --pool 60000 --count 200 --score 45 --distinct 8 \\
+  --style native --min 5 --max 7 --tlds com --delay 400 --hacks
+node rite/sharp/hunt.mjs --words lounce --tlds com,dev,app,ai,xyz --delay 400
+```
+
+Same engine and same RDAP reader as the worker, so the CLI and the site cannot
+disagree. `--score` and `--distinct` exist to filter *before* spending queries:
+the words worth owning are the ones that read as English, and those are exactly
+the ones already registered, so a useful hunt mints a large `--pool` and checks
+only the top of it. Expect ~90% of scoring 5-7 letter `.com`s to be taken.
+
+`--distinct N` (also the `distinct` API param) rejects a word sitting one edit
+from a real word commoner than N per million. `grought` and `fruilt` are legal
+shapes that read as typos of `brought` and `built`; a name you have to spell out
+loud is worth less than one you do not.
+
 ## Rebuilding the /sharp corpus
 
 `rite/sharp/data/` is committed, not generated by preflight: the build fetches
@@ -108,10 +157,15 @@ CMUdict over the network, and the result is deterministic given the same inputs.
 Re-run it only to refresh the corpus, and re-run both selftests after.
 
 ```bash
-node rite/sharp/build-corpus.mjs            # fetches CMUdict, writes the three data files
+node rite/sharp/build-corpus.mjs            # fetches CMUdict, writes the three word data files
+node rite/sharp/build-tlds.mjs              # fetches IANA's TLD list + RDAP bootstrap
 node rite/sharp/engine.selftest.mjs         # gates segmentation, syllable accuracy, the mint contract
+node rite/sharp/tld.selftest.mjs            # gates the verifier + RDAP reader against a stub registry
 node rite/sharp/routes.selftest.mjs         # gates the worker routes against the real data
 ```
+
+A stale `tlds.json` only means a brand-new TLD reads as "not a TLD", which is
+the safe direction to be wrong in. None of the selftests touch the network.
 
 `taken.txt` is a sorted, newline-delimited list read through a binary-search
 index (`WordIndex`), **never** parsed into a `Set` — 250k strings as a JS Set

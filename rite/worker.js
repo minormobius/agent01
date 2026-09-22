@@ -21,6 +21,8 @@
 //   GET  /api/sharp                 -> minted (unclaimed) or real single-syllable words
 //   GET  /api/sharp/check           -> is this string taken, and is it one syllable?
 //   GET  /api/sharp/styles          -> catalog of mint styles + corpus stats
+//   GET  /api/sharp/tlds            -> the TLD verifier: what is real, what is checkable
+//   GET  /api/sharp/domain          -> is this name taken? (RDAP, per registry)
 //
 // Cron (every 6h) mines verbose sentences from Project Gutenberg.
 
@@ -28,6 +30,8 @@ import { generateSet, catalog as namesCatalog } from './names/engine.js';
 import { generateOrg, expandOrgNode, catalog as orgCatalog } from './org/engine.js';
 import { mint, draw, check as sharpCheck, catalog as sharpCatalog } from './sharp/engine.js';
 import { hydrate as hydrateSharp, lexiconFrom } from './sharp/corpus.js';
+import { domainHacks, splitDomain, validLabel, VERDICTS } from './sharp/tld.js';
+import { checkMany, LIMITS as RDAP_LIMITS } from './sharp/rdap.js';
 
 const SYLLABLE_RE = /[aeiouy]+/g;
 
@@ -54,6 +58,7 @@ export default {
             '/api/wc/odds',
             '/api/names', '/api/names/cultures',
             '/api/sharp', '/api/sharp/check', '/api/sharp/styles',
+            '/api/sharp/tlds', '/api/sharp/domain',
             '/api/org', '/api/org/node', '/api/org/person', '/api/org/verticals',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
@@ -107,6 +112,8 @@ export default {
       if (url.pathname === '/api/sharp')                                  return sharpWords(url, env);
       if (url.pathname === '/api/sharp/check')                            return sharpCheckRoute(url, env);
       if (url.pathname === '/api/sharp/styles')                           return sharpStyles(env);
+      if (url.pathname === '/api/sharp/tlds')                             return sharpTlds(env, url);
+      if (url.pathname === '/api/sharp/domain')                           return sharpDomain(env, url);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -2374,4 +2381,81 @@ async function sharpStyles(env) {
       { name: 'SUBTLEX-US', what: 'word frequencies', url: 'https://www.ugent.be/pp/experimentele-psychologie/en/research/documents/subtlexus' },
     ],
   }, 200, { ...NAMES_CORS, 'Cache-Control': 'public, max-age=86400' });
+}
+
+// ---------- sharp: the TLD verifier and the RDAP engine ----------
+//
+// data/tlds.json is IANA's delegated-TLD list plus the RDAP bootstrap, loaded
+// once per isolate alongside the word data. The verifier answers two different
+// questions and never conflates them: is this a real TLD, and does its registry
+// publish something we can ask.
+
+let _tlds = null;
+async function loadTlds(env) {
+  if (_tlds) return _tlds;
+  const res = await env.ASSETS.fetch(new Request('https://rite/sharp/data/tlds.json'));
+  if (!res.ok) throw new Error(`sharp: tlds.json missing (${res.status})`);
+  const raw = await res.json();
+  _tlds = { raw, tldSet: new Set(raw.tlds), rdap: raw.rdap };
+  return _tlds;
+}
+
+async function sharpTlds(env, url) {
+  const { raw, tldSet } = await loadTlds(env);
+  const q = url.searchParams.get('endswith');
+  const body = {
+    version: raw.version,
+    bootstrapPublished: raw.bootstrapPublished,
+    counts: raw.counts,
+    verdicts: VERDICTS,
+    limits: { maxTlds: RDAP_LIMITS.maxTlds },
+    note: 'A TLD missing from `rdap` is real but publishes no RDAP service, so availability there cannot be checked here. That is reported as "unverifiable", never as "free".',
+  };
+  if (q) {
+    // Which TLDs could finish this word? The dot is a letter you get free.
+    body.endswith = domainHacks(q, tldSet);
+  }
+  return json(body, 200, { ...NAMES_CORS, 'Cache-Control': 'public, max-age=86400' });
+}
+
+async function sharpDomain(env, url) {
+  const q = url.searchParams;
+  const [{ tldSet, rdap }] = await Promise.all([loadTlds(env)]);
+  const data = { tldSet, rdap };
+
+  // Either a whole name (thrimp.com) or a label plus a list of TLDs.
+  let pairs = [];
+  const name = (q.get('name') || '').trim().toLowerCase();
+  let label = (q.get('label') || '').trim().toLowerCase();
+  if (name) {
+    const split = splitDomain(name, tldSet);
+    if (!split) return json({ error: 'name must look like label.tld' }, 400, NAMES_CORS);
+    label = split.label;
+    pairs = [[split.label, split.tld]];
+  } else {
+    if (!label) return json({ error: 'pass name=label.tld, or label= plus tlds=' }, 400, NAMES_CORS);
+    const list = (q.get('tlds') || 'com').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+    pairs = list.slice(0, RDAP_LIMITS.maxTlds).map((t) => [label, t]);
+  }
+
+  if (!validLabel(label)) {
+    return json({ label, error: 'not a usable domain label', results: [] }, 400, NAMES_CORS);
+  }
+
+  const results = await checkMany(pairs, data, {});
+  const free = results.filter((r) => r.verdict === 'free').map((r) => r.domain);
+  return json({
+    label,
+    checked: results.length,
+    free,
+    results,
+    hacks: domainHacks(label, tldSet),
+    verdicts: VERDICTS,
+    caveat: 'RDAP reports what the registry has on file. A name with no registration can still be reserved, premium-priced, or blocked — "free" here means unregistered, not purchasable.',
+  }, 200, {
+    ...NAMES_CORS,
+    // Registrations change; a short cache keeps registries happy without
+    // serving a stale yes to someone about to buy something.
+    'Cache-Control': 'public, max-age=300',
+  });
 }

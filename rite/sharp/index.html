@@ -129,6 +129,19 @@ input[type=range] { width: 10rem; accent-color: var(--accent); }
 #grid .w.copied { color: var(--accent); font-weight: 700; }
 
 /* ---- checker ---- */
+.dom { margin-top: 0.7rem; }
+.domgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.35rem; }
+.dcell {
+  display: flex; align-items: baseline; gap: 0.4rem; font-family: var(--mono); font-size: 0.82rem;
+  border: 1px solid var(--rule); border-radius: 6px; padding: 0.28rem 0.5rem; background: var(--bg);
+}
+.dcell .dot2 { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex-shrink: 0; background: var(--muted); }
+.dcell.free  { border-color: var(--good); } .dcell.free .dot2  { background: var(--good); }
+.dcell.taken { opacity: 0.55; } .dcell.taken .dot2 { background: var(--accent); }
+.dcell.unverifiable .dot2, .dcell.unknown .dot2 { background: transparent; border: 1px solid var(--muted); }
+.dcell .why { font-size: 0.68rem; color: var(--muted); margin-left: auto; }
+.legend { font-size: 0.72rem; color: var(--muted); margin: 0.5rem 0 0; font-family: var(--mono); }
+.caveat { font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 0.6rem 0 0; }
 .checkrow { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch; margin: 0.6rem 0 0; }
 .checkrow input {
   flex: 1 1 12rem; font-size: 1.15rem; font-family: var(--serif); padding: 0.5rem 0.7rem;
@@ -222,6 +235,21 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
 </div>
 <div id="checkout"></div>
 
+<h2>is it free? <span class="hint">&mdash; the same string, asked of the registries</span></h2>
+<p style="margin:.2rem 0 0;font-size:.92rem;color:var(--muted)">
+  A word nobody has defined is often also a word nobody has registered. This asks
+  <b>RDAP</b> &mdash; the machine-readable successor to WHOIS &mdash; one TLD at a time, routing each
+  query through IANA's own bootstrap so the answer comes from the registry that actually holds the
+  zone.
+</p>
+<div class="checkrow">
+  <label class="sr" for="dq">domain label to look up</label>
+  <input type="text" id="dq" placeholder="lounce" autocomplete="off" spellcheck="false" autocapitalize="off">
+  <button class="primary" id="domBtn">look up</button>
+  <button id="domMint">mint one first</button>
+</div>
+<div class="dom" id="domout"></div>
+
 <h2>how it works</h2>
 <p style="font-size:.95rem">
   The wardrobe is not hand-written. Every real English monosyllable is cut into
@@ -247,11 +275,25 @@ footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule);
   one-syllable call alone.</i>
 </p>
 
+<p style="font-size:.95rem">
+  The domain side runs on two files IANA publishes and nothing else: the list of every delegated
+  TLD, and the <b>RDAP bootstrap</b> that maps a TLD to its registry's service. A name is only
+  called <b>free</b> when the registry that owns the zone answered <code>404</code> itself. When a
+  TLD publishes no RDAP service &mdash; <code>.io</code>, <code>.sh</code>, <code>.co</code> and
+  <code>.me</code> among about <b id="unverCount">236</b> others &mdash; the answer is
+  <b>unverifiable</b>, and a rate limit or a timeout is <b>unknown</b>. Neither is ever rounded down
+  to &ldquo;free&rdquo;: the public redirector returns a 404 reading <i>no RDAP service is available</i>
+  for every <code>.io</code> name, registered or not, and a tool that believes it will tell you
+  <code>github.io</code> is going spare.
+</p>
+
 <h2>API <span class="hint">&mdash; open, CORS on, no key</span></h2>
 <pre id="apiEx">GET /api/sharp?style=blunt&amp;count=12
 GET /api/sharp?mode=real&amp;obscurity=0.2&amp;count=12
 GET /api/sharp/check?w=thrimp
-GET /api/sharp/styles</pre>
+GET /api/sharp/styles
+GET /api/sharp/domain?label=thrimp&amp;tlds=com,dev,ai
+GET /api/sharp/tlds?endswith=flash</pre>
 <table class="apidoc">
   <tr><td><code>seed</code></td><td>any string. Same seed, same words, forever. Omit it and you get a fresh one back.</td></tr>
   <tr><td><code>mode</code></td><td><code>mint</code> (default) invents; <code>real</code> draws from the corpus.</td></tr>
@@ -260,7 +302,10 @@ GET /api/sharp/styles</pre>
   <tr><td><code>count</code></td><td>1&ndash;500. Default 24.</td></tr>
   <tr><td><code>minLen</code>, <code>maxLen</code></td><td>mint only, in letters.</td></tr>
   <tr><td><code>inflected</code></td><td>mint only. <code>1</code> allows forms that read as a plural or a past tense (<code>stalms</code>, <code>sunked</code>). Off by default.</td></tr>
+  <tr><td><code>distinct</code></td><td>mint only, per million. Rejects a word sitting one edit from a real word that common &mdash; <code>grought</code> is a legal shape that reads as a typo of <code>brought</code>. 0 keeps them.</td></tr>
   <tr><td><code>w</code></td><td><code>/check</code> only: the string to adjudicate.</td></tr>
+  <tr><td><code>label</code>, <code>tlds</code></td><td><code>/domain</code> only: one label against up to 16 TLDs. Or pass <code>name=thrimp.com</code>.</td></tr>
+  <tr><td><code>endswith</code></td><td><code>/tlds</code> only: every way a word can be cut so the tail is a real TLD. <code>flash</code> &rarr; <code>fla.sh</code>.</td></tr>
 </table>
 
 <footer>
@@ -313,6 +358,10 @@ try {
   $('corpusCount').textContent = fmt(cat.corpus.monosyllables);
   $('claimedCount').textContent = fmt(cat.corpus.claimed);
   $('styleList').textContent = cat.styles.map((s) => s.key).join(', ') + '. Default native.';
+  try {
+    const t = await (await fetch(`${API}/tlds`)).json();
+    $('unverCount').textContent = fmt(t.counts.tlds - t.counts.verifiable);
+  } catch { /* the number in the copy is close enough if the call fails */ }
   setBlurb();
 } catch { $('blurb').textContent = 'could not reach the engine'; }
 
@@ -496,11 +545,51 @@ async function runCheck() {
   history.replaceState(null, '', `?check=${encodeURIComponent(r.word)}`);
 }
 
+// ---------- the registries ----------
+
+const DOM_TLDS = ['com', 'net', 'org', 'dev', 'app', 'ai', 'xyz', 'run', 'one', 'ink', 'fyi', 'site'];
+
+$('domBtn').onclick = () => lookup($('dq').value);
+$('dq').addEventListener('keydown', (e) => { if (e.key === 'Enter') lookup($('dq').value); });
+$('domMint').onclick = async () => {
+  if (!state.current) await next();
+  $('dq').value = state.current.word;
+  lookup(state.current.word);
+};
+
+async function lookup(raw) {
+  const label = String(raw || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const out = $('domout');
+  if (!label) { out.innerHTML = ''; return; }
+  out.innerHTML = `<p class="caveat">asking ${DOM_TLDS.length} registries about <b>${esc(label)}</b>&hellip;</p>`;
+  let r;
+  try {
+    r = await (await fetch(`${API}/domain?label=${encodeURIComponent(label)}&tlds=${DOM_TLDS.join(',')}`)).json();
+  } catch { out.innerHTML = '<p class="caveat">could not reach the engine</p>'; return; }
+  if (r.error) { out.innerHTML = `<p class="caveat">${esc(r.error)}</p>`; return; }
+
+  const why = { free: '', taken: 'taken', unverifiable: 'no RDAP', unknown: 'no answer', invalid: 'invalid' };
+  const cells = r.results.map((x) =>
+    `<span class="dcell ${x.verdict}" title="${esc(r.verdicts[x.verdict] || '')}">` +
+    `<span class="dot2"></span>${esc(x.domain)}<span class="why">${why[x.verdict]}</span></span>`).join('');
+
+  const hacks = (r.hacks || []).length
+    ? `<p class="caveat">The dot is a letter you get free: <b>${r.hacks.map((h) => esc(h.domain)).join('</b>, <b>')}</b> spells ${esc(label)}.</p>`
+    : '';
+
+  out.innerHTML =
+    `<p class="ruling"><b>${esc(label)}</b> — ${r.free.length ? `free on <b>${r.free.length}</b> of ${r.checked}` : `taken or unverifiable on all ${r.checked}`}</p>` +
+    `<div class="domgrid">${cells}</div>` + hacks +
+    `<p class="legend">● free &nbsp; ● registered &nbsp; ○ the TLD is real but publishes no RDAP service, so this is not an answer</p>` +
+    `<p class="caveat">${esc(r.caveat)}</p>`;
+}
+
 // ---------- go ----------
 // Last, and only now: every handler above is bound, so a throw in here cannot
 // leave the page with dead buttons.
 
 if (params.get('check')) { $('q').value = params.get('check'); runCheck(); }
+if (params.get('domain')) { $('dq').value = params.get('domain'); lookup(params.get('domain')); }
 next();
 </script>
 </body>
