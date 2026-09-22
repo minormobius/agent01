@@ -53,8 +53,13 @@ console.log(`account ${short(ACCOUNT)}  zone ${ZONE_NAME}\n`);
 
 // ── the token itself ──────────────────────────────────────────────
 console.log('token');
+// /user/tokens/verify only answers for USER-owned tokens. An account-owned
+// token — which is what a deploy secret usually is — answers 401 here while
+// working perfectly on every account and zone call below. A `no` on this line
+// is therefore not a fault; the lines that follow are the real evidence.
 const verify = await get('/user/tokens/verify');
-line('verify', verify, verify.body?.result?.status || '');
+line('verify  (401 here just means an ACCOUNT-owned token)', verify,
+  verify.body?.result?.status || '');
 
 // ── the zone ──────────────────────────────────────────────────────
 console.log('\nzone');

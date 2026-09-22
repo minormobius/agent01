@@ -218,7 +218,41 @@ them is a fact about one secret, and §7's "dashboard-only" list assumes the
 narrow deploy token it was written for.
 
 `.github/workflows/cf-capability-probe.yml` answers it. It is **read-only** —
-every call is a GET — and it reports:
+every call is a GET. **First run, 2026-09-22:**
+
+```
+workers custom domains
+  100 of the 100 slots on mino.mobi are taken  (0 free)
+  99 distinct workers hold them
+      2  airchat      airchat.mino.mobi, yapchat.mino.mobi
+      1  …            (every other worker holds exactly one)
+  (13 more on other zones, which have their own 100)
+
+workers routes    YES  0 routes on this zone
+dns               no   403 Authentication error
+token verify      no   401   <- account-owned token; not a fault, see below
+```
+
+Three things that change the plan:
+
+- **The zone is at exactly 100/100, not near it.** There is no headroom to
+  find; the next custom domain needs a slot freed first.
+- **There is no cheap prune.** Ninety-nine of the hundred slots belong to a
+  worker that holds exactly one, so every reclaimed slot is a separate decision
+  that a site is finished. Only `airchat` holds two.
+- **The deploy token cannot touch DNS** — a plain read is `403 Authentication
+  error`, so certainly no write. It *can* read Workers Routes, and there are
+  **0** routes on the zone, so the route path is untried as well as unblocked.
+  Making a hostname resolve today therefore needs either the dashboard or a
+  token granted **DNS:Edit** on `mino.mobi`. Granting it is the smaller job and
+  it is the one that makes the whole thing automatable.
+
+(The `401` on `/user/tokens/verify` is **not** a fault. That endpoint only
+answers for *user*-owned tokens; an account-owned one — which a deploy secret
+usually is — fails it while working on every account and zone call. The lines
+below it are the real evidence.)
+
+It reports:
 
 - how many of the 100 custom-domain slots on `mino.mobi` are taken, **grouped by
   worker**, so a prune can start with whoever holds the most;
