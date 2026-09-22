@@ -19,6 +19,8 @@ import { rdapUrl, readRdap, summariseRecord, validLabel } from './tld.js';
 // host buys real answers for about a second of latency.
 export const LIMITS = { maxTlds: 16, concurrency: 5, timeoutMs: 6000, retries: 2, delayMs: 350 };
 
+const UA = 'sharp/1.0 (+https://rite.mino.mobi/sharp/; RDAP availability lookup)';
+
 const memo = new Map();                       // "label.tld" -> result
 const MEMO_MAX = 5000;
 
@@ -30,7 +32,12 @@ async function once(url, { fetchImpl, timeoutMs }) {
   try {
     const res = await fetchImpl(url, {
       signal: ac.signal,
-      headers: { accept: 'application/rdap+json, application/json' },
+      headers: {
+        accept: 'application/rdap+json, application/json',
+        // Identify the client. Registries throttle anonymous traffic harder,
+        // and an operator who wants this to stop has somewhere to look.
+        'user-agent': UA,
+      },
       cf: { cacheTtl: 300, cacheEverything: true },
     });
     const body = await res.text();
@@ -63,7 +70,10 @@ export async function checkOne(label, tld, data, opts = {}) {
     } else {
       let res = await once(url, { fetchImpl, timeoutMs });
       // A 429 means back off, not try again immediately. Exponential, and only
-      // as many times as the caller allowed.
+      // as many times as the caller allowed. Some registries refuse shared
+      // cloud egress outright (403) or throttle it whatever the gap — from a
+      // Worker those stay `unknown`, and that is the true answer, not a
+      // problem to retry away.
       for (let i = 0; i < retries && (res.status === 429 || res.status >= 500); i++) {
         await sleep(700 * Math.pow(2, i));
         res = await once(url, { fetchImpl, timeoutMs });

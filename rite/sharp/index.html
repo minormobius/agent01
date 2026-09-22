@@ -547,7 +547,11 @@ async function runCheck() {
 
 // ---------- the registries ----------
 
-const DOM_TLDS = ['com', 'net', 'org', 'dev', 'app', 'ai', 'xyz', 'run', 'one', 'ink', 'fyi', 'site'];
+// Ordered by whether the registry actually answers a Cloudflare Worker. The
+// first eight are reliable; .ai, .xyz, .run and .fyi throttle or refuse shared
+// cloud egress whatever the gap between queries, so they often come back
+// `unknown` — which is the honest answer, not a bug to hide.
+const DOM_TLDS = ['com', 'net', 'org', 'dev', 'app', 'one', 'ink', 'site', 'ai', 'xyz', 'run', 'fyi'];
 
 $('domBtn').onclick = () => lookup($('dq').value);
 $('dq').addEventListener('keydown', (e) => { if (e.key === 'Enter') lookup($('dq').value); });
@@ -569,9 +573,11 @@ async function lookup(raw) {
   if (r.error) { out.innerHTML = `<p class="caveat">${esc(r.error)}</p>`; return; }
 
   const why = { free: '', taken: 'taken', unverifiable: 'no RDAP', unknown: 'no answer', invalid: 'invalid' };
-  const cells = r.results.map((x) =>
-    `<span class="dcell ${x.verdict}" title="${esc(r.verdicts[x.verdict] || '')}">` +
-    `<span class="dot2"></span>${esc(x.domain)}<span class="why">${why[x.verdict]}</span></span>`).join('');
+  const cells = r.results.map((x) => {
+    const tip = (r.verdicts[x.verdict] || '') + (x.verdict === 'unknown' && x.status ? ` (HTTP ${x.status})` : '');
+    return `<span class="dcell ${x.verdict}" title="${esc(tip)}">` +
+      `<span class="dot2"></span>${esc(x.domain)}<span class="why">${why[x.verdict]}</span></span>`;
+  }).join('');
 
   const hacks = (r.hacks || []).length
     ? `<p class="caveat">The dot is a letter you get free: <b>${r.hacks.map((h) => esc(h.domain)).join('</b>, <b>')}</b> spells ${esc(label)}.</p>`
@@ -580,7 +586,7 @@ async function lookup(raw) {
   out.innerHTML =
     `<p class="ruling"><b>${esc(label)}</b> — ${r.free.length ? `free on <b>${r.free.length}</b> of ${r.checked}` : `taken or unverifiable on all ${r.checked}`}</p>` +
     `<div class="domgrid">${cells}</div>` + hacks +
-    `<p class="legend">● free &nbsp; ● registered &nbsp; ○ the TLD is real but publishes no RDAP service, so this is not an answer</p>` +
+    `<p class="legend">● free &nbsp; ● registered &nbsp; ○ no answer — the TLD publishes no RDAP service, or its registry declined to serve this lookup</p>` +
     `<p class="caveat">${esc(r.caveat)}</p>`;
 }
 
