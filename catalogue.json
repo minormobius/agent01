@@ -332,7 +332,7 @@
       "t": "2026-05-29",
       "b": "2026-05-20",
       "surface": "rite",
-      "d": "Sentence editing drill plus nine surfaces over Bluesky prose—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, and signal mapping.",
+      "d": "Sentence editing drill plus a dozen surfaces over Bluesky prose and English itself—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, signal mapping, procedural names and org charts, and a monosyllable engine that mints English-shaped words nobody has claimed.",
       "tags": [
         "workers",
         "d1",
@@ -480,6 +480,17 @@
       "a": "hot",
       "t": "2026-07-10",
       "b": "2026-07-10",
+      "p": "rite",
+      "surface": "rite"
+    },
+    {
+      "n": "sharp",
+      "u": "https://rite.mino.mobi/sharp/",
+      "c": "bluesky",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-22",
+      "b": "2026-09-22",
       "p": "rite",
       "surface": "rite"
     },

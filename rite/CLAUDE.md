@@ -5,7 +5,7 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-Sentence editing drill plus nine surfaces over Bluesky prose—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, and signal mapping.
+Sentence editing drill plus a dozen surfaces over Bluesky prose and English itself—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, signal mapping, procedural names and org charts, and a monosyllable engine that mints English-shaped words nobody has claimed.
 
 ## Facts
 
@@ -22,13 +22,13 @@ Sentence editing drill plus nine surfaces over Bluesky prose—fodder swipe deck
 
 Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `surfaces[]` where `surface == "rite"`.
 
-## Rite — the eleven surfaces
+## Rite — the twelve surfaces
 
 **Live at**: `rite.mino.mobi`
 **Stack**: Cloudflare Worker (assets binding) + D1 + Workers AI
 **Deploy**: `.github/workflows/deploy-rite.yml` — runs migrations, then `wrangler deploy`
 
-Single Worker that hosts eleven surfaces, most over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
+Single Worker that hosts twelve surfaces, most over the same shared `rite/lib/atproto/` pipeline (CAR fetch → WASM parse → thread chains → reading-level scoring):
 
 - **`/`** — sentence editing drill. User is shown a verbose sentence; rewrites it; gets scored on fidelity (BGE embedding cosine vs. reference rewrites), brevity (vs. median reference word count), clarity (Flesch delta), and speed.
 - **`/fodder/`** — Tinder-style swipe deck for crowdsourcing new corpus entries. Cron mines Project Gutenberg every 6h, asks Llama 3.1 8B for three rewrites, queues candidates as `pending`. Yes-votes promote a candidate to `approved` once it hits 5 yes & ≥70% ratio.
@@ -42,6 +42,8 @@ Single Worker that hosts eleven surfaces, most over the same shared `rite/lib/at
 - **`/names/`** — procedural name-set generator. One seed → one coherent set of N names (default 300) that read as if they came from a single invented culture: 12 blendable culture packs (phonotactic wardrobes) × 5 setting registers (classical / fantasy / scifi / fey / wasteland) × 5 kinds (given / family / place / full / title). A per-seed "charter" subsamples the culture's wardrobe and Zipf-boosts favorite sounds so the set coheres; uniqueness is enforced hard (no dups, pairwise edit distance ≥ 2, no prefix containment). Epithets on `full` names are generated from per-setting grammars (templates like `the {times}-{part}`, `{count}-{body}`, `{noun}{bond}` over subsampled word banks; the `of {place}` token mints a toponym from the same charter) — unique within a set. Deterministic (xmur3+mulberry32, borges-style) — a URL is a namebook. The engine (`rite/names/engine.js`) is shared verbatim by the worker, the browser page, and the node selftest (`rite/names/engine.selftest.mjs` — run it before touching the engine). Public API, CORS open, pure compute (no D1/AI): `GET /api/names?seed=&culture=&setting=&kind=&count=` and `GET /api/names/cultures`. Sister to the `/name/` essay (name *families* via modal metaphor — different thing, cross-linked).
 - **`/org/`** — procedural org-chart generator, sister to `/names/` (imports its engine to name the people). One seed → one whole organisation: 8 **verticals** (corp / startup / military / feudal / crime / monastic / academic / ecclesiastic — each a rank ladder + title vocabulary + departments) × 7 **shapes** (pyramid / tall / flat / wide / matrix / cellular / fractal — a topology transform over the ladder). A per-seed charter picks which departments the org runs and its name; titles are built from per-rank templates over `{dept}/{ic}/{spec}/{unit}/{ord}` tokens, people minted by the names engine (so crime reads *Salvatore the Rusted*, a duchy reads *Roderick the Grim, Baron of Aldermoor*). **The infinite org chart:** the bounded tree stops at the IC, but `/api/org/node?id=r.2.1.0` expands any node one level and *wraps* at the bottom — the lowest clerk is the apex of their own shadow sub-org, with its own C-suite, forever. Deterministic (xmur3+mulberry32) so a node id is a permanent address in an unbounded company. Engine (`rite/org/engine.js`) shared verbatim by worker, page, and node selftest (`rite/org/engine.selftest.mjs` — run it before touching the engine). Public API, CORS open, pure compute: `GET /api/org?seed=&vertical=&shape=&depth=&maxNodes=&names=`, `GET /api/org/node?…&id=`, `GET /api/org/verticals`. The browser page ships a canvas diagram (`rite/org/diagram.js`, no deps) with four mobile-first layouts — **radial** (default; tidy-tree in rings, fills a portrait screen), **tree** (left→right node-link, tall & narrow), **icicle** (rank strata as scrollable columns), and **force** (best for the `matrix` shape's dotted cross-links); pan/pinch-zoom, tap a node to select + drill through it (the infinite lens), and a **colour-by** selector that paints the chart by morale/output/competence/manager-load/flight-risk.
   **People + performance (`rite/org/person.js`).** Every box holds a deterministic *person* (demographics, a work-triad **craft/drive/wit** expressed into nine attributes, a temperament `cast`, quirks, `output` + `leadership`), rhyming with hoop's `stats.js` (same triad×power shape) and tagged with one of hoop's 13 civic **vocations** so an org person is a valid hoop NPC (the city-sim bridge). `generateOrg` then rolls the whole tree into a **performance** oracle: leadership multiplies reports, overloaded spans leak throughput, each management layer skims a depth tax, morale flows down from manager quality + workload → `{score, tier, efficiency, avgMorale, overloadedManagers, attritionRate, highlights}` — tiers borrowed verbatim from hoop/econ's vitality oracle (**Thriving/Healthy/Stable/Fragile/Failing**). The point: *same seed + people, different `shape` → different score* (a `flat` or `wide` org overloads its managers into Failing; `tall`/`cellular` keep spans sane). `/api/org/node` and `/api/org/person?id=` carry a local perf snapshot; `siteSeed(worldSeed, city, cell)` is the forward hook to reproducibly site an org into a **mappa** world (mappa seeds int→mulberry32; rite hashes the string first).
+
+- **`/sharp/`** — a monosyllable engine, in three parts. **Mint**: procgen single-syllable words that obey English phonotactics and have no English definition — the wardrobe is not hand-written, it is *measured*. `build-corpus.mjs` cuts every real English monosyllable into onset/nucleus/coda (`str·e·ngth`, `m·o(e)·l`) and tallies P(nucleus | onset) and P(coda | nucleus); the minter samples those tables, so a minted word is shaped by English's own habits. A candidate ships only if it re-segments to the parts it was built from, reads as one syllable, does not look like an inflection of a word that does not exist, and appears in **no** word list (~250k strings). **Draw**: a real single-syllable word from the 7,625 English has, dialled from commonest to most obscure by SUBTLEX frequency. **Check**: any string — how many syllables, and is it taken, and by which list. Every word carries a guessed pronunciation (the onset's usual phones plus the rime's, both learned from real words spelled the same way), so it also knows its real-word rhymes and its homophones — `cind` is free on the page and already taken in the ear. Deterministic (xmur3+mulberry32, same lineage as `/names/`). Public API, CORS open, no D1 and no AI: `GET /api/sharp?seed=&style=&count=&mode=mint|real&obscurity=&inflected=`, `GET /api/sharp/check?w=`, `GET /api/sharp/styles`. Engine (`rite/sharp/engine.js`) shared verbatim by worker and node selftest; **run both selftests before touching it** (`engine.selftest.mjs`, `routes.selftest.mjs`).
 
 ## Architecture
 
@@ -67,6 +69,9 @@ Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-pro
 | `GET /api/fodder/promoted` | Approved candidates in corpus.json shape (used by sync script) |
 | `GET /api/fodder/stats` | Counts: pending / approved / rejected / total votes / total voters |
 | `POST /api/fodder/admin/mine` | Manual mining trigger; requires `X-Admin-Key` matching `ADMIN_KEY` secret |
+| `GET /api/sharp` | Sharp: minted (default) or real single-syllable words |
+| `GET /api/sharp/check` | Sharp: adjudicate a string — syllables, taken, rhymes |
+| `GET /api/sharp/styles` | Sharp: mint styles + corpus stats + sources |
 
 ## Key Files
 
@@ -79,6 +84,10 @@ Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-pro
 | `rite/wrangler.jsonc` | Worker + ASSETS + AI + D1 + cron (0 */6 * * *) |
 | `poll/apps/api/migrations/0014_fodder.sql` | D1 schema for `fodder_candidates`, `fodder_votes`, `fodder_state` |
 | `scripts/sync-fodder-to-rite.mjs` | Pulls approved fodder back into `rite/corpus.json` (idempotent) |
+| `rite/sharp/engine.js` | Monosyllable engine — segmentation, syllable counting, mint, draw, check |
+| `rite/sharp/corpus.js` | Runtime indexes over the built data (rimes, homophones, ranks) |
+| `rite/sharp/data/` | `taken.txt` (250k claimed words + CMUdict syllable counts), `mono.json` (7,625 real monosyllables with pronunciations), `phono.json` (the model) |
+| `rite/sharp/build-corpus.mjs` | Rebuilds those three. **Needs the network** (CMUdict) — not part of preflight |
 
 ## Deploy workflow (`deploy-rite.yml`)
 
@@ -91,6 +100,26 @@ Triggers on push to `main` or `claude/sentence-editing-drill-*` that touches `ri
 Required secrets:
 - `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` — already set, shared with poll/feed deploys.
 - `RITE_ADMIN_KEY` (optional) — must match the worker's `ADMIN_KEY` to enable post-deploy seed.
+
+## Rebuilding the /sharp corpus
+
+`rite/sharp/data/` is committed, not generated by preflight: the build fetches
+CMUdict over the network, and the result is deterministic given the same inputs.
+Re-run it only to refresh the corpus, and re-run both selftests after.
+
+```bash
+node rite/sharp/build-corpus.mjs            # fetches CMUdict, writes the three data files
+node rite/sharp/engine.selftest.mjs         # gates segmentation, syllable accuracy, the mint contract
+node rite/sharp/routes.selftest.mjs         # gates the worker routes against the real data
+```
+
+`taken.txt` is a sorted, newline-delimited list read through a binary-search
+index (`WordIndex`), **never** parsed into a `Set` — 250k strings as a JS Set
+costs tens of MB per isolate; as one string plus an `Int32Array` of offsets it
+costs about 3MB and needs no parse on a cold start. Each line is
+`word` TAB `<syllables><kinds>`, where kinds is a subset of `e` (ENABLE1),
+`f` (SUBTLEX-US), `c` (CMUdict) — a string only CMUdict claims is nearly always
+a proper name, and the checker says so rather than calling it a dictionary word.
 
 ## Crowdsource → drill sync
 

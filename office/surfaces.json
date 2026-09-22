@@ -338,6 +338,15 @@
    "parent": "rite"
   },
   {
+   "id": "sharp",
+   "name": "sharp",
+   "url": "https://rite.mino.mobi/sharp/",
+   "cat": "bluesky",
+   "commits": 3,
+   "age": "hot",
+   "parent": "rite"
+  },
+  {
    "id": "atmosphere",
    "name": "atmosphere",
    "url": "https://b.mino.mobi",

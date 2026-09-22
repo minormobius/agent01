@@ -17,10 +17,17 @@
 //   GET  /api/names                 -> one coherent set of names (see names/engine.js)
 //   GET  /api/names/cultures        -> catalog of cultures / settings / kinds
 //
+// Sharp routes (monosyllable engine, served at /sharp/):
+//   GET  /api/sharp                 -> minted (unclaimed) or real single-syllable words
+//   GET  /api/sharp/check           -> is this string taken, and is it one syllable?
+//   GET  /api/sharp/styles          -> catalog of mint styles + corpus stats
+//
 // Cron (every 6h) mines verbose sentences from Project Gutenberg.
 
 import { generateSet, catalog as namesCatalog } from './names/engine.js';
 import { generateOrg, expandOrgNode, catalog as orgCatalog } from './org/engine.js';
+import { mint, draw, check as sharpCheck, catalog as sharpCatalog } from './sharp/engine.js';
+import { hydrate as hydrateSharp, lexiconFrom } from './sharp/corpus.js';
 
 const SYLLABLE_RE = /[aeiouy]+/g;
 
@@ -46,6 +53,7 @@ export default {
             '/api/signal/check', '/api/signal/index', '/api/signal/query', '/api/signal/map', '/api/signal/target',
             '/api/wc/odds',
             '/api/names', '/api/names/cultures',
+            '/api/sharp', '/api/sharp/check', '/api/sharp/styles',
             '/api/org', '/api/org/node', '/api/org/person', '/api/org/verticals',
           ],
           bindings: { ai: !!env.AI, db: !!env.DB, assets: !!env.ASSETS, admin_key_set: !!env.ADMIN_KEY },
@@ -93,6 +101,12 @@ export default {
       if (url.pathname === '/api/org/node')                              return orgNode(url);
       if (url.pathname === '/api/org/person')                            return orgPerson(url);
       if (url.pathname === '/api/org/verticals')                         return json(orgCatalog(), 200, NAMES_CORS);
+
+      // Sharp: the monosyllable engine (served at /sharp/). Pure compute over
+      // three committed data files; no D1, no AI, CORS open.
+      if (url.pathname === '/api/sharp')                                  return sharpWords(url, env);
+      if (url.pathname === '/api/sharp/check')                            return sharpCheckRoute(url, env);
+      if (url.pathname === '/api/sharp/styles')                           return sharpStyles(env);
 
       if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     } catch (e) {
@@ -2260,4 +2274,104 @@ function orgPerson(url) {
   } catch (e) {
     return json({ error: String(e && e.message || e) }, 400, NAMES_CORS);
   }
+}
+
+// ============================================================
+// Sharp — the monosyllable engine (rite.mino.mobi/sharp/)
+// ============================================================
+//
+// Engine in sharp/engine.js, shared verbatim with the browser page and the node
+// selftest; the worker is the HTTP face plus the data loader. The three data
+// files are fetched from ASSETS once per isolate and held: taken.txt stays a
+// single string behind a binary-search index rather than becoming a 250k-entry
+// Set, so a cold isolate costs one fetch and about 3MB, not a parse of 3MB.
+
+let _sharp = null;
+let _sharpLoading = null;
+
+async function loadSharp(env) {
+  if (_sharp) return _sharp;
+  if (_sharpLoading) return _sharpLoading;
+  _sharpLoading = (async () => {
+    const get = async (file) => {
+      const res = await env.ASSETS.fetch(new Request(`https://rite/sharp/data/${file}`));
+      if (!res.ok) throw new Error(`sharp: ${file} missing (${res.status})`);
+      return res;
+    };
+    const [phono, mono, taken] = await Promise.all([
+      get('phono.json').then((r) => r.json()),
+      get('mono.json').then((r) => r.json()),
+      get('taken.txt').then((r) => r.text()),
+    ]);
+    _sharp = { model: phono, corpus: hydrateSharp(mono), lexicon: lexiconFrom(taken) };
+    return _sharp;
+  })();
+  try { return await _sharpLoading; } finally { _sharpLoading = null; }
+}
+
+async function sharpWords(url, env) {
+  const q = url.searchParams;
+  const { model, corpus, lexicon } = await loadSharp(env);
+  const real = (q.get('mode') || 'mint') === 'real';
+  const hadSeed = q.has('seed') && q.get('seed') !== '';
+  const seed = hadSeed ? q.get('seed') : crypto.randomUUID().slice(0, 8);
+  try {
+    let out;
+    if (real) {
+      const obscurity = q.has('obscurity') ? Number(q.get('obscurity')) : 0.5;
+      out = draw({ seed, count: q.get('count') || undefined, obscurity, corpus, model });
+      out.mode = 'real';
+      out.permalink = `https://rite.mino.mobi/sharp/?mode=real&seed=${encodeURIComponent(out.seed)}&obscurity=${out.obscurity}&count=${out.requested}`;
+    } else {
+      out = mint({
+        seed,
+        count: q.get('count') || undefined,
+        style: q.get('style') || undefined,
+        minLen: q.get('minLen') || undefined,
+        maxLen: q.get('maxLen') || undefined,
+        inflected: q.get('inflected') === '1' || q.get('inflected') === 'true',
+        model, lexicon, corpus,
+      });
+      out.mode = 'mint';
+      out.permalink = `https://rite.mino.mobi/sharp/?seed=${encodeURIComponent(out.seed)}&style=${out.style}&count=${out.requested}`;
+    }
+    out.corpusSize = corpus.count;
+    return json(out, 200, {
+      ...NAMES_CORS,
+      'Cache-Control': hadSeed ? 'public, max-age=86400' : 'no-store',
+    });
+  } catch (e) {
+    return json({ error: String(e && e.message || e) }, 400, NAMES_CORS);
+  }
+}
+
+async function sharpCheckRoute(url, env) {
+  const w = url.searchParams.get('w') ?? url.searchParams.get('word') ?? '';
+  const { model, corpus, lexicon } = await loadSharp(env);
+  const out = sharpCheck(w.slice(0, 64), { model, corpus, lexicon });
+  out.permalink = `https://rite.mino.mobi/sharp/?check=${encodeURIComponent(out.word || w.slice(0, 64))}`;
+  return json(out, out.ok ? 200 : 400, {
+    ...NAMES_CORS,
+    'Cache-Control': out.ok ? 'public, max-age=86400' : 'no-store',
+  });
+}
+
+async function sharpStyles(env) {
+  const { corpus, lexicon, model } = await loadSharp(env);
+  return json({
+    ...sharpCatalog(),
+    corpus: {
+      monosyllables: corpus.count,
+      claimed: lexicon.size,
+      rimes: corpus.rimes.length,
+      onsets: Object.keys(model.onsets).length,
+      nuclei: Object.keys(model.nuclei).length,
+      codas: Object.keys(model.codas).length,
+    },
+    sources: [
+      { name: 'CMUdict', what: 'pronunciations and syllable counts', url: 'https://github.com/cmusphinx/cmudict' },
+      { name: 'ENABLE1', what: 'the dictionary word list', url: 'https://github.com/dolph/dictionary' },
+      { name: 'SUBTLEX-US', what: 'word frequencies', url: 'https://www.ugent.be/pp/experimentele-psychologie/en/research/documents/subtlexus' },
+    ],
+  }, 200, { ...NAMES_CORS, 'Cache-Control': 'public, max-age=86400' });
 }
