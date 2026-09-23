@@ -1,0 +1,63 @@
+/* finance/tokens.css — surface-wide design tokens for fin.mino.mobi.
+ *
+ * Imported by the landing (/) and the periodic table (/elements/). That is the
+ * point: they are separate pages with separate stylesheets, and without a
+ * shared token file their two copies of the theme drift apart on the first
+ * colour tweak. Anything page-specific — the table's sequential ramp, the
+ * landing's cards — stays in that page's own stylesheet.
+ *
+ * speclab and pm predate this and carry their own styling; they are not
+ * retrofitted here.
+ */
+
+:root {
+  color-scheme: light;
+  --surface-0: #f7f7f4;
+  --surface-1: #fcfcfb;
+  --surface-2: #eeeeea;
+  --rule: #d9d9d2;
+  --rule-strong: #b6b6ad;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --ink-3: #7c7b75;
+  --accent: #1c5cab;
+  --gate: #eb6834;
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.06), 0 8px 24px rgba(11, 11, 11, 0.07);
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+}
+
+/* Dark values are declared under BOTH scopes: the media query covers the OS
+   setting, the [data-theme] scope covers an explicit choice, and the :not()
+   guard lets a light stamp beat OS-dark. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --surface-0: #0d1117;
+    --surface-1: #12161c;
+    --surface-2: #1b212a;
+    --rule: #2a323d;
+    --rule-strong: #45505f;
+    --ink: #f2f4f7;
+    --ink-2: #b6bec9;
+    --ink-3: #8b94a1;
+    --accent: #86b6ef;
+    --gate: #f08a5d;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.45);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #0d1117;
+  --surface-1: #12161c;
+  --surface-2: #1b212a;
+  --rule: #2a323d;
+  --rule-strong: #45505f;
+  --ink: #f2f4f7;
+  --ink-2: #b6bec9;
+  --ink-3: #8b94a1;
+  --accent: #86b6ef;
+  --gate: #f08a5d;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 28px rgba(0, 0, 0, 0.45);
+}

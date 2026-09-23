@@ -1,9 +1,19 @@
 // fin.mino.mobi — surface worker.
 //
-// Serves two static apps and a backend API:
-//   /            -> speculative-feedback playground (TS SPA, dist/index.html)
-//   /pm, /pm/*   -> personal-finance planning SPA   (dist/pm/index.html)
-//   /api/*       -> backend (experiment store in D1 + real-data proxies)
+// Serves four static pages and a backend API:
+//   /                      -> the surface index           (dist/index.html)
+//   /elements              -> financial periodic table    (dist/elements/index.html)
+//   /speclab, /speclab/*   -> speculative-feedback lab    (dist/speclab/index.html)
+//   /pm, /pm/*             -> personal-finance planning   (dist/pm/index.html)
+//   /api/*                 -> backend (experiment store in D1 + real-data proxies)
+//
+// /elements is NOT in SPA_ROOTS: it is one static page that routes with the
+// location hash, so it needs no fallback of its own. /stocks, /bogo, /agimet
+// and the lexicons come straight from public/.
+//
+// SPA_ROOTS below is the whole of the subtree-aware fallback: a 404 under a
+// listed prefix boots THAT app, not the root one, so a deep link like
+// /pm/networth survives a refresh instead of landing on the periodic table.
 //
 // Backend (M2):
 //   GET    /api/health
@@ -38,10 +48,15 @@ export default {
     // Static assets with subtree-aware SPA fallback.
     const res = await env.ASSETS.fetch(request);
     if (res.status !== 404) return res;
-    const indexPath =
-      pathname === "/pm" || pathname.startsWith("/pm/") ? "/pm/index.html" : "/index.html";
-    const indexRes = await env.ASSETS.fetch(new Request(new URL(indexPath, url.origin), request));
-    return new Response(indexRes.body, { status: 200, headers: indexRes.headers });
+    const fallback = await env.ASSETS.fetch(
+      new Request(new URL(spaFallbackFor(pathname), url.origin), request),
+    );
+    // Anything other than a clean hit means we have nothing better to offer
+    // than the original 404 — in particular a non-GET, which ASSETS refuses.
+    // Do NOT blindly restatus this to 200: that is exactly how /pm/networth
+    // served a blank page for months (see spaFallbackFor).
+    if (!fallback.ok) return res;
+    return new Response(fallback.body, { status: 200, headers: fallback.headers });
   },
 
   // Hourly: accrue a real PM snapshot. Liquid daily BTC PM history isn't freely
@@ -50,6 +65,25 @@ export default {
     ctx.waitUntil(snapshotPm(env).catch(() => {}));
   },
 };
+
+// Mounted SPAs. Anything not under one of these falls back to the root app.
+const SPA_ROOTS = ["/pm", "/speclab"];
+
+/**
+ * The path to re-fetch when a request 404s — the app's DIRECTORY, never its
+ * "/index.html".
+ *
+ * Workers Static Assets answers "/pm/index.html" with a 307 redirect to "/pm/",
+ * not with the HTML. A 307 has an empty body, so copying it into a 200 yields a
+ * blank page carrying a stray `location` header, which is what /pm/networth
+ * served. Asking for "/pm/" gets the document itself.
+ */
+export function spaFallbackFor(pathname) {
+  for (const root of SPA_ROOTS) {
+    if (pathname === root || pathname.startsWith(root + "/")) return `${root}/`;
+  }
+  return "/";
+}
 
 async function handleApi(request, env, _ctx, url) {
   const { pathname, searchParams } = url;

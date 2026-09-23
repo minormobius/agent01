@@ -1124,10 +1124,11 @@
       "n": "finance",
       "u": "https://fin.mino.mobi/pm/",
       "c": "data",
-      "k": 28,
-      "a": "hot",
+      "k": 2,
+      "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-14",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1138,7 +1139,7 @@
       "a": "hot",
       "t": "2026-05-14",
       "b": "2026-03-31",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1147,7 +1148,7 @@
       "c": "data",
       "k": 2,
       "a": "hot",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1156,18 +1157,22 @@
       "c": "data",
       "k": 2,
       "a": "hot",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
-      "n": "speclab",
+      "n": "fin",
       "u": "https://fin.mino.mobi",
       "c": "data",
-      "k": 1,
+      "k": 28,
       "a": "hot",
-      "t": "2026-06-21",
-      "b": "2026-06-21",
-      "surface": "finance"
+      "t": "2026-09-21",
+      "b": "2026-03-14",
+      "surface": "finance",
+      "d": "The index for everything on fin.mino.mobi: the financial periodic table, a speculative-feedback research playground, the personal-finance planning tools, a labor-market dashboard, a daily price archive, and an ice cream deal finder.",
+      "tags": [
+        "index"
+      ]
     },
     {
       "n": "wars",
@@ -4154,6 +4159,33 @@
         "wasm",
         "canvas"
       ]
+    },
+    {
+      "n": "periodic-table",
+      "u": "https://fin.mino.mobi/elements/",
+      "c": "data",
+      "k": 4,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-20",
+      "p": "fin",
+      "surface": "finance",
+      "d": "The financial periodic table. All 118 elements sized by the economy each one stands under: how it is actually extracted, the form it is really traded in \u2014 sulfur as sulfuric acid, nitrogen as ammonia, titanium as white pigment \u2014 what a year of world extraction is worth, and the first-order markets that cannot exist without it. Upstream from USGS; downstream estimated under a stated rule, with a confidence tier on every record.",
+      "tags": [
+        "data",
+        "chem"
+      ]
+    },
+    {
+      "n": "speclab",
+      "u": "https://fin.mino.mobi/speclab/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-06-21",
+      "b": "2026-06-21",
+      "p": "fin",
+      "surface": "finance"
     }
   ],
   "notListed": [

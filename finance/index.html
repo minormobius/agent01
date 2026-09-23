@@ -3,16 +3,139 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>fin.mino.mobi · speculative-feedback playground</title>
-    <meta name="description" content="A research sandbox for studying how prediction-market data streams interact with speculative-feedback dynamics in a related asset market. Contract-first, everything-else-pluggable. Paper/research only." />
-    <meta name="theme-color" content="#0d1117" />
-    <style>
-      html, body { margin: 0; padding: 0; background: #0d1117; }
-      #root { min-height: 100vh; }
-    </style>
+    <title>fin.mino.mobi</title>
+    <meta
+      name="description"
+      content="Everything on fin.mino.mobi: the financial periodic table, a speculative-feedback research playground, personal-finance planning tools, a labor-market dashboard, a daily price archive, and an ice cream deal finder."
+    />
+    <meta name="theme-color" content="#f7f7f4" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0d1117" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231c5cab'/%3E%3Ctext x='16' y='23' font-family='Georgia,serif' font-size='19' font-weight='600' fill='%23fff' text-anchor='middle'%3E$%3C/text%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/landing.css" />
   </head>
   <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
+    <div class="wrap">
+      <header class="masthead">
+        <p class="eyebrow"><a href="https://mino.mobi">mino.mobi</a> / fin</p>
+        <h1>fin<span class="dim">.mino.mobi</span></h1>
+        <p class="intro">
+          Six things about money, from the physical bottom of the economy to next month's
+          mortgage payment. Nothing here is advice and nothing here trades.
+        </p>
+      </header>
+
+      <h2>Research</h2>
+
+      <a class="card hero" href="/elements/">
+        <div class="body">
+          <div class="name">The Financial Periodic Table<span class="path">/elements</span></div>
+          <div class="blurb">
+            All 118 elements sized by the economy each one stands under. For every element: how it
+            actually comes out of the ground, the form it is really traded in — sulfur as sulfuric
+            acid, nitrogen as ammonia, titanium as white pigment — what a year of world extraction
+            is worth, and the first-order markets that cannot exist without it. The ratio between
+            those last two runs inversely to size: iron has the largest economy on the board and
+            one of the lowest ratios.
+          </div>
+          <div class="figures">
+            <div><b>$2.13T</b> world extraction</div>
+            <div><b>$11.2T</b> first-order downstream</div>
+            <div><b>24</b> chokepoints</div>
+          </div>
+          <div class="meta">USGS-sourced upstream · estimated downstream · confidence tier on every record</div>
+        </div>
+        <div class="go">open →</div>
+      </a>
+
+      <a class="card" href="/speclab/">
+        <div class="body">
+          <div class="name">speclab<span class="path">/speclab</span></div>
+          <div class="blurb">
+            A research sandbox for how prediction-market data streams interact with
+            speculative-feedback dynamics in a related asset market. Contract-first: the
+            input/output contract stays fixed while data sources, models, metrics and regimes are
+            all swappable, and a leakage test asserts no model can see the future.
+          </div>
+          <div class="meta">paper / research only · no trading, no order routing · synthetic data with planted ground truth</div>
+        </div>
+        <div class="go">open →</div>
+      </a>
+
+      <a class="card" href="/agimet/">
+        <div class="body">
+          <div class="name">agimet<span class="path">/agimet</span></div>
+          <div class="blurb">
+            A small FRED dashboard tracking unemployment by education level, and the gap between
+            college and non-college workers — the series you would watch if you wanted to see
+            whether the labour market is coming apart along that line.
+          </div>
+          <div class="meta">FRED data · single page</div>
+        </div>
+        <div class="go">open →</div>
+      </a>
+
+      <h2>Tools</h2>
+
+      <a class="card" href="/pm/">
+        <div class="body">
+          <div class="name">Personal finance planning<span class="path">/pm</span></div>
+          <div class="blurb">
+            Net worth, mortgage amortisation, cash flow, retirement projection and a life timeline,
+            built around one shared tax engine so the numbers agree with each other rather than
+            each tool inventing its own assumptions.
+          </div>
+          <div class="meta">net worth · mortgage · cash flow · retirement · timeline</div>
+        </div>
+        <div class="go">open →</div>
+      </a>
+
+      <a class="card" href="/stocks/">
+        <div class="body">
+          <div class="name">stocks<span class="path">/stocks</span></div>
+          <div class="blurb">
+            A daily price archive and options reference, synced to ATProto records — the underlying
+            data store for the rest of the surface rather than a trading screen.
+          </div>
+          <div class="meta">daily price archive · options reference · atproto</div>
+        </div>
+        <div class="go">open →</div>
+      </a>
+
+      <h2>Not like the others</h2>
+
+      <a class="card" href="/bogo/">
+        <div class="body">
+          <div class="name">bogo<span class="path">/bogo</span></div>
+          <div class="blurb">
+            Enter a zip code and it checks grocery circulars, apps and loyalty programs for ice
+            cream on sale this week. The only page on this surface with a genuinely practical
+            use.
+          </div>
+          <div class="meta">zip code in, deals out</div>
+        </div>
+        <div class="go">open →</div>
+      </a>
+
+      <h2>Underneath</h2>
+      <div class="rows">
+        <a href="/api/health">/api/health</a>
+        <a href="/universe.json">/universe.json</a>
+        <a href="/lexicons/com.minomobi.finance.security.json">lexicon: security</a>
+        <a href="/lexicons/com.minomobi.finance.dailySeries.json">lexicon: dailySeries</a>
+        <p class="note">
+          <code>/api/*</code> is speclab's backend — the experiment store, the Coinbase and Kalshi
+          proxies, and an hourly cron that accrues prediction-market snapshots. The lexicons are
+          the ATProto record schemas the price archive writes.
+        </p>
+      </div>
+
+      <footer class="foot">
+        <a href="https://mino.mobi">mino.mobi</a>
+        <a href="https://mino.mobi/elements/">the other periodic table</a>
+      </footer>
+    </div>
   </body>
 </html>

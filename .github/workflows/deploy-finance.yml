@@ -2,7 +2,7 @@ name: Deploy Finance (fin)
 
 on:
   push:
-    branches: ['claude/speculative-feedback-playground-t0yiaq']
+    branches: ['claude/financial-periodic-table-8mp7tj']
     paths:
       - 'finance/**'
       - 'poll/apps/api/migrations/0031_speclab.sql'
