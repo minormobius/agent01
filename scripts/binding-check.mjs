@@ -62,7 +62,11 @@ function main() {
   const rows = [];
   for (const s of registry.surfaces) {
     const { hosts, mounts } = endpointHosts(s.endpoint);
-    const dir = join(ROOT, s.dir);
+    // the config usually sits in `dir`; a few surfaces stage from one dir and configure in
+    // another (torus: dir clock/, config torus/), so fall back to a dir named after the surface
+    let dir = join(ROOT, s.dir);
+    const hasCfg = (d) => existsSync(d) && readdirSync(d).some((f) => /^wrangler[\w.-]*\.jsonc?$/.test(f));
+    if (!hasCfg(dir) && hasCfg(join(ROOT, s.surface))) dir = join(ROOT, s.surface);
     // every wrangler*.json[c] in the dir: some surfaces deploy a second worker from a second
     // config (farm/wrangler.next.jsonc is farm-next)
     const cfgs = existsSync(dir) ? readdirSync(dir).filter((f) => /^wrangler[\w.-]*\.jsonc?$/.test(f)) : [];
@@ -81,7 +85,7 @@ function main() {
       let ok = !!kind, why = kind ? '' : `${s.dir}/wrangler.jsonc binds no route for ${host} — a deploy would go to ${config.name}.workers.dev (bound by hand? declare it in the registry entry's "binding")`;
       if (kind === 'route') {
         // A route makes no DNS, so the workflow that deploys it must make it.
-        const wf = join(ROOT, '.github/workflows', `deploy-${s.surface}.yml`);
+        const wf = join(ROOT, '.github/workflows', `deploy-${s.surface}.yml`);  // route-dns must run there
         const hasDns = existsSync(wf) && /route-dns\.mjs/.test(readFileSync(wf, 'utf8'));
         if (!hasDns) { ok = false; why = `route for ${host}, but deploy-${s.surface}.yml never runs scripts/route-dns.mjs — the host would have no DNS`; }
       }
