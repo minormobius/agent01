@@ -43,6 +43,8 @@ jobs:
         env:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # optional, narrow: Zone.DNS:Edit on mino.mobi only. Used for every DNS call when set.
+          CF_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
           ZONE: mino.mobi
           # the one write: a throwaway TXT record, created and deleted in the same run (see cf-probe.mjs)
           PROBE_DNS_WRITE: '1'

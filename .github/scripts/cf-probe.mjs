@@ -32,9 +32,9 @@ if (!TOKEN) {
 
 const short = (id) => (id ? `${String(id).slice(0, 6)}…` : '(none)');
 
-async function get(path) {
+async function get(path, token = TOKEN) {
   const res = await fetch(`${API}${path}`, {
-    headers: { Authorization: `Bearer ${TOKEN}` },
+    headers: { Authorization: `Bearer ${token}` },
   });
   let body = null;
   try { body = await res.json(); } catch { /* non-JSON error page */ }
@@ -46,10 +46,10 @@ async function get(path) {
 // more; the only honest test of DNS:Edit is a write. The record name is not a
 // hostname anything serves, the TTL is the minimum, and the delete is always
 // attempted and then verified.
-async function send(method, path, body) {
+async function send(method, path, body, token = TOKEN) {
   const res = await fetch(`${API}${path}`, {
     method,
-    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,
   });
   let json = null;
@@ -152,9 +152,13 @@ if (zoneId) {
 }
 
 // ── DNS: the half a route does NOT bring with it ──────────────────
+// DNS may come from a SEPARATE, narrow secret (CLOUDFLARE_DNS_TOKEN: Zone.DNS:Edit
+// on this zone and nothing else), so the deploy token never needs DNS rights.
+const DNS_TOKEN = process.env.CF_DNS_TOKEN || TOKEN;
 console.log('\ndns  (a route needs a PROXIED record to already exist; wrangler makes none)');
+console.log(`  using ${process.env.CF_DNS_TOKEN ? 'CLOUDFLARE_DNS_TOKEN (the dedicated DNS secret)' : 'the deploy token (no CLOUDFLARE_DNS_TOKEN secret is set)'}`);
 if (zoneId) {
-  const r = await get(`/zones/${zoneId}/dns_records?per_page=5`);
+  const r = await get(`/zones/${zoneId}/dns_records?per_page=5`, DNS_TOKEN);
   const total = r.body?.result_info?.total_count;
   line('read dns records', r, r.ok ? `${total ?? '?'} records in the zone` : '');
   if (r.ok) {
@@ -168,7 +172,7 @@ if (zoneId) {
   // for it, and a prune or a route conversion has to reckon with that record.
   if (r.ok) {
     for (const h of ['font', 'cat', 'yapchat', 'airchat']) {
-      const x = await get(`/zones/${zoneId}/dns_records?name=${h}.${ZONE_NAME}`);
+      const x = await get(`/zones/${zoneId}/dns_records?name=${h}.${ZONE_NAME}`, DNS_TOKEN);
       const recs = (x.body?.result || []).map((d) => `${d.type}${d.proxied ? ' proxied' : ''}${d.meta?.read_only ? ' read-only' : ''}`);
       console.log(`       ${h}.${ZONE_NAME}: ${recs.length ? recs.join('; ') : 'no record'}`);
     }
@@ -180,16 +184,16 @@ if (zoneId) {
     const c = await send('POST', `/zones/${zoneId}/dns_records`, {
       type: 'TXT', name, content: `"cf-probe write test ${new Date().toISOString()}"`, ttl: 60,
       comment: 'cf-capability-probe: created and deleted in the same run',
-    });
+    }, DNS_TOKEN);
     if (line(`WRITE dns record  (TXT ${name}, deleted straight after)`, c)) {
-      const d = await send('DELETE', `/zones/${zoneId}/dns_records/${c.body.result.id}`);
+      const d = await send('DELETE', `/zones/${zoneId}/dns_records/${c.body.result.id}`, undefined, DNS_TOKEN);
       line('delete it again', d);
-      const left = await get(`/zones/${zoneId}/dns_records?type=TXT&name=${name}`);
+      const left = await get(`/zones/${zoneId}/dns_records?type=TXT&name=${name}`, DNS_TOKEN);
       console.log(`       left behind: ${left.body?.result?.length ?? '?'} record(s) named ${name}`);
       console.log('       => the token holds DNS:Edit on this zone: a route + proxied record is buildable from Actions.');
     }
   }
-  const q = await get(`/zones/${zoneId}/dns_records?name=dweet.${ZONE_NAME}`);
+  const q = await get(`/zones/${zoneId}/dns_records?name=dweet.${ZONE_NAME}`, DNS_TOKEN);
   if (q.ok) {
     const n = q.body?.result?.length ?? 0;
     console.log(`       dweet.${ZONE_NAME}: ${n ? `${n} record(s)` : 'NO RECORD — a route alone would be a dead host'}`);
