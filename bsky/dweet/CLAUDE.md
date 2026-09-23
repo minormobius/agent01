@@ -221,7 +221,7 @@ tradition, where the tier is the achievement rather than the ceiling.
 
 | | counted in | why |
 |---|---|---|
-| the **cap** (280) | graphemes | it is what a person types against, and what `maxGraphemes` means |
+| the **cap** (256) | graphemes | it is what a person types against, and what `maxGraphemes` means |
 | the **tier** (64b/128b/256b) | UTF-8 bytes | it is what the tradition measures, and what the record costs |
 
 Two units on purpose. For ASCII — which golfed code nearly always is — they
@@ -973,8 +973,16 @@ about:
 - Every seed was rendered frame-by-frame and eyeballed before being committed.
 
 **Not verified:** anything requiring a real session. No `createRecord` has ever
-run from here, so posting, `ensureScope` escalation and the remix `at-uri` are
-code-complete and unobserved. The Jetstream tail is also unproven in a browser
-— this sandbox's proxy refuses the WebSocket upgrade, so the feed has only ever
-been seen in its house-set fallback. Both are the same gaps the AppView next
-door records, for the same reasons.
+run from here, so posting, `ensureScope` escalation, the remix `at-uri`, the
+still upload and the whole moving-post path are code-complete and unobserved.
+That is the same gap the AppView next door records, for the same reason.
+
+(This paragraph used to end *"the Jetstream tail is also unproven in a browser —
+this sandbox's proxy refuses the WebSocket upgrade"*. **Both halves turned out
+to be wrong**, and it is left here as a marker rather than deleted: the proxy
+passes a WebSocket given `NODE_EXTRA_CA_CERTS`, and the feed path has since
+been driven end to end in Chromium — see *Verified against the real firehose*
+above. The note had become load-bearing in the wrong direction: it was the
+reason nobody looked, and looking is what found the two bugs that had kept the
+feed empty since the day it shipped. A stale "not verified" is not a neutral
+thing to leave lying around.)
