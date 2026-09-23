@@ -63,7 +63,7 @@ window.SPEC_CURATED = {
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     atlas: 'science',
     read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',
-    math: 'math', 'ai-edu': 'math', henderhead: 'math',
+    math: 'math', 'ai-edu': 'math', ns: 'math', henderhead: 'math',
   },
 
   // ----------------------------------------------- description capsules ----

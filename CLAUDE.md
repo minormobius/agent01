@@ -218,13 +218,21 @@ that cannot be lost with a branch. `preflight` still runs there. Nothing
 deploys. **The cost, plainly: a fix merged to main does not ship. Push it to the
 surface's owning branch, which is what deploys it.**
 
-> ⭐ **The golden rule.** A surface's `wrangler.jsonc` `name` must be the worker
-> that owns the live custom domain, and that domain must appear in
-> `routes: [{ pattern, custom_domain: true }]`. Otherwise `wrangler deploy`
-> updates a stray `<name>.workers.dev` worker: the run goes green and the live
-> site never changes. **Verify a deploy by confirming its log binds
-> `<domain> (custom domain)`** — green is not proof. Detection and fix:
-> [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §4.
+> ⭐ **The golden rule.** A surface's `wrangler.jsonc` must bind the host it serves,
+> or `wrangler deploy` updates a stray `<name>.workers.dev` worker: the run goes green
+> and the live site never changes. There are two ways to bind a host:
+>
+> - **plain route — the default for anything new:** `{ pattern: "x.mino.mobi/*", zone_name: "mino.mobi" }`.
+>   Costs **no** custom-domain slot (routes cap at 1000/zone), but makes no DNS, so the
+>   deploy workflow must run `node ../scripts/route-dns.mjs wrangler.jsonc --apply` first.
+>   Verify the log binds `x.mino.mobi/* (zone name: mino.mobi)` **and that the host answers**.
+> - **custom domain:** `{ pattern: "x.mino.mobi", custom_domain: true }`. Cloudflare makes
+>   the DNS, but it spends one of the zone's **100** slots, and the zone sat at 100/100 on
+>   2026-09-22. Existing surfaces keep theirs; don't add new ones.
+>
+> `node scripts/binding-check.mjs` (a preflight gate) fails any surface whose config binds
+> neither; a host attached by hand in the dashboard is declared in its registry entry's
+> `binding` field instead. Green is not proof. Detection and fix: [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §4.
 
 > ⭐ **The golden rule's sibling: DEPLOY DRIFT.** The golden rule catches a green run that
 > updated the wrong worker. This catches a green run that updated the right worker with a **stale
@@ -258,10 +266,13 @@ than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
 
 ## Adding a surface
 
-1. `curl -sI` the intended domain. Establish which worker owns it.
-2. Write `<dir>/wrangler.jsonc` — `name` = that worker, `routes` = the domain.
+1. `curl -sI` the intended domain. Establish which worker owns it, if any.
+2. Write `<dir>/wrangler.jsonc` — `name` = that worker, `routes` = a **plain route**
+   (`{ "pattern": "<host>/*", "zone_name": "mino.mobi" }`), not a custom domain — see the
+   golden rule. `ns/` is the reference route surface.
 3. Copy the closest existing `deploy-<surface>.yml`; they encode the build
-   quirks and correct secret names.
+   quirks and correct secret names. Add the `route-dns.mjs` step before `wrangler deploy`
+   and a step that fails unless the host answers (copy both from `deploy-ns.yml`).
 4. Add the `surfaces[]` entry (including `branch` and `paths`); drop it from
    `unmanaged{}`.
 5. Add an entry to `catalogue.json` — including its `surface` key — plus a
@@ -272,7 +283,7 @@ than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
    projection, and seeds `<dir>/CLAUDE.md`; then write that file properly.
    If the surface ships sub-sites, `catalogue-coverage.mjs` will name them —
    list them or declare them.
-7. Push, and confirm the run binds the custom domain.
+7. Push, and confirm the run binds the route and the host answers.
 
 New lexicon? Add the collection to `WRITE_COLLECTIONS` in
 `workers/auth/src/oauth/scope.ts` and redeploy the auth worker, so the metadata

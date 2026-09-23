@@ -83,6 +83,7 @@
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
+      "binding": "pages",
       "type": "frontend",
       "branch": "claude/landing-page-architecture-1igui5",
       "uses": [],
@@ -226,6 +227,7 @@
       "surface": "bakery",
       "dir": "bakery",
       "endpoint": "bake.mino.mobi",
+      "binding": "dashboard",
       "status": "AUDIT 2026-07-16: endpoint corrected bakery.mino.mobi -> bake.mino.mobi (probe-verified: bake 200, bakery unresolvable). wrangler.jsonc has NO custom_domain route \u2014 bake.mino.mobi is dashboard-attached (golden-rule risk; add a routes entry on next touch).",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
@@ -450,6 +452,7 @@
       "surface": "cards",
       "dir": "cards",
       "endpoint": "cards.mino.mobi",
+      "binding": "dashboard",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -690,6 +693,7 @@
       "surface": "poll",
       "dir": "poll",
       "endpoint": "poll.mino.mobi",
+      "binding": "dashboard",
       "type": "fullstack",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [
@@ -867,7 +871,7 @@
       "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover) to fold ns in: ns.mino.mobi was detached to free a slot, and ns/ is now a member served at math.mino.mobi/ns/. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover) to fold ns in: ns.mino.mobi was detached to free a slot, and ns/ is now a member served at math.mino.mobi/ns/.",
+      "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover). ns was folded in as a member the same morning and split back out that afternoon onto its own route; math/_redirects forwards math.mino.mobi/ns/* to ns.mino.mobi.",
       "op": "encapsulation",
       "note": "Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status \u2014 and an explicit roadmap of next entries (szemer\u00e9di\u2013trotter, heilbronn, borsuk, viazovska, ...)\u2026 (full description: geometry/CLAUDE.md)",
       "paths": [
@@ -890,9 +894,23 @@
         "arnold/**",
         "szilassi/**",
         "csaszar/**",
-        "equivelar/**",
-        "ns/**"
+        "equivelar/**"
       ]
+    },
+    {
+      "surface": "ns",
+      "dir": "ns",
+      "endpoint": "ns.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "ns/**",
+        ".github/workflows/deploy-ns.yml"
+      ],
+      "note": "Explainer pack on the 2026 forced Navier–Stokes finite-time blowup paper (OpenAI). Thin assets Worker (worker `ns`, plain route ns.mino.mobi/*) — no build, no D1, no secrets. Hub + six single-file interactive sub-pages, each implementing one piece of the construction in the browser… (full description: ns/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23) — the first surface bound by a plain Worker route instead of a custom domain: { pattern: \"ns.mino.mobi/*\", zone_name: \"mino.mobi\" }, costing none of the zone's 100 custom-domain slots. deploy-ns.yml runs scripts/route-dns.mjs to create the proxied AAAA 100:: the route needs, and fails unless the host actually serves. Owned by claude/landing-page-merge-candidate-8sp0fv. History: custom domain from 2026-09-08 (claude/navier-stokes-website-rl8aox); detached 2026-09-23 to free a slot and briefly folded into math; split back out the same day."
     },
     {
       "surface": "canvas",
@@ -1064,6 +1082,7 @@
       "surface": "labglass",
       "dir": "labglass",
       "endpoint": "glass.mino.mobi",
+      "binding": "dashboard",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -1121,6 +1140,7 @@
       "surface": "org",
       "dir": "org",
       "endpoint": "org.mino.mobi",
+      "binding": "dashboard",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -1163,6 +1183,7 @@
       "surface": "crm",
       "dir": "crm",
       "endpoint": "crm.mino.mobi (pending attach)",
+      "binding": "pending",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],

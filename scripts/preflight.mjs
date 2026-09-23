@@ -200,6 +200,15 @@ console.log('\ndeploy drift');
       : (r.ok ? (m ? `${m[1]} behind trunk, ${m[2]} diverged — \`node scripts/deploy-drift.mjs\`` : line) : line));
 }
 
+// The golden rule, enforced rather than documented: every surface's config binds the host
+// its registry entry names, as a custom domain or as a plain route (and a route surface's
+// workflow creates its DNS). Hand-bound hosts are declared in the registry's `binding`.
+console.log('\nhost bindings');
+{
+  const r = run('binding-check.mjs', ['--check']);
+  record('every surface binds its host (custom domain or route)', r.ok, lastLine(r.out) + (r.ok ? '' : '\n' + r.out.trim()));
+}
+
 // ------------------------------------------------------ 4. no leaked hosts --
 // The root worker serves `assets.directory: "."`, so generated files are
 // internet-facing. Redaction lives in scripts/lib/landing.mjs; verify it held.

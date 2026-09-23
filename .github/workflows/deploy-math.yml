@@ -42,7 +42,6 @@ on:
       - 'szilassi/**'
       - 'csaszar/**'
       - 'equivelar/**'
-      - 'ns/**'
       - 'math/**'
       - '.github/workflows/deploy-math.yml'
   workflow_dispatch:
@@ -58,7 +57,7 @@ jobs:
         run: |
           rm -rf dist && mkdir -p dist
           for d in geometry conjectures meander temperley-lieb aztec markov descent traffic ising erdos guthkatz hadwiger heilbronn kakeya runner \
-                   szemeredi-trotter viazovska capset borsuk elements prop cohomology voronoi arnold szilassi csaszar equivelar ns; do
+                   szemeredi-trotter viazovska capset borsuk elements prop cohomology voronoi arnold szilassi csaszar equivelar; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"
           done
@@ -67,6 +66,8 @@ jobs:
           mkdir -p dist/packages/music && cp -r ../packages/music/. dist/packages/music/
           # math.mino.mobi/ root serves the geometry hub (also available at /geometry/)
           cp -r ../geometry/. dist/
+          # redirects for pages that moved out of math (ns -> ns.mino.mobi, 2026-09-23)
+          cp _redirects dist/_redirects
           ls -la dist/
 
       - name: Deploy to Cloudflare

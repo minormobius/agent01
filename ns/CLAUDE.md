@@ -1,15 +1,17 @@
-# ns — math.mino.mobi/ns/ (was ns.mino.mobi)
+# ns — ns.mino.mobi (plain route)
 
 <!-- HAND-OWNED. Instruction set for THIS surface. Repo-wide rules live in
      ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
-> **2026-09-23: no longer its own surface.** `ns.mino.mobi` was detached to free a slot under
-> the `mino.mobi` zone's 100-custom-domain cap. This directory is now a member of the
-> `math` surface: [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml) stages it into
-> that worker's `dist/` and it is served at **`math.mino.mobi/ns/`**. There is no `wrangler.jsonc` here any
-> more and no deploy of its own — a push to `math`'s owning branch (see the registry) that
-> touches this directory is what ships it. Anything below that describes `ns.mino.mobi`, its own
-> worker or its own workflow is history. **Do not re-add a `custom_domain` route for `ns.mino.mobi`.**
+> **2026-09-23: the first ROUTE surface.** `ns.mino.mobi` is bound by a plain Worker route —
+> `{ "pattern": "ns.mino.mobi/*", "zone_name": "mino.mobi" }` — not a custom domain, so it costs
+> none of the zone's 100 custom-domain slots. A route makes no DNS, so
+> [`deploy-ns.yml`](../.github/workflows/deploy-ns.yml) runs
+> [`scripts/route-dns.mjs`](../scripts/route-dns.mjs) first (it creates the proxied `AAAA 100::`)
+> and fails unless the host actually serves afterwards. **Do not turn the route back into a
+> `custom_domain`** — that spends a slot for nothing. (The same morning ns was briefly a member
+> of math at `math.mino.mobi/ns/`; `math/_redirects` forwards those links here.) In the
+> catalogue and on the landing it still sits in the math domain, beside math.
 
 An explainer pack on **"Finite time blowup for Navier–Stokes" (OpenAI, 2026)**,
 the 166-page paper claiming, for every viscosity, a smooth compactly supported
@@ -24,7 +26,7 @@ alternatives (C) and (D). Each sub-page takes one piece of the construction and
 |---|---|
 | Surface | `ns` |
 | Dir | `ns/` |
-| Endpoint | `math.mino.mobi/ns/` (was `ns.mino.mobi`) |
+| Endpoint | `ns.mino.mobi` (plain route) |
 | Type | frontend |
 | Owning branch | `claude/navier-stokes-website-rl8aox` |
 | Deploy | `.github/workflows/deploy-ns.yml` |

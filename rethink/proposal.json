@@ -1176,50 +1176,50 @@
     {
       "id": "ns",
       "label": "ns",
-      "u": "math.mino.mobi/ns",
+      "u": "ns.mino.mobi",
       "kind": "explainer",
       "domain": "math",
       "action": "new-hub",
       "why": "A new explainer pack on one paper — the 2026 forced Navier–Stokes blowup — built as its own surface rather than as a member of the math hub, because it has six sub-pages of its own and a door that has to say what the paper does and does not claim. Sits beside math in the study wing.",
       "members": [
         {
-          "u": "math.mino.mobi/ns",
+          "u": "ns.mino.mobi",
           "action": "new",
           "note": "the door: the theorem, its scope, the anatomy, the proof map, the timeline"
         },
         {
-          "u": "math.mino.mobi/ns/core",
+          "u": "ns.mino.mobi/core",
           "action": "new",
           "group": "the construction"
         },
         {
-          "u": "math.mino.mobi/ns/pulse",
+          "u": "ns.mino.mobi/pulse",
           "action": "new",
           "group": "the construction"
         },
         {
-          "u": "math.mino.mobi/ns/stress",
+          "u": "ns.mino.mobi/stress",
           "action": "new",
           "group": "the construction"
         },
         {
-          "u": "math.mino.mobi/ns/exterior",
+          "u": "ns.mino.mobi/exterior",
           "action": "new",
           "group": "the construction"
         },
         {
-          "u": "math.mino.mobi/ns/bands",
+          "u": "ns.mino.mobi/bands",
           "action": "new",
           "group": "the bookkeeping"
         },
         {
-          "u": "math.mino.mobi/ns/solver",
+          "u": "ns.mino.mobi/solver",
           "action": "new",
           "group": "the contrast",
           "note": "a real 2D solver; why two dimensions cannot do this"
         },
         {
-          "u": "math.mino.mobi/ns/explorer",
+          "u": "ns.mino.mobi/explorer",
           "action": "new",
           "group": "the construction",
           "note": "the 3D specimen; procgen, seed is a permalink"

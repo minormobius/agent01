@@ -2779,7 +2779,7 @@
   {
    "id": "ns",
    "name": "ns",
-   "url": "https://math.mino.mobi/ns/",
+   "url": "https://ns.mino.mobi",
    "cat": "data",
    "commits": 3,
    "age": "hot",
@@ -2788,7 +2788,7 @@
   {
    "id": "core",
    "name": "core",
-   "url": "https://math.mino.mobi/ns/core/",
+   "url": "https://ns.mino.mobi/core/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2797,7 +2797,7 @@
   {
    "id": "pulse",
    "name": "pulse",
-   "url": "https://math.mino.mobi/ns/pulse/",
+   "url": "https://ns.mino.mobi/pulse/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2806,7 +2806,7 @@
   {
    "id": "stress",
    "name": "stress",
-   "url": "https://math.mino.mobi/ns/stress/",
+   "url": "https://ns.mino.mobi/stress/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2815,7 +2815,7 @@
   {
    "id": "exterior",
    "name": "exterior",
-   "url": "https://math.mino.mobi/ns/exterior/",
+   "url": "https://ns.mino.mobi/exterior/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2824,7 +2824,7 @@
   {
    "id": "bands",
    "name": "bands",
-   "url": "https://math.mino.mobi/ns/bands/",
+   "url": "https://ns.mino.mobi/bands/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2833,7 +2833,7 @@
   {
    "id": "solver",
    "name": "solver",
-   "url": "https://math.mino.mobi/ns/solver/",
+   "url": "https://ns.mino.mobi/solver/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2842,7 +2842,7 @@
   {
    "id": "explorer",
    "name": "explorer",
-   "url": "https://math.mino.mobi/ns/explorer/",
+   "url": "https://ns.mino.mobi/explorer/",
    "cat": "data",
    "commits": 2,
    "age": "hot",
