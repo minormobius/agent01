@@ -47,13 +47,11 @@ jobs:
           done
           ls -la dist/
 
-      # Custom domain -> plain route, in one push. --takeover detaches the custom domain
-      # only if THIS worker holds it, then creates the proxied record the route needs.
-      # Idempotent: once converted it just confirms the record. The host is down from
-      # here until the deploy below lands (seconds); the verify step catches a failure.
-      - name: Ensure DNS for plain routes (and take over this worker's old custom domain)
+      # A plain route makes no DNS: ensure the proxied record exists (idempotent). The one-shot
+      # --takeover that converted this host off its custom domain (2026-09-23) has been removed.
+      - name: Ensure DNS for plain routes
         working-directory: torus
-        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply --takeover
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}

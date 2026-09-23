@@ -69,15 +69,16 @@ the selftest pins the exact part. Keep those two lists in step with `field.js`.
 
 ## Deploying
 
-Pushes to `claude/navier-stokes-website-rl8aox` that touch `ns/**` trigger
+Pushes to the owning branch in `deploy-registry.json` (currently
+`claude/landing-page-merge-candidate-8sp0fv`) that touch `ns/**` trigger
 [`.github/workflows/deploy-ns.yml`](../.github/workflows/deploy-ns.yml). The
 sandbox cannot reach Cloudflare — push, don't `wrangler deploy` locally.
 
-`ns.mino.mobi` did not exist before this surface. `wrangler.jsonc` declares the
-`custom_domain` route, so the first deploy creates worker `ns` and binds the
-domain (the same path `ink`, `sci` and `jurassic` took). **Confirm from the run
-log that it prints `ns.mino.mobi (custom domain)`** — green alone is not proof
-(../docs/DEPLOYS.md §4). DNS may take ~10 s to resolve on that first run.
+`wrangler.jsonc` binds a **plain route**, not a custom domain. The workflow runs
+`route-dns.mjs --apply` to make sure the proxied `AAAA 100::` record exists, then
+deploys, then fails unless the host answers. **Confirm from the run log that it
+prints `ns.mino.mobi/* (zone name: mino.mobi)`.** Green alone is not proof
+(../docs/DEPLOYS.md §4).
 
 ## Adding a page
 

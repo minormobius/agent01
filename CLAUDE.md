@@ -19,6 +19,7 @@ surface lives in that surface's own `CLAUDE.md`.
 | machine facts: deps, trigger paths, owning branch | [`deploy-registry.json`](deploy-registry.json) — source of truth |
 | the deploy pipeline and its gotchas | [`docs/DEPLOYS.md`](docs/DEPLOYS.md) |
 | every backend — which workers run code, hold data (D1/KV/DO), run crons, read secrets; and what the Cloudflare account has that the repo doesn't | **[`docs/BACKENDS.md`](docs/BACKENDS.md)** (generated; account side from `docs/backends-account.json`) |
+| **changing the Cloudflare account itself** — delete a worker, move a host off a custom domain | [`.github/cf-ops/plan.json`](.github/cf-ops/plan.json) run by `scripts/cf-ops.mjs` — the agent writes a dry run, the operator flips `apply`. [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §7 |
 | the shape of the repo on disk | [`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md) |
 | OAuth per-site status | [`docs/OAUTH.md`](docs/OAUTH.md) |
 | splitting a surface, or moving a site between surfaces | [`docs/surface-mitosis.md`](docs/surface-mitosis.md) — `scripts/surface-mitosis.mjs` detects, `scripts/rehome.mjs` moves |
@@ -229,8 +230,9 @@ surface's owning branch, which is what deploys it.**
 >   deploy workflow must run `node ../scripts/route-dns.mjs wrangler.jsonc --apply` first.
 >   Verify the log binds `x.mino.mobi/* (zone name: mino.mobi)` **and that the host answers**.
 > - **custom domain:** `{ pattern: "x.mino.mobi", custom_domain: true }`. Cloudflare makes
->   the DNS, but it spends one of the zone's **100** slots, and the zone sat at 100/100 on
->   2026-09-22. Existing surfaces keep theirs; don't add new ones.
+>   the DNS, but it spends one of the zone's **100** slots. The zone hit 100/100 on 2026-09-22;
+>   pruning and route conversions brought it to **72** on 2026-09-23. Existing surfaces keep
+>   theirs until converted; don't add new ones. The slots left are headroom, not a budget to spend.
 >
 > `node scripts/binding-check.mjs` (a preflight gate) fails any surface whose config binds
 > neither; a host attached by hand in the dashboard is declared in its registry entry's
@@ -262,6 +264,28 @@ surface's owning branch, which is what deploys it.**
 > and no conflict — but it still fires the deploy, so stage them and verify each run binds its custom
 > domain. Never batch them blind: one owning branch here carries **25 surfaces**.
 
+### Taking ownership of a surface
+
+Moving a surface's `branch` to yours makes **your branch's tree** what the next deploy
+publishes, and Static Assets replaces the whole manifest. So before you change it, prove
+your tree loses nothing the current owner ships:
+
+```bash
+git fetch origin <owner-branch>
+git diff --name-status origin/<owner-branch> HEAD -- <each registry path>   # no D lines allowed
+```
+
+`M` and `A` are your changes arriving; a `D` is a file the live site has and your push would
+delete. Also `curl` the live host and compare against your tree. Then change `branch`, run
+`gen-deploy-triggers --write` (preflight `--fix` does it), push, and verify the run binds the
+host. The old owner stops deploying it on that push.
+
+**An owning branch is infrastructure.** Deleting one strands every surface it owns (`missing`
+in deploy-drift, preflight fails). `claude/landing-page-merge-candidate-8sp0fv` owns ~15
+surfaces (ns, math, finance, torus, fifty and the ten route conversions of 2026-09-23), so it
+**outlives its pull request**. Merge its PR; do not delete the branch. Follow-up work on
+those surfaces is a push to that branch, not to `main`.
+
 `workflow_dispatch` is on every deploy workflow for out-of-band runs. Build
 commands, migration order and secrets live in the workflow — read it rather
 than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
@@ -272,6 +296,14 @@ than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
 2. Write `<dir>/wrangler.jsonc` — `name` = that worker, `routes` = a **plain route**
    (`{ "pattern": "<host>/*", "zone_name": "mino.mobi" }`), not a custom domain — see the
    golden rule. `ns/` is the reference route surface.
+
+   **First, ask whether it needs a host at all.** Two shapes, both cheap:
+   - *member of a hub*: a subpath of an existing surface (`math.mino.mobi/<x>/`, `fin.mino.mobi/perp/`).
+     No worker, no DNS, no deploy workflow. Right for small pages that belong to a topic.
+   - *independent route surface*: its own host, worker and workflow, bound by a plain route.
+     Right when it has its own backend, build, or release rhythm. Show the relation to its topic in
+     `catalogue.json`'s `p` (parent) field; the catalogue carries the hierarchy, and deployment stays
+     independent.
 3. Copy the closest existing `deploy-<surface>.yml`; they encode the build
    quirks and correct secret names. Add the `route-dns.mjs` step before `wrangler deploy`
    and a step that fails unless the host answers (copy both from `deploy-ns.yml`).
@@ -342,8 +374,16 @@ worker are grandfathered: [`docs/OAUTH.md`](docs/OAUTH.md).
 - Shared D1 (`atpolls-db`) backs several surfaces. Migrations live in
   `poll/apps/api/migrations/`, numbered sequentially — never reuse a number; if
   two branches collide, the later merge renumbers.
-- Deleting or renaming a worker, detaching a domain, and D1 creation are
+- **Account changes go through `.github/cf-ops/plan.json`, never ad hoc.** Deleting a worker
+  or moving a host off a custom domain is a reviewed op there. `cf-ops.yml` re-checks each op
+  against the live account before it acts, and nothing is applied until the operator flips
+  `"apply": true` in a separate commit. **A worker deletion is permanent**: with it go its
+  secrets, its version history and any Durable Object data. The guards refuse a worker that owns
+  DOs or is still configured in the repo. Renaming a worker and creating a D1 database are still
   dashboard-only ([`docs/DEPLOYS.md`](docs/DEPLOYS.md) §7).
+- **A route surface's deploy re-creates DNS.** `route-dns.mjs --apply` creates a missing
+  `AAAA 100::` record for the host. `--takeover` also detaches this worker's own custom domain;
+  it is for a one-push conversion, so remove it from the workflow once that push has run.
 - **`loop-*` workflows spend model budget in a chain reaction.** They are inert
   while `.github/loop/config.json` has `enabled: false`; flipping that is the
   switch. Before changing any workflow's `paths:`, run
@@ -360,6 +400,24 @@ node, cargo, bash, background jobs.
 
 Does not work: `wrangler deploy` (no Cloudflare auth), live PDS/Bluesky writes,
 remote D1 writes, and there is no `gh` CLI — use the GitHub MCP tools.
+
+**Irreversible or DNS-changing work is split between you and the operator.** Your session's
+permission layer will (rightly) stop you from applying a deletion or a domain change yourself,
+even with the operator's go-ahead in chat. Don't argue with it and don't route around it. The
+working pattern (`.github/cf-ops/`):
+
+1. You add the ops to `plan.json` with `"apply": false`, each with a `why`, and push. The run is a
+   **dry run** that evaluates every guard against the live account.
+2. You report what the log says each op would do.
+3. The operator flips `"apply": true` in their own commit (the GitHub UI works from a phone). That
+   run does the work and logs each op.
+4. You verify from outside (`curl` each host), move the batch into `history` with the run id and
+   the flip commit, reset `apply` to false, and push the matching repo changes. After a
+   route conversion, that means each surface's `wrangler.jsonc` route and its workflow's DNS step;
+   without them the next deploy re-attaches the custom domain.
+
+Read-only questions about the account (slot counts, what exists, token scopes) go to
+`cf-capability-probe.yml`; its inventory output refreshes `docs/backends-account.json`.
 
 **The clone is SHALLOW, and git lies about history until you fix that.** Below the shallow
 boundary there is no ancestry, so `git merge-base` finds nothing and `git merge` says
