@@ -1,0 +1,94 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Wrist camera bracket: an L reaching from the flange disc's rear face out past the fork cheeks, holding a 16 square board camera looking DOWN the tool's −Z. It is on the blade, so J5 aims it and the hand-eye transform is a constant. It cannot see the grip point — nothing on the wrist can, with a Ø104 tool in front of it — and it does not pretend to: this is the camera that finds the can on the bench, not the one that watches the jaws close. One extrude along +Z, one pocket.",
+ "params": {
+  "x0": 26,
+  "x1": 56,
+  "y0": 41,
+  "y1": 59,
+  "fy": 27,
+  "fx": 48,
+  "z0": -18,
+  "t": 22,
+  "c": 16,
+  "ct": 10,
+  "cx": 41,
+  "cy": 50
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plan",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "polygon": [
+      [
+       "fx",
+       "fy"
+      ],
+      [
+       "x1",
+       "fy"
+      ],
+      [
+       "x1",
+       "y1"
+      ],
+      [
+       "x0",
+       "y1"
+      ],
+      [
+       "x0",
+       "y0"
+      ],
+      [
+       "fx",
+       "y0"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pod",
+   "profile": "plan",
+   "depth": "t"
+  },
+  {
+   "op": "sketch",
+   "id": "well",
+   "plane": {
+    "base": "XY",
+    "offset": "z0 - 2"
+   },
+   "loops": [
+    {
+     "name": "sq",
+     "rect": {
+      "c": [
+       "cx",
+       "cy"
+      ],
+      "w": "c + 0.6",
+      "h": "c + 0.6"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "wellcut",
+   "profile": "well",
+   "depth": "ct + 2",
+   "mode": "cut"
+  }
+ ]
+}

@@ -1,0 +1,135 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Rotor plate: a Ø84 disc on the bearing’s inner race, four M3 on a Ø68 circle. Both pillars thread M8 into it and their Ø10 shoulders bear on its front face, so the grip tension arrives here and goes straight into the race. Ø12 in the middle clears the screw; the nut never comes back this far. This is the root of the rotating group. One extrude along -Y.",
+ "params": {
+  "d": 84,
+  "t": 6,
+  "d_clear": 12,
+  "ppx": 24,
+  "d_pillar": 6.8,
+  "pcd": 68,
+  "d_bolt": 3.4,
+  "bpcd": 44,
+  "d_btap": 2.5,
+  "y1": 49
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "clear",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_clear / 2"
+     }
+    },
+    {
+     "name": "pillarR",
+     "circle": {
+      "c": [
+       "ppx",
+       0
+      ],
+      "r": "d_pillar / 2"
+     }
+    },
+    {
+     "name": "pillarL",
+     "circle": {
+      "c": [
+       "-ppx",
+       0
+      ],
+      "r": "d_pillar / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd/2",
+       0
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "sketch",
+   "id": "btap",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "bpcd/2 * cos(deg(45))",
+       "bpcd/2 * sin(deg(45))"
+      ],
+      "r": "d_btap / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "btaps",
+   "of": "btap",
+   "kind": "circular",
+   "count": 4,
+   "name": "btap"
+  },
+  {
+   "op": "extrude",
+   "id": "plate",
+   "profile": [
+    "face",
+    "bolts",
+    "btaps"
+   ],
+   "depth": "t"
+  }
+ ]
+}

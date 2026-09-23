@@ -1,0 +1,62 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J3 crank, two off, coaxial with J2 and 80 mm long: the push rod hangs off its front end and CW2 off its 200 mm rear extension. The push rod delivers the forearm's whole gravitational moment here 1:1, which is exactly why a counterweight at this radius balances it at every angle. One extrude along -Y.",
+ "params": {
+  "a": 80,
+  "b": 250,
+  "w": 44,
+  "t": 12,
+  "y1": 40,
+  "d": 12.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "(a + w / 2 - b) / 2",
+       0
+      ],
+      "w": "a + w / 2 + b",
+      "h": "w"
+     }
+    },
+    {
+     "name": "pivot",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "far",
+     "circle": {
+      "c": [
+       "a",
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "crank",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

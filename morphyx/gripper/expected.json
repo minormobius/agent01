@@ -1,0 +1,99 @@
+{
+ "_": "Closed-form volumes of every part; mm³. The kernel must land within tol (relative).",
+ "motor-web": {
+  "volume": 64088.92995620328,
+  "tol": 0.002
+ },
+ "bearing-housing": {
+  "volume": 27475.583950132932,
+  "tol": 0.002
+ },
+ "bearing": {
+  "volume": 45945.79255875073,
+  "tol": 0.002
+ },
+ "shroud": {
+  "volume": 36172.29781343287,
+  "tol": 0.002
+ },
+ "brake-spring": {
+  "volume": 3166.7253948185116,
+  "tol": 0.002
+ },
+ "brake-ring": {
+  "volume": 4915.901352484237,
+  "tol": 0.002
+ },
+ "brake-hub": {
+  "volume": 19941.322200514285,
+  "tol": 0.002
+ },
+ "encoder-ring": {
+  "volume": 2161.4157456697776,
+  "tol": 0.002
+ },
+ "encoder-head": {
+  "volume": 210,
+  "tol": 0.002
+ },
+ "rotor-plate": {
+  "volume": 31800.520308550396,
+  "tol": 0.002
+ },
+ "front-wall": {
+  "volume": 41166.73411402532,
+  "tol": 0.002
+ },
+ "carriage": {
+  "volume": 4476.026650736545,
+  "tol": 0.002
+ },
+ "carriage-back": {
+  "volume": 2767.2106602946183,
+  "tol": 0.002
+ },
+ "arm": {
+  "volume": 5484.411597285393,
+  "tol": 0.004
+ },
+ "pillar": {
+  "volume": 3008.601182581703,
+  "tol": 0.004
+ },
+ "carrier": {
+  "volume": 4286.141707202132,
+  "tol": 0.004
+ },
+ "link": {
+  "volume": 2531.9468914507715,
+  "tol": 0.002
+ },
+ "bushing": {
+  "volume": 88.17633764536616,
+  "tol": 0.003
+ },
+ "pin": {
+  "volume": 452.3893421169302,
+  "tol": 0.004
+ },
+ "rail": {
+  "volume": 5557.5,
+  "tol": 0.002
+ },
+ "block": {
+  "volume": 4335,
+  "tol": 0.002
+ },
+ "screw": {
+  "volume": 3185.57495074005,
+  "tol": 0.004
+ },
+ "nut": {
+  "volume": 1402.4069605624836,
+  "tol": 0.002
+ },
+ "motor": {
+  "volume": 83485.91999999998,
+  "tol": 0.002
+ }
+}

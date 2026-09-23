@@ -1,0 +1,62 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Elbow crank, two off, 80 mm — the parallelogram's fourth bar, rigid with the forearm and reaching from its side face out under the push rod. One extrude along -Y.",
+ "params": {
+  "a": 80,
+  "b": 18,
+  "w": 22,
+  "t": 14,
+  "y1": 48,
+  "d": 12.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "(a + w / 2 - b) / 2",
+       0
+      ],
+      "w": "a + w / 2 + b",
+      "h": "w"
+     }
+    },
+    {
+     "name": "pivot",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "far",
+     "circle": {
+      "c": [
+       "a",
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "ec",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

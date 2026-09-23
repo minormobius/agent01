@@ -1,0 +1,82 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Brake ring: the friction face, keyed to the motor web by four Ø3 dowels so it cannot turn, and pushed onto the rotor’s hub by the wave washer behind it. Bronze or a filled PTFE — μ 0.3 is assumed and it is the one number here a bench would settle. One extrude along -Y.",
+ "params": {
+  "d": 58,
+  "d_bore": 14,
+  "t": 2,
+  "pr": 22,
+  "d_pin": 3,
+  "y1": 35
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "pin",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pr",
+       0
+      ],
+      "r": "d_pin / 2 + 0.05"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "pins",
+   "of": "pin",
+   "kind": "circular",
+   "count": 4,
+   "name": "pin"
+  },
+  {
+   "op": "extrude",
+   "id": "ring",
+   "profile": [
+    "face",
+    "pins"
+   ],
+   "depth": "t"
+  }
+ ]
+}

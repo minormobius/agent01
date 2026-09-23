@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J4 roll drum: Ø118 over Ø110, turning with j4 and carrying the fork. It is this big because the J5 motor lies CROSSWISE inside it — that is the whole trick, and it is what takes the wrist's swept circle from Ø271 down to Ø118. The belt leaves through its open front face. One extrude along +X.",
+ "params": {
+  "d": 118,
+  "d_bore": 110,
+  "t": 63,
+  "x0": -118
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "f",
+   "plane": {
+    "base": "YZ",
+    "offset": "x0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "rd",
+   "profile": "f",
+   "depth": "t"
+  }
+ ]
+}

@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J4 bearing: Ø80 over Ø64, between the fixed barrel and the turning drum. It carries the whole wrist's cantilever — 5.6 N·m of it — so it is a crossed roller, like the gripper's. One extrude along +X.",
+ "params": {
+  "d": 80,
+  "d_bore": 64,
+  "t": 12,
+  "x0": -120
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "f",
+   "plane": {
+    "base": "YZ",
+    "offset": "x0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "rb",
+   "profile": "f",
+   "depth": "t"
+  }
+ ]
+}

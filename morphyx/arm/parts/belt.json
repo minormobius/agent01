@@ -1,0 +1,121 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "GT2 9 belt, 20T to 60T over 85 mm of centres — drawn as a real band so its envelope is a real clearance body, which the blade and the cheek both have to miss. One extrude along -Y.",
+ "params": {
+  "t": 9,
+  "y1": 51
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "band",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outer",
+     "path": {
+      "from": [
+       -2.9657,
+       19.5752
+      ],
+      "segs": [
+       {
+        "arc": {
+         "via": [
+          19.7986,
+          0
+         ],
+         "to": [
+          -2.9657,
+          -19.5752
+         ]
+        }
+       },
+       {
+        "to": [
+         -86.0585,
+         -6.9865
+        ]
+       },
+       {
+        "arc": {
+         "via": [
+          -92.0662,
+          0
+         ],
+         "to": [
+          -86.0585,
+          6.9865
+         ]
+        }
+       },
+       {
+        "to": [
+         -2.9657,
+         19.5752
+        ]
+       }
+      ]
+     }
+    },
+    {
+     "name": "inner",
+     "path": {
+      "from": [
+       -2.756,
+       18.191
+      ],
+      "segs": [
+       {
+        "arc": {
+         "via": [
+          18.3986,
+          0
+         ],
+         "to": [
+          -2.756,
+          -18.191
+         ]
+        }
+       },
+       {
+        "to": [
+         -85.8488,
+         -5.6023
+        ]
+       },
+       {
+        "arc": {
+         "via": [
+          -90.6662,
+          0
+         ],
+         "to": [
+          -85.8488,
+          5.6023
+         ]
+        }
+       },
+       {
+        "to": [
+         -2.756,
+         18.191
+        ]
+       }
+      ]
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "belt",
+   "profile": "band",
+   "depth": "t"
+  }
+ ]
+}

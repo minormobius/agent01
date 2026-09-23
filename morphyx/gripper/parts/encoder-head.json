@@ -1,0 +1,41 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Encoder head: the sensor and its bracket in one, bolted to the bearing housing’s front face and reaching forward past the rotor plate to read the ring across a 1 mm gap. It lives in the 4 mm of radial slot between the ring and the guard, which is the only stationary place left at this diameter. One extrude along -Y.",
+ "params": {
+  "r0": 45,
+  "r1": 48.5,
+  "w": 10,
+  "t": 6,
+  "y1": 49
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "(r0 + r1) / 2"
+      ],
+      "w": "w",
+      "h": "r1 - r0"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "head",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

@@ -1,0 +1,66 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "NEMA 17 external linear stepper body (42.3 square, 5 mm corner chamfers, 48 mm stack) with an integrated Tr8×2 lead screw as its shaft — the shortest catalogue stack that carries a 2 mm lead (the screw is its own tree). Sits behind the bulkhead. One extrude along -Y.",
+ "params": {
+  "s": 42.3,
+  "ch": 5,
+  "L": 48,
+  "y1": 22
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "body",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "body",
+     "polygon": [
+      [
+       "-(s/2 - ch)",
+       "-s/2"
+      ],
+      [
+       "s/2 - ch",
+       "-s/2"
+      ],
+      [
+       "s/2",
+       "-(s/2 - ch)"
+      ],
+      [
+       "s/2",
+       "s/2 - ch"
+      ],
+      [
+       "s/2 - ch",
+       "s/2"
+      ],
+      [
+       "-(s/2 - ch)",
+       "s/2"
+      ],
+      [
+       "-s/2",
+       "s/2 - ch"
+      ],
+      [
+       "-s/2",
+       "-(s/2 - ch)"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "motor",
+   "profile": "body",
+   "depth": "L"
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Tr8×2 lead screw, the stepper’s own shaft: an 8 mm cylinder from the motor face, turned down to a Ø6 journal for the last 8 mm, which runs in the front wall’s blind bore; the thread is not modelled. One revolve about local Z, placed along +Y.",
+ "params": {
+  "d": 8,
+  "dj": 6,
+  "lj": 6,
+  "L": 66
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "profile",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "shaft",
+     "polygon": [
+      [
+       0,
+       0
+      ],
+      [
+       "d/2",
+       0
+      ],
+      [
+       "d/2",
+       "L - lj"
+      ],
+      [
+       "dj/2",
+       "L - lj"
+      ],
+      [
+       "dj/2",
+       "L"
+      ],
+      [
+       0,
+       "L"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "revolve",
+   "id": "screw",
+   "profile": "profile",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

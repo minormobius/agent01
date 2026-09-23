@@ -1,0 +1,62 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Push rod, two off, 250 mm — the same length as the upper arm and always parallel to it. That is the parallelogram: it makes the elbow crank parallel to the J3 crank, so the FOREARM'S ABSOLUTE ANGLE IS j3, whatever j2 does. One extrude along -Y.",
+ "params": {
+  "a": 250,
+  "b": 18,
+  "w": 22,
+  "t": 10,
+  "y1": 72,
+  "d": 12.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "(a + w / 2 - b) / 2",
+       0
+      ],
+      "w": "a + w / 2 + b",
+      "h": "w"
+     }
+    },
+    {
+     "name": "pivot",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "far",
+     "circle": {
+      "c": [
+       "a",
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "rod",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}
