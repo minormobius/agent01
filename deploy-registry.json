@@ -85,10 +85,10 @@
       "endpoint": "minomobi.com / mino.mobi (landing)",
       "binding": "pages",
       "type": "frontend",
-      "branch": "claude/landing-page-architecture-1igui5",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": "landing",
-      "status": "MANAGED — Cloudflare Pages project agent01, Direct Upload, production branch main. Deployed by .github/workflows/deploy-root.yml, which stages the tree with .assetsignore applied by hand before uploading (wrangler pages deploy does not honour .assetsignore).",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-page-architecture-1igui5 with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — Cloudflare Pages project agent01, Direct Upload, production branch main. Deployed by .github/workflows/deploy-root.yml, which stages the tree with .assetsignore applied by hand before uploading (wrangler pages deploy does not honour .assetsignore).",
       "serves": [
         "(landing index)",
         "cluster",
@@ -609,7 +609,7 @@
       "dir": "io",
       "endpoint": "io.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/landing-page-architecture-1igui5",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "atpolls-db",
         "auth.mino.mobi"
@@ -622,7 +622,8 @@
         "scripts/vendor-io.sh",
         "scripts/generate-sites-json.mjs",
         "poll/apps/api/migrations/0030_io_tickets.sql"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-page-architecture-1igui5 with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "j",
