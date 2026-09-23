@@ -1,7 +1,15 @@
-# ns — ns.mino.mobi
+# ns — math.mino.mobi/ns/ (was ns.mino.mobi)
 
 <!-- HAND-OWNED. Instruction set for THIS surface. Repo-wide rules live in
      ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
+
+> **2026-09-23: no longer its own surface.** `ns.mino.mobi` was detached to free a slot under
+> the `mino.mobi` zone's 100-custom-domain cap. This directory is now a member of the
+> `math` surface: [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml) stages it into
+> that worker's `dist/` and it is served at **`math.mino.mobi/ns/`**. There is no `wrangler.jsonc` here any
+> more and no deploy of its own — a push to `math`'s owning branch (see the registry) that
+> touches this directory is what ships it. Anything below that describes `ns.mino.mobi`, its own
+> worker or its own workflow is history. **Do not re-add a `custom_domain` route for `ns.mino.mobi`.**
 
 An explainer pack on **"Finite time blowup for Navier–Stokes" (OpenAI, 2026)**,
 the 166-page paper claiming, for every viscosity, a smooth compactly supported
@@ -16,7 +24,7 @@ alternatives (C) and (D). Each sub-page takes one piece of the construction and
 |---|---|
 | Surface | `ns` |
 | Dir | `ns/` |
-| Endpoint | `ns.mino.mobi` |
+| Endpoint | `math.mino.mobi/ns/` (was `ns.mino.mobi`) |
 | Type | frontend |
 | Owning branch | `claude/navier-stokes-website-rl8aox` |
 | Deploy | `.github/workflows/deploy-ns.yml` |

@@ -2,9 +2,10 @@ name: Deploy Finance (fin)
 
 on:
   push:
-    branches: ['claude/financial-periodic-table-8mp7tj']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'finance/**'
+      - 'perp/**'
       - 'poll/apps/api/migrations/0031_speclab.sql'
       - '.github/workflows/deploy-finance.yml'
   workflow_dispatch:
@@ -34,6 +35,18 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # perp (perpetual futures) lives in ../perp and is served at fin.mino.mobi/perp/.
+      # It was its own surface at perp.mino.mobi until 2026-09-23, when that custom
+      # domain was detached to free a slot under the zone's 100-domain cap. Only the
+      # page and its data ship; perp/scripts, lab and test are node-only tooling.
+      # The data is refreshed daily by refresh-perp-data.yml.
+      - name: Stage perp into dist/perp
+        run: |
+          mkdir -p dist/perp
+          cp ../perp/index.html ../perp/app.js dist/perp/
+          cp -r ../perp/data dist/perp/data
+          ls -la dist/perp dist/perp/data
 
       # speclab tables on the shared atpolls-db. Idempotent (IF NOT EXISTS), so a
       # re-run is a no-op. Mirrors the rite deploy's migration step.

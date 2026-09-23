@@ -118,6 +118,25 @@ away from breakage.
 
 ### ⚠️ `mino.mobi` is AT the custom-domain cap — read this before adding one
 
+> **2026-09-23 — six slots freed (94/100).** Detached in the dashboard: `wave`, `cat`, `font`,
+> `pm`, `perp`, `ns`. None of them took content offline for good:
+>
+> | host | where it lives now |
+> |---|---|
+> | `perp.mino.mobi` | `fin.mino.mobi/perp/` — staged by `deploy-finance.yml` |
+> | `ns.mino.mobi` | `math.mino.mobi/ns/` — a member in `deploy-math.yml` |
+> | `wave.mino.mobi` | the Wave tab in org (`org.mino.mobi/wave`); the newer standalone build is an open decision (`wave/CLAUDE.md`) |
+> | `pm.mino.mobi` | `mino.mobi/pm/` (root worker); org's PM tab is the integrated port |
+> | `font.mino.mobi` | `rite.mino.mobi/font/` (moved there in June; the old host served a stale copy) |
+> | `cat.mino.mobi` | nowhere — decommissioned 2026-07-28 (§9) |
+>
+> **The pattern that makes the cap stop mattering: one domain per topic, not per app.** `math`
+> already stages ~30 member dirs into one worker; `fin` does the same for perp, speclab and pm.
+> A subpath costs no slot. Before giving a new site its own subdomain, ask which hub it belongs
+> under. **A folded host must lose its `custom_domain` route on EVERY branch that can still deploy
+> it** — `refresh-perp-data.yml` (a cron on `main`) checked out perp's old branch and would have
+> re-attached `perp.mino.mobi` within hours; that branch's route was removed the same day.
+
 A Worker Custom Domain is not free. There are **100 per zone**, and the zone is
 full. Measured 2026-09-22, deploy-bsky run #43, adding `dweet.mino.mobi`:
 

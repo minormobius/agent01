@@ -940,7 +940,7 @@
       "t": "2026-09-21",
       "b": "2026-09-21",
       "surface": "bsky",
-      "d": "A feed of animations that are 256 characters of JavaScript or GLSL, called 60 times a second over a canvas. Each one is a record in its author's own repo, and at that size the whole artwork fits inside a single firehose event — so the feed needs no index and no backend, the way the AppView beside it needs none. Every dweet runs in a sandboxed frame at an opaque origin under default-src 'none', because a feed of strangers' code on a domain with an SSO cookie is otherwise an account takeover. Write in JS or in GLSL, which is the same 256 characters on the GPU \u2014 and a shader written for demosky.app's mainImage dialect runs here unchanged. Sketches are badged by demoscene size category (64b/128b/256b) rather than only by a limit.",
+      "d": "A feed of animations that are 256 characters of JavaScript or GLSL, called 60 times a second over a canvas. Each one is a record in its author's own repo, and at that size the whole artwork fits inside a single firehose event — so the feed needs no index and no backend, the way the AppView beside it needs none. Every dweet runs in a sandboxed frame at an opaque origin under default-src 'none', because a feed of strangers' code on a domain with an SSO cookie is otherwise an account takeover. Write in JS or in GLSL, which is the same 256 characters on the GPU — and a shader written for demosky.app's mainImage dialect runs here unchanged. Sketches are badged by demoscene size category (64b/128b/256b) rather than only by a limit.",
       "tags": [
         "atproto",
         "canvas",
@@ -987,7 +987,7 @@
       "t": "2026-05-29",
       "b": "2026-03-25",
       "p": "org",
-      "surface": "pm",
+      "surface": "root",
       "d": "Earned value project management. Gantt charts, S-curves, resource tracking, and Kanban—synced to PDS.",
       "tags": [
         "pwa",
@@ -996,14 +996,14 @@
     },
     {
       "n": "wave",
-      "u": "https://wave.mino.mobi",
+      "u": "https://org.mino.mobi/wave",
       "c": "work",
       "k": 10,
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-03-25",
       "p": "org",
-      "surface": "wave",
+      "surface": "org",
       "d": "Team messaging. Channels, threads, and collaborative documents with real-time Jetstream sync.",
       "tags": [
         "react",
@@ -1919,19 +1919,20 @@
     },
     {
       "n": "perp",
-      "u": "https://perp.mino.mobi",
+      "u": "https://fin.mino.mobi/perp/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-08-26",
       "b": "2026-08-26",
-      "surface": "perp",
+      "surface": "finance",
       "d": "A perpetual future never expires, so nothing forces it to converge on spot — instead it pays funding, an hourly cash transfer between longs and shorts. Two linked charts: eleven years of BTC-USD spot, and the Hyperliquid perp’s hourly premium since 2023 drawn against the ±5bp clamp corridor, inside which funding is mathematically blind to premium and so nothing pulls the perp back toward spot. The funding line is flat as a table until the premium escapes the band. Every figure in the prose is derived from the series rather than typed, and the page shows its own null result: premium tracks the integral of past returns over several days and predicts the future at a correlation of about 0.03.",
       "tags": [
         "canvas",
         "market-data",
         "hyperliquid"
-      ]
+      ],
+      "p": "fin"
     },
     {
       "n": "silk",
@@ -4074,13 +4075,13 @@
     },
     {
       "n": "ns",
-      "u": "https://ns.mino.mobi",
+      "u": "https://math.mino.mobi/ns/",
       "c": "data",
       "k": 3,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
-      "surface": "ns",
+      "surface": "math",
       "d": "The 2026 OpenAI paper claiming finite-time blowup for the forced 3D Navier–Stokes equations (Fefferman’s alternatives C and D), taken apart: an animated r–z anatomy of the collapsing core, the pulse annulus and the heat exterior, the proof in six moves, a timeline from Leray to now, and six sub-pages that each implement one piece of the construction in the browser. Says plainly what is claimed, what is not, and that nothing here verifies the proof.",
       "tags": [
         "canvas",
@@ -4090,14 +4091,14 @@
     },
     {
       "n": "core",
-      "u": "https://ns.mino.mobi/core/",
+      "u": "https://math.mino.mobi/ns/core/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
       "p": "ns",
-      "surface": "ns",
+      "surface": "math",
       "d": "The concentrating vortex core: every scaling law against the time remaining τ with the exponent h live (ℓ_r ≍ τ^½, ℓ_z ≍ τ^(½−h), speed ≍ τ^(−½−h), energy → 0), the similarity map q(z,τ) solved by Newton at every pixel, true meridional streamlines from the paper’s axis profile U = 4η + j₀ via the incompressibility identity, and the viscosity and torus rescalings.",
       "tags": [
         "canvas",
@@ -4106,14 +4107,14 @@
     },
     {
       "n": "pulse",
-      "u": "https://ns.mino.mobi/pulse/",
+      "u": "https://math.mino.mobi/ns/pulse/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
       "p": "ns",
-      "surface": "ns",
+      "surface": "math",
       "d": "The pulse: integrates the paper’s wave-amplitude equation and overlays its Gaussian envelope P(v) — growth on the shear, then viscous death — solves the exact Orr shearing wave in Couette flow, and shows the growth condition v_s > 2 is Rayleigh’s centrifugal criterion with axial shear folded in.",
       "tags": [
         "canvas",
@@ -4122,14 +4123,14 @@
     },
     {
       "n": "stress",
-      "u": "https://ns.mino.mobi/stress/",
+      "u": "https://math.mino.mobi/ns/stress/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
       "p": "ns",
-      "surface": "ns",
+      "surface": "math",
       "d": "Zero-mean waves, nonzero flux: Reynolds stress from a ring wave, the radial stress integrals that need zero moments to stay compact, and the admissible stress cone drawn exactly from (t_s, v_s) with a draggable target and its positive representation c₁v₊ + c₂v₋.",
       "tags": [
         "canvas",
@@ -4138,14 +4139,14 @@
     },
     {
       "n": "exterior",
-      "u": "https://ns.mino.mobi/exterior/",
+      "u": "https://math.mino.mobi/ns/exterior/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
       "p": "ns",
-      "surface": "ns",
+      "surface": "math",
       "d": "The heat exterior: the paper’s exact swirl K(r,τ) = c·(r²/2)^(−A)·H(4τ/r²) computed by quadrature, checked against the swirl heat equation to finite-difference precision, marched by a plain FD solver that converges to it at second order, and shown to have smooth limits at the singular time at every fixed radius.",
       "tags": [
         "canvas",
@@ -4154,14 +4155,14 @@
     },
     {
       "n": "bands",
-      "u": "https://ns.mino.mobi/bands/",
+      "u": "https://math.mino.mobi/ns/bands/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
       "p": "ns",
-      "surface": "ns",
+      "surface": "math",
       "d": "The ledger of scales: dyadic bands Q = 2^−ℓ, ε = Q^h, S* = ℓ², the carrier k = ⌈ε^−½⌉, wavelength and amplitude ratios, the correction cycle σ_j = ⅕ + j/10, flatness — and how astronomically small q must be before h = 1/100 makes anything small.",
       "tags": [
         "canvas",
@@ -4170,14 +4171,14 @@
     },
     {
       "n": "solver",
-      "u": "https://ns.mino.mobi/solver/",
+      "u": "https://math.mino.mobi/ns/solver/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
       "p": "ns",
-      "surface": "ns",
+      "surface": "math",
       "d": "A 2D pseudo-spectral incompressible Navier–Stokes solver in the tab — hand-written FFT, vorticity form, 2/3 dealiasing, integrating-factor RK4, selftested against Taylor–Green and the 2D conservation laws. A shear-plus-wave experiment measures ⟨u′v′⟩ and the mean-flow feedback; decaying turbulence shows the vorticity maximum never grows, which is why two dimensions cannot blow up.",
       "tags": [
         "canvas",
@@ -4187,14 +4188,14 @@
     },
     {
       "n": "explorer",
-      "u": "https://ns.mino.mobi/explorer/",
+      "u": "https://math.mino.mobi/ns/explorer/",
       "c": "data",
       "k": 2,
       "a": "hot",
       "t": "2026-09-08",
       "b": "2026-09-08",
       "p": "ns",
-      "surface": "ns",
+      "surface": "math",
       "d": "The collapse in three dimensions: a seeded specimen of the paper’s leading-order field — exactly divergence-free via the identity for V₀, axis-regular, centrifugally balanced, heat-law exterior, the paper’s exponents — drawn live in WebGL. A section plane facing you with the near half cut away carries pressure as colour and line-integral-convolution streaks of the meridional flow; behind it spiralling streamlines, transform-feedback particles tracing pathlines through the collapse as τ → 0, and the low-pressure core as a ray-marched glow. Every seed is a permalink; a selftest pins what is exact.",
       "tags": [
         "webgl",
@@ -4314,7 +4315,7 @@
       "b": "2026-09-20",
       "p": "fin",
       "surface": "finance",
-      "d": "The financial periodic table. All 118 elements sized by the economy each one stands under: how it is actually extracted, the form it is really traded in \u2014 sulfur as sulfuric acid, nitrogen as ammonia, titanium as white pigment \u2014 what a year of world extraction is worth, and the first-order markets that cannot exist without it. Upstream from USGS; downstream estimated under a stated rule, with a confidence tier on every record.",
+      "d": "The financial periodic table. All 118 elements sized by the economy each one stands under: how it is actually extracted, the form it is really traded in — sulfur as sulfuric acid, nitrogen as ammonia, titanium as white pigment — what a year of world extraction is worth, and the first-order markets that cannot exist without it. Upstream from USGS; downstream estimated under a stated rule, with a confidence tier on every record.",
       "tags": [
         "data",
         "chem"
@@ -4341,7 +4342,7 @@
       "b": "2026-09-19",
       "p": "atmosphere",
       "surface": "b",
-      "d": "Your closest circle as a guessing game. A month of your own likes, replies, reposts and quotes rings the people you actually talk to around an arena; their posts are dealt into the middle and you say who wrote each one. Graded against blind guessing, because 50% out of four seats is not 50% out of twenty. Then the expensive half: analyse the circle and every member's whole repository is streamed, reduced to one row of a closeness matrix and thrown away \u2014 who replied to whom first, and how much they have interacted since, in both directions. The finished matrix packs into a link.",
+      "d": "Your closest circle as a guessing game. A month of your own likes, replies, reposts and quotes rings the people you actually talk to around an arena; their posts are dealt into the middle and you say who wrote each one. Graded against blind guessing, because 50% out of four seats is not 50% out of twenty. Then the expensive half: analyse the circle and every member's whole repository is streamed, reduced to one row of a closeness matrix and thrown away — who replied to whom first, and how much they have interacted since, in both directions. The finished matrix packs into a link.",
       "tags": [
         "atproto",
         "canvas",
@@ -4358,7 +4359,7 @@
       "b": "2026-09-22",
       "p": "atmosphere",
       "surface": "b",
-      "d": "A Bluesky mood ring. The last ten posts and replies are read for tone by jev \u2014 TypeSafe's System One model, which writes nothing and only answers typed questions \u2014 and each one becomes a band of colour around the account's own avatar. The colour is the mood and the haze is how sure the model was, so a three-word post you cannot read a tone off looks uncertain instead of looking calm. Asked as two ordered axes and one unordered one, because a single angry-to-happy scale would average half fury and half delight into serenity; the ten readings become one stone the same way, on the plane and never in hue.",
+      "d": "A Bluesky mood ring. The last ten posts and replies are read for tone by jev — TypeSafe's System One model, which writes nothing and only answers typed questions — and each one becomes a band of colour around the account's own avatar. The colour is the mood and the haze is how sure the model was, so a three-word post you cannot read a tone off looks uncertain instead of looking calm. Asked as two ordered axes and one unordered one, because a single angry-to-happy scale would average half fury and half delight into serenity; the ten readings become one stone the same way, on the plane and never in hue.",
       "tags": [
         "atproto",
         "jev",
@@ -5087,6 +5088,26 @@
       "glob": "words/cross",
       "kind": "content",
       "reason": "the procedural crossword — the second app on the already-listed words surface"
+    },
+    {
+      "glob": "ns",
+      "kind": "content",
+      "reason": "catalogued at math.mino.mobi/ns/, which is the surface that deploys it since 2026-09-23 (ns.mino.mobi was detached to free a custom-domain slot); the root worker serves the whole repo, so this apex copy is incidental — same situation as szilassi"
+    },
+    {
+      "glob": "ns/*",
+      "kind": "content",
+      "reason": "the ns pack's six pages and the explorer, catalogued at math.mino.mobi/ns/<page>/; apex copies are incidental (see the ns rule)"
+    },
+    {
+      "glob": "perp",
+      "kind": "content",
+      "reason": "catalogued at fin.mino.mobi/perp/, which is the surface that deploys it since 2026-09-23 (perp.mino.mobi was detached to free a custom-domain slot); the apex copy is incidental"
+    },
+    {
+      "glob": "wave",
+      "kind": "internal",
+      "reason": "Vite SOURCE of the standalone wave app, not a destination: the root worker serves it unbuilt (script src=/src/main.tsx), so the apex URL is a blank page. wave.mino.mobi was detached 2026-09-23; wave is reached as the Wave tab inside org (org.mino.mobi/wave), and whether the newer standalone build ships under org is an open decision"
     }
   ],
   "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."

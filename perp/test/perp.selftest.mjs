@@ -111,7 +111,11 @@ check('premium still has no forward predictive power', maxForward < 0.15,
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const html = readFileSync(join(ROOT, 'index.html'), 'utf8');
 const app = readFileSync(join(ROOT, 'app.js'), 'utf8');
-check('index.html loads app.js as a module', /<script type="module" src="\/app\.js">/.test(html));
+check('index.html loads app.js as a module', /<script type="module" src="app\.js">/.test(html));
+// perp is served at fin.mino.mobi/perp/, not at a host root: a root-absolute
+// asset or data URL would resolve against fin's root and 404.
+check('no root-absolute asset or data URLs (served under /perp/)',
+  !/(src|href)="\/(?!\/)/.test(html) && !/fetch\(\s*[`'"]\/(?!\/)/.test(app));
 check('app.js parses', (() => { try { new Script(app); return true; } catch (e) { return false; } })());
 for (const id of ['tiles', 'asof', 'reso', 'pricecv', 'premcv', 'tip', 'corrtable', 'regimetable', 'recent', 'pricelegend']) {
   check(`index.html defines #${id}`, html.includes(`id="${id}"`));

@@ -43,7 +43,7 @@ window.SPEC_CURATED = {
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
     pod: 'social', answers: 'social', time: 'social', rant: 'social', parts: 'social',
     fifty: 'social', zest: 'social',
-    bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
+    bakery: 'work', org: 'work', crm: 'work',
     clef: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
@@ -63,7 +63,7 @@ window.SPEC_CURATED = {
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     atlas: 'science',
     read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',
-    math: 'math', 'ai-edu': 'math', perp: 'math', ns: 'math', henderhead: 'math',
+    math: 'math', 'ai-edu': 'math', henderhead: 'math',
   },
 
   // ----------------------------------------------- description capsules ----

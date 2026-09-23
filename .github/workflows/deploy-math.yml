@@ -11,7 +11,7 @@ name: Deploy Math (explainer pack)
 
 on:
   push:
-    branches: ['claude/szilassi-polyhedron-3d-cmwpb9']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'geometry/**'
       - 'conjectures/**'
@@ -42,6 +42,7 @@ on:
       - 'szilassi/**'
       - 'csaszar/**'
       - 'equivelar/**'
+      - 'ns/**'
       - 'math/**'
       - '.github/workflows/deploy-math.yml'
   workflow_dispatch:
@@ -57,7 +58,7 @@ jobs:
         run: |
           rm -rf dist && mkdir -p dist
           for d in geometry conjectures meander temperley-lieb aztec markov descent traffic ising erdos guthkatz hadwiger heilbronn kakeya runner \
-                   szemeredi-trotter viazovska capset borsuk elements prop cohomology voronoi arnold szilassi csaszar equivelar; do
+                   szemeredi-trotter viazovska capset borsuk elements prop cohomology voronoi arnold szilassi csaszar equivelar ns; do
             mkdir -p "dist/$d"
             cp -r "../$d/." "dist/$d/"
           done

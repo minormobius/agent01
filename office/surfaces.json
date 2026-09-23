@@ -718,7 +718,7 @@
   {
    "id": "wave",
    "name": "wave",
-   "url": "https://wave.mino.mobi",
+   "url": "https://org.mino.mobi/wave",
    "cat": "work",
    "commits": 10,
    "age": "cold",
@@ -1330,11 +1330,11 @@
   {
    "id": "perp",
    "name": "perp",
-   "url": "https://perp.mino.mobi",
+   "url": "https://fin.mino.mobi/perp/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
-   "parent": null
+   "parent": "fin"
   },
   {
    "id": "silk",
@@ -2779,7 +2779,7 @@
   {
    "id": "ns",
    "name": "ns",
-   "url": "https://ns.mino.mobi",
+   "url": "https://math.mino.mobi/ns/",
    "cat": "data",
    "commits": 3,
    "age": "hot",
@@ -2788,7 +2788,7 @@
   {
    "id": "core",
    "name": "core",
-   "url": "https://ns.mino.mobi/core/",
+   "url": "https://math.mino.mobi/ns/core/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2797,7 +2797,7 @@
   {
    "id": "pulse",
    "name": "pulse",
-   "url": "https://ns.mino.mobi/pulse/",
+   "url": "https://math.mino.mobi/ns/pulse/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2806,7 +2806,7 @@
   {
    "id": "stress",
    "name": "stress",
-   "url": "https://ns.mino.mobi/stress/",
+   "url": "https://math.mino.mobi/ns/stress/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2815,7 +2815,7 @@
   {
    "id": "exterior",
    "name": "exterior",
-   "url": "https://ns.mino.mobi/exterior/",
+   "url": "https://math.mino.mobi/ns/exterior/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2824,7 +2824,7 @@
   {
    "id": "bands",
    "name": "bands",
-   "url": "https://ns.mino.mobi/bands/",
+   "url": "https://math.mino.mobi/ns/bands/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2833,7 +2833,7 @@
   {
    "id": "solver",
    "name": "solver",
-   "url": "https://ns.mino.mobi/solver/",
+   "url": "https://math.mino.mobi/ns/solver/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
@@ -2842,7 +2842,7 @@
   {
    "id": "explorer",
    "name": "explorer",
-   "url": "https://ns.mino.mobi/explorer/",
+   "url": "https://math.mino.mobi/ns/explorer/",
    "cat": "data",
    "commits": 2,
    "age": "hot",
