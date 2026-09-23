@@ -354,6 +354,11 @@
           "u": "rite.mino.mobi/org",
           "action": "keep",
           "note": "id rite/org"
+        },
+        {
+          "u": "rite.mino.mobi/sharp",
+          "action": "keep",
+          "note": "the only one here that is about English rather than about Bluesky"
         }
       ],
       "wing": "bluesky"
