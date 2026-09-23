@@ -1703,6 +1703,20 @@
         "ns/**"
       ],
       "note": "Explainer pack on the 2026 forced Navier\u2013Stokes finite-time blowup paper (OpenAI). Thin assets Worker (worker `ns`, custom_domain ns.mino.mobi) \u2014 no build, no D1, no secrets. Hub + six single-file interactive sub-pages, each implementing one piece of the construction in the browser\u2026 (full description: ns/CLAUDE.md)"
+    },
+    {
+      "surface": "henderhead",
+      "dir": "henderhead",
+      "endpoint": "henderhead.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/henderson-fan-page-demo-xhgtrj",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "henderhead/**",
+        ".github/workflows/deploy-henderhead.yml"
+      ],
+      "note": "An unofficial fan site rebuilding Matt Henderson's mathematical demos as interactive toys (worker `henderhead`, custom_domain henderhead.mino.mobi). Thin header/JSON worker in front of static assets — no build step to serve, no D1, no AI, no secrets. Five demos, each on its own Rust→WASM engine under <dir>/engine, gated by cargo test plus a node selftest — the workflow rebuilds every .wasm rather than trusting the committed copies: /cf/ continued-fraction Fourier curves, /craft/ a crafting-recipe automaton, /wheel/ a waterwheel that is the Lorenz system, /ball/ bouncing-ball chaos, /sand/ conic sections out of sand at the angle of repose. The follow-the-feed pipeline the site describes is deliberately NOT built — see the consent gate at henderhead.mino.mobi/#consent and henderhead/CLAUDE.md."
     }
   ],
   "unmanaged": {

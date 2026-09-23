@@ -1,0 +1,23 @@
+[package]
+name = "sandconic"
+version = "0.1.0"
+edition = "2021"
+description = "Sand poured at the angle of repose, and the conic sections that appear where two sand surfaces meet"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1
+
+# The sand is a real relaxation, not a formula, so a settle is genuinely
+# thousands of O(n^2) passes. Unoptimised that is minutes; optimised it is
+# seconds. Tests measure the same sand either way.
+[profile.test]
+opt-level = 3
+
+[profile.dev]
+opt-level = 2

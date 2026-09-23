@@ -1,0 +1,30 @@
+# Not part of the site: internal instructions for whoever works on this
+# surface. assets.directory is this dir, so without this line the file is
+# served at the surface's public URL.
+CLAUDE.md
+
+# Not assets either: the worker entry, its config, and the bundler's scratch
+# dir — the first deploy uploaded .wrangler/tmp/.../worker.js.map as a public
+# file, which is how this list got written.
+worker.js
+wrangler.jsonc
+.wrangler/
+node_modules/
+package.json
+package-lock.json
+
+# Rust sources and build output for the wasm engines. The built modules are
+# committed next to their pages and served from there; the crates themselves are
+# read on GitHub, not fetched over HTTP.
+cf/engine
+craft/engine
+wheel/engine
+ball/engine
+sand/engine
+
+# The node selftests are run in CI, not by a browser.
+cf/cf.selftest.mjs
+craft/craft.selftest.mjs
+wheel/wheel.selftest.mjs
+ball/ball.selftest.mjs
+sand/sand.selftest.mjs

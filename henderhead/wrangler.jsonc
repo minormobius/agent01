@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Golden rule: this `name` is the Cloudflare worker that owns the custom
+  // domain below, and the domain must appear in `routes` with
+  // custom_domain: true — otherwise `wrangler deploy` quietly updates a stray
+  // henderhead.workers.dev and the live site never changes.
+  //
+  // henderhead.mino.mobi did not exist before this surface, so the first
+  // deploy is also what creates the DNS record and attaches it. Verify the run
+  // log says `henderhead.mino.mobi (custom domain)`; green is not proof.
+  "name": "henderhead",
+  "main": "worker.js",
+  "compatibility_date": "2026-03-14",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS"
+  },
+  "routes": [
+    { "pattern": "henderhead.mino.mobi", "custom_domain": true }
+  ]
+}

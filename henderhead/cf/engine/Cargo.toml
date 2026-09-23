@@ -1,0 +1,14 @@
+[package]
+name = "cffourier"
+version = "0.1.0"
+edition = "2021"
+description = "Continued-fraction Fourier curves: z(t) = sum_k exp(i q_k t) / q_k^alpha"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1

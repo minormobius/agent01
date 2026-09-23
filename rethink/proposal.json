@@ -2281,6 +2281,41 @@
           "wing": "study"
         },
         {
+          "u": "henderhead.mino.mobi",
+          "action": "new",
+          "kind": "explainer",
+          "domain": "math",
+          "note": "an unofficial fan site rebuilding Matt Henderson's demos as interactive toys; the front page is the shelf and the consent gate",
+          "pages": [
+            {
+              "u": "henderhead.mino.mobi/cf",
+              "action": "new",
+              "note": "continued-fraction Fourier curves, Rust→WASM"
+            },
+            {
+              "u": "henderhead.mino.mobi/craft",
+              "action": "new",
+              "note": "a cellular automaton whose rule is a table of Minecraft crafting recipes, Rust→WASM"
+            },
+            {
+              "u": "henderhead.mino.mobi/wheel",
+              "action": "new",
+              "note": "a leaky waterwheel that is the Lorenz system exactly; the centre of mass draws the attractor"
+            },
+            {
+              "u": "henderhead.mino.mobi/ball",
+              "action": "new",
+              "note": "a ball bouncing under gravity in a circle, with the fan of futures a measurement error allows"
+            },
+            {
+              "u": "henderhead.mino.mobi/sand",
+              "action": "new",
+              "note": "sand at the angle of repose, and the conic sections that appear where two sand surfaces meet; a parabola needs a slot, not a hole"
+            }
+          ],
+          "wing": "study"
+        },
+        {
           "u": "moji.mino.mobi",
           "action": "look",
           "wing": "bench"

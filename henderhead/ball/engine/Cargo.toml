@@ -1,0 +1,14 @@
+[package]
+name = "bouncer"
+version = "0.1.0"
+edition = "2021"
+description = "A ball bouncing under gravity inside a circle, and the fan of futures a measurement error allows"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[profile.release]
+opt-level = 3
+lto = true
+panic = "abort"
+codegen-units = 1

@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chaotic waterwheel — henderhead</title>
+<meta name="description" content="A leaky waterwheel that is the Lorenz system exactly — not by analogy. The centre of mass of the water traces the attractor. An interactive rebuild of a Matt Henderson demo, in Rust and WebAssembly.">
+<meta property="og:title" content="Chaotic waterwheel">
+<meta property="og:description" content="Approximating the Lorenz attractor with a chaotic leaky water wheel. After a demo by Matt Henderson.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='11' fill='none' stroke='%238fc0e8' stroke-width='2'/%3E%3Cpath d='M16 5v22M5 16h22M8 8l16 16M24 8L8 24' stroke='%238fc0e8' stroke-width='1'/%3E%3Ccircle cx='21' cy='12' r='2.6' fill='%23ffb14e'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0a1a2b; --panel: #0f2437; --edge: #1e3d58;
+    --ink: #dbe8f4; --dim: #7b9cb8; --curve: #9fc9ee; --hot: #ffb14e; --good: #6ee07a;
+    --water: #4fa3e3; --twin: #b98cff;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; -webkit-text-size-adjust: 100%; }
+  a { color: var(--curve); }
+  a:hover { color: #fff; }
+
+  header { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: baseline; padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--edge); }
+  header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+  header .home { font-size: .85rem; color: var(--dim); text-decoration: none; }
+  header .home:hover { color: var(--ink); }
+  header .after { font-size: .85rem; color: var(--dim); margin-left: auto; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1.25rem; padding: 1.25rem; align-items: start; }
+  @media (max-width: 940px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { position: relative; width: min(100%, 80vh); margin-inline: auto; }
+  canvas#wheel { display: block; width: 100%; aspect-ratio: 1/1; border-radius: 10px; background: #071624; border: 1px solid var(--edge); }
+  .status { display: flex; flex-wrap: wrap; gap: .1rem 1.1rem; font: .78rem/1.7 var(--mono); color: var(--dim); margin-top: .45rem; }
+  .status b { color: var(--ink); font-weight: 600; }
+
+  .panel { display: grid; gap: .9rem; }
+  fieldset { border: 1px solid var(--edge); border-radius: 8px; margin: 0; padding: .6rem .8rem .8rem; background: var(--panel); }
+  legend { padding: 0 .35rem; font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }
+
+  button, select { font: inherit; color: var(--ink); background: #14314a; border: 1px solid var(--edge); border-radius: 6px; padding: .34rem .55rem; cursor: pointer; }
+  button:hover, select:hover { background: #1b405e; }
+  button[aria-pressed="true"] { background: var(--curve); color: #071624; border-color: var(--curve); font-weight: 600; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; }
+  .actions button { font-size: .85rem; padding: .32rem .3rem; }
+
+  .row { display: grid; grid-template-columns: 4.9rem 1fr 3.6rem; gap: .5rem; align-items: center; margin-top: .4rem; }
+  .row label { font-size: .8rem; color: var(--dim); }
+  .row output { font: .78rem var(--mono); text-align: right; }
+  .row .hint { grid-column: 2 / -1; font-size: .72rem; color: var(--dim); margin-top: -.2rem; }
+  input[type=range] { width: 100%; accent-color: var(--curve); }
+
+  .derived { font: .82rem/1.8 var(--mono); }
+  .derived .k { color: var(--dim); }
+  .derived b { color: var(--ink); }
+  .badge { display: inline-block; border-radius: 999px; padding: .05rem .55rem; font-size: .74rem; font-weight: 600; letter-spacing: .02em; }
+  .badge.r0 { background: #23405c; color: #b6d2ea; }
+  .badge.r1 { background: #1f4f37; color: #93e5b4; }
+  .badge.r2 { background: #5c3a12; color: var(--hot); }
+  #gauge, #diverge { display: block; width: 100%; border-radius: 6px; background: #0c1f31; border: 1px solid var(--edge); margin-top: .5rem; }
+  .capt { font-size: .73rem; color: var(--dim); margin: .35rem 0 0; }
+
+  .toggles { display: grid; grid-template-columns: 1fr 1fr; gap: .35rem; margin-top: .5rem; }
+  .toggles button { font-size: .8rem; }
+  .key { display: flex; gap: .8rem; flex-wrap: wrap; font-size: .75rem; color: var(--dim); margin-top: .45rem; }
+  .key i { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .25rem; vertical-align: -1px; }
+
+  .prose { max-width: 46rem; padding: 0 1.25rem 3rem; color: #b9cfe2; }
+  .prose h2 { font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 2.2rem 0 .5rem; }
+  .prose p { margin: .65rem 0; }
+  .prose code { font: .9em var(--mono); background: #0f2437; padding: .1em .35em; border-radius: 4px; }
+  .eq { font: .95rem/1.9 var(--mono); color: var(--ink); background: #0f2437; border: 1px solid var(--edge); border-radius: 8px; padding: .7rem .9rem; overflow-x: auto; white-space: pre; }
+  .credit { border-left: 2px solid var(--curve); padding-left: .9rem; }
+  noscript { display: block; padding: 1.25rem; color: var(--hot); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home" href="/">← henderhead</a>
+  <h1>Chaotic waterwheel</h1>
+  <span class="after">after <a href="https://bsky.app/profile/matthen.com/post/3mvg57cbsuc23">a demo by Matt Henderson</a></span>
+</header>
+
+<noscript>This runs a waterwheel and the Lorenz equations side by side in WebAssembly, so it needs JavaScript on.</noscript>
+
+<main>
+  <div class="stage">
+    <canvas id="wheel" width="1100" height="1100"></canvas>
+    <div class="status" id="status"></div>
+    <div class="key">
+      <span><i style="background:var(--hot)"></i>centre of mass</span>
+      <span><i style="background:var(--twin)"></i>a twin wheel, started a billionth apart</span>
+      <span><i style="background:#7fe3c4"></i>the exact Lorenz solution</span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <fieldset>
+      <legend>run</legend>
+      <div class="actions">
+        <button id="play" aria-pressed="true">❚❚ pause</button>
+        <button id="restart">restart</button>
+        <button id="clear">clear trail</button>
+      </div>
+      <div class="row">
+        <label for="speed">speed</label>
+        <input type="range" id="speed" min="0.25" max="8" step="0.25" value="1">
+        <output id="speed-o"></output>
+      </div>
+      <div class="toggles">
+        <button id="t-twin" aria-pressed="false">twin wheel</button>
+        <button id="t-lorenz" aria-pressed="false">Lorenz overlay</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>the machine</legend>
+      <div class="row">
+        <label for="q">inflow <i>q</i></label>
+        <input type="range" id="q" min="0.01" max="6" step="0.01" value="1.2">
+        <output id="q-o"></output>
+      </div>
+      <div class="row">
+        <label for="k">leak <i>k</i></label>
+        <input type="range" id="k" min="0.05" max="1" step="0.01" value="0.2">
+        <output id="k-o"></output>
+      </div>
+      <div class="row">
+        <label for="nu">damping <i>ν</i></label>
+        <input type="range" id="nu" min="0.5" max="40" step="0.1" value="10">
+        <output id="nu-o"></output>
+      </div>
+      <div class="row">
+        <label for="inertia">inertia <i>I</i></label>
+        <input type="range" id="inertia" min="0.5" max="20" step="0.1" value="5">
+        <output id="inertia-o"></output>
+      </div>
+      <div class="row">
+        <label for="n">buckets</label>
+        <input type="range" id="n" min="5" max="96" step="1" value="24">
+        <output id="n-o"></output>
+      </div>
+      <div class="row">
+        <label for="spread">stream</label>
+        <input type="range" id="spread" min="0.2" max="3" step="0.05" value="0.7">
+        <output id="spread-o"></output>
+        <div class="hint">how many buckets wide the pour is</div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>what it is, in Lorenz's letters</legend>
+      <div class="derived" id="derived"></div>
+      <canvas id="gauge" width="620" height="76"></canvas>
+      <p class="capt" id="gauge-capt"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>how fast a billionth grows</legend>
+      <canvas id="diverge" width="620" height="200"></canvas>
+      <p class="capt">Distance between the wheel and its twin, on a log scale. A straight climb is the Lyapunov exponent, drawn by hand; a flat line means the wheel forgets.</p>
+    </fieldset>
+  </div>
+</main>
+
+<div class="prose">
+  <h2>What this is</h2>
+  <p class="credit">
+    On 13 September 2026 Matt Henderson posted a leaky waterwheel: <em>approximating the Lorenz
+    attractor with a chaotic leaky water wheel. The orange dot is the centre of mass of the water.
+    It traces (a projection of) the familiar attractor as the wheel spins seemingly randomly left
+    and right.</em> The demo is his, and his
+    <a href="https://bsky.app/profile/matthen.com/post/3mvg57cbsuc23">original post</a> is worth
+    watching first. He also pointed at
+    <a href="https://youtu.be/HljJv7Hf6Zo">Steven Strogatz's lecture</a>, which is where the
+    machine and its derivation come from.
+  </p>
+  <p>
+    Unlike the other rebuilds on this site, almost nothing here had to be guessed. This is the
+    <strong>Malkus waterwheel</strong>, and it has a published derivation — Strogatz's
+    <em>Nonlinear Dynamics and Chaos</em>, §9.1. So the interesting thing a rebuild can add is not a
+    reconstruction but a <em>demonstration</em>: the correspondence is exact, and this page runs
+    both sides of it at once so you can watch them agree.
+  </p>
+
+  <h2>The machine</h2>
+  <div class="eq">ṁᵢ = Q(θᵢ) − k mᵢ        water in at the top, out through the hole
+θ̇  = ω
+I ω̇ = −ν ω − g r Σ mᵢ cos θᵢ   gravity pulls on whatever is off-centre</div>
+  <p>
+    Buckets hang from the rim and stay upright as the wheel turns. Water is poured into whichever is
+    passing under the tap, and every bucket leaks in proportion to what it holds. That is the entire
+    machine. The only thing the water does to the wheel is the last term — a torque that reads off
+    exactly one number, the horizontal offset of the water's centre of mass.
+  </p>
+
+  <h2>Why it is the Lorenz system</h2>
+  <p>
+    Write the water as a Fourier series around the rim. Each harmonic evolves on its own, driven by
+    the tap and carried round by the spin — and <strong>only the first harmonic exerts any
+    torque</strong>, because ∫cos(nθ)cos(θ)dθ is zero for every other n. So the higher harmonics are
+    passengers, and the whole machine closes into three equations: the two first-harmonic
+    coefficients and the spin. Substitute τ = kt, X = ω/k, Y = −c a₁, Z = ρ − c b₁ with
+    c = πgr/(kν), and they are the Lorenz equations, letter for letter:
+  </p>
+  <div class="eq">X′ = σ(Y − X)     σ = ν / (I k)
+Y′ = ρX − Y − XZ  ρ = π g r q₁ / (ν k²)
+Z′ = XY − βZ      β = 1</div>
+  <p>
+    β = 1, not Lorenz's 8/3. A waterwheel is <em>a</em> Lorenz system, not <em>the</em> Lorenz
+    system — and it has no choice about it, which is why the readout shows β as a fact rather than a
+    slider. The engine here integrates the three-equation wheel and the Lorenz equations side by
+    side from the same starting state and asserts they stay on top of each other, in a test, so the
+    claim on this page is checked rather than asserted.
+  </p>
+  <p>
+    Two consequences the page leans on. First, the centre of mass of the water is
+    (rπa₁, rπb₁)/M — so <strong>the plane the orange dot moves in is the Lorenz (Y, Z) plane</strong>,
+    up to sign and scale. It is not drawing something that looks like the attractor; it is drawing
+    the attractor, in a projection. Second, the total mass of water obeys Ṁ = ∫Q − kM, which has no
+    ω in it at all: the wheel can be doing anything and the amount of water aboard settles to q/k
+    and stays there. That constant is what holds the scale factor still.
+  </p>
+
+  <h2>What "approximating" means</h2>
+  <p>
+    A real wheel has finitely many buckets, and that is the whole of the approximation. Sum the
+    discrete equations and you get the continuum ones back exactly, except that the two inflow
+    projections are sampled at n points instead of integrated — so they wobble with period 2π/n as
+    the wheel turns. <strong>A finite wheel is the Lorenz system plus a small periodic forcing</strong>,
+    and the <em>buckets</em> slider is a dial on how small. The readout shows the ripple; at five
+    buckets it is enormous and at fifty it has all but gone.
+  </p>
+
+  <h2>The three regimes, and the two thresholds</h2>
+  <p>
+    Turn the inflow up from nothing and the wheel passes through all of Lorenz's behaviour in order,
+    which is the thing a video cannot let you do:
+  </p>
+  <ul>
+    <li><strong>ρ &lt; 1 — it just sits there.</strong> Water arrives, leaks out, and the wheel never
+      gets enough of an imbalance to start.</li>
+    <li><strong>1 &lt; ρ &lt; ρ<sub>Hopf</sub> — it turns steadily</strong>, one way or the other
+      depending on which way it happened to twitch, at exactly ω = k√(β(ρ−1)). That number is a
+      prediction from the theory, and the simulation has to produce it; there is a test that says so.</li>
+    <li><strong>ρ &gt; ρ<sub>Hopf</sub> — it reverses at unpredictable intervals</strong>, and the
+      centre of mass fills in the butterfly. ρ<sub>Hopf</sub> = σ(σ+β+3)/(σ−β−1).</li>
+  </ul>
+  <p>
+    That last formula needs σ &gt; β+1 = 2 to mean anything, and σ is ν/(Ik) — so
+    <strong>a wheel without enough damping cannot be made chaotic at any flow rate</strong>. Drag the
+    damping down and watch the gauge say so. It is a genuinely odd fact about the machine: friction
+    is what makes it unpredictable.
+  </p>
+
+  <h2>The butterfly, actually measured</h2>
+  <p>
+    Switch on the twin wheel. It is the same wheel with its initial spin changed in the ninth decimal
+    place — a difference far smaller than any real machine could be built to. In the steady regime
+    the two stay welded together forever. In the chaotic one the gap grows by a factor of ten every
+    few seconds, and within a couple of minutes the two wheels are turning opposite ways. The plot
+    is log distance against time; the slope is the Lyapunov exponent, and you are watching it get
+    drawn.
+  </p>
+
+  <h2>How it computes</h2>
+  <p>
+    Four things run in lockstep from the same starting state: the physical wheel with its finite
+    buckets, its twin, the continuum reduction, and the Lorenz system with the mapped parameters.
+    All of it is a small Rust engine compiled to WebAssembly (<code>engine/</code> here, 52 KB, no
+    imports and no bindgen), integrating with classical RK4 — accuracy matters more than usual here,
+    because the entire subject is how fast small errors grow. Sixteen tests check the physics against
+    the published result rather than against the code.
+  </p>
+
+  <h2>Credit, and a request</h2>
+  <p>
+    This is a fan page. The demo is Matt Henderson's
+    (<a href="https://matthen.com">matthen.com</a>, <a href="https://bsky.app/profile/matthen.com">@matthen.com</a>);
+    the maths is Malkus's and Lorenz's and Strogatz's; the code here is ours and none of his video is
+    copied onto this site. If he would rather this did not exist, or wants anything about it changed,
+    that decision is his and we will act on it — see <a href="/#consent">the note on the front page</a>.
+  </p>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

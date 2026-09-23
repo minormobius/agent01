@@ -1,0 +1,109 @@
+name: Deploy henderhead (Matt Henderson fan site)
+
+on:
+  push:
+    branches: ['claude/henderson-fan-page-demo-xhgtrj']
+    paths:
+      - 'henderhead/**'
+      - '.github/workflows/deploy-henderhead.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- the four wasm engines (/cf/, /craft/, /wheel/ and /ball/) ---
+      #
+      # All four .wasm modules are committed, so the site is servable straight from
+      # the repo. CI does not trust those copies: it rebuilds from source and
+      # deploys what it built, then runs the selftests against the modules it is
+      # about to ship. A stale or hand-edited .wasm therefore cannot reach
+      # production, and the committed ones only ever have to be good enough for
+      # local work.
+      - name: Install Rust with the wasm target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Engine tests — continued fractions, against the published expansions
+        run: cargo test --manifest-path henderhead/cf/engine/Cargo.toml
+
+      - name: Engine tests — crafting automaton, against the game's recipes
+        run: cargo test --manifest-path henderhead/craft/engine/Cargo.toml
+
+      - name: Engine tests — waterwheel, against the Lorenz equations
+        run: cargo test --manifest-path henderhead/wheel/engine/Cargo.toml
+
+      - name: Engine tests — bouncing ball, energy and the Lyapunov exponent
+        run: cargo test --manifest-path henderhead/ball/engine/Cargo.toml
+
+      - name: Engine tests — sand at the angle of repose, and the conics it draws
+        run: cargo test --manifest-path henderhead/sand/engine/Cargo.toml
+
+      - name: Build the engines → wasm
+        run: |
+          cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/cf/engine/Cargo.toml
+          cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/craft/engine/Cargo.toml
+          cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/wheel/engine/Cargo.toml
+          cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/ball/engine/Cargo.toml
+          cargo build --release --target wasm32-unknown-unknown --manifest-path henderhead/sand/engine/Cargo.toml
+
+      - name: Install the freshly built modules
+        run: |
+          cp henderhead/cf/engine/target/wasm32-unknown-unknown/release/cffourier.wasm henderhead/cf/cffourier.wasm
+          cp henderhead/craft/engine/target/wasm32-unknown-unknown/release/craftca.wasm henderhead/craft/craftca.wasm
+          cp henderhead/wheel/engine/target/wasm32-unknown-unknown/release/waterwheel.wasm henderhead/wheel/waterwheel.wasm
+          cp henderhead/ball/engine/target/wasm32-unknown-unknown/release/bouncer.wasm henderhead/ball/bouncer.wasm
+          cp henderhead/sand/engine/target/wasm32-unknown-unknown/release/sandconic.wasm henderhead/sand/sandconic.wasm
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Engine selftests against the modules being shipped
+        run: |
+          node henderhead/cf/cf.selftest.mjs
+          node henderhead/craft/craft.selftest.mjs
+          node henderhead/wheel/wheel.selftest.mjs
+          node henderhead/ball/ball.selftest.mjs
+          node henderhead/sand/sand.selftest.mjs
+
+      - name: The committed modules match the ones built here
+        # Not a gate — toolchain drift changes the bytes legitimately. It is a
+        # notice that the repo copies are behind what production is getting.
+        continue-on-error: true
+        run: git diff --stat --exit-code -- henderhead/cf/cffourier.wasm henderhead/craft/craftca.wasm henderhead/wheel/waterwheel.wasm henderhead/ball/bouncer.wasm henderhead/sand/sandconic.wasm
+
+      - name: Install wrangler
+        working-directory: henderhead
+        run: npm install wrangler
+
+      - name: Deploy worker + assets
+        working-directory: henderhead
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # The golden rule: a green deploy is not proof. This is the first deploy
+      # that creates henderhead.mino.mobi, so the domain may take a moment to
+      # attach — and if the run log did not say `(custom domain)` above, this
+      # will keep failing however long you wait.
+      - name: Verify the site is live on its own domain
+        continue-on-error: true
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            if curl -fsS https://henderhead.mino.mobi/ | grep -q 'henderhead' \
+               && curl -fsS https://henderhead.mino.mobi/api/demos | grep -q '"automatedPipelineRunning": false' \
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/cf/cffourier.wasm | grep -q wasm \
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/craft/craftca.wasm | grep -q wasm \
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/wheel/waterwheel.wasm | grep -q wasm \
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/ball/bouncer.wasm | grep -q wasm \
+               && curl -fsS -o /dev/null -w '%{content_type}' https://henderhead.mino.mobi/sand/sandconic.wasm | grep -q wasm; then
+              echo "✓ henderhead is live"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          done
+          echo "⚠️ henderhead did not answer within 30s — check the deploy log bound the custom domain."
