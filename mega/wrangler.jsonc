@@ -9,5 +9,30 @@
   },
   "routes": [
     { "pattern": "mega.mino.mobi", "custom_domain": true }
+  ],
+
+  // The pre-registered forward test collects itself, here, rather than from a
+  // GitHub Actions schedule — those fire only for workflows on the default
+  // branch, and this surface's workflows live on its owning branch. Both the
+  // trigger and its storage are declared in config, so there is no dashboard
+  // step and nothing outside this surface's own deploy.
+  //
+  // 01:25 and 13:25 UTC. Windows pivot on a 24h boundary so at most one per
+  // asset closes per day; the second run is there to pick up a failed one
+  // within twelve hours. The collector is idempotent, keyed on close time, so
+  // running it more often than the grid moves adds nothing.
+  "triggers": {
+    "crons": ["25 1,13 * * *"]
+  },
+
+  // PreregLog: the accumulating record of the forward test. SQLite-backed, so
+  // it survives eviction — unlike hoop's in-memory room, this IS the data.
+  "durable_objects": {
+    "bindings": [
+      { "name": "PREREG_LOG", "class_name": "PreregLog" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["PreregLog"] }
   ]
 }

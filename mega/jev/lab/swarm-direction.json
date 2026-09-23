@@ -1,0 +1,51 @@
+{
+ "when": "2026-09-21T03:06:46.787Z",
+ "conf": {
+  "n": 256,
+  "dim": 480,
+  "baseBrush": 0.006,
+  "baseCount": 256
+ },
+ "ticks": 100,
+ "rows": [
+  {
+   "name": "rule",
+   "meanAbsTurn": 0.713,
+   "dispersal": 0.04721,
+   "nn": 0.01989,
+   "shuffledDispersal": 0.04462,
+   "shuffledDispersalSd": 0.00129,
+   "shuffledNn": 0.01994,
+   "shuffledNnSd": 0.00118,
+   "excessPct": 5.8,
+   "z": 2.02,
+   "reps": 12
+  },
+  {
+   "name": "random",
+   "meanAbsTurn": 0.597,
+   "dispersal": 0.04091,
+   "nn": 0.01846,
+   "shuffledDispersal": 0.04063,
+   "shuffledDispersalSd": 0.00141,
+   "shuffledNn": 0.01878,
+   "shuffledNnSd": 0.00094,
+   "excessPct": 0.7,
+   "z": 0.2,
+   "reps": 12
+  },
+  {
+   "name": "jev-mimic",
+   "meanAbsTurn": 0.36,
+   "dispersal": 0.02168,
+   "nn": 0.00994,
+   "shuffledDispersal": 0.02217,
+   "shuffledDispersalSd": 0.00066,
+   "shuffledNn": 0.01025,
+   "shuffledNnSd": 0.00049,
+   "excessPct": -2.2,
+   "z": -0.74,
+   "reps": 12
+  }
+ ]
+}

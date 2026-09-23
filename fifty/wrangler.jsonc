@@ -11,7 +11,11 @@
   // wrangler rebinds it on every deploy and cannot silently strand it on a
   // workers.dev twin. `fifty` is a NEW worker — the first deploy also creates
   // the DNS record for fifty.mino.mobi.
+  // A PLAIN ROUTE (2026-09-23), converted from a custom domain to free one of the
+  // zone's 100 slots. The deploy workflow runs scripts/route-dns.mjs --takeover first:
+  // it detaches the old custom domain (only because THIS worker held it) and creates
+  // the proxied DNS record a route needs. Do not turn it back into a custom_domain.
   "routes": [
-    { "pattern": "fifty.mino.mobi", "custom_domain": true }
+    { "pattern": "fifty.mino.mobi/*", "zone_name": "mino.mobi" }
   ]
 }

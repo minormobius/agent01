@@ -1,0 +1,144 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Motor web — the only solid plate on the stator and the whole of its structure. The NEMA 17 hangs on its outside on the pilot and four M3; the screw passes through the middle; four M3 on a Ø97 circle carry the bearing housing, four Ø3 dowels at r 22 key the brake ring. It takes no grip load at all now: the grip runs pillar to rotor plate to bearing, and the bearing hands it to this plate as a moment. The tool interface belongs here; it is not drawn yet. One extrude along -Y.",
+ "params": {
+  "d": 104,
+  "t": 8,
+  "d_pilot": 22.5,
+  "sq": 31,
+  "d_bolt": 3.4,
+  "tr": 48.5,
+  "d_tap": 2.5,
+  "pr": 22,
+  "d_pin": 3,
+  "y1": 30
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "pilot",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_pilot / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "sq/2",
+       "sq/2"
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "sketch",
+   "id": "tap",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "tr",
+       0
+      ],
+      "r": "d_tap / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "taps",
+   "of": "tap",
+   "kind": "circular",
+   "count": 4,
+   "name": "tap"
+  },
+  {
+   "op": "sketch",
+   "id": "dowel",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pr",
+       0
+      ],
+      "r": "d_pin / 2 + 0.05"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "dowels",
+   "of": "dowel",
+   "kind": "circular",
+   "count": 4,
+   "name": "dowel"
+  },
+  {
+   "op": "extrude",
+   "id": "plate",
+   "profile": [
+    "face",
+    "bolts",
+    "taps",
+    "dowels"
+   ],
+   "depth": "t"
+  }
+ ]
+}

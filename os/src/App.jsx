@@ -115,13 +115,22 @@ export default function App() {
 
   useEffect(() => { bootstrap(); }, [bootstrap]);
 
-  // Create transport once.
-  useEffect(() => {
-    transportRef.current = new WSTransport({
-      url: CONTAINER_API_URL,
-      onStatus: setContainerStatus,
-    });
+  // Create the transport DURING the first render, not in an effect.
+  //
+  // It used to be built in a useEffect([]), which runs AFTER children mount —
+  // so <Terminal> was handed transport={null} on its first render, and a ref
+  // assignment does not re-render anyone. Terminal's wiring effect keys off
+  // that prop, so whether it ever ran depended on App happening to re-render
+  // for some unrelated reason. Lazy-init makes the prop non-null from the very
+  // first render, which is the whole race gone.
+  //
+  // onStatus is NOT set here: Terminal assigns transport.onStatus and would
+  // clobber it. The badge is fed by onContainerStatus passed down instead.
+  if (!transportRef.current) {
+    transportRef.current = new WSTransport({ url: CONTAINER_API_URL });
+  }
 
+  useEffect(() => {
     return () => {
       transportRef.current?.disconnect();
     };
@@ -210,6 +219,7 @@ export default function App() {
         transport={transportRef.current}
         onConnectContainer={handleConnectContainer}
         containerStatus={containerStatus}
+        onContainerStatus={setContainerStatus}
       />
       {session && (
         <button

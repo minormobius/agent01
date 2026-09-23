@@ -1,0 +1,38 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Ø16 pitch shaft, pressed into the blade and running in a bush in each cheek. One extrude along -Y.",
+ "params": {
+  "d": 16,
+  "t": 86,
+  "y1": "t / 2"
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "od",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "ps",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

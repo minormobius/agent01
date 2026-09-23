@@ -1,0 +1,51 @@
+name: Cloudflare capability probe (read-only)
+
+# What this is for.
+#
+# Two questions about this account cannot be answered from the sandbox, because
+# the sandbox has no Cloudflare credential, and both of them decide real work:
+#
+#   1. HOW FULL IS THE 100-CUSTOM-DOMAIN CAP, and which workers are holding the
+#      slots? `dweet.mino.mobi` could not be bound (`code: 100122`) and the plan
+#      is to prune. Pruning blind is the bad way to do that.
+#   2. WHAT CAN THE DEPLOY TOKEN ACTUALLY DO? A plain Workers Route dodges the
+#      100-domain cap (routes are capped far higher) but does NOT create DNS,
+#      and DNS is a different API and a different permission group. Whether a
+#      workflow can do the whole job, or whether a human has to open the
+#      dashboard, is entirely a question about this one token's scopes.
+#
+# EVERY REQUEST HERE IS A GET, with ONE exception gated by PROBE_DNS_WRITE=1:
+# a throwaway TXT record at _cf-probe.<zone> is created and deleted in the same
+# run, because a read cannot prove DNS:Edit and nothing else can. It names no
+# host anything serves; the delete is always attempted and then verified.
+# Account, zone and token IDs are truncated before printing.
+#
+# Run it from the Actions tab (workflow_dispatch), or by touching this file.
+
+on:
+  push:
+    branches: ['claude/dwitter-animation-feed-rufn9o', 'claude/landing-page-merge-candidate-8sp0fv']
+    paths:
+      - '.github/workflows/cf-capability-probe.yml'
+      - '.github/scripts/cf-probe.mjs'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # optional, narrow: Zone.DNS:Edit on mino.mobi only. Used for every DNS call when set.
+          CF_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
+          ZONE: mino.mobi
+          # the one write: a throwaway TXT record, created and deleted in the same run (see cf-probe.mjs)
+          PROBE_DNS_WRITE: '1'
+        run: node .github/scripts/cf-probe.mjs

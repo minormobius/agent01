@@ -1,0 +1,52 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J5 fork cheek, two off at |y| 29…39: carries the pitch bush at the wrist centre. `y1` is overridden per side. One extrude along -Y.",
+ "params": {
+  "back": 55,
+  "prong": 25,
+  "h": 70,
+  "t": 10,
+  "y1": 39,
+  "d": 22
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "(prong - back) / 2",
+       0
+      ],
+      "w": "back + prong",
+      "h": "h"
+     }
+    },
+    {
+     "name": "pitch",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "cheek",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

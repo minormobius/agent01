@@ -1,0 +1,69 @@
+{
+  "_": "measured self-collision boundary: the least-negative INCLUDED elbow fold (j3 − j2) that already interferes, per j2. Measured by fold.mjs against the exact kernel, not assumed. null = no boundary in [−55, −135].",
+  "doc": "robot",
+  "tolerance": 0.25,
+  "unit": "deg",
+  "worstPourMargin": 16.3,
+  "map": [
+    {
+      "j2": -30,
+      "fold": -78.6
+    },
+    {
+      "j2": -25,
+      "fold": -80.6
+    },
+    {
+      "j2": -20,
+      "fold": -86.2
+    },
+    {
+      "j2": -15,
+      "fold": -91.4
+    },
+    {
+      "j2": -10,
+      "fold": -96.6
+    },
+    {
+      "j2": -5,
+      "fold": -105.8
+    },
+    {
+      "j2": 0,
+      "fold": -110.6
+    },
+    {
+      "j2": 5,
+      "fold": -115
+    },
+    {
+      "j2": 10,
+      "fold": -118.4
+    },
+    {
+      "j2": 15,
+      "fold": -119.2
+    },
+    {
+      "j2": 20,
+      "fold": -119.2
+    },
+    {
+      "j2": 25,
+      "fold": -119.2
+    },
+    {
+      "j2": 30,
+      "fold": -119.2
+    },
+    {
+      "j2": 35,
+      "fold": -119.2
+    },
+    {
+      "j2": 40,
+      "fold": -119.2
+    }
+  ]
+}

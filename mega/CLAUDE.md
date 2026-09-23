@@ -5,6 +5,22 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
+> **This surface hosts sub-sites on the same worker.** `/sprite` is the
+> procedural-sprite lab (plus its `/sprite/api`), and **`/jev` is the TypeSafe
+> Jev demo** ([`jev/CLAUDE.md`](jev/CLAUDE.md)) — mounted in `worker.js`
+> alongside `/sprite/api` and `/bees/api`. jev rides this surface because the
+> `mino.mobi` zone is at Cloudflare's hard cap of 100 Workers custom domains
+> and cannot issue another subdomain.
+>
+> Two consequences worth knowing before you touch this surface:
+> - **`/jev/api/ask` holds a paid credential.** `TYPESAFE_API_KEY` is a
+>   Cloudflare secret on THIS worker, read only inside `jev/api.mjs`. Never
+>   log it, never echo it, never move it into an asset.
+> - **The deploy runs jev's selftests first**, and its worker selftest drives
+>   this worker, so it will fail if a change here breaks `/sprite/api`,
+>   `/bees/api`, or the jev mount.
+
+
 Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe.
 
 ## Facts
@@ -15,7 +31,7 @@ Interactive map of global megaprojects—construction, timelines, costs, and dee
 | Dir | `mega/` |
 | Endpoint | `mega.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/integrate-v091-v092-v093-4yie2i` |
+| Owning branch | `claude/jev-demo-website-pw3us1` (transferred from `claude/integrate-v091-v092-v093-4yie2i` when the `/jev` sub-site landed — a surface has exactly one owning branch, and jev cannot deploy unless the branch carrying it is the one that owns mega) |
 | Deploy | `.github/workflows/deploy-mega.yml` |
 | Uses | — |
 | Provides | — |
@@ -28,11 +44,11 @@ Static worker-assets (Worker `mega`, directory '.'). Wings: `/` — megaproject 
 
 ## Deploy status
 
-MANAGED — owned by claude/integrate-v091-v092-v093-4yie2i (the v091×v092 synthesis: /v093). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.
+MANAGED — owned by claude/jev-demo-website-pw3us1. Worker `mega` + custom_domain route (mega.mino.mobi), and now a Cloudflare secret `TYPESAFE_API_KEY` for the `/jev` sub-site. Previously owned by claude/integrate-v091-v092-v093-4yie2i (the v091×v092 synthesis: /v093); that branch's `mega/` tree was verified to be a strict subset of this one before the transfer. CLEANUP: delete the orphan `mega-minomobi` worker.
 
 ## Deploying
 
-Pushes to `claude/integrate-v091-v092-v093-4yie2i` or `main` that touch this surface's paths trigger [`.github/workflows/deploy-mega.yml`](../.github/workflows/deploy-mega.yml).
+Pushes to `claude/jev-demo-website-pw3us1` that touch this surface's paths trigger [`.github/workflows/deploy-mega.yml`](../.github/workflows/deploy-mega.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

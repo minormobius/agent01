@@ -15,7 +15,7 @@ Portal to every Bluesky tool here—feeds, network maps, account analysis, and t
 | Dir | `b/` |
 | Endpoint | `b.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/bsky-follow-grooming-gjkops` |
+| Owning branch | `claude/mutual-closeness-game-earzue` |
 | Deploy | `.github/workflows/deploy-b.yml` |
 | Uses | — |
 | Provides | — |
@@ -24,7 +24,7 @@ Machine-readable entry: [`deploy-registry.json`](../deploy-registry.json) → `s
 
 ## How it works
 
-The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts — likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions), squares at /squares (closest-circle picture toy — a seed handle's most-interacted-with accounts over the last week, ringed around their avatar in those accounts' most-liked image of the week; click a tile to recenter on it), the quarter at /map (walkable pixel-glyph catalogue of EVERY social/ATProto tool across mino.mobi — districts by function, the road east climbs complexity tiers I–IV, per-tool stack + live-health cards; data in b/map/tools.js, companion audit in docs/SOCIAL-STACK-AUDIT.md), thread tetris at /tetr (real threads quantized into hex polyominoes), unique at /unique (the "hapax" finder — harvests every bigram/trigram from a handle's posts, keeps only the ones they used exactly once as a free pre-filter, then verifies each survivor against platform-wide search to surface the two/three-word phrases used exactly once on all of Bluesky; worker endpoints /api/unique/{scan,search}, the search fan-out streamed as NDJSON and carrying the authed service token; a boundaries toggle (default on, param crossPunct=false) forms n-grams only within contiguous runs — never across a sentence end, comma, quote, bracket or newline), coin at /coin (the posting box that only unlocks when your draft carries a phrase nobody on Bluesky has ever posted — /api/unique/novelty checks each contiguous bigram/trigram for zero existing hits; sending writes a normal app.bsky.feed.post via the shared auth worker with a narrow atproto+repo:app.bsky.feed.post OAuth scope, so the consent screen is post-only; imports /packages/oauth-client/auth.js staged into the assets dir at deploy time; THREAD COMPOSER: n segments, each gated separately (every post in a thread must carry a novel phrase, or you could pad something new with nine things that are not), posted as a real reply chain with root+parent wiring by b/coin/compose.js. MEDIA: paste, drag-drop or the file picker (accept=image/* with no capture attr, which is what makes a phone offer both photo library and camera); images are downscaled in-browser to fit the ~1MB PDS blob ceiling and uploaded only on send; per-image alt text. Scope widens to 'atproto repo:app.bsky.feed.post blob:image/*' — requested at sign-in rather than escalated on first attach, since an escalation redirect would drop pasted images. KEYBOARD-FIRST: mod+Enter sends, mod+Shift+Enter adds the next post and focuses it, mod+U attaches, mod+Backspace deletes an empty segment, mod+Arrow moves between posts; only modifier combos are intercepted so a bare Enter is always a newline, and after a send the composer resets AND refocuses so you can fire ten in a row without touching the mouse. b/coin/compose.selftest.mjs gates facet byte-offsets, grapheme counting and the reply chain. THE CONSTRAINT ALGEBRA (b/coin/rules.js): the novelty gate is no longer hardcoded but one member of a RULE SET — 16 rules across two axes, scope (post | thread) x kind (pure | corpus | self). SELF rules measure a draft against YOUR OWN history: `virgin` (contains a word you have never posted) downloads your whole repo as a CAR ONCE via b/coin/lexicon.js, reduces it to a Set of every word you have ever used, caches that in IndexedDB (1 week TTL) and then checks by set lookup on every keystroke — costly once, free thereafter; posting folds the new words in immediately so a word stops being new the moment you spend it. The repo is only downloaded when a self rule is actually in the ruleset AND you are signed in. Corpus rules (novel, novelBigram) hit /api/unique/novelty; pure rules (wildcard word-of-the-day, avgWord, lipogram, univocalic, noRepeats, alliterate, monosyllabic, acrostic, question, exact) are computed in-browser for free, and a purely lexical ruleset never touches the network. Thread-scope rules span the chain: haiku (5-7-5 across three posts), chain (each post begins on the previous post's last word), shrinking. Rulesets serialise into ?rules=novel,avgWord:6,wildcard:lantern and ?daily=1 is a date-seeded challenge pairing one GROUNDED rule (corpus or self — checked against the network or your own past) with one FORMAL rule (pure — checked against the text), same for everyone, no server. b/coin/rules.selftest.mjs gates every rule's accept/reject, URL round-trips and daily stability), meme at /meme (the mirror of unique — scan(kind=meme) keeps the bigrams/trigrams a handle REPEATS instead of hapaxes, then /api/unique/meme classifies each against platform search: zero other authors = a personal meme/idiolect fingerprint, a handful of others = the co-memeticists leaderboard aggregated across shared phrases, a saturated window = ordinary language dropped), lathe at /lathe (THE TOY MILL — procedurally generated social toys. The thesis: the ~40 hand-written social tools across mino.mobi are 40 points in one small space, so instead of writing the 41st, write the space. b/lathe/engine.js is a TYPED PIPELINE ALGEBRA — subject (one handle / two handles / a list) -> source (posts, media, likes, reposts, follows, followers, mutuals, list members, blocks) -> 0-2 lenses (ngrams, distinctive, hashtags, domains, clock, weekday, overTime, sentiment, lengths, readability, engagement, pictures, mentions, cooccur, replyTo, reach, overlap, exclusive, handles, bios) -> view (ranked, cloud, dial, bars, scatter, histo, graph, grid, wall) -> optional sink; every node declares in/out PORTS (posts/accounts/terms/edges/series/scalars/images) and toys are built by a TYPED WALK so they are correct by construction, then re-certified by an independent validate() oracle (the fable/forge move). 884 type-correct shapes at vocab v3. Nodes carry since/until so the vocabulary can RETIRE as well as grow (the `handles` lens was pruned at v3 — it measured domain grammar, not people — and stays reachable at v1/v2 so pinned links reproduce). THE HAYSTACK RULE (v3+): a `sparse` lens (ngrams/hashtags/domains/cooccur hunts rare things) sitting on the paged feed is auto-upgraded to the full-repo `archive` source, because a needle hunt needs the stack; parsed archives are cached per DID in IndexedDB (6h TTL) so several toys over one account pay the download once. PROGRESSIVE DRAW: single-binding pure-chain toys (and list toys, member by member) re-run the pipeline and repaint on every page of data, so a big pull fills in live instead of looking saturated. Grid faces carry a recenter control that re-runs the same toy centred on that account (for `two`, the clicked person replaces the second handle — the co-mutual walk), and an /io-style sticky ride-along bar carries prev/random/next. VOCABULARY IS VERSIONED (engine VOCAB const + `since` on each node): adding a node changes what every unpinned seed produces, so /lathe/t/<seed>?v=<n> pins a permalink to the vocabulary it was minted under and reproduces that toy exactly; a bare /t/<seed> means 'this seed in today's space'. Two heavy async lenses take a set of accounts to its internal STRUCTURE — `interlink` (relation space: exact who-follows-whom inside the set via app.bsky.graph.getRelationships, 30 others/call) and `kinship` (posting-material space: Jaccard over each member's recent post vocabulary) — both accounts->edges, both feeding the avatar force graph; b/lib/hovercard.js gives every post link a post preview and every profile link a profile preview (delegated, cached, desktop-only). CAPABILITIES refine the port types: sources declare what they `provide` (engagement counts, thumbnails) and lenses what they `need`, so the walk cannot mint a well-typed but STARVED toy (archive->engagement would draw a field of zeroes) — the oracle rejects those too. The `archive` source downloads a whole repo via com.atproto.sync.getRepo and parses the CAR with the Rust->WASM parser vendored under rite/ (staged into b/lib/atproto at deploy by deploy-b.yml, alongside packages/oauth-client; both are gitignored under b/). runtime.js drives wasm-bindgen's init with BYTES rather than a URL so the archive path is exercisable in node, not browser-only. rollToys(constraints)/feasible() power the mill's constraint picker (pin subject/source/lens/view/sink, roll within that corner; empty corners are reported, never faked) and every toy page exposes its genome as JSON. Deterministic (xmur3+mulberry32) so /lathe/t/<seed> is a permanent address — worker serves toy.html for any seed. THE PROOF: 12 real hand-written toys (unique, meme, rite/web, squares, rite/lexicon, rite/atlas, rite/signal, density, cluster, echo, photo, seek) are encoded as genomes in KNOWN[] and validate under the same algebra — rendered as a live table on the mill page; the generator independently rediscovers squares. PROCEDURALLY SCOPED OAUTH: a genome's sink derives its own scope (share -> 'atproto repo:app.bsky.feed.post'), the oracle rejects a sink whose scope does not authorise its write, and read-only toys never load the auth lib at all. b/lathe/runtime.js holds one real executor per node against public CORS-open endpoints — runtime.selftest.mjs asserts the engine vocabulary and the runtime implementations are THE SAME SET, so a permalink can never fail to run. Two node selftests, no build step, no backend: b/lathe/engine.selftest.mjs + b/lathe/runtime.selftest.mjs — run BOTH before touching the engine), groom at /groom (follow grooming — reads a handle's follow records straight from their repo and reports the ones that have not posted or replied in over a year, the ones whose accounts are gone, and the ones who never followed back; signed in as yourself, each row unfollows in place. Pure logic in b/groom/groom.js gated by groom.selftest.mjs, network in b/groom/scan.js, DOM+OAuth in app.js; see the section below for why it reads the repo rather than getFollows), and gc at /gc (block-intelligence tools + API — /gc block matrix: accounts vs posters → who directly blocks whom; /gc/mutuals: mutuals or followers of X who block Y; /gc/blockers: everyone blocking a named user; /gc/api docs the read-only JSON API at /api/gc/{relation,matrix,who-blocks,blockers}). #1/#2 read raw app.bsky.graph.block records (the worker also serves them server-side via b/lib/gc.js); network-wide blocker sets (#3 + the blocker side of #2) come from the clearsky.services index. All read-only public data, no auth, CORS open. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker).
+The Bluesky corner of mino.mobi at b.mino.mobi (worker `b`, b=Bluesky, companion to g=graphics). Hosts the disk Poincare interaction map at /disk, the feedgen feed builder at /feedgen, spark at /spark (the followed account's posts a follower had liked before they followed), dyad at /dyad (the full dyadic timeline of every recorded interaction between two accounts — likes, reposts, replies, quotes, mentions, follows, blocks, list-adds, both directions), squares at /squares (closest-circle picture toy — a seed handle's most-interacted-with accounts over the last week, ringed around their avatar in those accounts' most-liked image of the week; click a tile to recenter on it), orbit at /orbit (the same circle as a guessing game — posts from the ring dealt into an arena, dragged to whoever wrote them, graded on lift over blind guessing; then ANALYSE CIRCLE streams every member's whole repo as a CAR and folds it into a directed whole-history closeness matrix, first reply both ways and volume since, that packs into a 1.9 KB URL fragment), mood at /mood (a jev mood ring — the last ten posts and replies read for tone by TypeSafe's decision-only System One model and drawn as one colour band each around the avatar; two ORDERED axes asked as `score` and one UNORDERED one asked as `choice`, because a single angry→happy scale would render half-fury-half-delight as calm, and the ten readings are averaged on the plane and never in hue; /api/mood takes a handle and nothing else so no caller can spend the metered key on questions of their own), the quarter at /map (walkable pixel-glyph catalogue of EVERY social/ATProto tool across mino.mobi — districts by function, the road east climbs complexity tiers I–IV, per-tool stack + live-health cards; data in b/map/tools.js, companion audit in docs/SOCIAL-STACK-AUDIT.md), thread tetris at /tetr (real threads quantized into hex polyominoes), unique at /unique (the "hapax" finder — harvests every bigram/trigram from a handle's posts, keeps only the ones they used exactly once as a free pre-filter, then verifies each survivor against platform-wide search to surface the two/three-word phrases used exactly once on all of Bluesky; worker endpoints /api/unique/{scan,search}, the search fan-out streamed as NDJSON and carrying the authed service token; a boundaries toggle (default on, param crossPunct=false) forms n-grams only within contiguous runs — never across a sentence end, comma, quote, bracket or newline), coin at /coin (the posting box that only unlocks when your draft carries a phrase nobody on Bluesky has ever posted — /api/unique/novelty checks each contiguous bigram/trigram for zero existing hits; sending writes a normal app.bsky.feed.post via the shared auth worker with a narrow atproto+repo:app.bsky.feed.post OAuth scope, so the consent screen is post-only; imports /packages/oauth-client/auth.js staged into the assets dir at deploy time; THREAD COMPOSER: n segments, each gated separately (every post in a thread must carry a novel phrase, or you could pad something new with nine things that are not), posted as a real reply chain with root+parent wiring by b/coin/compose.js. MEDIA: paste, drag-drop or the file picker (accept=image/* with no capture attr, which is what makes a phone offer both photo library and camera); images are downscaled in-browser to fit the ~1MB PDS blob ceiling and uploaded only on send; per-image alt text. Scope widens to 'atproto repo:app.bsky.feed.post blob:image/*' — requested at sign-in rather than escalated on first attach, since an escalation redirect would drop pasted images. KEYBOARD-FIRST: mod+Enter sends, mod+Shift+Enter adds the next post and focuses it, mod+U attaches, mod+Backspace deletes an empty segment, mod+Arrow moves between posts; only modifier combos are intercepted so a bare Enter is always a newline, and after a send the composer resets AND refocuses so you can fire ten in a row without touching the mouse. b/coin/compose.selftest.mjs gates facet byte-offsets, grapheme counting and the reply chain. THE CONSTRAINT ALGEBRA (b/coin/rules.js): the novelty gate is no longer hardcoded but one member of a RULE SET — 16 rules across two axes, scope (post | thread) x kind (pure | corpus | self). SELF rules measure a draft against YOUR OWN history: `virgin` (contains a word you have never posted) downloads your whole repo as a CAR ONCE via b/coin/lexicon.js, reduces it to a Set of every word you have ever used, caches that in IndexedDB (1 week TTL) and then checks by set lookup on every keystroke — costly once, free thereafter; posting folds the new words in immediately so a word stops being new the moment you spend it. The repo is only downloaded when a self rule is actually in the ruleset AND you are signed in. Corpus rules (novel, novelBigram) hit /api/unique/novelty; pure rules (wildcard word-of-the-day, avgWord, lipogram, univocalic, noRepeats, alliterate, monosyllabic, acrostic, question, exact) are computed in-browser for free, and a purely lexical ruleset never touches the network. Thread-scope rules span the chain: haiku (5-7-5 across three posts), chain (each post begins on the previous post's last word), shrinking. Rulesets serialise into ?rules=novel,avgWord:6,wildcard:lantern and ?daily=1 is a date-seeded challenge pairing one GROUNDED rule (corpus or self — checked against the network or your own past) with one FORMAL rule (pure — checked against the text), same for everyone, no server. b/coin/rules.selftest.mjs gates every rule's accept/reject, URL round-trips and daily stability), meme at /meme (the mirror of unique — scan(kind=meme) keeps the bigrams/trigrams a handle REPEATS instead of hapaxes, then /api/unique/meme classifies each against platform search: zero other authors = a personal meme/idiolect fingerprint, a handful of others = the co-memeticists leaderboard aggregated across shared phrases, a saturated window = ordinary language dropped), lathe at /lathe (THE TOY MILL — procedurally generated social toys. The thesis: the ~40 hand-written social tools across mino.mobi are 40 points in one small space, so instead of writing the 41st, write the space. b/lathe/engine.js is a TYPED PIPELINE ALGEBRA — subject (one handle / two handles / a list) -> source (posts, media, likes, reposts, follows, followers, mutuals, list members, blocks) -> 0-2 lenses (ngrams, distinctive, hashtags, domains, clock, weekday, overTime, sentiment, lengths, readability, engagement, pictures, mentions, cooccur, replyTo, reach, overlap, exclusive, handles, bios) -> view (ranked, cloud, dial, bars, scatter, histo, graph, grid, wall) -> optional sink; every node declares in/out PORTS (posts/accounts/terms/edges/series/scalars/images) and toys are built by a TYPED WALK so they are correct by construction, then re-certified by an independent validate() oracle (the fable/forge move). 884 type-correct shapes at vocab v3. Nodes carry since/until so the vocabulary can RETIRE as well as grow (the `handles` lens was pruned at v3 — it measured domain grammar, not people — and stays reachable at v1/v2 so pinned links reproduce). THE HAYSTACK RULE (v3+): a `sparse` lens (ngrams/hashtags/domains/cooccur hunts rare things) sitting on the paged feed is auto-upgraded to the full-repo `archive` source, because a needle hunt needs the stack; parsed archives are cached per DID in IndexedDB (6h TTL) so several toys over one account pay the download once. PROGRESSIVE DRAW: single-binding pure-chain toys (and list toys, member by member) re-run the pipeline and repaint on every page of data, so a big pull fills in live instead of looking saturated. Grid faces carry a recenter control that re-runs the same toy centred on that account (for `two`, the clicked person replaces the second handle — the co-mutual walk), and an /io-style sticky ride-along bar carries prev/random/next. VOCABULARY IS VERSIONED (engine VOCAB const + `since` on each node): adding a node changes what every unpinned seed produces, so /lathe/t/<seed>?v=<n> pins a permalink to the vocabulary it was minted under and reproduces that toy exactly; a bare /t/<seed> means 'this seed in today's space'. Two heavy async lenses take a set of accounts to its internal STRUCTURE — `interlink` (relation space: exact who-follows-whom inside the set via app.bsky.graph.getRelationships, 30 others/call) and `kinship` (posting-material space: Jaccard over each member's recent post vocabulary) — both accounts->edges, both feeding the avatar force graph; b/lib/hovercard.js gives every post link a post preview and every profile link a profile preview (delegated, cached, desktop-only). CAPABILITIES refine the port types: sources declare what they `provide` (engagement counts, thumbnails) and lenses what they `need`, so the walk cannot mint a well-typed but STARVED toy (archive->engagement would draw a field of zeroes) — the oracle rejects those too. The `archive` source downloads a whole repo via com.atproto.sync.getRepo and parses the CAR with the Rust->WASM parser vendored under rite/ (staged into b/lib/atproto at deploy by deploy-b.yml, alongside packages/oauth-client; both are gitignored under b/). runtime.js drives wasm-bindgen's init with BYTES rather than a URL so the archive path is exercisable in node, not browser-only. rollToys(constraints)/feasible() power the mill's constraint picker (pin subject/source/lens/view/sink, roll within that corner; empty corners are reported, never faked) and every toy page exposes its genome as JSON. Deterministic (xmur3+mulberry32) so /lathe/t/<seed> is a permanent address — worker serves toy.html for any seed. THE PROOF: 12 real hand-written toys (unique, meme, rite/web, squares, rite/lexicon, rite/atlas, rite/signal, density, cluster, echo, photo, seek) are encoded as genomes in KNOWN[] and validate under the same algebra — rendered as a live table on the mill page; the generator independently rediscovers squares. PROCEDURALLY SCOPED OAUTH: a genome's sink derives its own scope (share -> 'atproto repo:app.bsky.feed.post'), the oracle rejects a sink whose scope does not authorise its write, and read-only toys never load the auth lib at all. b/lathe/runtime.js holds one real executor per node against public CORS-open endpoints — runtime.selftest.mjs asserts the engine vocabulary and the runtime implementations are THE SAME SET, so a permalink can never fail to run. Two node selftests, no build step, no backend: b/lathe/engine.selftest.mjs + b/lathe/runtime.selftest.mjs — run BOTH before touching the engine), groom at /groom (follow grooming — reads a handle's follow records straight from their repo and reports the ones that have not posted or replied in over a year, the ones whose accounts are gone, and the ones who never followed back; signed in as yourself, each row unfollows in place. Pure logic in b/groom/groom.js gated by groom.selftest.mjs, network in b/groom/scan.js, DOM+OAuth in app.js; see the section below for why it reads the repo rather than getFollows), and gc at /gc (block-intelligence tools + API — /gc block matrix: accounts vs posters → who directly blocks whom; /gc/mutuals: mutuals or followers of X who block Y; /gc/blockers: everyone blocking a named user; /gc/api docs the read-only JSON API at /api/gc/{relation,matrix,who-blocks,blockers}). #1/#2 read raw app.bsky.graph.block records (the worker also serves them server-side via b/lib/gc.js); network-wide blocker sets (#3 + the blocker side of #2) come from the clearsky.services index. All read-only public data, no auth, CORS open. Renamed from atmosphere (worker mino-atmosphere -> b; atmosphere.mino.mobi subdomain retired — detach in dashboard + delete the mino-atmosphere worker).
 
 ## thread and sleuth — the two that moved in
 
@@ -341,6 +341,318 @@ Selftest: `palm/palm.selftest.mjs` (the like trap, chunk-boundary equivalence,
 MST prefix compression, known answers for all six readings, the percentile, and
 the card's grapheme budget and link-facet byte offsets).
 
+## orbit — the ring, the game, and the expensive half
+
+`/orbit` asks one question twice. The cheap version is a game: here are the
+twelve accounts you reached for most this month, here is a post, **who wrote
+it**. The expensive version is a matrix: across the *whole history* of everyone
+in that ring, who replied to whom first and how much have they interacted since.
+
+Five files, and the split between them is the point — everything decidable is
+pure and gated, and `app.js` is wiring that decides nothing:
+
+| file | what it is |
+|---|---|
+| `orbit/api.js` | the worker half: `/api/orbit/{circle,deck,av}` |
+| `orbit/game.js` | dealing, scoring, grading, ring geometry — pure |
+| `orbit/matrix.js` | matrix assembly and the permalink codec — pure |
+| `orbit/repo-scan.js` | one CAR in, one matrix row out |
+| `orbit/card.js` | the canvas share card |
+
+`orbit.selftest.mjs` gates the first four. **Run it before touching any of
+them.**
+
+### The ranking left `/squares`
+
+Who a handle is closest to — the three repo scans, the weights, the sort — is in
+[`lib/closeness.js`](lib/closeness.js) now, not in `squares/circle.js`. Two
+tools drawing the same circle from two copies of the same scan is how the two
+circles quietly stop agreeing. `squares/circle.js` is what is actually about
+squares: the best picture each of them posted.
+
+The ranking reads the seed's **own** repository — their likes, their reposts,
+their replies, their quotes — never engagement received. That is the whole claim
+of the word "closest": it measures who *they* reach for. Weights (`WEIGHTS`) are
+editorial and say so: a reply costs you a sentence, a like costs you a thumb.
+
+### Three things the ring does that are not obvious
+
+- **Mutuals fill it first, and a non-mutual seat says so.** A hard
+  mutuals-only filter routinely hands back a four-seat ring, because a month of
+  replies to people who never followed back is a normal month. `pickCircle` is
+  pure precisely so the selftest can pin the fallback instead of hoping for it,
+  and a topped-up seat carries `mutual: false` and a `△` in the legend.
+- **An account the AppView will not hydrate is dropped.** Deactivated,
+  suspended, deleted or blocking us: it cannot supply a card, cannot be guessed,
+  and seating it prints a raw DID on the ring — a key, not a name. Measured on
+  `minormobius`: one of the twelve. The next candidate takes the seat.
+- **The scan budget is lower than squares'** (`RING_BUDGET`: 14/6/10 pages
+  against 20/8/12). This is a *foreground* wait — a blank arena until it returns
+  — where squares is already painting tiles. On a heavy account the full budget
+  takes 20 s and this one about 13, and **the top twelve came out identical**: a
+  twelfth seat is decided by dozens of interactions, not by the last four
+  hundred likes of the month. It does bias toward the recent end of a window
+  somebody out-likes, which is the honest cost and is stated on the page.
+
+### The hand is dealt round-robin, and that is a fairness rule
+
+Sampling one big pile looks right and is not. One member of a twelve-seat ring
+who posts forty times a day would supply a third of the cards, and the player
+would learn to guess *them* rather than learn the circle. `dealHand` deals one
+card per author per round, and the weighting — wordier posts first, saturating
+at 60 words so a single wall of text cannot eat the deck — happens strictly
+*inside* one author's own stack. The selftest plants exactly that prolific
+account and asserts the spread never exceeds one card.
+
+A seat with nothing long enough to deal is returned in `absent` and greyed out
+in the ring. **A seat that can never be the answer has to look different from
+one that can**, or the game is asking an impossible question with a straight
+face. Under `MIN_WORDS` (5) a post is "lol" or "same" and the answer is a coin
+toss dressed up as a question.
+
+The whole deck arrives in one request and every later hand is dealt from memory,
+which is what makes "deal 20 more" instant. Re-querying twelve feeds to hand out
+twenty more cards would be a second wait for a button that should feel free.
+
+### The grade reads lift, not percent
+
+Difficulty is set by the size of the ring: **50% against four seats is bad and
+50% against twenty is remarkable.** `scoreHand` reports `lift` — the share of
+the distance from blind guessing to perfect that the player actually covered —
+and the seven bands read that. The raw percentage and the chance line are both
+printed anyway, so the number can be argued with.
+
+### The card, and the CORS fact behind it
+
+`card.js` draws 1080² off the same `ringLayout()` the arena uses, so the picture
+people post is the picture they played. It follows palm's rule: **the headline
+goes under the plot.** A score disc in the middle of this ring would sit exactly
+where the seed's own avatar belongs and occlude the lines that carry the
+meaning.
+
+**`cdn.bsky.app` sends no `access-control-allow-origin` header at all.** Not a
+restrictive one — none. So `crossOrigin="anonymous"` on an avatar does not
+merely taint the canvas, it fails the load outright, and without it `toBlob`
+throws `SecurityError` and the copy button dies. `/api/orbit/av` is one
+same-origin hop that fixes both, locked to that host so it is not an open proxy
+and cached hard because an avatar at a given CID is immutable. Verify it before
+assuming it is unnecessary:
+
+```bash
+curl -s -D - -o /dev/null -H 'Origin: https://b.mino.mobi' '<an avatar url>' | grep -i access-control
+```
+
+The `ClipboardItem` is built around the blob **promise**, not an awaited blob:
+Safari revokes clipboard permission the moment the stack leaves the user
+gesture, so awaiting first is a permission error on exactly the browser most
+likely to be used to post the picture.
+
+### repo-scan.js is a fourth *filter*, not a fourth CAR reader
+
+There are already three CAR paths here (`coin/lexicon.js`, lathe's `archive`,
+`palm/car-stream.js`). This is not a fourth. It **imports** `uvarint`,
+`cidLength`, `hex` and `decode` from `palm/car-stream.js` and writes only the
+block loop, because what it keeps is different: palm drops everything that is
+not a post, and three of the five interaction kinds here are likes and reposts.
+Fix a decoding bug there and it is fixed here.
+
+Two things carried over from palm because they are load-bearing:
+
+- **No MST walk.** Prefix compression is node-local, so blocks decode in any
+  order: collect key→CID from whatever nodes stream past, collect CID→record
+  from record blocks, join at the end.
+- **Anchored sniffing.** A post type is found by the DAG-CBOR length byte
+  `0x72` that can only precede an 18-character string — a like's `subject.uri`
+  contains `app.bsky.feed.post` behind a `/`, never behind `0x72`. `sniff`
+  extends that to `0x72`+`app.bsky.feed.like` and `0x74`+`app.bsky.feed.repost`,
+  and the decoded record's own `$type` is what actually decides. Get the anchor
+  wrong and the matrix fills with replies nobody wrote, from a scan that looks
+  healthy. The selftest plants three of those likes.
+
+What is stored is bounded by the **ring**, not by the repo: counts only for the
+dozen DIDs asked about, and one candidate first-contact each. Measured on
+`minormobius.bsky.social` — **88 MB, 304k blocks, 237k records in 8.4 s at
+178 MB RSS**, yielding 50,824 posts' worth of tallies and five verified first
+replies. The CAR is never buffered and never kept.
+
+**First contact is the earliest reply; a quote is the fallback and is flagged as
+one.** A reply outranks a quote whatever the dates say — the question is when
+you first spoke *to* someone, and a quote is speaking *about* them. Keyed by
+target rather than by post, because one post can reply to one person and quote
+another, and keying by post silently dropped the second of those. `createdAt` is
+self-reported and occasionally a lie (see `/groom`), so "first" is a claim about
+the record and not about wall-clock truth.
+
+### The matrix, and why a half-finished one is still honest
+
+Cell (i, j) is what person *i* did **to** person *j*. Directed on purpose:
+"who spoke first" has no meaning symmetrised, and the asymmetries — one person
+always replying, the other never answering — are what a heat map can show.
+
+`state.rows` records which repositories were **actually read**, so a blank cell
+in an unread row renders hatched rather than empty. Otherwise a stopped scan
+reads as "these people have never spoken", which is the failure that would
+flatter everyone. `pairs()` only reports a pair when both its rows are in.
+
+### The permalink is the point
+
+Filling the matrix costs thirteen full repository downloads. An object that
+expensive should survive being closed, so the whole state deflates into a URL
+fragment — no server, nothing stored, nothing uploaded. A full 13-seat matrix
+(156 directed cells) packs to **1.9 KB of base64** — a 1,971-character URL, and the selftest fails
+if that ever passes 6 KB.
+
+**Post text is deliberately left out** and re-fetched from the AppView on open:
+169 posts of text would be 50 KB of fragment where 169 rkeys are under three —
+and a post deleted since then comes back as *deleted* rather than as a
+quotation from a ghost. Handles are re-resolved from the DIDs for the same
+reason; the handles baked into the link are only a fallback for when the network
+is gone.
+
+### Quality-of-life
+
+- **Typeahead** — `/lib/handle-typeahead.js` as a classic `<script>` plus
+  `data-bsky-typeahead`. The shared component, not a sixth copy.
+- **Drag is pointer events, not HTML5 drag-and-drop**, which does not exist on
+  touch and this is mostly played on a phone. One code path for mouse and
+  finger; tapping a face answers too, and `1234567890qwertyui` maps to the
+  seats in order.
+- A face arms only when the card is genuinely over it — too generous a
+  threshold and a small nudge answers the question for you.
+- The last handle is remembered, `?seed=<handle>` opens straight into a ring,
+  and `#m=<payload>` opens straight into a shared matrix with the game hidden.
+
+## mood — a jev mood ring, and the primitive that makes it honest
+
+`/mood` reads the tone of an account's last ten posts and replies and draws
+one band of colour per post around their avatar. The reading comes from
+[**jev**](https://typesafe.ai/blog/introducing-system-one-models-and-jev),
+TypeSafe's System One model, which generates no text at all: you post a state
+and typed questions, and it returns typed answers. It lives at
+[`mega.mino.mobi/jev/`](https://mega.mino.mobi/jev/) — read `mega/jev/CLAUDE.md`
+before changing anything here that touches the model.
+
+| file | what it is |
+|---|---|
+| `mood/mood.js` | the questions, the plane, the colour — pure, and imported by BOTH the page and the worker |
+| `lib/jev.js` | `/api/mood`: handle → ten posts → one model call |
+| `mood/app.js` | the SVG ring, the list, and the link between them |
+| `mood/mood.selftest.mjs` | **run it before touching any of the above** |
+
+`mood.js` is imported by the browser *and* by `lib/jev.js` inside the worker.
+That is deliberate: the question shapes are the contract with TypeSafe, and a
+contract written in two places is a contract that drifts.
+
+### The primitive comes from the shape of the variable
+
+This is jev's own colour-axis finding, and a mood ring is the purest case of
+it. A `score` returns the expectation over an **ordered** set of rungs, so:
+
+> averaging over an ordering that does not exist would put "red or violet" at
+> green.
+
+The obvious build is one `score` from *angry* to *happy*. **It is wrong.** A
+post that is half fury and half delight comes back at the midpoint and renders
+as **calm** — the model's uncertainty laundered into a confident reading of
+serenity, with nothing on the page looking broken. So mood is asked as the two
+things that genuinely are ordered plus one thing that genuinely is not:
+
+| variable | shape | primitive |
+|---|---|---|
+| valence — bleak → delighted | ordered | `score` |
+| energy — becalmed → frantic | ordered | `score` |
+| flavour — wry, tender, angry… | **unordered** | `choice` |
+
+Valence and energy are the circumplex: two axes whose **plane** carries the
+mood where neither alone does. Colour is derived from where a post lands on
+that plane and never asked for directly, because hue has no order either.
+
+**The same trap waits a second time**, when ten readings become one stone.
+Averaging the *hues* of someone half furious (magenta) and half serene (green)
+gives indigo — melancholy, a mood neither post had, stated confidently.
+Averaging valence and energy instead puts them at dead centre with intensity
+~0, which renders grey and reads as "no coherent mood", which is the truth.
+`mood.selftest.mjs` asserts the naive hue mean really does land on indigo and
+that `aggregate()` does not, so the reasoning is pinned and not just described.
+
+A consequence worth keeping: a torn ring and ten flat posts share a stone. Only
+`spread()` tells them apart, which is why the number is on the page.
+
+### Two things the colour carries
+
+- **Saturation is intensity, floored.** A genuinely flat post reads as muted,
+  never as a hole in the ring.
+- **Alpha is confidence, and it has to be visible.** Measured: a three-word
+  reply ("The simp ratio") comes back at 0.32 where a full sentence sits near
+  0.9. A ring that drew both at full strength would be claiming to read a tone
+  off three words. The selftest fails if the haze gap shrinks below 0.3.
+
+`hueFor` is `(100 − angle) mod 360`, and the coefficient is **1 because the map
+has to close** — any other slope walks the hue somewhere else after a full turn,
+so the same mood would get two colours depending on the route taken to it.
+
+**The legend wheel is drawn at `−angle`.** SVG's +y points *down* and every
+circumplex ever published puts arousal *up*; the wheel samples the same
+`moodColour()` the ring uses, so it cannot drift from the thing it is a key to,
+but it is drawn mirrored so it reads the way a reader expects.
+
+### `/api/mood` is not a proxy, and that is the security design
+
+jev's own proxy takes `{state, questions}` and forwards them, which is right
+for a surface whose point is watching arbitrary questions get answered. Its
+comments are blunt about the cost — *"an open pass-through to a metered API is
+somebody else's free API key"* — and it spends a whitelist rebuild, two size
+caps and a throttle defending that.
+
+**This endpoint takes a handle and nothing else.** The state and the questions
+are built in the worker from `mood.js`; there is no request shape that makes it
+ask jev something of the caller's devising. That is a narrower contract than a
+whitelist and it costs nothing. What it still keeps, because the key is
+metered: a per-IP throttle (CORS binds browsers, curl ignores it), retries on
+only the two statuses the docs name, and **a five-minute per-handle cache** —
+the main thing standing between a public toy and a bill.
+
+### The second copy of the key
+
+jev's `CLAUDE.md` says the key "lives in the worker, and only in the worker",
+and this is a *second* worker. That was a decision, not an oversight:
+
+- Calling mega's proxy server-side would have put **every visitor to this
+  surface into one 30-a-minute bucket**, since they would all arrive from b's
+  egress — one surface quietly spending another's budget.
+- The browser cannot call it directly: mega's proxy emits **no CORS headers at
+  all**, by design. Verified:
+  `curl -sD - -o /dev/null -X POST -H 'Origin: https://b.mino.mobi' https://mega.mino.mobi/jev/api/ask` → no `access-control-allow-origin`.
+
+So `deploy-b.yml` writes the **same** repo secret mega uses (`jev_key`) onto
+the `b` worker as `TYPESAFE_API_KEY`. One credential, two installs — not two
+credentials. It is still never in an asset, never in the browser, and never in
+a response; the worker selftest equivalent here is that `/api/mood` returns the
+raw jev request and response *without* the auth header it rode in on.
+
+**If the key is unset the page says so** rather than pretending:
+`/api/mood/health` reports `configured: false` and `/api/mood` returns a 503
+with a sentence.
+
+### Measured
+
+| | |
+|---|---|
+| one ring | 10 posts → **30 questions in ONE call** (jev evaluates each in isolation against the same state) |
+| cost | ~4,600 input tokens, ~1,200 output |
+| latency | 300–750 ms model, ~1.7 s including the two Bluesky reads |
+| discrimination | per-post hues span **28–313** on a varied account; stones range from `weary` indigo (`pfrazee.com`, angry×3) to `at ease` green (`jay.bsky.team`, tender×4) |
+| the torn ring | `dril.bsky.social` spans the whole wheel and lands on `even` — correct, and exactly what `spread()` exists to report |
+
+**Replies are in, reposts are out.** The ask was "posts/replies", and a reply is
+where tone actually lives — a timeline of standalone posts is somebody's
+broadcast voice. A repost's text belongs to someone else, and reading one as
+the reposter's mood would attribute a stranger's feelings to them.
+
+**A post the model would not read is drawn as a dashed ghost**, not as calm,
+and is left out of the stone entirely. One unreadable post must not cost the
+other nine their ring.
+
 ## groom — reading the follow graph so it can be pruned
 
 `/groom` answers two questions about a handle's follows — *who has gone quiet*
@@ -400,7 +712,7 @@ else's behalf — and `unfollowOne` re-checks that at click time, because a
 session can change between render and click.
 
 `app.bsky.graph.follow` is in `workers/auth`'s `WRITE_COLLECTIONS` on this
-branch, but **`workers/auth` is owned by `claude/bsky-app-view-feasibility-8sdflz`**
+branch, but **`workers/auth` is owned by `claude/browser-cad-ideation-ollmd3`** (since 2026-09-11; that branch carries `main`'s list, so its first auth deploy shipped this token)
 — so the collection only enters the live ceiling in `client-metadata.json` on a
 deploy this surface does not control. Asking for a scope the ceiling does not
 declare fails the whole sign-in at PAR with `invalid_scope`. So
@@ -472,7 +784,7 @@ but it changes what the feed does, so it stays the owner's choice.
 
 ## Deploying
 
-Pushes to `claude/bsky-follow-grooming-gjkops` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
+Pushes to `claude/mutual-closeness-game-earzue` that touch this surface's paths trigger [`.github/workflows/deploy-b.yml`](../.github/workflows/deploy-b.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,
@@ -480,6 +792,31 @@ or the deploy goes green while the site never changes.
 
 ⚠️ **`main` does NOT deploy this surface.** The workflow lists exactly one
 branch and main is not it. This line used to claim otherwise.
+
+**It changed hands again on 2026-09-19**, from
+`claude/bsky-follow-grooming-gjkops` to `claude/mutual-closeness-game-earzue`,
+which brought `/orbit`. The manifest check was run first — it is the only check
+that matters for a handover here, because Workers Static Assets **replaces** the
+whole manifest rather than merging it:
+
+```bash
+git fetch origin claude/bsky-follow-grooming-gjkops
+comm -23 <(git ls-tree -r --name-only FETCH_HEAD b/ | sort) \
+         <(git ls-tree -r --name-only HEAD b/ | sort)     # must be EMPTY
+```
+
+It was empty: the `b/` file list is identical between the two branches, so
+nothing can be dropped by republishing from here. Where the *contents* differ,
+this branch is the newer one — it is cut from `main`, and the old owner predates
+main's feedgen/hose split, so its `b/feedgen/pipeline.js` still carries the
+filters that now live in `packages/feedgen/match.js`. Deploying from the old
+owner would have been the regression, not this.
+
+⚠️ **The old owner still carries a `deploy-b.yml` that names itself**, for the
+same reason the 2026-08-21 handover did: Actions reads the workflow from the ref
+being pushed. Until that branch takes this commit, a push there touching `b/**`
+would deploy b from a branch that no longer owns it. If you are about to change
+`b/` over there — don't; change it here.
 
 **The surface changed hands on 2026-08-01**, from
 `claude/bsky-unique-bigrams-trigrams-ve0fvz`. That branch was **fully merged

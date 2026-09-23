@@ -11,7 +11,12 @@
   "assets": {
     "directory": "../.mappa-stage"
   },
+  // A PLAIN ROUTE (2026-09-23), converted from a custom domain to free one of the
+  // zone's 100 slots; the host and every URL on it are unchanged (converted live by
+  // cf-ops convert-to-route, .github/cf-ops/plan.json batch 2). A route makes no DNS, so
+  // the deploy workflow runs scripts/route-dns.mjs to ensure the proxied record exists.
+  // Do not turn it back into a custom_domain.
   "routes": [
-    { "pattern": "mappa.mino.mobi", "custom_domain": true }
+    { "pattern": "mappa.mino.mobi/*", "zone_name": "mino.mobi" }
   ]
 }

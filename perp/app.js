@@ -60,7 +60,7 @@ const loading = new Map();
 function loadCandles(key) {
   if (S.candles[key]) return Promise.resolve(S.candles[key]);
   if (!loading.has(key)) {
-    loading.set(key, fetch(`/data/${RESOS[key].file}`).then((r) => r.json()).then((j) => {
+    loading.set(key, fetch(`data/${RESOS[key].file}`).then((r) => r.json()).then((j) => {
       S.candles[key] = decodeCandles(j);
       return S.candles[key];
     }));
@@ -730,8 +730,8 @@ function paintRecent() {
 // ------------------------------------------------------------------- boot ---
 (async function boot() {
   const [fundRaw, statsRaw] = await Promise.all([
-    fetch('/data/hl-btc-funding.json').then((r) => r.json()),
-    fetch('/data/stats.json').then((r) => r.json()),
+    fetch('data/hl-btc-funding.json').then((r) => r.json()),
+    fetch('data/stats.json').then((r) => r.json()),
     loadCandles('1d'),
   ]);
   S.funding = decodeFunding(fundRaw);

@@ -1,0 +1,33 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "A 4 mm hardened dowel, 34 long, along +Z: pressed through a pivot arm or a jaw carrier, carrying a link above and a link below in bronze bushings (retaining clips not modelled). Four per gripper. One extrude.",
+ "params": {
+  "d": 4,
+  "h": 36
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "section",
+   "loops": [
+    {
+     "name": "od",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d/2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pin",
+   "profile": "section",
+   "depth": "h"
+  }
+ ]
+}

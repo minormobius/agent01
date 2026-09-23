@@ -1,0 +1,19 @@
+# Workers Static Assets serves a matching asset WITHOUT invoking the worker, so
+# a header set in worker.js reaches /api/demos and nothing else. `_headers` is
+# the mechanism that applies to the pages, and it costs no worker invocation.
+#
+# The claim this file has to make good on is the one on the front page: no ads,
+# no analytics, no accounts, nothing loaded from anywhere. A CSP of
+# `default-src 'self'` is that claim in a form a browser enforces — adding a
+# font CDN or an analytics script would mean visibly widening this header,
+# which is the point of putting it here.
+#
+# 'wasm-unsafe-eval' is what lets the browser compile cf/cffourier.wasm.
+# Without it the continued-fraction engine will not start. 'unsafe-inline' for
+# styles covers the <style> block in each page; there is no inline script.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=()
+  Cross-Origin-Opener-Policy: same-origin

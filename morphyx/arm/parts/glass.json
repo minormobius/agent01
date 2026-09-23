@@ -1,0 +1,48 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "A Ø80 × 140 glass. Reference geometry.",
+ "params": {
+  "d": 80,
+  "t": 140,
+  "z0": 0
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "36"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "glass",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

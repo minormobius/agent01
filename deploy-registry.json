@@ -83,6 +83,7 @@
       "surface": "root",
       "dir": ".",
       "endpoint": "minomobi.com / mino.mobi (landing)",
+      "binding": "pages",
       "type": "frontend",
       "branch": "claude/landing-page-architecture-1igui5",
       "uses": [],
@@ -129,7 +130,8 @@
         "procgen/**",
         "next/**",
         "archive/**",
-        "mino.css"
+        "mino.css",
+        "eigensite/**"
       ]
     },
     {
@@ -167,7 +169,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/bsky-follow-grooming-gjkops",
+      "branch": "claude/mutual-closeness-game-earzue",
       "uses": [],
       "provides": null,
       "paths": [
@@ -176,6 +178,8 @@
       "serves": [
         "disk",
         "spark",
+        "orbit",
+        "mood",
         "dyad",
         "gc",
         "squares",
@@ -188,20 +192,20 @@
         "palm",
         "groom"
       ],
-      "note": "Portal to every Bluesky tool here\u2014feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool \u2014 explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident \u2014 photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=).",
-      "status": "RECONCILED 2026-08-15 \u2014 two branches developed b/ in parallel. Owner is claude/ai-detection-browser-aw7kq5, whose tree this candidate's b/ matches byte for byte (75 files, palm at 2026-08-06). claude/image-manipulation-platform-g5puxy has the older b/ (66 files, 21 of them behind) and contributed the registry record for palm, not the code \u2014 deploying b from it would regress the surface."
+      "note": "Portal to every Bluesky tool here\u2014feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts orbit at /orbit (closest-circle guessing game + a whole-history closeness matrix read out of CAR files) and mood at /mood (a jev mood ring \u2014 the tone of the last ten posts as one colour band each around the avatar, read by TypeSafe's decision-only model) palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool \u2014 explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post).",
+      "status": "HANDOVER 2026-09-19 \u2014 from claude/bsky-follow-grooming-gjkops to claude/mutual-closeness-game-earzue, which brought /orbit. The manifest check was run first and is the only one that matters for a handover here (Workers Static Assets replaces the whole manifest, it does not merge): the b/ FILE LIST is identical between the two branches \u2014 nothing can be dropped by republishing from here \u2014 and where the contents differ this branch is the NEWER one, because it is cut from main and the old owner predates main's feedgen/hose split (b/feedgen/pipeline.js now imports packages/feedgen/match.js). The old owner also still carries a deploy-b.yml naming itself, so a push there touching b/** would deploy b from a branch that no longer owns it until it takes this commit. Earlier: RECONCILED 2026-08-15 \u2014 two branches developed b/ in parallel; claude/image-manipulation-platform-g5puxy has the STALE b/ and must never deploy this surface."
     },
     {
       "surface": "auth",
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/bsky-app-view-feasibility-8sdflz",
+      "branch": "claude/browser-cad-ideation-ollmd3",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
-      "status": "RECONCILED 2026-08-15 \u2014 one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins \u2014 farmville's tree is still missing the loop origin.",
+      "status": "HANDED OVER 2026-09-11 to claude/browser-cad-ideation-ollmd3 for cad.mino.mobi (com.minomobi.cad.part, com.minomobi.cad.revision). That tree's workers/auth was byte-identical to main's, which is the union: main's 80 collections (78 live \u2014 main's com.minomobi.hopper.run and app.bsky.graph.follow had never been deployed by the previous owner, claude/bsky-app-view-feasibility-8sdflz) plus the two cad ones = 82, nothing dropped, every origin kept. check-auth-scope green at handover.",
       "paths": [
         "workers/auth/**"
       ],
@@ -223,6 +227,7 @@
       "surface": "bakery",
       "dir": "bakery",
       "endpoint": "bake.mino.mobi",
+      "binding": "dashboard",
       "status": "AUDIT 2026-07-16: endpoint corrected bakery.mino.mobi -> bake.mino.mobi (probe-verified: bake 200, bakery unresolvable). wrangler.jsonc has NO custom_domain route \u2014 bake.mino.mobi is dashboard-attached (golden-rule risk; add a routes entry on next touch).",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
@@ -251,7 +256,7 @@
       "dir": "mappa",
       "endpoint": "mappa.mino.mobi",
       "type": "frontend",
-      "branch": "claude/civ-deploy-unification-vt35ju",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
@@ -259,14 +264,15 @@
         "packages/atproto/pds.js",
         "packages/oauth-client/auth.js"
       ],
-      "note": "The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) \u2014 MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis). Assets-only worker\u2026 (full description: mappa/CLAUDE.md)"
+      "note": "The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis). Assets-only worker… (full description: mappa/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"mappa.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "polis",
       "dir": "polis",
       "endpoint": "polis.mino.mobi",
       "type": "frontend",
-      "branch": "claude/civ-deploy-unification-vt35ju",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "civ"
       ],
@@ -276,7 +282,8 @@
         "mappa/engine.js",
         "mappa/climate-forcing.js"
       ],
-      "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) \u2014 MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ \u00fcber-macro \u2192 hinterland mesoscale \u2192 city micro)\u2026 (full description: polis/CLAUDE.md)"
+      "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ über-macro → hinterland mesoscale → city micro)… (full description: polis/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "civ",
@@ -338,20 +345,6 @@
       ]
     },
     {
-      "surface": "perp",
-      "dir": "perp",
-      "endpoint": "perp.mino.mobi",
-      "type": "frontend",
-      "branch": "claude/futures-finance-learning-r7p47e",
-      "uses": [],
-      "provides": null,
-      "note": "Learning surface for perpetual futures. Two linked canvas time-series: BTC-USD spot candles (Coinbase, daily from 2015-07-20, with 6h and 1h resolutions swapped in by zoom level) and the Hyperliquid BTC perp's hourly premium and funding rate from 2023-05-12, drawn against the ±5bp clamp corridor inside which funding is mathematically blind to premium. Static column-encoded JSON in data/ built by scripts/backfill.mjs (both upstreams paginate — 300 candles and 500 hours per request); scripts/analyse.mjs derives every statistic the prose quotes into data/stats.json so the copy cannot drift from the series. The page tops the static history up with a live tail fetched straight from the browser (both APIs send CORS *), with bounded timeouts so an unreachable endpoint degrades to committed data. Refreshed daily by refresh-perp-data.yml, which commits and deploys. Pure static + assets worker, no build, no D1/DO/secrets.",
-      "paths": [
-        "perp/**",
-        ".github/workflows/deploy-perp.yml"
-      ]
-    },
-    {
       "surface": "tide",
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
@@ -370,14 +363,15 @@
       "dir": "iris",
       "endpoint": "iris.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-solver-djdpdm",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "The END-ON cross-section view of an O'Neill cylinder \u2014 looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'. One coupled steady-state solve (iris/sim/section.mjs): the lights are the only heat in, the radiator skin the only heat out, the habitat's heat carried there through the floor's water reservoirs + heat pipes \u2014 that balance pins every temperature. Switchable gradient views over the circle (temperature / pressure / humidity / wind), toggleable fog (RH\u22651) and fountain jets, the inner-rim ratchet topography (iris/sim/ratchet.mjs). Companion to the tide thermodynamics wing; its own geometry (iris/shared/geometry.mjs), not tide's. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "iris/**",
         ".github/workflows/deploy-iris.yml"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"iris.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/oneill-cylinder-solver-djdpdm, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "borges",
@@ -422,13 +416,14 @@
       "dir": "duck",
       "endpoint": "duck.mino.mobi",
       "type": "frontend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "duck/**"
       ],
-      "note": "Two WebGPU games on one worker (`duck`, custom_domain duck.mino.mobi). Pure-static, no build, no secrets. (1) duck.mino.mobi/ \u2014 the spin-gravity DUCK FLIGHT SIM: fly an aerodynamic duck under uniform Earth gravity vs\u2026 (full description: duck/CLAUDE.md)"
+      "note": "Two WebGPU games on one worker (`duck`, custom_domain duck.mino.mobi). Pure-static, no build, no secrets. (1) duck.mino.mobi/ — the spin-gravity DUCK FLIGHT SIM: fly an aerodynamic duck under uniform Earth gravity vs… (full description: duck/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"duck.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/feature-merge-candidate-l4dkwq, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "bounty",
@@ -461,6 +456,7 @@
       "surface": "cards",
       "dir": "cards",
       "endpoint": "cards.mino.mobi",
+      "binding": "dashboard",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -514,12 +510,13 @@
       "dir": "empathy",
       "endpoint": "empath.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "empathy/**"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"empath.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "feed",
@@ -632,12 +629,13 @@
       "dir": "j",
       "endpoint": "j.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "j/**"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"j.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "photo",
@@ -661,13 +659,14 @@
       "dir": "phylofiction",
       "endpoint": "phylofiction.mino.mobi",
       "type": "frontend",
-      "branch": "claude/phylofiction-world-generation-3zd33u",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "Seeded deterministic tree-of-life generator: a Rust/WASM evolution engine (engine-rs/, artifact committed by build-phylofiction-wasm.yml) drives a microbial phylogeny that any page-seed reproduces identically. Static reader (assets worker `phylofiction` owns phylofiction.mino.mobi); all computation client-side, no D1/DO/secrets. JS engine mirrored against the wasm in test/parity.test.mjs.",
       "paths": [
         "phylofiction/**"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"phylofiction.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/phylofiction-world-generation-3zd33u, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "jurassic",
@@ -701,6 +700,7 @@
       "surface": "poll",
       "dir": "poll",
       "endpoint": "poll.mino.mobi",
+      "binding": "dashboard",
       "type": "fullstack",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [
@@ -729,7 +729,7 @@
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/procedural-name-generator-2qqwfq",
+      "branch": "claude/syllable-word-generator-yhw8wj",
       "uses": [
         "atpolls-db"
       ],
@@ -821,7 +821,7 @@
       "dir": "zoom",
       "endpoint": "zoom.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "feed.mino.mobi"
       ],
@@ -829,7 +829,7 @@
       "paths": [
         "zoom/**"
       ],
-      "status": "MANAGED \u2014 FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"zoom.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). MANAGED — FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
       "note": "Vite/React build -> ./dist, Worker `zoom` with custom_domain zoom.mino.mobi (canvas/math/g/torus pattern). NB: zoom is a Worker, not a Pages project (verified: no Pages project named zoom)."
     },
     {
@@ -837,7 +837,7 @@
       "dir": "time",
       "endpoint": "time.mino.mobi",
       "type": "frontend",
-      "branch": "claude/audit-time-deploy-ag144t",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "op": "encapsulation",
@@ -845,7 +845,7 @@
         "time/**",
         "scripts/build-time-index.mjs"
       ],
-      "status": "MANAGED \u2014 new surface via deploy-time.yml (Worker `time`, custom_domain time.mino.mobi). Carved out of the root bundle; assets-only static, deploy step regenerates index.json. Sources stay in time/; also mirrored at mino.mobi/time until fully removed from root.",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"time.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/audit-time-deploy-ag144t, byte-identical over every deployed path at handover). MANAGED — new surface via deploy-time.yml (Worker `time`, custom_domain time.mino.mobi). Carved out of the root bundle; assets-only static, deploy step regenerates index.json. Sources stay in time/; also mirrored at mino.mobi/time until fully removed from root.",
       "note": "The Mino Times \u2014 a two-desk paper (Modulo = data desk, Morphyx = institutional desk). Repo-native front page renders from time/index.json (built from time/articles/*.html by scripts/build-time-index.mjs), so no Bluesky-account suspension can blank it. Running series: The LDT Reckoning. Legacy time.minomobi.com is dead; canonical is now time.mino.mobi."
     },
     {
@@ -868,14 +868,17 @@
         "prop",
         "cohomology",
         "voronoi",
-        "arnold"
+        "arnold",
+        "szilassi",
+        "csaszar",
+        "equivelar"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/holder-continuous-procgen-arqnj4",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks.",
+      "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover). ns was folded in as a member the same morning and split back out that afternoon onto its own route; math/_redirects forwards math.mino.mobi/ns/* to ns.mino.mobi.",
       "op": "encapsulation",
       "note": "Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status \u2014 and an explicit roadmap of next entries (szemer\u00e9di\u2013trotter, heilbronn, borsuk, viazovska, ...)\u2026 (full description: geometry/CLAUDE.md)",
       "paths": [
@@ -895,8 +898,26 @@
         "prop/**",
         "cohomology/**",
         "voronoi/**",
-        "arnold/**"
+        "arnold/**",
+        "szilassi/**",
+        "csaszar/**",
+        "equivelar/**"
       ]
+    },
+    {
+      "surface": "ns",
+      "dir": "ns",
+      "endpoint": "ns.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "ns/**",
+        ".github/workflows/deploy-ns.yml"
+      ],
+      "note": "Explainer pack on the 2026 forced Navier–Stokes finite-time blowup paper (OpenAI). Thin assets Worker (worker `ns`, plain route ns.mino.mobi/*) — no build, no D1, no secrets. Hub + six single-file interactive sub-pages, each implementing one piece of the construction in the browser… (full description: ns/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23) — the first surface bound by a plain Worker route instead of a custom domain: { pattern: \"ns.mino.mobi/*\", zone_name: \"mino.mobi\" }, costing none of the zone's 100 custom-domain slots. deploy-ns.yml runs scripts/route-dns.mjs to create the proxied AAAA 100:: the route needs, and fails unless the host actually serves. Owned by claude/landing-page-merge-candidate-8sp0fv. History: custom domain from 2026-09-08 (claude/navier-stokes-website-rl8aox); detached 2026-09-23 to free a slot and briefly folded into math; split back out the same day."
     },
     {
       "surface": "canvas",
@@ -953,10 +974,10 @@
       "dir": "tjs",
       "endpoint": "tjs.mino.mobi",
       "type": "frontend",
-      "branch": "claude/threejs-procgen-buildings-mprgs6",
+      "branch": "claude/mobile-support-attribution-abs7qz",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 new surface via deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/dragonfly-pursuit-sim-pv3e8p (dragonfly aerial-combat sim take-over; the /dragon bench adds a Rust\u2192wasm two-body visual-bearing pursuit solver + a head-cam POV).",
+      "status": "MANAGED — deploy-tjs.yml (Worker `tjs`). Self-contained static three.js workbench surface; stages tjs/ into dist at build time. Owning branch reassigned to claude/mobile-support-attribution-abs7qz (marble-run take-over; the /marbles bench is a touch-first re-implementation of Codetaur's Marbleworks builder, github.com/ngwnos/marbles, MIT, with full accreditation). Before the reassignment the tjs/ tree on this branch was diffed against the previous owner (claude/threejs-procgen-buildings-mprgs6) and found identical apart from the additions — Static Assets replaces the whole manifest, so that check is the precondition for moving ownership, not a formality.",
       "op": "create",
       "note": "tjs.mino.mobi \u2014 three.js workbenches\u2026 (full description: tjs/CLAUDE.md)",
       "paths": [
@@ -1047,10 +1068,10 @@
       ],
       "endpoint": "torus.mino.mobi",
       "type": "frontend",
-      "branch": "claude/fractal-torus-webgpu-97gxv4",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 additive launch via deploy-torus.yml (Worker `torus`). The toroidal games staged from clock/<toy>, not moved; g + clock still serve them.",
+      "status": "ROUTE SURFACE (2026-09-23): converted from a custom domain to { pattern: \"torus.mino.mobi/*\", zone_name: \"mino.mobi\" } by route-dns.mjs --takeover in its deploy workflow, freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/fractal-torus-webgpu-97gxv4, byte-identical over every deployed path at handover). MANAGED — additive launch via deploy-torus.yml (Worker `torus`). The toroidal games staged from clock/<toy>, not moved; g + clock still serve them.",
       "op": "encapsulation",
       "note": "Toroidal game family split out of the deprecated clock surface: corn, emsim, inpac, knotpac, pac, torpac, toruschess + a torus/index.html hub, plus fortress (WebGPU fractal, torus/fortress/).",
       "paths": [
@@ -1068,6 +1089,7 @@
       "surface": "labglass",
       "dir": "labglass",
       "endpoint": "glass.mino.mobi",
+      "binding": "dashboard",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -1083,27 +1105,13 @@
       "dir": "mega",
       "endpoint": "mega.mino.mobi",
       "type": "frontend",
-      "branch": "claude/integrate-v091-v092-v093-4yie2i",
+      "branch": "claude/jev-demo-website-pw3us1",
       "uses": [],
       "provides": null,
       "status": "MANAGED \u2014 owned by claude/integrate-v091-v092-v093-4yie2i (the v091\u00d7v092 synthesis: /v093). Worker `mega` + custom_domain route (mega.mino.mobi). CLEANUP: delete the orphan `mega-minomobi` worker.",
-      "note": "Interactive map of global megaprojects\u2014construction, timelines, costs, and deep context on a 3D globe. (full description: mega/CLAUDE.md)",
+      "note": "Interactive map of global megaprojects\u2014construction, timelines, costs, and deep context on a 3D globe. Also hosts two sub-sites on the same worker: /sprite (the procedural-sprite lab and its /sprite/api) and /jev (the TypeSafe Jev demo, mega.mino.mobi/jev/, whose /jev/api/ask proxy holds the TYPESAFE_API_KEY secret). jev rides this surface because the mino.mobi zone is at Cloudflare's hard cap of 100 Workers custom domains and cannot issue another subdomain. (full description: mega/CLAUDE.md, mega/jev/CLAUDE.md)",
       "paths": [
         "mega/**"
-      ]
-    },
-    {
-      "surface": "pm",
-      "dir": "pm",
-      "endpoint": "pm.mino.mobi",
-      "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
-      "uses": [],
-      "provides": null,
-      "status": "MANAGED \u2014 onboarded to Actions (deploy-pm.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
-      "note": "Mino PM \u2014 earned-value project management. Static worker-assets (Worker `pm`).",
-      "paths": [
-        "pm/**"
       ]
     },
     {
@@ -1125,19 +1133,21 @@
       "dir": "finance",
       "endpoint": "fin.mino.mobi",
       "type": "frontend",
-      "branch": "claude/speculative-feedback-playground-t0yiaq",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 onboarded to Actions (deploy-finance.yml). Surface taken over for the speculative-feedback research playground; the personal-finance SPA was relocated under /pm.",
-      "note": "Worker `fin` (main: worker.js + ASSETS) serving two apps from one dist/: the speculative-feedback playground at / (TS/React, Vite multipage) and the personal-finance planning SPA at /pm. worker.js does subtree-aware SPA fallback and reserves /api/* for the M2 backend (experiment store + server-side runs).",
+      "status": "MANAGED — deploy-finance.yml. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/financial-periodic-table-8mp7tj, whose finance/ tree was byte-identical at handover) to fold perp in: perp.mino.mobi was detached to free a slot under the zone's 100-custom-domain cap, and perp/ is now staged into dist/perp and served at fin.mino.mobi/perp/. Earlier: taken over for the financial periodic table; the speculative-feedback playground is at /speclab and the personal-finance SPA at /pm.",
+      "note": "Worker `fin` (main: worker.js + ASSETS) serving four apps from one dist/: the financial periodic table at / (static ES modules, no framework), the speculative-feedback playground at /speclab (TS/React) and the personal-finance planning SPA at /pm. worker.js does subtree-aware SPA fallback and reserves /api/* for the speclab backend (experiment store + server-side runs). ALSO serves perp at /perp/ (perpetual-futures explainer, staged from ../perp by deploy-finance.yml; data refreshed daily by refresh-perp-data.yml). ALSO serves perp at /perp/ (perpetual-futures explainer, staged from ../perp by deploy-finance.yml; data refreshed daily by refresh-perp-data.yml).",
       "paths": [
-        "finance/**"
+        "finance/**",
+        "perp/**"
       ]
     },
     {
       "surface": "org",
       "dir": "org",
       "endpoint": "org.mino.mobi",
+      "binding": "dashboard",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -1149,30 +1159,14 @@
       ]
     },
     {
-      "surface": "wave",
-      "dir": "wave",
-      "endpoint": "wave.mino.mobi",
-      "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
-      "uses": [
-        "auth.mino.mobi"
-      ],
-      "provides": null,
-      "status": "MANAGED \u2014 onboarded to Actions (deploy-wave.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
-      "note": "Wave SPA (Vite + tsc -> ./dist, Worker `wave`). Uses shared oauth-client wrapper (wave/src/lib/auth.ts) -> auth.mino.mobi.",
-      "paths": [
-        "wave/**"
-      ]
-    },
-    {
       "surface": "wars",
       "dir": "wars",
       "endpoint": "war.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"war.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). MANAGED — FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
       "note": "War Factor Analysis \u2014 Correlates of War dataset explorer. Static worker-assets (Worker `wars-minomobi`). Live at war.mino.mobi (probe-verified); also bundled at mino.mobi/wars.",
       "paths": [
         "wars/**"
@@ -1196,6 +1190,7 @@
       "surface": "crm",
       "dir": "crm",
       "endpoint": "crm.mino.mobi (pending attach)",
+      "binding": "pending",
       "type": "frontend",
       "branch": "claude/landing-projects-takeover-pKkmW",
       "uses": [],
@@ -1225,7 +1220,7 @@
       "dir": "os",
       "endpoint": "os.mino.mobi",
       "type": "frontend",
-      "branch": "claude/os-deploy-surface-474bz3",
+      "branch": "claude/codex-containers-research-58t9ad",
       "uses": [
         "os-api.minomobi.com"
       ],
@@ -1242,7 +1237,7 @@
       "dir": "os/api",
       "endpoint": "os-api.minomobi.com",
       "type": "backend",
-      "branch": "claude/os-deploy-surface-474bz3",
+      "branch": "claude/codex-containers-research-58t9ad",
       "uses": [],
       "provides": "os-api.minomobi.com",
       "status": "MANAGED \u2014 SELF-PROVISIONING deploy (deploy-os-api.yml, create-mmo-db pattern): every run idempotently wrangler-deploys worker os-mino-api (Docker image built on the runner; custom_domain route binds os-api.minomobi.com \u2014 golden rule), syncs worker secrets from GitHub (CAP_SIGNING_KEY auto-generated once; MOONSHOT_API_KEY + DEEPSEEK_API_KEY <- GH secrets; GITHUB_TOKEN <- GH secret OS_AGENT_GITHUB_TOKEN), then health-checks the live domain. NO R2 (unavailable on this plan, CF 10042 \u2014 learned from run #1): workspace persistence is chunked tarballs in the ContainerShell DO's own SQLite storage. ALLOWED_DIDS is committed [vars] config (morphyx service DID). Un-automatable human prereqs (once): enable Cloudflare Containers on the account + mint the Moonshot key/PAT into GH secrets \u2014 see os/RUNBOOK.md.",
@@ -1391,14 +1386,15 @@
       "dir": "fifty",
       "endpoint": "fifty.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/fifty-microsites-deploy-fyjk1q",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "fifty/**",
         ".github/workflows/deploy-fifty.yml"
       ],
-      "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built\u2026 (full description: fifty/CLAUDE.md)"
+      "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted from a custom domain to { pattern: \"fifty.mino.mobi/*\", zone_name: \"mino.mobi\" } by route-dns.mjs --takeover in its deploy workflow, freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/fifty-microsites-deploy-fyjk1q, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "farm",
@@ -1618,17 +1614,21 @@
       "dir": "bsky",
       "endpoint": "bsky.mino.mobi",
       "type": "frontend",
-      "branch": "claude/bsky-app-view-feasibility-8sdflz",
+      "branch": "claude/dwitter-animation-feed-rufn9o",
       "uses": [],
       "provides": null,
       "paths": [
         "bsky/**",
         "packages/atproto/jetstream.js",
         "packages/atproto/constellation.js",
-        "packages/atproto/bsky.js"
+        "packages/atproto/bsky.js",
+        "packages/oauth-client/auth.js"
       ],
-      "note": "An AppView with no database… (full description: bsky/CLAUDE.md)",
-      "status": "NEW 2026-09-05 — scaffold. Domain bsky.mino.mobi did not resolve before this branch; the custom-domain route is attached by the first wrangler deploy. VERIFY the run log binds `bsky.mino.mobi (custom domain)` before believing it (golden rule)."
+      "note": "An AppView with no database\u2026 (full description: bsky/CLAUDE.md) ALSO serves dweet at **bsky.mino.mobi/dweet/** \u2014 a feed of 256-character canvas animations, each one a com.minomobi.dweet.dweet record in its author's own repo, with a GLSL shim that also runs demosky.app's mainImage dialect. It is a PATH on this worker, not a subdomain: dweet.mino.mobi cannot be bound because zone mino.mobi is at Cloudflare's limit of 100 Workers custom domains per zone (run #43, code 100122), so the custom_domain route was removed to keep deploys green. worker.js keeps a hostname dispatch for that host, inert until a domain is freed and the route re-added. The surface executes untrusted code, so its isolation is asserted by bsky/dweet/sandbox.selftest.mjs \u2014 read bsky/dweet/CLAUDE.md before changing anything that touches a frame.",
+      "status": "OWNERSHIP, newest first \u2014 and READ THIS BEFORE THE NEXT HANDOVER. 2026-09-22: owner is claude/dwitter-animation-feed-rufn9o (dweet), at the principal's instruction. 2026-09-11: claude/bsky-shuffle-quote-feature-fqo19l (shuffle quote, paste-to-attach). Before that: claude/bsky-app-view-feasibility-8sdflz, which still owns the auth surface. THE TRAP: each handover edits this field on ITS OWN branch, so the registry as seen from main names a STALE owner. Checking a candidate tree against main and against the owner main names is NOT sufficient \u2014 on 2026-09-22 that exact mistake shipped run #43 from a tree missing lib/shuffle.js and lib/attach.js, and because Workers Static Assets replaces the whole manifest it rolled shuffle quote and paste-to-attach off the live site until a merge restored them. Before taking this surface, find the branch that actually produced the last successful deploy-bsky run and diff bsky/ against THAT. Domain bsky.mino.mobi was attached by the first deploy from the feasibility branch; VERIFY the run log still binds `bsky.mino.mobi (custom domain)` (golden rule). The auth surface did NOT move, so a push here touching workers/auth/** fires nothing and com.minomobi.dweet.dweet sits staged and unshipped; sign-in therefore cannot grant dweet's scope yet. [Reconciled by the 2026-09-23 merge candidate: auth is owned by claude/browser-cad-ideation-ollmd3 (since 2026-09-11), whose tree carries com.minomobi.dweet.dweet; whether it has DEPLOYED is for the deploy-auth run log to say.] scripts/check-auth-scope.mjs refuses an auth deploy from ANY of these branches: the LIVE ceiling is 86 collections and carries a com.minomobi.cad.* family main lacks, so main is 6 behind production and every branch inherits that. Recover those 6 from auth.mino.mobi/client-metadata.json before shipping any scope change.",
+      "serves": [
+        "dweet"
+      ]
     },
     {
       "surface": "atlas",
@@ -1661,6 +1661,37 @@
       ]
     },
     {
+      "surface": "cad",
+      "dir": "packages/cad",
+      "endpoint": "cad.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/browser-cad-ideation-ollmd3",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — first deploy. cad.mino.mobi did not resolve beforehand; wrangler is expected to create the custom domain itself, as it did for fold and neuro. Confirm the run binds `cad.mino.mobi (custom domain)` — green alone is not proof.",
+      "note": "Parametric CAD in the browser: a feature tree in, solids out. Rust engine (tree, expressions, sketches, the involute gear, named topology) as raw-ABI WASM, Manifold as the preview kernel, Truck as the exact kernel, hand-written WebGL2 with id-buffer picking onto named faces. The package is the site. (full description: packages/cad/CLAUDE.md)",
+      "paths": [
+        "packages/cad/**"
+      ]
+    },
+    {
+      "surface": "parts",
+      "dir": "parts",
+      "endpoint": "cad.mino.mobi/parts",
+      "type": "frontend",
+      "branch": "claude/browser-cad-ideation-ollmd3",
+      "uses": [
+        "auth.mino.mobi",
+        "cad.mino.mobi"
+      ],
+      "provides": null,
+      "status": "Mounted under cad.mino.mobi/parts/ through the cad worker's PARTS service binding — its own worker, Durable Object and cron, no host of its own: the mino.mobi zone is at Cloudflare's 100-custom-domain ceiling (code 100122 on the first deploy, 2026-09-12). Verify with curl https://cad.mino.mobi/parts/api/status.",
+      "note": "Communities of CAD parts, Reddit-shaped, on the designer's own repo: a community is a record in its founder's repo, a post is a record in the poster's repo pointing at a community and at one revision of a part, comments thread by strongRef, a vote is a record the voter owns. One Durable Object holds the index in its own SQLite and rebuilds it from the network (writers self-report; a cron discovers strangers through Constellation backlinks); no firehose socket, on purpose. (full description: parts/CLAUDE.md)",
+      "paths": [
+        "parts/**"
+      ]
+    },
+    {
       "surface": "tape",
       "dir": "tape",
       "endpoint": "tape.mino.mobi",
@@ -1689,6 +1720,20 @@
         "clef/**",
         ".github/workflows/deploy-clef.yml"
       ]
+    },
+    {
+      "surface": "henderhead",
+      "dir": "henderhead",
+      "endpoint": "henderhead.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/henderson-fan-page-demo-xhgtrj",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "henderhead/**",
+        ".github/workflows/deploy-henderhead.yml"
+      ],
+      "note": "An unofficial fan site rebuilding Matt Henderson's mathematical demos as interactive toys (worker `henderhead`, custom_domain henderhead.mino.mobi). Thin header/JSON worker in front of static assets — no build step to serve, no D1, no AI, no secrets. Five demos, each on its own Rust→WASM engine under <dir>/engine, gated by cargo test plus a node selftest — the workflow rebuilds every .wasm rather than trusting the committed copies: /cf/ continued-fraction Fourier curves, /craft/ a crafting-recipe automaton, /wheel/ a waterwheel that is the Lorenz system, /ball/ bouncing-ball chaos, /sand/ conic sections out of sand at the angle of repose. The follow-the-feed pipeline the site describes is deliberately NOT built — see the consent gate at henderhead.mino.mobi/#consent and henderhead/CLAUDE.md."
     }
   ],
   "unmanaged": {

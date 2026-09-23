@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Encoder ring: a multipole magnet pressed onto the rotor plate’s rim, read radially. The axis is taken by the screw, so an on-axis diametric magnet is not available and this is the way round it. One extrude along -Y.",
+ "params": {
+  "d": 88,
+  "d_bore": 84,
+  "t": 4,
+  "y1": 48
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "ring",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

@@ -1,0 +1,82 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Brake hub: the rotor’s half of the brake, a Ø58 disc inside the bearing’s bore, bolted to the back of the rotor plate. The screw runs through its Ø12 bore. Everything the rotor is held by passes through this face, so the grip force is set here and not in software. One extrude along -Y.",
+ "params": {
+  "d": 58,
+  "d_bore": 12,
+  "t": 8,
+  "pcd": 44,
+  "d_bolt": 3.4,
+  "y1": 43
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd/2 * cos(deg(45))",
+       "pcd/2 * sin(deg(45))"
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "hub",
+   "profile": [
+    "face",
+    "bolts"
+   ],
+   "depth": "t"
+  }
+ ]
+}

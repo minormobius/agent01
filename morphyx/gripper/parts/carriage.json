@@ -1,0 +1,121 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Nut carriage, 10 thick: the key plate. Its outline is notched open to each side (from x ±9 to the edge, 22.2 tall) and a pivot arm drops into each notch from outside, so the arm is located in X and Z and held square, while its thrust goes straight back into the back plate. Open notches, not closed slots — a closed slot cannot be assembled around an arm that reaches past it. The four bolts through the nut flange carry on through both plates. One extrude along -Y.",
+ "params": {
+  "t": 10,
+  "ch": 14.5,
+  "cz": 14,
+  "nx": 9,
+  "slz": 11.1,
+  "d_bore": 10.200000000000001,
+  "pcd": 16,
+  "d_bolt": 3.5
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "outline",
+     "polygon": [
+      [
+       "ch",
+       "-cz"
+      ],
+      [
+       "-ch",
+       "-cz"
+      ],
+      [
+       "-ch",
+       "-slz"
+      ],
+      [
+       "-nx",
+       "-slz"
+      ],
+      [
+       "-nx",
+       "slz"
+      ],
+      [
+       "-ch",
+       "slz"
+      ],
+      [
+       "-ch",
+       "cz"
+      ],
+      [
+       "ch",
+       "cz"
+      ],
+      [
+       "ch",
+       "slz"
+      ],
+      [
+       "nx",
+       "slz"
+      ],
+      [
+       "nx",
+       "-slz"
+      ],
+      [
+       "ch",
+       "-slz"
+      ]
+     ]
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd/2 * cos(deg(45))",
+       "pcd/2 * sin(deg(45))"
+      ],
+      "r": "d_bolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "carriage",
+   "profile": [
+    "face",
+    "bolts"
+   ],
+   "depth": "t"
+  }
+ ]
+}

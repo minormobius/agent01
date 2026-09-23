@@ -55,6 +55,9 @@ export const KIND = {
   sync: 'sync',
 };
 
+/** The values the server accepts, as a set — see `url()` for why this matters. */
+const KINDS = new Set(Object.values(KIND));
+
 const PATH = '/xrpc/network.bsky.jetstream.subscribeEvents';
 const SUBPROTOCOL = 'xrpc.v1.json';
 
@@ -119,7 +122,23 @@ export class JetstreamClient {
     for (const d of (this.opts.dids ?? []).slice(0, MAX_DIDS)) {
       p.append('dids', d);
     }
-    for (const k of this.opts.kinds ?? []) p.append('kinds', k);
+    // A kind the server does not know is rejected BEFORE the upgrade, with
+    // `400 InvalidRequest: unknown kind "…"` — so the socket never opens, the
+    // reconnect loop runs forever, and the only symptom is a status line stuck
+    // on "disconnected". `KIND.COMMIT` (the constants are lowercase) cost the
+    // dweet surface every connection it ever attempted, silently, because
+    // `undefined` stringifies into a query parameter perfectly happily.
+    //
+    // Throwing here surfaces it immediately: `connect()` calls `url()` inside
+    // its try, so this reaches the caller's `onError` with the wrong value
+    // named, instead of looking like an unreachable host.
+    for (const k of this.opts.kinds ?? []) {
+      if (!KINDS.has(k)) {
+        throw new Error(
+          `unknown Jetstream kind ${JSON.stringify(k)} — valid: ${[...KINDS].join(', ')}`);
+      }
+      p.append('kinds', k);
+    }
     // The cursor is inclusive and delivery is at-least-once, so handlers must
     // be idempotent — key on each record's at:// URI.
     if (this.cursor != null) {

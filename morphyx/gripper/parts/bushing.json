@@ -1,0 +1,55 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Bronze bushing: Ø6 × 6 with a Ø4.1 bore, pressed into a link eye, running on a Ø4 dowel. Eight per gripper. One revolve about local Z.",
+ "params": {
+  "D": 5.96,
+  "L": 6,
+  "d": 4.1
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "profile",
+   "plane": "XZ",
+   "loops": [
+    {
+     "name": "body",
+     "polygon": [
+      [
+       "d/2",
+       0
+      ],
+      [
+       "D/2",
+       0
+      ],
+      [
+       "D/2",
+       "L"
+      ],
+      [
+       "d/2",
+       "L"
+      ]
+     ]
+    }
+   ]
+  },
+  {
+   "op": "revolve",
+   "id": "bushing",
+   "profile": "profile",
+   "axis": {
+    "p": [
+     0,
+     0
+    ],
+    "d": [
+     0,
+     1
+    ]
+   }
+  }
+ ]
+}

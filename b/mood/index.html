@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mood — a ring around the profile picture</title>
+<meta name="description" content="A Bluesky mood ring. The last ten posts and replies are read for tone by jev, a model that only makes decisions, and the answers become a ring of colour around the account's profile picture. Two ordered axes and one unordered one, because the shape of the variable picks the primitive.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="mood — a ring around the profile picture">
+<meta property="og:description" content="Ten posts, read for tone by a decision-only model, as a ring of colour around the profile picture.">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta property="og:url" content="https://b.mino.mobi/mood/">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+:root {
+  --bg: #faf9f6; --panel: #fff; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --sky: #1a82c4; --sky-faint: rgba(110,193,228,.12);
+  --bad: #b3261e; --gold: #b8860b;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg:#0f0f0f; --panel:#161616; --text:#d4d4d4; --muted:#888; --rule:#333;
+          --accent:#c45; --sky:#6ec1e4; --sky-faint:rgba(110,193,228,.10); --bad:#e5484d; --gold:#d9a441; }
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:var(--serif); line-height:1.65;
+       -webkit-font-smoothing:antialiased; max-width:880px; margin:0 auto; padding:2rem 1.1rem 5rem; }
+a { color:var(--sky); }
+.crumb { font-family:var(--mono); font-size:.66rem; letter-spacing:.1em; text-transform:uppercase;
+         color:var(--muted); text-decoration:none; display:inline-block; margin-bottom:1.1rem; }
+.crumb:hover { color:var(--sky); }
+h1 { font-size:2.6rem; font-weight:600; letter-spacing:-.01em; line-height:1.05; }
+h1 span { color:var(--sky); }
+.tagline { font-family:var(--mono); font-size:.68rem; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-top:.45rem; }
+.sky-rule { height:3px; width:84px; background:var(--sky); margin:1.1rem 0 1.2rem; border-radius:2px; }
+.lede { font-size:1rem; color:var(--muted); max-width:64ch; }
+.lede b { color:var(--text); font-weight:600; }
+
+form { margin:1.8rem 0 .5rem; display:flex; flex-wrap:wrap; gap:.55rem; align-items:center; }
+input[type=text] { font-family:var(--mono); font-size:.92rem; padding:.62rem .8rem; border:1px solid var(--rule);
+  border-radius:7px; background:var(--panel); color:var(--text); flex:1 1 15rem; min-width:0; }
+input[type=text]:focus { outline:2px solid var(--sky); outline-offset:-1px; border-color:var(--sky); }
+button { font-family:var(--mono); font-size:.78rem; padding:.6rem .8rem; border:1px solid var(--rule);
+  border-radius:7px; background:var(--panel); color:var(--text); cursor:pointer; }
+button.go { background:var(--sky); border-color:var(--sky); color:#fff; font-weight:600; letter-spacing:.04em; }
+button:disabled { opacity:.45; cursor:not-allowed; }
+button:hover:not(:disabled) { border-color:var(--sky); }
+.formnote { font-family:var(--mono); font-size:.68rem; color:var(--muted); }
+.err { color:var(--bad); font-family:var(--mono); font-size:.78rem; margin-top:.7rem; }
+.status { font-family:var(--mono); font-size:.75rem; color:var(--muted); margin-top:.8rem; }
+
+/* ── the ring ─────────────────────────────────────────────────────────────── */
+#out[hidden] { display:none; }
+#out { margin-top:2rem; }
+.ringwrap { display:flex; gap:2rem; flex-wrap:wrap; align-items:flex-start; justify-content:center; }
+#ring { width:min(100%, 380px); height:auto; flex:0 0 auto; touch-action:manipulation; }
+#ring .seg { cursor:pointer; transition:opacity .12s ease, transform .12s ease; transform-origin:200px 200px; }
+#ring .seg:hover, #ring .seg.on { transform:scale(1.035); }
+#ring .seg.dim { opacity:.28; }
+.stone { flex:1 1 15rem; min-width:0; }
+.stone .name { font-size:2rem; font-weight:600; line-height:1.1; }
+.stone .who { font-family:var(--mono); font-size:.76rem; color:var(--muted); margin-bottom:.5rem; }
+.stone .who a { color:var(--muted); text-decoration:none; }
+.stone .who a:hover { color:var(--sky); }
+.stone .nums { font-family:var(--mono); font-size:.68rem; color:var(--muted); margin-top:.5rem; }
+.stone .nums b { color:var(--text); font-weight:600; }
+.flavours { display:flex; flex-wrap:wrap; gap:.3rem; margin-top:.8rem; }
+.flavours span { font-family:var(--mono); font-size:.64rem; border:1px solid var(--rule); border-radius:999px;
+  padding:.12rem .5rem; color:var(--muted); }
+.meter { margin-top:.9rem; font-family:var(--mono); font-size:.62rem; color:var(--muted); }
+.meter .track { height:5px; background:var(--rule); border-radius:3px; overflow:hidden; margin:.2rem 0 .5rem; }
+.meter .track i { display:block; height:100%; border-radius:3px; }
+
+/* ── the posts ────────────────────────────────────────────────────────────── */
+h2 { font-size:1.15rem; margin:2.2rem 0 .5rem; font-weight:600; }
+h2 small { font-family:var(--mono); font-size:.6rem; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin-left:.5rem; }
+ol.posts { list-style:none; display:grid; gap:.4rem; }
+ol.posts li { display:grid; grid-template-columns:auto 1fr auto; gap:.7rem; align-items:start;
+  border:1px solid var(--rule); border-left-width:5px; border-radius:7px; padding:.55rem .7rem;
+  background:var(--panel); cursor:pointer; transition:border-color .12s ease; }
+ol.posts li:hover, ol.posts li.on { border-color:var(--sky); }
+ol.posts li.dim { opacity:.45; }
+ol.posts .n { font-family:var(--mono); font-size:.62rem; color:var(--muted); padding-top:.15rem; }
+ol.posts .t { font-size:.9rem; overflow-wrap:anywhere; }
+ol.posts .r { font-family:var(--mono); font-size:.58rem; color:var(--muted); text-align:right; white-space:nowrap; padding-top:.15rem; }
+ol.posts .r b { display:block; color:var(--text); font-weight:600; }
+ol.posts .meta { font-family:var(--mono); font-size:.58rem; color:var(--muted); margin-top:.3rem; }
+ol.posts .meta a { color:var(--muted); }
+
+/* ── the explainer ────────────────────────────────────────────────────────── */
+.why { border:1px solid var(--rule); border-left:3px solid var(--sky); border-radius:7px;
+  padding:.85rem .95rem; background:var(--panel); font-size:.92rem; color:var(--muted); margin-top:1rem; }
+.why b { color:var(--text); }
+.why code { font-family:var(--mono); font-size:.82em; background:var(--sky-faint); padding:.05rem .25rem; border-radius:3px; }
+table.prim { border-collapse:collapse; font-size:.82rem; margin-top:.8rem; width:100%; }
+table.prim th, table.prim td { text-align:left; padding:.3rem .5rem; border-bottom:1px solid var(--rule); vertical-align:top; }
+table.prim th { font-family:var(--mono); font-size:.6rem; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:400; }
+table.prim code { font-family:var(--mono); font-size:.9em; }
+#wheel { display:block; margin:.6rem auto 0; }
+details.raw { margin-top:1rem; }
+details.raw summary { font-family:var(--mono); font-size:.68rem; color:var(--muted); cursor:pointer; }
+details.raw summary:hover { color:var(--sky); }
+details.raw pre { font-family:var(--mono); font-size:.6rem; background:var(--panel); border:1px solid var(--rule);
+  border-radius:7px; padding:.7rem; overflow:auto; max-height:24rem; margin-top:.5rem; line-height:1.45; }
+footer { margin-top:3.4rem; padding-top:1.1rem; border-top:1px solid var(--rule); font-family:var(--mono);
+  font-size:.64rem; color:var(--muted); display:flex; gap:1rem; flex-wrap:wrap; }
+footer a { color:var(--muted); text-decoration:none; }
+footer a:hover { color:var(--sky); }
+@media (max-width:640px) { h1 { font-size:2.1rem; } .ringwrap { gap:1.2rem; } .stone .name { font-size:1.6rem; } }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/">← atmosphere</a>
+  <h1>mood<span> ◉</span></h1>
+  <p class="tagline">a ring around the profile picture</p>
+  <div class="sky-rule"></div>
+  <p class="lede">The last ten posts and replies, read for tone by <b>jev</b> — a model that does not write anything, it only answers typed questions — and turned into a ring of colour around the account's own avatar. Each band is one post. <b>The colour is the mood; the haze is how sure the model was.</b></p>
+</header>
+
+<form id="entry" autocomplete="off">
+  <input type="text" id="handle" data-bsky-typeahead placeholder="handle.bsky.social" aria-label="Bluesky handle" spellcheck="false">
+  <button type="submit" class="go" id="go">read the ring</button>
+</form>
+<p class="formnote">Public posts only · nothing is written · one model call, cached for five minutes</p>
+<p class="err" id="err" hidden></p>
+<p class="status" id="status" hidden></p>
+
+<section id="out" hidden>
+  <div class="ringwrap">
+    <svg id="ring" viewBox="0 0 400 400" role="img" aria-labelledby="ringtitle"><title id="ringtitle">A mood ring</title></svg>
+    <div class="stone" id="stone"></div>
+  </div>
+
+  <h2>the ten <small>newest first · clockwise from the top</small></h2>
+  <ol class="posts" id="posts"></ol>
+
+  <details class="raw" id="rawbox">
+    <summary>show the exchange — the exact state and questions sent, and what came back</summary>
+    <pre id="raw"></pre>
+  </details>
+</section>
+
+<h2>why it is asked this way <small>the interesting part</small></h2>
+<div class="why">
+  <p>Jev answers <b>typed</b> questions, and the three primitives are not interchangeable. A <code>score</code> returns the expectation over an <b>ordered</b> set of rungs — so the obvious build, one scale from <i>angry</i> to <i>happy</i>, is wrong. A post that is half fury and half delight would come back at the midpoint and render as <b>calm</b>: the model's uncertainty laundered into a confident reading of serenity.</p>
+  <p style="margin-top:.6rem">So mood is asked as the two things that genuinely are ordered, plus one thing that genuinely is not. <b>The shape of the variable picks the primitive</b>, not what the other questions happen to use.</p>
+  <table class="prim">
+    <tr><th>variable</th><th>shape</th><th>primitive</th></tr>
+    <tr><td>valence — bleak → delighted</td><td>ordered</td><td><code>score</code></td></tr>
+    <tr><td>energy — becalmed → frantic</td><td>ordered</td><td><code>score</code></td></tr>
+    <tr><td>flavour — wry, tender, angry…</td><td><b>unordered</b></td><td><code>choice</code></td></tr>
+  </table>
+  <p style="margin-top:.7rem">Valence and energy are two axes whose <b>plane</b> carries the mood, where neither alone does. Colour comes from where a post lands on that plane — never asked for directly, because hue has no order either. The same reasoning applies again when ten readings become one stone: they are averaged <b>on the plane, never in hue</b>. Average the hues of someone half furious and half serene and you get indigo — melancholy, a mood neither post had.</p>
+  <svg id="wheel" width="340" height="340" viewBox="0 0 340 340" role="img" aria-label="The colour wheel this ring uses: gold at delighted and charged, magenta-red at bleak and charged, indigo at bleak and becalmed, green at delighted and becalmed, grey at the centre where there is no coherent mood."></svg>
+</div>
+
+<footer>
+  <a href="/">atmosphere</a>
+  <a href="/orbit/">orbit</a>
+  <a href="/palm/">palm</a>
+  <a href="https://mega.mino.mobi/jev/">jev</a>
+  <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev">what jev is</a>
+  <span>tone is a reading, not a fact about anyone</span>
+</footer>
+
+<script src="/lib/handle-typeahead.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

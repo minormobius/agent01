@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Crossed-roller ring stand-in (THK RB6013 or equivalent): Ø60 bore × Ø90 × 13, drawn as one annulus because the races and the rollers are the vendor’s problem. It IS the roll axis, and it is chosen for MOMENT: the grip puts 61 N at a fingertip 114 mm ahead of it, 7.0 N·m, and a crossed roller takes that alone where a deep-groove pair would want 30 mm of spacing this module has nowhere to put. One extrude along -Y.",
+ "params": {
+  "d": 90,
+  "d_bore": 60,
+  "t": 13,
+  "y1": 43
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "ring",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

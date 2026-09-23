@@ -1,0 +1,53 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Shoulder cheek, two off at |y| 74…86: they straddle the whole parallelogram and carry the COAXIAL J2 and J3 bores at z 400. Coaxial is the architecture — it is what puts the elbow's actuator at the shoulder and lets one counterweight per crank balance the arm exactly. `y1` is overridden per side. One extrude along -Y.",
+ "params": {
+  "t": 12,
+  "y1": 86,
+  "h": 80,
+  "L": 110,
+  "z": 400,
+  "z0": 254,
+  "d": 84
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       0,
+       "(z0 + z + h) / 2"
+      ],
+      "w": "L",
+      "h": "z + h - z0"
+     }
+    },
+    {
+     "name": "axis",
+     "circle": {
+      "c": [
+       0,
+       "z"
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "cheek",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

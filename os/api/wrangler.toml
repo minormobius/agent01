@@ -54,6 +54,27 @@ DEEPSEEK_BASE_URL = "https://api.deepseek.com/anthropic"
 DEEPSEEK_OAI_BASE_URL = "https://api.deepseek.com/v1"
 DEEPSEEK_FLASH_MODEL = "deepseek-v4-flash"
 DEEPSEEK_PRO_MODEL = "deepseek-v4-pro"
+
+# astra — the ChatGPT SUBSCRIPTION cell, run under the codex harness through
+# this worker's own /openai proxy (the container never holds an OpenAI
+# credential; see os/api/CODEX.md §5 Design C). Unlike every profile above,
+# there is NO key here: the credential is deposited once via
+# PUT /openai/credential and lives in the per-DID Durable Object.
+#
+# gpt-6-astra shipped 2026-09-03 and needs codex-cli >= 0.153.1 (image has
+# 0.154.0). It is NOT in 0.154.0's bundled catalog — that stops at gpt-5.6 —
+# so Codex resolves it from the catalog it fetches at runtime, and it ships
+# visibility="hide" during the gated rollout (openai/codex#43342: the /model
+# picker omits it, but an explicitly pinned model resolves and runs, which is
+# exactly what agent.sh writes).
+OPENAI_CODEX_MODEL = "gpt-6-astra"
+# minimal | low | medium | high | xhigh | ultra (0.154.0 added xhigh + ultra).
+# This is the main cost/capability dial for the cell.
+OPENAI_CODEX_EFFORT = "high"
+# Optional escape hatch. Leave empty unless a run reports "Model metadata for
+# `gpt-6-astra` not found" — that means Codex fell back to generic metadata and
+# is guessing the context window, and this pins it.
+OPENAI_CODEX_CONTEXT_WINDOW = ""
 # Comma-separated allowlist of DIDs permitted to open a container shell.
 # FAIL-CLOSED: empty → /ws refuses every connection. The shell is handed shared
 # credentials, so only DIDs the owner fully trusts belong here. DIDs are public

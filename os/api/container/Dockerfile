@@ -18,9 +18,17 @@ RUN apt-get update && apt-get install -y \
 # any Anthropic-Messages endpoint; OpenCode drives any OpenAI-Chat-Completions
 # endpoint via @ai-sdk/openai-compatible. Between them every profile in
 # AGENT_PROFILES is runnable under two independent agent loops. See agent.sh.
+#
+# THREE harnesses now. Codex is the odd one: it speaks only the OpenAI
+# Responses API (it removed Chat Completions in 0.154), so it cannot drive the
+# open models at all — it exists here for the ChatGPT-subscription cell, which
+# it reaches through os-api's own /openai proxy rather than through OpenAI
+# directly. It is a ~324 MB static musl binary, easily the largest thing in
+# this image. See os/api/CODEX.md.
 RUN npm install -g \
       @anthropic-ai/claude-code \
       opencode-ai \
+      @openai/codex \
       @modelcontextprotocol/server-github
 
 # uv — fast Python package/project manager (pip/venv/pipx/poetry replacement).

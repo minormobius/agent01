@@ -1,0 +1,49 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Brake spring: a wave washer, drawn as the flat annulus it becomes when compressed. It is the whole adjustment — its preload times the friction radius is the torque the rotor is held by, and that torque is what the grip breaks away at. 18.6 N for 0.112 N·m, which is a light washer. One extrude along -Y.",
+ "params": {
+  "d": 40,
+  "d_bore": 16,
+  "t": 3,
+  "y1": 33
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XZ",
+    "offset": "-y1"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    },
+    {
+     "name": "bore",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d_bore / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "washer",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

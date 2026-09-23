@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M4 25 L16 6 L28 25 Z' fill='none' stroke='%23e8d8b0' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cellipse cx='18' cy='19' rx='8' ry='4.4' fill='none' stroke='%23ff5a52' stroke-width='1.7' transform='rotate(-20 18 19)'/%3E%3C/svg%3E">
+<title>Conics out of sand — henderhead</title>
+<meta name="description" content="Sand poured at the angle of repose, and the conic sections that appear where two sand surfaces meet. After a demo by Matt Henderson.">
+<style>
+  :root {
+    --bg: #0b1220; --panel: #111b2d; --line: #22314b; --ink: #dfe7f5;
+    --dim: #8fa1bd; --hot: #ffb454; --cool: #7fd4ff; --seam: #ff5a52;
+    --ideal: #7fe7c4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  header {
+    display: flex; gap: .8rem; align-items: baseline; flex-wrap: wrap;
+    padding: .9rem 1.2rem; border-bottom: 1px solid var(--line);
+  }
+  header a { color: var(--cool); }
+  header .back { color: var(--dim); text-decoration: none; }
+  header h1 { font-size: 1.05rem; margin: 0; font-weight: 650; }
+  header .credit { margin-left: auto; color: var(--dim); font-size: .92rem; }
+  main { display: flex; gap: 1.2rem; padding: 1.2rem; flex-wrap: wrap; align-items: flex-start; }
+  .stage { flex: 1 1 560px; min-width: 300px; max-width: 640px; }
+  canvas { width: 100%; height: auto; display: block; border-radius: 8px; background: #0d1626; }
+  .side { flex: 1 1 320px; min-width: 280px; max-width: 420px; display: flex; flex-direction: column; gap: .9rem; }
+  fieldset {
+    border: 1px solid var(--line); border-radius: 8px; margin: 0; padding: .7rem .9rem .9rem;
+    background: var(--panel);
+  }
+  legend { color: var(--dim); font-size: .74rem; letter-spacing: .09em; text-transform: uppercase; padding: 0 .35rem; }
+  #presets { display: flex; gap: .4rem; flex-wrap: wrap; }
+  button {
+    font: inherit; padding: .35rem .7rem; border-radius: 6px; cursor: pointer;
+    border: 1px solid var(--line); background: #17233a; color: var(--ink);
+  }
+  button.on { background: #24548a; border-color: #3a7ec0; }
+  button:hover { border-color: #3a7ec0; }
+  .row { display: flex; align-items: center; gap: .6rem; margin-top: .5rem; }
+  .row label { flex: 0 0 5.6rem; color: var(--dim); font-size: .9rem; }
+  input[type=range] { flex: 1; min-width: 0; accent-color: #4a8fd4; }
+  .row .val { flex: 0 0 3.2rem; text-align: right; font-variant-numeric: tabular-nums; }
+  .checks { display: flex; flex-direction: column; gap: .3rem; }
+  .checks label { display: flex; gap: .45rem; align-items: center; color: var(--ink); font-size: .92rem; }
+  table.read { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  table.read td { padding: .18rem 0; }
+  table.read td:first-child { color: var(--dim); }
+  table.read td:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+  .v.hot { color: var(--hot); font-weight: 650; }
+  .v.dim { color: var(--dim); }
+  /* readings taken while the sand is still moving are not readings */
+  table.read.moving td:last-child { color: var(--dim); opacity: .65; }
+  .hint { color: var(--dim); font-size: .85rem; margin: .45rem 0 0; }
+  .key { display: flex; gap: .9rem; flex-wrap: wrap; font-size: .85rem; color: var(--dim); margin-top: .5rem; }
+  .key i { display: inline-block; width: .7rem; height: .7rem; border-radius: 2px; margin-right: .3rem; vertical-align: -1px; }
+  article { max-width: 46rem; padding: 0 1.2rem 3rem; }
+  article h2 { font-size: .8rem; letter-spacing: .1em; text-transform: uppercase; color: var(--cool); margin: 2rem 0 .5rem; }
+  article p { margin: .7rem 0; }
+  article a { color: var(--cool); }
+  blockquote { margin: .7rem 0; padding-left: .9rem; border-left: 2px solid var(--line); color: var(--dim); font-style: italic; }
+  pre { background: #0d1626; border: 1px solid var(--line); border-radius: 6px; padding: .7rem .9rem; overflow-x: auto; font-size: .86rem; }
+  table.fam { border-collapse: collapse; width: 100%; font-size: .9rem; margin: .8rem 0; }
+  table.fam th, table.fam td { border: 1px solid var(--line); padding: .35rem .5rem; text-align: left; }
+  table.fam th { color: var(--dim); font-weight: 600; }
+  code { background: #0d1626; padding: .05rem .3rem; border-radius: 4px; }
+  .warn { border-left: 2px solid var(--hot); padding-left: .9rem; }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="back" href="../">← henderhead</a>
+  <h1>Conics out of sand</h1>
+  <span class="credit">after <a href="https://bsky.app/profile/matthen.com/post/3mvxdzadgds2z">a demo by Matt Henderson</a></span>
+</header>
+
+<main>
+  <div class="stage">
+    <canvas id="table" width="580" height="580" aria-label="A square plate of simulated sand, with the curve found in it drawn over the top"></canvas>
+    <div class="key">
+      <span><i style="background:#ffd166"></i>pour point</span>
+      <span><i style="background:#7fd4ff"></i>hole or slot</span>
+      <span><i style="background:#ff5a52"></i>the curve, measured</span>
+      <span><i style="background:#7fe7c4"></i>the curve, predicted</span>
+    </div>
+    <p class="hint" id="note"></p>
+    <p class="hint">Click the plate to drag the nearest pour point or hole somewhere else.</p>
+  </div>
+
+  <div class="side">
+    <fieldset>
+      <legend>the table</legend>
+      <div id="presets"></div>
+      <div class="row">
+        <button id="run">▶ run</button>
+        <button id="again">reset</button>
+        <span class="hint" id="progress" style="margin:0"></span>
+      </div>
+      <div class="row">
+        <label for="repose">repose</label>
+        <input type="range" id="repose" min="22" max="44" step="1" value="34">
+        <span class="val" id="reposeV">34°</span>
+      </div>
+      <p class="hint">Dry sand is about 30–35°. Changing it changes the size of the
+      curve and not its foci — that is what makes the construction work with rice.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>what the sand drew</legend>
+      <table class="read" id="readings">
+        <tr><td>fitted as</td><td><span id="conicType" class="v dim">—</span></td></tr>
+        <tr><td>predicted</td><td id="predicted">—</td></tr>
+        <tr><td>eccentricity</td><td id="ecc">—</td></tr>
+        <tr><td>2c ⁄ 2a measured</td><td id="agree">—</td></tr>
+        <tr><td>r₁+r₂ varies by</td><td id="pct">—</td></tr>
+        <tr><td>fit residual</td><td id="rms">—</td></tr>
+        <tr><td>curve points</td><td id="nPoints">—</td></tr>
+        <tr><td>curve traced</td><td id="arc">—</td></tr>
+        <tr><td>apex drift</td><td id="drift">—</td></tr>
+      </table>
+      <p class="hint"><strong>The fitter is told nothing.</strong> It gets the
+      points scraped out of the sand and no hint of where the pour point or the
+      hole is. <em>Predicted</em> is what the algebra says that pair should draw.</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>the sand itself</legend>
+      <table class="read">
+        <tr><td>standing too steep</td><td id="settled">—</td></tr>
+        <tr><td>deepest sand</td><td id="apex">—</td></tr>
+      </table>
+      <div class="checks" style="margin-top:.6rem">
+        <label><input type="checkbox" id="showSeam" checked> the measured curve</label>
+        <label><input type="checkbox" id="showIdeal" checked> the predicted curve</label>
+        <label><input type="checkbox" id="showBasins" checked> tint each feature's basin</label>
+      </div>
+    </fieldset>
+  </div>
+</main>
+
+<article>
+
+<h2>What this is</h2>
+<p>On 20 September 2026 Matt Henderson posted this:
+<em>How to make an ellipse, using sand and physics.</em> Sand pours onto a
+square plate with a hole in it. A cone builds up under the pour, a funnel opens
+around the hole, and where the two surfaces run into each other the crease is an
+ellipse — with the pour point and the hole sitting exactly on its foci.
+<a href="https://bsky.app/profile/matthen.com/post/3mvxdzadgds2z">His original</a>
+is worth watching first.</p>
+
+<h2>The rule, read off the video</h2>
+<p>There was no code and no write-up, only seventeen seconds of video, so the
+claim was checked rather than assumed. Tracking the drawn overlay frame by
+frame puts his two red dots at (707, 316) and (512, 512), and around the red
+curve:</p>
+<pre>r₁ + r₂     mean 375.2 px   sd 0.61   →  0.16%
+|r₁ − r₂|   mean 152.4 px   sd 87.2   →  57%
+control: the same test against two deliberately wrong points  →  21%</pre>
+<p>A standard deviation of 0.61 px is thinner than the line he drew it with. So
+those two points really are the foci, the curve really is an ellipse, and its
+eccentricity is 0.737. Which of the two dots is which also matters: the pour
+column lands at the plate's centre and a second column falls away below and to
+the right, so one is a <em>source</em> and the other a <em>sink</em> — and that
+is why the <em>sum</em> of the distances is what holds still.</p>
+<p>Side-on, the pile's flanks are straight to better than two pixels across two
+hundred columns, at an apparent 32° on one side and 37° on the other. The
+spread is the camera's angle; the number is dry sand's angle of repose.</p>
+
+<h2>Why a crease in sand is a conic</h2>
+<p>Sand cannot stand steeper than its angle of repose. Write
+<code>k = tan(repose)</code>, and every feature on the plate becomes a ceiling
+on the surface:</p>
+<pre>a hole at height h   holds the sand down to   z ≤ h + k·d
+a pour built to A    can hold no more than    z ≤ A − k·d</pre>
+<p>The sand takes whichever ceiling is lower, and the crease is the set of
+places where the two are equal. That is one line of algebra in every case, and
+it is the whole family:</p>
+
+<table class="fam">
+  <tr><th>features</th><th>the crease satisfies</th><th>which is</th></tr>
+  <tr><td>pour + hole</td><td>d₁ + d₂ = (A−h)/k</td><td><strong>an ellipse</strong>, foci on the two</td></tr>
+  <tr><td>pour + hole, same place</td><td>d = constant</td><td>a circle — but see below</td></tr>
+  <tr><td>two holes</td><td>d₁ − d₂ = Δh/k</td><td>a hyperbola</td></tr>
+  <tr><td>two holes, same depth</td><td>d₁ = d₂</td><td>a straight line</td></tr>
+  <tr><td>two pours</td><td>d₂ − d₁ = ΔA/k</td><td>a hyperbola</td></tr>
+  <tr><td>a point and a <em>line</em></td><td>d<sub>point</sub> ± d<sub>line</sub> = constant</td><td><strong>a parabola</strong></td></tr>
+</table>
+
+<h2>Can you get every conic? Not from holes alone</h2>
+<p>The obvious next question is whether the whole family falls out of this, and
+the answer has a catch worth the trouble.</p>
+<p>Two point features — any two, in any arrangement — can only ever hand you a
+<em>sum</em> of two distances or a <em>difference</em> of two distances. Those
+are exactly the ellipse and the hyperbola. You can slide the eccentricity as
+close to 1 as you like from either side and never arrive: push an ellipse and
+it flattens to a segment, pull a hyperbola and it opens to a ray. Both limits
+are degenerate. <strong>There is no parabola anywhere in the two-point
+family</strong>, and there is a test asserting exactly that.</p>
+<p>The reason is the classical one. A parabola is an ellipse with one focus sent
+to infinity, and infinity is not a place you can drill a hole. But it <em>is</em>
+somewhere you can build: a cone whose apex has run away to infinity is a
+straight ridge, and a funnel whose bottom has run away to infinity is a straight
+slot. <strong>So the missing focus is a slot</strong> — and point-against-slot
+lands on e = 1 exactly, because that is the focus-and-directrix definition with
+the directrix made out of something you can cut with a knife.</p>
+<p>Which is a pleasing way round: the case you cannot reach by moving holes is
+the one you reach by changing what a hole is.</p>
+
+<h2>The octagon, and getting rid of it</h2>
+<p>An early version of this page had a pile with a distinctly octagonal
+cross-section and faint spokes running out to its corners. That is worth
+keeping in the write-up, because the cause is more interesting than the fix.</p>
+<p>A toppling rule that compares each cell only with its eight nearest
+neighbours is not measuring Euclidean distance. It is measuring the
+<em>chamfer</em> distance built from steps of 1 and √2 — and the unit ball of
+that metric is an octagon, with its corners on the axes and the diagonals. The
+pile was a perfect cone the whole time. It was a cone in the wrong metric,
+7.3% wider at 0° and 45° than at 22.5°.</p>
+<p>The weights cannot save you: √2 is already the ratio that minimises the
+distortion, and scaling both of them changes the pile's size without touching
+its shape. The only lever is more directions, and there is a formula for what
+each one buys. Reaching a direction the stencil does not have means combining
+two that it does, and the combination is longer than the straight line by
+exactly <code>sec(half the gap between them) − 1</code>. So the error is set by
+the <em>widest</em> angular gap, and each rung has to split whichever gap is
+currently widest — not fill a box.</p>
+<p>Measured against that formula, on the metric itself rather than on sand:</p>
+<table class="fam">
+  <tr><th>directions</th><th>what they add</th><th>formula</th><th>measured</th></tr>
+  <tr><td>8</td><td>axes and diagonals</td><td>8.24%</td><td>8.11%</td></tr>
+  <tr><td>16</td><td>+ knight's moves, √5</td><td>2.75%</td><td>2.74%</td></tr>
+  <tr><td>24</td><td>+ (3,1), √10</td><td>1.31%</td><td>1.30%</td></tr>
+  <tr><td>40</td><td>+ (3,2) and (5,1)</td><td>0.49%</td><td>0.48%</td></tr>
+</table>
+<p>The page ships the forty-direction rule. Note what is <em>not</em> on that
+list: (4,3) would cost eight more comparisons and improve nothing, because it
+subdivides a gap that was already the smaller one — which is also why a plain
+7×7 or 11×11 block is the wrong way to spend the budget.</p>
+<p>None of that is a change to the physics. The model is <code>|∇z| ≤ k</code>
+— sand stands no steeper than repose in <em>any</em> direction — and checking
+only eight of them was simply a coarse way to enforce it.</p>
+
+<h2>Two errors underneath the octagon</h2>
+<p>The settled pile does not get as round as the metric does, and chasing that
+gap turned up two more error terms that had been hiding under the first.</p>
+<p>The first is the <strong>pour itself</strong>. "No pair stands steeper than
+repose" is satisfied by a whole family of surfaces, not one, and which member
+you land on is decided by how the sand arrived. It is not under-settling —
+driving the worst remaining overshoot from 10⁻² down to 10⁻⁶ does not move the
+outline by a thousandth of a percent — it is a record of the cascade. Deliver
+the same mass in four times as many helpings, so the toe creeps forward instead
+of avalanching, and it goes away: on the forty-direction rule the pile drops
+from 1.83% out of round to 0.73%, and pouring gentler still changes nothing
+further.</p>
+<p>The second is the <strong>grid</strong>, and it identifies itself the way a
+discretisation error should — by shrinking when you refine. The same gentle
+pour gives 1.26% out of round at an apex of 16 cells, 0.73% at 18, 0.63% at 21.
+(Compare the fitter's eccentricity bias, found earlier in this project, which
+came back the same at every resolution. That is how you tell a discretisation
+error from a mistake.)</p>
+<p>So the account of a round pile is three terms, and the visible spokes were
+only ever the first of them: the metric, the pour, and the grid — 8.2% down to
+about 0.5% down to about 0.6%, in that order of attack. What the eye actually
+judges is none of these, incidentally, but the <em>direction</em> of the
+surface normal, since that is what shading reads: it wanders 9.8° from radial
+on the eight-direction rule and 2.7° on the forty-direction one.</p>
+<p>The cost would have been prohibitive, though, and dodging it is the part
+worth stealing. In the original rule a cell sheds <code>c × overshoot</code> to
+<em>every</em> neighbour it stands over, so the most it can lose in a pass grows
+with the stencil, and keeping that under one forces <code>c</code> down as the
+stencil grows — which triples the passes just as each pass gets three times
+dearer. Sharing one overshoot's worth <em>among</em> those neighbours instead
+removes the dependence entirely. The settled surface is identical, because
+settled means no pair stands too steep and that condition never mentions
+<code>c</code>; only the route changes. It converges in about sixty passes
+where the original took two thousand, so the forty-direction pile costs about
+what the octagonal eight-direction one used to.</p>
+
+<h2>Two limits you cannot reach</h2>
+<p>The parabola is one of them. The circle is the other, and it fails for a
+blunter reason: a hole directly beneath the pour point drains everything that
+lands on it, so no pile forms and there is no crease to look at. Slide the hole
+closer and the ellipse rounds out beautifully; take the last step and the sand
+is simply gone. There is a test asserting that nothing piles up.</p>
+<p>Both are the same shape of fact. The family is open at both ends, and the
+ends are where the construction stops constructing.</p>
+
+<h2>How it computes</h2>
+<p>The sand here is <strong>simulated, not drawn</strong>. Every cell of the
+plate topples against each of forty neighbouring directions whenever it stands
+steeper than repose, and every transfer is paired so no grain is invented or
+lost. The eight-direction version of that rule is not new and is not ours: this
+repository already runs it behind
+<a href="https://g.mino.mobi/soil/">g.mino.mobi/soil</a>, and the engine here is
+that same rule ported to Rust, with a test pinning the two against each other.
+What is new is the part this construction needs and a soil table has no notion
+of — sources and sinks.</p>
+<p>The distinction matters more than it sounds. Writing
+<code>z = min(A − k·d₁, h + k·d₂)</code> straight out would have produced the
+same picture in a millisecond and proved nothing at all, because the ellipse
+would have been put there by hand. Pouring grains and letting them fall costs
+thousands of passes per settle, and buys the one thing worth having: the curve
+becomes something to go and <em>measure</em>.</p>
+<p>So it is measured. The seam is found by asking each cell which feature its
+slope is aimed at <em>and</em> where the surface folds — both, because each
+covers the other's blind spot. Slope direction alone is fooled along the line
+joining the pour point to the hole, where the cone and the funnel fall the same
+way; folds alone are fooled by the faint facets a square grid leaves on a cone.
+(The facets turn out not to be what limits the fold threshold — a facet sits
+inside one basin, and a seam is a boundary <em>between</em> two, so the
+label test throws them out for free. What the threshold is really keeping out
+is the near-tie stripe along the line joining the two features.)
+The points that survive both are handed to a general conic fit
+that is told nothing else — not where the pour point is, not where the hole is,
+not which of the six cases it is looking at. When it reports back an ellipse
+whose 2c⁄2a is 0.78 against his 0.737 — measured on his geometry, over 304° of
+the curve — that is a result rather than an echo. (It read 0.75 while the
+tracer was returning only part of the curve. The whole curve is the honest
+measurement and it is the further of the two from his number, for the reason in
+the section above: taken about the spout it carries the pile's drift.)</p>
+
+<h2>The focus is the pile's peak, not the spout</h2>
+<p>His claim is that the crease's foci are the pour point and the hole, and it
+is very nearly true. What is left over is a real effect and it is more
+interesting than a tolerance.</p>
+<p>Traced all the way round, <code>r₁ + r₂</code> measured about the pour point
+is not flat: it runs about 12% high on one side of the curve and 13% low on the
+other, in one clean cycle. A single cycle like that is a <em>translation</em> —
+the curve is offset bodily from the ellipse the hypothesis predicts. And the
+direction it is offset in is exactly the bearing of the pile's peak from the
+pour point.</p>
+<p>Which is what you would expect once you look. The hole eats the sand on its
+own side, so the pile does not build symmetrically about where it is poured:
+its peak sits three or four cells away, on the side <em>away</em> from the
+drain. The cone whose surface meets the funnel is the cone about that peak, not
+about the spout. Take the peak as the focus instead and the same curve's
+scatter halves, from 8.3% to 4.1%.</p>
+<p>On a tray the size of his, three cells is nothing and the drift is
+invisible. On a 145-cell plate it is the largest single error in the reading,
+which is why the readout shows it.</p>
+
+<h2>How much curve the fit is standing on</h2>
+<p>A conic has five free parameters, and a short arc does not pin them down. On
+<em>exact</em> points, laid on a known ellipse and quantised to the half cell
+this tracer works to, 45° of arc recovers the eccentricity to no better than
+±0.24; 90° to about ±0.1; and it is not until roughly 135° that it is reliably
+inside 0.06. More points do not help at all — the failure is that many conics
+pass through a short arc within half a cell, not that the arc is
+under-sampled.</p>
+<p class="warn">This page printed a wrong number for a while because of it. The
+seam tracer insists on a fold of at least some fraction of <code>k</code>
+before it will believe a crease, and that threshold was set far too high: it
+was returning ten points spanning 35° of the ellipse, and the fit taken off
+that quadrant reported an eccentricity of 0.587 where the focal distances said
+0.760. Lowering the threshold from 0.25 <code>k</code> to 0.09 <code>k</code>
+returns the whole closed curve — 79 points over 345° — and fit and measurement
+then agree to 0.02. So the readout now reports <em>how much of a closed curve
+was traced</em>, and dims the fit when there is not enough of it to mean
+anything.</p>
+<p>The trade runs the other way too, and it is worth being plain about: the
+long curve made <code>r₁ + r₂</code> look <em>worse</em>, from about 3% to
+about 8%. That is not a curve gone vaguer. It is the quadrant having sat on the
+far side from the drift described above, and so never sampling it.</p>
+
+<h2>What it gets wrong</h2>
+<p class="warn"><strong>Both rows of the table involving two holes are
+predicted, not measured</strong> — the hyperbola and the straight line alike —
+and there is no preset for either. The fault is the arrangement rather than the
+sand: two holes sit on a line with a long tail of plate beyond each of them, and
+anywhere out along that tail <em>both</em> holes lie in nearly the same
+direction, so the measurement cannot tell them apart and finds patches of the
+wrong basin instead of the curve. Every hyperbola attempt came back with
+|r₁ − r₂| constant at <em>exactly</em> the distance between the holes, which is
+the degenerate ray along the axis and not a hyperbola at all.</p>
+<p class="warn">A straight-line test did pass here for a while, and it is worth
+saying why it was thrown out rather than kept: it passed only because it stopped
+the sand settling early, before the craters had spread far enough down the tail
+for the problem to appear. Letting the same plate settle properly moved the
+answer from the bisector to a patch thirty cells away. A result that holds only
+while the simulation is unfinished is not a result.</p>
+<p>The parabola preset also draws only one half of its curve, and for a
+smaller version of the same reason: the two halves come back as separate runs
+of points, and the tracer keeps the longer one rather than reaching far enough
+to join them — reaching that far also bridges out to a patch of noise, and the
+fitted eccentricity goes from 1.001 to 1.42. Half a curve measured well beats a
+whole one measured badly, and the focus-to-slot ratio is computed over whatever
+was found, so the number underneath is not affected.</p>
+<p>The ellipse escapes all of this because its curve closes around both features
+and never visits the tail, and the parabola escapes it because a slot has no
+tail to visit. Fixing the rest needs a tracer that follows the curve outward
+from a known crossing instead of scanning the whole plate, which is more than
+this page needed.</p>
+<p>Two smaller things. The plate is 113 to 145 cells across, so the curve is tens of
+cells long and half a cell of quantisation is a real part of the error — his
+0.16% came off a rendered line in a 1024-pixel video and nothing here will
+match it. And the blind fit's <em>eccentricity</em> wanders more than its
+<em>shape</em> does: the fitted foci sit on the major axis and slide along it
+for a small error, which is why the readout shows the directly measured 2c⁄2a
+beside it rather than trusting either alone.</p>
+
+<h2>Credit, and a request</h2>
+<p>This is a fan page. The demo is Matt Henderson's
+(<a href="https://matthen.com">matthen.com</a>,
+<a href="https://bsky.app/profile/matthen.com">@matthen.com</a>); the code here
+is ours and none of his video is copied onto this site. If he would rather this
+did not exist, or wants anything about it changed, that decision is his and we
+will act on it — see <a href="../#consent">the note on the front page</a>.</p>
+
+</article>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

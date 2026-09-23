@@ -1,0 +1,21 @@
+{
+  "$comment": "Cloudflare operations, carried out by .github/workflows/cf-ops.yml when this file changes on its branch. Every op is re-guarded against the live account right before it runs (scripts/cf-ops.mjs). Nothing is applied unless apply is true: the agent commits the dry run, the operator reads its log and flips apply in a separate commit. No batch pending; finished batches are recorded in history.",
+  "apply": false,
+  "ops": [],
+  "history": [
+    {
+      "batch": 1,
+      "at": "2026-09-23T20:08Z",
+      "run": 35913964690,
+      "applied_by": "operator flip (cf11a8f5)",
+      "done": "delete-worker x8: mino-answers, mino-disk, mino-poke, mega-minomobi, pds-os, finance-minomobi, amadeus-proxy, perp — all guards passed, all deleted"
+    },
+    {
+      "batch": 2,
+      "at": "2026-09-23T20:19Z",
+      "run": 35914967765,
+      "applied_by": "operator flip (2319c63a)",
+      "done": "convert-to-route x10: time.mino.mobi, war.mino.mobi, zoom.mino.mobi, empath.mino.mobi, mappa.mino.mobi, j.mino.mobi, phylofiction.mino.mobi, iris.mino.mobi, duck.mino.mobi, polis.mino.mobi — all guards passed, all converted, every host answered"
+    }
+  ]
+}

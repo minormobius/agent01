@@ -6,7 +6,7 @@ name: Deploy tjs (three.js workbenches)
 
 on:
   push:
-    branches: ['claude/threejs-procgen-buildings-mprgs6']
+    branches: ['claude/mobile-support-attribution-abs7qz']
     paths:
       - 'tjs/**'
       - '.github/workflows/deploy-tjs.yml'
@@ -28,12 +28,13 @@ jobs:
           node tjs/brut/planting.selftest.mjs
           node tjs/brut/terrain.selftest.mjs
           node tjs/manifold/shell.selftest.mjs
+          node tjs/marbles/marbles.selftest.mjs
 
       - name: Stage site into dist/
         working-directory: tjs
         run: |
           rm -rf dist && mkdir -p dist
-          cp -r index.html docs.html gantry orb infill swarm beelix cube deck geb kite dragon brut manifold lib AGENTS.md samples dist/
+          cp -r index.html docs.html gantry orb infill swarm beelix cube deck geb kite dragon brut manifold marbles lib AGENTS.md samples dist/
           rm -f dist/wrangler.jsonc dist/wrangler.toml
           # kite: ship only the built wasm (solver/pkg) + kite-vlm.js; drop the Rust
           # sources and the node selftest from the static bundle.
@@ -47,6 +48,8 @@ jobs:
           rm -f dist/brut/arch.selftest.mjs dist/brut/struct.selftest.mjs dist/brut/lift.selftest.mjs dist/brut/plant.selftest.mjs dist/brut/roller.selftest.mjs dist/brut/planting.selftest.mjs dist/brut/terrain.selftest.mjs
           # manifold: same — the selftest gates the deploy, it is not a page asset
           rm -f dist/manifold/shell.selftest.mjs
+          # marbles: same. CREDITS.md IS a page asset — it is linked from the bench.
+          rm -f dist/marbles/marbles.selftest.mjs
           ls -laR dist/ | head -60
 
       - name: Deploy to Cloudflare

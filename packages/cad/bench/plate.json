@@ -1,0 +1,14 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Front plate: a disc with a centre hole, five pivot holes on a circle and three pillar holes. Everything is even-odd region composition; no booleans.",
+  "params": { "R": 20, "t": 1.5, "r_pivot": 0.16, "r_pivots": 12, "n_pivots": 5, "r_pillar": 0.6, "r_pillars": 18, "n_pillars": 3, "r_centre": 0.5 },
+  "features": [
+    { "op": "sketch", "id": "outline", "loops": [ { "name": "rim", "circle": { "c": [0, 0], "r": "R" } }, { "name": "centre", "circle": { "c": [0, 0], "r": "r_centre" } } ] },
+    { "op": "sketch", "id": "pivot", "loops": [ { "circle": { "c": ["r_pivots", 0], "r": "r_pivot" } } ] },
+    { "op": "pattern", "id": "pivots", "of": "pivot", "kind": "circular", "count": "n_pivots", "name": "pivot" },
+    { "op": "sketch", "id": "pillar", "loops": [ { "circle": { "c": ["r_pillars*cos(deg(30))", "r_pillars*sin(deg(30))"], "r": "r_pillar" } } ] },
+    { "op": "pattern", "id": "pillars", "of": "pillar", "kind": "circular", "count": "n_pillars", "name": "pillar" },
+    { "op": "extrude", "id": "plate", "profile": ["outline", "pivots", "pillars"], "depth": "t" }
+  ]
+}

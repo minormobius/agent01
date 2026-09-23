@@ -1,0 +1,48 @@
+name: Reactivate Hoop anchors (atproto)
+
+# Puts the CAMPAIGN SPINE back in the live story pool. hoopy's content runs tombstone the previous
+# corpus wholesale; a run that regenerates the keepers but not the four LOAD-BEARING anchors
+# (Olo Vashti / Factor Solen / Sevin / Luna) leaves every gate flag in the world with nothing to turn
+# one in at — prove-solvable reports `no_anchors`. This writes the carried anchors
+# (hoop/v110/story/spine-anchors.js) back to the service repo with status 'active', at their original
+# rkeys, RE-GATED against the live run.
+#
+# Safe to run at any time: it publishes exactly what story/import.js's graft was already serving, so
+# nothing the game shows changes — it only means the pool no longer needs our client to be whole. It
+# is a NO-OP when the pool already carries a live load-bearing anchor, and it refuses to write unless
+# the resulting pool proves progressable. Dispatch only: writing to the live pool is never a push
+# side-effect. Run with dry=true first.
+on:
+  workflow_dispatch:
+    inputs:
+      author:
+        description: 'Which service account holds the pool'
+        type: choice
+        default: morphyx
+        options: [morphyx, modulo, main]
+      dry:
+        description: 'Dry run (fetch + re-gate + prove + print, no write)'
+        type: boolean
+        default: true
+
+jobs:
+  reactivate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reactivate the load-bearing anchors
+        env:
+          HOOP_STORY_HANDLE: >-
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_HANDLE
+              || inputs.author == 'main' && secrets.BLUESKY_HANDLE
+              || secrets.BLUESKY_MORPHYX_HANDLE }}
+          HOOP_STORY_PASSWORD: >-
+            ${{ inputs.author == 'modulo' && secrets.BLUESKY_MODULO_APP_PASSWORD
+              || inputs.author == 'main' && secrets.BLUESKY_APP_PASSWORD
+              || secrets.BLUESKY_MORPHYX_APP_PASSWORD }}
+        run: node hoop/scripts/reactivate-anchors.mjs ${{ inputs.dry && '--dry' || '' }}
+      - name: Prove the live pool
+        run: node hoop/scripts/prove-solvable.mjs --strict

@@ -76,6 +76,8 @@ const GENERATED = [
   // reads — a divergence that is invisible from outside, because the page still
   // renders. It is just wrong.
   { name: 'loop graph view',        script: 'gen-loop-data.mjs',            write: ['--write'] },
+  // docs/BACKENDS.md: every worker, its tier and state, reconciled with the account snapshot
+  { name: 'backend inventory',      script: 'backend-inventory.mjs',        write: ['--write'] },
 ];
 for (const g of GENERATED) {
   if (!existsSync(join(ROOT, 'scripts', g.script))) { record(g.name, false, 'script missing'); continue; }
@@ -179,12 +181,42 @@ console.log('\nendpoint coverage');
     r.ok ? (counts ? `${counts} in the pending backlog` : '') : lastLine(r.out));
 }
 
+// ------------------------------------------ 3c. is every surface shipping trunk? --
+// `main` does not deploy; a surface ships from its OWNING branch. A branch that forked from trunk
+// and never came back keeps deploying the tree it had that day, from green runs, and Static Assets
+// republishes the whole manifest — so what trunk added is simply absent. `hoop` was found a month
+// and ~5300 lines behind trunk this way, with nothing reporting it.
+//
+// Per surface, over its own registry paths: do the trees agree, and which side moved? Only a
+// MISSING owning branch is fatal (that surface cannot deploy at all); `behind` is a backlog and
+// rides as a count on a passing check, the way endpoint coverage reports its pending list.
+// Skips loudly on a shallow clone — there is no merge base to find there.
+console.log('\ndeploy drift');
+{
+  const r = run('deploy-drift.mjs', ['--check']);
+  const line = lastLine(r.out);
+  const skipped = /SKIPPED/.test(r.out);
+  const m = r.out.match(/behind (\d+) · diverged (\d+)/);
+  record('every surface ships from a branch that exists', r.ok,
+    skipped ? line
+      : (r.ok ? (m ? `${m[1]} behind trunk, ${m[2]} diverged — \`node scripts/deploy-drift.mjs\`` : line) : line));
+}
+
+// The golden rule, enforced rather than documented: every surface's config binds the host
+// its registry entry names, as a custom domain or as a plain route (and a route surface's
+// workflow creates its DNS). Hand-bound hosts are declared in the registry's `binding`.
+console.log('\nhost bindings');
+{
+  const r = run('binding-check.mjs', ['--check']);
+  record('every surface binds its host (custom domain or route)', r.ok, lastLine(r.out) + (r.ok ? '' : '\n' + r.out.trim()));
+}
+
 // ------------------------------------------------------ 4. no leaked hosts --
 // The root worker serves `assets.directory: "."`, so generated files are
 // internet-facing. Redaction lives in scripts/lib/landing.mjs; verify it held.
 console.log('\nredaction');
 {
-  const PUBLISHED = ['docs/SURFACES.md', 'spec/data.js', 'functions/search.js'];
+  const PUBLISHED = ['docs/SURFACES.md', 'spec/data.js', 'functions/search.js', 'docs/BACKENDS.md'];
   const leaked = PUBLISHED.filter((f) => existsSync(join(ROOT, f))
     && /ascential/i.test(readFileSync(join(ROOT, f), 'utf8')));
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));
@@ -715,6 +747,13 @@ if (!quick) {
     }
   }
 
+  // How long a selftest gets. 120 s catches a hang in something that should
+  // take seconds, which is nearly everything here — but a test that drives a
+  // REAL BROWSER is legitimately slower, and capping it at the same number
+  // turns a passing test red on a machine one second slower than the last one.
+  // Give the browser tests room; leave the tight cap where it does its job.
+  const SLOW = [/browser\.selftest\.mjs$/];
+  const timeoutFor = (f) => (SLOW.some((re) => re.test(f)) ? 420000 : 120000);
   console.log(`\nselftests (${scope.length} of ${found.length} — ${scopeLabel}; --all-tests for every one)`);
   let pass = 0; const failed = [];
   // SHOW WHAT A FAILING TEST SAID. This used to be `stdio: 'ignore'`, so a red
@@ -730,13 +769,22 @@ if (!quick) {
   // Only failures print, tail only, and `timeout` is called out by name because
   // a killed test otherwise looks identical to one that failed an assertion.
   for (const f of scope) {
+    const ms = timeoutFor(f);
     try {
-      execFileSync('node', [f], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000 });
+      execFileSync('node', [f], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'], timeout: ms });
       pass++;
     } catch (e) {
       failed.push(f);
       const out = `${e.stdout ?? ''}${e.stderr ?? ''}`.split('\n').filter(Boolean);
-      const why = e.signal === 'SIGTERM' ? `killed after 120s — it hung` : `exit ${e.status ?? '?'}`;
+      // A TIMED-OUT TEST IS NOT A FAILING ONE, and telling them apart needs
+      // more than `signal === 'SIGTERM'`: execFileSync's timeout sends SIGTERM,
+      // but a child that HANDLES it — anything driving Playwright does — exits
+      // on its own terms, and node then reports `signal: null, status: 1,
+      // code: 'ETIMEDOUT'`. That reads as a failed assertion. It cost an hour
+      // on 2026-09-22: browser.selftest.mjs had grown to 125 s against the
+      // 120 s cap, printed every check green, and was reported as `exit 1`.
+      const timedOut = e.signal === 'SIGTERM' || e.code === 'ETIMEDOUT';
+      const why = timedOut ? `killed after ${ms / 1000}s — it hung, or it needs longer than its cap` : `exit ${e.status ?? '?'}`;
       console.log(`  ✗ ${f} (${why})`);
       for (const line of out.slice(-25)) console.log(`      ${line}`);
       if (!out.length) console.log('      (no output)');

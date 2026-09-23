@@ -5,6 +5,15 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
+> **2026-09-23: retired as a surface.** `wave.mino.mobi` was detached to free a slot under the
+> `mino.mobi` zone's 100-custom-domain cap, and the registry entry, `wrangler.jsonc` and
+> `deploy-wave.yml` were removed. Wave is reached as the **Wave tab inside org**
+> (`org.mino.mobi/wave`, code in `org/src/wave/`). This directory is the newer *standalone* app
+> (canvas editor, templates, blobs, shared OAuth) and is kept as source: it builds cleanly with
+> `vite build --base /wave/`, but serving it at `org.mino.mobi/wave/` would shadow org's own tab
+> on every reload (a second sign-in and vault unlock inside org), so whether it ships under org, or
+> is ported into `org/src/wave/`, is an open decision. Everything below is history.
+
 Team messaging. Channels, threads, and collaborative documents with real-time Jetstream sync.
 
 ## Facts

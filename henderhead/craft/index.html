@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crafting automaton — henderhead</title>
+<meta name="description" content="A cellular automaton whose transition rule is a table of Minecraft crafting recipes: items drift, and when they drift into the shape of a recipe they are crafted. An interactive rebuild of a Matt Henderson demo, in Rust and WebAssembly.">
+<meta property="og:title" content="Crafting automaton">
+<meta property="og:description" content="A cellular automaton from Minecraft crafting recipes. After a demo by Matt Henderson.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 4 27 10v12L16 28 5 22V10z' fill='none' stroke='%238fc0e8' stroke-width='2'/%3E%3Cpath d='M5 10l11 6 11-6M16 16v12' fill='none' stroke='%238fc0e8' stroke-width='1.5'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #0a1a2b; --panel: #0f2437; --edge: #1e3d58;
+    --ink: #dbe8f4; --dim: #7b9cb8; --curve: #9fc9ee; --hot: #ffd79a; --good: #6ee07a;
+    --slot: #112a41; --slotline: #22456a;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body { font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; -webkit-text-size-adjust: 100%; }
+  a { color: var(--curve); }
+  a:hover { color: #fff; }
+
+  header { display: flex; flex-wrap: wrap; gap: .4rem 1rem; align-items: baseline; padding: 1rem 1.25rem .75rem; border-bottom: 1px solid var(--edge); }
+  header h1 { font-size: 1.05rem; font-weight: 600; margin: 0; }
+  header .home { font-size: .85rem; color: var(--dim); text-decoration: none; }
+  header .home:hover { color: var(--ink); }
+  header .after { font-size: .85rem; color: var(--dim); margin-left: auto; }
+
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 21rem; gap: 1.25rem; padding: 1.25rem; align-items: start; }
+  @media (max-width: 940px) { main { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage { position: relative; }
+  canvas#grid { display: block; width: 100%; border-radius: 10px; background: #071624; border: 1px solid var(--edge); image-rendering: auto; }
+  .status { display: flex; flex-wrap: wrap; gap: .1rem 1.1rem; font: .78rem/1.7 var(--mono); color: var(--dim); margin-top: .45rem; }
+  .status b { color: var(--ink); font-weight: 600; }
+  .spent { color: var(--hot); }
+
+  .panel { display: grid; gap: .9rem; }
+  fieldset { border: 1px solid var(--edge); border-radius: 8px; margin: 0; padding: .6rem .8rem .8rem; background: var(--panel); }
+  legend { padding: 0 .35rem; font-size: .7rem; letter-spacing: .09em; text-transform: uppercase; color: var(--dim); }
+
+  button, select { font: inherit; color: var(--ink); background: #14314a; border: 1px solid var(--edge); border-radius: 6px; padding: .34rem .55rem; cursor: pointer; }
+  button:hover, select:hover { background: #1b405e; }
+  button[aria-pressed="true"] { background: var(--curve); color: #071624; border-color: var(--curve); font-weight: 600; }
+  .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: .35rem; }
+  .actions.two { grid-template-columns: 1fr 1fr; }
+  .actions button { font-size: .85rem; padding: .32rem .3rem; }
+
+  .row { display: grid; grid-template-columns: 4.4rem 1fr 3.4rem; gap: .5rem; align-items: center; margin-top: .4rem; }
+  .row label { font-size: .8rem; color: var(--dim); }
+  .row output { font: .78rem var(--mono); text-align: right; }
+  .row .hint { grid-column: 2 / -1; font-size: .72rem; color: var(--dim); margin-top: -.2rem; }
+  input[type=range] { width: 100%; accent-color: var(--curve); }
+
+  /* the live population */
+  #hist { display: block; width: 100%; border-radius: 8px; background: #0c1f31; border: 1px solid var(--edge); }
+  .histhelp { font-size: .75rem; color: var(--dim); margin: .4rem 0 0; }
+
+  /* the recipe book */
+  .book { display: grid; grid-template-columns: repeat(auto-fill, minmax(8.4rem, 1fr)); gap: .5rem; padding: 0 1.25rem; }
+  .rec { background: var(--panel); border: 1px solid var(--edge); border-radius: 8px; padding: .5rem .55rem; cursor: pointer; text-align: left; }
+  .rec:hover { border-color: var(--curve); }
+  .rec.off { opacity: .42; }
+  .rec .top { display: flex; align-items: center; gap: .35rem; }
+  .rec canvas { display: block; }
+  .rec .arrow { color: var(--dim); font-size: .9rem; }
+  .rec .yield { font: .72rem var(--mono); color: var(--hot); }
+  .rec .nm { font-size: .74rem; margin-top: .3rem; color: var(--dim); line-height: 1.3; }
+  .rec.seen .nm::after { content: ' ●'; color: var(--good); }
+  .rec.off .nm::before { content: 'banned · '; color: var(--hot); }
+
+  .prose { max-width: 46rem; padding: 0 1.25rem 3rem; color: #b9cfe2; }
+  .prose h2 { font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 2.2rem 0 .5rem; }
+  .prose p { margin: .65rem 0; }
+  .prose code { font: .9em var(--mono); background: #0f2437; padding: .1em .35em; border-radius: 4px; }
+  .credit { border-left: 2px solid var(--curve); padding-left: .9rem; }
+  .sectionhead { padding: 1.6rem 1.25rem .5rem; max-width: 46rem; }
+  .sectionhead h2 { font-size: .95rem; letter-spacing: .04em; text-transform: uppercase; color: var(--dim); margin: 0 0 .4rem; }
+  .sectionhead p { margin: 0; color: var(--dim); font-size: .85rem; }
+  noscript { display: block; padding: 1.25rem; color: var(--hot); }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="home" href="/">← henderhead</a>
+  <h1>Crafting automaton</h1>
+  <span class="after">after <a href="https://bsky.app/profile/matthen.com/post/3mva6fo4ew22c">a demo by Matt Henderson</a></span>
+</header>
+
+<noscript>This automaton runs its rule in WebAssembly as you watch, so it needs JavaScript on.</noscript>
+
+<main>
+  <div class="stage">
+    <canvas id="grid" width="1200" height="800"></canvas>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="panel">
+    <fieldset>
+      <legend>run</legend>
+      <div class="actions">
+        <button id="play" aria-pressed="true">❚❚ pause</button>
+        <button id="once">step</button>
+        <button id="reset">new grid</button>
+      </div>
+      <div class="row">
+        <label for="speed">speed</label>
+        <input type="range" id="speed" min="1" max="240" step="1" value="8">
+        <output id="speed-o"></output>
+        <div class="hint">ticks per second — the video runs at a few</div>
+      </div>
+      <div class="row">
+        <label for="size">grid</label>
+        <input type="range" id="size" min="16" max="80" step="4" value="32">
+        <output id="size-o"></output>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>the rule</legend>
+      <div class="row">
+        <label for="motion">motion</label>
+        <input type="range" id="motion" min="0" max="0.6" step="0.01" value="0.2">
+        <output id="motion-o"></output>
+        <div class="hint">at zero it crafts what it can reach and then stops</div>
+      </div>
+      <div class="row">
+        <label for="rate">craft rate</label>
+        <input type="range" id="rate" min="0.1" max="40" step="0.1" value="1.2">
+        <output id="rate-o"></output>
+        <div class="hint">matches fired per tick per 1000 cells</div>
+      </div>
+      <div class="row">
+        <label for="restock">restock</label>
+        <input type="range" id="restock" min="0" max="0.9" step="0.01" value="0.45">
+        <output id="restock-o"></output>
+        <div class="hint">keep this much of the grid stocked with fresh wood and stone. Ours, not his — zero is as posted, and runs down</div>
+      </div>
+      <div class="row" style="grid-template-columns: 4.4rem 1fr">
+        <label for="prio">ties</label>
+        <select id="prio">
+          <option value="0">biggest recipe wins</option>
+          <option value="1">pick at random</option>
+        </select>
+        <div class="hint">who gets a plank two recipes both want</div>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>population</legend>
+      <canvas id="hist" width="640" height="300"></canvas>
+      <p class="histhelp">Click a bar to ban that item — the rule stops making it. The button starts banned, which is his.</p>
+    </fieldset>
+  </div>
+</main>
+
+<div class="sectionhead">
+  <h2>The recipe book</h2>
+  <p>The whole transition rule. Click one to switch it off. A green dot marks a recipe you can actually watch fire in his video; the rest are the reconstruction.</p>
+</div>
+<div class="book" id="book"></div>
+
+<div class="prose">
+  <h2>What this is</h2>
+  <p class="credit">
+    On 11 September 2026 Matt Henderson posted a video: <em>a cellular automaton from Minecraft
+    crafting recipes</em>, and then <em>“I added random motion to keep the grid alive — and banned
+    buttons”</em>. The idea is his. There was no code and no write-up, only 40 seconds of video, so
+    the rule below was read off the screen frame by frame; where the video doesn't settle something,
+    this page says so rather than guessing quietly. His original post is
+    <a href="https://bsky.app/profile/matthen.com/post/3mva6fo4ew22c">here</a> and is worth watching
+    first.
+  </p>
+
+  <h2>The rule</h2>
+  <p>
+    Every cell of the grid holds one item or nothing. Two things happen each tick. <strong>Items
+    drift</strong>: each cell, with some probability, swaps contents with a neighbour.
+    <strong>Then the table works</strong>: wherever the items happen to be sitting in the shape of a
+    crafting recipe, that match is outlined, its ingredients are consumed, and the product is put
+    down. The empty squares in a recipe are part of its shape — a chest is eight planks
+    <em>around a hole</em>, and if something drifts into the hole it stops being a chest.
+  </p>
+  <p>
+    That is all of it. Nothing has a goal, nothing is optimised, and the grid is seeded with only
+    three things — oak logs, oak planks and cobblestone. Everything else on screen, every boat and
+    bowl and pickaxe, is something the grid stumbled into by shuffling.
+  </p>
+
+  <h2>What the video shows, and what it doesn't</h2>
+  <p>
+    Read off the video directly: the seed stock (logs, planks, cobblestone in a sparse scatter); the
+    green outline around a match, held for about a second before the craft; a five-plank U becoming
+    a boat, with the boat landing on the ingredient cell nearest the middle of the shape; a stick
+    above a cobblestone becoming a lever; and a closing histogram of item counts sorted downward,
+    led by sticks, cobblestone, cobblestone slabs, planks and oak slabs.
+  </p>
+  <p>
+    <strong>That histogram is the most informative frame in the video</strong>, because its ordering
+    is very nearly the ordering of <em>yields</em> — one log makes four planks, two planks make four
+    sticks, three make six slabs. A rule that threw the spare outputs away could not produce it. So
+    this one places them, in the consumed cells first and then the nearest empty ones, and the grid
+    fills up over time the way his does.
+  </p>
+  <p>
+    Three things the video genuinely does not settle, all of them exposed above as controls rather
+    than decided silently:
+  </p>
+  <ul>
+    <li><strong>Who wins a contested cell.</strong> Five planks in a U are a boat, but the bottom
+      three are also a slab and the left two are also a stick. The one U we can watch becomes a
+      boat, which argues for the biggest match — but a histogram led by sticks and slabs argues that
+      small recipes fire far more often, which is what picking at random does, since small matches
+      vastly outnumber big ones. Both are on the <em>ties</em> control.</li>
+    <li><strong>How fast the table works.</strong> Firing every available match every tick strips
+      the grid bare in about a hundred ticks, which is not what the video looks like — it has one to
+      three outlines on screen at a time, and its closing histogram still has plenty of cobblestone.
+      So the rate is a parameter. Turn <em>craft rate</em> up to watch the impatient version burn
+      the grid down.</li>
+    <li><strong>Whether anything replenishes.</strong> Nothing in the video does, and nothing here
+      does at <em>restock</em> = 0 — which is worth watching once, because the grid booms for a
+      minute and then stops dead. Every recipe is a one-way trip, this grid has no mines, and
+      nothing in the table consumes a slab or a lever or a shovel once it exists, so the automaton
+      has no sink for its own output. Forty seconds is not long enough to see that. Restock is our
+      addition: keep this much of the grid stocked with fresh wood and stone. It is a level rather
+      than a rate on purpose — a constant drip eventually packs the grid solid with terminal items,
+      and a full grid cannot craft at all, which is a worse death than the one it was meant to
+      prevent.</li>
+  </ul>
+
+  <h2>Where it all ends up</h2>
+  <p>
+    Leave it running and the same four things win every time, whatever else you change: oak slabs,
+    oak pressure plates, levers and wooden shovels. They are the cheapest terminal recipes on the
+    board — two or three items each, no exotic shape — so they fire constantly, and nothing in the
+    table ever consumes them again. Within a couple of thousand ticks the grid is mostly those four
+    and a scattering of sticks, and the deep end of the book (chests, furnaces, ladders, signs)
+    almost never fires at all, because eight items in an exact arrangement is a great deal to ask of
+    a random shuffle.
+  </p>
+  <p>
+    That is not a bug in the reconstruction, it is what a rule with no sinks does, and it is why the
+    recipe book is clickable: switching off the four drains is the fastest way to see how much
+    further the grid can get without them.
+  </p>
+
+  <h2>Why the buttons had to go</h2>
+  <p>
+    A wooden button is one plank in, one button out, and a button is an ingredient in nothing. Leave
+    it in and it is a cancer: every plank that finds itself alone for a moment turns into an inert
+    button, the plank supply collapses, and with it everything downstream — no sticks, so no tools,
+    no ladders, no fences. Unban it in the recipe book and watch. The engine has a test for exactly
+    this, because it is the sharpest thing his two-line follow-up tells you about the rule.
+  </p>
+  <p>
+    The oak pressure plate is the same trap wearing a different hat — two planks in, one plate out,
+    and plates are an ingredient in nothing either. So is the lever, and so is the wooden shovel. He
+    never mentioned any of them, so they are left in and unbanned here; they are also the three
+    items that end up dominating every run. Switching them off is the single biggest change you can
+    make to how far the grid gets.
+  </p>
+
+  <h2>How it computes</h2>
+  <p>
+    The rule runs in a small Rust engine compiled to WebAssembly (<code>engine/</code> here, 74 KB,
+    no imports and no bindgen). Each tick it surveys the whole grid for matches — indexed so a cell
+    only tests the recipes that could start with the item it holds — then fires them in priority
+    order, with no cell spent twice. The grid is a torus, so a recipe can straddle the seam and the
+    statistics aren't measuring the edge. Twenty known-answer tests check the shapes against the
+    game's: a boat is five planks in a U, a chest is eight around a hole, one log is four planks.
+  </p>
+  <p>
+    <strong>No Minecraft assets are used anywhere on this page.</strong> Every icon is drawn by
+    <code>items.js</code> out of a few isometric primitives and a palette per material — it is what
+    a crafting grid looks like if you draw it yourself. The recipes are the game's, because a
+    recipe is a fact about the game; the pictures are not facts, so they are ours.
+  </p>
+
+  <h2>Credit, and a request</h2>
+  <p>
+    This is a fan page. The idea and the demo are Matt Henderson's
+    (<a href="https://matthen.com">matthen.com</a>, <a href="https://bsky.app/profile/matthen.com">@matthen.com</a>);
+    the code here is ours and none of his video is copied onto this site. If he would rather this
+    did not exist, or wants anything about it changed, that decision is his and we will act on it —
+    see <a href="/#consent">the note on the front page</a>.
+  </p>
+</div>
+
+<script type="module" src="./app.js"></script>
+</body>
+</html>

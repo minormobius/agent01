@@ -19,6 +19,7 @@ import { distil, provenanceMode, redact, isRecoveryPrompt } from './capture-sess
 import { ingest } from './ingest-prompts.mjs';
 import { remoteBranches, inboxOnBranch, branchesWithInbox, readInbox } from './branch-corpus.mjs';
 import { rowsFrom } from './collect-branches.mjs';
+import { sessionRecord, CONFIG } from './ship-session.mjs';
 
 const ROWS = [
   // 13 words of prose, top-level. Root of the one self-thread.
@@ -489,6 +490,23 @@ check('counts words', crows[0].words, 3);
 // prompts-only shape still works
 check('messages shape', rowsFrom({ messages: [{ text: 'hi there friend' }] }, 'x')[0].role, 'principal');
 check('bare array shape', rowsFrom(['just a string'], 'x')[0].text, 'just a string');
+
+console.log('\nship-session record');
+{
+  const L = (o) => JSON.stringify(o);
+  const lines = [
+    L({ type: 'user', origin: { kind: 'human' }, timestamp: 't1', message: { content: 'convert the ten' } }),
+    L({ type: 'assistant', timestamp: 't2', message: { content: [{ type: 'tool_use', name: 'Bash', input: {} }] } }),
+    L({ type: 'user', timestamp: 't3', message: { content: [{ type: 'tool_result', content: 'SECRET FILE CONTENTS' }] } }),
+    L({ type: 'assistant', timestamp: 't4', message: { content: [{ type: 'text', text: 'All ten converted.' }] } }),
+  ];
+  const rec = sessionRecord({ session_id: 's1' }, lines, { source: { repo: 'x/y', branch: 'b' }, now: 'n' });
+  check('record keeps the prompt and the reply', rec.turns.length, 2);
+  check('record names the session', rec.session, 's1');
+  check('tool output never reaches the record', JSON.stringify(rec).includes('SECRET FILE CONTENTS'), false);
+  check('a session with no principal turn ships nothing', sessionRecord({ session_id: 's2' }, [lines[3]]), null);
+  check('the corpus repo is not the public source repo', CONFIG.repo !== CONFIG.source, true);
+}
 
 console.log(failures ? `\n${failures} failure(s)\n` : '\nall passed\n');
 process.exit(failures ? 1 : 0);

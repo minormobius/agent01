@@ -3,8 +3,9 @@ name: Deploy Empathy
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
+      - 'scripts/route-dns.mjs'
       - 'empathy/**'
       - '.github/workflows/deploy-empathy.yml'
   workflow_dispatch:
@@ -17,8 +18,25 @@ jobs:
         working-directory: empathy
     steps:
       - uses: actions/checkout@v4
+      # This host is a plain route (converted 2026-09-23 by cf-ops convert-to-route); a route
+      # makes no DNS, so ensure the proxied record exists (creates only what is missing).
+      - name: Ensure DNS for plain routes
+        working-directory: empathy
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy static site
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Green is not proof, least of all on a route: the check is the HOST answering.
+      - name: Verify empath.mino.mobi serves (route)
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS -o /dev/null https://empath.mino.mobi/; then echo "✓ empath.mino.mobi is live"; exit 0; fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 8
+          done
+          echo "✗ empath.mino.mobi did not serve within ~80s"; exit 1

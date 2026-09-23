@@ -8,7 +8,7 @@ name: Deploy os (terminal frontend)
 
 on:
   push:
-    branches: ['claude/os-deploy-surface-474bz3']
+    branches: ['claude/codex-containers-research-58t9ad']
     paths:
       - 'os/**'
       - '!os/api/**'

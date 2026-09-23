@@ -1,0 +1,38 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "A 330 ml can, Ø66 × 123. Reference geometry — it is the task, not the machine.",
+ "params": {
+  "d": 66,
+  "t": 123,
+  "z0": 0
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "face",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "can",
+   "profile": "face",
+   "depth": "t"
+  }
+ ]
+}

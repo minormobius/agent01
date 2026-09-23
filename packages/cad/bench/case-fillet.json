@@ -1,0 +1,11 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "The case with its rim edges filleted. Exists to record which kernels can fillet at all.",
+  "params": { "R": 22, "H": 8, "wall": 1, "floor": 1, "r_fillet": 0.4 },
+  "features": [
+    { "op": "sketch", "id": "section", "plane": "XZ", "loops": [ { "name": "cup", "polygon": [ [0, 0], ["R", 0], ["R", "H"], ["R - wall", "H"], ["R - wall", "floor"], [0, "floor"] ] } ] },
+    { "op": "revolve", "id": "case", "profile": "section", "axis": { "p": [0, 0], "d": [0, 1] } },
+    { "op": "fillet", "id": "rim", "edges": "case.cup[2]", "r": "r_fillet" }
+  ]
+}

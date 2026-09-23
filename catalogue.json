@@ -13,29 +13,7 @@
     "d": "curated one-line description (moved here from the old landing's <li> list in 2026-09)",
     "tags": "stack tags shown with the description (canvas, atproto, wasm, …)"
   },
-  "$order": "entries[] order is a legacy of the old landing's on-screen order; sections[] recorded its section boundaries by entry index and is kept for the archived page only.",
-  "sections": [
-    {
-      "before": 0,
-      "label": "bluesky"
-    },
-    {
-      "before": 74,
-      "label": "work"
-    },
-    {
-      "before": 84,
-      "label": "data"
-    },
-    {
-      "before": 147,
-      "label": "tools"
-    },
-    {
-      "before": 212,
-      "label": "games"
-    }
-  ],
+  "$order": "entries[] order is a legacy of the old landing's on-screen order; nothing depends on it any more. Append new entries at the end.",
   "entries": [
     {
       "n": "poll",
@@ -332,7 +310,7 @@
       "t": "2026-05-29",
       "b": "2026-05-20",
       "surface": "rite",
-      "d": "Sentence editing drill plus nine surfaces over Bluesky prose—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, and signal mapping.",
+      "d": "Sentence editing drill plus a dozen surfaces over Bluesky prose and English itself—fodder swipe deck, redactle, semantic search, atlas, lexicon lenses, list themes, link knowledge graph, signal mapping, procedural names and org charts, and a monosyllable engine that mints English-shaped words nobody has claimed.",
       "tags": [
         "workers",
         "d1",
@@ -480,6 +458,17 @@
       "a": "hot",
       "t": "2026-07-10",
       "b": "2026-07-10",
+      "p": "rite",
+      "surface": "rite"
+    },
+    {
+      "n": "sharp",
+      "u": "https://rite.mino.mobi/sharp/",
+      "c": "bluesky",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-22",
+      "b": "2026-09-22",
       "p": "rite",
       "surface": "rite"
     },
@@ -943,6 +932,22 @@
       ]
     },
     {
+      "n": "dweet",
+      "u": "https://bsky.mino.mobi/dweet/",
+      "c": "bluesky",
+      "k": 0,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-21",
+      "surface": "bsky",
+      "d": "A feed of animations that are 256 characters of JavaScript or GLSL, called 60 times a second over a canvas. Each one is a record in its author's own repo, and at that size the whole artwork fits inside a single firehose event — so the feed needs no index and no backend, the way the AppView beside it needs none. Every dweet runs in a sandboxed frame at an opaque origin under default-src 'none', because a feed of strangers' code on a domain with an SSO cookie is otherwise an account takeover. Write in JS or in GLSL, which is the same 256 characters on the GPU — and a shader written for demosky.app's mainImage dialect runs here unchanged. Sketches are badged by demoscene size category (64b/128b/256b) rather than only by a limit.",
+      "tags": [
+        "atproto",
+        "canvas",
+        "webgl"
+      ]
+    },
+    {
       "n": "zest",
       "u": "https://zest.mino.mobi",
       "c": "bluesky",
@@ -982,7 +987,7 @@
       "t": "2026-05-29",
       "b": "2026-03-25",
       "p": "org",
-      "surface": "pm",
+      "surface": "root",
       "d": "Earned value project management. Gantt charts, S-curves, resource tracking, and Kanban—synced to PDS.",
       "tags": [
         "pwa",
@@ -991,14 +996,14 @@
     },
     {
       "n": "wave",
-      "u": "https://wave.mino.mobi",
+      "u": "https://org.mino.mobi/wave",
       "c": "work",
       "k": 10,
       "a": "cold",
       "t": "2026-05-29",
       "b": "2026-03-25",
       "p": "org",
-      "surface": "wave",
+      "surface": "org",
       "d": "Team messaging. Channels, threads, and collaborative documents with real-time Jetstream sync.",
       "tags": [
         "react",
@@ -1146,10 +1151,11 @@
       "n": "finance",
       "u": "https://fin.mino.mobi/pm/",
       "c": "data",
-      "k": 28,
-      "a": "hot",
+      "k": 2,
+      "a": "warm",
       "t": "2026-05-29",
       "b": "2026-03-14",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1160,7 +1166,7 @@
       "a": "hot",
       "t": "2026-05-14",
       "b": "2026-03-31",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1169,7 +1175,7 @@
       "c": "data",
       "k": 2,
       "a": "hot",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
@@ -1178,18 +1184,22 @@
       "c": "data",
       "k": 2,
       "a": "hot",
-      "p": "finance",
+      "p": "fin",
       "surface": "finance"
     },
     {
-      "n": "speclab",
+      "n": "fin",
       "u": "https://fin.mino.mobi",
       "c": "data",
-      "k": 1,
+      "k": 28,
       "a": "hot",
-      "t": "2026-06-21",
-      "b": "2026-06-21",
-      "surface": "finance"
+      "t": "2026-09-21",
+      "b": "2026-03-14",
+      "surface": "finance",
+      "d": "The index for everything on fin.mino.mobi: the financial periodic table, a speculative-feedback research playground, the personal-finance planning tools, a labor-market dashboard, a daily price archive, and an ice cream deal finder.",
+      "tags": [
+        "index"
+      ]
     },
     {
       "n": "wars",
@@ -1909,19 +1919,20 @@
     },
     {
       "n": "perp",
-      "u": "https://perp.mino.mobi",
+      "u": "https://fin.mino.mobi/perp/",
       "c": "data",
       "k": 1,
       "a": "hot",
       "t": "2026-08-26",
       "b": "2026-08-26",
-      "surface": "perp",
+      "surface": "finance",
       "d": "A perpetual future never expires, so nothing forces it to converge on spot — instead it pays funding, an hourly cash transfer between longs and shorts. Two linked charts: eleven years of BTC-USD spot, and the Hyperliquid perp’s hourly premium since 2023 drawn against the ±5bp clamp corridor, inside which funding is mathematically blind to premium and so nothing pulls the perp back toward spot. The funding line is flat as a table until the premium escapes the band. Every figure in the prose is derived from the series rather than typed, and the page shows its own null result: premium tracks the integral of past returns over several days and predicts the future at a correlation of about 0.03.",
       "tags": [
         "canvas",
         "market-data",
         "hyperliquid"
-      ]
+      ],
+      "p": "fin"
     },
     {
       "n": "silk",
@@ -2221,6 +2232,23 @@
       "b": "2026-07-21",
       "p": "tjs",
       "surface": "tjs"
+    },
+    {
+      "n": "marbles",
+      "u": "https://tjs.mino.mobi/marbles/",
+      "c": "tools",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-14",
+      "b": "2026-09-14",
+      "p": "tjs",
+      "surface": "tjs",
+      "d": "Build a marble run and watch it go. A touch-first port of Codetaur's Marbleworks builder (vibe-coded.com, MIT) — their concept and photogrammetry-fitted part dimensions, credited; our phone-sized renderer and rolling-sphere solver.",
+      "tags": [
+        "three.js",
+        "no-build",
+        "touch"
+      ]
     },
     {
       "n": "moji",
@@ -2752,6 +2780,38 @@
       ]
     },
     {
+      "n": "cad",
+      "u": "https://cad.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-11",
+      "b": "2026-09-10",
+      "surface": "cad",
+      "d": "Parametric CAD in the browser. A feature tree in, solids out—the Manifold preview lands in milliseconds and the exact build with every face named lands behind it. Rust engine as WASM, hand-written WebGL2, an involute gear as a first-class op.",
+      "tags": [
+        "wasm",
+        "webgl",
+        "cad"
+      ]
+    },
+    {
+      "n": "parts",
+      "u": "https://cad.mino.mobi/parts/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-12",
+      "b": "2026-09-12",
+      "surface": "parts",
+      "d": "Communities of CAD parts, Reddit-shaped, with nothing stored on our side that your repo does not hold: found a community (a record in your repo), post a part (a record pointing at one revision of it, so what people vote on cannot change under them), comment, vote — every one yours. The front page is an index rebuilt from the network: writers self-report, and a cron finds strangers through Constellation backlinks instead of holding a firehose open. Parts open in cad.",
+      "tags": [
+        "atproto",
+        "cad",
+        "communities"
+      ]
+    },
+    {
       "n": "hopper",
       "u": "https://hopper.mino.mobi",
       "c": "tools",
@@ -2905,6 +2965,91 @@
       "b": "2026-07-31",
       "p": "foam",
       "surface": "foam"
+    },
+    {
+      "n": "jev",
+      "u": "https://mega.mino.mobi/jev/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-19",
+      "b": "2026-09-17",
+      "surface": "mega",
+      "d": "Seven experiments putting TypeSafe AI’s Jev — a decision-only model that returns typed answers and never text — to work, with what it refused to do published as plainly as what it did. Three you can run: a delver in a live foam dungeon taking five typed decisions per call, a harness against Hyperliquid’s public tick stream that sizes a paper book on an ordered ladder, and a composer that builds a procedural creature one legal edit at a time across five generators. Four that ran headless: the same composition loop against a real B-rep CAD kernel, every part watertight; an escalation router that beats reading the model’s own confidence by 62, 76 and 65 points across three replications; and a pre-registered 12-hour forward test, frozen before any data was collected and still accruing. The throughline is the finding: across every experiment, “the model is behaving badly” has been a missing or badly-shaped input about ten times out of ten, and the real work is projecting a design space onto axes a typed question can land on — ordered, nominal, circular, compositional, set-valued — because the primitive has to follow the shape of the variable, and asked to predict instead of to classify it simply emits a constant.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "research",
+        "workers"
+      ]
+    },
+    {
+      "n": "jev delve",
+      "u": "https://mega.mino.mobi/jev/delve/",
+      "c": "games",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-17",
+      "b": "2026-09-17",
+      "surface": "mega",
+      "d": "TypeSafe AI’s Jev is a decision model — it returns typed answers and never text. Here it is given a body: every few seconds one call carries a delver’s state inside a live foam dungeon plus five typed questions — which door, how dangerous, fight, take the loot, turn back — and Jev answers all five in parallel. The probabilities and confidence are drawn as they arrive, next to the raw request and response. When confidence falls under the gate the delver refuses to act on the pick and falls back to the dungeon’s own descent rule, which is the whole argument for a typed answer that knows how sure it is.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "procgen",
+        "3d"
+      ]
+    },
+    {
+      "n": "jev composer",
+      "u": "https://mega.mino.mobi/jev/composer/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-19",
+      "b": "2026-09-19",
+      "surface": "mega",
+      "d": "A decision model composing a procedural creature, one legal edit at a time, across five generators — quadruped, polypod, undulator, isopod, echinoderm. It draws nothing: the page enumerates every legal single-gene edit, redraws and measures each one, and Jev picks. Every option is shown as a thumbnail with the gap it would produce, and the one it chose carries a tick — so the whole loop is visible rather than asserted. The traits are measured off the render, not derived from the genes: filled cells, bounding box, density, where the mass sits, left-right symmetry, how far the ink sprawls. That is why one brief means the same thing to a hound, a spider, an eel and a brittle-star, and why shuffle is the fastest way to see it. An edit that would leave the generator's own bounds is never offered, so the answer cannot be an illegal creature — the quality ceiling of the loop is the enumerator, not the model. Greedy and random replay the identical enumerated sets beside it, because beating random is the only thing that makes a chain evidence rather than a demo.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "procgen",
+        "sprites"
+      ]
+    },
+    {
+      "n": "jev swarm",
+      "u": "https://mega.mino.mobi/jev/swarm/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-20",
+      "b": "2026-09-20",
+      "surface": "mega",
+      "d": "A decision model put in the steering seat of a particle swarm, live, beside the rule it replaced and two controls. Fluoddity's particles paint a trail field and steer on it: each one senses the field at two points off its own heading and a nonlinear brain turns those four numbers into a force. Here that brain is one typed question per particle — 256 questions in a single call — running against the same genome, the same field, the same seed and the same starting conditions, so the only thing that differs between the four canvases is who answers “how hard should this particle turn?”. The finding is one chart: Jev's decisions fall on a line and the genome's are a cloud. The model found one stateable policy, follow the trail, and applied it to every particle; the genome is an arbitrary point in rule space and has no policy at all. And the consistent policy produced LESS collective alignment than no steering whatsoever — 0.226 against 0.317 — because a consensus rule smooths rather than breaks symmetry, and a flock needs someone to turn the wrong way. It does not rebel; it legislates, and conformity is what stops the interesting behaviour emerging. Pre-registered before the run, with two of five predictions wrong and the scoring published, plus the harness bug that had trail-following coming out as avoidance until the handedness was checked.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "swarm",
+        "procgen"
+      ]
+    },
+    {
+      "n": "jev lab",
+      "u": "https://mega.mino.mobi/jev/lab/",
+      "c": "tools",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-18",
+      "b": "2026-09-18",
+      "surface": "mega",
+      "d": "A harness for a decision model against the fastest honest feedback there is. Hyperliquid's public websocket streams the BTC perpetual at one tick a second; the page computes the metrics itself — efficiency, taker skew, spread, funding, the volatility ratio — and sends Jev numbers, never a price series, because handed the inputs to a computation instead of its result the same model scores 62.5% rather than 100%. Jev sizes a levered long/short book on an ordered seven-rung exposure ladder, asked as a score rather than a choice: the rungs are discrete so the type enforces the ceiling — it cannot return a rung off the end, so it cannot ask for 50x — while the returned value is the expectation over the distribution across them, so the size is continuous. On six real states a choice over the identical quanta collapsed to the extreme -3x five times where the ladder graded them -2.83x to -1.72x. It also answers whether the state even contains enough to decide, and which regime the last minute was. It is never asked what happens next. The paper book is levered and liquidatable — pushed far enough the wrong way it goes to zero and the run ends — charges a taker fee plus half the observed spread on every size change, and runs two baselines on the identical ticks — buy-and-hold, and a random control forced to trade exactly as often — and the verdict is read off a t-statistic against that control rather than off whichever line is highest, with the count of runs you have tried kept on screen. Paper only: no account, no keys, no orders.",
+      "tags": [
+        "typesafe",
+        "decision-model",
+        "markets",
+        "live-data"
+      ]
     },
     {
       "n": "golem",
@@ -3912,9 +4057,378 @@
         "generator",
         "seeded"
       ]
+    },
+    {
+      "n": "eigensite",
+      "u": "https://mino.mobi/eigensite/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "surface": "root",
+      "d": "Twenty yes-or-no questions and the site tells you which of its three hundred pages is yours. A Bayesian quiz over the whole catalogue: every answer reweights every site, every question is the one that best halves what it still believes, and the result is a permalink you can post.",
+      "tags": [
+        "quiz",
+        "catalogue"
+      ]
+    },
+    {
+      "n": "ns",
+      "u": "https://ns.mino.mobi",
+      "c": "data",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "surface": "ns",
+      "d": "The 2026 OpenAI paper claiming finite-time blowup for the forced 3D Navier–Stokes equations (Fefferman’s alternatives C and D), taken apart: an animated r–z anatomy of the collapsing core, the pulse annulus and the heat exterior, the proof in six moves, a timeline from Leray to now, and six sub-pages that each implement one piece of the construction in the browser. Says plainly what is claimed, what is not, and that nothing here verifies the proof.",
+      "tags": [
+        "canvas",
+        "math",
+        "index"
+      ]
+    },
+    {
+      "n": "core",
+      "u": "https://ns.mino.mobi/core/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The concentrating vortex core: every scaling law against the time remaining τ with the exponent h live (ℓ_r ≍ τ^½, ℓ_z ≍ τ^(½−h), speed ≍ τ^(−½−h), energy → 0), the similarity map q(z,τ) solved by Newton at every pixel, true meridional streamlines from the paper’s axis profile U = 4η + j₀ via the incompressibility identity, and the viscosity and torus rescalings.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "pulse",
+      "u": "https://ns.mino.mobi/pulse/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The pulse: integrates the paper’s wave-amplitude equation and overlays its Gaussian envelope P(v) — growth on the shear, then viscous death — solves the exact Orr shearing wave in Couette flow, and shows the growth condition v_s > 2 is Rayleigh’s centrifugal criterion with axial shear folded in.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "stress",
+      "u": "https://ns.mino.mobi/stress/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "Zero-mean waves, nonzero flux: Reynolds stress from a ring wave, the radial stress integrals that need zero moments to stay compact, and the admissible stress cone drawn exactly from (t_s, v_s) with a draggable target and its positive representation c₁v₊ + c₂v₋.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "exterior",
+      "u": "https://ns.mino.mobi/exterior/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The heat exterior: the paper’s exact swirl K(r,τ) = c·(r²/2)^(−A)·H(4τ/r²) computed by quadrature, checked against the swirl heat equation to finite-difference precision, marched by a plain FD solver that converges to it at second order, and shown to have smooth limits at the singular time at every fixed radius.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "bands",
+      "u": "https://ns.mino.mobi/bands/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The ledger of scales: dyadic bands Q = 2^−ℓ, ε = Q^h, S* = ℓ², the carrier k = ⌈ε^−½⌉, wavelength and amplitude ratios, the correction cycle σ_j = ⅕ + j/10, flatness — and how astronomically small q must be before h = 1/100 makes anything small.",
+      "tags": [
+        "canvas",
+        "math"
+      ]
+    },
+    {
+      "n": "solver",
+      "u": "https://ns.mino.mobi/solver/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "A 2D pseudo-spectral incompressible Navier–Stokes solver in the tab — hand-written FFT, vorticity form, 2/3 dealiasing, integrating-factor RK4, selftested against Taylor–Green and the 2D conservation laws. A shear-plus-wave experiment measures ⟨u′v′⟩ and the mean-flow feedback; decaying turbulence shows the vorticity maximum never grows, which is why two dimensions cannot blow up.",
+      "tags": [
+        "canvas",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "explorer",
+      "u": "https://ns.mino.mobi/explorer/",
+      "c": "data",
+      "k": 2,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "p": "ns",
+      "surface": "ns",
+      "d": "The collapse in three dimensions: a seeded specimen of the paper’s leading-order field — exactly divergence-free via the identity for V₀, axis-regular, centrifugally balanced, heat-law exterior, the paper’s exponents — drawn live in WebGL. A section plane facing you with the near half cut away carries pressure as colour and line-integral-convolution streaks of the meridional flow; behind it spiralling streamlines, transform-feedback particles tracing pathlines through the collapse as τ → 0, and the low-pressure core as a ray-marched glow. Every seed is a permalink; a selftest pins what is exact.",
+      "tags": [
+        "webgl",
+        "procgen",
+        "math",
+        "selftest"
+      ]
+    },
+    {
+      "n": "henderhead",
+      "u": "https://henderhead.mino.mobi",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-09",
+      "b": "2026-09-09",
+      "surface": "henderhead",
+      "d": "An unofficial fan site for Matt Henderson’s mathematical demos, which are beautiful and are videos — rebuilt here as things you can turn the knobs on. Independent implementations written from the mathematics he described in public, credited and linked on every page, with none of his images or video copied. The front page carries the consent gate: the obvious next step is a bot that watches his feed and rebuilds each new demo as it appears, and it will not be built until he has been asked and has said yes.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "continued fraction Fourier",
+      "u": "https://henderhead.mino.mobi/cf/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-09",
+      "b": "2026-09-09",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "z(t) = Σ exp(i qₖt) / qₖ^α, where the qₖ are the denominators of a number’s continued-fraction convergents: each contributes a circle of radius qₖ^−α going round qₖ times a turn, and stacking them tip to tail draws the number. α = 1 and α = ½ are the two pictures from the original post; φ comes out the roughest curve there is because its qₖ grow the slowest of any number’s. Expansions are exact — Euclid in 128-bit integers, with a separate periodic route for quadratic surds — in a 53 KB Rust→WASM module with no imports at all. Sweep x from 0 to 1, or pile thousands of curves into one density plot and look at the holes.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "crafting automaton",
+      "u": "https://henderhead.mino.mobi/craft/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-11",
+      "b": "2026-09-11",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "A cellular automaton whose transition rule is a table of Minecraft crafting recipes. Items drift around a grid of slots, and wherever they drift into the shape of a recipe — the empty squares included, so a chest is eight planks around a hole — they are consumed and the product is put down. Seeded with nothing but oak logs, oak planks and cobblestone; every boat, bowl and pickaxe after that is something the shuffling stumbled into. The rule was read off 40 seconds of video frame by frame and the page says which parts are certain and which are reconstruction; the recipe book is the whole rule and every entry is clickable, because switching one off is what his “banned buttons” was about. Rust→WASM, and all the item art is drawn by our own code.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "chaotic waterwheel",
+      "u": "https://henderhead.mino.mobi/wheel/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-13",
+      "b": "2026-09-13",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "A leaky waterwheel that is the Lorenz system exactly, not by analogy — the Malkus wheel of Strogatz §9.1. Buckets hang from the rim staying upright, water pours in at the top, every bucket leaks, and the only thing the water does to the wheel is pull on whatever is off-centre. Only the first Fourier harmonic of the water exerts any torque, so the machine closes into three equations that are Lorenz's with β = 1 — and the centre of mass moves in the Lorenz (Y, Z) plane, so the orange dot draws the attractor rather than something resembling it. Turn the inflow up through ρ = 1 and ρ_Hopf to go from standing to spinning to chaotic; turn the damping down until chaos is impossible at any flow. The wheel, a twin started a billionth apart, the continuum reduction and the Lorenz equations all run in lockstep.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "conics out of sand",
+      "u": "https://henderhead.mino.mobi/sand/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-20",
+      "b": "2026-09-20",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "Sand poured onto a plate with a hole in it makes an ellipse, and the pour point and the hole are its foci. Sand cannot stand steeper than its angle of repose, so a pour imposes z ≤ A − k·d and a hole imposes z ≤ h + k·d; the sand takes the lower, and where the two are equal the sum of the distances is constant. Change which two features are on the plate and you get the rest of the family — except a parabola, which two holes can never give you, because two points only ever hand you a sum or a difference of distances. A parabola is an ellipse with one focus at infinity, and infinity is not somewhere you can drill: the missing focus is a straight slot. The sand is simulated rather than drawn, cell by cell at the angle of repose, and the curve is then measured off it by a conic fit told nothing about where the features are — it returns 2c/2a = 0.73 against the 0.737 measured off his video.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "bouncing ball chaos",
+      "u": "https://henderhead.mino.mobi/ball/",
+      "c": "tools",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-14",
+      "b": "2026-09-14",
+      "p": "henderhead",
+      "surface": "henderhead",
+      "d": "A ball bouncing under gravity inside a circle, with a few hundred slightly-mistaken futures fanning out ahead of it. The gravity is the whole demo: a ball bouncing along straight chords in a circle is integrable — the angle of incidence never changes and four bounces ahead is perfectly predictable — so the rule was measured off the video frame by frame, and the paths are parabolas. Bounces are solved exactly rather than stepped, because on the wall the quartic loses its constant term and the next bounce is a closed-form cubic root; the energy drifts by under a part in a billion over five thousand bounces. The spread of the fan is plotted so the Stable and Chaotic Eras are measured, and the Poincaré section shows where they come from — which at this energy is not stable islands but the local stretching rate fluctuating inside one chaotic sea. Drop the ball lower and the islands appear.",
+      "tags": [
+        "rust",
+        "wasm",
+        "canvas"
+      ]
+    },
+    {
+      "n": "periodic-table",
+      "u": "https://fin.mino.mobi/elements/",
+      "c": "data",
+      "k": 4,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-20",
+      "p": "fin",
+      "surface": "finance",
+      "d": "The financial periodic table. All 118 elements sized by the economy each one stands under: how it is actually extracted, the form it is really traded in — sulfur as sulfuric acid, nitrogen as ammonia, titanium as white pigment — what a year of world extraction is worth, and the first-order markets that cannot exist without it. Upstream from USGS; downstream estimated under a stated rule, with a confidence tier on every record.",
+      "tags": [
+        "data",
+        "chem"
+      ]
+    },
+    {
+      "n": "speclab",
+      "u": "https://fin.mino.mobi/speclab/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-06-21",
+      "b": "2026-06-21",
+      "p": "fin",
+      "surface": "finance"
+    },
+    {
+      "n": "orbit",
+      "u": "https://b.mino.mobi/orbit/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-19",
+      "b": "2026-09-19",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "Your closest circle as a guessing game. A month of your own likes, replies, reposts and quotes rings the people you actually talk to around an arena; their posts are dealt into the middle and you say who wrote each one. Graded against blind guessing, because 50% out of four seats is not 50% out of twenty. Then the expensive half: analyse the circle and every member's whole repository is streamed, reduced to one row of a closeness matrix and thrown away — who replied to whom first, and how much they have interacted since, in both directions. The finished matrix packs into a link.",
+      "tags": [
+        "atproto",
+        "canvas",
+        "game"
+      ]
+    },
+    {
+      "n": "mood",
+      "u": "https://b.mino.mobi/mood/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-22",
+      "b": "2026-09-22",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "A Bluesky mood ring. The last ten posts and replies are read for tone by jev — TypeSafe's System One model, which writes nothing and only answers typed questions — and each one becomes a band of colour around the account's own avatar. The colour is the mood and the haze is how sure the model was, so a three-word post you cannot read a tone off looks uncertain instead of looking calm. Asked as two ordered axes and one unordered one, because a single angry-to-happy scale would average half fury and half delight into serenity; the ten readings become one stone the same way, on the plane and never in hue.",
+      "tags": [
+        "atproto",
+        "jev",
+        "svg"
+      ]
+    },
+    {
+      "n": "szilassi",
+      "u": "https://math.mino.mobi/szilassi/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-21",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Seven hexagons on a torus, every one of them sharing an edge with every other — which is why a map on a torus can need seven colours, and why this and the tetrahedron are the only two solids known where every face touches every other. Spin it, pinch it, look through the tunnel. Each corner is where three face planes cross and there are only seven planes, so the shape is not one solid but a 14-parameter family: pick a face, tilt its plane, and watch the whole thing re-form around it — still exactly flat, until you push far enough that it stops being a solid at all and the verdict says which two faces crossed.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
+    },
+    {
+      "n": "csaszar",
+      "u": "https://math.mino.mobi/csaszar/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-21",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Seven corners with no diagonals — every segment between two of them is already an edge, which only the tetrahedron manages otherwise, and only a torus makes room for a second. The dual of szilassi, and the mirror of its puzzle: there the seven faces have to stay flat and seven planes make that free; here the faces are triangles, so flatness costs nothing and you can drag the corners anywhere. Both come out at fourteen shape freedoms. What you cannot do is travel: for each of the 35 quadruples of corners record which side of a plane the fourth lies on, and those signs can never change while the thing stays a solid — so the realizations sit in separate pieces, and the walk tab shows you the wall. Four published ones ship; a census of 24 million random rolls finds 62 of the 72 that exist.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
+    },
+    {
+      "n": "equivelar",
+      "u": "https://math.mino.mobi/equivelar/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-22",
+      "b": "2026-09-22",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Eight nonagons on a surface of genus three, every pair of them sharing an edge — which the tetrahedron manages with four and the Szilassi polyhedron with seven, and nothing was known to manage with more until September 2026. It gets past the count that forbids eight by letting eight of the 28 pairs meet TWICE: overarching faces, which the classical statement assumes away. Published as an integer certificate — every corner an integer point, every plane an integer equation — and re-derived here in exact integer arithmetic, no tolerance anywhere. The adjacency table is the whole story in one grid: every cell filled, eight of them holding a 2. Tilt the eight planes and watch how little room it has; it is a far more fragile thing than its seven-faced cousin.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
     }
   ],
   "notListed": [
+    {
+      "glob": "parts/site",
+      "kind": "internal",
+      "reason": "the served asset root of the parts surface (parts.mino.mobi); parts/ itself is the worker and the index library"
+    },
+    {
+      "glob": "packages/cad/docs",
+      "kind": "content",
+      "reason": "the system page inside the cad surface (cad.mino.mobi/docs/): spec, data model, backend, kernels, tests, agent access; served, mirrored and versioned with the package"
+    },
     {
       "glob": "archive/**",
       "kind": "content",
@@ -4266,6 +4780,21 @@
       "reason": "top-level directories that are live URLs but absent from the catalogue"
     },
     {
+      "glob": "szilassi",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/szilassi/, which is the surface that deploys it; the root worker serves the whole repo, so the apex copy becomes real only when the root surface next deploys from its own branch — same situation as conjectures"
+    },
+    {
+      "glob": "csaszar",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/csaszar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi and conjectures"
+    },
+    {
+      "glob": "equivelar",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/equivelar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
       "glob": "ising",
       "kind": "pending",
       "reason": "top-level directories that are live URLs but absent from the catalogue"
@@ -4559,6 +5088,16 @@
       "glob": "words/cross",
       "kind": "content",
       "reason": "the procedural crossword — the second app on the already-listed words surface"
+    },
+    {
+      "glob": "perp",
+      "kind": "content",
+      "reason": "catalogued at fin.mino.mobi/perp/, which is the surface that deploys it since 2026-09-23 (perp.mino.mobi was detached to free a custom-domain slot); the apex copy is incidental"
+    },
+    {
+      "glob": "wave",
+      "kind": "internal",
+      "reason": "Vite SOURCE of the standalone wave app, not a destination: the root worker serves it unbuilt (script src=/src/main.tsx), so the apex URL is a blank page. wave.mino.mobi was detached 2026-09-23; wave is reached as the Wave tab inside org (org.mino.mobi/wave), and whether the newer standalone build ships under org is an open decision"
     }
   ],
   "$notListed": "Reachable endpoints deliberately kept off the landing page. kind=internal: build output or source dirs. kind=content: real pages inside an already-listed site. kind=pending: a genuine sub-site that is not catalogued yet — the backlog, printed by `node scripts/catalogue-coverage.mjs --pending`. Rules are first-match-wins, and a rule matching nothing fails the gate."

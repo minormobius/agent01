@@ -1,0 +1,12 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Arbor: a stepped shaft revolved from a profile in the XZ plane, with an 8-leaf pinion (module 0.5) unioned onto it. The boolean is the point.",
+  "params": { "L": 12, "r_pivot": 0.15, "r_body": 0.5, "l_pivot": 1, "pin_z": 5, "pin_b": 2 },
+  "features": [
+    { "op": "sketch", "id": "shaft", "plane": "XZ", "loops": [ { "name": "shaft", "polygon": [
+      [0, 0], ["r_pivot", 0], ["r_pivot", "l_pivot"], ["r_body", "l_pivot"], ["r_body", "L - l_pivot"], ["r_pivot", "L - l_pivot"], ["r_pivot", "L"], [0, "L"] ] } ] },
+    { "op": "revolve", "id": "arbor", "profile": "shaft", "axis": { "p": [0, 0], "d": [0, 1] } },
+    { "op": "gear", "id": "pinion", "m": 0.5, "z": 8, "alpha": 20, "b": "pin_b", "plane": { "base": "XY", "offset": "pin_z" } }
+  ]
+}

@@ -55,6 +55,8 @@ on:
       # the old landing, frozen for nostalgia, and the shared stylesheet
       - 'archive/**'
       - 'mino.css'
+      # eigensite: the quiz that finds your page, served at mino.mobi/eigensite/
+      - 'eigensite/**'
       # catalogue.json is the source of truth for the landing catalogue; var P,
       # search, office, mappa and orrery are all projections of it, so a change
       # here must reach the apex.

@@ -1,0 +1,18 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Balance wheel: a rim with three spokes and a hub, as one even-odd region — the rim is the outer circle, the three windows between the spokes are holes, the staff hole is a hole. No booleans.",
+  "params": { "R": 9, "rim": 1.0, "hub": 1.6, "spoke": 1.0, "n": 3, "bore": 0.5, "b": 0.8 },
+  "features": [
+    { "op": "sketch", "id": "rim", "loops": [ { "name": "rim", "circle": { "c": [0, 0], "r": "R" } }, { "name": "staff", "circle": { "c": [0, 0], "r": "bore" } } ] },
+    { "op": "sketch", "id": "window", "loops": [ { "name": "window", "path": {
+        "from": ["hub*cos(deg(360/n*0 + 20)) ", "hub*sin(deg(20))"],
+        "segs": [
+          { "to": ["(R-rim)*cos(deg(8))", "(R-rim)*sin(deg(8))"] },
+          { "arc": { "via": ["(R-rim)*cos(deg(180/n))", "(R-rim)*sin(deg(180/n))"], "to": ["(R-rim)*cos(deg(360/n - 8))", "(R-rim)*sin(deg(360/n - 8))"] } },
+          { "to": ["hub*cos(deg(360/n - 20))", "hub*sin(deg(360/n - 20))"] },
+          { "arc": { "via": ["hub*cos(deg(180/n))", "hub*sin(deg(180/n))"], "to": ["hub*cos(deg(20))", "hub*sin(deg(20))"] } } ] } } ] },
+    { "op": "pattern", "id": "windows", "of": "window", "kind": "circular", "count": "n" },
+    { "op": "extrude", "id": "wheel", "profile": ["rim", "windows"], "depth": "b" }
+  ]
+}

@@ -2,9 +2,11 @@ name: Deploy Finance (fin)
 
 on:
   push:
-    branches: ['claude/speculative-feedback-playground-t0yiaq']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'finance/**'
+      - 'perp/**'
+      - 'scripts/route-dns.mjs'
       - 'poll/apps/api/migrations/0031_speclab.sql'
       - '.github/workflows/deploy-finance.yml'
   workflow_dispatch:
@@ -35,6 +37,18 @@ jobs:
       - name: Build
         run: npm run build
 
+      # perp (perpetual futures) lives in ../perp and is served at fin.mino.mobi/perp/.
+      # It was its own surface at perp.mino.mobi until 2026-09-23, when that custom
+      # domain was detached to free a slot under the zone's 100-domain cap. Only the
+      # page and its data ship; perp/scripts, lab and test are node-only tooling.
+      # The data is refreshed daily by refresh-perp-data.yml.
+      - name: Stage perp into dist/perp
+        run: |
+          mkdir -p dist/perp
+          cp ../perp/index.html ../perp/app.js dist/perp/
+          cp -r ../perp/data dist/perp/data
+          ls -la dist/perp dist/perp/data
+
       # speclab tables on the shared atpolls-db. Idempotent (IF NOT EXISTS), so a
       # re-run is a no-op. Mirrors the rite deploy's migration step.
       - name: Run D1 migration (speclab tables on atpolls-db)
@@ -46,6 +60,15 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Plain routes (perp.mino.mobi/*) make no DNS, unlike custom domains; without a
+      # proxied record the host is dead however green the deploy. Creates only what is
+      # missing and refuses to touch a host that is still a custom domain.
+      - name: Ensure DNS for plain routes
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
 
       - name: Deploy to Cloudflare
         run: npx wrangler deploy

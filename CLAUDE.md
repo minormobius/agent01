@@ -18,6 +18,8 @@ surface lives in that surface's own `CLAUDE.md`.
 | how one surface works | **`<dir>/CLAUDE.md`** |
 | machine facts: deps, trigger paths, owning branch | [`deploy-registry.json`](deploy-registry.json) — source of truth |
 | the deploy pipeline and its gotchas | [`docs/DEPLOYS.md`](docs/DEPLOYS.md) |
+| every backend — which workers run code, hold data (D1/KV/DO), run crons, read secrets; and what the Cloudflare account has that the repo doesn't | **[`docs/BACKENDS.md`](docs/BACKENDS.md)** (generated; account side from `docs/backends-account.json`) |
+| **changing the Cloudflare account itself** — delete a worker, move a host off a custom domain | [`.github/cf-ops/plan.json`](.github/cf-ops/plan.json) run by `scripts/cf-ops.mjs` — the agent writes a dry run, the operator flips `apply`. [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §7 |
 | the shape of the repo on disk | [`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md) |
 | OAuth per-site status | [`docs/OAUTH.md`](docs/OAUTH.md) |
 | splitting a surface, or moving a site between surfaces | [`docs/surface-mitosis.md`](docs/surface-mitosis.md) — `scripts/surface-mitosis.mjs` detects, `scripts/rehome.mjs` moves |
@@ -25,6 +27,7 @@ surface lives in that surface's own `CLAUDE.md`.
 | how a loop is actually wired: chain-reaction Actions, the ticket graph, the contagion firewall | [`docs/LOOPS.md`](docs/LOOPS.md) — built and **disabled**; the **how** |
 | what gets built in what order, and what would stop the programme | [`docs/LOOP-WBS.md`](docs/LOOP-WBS.md) — phases, gates, kill criteria, and the Definition of Ready |
 | where loop output lands, and how six parallel agents' work comes back together | [`docs/LOOP-SPRINTS.md`](docs/LOOP-SPRINTS.md) — the three surfaces, path leases, the barrier, the integrator |
+| the browser CAD — tree-as-model, the kernel bake-off and what it decided, ATProto lexicons, headless-first | [`docs/CAD.md`](docs/CAD.md) — the design record; phases 0–1 and the viewer (`cad.mino.mobi`) are built under [`packages/cad/`](packages/cad/) |
 | **how to steer the loop**, and how it asks you for the things no gate can measure | [`.github/loop/vision.md`](.github/loop/vision.md) — the operator's channel in; every planning turn reads it verbatim. Answer its asks with `beads answer <id> --body-file` |
 
 ## The shape of a surface
@@ -62,6 +65,29 @@ candidate** and merged to `main`; that is how pull requests are made here.
    themselves inconsistently; this is where that gets reconciled.
 4. `node scripts/preflight.mjs` — must pass.
 5. Push, open the PR, and state what could not be verified from the sandbox.
+
+### The session corpus (automatic, going forward)
+
+Every session's conversation is kept for the principal's personal training corpus. They
+asked for this, and it is the principal's own data. Two hooks in `.claude/settings.json`
+do it; you do not need to do anything but the first step below:
+
+- `ship-session.mjs` (Stop, after every turn) re-distils this session's transcript and pushes
+  it to `sessions/<session-id>.json` in the **private** repo named in
+  `packages/homunculus/corpus.json`: the orphan `corpus` branch of `minormobius/chatter`. chatter's code stays on its `main` branch, untouched. The distillation keeps
+  the principal's typed turns and your text replies; tool calls, tool output, file contents and
+  skill bodies are dropped.
+- `capture-session.mjs` / `log-prompt.mjs` keep a local copy in `packages/homunculus/log/`
+  (gitignored, `.assetsignore`d, lost with the container).
+
+**At the start of a session, attach the corpus repo:** `add_repo` with owner `minormobius`, repo
+`chatter`, access `push`. Without it the shipper cannot clone. It logs one line to
+`packages/homunculus/log/ship.log` and does nothing else. Attaching it later in the session
+is fine, because every ship rewrites the whole session's file.
+
+**agent01 is public and must never carry a transcript.** The shipper only writes to its own
+clone at `~/.cache/homunculus-corpus`, outside this repo. Don't copy transcripts into the
+working tree. `HOMUNCULUS_SHIP=0` in the environment turns shipping off for a session.
 
 ### Corpus-recovery passes
 
@@ -114,6 +140,7 @@ Generated — never edit by hand; `preflight --fix` rebuilds them all:
 | Artefact | Script |
 |---|---|
 | `docs/SURFACES.md` | `gen-surface-index.mjs --write` |
+| `docs/BACKENDS.md` | `backend-inventory.mjs --write` (reads `docs/backends-account.json`, refreshed from the probe) |
 | **`rethink/data.js`** (what the landing renders) | `build-rethink.mjs --write` |
 | `functions/search.js` catalogue | `generate-search-catalog.mjs` |
 | `io/sites.json` (stumble portal) | `generate-sites-json.mjs` |
@@ -217,13 +244,70 @@ that cannot be lost with a branch. `preflight` still runs there. Nothing
 deploys. **The cost, plainly: a fix merged to main does not ship. Push it to the
 surface's owning branch, which is what deploys it.**
 
-> ⭐ **The golden rule.** A surface's `wrangler.jsonc` `name` must be the worker
-> that owns the live custom domain, and that domain must appear in
-> `routes: [{ pattern, custom_domain: true }]`. Otherwise `wrangler deploy`
-> updates a stray `<name>.workers.dev` worker: the run goes green and the live
-> site never changes. **Verify a deploy by confirming its log binds
-> `<domain> (custom domain)`** — green is not proof. Detection and fix:
-> [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §4.
+> ⭐ **The golden rule.** A surface's `wrangler.jsonc` must bind the host it serves,
+> or `wrangler deploy` updates a stray `<name>.workers.dev` worker: the run goes green
+> and the live site never changes. There are two ways to bind a host:
+>
+> - **plain route — the default for anything new:** `{ pattern: "x.mino.mobi/*", zone_name: "mino.mobi" }`.
+>   Costs **no** custom-domain slot (routes cap at 1000/zone), but makes no DNS, so the
+>   deploy workflow must run `node ../scripts/route-dns.mjs wrangler.jsonc --apply` first.
+>   Verify the log binds `x.mino.mobi/* (zone name: mino.mobi)` **and that the host answers**.
+> - **custom domain:** `{ pattern: "x.mino.mobi", custom_domain: true }`. Cloudflare makes
+>   the DNS, but it spends one of the zone's **100** slots. The zone hit 100/100 on 2026-09-22;
+>   pruning and route conversions brought it to **72** on 2026-09-23. Existing surfaces keep
+>   theirs until converted; don't add new ones. The slots left are headroom, not a budget to spend.
+>
+> `node scripts/binding-check.mjs` (a preflight gate) fails any surface whose config binds
+> neither; a host attached by hand in the dashboard is declared in its registry entry's
+> `binding` field instead. Green is not proof. Detection and fix: [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §4.
+
+> ⭐ **The golden rule's sibling: DEPLOY DRIFT.** The golden rule catches a green run that
+> updated the wrong worker. This catches a green run that updated the right worker with a **stale
+> tree**. Because `main` does not deploy, a surface ships whatever its owning branch holds — and a
+> branch that forked from trunk and never came back keeps shipping the tree it had that day. Static
+> Assets replaces the whole manifest, so everything trunk added since is simply *absent* from the
+> live site, from a run that went green and bound the right domain. `hoop` was found this way on
+> 2026-09-18: a month and ~5300 lines of merged work (statblock and its worker endpoint, rindmap,
+> reactions.html, the mystery rewrite) that had never once reached production.
+>
+> ```bash
+> node scripts/deploy-drift.mjs           # per surface: does its branch's tree match trunk's?
+> node scripts/deploy-drift.mjs --check   # the preflight form
+> ```
+>
+> **Read it per surface, never as a commit count.** "1731 commits behind main" is almost always
+> meaningless — those commits are other surfaces' work. The tool compares trees over each surface's
+> own registry `paths:` and says which side moved: `same` (in sync, however far behind it looks),
+> `behind` (**shipping stale code**), `diverged` (needs judgment), `ahead` (unmerged work, not a
+> deploy problem), `missing` (the owning branch is gone — that surface cannot deploy at all, and is
+> the only condition preflight treats as fatal).
+>
+> Repairing a `behind` surface is a push to its owning branch, and **that push deploys**. Where the
+> branch is a strict ancestor of trunk the tool marks it `ff` — a pure fast-forward, no merge commit
+> and no conflict — but it still fires the deploy, so stage them and verify each run binds its custom
+> domain. Never batch them blind: one owning branch here carries **25 surfaces**.
+
+### Taking ownership of a surface
+
+Moving a surface's `branch` to yours makes **your branch's tree** what the next deploy
+publishes, and Static Assets replaces the whole manifest. So before you change it, prove
+your tree loses nothing the current owner ships:
+
+```bash
+git fetch origin <owner-branch>
+git diff --name-status origin/<owner-branch> HEAD -- <each registry path>   # no D lines allowed
+```
+
+`M` and `A` are your changes arriving; a `D` is a file the live site has and your push would
+delete. Also `curl` the live host and compare against your tree. Then change `branch`, run
+`gen-deploy-triggers --write` (preflight `--fix` does it), push, and verify the run binds the
+host. The old owner stops deploying it on that push.
+
+**An owning branch is infrastructure.** Deleting one strands every surface it owns (`missing`
+in deploy-drift, preflight fails). `claude/landing-page-merge-candidate-8sp0fv` owns ~15
+surfaces (ns, math, finance, torus, fifty and the ten route conversions of 2026-09-23), so it
+**outlives its pull request**. Merge its PR; do not delete the branch. Follow-up work on
+those surfaces is a push to that branch, not to `main`.
 
 `workflow_dispatch` is on every deploy workflow for out-of-band runs. Build
 commands, migration order and secrets live in the workflow — read it rather
@@ -231,10 +315,21 @@ than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
 
 ## Adding a surface
 
-1. `curl -sI` the intended domain. Establish which worker owns it.
-2. Write `<dir>/wrangler.jsonc` — `name` = that worker, `routes` = the domain.
+1. `curl -sI` the intended domain. Establish which worker owns it, if any.
+2. Write `<dir>/wrangler.jsonc` — `name` = that worker, `routes` = a **plain route**
+   (`{ "pattern": "<host>/*", "zone_name": "mino.mobi" }`), not a custom domain — see the
+   golden rule. `ns/` is the reference route surface.
+
+   **First, ask whether it needs a host at all.** Two shapes, both cheap:
+   - *member of a hub*: a subpath of an existing surface (`math.mino.mobi/<x>/`, `fin.mino.mobi/perp/`).
+     No worker, no DNS, no deploy workflow. Right for small pages that belong to a topic.
+   - *independent route surface*: its own host, worker and workflow, bound by a plain route.
+     Right when it has its own backend, build, or release rhythm. Show the relation to its topic in
+     `catalogue.json`'s `p` (parent) field; the catalogue carries the hierarchy, and deployment stays
+     independent.
 3. Copy the closest existing `deploy-<surface>.yml`; they encode the build
-   quirks and correct secret names.
+   quirks and correct secret names. Add the `route-dns.mjs` step before `wrangler deploy`
+   and a step that fails unless the host answers (copy both from `deploy-ns.yml`).
 4. Add the `surfaces[]` entry (including `branch` and `paths`); drop it from
    `unmanaged{}`.
 5. Add an entry to `catalogue.json` — including its `surface` key — plus a
@@ -245,7 +340,7 @@ than inferring; local `wrangler deploy` skips migrations and post-deploy hooks.
    projection, and seeds `<dir>/CLAUDE.md`; then write that file properly.
    If the surface ships sub-sites, `catalogue-coverage.mjs` will name them —
    list them or declare them.
-7. Push, and confirm the run binds the custom domain.
+7. Push, and confirm the run binds the route and the host answers.
 
 New lexicon? Add the collection to `WRITE_COLLECTIONS` in
 `workers/auth/src/oauth/scope.ts` and redeploy the auth worker, so the metadata
@@ -260,6 +355,7 @@ No build step, no dependencies. Import these instead of reimplementing.
 | [`packages/atproto/`](packages/atproto/) | `pds.js` identity + authenticated PDS ops; `bsky.js` public read APIs; `crypto.js` vault encryption |
 | [`packages/dataviz/`](packages/dataviz/) | `stats.js` estimators, `charts.js` SVG-string charts. Run its known-answer selftest before touching it |
 | [`packages/oauth-client/`](packages/oauth-client/) | `auth.js` — browser `AuthClient` for the shared OAuth worker |
+| [`packages/cad/`](packages/cad/) | `cad.wasm` + `engine/` — the feature-tree CAD engine (Rust, Truck kernel, raw C ABI); `lib/` the kernel adapters, mesh toolkit, assemblies and measure; `agent/` the headless tools (build, measure, check, export, render, drive — node only). `cad.selftest.mjs`, `drive.selftest.mjs` and `browser.selftest.mjs` gate it; `bakeoff/` measures kernels. To CAD as an agent: [`packages/cad/SKILL.md`](packages/cad/SKILL.md) (synced to `.claude/skills/cad/`, served at `cad.mino.mobi/SKILL.md`); the package is mirrored to tangled for use without this repo. Design record: [`docs/CAD.md`](docs/CAD.md) |
 | [`packages/pressure-lab/`](packages/pressure-lab/) | `lab.mjs` — node-only measurement scaffolding for the `/pressure/` games: policy spreads, tightness bands, the generator contract loop. Not a solver — read its README before adding a game |
 
 Older projects each carry their own copy of the ATProto code. Don't bulk-rewrite
@@ -296,13 +392,21 @@ worker are grandfathered: [`docs/OAUTH.md`](docs/OAUTH.md).
 - **`time/posts/**.md`** — a push to `main` here **posts to real Bluesky
   accounts**. Never put test markdown there.
 - Workflows that write to a PDS, publish records, or commit data back to the
-  repo: `publish-*`, `sync-*`, `score-*`, `fetch-*`, `bisk-digest`,
+  repo: `publish-*`, `seed-*`, `sync-*`, `score-*`, `fetch-*`, `bisk-digest`,
   `illustrate`. Read the workflow before triggering one.
 - Shared D1 (`atpolls-db`) backs several surfaces. Migrations live in
   `poll/apps/api/migrations/`, numbered sequentially — never reuse a number; if
   two branches collide, the later merge renumbers.
-- Deleting or renaming a worker, detaching a domain, and D1 creation are
+- **Account changes go through `.github/cf-ops/plan.json`, never ad hoc.** Deleting a worker
+  or moving a host off a custom domain is a reviewed op there. `cf-ops.yml` re-checks each op
+  against the live account before it acts, and nothing is applied until the operator flips
+  `"apply": true` in a separate commit. **A worker deletion is permanent**: with it go its
+  secrets, its version history and any Durable Object data. The guards refuse a worker that owns
+  DOs or is still configured in the repo. Renaming a worker and creating a D1 database are still
   dashboard-only ([`docs/DEPLOYS.md`](docs/DEPLOYS.md) §7).
+- **A route surface's deploy re-creates DNS.** `route-dns.mjs --apply` creates a missing
+  `AAAA 100::` record for the host. `--takeover` also detaches this worker's own custom domain;
+  it is for a one-push conversion, so remove it from the workflow once that push has run.
 - **`loop-*` workflows spend model budget in a chain reaction.** They are inert
   while `.github/loop/config.json` has `enabled: false`; flipping that is the
   switch. Before changing any workflow's `paths:`, run
@@ -320,6 +424,33 @@ node, cargo, bash, background jobs.
 Does not work: `wrangler deploy` (no Cloudflare auth), live PDS/Bluesky writes,
 remote D1 writes, and there is no `gh` CLI — use the GitHub MCP tools.
 
+**Irreversible or DNS-changing work is split between you and the operator.** Your session's
+permission layer will (rightly) stop you from applying a deletion or a domain change yourself,
+even with the operator's go-ahead in chat. Don't argue with it and don't route around it. The
+working pattern (`.github/cf-ops/`):
+
+1. You add the ops to `plan.json` with `"apply": false`, each with a `why`, and push. The run is a
+   **dry run** that evaluates every guard against the live account.
+2. You report what the log says each op would do.
+3. The operator flips `"apply": true` in their own commit (the GitHub UI works from a phone). That
+   run does the work and logs each op.
+4. You verify from outside (`curl` each host), move the batch into `history` with the run id and
+   the flip commit, reset `apply` to false, and push the matching repo changes. After a
+   route conversion, that means each surface's `wrangler.jsonc` route and its workflow's DNS step;
+   without them the next deploy re-attaches the custom domain.
+
+Read-only questions about the account (slot counts, what exists, token scopes) go to
+`cf-capability-probe.yml`; its inventory output refreshes `docs/backends-account.json`.
+
+**The clone is SHALLOW, and git lies about history until you fix that.** Below the shallow
+boundary there is no ancestry, so `git merge-base` finds nothing and `git merge` says
+**"refusing to merge unrelated histories"** — for branches that share a root perfectly well.
+`git rev-list --count` lies too (`main` reads as ~55 commits; it is ~3700). This has already
+produced one confident, wrong diagnosis of "disjoint histories" that nearly led to rebuilding
+`main`. **Run `git fetch --unshallow` before concluding anything about branch topology**, and
+treat any "unrelated histories" error here as a shallow artefact until proven otherwise. (Two
+branches genuinely are orphans — `claude/homunculus-sweeptest` and `corpus/*` — by design.)
+
 **The deploy workflows are your network.** If you want to `wrangler deploy` from
 here, you want to push to a branch the workflow recognises.
 
@@ -328,6 +459,8 @@ here, you want to push to a branch the workflow recognises.
 | Symptom | Cause | Fix |
 |---|---|---|
 | deploy green, live site unchanged | `wrangler.jsonc` `name` ≠ domain owner | the golden rule — check the log binds `(custom domain)` |
+| deploy green, live site missing work that is on `main` | the owning branch forked from trunk and never came back — Static Assets republished a stale manifest | `node scripts/deploy-drift.mjs` |
+| `git merge` says "unrelated histories" | the sandbox clone is shallow, not a real fork | `git fetch --unshallow`, then re-check |
 | push didn't deploy | branch not in the workflow's triggers, or paths untouched | check the registry entry, then `gen-deploy-triggers --write` |
 | worker 500s for no reason | compatibility-date drift | that surface's own `wrangler.jsonc` |
 | D1 error about a missing column | migration not applied | `d1-migrate.yml`, or let the deploy workflow apply it |
@@ -336,6 +469,7 @@ here, you want to push to a branch the workflow recognises.
 | ATProto auth fails | expired app password | regenerate in Bluesky settings |
 | DID resolution fails | missing `.well-known/atproto-did` | verify the file and its DID |
 | CI fails on a generated file | a generator wasn't re-run | `node scripts/preflight.mjs --fix` |
+| deploy red on `100122`, worker uploaded, domain not bound | the zone is at Cloudflare's 100-custom-domain ceiling | mount the worker under an existing host via a service binding — [`docs/DEPLOYS.md`](docs/DEPLOYS.md) §6, `packages/cad` ↔ `parts` |
 
 ## Infrastructure
 

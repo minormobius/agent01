@@ -207,3 +207,95 @@ shape is what's disqualifying, not the specific phrasing. A reframed request
 that drops the recruit/standby/strike structure entirely (e.g. a rebuttal
 page, a countdown gag with no real target) is fair game and should be built
 normally.
+
+## Thirteenth build — `don-forget`, "Open Tab"
+
+`don-forget` (2026-09-09), requested as "don't forget @minormobius.bsky.social's
+bot!" — a new pattern from this requester, distinct from riffing on their own
+thread or deferring to a named third party's spec (`more-latter`,
+`croissanthology-why`): here they're **amplifying an already-well-formed
+feature idea that a completely different, unrelated person asked the operator
+for elsewhere in the thread and never got** (@cee.wtf's repeated, unanswered
+ask for a "receipt of unbalanced parentheses/quotations" scanned from a user's
+whole repo). Worth watching for again: a terse "don't forget X's bot/idea"
+message likely means "build the thing that got asked for and dropped," not a
+new concept — read back through the thread for the actual concrete spec rather
+than inventing one from the two-word request alone.
+
+Built the real mechanic (whole-repo CAR fetch + wasm parse + running
+open-bracket/quote tally), not a mockup — first build to actually exercise the
+`com.atproto.sync.getRepo` + `pds_car_parser` wasm chain end to end rather than
+leaving it as a documented-but-unused capability. Named it on its own terms
+("Open Tab"), no reference to any of the three handles involved anywhere on the
+page, consistent with the standing rule that only the requester can ask for
+things and nobody in that sub-thread had. Kit amber default again — thirteen
+for thirteen now, still the safe baseline absent a stated preference.
+
+## Fourteenth build — `screen`, "First Words" (mutuals reply grid)
+
+`screen` (2026-09-13), requested directly and technically: "I want to create
+a grid that's all mutuals first reply to every other mutual." Terse but
+precise — unlike most of this requester's asks, this one names the exact
+mechanism (mutuals, pairwise, first reply) rather than a genre/vibe to
+infer. Built literally: handle → mutuals via follows/followers intersection
+→ concurrent per-mutual feed scan for earliest direct-reply to each other
+included mutual → N×N grid, sticky headers, real links to the reply post.
+Kit amber, untouched — fourteen for fourteen, confidently the baseline.
+
+Notable because it's the first build for this requester where the follow/
+follower-intersection approach was the *right* call rather than the thing to
+avoid — `mutuals-combined`'s requester rejected that same mechanism for a
+different reason (wanted an interaction chart instead); this request's own
+wording specifically needs a two-sided mutual relationship, which an
+interaction chart can't produce. Worth remembering: don't over-generalize
+"avoid follow/follower pagination" as a rule — it depends on what the
+request is actually asking for structurally, not a blanket preference.
+
+**Second turn, same day:** "can you expand it to like, 100? and get the 100
+by the 100 'top' mutuals ie the ones the account responds to the most" —
+another terse-but-precise technical follow-up (same style as the original
+ask), sent fast, right after the first build went live. Confirms this
+requester iterates quickly on a working site rather than waiting, and states
+selection *rules* explicitly ("top" = reply frequency) rather than leaving
+sort order to the build's judgement — worth reading a short follow-up
+carefully for an implicit ranking/ordering rule rather than treating it as
+just "make the number bigger." This thread also had another Bluesky bot
+(@buildthis.bisks.net) independently ship a competing site for the same idea
+(`mootrace.bisks.net`, framed explicitly as a "buildoff") — this requester
+enjoys that kind of parallel-build dynamic (see also the `conceptualize-
+design`/"liquid chess" entry above) and it's not a signal to change or copy
+the other build, just room colour.
+
+**Third turn:** a direct bug report ("doesn't populate the grid with any
+replies" / "these aren't my most-replied to mutuals"), tagging the operator
+handle rather than replying in the build thread. Concise and itemized like
+the feature-request turns — this requester reports bugs the same terse,
+numbered way they request features, not vague ("it's broken") complaints.
+One bug had a clean root cause in the code (ranking only ran when trimming
+to the cap); the other was diagnosed as a likely rate-limiting/silent-
+failure issue and mitigated (retries, staggered requests, a visible partial-
+results warning) without being able to confirm it live. Worth remembering:
+this requester will follow up again if a fix doesn't actually land, so an
+honest "mitigated, not confirmed" turn is fine as long as BRIEF.md says so
+plainly for whoever reads the next report.
+
+## Fifteenth build — `needing-your`, "Mental Exhaust"
+
+`needing-your` (2026-09-18), requested via thread as "perhaps we could
+recreate it in the aggregate" — riffing on someone else's description of a
+third account's (@minormobius) early, pre-web-bot posting style ("manic
+wikipedia... polymathical image harvesting... poetico-mathematic ambiguously
+art or science mystical aphorism generator", "flooding the tl with mental
+exhaust with wildly variable quality"). Another instance of the "spec lives
+in what a third party said about a named account" pattern (`don-forget`,
+`more-latter`) — but this one is the first to graze the firehose/scrape rule:
+"recreate X" about a real, named, still-active account could easily be read
+as "show me their real posts," which is exactly the banned shape. Read it
+instead as "recreate the *vibe*" and built a pure generative mad-lib
+(word-bank domains + seeded RNG → fake infobox + invented chart + aphorism,
+rendered as a downloadable canvas poster) with zero calls to that or any
+account's real feed. Worth remembering for future requests from this
+account that reference a specific real person's content/style: check
+whether "recreate/redo/remake X" means "generate something in that mode" or
+"show me X," since this requester has now asked for the former in a way that
+could be misread as the latter. Kit amber untouched — fifteen for fifteen.

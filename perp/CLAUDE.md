@@ -1,4 +1,12 @@
-# perp — perp.mino.mobi
+# perp — fin.mino.mobi/perp/ (was perp.mino.mobi)
+
+> **2026-09-23: no longer its own surface.** `perp.mino.mobi` was detached to free a slot under
+> the `mino.mobi` zone's 100-custom-domain cap. This directory is now a member of the
+> `finance` surface: [`.github/workflows/deploy-finance.yml`](../.github/workflows/deploy-finance.yml) stages it into
+> that worker's `dist/` and it is served at **`fin.mino.mobi/perp/`**. There is no `wrangler.jsonc` here any
+> more and no deploy of its own — a push to `finance`'s owning branch (see the registry) that
+> touches this directory is what ships it. Anything below that describes `perp.mino.mobi`, its own
+> worker or its own workflow is history. **Do not re-add a `custom_domain` route for `perp.mino.mobi`.**
 
 Learning surface for perpetual futures. Two linked time-series charts: BTC-USD
 spot, and what the Hyperliquid BTC perpetual costs to hold.
@@ -9,7 +17,7 @@ spot, and what the Hyperliquid BTC perpetual costs to hold.
 |---|---|
 | Surface | `perp` |
 | Dir | `perp/` |
-| Endpoint | `perp.mino.mobi` |
+| Endpoint | `fin.mino.mobi/perp/` (was `perp.mino.mobi`) |
 | Type | frontend (static assets + a thin worker) |
 | Owning branch | `claude/futures-finance-learning-r7p47e` |
 | Deploy | `.github/workflows/deploy-perp.yml` |

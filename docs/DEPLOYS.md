@@ -116,6 +116,206 @@ name mismatch can't silently strand the domain. Surfaces that declare it are
 self-healing; surfaces that rely on a dashboard-attached domain are one rename
 away from breakage.
 
+### `mino.mobi` and the custom-domain cap — read this before adding a host
+
+> **Where it stands (2026-09-23, end of day): 72/100 custom domains, 13 plain routes, 0 unbound.**
+> `node scripts/binding-check.mjs` prints the current counts from the configs. The day went:
+> six slots detached by hand (below); `torus` and `fifty` converted by their own deploy
+> (`route-dns.mjs --takeover`); ten more converted by cf-ops batch 2: `time`, `war`, `zoom`, `empath`,
+> `mappa`, `j`, `phylofiction`, `iris`, `duck`, `polis`. Every host kept its URL. `ns` came
+> back as its own route surface, and `perp.mino.mobi` is a route on `fin` that 301s to `/perp/`.
+> **Everything new is a plain route.** Converting more is a cf-ops batch (§7). The
+> good candidates are frontend-only sites with no Durable Objects that don't get much traffic.
+
+> **2026-09-23, morning — six slots freed (94/100).** Detached in the dashboard: `wave`, `cat`, `font`,
+> `pm`, `perp`, `ns`. None of them took content offline for good:
+>
+> | host | where it lives now |
+> |---|---|
+> | `perp.mino.mobi` | `fin.mino.mobi/perp/` — staged by `deploy-finance.yml` |
+> | `ns.mino.mobi` | briefly `math.mino.mobi/ns/`; restored the same day as its own **route** surface. `math/_redirects` sends `/ns/*` back to it |
+> | `wave.mino.mobi` | the Wave tab in org (`org.mino.mobi/wave`); the newer standalone build is an open decision (`wave/CLAUDE.md`) |
+> | `pm.mino.mobi` | `mino.mobi/pm/` (root worker); org's PM tab is the integrated port |
+> | `font.mino.mobi` | `rite.mino.mobi/font/` (moved there in June; the old host served a stale copy) |
+> | `cat.mino.mobi` | nowhere — decommissioned 2026-07-28 (§9) |
+>
+> **The pattern that makes the cap stop mattering: one domain per topic, not per app.** `math`
+> already stages ~30 member dirs into one worker; `fin` does the same for perp, speclab and pm.
+> A subpath costs no slot. Before giving a new site its own subdomain, ask which hub it belongs
+> under. **A folded host must lose its `custom_domain` route on EVERY branch that can still deploy
+> it** — `refresh-perp-data.yml` (a cron on `main`) checked out perp's old branch and would have
+> re-attached `perp.mino.mobi` within hours; that branch's route was removed the same day.
+
+A Worker Custom Domain is not free. There are **100 per zone**, and the zone is
+full. Measured 2026-09-22, deploy-bsky run #43, adding `dweet.mino.mobi`:
+
+```
+✘ Trigger configuration for "bsky" was only partially updated:
+    You have exceeded the limit of 100 Workers custom domains
+    on zone 'mino.mobi'  [code: 100122]
+```
+
+**The failure mode is nasty**, and it is the opposite of the golden rule above:
+the bind happens at the TRIGGER step, *after* the assets upload. So the run goes
+**red while the new assets are already live**, and every subsequent push stays
+red for as long as an unbindable route sits in the config. A half-applied deploy,
+not a no-op.
+
+(83 of this repo's `wrangler.jsonc` files declare `custom_domain`; each spends
+one of the 100. That is the budget.)
+
+**Two ways out, and they are not equivalent:**
+
+**1. Prune stale slots.** Custom domains outlive the workers that made them —
+renames, abandoned surfaces, `op: create` entries that never shipped. Reported
+from a sibling project that hit this in July: 64 of their slots were stale.
+Dashboard-only (§7). This is the cheapest fix and it is probably the right first
+move here.
+
+**2. Claim the hostname with a PLAIN ROUTE instead** —
+`{ pattern: "x.mino.mobi/*", zone_name: "mino.mobi" }` with **no**
+`custom_domain`. Worker *Routes* are capped at **1000** per zone rather than
+100, so the ceiling effectively disappears.
+
+> **A plain route does NOT create DNS, and that is the whole catch.**
+> `custom_domain: true` makes Cloudflare create the DNS record and manage the
+> certificate. A route only *matches requests for a hostname that already
+> resolves through Cloudflare's proxy*. Verified: `dweet.mino.mobi` has no DNS
+> record at all (`getent hosts` returns nothing), so a route alone would give a
+> **green deploy and a dead hostname** — precisely the failure the golden rule
+> exists to catch, arriving through a different door.
+>
+> So the order is: **proxied DNS record first** (an `AAAA` to `100::` or a CNAME,
+> orange-clouded — dashboard/API, §7), **then** the route, **then** verify the
+> host actually serves. Do not add the route first and assume.
+
+**Done, and now automatic (2026-09-23).** The deploy token holds Zone DNS:Edit (proved by
+`cf-capability-probe.yml`'s create-and-delete of a throwaway TXT record), and
+[`scripts/route-dns.mjs`](../scripts/route-dns.mjs) is the missing half: run before `wrangler
+deploy`, it reads the surface's `wrangler.jsonc`, and for every plain route (`zone_name`, no
+`custom_domain`) makes sure a **proxied `AAAA 100::`** record exists. It creates only what is
+missing and refuses a host that still has a Custom Domain's read-only record (detach first).
+The first host on it is `perp.mino.mobi`, a route on the `fin` worker that 301s to
+`fin.mino.mobi/perp/`. To move a site off a custom domain: detach the domain, swap its route
+for `{ pattern: "<host>/*", zone_name: "mino.mobi" }`, add the route-dns step to its deploy
+workflow, push, and verify the host serves. Two traps: a worker that serves assets answers
+matching paths **before** it runs, so a host-based redirect needs `assets.run_worker_first`;
+and the verification is the HOST responding, not the green run.
+
+The caps themselves (100 custom domains, 1000 routes) are Cloudflare's published
+per-zone limits; the 100 is confirmed by the error above, the 1000 is taken from
+the docs and has not been tested here.
+
+#### `zone_name` does not move a hostname out of the zone
+
+This is worth stating flatly because the intuition runs the other way. Asked
+directly: *does converting `bsky.mino.mobi` to a route mean it no longer belongs
+to the `mino.mobi` zone?*
+
+**No — and if anything it is the reverse.** `zone_name` is not a change of
+ownership. It is how wrangler tells the API *which zone a route belongs to*, and
+a route is a thing that exists **inside** a zone; Cloudflare's own docs describe
+routes as adding "Workers functionality to your existing proxied hostnames, in
+front of your application server". Both forms live in `mino.mobi`. What actually
+differs is which of them owns the DNS:
+
+| | Custom Domain | Plain Route (`zone_name`) |
+|---|---|---|
+| DNS record | **Cloudflare creates and manages it** | **you must already have one**, proxied |
+| certificate | issued for you | the zone's existing coverage |
+| the Worker is | "treated as an origin" | a proxy in front of an origin |
+| refuses to attach if | a CNAME already exists on the hostname | — |
+| per zone | **100** | **1000** |
+
+The grain of truth behind the intuition is that a Custom Domain's hostname *is*
+special-cased — the Worker becomes the origin, so it is not resolved the way an
+ordinary proxied record is, and Cloudflare refuses to create one on a hostname
+that already has a CNAME. Converting **to** a plain route puts the hostname back
+under ordinary zone handling, it does not take it out.
+
+#### Can GitHub Actions declare it? Partly — and the missing half is DNS
+
+| Step | Who can do it | What it needs |
+|---|---|---|
+| create/update the **route** | ✅ `wrangler deploy`, already in every workflow | the token's zone-level **Workers Routes: Edit** |
+| create the **DNS record** | ✅ the Cloudflare API, ❌ **not wrangler** | the token's **DNS: Edit** on the zone |
+
+`wrangler deploy` reads `routes` from `wrangler.jsonc` and creates them through
+the API using `CLOUDFLARE_API_TOKEN`, which the workflows already hold. It has
+**no DNS command at all** — Cloudflare's docs are explicit that "before you set
+up a route, make sure you have a DNS record set up", and that without one
+"any request to `myname.example.com` will result in the error
+`ERR_NAME_NOT_RESOLVED`".
+
+But DNS is an ordinary API call —
+`POST /zones/{zone_id}/dns_records`, permission group **DNS Write** — so a
+workflow step can absolutely make the record. **The dashboard is not required;
+the right token scopes are.** Whether *this* repo's `CLOUDFLARE_API_TOKEN` has
+them is a fact about one secret, and §7's "dashboard-only" list assumes the
+narrow deploy token it was written for.
+
+`.github/workflows/cf-capability-probe.yml` answers it. It is read-only, except for one
+opt-in test: with `PROBE_DNS_WRITE=1` it creates a throwaway TXT record and deletes it again.
+It also prints `INVENTORY_JSON`, the account inventory that `docs/backends-account.json` is
+refreshed from.
+
+> **Historical.** The run below is the 2026-09-22 baseline. Since 2026-09-23 the deploy token
+> holds Zone DNS:Edit and Workers Routes:Edit, the DNS write test passes, and the counts
+> above are current. Keep the block for its reasoning, not its numbers.
+
+**First run, 2026-09-22:**
+
+```
+workers custom domains
+  100 of the 100 slots on mino.mobi are taken  (0 free)
+  99 distinct workers hold them
+      2  airchat      airchat.mino.mobi, yapchat.mino.mobi
+      1  …            (every other worker holds exactly one)
+  (13 more on other zones, which have their own 100)
+
+workers routes    YES  0 routes on this zone
+dns               no   403 Authentication error
+token verify      no   401   <- account-owned token; not a fault, see below
+```
+
+Three things that change the plan:
+
+- **The zone is at exactly 100/100, not near it.** There is no headroom to
+  find; the next custom domain needs a slot freed first.
+- **There is no cheap prune.** Ninety-nine of the hundred slots belong to a
+  worker that holds exactly one, so every reclaimed slot is a separate decision
+  that a site is finished. Only `airchat` holds two.
+- **The deploy token cannot touch DNS** — a plain read is `403 Authentication
+  error`, so certainly no write. It *can* read Workers Routes, and there are
+  **0** routes on the zone, so the route path is untried as well as unblocked.
+  Making a hostname resolve today therefore needs either the dashboard or a
+  token granted **DNS:Edit** on `mino.mobi`. Granting it is the smaller job and
+  it is the one that makes the whole thing automatable.
+
+(The `401` on `/user/tokens/verify` is **not** a fault. That endpoint only
+answers for *user*-owned tokens; an account-owned one — which a deploy secret
+usually is — fails it while working on every account and zone call. The lines
+below it are the real evidence.)
+
+It reports:
+
+- how many of the 100 custom-domain slots on `mino.mobi` are taken, **grouped by
+  worker**, so a prune can start with whoever holds the most;
+- whether the token can list Workers Routes;
+- whether it can read DNS at all, and whether `dweet.mino.mobi` really has no
+  record;
+
+and it says plainly what it cannot settle: **a read does not prove a write.**
+Cloudflare's Read and Edit permission groups are separate, and the only honest
+test of DNS:Edit is to create a record and delete it again — which is not a
+thing to do to a production zone unasked. Run it from the Actions tab, or by
+touching the workflow file.
+
+So the shape of the answer: **yes, a workflow can do the whole job, provided the
+token carries DNS:Edit and Workers Routes:Edit for `mino.mobi`.** If it does
+not, the fix is a new token scope, not a person in the dashboard — and the probe
+tells you which case you are in.
+
 ### How to detect a mismatch (from outside the dashboard)
 - Probe `https://<config-name>.<acct>.workers.dev/` **and**
   `https://<domain-label>.<acct>.workers.dev/`. **Both resolving = twin workers =
@@ -171,23 +371,65 @@ Shapes:
 - **The root bundle.** The root Pages project serves `.` and bundles ~19 static
   subsites at `mino.mobi/<name>/`. They **cannot** be deployed independently of
   each other; carving one out to its own subdomain is a deliberate operation.
+- **The zone's custom-domain ceiling: 100.** Cloudflare allows 100 Workers
+  custom domains per zone, and `mino.mobi` reached it on 2026-09-12: the
+  `parts` deploy uploaded the worker, then failed binding `parts.mino.mobi`
+  with code `100122` ("Trigger configuration was only partially updated").
+  The worker exists and the run is red. A `routes: [{ pattern, zone_name }]`
+  route is not a way round it from CI — it needs a proxied DNS record for the
+  host, and this token cannot write DNS (measured 2026-07-29, see
+  `publish-lexicons.yml`). What works without a dashboard: **mount the new
+  worker under an existing host through a service binding** — the owner's
+  `wrangler.jsonc` gets `services: [{ binding, service }]`, its worker strips
+  the prefix and forwards, the mounted worker declares no route and
+  `workers_dev: false`, and its page uses relative URLs. `packages/cad/` ↔
+  `parts/` is the worked example. Freeing a domain (detaching one from a dead
+  worker) is dashboard-only, §7.
 - **Container worker.** `os/api` (`os-mino-api`) is a Cloudflare **Containers**
   worker — its `deploy-os-api.yml` is **`workflow_dispatch`-only and
   prerequisite-gated** so it never surprise-builds paid containers.
 
 ---
 
-## 7. Dashboard-only operations (CI and the sandbox can't do these)
+## 7. Account operations: cf-ops, and what is still dashboard-only
 
-The Action deploys via an API token; it cannot change account/project topology.
-These are the human's job:
+Since 2026-09-23 the deploy token can do more than deploy: it can delete workers, detach
+custom domains, create routes and write DNS on `mino.mobi`. Those powers are used in two ways
+only:
+
+- **During a surface's own deploy:** `route-dns.mjs` gives a plain route its DNS record.
+  With `--takeover` it may detach a custom domain **only when that worker holds it**.
+- **For everything else:** [`.github/cf-ops/plan.json`](../.github/cf-ops/plan.json), run by
+  `cf-ops.yml` through [`scripts/cf-ops.mjs`](../scripts/cf-ops.mjs).
+
+| op | what it does | refused when |
+|---|---|---|
+| `delete-worker {name}` | deletes the script | a custom domain or route serves it; it owns a Durable Object namespace; any `wrangler*` config in the repo still names it |
+| `convert-to-route {worker, host}` | creates the route `host/*`, detaches the custom domain, creates `AAAA 100::` once the managed record is gone, then checks the host answers | the domain is held by a different worker; another route claims the host |
+
+Each guard runs against the live account immediately before its op, so a plan written
+yesterday cannot act on today's changed facts. A plan with `"apply": false` is a dry run. The
+agent writes it, the operator reads the log and flips `apply` in a separate commit, and the agent
+then files the batch under `history` with its run id. The loop is written out in the root
+`CLAUDE.md` ("This sandbox"). Completed so far:
+
+- **batch 1:** eight orphan workers deleted.
+- **batch 2:** ten hosts converted.
+
+**A `convert-to-route` is half the job.** The surface's `wrangler.jsonc` still says
+`custom_domain`, and its next deploy will put the slot back. Follow the batch with a commit that
+switches each config to the route and adds the `route-dns.mjs --apply` step and a
+host-must-answer step to its workflow (`deploy-ns.yml` is the template).
+
+Still dashboard-only, i.e. the human's job:
 
 - **Disconnect Cloudflare git integration.** Required for the root Pages project
   (Direct Upload). For Workers it's usually nothing to do — they deploy via the
   API token, not a git connection — *unless* a worker has "Workers Builds"
   attached (then disconnect it so the Action is sole deployer).
-- **Attach / detach custom domains**, and **delete orphan workers** left behind by
-  a rename (the zoom-bucket strays).
+- **Rename a worker.** (Attaching/detaching domains and deleting workers now go through
+  cf-ops above.)
+- **Anything on zones other than `mino.mobi`** that the token was not granted.
 - **Provision** KV namespaces, R2 buckets, Cloudflare Containers; **set worker
   secrets** (`wrangler secret put`).
 - **Remote D1 migrations** run in Actions (or `d1-migrate.yml`), never from the
@@ -200,12 +442,17 @@ These are the human's job:
 1. **Probe the real live domain** (`curl -sI`). Do **not** assume `dir == subdomain`.
 2. Identify the shape (static / build / monorepo / pages) and the **worker name
    that owns the domain**.
-3. Write `wrangler.jsonc`: `name` = that worker, `routes` = the custom domain.
-4. Add `deploy-<surface>.yml` from the matching template.
+3. Write `wrangler.jsonc`: `name` = that worker, `routes` = a **plain route**
+   `{ "pattern": "<host>/*", "zone_name": "mino.mobi" }` (not a custom domain; §4).
+4. Add `deploy-<surface>.yml` from the matching template, with `route-dns.mjs --apply`
+   before `wrangler deploy` and a step that fails unless the host answers (`deploy-ns.yml`).
 5. Add the `surfaces[]` entry; remove it from `unmanaged{}`.
-6. `lint` + `gen-deploy-triggers --write` + `gen-surface-map --write`.
-7. Push; **verify the run binds `<domain> (custom domain)`** — green alone is not
-   proof (see the golden rule).
+6. `node scripts/preflight.mjs --fix` (triggers, generated docs, binding-check).
+7. Push; **verify the run binds `<host>/* (zone name: mino.mobi)` and the host
+   answers**. Green alone is not proof (see the golden rule).
+
+The root `CLAUDE.md` "Adding a surface" is the fuller list (catalogue, spec family, whether it
+needs a host at all).
 
 ---
 
@@ -215,9 +462,17 @@ These are the human's job:
 - **Unmanaged (4):** `os/api` (container, dispatch-only script ready), and the
   three "not actively managed" reference workers `workers/bsky-bot` (KV
   unprovisioned), `workers/cards-mint`, `workers/cluster-batch`.
-- **Orphan workers to delete** (renamed away; the Action no longer touches them):
-  `mino-zoom`, `mino-poke`, `wars-minomobi`, `mega-minomobi`, `pds-os`,
-  `mino-answers`, `clock-minomobi`, `mino-disk`, `mino-atmosphere`.
+- **Orphan workers:** cleared. cf-ops batch 1 (2026-09-23) deleted `mino-answers`,
+  `mino-disk`, `mino-poke`, `mega-minomobi`, `pds-os`, `finance-minomobi`,
+  `amadeus-proxy` and `perp`. The others once listed here (`mino-zoom`, `wars-minomobi`,
+  `clock-minomobi`, `mino-atmosphere`, `cat-firehose`) were already gone from the account.
+- **Account-only, undecided** (see `docs/BACKENDS.md`, "The account, reconciled"):
+  - `jev`: purpose unknown.
+  - `alph`, `beta`, `gamm`: serve `minomobi.com` hosts.
+  - the old `minomobi` root worker.
+  - `mmopaint-db` and the `cards-mint` rate-limit KV: likely orphaned.
+
+  Each needs a decision before it goes into a cf-ops plan.
 - **Deferred dashboard steps:** disconnect git on the root Pages project; detach
   `atmosphere.mino.mobi`; redirect `clock.mino.mobi` → `g.mino.mobi` then delete
   the stale `clock` worker; delete the `cat-firehose` worker and detach

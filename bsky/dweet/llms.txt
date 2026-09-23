@@ -1,0 +1,62 @@
+# bsky.mino.mobi/dweet
+
+> A feed of 256-character animations. Each one is the body of a function called
+> 60 times a second over a 1920x1080 canvas, in JavaScript or GLSL, stored as a
+> `com.minomobi.dweet.dweet` record in its author's own ATProto repo — small
+> enough that the whole artwork rides inside a single firehose event, which is
+> why the feed needs no backend, no index and no database. Strangers' code runs
+> here, so the execution boundary is the load-bearing part. Built to be driven
+> by an agent.
+
+Every file an agent needs is a URL under this path.
+
+## Start here
+
+- [SKILL.md](https://bsky.mino.mobi/dweet/SKILL.md): the instruction sheet — the loop (write → check → render → judge → golf), every command, the cap and the size tiers, golfing, publishing, hand-over, and what to report honestly. Also a Claude Code skill when placed at `.claude/skills/dweet/SKILL.md`.
+- [seeds.js](https://bsky.mino.mobi/dweet/seeds.js): the house set as worked examples — `heartbeat`, `ribbon`, `spirograph` (js), `ripples` (glsl), `interop` (glsl written in demosky's `mainImage` dialect, to show it runs unchanged). Addressable as `seed:<name>` in every tool.
+- The surface itself: [/dweet/](https://bsky.mino.mobi/dweet/) — the feed, the composer, the share sheet.
+
+## The form
+
+`u(t, S, C, T, R, c, x)` — `t` seconds, `S`/`C`/`T` are sin/cos/tan, `R(r,g,b,a)` makes an `rgba()` string, `c` is the 1920x1080 canvas, `x` its 2D context. **The canvas is not auto-cleared**: `c.width|=0` is the ten-character clear. A `lang: "glsl"` record is a fragment shader body instead, with `t`, `r`, `FC` and `o` declared — and demosky/Shadertoy's `mainImage(out vec4, in vec2)` form runs unchanged, `iTime` and `iResolution` included.
+
+The cap is **256 graphemes**, chosen so a whole dweet fits in one Bluesky post *with a link* (300 - 256 - a blank line - a 22-character shortened link = fits), and so every ASCII sketch lands in a named demoscene size tier — `64b`, `128b`, `256b`, counted in UTF-8 **bytes** where the cap counts graphemes. 140 graphemes of js survives as a badge: it runs on dwitter.net unchanged.
+
+## Run it with nothing but node
+
+Clone `bsky/dweet/` from the monorepo. No dependencies, no build.
+
+- `node agent/check.mjs <src> [--at 0,2,4] [--json]` — length against the cap, bytes and tier, dwitter portability, **the Bluesky post budget**, and by running it in a terminable worker thread: **whether it draws anything at each moment**, whether it clears, which canvas API it touches. Exit 1 if invalid, throwing, or blank everywhere. This is the loop to iterate in — a dweet that draws nothing in its first seconds is the commonest way one looks broken (the house `heartbeat` loops `for(a=t%8;a>0;a-=.01)` — zero iterations at t=0) and this finds it in milliseconds with no browser. Draw calls are **not** pixels, and it says so; a dweet that reads the canvas back is flagged, because its counts here are not what a browser would do.
+- `node agent/render.mjs <src> --out DIR [--at t] [--frames n] [--gif a.gif]` — real pixels from the real sandbox: a PNG per view, lit-pixel counts, `report.json`, optionally an animated GIF (a dependency-free encoder: median cut, Bayer dither, LZW). Needs Chromium (`npm i playwright-core`, or `DWEET_CHROME=/path/to/chrome`) and says so plainly rather than describing a picture it did not make. GLSL compiles here and nowhere else — a broken shader returns the driver's own message and line.
+- `node agent/link.mjs <src>` — the permalink and the exact post text with its grapheme count.
+- `node agent/feed.mjs --tail 30` / `--at <handle>` — what exists on the network.
+
+`<src>` is uniform across all four: a file, `-` for stdin, `seed:<name>`, an `at://` uri, a permalink, or `--src '<source>'`.
+
+**The trust rule.** A CAD tree is data; a dweet is code. Source you wrote runs; source fetched from the network is analysed but **not executed**, because node has no sandbox — a worker thread bounds the CPU and nothing else. Pass `--run-untrusted` if you mean to, or use `render.mjs`, which runs everything inside the browser boundary and is the only place a stranger's dweet is safe to run at all.
+
+## Data
+
+- Record `com.minomobi.dweet.dweet`: `src` (≤ 2048 bytes / 256 graphemes), `lang` (`js` | `glsl`), `title` (≤ 64), `remixOf` (an `at://` uri — an ordinary backlink, so the remix tree is free from Constellation and nothing stores an edge), `captureTime` (ms — the frame a paused card shows; **set it**, or a dweet that draws itself over time shows a black rectangle), `createdAt`.
+- There is no index and no AppView. Reading the network means tailing Jetstream v2 filtered to the one collection (`collections=com.minomobi.dweet.dweet&kinds=commit` — **lowercase `commit`**; a wrong value is rejected before the WebSocket upgrade and looks exactly like a blocked proxy), or `com.atproto.repo.listRecords` against one repo's PDS, which is public and needs no auth.
+- Open any dweet without posting it: `https://bsky.mino.mobi/dweet/?s=<base64url source>&l=glsl&t=<title>`. **The whole dweet travels in the URL**, so a link works before the record propagates, for a draft, and for a house seed that is not a record at all. It pins that dweet above the feed, playing, with a remix button.
+- Writing is a browser sign-in (OAuth through auth.mino.mobi, scope `atproto repo:com.minomobi.dweet.dweet`). There is no headless publish, deliberately: a script holding a PDS credential is what this arrangement exists to avoid.
+
+## The execution boundary — read this before changing anything under /dweet/
+
+`sandbox.js`. A dweet is a stranger's code running on a domain whose SSO cookie is `Domain=.mino.mobi`, so the isolation is not a nicety:
+
+1. **Opaque origin.** `sandbox="allow-scripts"` and never `allow-same-origin` — that pair is not a stricter sandbox, it is none.
+2. **CSP `default-src 'none'`** with no `connect-src`: no fetch, no WebSocket, no image, so a dweet cannot phone home even with nothing to steal.
+3. **No injection surface.** The harness document and the worker program are constants; the source arrives by `postMessage` after load.
+4. **A terminable thread.** The dweet runs in a Worker on an OffscreenCanvas, because `terminate()` is the only primitive that reliably stops `while(1)` — removing a hung iframe does not, and the runaway then starves every later frame in the same renderer process.
+
+`sandbox.selftest.mjs` asserts all four and preflight runs it.
+
+## Posting it to Bluesky
+
+The source as text, a still at a moment that is not blank, and a link. **A GIF is not how it animates there and cannot be**: that image CDN transcodes every blob (the bare URL answers `image/webp`) and GIF playback in the app is an external player on a host allowlist. What loops in the feed is `app.bsky.embed.video` with `presentation: "gif"` — measured at ~21% of the video posts crossing the firehose — which the page does from a real browser with the reader's own service-auth token. The GIF is for everywhere else: a chat, a wiki, a README.
+
+## Where the source lives
+
+Monorepo: https://github.com/minormobius/agent01 — `bsky/dweet/`. Instructions: `bsky/dweet/CLAUDE.md`; the host surface is `bsky/CLAUDE.md`. The sibling surface built the same way, and the one this borrowed its shape from, is [cad.mino.mobi](https://cad.mino.mobi/llms.txt).

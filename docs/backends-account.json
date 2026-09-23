@@ -1,0 +1,690 @@
+{
+  "$comment": "The Cloudflare ACCOUNT side of docs/BACKENDS.md, copied from cf-capability-probe.yml run 7 (GET-only). Names, dates, schedules and sizes; no IDs. Refresh by re-running the probe and replacing this file; backend-inventory.mjs --write then reconciles it against the repo.",
+  "source": "cf-capability-probe.yml run 35902375822",
+  "at": "2026-09-23T18:26Z",
+  "workers": {
+    "ai-edu": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "airchat": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "alph": {
+      "modified": "2026-07-26",
+      "crons": [],
+      "host": true
+    },
+    "amadeus-proxy": {
+      "modified": "2026-05-25",
+      "crons": [],
+      "host": false
+    },
+    "ar": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "ask": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "atlas": {
+      "modified": "2026-09-05",
+      "crons": [],
+      "host": true
+    },
+    "aub": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "audio-rooms-api": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": false
+    },
+    "b": {
+      "modified": "2026-09-22",
+      "crons": [],
+      "host": true
+    },
+    "bakery": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "beta": {
+      "modified": "2026-07-26",
+      "crons": [],
+      "host": true
+    },
+    "biome": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "bisk": {
+      "modified": "2026-09-23",
+      "crons": [],
+      "host": true
+    },
+    "bismuth": {
+      "modified": "2026-09-05",
+      "crons": [],
+      "host": true
+    },
+    "board": {
+      "modified": "2026-07-29",
+      "crons": [],
+      "host": true
+    },
+    "borges": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "bounty-minomobi": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "bsky": {
+      "modified": "2026-09-23",
+      "crons": [],
+      "host": true
+    },
+    "cable": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "cad": {
+      "modified": "2026-09-18",
+      "crons": [],
+      "host": true
+    },
+    "canvas": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "cards": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "chat": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "civ": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "clef": {
+      "modified": "2026-09-06",
+      "crons": [],
+      "host": true
+    },
+    "crm": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": false
+    },
+    "duck": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "duffel-proxy": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "empathy": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "fable": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "farm": {
+      "modified": "2026-08-15",
+      "crons": [],
+      "host": true
+    },
+    "fifty": {
+      "modified": "2026-07-28",
+      "crons": [],
+      "host": true
+    },
+    "fin": {
+      "modified": "2026-09-23",
+      "crons": [
+        "0 * * * *"
+      ],
+      "host": true
+    },
+    "finance-minomobi": {
+      "modified": "2026-05-11",
+      "crons": [],
+      "host": false
+    },
+    "fipo": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "fix": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "fluoddity-minomobi": {
+      "modified": "2026-09-01",
+      "crons": [],
+      "host": true
+    },
+    "foam": {
+      "modified": "2026-08-19",
+      "crons": [],
+      "host": true
+    },
+    "fold": {
+      "modified": "2026-08-26",
+      "crons": [],
+      "host": true
+    },
+    "fred-proxy": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "g": {
+      "modified": "2026-07-31",
+      "crons": [],
+      "host": true
+    },
+    "games": {
+      "modified": "2026-08-21",
+      "crons": [],
+      "host": true
+    },
+    "gamm": {
+      "modified": "2026-07-26",
+      "crons": [],
+      "host": true
+    },
+    "glass": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "golem": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "harvestople-next": {
+      "modified": "2026-08-17",
+      "crons": [],
+      "host": true
+    },
+    "henderhead": {
+      "modified": "2026-09-20",
+      "crons": [],
+      "host": true
+    },
+    "hoop": {
+      "modified": "2026-09-18",
+      "crons": [],
+      "host": true
+    },
+    "hoop-archive": {
+      "modified": "2026-08-02",
+      "crons": [],
+      "host": true
+    },
+    "hopper": {
+      "modified": "2026-09-04",
+      "crons": [],
+      "host": true
+    },
+    "hose": {
+      "modified": "2026-08-23",
+      "crons": [
+        "0 */6 * * *"
+      ],
+      "host": true
+    },
+    "human": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "idol": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "ink": {
+      "modified": "2026-08-25",
+      "crons": [],
+      "host": true
+    },
+    "io": {
+      "modified": "2026-09-08",
+      "crons": [
+        "0 * * * *"
+      ],
+      "host": true
+    },
+    "iris": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "j-minomobi": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "jev": {
+      "modified": "2026-09-17",
+      "crons": [],
+      "host": false
+    },
+    "jurassic": {
+      "modified": "2026-08-27",
+      "crons": [],
+      "host": true
+    },
+    "ken": {
+      "modified": "2026-08-26",
+      "crons": [],
+      "host": true
+    },
+    "lab": {
+      "modified": "2026-09-22",
+      "crons": [],
+      "host": true
+    },
+    "loop": {
+      "modified": "2026-08-07",
+      "crons": [],
+      "host": true
+    },
+    "mappa": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "math": {
+      "modified": "2026-09-23",
+      "crons": [],
+      "host": true
+    },
+    "mega": {
+      "modified": "2026-09-22",
+      "crons": [
+        "25 1,13 * * *"
+      ],
+      "host": true
+    },
+    "mega-minomobi": {
+      "modified": "2026-06-04",
+      "crons": [],
+      "host": false
+    },
+    "mino-answers": {
+      "modified": "2026-06-04",
+      "crons": [],
+      "host": false
+    },
+    "mino-auth": {
+      "modified": "2026-09-22",
+      "crons": [],
+      "host": true
+    },
+    "mino-bsky-bot": {
+      "modified": "2026-08-19",
+      "crons": [
+        "* * * * *"
+      ],
+      "host": false
+    },
+    "mino-disk": {
+      "modified": "2026-06-04",
+      "crons": [],
+      "host": false
+    },
+    "mino-feed": {
+      "modified": "2026-07-25",
+      "crons": [
+        "0 */6 * * *"
+      ],
+      "host": true
+    },
+    "mino-poke": {
+      "modified": "2026-06-04",
+      "crons": [],
+      "host": false
+    },
+    "mino-scores": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "minomobi": {
+      "modified": "2026-03-25",
+      "crons": [],
+      "host": false
+    },
+    "minomobi-cron": {
+      "modified": "2026-08-05",
+      "crons": [
+        "0 * * * *",
+        "0 13 * * *",
+        "0 */6 * * *",
+        "0 6 * * *",
+        "0 6 1 * *",
+        "10,30,50 * * * *",
+        "30 13 * * *",
+        "30 21 * * 1-5"
+      ],
+      "host": false
+    },
+    "moji": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "neuro": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "ns": {
+      "modified": "2026-09-23",
+      "crons": [],
+      "host": true
+    },
+    "ocr": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "org": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "os": {
+      "modified": "2026-09-16",
+      "crons": [],
+      "host": true
+    },
+    "os-mino-api": {
+      "modified": "2026-09-16",
+      "crons": [],
+      "host": true
+    },
+    "parts": {
+      "modified": "2026-09-14",
+      "crons": [
+        "*/15 * * * *"
+      ],
+      "host": false
+    },
+    "pds-os": {
+      "modified": "2026-06-04",
+      "crons": [],
+      "host": false
+    },
+    "perp": {
+      "modified": "2026-09-23",
+      "crons": [],
+      "host": false
+    },
+    "photo": {
+      "modified": "2026-09-22",
+      "crons": [],
+      "host": true
+    },
+    "phylofiction": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "plant": {
+      "modified": "2026-08-07",
+      "crons": [],
+      "host": true
+    },
+    "pod": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "poke": {
+      "modified": "2026-08-26",
+      "crons": [],
+      "host": true
+    },
+    "polis": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "poll": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "rant": {
+      "modified": "2026-07-28",
+      "crons": [],
+      "host": true
+    },
+    "read": {
+      "modified": "2026-08-02",
+      "crons": [],
+      "host": true
+    },
+    "reef": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "rind": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "rite": {
+      "modified": "2026-09-22",
+      "crons": [
+        "0 */6 * * *"
+      ],
+      "host": true
+    },
+    "sci": {
+      "modified": "2026-09-07",
+      "crons": [],
+      "host": true
+    },
+    "silk": {
+      "modified": "2026-08-21",
+      "crons": [],
+      "host": true
+    },
+    "splice": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "table": {
+      "modified": "2026-08-17",
+      "crons": [],
+      "host": true
+    },
+    "tape": {
+      "modified": "2026-08-31",
+      "crons": [],
+      "host": true
+    },
+    "tide": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "time": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "tjs": {
+      "modified": "2026-09-14",
+      "crons": [],
+      "host": true
+    },
+    "torus": {
+      "modified": "2026-08-17",
+      "crons": [],
+      "host": true
+    },
+    "uni": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "unit": {
+      "modified": "2026-08-24",
+      "crons": [],
+      "host": true
+    },
+    "war": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "words": {
+      "modified": "2026-08-22",
+      "crons": [],
+      "host": true
+    },
+    "wormhole": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    },
+    "zest": {
+      "modified": "2026-08-17",
+      "crons": [
+        "17 4 * * *"
+      ],
+      "host": true
+    },
+    "zoom": {
+      "modified": "2026-07-25",
+      "crons": [],
+      "host": true
+    }
+  },
+  "d1": [
+    {
+      "name": "mino-scores-db",
+      "bytes": 32768
+    },
+    {
+      "name": "mmopaint-db",
+      "bytes": 12288
+    },
+    {
+      "name": "mino-auth-db",
+      "bytes": 1589248
+    },
+    {
+      "name": "bounty-board",
+      "bytes": 102400
+    },
+    {
+      "name": "anon-polls-db",
+      "bytes": 642129920
+    }
+  ],
+  "kv": [
+    "STATE",
+    "cards-mint-rate-limit"
+  ],
+  "r2": "not enabled on the account (403: enable R2 in the dashboard)",
+  "queues": [],
+  "durableObjects": [
+    {
+      "script": "poll",
+      "cls": "PollCoordinator"
+    },
+    {
+      "script": "poll",
+      "cls": "SurveyCoordinator"
+    },
+    {
+      "script": "games",
+      "cls": "RoomCoordinator"
+    },
+    {
+      "script": "audio-rooms-api",
+      "cls": "RoomCoordinator"
+    },
+    {
+      "script": "ar",
+      "cls": "Room"
+    },
+    {
+      "script": "ar",
+      "cls": "Lobby"
+    },
+    {
+      "script": "hoop",
+      "cls": "HoopRoom"
+    },
+    {
+      "script": "pod",
+      "cls": "RoomCoordinator"
+    },
+    {
+      "script": "os-mino-api",
+      "cls": "ContainerShell"
+    },
+    {
+      "script": "mino-bsky-bot",
+      "cls": "SiteRegistry"
+    },
+    {
+      "script": "hoop-archive",
+      "cls": "HoopRoom"
+    },
+    {
+      "script": "hose",
+      "cls": "FirehoseIngest"
+    },
+    {
+      "script": "parts",
+      "cls": "PartsIndex"
+    },
+    {
+      "script": "mega",
+      "cls": "PreregLog"
+    }
+  ]
+}

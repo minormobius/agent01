@@ -9,7 +9,11 @@
   "assets": {
     "directory": "./dist"
   },
+  // A PLAIN ROUTE (2026-09-23), converted from a custom domain to free one of the
+  // zone's 100 slots. The deploy workflow runs scripts/route-dns.mjs --takeover first:
+  // it detaches the old custom domain (only because THIS worker held it) and creates
+  // the proxied DNS record a route needs. Do not turn it back into a custom_domain.
   "routes": [
-    { "pattern": "torus.mino.mobi", "custom_domain": true }
+    { "pattern": "torus.mino.mobi/*", "zone_name": "mino.mobi" }
   ]
 }

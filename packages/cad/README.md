@@ -1,0 +1,192 @@
+# packages/cad — the feature-tree CAD engine
+
+Tree in, geometry out. The design record is [`docs/CAD.md`](../../docs/CAD.md);
+this is the code for its phases 0 and 1: a Rust engine that turns a parametric
+feature tree into solids, the five clock benchmark parts, and the kernel
+bake-off that measures every candidate kernel against them.
+
+**The package is the site.** `index.html`, `app.js`, `build-worker.js`,
+`gl.js`, `camera.js` and `cad.css` are `cad.mino.mobi`; `wrangler.jsonc`
+serves this directory with `engine/` and `bakeoff/` dropped by
+`.assetsignore`. Surface notes: [`CLAUDE.md`](CLAUDE.md).
+
+## Layout
+
+| | |
+|---|---|
+| `engine/` | the Rust crate `cad-engine`: tree schema, expression language, 2D sketches and the involute gear, topological naming, invariants, the kernel seam and two kernels (Truck, implicit), the `cad` CLI, and a raw C ABI for WASM |
+| `cad.wasm` | the committed WASM build (1.7 MB). Rebuild with `engine/build.sh`, never by hand |
+| `cad.selftest.mjs` | drives `cad.wasm` from bytes under node and asserts invariants. **Run before touching `engine/` or the ABI** |
+| `bench/` | the clock parts as trees: gear, arbor, plate, escape wheel, case, case-fillet, pinion, pallet fork, balance, hand, dial; `train.json` is a two-stage gear-train assembly and **`clock.json` is the clock**; `expected.json` carries the closed forms |
+| `bakeoff/` | the harness: `run.mjs` builds every part with every kernel and writes `RESULTS.md`. OCCT is an npm dep there; Manifold is vendored |
+| `lib/` | shared by the site, the worker and the harness: `engine.js` (the ABI), `mesh.js` (weld, invariants, edges, streams, STL), `manifold-kernel.js`, `occt-kernel.js` |
+| `vendor/` | Manifold 3.5.3 (`manifold.js` + `manifold.wasm`, Apache-2.0) |
+| `drive.selftest.mjs` | the file tree over records (`lib/drive.js`) and the site worker's `/xrpc/` read gateway, with in-memory repos and a fake PDS |
+| `assembly.selftest.mjs` | `lib/expr.js` against the engine's own evaluator on a corpus (they must agree to the bit), and the kinematic schema: `params`, `derived`, `t`, `theta` in placements, sub-assembly scopes, the crank–slider against its closed form, the six mates in both directions, repeat, place-by-feature on the lift; `lib/proximity.js` on cube pairs and the lift's meshes, and a sweep that finds a 1 mm graze between samples |
+| `mechanism.selftest.mjs` | the virtual-work instrument against numbers a person can derive on paper: a prismatic joint moving its follower one for one, a jaw at radius r moving exactly `r·π/180` per degree, a span rate of zero as an invariant, `F·r` at a wrist, a crank–slider's block against the derivative of `r cosθ + √(L² − r²sin²θ)` to 2e-5, its two dead points, and the clock's 12:1 motion works from two end poses |
+| `drawing.selftest.mjs` | the SVG drawing by its numbers: the plate's nine holes grouped from their arc faces and called out by count and diameter, the case's blind bore with its depth, the overall dimensions written on the sheet, hidden lines where a bore is seen through the plate, views on demand, and that the same input draws the same SVG |
+| `report.selftest.mjs` | the assembly report: the lift's parts list and quantities, steps that carry each mate's own numbers and the declared fits, a repeat collapsed into one step, no sentence the document does not state, the exploded view separating every touching pair, and one document giving one page byte for byte |
+| `agent/audit.mjs` | rebuilds every part in a published repo and diffs it against the invariants its revision recorded; `--kernels` checks Truck and Manifold agree on volume. The publish workflow runs it on the bench |
+| `browser.selftest.mjs` | serves the package, drives the page in headless Chromium through every bench part, asserts the report, screenshots to `/tmp/cad-shots/` |
+
+## The tree
+
+```json
+{ "units": "mm",
+  "params": { "R": 20, "t": 1.5 },
+  "features": [
+    { "op": "sketch",  "id": "outline", "loops": [ { "name": "rim", "circle": { "c": [0, 0], "r": "R" } } ] },
+    { "op": "extrude", "id": "plate", "profile": "outline", "depth": "t" } ] }
+```
+
+- Any numeric field takes a number or an **expression** over `params`
+  (`"r": "pcd/2 + 8"`, `sin`, `cos`, `deg()`, `sqrt`, `min`, `max`, `pi`).
+- **Sketches** live on a plane (`XY`/`XZ`/`YZ`, `{ "base": "XY", "offset": 5 }`,
+  or `<extrude>.end`) and hold closed loops: `circle`, `rect`, `polygon`, or a
+  `path` of lines, arcs (`via`), cubic Béziers (`ctrl`) and `spline`
+  segments through points, or a closed `spline` (`through`, optional
+  `tension`; a periodic Catmull–Rom, one exact cubic Bézier per span in the
+  kernel, one face per span named `id.<loop name>[k]`, or `id.span[k]` for an
+  unnamed loop — `bench/cam.json`). The region is
+  even-odd, so a loop inside a loop is a hole — that is how through-holes are
+  made, not with booleans.
+- **Ops**: `extrude` (`profile` is one sketch id or a list; `mode` new/add/cut/
+  intersect; thickness as `depth`, as `from`/`to` — both measured along the
+  sketch plane's own normal, so no sign convention to remember — or
+  `through: true` on a cut, which sizes the tool from the body's own extent so
+  the overhang is the kernel's problem), `name` (`face`, `as`: an alias on a
+  face that already has a name), `revolve` (`axis` in sketch coordinates; profiles may touch the
+  axis), `pattern` (circular or linear, of a sketch, giving a sketch), `gear`
+  (`m`, `z`, `alpha`, `b`, `bore` — the exact involute), `boolean`, and
+  `fillet`/`chamfer`/`shell`, which the current kernels report as
+  *unsupported* rather than failing.
+- **Assemblies move by expressions.** A document with `components` may carry
+  `params` (any order, the same language) and `derived` (a second map,
+  resolved in dependency order at each instant — any order, since a PDS
+  returns keys sorted — with `t`, seconds, and `theta`, the driven
+  component's angle in degrees, in scope). Every `at` element, `rotate.deg`,
+  `rotate.axis` element and the `drive`'s numbers take a number or an
+  expression over those; so do a mate's numbers and `repeat`. Mates
+  propagate turning and travel from the drive: `gear`, `belt`, `fixed`,
+  `screw` (`lead`), `rack` (`r` or `m`,`z`), `slider` (`ratio`), each in
+  either direction. **`inputs` declares the document's other axes of
+  motion** — `{ grip: { min, max, steps, unit } }` — each in scope by name in
+  every expression, and `revolute` / `prismatic` (`input`, `axis?`, `scale?`,
+  `offset?`) are the joints that consume one, so a gripper that grips and
+  rolls needs no drive and no placement expression. `at: "@comp.face"` with
+  `rigid: true` takes the anchor's whole pose rather than its point, so a part
+  can ride another and move relative to it (`bench/grip.json`). Expressions are how a crank moves a slider
+  (`bench/crank.json`); a `screw` mate is how a nut climbs
+  (`bench/lift.json`). `repeat: n` makes `id[i]` instances with `i` in
+  scope, and `at: "@comp.face"` / `rotate.align` place a component on
+  another's named face and follow it through its motion. Sub-assemblies
+  have their own scope; `theta` is the top drive's. Remember `deg(x)` is
+  degrees → radians and `rad2deg(x)` the reverse, so an angle for
+  `rotate.deg` is `rad2deg(atan2(dy, dx))`.
+- **Names, never indices.** An extrude yields `id.start`, `id.end`,
+  `id.side[k]`; loops with a `name` add `id.rim[0..3]`; a gear names
+  `id.tooth[i].flank.r.0`, `id.tooth[i].tip`, `id.root[i]`, `id.bore[k]`. The
+  build report lists every face with its names, area, normal and centroid.
+  **Names survive a boolean.** A cut destroys the face indices, not the
+  surfaces: a face that survives keeps its feature's name, a face the tool made
+  carries the tool's own loop name (`slot.pivot[0]`) and its geometry, and one
+  that matches no named surface is called `<op>.face[k]` after the op that last
+  changed the body. So a body with cuts in it is still a placement target and
+  still an argument to measure.
+- **Fits say what a pair is designed to do.** `fits: [{a, b, min, max}]` is a
+  clearance; `contact: true` is a designed touch. Ids may end in `[*]`, and
+  `[*]` on BOTH sides means the same index (`pin[*]` ↔ `bush[*]` is pair by
+  pair, not a cross product); `over: {k: 4}` walks an index through an
+  expression on either side (`{a: 'link[k]', b: 'bush[2*k]', over: {k: 4}}`).
+  A fit that names a component the document does not have is an error. A
+  `fixed` or `screw` mate implies a touch, but not an unlimited one: a pair may
+  share 1 mm³ (or a thousandth of the smaller part) and go 0.1 mm deep before
+  it is a collision, and a real press fit raises its own budget with
+  `interfere: {max, depth}`. A sub-assembly's fits and mates both reach the top.
+
+## The CLI
+
+```bash
+cd packages/cad/engine && cargo build --release --features stepin
+E=target/release/cad
+$E check   ../bench/plate.json                       # resolve; list params, sketches, ops
+$E build   ../bench/gear.json --stl g.stl --step g.step --json report.json
+$E measure ../bench/case.json --kernel implicit --res 128
+$E resolve ../bench/arbor.json                       # the op list + sampled polylines, for foreign kernels
+$E diff    a.json b.json                             # semantic diff of two trees
+$E stepmeasure g.step                                # read a STEP back, mesh it, print invariants
+```
+
+`build` prints a report: `ok`, timings, invariants (volume, area, bbox,
+centroid, Euler characteristic, watertight, open/flipped edges), the named
+faces, gear metadata, and a typed error with an `unsupported` flag when a
+kernel cannot do an op.
+
+## The bake-off
+
+```bash
+cd packages/cad/bakeoff && npm install
+node run.mjs                              # all kernels, all parts, 3 repeats → RESULTS.md, results.json
+node run.mjs --kernels truck,manifold --parts plate,case --repeat 1
+```
+
+The 2026-09-10 run and what it decided are in `RESULTS.md` and
+[`docs/CAD.md` §13](../../docs/CAD.md): OCCT is the exact kernel, Manifold the
+preview kernel, Truck's booleans are not usable, and the STEP read-back column
+measures Truck's reader rather than the writers.
+
+Kernels: `truck` (native binary), `wasm` (the same engine as WASM under node —
+the browser's number), `implicit` (SDF + surface nets), `manifold` (mesh
+booleans, npm), `occt` (OCCT 7.4 as 66 MB of WASM, npm). Each builds from the
+engine's *resolved* tree so all kernels see identical inputs; STEP output is
+read back by the engine's own STEP reader as the fidelity check.
+
+## For an agent
+
+`agent/` holds the headless tools and needs nothing but node; `SKILL.md`
+next to this file is the instruction sheet (also served at
+`cad.mino.mobi/SKILL.md`, and synced to `.claude/skills/cad/SKILL.md` so
+Claude Code loads it), `llms.txt` the index, `CHANGELOG.md` what changed
+and when. From `packages/cad/`:
+
+```bash
+node agent/build.mjs   bench/plate.json --faces                    # exact build: invariants, every named face with its geometry
+node agent/build.mjs   bench/cam.json --stl cam.stl --step cam.step
+node agent/measure.mjs bench/plate.json --list                     # every named face: kind, diameter or normal, area
+node agent/measure.mjs bench/case.json case.cup[0] case.cup[2]     # plane to plane: 8
+node agent/check.mjs   bench/clock.json --t 0.5                    # interfering pairs at half a beat; exit 1 on a real clash
+node agent/check.mjs   bench/lift.json --sweep 24 --clearance 1     # nearest approach per pair through a cycle, minima refined; exit 1 under 1 mm
+node agent/measure.mjs bench/lift.json nut.end platform.start --t 0.5   # two parts' faces at an instant
+node agent/mechanism.mjs bench/grip.json --input roll --load jaw-r=0,100,0   # ratios, mechanical advantage, dead points, and the torque that holds 100 N
+node agent/audit.mjs   --at minomobi.com --kernels                  # every published part rebuilt against its recorded invariants
+node agent/drawing.mjs bench/plate.json --out plate.svg             # three views, hidden lines, dimensions, holes called out
+node agent/drawing.mjs bench/lift.json --t 0.5 --out lift.svg      # an assembly, posed
+node agent/report.mjs  bench/lift.json --out lift.html               # the assembly report: views, exploded, parts list, part drawings, steps
+node agent/export.mjs  bench/clock.json --out /tmp/out             # one STL per part + the posed assembly
+node agent/render.mjs  bench/clock.json --out /tmp/shots --hide dial,case   # PNG per view + report.json (npm install; npx playwright-core install chromium)
+node agent/drive.mjs   ls --at minomobi.com                        # the published bench as a file tree; --login writes to your own repo
+```
+
+## Rules
+
+- **Edit `engine/`, run `engine/build.sh`.** It runs the unit tests, builds
+  the native CLI and the WASM, copies the artefact, and runs the selftest.
+- **No wasm-bindgen.** The ABI is `cad_alloc / cad_build / cad_out_ptr /
+  cad_out_len / cad_free_all` and one host import, `env.cad_host_now_ms`.
+  Two transitive deps link wasm-bindgen shims that are never called; the
+  selftest and the harness stub them.
+- Tests are invariants with tolerances, never mesh bits.
+- **Seven selftests before a push:** `npm test` (`cad.selftest.mjs`, the
+  ABI; `drive.selftest.mjs`, the file tree and the gateway;
+  `assembly.selftest.mjs`, expressions and kinematics;
+  `mechanism.selftest.mjs`, the virtual-work instrument against closed
+  forms; `drawing.selftest.mjs`, the drawing; `report.selftest.mjs`, the
+  assembly report; `mcp.selftest.mjs`) and
+  `npm run test:browser` (the page, in Chromium; `npm install` here or in
+  `bakeoff/` first).
+- **This package is mirrored** to a small repo on tangled —
+  `git clone https://tangled.org/morphyxmino.bsky.social/cad` — by
+  `.github/workflows/mirror-cad-tangled.yml` on every push, minus the Rust
+  build dir, `node_modules` and the Cloudflare files, with the skill at
+  `.claude/skills/cad/`. Someone who wants the CAD without the monorepo
+  clones that.

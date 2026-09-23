@@ -5,6 +5,13 @@
      overwrite it. It is the instruction set for THIS surface. Repo-wide rules
      live in ../CLAUDE.md; the index of all surfaces is ../docs/SURFACES.md. -->
 
+> **2026-09-23: retired as a surface.** `pm.mino.mobi` was detached to free a slot under the
+> `mino.mobi` zone's 100-custom-domain cap, and the registry entry, `wrangler.jsonc` and
+> `deploy-pm.yml` were removed. This single-file app signs in with an app password (no
+> origin-bound OAuth), so it keeps working at **`mino.mobi/pm/`**, which the root worker serves.
+> Org's own PM tab (`org.mino.mobi/pm`, `org/src/pm/`) is the integrated port. Everything below
+> is history.
+
 Earned value project management. Gantt charts, S-curves, resource tracking, and Kanban—synced to PDS.
 
 ## Facts

@@ -1,0 +1,1173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#0b0b10">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Marbles · a Marbleworks run builder · tjs</title>
+<meta name="description" content="Build a marble run in the browser and watch it go — a touch-first three.js port of Codetaur's Marbleworks builder (vibe-coded.com). Parametric parts on the real 47 mm connector grid, a rolling-sphere solver, and a phone that can actually drive it.">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<style>
+  :root{
+    --bg:#07070c; --panel:#101019; --panel2:#16161f; --line:#23232e; --ink:#e6e6f0;
+    --soft:#8a8aa0; --faint:#5f5f74; --accent:#39d6c8; --accent2:#ffb454; --warn:#ff6b6b;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --sheet:270px;           /* height of the mobile bottom sheet when open */
+    --safe-b:env(safe-area-inset-bottom,0px);
+    --safe-l:env(safe-area-inset-left,0px);
+    --safe-r:env(safe-area-inset-right,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;overscroll-behavior:none}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.5;
+       -webkit-font-smoothing:antialiased;overflow:hidden;
+       height:100dvh;display:flex;flex-direction:column}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+
+  .crumb{font-size:13px;letter-spacing:.04em;color:var(--faint);padding:9px 16px;
+         padding-left:calc(16px + var(--safe-l));padding-right:calc(16px + var(--safe-r));
+         border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+         position:relative;z-index:6;background:var(--bg)}
+  .crumb a{color:var(--soft)} .crumb .here{color:var(--accent)} .crumb .spacer{flex:1}
+  .crumb .by{font-size:12px;color:var(--faint)}
+  .crumb .by a{color:var(--accent2)}
+
+  .stage-row{display:flex;flex:1 1 auto;min-height:0}
+  #viewport{position:relative;flex:1;min-width:0;background:radial-gradient(120% 90% at 50% 12%,#15151f 0%,#07070c 72%);
+            touch-action:none}
+  #viewport canvas{display:block;touch-action:none;width:100%;height:100%}
+
+  .hud{position:absolute;top:10px;left:calc(12px + var(--safe-l));font-family:var(--mono);font-size:11px;
+       color:var(--faint);pointer-events:none;text-shadow:0 0 6px #000;line-height:1.75}
+  .hud b{color:var(--accent)} .hud .warn{color:var(--warn)}
+  .toast{position:absolute;left:50%;top:14px;transform:translateX(-50%);background:#000a;border:1px solid var(--line);
+         border-radius:999px;padding:6px 14px;font-size:12px;color:var(--ink);pointer-events:none;
+         opacity:0;transition:opacity .25s;font-family:var(--mono)}
+  .toast.on{opacity:1}
+
+  /* floating viewport controls — thumb-reachable, never under the sheet */
+  .vp-ctl{position:absolute;display:flex;gap:8px;z-index:3}
+  .vp-ctl.tr{top:10px;right:calc(12px + var(--safe-r));flex-direction:column}
+  .vp-ctl button{width:44px;height:44px;border-radius:12px;background:#0e0e18cc;border:1px solid var(--line);
+                 color:var(--soft);font-size:17px;display:grid;place-items:center;cursor:pointer;
+                 backdrop-filter:blur(6px);font-family:var(--sans)}
+  .vp-ctl button:active{background:var(--accent);color:#06121a;border-color:var(--accent)}
+  .vp-ctl button.on{background:var(--accent);color:#06121a;border-color:var(--accent)}
+
+  /* the big place/rotate cluster — only in build mode */
+  .place-bar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(12px + var(--safe-b));
+             display:flex;gap:10px;align-items:center;z-index:4}
+  .place-bar button{height:52px;min-width:52px;padding:0 16px;border-radius:14px;border:1px solid var(--line);
+                    background:#0e0e18d9;color:var(--ink);font-size:16px;font-family:var(--sans);cursor:pointer;
+                    backdrop-filter:blur(6px);display:grid;place-items:center}
+  .place-bar button.primary{background:var(--accent);color:#06121a;font-weight:700;border-color:var(--accent);
+                            padding:0 22px;letter-spacing:.02em}
+  .place-bar button:disabled{opacity:.35}
+  .place-bar button:active{transform:scale(.96)}
+
+  aside{width:340px;flex:0 0 340px;background:var(--panel);border-left:1px solid var(--line);
+        overflow-y:auto;padding:16px 16px 60px;-webkit-overflow-scrolling:touch}
+  aside h2{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin:16px 0 4px;font-weight:600}
+  aside h2:first-child{margin-top:0}
+  aside .sub{font-size:12px;color:var(--faint);margin:0 0 12px}
+
+  .sheet-grip{display:none}
+
+  .modes{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:0 0 12px}
+  .modes button{flex:1;background:transparent;color:var(--soft);border:0;padding:11px 4px;font-size:14px;
+                cursor:pointer;font-family:var(--sans)}
+  .modes button.on{background:var(--accent);color:#06121a;font-weight:700}
+
+  .palette{display:grid;grid-template-columns:repeat(2,1fr);gap:7px}
+  .palette button{display:flex;gap:9px;align-items:center;text-align:left;background:var(--panel2);
+                  border:1px solid var(--line);border-radius:10px;padding:9px 9px;cursor:pointer;
+                  color:var(--soft);font-family:var(--sans);font-size:13px;min-height:46px}
+  .palette button .sw{width:16px;height:16px;border-radius:5px;flex:0 0 16px;box-shadow:inset 0 -4px 6px #0006}
+  .palette button.on{border-color:var(--accent);color:var(--ink);background:#14212a}
+  .palette button:disabled{opacity:.35;cursor:default}
+
+  .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+  .presets button{font-size:13px;background:var(--panel2);color:var(--soft);border:1px solid var(--line);
+                  border-radius:8px;padding:9px 11px;cursor:pointer;font-family:var(--sans);min-height:40px}
+  .presets button:active{border-color:var(--accent);color:var(--ink)}
+
+  .ctl{margin:10px 0}
+  .ctl label{display:flex;justify-content:space-between;font-size:12px;color:var(--soft);margin-bottom:3px}
+  .ctl label .v{color:var(--accent);font-family:var(--mono)}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0;height:28px}
+  .check{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--soft);margin:9px 0;cursor:pointer}
+  .check input{accent-color:var(--accent);width:18px;height:18px}
+  .row{display:flex;gap:8px;margin-top:10px}
+  .row button{flex:1;font-family:var(--sans);font-size:14px;background:var(--accent);color:#06121a;border:0;
+              padding:11px;border-radius:10px;cursor:pointer;font-weight:600;min-height:44px}
+  .row button.ghost{background:transparent;color:var(--soft);border:1px solid var(--line);font-weight:500}
+  .row button.danger{background:transparent;color:var(--warn);border:1px solid #402028;font-weight:500}
+
+  .note{font-size:12px;color:var(--faint);border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+  .note b{color:var(--soft)}
+
+  .credit{border:1px solid #2a2436;background:linear-gradient(180deg,#171325,#12101c);border-radius:12px;
+          padding:12px 13px;margin:14px 0 4px;font-size:12.5px;color:var(--soft);line-height:1.6}
+  .credit .t{display:block;font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent2);
+             margin-bottom:6px;font-weight:700}
+  .credit a{color:var(--accent2)}
+  .credit .links{display:flex;flex-wrap:wrap;gap:6px;margin-top:9px}
+  .credit .links a{border:1px solid #33304a;border-radius:7px;padding:5px 9px;font-size:12px;
+                   text-decoration:none;color:var(--accent2)}
+
+  details summary{cursor:pointer;color:var(--soft);font-size:13px;padding:6px 0}
+  details p{font-size:12.5px;color:var(--faint);margin:6px 0}
+  table.spec{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono);color:var(--soft)}
+  table.spec td{padding:3px 0;border-bottom:1px solid #1b1b26}
+  table.spec td:last-child{text-align:right;color:var(--accent)}
+
+  /* ── phone: the panel becomes a bottom sheet ───────────────────────────── */
+  @media (max-width:880px), (pointer:coarse) and (max-width:1024px){
+    .stage-row{display:block;position:relative;flex:1 1 auto;min-height:0}
+    #viewport{position:absolute;inset:0}
+    aside{position:absolute;left:0;right:0;bottom:0;width:auto;flex:none;border-left:0;
+          border-top:1px solid var(--line);border-radius:16px 16px 0 0;
+          height:calc(var(--sheet) + var(--safe-b));padding:6px 14px calc(18px + var(--safe-b));
+          background:#0f0f18f2;backdrop-filter:blur(12px);z-index:5;
+          transition:transform .22s cubic-bezier(.2,.8,.3,1);box-shadow:0 -12px 40px #0009}
+    aside.collapsed{transform:translateY(calc(100% - 150px - var(--safe-b)))}
+    .sheet-grip{display:block;width:100%;padding:6px 0 8px;background:transparent;border:0;cursor:pointer}
+    .sheet-grip i{display:block;width:44px;height:4px;border-radius:2px;background:#3a3a4c;margin:0 auto}
+    aside{display:flex;flex-direction:column}
+    .modes{order:-2;margin-bottom:8px;flex:0 0 auto}
+    #palette{order:-1;flex:0 0 auto;display:flex;overflow-x:auto;gap:7px;padding-bottom:6px;
+             scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+    #palette button{flex:0 0 112px;min-height:50px;font-size:12px;scroll-snap-align:start}
+    .sheet-grip{order:-3;flex:0 0 auto}
+    .place-bar{bottom:calc(162px + var(--safe-b))}
+    .vp-ctl.tr{top:8px;right:calc(8px + var(--safe-r))}
+    .crumb{font-size:12px;padding:7px 12px}
+    .crumb .by{width:100%;order:9}
+  }
+  /* A landscape phone has width to spare and almost no height: a bottom sheet
+     would eat the run. Go back to a side panel, narrower than the desktop one. */
+  @media (max-height:560px) and (orientation:landscape){
+    #viewport{right:282px}
+    aside, aside.collapsed{left:auto;right:0;top:0;bottom:0;width:282px;height:auto;
+          transform:none;border-radius:0;border-left:1px solid var(--line);border-top:0;
+          padding:10px 12px calc(16px + var(--safe-b));overflow-y:auto;box-shadow:none}
+    .sheet-grip{display:none}
+    #palette{display:grid;grid-template-columns:repeat(2,1fr);overflow:visible;order:-1}
+    #palette button{flex:none;min-height:40px;font-size:11.5px;flex-direction:row;align-items:center}
+    .modes{order:-2}
+    .place-bar{bottom:calc(10px + var(--safe-b))}
+    .vp-ctl.tr{top:6px}
+  }
+</style>
+</head>
+<body>
+
+<div class="crumb">
+  <a href="https://mino.mobi/">mino.mobi</a> / <a href="../">tjs</a> / <span class="here">marbles</span>
+  <span class="spacer"></span>
+  <span class="by">concept &amp; part reconstruction by
+    <a href="https://bsky.app/profile/vibe-coded.com" target="_blank" rel="noopener">Codetaur</a> ·
+    <a href="https://github.com/ngwnos/marbles" target="_blank" rel="noopener">source</a> (MIT)</span>
+</div>
+
+<div class="stage-row">
+  <div id="viewport">
+    <div class="hud" id="hud"></div>
+    <div class="toast" id="toast"></div>
+
+    <div class="vp-ctl tr">
+      <button id="btn-play" title="Run the marbles">▶</button>
+      <button id="btn-frame" title="Frame the whole run">⤢</button>
+      <button id="btn-follow" title="Follow a marble">◎</button>
+    </div>
+
+    <div class="place-bar" id="placebar">
+      <button id="btn-ccw" title="Turn left">⟲</button>
+      <button id="btn-place" class="primary">Place</button>
+      <button id="btn-cw" title="Turn right">⟳</button>
+      <button id="btn-undo" title="Undo">↩</button>
+    </div>
+  </div>
+
+  <aside id="sheet" class="collapsed">
+    <button class="sheet-grip" id="grip" aria-label="Expand panel"><i></i></button>
+
+    <div class="modes">
+      <button id="mode-build" class="on">Build</button>
+      <button id="mode-run">Run</button>
+    </div>
+
+    <h2>Parts</h2>
+    <p class="sub" id="part-sub">Tap a socket in the scene, then Place.</p>
+    <div class="palette" id="palette"></div>
+
+    <h2>Presets</h2>
+    <div class="presets" id="presets"></div>
+
+    <h2>Run</h2>
+    <div class="ctl">
+      <label>Marbles <span class="v" id="v-count">6</span></label>
+      <input type="range" id="s-count" min="1" max="24" step="1" value="6">
+    </div>
+    <div class="ctl">
+      <label>Release interval <span class="v" id="v-gap">0.8 s</span></label>
+      <input type="range" id="s-gap" min="0.15" max="2.5" step="0.05" value="0.8">
+    </div>
+    <div class="ctl">
+      <label>Speed <span class="v" id="v-rate">1.0×</span></label>
+      <input type="range" id="s-rate" min="0.25" max="2" step="0.05" value="1">
+    </div>
+    <label class="check"><input type="checkbox" id="c-trail"> Show the track centreline</label>
+    <label class="check"><input type="checkbox" id="c-shadow" checked> Shadows</label>
+
+    <div class="row">
+      <button id="btn-stand" class="ghost">Stand it up</button>
+      <button id="btn-share" class="ghost">Copy link</button>
+      <button id="btn-clear" class="danger">Clear</button>
+    </div>
+
+    <div class="credit">
+      <span class="t">Full accreditation</span>
+      The concept, the piece vocabulary and the <b>dimensional reconstruction</b> of the
+      Discovery&nbsp;Toys Marbleworks parts are <b>Codetaur</b>'s (<a href="https://bsky.app/profile/vibe-coded.com"
+      target="_blank" rel="noopener">@vibe-coded.com</a>). They rebuilt the parts from reference photos with a
+      parametric modeller and published the fitted numbers under MIT — the 47&nbsp;mm rise, the 15&nbsp;mm
+      insertion, the 140.07&nbsp;mm port span and the port table below all come from that work, used with
+      attribution and unchanged.
+      <span class="links">
+        <a href="https://bsky.app/profile/vibe-coded.com/post/3mvhbk3xyh22r" target="_blank" rel="noopener">the post</a>
+        <a href="https://github.com/ngwnos/marbles" target="_blank" rel="noopener">ngwnos/marbles</a>
+        <a href="https://marbles.vibe-coded.com/" target="_blank" rel="noopener">the original</a>
+        <a href="./CREDITS.md">notice + MIT text</a>
+      </span>
+    </div>
+
+    <details>
+      <summary>What this bench adds, and what it gives up</summary>
+      <p><b>Adds:</b> it runs on a phone. The original is React + WebGPU/TSL, with Manifold generating the solids
+      and a Box3D WebAssembly rigid-body solve. This is one static page: plain three.js from a CDN, no build step,
+      procedural swept troughs, and a <b>curvilinear solver</b> — one arclength coordinate per marble, with the
+      textbook rolling-sphere acceleration <span style="font-family:var(--mono)">a = (5/7)·g·sinθ</span> minus
+      rolling resistance, free-falling 34&nbsp;mm down each post between pieces.</p>
+      <p><b>Gives up:</b> marble-on-marble contact, pieces that the marble can rattle sideways in, the storage tub,
+      the cat's-eye refraction and the video export. A constrained marble cannot jam, cannot pass another, and
+      cannot fly out of a trough it is going too fast for. Go to
+      <a href="https://marbles.vibe-coded.com/" target="_blank" rel="noopener">the original</a> for those.</p>
+    </details>
+
+    <details>
+      <summary>The grid everything is built on</summary>
+      <table class="spec" id="spec"></table>
+      <p>Two pieces connect when a male post enters a female socket, which puts the upper piece exactly one
+      <i>rise</i> higher. A marble leaves a trough 13&nbsp;mm below where it entered, then drops
+      34&nbsp;mm down the 21&nbsp;mm bore into the piece below.</p>
+    </details>
+
+    <div class="note">
+      <b>Touch:</b> one finger orbits · two pinch and pan · tap a marker to aim, tap it again to place ·
+      long-press a piece to remove it, and everything it holds up.
+      <b>Mouse:</b> drag to orbit · wheel to zoom · right-drag to pan · <span style="font-family:var(--mono)">Q</span>/<span style="font-family:var(--mono)">E</span>
+      turn · <span style="font-family:var(--mono)">Tab</span> cycles markers · <span style="font-family:var(--mono)">Enter</span> places ·
+      right-click removes.<br>
+      <span style="color:#39d6c8">Teal rings</span> hang a piece one rise <i>below</i>;
+      <span style="color:#a78bfa">violet rings</span> stack one <i>above</i> — an outlet post feeds the piece under it,
+      an inlet post feeds its trough.
+    </div>
+  </aside>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import {
+  VERTICAL_GRID, CONNECTOR, TRACK, MARBLE, PORT_SPAN, RUN_FLOOR, FALL_THROUGH_POST,
+  PARTS, PART_BY_ID, partRuns, matingPorts, openPorts, poseOnto, worldPort,
+  buildGraph, spawnMarble, stepMarble, sampleAt, YAW_STEP,
+  newBoard, seed, attachBelow, attachAbove, exitColumn, capColumns, overlaps,
+  PRESETS, encodeLayout, decodeLayout,
+} from './marbleworks.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 0. device profile — every later decision reads this, not a user-agent string
+// ─────────────────────────────────────────────────────────────────────────────
+const coarse = matchMedia('(pointer:coarse)').matches;
+const smallish = Math.min(innerWidth, innerHeight) < 760;
+const MOBILE = coarse || smallish;
+const LOW = MOBILE && (navigator.hardwareConcurrency || 4) <= 4;
+const MAX_MARBLES = MOBILE ? 14 : 32;
+
+const view = document.getElementById('viewport');
+const sheet = document.getElementById('sheet');
+const toastEl = document.getElementById('toast');
+let toastTimer = 0;
+function toast(msg) {
+  toastEl.textContent = msg; toastEl.classList.add('on');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => toastEl.classList.remove('on'), 1600);
+}
+const buzz = ms => { try { navigator.vibrate?.(ms); } catch {} };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 1. scene
+// ─────────────────────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: !LOW, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio || 1, MOBILE ? 1.75 : 2));
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.shadowMap.enabled = !LOW;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+view.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x07070c, 1400, 4200);
+
+const camera = new THREE.PerspectiveCamera(46, 1, 5, 6000);
+
+scene.add(new THREE.HemisphereLight(0x9fb8ff, 0x201820, 1.15));
+const key = new THREE.DirectionalLight(0xfff0dd, 2.0);
+key.position.set(520, 900, 380);
+key.castShadow = !LOW;
+if (key.shadow) {
+  key.shadow.mapSize.set(LOW ? 512 : 1024, LOW ? 512 : 1024);
+  const d = 700; Object.assign(key.shadow.camera, { left: -d, right: d, top: d, bottom: -d, near: 100, far: 2600 });
+  key.shadow.bias = -0.0012; key.shadow.normalBias = 2;
+}
+scene.add(key);
+const rim = new THREE.DirectionalLight(0x6fd8ff, 0.7); rim.position.set(-400, 260, -520); scene.add(rim);
+
+// the carpet the toy stands on
+const carpet = new THREE.Mesh(
+  new THREE.CircleGeometry(1900, 64).rotateX(-Math.PI / 2),
+  new THREE.MeshStandardMaterial({ color: 0x1a2330, roughness: 1, metalness: 0 }));
+carpet.receiveShadow = !LOW;
+scene.add(carpet);
+const grid = new THREE.GridHelper(2400, 24, 0x2b3a4a, 0x1d2730);
+grid.position.y = 0.4; grid.material.transparent = true; grid.material.opacity = 0.5;
+scene.add(grid);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 2. procedural part geometry — the trough is swept, the columns are turned
+// ─────────────────────────────────────────────────────────────────────────────
+const arc2 = (cx, cy, r, a0, a1, n) => Array.from({ length: n + 1 }, (_, i) => {
+  const t = a0 + (a1 - a0) * i / n; return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+});
+
+/** Closed cross-section of the trough wall, in (across, up) mm about the floor.
+ *  Inner surface out and back along the outer surface — the same rolled-lip
+ *  U-channel the reconstruction describes, at 1.5 mm wall. */
+function troughSection() {
+  const hw = TRACK.channelInsideWidth / 2, d = TRACK.channelDepth;
+  const f = TRACK.fillet, w = CONNECTOR.wall, flat = hw - f - 0.5;
+  return [
+    [-hw, d],
+    ...arc2(-flat, f, f, Math.PI, Math.PI * 1.5, 5),
+    ...arc2(flat, f, f, -Math.PI / 2, 0, 5),
+    [hw, d],
+    [hw + w, d],
+    ...arc2(flat, f, f + w, 0, -Math.PI / 2, 5),
+    ...arc2(-flat, f, f + w, Math.PI * 1.5, Math.PI, 5),
+    [-hw - w, d],
+  ];
+}
+const SECTION = troughSection();
+
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+
+/** Sweep a closed section along a centreline. World-up framing: our paths are
+ *  never vertical (the spacer's internal drop is not drawn), so no twist. */
+function sweepGeometry(points, section) {
+  const N = points.length, M = section.length;
+  const pos = new Float32Array(N * M * 3);
+  const idx = [];
+  const T = V(), R = V(), U = V(), up = V(0, 1, 0), altUp = V(1, 0, 0), p = V();
+  for (let i = 0; i < N; i++) {
+    const a = points[Math.max(0, i - 1)], b = points[Math.min(N - 1, i + 1)];
+    T.set(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+    if (T.lengthSq() < 1e-12) T.set(1, 0, 0);
+    T.normalize();
+    R.crossVectors(T, Math.abs(T.y) > 0.97 ? altUp : up).normalize();
+    U.crossVectors(R, T).normalize();
+    p.set(points[i][0], points[i][1], points[i][2]);
+    for (let j = 0; j < M; j++) {
+      const [u, v] = section[j], o = (i * M + j) * 3;
+      pos[o] = p.x + R.x * u + U.x * v;
+      pos[o + 1] = p.y + R.y * u + U.y * v;
+      pos[o + 2] = p.z + R.z * u + U.z * v;
+    }
+  }
+  for (let i = 0; i < N - 1; i++) for (let j = 0; j < M; j++) {
+    const j2 = (j + 1) % M;
+    const a = i * M + j, b = i * M + j2, c = (i + 1) * M + j2, d = (i + 1) * M + j;
+    idx.push(a, b, c, a, c, d);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+const matCache = new Map();
+function partMaterial(hex) {
+  if (!matCache.has(hex)) matCache.set(hex, new THREE.MeshStandardMaterial({
+    color: hex, roughness: 0.42, metalness: 0.03,
+  }));
+  return matCache.get(hex);
+}
+const darkMat = new THREE.MeshStandardMaterial({ color: 0x0c0c12, roughness: 0.9 });
+
+/** One cached THREE.Group per part kind. Geometry is shared across every
+ *  instance of that kind — a 90-piece board is 12 geometries. */
+const partCache = new Map();
+function partGroup(kind) {
+  if (partCache.has(kind)) return partCache.get(kind);
+  const part = PART_BY_ID[kind];
+  const g = new THREE.Group();
+  const mat = partMaterial(part.color);
+
+  // trough(s) — the spacer's and base's internal drops are invisible
+  if (kind !== 'spacer' && kind !== 'base') {
+    for (const run of partRuns(kind)) {
+      if (run.points.length < 2) continue;
+      const m = new THREE.Mesh(sweepGeometry(run.points, SECTION), mat);
+      m.castShadow = !LOW; m.receiveShadow = !LOW;
+      g.add(m);
+    }
+  }
+
+  // connector columns
+  const postR = CONNECTOR.postDiameter / 2, maleR = CONNECTOR.maleDiameter / 2;
+  const seg = LOW ? 10 : 16;
+  for (const c of part.ports) {
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(postR, postR, CONNECTOR.shoulderHeight, seg), mat);
+    body.position.set(c.x, c.bottom + CONNECTOR.shoulderHeight / 2, c.z);
+    body.castShadow = !LOW; body.receiveShadow = !LOW;
+    g.add(body);
+    if (c.post !== false) {
+      const tip = new THREE.Mesh(new THREE.CylinderGeometry(maleR, maleR, VERTICAL_GRID.insertion, seg), mat);
+      tip.position.set(c.x, c.bottom + CONNECTOR.shoulderHeight + VERTICAL_GRID.insertion / 2, c.z);
+      tip.castShadow = !LOW;
+      g.add(tip);
+      const bore = new THREE.Mesh(
+        new THREE.CircleGeometry(CONNECTOR.boreDiameter / 2, seg).rotateX(-Math.PI / 2), darkMat);
+      bore.position.set(c.x, c.bottom + CONNECTOR.postHeight + 0.3, c.z);
+      g.add(bore);
+    }
+  }
+
+  if (part.ground) {   // the base's foot plate
+    const c = part.ports[0];
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(46, 52, 9, LOW ? 12 : 22), mat);
+    foot.position.set(c.x, 4.5, c.z);
+    foot.castShadow = !LOW; foot.receiveShadow = !LOW;
+    g.add(foot);
+  }
+  if (part.wheel) {    // the paddle wheel's rotor, spun in the frame loop
+    const c = part.ports[1];
+    const rotor = new THREE.Group();
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(7, 7, 54, 10), darkMat);
+    hub.rotation.z = Math.PI / 2; rotor.add(hub);
+    for (let i = 0; i < 6; i++) {
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(2.2, 40, 46), partMaterial(0xffd166));
+      blade.position.set(0, 0, 0);
+      blade.rotation.x = i * Math.PI / 3;
+      blade.geometry.translate(0, 20, 0);
+      blade.castShadow = !LOW;
+      rotor.add(blade);
+    }
+    rotor.position.set((c.x + part.ports[0].x) / 2, (part.ports[0].bottom + RUN_FLOOR.in + c.bottom + RUN_FLOOR.out) / 2 + 6,
+      (c.z + part.ports[0].z) / 2);
+    rotor.name = 'rotor';
+    g.add(rotor);
+  }
+  if (part.source) {   // the starting gate's hopper
+    const c = part.ports[0];
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(34, 22, 34, LOW ? 10 : 18, 1, true),
+      new THREE.MeshStandardMaterial({ color: part.color, roughness: 0.4, side: THREE.DoubleSide }));
+    cup.position.set(c.x - 58, c.bottom + RUN_FLOOR.in + 20, c.z);
+    cup.castShadow = !LOW;
+    g.add(cup);
+  }
+
+  partCache.set(kind, g);
+  return g;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3. board state
+// ─────────────────────────────────────────────────────────────────────────────
+let board = newBoard();
+let graph = null;
+const pieceRoot = new THREE.Group(); scene.add(pieceRoot);
+const pieceNodes = new Map();          // piece id → Object3D
+const rotors = [];                     // paddle rotors to spin
+
+// build-mode overlay: the open sockets and the ghost
+const ringGeo = new THREE.TorusGeometry(CONNECTOR.postDiameter / 2 + 4, 2.6, 6, 22).rotateX(-Math.PI / 2);
+const ringMat = new THREE.MeshBasicMaterial({ color: 0x39d6c8, transparent: true, opacity: 0.5 });   // hang below
+const ringUp = new THREE.MeshBasicMaterial({ color: 0xa78bfa, transparent: true, opacity: 0.45 });   // stack above
+const ringHot = new THREE.MeshBasicMaterial({ color: 0xffb454, transparent: true, opacity: 0.95 });
+const rings = new THREE.Group(); scene.add(rings);
+let ghost = null;
+const ghostMat = new THREE.MeshStandardMaterial({
+  color: 0x39d6c8, transparent: true, opacity: 0.4, roughness: 0.3, depthWrite: false });
+
+let sockets = [];        // open female ports, world space
+let focusIdx = -1;       // which socket the ghost sits on
+let pendingKind = 'ramp';
+let pendingYaw = 0;
+
+// the centreline overlay
+const trailMat = new THREE.LineBasicMaterial({ color: 0xffb454, transparent: true, opacity: 0.8 });
+const trails = new THREE.Group(); scene.add(trails);
+
+function rebuildScene() {
+  for (const node of pieceNodes.values()) pieceRoot.remove(node);
+  pieceNodes.clear(); rotors.length = 0;
+  for (const piece of board.placed) {
+    const node = partGroup(piece.kind).clone();
+    node.position.set(...piece.pose.position);
+    node.rotation.y = piece.pose.yaw;       // THREE's Y rotation is rotateY() exactly
+    node.userData.piece = piece.id;
+    const rotor = node.getObjectByName('rotor');
+    if (rotor) rotors.push(rotor);
+    pieceRoot.add(node);
+    pieceNodes.set(piece.id, node);
+  }
+  graph = buildGraph(board.placed, board.connections);
+  rebuildSockets();
+  rebuildTrails();
+  updateHud();
+}
+
+function rebuildSockets() {
+  rings.clear();
+  // Two kinds of offer, and a finished run needs both: an open FEMALE takes a
+  // piece hung one rise below it; an open MALE post takes one stacked a rise
+  // above. A female at carpet level is the underside of a support base —
+  // building there would go underground, so it is not an offer.
+  sockets = openPorts(board.placed, board.connections)
+    .filter(p => p.gender === 'male' || p.position[1] > VERTICAL_GRID.rise * 0.5)
+    .sort((a, b) => a.position[1] - b.position[1]);
+  if (mode !== 'build') { focusIdx = -1; syncGhost(); return; }
+  for (const s of sockets) {
+    const r = new THREE.Mesh(ringGeo, s.gender === 'female' ? ringMat : ringUp);
+    r.position.set(...s.position);
+    rings.add(r);
+  }
+  if (focusIdx < 0 || focusIdx >= sockets.length) focusIdx = sockets.length ? 0 : -1;
+  syncGhost();
+}
+
+function rebuildTrails() {
+  trails.clear();
+  if (!document.getElementById('c-trail').checked || !graph) return;
+  for (const seg of graph.segments.values()) {
+    const g = new THREE.BufferGeometry().setFromPoints(
+      seg.points.map(p => V(p[0], p[1] + MARBLE.radius, p[2])));
+    trails.add(new THREE.Line(g, trailMat));
+  }
+}
+
+function syncGhost() {
+  if (ghost) { scene.remove(ghost); ghost = null; }
+  for (let i = 0; i < rings.children.length; i++) {
+    rings.children[i].material = i === focusIdx ? ringHot
+      : (sockets[i].gender === 'female' ? ringMat : ringUp);
+  }
+  const btn = document.getElementById('btn-place');
+  if (mode !== 'build') { btn.disabled = true; return; }
+  if (!board.placed.length) { btn.disabled = false; return; }   // seeding the first piece
+  if (focusIdx < 0) { btn.disabled = true; return; }
+  const target = sockets[focusIdx];
+  const pose = poseOnto(pendingKind, sourceKeyFor(pendingKind, target), target, pendingYaw);
+  if (!pose) { btn.disabled = true; return; }
+  btn.disabled = false;
+  ghost = partGroup(pendingKind).clone();
+  ghost.traverse(o => { if (o.isMesh) o.material = ghostMat; o.castShadow = false; o.receiveShadow = false; });
+  ghost.position.set(...pose.position);
+  ghost.rotation.y = pose.yaw;
+  scene.add(ghost);
+}
+
+/** Which of the new piece's ports meets the tapped one: hanging below, the
+ *  column the marble enters by; stacking above, the column it leaves by. */
+function sourceKeyFor(kind, target) {
+  const part = PART_BY_ID[kind];
+  return target.gender === 'female'
+    ? `male:${part.runs[0]?.from ?? part.ports[0].id}`
+    : `female:${exitColumn(kind) ?? part.ports[0].id}`;
+}
+
+function placePending() {
+  if (mode !== 'build') return;
+  if (!board.placed.length) {           // nothing to hang off yet — seed the board
+    const piece = seed(board, pendingKind, [0, VERTICAL_GRID.rise * 10, 0], pendingYaw);
+    undoStack.push({ id: piece.id });
+    rebuildScene(); frameBoard(); pushHash(); buzz(12);
+    return;
+  }
+  if (focusIdx < 0) return;
+  const target = sockets[focusIdx];
+  const parent = board.placed.find(p => p.id === target.piece);
+  const part = PART_BY_ID[pendingKind];
+  const down = target.gender === 'female';
+  const added = down
+    ? attachBelow(board, parent, target.column, pendingKind,
+      { yaw: pendingYaw, entry: part.runs[0]?.from ?? part.ports[0].id })
+    : attachAbove(board, parent, target.column, pendingKind,
+      { yaw: pendingYaw, exit: exitColumn(pendingKind) ?? part.ports[0].id });
+  if (!added) { toast('that socket will not take this piece'); return; }
+  // a piece may not be posted into the space another one already occupies
+  const clash = board.placed.some(p => p.id !== added.id && p.id !== parent.id && overlaps(p, added));
+  if (clash) {
+    board.placed = board.placed.filter(p => p.id !== added.id);
+    board.connections = board.connections.filter(c => c.a !== added.id && c.b !== added.id);
+    toast('a piece is already there — turn it first');
+    buzz(40);
+    return;
+  }
+  undoStack.push({ id: added.id });
+  buzz(12);
+  rebuildScene();
+  // keep building the same way: down the run, or on up the column
+  const want = down
+    ? { column: exitColumn(added.kind), gender: 'female' }
+    : { column: part.runs[0]?.from ?? part.ports[0].id, gender: 'male' };
+  const idx = sockets.findIndex(s => s.piece === added.id && s.column === want.column && s.gender === want.gender);
+  focusIdx = idx >= 0 ? idx : (sockets.length ? 0 : -1);
+  syncGhost();
+  pushHash();
+}
+
+const undoStack = [];
+function undo() {
+  // user removals take whole sub-trees with them, so an entry can already be
+  // gone — pop until one of them is still on the board
+  while (undoStack.length) {
+    const last = undoStack.pop();
+    if (board.placed.some(p => p.id === last.id)) { removePiece(last.id, false); pushHash(); return; }
+  }
+  toast('nothing to undo');
+}
+
+function removePiece(id, record = true) {
+  const i = board.placed.findIndex(p => p.id === id);
+  if (i < 0) return;
+  // A connection's `a` is the upper piece, resting on `b`. Pull a piece out and
+  // everything it was HOLDING UP comes with it; what it was standing on stays.
+  const doomed = new Set([id]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const c of board.connections) {
+      if (doomed.has(c.b) && !doomed.has(c.a)) { doomed.add(c.a); grew = true; }
+    }
+  }
+  board.placed = board.placed.filter(p => !doomed.has(p.id));
+  board.connections = board.connections.filter(c => !doomed.has(c.a) && !doomed.has(c.b));
+  marbles.length = 0;
+  rebuildScene();
+  syncGhost();
+  if (record) pushHash();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 4. marbles
+// ─────────────────────────────────────────────────────────────────────────────
+const MARBLE_COLOURS = [0xff5d73, 0x4cc9f0, 0xffd166, 0x9b5de5, 0x52ffb8, 0xff9f1c, 0xf15bb5, 0x7fd8ff];
+const marbleGeo = new THREE.SphereGeometry(MARBLE.radius, LOW ? 10 : 18, LOW ? 8 : 14);
+const marbleMesh = new THREE.InstancedMesh(
+  marbleGeo,
+  new THREE.MeshStandardMaterial({ roughness: 0.06, metalness: 0.0, envMapIntensity: 1 }),
+  MAX_MARBLES);
+marbleMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+marbleMesh.castShadow = !LOW;
+marbleMesh.count = 0;
+scene.add(marbleMesh);
+// setColorAt is what allocates instanceColor and switches the shader onto it
+marbleMesh.setColorAt(0, new THREE.Color(0xffffff));
+const instColour = marbleMesh.instanceColor;
+
+const marbles = [];
+let splitPick = 0;
+const route = () => splitPick++;
+
+let running = false, released = 0, releaseClock = 0;
+
+function startRun() {
+  const startPiece = board.placed.find(p => p.kind === 'start');
+  if (!startPiece) { toast('add a starting gate first'); return; }
+  marbles.length = 0; released = 0; releaseClock = 0; splitPick = 0;
+  running = true;
+  setMode('run');
+  document.getElementById('btn-play').textContent = '❚❚';
+}
+function stopRun() {
+  running = false;
+  document.getElementById('btn-play').textContent = '▶';
+}
+
+function releaseOne() {
+  const startPiece = board.placed.find(p => p.kind === 'start');
+  if (!startPiece) return;
+  const m = spawnMarble(graph, startPiece.id, 'out', {
+    id: released, colour: MARBLE_COLOURS[released % MARBLE_COLOURS.length], pick: splitPick,
+  });
+  if (!m) { toast('the starting gate has nothing under it'); running = false; return; }
+  marbles.push(m); released++;
+}
+
+const dummy = new THREE.Object3D();
+const tmpColour = new THREE.Color();
+function syncMarbles() {
+  const n = Math.min(marbles.length, MAX_MARBLES);
+  marbleMesh.count = n;
+  for (let i = 0; i < n; i++) {
+    const m = marbles[i];
+    dummy.position.set(m.pos[0], m.pos[1], m.pos[2]);
+    dummy.rotation.set(m.spin * 0.7, m.spin * 0.3, m.spin);
+    dummy.updateMatrix();
+    marbleMesh.setMatrixAt(i, dummy.matrix);
+    tmpColour.setHex(m.colour || 0xffffff);
+    instColour.setXYZ(i, tmpColour.r, tmpColour.g, tmpColour.b);
+  }
+  marbleMesh.instanceMatrix.needsUpdate = true;
+  instColour.needsUpdate = true;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. camera — one controller, driven by pointer events, so mouse and touch
+//    take exactly the same path and nothing is mouse-only
+// ─────────────────────────────────────────────────────────────────────────────
+const cam = {
+  target: V(0, 240, 0), dist: 1200, theta: 0.9, phi: 1.05,
+  tTarget: V(0, 240, 0), tDist: 1200, tTheta: 0.9, tPhi: 1.05,
+  follow: false, followIdx: 0,
+};
+const clampPhi = p => Math.max(0.12, Math.min(Math.PI / 2 - 0.02, p));
+
+function applyCamera(damp) {
+  cam.theta += (cam.tTheta - cam.theta) * damp;
+  cam.phi += (cam.tPhi - cam.phi) * damp;
+  cam.dist += (cam.tDist - cam.dist) * damp;
+  cam.target.lerp(cam.tTarget, damp);
+  const sp = Math.sin(cam.phi);
+  camera.position.set(
+    cam.target.x + cam.dist * sp * Math.cos(cam.theta),
+    cam.target.y + cam.dist * Math.cos(cam.phi),
+    cam.target.z + cam.dist * sp * Math.sin(cam.theta));
+  camera.lookAt(cam.target);
+}
+
+function frameBoard(instant = false) {
+  const box = new THREE.Box3();
+  if (board.placed.length) box.setFromObject(pieceRoot); else box.set(V(-300, 0, -300), V(300, 400, 300));
+  const c = box.getCenter(V()), s = box.getSize(V());
+  cam.tTarget.copy(c);
+  const radius = Math.hypot(s.x, s.y, s.z) * 0.5 + 90;
+  // A portrait phone is limited by the HORIZONTAL half-angle, which is much
+  // narrower than the 46° vertical one — fit the tighter of the two.
+  const tanV = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5));
+  const tanH = tanV * Math.max(0.2, camera.aspect);
+  cam.tDist = Math.min(5200, radius / Math.min(tanV, tanH) * 1.04);
+  // The sheet covers the bottom of a phone screen, so bias the model upward —
+  // by a share of what the camera can SEE at this distance, not of the model,
+  // or the correction vanishes on a small run.
+  if (MOBILE && camera.aspect < 1) cam.tTarget.y -= 2 * cam.tDist * tanV * 0.13;
+  cam.tPhi = clampPhi(1.02);
+  scene.fog.near = cam.tDist * 0.75;
+  scene.fog.far = cam.tDist * 3.0;
+  if (instant) { cam.theta = cam.tTheta; cam.phi = cam.tPhi; cam.dist = cam.tDist; cam.target.copy(cam.tTarget); }
+}
+
+// -- pointer handling: 1 = orbit, 2 = pinch-zoom + pan, taps are separate ------
+const pointers = new Map();
+let gesture = null, moved = 0, downAt = 0, downPos = null, longTimer = 0, suppressTap = false;
+
+const local = e => {
+  const r = renderer.domElement.getBoundingClientRect();
+  return { x: e.clientX - r.left, y: e.clientY - r.top };
+};
+const pinchInfo = () => {
+  const [a, b] = [...pointers.values()];
+  return { d: Math.hypot(a.x - b.x, a.y - b.y), cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
+};
+
+view.addEventListener('pointerdown', e => {
+  if (e.target.closest('.vp-ctl, .place-bar')) return;
+  view.setPointerCapture?.(e.pointerId);
+  pointers.set(e.pointerId, local(e));
+  moved = 0; downAt = performance.now(); downPos = local(e); suppressTap = false;
+  if (pointers.size === 1) {
+    gesture = e.button === 2 ? 'pan' : 'orbit';
+    clearTimeout(longTimer);
+    longTimer = setTimeout(() => {
+      if (pointers.size === 1 && moved < 12) { suppressTap = true; buzz(24); tryRemoveAt(downPos); }
+    }, 520);
+  } else if (pointers.size === 2) {
+    clearTimeout(longTimer);
+    gesture = 'pinch';
+    const i = pinchInfo();
+    gesture = { kind: 'pinch', d0: i.d, cx: i.cx, cy: i.cy, dist0: cam.tDist };
+  }
+});
+
+view.addEventListener('pointermove', e => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId), now = local(e);
+  pointers.set(e.pointerId, now);
+  const dx = now.x - prev.x, dy = now.y - prev.y;
+  moved += Math.hypot(dx, dy);
+  if (moved > 12) clearTimeout(longTimer);
+
+  if (pointers.size === 1 && gesture === 'orbit') {
+    cam.tTheta -= dx * 0.008;
+    cam.tPhi = clampPhi(cam.tPhi - dy * 0.007);
+  } else if (pointers.size === 1 && gesture === 'pan') {
+    panBy(dx, dy);
+  } else if (pointers.size === 2 && gesture && gesture.kind === 'pinch') {
+    const i = pinchInfo();
+    cam.tDist = Math.max(160, Math.min(4600, gesture.dist0 * (gesture.d0 / Math.max(8, i.d))));
+    panBy(i.cx - gesture.cx, i.cy - gesture.cy);
+    gesture.cx = i.cx; gesture.cy = i.cy;
+  }
+}, { passive: true });
+
+const panRight = V(), panUp = V(), panFwd = V();
+function panBy(dx, dy) {
+  const k = cam.dist * 0.0016;
+  panFwd.subVectors(cam.target, camera.position).normalize();
+  panRight.crossVectors(panFwd, V(0, 1, 0)).normalize();
+  panUp.crossVectors(panRight, panFwd).normalize();
+  cam.tTarget.addScaledVector(panRight, -dx * k).addScaledVector(panUp, dy * k);
+  cam.follow = false;
+}
+
+function endPointer(e) {
+  clearTimeout(longTimer);
+  const was = pointers.size;
+  pointers.delete(e.pointerId);
+  if (was === 1 && moved < 12 && performance.now() - downAt < 450 && !suppressTap) tryTap(downPos);
+  if (pointers.size < 2) gesture = pointers.size ? 'orbit' : null;
+}
+view.addEventListener('pointerup', endPointer);
+view.addEventListener('pointercancel', e => { clearTimeout(longTimer); pointers.delete(e.pointerId); gesture = null; });
+view.addEventListener('contextmenu', e => { e.preventDefault(); tryRemoveAt(local(e)); });
+view.addEventListener('wheel', e => {
+  e.preventDefault();
+  cam.tDist = Math.max(160, Math.min(4600, cam.tDist * Math.exp(e.deltaY * 0.0012)));
+  cam.follow = false;
+}, { passive: false });
+
+/** Screen-space picking. Finger-sized targets beat a raycast here: a 27 mm post
+ *  at full board zoom is a couple of device pixels across, and no amount of ray
+ *  precision makes that tappable. */
+const proj = V();
+function nearestSocket(pt, maxPx) {
+  const r = renderer.domElement.getBoundingClientRect();
+  let best = -1, bestD = maxPx;
+  for (let i = 0; i < sockets.length; i++) {
+    proj.set(...sockets[i].position).project(camera);
+    if (proj.z > 1) continue;
+    const sx = (proj.x * 0.5 + 0.5) * r.width, sy = (-proj.y * 0.5 + 0.5) * r.height;
+    const d = Math.hypot(sx - pt.x, sy - pt.y);
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  return best;
+}
+function nearestPiece(pt, maxPx) {
+  const r = renderer.domElement.getBoundingClientRect();
+  let best = null, bestD = maxPx;
+  for (const piece of board.placed) {
+    proj.set(...piece.pose.position).project(camera);
+    if (proj.z > 1) continue;
+    const sx = (proj.x * 0.5 + 0.5) * r.width, sy = (-proj.y * 0.5 + 0.5) * r.height;
+    const d = Math.hypot(sx - pt.x, sy - pt.y);
+    if (d < bestD) { bestD = d; best = piece; }
+  }
+  return best;
+}
+
+function tryTap(pt) {
+  if (mode !== 'build' || !pt) return;
+  const hit = nearestSocket(pt, MOBILE ? 54 : 34);
+  if (hit < 0) return;
+  if (hit === focusIdx) { placePending(); return; }   // second tap places
+  focusIdx = hit; buzz(8); syncGhost();
+}
+function tryRemoveAt(pt) {
+  if (!pt) return;
+  const piece = nearestPiece(pt, MOBILE ? 60 : 40);
+  if (!piece) return;
+  if (piece.kind === 'start' && board.placed.length > 1) { toast('the starting gate holds the run up'); return; }
+  removePiece(piece.id);
+  toast('removed');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. UI wiring
+// ─────────────────────────────────────────────────────────────────────────────
+let mode = 'build';
+function setMode(next) {
+  mode = next;
+  document.getElementById('mode-build').classList.toggle('on', mode === 'build');
+  document.getElementById('mode-run').classList.toggle('on', mode === 'run');
+  document.getElementById('placebar').style.display = mode === 'build' ? '' : 'none';
+  if (mode === 'run') { rings.clear(); if (ghost) { scene.remove(ghost); ghost = null; } }
+  else { stopRun(); marbles.length = 0; marbleMesh.count = 0; rebuildSockets(); }
+  updateHud();
+}
+document.getElementById('mode-build').onclick = () => setMode('build');
+document.getElementById('mode-run').onclick = () => { setMode('run'); startRun(); };
+
+const palette = document.getElementById('palette');
+for (const part of PARTS) {
+  const b = document.createElement('button');
+  b.innerHTML = `<span class="sw" style="background:#${part.color.toString(16).padStart(6, '0')}"></span><span>${part.name}</span>`;
+  b.title = part.blurb;
+  b.onclick = () => {
+    pendingKind = part.id;
+    [...palette.children].forEach(c => c.classList.toggle('on', c === b));
+    document.getElementById('part-sub').textContent = part.blurb;
+    if (mode !== 'build') setMode('build');
+    syncGhost();
+  };
+  if (part.id === pendingKind) b.classList.add('on');
+  palette.appendChild(b);
+}
+document.getElementById('part-sub').textContent = PART_BY_ID[pendingKind].blurb;
+
+const presetsEl = document.getElementById('presets');
+for (const [key, preset] of Object.entries(PRESETS)) {
+  const b = document.createElement('button');
+  b.textContent = preset.name;
+  b.onclick = () => loadBoard(preset.build(), true);
+  presetsEl.appendChild(b);
+}
+
+document.getElementById('btn-place').onclick = placePending;
+document.getElementById('btn-undo').onclick = undo;
+document.getElementById('btn-ccw').onclick = () => { pendingYaw -= YAW_STEP; syncGhost(); buzz(6); };
+document.getElementById('btn-cw').onclick = () => { pendingYaw += YAW_STEP; syncGhost(); buzz(6); };
+document.getElementById('btn-frame').onclick = () => { cam.follow = false; frameBoard(); };
+document.getElementById('btn-play').onclick = () => {
+  if (running) stopRun(); else startRun();
+};
+document.getElementById('btn-follow').onclick = e => {
+  cam.follow = !cam.follow;
+  e.currentTarget.classList.toggle('on', cam.follow);
+  if (cam.follow && !marbles.length) toast('nothing to follow yet — press ▶');
+};
+document.getElementById('btn-stand').onclick = () => {
+  if (!board.placed.length) { toast('nothing to stand up yet'); return; }
+  const before = board.placed.length;
+  capColumns(board);
+  rebuildScene(); pushHash();
+  toast(board.placed.length > before ? `${board.placed.length - before} supports added` : 'already standing');
+};
+document.getElementById('btn-clear').onclick = () => {
+  board = newBoard(); undoStack.length = 0; marbles.length = 0; marbleMesh.count = 0;
+  rebuildScene(); setMode('build'); pushHash(); toast('cleared — place a starting gate');
+};
+document.getElementById('btn-share').onclick = async () => {
+  pushHash();
+  try { await navigator.clipboard.writeText(location.href); toast('link copied'); }
+  catch { toast(location.href.length > 60 ? 'link is in the address bar' : location.href); }
+};
+document.getElementById('c-trail').onchange = rebuildTrails;
+document.getElementById('c-shadow').onchange = e => {
+  renderer.shadowMap.enabled = e.target.checked && !LOW;
+  scene.traverse(o => { if (o.isMesh) o.material.needsUpdate = true; });
+};
+
+const sliders = [
+  ['s-count', 'v-count', v => v],
+  ['s-gap', 'v-gap', v => `${(+v).toFixed(2)} s`],
+  ['s-rate', 'v-rate', v => `${(+v).toFixed(2)}×`],
+];
+for (const [id, out, fmt] of sliders) {
+  const el = document.getElementById(id);
+  const sync = () => { document.getElementById(out).textContent = fmt(el.value); };
+  el.oninput = sync; sync();
+}
+document.getElementById('s-count').max = String(MAX_MARBLES);
+
+// bottom-sheet grip (phone only)
+document.getElementById('grip').onclick = () => sheet.classList.toggle('collapsed');
+let gripStart = null;
+document.getElementById('grip').addEventListener('pointerdown', e => { gripStart = e.clientY; });
+addEventListener('pointerup', e => {
+  if (gripStart === null) return;
+  const dy = e.clientY - gripStart; gripStart = null;
+  if (Math.abs(dy) > 24) sheet.classList.toggle('collapsed', dy > 0);
+});
+
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  if (e.key === ' ') { e.preventDefault(); running ? stopRun() : startRun(); }
+  else if (e.key === 'q') { pendingYaw -= YAW_STEP; syncGhost(); }
+  else if (e.key === 'e') { pendingYaw += YAW_STEP; syncGhost(); }
+  else if (e.key === 'Enter') placePending();
+  else if (e.key === 'f') frameBoard();
+  else if ((e.key === 'z' && (e.metaKey || e.ctrlKey)) || e.key === 'Backspace') { e.preventDefault(); undo(); }
+  else if (e.key === 'Tab') { e.preventDefault(); focusIdx = (focusIdx + 1) % Math.max(1, sockets.length); syncGhost(); }
+});
+
+// spec table
+const specTable = document.getElementById('spec');
+for (const [k, v] of [
+  ['rise (one unit)', `${VERTICAL_GRID.rise} mm`],
+  ['insertion depth', `${VERTICAL_GRID.insertion} mm`],
+  ['port span', `${PORT_SPAN.toFixed(2)} mm`],
+  ['post / male / bore ⌀', `${CONNECTOR.postDiameter} / ${CONNECTOR.maleDiameter} / ${CONNECTOR.boreDiameter} mm`],
+  ['channel width × depth', `${TRACK.channelInsideWidth} × ${TRACK.channelDepth} mm`],
+  ['fall across a run', `${TRACK.runDrop} mm`],
+  ['fall down a post', `${FALL_THROUGH_POST} mm`],
+  ['marble ⌀', `${MARBLE.diameter} mm`],
+]) {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<td>${k}</td><td>${v}</td>`;
+  specTable.appendChild(tr);
+}
+
+const hud = document.getElementById('hud');
+function updateHud() {
+  const parts = board.placed.length;
+  const live = marbles.filter(m => m.alive && m.mode !== 'parked').length;
+  const done = marbles.filter(m => m.mode === 'parked').length;
+  const lost = marbles.filter(m => !m.alive).length;
+  hud.innerHTML = `pieces <b>${parts}</b>${parts ? ` · height <b>${Math.round(boardHeight())} mm</b>` : ''}`
+    + (mode === 'run'
+      ? `<br>rolling <b>${live}</b> · finished <b>${done}</b>${lost ? ` · <span class="warn">lost ${lost}</span>` : ''}`
+      : `<br>${sockets.length ? `<b>${sockets.length}</b> open socket${sockets.length === 1 ? '' : 's'}` : 'place a starting gate'}`);
+}
+function boardHeight() {
+  let hi = 0;
+  for (const p of board.placed) hi = Math.max(hi, p.pose.position[1] + VERTICAL_GRID.rise);
+  return hi;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. permalinks
+// ─────────────────────────────────────────────────────────────────────────────
+let hashLock = false;
+function pushHash() {
+  hashLock = true;
+  const h = board.placed.length ? '#' + encodeLayout(board.placed, board.connections) : '#';
+  replaceHash(h);
+  setTimeout(() => { hashLock = false; }, 0);
+}
+function replaceHash(h) {
+  try { window.history.replaceState(null, '', h); } catch { location.hash = h; }
+}
+function loadBoard(next, frame) {
+  board = next;
+  board.nextId = Math.max(0, ...board.placed.map(p => p.id + 1));
+  undoStack.length = 0; marbles.length = 0; marbleMesh.count = 0;
+  stopRun(); mode = 'build'; setMode('build');
+  focusIdx = -1;
+  rebuildScene();
+  if (frame) frameBoard();
+  pushHash();
+}
+addEventListener('hashchange', () => {
+  if (hashLock) return;
+  const h = location.hash.slice(1);
+  if (h) { try { loadBoard(Object.assign(decodeLayout(h), { nextId: 0 }), true); } catch {} }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. frame loop
+// ─────────────────────────────────────────────────────────────────────────────
+let last = performance.now(), acc = 0, hudClock = 0, visible = true;
+document.addEventListener('visibilitychange', () => { visible = !document.hidden; last = performance.now(); });
+
+function resize() {
+  const w = view.clientWidth, h = view.clientHeight;
+  if (!w || !h) return;
+  // updateStyle must stay ON: with it off the canvas keeps its device-pixel
+  // attribute size as its CSS size, and on any DPR > 1 it overflows the stage.
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+addEventListener('resize', resize);
+addEventListener('orientationchange', () => setTimeout(() => { resize(); frameBoard(); }, 220));
+
+const sRate = document.getElementById('s-rate'), sGap = document.getElementById('s-gap'),
+      sCount = document.getElementById('s-count');
+const PHYS_DT = 1 / 240;    // fixed step: the solver's answer must not depend on the frame rate
+function frame(now) {
+  requestAnimationFrame(frame);
+  if (!visible) { last = now; return; }
+  const raw = Math.min(0.1, (now - last) / 1000);
+  last = now;
+  const rate = +sRate.value;
+
+  if (running) {
+    releaseClock += raw * rate;
+    const gap = +sGap.value;
+    const want = Math.min(+sCount.value, MAX_MARBLES);
+    while (released < want && releaseClock >= gap * released) releaseOne();
+
+    acc += raw * rate;
+    let steps = 0;
+    while (acc >= PHYS_DT && steps++ < 64) {
+      for (const m of marbles) stepMarble(m, graph, PHYS_DT, route);
+      acc -= PHYS_DT;
+    }
+    if (steps >= 64) acc = 0;     // never spiral: drop the backlog instead
+    for (const r of rotors) r.rotation.x += raw * rate * 2.2;
+    if (released >= want && marbles.every(m => !m.alive || m.mode === 'parked')) stopRun();
+  }
+  syncMarbles();
+
+  if (mode === 'build' && rings.children.length) {
+    const pulse = 0.55 + 0.35 * Math.sin(now * 0.005);
+    ringHot.opacity = pulse;
+  }
+
+  if (cam.follow && marbles.length) {
+    const m = marbles.find(x => x.alive && x.mode !== 'parked') ?? marbles[marbles.length - 1];
+    cam.tTarget.lerp(V(m.pos[0], m.pos[1] + 40, m.pos[2]), 0.14);
+    cam.tDist += (420 - cam.tDist) * 0.05;
+  }
+  applyCamera(MOBILE ? 0.2 : 0.16);
+  scene.fog.near = cam.dist * 0.75; scene.fog.far = cam.dist * 3.0;
+
+  hudClock += raw;
+  if (hudClock > 0.2) { hudClock = 0; updateHud(); }
+  renderer.render(scene, camera);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. boot
+// ─────────────────────────────────────────────────────────────────────────────
+resize();
+const fromHash = location.hash.slice(1);
+let booted = false;
+if (fromHash) {
+  try {
+    const decoded = decodeLayout(fromHash);
+    if (decoded.placed.length) { loadBoard(Object.assign(decoded, { nextId: 0 }), false); booted = true; }
+  } catch { /* fall through to the preset */ }
+}
+if (!booted) loadBoard(PRESETS.classic.build(), false);
+frameBoard(true);
+if (!MOBILE) sheet.classList.remove('collapsed');
+requestAnimationFrame(frame);
+
+// give first-timers the run, not a static model
+setTimeout(() => { if (!running && marbles.length === 0) startRun(); }, 900);
+</script>
+</body>
+</html>

@@ -3,7 +3,8 @@
 // and /procgen/. Joins catalogue.json (entries, descriptions) to stats/data.json
 // (per-surface git activity), to the last probe, and to the hand-written
 // content pass in rethink/proposal.json. Refuses to build unless the
-// proposal accounts for every catalogue entry exactly once.
+// proposal places each catalogue entry at most once; an entry it does not
+// mention is auto-placed as a standalone site marked look.
 //
 //   node scripts/build-rethink.mjs            # check only
 //   node scripts/build-rethink.mjs --write    # write rethink/data.js
@@ -57,8 +58,6 @@ const today = new Date(stats.generated + 'T00:00:00Z').getTime();
 
 const rows = entries.map((e, i) => {
   const f = [];
-  const sec = [...catalogue.sections].reverse().find((s) => s.before <= i);
-  if (sec && sec.label !== e.c) f.push('section');
   if (byName[e.n].length > 1) f.push('dup');
   const g = bySurface[e.surface];
   if (!e.p && e.k <= 1 && g && g.total > 50) f.push('weight');
@@ -101,7 +100,18 @@ function walk(m, top, parent, depth) {
   for (const p of m.pages || []) walk(p, top, id, depth + 1);
 }
 for (const top of proposal.top) for (const m of top.members) walk(m, top, top.id, 1);
-for (const r of rows) if (!seen.has(r.id)) problems.push(`catalogue entry not placed: ${r.id} (${r.n}, ${r.c}, p=${r.p || '-'})`);
+// A catalogue entry nobody has placed yet lands as a standalone site under the
+// wing its old bucket implies, marked look, so adding a site is one catalogue
+// entry and the placement debt shows on /rethink/ instead of failing the build.
+const sitesTop = proposal.top.find((t) => t.id === 'sites');
+const wingOfBucket = { bluesky: 'bluesky', games: 'play', tools: 'bench', data: 'bench', work: 'bench' };
+const kindOfBucket = { bluesky: 'app', games: 'game', tools: 'app', data: 'lens', work: 'app' };
+const autoPlaced = [];
+for (const r of rows) if (!seen.has(r.id)) {
+  walk({ u: r.id, action: 'look', note: 'not yet placed in the content pass; auto-placed from its old bucket', kind: kindOfBucket[r.c] || 'app', domain: r.c, wing: wingOfBucket[r.c] || 'bench' }, sitesTop, 'sites', 1);
+  autoPlaced.push(r.id);
+}
+if (autoPlaced.length) console.warn(`rethink: ${autoPlaced.length} catalogue entr${autoPlaced.length === 1 ? 'y' : 'ies'} auto-placed as look (add them to rethink/proposal.json when you know where they go):\n  ` + autoPlaced.join('\n  '));
 
 if (problems.length) {
   console.error(`rethink proposal: ${problems.length} problem(s)\n  ` + problems.join('\n  '));

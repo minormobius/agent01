@@ -1,9 +1,15 @@
 name: Refresh perp data (daily)
 
 # COMMITS DATA BACK TO THE REPO. Runs the incremental backfill, regenerates the
-# derived statistics, commits any new hours to the surface's owning branch, and
-# deploys. It deploys inline rather than relying on deploy-perp.yml, because a
-# push made with GITHUB_TOKEN does not fire other workflows.
+# derived statistics, commits any new hours to the branch that OWNS fin (perp is
+# served at fin.mino.mobi/perp/ since 2026-09-23 — perp.mino.mobi was detached
+# to free a custom-domain slot), and then dispatches deploy-finance.yml on that
+# branch. A push made with GITHUB_TOKEN does not fire push-triggered workflows,
+# but a workflow_dispatch made with it does, which is why this dispatches.
+#
+# The owning branch is read from deploy-registry.json at run time rather than
+# hardcoded: this file runs from main (schedules only fire on the default
+# branch), and a hardcoded owner went stale the day perp changed hands.
 #
 # Schedule only — no push trigger — so a commit can never wake this.
 
@@ -14,6 +20,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 concurrency:
   group: refresh-perp-data
@@ -24,8 +31,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Find the branch that owns fin (and so serves perp)
+        id: owner
+        run: |
+          b=$(node -e 'const r=require("./deploy-registry.json");const s=r.surfaces.find(x=>x.surface==="finance");if(!s||!s.paths.includes("perp/**"))process.exit(1);console.log(s.branch)')
+          echo "branch=$b" >> "$GITHUB_OUTPUT"
+          echo "fin (and perp) are owned by $b"
+      - uses: actions/checkout@v4
         with:
-          ref: claude/futures-finance-learning-r7p47e
+          ref: ${{ steps.owner.outputs.branch }}
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
@@ -53,19 +67,12 @@ jobs:
           else
             git add perp/data
             git commit -m "perp: refresh BTC spot and Hyperliquid funding series"
-            git push origin claude/futures-finance-learning-r7p47e
+            git push origin "HEAD:${{ steps.owner.outputs.branch }}"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Install wrangler
+      - name: Deploy fin (which stages perp into dist/perp)
         if: steps.commit.outputs.changed == 'true'
-        working-directory: perp
-        run: npm install wrangler
-
-      - name: Deploy worker + assets
-        if: steps.commit.outputs.changed == 'true'
-        working-directory: perp
-        run: npx wrangler deploy
+        run: gh workflow run deploy-finance.yml --ref "${{ steps.owner.outputs.branch }}" -f skip_migrations=true
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GH_TOKEN: ${{ github.token }}

@@ -88,10 +88,27 @@ export function pickBibleGuides(content, names = BIBLE_GUIDE_NAMES, n = names.le
   const npcs = content.filter((c) => c.type === 'npc');
   const nameOf = (c) => String((c.content || {}).name || '').toLowerCase();
   const fallback = deriveOpeningCast(content, n + 6);
+  // RANKED, not first-match. A bare substring picks whoever the pool happens to list first, and the
+  // 2026-09-16 run's 409 new names made that bite: `olo` matches "Skerry, called the Col-olo-phon", so
+  // tier 1's guide stopped being Olo Vashti. Rank the candidates instead — a LOAD-BEARING anchor beats
+  // anyone (it is the guide, by construction), a whole-word hit beats a substring buried in a longer
+  // word — and keep the substring tier so a pool with no anchors still resolves as it always did.
+  const esc = (x) => String(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rank = (c, needle) => {
+    const nm = nameOf(c);
+    if (!nm.includes(needle)) return -1;
+    return (((c.content || {}).load_bearing) ? 4 : 0) + (new RegExp('\\b' + esc(needle) + '\\b').test(nm) ? 2 : 0);
+  };
   const out = [], used = new Set();
   let fi = 0;
   for (let t = 0; t < n; t++) {
-    let g = npcs.find((c) => !used.has(c.id) && nameOf(c).includes(names[t]));
+    let g = null, best = -1;
+    for (const c of npcs) {                      // first-best wins → deterministic in pool order
+      if (used.has(c.id)) continue;
+      const r = rank(c, names[t]);
+      if (r > best) { best = r; g = c; }
+    }
+    if (best < 0) g = null;
     if (!g) { while (fi < fallback.length && used.has(fallback[fi].id)) fi++; g = fallback[fi++] || null; }
     if (g) { out.push(g); used.add(g.id); }
   }

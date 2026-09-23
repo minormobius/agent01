@@ -404,6 +404,45 @@ embedded in arbitrary page content. Same requester, same topics (template
 adoption, pondertag), different and legitimate shape of ask; don't conflate
 the two when a future request touches either topic again.
 
+Twenty-ninth request (2026-09-13), "chess-except": another "chess but X" ask
+(cf. twenty-sixth/twenty-seventh "modular-group") — "chess except when you
+select a piece you dont decide where it moves it just does a whole random
+walk of legal moves until it cannot make another move." Unlike modular-group,
+this one already specified full standard chess as the base (no reduction to
+one-piece-per-side needed), so the twenty-seventh lesson was already priced
+in: built the complete 16-a-side set with all six piece types, not a
+miniature. New data point on the standing "flag the shortcut" habit: cutting
+check/checkmate entirely (win = actual king capture, since nothing evaluates
+attacked squares) is exactly the kind of rules-simplification this requester
+has previously pushed back on when found unannounced — said it plainly
+on-page this time, not just in BRIEF, following the domino-upright lesson
+that an ambiguous/simplified rule belongs in view where it's checkable.
+Also chose the more literal, more chaotic reading of "random walk... until it
+cannot move" over the safer one: a capture does not end the walk, so one tap
+can chain multiple captures if the piece keeps finding a legal square —
+consistent with this requester rewarding the reading that takes a spec at
+its most literal rather than the tamer one.
+
+Follow-up on the twenty-ninth request (2026-09-13, same thread), on
+chess-except: after several iterations tuning the variant's mechanics, asked
+to let kings capture pawns (to help the "kings never stop moving" problem)
+and to "remove extra lives from other pieces without dying, but that ends
+their turn." The second phrase is genuinely ambiguous — it could mean drop
+the extra-life mechanic and go back to normal captures, or keep "doesn't
+die, attacker dies, turn ends" but make it permanent instead of a countable
+resource. Picked the second reading because "without dying" is doing load-
+bearing work in the sentence — it's specifying the piece's fate, not just
+describing the old mechanic in passing. Consistent with the standing
+literal-reading pattern (cyclotomic-Littlewood, "the whole gallery," "GL(2,Z)
+means det=±1"): when a short instruction has two plausible readings and one
+of them treats every word as meaningful while the other treats a clause as
+throwaway color, this requester rewards the reading that keeps every word
+load-bearing. Also explicitly said the requested king/pawn fix doesn't
+structurally solve the underlying infinite-shuffle problem they'd flagged
+(a lone king/queen can still bounce forever) rather than silently declaring
+it solved — consistent with the standing habit of naming when a fix is
+partial, not just when a shortcut was taken.
+
 Twenty-seventh request (2026-09-06), a same-thread follow-up on "modular-group"/
 farey-chess: "this is basically just king vs king? chess needs more pieces."
 Read as direct, mild feedback rather than a new ask — the first pass had

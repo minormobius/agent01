@@ -338,6 +338,15 @@
    "parent": "rite"
   },
   {
+   "id": "sharp",
+   "name": "sharp",
+   "url": "https://rite.mino.mobi/sharp/",
+   "cat": "bluesky",
+   "commits": 3,
+   "age": "hot",
+   "parent": "rite"
+  },
+  {
    "id": "atmosphere",
    "name": "atmosphere",
    "url": "https://b.mino.mobi",
@@ -671,6 +680,15 @@
    "parent": null
   },
   {
+   "id": "dweet",
+   "name": "dweet",
+   "url": "https://bsky.mino.mobi/dweet/",
+   "cat": "bluesky",
+   "commits": 0,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "zest",
    "name": "zest",
    "url": "https://zest.mino.mobi",
@@ -700,7 +718,7 @@
   {
    "id": "wave",
    "name": "wave",
-   "url": "https://wave.mino.mobi",
+   "url": "https://org.mino.mobi/wave",
    "cat": "work",
    "commits": 10,
    "age": "cold",
@@ -792,9 +810,9 @@
    "name": "finance",
    "url": "https://fin.mino.mobi/pm/",
    "cat": "data",
-   "commits": 28,
-   "age": "hot",
-   "parent": null
+   "commits": 2,
+   "age": "warm",
+   "parent": "fin"
   },
   {
    "id": "bogo",
@@ -803,7 +821,7 @@
    "cat": "data",
    "commits": 2,
    "age": "hot",
-   "parent": "finance"
+   "parent": "fin"
   },
   {
    "id": "agimet",
@@ -812,7 +830,7 @@
    "cat": "data",
    "commits": 2,
    "age": "hot",
-   "parent": "finance"
+   "parent": "fin"
   },
   {
    "id": "stocks",
@@ -821,14 +839,14 @@
    "cat": "data",
    "commits": 2,
    "age": "hot",
-   "parent": "finance"
+   "parent": "fin"
   },
   {
-   "id": "speclab",
-   "name": "speclab",
+   "id": "fin",
+   "name": "fin",
    "url": "https://fin.mino.mobi",
    "cat": "data",
-   "commits": 1,
+   "commits": 28,
    "age": "hot",
    "parent": null
   },
@@ -1312,11 +1330,11 @@
   {
    "id": "perp",
    "name": "perp",
-   "url": "https://perp.mino.mobi",
+   "url": "https://fin.mino.mobi/perp/",
    "cat": "data",
    "commits": 1,
    "age": "hot",
-   "parent": null
+   "parent": "fin"
   },
   {
    "id": "silk",
@@ -1522,6 +1540,15 @@
    "url": "https://tjs.mino.mobi/dragon/",
    "cat": "tools",
    "commits": 6,
+   "age": "hot",
+   "parent": "tjs"
+  },
+  {
+   "id": "marbles",
+   "name": "marbles",
+   "url": "https://tjs.mino.mobi/marbles/",
+   "cat": "tools",
+   "commits": 3,
    "age": "hot",
    "parent": "tjs"
   },
@@ -1886,6 +1913,24 @@
    "parent": null
   },
   {
+   "id": "cad",
+   "name": "cad",
+   "url": "https://cad.mino.mobi",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "parts",
+   "name": "parts",
+   "url": "https://cad.mino.mobi/parts/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "hopper",
    "name": "hopper",
    "url": "https://hopper.mino.mobi",
@@ -1974,6 +2019,51 @@
    "commits": 1,
    "age": "hot",
    "parent": "foam"
+  },
+  {
+   "id": "jev",
+   "name": "jev",
+   "url": "https://mega.mino.mobi/jev/",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "jev delve",
+   "name": "jev delve",
+   "url": "https://mega.mino.mobi/jev/delve/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "jev composer",
+   "name": "jev composer",
+   "url": "https://mega.mino.mobi/jev/composer/",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "jev swarm",
+   "name": "jev swarm",
+   "url": "https://mega.mino.mobi/jev/swarm/",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "jev lab",
+   "name": "jev lab",
+   "url": "https://mega.mino.mobi/jev/lab/",
+   "cat": "tools",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
   },
   {
    "id": "golem",
@@ -2676,6 +2766,204 @@
    "commits": 1,
    "age": "hot",
    "parent": null
+  },
+  {
+   "id": "eigensite",
+   "name": "eigensite",
+   "url": "https://mino.mobi/eigensite/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "ns",
+   "name": "ns",
+   "url": "https://ns.mino.mobi",
+   "cat": "data",
+   "commits": 3,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "core",
+   "name": "core",
+   "url": "https://ns.mino.mobi/core/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "pulse",
+   "name": "pulse",
+   "url": "https://ns.mino.mobi/pulse/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "stress",
+   "name": "stress",
+   "url": "https://ns.mino.mobi/stress/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "exterior",
+   "name": "exterior",
+   "url": "https://ns.mino.mobi/exterior/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "bands",
+   "name": "bands",
+   "url": "https://ns.mino.mobi/bands/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "solver",
+   "name": "solver",
+   "url": "https://ns.mino.mobi/solver/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "explorer",
+   "name": "explorer",
+   "url": "https://ns.mino.mobi/explorer/",
+   "cat": "data",
+   "commits": 2,
+   "age": "hot",
+   "parent": "ns"
+  },
+  {
+   "id": "henderhead",
+   "name": "henderhead",
+   "url": "https://henderhead.mino.mobi",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
+   "id": "continued fraction Fourier",
+   "name": "continued fraction Fourier",
+   "url": "https://henderhead.mino.mobi/cf/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "henderhead"
+  },
+  {
+   "id": "crafting automaton",
+   "name": "crafting automaton",
+   "url": "https://henderhead.mino.mobi/craft/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "henderhead"
+  },
+  {
+   "id": "chaotic waterwheel",
+   "name": "chaotic waterwheel",
+   "url": "https://henderhead.mino.mobi/wheel/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "henderhead"
+  },
+  {
+   "id": "conics out of sand",
+   "name": "conics out of sand",
+   "url": "https://henderhead.mino.mobi/sand/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "henderhead"
+  },
+  {
+   "id": "bouncing ball chaos",
+   "name": "bouncing ball chaos",
+   "url": "https://henderhead.mino.mobi/ball/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "hot",
+   "parent": "henderhead"
+  },
+  {
+   "id": "periodic-table",
+   "name": "periodic-table",
+   "url": "https://fin.mino.mobi/elements/",
+   "cat": "data",
+   "commits": 4,
+   "age": "hot",
+   "parent": "fin"
+  },
+  {
+   "id": "speclab",
+   "name": "speclab",
+   "url": "https://fin.mino.mobi/speclab/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "fin"
+  },
+  {
+   "id": "orbit",
+   "name": "orbit",
+   "url": "https://b.mino.mobi/orbit/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": "atmosphere"
+  },
+  {
+   "id": "mood",
+   "name": "mood",
+   "url": "https://b.mino.mobi/mood/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": "atmosphere"
+  },
+  {
+   "id": "szilassi",
+   "name": "szilassi",
+   "url": "https://math.mino.mobi/szilassi/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "geometry"
+  },
+  {
+   "id": "csaszar",
+   "name": "csaszar",
+   "url": "https://math.mino.mobi/csaszar/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "geometry"
+  },
+  {
+   "id": "equivelar",
+   "name": "equivelar",
+   "url": "https://math.mino.mobi/equivelar/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "geometry"
   },
   {
    "id": "poll/evaluation.html",
@@ -4968,6 +5256,56 @@
    "discovered": true
   },
   {
+   "id": "mega/jev",
+   "name": "jev",
+   "url": "https://mino.mobi/mega/jev/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/composer",
+   "name": "composer",
+   "url": "https://mino.mobi/mega/jev/composer/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/delve",
+   "name": "delve",
+   "url": "https://mino.mobi/mega/jev/delve/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/lab",
+   "name": "lab",
+   "url": "https://mino.mobi/mega/jev/lab/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/swarm",
+   "name": "swarm",
+   "url": "https://mino.mobi/mega/jev/swarm/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev",
+   "discovered": true
+  },
+  {
    "id": "mega/sprite",
    "name": "sprite",
    "url": "https://mino.mobi/mega/sprite/",
@@ -5995,6 +6333,16 @@
    "commits": 0,
    "age": "hot",
    "parent": "bismuth",
+   "discovered": true
+  },
+  {
+   "id": "cad/docs",
+   "name": "docs",
+   "url": "https://cad.mino.mobi/docs/",
+   "cat": "tools",
+   "commits": 0,
+   "age": "hot",
+   "parent": "cad",
    "discovered": true
   },
   {

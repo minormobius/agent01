@@ -77,3 +77,7 @@ games/tempest/core/target/
 # bsky/ — browser bundles built by deploy-bsky.yml (SDK + zstd wasm).
 # Built, never committed: no WASM binary in git.
 bsky/lib/vendor/
+
+# packages/cad — Rust build artefacts. The committed product is packages/cad/cad.wasm,
+# built by packages/cad/engine/build.sh; the target dir is not.
+packages/cad/engine/target/

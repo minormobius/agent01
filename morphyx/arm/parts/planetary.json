@@ -1,0 +1,38 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Planetary reduction stand-in, Ø42 × 32. J4 takes 30:1 for its 5.57 N·m corner case; J5 takes only 10:1 because the belt is the other 3:1 — which is why the belt makes the gearbox cheaper, not dearer. One extrude along +X.",
+ "params": {
+  "d": 42,
+  "t": 32,
+  "x0": 0
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "f",
+   "plane": {
+    "base": "YZ",
+    "offset": "x0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "g",
+   "profile": "f",
+   "depth": "t"
+  }
+ ]
+}

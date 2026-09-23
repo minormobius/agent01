@@ -1,0 +1,317 @@
+/* jev/style.css — self-contained, but speaking the same design language as
+   the root mino.css: identical token NAMES and values, so this surface reads
+   as part of the family. It is a copy of the vocabulary, not of the file —
+   jev.mino.mobi is its own worker and cannot reach the root stylesheet, and
+   an unchecked byte-copy of mino.css would rot silently. Only the tokens this
+   page actually uses are carried over, plus the delve-specific ones. */
+
+:root{
+  --bg:#F2F4F8; --paper:#FFFFFF; --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+  --line:#D8DCE6; --line-2:#E9ECF2; --accent:#237E7A; --accent-ink:#FFFFFF; --accent-soft:#DDEFEE;
+  --bad:#C0392B; --bad-soft:#F8E1DE; --warn:#B8720C; --warn-soft:#F8ECD6; --ok:#3B8A4A; --ok-soft:#DFEFE2;
+  --delver:#D64C77;
+  /* sequential depth ramp, shallow -> deep. Monotonic in lightness (checked);
+     one hue, never a rainbow. */
+  --d0:#DDEFEE; --d1:#A9D9D6; --d2:#6FBEBA; --d3:#3D9A96; --d4:#1F6B68;
+  --shadow:0 1px 2px rgba(22,25,35,.06),0 8px 24px -12px rgba(22,25,35,.18);
+  --radius:6px;
+  --display:"Bricolage Grotesque","Familjen Grotesk","Helvetica Neue",Arial,sans-serif;
+  --body:"Source Sans 3","Source Sans Pro","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:light dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+    --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-ink:#0F1219; --accent-soft:#183634;
+    --bad:#E8776A; --bad-soft:#3A1F1C; --warn:#E0A64A; --warn-soft:#3A2D14; --ok:#6CC282; --ok-soft:#173523;
+    --delver:#F56991;
+    /* dark mode is SELECTED, not an automatic flip: its own steps from the
+       same hue, validated against the dark surface. */
+    --d0:#183634; --d1:#235F5C; --d2:#33908B; --d3:#4FC3BE; --d4:#8FDEDA;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1219; --paper:#171B25; --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+  --line:#2A3040; --line-2:#20252F; --accent:#4FC3BE; --accent-ink:#0F1219; --accent-soft:#183634;
+  --bad:#E8776A; --bad-soft:#3A1F1C; --warn:#E0A64A; --warn-soft:#3A2D14; --ok:#6CC282; --ok-soft:#173523;
+  --delver:#F56991;
+  --d0:#183634; --d1:#235F5C; --d2:#33908B; --d3:#4FC3BE; --d4:#8FDEDA;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -14px rgba(0,0,0,.7);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration:none;border-bottom:1px solid transparent}
+a:hover,a:focus-visible{border-bottom-color:currentColor}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2,h3{font-family:var(--display);margin:0;letter-spacing:-.01em;line-height:1.15;text-wrap:balance}
+h1{font-size:clamp(1.7rem,3.4vw,2.4rem);font-weight:750}
+h2{font-size:1.06rem;font-weight:700}
+h3{font-size:.95rem;font-weight:700}
+p{margin:0 0 1rem}
+code,pre,.mono{font-family:var(--mono)}
+code{background:var(--line-2);padding:.08em .35em;border-radius:3px;font-size:.88em}
+.wrap{max-width:1280px;margin:0 auto;padding:0 clamp(14px,3vw,32px)}
+.eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-bottom:.5rem}
+.muted{color:var(--ink-3)}
+.num{font-variant-numeric:tabular-nums}
+.prose{max-width:68ch;color:var(--ink-2)}
+
+header.top{padding:28px 0 16px;border-bottom:1px solid var(--line)}
+.masthead{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-start;justify-content:space-between}
+
+/* ---------------------------------------------------------- mode banner --
+   The most important element on the page: it states, at all times, whether
+   the answers below came from Jev or from the offline stand-in. */
+.mode{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:var(--radius);
+  border:1px solid var(--line);background:var(--paper);font-size:.88rem;margin:16px 0 0}
+.mode .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--ink-3)}
+.mode[data-mode="live"]{border-color:var(--ok);background:var(--ok-soft);color:var(--ink)}
+.mode[data-mode="live"] .dot{background:var(--ok)}
+.mode[data-mode="offline"]{border-color:var(--warn);background:var(--warn-soft);color:var(--ink)}
+.mode[data-mode="offline"] .dot{background:var(--warn)}
+.mode[data-mode="error"]{border-color:var(--bad);background:var(--bad-soft);color:var(--ink)}
+.mode[data-mode="error"] .dot{background:var(--bad)}
+.mode b{font-weight:700}
+
+/* ------------------------------------------------------------- controls -- */
+.controls{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin:16px 0;
+  padding:14px;border:1px solid var(--line);border-radius:var(--radius);background:var(--paper)}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.field input,.field select{font:inherit;font-size:.9rem;padding:6px 8px;border:1px solid var(--line);
+  border-radius:4px;background:var(--bg);color:var(--ink);min-width:88px}
+button{font:inherit;font-size:.9rem;font-weight:600;padding:7px 14px;border-radius:4px;cursor:pointer;
+  border:1px solid var(--line);background:var(--paper);color:var(--ink)}
+button:hover:not(:disabled){border-color:var(--accent)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.spacer{flex:1 1 auto}
+
+/* ---------------------------------------------------------------- grid -- */
+.grid{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;margin:4px 0 28px;align-items:start}
+@media (max-width:920px){.grid{grid-template-columns:1fr}}
+.panel{border:1px solid var(--line);border-radius:var(--radius);background:var(--paper);padding:14px 16px;min-width:0}
+.panel>h2{margin-bottom:2px}
+.panel .sub{font-size:.8rem;color:var(--ink-3);margin-bottom:12px}
+
+/* ----------------------------------------------------------- stat tiles -- */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px;margin-bottom:14px}
+.tile{border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);padding:9px 11px}
+.tile .k{font-family:var(--mono);font-size:.63rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.tile .v{font-family:var(--display);font-size:1.5rem;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile .v small{font-size:.8rem;font-weight:600;color:var(--ink-3)}
+.tile[data-state="bad"] .v{color:var(--bad)}
+.tile[data-state="warn"] .v{color:var(--warn)}
+
+/* ------------------------------------------------------------- the map -- */
+.mapwrap{position:relative}
+svg.map{display:block;width:100%;height:auto;background:var(--bg);border-radius:4px;border:1px solid var(--line-2)}
+svg.map .door{stroke:var(--line);stroke-width:2}
+svg.map .door.walked{stroke:var(--accent);stroke-width:2.5}
+svg.map .room{stroke:var(--paper);stroke-width:1.5;cursor:pointer}
+svg.map .room.unvisited{opacity:.42}
+svg.map .marker{pointer-events:none}
+svg.map .delver{fill:none;stroke:var(--delver);stroke-width:3}
+svg.map .rlabel{font-family:var(--mono);font-size:8px;fill:var(--ink-3);pointer-events:none}
+
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:10px;font-size:.78rem;color:var(--ink-2)}
+.legend .item{display:flex;align-items:center;gap:6px}
+.legend svg{flex:none}
+.ramp{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--ink-2);margin-top:8px}
+.ramp .steps{display:flex}
+.ramp .steps i{width:22px;height:10px;display:block;border:1px solid var(--paper)}
+
+/* ------------------------------------------------------------- answers -- */
+.answer{border-top:1px solid var(--line-2);padding:12px 0}
+.answer:first-of-type{border-top:0;padding-top:2px}
+.answer .qhead{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:2px}
+.answer .qid{font-family:var(--mono);font-size:.78rem;font-weight:700;color:var(--ink)}
+.answer .qtype{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);border:1px solid var(--line);border-radius:3px;padding:1px 5px}
+.answer .qtext{font-size:.82rem;color:var(--ink-3);margin-bottom:9px}
+
+/* probability bars: single-hue magnitude, 4px rounded ends on the data end,
+   2px gap between bars, value direct-labelled, text in ink tokens. */
+.bars{display:flex;flex-direction:column;gap:2px}
+.bar{display:grid;grid-template-columns:minmax(74px,auto) 1fr auto;gap:8px;align-items:center;
+  padding:2px 0;border-radius:3px}
+.bar .lbl{font-family:var(--mono);font-size:.76rem;color:var(--ink-2);white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.bar .track{position:relative;height:13px;background:var(--line-2);border-radius:3px;overflow:hidden}
+.bar .fill{position:absolute;inset:0 auto 0 0;background:var(--d2);border-radius:0 4px 4px 0;transition:width .35s ease}
+.bar .pct{font-family:var(--mono);font-size:.74rem;color:var(--ink-2);min-width:38px;text-align:right}
+.bar.picked .lbl{color:var(--ink);font-weight:700}
+.bar.picked .fill{background:var(--accent)}
+.bar.picked .pct{color:var(--ink);font-weight:700}
+.bar .chosen{color:var(--accent);font-weight:700}
+
+/* score: an ordered segmented meter, sequential ramp, the level marked */
+.meter{display:flex;gap:2px;margin-bottom:7px}
+.meter .seg{flex:1;height:22px;border-radius:2px;background:var(--line-2);position:relative;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.68rem;color:var(--ink-3)}
+.meter .seg[data-on="1"]{color:var(--accent-ink);font-weight:700}
+.meter .seg:first-child{border-radius:4px 2px 2px 4px}
+.meter .seg:last-child{border-radius:2px 4px 4px 2px}
+.scorelegend{font-size:.8rem;color:var(--ink-2)}
+.scorelegend b{color:var(--ink)}
+
+/* noul: a 0..1 bar with the 0.5 decision threshold drawn on it */
+.noul{display:grid;grid-template-columns:1fr auto;gap:9px;align-items:center}
+.noul .track{position:relative;height:15px;background:var(--line-2);border-radius:3px;overflow:hidden}
+.noul .fill{position:absolute;inset:0 auto 0 0;border-radius:0 4px 4px 0;transition:width .35s ease}
+.noul .fill[data-yes="1"]{background:var(--ok)}
+.noul .fill[data-yes="0"]{background:var(--ink-3)}
+.noul .thresh{position:absolute;top:-2px;bottom:-2px;left:50%;width:2px;background:var(--paper);
+  box-shadow:0 0 0 1px var(--ink-3)}
+.noul .verdict{font-family:var(--mono);font-size:.78rem;font-weight:700;min-width:96px;text-align:right}
+.noul .verdict[data-yes="1"]{color:var(--ok)}
+.noul .verdict[data-yes="0"]{color:var(--ink-3)}
+
+.conf{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:.72rem;color:var(--ink-3)}
+.conf .pip{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.conf[data-gate="1"]{color:var(--warn);font-weight:700}
+.conf[data-gate="1"] .pip{background:var(--warn)}
+.gatenote{margin-top:8px;padding:8px 10px;border-radius:4px;border:1px solid var(--warn);
+  background:var(--warn-soft);font-size:.79rem;color:var(--ink)}
+
+/* ----------------------------------------------------------------- log -- */
+.log{max-height:230px;overflow-y:auto;font-family:var(--mono);font-size:.76rem;line-height:1.55}
+.log .line{display:flex;gap:8px;padding:2px 0;border-bottom:1px solid var(--line-2)}
+.log .t{color:var(--ink-3);flex:none;min-width:30px;text-align:right}
+.log .m{color:var(--ink-2)}
+.log .line[data-kind="loot"] .m,.log .line[data-kind="vault"] .m{color:var(--warn)}
+.log .line[data-kind="trap"] .m,.log .line[data-kind="fight"] .m,.log .line[data-kind="death"] .m{color:var(--bad)}
+.log .line[data-kind="escape"] .m{color:var(--ok)}
+.log .line[data-kind="gate"] .m{color:var(--warn);font-weight:700}
+
+/* ---------------------------------------------------------- wire panel -- */
+.wirepanel{margin:0 0 28px}
+details.wire{margin-top:6px}
+details.wire>summary{cursor:pointer;font-family:var(--mono);font-size:.74rem;font-weight:700;color:var(--ink-2);margin-bottom:10px}
+/* min-width:0 on BOTH the grid and its children: without it a <pre> with long
+   lines refuses to shrink below its content width and the whole panel
+   overflows its container. */
+details.wire .body{display:grid;grid-template-columns:1fr 1fr;gap:14px;min-width:0}
+details.wire .body>div{min-width:0}
+@media (max-width:820px){details.wire .body{grid-template-columns:1fr}}
+details.wire pre{background:var(--bg);border:1px solid var(--line-2);border-radius:4px;padding:10px;
+  overflow:auto;max-width:100%;max-height:380px;font-size:.72rem;line-height:1.45;margin:0;
+  white-space:pre;word-break:normal}
+details.wire h3{margin-bottom:6px;font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3)}
+
+/* ------------------------------------------------------------- tooltip -- */
+.tip{position:fixed;z-index:50;pointer-events:none;background:var(--paper);color:var(--ink);
+  border:1px solid var(--line);border-radius:4px;box-shadow:var(--shadow);padding:7px 9px;
+  font-size:.78rem;max-width:250px;opacity:0;transition:opacity .12s}
+.tip[data-show="1"]{opacity:1}
+.tip .th{font-family:var(--mono);font-weight:700;font-size:.74rem;margin-bottom:3px}
+.tip .tr{color:var(--ink-2);font-size:.75rem}
+
+/* --------------------------------------------------------- final table -- */
+table.summary{width:100%;border-collapse:collapse;font-size:.84rem;margin-top:6px}
+table.summary th,table.summary td{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line-2)}
+table.summary th{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+table.summary td.n{text-align:right;font-variant-numeric:tabular-nums}
+
+footer.foot{border-top:1px solid var(--line);padding:20px 0 40px;font-size:.84rem;color:var(--ink-3)}
+footer.foot a{color:var(--ink-2)}
+.visually-hidden{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;
+  clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ============================================================ the 3D view ==
+   The dungeon is genuinely 3D — rooms stack, so a flat plan overlaps them.
+   The canvas is the primary view; the SVG plan stays available as a toggle
+   because it is the readable one when you want the whole layout at a glance. */
+.viewbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:10px}
+.viewbar .hint{font-size:.76rem}
+.seg-toggle{display:inline-flex;border:1px solid var(--line);border-radius:4px;overflow:hidden}
+.seg-toggle button{border:0;border-radius:0;padding:5px 12px;font-size:.8rem;font-weight:600;
+  background:var(--paper);color:var(--ink-2)}
+.seg-toggle button+button{border-left:1px solid var(--line)}
+.seg-toggle button.on{background:var(--accent);color:var(--accent-ink)}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:var(--ink-2);cursor:pointer}
+.chk input{accent-color:var(--accent)}
+
+.stage{position:relative;aspect-ratio:16/11;border:1px solid var(--line-2);border-radius:4px;
+  overflow:hidden;background:var(--bg)}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.stage-note{position:absolute;inset:auto 10px 10px 10px;padding:8px 10px;border-radius:4px;
+  background:var(--bad-soft);border:1px solid var(--bad);color:var(--ink);font-size:.8rem}
+
+/* ============================================================= telemetry ==
+   Small multiples, NOT a dual axis: health, depth, danger and confidence live
+   on different scales, so each gets its own panel with its own y-domain. The
+   three nouls share one chart because they genuinely share a 0–1 scale. */
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(248px,1fr));gap:14px}
+.chart{border:1px solid var(--line-2);border-radius:var(--radius);padding:10px 12px;background:var(--bg)}
+.chart h3{font-size:.82rem;margin-bottom:1px}
+.chart .cnote{font-size:.72rem;color:var(--ink-3);margin-bottom:7px;min-height:2.1em}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .axis{stroke:var(--line);stroke-width:1}
+.chart .gridline{stroke:var(--line-2);stroke-width:1}
+.chart .lineplot{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.chart .area{stroke:none;opacity:.12}
+.chart .thresh{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:3 3;opacity:.7}
+.chart .lastdot{stroke:var(--paper);stroke-width:1.5}
+.chart .ylab,.chart .xlab{font-family:var(--mono);font-size:8.5px;fill:var(--ink-3)}
+.chart .lastval{font-family:var(--mono);font-size:10px;font-weight:700}
+.chart .crosshair{stroke:var(--ink-3);stroke-width:1;opacity:.55}
+.chart .hit{fill:transparent;cursor:crosshair}
+.clegend{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:7px;font-size:.74rem;color:var(--ink-2)}
+.clegend .k{display:inline-flex;align-items:center;gap:5px}
+.clegend .sw{width:12px;height:3px;border-radius:2px;display:inline-block}
+.chart.empty{display:flex;align-items:center;justify-content:center;min-height:120px;color:var(--ink-3);font-size:.82rem}
+
+/* ============================================================ personality ==
+   Descriptive, about ONE run. Every bar carries its n, and the findings only
+   appear once there are enough points to support them. */
+.profile{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 18px}
+.trait{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.trait .tname{font-size:.85rem;font-weight:600}
+.trait .tband{font-family:var(--mono);font-size:.74rem;color:var(--ink-2)}
+.trait .tbar{grid-column:1/-1;height:9px;border-radius:3px;background:var(--line-2);position:relative;overflow:hidden}
+.trait .tbar i{position:absolute;inset:0 auto 0 0;background:var(--accent);border-radius:0 4px 4px 0;
+  transition:width .4s ease;display:block}
+.trait .tbasis{grid-column:1/-1;font-size:.71rem;color:var(--ink-3);font-family:var(--mono)}
+.findings{margin-top:14px;display:flex;flex-direction:column;gap:8px}
+.finding{border-left:3px solid var(--accent);padding:6px 0 6px 11px;font-size:.84rem;color:var(--ink-2)}
+.finding b{color:var(--ink);display:block;font-size:.8rem}
+.finding.weak{border-left-color:var(--line)}
+.profsum{margin-top:12px;padding:10px 12px;border-radius:var(--radius);background:var(--accent-soft);
+  border:1px solid var(--accent);font-size:.88rem;color:var(--ink)}
+
+/* ========================================================= character sheet ==
+   Rolled from the run seed, so a replay is exact. Kept as one legible strip
+   rather than a panel of its own: it is context for every other panel. */
+.sheet{margin-bottom:18px;padding:12px 16px}
+.sheetgrid{display:flex;flex-wrap:wrap;gap:14px 26px;align-items:center}
+.sheetgrid .who{display:flex;align-items:baseline;gap:8px}
+.sheetgrid .who b{font-family:var(--display);font-size:1.15rem}
+.sheetgrid .lvl{font-family:var(--mono);font-size:.78rem;color:var(--accent);font-weight:700}
+.xpwrap{display:flex;flex-direction:column;gap:3px;min-width:132px}
+.xpwrap .xlab{font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.xpbar{height:7px;border-radius:3px;background:var(--line-2);overflow:hidden}
+.xpbar i{display:block;height:100%;background:var(--accent);border-radius:0 3px 3px 0;transition:width .4s ease}
+.statrow{display:flex;gap:12px}
+.stat{text-align:center;min-width:52px}
+.stat .sv{font-family:var(--display);font-size:1.18rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.stat .sk{font-family:var(--mono);font-size:.62rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3)}
+.pack{display:flex;gap:9px;flex-wrap:wrap}
+.pack .it{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;
+  border:1px solid var(--line);font-size:.79rem;background:var(--bg)}
+.pack .it b{font-variant-numeric:tabular-nums}
+.pack .it[data-empty="1"]{opacity:.42}
+.pack .it[data-usable="1"]{border-color:var(--accent);background:var(--accent-soft)}
+.skillrow{display:flex;gap:6px;flex-wrap:wrap}
+.skillrow .sb{font-size:.74rem;padding:2px 8px;border-radius:99px;background:var(--accent-soft);
+  border:1px solid var(--accent);color:var(--ink)}
+.skillrow .none{font-size:.78rem;color:var(--ink-3)}
+.answer.levelup{border:1px solid var(--warn);background:var(--warn-soft);border-radius:var(--radius);
+  padding:10px 12px;margin-top:10px}
+.answer.levelup .qid{color:var(--warn)}

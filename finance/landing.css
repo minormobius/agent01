@@ -1,0 +1,82 @@
+/* finance/landing.css — the fin.mino.mobi index.
+   Surface tokens come from tokens.css; this file is only the card layout. */
+@import "/tokens.css";
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--surface-0);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); }
+.wrap { max-width: 960px; margin: 0 auto; padding: 2.2rem 16px 4rem; }
+
+header.masthead { margin-bottom: 1.4rem; }
+.eyebrow {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-3); margin: 0 0 0.6rem;
+}
+.eyebrow a { color: inherit; text-decoration: none; }
+.eyebrow a:hover { color: var(--accent); }
+h1 {
+  margin: 0; font-family: var(--serif); font-weight: 600;
+  font-size: clamp(1.9rem, 5.5vw, 2.8rem); letter-spacing: -0.015em; line-height: 1.1;
+}
+h1 .dim { color: var(--ink-3); font-weight: 400; }
+.intro { margin: 0.8rem 0 0; max-width: 66ch; color: var(--ink-2); }
+
+h2 {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 500;
+  margin: 2.2rem 0 0.7rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--rule);
+}
+
+.card {
+  display: flex; gap: 1rem; align-items: flex-start;
+  background: var(--surface-1); border: 1px solid var(--rule); border-radius: 11px;
+  padding: 0.95rem 1.05rem; margin-bottom: 9px;
+  text-decoration: none; color: inherit;
+  transition: border-color 110ms ease, transform 110ms ease;
+}
+.card:hover, .card:focus-visible {
+  border-color: var(--accent); transform: translateY(-1px); outline: none;
+}
+.card:focus-visible { outline: 2px solid var(--gate); outline-offset: 2px; }
+.card .body { flex: 1 1 auto; min-width: 0; }
+.card .name { font-family: var(--serif); font-size: 1.22rem; font-weight: 600; line-height: 1.25; }
+.card .path { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-3); margin-left: 0.5rem; }
+.card .blurb { color: var(--ink-2); font-size: 0.92rem; margin-top: 0.3rem; }
+.card .meta {
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.06em;
+  color: var(--ink-3); margin-top: 0.45rem;
+}
+.card .go { flex: 0 0 auto; color: var(--accent); font-size: 0.86rem; padding-top: 0.25rem; white-space: nowrap; }
+
+.card.hero { border-color: var(--rule-strong); box-shadow: var(--shadow); padding: 1.2rem 1.25rem; }
+.card.hero .name { font-size: 1.55rem; }
+.card.hero .blurb { font-size: 1rem; }
+.figures { display: flex; flex-wrap: wrap; gap: 0.35rem 1.4rem; margin-top: 0.7rem; }
+.figures div { font-family: var(--mono); font-size: 0.7rem; color: var(--ink-3); }
+.figures b { display: block; font-family: var(--serif); font-size: 1.15rem; color: var(--ink); font-weight: 600; }
+
+.rows { font-size: 0.88rem; }
+.rows a { display: inline-block; font-family: var(--mono); font-size: 0.8rem; margin-right: 1rem; }
+.note { color: var(--ink-3); font-size: 0.82rem; margin-top: 0.5rem; }
+footer.foot {
+  margin-top: 2.6rem; padding-top: 1rem; border-top: 1px solid var(--rule);
+  font-size: 0.8rem; color: var(--ink-3);
+}
+footer.foot a { margin-right: 1.1rem; }
+
+@media (max-width: 560px) {
+  .card { flex-direction: column; gap: 0.5rem; }
+  .card .go { padding-top: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+  .card:hover, .card:focus-visible { transform: none; }
+}

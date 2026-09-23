@@ -15,7 +15,7 @@ Hub for the extremal-geometry pack. Family-resemblance table sortable by era, te
 | Dir | `geometry/` |
 | Endpoint | `math.mino.mobi` |
 | Type | frontend |
-| Owning branch | `claude/holder-continuous-procgen-arqnj4` |
+| Owning branch | `claude/szilassi-polyhedron-3d-cmwpb9` |
 | Deploy | `.github/workflows/deploy-math.yml` |
 | Uses | — |
 | Provides | — |
@@ -32,7 +32,7 @@ MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain ma
 
 ## The geometry pack (`/geometry/` + siblings) — interactive math explainers
 
-Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
+Single-file static canvas pages on extremal-geometry results, sharing a scaffold (crumb → mino.mobi, accent colour, sister crossref, tabs, docs). Hub at `/geometry/` (sortable resemblance table + roadmap in `geometry/IDEAS.md`). Members: `erdos`, `guthkatz`, `hadwiger`, `runner`, `kakeya`, `capset`, `szemeredi-trotter`, `heilbronn`, `borsuk`, `viazovska`, `cohomology`, `voronoi`, `arnold`, `szilassi`, `csaszar`, `equivelar`; plus the adjacent `/elements/` periodic-table mandala. Pure static — deploy with the root Pages site. When adding one: follow `geometry/IDEAS.md` anti-patterns, validate the math in the commit body, add to the root `index.html` PROJECTS array, and re-run `scripts/generate-search-catalog.mjs` + `scripts/generate-og-card.mjs`.
 
 ## `/cohomology/` — the one page with its own engine module
 
@@ -126,9 +126,98 @@ button compares the two. Seeds vary the image only through area-preserving maps
 of the torus and cube symmetries, so the flatness is never lost. Full notes and
 the four things not to break in [`../arnold/CLAUDE.md`](../arnold/CLAUDE.md).
 
+## `/szilassi/` — the fourth engine module, and the pack's one 3-D object
+
+`szilassi/` follows `cohomology/`, `voronoi/` and `arnold/`: the maths is
+**`szilassi/poly.js`**, an ES module the page loads, and
+**`szilassi/poly.selftest.mjs` imports the exact file the browser runs**.
+
+```bash
+node szilassi/poly.selftest.mjs   # ~1 s, 449 checks
+```
+
+The Szilassi polyhedron — 7 hexagons on a torus, every one of the 21 face pairs
+sharing an edge — as a WebGL model laid out for a phone: object in the top two
+thirds, controls in the bottom third. It is the pack's first page whose subject
+*is* a solid, and its engine rests on one observation: every corner is 3-valent,
+so every corner is where three face planes cross, and there are only seven
+faces. **Seven planes are the whole object**, nothing is solved for, and the
+faces are planar by construction rather than by tolerance.
+
+That also answers the obvious question with a number: 21 plane parameters minus
+7 similarities of space is a **14-parameter family**, 7 of them if you hold the
+180° symmetry, both measured as a Jacobian rank on the shape on screen. The
+sliders are those freedoms, and pushing them far enough stops the hexagons
+bounding a solid — which the page detects exactly and names.
+
+Full notes, and the things not to break, in
+[`../szilassi/CLAUDE.md`](../szilassi/CLAUDE.md). The short version: the
+published coordinates are exact and are not to be tidied, the acopticity test
+must stay the line-walk (the cheap one-sided test is wrong on this very solid),
+and the camera fit is silhouette-based over a whole turn on purpose.
+
+## `/csaszar/` — the dual of `/szilassi/`, and the pack's first pair
+
+`csaszar/` is the same solid seen from the other side: 7 corners, 21 edges, 14
+triangles, and **no diagonals** — every segment between two of its corners is
+already an edge of it. Its engine is **`csaszar/poly.js`**, and
+**`csaszar/poly.selftest.mjs` imports both that and `../szilassi/poly.js`**,
+because the duality is one of the things it checks.
+
+```bash
+node csaszar/poly.selftest.mjs   # ~3 s, 168 checks
+```
+
+The two pages invert each other and are meant to be read as a pair. Szilassi is
+seven *planes*, and flatness is the thing that has to be bought; Császár is
+seven *points*, and flatness is free because three points are always coplanar.
+Both come out at 21 numbers and, after the similarities, **14** shape freedoms.
+
+Where Szilassi's extra content is the acoptic region, Császár's is a
+classification: the 35 signs of the oriented matroid cannot change while the
+shape stays a solid, so its realizations fall into separate connected pieces
+that no deformation joins. Four ship, from Szilassi's own models; the count in
+the literature is 72, and the shipped census finds 62 of them.
+
+Full notes in [`../csaszar/CLAUDE.md`](../csaszar/CLAUDE.md). The short
+version: keep the acopticity line-walk (distinct parallel planes are fine,
+coincident ones are not), keep the selftest's second independent verdict, and
+remember that `symmetrize()` rotates displacements rather than copying them.
+
+## `/equivelar/` — eight faces all touching, and what that does and does not settle
+
+`equivelar/` is the sequel to the open question `/szilassi/` prints in its own
+unsolved box. Eight planar nonagons on a genus-3 surface with every one of the
+28 face pairs adjacent — the first solid known past seven — from an integer
+certificate published in September 2026 (arXiv:2609.17700).
+
+```bash
+node equivelar/poly.selftest.mjs   # ~2 s, 288 checks
+```
+
+That is a v1 preprint whose own acknowledgments mention model-assisted
+calculation, so **the selftest re-derives the entire certificate from the
+published integers before anything uses it**, in exact integer arithmetic with
+no tolerance anywhere, plus an independent 30 000-point resampling of the 28
+crossing lines. It all checks out.
+
+The thing to get right when talking about it: it beats the classical count
+`h = (f−4)(f−3)/12` by breaking that count's hidden assumption. Eight of the 28
+pairs share **two** edges, not one — Grünbaum & Szilassi's *overarching* case,
+which they set aside by hypothesis. So it answers the question as usually
+written and leaves `f = 12, h = 6` exactly where it was.
+
+Engine is the `/szilassi/` architecture with one more plane (every corner is
+3-valent, so eight planes are the whole solid) giving **17** shape freedoms
+against Szilassi's 14 — but with only 4.1% clearance it is a far more fragile
+object. Full notes in [`../equivelar/CLAUDE.md`](../equivelar/CLAUDE.md); the
+two that bite are that the pair test must compare against a *set* of shared
+edges, and that the symmetry is a rotary reflection (S₄, det −1), so the lock
+flips the tilt sign round each orbit instead of copying it.
+
 ## Deploying
 
-Pushes to `claude/holder-continuous-procgen-arqnj4` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
+Pushes to `claude/szilassi-polyhedron-3d-cmwpb9` that touch this surface's paths trigger [`.github/workflows/deploy-math.yml`](../.github/workflows/deploy-math.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

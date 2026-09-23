@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>sharp &mdash; single-syllable words, minted and real</title>
+<meta name="description" content="Press a button, get a word of one syllable. Either a real one from the 7,625 English has, or a new one that obeys English phonotactics and has no definition yet. Plus a checker: is this string taken, and is it one syllable?">
+<meta property="og:title" content="sharp">
+<meta property="og:description" content="One syllable, no meaning. Mint English-shaped words nobody has claimed — with pronunciation, rhymes, and a plausibility score — or draw a real one from the corpus.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://rite.mino.mobi/sharp/">
+<style>
+:root {
+  --bg: #faf9f6; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --accent-faint: rgba(139, 0, 0, 0.06);
+  --good: #1f6f43; --card-bg: #fff; --chip-bg: #f0ede6;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --accent: #c97070; --accent-faint: rgba(201, 112, 112, 0.1);
+    --good: #6cc08b; --card-bg: #1a1a1a; --chip-bg: #222;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: var(--serif); font-size: 17px; line-height: 1.55;
+  padding: 1.5rem 1rem 4rem; min-height: 100vh;
+}
+.wrap { max-width: 860px; margin: 0 auto; }
+header.app { border-bottom: 1px solid var(--rule); padding-bottom: 1rem; margin-bottom: 1.2rem; }
+h1 { font-size: 2rem; margin: 0; font-weight: 700; letter-spacing: -0.02em; }
+h1 .dot { color: var(--accent); }
+.subtitle { color: var(--muted); font-style: italic; font-size: 0.95rem; margin: 0.3rem 0 0; }
+.subtitle a, a { color: var(--accent); }
+h2 { font-size: 1.15rem; margin: 2.4rem 0 0.6rem; font-weight: 700; }
+h2 .hint { font-weight: 400; font-style: italic; color: var(--muted); font-size: 0.85rem; }
+code, pre { font-family: var(--mono); font-size: 0.82em; }
+pre {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 8px;
+  padding: 0.8rem 1rem; overflow-x: auto; line-height: 1.5;
+}
+button {
+  font-family: var(--serif); font-size: 0.95rem; cursor: pointer;
+  border: 1px solid var(--rule); border-radius: 6px; padding: 0.38rem 0.9rem;
+  background: var(--bg); color: var(--text);
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+select, input[type=text], input[type=number] {
+  font-family: var(--serif); font-size: 0.95rem; color: var(--text);
+  background: var(--bg); border: 1px solid var(--rule); border-radius: 6px;
+  padding: 0.35rem 0.5rem;
+}
+
+/* ---- the stage ---- */
+.stage {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 1.6rem 1.2rem 1.3rem; text-align: center; margin: 1.2rem 0 0;
+}
+.word {
+  font-size: clamp(2.6rem, 13vw, 5rem); font-weight: 700; letter-spacing: -0.03em;
+  line-height: 1.05; margin: 0; cursor: pointer; word-break: break-word;
+}
+.word:hover { color: var(--accent); }
+.word.blank { color: var(--muted); font-weight: 400; font-style: italic; font-size: clamp(1.4rem, 6vw, 2rem); }
+.say { font-family: var(--mono); font-size: 1rem; color: var(--muted); margin: 0.3rem 0 0; min-height: 1.4em; }
+.say .guess { font-style: italic; font-family: var(--serif); font-size: 0.85rem; }
+.verdictline { font-size: 0.9rem; font-style: italic; color: var(--muted); margin: 0.5rem 0 0; min-height: 1.3em; }
+.verdictline.taken { color: var(--accent); }
+.verdictline.free { color: var(--good); }
+.bigbtn { margin-top: 1.1rem; display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+.bigbtn button.primary { font-size: 1.05rem; padding: 0.55rem 1.6rem; }
+.kbd { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); }
+
+.facts { margin: 1.1rem 0 0; text-align: left; border-top: 1px solid var(--rule); padding-top: 0.9rem; display: none; }
+.facts.on { display: block; }
+.fact { display: flex; gap: 0.6rem; align-items: baseline; margin: 0.35rem 0; flex-wrap: wrap; }
+.fact .k {
+  font-family: var(--mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em;
+  color: var(--muted); min-width: 6.2rem; flex-shrink: 0;
+}
+.fact .v { font-size: 0.95rem; }
+.chip {
+  display: inline-block; font-family: var(--mono); font-size: 0.78rem;
+  background: var(--chip-bg); border: 1px solid var(--rule); border-radius: 999px;
+  padding: 0.04rem 0.55rem; margin: 0.1rem 0.12rem 0.1rem 0; color: var(--text); cursor: pointer;
+}
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.flat { cursor: default; } .chip.flat:hover { border-color: var(--rule); color: var(--text); }
+.meter { display: inline-flex; align-items: center; gap: 0.5rem; }
+.meter .bar { width: 7rem; height: 7px; background: var(--chip-bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--rule); }
+.meter .bar i { display: block; height: 100%; background: var(--accent); }
+.meter .num { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+
+/* ---- controls ---- */
+.controls {
+  display: flex; flex-wrap: wrap; gap: 0.7rem 1rem; align-items: flex-end;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.85rem 1rem; margin: 0.8rem 0 0;
+}
+.ctl { display: flex; flex-direction: column; gap: 0.2rem; }
+.ctl[hidden] { display: none; }
+.ctl label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-family: var(--mono); }
+.ctl.grow { flex: 1 1 8rem; } .ctl.grow input { width: 100%; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; padding: 0.35rem 0.85rem; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed=true] { background: var(--accent); color: #fff; font-weight: 700; }
+input[type=range] { width: 10rem; accent-color: var(--accent); }
+.blurbline { font-size: 0.85rem; color: var(--muted); font-style: italic; margin: 0.45rem 0 0; min-height: 1.2em; }
+
+/* ---- batch ---- */
+.batchhead { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: baseline; margin: 1.5rem 0 0.4rem; }
+.batchhead .tools { margin-left: auto; display: flex; gap: 0.4rem; }
+.batchhead .tools button { font-size: 0.8rem; padding: 0.24rem 0.6rem; }
+#grid {
+  columns: 4 140px; column-gap: 1.2rem;
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.9rem 1.1rem; min-height: 3rem;
+}
+#grid .w { display: block; break-inside: avoid; cursor: pointer; border-radius: 4px; padding: 0.05rem 0.3rem; }
+#grid .w:hover { background: var(--accent-faint); }
+#grid .w .sc { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); }
+#grid .w.copied { color: var(--accent); font-weight: 700; }
+
+/* ---- checker ---- */
+.dom { margin-top: 0.7rem; }
+.domgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: 0.35rem; }
+.dcell {
+  display: flex; align-items: baseline; gap: 0.4rem; font-family: var(--mono); font-size: 0.82rem;
+  border: 1px solid var(--rule); border-radius: 6px; padding: 0.28rem 0.5rem; background: var(--bg);
+}
+.dcell .dot2 { width: 0.5rem; height: 0.5rem; border-radius: 50%; flex-shrink: 0; background: var(--muted); }
+.dcell.free  { border-color: var(--good); } .dcell.free .dot2  { background: var(--good); }
+.dcell.taken { opacity: 0.55; } .dcell.taken .dot2 { background: var(--accent); }
+.dcell.unverifiable .dot2, .dcell.unknown .dot2 { background: transparent; border: 1px solid var(--muted); }
+.dcell .why { font-size: 0.68rem; color: var(--muted); margin-left: auto; }
+.shelfhead { display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: baseline; margin: 2.4rem 0 0.4rem; }
+.shelfhead .tools { margin-left: auto; display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.shelfhead .tools button { font-size: 0.8rem; padding: 0.24rem 0.6rem; }
+#shelf { background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px; padding: 0.4rem 0.6rem; }
+.row {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.45rem 0.35rem; border-bottom: 1px solid var(--rule);
+}
+.row:last-child { border-bottom: 0; }
+.row .w { font-weight: 700; font-size: 1.1rem; cursor: pointer; }
+.row .w:hover { color: var(--accent); }
+.row .ipa { font-family: var(--mono); font-size: 0.8rem; color: var(--muted); }
+.row .tag {
+  font-family: var(--mono); font-size: 0.68rem; border: 1px solid var(--rule);
+  border-radius: 999px; padding: 0.02rem 0.45rem; color: var(--muted);
+}
+.row .tag.ok { border-color: var(--good); color: var(--good); }
+.row .tag.synced { border-color: var(--accent); color: var(--accent); }
+.row .acts { margin-left: auto; display: flex; gap: 0.3rem; }
+.row .acts button { font-size: 0.75rem; padding: 0.15rem 0.5rem; }
+.empty { color: var(--muted); font-style: italic; font-size: 0.9rem; padding: 0.5rem 0.35rem; }
+.signin { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; margin: 0.6rem 0 0; font-size: 0.86rem; color: var(--muted); }
+.signin input { width: 12rem; font-size: 0.88rem; }
+.signin .who { font-family: var(--mono); font-size: 0.78rem; color: var(--text); }
+.notice { font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 0.45rem 0 0; }
+.notice b { font-style: normal; }
+.legend { font-size: 0.72rem; color: var(--muted); margin: 0.5rem 0 0; font-family: var(--mono); }
+.caveat { font-size: 0.82rem; color: var(--muted); font-style: italic; margin: 0.6rem 0 0; }
+.checkrow { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch; margin: 0.6rem 0 0; }
+.checkrow input {
+  flex: 1 1 12rem; font-size: 1.15rem; font-family: var(--serif); padding: 0.5rem 0.7rem;
+}
+#checkout {
+  background: var(--card-bg); border: 1px solid var(--rule); border-radius: 10px;
+  padding: 0.9rem 1.1rem; margin-top: 0.7rem; display: none;
+}
+#checkout.on { display: block; }
+.ruling { font-size: 1.05rem; margin: 0 0 0.5rem; }
+.ruling b { font-weight: 700; }
+.ruling .tick { color: var(--good); } .ruling .cross { color: var(--accent); }
+table.apidoc { border-collapse: collapse; }
+table.apidoc td { padding: 0.18rem 0.9rem 0.18rem 0; vertical-align: top; font-size: 0.88rem; }
+table.apidoc code { white-space: nowrap; }
+footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.85rem; color: var(--muted); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="app">
+  <h1>sharp<span class="dot">.</span></h1>
+  <p class="subtitle">One syllable. Press the button.
+    Either a real word from the <b id="corpusCount">7,625</b> English has &mdash; or a new one that obeys
+    English phonotactics and has no definition attached to it yet.
+    Part of <a href="/">rite</a>.</p>
+</header>
+
+<div class="controls" role="group" aria-label="mode">
+  <div class="ctl">
+    <label for="modeSeg">mode</label>
+    <div class="seg" id="modeSeg">
+      <button id="modeMint" aria-pressed="true">mint</button>
+      <button id="modeReal" aria-pressed="false">real</button>
+    </div>
+  </div>
+  <div class="ctl" id="styleCtl">
+    <label for="style">style</label>
+    <select id="style"></select>
+  </div>
+  <div class="ctl" id="obscCtl" hidden>
+    <label for="obsc">common &mdash; obscure</label>
+    <input type="range" id="obsc" min="0" max="100" value="35">
+  </div>
+  <div class="ctl grow">
+    <label for="seed">seed <span class="kbd">(a seed is a permalink)</span></label>
+    <input type="text" id="seed" placeholder="leave blank for a fresh one" autocomplete="off" spellcheck="false">
+  </div>
+  <p class="blurbline" id="blurb"></p>
+</div>
+
+<div class="stage">
+  <p class="word blank" id="word" title="click to copy">press the button</p>
+  <p class="say" id="say"></p>
+  <p class="verdictline" id="verdict"></p>
+  <div class="bigbtn">
+    <button class="primary" id="go">another</button>
+    <button id="keep">keep &amp; check</button>
+  </div>
+  <p class="kbd" style="margin:.6rem 0 0">space or enter for another &middot; click the word to copy</p>
+
+  <div class="facts" id="facts">
+    <div class="fact" id="fScore"><span class="k">english-ness</span><span class="v"></span></div>
+    <div class="fact" id="fParts"><span class="k">shape</span><span class="v"></span></div>
+    <div class="fact" id="fHomo"><span class="k">sounds like</span><span class="v"></span></div>
+    <div class="fact" id="fRhyme"><span class="k">rhymes with</span><span class="v"></span></div>
+    <div class="fact" id="fNear"><span class="k">one letter off</span><span class="v"></span></div>
+  </div>
+</div>
+
+<div class="batchhead">
+  <h2 style="margin:0">a handful at a time <span class="hint">&mdash; click any to copy</span></h2>
+  <div class="tools">
+    <button id="more">give me 60</button>
+    <button id="copyAll">copy all</button>
+  </div>
+</div>
+<div id="grid"></div>
+
+<h2>is it taken? <span class="hint">&mdash; type anything</span></h2>
+<p style="margin:.2rem 0 0;font-size:.92rem;color:var(--muted)">
+  Two questions, answered separately: has English already claimed this string, and does it come out
+  in one syllable? A word can fail either and pass the other.
+</p>
+<div class="checkrow">
+  <label class="sr" for="q">word to check</label>
+  <input type="text" id="q" placeholder="thrimp" autocomplete="off" spellcheck="false" autocapitalize="off">
+  <button class="primary" id="checkBtn">check</button>
+</div>
+<div id="checkout"></div>
+
+<h2>is it free? <span class="hint">&mdash; the same string, asked of the registries</span></h2>
+<p style="margin:.2rem 0 0;font-size:.92rem;color:var(--muted)">
+  A word nobody has defined is often also a word nobody has registered. This asks
+  <b>RDAP</b> &mdash; the machine-readable successor to WHOIS &mdash; one TLD at a time, routing each
+  query through IANA's own bootstrap so the answer comes from the registry that actually holds the
+  zone.
+</p>
+<div class="checkrow">
+  <label class="sr" for="dq">domain label to look up</label>
+  <input type="text" id="dq" placeholder="lounce" autocomplete="off" spellcheck="false" autocapitalize="off">
+  <button class="primary" id="domBtn">look up</button>
+  <button id="domMint">mint one first</button>
+</div>
+<div class="dom" id="domout"></div>
+
+<div class="shelfhead">
+  <h2 style="margin:0">the shelf <span class="hint">&mdash; words you kept</span></h2>
+  <div class="tools">
+    <button id="shelfSync" hidden>sync</button>
+    <button id="shelfCopy">copy</button>
+    <button id="shelfExport">export</button>
+    <button id="shelfClear">clear</button>
+  </div>
+</div>
+<div id="shelf"><p class="empty">Nothing kept yet. Press <b>keep &amp; check</b> on a word you like.</p></div>
+<div class="signin" id="signin"></div>
+<p class="notice" id="shelfNote"></p>
+
+<h2>how it works</h2>
+<p style="font-size:.95rem">
+  The wardrobe is not hand-written. Every real English monosyllable is cut into
+  <b>onset</b>, <b>nucleus</b> and <b>coda</b> &mdash; <code>str&middot;e&middot;ngth</code>,
+  <code>m&middot;o(e)&middot;l</code> &mdash; and the minter samples from the resulting conditional
+  distributions: which onsets English uses, which vowels follow them, which codas follow those.
+  So a minted word is shaped by English's own habits rather than by someone's idea of them.
+</p>
+<p style="font-size:.95rem">
+  A candidate ships only if it survives all four gates: it must re-segment to the parts it was built
+  from, read as <b>one syllable</b>, not look like a plural or a past tense of a word that does not
+  exist, and appear in <b>no</b> word list &mdash; ENABLE1, SUBTLEX-US, or CMUdict, about
+  <b id="claimedCount">250,000</b> strings in total. What comes out is a shape with no meaning
+  attached. <b>English-ness</b> is its percentile against the real corpus's own log-probability:
+  50 means as ordinary as the median real monosyllable.
+</p>
+<p style="font-size:.95rem">
+  The pronunciation is a guess assembled from real words spelled the same way &mdash; the onset's
+  usual phones plus the rime's &mdash; which is also how a minted word knows what it rhymes with,
+  and how it can tell you it is already taken in the ear even when it is free on the page.
+  <i>Syllable counts for real words come from CMUdict; for invented ones a heuristic does it, and
+  it agrees with CMUdict on 93% of real words exactly, and on 97/99.8 precision/recall for the
+  one-syllable call alone.</i>
+</p>
+
+<p style="font-size:.95rem">
+  The domain side runs on two files IANA publishes and nothing else: the list of every delegated
+  TLD, and the <b>RDAP bootstrap</b> that maps a TLD to its registry's service. A name is only
+  called <b>free</b> when the registry that owns the zone answered <code>404</code> itself. When a
+  TLD publishes no RDAP service &mdash; <code>.io</code>, <code>.sh</code>, <code>.co</code> and
+  <code>.me</code> among about <b id="unverCount">236</b> others &mdash; the answer is
+  <b>unverifiable</b>, and a rate limit or a timeout is <b>unknown</b>. Neither is ever rounded down
+  to &ldquo;free&rdquo;: the public redirector returns a 404 reading <i>no RDAP service is available</i>
+  for every <code>.io</code> name, registered or not, and a tool that believes it will tell you
+  <code>github.io</code> is going spare.
+</p>
+
+<p style="font-size:.95rem">
+  <b>The shelf</b> keeps what you liked. By default it lives in this browser and nowhere else &mdash;
+  no account, no server, and no survival: a cleared cache, another device or a private window and it
+  is gone. Sign in with a Bluesky handle and each kept word is also written to
+  <b>your own ATProto repo</b> as one <code>com.minomobi.sharp.word</code> record: portable, readable
+  by anything on the network, and stored here not at all. The two reconcile by word, newest wins, so
+  keeping something on a phone and opening this on a laptop converges instead of forking.
+  The consent screen asks for that one collection and nothing else.
+</p>
+
+<h2>API <span class="hint">&mdash; open, CORS on, no key</span></h2>
+<pre id="apiEx">GET /api/sharp?style=blunt&amp;count=12
+GET /api/sharp?mode=real&amp;obscurity=0.2&amp;count=12
+GET /api/sharp/check?w=thrimp
+GET /api/sharp/styles
+GET /api/sharp/domain?label=thrimp&amp;tlds=com,dev,ai
+GET /api/sharp/tlds?endswith=flash</pre>
+<table class="apidoc">
+  <tr><td><code>seed</code></td><td>any string. Same seed, same words, forever. Omit it and you get a fresh one back.</td></tr>
+  <tr><td><code>mode</code></td><td><code>mint</code> (default) invents; <code>real</code> draws from the corpus.</td></tr>
+  <tr><td><code>style</code></td><td id="styleList">mint only.</td></tr>
+  <tr><td><code>obscurity</code></td><td>real only, 0&ndash;1. 0 draws from the commonest words, 1 from the ones nobody reaches for.</td></tr>
+  <tr><td><code>count</code></td><td>1&ndash;500. Default 24.</td></tr>
+  <tr><td><code>minLen</code>, <code>maxLen</code></td><td>mint only, in letters.</td></tr>
+  <tr><td><code>inflected</code></td><td>mint only. <code>1</code> allows forms that read as a plural or a past tense (<code>stalms</code>, <code>sunked</code>). Off by default.</td></tr>
+  <tr><td><code>distinct</code></td><td>mint only, per million. Rejects a word sitting one edit from a real word that common &mdash; <code>grought</code> is a legal shape that reads as a typo of <code>brought</code>. 0 keeps them.</td></tr>
+  <tr><td><code>w</code></td><td><code>/check</code> only: the string to adjudicate.</td></tr>
+  <tr><td><code>label</code>, <code>tlds</code></td><td><code>/domain</code> only: one label against up to 16 TLDs. Or pass <code>name=thrimp.com</code>.</td></tr>
+  <tr><td><code>endswith</code></td><td><code>/tlds</code> only: every way a word can be cut so the tail is a real TLD. <code>flash</code> &rarr; <code>fla.sh</code>.</td></tr>
+</table>
+
+<footer>
+  <p><b>Sources.</b> Pronunciations and syllable counts from
+    <a href="https://github.com/cmusphinx/cmudict">CMUdict</a>; the dictionary word list from
+    <a href="https://github.com/dolph/dictionary">ENABLE1</a>; frequencies from SUBTLEX-US.
+    Engine, corpus builder and selftest live in <code>rite/sharp/</code>.</p>
+  <p>A minted word is a shape, not a claim. Nothing here has been checked against a trademark register.</p>
+</footer>
+
+</div>
+
+<script type="module">
+import { AuthClient } from './auth.js';
+import { Shelf, browserStore, freeCount, toRecord, fromRecord, rkeyOf, ceilingAllows, COLLECTION, SCOPE } from './shelf.js';
+
+const $ = (id) => document.getElementById(id);
+const API = '/api/sharp';
+const ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ESCAPES[c]); }
+function chips(list) { return list.map((x) => `<span class="chip" data-check="${esc(x)}">${esc(x)}</span>`).join(''); }
+
+const state = {
+  mode: 'mint',
+  style: 'native',
+  obscurity: 0.35,
+  seed: '',
+  buffer: [],        // pre-fetched words, dealt one at a time
+  dealtFrom: '',     // the seed the current deck came from
+  current: null,
+  styles: [],
+  filling: null,
+};
+
+// ---------- boot ----------
+
+const params = new URLSearchParams(location.search);
+if (params.get('mode') === 'real') state.mode = 'real';
+if (params.get('style')) state.style = params.get('style');
+if (params.get('seed')) state.seed = params.get('seed');
+if (params.get('obscurity')) state.obscurity = Number(params.get('obscurity'));
+$('seed').value = state.seed;
+$('obsc').value = Math.round(state.obscurity * 100);
+
+const fmt = (n) => n.toLocaleString('en-US');
+
+try {
+  const cat = await (await fetch(`${API}/styles`)).json();
+  state.styles = cat.styles;
+  $('style').innerHTML = cat.styles.map((s) => `<option value="${s.key}">${s.label}</option>`).join('');
+  $('style').value = state.styles.some((s) => s.key === state.style) ? state.style : 'native';
+  state.style = $('style').value;
+  $('corpusCount').textContent = fmt(cat.corpus.monosyllables);
+  $('claimedCount').textContent = fmt(cat.corpus.claimed);
+  $('styleList').textContent = cat.styles.map((s) => s.key).join(', ') + '. Default native.';
+  try {
+    const t = await (await fetch(`${API}/tlds`)).json();
+    $('unverCount').textContent = fmt(t.counts.tlds - t.counts.verifiable);
+  } catch { /* the number in the copy is close enough if the call fails */ }
+  setBlurb();
+} catch { $('blurb').textContent = 'could not reach the engine'; }
+
+applyMode();
+
+// ---------- the button ----------
+
+async function fill() {
+  const q = new URLSearchParams({ count: '24' });
+  if (state.seed) q.set('seed', state.seed);
+  if (state.mode === 'real') { q.set('mode', 'real'); q.set('obscurity', String(state.obscurity)); }
+  else { q.set('style', state.style); }
+  const r = await (await fetch(`${API}?${q}`)).json();
+  if (r.error) throw new Error(r.error);
+  state.buffer = r.words;
+  state.dealtFrom = r.seed;          // what this deck came from — the permalink
+  // A seeded request is the same 24 words every time, so once a deck has been
+  // asked for, the seed has to move on or the button stops doing anything.
+  if (state.seed) { state.seed = ''; $('seed').value = ''; }
+}
+
+async function next() {
+  if (!state.buffer.length) {
+    $('word').textContent = '…';
+    $('word').classList.add('blank');
+    try { await fill(); } catch (e) { $('verdict').textContent = String(e.message || e); return; }
+  }
+  show(state.buffer.shift());
+  if (state.buffer.length < 6 && !state.filling) {
+    state.filling = fill().catch(() => {}).finally(() => { state.filling = null; });
+  }
+}
+
+function show(w) {
+  state.current = w;
+  $('word').textContent = w.word;
+  $('word').classList.remove('blank');
+  $('say').innerHTML = w.say
+    ? `/${w.say.ipa}/ ${w.taken ? '' : '<span class="guess">&mdash; as English would read it</span>'}`
+    : '<span class="guess">no English spelling reads this</span>';
+  const v = $('verdict');
+  if (w.taken) {
+    v.className = 'verdictline taken';
+    v.textContent = `real word · ${w.freq >= 1 ? w.freq.toFixed(1) + ' per million' : 'rare — ' + w.freq.toFixed(2) + ' per million'}`;
+  } else {
+    v.className = 'verdictline free';
+    v.textContent = w.homophones && w.homophones.length
+      ? `unclaimed on the page — but the ear already has “${w.homophones[0]}”`
+      : 'no dictionary claims this';
+  }
+  facts(w);
+  const q = state.mode === 'real'
+    ? { mode: 'real', obscurity: String(state.obscurity) }
+    : { style: state.style };
+  if (state.dealtFrom) q.seed = state.dealtFrom;
+  history.replaceState(null, '', `?${new URLSearchParams(q)}`);
+}
+
+function facts(w) {
+  $('facts').classList.add('on');
+  const row = (id, html) => {
+    const el = $(id);
+    el.style.display = html ? 'flex' : 'none';
+    if (html) el.querySelector('.v').innerHTML = html;
+  };
+  row('fScore', w.score === null || w.score === undefined ? '' :
+    `<span class="meter"><span class="bar"><i style="width:${w.score}%"></i></span><span class="num">${w.score}/100</span></span>`);
+  row('fParts', w.parts
+    ? `<span class="chip flat">${w.parts.onset || '∅'}</span><span class="chip flat">${w.parts.nucleus}</span><span class="chip flat">${w.parts.coda || '∅'}</span>`
+    : '');
+  row('fHomo', (w.homophones || []).length ? chips(w.homophones) : '');
+  row('fRhyme', (w.rhymes || []).length ? chips(w.rhymes) : '');
+  row('fNear', (w.neighbours || []).length ? chips(w.neighbours) : '');
+}
+
+// ---------- controls ----------
+
+function applyMode() {
+  const mint = state.mode === 'mint';
+  $('modeMint').setAttribute('aria-pressed', String(mint));
+  $('modeReal').setAttribute('aria-pressed', String(!mint));
+  $('styleCtl').hidden = !mint;
+  $('obscCtl').hidden = mint;
+  setBlurb();
+}
+
+function setBlurb() {
+  if (state.mode === 'real') {
+    $('blurb').textContent = 'Real words, drawn from the corpus. The dial walks from the commonest to the ones nobody reaches for.';
+  } else {
+    const s = state.styles.find((x) => x.key === state.style);
+    $('blurb').textContent = s ? s.blurb : '';
+  }
+}
+
+function reset() { state.buffer = []; next(); }
+
+$('modeMint').onclick = () => { state.mode = 'mint'; applyMode(); reset(); };
+$('modeReal').onclick = () => { state.mode = 'real'; applyMode(); reset(); };
+$('style').onchange = () => { state.style = $('style').value; setBlurb(); reset(); };
+$('obsc').oninput = () => { state.obscurity = Number($('obsc').value) / 100; };
+$('obsc').onchange = () => reset();
+$('seed').onchange = () => { state.seed = $('seed').value.trim(); reset(); };
+$('go').onclick = () => next();
+$('keep').onclick = async () => {
+  const w = state.current;
+  if (!w) return;
+  shelf.keep({
+    word: w.word, score: w.score, taken: w.taken, syllables: w.syllables, say: w.say,
+    rhymes: w.rhymes, homophones: w.homophones, origin: state.mode === 'real' ? 'real' : 'mint',
+    style: state.mode === 'real' ? null : state.style, seed: state.dealtFrom || null,
+  });
+  drawShelf();
+  $('q').value = w.word;
+  $('dq').value = w.word;
+  runCheck();
+  $('checkout').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // The registries are the slow half, so they run after the word facts are up.
+  const results = await lookup(w.word);
+  if (results) { shelf.setDomains(w.word, results); drawShelf(); }
+  syncOne(w.word);
+};
+
+document.addEventListener('keydown', (e) => {
+  if (e.target.matches('input, select, textarea')) return;
+  if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); next(); }
+});
+
+$('word').onclick = () => { if (state.current) copy(state.current.word, $('word')); };
+
+document.addEventListener('click', (e) => {
+  const chip = e.target.closest('.chip[data-check]');
+  if (!chip) return;
+  $('q').value = chip.dataset.check;
+  runCheck();
+  $('checkout').scrollIntoView({ behavior: 'smooth', block: 'center' });
+});
+
+function copy(text, el) {
+  navigator.clipboard?.writeText(text).then(() => {
+    el.classList.add('copied');
+    setTimeout(() => el.classList.remove('copied'), 550);
+  }).catch(() => {});
+}
+
+// ---------- the handful ----------
+
+let batch = [];
+$('more').onclick = async () => {
+  $('grid').textContent = 'minting…';
+  const q = new URLSearchParams({ count: '60' });
+  if (state.mode === 'real') { q.set('mode', 'real'); q.set('obscurity', String(state.obscurity)); }
+  else q.set('style', state.style);
+  try {
+    const r = await (await fetch(`${API}?${q}`)).json();
+    batch = r.words.map((w) => w.word);
+    $('grid').innerHTML = r.words.map((w) =>
+      `<span class="w" data-w="${esc(w.word)}">${esc(w.word)} <span class="sc">${w.score ?? ''}</span></span>`).join('');
+  } catch { $('grid').textContent = 'could not reach the engine'; }
+};
+$('copyAll').onclick = () => { if (batch.length) copy(batch.join('\n'), $('copyAll')); };
+$('grid').onclick = (e) => {
+  const el = e.target.closest('.w');
+  if (el) copy(el.dataset.w, el);
+};
+
+// ---------- the checker ----------
+
+$('checkBtn').onclick = () => runCheck();
+$('q').addEventListener('keydown', (e) => { if (e.key === 'Enter') runCheck(); });
+
+async function runCheck() {
+  const w = $('q').value.trim();
+  const out = $('checkout');
+  if (!w) { out.classList.remove('on'); return; }
+  out.classList.add('on');
+  out.innerHTML = '<p class="ruling">checking…</p>';
+  let r;
+  try { r = await (await fetch(`${API}/check?w=${encodeURIComponent(w)}`)).json(); }
+  catch { out.innerHTML = '<p class="ruling">could not reach the engine</p>'; return; }
+  if (!r.ok) { out.innerHTML = `<p class="ruling">${esc(r.reason || 'nothing to check')}</p>`; return; }
+
+  const yes = '<span class="tick">✓</span>', no = '<span class="cross">✗</span>';
+  const rows = [];
+  rows.push(`<div class="fact"><span class="k">taken</span><span class="v">${
+    r.taken
+      ? `${no} yes — ${r.takenAs === 'name' ? 'not in the dictionary list, but the corpora have it (usually a name)' : 'English already uses it'}${r.sources.length ? ` <span class="kbd">(${r.sources.join(', ')})</span>` : ''}`
+      : `${yes} no — no word list here claims it`}</span></div>`);
+  rows.push(`<div class="fact"><span class="k">syllables</span><span class="v">${
+    r.monosyllable ? yes : no} ${r.syllables} <span class="kbd">(${r.syllableSource === 'corpus' ? 'from CMUdict' : 'counted by the heuristic'})</span></span></div>`);
+  if (r.say) rows.push(`<div class="fact"><span class="k">said</span><span class="v" style="font-family:var(--mono)">/${esc(r.say.ipa)}/ <span class="kbd">${r.say.source === 'corpus' ? '' : '— guessed from the spelling'}</span></span></div>`);
+  if (r.parts) rows.push(`<div class="fact"><span class="k">shape</span><span class="v"><span class="chip flat">${esc(r.parts.onset || '∅')}</span><span class="chip flat">${esc(r.parts.nucleus)}</span><span class="chip flat">${esc(r.parts.coda || '∅')}</span></span></div>`);
+  if (r.score !== null && r.score !== undefined) rows.push(`<div class="fact"><span class="k">english-ness</span><span class="v"><span class="meter"><span class="bar"><i style="width:${r.score}%"></i></span><span class="num">${r.score}/100</span></span></span></div>`);
+  if (r.rhymes.length) rows.push(`<div class="fact"><span class="k">rhymes with</span><span class="v">${chips(r.rhymes)}</span></div>`);
+  if (r.neighbours.length) rows.push(`<div class="fact"><span class="k">one letter off</span><span class="v">${chips(r.neighbours)}</span></div>`);
+
+  out.innerHTML = `<p class="ruling"><b>${esc(r.word)}</b> — ${esc(r.verdict)}</p>${rows.join('')}`;
+  history.replaceState(null, '', `?check=${encodeURIComponent(r.word)}`);
+}
+
+// ---------- the registries ----------
+
+// Ordered by whether the registry actually answers a Cloudflare Worker. The
+// first eight are reliable; .ai, .xyz, .run and .fyi throttle or refuse shared
+// cloud egress whatever the gap between queries, so they often come back
+// `unknown` — which is the honest answer, not a bug to hide.
+const DOM_TLDS = ['com', 'net', 'org', 'dev', 'app', 'one', 'ink', 'site', 'ai', 'xyz', 'run', 'fyi'];
+
+$('domBtn').onclick = () => lookup($('dq').value);
+$('dq').addEventListener('keydown', (e) => { if (e.key === 'Enter') lookup($('dq').value); });
+$('domMint').onclick = async () => {
+  if (!state.current) await next();
+  $('dq').value = state.current.word;
+  lookup(state.current.word);
+};
+
+async function lookup(raw) {
+  const label = String(raw || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+  const out = $('domout');
+  if (!label) { out.innerHTML = ''; return null; }
+  out.innerHTML = `<p class="caveat">asking ${DOM_TLDS.length} registries about <b>${esc(label)}</b>&hellip;</p>`;
+  let r;
+  try {
+    r = await (await fetch(`${API}/domain?label=${encodeURIComponent(label)}&tlds=${DOM_TLDS.join(',')}`)).json();
+  } catch { out.innerHTML = '<p class="caveat">could not reach the engine</p>'; return null; }
+  if (r.error) { out.innerHTML = `<p class="caveat">${esc(r.error)}</p>`; return null; }
+
+  const why = { free: '', taken: 'taken', unverifiable: 'no RDAP', unknown: 'no answer', invalid: 'invalid' };
+  const cells = r.results.map((x) => {
+    const tip = (r.verdicts[x.verdict] || '') + (x.verdict === 'unknown' && x.status ? ` (HTTP ${x.status})` : '');
+    return `<span class="dcell ${x.verdict}" title="${esc(tip)}">` +
+      `<span class="dot2"></span>${esc(x.domain)}<span class="why">${why[x.verdict]}</span></span>`;
+  }).join('');
+
+  const hacks = (r.hacks || []).length
+    ? `<p class="caveat">The dot is a letter you get free: <b>${r.hacks.map((h) => esc(h.domain)).join('</b>, <b>')}</b> spells ${esc(label)}.</p>`
+    : '';
+
+  out.innerHTML =
+    `<p class="ruling"><b>${esc(label)}</b> — ${r.free.length ? `free on <b>${r.free.length}</b> of ${r.checked}` : `taken or unverifiable on all ${r.checked}`}</p>` +
+    `<div class="domgrid">${cells}</div>` + hacks +
+    `<p class="legend">● free &nbsp; ● registered &nbsp; ○ no answer — the TLD publishes no RDAP service, or its registry declined to serve this lookup</p>` +
+    `<p class="caveat">${esc(r.caveat)}</p>`;
+  // If this word is on the shelf, the shelf should know what the registries said.
+  if (shelf.has(label)) { shelf.setDomains(label, r.results); drawShelf(); }
+  return r.results;
+}
+
+
+// ---------- the shelf ----------
+//
+// Local first, always. The repo copy is an upgrade, not a requirement: every
+// path below works signed out, and nothing here waits on the network before
+// the shelf renders.
+
+const shelf = new Shelf(browserStore(window.localStorage));
+const auth = new AuthClient();
+let ceiling = null;          // null = not asked yet
+
+function drawShelf() {
+  const el = $('shelf');
+  if (!shelf.size) {
+    el.innerHTML = '<p class="empty">Nothing kept yet. Press <b>keep &amp; check</b> on a word you like.</p>';
+    $('shelfNote').textContent = '';
+    return;
+  }
+  el.innerHTML = shelf.entries.map((e) => {
+    const free = freeCount(e);
+    const tags = [
+      e.score !== null ? `<span class="tag">${e.score}/100</span>` : '',
+      e.taken ? '<span class="tag">real word</span>' : '',
+      e.domains.length ? `<span class="tag ${free ? 'ok' : ''}">${free} free / ${e.domains.length}</span>` : '',
+      e.uri ? '<span class="tag synced" title="written to your repo">in your repo</span>' : '',
+    ].filter(Boolean).join(' ');
+    return `<div class="row" data-w="${esc(e.word)}">` +
+      `<span class="w" title="click to copy">${esc(e.word)}</span>` +
+      (e.say && e.say.ipa ? `<span class="ipa">/${esc(e.say.ipa)}/</span>` : '') +
+      tags +
+      `<span class="acts">` +
+      `<button data-act="check">check</button>` +
+      `<button data-act="drop">remove</button>` +
+      `</span></div>`;
+  }).join('');
+  note();
+}
+
+function note() {
+  const bits = [`${shelf.size} kept`];
+  if (!shelf.durable) bits.push('this browser will not remember them — storage is blocked here');
+  else if (!auth.isLoggedIn()) bits.push('kept in this browser only');
+  if (auth.isLoggedIn()) {
+    const pending = shelf.entries.filter((e) => !e.uri).length;
+    bits.push(pending ? `${pending} not yet in your repo` : 'all of them in your repo');
+  }
+  if (ceiling && !ceiling.ok) {
+    bits.push(ceiling.known ? `repo sync is not live yet — ${ceiling.reason}` : ceiling.reason);
+  }
+  $('shelfNote').innerHTML = bits.map(esc).join(' · ');
+}
+
+$('shelf').onclick = (e) => {
+  const row = e.target.closest('.row');
+  if (!row) return;
+  const word = row.dataset.w;
+  const act = e.target.dataset.act;
+  if (act === 'drop') { unsync(word); shelf.drop(word); drawShelf(); return; }
+  if (act === 'check') {
+    $('q').value = word; runCheck();
+    $('dq').value = word; lookup(word);
+    $('checkout').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+  if (e.target.classList.contains('w')) copy(word, e.target);
+};
+
+$('shelfCopy').onclick = () => { if (shelf.size) copy(shelf.entries.map((e) => e.word).join('\n'), $('shelfCopy')); };
+$('shelfExport').onclick = () => {
+  const blob = new Blob([JSON.stringify(shelf.toJSON(), null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'sharp-shelf.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+$('shelfClear').onclick = () => {
+  if (!shelf.size) return;
+  if (!confirm(`Remove all ${shelf.size} kept words from this browser? Anything already written to your repo stays there.`)) return;
+  shelf.clear();
+  drawShelf();
+};
+
+// ---------- your repo ----------
+
+function drawSignin() {
+  const el = $('signin');
+  const user = auth.getUser();
+  if (user) {
+    el.innerHTML = `<span class="who">@${esc(user.handle)}</span>` +
+      `<button id="pull">pull from repo</button><button id="out">sign out</button>`;
+    $('pull').onclick = pull;
+    $('out').onclick = async () => { await auth.logout(); drawSignin(); drawShelf(); };
+    $('shelfSync').hidden = false;
+    return;
+  }
+  if (ceiling && !ceiling.ok && ceiling.known) {
+    el.innerHTML = `<span>Keeping words in your own ATProto repo is built and waiting on the shared auth worker to publish <code>${esc(COLLECTION)}</code>. Until then the shelf is local.</span>`;
+    $('shelfSync').hidden = true;
+    return;
+  }
+  el.innerHTML = '<span>Keep them in your own repo instead:</span>' +
+    '<input type="text" id="handle" placeholder="you.bsky.social" autocomplete="username" spellcheck="false">' +
+    '<button id="in">sign in</button>';
+  $('in').onclick = signIn;
+  $('handle').addEventListener('keydown', (e) => { if (e.key === 'Enter') signIn(); });
+  $('shelfSync').hidden = true;
+}
+
+async function signIn() {
+  const handle = ($('handle') || {}).value?.trim();
+  if (!handle) return;
+  // Check the ceiling BEFORE redirecting. Asking for a scope the authorization
+  // server will not grant fails after the redirect, where the error belongs to
+  // somebody else and reads like a bug in this page.
+  ceiling = ceiling || await ceilingAllows(fetch);
+  // Only a ceiling we actually READ is a reason not to try. A request we could
+  // not make says nothing about what the authorization server will grant.
+  if (!ceiling.ok && ceiling.known) { drawSignin(); note(); return; }
+  try { await auth.login(handle, { scope: SCOPE }); }
+  catch (e) { $('shelfNote').textContent = `sign-in failed: ${(e && e.message) || e}`; }
+}
+
+/** Write one word to the repo, if we can. Silent and harmless when we cannot. */
+async function syncOne(word) {
+  if (!auth.isLoggedIn()) return;
+  if (ceiling && !ceiling.ok && ceiling.known) return;   // known-short: do not bother the PDS
+  const e = shelf.get(word);
+  if (!e || e.uri) return;
+  try {
+    const res = await auth.pds.createRecord(COLLECTION, toRecord(e));
+    e.uri = res.uri;
+    shelf.save();
+    drawShelf();
+  } catch (err) {
+    $('shelfNote').textContent = `could not write to your repo: ${(err && err.message) || err}`;
+  }
+}
+
+async function unsync(word) {
+  const e = shelf.get(word);
+  if (!e || !e.uri || !auth.isLoggedIn()) return;
+  const rkey = rkeyOf(e.uri);
+  if (rkey) { try { await auth.pds.deleteRecord(COLLECTION, rkey); } catch { /* the local drop still stands */ } }
+}
+
+$('shelfSync').onclick = async () => {
+  const pending = shelf.entries.filter((e) => !e.uri).map((e) => e.word);
+  for (const w of pending) await syncOne(w);
+  await pull();
+};
+
+async function pull() {
+  if (!auth.isLoggedIn()) return;
+  try {
+    const res = await auth.pds.listRecords(COLLECTION, 100);
+    const remote = (res.records || []).map(fromRecord).filter(Boolean);
+    shelf.merge(remote);
+    drawShelf();
+  } catch (err) {
+    $('shelfNote').textContent = `could not read your repo: ${(err && err.message) || err}`;
+  }
+}
+
+// ---------- go ----------
+// Last, and only now: every handler above is bound, so a throw in here cannot
+// leave the page with dead buttons.
+
+drawShelf();
+drawSignin();
+if (params.get('check')) { $('q').value = params.get('check'); runCheck(); }
+if (params.get('domain')) { $('dq').value = params.get('domain'); lookup(params.get('domain')); }
+next();
+
+// The repo is the slow, optional half: resolve the session and the scope
+// ceiling after the page is usable, never in front of it.
+(async () => {
+  try {
+    await auth.init();
+    drawSignin();
+    if (auth.isLoggedIn()) { ceiling = await ceilingAllows(fetch); await pull(); }
+    else { ceiling = await ceilingAllows(fetch); }
+    drawSignin();
+    note();
+  } catch { /* signed out is a fine place to be */ }
+})();
+</script>
+</body>
+</html>

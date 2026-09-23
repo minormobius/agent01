@@ -1,0 +1,85 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "Pivot arm: a 22 mm block on the grip plane, dropped into the carriage key plate’s open notch and bottomed on the back plate, carrying the link pivot pin at x 34 with a link seated on each of its faces. Bored Ø10.2 at x 24 for its pillar: the arm slides on it, and that is what holds the plunger square and stops it turning. Two per gripper (side = 1 right, -1 left); a set screw holds it in the carriage (not modelled). Local origin at the carriage centre. One extrude along +Z, then the pillar bore as a cut along Y.",
+ "params": {
+  "side": 1,
+  "x0": 9.1,
+  "x1": 39,
+  "t": 22,
+  "z0": -11,
+  "y0": -3,
+  "y1": 7,
+  "px": 34,
+  "py": 4,
+  "d_pin": 4,
+  "ppx": 24,
+  "d_pillar": 10.2
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plate",
+   "plane": {
+    "base": "XY",
+    "offset": "z0"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "side * (x0 + x1) / 2",
+       "(y0 + y1) / 2"
+      ],
+      "w": "x1 - x0",
+      "h": "y1 - y0"
+     }
+    },
+    {
+     "name": "pivot",
+     "circle": {
+      "c": [
+       "side * px",
+       "py"
+      ],
+      "r": "d_pin / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "arm",
+   "profile": "plate",
+   "depth": "t"
+  },
+  {
+   "op": "sketch",
+   "id": "bore",
+   "plane": {
+    "base": "XZ",
+    "offset": "-(y1 + 4)"
+   },
+   "loops": [
+    {
+     "name": "pillar",
+     "circle": {
+      "c": [
+       "side * ppx",
+       0
+      ],
+      "r": "d_pillar / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "borecut",
+   "profile": "bore",
+   "depth": "y1 - y0 + 8",
+   "mode": "cut"
+  }
+ ]
+}

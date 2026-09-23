@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>orbit — the circle of closeness</title>
+<meta name="description" content="Your closest circle as a guessing game. A month of interactions rings the people you actually talk to around an arena; posts are dealt into the middle and you decide who wrote them. Then read the whole-history closeness matrix — who spoke to whom first, and how much since — straight out of their repositories.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="orbit — the circle of closeness">
+<meta property="og:description" content="Twenty posts, twelve faces, one question: who wrote this? Then a closeness matrix built from whole repositories.">
+<meta property="og:image" content="https://mino.mobi/og.png?v=2">
+<meta property="og:url" content="https://b.mino.mobi/orbit/">
+<meta name="twitter:card" content="summary_large_image">
+
+<style>
+:root {
+  --bg: #faf9f6; --panel: #fff; --text: #1a1a1a; --muted: #777; --rule: #ccc;
+  --accent: #8b0000; --sky: #1a82c4; --sky-faint: rgba(110, 193, 228, 0.12);
+  --good: #1f7a4d; --bad: #b3261e; --gold: #b8860b;
+  --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, monospace;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f0f0f; --panel: #161616; --text: #d4d4d4; --muted: #888; --rule: #333;
+    --accent: #c45; --sky: #6ec1e4; --sky-faint: rgba(110, 193, 228, 0.10);
+    --good: #4cc38a; --bad: #e5484d; --gold: #d9a441;
+  }
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--serif);
+  line-height: 1.65; -webkit-font-smoothing: antialiased;
+  max-width: 940px; margin: 0 auto; padding: 2rem 1.1rem 5rem;
+}
+a { color: var(--sky); }
+.crumb {
+  font-family: var(--mono); font-size: 0.66rem; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--muted); text-decoration: none;
+  display: inline-block; margin-bottom: 1.1rem;
+}
+.crumb:hover { color: var(--sky); }
+h1 { font-size: 2.6rem; font-weight: 600; letter-spacing: -0.01em; line-height: 1.05; }
+h1 span { color: var(--sky); }
+.tagline {
+  font-family: var(--mono); font-size: 0.68rem; letter-spacing: 0.16em;
+  text-transform: uppercase; color: var(--muted); margin-top: 0.45rem;
+}
+.sky-rule { height: 3px; width: 84px; background: var(--sky); margin: 1.1rem 0 1.2rem; border-radius: 2px; }
+.lede { font-size: 1rem; color: var(--muted); max-width: 64ch; }
+.lede b { color: var(--text); font-weight: 600; }
+
+/* ── the entry form ─────────────────────────────────────────────────────── */
+form#entry { margin: 1.8rem 0 0.6rem; display: flex; flex-wrap: wrap; gap: 0.55rem; align-items: center; }
+input[type=text] {
+  font-family: var(--mono); font-size: 0.92rem; padding: 0.62rem 0.8rem;
+  border: 1px solid var(--rule); border-radius: 7px; background: var(--panel);
+  color: var(--text); flex: 1 1 15rem; min-width: 0;
+}
+input[type=text]:focus { outline: 2px solid var(--sky); outline-offset: -1px; border-color: var(--sky); }
+select, button {
+  font-family: var(--mono); font-size: 0.78rem; padding: 0.6rem 0.8rem;
+  border: 1px solid var(--rule); border-radius: 7px; background: var(--panel);
+  color: var(--text); cursor: pointer;
+}
+button.go { background: var(--sky); border-color: var(--sky); color: #fff; font-weight: 600; letter-spacing: 0.04em; }
+button:disabled { opacity: 0.45; cursor: not-allowed; }
+button:hover:not(:disabled) { border-color: var(--sky); }
+button.go:hover:not(:disabled) { filter: brightness(1.08); }
+.formnote { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-top: 0.5rem; }
+.err { color: var(--bad); font-family: var(--mono); font-size: 0.78rem; margin-top: 0.7rem; }
+.status { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); margin-top: 0.8rem; }
+
+/* ── the arena ──────────────────────────────────────────────────────────── */
+#stage[hidden], #result[hidden], #lab[hidden] { display: none; }
+#stage { margin-top: 2rem; }
+#arena {
+  position: relative; width: 100%; max-width: 620px; margin: 0 auto;
+  aspect-ratio: 1 / 1; touch-action: none; user-select: none; -webkit-user-select: none;
+}
+#orbit-ring { position: absolute; inset: 0; pointer-events: none; }
+.seat {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  cursor: pointer; background: none; border: 0; padding: 0; width: max-content;
+}
+.seat .disc {
+  border-radius: 50%; overflow: hidden; border: 2px solid var(--rule);
+  background: var(--panel); position: relative; transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+}
+.seat .disc img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.seat .disc .ini {
+  width: 100%; height: 100%; display: grid; place-items: center;
+  font-family: var(--mono); font-weight: 700; color: #fff; font-size: .8rem;
+}
+.seat .key {
+  position: absolute; top: -3px; left: -3px; z-index: 2;
+  font-family: var(--mono); font-size: 0.56rem; line-height: 1;
+  background: var(--bg); color: var(--muted); border: 1px solid var(--rule);
+  border-radius: 4px; padding: 1px 3px;
+}
+.seat .lbl {
+  font-family: var(--mono); font-size: 0.56rem; color: var(--muted);
+  max-width: 8ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.seat:hover .disc, .seat.armed .disc { border-color: var(--sky); transform: scale(1.09); box-shadow: 0 0 0 4px var(--sky-faint); }
+.seat.right .disc { border-color: var(--good); box-shadow: 0 0 0 5px rgba(31,122,77,.22); }
+.seat.wrong .disc { border-color: var(--bad); box-shadow: 0 0 0 5px rgba(179,38,30,.22); animation: shake .32s; }
+.seat.dim { opacity: 0.32; }
+.seat.absent .disc { border-style: dashed; }
+@keyframes shake { 25% { transform: translate(-3px,0) scale(1.05);} 75% { transform: translate(3px,0) scale(1.05);} }
+
+#centre {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: 56%; max-width: 330px;
+}
+#card {
+  background: var(--panel); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 0.9rem 0.95rem; box-shadow: 0 6px 24px rgba(0,0,0,.14);
+  cursor: grab; touch-action: none; position: relative;
+}
+#card.dragging { cursor: grabbing; box-shadow: 0 14px 38px rgba(0,0,0,.26); }
+/* A post can be 300 graphemes, and at one size that card grows taller than the
+   whole arena on a phone and covers the ring it is meant to be dragged into.
+   Three tiers by length keep the longest post inside roughly 45% of the arena
+   at 390px wide, with the overflow rule as a last-resort guard. */
+#card { max-height: 58%; overflow-y: auto; overscroll-behavior: contain; }
+#card .txt { font-size: 0.92rem; line-height: 1.45; overflow-wrap: anywhere; }
+#card.t2 .txt { font-size: 0.8rem; line-height: 1.4; }
+#card.t3 .txt { font-size: 0.68rem; line-height: 1.36; }
+#card .meta {
+  font-family: var(--mono); font-size: 0.6rem; color: var(--muted);
+  margin-top: 0.6rem; display: flex; justify-content: space-between; gap: .5rem;
+}
+#card .reveal { font-family: var(--mono); font-size: 0.68rem; margin-top: 0.5rem; }
+#card .reveal.right { color: var(--good); }
+#card .reveal.wrong { color: var(--bad); }
+#card.empty { text-align: center; color: var(--muted); font-family: var(--mono); font-size: .8rem; cursor: default; }
+
+/* ── hud + controls ─────────────────────────────────────────────────────── */
+#hud {
+  display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; justify-content: center;
+  font-family: var(--mono); font-size: 0.72rem; color: var(--muted); margin-top: 1rem;
+}
+#hud b { color: var(--text); }
+.bar { height: 3px; background: var(--rule); border-radius: 2px; margin: .7rem auto 0; max-width: 620px; }
+.bar > i { display: block; height: 100%; background: var(--sky); border-radius: 2px; transition: width .2s ease; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1.1rem; }
+
+/* ── legend ─────────────────────────────────────────────────────────────── */
+.legend {
+  list-style: none; display: grid; gap: 0.25rem 0.9rem; margin: 1.3rem auto 0; max-width: 620px;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  font-family: var(--mono); font-size: 0.66rem; color: var(--muted);
+}
+.legend li { display: flex; align-items: center; gap: 0.35rem; min-width: 0; }
+.legend kbd {
+  border: 1px solid var(--rule); border-radius: 3px; padding: 0 3px; font-size: 0.58rem; color: var(--muted);
+}
+.legend a { color: inherit; text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legend a:hover { color: var(--sky); }
+.legend .no { color: var(--muted); opacity: .55; }
+.legend .pip { width: 6px; height: 6px; border-radius: 50%; background: var(--rule); flex: none; }
+
+/* ── result ─────────────────────────────────────────────────────────────── */
+#result { margin-top: 2.4rem; }
+.gradecard {
+  border: 1px solid var(--rule); border-radius: 12px; background: var(--panel);
+  padding: 1.2rem 1.2rem 1.3rem; display: flex; gap: 1.1rem; align-items: center; flex-wrap: wrap;
+}
+.gradecard .letter { font-size: 3.1rem; line-height: 1; font-weight: 700; color: var(--sky); font-family: var(--serif); }
+.gradecard .who { flex: 1 1 14rem; min-width: 0; }
+.gradecard .lab { font-size: 1.15rem; font-weight: 600; }
+.gradecard .blurb { color: var(--muted); font-size: 0.92rem; }
+.gradecard .nums { font-family: var(--mono); font-size: 0.68rem; color: var(--muted); margin-top: .4rem; }
+h2 { font-size: 1.2rem; margin: 2rem 0 .5rem; font-weight: 600; }
+h2 small { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-left: .5rem; }
+.who-you-know { list-style: none; display: grid; gap: .3rem; margin-top: .6rem; font-family: var(--mono); font-size: .72rem; }
+.who-you-know li { display: flex; align-items: center; gap: .5rem; }
+.who-you-know .meter { flex: 1 1 4rem; height: 6px; background: var(--rule); border-radius: 3px; overflow: hidden; max-width: 160px; }
+.who-you-know .meter i { display: block; height: 100%; background: var(--good); }
+.who-you-know .h { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 16ch; color: var(--muted); }
+.who-you-know .n { color: var(--muted); }
+
+/* ── the lab (matrix) ───────────────────────────────────────────────────── */
+#lab { margin-top: 2.6rem; }
+.warn {
+  border: 1px solid var(--rule); border-left: 3px solid var(--gold); border-radius: 7px;
+  padding: .8rem .9rem; font-size: .88rem; color: var(--muted); background: var(--panel);
+}
+.warn b { color: var(--text); }
+.scanlist { list-style: none; margin-top: 1rem; display: grid; gap: .35rem; font-family: var(--mono); font-size: .68rem; }
+.scanlist li { display: grid; grid-template-columns: 1.4rem minmax(6rem, 12ch) 1fr auto; gap: .5rem; align-items: center; }
+.scanlist .track { height: 5px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+.scanlist .track i { display: block; height: 100%; width: 0; background: var(--sky); transition: width .15s linear; }
+.scanlist li.done .track i { background: var(--good); }
+.scanlist li.fail .track i { background: var(--bad); width: 100% !important; }
+.scanlist .n { color: var(--muted); }
+.scanlist .h { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.scanlist .b { color: var(--muted); font-size: .62rem; white-space: nowrap; }
+
+.mwrap { overflow-x: auto; margin-top: 1rem; padding-bottom: .4rem; }
+table.matrix { border-collapse: separate; border-spacing: 2px; font-family: var(--mono); font-size: .6rem; }
+table.matrix th { font-weight: 400; color: var(--muted); }
+table.matrix th.col { height: 34px; vertical-align: bottom; }
+table.matrix th.row { text-align: right; padding-right: .3rem; }
+table.matrix th img, table.matrix th .ini {
+  width: 26px; height: 26px; border-radius: 50%; object-fit: cover; display: block; border: 1px solid var(--rule);
+}
+table.matrix th .ini { display: grid; place-items: center; color: #fff; font-size: .6rem; font-weight: 700; }
+table.matrix th.row .wrap { display: flex; align-items: center; gap: .35rem; justify-content: flex-end; }
+table.matrix th.row .nm { max-width: 11ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td.cell {
+  width: 30px; height: 30px; border-radius: 4px; background: var(--rule); opacity: .18;
+  cursor: pointer; text-align: center; vertical-align: middle; color: #fff; font-size: .52rem;
+}
+td.cell.has { opacity: 1; }
+td.cell.self { background: none; opacity: 1; color: var(--rule); }
+td.cell.unread { background: repeating-linear-gradient(45deg, var(--rule) 0 3px, transparent 3px 6px); opacity: .5; }
+td.cell.sel { outline: 2px solid var(--sky); outline-offset: 1px; }
+.mviews { display: flex; gap: .4rem; flex-wrap: wrap; align-items: center; margin-top: 1.2rem; }
+.mviews button.on { background: var(--sky); border-color: var(--sky); color: #fff; }
+.mlegend { font-family: var(--mono); font-size: .62rem; color: var(--muted); margin-top: .6rem; display: flex; gap: .8rem; flex-wrap: wrap; align-items: center; }
+.mlegend .swatch { display: inline-block; width: 42px; height: 8px; border-radius: 3px; vertical-align: middle; }
+#detail {
+  margin-top: 1rem; border: 1px solid var(--rule); border-radius: 9px; background: var(--panel);
+  padding: .85rem .9rem; min-height: 5.6rem;
+}
+#detail .hd { font-family: var(--mono); font-size: .64rem; color: var(--muted); margin-bottom: .4rem; }
+#detail .body { font-size: .92rem; overflow-wrap: anywhere; }
+#detail .empty { color: var(--muted); font-style: italic; }
+.share-out { margin-top: 1rem; }
+.share-out canvas { max-width: 100%; border: 1px solid var(--rule); border-radius: 10px; display: block; }
+footer {
+  margin-top: 3.4rem; padding-top: 1.1rem; border-top: 1px solid var(--rule);
+  font-family: var(--mono); font-size: 0.64rem; color: var(--muted);
+  display: flex; gap: 1rem; flex-wrap: wrap;
+}
+footer a { color: var(--muted); text-decoration: none; }
+footer a:hover { color: var(--sky); }
+@media (max-width: 640px) {
+  h1 { font-size: 2.1rem; }
+  .seat .lbl { display: none; }
+  #centre { width: 60%; }
+  #card { padding: 0.7rem 0.75rem; }
+  #card .txt { font-size: 0.82rem; line-height: 1.4; }
+  #card.t2 .txt { font-size: 0.7rem; line-height: 1.36; }
+  #card.t3 .txt { font-size: 0.6rem; line-height: 1.32; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="crumb" href="/">← atmosphere</a>
+  <h1>orbit<span> ◌</span></h1>
+  <p class="tagline">the circle of closeness</p>
+  <div class="sky-rule"></div>
+  <p class="lede">The accounts you reached for most over the last month, ringed around an arena. Posts get dealt into the middle; you decide <b>who wrote this</b>. Twenty cards, a grade against blind guessing, and a card you can copy. Then, if you want the expensive answer: <b>analyse the circle</b> and read the whole-history closeness matrix out of their repositories — who spoke to whom first, and how much since.</p>
+</header>
+
+<form id="entry" autocomplete="off">
+  <input type="text" id="handle" data-bsky-typeahead placeholder="handle.bsky.social" aria-label="Bluesky handle" spellcheck="false">
+  <select id="ringsize" aria-label="ring size">
+    <option value="8">8 seats</option>
+    <option value="12" selected>12 seats</option>
+    <option value="16">16 seats</option>
+  </select>
+  <select id="window" aria-label="window">
+    <option value="604800000">last week</option>
+    <option value="2592000000" selected>last month</option>
+    <option value="7776000000">last quarter</option>
+  </select>
+  <button type="submit" class="go" id="go">ring it</button>
+</form>
+<p class="formnote">Mutual follows fill the ring first; if there are not enough, the closest non-mutuals top it up and say so.</p>
+<p class="err" id="err" hidden></p>
+<p class="status" id="status" hidden></p>
+
+<section id="stage" hidden>
+  <div id="arena">
+    <div id="orbit-ring"></div>
+    <div id="centre"><article id="card"></article></div>
+  </div>
+  <div class="bar"><i id="progbar" style="width:0%"></i></div>
+  <div id="hud"></div>
+  <div class="controls" id="controls"></div>
+  <ul class="legend" id="legend"></ul>
+</section>
+
+<section id="result" hidden>
+  <div class="gradecard" id="gradecard"></div>
+  <h2>who you actually know <small>per seat</small></h2>
+  <ul class="who-you-know" id="whoyouknow"></ul>
+  <div class="controls" id="resultcontrols"></div>
+  <div class="share-out" id="shareout"></div>
+</section>
+
+<section id="lab" hidden>
+  <h2>the closeness matrix <small>whole history, both directions</small></h2>
+  <div class="warn" id="labwarn"></div>
+  <div class="controls" id="labcontrols"></div>
+  <ul class="scanlist" id="scanlist"></ul>
+  <div class="mviews" id="mviews" hidden></div>
+  <div class="mlegend" id="mlegend" hidden></div>
+  <div class="mwrap"><table class="matrix" id="mtable"></table></div>
+  <div id="detail" hidden></div>
+</section>
+
+<footer>
+  <a href="/">atmosphere</a>
+  <a href="/squares/">squares</a>
+  <a href="/dyad/">dyad</a>
+  <a href="/palm/">palm</a>
+  <a href="https://mino.mobi/">mino.mobi</a>
+  <span>public records only · nothing is written</span>
+</footer>
+
+<script src="/lib/handle-typeahead.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

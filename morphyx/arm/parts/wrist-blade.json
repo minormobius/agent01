@@ -1,0 +1,160 @@
+{
+ "$schema": "com.minomobi.cad.tree#v1",
+ "units": "mm",
+ "_": "J5 blade: the tool-side member, 54 thick between the fork's cheeks, bored on the pitch axis, and carrying its own Ø110 tool flange rather than a bolted-on plate. Through both runs a 44 square blind pocket, 48 deep — THE GRIPPER'S MOTOR LIVES IN HERE. That is what buys back the 54 mm the adapter cup used to cost: the actuator is behind the gripper's mounting face, so either the flange sits behind the motor or the wrist swallows it. Slab extruded along +Z, disc along +X, then the pocket and the pitch bore as cuts.",
+ "params": {
+  "rear": -20,
+  "front": 60,
+  "hw": 27,
+  "h": 60,
+  "d": 16.2,
+  "dx": 56,
+  "fd": 110,
+  "fl": 12,
+  "pk": 44,
+  "pkx": 20,
+  "pcd": 97,
+  "dbolt": 3.4
+ },
+ "features": [
+  {
+   "op": "sketch",
+   "id": "plan",
+   "plane": {
+    "base": "XY",
+    "offset": "-h / 2"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "rect": {
+      "c": [
+       "(rear + front) / 2",
+       0
+      ],
+      "w": "front - rear",
+      "h": "2 * hw"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "bl",
+   "profile": "plan",
+   "depth": "h"
+  },
+  {
+   "op": "sketch",
+   "id": "disc",
+   "plane": {
+    "base": "YZ",
+    "offset": "dx"
+   },
+   "loops": [
+    {
+     "name": "outline",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "fd / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "sketch",
+   "id": "bolt",
+   "plane": {
+    "base": "YZ",
+    "offset": "dx"
+   },
+   "loops": [
+    {
+     "name": null,
+     "circle": {
+      "c": [
+       "pcd / 2",
+       0
+      ],
+      "r": "dbolt / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "pattern",
+   "id": "bolts",
+   "of": "bolt",
+   "kind": "circular",
+   "count": 4,
+   "name": "bolt"
+  },
+  {
+   "op": "extrude",
+   "id": "fla",
+   "profile": [
+    "disc",
+    "bolts"
+   ],
+   "depth": "fl"
+  },
+  {
+   "op": "sketch",
+   "id": "pocket",
+   "plane": {
+    "base": "YZ",
+    "offset": "pkx"
+   },
+   "loops": [
+    {
+     "name": "sq",
+     "rect": {
+      "c": [
+       0,
+       0
+      ],
+      "w": "pk",
+      "h": "pk"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "pkcut",
+   "profile": "pocket",
+   "depth": "front + fl - pkx",
+   "mode": "cut"
+  },
+  {
+   "op": "sketch",
+   "id": "bore",
+   "plane": {
+    "base": "XZ",
+    "offset": "-(hw + 8)"
+   },
+   "loops": [
+    {
+     "name": "pitch",
+     "circle": {
+      "c": [
+       0,
+       0
+      ],
+      "r": "d / 2"
+     }
+    }
+   ]
+  },
+  {
+   "op": "extrude",
+   "id": "borecut",
+   "profile": "bore",
+   "depth": "2 * (hw + 8)",
+   "mode": "cut"
+  }
+ ]
+}

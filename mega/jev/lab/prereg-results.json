@@ -1,0 +1,26 @@
+{
+ "spec_id": "jev-lab-polarity-12h-v1",
+ "registered_utc": "2026-09-18",
+ "registered_commit": "54531db6b9dfe750b423b190166a9340d89adbb6",
+ "started_ms": 1789770554000,
+ "started_utc": "2026-09-18T22:29:14.000Z",
+ "minimum_n": 200,
+ "predictions": [],
+ "updated_utc": "2026-09-18T22:39:35.617Z",
+ "verdict": {
+  "n": 0,
+  "right": 0,
+  "accuracy": null,
+  "p": 1,
+  "grossBps": null,
+  "netBps": null,
+  "claim": null,
+  "status": "0 of the 200 predictions the registration requires before any claim — 200 to go."
+ },
+ "accrual": {
+  "measured_per_day": 1.75,
+  "measured_against": "208 days of 1h candles, BTC/ETH/SOL, the registered rule",
+  "spec_note_is_wrong": "known_weaknesses says 2 per asset per day and ~33 days; it is 1 per asset per day, the gate passes 64.7%, and n=200 is about 114 days. The spec file is left frozen."
+ },
+ "eta_days": 114
+}

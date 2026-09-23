@@ -1,0 +1,1138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev Harness Lab</title>
+<meta name="description" content="A live one-second BTC perpetual feed and a levered, liquidatable paper book, with Jev sizing exposure on an ordered ladder against six deterministic rules, mechanical controls, a floats-only second stream, and doing nothing.">
+<link rel="icon" href="../favicon.svg">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div class="lab-wrap">
+
+  <header class="lab-head">
+    <div>
+      <h1>Jev harness lab</h1>
+      <p class="sub" style="margin-bottom:6px"><a href="../">← all the experiments</a> ·
+        <a href="../delve/">the dungeon</a> · <a href="../composer/">the composer</a></p>
+      <p class="sub">Live one-second BTC perpetual from Hyperliquid. Jev sizes a long/short book on an
+        ordered exposure ladder — continuous, capped by the type — against six fixed rules, two mechanical
+        controls, a second stream that gets nothing but floats, and doing nothing at all.</p>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <span class="pill" id="feedStatus" data-status="connecting"><span class="dot"></span><span id="feedText">connecting</span></span>
+      <button class="ghost" id="themeBtn" type="button" aria-label="Toggle colour theme">theme</button>
+    </div>
+  </header>
+
+  <p class="note">
+    <b>This is paper only.</b> No exchange account, no keys, no orders — the feed is a public read-only
+    websocket and every position here is simulated. Fills are charged a taker fee plus half the observed
+    spread, and the book is <b>levered and liquidatable</b>: pushed far enough the wrong way it goes to
+    zero and the run ends, because a leveraged demo that cannot be ruined is lying about what leverage is.
+    Nothing on this page is advice, and a single run of a few hundred decisions cannot establish an edge:
+    the verdict below is drawn from a t-statistic against the average of the rules it was shown, not from
+    the curve.
+  </p>
+
+  <div class="ctl">
+    <label>decision every
+      <select id="interval">
+        <option value="3000">3s</option>
+        <option value="5000" selected>5s</option>
+        <option value="10000">10s</option>
+        <option value="30000">30s</option>
+      </select>
+    </label>
+    <label>execution<select id="exec">
+      <option value="taker" selected>taker — cross the book (4.5bp)</option>
+      <option value="taker_top">taker, top volume tier (2.4bp)</option>
+      <option value="maker">maker — post and wait (1.5bp, no spread)</option>
+      <option value="maker_free">maker, &gt;$500M/30d (0.0bp)</option>
+      <option value="maker_rebate">maker + rebate (−0.3bp, paid to trade)</option>
+    </select></label>
+    <label>fee (bp)<input id="fee" type="number" value="4.5" step="0.5"></label>
+    <label>funding (bp/hr)<input id="funding" type="number" value="0.12" step="0.01"></label>
+    <label>extra slippage (bp)<input id="slip" type="number" value="0" step="0.5" min="0"></label>
+    <label>random seed<input id="seed" type="number" value="1" step="1"></label>
+    <label>max leverage<select id="cap">
+        <option value="1">1x</option><option value="2">2x</option>
+        <option value="3" selected>3x</option><option value="5">5x</option>
+        <option value="10">10x</option><option value="20">20x</option>
+        <option value="40">40x — the platform cap for BTC</option>
+      </select></label>
+    <label>deadband (x)<input id="deadband" type="number" value="1.2" step="0.1" min="0" max="6"></label>
+    <label>dead zone<input id="deadzone" type="number" value="0.25" step="0.05" min="0" max="0.9"></label>
+    <label>min size (× cap)<input id="floor" type="number" value="0.6" step="0.05" min="0" max="1"></label>
+    <label style="flex-direction:row;align-items:center;gap:6px;text-transform:none;letter-spacing:0;font-size:.8rem;color:var(--ink-2)">
+      <input id="memory" type="checkbox" checked style="min-width:auto;width:auto">show him his own history</label>
+    <label>stream B dead zone (bp)<input id="bdead" type="number" value="0" step="0.5" min="0" max="20"></label>
+    <button id="runBtn" type="button">start run</button>
+    <button class="ghost" id="resetBtn" type="button">reset</button>
+  </div>
+
+  <div class="tiles">
+    <div class="tile"><div class="k">BTC-PERP mid</div><div class="v" id="tMid">—</div><div class="m" id="tSpread">spread —</div></div>
+    <div class="tile"><div class="k">exposure</div><div class="v" id="tPos">flat</div><div class="m" id="tFills">0 fills</div></div>
+    <div class="tile"><div class="k">jev, net</div><div class="v" id="tJev">—</div><div class="m" id="tCost">cost paid —</div></div>
+    <div class="tile"><div class="k">jev, before fees</div><div class="v" id="tGross">—</div>
+      <div class="m" id="tDrag">drag —</div></div>
+    <div class="tile"><div class="k">worst drawdown</div><div class="v" id="tDD">—</div><div class="m" id="tDDref">unlevered ref —</div></div>
+    <div class="tile"><div class="k">buy &amp; hold</div><div class="v" id="tHold">—</div><div class="m">the curve people quote</div></div>
+    <div class="tile"><div class="k">random control</div><div class="v" id="tRand">—</div><div class="m">same trade frequency</div></div>
+    <div class="tile"><div class="k">decisions</div><div class="v" id="tDec">0</div><div class="m" id="tTicks">0 ticks</div></div>
+    <div class="tile"><div class="k">big-move capture</div><div class="v" id="tCapture">—</div>
+      <div class="m" id="tOffsides">of the biggest windows</div></div>
+    <div class="tile"><div class="k">stream B forecast</div><div class="v" id="tB">—</div>
+      <div class="m" id="tBnet">leg —</div></div>
+    <div class="tile"><div class="k">is this decidable?</div><div class="v" id="tDecidable">—</div>
+      <div class="m" id="tGated">Jev's own answer · 0 gated</div></div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2 id="verdictH" class="verdict null">Waiting for a run.</h2>
+    <p class="cap" id="verdictWhy" style="margin:0 0 6px">A verdict needs at least 30 decisions, and then it is
+      read off <span style="font-family:var(--mono)">t</span> against the random control — not off whichever line is highest.</p>
+    <p class="trials" id="trials"></p>
+  </div>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <h2>Price, and where Jev acted</h2>
+      <p class="cap">Five-second candles — <b>hollow up, filled down</b>, which is how candlesticks read without
+        colour. Marks sit <b>below</b> for an add and <b>above</b> for a reduce: <b>B</b> add, <b>H</b> hold,
+        <b>S</b> reduce, <b>X</b> flat. The wick is the range of the one-second <em>mid</em> samples in the
+        bucket, not every print that crossed — a real exchange candle would be wider.</p>
+      <div class="chartbox">
+        <svg id="pxChart" viewBox="0 0 640 240" role="img" aria-label="BTC perpetual mid price with decision marks"></svg>
+        <div class="tip" id="pxTip"></div>
+      </div>
+      <p class="cap" style="margin:8px 0 2px">Exposure carried, on the same time axis — above the line is long,
+        below is short, and the faint rails are the leverage cap.</p>
+      <div class="chartbox">
+        <svg id="expChart" viewBox="0 0 640 96" role="img" aria-label="Leveraged exposure carried over time"></svg>
+        <div class="tip" id="expTip"></div>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><i style="background:var(--st-good)"></i>B add</span>
+        <span><i style="background:var(--neutral);outline:1px solid var(--line)"></i>H hold</span>
+        <span><i style="background:var(--st-serious)"></i>S reduce</span>
+        <span><i style="background:var(--st-critical)"></i>X flat</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Paper return, after costs</h2>
+      <p class="cap">He has <b>seen</b> the rules, so beating one is not evidence. The line that matters is
+        <b>the average of them</b>: does choosing beat aggregating? Everything else — buy &amp; hold, random,
+        stream B, each rule, and doing nothing — is in the leaderboard.</p>
+      <div class="chartbox">
+        <svg id="pnlChart" viewBox="0 0 420 190" role="img" aria-label="Paper return of Jev, buy and hold, and a random control"></svg>
+        <div class="tip" id="pnlTip"></div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--s1)"></i>jev</span>
+        <span><i style="background:var(--s2)"></i>average of the rules</span>
+        <span><i style="background:var(--s3)"></i>best rule so far</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card">
+      <h2>The last decision</h2>
+      <div class="ans" id="ansRow"><span class="why">no decision yet</span></div>
+      <p class="cap" style="margin:0 0 6px">Exactly what Jev was sent — numbers only, never a price series.
+        Handed the inputs to a computation instead of its result, it scored 62.5%; handed the result, 100%.
+        It is asked which stance <em>matches</em> the tape, never what to do about it.</p>
+      <pre class="state" id="stateDoc">The state document appears here once the feed has enough history.</pre>
+    </div>
+    <div class="card">
+      <h2>Decision log</h2>
+      <p class="cap">The table view of both charts, for when colour is not available.</p>
+      <div class="scroll">
+        <table class="log"><thead><tr>
+          <th>time</th><th>mid</th><th>action</th><th>target</th><th>conf</th><th>state?</th><th>backs</th><th>pos</th><th>jev</th><th>rand</th>
+        </tr></thead><tbody id="logBody"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>CAD, unblocked &mdash; and the composition result replicates</h2>
+    <p class="cap" style="margin:0 0 10px">We said CAD was blocked on a missing API. <b>It wasn't. We probed the
+      wrong paths.</b></p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      This page claimed for two days that a cad demo was impossible because
+      <code>cad.mino.mobi/api</code>, <code>/api/health</code> and <code>/docs/CAD.md</code> all 404. Those 404s
+      are real and <b>all three are paths that were never the API.</b> It has been live for weeks at
+      <code>cad.mino.mobi/mcp</code> &mdash; JSON-RPC, GET returns a descriptor &mdash; with <code>check</code>
+      (resolve a tree, ~40ms), <code>build</code> (the <b>Truck kernel</b>: volume, area, bbox, centroid, Euler
+      characteristic, <b>watertightness</b>, every named face, ~90ms for this part), plus
+      <code>measure</code>, <code>interference</code>, <code>mechanism</code>, <code>drawing</code> and STEP
+      export, and a bench of worked parts. Correcting it in public because the claim was published in public.
+    </p>
+    <p class="cap" style="margin:0 0 6px">So the sprite chain ran again, with a real kernel supplying both the
+      legality and the ground truth. Bench part <code>plate</code>, three briefs over kernel-measured invariants.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:560px"><thead><tr>
+        <th>arm</th><th>mean gap start</th><th>mean gap end</th><th>edits that improved</th><th>abs regret</th><th>took worst</th>
+      </tr></thead><tbody>
+        <tr><td><b>Jev</b></td><td>0.530</td><td><b>0.118</b></td><td><b>94.4%</b></td><td><b>0.0007</b></td><td><b>0.00</b></td></tr>
+        <tr><td>greedy <em>(myopic ceiling)</em></td><td>0.530</td><td>0.113</td><td>100.0%</td><td>0.0000</td><td>0.00</td></tr>
+        <tr><td>random <em>(same legal set)</em></td><td>0.530</td><td style="color:var(--bad)">0.480</td><td style="color:var(--bad)">50.0%</td><td style="color:var(--bad)">0.1436</td><td>0.00</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Beat random <b>3/3</b>, within 5% of the greedy ceiling <b>2/3</b>, and
+      <b>every part built along every chain came back watertight.</b> 312 distinct kernel builds at 89ms each.
+      The gate fired on 7 of 18 edits and <b>100% of those improved</b>.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the self-check failure replicates exactly.</b> <code>p(have)</code> came back <b>0.113, 0 of 18
+      above 0.5</b> &mdash; against 0.10&ndash;0.12 on the sprite chain. Different domain, different kernel,
+      different question, <b>same number</b>. That makes the composition finding an independent replication
+      rather than a quirk of one generator: <b>in a sequential loop the self-check says &ldquo;no&rdquo; to
+      everything and confidence is the informative signal</b>, which is the reverse of every frozen-state
+      result on this page.
+    </p>
+    <h2 style="margin-top:18px">Two things the kernel taught us that a cheap check cannot</h2>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      <b><code>check</code> does not validate geometry.</b> It passed a tree with the pillar holes
+      <b>999mm off a 20mm disc</b>, a <b>negative thickness</b>, and <code>R = 0</code>. Only <code>build</code>
+      rejected the last one. So the &ldquo;search that cannot propose an invalid model&rdquo; property lives
+      <b>entirely in the enumerator</b> &mdash; it is not something a kernel's fast path hands you. Ours encodes
+      the coherence rules explicitly (centre hole inside the rim, bolt circles fitting within the disc) and
+      <b>refused 20 of 696 candidates as not-a-part</b>, which were never shown as options.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      <b>And valid is not correct.</b> Setting <code>r_centre</code> to 25 on a disc of R = 20 <em>builds
+      cleanly</em>: watertight, volume 1065, bbox grown to 24mm &mdash; the even-odd composition flipped which
+      region was solid. A part can resolve, build, be watertight and still be the wrong part. Nothing on the
+      kernel side catches that, which is the strongest argument for writing the constraints down rather than
+      trusting a green build.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      Caveats: one bench part, three briefs, six edits, and greedy is a <em>myopic</em> ceiling &mdash; matching
+      it is not evidence of planning. The briefs were written by the same person reading the results.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Composition: the hypothesis nobody had tested</h2>
+    <p class="cap" style="margin:0 0 10px">Breadth was proven long ago. A <b>chain</b> had never been run once.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Every measurement on this page has been <b>independent</b> questions against one frozen state &mdash; 1024 at
+      once, 549ms, all correct. But a sequence where each decision changes the state the next question is asked
+      against is a different animal, and it is what procgen and CAD both actually need.
+      <b>The harness enumerates the legal edits, computes what each would do, and Jev picks.</b> The enumerator
+      only emits clamped, buildable genomes, so <b>no round of the loop can produce an invalid creature</b>
+      whatever the model answers &mdash; the safety property, doing real work at last.
+    </p>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:0 0 12px">
+      <figure style="margin:0;text-align:center">
+        <img src="../../sprite/api/quad.svg?seed=7&amp;family=hound&amp;body=1.00&depth=0.82&leg=1.15&neck=0.95&head=0.90&snout=1.15&tail=1.10&stance=0.30&amp;scale=5" alt="the starting quadruped, a hound preset" width="150" height="120" style="background:var(--paper);border:1px solid var(--line);border-radius:8px">
+        <figcaption class="cap" style="margin-top:4px">start &mdash; gap 0.384</figcaption>
+      </figure>
+      <div style="font-size:1.4rem;color:var(--ink-3)">&rarr;</div>
+      <figure style="margin:0;text-align:center">
+        <img src="../../sprite/api/quad.svg?seed=7&amp;family=hound&amp;body=0.55&depth=1.12&leg=1.15&neck=0.95&head=0.90&snout=1.15&tail=1.10&stance=0.30&amp;scale=5" alt="the quadruped after ten edits, lighter-built" width="150" height="120" style="background:var(--paper);border:1px solid var(--line);border-radius:8px">
+        <figcaption class="cap" style="margin-top:4px">after 10 edits &mdash; gap 0.132</figcaption>
+      </figure>
+      <p class="cap" style="margin:0;max-width:300px">brief: <b>a fast, lightly-built runner</b>.<br>
+        <span style="font-family:var(--mono);font-size:.72rem">depth_up → body_down → body_down → stride_up → depth_up → stride_up → ear_down → ear_down → ear_down → body_down</span></p>
+    </div>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>arm</th><th>mean gap start</th><th>mean gap end</th><th>edits that improved</th><th>mean regret</th><th>took the worst move</th>
+      </tr></thead><tbody>
+        <tr><td><b>Jev</b></td><td>0.510</td><td><b>0.161</b></td><td><b>97.5%</b></td><td><b>0.020</b></td><td><b>0.00</b></td></tr>
+        <tr><td>greedy <em>(myopic ceiling)</em></td><td>0.510</td><td>0.155</td><td>97.5%</td><td>0.000</td><td>0.00</td></tr>
+        <tr><td>random <em>(same legal set)</em></td><td>0.510</td><td style="color:var(--bad)">0.580</td><td style="color:var(--bad)">36.3%</td><td style="color:var(--bad)">1.120</td><td style="color:var(--bad)">0.75</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>It composes.</b> Beat the random control on <b>8 of 8</b> chains, landed within 5% of the greedy ceiling
+      on <b>7 of 8</b>, and never once took the worst move on offer. Regret 0.020 against greedy's 0.000 &mdash;
+      it is doing what an optimal myopic rule does, by judgement rather than by search.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>But the first version was mediocre, and the fix is this page's oldest lesson.</b> It scored regret
+      <b>0.717</b>, beat random only 6/8, and one chain <em>diverged to 3&times; worse than its start</em>.
+      Two things were wrong and both are in the archive above: the question asked which edit
+      <em>&ldquo;best moves toward&rdquo;</em> the brief &mdash; which is about a <b>path</b>, i.e. a forecast &mdash;
+      and the criteria handed over <b>six trait deltas per option</b> for the model to combine, which is the
+      multi-step arithmetic that scored 62.5% until the caller did it. Asking <em>&ldquo;which leaves the
+      smallest gap&rdquo;</em> with that gap pre-computed moved regret <b>0.717 &rarr; 0.020</b> and the gate from
+      <b>0/80</b> to <b>21/80, every one of which improved</b>. Same model, same enumerator, same chains.
+    </p>
+    <h2 style="margin-top:18px">And the self-check broke, for the first time</h2>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      <code>p(have)</code> sat at <b>0.10&ndash;0.12 on all 80 edits</b> and never once cleared 0.5 &mdash; while the
+      chain ran at the greedy ceiling with 97.5% of edits improving. On four prior datasets the self-check was
+      the reliable signal; here it says <em>unanswerable</em> about the one question it exists to gate, and is
+      <b>wrong</b>.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Isolating it &mdash; same document, same call, two determinate questions:</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>question</th><th>correct</th><th>p(have)</th>
+      </tr></thead><tbody>
+        <tr><td>which trait has the biggest gap right now</td><td>83%</td><td><b style="color:var(--ok)">0.962</b></td></tr>
+        <tr><td>which edit leaves the smallest gap</td><td><b>100%</b></td><td><b style="color:var(--bad)">0.112</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>So it is not the composition context.</b> The same document answers 0.962 for a lookup. It is specifically
+      the <em>edit</em> question &mdash; and the best reading, offered as a hypothesis rather than a finding, is
+      that the self-check separates <b>facts about now</b> from <b>facts about a hypothetical</b>, and a
+      counterfactual stays a hypothetical <em>even when you have computed it and printed it in the option</em>.
+      It is a good detector of &ldquo;is this a description or a projection&rdquo;, and an <b>action's outcome
+      reads as a projection.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Which inverts the routing rule, and that is the finding.</b> On frozen state the self-check is reliable
+      (62&ndash;76 point margins) and confidence leaks. <b>In a chain it is the other way round</b>: confidence
+      was informative &mdash; 21/80 above 0.9 and <b>100% of those improved</b> &mdash; while the self-check would
+      have escalated every single edit, which is condition 3 of &ldquo;when this pattern is worth building&rdquo;
+      failing in a new way. <b>You cannot reuse the frozen-state routing rule in a sequential loop.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      Caveats: 8 chains, 10 edits, one generator family, four briefs, and the briefs were written by the same
+      person reading the results. Greedy is a <em>myopic</em> ceiling, so matching it is not evidence of
+      planning &mdash; a chain that needs a temporarily-worse step to reach a better place is exactly what this
+      design cannot yet test.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Carry: the first signal here that is observed, not forecast</h2>
+    <p class="cap" style="margin:0 0 10px">And the only one where the gate came back <b>100% correct</b>.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Everything else on this page tried to predict direction and failed honestly &mdash; 51.4% on six-hour
+      windows, 51.7% on stream B, 31.1% on the cross-sectional predictive probes. Carry needs no prediction.
+      <b>The funding rate is printed. The staking yield is printed. The distance to liquidation is arithmetic
+      over printed numbers.</b> Same experiment as before: determinate and predictive probes, same document,
+      same call, 30 evaluation points over 90 days of hourly funding, ground truth computed.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:540px"><thead><tr>
+        <th>arm</th><th>n</th><th>accuracy</th><th>mean conf</th><th>&ge;0.9 fired</th><th>&hellip;and was right</th>
+      </tr></thead><tbody>
+        <tr><td><b>determinate</b></td><td>180</td><td><b>93.3%</b></td><td>0.823</td><td><b>93 (51.7%)</b></td><td><b style="color:var(--ok)">100.0%</b></td></tr>
+        <tr><td>predictive <em>(control)</em></td><td>90</td><td style="color:var(--bad)">52.2%</td><td>0.670</td><td>10 (11.1%)</td><td>90.0%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>93 of 93 correct above the gate.</b> Routing on the self-check as well keeps those 93 at
+      <b>100.0%</b> with <b>zero</b> predictive answers wrongly kept &mdash; confidence alone would have kept 10.
+      The self-check margin is <b>65.5 points</b> (0.832 determinate against 0.178 predictive) where
+      answer-confidence managed 15.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>The table earns its keep immediately.</b> XMR pays the most headline funding &mdash; and has the worst
+      drawdown. <b>UNI carries the best ratio of carry to drawdown by roughly 7&times;</b>, and ARB sat
+      <b>4.94 standard deviations above its own 90-day mean</b> with 27% negative hours and a 15-day recovery:
+      the one that looks best and is worst. <em>Short the richest</em> is the wrong trade, and the column that
+      says so is a sort, not a forecast.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Two failures replicated, which matters more than the successes.</b>
+      <code>p_richest_next</code> scored 66.7% &mdash; but it answered <b>XMR on 28 of 30</b> windows, which is
+      restating the current ranking, not forecasting it; funding is sticky enough that repeating the present
+      scores 67%. And <code>p_stays_positive</code> answered <b>false on 30 of 30</b> while the truth was true
+      on 17 &mdash; a refusal shaped like a forecast, and now the <b>second independent replication</b> of that
+      exact behaviour after the 41-of-41 &ldquo;no&rdquo; on the cross-section card.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And one honest limit of the self-check.</b> <code>d_any_stretched</code> was <b>100% correct</b> while
+      p(have) read only <b>0.352</b> &mdash; it under-rated a question it could in fact answer. That is a false
+      escalation: it costs calls, not errors, and it is why the determinate arm clears p(have)&nbsp;&gt;&nbsp;0.5
+      on 84% rather than 100%.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      <b>What this is not.</b> Nothing trades, nothing is held, no keys exist. The measured drawdowns are the
+      <em>funding</em> leg only &mdash; they say nothing about liquidation, a venue failing, a bridge, an LST
+      depeg, or a contract. Those are the risks that actually end carry books, none of them are in this data,
+      and a monitor cannot manage them: only sizing can.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The carry cross-section, live</h2>
+    <p class="cap" style="margin:0 0 8px" id="carryWhy">loading the funding cross-section&hellip;</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:620px"><thead><tr>
+        <th>asset</th><th>funding now</th><th>90d mean</th><th>z vs own</th>
+        <th>worst dd</th><th>underwater</th><th>recover</th><th>neg hrs</th><th>carry/dd</th>
+      </tr></thead><tbody id="carryBody"><tr><td colspan="9" class="why">&mdash;</td></tr></tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0" id="carryRead">&mdash;</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>A short receives funding; a long pays it.</b> Hyperliquid carries a fixed interest-rate component, so
+      funding sits at a <b>floor of about 10.95%/yr</b> &mdash; a perp long pays that essentially always, which is
+      the mechanism behind the whole structure: <b>be long via spot, be short via the perp.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      <b>Nothing here trades, and the drawdowns above are not reassurance.</b> Carry is a short-volatility
+      profile &mdash; steady small gains, rare large losses. A 90-day window with no crisis in it measures the
+      gains and not the losses. <b>The tail is not in this data. It never is.</b>
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Three tapes, one clock</h2>
+    <p class="cap" style="margin:0 0 8px" id="xsWhy">waiting for the cross-section feed&hellip;</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>asset</th><th>mid</th><th>60s</th><th>15s</th><th>vol</th><th>efficiency</th><th>range pos</th>
+      </tr></thead><tbody id="xsBody"><tr><td colspan="7" class="why">no ticks yet</td></tr></tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0" id="xsRead">&mdash;</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0" id="xsRegime"></p>
+    <p style="font-size:.85rem;color:var(--ink-3);margin:8px 0 0">
+      <b>Nothing here trades.</b> The relative-value leg does not clear its costs &mdash; the three move together
+      ~76% of the time and the median best-minus-worst spread is 4.1bp over a minute against ~19bp for the two
+      round trips a pair costs. These three are here because together they make a market question that has an
+      answer, which is what the card above measures.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Where the money actually went</h2>
+    <p class="cap" style="margin-bottom:8px">The same trades, at the same moments, run once with fees and once
+      without. The difference is the drag — measured, not inferred from a fee times a turnover.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      On the first recorded run of 50 decisions the answer was stark: <b>net −0.50%, gross +0.06%, drag 0.56%</b>.
+      The timing was mildly <em>positive</em> and the fees alone made the run negative — <b>the drag was 111% of
+      the loss</b>. That is why the tile above shows both numbers, permanently.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The fix that follows is to hold far more often and, when it does move, to move properly. A round trip costs
+      roughly <b>10bp of the size traded</b>, so a 0.2× position needs a <b>50bp move just to pay for itself</b>.
+      Positions too small to cover their own round trip are a way of paying to be almost flat. Hence two controls
+      above: a <b>dead zone</b> of conviction inside which there is no view at all, and a <b>minimum size</b>
+      below which a position is not worth opening. Both default from that cost arithmetic, not from a fitted run.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Replaying the <b>identical</b> 50 recorded answers — the model held
+      fixed, only the harness varied — across five overlapping segments of the tape:</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>harness setting</th><th>beats the shipped one</th><th>mean fills</th><th>mean drag</th>
+      </tr></thead><tbody>
+        <tr><td>as shipped (deadband 0.35)</td><td>0 / 5</td><td>8.8</td><td>0.36%</td></tr>
+        <tr><td>deadband 0.8</td><td>4 / 5</td><td>4.2</td><td>0.26%</td></tr>
+        <tr><td>deadband 1.5</td><td><b>5 / 5</b></td><td>2.2</td><td>0.21%</td></tr>
+        <tr><td>dead zone 0.25, min size 0.75</td><td>3 / 5</td><td>1.6</td><td>0.26%</td></tr>
+        <tr><td>dead zone 0.30, min size 1.00</td><td>4 / 5</td><td>1.4</td><td>0.25%</td></tr>
+        <tr><td>dead zone 0.40, min size 1.00</td><td>4 / 5</td><td>1.4</td><td>0.25%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Fewer fills means less drag: 8.8 → 4.2 → 2.2 → 1.4, and 0.36% → 0.26% → 0.21% → 0.25%. That part is
+      monotone, mechanical, and holds on every segment. The last two rows now give <em>identical</em> results
+      because both saturate to the same behaviour — a plateau, which is what a mechanism looks like.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Building this found a real bug worth stating.</b> The dead zone first mapped to <em>flat</em>. But
+      exits are exempt from the deadband — getting out is meant to stay cheap — so every dip in conviction
+      forced a full exit and the next reading paid to get back on. The setting meant to cut turnover doubled
+      it, and the first live run came back <em>worse</em>. &ldquo;No view&rdquo; and &ldquo;a view that flat is
+      correct&rdquo; are different things: the dead zone now means <b>keep the position you have</b>, and
+      fills fell from 3.0 to 1.4.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      And there is a trap underneath all of it. <b>Gross edge here is about +0.06%, which is indistinguishable
+      from zero.</b> When the edge is zero, trading less always looks better, because the limit of trading less
+      is not trading — which returns exactly 0% and beats every negative on the board. That is why
+      <b>do nothing</b> is a ranked leg in the leaderboard below. Any change that reduces turnover has to beat
+      <em>it</em> before it counts as an improvement rather than a retreat.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Another month — and the reversal did not replicate</h2>
+    <p class="cap" style="margin-bottom:8px">208 days of hourly candles across BTC, ETH and SOL, pulled from
+      Hyperliquid. Non-overlapping windows throughout. The original finding — <em>big moves reverse</em> — came
+      from 3.5 days of one asset at one horizon, and it does not hold up as a general fact.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Across timescales on the full history, trailing move against forward move is essentially <b>zero</b>:
+      +0.016 at 5m bars, +0.015 at 15m, +0.030 at 1h. The −0.179 that started this was a short sample at a
+      short horizon. <b>It was noise.</b>
+    </p>
+    <p class="cap" style="margin:0 0 6px">But splitting by month found something much better.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>month</th><th>BTC</th><th>ETH</th><th>SOL</th><th>all three agree?</th>
+      </tr></thead><tbody>
+        <tr><td>02-22 → 03-24</td><td>−0.20</td><td>−0.09</td><td>−0.09</td><td class="down">yes — revert</td></tr>
+        <tr><td>03-24 → 04-23</td><td>+0.06</td><td>+0.10</td><td>+0.08</td><td class="up">yes — trend</td></tr>
+        <tr><td>04-23 → 05-23</td><td>−0.15</td><td>−0.27</td><td>−0.22</td><td class="down">yes — revert</td></tr>
+        <tr><td>05-23 → 06-22</td><td>−0.42</td><td>−0.19</td><td>−0.23</td><td class="down">yes — revert</td></tr>
+        <tr><td>06-22 → 07-22</td><td>−0.02</td><td>−0.13</td><td>−0.10</td><td class="down">yes — revert</td></tr>
+        <tr><td>07-22 → 08-21</td><td>+0.36</td><td>+0.65</td><td>+0.38</td><td class="up">yes — trend</td></tr>
+        <tr><td>08-21 → 09-18</td><td>+0.07</td><td>+0.09</td><td>+0.03</td><td class="up">yes — trend</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>Seven blocks out of seven, all three assets agree on the sign.</b> Under independent coin flips that
+      happens with probability (¼)⁷ ≈ 6×10⁻⁵. Whether the market trends or fades is <b>a regime, it flips, and
+      it is market-wide</b> — three assets are three readings of one underlying state, which is why pooling
+      them roughly halves the error bar (±0.12 pooled against ±0.21 single-asset).
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      Two things immediately complicate it. The polarity <b>does not persist</b>: month to month the sign held
+      3 times out of 6, a coin flip — so last month's regime tells you nothing about next month's. And it is
+      <b>timescale-specific</b>: over the last four weeks the 1h and 4h horizons read ≈0 while 12h reads
+      +0.39 / +0.23 / +0.37, all three agreeing again.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>So: is it tradeable?</b> Estimating the pooled polarity on a trailing window and applying it forward —
+      nothing from the future — the best of <b>30 configurations</b> reached 60.6% ±6.7 directional accuracy
+      (1h bars, 1-day horizon, 10-window estimate, gated at |r|&gt;0.15), worth 45bp a window against a ~9bp
+      round trip. That is z = 3.12, against an expected maximum of z = 2.61 from thirty pure-noise trials and a
+      Bonferroni bar of 2.94. <b>It clears, and only just.</b> Worse, simply <em>always fading</em> at that same
+      horizon scored 55.2% — so the adaptive part bought 5.4 points on n=216, with a standard error of 3.4.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      The honest summary: <b>one robust finding and one suggestive one.</b> The cross-asset agreement was a
+      single pre-specified test and it is overwhelming. The tradeable version is the best of thirty and sits
+      right on the corrected significance bar, which is exactly where a result goes to be wrong. The only clean
+      next step is to <b>pre-register the horizon and test it forward on data that does not exist yet</b> —
+      everything else is re-reading the same 208 days.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>What execution actually costs, measured</h2>
+    <p class="cap" style="margin:0 0 10px">Everything below was queried live on 2026-09-19, not recalled.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      This lab spent its whole life fighting transaction drag while charging one number: a 4.5bp taker fee.
+      The obvious move &mdash; <em>trade the spot instead, drop the leverage</em> &mdash; is wrong twice over, and
+      the right move was hiding in the same fee schedule.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:560px"><thead><tr>
+        <th>venue / mode</th><th>fee each way</th><th>observed spread</th><th>round trip</th>
+      </tr></thead><tbody>
+        <tr><td><b>HL perp, taker</b></td><td>4.5bp</td><td>0.123bp (BTC)</td><td><b>9.12bp</b></td></tr>
+        <tr><td>HL perp, taker, top tier</td><td>2.4bp</td><td>0.123bp</td><td>4.92bp</td></tr>
+        <tr><td><b>HL perp, maker</b></td><td>1.5bp</td><td>&mdash; you post it</td><td><b>3.00bp</b></td></tr>
+        <tr><td>HL perp, maker &gt;$500M/30d</td><td>0.0bp</td><td>&mdash;</td><td><b style="color:var(--ok)">0.00bp</b></td></tr>
+        <tr><td>HL perp, maker + rebate</td><td>&minus;0.3bp</td><td>&mdash;</td><td><b style="color:var(--ok)">&minus;0.60bp</b></td></tr>
+        <tr><td>HL <b>spot</b>, taker</td><td>7.0bp</td><td>26.3bp (best native pair)</td><td style="color:var(--bad)"><b>40.3bp</b></td></tr>
+        <tr><td>Binance spot, taker</td><td>10bp</td><td>&mdash;</td><td style="color:var(--bad)">~21bp</td></tr>
+        <tr><td>Kraken spot, taker</td><td>40bp</td><td>&mdash;</td><td style="color:var(--bad)">~81bp</td></tr>
+        <tr><td>Coinbase Advanced, taker</td><td>60bp</td><td>&mdash;</td><td style="color:var(--bad)">~121bp</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>The perp is the cheapest instrument in crypto</b>, and it is not close. Spot on the same venue costs 56%
+      more in fees and its best native book is <b>214&times; wider</b> than the BTC perp&rsquo;s 0.123bp. The
+      wrapped-BTC spot pair there has <b>$0 of 24h volume</b> &mdash; there is no BTC spot market to trade.
+      Venue-wide it is $8.9B of perp against $426M of spot.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the lever was never leverage.</b> This page already measured drag &divide; gross at
+      <b>6.74 / 6.68 / 6.60 / 6.26</b> at 1&times; / 3&times; / 10&times; / 40&times;. Costs scale with size
+      traded, so leverage multiplies the result and the drag by the same factor. Dropping it does not improve the
+      economics per unit of exposure &mdash; it just risks less money at the same ratio. <b>The lever is
+      taker&nbsp;&rarr;&nbsp;maker</b>, which is a 3&times; cut at the base tier and goes to zero, then negative.
+    </p>
+
+    <h2 style="margin-top:18px">And DeFi, which turns out to be the story</h2>
+    <p class="cap" style="margin:0 0 8px">Round-trip cost through a Solana aggregator, five repeated quotes each,
+      SOL&nbsp;&rarr;&nbsp;USDC&nbsp;&rarr;&nbsp;SOL. Everything included: LP fees, price impact, routing.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:480px"><thead><tr>
+        <th>notional</th><th>median round trip</th><th>range over 5 quotes</th><th>vs HL perp taker (9.9bp)</th>
+      </tr></thead><tbody>
+        <tr><td>$1,130</td><td><b style="color:var(--ok)">0.10bp</b></td><td>&minus;0.34 &hellip; 0.39</td><td>99&times; cheaper</td></tr>
+        <tr><td>$11,300</td><td><b style="color:var(--ok)">0.66bp</b></td><td>0.58 &hellip; 0.81</td><td>15&times; cheaper</td></tr>
+        <tr><td>$113,000</td><td><b style="color:var(--ok)">1.78bp</b></td><td>1.38 &hellip; 2.25</td><td>5.6&times; cheaper</td></tr>
+        <tr><td>$565,000</td><td>6.60bp</td><td>6.42 &hellip; 7.55</td><td>1.5&times; cheaper</td></tr>
+        <tr><td>$2,260,000</td><td style="color:var(--bad)">36.3bp</td><td>36.3 &hellip; 38.3</td><td style="color:var(--bad)">3.7&times; dearer</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>Below about $150k, on-chain spot beats the perp outright</b> &mdash; and beats even the maker perp.
+      Aggregated Solana liquidity for a major pair is genuinely deeper than the fee schedules suggest, and
+      <b>gas is dead as a cost</b>: a swap is $0.0006 on Solana, $0.0024 on Base, $0.0004 on Optimism, and even
+      Ethereum L1 at 0.0885&nbsp;gwei is <b>3.5&nbsp;cents</b> &mdash; 0.003bp on a $100k trade.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Three things that table does not say.</b> A quote is not a fill &mdash; one of the first attempts came
+      back at <b>2100bp</b> through a bad route before settling down, which is a real risk you manage with
+      slippage limits, not a number you can average away. It is spot: no leverage and <b>no shorting</b>. And it
+      is one pair on one chain at one moment.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      The framing worth keeping: <b>the cheapest venue measured anywhere here is itself a DEX.</b> Hyperliquid is
+      an on-chain order book on its own L1. The interesting split is not centralised against decentralised, it is
+      <b>order book against AMM</b> &mdash; and AMMs win at small size while order books win at large, which is
+      exactly what the shape of the two cost curves says.
+    </p>
+
+    <h2 style="margin-top:18px">The cost this book was not charging at all</h2>
+    <p class="cap" style="margin:0 0 8px">A perp long pays funding. Ours never did.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Measured on Hyperliquid over 21 days: BTC funding averaged <b>0.1201bp/hour = 2.88bp/day = 10.5%/yr</b>,
+      and was positive &mdash; longs paying &mdash; in <b>96.2% of hours</b>. <code>book.mjs</code> charged fees on
+      every size change and <b>nothing on the position held between them</b>, so every long leg on this page has
+      been flattered and every short paid, for the lab&rsquo;s entire life.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>held</th><th>1&times;</th><th>3&times;</th><th>10&times;</th><th>40&times;</th>
+      </tr></thead><tbody>
+        <tr><td>190s (the fixture)</td><td>0.01bp</td><td>0.02bp</td><td>0.06bp</td><td>0.25bp</td></tr>
+        <tr><td>1 hour</td><td>0.12bp</td><td>0.36bp</td><td>1.20bp</td><td>4.80bp</td></tr>
+        <tr><td>1 day</td><td>2.88bp</td><td>8.64bp</td><td>28.76bp</td><td><b style="color:var(--bad)">114.6bp</b></td></tr>
+        <tr><td>1 week</td><td>20.1bp</td><td>60.3bp</td><td>199.6bp</td><td><b style="color:var(--bad)">774.8bp</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>On the 190-second fixture it is 0.01&ndash;0.25bp, so no measurement already on this page is overturned.</b>
+      But look at what it taxes. The conclusion drawn from the break-even table was <em>&ldquo;the only lever that
+      moves that column is how long you hold&rdquo;</em> &mdash; and funding is the one cost that grows with
+      exactly that. Holding is not free; it was only free here because the book forgot to bill it.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Who actually pays it.</b> A strategy that flips long and short roughly equally is near-neutral to
+      funding &mdash; it pays on the longs and is paid on the shorts. It is a tax on <b>long-biased holding</b>
+      specifically, and a subsidy to short-biased holding. So the one place the instinct that started all this is
+      dead right: <b>a long-only buy-and-hold as a perp bleeds 10.5%/yr that spot simply does not pay.</b>
+      That is the honest case for the underlying, and it has nothing to do with fees.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The gate fires on markets &mdash; when the question has an answer</h2>
+    <p class="cap" style="margin:0 0 10px">Two numbers on this page had never been reconciled. Now they are.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The &ge;0.9 confidence gate is <b>66/66 perfect</b> on determinate questions and fires <b>0 times in 342</b>
+      on market questions. The standing explanation was that market questions are predictions and predictions
+      have no determinate answer &mdash; which had never been tested, because no determinate market question was
+      ever asked. Three tapes on one clock make one possible: <em>which of these is strongest right now</em> has
+      an answer you can compute.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Six determinate and four predictive probes, <b>same document, same
+      call</b>, 41 non-overlapping windows of 1m bars. Ground truth computed, never labelled.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>arm</th><th>n</th><th>accuracy</th><th>mean conf</th><th>&ge;0.9 fired</th><th>&hellip;and was right</th>
+      </tr></thead><tbody>
+        <tr><td><b>determinate</b></td><td>246</td><td><b>87.0%</b></td><td>0.864</td><td><b>172 (69.9%)</b></td><td><b style="color:var(--ok)">97.1%</b></td></tr>
+        <tr><td>predictive <em>(control)</em></td><td>164</td><td style="color:var(--bad)">31.1%</td><td>0.708</td><td>40 (24.4%)</td><td style="color:var(--bad)">30.0%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>So the 0/342 was about the questions, not the domain.</b> Given a market question with an answer, the
+      gate fires on seven in ten and is right 97% of the time when it does. That is the headline and it is good
+      news for every cascade built on this pattern.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the second row is the warning.</b> Confidence alone let <b>40 predictive answers through at 30%
+      accuracy</b>. <code>p_weakest_next</code> cleared 0.9 on <b>20 of 41</b> windows and scored <b>19.5%</b> &mdash;
+      well <em>below</em> the 33% a coin-flip gets on a three-way choice. That is the same confidently-wrong
+      failure already measured on questions about machines that did not exist, reproduced here in a new domain.
+      <b>A plain confidence gate is not safe on market questions.</b>
+    </p>
+    <p class="cap" style="margin:14px 0 6px">The fix was already on this page. Asking
+      <em>&ldquo;does the state contain what this needs?&rdquo;</em> as its own question, in the same call:</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:520px"><thead><tr>
+        <th>router</th><th>keeps</th><th>accuracy of what it kept</th><th>predictive wrongly kept</th>
+      </tr></thead><tbody>
+        <tr><td>confidence &ge; 0.9</td><td>212</td><td>84.4%</td><td style="color:var(--bad)"><b>40</b></td></tr>
+        <tr><td>p(have) &gt; 0.5</td><td>246</td><td>87.0%</td><td style="color:var(--ok)"><b>0</b></td></tr>
+        <tr><td><b>both</b></td><td>172</td><td><b style="color:var(--ok)">97.1%</b></td><td style="color:var(--ok)"><b>0</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>The self-check was perfect: 246/246 determinate above 0.5, 0/164 predictive above it.</b> Mean p(have)
+      0.808 against 0.046 &mdash; a <b>76-point margin</b> where answer-confidence managed 15. The worst
+      determinate case (0.750) and the best predictive one (0.061) are <b>69 points apart</b>; the two classes do
+      not come close to touching. The 62-point margin measured earlier on a telemetry table replicates on live
+      market data, and is <em>wider</em> here.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>Compute-first replicated inside the same call.</b> Five of the six determinate probes are a lookup and a
+      comparison over figures the document prints; they averaged <b>89.3% at 0.908 confidence</b>. The sixth,
+      <em>which asset is furthest from the average of the three</em>, needs one subtraction the document does not
+      carry &mdash; it scored <b>75.6%</b>, and said so: confidence <b>0.642</b>, gate fired on <b>5 of 41</b>.
+      The one question requiring arithmetic was the worst one AND knew it, with everything else held identical.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>One number worth staring at.</b> Asked whether all three would move together over the next hour, it
+      answered <b>no on 41 windows out of 41</b> &mdash; while the truth was <em>yes</em> on 82.9% of them. A
+      constant &ldquo;yes&rdquo; scores 82.9%; it scored <b>17.1%</b>. That is not a bad forecast, it is a
+      refusal shaped like one, and the self-check flagged every single one of those answers at p(have) = 0.048.
+      <b>The model told us not to read them.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>What this does not license.</b> No position was opened and none should be. The relative-value trade dies
+      on arithmetic before the model is consulted: the three majors move the same way ~76% of the time, the
+      leader changes in 61&ndash;70% of windows, and the median best-minus-worst spread is 4.1bp over a minute
+      and 14.7bp over fifteen &mdash; against ~19bp for the two round trips a pair costs. This is a measurement
+      of the gate, not a strategy. And it is 3.5 days: one regime, as ever.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The first five minutes were a lie, and that is now fixed</h2>
+    <p class="cap" style="margin:0 0 10px">The state document described windows the tape did not reach.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The metrics ring holds five minutes, but the decision loop started at <b>twenty seconds</b> and computed
+      all three windows from whatever was in it. At the first decision the document said this, in these words:
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:460px"><thead><tr>
+        <th>what it said</th><th>what it actually was</th>
+      </tr></thead><tbody>
+        <tr><td><code>last 300s return 5.553bp</code></td><td>the 20-second return &mdash; <b>byte-identical to the 60s line printed above it</b></td></tr>
+        <tr><td><code>price vs its own 300s mean 1.186 sd</code></td><td>the same number as the 60s line, again</td></tr>
+        <tr><td><code>position in the last 300s range 1.00</code></td><td>the top of a 20-second range</td></tr>
+        <tr><td><code>below the 300s high by 0.0bp, set 0s ago</code></td><td>structurally forced: the max of a 20-tick buffer ending on its own highest tick</td></tr>
+        <tr><td><code>volatility at the 50th percentile</code></td><td>the fallback for <em>too few samples to rank</em>, printed as a measurement</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Read together that is <em>&ldquo;price is at the top of its five-minute range, it just set a five-minute
+      high this second, and volatility is exactly average&rdquo;</em> &mdash; three assertions, none of them
+      measured, all leaning the same way. On the default ten-second cadence <b>the first 28 decisions of every
+      run</b> were made against a document like that, and the 190-second fixture never reaches 300s at all, so
+      every replay measurement on this page was taken in that regime.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>A window is now reported only when the tape covers it.</b> The document leads with
+      <code>TAPE SO FAR 47s</code> and names the boundary; anything longer is left out rather than approximated;
+      the volatility percentile is omitted rather than defaulted to a half; and the moving-average cross is
+      absent until both means exist. The first call waits for the second window &mdash; sixty seconds &mdash;
+      because every deterministic rule below keys off it. It does <em>not</em> wait for all three: five minutes
+      of blank page is not honesty, it is just a blank page.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>The oracles crashed on the fix, which is how the silent version was found.</b> They had been reading
+      those fabricated numbers without complaint. A rule whose inputs are missing now <b>abstains</b> &mdash; it
+      does not vote zero, it is not offered as an option in the typed choice, and the tally counts it apart from
+      flat. Six abstentions averaged as zeros would have shown Jev six rules agreeing that the tape was
+      balanced. <em>No data</em> and <em>a view that flat is right</em> are different things, which is the same
+      distinction the dead zone already makes one card below.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      One nuance kept deliberately: a window that IS covered but perfectly flat reads <b>zero</b>, not null.
+      That is a measurement of no dispersion, and collapsing it into &ldquo;no data&rdquo; would make a dead
+      calm tape indistinguishable from a page that started four seconds ago.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>So it was pre-registered, and it is running now</h2>
+    <p class="cap" style="margin:0 0 10px">
+      <code style="font-family:var(--mono);font-size:.9em">jev-lab-polarity-12h-v1</code> &middot; committed
+      2026-09-18 22:29 UTC, in commit <code style="font-family:var(--mono);font-size:.9em">54531db6</code>,
+      <b>alone and before the code that evaluates it existed</b>. Git holds the proof.
+    </p>
+
+    <div class="prereg-bar" role="img" aria-label="Forward test progress toward the registered minimum sample">
+      <div class="prereg-fill" id="pregFill" style="width:0%"></div>
+    </div>
+    <p style="font-size:.95rem;margin:8px 0 12px">
+      <b id="pregCount">0 of 200</b> predictions
+      <span style="color:var(--ink-2)" id="pregEta">&mdash; about 114 days to go at the measured rate</span>
+      <span style="color:var(--ink-2)" id="pregAcc"></span>
+    </p>
+
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      <b>The rule, frozen.</b> Pool the lag-1 correlation of non-overlapping 12h returns across BTC, ETH and SOL
+      over the trailing 20 windows. If |r| &ge; 0.15, take the side <em>sign(r) &times; sign(the trailing 12h
+      move)</em> — follow the move when the regime trends, fade it when the regime reverts. Otherwise no
+      prediction. Success is accuracy above 50% at a one-sided binomial p &lt; 0.05.
+      <b>No claim is made in either direction before n = 200, and there is no early stop for a good result.</b>
+    </p>
+
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      <b>What is disclosed, because it has to be.</b> K = 20 and the 0.15 gate were the <em>best of thirty</em>
+      configurations on the discovery data, where they scored 56.4% on n = 365. The forward test therefore tests
+      that selected configuration as a whole — which is the point: a number chosen as the best of thirty is
+      exactly the kind that needs data it was not chosen on.
+    </p>
+
+    <p class="cap" style="margin:0 0 6px">And a secondary test that could run immediately: the same polarity,
+      estimated from the registered three, applied unchanged to <b>twelve assets never examined</b>.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>size of the move</th><th>accuracy</th><th>bp per prediction</th>
+      </tr></thead><tbody>
+        <tr><td>0 &ndash; 63bp</td><td>53.1%</td><td>+1.4</td></tr>
+        <tr><td>63 &ndash; 145bp</td><td>55.7%</td><td>+13.2</td></tr>
+        <tr><td>147 &ndash; 272bp</td><td>55.2%</td><td>+18.1</td></tr>
+        <tr><td><b>273 &ndash; 2473bp</b></td><td><b style="color:var(--bad)">45.1%</b></td><td><b style="color:var(--bad)">&minus;85.4</b></td></tr>
+        <tr><td>the biggest 20%</td><td style="color:var(--bad)">44.2%</td><td style="color:var(--bad)">&minus;104.0</td></tr>
+        <tr><td><b>all of them</b></td><td><b>52.3%</b> (n=777)</td><td><b>&minus;13.3</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      52.3% on 777 predictions is a one-sided p of <b>0.11</b> — not significant — and it loses money gross.
+      The quartiles say something sharper than the total does: it is <b>right on small moves and wrong on big
+      ones</b>, which is the exact inverse of the thesis that made the horizon interesting. The big-move card
+      above is where the money was supposed to be.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>The registration forbids changing the rule in response to that</b>, which is the whole reason for
+      writing it down first. Twelve fresh assets are a different cross-section, not a different month, so it is
+      evidence and not the verdict. The verdict waits for n = 200.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>One correction to the registration, published rather than edited in.</b> Its own notes say the windows
+      accrue at two per asset per day and that n = 200 takes about 33 days. Measured against the 208-day
+      history, a 24-bar stride puts <b>one</b> window per asset per day and the gate passes 64.7% of them:
+      <b>1.75 predictions a day, so n = 200 is about 114 days.</b> The frozen file is left exactly as committed —
+      a registration that gets edited when its schedule turns out inconvenient is not a registration.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      Collection is a scheduled job, not this page: it runs twice a day, applies the frozen rule to whatever
+      closed, and records the result. It calls Hyperliquid and never calls Jev &mdash; <b>this measures the
+      rule, not the model</b>, and the model is why the rule was worth registering.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>And the schedule runs on Cloudflare, because the GitHub one does not.</b> GitHub fires
+      <code>schedule</code> only for workflows on the default branch, and this surface's workflows live on its
+      owning branch &mdash; so the first version of this was committed, tested, correct and <em>accruing
+      nothing</em>. The trigger moved to where the surface already deploys: a Worker cron writing into a
+      Durable Object, both declared in <code>wrangler.jsonc</code>, with no dashboard step and nothing outside
+      this surface's own deploy. The counter above reads that record, and falls back to the committed file.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      <b>What that costs, stated plainly.</b> A git-committed record is append-only in public history, and that
+      is a real part of why a pre-registration is believable at all; a store the operator can write is not.
+      So the split is deliberate: <b>the registration stays in git</b> &mdash; commit <code>54531db6</code>,
+      before any evaluating code existed &mdash; the Durable Object holds only the accumulating record, and the
+      GitHub workflow is kept so that once it can fire it snapshots the same record back into git. Cloudflare is
+      what makes the test <em>run</em>; git is what makes it <em>auditable</em>.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The only scoreboard that matters if the money is in a few windows</h2>
+    <p class="cap" id="capWhy" style="margin:0 0 10px">not enough price history yet.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Average return says <em>do nothing wins</em>. That is the right answer to the wrong question if the P&amp;L
+      lives in a handful of windows. Measured on 3.5 days of minute candles: the biggest <b>5% of hour-long
+      windows carry 24%</b> of all movement, and — the number the whole thesis rests on — <b>a p95 hour-move
+      pays 8.6× what a round trip costs, at any leverage.</b> The drag is affordable. Being on the right side
+      when it happens is the entire problem.
+    </p>
+    <p class="cap" style="margin:0 0 6px">So: are big moves continuations you can ride into, or reversals that
+      run you over? Non-overlapping windows, 3.5 days.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>window size</th><th>n</th><th>correlation with the prior hour</th><th>same direction as it</th>
+      </tr></thead><tbody>
+        <tr><td>all hour-long windows</td><td>5084</td><td>r = −0.069</td><td>41.4%</td></tr>
+        <tr><td>the biggest 10%</td><td>509</td><td>r = −0.113</td><td>36.5%</td></tr>
+        <tr><td><b>the biggest 5%</b></td><td>255</td><td><b>r = −0.179</b></td><td class="down"><b>34.1%</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>On this sample they reverse — and the bigger the move, the more strongly.</b> A trend follower is
+      offsides on <b>66%</b> of exactly the windows that carry the money, capturing −8.5% of them. That is the
+      opposite of the intuition, and it matters because Jev's stance criteria are <em>trend-descriptive</em>:
+      &ldquo;the tape is being bought and holding it&rdquo; → buy. On data shaped like this, the framing itself
+      is the losing side.
+    </p>
+    <div class="scroll" style="max-height:none;margin-top:8px">
+      <table class="log" style="min-width:450px"><thead><tr>
+        <th>rule, non-overlapping 15m windows</th><th>big windows (n=66)</th><th>all windows (n=325)</th>
+      </tr></thead><tbody>
+        <tr><td>follow the prior hour</td><td>40.9% <span style="color:var(--ink-3)">±12.1</span></td><td class="down">43.1%</td></tr>
+        <tr><td>MA cross</td><td>40.9%</td><td>48.2%</td></tr>
+        <tr><td>breakout</td><td>41.2%</td><td>40.2%</td></tr>
+        <tr><td><b>mean reversion</b></td><td>52.6% <span style="color:var(--ink-3)">(n=19)</span></td><td class="up"><b>60.7%</b> <span style="color:var(--ink-3)">(n=89)</span></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>An error worth publishing.</b> The first pass of that table used <em>overlapping</em> windows and had a
+      momentum rule at 75.7% accuracy over 4,844 of them. Non-overlapping, that rule fires on <b>four</b>
+      windows. Adjacent overlapping windows share 59 of their 60 minutes: it was one trend counted hundreds of
+      times. Every figure above is non-overlapping, and the capture metric enforces it in code.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      And the caveat that outranks all of it: <b>3.5 days is one regime.</b> That mean reversion won here is a
+      fact about this sample, not about markets — which is exactly why the polarity is not hardcoded anywhere,
+      and why the honest next step is the same test on a different month rather than a rule change.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Stream B — thirty floats, and nothing else</h2>
+    <p class="cap" style="margin-bottom:8px">A second stream running beside the first, on the same ticks. It is
+      sent <b>thirty numbers</b>, one per line. No units, no labels, no mention of a price, a market, or what
+      any of it is for. It is asked one thing: <em>&ldquo;The next value in this sequence will be:&rdquo;</em>
+      — and max leverage is slammed in whichever direction it says.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      It deliberately breaks every rule the rest of this page obeys, which is why it is worth running: the
+      contrast is the experiment. (Jev cannot return a free float — the primitives are <code
+      style="font-family:var(--mono)">choice</code>, <code style="font-family:var(--mono)">score</code> and
+      <code style="font-family:var(--mono)">noul</code> — but a <code style="font-family:var(--mono)">score</code>
+      over an ordered ladder <em>is</em> a continuous number, so thirty in and one out survives intact.)
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:440px"><thead><tr>
+        <th>what it was sent</th><th>windows</th><th>directional accuracy</th><th>correlation</th>
+      </tr></thead><tbody>
+        <tr><td>30 raw prices</td><td>120</td><td>51.7% <span style="color:var(--ink-3)">(±9.0)</span></td><td>r = −0.000</td></tr>
+        <tr><td>29 returns in bp</td><td>120</td><td>49.2% <span style="color:var(--ink-3)">(±8.9)</span></td><td>r = −0.176</td></tr>
+        <tr><td>30 raw prices, contiguous</td><td>150</td><td>51.0%</td><td>—</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Three runs, ~390 windows across 3.5 days of minute candles: <b>noise</b>. Normalising the floats into
+      returns did not rescue it. Worth noting what it did instead of guessing — it hedged to the middle rung,
+      forecasting a mean of 0.7bp against actual moves averaging 4.0bp. Asked to predict, it declines, the same
+      way it declined on six-hour windows. That is the honest answer to an unanswerable question.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>But the accuracy turns out not to be the deciding number.</b> Trading a per-bar forecast has a
+      break-even accuracy set purely by arithmetic: a full reversal trades twice the size, so it costs
+      2 × cost × size, while a correct call earns the move × size. <b>Leverage appears on both sides and
+      cancels.</b> It multiplies the edge and the fees by the same factor — a magnifying glass, not an engine.
+    </p>
+    <div class="scroll" style="max-height:none;margin-top:8px">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>holding period</th><th>mean move</th><th>break-even accuracy, flipping</th>
+      </tr></thead><tbody>
+        <tr><td>10 seconds</td><td>2.0bp</td><td class="down"><b>impossible</b></td></tr>
+        <tr><td>1 minute</td><td>4.8bp</td><td class="down"><b>impossible — 148%</b></td></tr>
+        <tr><td>5 minutes</td><td>10.7bp</td><td>93.9%</td></tr>
+        <tr><td>15 minutes</td><td>18.5bp</td><td>75.3%</td></tr>
+        <tr><td>1 hour</td><td>37.1bp</td><td>62.7%</td></tr>
+        <tr><td>1 day</td><td>181.7bp</td><td>52.6%</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>The only lever that moves that column is how long you hold.</b> Traded every minute at 40× on the real
+      forecasts, the leg returned <b>−75.7%</b> over 150 minutes: 37 fills, 2840× turned over, and 70 points of
+      the 76 were fees. The configurations that did not lose were the ones that barely traded — three fills in
+      150 minutes — and their gains are one held position getting lucky at 40×, not a strategy.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      So stream B stays on the board as what it is: the control that shows what breaking the compute-first rule
+      costs, and the demonstration that at this cadence the fee structure decides the outcome before the model
+      is even consulted. The live stream runs at ten-second buckets, where the break-even is not merely high
+      but unreachable.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Does more leverage outrun the fees?</h2>
+    <p class="cap" style="margin-bottom:8px">BTC on this platform caps at <b>40×</b> — the only asset there that
+      does. The same 50 recorded answers, replayed at every cap, each run twice so gross and drag are exact.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:470px"><thead><tr>
+        <th>cap</th><th>net</th><th>gross</th><th>drag</th><th>drag ÷ gross</th><th>worst drawdown</th>
+      </tr></thead><tbody>
+        <tr><td>1×</td><td>−0.13%</td><td>−0.02%</td><td>0.11%</td><td>6.74</td><td>0.17%</td></tr>
+        <tr><td>3×</td><td>−0.39%</td><td>−0.05%</td><td>0.34%</td><td>6.68</td><td>0.50%</td></tr>
+        <tr><td>10×</td><td>−1.29%</td><td>−0.17%</td><td>1.12%</td><td>6.60</td><td>1.67%</td></tr>
+        <tr><td>20×</td><td>−2.58%</td><td>−0.35%</td><td>2.24%</td><td>6.48</td><td>3.32%</td></tr>
+        <tr><td><b>40×</b></td><td><b>−5.14%</b></td><td>−0.71%</td><td>4.44%</td><td><b>6.26</b></td><td><b>6.57%</b></td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>No — and the reason is arithmetic, not opinion.</b> Costs scale with the size traded, so leverage
+      multiplies the gross result and the drag by the same factor: gross scaled <b>42.4×</b> from 1× to 40×
+      while drag scaled <b>39.4×</b>, leaving drag-as-a-share-of-gross essentially flat (6.74 → 6.26). Leverage
+      is a magnifying glass held over whatever the edge already is. Held over a negative one it magnifies that.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      What it <em>does</em> change is ruin. A cap of N× is wiped out by an adverse move of 100/N percent — 33%
+      at 3×, <b>2.5% at 40×</b>. The recorded tape's worst move inside any five minutes was 0.16%, so 40× looks
+      survivable on this tape and would not be on a worse one. The slider goes to 40 because that is the real
+      platform limit; the book models the liquidation because a leveraged demo that cannot be ruined is lying.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Giving him his own history</h2>
+    <p class="cap" style="margin-bottom:8px">He had been deciding a position every few seconds with no idea what
+      he decided last time, how long he had held it, or what it had earned since. In the dungeon the same gap
+      had the same shape — he walked into dead ends and gave up in them.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      The journal gives him his last eight decisions, what each one went to, and — the column he has never had —
+      <b>what the position has earned on the move since it was taken</b>. Two arms walked the identical tape with
+      identical book logic; the only difference was whether that block was in the document.
+    </p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:400px"><thead><tr>
+        <th></th><th>no journal</th><th>with journal</th>
+      </tr></thead><tbody>
+        <tr><td>net</td><td>−0.37%</td><td>−0.37%</td></tr>
+        <tr><td>fills</td><td>2</td><td>2</td></tr>
+        <tr><td>turnover</td><td>6.8×</td><td>6.9×</td></tr>
+        <tr><td><b>mean &ldquo;is this decidable?&rdquo;</b></td><td>0.411</td><td><b>0.537</b></td></tr>
+        <tr><td>mean &ldquo;are the figures present?&rdquo;</td><td>0.821</td><td>0.867</td></tr>
+        <tr><td>mean confidence</td><td>0.688</td><td>0.643</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <b>His decisions barely moved.</b> The ladder scores track each other almost exactly — 4.6/4.7, 4.9/4.7,
+      5.2/5.3 — and net, fills and turnover are unchanged. But his own sense that the decision is
+      <em>decidable</em> rose by 0.13, and it rose by 0.16 when the rule-based strategies were added earlier.
+      <b>Twice now, extra context has moved the self-check without moving the behaviour.</b>
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      That is worth stating as a limit rather than a win. The self-check appears to track <em>how much context
+      it has</em> rather than <em>how much that context helps</em> — so it is a good detector of a missing value
+      and a poor proxy for decision quality. It is still the right thing to gate on, and it is still the only
+      number here that separates an answerable question from an unanswerable one by 62 points. It just should
+      not be read as a scoreboard.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Leaderboard</h2>
+    <p class="cap" id="boardWhy" style="margin:0 0 10px">—</p>
+    <div class="scroll">
+      <table class="log" style="min-width:380px"><thead><tr>
+        <th>#</th><th>leg</th><th>return</th><th>worst drawdown</th><th>fills</th>
+      </tr></thead><tbody id="boardBody"></tbody></table>
+    </div>
+    <p style="font-size:.82rem;color:var(--ink-2);margin:10px 0 0">
+      Six fixed rules run on the identical ticks at identical costs — MA cross, mean reversion, breakout,
+      momentum, taker flow and funding carry — and <b>Jev is shown what each one currently says</b> before he
+      decides. Their thresholds are textbook defaults, stated in the code, and deliberately not tuned: picking
+      them to make a run look good is the exact failure this page exists to avoid. Two of the legs are not
+      strategies but controls — <b>the average of the rules</b>, and <b>whichever rule is ahead on past
+      performance only</b>.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Continuum or quanta? <code style="font-family:var(--mono);font-size:.9em">score</code> is both</h2>
+    <p class="cap" style="margin-bottom:8px">Why the exposure ladder is a <b>score</b> and not a <b>choice</b>.
+      Six real states, both questions in the same call.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:420px"><thead><tr>
+        <th>tape</th><th>score ladder</th><th>choice over the same quanta</th>
+      </tr></thead><tbody>
+        <tr><td>eff 0.14 · skew −0.91</td><td>0.17 → <b>−2.83x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.18 · skew −0.91</td><td>0.90 → <b>−2.10x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.84 · skew −0.94</td><td>0.63 → <b>−2.37x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.19 · skew −0.99</td><td>0.86 → <b>−2.14x</b></td><td>−3x</td></tr>
+        <tr><td>eff 0.34 · skew −0.89</td><td>1.28 → <b>−1.72x</b></td><td>−2x</td></tr>
+        <tr><td>eff 0.19 · skew −0.89</td><td>0.94 → <b>−2.06x</b></td><td>−3x</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      <code style="font-family:var(--mono)">score</code> takes an <b>ordered</b> array of rungs and returns the
+      <b>expectation over the distribution across them</b> — so the ladder is discrete, which is what makes the
+      ceiling enforceable (it cannot return a rung off the end, so it cannot ask for 50x), while the output is
+      continuous. A <code style="font-family:var(--mono)">choice</code> over the identical seven quanta throws
+      the ordering away and takes the argmax: it answered the extreme <b>−3x on five of six</b> states where the
+      ladder graded them −2.83x to −1.72x.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      One thing this page deliberately does <em>not</em> do: scale the target down again by the score's
+      confidence. The score is already the expectation over the whole distribution, so a hedged read has
+      <em>already</em> been pulled toward the middle rung — which is flat. Scaling again would count the same
+      uncertainty twice. A bimodal read lands near flat for the same reason, which is the right size for it.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>Doing the arithmetic for him</h2>
+    <p class="cap" style="margin-bottom:8px">Every metric in the first version was a <b>rate</b> — how fast, how far,
+      which way. None of them said <b>where</b>.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 10px">
+      Rates alone cannot tell selling into a five-minute low from selling into a five-minute high, which is most
+      of what a person means by reading a chart. So the page now computes the levels too — moving averages, the
+      distance from them in standard deviations, position in the recent range, distance from and age of the
+      recent extremes, and where current volatility ranks. All of it arithmetic done here so the judgement does
+      not have to do it.
+    </p>
+    <p class="cap" style="margin:0 0 6px">Six questions about the tape whose answers were <b>computed</b>, asked
+      of both documents over sixteen windows — 80 paired items each.</p>
+    <div class="scroll" style="max-height:none">
+      <table class="log" style="min-width:460px"><thead><tr>
+        <th>determinate probe</th><th>rates only</th><th>with levels</th><th>base rate</th>
+      </tr></thead><tbody>
+        <tr><td>is price above its five-minute mean?</td><td>56.3%</td><td><b>87.5%</b></td><td>50%</td></tr>
+        <tr><td>upper half of the last 60s range?</td><td>43.8%</td><td><b>100.0%</b></td><td>56%</td></tr>
+        <tr><td>is the 15s mean above the 60s mean?</td><td>56.3%</td><td><b>100.0%</b></td><td>63%</td></tr>
+        <tr><td>more than 1 sd from the 60s mean?</td><td>50.0%</td><td><b>93.8%</b></td><td>50%</td></tr>
+        <tr><td>volatility in the top third?</td><td>87.5%</td><td>87.5%</td><td>69%</td></tr>
+        <tr><td><b>all of them</b></td><td><b>58.8%</b></td><td><b>93.8%</b></td><td>—</td></tr>
+        <tr><td>mean confidence</td><td>0.670</td><td><b>0.886</b></td><td>—</td></tr>
+      </tbody></table>
+    </div>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      Paired over identical states, a sign test gives <b>rich won 30, thin won 2, tied 48 — z = 4.95</b>. A sixth
+      probe was thrown out: its answer never changed on this tape, so a constant guesser scores 100% on it for
+      free and it measures nothing.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      Two things this cost, both worth knowing. Writing the volatility line as <em>&ldquo;calmer than 20%&rdquo;</em>
+      sent that probe from 80% to 40% — answering <em>&ldquo;is volatility high?&rdquo;</em> then needs an
+      inversion, which is arithmetic handed back after all the trouble of handing it over. And shipping
+      <em>both</em> a volatility ratio and a volatility percentile cost another 12 points: two views of one fact
+      is reconciliation work. One line, pointing the way the question points.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:8px 0 0">
+      What it did <b>not</b> do is make the future more knowable. Over the same sixteen windows the
+      <em>is this decidable?</em> answer moved 0.256 → 0.237, and <em>are the figures present?</em> 0.831 → 0.816.
+      Better informed, not more clairvoyant — which is the whole distinction this lab is built around.
+    </p>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h2>The most interesting number on this page</h2>
+    <p class="cap" style="margin-bottom:8px">Four availability questions, one real state document, one call.</p>
+    <table class="log" style="max-width:640px">
+      <tbody>
+        <tr><td>are the figures present and readable?</td><td style="text-align:right;color:var(--ok)"><b>0.95</b></td></tr>
+        <tr><td>enough to judge whether a change beats its cost? <em>(this is what gates)</em></td><td style="text-align:right;color:var(--ok)"><b>0.84</b></td></tr>
+        <tr><td>enough to decide what the position should do?</td><td style="text-align:right;color:var(--bad)"><b>0.24</b></td></tr>
+        <tr><td>enough to know which way the price goes next?</td><td style="text-align:right;color:var(--bad)"><b>0.06</b></td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:10px 0 0">
+      That is one model, one state, four phrasings — cleanly separating <b>the data is here</b> from
+      <b>this is not decidable</b>. It is not a wording artefact, and it is the reason the live
+      <em>is this decidable?</em> tile above sits where it sits and is never allowed to gate anything.
+      A trading demo that hides this number is hiding the only honest thing it knows.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>What this lab is for</h2>
+    <p class="cap" style="margin-bottom:8px">And what it deliberately refuses to do.</p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      Jev is never asked what happens next. Asked to call direction on 111 six-hour windows it returned
+      probabilities spanning only 0.36–0.60 and never once cleared 0.7 — which is the honest answer, and the
+      reason this page asks it to <em>classify what is happening</em> rather than to forecast.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0 0 8px">
+      That distinction is worth more than it sounds. On five identical states, asked <em>&ldquo;what should the
+      position do?&rdquo;</em> it answered <b>hold five times out of five</b> at 0.46–0.79 confidence. Asked
+      <em>&ldquo;which stance matches what the tape is doing?&rdquo;</em> it answered <b>sell five out of five</b>
+      at 0.70–0.96 — and taker skew on every one of those windows was between −0.89 and −0.98, so the tape
+      really was being sold hard. Weighing a trade is a prediction, and it declines to make those. Describing
+      what is in front of it is a judgement, and it makes those confidently. So the page asks for the stance
+      and the <em>harness</em> pays the cost of acting on it.
+    </p>
+    <p style="font-size:.85rem;color:var(--ink-2);margin:0">
+      Every decision also carries a self-check: <em>does the state contain what this needs?</em> Reading the
+      action's own confidence separated answerable from unanswerable by 0.0 points in measurement; asking
+      the question separately separated them by 62. When the self-check says no, the lab holds and says so
+      rather than acting on a confident-looking answer.
+    </p>
+  </div>
+
+</div>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

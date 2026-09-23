@@ -1,0 +1,18 @@
+{
+  "$schema": "com.minomobi.cad.tree#v1",
+  "units": "mm",
+  "_": "Escape wheel: a disc, then fifteen club teeth unioned on as fifteen separate extrusions whose roots overlap the rim. The ugly one on purpose: fifteen unions whose side faces meet a cylinder along curves.",
+  "params": { "r_disc": 9.5, "r_tip": 12, "b": 0.6, "bore": 0.8, "teeth": 15, "root_in": 0.4 },
+  "features": [
+    { "op": "sketch", "id": "disc", "loops": [ { "name": "rim", "circle": { "c": [0, 0], "r": "r_disc" } }, { "name": "bore", "circle": { "c": [0, 0], "r": "bore/2" } } ] },
+    { "op": "extrude", "id": "body", "profile": "disc", "depth": "b" },
+    { "op": "sketch", "id": "tooth", "loops": [ { "name": "tooth", "path": { "from": ["r_disc - root_in", -0.7], "segs": [
+      { "to": ["r_tip", -0.12] },
+      { "arc": { "via": ["r_tip + 0.02", 0], "to": ["r_tip", 0.12] } },
+      { "to": ["r_disc - root_in", 0.35] },
+      { "to": ["r_disc - root_in", -0.7] }
+    ] } } ] },
+    { "op": "pattern", "id": "teeth", "of": "tooth", "kind": "circular", "count": "teeth", "name": "tooth" },
+    { "op": "extrude", "id": "club", "profile": "teeth", "depth": "b", "mode": "add" }
+  ]
+}

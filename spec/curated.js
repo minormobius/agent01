@@ -30,7 +30,7 @@ window.SPEC_CURATED = {
     { id: 'reading',    label: 'Reading & language',
       blurb: 'Deep-reading apparatus for medieval tales, sentence-editing drills with AI grading, and conversation practice.' },
     { id: 'math',       label: 'Math & explainers',
-      blurb: 'Interactive single-file explainers of extremal geometry and other results, plus AI-pair numerics education.' },
+      blurb: 'Interactive single-file explainers of extremal geometry and other results, the Navier–Stokes blowup pack, plus AI-pair numerics education.' },
   ],
 
   families: {
@@ -41,13 +41,13 @@ window.SPEC_CURATED = {
     poll: 'social', feed: 'social', zoom: 'social', b: 'social', bsky: 'social', airchat: 'social',
     hose: 'social',
     bisk: 'social', empathy: 'social', io: 'social', photo: 'social',
-    pod: 'social', answers: 'social', time: 'social', rant: 'social',
+    pod: 'social', answers: 'social', time: 'social', rant: 'social', parts: 'social',
     fifty: 'social', zest: 'social',
-    bakery: 'work', wave: 'work', org: 'work', crm: 'work', pm: 'work',
+    bakery: 'work', org: 'work', crm: 'work',
     clef: 'work',
     finance: 'work', os: 'work', 'os-api': 'work', audio: 'work', board: 'work',
     labglass: 'science', j: 'science', ocr: 'science', splice: 'science',
-    neuro: 'science', sci: 'science', jurassic: 'science', fold: 'science',
+    neuro: 'science', sci: 'science', jurassic: 'science', fold: 'science', cad: 'science',
     cable: 'science', ar: 'science', tjs: 'science', wars: 'science',
     silk: 'science',
     hoop: 'oneill', 'hoop-archive': 'oneill', rind: 'oneill', tide: 'oneill', iris: 'oneill',
@@ -63,7 +63,7 @@ window.SPEC_CURATED = {
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     atlas: 'science',
     read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',
-    math: 'math', 'ai-edu': 'math', perp: 'math',
+    math: 'math', 'ai-edu': 'math', ns: 'math', henderhead: 'math',
   },
 
   // ----------------------------------------------- description capsules ----
