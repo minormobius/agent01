@@ -9,7 +9,7 @@ happens automatically in GitHub Actions on push.
 
 | Piece | What | How it deploys |
 |---|---|---|
-| Frontend (`os/`) | Terminal UI + `kimi` command | `deploy-os.yml` — auto on push to `claude/os-deploy-surface-474bz3` (or `main`) touching `os/**` (excl. `os/api/**`) |
+| Frontend (`os/`) | Terminal UI + `kimi` command | `deploy-os.yml` — auto on push to `claude/codex-containers-research-58t9ad` touching `os/**` (excl. `os/api/**`) |
 | Backend (`os/api/`) | Worker `os-mino-api` + Docker container + DO + R2 | `deploy-os-api.yml` — auto on push touching `os/api/**` (same branches) or dispatch. **Self-provisioning**: ensures the R2 bucket, deploys, syncs secrets from GitHub, health-checks the domain |
 
 ## The architecture in one paragraph

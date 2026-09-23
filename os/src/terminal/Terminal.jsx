@@ -32,7 +32,7 @@ const LOGIN_PROMPT = `\x1b[2msign in above — OAuth via Bluesky, or app passwor
 
 `;
 
-export default function Terminal({ session, onLogin, onLogout, transport, onConnectContainer, containerStatus }) {
+export default function Terminal({ session, onLogin, onLogout, transport, onConnectContainer, containerStatus, onContainerStatus }) {
   const containerRef = useRef(null);
   const termRef = useRef(null);
   const shellRef = useRef(null);
@@ -41,6 +41,10 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
   const cursorPosRef = useRef(0);
   const modeRef = useRef(session ? 'shell' : 'login');
   const loginStateRef = useRef({ step: 'handle', handle: '' });
+  // xterm is created behind `await import(...)`, so termRef.current is still
+  // null when effects first run. This flips once it exists, and the transport
+  // wiring effect waits on it — see the comment there.
+  const [termReady, setTermReady] = useState(false);
   const [mobile, setMobile] = useState(() => isMobile());
   const [kbHeight, setKbHeight] = useState(0);
 
@@ -119,6 +123,7 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
       setMobile(isMobile());
 
       termRef.current = term;
+      setTermReady(true);
 
       // Banner
       term.write(getBanner());
@@ -148,9 +153,18 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
     }
   }, [session]);
 
-  // Container mode: wire transport output → terminal
+  // Container mode: wire transport output → terminal.
+  //
+  // `termReady` is in the deps for a reason. xterm loads behind three dynamic
+  // imports, so on mount termRef.current is null and this effect used to bail —
+  // and since `transport` never changes identity afterwards, it never re-ran.
+  // The transport then had NO onOutput/onStatus at all: `container` opened the
+  // WebSocket, every byte the container sent was dropped by
+  // `this.onOutput?.(...)`, the mode transition below never fired, and typing
+  // kept going to the PDS shell. It looked exactly like "container is broken",
+  // with the connection actually fine the whole time.
   useEffect(() => {
-    if (!transport || !termRef.current) return;
+    if (!transport || !termReady || !termRef.current) return;
 
     transport.onOutput = (data) => {
       termRef.current?.write(data);
@@ -169,6 +183,9 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
     };
 
     transport.onStatus = (status) => {
+      // App owns the CONTAINER badge; this assignment used to clobber the
+      // setter it was constructed with, so the badge froze on 'disconnected'.
+      onContainerStatus?.(status);
       const term = termRef.current;
       if (!term) return;
       if (status === 'connecting') {
@@ -203,7 +220,7 @@ export default function Terminal({ session, onLogin, onLogout, transport, onConn
         }
       }
     };
-  }, [transport]);
+  }, [transport, termReady, onContainerStatus]);
 
   function startShell(term, sess) {
     modeRef.current = 'shell';

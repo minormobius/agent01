@@ -15,6 +15,13 @@
 # missing the one its harness needs is a hard error here rather than a confusing
 # 404 from the provider ten seconds later.
 #
+#   respBase OpenAI Responses API endpoint   → what Codex speaks (0.154 dropped
+#                                              Chat Completions entirely). For
+#                                              the `astra` cell this points at
+#                                              os-api itself, which swaps the
+#                                              capability token for the real
+#                                              ChatGPT bearer — see run_codex.
+#
 #   agent                          → list the matrix
 #   agent kimi3                    → Kimi under Claude Code (default harness)
 #   agent --harness=opencode ds4-flash
@@ -50,13 +57,14 @@ fi
 have() { command -v "$1" >/dev/null 2>&1; }
 
 list_profiles() {
-  echo "usage: agent [--harness=claude|opencode] <profile> [harness args...]"
+  echo "usage: agent [--harness=claude|opencode|codex] <profile> [harness args...]"
   echo
   echo "harnesses:"
-  for h in claude opencode; do
+  for h in claude opencode codex; do
     case "$h" in
       claude)   bin=claude ;;
       opencode) bin=opencode ;;
+      codex)    bin=codex ;;
     esac
     if have "$bin"; then echo "  $h (installed)"; else echo "  $h [NOT INSTALLED]"; fi
   done
@@ -65,10 +73,13 @@ list_profiles() {
   node -e '
     const p = JSON.parse(process.env.AGENT_PROFILES || "{}");
     for (const [name, c] of Object.entries(p)) {
-      const where = c.base ? c.base : "api.anthropic.com (native)";
+      const where = c.base ? c.base : c.respBase ? c.respBase : "api.anthropic.com (native)";
       const key = (name === "claude" ? !!process.env.ANTHROPIC_API_KEY : !!c.key);
-      const runs = [c.base || name === "claude" ? "claude" : null, c.oaiBase ? "opencode" : null]
-        .filter(Boolean).join(",") || "-";
+      const runs = [
+        (c.base || name === "claude") ? "claude" : null,
+        c.oaiBase ? "opencode" : null,
+        c.respBase ? "codex" : null,
+      ].filter(Boolean).join(",") || "-";
       console.log(`  ${name.padEnd(10)} ${(c.model || "(default model)").padEnd(20)} @ ${where}`);
       console.log(`  ${"".padEnd(10)} runs under: ${runs}${key ? "" : "   [NO KEY CONFIGURED]"}`);
     }
@@ -100,7 +111,10 @@ if ! BASE=$(pfield base); then
   exit 1
 fi
 OAI_BASE=$(pfield oaiBase)
+RESP_BASE=$(pfield respBase)
 MODEL=$(pfield model)
+EFFORT=$(pfield effort)
+CONTEXT_WINDOW=$(pfield contextWindow)
 KEY=$(pfield key)
 
 # ─── harness: claude (Claude Code CLI) ──────────────────────────────
@@ -201,7 +215,82 @@ run_opencode() {
   exec opencode "$@"
 }
 
-echo "[agent] harness=$HARNESS profile=$PROFILE model=${MODEL:-default} base=${BASE:-anthropic}"
+# ─── harness: codex (OpenAI Codex CLI) ──────────────────────────────
+# Codex 0.154 removed wire_api="chat", so it speaks ONLY the Responses API and
+# cannot drive the Chat-Completions endpoints in `oaiBase` (CODEX.md D6). It
+# therefore runs against `respBase` — which for the `astra` cell is THIS
+# DEPLOYMENT'S OWN WORKER, not OpenAI.
+#
+# That indirection is the design. Codex sends exactly one credential-bearing
+# header, `Authorization: Bearer <env_key>` (measured), so `key` here is the
+# per-instance CAPABILITY token, and os-api swaps it for the principal's real
+# ChatGPT bearer server-side. No OpenAI credential exists in this container, so
+# there is nothing for a workspace tarball to carry off and nothing that
+# rotates here. See CODEX.md §5 Design C.
+#
+# CODEX_HOME is per-profile and under $HOME (never /tmp — Codex refuses to
+# create its helper binaries under a temp dir), mirroring the .opencode-cells
+# isolation so two cells never share a config or a session store.
+run_codex() {
+  if [ -z "$RESP_BASE" ]; then
+    echo "agent: profile '$PROFILE' has no Responses endpoint (respBase), so it" >&2
+    echo "       cannot run under the codex harness. Codex dropped Chat" >&2
+    echo "       Completions support in 0.154 — see os/api/CODEX.md D6." >&2
+    exit 1
+  fi
+  if [ -z "$KEY" ]; then
+    echo "agent: profile '$PROFILE' has no key/capability token from the worker" >&2
+    exit 1
+  fi
+  if [ -z "$MODEL" ]; then
+    echo "agent: profile '$PROFILE' has no model id; codex needs an explicit one" >&2
+    exit 1
+  fi
+
+  local root="$HOME/.codex-cells/$PROFILE"
+  mkdir -p "$root"
+  export CODEX_HOME="$root"
+
+  # The credential goes in the ENVIRONMENT and config.toml only NAMES the
+  # variable — same reason run_opencode does it: nothing secret is written to
+  # disk where a later `cat` of the workspace tarball would carry it off.
+  export CODEX_CELL_KEY="$KEY"
+
+  # approval/sandbox: the CONTAINER is the security boundary here, which is the
+  # documented pattern for running Codex inside one — its own Landlock/seccomp
+  # sandbox cannot get the namespaces it wants in here anyway (CODEX.md D7).
+  cat > "$root/config.toml" <<CONFIG
+model_provider = "$PROFILE"
+model = "$MODEL"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
+CONFIG
+
+  # Reasoning effort is the knob that actually matters on a reasoning model, and
+  # it is also what a run costs. Pinned from the profile rather than left to
+  # Codex's default, so a cell means one configuration.
+  [ -n "$EFFORT" ] && echo "model_reasoning_effort = \"$EFFORT\"" >> "$root/config.toml"
+
+  # Codex resolves model metadata from a catalog it fetches from chatgpt.com.
+  # Through a custom provider that lookup can miss — it warns "Model metadata
+  # for <model> not found. Defaulting to fallback metadata", which silently
+  # guesses the context window. Pinning it is the escape hatch; empty means
+  # "trust whatever Codex resolved".
+  [ -n "$CONTEXT_WINDOW" ] && echo "model_context_window = $CONTEXT_WINDOW" >> "$root/config.toml"
+
+  cat >> "$root/config.toml" <<CONFIG
+
+[model_providers.$PROFILE]
+name = "mino cell: $PROFILE"
+base_url = "$RESP_BASE"
+env_key = "CODEX_CELL_KEY"
+wire_api = "responses"
+CONFIG
+
+  exec codex "$@"
+}
+
+echo "[agent] harness=$HARNESS profile=$PROFILE model=${MODEL:-default} base=${BASE:-${RESP_BASE:-anthropic}}"
 
 case "$HARNESS" in
   claude)
@@ -210,7 +299,10 @@ case "$HARNESS" in
   opencode)
     have opencode || { echo "agent: opencode CLI not installed in this image" >&2; exit 1; }
     run_opencode "$@" ;;
+  codex)
+    have codex    || { echo "agent: codex CLI not installed in this image" >&2; exit 1; }
+    run_codex "$@" ;;
   *)
-    echo "agent: unknown harness '$HARNESS' (known: claude, opencode)" >&2
+    echo "agent: unknown harness '$HARNESS' (known: claude, opencode, codex)" >&2
     exit 1 ;;
 esac

@@ -70,7 +70,7 @@ Legend: ✅ live · 🚧 built, not yet deployed · 📋 planned
 |---|---|---|
 | Repo-as-filesystem: `ls cd cat echo edit rm find du whoami` | ✅ | Each maps to an XRPC call against the user's PDS. `echo '{}' > path` / `edit` write records. |
 | `blob ls/get/push` | ✅ | Blob management via `com.atproto.sync` / `repo.uploadBlob`. |
-| `curl <nsid>` | ✅ | Raw XRPC escape hatch. |
+| `curl <nsid>` | ✅ | Raw XRPC escape hatch — **XRPC only, not HTTP**. It takes an NSID, not a URL, and since it picks the first dotted argument as the NSID, a pasted `https://host/path` is parsed *as* an NSID and fails with a PDS-side error (`AppPasswordRequired` on an OAuth session) without any request leaving the browser. For real HTTP, use `container` and curl from the bash shell. |
 | `find -text "term"` | ✅ | Full-text walk across all collections. |
 
 ### Data / analytics (client-side, zero backend)
