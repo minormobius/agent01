@@ -30,7 +30,7 @@ window.SPEC_CURATED = {
     { id: 'reading',    label: 'Reading & language',
       blurb: 'Deep-reading apparatus for medieval tales, sentence-editing drills with AI grading, and conversation practice.' },
     { id: 'math',       label: 'Math & explainers',
-      blurb: 'Interactive single-file explainers of extremal geometry and other results, plus AI-pair numerics education.' },
+      blurb: 'Interactive single-file explainers of extremal geometry and other results, the Navier–Stokes blowup pack, plus AI-pair numerics education.' },
   ],
 
   families: {
@@ -63,7 +63,7 @@ window.SPEC_CURATED = {
     moji: 'reference', uni: 'reference', unit: 'reference', fix: 'reference',
     atlas: 'science',
     read: 'reading', rite: 'reading', chat: 'reading', tape: 'reading',
-    math: 'math', 'ai-edu': 'math', perp: 'math',
+    math: 'math', 'ai-edu': 'math', perp: 'math', ns: 'math',
   },
 
   // ----------------------------------------------- description capsules ----

@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **102 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -94,6 +94,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `mega` | frontend | `mega` | [mega.mino.mobi](https://mega.mino.mobi) | `claude/integrate-v091-v092-v093-4yie2i` | [`mega/CLAUDE.md`](../mega/CLAUDE.md) | Interactive map of global megaprojects—construction, timelines, costs, and deep context on a 3D globe. |
 | `moji` | frontend | `moji` | [moji.mino.mobi](https://moji.mino.mobi) | `claude/emoji-wiki-platform-support-v6ubju` | [`moji/CLAUDE.md`](../moji/CLAUDE.md) | The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) — no build, no D1, no AI, no secrets… |
 | `neuro` | frontend | `neuro` | [neuro.mino.mobi](https://neuro.mino.mobi) | `claude/website-hidden-paper-8vum5k` | [`neuro/CLAUDE.md`](../neuro/CLAUDE.md) | Cognitive-science models rebuilt from their papers in Rust, compiled to WASM, and made runnable in a tab — each shown against the published result it replicates. |
+| `ns` | frontend | `ns` | [ns.mino.mobi](https://ns.mino.mobi) | `claude/navier-stokes-website-rl8aox` | [`ns/CLAUDE.md`](../ns/CLAUDE.md) | The 2026 OpenAI paper claiming finite-time blowup for the forced 3D Navier–Stokes equations (Fefferman’s alternatives C and D), taken apart: an animated r–z anatomy of the collapsing core, the pulse a… |
 | `ocr` | frontend | `ocr` | [ocr.mino.mobi](https://ocr.mino.mobi) | `claude/image-text-extraction-gH8UH` | [`ocr/CLAUDE.md`](../ocr/CLAUDE.md) | Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/)… (full description: ocr/CLAUDE.md) |
 | `org` | frontend | `org` | [org.mino.mobi](https://org.mino.mobi) | `claude/landing-projects-takeover-pKkmW` | [`org/CLAUDE.md`](../org/CLAUDE.md) | Organization hub. Create orgs, manage members and tiers, with calendar, CRM, PM, and Wave apps built in. |
 | `os` | frontend | `os` | [os.mino.mobi](https://os.mino.mobi) | `claude/os-deploy-surface-474bz3` | [`os/CLAUDE.md`](../os/CLAUDE.md) | Browser-based terminal for your ATProto PDS. XRPC commands, DuckDB SQL, AI chat, and embedded bash container. |

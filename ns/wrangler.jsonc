@@ -1,0 +1,14 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ns",
+  "compatibility_date": "2026-02-20",
+  // Static explainer pack on the 2026 forced Navier–Stokes blowup paper.
+  // No build, no worker script, no bindings: the directory IS the site.
+  // CLAUDE.md is kept out of the upload by .assetsignore.
+  "assets": {
+    "directory": "."
+  },
+  "routes": [
+    { "pattern": "ns.mino.mobi", "custom_domain": true }
+  ]
+}
