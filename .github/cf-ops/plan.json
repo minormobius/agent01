@@ -1,0 +1,14 @@
+{
+  "$comment": "Cloudflare operations, carried out by .github/workflows/cf-ops.yml when this file changes on its branch. Every op is re-guarded against the live account right before it runs (scripts/cf-ops.mjs). Nothing is applied unless apply is true: commit the dry run first, read its log, then flip apply in a separate commit. Batch 1 (2026-09-23): the eight orphan workers from docs/BACKENDS.md, deletion approved by the operator.",
+  "apply": false,
+  "ops": [
+    { "op": "delete-worker", "name": "mino-answers",     "why": "renamed away (ask.mino.mobi is worker `ask`); listed for deletion in docs/DEPLOYS.md §9; code in git history (8689c0bb)" },
+    { "op": "delete-worker", "name": "mino-disk",        "why": "renamed away; listed for deletion in docs/DEPLOYS.md §9; code in git history (6cb6dfd7)" },
+    { "op": "delete-worker", "name": "mino-poke",        "why": "renamed away (poke.mino.mobi is worker `poke`); listed in docs/DEPLOYS.md §9; code in git history (fe0503f5)" },
+    { "op": "delete-worker", "name": "mega-minomobi",    "why": "renamed away (mega.mino.mobi is worker `mega`); listed in docs/DEPLOYS.md §9; code in git history (d5fe6477)" },
+    { "op": "delete-worker", "name": "pds-os",           "why": "renamed away (os.mino.mobi is worker `os`); listed in docs/DEPLOYS.md §9; code in git history (27892164)" },
+    { "op": "delete-worker", "name": "finance-minomobi", "why": "superseded by worker `fin` (fin.mino.mobi) in May; no host; code in git history (06cccabe)" },
+    { "op": "delete-worker", "name": "amadeus-proxy",    "why": "abandoned May flight-search proxy (air.mino.mobi is duffel-proxy); no host; code in git history (98edbdb0)" },
+    { "op": "delete-worker", "name": "perp",             "why": "perp moved to fin.mino.mobi/perp/ on 2026-09-23 and perp.mino.mobi is now a route on `fin`; this worker has had no host since" }
+  ]
+}

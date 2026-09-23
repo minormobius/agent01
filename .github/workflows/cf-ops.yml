@@ -1,0 +1,35 @@
+name: Cloudflare ops (plan-driven)
+
+# Carries out .github/cf-ops/plan.json. A dry run unless the plan says "apply": true, and
+# every op is re-guarded against the live account right before it runs (scripts/cf-ops.mjs):
+# a worker that serves a host, has a route, owns Durable Objects, or is still configured in
+# the repo is refused. The plan file is the audit trail; this log is the record of execution.
+on:
+  push:
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
+    paths:
+      - '.github/cf-ops/plan.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cf-ops
+  cancel-in-progress: false
+
+jobs:
+  ops:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Guards selftest
+        run: node scripts/cf-ops.selftest.mjs
+      - name: Run the plan
+        run: node scripts/cf-ops.mjs --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
