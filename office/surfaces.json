@@ -2678,6 +2678,15 @@
    "parent": null
   },
   {
+   "id": "eigensite",
+   "name": "eigensite",
+   "url": "https://mino.mobi/eigensite/",
+   "cat": "bluesky",
+   "commits": 1,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "poll/evaluation.html",
    "name": "evaluation",
    "url": "https://poll.mino.mobi/evaluation.html",

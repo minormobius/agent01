@@ -13,29 +13,7 @@
     "d": "curated one-line description (moved here from the old landing's <li> list in 2026-09)",
     "tags": "stack tags shown with the description (canvas, atproto, wasm, …)"
   },
-  "$order": "entries[] order is a legacy of the old landing's on-screen order; sections[] recorded its section boundaries by entry index and is kept for the archived page only.",
-  "sections": [
-    {
-      "before": 0,
-      "label": "bluesky"
-    },
-    {
-      "before": 74,
-      "label": "work"
-    },
-    {
-      "before": 84,
-      "label": "data"
-    },
-    {
-      "before": 147,
-      "label": "tools"
-    },
-    {
-      "before": 212,
-      "label": "games"
-    }
-  ],
+  "$order": "entries[] order is a legacy of the old landing's on-screen order; nothing depends on it any more. Append new entries at the end.",
   "entries": [
     {
       "n": "poll",
@@ -3911,6 +3889,21 @@
         "ttrpg",
         "generator",
         "seeded"
+      ]
+    },
+    {
+      "n": "eigensite",
+      "u": "https://mino.mobi/eigensite/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-08",
+      "b": "2026-09-08",
+      "surface": "root",
+      "d": "Twenty yes-or-no questions and the site tells you which of its three hundred pages is yours. A Bayesian quiz over the whole catalogue: every answer reweights every site, every question is the one that best halves what it still believes, and the result is a permalink you can post.",
+      "tags": [
+        "quiz",
+        "catalogue"
       ]
     }
   ],
