@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/take-ownership.mjs:*)"
+    ]
+  },
+
   "hooks": {
     "UserPromptSubmit": [
       {
