@@ -256,7 +256,7 @@
       "dir": "mappa",
       "endpoint": "mappa.mino.mobi",
       "type": "frontend",
-      "branch": "claude/civ-deploy-unification-vt35ju",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
@@ -264,14 +264,15 @@
         "packages/atproto/pds.js",
         "packages/oauth-client/auth.js"
       ],
-      "note": "The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) \u2014 MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis). Assets-only worker\u2026 (full description: mappa/CLAUDE.md)"
+      "note": "The world engine + atlas (worker `mappa`, custom_domain mappa.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite (third suite surface with civ + polis). Assets-only worker… (full description: mappa/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"mappa.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "polis",
       "dir": "polis",
       "endpoint": "polis.mino.mobi",
       "type": "frontend",
-      "branch": "claude/civ-deploy-unification-vt35ju",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "civ"
       ],
@@ -281,7 +282,8 @@
         "mappa/engine.js",
         "mappa/climate-forcing.js"
       ],
-      "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) \u2014 MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ \u00fcber-macro \u2192 hinterland mesoscale \u2192 city micro)\u2026 (full description: polis/CLAUDE.md)"
+      "note": "The city cascade (worker `polis`, custom_domain polis.mino.mobi) — MOVED OFF the root surface so it deploys with the world-engine suite. `/` is the cascade charter (civ über-macro → hinterland mesoscale → city micro)… (full description: polis/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"polis.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/civ-deploy-unification-vt35ju, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "civ",
@@ -361,14 +363,15 @@
       "dir": "iris",
       "endpoint": "iris.mino.mobi",
       "type": "frontend",
-      "branch": "claude/oneill-cylinder-solver-djdpdm",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "The END-ON cross-section view of an O'Neill cylinder \u2014 looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'. One coupled steady-state solve (iris/sim/section.mjs): the lights are the only heat in, the radiator skin the only heat out, the habitat's heat carried there through the floor's water reservoirs + heat pipes \u2014 that balance pins every temperature. Switchable gradient views over the circle (temperature / pressure / humidity / wind), toggleable fog (RH\u22651) and fountain jets, the inner-rim ratchet topography (iris/sim/ratchet.mjs). Companion to the tide thermodynamics wing; its own geometry (iris/shared/geometry.mjs), not tide's. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "iris/**",
         ".github/workflows/deploy-iris.yml"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"iris.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/oneill-cylinder-solver-djdpdm, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "borges",
@@ -413,13 +416,14 @@
       "dir": "duck",
       "endpoint": "duck.mino.mobi",
       "type": "frontend",
-      "branch": "claude/feature-merge-candidate-l4dkwq",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "duck/**"
       ],
-      "note": "Two WebGPU games on one worker (`duck`, custom_domain duck.mino.mobi). Pure-static, no build, no secrets. (1) duck.mino.mobi/ \u2014 the spin-gravity DUCK FLIGHT SIM: fly an aerodynamic duck under uniform Earth gravity vs\u2026 (full description: duck/CLAUDE.md)"
+      "note": "Two WebGPU games on one worker (`duck`, custom_domain duck.mino.mobi). Pure-static, no build, no secrets. (1) duck.mino.mobi/ — the spin-gravity DUCK FLIGHT SIM: fly an aerodynamic duck under uniform Earth gravity vs… (full description: duck/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"duck.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/feature-merge-candidate-l4dkwq, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "bounty",
@@ -506,12 +510,13 @@
       "dir": "empathy",
       "endpoint": "empath.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "empathy/**"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"empath.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "feed",
@@ -624,12 +629,13 @@
       "dir": "j",
       "endpoint": "j.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "j/**"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"j.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "photo",
@@ -653,13 +659,14 @@
       "dir": "phylofiction",
       "endpoint": "phylofiction.mino.mobi",
       "type": "frontend",
-      "branch": "claude/phylofiction-world-generation-3zd33u",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "Seeded deterministic tree-of-life generator: a Rust/WASM evolution engine (engine-rs/, artifact committed by build-phylofiction-wasm.yml) drives a microbial phylogeny that any page-seed reproduces identically. Static reader (assets worker `phylofiction` owns phylofiction.mino.mobi); all computation client-side, no D1/DO/secrets. JS engine mirrored against the wasm in test/parity.test.mjs.",
       "paths": [
         "phylofiction/**"
-      ]
+      ],
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"phylofiction.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/phylofiction-world-generation-3zd33u, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "jurassic",
@@ -814,7 +821,7 @@
       "dir": "zoom",
       "endpoint": "zoom.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "feed.mino.mobi"
       ],
@@ -822,7 +829,7 @@
       "paths": [
         "zoom/**"
       ],
-      "status": "MANAGED \u2014 FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"zoom.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). MANAGED — FIXED: config name corrected mino-zoom -> zoom so `wrangler deploy` updates the WORKER that owns zoom.mino.mobi (was deploying a separate stray Worker `mino-zoom` on workers.dev; the live `zoom` Worker languished ~2mo). custom_domain route now declared in config. CLEANUP: delete the orphan `mino-zoom` Worker in the dashboard.",
       "note": "Vite/React build -> ./dist, Worker `zoom` with custom_domain zoom.mino.mobi (canvas/math/g/torus pattern). NB: zoom is a Worker, not a Pages project (verified: no Pages project named zoom)."
     },
     {
@@ -830,7 +837,7 @@
       "dir": "time",
       "endpoint": "time.mino.mobi",
       "type": "frontend",
-      "branch": "claude/audit-time-deploy-ag144t",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "op": "encapsulation",
@@ -838,7 +845,7 @@
         "time/**",
         "scripts/build-time-index.mjs"
       ],
-      "status": "MANAGED \u2014 new surface via deploy-time.yml (Worker `time`, custom_domain time.mino.mobi). Carved out of the root bundle; assets-only static, deploy step regenerates index.json. Sources stay in time/; also mirrored at mino.mobi/time until fully removed from root.",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"time.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/audit-time-deploy-ag144t, byte-identical over every deployed path at handover). MANAGED — new surface via deploy-time.yml (Worker `time`, custom_domain time.mino.mobi). Carved out of the root bundle; assets-only static, deploy step regenerates index.json. Sources stay in time/; also mirrored at mino.mobi/time until fully removed from root.",
       "note": "The Mino Times \u2014 a two-desk paper (Modulo = data desk, Morphyx = institutional desk). Repo-native front page renders from time/index.json (built from time/articles/*.html by scripts/build-time-index.mjs), so no Bluesky-account suspension can blank it. Running series: The LDT Reckoning. Legacy time.minomobi.com is dead; canonical is now time.mino.mobi."
     },
     {
@@ -1156,10 +1163,10 @@
       "dir": "wars",
       "endpoint": "war.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
+      "status": "ROUTE SURFACE (2026-09-23): converted live from a custom domain to { pattern: \"war.mino.mobi/*\", zone_name: \"mino.mobi\" } by cf-ops convert-to-route (.github/cf-ops/plan.json batch 2, applied by the operator), freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/landing-projects-takeover-pKkmW, byte-identical over every deployed path at handover). MANAGED — FIXED (zoom-bucket): config renamed wars-minomobi -> war + custom_domain route (war.mino.mobi). Was deploying stray worker wars-minomobi. CLEANUP: delete the orphan `wars-minomobi` worker.",
       "note": "War Factor Analysis \u2014 Correlates of War dataset explorer. Static worker-assets (Worker `wars-minomobi`). Live at war.mino.mobi (probe-verified); also bundled at mino.mobi/wars.",
       "paths": [
         "wars/**"

@@ -1,20 +1,21 @@
 {
-  "$comment": "Cloudflare operations, carried out by .github/workflows/cf-ops.yml when this file changes on its branch. Every op is re-guarded against the live account right before it runs (scripts/cf-ops.mjs). Nothing is applied unless apply is true: the agent commits the dry run, the operator reads its log and flips apply in a separate commit. Batch 2 (2026-09-23): ten frontend-only custom domains -> plain routes, keeping every subdomain; approved by the operator, gated on their flip.",
-  "apply": true,
-  "ops": [
-    { "op": "convert-to-route", "host": "time.mino.mobi",         "worker": "time",         "why": "static, 1 page, created 2026-02-25" },
-    { "op": "convert-to-route", "host": "war.mino.mobi",          "worker": "war",          "why": "static, created 2026-03-17" },
-    { "op": "convert-to-route", "host": "zoom.mino.mobi",         "worker": "zoom",         "why": "static, 1 page, created 2026-03-26" },
-    { "op": "convert-to-route", "host": "empath.mino.mobi",       "worker": "empathy",      "why": "static, 1 page, created 2026-05-28" },
-    { "op": "convert-to-route", "host": "mappa.mino.mobi",        "worker": "mappa",        "why": "static, created 2026-06-01" },
-    { "op": "convert-to-route", "host": "j.mino.mobi",            "worker": "j-minomobi",   "why": "static, created 2026-06-02" },
-    { "op": "convert-to-route", "host": "phylofiction.mino.mobi", "worker": "phylofiction", "why": "thin, 1 page, created 2026-06-09" },
-    { "op": "convert-to-route", "host": "iris.mino.mobi",         "worker": "iris",         "why": "thin, 1 page, created 2026-06-11" },
-    { "op": "convert-to-route", "host": "duck.mino.mobi",         "worker": "duck",         "why": "thin, 2 pages, created 2026-06-13" },
-    { "op": "convert-to-route", "host": "polis.mino.mobi",        "worker": "polis",        "why": "static, created 2026-06-18" }
-  ],
+  "$comment": "Cloudflare operations, carried out by .github/workflows/cf-ops.yml when this file changes on its branch. Every op is re-guarded against the live account right before it runs (scripts/cf-ops.mjs). Nothing is applied unless apply is true: the agent commits the dry run, the operator reads its log and flips apply in a separate commit. No batch pending; finished batches are recorded in history.",
+  "apply": false,
+  "ops": [],
   "history": [
-    { "batch": 1, "at": "2026-09-23T20:08Z", "run": 35913964690, "applied_by": "operator flip (cf11a8f5)",
-      "done": "delete-worker x8: mino-answers, mino-disk, mino-poke, mega-minomobi, pds-os, finance-minomobi, amadeus-proxy, perp — all guards passed, all deleted" }
+    {
+      "batch": 1,
+      "at": "2026-09-23T20:08Z",
+      "run": 35913964690,
+      "applied_by": "operator flip (cf11a8f5)",
+      "done": "delete-worker x8: mino-answers, mino-disk, mino-poke, mega-minomobi, pds-os, finance-minomobi, amadeus-proxy, perp — all guards passed, all deleted"
+    },
+    {
+      "batch": 2,
+      "at": "2026-09-23T20:19Z",
+      "run": 35914967765,
+      "applied_by": "operator flip (2319c63a)",
+      "done": "convert-to-route x10: time.mino.mobi, war.mino.mobi, zoom.mino.mobi, empath.mino.mobi, mappa.mino.mobi, j.mino.mobi, phylofiction.mino.mobi, iris.mino.mobi, duck.mino.mobi, polis.mino.mobi — all guards passed, all converted, every host answered"
+    }
   ]
 }
