@@ -2201,6 +2201,23 @@
       "surface": "tjs"
     },
     {
+      "n": "marbles",
+      "u": "https://tjs.mino.mobi/marbles/",
+      "c": "tools",
+      "k": 3,
+      "a": "hot",
+      "t": "2026-09-14",
+      "b": "2026-09-14",
+      "p": "tjs",
+      "surface": "tjs",
+      "d": "Build a marble run and watch it go. A touch-first port of Codetaur's Marbleworks builder (vibe-coded.com, MIT) — their concept and photogrammetry-fitted part dimensions, credited; our phone-sized renderer and rolling-sphere solver.",
+      "tags": [
+        "three.js",
+        "no-build",
+        "touch"
+      ]
+    },
+    {
       "n": "moji",
       "u": "https://moji.mino.mobi",
       "c": "tools",
