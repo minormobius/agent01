@@ -199,12 +199,12 @@
       "dir": "workers/auth",
       "endpoint": "auth.mino.mobi",
       "type": "backend",
-      "branch": "claude/bsky-app-view-feasibility-8sdflz",
+      "branch": "claude/browser-cad-ideation-ollmd3",
       "uses": [
         "mino-auth-db"
       ],
       "provides": "auth.mino.mobi",
-      "status": "RECONCILED 2026-08-15 \u2014 one owner: claude/farmville-atproto-game-745mcr. It is the only claimant whose tree carries all 75 WRITE_COLLECTIONS; claude/atproto-infinite-whiteboard-usdpzx has 70 (no com.minomobi.farm.*), so giving it the surface would make the next auth deploy a silent narrowing of the ceiling. BEFORE THE NEXT AUTH DEPLOY THE OWNER MUST PULL main: only main now has both the full 75 and all three of the farm.mino.mobi, farm-next.mino.mobi and loop.mino.mobi origins \u2014 farmville's tree is still missing the loop origin.",
+      "status": "HANDED OVER 2026-09-11 to claude/browser-cad-ideation-ollmd3 for cad.mino.mobi (com.minomobi.cad.part, com.minomobi.cad.revision). That tree's workers/auth was byte-identical to main's, which is the union: main's 80 collections (78 live \u2014 main's com.minomobi.hopper.run and app.bsky.graph.follow had never been deployed by the previous owner, claude/bsky-app-view-feasibility-8sdflz) plus the two cad ones = 82, nothing dropped, every origin kept. check-auth-scope green at handover.",
       "paths": [
         "workers/auth/**"
       ],
@@ -1667,6 +1667,37 @@
       "note": "Watch a protein fold. A Clementi–Onuchic structure-based (Gō) C-alpha model under Langevin dynamics, written in Rust and compiled to wasm32-unknown-unknown with no wasm-bindgen; hand-written WebGL2 renderer with an HDR bloom pass. Nine deposited structures ship with the site… (full description: fold/CLAUDE.md)",
       "paths": [
         "fold/**"
+      ]
+    },
+    {
+      "surface": "cad",
+      "dir": "packages/cad",
+      "endpoint": "cad.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/browser-cad-ideation-ollmd3",
+      "uses": [],
+      "provides": null,
+      "status": "NEW — first deploy. cad.mino.mobi did not resolve beforehand; wrangler is expected to create the custom domain itself, as it did for fold and neuro. Confirm the run binds `cad.mino.mobi (custom domain)` — green alone is not proof.",
+      "note": "Parametric CAD in the browser: a feature tree in, solids out. Rust engine (tree, expressions, sketches, the involute gear, named topology) as raw-ABI WASM, Manifold as the preview kernel, Truck as the exact kernel, hand-written WebGL2 with id-buffer picking onto named faces. The package is the site. (full description: packages/cad/CLAUDE.md)",
+      "paths": [
+        "packages/cad/**"
+      ]
+    },
+    {
+      "surface": "parts",
+      "dir": "parts",
+      "endpoint": "cad.mino.mobi/parts",
+      "type": "frontend",
+      "branch": "claude/browser-cad-ideation-ollmd3",
+      "uses": [
+        "auth.mino.mobi",
+        "cad.mino.mobi"
+      ],
+      "provides": null,
+      "status": "Mounted under cad.mino.mobi/parts/ through the cad worker's PARTS service binding — its own worker, Durable Object and cron, no host of its own: the mino.mobi zone is at Cloudflare's 100-custom-domain ceiling (code 100122 on the first deploy, 2026-09-12). Verify with curl https://cad.mino.mobi/parts/api/status.",
+      "note": "Communities of CAD parts, Reddit-shaped, on the designer's own repo: a community is a record in its founder's repo, a post is a record in the poster's repo pointing at a community and at one revision of a part, comments thread by strongRef, a vote is a record the voter owns. One Durable Object holds the index in its own SQLite and rebuilds it from the network (writers self-report; a cron discovers strangers through Constellation backlinks); no firehose socket, on purpose. (full description: parts/CLAUDE.md)",
+      "paths": [
+        "parts/**"
       ]
     },
     {

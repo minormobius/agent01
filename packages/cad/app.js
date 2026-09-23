@@ -1,0 +1,1014 @@
+// app.js — cad.mino.mobi. The viewer and the judgement surface, for one part
+// or for an assembly of them. Every edit rebuilds through the worker; the
+// preview lands first, the exact build with named faces behind it. An
+// assembly is components (with transforms, sub-assemblies flattened) and
+// mates (gear, fixed) solved as a kinematic chain from one driven component;
+// `spin` drives it and reports the frame rate. `window.__cad` is the hook.
+import { Camera } from './camera.js';
+import { Renderer } from './gl.js';
+import { flatten, solveAngles as solveKin, modelOf, expectedTouch, expectations, touchLimit, restValues } from './lib/assembly.js';
+import { measure, describe, faceWorld } from './lib/measure.js';
+import { writeStl } from './lib/mesh.js';
+import { drawing } from './lib/drawing.js';
+import { assemblyReport } from './lib/report.js';
+import { Drive, LocalBackend, PublicBackend, AuthBackend, parseAtUri, PART, SCOPE as DRIVE_SCOPE } from './lib/drive.js';
+import { AuthClient } from './vendor/auth.js';
+import { attachHandleTypeahead } from './vendor/typeahead.js';
+
+const $ = (s) => document.querySelector(s);
+// the bench this site ships (`bench/`), assemblies first: the picker groups them
+const BENCH_ASM = ['clock', 'train', 'crank', 'lift', 'grip'];
+const BENCH_PART = ['gear', 'arbor', 'plate', 'escape', 'case', 'case-fillet', 'cam', 'pinion', 'pallet', 'balance', 'hand', 'dial'];
+const BENCH = [...BENCH_ASM, ...BENCH_PART];
+const q = new URLSearchParams(location.search);
+const OCCT_BASE = q.get('occt') || null;
+const occtAllowed = () => !!OCCT_BASE || localStorage.getItem('cad.occt') === '1';
+
+const state = {
+  mode: 'part', name: 'gear', tree: null, treeText: '',
+  buildId: 0, checkId: 0, fitNext: false,
+  // per slot: {preview, exact, error, exactError, previewError, faces, needsOcct}
+  slots: new Map(),
+  // assembly
+  asm: null, components: [], mates: [], drive: null, angles: new Map(), spin: false, t0: 0, tAcc: 0, fps: 0, speed: 1,
+  hover: null, select: null, measureB: null, check: null, occt: 'idle',
+  // freshness: the repo records this document was read from, and the last check
+  watch: new Map(), pinned: new Set(), fresh: null, checking: false,
+};
+
+const canvas = $('#view');
+const renderer = new Renderer(canvas);
+const cam = new Camera();
+let needsRender = true;
+const invalidate = () => { needsRender = true; };
+
+// ── worker ────────────────────────────────────────────────────────────────
+const worker = new Worker('./build-worker.js', { type: 'module' });
+const ready = new Promise((resolve) => { worker.addEventListener('message', function onready(e) { if (e.data.type === 'ready') { worker.removeEventListener('message', onready); resolve(e.data); } }); });
+worker.postMessage({ type: 'init', occtBase: OCCT_BASE ? new URL(OCCT_BASE, location.href).href : undefined });
+
+const slotOf = (m) => { const k = m.slot || 'main'; if (!state.slots.has(k)) state.slots.set(k, {}); return state.slots.get(k); };
+// a message from a build the current document never issued (a previous
+// document's, arriving late) must not create a slot: `settled()` would wait
+// on it for ever
+const isStale = (m) => m.id !== undefined && (!state.slots.has(m.slot || 'main') || m.id !== state.slots.get(m.slot || 'main').buildId);
+
+worker.onmessage = (e) => {
+  const m = e.data;
+  if (m.type === 'ready') { state.engineVersion = m.engine; setStatus(`engine v${m.engine} + manifold ready in ${m.ms.toFixed(0)} ms`); console.info(`cad: ready (engine v${m.engine}, ${m.ms.toFixed(0)} ms)`); return; }
+  if (m.type === 'occt-status') { state.occt = m.state; if (m.state === 'ready') console.info(`cad: occt ready (${m.ms.toFixed(0)} ms)`); setStatus(m.state === 'loading' ? 'loading OCCT (66 MB, once; the browser caches it)…' : m.state === 'ready' ? `OCCT ready in ${(m.ms / 1000).toFixed(1)} s` : `OCCT failed: ${m.msg}`); renderReport(); return; }
+  if (m.type === 'export') { download(new Blob([m.bytes], { type: m.format === 'step' ? 'application/step' : 'model/stl' }), `${m.name || state.name}.${m.format === 'step' ? 'step' : 'stl'}`); if (m.format === 'step') setStatus(`STEP written by ${m.kernel}`); window.__lastExport = { format: m.format, bytes: m.bytes.length, kernel: m.kernel }; return; }
+  if (m.type === 'check') { state.check = { pairs: m.pairs, tested: m.tested, ms: m.ms, missing: m.missing }; renderCheck(); console.info(`cad: check ${m.pairs.length} pairs interfere of ${m.tested} tested`); return; }
+  if (isStale(m)) return;
+  const s = slotOf(m);
+  if (m.type === 'resolved') { s.needsOcct = m.needsOcct; s.resolved = m; renderTree(); renderReport(); return; }
+  if (m.type === 'preview') {
+    s.preview = m; s.previewError = null;
+    if (!s.exact || s.exactStale) applyMesh(m.slot || 'main', m, true);
+    renderReport(); invalidate(); return;
+  }
+  if (m.type === 'exact') {
+    s.exact = m; s.exactStale = false; s.exactError = null; s.faces = m.report.faces; settleFaces(m.slot || 'main', null, s.faces);
+    applyMesh(m.slot || 'main', m, false);
+    console.info(`cad: exact ${state.name}${m.slot && m.slot !== 'main' ? ' ' + m.slot : ''} volume ${m.invariants.volume.toFixed(3)} χ=${m.invariants.euler} faces ${m.report.faces.length} (${m.kernel})`);
+    renderReport(); invalidate(); return;
+  }
+  if (m.type === 'error') {
+    if (m.stage === 'exact') { s.exact = null; s.faces = []; s.exactError = m.error; s.occtWouldHelp = !!m.occtWouldHelp; settleFaces(m.slot || 'main', new Error(`${m.slot || 'main'}: exact build failed: ${m.error?.msg || m.error}`)); }
+    else if (m.stage !== 'preview') settleFaces(m.slot || 'main', new Error(`${m.slot || 'main'}: ${m.error?.msg || m.error}`));
+    else if (m.stage === 'preview') { s.previewError = m.error; }
+    else { s.error = m.error; if (state.mode === 'part') renderer.clearMesh(); invalidate(); }
+    renderReport(); return;
+  }
+};
+
+/// Put a mesh on the bodies that show this slot (one for a part, one per
+/// component using the part for an assembly).
+function applyMesh(slot, m, preview) {
+  if (state.mode === 'part') { renderer.preview = preview; renderer.setMesh(m.streams, m.edges, m.bbox); }
+  else {
+    renderer.preview = false;
+    for (const c of state.components) if (c.partKey === slot) { renderer.setBody(c.id, m.streams, m.edges, m.bbox); renderer.setHidden(c.id, !!c.hidden); c.tint = c.reference ? 0.45 : preview ? 0.9 : 1; }
+    updateModels();
+    renderer.setGrid(renderer.sceneBbox());
+  }
+  if (state.fitNext) { cam.fit(state.mode === 'part' ? m.bbox : renderer.sceneBbox()); state.fitNext = false; }
+}
+
+function buildSlot(slot, treeText) {
+  const s = slotOf({ slot });
+  s.buildId = ++state.buildId; s.exactStale = true; s.error = null; s.previewError = null; s.exactError = null; s.faces = []; s.treeText = treeText;
+  worker.postMessage({ type: 'build', id: s.buildId, slot, tree: treeText, want: { preview: true, exact: true, occt: occtAllowed(), step: false } });
+}
+/// The exact kernel's named faces of a part, for placements written as
+/// references (`at: "@plate.pivot[2]"`): built in the worker if this slot has
+/// not been, then awaited. `build()` later skips a slot already built from the
+/// same tree, so a referenced part is built once.
+const faceWaiters = new Map();
+function facesOf(partKey, treeText) {
+  const s = state.slots.get(partKey);
+  if (s && s.treeText === treeText && s.exact && !s.exactStale) return Promise.resolve(s.faces);
+  if (!s || s.treeText !== treeText || !s.buildId) buildSlot(partKey, treeText);
+  return new Promise((resolve, reject) => { (faceWaiters.get(partKey) || faceWaiters.set(partKey, []).get(partKey)).push({ resolve, reject }); });
+}
+const settleFaces = (slot, err, faces) => { const w = faceWaiters.get(slot); if (!w) return; faceWaiters.delete(slot); for (const x of w) err ? x.reject(err) : x.resolve(faces); };
+
+function build({ fit = false } = {}) {
+  state.fitNext = fit || state.fitNext;
+  state.hover = null; state.select = null; state.measureB = null; renderer.hover = -1; renderer.select = -1;
+  if (state.mode === 'part') { buildSlot('main', state.treeText); setStatus('building…'); return; }
+  // assembly: one slot per distinct part key
+  const keys = new Set(state.components.map((c) => c.partKey));
+  for (const k of keys) {
+    const s = state.slots.get(k);
+    // a slot built early for a place-by-feature reference (facesOf) landed before the components existed: hand its mesh to them now
+    if (s && s.treeText === state.partTrees.get(k) && s.buildId && !s.error) { if (s.exact && !s.exactStale) applyMesh(k, s.exact, false); else if (s.preview) applyMesh(k, s.preview, true); continue; }
+    buildSlot(k, state.partTrees.get(k));
+  }
+  setStatus(`building ${keys.size} part${keys.size === 1 ? '' : 's'}…`);
+}
+
+// ── trees, parts, assemblies ──────────────────────────────────────────────
+async function setDocument(obj, name, { at = null } = {}) {
+  state.name = name || state.name; state.at = at;
+  state.watch = new Map(); state.pinned = new Set(); state.fresh = null; // the records this document is a photograph of (filled by atRef / openFile)
+  if (state.section) { state.section = null; renderer.setSection(null); document.body.classList.remove('sectioning'); $('#section')?.classList.remove('on'); }
+  state.treeText = JSON.stringify(obj, null, 2);
+  $('#json').value = state.treeText;
+  for (const k of [...renderer.bodies.keys()]) renderer.removeBody(k);
+  state.slots.clear();
+  if (obj.components) { state.mode = 'asm'; state.asm = obj; await prepareAssembly(obj); }
+  else { state.mode = 'part'; state.tree = obj; state.asm = null; state.components = []; state.mates = []; state.drive = null; state.spin = false; state.warnings = []; }
+  document.body.dataset.mode = state.mode;
+  renderParams(); renderTree();
+  history.replaceState(null, '', at ? `?at=${encodeURIComponent(at)}` : name && BENCH.includes(name) ? `?part=${name}${OCCT_BASE ? '&occt=' + encodeURIComponent(OCCT_BASE) : ''}` : `#t=${b64(state.treeText)}`);
+  if (!at) { state.file = null; renderHistory(); }
+  document.title = `${state.name} — cad`;
+  const path = $('#path'); if (path) path.placeholder = state.file?.entry.path || state.name;
+  renderPicker(); renderDoc();
+}
+
+/// What is on screen, said plainly: the document's own name, what it is made
+/// of, where it came from, and whether it is still what the repo holds. Every
+/// line comes from the loaded document — nothing here knows about the bench.
+function renderDoc() {
+  const box = $('#doc'); if (!box) return;
+  const d = state.mode === 'asm' ? state.asmDoc || {} : state.tree || {};
+  const what = state.mode === 'asm'
+    ? `assembly · ${state.components.length} component${state.components.length === 1 ? '' : 's'} from ${new Set(state.components.map((c) => c.part)).size} part${new Set(state.components.map((c) => c.part)).size === 1 ? '' : 's'} · ${state.mates.length} mate${state.mates.length === 1 ? '' : 's'}${state.drive ? ` · ${state.drive.kind === 'escapement' ? `escapement, ${state.drive.beat} s beat` : `${state.drive.component} at ${state.drive.rpm} rpm`}` : ''}${state.inputs?.length ? ` · ${state.inputs.length} input${state.inputs.length === 1 ? '' : 's'}: ${state.inputs.map((i) => `${i.name} ${i.min}…${i.max}${i.unit ? ' ' + i.unit : ''}`).join(', ')}` : state.drive ? '' : ' · no drive'}`
+    : `part · ${(d.features || []).length} feature${(d.features || []).length === 1 ? '' : 's'} · ${Object.keys(d.params || {}).length} param${Object.keys(d.params || {}).length === 1 ? '' : 's'}`;
+  const f = state.file;
+  const where = f ? `${f.drive === 'pds' ? 'my PDS' : f.drive === 'browse' ? `at://${drives.browse?.did.slice(0, 22)}…` : 'local drive'} · ${f.entry.path} · rev ${f.entry.head?.uri.slice(-10) || '—'}`
+    : state.at ? `pinned revision ${state.at.slice(-10)}` : BENCH.includes(state.name) ? 'bench — this site ships it' : 'a tree of your own';
+  const flaws = (state.warnings || []).map((w) => `<div class="bad">✗ ${esc(w.msg)}</div>`).join('');
+  box.innerHTML = `<div><b>${esc(state.name)}</b> <span class="dim">${esc(d.units || 'mm')}</span></div><div class="dim">${esc(what)}</div><div class="dim">${esc(where)}${d.description ? ` · ${esc(d.description)}` : ''}</div>${flaws}<div class="fresh">${freshLine()}</div>`;
+  $('#doc [data-act=update]')?.addEventListener('click', () => reloadDocument(state.fresh?.stale || []));
+  $('#doc [data-act=recheck]')?.addEventListener('click', () => checkFresh({ auto: false }));
+}
+const esc = (x) => String(x ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const ago = (ms) => (ms < 15000 ? 'just now' : ms < 90000 ? `${Math.round(ms / 1000)} s ago` : `${Math.round(ms / 60000)} min ago`);
+function freshLine() {
+  const pin = state.pinned?.size ? ` · ${state.pinned.size} part${state.pinned.size === 1 ? '' : 's'} pinned to a revision, which never move` : '';
+  if (!state.watch?.size) return `<span class="dim">not from a repo — nothing to keep up to date${pin}</span>`;
+  const n = state.watch.size, subject = `${n} record${n === 1 ? '' : 's'}${pin}`;
+  const fr = state.fresh;
+  if (fr?.error) return `<span class="warn">could not reach the repo: ${esc(fr.error)}</span> <button data-act="recheck">check</button>`;
+  if (fr?.stale?.length) return `<span class="new">a newer revision of ${esc(fr.stale.map((s) => s.path).join(', '))} is in the repo</span> <button data-act="update">update</button>`;
+  return `<span class="dim">watching ${subject}${fr ? ` · checked ${ago(Date.now() - fr.at)}` : ''}${state.fresh?.updated ? ` · updated ${ago(Date.now() - state.fresh.updated)}` : ''}</span> <button data-act="recheck">check</button>`;
+}
+
+/// Freshness, so that evaluating a part never means a reload. An open document
+/// is a photograph of records — the file's own head, and the head of every part
+/// it references by AT URI — that whoever made the change has since moved on.
+/// They are re-read on a timer and whenever the tab comes back, and a document
+/// nobody has edited on screen is reloaded in place, camera and all. A `?at=`
+/// permalink to a head is therefore always current without a refresh; a
+/// permalink to a revision is pinned and is left alone.
+const WATCH_MS = 20000;
+const isDirty = () => ($('#json').value || '').trim() !== (state.treeText || '').trim();
+async function checkFresh({ auto = true } = {}) {
+  if (!state.watch?.size || state.checking) return null;
+  state.checking = true;
+  const watch = state.watch;
+  try {
+    const stale = [];
+    for (const [uri, seen] of watch) {
+      const { did } = parseAtUri(uri);
+      const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
+      const r = await d.fetchRecord(uri);
+      const now = r?.value?.head?.uri;
+      if (now && now !== seen.rev) stale.push({ uri, was: seen.rev, now, path: r.value.path || seen.path });
+    }
+    if (watch !== state.watch) return null; // the document changed under us
+    state.fresh = { at: Date.now(), stale, updated: state.fresh?.updated };
+    if (stale.length && auto && !isDirty()) { await reloadDocument(stale); return stale; }
+    renderDoc();
+    return stale;
+  } catch (e) {
+    if (watch === state.watch) { state.fresh = { at: Date.now(), error: e.message, stale: [] }; renderDoc(); }
+    return null;
+  } finally { state.checking = false; }
+}
+/// Re-read the document from where it came, keeping the camera: the same file
+/// (its head now points at the new revision), or the same text when an inline
+/// or bench document references parts that moved.
+async function reloadDocument(stale = []) {
+  const note = stale.map((s) => s.path).filter(Boolean).join(', ');
+  try {
+    if (state.file) await openFile(state.file.drive, state.file.entry.uri, { fit: false });
+    else { const obj = JSON.parse(state.treeText); const at = state.at; await setDocument(obj, state.name, { at }); build(); }
+    state.fresh = { at: Date.now(), stale: [], updated: Date.now() };
+    setStatus(`updated from the repo${note ? `: ${note}` : ''}`);
+    renderDoc();
+  } catch (e) { setStatus(`could not update: ${e.message}`); }
+}
+let watchTimer = null;
+function startWatch() {
+  clearInterval(watchTimer);
+  watchTimer = setInterval(() => { if (document.visibilityState === 'visible') checkFresh(); }, WATCH_MS);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkFresh(); });
+}
+
+/// The header picker is a list of what can be opened right now: the document on
+/// screen, the bench this site ships, and every assembly in each repo the files
+/// tab has open. Load a gripper from a PDS and the gripper is what the dropdown
+/// says — the bench is not the only thing that exists.
+function renderPicker() {
+  const sel = $('#part'); if (!sel) return;
+  const opt = (value, label, on) => `<option value="${esc(value)}"${on ? ' selected' : ''}>${esc(label)}</option>`;
+  const here = state.at || (BENCH.includes(state.name) && !state.file ? state.name : '');
+  const groups = [];
+  if (!here) groups.push(`<optgroup label="open">${opt('', state.name, true)}</optgroup>`);
+  else if (state.at) groups.push(`<optgroup label="open">${opt(state.at, `${state.file ? state.file.entry.path : state.name}${state.file ? '' : ' (pinned)'}`, true)}</optgroup>`);
+  groups.push(`<optgroup label="bench · assemblies">${BENCH_ASM.map((b) => opt(b, b, here === b)).join('')}</optgroup>`);
+  groups.push(`<optgroup label="bench · parts">${BENCH_PART.map((b) => opt(b, b, here === b)).join('')}</optgroup>`);
+  for (const [k, title] of [['pds', 'my PDS'], ['browse', drives.browse ? 'browsed repo' : null], ['local', 'local drive']]) {
+    if (!title) continue;
+    const asm = (state.repoList?.[k] || []).filter((e) => e.kind === 'assembly' && e.uri !== state.at);
+    if (asm.length) groups.push(`<optgroup label="${esc(title)} · assemblies">${asm.map((e) => opt(e.uri, e.path)).join('')}</optgroup>`);
+  }
+  sel.innerHTML = groups.join('');
+  sel.value = here;
+}
+
+const benchCache = new Map();
+async function fetchBench(name) {
+  if (!benchCache.has(name)) benchCache.set(name, fetch(`./bench/${name}.json`).then((r) => { if (!r.ok) throw new Error(`no bench part ${name}`); return r.json(); }));
+  return structuredClone(await benchCache.get(name));
+}
+/// A component ref is `bench:<name>` (a file this site ships), an AT URI (a
+/// part head — its current revision — or a revision, pinned), or an inline tree.
+async function atRef(uri) {
+  const { did, collection } = parseAtUri(uri);
+  const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
+  if (collection === PART) { const f = await d.get(uri); if (!f) throw new Error(`no file at ${uri}`); state.watch.set(uri, { rev: f.revision.uri, path: f.path }); return f.revision.tree; }
+  state.pinned.add(uri); // a revision, not a head: pinned by whoever wrote the document, so never followed
+  return d.treeAt(uri);
+}
+const resolveRef = async (ref) => (typeof ref === 'string' && ref.startsWith('bench:') ? fetchBench(ref.slice(6)) : typeof ref === 'string' && ref.startsWith('at://') ? atRef(ref) : structuredClone(ref));
+
+/// Flatten an assembly through the shared library; the page keeps the
+/// components, mates and drive and asks the library for angles and matrices.
+async function prepareAssembly(asm) {
+  const { components, mates, drive, inputs, partTrees, fits, warnings } = await flatten(asm, resolveRef, { facesOf });
+  for (const c of components) c.tint = c.reference ? 0.45 : 1;
+  state.components = components; state.mates = mates; state.partTrees = partTrees; state.drive = drive; state.fits = fits; state.asmDoc = asm; state.warnings = warnings || [];
+  state.inputs = inputs || []; state.values = restValues(state.inputs); // a document's own axes of motion, at rest
+  state.spin = false; state.tAcc = 0; state.check = null;
+  solveAngles(0);
+}
+function solveAngles(t) { state.angles = solveKin(state.components, state.mates, state.drive, t, state.values); return state.angles; }
+/// Set one of the document's inputs and re-pose everything. Two inputs are two
+/// independent degrees of freedom — a gripper that grips and rolls — so this is
+/// a control per input, not one timeline.
+function setInput(name, v) {
+  const x = state.inputs.find((i) => i.name === name); if (!x) return;
+  state.values = { ...state.values, [name]: Math.max(x.min, Math.min(x.max, Number(v))) };
+  solveAngles(state.tAcc || 0); updateModels(); state.check = null; renderCheck(); invalidate();
+  const box = $('#inputs'); if (box) for (const el of box.querySelectorAll(`[data-input="${name}"]`)) el.value = state.values[name];
+}
+function updateModels() { for (const c of state.components) renderer.setModel(c.id, modelOf(c, state.angles), c.tint); }
+
+// ── UI: params / tree ─────────────────────────────────────────────────────
+function renderParams() {
+  const box = $('#params'); box.innerHTML = '';
+  if (state.mode === 'asm') {
+    const d = state.drive;
+    const ctl = d?.kind === 'escapement' ? `<label>beat <input id="beat" type="number" step="any" min="0.01" value="${d.beat}"> s</label>` : `<label>rpm <input id="rpm" type="number" step="any" value="${d ? d.rpm : 0}" ${d ? '' : 'disabled'}></label>`;
+    const inputs = (state.inputs || []).map((x) => { const step = +((x.max - x.min) / 100).toPrecision(2); return `<label class="in"><span>${x.name}</span><input type="range" data-input="${x.name}" min="${x.min}" max="${x.max}" step="${step}" value="${state.values[x.name]}" title="${x.description ? x.description.replace(/"/g, '&quot;') + ' · ' : ''}${x.min}…${x.max}${x.unit ? ' ' + x.unit : ''}"><input type="number" data-input="${x.name}" min="${x.min}" max="${x.max}" step="${step}" value="${state.values[x.name]}"><small>${x.unit || ''}</small></label>`; }).join('');
+    box.innerHTML = `${state.drive ? `<div class="asm-ctl"><button id="spin">${state.spin ? 'stop' : 'spin'}</button> ${ctl} <label>×<input id="speed" type="number" step="any" min="0" value="${state.speed}" title="time scale"></label> <span id="fps" class="dim"></span></div>` : ''}${inputs ? `<div id="inputs" class="inputs">${inputs}</div>` : ''}<div class="asm-ctl"><button id="check" title="intersect every overlapping pair of components at the current pose (Manifold)">check interference</button> <span id="checkout" class="dim">${state.check ? checkSummary() : ''}</span></div>`;
+    for (const el of box.querySelectorAll('[data-input]')) el.addEventListener('input', () => setInput(el.dataset.input, el.value));
+    $('#spin')?.addEventListener('click', toggleSpin);
+    $('#check').addEventListener('click', runCheck);
+    $('#rpm')?.addEventListener('input', () => { if (state.drive) state.drive.rpm = Number($('#rpm').value) || 0; });
+    $('#beat')?.addEventListener('input', () => { if (state.drive) state.drive.beat = Math.max(0.01, Number($('#beat').value) || 1); });
+    $('#speed')?.addEventListener('input', () => { state.speed = Math.max(0, Number($('#speed').value) || 0); });
+    const list = document.createElement('div');
+    for (const c of state.components) {
+      const row = document.createElement('div'); row.className = 'feat' + (c.hidden ? ' off' : ''); row.dataset.comp = c.id; row.innerHTML = `<b>${c.part}</b> <span>${c.id}${c.reference ? ' <small class="dim">reference</small>' : ''}</span>`;
+      row.title = `at ${c.place.slice(12, 15).map((v) => +v.toFixed(2)).join(', ')} phase ${(+c.phase).toFixed(2)}° — click to hide/show`;
+      row.addEventListener('pointerenter', () => highlightComponent(c.id)); row.addEventListener('pointerleave', () => highlightComponent(state.select?.name || state.hover?.name || null));
+      row.addEventListener('click', () => { c.hidden = !c.hidden; renderer.setHidden(c.id, c.hidden); row.classList.toggle('off', c.hidden); invalidate(); });
+      list.append(row);
+    }
+    box.append(list);
+    return;
+  }
+  const params = state.tree?.params || {};
+  for (const [k, v] of Object.entries(params)) {
+    const row = document.createElement('label'); row.className = 'param';
+    const name = document.createElement('span'); name.textContent = k; name.title = 'drag to scrub';
+    const input = document.createElement('input');
+    const isNum = typeof v === 'number';
+    input.type = isNum ? 'number' : 'text'; input.value = v; if (isNum) input.step = 'any';
+    input.addEventListener('input', () => { const val = isNum ? Number(input.value) : input.value; if (isNum && !Number.isFinite(val)) return; state.tree.params[k] = val; state.treeText = JSON.stringify(state.tree, null, 2); $('#json').value = state.treeText; build(); });
+    if (isNum) scrub(name, () => Number(input.value), (nv) => { input.value = +nv.toPrecision(6); input.dispatchEvent(new Event('input')); });
+    row.append(name, input); box.append(row);
+  }
+  if (!Object.keys(params).length) box.innerHTML = '<div class="dim">no params</div>';
+}
+
+function scrub(el, get, set) {
+  el.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    const x0 = e.clientX, v0 = get(); const scale = Math.max(Math.abs(v0), 1) / 200;
+    const move = (ev) => set(v0 + (ev.clientX - x0) * scale * (ev.shiftKey ? 0.1 : 1));
+    const up = () => { el.removeEventListener('pointermove', move); el.removeEventListener('pointerup', up); };
+    el.addEventListener('pointermove', move); el.addEventListener('pointerup', up);
+  });
+}
+
+function renderTree() {
+  const box = $('#features'); box.innerHTML = '';
+  if (state.mode === 'asm') {
+    for (const m of state.mates) { const li = document.createElement('div'); li.className = 'feat'; const detail = m.kind === 'gear' ? ` (${m.za}:${m.zb})` : m.kind === 'belt' ? ` (${m.ra ?? m.za}:${m.rb ?? m.zb})` : m.kind === 'screw' ? ` (lead ${m.lead})` : m.kind === 'rack' ? ` (r ${m.r ?? (m.m * m.z) / 2})` : m.kind === 'slider' && m.ratio ? ` (×${m.ratio})` : ''; li.innerHTML = `<b>${m.kind}</b> <span>${m.a} ↔ ${m.b}${detail}</span>`; box.append(li); }
+    if (state.drive) { const li = document.createElement('div'); li.className = 'feat'; li.innerHTML = state.drive.kind === 'escapement' ? `<b>escapement</b> <span>${state.drive.wheel} · ${state.drive.pallet} · ${state.drive.balance}, ${state.drive.teeth} teeth, ${state.drive.beat} s beat</span>` : `<b>drive</b> <span>${state.drive.component} at ${state.drive.rpm} rpm</span>`; box.append(li); }
+    return;
+  }
+  for (const f of state.tree?.features || []) {
+    const li = document.createElement('div'); li.className = 'feat';
+    li.innerHTML = `<b>${f.op}</b> <span>${f.id}</span>`;
+    li.title = Object.entries(f).filter(([k]) => !['op', 'id', 'loops'].includes(k)).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ');
+    box.append(li);
+  }
+}
+
+// ── UI: report ────────────────────────────────────────────────────────────
+const fmt = (x, d = 3) => (x === undefined || x === null || !isFinite(x) ? '–' : Number(x).toFixed(d));
+const wt = (i) => (i ? (i.watertight ? '✓' : `✗ ${i.open_edges}/${i.flipped_edges}`) : '–');
+const bb = (i) => (i ? `${i.bbox[0].map((v) => fmt(v, 1)).join(',')} → ${i.bbox[1].map((v) => fmt(v, 1)).join(',')}` : '–');
+const exactLabel = (s) => (s.exact ? `${fmt(s.exact.ms, 0)} ms<br><small>${s.exact.kernel}</small>` : s.exactError ? `<span class="bad">${s.exactError.unsupported ? 'unsupported' : 'failed'}</span>` : '…');
+
+function renderReport() {
+  const box = $('#report');
+  if (state.mode === 'asm') {
+    const rows = [`<tr><th>component</th><th>part</th><th>exact</th><th>volume</th></tr>`];
+    let total = 0;
+    for (const c of state.components) { const s = state.slots.get(c.partKey) || {}; const inv = (s.exact || s.preview)?.invariants; if (inv) total += inv.volume; rows.push(`<tr data-comp="${c.id}"><td>${c.id}</td><td>${c.part}</td><td>${exactLabel(s)}${s.exact && !s.exact.invariants.watertight ? ' <span class="bad" title="not watertight">✗</span>' : ''}</td><td>${fmt(inv?.volume)}</td></tr>`); }
+    rows.push(`<tr><td>total</td><td></td><td></td><td>${fmt(total)}</td></tr>`);
+    box.innerHTML = `<table>${rows.join('')}</table><h2>interference</h2><div id="checks"></div>`;
+    renderCheck();
+    const errs = [...state.slots.values()].map((s) => s.error || s.previewError || s.exactError).filter(Boolean);
+    $('#error').textContent = errs.length ? errs.map((e) => `${e.op}: ${e.msg}`).join(' · ') : '';
+    $('#error').className = errs.length ? 'warn' : '';
+    renderOcct(); renderFace(); return;
+  }
+  const s = state.slots.get('main') || {};
+  const p = s.preview, x = s.exact;
+  const inv = (m) => m?.invariants;
+  const cell = (a, b) => `<td>${a}</td><td>${b}</td>`;
+  const rows = [];
+  rows.push(`<tr><th></th><th>preview<br><small>manifold${p?.approx ? ' (no fillet)' : ''}</small></th><th>exact<br><small>${x ? x.kernel : s.needsOcct ? 'occt' : 'truck'}</small></th></tr>`);
+  rows.push(`<tr><td>build</td>${cell(p ? `${fmt(p.ms, 0)} ms` : s.previewError ? `<span class="bad">${s.previewError.unsupported ? 'unsupported' : 'failed'}</span>` : '–', exactLabel(s))}</tr>`);
+  rows.push(`<tr><td>volume</td>${cell(fmt(inv(p)?.volume), fmt(inv(x)?.volume))}</tr>`);
+  rows.push(`<tr><td>area</td>${cell(fmt(inv(p)?.area, 2), fmt(inv(x)?.area, 2))}</tr>`);
+  rows.push(`<tr><td>χ</td>${cell(inv(p)?.euler ?? '–', inv(x)?.euler ?? '–')}</tr>`);
+  rows.push(`<tr><td>watertight</td>${cell(wt(inv(p)), wt(inv(x)))}</tr>`);
+  rows.push(`<tr><td>triangles</td>${cell(inv(p)?.tris ?? '–', inv(x)?.tris ?? '–')}</tr>`);
+  rows.push(`<tr><td>bbox</td>${cell(bb(inv(p)), bb(inv(x)))}</tr>`);
+  rows.push(`<tr><td>named faces</td>${cell('–', x ? new Set(x.report.faces.flatMap((f) => f.names)).size : '–')}</tr>`);
+  box.innerHTML = `<table>${rows.join('')}</table>`;
+  const err = s.error || s.previewError;
+  $('#error').textContent = err ? `${err.op}: ${err.msg}` : s.exactError ? `exact (${s.exactError.op}): ${s.exactError.msg}${x?.report?.truckError ? '' : ''}` : x?.report?.truckError ? `truck: ${x.report.truckError.msg} → OCCT` : '';
+  $('#error').className = s.error || s.previewError ? 'bad' : s.exactError ? 'warn' : x?.report?.truckError ? 'dim' : '';
+  setStatus(x ? `exact ${fmt(x.ms, 0)} ms (${x.kernel}) · preview ${fmt(p?.ms, 0)} ms` : p ? `preview ${fmt(p.ms, 0)} ms · exact…` : '');
+  renderOcct(); renderFace();
+}
+
+function renderOcct() {
+  const b = $('#occt');
+  const wants = [...state.slots.values()].some((s) => s.occtWouldHelp || (s.needsOcct && !s.exact));
+  b.hidden = !(wants && !occtAllowed() && state.occt !== 'ready');
+  b.textContent = state.occt === 'loading' ? 'loading OCCT…' : 'exact with OCCT (66 MB)';
+}
+
+/// The component under the cursor (or pinned) lights up in the component
+/// list and the report table.
+function highlightComponent(id) {
+  for (const el of document.querySelectorAll('[data-comp]')) el.classList.toggle('hl', !!id && el.dataset.comp === id);
+}
+
+/// The exact face behind a pick, in world coordinates (assembly poses applied).
+function faceOf(pick) {
+  if (!pick) return null;
+  const comp = state.mode === 'asm' ? state.components.find((c) => c.id === pick.name) : null;
+  const slotKey = state.mode === 'part' ? 'main' : comp?.partKey;
+  const s = state.slots.get(slotKey) || {};
+  const f = s.faces?.[pick.fid];
+  if (!f) return null;
+  return faceWorld(f, comp ? modelOf(comp, state.angles) : null);
+}
+const geomLine = (f) => { const d = describe(f); return d.kind === 'cylinder' ? `<b>⌀ ${fmt(d.diameter)}</b> cylinder, axis (${d.axis.map((v) => fmt(v, 2)).join(', ')})` : d.kind === 'plane' ? `plane, n (${d.normal.map((v) => fmt(v, 2)).join(', ')})` : 'face'; };
+function measureLine(a, b) {
+  const m = measure(a, b);
+  if (m.kind === 'plane-plane') return m.parallel ? `<b>${fmt(m.distance)}</b> plane to plane` : `planes at ${fmt(m.angle, 1)}° — not parallel; centroids ${fmt(m.centroidDistance)} apart`;
+  if (m.kind === 'cylinder-cylinder') return m.parallel ? `<b>${fmt(m.distance)}</b> axis to axis · ⌀ ${fmt(m.diameters[0])} and ⌀ ${fmt(m.diameters[1])} · wall ${fmt(m.wall)}` : `axes not parallel; centroids ${fmt(m.centroidDistance)} apart`;
+  if (m.kind === 'plane-cylinder') return m.parallel ? `<b>${fmt(m.distance)}</b> axis to plane · ⌀ ${fmt(m.diameter)}` : `axis not in the plane; centroids ${fmt(m.centroidDistance)} apart`;
+  return `centroids <b>${fmt(m.centroidDistance)}</b> apart (no exact geometry on one face)`;
+}
+/// The measure panel: pick two faces from lists instead of clicking geometry.
+/// Parts list the exact build's named faces; assemblies list every component's,
+/// posed at the current angles, so a distance across parts is two picks.
+function faceOptions() {
+  const out = [];
+  // a face's last name is its most specific (`plate.rim[0]` after the generic `plate.side[0]`)
+  const nm = (f, i) => f.names[f.names.length - 1] || `face[${i}]`;
+  if (state.mode === 'part') { (state.slots.get('main')?.faces || []).forEach((f, i) => out.push({ key: nm(f, i), label: nm(f, i), face: f })); return out; }
+  for (const c of state.components) { const s = state.slots.get(c.partKey); if (!s?.faces?.length) continue; s.faces.forEach((f, i) => out.push({ key: `${c.id}.${nm(f, i)}`, label: `${c.id} · ${nm(f, i)}`, face: faceWorld(f, modelOf(c, state.angles)) })); }
+  return out;
+}
+/// The section's own row, above the face pickers: where the plane is, in mm
+/// from the face it was taken from, as a slider over the model's own extent and
+/// a number to type an exact depth into.
+function sectionRow() {
+  if (!state.section) return '';
+  const [lo, hi] = sectionSpan();
+  const step = +((hi - lo) / 200).toPrecision(2) || 0.01;
+  return `<div class="sec"><b>section</b><input id="section-range" type="range" min="${lo}" max="${hi}" step="${step}" value="${state.section.offset}"><input id="section-at" type="number" step="${step}" value="${+state.section.offset.toFixed(3)}"><button id="section-off" title="stop sectioning (s)">off</button><div class="what">${esc(state.section.name)} — ${esc(state.section.what)} · drag with shift, right-drag or two fingers to move it; orbit and zoom still work</div></div>`;
+}
+function wireSection() {
+  const on = (id, fn) => $(id)?.addEventListener('input', fn);
+  on('#section-range', () => setSectionOffset(Number($('#section-range').value)));
+  on('#section-at', () => setSectionOffset(Number($('#section-at').value)));
+  $('#section-off')?.addEventListener('click', () => toggleSection());
+}
+function renderMeasure() {
+  const box = $('#measurebox'); if (!box) return;
+  const opts = faceOptions();
+  if (!opts.length) { box.innerHTML = `${sectionRow()}<span class="dim">faces arrive with the exact build</span>`; wireSection(); return; }
+  const sel = (id) => `<select id="${id}"><option value="">— pick a face —</option>${opts.map((o) => `<option value="${o.key}"${state.measurePick?.[id] === o.key ? ' selected' : ''}>${o.label}</option>`).join('')}</select>`;
+  const a = opts.find((o) => o.key === state.measurePick?.ma), b = opts.find((o) => o.key === state.measurePick?.mb);
+  let out = '';
+  if (a && !b) out = `<div>${geomLine(a.face)}</div>`;
+  else if (a && b) out = `<div class="measure">${measureLine(a.face, b.face)}</div>`;
+  box.innerHTML = `${sectionRow()}<div class="row">${sel('ma')}</div><div class="row">${sel('mb')}</div>${out || '<div class="dim">one face: its size and geometry · two: the distance between them</div>'}`;
+  wireSection();
+  for (const id of ['ma', 'mb']) $('#' + id).addEventListener('change', () => { state.measurePick ??= {}; state.measurePick[id] = $('#' + id).value; renderMeasure(); });
+}
+function renderFace() {
+  renderMeasure();
+  const box = $('#face');
+  const pick = state.select || state.hover;
+  if (state.mode === 'asm') highlightComponent(pick ? pick.name : null);
+  if (!pick) { box.innerHTML = '<span class="dim">hover a face on the part · click to pin it · click a second face to measure between them — or pick both from the lists below</span>'; return; }
+  const comp = state.mode === 'asm' ? `<code class="comp">${pick.name}</code> ` : '';
+  const f = faceOf(pick);
+  const slotKey = state.mode === 'part' ? 'main' : state.components.find((c) => c.id === pick.name)?.partKey;
+  const s = state.slots.get(slotKey) || {};
+  if (!f) { box.innerHTML = `${comp}<span class="dim">${s.exact ? 'face ' + pick.fid : 'preview face ' + pick.fid + ' — names and geometry arrive with the exact build'}</span>`; return; }
+  let html = `${comp}<div class="names">${f.names.length ? f.names.map((n) => `<code>${n}</code>`).join(' ') : `<code>face[${pick.fid}]</code>`}</div><div>${geomLine(f)} · area ${fmt(f.area)}</div>`;
+  if (state.select && state.measureB) {
+    const b = faceOf(state.measureB);
+    if (b) html += `<div class="measure">↔ <code>${state.measureB.name && state.mode === 'asm' ? state.measureB.name + ' ' : ''}${b.names[0] || 'face[' + state.measureB.fid + ']'}</code>: ${measureLine(f, b)}</div>`;
+  } else if (state.select) html += `<div class="dim">click a second face to measure</div>`;
+  box.innerHTML = html;
+}
+
+// ── section: cut the model with a plane taken from a pinned face ──────────
+// The plane starts ON the face — so nothing is cut until it is pushed — and
+// while a section is live, PAN MOVES THE PLANE instead of the camera: orbit and
+// zoom keep working, so you can look around the cut while making it. It ends
+// when the face is unpinned or the button is pressed again, and the camera gets
+// its pan back. A plane face gives a plane parallel to itself; a bore gives one
+// through its axis, which is the section that shows a counterbore.
+const dot3 = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const norm3 = (v) => { const l = Math.hypot(...v) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+function planeFromFace(f) {
+  const d = describe(f);
+  if (d.kind === 'cylinder') {
+    // through the axis, cutting away the half the picked face is on
+    const rel = [f.centroid[0] - d.center[0], f.centroid[1] - d.center[1], f.centroid[2] - d.center[2]];
+    const along = dot3(rel, d.axis);
+    const radial = [rel[0] - d.axis[0] * along, rel[1] - d.axis[1] * along, rel[2] - d.axis[2] * along];
+    const n = Math.hypot(...radial) > 1e-9 ? norm3(radial) : norm3([d.axis[1], d.axis[2], d.axis[0]]);
+    return { n, d0: dot3(d.center, n), what: `⌀${fmt(d.diameter)} bore, through its axis` };
+  }
+  const n = d.kind === 'plane' ? norm3(d.normal) : norm3(f.normal);
+  const p = d.kind === 'plane' ? d.point : f.centroid;
+  return { n, d0: dot3(p, n), what: 'the face\'s own plane' };
+}
+function applySection() {
+  const sec = state.section;
+  renderer.setSection(sec ? { n: sec.n, d: sec.d0 + sec.offset } : null);
+  document.body.classList.toggle('sectioning', !!sec);
+  const b = $('#section'); if (b) b.classList.toggle('on', !!sec);
+  renderMeasure(); invalidate();
+}
+function toggleSection() {
+  if (state.section) { state.section = null; applySection(); return setStatus('section off — pan is the camera again'); }
+  const pick = state.select || state.hover;
+  const f = pick && faceOf(pick);
+  if (!f) return setStatus('pin a face first: the section plane is taken from it (click a face, then section)');
+  const { n, d0, what } = planeFromFace(f);
+  const name = (pick.name ? pick.name + ' · ' : '') + (f.names[f.names.length - 1] || `face[${pick.fid}]`);
+  state.section = { n, d0, offset: 0, name, what, key: pick.key };
+  applySection();
+  setStatus(`section on ${name} (${what}) — drag with shift, right-drag or two fingers to move the plane; orbit and zoom still work`);
+}
+/// Move the plane along its own normal. The scale is the camera's, so a drag
+/// moves the plane about as far as it would have moved the model.
+function moveSection(dy, viewportH) {
+  if (!state.section) return;
+  const s = (2 * cam.distance * Math.tan(cam.fov / 2)) / viewportH;
+  setSectionOffset(state.section.offset - dy * s);
+}
+function setSectionOffset(v) {
+  if (!state.section) return;
+  state.section.offset = v;
+  renderer.setSection({ n: state.section.n, d: state.section.d0 + v });
+  const el = $('#section-at'); if (el) el.value = +v.toFixed(3);
+  const r = $('#section-range'); if (r) r.value = v;
+  invalidate();
+}
+/// How far the plane can travel and still be inside the model, from the scene
+/// box projected onto the plane's normal — the range the slider spans.
+function sectionSpan() {
+  const bb = renderer.sceneBbox(); if (!bb || !state.section) return [-1, 1];
+  const n = state.section.n; let lo = Infinity, hi = -Infinity;
+  for (let i = 0; i < 8; i++) { const p = [i & 1 ? bb[1][0] : bb[0][0], i & 2 ? bb[1][1] : bb[0][1], i & 4 ? bb[1][2] : bb[0][2]]; const t = dot3(p, n) - state.section.d0; lo = Math.min(lo, t); hi = Math.max(hi, t); }
+  return [lo, hi];
+}
+
+function setStatus(s) { $('#status').textContent = s; }
+
+// ── interaction: mouse, touch (one finger orbit, two pan + pinch), keys ───
+const pointers = new Map();
+let gesture = null;
+canvas.addEventListener('pointerdown', (e) => {
+  try { canvas.setPointerCapture(e.pointerId); } catch {} // synthetic pointers have no capture
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY, b: e.button, shift: e.shiftKey });
+  gesture = { moved: false, start: [...pointers.values()] };
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (pointers.has(e.pointerId)) {
+    const prev = pointers.get(e.pointerId);
+    const cur = { ...prev, x: e.clientX, y: e.clientY };
+    if (pointers.size === 1) {
+      const dx = cur.x - prev.x, dy = cur.y - prev.y;
+      if (Math.abs(dx) + Math.abs(dy) > 0) gesture.moved = true;
+      if (prev.b === 0 && !prev.shift) cam.orbit(dx, dy);
+      else if (state.section) moveSection(dy, canvas.clientHeight); // pan moves the plane, not the camera
+      else cam.pan(dx, dy, canvas.clientHeight);
+    } else if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const other = a === prev ? b : a;
+      const c0 = [(prev.x + other.x) / 2, (prev.y + other.y) / 2], c1 = [(cur.x + other.x) / 2, (cur.y + other.y) / 2];
+      const d0 = Math.hypot(prev.x - other.x, prev.y - other.y), d1 = Math.hypot(cur.x - other.x, cur.y - other.y);
+      if (state.section) moveSection(c1[1] - c0[1], canvas.clientHeight); else cam.pan(c1[0] - c0[0], c1[1] - c0[1], canvas.clientHeight);
+      if (d0 > 0 && d1 > 0) cam.dolly(d0 / d1); // zoom keeps working while sectioning
+      gesture.moved = true;
+    }
+    pointers.set(e.pointerId, cur);
+    invalidate(); return;
+  }
+  if (e.pointerType === 'mouse') hoverAt(e);
+});
+const endPointer = (e) => {
+  const was = pointers.get(e.pointerId);
+  pointers.delete(e.pointerId);
+  if (was && gesture && !gesture.moved && pointers.size === 0) {
+    const r = canvas.getBoundingClientRect(); const pick = renderer.pick(e.clientX - r.left, e.clientY - r.top, cam);
+    if (!pick || !state.select || pick.key === state.select.key || state.measureB) { state.select = pick && state.select && pick.key === state.select.key ? null : pick; state.measureB = null; }
+    else state.measureB = pick;
+    // the section belongs to the face it was taken from: let that face go and it goes
+    if (state.section && (!state.select || state.select.key !== state.section.key)) { state.section = null; applySection(); }
+    renderer.select = state.select ? state.select.key : -1; renderFace(); invalidate();
+  }
+  if (pointers.size === 0) gesture = null;
+};
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
+canvas.addEventListener('pointerleave', () => { if (state.hover) { state.hover = null; renderer.hover = -1; renderFace(); invalidate(); } });
+canvas.addEventListener('wheel', (e) => { e.preventDefault(); cam.dolly(Math.exp(e.deltaY * 0.0015)); invalidate(); }, { passive: false });
+canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+function hoverAt(e) {
+  const r = canvas.getBoundingClientRect();
+  const pick = renderer.pick(e.clientX - r.left, e.clientY - r.top, cam);
+  const key = pick ? pick.key : -1;
+  if (key !== (state.hover ? state.hover.key : -1)) { state.hover = pick; renderer.hover = key; renderFace(); invalidate(); }
+}
+window.addEventListener('resize', invalidate);
+
+// ── phone: the on-screen keyboard ─────────────────────────────────────────
+// A keyboard covers the bottom of the screen, which on a phone is the whole
+// control panel — the thing being typed into. Browsers do this two ways: some
+// shrink the layout viewport (`interactive-widget=resizes-content`, which the
+// meta tag asks for), others shrink only the visual viewport and leave the page
+// where it was. Both are measured here against the height the screen had with
+// nothing focused. The page is then laid out into what is left — `--kb` takes
+// off the part the browser did not — and the panel takes two thirds of that, so
+// the field being typed into sits above the keyboard instead of under it.
+const vv = window.visualViewport;
+const typing = () => { const el = document.activeElement; return !!el && (el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'file')); };
+let fullHeight = window.innerHeight;
+function applyViewport() {
+  if (!typing()) fullHeight = Math.max(window.innerHeight, vv ? vv.height : 0);
+  const layoutInset = Math.max(0, fullHeight - window.innerHeight);                        // the browser shrank the page for us
+  const visualInset = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0; // it did not: take it off ourselves
+  const up = typing() && layoutInset + visualInset > 80;
+  document.documentElement.style.setProperty('--kb', `${Math.round(up ? visualInset : 0)}px`);
+  document.body.classList.toggle('kb', up);
+  if (up) { window.scrollTo(0, 0); document.activeElement?.scrollIntoView?.({ block: 'nearest' }); }
+  invalidate();
+  return { up, layoutInset, visualInset, fullHeight };
+}
+vv?.addEventListener('resize', applyViewport);
+vv?.addEventListener('scroll', applyViewport);
+window.addEventListener('resize', applyViewport);
+document.addEventListener('focusin', () => setTimeout(applyViewport, 60));
+document.addEventListener('focusout', () => setTimeout(applyViewport, 60));
+window.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  const k = e.key.toLowerCase();
+  if (k === 'f') { cam.fit(renderer.sceneBbox()); invalidate(); }
+  else if (k === 'e') { renderer.showEdges = !renderer.showEdges; invalidate(); }
+  else if (k === 'g') { renderer.showGrid = !renderer.showGrid; invalidate(); }
+  else if (k === 'o') { cam.ortho = !cam.ortho; invalidate(); }
+  else if (k === 's') toggleSection();
+  else if (k === ' ' && state.mode === 'asm') { e.preventDefault(); toggleSpin(); }
+  else if ({ 1: 'front', 3: 'right', 7: 'top', 0: 'iso' }[k]) { cam.preset({ 1: 'front', 3: 'right', 7: 'top', 0: 'iso' }[k]); invalidate(); }
+});
+
+for (const b of document.querySelectorAll('[data-view]')) b.addEventListener('click', () => { cam.preset(b.dataset.view); invalidate(); });
+for (const b of document.querySelectorAll('[data-tab]')) b.addEventListener('click', () => { document.body.dataset.tab = b.dataset.tab; for (const o of document.querySelectorAll('[data-tab]')) o.classList.toggle('on', o === b); });
+$('#fit').addEventListener('click', () => { cam.fit(renderer.sceneBbox()); invalidate(); });
+$('#ortho').addEventListener('click', () => { cam.ortho = !cam.ortho; invalidate(); });
+$('#edges').addEventListener('click', () => { renderer.showEdges = !renderer.showEdges; invalidate(); });
+$('#apply').addEventListener('click', async () => { try { const obj = JSON.parse($('#json').value); await setDocument(obj, obj.name || 'custom'); build({ fit: true }); } catch (err) { $('#error').textContent = `JSON: ${err.message}`; $('#error').className = 'bad'; } });
+$('#part').addEventListener('change', async () => {
+  const v = $('#part').value; if (!v) return;
+  if (v.startsWith('at://')) { try { await openAt(v); } catch (e) { setDriveStatus(`cannot open ${v}: ${e.message}`, true); renderPicker(); } return; }
+  await loadBench(v);
+});
+function exportPart(format) {
+  const allowOcct = occtAllowed();
+  let slot = 'main', name = state.name;
+  if (state.mode !== 'part') {
+    const c = state.components.find((x) => x.id === (state.select?.name || state.hover?.name)) || state.components[0];
+    if (!c) return setStatus('pin a component to export its part');
+    slot = c.partKey; name = `${state.name}-${c.id.replace(/\//g, '_')}`;
+  }
+  if (format === 'stl') {
+    // the mesh lives here (its buffers were transferred out of the worker), so STL is written on the page
+    const s = state.slots.get(slot); const mesh = s?.exact?.mesh || s?.preview?.mesh;
+    if (!mesh) return setStatus('nothing built yet');
+    const bytes = writeStl(mesh);
+    download(new Blob([bytes], { type: 'model/stl' }), `${name}.stl`);
+    setStatus(`STL written from the ${s.exact?.mesh ? 'exact' : 'preview'} mesh (${(bytes.length / 1e3).toFixed(0)} kB)`);
+    window.__lastExport = { format: 'stl', bytes: bytes.length, kernel: s.exact?.mesh ? s.exact.kernel : 'manifold' };
+    return;
+  }
+  worker.postMessage({ type: 'export', id: 0, slot, which: 'exact', format, allowOcct, name });
+}
+$('#stl').addEventListener('click', () => exportPart('stl'));
+$('#step').addEventListener('click', () => exportPart('step'));
+$('#views').addEventListener('click', () => snapshots());
+$('#section').addEventListener('click', () => toggleSection());
+$('#drawing').addEventListener('click', () => makeDrawing());
+$('#asm-report').addEventListener('click', () => makeReport()); // #report is the invariants panel; this button is the assembly document
+/// The assembly report: one HTML page with the views, an exploded picture, a
+/// parts list, a drawing per part and the steps — built from the same exact
+/// meshes on this page, so it needs every component's exact build.
+function makeReport() {
+  if (state.mode !== 'asm') return setStatus(`a report is about an assembly — open one (the bench has ${BENCH_ASM.join(', ')})`);
+  const builds = new Map();
+  for (const c of state.components) {
+    if (c.reference) continue;
+    const s = state.slots.get(c.partKey);
+    if (!s?.exact?.mesh) return setStatus(`the report needs every exact build — ${c.id} has none yet`);
+    builds.set(c.partKey, { mesh: s.exact.mesh, faces: s.faces, invariants: s.exact.invariants });
+  }
+  try {
+    const rep = assemblyReport({
+      doc: state.asmDoc, components: state.components, mates: state.mates, drive: state.drive, fits: state.fits, inputs: state.inputs,
+      partTrees: state.partTrees, builds, angles: state.angles, modelOf, t: state.t || 0,
+      title: state.name, site: location.origin, at: state.at && state.at.startsWith('at://') ? state.at : null,
+    });
+    download(new Blob([rep.html], { type: 'text/html' }), `${state.name}-report.html`);
+    setStatus(`report: ${rep.components} components over ${rep.bom.length} parts, ${rep.sheets} part sheets, ${(rep.bytes / 1024).toFixed(0)} kB`);
+    window.__lastReport = { bytes: rep.bytes, items: rep.bom.length, sheets: rep.sheets, steps: rep.steps.length, components: rep.components, motion: rep.motion ? rep.motion.map((m) => ({ axis: m.axis, unit: m.unit, moving: m.moving.length, still: m.still.length })) : null };
+  } catch (e) { setStatus(`report failed: ${e.message}`, true); }
+}
+/// An SVG drawing of what is built: the part, or every posed component of the
+/// assembly (reference ones left out), from the exact meshes — so it waits
+/// for the exact build, and says so if a part only has a preview.
+function makeDrawing() {
+  let bodies, note;
+  if (state.mode === 'part') { const s = state.slots.get('main'); if (!s?.exact?.mesh) return setStatus('the drawing needs the exact build — wait for it, or the exact kernel could not build this part'); bodies = [{ id: state.name, mesh: s.exact.mesh, faces: s.faces }]; }
+  else {
+    bodies = [];
+    for (const c of state.components) { if (c.reference) continue; const s = state.slots.get(c.partKey); if (!s?.exact?.mesh) return setStatus(`the drawing needs every exact build — ${c.id} has none yet`); bodies.push({ id: c.id, mesh: s.exact.mesh, model: modelOf(c, state.angles), faces: s.faces }); }
+    note = `t = ${+(state.t || 0).toFixed(3)} s`;
+  }
+  try {
+    const d = drawing(bodies, { title: state.name, note });
+    download(new Blob([d.svg], { type: 'image/svg+xml' }), `${state.name}.svg`);
+    setStatus(`drawing: ${d.views.map((v) => v.name).join(', ')} at ${d.scale}, ${d.holes.length} hole${d.holes.length === 1 ? '' : 's'} called out, ${d.ms.toFixed(0)} ms`);
+    window.__lastDrawing = { bytes: d.svg.length, views: d.views, holes: d.holes.length, scale: d.scale, bodies: bodies.length };
+  } catch (e) { setStatus(`drawing failed: ${e.message}`, true); }
+}
+/// The link is the permalink, and it says what kind it is: a `?at=` of a file's
+/// head always resolves to that file's newest revision (and the page keeps it
+/// current while it is open), a `?at=` of a revision is pinned for ever, and a
+/// `#t=` carries the whole tree for someone with no repo at all.
+$('#share').addEventListener('click', async () => {
+  const url = location.href;
+  const kind = state.file ? 'the file\'s head — always its newest revision' : state.at ? 'a pinned revision — it will never change' : url.includes('#t=') ? 'the whole tree, in the link' : 'a bench part';
+  try { await navigator.clipboard.writeText(url); setStatus(`link copied: ${kind}`); } catch { setStatus(url); }
+});
+$('#occt').addEventListener('click', () => { localStorage.setItem('cad.occt', '1'); worker.postMessage({ type: 'load-occt' }); build(); });
+$('#file').addEventListener('change', async (e) => { const f = e.target.files[0]; if (!f) return; try { const obj = JSON.parse(await f.text()); await setDocument(obj, f.name.replace(/\.json$/, '')); build({ fit: true }); } catch (err) { $('#error').textContent = `JSON: ${err.message}`; } });
+
+// ── interference ─────────────────────────────────────────────────────────
+function runCheck() {
+  if (state.mode !== 'asm') return;
+  const bodies = state.components.filter((c) => !c.reference).map((c) => ({ id: c.id, slot: c.partKey, model: modelOf(c, state.angles) }));
+  state.check = { pending: true };
+  worker.postMessage({ type: 'check', id: ++state.checkId, bodies });
+  const o = $('#checkout'); if (o) o.textContent = 'checking…';
+}
+const fixedPair = (a, b) => expectedTouch(state.mates)(a, b);
+/// A fixed or screw mate says a pair may touch; it does not say they may be
+/// the same solid. The budget is a mm³ or a thousandth of the smaller part,
+/// raisable per pair with `fits: [{a, b, contact: true, interfere: {max}}]`.
+function overBudget(p) {
+  if (!fixedPair(p.a, p.b)) return false;
+  const vol = (id) => { const c = state.components.find((x) => x.id === id); const inv = (state.slots.get(c?.partKey)?.exact || state.slots.get(c?.partKey)?.preview)?.invariants; return inv?.volume || 0; };
+  return p.volume > touchLimit(expectations(state.mates, state.fits)(p.a, p.b), [vol(p.a), vol(p.b)]).max;
+}
+function checkSummary() {
+  const c = state.check; if (!c || c.pending) return 'checking…';
+  const real = c.pairs.filter((p) => !fixedPair(p.a, p.b) || overBudget(p));
+  return real.length ? `${real.length} interfering pair${real.length === 1 ? '' : 's'} (${c.tested} tested, ${c.ms.toFixed(0)} ms)` : `no interference (${c.tested} pairs tested, ${c.ms.toFixed(0)} ms)`;
+}
+function renderCheck() {
+  const o = $('#checkout'); if (o) o.textContent = checkSummary();
+  const box = $('#checks'); if (!box) return;
+  const c = state.check; if (!c || c.pending) { box.innerHTML = ''; return; }
+  box.innerHTML = c.pairs.map((p) => { const ok = fixedPair(p.a, p.b) && !overBudget(p); return `<div class="feat ${ok ? 'dim' : 'bad'}" data-pair="${p.a}|${p.b}"><b>${ok ? '~' : '✗'}</b> <span>${p.a} × ${p.b} · ${p.volume.toFixed(4)} mm³${ok ? ' (expected touch)' : overBudget(p) ? ' (expected touch, over its budget — declare interfere.max if this press fit is real)' : ''}</span></div>`; }).join('') || '<div class="dim">no interference at this pose</div>';
+  for (const el of box.querySelectorAll('[data-pair]')) el.addEventListener('pointerenter', () => { const [a, b] = el.dataset.pair.split('|'); for (const r of document.querySelectorAll('[data-comp]')) r.classList.toggle('hl', r.dataset.comp === a || r.dataset.comp === b); });
+}
+
+// ── spin ──────────────────────────────────────────────────────────────────
+function toggleSpin() {
+  if (state.mode !== 'asm' || !state.drive) return;
+  state.spin = !state.spin; state.t0 = performance.now(); state.frames = 0; state.fpsT = performance.now();
+  const b = $('#spin'); if (b) b.textContent = state.spin ? 'stop' : 'spin';
+  invalidate();
+}
+function tick(now) {
+  if (state.spin && state.drive) {
+    const dt = (now - state.t0) / 1000; state.t0 = now; state.tAcc += dt * state.speed;
+    // a placement written as an expression can fail at some t (a sqrt gone negative): say so and stop, rather than die every frame
+    try { solveAngles(state.tAcc); updateModels(); } catch (e) { state.spin = false; const b = $('#spin'); if (b) b.textContent = 'spin'; setStatus(`stopped at t = ${state.tAcc.toFixed(2)} s: ${e.message}`); }
+    needsRender = true;
+    state.frames++;
+    if (now - state.fpsT >= 500) { state.fps = (state.frames * 1000) / (now - state.fpsT); state.frames = 0; state.fpsT = now; const f = $('#fps'); if (f) f.textContent = `${state.fps.toFixed(0)} fps`; }
+  }
+  if (needsRender) { needsRender = false; renderer.render(cam); }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+function snapshots() {
+  const strip = $('#strip'); strip.innerHTML = '';
+  const keep = { yaw: cam.yaw, pitch: cam.pitch, ortho: cam.ortho };
+  for (const v of ['iso', 'front', 'top']) {
+    cam.preset(v); cam.ortho = v !== 'iso'; renderer.render(cam);
+    const img = document.createElement('img'); img.src = renderer.snapshot(); img.title = v; strip.append(img);
+  }
+  Object.assign(cam, keep); invalidate();
+}
+
+function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+const b64 = (s) => btoa(unescape(encodeURIComponent(s))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = (s) => decodeURIComponent(escape(atob(s.replace(/-/g, '+').replace(/_/g, '/'))));
+
+async function loadBench(name) {
+  const obj = await fetchBench(name); $('#part').value = name; await setDocument(obj, name); build({ fit: true });
+}
+
+
+// ── files: a file tree over ATProto records (lib/drive.js) ────────────────
+// Three repos can be on screen: the local drive (IndexedDB), the signed-in
+// user's PDS (through auth.mino.mobi), and one browsed public repo (read
+// through this site's /xrpc/ gateway, so the page never talks to a PDS host).
+const gateway = async () => location.origin;
+const auth = new AuthClient();
+const drives = { local: null, pds: null, browse: null };
+state.file = null; // { drive: 'local'|'pds'|'browse', entry }
+const driveOf = (k) => drives[k];
+async function initDrives() {
+  drives.local = new Drive(await LocalBackend.open(), { pdsOf: gateway });
+  try { await auth.init(); } catch (e) { console.info(`cad: auth unavailable (${e.message})`); }
+  onAuth();
+  auth.onAuthChange?.(onAuth);
+  const at = q.get('at');
+  if (at) { try { await openAt(at); return true; } catch (e) { setDriveStatus(`cannot open ${at}: ${e.message}`, true); } }
+  await renderFiles();
+  return false;
+}
+function onAuth() {
+  const u = auth.getUser?.();
+  // remember the handle: a session that expires should cost a tap, not typing
+  try { if (u?.handle) localStorage.setItem('cad.handle', u.handle); else if (!$('#handle').value) $('#handle').value = localStorage.getItem('cad.handle') || ''; } catch {}
+  drives.pds = u ? new Drive(new AuthBackend(auth), { pdsOf: gateway }) : null;
+  $('#who').textContent = u ? `signed in as @${u.handle} — files save to your PDS` : 'local drive — this browser only';
+  $('#signin').hidden = !!u; $('#handle').hidden = !!u; $('#signout').hidden = !u;
+  const t = $('#target'); t.innerHTML = `<option value="local">local</option>${u ? `<option value="pds" selected>@${u.handle}</option>` : ''}`;
+  renderFiles();
+}
+function setDriveStatus(msg, bad = false) { const el = $('#drivestatus'); el.textContent = msg; el.className = bad ? 'bad' : 'dim'; }
+const fmtDate = (s) => (s || '').replace('T', ' ').slice(0, 16);
+/// The files tab as a tree. A path's folders are its slashes; assemblies
+/// come first at every level and folders start folded, because a repo of
+/// parts is busy and the assemblies are what a person opens. Open folders
+/// are remembered in `state.folds` per drive.
+state.folds ??= new Set();
+function fileTree(entries) {
+  const root = { dirs: new Map(), files: [] };
+  for (const e of entries) {
+    const segs = e.path.split('/'); let node = root;
+    for (const d of segs.slice(0, -1)) { if (!node.dirs.has(d)) node.dirs.set(d, { dirs: new Map(), files: [] }); node = node.dirs.get(d); }
+    node.files.push(e);
+  }
+  return root;
+}
+const countFiles = (n) => n.files.length + [...n.dirs.values()].reduce((a, d) => a + countFiles(d), 0);
+function renderNode(node, k, prefix, depth) {
+  const rows = [];
+  const files = [...node.files].sort((a, b) => (a.kind === 'assembly' ? 0 : 1) - (b.kind === 'assembly' ? 0 : 1) || a.path.localeCompare(b.path));
+  // a path comes from whoever wrote the record — another person's repo — so it
+  // is text, never markup
+  for (const e of files) rows.push(`<div class="f${state.file?.entry.uri === e.uri ? ' on' : ''}${e.kind === 'assembly' ? ' asm' : ''}" style="padding-left:${4 + depth * 12}px" data-drive="${k}" data-uri="${esc(e.uri)}"><span class="p" title="${esc(e.uri)}">${esc(e.path.slice(e.path.lastIndexOf('/') + 1))}</span><small>${e.kind === 'assembly' ? 'assembly' : 'part'}</small>${k !== 'browse' && drives.pds && k === 'local' ? '<button data-act="push" title="copy this file and its history to your PDS">push</button>' : ''}${k !== 'local' ? '<button data-act="fork" title="copy to the local drive, keeping the lineage">fork</button>' : ''}${k !== 'browse' ? '<button data-act="rm">×</button>' : ''}</div>`);
+  for (const [name, dir] of [...node.dirs].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const key = `${k}:${prefix}${name}/`; const folded = !state.folds.has(key); const n = countFiles(dir);
+    rows.push(`<div class="f dir" style="padding-left:${4 + depth * 12}px" data-fold="${esc(key)}"><span class="p">${folded ? '▸' : '▾'} ${esc(name)}/</span><small>${n} ${n === 1 ? 'file' : 'files'}</small></div>`);
+    if (!folded) rows.push(...renderNode(dir, k, prefix + name + '/', depth + 1));
+  }
+  return rows;
+}
+/// the folders on the way to the open file are always open, so it is never hidden
+function unfoldTo(k, path) { const segs = path.split('/').slice(0, -1); let p = ''; for (const d of segs) { p += d + '/'; state.folds.add(`${k}:${p}`); } }
+async function renderFiles() {
+  const box = $('#files'); const groups = []; state.repoList = {};
+  if (state.file) unfoldTo(state.file.drive, state.file.entry.path);
+  for (const [k, title] of [['local', 'local'], ['pds', 'my PDS'], ['browse', drives.browse ? `at://${drives.browse.did}` : null]]) {
+    const d = drives[k]; if (!d) continue;
+    let ls = [];
+    try { ls = await d.list(); } catch (e) { groups.push(`<h3>${title}</h3><div class="bad">${e.message}</div>`); continue; }
+    state.repoList[k] = ls;
+    const n = ls.length, asms = ls.filter((e) => e.kind === 'assembly');
+    const asm = asms.length;
+    // Every assembly, by its full path, above the tree. Folders start folded —
+    // a repo of parts is busy — so an assembly one folder deeper than its
+    // neighbour was simply not there to be seen: the gripper repo has
+    // `gripper/assembly` and `gripper/v9/stroke`, and only the first showed.
+    // Assemblies are few and they are what a person opens; the tree below is
+    // for browsing the parts.
+    const strip = asms.sort((a, b) => a.path.localeCompare(b.path))
+      .map((e) => `<div class="f asm${state.file?.entry.uri === e.uri ? ' on' : ''}" data-drive="${k}" data-uri="${esc(e.uri)}"><span class="p" title="${esc(e.uri)}">${esc(e.path)}</span><small>assembly</small></div>`).join('');
+    const rows = renderNode(fileTree(ls), k, '', 0);
+    groups.push(`<h3>${title}${n ? ` <span class="cnt">${asm} ${asm === 1 ? 'assembly' : 'assemblies'} · ${n - asm} ${n - asm === 1 ? 'part' : 'parts'}</span>` : ''}</h3>${strip ? `<div class="asmstrip">${strip}</div>` : ''}${rows.join('') || '<div class="dim">(empty)</div>'}`);
+  }
+  box.innerHTML = groups.join('') + (groups.length ? '<div class="dim hint">a file is a <code>part</code> record naming a path; its folders are the path\'s slashes. Every assembly in a repo is listed at its top, wherever it lives; the tree below is the parts, folded — click a folder to open it.</div>' : '');
+  renderPicker();
+}
+$('#files').addEventListener('click', async (e) => {
+  const dir = e.target.closest('.f.dir'); if (dir) { const key = dir.dataset.fold; if (state.folds.has(key)) state.folds.delete(key); else state.folds.add(key); return renderFiles(); }
+  const row = e.target.closest('.f'); if (!row) return;
+  const k = row.dataset.drive, uri = row.dataset.uri, act = e.target.dataset.act;
+  try {
+    if (act === 'rm') { const f = await drives[k].get(uri); if (!confirm(`remove ${f.path}? (revisions are kept)`)) return; await drives[k].remove(f.path); if (state.file?.entry.uri === uri) state.file = null; setDriveStatus(`removed ${f.path}`); }
+    else if (act === 'fork') { const f = await drives[k].get(uri); const to = prompt('fork to path', f.path); if (!to) return; const r = await drives.local.fork(uri, to); setDriveStatus(`forked ${f.path} → local ${r.path}`); }
+    else if (act === 'push') { const f = await drives.local.get(uri); const r = await drives.local.push(f.path, drives.pds); setDriveStatus(`pushed ${r.path} (${r.revisions} revisions) → ${r.uri}`); }
+    else { await openFile(k, uri); return; }
+    await renderFiles();
+  } catch (err) { setDriveStatus(err.message, true); }
+});
+async function openFile(k, uri, { fit = true } = {}) {
+  const f = await drives[k].get(uri); if (!f) throw new Error(`no file at ${uri}`);
+  state.file = { drive: k, entry: f };
+  $('#path').value = f.path; $('#message').value = '';
+  await setDocument(f.revision.tree, f.name, { at: f.uri }); build({ fit });
+  // the file's own head is watched too: a save from anywhere moves it
+  state.watch.set(f.uri, { rev: f.revision.uri, path: f.path });
+  setDriveStatus(`opened ${f.path} @ ${f.revision.cid.slice(0, 16)}… (${k})`);
+  await renderFiles(); await renderHistory(); renderDoc();
+}
+/// Open any AT URI: ours, the signed-in user's, or a stranger's through the gateway.
+async function openAt(uri) {
+  const { did, collection, rkey } = parseAtUri(uri);
+  if (!collection || !rkey) throw new Error('an AT URI needs collection and rkey');
+  if (collection !== PART) {
+    // a revision (what a parts.mino.mobi post points at): pinned, so it opens as a document, not a file
+    const d = drives.local || new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
+    const tree = await d.treeAt(uri);
+    state.file = null;
+    await setDocument(tree, tree.name || 'revision', { at: uri }); build({ fit: true });
+    setDriveStatus(`opened a pinned revision (${uri.slice(-13)}); save it to your drive to edit it as a file`);
+    await renderFiles(); return true;
+  }
+  for (const k of ['local', 'pds']) if (drives[k]?.did === did) return openFile(k, uri);
+  drives.browse = new Drive(new PublicBackend(did, await gateway()), { pdsOf: gateway });
+  return openFile('browse', uri);
+}
+$('#browse').addEventListener('click', async () => {
+  let v = $('#repo').value.trim(); if (!v) return;
+  try {
+    if (v.startsWith('at://')) { const { collection, rkey } = parseAtUri(v); if (collection && rkey) return await openAt(v); v = parseAtUri(v).did; }
+    // a handle goes to the gateway as-is: it resolves handles server-side, and the drive keys its repo by what it was given
+    drives.browse = new Drive(new PublicBackend(v, await gateway()), { pdsOf: gateway });
+    await renderFiles(); setDriveStatus(`browsing ${v}`);
+  } catch (e) { setDriveStatus(e.message, true); }
+});
+$('#save').addEventListener('click', async () => {
+  const k = $('#target').value; const d = drives[k]; if (!d) return setDriveStatus('sign in to save to a PDS', true);
+  const p = $('#path').value.trim() || state.file?.entry.path || state.name; const message = $('#message').value.trim() || undefined;
+  try {
+    const tree = JSON.parse($('#json').value);
+    const main = state.mode === 'part' ? state.slots.get('main') : null;
+    const r = await d.put(p, tree, { message, kernel: main?.exact ? { id: main.exact.kernel, version: String(state.engineVersion || '') } : undefined, invariants: main?.exact?.invariants });
+    state.file = { drive: k, entry: r }; state.at = r.uri; history.replaceState(null, '', `?at=${encodeURIComponent(r.uri)}`);
+    state.watch.set(r.uri, { rev: r.revision.uri, path: r.path }); // our own save is not a change to notice
+    renderDoc(); renderPicker();
+    $('#message').value = ''; setDriveStatus(`saved ${r.path} → ${r.head.uri}`);
+    await renderFiles(); await renderHistory();
+  } catch (e) { setDriveStatus(e.message, true); }
+});
+async function renderHistory() {
+  const box = $('#history'); if (!state.file) { box.innerHTML = '<span class="dim">open a file</span>'; return; }
+  const d = drives[state.file.drive];
+  try {
+    const h = await d.history(state.file.entry.uri);
+    box.innerHTML = h.map((r, i) => r.missing ? `<div class="r"><small>missing</small><span class="m" title="${r.uri}">${r.uri}</span></div>` : `<div class="r${i === 0 ? ' on' : ''}" data-uri="${r.uri}"><small>${fmtDate(r.createdAt)}</small><span class="m" title="${r.uri}">${r.message || (r.forkedFrom ? 'fork' : '—')}</span>${r.did !== d.did ? `<small title="${r.did}">${r.did.slice(0, 14)}…</small>` : ''}${r.invariants?.volume !== undefined ? `<small>${Number(r.invariants.volume).toFixed(1)} mm³</small>` : ''}</div>`).join('');
+  } catch (e) { box.innerHTML = `<div class="bad">${e.message}</div>`; }
+}
+$('#history').addEventListener('click', async (e) => {
+  const row = e.target.closest('.r[data-uri]'); if (!row || !state.file) return;
+  try {
+    const rev = await drives[state.file.drive].fetchRecord(row.dataset.uri);
+    await setDocument(rev.value.tree, state.file.entry.name, { at: state.file.entry.uri }); build({ fit: true });
+    for (const r of $('#history').children) r.classList.toggle('on', r === row);
+    setDriveStatus(`viewing revision ${rev.cid.slice(0, 16)}… — save to make it the head again`);
+  } catch (err) { setDriveStatus(err.message, true); }
+});
+// handle suggestions on both handle fields, through this site's own gateway (CSP: 'self')
+attachHandleTypeahead($('#handle'), { gateway: location.origin });
+attachHandleTypeahead($('#repo'), { gateway: location.origin, when: (v) => !/^(did:|at:\/\/)/.test(v) && !v.includes('/') });
+$('#signin').addEventListener('click', async () => {
+  const h = $('#handle').value.trim(); if (!h) return setDriveStatus('enter your handle', true);
+  try { await auth.login(h, { scope: DRIVE_SCOPE }); } catch (e) { setDriveStatus(`sign-in failed: ${e.message}`, true); }
+});
+$('#signout').addEventListener('click', async () => { try { await auth.logout(); } catch {} onAuth(); });
+
+// ── boot ──────────────────────────────────────────────────────────────────
+renderPicker();
+const boot = ready.then(async () => {
+  const opened = await initDrives();
+  if (!opened) {
+    if (location.hash.startsWith('#t=')) { const obj = JSON.parse(unb64(location.hash.slice(3))); await setDocument(obj, obj.name || 'custom'); build({ fit: true }); }
+    else await loadBench(BENCH.includes(q.get('part')) ? q.get('part') : 'gear');
+  }
+  startWatch();
+});
+
+window.__cad = {
+  ready: boot, state, cam, renderer, load: loadBench, toggleSpin, solveAngles, updateModels, modelOf, runCheck, exportPart,
+  drives, auth, openAt, openFile, renderFiles, renderHistory, makeDrawing, makeReport, setInput,
+  toggleSection, setSectionOffset, sectionSpan,
+  checkFresh, reloadDocument, renderDoc, renderPicker, keyboard: applyViewport,
+  loadDocument: async (obj, name) => { await setDocument(obj, name); build({ fit: true }); },
+  faceOf, measure: (a, b) => measure(faceOf(a), faceOf(b)), describe: (p) => describe(faceOf(p)),
+  checked: () => new Promise((resolve) => { const t = setInterval(() => { if (state.check && !state.check.pending) { clearInterval(t); resolve(state.check); } }, 50); }),
+  hide: (id, on = true) => { const c = state.components.find((c) => c.id === id); if (c) { c.hidden = on; renderer.setHidden(id, on); renderParams(); invalidate(); } },
+  // resolves when every slot of the current document has answered (preview and exact, or errored)
+  settled: () => new Promise((resolve) => { const t = setInterval(() => {
+    const slots = [...state.slots.values()];
+    if (!slots.length) return;
+    const done = slots.every((s) => (s.preview && s.preview.id === s.buildId) || s.previewError || s.error);
+    const exactDone = slots.every((s) => (s.exact && s.exact.id === s.buildId) || s.exactError || s.error);
+    if (done && exactDone) { clearInterval(t); const s = state.slots.get('main') || slots[0]; resolve({ mode: state.mode, preview: s.preview?.invariants, exact: s.exact?.invariants, exactKernel: s.exact?.kernel, error: s.error, exactError: s.exactError, previewError: s.previewError, faces: s.faces?.length || 0, slots: slots.length, components: state.components.length }); }
+  }, 50); }),
+  render: () => renderer.render(cam),
+};

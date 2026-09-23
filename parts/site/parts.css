@@ -1,0 +1,39 @@
+:root { --bg: #1c1e22; --panel: #24272c; --line: #33373e; --ink: #e6e8ec; --dim: #8a8f98; --accent: #7fb4ff; --gold: #f2c14e; --bad: #ff6b6b; --ok: #7bd88f; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header h1 { font-size: 15px; margin: 0; font-weight: 600; } header h1 a { color: inherit; } header h1 small { color: var(--dim); font-weight: 400; margin-left: 8px; }
+header nav { display: flex; gap: 12px; font-size: 12px; } header nav a { color: var(--dim); } header nav a:hover { color: var(--accent); }
+header .sp { flex: 1; }
+header input { background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 4px 6px; font: inherit; width: 180px; }
+button { background: #2e3239; color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 4px 10px; font: inherit; cursor: pointer; } button:hover { border-color: var(--accent); } button:disabled { opacity: .5; cursor: default; }
+main { max-width: 980px; margin: 0 auto; padding: 16px; }
+footer { max-width: 980px; margin: 0 auto; padding: 24px 16px; font-size: 12px; }
+.dim { color: var(--dim); } .bad { color: var(--bad); } .ok { color: var(--ok); }
+.cols { display: grid; grid-template-columns: 1fr 260px; gap: 20px; } @media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+.side h3 { font-size: 12px; color: var(--dim); text-transform: uppercase; letter-spacing: .05em; margin: 4px 0 8px; font-weight: 500; }
+.side .c { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid var(--line); } .side .c small { color: var(--dim); }
+.sorts { display: flex; gap: 8px; margin: 0 0 10px; font-size: 12px; } .sorts a { color: var(--dim); } .sorts a.on { color: var(--gold); }
+.post { display: grid; grid-template-columns: 44px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.vote { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 12px; }
+.vote button { padding: 0 6px; line-height: 1.4; } .vote button.on { color: var(--gold); border-color: var(--gold); }
+.post h3 { margin: 0 0 2px; font-size: 15px; font-weight: 600; } .post h3 a { color: var(--ink); }
+.post .meta { font-size: 12px; color: var(--dim); } .post .meta a { color: var(--dim); } .post .meta a:hover { color: var(--accent); }
+.part { display: flex; gap: 10px; align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; margin: 8px 0; font-size: 13px; flex-wrap: wrap; }
+.part .k { color: var(--dim); } .part .open { margin-left: auto; }
+.text { white-space: pre-wrap; margin: 6px 0; max-width: 72ch; }
+.comment { margin: 10px 0 0 0; padding-left: 12px; border-left: 2px solid var(--line); }
+.comment .meta { font-size: 12px; color: var(--dim); display: flex; gap: 8px; align-items: center; }
+.comment .meta button { padding: 0 5px; font-size: 11px; } .comment .meta button.on { color: var(--gold); border-color: var(--gold); }
+.comment .replies { margin-left: 12px; }
+form { display: grid; gap: 8px; max-width: 640px; }
+form label { display: grid; gap: 3px; font-size: 12px; color: var(--dim); }
+form input, form textarea, form select { background: #1a1c20; color: var(--ink); border: 1px solid var(--line); border-radius: 3px; padding: 6px 8px; font: inherit; }
+form textarea { min-height: 80px; }
+form button { justify-self: start; }
+.status { min-height: 1.4em; font-size: 12px; }
+h2 { font-size: 18px; margin: 4px 0 12px; } h2 small { color: var(--dim); font-weight: 400; font-size: 12px; margin-left: 8px; }
+.files { display: grid; gap: 4px; max-height: 240px; overflow: auto; border: 1px solid var(--line); border-radius: 4px; padding: 6px; }
+.files label { display: flex; gap: 8px; align-items: center; color: var(--ink); font-size: 13px; cursor: pointer; }
+.empty { color: var(--dim); padding: 20px 0; }

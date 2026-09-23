@@ -15,7 +15,7 @@ The shared ATProto OAuth worker (BFF confidential client: PKCE + DPoP + PAR + pr
 | Dir | `workers/auth/` |
 | Endpoint | `auth.mino.mobi` |
 | Type | backend |
-| Owning branch | `claude/bsky-app-view-feasibility-8sdflz` (handed over 2026-09-06 — see below) |
+| Owning branch | `claude/browser-cad-ideation-ollmd3` (handed over 2026-09-11 — see below) |
 | Deploy | `.github/workflows/deploy-auth.yml` |
 | Uses | `mino-auth-db` |
 | Provides | `auth.mino.mobi` |
@@ -34,7 +34,8 @@ repo — a bad push signs everyone out of every site.
 | `claude/standard-site-blog-page-319rod` | claims `auth` on its own branch; carries the `rant.mino.mobi` origin plus the four `site.standard.*` collections, not yet on `main`. |
 | `claude/atproto-infinite-whiteboard-usdpzx` | claimed `auth` back on its own branch and carries the `loop.mino.mobi` origin plus `com.minomobi.loop.answer`. Its collection list is **70 of the 75** below: it does not have the five `com.minomobi.farm.*` entries, so deploying auth from it would strip farm's writes. |
 | `claude/farmville-atproto-game-745mcr` | **previous claimant**, handed over 2026-09-06. Its tree carried all 75 collections plus the `farm.mino.mobi` and `farm-next.mino.mobi` origins and the `lab.doc`/`lab.score` dedupe — but it was still missing `loop.mino.mobi`, exactly as the 2026-08-15 note warned, so deploying it as-is would have signed loop out. |
-| `claude/bsky-app-view-feasibility-8sdflz` | **current owner.** Took the surface at the principal's instruction to ship `app.bsky.feed.like` and `app.bsky.feed.repost` for bsky.mino.mobi, and now carries `com.minomobi.clef.piece` for clef.mino.mobi on request from `claude/sheet-music-viewer-composer-qb4ljl`. It satisfies the union rule the handover requires: **78 collections, adding only those three and dropping none**, and it carries all four of the `farm`, `farm-next`, `loop` and `rant` origins. `node scripts/check-auth-scope.mjs` green before every deploy. |
+| `claude/bsky-app-view-feasibility-8sdflz` | **previous owner**, handed over 2026-09-11. Took the surface at the principal's instruction to ship `app.bsky.feed.like` and `app.bsky.feed.repost` for bsky.mino.mobi, and now carries `com.minomobi.clef.piece` for clef.mino.mobi on request from `claude/sheet-music-viewer-composer-qb4ljl`. It satisfies the union rule the handover requires: **78 collections, adding only those three and dropping none**, and it carries all four of the `farm`, `farm-next`, `loop` and `rant` origins. `node scripts/check-auth-scope.mjs` green before every deploy. At handover it was **two collections behind `main`** (`com.minomobi.hopper.run` and `app.bsky.graph.follow` had landed on `main` and never deployed). |
+| `claude/browser-cad-ideation-ollmd3` | **current owner.** Took the surface at the principal's instruction to ship `com.minomobi.cad.part` and `com.minomobi.cad.revision` for cad.mino.mobi. Its `workers/auth` was byte-identical to `main`'s before the change, so the deploy is the union: **82 collections** — main's 80 (which finally ships hopper's run and groom's follow token) plus the two cad ones — dropping none, every origin kept. `git diff origin/main -- workers/auth` is additive; `check-auth-scope` green. Since then it has carried four more `com.minomobi.cad.*` collections for the parts social layer, and on 2026-09-22 added **`com.minomobi.dweet.dweet`** for `bsky.mino.mobi/dweet/` at the request of `claude/dwitter-animation-feed-rufn9o` (d58dcc8a) — live ceiling 86 → 87, one file, +6/−0, no origin needed (the `*.mino.mobi` wildcard covers bsky). On 2026-09-22 it also added **`com.minomobi.sharp.word`** for `rite.mino.mobi/sharp` at the request of `claude/syllable-word-generator-yhw8wj` — 87 → 88, again wildcard-covered. That request was addressed to `bsky-app-view-feasibility`, which has not owned this surface since the 2026-09-11 handover: **a requester's idea of who owns auth goes stale, so check the registry rather than the letterhead.** It also offered its whole `scope.ts` as a one-command shortcut. That one was safe (a true +7/−0 superset), but the same command one path shorter — `git checkout <them> -- workers/auth/` — would have reverted the token-caching fix and dropped the `cad.mino.mobi` and `parts.mino.mobi` origins, because their tree is behind this one everywhere except that file. Take the hunk. |
 
 ### What the 2026-08-15 merge candidate reconciled
 
@@ -166,6 +167,28 @@ curl -s -X POST https://auth.mino.mobi/oauth/start \
 
 An `authUrl` in the response means the ceiling is live and agreed. A PAR that is
 never completed grants nothing, so this is safe to run against production.
+
+### The PDS access token is cached — refreshing per request killed sessions
+
+Until 2026-09-12 every `/pds/*` call ran a `refresh_token` grant to get an
+access token. ATProto refresh tokens are **single-use and rotate on every
+grant**, so two proxied calls in flight at once (a page listing a repo while
+another tab saves; a file tree fetching in parallel; the cad viewer and the
+parts page open together) presented the same refresh token twice. The auth
+server treats the second as a reuse and revokes the token family, and every
+call after that is a 401 — which the client reports as "session expired",
+minutes after a successful sign-in. That was the "login doesn't work" report.
+
+Now `refreshOAuthToken` (`src/oauth/flow.ts`) keeps the access token and its
+expiry in the session's `dpop_key_jwk` JSON blob next to the DPoP key and
+nonce (no migration), runs a grant only within a minute of expiry or when
+told to (`force`), and shares one in-flight grant between concurrent callers
+in an isolate. The proxy forces one grant and retries a GET once when a PDS
+answers 401 without a nonce challenge, so a token revoked early never
+surfaces as an expired session. Two isolates can still refresh at the same
+instant at the moment of expiry; that window is seconds a day, not every
+request. If sessions ever die again, look at the token endpoint's answer to
+the refresh in the worker logs before anything else.
 
 ## Deploying
 
