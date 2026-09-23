@@ -18,9 +18,9 @@ needs no backend at all.
 |---|---|
 | Surface | `bsky` |
 | Dir | `bsky/` |
-| Endpoint | `bsky.mino.mobi` |
+| Endpoint | `bsky.mino.mobi` (+ `/dweet/`, see below) |
 | Type | frontend (Worker-with-assets; the worker is one route) |
-| Owning branch | `claude/bsky-shuffle-quote-feature-fqo19l` |
+| Owning branch | `claude/dwitter-animation-feed-rufn9o` |
 | Deploy | [`.github/workflows/deploy-bsky.yml`](../.github/workflows/deploy-bsky.yml) |
 | Uses | — (no shared backend; three public services, none of ours) |
 | Provides | — |
@@ -1648,14 +1648,68 @@ Nothing here is ever uploaded. There is no server in this design to upload it to
 
 ## Deploying
 
-Pushes to `claude/bsky-shuffle-quote-feature-fqo19l` touching this surface's
+Pushes to `claude/dwitter-animation-feed-rufn9o` touching this surface's
 paths trigger [`deploy-bsky.yml`](../.github/workflows/deploy-bsky.yml).
+
+**Ownership has moved twice and the registry on `main` lags it, which cost a
+live regression on 2026-09-22.** Each handover edits `deploy-registry.json` on
+its OWN branch, so main names whoever owned it two handovers ago. The incoming
+owner checked its tree against main and against the branch main named — not
+against `claude/bsky-shuffle-quote-feature-fqo19l`, which was actually
+deploying — and shipped a tree with no `lib/shuffle.js` or `lib/attach.js`.
+Static Assets replaces the whole manifest, so shuffle quote and paste-to-attach
+came off the live site until a merge put them back. **Before taking this
+surface: find the branch behind the last successful `deploy-bsky` run and diff
+`bsky/` against THAT.**
 `main` does not deploy — see the repo [`CLAUDE.md`](../CLAUDE.md).
 
 **`bsky.mino.mobi` did not resolve before this branch.** No worker owned it, so
 the first deploy attaches the custom domain. Per the golden rule, green is not
 proof: **confirm the run log binds `bsky.mino.mobi (custom domain)`**, and
 `curl -sI https://bsky.mino.mobi` before believing the surface is live.
+
+## /dweet — a second site on this worker
+
+`bsky/dweet/` serves **`bsky.mino.mobi/dweet/`**: a feed of 256-character canvas
+animations, each a `com.minomobi.dweet.dweet` record in its author's own repo,
+with a GLSL shim that also runs [demosky.app](https://demosky.app)'s `mainImage`
+dialect. It has its own instructions in
+[`dweet/CLAUDE.md`](dweet/CLAUDE.md) — **read that before touching anything
+under `dweet/`**, because it executes untrusted code and the isolation is
+load-bearing.
+
+It is a **path, not a subdomain.** `dweet.mino.mobi` was tried and cannot be
+bound: zone `mino.mobi` is at Cloudflare's limit of **100 Workers custom domains
+per zone**, and the bind fails with `code: 100122`. Two things follow that are
+worth knowing before anyone adds another route here:
+
+- **An extra `custom_domain` route is not free.** It spends one of those 100.
+  (Different cap from the worker count, which is what this was first blamed on.)
+- **The failure lands AFTER the asset upload**, at the trigger step, so the run
+  goes red while the new assets are already live. An unbindable route therefore
+  makes every push red *and* still deploys. `worker.js` keeps an inert hostname
+  dispatch so re-adding the route is one line once the hostname exists.
+- **The cap is escapable** — a plain route (`zone_name`, no `custom_domain`) is
+  capped at 1000/zone, not 100. But it does not create DNS, and
+  `dweet.mino.mobi` has no record, so route-first would mean a green deploy and
+  a dead host. DNS, then route, then verify. See `docs/DEPLOYS.md` §4.
+
+`dweet/` shares `/packages/*` and `/lib/*` with the AppView from the same asset
+root, which is why the dispatch is narrow rather than a blanket rewrite — and
+that sharing is now load-bearing rather than incidental: dweet's sign-in sheet
+uses **this** surface's `lib/typeahead.js`, abort race and ARIA roles included,
+instead of a second copy.
+
+**One bug in `packages/atproto/jetstream.js` came out of dweet and affects
+everything here.** `url()` used to pass `kinds` straight through, so
+`KIND.COMMIT` — the constants are lowercase — became the literal string
+`undefined` in the query, which the server rejects with
+`400 unknown kind "undefined"` **before the WebSocket upgrade**. No open socket,
+no error event, just a reconnect loop: dweet had never once connected. `url()`
+now throws on an unknown kind, which `connect()` catches and hands to the
+caller's `onError`, and `packages/atproto/jetstream.selftest.mjs` pins that plus
+the rest of the query string. This surface passed `KIND.commit` correctly and
+was never affected; the guard is so that the next caller cannot be.
 
 ## Not done yet
 
@@ -1677,12 +1731,17 @@ proof: **confirm the run log binds `bsky.mino.mobi (custom domain)`**, and
   (`@bokuweb/zstd-wasm` handles the dictionary; `fzstd` does not — it throws).
   See docs/APPVIEW-FEASIBILITY.md §3. That path pools no quota and makes us
   custodian of no credential.
-- **The live tail is the one path never exercised in a browser.** The DOM,
-  routing, lightbox, masonry, feeds, threads, search and notifications have all
-  been driven by a real page load. `WebSocket` subprotocol negotiation has not:
-  this sandbox's proxy blocks WebSockets, so the `live` and `following` chips
-  are verified in node against the real host and untested in Chromium. Same for
-  **reach further back**, which needs the archive.
+- **The live tail is no longer unreachable from here.** This file said for
+  weeks that the sandbox's proxy blocks WebSockets. It does not, given
+  `NODE_EXTRA_CA_CERTS=/root/.ccr/ca-bundle.crt`: measured 2026-09-22, a v2
+  socket to `jetstream.us-east.bsky.network` opens, negotiates `xrpc.v1.json`,
+  and delivers **456 post events in 10s (47/s, 43 KB/s)** — which matches what
+  `measure-firehose.yml` saw from a runner. Worth knowing before believing the
+  next "the proxy refuses it": a bad `kinds` value produces the SAME non-101
+  symptom (see `dweet/CLAUDE.md`), so that diagnosis is not self-evident.
+  The `live` and `following` chips remain untested **in Chromium** against the
+  real host; dweet's equivalent path now is, via `routeWebSocket`. Same caveat
+  still stands for **reach further back**, which needs the archive.
 - **The install prompt is unverified.** Registration, caching, offline, the
   update path and the two safety rules are all exercised in Chromium, but
   `beforeinstallprompt` does not fire headless and iOS has no API at all, so

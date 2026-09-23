@@ -50,9 +50,28 @@ const json = (body, status = 200) =>
     headers: { 'content-type': 'application/json; charset=utf-8' },
   });
 
+/**
+ * dweet is served as a PATH on this worker: bsky.mino.mobi/dweet/.
+ *
+ * This dispatch is for the dweet.mino.mobi HOSTNAME and is currently INERT —
+ * that route is not in wrangler.jsonc, because zone mino.mobi is at
+ * Cloudflare's limit of 100 Workers custom domains per zone and the bind fails
+ * (run #43, code 100122). It is kept so that freeing a domain and re-adding the
+ * route is a one-line change; until then nothing reaches this branch.
+ *
+ * Deliberately narrow. Rewriting every path on this host would shadow
+ * /packages/* and /lib/*, which the dweet page imports from the shared asset
+ * root — the same files the AppView uses.
+ */
+const DWEET_HOST = 'dweet.mino.mobi';
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+
+    if (url.hostname === DWEET_HOST && (url.pathname === '/' || url.pathname === '')) {
+      return env.ASSETS.fetch(new Request(new URL('/dweet/index.html', url), request));
+    }
 
     if (url.pathname === '/api/health') {
       return json({

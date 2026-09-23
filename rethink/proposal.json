@@ -2142,6 +2142,14 @@
           "wing": "bluesky"
         },
         {
+          "u": "bsky.mino.mobi/dweet",
+          "action": "keep",
+          "kind": "app",
+          "domain": "bluesky",
+          "note": "256 characters of animation per post \u2014 the same no-backend trick as bsky, because the artwork fits in the firehose event; also runs demosky.app's shader dialect",
+          "wing": "bluesky"
+        },
+        {
           "u": "words.mino.mobi",
           "action": "keep",
           "kind": "game",

@@ -1,0 +1,46 @@
+{
+  "lexicon": 1,
+  "id": "com.minomobi.dweet.dweet",
+  "description": "One animation, small enough to be its own metadata. The source IS the post: at 140 graphemes the complete work fits inside a single firehose event, so a client tailing Jetstream can render the piece from the event alone — no index, no appview, no blob fetch, nothing persisted. That is the whole reason the limit is kept rather than raised: a larger record would have to be fetched, fetching needs an index, and an index is the backend this surface exists to do without. `remixOf` makes derivation a first-class backlink, so Constellation answers 'what came from this' for free and the remix tree costs no storage either.",
+  "defs": {
+    "main": {
+      "type": "record",
+      "key": "tid",
+      "record": {
+        "type": "object",
+        "required": ["src", "lang", "createdAt"],
+        "properties": {
+          "src": {
+            "type": "string",
+            "maxLength": 2048,
+            "maxGraphemes": 256,
+            "description": "The program. In `js` it is the body of dwitter's `u(t)`, called at 60fps with `t` in seconds and `S`/`C`/`T`/`R`/`c`/`x` pre-bound over a 1920x1080 canvas that is NOT auto-cleared. In `glsl` it is the body of `main()` in the tweet-shader dialect: `t` seconds, `r` resolution, `FC` fragment coordinate, `o` the out colour. maxLength is the byte guard; maxGraphemes is the limit people actually type against. 256 rather than dwitter's 140 so the whole sketch, a hashtag AND a permalink fit inside one 300-grapheme Bluesky post (295 of 300), and so the cap coincides with the top demoscene size category; a sketch of 140 or fewer in `js` is additionally postable to dwitter.net verbatim, which clients may surface as a badge. In `glsl` a top-level `mainImage(out vec4, in vec2)` is accepted as well as a bare `main()` body, so Shadertoy- and demosky.app-dialect sketches are valid here."
+          },
+          "lang": {
+            "type": "string",
+            "knownValues": ["js", "glsl"],
+            "maxLength": 16,
+            "description": "Which harness runs it. Two hand-golfable languages rather than one fast one: a dweet is read as often as it is run, and compiled output cannot be read, remixed or golfed. `glsl` is where the performance headroom lives — per-pixel on the GPU — without giving up any of that."
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 640,
+            "maxGraphemes": 64,
+            "description": "Optional. Dwitter itself has no titles and is not poorer for it; this exists because a remix chain reads better with names in it."
+          },
+          "remixOf": {
+            "type": "string",
+            "format": "at-uri",
+            "description": "The dweet this one was golfed from. Set once at birth and never rewritten: it is an attribution edge, not a claim on the parent. The parent's author is not notified by this record's existence — a client that wants that reads the backlink index."
+          },
+          "captureTime": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Milliseconds into the animation at which the author framed it — the moment a still should be taken, and where a paused render should sit. Optional, and a reader that ignores it loses only the poster frame. Integer milliseconds rather than a float of seconds because the lexicon language has no float and a stringified number is a worse contract than a unit."
+          },
+          "createdAt": { "type": "string", "format": "datetime" }
+        }
+      }
+    }
+  }
+}

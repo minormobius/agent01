@@ -1,0 +1,44 @@
+name: Cloudflare capability probe (read-only)
+
+# What this is for.
+#
+# Two questions about this account cannot be answered from the sandbox, because
+# the sandbox has no Cloudflare credential, and both of them decide real work:
+#
+#   1. HOW FULL IS THE 100-CUSTOM-DOMAIN CAP, and which workers are holding the
+#      slots? `dweet.mino.mobi` could not be bound (`code: 100122`) and the plan
+#      is to prune. Pruning blind is the bad way to do that.
+#   2. WHAT CAN THE DEPLOY TOKEN ACTUALLY DO? A plain Workers Route dodges the
+#      100-domain cap (routes are capped far higher) but does NOT create DNS,
+#      and DNS is a different API and a different permission group. Whether a
+#      workflow can do the whole job, or whether a human has to open the
+#      dashboard, is entirely a question about this one token's scopes.
+#
+# EVERY REQUEST HERE IS A GET. Nothing is created, changed or deleted — the
+# probe reports what the credential can READ and says plainly that a read does
+# not prove a write. Account, zone and token IDs are truncated before printing.
+#
+# Run it from the Actions tab (workflow_dispatch), or by touching this file.
+
+on:
+  push:
+    branches: ['claude/dwitter-animation-feed-rufn9o']
+    paths:
+      - '.github/workflows/cf-capability-probe.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ZONE: mino.mobi
+        run: node .github/scripts/cf-probe.mjs

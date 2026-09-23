@@ -48,6 +48,11 @@ const GLOBALS = [
   'indexedDB', 'IDBKeyRange', 'ClipboardItem', 'Intl', 'CSS', 'DOMParser', 'XMLHttpRequest', 'performance',
   'IntersectionObserver', 'MutationObserver', 'ResizeObserver', 'structuredClone', 'BigInt', 'WebAssembly',
   'self', 'globalThis', 'atob', 'btoa', 'createImageBitmap', 'HTMLCanvasElement', 'Uint8Array', 'DataView', 'ArrayBuffer', 'requestIdleCallback',
+  // dweet's capture path: raw RGBA comes out of the sandbox as a clamped array
+  // and goes into a canvas as an ImageData.
+  'ImageData', 'Uint8ClampedArray',
+  // …and its video path records the canvas through the platform's own encoder.
+  'MediaRecorder',
 ];
 
 const config = join(bsky, '.eslint.undef.mjs');
@@ -78,8 +83,12 @@ try {
   }
 
   try {
-    execFileSync(eslint, ['--config', config, 'app.js', 'lib'], { cwd: bsky, stdio: 'pipe' });
-    console.log('  ✓ app.js and lib/ are free of undefined identifiers');
+    // dweet/ is in scope for the same reason app.js is: it is browser code on
+    // this surface, and the bugs this gate exists to catch (an identifier that
+    // does not exist) are invisible to `node --check` and only fail when the
+    // line happens to run.
+    execFileSync(eslint, ['--config', config, 'app.js', 'lib', 'dweet'], { cwd: bsky, stdio: 'pipe' });
+    console.log('  ✓ app.js, lib/ and dweet/ are free of undefined identifiers');
   } catch (e) {
     console.log(String(e.stdout || e.message).trim());
     failed = true;
