@@ -6,7 +6,7 @@ name: Deploy reef (species judging deck)
 
 on:
   push:
-    branches: ['claude/cube3d-browser-port-ufh9gy']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'reef/**'
       - 'poll/apps/api/migrations/0032_reef.sql'

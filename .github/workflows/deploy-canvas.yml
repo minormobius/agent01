@@ -12,7 +12,7 @@ name: Deploy Canvas (drawing toys)
 
 on:
   push:
-    branches: ['claude/pizza-cutting-game-7VvX2']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'draw/**'
       - 'curve/**'

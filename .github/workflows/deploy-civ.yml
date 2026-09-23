@@ -3,7 +3,7 @@ name: Deploy Civ
 on:
   push:
     branches:
-      - 'claude/civ-deploy-unification-vt35ju'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'civ/**'
       - 'mappa/civ/**'

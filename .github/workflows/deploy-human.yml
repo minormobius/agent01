@@ -2,7 +2,7 @@ name: Deploy human
 
 on:
   push:
-    branches: ['claude/human-machinery-Hm7qX2']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'human/**'
       - 'poll/apps/api/migrations/0033_human_stats.sql'

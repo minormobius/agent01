@@ -2,7 +2,7 @@ name: Deploy Biome
 
 on:
   push:
-    branches: ['claude/biome-forest-creep-sprites-wnxo6h']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'biome/**'
       - '.github/workflows/deploy-biome.yml'

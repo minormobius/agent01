@@ -3,7 +3,7 @@ name: Deploy Anonymous Polls
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'poll/**'
       - '.github/workflows/deploy-poll.yml'

@@ -3,7 +3,7 @@ name: Deploy Splice
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'splice/**'
       - '.github/workflows/deploy-splice.yml'

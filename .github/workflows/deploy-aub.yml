@@ -7,7 +7,7 @@ name: Deploy Aub (Ecdysium roguelike)
 on:
   push:
     branches:
-      - 'claude/game-website-deploy-2ffuu2'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'aub/**'
       - '.github/workflows/deploy-aub.yml'

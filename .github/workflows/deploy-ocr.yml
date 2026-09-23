@@ -3,7 +3,7 @@ name: Deploy OCR (ocr.mino.mobi)
 on:
   push:
     branches:
-      - 'claude/image-text-extraction-gH8UH'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'ocr/**'
       - '.github/workflows/deploy-ocr.yml'

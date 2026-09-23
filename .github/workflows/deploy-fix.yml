@@ -2,7 +2,7 @@ name: Deploy fix (FIX message parser)
 
 on:
   push:
-    branches: ['claude/fix-message-parser-yndbht']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'fix/**'
       - '.github/workflows/deploy-fix.yml'

@@ -3,7 +3,7 @@ name: Deploy Airchat
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'airchat/**'
       - 'poll/apps/api/migrations/0018_airchat.sql'

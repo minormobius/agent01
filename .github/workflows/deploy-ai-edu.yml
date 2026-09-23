@@ -2,7 +2,7 @@ name: Deploy AI Edu
 
 on:
   push:
-    branches: ['claude/landing-projects-takeover-pKkmW']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'ai-edu/**'
       - '.github/workflows/deploy-ai-edu.yml'

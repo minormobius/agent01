@@ -7,7 +7,7 @@ name: Deploy fable
 on:
   push:
     branches:
-      - 'claude/artifact-website-deploy-x8aiuq'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'fable/**'
       - '.github/workflows/deploy-fable.yml'
