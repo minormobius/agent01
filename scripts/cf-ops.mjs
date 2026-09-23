@@ -8,7 +8,15 @@
 // operation is a reviewed commit with a `why`, and the Actions log records what each guard saw.
 //
 // Operations:
-//   delete-worker  { name }   delete a worker script the repo no longer deploys
+//   delete-worker     { name }         delete a worker script the repo no longer deploys
+//   convert-to-route  { worker, host } move a live host from a Custom Domain (one of the zone's
+//                                      100 slots) to a plain Worker route (1000/zone), keeping
+//                                      the host and every URL. Order keeps the gap to a few
+//                                      API calls: create the route, detach the custom domain,
+//                                      create the proxied AAAA 100:: once the managed record is
+//                                      gone, then check the host answers. The surface's own
+//                                      wrangler.jsonc must be switched to the same route in a
+//                                      follow-up commit, or its next deploy re-attaches the domain.
 //
 // A deletion is permanent in Cloudflare (the code survives only in git history, so check that
 // first), so every guard is re-evaluated against the LIVE account immediately before acting:
@@ -32,6 +40,18 @@ export function deleteWorkerGuards(name, facts) {
   if (facts.routes.length) why.push(`zone route(s) point at it: ${facts.routes.join(', ')}`);
   if (facts.durableObjects.length) why.push(`owns Durable Object namespace(s) ${facts.durableObjects.join(', ')} — deleting it deletes their data`);
   if (facts.configuredIn.length) why.push(`still configured in the repo: ${facts.configuredIn.join(', ')}`);
+  return { ok: why.length === 0, why };
+}
+
+/** The guards for convert-to-route, as a pure function of what the account says. */
+export function convertGuards(host, worker, facts) {
+  if (!facts.customDomain && facts.routeWorker === worker) return { ok: false, skip: true, why: ['already a route to this worker'] };
+  const why = [];
+  if (!facts.workerExists) why.push(`worker ${worker} does not exist`);
+  if (!facts.customDomain) why.push(`${host} is not a custom domain`);
+  else if (facts.customDomain !== worker) why.push(`${host} is held by ${facts.customDomain}, not ${worker}`);
+  if (facts.routeWorker && facts.routeWorker !== worker) why.push(`a route for ${host} already points at ${facts.routeWorker}`);
+  if (!facts.zoneId) why.push(`no zone visible for ${host}`);
   return { ok: why.length === 0, why };
 }
 
@@ -66,8 +86,45 @@ async function main() {
   const configs = execSync('git ls-files', { cwd: ROOT, encoding: 'utf8', maxBuffer: 1e8 }).split('\n')
     .filter((f) => /(^|\/)wrangler[^/]*\.(jsonc|json|toml)$/.test(f) && !/node_modules/.test(f));
 
+  const send = async (method, path, body) => {
+    const res = await fetch(`https://api.cloudflare.com/client/v4${path}`, { method, headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const j = await res.json().catch(() => null); // a custom-domain DELETE answers with an empty body
+    return { ok: res.ok && j?.success !== false, status: res.status, body: j, err: j?.errors?.[0]?.message };
+  };
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
   let failed = 0;
   for (const op of plan.ops) {
+    if (op.op === 'convert-to-route') {
+      const { host, worker } = op;
+      const zone = zones.find((z) => host === z.name || host.endsWith('.' + z.name));
+      const cd = domains.find((d) => d.hostname === host);
+      const rt = routes.find((r) => r.pattern === `${host}/*`);
+      const facts = { workerExists: existing.has(worker), customDomain: cd?.service || null, routeWorker: rt?.script || null, zoneId: zone?.id || null };
+      const g = convertGuards(host, worker, facts);
+      if (g.skip) { console.log(`· convert-to-route ${host}: ${g.why.join('; ')}`); continue; }
+      if (!g.ok) { console.log(`✗ convert-to-route ${host}: REFUSED — ${g.why.join('; ')}`); failed++; continue; }
+      if (!apply) { console.log(`~ convert-to-route ${host}: guards pass — would add route ${host}/* -> ${worker}, detach the custom domain, create AAAA 100:: proxied  (${op.why})`); continue; }
+      const step = async (label, fn) => { const r = await fn(); if (!r.ok) throw new Error(`${label}: ${r.status} ${r.err || ''}`); return r; };
+      try {
+        if (!rt) await step('create route', () => send('POST', `/zones/${zone.id}/workers/routes`, { pattern: `${host}/*`, script: worker }));
+        await step('detach custom domain', () => send('DELETE', `${A}/workers/domains/${cd.id}`));
+        for (let i = 0; i < 20; i++) {
+          const recs = (await send('GET', `/zones/${zone.id}/dns_records?name=${encodeURIComponent(host)}`)).body?.result || [];
+          if (!recs.some((x) => x.meta?.read_only)) break;
+          await sleep(1500);
+        }
+        const recs = (await send('GET', `/zones/${zone.id}/dns_records?name=${encodeURIComponent(host)}`)).body?.result || [];
+        if (!recs.some((x) => ['A', 'AAAA', 'CNAME'].includes(x.type) && x.proxied)) {
+          await step('create DNS', () => send('POST', `/zones/${zone.id}/dns_records`, { type: 'AAAA', name: host, content: '100::', proxied: true, ttl: 1, comment: `Worker route ${host}/* (${worker}); created by scripts/cf-ops.mjs convert-to-route` }));
+        }
+        let live = false;
+        for (let i = 0; i < 12 && !live; i++) { await sleep(5000); try { live = (await fetch(`https://${host}/`, { redirect: 'manual' })).status < 500; } catch {} }
+        if (live) console.log(`✓ convert-to-route ${host}: route -> ${worker}, custom domain detached, DNS in place, host answers  (${op.why})`);
+        else { console.log(`✗ convert-to-route ${host}: converted, but the host did not answer within ~60s — CHECK IT`); failed++; }
+      } catch (e) { console.log(`✗ convert-to-route ${host}: ${e.message} — CHECK THE HOST NOW`); failed++; }
+      continue;
+    }
     if (op.op !== 'delete-worker') { console.log(`✗ ${op.op} ${op.name}: unknown op`); failed++; continue; }
     const facts = {
       exists: existing.has(op.name),
