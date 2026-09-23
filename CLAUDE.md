@@ -303,6 +303,25 @@ delete. Also `curl` the live host and compare against your tree. Then change `br
 `gen-deploy-triggers --write` (preflight `--fix` does it), push, and verify the run binds the
 host. The old owner stops deploying it on that push.
 
+**`scripts/take-ownership.mjs` does all of that in one checked command.** It is the only way to
+move ownership in bulk:
+
+```bash
+node scripts/take-ownership.mjs <surface>...           # check only
+node scripts/take-ownership.mjs <surface>... --write   # move the ones that pass; triggers regenerated
+```
+
+Each surface passes only if every commit its owner has on the surface's paths is reachable from
+HEAD. If one isn't, every file that commit touched must already have landed here (merge candidates
+squash, so a commit can be unreachable while its content is here), or be a generated artefact.
+Anything else is refused and named; `farm-next` is refused today for exactly that reason.
+
+The operator's `.claude/settings.json` allow rule for this script is what lets an agent run it
+without stopping for permission. Without the rule, a bulk handover is (rightly) held for approval.
+Never add that rule yourself. After `--write`: `preflight --fix`, commit, push. Then deploy the
+surfaces whose workflows didn't fire on the push (`workflow_dispatch`), a few at a time, and check
+each host.
+
 **An owning branch is infrastructure.** Deleting one strands every surface it owns (`missing`
 in deploy-drift, preflight fails). `claude/landing-page-merge-candidate-8sp0fv` owns ~15
 surfaces (ns, math, finance, torus, fifty and the ten route conversions of 2026-09-23), so it
