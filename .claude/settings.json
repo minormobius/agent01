@@ -1,9 +1,12 @@
 {
   "permissions": {
-    "allow": [
-      "Bash(node scripts/take-ownership.mjs:*)"
-    ]
-  },
+  "allow": [
+    "Bash(node scripts/take-ownership.mjs:*)",
+    "mcp__claude-code-remote__add_repo",
+    "mcp__bf7c680d-5fdc-5ef4-b4a0-abadb619bf0a__add_repo"
+  ]
+  }
+
 
   "hooks": {
     "UserPromptSubmit": [
