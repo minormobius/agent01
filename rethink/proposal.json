@@ -143,6 +143,16 @@
           "group": "b tools"
         },
         {
+          "u": "b.mino.mobi/orbit",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
+          "u": "b.mino.mobi/mood",
+          "action": "look",
+          "group": "b tools"
+        },
+        {
           "u": "b.mino.mobi/map",
           "action": "look",
           "group": "b tools"

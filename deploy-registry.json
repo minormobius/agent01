@@ -168,7 +168,7 @@
       "dir": "b",
       "endpoint": "b.mino.mobi",
       "type": "frontend",
-      "branch": "claude/bsky-follow-grooming-gjkops",
+      "branch": "claude/mutual-closeness-game-earzue",
       "uses": [],
       "provides": null,
       "paths": [
@@ -177,6 +177,8 @@
       "serves": [
         "disk",
         "spark",
+        "orbit",
+        "mood",
         "dyad",
         "gc",
         "squares",
@@ -189,8 +191,8 @@
         "palm",
         "groom"
       ],
-      "note": "Portal to every Bluesky tool here\u2014feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool \u2014 explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post). Both moved here from photo, where they had been filed as image tools by accident \u2014 photo 301s /thread and /sleuth here and translates the old fragment deep links (#/thread/<url> -> ?p=, #/sleuth/<handle> -> ?u=).",
-      "status": "RECONCILED 2026-08-15 \u2014 two branches developed b/ in parallel. Owner is claude/ai-detection-browser-aw7kq5, whose tree this candidate's b/ matches byte for byte (75 files, palm at 2026-08-06). claude/image-manipulation-platform-g5puxy has the older b/ (66 files, 21 of them behind) and contributed the registry record for palm, not the code \u2014 deploying b from it would regress the surface."
+      "note": "Portal to every Bluesky tool here\u2014feeds, network maps, account analysis, and the shared OAuth worker in one place. (full description: b/CLAUDE.md) Also hosts orbit at /orbit (closest-circle guessing game + a whole-history closeness matrix read out of CAR files) and mood at /mood (a jev mood ring \u2014 the tone of the last ten posts as one colour band each around the avatar, read by TypeSafe's decision-only model) palm at /palm (six stylometric lines off a whole repo, as percentiles against an offline pool \u2014 explicitly not an AI detector; b/palm/car-stream.js is a pure-JS streaming CAR reader that handles a 90MB repo where the buffering paths OOM) and thread at /thread (paste a post URL, read the whole reply tree with the author's own chain kept unbroken, plus a wall of every post it quoted) and sleuth at /sleuth (a thousand of any account's posts indexed in-tab with TF-IDF for instant keyless search; bring your own API key and the retrieved posts become RAG context, or generate a dossier of themes, narrative arcs and a personality read with every claim cited back to a post).",
+      "status": "HANDOVER 2026-09-19 \u2014 from claude/bsky-follow-grooming-gjkops to claude/mutual-closeness-game-earzue, which brought /orbit. The manifest check was run first and is the only one that matters for a handover here (Workers Static Assets replaces the whole manifest, it does not merge): the b/ FILE LIST is identical between the two branches \u2014 nothing can be dropped by republishing from here \u2014 and where the contents differ this branch is the NEWER one, because it is cut from main and the old owner predates main's feedgen/hose split (b/feedgen/pipeline.js now imports packages/feedgen/match.js). The old owner also still carries a deploy-b.yml naming itself, so a push there touching b/** would deploy b from a branch that no longer owns it until it takes this commit. Earlier: RECONCILED 2026-08-15 \u2014 two branches developed b/ in parallel; claude/image-manipulation-platform-g5puxy has the STALE b/ and must never deploy this surface."
     },
     {
       "surface": "auth",

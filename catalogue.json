@@ -4271,6 +4271,40 @@
       "b": "2026-06-21",
       "p": "fin",
       "surface": "finance"
+    },
+    {
+      "n": "orbit",
+      "u": "https://b.mino.mobi/orbit/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-19",
+      "b": "2026-09-19",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "Your closest circle as a guessing game. A month of your own likes, replies, reposts and quotes rings the people you actually talk to around an arena; their posts are dealt into the middle and you say who wrote each one. Graded against blind guessing, because 50% out of four seats is not 50% out of twenty. Then the expensive half: analyse the circle and every member's whole repository is streamed, reduced to one row of a closeness matrix and thrown away \u2014 who replied to whom first, and how much they have interacted since, in both directions. The finished matrix packs into a link.",
+      "tags": [
+        "atproto",
+        "canvas",
+        "game"
+      ]
+    },
+    {
+      "n": "mood",
+      "u": "https://b.mino.mobi/mood/",
+      "c": "bluesky",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-22",
+      "b": "2026-09-22",
+      "p": "atmosphere",
+      "surface": "b",
+      "d": "A Bluesky mood ring. The last ten posts and replies are read for tone by jev \u2014 TypeSafe's System One model, which writes nothing and only answers typed questions \u2014 and each one becomes a band of colour around the account's own avatar. The colour is the mood and the haze is how sure the model was, so a three-word post you cannot read a tone off looks uncertain instead of looking calm. Asked as two ordered axes and one unordered one, because a single angry-to-happy scale would average half fury and half delight into serenity; the ten readings become one stone the same way, on the plane and never in hue.",
+      "tags": [
+        "atproto",
+        "jev",
+        "svg"
+      ]
     }
   ],
   "notListed": [
