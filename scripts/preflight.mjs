@@ -76,6 +76,8 @@ const GENERATED = [
   // reads — a divergence that is invisible from outside, because the page still
   // renders. It is just wrong.
   { name: 'loop graph view',        script: 'gen-loop-data.mjs',            write: ['--write'] },
+  // docs/BACKENDS.md: every worker, its tier and state, reconciled with the account snapshot
+  { name: 'backend inventory',      script: 'backend-inventory.mjs',        write: ['--write'] },
 ];
 for (const g of GENERATED) {
   if (!existsSync(join(ROOT, 'scripts', g.script))) { record(g.name, false, 'script missing'); continue; }
@@ -214,7 +216,7 @@ console.log('\nhost bindings');
 // internet-facing. Redaction lives in scripts/lib/landing.mjs; verify it held.
 console.log('\nredaction');
 {
-  const PUBLISHED = ['docs/SURFACES.md', 'spec/data.js', 'functions/search.js'];
+  const PUBLISHED = ['docs/SURFACES.md', 'spec/data.js', 'functions/search.js', 'docs/BACKENDS.md'];
   const leaked = PUBLISHED.filter((f) => existsSync(join(ROOT, f))
     && /ascential/i.test(readFileSync(join(ROOT, f), 'utf8')));
   record('no work-facing hosts in generated output', leaked.length === 0, leaked.join(', '));

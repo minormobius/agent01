@@ -246,6 +246,44 @@ function markdown({ workers, functions }) {
     for (const w of unreg) out.push(`- \`${w.name}\` — \`${w.config}\` (${w.tier})`);
     out.push('');
   }
+  // ------------------------------------------------ the account side, if a snapshot exists --
+  const snapPath = join(ROOT, 'docs/backends-account.json');
+  if (existsSync(snapPath)) {
+    const acct = JSON.parse(readFileSync(snapPath, 'utf8'));
+    const names = new Set(ok.map((w) => w.name));
+    const A = Object.entries(acct.workers);
+    const onlyAcct = A.filter(([n]) => !names.has(n));
+    const onlyRepo = ok.filter((w) => !acct.workers[w.name]);
+    const hostless = A.filter(([n, v]) => names.has(n) && !v.host);
+    const cronDiff = ok.filter((w) => acct.workers[w.name] && [...w.crons].sort().join('|') !== [...acct.workers[w.name].crons].sort().join('|'));
+    const repoD1 = new Set(ok.flatMap((w) => w.d1.map((d) => d.name)));
+    const mb = (b) => (b >= 1e6 ? `${(b / 1e6).toFixed(0)} MB` : `${Math.max(1, Math.round(b / 1e3))} KB`);
+    out.push(`## The account, reconciled (snapshot ${acct.at})`);
+    out.push('');
+    out.push(`What exists in Cloudflare, from [\`docs/backends-account.json\`](backends-account.json) (a GET-only listing by \`cf-capability-probe.yml\`; refresh it by re-running the probe). **${A.length} worker scripts** in the account against ${ok.length} configured here.`);
+    out.push('');
+    out.push(`**In the account, not in the repo (${onlyAcct.length})** — nothing here can deploy, update or delete them:`);
+    out.push('');
+    out.push('| worker | last deployed | serves a host? | crons |');
+    out.push('|---|---|---|---|');
+    for (const [n, v] of onlyAcct) out.push(`| \`${n}\` | ${v.modified} | ${v.host ? 'yes' : 'no'} | ${cell(v.crons)} |`);
+    out.push('');
+    out.push(`**In the repo, never deployed under that name (${onlyRepo.length}):** ${onlyRepo.map((w) => `\`${w.name}\` (\`${w.config}\`)`).join(', ') || '—'}`);
+    out.push('');
+    out.push(`**Deployed with no host of their own (${hostless.length})** — schedule-only, reached through another worker, or reachable only at workers.dev: ${hostless.map(([n, v]) => `\`${n}\`${v.crons.length ? ` (cron ${v.crons.join(', ')})` : ''}`).join(', ') || '—'}`);
+    out.push('');
+    out.push(`**Cron schedules:** ${cronDiff.length ? cronDiff.map((w) => `\`${w.name}\` repo ${cell(w.crons)} vs live ${cell(acct.workers[w.name].crons)}`).join('; ') : 'every live schedule matches its config.'}`);
+    out.push('');
+    out.push('| D1 database (account) | size | configured here as |');
+    out.push('|---|---|---|');
+    for (const d of acct.d1) {
+      const here = repoD1.has(d.name) ? `\`${d.name}\`` : '';
+      out.push(`| \`${d.name}\` | ${mb(d.bytes)} | ${here || '— not by this name (configs bind by database_id; the name is a label)'} |`);
+    }
+    out.push('');
+    out.push(`KV namespaces: ${acct.kv.map((k) => `\`${k}\``).join(', ')}. Durable Object namespaces: ${acct.durableObjects.length}. Queues: ${acct.queues.length}. R2: ${acct.r2}.`);
+    out.push('');
+  }
   const errs = workers.filter((w) => w.error);
   if (errs.length) { out.push('## Unparsed configs'); out.push(''); for (const e of errs) out.push(`- \`${e.config}\`: ${e.error}`); out.push(''); }
   return out.map((l) => (REDACT.test(l) ? scrubText(l) || '' : l)).join('\n');

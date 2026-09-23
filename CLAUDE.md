@@ -18,6 +18,7 @@ surface lives in that surface's own `CLAUDE.md`.
 | how one surface works | **`<dir>/CLAUDE.md`** |
 | machine facts: deps, trigger paths, owning branch | [`deploy-registry.json`](deploy-registry.json) — source of truth |
 | the deploy pipeline and its gotchas | [`docs/DEPLOYS.md`](docs/DEPLOYS.md) |
+| every backend — which workers run code, hold data (D1/KV/DO), run crons, read secrets; and what the Cloudflare account has that the repo doesn't | **[`docs/BACKENDS.md`](docs/BACKENDS.md)** (generated; account side from `docs/backends-account.json`) |
 | the shape of the repo on disk | [`docs/REPO-STRUCTURE.md`](docs/REPO-STRUCTURE.md) |
 | OAuth per-site status | [`docs/OAUTH.md`](docs/OAUTH.md) |
 | splitting a surface, or moving a site between surfaces | [`docs/surface-mitosis.md`](docs/surface-mitosis.md) — `scripts/surface-mitosis.mjs` detects, `scripts/rehome.mjs` moves |
@@ -115,6 +116,7 @@ Generated — never edit by hand; `preflight --fix` rebuilds them all:
 | Artefact | Script |
 |---|---|
 | `docs/SURFACES.md` | `gen-surface-index.mjs --write` |
+| `docs/BACKENDS.md` | `backend-inventory.mjs --write` (reads `docs/backends-account.json`, refreshed from the probe) |
 | **`rethink/data.js`** (what the landing renders) | `build-rethink.mjs --write` |
 | `functions/search.js` catalogue | `generate-search-catalog.mjs` |
 | `io/sites.json` (stumble portal) | `generate-sites-json.mjs` |
