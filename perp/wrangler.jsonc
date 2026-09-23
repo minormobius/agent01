@@ -14,7 +14,9 @@
   // 2026-08-26 (HTTP 502, no worker bound); the first deploy creates the DNS
   // record and the binding. Confirm the deploy log prints
   // "perp.mino.mobi (custom domain)" — a green run alone proves nothing.
-  "routes": [
-    { "pattern": "perp.mino.mobi", "custom_domain": true }
-  ]
+  // perp.mino.mobi was DETACHED on 2026-09-23 to free a slot under the zone's
+  // 100-custom-domain cap; perp now ships inside fin at fin.mino.mobi/perp/.
+  // The route is gone so refresh-perp-data.yml (cron, deploys from THIS
+  // branch) cannot re-attach it. Do not add it back.
+  "routes": []
 }
