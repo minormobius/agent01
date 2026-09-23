@@ -14,9 +14,11 @@ name: Cloudflare capability probe (read-only)
 #      workflow can do the whole job, or whether a human has to open the
 #      dashboard, is entirely a question about this one token's scopes.
 #
-# EVERY REQUEST HERE IS A GET. Nothing is created, changed or deleted — the
-# probe reports what the credential can READ and says plainly that a read does
-# not prove a write. Account, zone and token IDs are truncated before printing.
+# EVERY REQUEST HERE IS A GET, with ONE exception gated by PROBE_DNS_WRITE=1:
+# a throwaway TXT record at _cf-probe.<zone> is created and deleted in the same
+# run, because a read cannot prove DNS:Edit and nothing else can. It names no
+# host anything serves; the delete is always attempted and then verified.
+# Account, zone and token IDs are truncated before printing.
 #
 # Run it from the Actions tab (workflow_dispatch), or by touching this file.
 
@@ -42,4 +44,6 @@ jobs:
           CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           ZONE: mino.mobi
+          # the one write: a throwaway TXT record, created and deleted in the same run (see cf-probe.mjs)
+          PROBE_DNS_WRITE: '1'
         run: node .github/scripts/cf-probe.mjs

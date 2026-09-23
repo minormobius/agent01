@@ -41,6 +41,22 @@ async function get(path) {
   return { status: res.status, ok: res.ok && body?.success !== false, body };
 }
 
+// The ONE write this probe can do, and only when PROBE_DNS_WRITE=1: create a
+// throwaway TXT record and delete it again. A read proves DNS:Read and nothing
+// more; the only honest test of DNS:Edit is a write. The record name is not a
+// hostname anything serves, the TTL is the minimum, and the delete is always
+// attempted and then verified.
+async function send(method, path, body) {
+  const res = await fetch(`${API}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let json = null;
+  try { json = await res.json(); } catch { /* non-JSON error page */ }
+  return { status: res.status, ok: res.ok && json?.success !== false, body: json };
+}
+
 /** One line per probe: what was asked, and what came back. */
 function line(label, r, extra = '') {
   const why = r.ok ? '' : `  [${r.status}${r.body?.errors?.[0]?.message ? ' ' + r.body.errors[0].message : ''}]`;
@@ -159,6 +175,20 @@ if (zoneId) {
   }
   // Is the hostname we could not bind actually absent? This is the fact that
   // makes "just add a route" a green deploy onto a dead host.
+  if (process.env.PROBE_DNS_WRITE === '1') {
+    const name = `_cf-probe.${ZONE_NAME}`;
+    const c = await send('POST', `/zones/${zoneId}/dns_records`, {
+      type: 'TXT', name, content: `"cf-probe write test ${new Date().toISOString()}"`, ttl: 60,
+      comment: 'cf-capability-probe: created and deleted in the same run',
+    });
+    if (line(`WRITE dns record  (TXT ${name}, deleted straight after)`, c)) {
+      const d = await send('DELETE', `/zones/${zoneId}/dns_records/${c.body.result.id}`);
+      line('delete it again', d);
+      const left = await get(`/zones/${zoneId}/dns_records?type=TXT&name=${name}`);
+      console.log(`       left behind: ${left.body?.result?.length ?? '?'} record(s) named ${name}`);
+      console.log('       => the token holds DNS:Edit on this zone: a route + proxied record is buildable from Actions.');
+    }
+  }
   const q = await get(`/zones/${zoneId}/dns_records?name=dweet.${ZONE_NAME}`);
   if (q.ok) {
     const n = q.body?.result?.length ?? 0;
