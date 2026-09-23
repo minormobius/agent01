@@ -33,9 +33,9 @@ _Regenerated 2026-09-23 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-23, 99 members / 291 posts):
+**Neighborhood spark** (bisk 2026-09-23, 99 members / 263 posts):
 - Mood: Fair 🌤 (trust)
-- Distinctive words: opus, anthropic, mtok
+- Distinctive words: opus, andalite, norvid
 - Top post: "New animation from Opus 5.5!" — @gracekind.net
 <!-- BRIEF_END -->
 
