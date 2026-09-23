@@ -204,7 +204,6 @@ if (zoneId) {
 
 console.log('\nwhat this does and does not settle');
 console.log('  settled : how many of the 100 custom-domain slots are used, by which workers');
-console.log('  settled : whether this token can READ routes and DNS at all');
-console.log('  NOT     : whether it can WRITE them — the Edit groups are separate, and the');
-console.log('            only honest test is a write, which this script will not do to a');
-console.log('            production zone unasked.');
+console.log('  settled : how many plain Worker routes exist (they cost no slot)');
+console.log('  settled : whether the DNS token can READ records, and, with PROBE_DNS_WRITE=1,');
+console.log('            WRITE them (a throwaway TXT, created, deleted and checked gone)');
