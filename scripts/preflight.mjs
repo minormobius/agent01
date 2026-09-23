@@ -179,6 +179,27 @@ console.log('\nendpoint coverage');
     r.ok ? (counts ? `${counts} in the pending backlog` : '') : lastLine(r.out));
 }
 
+// ------------------------------------------ 3c. is every surface shipping trunk? --
+// `main` does not deploy; a surface ships from its OWNING branch. A branch that forked from trunk
+// and never came back keeps deploying the tree it had that day, from green runs, and Static Assets
+// republishes the whole manifest — so what trunk added is simply absent. `hoop` was found a month
+// and ~5300 lines behind trunk this way, with nothing reporting it.
+//
+// Per surface, over its own registry paths: do the trees agree, and which side moved? Only a
+// MISSING owning branch is fatal (that surface cannot deploy at all); `behind` is a backlog and
+// rides as a count on a passing check, the way endpoint coverage reports its pending list.
+// Skips loudly on a shallow clone — there is no merge base to find there.
+console.log('\ndeploy drift');
+{
+  const r = run('deploy-drift.mjs', ['--check']);
+  const line = lastLine(r.out);
+  const skipped = /SKIPPED/.test(r.out);
+  const m = r.out.match(/behind (\d+) · diverged (\d+)/);
+  record('every surface ships from a branch that exists', r.ok,
+    skipped ? line
+      : (r.ok ? (m ? `${m[1]} behind trunk, ${m[2]} diverged — \`node scripts/deploy-drift.mjs\`` : line) : line));
+}
+
 // ------------------------------------------------------ 4. no leaked hosts --
 // The root worker serves `assets.directory: "."`, so generated files are
 // internet-facing. Redaction lives in scripts/lib/landing.mjs; verify it held.

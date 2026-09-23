@@ -62,7 +62,9 @@ const add = (kind, msg) => findings[kind].push(msg);
 
 export function checkNave(doc, { verbose = false } = {}) {
   const { content } = importWorldExport(doc);
-  const raw = doc.content_pool?.items || doc.items || [];
+  // every export shape importWorldExport accepts: the review-harness envelope, {items}, or the bare
+  // array that scripts/pull-world.mjs writes for the offline fallback world.
+  const raw = doc.content_pool?.items || doc.items || (Array.isArray(doc) ? doc : []);
   const naveRaw = raw.filter((r) => NAVE_ZONES.includes(r.content?.zone));
 
   // ── 1. does it even import and review? ─────────────────────────────────────────────────────
