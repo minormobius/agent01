@@ -30,7 +30,7 @@ name: Deploy Root (landing)
 
 on:
   push:
-    branches: ['claude/landing-page-architecture-1igui5']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'index.html'
       - 'styles.css'
