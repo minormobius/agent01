@@ -2,3 +2,15 @@
 # surface. assets.directory is this dir, so without this line the file is
 # served at the surface's public URL.
 CLAUDE.md
+
+# --- the /jev sub-site -------------------------------------------------------
+# jev's own .assetsignore was removed when it moved under this surface: the
+# file only has effect at the root of assets.directory, which is this dir.
+# Without these lines its instructions and tests would be served publicly at
+# mega.mino.mobi/jev/...
+jev/CLAUDE.md
+jev/test/
+jev/eval/
+
+# NOTE: jev/fixtures/ is deliberately NOT ignored. The page fetches it at
+# runtime as the fallback dungeon when foam.mino.mobi is unreachable.

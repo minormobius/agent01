@@ -1,0 +1,45 @@
+{
+  "id": "jev-lab-polarity-12h-v1",
+  "registered_utc": "2026-09-18",
+  "registered_by": "committed to git before any evaluation was run; the commit timestamp is the proof",
+
+  "hypothesis": "The sign of the pooled lag-1 autocorrelation of non-overlapping 12-hour returns, estimated across BTC/ETH/SOL over the trailing 20 windows, predicts the DIRECTION of the next 12-hour return better than chance.",
+
+  "why_this_horizon": "In the discovery sample (208 days, 1h bars) the trend/reversion polarity agreed across all three assets in 7 of 7 monthly blocks (p~6e-5), and over the last four weeks the 12h horizon read +0.39/+0.23/+0.37 while 1h and 4h read approximately zero. 12h is where the regime was visible.",
+
+  "rule": {
+    "source": "Hyperliquid /info candleSnapshot",
+    "bars": "1h",
+    "universe": ["BTC", "ETH", "SOL"],
+    "horizon_bars": 12,
+    "stride_bars": 24,
+    "stride_note": "each cycle is 12 trailing bars then 12 forward bars, so no window shares a bar with any other",
+    "estimator": "Pearson r between trailing 12h return and forward 12h return, POOLED across the three assets over the trailing K windows",
+    "K": 20,
+    "gate_abs_r": 0.15,
+    "side": "sign(r) * sign(trailing 12h return)  — follow the trailing move when r > 0, fade it when r < 0",
+    "no_trade_when": "|r| < 0.15, or the estimate has fewer than K complete windows, or the trailing return is exactly zero"
+  },
+
+  "primary_metric": "directional accuracy on gated predictions",
+  "success_criterion": "accuracy strictly greater than 50% with a one-sided binomial p < 0.05",
+  "minimum_n_before_any_claim": 200,
+  "secondary_metric": "mean signed basis points per prediction, net of a 9.4bp round-trip cost (4.5bp taker fee plus half a ~0.4bp spread, each way)",
+
+  "falsified_if": [
+    "accuracy <= 50% once n >= 200",
+    "net basis points per prediction <= 0 once n >= 200"
+  ],
+
+  "selection_disclosure": "K=20 and the 0.15 gate were the best of a THIRTY-configuration sweep on the discovery data, where they scored 56.4% (n=365). The forward test therefore tests that selected configuration as a whole, which is the entire point: a number chosen as the best of thirty is exactly the kind that needs fresh data to survive.",
+
+  "stopping_rule": "The schedule accumulates regardless of interim results. No claim is made, in either direction, before n >= 200. There is no early stop for a good result.",
+
+  "amendment_policy": "No parameter above may be changed. Any change is a NEW pre-registration with a new id, and the old one keeps its record.",
+
+  "known_weaknesses": [
+    "Crypto majors are highly correlated, so pooling three of them is nearer to three noisy readings of one series than to three independent samples. The effective n is smaller than the nominal n, and the binomial test does not know that.",
+    "208 days is one market era. A regime structure that held through it may simply not exist in another.",
+    "12h windows accrue at 2 per asset per day, so n >= 200 takes roughly 33 days of collection."
+  ]
+}

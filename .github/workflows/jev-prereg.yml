@@ -1,0 +1,98 @@
+# The forward test of the pre-registered 12h polarity rule.
+#
+# COMMITS DATA BACK TO THE REPO. Pulls fresh 1h candles, applies the FROZEN
+# rule in mega/jev/lab/preregister.json, and appends any newly-closed window to
+# prereg-results.json. It never interprets and it never decides anything: the
+# rule was committed (54531db6) before the code that runs it existed, and the
+# registration forbids a claim in either direction before n >= 200.
+#
+# Schedule only — no push trigger — so an edit to the lab can never wake this
+# and quietly add predictions outside the schedule.
+#
+# ⚠️ THIS FILE MUST REACH `main` OR IT NEVER FIRES. GitHub runs `schedule` only
+# for workflows on the DEFAULT branch, whatever branch the job then checks out.
+# That is why refresh-perp-data.yml — which likewise collects onto a feature
+# branch — lives on main. Until this is merged, the forward test is committed,
+# tested and correct, and accruing nothing. It is inert, not broken: the
+# collector is idempotent, so the first run after the merge picks up every
+# window that closed in the meantime, and windows are keyed by close time so
+# nothing is lost by the delay.
+#
+# WHY IT RUNS TWICE A DAY FOR A ONCE-A-DAY GRID. Windows pivot on a 24h clock
+# boundary, so at most one per asset closes per day; the second run is there so
+# a failed or throttled run is picked up within 12 hours rather than losing a
+# window. The collector is idempotent — keyed on asset@close-time — so running
+# it more often than the grid moves adds nothing and costs nothing.
+#
+# It spends no model budget. Hyperliquid's /info endpoint is public and free;
+# Jev is not called at all. This measures the rule, not the model.
+name: jev prereg forward test
+
+on:
+  schedule:
+    - cron: '25 1,13 * * *'   # 01:25 and 13:25 UTC, comfortably after the 00:00/12:00 bars close
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jev-prereg
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: claude/jev-demo-website-pw3us1
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # The rule's own tests run BEFORE it is applied to fresh data. They pin
+      # the non-overlap, the clock-anchored window grid, the no-lookahead
+      # property and the exact binomial tail — i.e. everything that would
+      # silently corrupt the record if it broke.
+      - name: the lab selftest, before anything is collected
+        run: node mega/jev/test/lab.selftest.mjs
+
+      - name: collect any window that has closed
+        run: node mega/jev/lab/collect-prereg.mjs
+
+      - name: commit if a prediction was added
+        id: commit
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet -- mega/jev/lab/prereg-results.json; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "no window has closed since the last run"
+          else
+            n=$(node -e "console.log(require('./mega/jev/lab/prereg-results.json').verdict.n)")
+            git add mega/jev/lab/prereg-results.json
+            git commit -m "jev prereg: forward test at n=${n}"
+            git push origin claude/jev-demo-website-pw3us1
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # A push made with GITHUB_TOKEN does not fire deploy-mega.yml, so the
+      # deploy is inline — otherwise the committed count would never reach the
+      # page that displays it.
+      - name: deploy mega so the page shows the new count
+        if: steps.commit.outputs.changed == 'true'
+        working-directory: mega
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      - name: say where the test stands
+        run: |
+          node -e "
+            const r = require('./mega/jev/lab/prereg-results.json');
+            console.log('::notice::' + r.verdict.status + (r.eta_days ? '  (~' + r.eta_days + ' days at the measured rate)' : ''));
+          "

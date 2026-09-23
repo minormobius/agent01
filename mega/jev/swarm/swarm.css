@@ -1,0 +1,123 @@
+/* swarm.css — the live swarm page.
+   Series colours are the house categorical palette extended to a FOURTH slot.
+   The existing three (blue / orange / green) were already validated; the new
+   magenta was run through the validator on ALL pairs in both modes rather
+   than chosen by eye:
+     light  #b5479b  worst all-pairs ΔE 9.2 deutan, 20.5 normal   PASS
+     dark   #c55cae  worst all-pairs ΔE 8.4 deutan, 17.9 normal   PASS
+   Tritan separation is 4.0, which is below the band where colour may carry
+   identity alone — so every series is ALSO direct-labelled at its last value
+   and every chart has a table underneath. Violet and grey were tried first
+   and both FAILED against the blue (ΔE 0.8 and 14.2), which is why the repo's
+   older note said a fourth slot was unavailable. */
+
+:root{
+  --s1:#2a78d6;   /* rule   */
+  --s2:#eb6834;   /* jev    */
+  --s3:#1baf7a;   /* random */
+  --s4:#b5479b;   /* frozen */
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c55cae; }
+}
+:root[data-theme="dark"]{ --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c55cae; }
+
+.sw{padding-bottom:64px}
+.swhead{padding:40px 0 10px;max-width:74ch}
+.swhead h1{font-size:clamp(1.9rem,4.6vw,2.8rem);line-height:1.1;margin:0 0 10px;letter-spacing:-.02em}
+.swhead .sub{font-size:.84rem;color:var(--ink-3);margin:0 0 16px}
+.lede{font-size:1.02rem}
+.sw section{margin-top:18px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:18px 20px}
+.card h2{font-size:1.05rem;margin:0 0 6px;letter-spacing:-.01em}
+.cap{font-size:.8rem;color:var(--ink-3);line-height:1.5}
+.prose{max-width:72ch;font-size:.9rem;color:var(--ink-2);line-height:1.6;margin:0 0 10px}
+.prose b{color:var(--ink)}
+.caveats{padding-left:1.1rem}
+.caveats li{margin-bottom:.5rem}
+
+.runbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.runbar label{font-size:.8rem;color:var(--ink-3);display:flex;gap:6px;align-items:center}
+.runbar select{font:inherit;font-size:.82rem;padding:5px 7px;border-radius:7px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+/* The tick status line. Fixed at two lines: the message changes on every tick
+   — "idle" / "tick 12 — asking (256 questions in one call)…" / an error — and
+   inside the flex run bar its wrapping changed the bar's height, which moved
+   the canvases 39-48px up and down between consecutive ticks. Clamped rather
+   than ellipsised so a long error stays readable onto its second line.
+
+   It is `.tick` and NOT `.mode` on purpose. `.mode` is already a component in
+   ../style.css — the dungeon's live/offline banner, a bordered chip with a dot
+   and `data-mode` states — and borrowing the name gave this plain status
+   string a whole component's chrome, so it rendered as an empty text input.
+   Second class collision on this page after `.finding`; the lesson is the
+   same one. */
+.tickline{height:2.5em;margin-top:8px;overflow:hidden}
+.tick{font-family:var(--mono);font-size:.74rem;line-height:1.25;color:var(--ink-3);
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:0}
+
+/* The four simulations. Each one names itself and carries its own number, so
+   the canvases are never told apart by their border colour alone. */
+.arms{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+.arm{background:var(--paper);border:1px solid var(--line);border-radius:12px;padding:12px 13px}
+.arm canvas{width:100%;aspect-ratio:1;display:block;border-radius:8px;background:#05060a;
+  image-rendering:pixelated;border:1px solid var(--line)}
+.armtop{display:flex;align-items:baseline;gap:7px;margin-bottom:8px}
+.armtop h3{margin:0;font-size:.88rem;letter-spacing:-.01em}
+.armtop .what{font-size:.72rem;color:var(--ink-3);margin-left:auto}
+.armnums{display:flex;gap:14px;margin-top:9px;font-family:var(--mono);font-size:.72rem}
+.armnums div{color:var(--ink-3)}
+.armnums b{display:block;font-size:.98rem;color:var(--ink);font-weight:600}
+.sw-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;
+  vertical-align:-1px;border:1px solid var(--line)}
+.sw-dot.s1{background:var(--s1)} .sw-dot.s2{background:var(--s2)}
+.sw-dot.s3{background:var(--s3)} .sw-dot.s4{background:var(--s4)}
+.arm.a1{border-top:3px solid var(--s1)} .arm.a2{border-top:3px solid var(--s2)}
+.arm.a3{border-top:3px solid var(--s3)} .arm.a4{border-top:3px solid var(--s4)}
+
+.chartbox{width:100%;overflow-x:auto}
+/* The chart swaps a one-line "press run" placeholder for a 620x238 SVG on the
+   first tick. Reserving the aspect keeps that swap from moving the page too. */
+#polchart{aspect-ratio:620/238}
+#polchart > p{margin:0;padding-top:1em}
+.chartbox svg{display:block;max-width:100%;height:auto}
+.gridline{stroke:var(--line-2);stroke-width:1}
+.axis{stroke:var(--line);stroke-width:1}
+.axlab{fill:var(--ink-3);font-size:10px;font-family:var(--mono)}
+.serieslab{font-size:10px;font-family:var(--mono);font-weight:600}
+
+.tablewrap{overflow-x:auto;margin-top:10px}
+.dt{width:100%;border-collapse:collapse;font-size:.78rem}
+.dt th{text-align:left;font-weight:600;color:var(--ink-3);font-size:.7rem;text-transform:uppercase;
+  letter-spacing:.07em;padding:5px 10px 5px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+.dt td{padding:6px 10px 6px 0;border-bottom:1px solid var(--line-2);color:var(--ink-2)}
+.dt td.num{font-family:var(--mono);text-align:right}
+.dt td:first-child{color:var(--ink)}
+.swfoot{margin-top:28px;padding-top:16px;border-top:1px solid var(--line)}
+.swfoot p{font-size:.8rem}
+@media (max-width:720px){ .arms{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))} }
+/* A shader excerpt, shown because the bug is only legible as code. */
+.codeblock{background:var(--line-2);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;font-family:var(--mono);font-size:.74rem;line-height:1.6;
+  overflow-x:auto;color:var(--ink-2);margin:10px 0}
+.codeblock b{color:var(--ink)} .codeblock i{color:var(--ink-3)}
+
+/* `.finding` is ALREADY a component in ../style.css — a small left-bordered
+   note whose `<b>` is its heading line, so it is set `display:block` at
+   0.8rem. This page reuses the class name on full-width cards, which turned
+   every inline `<b>` in a finding card into its own shrunken line: sentences
+   broke mid-clause around every emphasis. Rendered and looked at, not
+   asserted — the same lesson this page's own canvases taught. Scoped tightly
+   so the original component is untouched. */
+.sw .card.finding b{display:inline;font-size:inherit}
+
+/* The proof strip: four renders of the same genome, side by side, because the
+   claim they support ("this port reproduces fluoddity") is a claim about a
+   picture and cannot be made in a table. */
+.proof{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin-top:12px}
+.proof figure{margin:0}
+.proof img{width:100%;aspect-ratio:1;display:block;border-radius:8px;border:1px solid var(--line);
+  background:#05060a}
+.proof figcaption{font-size:.72rem;color:var(--ink-3);line-height:1.45;margin-top:6px}
+.proof figcaption b{color:var(--ink)}
+.sw h3{color:var(--ink);letter-spacing:-.01em}

@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev, tested</title>
+<meta name="description" content="Seven experiments putting a decision-only model to work — a dungeon, a market harness, a procedural composer, a CAD kernel, a router, and a pre-registered forward test. What it does, what it refuses, and what the harness has to do first.">
+<meta property="og:title" content="Jev, tested">
+<meta property="og:description" content="A decision-only model returns typed answers and never text. Seven experiments on what that is good for — and the one thing that has gone wrong every single time.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="hub.css">
+</head>
+<body>
+<main class="wrap hub">
+
+  <header class="hubhead">
+    <div class="eyebrow">TypeSafe AI · jev-latest · System One</div>
+    <h1>Jev, tested</h1>
+    <p class="prose lede">
+      <a href="https://typesafe.ai/blog/introducing-system-one-models-and-jev" rel="noopener">Jev</a>
+      is a decision model. It does not generate text. You hand it a <b>state</b> and some
+      <b>typed questions</b>, and it hands back typed answers — a <code>choice</code> from a fixed
+      set, a <code>score</code> on an ordered scale, a <code>noul</code> between 0 and 1. There is no
+      prose to parse and no invalid answer to retry.
+    </p>
+    <p class="prose">
+      This is what happened when we gave it seven different jobs. Each one is live, each one runs
+      against the real model, and each one publishes what it could not do as plainly as what it
+      could. <b>Nothing below is a mock-up.</b>
+    </p>
+  </header>
+
+  <!-- ============================================================ the pages -->
+  <section>
+    <h2 class="secttl">Things you can run right now</h2>
+    <div class="cards">
+
+      <a class="expt" href="delve/">
+        <div class="ekind">live · 3D</div>
+        <h3>The foam dungeon</h3>
+        <p>A delver in a procedurally generated dungeon. Every few seconds one call carries its
+          state — health, the creatures in the room, what lies through each door — plus five typed
+          questions, and Jev answers all five in parallel. Nothing is scripted.</p>
+        <p class="efind"><b>What it shows:</b> five decisions for the price of one call, and a
+          confidence gate that makes the delver <i>refuse to act</i> rather than act badly.</p>
+      </a>
+
+      <a class="expt" href="lab/">
+        <div class="ekind">live · real market data</div>
+        <h3>The harness lab</h3>
+        <p>Hyperliquid's public websocket at one tick a second. The page computes the metrics
+          itself and sends Jev numbers, never a price series. It sizes a paper book on an ordered
+          seven-rung ladder against two baselines. <b>Paper only — no account, no keys, no orders.</b></p>
+        <p class="efind"><b>What it shows:</b> asked to predict, it declines and returns a constant.
+          Asked a determinate question about the same market, the gate fires at
+          <b>97.1%</b> and <b>100.0%</b> correct. The domain was never the problem; the question was.</p>
+      </a>
+
+      <a class="expt" href="composer/">
+        <div class="ekind">live · procgen</div>
+        <h3>The composer</h3>
+        <p>A creature built one legal edit at a time across five generators. The harness enumerates
+          every legal move, redraws and measures each, and Jev picks. Type a sentence and it becomes
+          the brief. It draws nothing.</p>
+        <p class="efind"><b>What it shows:</b> composition works — mean regret <b>0.020</b> against
+          the greedy ceiling, beat random 8/8 — and it <i>broke the confidence self-check</i>,
+          which had been reliable everywhere else.</p>
+      </a>
+
+    </div>
+  </section>
+
+  <!-- ==================================================== results-only work -->
+  <section>
+    <h2 class="secttl">Experiments with no page, only results</h2>
+    <p class="prose sectsub">These ran headless. They are here because leaving them out would make
+      the record above look tidier than it is.</p>
+    <div class="cards">
+
+      <div class="expt flat">
+        <div class="ekind">measured</div>
+        <h3>CAD, against a real kernel</h3>
+        <p>The same composition loop driving <a href="https://cad.mino.mobi/mcp" rel="noopener">cad.mino.mobi/mcp</a>
+          — a Truck B-rep kernel that returns volume, area, centroid, Euler characteristic and
+          watertightness. 312 distinct builds over three briefs.</p>
+        <p class="efind"><b>0.118</b> against greedy's 0.113 and random's 0.480, beat random 3/3,
+          <b>every part watertight</b>. And the self-check failure replicated exactly — 0.113 here
+          against 0.10–0.12 on the sprites. Different domain, different kernel, same number.</p>
+      </div>
+
+      <div class="expt flat">
+        <div class="ekind">measured · 3× replicated</div>
+        <h3>The escalation router</h3>
+        <p>Can a cheap tier detect its own incompetence and hand off? Two ways to ask: read the
+          model's confidence in its answer, or ask it a separate question about whether the state
+          contains enough to decide.</p>
+        <p class="efind">Asking wins by <b>62, 76 and 65 points</b> across three replications, with
+          perfect routing each time. Answer-confidence separated the cases by <b>0.0</b>.
+          <b>Ask for escalation; never infer it.</b></p>
+      </div>
+
+      <div class="expt flat">
+        <div class="ekind">running · pre-registered</div>
+        <h3>The 12-hour forward test</h3>
+        <p>One rule, frozen before any data was collected: the spec, the gate and the decision
+          procedure are in the repo and have not been touched since. A Cloudflare cron collects
+          twice a day into a Durable Object.</p>
+        <p class="efind">Live, accruing <b>1.75</b> measured decisions a day against a
+          pre-registered threshold. It will answer in about <b>113 days</b> and we cannot make it
+          answer sooner, which is the point of pre-registering.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ================================================== the actual findings -->
+  <section class="card finding">
+    <h2 class="secttl">The one thing that has gone wrong every single time</h2>
+    <p class="prose">Across every experiment above, <b>"the model is behaving badly" has been a
+      missing or badly-shaped input — about ten times out of ten.</b> Not once has the fix been
+      a better model or a cleverer prompt. It has been: criteria wording, game balance, missing
+      memory, rates quoted without levels, a trade-framing where a stance-framing was meant, a
+      state document that lied about its own timescale, a prediction-shaped question, and
+      arithmetic the caller should have done.</p>
+    <p class="prose">Two rules fall out of that, and both are measured rather than asserted:</p>
+    <div class="rules">
+      <div class="rule">
+        <h4>Compute first, decide second</h4>
+        <p>Hand the model the inputs to a computation and it scores <b>62.5%</b>. Do the arithmetic
+          in the caller and hand it the result, and the same model scores <b>100%</b>. The caller
+          computes; the model decides.</p>
+      </div>
+      <div class="rule">
+        <h4>Ask for escalation, never infer it</h4>
+        <p>"Am I sure about this answer?" separates competent from incompetent states by
+          <b>0.0</b> points. "Does this state contain enough to decide?" separates them by
+          <b>62</b>. One is a question about the world; the other is introspection, and it does
+          not work.</p>
+      </div>
+    </div>
+    <p class="prose"><b>And one place the second rule inverts.</b> In a composition chain — where
+      each decision changes the state for the next — the self-check collapsed to
+      <code>p ≈ 0.11</code> on every single edit <i>while the chain performed at the greedy
+      ceiling</i>. Replicated on a CAD kernel at 0.113. In a loop, confidence is the informative
+      signal and the self-check is not. That is the reverse of every frozen-state result here,
+      and we do not yet know why.</p>
+  </section>
+
+  <!-- ========================================================== the thesis -->
+  <section class="card finding">
+    <h2 class="secttl">The real work is turning a design space into classifiable axes</h2>
+    <p class="prose">This is the throughline. Jev classifies extremely well and refuses to
+      speculate. So every one of these projects reduces to the same question:
+      <b>can the thing you care about be projected onto axes a typed question can land on?</b>
+      When the answer is yes, it works immediately. When the answer is no, no amount of prompting
+      helps — and the failure looks exactly like the model being stupid.</p>
+    <p class="prose">Colour made this concrete. The composer had six geometric traits, all ordered,
+      all asked with a <code>score</code> over a ladder. Adding hue broke two things at once:</p>
+    <ul class="prose">
+      <li><b>Hue is circular.</b> 350 and 10 are 20 apart, not 340 — so Euclidean distance rates a
+        red creature as maximally far from a slightly different red. The <i>metric</i> was wrong.</li>
+      <li><b>Hue has no order.</b> <code>score</code> returns an expectation over <i>ordered</i>
+        rungs; there is no "more hue", the scale wraps, and averaging over an ordering that does
+        not exist puts "red or violet" at green. The <i>primitive</i> was wrong.</li>
+    </ul>
+    <p class="prose">So colour is asked as a <code>choice</code> with an angular metric, and it
+      works: <b>6/6</b> colour words named correctly, <b>2/2</b> dropped where none was mentioned.
+      The general rule: <b>choose the primitive from the shape of the variable, not from what the
+      other questions happen to use.</b></p>
+
+    <h3 class="shapettl">The shapes, and what each one needs</h3>
+    <table class="shapes">
+      <thead><tr><th>shape of the variable</th><th>example</th><th>primitive</th><th>what breaks if you get it wrong</th></tr></thead>
+      <tbody>
+        <tr><td><b>ordered, bounded</b></td><td>size, density, leverage</td><td><code>score</code> over a ladder</td><td>nothing — this is the easy case, and it is the one everything defaults to</td></tr>
+        <tr><td><b>nominal</b> (no order)</td><td>which door, which tool</td><td><code>choice</code></td><td>a <code>score</code> averages between unrelated options and lands on a third</td></tr>
+        <tr><td><b>circular</b></td><td>hue, heading, time of day, phase</td><td><code>choice</code> + angular metric</td><td>the two nearest values read as the two furthest</td></tr>
+        <tr><td><b>compositional</b> (parts of a whole)</td><td>a portfolio, a budget split, a palette</td><td>ask the <i>ranking</i>, let the caller normalise</td><td>independent scores do not sum to 1 and the caller silently rescales judgement it never got</td></tr>
+        <tr><td><b>hierarchical</b></td><td>a taxonomy, a file tree, a menu</td><td>one <code>choice</code> per level, breadth is free</td><td>a flat choice over leaves throws away everything the tree knew</td></tr>
+        <tr><td><b>set-valued</b> (many can be true)</td><td>which tags apply, which risks are live</td><td>one <code>noul</code> per member</td><td>a single <code>choice</code> forces one answer where several are true</td></tr>
+        <tr><td><b>relational</b></td><td>"is A better than B", pairwise preference</td><td><code>choice</code> per pair, caller assembles the order</td><td>asking for a global ranking asks for reasoning it does not do</td></tr>
+        <tr><td><b>unbounded</b></td><td>a price, a count, a duration</td><td>bucket it, or compute it in the caller</td><td>the answer is a number it cannot check, which is the predictive trap</td></tr>
+        <tr><td><b>predictive</b></td><td>"what happens next"</td><td><b>none — do not ask</b></td><td>it emits a constant. 41/41 identical answers against a 82.9% base rate</td></tr>
+      </tbody>
+    </table>
+    <p class="prose cap"><b>The last row is the load-bearing one.</b> Over 342 predictive market
+      questions the gate fired zero times. Rewrite the same subject matter as a determinate
+      question — one whose answer is already implied by the state — and the gate fires on
+      <b>69.9%</b> at <b>97.1%</b> correct. The axis has to be something the state already
+      determines. If it is not, no primitive saves it.</p>
+  </section>
+
+  <!-- ============================================================== the facts -->
+  <section class="card">
+    <h2 class="secttl">What is measured about the model itself</h2>
+    <div class="facts">
+      <div class="fact"><div class="num">1024</div><p>independent questions against one shared
+        state, answered in <b>549 ms</b> — <b>1024/1024 correct</b>, with no degradation from n=1.
+        <b>Breadth is free.</b></p></div>
+      <div class="fact"><div class="num">32,768</div><p>input tokens. The only ceiling we have
+        found. Question count was never the binding constraint.</p></div>
+      <div class="fact"><div class="num">0.006</div><p>how far a prompt-injection attempt moved a
+        derived target, on a 0–1 scale. There is no instruction channel, so there is nothing to
+        inject into.</p></div>
+      <div class="fact"><div class="num">∅</div><p>invalid answers, ever. A typed answer cannot
+        escape its option set, so an illegal move is unreachable by construction rather than by
+        validation.</p></div>
+    </div>
+  </section>
+
+  <footer class="hubfoot">
+    <p class="prose muted">Every number on this page came from a run against the live model and is
+      reproducible from <code>mega/jev/eval/</code>. Where something could not be verified from the
+      sandbox, the experiment's own page says so. The full working record — including the mistakes,
+      the metric artifacts and one publicly-corrected false claim — is in
+      <code>mega/jev/CLAUDE.md</code>.</p>
+    <p class="prose muted"><a href="https://docs.typesafe.ai/" rel="noopener">TypeSafe AI docs</a> ·
+      <a href="https://mino.mobi/">mino.mobi</a></p>
+  </footer>
+
+</main>
+</body>
+</html>

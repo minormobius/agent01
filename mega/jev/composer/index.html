@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev as composer</title>
+<meta name="description" content="Watch a decision-only model compose a procedural creature one legal edit at a time, against a brief measured from the render.">
+<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="composer.css">
+</head>
+<body>
+<main class="wrap">
+
+  <header class="head">
+    <div>
+      <h1>Jev as composer</h1>
+      <p class="sub">A brief, a generator, and a model that picks one legal edit at a time.
+        <b>It draws nothing</b> — the harness enumerates every legal move, redraws each one, measures it,
+        and Jev chooses. <a href="../">all the experiments</a> · <a href="../lab/">the lab</a> · <a href="../delve/">the dungeon</a></p>
+    </div>
+    <div class="acts">
+      <button id="shuffle" class="btn">shuffle</button>
+      <button id="run" class="btn primary">compose</button>
+    </div>
+  </header>
+
+  <section class="card steer">
+    <h2>say it in your own words</h2>
+    <p class="cap" style="margin:0 0 9px"><b>This is not an instruction to Jev — it cannot take one.</b>
+      Your sentence is posted as a <i>state</i>, and the harness asks twelve typed questions about it: for each
+      measured trait, one ordered <code>score</code> over what that trait can actually reach, plus a
+      <code>noul</code> asking whether your words say anything about it at all. A trait your description is
+      silent on is <b>left out of the brief</b> rather than defaulted to the middle.</p>
+    <p class="cap" style="margin:0 0 9px"><b>Colour is asked differently, and that is the interesting part.</b>
+      The six geometric traits are ordered, so they are asked with a <code>score</code> over a ladder. Hue has no
+      order — the scale <i>wraps</i>, there is no "more hue", and red sits beside magenta at one end and orange at
+      the other. So colour is a <code>choice</code> over named colours, and its gap is measured as an angle.
+      <b>The primitive follows the shape of the variable</b>, which is the whole reason this axis is here.</p>
+    <div class="steerRow">
+      <input id="text" type="text" maxlength="600" autocomplete="off"
+        placeholder="a long low thing, mostly empty, mass carried high">
+      <button id="read" class="btn">read it</button>
+    </div>
+    <div class="derived" id="derived"></div>
+  </section>
+
+  <section class="picks">
+    <label>generator<select id="gen"></select></label>
+    <label>brief<select id="brief"></select></label>
+    <label>edits<select id="steps">
+      <option>6</option><option selected>10</option><option>14</option><option>20</option>
+    </select></label>
+    <span class="mode" id="mode">idle</span>
+  </section>
+
+  <section class="stage">
+    <div class="card big">
+      <h2>the artifact</h2>
+      <div class="canvases">
+        <figure><canvas id="cvStart" width="300" height="300"></canvas><figcaption>start</figcaption></figure>
+        <figure><canvas id="cvNow" width="300" height="300"></canvas><figcaption id="capNow">now</figcaption></figure>
+      </div>
+      <p class="cap" id="gapLine">—</p>
+    </div>
+
+    <div class="card">
+      <h2>the brief, measured</h2>
+      <p class="cap" style="margin:0 0 8px">Every figure counted from the sprite as actually drawn — filled
+        cells, their bounding box, where the mass sits. Not derived from the genes.</p>
+      <table class="tt"><thead><tr><th>trait</th><th>now</th><th>wanted</th><th>gap</th></tr></thead>
+        <tbody id="traitBody"></tbody></table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>the legal moves, and the one it took</h2>
+    <p class="cap" style="margin:0 0 10px" id="optWhy">Every move below is redrawn and measured before Jev sees
+      it. <b>An edit that would leave the generator's own bounds is never offered</b>, so the answer cannot be
+      an illegal creature — the typed choice's guarantee doing real work.</p>
+    <div class="opts" id="opts"></div>
+  </section>
+
+  <section class="card">
+    <h2>against the controls</h2>
+    <p class="cap" style="margin:0 0 10px">Same start, same brief, same enumerated moves.
+      <b>Greedy</b> always takes the move that most reduces the gap — the myopic ceiling.
+      <b>Random</b> picks from the identical legal set. Beating random is the only thing that makes a chain
+      evidence rather than a demo.</p>
+    <div class="race" id="race"></div>
+  </section>
+
+  <section class="card">
+    <h2>what this is showing</h2>
+    <p>Jev returns typed answers only — no prose, ever. It cannot generate a sprite, name a gene that does not
+      exist, or propose an edit outside the legal set, because the answer is a <code>choice</code> over options
+      the harness built. <b>The quality ceiling of the loop is the enumerator, not the model.</b></p>
+    <p>The same brief means the same thing to a quadruped, a spider, an eel and a brittle-star, because the
+      traits are measured off the render rather than derived per family. That is the point of an overlay: one
+      trait space, five generators, briefs that transfer.</p>
+    <p>Measured on this machinery: over 8 chains the model landed within 5% of the greedy ceiling on 7 and beat
+      random 8/8, with a mean regret of 0.020 against greedy's 0.000. And the same chain broke the confidence
+      self-check — it reported <code>p(have) ≈ 0.11</code> on every edit while performing at the ceiling, which
+      is the reverse of every frozen-state result. <a href="../lab/">The lab has the numbers.</a></p>
+    <p><b>And the text box, measured too.</b> Feeding each of the five built-in briefs its own wording back:
+      <b>6 of 6</b> derived values landed on the correct side of the population median wherever the hand-written
+      target is decisively off-centre (9 of 11 counting the ones that sit <i>at</i> the median, where "which side"
+      means nothing — both misses are an <code>aspect</code> of 1.0 called square). A description about a single
+      property kept a mean of <b>1.8 of 6</b> traits, so the self-check really does abstain. And three
+      prompt-injection attempts — <code>SYSTEM OVERRIDE</code>, a forged end-of-description marker, a fake
+      <code>[ASSISTANT]</code> turn — moved the derived target by <b>0.006</b> each, which is inert: there is
+      nothing to inject <i>into</i>.</p>
+    <p><b>Colour, measured separately.</b> Eight descriptions put to the live model: <code>"blue"</code>,
+      <code>"a blue creature"</code>, <code>"deep sea blue, long and low"</code>, <code>"the colour of rust"</code>,
+      <code>"bright arterial red"</code> and <code>"like moss on a wet stone"</code> all named the right colour —
+      <b>6 of 6</b> — and the two descriptions that mention no colour had it <b>dropped, not invented</b>, at
+      p&nbsp;0.04 and p&nbsp;0.03. Rust came back <code>orange</code> at confidence 0.49, which is the right
+      amount of hedging for a red-brown; moss came back <code>green</code> with p(says&nbsp;colour) 0.76 rather
+      than 0.98, correctly lower because the colour is implied and not stated.</p>
+    <p><b>And it acts on it.</b> Given <i>"a blue creature, much wider than it is tall, mostly empty space"</i>
+      the chain took <code>hue_blue</code> as its <b>first</b> edit — the single largest gap reduction on offer,
+      found among 26 options — then matched the greedy ceiling on all eight edits, 0.440 against random's 0.988.
+      Worth saying plainly: <b>colour is a one-edit axis.</b> It tests whether the model classifies and acts, not
+      whether it can search, and those are different claims.</p>
+    <p class="cap"><b>The gene called <code>hue</code> is not the colour, on one family in five.</b> Moving
+      <code>radial.hue</code> across the whole circle leaves the rendered creature violet, because its psychic
+      accent is 298 of its 366 cells and dominates the average. <code>accentHue</code> is the gene that works.
+      Wiring the axis to the obviously-named gene would have failed silently on that family and looked like the
+      model ignoring the brief — <b>only measuring the render catches it</b>, which is the same reason the other
+      six traits are counted from cells rather than read off the parameters.</p>
+    <p class="cap"><b>Two weak axes, said plainly.</b> Over 1,300 random genomes these five generators only move
+      <code>centroidY</code> between 0.41 and 0.59 and <code>spread</code> between 0.18 and 0.25. A description
+      leaning on either has very little room to be satisfied, and that is the generators' limit, not the model's.</p>
+  </section>
+
+</main>
+<script type="module" src="app.js"></script>
+</body>
+</html>

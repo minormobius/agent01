@@ -9,6 +9,17 @@ import { buildQuadGenome, quadSVG, quadFrame, FAMILIES as QUAD_FAMILIES } from '
 import { buildPolyGenome, polySVG, polyFrame, FAMILIES as POLY_FAMILIES } from './sprite/poly/poly.js';
 import { buildAxialGenome, axialSVG, axialFrame, FAMILIES as AXIAL_FAMILIES } from './sprite/axial/axial.js';
 import { buildIsopodGenome, isopodSVG, isopodFrame, FAMILIES as ISOPOD_FAMILIES } from './sprite/isopod/isopod.js';
+// /jev is a sub-site of this surface (mega.mino.mobi/jev/): the TypeSafe Jev
+// demo. It needs one server-side route, to keep the TypeSafe API key off the
+// browser — the key is a Cloudflare secret (TYPESAFE_API_KEY) on THIS worker,
+// read only inside jev/api.mjs. See mega/jev/CLAUDE.md.
+import { handleJevApi } from './jev/api.mjs';
+// The pre-registered forward test: a Durable Object holding the record, and a
+// cron trigger that adds to it. Declared in wrangler.jsonc, no dashboard step.
+// See mega/jev/prereg-do.mjs for why the schedule lives here rather than in a
+// GitHub workflow.
+import { PreregLog, preregStub } from './jev/prereg-do.mjs';
+export { PreregLog };
 
 const CORS = { 'Access-Control-Allow-Origin':'*', 'Access-Control-Allow-Methods':'GET,OPTIONS', 'Access-Control-Allow-Headers':'*' };
 const json = (o,status)=> new Response(JSON.stringify(o,null,2), {status:status||200, headers:{'content-type':'application/json; charset=utf-8', ...CORS}});
@@ -24,9 +35,46 @@ export default {
       if(req.method==='OPTIONS') return new Response(null,{headers:CORS});
       try { return beesApi(url); } catch(e){ return json({error:String(e&&e.message||e)},400); }
     }
+    // /jev/api/* — the Jev demo's proxy. Deliberately NOT wrapped in the CORS
+    // headers above: it spends a metered API key, so it stays same-origin.
+    // Returns null for any other /jev/ path, which then falls through to the
+    // asset store like the rest of the sub-site.
+    // The forward test's record. Read-only from the page, and served without
+    // the CORS headers above for the same reason /jev/api is: it is this
+    // surface's own number, not a public API. Falls through when the binding
+    // is absent (a dev server, or a deploy predating the migration), so the
+    // page's static-file fallback still answers.
+    if(url.pathname === '/jev/lab/api/prereg'){
+      // READ ONLY from the outside. Collection is the cron's job and nobody
+      // else's — it spends ~30 upstream requests, and a pre-registered record
+      // that any caller can advance is not a record. The request is rebuilt as
+      // a bare GET so no method or query string can reach the collect path.
+      if(env.PREREG_LOG) return preregStub(env).fetch(new Request(url.origin + url.pathname));
+    }
+    if(url.pathname.startsWith('/jev/api')){
+      const res = await handleJevApi(req, env, url.pathname);
+      if(res) return res;
+    }
     // every other path is a static asset (dashboard at /, lab at /sprite, core.js, etc.)
     if(env.ASSETS) return env.ASSETS.fetch(req);
     return new Response('not found',{status:404});
+  },
+
+  /**
+   * The cron trigger. Runs the frozen rule against whatever has closed and
+   * appends it to the log.
+   *
+   * Twice a day for a once-a-day grid: windows pivot on a 24h clock boundary,
+   * so at most one per asset closes per day, and the second run picks up a
+   * failed or throttled one within twelve hours rather than losing a window.
+   * Idempotent, so the extra run costs nothing.
+   *
+   * It calls Hyperliquid and never calls Jev. This measures the rule.
+   */
+  async scheduled(event, env, ctx){
+    if(!env.PREREG_LOG) return;
+    const url = new URL('https://mega.mino.mobi/jev/lab/api/prereg?collect=1');
+    ctx.waitUntil(preregStub(env).fetch(new Request(url, { method: 'POST' })));
   }
 };
 
