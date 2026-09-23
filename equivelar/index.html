@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>equivelar — eight faces, all touching</title>
+<link rel="icon" href="data:,">
+<meta name="theme-color" content="#4146bd">
+<meta name="description" content="Eight nonagons on a surface of genus three, every pair of them sharing an edge — the first solid to beat the Szilassi polyhedron's seven, published as an integer certificate in September 2026. It gets past the classical count by letting eight of the 28 pairs meet twice. Spin it, open the adjacency table, tilt the eight planes and watch how little room it has.">
+
+<style>
+:root {
+  --bg: #faf9f6;
+  --fg: #222;
+  --muted: #777;
+  --rule: #d5d2ca;
+  --accent: #4146bd;
+  --accent-faint: rgba(65, 70, 189, 0.13);
+  --accent-tint: rgba(65, 70, 189, 0.06);
+  --panel: #f2efe8;
+  --stage: #eceae3;
+  --mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Menlo, monospace;
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --good: #2a6a4a;
+  --bad: #b04030;
+  --warn: #a35a00;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0f14;
+    --fg: #ddd;
+    --muted: #8a8a8a;
+    --rule: #32343f;
+    --accent: #9aa2f2;
+    --accent-faint: rgba(154, 162, 242, 0.17);
+    --accent-tint: rgba(154, 162, 242, 0.07);
+    --panel: #15161d;
+    --stage: #09090c;
+    --good: #6ec48f;
+    --bad: #d36a6a;
+    --warn: #d9974a;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  background: var(--bg); color: var(--fg);
+  font-family: var(--serif); line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+.app { height: 100vh; height: 100dvh; display: flex; flex-direction: column; }
+.top { flex: 2 1 0; min-height: 0; display: flex; flex-direction: column; }
+.panel {
+  flex: 1 1 0; min-height: 0;
+  display: flex; flex-direction: column;
+  background: var(--panel); border-top: 1px solid var(--rule);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.head {
+  display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap;
+  padding: 0.55rem 0.9rem 0.45rem; padding-top: calc(0.55rem + env(safe-area-inset-top));
+}
+.crumb { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); text-decoration: none; }
+.crumb:hover { color: var(--accent); }
+h1 { margin: 0; font-size: 1.15rem; font-weight: 600; letter-spacing: -0.01em; }
+.tagline { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+
+.stage { position: relative; flex: 1 1 0; min-height: 0; background: var(--stage); }
+canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+canvas:active { cursor: grabbing; }
+.verdict {
+  position: absolute; left: 0.7rem; bottom: 0.6rem;
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.04em;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  border: 1px solid var(--rule); border-radius: 999px;
+  padding: 0.22rem 0.6rem; pointer-events: none;
+  max-width: calc(100% - 1.4rem); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.verdict.solid { color: var(--good); }
+.verdict.broken { color: var(--bad); }
+.hint {
+  position: absolute; right: 0.7rem; top: 0.5rem;
+  font-family: var(--mono); font-size: 0.56rem; letter-spacing: 0.06em;
+  color: var(--muted); pointer-events: none; text-transform: uppercase;
+  transition: opacity 0.6s; opacity: 1;
+}
+.hint.gone { opacity: 0; }
+.nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 2rem; text-align: center; font-size: 0.85rem; color: var(--muted); }
+
+nav.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--rule); flex: 0 0 auto; }
+.tab {
+  flex: 1 1 0; font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em;
+  text-transform: uppercase; background: none; border: none;
+  border-bottom: 2px solid transparent; color: var(--muted);
+  padding: 0.55rem 0.1rem; cursor: pointer; margin-bottom: -1px; min-height: 2.2rem;
+}
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--accent-tint); }
+.panes { flex: 1 1 0; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pane { display: none; padding: 0.6rem 0.9rem 1rem; }
+.pane.active { display: block; }
+
+.chips { display: flex; gap: 0.25rem; margin-bottom: 0.55rem; }
+.chip {
+  flex: 1 1 0; min-width: 0; height: 2.1rem; border-radius: 6px;
+  border: 2px solid transparent; cursor: pointer; position: relative;
+  font-family: var(--mono); font-size: 0.66rem; font-weight: 700;
+  color: rgba(255,255,255,0.94); text-shadow: 0 1px 2px rgba(0,0,0,0.35);
+  display: grid; place-items: center; padding: 0;
+}
+.chip[aria-pressed="true"] { border-color: var(--fg); box-shadow: 0 0 0 2px var(--bg) inset; }
+
+.knob { display: grid; grid-template-columns: 4.1rem 1fr 3.2rem; align-items: center; gap: 0.4rem; margin: 0.18rem 0; }
+.knob label { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.knob output { font-family: var(--mono); font-size: 0.64rem; text-align: right; }
+input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 1.6rem; background: none; margin: 0; }
+input[type=range]::-webkit-slider-runnable-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-moz-range-track { height: 3px; background: var(--rule); border-radius: 2px; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: -10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+
+.row { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; margin-top: 0.5rem; }
+button.act, select.act {
+  font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule);
+  border-radius: 5px; padding: 0.42rem 0.6rem; cursor: pointer; min-height: 2rem;
+}
+button.act:hover, select.act:hover { border-color: var(--accent); color: var(--accent); }
+button.act[aria-pressed="true"] { background: var(--accent-faint); border-color: var(--accent); color: var(--accent); }
+.toggles { display: grid; grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: 0.35rem; }
+
+/* ---- the adjacency table ------------------------------------------------ */
+table.adj { border-collapse: collapse; margin: 0 auto; font-family: var(--mono); font-size: 0.6rem; }
+table.adj th { font-weight: 400; color: var(--muted); padding: 0 0.2rem; }
+table.adj th.f { width: 1.35rem; height: 1.35rem; }
+table.adj td { padding: 0; }
+table.adj button {
+  width: 1.9rem; height: 1.9rem; border: 1px solid var(--rule); background: var(--bg);
+  font-family: var(--mono); font-size: 0.66rem; color: var(--muted); cursor: pointer; padding: 0;
+}
+table.adj button.one { background: var(--accent-tint); color: var(--fg); }
+table.adj button.two { background: var(--accent); color: #fff; font-weight: 700; }
+table.adj button.self { background: none; border-color: transparent; cursor: default; }
+table.adj button[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: -2px; }
+.swatch { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 2px; vertical-align: -1px; }
+
+table.facts { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 0.66rem; }
+table.facts td { padding: 0.28rem 0.2rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+table.facts td:first-child { color: var(--muted); white-space: nowrap; padding-right: 0.5rem; }
+table.facts td:last-child { text-align: right; }
+.good { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+.note { font-size: 0.78rem; color: var(--muted); margin: 0.5rem 0 0; }
+.note b { color: var(--fg); }
+
+.prose { font-size: 0.86rem; }
+.prose h2 { font-family: var(--mono); font-size: 0.64rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); margin: 1.1rem 0 0.3rem; }
+.prose h2:first-child { margin-top: 0; }
+.prose p { margin: 0.45rem 0; }
+.prose a { color: var(--accent); text-decoration: none; }
+.prose a:hover { text-decoration: underline; }
+.prose code { font-family: var(--mono); font-size: 0.8em; background: var(--accent-tint); padding: 0.05em 0.3em; border-radius: 3px; }
+.crossref { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-top: 0.9rem; border-top: 1px solid var(--rule); padding-top: 0.6rem; }
+.crossref a { color: var(--accent); text-decoration: none; }
+
+@media (min-width: 860px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 26rem; border-top: none; border-left: 1px solid var(--rule); }
+  h1 { font-size: 1.4rem; }
+  .pane { padding: 0.8rem 1.1rem 1.6rem; }
+}
+@media (max-height: 460px) and (orientation: landscape) and (max-width: 859px) {
+  .app { flex-direction: row; }
+  .top { flex: 1 1 auto; }
+  .panel { flex: 0 0 min(52%, 22rem); border-top: none; border-left: 1px solid var(--rule); }
+}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="top">
+    <div class="head">
+      <a class="crumb" href="https://mino.mobi/">← mino.mobi</a>
+      <h1>equivelar</h1>
+      <span class="tagline">8 faces · all touching</span>
+    </div>
+    <div class="stage">
+      <canvas id="gl"></canvas>
+      <div class="verdict" id="verdict">—</div>
+      <div class="hint" id="hint">drag · pinch · two-finger pan</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-pane="pairs">pairs</button>
+      <button class="tab" data-pane="shape">shape</button>
+      <button class="tab" data-pane="view">view</button>
+      <button class="tab" data-pane="check">check</button>
+      <button class="tab" data-pane="about">about</button>
+    </nav>
+    <div class="panes">
+
+      <div class="pane active" id="pane-pairs">
+        <div id="adjHolder"></div>
+        <p class="note" id="pairNote"></p>
+      </div>
+
+      <div class="pane" id="pane-shape">
+        <div class="chips" id="chips"></div>
+        <div class="knob"><label for="tiltA">tilt ↻</label>
+          <input type="range" id="tiltA" min="-0.15" max="0.15" step="0.0005" value="0"><output id="tiltAv">0.0°</output></div>
+        <div class="knob"><label for="tiltB">tilt ↺</label>
+          <input type="range" id="tiltB" min="-0.15" max="0.15" step="0.0005" value="0"><output id="tiltBv">0.0°</output></div>
+        <div class="knob"><label for="slide">slide</label>
+          <input type="range" id="slide" min="-0.15" max="0.15" step="0.0005" value="0"><output id="slidev">0.000</output></div>
+        <div class="row">
+          <button class="act" id="lock" aria-pressed="true">S₄ lock</button>
+          <button class="act" id="randomise">jiggle</button>
+          <button class="act" id="reset">reset</button>
+        </div>
+        <p class="note" id="shapeNote"></p>
+      </div>
+
+      <div class="pane" id="pane-view">
+        <div class="toggles" id="viewToggles"></div>
+        <p class="note">One finger turns it, two fingers pinch to zoom and drag to pan; a mouse wheel zooms, a double-tap recentres. Pick a pair on the <i>pairs</i> tab to keep just those two faces lit and see the edge — or the two edges — they hold in common.</p>
+      </div>
+
+      <div class="pane" id="pane-check">
+        <table class="facts"><tbody id="checks"></tbody></table>
+        <p class="note">Measured from the eight planes on screen, every frame. The published certificate is re-verified in <b>exact integer arithmetic</b> by <code>poly.selftest.mjs</code> — every quantity in that part stays below 2⁵³, so no rounding can occur and no tolerance is used.</p>
+      </div>
+
+      <div class="pane prose" id="pane-about">
+        <h2>More than seven</h2>
+        <p>The tetrahedron has four faces and every pair of them shares an edge. The <a href="https://math.mino.mobi/szilassi/">Szilassi polyhedron</a> has seven and does the same, on a torus. For decades those were the only two known, and whether any solid with <em>more</em> than seven faces could manage it was open.</p>
+        <p>This one has <strong>eight</strong>. Eight planar nonagons on a surface of genus three, 24 corners, 36 edges, three faces at every corner, and all <strong>28</strong> pairs of faces adjacent. It was published in September 2026 by Ruslan Mizhaev as an <a href="https://arxiv.org/abs/2609.17700">integer certificate</a> — every corner an integer point, every plane an integer equation — so it can be checked by hand, which is what the <em>check</em> tab and this page's selftest do.</p>
+
+        <h2>The loophole, and it is a real one</h2>
+        <p>The classical count says a solid on a surface with <code>h</code> holes whose <code>f</code> faces all touch needs <code>h = (f−4)(f−3)/12</code>, which is a whole number only for <code>f</code> ≡ 0, 3, 4, 7 (mod 12). Eight is not in that list — so how?</p>
+        <p>Because that count assumes each pair of faces shares <strong>exactly one</strong> edge. Here twenty pairs do, and <strong>eight pairs share two</strong>. Grünbaum and Szilassi call such faces <em>overarching</em>, and set them aside by assumption; this solid is what you get when you don't. The <em>pairs</em> tab is the whole story in one table: every cell filled, eight of them holding a 2. Both edges of an overarching pair lie on the single line where the two faces' planes cross — they reach past each other and come back.</p>
+        <p>So it answers the question as usually written, and it does not settle the question the formula was about. Both of those are worth saying. The <code>f = 12</code>, <code>h = 6</code> case — 44 corners, 66 edges, every pair meeting exactly once — is still nobody's.</p>
+
+        <h2>Eight planes, seventeen freedoms</h2>
+        <p>Every corner has three faces, so every corner is where three face planes cross, and <strong>eight planes are the entire solid</strong> — the same trick the Szilassi page runs on seven. Eight planes × three numbers = 24; the similarities of space use 7; so this shape has <strong>17</strong> freedoms where its seven-faced cousin has 14. The <em>shape</em> tab hands them to you three at a time.</p>
+        <p>It is a far tighter object, though. Szilassi's solid has room to be pushed about; this one has <strong>4.1%</strong> of its radius between the nearest edge and the nearest face it does not belong to, and nudging all eight planes by a twentieth of the radius breaks it more often than not. Try the sliders and watch how quickly the verdict turns red.</p>
+
+        <h2>The symmetry is not a rotation</h2>
+        <p>The paper gives the symmetry <code>T(x, y, z) = (y, −x, −z)</code> and notes ⟨T⟩ ≅ C₄, which is true as an abstract group. Worth being precise about what it is geometrically: its determinant is −1, so it is a four-fold <strong>rotary reflection</strong> — a quarter turn about the axis followed by a reflection across the plane through it — and it reverses the walk of all eight faces. Its square is the honest half-turn. In Schoenflies notation the point group is <strong>S₄</strong>, not C₄.</p>
+        <p>That has a consequence you can feel on the sliders: locking the symmetry is <em>not</em> a matter of copying one plane's knobs round its orbit. An improper map turns a tilt into the opposite tilt, so the sign flips at every step — and comes back after two, because T² is proper. With the lock on, two planes are free and four shape freedoms remain.</p>
+
+        <h2>Eight colours</h2>
+        <p>Every face touches every other, so no two may share a colour and eight are needed. Heawood's bound allows a map on a genus-3 surface up to nine — this one uses eight of them and touches everywhere.</p>
+
+        <div class="crossref">
+          the seven-faced case ·
+          <a href="https://math.mino.mobi/szilassi/">szilassi</a> · its dual ·
+          <a href="https://math.mino.mobi/csaszar/">császár</a> · sisters ·
+          <a href="https://mino.mobi/geometry/">geometry</a> ·
+          <a href="https://mino.mobi/cohomology/">cohomology</a> ·
+          <a href="https://mino.mobi/voronoi/">voronoi</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import * as P from './poly.js';
+
+const $ = (id) => document.getElementById(id);
+
+const state = {
+  knobs: P.ZERO_KNOBS(),
+  face: 0,
+  lock: true,
+  pair: null,             // [f, g] highlighted from the pairs table
+  show: { faces: true, edges: true, corners: true },
+  spin: true,
+};
+
+// ============================================================ the renderer ==
+const canvas = $('gl');
+const gl = canvas.getContext('webgl', { antialias: true, alpha: false });
+if (!gl) {
+  canvas.remove();
+  const d = document.createElement('div');
+  d.className = 'nogl';
+  d.textContent = 'This page draws the solid with WebGL, which this browser has not offered. The maths still lives in poly.js.';
+  document.querySelector('.stage').appendChild(d);
+}
+
+const VERT = `
+attribute vec3 aPos;
+attribute vec3 aNormal;
+attribute vec3 aColor;
+uniform mat4 uMVP;
+uniform mat3 uNormalMat;
+varying vec3 vNormal;
+varying vec3 vColor;
+void main() {
+  vNormal = uNormalMat * aNormal;
+  vColor = aColor;
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}`;
+
+const FRAG = `
+precision mediump float;
+varying vec3 vNormal;
+varying vec3 vColor;
+uniform float uFlat;
+void main() {
+  vec3 n = normalize(vNormal);
+  bool back = !gl_FrontFacing;
+  if (back) n = -n;
+  float key  = max(dot(n, normalize(vec3(0.35, 0.55, 0.80))), 0.0);
+  float fill = max(dot(n, normalize(vec3(-0.70, -0.25, 0.35))), 0.0);
+  float rim  = max(dot(n, normalize(vec3(0.10, -0.60, -0.55))), 0.0);
+  float lit = 0.40 + 0.58 * key + 0.24 * fill + 0.12 * rim;
+  vec3 c = vColor * mix(lit, 1.0, uFlat);
+  if (back && uFlat < 0.5) c = c * 0.55 + vec3(0.0, 0.012, 0.035);
+  gl_FragColor = vec4(c, 1.0);
+}`;
+
+let prog, loc, buf;
+if (gl) {
+  const compile = (type, src) => {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  };
+  prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog));
+  gl.useProgram(prog);
+  loc = {
+    aPos: gl.getAttribLocation(prog, 'aPos'),
+    aNormal: gl.getAttribLocation(prog, 'aNormal'),
+    aColor: gl.getAttribLocation(prog, 'aColor'),
+    uMVP: gl.getUniformLocation(prog, 'uMVP'),
+    uNormalMat: gl.getUniformLocation(prog, 'uNormalMat'),
+    uFlat: gl.getUniformLocation(prog, 'uFlat'),
+  };
+  buf = gl.createBuffer();
+  gl.enable(gl.DEPTH_TEST);
+  gl.disable(gl.CULL_FACE);
+}
+
+const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
+const RGB = P.FACE_COLOURS.map(hex);
+const darkMode = () => matchMedia('(prefers-color-scheme: dark)').matches;
+const inkColour = () => (darkMode() ? [0.86, 0.86, 0.9] : [0.1, 0.1, 0.12]);
+const bgColour = () => (darkMode() ? [0.035, 0.035, 0.047] : [0.925, 0.918, 0.89]);
+
+function buildGeometry(V) {
+  const planes = P.planesFromVertices(V);
+  const { radius } = P.bounds(V);
+  const out = [];
+  const push = (p, n, c) => { out.push(p[0], p[1], p[2], n[0], n[1], n[2], c[0], c[1], c[2]); };
+  const bg = bgColour();
+  const dim = (c) => c.map((x, i) => x * 0.18 + bg[i] * 0.82);
+  const lit = (f) => !state.pair || state.pair.includes(f);
+
+  let faceVerts = 0;
+  if (state.show.faces) {
+    P.FACES.forEach((face, f) => {
+      const n = planes[f].n;
+      const colour = lit(f) ? RGB[f] : dim(RGB[f]);
+      for (const t of P.triangulateFace(V, face, planes[f])) {
+        for (const i of t) push(V[i], n, colour);
+        faceVerts += 3;
+      }
+    });
+  }
+  const wireStart = faceVerts;
+  const ink = inkColour();
+  const hotEdges = new Set(
+    state.pair ? P.PAIR_EDGES[state.pair[0]][state.pair[1]].map(([a, b]) => `${Math.min(a, b)},${Math.max(a, b)}`) : [],
+  );
+  if (state.show.edges) {
+    for (const [a, b] of P.EDGES) {
+      const hot = hotEdges.has(`${Math.min(a, b)},${Math.max(a, b)}`);
+      tube(V[a], V[b], (hot ? 0.017 : 0.0062) * radius, hot ? [0.95, 0.25, 0.15] : ink, push);
+    }
+  }
+  if (state.show.corners) for (let i = 0; i < 24; i++) ball(V[i], 0.013 * radius, ink, push);
+  return { data: new Float32Array(out), faceVerts, wireStart, wireVerts: out.length / 9 - wireStart };
+}
+
+function tube(a, b, r, colour, push) {
+  const axis = P.sub(b, a), L = P.len(axis);
+  if (!(L > 0)) return;
+  const u = P.mul(axis, 1 / L);
+  const t = Math.abs(u[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
+  const e1 = P.unit(P.cross(u, t)), e2 = P.cross(u, e1);
+  const N = 8, ring = [];
+  for (let i = 0; i < N; i++) {
+    const th = (i / N) * Math.PI * 2;
+    ring.push(P.add(P.mul(e1, Math.cos(th) * r), P.mul(e2, Math.sin(th) * r)));
+  }
+  for (let i = 0; i < N; i++) {
+    const p = ring[i], q = ring[(i + 1) % N];
+    const n1 = P.unit(p), n2 = P.unit(q);
+    const A = P.add(a, p), B = P.add(a, q), C = P.add(b, q), D = P.add(b, p);
+    push(A, n1, colour); push(B, n2, colour); push(C, n2, colour);
+    push(A, n1, colour); push(C, n2, colour); push(D, n1, colour);
+  }
+}
+
+const BALL = (() => {
+  const o = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+  let tris = [];
+  for (const a of [4, 5]) for (const b of [0, 2, 1, 3]) {
+    const c = a === 4 ? { 0: 2, 2: 1, 1: 3, 3: 0 }[b] : { 0: 3, 3: 1, 1: 2, 2: 0 }[b];
+    tris.push([o[a], o[b], o[c]]);
+  }
+  const next = [];
+  for (const [a, b, c] of tris) {
+    const ab = P.unit(P.add(a, b)), bc = P.unit(P.add(b, c)), ca = P.unit(P.add(c, a));
+    next.push([a, ab, ca], [ab, b, bc], [ca, bc, c], [ab, bc, ca]);
+  }
+  return next;
+})();
+function ball(centre, r, colour, push) {
+  for (const t of BALL) for (const n of t) push(P.add(centre, P.mul(n, r)), n, colour);
+}
+
+// ---------------------------------------------------------------- camera ----
+const cam = { yaw: 0.7, pitch: 0.55, zoom: 1, pan: [0, 0], spun: 0, fit: 3, centre: 0 };
+const HOME = { yaw: cam.yaw, pitch: cam.pitch, zoom: cam.zoom };
+const FOVY = 0.85;
+let fitCache = { key: '', dist: 3, shift: 0 };
+function fitDistance(pitch, aspect) {
+  const key = `${pitch.toFixed(4)}|${aspect.toFixed(3)}|${fitVersion}`;
+  if (fitCache.key === key) return fitCache;
+  const tanV = Math.tan(FOVY / 2), tanH = tanV * aspect;
+  const cp = Math.cos(pitch), sp = Math.sin(pitch);
+  const seen = [];
+  for (let i = 0; i < 48; i++) {
+    const yaw = (i / 48) * Math.PI * 2, cy = Math.cos(yaw), sy = Math.sin(yaw);
+    const right = [cy, 0, -sy], up = [-sy * sp, cp, -cy * sp], back = [sy * cp, sp, cy * cp];
+    for (const v of normVerts) {
+      seen.push([
+        right[0] * v[0] + right[1] * v[1] + right[2] * v[2],
+        up[0] * v[0] + up[1] * v[1] + up[2] * v[2],
+        back[0] * v[0] + back[1] * v[1] + back[2] * v[2],
+      ]);
+    }
+  }
+  const need = (s) => {
+    let d = 0;
+    for (const [x, y, z] of seen) {
+      const a = z + Math.abs(x) / tanH, b = z + Math.abs(y - s) / tanV;
+      if (a > d) d = a;
+      if (b > d) d = b;
+    }
+    return d;
+  };
+  let lo = -1.2, hi = 1.2;
+  for (let i = 0; i < 28; i++) {
+    const m1 = lo + (hi - lo) / 3, m2 = hi - (hi - lo) / 3;
+    if (need(m1) < need(m2)) hi = m2; else lo = m1;
+  }
+  const dist = Math.max(1.25, need((lo + hi) / 2) * 1.09);
+  const offset = (s) => {
+    let a = Infinity, b = -Infinity;
+    for (const [, y, z] of seen) {
+      const yp = (y - s) / (dist - z);
+      if (yp < a) a = yp;
+      if (yp > b) b = yp;
+    }
+    return a + b;
+  };
+  let slo = -1.5, shi = 1.5;
+  for (let i = 0; i < 40; i++) {
+    const mid = (slo + shi) / 2;
+    if (offset(mid) > 0) slo = mid; else shi = mid;
+  }
+  fitCache = { key, dist, shift: (slo + shi) / 2 };
+  return fitCache;
+}
+function mat4Multiply(a, b) {
+  const o = new Float32Array(16);
+  for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) {
+    let s = 0;
+    for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k];
+    o[i * 4 + j] = s;
+  }
+  return o;
+}
+function perspective(fovy, aspect, near, far) {
+  const f = 1 / Math.tan(fovy / 2), nf = 1 / (near - far);
+  return new Float32Array([f / aspect, 0, 0, 0, 0, f, 0, 0, 0, 0, (far + near) * nf, -1, 0, 0, 2 * far * near * nf, 0]);
+}
+function viewMatrix() {
+  const cy = Math.cos(cam.yaw + cam.spun), sy = Math.sin(cam.yaw + cam.spun);
+  const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+  const right = [cy, 0, -sy], up = [-sy * sp, cp, -cy * sp], back = [sy * cp, sp, cy * cp];
+  const eye = P.mul(back, cam.zoom * cam.fit);
+  const t = [
+    -P.dot(right, eye) - cam.pan[0],
+    -P.dot(up, eye) - cam.pan[1] - cam.centre,
+    -P.dot(back, eye),
+  ];
+  return {
+    view: new Float32Array([
+      right[0], up[0], back[0], 0, right[1], up[1], back[1], 0,
+      right[2], up[2], back[2], 0, t[0], t[1], t[2], 1,
+    ]),
+    normal: new Float32Array([right[0], up[0], back[0], right[1], up[1], back[1], right[2], up[2], back[2]]),
+  };
+}
+
+// ------------------------------------------------------------------ draw ----
+let geo = null, frame = 0, needDraw = true, lastVerts = null;
+let modelRadius = 1, modelCentre = [0, 0, 0], normVerts = [[1, 0, 0]], fitVersion = 0;
+
+function resize() {
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const w = Math.max(1, Math.round(canvas.clientWidth * dpr));
+  const h = Math.max(1, Math.round(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; needDraw = true; }
+}
+function draw() {
+  if (!gl) return;
+  resize();
+  gl.viewport(0, 0, canvas.width, canvas.height);
+  const bg = getComputedStyle(document.body).backgroundColor.match(/[\d.]+/g).map(Number);
+  gl.clearColor(bg[0] / 255, bg[1] / 255, bg[2] / 255, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (!geo || !geo.data.length) return;
+  ({ dist: cam.fit, shift: cam.centre } = fitDistance(cam.pitch, canvas.width / canvas.height));
+  const { view, normal } = viewMatrix();
+  const s = 1 / modelRadius;
+  const model = new Float32Array([s, 0, 0, 0, 0, s, 0, 0, 0, 0, s, 0,
+    -modelCentre[0] * s, -modelCentre[1] * s, -modelCentre[2] * s, 1]);
+  const proj = perspective(FOVY, canvas.width / canvas.height, 0.02, 60);
+  const mvp = mat4Multiply(proj, mat4Multiply(view, model));
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, geo.data, gl.DYNAMIC_DRAW);
+  const stride = 9 * 4;
+  gl.enableVertexAttribArray(loc.aPos);
+  gl.vertexAttribPointer(loc.aPos, 3, gl.FLOAT, false, stride, 0);
+  gl.enableVertexAttribArray(loc.aNormal);
+  gl.vertexAttribPointer(loc.aNormal, 3, gl.FLOAT, false, stride, 12);
+  gl.enableVertexAttribArray(loc.aColor);
+  gl.vertexAttribPointer(loc.aColor, 3, gl.FLOAT, false, stride, 24);
+  gl.uniformMatrix4fv(loc.uMVP, false, mvp);
+  gl.uniformMatrix3fv(loc.uNormalMat, false, normal);
+  if (geo.faceVerts) { gl.uniform1f(loc.uFlat, 0); gl.drawArrays(gl.TRIANGLES, 0, geo.faceVerts); }
+  if (geo.wireVerts) { gl.uniform1f(loc.uFlat, 0.4); gl.drawArrays(gl.TRIANGLES, geo.wireStart, geo.wireVerts); }
+}
+function loop() {
+  frame = requestAnimationFrame(loop);
+  if (state.spin) { cam.spun += 0.0035; needDraw = true; }
+  if (needDraw) { needDraw = false; draw(); }
+}
+
+// ======================================================= shape -> screen ====
+let dofTimer = 0, dofFree = null, dofSym = null;
+function rebuild() {
+  const V = P.build(state.knobs);
+  const info = V ? P.inspect(V) : { ok: false, reason: 'three faces of a corner became parallel', clearance: -1, minDihedral: 0, volume: 0, planarity: 0 };
+  if (V) {
+    lastVerts = V;
+    const b = P.bounds(V);
+    modelRadius = b.radius; modelCentre = b.centre;
+    normVerts = V.map((p) => P.mul(P.sub(p, b.centre), 1 / b.radius));
+    fitVersion++;
+    geo = buildGeometry(V);
+  }
+  needDraw = true;
+  const v = $('verdict');
+  v.className = 'verdict ' + (info.ok ? 'solid' : 'broken');
+  v.textContent = info.ok ? `a solid · ${(info.clearance * 100).toFixed(1)}% clearance` : `not a solid · ${info.reason}`;
+  clearTimeout(dofTimer);
+  dofTimer = setTimeout(() => {
+    dofFree = P.degreesOfFreedom(state.knobs);
+    dofSym = P.isSymmetric(state.knobs) ? P.degreesOfFreedom(state.knobs, { symmetric: true }) : null;
+    writeChecks(info);
+  }, 200);
+  writeChecks(info);
+  writeShapeNote();
+  pushURL();
+}
+
+function writeChecks(info) {
+  let ones = 0, twos = 0;
+  for (let f = 0; f < 8; f++) for (let g = f + 1; g < 8; g++) {
+    const k = P.PAIR_EDGES[f][g].length;
+    if (k === 1) ones++; else if (k === 2) twos++;
+  }
+  const chi = 24 - P.EDGES.length + 8;
+  const rows = [
+    ['verdict', info.ok ? '<b class="good">a solid</b>' : `<b class="bad">broken</b><br><span class="bad">${info.reason}</span>`],
+    ['clearance', info.ok ? `${(info.clearance * 100).toFixed(2)}% of radius` : '<span class="bad">—</span>'],
+    ['sharpest crease', `${info.minDihedral.toFixed(1)}°`],
+    ['faces flat to', `${info.planarity.toExponential(1)}`],
+    ['—', ''],
+    ['faces · edges · corners', `8 · ${P.EDGES.length} · 24`],
+    ['V − E + F', `${chi} <span style="color:var(--muted)">(genus ${(2 - chi) / 2})</span>`],
+    ['face pairs adjacent', `<b class="good">${ones + twos} / 28</b>`],
+    ['…sharing one edge', `${ones}`],
+    ['…sharing two', `<b class="warn">${twos}</b> <span style="color:var(--muted)">overarching</span>`],
+    ['every face is a', 'nonagon'],
+    ['every corner meets', '3 faces'],
+    ['—', ''],
+    ['shape degrees of freedom', dofFree ? `<b>${dofFree.shapes}</b> <span style="color:var(--muted)">= ${dofFree.moves} − ${dofFree.rigid}</span>` : '…'],
+    ['…with the S₄ lock', dofSym ? `<b>${dofSym.shapes}</b> <span style="color:var(--muted)">= ${dofSym.moves} − ${dofSym.rigid}</span>` : '<span style="color:var(--muted)">not symmetric</span>'],
+    ['rotary-reflection symmetry', P.isSymmetric(state.knobs) ? '<b class="good">yes</b>' : '<span style="color:var(--muted)">no</span>'],
+    ['enclosed volume', `${Math.round(info.volume).toLocaleString()}`],
+  ];
+  $('checks').innerHTML = rows.map(([k, val]) => (k === '—'
+    ? '<tr><td colspan="2" style="border:none;height:0.5rem"></td></tr>'
+    : `<tr><td>${k}</td><td>${val}</td></tr>`)).join('');
+}
+
+function writeShapeNote() {
+  const f = state.face + 1;
+  const orbit = P.S4.orbits.find((o) => o.includes(state.face));
+  $('shapeNote').innerHTML = state.lock
+    ? `Face ${f} moves with its orbit — ${orbit.map((x) => `F${x + 1}`).join(', ')} — and because the symmetry is a <i>rotary reflection</i> the tilt flips sign at every step round it. <b>4</b> shape freedoms live.`
+    : `Face ${f}'s plane, on its own. All <b>17</b> freedoms are live — and every nonagon stays flat whatever you do, because the planes <i>are</i> the model.`;
+}
+
+// ---- the adjacency table ---------------------------------------------------
+{
+  const t = document.createElement('table');
+  t.className = 'adj';
+  let html = '<tr><th></th>';
+  for (let g = 0; g < 8; g++) html += `<th class="f"><span class="swatch" style="background:${P.FACE_COLOURS[g]}"></span></th>`;
+  html += '</tr>';
+  for (let f = 0; f < 8; f++) {
+    html += `<tr><th class="f"><span class="swatch" style="background:${P.FACE_COLOURS[f]}"></span></th>`;
+    for (let g = 0; g < 8; g++) {
+      if (f === g) { html += '<td><button class="self" disabled>·</button></td>'; continue; }
+      const k = P.PAIR_EDGES[f][g].length;
+      html += `<td><button class="${k === 2 ? 'two' : 'one'}" data-f="${f}" data-g="${g}" aria-label="faces ${f + 1} and ${g + 1} share ${k} edge${k > 1 ? 's' : ''}">${k}</button></td>`;
+    }
+    html += '</tr>';
+  }
+  t.innerHTML = html;
+  $('adjHolder').appendChild(t);
+  t.addEventListener('click', (e) => {
+    const b = e.target.closest('button[data-f]');
+    if (!b) return;
+    const f = +b.dataset.f, g = +b.dataset.g;
+    state.pair = (state.pair && state.pair[0] === Math.min(f, g) && state.pair[1] === Math.max(f, g))
+      ? null : [Math.min(f, g), Math.max(f, g)];
+    syncControls();
+    rebuild();
+  });
+}
+function writePairNote() {
+  const cells = document.querySelectorAll('#adjHolder button[data-f]');
+  for (const c of cells) {
+    const f = +c.dataset.f, g = +c.dataset.g;
+    const on = state.pair && state.pair.includes(f) && state.pair.includes(g);
+    c.setAttribute('aria-pressed', String(!!on));
+  }
+  if (!state.pair) {
+    $('pairNote').innerHTML = 'Every cell is filled: all <b>28</b> pairs of faces share an edge, which no solid with more than seven faces was known to manage. The <b>eight</b> dark cells share <i>two</i> — those are the overarching pairs, and they are how eight faces get round a count that forbids them. Tap a cell to light that pair up.';
+    return;
+  }
+  const [f, g] = state.pair;
+  const es = P.PAIR_EDGES[f][g];
+  $('pairNote').innerHTML =
+    `<span class="swatch" style="background:${P.FACE_COLOURS[f]}"></span> F${f + 1} and ` +
+    `<span class="swatch" style="background:${P.FACE_COLOURS[g]}"></span> F${g + 1} share ` +
+    (es.length === 2
+      ? `<b>two</b> edges — ${es.map(([a, b]) => `${a + 1}–${b + 1}`).join(' and ')} — both of them on the single line where the two planes cross. The faces reach past one another and come back.`
+      : `one edge, ${es.map(([a, b]) => `${a + 1}–${b + 1}`).join('')}.`) +
+    ' Tap again to clear.';
+}
+
+// ============================================================== controls ====
+const chips = $('chips');
+P.FACE_COLOURS.forEach((c, i) => {
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.style.background = c;
+  b.textContent = String(i + 1);
+  b.setAttribute('aria-pressed', i === 0 ? 'true' : 'false');
+  b.setAttribute('aria-label', `face ${i + 1}`);
+  b.addEventListener('click', () => { state.face = i; syncControls(); rebuild(); });
+  chips.appendChild(b);
+});
+for (const [id, k] of [['tiltA', 0], ['tiltB', 1], ['slide', 2]]) {
+  $(id).addEventListener('input', () => {
+    let kn = state.knobs.map((r) => r.slice());
+    kn[state.face][k] = Number($(id).value);
+    if (state.lock) kn = P.symmetrize(kn, state.face);
+    state.knobs = kn;
+    syncOutputs();
+    rebuild();
+  });
+}
+function syncOutputs() {
+  const k = state.knobs[state.face];
+  $('tiltA').value = k[0]; $('tiltAv').textContent = `${((k[0] * 180) / Math.PI).toFixed(1)}°`;
+  $('tiltB').value = k[1]; $('tiltBv').textContent = `${((k[1] * 180) / Math.PI).toFixed(1)}°`;
+  $('slide').value = k[2]; $('slidev').textContent = k[2].toFixed(3);
+}
+function syncControls() {
+  [...chips.children].forEach((b, i) => b.setAttribute('aria-pressed', String(i === state.face)));
+  $('lock').setAttribute('aria-pressed', String(state.lock));
+  for (const [id, key] of [['tFaces', 'faces'], ['tEdges', 'edges'], ['tCorners', 'corners']]) {
+    const el = $(id);
+    if (el) el.setAttribute('aria-pressed', String(state.show[key]));
+  }
+  if ($('tSpin')) $('tSpin').setAttribute('aria-pressed', String(state.spin));
+  syncOutputs();
+  writeShapeNote();
+  writePairNote();
+}
+$('lock').addEventListener('click', () => {
+  state.lock = !state.lock;
+  if (state.lock) state.knobs = P.symmetrize(state.knobs, state.face);
+  syncControls(); rebuild();
+});
+$('reset').addEventListener('click', () => { state.knobs = P.ZERO_KNOBS(); syncControls(); rebuild(); });
+$('randomise').addEventListener('click', () => {
+  const base = state.knobs;
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const amp = 0.02 * (1 - attempt / 90);
+    let kn = base.map((r) => r.map((x) => x + (Math.random() * 2 - 1) * amp));
+    if (state.lock) kn = P.symmetrize(kn, state.face);
+    const V = P.build(kn);
+    if (V && P.inspect(V).ok) { state.knobs = kn; break; }
+  }
+  syncControls(); rebuild();
+});
+for (const tab of document.querySelectorAll('.tab')) {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
+    document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('active', p.id === `pane-${tab.dataset.pane}`));
+  });
+}
+{
+  const holder = $('viewToggles');
+  const mk = (id, label, on) => {
+    const b = document.createElement('button');
+    b.className = 'act'; b.id = id; b.textContent = label;
+    b.setAttribute('aria-pressed', String(on));
+    holder.appendChild(b);
+    return b;
+  };
+  for (const [id, label, key] of [['tFaces', 'faces', 'faces'], ['tEdges', 'edges', 'edges'], ['tCorners', 'corners', 'corners']]) {
+    mk(id, label, state.show[key]).addEventListener('click', () => {
+      state.show[key] = !state.show[key]; syncControls(); rebuild();
+    });
+  }
+  mk('tSpin', 'spin', state.spin).addEventListener('click', () => { state.spin = !state.spin; syncControls(); needDraw = true; });
+  mk('tClear', 'clear pair', false).addEventListener('click', () => { state.pair = null; syncControls(); rebuild(); });
+  mk('tHome', 'recentre', false).addEventListener('click', home);
+}
+
+// ========================================================== the gestures ====
+const pointers = new Map();
+let pinch = null, lastTap = 0;
+canvas.addEventListener('pointerdown', (e) => {
+  canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  $('hint').classList.add('gone');
+  if (pointers.size === 1) {
+    const now = performance.now();
+    if (now - lastTap < 320) home();
+    lastTap = now;
+    if (state.spin) { state.spin = false; syncControls(); }
+  }
+  if (pointers.size === 2) pinch = gesture();
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (!pointers.has(e.pointerId)) return;
+  const prev = pointers.get(e.pointerId);
+  pointers.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pointers.size === 1) {
+    cam.yaw -= (e.clientX - prev[0]) * 0.008;
+    cam.pitch = Math.max(-1.52, Math.min(1.52, cam.pitch + (e.clientY - prev[1]) * 0.008));
+    needDraw = true;
+  } else if (pointers.size === 2 && pinch) {
+    const g = gesture();
+    cam.zoom = Math.max(0.42, Math.min(4, cam.zoom * (pinch.span / g.span)));
+    const k = 0.0032 * cam.zoom * cam.fit;
+    cam.pan[0] -= (g.cx - pinch.cx) * k;
+    cam.pan[1] += (g.cy - pinch.cy) * k;
+    pinch = g;
+    needDraw = true;
+  }
+});
+for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, (e) => {
+  pointers.delete(e.pointerId);
+  pinch = pointers.size === 2 ? gesture() : null;
+});
+function gesture() {
+  const [a, b] = [...pointers.values()];
+  return { span: Math.max(1, Math.hypot(a[0] - b[0], a[1] - b[1])), cx: (a[0] + b[0]) / 2, cy: (a[1] + b[1]) / 2 };
+}
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  cam.zoom = Math.max(0.42, Math.min(4, cam.zoom * Math.exp(e.deltaY * 0.0012)));
+  needDraw = true;
+}, { passive: false });
+function home() { Object.assign(cam, HOME, { pan: [0, 0] }); cam.spun = 0; needDraw = true; }
+addEventListener('keydown', (e) => {
+  const step = 0.09;
+  if (e.key === 'ArrowLeft') cam.yaw -= step;
+  else if (e.key === 'ArrowRight') cam.yaw += step;
+  else if (e.key === 'ArrowUp') cam.pitch = Math.min(1.52, cam.pitch + step);
+  else if (e.key === 'ArrowDown') cam.pitch = Math.max(-1.52, cam.pitch - step);
+  else if (e.key === '+' || e.key === '=') cam.zoom = Math.max(0.42, cam.zoom / 1.12);
+  else if (e.key === '-') cam.zoom = Math.min(4, cam.zoom * 1.12);
+  else if (e.key === '0') home();
+  else return;
+  e.preventDefault(); needDraw = true;
+});
+
+// ================================================== every shape is a URL ====
+function pushURL() {
+  const flat = state.knobs.flat().map((x) => (Math.abs(x) < 5e-5 ? '0' : x.toFixed(4))).join(',');
+  const zero = new Array(24).fill('0').join(',');
+  const parts = [];
+  if (flat !== zero) parts.push(`k=${flat}${state.lock ? '' : '&free=1'}`);
+  if (state.pair) parts.push(`p=${state.pair[0]}${state.pair[1]}`);
+  history.replaceState(null, '', parts.length ? `#${parts.join('&')}` : location.pathname);
+}
+function readURL() {
+  const m = /[#&]k=([-\d.,]+)/.exec(location.hash);
+  if (m) {
+    const nums = m[1].split(',').map(Number);
+    if (nums.length === 24 && nums.every(Number.isFinite)) {
+      state.knobs = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => nums.slice(i * 3, i * 3 + 3));
+      state.lock = !/[#&]free=1/.test(location.hash) && P.isSymmetric(state.knobs, 1e-3);
+    }
+  }
+  const p = /[#&]p=(\d)(\d)/.exec(location.hash);
+  if (p && +p[1] < 8 && +p[2] < 8 && p[1] !== p[2]) state.pair = [+p[1], +p[2]].sort((a, b) => a - b);
+}
+
+// ======================================================================= go =
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => rebuild());
+addEventListener('resize', () => { needDraw = true; });
+new ResizeObserver(() => { needDraw = true; }).observe(canvas);
+
+readURL();
+syncControls();
+rebuild();
+if (gl) frame = requestAnimationFrame(loop);
+setTimeout(() => $('hint').classList.add('gone'), 6000);
+
+window.equivelar = { P, state, cam, rebuild, get verts() { return lastVerts; } };
+</script>
+</body>
+</html>

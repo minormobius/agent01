@@ -1104,6 +1104,24 @@
           "group": "tilings and loops"
         },
         {
+          "u": "math.mino.mobi/szilassi",
+          "action": "keep",
+          "group": "tilings and loops",
+          "note": "seven hexagons on a torus, every pair touching; the 7-colour map as a solid"
+        },
+        {
+          "u": "math.mino.mobi/csaszar",
+          "action": "keep",
+          "group": "tilings and loops",
+          "note": "the dual of szilassi: seven corners, no diagonals, and a realization space in separate pieces"
+        },
+        {
+          "u": "math.mino.mobi/equivelar",
+          "action": "keep",
+          "group": "tilings and loops",
+          "note": "eight faces all touching on a genus-3 surface; the first past szilassi's seven, via overarching pairs"
+        },
+        {
           "u": "mino.mobi/markov",
           "action": "keep",
           "group": "dynamics"

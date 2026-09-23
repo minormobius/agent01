@@ -4305,6 +4305,57 @@
         "jev",
         "svg"
       ]
+    },
+    {
+      "n": "szilassi",
+      "u": "https://math.mino.mobi/szilassi/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-21",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Seven hexagons on a torus, every one of them sharing an edge with every other — which is why a map on a torus can need seven colours, and why this and the tetrahedron are the only two solids known where every face touches every other. Spin it, pinch it, look through the tunnel. Each corner is where three face planes cross and there are only seven planes, so the shape is not one solid but a 14-parameter family: pick a face, tilt its plane, and watch the whole thing re-form around it — still exactly flat, until you push far enough that it stops being a solid at all and the verdict says which two faces crossed.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
+    },
+    {
+      "n": "csaszar",
+      "u": "https://math.mino.mobi/csaszar/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-21",
+      "b": "2026-09-21",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Seven corners with no diagonals — every segment between two of them is already an edge, which only the tetrahedron manages otherwise, and only a torus makes room for a second. The dual of szilassi, and the mirror of its puzzle: there the seven faces have to stay flat and seven planes make that free; here the faces are triangles, so flatness costs nothing and you can drag the corners anywhere. Both come out at fourteen shape freedoms. What you cannot do is travel: for each of the 35 quadruples of corners record which side of a plane the fourth lies on, and those signs can never change while the thing stays a solid — so the realizations sit in separate pieces, and the walk tab shows you the wall. Four published ones ship; a census of 24 million random rolls finds 62 of the 72 that exist.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
+    },
+    {
+      "n": "equivelar",
+      "u": "https://math.mino.mobi/equivelar/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-22",
+      "b": "2026-09-22",
+      "p": "geometry",
+      "surface": "math",
+      "d": "Eight nonagons on a surface of genus three, every pair of them sharing an edge — which the tetrahedron manages with four and the Szilassi polyhedron with seven, and nothing was known to manage with more until September 2026. It gets past the count that forbids eight by letting eight of the 28 pairs meet TWICE: overarching faces, which the classical statement assumes away. Published as an integer certificate — every corner an integer point, every plane an integer equation — and re-derived here in exact integer arithmetic, no tolerance anywhere. The adjacency table is the whole story in one grid: every cell filled, eight of them holding a 2. Tilt the eight planes and watch how little room it has; it is a far more fragile thing than its seven-faced cousin.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
     }
   ],
   "notListed": [
@@ -4657,6 +4708,21 @@
       "glob": "conjectures",
       "kind": "pending",
       "reason": "top-level directories that are live URLs but absent from the catalogue"
+    },
+    {
+      "glob": "szilassi",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/szilassi/, which is the surface that deploys it; the root worker serves the whole repo, so the apex copy becomes real only when the root surface next deploys from its own branch — same situation as conjectures"
+    },
+    {
+      "glob": "csaszar",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/csaszar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi and conjectures"
+    },
+    {
+      "glob": "equivelar",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/equivelar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
     },
     {
       "glob": "ising",
