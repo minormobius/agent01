@@ -1,6 +1,6 @@
 {
   "$comment": "Cloudflare operations, carried out by .github/workflows/cf-ops.yml when this file changes on its branch. Every op is re-guarded against the live account right before it runs (scripts/cf-ops.mjs). Nothing is applied unless apply is true: commit the dry run first, read its log, then flip apply in a separate commit. Batch 1 (2026-09-23): the eight orphan workers from docs/BACKENDS.md, deletion approved by the operator.",
-  "apply": false,
+  "apply": true,
   "ops": [
     { "op": "delete-worker", "name": "mino-answers",     "why": "renamed away (ask.mino.mobi is worker `ask`); listed for deletion in docs/DEPLOYS.md §9; code in git history (8689c0bb)" },
     { "op": "delete-worker", "name": "mino-disk",        "why": "renamed away; listed for deletion in docs/DEPLOYS.md §9; code in git history (6cb6dfd7)" },
