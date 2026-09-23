@@ -202,6 +202,53 @@ if (zoneId) {
   console.log('  ??   no zone id — skipped');
 }
 
+// ── the ACCOUNT's backends: what exists, not what the repo configures ─────
+// docs/BACKENDS.md (scripts/backend-inventory.mjs) is the repo's side. This is the other
+// side, so the two can be reconciled: a worker whose config was deleted, a database nothing
+// binds. Names, dates and sizes only — no IDs. One machine-readable line at the end.
+console.log('\naccount inventory  (GET only)');
+const inv = { at: new Date().toISOString() };
+async function all(path, key = 'result') {
+  const out = [];
+  for (let page = 1; page < 50; page++) {
+    const sep = path.includes('?') ? '&' : '?';
+    const r = await get(`${path}${sep}page=${page}&per_page=100`);
+    if (!r.ok) return { ok: false, status: r.status, err: r.body?.errors?.[0]?.message };
+    const items = r.body?.[key] || [];
+    out.push(...items);
+    const info = r.body?.result_info;
+    if (!info || items.length < 100 || (info.total_pages && page >= info.total_pages)) break;
+  }
+  return { ok: true, items: out };
+}
+if (ACCOUNT) {
+  const A = `/accounts/${ACCOUNT}`;
+  const scripts = await get(`${A}/workers/scripts`);
+  if (line('workers scripts', scripts, scripts.ok ? `${scripts.body.result.length}` : '')) {
+    inv.workers = scripts.body.result.map((w) => ({ name: w.id, modified: (w.modified_on || '').slice(0, 10), created: (w.created_on || '').slice(0, 10), handlers: w.handlers || [], usage: w.usage_model || null }));
+    // cron schedules, per script (one GET each; the list call does not carry them)
+    for (const w of inv.workers) {
+      if (!w.handlers.includes('scheduled')) continue;
+      const sc = await get(`${A}/workers/scripts/${encodeURIComponent(w.name)}/schedules`);
+      w.crons = sc.ok ? (sc.body.result?.schedules || []).map((x) => x.cron) : ['?'];
+    }
+  }
+  const d1 = await all(`${A}/d1/database`);
+  if (line('d1 databases', d1, d1.ok ? `${d1.items.length}` : '')) inv.d1 = d1.items.map((d) => ({ name: d.name, created: (d.created_at || '').slice(0, 10), tables: d.num_tables ?? null, bytes: d.file_size ?? null }));
+  const kv = await all(`${A}/storage/kv/namespaces`);
+  if (line('kv namespaces', kv, kv.ok ? `${kv.items.length}` : '')) inv.kv = kv.items.map((k) => ({ title: k.title }));
+  const r2 = await get(`${A}/r2/buckets`);
+  if (line('r2 buckets', r2, r2.ok ? `${(r2.body.result?.buckets || []).length}` : '')) inv.r2 = (r2.body.result?.buckets || []).map((b) => ({ name: b.name, created: (b.creation_date || '').slice(0, 10) }));
+  const q = await all(`${A}/queues`);
+  if (line('queues', q, q.ok ? `${q.items.length}` : '')) inv.queues = q.items.map((x) => ({ name: x.queue_name }));
+  const dos = await all(`${A}/workers/durable_objects/namespaces`);
+  if (line('durable object namespaces', dos, dos.ok ? `${dos.items.length}` : '')) inv.durableObjects = dos.items.map((n) => ({ script: n.script, cls: n.class, sqlite: !!n.use_sqlite }));
+  const cd = await get(`${A}/workers/domains?per_page=200`);
+  if (cd.ok) inv.customDomains = (cd.body.result || []).map((d) => ({ host: d.hostname, worker: d.service }));
+  if (zoneId) { const rt = await get(`/zones/${zoneId}/workers/routes`); if (rt.ok) inv.routes = (rt.body.result || []).map((r) => ({ pattern: r.pattern, worker: r.script })); }
+  console.log('INVENTORY_JSON ' + JSON.stringify(inv));
+}
+
 console.log('\nwhat this does and does not settle');
 console.log('  settled : how many of the 100 custom-domain slots are used, by which workers');
 console.log('  settled : how many plain Worker routes exist (they cost no slot)');
