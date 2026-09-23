@@ -92,7 +92,9 @@ async function main() {
     });
     const j = await res.json().catch(() => null);
     if (!res.ok || j?.success === false) throw new Error(`${method} ${path} -> ${res.status} ${j?.errors?.[0]?.message ?? ''}`);
-    return j.result;
+    // a successful DELETE of a Workers custom domain answers with an EMPTY body, not JSON —
+    // treating that as a failure is how the first torus/fifty conversion died mid-takeover
+    return j?.result ?? null;
   };
 
   const zoneIds = new Map();
