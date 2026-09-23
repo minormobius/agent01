@@ -22,9 +22,10 @@ name: Cloudflare capability probe (read-only)
 
 on:
   push:
-    branches: ['claude/dwitter-animation-feed-rufn9o']
+    branches: ['claude/dwitter-animation-feed-rufn9o', 'claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - '.github/workflows/cf-capability-probe.yml'
+      - '.github/scripts/cf-probe.mjs'
   workflow_dispatch:
 
 permissions:

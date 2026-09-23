@@ -60,6 +60,25 @@ console.log('token');
 const verify = await get('/user/tokens/verify');
 line('verify  (401 here just means an ACCOUNT-owned token)', verify,
   verify.body?.result?.status || '');
+// The account-owned form of the same check. When it answers, it names the
+// token, and GET on that id lists its policies — the direct answer to "which
+// permission groups does this secret hold?". That second read needs the
+// Account API Tokens:Read group; a `no` there just means it was not granted.
+if (ACCOUNT) {
+  const av = await get(`/accounts/${ACCOUNT}/tokens/verify`);
+  line('verify  (account-owned form)', av, av.body?.result?.status || '');
+  const tid = av.body?.result?.id;
+  if (tid) {
+    const t = await get(`/accounts/${ACCOUNT}/tokens/${tid}`);
+    if (line('read own policies', t, t.ok ? `${t.body?.result?.policies?.length ?? 0} policies` : '')) {
+      for (const pol of t.body.result.policies || []) {
+        const scope = Object.keys(pol.resources || {}).map((k) => k.replace(/\.[0-9a-f]{32}$/, '.<id>')).join(', ');
+        console.log(`       ${pol.effect}  ${scope}`);
+        for (const g of pol.permission_groups || []) console.log(`         - ${g.name}`);
+      }
+    }
+  }
+}
 
 // ── the zone ──────────────────────────────────────────────────────
 console.log('\nzone');
@@ -128,6 +147,15 @@ if (zoneId) {
   } else {
     console.log('       no DNS read, so certainly no DNS write: creating the record for a');
     console.log('       route needs a token with the DNS:Edit group, or the dashboard.');
+  }
+  // How a Custom Domain looks from the DNS side: Cloudflare manages a record
+  // for it, and a prune or a route conversion has to reckon with that record.
+  if (r.ok) {
+    for (const h of ['font', 'cat', 'yapchat', 'airchat']) {
+      const x = await get(`/zones/${zoneId}/dns_records?name=${h}.${ZONE_NAME}`);
+      const recs = (x.body?.result || []).map((d) => `${d.type}${d.proxied ? ' proxied' : ''}${d.meta?.read_only ? ' read-only' : ''}`);
+      console.log(`       ${h}.${ZONE_NAME}: ${recs.length ? recs.join('; ') : 'no record'}`);
+    }
   }
   // Is the hostname we could not bind actually absent? This is the fact that
   // makes "just add a route" a green deploy onto a dead host.
