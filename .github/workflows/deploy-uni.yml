@@ -2,7 +2,7 @@ name: Deploy uni (Unicode browser)
 
 on:
   push:
-    branches: ['claude/emoji-wiki-platform-support-v6ubju']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'uni/**'
       - '.github/workflows/deploy-uni.yml'

@@ -6,7 +6,7 @@ name: Deploy golem (smart-brick builder world)
 
 on:
   push:
-    branches: ['claude/cube3d-browser-port-ufh9gy']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
       - 'golem/**'
       - '.github/workflows/deploy-golem.yml'

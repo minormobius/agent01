@@ -3,7 +3,7 @@ name: Deploy Borges (Book of Sand)
 on:
   push:
     branches:
-      - 'claude/landing-projects-takeover-pKkmW'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'borges/**'
       - '.github/workflows/deploy-borges.yml'

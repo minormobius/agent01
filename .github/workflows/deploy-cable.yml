@@ -3,7 +3,7 @@ name: Deploy Cable (cable.mino.mobi)
 on:
   push:
     branches:
-      - 'claude/cable-definition-website-yrwv41'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'cable/**'
       - '.github/workflows/deploy-cable.yml'

@@ -3,7 +3,7 @@ name: Deploy Chat (conversation dojo)
 on:
   push:
     branches:
-      - 'claude/conversation-practice-website-he3t8x'
+      - 'claude/landing-page-merge-candidate-8sp0fv'
     paths:
       - 'chat/**'
       - '.github/workflows/deploy-chat.yml'

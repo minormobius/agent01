@@ -8,7 +8,7 @@
       "dir": "fable",
       "endpoint": "fable.mino.mobi",
       "type": "frontend",
-      "branch": "claude/artifact-website-deploy-x8aiuq",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
@@ -25,33 +25,36 @@
         "deal",
         "tetro"
       ],
-      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets\u2026 (full description: fable/CLAUDE.md)"
+      "note": "The generative / interestingness-engine wing (worker `fable`, custom_domain fable.mino.mobi). Thin assets Worker, no build, no secrets\u2026 (full description: fable/CLAUDE.md)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/artifact-website-deploy-x8aiuq with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "moji",
       "dir": "moji",
       "endpoint": "moji.mino.mobi",
       "type": "frontend",
-      "branch": "claude/emoji-wiki-platform-support-v6ubju",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "moji/**"
       ],
-      "note": "The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) \u2014 no build, no D1, no AI, no secrets. Home page is every Unicode emoji in one pastable, searchable table (click a glyph to copy)\u2026 (full description: moji/CLAUDE.md)"
+      "note": "The emoji wiki. Thin assets Worker (worker `moji`, custom_domain moji.mino.mobi) \u2014 no build, no D1, no AI, no secrets. Home page is every Unicode emoji in one pastable, searchable table (click a glyph to copy)\u2026 (full description: moji/CLAUDE.md)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/emoji-wiki-platform-support-v6ubju with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "uni",
       "dir": "uni",
       "endpoint": "uni.mino.mobi",
       "type": "frontend",
-      "branch": "claude/emoji-wiki-platform-support-v6ubju",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "uni/**"
       ],
-      "note": "The Unicode browser (sibling to moji). Thin assets Worker (worker `uni`, custom_domain uni.mino.mobi) \u2014 no build, no D1/AI/secrets\u2026 (full description: uni/CLAUDE.md)"
+      "note": "The Unicode browser (sibling to moji). Thin assets Worker (worker `uni`, custom_domain uni.mino.mobi) \u2014 no build, no D1/AI/secrets\u2026 (full description: uni/CLAUDE.md)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/emoji-wiki-platform-support-v6ubju with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "unit",
@@ -71,13 +74,14 @@
       "dir": "fix",
       "endpoint": "fix.mino.mobi",
       "type": "frontend",
-      "branch": "claude/fix-message-parser-yndbht",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "fix/**"
       ],
-      "note": "The FIX (Financial Information eXchange) message parser (reference wing, sibling to moji/uni/unit). Thin assets Worker (worker `fix`, custom_domain fix.mino.mobi) \u2014 no build/D1/AI/secrets\u2026 (full description: fix/CLAUDE.md)"
+      "note": "The FIX (Financial Information eXchange) message parser (reference wing, sibling to moji/uni/unit). Thin assets Worker (worker `fix`, custom_domain fix.mino.mobi) \u2014 no build/D1/AI/secrets\u2026 (full description: fix/CLAUDE.md)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/fix-message-parser-yndbht with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "root",
@@ -139,19 +143,20 @@
       "dir": "ai-edu",
       "endpoint": "ai.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "ai-edu/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "airchat",
       "dir": "airchat",
       "endpoint": "airchat.mino.mobi, yapchat.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "atpolls-db"
       ],
@@ -162,7 +167,8 @@
         "poll/apps/api/migrations/0019_airchat_oauth.sql",
         "poll/apps/api/migrations/0020_airchat_reply_cids.sql",
         "poll/apps/api/migrations/0021_airchat_segments.sql"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "b",
@@ -216,21 +222,22 @@
       "dir": "auto",
       "endpoint": "auto",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "auto/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "bakery",
       "dir": "bakery",
       "endpoint": "bake.mino.mobi",
       "binding": "dashboard",
-      "status": "AUDIT 2026-07-16: endpoint corrected bakery.mino.mobi -> bake.mino.mobi (probe-verified: bake 200, bakery unresolvable). wrangler.jsonc has NO custom_domain route \u2014 bake.mino.mobi is dashboard-attached (golden-rule risk; add a routes entry on next touch).",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). AUDIT 2026-07-16: endpoint corrected bakery.mino.mobi -> bake.mino.mobi (probe-verified: bake 200, bakery unresolvable). wrangler.jsonc has NO custom_domain route — bake.mino.mobi is dashboard-attached (golden-rule risk; add a routes entry on next touch).",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "auth.mino.mobi"
       ],
@@ -244,12 +251,13 @@
       "dir": "bisk",
       "endpoint": "bisk.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "bisk/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "mappa",
@@ -290,7 +298,7 @@
       "dir": "civ",
       "endpoint": "civ.mino.mobi",
       "type": "backend",
-      "branch": "claude/civ-deploy-unification-vt35ju",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": "civ",
       "paths": [
@@ -301,34 +309,37 @@
         "rite/names/engine.js",
         "rite/org/person.js"
       ],
-      "note": "Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi)\u2026 (full description: civ/CLAUDE.md)"
+      "note": "Coevolutionary agent-based civilization simulation on a mappa world (worker civ, custom_domain civ.mino.mobi)\u2026 (full description: civ/CLAUDE.md)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/civ-deploy-unification-vt35ju with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "biome",
       "dir": "biome",
       "endpoint": "biome.mino.mobi",
       "type": "frontend",
-      "branch": "claude/biome-forest-creep-sprites-wnxo6h",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "The ECOSYSTEM wing of the O'Neill cylinder modelling package (game=hoop, structure=rind, thermodynamics=tide, ecosystem=biome). Assets worker `biome` serving directory 'biome', narrowed to the closed-ecology food-web box model (cycles/): a deterministic, element-exact, data-driven engine + Kleiber allometry + real-organism roster (iNaturalist/GloBI) + a community-matrix stability lab (cycles/stability.html). Rust/WASM stability kernel under cycles/solver (built by build-biome-solver.yml). Also serves the gacha (roll a viable ecosystem), the sprite/muscle/balance labs, and OVER (over/ \u2192 biome.mino.mobi/over): roll a biome and walk a living forest whose animals are cast from the gacha catalogue as pixel sprites \u2014 arthropods/pollinators swarm as creeps, vertebrates amble as quadrupeds \u2014 using the mega/sprite critter kernels (vendored under over/sprite/) and the hoop/over eden forest generator (vendored as over/eden.js). Pure static \u2014 model runs client-side, no D1/DO/secrets. The thermodynamics half (atmosphere/fountain/systems) split out to the `tide` surface.",
       "paths": [
         "biome/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/biome-forest-creep-sprites-wnxo6h with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "rind",
       "dir": "rind",
       "endpoint": "rind.mino.mobi",
       "type": "frontend",
-      "branch": "claude/upperrind-thread-styling-p7dhwu",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "The STRUCTURE wing of the O'Neill cylinder modelling package (split out of hoop). Assets worker `rind` serving directory 'rind'. The foam space-frame shell: cylinder.html (structural + radiative scratchpad, sizes the shell with a frame solver), foamview.html (3D read of the layered foam + wayfinding: drivable spiral-ramp / azimuthal-road routes through the chamber graph), walk.html (walk a planar cut through the foam). rind/ops/ is the OPS WEAVE: the 6 white-collar surfaces woven over the 8 production engines as the complete bipartite K(6,8) (a plain weave, not the old gyroid). Its one-door endpoint (rind/ops/onedoor.html, kernel onedoor.js) re-poses the weave as two door-free concourses joined only by the 48 zero-grade K-doors, so any room to any room is one door incl. the hubs (proven, onedoor.selftest.mjs). Geometry generated in JS (foam.js/foam3d.js/wayfind.js); structural scoring is the optional Rust/WASM frame solver under rind/solver (built by build-cylinder-solver.yml) with a pure-JS fallback. Pure static \u2014 no D1/DO/secrets.",
       "paths": [
         "rind/**",
         ".github/workflows/deploy-rind.yml"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/upperrind-thread-styling-p7dhwu with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "foam",
@@ -349,14 +360,15 @@
       "dir": "tide",
       "endpoint": "tide.mino.mobi",
       "type": "frontend",
-      "branch": "claude/nave-unified-web-6plmae",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'. The interior climate: profile/ (the centrifugal barometer \u2014 radial gravity g(r)=\u03c9\u00b2r + isothermal pressure P(r)=P_axis\u00b7e^{S(r/R)\u00b2} from radius/spin/non-spinning-pressure), atmosphere/ (1-D radial column \u2014 temp/humidity/CO\u2082 vs altitude, Mie fog optics), fountain/ (azimuthal cross-section \u2014 rotating-frame ballistic fountain + linear-sun luminous-flux budget), systems/ (water & energy ledger \u2014 reactors\u2192light+jets, conserving water box model, fish). Shares the canonical cylinder geometry in tide/shared/geometry.mjs. Also hosts goss/ (tide.mino.mobi/goss) \u2014 the civic web viewer over the hoop econ society (vendored kernel): NPCs + their relationships to places, emergent tribes, romance, and the two tension axes (tribalism, narcissism of small differences) emitting social-drama seeds. Pure static \u2014 every model runs client-side, no D1/DO/secrets.",
       "paths": [
         "tide/**",
         ".github/workflows/deploy-tide.yml"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/nave-unified-web-6plmae with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "iris",
@@ -378,25 +390,27 @@
       "dir": "borges",
       "endpoint": "borges.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "borges/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "chat",
       "dir": "chat",
       "endpoint": "chat.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/conversation-practice-website-he3t8x",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "chat/**"
       ],
-      "note": "Conversation-practice dojo. Robo trainer (AI partner + theory-grounded scoring rubric) at /robo/, theory + rubric-development docs at /docs/, landing at /. Worker + Workers AI (llama-3.3-70b), no D1, no secrets beyond shared Cloudflare creds. Multiplayer (DO rooms, lobby, peer-rated scoreboard) is roadmap."
+      "note": "Conversation-practice dojo. Robo trainer (AI partner + theory-grounded scoring rubric) at /robo/, theory + rubric-development docs at /docs/, landing at /. Worker + Workers AI (llama-3.3-70b), no D1, no secrets beyond shared Cloudflare creds. Multiplayer (DO rooms, lobby, peer-rated scoreboard) is roadmap.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/conversation-practice-website-he3t8x with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "idol",
@@ -430,27 +444,29 @@
       "dir": "bounty",
       "endpoint": "bounty-minomobi",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "bounty-board"
       ],
       "provides": null,
       "paths": [
         "bounty/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "cable",
       "dir": "cable",
       "endpoint": "cable.mino.mobi, cable.ascential.work",
       "type": "frontend",
-      "branch": "claude/cable-definition-website-yrwv41",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "Progressive cable-drawing solver for custom instrument cabling. Walks the 7-layer stack (component \u2192 connector \u2192 pin set \u2192 cable \u2192 pin \u2192 connector \u2192 board), propagating constraints across layers\u2026 (full description: cable/CLAUDE.md)",
       "paths": [
         "cable/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/cable-definition-website-yrwv41 with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "cards",
@@ -458,27 +474,29 @@
       "endpoint": "cards.mino.mobi",
       "binding": "dashboard",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "cards/**"
       ],
-      "cohesion": "integrated"
+      "cohesion": "integrated",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "ar",
       "dir": "ar",
       "endpoint": "ar.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/3d-crystal-diffraction-B5YhB",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "Worker + Room Durable Object (WebSocket relay) + static assets (public/). Two-phone AR Laue diffraction at /crystal/.",
       "paths": [
         "ar/**",
         ".github/workflows/deploy-ar.yml"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/3d-crystal-diffraction-B5YhB with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "cron",
@@ -496,9 +514,9 @@
       "surface": "duffel-proxy",
       "dir": "workers/duffel-proxy",
       "endpoint": "air.mino.mobi",
-      "status": "AUDIT 2026-07-16: endpoint corrected duffel-proxy -> air.mino.mobi (custom_domain route in wrangler.toml, probe-verified 200).",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). AUDIT 2026-07-16: endpoint corrected duffel-proxy -> air.mino.mobi (custom_domain route in wrangler.toml, probe-verified 200).",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
@@ -523,7 +541,7 @@
       "dir": "workers/feed",
       "endpoint": "feed.mino.mobi",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "atpolls-db"
       ],
@@ -532,17 +550,18 @@
         "workers/feed/**",
         "poll/apps/api/migrations/0010_feed_communities.sql",
         "poll/apps/api/migrations/0013_feed_liked_posts.sql"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "fipo",
       "dir": "fipo",
       "endpoint": "fipo.mino.mobi",
       "type": "frontend",
-      "branch": "claude/fipo-pitch-genome-Qm7Xp2",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 new surface via deploy-fipo.yml (Worker `fipo`, custom_domain fipo.mino.mobi). Assets-only static worker; engine selftest gates the deploy.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/fipo-pitch-genome-Qm7Xp2 with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — new surface via deploy-fipo.yml (Worker `fipo`, custom_domain fipo.mino.mobi). Assets-only static worker; engine selftest gates the deploy.",
       "op": "create",
       "note": "The bad sci-fi pitch archive. /pitch \u2014 the pitch-GENOME engine (fipo/pitch/engine.js): a deterministic seeded sampler (xmur3+mulberry32, a seed is a permalink) over the phase space of earnest failure\u2026 (full description: fipo/CLAUDE.md)",
       "paths": [
@@ -566,9 +585,9 @@
       "surface": "fred-proxy",
       "dir": "workers/fred-proxy",
       "endpoint": "fred.mino.mobi",
-      "status": "AUDIT 2026-07-16: endpoint corrected fred-proxy -> fred.mino.mobi (custom_domain route in wrangler.toml, probe-verified 200).",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). AUDIT 2026-07-16: endpoint corrected fred-proxy -> fred.mino.mobi (custom_domain route in wrangler.toml, probe-verified 200).",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
@@ -689,13 +708,14 @@
       "dir": "ocr",
       "endpoint": "ocr.mino.mobi, ocr.ascential.work",
       "type": "frontend",
-      "branch": "claude/image-text-extraction-gH8UH",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "note": "Standalone client-side OCR (pull text / activation codes off an image). Vanilla HTML/JS + pure-Rust wasm (os/crates/codescan-ocr, artifact committed to ocr/wasm/)\u2026 (full description: ocr/CLAUDE.md)",
       "paths": [
         "ocr/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/image-text-extraction-gH8UH with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "poll",
@@ -703,14 +723,15 @@
       "endpoint": "poll.mino.mobi",
       "binding": "dashboard",
       "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "atpolls-db"
       ],
       "provides": "atpolls-db",
       "paths": [
         "poll/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "read",
@@ -749,10 +770,10 @@
       "dir": "pod",
       "endpoint": "pod.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/podcast-studio-architecture-711cke",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 live (AUDIT 2026-07-16: pod.mino.mobi probe-verified 200; the domain has been attached since the 'pending attach' note was written).",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/podcast-studio-architecture-711cke with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — live (AUDIT 2026-07-16: pod.mino.mobi probe-verified 200; the domain has been attached since the 'pending attach' note was written).",
       "paths": [
         "pod/**",
         ".github/workflows/deploy-pod.yml"
@@ -795,7 +816,7 @@
       "dir": "workers/scores",
       "endpoint": "scores.mino.mobi",
       "type": "backend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "mino-scores-db",
         "auth.mino.mobi"
@@ -803,19 +824,21 @@
       "provides": "scores.mino.mobi",
       "paths": [
         "workers/scores/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "splice",
       "dir": "splice",
       "endpoint": "splice.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "splice/**"
-      ]
+      ],
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "zoom",
@@ -932,14 +955,14 @@
       ],
       "endpoint": "canvas.mino.mobi",
       "type": "frontend",
-      "branch": "claude/pizza-cutting-game-7VvX2",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "atpolls-db",
         "scores.mino.mobi",
         "auth.mino.mobi"
       ],
       "provides": null,
-      "status": "MANAGED \u2014 additive launch via deploy-canvas.yml (Worker `canvas`, custom_domain canvas.mino.mobi + thin canvas/index.html hub). Members STAGED from root, not moved; backends untouched (absolute origins). Root still serves canonical mino.mobi/<x>/.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/pizza-cutting-game-7VvX2 with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — additive launch via deploy-canvas.yml (Worker `canvas`, custom_domain canvas.mino.mobi + thin canvas/index.html hub). Members STAGED from root, not moved; backends untouched (absolute origins). Root still serves canonical mino.mobi/<x>/.",
       "op": "encapsulation",
       "note": "draw+paint+mmo frontends are backed by poll worker /api/{draw,mmo}; curve+pizza submit to scores \u2014 all ABSOLUTE origins, so the frontends move cleanly. One deploy unit; backends stay in poll/scores. pizza is a standalone static canvas game (no backend beyond the shared scores+auth workers). DEFERRED: carve these dirs out of root once canvas.mino.mobi is the home.",
       "paths": [
@@ -990,10 +1013,10 @@
       "dir": "golem",
       "endpoint": "golem.mino.mobi",
       "type": "frontend",
-      "branch": "claude/cube3d-browser-port-ufh9gy",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 new surface via deploy-golem.yml (Worker `golem`). Assets-only static worker, selftest gate before deploy.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/cube3d-browser-port-ufh9gy with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — new surface via deploy-golem.yml (Worker `golem`). Assets-only static worker, selftest gate before deploy.",
       "op": "create",
       "note": "golem.mino.mobi \u2014 Minecraft-like builder world over cube3D's smart cellular bricks (sequel to tjs.mino.mobi/cube/)\u2026 (full description: golem/CLAUDE.md)",
       "paths": [
@@ -1005,12 +1028,12 @@
       "dir": "reef",
       "endpoint": "reef.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/cube3d-browser-port-ufh9gy",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "atpolls-db"
       ],
       "provides": null,
-      "status": "MANAGED \u2014 new surface via deploy-reef.yml (Worker `reef`). Species selftest gate + idempotent D1 migration before deploy.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/cube3d-browser-port-ufh9gy with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — new surface via deploy-reef.yml (Worker `reef`). Species selftest gate + idempotent D1 migration before deploy.",
       "op": "create",
       "note": "reef.mino.mobi \u2014 Tinder-style crowd judging of procedurally generated voxel sea creatures (fish/eel/ray/jellyfish/turtle/coral/anemone; reef/js/species.js, seeded + connected + morphologically exaggerated at 15^3)\u2026 (full description: reef/CLAUDE.md)",
       "paths": [
@@ -1092,10 +1115,10 @@
       "endpoint": "glass.mino.mobi",
       "binding": "dashboard",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 onboarded to Actions (deploy-labglass.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-labglass.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "DuckDB + Pyodide biotech data workbench. Static worker-assets (Worker `glass`). Needs COOP/COEP headers (labglass/_headers). Different registrable domain (minomobi.com) \u2014 outside the .mino.mobi SSO cookie.",
       "paths": [
         "labglass/**"
@@ -1150,10 +1173,10 @@
       "endpoint": "org.mino.mobi",
       "binding": "dashboard",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — onboarded to Actions (deploy-org.yml). First QB pass: brought an Action-less independent site onto the deploy conveyor. (Was deploying via CF git integration / manual wrangler; disconnect git once this Action is confirmed canonical.)",
       "note": "Org SPA (Vite + tsc -> ./dist, Worker `org`). Has inline OAuth in org/src/pds.ts (migration to shared oauth-client pending).",
       "paths": [
         "org/**"
@@ -1178,10 +1201,10 @@
       "dir": "answers",
       "endpoint": "ask.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 FIXED (zoom-bucket): the answers/ site is live at ask.mino.mobi via a worker named `ask` (not answers.mino.mobi). Config renamed mino-answers -> ask + custom_domain route, so the Action now updates the live worker (was deploying stray mino-answers; ask sat ~45 days). CLEANUP: delete the orphan `mino-answers` worker.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — FIXED (zoom-bucket): the answers/ site is live at ask.mino.mobi via a worker named `ask` (not answers.mino.mobi). Config renamed mino-answers -> ask + custom_domain route, so the Action now updates the live worker (was deploying stray mino-answers; ask sat ~45 days). CLEANUP: delete the orphan `mino-answers` worker.",
       "note": "\"Answers \u2014 powered by ATProto\". Static worker-assets. Live subdomain is ask.mino.mobi (worker `ask`); also bundled at mino.mobi/answers/. Has inline OAuth (answers/assets/answers.js) \u2014 migrate to shared oauth-client later.",
       "paths": [
         "answers/**"
@@ -1193,10 +1216,10 @@
       "endpoint": "crm.mino.mobi (pending attach)",
       "binding": "pending",
       "type": "frontend",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (domain pending) \u2014 onboarded to Actions (deploy-crm.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED (domain pending) — onboarded to Actions (deploy-crm.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
       "note": "Vault CRM SPA (Vite + tsc -> ./dist, Worker `crm`). Currently served via root bundle at mino.mobi/crm/; own subdomain not attached.",
       "paths": [
         "crm/**"
@@ -1207,10 +1230,10 @@
       "dir": "audio",
       "endpoint": "audio.mino.mobi (pending attach)",
       "type": "fullstack",
-      "branch": "claude/landing-projects-takeover-pKkmW",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED (domain pending) \u2014 onboarded to Actions (deploy-audio.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/landing-projects-takeover-pKkmW with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED (domain pending) — onboarded to Actions (deploy-audio.yml) as an ADDITIVE own-worker deploy. Non-breaking: still served via its current path; attach the custom domain in the Cloudflare dashboard to complete the carve-out, then drop from the root bundle.",
       "note": "Audio Rooms \u2014 voice-room app. Vite monorepo (apps/web -> audio/dist) + Worker `audio-rooms-api` with Durable Object RoomCoordinator. Domain audio.mino.mobi not yet attached; first deploy stands up the worker+DO at workers.dev. Attach domain in dashboard to launch.",
       "paths": [
         "audio/**"
@@ -1253,25 +1276,26 @@
       "dir": "aub",
       "endpoint": "aub.mino.mobi",
       "type": "frontend",
-      "branch": "claude/game-website-deploy-2ffuu2",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "aub/**"
       ],
-      "note": "Ecdysium (aubrika/ecdysium) \u2014 a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown\u2026 (full description: aub/CLAUDE.md)"
+      "note": "Ecdysium (aubrika/ecdysium) \u2014 a Rust + macroquad sci-fi horror roguelike vendored under aub/game and compiled to wasm32-unknown-unknown\u2026 (full description: aub/CLAUDE.md)",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/game-website-deploy-2ffuu2 with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "human",
       "dir": "human",
       "endpoint": "human.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/human-machinery-Hm7qX2",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [
         "atpolls-db"
       ],
       "provides": null,
-      "status": "MANAGED \u2014 new surface via deploy-human.yml (Worker `human`, custom_domain human.mino.mobi). Idempotent D1 migration (0033_human_stats) before deploy; health-check curl after.",
+      "status": "OWNERSHIP (2026-09-23): taken by claude/landing-page-merge-candidate-8sp0fv from claude/human-machinery-Hm7qX2 with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — new surface via deploy-human.yml (Worker `human`, custom_domain human.mino.mobi). Idempotent D1 migration (0033_human_stats) before deploy; health-check curl after.",
       "op": "create",
       "note": "human.mino.mobi \u2014 HUMAN MACHINERY, the bias arcade: an explorable museum of cognitive biases where every exhibit is a 60-second game rigged by your own brain (play \u2192 fail \u2192 learn \u2192 verify \u2192 wormhole)\u2026 (full description: human/CLAUDE.md)",
       "paths": [
