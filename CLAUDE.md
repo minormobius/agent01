@@ -74,14 +74,14 @@ do it; you do not need to do anything but the first step below:
 
 - `ship-session.mjs` (Stop, after every turn) re-distils this session's transcript and pushes
   it to `sessions/<session-id>.json` in the **private** repo named in
-  `packages/homunculus/corpus.json` (`minormobius/homunculus-corpus`). The distillation keeps
+  `packages/homunculus/corpus.json`: the orphan `corpus` branch of `minormobius/chatter`. chatter's code stays on its `main` branch, untouched. The distillation keeps
   the principal's typed turns and your text replies; tool calls, tool output, file contents and
   skill bodies are dropped.
 - `capture-session.mjs` / `log-prompt.mjs` keep a local copy in `packages/homunculus/log/`
   (gitignored, `.assetsignore`d, lost with the container).
 
 **At the start of a session, attach the corpus repo:** `add_repo` with owner `minormobius`, repo
-`homunculus-corpus`, access `push`. Without it the shipper cannot clone. It logs one line to
+`chatter`, access `push`. Without it the shipper cannot clone. It logs one line to
 `packages/homunculus/log/ship.log` and does nothing else. Attaching it later in the session
 is fine, because every ship rewrites the whole session's file.
 

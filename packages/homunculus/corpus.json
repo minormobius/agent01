@@ -1,7 +1,7 @@
 {
-  "$comment": "Where ship-session.mjs sends each session's distilled conversation. A PRIVATE repo that holds nothing else; agent01 is public and must never carry a transcript. See packages/homunculus/README.md.",
-  "repo": "minormobius/homunculus-corpus",
-  "branch": "main",
+  "$comment": "Where ship-session.mjs sends each session's distilled conversation: a dedicated orphan BRANCH of a PRIVATE repo. chatter's own code lives on its main branch and is never fetched or touched; the corpus branch shares no history with it. agent01 is public and must never carry a transcript. See packages/homunculus/README.md.",
+  "repo": "minormobius/chatter",
+  "branch": "corpus",
   "dir": "sessions",
   "source": "minormobius/agent01"
 }

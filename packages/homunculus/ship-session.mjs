@@ -98,13 +98,22 @@ async function main() {
   try { mkdirSync(lock); } catch { return; } // another run holds it; the next turn catches up
   try {
     if (!existsSync(join(clone, '.git'))) {
-      rmSync(clone, { recursive: true, force: true });
-      mkdirSync(dirname(clone), { recursive: true });
-      try {
-        git(['clone', '--depth', '1', `https://github.com/${CONFIG.repo}.git`, clone], undefined, 60000);
-      } catch (e) {
-        log(`clone ${CONFIG.repo} failed — is it attached to this session with push access? ${why(e)}`);
+      // Only the corpus branch is ever fetched: it may live in a repo that also holds code on
+      // other branches (chatter), and those are never checked out, touched or pushed.
+      const url = `https://github.com/${CONFIG.repo}.git`;
+      try { git(['ls-remote', '--heads', url], undefined, 30000); } catch (e) {
+        log(`cannot reach ${CONFIG.repo} — is it attached to this session with push access? ${why(e)}`);
         return;
+      }
+      rmSync(clone, { recursive: true, force: true });
+      mkdirSync(clone, { recursive: true });
+      git(['init', '-q'], clone);
+      git(['remote', 'add', 'origin', url], clone);
+      try {
+        git(['fetch', '-q', '--depth', '1', 'origin', CONFIG.branch], clone, 60000);
+        git(['checkout', '-q', '-B', CONFIG.branch, 'FETCH_HEAD'], clone);
+      } catch {
+        git(['checkout', '-q', '--orphan', CONFIG.branch], clone); // first ship: the branch starts empty
       }
     } else {
       try { git(['pull', '--rebase', '-q', 'origin', CONFIG.branch], clone); } catch { /* empty repo: nothing to pull */ }

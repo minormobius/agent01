@@ -60,8 +60,9 @@ turn:
 
 1. It distils the whole transcript with `capture-session.mjs`'s `distil()`: typed principal
    turns plus assistant text, with tool traffic and injected skill bodies dropped.
-2. It writes `sessions/<session-id>.json` into a clone of the repo in `corpus.json`,
-   commits and pushes.
+2. It writes `sessions/<session-id>.json` on the branch named in `corpus.json` (the orphan
+   `corpus` branch of the private `chatter` repo), commits and pushes. Only that branch is
+   ever fetched.
 
 The file is rewritten each turn, so the last push holds the whole
 conversation. It never touches this repo's git state, and it never fails a
