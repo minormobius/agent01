@@ -19,6 +19,23 @@
             "type": "command",
             "command": "node packages/homunculus/capture-session.mjs",
             "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "node packages/homunculus/ship-session.mjs",
+            "timeout": 90
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node packages/homunculus/ship-session.mjs",
+            "timeout": 90,
+            "async": true
           }
         ]
       }

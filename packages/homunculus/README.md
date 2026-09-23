@@ -49,6 +49,28 @@ node homunculus.selftest.mjs
 | ATProto repo (Bluesky, whtwnd, any lexicon) | `harvest.mjs` | posts, dialogue pairs, long-form entries |
 | claude.ai conversation export | `chatlog.mjs` | every prompt the principal ever typed, already paired with a response |
 | live prompts, from now on | `log-prompt.mjs` (hook) | the same stream, continuously |
+| every Claude Code session, from now on | `ship-session.mjs` (Stop hook) | both sides of each session, pushed to the private corpus repo |
+
+### Sessions, going forward
+
+Before 2026-09-23 a session's transcript was captured into `log/` in the
+container and lost when the container was reclaimed, which is why the
+recovery pass in `RECOVERY.md` exists. Now `ship-session.mjs` runs after every
+turn:
+
+1. It distils the whole transcript with `capture-session.mjs`'s `distil()`: typed principal
+   turns plus assistant text, with tool traffic and injected skill bodies dropped.
+2. It writes `sessions/<session-id>.json` into a clone of the repo in `corpus.json`,
+   commits and pushes.
+
+The file is rewritten each turn, so the last push holds the whole
+conversation. It never touches this repo's git state, and it never fails a
+turn: problems go to `log/ship.log`.
+
+The corpus repo is a **separate private repo** because agent01 is public. It
+must be attached to the session with push access (root `CLAUDE.md` says so).
+Collect it with a plain clone. Each file has the same `{session, turns}`
+shape `collect-branches.mjs` already reads.
 
 The chat export is the densest of the three. It is intent, unedited, at
 volume — closest to the active elicitation Gwern argues a corpus should be

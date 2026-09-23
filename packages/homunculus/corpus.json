@@ -1,0 +1,7 @@
+{
+  "$comment": "Where ship-session.mjs sends each session's distilled conversation. A PRIVATE repo that holds nothing else; agent01 is public and must never carry a transcript. See packages/homunculus/README.md.",
+  "repo": "minormobius/homunculus-corpus",
+  "branch": "main",
+  "dir": "sessions",
+  "source": "minormobius/agent01"
+}
