@@ -82,7 +82,7 @@ line('verify  (401 here just means an ACCOUNT-owned token)', verify,
 // Account API Tokens:Read group; a `no` there just means it was not granted.
 if (ACCOUNT) {
   const av = await get(`/accounts/${ACCOUNT}/tokens/verify`);
-  line('verify  (account-owned form)', av, av.body?.result?.status || '');
+  line('verify  (account-owned form)', av, av.body?.result ? `${av.body.result.status} · token id ${short(av.body.result.id)}` : '');
   const tid = av.body?.result?.id;
   if (tid) {
     const t = await get(`/accounts/${ACCOUNT}/tokens/${tid}`);
