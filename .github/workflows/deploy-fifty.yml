@@ -2,8 +2,9 @@ name: Deploy fifty (fifty concepts)
 
 on:
   push:
-    branches: ['claude/fifty-microsites-deploy-fyjk1q']
+    branches: ['claude/landing-page-merge-candidate-8sp0fv']
     paths:
+      - 'scripts/route-dns.mjs'
       - 'fifty/**'
       - '.github/workflows/deploy-fifty.yml'
   workflow_dispatch:
@@ -23,19 +24,28 @@ jobs:
         run: node lib/engines.selftest.mjs
       - name: Install wrangler
         run: npm install wrangler
+      # Custom domain -> plain route, in one push. --takeover detaches the custom domain
+      # only if THIS worker holds it, then creates the proxied record the route needs.
+      # Idempotent: once converted it just confirms the record. The host is down from
+      # here until the deploy below lands (seconds); the verify step catches a failure.
+      - name: Ensure DNS for plain routes (and take over this worker's old custom domain)
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply --takeover
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
       - name: Deploy worker + assets
         run: npx wrangler deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - name: Verify the landing page is live
-        continue-on-error: true
+
+      # Green is not proof, least of all on a route: the check is the HOST answering.
+      - name: Verify fifty.mino.mobi serves (route)
         run: |
-          for attempt in 1 2 3 4 5 6; do
-            if curl -fsS https://fifty.mino.mobi/ | grep -q 'fifty concepts'; then
-              echo "✓ fifty is live"; exit 0
-            fi
-            echo "  attempt $attempt: not yet, sleeping…"; sleep 5
+          for attempt in 1 2 3 4 5 6 7 8 9 10; do
+            if curl -fsS https://fifty.mino.mobi/ | grep -qi 'fifty concepts'; then echo "✓ fifty.mino.mobi is live"; exit 0; fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 8
           done
-          echo "⚠️ fifty didn't respond within 30s — a brand-new custom domain can take"
-          echo "   a few minutes to propagate. Check the deploy log bound (custom domain)."
+          echo "✗ fifty.mino.mobi did not serve within ~80s"; exit 1

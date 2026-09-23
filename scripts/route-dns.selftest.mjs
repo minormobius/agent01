@@ -29,6 +29,8 @@ check('a proxied AAAA is enough', decide([{ type: 'AAAA', content: '100::', prox
 check('a proxied CNAME is enough', decide([{ type: 'CNAME', content: 'x', proxied: true }]).action === 'ok');
 check('a custom-domain (read-only) record is refused, not taken over',
   decide([{ type: 'AAAA', content: '100::', proxied: true, meta: { read_only: true } }]).action === 'refuse');
+check('a custom-domain record is flagged as such, so --takeover can act on it',
+  decide([{ type: 'AAAA', content: '100::', proxied: true, meta: { read_only: true } }]).customDomain === true);
 check('a DNS-only record is refused (the route would never see the traffic)',
   decide([{ type: 'A', content: '1.2.3.4', proxied: false }]).action === 'refuse');
 check('a TXT alone does not block: the AAAA is created beside it',

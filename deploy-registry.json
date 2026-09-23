@@ -1061,10 +1061,10 @@
       ],
       "endpoint": "torus.mino.mobi",
       "type": "frontend",
-      "branch": "claude/fractal-torus-webgpu-97gxv4",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
-      "status": "MANAGED \u2014 additive launch via deploy-torus.yml (Worker `torus`). The toroidal games staged from clock/<toy>, not moved; g + clock still serve them.",
+      "status": "ROUTE SURFACE (2026-09-23): converted from a custom domain to { pattern: \"torus.mino.mobi/*\", zone_name: \"mino.mobi\" } by route-dns.mjs --takeover in its deploy workflow, freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/fractal-torus-webgpu-97gxv4, byte-identical over every deployed path at handover). MANAGED — additive launch via deploy-torus.yml (Worker `torus`). The toroidal games staged from clock/<toy>, not moved; g + clock still serve them.",
       "op": "encapsulation",
       "note": "Toroidal game family split out of the deprecated clock surface: corn, emsim, inpac, knotpac, pac, torpac, toruschess + a torus/index.html hub, plus fortress (WebGPU fractal, torus/fortress/).",
       "paths": [
@@ -1379,14 +1379,15 @@
       "dir": "fifty",
       "endpoint": "fifty.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/fifty-microsites-deploy-fyjk1q",
+      "branch": "claude/landing-page-merge-candidate-8sp0fv",
       "uses": [],
       "provides": null,
       "paths": [
         "fifty/**",
         ".github/workflows/deploy-fifty.yml"
       ],
-      "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built\u2026 (full description: fifty/CLAUDE.md)"
+      "note": "Fifty ATProto app pitches, one deploy surface: a landing index at / and one page per concept at /c/<n>. Thirty are working tools; twenty render an honest write-up of why they were not built… (full description: fifty/CLAUDE.md)",
+      "status": "ROUTE SURFACE (2026-09-23): converted from a custom domain to { pattern: \"fifty.mino.mobi/*\", zone_name: \"mino.mobi\" } by route-dns.mjs --takeover in its deploy workflow, freeing one of the zone's 100 slots; the host and every URL on it are unchanged. Owned by claude/landing-page-merge-candidate-8sp0fv (taken from claude/fifty-microsites-deploy-fyjk1q, byte-identical over every deployed path at handover). "
     },
     {
       "surface": "farm",

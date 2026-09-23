@@ -3,6 +3,10 @@
 //
 //   node scripts/route-dns.mjs <dir>/wrangler.jsonc            # plan: what exists, what is missing
 //   node scripts/route-dns.mjs <dir>/wrangler.jsonc --apply    # create what is missing
+//   node scripts/route-dns.mjs <dir>/wrangler.jsonc --apply --takeover
+//        # ...and CONVERT: a host that is still a Custom Domain bound to THIS worker
+//        # (config.name) is detached, then given the proxied record — one push turns a
+//        # custom-domain surface into a route surface. Run it right before wrangler deploy.
 //
 // WHY. The mino.mobi zone allows 100 Workers Custom Domains and hit that ceiling on
 // 2026-09-22. A plain Worker ROUTE ({ pattern: "x.mino.mobi/*", zone_name: "mino.mobi" },
@@ -13,10 +17,13 @@
 // documents for Worker-only hosts — AAAA 100:: — which never receives traffic because the
 // route intercepts it at the edge.
 //
-// WHAT IT WILL NOT DO. It never modifies or deletes a record. If the hostname already has a
+// WHAT IT WILL NOT DO. It never modifies or deletes a DNS record. If the hostname already has a
 // record that is not proxied, or is the read-only record a Custom Domain manages, it stops and
 // says so: that host is still bound somewhere else, and taking it over is a decision (detach
 // the custom domain first), not a side effect of a deploy. Wildcard hosts are refused too.
+// --takeover is the one exception, and it is narrow: it detaches a Custom Domain only when
+// Cloudflare says that domain's worker IS this config's `name`. A domain held by any other
+// worker is refused — a deploy can convert its own host, never take someone else's.
 //
 // Token: CLOUDFLARE_DNS_TOKEN if set (a narrow Zone.DNS:Edit credential), else
 // CLOUDFLARE_API_TOKEN. Exit 0 = every route has a usable record; 1 = one does not; 2 = usage.
@@ -61,7 +68,7 @@ export function decide(all) {
   const usable = records.find((d) => d.proxied && !d.meta?.read_only);
   if (usable) return { action: 'ok', record: `${usable.type} ${usable.content} proxied` };
   const ro = records.find((d) => d.meta?.read_only);
-  if (ro) return { action: 'refuse', why: `a read-only ${ro.type} record is managed for it — it is still a Custom Domain; detach that first` };
+  if (ro) return { action: 'refuse', customDomain: true, why: `a read-only ${ro.type} record is managed for it — it is still a Custom Domain; detach that first (or --takeover, if this worker holds it)` };
   return { action: 'refuse', why: `it has ${records.map((d) => `${d.type}${d.proxied ? ' proxied' : ' DNS-only'}`).join(', ')} — DNS-only, so the route would never see the traffic` };
 }
 
@@ -69,6 +76,8 @@ async function main() {
   const [file, ...flags] = process.argv.slice(2);
   if (!file) { console.error('usage: route-dns.mjs <wrangler.jsonc> [--apply]'); process.exit(2); }
   const apply = flags.includes('--apply');
+  const takeover = flags.includes('--takeover');
+  const account = process.env.CLOUDFLARE_ACCOUNT_ID;
   const config = JSON.parse(stripJsonc(readFileSync(file, 'utf8')));
   const routes = plainRoutes(config);
   console.log(`route-dns — ${file}: ${routes.length} plain route(s)${apply ? '' : '  [plan only; --apply to create]'}`);
@@ -95,6 +104,22 @@ async function main() {
     if (!zid) { console.log(`  ✗ ${r.host}: zone ${r.zone} not visible to this token`); bad++; continue; }
     const d = decide(await api('GET', `/zones/${zid}/dns_records?name=${encodeURIComponent(r.host)}`));
     if (d.action === 'ok') { console.log(`  ✓ ${r.host}: ${d.record}`); continue; }
+    if (d.action === 'refuse' && takeover && d.customDomain) {
+      if (!account) { console.log(`  ✗ ${r.host}: --takeover needs CLOUDFLARE_ACCOUNT_ID`); bad++; continue; }
+      const doms = (await api('GET', `/accounts/${account}/workers/domains?hostname=${encodeURIComponent(r.host)}`)).filter((x) => x.hostname === r.host);
+      const mine = doms.find((x) => x.service === config.name);
+      if (!mine) { console.log(`  ✗ ${r.host}: custom domain belongs to ${doms.map((x) => x.service).join(', ') || 'nobody visible'}, not ${config.name} — refusing to take it`); bad++; continue; }
+      if (!apply) { console.log(`  ~ ${r.host}: would detach custom domain (worker ${config.name}) and create AAAA 100:: proxied`); continue; }
+      await api('DELETE', `/accounts/${account}/workers/domains/${mine.id}`);
+      console.log(`  - ${r.host}: detached custom domain from ${config.name} (one slot freed)`);
+      // the managed record goes with it; wait until it is gone before adding ours
+      for (let i = 0; i < 20; i++) {
+        const left = (await api('GET', `/zones/${zid}/dns_records?name=${encodeURIComponent(r.host)}`)).filter((x) => x.meta?.read_only);
+        if (!left.length) break;
+        await new Promise((res) => setTimeout(res, 1500));
+      }
+      d.action = 'create';
+    }
     if (d.action === 'refuse') { console.log(`  ✗ ${r.host}: ${d.why}`); bad++; continue; }
     if (!apply) { console.log(`  + ${r.host}: no record — would create AAAA 100:: proxied`); continue; }
     await api('POST', `/zones/${zid}/dns_records`, {
