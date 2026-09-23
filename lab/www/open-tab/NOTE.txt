@@ -1,0 +1,1 @@
+Built the hard part: fetches the actual repo (not just visible posts), parses the CAR via the vendored wasm parser, tallies unclosed brackets/quotes in post order. Falls back to the public feed if repo access fails.

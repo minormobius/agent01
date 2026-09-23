@@ -711,6 +711,9 @@ No handle-entry field existed on this page (nothing here needs a Bluesky
 identity), so the typeahead half of the "always" rule didn't apply — not a
 deviation, just not applicable.
 
+## `combine-this` (2026-09-22): amplifies someone else's ask by quote-posting it, not just self-devised or "build that" on a factory advert
+Quote-posted @hull8435.bsky.social's reply to minormobius's own `rite.mino.mobi/sharp` thread ("Claude, combine this with a TLD verifier and a WHOIS engine and find me a banger domain name") with no added text of their own — a fourth request-origin shape alongside self-devised asks, "build that" replies to factory adverts, and playing along in someone else's thread (`try-these`). The quote-post itself is the ask; the quoted text is the literal spec. No back-and-forth to draw a correction from. Worth noting for future requests that arrive as a bare quote-post: read the quoted post as the actual brief, same as if the requester had typed it themselves.
+
 ## `train-game` (2026-07-28): another terse genre request, "make sure it feels like X"
 "full train game experience, make sure it feels like a train game" — same
 shape as the tube-tetris request above: name the genre, trust the build

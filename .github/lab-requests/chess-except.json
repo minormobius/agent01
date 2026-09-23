@@ -1,0 +1,13 @@
+{
+  "slug": "chess-except",
+  "task": "hmm. ok now we have the issue that kings can never stop moving lol. let's make it so kings can take pawns. and also remove extra lives from other pieces without dying, but that ends their turn\n\n--- earlier in this thread, from the person who asked (oldest first) ---\n\nchess except when you select a piece you dont decide where it moves it just does a whole random walk of legal moves until it cannot make another move\n\nok pawns are overpowered, remove pawn promotion. also remove the 40 move limit, & give the king 3 lives (it kills the first 2 pieces to try and take it)\n\nhmm ok some more adjustments:\n- evaluate whole walk instantly, or much more quickly\n- make it so kings can't attack other pieces\n- give every non-pawn 1 extra life, kills its first attacker\n- board 4 spaces taller\n- extra row of pawns on each side\n- fix issue where height of squares keeps changing",
+  "thread_root": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mvggyrent226",
+  "requester": "ponder.ooo",
+  "named": "no",
+  "root_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mvggyrent226",
+  "root_cid": "bafyreidegqhnm3sqacmb4ykz4whvobu6i47dhmtnaq5m3dnogvkcrajqne",
+  "parent_uri": "at://did:plc:i4bfh2tyxihe2ksplmtcoopk/app.bsky.feed.post/3mvgj4zm53s26",
+  "parent_cid": "bafyreigrsqurpsslm6i6y5xuxifwoydgz24rng2wmpp257rb6fq6ehtkwq",
+  "refs_from": "hmm. ok now we have the issue that kings can never stop moving lol. let's make it so kings can take pawns. and also remove extra lives from other pieces without dying, but that ends their turn\nchess except when you select a piece you dont decide where it moves it just does a whole random walk of legal moves until it cannot make another move\nok pawns are overpowered, remove pawn promotion. also remove the 40 move limit, & give the king 3 lives (it kills the first 2 pieces to try and take it)\nhmm ok some more adjustments:\n- evaluate whole walk instantly, or much more quickly\n- make it so kings can't attack other pieces\n- give every non-pawn 1 extra life, kills its first attacker\n- board 4 spaces taller\n- extra row of pawns on each side\n- fix issue where height of squares keeps changing",
+  "requestedAt": "2026-09-13T21:12:36.756Z"
+}
