@@ -6,6 +6,7 @@ on:
     paths:
       - 'finance/**'
       - 'perp/**'
+      - 'scripts/route-dns.mjs'
       - 'poll/apps/api/migrations/0031_speclab.sql'
       - '.github/workflows/deploy-finance.yml'
   workflow_dispatch:
@@ -59,6 +60,15 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # Plain routes (perp.mino.mobi/*) make no DNS, unlike custom domains; without a
+      # proxied record the host is dead however green the deploy. Creates only what is
+      # missing and refuses to touch a host that is still a custom domain.
+      - name: Ensure DNS for plain routes
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
 
       - name: Deploy to Cloudflare
         run: npx wrangler deploy

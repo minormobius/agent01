@@ -29,6 +29,9 @@
 // Everything under /api is isolated by try/catch so a backend hiccup can never
 // take down asset serving or the procedural client fallback.
 
+// Former custom domains folded into fin: host -> path prefix on fin.mino.mobi.
+const LEGACY_HOSTS = { "perp.mino.mobi": "/perp" };
+
 const COINBASE = "https://api.exchange.coinbase.com";
 const KALSHI = "https://api.elections.kalshi.com/trade-api/v2";
 
@@ -36,6 +39,15 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const { pathname } = url;
+
+    // Hosts that used to be their own sites and now live under fin. They arrive on plain
+    // Worker routes (wrangler.jsonc), and every path on them maps to the same path under
+    // the new prefix, so deep links (perp.mino.mobi/data/stats.json) survive the move.
+    const legacy = LEGACY_HOSTS[url.hostname];
+    if (legacy) {
+      const to = new URL(legacy + (pathname === "/" ? "/" : pathname) + url.search, "https://fin.mino.mobi");
+      return Response.redirect(to.href, 301);
+    }
 
     if (pathname.startsWith("/api/")) {
       try {

@@ -180,9 +180,18 @@ move here.
 > orange-clouded — dashboard/API, §7), **then** the route, **then** verify the
 > host actually serves. Do not add the route first and assume.
 
-Nothing in this repo uses `zone_name` yet (0 of 83), so the first surface to try
-it is doing something new — verify the hostname end to end rather than trusting
-the green run.
+**Done, and now automatic (2026-09-23).** The deploy token holds Zone DNS:Edit (proved by
+`cf-capability-probe.yml`'s create-and-delete of a throwaway TXT record), and
+[`scripts/route-dns.mjs`](../scripts/route-dns.mjs) is the missing half: run before `wrangler
+deploy`, it reads the surface's `wrangler.jsonc`, and for every plain route (`zone_name`, no
+`custom_domain`) makes sure a **proxied `AAAA 100::`** record exists. It creates only what is
+missing and refuses a host that still has a Custom Domain's read-only record (detach first).
+The first host on it is `perp.mino.mobi`, a route on the `fin` worker that 301s to
+`fin.mino.mobi/perp/`. To move a site off a custom domain: detach the domain, swap its route
+for `{ pattern: "<host>/*", zone_name: "mino.mobi" }`, add the route-dns step to its deploy
+workflow, push, and verify the host serves. Two traps: a worker that serves assets answers
+matching paths **before** it runs, so a host-based redirect needs `assets.run_worker_first`;
+and the verification is the HOST responding, not the green run.
 
 The caps themselves (100 custom domains, 1000 routes) are Cloudflare's published
 per-zone limits; the 100 is confirmed by the error above, the 1000 is taken from
