@@ -194,6 +194,7 @@ export function checkAll(spec) {
   const out = { proportion: checkProportion(spec), silhouette: [...checkSilhouette(spec), ...checkForm(spec)], walk: checkWalk(spec), poses: checkPoses(spec) };
   if (spec.face) out.face = checkFace(spec);
   if (spec.hair) out.hair = checkHair(spec);
+  if (spec.outfit) out.clothes = checkClothes(spec);
   return out;
 }
 
@@ -405,4 +406,70 @@ export function checkForm(spec) {
     r('form: a neck shows', shown > 0.22 * Math.pow(m.k, 0.6), +shown.toFixed(3), `> ${(0.22 * Math.pow(m.k, 0.6)).toFixed(2)} heads, chin to the traps' flare (the books: about a quarter head)`),
     r('form: legs smooth in outline', nTurns <= 3, nTurns, '≤ 3 turns, ankle to hip (calf, knee, thigh)'),
   ];
+}
+
+// ---- clothes -------------------------------------------------------------------------
+import { GARMENT_GROUPS } from './body.js';
+import { surfacePoints } from './settle.js';
+
+/**
+ * Skin never shows through clothes. For each garment, every body part it covers:
+ * sample that part's skin (where it is the body's real surface, inside the
+ * garment's hems) and require the point to be inside the cloth. For a skirt, the
+ * thighs above its hem likewise. In every pose, and through a walk.
+ */
+export function checkClothes(spec) {
+  const rig = makeRig(spec);
+  const cases = Object.keys(POSES).map((n) => [n, () => POSES[n](rig)]);
+  const T = walk(rig, 0).cycle;
+  for (let i = 0; i < 8; i++) cases.push([`walk ${i}/8`, () => walk(rig, (i / 8) * T).pose]);
+  const out = [];
+  let worst = { depth: 0 }, samples = 0;
+  for (const [name, make] of cases) {
+    const P = solve(rig, make());
+    const all = buildBody(P);
+    const bodyOnly = all.filter((q) => q.group < GROUPS.indexOf('hair'));
+    const gIdx = [...GARMENT_GROUPS];
+    for (const g of gIdx) {
+      const cloth = all.filter((q) => q.group === g);
+      if (!cloth.length) continue;
+      const clothD = (p) => sdf(cloth, p);
+      // the parts this garment covers, and the planes it is cut by
+      for (const c of cloth) {
+        const base = c.name.includes(':') ? c.name.split(':')[1] : null;
+        const q = base && bodyOnly.find((b) => b.name === base);
+        if (!q) continue;
+        for (const p of surfacePoints(q, 10)) {
+          // only real skin (not buried in the body's own blend), well inside every hem
+          const gd = groupDists(bodyOnly, p);
+          if (Math.min(...gd) < -0.004 || gd[q.group] > 0.01) continue;
+          if (c.clips.some((cl) => cl && cl[0] * p[0] + cl[1] * p[1] + cl[2] * p[2] - cl[3] > -0.03)) continue;
+          samples++;
+          const d = clothD(p);
+          if (d > worst.depth) worst = { depth: d, part: base, garment: GROUPS[g], pose: name };
+        }
+      }
+      // a skirt: the thighs above its hem stay inside it
+      const skirt = cloth.find((q) => q.name === 'skirt');
+      if (skirt) {
+        const hem = skirt.clips[0];
+        for (const s of ['l', 'r']) for (const n of [`thigh_${s}0`, `thigh_${s}1`]) {
+          // a draped leg (it left the cone) is covered to the drape's own hem, which the
+          // cover check above already holds: a mini on a crouch leaves the knee bare
+          if (cloth.some((q) => q.name === `bottom:${n}`)) continue;
+          const q = bodyOnly.find((b) => b.name === n);
+          for (const p of surfacePoints(q, 10)) {
+            const gd = groupDists(bodyOnly, p);
+            if (Math.min(...gd) < -0.004 || gd[q.group] > 0.01) continue;
+            if (hem[0] * p[0] + hem[1] * p[1] + hem[2] * p[2] - hem[3] > -0.04) continue;
+            samples++;
+            const d = clothD(p);
+            if (d > worst.depth) worst = { depth: d, part: n, garment: 'skirt', pose: name };
+          }
+        }
+      }
+    }
+  }
+  out.push(r('clothes: no skin shows through', worst.depth < 0.004, +worst.depth.toFixed(4), `< 0.004 heads, ${samples} skin samples over ${cases.length} poses`, worst.part ? `${worst.part} through ${worst.garment} (${worst.pose})` : ''));
+  return out;
 }

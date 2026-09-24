@@ -62,6 +62,21 @@ pushed off the skin by its radius. Long hair adds a sheet behind the locks. The
 hair checks: off the head and body, the eyes visible through the bangs (rays at
 each eye), symmetric styles exactly mirror-symmetric, and the locks hang.
 
+## Clothes
+
+`"outfit": { "scheme": "school" }`, or piece by piece:
+`{ "top": "sailor", "bottom": "pleated", "legwear": "knee-socks", "shoes": "loafers", "accent": "ribbon", "colors": { "top": "white", "bottom": "navy", "collar": "navy" } }`
+
+top: `tee` `shirt` `tank` `sailor` `jacket` `crop` · bottom: `pants` `shorts` `skirt` `mini` `long-skirt` `pleated` ·
+legwear: `socks` `knee-socks` `thigh-highs` `tights` · shoes: `sneakers` `loafers` `boots` · accent: `ribbon` `tie` `collar` ·
+schemes: `school` `casual` `office` `street` `summer` · colours: see `CLOTH_COLORS` in `lib/clothes.js`.
+
+A garment is the body parts it covers, inflated by the cloth's thickness and cut
+by planes (hems, necklines, cuffs), built on the solved pose. A skirt is a
+flared (pleated) cone whose axis and flare are solved per pose; a thigh that
+leaves it (a raised knee, a crouch, a lap) gets a drape. `checkClothes`: no skin
+shows through, sampled over every pose and a walk.
+
 ## The face
 
 A face is IDENTITY (in the spec) × EXPRESSION (in the pose), both from a small

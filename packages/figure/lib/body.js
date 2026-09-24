@@ -14,11 +14,13 @@
 
 import { add, sub, scale, dot, cross, norm, len, dist, apply, madd, lerp3, rotate as rotateV } from './vec.js';
 import { buildHair } from './hair.js';
+import { buildClothes } from './clothes.js';
 
-export const GROUPS = ['torso', 'head', 'arm_l', 'arm_r', 'leg_l', 'leg_r', 'hair', 'hair_back', 'tail_l', 'tail_r'];
+export const GROUPS = ['torso', 'head', 'arm_l', 'arm_r', 'leg_l', 'leg_r', 'hair', 'hair_back', 'tail_l', 'tail_r', 'top', 'bottom', 'legwear', 'shoes', 'accent', 'collar'];
 export const HAIR_GROUPS = new Set([6, 7, 8, 9]);
+export const GARMENT_GROUPS = new Set([10, 11, 12, 13, 14, 15]);
 const G = Object.fromEntries(GROUPS.map((g, i) => [g, i]));
-export const CONE = 0, ELLIPSOID = 1, CAPPED = 2;   // CAPPED: an ellipsoid cut by a plane (the hairline)
+export const CONE = 0, ELLIPSOID = 1, CAPPED = 2, SKIRT = 3;   // CAPPED: an ellipsoid cut by a plane (the hairline); SKIRT: a flared, pleated cone
 
 // `side` (+1 left, −1 right, 0 centre): within a group the centre parts blend
 // first, then each side blends onto the centre on its own, and the two are
@@ -147,9 +149,26 @@ export function buildBody(P) {
     out.push(ell(g, lerp3(heelC, ballC, 0.5), FF, [0.15 * m.wide, rf * 0.88, dist(heelC, ballC) / 2 + rf * 0.7], 0.03 * kk, `foot_${s}`));
     out.push(cone(g, ballC, add(J[`toe_${s}`], scale(FF.y, rf * 0.55)), rf * 0.95, rf * 0.55, 0.03 * kk, `toes_${s}`));
   }
-  // ---- hair: built last, on the body, so its locks can be kept off it
+  // ---- clothes: the body it covers, inflated and cut (clothes.js)
+  if (P.outfit) {
+    // `surface`: the point on the body's front along `dir` from `pt`, lifted by `lift` (for things laid on the chest)
+    const bodyNow = out.slice();
+    const surface = (pt, dir, lift) => {
+      let p = add(pt, scale(dir, 1));
+      for (let i = 0; i < 60; i++) { const d = sdf(bodyNow, p); if (Math.abs(d) < 1e-4) break; p = add(p, scale(dir, -d)); }
+      return add(p, scale(dir, lift));
+    };
+    const clothes = buildClothes(P, bodyNow, P.outfit, { ellipsoid: ell, cone, surface, roundCone: sdRoundCone });
+    for (const q of clothes) {
+      if (typeof q.group === 'string') q.group = G[q.group];
+      const base = q.name.includes(':') ? q.name.split(':')[1] : q.name;
+      if (q.side === undefined || q.name.includes(':')) q.side = sideOf(base);
+    }
+    out.push(...clothes);
+  }
+  // ---- hair: built last, on the body, so its locks can be kept off it (and off the clothes)
   if (P.hair) {
-    const skin = out.filter((q) => q.group === G.head || q.group === G.torso);
+    const skin = out.filter((q) => q.group === G.head || q.group === G.torso || q.group === G.top || q.group === G.accent || q.group === G.collar);
     const capped = (group, c, F, r, n, d, k, name) => ({ type: CAPPED, group: G[group], side: 0, a: c, F, r, b: n, rb: d, k, name });
     const hp = buildHair(P, P.hair, skin, { sdf, ellipsoid: ell, cone, cappedEllipsoid: capped, accel: P.hairAccel || [0, 0, 0] });
     out.push(...hp.prims);
@@ -184,13 +203,32 @@ export function smin(a, b, k) {
   const h = Math.max(k - Math.abs(a - b), 0) / k;
   return Math.min(a, b) - h * h * k * 0.25;
 }
-export const primDist = (q, p) => q.type === CONE ? sdRoundCone(p, q.a, q.b, q.ra, q.rb)
-  : q.type === CAPPED ? Math.max(sdEllipsoid(p, q.a, q.F, q.r), dot(sub(p, q.a), q.b) - q.rb)
-  : sdEllipsoid(p, q.a, q.F, q.r);
+function rawDist(q, p) {
+  if (q.type === CONE) return sdRoundCone(p, q.a, q.b, q.ra, q.rb);
+  if (q.type === CAPPED) return Math.max(sdEllipsoid(p, q.a, q.F, q.r), dot(sub(p, q.a), q.b) - q.rb);
+  if (q.type === SKIRT) {
+    let d = sdRoundCone(p, q.a, q.b, q.ra, q.rb);
+    if (q.r[0] > 0.5) {
+      // pleats: folds round the hem, growing from nothing at the waist (shader.js, the same)
+      const ax = sub(q.b, q.a), L = len(ax), rel = sub(p, q.a);
+      const h = Math.max(0, Math.min(1, dot(rel, ax) / (L * L)));
+      const th = Math.atan2(dot(rel, q.F.z), dot(rel, q.F.x));
+      d -= q.r[1] * h * (0.5 + 0.5 * Math.cos(q.r[0] * th));
+    }
+    return d;
+  }
+  return sdEllipsoid(p, q.a, q.F, q.r);
+}
+/** A primitive's distance, cut by its clip planes (keep n·x ≤ d). */
+export const primDist = (q, p) => {
+  let d = rawDist(q, p);
+  if (q.clips) for (const c of q.clips) if (c) d = Math.max(d, c[0] * p[0] + c[1] * p[1] + c[2] * p[2] - c[3]);
+  return d;
+};
 
 /** A sphere that contains the primitive: the renderer skips a primitive the ray is far from. */
 export function boundOf(q) {
-  if (q.type === CONE) { const c = lerp3(q.a, q.b, 0.5); return [c, dist(q.a, q.b) / 2 + Math.max(q.ra, q.rb)]; }
+  if (q.type === CONE || q.type === SKIRT) { const c = lerp3(q.a, q.b, 0.5); return [c, dist(q.a, q.b) / 2 + Math.max(q.ra, q.rb)]; }
   return [q.a, Math.max(...q.r)];
 }
 
@@ -206,15 +244,16 @@ export function groupDists(prims, p) {
 }
 export function sdf(prims, p) { return Math.min(...groupDists(prims, p)); }
 
-/** Pack for the GPU: 7 texels (RGBA32F) per primitive; the 7th is its bounding sphere. */
-export const TEXELS = 7;
+/** Pack for the GPU: 9 texels (RGBA32F) per primitive; the 7th is its bounding sphere, the 8th and 9th its clip planes. */
+export const TEXELS = 9;
 export function pack(prims) {
   const f = new Float32Array(prims.length * TEXELS * 4);
   prims.forEach((q, i) => {
     const o = i * TEXELS * 4;
     const b = q.b || q.a, F = q.F || { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, r = q.r || [1, 1, 1];
     const [bc, br] = boundOf(q);
-    f.set([...q.a, q.ra ?? 0, ...b, q.rb ?? 0, q.type, q.group, q.k, q.side || 0, ...F.x, r[0], ...F.y, r[1], ...F.z, r[2], ...bc, br], o);
+    const c1 = q.clips?.[0] || [0, 0, 0, 0], c2 = q.clips?.[1] || [0, 0, 0, 0];
+    f.set([...q.a, q.ra ?? 0, ...b, q.rb ?? 0, q.type, q.group, q.k, q.side || 0, ...F.x, r[0], ...F.y, r[1], ...F.z, r[2], ...bc, br, ...c1, ...c2], o);
   });
   return f;
 }
@@ -226,8 +265,8 @@ export function groupBounds(prims) {
     if (!qs.length) return null;
     const pts = [];
     for (const q of qs) {
-      const rad = q.type === CONE ? Math.max(q.ra, q.rb) : Math.max(...q.r);
-      pts.push([q.a, rad]); if (q.b && q.type === CONE) pts.push([q.b, rad]);
+      const rad = q.type === CONE || q.type === SKIRT ? Math.max(q.ra, q.rb) + (q.type === SKIRT ? q.r[1] : 0) : Math.max(...q.r);
+      pts.push([q.a, rad]); if (q.b && (q.type === CONE || q.type === SKIRT)) pts.push([q.b, rad]);
     }
     const c = scale(pts.reduce((s, [p]) => add(s, p), [0, 0, 0]), 1 / pts.length);
     const r = Math.max(...pts.map(([p, rad]) => dist(p, c) + rad)) + Math.max(...qs.map((q) => q.k));

@@ -201,5 +201,5 @@ export function solve(rig, pose = {}) {
   // the hair: its style (the spec), and the head's acceleration (the pose) it lags behind
   const hair = rig.spec.hair || null;
   if (face && hair) face.colors.brow = hairColors(hair).shade;
-  return { J, F, report, rig, face, hair, hairAccel: P.hairAccel || null };
+  return { J, F, report, rig, face, hair, outfit: rig.spec.outfit || null, hairAccel: P.hairAccel || null };
 }

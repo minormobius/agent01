@@ -17,6 +17,7 @@ WebGL2 for pictures. Used live at `studio.mino.mobi/figure/` (the mannequin).
 | `femme` | 0 | 0 a masculine frame … 1 a feminine one; `bust`, `waist`, `hips` (0..1) vary it |
 | `face` | none | the face's predicates (see `SKILL.md`); absent, the head shows construction lines |
 | `hair` | none | the hair's predicates (see `SKILL.md`) |
+| `outfit` | none | the clothes (see `SKILL.md`) |
 
 Widths follow build, not height: a taller figure in heads is a longer
 figure, not a wider one. Below 7 heads widths shrink slower than heights, so
@@ -35,7 +36,8 @@ a chibi stays chunky.
 | `lib/body.js` | pose → primitives (round cones, ellipsoids) in groups; the JS distance field; `pack` for the GPU |
 | `lib/face.js` | the face: predicates (identity) and expressions, resolved to the shader's parameter block; the lid and brow curves the checks measure |
 | `lib/hair.js` | hair: a cap cut at the hairline and locks from predicates, draped under gravity and pushed off the body |
-| `lib/check.js` | the checks: proportion, silhouette, walk, poses, face, hair |
+| `lib/clothes.js` | clothes: garments as the body they cover, inflated and cut; skirts as solved, draped cones |
+| `lib/check.js` | the checks: proportion, silhouette and form, walk, poses, face, hair, clothes |
 | `lib/shader.js` | the WebGL2 renderer: raymarched geometry pass, then cel tone + ink lines of three weights |
 | `lib/sheet.js` | the model sheet and the lineup, for `sheet.html` |
 | `agent/check.mjs`, `agent/render.mjs` | the headless tools (see `SKILL.md`) |

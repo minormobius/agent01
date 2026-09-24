@@ -130,6 +130,33 @@ measurement (`checkForm`) before any fix:
   straighter and lower brows, a drawn nose bridge (one-sided on purpose), a wider
   jaw, a blunter chin and an Adam's apple.
 
+## Clothes (2026-09-24)
+
+clothes.js. A garment piece is a COVER: a body primitive copied into a garment
+group (top, bottom, legwear, shoes, accent, collar), inflated by the cloth's
+thickness, and cut by up to two clip planes (a new pair of texels per primitive;
+any primitive can carry them). Built on the solved pose, a cover cannot miss the
+skin it covers. A SKIRT is a new primitive: a flared round cone with pleats round
+the hem. It runs past its hem by its own radius and is cut flat, because a round
+cone ends in a ball, and the first skirts were balloons. Per pose:
+- the axis follows the thighs' mean but tilts at most 25° from hanging down
+- the top holds both thighs
+- the flare holds them down to the hem, capped at 2× (an A-line)
+- a thigh that still leaves the cone gets a DRAPE: skirt-coloured covers over
+  the thigh to the hem's reach
+
+Faults the check found, and their fixes:
+- **A running knee pierced the skirt**; the fix is the drape.
+- **A crouching thigh was sliced by the drape's own hem.** A plane across the
+  shin cuts a thigh folded back over it: a hem plane cuts only the bone it lies
+  across.
+- **The check demanded a mini cover a crouching knee.** For a draped leg, the
+  drape's hem defines what should be covered.
+
+90 body × outfit pairs (10 bodies, 9 outfits) over 16 poses each: no skin shows
+through. The sailor collar is a flap down the back plus lapels laid on the chest
+in segments; one straight lapel ran through the chest's curve.
+
 ## Not done yet (the next layers)
 
 Hair

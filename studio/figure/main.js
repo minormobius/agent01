@@ -15,22 +15,23 @@ import { makeRenderer, camera, project, STYLE } from '../vendor/figure/lib/shade
 import { checkAll } from '../vendor/figure/lib/check.js';
 import { PREDICATES, EXPRESSIONS } from '../vendor/figure/lib/face.js';
 import { HAIR_PREDICATES, COLORS as HAIR_COLORS } from '../vendor/figure/lib/hair.js';
+import { OUTFIT_PREDICATES, OUTFITS, CLOTH_COLORS } from '../vendor/figure/lib/clothes.js';
 import { add, apply, dot } from '../vendor/figure/lib/vec.js';
 
 const qs = new URLSearchParams(location.search);
 
 // the cast: the same characters packages/figure/specs holds and the selftest checks
 const CAST = {
-  petite: { heads: 6, femme: 1, build: 0.2, bust: 0.3, waist: 0.5, hips: 0.45, mass: 0.35, legs: 0.5, headWidth: 0.82, face: { eyes: 'round', brows: 'thin', irisColor: 'blue', extras: ['blush'] }, hair: { length: 'bob', bangs: 'blunt', color: 'black', extras: ['ahoge'] } },
-  curvy: { heads: 7, femme: 1, build: 0.3, bust: 0.85, waist: 0.7, hips: 0.9, mass: 0.6, legs: 0.6, face: { eyes: 'tareme', brows: 'arched', lashes: 'heavy', irisColor: 'amber', extras: ['mole'] }, hair: { length: 'long', bangs: 'parted', color: 'chestnut' } },
-  athletic: { heads: 7.3, femme: 0.8, build: 0.5, bust: 0.35, waist: 0.4, hips: 0.45, mass: 0.62, legs: 0.6, face: { eyes: 'tsurime', brows: 'straight', irisColor: 'green', mouth: 'fang' }, hair: { length: 'shoulder', bangs: 'parted', tails: 'ponytail', color: 'brown' } },
-  model: { heads: 8.5, femme: 1, build: 0.2, bust: 0.35, waist: 0.6, hips: 0.5, mass: 0.2, legs: 1, headWidth: 0.76, neck: 0.9, face: { eyes: 'narrow', brows: 'thin', lashes: 'heavy', irisColor: 'violet' }, hair: { length: 'waist', bangs: 'blunt', color: 'purple' } },
-  plus: { heads: 6.8, femme: 1, build: 0.35, bust: 0.9, waist: 0.15, hips: 1, mass: 1, legs: 0.4, headWidth: 0.84, face: { eyes: 'round', brows: 'arched', irisColor: 'brown', extras: ['blush'] }, hair: { length: 'shoulder', bangs: 'blunt', tails: 'twintails', color: 'pink' } },
-  chibi: { heads: 3, build: 0.3, legs: 0.2, mass: 0.7, headWidth: 0.9, face: { eyes: 'round', brows: 'thin', mouth: 'cat', irisColor: 'amber', extras: ['blush'] }, hair: { length: 'bob', bangs: 'blunt', color: 'orange', extras: ['ahoge'] } },
-  teen: { heads: 5.8, build: 0.25, legs: 0.7, mass: 0.3, headWidth: 0.82, face: { eyes: 'tareme', brows: 'arched', irisColor: 'green', extras: ['blush'] }, hair: { length: 'short', bangs: 'spiky', color: 'blonde' } },
+  petite: { heads: 6, femme: 1, build: 0.2, bust: 0.3, waist: 0.5, hips: 0.45, mass: 0.35, legs: 0.5, headWidth: 0.82, face: { eyes: 'round', brows: 'thin', irisColor: 'blue', extras: ['blush'] }, hair: { length: 'bob', bangs: 'blunt', color: 'black', extras: ['ahoge'] } , outfit: {"scheme": "school"} },
+  curvy: { heads: 7, femme: 1, build: 0.3, bust: 0.85, waist: 0.7, hips: 0.9, mass: 0.6, legs: 0.6, face: { eyes: 'tareme', brows: 'arched', lashes: 'heavy', irisColor: 'amber', extras: ['mole'] }, hair: { length: 'long', bangs: 'parted', color: 'chestnut' } , outfit: {"scheme": "summer", "colors": {"top": "wine", "bottom": "cream", "shoes": "tan"}} },
+  athletic: { heads: 7.3, femme: 0.8, build: 0.5, bust: 0.35, waist: 0.4, hips: 0.45, mass: 0.62, legs: 0.6, face: { eyes: 'tsurime', brows: 'straight', irisColor: 'green', mouth: 'fang' }, hair: { length: 'shoulder', bangs: 'parted', tails: 'ponytail', color: 'brown' } , outfit: {"scheme": "street", "colors": {"top": "olive", "bottom": "denim", "legwear": "black", "shoes": "black"}} },
+  model: { heads: 8.5, femme: 1, build: 0.2, bust: 0.35, waist: 0.6, hips: 0.5, mass: 0.2, legs: 1, headWidth: 0.76, neck: 0.9, face: { eyes: 'narrow', brows: 'thin', lashes: 'heavy', irisColor: 'violet' }, hair: { length: 'waist', bangs: 'blunt', color: 'purple' } , outfit: {"top": "shirt", "bottom": "long-skirt", "shoes": "boots", "colors": {"top": "cream", "bottom": "wine", "shoes": "brown"}} },
+  plus: { heads: 6.8, femme: 1, build: 0.35, bust: 0.9, waist: 0.15, hips: 1, mass: 1, legs: 0.4, headWidth: 0.84, face: { eyes: 'round', brows: 'arched', irisColor: 'brown', extras: ['blush'] }, hair: { length: 'shoulder', bangs: 'blunt', tails: 'twintails', color: 'pink' } , outfit: {"top": "tee", "bottom": "mini", "legwear": "thigh-highs", "shoes": "sneakers", "colors": {"top": "pink", "bottom": "black", "legwear": "white", "shoes": "white"}} },
+  chibi: { heads: 3, build: 0.3, legs: 0.2, mass: 0.7, headWidth: 0.9, face: { eyes: 'round', brows: 'thin', mouth: 'cat', irisColor: 'amber', extras: ['blush'] }, hair: { length: 'bob', bangs: 'blunt', color: 'orange', extras: ['ahoge'] } , outfit: {"top": "tee", "bottom": "shorts", "legwear": "socks", "shoes": "sneakers", "colors": {"top": "yellow", "bottom": "blue", "legwear": "white", "shoes": "red"}} },
+  teen: { heads: 5.8, build: 0.25, legs: 0.7, mass: 0.3, headWidth: 0.82, face: { eyes: 'tareme', brows: 'arched', irisColor: 'green', extras: ['blush'] }, hair: { length: 'short', bangs: 'spiky', color: 'blonde' } , outfit: {"scheme": "casual"} },
   adult: { heads: 7, build: 0.5, legs: 0.5, mass: 0.5, headWidth: 0.8, face: { eyes: 'round', brows: 'thin', irisColor: 'violet' }, hair: null },
-  heroic: { heads: 8.2, build: 0.95, legs: 0.6, mass: 0.85, headWidth: 0.74, face: { eyes: 'narrow', brows: 'thick', mouth: 'wide', nose: 'dot', irisColor: 'blue' }, hair: { length: 'short', bangs: 'spiky', color: 'black' } },
-  fashion: { heads: 8.5, build: 0.1, legs: 1, mass: 0.2, headWidth: 0.76, face: { eyes: 'tsurime', brows: 'thin', lashes: 'heavy', irisColor: 'red', extras: ['mole'] }, hair: { length: 'bob', bangs: 'swept', color: 'silver' } },
+  heroic: { heads: 8.2, build: 0.95, legs: 0.6, mass: 0.85, headWidth: 0.74, face: { eyes: 'narrow', brows: 'thick', mouth: 'wide', nose: 'dot', irisColor: 'blue' }, hair: { length: 'short', bangs: 'spiky', color: 'black' } , outfit: {"scheme": "office"} },
+  fashion: { heads: 8.5, build: 0.1, legs: 1, mass: 0.2, headWidth: 0.76, face: { eyes: 'tsurime', brows: 'thin', lashes: 'heavy', irisColor: 'red', extras: ['mole'] }, hair: { length: 'bob', bangs: 'swept', color: 'silver' } , outfit: {"top": "jacket", "bottom": "pants", "shoes": "boots", "colors": {"top": "black", "bottom": "black", "shoes": "black"}} },
 };
 const BODY_KEYS = ['heads', 'build', 'legs', 'mass', 'headWidth', 'neck', 'femme', 'bust', 'waist', 'hips'];
 const SLIDERS = [['heads', 2.5, 9, 0.1], ['femme', 0, 1, 0.01], ['bust', 0, 1, 0.01], ['waist', 0, 1, 0.01], ['hips', 0, 1, 0.01], ['build', 0, 1, 0.01], ['legs', 0, 1, 0.01], ['mass', 0, 1, 0.01], ['headWidth', 0.65, 0.95, 0.01]];
@@ -42,13 +43,14 @@ const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefin
 const start = CAST[qs.get('cast')] ? qs.get('cast') : 'curvy';
 const state = {
   body: pick(CAST[start], BODY_KEYS), face: { ...CAST[start].face }, hair: CAST[start].hair ? { ...CAST[start].hair } : null,
+  outfit: CAST[start].outfit ? JSON.parse(JSON.stringify(CAST[start].outfit)) : null, clothesOn: !qs.has('mannequin'),
   faceOn: !qs.has('mannequin'), hairOn: !qs.has('mannequin'), lastHair: CAST[start].hair || { length: 'bob', bangs: 'blunt', color: 'black' },
   pose: qs.get('pose') || 'walk', expression: qs.get('expression') || 'smile',
   yaw: qs.has('yaw') ? Number(qs.get('yaw')) : 0.6, close: qs.has('close'), grid: true, skeleton: false, turn: false,
   tab: 'pose',
 };
 const still = qs.has('still');
-const fullSpec = () => ({ ...state.body, ...(state.faceOn ? { face: state.face } : {}), ...(state.hairOn && state.hair ? { hair: state.hair } : {}) });
+const fullSpec = () => ({ ...state.body, ...(state.faceOn ? { face: state.face } : {}), ...(state.hairOn && state.hair ? { hair: state.hair } : {}), ...(state.clothesOn && state.outfit ? { outfit: state.outfit } : {}) });
 
 // ---------------------------------------------------------------- drawing --
 const host = document.getElementById('stage');
@@ -147,7 +149,7 @@ function recheck() {
     const bad = res.filter((r) => !r.ok);
     badge.innerHTML = bad.length
       ? `<b class="bad">${res.length - bad.length}/${res.length} checks</b> · ${bad.slice(0, 2).map((r) => r.name).join(' · ')}${bad.length > 2 ? ` · +${bad.length - 2}` : ''}`
-      : `<b class="ok">${res.length}/${res.length} checks</b> · feet never slide · no limb through another · the eyes show through the bangs`;
+      : `<b class="ok">${res.length}/${res.length} checks</b> · feet never slide · no limb through another · no skin through the clothes`;
   }, 350);
 }
 
@@ -179,7 +181,7 @@ const TABS = {
   },
   body: () => {
     const same = (n) => BODY_KEYS.every((k) => Math.abs((state.body[k] ?? NaN) - (CAST[n][k] ?? NaN)) < 1e-9 || (state.body[k] === undefined && CAST[n][k] === undefined));
-    chips(row('cast'), Object.keys(CAST), same, (n) => { const c = CAST[n]; state.body = pick(c, BODY_KEYS); state.face = { ...c.face }; state.hair = c.hair ? { ...c.hair } : null; if (c.hair) state.lastHair = c.hair; state.hairOn = !!c.hair; rebuild(); });
+    chips(row('cast'), Object.keys(CAST), same, (n) => { const c = CAST[n]; state.body = pick(c, BODY_KEYS); state.face = { ...c.face }; state.hair = c.hair ? { ...c.hair } : null; if (c.hair) state.lastHair = c.hair; state.hairOn = !!c.hair; state.outfit = c.outfit ? JSON.parse(JSON.stringify(c.outfit)) : null; state.clothesOn = true; rebuild(); });
     const box = document.createElement('div'); box.className = 'sliders'; content.append(box);
     for (const [k, lo, hi, step] of SLIDERS) {
       const l = document.createElement('label'); l.className = 'sl';
@@ -206,9 +208,22 @@ const TABS = {
     chips(r, Object.keys(HAIR_COLORS), (n) => state.hairOn && state.hair?.color === n, (n) => setHair('color', n), { swatch: (n) => HAIR_COLORS[n][0] });
     chips(row('extras'), HAIR_PREDICATES.extras, (n) => state.hairOn && (state.hair?.extras || []).includes(n), (n) => { state.hairOn = true; state.hair = toggleIn(state.hair || state.lastHair, 'extras', n); state.lastHair = state.hair; rebuild(); });
   },
+  clothes: () => {
+    // a scheme is a whole outfit in one word; each piece can then be changed on its own
+    const resolved = () => { const o = state.outfit || {}; const b = o.scheme ? OUTFITS[o.scheme] : {}; return { ...b, ...o, colors: { ...(b.colors || {}), ...(o.colors || {}) } }; };
+    const setPiece = (k, v) => { const r = resolved(); delete r.scheme; state.outfit = { ...r, [k]: v }; state.clothesOn = true; rebuild(); };
+    const setColor = (k, v) => { const r = resolved(); delete r.scheme; state.outfit = { ...r, colors: { ...r.colors, [k]: v } }; state.clothesOn = true; rebuild(); };
+    chips(row('wear'), ['none', ...Object.keys(OUTFITS)], (n) => (n === 'none' ? !state.clothesOn || !state.outfit : state.clothesOn && state.outfit?.scheme === n && Object.keys(state.outfit).length <= 2),
+      (n) => { if (n === 'none') { state.clothesOn = false; } else { state.outfit = { scheme: n }; state.clothesOn = true; } rebuild(); });
+    for (const k of ['top', 'bottom', 'legwear', 'shoes', 'accent']) chips(row(k === 'legwear' ? 'legs' : k), OUTFIT_PREDICATES[k], (n) => state.clothesOn && (resolved()[k] || 'none') === n, (n) => setPiece(k, n));
+    const sw = (n) => CLOTH_COLORS[n][0];
+    chips(row('top ●'), Object.keys(CLOTH_COLORS), (n) => resolved().colors?.top === n, (n) => setColor('top', n), { swatch: sw });
+    chips(row('bottom ●'), Object.keys(CLOTH_COLORS), (n) => resolved().colors?.bottom === n, (n) => setColor('bottom', n), { swatch: sw });
+  },
   view: () => {
-    chips(row('show'), ['close', 'face', 'hair', 'grid', 'skeleton', 'turn'], (n) => (n === 'face' ? state.faceOn : n === 'hair' ? state.hairOn && !!state.hair : state[n]), (n) => {
+    chips(row('show'), ['close', 'face', 'hair', 'clothes', 'grid', 'skeleton', 'turn'], (n) => (n === 'face' ? state.faceOn : n === 'hair' ? state.hairOn && !!state.hair : n === 'clothes' ? state.clothesOn && !!state.outfit : state[n]), (n) => {
       if (n === 'face') { state.faceOn = !state.faceOn; rebuild(); return; }
+      if (n === 'clothes') { state.clothesOn = !state.clothesOn; if (state.clothesOn && !state.outfit) state.outfit = { scheme: 'casual' }; rebuild(); return; }
       if (n === 'hair') { state.hairOn = !(state.hairOn && state.hair); if (state.hairOn && !state.hair) state.hair = { ...state.lastHair }; rebuild(); return; }
       state[n] = !state[n]; dirty = true;
     });

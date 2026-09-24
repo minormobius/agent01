@@ -15,6 +15,7 @@
 import { pack, groupBounds, TEXELS, GROUPS } from './body.js';
 import { packFace } from './face.js';
 import { hairColors } from './hair.js';
+import { outfitColors, resolveOutfit } from './clothes.js';
 import { cross, norm, sub, add, scale } from './vec.js';
 
 const VS = `#version 300 es
@@ -57,8 +58,27 @@ float prim(int i, vec3 p){
   vec4 t0 = T(i, 0), t1 = T(i, 1), t2 = T(i, 2);
   if (t2.x < 0.5) return sdRoundCone(p, t0.xyz, t1.xyz, t0.w, t1.w);
   vec4 t3 = T(i, 3), t4 = T(i, 4), t5 = T(i, 5);
-  float d = sdEll(p, t0.xyz, t3.xyz, t4.xyz, t5.xyz, vec3(t3.w, t4.w, t5.w));
-  if (t2.x > 1.5) d = max(d, dot(p - t0.xyz, t1.xyz) - t1.w);     // capped: cut by a plane (the hairline)
+  float d;
+  if (t2.x > 2.5) {
+    // a skirt: a flared round cone, pleated round the hem (body.js rawDist, the same)
+    d = sdRoundCone(p, t0.xyz, t1.xyz, t0.w, t1.w);
+    if (t3.w > 0.5) {
+      vec3 ax = t1.xyz - t0.xyz, rel = p - t0.xyz;
+      float h = clamp(dot(rel, ax) / dot(ax, ax), 0.0, 1.0);
+      float th = atan(dot(rel, t5.xyz), dot(rel, t3.xyz));
+      d -= t4.w * h * (0.5 + 0.5 * cos(t3.w * th));
+    }
+  } else {
+    d = sdEll(p, t0.xyz, t3.xyz, t4.xyz, t5.xyz, vec3(t3.w, t4.w, t5.w));
+    if (t2.x > 1.5) d = max(d, dot(p - t0.xyz, t1.xyz) - t1.w);     // capped: cut by a plane (the hairline)
+  }
+  return d;
+}
+float primClipped(int i, vec3 p){
+  float d = prim(i, p);
+  vec4 c1 = T(i, 7), c2 = T(i, 8);
+  if (dot(c1.xyz, c1.xyz) > 0.5) d = max(d, dot(p, c1.xyz) - c1.w);    // a hem, a neckline, a cuff
+  if (dot(c2.xyz, c2.xyz) > 0.5) d = max(d, dot(p, c2.xyz) - c2.w);
   return d;
 }
 // the body: smooth within a group, hard between; returns (distance, group)
@@ -78,7 +98,7 @@ vec2 map(vec3 p){
       vec4 bs = T(i, 6);
       float near = t2.w == 0.0 ? c : (t2.w > 0.0 ? dl : dr);
       if (length(p - bs.xyz) - bs.w > min(near, best) + t2.z + 0.02) continue;
-      float di = prim(i, p);
+      float di = primClipped(i, p);
       if (t2.w == 0.0) { c = smin(c, di, t2.z); dl = c; dr = c; }
       else if (t2.w > 0.0) { sided = true; dl = smin(dl, di, t2.z); }
       else { sided = true; dr = smin(dr, di, t2.z); }
@@ -328,7 +348,7 @@ vec3 tone(vec2 q){
   float rim = smoothstep(0.62, 0.8, 1.0 - n.z) * smoothstep(-0.2, 0.3, dot(n.xy, -light.xy)) ;
   col = mix(col, base[gi] * 1.08 + 0.04, rim * 0.55 * (1.0 - lit));   // a warm rim on the shadow side
   if (gi == 1) col = faceTone(col, texture(fm, q));
-  if (gi >= 6) {
+  if (gi >= 6 && gi < 10) {
     // the angel ring: a band of light across the upper curve of the hair, its edges cut in zigzags
     float zig = 0.035 * sin(q.x * 160.0);
     float band = smoothstep(0.36 + zig, 0.39 + zig, n.y) * (1.0 - smoothstep(0.5 + zig, 0.53 + zig, n.y)) * smoothstep(0.45, 0.7, n.z);
@@ -446,7 +466,8 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
     const L = norm(style.light); gl.uniform3f(U(pi, 'light'), ...L);
     GROUPS.forEach((name, i) => {
       const hc = P.hair ? hairColors(P.hair) : null;
-      const [b, s] = style.groups?.[name] || (hc && i >= 6 ? [hc.base, hc.shade] : [style.skin, style.skinShade]);
+      const oc = P.outfit ? outfitColors(resolveOutfit(P.outfit)) : null;
+      const [b, s] = style.groups?.[name] || (oc && i >= 10 ? oc[name] || [style.skin, style.skinShade] : hc && i >= 6 && i < 10 ? [hc.base, hc.shade] : [style.skin, style.skinShade]);
       gl.uniform3f(U(pi, `base[${i}]`), ...hex(b)); gl.uniform3f(U(pi, `shade[${i}]`), ...hex(s));
     });
     gl.uniform3f(U(pi, 'inkC'), ...hex(style.ink)); gl.uniform3f(U(pi, 'paper'), ...hex(style.paper));
