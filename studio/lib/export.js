@@ -45,32 +45,72 @@ async function firstAudio(codecs) {
 const H264 = [['avc1.640028', 'avc'], ['avc1.4d0028', 'avc'], ['avc1.42e028', 'avc'], ['avc1.640033', 'avc']];
 const OPEN = [['vp09.00.40.08', 'vp9'], ['vp09.00.10.08', 'vp9'], ['av01.0.08M.08', 'av1']];
 const PHOTOS_MIMES = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs="avc1,mp4a"'];
+// Safari's MediaRecorder writes H.264 + AAC for a plain 'video/mp4'; Chrome's
+// may write Opus into it. So the plain type counts only on Safari.
+const isSafari = () => /^((?!chrome|chromium|crios|android|edg).)*safari/i.test(navigator.userAgent);
 
 /**
  * How to make the file, best first. A camera roll wants H.264 + AAC in MP4:
  *
  *   offline  H.264 + AAC      fast, and Photos takes it       (Chrome on Mac/Win/Android, Safari with AAC)
- *   realtime MediaRecorder MP4 as long as the piece; Photos    (Safari without an AAC encoder)
- *   offline  VP9/AV1 + Opus   fast; plays anywhere online, but iPhone Photos may refuse it
+ *   realtime MediaRecorder MP4 as long as the piece           (Safari records H.264 + AAC this way)
+ *   offline  VP9/AV1 + Opus   fast; plays in browsers, NOT in Apple's players
  *   realtime whatever MediaRecorder can do
+ *
+ * What is never made: H.264 with OPUS audio. Apple's players and Photos play
+ * that file's picture and silently drop its sound — which is exactly the bug
+ * the first version of this shipped (2026-09-24): a browser with an H.264
+ * encoder but no AAC encoder fell through to it. A browser like that records in
+ * real time instead, and the file is inspected afterwards either way.
  */
 export async function plan(w, h) {
   const wc = 'VideoEncoder' in window && 'AudioEncoder' in window && 'VideoFrame' in window && 'AudioData' in window;
   const mr = window.MediaRecorder?.isTypeSupported ? window.MediaRecorder : null;
   if (wc) {
     const v = await firstVideo(w, h, H264), a = await firstAudio([['mp4a.40.2', 'aac']]);
-    if (v && a) return { mode: 'offline', video: v, audio: a, photos: true };
+    if (v && a) return { mode: 'offline', video: v, audio: a };
   }
-  const photoMime = mr && PHOTOS_MIMES.find((m) => mr.isTypeSupported(m));
-  if (photoMime) return { mode: 'realtime', mime: photoMime, photos: true };
+  const mp4 = mr && (PHOTOS_MIMES.find((m) => mr.isTypeSupported(m)) || (isSafari() && mr.isTypeSupported('video/mp4') ? 'video/mp4' : null));
+  if (mp4) return { mode: 'realtime', mime: mp4 };
   if (wc) {
-    const v = (await firstVideo(w, h, H264)) || (await firstVideo(w, h, OPEN));
-    const a = await firstAudio([['mp4a.40.2', 'aac'], ['opus', 'opus']]);
-    if (v && a) return { mode: 'offline', video: v, audio: a, photos: false };
+    const v = await firstVideo(w, h, OPEN), a = await firstAudio([['opus', 'opus']]);
+    if (v && a) return { mode: 'offline', video: v, audio: a };
   }
   const any = mr && ['video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((m) => mr.isTypeSupported(m));
-  if (any) return { mode: 'realtime', mime: any, photos: false };
+  if (any) return { mode: 'realtime', mime: any };
   return null;
+}
+
+/**
+ * What is actually in the file, read from the file: the codecs named by its
+ * sample entries, and whether its sound is sound. `photos` is true only for
+ * H.264 + AAC in MP4, the combination Apple's Photos is known to take.
+ */
+export async function inspect(blob) {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  // The sample entries live in the moov box: at the head (fast start, and
+  // MediaRecorder's fragmented files) or else at the tail. Scan both ends only.
+  const W = 2 << 20;
+  const ends = bytes.length <= 2 * W ? [bytes] : [bytes.subarray(0, W), bytes.subarray(bytes.length - W)];
+  const has = (tag) => {
+    const [a, b, c, d] = [...tag].map((ch) => ch.charCodeAt(0));
+    for (const x of ends) for (let i = 0; i < x.length - 3; i++) if (x[i] === a && x[i + 1] === b && x[i + 2] === c && x[i + 3] === d) return true;
+    return false;
+  };
+  const mp4 = has('ftyp');
+  const video = mp4 ? (has('avc1') ? 'h264' : has('hvc1') ? 'hevc' : has('vp09') ? 'vp9' : has('av01') ? 'av1' : '?') : 'webm';
+  const audio = mp4 ? (has('mp4a') ? 'aac' : has('Opus') || has('opus') ? 'opus' : 'none') : '?';
+  let level = null;
+  try {
+    const ac = new OfflineAudioContext(1, 48000, 48000);
+    const ab = await ac.decodeAudioData(bytes.buffer);   // detaches it: the scan is done
+    const d = ab.getChannelData(0);
+    let sum = 0;
+    for (let i = 0; i < d.length; i += 7) sum += d[i] * d[i];
+    level = 10 * Math.log10(sum / Math.ceil(d.length / 7) + 1e-12);
+  } catch { /* this browser cannot decode its own file's audio: say nothing about level */ }
+  const silent = audio === 'none' || (level !== null && level < -60);
+  return { video, audio, level, silent, photos: mp4 && video === 'h264' && audio === 'aac' && !silent };
 }
 
 /**
@@ -188,13 +228,18 @@ export async function renderOffline({ w, h, seconds, draw, audio, support, onPro
  * The slow path: play it in real time into a MediaRecorder. Takes as long as
  * the piece does, and needs the tab visible throughout.
  */
-export async function renderRealtime({ w, h, seconds, draw, audio, mime, onProgress, signal }) {
+/**
+ * `ac` must be an AudioContext made and resumed INSIDE the tap that started the
+ * export (see extras.js): one made later, after the awaits, is left suspended
+ * by Safari, and records silence.
+ */
+export async function renderRealtime({ w, h, seconds, draw, audio, mime, ac, onProgress, signal }) {
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d', { alpha: false });
-  const ac = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: AUDIO_RATE });
   await ac.resume();
-  const buf = ac.createBuffer(2, audio.L.length, AUDIO_RATE);
+  if (ac.state !== 'running') throw new Error('the browser would not start audio for the recording; tap Render again');
+  const buf = ac.createBuffer(2, audio.L.length, AUDIO_RATE);   // resampled by the context if its rate differs
   fadeTail(audio.L, audio.R, AUDIO_RATE);
   buf.copyToChannel(audio.L, 0); buf.copyToChannel(audio.R, 1);
   const dest = ac.createMediaStreamDestination();
@@ -223,7 +268,6 @@ export async function renderRealtime({ w, h, seconds, draw, audio, mime, onProgr
   });
   rec.stop();
   await stopped;
-  ac.close();
   return new Blob(parts, { type: mime.split(';')[0] });
 }
 

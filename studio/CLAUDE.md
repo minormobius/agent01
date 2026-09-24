@@ -139,10 +139,22 @@ at 48 kHz in the piano worker. `plan()` picks the best route this browser has:
 
 1. offline WebCodecs **H.264 + AAC** in MP4 (vendored `mp4-muxer`, MIT). Fast, and a
    phone's Photos accepts it. Chrome on Mac/Win/Android, Safari with an AAC encoder.
-2. real-time `MediaRecorder` MP4 (H.264/AAC). As long as the piece, but Photos takes it.
-3. offline VP9/AV1 + Opus in MP4. Fast and plays everywhere online, but iPhone Photos
-   may refuse it. The panel says so.
+2. real-time `MediaRecorder` MP4, when the browser promises AAC (or is Safari). As long
+   as the piece, but Photos takes it.
+3. offline VP9/AV1 + Opus in MP4. Fast and plays in browsers, NOT in Apple's players.
+   The panel says so.
 4. whatever MediaRecorder can do.
+
+**Never H.264 with Opus.** The first version fell through to H.264 video + Opus audio
+in MP4 on a browser that had an H.264 encoder but no AAC one. Apple's players and Photos
+play that file's picture and silently drop its sound, and a user got a silent video
+(2026-09-24). Now such a browser records in real time instead (Safari records AAC).
+The real-time route's AudioContext is made and resumed **inside the tap**, before any
+await; Safari leaves one made later suspended, and it records silence. Every finished
+file then goes through `inspect()`: its codecs are read from its own sample entries,
+and its audio is decoded and measured. A silent file is refused, never offered, and
+only H.264 + AAC is called camera-roll-safe. `?export=realtime` forces the recording
+route for testing; both routes were measured here at −22 dB RMS over 98 s.
 
 Open-source Chromium (this sandbox's Playwright) has **no H.264 or AAC encoder**, so
 local tests exercise route 3. Measured here: 98 s of Anthesis at 1080², rendered in

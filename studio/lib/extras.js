@@ -5,7 +5,7 @@
 //
 // A piece passes what it knows; this file owns the panel and its states.
 
-import { FORMATS, plan, renderAudio, renderOffline, renderRealtime, drawCredits, shareOrSave } from './export.js';
+import { FORMATS, plan, inspect, renderAudio, renderOffline, renderRealtime, drawCredits, shareOrSave } from './export.js';
 
 const CLEF = 'https://clef.mino.mobi/';
 
@@ -64,6 +64,15 @@ export function mountExtras({ slug, title, subtitle, events, seconds, makeRender
 
   $('.x-go').addEventListener('click', async () => {
     const { w, h } = FORMATS[fmt];
+    // Made and resumed NOW, inside the tap, before any await: Safari leaves a
+    // context created later suspended, and a real-time recording of it is silent.
+    let ac = null;
+    try {
+      try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch { /* ambient */ }
+      const AC = window.AudioContext || window.webkitAudioContext;
+      try { ac = new AC({ sampleRate: 48000 }); } catch { ac = new AC(); }
+      ac.resume();
+    } catch { ac = null; }
     abort = new AbortController();
     const signal = abort.signal;
     $('.x-go').hidden = true; $('.x-share').hidden = true;
@@ -78,7 +87,12 @@ export function mountExtras({ slug, title, subtitle, events, seconds, makeRender
         r.draw(ctx, t);
         drawCredits(ctx, w, h, t, seconds, { title, subtitle, ink });
       };
-      const how = await plan(w, h);
+      // ?export=realtime forces the recording route (for testing it on a machine
+      // that would otherwise render offline).
+      const force = new URLSearchParams(location.search).get('export');
+      const how = force === 'realtime'
+        ? { mode: 'realtime', mime: ['video/mp4', 'video/webm'].find((m) => window.MediaRecorder?.isTypeSupported(m)) }
+        : await plan(w, h);
       if (!how) throw new Error('this browser can neither encode nor record video');
       let t0 = performance.now();
       if (how.mode === 'offline') {
@@ -91,12 +105,19 @@ export function mountExtras({ slug, title, subtitle, events, seconds, makeRender
       } else {
         status(`This browser records in real time: keep this tab open and in front for ${Math.round(seconds)} s.`);
         t0 = performance.now();
-        blob = await renderRealtime({ w, h, seconds, draw, audio, mime: how.mime, signal, onProgress: (f) => bar(0.15 + f * 0.85) });
+        if (!ac) throw new Error('this browser gives the page no audio to record');
+        blob = await renderRealtime({ w, h, seconds, draw, audio, mime: how.mime, ac, signal, onProgress: (f) => bar(0.15 + f * 0.85) });
       }
-      photos = how.photos;
+      status('Checking the file…');
+      const got = await inspect(blob);
+      photos = got.photos;
+      if (got.silent) {
+        blob = null;
+        throw new Error(`the finished file has no sound in it (${got.video} video, ${got.audio} audio${got.level !== null ? `, ${got.level.toFixed(0)} dB` : ''}) — please tell whoever runs this site which browser you used`);
+      }
       bar(null);
       const mb = (blob.size / 1e6).toFixed(1);
-      status(`Done: ${mb} MB ${blob.type.includes('mp4') ? 'MP4' : 'WebM'}, ${Math.round(seconds)} s. ` + (photos ? 'Save it to your photos, or share it anywhere.' : 'This browser has no H.264 encoder, so the file uses open codecs: it plays anywhere online, but an iPhone’s Photos may not take it. Safari or Chrome on a phone makes a camera-roll file.'));
+      status(`Done: ${mb} MB, ${Math.round(seconds)} s, with sound. ` + (photos ? 'Save it to your photos, or share it anywhere.' : 'This browser could only make it with open codecs: it plays in any web browser and uploads fine, but Apple’s Photos and QuickTime may not play it. Safari, or Chrome on a phone or a Mac, makes a camera-roll file.'));
       $('.x-share').hidden = false;
       $('.x-share').focus();
     } catch (err) {
@@ -104,6 +125,7 @@ export function mountExtras({ slug, title, subtitle, events, seconds, makeRender
       status(err?.name === 'AbortError' ? 'Cancelled.' : `Could not export: ${err?.message || err}`);
       $('.x-go').hidden = false;
     } finally {
+      try { ac?.close(); } catch { /* closed */ }
       abort = null;
       $('.x-cancel').textContent = 'Close';
     }
