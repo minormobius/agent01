@@ -9,8 +9,8 @@ import { makeRig, solve } from './rig.js';
 import { buildBody } from './body.js';
 import { walk } from './gait.js';
 import { POSES } from './poses.js';
-import { makeRenderer, camera, project, STYLE } from './shader.js';
-import { add, apply } from './vec.js';
+import { makeRenderer, camera, project, STYLE, handDetail } from './shader.js';
+import { add, apply, scale, norm } from './vec.js';
 
 const TAU = Math.PI * 2;
 
@@ -74,10 +74,10 @@ export function renderSheet(canvas, spec, sheet = DEFAULT_SHEET, { panelH = 440,
         pose = w.pose; feet = w.feet;
       } else pose = POSES[pn.pose](rig);
       const P = solve(rig, pose);
-      const prims = buildBody(P);
       target = [0, view / 2 - 0.35, 0];
       if (pn.walkT !== undefined) target = [0, view / 2 - 0.35, P.J.pelvis[2]];
       const cam = camera({ target, yaw: pn.yaw ?? row.yaw ?? 0, pitch: pn.pitch ?? 0, height: view, aspect: panelW / panelH });
+      const prims = buildBody(P, { hands: handDetail(P, cam, panelH) });
       R.draw(prims, P, cam, style);
       const x0 = 40 + ci * panelW;
       // construction: head lines, the ground
@@ -151,7 +151,7 @@ export function renderLineup(canvas, specs, { panelH = 520, style = STYLE, yaws 
     const R = makeRenderer(gl);
     const P = solve(rig, POSES[specs[i].pose || pose](rig));
     const cam = camera({ target: [0, view / 2 - 0.35, 0], yaw, height: view, aspect: W / panelH });
-    R.draw(buildBody(P), P, cam, style);
+    R.draw(buildBody(P, { hands: handDetail(P, cam, panelH) }), P, cam, style);
     ctx.save(); ctx.strokeStyle = '#9fb3c8'; ctx.globalAlpha = 0.35;
     for (let h = 1; h <= Math.ceil(tallest); h++) { const [, py] = project(cam, [0, h, 0], W, panelH); ctx.beginPath(); ctx.moveTo(x, top + py); ctx.lineTo(x + W, top + py); ctx.stroke(); }
     ctx.restore();
@@ -212,4 +212,57 @@ export function renderFaceSheet(canvas, spec, { panelH = 300, style = STYLE } = 
     });
   });
   return stats;
+}
+
+// ---- the hand sheet --------------------------------------------------------------------
+import { GESTURES } from './hand.js';
+
+/**
+ * Every gesture close up, from the back of the hand, the palm and the thumb's side,
+ * then placed hands resting on the body (the fingers lie on what they rest on).
+ */
+export function renderHandSheet(canvas, spec, { panelH = 220, style = STYLE } = {}) {
+  const names = Object.keys(GESTURES);
+  const views = [['back', (A) => A.y], ['palm', (A) => scale(A.y, -1)], ['thumb side', (A) => A.r], ['drawn small · blocks (the back, as a full figure shows it)', (A) => A.y, 'block']];
+  const panelW = panelH, top = 60, gap = 34;
+  const rows = views.length + 1;
+  canvas.width = 40 + names.length * panelW; canvas.height = top + rows * (panelH + gap) + 10;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = style.paper; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = style.ink; ctx.font = '600 22px ui-sans-serif, system-ui, sans-serif';
+  ctx.fillText('hands — gestures, solved', 24, 38);
+  const gl = document.createElement('canvas'); gl.width = panelW; gl.height = panelH;
+  const R = makeRenderer(gl);
+  const rig = makeRig({ ...spec, outfit: undefined });
+  const label = (t, x, y) => { ctx.fillStyle = style.ink; ctx.globalAlpha = 0.55; ctx.font = '500 12px ui-monospace, monospace'; ctx.textAlign = 'center'; ctx.fillText(t, x, y); ctx.textAlign = 'left'; ctx.globalAlpha = 1; };
+  const rowLabel = (t, y) => { ctx.fillStyle = style.ink; ctx.globalAlpha = 0.6; ctx.font = '500 13px ui-monospace, monospace'; ctx.fillText(t.toUpperCase(), 24, y); ctx.globalAlpha = 1; };
+  const shoot = (P, target, dir, h, x, y, hands = 'full') => {
+    const d = norm(dir), pitch = Math.asin(Math.max(-0.95, Math.min(0.95, d[1]))), yaw = Math.atan2(d[0], d[2]);
+    const cam = camera({ target, yaw, pitch, height: h, aspect: 1 });
+    R.draw(buildBody(P, { hands }), P, cam, style);
+    ctx.drawImage(gl, x, y);
+  };
+  views.forEach(([vn, dirOf, detail], ri) => {
+    const y0 = top + ri * (panelH + gap);
+    rowLabel(vn, y0 + 12);
+    names.forEach((g, ci) => {
+      const base = POSES.stand(rig);
+      const P = solve(rig, { ...base, arms: { ...base.arms, l: { raise: 1.25, out: 0.25, elbow: 1.35, gesture: g } } });
+      const HF = P.F.hand_l, h = rig.m.hand, A = { y: HF.y, r: scale(HF.x, -1) };
+      const target = add(P.J.wrist_l, scale(HF.z, 0.5 * h));
+      shoot(P, target, dirOf(A), 1.5 * h, 40 + ci * panelW, y0 + 16, detail);
+      label(g, 40 + ci * panelW + panelW / 2, y0 + panelH + 26);
+    });
+  });
+  // placed: the fingers rest on the hip, and on the knees
+  const y0 = top + views.length * (panelH + gap);
+  rowLabel('placed · resting on the body', y0 + 12);
+  const placed = [['handOnHip', 'l', 0.9], ['crouch', 'l', 0.5], ['crouch', 'r', -0.5], ['sit', 'l', 0.4]];
+  placed.forEach(([pose, s, yaw], ci) => {
+    const P = solve(rig, POSES[pose](rig));
+    const target = add(P.J[`wrist_${s}`], scale(P.F[`hand_${s}`].z, 0.5 * rig.m.hand));
+    shoot(P, target, [Math.sin(yaw), 0.35, Math.cos(yaw)], 2.2 * rig.m.hand, 40 + ci * panelW, y0 + 16);
+    label(`${pose} ${s}`, 40 + ci * panelW + panelW / 2, y0 + panelH + 26);
+  });
+  return { panels: [] };
 }

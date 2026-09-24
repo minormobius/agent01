@@ -12,7 +12,7 @@
 
 import { sub, add, scale, dot, dist, norm, len, apply, cross, lerp3 } from './vec.js';
 import { makeRig, solve } from './rig.js';
-import { buildBody, sdf, groupDists, GROUPS, CONE, primDist } from './body.js';
+import { buildBody, sdf, groupDists, GROUPS, CONE, primDist, solidified, notOwnArm } from './body.js';
 import { walk } from './gait.js';
 import { interpenetration } from './settle.js';
 export { interpenetration };
@@ -174,11 +174,21 @@ export function toesForward(P) {
   return [worst > 0, +worst.toFixed(3), '> 0 (foot · the shin\'s front)'];
 }
 
+// A named pose on a body is solved once per spec, not once per check: the placed-hand poses
+// seat their hands with several full body builds, and three checks walk every pose.
+let poseCache = { key: null, poses: new Map() };
+export function posed(rig, name) {
+  const key = JSON.stringify(rig.spec);
+  if (poseCache.key !== key) poseCache = { key, poses: new Map() };
+  if (!poseCache.poses.has(name)) poseCache.poses.set(name, POSES[name](rig));
+  return poseCache.poses.get(name);
+}
+
 export function checkPoses(spec) {
   const rig = makeRig(spec), m = rig.m;
   const out = [];
-  for (const [name, fn] of Object.entries(POSES)) {
-    const pose = fn(rig);
+  for (const name of Object.keys(POSES)) {
+    const pose = posed(rig, name);
     const P = solve(rig, pose);
     const prims = buildBody(P);
     out.push(r(`${name}: every limb reaches`, !P.report.unreached.length, P.report.unreached.map((u) => `${u.limb} ${u.short.toFixed(3)}`).join(', ') || 'yes', 'all'));
@@ -213,6 +223,7 @@ export function checkAll(spec) {
   if (spec.face) out.face = checkFace(spec);
   if (spec.hair) out.hair = checkHair(spec);
   if (spec.outfit) out.clothes = checkClothes(spec);
+  out.hands = checkHands(spec);
   return out;
 }
 
@@ -461,7 +472,7 @@ import { surfacePoints } from './settle.js';
 export function checkClothes(spec) {
   const rig = makeRig(spec);
   const bare = new Set(bareParts(spec.outfit));
-  const cases = Object.keys(POSES).map((n) => [n, () => POSES[n](rig)]);
+  const cases = Object.keys(POSES).map((n) => [n, () => posed(rig, n)]);
   const T = walk(rig, 0).cycle;
   for (let i = 0; i < 8; i++) cases.push([`walk ${i}/8`, () => walk(rig, (i / 8) * T).pose]);
   const out = [];
@@ -551,5 +562,109 @@ export function checkClothes(spec) {
     }
   }
   out.push(r('clothes: no skin shows through', worst.depth < 0.004, +worst.depth.toFixed(4), `< 0.004 heads, ${samples} skin samples over ${cases.length} poses`, worst.part ? `${worst.part} through ${worst.garment} (${worst.pose})` : ''));
+  return out;
+}
+
+// ---- hands ---------------------------------------------------------------------------
+import { GESTURES, FINGERS, LIMITS, handPose, handMeasures } from './hand.js';
+
+/**
+ * The hand, in every gesture and where it rests:
+ *   proportion  middle finger longest, index and ring nearly equal, the pinky's tip at
+ *               the ring finger's last joint; the hand as long as the face (~0.75 head)
+ *   gestures    every joint within its range; no finger through another, nor through
+ *               the palm; what the gesture means holds (closed fingers meet the palm,
+ *               the thumb's pad is on its mark, a pointing finger is straight)
+ *   mirror      the left hand is the right hand's mirror image
+ *   placed      a placed hand's fingers lie on what they rest on (not in it, not above it)
+ */
+export function checkHands(spec) {
+  const rig = makeRig(spec), m = rig.m, out = [], M = handMeasures(m), h = m.hand;
+  const armUp = (s, gesture) => { const base = POSES.stand(rig); return solve(rig, { ...base, arms: { ...base.arms, [s]: { raise: 1.25, out: 0.25, elbow: 1.35, gesture } } }); };
+  const segD = (p, b) => { const ba = sub(b.b, b.a), t = Math.max(0, Math.min(1, dot(sub(p, b.a), ba) / (dot(ba, ba) || 1))); return len(sub(p, add(b.a, scale(ba, t)))) - (b.ra + (b.rb - b.ra) * t); };
+  const pts = (b, n = 6) => Array.from({ length: n + 1 }, (_, i) => [add(b.a, scale(sub(b.b, b.a), i / n)), b.ra + (b.rb - b.ra) * i / n]);
+  const depthInto = (bones, D) => Math.max(0, ...bones.flatMap((b) => pts(b).map(([p, r]) => r - D(p))));
+
+  // proportion, on the open hand
+  {
+    const H = handPose(armUp('l', 'open'), 'l'), along = (p) => dot(sub(p, H.A.W), H.A.z) / h;
+    const L = Object.fromEntries(FINGERS.map((f) => [f, H.fingers[f].reduce((s, b) => s + dist(b.a, b.b), 0)]));
+    const ratio = L.index / L.ring, pinkyGap = along(H.fingers.pinky[2].b) - along(H.fingers.ring[1].b);
+    out.push(r('hands: the middle finger longest', FINGERS.every((f) => L.middle >= L[f]), +(L.middle / h).toFixed(3), 'longest of the four'));
+    out.push(r('hands: index to ring (2D:4D)', ratio > 0.9 && ratio < 1.02, +ratio.toFixed(3), '0.90–1.02 (people ~0.95–1.0)'));
+    out.push(r("hands: pinky tip at the ring finger's last joint", Math.abs(pinkyGap) < 0.06, +pinkyGap.toFixed(3), '±0.06 hand'));
+    if (m.H >= 5) out.push(r('hands: a hand is as long as the face', h / 0.75 > 0.8 && h / 0.75 < 1.15, +(h / 0.75).toFixed(3), '0.80–1.15 of a face (0.75 head; people ~0.9–1.1, a small anime figure\'s hands run small)'));
+  }
+  // every gesture
+  let limits = { worst: 0 }, cross = { d: 0 }, palm = { d: 0 }, meaning = [];
+  for (const g of Object.keys(GESTURES)) {
+    const P = armUp('l', g), H = handPose(P, 'l'), G = H.gesture;
+    for (const f of FINGERS) H.flex[f].forEach((x, j) => {
+      const [lo, hi] = [LIMITS.mcp, LIMITS.pip, LIMITS.dip][j], over = Math.max(lo - x, x - hi, 0);
+      if (over > limits.worst) limits = { worst: over, where: `${g} ${f} joint ${j + 1}` };
+    });
+    for (const key of ['opp', 'mcp', 'ip']) { const [lo, hi] = LIMITS.thumb[key], x = H.thumbAngles[key], over = Math.max(lo - x, x - hi, 0); if (over > limits.worst) limits = { worst: over, where: `${g} thumb ${key}` }; }
+    const bones = { ...H.fingers, thumb: H.thumb.slice(1) };
+    for (const a of Object.keys(bones)) for (const b of Object.keys(bones)) {
+      if (a >= b) continue;
+      const d = depthInto(bones[a], (p) => Math.min(...bones[b].map((x) => segD(p, x))));
+      if (d > cross.d) cross = { d, where: `${g}: ${a} into ${b}` };
+    }
+    for (const f of [...FINGERS, 'thumb']) {
+      const d = depthInto(f === 'thumb' ? H.thumb.slice(2) : H.fingers[f].slice(1), H.palmD);
+      if (d > palm.d) palm = { d, where: `${g}: ${f}` };
+    }
+    // what the gesture means
+    if (G.close) for (const f of FINGERS) if (G.fingers[f][0] + G.fingers[f][1] > 2) {
+      const tip = H.fingers[f][2].b, gap = H.palmD(tip) - H.fingers[f][2].rb;
+      meaning.push([`${g}: ${f} closed on the palm`, gap < 0.08 * h, gap / h]);
+    }
+    if (G.onto) {
+      const [fn, bi, tt = 0.5] = G.onto, bone = H.fingers[fn][bi], tb = H.thumb[2];
+      const target = add(bone.a, scale(sub(bone.b, bone.a), tt)), gap = len(sub(tb.b, target)) - (bone.ra + (bone.rb - bone.ra) * tt + tb.rb);
+      meaning.push([`${g}: the thumb on the ${fn}`, Math.abs(gap) < 0.03 * h, gap / h]);
+    }
+    for (const f of FINGERS) if (G.close && G.fingers[f][0] + G.fingers[f][1] < 0.2) {
+      const bend = H.flex[f].reduce((a, b) => a + b, 0);
+      meaning.push([`${g}: ${f} straight`, bend < 0.15, bend]);
+    }
+  }
+  out.push(r('hands: every joint within its range', limits.worst < 1e-9, +limits.worst.toFixed(3), '0 rad past a limit', limits.where || ''));
+  out.push(r('hands: no finger through another', cross.d < 0.2 * M.rTip, +(cross.d / h).toFixed(4), `< ${(0.2 * M.rTip / h).toFixed(4)} hand`, cross.where || ''));
+  out.push(r('hands: nothing through the palm', palm.d < 0.2 * M.rTip, +(palm.d / h).toFixed(4), `< ${(0.2 * M.rTip / h).toFixed(4)} hand`, palm.where || ''));
+  const bad = meaning.filter(([, ok]) => !ok);
+  out.push(r('hands: each gesture means what it says', !bad.length, bad.length ? bad.map(([n, , v]) => `${n} ${v.toFixed(3)}`).join('; ') : meaning.length, 'fists closed, thumbs on their marks, pointing fingers straight'));
+  // mirror: the same gesture on each side
+  {
+    const base = POSES.stand(rig);
+    const P = solve(rig, { ...base, root: { ...(base.root || {}), yaw: 0, roll: 0 }, spine: {}, head: {}, arms: { l: { raise: 1.0, out: 0.5, elbow: 1.0, gesture: 'peace' }, r: { raise: 1.0, out: 0.5, elbow: 1.0, gesture: 'peace' } }, legs: { l: { at: [m.hipHalf, 0, 0] }, r: { at: [-m.hipHalf, 0, 0] } } });
+    const L = handPose(P, 'l'), R = handPose(P, 'r');
+    let worst = 0;
+    for (const f of FINGERS) L.fingers[f].forEach((b, j) => { const c = R.fingers[f][j]; worst = Math.max(worst, Math.abs(b.b[0] + c.b[0]), Math.abs(b.b[1] - c.b[1]), Math.abs(b.b[2] - c.b[2])); });
+    L.thumb.forEach((b, j) => { const c = R.thumb[j]; worst = Math.max(worst, Math.abs(b.b[0] + c.b[0]), Math.abs(b.b[1] - c.b[1]), Math.abs(b.b[2] - c.b[2])); });
+    out.push(r('hands: left mirrors right', worst < 1e-6, +worst.toExponential(1), '< 1e-6 heads'));
+  }
+  // placed hands rest on what they are placed on
+  let rest = { lo: Infinity, hi: -Infinity };
+  for (const name of Object.keys(POSES)) {
+    const P = solve(rig, posed(rig, name));
+    for (const s of ['l', 'r']) {
+      if (!P.hands?.[s]?.placed) continue;
+      // what the hand was built against (body.js): everything but its own arm, the hair,
+      // and (for the left, built first) the right hand
+      const all = buildBody(P), own = GROUPS.indexOf(`arm_${s}`), hairG = GROUPS.indexOf('hair');
+      const HR = /^(palm|thenar|index\d|middle\d|ring\d|pinky\d|thumb\d)_r$/;
+      const scene = solidified(all.filter((q) => notOwnArm(s)(q) && !(q.group >= hairG && q.group <= hairG + 3) && !(s === 'l' && HR.test(q.name))));
+      const D = (p) => sdf(scene, p);
+      const H = handPose(P, s, { scene: D });
+      for (const f of FINGERS) {
+        if (H.rest[f] === 'off the edge') { rest.edge = (rest.edge || 0) + 1; continue; }   // curled right round, nothing under it
+        const c = Math.min(...H.fingers[f].flatMap((b) => pts(b).map(([p, rr]) => D(p) - rr)));
+        if (c < rest.lo) rest.lo = c, rest.loAt = `${name} ${s} ${f}`;
+        if (c > rest.hi) rest.hi = c, rest.hiAt = `${name} ${s} ${f}`;
+      }
+    }
+  }
+  if (Number.isFinite(rest.lo)) out.push(r('hands: placed fingers rest on the surface', rest.lo > -0.015 * m.k && rest.hi < 0.03 * m.k, `${rest.lo.toFixed(3)}…${rest.hi.toFixed(3)}`, `−${(0.015 * m.k).toFixed(3)}…${(0.03 * m.k).toFixed(3)} heads (in … above)${rest.edge ? `; ${rest.edge} off an edge` : ''}`, rest.lo < -0.015 * m.k ? rest.loAt : rest.hi >= 0.03 * m.k ? rest.hiAt : ''));
   return out;
 }

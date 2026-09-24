@@ -72,7 +72,7 @@ export const REST = {
 
 export function solve(rig, pose = {}) {
   const { m } = rig;
-  const J = {}, F = {}, report = { unreached: [] };
+  const J = {}, F = {}, report = { unreached: [] }, hands = {};
   const P = { ...REST, ...pose };
 
   // ---- the pelvis and spine
@@ -147,7 +147,8 @@ export function solve(rig, pose = {}) {
       if (a.wrist) HF = rotateFrame(HF, HF.x, -a.wrist);  // + flexes the palm down
     }
     F[`hand_${s}`] = HF;
-    report[`curl_${s}`] = placedHand ? 0.05 : (a.curl ?? 0.35);
+    // the hand's gesture (hand.js); a placed hand lies flat on what it rests on
+    hands[s] = { gesture: a.gesture || (placedHand ? 'flat' : 'relaxed'), placed: !!placedHand };
     // how far the wrist bends: the hand's direction against the forearm's
     report[`wrist_${s}`] = Math.acos(Math.max(-1, Math.min(1, dot(HF.z, fore))));
     J[`fingers_${s}`] = madd(wrist, HF.z, m.hand);
@@ -203,5 +204,5 @@ export function solve(rig, pose = {}) {
   // the hair: its style (the spec), and the head's acceleration (the pose) it lags behind
   const hair = rig.spec.hair || null;
   if (face && hair) face.colors.brow = hairColors(hair).shade;
-  return { J, F, report, rig, face, hair, outfit: rig.spec.outfit || null, hairAccel: P.hairAccel || null };
+  return { J, F, report, rig, face, hair, hands, outfit: rig.spec.outfit || null, hairAccel: P.hairAccel || null };
 }

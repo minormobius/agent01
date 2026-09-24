@@ -31,14 +31,19 @@ try {
     for (const [spec, pose, yaw, pitch = 0] of [[{}, 'handOnHip', 0.4], [{ heads: 3, build: 0.3, mass: 0.7, headWidth: 0.9 }, 'crouch', 1.0], [{ heads: 8.2, build: 0.95 }, 'run', 1.3],
       [{ femme: 1, bust: 0.7, hips: 0.8, face: {}, hair: { length: 'long', bangs: 'blunt', tails: 'twintails', extras: ['ahoge'] } }, 'contrapposto', 2.4],
       [{ femme: 1, face: {}, hair: { length: 'bob' }, outfit: { scheme: 'school' } }, 'sit', 0.8], [{ heads: 7.5, face: {}, outfit: { scheme: 'street' } }, 'run', 1.2],
-      [{ femme: 1, face: {}, outfit: { top: 'tee', bottom: 'skirt' } }, 'crouch', 0.3, 0.6]]) {
+      [{ femme: 1, face: {}, outfit: { top: 'tee', bottom: 'skirt' } }, 'crouch', 0.3, 0.6],
+      // close on a hand: every finger (a peace sign, an OK), and the blocks a small hand is drawn as
+      [{}, 'hand:peace', 0.3, 0.1], [{ femme: 1 }, 'hand:ok', -0.6, 0.2], [{}, 'hand:fist:block', 0.5, 0.1]]) {
       const rig = makeRig(spec);
-      const P = solve(rig, POSES[pose](rig));
-      const prims = buildBody(P);
+      const [, gesture, detail = 'full'] = pose.split(':');
+      const base = POSES.stand(rig);
+      const P = gesture ? solve(rig, { ...base, arms: { ...base.arms, l: { raise: 1.25, out: 0.25, elbow: 1.35, gesture } } }) : solve(rig, POSES[pose](rig));
+      const prims = buildBody(P, { hands: detail });
       const c = document.createElement('canvas'); c.width = 120; c.height = 200;
       const R = makeRenderer(c, { supersample: 1 });
-      const view = rig.m.H * 1.2;
-      const cam = camera({ target: [0, view / 2 - 0.35, 0], yaw, pitch, height: view, aspect: 120 / 200 });
+      const view = gesture ? rig.m.hand * 2.2 : rig.m.H * 1.2;
+      const target = gesture ? [0, 1, 2].map((k) => P.J.wrist_l[k] + P.F.hand_l.z[k] * 0.5 * rig.m.hand) : [0, view / 2 - 0.35, 0];
+      const cam = camera({ target, yaw, pitch, height: view, aspect: 120 / 200 });
       R.draw(prims, P, cam);
       const g = R.readGroups();
       let inter = 0, uni = 0, sameGroup = 0, both = 0;
@@ -58,7 +63,7 @@ try {
         if (js && gpu) { inter++; both++; if (g.ids[y * g.w + x] - 1 === hit) sameGroup++; }
         if (js || gpu) uni++;
       }
-      out.push({ pose: spec.outfit ? `${pose} (dressed: ${spec.outfit.scheme || spec.outfit.bottom}${pitch ? ', from above' : ''})` : spec.hair ? `${pose} (femme, long hair, twin tails)` : pose, heads: rig.m.H, iou: inter / uni, groups: sameGroup / both, px: uni });
+      out.push({ pose: gesture ? `close on a hand: ${gesture}${detail === 'block' ? ' (as blocks)' : ''}` : spec.outfit ? `${pose} (dressed: ${spec.outfit.scheme || spec.outfit.bottom}${pitch ? ', from above' : ''})` : spec.hair ? `${pose} (femme, long hair, twin tails)` : pose, heads: rig.m.H, iou: inter / uni, groups: sameGroup / both, px: uni });
     }
     return out;
   });

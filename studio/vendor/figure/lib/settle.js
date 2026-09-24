@@ -12,14 +12,14 @@
 
 import { add, sub, scale, norm, dot, cross, len, lerp3 } from './vec.js';
 import { solve, ankleFor } from './rig.js';
-import { buildBody, groupDists, GROUPS } from './body.js';
+import { buildBody, groupDists, GROUPS, solidified, notOwnArm, sdf } from './body.js';
 
 const gi = (name) => GROUPS.indexOf(name);
 
 /** Walk from `guess` onto the surface of `group`: { p, n }. */
-export function onSurface(prims, group, guess) {
+export function onSurface(prims, group, guess, also = null) {
   const g = gi(group);
-  const d = (q) => groupDists(prims, q)[g];
+  const d = also ? (q) => Math.min(groupDists(prims, q)[g], also(q)) : (q) => groupDists(prims, q)[g];
   let p = guess;
   for (let i = 0; i < 40; i++) {
     const e = 1e-4;
@@ -80,7 +80,7 @@ export function balance(rig, pose, { toward = 0.8, over = null, straight = 0.985
   let p = pose;
   for (let i = 0; i < 8; i++) {
     const P = solve(rig, p);
-    const com = centreOfMass(buildBody(P));
+    const com = centreOfMass(buildBody(P, { hair: false, clothes: false }));
     const pts = supportPoints(rig, P, over ? { legs: { [over]: p.legs[over] } } : p);
     if (pts.length < 2) return p;
     const c = pts.reduce((s, q) => [s[0] + q[0] / pts.length, s[1] + q[1] / pts.length], [0, 0]);
@@ -120,7 +120,7 @@ export const ROOTS = new Set(['upper_l0', 'upper_r0', 'thigh_l0', 'thigh_r0']);
  * group: { depth, part, into }. Only points on the part's own group surface
  * count, not ones buried in its own blend.
  */
-export function interpenetration(prims, only = null) {
+export function interpenetration(prims, only = null, parts = null) {
   // a limb's own socket (the hip cap a thigh sits in, the deltoid an arm hangs
   // from) wraps the limb by design: measure each limb against the body without it
   const SOCKET = { leg_l: 'hipcap_l', leg_r: 'hipcap_r', arm_l: 'deltoid_l', arm_r: 'deltoid_r' };
@@ -133,14 +133,16 @@ export function interpenetration(prims, only = null) {
   };
   let worst = { depth: 0 };
   for (const q of prims) {
-    if (ROOTS.has(q.name)) continue;
+    if (ROOTS.has(q.name) || (parts && !parts.test(q.name))) continue;
     if (only ? !only.includes(q.group) : (q.group === gi('torso') || q.group === gi('head') || gi('hair') <= q.group)) continue;
     const body = bodyFor(q.group);
     for (const p of surfacePoints(q)) {
       const gd = groupDists(body, p);
       if (gd[q.group] > 0.01) continue;
       gd.forEach((d, g) => {
-        if (g === q.group || (!only && g >= gi('hair'))) return;     // (limbs may pass through hair: it is soft)
+        // limbs may pass through hair: it is soft (and a hand seated against long hair once
+        // floated off the hip it rested on); garments count when a group is asked about
+        if (g === q.group || (g >= gi('hair') && (!only || g <= gi('tail_r')))) return;
         if (-d > worst.depth) worst = { depth: -d, part: q.name, into: GROUPS[g] };
       });
     }
@@ -150,10 +152,11 @@ export function interpenetration(prims, only = null) {
 
 /** How far an arm's surface stays from everything else (negative: how deep it goes in). */
 function armClearance(rig, pose, s) {
-  const prims = buildBody(solve(rig, pose));
+  const prims = buildBody(solve(rig, pose), { hair: false, clothes: false });
   const arm = gi(`arm_${s}`);
   let worst = Infinity;
-  for (const q of prims) if (q.group === arm && !ROOTS.has(q.name)) {
+  // the arm and the hand's mass (not every finger bone: an arm swings clear by its palm)
+  for (const q of prims) if (q.group === arm && !ROOTS.has(q.name) && !/^(index|middle|ring|pinky)\d_/.test(q.name)) {
     for (const p of surfacePoints(q, 8)) {
       const gd = groupDists(prims, p);
       if (gd[arm] > 0.01) continue;
@@ -193,23 +196,38 @@ export function clearArms(rig, pose, { gap = 0.012 } = {}) {
  * fingers as close to `dir` as the surface allows. Returns the arm spec.
  */
 export function handOn(rig, P, group, guess, dir) {
-  const prims = buildBody(P);
-  const { p, n } = onSurface(prims, group, guess);
+  const prims = buildBody(P, { hair: false });
+  // the surface is what the hand will lie on: the body part, and the clothes over it (a
+  // skirt as a solid; no sleeve, which is the arm's own). Aimed along the body under a
+  // flared skirt, the fingers dug into the flare and the hand was pushed off the hip.
+  const cloth = solidified(prims.filter((q) => q.group >= gi('top') && !/:(upper|fore)_[lr]\d$/.test(q.name)));
+  const { p, n } = onSurface(prims, group, guess, cloth.length ? (x) => sdf(cloth, x) : null);
   const at = add(p, scale(n, rig.m.radii.hand * 1.1));
   // the fingers tilt a little off the surface: laid flat along a curve they would sink into it
   const d = norm(add(norm(sub(dir, scale(n, dot(dir, n)))), scale(n, 0.3)));
   return { hand: { at, palm: scale(n, -1), dir: d } };
 }
 
-/** Push a placed hand out along its palm normal until no part of it is inside the body. */
+/**
+ * Push a placed hand out along its palm normal until no part of it is inside the body.
+ * The HAND's parts only: a forearm that dips into a jacket is not the hand's to fix, and
+ * pushing the hand to clear it once floated hands a full head off the knees they rested on.
+ */
+const HAND_PARTS = /^(palm|thenar|index\d|middle\d|ring\d|pinky\d|thumb\d)_/;
 export function seatHand(rig, pose, s, { gap = 0.004 } = {}) {
   let p = pose;
-  for (let i = 0; i < 6; i++) {
-    const prims = buildBody(solve(rig, p));
-    const pen = interpenetration(prims, [gi(`arm_${s}`)]);
+  for (let i = 0; i < 10; i++) {
+    const prims = buildBody(solve(rig, p), { hair: false });
+    const keep = notOwnArm(s), own = gi(`arm_${s}`);
+    const pen = interpenetration(solidified(prims.filter((q) => q.group === own || keep(q))), [own], HAND_PARTS);
     if (pen.depth <= gap / 2) break;
-    const h = p.arms[s].hand;
-    p = { ...p, arms: { ...p.arms, [s]: { ...p.arms[s], hand: { ...h, at: add(h.at, scale(h.palm, -(pen.depth + gap))) } } } };
+    const h = p.arms[s].hand, out = scale(h.palm, -1);
+    // fingers that go in (past what their own joints can lift: a flared skirt) tip the hand up
+    // off the surface, heel of the hand still down; the palm itself going in lifts the hand
+    const hand = /^(index|middle|ring|pinky|thumb)\d_/.test(pen.part)
+      ? { ...h, dir: norm(add(h.dir, scale(out, Math.min(0.4, 2 * pen.depth / rig.m.hand)))) }
+      : { ...h, at: add(h.at, scale(out, pen.depth + gap)) };
+    p = { ...p, arms: { ...p.arms, [s]: { ...p.arms[s], hand } } };
   }
   return p;
 }

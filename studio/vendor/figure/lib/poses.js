@@ -52,7 +52,7 @@ export const POSES = {
       spine: { side: 0.12, bend: -0.12 },
       head: { pitch: -0.55, yaw: -0.2 },
       legs: { l: { at: [m.hipHalf + 0.05, 0, 0.1], pivot: 'flat' }, r: { at: [-m.hipHalf - 0.05, 0, -0.1], pivot: 'ball', pitch: -0.45 } },
-      arms: { r: { raise: 2.85, out: 1.2, elbow: 0.15 }, l: relaxed(0.3, 1.5, 0.5) },
+      arms: { r: { raise: 2.85, out: 1.2, elbow: 0.15, gesture: 'open' }, l: relaxed(0.3, 1.5, 0.5) },
     };
     return clearArms(rig, balance(rig, settle(rig, p)));
   },
@@ -77,7 +77,7 @@ export const POSES = {
       spine: { bend: 0.22, twist: -0.35 },
       head: { pitch: -0.4 },
       legs: { l: { at: [0.2 * m.k, 0, 0.35 * m.k], pivot: 'ball', pitch: -0.35 }, r: { flex: 1.25, knee: 1.9, out: 0.05, pitch: -0.3 } },
-      arms: { l: { raise: 0.9, out: 0.4, elbow: 1.6 }, r: { raise: -0.75, out: -0.4, elbow: 1.4 } },
+      arms: { l: { raise: 0.9, out: 0.4, elbow: 1.6, gesture: 'fist' }, r: { raise: -0.75, out: -0.4, elbow: 1.4, gesture: 'fist' } },
     };
     return clearArms(rig, settle(rig, p));
   },

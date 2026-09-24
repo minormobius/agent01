@@ -5,17 +5,18 @@
 // a drag, walks it, dresses it in a face and hair made of anime's own
 // vocabulary, and re-runs the library's checks whenever the character changes.
 //
-//   ?cast=curvy&pose=walk&yaw=0.6&close&still&expression=smile
+//   ?cast=curvy&pose=walk&yaw=0.6&close&still&expression=smile&hands=peace
 
 import { makeRig, solve } from '../vendor/figure/lib/rig.js';
 import { buildBody } from '../vendor/figure/lib/body.js';
 import { walk } from '../vendor/figure/lib/gait.js';
 import { POSES } from '../vendor/figure/lib/poses.js';
-import { makeRenderer, camera, project, STYLE } from '../vendor/figure/lib/shader.js';
+import { makeRenderer, camera, project, STYLE, handDetail } from '../vendor/figure/lib/shader.js';
 import { PREDICATES, EXPRESSIONS, IDENTITY_KEYS } from '../vendor/figure/lib/face.js';
 import { HAIR_PREDICATES, COLORS as HAIR_COLORS } from '../vendor/figure/lib/hair.js';
 import { OUTFIT_PREDICATES, OUTFITS, CLOTH_COLORS } from '../vendor/figure/lib/clothes.js';
 import { add, apply, dot } from '../vendor/figure/lib/vec.js';
+import { GESTURES } from '../vendor/figure/lib/hand.js';
 
 const qs = new URLSearchParams(location.search);
 
@@ -35,7 +36,7 @@ const CAST = {
 const BODY_KEYS = ['heads', 'build', 'legs', 'mass', 'headWidth', 'neck', 'femme', 'cup', 'lift', 'set', 'waist', 'hips'];
 const SLIDERS = [['heads', 2.5, 9, 0.1], ['femme', 0, 1, 0.01], ['cup', 0, 1, 0.01], ['lift', 0, 1, 0.01], ['set', 0, 1, 0.01], ['waist', 0, 1, 0.01], ['hips', 0, 1, 0.01], ['build', 0, 1, 0.01], ['legs', 0, 1, 0.01], ['mass', 0, 1, 0.01], ['headWidth', 0.65, 0.95, 0.01]];
 const POSE_NAMES = ['walk', 'stand', 'contrapposto', 'handOnHip', 'reachUp', 'crouch', 'run', 'sit', 'lookBack'];
-const LABEL = { handOnHip: 'hand on hip', reachUp: 'reach up', lookBack: 'look back', jitome: 'jito-me', headWidth: 'head w' };
+const LABEL = { handOnHip: 'hand on hip', reachUp: 'reach up', lookBack: 'look back', jitome: 'jito-me', headWidth: 'head w', thumbsUp: 'thumbs up', ok: 'OK' };
 const IRIS = { violet: '#8b7bd4', blue: '#6fb0e8', green: '#72c58f', amber: '#f0b24a', red: '#e0505e', brown: '#9a6a44' };
 
 const pick = (o, keys) => Object.fromEntries(keys.filter((k) => o[k] !== undefined).map((k) => [k, o[k]]));
@@ -44,7 +45,7 @@ const state = {
   body: pick(CAST[start], BODY_KEYS), face: { ...CAST[start].face }, hair: CAST[start].hair ? { ...CAST[start].hair } : null,
   outfit: CAST[start].outfit ? JSON.parse(JSON.stringify(CAST[start].outfit)) : null, clothesOn: !qs.has('mannequin'),
   faceOn: !qs.has('mannequin'), hairOn: !qs.has('mannequin'), lastHair: CAST[start].hair || { length: 'bob', bangs: 'blunt', color: 'black' },
-  pose: qs.get('pose') || 'walk', expression: qs.get('expression') || 'smile',
+  pose: qs.get('pose') || 'walk', expression: qs.get('expression') || 'smile', gesture: GESTURES[qs.get('hands')] ? qs.get('hands') : 'auto',
   yaw: qs.has('yaw') ? Number(qs.get('yaw')) : 0.6, close: qs.has('close'), grid: true, skeleton: false, turn: false,
   tab: 'pose',
 };
@@ -58,6 +59,7 @@ try {
     state.outfit = h.outfit || null; state.clothesOn = !!h.outfit;
     if (POSES[h.pose] || h.pose === 'walk') state.pose = h.pose;
     if (EXPRESSIONS[h.expression]) state.expression = h.expression;
+    if (GESTURES[h.hands] || h.hands === 'auto') state.gesture = h.hands;
     if (Number.isFinite(h.yaw)) state.yaw = h.yaw;
   }
 } catch {}
@@ -95,6 +97,8 @@ function draw(t) {
   else pose = poseFor(state.pose);
   const W = glc.width, H = glc.height;
   // the gaze comes from the last frame's head, so a frame solves the pose once, not twice
+  // the hands' gesture, unless the pose has placed them (those rest on what they are on)
+  if (state.gesture !== 'auto') pose = { ...pose, arms: Object.fromEntries(['l', 'r'].map((s) => [s, pose.arms?.[s]?.hand ? pose.arms[s] : { ...(pose.arms?.[s] || {}), gesture: state.gesture }])) };
   pose = { ...pose, expression: state.expression, gaze };
   const P = solve(rig, pose);
   const follow = state.pose === 'walk' ? P.J.pelvis[2] : 0;
@@ -114,7 +118,7 @@ function draw(t) {
     const g = [dot(toCam, P.F.head.x), dot(toCam, P.F.head.y)].map((v) => Math.max(-1, Math.min(1, v * 2.2)));
     if (Math.abs(g[0] - gaze[0]) + Math.abs(g[1] - gaze[1]) > 0.01) { gaze = g; needAgain = true; }
   }
-  R.draw(buildBody(P), P, cam, { ...STYLE, paperFill: true });
+  R.draw(buildBody(P, { hands: handDetail(P, cam, H) }), P, cam, { ...STYLE, paperFill: true });
   const x = over.getContext('2d');
   x.clearRect(0, 0, W, H);
   if (state.grid && !state.close) {
@@ -217,6 +221,7 @@ function lucky() {
   state.hair = hair; state.hairOn = !!hair; if (hair) state.lastHair = hair;
   state.outfit = outfit; state.clothesOn = !!outfit;
   state.pose = one(POSE_NAMES); state.expression = one(Object.keys(EXPRESSIONS));
+  state.gesture = coin(0.5) ? 'auto' : one(Object.keys(GESTURES));
   state.yaw = coin(0.2) ? rnd(2.2, 4) : rnd(-1.1, 1.1);
   rebuild(); sync();
 }
@@ -240,8 +245,11 @@ function chips(r, names, isOn, onPick, opt = {}) {
 const rebuild = () => {
   rig = makeRig(fullSpec()); posed = new Map(); dirty = true; recheck();
   // the character, in the address: copy it and the same figure opens
-  try { history.replaceState(null, '', `#${encodeURIComponent(JSON.stringify({ ...fullSpec(), pose: state.pose, expression: state.expression, yaw: +state.yaw.toFixed(2) }))}`); } catch {}
+  saveHash();
 };
+function saveHash() {
+  try { history.replaceState(null, '', `#${encodeURIComponent(JSON.stringify({ ...fullSpec(), pose: state.pose, expression: state.expression, hands: state.gesture, yaw: +state.yaw.toFixed(2) }))}`); } catch {}
+}
 const setFace = (k, v) => { state.faceOn = true; state.face = { ...state.face, [k]: state.face[k] === v && k !== 'eyes' ? undefined : v }; rebuild(); };
 const toggleIn = (obj, key, x) => { const e = new Set(obj[key] || []); e.has(x) ? e.delete(x) : e.add(x); return { ...obj, [key]: [...e] }; };
 const setHair = (k, v) => { state.hairOn = true; state.hair = { ...(state.hair || state.lastHair), [k]: v }; state.lastHair = state.hair; rebuild(); };
@@ -250,6 +258,7 @@ const TABS = {
   pose: () => {
     chips(row('pose'), POSE_NAMES, (n) => state.pose === n, (n) => { state.pose = n; dirty = true; });
     chips(row('feel'), Object.keys(EXPRESSIONS), (n) => state.expression === n, (n) => { state.expression = n; dirty = true; });
+    chips(row('hands'), ['auto', ...Object.keys(GESTURES)], (n) => state.gesture === n, (n) => { state.gesture = n; dirty = true; saveHash(); });
   },
   body: () => {
     const same = (n) => BODY_KEYS.every((k) => Math.abs((state.body[k] ?? NaN) - (CAST[n][k] ?? NaN)) < 1e-9 || (state.body[k] === undefined && CAST[n][k] === undefined));

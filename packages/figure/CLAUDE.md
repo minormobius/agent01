@@ -211,10 +211,40 @@ The operator scanned random characters and found four faults, all past the check
   ellipsoid, with a front edge sagging from knee to knee) spans the thighs. The
   thighs-inside-the-skirt check holds them against the skirt as a solid.
 
+## Hands (2026-09-24)
+
+`lib/hand.js` replaces the mitten (palm + one fingers ellipsoid + a thumb). The design
+follows the rest of the package: anatomy in the hand's own units, gestures as intent,
+solvers make the intent true for this hand, and checks hold it (`checkHands`). Hands are
+built LAST in `buildBody`, after the clothes, so a placed hand can rest on them.
+
+What the new checks found:
+- **Fists and points had the thumb sticking straight out.** The thumb's angles were a
+  table, and on thicker fingers they ran it through the curled ones, so the fallback
+  unbent it. The thumb now has intent too: `onto`, its pad on the middle bone of a closed
+  finger, solved by coordinate descent from several starts (one start stalls against the
+  fingers).
+- **Placed hands floated 0.2–1.0 heads off the knees and hips on half the cast.** Three
+  causes stacked:
+  - `seatHand` pushed the hand out to clear the FOREARM (dipping into a jacket in a
+    crouch). It now measures the hand's parts only.
+  - It counted long hair as solid, so hands were pushed out of hip-length hair. Hair is
+    soft to it now.
+  - A hollow skirt's inside counted as free space, and the hand was also pushed out of
+    its own sleeve. Contact scenes now use `solidified` skirts and `notOwnArm`.
+  Then fingers aimed along the body under a flared skirt dug into the flare past full
+  hyperextension. `handOn` now aims along the clothes, and `seatHand` tips the hand up
+  (heel down) when the fingers dig in, rather than lifting the whole hand.
+- **A chibi's fat fingers overlapped**: finger radius is capped by the knuckle spacing,
+  and the thumb shortens half as much as the fingers.
+- **Hands at full-figure scale were black scribbles**: four fingers a few pixels wide
+  are eight ink lines. `detail: 'block'` melts alike fingers into one mass (their own
+  bones, smooth-unioned at 1.5× a finger's radius). Chained ellipsoids read as beads, and
+  clustering by bend alone fused a V sign's fingers; fan is compared too.
+
 ## Not done yet (the next layers)
 
 Hair
-as locks with spring follow-through, clothing, hands with fingers, and the
-predicate → spec generator ("tsurime, twin tails, 6.5 heads"). The head
+as locks with spring follow-through, and the predicate → spec generator ("tsurime, twin tails, 6.5 heads"). The head
 already carries construction lines: the centre line and the eye line, drawn
 on its surface from its own frame, where the features will go.

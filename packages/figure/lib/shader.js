@@ -512,6 +512,12 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
 }
 
 /** An orthographic camera looking at `target` from yaw (0 = the front) and pitch (+ = from above). */
+/**
+ * How much hand to draw: a hand under ~64 pixels long is drawn as blocks (hand.js), or its
+ * four fingers are eight ink lines and a smudge. `px` is the canvas's height in pixels.
+ */
+export const handDetail = (P, cam, px) => (P.rig.m.hand * px / (2 * cam.halfH) >= 64 ? 'full' : 'block');
+
 export function camera({ target = [0, 3.5, 0], yaw = 0, pitch = 0, height = 8, aspect = 0.5, persp = 0 } = {}) {
   const dir = [Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch)];   // from the target toward the eye
   const f = scale(dir, -1);

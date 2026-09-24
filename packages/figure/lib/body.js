@@ -15,6 +15,7 @@
 import { add, sub, scale, dot, cross, norm, len, dist, apply, madd, lerp3, rotate as rotateV } from './vec.js';
 import { buildHair } from './hair.js';
 import { buildClothes } from './clothes.js';
+import { buildHand } from './hand.js';
 
 export const GROUPS = ['torso', 'head', 'arm_l', 'arm_r', 'leg_l', 'leg_r', 'hair', 'hair_back', 'tail_l', 'tail_r', 'top', 'bottom', 'legwear', 'shoes', 'accent', 'collar'];
 export const HAIR_GROUPS = new Set([6, 7, 8, 9]);
@@ -37,7 +38,12 @@ function chain(out, group, A, B, profile, k, name, offDir) {
 }
 
 /** Every primitive of the body in pose `P` (from rig.solve). */
-export function buildBody(P) {
+/**
+ * The body's primitives. `hands`: 'full' or 'block' (hand.js). `hair: false` and
+ * `clothes: false` leave those out, for the solvers in settle.js that ignore them (hair is
+ * soft to every one of them; the centre of mass and an arm's clearance ignore clothes).
+ */
+export function buildBody(P, { hands = 'full', hair = true, clothes = true } = {}) {
   const { J, F, rig } = P;
   const m = rig.m, R = m.radii, kk = m.k;
   const out = [];
@@ -125,16 +131,7 @@ export function buildBody(P) {
     const S = J[`shoulder_${s}`], E = J[`elbow_${s}`], W = J[`wrist_${s}`];
     chain(out, g, S, E, R.upperArm, 0.03 * kk, `upper_${s}`);
     chain(out, g, E, W, R.foreArm, 0.03 * kk, `fore_${s}`);
-    // the hand: a mitten (palm and fingers), and the thumb on its own
-    const HF = F[`hand_${s}`], h = m.hand;
-    out.push(ell(g, madd(W, HF.z, 0.28 * h), HF, [0.21 * h, R.hand, 0.26 * h], 0.08 * kk, `palm_${s}`));
-    // the fingers together, curled a little toward the palm
-    // (the curl is written without an axis so it mirrors: HF.x flips handedness between sides)
-    const cu = P.report?.[`curl_${s}`] ?? 0.35, c = Math.cos(cu), sn = Math.sin(cu);
-    const curl = { x: HF.x, y: add(scale(HF.y, c), scale(HF.z, sn)), z: add(scale(HF.z, c), scale(HF.y, -sn)) };
-    out.push(ell(g, add(madd(W, HF.z, 0.66 * h), scale(HF.y, -0.05 * h)), curl, [0.19 * h, R.hand * 0.7, 0.27 * h], 0.06 * kk, `fingers_${s}`));
-    const thumbSide = scale(HF.x, -sg);
-    out.push(cone(g, add(madd(W, HF.z, 0.12 * h), scale(thumbSide, 0.14 * h)), add(madd(W, HF.z, 0.5 * h), add(scale(thumbSide, 0.26 * h), scale(HF.y, -0.1 * h))), 0.075 * h, 0.05 * h, 0.06 * kk, `thumb_${s}`));
+    // the hand: built last (buildHand, below), so a placed hand can lie on what it rests on
   }
 
   // ---- legs
@@ -163,7 +160,7 @@ export function buildBody(P) {
     out.push(cone(g, ballC, add(J[`toe_${s}`], scale(FF.y, rf * 0.55)), rf * 0.95, rf * 0.55, 0.03 * kk, `toes_${s}`));
   }
   // ---- clothes: the body it covers, inflated and cut (clothes.js)
-  if (P.outfit) {
+  if (P.outfit && clothes) {
     // `surface`: the point on the body's front along `dir` from `pt`, lifted by `lift` (for things laid on the chest)
     const bodyNow = out.slice();
     const surface = (pt, dir, lift) => {
@@ -179,8 +176,17 @@ export function buildBody(P) {
     }
     out.push(...clothes);
   }
+  // ---- hands (hand.js): a placed hand's fingers rest on the body and the clothes, not in them
+  for (const s of ['l', 'r']) {
+    const own = G[`arm_${s}`];
+    // (only what is within the hand's reach: the rest cannot touch it, and the solver asks often)
+    const reach = add(J[`wrist_${s}`], scale(F[`hand_${s}`].z, 0.5 * m.hand)), rr = 0.9 * m.hand;
+    const near = (q) => { const [c, r] = boundOf(q); return dist(c, reach) < r + rr + 0.2 * kk; };
+    const scene = P.hands?.[s]?.placed ? ((rest) => (p) => sdf(rest, p))(solidified(out.filter((q) => notOwnArm(s)(q) && near(q)))) : null;
+    out.push(...buildHand(P, s, { ellipsoid: ell, cone }, { scene, detail: hands }));
+  }
   // ---- hair: built last, on the body, so its locks can be kept off it (and off the clothes)
-  if (P.hair) {
+  if (P.hair && hair) {
     const skin = out.filter((q) => q.group === G.head || q.group === G.torso || q.group === G.top || q.group === G.accent || q.group === G.collar);
     const capped = (group, c, F, r, n, d, k, name) => ({ type: CAPPED, group: G[group], side: 0, a: c, F, r, b: n, rb: d, k, name });
     const hp = buildHair(P, P.hair, skin, { sdf, ellipsoid: ell, cone, cappedEllipsoid: capped, accel: P.hairAccel || [0, 0, 0] });
@@ -279,6 +285,16 @@ export function sdf(prims, p) {
   if (hk > 0 && Number.isFinite(g.hip)) for (const leg of [4, 5]) if (Number.isFinite(g[leg])) d = Math.min(d, smin(g.hip, g[leg], hk));
   return d;
 }
+
+/**
+ * The same primitives with every skirt made solid again. A skirt is drawn as a shell (open
+ * at the hem), but anything resting on it meets its cloth, not the hollow inside: a
+ * hand on the hip of a skirt lands on the skirt.
+ */
+export const solidified = (prims) => prims.map((q) => (q.type === SKIRT && q.r?.[2] ? { ...q, r: [q.r[0], q.r[1], 0] } : q));
+
+/** Not part of arm `s`: neither the arm itself nor the sleeve over it (a hand is not pushed out of its own cuff). */
+export const notOwnArm = (s) => { const own = G[`arm_${s}`], sleeve = new RegExp(`:(upper|fore)_${s}\\d$`); return (q) => q.group !== own && !sleeve.test(q.name); };
 
 /** Pack for the GPU: 9 texels (RGBA32F) per primitive; the 7th is its bounding sphere, the 8th and 9th its clip planes. */
 export const TEXELS = 9;

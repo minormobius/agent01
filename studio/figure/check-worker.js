@@ -3,7 +3,7 @@
 // the figure keeps walking. A newer spec does not queue behind an old one: the page
 // terminates this worker and starts another.
 
-import { checkProportion, checkSilhouette, checkForm, checkWalk, checkPoses, checkFace, checkHair, checkClothes } from '../vendor/figure/lib/check.js';
+import { checkProportion, checkSilhouette, checkForm, checkWalk, checkPoses, checkFace, checkHair, checkClothes, checkHands } from '../vendor/figure/lib/check.js';
 
 self.onmessage = ({ data: { id, spec } }) => {
   const steps = [
@@ -14,6 +14,7 @@ self.onmessage = ({ data: { id, spec } }) => {
     ...(spec.face ? [['face', () => checkFace(spec)]] : []),
     ...(spec.hair ? [['hair', () => checkHair(spec)]] : []),
     ...(spec.outfit ? [['clothes', () => checkClothes(spec)]] : []),
+    ['hands', () => checkHands(spec)],
   ];
   steps.forEach(([group, run], i) => {
     let res;

@@ -25,6 +25,8 @@ spec.json → check → (fix the intent, not the numbers) → render → look �
 | model sheet | `node agent/render.mjs specs/adult.json --out a.png [--skeleton] [--h 560]` | turnaround (front, ¾, side, ¾ back, back), a walk cycle with every planted pivot dotted, the pose row; head-unit lines behind |
 | lineup | `node agent/render.mjs --lineup specs/chibi.json specs/adult.json … --out l.png` | the figures side by side, one head the same size in all |
 | faces | `node agent/render.mjs specs/teen.json --faces --out f.png` | close-ups: the head turning 0–135° and looking up and down, every expression, and a cast of identities from predicates |
+| hands | `node agent/render.mjs specs/adult.json --hands --h 220 --out h.png` | every gesture from the back, the palm and the thumb's side; the same drawn small (blocks); placed hands resting on the hip and knees |
+| any pose | `node agent/render.mjs --lineup a.json b.json --pose crouch --yaws 0,1.57,3.14 --out p.png` | a lineup in one pose from any angles |
 | tests | `node figure.selftest.mjs` · `node browser.selftest.mjs` | the maths and every check on every spec · the GPU draws the same body node measures (silhouette IoU > 0.985) |
 
 A spec inline works anywhere a path does: `node agent/check.mjs '{"heads":3}'`.
@@ -123,6 +125,7 @@ A pose says what the figure is DOING (`lib/poses.js` has worked examples):
 - `root: { pos, yaw, pitch, roll }`, `spine: { bend, side, twist }`, `head: { yaw, pitch, roll }` or `lookAt: [x,y,z]`
 - a leg: **planted** `{ at: [x,0,z], pivot: 'flat'|'heel'|'ball', pitch, yaw }` (the contact point, not the ankle), or an ankle target, or angles `{ flex, out, knee }`
 - an arm: angles `{ raise, out, elbow }`, a reach `{ reach, pole }`, or a **placed hand** `{ hand: { at, palm, dir } }`
+- a hand's **gesture** on any arm: `gesture: 'relaxed'|'open'|'flat'|'fist'|'point'|'peace'|'thumbsUp'|'grip'|'ok'` (or an object in the same shape, `lib/hand.js`)
 
 Then make it true for this body with `lib/settle.js`: `settle` (lower the pelvis
 until planted feet are in reach), `balance` (weight over the support, or over
@@ -130,6 +133,31 @@ one foot), `clearArms` (angle-posed arms move to the nearest pose that clears
 the body), `handOn` + `seatHand` (a palm on the body's actual surface, pushed
 out until nothing sinks in). A pose written this way fits a chibi and an
 8-head figure alike; one written in raw numbers fits one body.
+
+## Hands
+
+`lib/hand.js`. A palm, a thenar pad, four fingers of three bones (0.46 : 0.30 : 0.24,
+knuckles on an arc, the middle longest, index and ring nearly equal, the pinky's tip at
+the ring's last joint) and a thumb, in hand lengths in the hand's own frame, built from
+the direction toward the thumb, so the two hands mirror exactly. A gesture is intent, and
+solvers make it true for this hand:
+
+- **close**: a closed finger curls until its tip meets the palm, not through it
+- **onto**: the thumb's pad is solved onto its mark, a fingertip (OK) or the middle bone of a
+  closed finger (a fist, a point, a peace sign), passing through nothing
+- **rest**: a placed hand's fingers curl over, or lift off, what they rest on (the body
+  and the clothes, a skirt as a solid, never the arm's own sleeve); `seatHand` tips the
+  hand up when its fingers dig in and lifts it when its palm does
+
+Drawn small, fingers a few pixels wide are ink lines and a smudge, so `buildBody(P,
+{ hands: 'block' })` melts neighbouring fingers that bend and fan alike into one mass,
+and only a finger doing something else stands apart. `handDetail(P, cam, px)` (shader.js)
+picks it, below ~64 pixels a hand. Checks always build the full hand.
+
+`checkHands`: the proportions; every joint within its range; no finger through another
+or through the palm; each gesture means what it says (fists closed, thumbs on their
+marks, pointing fingers straight); left mirrors right; placed fingers rest on the
+surface (a finger curled right round with nothing under it is "off an edge").
 
 ## When a check fails
 
