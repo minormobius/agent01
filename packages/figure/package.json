@@ -1,0 +1,9 @@
+{
+  "name": "figure",
+  "private": true,
+  "type": "module",
+  "description": "A character rig in head units: proportions, poses, a walk that cannot slide, a smooth body, and a cel-shaded ink renderer. Headless tools under agent/. See CLAUDE.md.",
+  "scripts": {
+    "test": "node figure.selftest.mjs"
+  }
+}

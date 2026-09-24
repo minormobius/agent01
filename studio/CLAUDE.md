@@ -46,6 +46,8 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   stage.js               the cutout workshop: cut() rough edges, sheet(), paper textures, pinned puppets
   cast.js                the man, the dame, the Manager (after Parade's), the band on its stand
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
+figure/                  the mannequin (sketchbook): packages/figure drawn live; pose, turn, walk, rebuild, re-check
+vendor/figure/lib/       BYTE-IDENTICAL copy of packages/figure/lib (scripts/sync-dataviz.mjs --write; the selftest checks)
 lib/band.js              the band, synthesised in pure JS (node + browser + worker): renderBand, mix
 lib/band-worker.js       renders a score's band off the main thread (imports the score by URL)
 lib/band-load.js         loadBand(scoreUrl, rate, seconds): the worker, or the main thread without one
@@ -195,6 +197,15 @@ puppet's parts come off their pins and fall (`detachAll`).
 
 **The score clef opens** is a short score: the melody instruments over the bass,
 not the piano part. clef's key parser wants `ees`, not `es`: `\key es \major` fails.
+
+## The mannequin (figure/), and packages/figure
+
+Not a timed piece: a sketchbook page, practice for drawing characters. The rig
+lives in `packages/figure` (read its `CLAUDE.md` before changing it). Edit it
+there, never the copy here, then run `node scripts/sync-dataviz.mjs --write`.
+The page re-runs `checkAll` whenever the body changes and shows the count.
+Rendering is a raymarched geometry pass plus an ink pass. It supersamples 2×
+below DPR 2 and 1× at DPR 2 and above, to keep phones fast.
 
 ## Export video, and View the score
 

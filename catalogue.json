@@ -4500,6 +4500,23 @@
         "wasm",
         "generative"
       ]
+    },
+    {
+      "n": "mannequin",
+      "u": "https://studio.mino.mobi/figure/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A figure-drawing mannequin built from its measurements in head units, from a 3-head chibi to an 8½-head fashion figure, posed by intent and drawn in anime cel tone and ink. Turn it, walk it, change its build, and watch the 49 checks that hold it up: planted feet never slide, no limb passes through another, the weight stays over the feet.",
+      "tags": [
+        "webgl",
+        "interactive",
+        "generative"
+      ]
     }
   ],
   "notListed": [

@@ -56,6 +56,8 @@ jobs:
                && curl -fsS https://studio.mino.mobi/coquelicots/ | grep -qi 'Coquelicots' \
                && curl -fsS https://studio.mino.mobi/nocturne/ | grep -qi 'Nocturne' \
                && curl -fsS https://studio.mino.mobi/speakeasy/ | grep -qi 'Speakeasy' \
+               && curl -fsS https://studio.mino.mobi/figure/ | grep -qi 'Mannequin' \
+               && curl -fsSI https://studio.mino.mobi/vendor/figure/lib/shader.js | grep -qi 'javascript' \
                && curl -fsSI https://studio.mino.mobi/lib/band-worker.js | grep -qi 'javascript' \
                && curl -fsSI https://studio.mino.mobi/vendor/pfsynth/pfsynth.wasm | grep -qi 'application/wasm' \
                && curl -fsSI https://studio.mino.mobi/coquelicots/score.ly | grep -qi 'access-control-allow-origin: https://clef.mino.mobi'; then

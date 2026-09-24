@@ -1,0 +1,36 @@
+# figure
+
+A character rig in head units, posed by intent, drawn in anime ink, and
+checked. Plain ES modules, no dependencies; node for the maths and checks,
+WebGL2 for pictures. Used live at `studio.mino.mobi/figure/` (the mannequin).
+
+## Spec
+
+| field | default | meaning |
+|---|---|---|
+| `heads` | 7 | total height in head heights (3 chibi … 8.5 fashion) |
+| `build` | 0.5 | 0: narrow shoulders, wide hips, fine limbs … 1: broad shoulders, narrow hips |
+| `legs` | 0.5 | 0: the figure-drawing book's leg length … 1: long anime legs |
+| `mass` | 0.5 | limb and torso thickness |
+| `headWidth` | 0.8 | the head's width, in head heights |
+| `neck` | 0.5 | neck length bias |
+
+Widths follow build, not height: a taller figure in heads is a longer
+figure, not a wider one. Below 7 heads widths shrink slower than heights, so
+a chibi stays chunky.
+
+## Modules
+
+| file | what |
+|---|---|
+| `lib/vec.js` | vectors and frames (y up, +z forward, +x the figure's left) |
+| `lib/proportion.js` | spec → measurements: joint heights, bone lengths, thickness profiles |
+| `lib/rig.js` | `makeRig(spec)`, `solve(rig, pose)` → joints, frames, and a report of what could not be reached; two-bone IK; planted feet; placed hands; toes that bend at the ball |
+| `lib/gait.js` | `walk(rig, t, opt)`: fixed footfalls pivoting heel → flat → ball; the pelvis height is the morphological opening of the legs' reach limit |
+| `lib/poses.js` | named poses written as intent |
+| `lib/settle.js` | the solvers that make intent true on a body: settle, balance, clearArms, handOn, seatHand, interpenetration |
+| `lib/body.js` | pose → primitives (round cones, ellipsoids) in groups; the JS distance field; `pack` for the GPU |
+| `lib/check.js` | the checks: proportion, walk, poses |
+| `lib/shader.js` | the WebGL2 renderer: raymarched geometry pass, then cel tone + ink lines of three weights |
+| `lib/sheet.js` | the model sheet and the lineup, for `sheet.html` |
+| `agent/check.mjs`, `agent/render.mjs` | the headless tools (see `SKILL.md`) |

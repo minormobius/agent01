@@ -24,6 +24,14 @@ const ok = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!
 const ours = await readFile(join(root, 'vendor/pfsynth/pfsynth.wasm'));
 const clefs = await readFile(join(root, '..', 'clef/vendor/pfsynth/pfsynth.wasm'));
 ok(Buffer.compare(ours, clefs) === 0, `pfsynth.wasm is byte-identical to clef's (${ours.length} bytes)`);
+// the mannequin (figure/) draws packages/figure: its copy must be the package, byte for byte
+{
+  const { readdirSync } = await import('node:fs');
+  const lib = join(root, 'vendor/figure/lib');
+  const files = readdirSync(lib);
+  const same = await Promise.all(files.map(async (f) => Buffer.compare(await readFile(join(lib, f)), await readFile(join(root, '..', 'packages/figure/lib', f))) === 0));
+  ok(files.length >= 9 && same.every(Boolean), `vendor/figure is byte-identical to packages/figure/lib (${files.length} files)`);
+}
 
 // 2 ---------------------------------------------------------------------------
 ok(events.length > 100 && events.length < 32768, `${events.length} notes, under the model's 32768`);

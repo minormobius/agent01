@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mannequin</title>
+<meta name="description" content="A figure-drawing mannequin built from its measurements in head units: pose it, turn it, walk it, change its build from chibi to fashion — and watch the checks that hold it up.">
+<meta property="og:title" content="Mannequin — studio">
+<meta property="og:description" content="A figure built from head units, posed by intent, drawn in anime ink — and checked: planted feet never slide, no limb passes through another.">
+<meta property="og:image" content="https://studio.mino.mobi/figure/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#f4efe4">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --paper: #f4efe4; --ink: #2a2230; --dim: rgba(42, 34, 48, 0.62); --line: rgba(42, 34, 48, 0.16);
+    --chip: rgba(42, 34, 48, 0.06); --on: #2a2230; --onInk: #f4efe4; --ok: #1a8f5a; --bad: #c0392b;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace; --sans: ui-sans-serif, system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--paper); color: var(--ink); font: 14px/1.4 var(--sans); overflow: hidden; -webkit-font-smoothing: antialiased; }
+  #stage { position: fixed; inset: 0 0 var(--panelH, 212px) 0; touch-action: none; cursor: grab; }
+  #stage:active { cursor: grabbing; }
+  #stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  header { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; justify-content: space-between; align-items: baseline; pointer-events: none; }
+  h1 { margin: 0; font: 600 20px var(--sans); letter-spacing: 0.01em; }
+  header a { pointer-events: auto; font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); text-decoration: none; }
+  header a:hover { color: var(--ink); }
+  #badge { position: fixed; top: max(44px, calc(env(safe-area-inset-top) + 34px)); left: 16px; font: 500 11px var(--mono); color: var(--dim); max-width: calc(100% - 32px); }
+  #badge b { font-weight: 600; }
+  #badge .ok { color: var(--ok); } #badge .bad { color: var(--bad); }
+  #panel { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); display: grid; gap: 8px; }
+  .row { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+  .row::-webkit-scrollbar { display: none; }
+  .row .lab { flex: none; font: 500 10px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); align-self: center; width: 44px; }
+  button.chip { flex: none; border: 0; border-radius: 999px; padding: 7px 12px; background: var(--chip); color: var(--ink); font: 500 13px var(--sans); cursor: pointer; }
+  button.chip[aria-pressed="true"] { background: var(--on); color: var(--onInk); }
+  button.chip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .sliders { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 14px; }
+  label.sl { display: grid; grid-template-columns: 58px 1fr 34px; align-items: center; gap: 6px; font: 500 11px var(--mono); color: var(--dim); }
+  label.sl output { text-align: right; color: var(--ink); }
+  input[type=range] { width: 100%; accent-color: var(--ink); }
+  noscript { position: fixed; top: 80px; left: 16px; right: 16px; font: 13px var(--mono); }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="The mannequin. Drag sideways to turn it."></div>
+<header><h1>Mannequin</h1><a href="../">studio</a></header>
+<div id="badge" aria-live="polite"></div>
+<div id="panel">
+  <div class="row" id="poses"><span class="lab">pose</span></div>
+  <div class="row" id="presets"><span class="lab">body</span></div>
+  <div class="sliders" id="sliders"></div>
+  <div class="row" id="view"><span class="lab">show</span></div>
+</div>
+<noscript>This page draws with WebGL2 and JavaScript.</noscript>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

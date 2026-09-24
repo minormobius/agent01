@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Figure sheet</title>
+<style>
+  :root { --paper: #f4efe4; --ink: #2a2230; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --paper: #f4efe4; } }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 14px ui-sans-serif, system-ui, sans-serif; }
+  canvas#sheet { display: block; max-width: 100%; height: auto; }
+  #err { white-space: pre-wrap; color: #a0302a; padding: 16px; font: 12px ui-monospace, monospace; }
+</style>
+</head>
+<body>
+<canvas id="sheet"></canvas>
+<div id="err"></div>
+<script type="module">
+  // ?spec=specs/adult.json · ?skeleton=1 · ?h=440 (panel height)
+  import { renderSheet, renderLineup, DEFAULT_SHEET } from './lib/sheet.js';
+  const qs = new URLSearchParams(location.search);
+  const canvas = document.getElementById('sheet');
+  async function load(spec, sheet, opt) {
+    return renderSheet(canvas, spec, sheet || DEFAULT_SHEET, opt);
+  }
+  window.__figure = { render: load, lineup: (specs, opt) => renderLineup(canvas, specs, opt) };
+  try {
+    if (qs.has('spec') || !qs.has('wait')) {
+      const spec = qs.has('spec') ? await (await fetch(qs.get('spec'))).json() : {};
+      window.__figure.stats = await load(spec, null, { skeleton: qs.has('skeleton'), panelH: Number(qs.get('h') || 440) });
+    }
+  } catch (e) { document.getElementById('err').textContent = e.stack || e.message; window.__figure.error = String(e.message); }
+  window.__figure.ready = true;
+</script>
+</body>
+</html>

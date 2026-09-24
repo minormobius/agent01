@@ -66,6 +66,12 @@ const EXTRA = [
   // cad.mino.mobi/SKILL.md, so an agent that never clones this repo can read
   // it; Claude Code loads skills from .claude/skills/, so that copy follows.
   ["packages/cad/SKILL.md", ".claude/skills/cad/SKILL.md"],
+  // The figure rig (packages/figure) is drawn live by the studio's mannequin page
+  // (studio.mino.mobi/figure/), which serves a copy from its own asset root. Its
+  // skill follows the cad skill's pattern: written beside the code, loaded from
+  // .claude/skills/.
+  ...["vec.js", "proportion.js", "rig.js", "body.js", "gait.js", "poses.js", "settle.js", "check.js", "shader.js"].map((f) => [`packages/figure/lib/${f}`, `studio/vendor/figure/lib/${f}`]),
+  ["packages/figure/SKILL.md", ".claude/skills/figure/SKILL.md"],
   ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],
