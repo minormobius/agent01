@@ -17,13 +17,13 @@
 <div id="err"></div>
 <script type="module">
   // ?spec=specs/adult.json · ?skeleton=1 · ?h=440 (panel height)
-  import { renderSheet, renderLineup, DEFAULT_SHEET } from './lib/sheet.js';
+  import { renderSheet, renderLineup, renderFaceSheet, DEFAULT_SHEET } from './lib/sheet.js';
   const qs = new URLSearchParams(location.search);
   const canvas = document.getElementById('sheet');
   async function load(spec, sheet, opt) {
     return renderSheet(canvas, spec, sheet || DEFAULT_SHEET, opt);
   }
-  window.__figure = { render: load, lineup: (specs, opt) => renderLineup(canvas, specs, opt) };
+  window.__figure = { render: load, lineup: (specs, opt) => renderLineup(canvas, specs, opt), faces: (spec, opt) => renderFaceSheet(canvas, spec, opt) };
   try {
     if (qs.has('spec') || !qs.has('wait')) {
       const spec = qs.has('spec') ? await (await fetch(qs.get('spec'))).json() : {};

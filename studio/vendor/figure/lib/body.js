@@ -23,8 +23,8 @@ export const CONE = 0, ELLIPSOID = 1;
 // united. A smooth minimum is not associative, so blending the parts in one
 // list order would make the left shoulder differ from the right.
 const sideOf = (name) => /_l\d*$/.test(name) ? 1 : /_r\d*$/.test(name) ? -1 : 0;
-const cone = (group, a, b, ra, rb, k, name) => ({ type: CONE, group: G[group], side: group === 'torso' ? sideOf(name) : 0, a, b, ra, rb, k, name });
-const ell = (group, c, F, r, k, name) => ({ type: ELLIPSOID, group: G[group], side: group === 'torso' ? sideOf(name) : 0, a: c, F, r, k, name });
+const cone = (group, a, b, ra, rb, k, name) => ({ type: CONE, group: G[group], side: group === 'torso' || group === 'head' ? sideOf(name) : 0, a, b, ra, rb, k, name });
+const ell = (group, c, F, r, k, name) => ({ type: ELLIPSOID, group: G[group], side: group === 'torso' || group === 'head' ? sideOf(name) : 0, a: c, F, r, k, name });
 
 /** A limb segment from A to B, following a profile [[t, radius, offset?]...]. */
 function chain(out, group, A, B, profile, k, name, offDir) {
@@ -56,7 +56,28 @@ export function buildBody(P) {
   const w = m.head.width;
   out.push(ell('head', add(J.headPivot, apply(F.head, m.head.cranium.c)), F.head, [w / 2, 0.44, 0.47], 0.1, 'cranium'));
   const jw = m.head.jaw;
-  out.push(cone('head', add(J.headPivot, apply(F.head, jw.top)), add(J.headPivot, apply(F.head, jw.chin)), jw.rt * w / 0.8, jw.rc, 0.14, 'jaw'));
+  out.push(cone('head', add(J.headPivot, apply(F.head, jw.top)), add(J.headPivot, apply(F.head, jw.chin)), jw.rt * w / 0.8, jw.rc, 0.22, 'jaw'));
+  // the cheeks: fill between the skull and the jaw, so the face's outline runs clean to the chin
+  out.push(ell('head', add(J.headPivot, apply(F.head, [0, 0.2, 0.02])), F.head, [0.34 * w / 0.8, 0.2, 0.3], 0.16, 'cheeks'));
+  // the nose, a small wedge on the front of the face: it makes the profile, and the face draws the rest
+  const skull = out.slice(-3);
+  const frontZ = (y) => {                                   // where the face's front is, at height y (head frame)
+    let z = 0.8;
+    for (let i = 0; i < 60; i++) {
+      const p = add(J.headPivot, apply(F.head, [0, y, z]));
+      const d = smin(smin(primDist(skull[0], p), primDist(skull[1], p), 0.22), primDist(skull[2], p), 0.16);
+      if (Math.abs(d) < 1e-5) break;
+      z -= d;
+    }
+    return z;
+  };
+  const nv = (P.face?.noseV ?? 0.26) - m.head.pivotUp;
+  const zf = frontZ(nv);
+  out.push(cone('head', add(J.headPivot, apply(F.head, [0, nv + 0.05, zf - 0.02])), add(J.headPivot, apply(F.head, [0, nv - 0.004, zf + 0.018])), 0.016, 0.011, 0.05, 'nose'));
+  // ears, at the eye line on the sides of the head
+  for (const [s, sg] of [['l', 1], ['r', -1]]) {
+    out.push(ell('head', add(J.headPivot, apply(F.head, [sg * (w / 2 - 0.035), (P.face?.eyeLine ?? 0.42) - m.head.pivotUp - 0.03, -0.06])), F.head, [0.035, 0.1, 0.06], 0.035, `ear_${s}`));
+  }
 
   // ---- arms
   for (const s of ['l', 'r']) {

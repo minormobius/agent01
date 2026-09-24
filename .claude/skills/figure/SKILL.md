@@ -24,6 +24,7 @@ spec.json → check → (fix the intent, not the numbers) → render → look �
 | check | `node agent/check.mjs specs/adult.json [--json]` | ~49 checks: crown at `heads`, soles on the ground, left mirrors right; the walk's planted feet never slide, never sink, swing feet clear the ground, knees bend forward, the pelvis moves smoothly; per pose: every limb reaches, no limb through another, wrists within range, planted feet on the ground, weight over the feet. Exit 1 on any failure |
 | model sheet | `node agent/render.mjs specs/adult.json --out a.png [--skeleton] [--h 560]` | turnaround (front, ¾, side, ¾ back, back), a walk cycle with every planted pivot dotted, the pose row; head-unit lines behind |
 | lineup | `node agent/render.mjs --lineup specs/chibi.json specs/adult.json … --out l.png` | the figures side by side, one head the same size in all |
+| faces | `node agent/render.mjs specs/teen.json --faces --out f.png` | close-ups: the head turning 0–135° and looking up and down, every expression, and a cast of identities from predicates |
 | tests | `node figure.selftest.mjs` · `node browser.selftest.mjs` | the maths and every check on every spec · the GPU draws the same body node measures (silhouette IoU > 0.985) |
 
 A spec inline works anywhere a path does: `node agent/check.mjs '{"heads":3}'`.
@@ -32,6 +33,29 @@ A spec inline works anywhere a path does: `node agent/check.mjs '{"heads":3}'`.
 
 `{ heads, build, legs, mass, headWidth, neck }` — see `README.md`. One unit is
 one head height; y is up, the figure faces +z, its left is +x.
+
+## The face
+
+A face is IDENTITY (in the spec) × EXPRESSION (in the pose), both from a small
+anime vocabulary (`lib/face.js`):
+
+```json
+"face": { "eyes": "tsurime", "brows": "thin", "mouth": "cat", "nose": "dot",
+          "lashes": "heavy", "irisColor": "red", "extras": ["blush", "mole"] }
+```
+
+eyes: `round` `tsurime` `tareme` `narrow` `jitome` · brows: `thin` `thick` `arched` `straight` ·
+mouth: `small` `wide` `cat` `fang` · nose: `none` `tick` `dot` · lashes: `light` `heavy` ·
+irisColor: `violet` `blue` `green` `amber` `red` `brown` · extras: `blush` `mole` `mole-left`.
+Any numeric field of `BASE` overrides directly (`"eyeH": 0.2`). A pose sets
+`expression` (`neutral` `smile` `laugh` `angry` `sad` `surprised` `wink` `sleepy` `shout`,
+or an object of overrides) and `gaze: [x, y]`. No `face` in the spec draws the
+mannequin's construction lines instead.
+
+The face checks (`checkFace`, in `check.mjs` whenever a spec has a face) hold
+every expression: the eyes on the front of the face, apart, brows clear of the
+lashes, the mouth between nose and chin. Brows are constrained above the lid
+(`browFloor`), so an angry brow knits down onto the eye, never into it.
 
 ## Writing a pose
 

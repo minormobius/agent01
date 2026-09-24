@@ -13,6 +13,7 @@
 // are antialiased.
 
 import { pack, groupBounds, TEXELS, GROUPS } from './body.js';
+import { packFace } from './face.js';
 import { cross, norm, sub, add, scale } from './vec.js';
 
 const VS = `#version 300 es
@@ -21,8 +22,11 @@ void main(){ uv = p * 0.5 + 0.5; gl_Position = vec4(p, 0.0, 1.0); }`;
 
 const GEOM = `#version 300 es
 precision highp float; precision highp sampler2D;
-in vec2 uv; out vec4 o;
+in vec2 uv;
+layout(location = 0) out vec4 o;
+layout(location = 1) out vec4 o2;      // the face: material code, shade
 uniform sampler2D prims; uniform int count;
+uniform float fp[32];
 uniform vec4 gb[${GROUPS.length}];      // group bounding spheres
 uniform ivec2 gr[${GROUPS.length}];     // group prim ranges
 uniform vec3 camC, camR, camU, camF; uniform vec2 halfSize;     // orthographic camera
@@ -80,6 +84,130 @@ vec3 normal(vec3 p){
   const vec2 e = vec2(0.0015, 0.0);
   return normalize(vec3(map(p + e.xyy).x - map(p - e.xyy).x, map(p + e.yxy).x - map(p - e.yxy).x, map(p + e.yyx).x - map(p - e.yyx).x));
 }
+
+// ---- the face (face.js holds the same curves; FP names the slots) ---------------
+// material codes: 1 ink, 2 iris, 3 pupil, 4 highlight, 5 sclera, 6 mouth, 7 tongue,
+// 8 blush, 9 brow, 10 fang, 11 blush hatching
+float segD(vec2 p, vec2 a, vec2 b){ vec2 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }
+vec2 lidsAt(float open, float s){
+  float k = max(0.0, 1.0 - s * s);
+  float a = max(0.15, 0.45 - 0.3 * max(0.0, fp[12]));
+  float yU = fp[4] * (open * 0.55 * pow(k, a) * (1.0 - 0.35 * max(0.0, fp[12])) - 0.04 * s);
+  float yL = -fp[4] * open * 0.45 * pow(k, 0.7);
+  return vec2(yU, yL);
+}
+vec2 faceAt(vec3 l, float facing){
+  if (fp[0] < 0.5 || l.z < 0.0 || facing < 0.12) return vec2(0.0);
+  float u = l.x, v = l.y + fp[30], px = fp[29];
+  float side = u >= 0.0 ? 1.0 : -1.0, au = abs(u);
+  float W = fp[3], H = fp[4];
+  // ---- the eye on this side
+  float open = side > 0.0 ? fp[6] : fp[7];
+  vec2 e = vec2(au - fp[2], v - fp[1]);
+  float c = cos(fp[5]), sn = sin(fp[5]);
+  vec2 q = vec2(c * e.x + sn * e.y, -sn * e.x + c * e.y);        // eye frame: x outward, y up
+  float sx = q.x / W;
+  float lash = fp[11];
+  if (abs(sx) < 1.45 && q.y < H * 1.1 && q.y > -H * 0.9) {
+    float ss = clamp(sx, -1.0, 1.0);
+    vec2 ly = lidsAt(open, ss);
+    float t = max(lash * (0.008 + 0.02 * smoothstep(-0.2, 1.0, ss)), px * 1.1);
+    if (open > 0.08) {
+      if (abs(sx) <= 1.0 && q.y < ly.x && q.y > ly.y) {
+        vec2 ic = vec2(fp[8] * side * W * 0.3, -H * 0.03 + fp[9] * H * 0.18);
+        vec2 ir = vec2(W * 0.58, H * 0.47) * fp[10];
+        float di = length((q - ic) / ir);
+        if (di < 1.0) {
+          vec2 h1 = (q - ic - vec2(-0.3 * ir.x * side, 0.36 * ir.y)) / (ir * vec2(0.3, 0.25));
+          vec2 h2 = (q - ic - vec2(0.36 * ir.x * side, -0.42 * ir.y)) / (ir * vec2(0.13, 0.11));
+          if (dot(h1, h1) < 1.0 || dot(h2, h2) < 1.0) return vec2(4.0, 0.0);
+          if (di < 0.42) return vec2(3.0, 0.0);
+          if (di > 0.93) return vec2(1.0, 0.0);                        // the iris's dark rim
+          float g = clamp((q.y - (ic.y - ir.y)) / (2.0 * ir.y), 0.0, 1.0);
+          if (q.y > ly.x - H * 0.16) g = 1.0;                         // the lid's shadow on the iris
+          return vec2(2.0, g);
+        }
+        return vec2(5.0, smoothstep(ly.x - H * 0.22, ly.x, q.y));
+      }
+      // the upper lash line, heavier toward the outer corner
+      if (abs(sx) <= 1.0 && q.y >= ly.x - t * 0.25 && q.y <= ly.x + t) return vec2(1.0, 0.0);
+      // the flick past the outer corner
+      if (sx > 0.8 && sx < 1.4) {
+        vec2 end = vec2(W, lidsAt(open, 1.0).x);
+        vec2 tip = end + vec2(W * 0.36, H * 0.16);
+        float d = segD(q, end - vec2(W * 0.18, -H * 0.02), tip);
+        float w = max(t * clamp((1.4 - sx) / 0.55, 0.0, 1.0), px * 0.6);
+        if (d < w) return vec2(1.0, 0.0);
+      }
+      // the lower lid: a short, light stroke at the outer side
+      if (fp[13] > 0.0 && sx > -0.25 && sx < 0.95 && abs(q.y - ly.y) < max(0.0035 * fp[13], px * 0.6) * smoothstep(-0.25, 0.25, sx)) return vec2(1.0, 0.0);
+      // the double-lid crease
+      if (fp[31] > 0.5 && sx > -0.45 && sx < 0.8 && abs(q.y - (ly.x + H * 0.12 + 0.012)) < max(0.0028, px * 0.5)) return vec2(1.0, 0.0);
+    } else {
+      // closed: one curved stroke, ^ when happy, ∪ when at rest
+      float yc = fp[14] * H * 0.2 * (1.0 - ss * ss) - H * 0.04;
+      if (abs(sx) <= 1.05 && abs(q.y - yc) < t * 0.8) return vec2(1.0, 0.0);
+    }
+  }
+  // ---- the brow
+  vec2 b = vec2(au - fp[2] - 0.01, v - (fp[1] + H * 0.62 + 0.05 + fp[15]));
+  float bw = W * 1.15, bs = b.x / bw;
+  if (abs(bs) < 1.0) {
+    float yb = fp[18] * 0.025 * (1.0 - bs * bs) - fp[16] * 0.035 * (1.0 - bs) * 0.5 + sn * b.x;
+    // never into the eye: at least a lash and a gap above the lid (face.js browFloor)
+    float fx = b.x + 0.01, qx = fx, o6 = max(open, 0.6);
+    for (int i = 0; i < 4; i++) qx = (fx + sn * lidsAt(o6, clamp(qx / W, -1.0, 1.0)).x) / c;
+    float floorY = fp[1] + sn * qx + c * lidsAt(o6, clamp(qx / W, -1.0, 1.0)).x + 0.03 * lash + 0.018;
+    yb = max(yb, floorY - (fp[1] + H * 0.62 + 0.05 + fp[15]));
+    float tb = max(fp[17] * (0.014 - 0.007 * (bs + 1.0) * 0.5) * smoothstep(1.0, 0.75, abs(bs)), px * 0.6);
+    if (abs(b.y - yb) < tb) return vec2(9.0, 0.0);
+  }
+  // ---- the mouth
+  vec2 m = vec2(u, v - fp[21]);
+  float wm = fp[22] * (1.0 - 0.45 * fp[25]);
+  float mx = m.x / wm;
+  if (abs(mx) < 1.2 && abs(m.y) < 0.12) {
+    float k = max(0.0, 1.0 - mx * mx);
+    float mid = fp[23] * 0.02 * mx * mx - fp[23] * 0.008;
+    float tl = max(0.0045, px * 0.8);
+    float mo = fp[24];
+    if (mo < 0.05) {
+      if (fp[26] > 0.5 && fp[26] < 1.5) {
+        float yw = mid - 0.014 * sin(3.14159 * min(abs(mx), 1.0));       // ω
+        if (abs(mx) < 1.0 && abs(m.y - yw) < tl * 0.9) return vec2(1.0, 0.0);
+      } else {
+        if (abs(m.y - mid) < tl * smoothstep(1.05, 0.6, abs(mx))) return vec2(1.0, 0.0);
+        if (fp[26] > 1.5 && m.y < mid && m.y > mid - 0.022 && abs(mx - 0.42) < (m.y - (mid - 0.022)) / 0.022 * 0.16) return vec2(10.0, 0.0);
+      }
+    } else {
+      float top = mid + mo * 0.01 * sqrt(k);
+      float bot = mid - mo * 0.07 * pow(k, 0.6 + 0.6 * fp[25]);
+      if (abs(mx) < 1.0 && m.y < top + tl * 0.5 && m.y > bot - tl * 0.5) {
+        if (m.y > top - tl * 0.5 || m.y < bot + tl * 0.4) return vec2(1.0, 0.0);
+        if (m.y < bot + (top - bot) * 0.36 && abs(mx) < 0.72) return vec2(7.0, 0.0);
+        return vec2(6.0, 0.0);
+      }
+    }
+  }
+  // ---- the nose: a tick, or a dot
+  if (fp[19] > 0.5) {
+    float nv = fp[20];
+    float dn = fp[19] < 1.5 ? segD(vec2(u, v), vec2(-0.004, nv + 0.014), vec2(0.004, nv - 0.008)) : length(vec2(u, v - nv)) - 0.004;
+    if (dn < max(0.0035, px * 0.6)) return vec2(1.0, 0.0);
+  }
+  // ---- a beauty mark
+  if (fp[28] != 0.0 && length(vec2(u - fp[28] * (fp[2] + 0.035), v - (fp[1] - H * 0.55 - 0.03))) < max(0.007, px)) return vec2(1.0, 0.0);
+  // ---- blush, with hatching
+  if (fp[27] > 0.0) {
+    vec2 bl = vec2(au - fp[2] - 0.01, v - (fp[1] - H * 0.5 - 0.065));
+    float db = length(bl / vec2(0.075, 0.03));
+    if (db < 1.0) {
+      if (db < 0.75 && fract((bl.x * side + bl.y * 0.9) / 0.024) < 0.26) return vec2(11.0, 0.0);
+      return vec2(8.0, 1.0 - db);
+    }
+  }
+  return vec2(0.0);
+}
 vec2 box(vec3 ro, vec3 rd){
   vec3 inv = 1.0 / rd; vec3 t0 = (bmin - ro) * inv, t1 = (bmax - ro) * inv;
   vec3 lo = min(t0, t1), hi = max(t0, t1);
@@ -91,7 +219,7 @@ void main(){
   if (persp > 0.0) { ro = camC - camF * persp; rd = normalize(camF * persp + camR * s.x + camU * s.y); }
   else { ro = camC + camR * s.x + camU * s.y - camF * 30.0; rd = camF; }
   vec2 tb = box(ro, rd);
-  o = vec4(0.5, 0.5, 1.0, 0.0);
+  o = vec4(0.5, 0.5, 1.0, 0.0); o2 = vec4(0.0);
   if (tb.x > tb.y || tb.y < 0.0) return;
   float t = max(tb.x, 0.0);
   vec2 h = vec2(1.0, -1.0);
@@ -110,7 +238,8 @@ void main(){
   float mark = 0.0;
   if (int(h.y) == 1) {
     vec3 q = p - headC; vec3 l = vec3(dot(q, headX), dot(q, headY), dot(q, headZ));
-    if (l.z > 0.05 && ((abs(l.x) < 0.012 && l.y > -0.08) || (abs(l.y - eyeLine) < 0.012 && abs(l.x) < headW * 0.5))) mark = 1.0;
+    if (fp[0] > 0.5) { vec2 fa = faceAt(l, dot(n, headZ)); o2 = vec4(fa.x / 255.0, fa.y, 0.0, 1.0); }
+    else if (l.z > 0.05 && ((abs(l.x) < 0.012 && l.y > -0.08) || (abs(l.y - eyeLine) < 0.012 && abs(l.x) < headW * 0.5))) mark = 1.0;
   }
   float depth = clamp(dot(p - (camC - camF * 30.0), camF) / 60.0, 0.0, 1.0);
   o = vec4(nv.xy * 0.5 + 0.5, depth, (h.y + 1.0 + mark * 64.0) / 255.0);
@@ -120,6 +249,8 @@ const INK = `#version 300 es
 precision highp float;
 in vec2 uv; out vec4 o;
 uniform sampler2D g; uniform vec2 px;            // geometry pass, one of ITS texels in uv
+uniform sampler2D fm;                            // the face materials
+uniform vec3 irisTop, irisBot, irisDark, browC, mouthC, tongueC, blushC;
 uniform vec3 light;                              // in view space
 uniform vec3 base[${GROUPS.length}], shade[${GROUPS.length}];
 uniform vec3 inkC, paper; uniform float wOut, wIn, wCrease;
@@ -154,16 +285,33 @@ vec2 inkAt(vec2 q){
   if (c.w * 255.0 > 64.5 && id > 0.0) ink = max(ink, 0.55);   // construction lines on the head
   return vec2(ink, id);
 }
+vec3 faceTone(vec3 skin, vec4 f){
+  float code = floor(f.x * 255.0 + 0.5);
+  if (code < 0.5) return skin;
+  if (code < 1.5) return inkC;
+  if (code < 2.5) return mix(irisBot, irisTop, f.y);
+  if (code < 3.5) return irisDark;
+  if (code < 4.5) return vec3(1.0);
+  if (code < 5.5) return mix(vec3(0.99, 0.98, 0.97), vec3(0.78, 0.8, 0.9), f.y);
+  if (code < 6.5) return mouthC;
+  if (code < 7.5) return tongueC;
+  if (code < 8.5) return mix(skin, blushC, 0.35 + 0.35 * f.y);
+  if (code < 9.5) return browC;
+  if (code < 10.5) return vec3(1.0);
+  return mix(skin, blushC * 0.8, 0.85);
+}
 vec3 tone(vec2 q){
   vec4 c = G(q); float id = gid(c);
   if (id == 0.0) return paper;
   int gi = int(id) - 1;
   vec3 n = N(c);
   float l = dot(n, light);
-  float lit = smoothstep(0.26, 0.32, l);                       // one hard terminator, well round toward the light
+  // one hard terminator, well round toward the light; a face stays lit (anime shades a face only at its far side)
+  float lit = gi == 1 ? smoothstep(-0.12, -0.06, l) : smoothstep(0.26, 0.32, l);
   vec3 col = mix(shade[gi], base[gi], lit);
   float rim = smoothstep(0.62, 0.8, 1.0 - n.z) * smoothstep(-0.2, 0.3, dot(n.xy, -light.xy)) ;
   col = mix(col, base[gi] * 1.08 + 0.04, rim * 0.55 * (1.0 - lit));   // a warm rim on the shadow side
+  if (gi == 1) col = faceTone(col, texture(fm, q));
   return col;
 }
 void main(){
@@ -214,7 +362,7 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
   gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
   const primTex = gl.createTexture();
-  const geoTex = gl.createTexture(), fb = gl.createFramebuffer();
+  const geoTex = gl.createTexture(), faceTex = gl.createTexture(), fb = gl.createFramebuffer();
   let gw = 0, gh = 0;
   const U = (p, n) => gl.getUniformLocation(p, n);
 
@@ -227,8 +375,14 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gw, gh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.bindTexture(gl.TEXTURE_2D, faceTex);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gw, gh, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
       gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, geoTex, 0);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT1, gl.TEXTURE_2D, faceTex, 0);
+      gl.drawBuffers([gl.COLOR_ATTACHMENT0, gl.COLOR_ATTACHMENT1]);
     }
     // the primitives, as a float texture
     const data = pack(prims);
@@ -253,12 +407,19 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
     const HF = P.F.head, hc = add(P.J.headPivot, [0, 0, 0]);
     gl.uniform3f(U(pg, 'headC'), ...hc); gl.uniform3f(U(pg, 'headX'), ...HF.x); gl.uniform3f(U(pg, 'headY'), ...HF.y); gl.uniform3f(U(pg, 'headZ'), ...HF.z);
     gl.uniform1f(U(pg, 'eyeLine'), P.rig.m.head.eyeLine - P.rig.m.head.pivotUp); gl.uniform1f(U(pg, 'headW'), P.rig.m.head.width);
+    // the face: one geometry texel in head units keeps its finest lines at least a pixel wide
+    const texel = (2 * cam.halfH) / gh;
+    gl.uniform1fv(U(pg, 'fp'), packFace(P.face, { px: texel, pivotUp: P.rig.m.head.pivotUp }));
     gl.drawArrays(gl.TRIANGLES, 0, 3);
 
     // pass 2
     gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, W, H);
     gl.useProgram(pi);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, geoTex); gl.uniform1i(U(pi, 'g'), 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, faceTex); gl.uniform1i(U(pi, 'fm'), 1);
+    const fc = P.face?.colors || {};
+    const C = { irisTop: fc.irisTop || '#3a2a52', irisBot: fc.irisBot || '#8b7bd4', irisDark: fc.irisDark || '#1c1426', browC: fc.brow || '#3b2a26', mouthC: fc.mouth || '#7a2a32', tongueC: fc.tongue || '#e0808a', blushC: fc.blush || '#f09aa0' };
+    for (const [k, v] of Object.entries(C)) gl.uniform3f(U(pi, k), ...hex(v));
     gl.uniform2f(U(pi, 'px'), 1 / gw, 1 / gh);
     const L = norm(style.light); gl.uniform3f(U(pi, 'light'), ...L);
     GROUPS.forEach((name, i) => {
@@ -281,7 +442,19 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
     for (let i = 0; i < gw * gh; i++) ids[i] = px[i * 4 + 3] % 64;
     return { ids, w: gw, h: gh };
   }
-  return { draw, gl, readGroups };
+  /** The face pass's material codes (0 = none), for tests: Uint8Array, gw × gh, rows bottom-up. */
+  function readFace() {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.readBuffer(gl.COLOR_ATTACHMENT1);
+    const px = new Uint8Array(gw * gh * 4);
+    gl.readPixels(0, 0, gw, gh, gl.RGBA, gl.UNSIGNED_BYTE, px);
+    gl.readBuffer(gl.COLOR_ATTACHMENT0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const codes = new Uint8Array(gw * gh);
+    for (let i = 0; i < gw * gh; i++) codes[i] = px[i * 4];
+    return { codes, w: gw, h: gh };
+  }
+  return { draw, gl, readGroups, readFace };
 }
 
 /** An orthographic camera looking at `target` from yaw (0 = the front) and pitch (+ = from above). */

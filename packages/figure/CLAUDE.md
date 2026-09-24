@@ -46,9 +46,32 @@ and the modules). This file is what you need before changing it.
 - **The chibi's feet were long for its legs**, so it scuffed or over-bent
   its knees. Foot length now scales with k^0.8, and the step with leg length.
 
+## The face (2026-09-24)
+
+Drawn in the GEOMETRY pass, not painted on after: at every pixel that hits the
+head, the shader has the exact 3D point in the head's own frame, projects it
+along the head's forward axis to face coordinates (u, v) and evaluates the
+features there (`faceAt` in shader.js), writing a material code to a second
+render target. So features turn with the head, the head's own shape hides the
+far eye (checked: 0 iris pixels in profile), and they inherit the 2× supersample
+antialiasing. `lidsAt` and `browFloor` in GLSL are line-for-line `lids` and
+`browFloor` in face.js. The checks measure the JS side and the browser selftest
+reads back the GLSL side, so change both together.
+
+Faults found and fixed:
+- **An angry tsurime brow went into the lash line** (−0.005 heads): the
+  expression lowers the brow's inner end, and the lifted eye's inner lid is
+  high. Fixed with a constraint: a brow never sits below the lid + a lash + a
+  gap. That needs the lid point under each brow point, which on a tilted eye
+  means solving for it (4 fixed-point steps), not reading it at the same x.
+- **The face was shaded like the body**, with a hard shadow across the cheek.
+  Anime keeps a face lit and shades only its far side, so the head group's
+  terminator sits past the light's 90°.
+- **The cheek dented** where the skull met the jaw: fixed with a cheek mass.
+
 ## Not done yet (the next layers)
 
-The face (eyes, brows, mouth on the turning head: the anime predicates), hair
+Hair
 as locks with spring follow-through, clothing, hands with fingers, and the
 predicate → spec generator ("tsurime, twin tails, 6.5 heads"). The head
 already carries construction lines: the centre line and the eye line, drawn

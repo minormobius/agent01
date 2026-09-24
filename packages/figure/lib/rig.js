@@ -12,6 +12,7 @@
 
 import { add, sub, scale, dot, cross, len, norm, dist, apply, ypr, rotate, rotateFrame, frameFrom, madd, IDENTITY } from './vec.js';
 import { measure } from './proportion.js';
+import { resolveFace } from './face.js';
 
 const SIDES = { l: 1, r: -1 };
 
@@ -192,5 +193,7 @@ export function solve(rig, pose = {}) {
     const toeVec = sub(apply(FF, rig.foot.toe), apply(FF, rig.foot.ball));
     J[`toe_${s}`] = add(J[`ball_${s}`], rotate(toeVec, FF.x, toeBend));
   }
-  return { J, F, report, rig };
+  // the face: who they are (the spec) and what they feel (the pose)
+  const face = rig.spec.face === undefined ? null : resolveFace(rig.spec.face, P.expression || 'neutral', P.gaze || null);
+  return { J, F, report, rig, face };
 }

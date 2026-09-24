@@ -46,7 +46,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   stage.js               the cutout workshop: cut() rough edges, sheet(), paper textures, pinned puppets
   cast.js                the man, the dame, the Manager (after Parade's), the band on its stand
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
-figure/                  the mannequin (sketchbook): packages/figure drawn live; pose, turn, walk, rebuild, re-check
+figure/                  the mannequin (sketchbook): packages/figure drawn live; pose, turn, walk, rebuild, face, feel, re-check
 vendor/figure/lib/       BYTE-IDENTICAL copy of packages/figure/lib (scripts/sync-dataviz.mjs --write; the selftest checks)
 lib/band.js              the band, synthesised in pure JS (node + browser + worker): renderBand, mix
 lib/band-worker.js       renders a score's band off the main thread (imports the score by URL)

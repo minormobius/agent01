@@ -190,5 +190,58 @@ export function checkPoses(spec) {
 }
 
 export function checkAll(spec) {
-  return { proportion: checkProportion(spec), walk: checkWalk(spec), poses: checkPoses(spec) };
+  const out = { proportion: checkProportion(spec), walk: checkWalk(spec), poses: checkPoses(spec) };
+  if (spec.face) out.face = checkFace(spec);
+  return out;
+}
+
+// ---- faces ---------------------------------------------------------------------------
+import { resolveFace, eyeOutline, browLine, lids, EXPRESSIONS } from './face.js';
+
+/**
+ * The face's layout, for one identity under every expression:
+ *   eyes on the front of the face (their surface faces forward, not round the side),
+ *   eyes apart, brows clear of the eyes (with the lashes), the mouth between nose and chin.
+ */
+export function checkFace(spec) {
+  const rig = makeRig({ ...spec, face: spec.face || {} }), m = rig.m;
+  const P = solve(rig, POSES.stand(rig));
+  const head = buildBody(P).filter((q) => q.group === GROUPS.indexOf('head'));
+  const toWorld = (l) => add(P.J.headPivot, apply(P.F.head, l));
+  // the front surface along the head's forward axis at face point (u, v), and how squarely it faces forward
+  const facing = (u, v) => {
+    let z = 0.9;
+    const y = v - m.head.pivotUp;
+    for (let i = 0; i < 80; i++) { const d = sdf(head, toWorld([u, y, z])); if (Math.abs(d) < 1e-5) break; z -= d; if (z < -0.5) return -1; }
+    const e = 1e-4, p = [u, y, z];
+    const g = [0, 1, 2].map((k) => { const a = [...p], b = [...p]; a[k] += e; b[k] -= e; return sdf(head, toWorld(a)) - sdf(head, toWorld(b)); });
+    const n = apply(P.F.head, g); const L = Math.hypot(...n);
+    return dot(n, P.F.head.z) / L;
+  };
+  let worstFacing = 1, worstGap = Infinity, worstBrow = Infinity, mouthOk = true, where = {};
+  for (const ex of Object.keys(EXPRESSIONS)) {
+    const p = resolveFace(spec.face || {}, ex);
+    for (const side of [1, -1]) {
+      const o = eyeOutline(p, side, 120);
+      for (const [u, v] of [...o.top, ...o.bot]) { const f = facing(u, v); if (f < worstFacing) { worstFacing = f; where.facing = ex; } }
+      // the brow above the lash line (the lash is at most ~0.03 above the lid)
+      const top = o.top;
+      for (const [bu, bv] of browLine(p, side, 40)) {
+        let near = null;
+        for (const t of top) if (!near || Math.abs(t[0] - bu) < Math.abs(near[0] - bu)) near = t;
+        if (Math.abs(near[0] - bu) < p.eyeW * 0.3) { const gap = bv - near[1] - 0.03 * p.lash; if (gap < worstBrow) { worstBrow = gap; where.brow = ex; } }
+      }
+    }
+    const inner = Math.min(...eyeOutline(p, 1).top.map(([u]) => u), ...eyeOutline(p, 1).bot.map(([u]) => u));
+    worstGap = Math.min(worstGap, 2 * inner);
+    const mouthBottom = p.mouthV - p.mouthOpen * 0.07 - 0.01, mouthTop = p.mouthV + p.mouthOpen * 0.01 + 0.01;
+    if (!(mouthBottom > 0.02 && mouthTop < p.noseV - 0.04)) { mouthOk = false; where.mouth = ex; }
+  }
+  const p0 = resolveFace(spec.face || {}, 'neutral');
+  return [
+    r('face: eyes on the front of the face', worstFacing > 0.45, +worstFacing.toFixed(3), '> 0.45 (normal · forward)', where.facing ? `worst: ${where.facing}` : ''),
+    r('face: the eyes stand apart', worstGap > p0.eyeW * 0.9, +worstGap.toFixed(3), `> ${(p0.eyeW * 0.9).toFixed(3)} (0.9 eye widths)`),
+    r('face: brows clear the eyes', worstBrow > 0.01, +worstBrow.toFixed(3), '> 0.01 heads, every expression', where.brow ? `closest: ${where.brow}` : ''),
+    r('face: mouth between nose and chin', mouthOk, mouthOk ? 'yes' : 'no', 'every expression', where.mouth || ''),
+  ];
 }

@@ -10,6 +10,7 @@ import { buildBody } from './body.js';
 import { walk } from './gait.js';
 import { POSES } from './poses.js';
 import { makeRenderer, camera, project, STYLE } from './shader.js';
+import { add, apply } from './vec.js';
 
 const TAU = Math.PI * 2;
 
@@ -161,4 +162,54 @@ export function renderLineup(canvas, specs, { panelH = 520, style = STYLE, yaws 
     ctx.fillText(names[i] || `${rig.m.H} heads`, x + W / 2, top + panelH + 22); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
     x += W;
   });
+}
+
+// ---- the face sheet ------------------------------------------------------------------
+import { EXPRESSIONS } from './face.js';
+
+export const CAST = [
+  { name: 'tsurime · thin brows', face: { eyes: 'tsurime', brows: 'thin', irisColor: 'red', lashes: 'heavy', extras: ['mole'] } },
+  { name: 'tareme · blush', face: { eyes: 'tareme', brows: 'arched', irisColor: 'green', extras: ['blush'] } },
+  { name: 'round · cat mouth', face: { eyes: 'round', brows: 'thin', mouth: 'cat', irisColor: 'amber', extras: ['blush'] } },
+  { name: 'narrow · thick brows', face: { eyes: 'narrow', brows: 'thick', irisColor: 'blue', mouth: 'wide', nose: 'dot' } },
+  { name: 'jito-me · fang', face: { eyes: 'jitome', brows: 'straight', mouth: 'fang', irisColor: 'violet' } },
+];
+
+/** Close-ups of the head: the turn, the expressions, and a cast of identities. */
+export function renderFaceSheet(canvas, spec, { panelH = 300, style = STYLE } = {}) {
+  const baseSpec = { ...spec, face: spec.face || {} };
+  const rows = [
+    { label: 'turn · neutral', panels: [0, 30, 60, 90, 135].map((d) => ({ yaw: (d * Math.PI) / 180, label: `${d}°` })).concat([{ yaw: 0.35, head: { pitch: -0.35 }, label: 'looks up' }, { yaw: 0.35, head: { pitch: 0.3 }, label: 'looks down' }]) },
+    { label: 'expressions', panels: Object.keys(EXPRESSIONS).map((e) => ({ yaw: 0.3, expression: e, label: e })) },
+    { label: 'cast · identity from predicates', panels: CAST.map((c) => ({ yaw: 0.35, spec: { ...spec, face: c.face }, expression: 'smile', label: c.name })) },
+  ];
+  const panelW = Math.round(panelH * 0.8);
+  const top = 60, gap = 34;
+  const cols = Math.max(...rows.map((r) => r.panels.length));
+  canvas.width = 40 + cols * panelW; canvas.height = top + rows.length * (panelH + gap) + 10;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = style.paper; ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = style.ink; ctx.font = '600 22px ui-sans-serif, system-ui, sans-serif';
+  ctx.fillText('faces — identity × expression', 24, 38);
+  const gl = document.createElement('canvas'); gl.width = panelW; gl.height = panelH;
+  const R = makeRenderer(gl);
+  const stats = { panels: [] };
+  rows.forEach((row, ri) => {
+    const y0 = top + ri * (panelH + gap);
+    ctx.fillStyle = style.ink; ctx.globalAlpha = 0.6; ctx.font = '500 13px ui-monospace, monospace';
+    ctx.fillText(row.label.toUpperCase(), 24, y0 + 12); ctx.globalAlpha = 1;
+    row.panels.forEach((pn, ci) => {
+      const rig = makeRig(pn.spec || baseSpec);
+      const pose = { ...POSES.stand(rig), expression: pn.expression || 'neutral', head: pn.head || {} };
+      const P = solve(rig, pose);
+      const hc = add(P.J.headPivot, apply(P.F.head, [0, 0.32, 0]));
+      const cam = camera({ target: hc, yaw: pn.yaw, pitch: 0.05, height: 1.55, aspect: panelW / panelH });
+      R.draw(buildBody(P), P, cam, style);
+      ctx.drawImage(gl, 40 + ci * panelW, y0 + 16);
+      ctx.fillStyle = style.ink; ctx.globalAlpha = 0.55; ctx.font = '500 12px ui-monospace, monospace'; ctx.textAlign = 'center';
+      ctx.fillText(pn.label, 40 + ci * panelW + panelW / 2, y0 + panelH + 26); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+      stats.panels.push({ row: ri, col: ci, label: pn.label });
+    });
+  });
+  return stats;
 }
