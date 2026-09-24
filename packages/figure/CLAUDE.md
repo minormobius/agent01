@@ -242,6 +242,26 @@ What the new checks found:
   bones, smooth-unioned at 1.5× a finger's radius). Chained ellipsoids read as beads, and
   clustering by bend alone fused a V sign's fingers; fan is compared too.
 
+### The thumb, against people (2026-09-24)
+
+The operator saw the thumb as too big and asked for reference measurements. ANSUR II has
+no digits, so `lib/handref.js` holds two other sources: Buryanov & Kotiuk 2010 (each
+bone's length between joints, from X-rays of 66 adults) and Hsiao et al. 2015 (digit
+lengths and breadths, from 855 men and 88 women). The thumb had its own numbers, while the
+fingers had been styled long and slender:
+- its visible bones plus pad ran 0.717 of the middle finger's reach; people's run 0.638
+- its hidden metacarpal ran 0.46 of that reach, where people's runs 0.50
+- it was 1.26× the index finger's breadth at its base and ~1.15× at its IP joint; people's
+  is 1.06× at the IP joint
+- its thenar pad was a round ball, a second thumb (no reference measures the pad)
+
+Now every digit is built from the reference ratios with the same two stated stylisations
+(`MIDDLE_REACH`: fingers 1.18× a person's against the palm; `INDEX_R`: digits 0.72× as
+thick), and `checkHands` holds each digit's reach and the thumb's and little finger's
+breadth to people's. The real bone shares put more length in the first bone, so a fist
+at the old 4.0 rad of flexion no longer reached the palm. It is 4.45 rad now, as a real
+fist bends, and the close solver backs off to contact.
+
 ## Not done yet (the next layers)
 
 Hair

@@ -567,6 +567,7 @@ export function checkClothes(spec) {
 
 // ---- hands ---------------------------------------------------------------------------
 import { GESTURES, FINGERS, LIMITS, handPose, handMeasures } from './hand.js';
+import { RATIO } from './handref.js';
 
 /**
  * The hand, in every gesture and where it rests:
@@ -589,10 +590,24 @@ export function checkHands(spec) {
   {
     const H = handPose(armUp('l', 'open'), 'l'), along = (p) => dot(sub(p, H.A.W), H.A.z) / h;
     const L = Object.fromEntries(FINGERS.map((f) => [f, H.fingers[f].reduce((s, b) => s + dist(b.a, b.b), 0)]));
-    const ratio = L.index / L.ring, pinkyGap = along(H.fingers.pinky[2].b) - along(H.fingers.ring[1].b);
+    const ratio = L.index / L.ring, pinkyGap = along(H.fingers.pinky[2].b) + H.fingers.pinky[2].rb / h - along(H.fingers.ring[1].b);   // the pinky's pad, not its last bone's end
     out.push(r('hands: the middle finger longest', FINGERS.every((f) => L.middle >= L[f]), +(L.middle / h).toFixed(3), 'longest of the four'));
     out.push(r('hands: index to ring (2D:4D)', ratio > 0.9 && ratio < 1.02, +ratio.toFixed(3), '0.90–1.02 (people ~0.95–1.0)'));
     out.push(r("hands: pinky tip at the ring finger's last joint", Math.abs(pinkyGap) < 0.06, +pinkyGap.toFixed(3), '±0.06 hand'));
+    // against people (handref.js): each digit's reach against the middle finger's (bones from
+    // X-rays), and the thumb's breadth against the index finger's (943 hands)
+    const reachOf = (bones) => bones.reduce((s, b) => s + dist(b.a, b.b), 0) + bones[bones.length - 1].rb;
+    const midReach = reachOf(H.fingers.middle);
+    for (const f of ['index', 'ring', 'pinky']) {
+      const v = reachOf(H.fingers[f]) / midReach, want = RATIO.reach[f];
+      out.push(r(`hands: ${f} reach, against the middle (Buryanov 2010)`, Math.abs(v - want) < 0.05, +v.toFixed(3), `${(want - 0.05).toFixed(3)}–${(want + 0.05).toFixed(3)} (people ${want.toFixed(3)})`));
+    }
+    const tr = reachOf(H.thumb.slice(1)) / midReach;
+    out.push(r('hands: thumb reach, against the middle finger (Buryanov 2010)', Math.abs(tr - RATIO.reach.thumb) < 0.05, +tr.toFixed(3), `${(RATIO.reach.thumb - 0.05).toFixed(3)}–${(RATIO.reach.thumb + 0.05).toFixed(3)} (people ${RATIO.reach.thumb.toFixed(3)}: its knuckle to its tip)`));
+    const tb = H.thumb[1].rb / H.fingers.index[0].rb;
+    out.push(r('hands: thumb breadth, against the index (Hsiao 2015)', Math.abs(tb - RATIO.breadth.thumb) < 0.08, +tb.toFixed(3), `${(RATIO.breadth.thumb - 0.08).toFixed(3)}–${(RATIO.breadth.thumb + 0.08).toFixed(3)} (people ${RATIO.breadth.thumb.toFixed(3)}, at its IP joint and the index's middle knuckle)`));
+    const pb = H.fingers.pinky[0].rb / H.fingers.index[0].rb;
+    out.push(r('hands: little finger breadth, against the index (Hsiao 2015)', Math.abs(pb - RATIO.breadth.pinky) < 0.08, +pb.toFixed(3), `${(RATIO.breadth.pinky - 0.08).toFixed(3)}–${(RATIO.breadth.pinky + 0.08).toFixed(3)} (people ${RATIO.breadth.pinky.toFixed(3)})`));
     if (m.H >= 5) out.push(r('hands: a hand is as long as the face', h / 0.75 > 0.8 && h / 0.75 < 1.15, +(h / 0.75).toFixed(3), '0.80–1.15 of a face (0.75 head; people ~0.9–1.1, a small anime figure\'s hands run small)'));
   }
   // every gesture

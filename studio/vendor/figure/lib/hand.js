@@ -14,24 +14,32 @@
 //   thumb   otherwise, the thumb never passes through the fingers or the palm
 //   rest    a placed hand's fingers curl or lift until they lie on what they rest on
 //
-// The anatomy, from the figure-drawing books: the knuckles lie on an arc, the middle
-// finger is longest, the index and ring nearly equal, and the pinky's tip reaches the
-// ring finger's last joint. Each finger's bones run about 0.46 : 0.30 : 0.24. The
-// palm is a little longer than the middle finger is.
+// The anatomy is people's (handref.js): each bone's share of its digit from X-rays of 66
+// hands, and each digit's reach and breadth against its neighbours from 943. Two stated
+// stylisations, applied to every digit alike, make it an anime hand: long fingers and
+// slender digits (MIDDLE_REACH and INDEX_R below).
 
 import { add, sub, scale, dot, norm, len, madd } from './vec.js';
+import { RATIO } from './handref.js';
 
 export const FINGERS = ['index', 'middle', 'ring', 'pinky'];
 
 // [toward the thumb, along the hand] of each knuckle, in hand lengths: an arc
 const KNUCKLE = { index: [0.15, 0.445], middle: [0.05, 0.46], ring: [-0.05, 0.445], pinky: [-0.145, 0.405] };
-const LENGTH = { index: 0.5, middle: 0.54, ring: 0.51, pinky: 0.4 };
-const BONES = [0.46, 0.3, 0.24];
 const SPLAY = { index: 1, middle: 0, ring: -0.6, pinky: -1.3 };   // how each finger fans, per unit of spread
-const THUMB = { base: [0.12, -0.02, 0.09], bones: [0.25, 0.2, 0.17] };
+const THUMB = { base: [0.12, -0.02, 0.09] };                         // its carpometacarpal joint
 
+// Lengths and breadths are PEOPLE's (handref.js: bones from X-rays, breadths from 943
+// hands), with two stated stylisations, one each, applied to every digit alike:
+//   FINGERS_LONG  the middle finger's reach (knuckle to tip) against the hand: an anime
+//                 hand's fingers run ~1.18× a person's against the palm
+//   SLENDER       every digit is 0.72× a person's breadth
+// The thumb once had its own numbers, and drawn beside the fingers it read as a big thumb:
+// its visible bones ran 12% long and it was 15–20% too thick for its fingers.
+const MIDDLE_REACH = 0.575;                     // in hand lengths: people's is ~0.49 (FINGERS_LONG 1.18)
+const INDEX_R = 0.5 * RATIO.indexBreadth * 0.72; // the index finger's radius at its middle knuckle (SLENDER)
 const F4 = (a) => ({ index: a, middle: a, ring: a, pinky: a });
-const CLOSED = [1.45, 1.65, 0.9];
+const CLOSED = [1.5, 1.85, 1.1];            // a real fist bends ~4.5 rad across its three joints (the close solver backs off to contact)
 const OVER = { spread: 0.25, opp: 1.1, mcp: 0.6, ip: 0.35 };     // the thumb laid over closed fingers (solved: `onto`)
 
 /**
@@ -63,14 +71,29 @@ export function resolveGesture(g = 'relaxed') {
   return { ...base, ...G, fingers: { ...base.fingers, ...(G.fingers || {}) }, thumb: { ...base.thumb, ...(G.thumb || {}) }, splay: G.splay || {} };
 }
 
-/** The hand's measures for this body: finger radii follow the palm's thickness. */
+/**
+ * The hand's measures for this body, in head units: each digit's reach and bones (people's
+ * proportions, handref.js) and its radius at the base, the middle joint and the tip.
+ * Radii follow the palm's thickness (a heavier hand, thicker fingers).
+ */
 export function handMeasures(m) {
   const h = m.hand, fe = m.spec.femme || 0;
   const rs = (m.radii.hand / (0.1 * h)) * (1 - 0.1 * fe);        // the palm's half-thickness is ~0.1 hand
-  const fl = 0.8 + 0.2 * Math.min(1, m.k);                          // a chibi's fingers are stubby
   // a finger is no thicker than its knuckles are apart (a chibi's chunky palm, not fused fingers)
   const rf = Math.min(rs, 1.08);
-  return { h, rF: 0.046 * h * rf, rTip: 0.035 * h * rf, rT: 0.058 * h * rf, rTTip: 0.042 * h * rf, fl, tl: (1 + fl) / 2, palmR: [0.2 * h, m.radii.hand * 0.9, 0.235 * h] };
+  const fl = 0.8 + 0.2 * Math.min(1, m.k);                          // a chibi's fingers are stubby
+  const tl = (1 + fl) / 2;                                          // and its thumb a little less so
+  const digit = (d, stub) => {
+    const r = INDEX_R * RATIO.breadth[d] * h * rf;                  // at the middle knuckle (the IP joint, for the thumb)
+    const radius = { base: 1.1 * r, mid: r, tip: 0.85 * r };
+    const reach = MIDDLE_REACH * RATIO.reach[d] * stub * h;
+    // each bone's length; the last one stops short by the tip's radius (the round end is the pad)
+    const bones = RATIO.share[d].map((f, j, a) => reach * f - (j === a.length - 1 ? radius.tip : 0));
+    return { reach, bones, radius };
+  };
+  const D = Object.fromEntries(['index', 'middle', 'ring', 'pinky'].map((f) => [f, digit(f, fl)]));
+  const thumb = { ...digit('thumb', tl), metacarpal: MIDDLE_REACH * RATIO.thumbMetacarpal * tl * h };
+  return { h, D, thumb, rF: D.index.radius.base, rTip: D.index.radius.tip, rT: thumb.radius.base, rTTip: thumb.radius.tip, fl, tl, palmR: [0.2 * h, m.radii.hand * 0.9, 0.235 * h] };
 }
 
 // ---------------------------------------------------------------- geometry --
@@ -85,29 +108,29 @@ function axes(P, s) {
 
 /** One finger's bones for three flexions and a splay: [{ a, b, ra, rb }] × 3. */
 function fingerBones(A, M, name, flex, splay) {
-  const [ko, kz] = KNUCKLE[name];
+  const [ko, kz] = KNUCKLE[name], D = M.D[name], R = D.radius;
   let p = A.at(ko, -0.01, kz);
   let dir = norm(add(scale(A.z, Math.cos(splay)), scale(A.r, Math.sin(splay)))), dors = A.y;
-  const L = LENGTH[name] * M.fl * A.h, out = [];
-  let t = 0;
+  const rAt = [R.base, R.mid, (R.mid + R.tip) / 2, R.tip];          // knuckle, middle joint, last joint, tip
+  const out = [];
   for (let j = 0; j < 3; j++) {
     const c = Math.cos(flex[j]), sn = Math.sin(flex[j]);
     [dir, dors] = [add(scale(dir, c), scale(dors, -sn)), add(scale(dors, c), scale(dir, sn))];
-    const l = L * BONES[j], b = madd(p, dir, l);
-    const t1 = t + BONES[j];
-    out.push({ a: p, b, ra: M.rF + (M.rTip - M.rF) * t, rb: M.rF + (M.rTip - M.rF) * t1 });
-    p = b; t = t1;
+    const b = madd(p, dir, D.bones[j]);
+    out.push({ a: p, b, ra: rAt[j], rb: rAt[j + 1] });
+    p = b;
   }
   return out;
 }
 
-/** The thumb's bones: metacarpal, then two phalanges curling toward the little finger. */
+/** The thumb's bones: metacarpal (inside the thenar pad), then two phalanges curling toward the little finger. */
 function thumbBones(A, M, T) {
-  const B = A.at(...THUMB.base);
+  const B = A.at(...THUMB.base), R = M.thumb.radius;
   let dir = norm(add(scale(A.z, Math.cos(T.spread)), scale(A.r, Math.sin(T.spread))));
   dir = norm(add(scale(dir, Math.cos(T.opp)), scale(A.y, -Math.sin(T.opp))));
+  const lens = [M.thumb.metacarpal, ...M.thumb.bones], rAt = [1.15 * R.base, R.base, R.mid, R.tip];
   const out = [];
-  let p = B, t = 0;
+  let p = B;
   const flex = [0, T.mcp, T.ip];
   for (let j = 0; j < 3; j++) {
     if (flex[j]) {
@@ -115,9 +138,9 @@ function thumbBones(A, M, T) {
       const q = norm(sub(scale(A.r, -1), scale(dir, dot(scale(A.r, -1), dir))));
       dir = norm(add(scale(dir, Math.cos(flex[j])), scale(q, Math.sin(flex[j]))));
     }
-    const l = THUMB.bones[j] * M.tl * A.h, b = madd(p, dir, l), t1 = t + 1 / 3;   // stubby fingers, a less stubby thumb
-    out.push({ a: p, b, ra: M.rT + (M.rTTip - M.rT) * t, rb: M.rT + (M.rTTip - M.rT) * t1 });
-    p = b; t = t1;
+    const b = madd(p, dir, lens[j]);
+    out.push({ a: p, b, ra: rAt[j], rb: rAt[j + 1] });
+    p = b;
   }
   return out;
 }
@@ -226,7 +249,7 @@ export function handPose(P, s, { scene = null } = {}) {
     T = found || { ...T, opp: T.opp - 0.8, mcp: 0, ip: 0 };
   }
   const thumb = thumbBones(A, M, T);
-  const thenar = { c: add(thumb[0].a, scale(sub(thumb[0].b, thumb[0].a), 0.45)), dir: norm(sub(thumb[0].b, thumb[0].a)) };
+  const thenar = { c: add(add(thumb[0].a, scale(sub(thumb[0].b, thumb[0].a), 0.45)), scale(A.y, -0.015 * A.h)), dir: norm(sub(thumb[0].b, thumb[0].a)) };
   return { A, M, palm, palmD, fingers, thumb, thenar, flex: flexUsed, rest, thumbAngles: T, gesture: G };
 }
 
@@ -242,7 +265,7 @@ export function buildHand(P, s, mk, opts = {}) {
   if (opts.detail === 'block') {
     out.push(mk.ellipsoid(g, H.palm.c, A.HF, [M.palmR[0], M.palmR[1], M.palmR[2]], 0.08 * kk, `palm_${s}`));
     const Ft = frameAlong(H.thenar.dir, A.y);
-    out.push(mk.ellipsoid(g, H.thenar.c, Ft, [0.085 * A.h, 0.07 * A.h * (M.rT / (0.058 * A.h)), 0.14 * A.h], 0.05 * A.h, `thenar_${s}`));
+    out.push(mk.ellipsoid(g, H.thenar.c, Ft, THENAR(A, M), 0.05 * A.h, `thenar_${s}`));
     // neighbouring fingers that bend and fan alike are one mass: their own bones, melted
     // together (a smooth union wide enough to fill the gaps), so the mass still follows
     // the gesture; a finger doing something else stays apart
@@ -257,12 +280,16 @@ export function buildHand(P, s, mk, opts = {}) {
   out.push(mk.ellipsoid(g, H.palm.c, A.HF, [M.palmR[0], M.palmR[1], M.palmR[2]], 0.08 * kk, `palm_${s}`));
   // the thenar pad: the thumb's muscle, along its metacarpal, into the palm
   const Ft = frameAlong(H.thenar.dir, A.y);
-  out.push(mk.ellipsoid(g, H.thenar.c, Ft, [0.085 * A.h, 0.07 * A.h * (M.rT / (0.058 * A.h)), 0.14 * A.h], 0.05 * A.h, `thenar_${s}`));
+  out.push(mk.ellipsoid(g, H.thenar.c, Ft, THENAR(A, M), 0.05 * A.h, `thenar_${s}`));
   // bones: the first blends into the palm (a little webbing); the rest meet hard, as a limb's do
   for (const name of FINGERS) H.fingers[name].forEach((b, j) => out.push(mk.cone(g, b.a, b.b, b.ra, b.rb, j === 0 ? 0.03 * A.h : 0, `${name}${j}_${s}`)));
   H.thumb.forEach((b, j) => { if (j) out.push(mk.cone(g, b.a, b.b, b.ra, b.rb, j === 1 ? 0.03 * A.h : 0, `thumb${j}_${s}`)); });
   return out;
 }
+
+// the thenar pad: the thumb's muscle, a flat pad along its metacarpal on the palm's side,
+// no rounder than the thumb itself (the round one read as a second, bigger thumb)
+const THENAR = (A, M) => [0.068 * A.h, 1.1 * M.thumb.radius.base, 0.55 * M.thumb.metacarpal];
 
 function frameAlong(z, upHint) {
   const y = norm(sub(upHint, scale(z, dot(upHint, z))));

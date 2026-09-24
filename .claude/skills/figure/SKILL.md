@@ -136,10 +136,13 @@ out until nothing sinks in). A pose written this way fits a chibi and an
 
 ## Hands
 
-`lib/hand.js`. A palm, a thenar pad, four fingers of three bones (0.46 : 0.30 : 0.24,
-knuckles on an arc, the middle longest, index and ring nearly equal, the pinky's tip at
-the ring's last joint) and a thumb, in hand lengths in the hand's own frame, built from
-the direction toward the thumb, so the two hands mirror exactly. A gesture is intent, and
+`lib/hand.js`. A palm, a thenar pad, four fingers of three bones and a thumb, in hand
+lengths in the hand's own frame, built from the direction toward the thumb, so the two
+hands mirror exactly. The proportions are people's (`lib/handref.js`): each bone's share
+of its digit (Buryanov & Kotiuk 2010, X-rays of 66 hands), each digit's reach and breadth
+against its neighbours (Hsiao et al. 2015, 943 hands). Two stated stylisations apply to
+every digit alike: fingers 1.18× a person's against the palm, and digits 0.72× as thick.
+Don't give one digit numbers of its own: the thumb once had them, and it read as a big thumb. A gesture is intent, and
 solvers make it true for this hand:
 
 - **close**: a closed finger curls until its tip meets the palm, not through it
@@ -154,7 +157,8 @@ Drawn small, fingers a few pixels wide are ink lines and a smudge, so `buildBody
 and only a finger doing something else stands apart. `handDetail(P, cam, px)` (shader.js)
 picks it, below ~64 pixels a hand. Checks always build the full hand.
 
-`checkHands`: the proportions; every joint within its range; no finger through another
+`checkHands`: the proportions, against people (each digit's reach against the middle
+finger's, the thumb's and little finger's breadth against the index's); every joint within its range; no finger through another
 or through the palm; each gesture means what it says (fists closed, thumbs on their
 marks, pointing fingers straight); left mirrors right; placed fingers rest on the
 surface (a finger curled right round with nothing under it is "off an edge").

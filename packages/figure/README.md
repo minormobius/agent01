@@ -38,6 +38,7 @@ a chibi stays chunky.
 | `lib/body.js` | pose → primitives (round cones, ellipsoids) in groups; the JS distance field; `pack` for the GPU |
 | `lib/face.js` | the face: predicates (identity) and expressions, resolved to the shader's parameter block; the lid and brow curves the checks measure |
 | `lib/hair.js` | hair: a cap cut at the hairline and locks from predicates, draped under gravity and pushed off the body |
+| `lib/handref.js` | hand reference: bone lengths (Buryanov & Kotiuk 2010) and digit lengths and breadths (Hsiao et al. 2015), with the ratios derived from them |
 | `lib/hand.js` | hands: palm, fingers and thumb in hand lengths; gestures solved per hand (close, onto, rest); blocks when drawn small |
 | `lib/clothes.js` | clothes: garments as the body they cover, inflated and cut; skirts as solved, draped, hollow cones; `bareParts` |
 | `lib/check.js` | the checks: proportion, silhouette and form, walk, poses, face, hair, clothes |
