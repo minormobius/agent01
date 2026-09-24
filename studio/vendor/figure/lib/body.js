@@ -46,6 +46,12 @@ export function buildBody(P) {
   out.push(ell('torso', add(J.waist, apply(F.waist, [0, 0.05 * kk, 0])), F.waist, m.belly.r, 0.28 * kk, 'belly'));
   out.push(ell('torso', add(J.chest, apply(F.chest, [0, 0.06 * kk, 0.02 * kk])), F.chest, m.chest.r, 0.28 * kk, 'chest'));
   out.push(cone('torso', J.neck, J.headPivot, R.neck * 1.25, R.neck, 0.12 * kk, 'neck'));
+  // the Adam's apple, on the front of a man's neck
+  const mjaw = (1 - (m.spec.femme || 0)) * Math.min(1, Math.max(0, (m.H - 3.5) / 2));
+  if (mjaw > 0.3) {
+    const nf = lerp3(J.neck, J.headPivot, 0.42);
+    out.push(ell('torso', add(nf, apply(F.neck, [0, 0, R.neck * 0.92])), F.neck, [0.035 * mjaw, 0.05 * mjaw, 0.03 * mjaw], 0.04 * kk, 'adamsApple'));
+  }
   for (const s of ['l', 'r']) {
     const sg = s === 'l' ? 1 : -1;
     // the glutes, behind and below the hip joints
@@ -60,9 +66,11 @@ export function buildBody(P) {
       // a firm blend at the top (the upper slope), none underneath: the fold there is inked
       out.push(ell('torso', c, Fb, [b.r * 0.98, b.r * 0.94, b.r * 0.84], 0.1 * kk, `breast_${s}`));
     }
-    // the trapezius slopes from high on the neck down to the point of the shoulder
-    out.push(cone('torso', add(J.neck, apply(F.chest, [sg * 0.08 * m.wide, 0.22 * kk, -0.06])), madd(J[`shoulder_${s}`], F.chest.x, -sg * 0.06), R.neck * 0.9, R.deltoid * 0.62, 0.18 * kk, `trap_${s}`));
-    out.push(cone('torso', J[`shoulder_${s}`], madd(J[`shoulder_${s}`], norm(sub(J[`elbow_${s}`], J[`shoulder_${s}`])), 0.18 * kk), R.deltoid, R.deltoid * 0.9, 0.16 * kk, `deltoid_${s}`));
+    // the trapezius: from the base of the neck (at its back and side, not up by the jaw)
+    // sloping down to the point of the shoulder, so a neck shows above it
+    out.push(cone('torso', add(J.neck, apply(F.chest, [sg * 0.07 * m.wide, -0.04 * kk, -0.1])), madd(J[`shoulder_${s}`], F.chest.x, -sg * 0.08), R.neck * 0.62, R.deltoid * 0.5, 0.12 * kk, `trap_${s}`));
+    const dTop = madd(J[`shoulder_${s}`], F.chest.y, -0.04 * kk);
+    out.push(cone('torso', dTop, madd(dTop, norm(sub(J[`elbow_${s}`], J[`shoulder_${s}`])), 0.18 * kk), R.deltoid, R.deltoid * 0.9, 0.16 * kk, `deltoid_${s}`));
     // the hip: from the joint a way down the thigh, so the torso's outline runs on into the leg
     // (with wide hips it is the widest point of the figure, at the height of the joints)
     const hipsW = m.spec.hips || 0;
@@ -100,8 +108,8 @@ export function buildBody(P) {
   for (const s of ['l', 'r']) {
     const sg = s === 'l' ? 1 : -1, g = `arm_${s}`;
     const S = J[`shoulder_${s}`], E = J[`elbow_${s}`], W = J[`wrist_${s}`];
-    chain(out, g, S, E, R.upperArm, 0.1 * kk, `upper_${s}`);
-    chain(out, g, E, W, R.foreArm, 0.1 * kk, `fore_${s}`);
+    chain(out, g, S, E, R.upperArm, 0.03 * kk, `upper_${s}`);
+    chain(out, g, E, W, R.foreArm, 0.03 * kk, `fore_${s}`);
     // the hand: a mitten (palm and fingers), and the thumb on its own
     const HF = F[`hand_${s}`], h = m.hand;
     out.push(ell(g, madd(W, HF.z, 0.28 * h), HF, [0.21 * h, R.hand, 0.26 * h], 0.08 * kk, `palm_${s}`));
@@ -124,11 +132,13 @@ export function buildBody(P) {
     // closes the gap at the crotch
     const inward = norm(sub(J.pelvis, H)), tf = perp(FF.z, thighDir);
     const th = R.thigh;
-    const t0 = add(H, scale(perp(inward, thighDir), 0.1 * m.wide)), t1 = add(lerp3(H, K, th[1][0]), add(scale(tf, 0.03 * kk), scale(perp(inward, thighDir), 0.035 * m.wide)));
-    out.push(cone(g, t0, t1, th[0][1], th[1][1], 0.14 * kk, `thigh_${s}0`));
-    out.push(cone(g, t1, K, th[1][1], th[2][1], 0.14 * kk, `thigh_${s}1`));
-    out.push(cone(g, madd(K, front, 0.035 * kk), madd(K, front, 0.035 * kk), 0.11 * m.thick, 0.11 * m.thick, 0.1 * kk, `kneecap_${s}`));
-    chain(out, g, K, A, R.shin.map(([t, r], i) => [t, r, i === 1 ? -0.05 * kk : 0]), 0.14 * kk, `shin_${s}`, front);
+    const t0 = add(H, scale(perp(inward, thighDir), 0.1 * m.wide)), t1 = add(lerp3(H, K, th[1][0]), add(scale(tf, 0.012 * kk), scale(perp(inward, thighDir), 0.03 * m.wide)));
+    // (a limb's segments barely blend: round cones sharing a sphere already meet smoothly,
+    // and a smooth union bulges at every joint: that was the greebling)
+    out.push(cone(g, t0, t1, th[0][1], th[1][1], 0.03 * kk, `thigh_${s}0`));
+    out.push(cone(g, t1, K, th[1][1], th[2][1], 0, `thigh_${s}1`));
+    out.push(cone(g, madd(K, front, 0.012 * kk), madd(K, front, 0.012 * kk), 0.1 * m.thick, 0.1 * m.thick, 0.06 * kk, `kneecap_${s}`));
+    chain(out, g, K, A, R.shin.map(([t, r], i) => [t, r, i === 1 ? -0.03 * kk : 0]), 0, `shin_${s}`, front);
     // the foot: heel to ball, a flattened ellipsoid, and the toes
     const rf = R.foot;
     // (lifted a hair: the smooth blend between the foot's parts bulges below each part)

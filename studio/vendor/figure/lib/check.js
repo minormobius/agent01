@@ -191,7 +191,7 @@ export function checkPoses(spec) {
 }
 
 export function checkAll(spec) {
-  const out = { proportion: checkProportion(spec), silhouette: checkSilhouette(spec), walk: checkWalk(spec), poses: checkPoses(spec) };
+  const out = { proportion: checkProportion(spec), silhouette: [...checkSilhouette(spec), ...checkForm(spec)], walk: checkWalk(spec), poses: checkPoses(spec) };
   if (spec.face) out.face = checkFace(spec);
   if (spec.hair) out.hair = checkHair(spec);
   return out;
@@ -355,4 +355,54 @@ export function checkHair(spec) {
   const up = hang.filter((l) => l.pts.at(-1)[1] > l.pts[0][1] - 0.05);
   out.push(r('hair: the locks hang', !up.length, up.length ? up.map((l) => l.name).join(', ') : `${hang.length} locks`, 'every tip below its root'));
   return out;
+}
+
+// ---- the neck, and the smoothness of the legs ----------------------------------------
+
+/** The outer edge of one leg in the front view at height y (the leg's group alone). */
+function legEdge(legPrims, y, zc) {
+  const near = (X) => { let d = Infinity; for (let z = zc - 0.5; z <= zc + 0.5; z += 0.03) d = Math.min(d, sdf(legPrims, [X, y, z])); return d; };
+  let x = 2.5;
+  for (let i = 0; i < 200; i++) { const d = near(x); if (d < 0.003) return x; x -= Math.max(d * 0.9, 0.003); if (x < -1) return NaN; }
+  return x;
+}
+
+/** Count the turns of a profile (local extrema), ignoring wiggles smaller than `tol`. */
+export function turns(vals, tol) {
+  let n = 0, dir = 0, ref = vals[0];
+  for (const v of vals) {
+    if (dir >= 0 && v < ref - tol) { if (dir > 0) n++; dir = -1; ref = v; }
+    else if (dir <= 0 && v > ref + tol) { if (dir < 0) n++; dir = 1; ref = v; }
+    else if ((dir > 0 && v > ref) || (dir < 0 && v < ref)) ref = v;
+  }
+  return n;
+}
+
+/**
+ * A neck that shows, and legs whose outline is smooth: the silhouette from the
+ * chin down stays neck-narrow for a real stretch before the trapezius flares
+ * it into the shoulders; and a leg's outer edge, ankle to hip, turns only where
+ * a leg does (the calf out, the knee in, the thigh out), not at every part.
+ */
+export function checkForm(spec) {
+  const rig = makeRig(spec), m = rig.m;
+  const P = solve(rig, POSES.stand(rig));
+  const prims = buildBody(P).filter((q) => q.group < GROUPS.indexOf('hair'));
+  // the neck: from the chin down, until the silhouette passes 1.4× the neck's own diameter
+  // (where the trapezius starts to flare it into the shoulders)
+  const chin = P.J.chin[1];
+  const flare = 2 * m.radii.neck * 1.4;
+  let y = chin - 0.02;
+  while (y > chin - 1.2 && widthAt(prims, y) < flare) y -= 0.01;
+  const shown = chin - y;
+  // the left leg's outer edge, ankle to hip
+  const leg = prims.filter((q) => q.group === GROUPS.indexOf('leg_l'));
+  const zc = P.J.knee_l[2];
+  const ys = [], edge = [];
+  for (let yy = P.J.ankle_l[1] + 0.05; yy < P.J.hip_l[1] - 0.1; yy += 0.02 * m.k) { const e = legEdge(leg, yy, zc); if (Number.isFinite(e)) { ys.push(yy); edge.push(e); } }
+  const nTurns = turns(edge, 0.006 * m.k);
+  return [
+    r('form: a neck shows', shown > 0.22 * Math.pow(m.k, 0.6), +shown.toFixed(3), `> ${(0.22 * Math.pow(m.k, 0.6)).toFixed(2)} heads, chin to the traps' flare (the books: about a quarter head)`),
+    r('form: legs smooth in outline', nTurns <= 3, nTurns, '≤ 3 turns, ankle to hip (calf, knee, thigh)'),
+  ];
 }

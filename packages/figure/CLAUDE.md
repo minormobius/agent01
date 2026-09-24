@@ -109,6 +109,27 @@ cost little. Lessons:
 - Hair has no mass: the balance solver leaves it out, or a lopsided fringe
   shifts the pelvis. The body checks measure the body without its hair.
 
+## Necks, legs, masculine faces (2026-09-24, from a look at the cast)
+
+The operator saw overdeveloped traps with no neck, chunky legs, and lumpy
+("greebled") limbs, and said not to trust their eye. So each became a
+measurement (`checkForm`) before any fix:
+- **a neck shows**: from the chin down, how far before the silhouette passes
+  1.4× the neck's own diameter. It measured 0.02 heads: the trapezius started at
+  the jaw. The neck base sat 0.1 heads too high (the head then hung from it by a
+  fixed offset, so it now sits at the chin wherever the neck starts), and the
+  trapezius now rises from behind the side of the neck's base. Now 0.2–0.3 heads.
+  The bar scales like the neck does (k^0.6), not like the body.
+- **legs smooth in outline**: turns in a leg's outer edge, ankle to hip. It
+  measured 5–7; a leg has 3 (the calf out, the knee in, the thigh out). The
+  extras were the smooth union bulging at every joint, the same lesson as the
+  hair. **A limb's segments do not blend**: round cones sharing a sphere already
+  meet smoothly. Legs are also ~12% slimmer.
+- **a masculine face** follows the body (`masc` = 1 − femme, damped for chibi).
+  It SCALES the identity: smaller eyes, a line of lash with no flick, heavier,
+  straighter and lower brows, a drawn nose bridge (one-sided on purpose), a wider
+  jaw, a blunter chin and an Adam's apple.
+
 ## Not done yet (the next layers)
 
 Hair

@@ -1,1 +1,1 @@
-{"name": "chibi", "heads": 3, "build": 0.3, "legs": 0.2, "mass": 0.7, "headWidth": 0.9, "face": {"eyes": "round", "brows": "thin", "mouth": "cat", "irisColor": "amber", "extras": ["blush"]}, "hair": {"length": "bob", "bangs": "blunt", "color": "orange", "extras": ["ahoge"]}}
+{"name": "chibi", "heads": 3, "build": 0.3, "legs": 0.2, "mass": 0.7, "headWidth": 0.9, "face": {"eyes": "round", "brows": "thin", "mouth": "cat", "irisColor": "amber", "extras": ["blush"]}, "hair": {"length": "bob", "bangs": "blunt", "color": "orange", "extras": ["ahoge"]}, "neck": 1.35}

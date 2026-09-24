@@ -90,7 +90,7 @@ export function solve(rig, pose = {}) {
 
   // ---- the head: angles, or a look at a point
   let hy = P.head?.yaw || 0, hp = P.head?.pitch || 0, hr = P.head?.roll || 0;
-  const neckTopGuess = add(J.neck, apply(F.chest, [0, m.neckLen - 0.02, 0.02]));
+  const neckTopGuess = add(J.neck, apply(F.chest, [0, m.chin + m.head.pivotUp - m.neckBase, 0.02]));
   if (P.lookAt) {
     const d = sub(P.lookAt, add(neckTopGuess, apply(F.chest, [0, 0.45, 0])));
     const loc = [dot(d, F.chest.x), dot(d, F.chest.y), dot(d, F.chest.z)];
@@ -98,7 +98,7 @@ export function solve(rig, pose = {}) {
     hp = Math.max(-0.7, Math.min(0.8, -Math.atan2(loc[1], Math.hypot(loc[0], loc[2]))));
   }
   F.neck = ypr(hy * 0.4, hp * 0.4, hr * 0.4, F.chest);
-  J.headPivot = add(J.neck, apply(F.neck, [0, m.neckLen - 0.02, 0.02]));
+  J.headPivot = add(J.neck, apply(F.neck, [0, m.chin + m.head.pivotUp - m.neckBase, 0.02]));   // the head sits at the chin, wherever the neck starts
   F.head = ypr(hy, hp, hr, F.chest);
   J.chin = add(J.headPivot, apply(F.head, [0, -m.head.pivotUp, 0.12]));
   J.crown = add(J.headPivot, apply(F.head, [0, 1 - m.head.pivotUp, -0.02]));
@@ -195,7 +195,9 @@ export function solve(rig, pose = {}) {
     J[`toe_${s}`] = add(J[`ball_${s}`], rotate(toeVec, FF.x, toeBend));
   }
   // the face: who they are (the spec) and what they feel (the pose)
-  const face = rig.spec.face === undefined ? null : resolveFace(rig.spec.face, P.expression || 'neutral', P.gaze || null);
+  // a masculine face follows the body; a chibi (drawn like a child) stays neutral
+  const masc = (1 - (rig.spec.femme || 0)) * Math.min(1, Math.max(0, (m.H - 3.5) / 2));
+  const face = rig.spec.face === undefined ? null : resolveFace(rig.spec.face, P.expression || 'neutral', P.gaze || null, { masc });
   // the hair: its style (the spec), and the head's acceleration (the pose) it lags behind
   const hair = rig.spec.hair || null;
   if (face && hair) face.colors.brow = hairColors(hair).shade;

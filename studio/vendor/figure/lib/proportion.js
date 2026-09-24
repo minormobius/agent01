@@ -35,6 +35,7 @@ export function measure(spec = {}) {
   S.hips = spec.hips ?? 0.55 * fe;
   const H = S.heads, B = H - 1, f = S.build;
   const bust = S.bust, waist = S.waist, hips = S.hips, fat = Math.max(0, S.mass - 0.5) * 2;
+  const mjaw = (1 - fe) * Math.min(1, Math.max(0, (S.heads - 3.5) / 2));
   const k = B / 6;                               // the body's size against the 7-head reference
   // Widths and thicknesses follow the build, not the height: a taller figure in
   // heads is a longer figure, not a wider one. Below the 7-head reference they
@@ -43,9 +44,9 @@ export function measure(spec = {}) {
   const thick = (k < 1 ? Math.pow(k, 0.35) : Math.pow(k, 0.2)) * (0.84 + 0.32 * S.mass);
 
   const chin = B;
-  const neckLen = (0.26 + 0.12 * S.neck + 0.04 * fe) * Math.pow(k, 0.8);
-  const neckBase = chin - neckLen + 0.12;        // the neck enters the head behind the jaw
-  const shoulderY = neckBase - (0.1 + 0.05 * fe) * k;   // a feminine shoulder sits a little lower: a longer slope from the neck
+  const neckLen = (0.3 + 0.12 * S.neck + 0.04 * fe) * Math.pow(k, 0.6);   // necks shrink slower than bodies: a chibi still has one
+  const neckBase = chin - neckLen + 0.02;        // the neck enters the head just behind the jaw
+  const shoulderY = neckBase - (0.14 + 0.05 * fe) * k;   // a feminine shoulder sits a little lower: a longer slope from the neck
   const hipY = B * (0.585 + 0.05 * S.legs);      // hip joint height: legs are everything below it
   const ankleY = 0.2 * Math.pow(k, 0.6);
   const leg = hipY - ankleY;
@@ -56,7 +57,7 @@ export function measure(spec = {}) {
   const hipHalf = (0.36 + 0.07 * hips) * wide;   // build is shoulders and muscle; the hips are femme's   // hip joint to midline
 
   const armK = Math.pow(k, 0.92);
-  const upperArm = 1.42 * armK, foreArm = 1.18 * armK, hand = 0.74 * Math.pow(k, 0.6) * (1 - 0.07 * fe);
+  const upperArm = 1.38 * armK, foreArm = 1.14 * armK, hand = 0.74 * Math.pow(k, 0.6) * (1 - 0.07 * fe);
 
   return {
     spec: S, H, B, k, wide, thick,
@@ -76,15 +77,16 @@ export function measure(spec = {}) {
       deltoid: (0.2 + 0.06 * f) * thick * (1 - 0.28 * fe),
       upperArm: [[0, 0.17], [0.4, (0.15 + 0.03 * f)], [1, 0.11]].map(([t, r]) => [t, r * thick * (1 - 0.14 * fe)]),
       foreArm: [[0, 0.115], [0.28, (0.135 + 0.02 * f)], [1, 0.085]].map(([t, r]) => [t, r * thick * (1 - 0.16 * fe)]),
-      thigh: [[0, (0.28 - 0.03 * f) * (1 + 0.42 * hips)], [0.45, 0.24 * (1 + 0.18 * hips)], [1, 0.15 * (1 + 0.05 * hips)]].map(([t, r]) => [t, r * thick]),
-      shin: [[0, 0.145], [0.3, 0.17 * (1 - 0.06 * fe)], [1, 0.085 * (1 - 0.08 * fe)]].map(([t, r]) => [t, r * thick]),
+      thigh: [[0, (0.25 - 0.02 * f) * (1 + 0.42 * hips)], [0.45, 0.2 * (1 + 0.18 * hips)], [1, 0.13 * (1 + 0.05 * hips)]].map(([t, r]) => [t, r * thick]),
+      shin: [[0, 0.13], [0.32, 0.148 * (1 - 0.06 * fe)], [1, 0.075 * (1 - 0.08 * fe)]].map(([t, r]) => [t, r * thick]),
       hand: 0.075 * Math.sqrt(thick) * Math.pow(k, 0.3),
       foot: 0.085 * Math.pow(k, 0.5),
     },
     head: {
       pivotUp: 0.1,                 // the skull's pivot sits this far above the chin line, at the neck's top
       cranium: { c: [0, 0.48, -0.04], r: 0.42 },
-      jaw: { top: [0, 0.2, 0.02], rt: 0.31, chin: [0, -0.06, 0.12], rc: 0.07 },
+      // a masculine jaw is wider and its chin blunter (the child's is neither)
+      jaw: { top: [0, 0.2, 0.02], rt: 0.31 * (1 + 0.07 * mjaw), chin: [0, -0.06, 0.12 - 0.01 * mjaw], rc: 0.07 + 0.04 * mjaw },
       eyeLine: 0.38,               // above the chin, in head units: anime eyes sit low
       width: S.headWidth,
     },

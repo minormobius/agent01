@@ -72,8 +72,8 @@ try {
     const { add, apply } = await import('./lib/vec.js');
     const c = document.createElement('canvas'); c.width = 160; c.height = 160;
     const R = makeRenderer(c, { supersample: 2 });
-    const shot = (face, expression, yaw) => {
-      const rig = makeRig({ face });
+    const shot = (face, expression, yaw, femme = 1) => {
+      const rig = makeRig({ face, femme });
       const P = solve(rig, { ...POSES.stand(rig), expression });
       const cam = camera({ target: add(P.J.headPivot, apply(P.F.head, [0, 0.32, 0])), yaw, height: 1.3, aspect: 1 });
       R.draw(buildBody(P), P, cam);
@@ -84,13 +84,17 @@ try {
       return { L, R: Rt };
     };
     const front = shot({ eyes: 'tareme', extras: ['blush'] }, 'neutral', 0);
+    const frontM = shot({ eyes: 'tsurime' }, 'neutral', 0, 0);
     const side = shot({}, 'neutral', Math.PI / 2);
     const laugh = shot({}, 'laugh', 0), neutral = shot({}, 'neutral', 0), wink = shot({}, 'wink', 0);
-    return { front, side, laugh, neutral, wink };
+    return { front, frontM, side, laugh, neutral, wink };
   });
   const sum = (a) => a.reduce((x, y) => x + y, 0);
   const asym = Math.max(...[1, 2, 5, 8, 9].map((k) => Math.abs(fr.front.L[k] - fr.front.R[k]) / Math.max(1, (fr.front.L[k] + fr.front.R[k]) / 2)));
   ok(asym < 0.04, `face: front view mirror-symmetric (ink, iris, sclera, blush, brow within ${(asym * 100).toFixed(1)}%)`);
+  // a masculine nose is drawn down its shadow side, on purpose: compare all but the ink
+  const asymM = Math.max(...[2, 3, 5, 9].map((k) => Math.abs(fr.frontM.L[k] - fr.frontM.R[k]) / Math.max(1, (fr.frontM.L[k] + fr.frontM.R[k]) / 2)));
+  ok(asymM < 0.04, `face: a masculine face mirror-symmetric too (iris, sclera, brow within ${(asymM * 100).toFixed(1)}%; the nose line is one-sided by design)`);
   const irisSide = [fr.side.L[2] + fr.side.L[3], fr.side.R[2] + fr.side.R[3]];
   ok(Math.min(...irisSide) < 0.05 * Math.max(...irisSide) && Math.max(...irisSide) > 0, `face: in profile the far eye is hidden (${irisSide.join(' vs ')} iris px)`);
   ok(fr.laugh.L[2] + fr.laugh.R[2] === 0 && fr.laugh.L[6] + fr.laugh.R[6] > 0 && fr.neutral.L[6] + fr.neutral.R[6] === 0, 'face: a laugh closes the eyes and opens the mouth; neutral does neither');

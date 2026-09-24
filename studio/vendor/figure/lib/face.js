@@ -19,15 +19,16 @@ export const FP = {
   iris: 10, lash: 11, droop: 12, lower: 13, closedCurve: 14,
   browRaise: 15, browTilt: 16, browThick: 17, browArch: 18,
   nose: 19, noseV: 20, mouthV: 21, mouthW: 22, smile: 23, mouthOpen: 24, mouthRound: 25, mouthStyle: 26,
-  blush: 27, mole: 28, px: 29, pivotUp: 30, crease: 31,
+  blush: 27, mole: 28, px: 29, pivotUp: 30, crease: 31, flick: 32,
 };
+export const FP_SIZE = 36;
 
 export const BASE = {
   on: 1, eyeLine: 0.42, eyeX: 0.172, eyeW: 0.094, eyeH: 0.18, tilt: 0.04, open: 1, wink: 0, gazeX: 0, gazeY: 0,
   iris: 1, lash: 1, droop: 0, lower: 0.7, closedCurve: 1,
   browRaise: 0, browTilt: 0, browThick: 1, browArch: 0.6,
   nose: 1, noseV: 0.26, mouthV: 0.13, mouthW: 0.05, smile: 0.2, mouthOpen: 0, mouthRound: 0, mouthStyle: 0,
-  blush: 0, mole: 0, crease: 1,
+  blush: 0, mole: 0, crease: 1, flick: 1,
   colors: { irisTop: '#3a2a52', irisBot: '#7d6fc4', irisDark: '#1c1426', brow: '#3b2a26', mouth: '#7a2a32', tongue: '#e0808a', blush: '#f09aa0' },
 };
 
@@ -84,7 +85,7 @@ export const IDENTITY_KEYS = ['eyes', 'brows', 'mouth', 'nose', 'lashes', 'irisC
  * face: { eyes: 'tsurime', brows: 'thin', mouth: 'cat', extras: ['blush'], irisColor: 'blue', ...overrides }
  * expression: a name, or an object of overrides; gaze: [x, y] in -1..1.
  */
-export function resolveFace(face = {}, expression = 'neutral', gaze = null) {
+export function resolveFace(face = {}, expression = 'neutral', gaze = null, { masc = 0 } = {}) {
   if (face === false) return null;
   const p = { ...BASE, colors: { ...BASE.colors } };
   const apply = (o) => { for (const [k, v] of Object.entries(o)) { if (k.startsWith('iris') && typeof v === 'string' || ['brow', 'mouth', 'tongue', 'blush'].includes(k) && typeof v === 'string') p.colors[k] = v; else p[k] = v; } };
@@ -96,6 +97,18 @@ export function resolveFace(face = {}, expression = 'neutral', gaze = null) {
   for (const x of face.extras || []) apply(PREDICATES.extras[x] || {});
   if (face.hairColor) p.colors.brow = face.hairColor;
   for (const [k, v] of Object.entries(face)) if (k in BASE && typeof v === 'number') p[k] = v;     // numeric overrides
+  // a masculine face, from the body (or face.masc): it SCALES the identity rather than
+  // replacing it, so a tsurime man keeps his lifted corners. Smaller eyes, the lashes
+  // down to a line with no flick, heavier and straighter brows set lower, a drawn nose.
+  const mm = face.masc ?? masc;
+  if (mm > 0) {
+    p.eyeH *= 1 - 0.3 * mm; p.eyeW *= 1 + 0.04 * mm; p.iris *= 1 - 0.1 * mm;
+    p.lash *= 1 - 0.5 * mm; p.flick = 1 - mm; p.lower *= 1 - 0.3 * mm;
+    p.browThick *= 1 + 0.5 * mm; p.browArch *= 1 - 0.5 * mm; p.browRaise -= 0.022 * mm; p.tilt += 0.04 * mm;
+    if (p.nose === 1 && mm > 0.5) p.nose = 3;
+    p.mouthW *= 1 + 0.14 * mm;
+  }
+  p.masc = mm;
   const identityOpen = p.open, identityDroop = p.droop;
   const ex = typeof expression === 'string' ? EXPRESSIONS[expression] : expression;
   if (!ex) throw new Error(`unknown expression: ${expression}`);
@@ -111,7 +124,7 @@ export function resolveFace(face = {}, expression = 'neutral', gaze = null) {
 
 /** The shader's parameter block; px is the geometry pass's pixel in head units. */
 export function packFace(p, { px = 0.004, pivotUp = 0.1 } = {}) {
-  const f = new Float32Array(32);
+  const f = new Float32Array(FP_SIZE);
   if (!p) return f;
   for (const [k, i] of Object.entries(FP)) f[i] = p[k] ?? 0;
   f[FP.px] = px; f[FP.pivotUp] = pivotUp;

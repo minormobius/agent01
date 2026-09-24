@@ -27,7 +27,7 @@ in vec2 uv;
 layout(location = 0) out vec4 o;
 layout(location = 1) out vec4 o2;      // the face: material code, shade
 uniform sampler2D prims; uniform int count;
-uniform float fp[32];
+uniform float fp[36];
 uniform vec4 gb[${GROUPS.length}];      // group bounding spheres
 uniform ivec2 gr[${GROUPS.length}];     // group prim ranges
 uniform vec3 camC, camR, camU, camF; uniform vec2 halfSize;     // orthographic camera
@@ -139,12 +139,12 @@ vec2 faceAt(vec3 l, float facing){
       }
       // the upper lash line, heavier toward the outer corner
       if (abs(sx) <= 1.0 && q.y >= ly.x - t * 0.25 && q.y <= ly.x + t) return vec2(1.0, 0.0);
-      // the flick past the outer corner
-      if (sx > 0.8 && sx < 1.4) {
+      // the flick past the outer corner (a masculine eye has none)
+      if (fp[32] > 0.3 && sx > 0.8 && sx < 1.4) {
         vec2 end = vec2(W, lidsAt(open, 1.0).x);
         vec2 tip = end + vec2(W * 0.36, H * 0.16);
         float d = segD(q, end - vec2(W * 0.18, -H * 0.02), tip);
-        float w = max(t * clamp((1.4 - sx) / 0.55, 0.0, 1.0), px * 0.6);
+        float w = max(t * clamp((1.4 - sx) / 0.55, 0.0, 1.0) * fp[32], px * 0.6);
         if (d < w) return vec2(1.0, 0.0);
       }
       // the lower lid: a short, light stroke at the outer side
@@ -201,10 +201,14 @@ vec2 faceAt(vec3 l, float facing){
       }
     }
   }
-  // ---- the nose: a tick, or a dot
+  // ---- the nose: a tick, a dot, or a bridge (the line down its shadow side, and the nostril)
   if (fp[19] > 0.5) {
     float nv = fp[20];
-    float dn = fp[19] < 1.5 ? segD(vec2(u, v), vec2(-0.004, nv + 0.014), vec2(0.004, nv - 0.008)) : length(vec2(u, v - nv)) - 0.004;
+    float dn;
+    if (fp[19] < 1.5) dn = segD(vec2(u, v), vec2(-0.004, nv + 0.014), vec2(0.004, nv - 0.008));
+    else if (fp[19] < 2.5) dn = length(vec2(u, v - nv)) - 0.004;
+    else dn = min(segD(vec2(u, v), vec2(-0.014, nv + 0.1), vec2(-0.006, nv + 0.006)) + 0.0006 * smoothstep(nv + 0.02, nv + 0.1, v) * 3.0,
+                  segD(vec2(u, v), vec2(-0.01, nv - 0.004), vec2(0.012, nv - 0.001)));
     if (dn < max(0.0035, px * 0.6)) return vec2(1.0, 0.0);
   }
   // ---- a beauty mark
