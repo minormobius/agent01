@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Upping My P(doom)</title>
+<meta name="description" content="A music video for Claude-Pop's song, danced by the studio's figure rig: Mino, an idol, and her crew, choreographed on the beat and checked frame by frame through the whole song. The song plays from YouTube.">
+<meta property="og:title" content="Upping My P(doom) — studio">
+<meta property="og:description" content="A music video danced by the figure rig, and checked frame by frame: does the body hold up through a whole song?">
+<meta property="og:image" content="https://studio.mino.mobi/pdoom/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0b0620">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=M+PLUS+Rounded+1c:wght@500;800&display=swap">
+<style>
+  :root { --ink: #fff4fb; --dim: rgba(255, 244, 251, 0.72); --pink: #ff5cc3; --veil: rgba(14, 6, 32, 0.82); --round: "M PLUS Rounded 1c", ui-rounded, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #0b0620; color: var(--ink); overflow: hidden; font-family: var(--round); -webkit-font-smoothing: antialiased; }
+  #stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; }
+  #card { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(92vw, 540px); padding: 26px 26px 20px; text-align: center; background: var(--veil); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid var(--pink); border-radius: 18px; box-shadow: 0 0 40px -10px var(--pink); }
+  body.playing #card { display: none; }
+  h1 { margin: 0; font: 400 clamp(34px, 8vw, 54px)/1 "Dela Gothic One", var(--round); color: var(--pink); letter-spacing: 0.01em; text-shadow: 0 0 18px rgba(255, 92, 195, 0.6); }
+  .sub { margin: 10px 0 14px; color: var(--dim); font-size: 15px; line-height: 1.45; }
+  .credit { font-size: 13px; color: var(--dim); margin: 12px 0 0; line-height: 1.5; }
+  a { color: #ffd1ee; }
+  button { font: 800 15px var(--round); border: 0; border-radius: 999px; padding: 11px 20px; cursor: pointer; }
+  #play { background: var(--pink); color: #1a0520; box-shadow: 0 0 20px -4px var(--pink); }
+  #silent { background: transparent; color: var(--dim); border: 1px solid rgba(255, 244, 251, 0.35); margin-left: 6px; }
+  #yt-box { position: fixed; left: 16px; bottom: max(16px, env(safe-area-inset-bottom)); display: none; }
+  body.playing:not(.silent) #yt-box { display: block; }
+  #yt-box iframe, #yt { width: 356px; height: 200px; max-width: calc(100vw - 32px); border-radius: 10px; border: 0; display: block; }
+  #sync { margin-top: 6px; display: flex; gap: 6px; align-items: center; font: 500 12px var(--round); color: var(--dim); }
+  #sync button { padding: 4px 10px; font-size: 12px; background: rgba(255, 255, 255, 0.12); color: var(--ink); }
+  #hud { position: fixed; top: max(12px, env(safe-area-inset-top)); left: 16px; font: 800 13px var(--round); letter-spacing: 0.04em; color: var(--ink); text-shadow: 0 1px 6px #000; pointer-events: none; }
+  #top { position: fixed; top: max(10px, env(safe-area-inset-top)); right: 16px; display: flex; gap: 8px; }
+  #top a, #bench { font: 800 12px var(--round); color: var(--ink); background: rgba(0, 0, 0, 0.35); border-radius: 999px; padding: 6px 12px; text-decoration: none; }
+  #report { position: fixed; right: 16px; top: 52px; width: min(92vw, 460px); max-height: 70vh; overflow: auto; background: var(--veil); border: 1px solid rgba(255, 92, 195, 0.5); border-radius: 14px; padding: 14px 16px; font-size: 13px; line-height: 1.45; }
+  #report h2 { margin: 0 0 6px; font: 400 18px "Dela Gothic One", var(--round); color: var(--pink); }
+  #report ul { padding-left: 18px; margin: 8px 0 0; }
+  #report .bad { color: #ffb3c7; font-size: 12px; }
+  #note { position: fixed; left: 50%; transform: translateX(-50%); bottom: 16px; background: var(--veil); padding: 8px 14px; border-radius: 10px; font-size: 13px; }
+  @media (max-width: 520px) { #yt-box { left: 12px; right: 12px; } #yt-box iframe, #yt { width: 100%; } #note { bottom: 250px; } }
+</style>
+</head>
+<body>
+<canvas id="stage" aria-label="A concert stage: an idol with silver twin tails and four backing dancers, dancing to the song."></canvas>
+<div id="hud"></div>
+<div id="top"><button id="bench" type="button">benchmark</button><a href="../">studio</a></div>
+<div id="report" hidden>
+  <h2>How the bodies hold up</h2>
+  <div id="score">…</div>
+  <p class="credit">Every check the figure rig has, run on every frame of the dance, for each dancer's own body: feet never slide or sink, every limb reaches, no limb through another, no skin through the clothes. Where one fails, it names the bar and the move.</p>
+  <ul id="report-list"></ul>
+</div>
+<div id="card">
+  <h1>Upping My P(doom)</h1>
+  <p class="sub">A music video for Claude-Pop's song, danced by the studio's figure rig: Mino and her crew, choreographed on the beat and checked frame by frame, through the whole song.</p>
+  <div><button id="play" type="button">▶ Play with the song</button><button id="silent" type="button">without sound</button></div>
+  <p class="credit">Song: <a href="https://x.com/slimer48484/status/2097752569212756134" target="_blank" rel="noopener">“I'm Upping My P(Doom)” by Claude-Pop</a> (deckard). It plays from YouTube; nothing here hosts it.</p>
+</div>
+<div id="yt-box"><div id="yt"></div><div id="sync">sync <button id="earlier" type="button">−</button><span id="offset">+0.00 s</span><button id="later" type="button">+</button></div></div>
+<div id="note" hidden></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

@@ -366,15 +366,17 @@ vec3 tone(vec2 q){
   return col;
 }
 void main(){
-  vec3 acc = vec3(0.0); float cov = 0.0;
+  // the figure's samples and the background's, kept apart: on a transparent background the
+  // edge is the figure's own colour at partial coverage (averaged with the paper, it drew a
+  // pale halo round every figure composited onto a dark stage)
+  vec3 fig = vec3(0.0), bg = vec3(0.0); float cov = 0.0;
   for (int k = 0; k < 4; k++) {
     vec2 q = uv + (vec2(float(k & 1), float(k >> 1)) - 0.5) * px;
     vec2 ik = inkAt(q);
-    vec3 c = tone(q);
-    acc += mix(c, inkC, ik.x);
-    cov += (ik.y > 0.0 || ik.x > 0.0) ? 1.0 : 0.0;
+    vec3 c = mix(tone(q), inkC, ik.x);
+    if (ik.y > 0.0 || ik.x > 0.0) { fig += c; cov += 1.0; } else bg += c;
   }
-  vec3 col = acc * 0.25;
+  vec3 col = bgAlpha > 0.5 ? (fig + bg) * 0.25 : (cov > 0.0 ? fig / cov : vec3(0.0));
   float a = mix(bgAlpha, 1.0, cov * 0.25);
   o = vec4(col, a);
 }`;

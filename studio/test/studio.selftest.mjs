@@ -278,5 +278,17 @@ for (const { slug, subtitle } of PIECES) {
   ok(parsed.title === S.title && parsed.staves.length === 2, `${slug}: titled, on a piano grand staff`);
 }
 
+// 7 — the P(doom) video: its compiled dance is current, and its checks hold -------
+console.log('\nThe P(doom) video (a dance, compiled per body)');
+{
+  const { execFileSync } = await import('node:child_process');
+  let stale = false;
+  try { execFileSync(process.execPath, [join(root, 'tools', 'build-pdoom.mjs'), '--check'], { stdio: 'pipe' }); } catch { stale = true; }
+  ok(!stale, 'pdoom/dance.json is current (node studio/tools/build-pdoom.mjs)');
+  const rep = JSON.parse(await rf(join(root, 'pdoom', 'report.json'), 'utf8'));
+  const bad = rep.dancers.flatMap((d) => d.checks.filter((c) => !c.ok).map((c) => `${d.name}: ${c.name} ${c.detail}`));
+  ok(!bad.length, `every dancer holds up through the whole song (report.json)${bad.length ? ': ' + bad.slice(0, 3).join('; ') : ''}`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

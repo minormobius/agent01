@@ -1,0 +1,246 @@
+{
+ "fps": 8,
+ "generated": "2026-09-24",
+ "dancers": [
+  {
+   "name": "Mino",
+   "frames": 1251,
+   "checks": [
+    {
+     "name": "dance: planted feet never slide",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.001 heads a frame",
+     "detail": ""
+    },
+    {
+     "name": "dance: no foot into the floor",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.01 heads",
+     "detail": ""
+    },
+    {
+     "name": "dance: every limb reaches",
+     "ok": true,
+     "value": "yes",
+     "limit": "all frames",
+     "detail": ""
+    },
+    {
+     "name": "dance: wrists bend within reach",
+     "ok": true,
+     "value": 0,
+     "limit": "< 80°",
+     "detail": "l wrist · bar 33 beat 2.38 (pump)"
+    },
+    {
+     "name": "dance: no limb through another",
+     "ok": true,
+     "value": 0.02,
+     "limit": "< 0.04 heads",
+     "detail": "thumb2_l into leg_l · bar 34 beat 1.40 (pump)"
+    },
+    {
+     "name": "dance: no skin through the clothes",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.004 heads",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "name": "Aya",
+   "frames": 1251,
+   "checks": [
+    {
+     "name": "dance: planted feet never slide",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.001 heads a frame",
+     "detail": ""
+    },
+    {
+     "name": "dance: no foot into the floor",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.01 heads",
+     "detail": ""
+    },
+    {
+     "name": "dance: every limb reaches",
+     "ok": true,
+     "value": "yes",
+     "limit": "all frames",
+     "detail": ""
+    },
+    {
+     "name": "dance: wrists bend within reach",
+     "ok": true,
+     "value": 0,
+     "limit": "< 80°",
+     "detail": "r wrist · bar 34 beat 2.78 (jump)"
+    },
+    {
+     "name": "dance: no limb through another",
+     "ok": true,
+     "value": 0.017,
+     "limit": "< 0.04 heads",
+     "detail": "upper_l1 into torso · bar 54 beat 1.70 (sway)"
+    },
+    {
+     "name": "dance: no skin through the clothes",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.004 heads",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "name": "Ren",
+   "frames": 1251,
+   "checks": [
+    {
+     "name": "dance: planted feet never slide",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.001 heads a frame",
+     "detail": ""
+    },
+    {
+     "name": "dance: no foot into the floor",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.01 heads",
+     "detail": ""
+    },
+    {
+     "name": "dance: every limb reaches",
+     "ok": true,
+     "value": "yes",
+     "limit": "all frames",
+     "detail": ""
+    },
+    {
+     "name": "dance: wrists bend within reach",
+     "ok": true,
+     "value": 0,
+     "limit": "< 80°",
+     "detail": "l wrist · bar 81 beat 1.50 (wave)"
+    },
+    {
+     "name": "dance: no limb through another",
+     "ok": true,
+     "value": 0.006,
+     "limit": "< 0.03 heads",
+     "detail": "upper_l1 into torso · bar 74 beat 2.00 (stepTouch)"
+    },
+    {
+     "name": "dance: no skin through the clothes",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.004 heads",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "name": "Hana",
+   "frames": 1251,
+   "checks": [
+    {
+     "name": "dance: planted feet never slide",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.001 heads a frame",
+     "detail": ""
+    },
+    {
+     "name": "dance: no foot into the floor",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.01 heads",
+     "detail": ""
+    },
+    {
+     "name": "dance: every limb reaches",
+     "ok": true,
+     "value": "yes",
+     "limit": "all frames",
+     "detail": ""
+    },
+    {
+     "name": "dance: wrists bend within reach",
+     "ok": true,
+     "value": 0,
+     "limit": "< 80°",
+     "detail": "r wrist · bar 14 beat 3.30 (jump)"
+    },
+    {
+     "name": "dance: no limb through another",
+     "ok": true,
+     "value": 0.014,
+     "limit": "< 0.03 heads",
+     "detail": "thumb2_l into leg_l · bar 34 beat 1.40 (pump)"
+    },
+    {
+     "name": "dance: no skin through the clothes",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.004 heads",
+     "detail": ""
+    }
+   ]
+  },
+  {
+   "name": "Kai",
+   "frames": 1251,
+   "checks": [
+    {
+     "name": "dance: planted feet never slide",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.001 heads a frame",
+     "detail": ""
+    },
+    {
+     "name": "dance: no foot into the floor",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.01 heads",
+     "detail": ""
+    },
+    {
+     "name": "dance: every limb reaches",
+     "ok": true,
+     "value": "yes",
+     "limit": "all frames",
+     "detail": ""
+    },
+    {
+     "name": "dance: wrists bend within reach",
+     "ok": true,
+     "value": 0,
+     "limit": "< 80°",
+     "detail": "l wrist · bar 5 beat 2.72 (idle)"
+    },
+    {
+     "name": "dance: no limb through another",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.05 heads",
+     "detail": ""
+    },
+    {
+     "name": "dance: no skin through the clothes",
+     "ok": true,
+     "value": 0,
+     "limit": "< 0.004 heads",
+     "detail": ""
+    }
+   ]
+  }
+ ]
+}

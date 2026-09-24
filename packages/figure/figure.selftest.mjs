@@ -94,5 +94,17 @@ for (const f of fs.readdirSync(path.join(here, 'specs')).filter((f) => f.endsWit
   ok(!bad.length, `${f}: ${res.length} checks${bad.length ? ' — ' + bad.map((x) => `${x.name} (${x.value})`).join('; ') : ''}`);
 }
 
+// every move a dance is made of, on a 7-head body and on a chibi: every check, every frame
+{
+  const { MOVES } = await import('./lib/choreo.js');
+  const { checkDance } = await import('./lib/check.js');
+  const script = Object.keys(MOVES).map((move, i) => ({ bar: i * 2, bars: 2, move }));
+  for (const [label, spec] of [['7-head', { heads: 7 }], ['chibi', { heads: 3, build: 0.3, legs: 0.2, mass: 0.7, headWidth: 0.9 }]]) {
+    const res = checkDance(spec, script, { bpm: 132, fps: 4, clothes: false });
+    const bad = res.filter((x) => !x.ok);
+    ok(!bad.length, `a dance of all ${script.length} moves on a ${label}: ${res.length} checks over ${res.frames} frames${bad.length ? ' — ' + bad.map((x) => `${x.name} ${x.value} ${x.detail}`).join('; ') : ''}`);
+  }
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

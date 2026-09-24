@@ -262,6 +262,31 @@ breadth to people's. The real bone shares put more length in the first bone, so 
 at the old 4.0 rad of flexion no longer reached the palm. It is 4.45 rad now, as a real
 fist bends, and the close solver backs off to contact.
 
+## A dance, as the target (2026-09-24)
+
+The operator asked for a target result: a music video, to see how the characters hold up.
+The song is Claude-Pop's "I'm Upping My P(Doom)" (a benchmark people are making videos
+for), and the video is `studio/pdoom/`. `lib/choreo.js` writes dances as moves on bars,
+and `checkDance` runs every check on every frame. Its first runs found:
+- **A full backward spin**: after a step-turn the body's yaw sat at 2π, and the next move
+  interpolated back through 0 with the feet planted. Yaws are unwrapped to the nearest turn.
+- **Held poses that drifted**: a move's closing keyframe and the next move's opening one
+  fell on the same beat, and the later replaced the earlier. The next move now arrives
+  half a beat late.
+- **Arms through bodies**: a bow's swept-back arms went into the folded torso, and a
+  chibi's hands overhead went into its head. Compiling now clears each arm shape on the
+  dancer's own body. Nudging `out` past π/2 swings an arm BEHIND the body, into its back,
+  so a clearance nudge raises the arm and moves `out` toward straight sideways.
+- **A slide the check made up**: a quarter-beat shuffle fell between two samples. Slides
+  are now judged against each foot's plant: a foot may only move between frames whose
+  plants differ.
+
+The first full song: 5 dancers × 1251 frames, and every check holds. The renderer
+learned two things for a dark stage:
+- transparent edges keep the figure's own colour (averaged with the paper, every figure
+  wore a pale halo);
+- outlines must be darker than what is behind them, and thinner when the figure is small.
+
 ## Not done yet (the next layers)
 
 Hair

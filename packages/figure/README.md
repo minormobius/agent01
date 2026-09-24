@@ -40,6 +40,7 @@ a chibi stays chunky.
 | `lib/hair.js` | hair: a cap cut at the hairline and locks from predicates, draped under gravity and pushed off the body |
 | `lib/handref.js` | hand reference: bone lengths (Buryanov & Kotiuk 2010) and digit lengths and breadths (Hsiao et al. 2015), with the ratios derived from them |
 | `lib/hand.js` | hands: palm, fingers and thumb in hand lengths; gestures solved per hand (close, onto, rest); blocks when drawn small |
+| `lib/choreo.js` | dances: moves on a beat grid → keyframes fitted to a body (pelvis solved, arms cleared); steps that never slide; `compileDance`, `playDance`, `danceAt` |
 | `lib/clothes.js` | clothes: garments as the body they cover, inflated and cut; skirts as solved, draped, hollow cones; `bareParts` |
 | `lib/check.js` | the checks: proportion, silhouette and form, walk, poses, face, hair, clothes |
 | `lib/shader.js` | the WebGL2 renderer: raymarched geometry pass, then cel tone + ink lines of three weights |

@@ -683,3 +683,77 @@ export function checkHands(spec) {
   if (Number.isFinite(rest.lo)) out.push(r('hands: placed fingers rest on the surface', rest.lo > -0.015 * m.k && rest.hi < 0.03 * m.k, `${rest.lo.toFixed(3)}…${rest.hi.toFixed(3)}`, `−${(0.015 * m.k).toFixed(3)}…${(0.03 * m.k).toFixed(3)} heads (in … above)${rest.edge ? `; ${rest.edge} off an edge` : ''}`, rest.lo < -0.015 * m.k ? rest.loAt : rest.hi >= 0.03 * m.k ? rest.hiAt : ''));
   return out;
 }
+
+// ---- a dance ---------------------------------------------------------------------------
+import { compileDance } from './choreo.js';
+
+
+/**
+ * A dance, frame by frame (choreo.js): does the body hold up through all of it?
+ *   planted feet never slide, and no foot goes into the floor
+ *   every limb reaches
+ *   no limb through another, no skin through the clothes     (sampled: `heavyEvery` frames)
+ *   wrists within reach
+ * Each check reports its worst value and WHERE it happened: the bar and beat, and the move.
+ * `script` is the dance (moves on bars); `opts` go to compileDance (home, facing, mirror).
+ */
+export function checkDance(spec, script, { fps = 8, bpm = 120, from = 0, to = null, heavyEvery = 4, clothes = true, ...opts } = {}) {
+  const rig = makeRig(spec), m = rig.m;
+  const D = compileDance(rig, script, opts);
+  const lastBeat = D.keys[D.keys.length - 1].beat;
+  const b1 = to ?? lastBeat, db = (bpm / 60) / fps;
+  const where = (b, k) => `bar ${Math.floor(b / 4)} beat ${(b % 4 + 1).toFixed(2)} (${k.move})`;
+  const worst = { slide: { v: 0 }, sink: { v: 0 }, unreached: { v: 0, n: 0 }, pen: { v: 0 }, wrist: { v: 0 }, skin: { v: 0 } };
+  let prev = null, frame = 0;
+  const bare = new Set(bareParts(spec.outfit));
+  for (let b = from; b <= b1 + 1e-9; b += db, frame++) {
+    const { pose, key, stepping, plant } = D.at(b);
+    const P = solve(rig, pose);
+    // planted feet: the contact point stays put from one frame to the next
+    for (const s of ['l', 'r']) {
+      const c = P.J[`ball_${s}`], h = P.J[`heel_${s}`];
+      for (const q of [c, h, P.J[`toe_${s}`]]) if (-q[1] > worst.sink.v) worst.sink = { v: -q[1], at: where(b, key), part: `${s} foot` };
+      const same = plant[s] && prev?.plant[s] && plant[s][0] === prev.plant[s][0] && plant[s][2] === prev.plant[s][2];
+      if (same) {
+        const d = Math.max(Math.hypot(c[0] - prev.J[`ball_${s}`][0], c[2] - prev.J[`ball_${s}`][2]), Math.hypot(h[0] - prev.J[`heel_${s}`][0], h[2] - prev.J[`heel_${s}`][2]));
+        if (d > worst.slide.v) worst.slide = { v: d, at: where(b, key), part: `${s} foot` };
+      }
+    }
+    if (P.report.unreached.length) { worst.unreached.n++; const u = Math.max(...P.report.unreached.map((x) => x.short)); if (u > worst.unreached.v) worst.unreached = { ...worst.unreached, v: u, at: where(b, key), part: P.report.unreached[0].limb }; }
+    for (const s of ['l', 'r']) { const w = P.report[`wrist_${s}`] || 0; if (w > worst.wrist.v) worst.wrist = { v: w, at: where(b, key), part: `${s} wrist` }; }
+    if (frame % heavyEvery === 0) {
+      const prims = buildBody(P);
+      const pen = interpenetration(prims);
+      if (pen.depth > worst.pen.v) worst.pen = { v: pen.depth, at: where(b, key), part: pen.part ? `${pen.part} into ${pen.into}` : '' };
+      if (clothes && spec.outfit) {
+        const bodyOnly = prims.filter((q) => q.group < GROUPS.indexOf('hair'));
+        for (const g of GARMENT_GROUPS) {
+          const cloth = prims.filter((q) => q.group === g);
+          for (const c of cloth) {
+            const base = c.name.includes(':') ? c.name.split(':')[1] : null;
+            const q = base && !bare.has(base) && bodyOnly.find((x) => x.name === base);
+            if (!q) continue;
+            for (const p of surfacePoints(q, 6)) {
+              const gd = groupDists(bodyOnly, p);
+              if (Math.min(...gd) < -0.004 || gd[q.group] > 0.01) continue;
+              if (c.clips.some((cl) => cl && cl[0] * p[0] + cl[1] * p[1] + cl[2] * p[2] - cl[3] > -0.03)) continue;
+              const d = sdf(cloth, p);
+              if (d > worst.skin.v) worst.skin = { v: d, at: where(b, key), part: `${base} through ${GROUPS[g]}` };
+            }
+          }
+        }
+      }
+    }
+    prev = { J: P.J, stepping, plant };
+  }
+  const k = m.k, out = [];
+  const say = (w) => (w.at ? `${w.part} · ${w.at}` : '');
+  out.push(r('dance: planted feet never slide', worst.slide.v < 1e-3, +worst.slide.v.toFixed(4), '< 0.001 heads a frame', say(worst.slide)));
+  out.push(r('dance: no foot into the floor', worst.sink.v < 0.01, +worst.sink.v.toFixed(4), '< 0.01 heads', say(worst.sink)));
+  out.push(r('dance: every limb reaches', worst.unreached.n === 0, worst.unreached.n ? `${worst.unreached.n} frames, worst ${worst.unreached.v.toFixed(3)}` : 'yes', 'all frames', say(worst.unreached)));
+  out.push(r('dance: wrists bend within reach', worst.wrist.v < 1.4, +(worst.wrist.v * 180 / Math.PI).toFixed(0), '< 80°', say(worst.wrist)));
+  out.push(r('dance: no limb through another', worst.pen.v < 0.04 * k, +worst.pen.v.toFixed(3), `< ${(0.04 * k).toFixed(2)} heads`, say(worst.pen)));
+  if (clothes && spec.outfit) out.push(r('dance: no skin through the clothes', worst.skin.v < 0.004, +worst.skin.v.toFixed(4), '< 0.004 heads', say(worst.skin)));
+  out.frames = frame;
+  return out;
+}

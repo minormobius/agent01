@@ -163,6 +163,32 @@ or through the palm; each gesture means what it says (fists closed, thumbs on th
 marks, pointing fingers straight); left mirrors right; placed fingers rest on the
 surface (a finger curled right round with nothing under it is "off an edge").
 
+## Dancing
+
+`lib/choreo.js`. A dance is moves laid on bars of a song, `{ bar, bars, move, side }`:
+`idle` `groove` `sway` `stepTouch` `pump` `point` `wave` `idol` `robot` `turn` `jump`
+`shrug` `reach` `freeze` `bow`. Each move writes keyframes on beats: where each foot is
+planted (in the dancer's own hip widths), how far the body dips (in its own leg lengths),
+the arms, the hands' gestures, the face. A frame interpolates them. A foot that moves
+between two plants is a step: it lifts on an arc and lands, and never slides.
+`compileDance(rig, script, { home, mirror })` fits the dance to one body:
+- the pelvis height is solved per keyframe;
+- every arm shape is tried on this body, at each keyframe and halfway to the next, and
+  opened out from the body until it clears (a chibi's hands overhead meet its head).
+
+It takes seconds per dancer, so a page plays a dance compiled ahead (`packKeys` →
+JSON → `playDance`).
+
+`checkDance(spec, script, opts)` runs the checks on every frame of the dance, not only on
+named poses:
+- planted feet never slide and no foot goes into the floor;
+- every limb reaches;
+- no limb goes through another, and no skin shows through the clothes;
+- wrists stay within range.
+
+Each failure names its bar, beat and move. `studio/pdoom/` is a whole song danced this
+way, and `studio/tools/build-pdoom.mjs` writes its report.
+
 ## When a check fails
 
 Fix the cause the check names, never the tolerance. The history in `CLAUDE.md`
