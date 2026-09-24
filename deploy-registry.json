@@ -895,14 +895,15 @@
         "arnold",
         "szilassi",
         "csaszar",
-        "equivelar"
+        "equivelar",
+        "chair44"
       ],
       "endpoint": "math.mino.mobi",
       "type": "frontend",
-      "branch": "claude/landing-page-merge-candidate-8sp0fv",
+      "branch": "claude/3d-einstein-tile-math-n4t93d",
       "uses": [],
       "provides": null,
-      "status": "MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover). ns was folded in as a member the same morning and split back out that afternoon onto its own route; math/_redirects forwards math.mino.mobi/ns/* to ns.mino.mobi.",
+      "status": "OWNERSHIP (2026-09-24): taken by claude/3d-einstein-tile-math-n4t93d from claude/landing-page-merge-candidate-8sp0fv with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — additive launch via deploy-math.yml (Worker `math`, custom_domain math.mino.mobi). Members are STAGED from root at build time, not moved; root still serves the canonical mino.mobi/<x>/ URLs so nothing breaks. OWNERSHIP 2026-09-23: taken by claude/landing-page-merge-candidate-8sp0fv (from claude/szilassi-polyhedron-3d-cmwpb9, byte-identical over every member dir at handover). ns was folded in as a member the same morning and split back out that afternoon onto its own route; math/_redirects forwards math.mino.mobi/ns/* to ns.mino.mobi. OWNERSHIP 2026-09-24: taken by claude/3d-einstein-tile-math-n4t93d via take-ownership.mjs (every owner commit on the surface's paths reachable; no D lines against the owner over any staged dir), to ship /chair44/.",
       "op": "encapsulation",
       "note": "Hub for the extremal-geometry pack. Family-resemblance table sortable by era, technique, status \u2014 and an explicit roadmap of next entries (szemer\u00e9di\u2013trotter, heilbronn, borsuk, viazovska, ...)\u2026 (full description: geometry/CLAUDE.md)",
       "paths": [
@@ -925,7 +926,8 @@
         "arnold/**",
         "szilassi/**",
         "csaszar/**",
-        "equivelar/**"
+        "equivelar/**",
+        "chair44/**"
       ]
     },
     {

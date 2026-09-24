@@ -1127,6 +1127,12 @@
           "note": "eight faces all touching on a genus-3 surface; the first past szilassi's seven, via overarching pairs"
         },
         {
+          "u": "math.mino.mobi/chair44",
+          "action": "keep",
+          "group": "tilings and loops",
+          "note": "the first 3D einstein: a seven-cube chair whose 192 tiny pyramids force it to tile space only aperiodically"
+        },
+        {
           "u": "mino.mobi/markov",
           "action": "keep",
           "group": "dynamics"

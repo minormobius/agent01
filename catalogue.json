@@ -4416,6 +4416,23 @@
         "math",
         "3d"
       ]
+    },
+    {
+      "n": "chair44",
+      "u": "https://math.mino.mobi/chair44/",
+      "c": "data",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "geometry",
+      "surface": "math",
+      "d": "The first 3D einstein: one shape that fills space, but only in patterns that never repeat. Found in September 2026 by Ioannis Tsiokos with an AI model, and checked in Lean. It is a chair of seven cubes carrying 192 pyramids too small to see. Twelve heights of bump and dent force every copy into a doubled chair, and those into a quadrupled one, forever. Spin it with the pyramids blown up 80 times, take apart the 8-, 64- and 512-chair patches, and step through the only 44 ways two copies can touch. The rest of the proof's finite census (2,388 → 44, 697 → 116 → 44) is recomputed in your browser from the published recipe.",
+      "tags": [
+        "webgl",
+        "math",
+        "3d"
+      ]
     }
   ],
   "notListed": [
@@ -4793,6 +4810,11 @@
       "glob": "equivelar",
       "kind": "pending",
       "reason": "catalogued at math.mino.mobi/equivelar/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
+    },
+    {
+      "glob": "chair44",
+      "kind": "pending",
+      "reason": "catalogued at math.mino.mobi/chair44/, which is the surface that deploys it; the apex copy becomes real only when the root surface next deploys from its own branch — same as szilassi, csaszar and conjectures"
     },
     {
       "glob": "ising",

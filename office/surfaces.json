@@ -2966,6 +2966,15 @@
    "parent": "geometry"
   },
   {
+   "id": "chair44",
+   "name": "chair44",
+   "url": "https://math.mino.mobi/chair44/",
+   "cat": "data",
+   "commits": 1,
+   "age": "hot",
+   "parent": "geometry"
+  },
+  {
    "id": "poll/evaluation.html",
    "name": "evaluation",
    "url": "https://poll.mino.mobi/evaluation.html",
