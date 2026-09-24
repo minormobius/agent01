@@ -117,7 +117,7 @@ export function mountExtras({ slug, title, subtitle, events, seconds, makeRender
       }
       bar(null);
       const mb = (blob.size / 1e6).toFixed(1);
-      status(`Done: ${mb} MB, ${Math.round(seconds)} s, with sound. ` + (photos ? 'Save it to your photos, or share it anywhere.' : 'This browser could only make it with open codecs: it plays in any web browser and uploads fine, but Apple’s Photos and QuickTime may not play it. Safari, or Chrome on a phone or a Mac, makes a camera-roll file.'));
+      status(`Done: ${mb} MB, ${Math.round(seconds)} s, with sound. ` + (photos ? 'Save it to your photos, or share it anywhere.' : 'This browser has no H.264 video encoder, so the picture uses an open codec: the file plays in any web browser and uploads fine, but Apple’s Photos and QuickTime may not play it. Safari, or Chrome or Firefox on a Mac or a phone, makes a camera-roll file.'));
       $('.x-share').hidden = false;
       $('.x-share').focus();
     } catch (err) {

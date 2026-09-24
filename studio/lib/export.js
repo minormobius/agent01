@@ -3,9 +3,12 @@
 // A studio piece is a pure function of time and its music is a fixed
 // performance, so it does not have to be RECORDED: it can be RENDERED, frame by
 // frame, as fast as the machine allows, with no dropped frames and no drift
-// between picture and sound. That is the fast path here — WebCodecs encodes
-// H.264 video and AAC audio, and mp4-muxer (vendored, MIT) writes an MP4, which
-// is the format a phone's photo library will take.
+// between picture and sound. That is the fast path here: WebCodecs encodes
+// H.264 video, and mediabunny (vendored, MPL-2.0) encodes AAC audio and writes
+// the MP4. AAC goes through the browser's own encoder where there is one and
+// through a WebAssembly build of FFmpeg's where there is not (Firefox, Safari).
+// H.264 + AAC in MP4 is what a phone's photo library takes, and now every
+// browser with an H.264 encoder can make it.
 //
 // Where WebCodecs cannot (no encoder, or no H.264), the piece is played in real
 // time into a MediaRecorder instead. Slower, and the container is whatever the
@@ -16,7 +19,6 @@
 // "Save Video" puts it there. Sharing needs a fresh tap, so the export ends by
 // offering the button rather than opening the sheet itself.
 
-import { Muxer, ArrayBufferTarget } from '../vendor/mp4-muxer/mp4-muxer.mjs';
 import { instantiate, begin, DEFAULT_GAIN } from './pfsynth-core.js';
 
 export const FORMATS = {
@@ -28,22 +30,24 @@ export const FORMATS = {
 const AUDIO_RATE = 48000;
 const FPS = 30;
 
-async function firstVideo(w, h, codecs) {
-  for (const [codec, mux] of codecs) {
-    const cfg = { codec, width: w, height: h, bitrate: 6_000_000, framerate: FPS, ...(mux === 'avc' ? { avc: { format: 'avc' } } : {}) };
-    try { if ((await VideoEncoder.isConfigSupported(cfg)).supported) return { cfg, mux }; } catch { /* next */ }
-  }
-  return null;
+let mbPromise = null;
+/**
+ * mediabunny, with OUR AAC encoder (a WebAssembly build of FFmpeg's) registered
+ * in every browser, even one with its own. Firefox and Safari have none, and
+ * which native encoders emit what they claim is exactly what cost two silent
+ * exports; one encoder everywhere is one path to test, and it is the path the
+ * selftest decodes with FFmpeg. Loaded on first export only (1.7 MB).
+ */
+function mediabunny() {
+  mbPromise ??= (async () => {
+    const MB = await import('../vendor/mediabunny/mediabunny.min.mjs');
+    const { registerAacEncoder } = await import('../vendor/mediabunny/mediabunny-aac-encoder.min.mjs');
+    registerAacEncoder();
+    return MB;
+  })();
+  return mbPromise;
 }
-async function firstAudio(codecs) {
-  for (const [codec, mux] of codecs) {
-    const cfg = { codec, sampleRate: AUDIO_RATE, numberOfChannels: 2, bitrate: 192_000 };
-    try { if ((await AudioEncoder.isConfigSupported(cfg)).supported) return { cfg, mux }; } catch { /* next */ }
-  }
-  return null;
-}
-const H264 = [['avc1.640028', 'avc'], ['avc1.4d0028', 'avc'], ['avc1.42e028', 'avc'], ['avc1.640033', 'avc']];
-const OPEN = [['vp09.00.40.08', 'vp9'], ['vp09.00.10.08', 'vp9'], ['av01.0.08M.08', 'av1']];
+
 const PHOTOS_MIMES = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4;codecs="avc1,mp4a"'];
 // Safari's MediaRecorder writes H.264 + AAC for a plain 'video/mp4'; Chrome's
 // may write Opus into it. So the plain type counts only on Safari.
@@ -52,29 +56,32 @@ const isSafari = () => /^((?!chrome|chromium|crios|android|edg).)*safari/i.test(
 /**
  * How to make the file, best first. A camera roll wants H.264 + AAC in MP4:
  *
- *   offline  H.264 + AAC      fast, and Photos takes it       (Chrome on Mac/Win/Android, Safari with AAC)
- *   realtime MediaRecorder MP4 as long as the piece           (Safari records H.264 + AAC this way)
- *   offline  VP9/AV1 + Opus   fast; plays in browsers, NOT in Apple's players
+ *   offline  H.264 + AAC       fast; Photos takes it. Any browser with an H.264
+ *                              encoder: the AAC is ours where the browser has none.
+ *   realtime MediaRecorder MP4 as long as the piece (Safari writes AAC)
+ *   offline  VP9/AV1 + AAC     fast; plays in browsers, NOT in Apple's players
  *   realtime whatever MediaRecorder can do
  *
- * What is never made: H.264 with OPUS audio. Apple's players and Photos play
- * that file's picture and silently drop its sound — which is exactly the bug
- * the first version of this shipped (2026-09-24): a browser with an H.264
- * encoder but no AAC encoder fell through to it. A browser like that records in
- * real time instead, and the file is inspected afterwards either way.
+ * History (2026-09-24): the first version needed the BROWSER's AAC encoder,
+ * which Firefox and Safari do not have, so both fell through to Opus audio,
+ * whose sound Apple's players silently drop. Their exports had no sound.
  */
 export async function plan(w, h) {
-  const wc = 'VideoEncoder' in window && 'AudioEncoder' in window && 'VideoFrame' in window && 'AudioData' in window;
+  const wc = 'VideoEncoder' in window && 'VideoFrame' in window;
   const mr = window.MediaRecorder?.isTypeSupported ? window.MediaRecorder : null;
-  if (wc) {
-    const v = await firstVideo(w, h, H264), a = await firstAudio([['mp4a.40.2', 'aac']]);
-    if (v && a) return { mode: 'offline', video: v, audio: a };
-  }
+  let MB = null;
+  if (wc) { try { MB = await mediabunny(); } catch { MB = null; } }
+  const aac = MB && (await MB.canEncodeAudio('aac', { numberOfChannels: 2, sampleRate: AUDIO_RATE }));
+  if (MB && aac && (await MB.canEncodeVideo('avc', { width: w, height: h }))) return { mode: 'offline', MB, video: 'avc', audio: 'aac' };
   const mp4 = mr && (PHOTOS_MIMES.find((m) => mr.isTypeSupported(m)) || (isSafari() && mr.isTypeSupported('video/mp4') ? 'video/mp4' : null));
   if (mp4) return { mode: 'realtime', mime: mp4 };
-  if (wc) {
-    const v = await firstVideo(w, h, OPEN), a = await firstAudio([['opus', 'opus']]);
-    if (v && a) return { mode: 'offline', video: v, audio: a };
+  if (MB) {
+    for (const v of ['vp9', 'av1']) {
+      if (!(await MB.canEncodeVideo(v, { width: w, height: h }))) continue;
+      for (const a of ['aac', 'opus']) {
+        if (await MB.canEncodeAudio(a, { numberOfChannels: 2, sampleRate: AUDIO_RATE })) return { mode: 'offline', MB, video: v, audio: a };
+      }
+    }
   }
   const any = mr && ['video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find((m) => mr.isTypeSupported(m));
   if (any) return { mode: 'realtime', mime: any };
@@ -169,65 +176,60 @@ function fadeTail(L, R, rate, seconds = 1.2) {
 const tick = () => new Promise((ok) => setTimeout(ok, 0));
 
 /**
- * The fast path: every frame drawn and encoded offline.
+ * The fast path: every frame drawn and encoded offline, the audio interleaved
+ * with it a frame at a time.
  *
  * draw(ctx, t) paints the frame for second t into a canvas of the format's
  * size. Returns a Blob (video/mp4).
  */
 export async function renderOffline({ w, h, seconds, draw, audio, support, onProgress, signal }) {
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target,
-    video: { codec: support.video.mux, width: w, height: h, frameRate: FPS },
-    audio: { codec: support.audio.mux, sampleRate: AUDIO_RATE, numberOfChannels: 2 },
-    fastStart: 'in-memory',
-    firstTimestampBehavior: 'offset',
-  });
-  let failure = null;
-  const venc = new VideoEncoder({ output: (c, m) => muxer.addVideoChunk(c, m), error: (e) => { failure = e; } });
-  venc.configure(support.video.cfg);
-  const aenc = new AudioEncoder({ output: (c, m) => muxer.addAudioChunk(c, m), error: (e) => { failure = e; } });
-  aenc.configure(support.audio.cfg);
-
-  // Audio first: it is quick, and it is all in hand.
-  fadeTail(audio.L, audio.R, AUDIO_RATE);
-  const BLOCK = 4096;
-  for (let f = 0; f < audio.L.length; f += BLOCK) {
-    const n = Math.min(BLOCK, audio.L.length - f);
-    const planar = new Float32Array(n * 2);
-    planar.set(audio.L.subarray(f, f + n), 0);
-    planar.set(audio.R.subarray(f, f + n), n);
-    const ad = new AudioData({ format: 'f32-planar', sampleRate: AUDIO_RATE, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((f / AUDIO_RATE) * 1e6), data: planar });
-    aenc.encode(ad);
-    ad.close();
-  }
-
+  const MB = support.MB;
+  const target = new MB.BufferTarget();
+  const output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: 'in-memory' }), target });
   const canvas = document.createElement('canvas');
   canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d', { alpha: false });
+  const video = new MB.CanvasSource(canvas, { codec: support.video, bitrate: 6_000_000, keyFrameInterval: 2 });
+  const sound = new MB.AudioSampleSource({ codec: support.audio, bitrate: 192_000 });
+  output.addVideoTrack(video, { frameRate: FPS });
+  output.addAudioTrack(sound);
+  await output.start();
+
+  fadeTail(audio.L, audio.R, AUDIO_RATE);
+  const BLOCK = 4800;                        // 0.1 s
+  let af = 0;
+  const feedAudioUntil = async (t) => {
+    while (af < audio.L.length && af / AUDIO_RATE < t) {
+      const n = Math.min(BLOCK, audio.L.length - af);
+      const planar = new Float32Array(n * 2);
+      planar.set(audio.L.subarray(af, af + n), 0);
+      planar.set(audio.R.subarray(af, af + n), n);
+      const sample = new MB.AudioSample({ data: planar, format: 'f32-planar', numberOfChannels: 2, sampleRate: AUDIO_RATE, timestamp: af / AUDIO_RATE });
+      await sound.add(sample);
+      sample.close();
+      af += n;
+    }
+  };
+
   const frames = Math.ceil(seconds * FPS);
-  for (let i = 0; i < frames; i++) {
-    if (signal?.aborted) { venc.close(); aenc.close(); throw new DOMException('cancelled', 'AbortError'); }
-    if (failure) throw failure;
-    draw(ctx, i / FPS);
-    const vf = new VideoFrame(canvas, { timestamp: Math.round((i * 1e6) / FPS), duration: Math.round(1e6 / FPS) });
-    venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 });
-    vf.close();
-    while (venc.encodeQueueSize > 4) await new Promise((ok) => setTimeout(ok, 2));
-    if (i % 6 === 0) { onProgress?.(i / frames); await tick(); }
+  try {
+    for (let i = 0; i < frames; i++) {
+      if (signal?.aborted) throw new DOMException('cancelled', 'AbortError');
+      draw(ctx, i / FPS);
+      await video.add(i / FPS, 1 / FPS);
+      await feedAudioUntil((i + 1) / FPS);
+      if (i % 6 === 0) { onProgress?.(i / frames); await tick(); }
+    }
+    await feedAudioUntil(Infinity);
+    await output.finalize();
+  } catch (err) {
+    try { await output.cancel(); } catch { /* already gone */ }
+    throw err;
   }
-  await venc.flush();
-  await aenc.flush();
-  if (failure) throw failure;
-  muxer.finalize();
   onProgress?.(1);
   return new Blob([target.buffer], { type: 'video/mp4' });
 }
 
-/**
- * The slow path: play it in real time into a MediaRecorder. Takes as long as
- * the piece does, and needs the tab visible throughout.
- */
 /**
  * `ac` must be an AudioContext made and resumed INSIDE the tap that started the
  * export (see extras.js): one made later, after the awaits, is left suspended

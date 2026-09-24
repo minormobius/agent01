@@ -135,32 +135,45 @@ Both live under a piece's Begin button (`lib/extras.js`), for every piece.
 is a fixed performance, so the video is RENDERED, not recorded. Each piece has a
 `render.js` exporting `makeRenderer(W, H, dpr)` → `draw(ctx, t)`. The page and the
 exporter call the same function, so they cannot drift apart. The audio is re-rendered
-at 48 kHz in the piano worker. `plan()` picks the best route this browser has:
+at 48 kHz in the piano worker, then **mediabunny** (vendored, MPL-2.0; see
+`vendor/mediabunny/README.md`) writes the MP4. The **AAC is always ours**: a WebAssembly
+build of FFmpeg's encoder (`@mediabunny/aac-encoder`), registered in every browser,
+even one with its own. `plan()` picks:
 
-1. offline WebCodecs **H.264 + AAC** in MP4 (vendored `mp4-muxer`, MIT). Fast, and a
-   phone's Photos accepts it. Chrome on Mac/Win/Android, Safari with an AAC encoder.
-2. real-time `MediaRecorder` MP4, when the browser promises AAC (or is Safari). As long
-   as the piece, but Photos takes it.
-3. offline VP9/AV1 + Opus in MP4. Fast and plays in browsers, NOT in Apple's players.
-   The panel says so.
+1. offline **H.264 + AAC** MP4. Any browser whose WebCodecs can encode H.264 (Safari,
+   Chrome, Firefox on Mac/Windows). Photos takes it.
+2. real-time `MediaRecorder` MP4 (Safari writes AAC), for a browser with no H.264 encoder.
+3. offline VP9/AV1 + AAC. Plays in browsers, NOT in Apple's players. The panel says so.
 4. whatever MediaRecorder can do.
 
-**Never H.264 with Opus.** The first version fell through to H.264 video + Opus audio
-in MP4 on a browser that had an H.264 encoder but no AAC one. Apple's players and Photos
-play that file's picture and silently drop its sound, and a user got a silent video
-(2026-09-24). Now such a browser records in real time instead (Safari records AAC).
-The real-time route's AudioContext is made and resumed **inside the tap**, before any
-await; Safari leaves one made later suspended, and it records silence. Every finished
-file then goes through `inspect()`: its codecs are read from its own sample entries,
-and its audio is decoded and measured. A silent file is refused, never offered, and
-only H.264 + AAC is called camera-roll-safe. `?export=realtime` forces the recording
-route for testing; both routes were measured here at −22 dB RMS over 98 s.
+**How exports went silent, twice (2026-09-24), and the rules that came out of it:**
+- v1 needed the BROWSER's AAC encoder. Firefox and Safari have none, so they fell to
+  H.264 + **Opus**. Apple's players and Photos show that file's picture and silently
+  drop its sound. Rule: never pair H.264 with Opus.
+- v2 stopped that and let Safari use its own AAC where it claimed one. The old muxer
+  (mp4-muxer) GUESSED the AAC configuration rather than taking the encoder's, so a
+  native encoder that emits anything else writes a stream players cannot decode. Rule:
+  one AAC encoder everywhere, the one we test, with mediabunny writing ITS config.
+- The real-time route's AudioContext is made and resumed **inside the tap**, before any
+  await. Safari leaves one made later suspended, and it records silence.
+- Every finished file goes through `inspect()`: codecs read from its own sample
+  entries, and audio decoded and measured where the browser can decode it. A silent
+  file is refused, never offered. (Open-source Chromium cannot decode AAC, so `level`
+  is null there and only the codec check applies.)
 
-Open-source Chromium (this sandbox's Playwright) has **no H.264 or AAC encoder**, so
-local tests exercise route 3. Measured here: 98 s of Anthesis at 1080², rendered in
-49 s. Routes 1–2 need a real phone to verify. Getting the file into Photos goes through
-the share sheet (`navigator.share({ files })` → "Save Video"). It needs a fresh tap, so
-the export ends on a button, not an automatic share. Without file sharing it downloads.
+**How to verify an export here, with ears you do not have:** run the Export button in
+Playwright (see the session's `ui.mjs` pattern), then decode the file with PyAV
+(`pip install --target <scratch>/pylib av numpy`; its wheels carry a full FFmpeg):
+codec, sample rate, duration against the video's, and RMS per section against
+`tools/render.mjs`. Measured 2026-09-24: Anthesis at 1080², VP9 + AAC, audio 97.9 s
+against video 97.87 s, −22.0 dB overall, −15.3 dB at the bloom. These match the piano
+render exactly. `?export=realtime` forces route 2.
+
+Open-source Chromium (this sandbox's Playwright) has no H.264 encoder, so the H.264
+half of route 1 is exercised only on real devices. The AAC half, the part that failed,
+is the same code everywhere and is verified here. Getting the file into Photos goes
+through the share sheet (`navigator.share({ files })` → "Save Video"). It needs a
+fresh tap, so the export ends on a button. Without file sharing it downloads.
 
 Formats: vertical 1080×1920 (default), square, wide. The renderer draws at half size and
 double density, so the layout is the page's own at a phone-like size. The video adds a
