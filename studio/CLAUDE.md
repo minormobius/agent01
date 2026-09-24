@@ -37,6 +37,10 @@ coquelicots/             No. 2: the same poppy, painted; the world painted outwa
   poppy.js               the plant, repainted 12x a second with three brush variants (the "boil")
   render.js              world canvas (accumulates) + plant canvas + paper tooth: makeRenderer
   main.js                the page: p5, the piano, the card
+nocturne/                No. 3: a city at night, lit one window per note
+  score.js               38 bars, D-flat major nocturne; exports `sec`, `BARS`, `written`, `notation`
+  city.js                the city read off the score: bar = building, eighth = column, semitone = floor
+  render.js              sky, per-building ink Painters (drawn 8 beats ahead), lights, quay, river, the fold
 lib/paint.js             the brush engine: paper, Wash, Bristle, Ink, Dab, and the Painter
 lib/score-kit.js         note names, tempo map, pedal, humanising: for new scores
 tools/render.mjs         render a piece's score in node: speed, level per section, --wav
@@ -127,6 +131,25 @@ Lessons about the look, each learned the hard way:
 The texture adds a layer per stage, and the selftest asserts the RMS rises
 stage by stage: seed −39.5 < soil −30.7 < ground −28.0 < field −22.9 < sky −22.5 < bloom −16.3 dB.
 
+## Nocturne, and the city as a score
+
+The mapping is literal and the selftest holds it. Time runs along the street: one
+building per bar, one column of windows per eighth note. Pitch climbs the towers, one
+floor per semitone from E2. So each note lights the window at its beat and its floor.
+Notes below E2 light lamps on the quay. A building is as tall as the highest note in
+its bar, so the skyline is the melody. Bar 22, the melody's peak, is the tallest
+tower; the one note higher is the last "star", alone atop bar 38. Out-of-key notes
+are cool blue windows.
+
+Each building has its own canvas and its own `Painter` (a transparent one: `paper`
+null), made on first sight. Its marks (wash, outline, roof furniture, hatching, the
+unlit panes a row at a time, lamp posts) run from 8 beats before its bar to its
+downbeat, so the pen is always drawing just ahead of the music. The camera keeps
+"now" at 70% of the width. At `cues.last` the city folds: each building moves from
+its street position to a grid of rows chosen to fit the screen (`fold` in
+render.js). The river, quay and far skyline fade, and the lit windows read as the
+whole score. The fold works at any aspect: a phone gets four rows, a square video three.
+
 ## Export video, and View the score
 
 Both live under a piece's Begin button (`lib/extras.js`), for every piece.
@@ -175,7 +198,7 @@ is the same code everywhere and is verified here. Getting the file into Photos g
 through the share sheet (`navigator.share({ files })` → "Save Video"). It needs a
 fresh tap, so the export ends on a button. Without file sharing it downloads.
 
-Formats: vertical 1080×1920 (default), square, wide. The renderer draws at half size and
+Formats: vertical 1080×1920 (default), square, wide. Nocturne square: 151 s, rendered in 110 s here, 116 MB. The renderer draws at half size and
 double density, so the layout is the page's own at a phone-like size. The video adds a
 title card (0–3.6 s) and a credit line in the last seconds (`drawCredits`).
 

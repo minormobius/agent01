@@ -55,13 +55,10 @@ const pk = (a, b) => {
 
 console.log(`${piece}: ${events.length} notes, score ${duration.toFixed(1)} s, rendered ${secs.toFixed(1)} s in ${wall.toFixed(1)} s = ${(secs / wall).toFixed(2)}x real time`);
 console.log(`peak ${peak.toFixed(3)} (${(20 * Math.log10(peak)).toFixed(1)} dBFS), ${(100 * over9 / pcm.length).toFixed(3)}% of samples past 0.9, non-finite ${nan}`);
-const marks = cues.soil ? [
-  ['seed', 0, cues.soil[0]], ['soil', cues.soil[0], cues.emerge], ['ground', cues.emerge, cues.field[0]], ['field', cues.field[0], cues.sky[0] + (cues.poppies[0] - cues.sky[0]) * 0.5], ['sky', cues.poppies[0] - 10, cues.lift], ['bud', cues.lift - 6, cues.bloom], ['bloom', cues.bloom, cues.arrive + 3], ['coda', cues.arrive + 3, cues.last], ['last chord', cues.last, secs],
-] : [
-  ['dormancy', 0, cues.root], ['germination', cues.root, cues.cotyledons],
-  ['leaves', cues.cotyledons, cues.bud], ['bud', cues.bud, cues.bloom],
-  ['bloom', cues.bloom, cues.pollen[0]], ['coda', cues.pollen[0], cues.last], ['last chord', cues.last, secs],
-];
+// Sections come from the score's own notation, so every piece reports alike.
+const S = await import(join(here, '..', piece, 'score.js'));
+const secs0 = S.notation.sections.map(([bar, name]) => [name, S.sec((bar - 1) * 4)]);
+const marks = secs0.map(([name, a], k) => [name, a, secs0[k + 1]?.[1] ?? secs]);
 for (const [name, a, b] of marks) {
   console.log(`  ${name.padEnd(12)} ${a.toFixed(1).padStart(5)}–${b.toFixed(1).padEnd(5)}  rms ${rms(a, b).toFixed(1).padStart(6)} dB  peak ${pk(a, b).toFixed(1).padStart(6)} dB`);
 }

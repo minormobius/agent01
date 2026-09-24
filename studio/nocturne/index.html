@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Nocturne</title>
+<meta name="description" content="A city at night in pen and ink, lit one window per note: time runs along the street and pitch up the towers, so the skyline is the melody — an original nocturne for physically-modelled piano.">
+<meta property="og:title" content="Nocturne — studio">
+<meta property="og:description" content="A city at night, lit one window per note: an original nocturne for physically-modelled piano.">
+<meta property="og:image" content="https://studio.mino.mobi/nocturne/og.jpg">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#12163a">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --ink: #f1ead8;
+    --dim: rgba(241, 234, 216, 0.72);
+    --veil: rgba(18, 22, 50, 0.72);
+    --accent: #ffc56e;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: #12163a; color: var(--ink); overflow: hidden; }
+  body { font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+  #stage { position: fixed; inset: 0; }
+  #stage canvas { display: block; }
+  body.playing #stage { cursor: pointer; }
+
+  #card {
+    position: fixed; left: 50%; top: 32%; transform: translate(-50%, -50%);
+    width: min(92vw, 520px); padding: 28px 28px 22px; text-align: center;
+    background: var(--veil); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(241, 234, 216, 0.16); border-radius: 2px; box-shadow: 0 10px 40px -20px rgba(0, 0, 0, 0.6);
+    transition: opacity 1.2s ease, visibility 1.2s;
+  }
+  #card.gone { opacity: 0; visibility: hidden; }
+  h1 { margin: 0; font-weight: 400; font-style: italic; font-size: clamp(44px, 9vw, 72px); letter-spacing: 0.01em; line-height: 1; }
+  .sub { margin: 10px 0 22px; color: var(--dim); font-size: clamp(17px, 2.6vw, 20px); line-height: 1.35; }
+  #go {
+    font: 500 18px/1 var(--serif); letter-spacing: 0.12em; text-transform: uppercase;
+    color: #171a33; background: var(--ink); border: 0; border-radius: 2px;
+    padding: 13px 30px 12px; cursor: pointer;
+  }
+  #go:hover, #go:focus-visible { background: var(--accent); }
+  #go:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  #status { margin: 16px 0 0; min-height: 1.3em; font: 500 11px/1.4 var(--mono); color: var(--dim); letter-spacing: 0.02em; }
+  .hint { margin: 6px 0 0; font: 500 10px/1.4 var(--mono); color: rgba(241, 234, 216, 0.5); }
+
+  .home {
+    position: fixed; top: max(12px, env(safe-area-inset-top)); right: 16px;
+    font: 500 11px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(241, 234, 216, 0.6); text-decoration: none; padding: 6px 2px;
+  }
+  .home:hover { color: var(--accent); }
+  #paused {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    font: italic 400 28px var(--serif); color: var(--ink); opacity: 0; pointer-events: none; transition: opacity .3s;
+  }
+  body.paused #paused { opacity: 0.9; }
+  noscript { position: fixed; bottom: 16px; left: 16px; right: 16px; font: 500 12px var(--mono); }
+</style>
+</head>
+<body>
+<div id="stage" aria-label="A city at night drawn in pen and ink, its windows lighting one per note of the music"></div>
+
+<div id="card" role="dialog" aria-labelledby="t">
+  <h1 id="t">Nocturne</h1>
+  <p class="sub">a city, lit one window per note —<br>an original piece for physically‑modelled piano</p>
+  <button id="go" type="button">Begin</button>
+  <p id="status" aria-live="polite"></p>
+  <p class="hint">sound on · space or tap to pause · about two and a half minutes</p>
+</div>
+<div id="paused">paused</div>
+<a class="home" href="../">studio</a>
+<noscript>This piece is drawn and played by JavaScript.</noscript>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js" integrity="sha384-6FJh+LJ4p/43R8LpkZjM6iDKaXx59crdjiBG6n2sioNPNXc+c2iNpBvO2bQ25nSH" crossorigin="anonymous" defer></script>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

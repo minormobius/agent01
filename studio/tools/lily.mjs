@@ -13,6 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const PIECES = [
   { slug: 'anthesis', subtitle: 'a poppy, from seed to bloom' },
   { slug: 'coquelicots', subtitle: 'a field, painted outward from one seed' },
+  { slug: 'nocturne', subtitle: 'a city, lit one window per note' },
 ];
 
 export async function generate(slug, subtitle) {

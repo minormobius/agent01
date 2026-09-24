@@ -2993,6 +2993,15 @@
    "parent": "studio"
   },
   {
+   "id": "nocturne",
+   "name": "nocturne",
+   "url": "https://studio.mino.mobi/nocturne/",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": "studio"
+  },
+  {
    "id": "poll/evaluation.html",
    "name": "evaluation",
    "url": "https://poll.mino.mobi/evaluation.html",

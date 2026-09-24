@@ -4466,6 +4466,23 @@
         "wasm",
         "generative"
       ]
+    },
+    {
+      "n": "nocturne",
+      "u": "https://studio.mino.mobi/nocturne/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A city at night in pen and ink, lit one window per note: time runs along the street and pitch up the towers, so the skyline is the melody and the bass lights the lamps on the quay. At the end the city folds into rows, and the lit windows are the whole score.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
     }
   ],
   "notListed": [

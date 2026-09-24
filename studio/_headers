@@ -5,3 +5,6 @@
 /coquelicots/score.ly
   Access-Control-Allow-Origin: https://clef.mino.mobi
   Content-Type: text/plain; charset=utf-8
+/nocturne/score.ly
+  Access-Control-Allow-Origin: https://clef.mino.mobi
+  Content-Type: text/plain; charset=utf-8

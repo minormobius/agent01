@@ -158,6 +158,45 @@ const sliced = samples.every((mk, si) => {
 });
 ok(sliced, 'wash, widening wash, bristle and ink draw the same geometry in slices as at once');
 
+// 5b — Nocturne ---------------------------------------------------------------------
+console.log('\nNocturne');
+const N = await import('../nocturne/score.js');
+const { buildCity, GROUND, colX } = await import('../nocturne/city.js');
+ok(N.events.length > 200 && N.events.every((e, i) => i === 0 || e.at >= N.events[i - 1].at), `${N.events.length} notes, sorted`);
+ok(N.events.every((e) => e.midi >= 21 && e.midi <= 108 && e.velocity > 0 && e.velocity <= 1), 'every note on the keyboard, velocity in (0, 1]');
+const ncity = buildCity();
+ok(ncity.buildings.length === N.BARS, `one building per bar (${ncity.buildings.length})`);
+// Every note is a window in its own building, at its beat and floor; the notes
+// under the city are lamps. None is lost, none lands outside a wall.
+const above = N.written.filter((w) => w.midi >= GROUND), below = N.written.filter((w) => w.midi < GROUND);
+const winKeys = new Set(ncity.buildings.flatMap((b) => b.windows.map((w) => `${b.bar}:${w.col}:${w.floor}`)));
+const noteKeys = new Set(above.map((w) => { const on = w.written ?? w.beat; const bar = Math.floor(on / 4) + 1; return `${bar}:${Math.min(7, Math.floor((on - (bar - 1) * 4) * 2 + 1e-6))}:${w.midi - GROUND}`; }));
+ok([...noteKeys].every((k) => winKeys.has(k)) && winKeys.size === noteKeys.size, `every note above E2 is a window (${winKeys.size} windows)`);
+ok(ncity.buildings.every((b) => b.windows.every((w) => w.col >= 0 && w.col < 8 && w.floor >= 0 && w.floor < b.floors && colX(b, w.col) > b.x0 && colX(b, w.col) < b.x1)), 'every lit window is inside its building, below its roof');
+ok(ncity.lamps.length === below.length && below.length > 0, `every note below the city is a lamp on the quay (${below.length})`);
+ok(ncity.buildings.every((b) => b.drawTo <= N.sec(b.start) + 1.9 && b.windows.every((w) => w.at >= b.drawFrom)), 'the pen finishes each building by its downbeat, and no window lights before its building is begun');
+ok(N.cues.melody < N.cues.summit && N.cues.summit < N.cues.ret && N.cues.ret < N.cues.coda && N.cues.coda < N.cues.last && N.cues.last < N.cues.end, 'the cues run in order');
+// Bar 22 is where the melody peaks, so it is the tallest tower of the piece
+// proper; the one note higher is the last star, alone atop the last building.
+const body = ncity.buildings.slice(0, 36);
+ok(Math.max(...body.map((b) => b.floors)) === ncity.buildings[21].floors && ncity.buildings[37].windows.length === 1,
+  'bar 22, where the melody peaks, is the tallest tower; bar 38 holds only the last star');
+{
+  const q = begin(X, N.events, SR);
+  const qp = [];
+  let c2;
+  while ((c2 = q.pull())) qp.push(c2);
+  const pcm2 = new Float32Array(qp.reduce((a2, p) => a2 + p.length, 0));
+  let o = 0;
+  for (const p of qp) { pcm2.set(p, o); o += p.length; }
+  const lv = (a2, b2) => { let s2 = 0, k = 0; for (let i = Math.floor(a2 * SR) * 2; i < Math.min(pcm2.length, Math.floor(b2 * SR) * 2); i++) { s2 += pcm2[i] * pcm2[i]; k++; } return 10 * Math.log10(s2 / Math.max(1, k) + 1e-12); };
+  const secs2 = N.notation.sections.map(([bar, nm]) => [nm, N.sec((bar - 1) * 4)]);
+  const levels2 = secs2.map(([nm, a2], k) => [nm, lv(a2, secs2[k + 1]?.[1] ?? N.cues.end)]);
+  const loud = levels2.reduce((a2, b2) => (b2[1] > a2[1] ? b2 : a2));
+  let finite2 = true; for (const v of pcm2) if (!Number.isFinite(v)) { finite2 = false; break; }
+  ok(finite2 && loud[0] === 'the city at full height', `the B-flat minor climb is the loudest section: ${levels2.map(([nm, v]) => `${nm} ${v.toFixed(1)}`).join(', ')}`);
+}
+
 // 6 — the scores clef opens -----------------------------------------------------
 console.log('\nScores (View the score -> clef)');
 const { parseLily } = await import('../../clef/src/lily.js');

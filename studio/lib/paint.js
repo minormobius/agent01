@@ -329,7 +329,8 @@ export class Painter {
     c.setTransform(1, 0, 0, 1, 0, 0);
     c.globalCompositeOperation = 'source-over';
     c.globalAlpha = 1;
-    c.drawImage(this.paper, 0, 0);
+    if (this.paper) c.drawImage(this.paper, 0, 0);
+    else c.clearRect(0, 0, this.canvas.width, this.canvas.height);   // a transparent layer
     this.next = 0; this.active = []; this.done = new Map(); this.t = -Infinity;
   }
   advance(t) {
