@@ -60,7 +60,10 @@ const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed+
   const legs = [0, 0.5, 1].map((l) => measure({ legs: l }).hipY);
   ok(legs[0] < legs[1] && legs[1] < legs[2], 'the legs bias lengthens the legs');
   const w = [0, 1].map((b) => measure({ build: b }));
-  ok(w[1].shoulderHalf > w[0].shoulderHalf && w[1].pelvis.r[0] < w[0].pelvis.r[0], 'build: broad shoulders and narrow hips at 1, the reverse at 0');
+  ok(w[1].shoulderHalf > w[0].shoulderHalf && w[1].pelvis.r[0] === w[0].pelvis.r[0], 'build: broader shoulders at 1, the hips untouched (the hips are femme\'s)');
+  const fm = [0, 1].map((fe) => measure({ femme: fe }));
+  ok(fm[1].pelvis.r[0] > fm[0].pelvis.r[0] && fm[1].belly.r[0] < fm[0].belly.r[0] && fm[1].shoulderHalf < fm[0].shoulderHalf && fm[1].bust && !fm[0].bust,
+    'femme: wider hips, a drawn-in waist, narrower shoulders, a bust');
   ok(Math.abs(measure({ heads: 8.5 }).shoulderHalf / measure({ heads: 7 }).shoulderHalf - 1) < 0.06, 'a taller figure in heads is longer, not wider');
 }
 

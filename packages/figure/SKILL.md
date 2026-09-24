@@ -34,6 +34,34 @@ A spec inline works anywhere a path does: `node agent/check.mjs '{"heads":3}'`.
 `{ heads, build, legs, mass, headWidth, neck }` — see `README.md`. One unit is
 one head height; y is up, the figure faces +z, its left is +x.
 
+## Masculine and feminine forms
+
+`femme` (0..1) carries the anatomical shifts of a feminine frame: a narrower
+ribcage and shoulders, a waist drawn in, a wider pelvis whose widest point drops
+to the hip joints, fuller glutes and thighs, a finer neck, arms, hands and feet,
+and a bust. `bust`, `waist` and `hips` (0..1, defaulting from `femme`) vary the
+form within that: `specs/` has petite, curvy, athletic, model and plus, beside
+the masculine chibi, teen, adult, heroic and fashion. `build` is shoulders and
+muscle only; it no longer touches the hips.
+
+The silhouette checks (from 5 heads up) read the form off the front view with
+the arms left out: a feminine waist-to-hip ratio under 0.8 and hips as wide as the
+ribcage; a masculine WHR over 0.83 and shoulders wider than the hips.
+
+## Hair
+
+`"hair": { "length": "shoulder", "bangs": "blunt", "tails": "twintails", "color": "pink", "extras": ["ahoge"] }`
+
+length: `short` `bob` `shoulder` `long` `waist` · bangs: `blunt` `swept` `parted` `spiky` `none` ·
+tails: `none` `twintails` `ponytail` `bun` `buns` · extras: `ahoge` `sidelocks` ·
+color: `black` `brown` `chestnut` `blonde` `pink` `silver` `blue` `red` `green` `purple` `orange` `white`.
+
+A cap cut at the hairline, then locks: chains stiff at the root and giving way to
+gravity (and to the head's acceleration while walking) toward the tip, each point
+pushed off the skin by its radius. Long hair adds a sheet behind the locks. The
+hair checks: off the head and body, the eyes visible through the bangs (rays at
+each eye), symmetric styles exactly mirror-symmetric, and the locks hang.
+
 ## The face
 
 A face is IDENTITY (in the spec) × EXPRESSION (in the pose), both from a small

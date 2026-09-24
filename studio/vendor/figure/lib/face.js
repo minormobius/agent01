@@ -165,7 +165,12 @@ export function browFloor(p, open, x) {
   // the lid point whose face position is at x: the eye is tilted, so solve for its own x
   const c = Math.cos(p.tilt), sn = Math.sin(p.tilt), o = Math.max(open, 0.6);
   const top = (qx) => lids(p, o, Math.max(-1, Math.min(1, qx / p.eyeW))).yU;
-  let qx = x;
-  for (let i = 0; i < 4; i++) qx = (x + sn * top(qx)) / c;
-  return p.eyeLine + sn * qx + c * top(qx) + 0.03 * p.lash + 0.018;
+  const at = (x0) => {
+    let qx = x0;
+    for (let i = 0; i < 4; i++) qx = (x0 + sn * top(qx)) / c;
+    return p.eyeLine + sn * qx + c * top(qx);
+  };
+  // the lid's envelope near x: it climbs steeply just inside the corners
+  const d = p.eyeW * 0.12;
+  return Math.max(at(x - d), at(x), at(x + d)) + 0.03 * p.lash + 0.018;
 }

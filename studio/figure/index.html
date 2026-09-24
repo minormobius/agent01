@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Mannequin</title>
-<meta name="description" content="A figure built from its measurements in head units, with an anime face built from predicates: pose it, turn it, walk it, change its build from chibi to fashion, its eyes from tsurime to jito-me, its mood from a smile to a shout — and watch the checks that hold it up.">
+<meta name="description" content="A cast of characters built from measurements in head units, masculine and feminine forms from chibi to fashion, with anime faces and hair built from predicates: pose it, turn it, walk it, change its build from chibi to fashion, its eyes from tsurime to jito-me, its mood from a smile to a shout — and watch the checks that hold it up.">
 <meta property="og:title" content="Mannequin — studio">
 <meta property="og:description" content="A figure built from head units, posed by intent, drawn in anime ink — and checked: planted feet never slide, no limb passes through another.">
 <meta property="og:image" content="https://studio.mino.mobi/figure/og.jpg">
@@ -40,6 +40,10 @@
   label.sl { display: grid; grid-template-columns: 58px 1fr 34px; align-items: center; gap: 6px; font: 500 11px var(--mono); color: var(--dim); }
   label.sl output { text-align: right; color: var(--ink); }
   input[type=range] { width: 100%; accent-color: var(--ink); }
+  #tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: -2px -4px 2px; }
+  button.tab { border: 0; background: none; padding: 8px 10px; font: 600 12px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent; }
+  button.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
+  #content { display: grid; gap: 8px; min-height: 92px; }
   noscript { position: fixed; top: 80px; left: 16px; right: 16px; font: 13px var(--mono); }
 </style>
 </head>
@@ -48,13 +52,8 @@
 <header><h1>Mannequin</h1><a href="../">studio</a></header>
 <div id="badge" aria-live="polite"></div>
 <div id="panel">
-  <div class="row" id="poses"><span class="lab">pose</span></div>
-  <div class="row" id="presets"><span class="lab">body</span></div>
-  <div class="row" id="eyes"><span class="lab">eyes</span></div>
-  <div class="row" id="feel"><span class="lab">feel</span></div>
-  <div class="row" id="iris"><span class="lab">marks</span></div>
-  <div class="sliders" id="sliders"></div>
-  <div class="row" id="view"><span class="lab">show</span></div>
+  <div id="tabs" role="tablist"></div>
+  <div id="content"></div>
 </div>
 <noscript>This page draws with WebGL2 and JavaScript.</noscript>
 <script type="module" src="./main.js"></script>

@@ -1,1 +1,1 @@
-{"name": "fashion", "heads": 8.5, "build": 0.1, "legs": 1, "mass": 0.2, "headWidth": 0.76, "neck": 0.9, "face": {"eyes": "tsurime", "brows": "thin", "lashes": "heavy", "irisColor": "red", "extras": ["mole"]}}
+{"name": "fashion", "heads": 8.5, "build": 0.1, "legs": 1, "mass": 0.2, "headWidth": 0.76, "neck": 0.9, "face": {"eyes": "tsurime", "brows": "thin", "lashes": "heavy", "irisColor": "red", "extras": ["mole"]}, "hair": {"length": "bob", "bangs": "swept", "color": "silver"}}

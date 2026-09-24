@@ -69,6 +69,46 @@ Faults found and fixed:
   terminator sits past the light's 90°.
 - **The cheek dented** where the skull met the jaw: fixed with a cheek mass.
 
+## Masculine and feminine forms (2026-09-24)
+
+`femme`, `bust`, `waist`, `hips` in proportion.js; breasts and glutes in body.js.
+The silhouette check (`checkSilhouette`) was written to make "reads as feminine"
+a number, and it caught the male figures as well: they had a pinched waist (WHR
+0.68, where a real man is ~0.9). They read as male only by their square shoulders
+and flat chest. The pinch was between the belly and pelvis masses, below where a
+waist belongs, so the masculine belly now reaches down to the pelvis, and the
+feminine one stays short so its pinch sits at the natural waist. Two more fixes
+came out of it:
+- A wide hip's cap (the socket the thigh sits in) runs well down the thigh, and
+  the interpenetration check called that a leg through the torso. A limb is now
+  measured against the body WITHOUT its own socket (hip cap, deltoid).
+- The ink drew a line wherever two groups met at 37°, so every hip looked like
+  shorts. Seams are inked only past ~52°.
+
+## Hair (2026-09-24)
+
+hair.js designs it (cap, bangs, sidelocks, back curtain, tails, buns, ahoge),
+and buildHair drapes it on the solved pose. It becomes four more groups (`hair`,
+`hair_back`, `tail_l`, `tail_r`). A new primitive, CAPPED (an ellipsoid cut by a
+plane), gives the hairline. A 7th texel per primitive carries a bounding sphere,
+and the shader skips a primitive the ray is far from, so ~150 more primitives
+cost little. Lessons:
+- **Only a lock's root blends.** Smooth-blending consecutive segments bulges at
+  every joint (the union of two overlapping pieces, then some), and the ring
+  highlight turned each bulge into a ripple. Segments meet with a hard min;
+  locks meet each other hard too, which is where anime draws the lines between
+  clumps anyway.
+- **Tips end in wedges** (radius ≥ 0.016): a tip thinner than the ink is drawn
+  as a black drip.
+- **Long hair is a sheet** of flattened ellipsoids behind the locks, or it
+  reads as strings.
+- **Symmetry again.** The check found four styles off by 0.004–0.07. The causes
+  were a twin tail's spread not mirrored, a parted fringe's centre lock pushed to
+  one side, a spiky fringe varied by index, and, as with the shoulders, the blend
+  order: locks are built centre-outward on both sides. Now exact to 1e-14.
+- Hair has no mass: the balance solver leaves it out, or a lopsided fringe
+  shifts the pelvis. The body checks measure the body without its hair.
+
 ## Not done yet (the next layers)
 
 Hair

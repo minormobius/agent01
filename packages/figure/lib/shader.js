@@ -14,6 +14,7 @@
 
 import { pack, groupBounds, TEXELS, GROUPS } from './body.js';
 import { packFace } from './face.js';
+import { hairColors } from './hair.js';
 import { cross, norm, sub, add, scale } from './vec.js';
 
 const VS = `#version 300 es
@@ -56,7 +57,9 @@ float prim(int i, vec3 p){
   vec4 t0 = T(i, 0), t1 = T(i, 1), t2 = T(i, 2);
   if (t2.x < 0.5) return sdRoundCone(p, t0.xyz, t1.xyz, t0.w, t1.w);
   vec4 t3 = T(i, 3), t4 = T(i, 4), t5 = T(i, 5);
-  return sdEll(p, t0.xyz, t3.xyz, t4.xyz, t5.xyz, vec3(t3.w, t4.w, t5.w));
+  float d = sdEll(p, t0.xyz, t3.xyz, t4.xyz, t5.xyz, vec3(t3.w, t4.w, t5.w));
+  if (t2.x > 1.5) d = max(d, dot(p - t0.xyz, t1.xyz) - t1.w);     // capped: cut by a plane (the hairline)
+  return d;
 }
 // the body: smooth within a group, hard between; returns (distance, group)
 vec2 map(vec3 p){
@@ -70,7 +73,12 @@ vec2 map(vec3 p){
     // centre parts, then each side blended onto the centre (see body.js)
     float c = 1e9, dl = 1e9, dr = 1e9; bool sided = false;
     for (int i = gr[gi].x; i < gr[gi].y; i++) {
-      vec4 t2 = T(i, 2); float di = prim(i, p);
+      vec4 t2 = T(i, 2);
+      // a primitive the point is far from cannot change the blend: skip it (its bounding sphere says so)
+      vec4 bs = T(i, 6);
+      float near = t2.w == 0.0 ? c : (t2.w > 0.0 ? dl : dr);
+      if (length(p - bs.xyz) - bs.w > min(near, best) + t2.z + 0.02) continue;
+      float di = prim(i, p);
       if (t2.w == 0.0) { c = smin(c, di, t2.z); dl = c; dr = c; }
       else if (t2.w > 0.0) { sided = true; dl = smin(dl, di, t2.z); }
       else { sided = true; dr = smin(dr, di, t2.z); }
@@ -155,9 +163,13 @@ vec2 faceAt(vec3 l, float facing){
   if (abs(bs) < 1.0) {
     float yb = fp[18] * 0.025 * (1.0 - bs * bs) - fp[16] * 0.035 * (1.0 - bs) * 0.5 + sn * b.x;
     // never into the eye: at least a lash and a gap above the lid (face.js browFloor)
-    float fx = b.x + 0.01, qx = fx, o6 = max(open, 0.6);
-    for (int i = 0; i < 4; i++) qx = (fx + sn * lidsAt(o6, clamp(qx / W, -1.0, 1.0)).x) / c;
-    float floorY = fp[1] + sn * qx + c * lidsAt(o6, clamp(qx / W, -1.0, 1.0)).x + 0.03 * lash + 0.018;
+    float fx = b.x + 0.01, o6 = max(open, 0.6), lidTop = -1e9;
+    for (int j = -1; j <= 1; j++) {                    // the lid's envelope near fx (face.js browFloor)
+      float x0 = fx + float(j) * W * 0.12, qx = x0;
+      for (int i = 0; i < 4; i++) qx = (x0 + sn * lidsAt(o6, clamp(qx / W, -1.0, 1.0)).x) / c;
+      lidTop = max(lidTop, fp[1] + sn * qx + c * lidsAt(o6, clamp(qx / W, -1.0, 1.0)).x);
+    }
+    float floorY = lidTop + 0.03 * lash + 0.018;
     yb = max(yb, floorY - (fp[1] + H * 0.62 + 0.05 + fp[15]));
     float tb = max(fp[17] * (0.014 - 0.007 * (bs + 1.0) * 0.5) * smoothstep(1.0, 0.75, abs(bs)), px * 0.6);
     if (abs(b.y - yb) < tb) return vec2(9.0, 0.0);
@@ -276,7 +288,7 @@ vec2 inkAt(vec2 q){
       // an overlap (a jump in depth) draws on its far side; where two groups meet
       // in a fold (the armpit, the groin) the seam is inked, where they merge flat it is not
       bool jump = abs(si.z - c.z) > 0.004;
-      bool fold = di != id && dot(N(si), N(c)) < 0.8;
+      bool fold = di != id && dot(N(si), N(c)) < 0.62;
       if (di > 0.0 && (jump || fold) && c.z > si.z - 0.0005) ink = 1.0;
       vec4 sc = G(q + d * px * wCrease);
       if (gid(sc) == id && dot(N(sc), N(c)) < 0.55 && abs(sc.z - c.z) < 0.004) ink = max(ink, 0.8);
@@ -312,6 +324,12 @@ vec3 tone(vec2 q){
   float rim = smoothstep(0.62, 0.8, 1.0 - n.z) * smoothstep(-0.2, 0.3, dot(n.xy, -light.xy)) ;
   col = mix(col, base[gi] * 1.08 + 0.04, rim * 0.55 * (1.0 - lit));   // a warm rim on the shadow side
   if (gi == 1) col = faceTone(col, texture(fm, q));
+  if (gi >= 6) {
+    // the angel ring: a band of light across the upper curve of the hair, its edges cut in zigzags
+    float zig = 0.035 * sin(q.x * 160.0);
+    float band = smoothstep(0.36 + zig, 0.39 + zig, n.y) * (1.0 - smoothstep(0.5 + zig, 0.53 + zig, n.y)) * smoothstep(0.45, 0.7, n.z);
+    col = mix(col, mix(base[gi], vec3(1.0), 0.45), band * lit);
+  }
   return col;
 }
 void main(){
@@ -423,7 +441,8 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
     gl.uniform2f(U(pi, 'px'), 1 / gw, 1 / gh);
     const L = norm(style.light); gl.uniform3f(U(pi, 'light'), ...L);
     GROUPS.forEach((name, i) => {
-      const [b, s] = style.groups?.[name] || [style.skin, style.skinShade];
+      const hc = P.hair ? hairColors(P.hair) : null;
+      const [b, s] = style.groups?.[name] || (hc && i >= 6 ? [hc.base, hc.shade] : [style.skin, style.skinShade]);
       gl.uniform3f(U(pi, `base[${i}]`), ...hex(b)); gl.uniform3f(U(pi, `shade[${i}]`), ...hex(s));
     });
     gl.uniform3f(U(pi, 'inkC'), ...hex(style.ink)); gl.uniform3f(U(pi, 'paper'), ...hex(style.paper));

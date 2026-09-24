@@ -126,7 +126,14 @@ export function walk(rig, t, opt = {}) {
   const { w, yaw, roll, x } = pelvisAt(rig, t, o, T);
   const y = sampleTable(heightTable(rig, o), t);
   const pelvisZ = speed * t;
+  // the hair lags the body: the pelvis's acceleration a moment ago (finite differences
+  // of the same analytic motion, so the walk stays a pure function of t)
+  const at = (tt) => { const q = pelvisAt(rig, tt, o, T); return [q.x, sampleTable(heightTable(rig, o), tt), speed * tt]; };
+  const lag = 0.12, h = 0.02, t0 = t - lag;
+  const a0 = at(t0 - h), a1 = at(t0), a2 = at(t0 + h);
+  const hairAccel = [0, 1, 2].map((k) => (a2[k] - 2 * a1[k] + a0[k]) / (h * h));
   const pose = {
+    hairAccel,
     root: { pos: [x, y, pelvisZ], yaw, roll },
     spine: { twist: -2.2 * yaw, bend: 0.05 },
     lookAt: [0, m.chin + 0.3, pelvisZ + 40],

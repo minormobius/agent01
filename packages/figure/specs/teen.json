@@ -1,1 +1,1 @@
-{"name": "teen", "heads": 5.8, "build": 0.25, "legs": 0.7, "mass": 0.3, "headWidth": 0.82, "face": {"eyes": "tareme", "brows": "arched", "irisColor": "green", "extras": ["blush"]}}
+{"name": "teen", "heads": 5.8, "build": 0.25, "legs": 0.7, "mass": 0.3, "headWidth": 0.82, "face": {"eyes": "tareme", "brows": "arched", "irisColor": "green", "extras": ["blush"]}, "hair": {"length": "short", "bangs": "spiky", "color": "blonde"}}

@@ -27,7 +27,8 @@ try {
     const { POSES } = await import('./lib/poses.js');
     const { makeRenderer, camera } = await import('./lib/shader.js');
     const out = [];
-    for (const [spec, pose, yaw] of [[{}, 'handOnHip', 0.4], [{ heads: 3, build: 0.3, mass: 0.7, headWidth: 0.9 }, 'crouch', 1.0], [{ heads: 8.2, build: 0.95 }, 'run', 1.3]]) {
+    for (const [spec, pose, yaw] of [[{}, 'handOnHip', 0.4], [{ heads: 3, build: 0.3, mass: 0.7, headWidth: 0.9 }, 'crouch', 1.0], [{ heads: 8.2, build: 0.95 }, 'run', 1.3],
+      [{ femme: 1, bust: 0.7, hips: 0.8, face: {}, hair: { length: 'long', bangs: 'blunt', tails: 'twintails', extras: ['ahoge'] } }, 'contrapposto', 2.4]]) {
       const rig = makeRig(spec);
       const P = solve(rig, POSES[pose](rig));
       const prims = buildBody(P);
@@ -54,7 +55,7 @@ try {
         if (js && gpu) { inter++; both++; if (g.ids[y * g.w + x] - 1 === hit) sameGroup++; }
         if (js || gpu) uni++;
       }
-      out.push({ pose, heads: rig.m.H, iou: inter / uni, groups: sameGroup / both, px: uni });
+      out.push({ pose: spec.hair ? `${pose} (femme, long hair, twin tails)` : pose, heads: rig.m.H, iou: inter / uni, groups: sameGroup / both, px: uni });
     }
     return out;
   });

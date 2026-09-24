@@ -54,6 +54,7 @@ export function settle(rig, pose, straight = 0.985) {
 export function centreOfMass(prims) {
   let M = 0, c = [0, 0, 0];
   for (const q of prims) {
+    if (q.group >= 6) continue;                 // hair weighs next to nothing: it does not move the balance
     let vol, p;
     if (q.type === 0) { const L = len(sub(q.a, q.b)); vol = (Math.PI * L * (q.ra * q.ra + q.ra * q.rb + q.rb * q.rb)) / 3 + (2 / 3) * Math.PI * (q.ra ** 3 + q.rb ** 3); p = lerp3(q.a, q.b, 0.5); }
     else { vol = (4 / 3) * Math.PI * q.r[0] * q.r[1] * q.r[2]; p = q.a; }
@@ -120,15 +121,26 @@ export const ROOTS = new Set(['upper_l0', 'upper_r0', 'thigh_l0', 'thigh_r0']);
  * count, not ones buried in its own blend.
  */
 export function interpenetration(prims, only = null) {
+  // a limb's own socket (the hip cap a thigh sits in, the deltoid an arm hangs
+  // from) wraps the limb by design: measure each limb against the body without it
+  const SOCKET = { leg_l: 'hipcap_l', leg_r: 'hipcap_r', arm_l: 'deltoid_l', arm_r: 'deltoid_r' };
+  const without = new Map();
+  const bodyFor = (g) => {
+    const sock = SOCKET[GROUPS[g]];
+    if (!sock) return prims;
+    if (!without.has(g)) without.set(g, prims.filter((q) => q.name !== sock));
+    return without.get(g);
+  };
   let worst = { depth: 0 };
   for (const q of prims) {
     if (ROOTS.has(q.name)) continue;
-    if (only ? !only.includes(q.group) : (q.group === gi('torso') || q.group === gi('head'))) continue;
+    if (only ? !only.includes(q.group) : (q.group === gi('torso') || q.group === gi('head') || gi('hair') <= q.group)) continue;
+    const body = bodyFor(q.group);
     for (const p of surfacePoints(q)) {
-      const gd = groupDists(prims, p);
+      const gd = groupDists(body, p);
       if (gd[q.group] > 0.01) continue;
       gd.forEach((d, g) => {
-        if (g === q.group) return;
+        if (g === q.group || (!only && g >= gi('hair'))) return;     // (limbs may pass through hair: it is soft)
         if (-d > worst.depth) worst = { depth: -d, part: q.name, into: GROUPS[g] };
       });
     }
@@ -145,7 +157,7 @@ function armClearance(rig, pose, s) {
     for (const p of surfacePoints(q, 8)) {
       const gd = groupDists(prims, p);
       if (gd[arm] > 0.01) continue;
-      gd.forEach((d, g) => { if (g !== arm) worst = Math.min(worst, d); });
+      gd.forEach((d, g) => { if (g !== arm && g < gi('hair')) worst = Math.min(worst, d); });
     }
   }
   return worst;

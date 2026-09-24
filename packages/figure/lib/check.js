@@ -44,7 +44,7 @@ function lowest(prims, P) {
 export function checkProportion(spec) {
   const rig = makeRig(spec), m = rig.m;
   const P = solve(rig, POSES.stand(rig));
-  const prims = buildBody(P);
+  const prims = buildBody(P).filter((q) => q.group < GROUPS.indexOf('hair'));   // the body, not its hair (checkHair has that)
   const crown = surfaceTop(prims, P.J.crown[0], P.J.headPivot[2] - 0.02);
   const sole = lowest(prims, P);
   let asym = 0;
@@ -124,6 +124,7 @@ export function checkWalk(spec, { frames = 96, cycles = 2, opt = {} } = {}) {
 export function centreOfMass(prims) {
   let M = 0, c = [0, 0, 0];
   for (const q of prims) {
+    if (q.group >= 6) continue;                 // hair weighs next to nothing: it does not move the balance
     let vol, p;
     if (q.type === CONE) { const L = dist(q.a, q.b); vol = (Math.PI * L * (q.ra * q.ra + q.ra * q.rb + q.rb * q.rb)) / 3 + (2 / 3) * Math.PI * (q.ra ** 3 + q.rb ** 3); p = lerp3(q.a, q.b, 0.5); }
     else { vol = (4 / 3) * Math.PI * q.r[0] * q.r[1] * q.r[2]; p = q.a; }
@@ -190,8 +191,9 @@ export function checkPoses(spec) {
 }
 
 export function checkAll(spec) {
-  const out = { proportion: checkProportion(spec), walk: checkWalk(spec), poses: checkPoses(spec) };
+  const out = { proportion: checkProportion(spec), silhouette: checkSilhouette(spec), walk: checkWalk(spec), poses: checkPoses(spec) };
   if (spec.face) out.face = checkFace(spec);
+  if (spec.hair) out.hair = checkHair(spec);
   return out;
 }
 
@@ -229,7 +231,8 @@ export function checkFace(spec) {
       for (const [bu, bv] of browLine(p, side, 40)) {
         let near = null;
         for (const t of top) if (!near || Math.abs(t[0] - bu) < Math.abs(near[0] - bu)) near = t;
-        if (Math.abs(near[0] - bu) < p.eyeW * 0.3) { const gap = bv - near[1] - 0.03 * p.lash; if (gap < worstBrow) { worstBrow = gap; where.brow = ex; } }
+        const us = top.map(([u]) => u), over = bu >= Math.min(...us) && bu <= Math.max(...us);   // only where the brow is over the eye
+        if (over && Math.abs(near[0] - bu) < p.eyeW * 0.3) { const gap = bv - near[1] - 0.03 * p.lash; if (gap < worstBrow) { worstBrow = gap; where.brow = ex; } }
       }
     }
     const inner = Math.min(...eyeOutline(p, 1).top.map(([u]) => u), ...eyeOutline(p, 1).bot.map(([u]) => u));
@@ -244,4 +247,112 @@ export function checkFace(spec) {
     r('face: brows clear the eyes', worstBrow > 0.01, +worstBrow.toFixed(3), '> 0.01 heads, every expression', where.brow ? `closest: ${where.brow}` : ''),
     r('face: mouth between nose and chin', mouthOk, mouthOk ? 'yes' : 'no', 'every expression', where.mouth || ''),
   ];
+}
+
+// ---- the silhouette ------------------------------------------------------------------
+
+/** The body's front-view width at height y, arms left out: torso and legs only. */
+export function widthAt(prims, y) {
+  const keep = new Set(['torso', 'leg_l', 'leg_r'].map((g) => GROUPS.indexOf(g)));
+  const qs = prims.filter((q) => keep.has(q.group));
+  // the nearest the body comes to the line x = X at height y, over its depth
+  const near = (X) => { let d = Infinity; for (let z = -0.9; z <= 0.9; z += 0.04) d = Math.min(d, sdf(qs, [X, y, z])); return d; };
+  // march in from each side, by the distance field's own step
+  const edge = (dir) => { let x = 2.5 * dir; for (let i = 0; i < 200; i++) { const d = near(x); if (d < 0.004) return x; x -= dir * Math.max(d * 0.9, 0.004); if (x * dir < 0) return 0; } return x; };
+  return edge(1) - edge(-1);
+}
+
+/**
+ * Waist, hips and shoulders read off the silhouette, and whether they say what
+ * the spec says: a feminine frame has a waist well in from its hips (a
+ * waist-to-hip ratio under 0.8) and hips about as wide as its ribcage; a
+ * masculine one has almost no waist (over 0.83) and shoulders wider than
+ * its hips.
+ */
+export function checkSilhouette(spec) {
+  const rig = makeRig(spec), m = rig.m;
+  const P = solve(rig, POSES.stand(rig));
+  const prims = buildBody(P);
+  const scan = (a, b, pick) => { let best = null; for (let y = a; y <= b; y += 0.02 * m.k) { const w = widthAt(prims, y); if (!best || pick(w, best.w)) best = { y, w }; } return best; };
+  const waist = scan(rig.waistY - 0.35 * m.k, rig.chestY - 0.2 * m.k, (a, b) => a < b);
+  const hip = scan(m.hipY - 0.45 * m.k, rig.waistY - 0.2 * m.k, (a, b) => a > b);
+  const chest = widthAt(prims, rig.chestY);
+  const shoulders = widthAt(prims, m.shoulderY - 0.12 * m.k);        // across the deltoids (the arms left out)
+  const whr = waist.w / hip.w, hc = hip.w / chest, sh = shoulders / hip.w;
+  const fe = m.spec.femme;
+  const out = [r('silhouette: waist and hips measured', waist.w > 0 && hip.w > waist.w * 0.9, `waist ${waist.w.toFixed(2)} · hips ${hip.w.toFixed(2)} · ribcage ${chest.toFixed(2)}`, 'heads, front view, arms left out')];
+  // children, and chibi drawn like them, do not differ by sex in silhouette: judge from 5 heads up
+  if (m.H < 5) return out;
+  if (fe >= 0.6) {
+    out.push(r('silhouette: a feminine waist (WHR)', whr < 0.8, +whr.toFixed(3), '< 0.8'));
+    out.push(r('silhouette: hips as wide as the ribcage', hc > 0.92, +hc.toFixed(3), '> 0.92 (hips / ribcage)'));
+  } else if (fe <= 0.1) {
+    out.push(r('silhouette: a masculine waist (WHR)', whr > 0.83, +whr.toFixed(3), '> 0.83'));
+    out.push(r('silhouette: shoulders wider than the hips', sh > 1.05, +sh.toFixed(3), '> 1.05 (shoulders / hips)'));
+  }
+  return out;
+}
+
+// ---- hair ----------------------------------------------------------------------------
+import { HAIR_GROUPS } from './body.js';
+import { buildHair } from './hair.js';
+import { eyeOutline as _eyes } from './face.js';
+
+/**
+ * The hair, on a standing figure: kept off the skin, clear of the eyes (the
+ * bangs frame them, they do not cover them), mirror-symmetric when the style
+ * is, and hanging where it should.
+ */
+export function checkHair(spec) {
+  const rig = makeRig({ ...spec, face: spec.face || {} }), m = rig.m;
+  const P = solve(rig, POSES.stand(rig));
+  const prims = buildBody(P);
+  const hair = prims.filter((q) => HAIR_GROUPS.has(q.group));
+  const skin = prims.filter((q) => q.group === GROUPS.indexOf('head') || q.group === GROUPS.indexOf('torso'));
+  const out = [];
+  // 1. off the skin: every lock point (but the roots, which grow from it) outside the head and torso
+  let deepest = 0, where = '';
+  for (const q of hair) {
+    if (q.type !== CONE || /_0$/.test(q.name)) continue;
+    for (const p of [q.b, lerp3(q.a, q.b, 0.5)]) { const d = sdf(skin, p) - q.rb; if (-d > deepest) { deepest = -d; where = q.name; } }
+  }
+  out.push(r('hair: off the head and body', deepest < 0.02, +deepest.toFixed(3), '< 0.02 heads', where));
+  // 2. the eyes seen through the bangs: straight-on rays at each eye's iris and corners hit the face first
+  const O = P.J.headPivot, F = P.F.head, pu = m.head.pivotUp;
+  let blocked = 0, total = 0;
+  for (const side of [1, -1]) {
+    const o = _eyes(P.face, side, 8);
+    const pts = [o.top[4], o.bot[4], o.top[2], o.top[6], [(o.top[4][0] + o.bot[4][0]) / 2, (o.top[4][1] + o.bot[4][1]) / 2]];
+    for (const [u, v] of pts) {
+      total++;
+      const start = add(O, apply(F, [u, v - pu, 1.5]));
+      let t = 0, hitHair = false;
+      for (let i = 0; i < 300; i++) {
+        const p = add(start, scale(F.z, -t));
+        const dh = sdf(hair, p), ds = sdf(skin, p);
+        if (dh < 1e-3) { hitHair = true; break; }
+        if (ds < 1e-3) break;
+        t += Math.max(1e-3, Math.min(dh, ds) * 0.9);
+        if (t > 3) break;
+      }
+      if (hitHair) blocked++;
+    }
+  }
+  out.push(r('hair: the eyes show through the bangs', blocked === 0, `${total - blocked}/${total} eye points visible`, 'all'));
+  // 3. symmetric styles are symmetric
+  const asymStyle = spec.hair.bangs === 'swept' || (spec.hair.extras || []).includes('ahoge');
+  if (!asymStyle) {
+    let worst = 0;
+    for (let i = 0; i < 600; i++) {
+      const p = add(O, [((i * 37) % 41) / 41 * 2 - 1, ((i * 13) % 53) / 53 * 3 - 2.2, ((i * 7) % 29) / 29 * 1.4 - 0.7]);
+      worst = Math.max(worst, Math.abs(sdf(hair, p) - sdf(hair, [2 * O[0] - p[0], p[1], p[2]])));
+    }
+    out.push(r('hair: a symmetric style is mirror-symmetric', worst < 1e-3, +worst.toExponential(1), '< 1e-3'));
+  }
+  // 4. hanging locks end below where they start
+  const built = buildHair(P, spec.hair, skin, { sdf, ellipsoid: (g, c, Fr, rr, k, name) => ({ type: 1, a: c, F: Fr, r: rr, k, name }), cone: (g, a, b, ra, rb, k, name) => ({ type: 0, a, b, ra, rb, k, name }), cappedEllipsoid: (g, c, Fr, rr, n, d, k, name) => ({ type: 2, a: c, F: Fr, r: rr, b: n, rb: d, k, name }) });
+  const hang = built.locks.filter((l) => !/ahoge|bang/.test(l.name));
+  const up = hang.filter((l) => l.pts.at(-1)[1] > l.pts[0][1] - 0.05);
+  out.push(r('hair: the locks hang', !up.length, up.length ? up.map((l) => l.name).join(', ') : `${hang.length} locks`, 'every tip below its root'));
+  return out;
 }

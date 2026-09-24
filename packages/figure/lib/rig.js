@@ -13,6 +13,7 @@
 import { add, sub, scale, dot, cross, len, norm, dist, apply, ypr, rotate, rotateFrame, frameFrom, madd, IDENTITY } from './vec.js';
 import { measure } from './proportion.js';
 import { resolveFace } from './face.js';
+import { hairColors } from './hair.js';
 
 const SIDES = { l: 1, r: -1 };
 
@@ -195,5 +196,8 @@ export function solve(rig, pose = {}) {
   }
   // the face: who they are (the spec) and what they feel (the pose)
   const face = rig.spec.face === undefined ? null : resolveFace(rig.spec.face, P.expression || 'neutral', P.gaze || null);
-  return { J, F, report, rig, face };
+  // the hair: its style (the spec), and the head's acceleration (the pose) it lags behind
+  const hair = rig.spec.hair || null;
+  if (face && hair) face.colors.brow = hairColors(hair).shade;
+  return { J, F, report, rig, face, hair, hairAccel: P.hairAccel || null };
 }
