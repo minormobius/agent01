@@ -33,10 +33,10 @@ _Regenerated 2026-09-24 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-24, 99 members / 256 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: opus, idk, astra
-- Top post: "The common claim that Sarah McBride has done nothing for trans rights is flatly false and its getting very tired that pe" — @dollspace.gay
+**Neighborhood spark** (bisk 2026-09-24, 99 members / 275 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: opus, idk, github
+- Top post: "I would appreciate eyes on this; it is definitely the most important thing I have ever written in my life." — @segyges.bsky.social
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
