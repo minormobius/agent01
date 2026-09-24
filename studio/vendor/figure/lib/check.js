@@ -685,7 +685,7 @@ export function checkHands(spec) {
 }
 
 // ---- a dance ---------------------------------------------------------------------------
-import { compileDance } from './choreo.js';
+import { compileDance, liveDance } from './choreo.js';
 
 
 /**
@@ -697,9 +697,11 @@ import { compileDance } from './choreo.js';
  * Each check reports its worst value and WHERE it happened: the bar and beat, and the move.
  * `script` is the dance (moves on bars); `opts` go to compileDance (home, facing, mirror).
  */
-export function checkDance(spec, script, { fps = 8, bpm = 120, from = 0, to = null, heavyEvery = 4, clothes = true, ...opts } = {}) {
+export function checkDance(spec, script, { fps = 8, bpm = 120, from = 0, to = null, heavyEvery = 4, clothes = true, live = true, seed = 0, ...opts } = {}) {
   const rig = makeRig(spec), m = rig.m;
-  const D = compileDance(rig, script, opts);
+  const D0 = compileDance(rig, script, opts);
+  // what plays is the dance alive (springs and breath over the keyframes): check that
+  const D = live ? liveDance(D0, { spb: 60 / bpm, seed, rig }) : D0;
   const lastBeat = D.keys[D.keys.length - 1].beat;
   const b1 = to ?? lastBeat, db = (bpm / 60) / fps;
   const where = (b, k) => `bar ${Math.floor(b / 4)} beat ${(b % 4 + 1).toFixed(2)} (${k.move})`;
@@ -754,6 +756,58 @@ export function checkDance(spec, script, { fps = 8, bpm = 120, from = 0, to = nu
   out.push(r('dance: wrists bend within reach', worst.wrist.v < 1.4, +(worst.wrist.v * 180 / Math.PI).toFixed(0), '< 80°', say(worst.wrist)));
   out.push(r('dance: no limb through another', worst.pen.v < 0.04 * k, +worst.pen.v.toFixed(3), `< ${(0.04 * k).toFixed(2)} heads`, say(worst.pen)));
   if (clothes && spec.outfit) out.push(r('dance: no skin through the clothes', worst.skin.v < 0.004, +worst.skin.v.toFixed(4), '< 0.004 heads', say(worst.skin)));
+  if (live) out.push(...motionChecks(D0, D, bpm));
   out.frames = frame;
+  return out;
+}
+
+/**
+ * The motion itself, not only the poses: does it move like a body?
+ *   hits pop past their mark and settle (a puppet arrives dead on, a body overshoots)
+ *   the forearm trails the upper arm (overlap: parts do not all move at once)
+ */
+function motionChecks(D0, D, bpm) {
+  const spb = 60 / bpm, out = [];
+  const series = (fn, a, b, step) => { const xs = []; for (let t = a; t <= b + 1e-9; t += step) xs.push(fn(t)); return xs; };
+  let hits = 0, good = 0, worst = null;
+  let arms = 0, trailing = 0, lags = [];
+  for (let i = 1; i < D0.keys.length; i++) {
+    const A = D0.keys[i - 1], B = D0.keys[i];
+    for (const s of ['l', 'r']) {
+      // a snug arrival (a hand brought against the face or body) comes in without springs, by design
+      if (B.snug?.[s] || A.snug?.[s]) continue;
+      const dr = B.arms[s].raise - A.arms[s].raise, de = B.arms[s].elbow - A.arms[s].elbow;
+      // (an arm coming down to the side stops AT the body: it has no pop to give)
+      if (B.ease === 'hit' && Math.abs(dr) > 0.35 && !(dr < 0 && B.arms[s].raise < 0.8)) {
+        // from the key to a beat after it: how far past the mark, and how close by the end
+        // until the next keyframe (at most a beat): past the mark, and how close at the end
+        // only a HELD hit can settle: it is held until the keyframe before the arm next changes
+        let j = i + 1;
+        while (j + 1 < D0.keys.length && Math.abs(D0.keys[j + 1].arms[s].raise - B.arms[s].raise) < 1e-6 && Math.abs(D0.keys[j].arms[s].raise - B.arms[s].raise) < 1e-6) j++;
+        const holdEnd = j < D0.keys.length && Math.abs(D0.keys[j].arms[s].raise - B.arms[s].raise) < 1e-6 ? D0.keys[j].beat : j < D0.keys.length ? B.beat + 0 : B.beat + 1;
+        const end = Math.min(B.beat + 1, j >= D0.keys.length ? B.beat + 1 : holdEnd);
+        if (end - B.beat < 0.5) continue;
+        // (a hit's path arrives early, so its pop can come before the key's beat: from the move's start)
+        const xs = series((b) => D.at(b).pose.arms[s].raise, A.beat, end, 0.05);
+        const past = Math.max(...xs.map((x) => (x - B.arms[s].raise) * Math.sign(dr))) / Math.abs(dr);
+        const settled = Math.abs(xs[xs.length - 1] - B.arms[s].raise) / Math.abs(dr);
+        hits++;
+        if (past > 0.02 && past < 0.25 && settled < 0.05) good++;
+        else if (!worst) worst = `${A.move}→${B.move} at bar ${Math.floor(B.beat / 4)}: past ${(past * 100).toFixed(0)}%, off ${(settled * 100).toFixed(0)}% a beat later`;
+      }
+      if (Math.abs(dr) > 0.5 && Math.abs(de) > 0.3) {
+        // the time each channel crosses half its move
+        const half = (get, from, to) => { for (let b = A.beat; b <= B.beat + 1; b += 0.02) if ((get(b) - from) / (to - from) >= 0.5) return b * spb; return null; };
+        const tr = half((b) => D.at(b).pose.arms[s].raise, A.arms[s].raise, B.arms[s].raise);
+        const te = half((b) => D.at(b).pose.arms[s].elbow, A.arms[s].elbow, B.arms[s].elbow);
+        if (tr == null || te == null) continue;
+        arms++; lags.push(te - tr);
+        if (te - tr > 0.02 && te - tr < 0.25) trailing++;
+      }
+    }
+  }
+  out.push(r('motion: hits pop past their mark and settle', hits === 0 || good / hits >= 0.9, `${good}/${hits}`, '≥ 90%: past it by 2–25% of the move, within 5% a beat later', worst || ''));
+  const med = lags.sort((a, b) => a - b)[Math.floor(lags.length / 2)] ?? 0;
+  out.push(r('motion: the forearm trails the upper arm', arms === 0 || trailing / arms >= 0.8, `${trailing}/${arms}`, '≥ 80% of big arm moves: the elbow reaches half its move 0.02–0.25 s after the shoulder', `median lag ${(med * 1000).toFixed(0)} ms`));
   return out;
 }

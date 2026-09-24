@@ -179,12 +179,29 @@ between two plants is a step: it lifts on an arc and lands, and never slides.
 It takes seconds per dancer, so a page plays a dance compiled ahead (`packKeys` →
 JSON → `playDance`).
 
+`liveDance(D, { spb, seed, rig })` is the dance ALIVE, and it's what plays and what gets
+checked. Each pose channel follows the keyframed path through a damped spring:
+- the outer joints lag the inner ones (head 50 ms, elbow 70 ms, wrist 100 ms), so a
+  forearm trails its upper arm;
+- hits wind up the other way first, then pop past their mark and settle;
+- the body breathes, and each dancer sits a few hundredths of a beat off the count.
+
+It's a function of time, not history: each frame re-runs the springs over the last 0.9 s,
+so a seek and a still agree. The body limits the springs:
+- an arm hanging at the side stops AT the body, overshooting only away from it;
+- a raised hand held against the face or body (snug, found at compile time) arrives
+  without springs, and its head and spine hold with it.
+
 `checkDance(spec, script, opts)` runs the checks on every frame of the dance, not only on
 named poses:
 - planted feet never slide and no foot goes into the floor;
 - every limb reaches;
 - no limb goes through another, and no skin shows through the clothes;
 - wrists stay within range.
+
+Two more measure the motion itself:
+- hits pop past their mark by 2–25% and settle;
+- the elbow reaches half its move 20–250 ms after the shoulder.
 
 Each failure names its bar, beat and move. `studio/pdoom/` is a whole song danced this
 way, and `studio/tools/build-pdoom.mjs` writes its report.

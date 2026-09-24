@@ -287,6 +287,29 @@ learned two things for a dark stage:
   wore a pale halo);
 - outlines must be darker than what is behind them, and thinner when the figure is small.
 
+## Motion, alive (2026-09-24)
+
+The operator saw the video working but the dancers not human, and we agreed motion
+comes first. Interpolated keyframes are a puppet: everything starts and arrives together.
+`liveDance` puts springs over the path (see SKILL.md), and `checkDance` measures overlap
+and overshoot. What that found:
+- **Two springs of similar frequency barely overlap** (18 ms, measured). A real forearm
+  breaks after its upper arm, so outer channels follow their targets with delays.
+  Median lag is now 73–82 ms.
+- **A hit's path arrives early** (a fast ease), so its overshoot came before the key's
+  beat, and my first check missed it.
+- **Out of a wave, every dancer's forearms swung 0.3–0.6 heads into the torso.** A body
+  stops an arm falling to its side. A hanging arm now overshoots only away from the body.
+- **Anticipation dipped a hanging arm into the hip before a clap**, and pushed the feet
+  into the floor before a jump. A wind-up never goes into the body or the ground.
+- **A peace sign by the eye**: the keyframe was clear by 0.0016 heads, but the head,
+  lagging on its spring and breathing, moved into the fingers (0.038). Snug arrivals
+  are found at compile time (a 15% overshoot would touch). Arm, head and spine then hold
+  exactly. My first criterion caught every hanging arm and switched the springs off for
+  most of the dance (Kai's forearm lag fell to 0 ms), so it covers raised hands only.
+
+The whole song, alive: 5 dancers × 1251 frames, and all 8 checks hold for each.
+
 ## Not done yet (the next layers)
 
 Hair

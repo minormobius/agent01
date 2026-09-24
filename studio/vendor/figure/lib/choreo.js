@@ -30,7 +30,8 @@ const EASE = {
   smooth,
   linear: (u) => u,
   // a hit: arrives fast (two thirds of the way in the first third) and settles
-  hit: (u) => 1 - Math.pow(1 - clamp01(u), 3),
+  // a hit: a small wind-up the other way (anticipation), then it arrives fast and settles
+  hit: (u) => (u < 0.22 ? -0.07 * Math.sin((Math.PI * u) / 0.22) : 1 - Math.pow(1 - (u - 0.22) / 0.78, 3)),
   // held, then snaps at the end (a pose held until the next count)
   hold: (u) => (u < 0.75 ? 0 : smooth((u - 0.75) / 0.25)),
 };
@@ -291,8 +292,8 @@ export function compileDance(rig, script, { home = [0, 0], facing = 0, beatsPerB
       const sig = JSON.stringify([k.arms, k.hands, Math.round(k.lean * 50), Math.round(k.side * 50), Math.round(k.twist * 50), Math.round(k.dip * 20)]);
       if (!memo.has(sig)) {
         const cleared = { l: { ...k.arms.l }, r: { ...k.arms.r } };
-        const depth = (arms, s) => interpenetration(buildBody(solve(rig, poseOf(rig, { ...k, arms }, { place, facing, standY: k.standY, home })), { hair: false, clothes: false, hands: 'block' }), [own[s]]).depth;
-        for (const s of ['l', 'r']) cleared[s] = clearArm(cleared, s, (arms) => depth(arms, s), 0.02 * m.k);
+        const depth = (arms, s) => interpenetration(buildBody(solve(rig, poseOf(rig, { ...k, arms }, { place, facing, standY: k.standY, home })), { hair: false, clothes: false, hands: 'full' }), [own[s]]).depth;
+        for (const s of ['l', 'r']) cleared[s] = clearArm(cleared, s, (arms) => depth(arms, s), 0.008 * m.k);
         memo.set(sig, cleared);
       }
       k.arms = memo.get(sig);
@@ -307,10 +308,26 @@ export function compileDance(rig, script, { home = [0, 0], facing = 0, beatsPerB
           for (const f of KEYS) mid[f] = (A[f] + B[f]) / 2;
           mid.standY = (A.standY + B.standY) / 2;
           const P = solve(rig, poseOf(rig, mid, { place, facing, standY: mid.standY, home }));
-          const pen = interpenetration(buildBody(P, { hair: false, clothes: false, hands: 'block' }), [own[s]]);
-          if (pen.depth < 0.02 * m.k) break;
+          const pen = interpenetration(buildBody(P, { hair: false, clothes: false, hands: 'full' }), [own[s]]);
+          if (pen.depth < 0.008 * m.k) break;
           for (const K of [A, B]) K.arms = { ...K.arms, [s]: away(K.arms[s], pen.into) };
         }
+      }
+    }
+  }
+  // snug arrivals: an arm arriving where an overshoot would take it into the body (a peace
+  // sign by the eye) is marked, and the springs bring it in without one
+  if (clear) {
+    for (let i = 1; i < keys.length; i++) {
+      const A = keys[i - 1], B = keys[i];
+      B.snug = { l: false, r: false };
+      for (const s of ['l', 'r']) {
+        const dA = A.arms[s], dB = B.arms[s];
+        // (an arm hanging by the side has its own rule: it stops at the body; this is for a raised hand)
+        if (dB.raise < 0.8 || Math.abs(dB.raise - dA.raise) + Math.abs(dB.elbow - dA.elbow) + Math.abs(dB.out - dA.out) < 0.3) continue;
+        const over = Object.fromEntries(Object.keys(dB).map((kk) => [kk, dB[kk] + 0.15 * (dB[kk] - (dA[kk] || 0))]));
+        const P = solve(rig, poseOf(rig, { ...B, arms: { ...B.arms, [s]: over } }, { place, facing, standY: B.standY, home }));
+        if (interpenetration(buildBody(P, { hair: false, clothes: false, hands: 'full' }), [own[s]]).depth > 0.01 * m.k) B.snug[s] = true;
       }
     }
   }
@@ -350,9 +367,12 @@ export function danceAt(rig, keys, beat, ctx) {
   const e = (EASE[B.ease] || smooth)(u);
   const k = { ...A };
   for (const f of KEYS) k[f] = lerp(A[f], B[f], e);
+  k.lift = Math.max(0, k.lift);          // a wind-up before a jump bends the knees; it does not push the feet into the floor
   k.standY = lerp(A.standY, B.standY, e);
   k.head = Object.fromEntries(HEAD.map((h) => [h, lerp(A.head[h] || 0, B.head[h] || 0, e)]));
   k.arms = Object.fromEntries(['l', 'r'].map((s) => [s, Object.fromEntries(ARMK.map((a) => [a, lerp(A.arms[s][a] || 0, B.arms[s][a] || 0, e)]))]));
+  // a wind-up never takes a hanging arm into the body (before a clap, it dipped the arm into the hip)
+  for (const s of ['l', 'r']) { const lo = Math.min(A.arms[s].raise, B.arms[s].raise); if (lo < 0.8 && k.arms[s].raise < lo) k.arms[s].raise = lo; }
   // hands and face change at the halfway mark (a hit changes on arrival)
   const flip = B.ease === 'hit' ? e > 0.6 : u > 0.5;
   k.hands = flip ? B.hands : A.hands;
@@ -376,7 +396,8 @@ export function danceAt(rig, keys, beat, ctx) {
   const stepping = { l: moving.l || A.lift > 0 || B.lift > 0, r: moving.r || A.lift > 0 || B.lift > 0 };
   // plant: where each foot is planted (null while it steps or jumps): a foot may only move
   // between two frames whose plants differ
-  return { pose, beat, key: A, next: B, u, stepping, plant };
+  // top: the highest the pelvis may go for these feet (a spring must not lift it out of reach)
+  return { pose, beat, key: A, next: B, u, stepping, plant, top: (k.standY + k.lift * m.k) };
 }
 
 /** Beats ↔ seconds for a song: `bpm`, and the time of beat 0 (the first downbeat). */
@@ -400,4 +421,83 @@ export function playDance(rig, { keys, home = [0, 0], facing = 0 }) {
 export function packKeys(keys) {
   const r4 = (x) => (typeof x === 'number' ? Math.round(x * 1e4) / 1e4 : Array.isArray(x) ? x.map(r4) : x && typeof x === 'object' ? Object.fromEntries(Object.entries(x).map(([k, v]) => [k, r4(v)])) : x);
   return keys.map((k) => r4(k));
+}
+
+// ---- the motion layer: springs over the keyframed path ----------------------------------
+// Keyframes interpolated are a puppet: everything starts together and arrives together.
+// A body overlaps: the head lags the chest, the forearm trails the upper arm, a hit pops
+// past its mark and settles. Here each pose CHANNEL follows its keyframed path through a
+// damped spring, a looser, slower one the further it is from the body's centre. The feet
+// are left exact (a planted foot stays planted). It is a function of time, not of
+// history: each frame re-runs the springs over the last WINDOW seconds, longer than they
+// remember, so a seek, a still and a check all see the same pose.
+
+// [path to the channel, natural frequency Hz, damping ratio, delay s]. The delay is overlap:
+// the outer joints break after the inner ones (a forearm follows its upper arm), which two
+// springs of near frequencies alone barely show (18 ms apart, measured)
+const CHANNELS = [
+  ['root.pos.0', 3.2, 0.72, 0], ['root.pos.1', 3.4, 0.6, 0], ['root.pos.2', 3.2, 0.72, 0], ['root.yaw', 3.0, 0.75, 0], ['root.roll', 2.6, 0.6, 0],
+  ['spine.bend', 2.6, 0.55, 0.02], ['spine.side', 2.4, 0.55, 0.02], ['spine.twist', 2.4, 0.55, 0.02],
+  ['head.yaw', 2.0, 0.5, 0.05], ['head.pitch', 2.0, 0.5, 0.05], ['head.roll', 1.9, 0.48, 0.06],
+  ...['l', 'r'].flatMap((s) => [[`arms.${s}.raise`, 3.2, 0.38, 0], [`arms.${s}.out`, 3.2, 0.42, 0], [`arms.${s}.elbow`, 2.8, 0.36, 0.07], [`arms.${s}.roll`, 2.6, 0.5, 0.05], [`arms.${s}.wrist`, 2.4, 0.36, 0.1]]),
+];
+const MAX_DELAY = 0.1;
+const getPath = (o, p) => p.split('.').reduce((x, k) => (x == null ? x : x[k]), o) ?? 0;
+function setPath(o, p, v) { const ks = p.split('.'); let x = o; for (let i = 0; i < ks.length - 1; i++) x = x[ks[i]]; x[ks[ks.length - 1]] = v; }
+const clonePose = (p) => ({ ...p, root: { ...p.root, pos: [...p.root.pos] }, spine: { ...p.spine }, head: { ...p.head }, arms: { l: { ...p.arms.l }, r: { ...p.arms.r } }, legs: p.legs });
+
+/**
+ * A compiled dance, alive: `at(beat)` is the keyframed pose through the springs, plus
+ * breath. `spb` is seconds a beat; `seed` sets the dancer's breathing phase and its looseness
+ * against the count (a crew is not a machine: each dancer a few hundredths of a beat off).
+ */
+export function liveDance(D, { spb, seed = 0, window = 0.9, rate = 90, springs = true, breath = true, rig = null } = {}) {
+  const lag = springs ? ((Math.sin(seed * 12.9898) * 43758.5453) % 1) * 0.04 : 0;   // up to ±0.04 beat
+  const dt = 1 / rate, n = Math.round(window * rate);
+  const at = (beat) => {
+    const raw = D.at(beat - lag);
+    if (!springs) return raw;
+    const pose = clonePose(raw.pose);
+    const t = beat * spb;
+    // the keyframed path, sampled once per step (and MAX_DELAY further back, for the delayed channels)
+    const steps = n + Math.ceil(MAX_DELAY * rate) + 1, t0 = t - window - MAX_DELAY;
+    const path = Array.from({ length: steps + 1 }, (_, j) => D.at((t0 + j * dt) / spb - lag).pose);
+    const sample = (tt, p) => { const j = Math.max(0, Math.min(steps, Math.round((tt - t0) / dt))); return getPath(path[j], p); };
+    const y = CHANNELS.map(([p, , , d]) => sample(t - window - d, p)), v = CHANNELS.map(([p, , , d], i) => (sample(t - window + dt - d, p) - y[i]) / dt);
+    for (let s = 1; s <= n; s++) {
+      const tt = t - window + s * dt;
+      CHANNELS.forEach(([p, hz, z, d], i) => {
+        const w = 2 * Math.PI * hz, x = sample(tt - d, p);
+        v[i] += (w * w * (x - y[i]) - 2 * z * w * v[i]) * dt;     // semi-implicit Euler: stable at these rates
+        y[i] += v[i] * dt;
+      });
+    }
+    CHANNELS.forEach(([p], i) => setPath(pose, p, y[i]));
+    // a snug hand (held by the face, on the body) and what it is held against move as one:
+    // arriving there and holding, the arm, the head and the spine follow the keyframes exactly.
+    // (A peace sign by the eye stayed clear; the head, lagging on its spring and breathing,
+    // moved into the fingers.)
+    const snug = ['l', 'r'].filter((s) => raw.next?.snug?.[s] || raw.key?.snug?.[s]);
+    for (const s of snug) pose.arms[s] = { ...raw.pose.arms[s] };
+    if (snug.length) { pose.head = { ...raw.pose.head }; pose.spine = { ...raw.pose.spine }; }
+    // an arm falling to the side stops at the body: it overshoots away from it, never into it
+    // (out of a wave, the springs once swung every dancer's forearms 0.3–0.6 heads into the torso)
+    for (const s of ['l', 'r']) {
+      const want = raw.pose.arms[s];
+      if (want.raise < 0.8) {
+        if (pose.arms[s].raise < want.raise) pose.arms[s].raise = want.raise;
+        if (Math.abs(pose.arms[s].out - Math.PI / 2) > Math.abs(want.out - Math.PI / 2) && pose.arms[s].out < want.out) pose.arms[s].out = want.out;
+      }
+    }
+    // the pelvis may drop past its mark, never rise (or drift) out of the legs' reach
+    pose.root.pos[1] = Math.min(pose.root.pos[1], raw.top);
+    if (rig) pose.root.pos = settle(rig, pose, 0.985).root.pos;
+    if (breath && !snug.length) {
+      const b = Math.sin(2 * Math.PI * (t / 3.4 + seed * 0.37));
+      pose.spine.bend -= 0.018 * b; pose.head.pitch += 0.012 * b;
+      for (const s of ['l', 'r']) pose.arms[s].raise += 0.012 * b;
+    }
+    return { ...raw, pose };
+  };
+  return { ...D, at, raw: D.at, lag };
 }

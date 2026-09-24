@@ -32,14 +32,14 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "l wrist · bar 33 beat 2.38 (pump)"
+     "detail": "r wrist · bar 11 beat 4.30 (reach)"
     },
     {
      "name": "dance: no limb through another",
      "ok": true,
-     "value": 0.02,
+     "value": 0.002,
      "limit": "< 0.04 heads",
-     "detail": "thumb2_l into leg_l · bar 34 beat 1.40 (pump)"
+     "detail": "middle2_l into head · bar 19 beat 3.10 (idol)"
     },
     {
      "name": "dance: no skin through the clothes",
@@ -47,6 +47,20 @@
      "value": 0,
      "limit": "< 0.004 heads",
      "detail": ""
+    },
+    {
+     "name": "motion: hits pop past their mark and settle",
+     "ok": true,
+     "value": "12/12",
+     "limit": "≥ 90%: past it by 2–25% of the move, within 5% a beat later",
+     "detail": ""
+    },
+    {
+     "name": "motion: the forearm trails the upper arm",
+     "ok": true,
+     "value": "96/96",
+     "limit": "≥ 80% of big arm moves: the elbow reaches half its move 0.02–0.25 s after the shoulder",
+     "detail": "median lag 73 ms"
     }
    ]
   },
@@ -80,14 +94,14 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "r wrist · bar 34 beat 2.78 (jump)"
+     "detail": "l wrist · bar 4 beat 3.70 (idle)"
     },
     {
      "name": "dance: no limb through another",
      "ok": true,
-     "value": 0.017,
+     "value": 0,
      "limit": "< 0.04 heads",
-     "detail": "upper_l1 into torso · bar 54 beat 1.70 (sway)"
+     "detail": ""
     },
     {
      "name": "dance: no skin through the clothes",
@@ -95,6 +109,20 @@
      "value": 0,
      "limit": "< 0.004 heads",
      "detail": ""
+    },
+    {
+     "name": "motion: hits pop past their mark and settle",
+     "ok": true,
+     "value": "5/5",
+     "limit": "≥ 90%: past it by 2–25% of the move, within 5% a beat later",
+     "detail": ""
+    },
+    {
+     "name": "motion: the forearm trails the upper arm",
+     "ok": true,
+     "value": "104/104",
+     "limit": "≥ 80% of big arm moves: the elbow reaches half its move 0.02–0.25 s after the shoulder",
+     "detail": "median lag 82 ms"
     }
    ]
   },
@@ -128,14 +156,14 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "l wrist · bar 81 beat 1.50 (wave)"
+     "detail": "l wrist · bar 2 beat 2.35 (idle)"
     },
     {
      "name": "dance: no limb through another",
      "ok": true,
-     "value": 0.006,
+     "value": 0.011,
      "limit": "< 0.03 heads",
-     "detail": "upper_l1 into torso · bar 74 beat 2.00 (stepTouch)"
+     "detail": "upper_r1 into torso · bar 39 beat 2.30 (groove)"
     },
     {
      "name": "dance: no skin through the clothes",
@@ -143,6 +171,20 @@
      "value": 0,
      "limit": "< 0.004 heads",
      "detail": ""
+    },
+    {
+     "name": "motion: hits pop past their mark and settle",
+     "ok": true,
+     "value": "5/5",
+     "limit": "≥ 90%: past it by 2–25% of the move, within 5% a beat later",
+     "detail": ""
+    },
+    {
+     "name": "motion: the forearm trails the upper arm",
+     "ok": true,
+     "value": "104/104",
+     "limit": "≥ 80% of big arm moves: the elbow reaches half its move 0.02–0.25 s after the shoulder",
+     "detail": "median lag 73 ms"
     }
    ]
   },
@@ -176,14 +218,14 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "r wrist · bar 14 beat 3.30 (jump)"
+     "detail": "r wrist · bar 11 beat 2.65 (idle)"
     },
     {
      "name": "dance: no limb through another",
      "ok": true,
-     "value": 0.014,
+     "value": 0,
      "limit": "< 0.03 heads",
-     "detail": "thumb2_l into leg_l · bar 34 beat 1.40 (pump)"
+     "detail": ""
     },
     {
      "name": "dance: no skin through the clothes",
@@ -191,6 +233,20 @@
      "value": 0,
      "limit": "< 0.004 heads",
      "detail": ""
+    },
+    {
+     "name": "motion: hits pop past their mark and settle",
+     "ok": true,
+     "value": "5/5",
+     "limit": "≥ 90%: past it by 2–25% of the move, within 5% a beat later",
+     "detail": ""
+    },
+    {
+     "name": "motion: the forearm trails the upper arm",
+     "ok": true,
+     "value": "104/104",
+     "limit": "≥ 80% of big arm moves: the elbow reaches half its move 0.02–0.25 s after the shoulder",
+     "detail": "median lag 73 ms"
     }
    ]
   },
@@ -224,14 +280,14 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "l wrist · bar 5 beat 2.72 (idle)"
+     "detail": "r wrist · bar 12 beat 3.05 (groove)"
     },
     {
      "name": "dance: no limb through another",
      "ok": true,
-     "value": 0,
+     "value": 0.001,
      "limit": "< 0.05 heads",
-     "detail": ""
+     "detail": "upper_r1 into torso · bar 60 beat 3.00 (robot)"
     },
     {
      "name": "dance: no skin through the clothes",
@@ -239,6 +295,20 @@
      "value": 0,
      "limit": "< 0.004 heads",
      "detail": ""
+    },
+    {
+     "name": "motion: hits pop past their mark and settle",
+     "ok": true,
+     "value": "5/5",
+     "limit": "≥ 90%: past it by 2–25% of the move, within 5% a beat later",
+     "detail": ""
+    },
+    {
+     "name": "motion: the forearm trails the upper arm",
+     "ok": true,
+     "value": "104/104",
+     "limit": "≥ 80% of big arm moves: the elbow reaches half its move 0.02–0.25 s after the shoulder",
+     "detail": "median lag 82 ms"
     }
    ]
   }

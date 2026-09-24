@@ -12,7 +12,7 @@
 import { makeRig, solve } from '../vendor/figure/lib/rig.js';
 import { buildBody } from '../vendor/figure/lib/body.js';
 import { makeRenderer, camera, project, STYLE, handDetail } from '../vendor/figure/lib/shader.js';
-import { playDance } from '../vendor/figure/lib/choreo.js';
+import { playDance, liveDance } from '../vendor/figure/lib/choreo.js';
 import { dot, add, scale, sub } from '../vendor/figure/lib/vec.js';
 import { SONG, SECTIONS, CAST, SHOTS } from './show.js';
 import { drawBack, drawFront } from './stage.js';
@@ -28,7 +28,8 @@ const END = SONG.bars * 4;
 const compiled = await (await fetch('./dance.json')).json();
 const dancers = CAST.map((c, i) => {
   const rig = makeRig(c.spec);
-  const D = playDance(rig, compiled.dancers[i]);
+  // alive: springs over the keyframes (overlap, overshoot, settle) and breath; each dancer its own seed
+  const D = liveDance(playDance(rig, compiled.dancers[i]), { spb: 60 / SONG.bpm, seed: i, rig });
   const canvas = document.createElement('canvas');
   let R = null;
   try { R = makeRenderer(canvas, { supersample: 1 }); } catch {}
@@ -135,7 +136,7 @@ function poseAt(d, beat) {
   const b = Math.max(0, Math.min(END - 0.01, beat));
   const { pose } = d.D.at(b);
   // the hair swings with the body: its acceleration, from the pelvis a quarter beat either side
-  const dt = 0.25, a = d.D.at(Math.max(0, b - dt)).pose.root.pos, c = d.D.at(Math.min(END - 0.01, b + dt)).pose.root.pos;
+  const dt = 0.25, a = d.D.raw(Math.max(0, b - dt)).pose.root.pos, c = d.D.raw(Math.min(END - 0.01, b + dt)).pose.root.pos;
   const T = dt * spb, acc = [0, 1, 2].map((k) => (a[k] - 2 * pose.root.pos[k] + c[k]) / (T * T));
   return { ...pose, gaze: d.gaze, hairAccel: acc.map((x) => Math.max(-40, Math.min(40, x))) };
 }

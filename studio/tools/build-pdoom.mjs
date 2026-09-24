@@ -43,9 +43,10 @@ console.log(`dance.json: ${dancers.length} dancers, ${dancers.reduce((s, d) => s
 // the report card: every check, for every dancer, over the whole song
 const report = { fps, generated: new Date().toISOString().slice(0, 10), dancers: [] };
 let failed = 0;
-for (const c of CAST) {
+for (const [i, c] of CAST.entries()) {
   const t = Date.now();
-  const res = checkDance(c.spec, c.lead ? LEAD : CREW_DANCE, { bpm: SONG.bpm, fps, home: c.home, mirror: !!c.mirror });
+  // what plays: the dance alive, with the same seed the page gives this dancer
+  const res = checkDance(c.spec, c.lead ? LEAD : CREW_DANCE, { bpm: SONG.bpm, fps, home: c.home, mirror: !!c.mirror, seed: i });
   const bad = res.filter((x) => !x.ok);
   failed += bad.length;
   report.dancers.push({ name: c.name, frames: res.frames, checks: res.map(({ name, ok, value, limit, detail }) => ({ name, ok, value, limit, detail })) });
