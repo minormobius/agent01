@@ -197,6 +197,44 @@ ok(Math.max(...body.map((b) => b.floors)) === ncity.buildings[21].floors && ncit
   ok(finite2 && loud[0] === 'the city at full height', `the B-flat minor climb is the loudest section: ${levels2.map(([nm, v]) => `${nm} ${v.toFixed(1)}`).join(', ')}`);
 }
 
+// 5c — Speakeasy ---------------------------------------------------------------------
+console.log('\nSpeakeasy');
+{
+  const S = await import('../speakeasy/score.js');
+  const { renderBand, mix, INSTRUMENTS } = await import('../lib/band.js');
+  const se = S.events, sc = S.cues;
+  ok(se.every((e, i) => i === 0 || e.at >= se[i - 1].at) && se.every((e) => Number.isFinite(e.at + e.dur) && e.dur > 0), `${se.length} events, sorted, finite`);
+  ok(S.pianoEvents.every((e) => e.midi >= 21 && e.midi <= 108 && e.velocity > 0 && e.velocity <= 1), `${S.pianoEvents.length} piano notes, all on the keyboard`);
+  ok(S.bandEvents.every((e) => INSTRUMENTS.includes(e.inst)), `every band event has an instrument (${new Set(S.bandEvents.map((e) => e.inst)).size} of them)`);
+  const story = [['curtain up', sc.curtainUp[1]], ['dame', sc.dame[0]], ['card', sc.card], ['lobby', sc.lobby], ['manager', sc.manager], ['lift', sc.lift[0]],
+    ['descent', sc.descent[0]], ['club', sc.club], ['solo', sc.solo], ['shout', sc.shout], ['break', sc.brk], ['knows', sc.knows], ['shot', sc.shot], ['raid', sc.raid[0]], ['fin', sc.fin], ['end', sc.end]];
+  ok(story.every(([, t], i) => i === 0 || t > story[i - 1][1]), `the story runs in order: ${story.map(([n]) => n).join(' → ')}`);
+  const shots = se.filter((e) => e.inst === 'shot');
+  ok(shots.length === 1 && Math.abs(shots[0].at - sc.shot) < 0.02, 'one shot, fired on its cue');
+  const chars = S.LINES_TYPED.reduce((n, l) => n + [...l.text].filter((c) => c !== ' ').length, 0);
+  ok(se.filter((e) => e.inst === 'type').length === chars && se.filter((e) => e.inst === 'carriage').length === S.LINES_TYPED.length,
+    `the typewriter strikes every letter it prints (${chars} keys, ${S.LINES_TYPED.length} carriage bells)`);
+  ok(Math.abs(S.duration - sc.end) < 1e-9 && S.duration > 120 && S.duration < 200, `duration ${S.duration.toFixed(1)} s`);
+
+  // the whole band at half rate, mixed with the piano
+  const tb = performance.now();
+  const band = renderBand(S.bandEvents, SR, { seconds: S.duration, wet: S.wet, slap: S.slap });
+  const bandWall = (performance.now() - tb) / 1000;
+  const sp = begin(X, S.pianoEvents, SR);
+  const n = band.L.length, L = new Float32Array(n), R = new Float32Array(n);
+  let f = 0, c;
+  while ((c = sp.pull()) && f < n) { for (let i = 0; i < c.length / 2 && f + i < n; i++) { L[f + i] = c[2 * i]; R[f + i] = c[2 * i + 1]; } f += c.length / 2; }
+  mix(L, R, band);
+  let sfinite = true, speak = 0;
+  for (let i = 0; i < n; i++) { if (!Number.isFinite(L[i] + R[i])) sfinite = false; speak = Math.max(speak, Math.abs(L[i]), Math.abs(R[i])); }
+  ok(sfinite && speak < 1, `band + piano finite, peak ${speak.toFixed(3)}; the band renders in ${bandWall.toFixed(1)} s`);
+  const db = (a, b) => { let q = 0; const i0 = Math.floor(a * SR), i1 = Math.min(n, Math.floor(b * SR)); for (let i = i0; i < i1; i++) q += L[i] * L[i] + R[i] * R[i]; return 10 * Math.log10(q / (2 * (i1 - i0)) + 1e-12); };
+  const club = db(sc.club, sc.knows), street = db(sc.street, sc.lobby), lobby = db(sc.lobby, sc.descent[0]);
+  const hush = db(sc.shot + 0.6, sc.raid[0]), raid = db(sc.raid[0], sc.raid[1]);
+  ok(lobby < street && street < club && club < raid, `the noise builds: lobby ${lobby.toFixed(1)} < street ${street.toFixed(1)} < club ${club.toFixed(1)} < raid ${raid.toFixed(1)} dB`);
+  ok(hush < club - 8, `after the shot, the room goes quiet (${hush.toFixed(1)} dB)`);
+}
+
 // 6 — the scores clef opens -----------------------------------------------------
 console.log('\nScores (View the score -> clef)');
 const { parseLily } = await import('../../clef/src/lily.js');

@@ -8,3 +8,6 @@
 /nocturne/score.ly
   Access-Control-Allow-Origin: https://clef.mino.mobi
   Content-Type: text/plain; charset=utf-8
+/speakeasy/score.ly
+  Access-Control-Allow-Origin: https://clef.mino.mobi
+  Content-Type: text/plain; charset=utf-8

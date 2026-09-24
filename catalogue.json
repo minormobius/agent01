@@ -4483,6 +4483,23 @@
         "wasm",
         "generative"
       ]
+    },
+    {
+      "n": "speakeasy",
+      "u": "https://studio.mino.mobi/speakeasy/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A noir in cut paper, after Picasso's Parade: a man in a hat follows a dame in red from the street through a grand hotel lobby and down the lift to a speakeasy under the city, typed out by a typewriter in the pit. An uptempo score for piano, horns, clarinet, vibes, bass, drums, siren and pistol.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
     }
   ],
   "notListed": [

@@ -19,7 +19,10 @@ const piece = process.argv[2] || 'anthesis';
 const wavAt = process.argv.indexOf('--wav');
 const SR = 44100;
 
-const { events, cues, duration } = await import(join(here, '..', piece, 'score.js'));
+const S0 = await import(join(here, '..', piece, 'score.js'));
+const { cues, duration } = S0;
+// A piece with a band plays the piano part on pfsynth and the rest on lib/band.js.
+const events = S0.pianoEvents ?? S0.events;
 const X = await instantiate(await readFile(join(here, '..', 'vendor/pfsynth/pfsynth.wasm')));
 
 const t0 = performance.now();
@@ -29,11 +32,24 @@ let c;
 while ((c = r.pull())) chunks.push(c);
 const wall = (performance.now() - t0) / 1000;
 const frames = r.frames;
-const pcm = new Float32Array(frames * 2);
+let pcm = new Float32Array(frames * 2);
 let at = 0;
 for (const ch of chunks) { pcm.set(ch, at); at += ch.length; }
 
-const secs = frames / SR;
+let secs = frames / SR;
+if (S0.bandEvents) {
+  const { renderBand, mix } = await import('../lib/band.js');
+  const tb = performance.now();
+  const n = Math.ceil(duration * SR);
+  const band = renderBand(S0.bandEvents, SR, { seconds: duration, wet: S0.wet, slap: S0.slap });
+  const L = new Float32Array(n), R = new Float32Array(n);
+  for (let i = 0; i < n && i * 2 < pcm.length; i++) { L[i] = pcm[2 * i]; R[i] = pcm[2 * i + 1]; }
+  mix(L, R, band);
+  pcm = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) { pcm[2 * i] = L[i]; pcm[2 * i + 1] = R[i]; }
+  secs = n / SR;
+  console.log(`band: ${S0.bandEvents.length} events rendered in ${((performance.now() - tb) / 1000).toFixed(1)} s`);
+}
 let peak = 0, over9 = 0, nan = 0;
 for (const v of pcm) {
   if (!Number.isFinite(v)) nan++;
@@ -65,11 +81,12 @@ for (const [name, a, b] of marks) {
 
 if (wavAt > 0) {
   const out = process.argv[wavAt + 1];
-  const buf = Buffer.alloc(44 + frames * 4);
-  buf.write('RIFF', 0); buf.writeUInt32LE(36 + frames * 4, 4); buf.write('WAVE', 8);
+  const outFrames = pcm.length / 2;
+  const buf = Buffer.alloc(44 + outFrames * 4);
+  buf.write('RIFF', 0); buf.writeUInt32LE(36 + outFrames * 4, 4); buf.write('WAVE', 8);
   buf.write('fmt ', 12); buf.writeUInt32LE(16, 16); buf.writeUInt16LE(1, 20); buf.writeUInt16LE(2, 22);
   buf.writeUInt32LE(SR, 24); buf.writeUInt32LE(SR * 4, 28); buf.writeUInt16LE(4, 32); buf.writeUInt16LE(16, 34);
-  buf.write('data', 36); buf.writeUInt32LE(frames * 4, 40);
+  buf.write('data', 36); buf.writeUInt32LE(outFrames * 4, 40);
   for (let i = 0; i < pcm.length; i++) buf.writeInt16LE(Math.round(Math.max(-1, Math.min(1, pcm[i])) * 32767), 44 + i * 2);
   await writeFile(out, buf);
   console.log(`wrote ${out}`);

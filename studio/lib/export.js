@@ -124,7 +124,19 @@ export async function inspect(blob) {
  * Render the piece's audio at 48 kHz, in a worker, as planar stereo.
  * The same performance the page plays, just at the rate a video wants.
  */
-export function renderAudio(events, seconds, { onProgress, signal } = {}) {
+export async function renderAudio(events, seconds, { onProgress, signal, band = null } = {}) {
+  if (!band) return renderPiano(events, seconds, { onProgress, signal });
+  // A piece with a band: the band first (a few seconds), then the piano, mixed.
+  const { loadBand } = await import('./band-load.js');
+  const { mix } = await import('./band.js');
+  onProgress?.(0);
+  const b = await loadBand(band, AUDIO_RATE, seconds, { signal });
+  const a = await renderPiano(events, seconds, { onProgress: (f) => onProgress?.(0.1 + f * 0.9), signal });
+  mix(a.L, a.R, b);
+  return a;
+}
+
+function renderPiano(events, seconds, { onProgress, signal } = {}) {
   return new Promise((resolve, reject) => {
     const n = Math.ceil(seconds * AUDIO_RATE);
     const L = new Float32Array(n), R = new Float32Array(n);

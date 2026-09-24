@@ -14,6 +14,7 @@ export const PIECES = [
   { slug: 'anthesis', subtitle: 'a poppy, from seed to bloom' },
   { slug: 'coquelicots', subtitle: 'a field, painted outward from one seed' },
   { slug: 'nocturne', subtitle: 'a city, lit one window per note' },
+  { slug: 'speakeasy', subtitle: 'a noir in cut paper (short score: horns, clarinet, vibes and bass)' },
 ];
 
 export async function generate(slug, subtitle) {

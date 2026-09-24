@@ -9,7 +9,7 @@ import { FORMATS, plan, inspect, renderAudio, renderOffline, renderRealtime, dra
 
 const CLEF = 'https://clef.mino.mobi/';
 
-export function mountExtras({ slug, title, subtitle, events, seconds, makeRenderer, ink = '#2a2426', onInk = '#f4eee2', piano }) {
+export function mountExtras({ slug, title, subtitle, events, seconds, makeRenderer, ink = '#2a2426', onInk = '#f4eee2', piano, band = null }) {
   const card = document.getElementById('card');
   const row = document.createElement('p');
   row.className = 'extras';
@@ -79,7 +79,7 @@ export function mountExtras({ slug, title, subtitle, events, seconds, makeRender
     $('.x-cancel').textContent = 'Cancel';
     try {
       status('Rendering the piano…'); bar(0);
-      const audio = await renderAudio(events, seconds, { onProgress: (f) => bar(f * 0.15), signal });
+      const audio = await renderAudio(events, seconds, { onProgress: (f) => bar(f * 0.15), signal, band });
       // Draw at half the pixel size and twice the density: the layout is the
       // page's own at a phone-like size, so strokes keep their proportions.
       const r = makeRenderer(w / 2, h / 2, 2);

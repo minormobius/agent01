@@ -14,6 +14,8 @@
 // draws from it. The audio clock is the only clock.
 
 import { instantiate, begin, DEFAULT_GAIN } from './pfsynth-core.js';
+import { loadBand } from './band-load.js';
+import { mix } from './band.js';
 
 const LEAD = 1.5;          // seconds of audio in hand before starting, at minimum
 const SAFETY = 0.8;        // assume the render will run at 80% of the speed measured so far
@@ -22,8 +24,10 @@ export class StreamPiano {
   /**
    * @param events  [{at, dur, midi, velocity}] in seconds
    * @param length  how long the piece is expected to last, tail included (s)
+   * @param band    optional: the URL of a score.js with bandEvents (lib/band.js).
+   *                The band renders first; each piano chunk is mixed with it.
    */
-  constructor(events, length, { gain = DEFAULT_GAIN, volume = 0.9 } = {}) {
+  constructor(events, length, { gain = DEFAULT_GAIN, volume = 0.9, band = null } = {}) {
     this.events = events.map(({ at, dur, midi, velocity }) => ({ at, dur, midi, velocity }));
     this.length = length;
     this.gain = gain;
@@ -40,6 +44,10 @@ export class StreamPiano {
     this.onStatus = null;
     this.onEnd = null;
     this._endTimer = null;
+    this.bandUrl = band;
+    this.band = null;        // { L, R } at the context's rate, once rendered
+    this.held = [];          // piano chunks that arrived before the band
+    this.pianoDone = false;
   }
 
   /** Make the context (suspended until a gesture) and start rendering. */
@@ -51,8 +59,20 @@ export class StreamPiano {
     this.out.gain.value = this.volume;
     this.out.connect(this.ctx.destination);
     this.renderStarted = performance.now();
+    if (this.bandUrl) {
+      loadBand(this.bandUrl, this.ctx.sampleRate, this.length).then((b) => {
+        this.band = b;
+        const held = this.held; this.held = [];
+        for (const [f, p] of held) this.#accept(f, p);
+        if (this.pianoDone) this.#finish();
+        this.onStatus?.(this);
+      }, (err) => { this.error = err; this.onStatus?.(this); });
+    }
     this.#render();
   }
+
+  /** Waiting on the band before any audio can be scheduled. */
+  get waitingForBand() { return !!this.bandUrl && !this.band; }
 
   /** Audio seconds per wall second, measured so far. */
   get speed() {
@@ -74,7 +94,7 @@ export class StreamPiano {
     return Math.max(0, need - this.rendered);
   }
 
-  get ready() { return this.done || (this.rendered > 0 && this.shortfall === 0); }
+  get ready() { return !this.waitingForBand && (this.done || (this.rendered > 0 && this.shortfall === 0)); }
 
   /** Seconds into the piece, from the audio clock; null before start. */
   get time() {
@@ -129,12 +149,14 @@ export class StreamPiano {
   }
 
   #accept(frame, pcm) {
+    if (this.waitingForBand) { this.held.push([frame, pcm]); this.pianoRendered = (frame + pcm.length / 2) / this.ctx.sampleRate; this.onStatus?.(this); return; }
     const sr = this.ctx.sampleRate;
     const n = pcm.length / 2;
     const buffer = this.ctx.createBuffer(2, n, sr);
     const L = buffer.getChannelData(0);
     const R = buffer.getChannelData(1);
     for (let i = 0; i < n; i++) { L[i] = pcm[2 * i]; R[i] = pcm[2 * i + 1]; }
+    if (this.band) mix(L, R, this.band, frame);
     const c = { frame, buffer };
     this.chunks.push(c);
     this.rendered = (frame + n) / sr;
@@ -143,6 +165,18 @@ export class StreamPiano {
   }
 
   #finish() {
+    if (this.waitingForBand) { this.pianoDone = true; return; }
+    // the band may play on after the piano's last note has died
+    if (this.band) {
+      const sr = this.ctx.sampleRate;
+      let frame = Math.round(this.rendered * sr);
+      const CH = 24000;
+      while (frame < this.band.L.length) {
+        const n = Math.min(CH, this.band.L.length - frame);
+        this.#accept(frame, new Float32Array(n * 2));
+        frame += n;
+      }
+    }
     this.done = true;
     this.length = this.rendered;
     this.#armEnd();
@@ -162,7 +196,7 @@ export class StreamPiano {
       if (fellBack) return;
       fellBack = true;
       worker.terminate();
-      this.chunks = []; this.rendered = 0;
+      this.chunks = []; this.rendered = 0; this.held = [];
       this.#renderInThread(sampleRate);
     };
     worker.onmessage = (ev) => {

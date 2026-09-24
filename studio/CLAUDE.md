@@ -41,6 +41,14 @@ nocturne/                No. 3: a city at night, lit one window per note
   score.js               38 bars, D-flat major nocturne; exports `sec`, `BARS`, `written`, `notation`
   city.js                the city read off the score: bar = building, eighth = column, semitone = floor
   render.js              sky, per-building ink Painters (drawn 8 beats ahead), lights, quay, river, the fold
+speakeasy/               No. 4: a noir in cut paper, for piano, band and noisemakers
+  score.js               98 bars, every instrument; exports pianoEvents, bandEvents, wet/slap (the rooms), LINES_TYPED
+  stage.js               the cutout workshop: cut() rough edges, sheet(), paper textures, pinned puppets
+  cast.js                the man, the dame, the Manager (after Parade's), the band on its stand
+  render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
+lib/band.js              the band, synthesised in pure JS (node + browser + worker): renderBand, mix
+lib/band-worker.js       renders a score's band off the main thread (imports the score by URL)
+lib/band-load.js         loadBand(scoreUrl, rate, seconds): the worker, or the main thread without one
 lib/paint.js             the brush engine: paper, Wash, Bristle, Ink, Dab, and the Painter
 lib/score-kit.js         note names, tempo map, pedal, humanising: for new scores
 tools/render.mjs         render a piece's score in node: speed, level per section, --wav
@@ -149,6 +157,44 @@ downbeat, so the pen is always drawing just ahead of the music. The camera keeps
 its street position to a grid of rows chosen to fit the screen (`fold` in
 render.js). The river, quay and far skyline fade, and the lit windows read as the
 whole score. The fold works at any aspect: a phone gets four rows, a square video three.
+
+## Speakeasy, and the band
+
+The first piece that is not piano-only, and the first that tells a story. A man in a
+hat, a dame in red, the Hotel Majestic, a lift down to a speakeasy, the Manager, a
+shot, a raid, curtain. It is staged as a cut-paper theatre after Picasso's designs for
+*Parade* (1917). Satie put a typewriter, a siren and a pistol in that pit, and this
+score does too. The typewriter types the story's titles on a strip above the stage,
+and every key it strikes is an event in the score.
+
+**The band** (`lib/band.js`) is pure-JS DSP, not WebAudio. It runs identically in node
+(where the selftest measures it), in a worker and on the main thread. It has a
+Karplus-Strong bass, PolyBLEP horns (Harmon-muted trumpet, a tenor sax with growl, a
+square-wave clarinet), vibes, strings, a brush/stick kit and the noisemakers. Randomness
+is seeded per event. `wet(t)` and `slap(t)` in the score set the room: slapback on the
+street, marble in the lobby, dry in the club. Tuning was checked to ±2 cents.
+
+**How it plays.** `StreamPiano` takes `{ band: <score.js URL> }`. The band renders
+first (≈3 s in node, ≈6 s in desktop Chromium at 44.1 kHz), in `band-worker.js`,
+which imports the score by URL because its room functions cannot cross
+postMessage. Piano chunks that arrive earlier are held. Then each chunk is `mix()`ed
+with the band at its frame (a tanh ceiling) before it becomes an AudioBuffer. After
+the piano's last note, band-only chunks carry the tail. `ready` waits for the band.
+Export does the same at 48 kHz: `mountExtras({ band })` → `renderAudio(…, { band })`.
+
+**Levels** (selftest, half rate): lobby < street < club < raid. After the shot the
+room drops to about −47 dB until the raid. Measured from a real export (1080², VP9
++ AAC, decoded with PyAV), the sections match `tools/render.mjs` to within 0.7 dB.
+
+**The picture.** Puppets are trees of paper parts on pins (`stage.js`), animated
+on twos (12 fps quantized `t`). Every scene and every move is read off `cues`, and
+the band animates from the score (`hit(inst, t)`). Wide screens see the whole
+proscenium. Narrower ones (aspect < 1.3: phones and the square export) crop the
+opening and pan (`PANS` in render.js) to where the action is. At the raid, every
+puppet's parts come off their pins and fall (`detachAll`).
+
+**The score clef opens** is a short score: the melody instruments over the bass,
+not the piano part. clef's key parser wants `ees`, not `es`: `\key es \major` fails.
 
 ## Export video, and View the score
 
