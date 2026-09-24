@@ -85,9 +85,13 @@ schemes: `school` `casual` `office` `street` `summer` · colours: see `CLOTH_COL
 
 A garment is the body parts it covers, inflated by the cloth's thickness and cut
 by planes (hems, necklines, cuffs), built on the solved pose. A skirt is a
-flared (pleated) cone whose axis and flare are solved per pose; a thigh that
-leaves it (a raised knee, a crouch, a lap) gets a drape. `checkClothes`: no skin
-shows through, sampled over every pose and a walk.
+flared (pleated) cone whose axis and flare are solved per pose, drawn as a shell
+open at the hem. A thigh that leaves it (a raised knee, a crouch, a lap) gets a
+drape, and knees spread past what the hem can span (a squat) pull the hem up to the
+knees with a panel across the thighs. `checkClothes`: no skin shows through, sampled
+over every pose and a walk. It checks every covered part, and every other torso part
+in a garment's region that the outfit doesn't declare bare (`bareParts`), so a new body
+part a garment doesn't know about fails the check instead of showing through.
 
 ## The face
 

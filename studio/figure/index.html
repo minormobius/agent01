@@ -26,7 +26,7 @@
   h1 { margin: 0; font: 600 20px var(--sans); letter-spacing: 0.01em; }
   header a { pointer-events: auto; font: 500 11px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); text-decoration: none; }
   header a:hover { color: var(--ink); }
-  #badge { position: fixed; top: max(44px, calc(env(safe-area-inset-top) + 34px)); left: 16px; font: 500 11px var(--mono); color: var(--dim); max-width: calc(100% - 32px); }
+  #badge { position: fixed; top: max(44px, calc(env(safe-area-inset-top) + 34px)); left: 16px; font: 500 11px var(--mono); color: var(--dim); max-width: calc(100% - 190px); }
   #badge b { font-weight: 600; }
   #badge .ok { color: var(--ok); } #badge .bad { color: var(--bad); }
   #panel { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--paper); display: grid; gap: 8px; }
@@ -43,7 +43,7 @@
   #tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: -2px -4px 2px; }
   button.tab { border: 0; background: none; padding: 8px 10px; font: 600 12px var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); cursor: pointer; border-bottom: 2px solid transparent; }
   button.tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--ink); }
-  #lucky { position: fixed; right: 16px; bottom: calc(var(--panelH, 212px) + 12px); border: 0; border-radius: 999px; padding: 10px 16px; background: var(--ink); color: var(--paper); font: 600 13px var(--sans); cursor: pointer; box-shadow: 0 2px 10px rgba(42, 34, 48, 0.25); }
+  #lucky { position: fixed; right: 16px; top: max(40px, calc(env(safe-area-inset-top) + 30px)); border: 0; border-radius: 999px; padding: 8px 14px; background: var(--ink); color: var(--paper); font: 600 13px var(--sans); cursor: pointer; box-shadow: 0 2px 10px rgba(42, 34, 48, 0.25); }
   #lucky:active { transform: translateY(1px); }
   #lucky:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
   #content { display: grid; gap: 8px; min-height: 92px; }

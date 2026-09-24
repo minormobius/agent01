@@ -60,8 +60,16 @@ export function buildBody(P) {
     const sg = s === 'l' ? 1 : -1;
     // the glutes, behind and below the hip joints
     const G = m.glutes;
-    // it sits out of the hip blend (sdf): under the cheek the thigh meets it in a fold
-    out.push(Object.assign(ell('torso', add(J.pelvis, apply(F.pelvis, [sg * G.x, -0.17 * kk - (m.pelvis.drop || 0), -0.27 * kk])), F.pelvis, [G.r, G.r * 1.15, G.r * 0.88], 0.1 * kk, `glute_${s}`), { noHip: true }));
+    // it sits out of the hip blend (sdf): under the cheek the thigh meets it in a fold.
+    // A flexed hip (a crouch, a seat, a knee raised) carries it up and back round the
+    // joint, so it rides over the thigh instead of hanging under it
+    const hipJ = J[`hip_${s}`], th = norm(sub(J[`knee_${s}`], hipJ));
+    const flex = Math.atan2(dot(th, F.pelvis.z), -dot(th, F.pelvis.y));
+    const ride = 0.5 * Math.max(0, flex - 0.3);
+    const gc0 = add(J.pelvis, apply(F.pelvis, [sg * G.x, -0.17 * kk - (m.pelvis.drop || 0), -0.27 * kk]));
+    const gc = add(hipJ, rotateV(sub(gc0, hipJ), F.pelvis.x, ride));
+    const Fg = ride ? { x: F.pelvis.x, y: rotateV(F.pelvis.y, F.pelvis.x, ride), z: rotateV(F.pelvis.z, F.pelvis.x, ride) } : F.pelvis;
+    out.push(Object.assign(ell('torso', gc, Fg, [G.r, G.r * 1.15 * (1 - 0.12 * Math.min(1, ride)), G.r * 0.88], 0.1 * kk, `glute_${s}`), { noHip: true }));
     // the breasts: on the front of the ribcage, turned a little outward (by `set`) and
     // down; a low `lift` sits them lower and fills the lower pole (a second, lower mass)
     if (m.bust) {
@@ -220,6 +228,9 @@ function rawDist(q, p) {
       const th = Math.atan2(dot(rel, q.F.z), dot(rel, q.F.x));
       d -= q.r[1] * h * (0.5 + 0.5 * Math.cos(q.r[0] * th));
     }
+    // a shell, not a solid: open at the hem, so a skirt seen from above shows its inside
+    // and the legs in it, not a lid (r[2] is the cloth's thickness)
+    if (q.r[2] > 0) d = Math.max(d, -d - q.r[2]);
     return d;
   }
   return sdEllipsoid(p, q.a, q.F, q.r);

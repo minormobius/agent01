@@ -68,6 +68,7 @@ float prim(int i, vec3 p){
       float th = atan(dot(rel, t5.xyz), dot(rel, t3.xyz));
       d -= t4.w * h * (0.5 + 0.5 * cos(t3.w * th));
     }
+    if (t5.w > 0.0) d = max(d, -d - t5.w);                           // a shell, open at the hem
   } else {
     d = sdEll(p, t0.xyz, t3.xyz, t4.xyz, t5.xyz, vec3(t3.w, t4.w, t5.w));
     if (t2.x > 1.5) d = max(d, dot(p - t0.xyz, t1.xyz) - t1.w);     // capped: cut by a plane (the hairline)

@@ -180,6 +180,37 @@ The viewer's checks run in a worker (`studio/figure/check-worker.js`), group by
 group, and a change terminates a running check instead of queuing behind it. A frame
 solves the pose once: the gaze comes from the previous frame's head.
 
+## What the lucky button found (2026-09-24)
+
+The operator scanned random characters and found four faults, all past the checks:
+- **The glutes hung under a crouching thigh like a goiter.** They were fixed in the
+  pelvis frame. A flexed hip now carries them up and back round the joint (half the
+  flexion past 0.3 rad), so they ride over the thigh.
+- **A running foot pointed backwards.** For a leg posed by angles, the foot frame
+  squared the thigh's forward against the shin, and past 90° of knee bend that
+  points back up the thigh. The toes now turn with the shin. New check,
+  `toesForward`: with the knee bent, the heel-to-ball line leans to the shin's front
+  (the thigh, squared against the shin). It fails on the old code (−0.955).
+- **Skin showed under a shirt, under the bust.** The top didn't cover the new lower
+  mass, and a part buried in the blend still bulges the skin out past cloth that
+  copies only the covered parts. `checkClothes` only ever sampled parts that already
+  had a cover, so it could not see this. It now also samples the skin (projected onto
+  the actual surface) over every other torso part in a garment's region. Skin fails
+  where it lies outside all garments, within 0.06 of a same-group cover, inside that
+  cover's hems, with cloth on at least two sides (a hole, not a hem). A garment
+  declares what it leaves bare (`bareParts`: a tank's shoulders), and the neck is
+  never counted. The same check then found two more:
+  - a bent body's hip showing between a tee and its shorts: the top now covers the hip caps
+  - a raised arm's shoulder cut bare by the neckline plane: the deltoid cover is no longer clipped by it
+
+  90/90 body × outfit pairs clean.
+- **Skirt topology.** A skirt was a solid cone cut flat, so from above its hem was a
+  lid, and in a spread crouch the thighs ran out through its sides over a tube. It is
+  now a shell (`r[2]` = thickness, `max(d, −d − t)`, in JS and GLSL). Knees spread past
+  2.6 × the hip half-width pull the hem up to the knee line, and a panel (a thin
+  ellipsoid, with a front edge sagging from knee to knee) spans the thighs. The
+  thighs-inside-the-skirt check holds them against the skirt as a solid.
+
 ## Not done yet (the next layers)
 
 Hair

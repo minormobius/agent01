@@ -179,9 +179,11 @@ export function solve(rig, pose = {}) {
       const sd = add(scale(u, Math.cos(kb)), scale(fwd, -Math.sin(kb)));
       J[`knee_${s}`] = knee;
       ankle = madd(knee, sd, m.shinLen);
-      // the foot at a right angle to the shin, plus its own pitch
+      // the foot at a right angle to the shin, plus its own pitch: its toes turn with the
+      // shin (the shin's front face), so a knee bent past 90° does not flip them back up
+      // the thigh (the thigh's forward, squared against the shin, points there)
       const up = scale(sd, -1);
-      FF = frameFrom(up, rotate(fwd, F.pelvis.x, 0));
+      FF = frameFrom(up, add(scale(fwd, Math.cos(kb)), scale(u, Math.sin(kb))));
       FF = rotateFrame(FF, FF.x, -(L.pitch || 0));
     }
     J[`ankle_${s}`] = ankle;

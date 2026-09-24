@@ -27,16 +27,18 @@ try {
     const { POSES } = await import('./lib/poses.js');
     const { makeRenderer, camera } = await import('./lib/shader.js');
     const out = [];
-    for (const [spec, pose, yaw] of [[{}, 'handOnHip', 0.4], [{ heads: 3, build: 0.3, mass: 0.7, headWidth: 0.9 }, 'crouch', 1.0], [{ heads: 8.2, build: 0.95 }, 'run', 1.3],
+    // [spec, pose, yaw, pitch]: the last looks down into a hollow skirt, spread in a crouch
+    for (const [spec, pose, yaw, pitch = 0] of [[{}, 'handOnHip', 0.4], [{ heads: 3, build: 0.3, mass: 0.7, headWidth: 0.9 }, 'crouch', 1.0], [{ heads: 8.2, build: 0.95 }, 'run', 1.3],
       [{ femme: 1, bust: 0.7, hips: 0.8, face: {}, hair: { length: 'long', bangs: 'blunt', tails: 'twintails', extras: ['ahoge'] } }, 'contrapposto', 2.4],
-      [{ femme: 1, face: {}, hair: { length: 'bob' }, outfit: { scheme: 'school' } }, 'sit', 0.8], [{ heads: 7.5, face: {}, outfit: { scheme: 'street' } }, 'run', 1.2]]) {
+      [{ femme: 1, face: {}, hair: { length: 'bob' }, outfit: { scheme: 'school' } }, 'sit', 0.8], [{ heads: 7.5, face: {}, outfit: { scheme: 'street' } }, 'run', 1.2],
+      [{ femme: 1, face: {}, outfit: { top: 'tee', bottom: 'skirt' } }, 'crouch', 0.3, 0.6]]) {
       const rig = makeRig(spec);
       const P = solve(rig, POSES[pose](rig));
       const prims = buildBody(P);
       const c = document.createElement('canvas'); c.width = 120; c.height = 200;
       const R = makeRenderer(c, { supersample: 1 });
       const view = rig.m.H * 1.2;
-      const cam = camera({ target: [0, view / 2 - 0.35, 0], yaw, height: view, aspect: 120 / 200 });
+      const cam = camera({ target: [0, view / 2 - 0.35, 0], yaw, pitch, height: view, aspect: 120 / 200 });
       R.draw(prims, P, cam);
       const g = R.readGroups();
       let inter = 0, uni = 0, sameGroup = 0, both = 0;
@@ -56,7 +58,7 @@ try {
         if (js && gpu) { inter++; both++; if (g.ids[y * g.w + x] - 1 === hit) sameGroup++; }
         if (js || gpu) uni++;
       }
-      out.push({ pose: spec.outfit ? `${pose} (dressed: ${spec.outfit.scheme})` : spec.hair ? `${pose} (femme, long hair, twin tails)` : pose, heads: rig.m.H, iou: inter / uni, groups: sameGroup / both, px: uni });
+      out.push({ pose: spec.outfit ? `${pose} (dressed: ${spec.outfit.scheme || spec.outfit.bottom}${pitch ? ', from above' : ''})` : spec.hair ? `${pose} (femme, long hair, twin tails)` : pose, heads: rig.m.H, iou: inter / uni, groups: sameGroup / both, px: uni });
     }
     return out;
   });

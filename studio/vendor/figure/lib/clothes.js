@@ -45,6 +45,17 @@ export function resolveOutfit(o = {}) {
   for (const k of Object.keys(OUTFIT_PREDICATES)) if (!OUTFIT_PREDICATES[k].includes(out[k])) throw new Error(`unknown ${k}: ${out[k]} (know: ${OUTFIT_PREDICATES[k].join(', ')})`);
   return out;
 }
+/**
+ * The torso parts an outfit leaves bare on purpose, beside its hems: checkClothes holds
+ * every other torso part in a garment's region to be covered, so a body part a garment
+ * does not know about (a new mass under the bust, once) shows as a hole.
+ */
+export function bareParts(outfit) {
+  if (!outfit) return [];
+  const o = resolveOutfit(outfit), out = [];
+  if (o.top === 'tank') out.push('deltoid_l', 'deltoid_r');
+  return out;
+}
 export function outfitColors(o) {
   const c = o.colors || {};
   const pick = (k, d) => CLOTH_COLORS[c[k] || d] || CLOTH_COLORS[d];
@@ -87,8 +98,12 @@ export function buildClothes(P, body, outfit, mk) {
     const vneck = top === 'sailor' || top === 'shirt' ? plane(add(F.chest.z, scale(up, 1.1)), madd(J.neck, F.chest.z, 0.12 * kk)) : null;
     for (const n of ['chest', 'belly', 'pelvis']) cover(n, 'top', t, [hem, vneck || collar]);
     for (const s of sides) {
-      cover(`breast_${s}`, 'top', t, [hem]);
-      if (top !== 'tank') cover(`deltoid_${s}`, 'top', t, [collar]);
+      // every torso mass inside the hem: the bust's two, and the hip's cap where a bent
+      // body brings it up to the hem (checkClothes finds a part left out)
+      for (const n of [`breast_${s}`, `breastlow_${s}`, `hipcap_${s}`]) cover(n, 'top', t, [hem]);
+      // the neckline's plane is for the neck: a raised arm lifts the shoulder above it, and
+      // cut there the shoulder went bare (checkClothes, reachUp)
+      if (top !== 'tank') cover(`deltoid_${s}`, 'top', t, []);
       cover(`trap_${s}`, 'top', t, [collar]);
       if (top === 'tank') continue;
       // sleeves: to the elbow for a tee, to the wrist for the rest (a crop is short-sleeved)
@@ -177,7 +192,11 @@ export function buildClothes(P, body, outfit, mk) {
       }
       return false;
     };
-    for (const s of sides) if (lap || outside(s)) {
+    const draped = sides.filter((s) => lap || outside(s));
+    // knees spread past what the hem can span (a squat, a wide crouch): the cloth is pulled
+    // taut from knee to knee, so the hem rises to the knees and a panel spans the thighs
+    const kneeGap = dist3(J.knee_l, J.knee_r), spread = draped.length === 2 && kneeGap > 2.6 * m.hipHalf;
+    for (const s of draped) {
       const H = J[`hip_${s}`], K = J[`knee_${s}`], A = J[`ankle_${s}`];
       const reach = Math.min(1, len / m.thighLen);
       const hemPl = reach < 1 ? plane(norm(sub(K, H)), lerp3(H, K, reach)) : plane(norm(sub(A, K)), lerp3(K, A, Math.min(0.95, (len - m.thighLen) / m.shinLen)));
@@ -186,15 +205,28 @@ export function buildClothes(P, body, outfit, mk) {
       for (const n of [`thigh_${s}0`, `thigh_${s}1`, `kneecap_${s}`]) cover(n, 'bottom', t + 0.04 * kk, reach < 1 ? [hemPl] : []);
       if (reach >= 1) for (const n of [`shin_${s}0`, `shin_${s}1`]) cover(n, 'bottom', t + 0.07 * kk, [hemPl]);
     }
-    // seated, the cone hangs only to the seat: the rest of the skirt is the drape on the lap
-    const hangLen = lap ? Math.min(len, 0.35 * m.thighLen) : len;
+    // seated, the cone hangs only to the seat: the rest of the skirt is the drape on the lap;
+    // spread, it hangs to the knees' line and no further
+    const kneeDepth = Math.max(0.3 * m.thighLen, dot(sub(lerp3(J.knee_l, J.knee_r, 0.5), top0), axis));
+    const hangLen = lap ? Math.min(len, 0.35 * m.thighLen) : spread ? Math.min(len, kneeDepth) : len;
+    if (spread) {
+      // the panel: a thin sheet from the crotch to the knees, its front edge sagging between them
+      const crotch = madd(lerp3(J.hip_l, J.hip_r, 0.5), F.pelvis.y, -0.3 * kk);
+      const Km = lerp3(J.knee_l, J.knee_r, 0.5), sag = Math.min(len - m.thighLen * 0.6, 0.12 * kneeGap + 0.1 * kk);
+      const S = madd(Km, [0, -1, 0], Math.max(0.04 * kk, sag));
+      const X = norm(sub(J.knee_l, J.knee_r));
+      const Z = norm(sub(sub(S, crotch), scale(X, dot(sub(S, crotch), X))));
+      const Fp = { x: X, y: cross(Z, X), z: Z };
+      prims.push({ ...mk.ellipsoid('bottom', lerp3(crotch, S, 0.5), Fp, [kneeGap / 2 + 0.04 * kk, 0.03 * kk, dist3(S, crotch) / 2 + 0.03 * kk], 0.06 * kk, 'panel'), clips: [] });
+      for (const s of sides) prims.push({ ...mk.cone('bottom', J[`knee_${s}`], S, t + 0.03 * kk, 0.03 * kk, 0.06 * kk, `panelEdge_${s}`), side: s === 'l' ? 1 : -1, clips: [] });
+    }
     const hemPt = add(top0, scale(axis, hangLen));
     const Fs = frameAround(axis, F.pelvis.z);
     const pleats = bottom === 'pleated' ? 18 : 0;
     // the cone runs on past the hem by its own radius, so its round end is cut away flat
     const b0 = add(hemPt, scale(axis, rBot));
     const rB = rTop + (rBot - rTop) * ((hangLen + rBot) / hangLen);
-    prims.push({ type: 3, group: 'bottom', side: 0, a: top0, b: b0, ra: rTop, rb: rB, F: Fs, r: [pleats, pleats ? 0.025 * kk : 0, 0], k: 0.05 * kk, name: 'skirt', clips: [plane(axis, hemPt)] });
+    prims.push({ type: 3, group: 'bottom', side: 0, a: top0, b: b0, ra: rTop, rb: rB, F: Fs, r: [pleats, pleats ? 0.025 * kk : 0, 0.025 * kk], k: 0.05 * kk, name: 'skirt', clips: [plane(axis, hemPt)] });
   }
 
   // ---- legwear

@@ -129,11 +129,11 @@ function drawSkeleton(ctx, P, cam, x0, y0, W, H) {
 }
 
 /** Several figures side by side, heads the same size: the proportions compared. */
-export function renderLineup(canvas, specs, { panelH = 520, style = STYLE, yaws = [0, 0.6], names = [] } = {}) {
+export function renderLineup(canvas, specs, { panelH = 520, style = STYLE, yaws = [0, 0.6], names = [], pose = 'stand' } = {}) {
   const rigs = specs.map((sp) => makeRig(sp));
   const tallest = Math.max(...rigs.map((r) => r.m.H));
   const view = tallest * 1.1, unit = panelH / view;
-  const widths = rigs.map((r) => Math.round(unit * Math.max(2.4, r.m.shoulderHalf * 2 + 1.6)));
+  const widths = rigs.map((r) => Math.round(unit * Math.max(pose === 'stand' ? 2.4 : 3.4, r.m.shoulderHalf * 2 + 1.6)));
   const top = 56;
   canvas.width = 40 + yaws.length * widths.reduce((a, b) => a + b, 0) + 20; canvas.height = top + panelH + 60;
   const ctx = canvas.getContext('2d');
@@ -149,7 +149,7 @@ export function renderLineup(canvas, specs, { panelH = 520, style = STYLE, yaws 
     const W = widths[i];
     gl.width = W; gl.height = panelH;
     const R = makeRenderer(gl);
-    const P = solve(rig, POSES.stand(rig));
+    const P = solve(rig, POSES[specs[i].pose || pose](rig));
     const cam = camera({ target: [0, view / 2 - 0.35, 0], yaw, height: view, aspect: W / panelH });
     R.draw(buildBody(P), P, cam, style);
     ctx.save(); ctx.strokeStyle = '#9fb3c8'; ctx.globalAlpha = 0.35;

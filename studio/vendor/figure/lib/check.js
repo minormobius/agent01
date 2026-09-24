@@ -157,6 +157,23 @@ function supportMargin(poly, p) {
 // which named poses stand on their feet (and so must balance over them)
 export const STANDING = ['stand', 'contrapposto', 'handOnHip', 'reachUp', 'crouch', 'lookBack'];
 
+/**
+ * A foot points to the front of its shin. With the knee bent, the thigh squared against
+ * the shin IS the shin's front, so the heel-to-toe line must lean that way (a knee bent
+ * past 90° once flipped the foot to point back up the thigh). A straight leg is skipped.
+ */
+export function toesForward(P) {
+  let worst = 1;
+  for (const s of ['l', 'r']) {
+    const H = P.J[`hip_${s}`], K = P.J[`knee_${s}`], A = P.J[`ankle_${s}`];
+    const shin = norm(sub(A, K)), thigh = norm(sub(K, H));
+    const front = sub(thigh, scale(shin, dot(thigh, shin)));
+    if (len(front) < 0.2) continue;                               // under ~12° of bend
+    worst = Math.min(worst, dot(norm(sub(P.J[`ball_${s}`], P.J[`heel_${s}`])), norm(front)));
+  }
+  return [worst > 0, +worst.toFixed(3), '> 0 (foot · the shin\'s front)'];
+}
+
 export function checkPoses(spec) {
   const rig = makeRig(spec), m = rig.m;
   const out = [];
@@ -170,6 +187,7 @@ export function checkPoses(spec) {
     const wrists = ['l', 'r'].map((s) => P.report[`wrist_${s}`] || 0);
     out.push(r(`${name}: wrists bend within reach`, Math.max(...wrists) < 1.4, +(Math.max(...wrists) * 180 / Math.PI).toFixed(0), '< 80°'));
     out.push(r(`${name}: no limb through another`, pen.depth < 0.04 * m.k, +pen.depth.toFixed(3), `< ${(0.04 * m.k).toFixed(2)} heads`, pen.part ? `${pen.part} into ${pen.into}` : ''));
+    out.push(r(`${name}: toes forward of the shin`, ...toesForward(P)));
     const planted = ['l', 'r'].filter((s) => pose.legs?.[s]?.at);
     if (planted.length) {
       const miss = planted.length ? Math.max(...planted.map((s) => { const L = pose.legs[s]; return Math.abs(pivotPoint(P, s, L.pivot === 'heel' || L.pivot === 'ball' ? L.pivot : 'flat')[1]); })) : 0;
@@ -431,6 +449,7 @@ export function checkForm(spec) {
 
 // ---- clothes -------------------------------------------------------------------------
 import { GARMENT_GROUPS } from './body.js';
+import { bareParts } from './clothes.js';
 import { surfacePoints } from './settle.js';
 
 /**
@@ -441,6 +460,7 @@ import { surfacePoints } from './settle.js';
  */
 export function checkClothes(spec) {
   const rig = makeRig(spec);
+  const bare = new Set(bareParts(spec.outfit));
   const cases = Object.keys(POSES).map((n) => [n, () => POSES[n](rig)]);
   const T = walk(rig, 0).cycle;
   for (let i = 0; i < 8; i++) cases.push([`walk ${i}/8`, () => walk(rig, (i / 8) * T).pose]);
@@ -451,6 +471,7 @@ export function checkClothes(spec) {
     const all = buildBody(P);
     const bodyOnly = all.filter((q) => q.group < GROUPS.indexOf('hair'));
     const gIdx = [...GARMENT_GROUPS];
+    const worn = all.filter((q) => GARMENT_GROUPS.has(q.group)), wornD = (p) => sdf(worn, p);
     for (const g of gIdx) {
       const cloth = all.filter((q) => q.group === g);
       if (!cloth.length) continue;
@@ -470,9 +491,47 @@ export function checkClothes(spec) {
           if (d > worst.depth) worst = { depth: d, part: base, garment: GROUPS[g], pose: name };
         }
       }
+      // every part of the torso the garment's own region holds, covered or not, unless the
+      // garment leaves it bare on purpose (bareParts: a tank's shoulders): a body part the
+      // garment does not know (the bust's lower mass, once) pokes out through the cloth. Skin shows through where it lies outside the cloth, a cover of a part of
+      // its own body group is right there, and it is inside that cover's hems (not a
+      // hand resting on a shirt, not the bare skin past a hem)
+      const own = new Map(cloth.map((c) => [c, c.name.includes(':') ? bodyOnly.find((b) => b.name === c.name.split(':')[1])?.group : undefined]));
+      const groups = new Set([...own.values()].filter((x) => x !== undefined));
+      const covered = new Set(cloth.map((c) => c.name.split(':')[1]));
+      const bodyD = (p) => sdf(bodyOnly, p), e = 1e-3;
+      const bodyN = (p) => norm([bodyD([p[0] + e, p[1], p[2]]) - bodyD([p[0] - e, p[1], p[2]]), bodyD([p[0], p[1] + e, p[2]]) - bodyD([p[0], p[1] - e, p[2]]), bodyD([p[0], p[1], p[2] + e]) - bodyD([p[0], p[1], p[2] - e])]);
+      const toSkin = (p) => { for (let it = 0; it < 4; it++) { const d0 = bodyD(p), n = bodyN(p); p = [p[0] - n[0] * d0, p[1] - n[1] * d0, p[2] - n[2] * d0]; } return p; };
+      for (const q of bodyOnly) {
+        // the neck comes out of every neckline: it is what a collar is open for
+        if (q.group !== 0 || !groups.has(0) || covered.has(q.name) || bare.has(q.name) || q.name === 'neck' || q.name === 'adamsApple') continue;
+        const mine = cloth.filter((c) => own.get(c) === q.group);
+        for (const p0 of surfacePoints(q, 8)) {
+          // onto the skin itself: a part buried in the blend still shapes the skin over it
+          const p = toSkin(p0);
+          const gd = groupDists(bodyOnly, p);
+          if (Math.abs(bodyD(p)) > 0.003 || gd[q.group] > 0.004) continue;
+          const d = wornD(p);
+          if (d < 0.004) continue;
+          let best = null, bd = Infinity;
+          for (const c of mine) { const cd = primDist(c, p); if (cd < bd) { bd = cd; best = c; } }
+          if (!best || bd > 0.06) continue;
+          if (best.clips.some((cl) => cl && cl[0] * p[0] + cl[1] * p[1] + cl[2] * p[2] - cl[3] > -0.03)) continue;
+          // a hole, not a hem: cloth on at least two sides of it
+          const n = bodyN(p);
+          const t1 = norm(cross(n, Math.abs(n[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0])), t2 = cross(n, t1);
+          const clad = (u, sg) => wornD(toSkin([p[0] + u[0] * sg * 0.06, p[1] + u[1] * sg * 0.06, p[2] + u[2] * sg * 0.06])) < 0;
+          if ([[t1, 1], [t1, -1], [t2, 1], [t2, -1]].filter(([u, sg]) => clad(u, sg)).length < 2) continue;
+          samples++;
+          if (d > worst.depth) worst = { depth: d, part: q.name, garment: GROUPS[g], pose: name };
+        }
+      }
       // a skirt: the thighs above its hem stay inside it
       const skirt = cloth.find((q) => q.name === 'skirt');
       if (skirt) {
+        // held against the skirt as a solid (it is drawn as a shell, and a thigh in it is inside)
+        const solid = cloth.map((q) => (q === skirt ? { ...q, r: [q.r[0], q.r[1], 0] } : q));
+        const solidD = (p) => sdf(solid, p);
         const hem = skirt.clips[0];
         for (const s of ['l', 'r']) for (const n of [`thigh_${s}0`, `thigh_${s}1`]) {
           // a draped leg (it left the cone) is covered to the drape's own hem, which the
@@ -484,7 +543,7 @@ export function checkClothes(spec) {
             if (Math.min(...gd) < -0.004 || gd[q.group] > 0.01) continue;
             if (hem[0] * p[0] + hem[1] * p[1] + hem[2] * p[2] - hem[3] > -0.04) continue;
             samples++;
-            const d = clothD(p);
+            const d = solidD(p);
             if (d > worst.depth) worst = { depth: d, part: n, garment: 'skirt', pose: name };
           }
         }
