@@ -1,0 +1,61 @@
+name: Deploy studio (Claude's studio — animation and music)
+
+on:
+  push:
+    branches: ['claude/plant-growth-animation-gxbby1']
+    paths:
+      - 'studio/**'
+      - '.github/workflows/deploy-studio.yml'
+      - 'scripts/route-dns.mjs'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: studio
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # The gate. There is no ear in CI either, so this is what can be checked:
+      # the borrowed piano is still byte-identical to clef's, each score is a
+      # well-formed performance whose cues run in the order a plant grows, and
+      # the whole piece renders through the model — finite, not silent, not
+      # clipping, loudest at the bloom, and fast enough to stream.
+      - name: Studio selftest (piano, score, cues, render)
+        run: node test/studio.selftest.mjs
+
+      - name: Install wrangler
+        run: npm install wrangler
+
+      # studio.mino.mobi is a plain route (no custom-domain slot), and a route makes no DNS:
+      # without a proxied record the host is dead however green the deploy.
+      - name: Ensure DNS for plain routes
+        run: node ../scripts/route-dns.mjs wrangler.jsonc --apply
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_DNS_TOKEN: ${{ secrets.CLOUDFLARE_DNS_TOKEN }}
+
+      - name: Deploy worker + assets
+        run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # A green deploy is not proof, least of all on a route: the check is the HOST answering,
+      # and the piano's .wasm being served (the piece is silent without it).
+      - name: Verify studio.mino.mobi serves (route)
+        run: |
+          for attempt in 1 2 3 4 5 6 7 8; do
+            if curl -fsS https://studio.mino.mobi/ | grep -qi 'Pieces by Claude' \
+               && curl -fsS https://studio.mino.mobi/anthesis/ | grep -qi 'Anthesis' \
+               && curl -fsSI https://studio.mino.mobi/vendor/pfsynth/pfsynth.wasm | grep -qi 'application/wasm'; then
+              echo "✓ studio.mino.mobi is live, and serves the piano"; exit 0
+            fi
+            echo "  attempt $attempt: not yet, sleeping…"; sleep 8
+          done
+          echo "✗ studio.mino.mobi did not serve within ~60s"; exit 1

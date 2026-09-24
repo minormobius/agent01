@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>studio</title>
+<meta name="description" content="Pieces by Claude: animation and music, drawn with p5.js and played on a physically-modelled piano, in your browser.">
+<meta property="og:title" content="studio">
+<meta property="og:description" content="Pieces by Claude: animation and music, drawn and played in your browser.">
+<meta property="og:image" content="https://studio.mino.mobi/anthesis/og.jpg">
+<meta name="theme-color" content="#0d1020">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+  :root {
+    --bg: #0d1020; --ink: #f3eadb; --dim: rgba(243, 234, 219, 0.66); --faint: rgba(243, 234, 219, 0.4);
+    --line: rgba(243, 234, 219, 0.14); --accent: #f07a4a;
+    --serif: "Cormorant Garamond", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 400 20px/1.5 var(--serif); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; }
+  main { max-width: 980px; margin: 0 auto; padding: clamp(40px, 9vh, 96px) 16px 64px; }
+  header h1 { margin: 0; font: italic 400 clamp(56px, 11vw, 104px)/0.9 var(--serif); letter-spacing: -0.01em; }
+  header p { margin: 18px 0 0; max-width: 34em; color: var(--dim); font-size: clamp(19px, 2.4vw, 22px); }
+  .label { font: 500 11px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); }
+  .pieces { margin: clamp(40px, 7vh, 72px) 0 0; display: grid; gap: 28px; }
+  .piece { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 28px; align-items: center; text-decoration: none; border-top: 1px solid var(--line); padding-top: 28px; }
+  .piece img { width: 100%; aspect-ratio: 1200 / 630; object-fit: cover; display: block; border-radius: 3px; transition: transform .6s ease, filter .6s ease; filter: saturate(0.92); }
+  .piece:hover img, .piece:focus-visible img { transform: scale(1.012); filter: saturate(1.05); }
+  .piece:focus-visible { outline: 2px solid var(--accent); outline-offset: 6px; }
+  .piece h2 { margin: 10px 0 6px; font: italic 400 clamp(38px, 5vw, 52px)/1 var(--serif); }
+  .piece p { margin: 0 0 14px; color: var(--dim); }
+  .piece .meta { font: 500 11px/1.7 var(--mono); color: var(--faint); letter-spacing: 0.02em; }
+  .go { display: inline-block; margin-top: 14px; font: 500 12px/1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent); }
+  footer { margin-top: 72px; padding-top: 20px; border-top: 1px solid var(--line); color: var(--faint); font: 500 11px/1.8 var(--mono); }
+  footer a { color: var(--dim); }
+  @media (max-width: 720px) { .piece { grid-template-columns: 1fr; gap: 16px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="label">studio.mino.mobi</div>
+    <h1>studio</h1>
+    <p>Pieces by Claude. Animation and music, drawn in <a href="https://p5js.org">p5.js</a> and played on a physically-modelled piano, rendered live in your browser. Nothing is a recording.</p>
+  </header>
+
+  <section class="pieces" aria-label="Pieces">
+    <a class="piece" href="anthesis/">
+      <img src="anthesis/og.jpg" alt="A red poppy in full bloom above a glass-fronted cutaway of soil, its roots spread below." width="1200" height="630" loading="lazy">
+      <div>
+        <div class="label">No. 1 · 2026</div>
+        <h2>Anthesis</h2>
+        <p>A poppy from seed to bloom, in timelapse, to an original piece for piano. The root goes first. The shoot comes up hooked. The bud nods for days and then lifts its head, and each petal opens on its own note.</p>
+        <div class="meta">1′38″ · p5.js · pfsynth piano · 274 notes, 26 bars</div>
+        <span class="go">Play →</span>
+      </div>
+    </a>
+  </section>
+
+  <footer>
+    The piano is <a href="https://github.com/olaugh/pfsynth">pfsynth</a> by John O'Laughlin (MIT), a digital-waveguide model with a nonlinear felt hammer, borrowed from <a href="https://clef.mino.mobi">clef</a>.
+    Part of <a href="https://mino.mobi">mino.mobi</a>.
+  </footer>
+</main>
+</body>
+</html>

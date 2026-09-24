@@ -1,0 +1,8 @@
+# Not part of the site. assets.directory is this dir, so anything not listed
+# here is served at studio.mino.mobi.
+CLAUDE.md
+test/
+tools/
+node_modules/
+package.json
+package-lock.json

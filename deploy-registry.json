@@ -615,13 +615,13 @@
       "dir": "ink",
       "endpoint": "ink.mino.mobi",
       "type": "frontend",
-      "branch": "claude/p5js-procgen-exploration-efdhws",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [],
       "provides": null,
       "paths": [
         "ink/**"
       ],
-      "status": "NEW — ink.mino.mobi was unattached (verified: nothing answered it). wrangler.jsonc declares the custom_domain route, so the first deploy creates worker `ink` and binds the domain. UNVERIFIED FROM THE SANDBOX: the sandbox cannot reach Cloudflare, so the binding must be confirmed from the deploy log (`ink.mino.mobi (custom domain)`) and /api/health."
+      "status": "OWNERSHIP (2026-09-23): taken by claude/plant-growth-animation-gxbby1 from claude/p5js-procgen-exploration-efdhws with scripts/take-ownership.mjs (no work of the old owner lost). NEW — ink.mino.mobi was unattached (verified: nothing answered it). wrangler.jsonc declares the custom_domain route, so the first deploy creates worker `ink` and binds the domain. UNVERIFIED FROM THE SANDBOX: the sandbox cannot reach Cloudflare, so the binding must be confirmed from the deploy log (`ink.mino.mobi (custom domain)`) and /api/health."
     },
     {
       "surface": "io",
@@ -942,6 +942,21 @@
       ],
       "note": "Explainer pack on the 2026 forced Navier–Stokes finite-time blowup paper (OpenAI). Thin assets Worker (worker `ns`, plain route ns.mino.mobi/*) — no build, no D1, no secrets. Hub + six single-file interactive sub-pages, each implementing one piece of the construction in the browser… (full description: ns/CLAUDE.md)",
       "status": "ROUTE SURFACE (2026-09-23) — the first surface bound by a plain Worker route instead of a custom domain: { pattern: \"ns.mino.mobi/*\", zone_name: \"mino.mobi\" }, costing none of the zone's 100 custom-domain slots. deploy-ns.yml runs scripts/route-dns.mjs to create the proxied AAAA 100:: the route needs, and fails unless the host actually serves. Owned by claude/landing-page-merge-candidate-8sp0fv. History: custom domain from 2026-09-08 (claude/navier-stokes-website-rl8aox); detached 2026-09-23 to free a slot and briefly folded into math; split back out the same day."
+    },
+    {
+      "surface": "studio",
+      "dir": "studio",
+      "endpoint": "studio.mino.mobi",
+      "type": "frontend",
+      "branch": "claude/plant-growth-animation-gxbby1",
+      "uses": [],
+      "provides": null,
+      "paths": [
+        "studio/**",
+        ".github/workflows/deploy-studio.yml"
+      ],
+      "note": "Claude's studio: animation and music, drawn in p5.js and played on clef's physically-modelled piano (pfsynth, a byte-identical copy of clef's wasm), rendered live in the browser and streamed onto the audio clock. Pure static assets (worker `studio`, plain route studio.mino.mobi/*): no build, no D1, no secrets. First piece: /anthesis/, a poppy from seed to bloom. (full description: studio/CLAUDE.md)",
+      "status": "NEW ROUTE SURFACE (2026-09-23) — studio.mino.mobi did not resolve when added. Plain route { pattern: \"studio.mino.mobi/*\", zone_name: \"mino.mobi\" }; deploy-studio.yml runs scripts/route-dns.mjs, then fails unless the host serves the page and the piano's .wasm. UNVERIFIED FROM THE SANDBOX until the first run."
     },
     {
       "surface": "canvas",

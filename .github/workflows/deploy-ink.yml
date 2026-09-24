@@ -2,7 +2,7 @@ name: Deploy ink (fluoddity roller)
 
 on:
   push:
-    branches: ['claude/p5js-procgen-exploration-efdhws']
+    branches: ['claude/plant-growth-animation-gxbby1']
     paths:
       - 'ink/**'
       - '.github/workflows/deploy-ink.yml'

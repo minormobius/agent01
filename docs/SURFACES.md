@@ -6,7 +6,7 @@
 # Surface index — where everything lives
 
 Every independently-deployed surface in this repo, generated from
-[`deploy-registry.json`](../deploy-registry.json). **103 surfaces.**
+[`deploy-registry.json`](../deploy-registry.json). **104 surfaces.**
 
 This is the index to read first. Root [`CLAUDE.md`](../CLAUDE.md) carries the
 rules that apply everywhere; the per-surface **Docs** column below carries the
@@ -82,7 +82,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `hose` | backend | `workers/hose` | [hose.mino.mobi](https://hose.mino.mobi) | `claude/txt-airports-bluesky-feed-pu4pbh` | [`workers/hose/CLAUDE.md`](../workers/hose/CLAUDE.md) | The firehose half of the feed stack, and the other end of b.mino.mobi/feedgen… |
 | `human` | fullstack | `human` | [human.mino.mobi](https://human.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`human/CLAUDE.md`](../human/CLAUDE.md) | Human Machinery — an arcade of user error… |
 | `idol` | frontend | `idol` | [idol.mino.mobi](https://idol.mino.mobi) | `claude/anime-waifu-generator-9QwRt` | [`idol/CLAUDE.md`](../idol/CLAUDE.md) | The waifu generator — an AI-safety piece about beguilement, built as the thing it's about… (full description: idol/CLAUDE.md) |
-| `ink` | frontend | `ink` | [ink.mino.mobi](https://ink.mino.mobi) | `claude/p5js-procgen-exploration-efdhws` | [`ink/CLAUDE.md`](../ink/CLAUDE.md) | A roller for fluoddity organisms, painted rather than lit… |
+| `ink` | frontend | `ink` | [ink.mino.mobi](https://ink.mino.mobi) | `claude/plant-growth-animation-gxbby1` | [`ink/CLAUDE.md`](../ink/CLAUDE.md) | A roller for fluoddity organisms, painted rather than lit… |
 | `io` | fullstack | `io` | [io.mino.mobi](https://io.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`io/CLAUDE.md`](../io/CLAUDE.md) | ATProto issue tracker. Bug reports and feature requests live on your own PDS; doubles as a StumbleUpon-style portal across the mino.mobi sites. |
 | `iris` | frontend | `iris` | [iris.mino.mobi](https://iris.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`iris/CLAUDE.md`](../iris/CLAUDE.md) | The END-ON cross-section view of an O'Neill cylinder — looking down the axis at a small ring habitat (4 km floor inside a 5 km radiator skin). Assets worker `iris` serving directory 'iris'… |
 | `j` | frontend | `j` | [j.mino.mobi](https://j.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`j/CLAUDE.md`](../j/CLAUDE.md) | ImageJ in the browser. Confocal analysis, edge detection, circle fitting, and radial sampling compiled to WASM—every pixel stays client-side. |
@@ -119,6 +119,7 @@ deliberately doesn't have one, because a hand-kept list rots and this doesn't.
 | `scores` | backend | `workers/scores` | [scores.mino.mobi](https://scores.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`workers/scores/CLAUDE.md`](../workers/scores/CLAUDE.md) | Shared multi-game leaderboard worker. One generic game_scores table (own D1: mino-scores-db) keyed by game slug; identity delegated to auth.mino.mobi bearer tokens… |
 | `silk` | frontend | `silk` | [silk.mino.mobi](https://silk.mino.mobi) | `claude/spiderweb-physarium-agent-ta17v4` | [`silk/CLAUDE.md`](../silk/CLAUDE.md) | An agent that weaves orb webs with no plan and no map — it holds eight numbers about its own body and reads everything else off the silk it has already hung, which makes the half-built web its scaffol… |
 | `splice` | frontend | `splice` | [splice.mino.mobi](https://splice.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`splice/CLAUDE.md`](../splice/CLAUDE.md) | Molecular-biology workbench—restriction mapping, PCR, and cloning compiled to WASM and wrapped as a campaign puzzle game. |
+| `studio` | frontend | `studio` | [studio.mino.mobi](https://studio.mino.mobi) | `claude/plant-growth-animation-gxbby1` | [`studio/CLAUDE.md`](../studio/CLAUDE.md) | Claude’s studio: animation and music, drawn in p5.js and played on a physically-modelled piano rendered live in your browser… |
 | `table` | frontend | `table` | [table.mino.mobi](https://table.mino.mobi) | `claude/ttrpg-character-sheet-gen-886np4` | [`table/CLAUDE.md`](../table/CLAUDE.md) | Procedural character sheets for tabletop RPGs, built only on systems whose rules text is openly licensed — because a generator has to reproduce the tables, and that is the part copyright actually cove… |
 | `tape` | frontend | `tape` | [tape.mino.mobi](https://tape.mino.mobi) | `claude/rfid-book-reader-design-ainq0k` | [`tape/CLAUDE.md`](../tape/CLAUDE.md) | The open-source card audio player, designed in the open. A Toniebox charges $19.99 a story and a Yoto card $9.99… |
 | `tide` | frontend | `tide` | [tide.mino.mobi](https://tide.mino.mobi) | `claude/landing-page-merge-candidate-8sp0fv` | [`tide/CLAUDE.md`](../tide/CLAUDE.md) | The THERMODYNAMICS wing of the O'Neill cylinder modelling package (split out of biome). Assets worker `tide` serving directory 'tide'… |

@@ -4416,6 +4416,39 @@
         "math",
         "3d"
       ]
+    },
+    {
+      "n": "studio",
+      "u": "https://studio.mino.mobi",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-23",
+      "b": "2026-09-23",
+      "surface": "studio",
+      "d": "Claude’s studio: animation and music, drawn in p5.js and played on a physically-modelled piano rendered live in your browser. First piece, Anthesis: a poppy from seed to bloom in timelapse, each petal opening on its own note.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
+    },
+    {
+      "n": "anthesis",
+      "u": "https://studio.mino.mobi/anthesis/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-23",
+      "b": "2026-09-23",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A poppy from seed to bloom in timelapse, to an original piece for physically-modelled piano rendered on your device as you listen. The root goes first, the shoot comes up hooked, the bud nods and lifts, and each petal opens on its own note.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
     }
   ],
   "notListed": [
