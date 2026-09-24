@@ -79,7 +79,7 @@ export function m(name) {
 
 const raw = [];   // { beat, dur (beats), midi, vel, tag?, i? }
 function n(bar, beat, dur, names, vel, tag, i) {
-  for (const nm of [].concat(names)) raw.push({ beat: B(bar, beat), dur, midi: m(nm), vel, tag, i });
+  for (const nm of [].concat(names)) raw.push({ beat: B(bar, beat), dur, midi: m(nm), name: nm, vel, tag, i });
 }
 
 // ---- 1–4  Dormancy ---------------------------------------------------------
@@ -181,7 +181,7 @@ n(21, 0, 2, ['F#5', 'A5'], 0.56);
 ['D5', 'E5', 'F#5', 'G#5', 'A5', 'C#6', 'E6', 'F#6'].forEach((nm, i) => {
   const beat = 1 + i * 0.5;                       // bar 21 beat 1 .. bar 22 beat 0.5
   const bar = beat >= 4 ? 22 : 21;
-  n(bar, beat % 4, 1, nm, 0.46 + i * 0.026, 'petal', i);
+  n(bar, beat % 4, 0.5, nm, 0.46 + i * 0.026, 'petal', i);   // written as eighths; the pedal rings them
 });
 n(22, 0, 4, ['D2', 'A2'], 0.34);
 n(22, 2, 0.5, 'E6', 0.26, 'shimmer');
@@ -202,7 +202,7 @@ n(25, 1, 1, 'E5', 0.28, 'figure');
 n(25, 2, 2, 'A5', 0.30, 'figure');
 // The last chord, rolled from the bottom and left to ring.
 ['D2', 'A2', 'F#3', 'A3', 'D4', 'E4', 'A4', 'F#5'].forEach((nm, j) => {
-  raw.push({ beat: B(26, 0) + j * 0.07, dur: 8, midi: m(nm), vel: 0.30 - j * 0.008, tag: 'last' });
+  raw.push({ beat: B(26, 0) + j * 0.07, dur: 8, midi: m(nm), name: nm, vel: 0.30 - j * 0.008, tag: 'last', written: B(26, 0), roll: true });
 });
 n(27, 1, 3, 'D6', 0.16, 'drop');
 
@@ -289,3 +289,14 @@ export const cues = {
 
 export const duration = cues.end;
 export const title = 'Anthesis';
+
+// ------------------------------------------------------------ the page --
+
+/** The notes as WRITTEN — spellings, rolled chords on their beat — for the score (lib/lilypond.js). */
+export const written = raw;
+export const notation = {
+  bars: 28,
+  keys: [[1, 'd', 'minor'], [21, 'd', 'major']],
+  tempos: [[1, 60], [5, 72], [21, 68], [23, 60]],
+  sections: [[1, 'dormancy'], [5, 'germination'], [9, 'leaves'], [17, 'bud'], [21, 'bloom'], [23, 'coda']],
+};

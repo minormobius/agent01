@@ -1749,12 +1749,12 @@
       "dir": "clef",
       "endpoint": "clef.mino.mobi",
       "type": "frontend",
-      "branch": "claude/sheet-music-viewer-composer-qb4ljl",
+      "branch": "claude/plant-growth-animation-gxbby1",
       "uses": [
         "auth.mino.mobi"
       ],
       "provides": "sheet-music",
-      "status": "MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
+      "status": "OWNERSHIP (2026-09-24): taken by claude/plant-growth-animation-gxbby1 from claude/sheet-music-viewer-composer-qb4ljl with scripts/take-ownership.mjs (no work of the old owner lost). MANAGED — verified prod (clef.mino.mobi bound as a custom domain on run #1, 2026-09-05)",
       "note": "Sheet-music viewer and composer. Reads a working subset of LilyPond notation (Dutch/English/German note names, \\transpose, ornaments), engraves it as classical notation in SVG with its own glyph outlines and no music font, plays it back through a small WebAudio patch bank, and exports .ly/.mid/.svg/.wav. Browse opens the Mutopia Project's ~2,300 LilyPond-source scores through a narrow read proxy in this surface's own worker at /mutopia/* (one origin, GET only, two path shapes, edge-cached) — Mutopia sends no CORS header. Publishing writes one com.minomobi.clef.piece record to the reader's own PDS; the site stores nothing. Full notes in clef/CLAUDE.md.",
       "paths": [
         "clef/**",

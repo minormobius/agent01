@@ -850,6 +850,34 @@ async function openAtUri(uri) {
   }
 }
 
+/**
+ * Open a score from a URL: `#src=https://studio.mino.mobi/anthesis/score.ly`.
+ *
+ * This is how another site on the zone says "here is my score, engrave it":
+ * the studio's "View the score" links land here. Only https URLs on
+ * *.mino.mobi are fetched. It is a read, and the result is plain text handed to
+ * the same parser a pasted file goes through, but an open door to any host
+ * would make clef a way to point a reader's browser anywhere, and nothing needs
+ * that. The file comes back read-only in spirit: editing it edits the reader's
+ * own draft; publishing saves a copy to their own repository.
+ */
+const SRC_HOSTS = /(^|\.)mino\.mobi$/;
+async function openSrc(raw) {
+  try {
+    const url = new URL(raw);
+    if (url.protocol !== 'https:' || !SRC_HOSTS.test(url.hostname)) throw new Error(`clef only opens scores from *.mino.mobi, not ${url.hostname}`);
+    const res = await fetch(url, { credentials: 'omit' });
+    if (!res.ok) throw new Error(`${url.hostname} answered ${res.status}`);
+    const source = await res.text();
+    if (source.length > 2_000_000) throw new Error('that file is too large to be a score');
+    const title = /title\s*=\s*"([^"]*)"/.exec(source)?.[1] || 'Untitled';
+    loadPiece({ title, source, rkey: null }, { push: false });
+    toast(`opened “${title}” from ${url.hostname}`, 5000);
+  } catch (err) {
+    toast(`could not open: ${err.message}`, 6000);
+  }
+}
+
 // ----------------------------------------------------------------- sheets --
 
 function openSheet(title, build) {
@@ -1409,6 +1437,9 @@ function boot() {
   if (hash.startsWith('at://')) {
     loadPiece(byId(DEFAULT_PIECE), { push: false });
     openAtUri(hash);
+  } else if (hash.startsWith('src=')) {
+    loadPiece(byId(DEFAULT_PIECE), { push: false });
+    openSrc(hash.slice(4));
   } else if (hash && LIBRARY.some((p) => p.id === hash)) {
     const p = byId(hash);
     loadPiece(p, { push: false });

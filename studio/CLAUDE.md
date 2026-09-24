@@ -35,7 +35,8 @@ coquelicots/             No. 2: the same poppy, painted; the world painted outwa
   score.js               41 bars; the texture adds a layer per stage of the world (uses lib/score-kit.js)
   world.js               the landscape as ~3400 timed marks, each timed by its distance from the plant
   poppy.js               the plant, repainted 12x a second with three brush variants (the "boil")
-  main.js                world canvas (accumulates) + plant canvas + paper tooth
+  render.js              world canvas (accumulates) + plant canvas + paper tooth: makeRenderer
+  main.js                the page: p5, the piano, the card
 lib/paint.js             the brush engine: paper, Wash, Bristle, Ink, Dab, and the Painter
 lib/score-kit.js         note names, tempo map, pedal, humanising: for new scores
 tools/render.mjs         render a piece's score in node: speed, level per section, --wav
@@ -126,8 +127,47 @@ Lessons about the look, each learned the hard way:
 The texture adds a layer per stage, and the selftest asserts the RMS rises
 stage by stage: seed −39.5 < soil −30.7 < ground −28.0 < field −22.9 < sky −22.5 < bloom −16.3 dB.
 
+## Export video, and View the score
+
+Both live under a piece's Begin button (`lib/extras.js`), for every piece.
+
+**Export video** (`lib/export.js`). A piece is a pure function of `t` and its music
+is a fixed performance, so the video is RENDERED, not recorded. Each piece has a
+`render.js` exporting `makeRenderer(W, H, dpr)` → `draw(ctx, t)`. The page and the
+exporter call the same function, so they cannot drift apart. The audio is re-rendered
+at 48 kHz in the piano worker. `plan()` picks the best route this browser has:
+
+1. offline WebCodecs **H.264 + AAC** in MP4 (vendored `mp4-muxer`, MIT). Fast, and a
+   phone's Photos accepts it. Chrome on Mac/Win/Android, Safari with an AAC encoder.
+2. real-time `MediaRecorder` MP4 (H.264/AAC). As long as the piece, but Photos takes it.
+3. offline VP9/AV1 + Opus in MP4. Fast and plays everywhere online, but iPhone Photos
+   may refuse it. The panel says so.
+4. whatever MediaRecorder can do.
+
+Open-source Chromium (this sandbox's Playwright) has **no H.264 or AAC encoder**, so
+local tests exercise route 3. Measured here: 98 s of Anthesis at 1080², rendered in
+49 s. Routes 1–2 need a real phone to verify. Getting the file into Photos goes through
+the share sheet (`navigator.share({ files })` → "Save Video"). It needs a fresh tap, so
+the export ends on a button, not an automatic share. Without file sharing it downloads.
+
+Formats: vertical 1080×1920 (default), square, wide. The renderer draws at half size and
+double density, so the layout is the page's own at a phone-like size. The video adds a
+title card (0–3.6 s) and a credit line in the last seconds (`drawCredits`).
+
+**View the score** opens `clef.mino.mobi/#src=<this site>/<piece>/score.ly`. `score.ly` is
+GENERATED from the score's `written` notes and `notation` by `lib/lilypond.js`
+(`node studio/tools/lily.mjs`; the selftest fails when it is stale). It uses two voices
+per hand, ties across barlines, values that start and end on their own grid, key and
+tempo changes, section marks, and dynamics from each section's loudness. The written
+score is not the performance: a pedalled cascade is WRITTEN as eighths. Keep `dur` in
+`score.js` as the written length and let the pedal carry the sound. Rolled chords carry
+`written` (their beat) and `roll`. The selftest parses every `score.ly` with **clef's own
+`lily.js`** and checks that every written note comes back at its tick and pitch, with
+nothing extra. `_headers` lets clef.mino.mobi fetch the files; clef's `openSrc` only
+fetches https `*.mino.mobi`.
+
 ## Adding a piece
 
-A directory with its own `score.js` (exporting `events`, `cues`, `duration`),
+A directory with its own `score.js` (exporting `events`, `cues`, `duration`, `written`, `notation`), a `render.js` (`makeRenderer`), an entry in `tools/lily.mjs`'s `PIECES` and in `_headers`,
 reusing `../lib/piano.js`. Add a card to `index.html` and a still as `og.jpg`,
 extend the selftest, and check it with `tools/render.mjs`. Keep p5 on cdnjs with SRI.

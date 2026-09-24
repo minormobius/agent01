@@ -36,7 +36,7 @@ export { sec };
 
 const raw = [];
 function n(bar, beat, dur, names, vel, tag, i) {
-  for (const nm of [].concat(names)) raw.push({ beat: B(bar, beat), dur, midi: m(nm), vel, tag, i });
+  for (const nm of [].concat(names)) raw.push({ beat: B(bar, beat), dur, midi: m(nm), name: nm, vel, tag, i });
 }
 /** Eight eighths over a bar from a voicing [root, fifth, tenth, octave]. */
 function broken(bar, v, vel, pat = [0, 1, 2, 1, 3, 2, 1, 2], tag) {
@@ -123,7 +123,7 @@ MEL2.forEach((notes, k) => notes.forEach(([beat, dur, nm], j) => {
   n(21 + k, beat, dur, nm.replace(/\d$/, (d) => String(Number(d) - 1)), v * 0.62);   // the octave below
 }));
 const TENOR = [['D4', 'F#4'], ['E4', 'C#4'], ['C#4', 'E4'], ['D4', 'F#4'], ['E4', 'G4'], ['E4', 'G4']];
-TENOR.forEach(([a, b], k) => { n(21 + k, 0, 2, a, 0.22); n(21 + k, 2, 2, b, 0.22); });
+TENOR.forEach(([a, b], k) => { n(21 + k, 0, 2, a, 0.22, 'tenor'); n(21 + k, 2, 2, b, 0.22, 'tenor'); });
 
 // ---- 27–28  the bud ----------------------------------------------------------------
 for (let q = 0; q < 4; q++) n(27, q, 1, ['Bb1', 'Bb2'], 0.3 + q * 0.015, 'pulse');
@@ -141,7 +141,7 @@ n(29, 0, 8, ['D1', 'A1', 'D2'], 0.62, 'bloom');
 n(29, 0, 2, ['F#5', 'A5', 'D6'], 0.5);
 ['D5', 'E5', 'F#5', 'G#5', 'A5', 'C#6', 'E6', 'F#6'].forEach((nm, i) => {
   const beat = 1 + i * 0.5;
-  n(beat >= 4 ? 30 : 29, beat % 4, 1, nm, 0.44 + i * 0.024, 'petal', i);
+  n(beat >= 4 ? 30 : 29, beat % 4, 0.5, nm, 0.44 + i * 0.024, 'petal', i);   // written as eighths; the pedal rings them
 });
 // two-octave sweeps in the left hand
 const SWEEP = {
@@ -175,7 +175,7 @@ MEL3.forEach(([bar, notes]) => notes.forEach(([beat, dur, nm], j) => {
 });
 // arrival: D with a raised fourth, and glitter falling from the top
 n(34, 0, 4, ['F#4', 'A4', 'D5', 'E5', 'A5', 'D6'], 0.46, 'arrive');
-['A6', 'F#6', 'E6', 'C#6', 'A5', 'G#5', 'F#5', 'E5', 'C#5', 'A4'].forEach((nm, j) => n(34, 1 + j * 0.25, 0.5, nm, 0.3 - j * 0.008, 'glitter'));
+['A6', 'F#6', 'E6', 'C#6', 'A5', 'G#5', 'F#5', 'E5', 'C#5', 'A4'].forEach((nm, j) => n(34, 1 + j * 0.25, 0.25, nm, 0.3 - j * 0.008, 'glitter'));
 
 // ---- 35–41  coda -------------------------------------------------------------------
 [
@@ -193,7 +193,7 @@ n(38, 1, 1, 'E5', 0.29, 'figure');
 n(38, 2, 2, 'A5', 0.31, 'figure');
 // the last chord, rolled from the bottom and wider than Anthesis's
 ['D1', 'A1', 'D2', 'A2', 'F#3', 'A3', 'D4', 'E4', 'A4', 'F#5', 'A5', 'D6'].forEach((nm, j) => {
-  raw.push({ beat: B(39, 0) + j * 0.08, dur: 10, midi: m(nm), vel: 0.34 - j * 0.01, tag: 'last' });
+  raw.push({ beat: B(39, 0) + j * 0.08, dur: 10, midi: m(nm), name: nm, vel: 0.34 - j * 0.01, tag: 'last', written: B(39, 0), roll: true });
 });
 n(40, 3, 3, 'A6', 0.14, 'drop');
 
@@ -241,3 +241,14 @@ export const cues = {
 
 export const duration = cues.end;
 export const title = 'Coquelicots';
+
+// ------------------------------------------------------------ the page --
+
+/** The notes as WRITTEN — spellings, rolled chords on their beat — for the score (lib/lilypond.js). */
+export const written = raw;
+export const notation = {
+  bars: 42,
+  keys: [[1, 'd', 'minor'], [21, 'd', 'major']],
+  tempos: [[1, 56], [5, 64], [13, 70], [29, 66], [35, 60]],
+  sections: [[1, 'seed'], [5, 'soil'], [9, 'the ground'], [13, 'the field'], [21, 'the sky'], [27, 'the bud'], [29, 'bloom'], [35, 'coda']],
+};

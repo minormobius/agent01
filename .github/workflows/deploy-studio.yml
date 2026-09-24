@@ -54,7 +54,8 @@ jobs:
             if curl -fsS https://studio.mino.mobi/ | grep -qi 'Pieces by Claude' \
                && curl -fsS https://studio.mino.mobi/anthesis/ | grep -qi 'Anthesis' \
                && curl -fsS https://studio.mino.mobi/coquelicots/ | grep -qi 'Coquelicots' \
-               && curl -fsSI https://studio.mino.mobi/vendor/pfsynth/pfsynth.wasm | grep -qi 'application/wasm'; then
+               && curl -fsSI https://studio.mino.mobi/vendor/pfsynth/pfsynth.wasm | grep -qi 'application/wasm' \
+               && curl -fsSI https://studio.mino.mobi/coquelicots/score.ly | grep -qi 'access-control-allow-origin: https://clef.mino.mobi'; then
               echo "✓ studio.mino.mobi is live, and serves the piano"; exit 0
             fi
             echo "  attempt $attempt: not yet, sleeping…"; sleep 8

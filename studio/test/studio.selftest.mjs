@@ -158,5 +158,40 @@ const sliced = samples.every((mk, si) => {
 });
 ok(sliced, 'wash, widening wash, bristle and ink draw the same geometry in slices as at once');
 
+// 6 — the scores clef opens -----------------------------------------------------
+console.log('\nScores (View the score -> clef)');
+const { parseLily } = await import('../../clef/src/lily.js');
+const { midiOf, PPQ } = await import('../../clef/src/model.js');
+const { PIECES, generate } = await import('../tools/lily.mjs');
+const { readFile: rf } = await import('node:fs/promises');
+for (const { slug, subtitle } of PIECES) {
+  const committed = await rf(join(root, slug, 'score.ly'), 'utf8');
+  ok(committed === await generate(slug, subtitle), `${slug}/score.ly is current (node studio/tools/lily.mjs)`);
+  const parsed = parseLily(committed);
+  ok(parsed.diagnostics.length === 0, `${slug}: clef reads it with no diagnostics${parsed.diagnostics.length ? ': ' + parsed.diagnostics.map((d) => d.message).slice(0, 3).join('; ') : ''}`);
+  // Every written note comes back from clef at its beat and pitch, and clef
+  // strikes nothing that was not written (tied continuations are not strikes).
+  const S = await import(join(root, slug, 'score.js'));
+  const want = new Set(S.written.map((n) => `${Math.round((n.written ?? n.beat) * 8) / 8}:${n.midi}`));
+  const got = new Set();
+  for (const st of parsed.staves) for (const v of st.voices) {
+    const held = new Map();                    // midi -> tick its tie lands on
+    for (const e of v) {
+      if (e.kind !== 'note' && e.kind !== 'chord') continue;
+      for (const p of e.pitches) {
+        const mm = midiOf(p);
+        const cont = held.get(mm) === e.tick;
+        held.delete(mm);
+        if (!cont) got.add(`${e.tick / PPQ}:${mm}`);
+        if (e.tie || p.tie) held.set(mm, e.tick + e.ticks);
+      }
+    }
+  }
+  const missing = [...want].filter((k) => !got.has(k)), extra = [...got].filter((k) => !want.has(k));
+  ok(!missing.length && !extra.length, `${slug}: all ${want.size} written notes round-trip through clef's parser`
+    + (missing.length ? ` — missing ${missing.slice(0, 5).join(', ')}` : '') + (extra.length ? ` — extra ${extra.slice(0, 5).join(', ')}` : ''));
+  ok(parsed.title === S.title && parsed.staves.length === 2, `${slug}: titled, on a piano grand staff`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

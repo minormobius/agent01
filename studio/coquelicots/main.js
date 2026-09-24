@@ -10,14 +10,12 @@
 
 import { events, cues, duration, title } from './score.js';
 import { StreamPiano } from '../lib/piano.js';
-import { Painter, makePaper, makeGrain, clamp } from '../lib/paint.js';
-import { layout, clipPath, buildWorld, drawSeal } from './world.js';
-import { paintPoppy } from './poppy.js';
+import { makeRenderer } from './render.js';
+import { mountExtras, EXTRAS_CSS } from '../lib/extras.js';
 
 const qs = new URLSearchParams(location.search);
 const still = qs.has('t') ? Number(qs.get('t')) : null;
 const silent = qs.has('silent');
-const DRAWINGS = 12;           // per second: animation on twos
 
 const piano = new StreamPiano(events, duration + 6);
 let wallStart = null;
@@ -36,22 +34,9 @@ function now() {
 const host = document.getElementById('stage');
 
 new window.p5((p) => {
-  let W, H, dpr, L, painter, plant, pctx, grain, lastDrawing = -1;
-
+  let r = null;
   const build = () => {
-    W = host.clientWidth; H = host.clientHeight;
-    dpr = Math.min(2, window.devicePixelRatio || 1);
-    L = layout(W, H);
-    const paper = makePaper(W, H, dpr);
-    const world = document.createElement('canvas');
-    world.width = Math.round(W * dpr); world.height = Math.round(H * dpr);
-    painter = new Painter(world, paper, dpr, clipPath(L));
-    painter.setMarks(buildWorld(L, cues));
-    plant = document.createElement('canvas');
-    plant.width = world.width; plant.height = world.height;
-    pctx = plant.getContext('2d');
-    grain = p.drawingContext.createPattern(makeGrain(), 'repeat');
-    lastDrawing = -1;
+    r = makeRenderer(host.clientWidth, host.clientHeight, Math.min(2, window.devicePixelRatio || 1));
   };
 
   p.setup = () => {
@@ -76,36 +61,7 @@ new window.p5((p) => {
 
   p.draw = () => {
     const t = now();
-    painter.advance(t);
-
-    // The plant: a new drawing twelve times a second, three brush variants in turn.
-    const k = Math.floor(t * DRAWINGS);
-    if (k !== lastDrawing) {
-      lastDrawing = k;
-      pctx.setTransform(1, 0, 0, 1, 0, 0);
-      pctx.clearRect(0, 0, plant.width, plant.height);
-      pctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      paintPoppy(pctx, k / DRAWINGS, cues, L, ((k % 3) + 3) % 3);
-    }
-
-    const ctx = p.drawingContext;
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = 'source-over';
-    ctx.drawImage(painter.canvas, 0, 0);
-    ctx.drawImage(plant, 0, 0);
-    // the tooth of the paper, over everything
-    ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.35;
-    ctx.fillStyle = grain;
-    ctx.fillRect(0, 0, p.width * dpr, p.height * dpr);
-    ctx.restore();
-
-    ctx.save();
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawSeal(ctx, L, clamp((t - cues.last - 3) / 0.25));
-    ctx.restore();
-
+    r.draw(p.drawingContext, t);
     if (!finished && (piano.playing || wallStart !== null) && t > duration + 1) end();
   };
 }, host);
@@ -156,6 +112,14 @@ function end() {
 }
 
 go.addEventListener('click', begin);
+
+const style = document.createElement('style');
+style.textContent = EXTRAS_CSS;
+document.head.appendChild(style);
+mountExtras({
+  slug: 'coquelicots', title, subtitle: 'a field, painted outward from one seed',
+  events, seconds: duration, makeRenderer, piano,
+});
 
 async function togglePause() {
   if (!piano.ctx || !piano.playing) return;
