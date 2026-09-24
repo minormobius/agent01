@@ -5,22 +5,89 @@
  "started_ms": 1789770554000,
  "started_utc": "2026-09-18T22:29:14.000Z",
  "minimum_n": 200,
- "predictions": [],
- "updated_utc": "2026-09-18T22:39:35.617Z",
+ "predictions": [
+  {
+   "asset": "BTC",
+   "closes_ms": 1789819200000,
+   "closes_utc": "2026-09-19T12:00:00.000Z",
+   "r": 0.1501,
+   "past": 474.85,
+   "fwd": -43.56,
+   "side": 1,
+   "correct": false,
+   "earnedBps": -43.56
+  },
+  {
+   "asset": "ETH",
+   "closes_ms": 1789819200000,
+   "closes_utc": "2026-09-19T12:00:00.000Z",
+   "r": 0.1501,
+   "past": 504.8,
+   "fwd": 56.69,
+   "side": 1,
+   "correct": true,
+   "earnedBps": 56.69
+  },
+  {
+   "asset": "SOL",
+   "closes_ms": 1789819200000,
+   "closes_utc": "2026-09-19T12:00:00.000Z",
+   "r": 0.1501,
+   "past": 751.84,
+   "fwd": -165.36,
+   "side": 1,
+   "correct": false,
+   "earnedBps": -165.36
+  },
+  {
+   "asset": "BTC",
+   "closes_ms": 1790078400000,
+   "closes_utc": "2026-09-22T12:00:00.000Z",
+   "r": 0.1797,
+   "past": 62.53,
+   "fwd": 17.69,
+   "side": 1,
+   "correct": true,
+   "earnedBps": 17.69
+  },
+  {
+   "asset": "ETH",
+   "closes_ms": 1790078400000,
+   "closes_utc": "2026-09-22T12:00:00.000Z",
+   "r": 0.1797,
+   "past": 67.22,
+   "fwd": 13.06,
+   "side": 1,
+   "correct": true,
+   "earnedBps": 13.06
+  },
+  {
+   "asset": "SOL",
+   "closes_ms": 1790078400000,
+   "closes_utc": "2026-09-22T12:00:00.000Z",
+   "r": 0.1797,
+   "past": 130.03,
+   "fwd": -74.31,
+   "side": 1,
+   "correct": false,
+   "earnedBps": -74.31
+  }
+ ],
+ "updated_utc": "2026-09-24T06:24:17.679Z",
  "verdict": {
-  "n": 0,
-  "right": 0,
-  "accuracy": null,
-  "p": 1,
-  "grossBps": null,
-  "netBps": null,
+  "n": 6,
+  "right": 3,
+  "accuracy": 0.5,
+  "p": 0.6562500000000004,
+  "grossBps": -32.63166666666667,
+  "netBps": -42.031666666666666,
   "claim": null,
-  "status": "0 of the 200 predictions the registration requires before any claim — 200 to go."
+  "status": "6 of the 200 predictions the registration requires before any claim — 194 to go."
  },
  "accrual": {
   "measured_per_day": 1.75,
   "measured_against": "208 days of 1h candles, BTC/ETH/SOL, the registered rule",
   "spec_note_is_wrong": "known_weaknesses says 2 per asset per day and ~33 days; it is 1 per asset per day, the gate passes 64.7%, and n=200 is about 114 days. The spec file is left frozen."
  },
- "eta_days": 114
+ "eta_days": 111
 }
