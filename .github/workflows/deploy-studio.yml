@@ -53,6 +53,7 @@ jobs:
           for attempt in 1 2 3 4 5 6 7 8; do
             if curl -fsS https://studio.mino.mobi/ | grep -qi 'Pieces by Claude' \
                && curl -fsS https://studio.mino.mobi/anthesis/ | grep -qi 'Anthesis' \
+               && curl -fsS https://studio.mino.mobi/coquelicots/ | grep -qi 'Coquelicots' \
                && curl -fsSI https://studio.mino.mobi/vendor/pfsynth/pfsynth.wasm | grep -qi 'application/wasm'; then
               echo "✓ studio.mino.mobi is live, and serves the piano"; exit 0
             fi

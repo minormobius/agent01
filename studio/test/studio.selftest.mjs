@@ -80,5 +80,83 @@ ok(bloom > rms(cues.cotyledons, cues.bud) && bloom > rms(cues.bud, cues.bloom) *
   'the bloom is the loudest section (or level with the bud that leads into it)');
 ok(secs / wall > 1.5, `renders at ${(secs / wall).toFixed(1)}x real time at ${SR} Hz (streams if > 1)`);
 
+// 5 — Coquelicots ----------------------------------------------------------------
+console.log('\nCoquelicots');
+const Q = await import('../coquelicots/score.js');
+const { layout, buildWorld } = await import('../coquelicots/world.js');
+const { Wash, Bristle, Ink, Dab } = await import('../lib/paint.js');
+const qe = Q.events, qc = Q.cues;
+ok(qe.length > 200 && qe.length < 32768 && qe.every((e, i) => i === 0 || e.at >= qe[i - 1].at), `${qe.length} notes, sorted`);
+ok(qe.every((e) => e.midi >= 21 && e.midi <= 108 && e.velocity > 0 && e.velocity <= 1 && Number.isFinite(e.at + e.dur)), 'every note on the keyboard, finite, velocity in (0, 1]');
+const stages = [
+  ['ink', qc.ink], ['first drop', qc.drops[0]], ['root', qc.root], ['soil', qc.soil[0]], ['hypocotyl', qc.hypocotyl],
+  ['emerge', qc.emerge], ['cotyledons', qc.cotyledons], ['field', qc.field[0]], ['leaf 1', qc.leaves[0]], ['sky', qc.sky[0]],
+  ['trees', qc.trees[0]], ['bud', qc.bud], ['poppies', qc.poppies[0]], ['lift', qc.lift], ['bloom', qc.bloom],
+  ['petal 8', qc.petals[7]], ['arrive', qc.arrive], ['birds', qc.birds[0]], ['last chord', qc.last], ['end', qc.end],
+];
+ok(stages.every(([, t], i) => i === 0 || t > stages[i - 1][1]), `the world is painted in order: ${stages.map(([nm]) => nm).join(' → ')}`);
+ok(qc.leaves.length === 6 && qc.petals.length === 8 && qc.bursts.length >= 8, 'six leaves, eight cascade notes, a wave of red per bloom melody note');
+
+// The music fills out as the world does: each stage louder than the one before, up to the bloom.
+const q = begin(X, qe, SR);
+const qp = [];
+let qq;
+while ((qq = q.pull())) qp.push(qq);
+const qpcm = new Float32Array(qp.reduce((s, p) => s + p.length, 0));
+at = 0;
+for (const p of qp) { qpcm.set(p, at); at += p.length; }
+const qrms = (a, b) => {
+  let s = 0, n = 0;
+  for (let i = Math.floor(a * SR) * 2; i < Math.min(qpcm.length, Math.floor(b * SR) * 2); i++) { s += qpcm[i] * qpcm[i]; n++; }
+  return 20 * Math.log10(Math.sqrt(s / Math.max(1, n)) + 1e-12);
+};
+const levels = [
+  ['seed', 0, qc.soil[0]], ['soil', qc.soil[0], qc.emerge], ['ground', qc.emerge, qc.field[0]],
+  ['field', qc.field[0], qc.sky[0] + 10], ['sky', qc.sky[0] + 10, qc.lift - 4], ['bloom', qc.bloom, qc.arrive + 3],
+].map(([nm, a, b]) => [nm, qrms(a, b)]);
+ok(levels.every(([, v], i) => i === 0 || v > levels[i - 1][1]),
+  `the texture fills out: ${levels.map(([nm, v]) => `${nm} ${v.toFixed(1)}`).join(' < ')} dB`);
+let qfinite = true, qhot = 0;
+for (const v of qpcm) { if (!Number.isFinite(v)) qfinite = false; if (Math.abs(v) > 0.97) qhot++; }
+ok(qfinite && qhot / qpcm.length < 0.001, `finite, ${(100 * qhot / qpcm.length).toFixed(4)}% of samples in the tanh knee`);
+
+// The world: every mark has a time inside the piece, and building it twice gives the same painting.
+const Lw = layout(1280, 800);
+const w1 = buildWorld(Lw, qc), w2 = buildWorld(Lw, qc);
+ok(w1.length > 1000 && w1.every((mk) => Number.isFinite(mk.t0) && mk.t1 >= mk.t0 && mk.t0 >= 0 && mk.t0 < qc.end + 5), `${w1.length} marks, each timed inside the piece`);
+ok(w1.every((mk, i) => mk.t0 === w2[i].t0 && mk.constructor === w2[i].constructor), 'building the world twice gives the same marks at the same times');
+ok(w1.filter((mk) => mk.t0 < qc.ink).length === 0, 'nothing is painted before the first ink dot');
+
+// A mark drawn in slices must be the SAME mark as one drawn at once, or scrubbing
+// and replay would paint a different picture. Record the canvas calls both ways.
+const recorder = () => {
+  const log = [];
+  const r6 = (v) => (typeof v === 'number' ? Math.round(v * 1e6) / 1e6 : v);
+  return {
+    log,
+    ctx: new Proxy({}, {
+      get: (_, k) => (...args) => log.push([k, ...args.map(r6)]),
+      set: (_, k, v) => { log.push(['=' + String(k), r6(v)]); return true; },
+    }),
+  };
+};
+const samples = [
+  new Wash({ poly: [[0, 0, 1], [40, 0, 1], [40, 30, 1], [0, 30, 1]], color: [100, 120, 140], t0: 0, id: 11 }),
+  new Wash({ polyAt: (f) => [[-f * 50, -5, 1], [f * 50, -5, 1], [f * 50, 5, 1], [-f * 50, 5, 1]], color: [1, 2, 3], t0: 0, id: 12 }),
+  new Bristle({ pts: Array.from({ length: 12 }, (_, i) => [i * 5, Math.sin(i), 1]), width: 8, color: [200, 50, 40], t0: 0, id: 13 }),
+  new Ink({ pts: Array.from({ length: 9 }, (_, i) => [i * 4, i, 1]), t0: 0, id: 14 }),
+];
+const sliced = samples.every((mk, si) => {
+  const a = recorder(), b = recorder();
+  mk.draw(a.ctx, 0, 1);
+  for (const [f0, f1] of [[0, 0.13], [0.13, 0.5], [0.5, 0.77], [0.77, 1]]) mk.draw(b.ctx, f0, f1);
+  // strip state-setting calls: slices re-set style, which is harmless; the geometry must match
+  const geo = (l) => JSON.stringify(l.filter((c) => !String(c[0]).startsWith('=')));
+  const same = geo(a.log) === geo(b.log) && a.log.length > 0;
+  if (!same) console.log(`  slice mismatch in sample ${si} (${mk.constructor.name})`);
+  return same;
+});
+ok(sliced, 'wash, widening wash, bristle and ink draw the same geometry in slices as at once');
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

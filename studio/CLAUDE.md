@@ -31,6 +31,13 @@ anthesis/                No. 1: a poppy, seed to bloom
   world.js               day/night timelapse, sky, soil cutaway, rain
   main.js                p5 instance, UI, the clock switch (audio / wall / ?t=)
   og.jpg                 share card, a still of ?t=84 at 1200×630
+coquelicots/             No. 2: the same poppy, painted; the world painted outward from the seed
+  score.js               41 bars; the texture adds a layer per stage of the world (uses lib/score-kit.js)
+  world.js               the landscape as ~3400 timed marks, each timed by its distance from the plant
+  poppy.js               the plant, repainted 12x a second with three brush variants (the "boil")
+  main.js                world canvas (accumulates) + plant canvas + paper tooth
+lib/paint.js             the brush engine: paper, Wash, Bristle, Ink, Dab, and the Painter
+lib/score-kit.js         note names, tempo map, pedal, humanising: for new scores
 tools/render.mjs         render a piece's score in node: speed, level per section, --wav
 test/                    selftest (not served: .assetsignore)
 ```
@@ -86,6 +93,38 @@ bloom (an eight-note cascade: two sepals fall, four crumpled petals unfurl, the
 stamens splay, a glow) → coda (falling high notes shed pollen; the camera eases in;
 the last chord rings into a sunset). The timelapse day length is solved from the
 cues so the bloom lands mid-morning and the end lands just after sunset.
+
+## Coquelicots, and the paint engine
+
+The picture is three layers. The **world** canvas only ever gains paint. `lib/paint.js`'s
+`Painter` holds ~3400 marks (washes, bristle strokes, ink lines, gouache dabs), each
+with a `[t0, t1]`. Every frame it draws only the new paint: a wash lays a few more of
+its 30–40 glazes, a stroke travels a little further. The **plant** canvas is repainted
+from scratch at 12 drawings a second (animation on twos), because the plant moves
+and paint can't. The paper's **tooth** is multiplied over both, so moving paint and
+still paint sit in the same paper.
+
+It is still a pure function of `t`. Every mark's randomness is a **hash** of (mark,
+layer, hair, segment), never a running generator, so a mark drawn in forty slices is
+the mark drawn at once. The selftest records the canvas calls both ways and fails
+if they differ. That is also why `Bristle.draw` loops **segment-major** (all hairs
+together, as a brush travels): hair-major order changed with the slicing. Seeking
+backwards is `reset()` and replay. A still or a resize replays everything up to `t`,
+which takes seconds late in the piece; the resize is debounced for that reason.
+
+Lessons about the look, each learned the hard way:
+- **Glazes must re-deform the COARSE shape each layer** (`deform(base, 4, …)` from a
+  one-pass base). Re-deforming an already-fine outline moves each vertex a pixel,
+  every glaze lands in the same place, and the wash gets a hard edge.
+- **Never tile a translucent wash.** Overlapping tiles double up in the overlaps (a
+  checkerboard), and multiplied umber on sienna goes maroon. A region is ONE wash
+  whose glazes widen (`polyAt(f)`), so the middle gathers pigment and the reach grows.
+- **Light is paint, not multiply.** Yellow multiplied onto blue sky is green. Sun and
+  highlights are `source-over`.
+- Alpha around 0.01 per glaze. The paper should show through almost everywhere.
+
+The texture adds a layer per stage, and the selftest asserts the RMS rises
+stage by stage: seed −39.5 < soil −30.7 < ground −28.0 < field −22.9 < sky −22.5 < bloom −16.3 dB.
 
 ## Adding a piece
 

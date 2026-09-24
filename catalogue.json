@@ -4449,6 +4449,23 @@
         "wasm",
         "generative"
       ]
+    },
+    {
+      "n": "coquelicots",
+      "u": "https://studio.mino.mobi/coquelicots/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-24",
+      "b": "2026-09-24",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A poppy field painted outward from a single ink dot, in watercolour, gouache and ink on paper: soil, then the field, sky, poplars and other poppies spread from the seed as the piano takes on a voice for each layer, until the whole field flowers.",
+      "tags": [
+        "canvas",
+        "wasm",
+        "generative"
+      ]
     }
   ],
   "notListed": [
