@@ -74,7 +74,7 @@ const ok = (c, m) => { console.log(`${c ? '✓' : '✗'} ${m}`); if (!c) failed+
   const a = buildBody(P), b = buildBody(P);
   ok(a.length === b.length && a.every((q, i) => q.name === b[i].name && q.a.every((x, k) => x === b[i].a[k])), `buildBody is deterministic (${a.length} primitives)`);
   ok(a.every((q, i) => i === 0 || q.group >= a[i - 1].group), 'primitives are grouped for the GPU');
-  ok(pack(a).length === a.length * TEXELS * 4, 'pack: 6 texels per primitive');
+  ok(pack(a).length === a.length * TEXELS * 4, `pack: ${TEXELS} texels per primitive`);
   ok(sdf(a, P.J.chest) < 0 && sdf(a, [0, 3, 3]) > 0, 'inside is negative, outside positive');
 }
 

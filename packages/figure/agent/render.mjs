@@ -4,6 +4,7 @@
 //
 //   node agent/render.mjs specs/adult.json --out /tmp/adult.png [--skeleton] [--h 440]
 //   node agent/render.mjs '{"heads":3}' --out /tmp/chibi.png          # a spec inline
+//   node agent/render.mjs --lineup a.json b.json --yaws 3.14,1.57   # each figure from behind and the side
 //   node agent/render.mjs specs/adult.json --faces --out /tmp/faces.png # close-ups: turn, expressions, a cast
 import fs from 'node:fs';
 import http from 'node:http';
@@ -37,7 +38,7 @@ export async function serve() {
   return { server, base: `http://127.0.0.1:${server.address().port}` };
 }
 
-export async function renderSheetPNG(spec, out, { sheet = null, skeleton = false, panelH = 440, lineup = null, faces = false } = {}) {
+export async function renderSheetPNG(spec, out, { sheet = null, skeleton = false, panelH = 440, lineup = null, faces = false, yaws = null } = {}) {
   const { chromium } = loadPlaywright();
   const { server, base } = await serve();
   const exe = [process.env.FIGURE_CHROME, process.env.CAD_CHROME].filter(Boolean).find((p) => fs.existsSync(p));
@@ -50,7 +51,7 @@ export async function renderSheetPNG(spec, out, { sheet = null, skeleton = false
     const stats = faces
       ? await page.evaluate(({ spec, panelH }) => window.__figure.faces(spec, { panelH }), { spec, panelH })
       : lineup
-      ? (await page.evaluate(({ lineup, panelH }) => { window.__figure.lineup(lineup, { panelH, names: lineup.map((s) => s.name) }); return { panels: [], ms: 0 }; }, { lineup, panelH }))
+      ? (await page.evaluate(({ lineup, panelH, yaws }) => { window.__figure.lineup(lineup, { panelH, names: lineup.map((s) => s.name), ...(yaws ? { yaws } : {}) }); return { panels: [], ms: 0 }; }, { lineup, panelH, yaws }))
       : await page.evaluate(({ spec, sheet, skeleton, panelH }) => window.__figure.render(spec, sheet, { skeleton, panelH }), { spec, sheet, skeleton, panelH });
     // straight from the canvas: no viewport, no scrolling, the sheet at its own size
     const url = await page.evaluate(() => document.getElementById('sheet').toDataURL('image/png'));
@@ -64,9 +65,9 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const out = arg('--out', '/tmp/figure-sheet.png');
   // --lineup a.json b.json …: the figures side by side, one head the same size in all
   const li = argv.indexOf('--lineup');
-  const lineup = li >= 0 ? argv.slice(li + 1).filter((a) => !a.startsWith('--') && argv[argv.indexOf(a) - 1] !== '--out' && argv[argv.indexOf(a) - 1] !== '--h').map(read) : null;
+  const lineup = li >= 0 ? argv.slice(li + 1).filter((a) => !a.startsWith('--') && argv[argv.indexOf(a) - 1] !== '--out' && argv[argv.indexOf(a) - 1] !== '--h' && argv[argv.indexOf(a) - 1] !== '--yaws').map(read) : null;
   const spec = lineup ? {} : read(argv[0] || '{}');
-  const { stats, errors } = await renderSheetPNG(spec, out, { skeleton: has('--skeleton'), panelH: Number(arg('--h', 440)), lineup, faces: has('--faces') });
+  const { stats, errors } = await renderSheetPNG(spec, out, { skeleton: has('--skeleton'), panelH: Number(arg('--h', 440)), lineup, faces: has('--faces'), yaws: arg('--yaws') ? arg('--yaws').split(',').map(Number) : null });
   const bad = stats.panels.filter((p) => p.unreached?.length);
   console.log(`${out} · ${stats.panels.length} panels in ${stats.ms} ms`);
   for (const p of bad) console.log(`  ${p.pose}: could not reach — ${p.unreached.map((u) => `${u.limb} short ${u.short.toFixed(3)}`).join(', ')}`);

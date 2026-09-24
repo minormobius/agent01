@@ -44,7 +44,9 @@ export function buildBody(P) {
   const perp = (d, axis) => norm(sub(d, scale(axis, dot(d, axis))));
 
   // ---- torso
-  out.push(ell('torso', add(J.pelvis, apply(F.pelvis, [0, 0.05 * kk - (m.pelvis.drop || 0), -0.03 * kk])), F.pelvis, m.pelvis.r, (m.pelvis.blend ?? 0.2) * kk, 'pelvis'));
+  const pelvisPrim = ell('torso', add(J.pelvis, apply(F.pelvis, [0, 0.05 * kk - (m.pelvis.drop || 0), -0.03 * kk])), F.pelvis, m.pelvis.r, (m.pelvis.blend ?? 0.2) * kk, 'pelvis');
+  pelvisPrim.hk = HIP_BLEND * kk;            // the hips melt into the thighs by this much (see sdf)
+  out.push(pelvisPrim);
   out.push(ell('torso', add(J.waist, apply(F.waist, [0, 0.05 * kk, 0])), F.waist, m.belly.r, 0.28 * kk, 'belly'));
   out.push(ell('torso', add(J.chest, apply(F.chest, [0, 0.06 * kk, 0.02 * kk])), F.chest, m.chest.r, 0.28 * kk, 'chest'));
   out.push(cone('torso', J.neck, J.headPivot, R.neck * 1.25, R.neck, 0.12 * kk, 'neck'));
@@ -58,15 +60,18 @@ export function buildBody(P) {
     const sg = s === 'l' ? 1 : -1;
     // the glutes, behind and below the hip joints
     const G = m.glutes;
-    out.push(ell('torso', add(J.pelvis, apply(F.pelvis, [sg * G.x, -0.12 * kk - (m.pelvis.drop || 0), -0.2 * kk])), F.pelvis, [G.r, G.r * 1.08, G.r * 0.9], 0.18 * kk, `glute_${s}`));
-    // the breasts: on the front of the ribcage, turned a little outward and down
+    // it sits out of the hip blend (sdf): under the cheek the thigh meets it in a fold
+    out.push(Object.assign(ell('torso', add(J.pelvis, apply(F.pelvis, [sg * G.x, -0.17 * kk - (m.pelvis.drop || 0), -0.27 * kk])), F.pelvis, [G.r, G.r * 1.15, G.r * 0.88], 0.1 * kk, `glute_${s}`), { noHip: true }));
+    // the breasts: on the front of the ribcage, turned a little outward (by `set`) and
+    // down; a low `lift` sits them lower and fills the lower pole (a second, lower mass)
     if (m.bust) {
-      const b = m.bust;
-      const F0 = F.chest;
-      const Fb = { x: rotateV(rotateV(F0.x, F0.y, sg * 0.28), F0.x, 0.12), y: rotateV(rotateV(F0.y, F0.y, sg * 0.28), F0.x, 0.12), z: rotateV(rotateV(F0.z, F0.y, sg * 0.28), F0.x, 0.12) };
-      const c = add(J.chest, apply(F0, [sg * b.x, (m.shoulderY - rig.chestY) - b.drop - 0.12 * kk, m.chest.r[2] * 0.6 + b.r * 0.45]));
-      // a firm blend at the top (the upper slope), none underneath: the fold there is inked
-      out.push(ell('torso', c, Fb, [b.r * 0.98, b.r * 0.94, b.r * 0.84], 0.1 * kk, `breast_${s}`));
+      const b = m.bust, F0 = F.chest;
+      const turn = (v) => rotateV(rotateV(v, F0.y, sg * b.yaw), F0.x, 0.12 + 0.2 * b.teardrop);
+      const Fb = { x: turn(F0.x), y: turn(F0.y), z: turn(F0.z) };
+      const base = add(J.chest, apply(F0, [sg * b.x, (m.shoulderY - rig.chestY) - b.drop - 0.12 * kk, m.chest.r[2] * 0.62]));
+      const c = add(base, scale(Fb.z, b.proj * 0.55));
+      out.push(ell('torso', c, Fb, [b.w, b.w * 0.95, b.proj * 0.9 + 0.04 * kk], 0.1 * kk, `breast_${s}`));
+      if (b.teardrop > 0.05) out.push(ell('torso', add(c, add(scale(Fb.y, -b.w * 0.35), scale(Fb.z, b.proj * 0.1))), Fb, [b.w * 0.85, b.w * 0.6, b.proj * 0.75], 0.12 * kk, `breastlow_${s}`));
     }
     // the trapezius: from the base of the neck (at its back and side, not up by the jaw)
     // sloping down to the point of the shoulder, so a neck shows above it
@@ -235,14 +240,34 @@ export function boundOf(q) {
 /** Distance to each group, and the body. */
 export function groupDists(prims, p) {
   const c = new Array(GROUPS.length).fill(Infinity), l = [...c], r = [...c], hasSide = new Array(GROUPS.length).fill(false);
+  let hl = Infinity, hr = Infinity;   // the torso without its noHip parts (the glutes), for the hip blend
   for (const q of prims) {
     const d = primDist(q, p), gi = q.group;
-    if (q.side === 0) { c[gi] = smin(c[gi], d, q.k); l[gi] = c[gi]; r[gi] = c[gi]; }
-    else { hasSide[gi] = true; if (q.side > 0) l[gi] = smin(l[gi], d, q.k); else r[gi] = smin(r[gi], d, q.k); }
+    if (q.side === 0) { c[gi] = smin(c[gi], d, q.k); l[gi] = c[gi]; r[gi] = c[gi]; if (gi === 0) hl = hr = c[0]; }
+    else {
+      hasSide[gi] = true;
+      if (q.side > 0) l[gi] = smin(l[gi], d, q.k); else r[gi] = smin(r[gi], d, q.k);
+      if (gi === 0 && !q.noHip) { if (q.side > 0) hl = smin(hl, d, q.k); else hr = smin(hr, d, q.k); }
+    }
   }
-  return c.map((v, gi) => hasSide[gi] ? Math.min(l[gi], r[gi]) : v);
+  const out = c.map((v, gi) => hasSide[gi] ? Math.min(l[gi], r[gi]) : v);
+  out.hip = Math.min(hl, hr);
+  return out;
 }
-export function sdf(prims, p) { return Math.min(...groupDists(prims, p)); }
+/**
+ * The body's distance. Groups meet hard, with one exception: the torso and each
+ * leg blend at the hip (by the pelvis's `hk`), so a hip runs into its thigh the
+ * way a person's does, and not like the hem of a pair of shorts. The glutes sit
+ * out of it (`noHip`): under the cheek the thigh meets them in a fold.
+ */
+export const HIP_BLEND = 0.09;
+export function sdf(prims, p) {
+  const g = groupDists(prims, p);
+  let d = Math.min(...g);
+  const hk = prims.hk ?? (prims.hk = (prims.find((q) => q.hk)?.hk ?? 0));
+  if (hk > 0 && Number.isFinite(g.hip)) for (const leg of [4, 5]) if (Number.isFinite(g[leg])) d = Math.min(d, smin(g.hip, g[leg], hk));
+  return d;
+}
 
 /** Pack for the GPU: 9 texels (RGBA32F) per primitive; the 7th is its bounding sphere, the 8th and 9th its clip planes. */
 export const TEXELS = 9;
@@ -253,7 +278,7 @@ export function pack(prims) {
     const b = q.b || q.a, F = q.F || { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, r = q.r || [1, 1, 1];
     const [bc, br] = boundOf(q);
     const c1 = q.clips?.[0] || [0, 0, 0, 0], c2 = q.clips?.[1] || [0, 0, 0, 0];
-    f.set([...q.a, q.ra ?? 0, ...b, q.rb ?? 0, q.type, q.group, q.k, q.side || 0, ...F.x, r[0], ...F.y, r[1], ...F.z, r[2], ...bc, br, ...c1, ...c2], o);
+    f.set([...q.a, q.ra ?? 0, ...b, q.rb ?? 0, q.type, q.group, q.noHip ? -q.k : q.k, q.side || 0, ...F.x, r[0], ...F.y, r[1], ...F.z, r[2], ...bc, br, ...c1, ...c2], o);
   });
   return f;
 }

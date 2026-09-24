@@ -157,6 +157,29 @@ Faults the check found, and their fixes:
 through. The sailor collar is a flap down the back plus lapels laid on the chest
 in segments; one straight lapel ran through the chest's curve.
 
+## Reference, not taste (2026-09-24)
+
+The operator saw the neck overcorrected, haunches like shorts, and a bust that was
+one knob, and asked for reference material. `reference/ansur2.mjs` derives
+`lib/ansur2.js` from ANSUR II, and the silhouette and form checks now hold bands
+from it (5th–95th percentile plus an anime allowance) instead of numbers chosen by eye:
+- **The shoulders sat 0.48 heads below the chin**; people: 0.19–0.51, median 0.34.
+  The neck fix had dropped them. Now ~0.36 (`shoulderY` from `neckBase`).
+- **Feminine WHR was 0.53–0.68**; people 0.76–0.95. The waist and hip factors
+  were halved, feminine shoulders narrowed less and deltoids fill with `mass`.
+  Every spec now falls within the allowance.
+- **Haunches read as shorts** because groups meet hard. The torso and each leg
+  now blend at the hip (`HIP_BLEND`, the pelvis's `hk`, in `sdf` and the shader's
+  `map`). The glutes sit OUT of that blend (`noHip`, packed as a negative `k`), so
+  a fold stays under each cheek. They sit lower and further back, the pelvis's
+  back is shallower, and they are close enough that they meet behind it in a
+  hard V, which the crease ink draws as the cleft.
+- **The bust is `cup` × `lift` × `set`** (r ≈ −0.03 with frame: independent).
+
+The viewer's checks run in a worker (`studio/figure/check-worker.js`), group by
+group, and a change terminates a running check instead of queuing behind it. A frame
+solves the pose once: the gaze comes from the previous frame's head.
+
 ## Not done yet (the next layers)
 
 Hair

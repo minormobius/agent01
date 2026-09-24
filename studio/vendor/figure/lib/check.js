@@ -252,6 +252,17 @@ export function checkFace(spec) {
 
 // ---- the silhouette ------------------------------------------------------------------
 
+import REF from './ansur2.js';
+
+/** The body's side-view depth at height y, arms left out: torso and legs only. */
+export function depthAt(prims, y) {
+  const keep = new Set(['torso', 'leg_l', 'leg_r'].map((g) => GROUPS.indexOf(g)));
+  const qs = prims.filter((q) => keep.has(q.group));
+  const near = (Z) => { let d = Infinity; for (let x = -0.9; x <= 0.9; x += 0.04) d = Math.min(d, sdf(qs, [x, y, Z])); return d; };
+  const edge = (dir) => { let z = 2.5 * dir; for (let i = 0; i < 200; i++) { const d = near(z); if (d < 0.004) return z; z -= dir * Math.max(d * 0.9, 0.004); if (z * dir < -1) return 0; } return z; };
+  return edge(1) - edge(-1);
+}
+
 /** The body's front-view width at height y, arms left out: torso and legs only. */
 export function widthAt(prims, y) {
   const keep = new Set(['torso', 'leg_l', 'leg_r'].map((g) => GROUPS.indexOf(g)));
@@ -284,12 +295,18 @@ export function checkSilhouette(spec) {
   const out = [r('silhouette: waist and hips measured', waist.w > 0 && hip.w > waist.w * 0.9, `waist ${waist.w.toFixed(2)} · hips ${hip.w.toFixed(2)} · ribcage ${chest.toFixed(2)}`, 'heads, front view, arms left out')];
   // children, and chibi drawn like them, do not differ by sex in silhouette: judge from 5 heads up
   if (m.H < 5) return out;
-  if (fe >= 0.6) {
-    out.push(r('silhouette: a feminine waist (WHR)', whr < 0.8, +whr.toFixed(3), '< 0.8'));
-    out.push(r('silhouette: hips as wide as the ribcage', hc > 0.92, +hc.toFixed(3), '> 0.92 (hips / ribcage)'));
-  } else if (fe <= 0.1) {
-    out.push(r('silhouette: a masculine waist (WHR)', whr > 0.83, +whr.toFixed(3), '> 0.83'));
-    out.push(r('silhouette: shoulders wider than the hips', sh > 1.05, +sh.toFixed(3), '> 1.05 (shoulders / hips)'));
+  // the depths, from the side: waist, the buttocks' furthest, the chest's furthest
+  const waistD = depthAt(prims, waist.y);
+  let buttD = 0; for (let y = m.hipY - 0.35 * m.k; y <= m.hipY + 0.15 * m.k; y += 0.03 * m.k) buttD = Math.max(buttD, depthAt(prims, y));
+  let chestD = 0; for (let y = rig.chestY - 0.4 * m.k; y <= rig.chestY + 0.3 * m.k; y += 0.03 * m.k) chestD = Math.max(chestD, depthAt(prims, y));
+  const sex = fe >= 0.5 ? 'female' : 'male', R = REF[sex];
+  // people's range (ANSUR II, 5th–95th percentile), widened where anime exaggerates
+  const band = (name, v, [lo, med, hi], allow = [0, 0]) => r(`silhouette: ${name}`, v > lo - allow[0] && v < hi + allow[1], +v.toFixed(3), `${(lo - allow[0]).toFixed(2)}–${(hi + allow[1]).toFixed(2)} (people ${lo}–${hi}, median ${med}${allow[0] || allow[1] ? '; anime allowance' : ''})`);
+  if (fe >= 0.6 || fe <= 0.1) {
+    out.push(band(`waist to hips, ${sex} (WHR)`, whr, R.waist_to_hip_breadth, fe >= 0.6 ? [0.1, 0] : [0.02, 0]));
+    out.push(band(`shoulders to hips, ${sex}`, sh, R.bideltoid_to_hip_breadth, [0.08, 0.2]));
+    out.push(band(`buttocks to waist, in depth`, buttD / waistD, R.buttock_to_waist_depth, [0.05, 0.15]));
+    out.push(band(`chest to waist, in depth`, chestD / waistD, R.chest_to_waist_depth, [0.05, fe >= 0.6 ? 0.3 : 0.05]));
   }
   return out;
 }
@@ -402,8 +419,12 @@ export function checkForm(spec) {
   const ys = [], edge = [];
   for (let yy = P.J.ankle_l[1] + 0.05; yy < P.J.hip_l[1] - 0.1; yy += 0.02 * m.k) { const e = legEdge(leg, yy, zc); if (Number.isFinite(e)) { ys.push(yy); edge.push(e); } }
   const nTurns = turns(edge, 0.006 * m.k);
+  const kn = Math.pow(m.k, 0.6);
+  const [s5, s50, s95] = REF[m.spec.femme >= 0.5 ? 'female' : 'male'].acromion_below_chin;
+  const sh = chin - (P.J.shoulder_l[1] + P.J.shoulder_r[1]) / 2;
   return [
-    r('form: a neck shows', shown > 0.22 * Math.pow(m.k, 0.6), +shown.toFixed(3), `> ${(0.22 * Math.pow(m.k, 0.6)).toFixed(2)} heads, chin to the traps' flare (the books: about a quarter head)`),
+    r('form: a neck shows', shown > 0.1 * kn, +shown.toFixed(3), `> ${(0.1 * kn).toFixed(2)} heads, chin to the traps' flare (0.02 was "neckless")`),
+    r('form: shoulder line (ANSUR II)', sh > s5 * kn && sh < s95 * kn, +sh.toFixed(3), `${(s5 * kn).toFixed(2)}–${(s95 * kn).toFixed(2)} heads below the chin (people: ${s5}–${s95}, median ${s50})`),
     r('form: legs smooth in outline', nTurns <= 3, nTurns, '≤ 3 turns, ankle to hip (calf, knee, thigh)'),
   ];
 }

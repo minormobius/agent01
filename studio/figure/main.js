@@ -12,8 +12,7 @@ import { buildBody } from '../vendor/figure/lib/body.js';
 import { walk } from '../vendor/figure/lib/gait.js';
 import { POSES } from '../vendor/figure/lib/poses.js';
 import { makeRenderer, camera, project, STYLE } from '../vendor/figure/lib/shader.js';
-import { checkAll } from '../vendor/figure/lib/check.js';
-import { PREDICATES, EXPRESSIONS } from '../vendor/figure/lib/face.js';
+import { PREDICATES, EXPRESSIONS, IDENTITY_KEYS } from '../vendor/figure/lib/face.js';
 import { HAIR_PREDICATES, COLORS as HAIR_COLORS } from '../vendor/figure/lib/hair.js';
 import { OUTFIT_PREDICATES, OUTFITS, CLOTH_COLORS } from '../vendor/figure/lib/clothes.js';
 import { add, apply, dot } from '../vendor/figure/lib/vec.js';
@@ -22,19 +21,19 @@ const qs = new URLSearchParams(location.search);
 
 // the cast: the same characters packages/figure/specs holds and the selftest checks
 const CAST = {
-  petite: { heads: 6, femme: 1, build: 0.2, bust: 0.3, waist: 0.5, hips: 0.45, mass: 0.35, legs: 0.5, headWidth: 0.82, face: { eyes: 'round', brows: 'thin', irisColor: 'blue', extras: ['blush'] }, hair: { length: 'bob', bangs: 'blunt', color: 'black', extras: ['ahoge'] } , outfit: {"scheme": "school"} },
-  curvy: { heads: 7, femme: 1, build: 0.3, bust: 0.85, waist: 0.7, hips: 0.9, mass: 0.6, legs: 0.6, face: { eyes: 'tareme', brows: 'arched', lashes: 'heavy', irisColor: 'amber', extras: ['mole'] }, hair: { length: 'long', bangs: 'parted', color: 'chestnut' } , outfit: {"scheme": "summer", "colors": {"top": "wine", "bottom": "cream", "shoes": "tan"}} },
-  athletic: { heads: 7.3, femme: 0.8, build: 0.5, bust: 0.35, waist: 0.4, hips: 0.45, mass: 0.62, legs: 0.6, face: { eyes: 'tsurime', brows: 'straight', irisColor: 'green', mouth: 'fang' }, hair: { length: 'shoulder', bangs: 'parted', tails: 'ponytail', color: 'brown' } , outfit: {"scheme": "street", "colors": {"top": "olive", "bottom": "denim", "legwear": "black", "shoes": "black"}} },
-  model: { heads: 8.5, femme: 1, build: 0.2, bust: 0.35, waist: 0.6, hips: 0.5, mass: 0.2, legs: 1, headWidth: 0.76, neck: 0.9, face: { eyes: 'narrow', brows: 'thin', lashes: 'heavy', irisColor: 'violet' }, hair: { length: 'waist', bangs: 'blunt', color: 'purple' } , outfit: {"top": "shirt", "bottom": "long-skirt", "shoes": "boots", "colors": {"top": "cream", "bottom": "wine", "shoes": "brown"}} },
-  plus: { heads: 6.8, femme: 1, build: 0.35, bust: 0.9, waist: 0.15, hips: 1, mass: 1, legs: 0.4, headWidth: 0.84, face: { eyes: 'round', brows: 'arched', irisColor: 'brown', extras: ['blush'] }, hair: { length: 'shoulder', bangs: 'blunt', tails: 'twintails', color: 'pink' } , outfit: {"top": "tee", "bottom": "mini", "legwear": "thigh-highs", "shoes": "sneakers", "colors": {"top": "pink", "bottom": "black", "legwear": "white", "shoes": "white"}} },
-  chibi: { heads: 3, build: 0.3, legs: 0.2, mass: 0.7, headWidth: 0.9, face: { eyes: 'round', brows: 'thin', mouth: 'cat', irisColor: 'amber', extras: ['blush'] }, hair: { length: 'bob', bangs: 'blunt', color: 'orange', extras: ['ahoge'] } , outfit: {"top": "tee", "bottom": "shorts", "legwear": "socks", "shoes": "sneakers", "colors": {"top": "yellow", "bottom": "blue", "legwear": "white", "shoes": "red"}} },
-  teen: { heads: 5.8, build: 0.25, legs: 0.7, mass: 0.3, headWidth: 0.82, face: { eyes: 'tareme', brows: 'arched', irisColor: 'green', extras: ['blush'] }, hair: { length: 'short', bangs: 'spiky', color: 'blonde' } , outfit: {"scheme": "casual"} },
-  adult: { heads: 7, build: 0.5, legs: 0.5, mass: 0.5, headWidth: 0.8, face: { eyes: 'round', brows: 'thin', irisColor: 'violet' }, hair: null },
-  heroic: { heads: 8.2, build: 0.95, legs: 0.6, mass: 0.85, headWidth: 0.74, face: { eyes: 'narrow', brows: 'thick', mouth: 'wide', nose: 'dot', irisColor: 'blue' }, hair: { length: 'short', bangs: 'spiky', color: 'black' } , outfit: {"scheme": "office"} },
-  fashion: { heads: 8.5, build: 0.1, legs: 1, mass: 0.2, headWidth: 0.76, face: { eyes: 'tsurime', brows: 'thin', lashes: 'heavy', irisColor: 'red', extras: ['mole'] }, hair: { length: 'bob', bangs: 'swept', color: 'silver' } , outfit: {"top": "jacket", "bottom": "pants", "shoes": "boots", "colors": {"top": "black", "bottom": "black", "shoes": "black"}} },
+  petite: {"heads": 6, "femme": 1, "build": 0.2, "cup": 0.3, "lift": 0.6, "set": 0.35, "waist": 0.5, "hips": 0.45, "mass": 0.35, "legs": 0.5, "headWidth": 0.82, "face": {"eyes": "round", "brows": "thin", "irisColor": "blue", "extras": ["blush"]}, "hair": {"length": "bob", "bangs": "blunt", "color": "black", "extras": ["ahoge"]}, "outfit": {"scheme": "school"}},
+  curvy: {"heads": 7, "femme": 1, "build": 0.3, "cup": 0.85, "lift": 0.35, "set": 0.6, "waist": 0.7, "hips": 0.9, "mass": 0.6, "legs": 0.6, "face": {"eyes": "tareme", "brows": "arched", "lashes": "heavy", "irisColor": "amber", "extras": ["mole"]}, "hair": {"length": "long", "bangs": "parted", "color": "chestnut"}, "outfit": {"scheme": "summer", "colors": {"top": "wine", "bottom": "cream", "shoes": "tan"}}},
+  athletic: {"heads": 7.3, "femme": 0.8, "build": 0.5, "cup": 0.35, "lift": 0.7, "set": 0.45, "waist": 0.4, "hips": 0.45, "mass": 0.62, "legs": 0.6, "face": {"eyes": "tsurime", "brows": "straight", "irisColor": "green", "mouth": "fang"}, "hair": {"length": "shoulder", "bangs": "parted", "tails": "ponytail", "color": "brown"}, "outfit": {"scheme": "street", "colors": {"top": "olive", "bottom": "denim", "legwear": "black", "shoes": "black"}}},
+  model: {"heads": 8.5, "femme": 1, "build": 0.2, "cup": 0.35, "lift": 0.75, "set": 0.4, "waist": 0.6, "hips": 0.5, "mass": 0.2, "legs": 1, "headWidth": 0.76, "neck": 0.9, "face": {"eyes": "narrow", "brows": "thin", "lashes": "heavy", "irisColor": "violet"}, "hair": {"length": "waist", "bangs": "blunt", "color": "purple"}, "outfit": {"top": "shirt", "bottom": "long-skirt", "shoes": "boots", "colors": {"top": "cream", "bottom": "wine", "shoes": "brown"}}},
+  plus: {"heads": 6.8, "femme": 1, "build": 0.35, "cup": 0.9, "lift": 0.25, "set": 0.75, "waist": 0.15, "hips": 1, "mass": 1, "legs": 0.4, "headWidth": 0.84, "face": {"eyes": "round", "brows": "arched", "irisColor": "brown", "extras": ["blush"]}, "hair": {"length": "shoulder", "bangs": "blunt", "tails": "twintails", "color": "pink"}, "outfit": {"top": "tee", "bottom": "mini", "legwear": "thigh-highs", "shoes": "sneakers", "colors": {"top": "pink", "bottom": "black", "legwear": "white", "shoes": "white"}}},
+  chibi: {"heads": 3, "build": 0.3, "legs": 0.2, "mass": 0.7, "headWidth": 0.9, "face": {"eyes": "round", "brows": "thin", "mouth": "cat", "irisColor": "amber", "extras": ["blush"]}, "hair": {"length": "bob", "bangs": "blunt", "color": "orange", "extras": ["ahoge"]}, "neck": 1.35, "outfit": {"top": "tee", "bottom": "shorts", "legwear": "socks", "shoes": "sneakers", "colors": {"top": "yellow", "bottom": "blue", "legwear": "white", "shoes": "red"}}},
+  teen: {"heads": 5.8, "build": 0.25, "legs": 0.7, "mass": 0.3, "headWidth": 0.82, "face": {"eyes": "tareme", "brows": "arched", "irisColor": "green", "extras": ["blush"]}, "hair": {"length": "short", "bangs": "spiky", "color": "blonde"}, "outfit": {"scheme": "casual"}},
+  adult: {"heads": 7, "build": 0.5, "legs": 0.5, "mass": 0.5, "headWidth": 0.8, "face": {"eyes": "round", "brows": "thin", "irisColor": "violet"}, "hair": null},
+  heroic: {"heads": 8.2, "build": 0.95, "legs": 0.6, "mass": 0.85, "headWidth": 0.74, "face": {"eyes": "narrow", "brows": "thick", "mouth": "wide", "nose": "dot", "irisColor": "blue"}, "hair": {"length": "short", "bangs": "spiky", "color": "black"}, "outfit": {"scheme": "office"}},
+  fashion: {"heads": 8.5, "build": 0.1, "legs": 1, "mass": 0.2, "headWidth": 0.76, "neck": 0.9, "face": {"eyes": "tsurime", "brows": "thin", "lashes": "heavy", "irisColor": "red", "extras": ["mole"]}, "hair": {"length": "bob", "bangs": "swept", "color": "silver"}, "outfit": {"top": "jacket", "bottom": "pants", "shoes": "boots", "colors": {"top": "black", "bottom": "black", "shoes": "black"}}},
 };
-const BODY_KEYS = ['heads', 'build', 'legs', 'mass', 'headWidth', 'neck', 'femme', 'bust', 'waist', 'hips'];
-const SLIDERS = [['heads', 2.5, 9, 0.1], ['femme', 0, 1, 0.01], ['bust', 0, 1, 0.01], ['waist', 0, 1, 0.01], ['hips', 0, 1, 0.01], ['build', 0, 1, 0.01], ['legs', 0, 1, 0.01], ['mass', 0, 1, 0.01], ['headWidth', 0.65, 0.95, 0.01]];
+const BODY_KEYS = ['heads', 'build', 'legs', 'mass', 'headWidth', 'neck', 'femme', 'cup', 'lift', 'set', 'waist', 'hips'];
+const SLIDERS = [['heads', 2.5, 9, 0.1], ['femme', 0, 1, 0.01], ['cup', 0, 1, 0.01], ['lift', 0, 1, 0.01], ['set', 0, 1, 0.01], ['waist', 0, 1, 0.01], ['hips', 0, 1, 0.01], ['build', 0, 1, 0.01], ['legs', 0, 1, 0.01], ['mass', 0, 1, 0.01], ['headWidth', 0.65, 0.95, 0.01]];
 const POSE_NAMES = ['walk', 'stand', 'contrapposto', 'handOnHip', 'reachUp', 'crouch', 'run', 'sit', 'lookBack'];
 const LABEL = { handOnHip: 'hand on hip', reachUp: 'reach up', lookBack: 'look back', jitome: 'jito-me', headWidth: 'head w' };
 const IRIS = { violet: '#8b7bd4', blue: '#6fb0e8', green: '#72c58f', amber: '#f0b24a', red: '#e0505e', brown: '#9a6a44' };
@@ -50,6 +49,18 @@ const state = {
   tab: 'pose',
 };
 const still = qs.has('still');
+// a character from the address (the hash rebuild() writes)
+try {
+  const h = location.hash.length > 1 && JSON.parse(decodeURIComponent(location.hash.slice(1)));
+  if (h && typeof h === 'object') {
+    state.body = pick(h, BODY_KEYS); state.face = h.face || {}; state.faceOn = !!h.face;
+    state.hair = h.hair || null; state.hairOn = !!h.hair; if (h.hair) state.lastHair = h.hair;
+    state.outfit = h.outfit || null; state.clothesOn = !!h.outfit;
+    if (POSES[h.pose] || h.pose === 'walk') state.pose = h.pose;
+    if (EXPRESSIONS[h.expression]) state.expression = h.expression;
+    if (Number.isFinite(h.yaw)) state.yaw = h.yaw;
+  }
+} catch {}
 const fullSpec = () => ({ ...state.body, ...(state.faceOn ? { face: state.face } : {}), ...(state.hairOn && state.hair ? { hair: state.hair } : {}), ...(state.clothesOn && state.outfit ? { outfit: state.outfit } : {}) });
 
 // ---------------------------------------------------------------- drawing --
@@ -67,11 +78,12 @@ function size() { const w = host.clientWidth, h = host.clientHeight; for (const 
 size();
 
 const t0 = performance.now();
-let dirty = true;
+let dirty = true, gaze = [0, 0], needAgain = false;
 function frame(now) {
   const t = still ? Number(qs.get('t') || 0.4) : (now - t0) / 1000;
   if (state.turn && !still) { state.yaw += 0.006; dirty = true; }
-  if ((state.pose === 'walk' && !still) || dirty) draw(t);
+  const again = needAgain; needAgain = false;
+  if ((state.pose === 'walk' && !still) || dirty || again) draw(t);
   dirty = false;
   requestAnimationFrame(frame);
 }
@@ -82,8 +94,9 @@ function draw(t) {
   if (state.pose === 'walk') { const w = walk(rig, t); pose = w.pose; feet = w.feet; }
   else pose = poseFor(state.pose);
   const W = glc.width, H = glc.height;
-  pose = { ...pose, expression: state.expression };
-  let P = solve(rig, pose);
+  // the gaze comes from the last frame's head, so a frame solves the pose once, not twice
+  pose = { ...pose, expression: state.expression, gaze };
+  const P = solve(rig, pose);
   const follow = state.pose === 'walk' ? P.J.pelvis[2] : 0;
   let cam;
   if (state.close) {
@@ -94,11 +107,12 @@ function draw(t) {
     const view = Math.max(top * 1.22, (rig.m.shoulderHalf * 2 + 2.2) * H / W);
     cam = camera({ target: [0, view / 2 - 0.35 * view / rig.m.H, follow], yaw: state.yaw, pitch: 0.06, height: view, aspect: W / H });
   }
-  // the eyes find the viewer: the camera's direction, in the head's frame
+  // the eyes find the viewer: the camera's direction, in the head's frame (used next frame;
+  // a still figure redraws until its eyes have settled)
   if (P.face) {
     const toCam = cam.f.map((x) => -x);
-    const gx = Math.max(-1, Math.min(1, dot(toCam, P.F.head.x) * 2.2)), gy = Math.max(-1, Math.min(1, dot(toCam, P.F.head.y) * 2.2));
-    P = solve(rig, { ...pose, gaze: [gx, gy] });
+    const g = [dot(toCam, P.F.head.x), dot(toCam, P.F.head.y)].map((v) => Math.max(-1, Math.min(1, v * 2.2)));
+    if (Math.abs(g[0] - gaze[0]) + Math.abs(g[1] - gaze[1]) > 0.01) { gaze = g; needAgain = true; }
   }
   R.draw(buildBody(P), P, cam, { ...STYLE, paperFill: true });
   const x = over.getContext('2d');
@@ -139,18 +153,72 @@ function skeleton(x, P, cam, W, H) {
 }
 
 // ------------------------------------------------------------------ checks --
+// The checks run in a worker (check-worker.js): they take seconds, and on the main
+// thread they stalled the walk. A change while they run does not wait for them: the
+// worker is dropped and a fresh one takes the new spec.
 const badge = document.getElementById('badge');
-let checkTimer = null;
+let checkTimer = null, worker = null, checkId = 0;
+function report(res, done, of) {
+  const bad = res.filter((r) => !r.ok), head = done < of ? `checking ${done}/${of} · ` : '';
+  badge.innerHTML = bad.length
+    ? `${head}<b class="bad">${res.length - bad.length}/${res.length} checks</b> · ${bad.slice(0, 2).map((r) => r.name).join(' · ')}${bad.length > 2 ? ` · +${bad.length - 2}` : ''}`
+    : done < of ? `${head}<b class="ok">${res.length}/${res.length}</b> so far`
+    : `<b class="ok">${res.length}/${res.length} checks</b> · feet never slide · no limb through another · no skin through the clothes`;
+}
 function recheck() {
   clearTimeout(checkTimer);
+  if (worker) { worker.terminate(); worker = null; }
   badge.innerHTML = 'checking…';
   checkTimer = setTimeout(() => {
-    const res = Object.values(checkAll(fullSpec())).flat();
-    const bad = res.filter((r) => !r.ok);
-    badge.innerHTML = bad.length
-      ? `<b class="bad">${res.length - bad.length}/${res.length} checks</b> · ${bad.slice(0, 2).map((r) => r.name).join(' · ')}${bad.length > 2 ? ` · +${bad.length - 2}` : ''}`
-      : `<b class="ok">${res.length}/${res.length} checks</b> · feet never slide · no limb through another · no skin through the clothes`;
-  }, 350);
+    const id = ++checkId, res = [];
+    try { worker = new Worker(new URL('./check-worker.js', import.meta.url), { type: 'module' }); }
+    catch { badge.textContent = 'checks need module workers'; return; }
+    worker.onmessage = ({ data }) => {
+      if (data.id !== id) return;
+      res.push(...data.res);
+      report(res, data.done, data.of);
+      if (data.done === data.of) { worker.terminate(); worker = null; }
+    };
+    worker.onerror = (e) => { badge.textContent = `checks failed: ${e.message || 'worker error'}`; };
+    worker.postMessage({ id, spec: fullSpec() });
+  }, 300);
+}
+
+// ------------------------------------------------------------ feeling lucky --
+// One press, one character from anywhere in the space: body, face, hair, clothes,
+// pose, feeling and a turn. The body is drawn inside the ranges the checks hold to
+// people (lib/ansur2.js), so a lucky draw that fails a check has found something.
+const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
+const one = (xs) => xs[Math.floor(Math.random() * xs.length)];
+const coin = (p = 0.5) => Math.random() < p;
+function lucky() {
+  const femme = one([0, 0, 1, 1, 1, rnd(0.3, 1)]);
+  const heads = coin(0.12) ? rnd(2.8, 4.2) : rnd(5.4, 8.8);
+  const body = {
+    heads: +heads.toFixed(1), femme: +femme.toFixed(2), build: +rnd(femme > 0.5 ? 0 : 0.2, femme > 0.5 ? 0.6 : 1).toFixed(2),
+    legs: +rnd(0.2, 1).toFixed(2), mass: +rnd(0.15, 0.95).toFixed(2), headWidth: +rnd(0.72, 0.9).toFixed(2), neck: +rnd(0.3, 1).toFixed(2),
+  };
+  if (femme > 0.2) Object.assign(body, { cup: +rnd(0.1, 0.95).toFixed(2), lift: +rnd(0.2, 0.9).toFixed(2), set: +rnd(0.2, 0.8).toFixed(2), waist: +rnd(0.2, 0.75).toFixed(2), hips: +rnd(0.2, 0.85).toFixed(2) });
+  const face = { eyes: one(Object.keys(PREDICATES.eyes)), brows: one(Object.keys(PREDICATES.brows)), mouth: one(Object.keys(PREDICATES.mouth)), irisColor: one(Object.keys(IRIS)) };
+  if (coin(0.3)) face.lashes = one(Object.keys(PREDICATES.lashes));
+  if (coin(0.25)) face.nose = one(Object.keys(PREDICATES.nose));
+  face.extras = ['blush', 'mole'].filter(() => coin(0.25));
+  const hair = coin(0.08) ? null : {
+    length: one(HAIR_PREDICATES.length), bangs: one(HAIR_PREDICATES.bangs), tails: coin(0.35) ? one(HAIR_PREDICATES.tails) : 'none',
+    color: one(Object.keys(HAIR_COLORS)), extras: HAIR_PREDICATES.extras.filter(() => coin(0.2)),
+  };
+  let outfit = null;
+  if (coin(0.9)) {
+    const colors = Object.fromEntries(['top', 'bottom', 'legwear', 'shoes'].map((k) => [k, one(Object.keys(CLOTH_COLORS))]));
+    outfit = coin(0.4) ? { scheme: one(Object.keys(OUTFITS)), ...(coin(0.5) ? { colors } : {}) }
+      : { ...Object.fromEntries(['top', 'bottom', 'legwear', 'shoes', 'accent'].map((k) => [k, k === 'accent' && coin(0.6) ? 'none' : one(OUTFIT_PREDICATES[k].filter((x) => x !== 'none' || k === 'legwear'))])), colors };
+  }
+  state.body = body; state.face = face; state.faceOn = true;
+  state.hair = hair; state.hairOn = !!hair; if (hair) state.lastHair = hair;
+  state.outfit = outfit; state.clothesOn = !!outfit;
+  state.pose = one(POSE_NAMES); state.expression = one(Object.keys(EXPRESSIONS));
+  state.yaw = coin(0.2) ? rnd(2.2, 4) : rnd(-1.1, 1.1);
+  rebuild(); sync();
 }
 
 // -------------------------------------------------------------------- UI --
@@ -169,7 +237,11 @@ function chips(r, names, isOn, onPick, opt = {}) {
   });
   syncs.push(() => btns.forEach(([n, b]) => b.setAttribute('aria-pressed', String(!!isOn(n)))));
 }
-const rebuild = () => { rig = makeRig(fullSpec()); posed = new Map(); dirty = true; recheck(); };
+const rebuild = () => {
+  rig = makeRig(fullSpec()); posed = new Map(); dirty = true; recheck();
+  // the character, in the address: copy it and the same figure opens
+  try { history.replaceState(null, '', `#${encodeURIComponent(JSON.stringify({ ...fullSpec(), pose: state.pose, expression: state.expression, yaw: +state.yaw.toFixed(2) }))}`); } catch {}
+};
 const setFace = (k, v) => { state.faceOn = true; state.face = { ...state.face, [k]: state.face[k] === v && k !== 'eyes' ? undefined : v }; rebuild(); };
 const toggleIn = (obj, key, x) => { const e = new Set(obj[key] || []); e.has(x) ? e.delete(x) : e.add(x); return { ...obj, [key]: [...e] }; };
 const setHair = (k, v) => { state.hairOn = true; state.hair = { ...(state.hair || state.lastHair), [k]: v }; state.lastHair = state.hair; rebuild(); };
@@ -189,7 +261,7 @@ const TABS = {
       const inp = l.querySelector('input'), out = l.querySelector('output');
       inp.addEventListener('input', () => { state.body = { ...state.body, [k]: Number(inp.value) }; rebuild(); syncs.forEach((f) => f()); });
       box.append(l);
-      syncs.push(() => { const v = state.body[k] ?? (k === 'femme' ? 0 : k === 'bust' ? 0.5 * (state.body.femme || 0) : k === 'waist' ? 0.6 * (state.body.femme || 0) : k === 'hips' ? 0.55 * (state.body.femme || 0) : 0.5); inp.value = v; out.textContent = k === 'heads' ? Number(v).toFixed(1) : Number(v).toFixed(2); });
+      syncs.push(() => { const v = state.body[k] ?? (k === 'femme' ? 0 : k === 'cup' ? 0.5 * (state.body.femme || 0) : k === 'waist' ? 0.6 * (state.body.femme || 0) : k === 'hips' ? 0.55 * (state.body.femme || 0) : 0.5); inp.value = v; out.textContent = k === 'heads' ? Number(v).toFixed(1) : Number(v).toFixed(2); });
     }
   },
   face: () => {
@@ -238,6 +310,11 @@ const tabBtns = Object.keys(TABS).map((name) => {
   tabs.append(b);
   return [name, b];
 });
+const luck = document.createElement('button');
+luck.id = 'lucky'; luck.type = 'button'; luck.textContent = "I'm feeling lucky"; luck.title = 'a random character, from anywhere in the space (key: L)';
+luck.addEventListener('click', lucky);
+document.body.append(luck);
+window.addEventListener('keydown', (e) => { if ((e.key === 'l' || e.key === 'L') && !e.metaKey && !e.ctrlKey && !(e.target instanceof HTMLInputElement)) lucky(); });
 function showTab() {
   content.innerHTML = ''; syncs.length = 0;
   TABS[state.tab]();
@@ -256,4 +333,4 @@ window.addEventListener('resize', () => { size(); dirty = true; });
 
 showTab(); recheck();
 requestAnimationFrame(frame);
-window.__mannequin = { state, ready: true };
+window.__mannequin = { state, lucky, ready: true };

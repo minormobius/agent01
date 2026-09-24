@@ -39,14 +39,26 @@ one head height; y is up, the figure faces +z, its left is +x.
 `femme` (0..1) carries the anatomical shifts of a feminine frame: a narrower
 ribcage and shoulders, a waist drawn in, a wider pelvis whose widest point drops
 to the hip joints, fuller glutes and thighs, a finer neck, arms, hands and feet,
-and a bust. `bust`, `waist` and `hips` (0..1, defaulting from `femme`) vary the
-form within that: `specs/` has petite, curvy, athletic, model and plus, beside
+and a bust. `waist` and `hips` (0..1, defaulting from `femme`) vary the form
+within that. The bust has three independent knobs, because in people it is
+independent of the frame (ANSUR II: r ≈ −0.03 between a woman's chest projection
+and her ribcage's breadth): `cup` is its volume, `lift` how high it sits and how
+full its upper pole is (low lift is a teardrop), `set` how wide apart it sits and
+how far it turns out. `bust` is still read as `cup`. `specs/` has petite, curvy, athletic, model and plus, `specs/` has petite, curvy, athletic, model and plus, beside
 the masculine chibi, teen, adult, heroic and fashion. `build` is shoulders and
 muscle only; it no longer touches the hips.
 
-The silhouette checks (from 5 heads up) read the form off the front view with
-the arms left out: a feminine waist-to-hip ratio under 0.8 and hips as wide as the
-ribcage; a masculine WHR over 0.83 and shoulders wider than the hips.
+The silhouette checks (from 5 heads up) hold the form to people. `lib/ansur2.js` is
+reference data derived from ANSUR II (6,068 US Army personnel; the script and its
+one assumption, head height = 1.92 × menton–sellion, are in `reference/`). Each
+check's band is the 5th–95th percentile widened by an anime allowance:
+waist to hips (front), shoulders to hips, buttocks to waist in depth, chest to
+waist in depth, and the shoulder line's drop below the chin. A figure outside a
+band is drawn outside people, which may be what you want; the check says so.
+
+The glutes sit out of the torso–leg blend at the hip: the side of the hip runs
+smoothly into the thigh (not a shorts hem), and under each cheek the thigh meets
+it in a fold. From behind, the two cheeks meet in a hard crease (the cleft).
 
 ## Hair
 

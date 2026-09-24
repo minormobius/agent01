@@ -82,8 +82,10 @@ float primClipped(int i, vec3 p){
   return d;
 }
 // the body: smooth within a group, hard between; returns (distance, group)
+uniform float hipK;
 vec2 map(vec3 p){
   float best = 1e9; float g = -1.0;
+  float dT = 1e9, dL = 1e9, dR = 1e9;     // torso and legs, for the blend at the hips (body.js sdf)
   for (int gi = 0; gi < ${GROUPS.length}; gi++) {
     vec4 s = gb[gi];
     if (s.w <= 0.0) continue;
@@ -91,20 +93,26 @@ vec2 map(vec3 p){
     if (bound > best) continue;                 // this whole limb is farther than what we have
     if (bound > 0.3) { if (bound < best) { best = bound; g = -1.0; } continue; }
     // centre parts, then each side blended onto the centre (see body.js)
-    float c = 1e9, dl = 1e9, dr = 1e9; bool sided = false;
+    float c = 1e9, dl = 1e9, dr = 1e9, hl = 1e9, hr = 1e9; bool sided = false;   // hl, hr: without the noHip parts (k < 0)
     for (int i = gr[gi].x; i < gr[gi].y; i++) {
       vec4 t2 = T(i, 2);
       // a primitive the point is far from cannot change the blend: skip it (its bounding sphere says so)
       vec4 bs = T(i, 6);
-      float near = t2.w == 0.0 ? c : (t2.w > 0.0 ? dl : dr);
-      if (length(p - bs.xyz) - bs.w > min(near, best) + t2.z + 0.02) continue;
+      float k = abs(t2.z); bool hip = t2.z >= 0.0;
+      float near = t2.w == 0.0 ? c : (t2.w > 0.0 ? (hip ? hl : dl) : (hip ? hr : dr));
+      if (length(p - bs.xyz) - bs.w > min(near, best) + k + 0.02) continue;
       float di = primClipped(i, p);
-      if (t2.w == 0.0) { c = smin(c, di, t2.z); dl = c; dr = c; }
-      else if (t2.w > 0.0) { sided = true; dl = smin(dl, di, t2.z); }
-      else { sided = true; dr = smin(dr, di, t2.z); }
+      if (t2.w == 0.0) { c = smin(c, di, k); dl = c; dr = c; hl = c; hr = c; }
+      else if (t2.w > 0.0) { sided = true; dl = smin(dl, di, k); if (hip) hl = smin(hl, di, k); }
+      else { sided = true; dr = smin(dr, di, k); if (hip) hr = smin(hr, di, k); }
     }
     float d = sided ? min(dl, dr) : c;
+    if (gi == 0) dT = sided ? min(hl, hr) : c; else if (gi == 4) dL = d; else if (gi == 5) dR = d;
     if (d < best) { best = d; g = float(gi); }
+  }
+  if (hipK > 0.0) {
+    float hb = min(smin(dT, dL, hipK), smin(dT, dR, hipK));
+    if (hb < best) best = hb;          // the group stays whichever was nearest
   }
   return vec2(best, g);
 }
@@ -444,6 +452,7 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
       if (b) for (let k = 0; k < 3; k++) { lo[k] = Math.min(lo[k], b.c[k] - b.r); hi[k] = Math.max(hi[k], b.c[k] + b.r); }
     });
     gl.uniform3f(U(pg, 'bmin'), ...lo); gl.uniform3f(U(pg, 'bmax'), ...hi);
+    gl.uniform1f(U(pg, 'hipK'), prims.find((q) => q.hk)?.hk ?? 0);
     gl.uniform3f(U(pg, 'camC'), ...cam.c); gl.uniform3f(U(pg, 'camR'), ...cam.r); gl.uniform3f(U(pg, 'camU'), ...cam.u); gl.uniform3f(U(pg, 'camF'), ...cam.f);
     gl.uniform2f(U(pg, 'halfSize'), cam.halfW, cam.halfH); gl.uniform1f(U(pg, 'persp'), cam.persp || 0);
     const HF = P.F.head, hc = add(P.J.headPivot, [0, 0, 0]);
