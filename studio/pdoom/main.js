@@ -18,7 +18,7 @@ import { dot, add, scale, sub } from '../vendor/figure/lib/vec.js';
 import { EXPRESSIONS } from '../vendor/figure/lib/face.js';
 import { blinkAt, saccadeAt, easedExpression } from '../vendor/figure/lib/liveface.js';
 import { SONG, SECTIONS, CAST, SHOTS } from './show.js';
-import { drawBack, drawFront } from './stage.js';
+import { drawBack, drawFront, PALETTES } from './stage.js';
 
 const qs = new URLSearchParams(location.search);
 // ink darker than the stage's night: the rig's default ink (drawn on paper) is lighter than
@@ -179,6 +179,8 @@ function frame() {
   const hit = CHORUS_HITS.filter((b) => beat >= b * 4).pop();
   const S = { palette: sec.palette, doom: sec.doom, beat: Math.max(0, beat), pulse, spots: dancers.map((d) => [d.P.J.pelvis[0], d.P.J.pelvis[2]]), confetti: hit === undefined ? -1 : (beat - hit * 4) * spb };
   drawBack(ctx, cam, W, H, S);
+  // the LED wall lights them from behind: a rim of the section's colour, kicked by the beat
+  const rim = { color: (PALETTES[sec.palette] || PALETTES.night).edge, k: 0.65 + 0.3 * pulse };
   // the dancers, far to near, each raymarched in its own crop of the screen
   const order = dancers.map((d) => ({ d, z: dot(sub(d.P.J.pelvis, cam.c), cam.f) })).sort((a, b) => b.z - a.z);
   const pxPerHead = H / (2 * cam.halfH);
@@ -209,7 +211,7 @@ function frame() {
     d.gaze = [dot(toCam, d.P.F.head.x), dot(toCam, d.P.F.head.y)].map((v) => Math.max(-1, Math.min(1, v * 2.2)));
     // lines thin with the figure: an outline drawn for a close-up is as thick as a finger in a wide shot
     const ls = Math.max(0.55, Math.min(1, (pxPerHead * q) / 70));
-    d.R.draw(buildBody(d.P, { hands: handDetail(d.P, crop, d.canvas.height) }), d.P, crop, { ...INK, lines: { out: 2.6 * ls, in: 1.5 * ls, crease: 1.2 * ls } });
+    d.R.draw(buildBody(d.P, { hands: handDetail(d.P, crop, d.canvas.height) }), d.P, crop, { ...INK, lines: { out: 2.6 * ls, in: 1.5 * ls, crease: 1.2 * ls, vary: 0.5 }, rim });
     ctx.drawImage(d.canvas, x0, y0, bw, bh);
   }
   drawFront(ctx, cam, W, H, S);

@@ -339,3 +339,13 @@ on its surface from its own frame, where the features will go.
   of hip shift (the weight's hip up) and the waist takes it back, so the chest keeps
   the angle the move gave it and the body makes an S.
 
+## Light and line (2026-09-25)
+
+Three things in the ink pass (shader.js), each a STYLE field:
+- `warm` (0.6): skin gets a warm, saturated band just inside its terminator, where light
+  scatters under skin. It is what makes cel-shaded skin read as skin and not plastic.
+- `lines.vary` (0.5): the outline swings with the light, thin toward it and heavy on the
+  side turned away (one more texel fetch per direction; 0 turns it off).
+- `rim` ({ color, k }, off by default): a hard band of a back light's colour along the
+  edge turned from the key. P(doom) passes the section's LED-wall colour, kicked by the beat.
+

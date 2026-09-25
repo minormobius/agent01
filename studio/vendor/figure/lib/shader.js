@@ -306,7 +306,8 @@ uniform sampler2D fm;                            // the face materials
 uniform vec3 irisTop, irisBot, irisDark, browC, mouthC, tongueC, blushC;
 uniform vec3 light;                              // in view space
 uniform vec3 base[${GROUPS.length}], shade[${GROUPS.length}];
-uniform vec3 inkC, paper; uniform float wOut, wIn, wCrease;
+uniform vec3 inkC, paper; uniform float wOut, wIn, wCrease, wVar;
+uniform vec3 rimC; uniform float rimK, warmK;
 uniform float bgAlpha;
 
 vec4 G(vec2 q){ return texture(g, q); }
@@ -321,8 +322,13 @@ vec2 inkAt(vec2 q){
   for (int i = 0; i < 12; i++) {
     float a = float(i) * 0.5235988;
     vec2 d = vec2(cos(a), sin(a));
-    vec4 so = G(q + d * px * wOut);
+    vec4 so = G(q + d * px * wOut * (1.0 - 0.5 * wVar));
     if ((id == 0.0) != (gid(so) == 0.0)) ink = 1.0;
+    else if (wVar > 0.0) {
+      // line weight: the outline swells on the side turned from the light (and thins toward it)
+      vec4 s2 = G(q + d * px * wOut * (1.0 + 0.5 * wVar));
+      if ((id == 0.0) != (gid(s2) == 0.0) && dot(N(id == 0.0 ? s2 : c).xy, light.xy) < -0.05) ink = 1.0;
+    }
     if (id > 0.0 && gid(so) > 0.0) {
       vec4 si = G(q + d * px * wIn);
       float di = gid(si);
@@ -364,6 +370,17 @@ vec3 tone(vec2 q){
   vec3 col = mix(shade[gi], base[gi], lit);
   float rim = smoothstep(0.62, 0.8, 1.0 - n.z) * smoothstep(-0.2, 0.3, dot(n.xy, -light.xy)) ;
   col = mix(col, base[gi] * 1.08 + 0.04, rim * 0.55 * (1.0 - lit));   // a warm rim on the shadow side
+  if (gi < 6) {
+    // skin: a warm, saturated band just inside the terminator, where light scatters under skin
+    float t0 = gi == 1 ? -0.12 : 0.26;
+    float band = smoothstep(t0 - 0.1, t0 - 0.05, l) * (1.0 - lit);
+    col = mix(col, shade[gi] * vec3(1.07, 0.8, 0.76), band * warmK);
+  }
+  if (rimK > 0.0) {
+    // the stage's light from behind: a hard band of its colour along the edge turned from the key
+    float graze = smoothstep(0.58, 0.64, 1.0 - n.z) * smoothstep(-0.05, 0.25, dot(normalize(n.xy + 1e-5), -light.xy));
+    col = mix(col, rimC, graze * rimK);
+  }
   if (gi == 1) col = faceTone(col, texture(fm, q));
   if (gi >= 6 && gi < 10) {
     // the angel ring: a band of light across the upper curve of the hair, its edges cut in zigzags
@@ -408,7 +425,9 @@ export const STYLE = {
   skin: '#f6d9c4', skinShade: '#d9a3a0',
   groups: {},                              // per-group overrides: { arm_l: ['#base', '#shade'] }
   light: [-0.55, 0.62, 0.56],              // view space: from the upper left, in front
-  lines: { out: 2.6, in: 1.5, crease: 1.2 },   // in geometry texels (twice the output pixels)
+  lines: { out: 2.6, in: 1.5, crease: 1.2, vary: 0.5 },   // in geometry texels (twice the output pixels); vary: the outline's swing, light side to shadow side
+  warm: 0.6,                               // the warm band inside skin's terminator
+  rim: null,                               // { color, k }: a coloured back light along the edge (a stage's)
 };
 
 /**
@@ -492,6 +511,8 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
     });
     gl.uniform3f(U(pi, 'inkC'), ...hex(style.ink)); gl.uniform3f(U(pi, 'paper'), ...hex(style.paper));
     gl.uniform1f(U(pi, 'wOut'), style.lines.out); gl.uniform1f(U(pi, 'wIn'), style.lines.in); gl.uniform1f(U(pi, 'wCrease'), style.lines.crease);
+    gl.uniform1f(U(pi, 'wVar'), style.lines.vary ?? 0); gl.uniform1f(U(pi, 'warmK'), style.warm ?? 0);
+    gl.uniform3f(U(pi, 'rimC'), ...hex(style.rim?.color || '#ffffff')); gl.uniform1f(U(pi, 'rimK'), style.rim?.k ?? 0);
     gl.uniform1f(U(pi, 'bgAlpha'), style.paperFill ? 1 : 0);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
