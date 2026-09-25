@@ -19,7 +19,7 @@ stored to remember one.
 | Endpoint | **`bsky.mino.mobi/dweet/`** — a path, not a subdomain (see below) |
 | Dir | `bsky/dweet/` |
 | Worker | **`bsky`** — a second `custom_domain` route, *not* a second worker |
-| Owning branch | `claude/dwitter-animation-feed-rufn9o` |
+| Owning branch | `claude/dweet-gear-systems-5e28b4` (since 2026-09-25) |
 | Deploy | [`deploy-bsky.yml`](../../.github/workflows/deploy-bsky.yml) |
 | Lexicon | [`../lexicons/com.minomobi.dweet.dweet.json`](../lexicons/com.minomobi.dweet.dweet.json) |
 | Scope | `atproto repo:com.minomobi.dweet.dweet` — that alone. **LIVE** since 2026-09-22 (ceiling 87; a real PAR accepted) |

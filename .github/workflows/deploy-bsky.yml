@@ -2,7 +2,7 @@ name: Deploy bsky (frontend-only AppView)
 
 on:
   push:
-    branches: ['claude/dwitter-animation-feed-rufn9o']
+    branches: ['claude/dweet-gear-systems-5e28b4']
     paths:
       - 'bsky/**'
       - 'packages/atproto/jetstream.js'
