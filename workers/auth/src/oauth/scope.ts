@@ -250,11 +250,20 @@ const BLOB_TYPES = [
   'application/octet-stream',
 ];
 
-// RPC scopes. getServiceAuth mints the short-lived service JWT for Bluesky
-// video uploads. Declared without an `aud` param to match the previously
-// working production metadata.
+// RPC scopes: the methods a site may mint a service token for. The PDS's
+// getServiceAuth checks the *requested* method (assertRpc({aud, lxm})), not
+// getServiceAuth itself, so a site needs `rpc:<that method>?aud=...`.
+// An rpc: permission must carry `aud`; without one the parser returns null and
+// it is silently never granted. `aud` is matched exactly against the token's,
+// and these tokens go to bare DIDs (video.bsky.app, the reader's PDS, a feed
+// generator), so `aud=*` is the only form that can match. Write it unencoded:
+// the authorization server compares this list by exact string.
+// The bare getServiceAuth entry grants nothing, but this list only grows.
 const RPC_SCOPES = [
   'com.atproto.server.getServiceAuth',
+  'app.bsky.video.getUploadLimits?aud=*',
+  'com.atproto.repo.uploadBlob?aud=*',
+  'app.bsky.feed.getFeedSkeleton?aud=*',
 ];
 
 const repoTokens = WRITE_COLLECTIONS.map((c) => `repo:${c}`);
