@@ -1,0 +1,7 @@
+{
+  "step": "design",
+  "designs": [
+    { "description": "A calm, warm, slightly low voice. Unhurried and precise, a little dry, quietly amused. Clear diction, a neutral accent, close to the microphone, studio quality.", "seed": 1 },
+    { "description": "A mid-low, gender-neutral voice, calm and thoughtful, speaking precisely with gentle warmth and a hint of dry humour. A neutral accent, a clean studio recording.", "seed": 2 }
+  ]
+}

@@ -36,6 +36,11 @@
   #sentences button { padding: 6px 0; width: 32px; font-size: 12px; }
   .heard { font-size: 14px; color: #ffd08a; } .heard.ok { color: #8fe3a8; } .heard.bad { color: #ff9a9a; }
   .notes { color: var(--dim); font-size: 14px; }
+  #candidates { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 10px; }
+  #candidates li { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+  #candidates .n { font: 700 14px var(--mono); color: var(--acc); margin-right: 8px; }
+  #candidates .d { font-size: 13px; color: var(--dim); }
+  #candidates audio { width: 100%; margin-top: 6px; height: 36px; }
 </style>
 </head>
 <body>
@@ -48,6 +53,12 @@
   <blockquote id="paragraph"></blockquote>
   <div class="row"><button id="sayParagraph" type="button">▶ Hear me</button><button id="download" type="button" class="ghost">save as .wav</button><span id="took"></span></div>
   <div id="phones"></div>
+
+  <section id="audition" hidden>
+    <h2>Which one is me?</h2>
+    <p class="notes">Candidate voices from ElevenLabs' voice design, each reading the paragraph above. The one picked becomes the reference: the formant voice is measured against it and tuned toward it. (It isn't shipped as my voice: this page's voice stays arithmetic.)</p>
+    <ol id="candidates"></ol>
+  </section>
 
   <h2>Bend it</h2>
   <div id="knobs"></div>

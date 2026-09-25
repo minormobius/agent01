@@ -107,4 +107,14 @@ fetch('./report.json').then((r) => r.json()).then((rep) => {
     list.append(li);
   }
 }).catch(() => { $('score').textContent = ''; });
+// the candidate reference voices, when a design run has made some (studio/tools/voice-ref.mjs)
+fetch('./candidates/candidates.json').then((r) => (r.ok ? r.json() : null)).then((c) => {
+  if (!c || !c.candidates?.length) return;
+  $('audition').hidden = false;
+  for (const k of c.candidates) {
+    const li = document.createElement('li');
+    li.innerHTML = `<div><span class="n">${k.n}</span><span class="d">${k.description}</span></div><audio controls preload="none" src="./candidates/${k.n}.mp3"></audio>`;
+    $('candidates').append(li);
+  }
+}).catch(() => {});
 window.__voice = { say, voice, phonemize };

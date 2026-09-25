@@ -1,0 +1,44 @@
+name: Voice reference (ElevenLabs, for the studio's voice lab)
+
+# The voice lab (studio/voice/) measures its formant voice against real speech in the voice it
+# is meant to have. This workflow is how that speech is made: it is the only place the
+# ElevenLabs key is used for it, and it runs when studio/tools/voice-ref/request.json changes.
+# Steps: design (candidate voices to audition), save (the one picked), speak (the test set,
+# with character timings). It commits what it made back to the branch. See
+# studio/tools/voice-ref.mjs and studio/CLAUDE.md § A Voice of Arithmetic.
+
+on:
+  push:
+    branches: ['claude/plant-growth-animation-gxbby1']
+    paths:
+      - 'studio/tools/voice-ref/request.json'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: voice-ref
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Ask ElevenLabs
+        run: node studio/tools/voice-ref.mjs
+        env:
+          ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      - name: Commit what it made
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add studio/voice/candidates studio/tools/voice-ref
+          if git diff --cached --quiet; then echo "nothing new"; exit 0; fi
+          git commit -m "studio/voice: ElevenLabs reference ($(node -p "require('./studio/tools/voice-ref/request.json').step"))"
+          for i in 1 2 3; do git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0; sleep 5; done
+          exit 1
