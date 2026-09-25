@@ -12,7 +12,7 @@
 
 import { sub, add, scale, dot, dist, norm, len, apply, cross, lerp3 } from './vec.js';
 import { makeRig, solve } from './rig.js';
-import { buildBody, sdf, groupDists, GROUPS, CONE, primDist, solidified, notOwnArm } from './body.js';
+import { buildBody, sdf, groupDists, GROUPS, CONE, RIBBON, primDist, solidified, notOwnArm } from './body.js';
 import { walk } from './gait.js';
 import { interpenetration } from './settle.js';
 export { interpenetration };
@@ -365,8 +365,9 @@ export function checkHair(spec) {
   // 1. off the skin: every lock point (but the roots, which grow from it) outside the head and torso
   let deepest = 0, where = '';
   for (const q of hair) {
-    if (q.type !== CONE || /_0$/.test(q.name)) continue;
-    for (const p of [q.b, lerp3(q.a, q.b, 0.5)]) { const d = sdf(skin, p) - q.rb; if (-d > deepest) { deepest = -d; where = q.name; } }
+    if ((q.type !== CONE && q.type !== RIBBON) || /_0$/.test(q.name)) continue;
+    const thick = q.type === RIBBON ? q.rb * q.r[0] : q.rb;   // a ribbon lies flat: its thickness faces the skin
+    for (const p of [q.b, lerp3(q.a, q.b, 0.5)]) { const d = sdf(skin, p) - thick; if (-d > deepest) { deepest = -d; where = q.name; } }
   }
   out.push(r('hair: off the head and body', deepest < 0.02, +deepest.toFixed(3), '< 0.02 heads', where));
   // 2. the eyes seen through the bangs: straight-on rays at each eye's iris and corners hit the face first

@@ -105,6 +105,7 @@ export function buildClothes(P, body, outfit, mk) {
       // cut there the shoulder went bare (checkClothes, reachUp)
       if (top !== 'tank') cover(`deltoid_${s}`, 'top', t, []);
       cover(`trap_${s}`, 'top', t, [collar]);
+      for (const i of [0, 1, 2]) cover(`clavicle_${s}${i}`, 'top', t, [vneck || collar]);
       if (top === 'tank') continue;
       // sleeves: to the elbow for a tee, to the wrist for the rest (a crop is short-sleeved)
       const S = J[`shoulder_${s}`], E = J[`elbow_${s}`], W = J[`wrist_${s}`];
@@ -116,6 +117,7 @@ export function buildClothes(P, body, outfit, mk) {
         if (short && seg === 'fore') continue;
         cover(`${seg}_${s}${i}`, 'top', t + 0.018 * kk, [cuff]);
       }
+      if (!short) cover(`olecranon_${s}`, 'top', t + 0.018 * kk, [cuff]);
     }
   }
 
@@ -153,9 +155,13 @@ export function buildClothes(P, body, outfit, mk) {
     const maxTilt = 0.44;
     if (tilt > maxTilt) { const side = norm(sub(axis, scale(downW, dot(axis, downW)))); axis = norm(add(scale(downW, Math.cos(maxTilt)), scale(side, Math.sin(maxTilt)))); }
     const lap = tilt > 0.7;                                    // the thighs run forward: a lap
-    const radialAt = (pt) => { const off = sub(pt, top0); return len3(sub(off, scale(axis, dot(off, axis)))); };
+    // an oval: a skirt is shallower front to back than side to side, so it hangs from the hips
+    // and doesn't stand off the belly and seat like a lampshade (DEPTH); radii are side to side
+    const DEPTH = 0.8, Fs = frameAround(axis, F.pelvis.z);
+    const oval = (p) => madd(p, Fs.z, (1 / DEPTH - 1) * dot(sub(p, top0), Fs.z));
+    const radialAt = (pt) => { const off = sub(oval(pt), top0); return len3(sub(off, scale(axis, dot(off, axis)))); };
     const thighR = (f) => m.radii.thigh[0][1] * (1 - 0.35 * f) + t;
-    let rTop = Math.max(m.pelvis.r[0], m.pelvis.r[2]) + t;
+    let rTop = Math.max(m.pelvis.r[0], m.pelvis.r[2] / DEPTH) + t;
     for (const s of sides) rTop = Math.max(rTop, radialAt(J[`hip_${s}`]) + thighR(0) + 0.02 * kk);
     const flare = { mini: 1.18, skirt: 1.3, pleated: 1.35, 'long-skirt': 1.45 }[bottom];
     let rBot = rTop * flare;
@@ -173,7 +179,7 @@ export function buildClothes(P, body, outfit, mk) {
       const hp = add(top0, scale(axis, lap ? Math.min(len, 0.35 * m.thighLen) : len));
       const b0x = add(hp, scale(axis, rBot)), hl = lap ? Math.min(len, 0.35 * m.thighLen) : len;
       const rBx = rTop + (rBot - rTop) * ((hl + rBot) / hl);
-      return Math.max(mk.roundCone(p, top0, b0x, rTop, rBx), dot(axis, sub(p, hp)));
+      return Math.max(mk.roundCone(oval(p), top0, b0x, rTop, rBx) * DEPTH, dot(axis, sub(p, hp)));
     };
     const outside = (s) => {
       // the thigh's own surface (its real radius, not a guess at it)
@@ -221,12 +227,12 @@ export function buildClothes(P, body, outfit, mk) {
       for (const s of sides) prims.push({ ...mk.cone('bottom', J[`knee_${s}`], S, t + 0.03 * kk, 0.03 * kk, 0.06 * kk, `panelEdge_${s}`), side: s === 'l' ? 1 : -1, clips: [] });
     }
     const hemPt = add(top0, scale(axis, hangLen));
-    const Fs = frameAround(axis, F.pelvis.z);
-    const pleats = bottom === 'pleated' ? 18 : 0;
+    // pleated: 18 knife pleats; plain: a few soft folds, growing to the hem, which waves
+    const pleats = bottom === 'pleated' ? 18 : bottom === 'mini' ? 6 : 7;
     // the cone runs on past the hem by its own radius, so its round end is cut away flat
     const b0 = add(hemPt, scale(axis, rBot));
     const rB = rTop + (rBot - rTop) * ((hangLen + rBot) / hangLen);
-    prims.push({ type: 3, group: 'bottom', side: 0, a: top0, b: b0, ra: rTop, rb: rB, F: Fs, r: [pleats, pleats ? 0.025 * kk : 0, 0.025 * kk], k: 0.05 * kk, name: 'skirt', clips: [plane(axis, hemPt)] });
+    prims.push({ type: 3, group: 'bottom', side: 0, a: top0, b: b0, ra: rTop, rb: rB, F: Fs, r: [pleats, (bottom === 'pleated' ? 0.025 : 0.05) * kk, 0.025 * kk], depth: DEPTH, k: 0.05 * kk, name: 'skirt', clips: [plane(axis, hemPt)] });
   }
 
   // ---- legwear

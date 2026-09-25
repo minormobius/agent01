@@ -21,7 +21,7 @@ export const GROUPS = ['torso', 'head', 'arm_l', 'arm_r', 'leg_l', 'leg_r', 'hai
 export const HAIR_GROUPS = new Set([6, 7, 8, 9]);
 export const GARMENT_GROUPS = new Set([10, 11, 12, 13, 14, 15]);
 const G = Object.fromEntries(GROUPS.map((g, i) => [g, i]));
-export const CONE = 0, ELLIPSOID = 1, CAPPED = 2, SKIRT = 3;   // CAPPED: an ellipsoid cut by a plane (the hairline); SKIRT: a flared, pleated cone
+export const CONE = 0, ELLIPSOID = 1, CAPPED = 2, SKIRT = 3, RIBBON = 4;   // CAPPED: an ellipsoid cut by a plane (the hairline); SKIRT: a flared, pleated cone; RIBBON: a round cone flattened across n (a lock of hair)
 
 // `side` (+1 left, −1 right, 0 centre): within a group the centre parts blend
 // first, then each side blends onto the centre on its own, and the two are
@@ -29,6 +29,8 @@ export const CONE = 0, ELLIPSOID = 1, CAPPED = 2, SKIRT = 3;   // CAPPED: an ell
 // list order would make the left shoulder differ from the right.
 const sideOf = (name) => /_l\d*$/.test(name) ? 1 : /_r\d*$/.test(name) ? -1 : 0;
 const cone = (group, a, b, ra, rb, k, name) => ({ type: CONE, group: G[group], side: group === 'torso' || group === 'head' ? sideOf(name) : 0, a, b, ra, rb, k, name });
+// a ribbon: a round cone squashed to `flat` of its thickness along `n` (a lock lies flat to the head)
+const ribbon = (group, a, b, ra, rb, n, flat, k, name) => ({ type: RIBBON, group: G[group], side: 0, a, b, ra, rb, F: { x: n, y: [0, 1, 0], z: [0, 0, 1] }, r: [flat, 1, 1], k, name });
 const ell = (group, c, F, r, k, name) => ({ type: ELLIPSOID, group: G[group], side: group === 'torso' || group === 'head' ? sideOf(name) : 0, a: c, F, r, k, name });
 
 /** A limb segment from A to B, following a profile [[t, radius, offset?]...]. */
@@ -98,6 +100,26 @@ export function buildBody(P, { hands = 'full', hair = true, clothes = true } = {
     out.push(cone('torso', J[`hip_${s}`], madd(J[`hip_${s}`], norm(sub(J[`knee_${s}`], J[`hip_${s}`])), (0.25 + 0.4 * hipsW) * kk), R.thigh[0][1] * (0.98 + 0.06 * hipsW), R.thigh[0][1] * (0.95 - 0.02 * hipsW), (0.2 + 0.16 * hipsW) * kk, `hipcap_${s}`));
   }
 
+  // the collarbones: a ridge from the notch at the base of the throat out to the point of
+  // each shoulder, laid ON the chest's surface (found by marching in to it), so it shows as
+  // a line of light and shade across the top of the chest, not a bar floating in front of it
+  {
+    const torsoNow = out.slice();
+    const onChest = (p) => {
+      let q = madd(p, F.chest.z, 0.8 * kk);
+      for (let i = 0; i < 40; i++) { const d = sdf(torsoNow, q); if (Math.abs(d) < 1e-4) break; q = madd(q, F.chest.z, -d); }
+      return q;
+    };
+    const rc = 0.03 * kk, proud = 0.028 * kk;
+    for (const s of ['l', 'r']) {
+      const sg = s === 'l' ? 1 : -1;
+      const inner = add(J.neck, apply(F.chest, [sg * 0.075 * m.wide, -0.075 * kk, 0]));
+      const outer = madd(madd(J[`shoulder_${s}`], F.chest.x, -sg * 0.1 * kk), F.chest.y, -0.01 * kk);
+      const pts = [0, 0.33, 0.66, 1].map((f) => madd(onChest(lerp3(inner, outer, f)), F.chest.z, proud - rc * (1 + 0.3 * f)));
+      for (let i = 0; i < 3; i++) out.push(cone('torso', pts[i], pts[i + 1], rc * (1 - 0.1 * i), rc * (0.9 - 0.1 * i), 0.012 * kk, `clavicle_${s}${i}`));
+    }
+  }
+
   // ---- head: the skull, and the jaw tapering to the chin
   const w = m.head.width;
   out.push(ell('head', add(J.headPivot, apply(F.head, m.head.cranium.c)), F.head, [w / 2, 0.44, 0.47], 0.1, 'cranium'));
@@ -131,6 +153,12 @@ export function buildBody(P, { hands = 'full', hair = true, clothes = true } = {
     const S = J[`shoulder_${s}`], E = J[`elbow_${s}`], W = J[`wrist_${s}`];
     chain(out, g, S, E, R.upperArm, 0.03 * kk, `upper_${s}`);
     chain(out, g, E, W, R.foreArm, 0.03 * kk, `fore_${s}`);
+    // the point of the elbow: behind the joint, away from the bend, so a bent arm has a
+    // corner where it folds and not a hose's round turn (straight, it still faces back)
+    const up = norm(sub(S, E)), fo = norm(sub(W, E)), bis = add(up, fo), bend = len(bis);
+    const behind = perp(scale(F.chest.z, -1), fo), bk = norm(add(scale(bis, -Math.min(1, bend * 3) / Math.max(bend, 1e-6)), scale(behind, 1 - Math.min(1, bend * 3))));
+    const oc = madd(E, bk, R.foreArm[0][1] * 0.72);
+    out.push(cone(g, oc, madd(oc, fo, 0.07 * kk), 0.05 * kk, 0.038 * kk, 0.04 * kk, `olecranon_${s}`));
     // the hand: built last (buildHand, below), so a placed hand can lie on what it rests on
   }
 
@@ -189,7 +217,7 @@ export function buildBody(P, { hands = 'full', hair = true, clothes = true } = {
   if (P.hair && hair) {
     const skin = out.filter((q) => q.group === G.head || q.group === G.torso || q.group === G.top || q.group === G.accent || q.group === G.collar);
     const capped = (group, c, F, r, n, d, k, name) => ({ type: CAPPED, group: G[group], side: 0, a: c, F, r, b: n, rb: d, k, name });
-    const hp = buildHair(P, P.hair, skin, { sdf, ellipsoid: ell, cone, cappedEllipsoid: capped, accel: P.hairAccel || [0, 0, 0] });
+    const hp = buildHair(P, P.hair, skin, { sdf, ellipsoid: ell, cone, ribbon, cappedEllipsoid: capped, accel: P.hairAccel || [0, 0, 0] });
     out.push(...hp.prims);
   }
   // grouped, centre parts first within a group, then the left parts, then the right
@@ -211,6 +239,12 @@ export function sdRoundCone(p, a, b, r1, r2) {
   if (Math.sign(y) * a2 * y2 < k) return Math.sqrt(x2 + y2) * il2 - r1;
   return (Math.sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
 }
+/** A ribbon: the round cone in a space stretched by 1/s along n, scaled back (a lower bound, so marching stays safe). */
+export function sdRibbon(p, a, b, ra, rb, n, s) {
+  const k = 1 / s - 1;
+  const pp = madd(p, n, k * dot(sub(p, a), n)), bb = madd(b, n, k * dot(sub(b, a), n));
+  return sdRoundCone(pp, a, bb, ra, rb) * s;
+}
 export function sdEllipsoid(p, c, F, r) {
   const d = sub(p, c), q = [dot(d, F.x), dot(d, F.y), dot(d, F.z)];
   const k0 = Math.hypot(q[0] / r[0], q[1] / r[1], q[2] / r[2]);
@@ -224,9 +258,13 @@ export function smin(a, b, k) {
 }
 function rawDist(q, p) {
   if (q.type === CONE) return sdRoundCone(p, q.a, q.b, q.ra, q.rb);
+  if (q.type === RIBBON) return sdRibbon(p, q.a, q.b, q.ra, q.rb, q.F.x, q.r[0]);
   if (q.type === CAPPED) return Math.max(sdEllipsoid(p, q.a, q.F, q.r), dot(sub(p, q.a), q.b) - q.rb);
   if (q.type === SKIRT) {
-    let d = sdRoundCone(p, q.a, q.b, q.ra, q.rb);
+    // an oval, not a circle: shallower front to back than side to side (depth), measured
+    // in a space stretched along the skirt's front, scaled back (a lower bound, like a ribbon)
+    const dp = q.depth ?? 1, pp = dp < 1 ? madd(p, q.F.z, (1 / dp - 1) * dot(sub(p, q.a), q.F.z)) : p;
+    let d = sdRoundCone(pp, q.a, q.b, q.ra, q.rb) * dp;
     if (q.r[0] > 0.5) {
       // pleats: folds round the hem, growing from nothing at the waist (shader.js, the same)
       const ax = sub(q.b, q.a), L = len(ax), rel = sub(p, q.a);
@@ -250,7 +288,7 @@ export const primDist = (q, p) => {
 
 /** A sphere that contains the primitive: the renderer skips a primitive the ray is far from. */
 export function boundOf(q) {
-  if (q.type === CONE || q.type === SKIRT) { const c = lerp3(q.a, q.b, 0.5); return [c, dist(q.a, q.b) / 2 + Math.max(q.ra, q.rb)]; }
+  if (q.type === CONE || q.type === SKIRT || q.type === RIBBON) { const c = lerp3(q.a, q.b, 0.5); return [c, dist(q.a, q.b) / 2 + Math.max(q.ra, q.rb)]; }
   return [q.a, Math.max(...q.r)];
 }
 
@@ -303,9 +341,10 @@ export function pack(prims) {
   prims.forEach((q, i) => {
     const o = i * TEXELS * 4;
     const b = q.b || q.a, F = q.F || { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }, r = q.r || [1, 1, 1];
+    const Fy = q.type === SKIRT ? [q.depth ?? 1, 0, 0] : F.y;    // a skirt has no use for its y axis: it carries its depth
     const [bc, br] = boundOf(q);
     const c1 = q.clips?.[0] || [0, 0, 0, 0], c2 = q.clips?.[1] || [0, 0, 0, 0];
-    f.set([...q.a, q.ra ?? 0, ...b, q.rb ?? 0, q.type, q.group, q.noHip ? -q.k : q.k, q.side || 0, ...F.x, r[0], ...F.y, r[1], ...F.z, r[2], ...bc, br, ...c1, ...c2], o);
+    f.set([...q.a, q.ra ?? 0, ...b, q.rb ?? 0, q.type, q.group, q.noHip ? -q.k : q.k, q.side || 0, ...F.x, r[0], ...Fy, r[1], ...F.z, r[2], ...bc, br, ...c1, ...c2], o);
   });
   return f;
 }
@@ -317,8 +356,8 @@ export function groupBounds(prims) {
     if (!qs.length) return null;
     const pts = [];
     for (const q of qs) {
-      const rad = q.type === CONE || q.type === SKIRT ? Math.max(q.ra, q.rb) + (q.type === SKIRT ? q.r[1] : 0) : Math.max(...q.r);
-      pts.push([q.a, rad]); if (q.b && (q.type === CONE || q.type === SKIRT)) pts.push([q.b, rad]);
+      const rad = q.type === CONE || q.type === SKIRT || q.type === RIBBON ? Math.max(q.ra, q.rb) + (q.type === SKIRT ? q.r[1] : 0) : Math.max(...q.r);
+      pts.push([q.a, rad]); if (q.b && (q.type === CONE || q.type === SKIRT || q.type === RIBBON)) pts.push([q.b, rad]);
     }
     const c = scale(pts.reduce((s, [p]) => add(s, p), [0, 0, 0]), 1 / pts.length);
     const r = Math.max(...pts.map(([p, rad]) => dist(p, c) + rad)) + Math.max(...qs.map((q) => q.k));

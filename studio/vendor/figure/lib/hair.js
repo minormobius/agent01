@@ -29,6 +29,9 @@ export const HAIR_PREDICATES = {
   tails: ['none', 'twintails', 'ponytail', 'bun', 'buns'],
   extras: ['ahoge', 'sidelocks'],
 };
+// A lock is a flat ribbon, not a rope: FLAT of its width thick, lying on the head. Anime
+// hair reads as a few wide masses with pointed ends; round cones read as a bundle of cords.
+export const FLAT = 0.4;
 const LENGTH = { short: 0.32, bob: 0.62, shoulder: 1.05, long: 2.1, waist: 3.0 };
 
 /** The locks, in head-local space: [{ group, pts: [head-local points], r: [radii], stiff, drape }] plus the cap. */
@@ -40,7 +43,7 @@ export function hairDesign(hair = {}, m) {
   const onCap = (az, el, lift = 0) => [Math.sin(az) * Math.cos(el) * (R[0] + lift), c[1] + Math.sin(el) * (R[1] + lift), c[2] + Math.cos(az) * Math.cos(el) * (R[2] + lift)];
   const down = (az, el) => norm([Math.sin(az) * Math.sin(el) * R[0], -Math.cos(el) * R[1], Math.cos(az) * Math.sin(el) * R[2]]);   // down the surface
   const out = { cap: { c, r: R, n: norm([0, -0.5, 0.86]), d: 0.12 }, locks: [] };
-  const lock = (group, az, el, len, r0, opt = {}) => out.locks.push({ group, root: onCap(az, el, -0.03), dir: opt.dir || down(az, el), len, r0, segs: opt.segs || 4, stiff: opt.stiff ?? 0.55, taper: opt.taper ?? 0.9, cutY: opt.cutY, curl: opt.curl || [0, 0, 0], k: opt.k ?? 0.05, name: opt.name || `${group}${out.locks.length}` });
+  const lock = (group, az, el, len, r0, opt = {}) => out.locks.push({ group, root: onCap(az, el, -0.03), dir: opt.dir || down(az, el), len, r0, segs: opt.segs || 4, stiff: opt.stiff ?? 0.55, taper: opt.taper ?? 0.9, cutY: opt.cutY, curl: opt.curl || [0, 0, 0], k: opt.k ?? 0.05, flat: opt.flat ?? FLAT, name: opt.name || `${group}${out.locks.length}` });
 
   const length = LENGTH[hair.length || 'bob'];
   const browY = (hair._browY ?? 0.5);                     // where blunt bangs stop (head frame)
@@ -48,7 +51,7 @@ export function hairDesign(hair = {}, m) {
   // ---- bangs: roots along the front of the scalp, over the forehead
   const bangs = hair.bangs || 'blunt';
   if (bangs !== 'none') {
-    const n = bangs === 'spiky' ? 7 : 9;
+    const n = 7;
     for (let i = 0; i < n; i++) {
       const f = (i / (n - 1)) * 2 - 1;                   // −1 … 1 across the forehead
       const az = f * 0.8;
@@ -56,29 +59,29 @@ export function hairDesign(hair = {}, m) {
       if (bangs === 'swept') { dir = norm(add(dir, [0.55, 0, 0])); cutY = browY + 0.02 - 0.05 * f; }
       if (bangs === 'parted') { dir = norm(add(dir, [(Math.abs(f) < 1e-9 ? 0 : Math.sign(f)) * 0.5, 0.05, 0])); cutY = browY + 0.05 + 0.03 * Math.abs(f); }
       if (bangs === 'spiky') { const k = Math.min(i, n - 1 - i); cutY = browY + 0.04 + 0.06 * ((k * 37) % 3) / 2; stiff = 0.92; len = 0.5; }   // varied, but mirrored
-      lock('hair', az, 0.95, len, 0.105, { dir, cutY, stiff, segs: 3, taper: 1.4, k: 0.04, name: `bang${i}` });
+      lock('hair', az, 0.95, len, 0.14, { dir, cutY, stiff, segs: 3, taper: 1.4, k: 0.04, flat: 0.45, name: `bang${i}` });
     }
   }
   // ---- sidelocks: frame the face, in front of the ears
   const sides = (hair.extras || []).includes('sidelocks') || ['bob', 'shoulder', 'long', 'waist'].includes(hair.length || 'bob');
-  if (sides) for (const sg of [1, -1]) lock('hair', sg * 1.2, 0.5, Math.min(length, 1.1) * (hair.extras?.includes('sidelocks') ? 1.5 : 1) + 0.25, 0.1, { stiff: 0.6, segs: 7, k: 0.08, name: `side${sg > 0 ? 'L' : 'R'}` });
+  if (sides) for (const sg of [1, -1]) lock('hair', sg * 1.2, 0.5, Math.min(length, 1.1) * (hair.extras?.includes('sidelocks') ? 1.5 : 1) + 0.25, 0.13, { stiff: 0.6, segs: 7, k: 0.08, flat: 0.5, name: `side${sg > 0 ? 'L' : 'R'}` });
 
   // ---- the back: a curtain of wide locks from the crown round the back
-  const nb = 11;
+  const nb = 9;
   for (let i = 0; i < nb; i++) {
     const f = (i / (nb - 1)) * 2 - 1;
     const az = Math.PI + f * 1.8;
     const L = length * (1 - 0.12 * Math.abs(f)) + 0.2;
-    lock(length > 1.2 ? 'hair_back' : 'hair', az, 0.5 - 0.12 * Math.abs(f), L, length > 0.5 ? 0.17 : 0.13, { stiff: 0.5, segs: length > 1.2 ? 10 : 5, taper: length > 1.2 ? 0.55 : 1.1, k: 0.09, name: `back${i}` });
+    lock(length > 1.2 ? 'hair_back' : 'hair', az, 0.5 - 0.12 * Math.abs(f), L, length > 0.5 ? 0.23 : 0.17, { stiff: 0.5, segs: length > 1.2 ? 10 : 5, taper: length > 1.2 ? 0.55 : 1.1, k: 0.09, name: `back${i}` });
   }
   // ---- tails
   const tails = hair.tails || 'none';
   const tail = (group, az, el, dir0, L, sg) => {
     const tie = onCap(az, el, 0.02);
-    for (let j = 0; j < 5; j++) {
-      // spread about the middle lock, mirrored for a right-hand tail
-      const spread = [(sg || 1) * (j - 2) * 0.1, (j % 2) * 0.08, (Math.abs(j - 2) - 1) * 0.1];
-      out.locks.push({ group, root: tie, dir: norm(add(dir0, spread)), len: L * (0.85 + 0.08 * (j % 3)), r0: 0.12, segs: 9, stiff: 0.22, taper: 0.7, curl: [0, 0, 0], k: 0.09, name: `${group}_${j}` });
+    for (let j = 0; j < 3; j++) {
+      // three full locks about the middle one, mirrored for a right-hand tail: one mass, a split at the end
+      const spread = [(sg || 1) * (j - 1) * 0.07, (j % 2) * 0.05, (Math.abs(j - 1) - 0.5) * 0.08];
+      out.locks.push({ group, root: tie, dir: norm(add(dir0, spread)), len: L * (0.88 + 0.07 * ((j + 1) % 3)), r0: 0.19, segs: 9, stiff: 0.22, taper: 0.65, curl: [0, 0, 0], k: 0.09, flat: 0.7, name: `${group}_${j}` });
     }
     out.ties = out.ties || [];
     out.ties.push({ group, at: tie, r: 0.075 });
@@ -89,7 +92,7 @@ export function hairDesign(hair = {}, m) {
     out.buns = (tails === 'bun' ? [[Math.PI, 0.75]] : [[1.1, 1.05], [-1.1, 1.05]]).map(([az, el]) => ({ at: onCap(az, el, 0.1), r: tails === 'bun' ? 0.2 : 0.15 }));
   }
   // ---- the ahoge: one stubborn strand from the crown, up and over
-  if ((hair.extras || []).includes('ahoge')) lock('hair', 0.3, 1.45, 0.55, 0.03, { dir: norm([0.1, 1, 0.2]), stiff: 0.97, segs: 6, curl: [0, -0.28, 0.42], taper: 0.8, k: 0.01, name: 'ahoge' });
+  if ((hair.extras || []).includes('ahoge')) lock('hair', 0.3, 1.45, 0.55, 0.03, { dir: norm([0.1, 1, 0.2]), stiff: 0.97, segs: 6, curl: [0, -0.28, 0.42], taper: 0.8, k: 0.01, flat: 1, name: 'ahoge' });
   return out;
 }
 
@@ -98,7 +101,7 @@ export function hairDesign(hair = {}, m) {
  * the locks must stay out of; `sdf(list, p)` its distance. Returns prims shaped
  * like body.js's (group names resolved by the caller).
  */
-export function buildHair(P, hair, body, { sdf, ellipsoid, cone, cappedEllipsoid, accel = [0, 0, 0] }) {
+export function buildHair(P, hair, body, { sdf, ellipsoid, cone, ribbon, cappedEllipsoid, accel = [0, 0, 0] }) {
   const m = P.rig.m;
   const F = P.F.head, O = P.J.headPivot;
   const toW = (l) => add(O, apply(F, l));
@@ -124,7 +127,7 @@ export function buildHair(P, hair, body, { sdf, ellipsoid, cone, cappedEllipsoid
       const r = Math.max(0.016, L.r0 * Math.pow(1 - i / L.segs, L.taper));      // tips end in a wedge, not a thread thinner than the ink
       // off the body: at least the lock's radius and a gap from the skin
       for (let k = 0; k < 4; k++) {
-        const dist = sdf(collide, p), need = r + 0.012;
+        const dist = sdf(collide, p), need = r * L.flat + 0.015;
         if (dist >= need) break;
         p = add(p, scale(gradient(p), need - dist));
       }
@@ -144,11 +147,20 @@ export function buildHair(P, hair, body, { sdf, ellipsoid, cone, cappedEllipsoid
     }
     locks.push({ ...L, pts, rs });
     const side = Math.abs(L.root[0]) < 1e-3 ? 0 : Math.sign(L.root[0]);
-    for (let i = 0; i < pts.length - 1; i++) prims.push({ ...cone(L.group, pts[i], pts[i + 1], rs[i], rs[i + 1], i === 0 ? L.k : 0, `${L.name}_${i}`), side });   // only the root blends: a smooth union bulges at every joint
+    // only the root blends: a smooth union bulges at every joint
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1], k = i === 0 ? L.k : 0, name = `${L.name}_${i}`;
+      if (L.flat >= 1 || !ribbon) { prims.push({ ...cone(L.group, a, b, rs[i], rs[i + 1], k, name), side }); continue; }
+      // flat to the head: across the lock, facing away from the head's centre
+      const ax = norm(sub(b, a)), rel = sub(lerp3(a, b, 0.5), O);
+      let n = sub(rel, scale(ax, dot(rel, ax)));
+      n = len(n) > 1e-6 ? norm(n) : F.z;
+      prims.push({ ...ribbon(L.group, a, b, rs[i], rs[i + 1], n, L.flat, k, name), side });
+    }
   }
   // long hair is a sheet, not strands: flattened ellipsoids along the middle back lock,
   // wide at the nape and narrowing to the ends, behind the locks that give it its clumps
-  const mid = locks.find((l) => l.name === 'back5');
+  const mid = locks.find((l) => l.name === 'back4');
   if (mid && mid.group === 'hair_back') {
     for (let i = 0; i < mid.pts.length - 1; i++) {
       const a = mid.pts[i], b = mid.pts[i + 1], f = i / (mid.pts.length - 1);

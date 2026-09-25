@@ -97,11 +97,13 @@ export function balance(rig, pose, { toward = 0.8, over = null, straight = 0.985
 export function surfacePoints(q, n = 10) {
   const out = [];
   const axes = (d) => { const a = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]; const u = norm(cross(d, a)); return [u, cross(d, u)]; };
-  if (q.type === 0) {
+  if (q.type === 0 || q.type === 4) {
     const d = sub(q.b, q.a), L = len(d); const dir = L > 1e-9 ? scale(d, 1 / L) : [0, 1, 0];
-    const [u, v] = axes(dir);
+    const [u, v] = axes(dir), flat = q.type === 4 ? q.r[0] : 1, fn = q.type === 4 ? q.F.x : null;
     for (let i = 0; i <= 4; i++) { const t = i / 4, c = lerp3(q.a, q.b, t), rad = q.ra + (q.rb - q.ra) * t;
-      for (let j = 0; j < n; j++) { const a = (j / n) * Math.PI * 2; out.push(add(c, add(scale(u, Math.cos(a) * rad), scale(v, Math.sin(a) * rad)))); } }
+      for (let j = 0; j < n; j++) { const a = (j / n) * Math.PI * 2; let o = add(scale(u, Math.cos(a) * rad), scale(v, Math.sin(a) * rad));
+        if (fn) o = add(o, scale(fn, (flat - 1) * dot(o, fn)));   // a ribbon: squashed across its normal
+        out.push(add(c, o)); } }
   } else {
     for (let i = 1; i < 6; i++) for (let j = 0; j < n; j++) {
       const th = (i / 6) * Math.PI, ph = (j / n) * Math.PI * 2;

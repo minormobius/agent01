@@ -98,6 +98,13 @@ cost little. Lessons:
   highlight turned each bulge into a ripple. Segments meet with a hard min;
   locks meet each other hard too, which is where anime draws the lines between
   clumps anyway.
+- **A lock is a RIBBON, not a rope** (2026-09-25). RIBBON (type 4) is a round cone
+  squashed across a normal `n` to `flat` of its thickness: the round cone in a space
+  stretched by 1/flat along n, the distance scaled back by flat (a lower bound, so
+  marching stays safe; texel 3 carries n and flat). Each segment faces away from the
+  head's centre, so hair lies flat on it and reads as a few wide masses with pointed
+  ends. Round cones read as a bundle of cords. Fewer, wider locks: 7 bangs, 9 back,
+  3 per tail. The collision gap is the ribbon's thickness, not its width.
 - **Tips end in wedges** (radius ≥ 0.016): a tip thinner than the ink is drawn
   as a black drip.
 - **Long hair is a sheet** of flattened ellipsoids behind the locks, or it
@@ -141,6 +148,9 @@ the hem. It runs past its hem by its own radius and is cut flat, because a round
 cone ends in a ball, and the first skirts were balloons. Per pose:
 - the axis follows the thighs' mean but tilts at most 25° from hanging down
 - the top holds both thighs
+- an OVAL, not a circle: `depth` 0.8 front to back (texel 4 carries it; a skirt has no
+  use for its y axis), so it hangs off the hips and not like a lampshade
+- a plain skirt has 6–7 soft folds (the pleat term, low and few), so its hem waves
 - the flare holds them down to the hem, capped at 2× (an A-line)
 - a thigh that still leaves the cone gets a DRAPE: skirt-coloured covers over
   the thigh to the hem's reach
@@ -316,3 +326,16 @@ Hair
 as locks with spring follow-through, and the predicate → spec generator ("tsurime, twin tails, 6.5 heads"). The head
 already carries construction lines: the centre line and the eye line, drawn
 on its surface from its own frame, where the features will go.
+
+## Landmarks and stance (2026-09-25)
+
+- **Collarbones**: three thin cones per side, laid ON the chest (each point marched in
+  to the torso's surface along the chest's front, then set proud by a hair) and blended
+  sharply (k 0.012), so the crease ink draws them as the short strokes anime uses. A
+  soft blend vanished under cel shading. A top covers them, cut by its neckline.
+- **Elbow points** (`olecranon_*`): a bump behind the joint, away from the bend, so a
+  bent arm folds at a corner. Long sleeves cover it; a tee leaves it bare.
+- **Contrapposto** in the dance (choreo.js `CONTRA`): the pelvis tilts 0.1 rad per unit
+  of hip shift (the weight's hip up) and the waist takes it back, so the chest keeps
+  the angle the move gave it and the body makes an S.
+

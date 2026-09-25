@@ -1,6 +1,6 @@
 {
  "fps": 8,
- "generated": "2026-09-24",
+ "generated": "2026-09-25",
  "dancers": [
   {
    "name": "Mino",
@@ -32,14 +32,14 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "r wrist · bar 11 beat 4.30 (reach)"
+     "detail": "l wrist · bar 29 beat 2.98 (groove)"
     },
     {
      "name": "dance: no limb through another",
      "ok": true,
-     "value": 0.002,
+     "value": 0.018,
      "limit": "< 0.04 heads",
-     "detail": "middle2_l into head · bar 19 beat 3.10 (idol)"
+     "detail": "thumb2_l into leg_l · bar 74 beat 4.20 (stepTouch)"
     },
     {
      "name": "dance: no skin through the clothes",
@@ -94,7 +94,7 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "l wrist · bar 4 beat 3.70 (idle)"
+     "detail": "l wrist · bar 18 beat 2.97 (stepTouch)"
     },
     {
      "name": "dance: no limb through another",
@@ -156,7 +156,7 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "l wrist · bar 2 beat 2.35 (idle)"
+     "detail": "l wrist · bar 1 beat 4.43 (idle)"
     },
     {
      "name": "dance: no limb through another",
@@ -218,7 +218,7 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "r wrist · bar 11 beat 2.65 (idle)"
+     "detail": "r wrist · bar 4 beat 3.43 (idle)"
     },
     {
      "name": "dance: no limb through another",
@@ -280,14 +280,14 @@
      "ok": true,
      "value": 0,
      "limit": "< 80°",
-     "detail": "r wrist · bar 12 beat 3.05 (groove)"
+     "detail": "r wrist · bar 8 beat 2.55 (idle)"
     },
     {
      "name": "dance: no limb through another",
      "ok": true,
      "value": 0.001,
      "limit": "< 0.05 heads",
-     "detail": "upper_r1 into torso · bar 60 beat 3.00 (robot)"
+     "detail": "upper_r1 into torso · bar 41 beat 3.10 (robot)"
     },
     {
      "name": "dance: no skin through the clothes",

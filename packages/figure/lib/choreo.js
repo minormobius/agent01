@@ -334,6 +334,7 @@ export function compileDance(rig, script, { home = [0, 0], facing = 0, beatsPerB
   return { keys, place, facing, home, at: (beat) => danceAt(rig, keys, beat, { place, facing, home }) };
 }
 
+const CONTRA = 0.1;   // the pelvis's tilt per unit of hip shift (radians)
 /** The pose for one (interpolated) keyframe. */
 function poseOf(rig, k, { place, facing, standY, home, feetAt = null, lifts = { l: 0, r: 0 } }) {
   const m = rig.m, yaw = facing + k.turn;
@@ -347,8 +348,10 @@ function poseOf(rig, k, { place, facing, standY, home, feetAt = null, lifts = { 
     legs[s] = { at: [p[0], (p[1] || 0) + lifts[s] + k.lift * m.k * 1, p[2]], yaw: yaw + (k.feet[s][2] || 0), pivot: 'flat' };
   }
   return {
-    root: { pos: [x, y, z], yaw, pitch: 0, roll: -k.hip * 0.04 },
-    spine: { bend: k.lean, side: k.side, twist: k.twist },
+    // contrapposto: the weight's hip rides up (the pelvis tilts with the shift), and the waist
+    // takes it back, so the chest keeps the angle the move gave it and the body makes an S
+    root: { pos: [x, y, z], yaw, pitch: 0, roll: -k.hip * CONTRA },
+    spine: { bend: k.lean, side: k.side + k.hip * (CONTRA - 0.04), twist: k.twist },
     head: { ...k.head },
     legs,
     arms: { l: { ...k.arms.l, gesture: k.hands.l }, r: { ...k.arms.r, gesture: k.hands.r } },

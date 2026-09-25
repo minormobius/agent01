@@ -59,9 +59,17 @@ float prim(int i, vec3 p){
   if (t2.x < 0.5) return sdRoundCone(p, t0.xyz, t1.xyz, t0.w, t1.w);
   vec4 t3 = T(i, 3), t4 = T(i, 4), t5 = T(i, 5);
   float d;
+  if (t2.x > 3.5) {
+    // a ribbon: the round cone in a space stretched along n, scaled back (body.js sdRibbon)
+    float k = 1.0 / t3.w - 1.0;
+    vec3 pp = p + k * dot(p - t0.xyz, t3.xyz) * t3.xyz, bb = t1.xyz + k * dot(t1.xyz - t0.xyz, t3.xyz) * t3.xyz;
+    return sdRoundCone(pp, t0.xyz, bb, t0.w, t1.w) * t3.w;
+  }
   if (t2.x > 2.5) {
     // a skirt: a flared round cone, pleated round the hem (body.js rawDist, the same)
-    d = sdRoundCone(p, t0.xyz, t1.xyz, t0.w, t1.w);
+    float dp = t4.x;                                                 // an oval: shallower front to back
+    vec3 pp = p + (1.0 / dp - 1.0) * dot(p - t0.xyz, t5.xyz) * t5.xyz;
+    d = sdRoundCone(pp, t0.xyz, t1.xyz, t0.w, t1.w) * dp;
     if (t3.w > 0.5) {
       vec3 ax = t1.xyz - t0.xyz, rel = p - t0.xyz;
       float h = clamp(dot(rel, ax) / dot(ax, ax), 0.0, 1.0);
