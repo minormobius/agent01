@@ -12,7 +12,7 @@
 // can also abort any macro between two actions (an interrupt), so a macro
 // holds no state that is only valid mid-sequence.
 
-import { B, BLOCKS, H, RECIPES, PICK_TIER } from './world.mjs';
+import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags } from './world.mjs';
 
 const MAX_STEPS = 400;
 
@@ -25,7 +25,14 @@ export function* goTo(sim, goal, maxNodes = 30000) {
   for (let attempt = 0; attempt < 5; attempt++) {
     if (goal(p.c, p.y)) return { ok: true };
     const path = sim.digPath(p, goal, maxNodes);
-    if (!path) return { ok: false, why: 'no path, even digging' };
+    if (!path) {
+      // the planner routes around mobs, so a pig in a doorway can close the
+      // only way: give it a moment before calling the goal unreachable
+      const pig = [...sim.ents.values()].find((e) => e.kind === 'pig' && sim.adjacentTo(p, e));
+      if (pig && attempt < 4) { for (let k = 0; k < 12 && sim.ents.has(pig.id); k++) yield { op: 'attack', id: pig.id }; continue; }
+      if (attempt < 2 && [...sim.ents.values()].some((e) => e !== p && sim.dist(e.c, p.c) < 12)) { yield { op: 'wait', ticks: 6 }; continue; }
+      return { ok: false, why: 'no path, even digging' };
+    }
     let blocked = false;
     for (const st of path.slice(0, MAX_STEPS)) {
       for (const [c, y] of st.mine) {
@@ -41,7 +48,7 @@ export function* goTo(sim, goal, maxNodes = 30000) {
       if (p.c !== st.c || p.y !== st.y) { blocked = true; break; }   // the world disagreed with the plan
     }
     if (!blocked && goal(p.c, p.y)) return { ok: true };
-    if (blocked && attempt >= 2) yield { op: 'wait', ticks: 2 };      // let a mob wander off
+    if (blocked) yield { op: 'wait', ticks: 3 };                     // let a mob wander off
   }
   return { ok: false, why: 'kept getting blocked' };
 }
@@ -75,13 +82,58 @@ function* mineInReach(sim, ids, max = Infinity) {
 export function* gatherWood(sim, n = 6) {
   let dry = 0;
   while ((sim.inv.log || 0) < n) {
-    const go = yield* goTo(sim, (c, y) => reachHas(sim, c, y, [B.log]));
-    if (!go.ok) return { ok: false, why: `no reachable tree (${go.why})` };
+    let go = yield* goTo(sim, (c, y) => reachHas(sim, c, y, [B.log]));
+    if (!go.ok) {
+      // nothing close enough to plan to: go and find trees, then try again
+      const sc = yield* scout(sim, 'tree');
+      if (sc.ok) go = yield* goTo(sim, (c, y) => reachHas(sim, c, y, [B.log]));
+      if (!go.ok) return { ok: false, why: `no reachable tree (${go.why})` };
+    }
     const got = yield* mineInReach(sim, [B.log]);
     if (!got && ++dry > 3) return { ok: false, why: 'trees out of reach' };
   }
   return { ok: true };
 }
+
+// What raw materials we are short of to end up HOLDING `q` of `item` (what is
+// already carried counts), all the way down the
+// recipe tree (sticks → planks → logs), taking the best bag at each level.
+// {} means it can be made from what is carried. A station (table, furnace)
+// that is neither near nor carried counts too: craft() would have to build it.
+export function shortfall(sim, item, q = 1, have = null, depth = 0) {
+  have = have || { ...sim.inv };
+  const short = {};
+  const take = (k, n) => {
+    const got = Math.min(have[k] || 0, n);
+    have[k] = (have[k] || 0) - got;
+    let rest = n - got;
+    if (!rest) return;
+    const r = RECIPES[k];
+    if (!r || k === 'iron_ore' || depth > 6) { short[k] = (short[k] || 0) + rest; return; }
+    const batches = Math.ceil(rest / r.n);
+    // a station neither near nor carried has to be made too (once)
+    if (r.at && !sim.near(B[r.at]) && !(have[r.at] > 0) && !have['@' + r.at]) {
+      have['@' + r.at] = 1;
+      const st = shortfall(sim, r.at, 1, have, depth + 1);
+      for (const [sk, sn] of Object.entries(st)) short[sk] = (short[sk] || 0) + sn;
+      have[r.at] = (have[r.at] || 0) + 1;
+    }
+    let best = null;
+    for (const bag of recipeBags(r)) {
+      const trial = { ...have };
+      const sub = {};
+      for (const [bk, bn] of Object.entries(bag)) Object.entries(shortfall(sim, bk, bn * batches, trial, depth + 1)).forEach(([sk, sn]) => { sub[sk] = (sub[sk] || 0) + sn; });
+      const miss = Object.values(sub).reduce((a, b) => a + b, 0);
+      if (!best || miss < best.miss) best = { miss, sub, trial };
+    }
+    Object.assign(have, best.trial);
+    for (const [sk, sn] of Object.entries(best.sub)) short[sk] = (short[sk] || 0) + sn;
+    have[k] = (have[k] || 0) + batches * r.n - rest;
+  };
+  take(item, q);
+  return short;
+}
+export const describeShort = (sh) => Object.entries(sh).map(([k, n]) => `${n} ${k.replace(/_/g, ' ')}`).join(', ');
 
 // Craft `item` until holding `n`, crafting intermediates (planks, sticks,
 // a crafting table, a furnace) along the way and placing a station if one
@@ -99,8 +151,19 @@ export function* craft(sim, item, n = 1) {
     }
     // crafting one ingredient can eat another (sticks are made of planks),
     // so re-check the whole list until a pass finds nothing missing
+    // several bags may make it (a torch from coal or charcoal): take the one
+    // whose missing pieces we can actually make, fewest missing first
+    const bags = recipeBags(r).map((g) => {
+      const miss = Object.entries(g).filter(([k, q]) => (sim.inv[k] || 0) < q);
+      // joint: the ingredients of one bag draw on the same inventory
+      const trial = { ...sim.inv }, sh = {};
+      for (const [k, q] of Object.entries(g)) for (const [sk, sn] of Object.entries(shortfall(sim, k, q, trial))) sh[sk] = (sh[sk] || 0) + sn;
+      return { g, miss, sh, raw: Object.values(sh).reduce((a, b) => a + b, 0) };
+    }).sort((a, b) => a.raw - b.raw || a.miss.length - b.miss.length);
+    if (bags[0].raw > 0) return { ok: false, why: `short of ${describeShort(bags[0].sh)}` };
+    const bag = bags[0].g;
     for (let pass = 0; pass < 4; pass++) {
-      const missing = Object.entries(r.need).filter(([k, q]) => (sim.inv[k] || 0) < q);
+      const missing = Object.entries(bag).filter(([k, q]) => (sim.inv[k] || 0) < q);
       if (!missing.length) break;
       for (const [k, q] of missing) {
         if (!RECIPES[k] || k === 'iron_ore') return { ok: false, why: `needs ${q} ${k}, holding ${sim.inv[k] || 0}` };
@@ -133,7 +196,7 @@ export function* placeStation(sim, name) {
 // none, so carve one out of the wall first (the caller mines it).
 function placeSpot(sim) {
   const p = sim.player;
-  for (const y of [p.y, p.y + 1]) for (const n of sim.cols[p.c].adj) {
+  for (const y of [p.y, p.y + 1, p.y - 1]) for (const n of sim.cols[p.c].adj) {
     const here = sim.get(n, y);
     if ((here === B.air || here === B.water) && sim.solid(n, y - 1) && !sim.occupied(n, y)) return [n, y];
   }
@@ -224,9 +287,17 @@ export function* mineStone(sim, n = 11) {
 export function* mineIron(sim, { iron = 3, coal = 3 } = {}) {
   if (sim.pickTier() < 2) return { ok: false, why: 'iron needs a stone pickaxe' };
   const enough = () => (sim.inv.iron_ore || 0) + (sim.inv.iron_ingot || 0) >= iron && (sim.inv.coal || 0) >= coal;
-  for (let leg = 0; leg < 6 && !enough(); leg++) {
-    const r = yield* staircase(sim, { floor: 9, until: enough });
-    if (!r.ok && !enough()) return r;
+  for (let leg = 0; leg < 10 && !enough(); leg++) {
+    // ore in sight first — a cave wall, a cliff, the side of our own stair
+    const want = [...((sim.inv.iron_ore || 0) + (sim.inv.iron_ingot || 0) < iron ? [B.iron_ore] : []), ...((sim.inv.coal || 0) < coal ? [B.coal_ore] : [])];
+    const seen = visible(sim, want, 16);
+    if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
+    const r = yield* staircase(sim, { floor: 9, until: () => enough() || visible(sim, want, 5).length > 0 });
+    if (!r.ok && !enough()) {
+      // the stair is boxed in: tunnel sideways along this layer instead
+      const t0 = sim.tick, b = yield* branchMine(sim, 12);
+      if (!b.ok && sim.tick === t0) return r;
+    }
   }
   return enough() ? { ok: true } : { ok: false, why: 'the vein ran out' };
 }
@@ -253,28 +324,20 @@ export function* digIn(sim) {
 // Wait out the night where you stand, then climb back to the surface.
 export function* sleepUntilDawn(sim) {
   const DAYLEN = 4800;
-  const left = DAYLEN - (sim.tick % DAYLEN);
-  if (left > 0 && sim.isNight()) yield { op: 'wait', ticks: left };
+  // in short waits, so an interrupt (a zombie at your side) can cut in
+  while (sim.isNight()) yield { op: 'wait', ticks: Math.min(20, DAYLEN - (sim.tick % DAYLEN)) };
+  if (atHome(sim)) return { ok: true };           // in the house: just open the door in the morning
   return yield* surface(sim);
 }
 
-// Pillar up out of a hole: mine the cap, stand on placed blocks.
+// Back up to open sky: the digging planner, aimed at any standing spot with
+// nothing overhead. It climbs stairs it cuts itself, so it works from a
+// capped shelter, a staircase, or the far end of a branch mine.
 export function* surface(sim) {
   const p = sim.player;
-  for (let k = 0; k < 20; k++) {
-    if (sim.skyOpen(p.c, p.y + 2) && sim.cols[p.c].adj.some((n) => sim.stepTarget(p.c, p.y, n) != null)) return { ok: true };
-    if (sim.solid(p.c, p.y + 2)) { const r = yield { op: 'mine', c: p.c, y: p.y + 2 }; if (!r.ok) return { ok: false, why: r.why }; }
-    // step out sideways if we can now climb
-    for (const n of sim.cols[p.c].adj) {
-      if (sim.stepTarget(p.c, p.y, n) === p.y + 1) { yield { op: 'move', to: n }; break; }
-    }
-    if (sim.skyOpen(p.c, p.y + 2)) continue;
-    // otherwise dig a step up in a neighbour
-    const n = sim.cols[p.c].adj[0];
-    for (const y of [p.y + 1, p.y + 2]) if (sim.solid(n, y)) yield { op: 'mine', c: n, y };
-    yield { op: 'move', to: n };
-  }
-  return { ok: sim.skyOpen(p.c, p.y + 2) };
+  if (sim.skyOpen(p.c, p.y + 2)) return { ok: true };
+  const go = yield* goTo(sim, (c, y) => sim.skyOpen(c, y + 2) && sim.get(c, y - 1) !== B.water, 60000);
+  return go.ok ? { ok: true } : { ok: false, why: `no way up (${go.why})` };
 }
 
 // Hit the nearest adjacent hostile until it dies or we must stop.
@@ -293,7 +356,8 @@ export function* hunt(sim) {
   const pig = () => [...sim.ents.values()].filter((e) => e.kind === 'pig')
     .sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c))[0];
   for (let k = 0; k < 8; k++) {
-    const g = pig();
+    let g = pig();
+    if (!g || sim.dist(g.c, sim.player.c) > 24) { yield* scout(sim, 'pig'); g = pig(); }
     if (!g) return { ok: false, why: 'no pigs' };
     if (sim.adjacentTo(sim.player, g)) {
       yield* fight(sim, 'pig');
@@ -313,17 +377,410 @@ export function* eat(sim) {
   return r.ok ? { ok: true } : { ok: false, why: r.why };
 }
 
-// The palette as a table: name → (sim, args) => generator. What a planner (or
-// Jev's `choice` question) picks from.
-export const PALETTE = {
-  gather_wood: (sim, a) => gatherWood(sim, a?.n),
-  craft: (sim, a) => craft(sim, a.item, a.n),
-  mine_stone: (sim, a) => mineStone(sim, a?.n),
-  mine_iron: (sim, a) => mineIron(sim, a),
-  dig_in: (sim) => digIn(sim),
-  sleep_until_dawn: (sim) => sleepUntilDawn(sim),
-  surface: (sim) => surface(sim),
-  fight: (sim) => fight(sim),
-  hunt: (sim) => hunt(sim),
-  eat: (sim) => eat(sim),
+// ------------------------------------------------------------ seeing -------
+// Only what the player could see: a block is VISIBLE when it is in a column
+// the player has seen (sim.seen) and has an open face. No x-ray — an ore
+// buried in rock is found by digging, not by querying.
+export function exposed(sim, c, y) {
+  if (sim.passable(c, y + 1) || (y > 0 && sim.passable(c, y - 1))) return true;
+  for (const n of sim.cols[c].adj) if (sim.passable(n, y)) return true;
+  return false;
+}
+export function visible(sim, ids, radius = 24) {
+  const p = sim.player, out = [];
+  for (let c = 0; c < sim.N; c++) {
+    if (!sim.seen[c] || sim.dist(c, p.c) > radius) continue;
+    for (let y = 0; y < H; y++) if (ids.includes(sim.get(c, y)) && exposed(sim, c, y)) out.push([c, y]);
+  }
+  return out.sort((a, b) => sim.dist(a[0], p.c) - sim.dist(b[0], p.c) || Math.abs(a[1] - p.y) - Math.abs(b[1] - p.y));
+}
+export function visiblePigs(sim, radius = 24) {
+  return [...sim.ents.values()].filter((e) => e.kind === 'pig' && sim.seen[e.c] && sim.dist(e.c, sim.player.c) <= radius);
+}
+// walk (digging if cheaper) to somewhere a specific voxel is in reach, and mine it
+function* fetchBlock(sim, c, y) {
+  const go = yield* goTo(sim, (pc, py) => sim.reachable(pc, py, c, y), 12000);
+  if (!go.ok) return { ok: false, why: go.why };
+  const r = yield { op: 'mine', c, y };
+  return r.ok ? { ok: true } : { ok: false, why: r.why };
+}
+
+// ---------------------------------------------------------------- mine -------
+
+// Coal: take any coal in sight first (cliffs, cave mouths, our own tunnels);
+// dig a staircase for it only when none is visible.
+export function* mineCoal(sim, n = 4) {
+  if (sim.pickTier() < 1) return { ok: false, why: 'coal needs a pickaxe' };
+  for (let k = 0; k < 12 && (sim.inv.coal || 0) < n; k++) {
+    const seen = visible(sim, [B.coal_ore], 20);
+    if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
+    const r = yield* staircase(sim, { floor: 5, until: () => (sim.inv.coal || 0) >= n || visible(sim, [B.coal_ore], 6).length > 0 });
+    if (!r.ok && !visible(sim, [B.coal_ore], 6).length) return (sim.inv.coal || 0) >= n ? { ok: true } : r;
+  }
+  return (sim.inv.coal || 0) >= n ? { ok: true } : { ok: false, why: `found ${sim.inv.coal || 0} of ${n} coal` };
+}
+
+// A straight tunnel along the current layer, taking every ore in reach and
+// lighting it with a torch every six columns if we carry any. On a Penrose
+// floor "straight" is the neighbour most in line with the heading.
+export function* branchMine(sim, length = 16) {
+  if (sim.pickTier() < 1) return { ok: false, why: 'needs a pickaxe' };
+  const p = sim.player;
+  // indoors: out through the door first (the walls are protected anyway)
+  if (sim._house && sim._house.interior.includes(p.c)) {
+    const out = new Set(sim._house.outside);
+    const ex = yield* goTo(sim, (c) => out.has(c), 8000);
+    if (!ex.ok) return { ok: false, why: `could not get out of the house (${ex.why})` };
+  }
+  // from the surface, go down into the rock first — a branch mine is a
+  // tunnel through stone, not a trench through a hillside
+  if (sim.skyOpen(p.c, p.y + 2)) {
+    const floor = Math.max(4, Math.min(p.y - 6, 13));
+    const down = yield* goTo(sim, (c, y) => y <= floor, 30000);
+    if (!down.ok) return { ok: false, why: `could not get down to layer ${floor} (${down.why})` };
+  }
+  const a = sim.rng() * Math.PI * 2;
+  const dir = [Math.cos(a), Math.sin(a)];
+  const walked = new Set([p.c]);
+  let since = 0, dug = 0;
+  for (let k = 0; k < length; k++) {
+    yield* grabOre(sim);
+    const here = sim.cols[p.c];
+    let best = -1, bs = -Infinity;
+    for (const n of here.adj) {
+      if (walked.has(n)) continue;
+      if ([p.y, p.y + 1].some((y) => sim.clearCost(n, y, sim.pickTier()) === Infinity)) continue;
+      if (!sim.solid(n, p.y - 1)) continue;            // no floor: a cave or a drop — do not tunnel into it
+      const dx = sim.cols[n].x - here.x, dz = sim.cols[n].z - here.z, L = Math.hypot(dx, dz) || 1;
+      const sc = (dx * dir[0] + dz * dir[1]) / L;
+      if (sc > bs) { bs = sc; best = n; }
+    }
+    if (best < 0) return dug ? { ok: true, why: 'the tunnel hit water or a drop' } : { ok: false, why: 'nowhere to tunnel' };
+    for (const y of [p.y + 1, p.y]) if (sim.solid(best, y)) { const r = yield { op: 'mine', c: best, y }; if (!r.ok) return { ok: false, why: r.why }; }
+    const from = p.c;
+    const m = yield { op: 'move', to: best };
+    if (!m.ok) return { ok: false, why: m.why };
+    walked.add(best); dug++;
+    if (++since >= 6 && sim.has('torch') && sim.get(from, p.y) === B.air) {
+      const t = yield { op: 'place', c: from, y: p.y, item: 'torch' };
+      if (t.ok) since = 0;
+    }
+  }
+  return { ok: true };
+}
+
+// -------------------------------------------------------------- explore ------
+
+// Walk to the edge of what has been seen and look past it. Keeps a heading
+// across calls, so repeated exploring sweeps outward instead of dithering.
+export function* explore(sim, steps = 40) {
+  const p = sim.player, before = sim.seenCount;
+  if (sim._heading == null) sim._heading = sim.rng() * Math.PI * 2;
+  let best = -1, bs = -Infinity;
+  const here = sim.cols[p.c];
+  for (let c = 0; c < sim.N; c++) {
+    if (!sim.seen[c] || !sim.cols[c].adj.some((n) => !sim.seen[n])) continue;   // not on the frontier
+    const top = sim.surface(c);
+    if (sim.get(c, top - 1) === B.water) continue;                               // don't aim at the sea
+    const dx = sim.cols[c].x - here.x, dz = sim.cols[c].z - here.z, d = Math.hypot(dx, dz);
+    if (d < 4) continue;
+    // along the heading, near first — but any land frontier beats none
+    const sc = (dx * Math.cos(sim._heading) + dz * Math.sin(sim._heading)) / d - d / 30;
+    if (sc > bs) { bs = sc; best = c; }
+  }
+  if (best < 0) return { ok: false, why: 'all the land in reach has been seen' };
+  const walk = sim.path(p, (c) => c === best, 15000);
+  if (walk) {
+    for (const [c] of walk.slice(0, steps)) { const r = yield { op: 'move', to: c }; if (!r.ok) break; }
+  } else {
+    const go = yield* goTo(sim, (c) => c === best, 15000);
+    if (!go.ok) { sim._heading += Math.PI * 0.6; return { ok: false, why: `frontier unreachable (${go.why})` }; }
+  }
+  return { ok: true, seen: sim.seenCount - before };
+}
+
+// Explore until something of a kind is in sight.
+const SCOUT = {
+  tree: (sim) => visible(sim, [B.log], 20).length > 0,
+  pig: (sim) => visiblePigs(sim, 20).length > 0,
+  coal: (sim) => visible(sim, [B.coal_ore], 20).length > 0,
+  iron: (sim) => visible(sim, [B.iron_ore], 20).length > 0,
+  sand: (sim) => visible(sim, [B.sand], 20).length > 0,
 };
+export function* scout(sim, what = 'tree') {
+  const found = SCOUT[what];
+  if (!found) return { ok: false, why: `nothing called ${what} to scout for` };
+  for (let k = 0; k < 8; k++) {
+    if (found(sim)) return { ok: true };
+    yield* explore(sim, 30);
+  }
+  return found(sim) ? { ok: true } : { ok: false, why: `no ${what} found after eight legs` };
+}
+
+// ------------------------------------------------------------ homestead ------
+export const atHome = (sim) => !!sim.home && sim.player.c === sim.home[0] && Math.abs(sim.player.y - sim.home[1]) <= 1
+  || (!!sim._house && sim._house.interior.includes(sim.player.c) && sim.player.y === sim.home[1]);
+
+export function* setHome(sim) {
+  sim.home = [sim.player.c, sim.player.y];
+  sim.note('home', { c: sim.player.c, y: sim.player.y });
+  return { ok: true };
+}
+export function* goHome(sim) {
+  if (!sim.home) return { ok: false, why: 'no home yet' };
+  const [hc, hy] = sim.home;
+  return yield* goTo(sim, (c, y) => c === hc && y === hy, 40000);
+}
+
+// graph ball: column → hop distance, out to r
+export function ball(sim, c0, r) {
+  const d = new Map([[c0, 0]]), q = [c0];
+  while (q.length) {
+    const u = q.shift();
+    if (d.get(u) === r) continue;
+    for (const w of sim.cols[u].adj) if (!d.has(w)) { d.set(w, d.get(u) + 1); q.push(w); }
+  }
+  return d;
+}
+const TERRAIN = new Set([B.grass, B.dirt, B.sand, B.stone, B.cobblestone, B.coal_ore, B.iron_ore, B.planks, B.bedrock]);
+function groundTop(sim, c) {
+  for (let y = H - 1; y > 0; y--) if (TERRAIN.has(sim.get(c, y))) return y;
+  return 0;
+}
+const blocksHeld = (sim) => BUILDING.reduce((s, k) => s + (sim.inv[k] || 0), 0);
+const nextBlock = (sim) => BUILDING.find((k) => sim.has(k));
+
+// A house plan on the tile graph: centre c0, floor at layer g (the layer you
+// stand in). Interior = the ball of radius 1, the ring at hop 2 is the wall,
+// everything gets a roof at g+2 — interior height 2, the player's height,
+// so every block is placeable from inside (reach is feet−1 … head+1).
+export function planHouse(sim, c0) {
+  const d = ball(sim, c0, 3);
+  const interior = [], ring = [], outside = [];
+  for (const [c, k] of d) (k <= 1 ? interior : k === 2 ? ring : outside).push(c);
+  const g = groundTop(sim, c0) + 1;
+  if (g + 3 >= H) return null;
+  let work = 0, blocks = 0;
+  const tier = sim.pickTier();
+  for (const c of interior) {
+    const t = groundTop(sim, c);
+    if (t < g - 2 || t > g + 1) return null;                  // too deep to fill / too high to cut
+    for (let y = g - 1; y <= g + 2; y++) {
+      const id = sim.get(c, y);
+      if (id === B.water || sim.bordersWater(c, y)) return null;
+      if (id === B.crafting_table || id === B.furnace) return null;
+    }
+    if (t < g - 1) { work += 1; blocks++; }
+    for (const y of [g, g + 1]) if (sim.solid(c, y)) { if (sim.clearCost(c, y, tier) === Infinity) return null; work += 2; }
+    if (!sim.solid(c, g + 2) || sim.get(c, g + 2) === B.leaves) blocks++;
+  }
+  for (const c of ring) {
+    if (!sim.cols[c].adj.length || sim.cols[c].nb.includes(-1)) return null;   // the world's rim
+    for (let y = g; y <= g + 2; y++) {
+      const id = sim.get(c, y);
+      if (id === B.water || id === B.crafting_table || id === B.furnace) return null;
+      if (!sim.solid(c, y) || id === B.leaves || id === B.log) blocks++;
+    }
+  }
+  // a door: a ring column with open ground outside it at floor level
+  let door = -1;
+  for (const c of ring) {
+    const out = sim.cols[c].adj.find((n) => d.get(n) === 3 && sim.canStand(n, g));
+    if (out != null && sim.clearCost(c, g, tier) < Infinity && sim.clearCost(c, g + 1, tier) < Infinity) { door = c; break; }
+  }
+  if (door < 0) return null;
+  return { c0, g, interior, ring, outside, door, cost: work + blocks, blocks };
+}
+
+// Is it a shelter? No MOB can walk from inside to outside.
+export function sealed(sim, plan) {
+  const out = new Set(plan.outside);
+  const p = sim.path({ c: plan.c0, y: plan.g }, (c) => out.has(c), 4000, 2, true);
+  return !p;
+}
+
+export function* buildHouse(sim) {
+  const p = sim.player;
+  // choose a site: the cheapest plan among seen columns near us
+  // doors first: crafting them may put a table down, and that must happen
+  // before the site is chosen, not in the middle of it
+  if (!sim.has('door', 2)) {
+    const d = yield* craft(sim, 'door', 2);
+    if (!d.ok) return { ok: false, why: `no door: ${d.why}` };
+  }
+  const plans = [];
+  for (let c = 0; c < sim.N; c++) {
+    if (!sim.seen[c] || sim.dist(c, p.c) > 14) continue;
+    const top = groundTop(sim, c);
+    if (![B.grass, B.dirt, B.sand, B.stone].includes(sim.get(c, top))) continue;
+    const pl = planHouse(sim, c);
+    if (!pl) continue;
+    pl.score = pl.cost + sim.dist(c, p.c) * 0.5;
+    plans.push(pl);
+  }
+  if (!plans.length) return { ok: false, why: 'no buildable site in sight (needs fairly level, dry ground)' };
+  plans.sort((a, b) => a.score - b.score);
+  // the best site we can actually walk (or dig) to
+  let plan = null;
+  for (const pl of plans.slice(0, 4)) {
+    if (sim.digPath(p, (c, y) => c === pl.c0 && y === pl.g, 30000)) { plan = pl; break; }
+  }
+  if (!plan) return { ok: false, why: 'no reachable buildable site' };
+  const windows = sim.has('glass', 2) ? plan.ring.filter((c) => c !== plan.door).slice(0, 2) : [];
+  const need = Math.ceil(plan.blocks * 1.15) + 6;
+  if (blocksHeld(sim) < need) return { ok: false, why: `needs ~${need} building blocks, holding ${blocksHeld(sim)}` };
+  const { c0, g, interior, ring, door } = plan;
+  const inside = new Set(interior), wall = new Set(ring);
+  sim.note('build', { house: c0, g, interior: interior.length, ring: ring.length });
+
+  let lastWhy = '';
+  const put = function* (c, y) {
+    const id = sim.get(c, y);
+    if (id === B.leaves || id === B.log) { const m = yield { op: 'mine', c, y }; if (!m.ok) { lastWhy = m.why; return false; } }
+    if (sim.solid(c, y)) return true;
+    const item = nextBlock(sim);
+    if (!item) { lastWhy = 'out of building blocks'; return false; }
+    let r = yield { op: 'place', c, y, item };
+    // a pig wandered into the wall line: give it a moment to leave — and if
+    // it is penned in by the walls already, it becomes dinner
+    for (let w = 0; !r.ok && /entity/.test(r.why) && w < 20; w++) {
+      const pig = sim.occupied(c, y);
+      if (pig && pig.kind === 'pig' && sim.adjacentTo(sim.player, pig) && w >= 2) yield { op: 'attack', id: pig.id };
+      else yield { op: 'wait', ticks: 4 };
+      r = yield { op: 'place', c, y, item };
+    }
+    if (!r.ok) lastWhy = r.why;
+    return r.ok;
+  };
+  const clear = function* (c, y) {
+    if (!sim.solid(c, y) && sim.get(c, y) !== B.door) return true;
+    const r = yield { op: 'mine', c, y };
+    return r.ok;
+  };
+  // pigs on the footprint get walled in and block the work: clear them first
+  const foot = new Set([...interior, ...ring]);
+  for (const pig of [...sim.ents.values()].filter((e) => e.kind === 'pig' && foot.has(e.c))) {
+    const near = yield* goTo(sim, (pc, py) => (sim.cols[pc].adj.includes(pig.c) || pc === pig.c) && Math.abs(py - pig.y) <= 1, 8000);
+    if (near.ok) for (let k = 0; k < 12 && sim.ents.has(pig.id) && sim.adjacentTo(p, pig); k++) yield { op: 'attack', id: pig.id };
+  }
+  const go = yield* goTo(sim, (c, y) => c === c0 && y === g, 30000);
+  if (!go.ok) return { ok: false, why: `could not reach the site (${go.why})` };
+
+  // visit the interior in BFS order from the centre; from each column, make
+  // its unvisited interior neighbours walkable, then wall and roof the ring
+  const order = [c0], seen = new Set([c0]);
+  for (let i = 0; i < order.length; i++) for (const n of sim.cols[order[i]].adj) if (inside.has(n) && !seen.has(n)) { seen.add(n); order.push(n); }
+  const done = new Set();
+  for (const c of order) {
+    if (p.c !== c) {
+      const g2 = yield* goTo(sim, (pc, py) => pc === c && py === g, 3000);
+      if (!g2.ok) return { ok: false, why: `lost my footing inside (${g2.why})` };
+    }
+    for (const n of sim.cols[c].adj) {
+      if (inside.has(n) && !done.has(n) && n !== c0) {
+        if (!sim.solid(n, g - 1)) { const item = nextBlock(sim); if (item) yield { op: 'place', c: n, y: g - 1, item }; }
+        if (!(yield* clear(n, g + 1)) || !(yield* clear(n, g))) return { ok: false, why: 'could not clear the floor' };
+      }
+      if (wall.has(n)) {
+        if (n === door) { yield* clear(n, g + 1); yield* clear(n, g); }
+        else {
+          if (!(yield* put(n, g))) return { ok: false, why: `wall: ${lastWhy}` };
+          if (windows.includes(n) && sim.solid(n, g + 1) && sim.get(n, g + 1) !== B.glass) yield { op: 'mine', c: n, y: g + 1 };
+          if (windows.includes(n) && !sim.solid(n, g + 1)) yield { op: 'place', c: n, y: g + 1, item: 'glass' };
+          else if (!(yield* put(n, g + 1))) return { ok: false, why: `wall: ${lastWhy}` };
+        }
+        if (!(yield* put(n, g + 2))) return { ok: false, why: `roof: ${lastWhy}` };
+      }
+    }
+    done.add(c);
+  }
+  // roof over the interior, then the door, then light
+  for (const c of order) {
+    if (sim.solid(c, g + 2) && sim.get(c, g + 2) !== B.leaves) continue;
+    if (!sim.reachable(p.c, p.y, c, g + 2)) {
+      const g3 = yield* goTo(sim, (pc, py) => py === g && inside.has(pc) && sim.reachable(pc, py, c, g + 2), 3000);
+      if (!g3.ok) return { ok: false, why: 'could not reach the roof' };
+    }
+    if (!(yield* put(c, g + 2))) return { ok: false, why: `roof: ${lastWhy}` };
+  }
+  const nextToDoor = interior.find((c) => sim.cols[c].adj.includes(door));
+  const g4 = yield* goTo(sim, (pc, py) => pc === nextToDoor && py === g, 3000);
+  if (!g4.ok) return { ok: false, why: 'could not reach the doorway' };
+  for (const y of [g, g + 1]) if (sim.get(door, y) !== B.door) {
+    yield* clear(door, y);
+    let r = yield { op: 'place', c: door, y, item: 'door' };
+    for (let w = 0; !r.ok && /entity/.test(r.why) && w < 6; w++) { yield { op: 'wait', ticks: 4 }; r = yield { op: 'place', c: door, y, item: 'door' }; }
+    if (!r.ok) return { ok: false, why: `door: ${r.why}` };
+  }
+  if (sim.has('torch')) {
+    const spot = interior.find((c) => c !== c0 && c !== nextToDoor && sim.get(c, g) === B.air && sim.reachable(p.c, p.y, c, g));
+    if (spot != null) yield { op: 'place', c: spot, y: g, item: 'torch' };
+  }
+  if (!sealed(sim, plan)) return { ok: false, why: 'built, but a mob could still walk in' };
+  sim.home = [c0, g];
+  sim._house = plan;
+  for (const c of ring) for (let y = g; y <= g + 2; y++) sim.protect.add(c * H + y);
+  for (const c of interior) { sim.protect.add(c * H + g + 2); sim.protect.add(c * H + g - 1); }
+  sim.note('home', { c: c0, y: g, house: true });
+  return { ok: true };
+}
+
+// Torches on open ground around home (or here): zombies do not spawn within
+// five of one. Crafts them if it can.
+export function* lightArea(sim, n = 4) {
+  if ((sim.inv.torch || 0) < n) yield* craft(sim, 'torch', n);
+  if (!sim.has('torch')) return { ok: false, why: 'no torches, and nothing to make them from' };
+  const [hc] = sim.home || [sim.player.c];
+  const d = ball(sim, hc, 5);
+  const lit = [];
+  let placed = 0;
+  const cands = [...d].filter(([, k]) => k >= 3).map(([c]) => c).sort((a, b) => sim.dist(a, hc) - sim.dist(b, hc));
+  for (const c of cands) {
+    if (placed >= n || !sim.has('torch')) break;
+    if (lit.some((l) => sim.dist(l, c) < 3.5)) continue;
+    const y = sim.surface(c);
+    if (sim.get(c, y) !== B.air || !sim.solid(c, y - 1) || sim.get(c, y - 1) === B.leaves) continue;
+    const go = yield* goTo(sim, (pc, py) => sim.reachable(pc, py, c, y) && pc !== c, 4000);
+    if (!go.ok) continue;
+    const r = yield { op: 'place', c, y, item: 'torch' };
+    if (r.ok) { placed++; lit.push(c); }
+  }
+  return placed ? { ok: true } : { ok: false, why: 'nowhere to put a torch' };
+}
+
+// ------------------------------------------------------------- palette -------
+// The palette as DATA. Each entry: the mode it belongs to, one line of what it
+// does, and needs(sim, args) → null when it can run now, or the reason it
+// cannot. That reason is the difference between offering a model a choice and
+// offering it a trap: Jev's `choice` will be built from the legal entries only.
+const hasPick = (sim, t = 1) => sim.pickTier() >= t ? null : `needs a ${['', 'wooden', 'stone', 'iron'][t]} pickaxe`;
+const food = (sim) => ['cooked_porkchop', 'apple', 'porkchop'].some((k) => sim.has(k));
+export const PALETTE = {
+  // mine
+  mine_stone:   { mode: 'mine', doc: 'staircase down for cobblestone, taking ore on the way', needs: (s) => hasPick(s), run: (s, a) => mineStone(s, a?.n) },
+  mine_coal:    { mode: 'mine', doc: 'take coal in sight, or dig for it', needs: (s) => hasPick(s), run: (s, a) => mineCoal(s, a?.n) },
+  mine_iron:    { mode: 'mine', doc: 'down to the iron band and along it', needs: (s) => hasPick(s, 2), run: (s, a) => mineIron(s, a) },
+  branch_mine:  { mode: 'mine', doc: 'a straight tunnel on this layer, torch-lit', needs: (s) => hasPick(s), run: (s, a) => branchMine(s, a?.length) },
+  surface:      { mode: 'mine', doc: 'climb back up to open sky', needs: (s) => s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : null, run: (s) => surface(s) },
+  // explore
+  explore:      { mode: 'explore', doc: 'walk to the edge of the known and look past it', needs: () => null, run: (s, a) => explore(s, a?.steps) },
+  scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },
+  gather_wood:  { mode: 'explore', doc: 'chop the nearest trees', needs: () => null, run: (s, a) => gatherWood(s, a?.n) },
+  hunt:         { mode: 'explore', doc: 'chase down a pig for meat', needs: (s) => [...s.ents.values()].some((e) => e.kind === 'pig') ? null : 'no pigs left', run: (s) => hunt(s) },
+  go_home:      { mode: 'explore', doc: 'walk back to the house', needs: (s) => s.home ? (atHome(s) ? 'already home' : null) : 'no home yet', run: (s) => goHome(s) },
+  // homestead
+  craft:        { mode: 'homestead', doc: 'make an item, and whatever it is made of', needs: (s, a) => {
+    if (!RECIPES[a?.item]) return 'no such recipe';
+    const sh = shortfall(s, a.item, a.n || 1);
+    return Object.keys(sh).length ? `short of ${describeShort(sh)}` : null;
+  }, run: (s, a) => craft(s, a.item, a.n) },
+  build_house:  { mode: 'homestead', doc: 'a walled, roofed, lit house with a door, on the tile graph', needs: (s) => s.home && s._house ? 'already have a house' : blocksHeld(s) < 30 ? `needs ~30+ building blocks, holding ${blocksHeld(s)}` : null, run: (s) => buildHouse(s) },
+  light_area:   { mode: 'homestead', doc: 'torches around home — nothing spawns near light', needs: (s) => s.has('torch') || s.has('coal') || s.has('charcoal') ? null : 'no torches or fuel for them', run: (s, a) => lightArea(s, a?.n) },
+  set_home:     { mode: 'homestead', doc: 'call this spot home', needs: () => null, run: (s) => setHome(s) },
+  dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
+  sleep_until_dawn: { mode: 'homestead', doc: 'wait out the night where you are', needs: (s) => s.isNight() ? null : 'it is day', run: (s) => sleepUntilDawn(s) },
+  eat:          { mode: 'homestead', doc: 'eat the best food carried', needs: (s) => !food(s) ? 'no food' : s.player.food >= 20 ? 'not hungry' : null, run: (s) => eat(s) },
+  fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent', needs: (s) => [...s.ents.values()].some((e) => e.kind === 'zombie' && s.adjacentTo(s.player, e)) ? null : 'nothing adjacent to fight', run: (s) => fight(s) },
+};
+export const MODES = ['mine', 'explore', 'homestead'];
+export const legalMacros = (sim) => Object.entries(PALETTE).filter(([n, m]) => n !== 'craft' && !m.needs(sim, {})).map(([n]) => n);

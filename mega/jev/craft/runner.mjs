@@ -11,7 +11,7 @@
 // "Jev played for a day" has a number to be compared against, and so the
 // engine can be shown climbing the tech ladder with no model in the loop.
 
-import { PALETTE } from './macros.mjs';
+import { PALETTE, atHome, shortfall } from './macros.mjs';
 
 // One primitive action per step(), so a caller can interleave rendering
 // (the viewer) or run flat out (play()). Both drive exactly this loop.
@@ -25,12 +25,14 @@ export class Driver {
     if (this.gen) this.end({ ok: false, why: 'replaced' });
     this.cur = { name, ...(args ? { args } : {}), tick: this.sim.tick };
     this.sim.note('macro', { name, ...(args ? { args } : {}) });
-    this.gen = PALETTE[name](this.sim, args);
+    this.gen = PALETTE[name].run(this.sim, args);
     this.last = this.gen.next(); this.n = 0;
   }
   end(res) {
     if (this.gen && !this.last?.done) this.gen.return();
+    if (this.cur.name === 'explore' && /all the land/.test(res.why || '')) this.sim._explored = true;
     const out = { ...this.cur, ticks: this.sim.tick - this.cur.tick, ...res };
+    this.sim._lastMacro = out;
     this.sim.note('macro_end', { name: this.cur.name, ok: res.ok, ...(res.why ? { why: res.why } : {}) });
     this.gen = null;
     return out;
@@ -72,34 +74,72 @@ export function standardInterrupt(sim) {
   return null;
 }
 
-// The scripted ladder: wood → wooden pick → stone → stone pick → iron → iron pick.
+// The scripted ladder, then a life: wood → wooden pick → stone → stone pick →
+// coal & torches → iron → iron pick → a house → light around it → a daily
+// round of exploring, mining and hunting, home by dusk. One fixed if-ladder
+// over the same palette Jev will choose from — the bar, not the ceiling.
 export function baselinePolicy(sim) {
   const p = sim.player, inv = sim.inv;
+  const n = (k) => inv[k] || 0;
+  const blocks = n('cobblestone') + n('dirt') + n('planks') + n('sand');
   if (zombieAdjacent(sim)) return { name: 'fight' };
-  if (sim.isNight()) return exposed(sim) ? { name: 'dig_in' } : { name: 'sleep_until_dawn' };
-  if (!exposed(sim) && !sim.isNight() && p.y < sim.surface(p.c) - 6 && inv.iron_pickaxe) return { name: 'surface' };
+  if (sim.isNight()) {
+    if (atHome(sim)) return { name: 'sleep_until_dawn' };
+    if (sim.home && exposed(sim) && sim.dist(p.c, sim.home[0]) < 25 && !sim._homeTried) { sim._homeTried = true; return { name: 'go_home' }; }
+    return exposed(sim) ? { name: 'dig_in' } : { name: 'sleep_until_dawn' };
+  }
+  sim._homeTried = false;
+  // a macro that just failed without spending a tick will fail the same way
+  // again from the same spot: go somewhere else first
+  const last = sim._lastMacro;
+  if (last && !last.ok && last.ticks === 0 && !['explore', 'surface', 'fight', 'eat'].includes(last.name)) {
+    return exposed(sim) ? { name: 'explore' } : { name: 'surface' };
+  }
+  if (!exposed(sim) && p.y < sim.surface(p.c) - 6 && n('iron_pickaxe')) return { name: 'surface' };
   if (p.food < 14 && ['apple', 'porkchop', 'cooked_porkchop'].some((k) => inv[k])) return { name: 'eat' };
   if (p.food < 8) return { name: 'hunt' };
-  if (!inv.wooden_pickaxe && !inv.stone_pickaxe && !inv.iron_pickaxe) {
-    return (inv.log || 0) + (inv.planks || 0) / 4 < 5 ? { name: 'gather_wood', args: { n: 5 } } : { name: 'craft', args: { item: 'wooden_pickaxe' } };
+  if (!n('wooden_pickaxe') && !n('stone_pickaxe') && !n('iron_pickaxe')) {
+    return n('log') + n('planks') / 4 < 5 ? { name: 'gather_wood', args: { n: 5 } } : { name: 'craft', args: { item: 'wooden_pickaxe' } };
   }
-  if (!inv.stone_pickaxe && !inv.iron_pickaxe) {
-    return (inv.cobblestone || 0) < 11 ? { name: 'mine_stone', args: { n: 11 } } : { name: 'craft', args: { item: 'stone_pickaxe' } };
+  if (!n('stone_pickaxe') && !n('iron_pickaxe')) {
+    return n('cobblestone') < 11 ? { name: 'mine_stone', args: { n: 11 } } : { name: 'craft', args: { item: 'stone_pickaxe' } };
   }
-  if (!inv.iron_pickaxe) {
-    const iron = (inv.iron_ore || 0) + (inv.iron_ingot || 0);
-    if (iron < 3 || (inv.coal || 0) < 3) return { name: 'mine_iron', args: { iron: 3, coal: 3 } };
-    return { name: 'craft', args: { item: 'iron_pickaxe' } };
+  if (!n('stone_sword') && !n('iron_sword')) return n('cobblestone') >= 2 ? { name: 'craft', args: { item: 'stone_sword' } } : { name: 'mine_stone', args: { n: 4 } };
+  if (n('torch') < 4 && n('coal') < 1) return { name: 'mine_coal', args: { n: 3 } };
+  if (n('torch') < 4) return shortfall(sim, 'torch', 4).log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : { name: 'craft', args: { item: 'torch', n: 4 } };
+  if (!n('iron_pickaxe')) {
+    const iron = n('iron_ore') + n('iron_ingot');
+    if (iron < 3 || n('coal') < 3) return { name: 'mine_iron', args: { iron: 3, coal: 3 } };
+    return shortfall(sim, 'iron_pickaxe', 1).log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : { name: 'craft', args: { item: 'iron_pickaxe' } };
   }
-  return null;
+  if (!sim._house) {
+    if (sim._houseFails > 2) { /* give up on a house; live rough */ }
+    else if (!exposed(sim)) return { name: 'surface' };
+    else if (n('door') < 2 && n('log') + n('planks') / 4 < 2) return { name: 'gather_wood', args: { n: 3 } };
+    else if (blocks < 70) return { name: 'mine_stone', args: { n: 70 } };
+    else { sim._houseFails = (sim._houseFails || 0) + 1; return { name: 'build_house' }; }
+  }
+  if (sim._house && !sim._lit) { sim._lit = true; return { name: 'light_area', args: { n: 4 } }; }
+  // the daily round
+  const round = ['explore', 'explore', 'hunt', 'branch_mine', 'explore'];
+  sim._round = ((sim._round ?? -1) + 1) % round.length;
+  const pick = round[sim._round];
+  if (pick === 'hunt' && p.food >= 18) return { name: sim._explored ? 'branch_mine' : 'explore' };
+  if (pick === 'explore' && sim._explored) return { name: 'branch_mine', args: { length: 14 } };
+  if (pick === 'branch_mine') return { name: 'branch_mine', args: { length: 14 } };
+  if (!exposed(sim)) return { name: 'surface' };
+  // head home once the afternoon is late
+  if (sim.home && (sim.tick % DAYLEN) > NIGHT_AT - 500 && !atHome(sim)) return { name: 'go_home' };
+  return { name: pick };
 }
+const DAYLEN = 4800, NIGHT_AT = 3000;
 
 // Play a policy until it returns null or the tick budget runs out.
 // Returns the per-macro log and the milestones reached, with their tick.
-export const MILESTONES = ['log', 'crafting_table', 'wooden_pickaxe', 'cobblestone', 'stone_pickaxe', 'coal', 'iron_ore', 'furnace', 'iron_ingot', 'iron_pickaxe'];
+export const MILESTONES = ['log', 'crafting_table', 'wooden_pickaxe', 'cobblestone', 'stone_pickaxe', 'coal', 'torch', 'iron_ore', 'furnace', 'iron_ingot', 'iron_pickaxe', 'door', 'home'];
 export function play(sim, policy = baselinePolicy, { maxTicks = 4800 * 3, maxMacros = 400, onMacro } = {}) {
   const log = [], milestones = {};
-  const mark = () => { for (const m of MILESTONES) if (!(m in milestones) && (sim.inv[m] || sim.stats.crafted[m])) milestones[m] = sim.tick; };
+  const mark = () => { for (const m of MILESTONES) if (!(m in milestones) && (m === 'home' ? sim._house : sim.inv[m] || sim.stats.crafted[m])) milestones[m] = sim.tick; };
   const d = new Driver(sim, { policy });
   let fails = 0;
   while (sim.tick < maxTicks && log.length < maxMacros) {

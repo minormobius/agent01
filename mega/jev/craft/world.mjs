@@ -23,6 +23,7 @@ export const SEA = 14;        // water fills air at y <= SEA
 export const B = {
   air: 0, bedrock: 1, stone: 2, dirt: 3, grass: 4, sand: 5, water: 6, log: 7, leaves: 8,
   coal_ore: 9, iron_ore: 10, planks: 11, cobblestone: 12, crafting_table: 13, furnace: 14, torch: 15,
+  door: 16, glass: 17,
 };
 export const BLOCKS = [];
 const def = (name, o) => { BLOCKS[B[name]] = { id: B[name], name, solid: true, hard: 3, tool: 0, drop: name, color: '#888', ...o }; };
@@ -42,11 +43,17 @@ def('cobblestone',    { hard: 15, tool: 1, color: '#7a7a7a' });
 def('crafting_table', { hard: 6, color: '#8f6a3a', top: '#b8945a' });
 def('furnace',        { hard: 15, tool: 1, color: '#6f6f6f', top: '#8a8a8a' });
 def('torch',          { solid: false, hard: 1, color: '#ffd35a' });
+// a door is open to the player and shut to every mob: the one block that
+// makes a house a shelter rather than a box you cannot leave
+def('door',           { solid: false, mobSolid: true, hard: 4, color: '#7a5530', top: '#8f6a3a' });
+def('glass',          { hard: 1, drop: null, color: '#cfe8ef', clear: true });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
 // Items that place as a block. Everything else is inventory-only.
-export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch']);
+export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass']);
+// what a wall, a floor or a roof can be made of, best first
+export const BUILDING = ['cobblestone', 'planks', 'dirt', 'sand', 'log'];
 
 // Recipes are bags, not shapes: a grid-shaped recipe means nothing on a
 // Penrose floor, and the agent should be deciding WHAT to make, not where.
@@ -60,12 +67,19 @@ export const RECIPES = {
   stone_pickaxe:   { n: 1, need: { cobblestone: 3, stick: 2 }, at: 'crafting_table' },
   stone_sword:     { n: 1, need: { cobblestone: 2, stick: 1 }, at: 'crafting_table' },
   furnace:         { n: 1, need: { cobblestone: 8 }, at: 'crafting_table' },
-  torch:           { n: 4, need: { coal: 1, stick: 1 } },
-  iron_ingot:      { n: 1, need: { iron_ore: 1, coal: 1 }, at: 'furnace' },
-  cooked_porkchop: { n: 1, need: { porkchop: 1, coal: 1 }, at: 'furnace' },
+  // `alt` lists other bags that make the same thing: a torch from charcoal
+  // means light without ever going underground
+  torch:           { n: 4, need: { coal: 1, stick: 1 }, alt: [{ charcoal: 1, stick: 1 }] },
+  charcoal:        { n: 1, need: { log: 1, planks: 1 }, at: 'furnace' },
+  door:            { n: 3, need: { planks: 6 }, at: 'crafting_table' },
+  glass:           { n: 4, need: { sand: 4, coal: 1 }, alt: [{ sand: 4, charcoal: 1 }], at: 'furnace' },
+  iron_ingot:      { n: 1, need: { iron_ore: 1, coal: 1 }, alt: [{ iron_ore: 1, charcoal: 1 }], at: 'furnace' },
+  cooked_porkchop: { n: 1, need: { porkchop: 1, coal: 1 }, alt: [{ porkchop: 1, charcoal: 1 }, { porkchop: 1, planks: 1 }], at: 'furnace' },
   iron_pickaxe:    { n: 1, need: { iron_ingot: 3, stick: 2 }, at: 'crafting_table' },
   iron_sword:      { n: 1, need: { iron_ingot: 2, stick: 1 }, at: 'crafting_table' },
 };
+
+export const recipeBags = (r) => [r.need, ...(r.alt || [])];
 
 export const PICK_TIER = { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3 };
 export const PICK_SPEED = { 0: 1, 1: 2, 2: 4, 3: 6 };

@@ -27,13 +27,14 @@
 //                          Jev's questions and answers (runner.mjs)
 
 import {
-  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD,
+  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD,
   generateWorld, worldSignature, mulberry, hash32, blockName,
 } from './world.mjs';
 
 export const DAY = 4800;            // ticks per day (~20 min at 4 ticks/s, as Minecraft's)
 export const NIGHT_START = 3000;    // [3000, 4800) is night
 export const MAX_ZOMBIES = 6;
+export const SIGHT = 10;            // how far the player sees, in tile edges
 
 export class Sim {
   constructor(opts = {}) {
@@ -49,12 +50,17 @@ export class Sim {
     this.torches = new Set();
     this.lines = [];
     this.ev = [];
-    this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0 };
+    this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0, placed: {} };
+    this.seen = new Uint8Array(this.cols.length);
+    this.seenCount = 0;
+    this.home = null;             // [c, y] once a house is built or a home is set
+    this.protect = new Set();     // voxels the planners must not dig (house walls, roof)
     this.lines.push(JSON.stringify({
       t: 'craft', v: w.version, seed: w.seed, shape: w.shape, radius: w.radius, H,
       sig: worldSignature(w), spawn: w.spawn, day: DAY, night: NIGHT_START,
     }));
     this.player = this.spawnEnt('player', w.spawn, w.height[w.spawn] + 1, { hp: 20, food: 20, inv: {} });
+    this.look();
     // pigs: scattered on grass, a few per hundred columns
     const pigs = Math.round(this.N / 220);
     for (let k = 0, tries = 0; k < pigs && tries < pigs * 20; tries++) {
@@ -70,7 +76,8 @@ export class Sim {
   // ------------------------------------------------------------ voxels -----
   get(c, y) { return y < 0 ? B.bedrock : y >= H ? B.air : this.b[c * H + y]; }
   solid(c, y) { return BLOCKS[this.get(c, y)].solid; }
-  passable(c, y) { return !BLOCKS[this.get(c, y)].solid; }
+  // mob = true for anything that is not the player: a door stops it
+  passable(c, y, mob = false) { const k = BLOCKS[this.get(c, y)]; return !(k.solid || (mob && k.mobSolid)); }
   set(c, y, id) {
     const old = this.b[c * H + y];
     if (old === id) return;
@@ -86,20 +93,20 @@ export class Sim {
   }
   skyOpen(c, y) { for (let yy = y; yy < H; yy++) if (this.get(c, yy) !== B.air && this.get(c, yy) !== B.torch) return false; return true; }
   supported(c, y) { return this.solid(c, y - 1) || this.get(c, y - 1) === B.water || this.get(c, y) === B.water; }
-  canStand(c, y, tall = 2) {
+  canStand(c, y, tall = 2, mob = false) {
     if (y < 1 || y + tall > H) return false;
-    for (let k = 0; k < tall; k++) if (!this.passable(c, y + k)) return false;
+    for (let k = 0; k < tall; k++) if (!this.passable(c, y + k, mob)) return false;
     return this.supported(c, y);
   }
   // where a body at (c, y) ends up stepping into neighbour n, or null.
   // Climbs one layer (needs headroom above its own head), drops up to maxDrop.
-  stepTarget(c, y, n, tall = 2, maxDrop = 3) {
-    if (this.canStand(n, y, tall)) return y;
-    if (this.canStand(n, y + 1, tall) && this.passable(c, y + tall)) return y + 1;
-    for (let k = 0; k < tall; k++) if (!this.passable(n, y + k)) return null;
+  stepTarget(c, y, n, tall = 2, maxDrop = 3, mob = false) {
+    if (this.canStand(n, y, tall, mob)) return y;
+    if (this.canStand(n, y + 1, tall, mob) && this.passable(c, y + tall, mob)) return y + 1;
+    for (let k = 0; k < tall; k++) if (!this.passable(n, y + k, mob)) return null;
     let yy = y;
     while (yy > 1 && !this.supported(n, yy)) yy--;
-    return y - yy <= maxDrop && this.canStand(n, yy, tall) ? yy : null;
+    return y - yy <= maxDrop && this.canStand(n, yy, tall, mob) ? yy : null;
   }
 
   // ---------------------------------------------------------- entities -----
@@ -119,6 +126,31 @@ export class Sim {
     if (e.c === c && e.y === y) return;
     e.c = c; e.y = y;
     this.emit(['p', e.id, c, y]);
+    if (e === this.player) this.look();
+  }
+  // What the player has seen: every column within SIGHT of where it has
+  // stood. Derived from positions alone, so it needs no stream events — a
+  // replay recomputes it. Explore walks its frontier; perception reads it.
+  look() {
+    const p = this.player, here = this.cols[p.c];
+    if (!this._near) this._near = new Map();
+    let ring = this._near.get(p.c);
+    if (!ring) {
+      ring = [];
+      const seen = new Set([p.c]), q = [p.c];
+      while (q.length) {
+        const u = q.shift();
+        ring.push(u);
+        for (const w of this.cols[u].adj) {
+          if (seen.has(w)) continue;
+          seen.add(w);
+          const d = Math.hypot(this.cols[w].x - here.x, this.cols[w].z - here.z);
+          if (d <= SIGHT) q.push(w);
+        }
+      }
+      this._near.set(p.c, ring);
+    }
+    for (const u of ring) if (!this.seen[u]) { this.seen[u] = 1; this.seenCount++; }
   }
   dist(a, b) { const A = this.cols[a], Bc = this.cols[b]; return Math.hypot(A.x - Bc.x, A.z - Bc.z); }
   adjacentTo(e, t) {
@@ -136,6 +168,8 @@ export class Sim {
       this.stats.deaths++;
       e.inv = {}; e.hp = 20; e.food = 20;
       this.emit(['inv', {}]); this.emit(['hp', e.id, 20]); this.emit(['food', 20]);
+      // respawn at home if there is one (the house is the bed), else at spawn
+      if (this.home && this.canStand(this.home[0], this.home[1])) { this.moveEnt(e, this.home[0], this.home[1]); return; }
       const s = this.world.spawn;
       let sy = this.world.height[s] + 1;
       while (sy < H - 2 && !this.canStand(s, sy)) sy++;
@@ -231,6 +265,7 @@ export class Sim {
         this.emit(['do', 'place', c, y, item]);
         this.take(item, 1);
         this.set(c, y, B[item]);
+        this.stats.placed[item] = (this.stats.placed[item] || 0) + 1;
         this.step();
         return done(true);
       }
@@ -238,9 +273,13 @@ export class Sim {
         const r = RECIPES[a.item];
         if (!r) return done(false, `no recipe for ${a.item}`);
         if (r.at && !this.near(B[r.at])) return done(false, `needs a ${r.at} nearby`);
-        for (const [k, n] of Object.entries(r.need)) if (!this.has(k, n)) return done(false, `needs ${n} ${k}`);
+        const bag = recipeBags(r).find((g) => Object.entries(g).every(([k, n]) => this.has(k, n)));
+        if (!bag) {
+          const [k, n] = Object.entries(r.need).find(([k2, n2]) => !this.has(k2, n2));
+          return done(false, `needs ${n} ${k}` + (r.alt ? ' (or an alternative)' : ''));
+        }
         this.emit(['do', 'craft', a.item]);
-        for (const [k, n] of Object.entries(r.need)) this.take(k, n);
+        for (const [k, n] of Object.entries(bag)) this.take(k, n);
         this.give(a.item, r.n);
         this.stats.crafted[a.item] = (this.stats.crafted[a.item] || 0) + r.n;
         this.step();
@@ -341,14 +380,14 @@ export class Sim {
     const adj = this.cols[g.c].adj;
     if (!adj.length) return;
     const n = adj[Math.floor(this.rng() * adj.length)];
-    const y = this.stepTarget(g.c, g.y, n, 1, 1);
+    const y = this.stepTarget(g.c, g.y, n, 1, 1, true);
     if (y != null && this.get(n, y - 1) !== B.water && !this.occupied(n, y)) this.moveEnt(g, n, y);
   }
 
   // ---------------------------------------------------------- pathfinding ---
   // BFS over standing states from a body, walking only (no digging). Returns
   // the path of [c, y] steps to the first state satisfying goal, or null.
-  path(from, goal, maxNodes = 20000, tall = 2) {
+  path(from, goal, maxNodes = 20000, tall = 2, mob = false) {
     const key = (c, y) => c * H + y;
     const start = key(from.c, from.y);
     const prev = new Map([[start, -1]]);
@@ -361,7 +400,7 @@ export class Sim {
         return out.reverse();
       }
       for (const n of this.cols[c].adj) {
-        const yy = this.stepTarget(c, y, n, tall);
+        const yy = this.stepTarget(c, y, n, tall, 3, mob);
         if (yy == null) continue;
         const k = key(n, yy);
         if (!prev.has(k)) { prev.set(k, u); q.push(k); }
@@ -385,6 +424,7 @@ export class Sim {
     if (!blk.solid) return id === B.water ? Infinity : 0;
     if (blk.hard === Infinity || blk.tool > tier) return Infinity;
     if (id === B.crafting_table || id === B.furnace) return Infinity;
+    if (this.protect.has(c * H + y)) return Infinity;   // a house wall: never a shortcut
     if (this.bordersWater(c, y)) return Infinity;      // opening it would flood the dig
     return Math.max(1, Math.ceil(blk.hard / (blk.tool ? PICK_SPEED[tier] : 1)));
   }
@@ -435,6 +475,8 @@ export class Sim {
           if (t === Infinity) return;
           if (t > 0) { cost += t; list.push([mc, my]); }
         }
+        const occ = this.occupied(nc, ny) || this.occupied(nc, ny + 1);
+        if (occ && occ !== from) return;                 // route around mobs, not through them
         const k = key(nc, ny), nd = d + cost;
         if (nd < (dist.get(k) ?? Infinity)) { dist.set(k, nd); prev.set(k, u); how.set(k, { c: nc, y: ny, mine: list }); push(nd, k); }
       };
@@ -458,7 +500,7 @@ export class Sim {
     return null;
   }
 
-  firstStep(e, goal, maxNodes) { const p = this.path(e, goal, maxNodes, this.tallOf(e)); return p && p.length ? p[0] : null; }
+  firstStep(e, goal, maxNodes) { const p = this.path(e, goal, maxNodes, this.tallOf(e), e.kind !== 'player'); return p && p.length ? p[0] : null; }
 
   // --------------------------------------------------------------- stream --
   emit(ev) { this.ev.push(ev); }

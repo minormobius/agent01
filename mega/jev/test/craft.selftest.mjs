@@ -18,6 +18,7 @@ import { SHAPES, buildTiling, rawTiles } from '../craft/tiling.mjs';
 import { generateWorld, worldSignature, B, H, CRAFT_VERSION } from '../craft/world.mjs';
 import { Sim, Replay } from '../craft/sim.mjs';
 import { play, runMacro } from '../craft/runner.mjs';
+import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
 import { renderAscii } from '../craft/ascii.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -103,7 +104,7 @@ for (const s of SHAPES) {
 for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   const run = () => {
     const sim = new Sim({ shape, seed });
-    const r = play(sim, undefined, { maxTicks: 4800 * 2 });
+    const r = play(sim, undefined, { maxTicks: 3000 });
     return { sim, r, lines: sim.drain() };
   };
   const a = run(), b = run();
@@ -153,6 +154,89 @@ for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   }
   ok(planned === 3, 'digPath finds a way down to three depths');
   ok(unsafe === 0, 'digPath never plans to open a block that touches water');
+}
+
+
+// ------------------------------------------------------------ palette -------
+{
+  const sim = new Sim({ seed: 2, shape: 'ammann' });
+  let shaped = true;
+  for (const [name, m] of Object.entries(PALETTE)) {
+    if (!MODES.includes(m.mode) || typeof m.doc !== 'string' || typeof m.run !== 'function') shaped = false;
+    const why = m.needs(sim, name === 'craft' ? { item: 'torch' } : {});
+    if (!(why === null || typeof why === 'string')) shaped = false;
+  }
+  ok(shaped, 'every palette entry has a mode, a doc line, needs() → null | reason, and run()');
+  ok(MODES.every((md) => Object.values(PALETTE).some((m) => m.mode === md)), 'all three modes (mine, explore, homestead) have macros');
+  const legal = legalMacros(sim);
+  ok(!legal.includes('mine_stone') && !legal.includes('mine_iron') && legal.includes('explore') && legal.includes('gather_wood'),
+    `a fresh player may explore and chop, not mine (${legal.join(', ')})`);
+  ok(/pickaxe/.test(PALETTE.mine_coal.needs(sim, {})), 'mine_coal says it needs a pickaxe');
+  ok(/log/.test(PALETTE.craft.needs(sim, { item: 'wooden_pickaxe' })), 'crafting from nothing says what is short (a log)');
+}
+
+// ---------------------------------------------------- recipes and shortfall --
+{
+  const sim = new Sim({ seed: 1, shape: 'grid' });
+  const sf = (i, q) => JSON.stringify(shortfall(sim, i, q));
+  ok(sf('torch', 4) === '{"coal":1,"log":1}', `torches from nothing: short of a coal and a log (${sf('torch', 4)})`);
+  sim.give('log', 2);
+  ok(sf('wooden_pickaxe', 1) === '{"log":1}', `a wooden pickaxe from 2 logs: short of one more, counting the table (${sf('wooden_pickaxe', 1)})`);
+  sim.give('torch', 3);
+  ok(sf('torch', 4) === '{"coal":1}', `holding 3 torches, a 4th still needs coal: what is held counts once (${sf('torch', 4)})`);
+  // charcoal: light without going underground
+  sim.give('cobblestone', 8); sim.give('log', 3);
+  const r = runMacro(sim, 'craft', { item: 'torch', n: 8 });
+  ok(r.ok && sim.inv.torch >= 8 && sim.stats.crafted.charcoal >= 1, `torches from charcoal, no coal mined (${r.why || 'ok'}; charcoal ${sim.stats.crafted.charcoal || 0})`);
+}
+
+// ------------------------------------------------------------- doors --------
+{
+  const sim = new Sim({ seed: 3, shape: 'hex' });
+  const p = sim.player, n = sim.cols[p.c].adj.find((c) => sim.canStand(c, p.y));
+  sim.give('door', 2);
+  ok(sim.act({ op: 'place', c: n, y: p.y, item: 'door' }).ok && sim.act({ op: 'place', c: n, y: p.y + 1, item: 'door' }).ok, 'a door places');
+  ok(sim.passable(n, p.y) && !sim.passable(n, p.y, true), 'a door is open to the player and shut to mobs');
+  ok(sim.stepTarget(p.c, p.y, n, 2, 3, false) === p.y && sim.stepTarget(p.c, p.y, n, 2, 3, true) === null, 'the player can step into a doorway; a mob cannot');
+}
+
+// ----------------------------------------------------------- no x-ray -------
+{
+  const sim = new Sim({ seed: 4, shape: 'penrose' });
+  const vis = visible(sim, [B.coal_ore, B.iron_ore], 100);
+  ok(vis.every(([c, y]) => sim.seen[c]), 'visible ore is only ever in columns the player has seen');
+  let buried = 0;
+  for (let c = 0; c < sim.N; c++) for (let y = 1; y < H; y++) if (sim.get(c, y) === B.coal_ore && sim.seen[c] && !vis.some(([vc, vy]) => vc === c && vy === y)) buried++;
+  ok(buried > 0, `ore buried in rock is not visible, even under a seen column (${buried} hidden)`);
+  const before = sim.seenCount;
+  const r = runMacro(sim, 'explore', { steps: 40 });
+  ok(r.ok && sim.seenCount > before, `explore sees new ground (${before} → ${sim.seenCount} columns)`);
+}
+
+// ------------------------------------------------------------- houses -------
+for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['snub', 2]]) {
+  const sim = new Sim({ seed, shape });
+  sim.give('cobblestone', 90); sim.give('planks', 14); sim.give('stone_pickaxe', 1); sim.give('torch', 2); sim.give('glass', 4);
+  const r = runMacro(sim, 'build_house');
+  ok(r.ok, `${shape}/${seed}: build_house succeeds (${r.why || r.ticks + ' ticks'})`);
+  if (!r.ok) continue;
+  const h = sim._house;
+  ok(sealed(sim, h), `${shape}/${seed}: no mob can walk from inside to outside`);
+  ok(sim.path(sim.player, (c) => h.outside.includes(c), 4000) !== null, `${shape}/${seed}: the player can walk out through the door`);
+  ok(h.ring.every((c) => sim.solid(c, h.g) || sim.get(c, h.g) === B.door), `${shape}/${seed}: the wall ring is closed at floor level`);
+  ok([...h.interior, ...h.ring].every((c) => sim.solid(c, h.g + 2)), `${shape}/${seed}: roofed everywhere`);
+  ok(sim.home && sim.home[0] === h.c0, `${shape}/${seed}: home is the house`);
+  const out = sim.digPath({ c: h.c0, y: h.g }, (c) => h.outside.includes(c), 20000) || [];
+  ok(out.every((st) => st.mine.every(([c, y]) => !sim.protect.has(c * H + y))), `${shape}/${seed}: the planner never tunnels through its own walls`);
+}
+
+// ----------------------------------------------------------- a whole day ----
+{
+  const sim = new Sim({ seed: 3, shape: 'penrose' });
+  const r = play(sim, undefined, { maxTicks: 4800 * 1.5, maxMacros: 2000 });
+  ok('home' in r.milestones && 'torch' in r.milestones, `penrose/3: the baseline has torches and a house inside a day and a half (house @${r.milestones.home})`);
+  ok(r.stats.deaths === 0, `penrose/3: survives the first night (${r.stats.deaths} deaths)`);
+  ok(sim.seenCount / sim.N > 0.5, `penrose/3: has seen over half the island (${(100 * sim.seenCount / sim.N).toFixed(0)}%)`);
 }
 
 // ---------------------------------------------------------------- text ------

@@ -293,11 +293,11 @@ model only decides.
 | `craft/tiling.mjs` | **a port of foam's ten `TILE_SHAPES`**, same constants and centre conventions, plus vertex welding and adjacency. It's a port because mega's assets can't import across surfaces. `craft.selftest` imports `foam/dungeon.mjs` directly and asserts **the same tile centres for every shape**, so if foam changes a tiling, that test breaks. Foam is owned by `claude/foam-dungeon-generator-aoaz0j`; don't edit it from here |
 | `craft/world.mjs` | blocks, recipes (**bags, not shapes**, since a grid recipe means nothing on a Penrose floor), the seeded island generator, `worldSignature`. `CRAFT_VERSION` + per-shape signature pins: moving what a seed generates means bumping the version |
 | `craft/sim.mjs` | the rules, `act()` (one primitive action run to completion; refusals are free and say why), mobs, hunger, day/night, `path` (walk-only BFS), **`digPath`** (Dijkstra where mining costs its ticks, so it tunnels only where tunnelling is cheaper; **never opens a block that touches water**), and `Replay` |
-| `craft/macros.mjs` | the palette, as generators that yield primitive actions: `gather_wood`, `craft` (recursive, places stations), `mine_stone`, `mine_iron`, `dig_in`, `sleep_until_dawn`, `surface`, `fight`, `hunt`, `eat`. Every macro must fail cleanly and hold no mid-sequence state, because it can be interrupted between any two actions |
+| `craft/macros.mjs` | the palette. 18 macros in three modes (below), each a generator that yields primitive actions, with `needs()` saying why it can't run. Also: `goTo` (digs where cheaper), `visible()` (no x-ray: only open-faced blocks in columns the player has seen), `shortfall()` (raw materials missing, all the way down the recipe tree, stations included), `planHouse` / `sealed`. Every macro must fail cleanly and hold no mid-sequence state, because it can be interrupted between any two actions |
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 145 checks, ~3 s, gates the deploy |
+| `test/craft.selftest.mjs` | 191 checks, ~12 s, gates the deploy |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
 ### The stream
@@ -314,25 +314,86 @@ start and end, dusk, dawn, and later Jev's questions and answers). The header
 carries the world signature, so a replay against a drifted generator fails
 loudly instead of drawing a different world.
 
+### The palette: mine, explore, homestead (2026-09-25, round two)
+
+Minecraft has three things you do, with components under each. The palette is
+**data**, not a list of functions. Each entry carries its `mode`, a one-line
+`doc`, and `needs(sim, args)` → `null` or the reason it can't run now. The
+viewer greys illegal macros out with that reason as the tooltip, and
+`legalMacros()` is where Jev's `choice` options will come from. A choice
+should never offer a trap.
+
+| mode | macros |
+|---|---|
+| mine | `mine_stone` (staircase), `mine_coal` (coal in sight first, else dig), `mine_iron` (ore in sight, then staircase, then a branch tunnel if boxed in), `branch_mine` (a straight torch-lit tunnel through rock: goes down first, out the door first if indoors), `surface` (the digging planner aimed at open sky) |
+| explore | `explore` (to the edge of the seen, with a heading), `scout` tree / pig / coal / iron / sand, `gather_wood` (scouts if no tree is in reach), `hunt` (scouts for pigs), `go_home` |
+| homestead | `craft` (recursive, picks between recipe alternatives, builds stations), `build_house`, `light_area`, `set_home`, `dig_in`, `sleep_until_dawn`, `eat`, `fight` |
+
+**New blocks and recipes:** a **door** (open to the player, shut to every
+mob: `BLOCKS.door.mobSolid`, threaded through `passable/canStand/stepTarget/
+path` as a `mob` flag), **glass** (from sand at a furnace), and **charcoal**
+(from a log at a furnace). Recipes can carry `alt` bags, so a torch is coal
+*or* charcoal plus a stick. You can light a house without ever going
+underground.
+
+**`seen`.** Every column within `SIGHT` (10) of where the player has stood. It
+is derived from positions, so it needs no stream events. Explore walks its
+frontier. `visible()` only reports blocks in seen columns that have an open
+face, so buried ore is found by digging.
+
+**The house is a graph blueprint, which is why it works on a Penrose floor.**
+Centre `c0`, floor layer `g`. The **interior** is the ball of radius 1, the
+**wall** is the ring at hop 2, and everything is roofed at `g+2`. Interior
+height is 2, the player's height, so every block can be placed from inside
+(reach is feet−1 … head+1). A door goes in a ring column that has open ground
+outside it, and glass windows go in if you carry glass. Site choice is the
+cheapest plan among seen columns within 14 (fill ≤ 1, cut ≤ 2, no water, not
+the world rim). Existing rock in the wall line is kept as wall, so houses dig
+into hillsides. It is **proven, not assumed**: `sealed()` runs a mob-mode path
+from inside to outside and the house only counts if there is none. The shapes
+are the tilings': penrose 5 interior / 7 wall, kagome 7 / 6, truncsq 5 / 16.
+
+**Things this round found, each fixed at the root:**
+- `sleep_until_dawn` was one 1,800-tick `wait`, so the interrupt check never
+  ran and a zombie got five free hits. Waits are now 20-tick chunks.
+- `branch_mine` started indoors and tunnelled out through the wall, and the
+  digging planner would cut through walls as a shortcut. A finished house's
+  walls, roof and floor go in `sim.protect`, which `clearCost` refuses.
+  Indoors, the branch mine walks out the door first.
+- Pigs: one on the site's centre, one penned by half-built walls, one on the
+  wall line. The builder clears the footprint first (the pigs become food),
+  and a blocked goal attacks an adjacent pig.
+- `shortfall` counted held items and its callers subtracted them again. It is
+  now defined as "to end up **holding** q", and a station neither near nor
+  carried counts.
+- Respawn is at home when there is one: the house is the bed. This ended a
+  25-deaths-in-3-days loop of respawning at spawn among zombies at night.
+
 ### Measured: the baseline, headless (2026-09-25)
 
-Wood → wooden pick → stone pick → iron pick, 20 seeds × 10 tilings, three
-in-game days max:
+**Round one, the ladder** (wood → wooden pick → stone pick → iron pick),
+20 seeds × 10 tilings: **198 / 200** reached the iron pickaxe. Deaths varied
+wildly by tiling (hex 2, snub 35 over 20 worlds). The first sweep managed
+26 / 50, and every failure was an engine or macro fault.
+
+**Round two, a life** (ladder → sword → coal and torches → iron → house →
+light → daily explore / hunt / branch-mine, home by dusk). 3 seeds × 10
+tilings × 3 in-game days:
 
 | | |
 |---|---|
-| reached the iron pickaxe | **198 / 200** (the two misses: a pig out of reach, and a boxed-in staircase) |
-| median ticks to iron pick | 640 (rhombitri, truncsq) … 1075 (rhombille) |
-| deaths, over 20 worlds | hex 2 · truncsq 1 · penrose 5 … **snub 35 · kagome 28 · grid 23** |
+| iron pickaxe | **30 / 30** |
+| a sealed house | **30 / 30** (60 / 60 when `build_house` is handed materials directly) |
+| deaths | **0** |
+| stuck runs | **0** |
+| island explored | ~99% |
 
-The death spread is the interesting number. The tiling changes how exposed you
-are: the same policy dies roughly 17× more often on snub than on hex. That is
-a gap for the decision layer to close, not an engine bug. It started at 26 / 50
-and every failure was an engine or macro fault, each fixed at the root:
-spawning on a canopy, walk-only pathing (→ `digPath`), nowhere to set a table
-in a tunnel (→ carve a niche), tunnels flooding below sea level (→ never open
-a water-touching block), a table consuming planks already counted for a
-recipe (→ place the station before counting ingredients).
+**Read the zeros carefully: at this difficulty survival no longer separates
+policies.** The scripted baseline with a house, a sword and torches doesn't
+die. For the Jev scoreboard to mean anything it needs a harder setting (more
+zombies, faster hunger, zombies that break doors, a smaller island) or a
+metric that still spreads: ticks to each milestone, resources at day N, what
+got built. That is a decision to make before running Jev, not after.
 
 ### What is next
 
@@ -340,14 +401,14 @@ recipe (→ place the station before counting ingredients).
    tree / stone / pig with path cost in ticks, what can be crafted now, time
    to dusk, threats with distance, shelter state. **Computed, never raw.**
 2. **The question set**, one call per macro boundary or interrupt: `next` (a
-   `choice` over the macros legal right now, each option carrying what it
-   would cost and yield), plus `noul`s for the interrupts (flee? eat? dig
+   `choice` over `legalMacros()`, each option carrying what it would cost and
+   yield, and `shortfall()` for anything it would craft), plus `noul`s for the interrupts (flee? eat? dig
    in?) and the self-check (*does the state contain what this needs?*),
    because escalation is asked for, never inferred.
 3. **The scoreboard**: Jev vs `baselinePolicy` vs random-over-the-same-palette,
    on the same seeds. Milestone ticks, deaths, and survival across nights.
-   The snub/kagome death rate is the first place a better System 1 should
-   show.
+   Deaths are zero at this difficulty (see above), so pick the harder
+   setting or the spreading metric first.
 
 **Before the first deploy that carries new `mega/` work:** `jev-prereg.yml`
 runs from **main's** copy and redeploys mega from whatever branch it names. It

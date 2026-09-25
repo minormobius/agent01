@@ -9,7 +9,8 @@ import * as THREE from 'three';
 import { OrbitControls } from '../delve/vendor/OrbitControls.js';
 import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
-import { BLOCKS, B, H, hash01 } from './world.mjs';
+import { PALETTE, MODES } from './macros.mjs';
+import { BLOCKS, B, H, hash01, RECIPES } from './world.mjs';
 import { SHAPES } from './tiling.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -44,6 +45,7 @@ const matSolid = new THREE.MeshLambertMaterial({ vertexColors: true, clippingPla
 const matWater = new THREE.MeshLambertMaterial({ color: 0x3f76e4, transparent: true, opacity: 0.62, depthWrite: false, clippingPlanes: [cut] });
 // the cap: back faces drawn flat and dark, so rock sliced by the cut reads as
 // solid ground and only the hollows (tunnels, caves) stay open
+const matGlass = new THREE.MeshLambertMaterial({ color: 0xcfe8ef, transparent: true, opacity: 0.35, depthWrite: false, clippingPlanes: [cut] });
 const matCap = new THREE.MeshBasicMaterial({ color: 0x5b554e, side: THREE.BackSide, clippingPlanes: [cut] });
 const world = new THREE.Group();
 scene.add(world);
@@ -74,13 +76,13 @@ const RGB = BLOCKS.map((b) => b.color ? {
 function opaque(r, c, y) {
   if (y < 0) return true;
   if (y >= H) return false;
-  const id = r.b[c * H + y];
-  return BLOCKS[id].solid;
+  const k = BLOCKS[r.b[c * H + y]];
+  return k.solid && !k.clear;           // glass is solid but you see through it
 }
 
 function buildChunk(key) {
   const r = replay, cols = r.world.tiling.cols;
-  const P = [], N = [], C = [], WP = [], WN = [];
+  const P = [], N = [], C = [], WP = [], WN = [], GP = [], GN = [];
   const tri = (out, nout, a, b, c, n) => {
     // orient the triangle to its intended normal, whatever the poly winding
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
@@ -105,6 +107,19 @@ function buildChunk(key) {
         if (r.b[c * H + y + 1] === B.air || y === H - 1) {
           const top = poly.map(([x, z]) => [x, y + 0.88, z]);
           for (let i = 1; i + 1 < top.length; i++) tri(WP, WN, top[0], top[i], top[i + 1], [0, 1, 0]);
+        }
+        continue;
+      }
+      if (id === B.glass) {
+        const nb2 = (cc, yy) => r.b[cc * H + yy] === B.glass || opaque(r, cc, yy);
+        if (!nb2(c, y + 1)) { const t = poly.map(([x, z]) => [x, y + 1, z]); for (let i = 1; i + 1 < t.length; i++) tri(GP, GN, t[0], t[i], t[i + 1], [0, 1, 0]); }
+        for (let e = 0; e < poly.length; e++) {
+          const n = nb[e];
+          if (n >= 0 && nb2(n, y)) continue;
+          const a = poly[e], b2 = poly[(e + 1) % poly.length];
+          const q = [[a[0], y, a[1]], [b2[0], y, b2[1]], [b2[0], y + 1, b2[1]], [a[0], y + 1, a[1]]];
+          const mx = (a[0] + b2[0]) / 2 - col.x, mz = (a[1] + b2[1]) / 2 - col.z, L = Math.hypot(mx, mz) || 1;
+          tri(GP, GN, q[0], q[1], q[2], [mx / L, 0, mz / L]); tri(GP, GN, q[0], q[2], q[3], [mx / L, 0, mz / L]);
         }
         continue;
       }
@@ -148,6 +163,14 @@ function buildChunk(key) {
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(WN, 3));
     const m = new THREE.Mesh(geo, matWater);
     m.renderOrder = 1;
+    g.add(m);
+  }
+  if (GP.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(GP, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(GN, 3));
+    const m = new THREE.Mesh(geo, matGlass);
+    m.renderOrder = 2;
     g.add(m);
   }
   chunkMesh.set(key, g);
@@ -223,7 +246,7 @@ function syncEntities(dt) {
 
 // ----------------------------------------------------------------- HUD ------
 const ITEM_COLOR = {
-  stick: '#9c7a45', coal: '#222', iron_ingot: '#d8d8d8', apple: '#d33', porkchop: '#f0a3b4', cooked_porkchop: '#b5653d',
+  stick: '#9c7a45', coal: '#222', charcoal: '#3a2e25', iron_ingot: '#d8d8d8', apple: '#d33', porkchop: '#f0a3b4', cooked_porkchop: '#b5653d',
   wooden_pickaxe: '#b8945a', stone_pickaxe: '#8a8a8a', iron_pickaxe: '#d8d8d8', wooden_sword: '#b8945a', stone_sword: '#8a8a8a', iron_sword: '#d8d8d8',
 };
 function hud() {
@@ -247,6 +270,7 @@ function logMacro(note) {
   const d = note.data || {};
   if (note.kind === 'macro_end') macroLog.unshift({ t: note.k, text: `${d.name} — ${d.ok ? 'done' : d.why}`, ok: d.ok });
   else if (note.kind === 'dusk' || note.kind === 'dawn') macroLog.unshift({ t: note.k, text: note.kind, ok: note.kind === 'dawn' });
+  else if (note.kind === 'home') macroLog.unshift({ t: note.k, text: d.house ? 'house built — home' : 'home set here', ok: true });
   else return;
   macroLog = macroLog.slice(0, 14);
   $('log').innerHTML = macroLog.map((m) => `<li class="${m.ok ? 'ok' : 'bad'}">${m.t} ${m.text}</li>`).join('');
@@ -266,6 +290,7 @@ function feed(lines) {
     for (const ev of evs) {
       if (ev[0] === 'b') { markDirty(ev[1]); blocksChanged = true; }
       if (ev[0] === 'note') logMacro({ k: replay.tick, kind: ev[1], data: ev[2] });
+      if (ev[0] === 'note' && ev[1] === 'home') homeAt = ev[2];
       if (ev[0] === 'do') $('doing').textContent = ev.slice(1).join(' ');
     }
   }
@@ -274,24 +299,60 @@ function feed(lines) {
 }
 
 // -------------------------------------------------------------- modes ------
-const MACRO_BUTTONS = [
-  ['gather_wood', { n: 5 }, 'gather wood'], ['craft', { item: 'wooden_pickaxe' }, 'wooden pick'],
-  ['mine_stone', { n: 11 }, 'mine stone'], ['craft', { item: 'stone_pickaxe' }, 'stone pick'],
-  ['mine_iron', { iron: 3, coal: 3 }, 'mine iron'], ['craft', { item: 'iron_pickaxe' }, 'iron pick'],
-  ['craft', { item: 'torch', n: 4 }, 'torches'], ['craft', { item: 'stone_sword' }, 'sword'],
-  ['dig_in', null, 'dig in'], ['sleep_until_dawn', null, 'sleep'], ['surface', null, 'surface'],
-  ['hunt', null, 'hunt'], ['eat', null, 'eat'], ['fight', null, 'fight'],
-];
+// The palette, drawn by mode. A macro that cannot run now is greyed out and
+// its reason is the tooltip — the same needs() Jev's option set is built from.
+const ARGS = {
+  gather_wood: { n: 5 }, mine_stone: { n: 11 }, mine_coal: { n: 4 }, mine_iron: { iron: 3, coal: 3 },
+  branch_mine: { length: 16 }, explore: { steps: 40 }, light_area: { n: 4 },
+};
+const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick'];
+function argsFor(name) {
+  if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
+  if (name === 'scout') return { what: $('scout-what').value };
+  return ARGS[name] || null;
+}
 function buildMacroButtons() {
   const box = $('macros');
   box.innerHTML = '';
-  for (const [name, args, label] of MACRO_BUTTONS) {
-    const b = document.createElement('button');
-    b.type = 'button'; b.textContent = label;
-    b.addEventListener('click', () => { if (driver) { $('auto').checked = false; setAuto(); driver.start(name, args); } });
-    box.appendChild(b);
+  for (const mode of MODES) {
+    const h = document.createElement('div');
+    h.className = 'mode'; h.textContent = mode;
+    box.appendChild(h);
+    const row = document.createElement('div');
+    row.className = 'mrow';
+    for (const [name, m] of Object.entries(PALETTE)) {
+      if (m.mode !== mode) continue;
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = name.replace(/_/g, ' '); b.dataset.macro = name; b.title = m.doc;
+      b.addEventListener('click', () => { if (driver) { $('auto').checked = false; setAuto(); driver.start(name, argsFor(name)); } });
+      row.appendChild(b);
+      if (name === 'craft') {
+        const sel = document.createElement('select'); sel.id = 'craft-item';
+        for (const it of CRAFTABLE) { const o = document.createElement('option'); o.value = it; o.textContent = it.replace(/_/g, ' '); sel.appendChild(o); }
+        row.appendChild(sel);
+      }
+      if (name === 'scout') {
+        const sel = document.createElement('select'); sel.id = 'scout-what';
+        for (const it of ['tree', 'pig', 'coal', 'iron', 'sand']) { const o = document.createElement('option'); o.value = o.textContent = it; sel.appendChild(o); }
+        row.appendChild(sel);
+      }
+    }
+    box.appendChild(row);
   }
 }
+let legalAt = 0;
+function refreshLegal(now) {
+  if (!sim || now - legalAt < 400) return;
+  legalAt = now;
+  for (const b of document.querySelectorAll('#macros button')) {
+    const m = PALETTE[b.dataset.macro];
+    const why = m.needs(sim, argsFor(b.dataset.macro) || {});
+    b.disabled = !!why;
+    b.title = why ? `${m.doc} — can't: ${why}` : m.doc;
+    b.classList.toggle('on', driver && driver.gen && driver.cur && driver.cur.name === b.dataset.macro);
+  }
+}
+
 function setAuto() {
   if (!driver) return;
   const on = $('auto').checked;
@@ -311,12 +372,11 @@ function startLive() {
   allLines = lines.slice();
   replay = new Replay(lines[0]);
   initMeshes();
-  macroLog = []; $('log').innerHTML = ''; $('tail').textContent = '';
+  macroLog = []; $('log').innerHTML = ''; $('tail').textContent = ''; homeAt = null;
   feed(lines.slice(1));
   target = sim.tick;
   $('mode').textContent = 'live';
   $('shape-name').textContent = shape;
-  document.querySelectorAll('#macros button').forEach((b) => { b.disabled = false; });
   snapCamera();
 }
 
@@ -329,7 +389,7 @@ function startFile(text) {
   sim = null; driver = null;
   fileLines = lines; fileCursor = 1; allLines = [];
   initMeshes();
-  macroLog = []; $('log').innerHTML = ''; $('tail').textContent = '';
+  macroLog = []; $('log').innerHTML = ''; $('tail').textContent = ''; homeAt = null;
   target = 0;
   $('mode').textContent = `replay · ${head.shape} seed ${head.seed}`;
   $('shape-name').textContent = head.shape;
@@ -338,7 +398,12 @@ function startFile(text) {
 }
 
 // ------------------------------------------------------------- camera ------
+let homeAt = null;                    // from the stream's 'home' note
 function playerPos() {
+  if ($('homecam').checked && homeAt && replay) {
+    const c = replay.world.tiling.cols[homeAt.c];
+    return new THREE.Vector3(c.x, homeAt.y, c.z);
+  }
   const p = entMesh.get(0);
   return p ? p.position : new THREE.Vector3(0, 20, 0);
 }
@@ -356,7 +421,7 @@ function underground() {
 function updateCamera() {
   const p = playerPos();
   const pe = replay.ents.get(0);
-  cut.constant = !$('pov').checked && pe && underground() ? pe.y + 2.02 : 1e6;
+  cut.constant = !$('pov').checked && !$('homecam').checked && pe && underground() ? pe.y + 2.02 : 1e6;
   if ($('pov').checked) {
     const m = entMesh.get(0);
     controls.enabled = false;
@@ -370,6 +435,12 @@ function updateCamera() {
     const want = new THREE.Vector3(p.x, p.y + 1.5, p.z);
     const delta = want.clone().sub(controls.target).multiplyScalar(0.12);
     controls.target.add(delta); camera.position.add(delta);
+    if ($('homecam').checked && homeAt) {
+      // nearly straight down: houses go up among trees, and a canopy in the
+      // way of a low orbit hides the whole point of the view
+      const eye = want.clone().add(new THREE.Vector3(2.5, 11, 4));
+      camera.position.lerp(eye, 0.15);
+    }
     controls.update();
   }
 }
@@ -419,6 +490,7 @@ function frame(now) {
     updateCamera();
     sky();
     hud();
+    refreshLegal(now);
   }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
