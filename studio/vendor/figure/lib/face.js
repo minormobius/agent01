@@ -28,7 +28,7 @@ export const BASE = {
   iris: 1, lash: 1, droop: 0, lower: 0.7, closedCurve: 1,
   browRaise: 0, browTilt: 0, browThick: 1, browArch: 0.6,
   nose: 1, noseV: 0.26, mouthV: 0.13, mouthW: 0.05, smile: 0.2, mouthOpen: 0, mouthRound: 0, mouthStyle: 0,
-  blush: 0, mole: 0, crease: 1, flick: 1,
+  blush: 0, mole: 0, crease: 1, flick: 1, blink: 0,
   colors: { irisTop: '#3a2a52', irisBot: '#7d6fc4', irisDark: '#1c1426', brow: '#3b2a26', mouth: '#7a2a32', tongue: '#e0808a', blush: '#f09aa0' },
 };
 
@@ -117,7 +117,10 @@ export function resolveFace(face = {}, expression = 'neutral', gaze = null, { ma
   if ('open' in ex) p.open = ex.open === 0 ? 0 : Math.min(1.15, ex.open * identityOpen);
   if ('droop' in ex) p.droop = Math.max(identityDroop, ex.droop);
   if (gaze) { p.gazeX = gaze[0]; p.gazeY = gaze[1]; }
-  p.openL = p.open; p.openR = p.wink ? 0 : p.open;
+  // a wink closes the right eye by degrees (a blended expression passes through half a wink),
+  // and a blink closes both on top of whatever the face is doing
+  const shut = 1 - Math.max(0, Math.min(1, p.blink || 0));
+  p.openL = p.open * shut; p.openR = p.open * (1 - Math.max(0, Math.min(1, p.wink || 0))) * shut;
   p.expression = typeof expression === 'string' ? expression : 'custom';
   return p;
 }

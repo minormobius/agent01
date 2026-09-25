@@ -229,6 +229,7 @@ export function checkAll(spec) {
 
 // ---- faces ---------------------------------------------------------------------------
 import { resolveFace, eyeOutline, browLine, lids, EXPRESSIONS } from './face.js';
+import { blendExpressions } from './liveface.js';
 
 /**
  * The face's layout, for one identity under every expression:
@@ -251,8 +252,12 @@ export function checkFace(spec) {
     return dot(n, P.F.head.z) / L;
   };
   let worstFacing = 1, worstGap = Infinity, worstBrow = Infinity, mouthOk = true, where = {};
-  for (const ex of Object.keys(EXPRESSIONS)) {
-    const p = resolveFace(spec.face || {}, ex);
+  // every expression, and every one half turned into every other (a face alive passes
+  // through them all, liveface.js), and half a blink
+  const names = Object.keys(EXPRESSIONS);
+  const states = [...names.map((n) => [n, n]), ...names.flatMap((a, i) => names.slice(i + 1).map((b) => [`${a}→${b}`, blendExpressions([[a, 1], [b, 1]])])), ['smile, half a blink', { ...EXPRESSIONS.smile, blink: 0.5 }]];
+  for (const [ex, e] of states) {
+    const p = resolveFace(spec.face || {}, e);
     for (const side of [1, -1]) {
       const o = eyeOutline(p, side, 120);
       for (const [u, v] of [...o.top, ...o.bot]) { const f = facing(u, v); if (f < worstFacing) { worstFacing = f; where.facing = ex; } }

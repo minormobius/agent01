@@ -206,6 +206,18 @@ Two more measure the motion itself:
 Each failure names its bar, beat and move. `studio/pdoom/` is a whole song danced this
 way, and `studio/tools/build-pdoom.mjs` writes its report.
 
+## A face alive
+
+`lib/liveface.js`, all functions of time and a seed:
+- `blinkAt(t, seed)`: a blink every 2.2–4.6 s, now and then a double. Each closes in
+  50 ms and opens in 90 ms, about 19 a minute.
+- `saccadeAt(t, seed)`: the eyes' small darts, held 0.6–1.5 s with 40 ms jumps.
+- `easedExpression(nameAt, t)`: expressions turn into each other over about 0.2 s.
+  `blendExpressions` mixes any of them.
+
+`face.js` takes `blink` (0–1), and a wink closes by degrees. `checkFace` covers every
+expression, every one half turned into every other, and half a blink.
+
 ## When a check fails
 
 Fix the cause the check names, never the tolerance. The history in `CLAUDE.md`

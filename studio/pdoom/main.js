@@ -8,12 +8,15 @@
 //   ?t=64&still        one frame, no YouTube (stills, tests, the share card)
 //   ?silent            the dance without the song (an internal clock)
 //   ?offset=0.12       the song's offset against YouTube's clock, in seconds
+//   ?shot=face         hold one kind of shot (face, bust, full, hand, wide) on Mino
 
 import { makeRig, solve } from '../vendor/figure/lib/rig.js';
 import { buildBody } from '../vendor/figure/lib/body.js';
 import { makeRenderer, camera, project, STYLE, handDetail } from '../vendor/figure/lib/shader.js';
 import { playDance, liveDance } from '../vendor/figure/lib/choreo.js';
 import { dot, add, scale, sub } from '../vendor/figure/lib/vec.js';
+import { EXPRESSIONS } from '../vendor/figure/lib/face.js';
+import { blinkAt, saccadeAt, easedExpression } from '../vendor/figure/lib/liveface.js';
 import { SONG, SECTIONS, CAST, SHOTS } from './show.js';
 import { drawBack, drawFront } from './stage.js';
 
@@ -26,6 +29,16 @@ const END = SONG.bars * 4;
 
 // ---- the cast, compiled ---------------------------------------------------------------
 const compiled = await (await fetch('./dance.json')).json();
+// the mouth: how open, and how round, through the song (voice.json: derived from the vocal
+// band of the original, only where a line is sung; numbers, not audio)
+const voice = await (await fetch('./voice.json')).json().catch(() => null);
+const voiceAt = (t) => {
+  if (!voice) return { open: 0, round: 0 };
+  const i = t * voice.fps, j = Math.floor(i), u = i - j, at = (a, k) => (a[Math.max(0, Math.min(a.length - 1, k))] || 0);
+  return { open: (at(voice.open, j) * (1 - u) + at(voice.open, j + 1) * u) / 99, round: (at(voice.round, j) * (1 - u) + at(voice.round, j + 1) * u) / 9 };
+};
+// the crew sing along on the choruses
+const CHORUS = [[12, 20], [33, 43], [53, 60], [60, 76], [77, 84]];
 const dancers = CAST.map((c, i) => {
   const rig = makeRig(c.spec);
   // alive: springs over the keyframes (overlap, overshoot, settle) and breath; each dancer its own seed
@@ -109,7 +122,8 @@ let camState = null, lastShot = -1;
 function shotCam(beat, W, H) {
   let i = 0;
   while (i + 1 < SHOTS.length && SHOTS[i + 1].bar * 4 <= beat) i++;
-  const s = SHOTS[i], next = SHOTS[i + 1];
+  const force = qs.get('shot');                       // ?shot=face|bust|full|hand|wide: hold one kind of shot (for looking)
+  const s = force ? { ...SHOTS[i], kind: force, on: force === 'wide' ? 'all' : 0 } : SHOTS[i], next = SHOTS[i + 1];
   const len = next ? (next.bar - s.bar) * 4 : 8, u = Math.max(0, Math.min(1, (beat - s.bar * 4) / len));
   const aspect = W / H, d = dancers[s.on === 'all' ? 0 : s.on], P = d.P, h = d.rig.m.H;
   let target, height;
@@ -138,7 +152,20 @@ function poseAt(d, beat) {
   // the hair swings with the body: its acceleration, from the pelvis a quarter beat either side
   const dt = 0.25, a = d.D.raw(Math.max(0, b - dt)).pose.root.pos, c = d.D.raw(Math.min(END - 0.01, b + dt)).pose.root.pos;
   const T = dt * spb, acc = [0, 1, 2].map((k) => (a[k] - 2 * pose.root.pos[k] + c[k]) / (T * T));
-  return { ...pose, gaze: d.gaze, hairAccel: acc.map((x) => Math.max(-40, Math.min(40, x))) };
+  // the face alive: its expression eased from the dance's, a blink, the eyes' darts, the mouth singing
+  const t = b * spb, idx = dancers.indexOf(d);
+  const ex = easedExpression((tt) => d.D.raw(Math.max(0, tt / spb)).pose.expression, t);
+  const e = { ...(typeof ex === 'string' ? EXPRESSIONS[ex] : ex), blink: blinkAt(t, idx) };
+  const bar = b / 4, sings = d.lead ? 1 : CHORUS.some(([a, z]) => bar >= a && bar < z) ? 0.55 : 0;
+  if (sings) {
+    const v = voiceAt(t);
+    e.mouthOpen = Math.max((e.mouthOpen || 0) * 0.35, v.open * sings);
+    e.mouthRound = v.round * 0.8 * Math.min(1, v.open * 3);
+    e.smile = (e.smile ?? 0.2) * (1 - 0.5 * v.open * sings);
+  }
+  const sac = saccadeAt(t, idx);
+  const gaze = [Math.max(-1, Math.min(1, d.gaze[0] + sac[0])), Math.max(-1, Math.min(1, d.gaze[1] + sac[1]))];
+  return { ...pose, expression: e, gaze, hairAccel: acc.map((x) => Math.max(-40, Math.min(40, x))) };
 }
 
 function frame() {

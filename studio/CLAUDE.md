@@ -229,6 +229,7 @@ When YouTube does not load (blocked, offline), it falls back to the dance withou
   compiles each dancer's dance for its own body, then runs checkDance at 8 fps. The
   studio selftest fails if `dance.json` is stale or any check fails. Edit `show.js` or
   choreo.js, then rebuild (about 3 minutes).
+- `voice.json`: the mouth through the song. How open and how round, at 30 fps, derived from the vocal band of deckard's original, only inside the sung spans (from its subtitles). Numbers, not audio. Mino sings throughout, the crew on the choruses. `?shot=face` holds a close-up for looking.
 - The page plays each dance through `liveDance` (springs, breath, per-dancer seed = cast index), and the build checks the same thing.
 - `stage.js` draws the stage in 2D, in world units, with the dancers' own orthographic
   camera.
