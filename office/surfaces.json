@@ -3011,6 +3011,15 @@
    "parent": "studio"
   },
   {
+   "id": "the bommie",
+   "name": "the bommie",
+   "url": "https://studio.mino.mobi/bommie/",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": "studio"
+  },
+  {
    "id": "upping my p(doom)",
    "name": "upping my p(doom)",
    "url": "https://studio.mino.mobi/pdoom/",

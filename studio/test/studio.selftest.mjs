@@ -290,5 +290,42 @@ console.log('\nThe P(doom) video (a dance, compiled per body)');
   ok(!bad.length, `every dancer holds up through the whole song (report.json)${bad.length ? ': ' + bad.slice(0, 3).join('; ') : ''}`);
 }
 
+// 8 — The Bommie: a sitcom on a coral head. What can be checked without eyes or ears ----
+console.log('\nThe Bommie (a reef sitcom)');
+{
+  const W = await import('../bommie/world.js');
+  const Snd = await import('../bommie/sound.js');
+  const Sc = await import('../bommie/script.js');
+  const D = Sc.DURATION;
+  // nobody swims into the building: each fish's centre is at least half its height off the coral
+  const worst = {};
+  for (const n of Object.keys(W.SPECIES)) {
+    let m = 1e9;
+    for (let t = 0; t < D; t += 0.1) { const f = W.fishAt(n, t); m = Math.min(m, W.bommieSDF(f.pos) - f.h * 0.5); }
+    worst[n] = m;
+  }
+  ok(Object.values(worst).every((m) => m > 0.05), `every fish clears the coral (closest: ${Object.entries(worst).map(([n, m]) => `${n} ${m.toFixed(2)}`).join(', ')})`);
+  // Gus's feet: a planted foot does not slide, and it is on the sand
+  let slide = 0, lift = 0;
+  for (let t = 0; t < D - 0.02; t += 1 / 60) {
+    const a = W.gusAt(t), b = W.gusAt(t + 1 / 60);
+    a.legs.forEach((l, i) => { if (l.stance && b.legs[i].stance) { slide = Math.max(slide, Math.hypot(l.foot[0] - b.legs[i].foot[0], l.foot[2] - b.legs[i].foot[2])); lift = Math.max(lift, Math.abs(l.foot[1])); } });
+  }
+  ok(slide < 1e-6 && lift < 1e-6, `Gus's planted feet never slide or leave the sand (slide ${slide.toExponential(1)}, lift ${lift.toExponential(1)})`);
+  // the script: lines don't talk over each other, and every line gets said inside the episode
+  const say = Sc.sayings();
+  const overlaps = say.filter((L, i) => i && L.at < say[i - 1].end);
+  ok(!overlaps.length && say.every((L) => L.end < D), `${say.length} lines, none over another, all inside the episode`);
+  // the soundtrack: deterministic, finite, not clipping; the audience louder than the reef at rest, dialogue audible over it
+  const t0 = Date.now();
+  const A = Snd.renderEpisode(16000), B = Snd.renderEpisode(16000);
+  const ms = Date.now() - t0;
+  let same = A.L.length === B.L.length, peak = 0, finite = true;
+  for (let i = 0; i < A.L.length; i += 7) { if (A.L[i] !== B.L[i] || A.R[i] !== B.R[i]) same = false; if (!Number.isFinite(A.L[i])) finite = false; peak = Math.max(peak, Math.abs(A.L[i]), Math.abs(A.R[i])); }
+  ok(same && finite && peak < 0.95, `the soundtrack renders the same every time, finite, under the ceiling (peak ${peak.toFixed(2)}, two renders ${ms} ms at 16 kHz)`);
+  const bed = Snd.rmsDb(A, 5.5, 6.5), laugh = Snd.rmsDb(A, 42.5, 44), talk = Snd.rmsDb(A, 15, 18);
+  ok(laugh > bed + 10 && talk > bed + 10, `the laughs (${laugh.toFixed(1)} dB) and the dialogue (${talk.toFixed(1)} dB) stand over the reef at rest (${bed.toFixed(1)} dB)`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

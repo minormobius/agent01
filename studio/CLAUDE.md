@@ -46,6 +46,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   stage.js               the cutout workshop: cut() rough edges, sheet(), paper textures, pinned puppets
   cast.js                the man, the dame, the Manager (after Parade's), the band on its stand
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
+bommie/                  No. 6, a sitcom on a coral head: script.js (the clock), world.js (poses at t), sound.js (synth), render.js (raymarch)
 pdoom/                   No. 5, a music video: the figure cast dancing Claude-Pop's song (YouTube-driven), checked every frame
 figure/                  the mannequin (sketchbook): packages/figure drawn live; pose, turn, walk, rebuild, face, feel, lucky, re-check (in a worker)
 vendor/figure/lib/       BYTE-IDENTICAL copy of packages/figure/lib (scripts/sync-dataviz.mjs --write; the selftest checks)
@@ -212,6 +213,47 @@ reference bands, face, hair, outfit, pose, feeling and turn. The address hash
 carries the whole character, so a lucky find can be copied and reopened.
 Rendering is a raymarched geometry pass plus an ink pass. It supersamples 2×
 below DPR 2 and 1× at DPR 2 and above, to keep phones fast.
+
+## The Bommie (bommie/)
+
+A sitcom on a coral head, and the studio's answer to P(doom): **nobody in it is human**, so
+nobody can be judged against a person. The residents are toys under water: sculpted smooth
+shapes, glossy button eyes, soft light, blue with distance. Episode 1, "The Shell Game"
+(104 s): Gus the hermit crab has outgrown his whelk and tries a tin can (it rolls) and a conch
+(it won't lift), Barry the parrotfish drops a sandstorm on him, and Pip the anemone tells him
+a shell is a shell. The show is meant to last: a durable cast and set to come back to for
+sound design and art direction.
+
+- `script.js` is the clock and the bible: the cast (each with a voice: pitch, rate, timbre),
+  the set, and the episode as data: lines, laughs, foley, paths, looks, Gus's shell, shots
+  (a multi-camera sitcom: hard cuts, each shot drifting a little), the light through the day.
+  `sayings()` turns each line into syllables; the voices AND the mouths are timed from them.
+- `world.js`: everything as a pure function of t. Gus's four walking legs are planted where
+  the body was when each step began (footfalls tied to arc length, not time), so a planted foot
+  cannot slide. `bommieSDF` is the coral head, line for line with the shader, so node can check
+  that no fish swims into the building (the shader's doorways are left out of it: conservative).
+- `sound.js`: pure-JS synthesis, the studio's way (node measures it). The reef's bed is its
+  real one, snapping shrimp: a Poisson stream of bright clicks. **They are the laugh track**:
+  at each LAUGH the click rate and loudness swell and fuse into a fizz. Voices are gibberish:
+  each creature a source (gravel: a clicky rasp; chirp; bubble: a gurgling blub; breath:
+  formant-shaped noise; mumble) through two vowel formants scaled to its size. Foley: crunch,
+  pop, clonk (tin partials), roll, scrape, thud, poof, shake, bubbles (Minnaert chirps). A
+  marimba and Karplus-Strong bass theme over the titles and credits. A little reverb, a
+  low-pass for water. Renders 104 s in ~2 s at 32 kHz, in a worker as the page loads.
+- `render.js`: one WebGL2 raymarch of set and cast, one context. Wrapped diffuse, soft
+  shadows, AO, caustics on upward faces, a water-coloured rim, absorption (red first) and
+  fog, light shafts, marine snow, plankton sparks at night. The cast is posed on **twos**
+  (12 poses a second, as stop-motion is shot) while the water runs smooth; `?smooth` turns
+  that off. Resolution follows the frame time (0.3–1× CSS pixels): under water, soft is fine.
+- `main.js`: the soundtrack is the clock (an AudioBufferSource; seeking restarts it at an
+  offset); subtitles, titles, credits and a seek bar are HTML over the canvas; sand and
+  bubbles are drawn in 2D from world.js's closed-form particles. Space pauses, arrows skip.
+  `?t=42&still` is one frame without sound.
+- Levels (selftest, 16 kHz): the reef at rest ~−37 dB, dialogue ~−20, a big laugh ~−20.
+
+Ideas parked for later episodes: residents peeking from the doorways; Barry's sand as a
+running gag (the reef's beaches are parrotfish); the Europan ice spiders as a spinoff in the
+same engine (the upside-down world, the tides on a 3.55-day cycle).
 
 ## Upping My P(doom) (pdoom/)
 
