@@ -15,7 +15,7 @@ Sentence editing drill plus a dozen surfaces over Bluesky prose and English itse
 | Dir | `rite/` |
 | Endpoint | `rite.mino.mobi` |
 | Type | fullstack |
-| Owning branch | `claude/syllable-word-generator-yhw8wj` |
+| Owning branch | `claude/rite-deploy-font-jblfj2` |
 | Deploy | `.github/workflows/deploy-rite.yml` |
 | Uses | `atpolls-db` |
 | Provides | — |
@@ -44,6 +44,8 @@ Single Worker that hosts twelve surfaces, most over the same shared `rite/lib/at
   **People + performance (`rite/org/person.js`).** Every box holds a deterministic *person* (demographics, a work-triad **craft/drive/wit** expressed into nine attributes, a temperament `cast`, quirks, `output` + `leadership`), rhyming with hoop's `stats.js` (same triad×power shape) and tagged with one of hoop's 13 civic **vocations** so an org person is a valid hoop NPC (the city-sim bridge). `generateOrg` then rolls the whole tree into a **performance** oracle: leadership multiplies reports, overloaded spans leak throughput, each management layer skims a depth tax, morale flows down from manager quality + workload → `{score, tier, efficiency, avgMorale, overloadedManagers, attritionRate, highlights}` — tiers borrowed verbatim from hoop/econ's vitality oracle (**Thriving/Healthy/Stable/Fragile/Failing**). The point: *same seed + people, different `shape` → different score* (a `flat` or `wide` org overloads its managers into Failing; `tall`/`cellular` keep spans sane). `/api/org/node` and `/api/org/person?id=` carry a local perf snapshot; `siteSeed(worldSeed, city, cell)` is the forward hook to reproducibly site an org into a **mappa** world (mappa seeds int→mulberry32; rite hashes the string first).
 
 - **`/sharp/`** — a monosyllable engine, in three parts. **Mint**: procgen single-syllable words that obey English phonotactics and have no English definition — the wardrobe is not hand-written, it is *measured*. `build-corpus.mjs` cuts every real English monosyllable into onset/nucleus/coda (`str·e·ngth`, `m·o(e)·l`) and tallies P(nucleus | onset) and P(coda | nucleus); the minter samples those tables, so a minted word is shaped by English's own habits. A candidate ships only if it re-segments to the parts it was built from, reads as one syllable, does not look like an inflection of a word that does not exist, and appears in **no** word list (~250k strings). **Draw**: a real single-syllable word from the 7,625 English has, dialled from commonest to most obscure by SUBTLEX frequency. **Check**: any string — how many syllables, and is it taken, and by which list. Every word carries a guessed pronunciation (the onset's usual phones plus the rime's, both learned from real words spelled the same way), so it also knows its real-word rhymes and its homophones — `cind` is free on the page and already taken in the ear. Deterministic (xmur3+mulberry32, same lineage as `/names/`). **Is it free?**: the same string put to the registries over **RDAP**, routed through IANA's own bootstrap — see below. Public API, CORS open, no D1 and no AI: `GET /api/sharp?seed=&style=&count=&mode=mint|real&obscurity=&inflected=&distinct=`, `GET /api/sharp/check?w=`, `GET /api/sharp/styles`, `GET /api/sharp/domain?label=&tlds=`, `GET /api/sharp/tlds?endswith=`. Engine (`rite/sharp/engine.js`) shared verbatim by worker and node selftest; **run all three selftests before touching it** (`engine.selftest.mjs`, `tld.selftest.mjs`, `routes.selftest.mjs`).
+
+- **`/font/`** — **Roll**, a typeface generator (Rust → WASM in Web Workers, no server). A seed rolls a genome (one of eight archetypes, blended and jittered, weight/width free); each letter is a Metafont-style skeleton swept by a superellipse pen, unioned and refitted to quadratic splines, spaced by Tracy's method and kerned by measurement into GPOS class kerning. ~400 characters: Latin + Latin-1 + Extended-A, Greek, Cyrillic, figures, punctuation, maths. Page: roll by archetype, an 8-child breeder, lineage, live tuning of every gene (`roll_subset` while dragging), specimen tabs; `?s=&g=` permalinks carry the full genome. Output is CC0. Full notes: `rite/font/README.md`, design space: `rite/font/GENOME.md`. **Run `cargo test --release` in `rite/font/` before touching the engine** — the deploy runs it and fails on red.
 
 ## Architecture
 
@@ -97,7 +99,7 @@ Cron 0 */6 * * * → mineGutenberg(): proxy through read.mino.mobi/gutenberg-pro
 
 ## Deploy workflow (`deploy-rite.yml`)
 
-Triggers on push to `claude/syllable-word-generator-yhw8wj` that touches `rite/**`. (`main` does not deploy — see the repo-wide `CLAUDE.md`.) Steps:
+Triggers on push to `claude/rite-deploy-font-jblfj2` that touches `rite/**`. (Ownership moved here from `claude/syllable-word-generator-yhw8wj` on 2026-09-25 with `take-ownership.mjs`; the trees were identical.) The workflow first runs the font engine's `cargo test` and builds its wasm into `font/pkg/` — **a red font test blocks the whole rite deploy.** (`main` does not deploy — see the repo-wide `CLAUDE.md`.) Steps:
 
 1. Apply `poll/apps/api/migrations/0014_fodder.sql` to `atpolls-db` (idempotent — failure is treated as already-applied and continues).
 2. `npx wrangler deploy` from `rite/` — uploads worker + assets, provisions `rite.mino.mobi`.
@@ -254,7 +256,7 @@ Idempotent: candidate IDs (`f-2833-abc1234`) live in a different namespace from 
 
 ## Deploying
 
-Pushes to `claude/syllable-word-generator-yhw8wj` that touch this surface's paths trigger [`.github/workflows/deploy-rite.yml`](../.github/workflows/deploy-rite.yml).
+Pushes to `claude/rite-deploy-font-jblfj2` that touch this surface's paths trigger [`.github/workflows/deploy-rite.yml`](../.github/workflows/deploy-rite.yml).
 The sandbox cannot reach Cloudflare — **push to a trigger branch, don't `wrangler deploy` locally**.
 Read [`docs/DEPLOYS.md`](../docs/DEPLOYS.md) first, especially the golden rule:
 the `wrangler.jsonc` `name` must be the worker that owns the live custom domain,

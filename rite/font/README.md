@@ -1,114 +1,116 @@
-# Roll — an open, unique font generator
+# Roll — a type foundry that never repeats
 
 **Live at:** `rite.mino.mobi/font`
-**Stack:** Rust → WebAssembly (engine), served as a sub-surface of the rite
-Worker's ASSETS binding (no server, no secrets). Deployed by `deploy-rite.yml`,
-which builds the wasm into `font/pkg/` before `wrangler deploy`.
+**Stack:** Rust → WebAssembly, run in a pool of module Web Workers; served as a
+sub-surface of the rite Worker's ASSETS binding (no server, no secrets).
+Deployed by `deploy-rite.yml`, which runs `cargo test` and builds the wasm into
+`font/pkg/` before `wrangler deploy`.
 
-Roll a brand-new typeface from a seed. Every roll is unique and deterministic;
-the font you keep is **CC0 / public domain** — free to use, embed, modify and
-sell, with no attribution. In most jurisdictions a typeface *design* isn't
-copyrightable, and both this engine and its output are released into the public
-domain, so the promise "roll until you like one, then it's yours" is real.
+Roll a brand-new typeface from a seed — real letterforms drawn by a pen,
+spaced and kerned, in Latin (with Latin-1 and Extended-A), Greek and Cyrillic,
+plus figures, punctuation, currency and a mathematical set: about 400
+characters. Breed it, tune it, download it. Every font is **CC0 / public
+domain**: use, embed, modify and sell it with no attribution.
 
-## How it works
+## The pipeline
 
 ```
-seed string ──xmur3──► u32 ──mulberry32──► Params (the genome)
-                                              │
-                                              ▼
-                              parametric glyph outlines (quadratic Béziers)
-                                              │
-                                              ▼
-                       hand-rolled SFNT serializer ──► real .ttf bytes
-                                              │
-                                              ▼
-                          browser FontFace ──► live specimen + download
+seed ─xmur3/mulberry32─► Style (the genome: archetype · blend · jitter · weight/width)
+                              │   + spec overrides ("k=v;k=v" — sliders, permalinks)
+                              ▼
+                          Metrics (x-height, stems, pen, counters, tension)
+                              │
+      lower / upper / figures / punct / marks / scripts   ← each letter's skeleton
+                              │   knots + travel directions → Hobby curves
+                              ▼
+          ink: superellipse-nib sweep → terminal cuts → union (i_overlay)
+                              │
+          refit: corners, straights, extrema → quadratic splines
+                              │
+          space: Tracy sidebearings from the stroke body; measured kerning,
+                 clustered into classes → GPOS PairPos 2 (+ legacy kern)
+                              ▼
+          sfnt: glyf/loca (packed), cmap (shared glyphs for Α/А/A…), OS/2 with
+                PANOSE from the genome, hhea/hmtx, name (CC0), post, GPOS, kern
 ```
 
-- **Deterministic.** The same seed yields the same font forever (the PRNG is the
-  same `xmur3 + mulberry32` pair borges uses). That's what makes `?s=<seed>` a
-  permalink and what will let the evolutionary breeder reproduce any lineage from
-  its seeds alone.
-- **Live sliders.** Beyond the seed, the page exposes a slider panel that
-  overrides individual genome fields in real time via `roll_params(seed, spec)`
-  (`spec` is a `key=value;…` string parsed by `Params::apply_spec`). A seed gives
-  a starting genome; sliders reshape it live. The seed is still the permalink.
-- **Real fonts.** `src/sfnt.rs` writes a genuine TrueType file (OS/2, cmap, glyf,
-  head, hhea, hmtx, loca, maxp, name, post). `tests/valid.rs` round-trips every
-  rolled font through `ttf-parser` to prove it parses, maps its cmap, and
-  outlines — the deploy gate, since wasm/Cloudflare can't run in the sandbox.
+- **Drawn, not traced.** A letter is a Metafont-style skeleton: knots with the
+  direction the pen travels through them, joined by Hobby's curves. The pen is a
+  superellipse nib — tilted, it's a broad-edged pen (humanist stress); level and
+  flat, a pointed pen (Didone); round, a monoline. Stroke weight falls out of
+  the geometry. In high-contrast styles `/` diagonals and N's verticals take
+  the thin weight, as expansion-pen faces are drawn.
+- **Terminals are consistent.** Every hook (`a c e f g j r s t y`, `C G J S`,
+  `2 3 5 6 9 ?`) is an arc of the same superellipse family ending at the
+  style's aperture angle, cut level / plumb / square, left as the nib's edge,
+  rounded, balled, or finished with a beak serif.
+- **Clean outlines.** Strokes are unioned into overlap-free contours, then
+  refitted: breaks at corners and at the ends of straight runs, on-curve points
+  at extrema, quadratic Béziers within 0.7 units. An `o` is ~24 points.
+- **Spaced and kerned.** Sidebearings follow Tracy (straight / round /
+  diagonal / open sides), measured from the stroke body so serifs overhang it,
+  as they do in real serif faces. Kerning is measured: the white between each
+  pair's edge profiles, over the core zone, against the mean of `nn/oo/no/on`,
+  with a collision floor. Profiles are clustered into classes and written as
+  GPOS class kerning, so accented letters get their own safe values.
 
 ## Files
 
 | File | Role |
 |------|------|
 | `src/prng.rs` | `xmur3` + `mulberry32` — deterministic seed → numbers |
-| `src/params.rs` | The design space: seed → parameter vector (the "genome") |
-| `src/geom.rs` | Outline primitives (rects, ellipses, stroked arcs, winding) |
-| `src/glyphs.rs` | Primitive builder (rects/quads/rings/straps) — now only space + punctuation + `.notdef`; the letter arms remain as reference/fallback |
-| `src/pen.rs` | Skeleton-stroke "pen model" — centerline swept by a broad nib; builds the **whole Latin alphabet** (upper + lower) |
-| `src/sfnt.rs` | Dependency-free TrueType serializer → `.ttf` bytes |
-| `src/lib.rs` | `roll(seed) → Uint8Array`, `describe(seed) → JSON` (wasm-bindgen) |
-| `tests/valid.rs` | Validity gate (parses output with `ttf-parser`) |
-| `index.html` + `app.js` | The roll-a-font page (served at `/font`) |
-| `pkg/` | wasm-pack output (CI-built into here, gitignored) |
+| `src/style.rs` | The genome: 23 continuous genes + discrete choices, 8 archetypes, `roll`, `apply_spec`, `to_spec` (round-trips exactly) |
+| `src/curve.rs` | `V`, cubic Béziers, the Hobby path builder (`path(…).to(p, dir).line(p)`) |
+| `src/ink.rs` | The pen (`Pen`), strokes and caps, union, and `refit` → TrueType contours |
+| `src/build.rs` | `Metrics` and the drafting builder `B` (stems, bowls, arches, arcs, serifs, beaks, dots, balls) |
+| `src/lower.rs`, `upper.rs`, `figures.rs`, `punct.rs` | The letters, figures, punctuation and symbols |
+| `src/marks.rs` | Accented Latin (Latin-1, Extended-A, Romanian/Baltic comma forms) and composed letters (Æ Œ ß Ð Þ Ø Ł …) |
+| `src/scripts.rs` | Greek, Cyrillic (lowercase as true small caps), maths; `ALIASES` share Latin glyphs through `cmap` |
+| `src/space.rs` | Spacing, kerning measurement and class clustering |
+| `src/font.rs` | Assembly: draw → union → space → kern → shear → refit → `sfnt` |
+| `src/sfnt.rs` | Dependency-free TrueType serializer incl. GPOS and kern |
+| `src/lib.rs` | The wasm API: `roll`, `roll_params`, `roll_subset`, `describe`, `archetype_spec`, `archetypes`, `genes`, `charset` |
+| `tests/valid.rs` | The gate: every promised glyph outlines, aliases share glyphs, kerning is sane, specs round-trip, archetypes and gene extremes stay valid, monospace is monospaced |
+| `examples/roll.rs`, `charset.rs` | Proofing: write fonts to disk (`seed@spec`, `N:seed` for archetype N) |
+| `index.html`, `app.js`, `worker.js` | The page (served at `/font`) and its engine worker |
+| `GENOME.md` | The sourced map of the design space |
+| `pkg/` | wasm output (CI-built, gitignored) |
 
-Hosting: this is a sub-surface of the rite Worker. `rite/worker.js` passes any
-non-`/api/*` path to its ASSETS binding, so `/font/` serves `font/index.html`.
-`rite/.assetsignore` keeps the Rust source and `target/` out of the upload.
+## The page
+
+- **Roll** (or press `R`) — optionally inside an archetype chip; *wander* sets
+  how far a roll may stray from it.
+- **Offspring** — eight mutations of the current font; pick one and it becomes
+  the parent. Children are named `seed.<litter><letter>`, so a lineage reads
+  in its seeds.
+- **Tune** — every gene, live. Drags rebuild only the glyphs on screen
+  (`roll_subset`); the full face is rebuilt when the drag settles.
+- **Specimen** — text, waterfall, every glyph, kerning on/off, scripts.
+- **Links** — `?s=<seed>` alone is the seed's own roll; `&g=<spec>` carries a
+  full genome (tuning, archetype rolls, offspring). A link is the font.
 
 ## Build / test locally
 
 ```bash
 cd rite/font
-cargo test                                   # validity gate (native)
-wasm-pack build . --release --target web --out-dir pkg
-# serve the rite root so /font/pkg/... resolves like in production:
-python3 -m http.server -d .. 8080            # then open localhost:8080/font/
+cargo test --release                        # the gate (native)
+cargo run --release --example roll -- /tmp/fonts sunrise 5:quartz "moth@stem=160;serif=slab"
+cargo build --release --target wasm32-unknown-unknown --lib
+wasm-bindgen target/wasm32-unknown-unknown/release/minofont.wasm --target web --out-dir pkg
+python3 -m http.server -d .. 8080           # then open localhost:8080/font/
 ```
 
-## Status & roadmap
+(CI uses `wasm-pack build font --target web --release --out-dir pkg`, which
+produces the same `pkg/` plus a `wasm-opt` pass.)
 
-v1 ships the pipeline end-to-end: seed → valid, installable, downloadable `.ttf`,
-covering the uppercase Latin alphabet, space, and `. , -`. The glyph shapes are
-deliberately geometric/modular — the milestone is the *engine*, not final
-letterform polish.
+## Where it goes next
 
-Next layers (the seed/permalink foundation is built for them):
+- Composite glyphs for accented letters (the outlines are duplicated today).
+- True italics (a cursive skeleton set, not just the oblique shear).
+- A variable-font export across the weight axis.
+- Ligatures (`fi fl ff`) via GSUB.
+- The phylogeny view of a breeding session.
 
-1. **Lowercase, digits, accents, kerning** — more entries in `glyphs.rs`/`charset`.
-2. **Evolutionary breeder** — show N candidates, keep favourites, crossover +
-   mutate their parameter vectors into the next generation.
-3. **Phylogeny view** — render the lineage tree of a breeding session (reusing
-   `read/pendragon`'s SVG phylogeny + `phylo/`), plus the historical Vox-ATypI
-   placement of where a given roll sits in type history.
-4. **Pen-model letterforms** — *landed* in `src/pen.rs`, now covering the
-   **whole Latin alphabet** (upper + lower). Instead of bolting filled
-   primitives together, a glyph is a centerline skeleton swept by a broad nib
-   whose thickness modulates with stroke direction (`pen_angle` + `stem`/`thin`
-   from the genome). Curves get real contrast, arches join their stems for free,
-   and `S`/`s` are a tangent-continuous two-bowl spine. Space + punctuation stay
-   on the primitive builder.
-5. **Pen simulator (`Nib` in `pen.rs`)** — strokes are no longer a
-   direction-keyed centerline offset (which pinched wherever the tangent turned —
-   a faded `W` peak, a thin `A` apex). Instead a fixed oriented nib rectangle is
-   *stamped* along each stroke, one convex blob per segment; overlapping blobs
-   union under nonzero fill. Weight falls out of the geometry, corners/apices
-   stay full, and terminals get the nib's angled cut for free.
-6. **Construction genome (`Morph` in `params.rs`)** — the seed rolls the
-   *gestures*, not just the metrics, so rolls differ in morphology rather than
-   only weight/width. Genes: `modulation` (nib contrast — how strongly weight
-   varies with stroke angle, monoline→high-contrast), `aperture` (how open
-   `C c e G` counters are), `overshoot` (round letters spilling past
-   baseline/cap), `arch` (round-humanist ↔ flat/squared shoulder on `n m h u`),
-   `bar` (crossbar height of `A E F H e`), `bowl` (how far the `a b d p q` arc
-   closes before attaching), and structural genes: `apex_flat` (`A`),
-   `two_story_a` / `two_story_g` (double-story text vs single-story geometric
-   construction), and `ball` terminals on `c`/`r`. Serifed stem ends are tucked
-   under a slab tall enough to bury the nib's angled terminal, so the serif caps
-   the stem cleanly instead of the stem crossing through it. The design space and
-   its sources are mapped in [`GENOME.md`](GENOME.md). Next layer: correlated
-   *archetypes* (humanist / geometric / grotesque / didone — the Vox regions) so
-   one control moves the genes together coherently; an expansion (pointed-pen)
-   contrast mode; per-letter overshoot; and bracketed-vs-slab serif structure.
+The old v1 engine (primitive glyphs, then a stamped broad nib, no union, no
+curves, no kerning) was replaced wholesale in 2026-09; seeds from before then
+roll different fonts now.

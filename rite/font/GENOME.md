@@ -189,49 +189,45 @@ machine roll the space fast and let a human steer.
 
 ## Coverage today
 
-Latin upper + lower, figures 0–9, common punctuation (`! ? : ; ( ) / ' " + =`
-plus `. , -`), accented Latin via base+combining-mark composition (acute, grave,
-circumflex, caron, tilde, diaeresis, ring, cedilla → French/German/Spanish/
-Portuguese/Czech coverage), and **full Greek + Cyrillic** (uppercase + lowercase;
-the shared shapes alias to Latin, the script-specific caps are constructed, and
-Cyrillic lowercase is built as small-caps of the capitals; the organic Greek
-lowercase are first-pass), and a **math starter pack** (operators, relations,
-arrows, set/logic, and large operators: `× ÷ ± ≤ ≥ ≠ ≈ ≡ ∞ √ ∇ ∂ ∫ ∑ ∏ ∈ ∉ ∀ ∃
-¬ ∧ ∨ ∪ ∩ ⊂ ⊃ ∅ → ← ↔ · ° | [ ]`). ~269 glyphs total. Note: a *math
-typesetting* font (stretchy delimiters, size variants, the OpenType MATH table,
-sub/superscript metrics) is a much larger effort than the symbols themselves; and
-the styled math alphabets (𝔸 double-struck, 𝐀 bold, 𝑨 italic…) live in Unicode
-plane 1, which would need a cmap format-12 subtable in the serializer (the common
-ℝ ℕ ℤ ℚ ℂ are in the BMP and reachable). A single
-TrueType font caps at 65,535 glyphs, so "all of Unicode" is by definition
-multi-font; CJK and cursive/contextual scripts (Arabic/Indic) need their own
-construction logic and a shaping engine, so they're out of scope for this
-skeleton+pen approach.
+Latin A–Z a–z with all of Latin-1 and Latin Extended-A (plus Romanian ș ț and
+the Latvian turned comma), the composed letters Æ Œ æ œ ß Ð ð Đ đ Þ þ Ø ø Ł ł,
+tabular lining figures, punctuation and symbols (quotes, dashes, brackets,
+`& @ # % * $ € £ ¢ ¥ § ¶ © ® ™`, guillemets), full Greek and Cyrillic (Russian
+plus Є І Ї Ґ Ј; Cyrillic lowercase drawn as true small caps of the capitals,
+б and ф with their own shapes), and a mathematical set (relations, set and
+logic operators, arrows, ∑ ∏ ∫ √ ∂ ∇ ∞, ℝ ℕ ℤ ℚ ℂ). About 400 characters;
+letters that *are* Latin letters (Α, А, Ο, о, р …) share the Latin glyph
+through `cmap`. A *math typesetting* font (the OpenType MATH table, stretchy
+delimiters) is still out of scope, as are scripts needing shaping (Arabic,
+Indic) and CJK.
 
 ## How this maps onto our genome today
 
-Implemented (continuous, sliders): weight (`stem`), `modulation` (translation-pen
-contrast), `pen` angle (stress), `width`, `slant`, `xheight`, `aperture`, `arch`,
-`bar` height, `bowl` wrap, serif length/height.
-Implemented (discrete, toggles): `serif`, `apex_flat` (A), **`two_story_a`**,
-**`two_story_g`**, **`ball`** terminals.
+**Continuous genes** (`style.rs::GENES`, all sliders): `stem` (weight),
+`ratio` (thin ÷ thick — contrast), `stress` (pen angle), `nib` (superellipse
+exponent — ellipse ↔ chisel), `width`, `prop` (uniform ↔ classical
+proportions), `round` (O circularity), `sup` (superness — squareness of bowls,
+Knuth's term), `aperture`, `bar` (crossbar height), `join` (arch join depth),
+`trap` (junction thinning), `xh`, `asc`, `desc`, `over` (overshoot),
+`serif_len`, `serif_th`, `bracket`, `head` (slope of lowercase head serifs),
+`leg_r` (R leg), `spacing`, `slant`.
 
-**Archetypes (the navigable map).** The ~20-gene genome is too high-dimensional
-to roll coherently gene-by-gene, so `archetype_genome(x, y, z, spread, seed)`
-(in `lib.rs`) anchors four classic designs at the corners of a square —
-x = geometric↔humanist, y = modern-sans↔classical-serif — bilinearly blends
-them, adds a z axis pushing toward Didone (contrast up, stress vertical, serifs
-thin, ball terminals), then **rolls inside a hypersphere** of radius `spread`
-around that point (a seeded random direction × a radius inside the ball). It's a
-"political compass for type": named poles over a continuous space, every interior
-point a coherent blend, and a roll a coherent *neighbour* rather than an
-independent vector. The UI exposes it as a draggable 2D pad + contrast/spread
-sliders; the per-gene sliders then fine-tune the blended result.
+**Discrete genes:** `term` (level / plumb / square cut, pen, round), `serif`
+(none / bracketed / slab / hairline), `ball`, `a2`, `g2`, `tail_y`, `spur`,
+`mono`.
 
-Gaps worth adding next (from §2–§5): an **expansion** contrast mode (pointed pen)
-alongside translation; **per-letter overshoot** instead of one global value;
-**bracketed vs slab** serif structure; **terminal style** as a 3-way (sheared /
-flat / ball / teardrop); **arm style & midline** (the PANOSE axes we lack); and —
-the big one — **correlated archetypes** (Vox regions: humanist / geometric /
-grotesque / didone) so one "style" control moves the independent genes together
-into coherent designs rather than random combinations.
+**Archetypes, correlated.** A seed picks one of eight named designs —
+Geometric (Futura), Grotesque (Helvetica), Humanist (Gill/Frutiger), Old-style
+(Garamond), Transitional (Baskerville), Didone (Bodoni), Slab (Clarendon),
+Rounded (VAG) — blends it up to a third of the way toward a second, jitters
+every gene (sum-of-uniforms noise, per-gene radius), and then rolls the
+orthogonal axes freely: weight (light / regular / bold / black bands), width
+(condensed / normal / expanded) and, occasionally, an oblique. That is the
+"correlated archetypes" step §4 argued for: one control moves the genes
+together, and weight and width stay free, as they are in real families.
+
+**Where judgment still lives** (§5): overshoot is one value, not per letter;
+spacing is Tracy's method from the stroke body plus measured kerning — good,
+but not a spacer's eye; there is no optical-size axis and no hinting. The
+breeder is the honest answer: the machine rolls the space fast, a person
+steers.

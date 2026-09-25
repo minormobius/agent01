@@ -3,196 +3,374 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Roll — an open, unique font generator</title>
+    <title>Roll — a type foundry that never repeats</title>
     <meta
       name="description"
-      content="Roll a brand-new typeface from a seed. Every font is unique, deterministic, and yours — CC0 / public domain, free to use, embed, sell. Outlines drawn in Rust, compiled to WebAssembly."
+      content="Roll a brand-new typeface from a seed: real letterforms drawn by a pen, spaced and kerned, in Latin, Greek and Cyrillic. Breed it, tune it, download it — CC0, yours to use, embed and sell."
     />
+    <meta name="theme-color" content="#f4f0e8" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23c2410c'/%3E%3Ctext x='16' y='24' font-family='Georgia,serif' font-size='22' text-anchor='middle' fill='%23fff8f2'%3ER%3C/text%3E%3C/svg%3E" />
     <style>
       :root {
-        --bg: #1a1714;
-        --panel: #221d18;
-        --ink: #efe7da;
-        --muted: #b7a892;
-        --gold: #d8a657;
-        --gold-soft: #e9c88c;
-        --line: #3a322a;
+        --bg: #f4f0e8;
+        --paper: #fbf9f4;
+        --ink: #17150f;
+        --ink-2: #3b372e;
+        --muted: #756d5f;
+        --line: #ddd5c6;
+        --line-2: #cbc1ae;
+        --accent: #c2410c;
+        --accent-ink: #fff8f2;
+        --chip: #ebe5d8;
+        --focus: #2563eb;
+        --shadow: 0 1px 0 rgba(23, 21, 15, 0.04), 0 8px 24px -12px rgba(23, 21, 15, 0.18);
+        --roll: serif;
+        --ui: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        color-scheme: light;
       }
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --bg: #13120f;
+          --paper: #1b1915;
+          --ink: #f1ebdf;
+          --ink-2: #d8d0c1;
+          --muted: #a2998a;
+          --line: #332f28;
+          --line-2: #474135;
+          --accent: #f07a3c;
+          --accent-ink: #1b1106;
+          --chip: #25221c;
+          --focus: #7aa2ff;
+          --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+          color-scheme: dark;
+        }
+      }
+      :root[data-theme="dark"] {
+        --bg: #13120f;
+        --paper: #1b1915;
+        --ink: #f1ebdf;
+        --ink-2: #d8d0c1;
+        --muted: #a2998a;
+        --line: #332f28;
+        --line-2: #474135;
+        --accent: #f07a3c;
+        --accent-ink: #1b1106;
+        --chip: #25221c;
+        --focus: #7aa2ff;
+        --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.6);
+        color-scheme: dark;
+      }
+
       * { box-sizing: border-box; }
+      html, body { margin: 0; }
       body {
-        margin: 0;
         background: var(--bg);
         color: var(--ink);
-        font: 16px/1.5 ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+        font: 15px/1.5 var(--ui);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
       }
-      header {
-        padding: 22px clamp(16px, 4vw, 48px) 8px;
-        border-bottom: 1px solid var(--line);
+      a { color: inherit; }
+      button, select, input { font: inherit; color: inherit; }
+      :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+      .wrap { max-width: 1320px; margin: 0 auto; padding: 0 clamp(16px, 3vw, 40px); }
+      .rolled { font-family: var(--roll), var(--ui); font-kerning: normal; }
+
+      /* ---- top bar ---- */
+      .top {
+        display: flex; align-items: center; gap: 16px;
+        padding: 14px 0; border-bottom: 1px solid var(--line);
       }
-      .crumb { color: var(--muted); font-size: 13px; letter-spacing: 0.04em; }
-      .crumb a { color: var(--gold); text-decoration: none; }
-      h1 { margin: 6px 0 2px; font-size: clamp(26px, 5vw, 40px); }
-      h1 .accent { color: var(--gold); }
-      .tag { color: var(--muted); max-width: 60ch; }
-      main { padding: clamp(16px, 4vw, 48px); }
-      .controls {
-        display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
-        margin-bottom: 22px;
+      .mark { font-size: 30px; line-height: 1; text-decoration: none; letter-spacing: -0.01em; }
+      .mark b { color: var(--accent); font-weight: inherit; }
+      .top .crumb { color: var(--muted); font-size: 13px; }
+      .top .crumb a { text-decoration: none; color: var(--muted); }
+      .top .crumb a:hover { color: var(--ink); }
+      .top .spacer { flex: 1; }
+      .iconbtn {
+        border: 1px solid var(--line); background: var(--paper); border-radius: 999px;
+        width: 36px; height: 36px; display: grid; place-items: center; cursor: pointer;
       }
-      button, .btn {
-        font: inherit; font-weight: 600; cursor: pointer;
-        border: 1px solid var(--gold); color: var(--bg); background: var(--gold);
-        padding: 10px 18px; border-radius: 8px; text-decoration: none;
+
+      /* ---- hero ---- */
+      .hero { padding: 28px 0 8px; }
+      .ident { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; }
+      .ident .family { font-size: 15px; font-weight: 650; letter-spacing: 0.01em; }
+      .ident .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+      .tag {
+        font: 12px/1 var(--mono); color: var(--ink-2); background: var(--chip);
+        padding: 5px 8px; border-radius: 6px; white-space: nowrap;
       }
-      button.ghost, .btn.ghost { background: transparent; color: var(--gold-soft); }
-      button:disabled { opacity: 0.5; cursor: progress; }
-      input[type="text"] {
-        font: inherit; background: var(--panel); color: var(--ink);
-        border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
-        min-width: 220px;
+      .tag.accent { background: var(--accent); color: var(--accent-ink); }
+      .hero-text {
+        font-size: clamp(56px, 11vw, 176px); line-height: 1.02; margin: 14px 0 18px;
+        overflow-wrap: anywhere; outline: none; min-height: 1em; letter-spacing: -0.005em;
       }
-      .specimen {
-        background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-        padding: clamp(16px, 3vw, 34px); margin-bottom: 18px; overflow-wrap: anywhere;
+      .hero-text:focus { box-shadow: inset 0 -2px 0 var(--line-2); }
+      .loading .hero-text { opacity: 0.35; transition: opacity 0.2s; }
+
+      .deck { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 8px; cursor: pointer; text-decoration: none;
+        border: 1px solid var(--line-2); background: var(--paper); color: var(--ink);
+        padding: 10px 16px; border-radius: 10px; font-weight: 600; white-space: nowrap;
       }
-      .display { font-family: var(--rolled), serif; }
-      .big { font-size: clamp(40px, 9vw, 104px); line-height: 1.05; margin: 0 0 6px; }
-      .mid { font-size: clamp(24px, 4vw, 40px); margin: 0 0 6px; color: var(--gold-soft); }
-      .alpha { font-size: clamp(20px, 3.4vw, 34px); letter-spacing: 0.04em; margin: 8px 0 0; }
-      .meta {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-        gap: 10px; margin-top: 6px;
+      .btn:hover { border-color: var(--ink-2); }
+      .btn.primary {
+        background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+        padding: 12px 22px; font-size: 16px;
       }
+      .btn.primary:hover { filter: brightness(1.06); }
+      .btn:disabled { opacity: 0.5; cursor: progress; }
+      .btn kbd { font: 11px var(--mono); opacity: 0.75; border: 1px solid currentColor; border-radius: 4px; padding: 1px 4px; }
+      .chips { display: flex; flex-wrap: wrap; gap: 6px; }
       .chip {
-        background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-        padding: 10px 12px;
+        border: 1px solid var(--line); background: transparent; border-radius: 999px;
+        padding: 7px 12px; cursor: pointer; font-size: 13px; color: var(--ink-2); white-space: nowrap;
       }
-      .chip b { display: block; color: var(--gold-soft); font-size: 20px; }
-      .chip span { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-      .shaper {
-        background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
-        padding: 8px 16px 16px; margin-bottom: 18px;
+      .chip:hover { border-color: var(--line-2); color: var(--ink); }
+      .chip[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+      .wander { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+      .wander input { width: 110px; accent-color: var(--accent); }
+      .status { font: 12px var(--mono); color: var(--muted); margin-top: 12px; min-height: 18px; }
+
+      /* ---- lineage ---- */
+      .lineage { display: flex; gap: 8px; overflow-x: auto; padding: 16px 0 6px; scrollbar-width: thin; }
+      .lineage:empty::before { content: "Your lineage appears here as you roll and breed."; color: var(--muted); font-size: 13px; }
+      .anc {
+        flex: 0 0 auto; border: 1px solid var(--line); background: var(--paper); border-radius: 10px;
+        padding: 6px 10px; cursor: pointer; display: grid; gap: 2px; text-align: left; min-width: 72px;
       }
-      .shaper > summary {
-        cursor: pointer; padding: 8px 0; color: var(--gold-soft); font-weight: 600;
-        list-style: none;
+      .anc .g { font-size: 30px; line-height: 1.05; }
+      .anc .n { font: 10px var(--mono); color: var(--muted); }
+      .anc.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+
+      /* ---- workbench ---- */
+      .bench { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 24px; padding: 22px 0; }
+      @media (max-width: 980px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+      .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+      .panel-h {
+        display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        padding: 14px 16px; border-bottom: 1px solid var(--line);
       }
-      .shaper > summary::-webkit-details-marker { display: none; }
-      .shaper > summary::before { content: "▸ "; color: var(--gold); }
-      .shaper[open] > summary::before { content: "▾ "; }
-      .sliders {
-        display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 10px 22px; margin-top: 8px;
+      .panel-h h2 { margin: 0; font-size: 15px; font-weight: 700; }
+      .panel-h p { margin: 0; color: var(--muted); font-size: 13px; flex: 1 1 200px; }
+      .kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 1px; background: var(--line); border-radius: 0 0 14px 14px; overflow: hidden; }
+      .kid {
+        background: var(--paper); border: 0; padding: 14px 14px 10px; text-align: left; cursor: pointer;
+        display: grid; gap: 4px; min-height: 150px; position: relative;
       }
-      .ctl { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 10px; }
-      .ctl label { color: var(--muted); font-size: 13px; }
-      .ctl output { color: var(--gold-soft); font-variant-numeric: tabular-nums; font-size: 13px; min-width: 3.2em; text-align: right; }
-      .ctl input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--gold); }
-      .ctl.toggle { grid-template-columns: 1fr auto; }
-      .ctl.toggle input { accent-color: var(--gold); width: 18px; height: 18px; }
-      .shaper-row { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
-      .shaper-note { color: var(--muted); font-size: 12px; }
-      .compass-wrap { display: flex; gap: 22px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
-      .compass {
-        position: relative; width: 240px; height: 240px; flex: 0 0 auto;
-        border: 1px solid var(--line); border-radius: 12px; cursor: crosshair;
-        background:
-          radial-gradient(circle at 0% 100%, rgba(216,166,87,0.16), transparent 60%),
-          radial-gradient(circle at 100% 0%, rgba(233,200,140,0.14), transparent 60%),
-          var(--bg);
-        touch-action: none;
+      .kid:hover { background: var(--bg); }
+      .kid .big { font-size: 58px; line-height: 1; white-space: nowrap; overflow: hidden; }
+      .kid .small { font-size: 19px; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ink-2); }
+      .kid .meta { font: 11px var(--mono); color: var(--muted); margin-top: auto; }
+      .kid.pending .big, .kid.pending .small { opacity: 0.2; }
+      .kid .adopt {
+        position: absolute; top: 10px; right: 10px; font: 11px var(--mono); color: var(--accent);
+        opacity: 0; transition: opacity 0.15s;
       }
-      .cmp-lbl { position: absolute; color: var(--muted); font-size: 11px; letter-spacing: 0.03em; }
-      .cmp-lbl.tl { top: 6px; left: 8px; } .cmp-lbl.tr { top: 6px; right: 8px; }
-      .cmp-lbl.bl { bottom: 6px; left: 8px; } .cmp-lbl.br { bottom: 6px; right: 8px; }
-      .cmp-handle {
-        position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px;
-        border-radius: 50%; background: var(--gold); border: 2px solid var(--bg);
-        box-shadow: 0 0 0 1px var(--gold); pointer-events: none;
+      .kid:hover .adopt, .kid:focus-visible .adopt { opacity: 1; }
+      @media (max-width: 560px) {
+        .kids { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .kid { min-height: 118px; padding: 10px; }
+        .kid .big { font-size: 40px; }
+        .kid .small { font-size: 14px; }
       }
-      .compass-ctls { flex: 1 1 220px; min-width: 200px; display: grid; gap: 10px; }
-      footer { padding: 24px clamp(16px, 4vw, 48px); color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); }
-      footer a { color: var(--gold); }
-      code { background: #000; padding: 1px 5px; border-radius: 5px; color: var(--gold-soft); }
+      .rate { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+      .rate input { width: 100px; accent-color: var(--accent); }
+
+      .tune details { border-top: 1px solid var(--line); }
+      .tune details:first-of-type { border-top: 0; }
+      .tune summary {
+        list-style: none; cursor: pointer; padding: 12px 16px; font-weight: 650; display: flex; align-items: center; gap: 8px;
+      }
+      .tune summary::-webkit-details-marker { display: none; }
+      .tune summary::before { content: "›"; display: inline-block; transition: transform 0.15s; color: var(--muted); font-weight: 400; }
+      .tune details[open] summary::before { transform: rotate(90deg); }
+      .tune summary small { color: var(--muted); font-weight: 400; font-size: 12px; }
+      .ctls { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 18px; padding: 2px 16px 16px; }
+      .ctl { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; }
+      .ctl label { font-size: 13px; color: var(--ink-2); }
+      .ctl output { font: 12px var(--mono); color: var(--muted); }
+      .ctl input[type="range"] { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); margin: 2px 0; }
+      .ctl select { grid-column: 1 / -1; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--bg); }
+      .ctl.tog { grid-template-columns: auto 1fr; }
+      .ctl.tog input { accent-color: var(--accent); width: 16px; height: 16px; }
+      .tune-foot { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line); }
+
+      /* ---- sheet ---- */
+      .sheet { margin: 4px 0 28px; }
+      .tabs { display: flex; gap: 2px; flex-wrap: wrap; padding: 10px 12px 0; border-bottom: 1px solid var(--line); }
+      .tab {
+        border: 0; background: transparent; padding: 10px 14px; cursor: pointer; color: var(--muted);
+        border-bottom: 2px solid transparent; margin-bottom: -1px; font-weight: 600; font-size: 14px;
+      }
+      .tab[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+      .pane { padding: 20px clamp(16px, 2vw, 28px) 28px; }
+      .pane[hidden] { display: none; }
+      .t-head { font-size: clamp(34px, 5.4vw, 72px); line-height: 1.05; margin: 0 0 18px; overflow-wrap: anywhere; }
+      .t-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 24px 36px; }
+      .t-cols p { margin: 0 0 12px; overflow-wrap: anywhere; }
+      .t-20 { font-size: 21px; line-height: 1.45; }
+      .t-15 { font-size: 15.5px; line-height: 1.55; }
+      .t-12 { font-size: 12.5px; line-height: 1.5; }
+      .size-label { font: 11px var(--mono); color: var(--muted); margin: 0 0 4px; }
+      .fall { display: grid; gap: 14px; }
+      .fall div { display: grid; grid-template-columns: 52px minmax(0, 1fr); align-items: baseline; gap: 8px; }
+      .fall span.z { font: 11px var(--mono); color: var(--muted); }
+      .fall span.s { white-space: nowrap; overflow: hidden; text-overflow: clip; line-height: 1.15; }
+      .glyphs { display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+      .glyphs button {
+        background: var(--paper); border: 0; aspect-ratio: 1; font-size: 30px; cursor: pointer; display: grid; place-items: center; padding: 0;
+      }
+      .glyphs button:hover, .glyphs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+      .glyph-zoom { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: 16px; margin-bottom: 16px; align-items: center; }
+      @media (max-width: 640px) { .glyph-zoom { grid-template-columns: minmax(0, 1fr); } }
+      .glyph-zoom .z {
+        font-size: clamp(120px, 22vw, 260px); line-height: 1.1; text-align: center; background: var(--bg);
+        border-radius: 12px; min-height: 1.2em; background-image: linear-gradient(var(--line) 1px, transparent 1px); background-size: 100% 1em; background-position: 0 0.84em;
+      }
+      .glyph-zoom dl { margin: 0; font: 12px/1.6 var(--mono); color: var(--muted); }
+      .glyph-zoom dt { color: var(--ink-2); }
+      .pairs { font-size: clamp(34px, 5vw, 60px); line-height: 1.25; overflow-wrap: anywhere; }
+      .pairs.off { font-kerning: none; }
+      .scripts p { margin: 0 0 18px; font-size: clamp(22px, 3vw, 34px); line-height: 1.3; overflow-wrap: anywhere; }
+      .scripts .l { font: 11px var(--mono); color: var(--muted); display: block; margin-bottom: 2px; }
+      .switch { display: inline-flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+
+      /* ---- how ---- */
+      .how { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 22px; padding: 26px 0 10px; border-top: 1px solid var(--line); }
+      .how h3 { font-size: 14px; margin: 0 0 6px; }
+      .how p { margin: 0; color: var(--ink-2); font-size: 14px; }
+      footer { color: var(--muted); font-size: 13px; padding: 22px 0 40px; }
+      footer a { color: var(--ink-2); }
+      .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+      @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
     </style>
   </head>
   <body>
-    <header>
-      <div class="crumb"><a href="https://mino.mobi">mino.mobi</a> · type</div>
-      <h1>Roll<span class="accent">.</span></h1>
-      <p class="tag">
-        Roll a brand-new typeface from a seed. Every roll is unique and
-        deterministic; the one you keep is <strong>CC0 / public domain</strong> —
-        free to use, embed, modify and sell, no attribution. Outlines drawn in
-        Rust, compiled to WebAssembly, rendered in your browser.
-      </p>
-    </header>
+    <div class="wrap">
+      <header class="top">
+        <a class="mark rolled" href="/font/" aria-label="Roll — home">Roll<b>.</b></a>
+        <span class="crumb"><a href="https://rite.mino.mobi/">rite</a> · <a href="https://mino.mobi">mino.mobi</a></span>
+        <span class="spacer"></span>
+        <button class="iconbtn" id="theme" type="button" aria-label="Toggle light / dark">◐</button>
+      </header>
 
-    <main>
-      <div class="controls">
-        <button id="roll">Roll a new font</button>
-        <input id="seed" type="text" aria-label="seed" placeholder="seed" />
-        <button id="apply" class="ghost">Use seed</button>
-        <a id="download" class="btn ghost" download>Download .ttf</a>
-      </div>
+      <section class="hero" id="hero">
+        <div class="ident">
+          <span class="family" id="family">Loading the foundry…</span>
+          <span class="tags" id="tags"></span>
+        </div>
+        <div class="hero-text rolled" id="hero-text" contenteditable="true" spellcheck="false" aria-label="Specimen — type to try the font">Quiet, jagged glyphs</div>
+        <div class="deck">
+          <button class="btn primary" id="roll" type="button">⟳ Roll <kbd>R</kbd></button>
+          <div class="chips" id="arches" role="group" aria-label="Archetype"></div>
+          <label class="wander" title="How far a roll may wander from its archetype">wander <input id="wander" type="range" min="0" max="1.2" step="0.05" value="1" /></label>
+        </div>
+        <div class="deck" style="margin-top: 12px">
+          <a class="btn" id="download" download>↓ Download .ttf</a>
+          <button class="btn" id="share" type="button">Copy link</button>
+          <span class="status" id="status"></span>
+        </div>
+      </section>
 
-      <details class="shaper" id="compass-panel" open>
-        <summary>Archetype compass — coarse navigation</summary>
-        <div class="compass-wrap">
-          <div class="compass" id="compass">
-            <span class="cmp-lbl tl">geometric · serif</span>
-            <span class="cmp-lbl tr">humanist · serif</span>
-            <span class="cmp-lbl bl">geometric · sans</span>
-            <span class="cmp-lbl br">humanist · sans</span>
-            <div class="cmp-handle" id="cmp-handle"></div>
+      <nav class="lineage" id="lineage" aria-label="Lineage — fonts you have rolled"></nav>
+
+      <section class="bench">
+        <div class="panel" aria-labelledby="kids-h">
+          <div class="panel-h">
+            <h2 id="kids-h">Offspring</h2>
+            <p>Eight mutations of this font. Pick one to make it the parent; the next litter descends from it.</p>
+            <label class="rate">mutation <input id="rate" type="range" min="0.2" max="2.5" step="0.1" value="1" /></label>
+            <button class="btn" id="litter" type="button">New litter</button>
           </div>
-          <div class="compass-ctls">
-            <div class="ctl"><label for="sl-z">Contrast (→ Didone)</label><output id="out-z">—</output><input id="sl-z" type="range" min="0" max="1" step="0.01" /></div>
-            <div class="ctl"><label for="sl-spread">Spread (hypersphere)</label><output id="out-spread">—</output><input id="sl-spread" type="range" min="0" max="1" step="0.02" /></div>
-            <span class="shaper-note">Drag the dot to blend the four corner archetypes; <em>Roll</em> re-jitters inside the spread radius. Tune the result with the sliders below.</span>
+          <div class="kids" id="kids"></div>
+        </div>
+
+        <div class="panel tune" aria-labelledby="tune-h">
+          <div class="panel-h">
+            <h2 id="tune-h">Tune</h2>
+            <p>Every gene of this roll. Drag to redraw it live.</p>
+          </div>
+          <div id="groups"></div>
+          <div class="tune-foot">
+            <button class="btn" id="reset" type="button">Reset to seed</button>
           </div>
         </div>
-      </details>
+      </section>
 
-      <details class="shaper" id="shaper">
-        <summary>Shape it — live sliders</summary>
-        <div class="sliders" id="sliders"></div>
-        <div class="shaper-row">
-          <button id="reset" class="ghost">Reset to seed</button>
-          <span class="shaper-note">
-            Sliders reshape this roll live. <em>Roll a new font</em> picks a fresh
-            seed and resets them. (The <code>?s=</code> permalink saves the seed,
-            not the slider tweaks — yet.)
-          </span>
+      <section class="panel sheet" aria-label="Specimen">
+        <div class="tabs" role="tablist">
+          <button class="tab" role="tab" aria-selected="true" data-pane="p-text">Text</button>
+          <button class="tab" role="tab" aria-selected="false" data-pane="p-fall">Waterfall</button>
+          <button class="tab" role="tab" aria-selected="false" data-pane="p-glyphs">Glyphs</button>
+          <button class="tab" role="tab" aria-selected="false" data-pane="p-kern">Kerning</button>
+          <button class="tab" role="tab" aria-selected="false" data-pane="p-scripts">Scripts</button>
         </div>
-      </details>
+        <div class="pane" id="p-text" role="tabpanel">
+          <p class="t-head rolled" contenteditable="true" spellcheck="false">Sphinx of black quartz, judge my vow</p>
+          <div class="t-cols">
+            <div>
+              <p class="size-label">21 px</p>
+              <p class="t-20 rolled">A typeface is a set of decisions made once and kept everywhere: how wide an o should be beside an n, where a bar crosses an e, how a stroke thins as it turns. Roll makes every one of those decisions from a seed — and then lets you overrule it.</p>
+            </div>
+            <div>
+              <p class="size-label">15.5 px</p>
+              <p class="t-15 rolled">Each letter here is drawn the way a scribe would: a centreline, swept by a pen. The pen's shape and angle give the contrast; the letter's skeleton gives its character. Spacing follows Tracy's rule of straights and rounds, and every pair is kerned by measuring the white between its shapes. None of it is traced from an existing font.</p>
+              <p class="size-label">12.5 px</p>
+              <p class="t-12 rolled">Figures 0123456789 · £4.50 · 3 × 7 = 21 · (brackets) [and] {braces} · “quotes” ‘and’ «guillemets» · em—dash, en–dash, hyphen-ated · 50% off · fish &amp; chips · hello@example.org</p>
+            </div>
+          </div>
+        </div>
+        <div class="pane" id="p-fall" role="tabpanel" hidden>
+          <div class="fall rolled" id="fall"></div>
+        </div>
+        <div class="pane" id="p-glyphs" role="tabpanel" hidden>
+          <div class="glyph-zoom">
+            <div class="z rolled" id="gz">R</div>
+            <dl id="gz-meta"></dl>
+          </div>
+          <div class="glyphs rolled" id="glyphs"></div>
+        </div>
+        <div class="pane" id="p-kern" role="tabpanel" hidden>
+          <label class="switch"><input type="checkbox" id="kern-on" checked /> kerning on</label>
+          <div class="pairs rolled" id="pairs" contenteditable="true" spellcheck="false">AVATAR Tokyo LAWYER Wavy Yes. P.O. Type, “Quote” Fjord ToV AWAY</div>
+        </div>
+        <div class="pane scripts" id="p-scripts" role="tabpanel" hidden>
+          <p class="rolled"><span class="l">Latin Extended</span>Příliš žluťoučký kůň úpěl ďábelské ódy · Zażółć gęślą jaźń · Årets første øl</p>
+          <p class="rolled"><span class="l">Greek</span>Ξεσκεπάζω την ψυχοφθόρα βδελυγμία</p>
+          <p class="rolled"><span class="l">Cyrillic</span>Съешь же ещё этих мягких французских булок, да выпей чаю</p>
+          <p class="rolled"><span class="l">Mathematics</span>∀ε&gt;0 ∃δ&gt;0 : |x−a| &lt; δ ⇒ |f(x)−f(a)| &lt; ε · ∑ ∏ ∫ √ ∂ ∇ ∞ ≈ ≠ ≤ ≥ ∈ ⊂ ∪ ∩ ∅ ℝ ℕ ℤ</p>
+        </div>
+      </section>
 
-      <div class="specimen">
-        <p class="big display" contenteditable="true" spellcheck="false">HANDGLOVES</p>
-        <p class="mid display">THE QUICK BROWN FOX JUMPS OVER THE LAZY DOG</p>
-        <p class="alpha display">ABCDEFGHIJKLMNOPQRSTUVWXYZ 0123456789 . , -</p>
-      </div>
+      <section class="how" aria-label="How it works">
+        <div>
+          <h3>Drawn, not traced</h3>
+          <p>Every glyph is a Metafont-style skeleton — knots and the directions the pen travels through them — swept by a superellipse nib. The pen's angle and shape give the contrast; unioning and refitting give clean quadratic outlines.</p>
+        </div>
+        <div>
+          <h3>A genome of type</h3>
+          <p>About thirty genes: weight, contrast, stress, x-height, aperture, serifs, terminals, construction. A seed picks an archetype — geometric, grotesque, humanist, old-style, transitional, Didone, slab, rounded — and wanders from it.</p>
+        </div>
+        <div>
+          <h3>Spaced and kerned</h3>
+          <p>Sidebearings follow Tracy's straights-and-rounds method; kerning is measured from each pair's shapes, clustered into classes and written as OpenType GPOS — the way a foundry ships it.</p>
+        </div>
+        <div>
+          <h3>Yours, outright</h3>
+          <p>Every font this page makes is CC0 — public domain. Use it, embed it, modify it, sell it. No attribution, no licence to track. The same seed always makes the same font, so a link is the font.</p>
+        </div>
+      </section>
 
-      <div class="specimen">
-        <p class="big display" contenteditable="true" spellcheck="false">handgloves</p>
-        <p class="mid display">the quick brown fox jumps over the lazy dog</p>
-        <p class="alpha display">abcdefghijklmnopqrstuvwxyz 0123456789 . , -</p>
-        <p class="alpha display">! ? : ; ( ) / ' " + = &nbsp; café señor déjà Č š ž</p>
-        <p class="alpha display">ΑΒΓΔ ΘΛΞΠΣ ΦΨΩ αβγδεθλμπσφω &nbsp; БДЖИ ЛПФЦ ШЩЭЮЯ джклмшщя</p>
-        <p class="alpha display">∀ε&gt;0 ∃δ : ∑ ∏ ∫ √ ∂ ∇ ∞ ≤ ≥ ≠ ≈ ± × ÷ ∈ ∉ ⊂ ∪ ∩ ∅ → ↔ ¬ ∧ ∨</p>
-      </div>
-
-      <div class="meta" id="meta"></div>
-    </main>
-
-    <footer>
-      <span id="status">Loading the engine…</span> ·
-      The generator is open source and the fonts it makes are unencumbered: in
-      most jurisdictions a typeface <em>design</em> isn't copyrightable, and this
-      engine + its output are released into the public domain. Phylogeny &amp;
-      breeding view coming next. <a href="https://mino.mobi">↩ home</a>
-    </footer>
-
+      <footer>
+        <span id="engine-note">Outlines drawn in Rust, compiled to WebAssembly, rendered in your browser.</span>
+        · <a href="https://github.com/minormobius/agent01/tree/main/rite/font">source</a>
+        · <a href="https://rite.mino.mobi/">rite</a>
+      </footer>
+    </div>
     <script type="module" src="/font/app.js"></script>
   </body>
 </html>
