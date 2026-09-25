@@ -2,7 +2,7 @@
 //! arcs placed in x-height units, so every roll of the genome redraws the same
 //! *design logic* at new proportions, weights, stresses and terminals.
 
-use crate::build::{side::*, Drawn, Metrics, B, HCUT, VCUT};
+use crate::build::{along, at_x, at_y, side::*, Drawn, Metrics, B, HCUT, VCUT};
 use crate::curve::*;
 use crate::ink::Cap;
 use crate::style::{Style, Term};
@@ -338,7 +338,11 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
                 // y: v whose right arm runs on into the descender
                 let mid = v(w / 2.0 - st * 0.05, 0.0);
                 let dx = (w - inset - mid.x) / xh; // right-arm slope (x per y)
-                b.diag(v(inset, xh), v(mid.x + st * 0.1, -dip * 0.3), HCUT, Cap::Butt);
+                // the short arm ends on the long arm's centreline, cut along it
+                let top = v(w - inset, xh);
+                let foot = v(w - inset - dx * (xh + desc), -desc);
+                let meet = at_y(top, foot, -dip * 0.3);
+                b.diag(v(inset, xh), meet, HCUT, along(top, foot));
                 let yend = -desc + m.hth / 2.0;
                 if s.tail_y {
                     let xd = w - inset - dx * (xh + desc * 0.55);
@@ -381,10 +385,13 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let ax = w - st * 0.5;
             let jx = xs + hs * 0.9;
             let jy = xh * 0.36;
-            b.diag(v(ax, xh), v(jx, jy), HCUT, Cap::Butt);
-            let lx = jx + (ax - jx) * 0.42;
-            let ly = jy + (xh - jy) * 0.42;
-            b.diag(v(lx, ly), v(w - st * 0.48, 0.0), Cap::Butt, HCUT);
+            // arm: into the stem's centreline, cut plumb; leg: out of the arm's
+            // centreline, cut along the arm — both ends buried
+            let arm_top = v(ax, xh);
+            let arm_end = at_x(arm_top, v(jx, jy), xs);
+            b.diag(arm_top, arm_end, HCUT, VCUT);
+            let root = arm_top.lerp(arm_end, 0.58);
+            b.diag(root, v(w - st * 0.48, 0.0), along(arm_top, arm_end), HCUT);
             b.head(xs, asc);
             b.foot(xs, 0.0);
             b.serif(ax, xh, false, true, true);

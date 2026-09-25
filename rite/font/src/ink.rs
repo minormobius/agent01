@@ -426,7 +426,7 @@ fn dp(pts: &[V], tol: f64, out: &mut Vec<V>) {
 ///    would place them).
 /// 4. Fit each piece with quadratic Béziers between known tangents.
 pub fn refit(poly: &[V], tol: f64) -> Vec<Pt> {
-    let p = dedupe_by(poly, 0.3);
+    let p = merge_collinear(&dedupe_by(poly, 0.3));
     let n = p.len();
     if n < 3 {
         return Vec::new();
@@ -529,6 +529,40 @@ pub fn refit(poly: &[V], tol: f64) -> Vec<Pt> {
         }
     }
     out
+}
+
+/// Drop vertices that lie on the straight line through their neighbours: a
+/// straight stroke is sampled every few units, and those in-between points
+/// would each be rounded to the unit grid — writing a straight edge as a
+/// chain of slightly kinked segments.
+fn merge_collinear(p: &[V]) -> Vec<V> {
+    let mut v: Vec<V> = p.to_vec();
+    loop {
+        let n = v.len();
+        if n < 4 {
+            return v;
+        }
+        let mut keep = vec![true; n];
+        let mut changed = false;
+        let mut last_kept = n - 1;
+        for i in 0..n {
+            let a = v[last_kept];
+            let c = v[(i + 1) % n];
+            let b = v[i];
+            // straight through b, and b adds no information
+            let straight = dist_to_seg(b, a, c) < 0.02 && (c - b).dot(b - a) > 0.0;
+            if straight && i != last_kept {
+                keep[i] = false;
+                changed = true;
+            } else {
+                last_kept = i;
+            }
+        }
+        if !changed {
+            return v;
+        }
+        v = v.into_iter().zip(keep).filter(|(_, k)| *k).map(|(q, _)| q).collect();
+    }
 }
 
 fn dedupe_by(p: &[V], eps: f64) -> Vec<V> {
@@ -686,5 +720,24 @@ mod tests {
         assert_eq!(polys.len(), 1, "one contour at stress {stress}");
         assert!((x0 - 100.0).abs() < 1.0 && (x1 - 500.0).abs() < 1.0, "span {x0}..{x1} at stress {stress}");
         }
+    }
+}
+
+#[cfg(test)]
+mod diag_tests {
+    use super::*;
+    use crate::curve::*;
+    #[test]
+    fn diagonal_is_straight() {
+        let pen = Pen::for_stem(100.0, 0.8, 0.0, 2.3);
+        let mut ink = Ink::default();
+        let p = path(v(50.0, 700.0)).line(v(300.0, 0.0));
+        ink.stroke(Stroke { segs: p.cubics(), closed: false, pen, cap0: Cap::Cut(RIGHT), cap1: Cap::Cut(RIGHT) });
+        let polys = ink.polygons();
+        eprintln!("raw: {} pts", polys[0].len());
+        let c = refit(&polys[0], 0.7);
+        eprintln!("refit: {} pts", c.len());
+        for q in &c { eprint!("({:.1},{:.1},{}) ", q.0, q.1, q.2 as u8); }
+        eprintln!();
     }
 }

@@ -501,6 +501,22 @@ impl<'a> B<'a> {
     }
 }
 
+/// The point on the line through `a`,`b` at height `y`.
+pub fn at_y(a: V, b: V, y: f64) -> V {
+    let t = (y - a.y) / (b.y - a.y);
+    a.lerp(b, t)
+}
+/// The point on the line through `a`,`b` at abscissa `x`.
+pub fn at_x(a: V, b: V, x: f64) -> V {
+    let t = (x - a.x) / (b.x - a.x);
+    a.lerp(b, t)
+}
+/// Cap for a stroke end buried in another stroke: the end sits on the host's
+/// centreline and is cut *along* the host, so the whole end face is inside it.
+pub fn along(p: V, q: V) -> Cap {
+    Cap::Cut((q - p).norm())
+}
+
 pub fn dir_to(d: V) -> V {
     d.norm()
 }

@@ -3,7 +3,7 @@
 //! Roman inscriptional habit: O a circle, M wide, E F L S half-width) — and the
 //! `prop` gene blends between them.
 
-use crate::build::{side::*, Drawn, Metrics, B, HCUT, VCUT};
+use crate::build::{along, at_x, side::*, Drawn, Metrics, B, HCUT, VCUT};
 use crate::curve::*;
 use crate::ink::Cap;
 use crate::lower::{c_terms, dir_to_v, draw_s, term_ball};
@@ -181,9 +181,10 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
                         .to(v(w - st * 0.55, cap * 0.1), DOWN)
                         .to(v(w + st * 0.35, -o * 0.3 + th * 0.5), RIGHT)
                         .w(0.6);
-                    b.stroke(&p, Cap::Butt, Cap::Butt);
+                    // the leg grows out of the bowl's lower stroke, cut along it
+                    b.stroke(&p, HCUT, Cap::Butt);
                 } else {
-                    b.diag_as(v(xj, yj), v(w - st * 0.45, 0.0), true, Cap::Butt, HCUT);
+                    b.diag_as(v(xj, yj), v(w - st * 0.45, 0.0), true, HCUT, HCUT);
                     b.serif(w - st * 0.45, 0.0, true, true, true);
                 }
             }
@@ -327,9 +328,16 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let inset = st * 0.55;
             let yj = cap * lerp(0.44, 0.40, s.prop);
             let mid = v(w / 2.0, yj);
-            b.diag(v(inset, cap), mid, HCUT, Cap::Butt);
-            b.diag(v(w - inset, cap), mid, HCUT, Cap::Butt);
-            b.stem(w / 2.0, 0.0, yj + st * 0.2);
+            // the arms meet on the stem's axis, each cut plumb: a clean crotch
+            let (tl, tr) = (v(inset, cap), v(w - inset, cap));
+            b.diag(tl, mid, HCUT, VCUT);
+            b.diag(tr, mid, HCUT, VCUT);
+            b.stem(w / 2.0, 0.0, yj);
+            // the stem's top rises to a point along the arms' centrelines, so a
+            // thin arm can't leave the stem's corner showing at the crotch
+            let yl = at_x(tl, mid, w / 2.0 - hs).y;
+            let yr = at_x(tr, mid, w / 2.0 + hs).y;
+            b.fill(vec![v(w / 2.0 - hs, yj - 1.0), v(w / 2.0 + hs, yj - 1.0), v(w / 2.0 + hs, yr), mid, v(w / 2.0 - hs, yl)]);
             b.serif(inset, cap, false, true, true);
             b.serif(w - inset, cap, false, true, true);
             b.foot(w / 2.0, 0.0);
@@ -341,10 +349,11 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let ax = w - st * 0.5;
             let jx = hs + hs * 0.9;
             let jy = cap * 0.34;
-            b.diag(v(ax, cap), v(jx, jy), HCUT, Cap::Butt);
-            let lx = jx + (ax - jx) * 0.40;
-            let ly = jy + (cap - jy) * 0.40;
-            b.diag(v(lx, ly), v(w - st * 0.45, 0.0), Cap::Butt, HCUT);
+            let arm_top = v(ax, cap);
+            let arm_end = at_x(arm_top, v(jx, jy), hs);
+            b.diag(arm_top, arm_end, HCUT, VCUT);
+            let root = arm_top.lerp(arm_end, 0.6);
+            b.diag(root, v(w - st * 0.45, 0.0), along(arm_top, arm_end), HCUT);
             b.foot(hs, 0.0);
             b.serif(hs, cap, false, true, true);
             b.serif(ax, cap, false, true, true);

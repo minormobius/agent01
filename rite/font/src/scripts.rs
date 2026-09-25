@@ -5,7 +5,7 @@
 //! upright style, mostly the capitals at x-height, so it is drawn as true small
 //! caps from the same capital constructions (`Metrics::small_caps`).
 
-use crate::build::{side::*, Drawn, Metrics, B, HCUT, VCUT};
+use crate::build::{along, at_x, at_y, side::*, Drawn, Metrics, B, HCUT, VCUT};
 use crate::curve::*;
 use crate::ink::{Cap, Pen};
 use crate::lower::{c_terms, dir_to_v, o_width, term_ball};
@@ -169,8 +169,11 @@ pub fn cyr_cap(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             for sg in [1.0, -1.0] {
                 let ax = xm + sg * (w / 2.0 - st * 0.5);
                 let jx = xm + sg * hs * 1.1;
-                b.diag(v(ax, cap), v(jx, jy), HCUT, Cap::Butt);
-                b.diag(v(xm + sg * (w / 2.0 - st * 0.45) * 0.55, jy + (cap - jy) * 0.1), v(xm + sg * (w / 2.0 - st * 0.45), 0.0), Cap::Butt, HCUT);
+                let arm_top = v(ax, cap);
+                let arm_end = at_x(arm_top, v(jx, jy), xm);
+                b.diag(arm_top, arm_end, HCUT, VCUT);
+                let root = arm_top.lerp(arm_end, 0.62);
+                b.diag(root, v(xm + sg * (w / 2.0 - st * 0.45), 0.0), along(arm_top, arm_end), HCUT);
                 b.serif(ax, cap, false, true, true);
                 b.serif(xm + sg * (w / 2.0 - st * 0.45), 0.0, true, true, true);
             }
@@ -321,7 +324,7 @@ pub fn cyr_cap(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             b.stem(w - hs, 0.0, cap);
             b.bowl(w - hs, 0.0, waist - th / 2.0, cap, None, None);
             let xj = (w - hs) * 0.5;
-            b.diag_as(v(xj, waist), v(st * 0.45, 0.0), false, Cap::Butt, HCUT);
+            b.diag_as(v(xj, waist), v(st * 0.45, 0.0), false, HCUT, HCUT);
             b.foot(w - hs, 0.0);
             b.serif(w - hs, cap, false, false, true);
             b.serif(st * 0.45, 0.0, true, true, true);
@@ -589,15 +592,19 @@ fn greek_lower(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let w = (cn + 2.0 * st) * 0.86;
             b.stem(hs, 0.0, xh);
             let jy = xh * 0.42;
-            b.diag(v(w - st * 0.45, xh), v(st * 0.9, jy), HCUT, Cap::Butt);
-            b.diag(v(st * 0.9 + (w - st) * 0.35, jy + xh * 0.2), v(w - st * 0.45, 0.0), Cap::Butt, HCUT);
+            let arm_top = v(w - st * 0.45, xh);
+            let arm_end = at_x(arm_top, v(st * 0.9, jy), hs);
+            b.diag(arm_top, arm_end, HCUT, VCUT);
+            let root = arm_top.lerp(arm_end, 0.6);
+            b.diag(root, v(w - st * 0.45, 0.0), along(arm_top, arm_end), HCUT);
             b.done(STRAIGHT, DIAG)
         }
         'λ' => {
             let w = (cn + 2.0 * st) * 0.94;
-            b.diag(v(st * 0.4, asc), v(w - st * 0.5, 0.0), HCUT, HCUT);
-            let mid = v(st * 0.4 + (w - st * 0.9) * 0.52, asc * 0.48);
-            b.diag(mid, v(st * 0.5, 0.0), Cap::Butt, HCUT);
+            let (t0, t1) = (v(st * 0.4, asc), v(w - st * 0.5, 0.0));
+            b.diag(t0, t1, HCUT, HCUT);
+            let mid = at_y(t0, t1, asc * 0.48);
+            b.diag(mid, v(st * 0.5, 0.0), along(t0, t1), HCUT);
             b.done(DIAG, DIAG)
         }
         'μ' => {

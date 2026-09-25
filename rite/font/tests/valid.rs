@@ -194,3 +194,58 @@ fn many_seeds_stay_valid() {
 fn serde_like_list(s: &str) -> Vec<String> {
     s.trim_matches(|c| c == '[' || c == ']').split(',').map(|x| x.trim_matches('"').to_string()).collect()
 }
+
+/// Collects straight segments so a test can look for collinear chains.
+#[derive(Default)]
+struct Lines {
+    pts: Vec<(f32, f32)>,
+    kinks: usize,
+    cur: (f32, f32),
+}
+impl OutlineBuilder for Lines {
+    fn move_to(&mut self, x: f32, y: f32) {
+        self.pts.clear();
+        self.pts.push((x, y));
+        self.cur = (x, y);
+    }
+    fn line_to(&mut self, x: f32, y: f32) {
+        self.pts.push((x, y));
+        if self.pts.len() >= 3 {
+            let n = self.pts.len();
+            let (a, b, c) = (self.pts[n - 3], self.pts[n - 2], self.pts[n - 1]);
+            let (ux, uy, vx, vy) = (b.0 - a.0, b.1 - a.1, c.0 - b.0, c.1 - b.1);
+            let cross = (ux * vy - uy * vx).abs();
+            let len = (ux * ux + uy * uy).sqrt() * (vx * vx + vy * vy).sqrt();
+            // two lines continuing the same direction (within ~1.5°): a straight
+            // edge written as a chain of segments
+            if len > 0.0 && cross / len < 0.026 && ux * vx + uy * vy > 0.0 {
+                self.kinks += 1;
+            }
+        }
+        self.cur = (x, y);
+    }
+    fn quad_to(&mut self, _: f32, _: f32, x: f32, y: f32) {
+        self.pts.clear();
+        self.pts.push((x, y));
+    }
+    fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, x: f32, y: f32) {
+        self.pts.clear();
+        self.pts.push((x, y));
+    }
+    fn close(&mut self) {}
+}
+
+#[test]
+fn straight_strokes_are_single_segments() {
+    for seed in ["lines-a", "lines-b", "lines-c", "lines-d"] {
+        let bytes = minofont::build_font(seed);
+        let face = Face::parse(&bytes, 0).unwrap();
+        for c in "AVWXYKkvwxyzNMZ47".chars() {
+            let mut l = Lines::default();
+            face.outline_glyph(face.glyph_index(c).unwrap(), &mut l);
+            // a stroke flowing tangentially into a round cap may leave one
+            // near-straight step; grid noise left ~30 per edge
+            assert!(l.kinks <= 2, "seed {seed:?}: {c:?} writes a straight edge as a kinked chain ({} kinks)", l.kinks);
+        }
+    }
+}

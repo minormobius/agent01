@@ -406,9 +406,14 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
                     let inset = ust * 0.5;
                     let yj = cap * 0.45;
                     let mid = v(w / 2.0, yj);
-                    ub.diag(v(inset, cap), mid, HCUT, Cap::Butt);
-                    ub.diag(v(w - inset, cap), mid, HCUT, Cap::Butt);
-                    ub.stem(w / 2.0, 0.0, yj + ust * 0.2);
+                    let (tl, tr) = (v(inset, cap), v(w - inset, cap));
+                    ub.diag(tl, mid, HCUT, VCUT);
+                    ub.diag(tr, mid, HCUT, VCUT);
+                    ub.stem(w / 2.0, 0.0, yj);
+                    let hs = ust / 2.0;
+                    let yl = crate::build::at_x(tl, mid, w / 2.0 - hs).y;
+                    let yr = crate::build::at_x(tr, mid, w / 2.0 + hs).y;
+                    ub.fill(vec![v(w / 2.0 - hs, yj - 1.0), v(w / 2.0 + hs, yj - 1.0), v(w / 2.0 + hs, yr), mid, v(w / 2.0 - hs, yl)]);
                     for y in [cap * 0.38, cap * 0.2] {
                         ub.bar(w * 0.12, w * 0.88, y, VCUT, VCUT);
                     }
