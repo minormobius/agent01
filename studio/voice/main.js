@@ -96,6 +96,7 @@ spectrogram();
 $('paragraph').textContent = PARAGRAPH;
 $('sayParagraph').addEventListener('click', () => say(PARAGRAPH));
 // the first try at being 2c: everything measured from it, switched on (lib/chipvoice-profile.js)
+$('sayFit').addEventListener('click', () => { $('fitNote').hidden = false; say(PARAGRAPH, { fit: 1 }); });
 $('sayAs2c').addEventListener('click', () => { $('as2cNote').hidden = false; say(PARAGRAPH, { profile: 3, f0: 120, range: 0.35 }); });
 $('sayTyped').addEventListener('click', async () => { await small; await fullLexicon(); say($('typed').value); });
 $('typed').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('sayTyped').click(); });

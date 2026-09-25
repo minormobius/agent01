@@ -51,8 +51,9 @@
 
   <canvas id="sg" width="640" height="170" aria-label="A spectrogram of the voice as it plays"></canvas>
   <blockquote id="paragraph"></blockquote>
-  <div class="row"><button id="sayParagraph" type="button">▶ Hear me</button><button id="sayAs2c" type="button" class="ghost">▶ Hear me try to be 2c</button><button id="download" type="button" class="ghost">save as .wav</button><span id="took"></span></div>
+  <div class="row"><button id="sayParagraph" type="button">▶ Hear me</button><button id="sayAs2c" type="button" class="ghost">▶ Hear me try to be 2c</button><button id="sayFit" type="button" class="ghost">▶ Hear me fitted to 2c</button><button id="download" type="button" class="ghost">save as .wav</button><span id="took"></span></div>
   <p class="notes" id="as2cNote" hidden>The first try at sounding like 2c, the voice picked for me below: its measured vowels, its durations (it speaks fast) and its pitch (120 Hz, a livelier melody), put into the arithmetic. Whisper understood it much less (half the words of the test sentences wrong, where the plain arithmetic gets 29%). It is here to be heard, not used.</p>
+  <p class="notes" id="fitNote" hidden>The second try: nothing measured, everything fitted. The synthesiser rendered 2c's sentences over and over, and 131 of its numbers (every vowel's resonances, the hisses' bands, the stops' loci) were nudged one at a time toward sounding like 2c's recordings, spectrum for spectrum. It got closer to 2c, and further from understandable: Whisper's error rate went from 29% to 36% on the test sentences. Looking alike on average blurs the sounds into each other.</p>
   <div id="phones"></div>
 
   <section id="audition" hidden>

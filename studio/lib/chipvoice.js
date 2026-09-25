@@ -15,6 +15,7 @@
 // measure: studio/tools/voice.mjs scores it with Whisper.
 
 import { PROFILE } from './chipvoice-profile.js';
+import { FIT } from './chipvoice-fit.js';
 
 // ---- text ----------------------------------------------------------------------------
 /** The words of a text, lowercased, apostrophes kept ("it's"). */
@@ -76,11 +77,12 @@ export const VOICE = {
   functionWords: 0,    // "the", "of", "a" said quickly (off: Whisper lost them, 39% → 33% WER)
   lightDarkL: 1,       // L light before a vowel, dark after
   aspiration: 1,       // longer aspiration into a stressed vowel
+  fit: 0,              // 1: targets fitted to the reference voice by analysis by synthesis (chipvoice-fit.js)
   profile: 0,          // the reference voice (chipvoice-profile.js) over the textbook: 1 its vowels, 2 its durations, 3 both
 };
 /** A phoneme's targets: the textbook's, or where the reference voice was measured, its (in Hz, so unscaled). */
-function phone(p, voice) {
-  const P = PHONES[p], m = (voice.profile & 1) && PROFILE.vowels[p];
+export function phone(p, voice) {
+  const f = voice.fit && FIT[p], P = f ? { ...PHONES[p], ...f } : PHONES[p], m = (voice.profile & 1) && PROFILE.vowels[p];
   if (!m) return P;
   if (P.kind === 'd') return m.F2 ? { ...P, F: m.F.map((f) => f / voice.scale), F2: m.F2.map((f) => f / voice.scale) } : P;
   return { ...P, F: m.F.map((f) => f / voice.scale) };
@@ -155,8 +157,8 @@ export function tracks(timed, voice = VOICE) {
   const T = [];
   let seg = 0;
   const push = (n, fn) => { for (let k = 0; k < n; k++) T.push({ seg, ...fn(k / Math.max(1, n - 1)) }); };
-  const nextVowelF = (i) => { for (let j = i + 1; j < timed.length; j++) { if (timed[j].pause) break; if (isVowel(timed[j].p)) return PHONES[timed[j].p].F; } return [500, 1500, 2500]; };
-  const prevF = (i) => { for (let j = i - 1; j >= 0; j--) { if (timed[j].pause) break; const P = PHONES[timed[j].p]; if (P.F) return P.kind === 'd' ? P.F2 : P.F; } return null; };
+  const nextVowelF = (i) => { for (let j = i + 1; j < timed.length; j++) { if (timed[j].pause) break; if (isVowel(timed[j].p)) return phone(timed[j].p, voice).F; } return [500, 1500, 2500]; };
+  const prevF = (i) => { for (let j = i - 1; j >= 0; j--) { if (timed[j].pause) break; const P = phone(timed[j].p, voice); if (P.F) return P.kind === 'd' ? P.F2 : P.F; } return null; };
   const quiet = { AV: 0, AH: 0, AF: 0, fr: null, bypass: 0, nasal: 0 };
   timed.forEach((x, i) => {
     seg = i;
@@ -191,7 +193,7 @@ export function tracks(timed, voice = VOICE) {
         // the closure: silence, or a voice bar under a voiced stop
         push(closure, () => ({ F: locus, B: [80, 200, 300], AV: P.voiced ? 0.12 : 0, AH: 0, AF: 0, nasal: 0, closure: true }));
         if (P.kind === 'a') {
-          const Fr = PHONES[P.fric];
+          const Fr = phone(P.fric, voice);
           push(2, () => ({ F: Fr.F, AV: 0, AH: 0, AF: 1.0, fr: PHONES.T.burst.fr, bypass: 0.1, nasal: 0, burst: true }));
           push(Math.round((P.voiced ? 75 : 105) / FRAME / voice.rate), (u) => ({ F: Fr.F, AV: P.voiced ? 0.3 : 0, AH: 0, AF: (P.voiced ? 0.95 : 1.15) * (1 - 0.4 * u), fr: Fr.fr, bypass: Fr.bypass, nasal: 0 }));
         } else {
@@ -212,7 +214,7 @@ export function tracks(timed, voice = VOICE) {
   T.forEach((t, k) => { (span[t.seg] = span[t.seg] || [k, k])[1] = k; });
   timed.forEach((x, i) => {
     if (x.pause || !['R', 'W', 'Y'].includes(x.p)) return;
-    const G = PHONES[x.p].F, K = Math.round(60 / FRAME / voice.rate);
+    const G = phone(x.p, voice).F, K = Math.round(60 / FRAME / voice.rate);
     const nx = timed[i + 1], pv = timed[i - 1];
     if (nx && !nx.pause && isVowel(nx.p) && span[i + 1]) {
       const [a0, a1] = span[i + 1];

@@ -269,6 +269,16 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   (1 vowels, 2 durations) stays 0. Using the reference well probably means fitting the whole
   synthesiser to it at once (analysis by synthesis), or a model.
 
+- **Analysis by synthesis** (`tools/voice-fit.mjs`, 2026-09-25): nothing measured, everything
+  fitted. 131 targets (vowel and glide formants, diphthong ends, fricative bands, stop loci and
+  bursts; ±35% of the textbook) by coordinate descent on the synthesiser's own rendering of 2c's
+  sentences against the recordings (MFCC distance after word-by-word DTW; timing not fitted).
+  3 step sizes, ~7 min. The loss fell 37.4 → 33.8, the same on the held-out list 5 (it
+  generalises). Whisper: Harvard 29.2% → 35.9%, paragraph 11% → 28%. **Spectral likeness is not
+  intelligibility**: matching the reference on average pulls phonemes toward each other and loses
+  the contrasts a listener uses. `VOICE.fit` (lib/chipvoice-fit.js) stays 0; the page plays it.
+  Next: a loss that also keeps phonemes apart, or Whisper in the loop on a few parameters.
+
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
 R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word
