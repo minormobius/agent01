@@ -751,7 +751,7 @@
       "dir": "rite",
       "endpoint": "rite.mino.mobi",
       "type": "fullstack",
-      "branch": "claude/syllable-word-generator-yhw8wj",
+      "branch": "claude/rite-deploy-font-jblfj2",
       "uses": [
         "atpolls-db"
       ],
@@ -763,7 +763,8 @@
         "poll/apps/api/migrations/0016_ask_map.sql",
         "poll/apps/api/migrations/0017_signal.sql"
       ],
-      "cohesion": "integrated"
+      "cohesion": "integrated",
+      "status": "OWNERSHIP (2026-09-25): taken by claude/rite-deploy-font-jblfj2 from claude/syllable-word-generator-yhw8wj with scripts/take-ownership.mjs (no work of the old owner lost). "
     },
     {
       "surface": "pod",
