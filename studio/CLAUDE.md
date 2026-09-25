@@ -277,7 +277,14 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   generalises). Whisper: Harvard 29.2% → 35.9%, paragraph 11% → 28%. **Spectral likeness is not
   intelligibility**: matching the reference on average pulls phonemes toward each other and loses
   the contrasts a listener uses. `VOICE.fit` (lib/chipvoice-fit.js) stays 0; the page plays it.
-  Next: a loss that also keeps phonemes apart, or Whisper in the loop on a few parameters.
+  Then **a listener's loss** (`--loss classify`): a nearest-centroid phoneme classifier built from the
+  reference's frames (labelled once by aligning the textbook voice's rendering onto them) judges
+  the synthesiser's phonemes; the loss is its negative log-probability of the right one. It fell
+  2.73 → 2.59 (held out 2.67 → 2.55), and Whisper got WORSE: Harvard 48.7%, paragraph 34%. The
+  proxy was gamed (e.g. F3s collapsing onto F2s, which the MFCC classifier doesn't mind). Both
+  fits are kept in lib/chipvoice-fit.js (`VOICE.fit` 1 likeness, 2 classify) and play on the page.
+  Lesson: only a real listener should steer it. Next: Whisper in the loop (slow: ~20 s an
+  evaluation), on few parameters, with the formants' order kept (F1 < F2 < F3).
 
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as

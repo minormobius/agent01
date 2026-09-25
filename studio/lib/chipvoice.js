@@ -15,7 +15,7 @@
 // measure: studio/tools/voice.mjs scores it with Whisper.
 
 import { PROFILE } from './chipvoice-profile.js';
-import { FIT } from './chipvoice-fit.js';
+import { FITS } from './chipvoice-fit.js';
 
 // ---- text ----------------------------------------------------------------------------
 /** The words of a text, lowercased, apostrophes kept ("it's"). */
@@ -77,12 +77,12 @@ export const VOICE = {
   functionWords: 0,    // "the", "of", "a" said quickly (off: Whisper lost them, 39% → 33% WER)
   lightDarkL: 1,       // L light before a vowel, dark after
   aspiration: 1,       // longer aspiration into a stressed vowel
-  fit: 0,              // 1: targets fitted to the reference voice by analysis by synthesis (chipvoice-fit.js)
+  fit: 0,              // targets fitted to the reference voice (chipvoice-fit.js): 1 for likeness, 2 for a listener's sake
   profile: 0,          // the reference voice (chipvoice-profile.js) over the textbook: 1 its vowels, 2 its durations, 3 both
 };
 /** A phoneme's targets: the textbook's, or where the reference voice was measured, its (in Hz, so unscaled). */
 export function phone(p, voice) {
-  const f = voice.fit && FIT[p], P = f ? { ...PHONES[p], ...f } : PHONES[p], m = (voice.profile & 1) && PROFILE.vowels[p];
+  const f = voice.fit && FITS[voice.fit === 2 ? 'classify' : 'likeness'][p], P = f ? { ...PHONES[p], ...f } : PHONES[p], m = (voice.profile & 1) && PROFILE.vowels[p];
   if (!m) return P;
   if (P.kind === 'd') return m.F2 ? { ...P, F: m.F.map((f) => f / voice.scale), F2: m.F2.map((f) => f / voice.scale) } : P;
   return { ...P, F: m.F.map((f) => f / voice.scale) };

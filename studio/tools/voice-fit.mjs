@@ -62,6 +62,16 @@ function mfcc(x) {
   return out.map((v) => v.map((x, c) => x - mean[c]));
 }
 const d2 = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += (a[i] - b[i]) ** 2; return Math.sqrt(s); };
+/** For each of A's frames, the B frame the best monotonic path pairs it with. */
+function dtwPath(A, B) {
+  const n = A.length, m = B.length, acc = Array.from({ length: n + 1 }, () => new Float64Array(m + 1).fill(Infinity));
+  acc[0][0] = 0;
+  for (let i = 1; i <= n; i++) for (let j = 1; j <= m; j++) acc[i][j] = d2(A[i - 1], B[j - 1]) + Math.min(acc[i - 1][j - 1], acc[i - 1][j], acc[i][j - 1]);
+  const to = new Int32Array(n);
+  let i = n, j = m;
+  while (i > 0 && j > 0) { to[i - 1] = j - 1; const a = acc[i - 1][j - 1], b = acc[i - 1][j], c = acc[i][j - 1]; if (a <= b && a <= c) { i--; j--; } else if (b <= c) i--; else j--; }
+  return to;
+}
 /** Aligned distance: the mean cost along the best monotonic path from A's frames through B's. */
 function dtwCost(A, B) {
   const n = A.length, m = B.length; let prev = new Float64Array(m + 1).fill(Infinity), cur = new Float64Array(m + 1);
@@ -110,7 +120,50 @@ function lossOf(u, voice) {
   }
   return n ? s / n : 0;
 }
-const total = (set, voice) => set.reduce((s, u) => s + lossOf(u, voice), 0) / set.length;
+// --loss classify: a stand-in listener. The reference's frames, labelled once by aligning the
+// textbook voice's rendering onto them, give each phoneme a centroid; the loss is how badly a
+// nearest-centroid classifier trained on the REFERENCE recognises the SYNTHESISER's phonemes (the
+// mean negative log-probability of the right one, over the middle half of each phoneme). Likeness
+// on average rewarded blurring phonemes together; this punishes it.
+const LOSS = argv.includes('--loss') ? argv[argv.indexOf('--loss') + 1] : 'likeness';
+let CENT = null, TAU = 1;
+function middles(tm, tr) {
+  const spans = {};
+  tr.forEach((t, k) => { if (tm[t.seg].p) (spans[t.seg] = spans[t.seg] || []).push(k); });
+  return Object.entries(spans).map(([seg, ks]) => ({ p: tm[seg].p, ks: ks.slice(Math.floor(ks.length / 4), Math.max(Math.floor(ks.length / 4) + 1, Math.ceil((3 * ks.length) / 4))) }));
+}
+function buildCentroids(set, voice) {
+  const acc = {};
+  for (const u of set) {
+    const tm = timing(phonemize(u.text, lex), voice), tr = tracks(tm, voice), A = mfcc(renderFormant(tr, { rate: SR, voice }));
+    const byWord = {};
+    tr.forEach((t, k) => { const w = tm[t.seg].word; if (w !== undefined && k < A.length) (byWord[w] = byWord[w] || []).push(k); });
+    const refOf = new Map();
+    for (const [w, ks] of Object.entries(byWord)) { const sp = u.spans[w]; if (!sp || sp[1] - sp[0] < 2) continue; const to = dtwPath(ks.map((k) => A[k]), u.R.slice(sp[0], sp[1])); ks.forEach((k, i) => refOf.set(k, sp[0] + to[i])); }
+    for (const { p, ks } of middles(tm, tr)) for (const k of ks) if (refOf.has(k)) { const a = (acc[p] = acc[p] || { s: new Float64Array(12), n: 0 }); const r = u.R[refOf.get(k)]; for (let c = 0; c < 12; c++) a.s[c] += r[c]; a.n++; }
+  }
+  CENT = Object.fromEntries(Object.entries(acc).filter(([, a]) => a.n >= 8).map(([p, a]) => [p, Array.from(a.s, (x) => x / a.n)]));
+  // a temperature: the typical distance between centroids
+  const cs = Object.values(CENT); let s = 0, n = 0;
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) { s += d2(cs[i], cs[j]); n++; }
+  TAU = s / n / 3;
+  console.log(`classifier: ${cs.length} phoneme centroids from the reference, temperature ${TAU.toFixed(2)}`);
+}
+function classifyLoss(u, voice) {
+  const tm = timing(phonemize(u.text, lex), voice), tr = tracks(tm, voice), A = mfcc(renderFormant(tr, { rate: SR, voice }));
+  const names = Object.keys(CENT); let s = 0, n = 0;
+  for (const { p, ks } of middles(tm, tr)) {
+    if (!CENT[p]) continue;
+    for (const k of ks) {
+      if (k >= A.length) continue;
+      const z = names.map((q) => -d2(A[k], CENT[q]) / TAU), mx = Math.max(...z);
+      const lse = mx + Math.log(z.reduce((a, b) => a + Math.exp(b - mx), 0));
+      s += lse - z[names.indexOf(p)]; n++;
+    }
+  }
+  return n ? s / n : 0;
+}
+const total = (set, voice) => set.reduce((s, u) => s + (LOSS === 'classify' ? classifyLoss(u, voice) : lossOf(u, voice)), 0) / set.length;
 
 // ---- the parameters: every target the textbook sets, within ±35% of it ---------------------------------
 const FIT = {};
@@ -134,13 +187,16 @@ function set(q, v) {
   FIT[q.p] = next;
 }
 // the fit writes into chipvoice's FIT table, which phone() reads when voice.fit is 1
-const { FIT: LIVE } = await import('../lib/chipvoice-fit.js');
+const NAME = argv.includes('--loss') && argv[argv.indexOf('--loss') + 1] === 'classify' ? 'classify' : 'likeness';
+const { FITS } = await import('../lib/chipvoice-fit.js');
+const LIVE = FITS[NAME];
 const sync = () => { for (const k of Object.keys(LIVE)) delete LIVE[k]; Object.assign(LIVE, FIT); };
-const voice = { ...VOICE, fit: 1 };
+const voice = { ...VOICE, fit: NAME === 'classify' ? 2 : 1 };
 const train = utts.filter((u) => !u.held), held = utts.filter((u) => u.held);
 const subset = (p) => { const s = train.filter((u) => u.phones.has(p)); return s.length > 14 ? s.filter((_, i) => i % Math.ceil(s.length / 14) === 0) : s; };
 
 sync();
+if (LOSS === 'classify') buildCentroids(train, { ...VOICE, fit: 0 });
 let t0 = Date.now();
 console.log(`${params.length} parameters. loss: train ${total(train, voice).toFixed(3)}, held out ${total(held, voice).toFixed(3)} (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
 for (const step of [0.1, 0.05, 0.025].slice(0, passes + 1)) {
@@ -166,6 +222,9 @@ const round = (o) => JSON.parse(JSON.stringify(o, (k, v) => (typeof v === 'numbe
 const out = Object.fromEntries(Object.entries(FIT).map(([p, f]) => [p, round(Object.fromEntries(Object.entries(f).filter(([k]) => ['F', 'F2', 'fr', 'burst'].includes(k))))]));
 for (const [p, f] of Object.entries(out)) if (f.F) console.log(`${p.padEnd(3)} F ${PHONES[p].F.map(Math.round).join('/')} → ${f.F.map(Math.round).join('/')}${f.F2 ? `   F2 ${PHONES[p].F2.map(Math.round).join('/')} → ${f.F2.map(Math.round).join('/')}` : ''}`);
 if (argv.includes('--write')) {
-  writeFileSync(join(here, '..', 'lib', 'chipvoice-fit.js'), `// chipvoice-fit.js — GENERATED by studio/tools/voice-fit.mjs (analysis by synthesis against the reference voice,\n// ${new Date().toISOString().slice(0, 10)}). Phoneme targets that replace PHONES' when VOICE.fit is 1.\nexport const FIT = ${JSON.stringify(out, null, 0)};\n`);
+  // both fits live in one file; this run replaces its own
+  const all = { ...FITS, [NAME]: out };
+  for (const k of Object.keys(all)) if (k !== NAME) all[k] = JSON.parse(JSON.stringify(all[k]));
+  writeFileSync(join(here, '..', 'lib', 'chipvoice-fit.js'), `// chipvoice-fit.js — GENERATED by studio/tools/voice-fit.mjs: phoneme targets fitted to the reference voice by\n// analysis by synthesis. VOICE.fit 1 uses \`likeness\` (spectra like the reference's), 2 \`classify\` (phonemes a\n// reference-trained classifier recognises). Each replaces PHONES' targets where it has them. Last run: ${NAME}, ${new Date().toISOString().slice(0, 10)}.\nexport const FITS = {\n${Object.entries(all).map(([k, v]) => `${k}: ${JSON.stringify(v)},`).join('\n')}\n};\n`);
   console.log('wrote studio/lib/chipvoice-fit.js');
 }
