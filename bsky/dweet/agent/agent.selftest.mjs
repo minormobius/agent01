@@ -212,7 +212,7 @@ const json = (r) => { try { return JSON.parse(r.stdout); } catch { return null; 
     /\ndescription: .{80,}/.test(skill));
   // Every command the skill advertises must exist, or it sends an agent at a
   // file that is not there.
-  for (const tool of ['check.mjs', 'render.mjs', 'link.mjs', 'feed.mjs']) {
+  for (const tool of ['check.mjs', 'render.mjs', 'link.mjs', 'feed.mjs', 'publish.mjs']) {
     ok(`the skill's ${tool} exists`, existsSync(join(AGENT, tool)));
     ok(`…and the skill mentions it`, skill.includes(tool));
   }

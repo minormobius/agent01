@@ -296,7 +296,7 @@ contract than picking a unit.
 | `event.js` | one place that knows the Jetstream wire shape |
 | `event.selftest.mjs` | pinned to a payload captured off the live firehose |
 | `SKILL.md` · `llms.txt` | the agent's way in — served, and a Claude Code skill |
-| `agent/*.mjs` | the headless tools: `check`, `render`, `link`, `feed` |
+| `agent/*.mjs` | the headless tools: `check`, `render`, `link`, `feed`, `publish` |
 | `agent/agent.selftest.mjs` | their exit-code contract, the trust rule, the skill's own claims |
 | `seeds.js` | the house set, shown when the wire is quiet |
 | `index.html` | shell, styles, and the two sheets |
@@ -935,10 +935,25 @@ would want `check` and `link` (both pure) but could not offer `render`
 (Chromium) or `publish` (a browser sign-in), which is most of the value. Worth
 doing when there is a second consumer.
 
-**No headless publish, deliberately.** Writing needs a browser sign-in. A
-script holding a PDS credential is exactly what the shared OAuth worker
-exists to avoid, and a dweet is 256 characters — the cost of pasting one into
-the composer is not the bottleneck.
+**Headless publish — for the house account, through CI.** This section used
+to say there was none, deliberately: a script holding a PDS credential is what
+the OAuth worker exists to avoid. That reasoning is right for a *reader's*
+credential and wrong for a service account's, which is already a GitHub secret
+that half a dozen `seed-*`/`publish-*` workflows use. The principal asked for
+it on 2026-09-25, and the shape is the one those workflows already have:
+
+| | |
+|---|---|
+| `agent/publish.mjs <manifest> [--dry]` | validates every entry with `validate()`, then `createRecord`s the ones not already there |
+| `<dir>/publish.json` | `{ dweets: [ { file, title?, captureTime?, remixOf?, lang? } ] }`, sources resolved beside it |
+| `.github/workflows/publish-dweet.yml` | on push to `claude/dweet-*` touching `bsky/dweet/**/publish.json`, or dispatch; maps `BLUESKY_MORPHYX_*` → `DWEET_HANDLE`/`DWEET_PASSWORD` |
+
+What keeps it safe to leave wired: the credential only exists inside the
+Actions job; the whole batch validates before the first write, so a bad entry
+stops it rather than half-publishing; and it is **idempotent** — the author's
+existing dweets are listed first and any identical `src` + `lang` is skipped,
+because a push re-triggers it and a double post is public. The browser path
+for people is unchanged.
 
 ## Moderation
 

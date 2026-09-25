@@ -44,6 +44,7 @@ write source → check → (render) → judge → golf → …  → publish → 
 | check | `node agent/check.mjs <src> [--at 0,2,4] [--json]` | length against the cap, byte size and its demoscene tier, dwitter portability, **the Bluesky post budget**, and — by running it — **whether it draws anything at each moment**, whether it clears, which canvas API it touches. Exit 1 if invalid, throwing, or blank everywhere |
 | render | `node agent/render.mjs <src> --out DIR [--at t] [--frames n] [--gif a.gif]` | real pixels from the real sandbox: a PNG per frame, lit-pixel counts, `report.json`, optionally an animated GIF. Exit 1 if every frame is blank. Needs Chromium |
 | link | `node agent/link.mjs <src> [--title t]` | the permalink that carries the whole dweet, and the exact post text with its grapheme count |
+| publish | `node agent/publish.mjs <manifest.json> [--dry]` | validates a batch and prints the records; without `--dry` (in CI, with `DWEET_HANDLE`/`DWEET_PASSWORD`) writes them, skipping any already posted |
 | what exists | `node agent/feed.mjs [--tail 30] [--at <handle>]` | dweets on the network — the live firehose, or one repo's records |
 
 `<src>` is the same thing everywhere: **a file**, `-` for stdin,
@@ -136,10 +137,24 @@ A dweet is a `com.minomobi.dweet.dweet` record in the author's **own** repo:
 dweet that draws itself over time shows a black rectangle. Use `check.mjs` to
 find a moment with ink in it, and `render.mjs --at` to look at it.
 
-Writing needs a sign-in, so it happens in the page: open the permalink, press
-**remix**, and post. There is no headless publish — the scope is granted to a
-browser session, not to a script, and a script holding a PDS credential is the
-thing this whole surface is arranged to avoid.
+Two ways, for two kinds of author:
+
+- **A person** posts from the page: open the permalink, press **remix**, post.
+  That is a scoped OAuth sign-in, and nothing about it changed.
+- **The house account** (morphyx) posts headlessly, through CI. Write a
+  manifest beside the sources and push it on a `claude/dweet-*` branch:
+
+  ```json
+  { "dweets": [ { "file": "train.js", "title": "gears: train", "captureTime": 2000 } ] }
+  ```
+
+  `publish-dweet.yml` runs `node agent/publish.mjs <manifest>` with the app
+  password from GitHub secrets — the credential never enters the repo or the
+  sandbox. `lang` comes from the extension (`.glsl` → glsl). Run it yourself
+  with `--dry` first: it validates every entry with the composer's own
+  `validate()` and prints the records it would write. It is idempotent — a
+  dweet already in the repo (same `src` + `lang`) is skipped, so a re-push
+  never double-posts. `workflow_dispatch` takes a manifest path and a dry flag.
 
 ## Handing over
 
