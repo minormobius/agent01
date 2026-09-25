@@ -26,7 +26,7 @@ const GEOM = `#version 300 es
 precision highp float; precision highp sampler2D;
 in vec2 uv;
 layout(location = 0) out vec4 o;
-layout(location = 1) out vec4 o2;      // the face: material code, shade
+layout(location = 1) out vec4 o2;      // the face: material code, shade; zw: the surface's own coordinates (brush strokes)
 uniform sampler2D prims; uniform int count;
 uniform float fp[36];
 uniform vec4 gb[${GROUPS.length}];      // group bounding spheres
@@ -35,6 +35,7 @@ uniform vec3 camC, camR, camU, camF; uniform vec2 halfSize;     // orthographic 
 uniform float persp;                                     // 0 = orthographic, else the focal length
 uniform vec3 headC, headX, headY, headZ; uniform float eyeLine, headW;
 uniform vec3 bmin, bmax;
+uniform vec3 bodyY, bodyZ;                               // the chest's frame: limbs' coordinates turn with the body
 
 vec4 T(int i, int j){ return texelFetch(prims, ivec2(j, i), 0); }
 float sdRoundCone(vec3 p, vec3 a, vec3 b, float r1, float r2){
@@ -261,6 +262,32 @@ vec2 faceAt(vec3 l, float facing){
   }
   return vec2(0.0);
 }
+// The surface's own coordinates at p, on the primitive of group gi that p lies on: along and
+// round a limb, in head units, wrapped to a tile of STROKE_TILE. They move with the body, so
+// brush strokes drawn in them stay painted on it instead of sliding over it as it moves.
+const float STROKE_TILE = 0.6;
+vec2 surfaceUV(vec3 p, int gi){
+  int best = gr[gi].x; float bd = 1e9;
+  for (int i = gr[gi].x; i < gr[gi].y; i++) { float d = primClipped(i, p); if (d < bd) { bd = d; best = i; } }
+  vec4 t0 = T(best, 0), t1 = T(best, 1), t2 = T(best, 2);
+  vec2 uv;
+  if (t2.x < 0.5 || t2.x > 2.5) {
+    // a cone (a limb, a lock, a skirt): along the axis, and round it from the body's front
+    vec3 ax = t1.xyz - t0.xyz; float L = max(length(ax), 1e-4); ax /= L;
+    vec3 ref = abs(dot(ax, bodyZ)) < 0.9 ? bodyZ : bodyY;
+    vec3 e1 = normalize(cross(ax, ref)), e2 = cross(e1, ax);
+    vec3 rel = p - t0.xyz;
+    uv = vec2(atan(dot(rel, e1), dot(rel, e2)) * 0.5 * (t0.w + t1.w), dot(rel, ax));
+  } else {
+    // an ellipsoid: round its y axis, and up it
+    vec4 t3 = T(best, 3), t4 = T(best, 4), t5 = T(best, 5);
+    vec3 rel = p - t0.xyz; vec3 l = vec3(dot(rel, t3.xyz), dot(rel, t4.xyz), dot(rel, t5.xyz));
+    uv = vec2(atan(l.x, l.z) * 0.5 * (t3.w + t5.w), l.y);
+  }
+  // each primitive its own offset, so neighbours don't repeat one another
+  uv += fract(vec2(float(best) * 0.6180339, float(best) * 0.7548777)) * STROKE_TILE;
+  return fract(uv / STROKE_TILE);
+}
 vec2 box(vec3 ro, vec3 rd){
   vec3 inv = 1.0 / rd; vec3 t0 = (bmin - ro) * inv, t1 = (bmax - ro) * inv;
   vec3 lo = min(t0, t1), hi = max(t0, t1);
@@ -294,6 +321,7 @@ void main(){
     if (fp[0] > 0.5) { vec2 fa = faceAt(l, dot(n, headZ)); o2 = vec4(fa.x / 255.0, fa.y, 0.0, 1.0); }
     else if (l.z > 0.05 && ((abs(l.x) < 0.012 && l.y > -0.08) || (abs(l.y - eyeLine) < 0.012 && abs(l.x) < headW * 0.5))) mark = 1.0;
   }
+  o2.zw = surfaceUV(p, int(h.y));
   float depth = clamp(dot(p - (camC - camF * 30.0), camF) / 60.0, 0.0, 1.0);
   o = vec4(nv.xy * 0.5 + 0.5, depth, (h.y + 1.0 + mark * 64.0) / 255.0);
 }`;
@@ -307,7 +335,7 @@ uniform vec3 irisTop, irisBot, irisDark, browC, mouthC, tongueC, blushC;
 uniform vec3 light;                              // in view space
 uniform vec3 base[${GROUPS.length}], shade[${GROUPS.length}];
 uniform vec3 inkC, paper; uniform float wOut, wIn, wCrease, wVar;
-uniform vec3 rimC; uniform float rimK, warmK;
+uniform vec3 rimC; uniform float rimK, warmK, brushK;
 uniform float bgAlpha;
 
 vec4 G(vec2 q){ return texture(g, q); }
@@ -359,12 +387,32 @@ vec3 faceTone(vec3 skin, vec4 f){
   if (code < 10.5) return vec3(1.0);
   return mix(skin, blushC * 0.8, 0.85);
 }
+// brush strokes in the surface's own coordinates (the geometry pass's zw): a cell a stroke,
+// narrow round the limb and long along it, each with its own tilt, offset and weight.
+// Returns the stroke's weight in −1…1 where a stroke lies, 0 between them.
+float h21(vec2 c){ return fract(sin(dot(c, vec2(127.1, 311.7))) * 43758.5453); }
+float strokeAt(vec2 st){
+  vec2 g = st * vec2(6.0, 3.0), cell = floor(g), f = fract(g) - 0.5;
+  float r1 = h21(cell), r2 = h21(cell + 17.3), r3 = h21(cell + 41.9);
+  float a = (r2 - 0.5) * 0.7, ca = cos(a), sa = sin(a);
+  f -= (vec2(r1, r3) - 0.5) * vec2(0.35, 0.25);
+  f = vec2(ca * f.x - sa * f.y, sa * f.x + ca * f.y);
+  float d = length(vec2(f.x / 0.32, max(0.0, abs(f.y) - 0.28) / 0.2));  // a capsule: tapered at its ends
+  return d < 1.0 ? (r1 * 2.0 - 1.0) : 0.0;
+}
 vec3 tone(vec2 q){
   vec4 c = G(q); float id = gid(c);
   if (id == 0.0) return paper;
   int gi = int(id) - 1;
   vec3 n = N(c);
   float l = dot(n, light);
+  float sk = 0.0;
+  if (brushK > 0.0 && gi != 1) {
+    // the terminator broken into strokes, and each stroke its own mix of the paint (the face
+    // stays clean, as anime keeps it)
+    sk = strokeAt(texture(fm, q).zw);
+    l += brushK * 0.16 * sk;
+  }
   // one hard terminator, well round toward the light; a face stays lit (anime shades a face only at its far side)
   float lit = gi == 1 ? smoothstep(-0.12, -0.06, l) : smoothstep(0.26, 0.32, l);
   vec3 col = mix(shade[gi], base[gi], lit);
@@ -381,6 +429,7 @@ vec3 tone(vec2 q){
     float graze = smoothstep(0.58, 0.64, 1.0 - n.z) * smoothstep(-0.05, 0.25, dot(normalize(n.xy + 1e-5), -light.xy));
     col = mix(col, rimC, graze * rimK);
   }
+  col *= 1.0 + brushK * 0.045 * sk;
   if (gi == 1) col = faceTone(col, texture(fm, q));
   if (gi >= 6 && gi < 10) {
     // the angel ring: a band of light across the upper curve of the hair, its edges cut in zigzags
@@ -428,6 +477,7 @@ export const STYLE = {
   lines: { out: 2.6, in: 1.5, crease: 1.2, vary: 0.5 },   // in geometry texels (twice the output pixels); vary: the outline's swing, light side to shadow side
   warm: 0.6,                               // the warm band inside skin's terminator
   rim: null,                               // { color, k }: a coloured back light along the edge (a stage's)
+  brush: 0,                                // brush strokes painted on the surface (0 off, 1 full): the shadow's edge in strokes
 };
 
 /**
@@ -487,6 +537,7 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
     gl.uniform2f(U(pg, 'halfSize'), cam.halfW, cam.halfH); gl.uniform1f(U(pg, 'persp'), cam.persp || 0);
     const HF = P.F.head, hc = add(P.J.headPivot, [0, 0, 0]);
     gl.uniform3f(U(pg, 'headC'), ...hc); gl.uniform3f(U(pg, 'headX'), ...HF.x); gl.uniform3f(U(pg, 'headY'), ...HF.y); gl.uniform3f(U(pg, 'headZ'), ...HF.z);
+    gl.uniform3f(U(pg, 'bodyY'), ...(P.F?.chest?.y || [0, 1, 0])); gl.uniform3f(U(pg, 'bodyZ'), ...(P.F?.chest?.z || [0, 0, 1]));
     gl.uniform1f(U(pg, 'eyeLine'), P.rig.m.head.eyeLine - P.rig.m.head.pivotUp); gl.uniform1f(U(pg, 'headW'), P.rig.m.head.width);
     // the face: one geometry texel in head units keeps its finest lines at least a pixel wide
     const texel = (2 * cam.halfH) / gh;
@@ -513,6 +564,7 @@ export function makeRenderer(canvas, { supersample = 2 } = {}) {
     gl.uniform1f(U(pi, 'wOut'), style.lines.out); gl.uniform1f(U(pi, 'wIn'), style.lines.in); gl.uniform1f(U(pi, 'wCrease'), style.lines.crease);
     gl.uniform1f(U(pi, 'wVar'), style.lines.vary ?? 0); gl.uniform1f(U(pi, 'warmK'), style.warm ?? 0);
     gl.uniform3f(U(pi, 'rimC'), ...hex(style.rim?.color || '#ffffff')); gl.uniform1f(U(pi, 'rimK'), style.rim?.k ?? 0);
+    gl.uniform1f(U(pi, 'brushK'), style.brush ?? 0);
     gl.uniform1f(U(pi, 'bgAlpha'), style.paperFill ? 1 : 0);
     gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
     gl.drawArrays(gl.TRIANGLES, 0, 3);

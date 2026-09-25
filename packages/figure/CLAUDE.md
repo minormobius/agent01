@@ -348,4 +348,11 @@ Three things in the ink pass (shader.js), each a STYLE field:
   side turned away (one more texel fetch per direction; 0 turns it off).
 - `rim` ({ color, k }, off by default): a hard band of a back light's colour along the
   edge turned from the key. P(doom) passes the section's LED-wall colour, kicked by the beat.
+- `brush` (0 off, 1 full): brush strokes painted ON the body. The geometry pass finds the
+  primitive a pixel lies on and writes that primitive's own coordinates (along and round a
+  cone, round and up an ellipsoid, from the chest's frame; wrapped to a 0.6-head tile, offset
+  per primitive) into the face texture's spare zw. The ink pass lays a capsule stroke per
+  cell in those coordinates and shifts the terminator and the paint by each stroke's weight.
+  So strokes move with the limb they are on, never slide over it. Not the face. P(doom)'s
+  look button: anime → brush → PC-98.
 

@@ -9,7 +9,8 @@
 //   ?silent            the dance without the song (an internal clock)
 //   ?offset=0.12       the song's offset against YouTube's clock, in seconds
 //   ?shot=face         hold one kind of shot (face, bust, full, hand, wide) on Mino
-//   ?look=pc98         the PC-98 look: 16 colours, 400 lines, dithered (pc98.js; the button too)
+//   ?look=brush        the look: anime (flat cels), brush (strokes painted on the body), or
+//   ?look=pc98         pc98 (16 colours, 400 lines, dithered: pc98.js). The button cycles them
 
 import { makeRig, solve } from '../vendor/figure/lib/rig.js';
 import { buildBody } from '../vendor/figure/lib/body.js';
@@ -148,15 +149,20 @@ const dpr = Math.min(2, window.devicePixelRatio || 1);
 let quality = 1, frameMs = 16, lastFrame = 0;
 function size() { cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); }
 size(); addEventListener('resize', size);
-// the PC-98 look: a post-pass over the finished frame, onto a canvas laid over the stage
+// the looks: anime; brush (the ink pass paints the shadow's edge in strokes pinned to the body);
+// pc98 (a post-pass over the finished frame, onto a canvas laid over the stage)
+const LOOKS = ['anime', 'brush', 'pc98'];
 let post = null;
-const look = { pc98: qs.get('look') === 'pc98' };
-function setLook(on) {
+const look = { name: LOOKS.includes(qs.get('look')) ? qs.get('look') : 'anime', pc98: false };
+function setLook(name) {
+  look.name = name;
+  const on = name === 'pc98';
   // pinned: the ink, the skin in light and shade, and each dancer's hair; the other 8 follow the stage
   const fixed = [INK.ink, INK.skin, INK.skinShade, ...new Set(CAST.map((c) => hairColors(c.spec.hair).base))];
   if (on && !post) { try { post = makePC98(document.getElementById('post'), { fixed }); } catch { post = null; } }
   look.pc98 = on && !!post;
   document.body.classList.toggle('pc98', look.pc98);
+  document.getElementById('look').textContent = { anime: 'look: anime', brush: 'look: brush', pc98: 'look: PC-98' }[look.name];
 }
 
 function poseAt(d, beat) {
@@ -224,7 +230,7 @@ function frame() {
     d.gaze = [dot(toCam, d.P.F.head.x), dot(toCam, d.P.F.head.y)].map((v) => Math.max(-1, Math.min(1, v * 2.2)));
     // lines thin with the figure: an outline drawn for a close-up is as thick as a finger in a wide shot
     const ls = Math.max(0.55, Math.min(1, (pxPerHead * q) / 70));
-    d.R.draw(buildBody(d.P, { hands: handDetail(d.P, crop, d.canvas.height) }), d.P, crop, { ...INK, lines: { out: 2.6 * ls, in: 1.5 * ls, crease: 1.2 * ls, vary: 0.5 }, rim });
+    d.R.draw(buildBody(d.P, { hands: handDetail(d.P, crop, d.canvas.height) }), d.P, crop, { ...INK, lines: { out: 2.6 * ls, in: 1.5 * ls, crease: 1.2 * ls, vary: 0.5 }, rim, brush: look.name === 'brush' ? 1 : 0 });
     ctx.drawImage(d.canvas, x0, y0, bw, bh);
   }
   drawFront(ctx, cam, W, H, S);
@@ -271,8 +277,8 @@ fetch('./report.json').then((r) => r.json()).then((rep) => {
     list.append(li);
   }
 }).catch(() => {});
-setLook(look.pc98);
-document.getElementById('look').addEventListener('click', () => { setLook(!look.pc98); if (clock.mode === 'still') frame(); });
+setLook(look.name);
+document.getElementById('look').addEventListener('click', () => { setLook(LOOKS[(LOOKS.indexOf(look.name) + 1) % LOOKS.length]); if (clock.mode === 'still') frame(); });
 document.getElementById('bench').addEventListener('click', () => document.getElementById('report').toggleAttribute('hidden'));
 
 if (qs.has('silent')) playSilent();
