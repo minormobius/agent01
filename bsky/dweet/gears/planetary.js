@@ -1,0 +1,1 @@
+x.setTransform(1,0,0,1,960,540);g=(m,s,a=0,X=0)=>{for(x.beginPath(q=0,x.fillStyle=R(k=m%36*14,k,99));q<7;q+=.01)x.lineTo(X+C(q)*(r=10*m+s*S(m*(q-a))),S(q)*r);x.fill()};g(42,0);g(36,-12);g(18,12,3*t);x.rotate(t);for(i=3;i--;x.rotate(2.094))g(9,-12,-4*t,270)

@@ -1,0 +1,1 @@
+c.width|=0;x.translate(960,540);for(q=0;q<t%18.85;q+=.01)x.lineTo(300*C(q)+120*C(p=q*5/3),300*S(q)-120*S(p));x.rotate(t);for(q=0;q<13;q+=.01)k=q>6.3,m=48-30*k,x.lineTo(300*k+C(q)*(r=10*m-9*S(m*q+48*t)),S(q)*r);x.lineWidth=4;x.strokeStyle='#fc0';x.stroke()

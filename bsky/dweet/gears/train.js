@@ -1,0 +1,1 @@
+c.width|=0;a=t;X=n=0;for(i=0;i<7;){m=6+i*7%5*2;n&&(X+=14*(n+m),a=3.14-n*a/m);n=m;for(x.beginPath(q=0,x.fillStyle=R(k=i++%2*200+55,160,310-k));q<6.3;q+=.005)x.lineTo(X+C(q)*(r=14*m+13*S(1.5*S(m*(q-a)))),540+S(q)*r);x.fill();x.clearRect(X-9,531,18,18)}

@@ -1,0 +1,1 @@
+c.width|=0;a=t;x.lineWidth=4;for(i=0;i<9;i++,a/=-4)for(j=2;j--;x.fill(),x.stroke()){x.beginPath(x.fillStyle=j?i%2?'#468':'#579':'#fb0');for(q=0;q<6.3;q+=.01)x.lineTo(160+200*i+C(q)*(r=(m=j?40:10)*4+5*S(m*(q-a))),540+S(q)*r)}
