@@ -113,7 +113,7 @@ fetch('./candidates/candidates.json').then((r) => (r.ok ? r.json() : null)).then
   $('audition').hidden = false;
   for (const k of c.candidates) {
     const li = document.createElement('li');
-    li.innerHTML = `<div><span class="n">${k.n}</span><span class="d">${k.description}</span></div><audio controls preload="none" src="./candidates/${k.n}.mp3"></audio>`;
+    li.innerHTML = `<div><span class="n">${k.n}</span><span class="d">${k.measured || ''}</span></div><div class="d">${k.description}</div><audio controls preload="none" src="./candidates/${k.n}.mp3"></audio>`;
     $('candidates').append(li);
   }
 }).catch(() => {});

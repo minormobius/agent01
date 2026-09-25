@@ -6,37 +6,44 @@
    "n": "1a",
    "description": "A calm, warm, slightly low voice. Unhurried and precise, a little dry, quietly amused. Clear diction, a neutral accent, close to the microphone, studio quality.",
    "generated_voice_id": "QU0g49RaRoDllY1qJkxO",
-   "seconds": 20.978166666666667
+   "seconds": 20.978166666666667,
+   "measured": "78 Hz \u00b7 a flat melody (2.6 semitones) \u00b7 21.0 s"
   },
   {
    "n": "1b",
    "description": "A calm, warm, slightly low voice. Unhurried and precise, a little dry, quietly amused. Clear diction, a neutral accent, close to the microphone, studio quality.",
    "generated_voice_id": "Rf8JeD5Q2jTtTSGCgYDr",
-   "seconds": 21.448375
+   "seconds": 21.448375,
+   "measured": "80 Hz \u00b7 flat (2.3 semitones) \u00b7 21.4 s"
   },
   {
    "n": "1c",
    "description": "A calm, warm, slightly low voice. Unhurried and precise, a little dry, quietly amused. Clear diction, a neutral accent, close to the microphone, studio quality.",
    "generated_voice_id": "3fsM4Pgdpx0SDu1dpcqi",
-   "seconds": 20.325125
+   "seconds": 20.325125,
+   "measured": "190 Hz \u00b7 3.1 semitones \u00b7 20.3 s"
   },
   {
    "n": "2a",
    "description": "A mid-low, gender-neutral voice, calm and thoughtful, speaking precisely with gentle warmth and a hint of dry humour. A neutral accent, a clean studio recording.",
    "generated_voice_id": "Tem0bPqH4cB0K4J8WAXC",
-   "seconds": 23.485958333333333
+   "seconds": 23.485958333333333,
+   "measured": "112 Hz \u00b7 4.7 semitones \u00b7 23.5 s, unhurried"
   },
   {
    "n": "2b",
    "description": "A mid-low, gender-neutral voice, calm and thoughtful, speaking precisely with gentle warmth and a hint of dry humour. A neutral accent, a clean studio recording.",
    "generated_voice_id": "TkxJjHKZb4uvy03s0BSq",
-   "seconds": 17.138166666666667
+   "seconds": 17.138166666666667,
+   "measured": "89 Hz \u00b7 the most melodic (5.8 semitones) \u00b7 17.1 s, the quickest"
   },
   {
    "n": "2c",
    "description": "A mid-low, gender-neutral voice, calm and thoughtful, speaking precisely with gentle warmth and a hint of dry humour. A neutral accent, a clean studio recording.",
    "generated_voice_id": "NkiasLzNGB7MWA6gNgU4",
-   "seconds": 23.485958333333333
+   "seconds": 23.485958333333333,
+   "measured": "125 Hz \u00b7 4.6 semitones \u00b7 23.5 s"
   }
- ]
+ ],
+ "note": "measured: median pitch, the melody's range (10th to 90th percentile), the paragraph's length. Whisper base.en reads all six perfectly."
 }

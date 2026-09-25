@@ -241,6 +241,16 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   scores ~0–3% on the same sentences with the same judge. Its spectrograms were what showed the
   fricatives reaching down to 0 Hz.
 
+- **The reference voice** (ElevenLabs): `.github/workflows/voice-ref.yml` runs
+  `tools/voice-ref.mjs` when `tools/voice-ref/request.json` changes on this branch, with the key
+  as a GitHub secret (it never reaches the repo or the sandbox), and commits what it made. Steps:
+  `design` (candidate voices, to `voice/candidates/`, auditioned on the page), `save` (the owner's
+  pick, to `tools/voice-ref/voice.json`), `speak` (the test set with character timings, 16 kHz
+  WAV + JSON, to `tools/voice-ref/<voice_id>/`, unserved). The formant voice is measured and
+  tuned against it; it is a reference, not the page's voice. Its commit is by GITHUB_TOKEN, so it
+  does not deploy: the next push from here does. Using its audio to TRAIN a model waits on
+  reading ElevenLabs' terms; the owner's own recordings are the clean source for that.
+
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
 R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word
