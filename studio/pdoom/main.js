@@ -47,11 +47,22 @@ const dancers = CAST.map((c, i) => {
   const rig = makeRig(c.spec);
   // alive: springs over the keyframes (overlap, overshoot, settle) and breath; each dancer its own seed
   const D = liveDance(playDance(rig, compiled.dancers[i]), { spb: 60 / SONG.bpm, seed: i, rig });
-  const canvas = document.createElement('canvas');
-  let R = null;
-  try { R = makeRenderer(canvas, { supersample: 1 }); } catch {}
-  return { ...c, rig, D, canvas, R, gaze: [0, 0], P: null };
+  return { ...c, rig, D, gaze: [0, 0], P: null };
 });
+
+// ---- one WebGL context for every dancer -------------------------------------------------
+// Each dancer used to have its own; with the post-pass that was six, and a phone drops
+// contexts under memory pressure (a rotation, a trip to another tab). A dropped one never
+// drew again, and the dancers vanished with the stage still playing. Now there is one,
+// drawn into once per dancer and copied out, and it is rebuilt if it is lost.
+const gl = { canvas: null, R: null, w: 0, h: 0, lostAt: 0 };
+function makeGL() {
+  gl.canvas = document.createElement('canvas'); gl.w = gl.h = 0; gl.lostAt = 0; gl.R = null;
+  gl.canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); gl.lostAt = performance.now(); });
+  gl.canvas.addEventListener('webglcontextrestored', () => makeGL());
+  try { gl.R = makeRenderer(gl.canvas, { supersample: 1 }); } catch { gl.R = null; gl.lostAt = performance.now(); }
+}
+makeGL();
 
 // ---- the clock --------------------------------------------------------------------------
 const stored = (() => { try { return Number(localStorage.getItem('pdoom-offset')) || 0; } catch { return 0; } })();
@@ -147,8 +158,16 @@ function shotCam(beat, W, H) {
 const cv = document.getElementById('stage'), ctx = cv.getContext('2d');
 const dpr = Math.min(2, window.devicePixelRatio || 1);
 let quality = 1, frameMs = 16, lastFrame = 0;
-function size() { cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); }
+// the canvas's own size on screen, not the window's: on a phone the player takes a band or a
+// column, and after a rotation the window's numbers can lag. A ResizeObserver sees both
+function size() {
+  const w = Math.max(1, Math.round((cv.clientWidth || innerWidth) * dpr)), h = Math.max(1, Math.round((cv.clientHeight || innerHeight) * dpr));
+  if (w === cv.width && h === cv.height) return;
+  cv.width = w; cv.height = h;
+  if (clock.mode === 'still' && window.__pdoom) frame();
+}
 size(); addEventListener('resize', size);
+if (window.ResizeObserver) new ResizeObserver(() => size()).observe(cv);
 // the looks: anime; brush (the ink pass paints the shadow's edge in strokes pinned to the body);
 // pc98 (a post-pass over the finished frame, onto a canvas laid over the stage)
 const LOOKS = ['anime', 'brush', 'pc98'];
@@ -159,7 +178,15 @@ function setLook(name) {
   const on = name === 'pc98';
   // pinned: the ink, the skin in light and shade, and each dancer's hair; the other 8 follow the stage
   const fixed = [INK.ink, INK.skin, INK.skinShade, ...new Set(CAST.map((c) => hairColors(c.spec.hair).base))];
-  if (on && !post) { try { post = makePC98(document.getElementById('post'), { fixed }); } catch { post = null; } }
+  if (on && !post) {
+    const pc = document.getElementById('post');
+    try { post = makePC98(pc, { fixed }); } catch { post = null; }
+    if (post && !pc.dataset.watched) {
+      pc.dataset.watched = '1';
+      pc.addEventListener('webglcontextlost', (e) => { e.preventDefault(); post = null; look.pc98 = false; document.body.classList.remove('pc98'); });
+      pc.addEventListener('webglcontextrestored', () => setLook(look.name));
+    }
+  }
   look.pc98 = on && !!post;
   document.body.classList.toggle('pc98', look.pc98);
   document.getElementById('look').textContent = { anime: 'look: anime', brush: 'look: brush', pc98: 'look: PC-98' }[look.name];
@@ -203,24 +230,31 @@ function frame() {
   // the dancers, far to near, each raymarched in its own crop of the screen
   const order = dancers.map((d) => ({ d, z: dot(sub(d.P.J.pelvis, cam.c), cam.f) })).sort((a, b) => b.z - a.z);
   const pxPerHead = H / (2 * cam.halfH);
+  // a lost context that never came back: start again with a new one
+  if (gl.lostAt && performance.now() - gl.lostAt > 1500) makeGL();
+  const boxes = [];
   for (const { d } of order) {
-    if (!d.R) continue;
     const pts = Object.values(d.P.J).map((p) => project(cam, p, W, H));
     const pad = 1.4 * pxPerHead;
     let x0 = Math.min(...pts.map((p) => p[0])) - pad, x1 = Math.max(...pts.map((p) => p[0])) + pad;
     let y0 = Math.min(...pts.map((p) => p[1])) - pad, y1 = Math.max(...pts.map((p) => p[1])) + pad;
     x0 = Math.max(0, x0); y0 = Math.max(0, y0); x1 = Math.min(W, x1); y1 = Math.min(H, y1);
-    if (x1 - x0 < 2 || y1 - y0 < 2) continue;
-    // the canvas keeps its size while it can (resizing a WebGL canvas reallocates its buffers,
-    // and doing it every frame as a dancer moved cost seconds a frame): sizes snap to a 64 px
-    // grid and only change when the figure outgrows its canvas or shrinks well inside it
-    const q = d.lead ? quality : quality * 0.8;
-    const needW = (x1 - x0) * q, needH = (y1 - y0) * q;
-    if (!d.cw || needW > d.cw || needH > d.ch || needW < d.cw * 0.6 || needH < d.ch * 0.6) {
-      d.cw = Math.ceil(needW / 64) * 64; d.ch = Math.ceil(needH / 64) * 64;
-      d.canvas.width = d.cw; d.canvas.height = d.ch;
-    }
-    const bw = d.cw / q, bh = d.ch / q;
+    if (x1 - x0 >= 2 && y1 - y0 >= 2) boxes.push({ d, x0, y0, x1, y1 });
+  }
+  // the shared canvas keeps its size while it can (resizing a WebGL canvas reallocates its
+  // buffers, and doing it every frame cost seconds a frame): it fits the biggest dancer, snapped
+  // to a 64 px grid, and changes only when outgrown or much too big. Every dancer is drawn at
+  // that size about its own centre: the empty margin costs little, a ray that misses the
+  // figure's box stops at once
+  const q = quality;
+  const needW = Math.max(0, ...boxes.map((b) => (b.x1 - b.x0) * q)), needH = Math.max(0, ...boxes.map((b) => (b.y1 - b.y0) * q));
+  if (gl.R && !gl.lostAt && boxes.length && (!gl.w || needW > gl.w || needH > gl.h || needW < gl.w * 0.6 || needH < gl.h * 0.6)) {
+    gl.w = Math.ceil(needW / 64) * 64; gl.h = Math.ceil(needH / 64) * 64;
+    gl.canvas.width = gl.w; gl.canvas.height = gl.h;
+  }
+  for (let { d, x0, y0, x1, y1 } of boxes) {
+    if (!gl.R || gl.lostAt) break;
+    const bw = gl.w / q, bh = gl.h / q;
     const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
     x0 = cx - bw / 2; y0 = cy - bh / 2;
     const target = add(add(cam.c, scale(cam.r, ((cx / W) * 2 - 1) * cam.halfW)), scale(cam.u, (1 - (cy / H) * 2) * cam.halfH));
@@ -230,8 +264,8 @@ function frame() {
     d.gaze = [dot(toCam, d.P.F.head.x), dot(toCam, d.P.F.head.y)].map((v) => Math.max(-1, Math.min(1, v * 2.2)));
     // lines thin with the figure: an outline drawn for a close-up is as thick as a finger in a wide shot
     const ls = Math.max(0.55, Math.min(1, (pxPerHead * q) / 70));
-    d.R.draw(buildBody(d.P, { hands: handDetail(d.P, crop, d.canvas.height) }), d.P, crop, { ...INK, lines: { out: 2.6 * ls, in: 1.5 * ls, crease: 1.2 * ls, vary: 0.5 }, rim, brush: look.name === 'brush' ? 1 : 0 });
-    ctx.drawImage(d.canvas, x0, y0, bw, bh);
+    gl.R.draw(buildBody(d.P, { hands: handDetail(d.P, crop, gl.h) }), d.P, crop, { ...INK, lines: { out: 2.6 * ls, in: 1.5 * ls, crease: 1.2 * ls, vary: 0.5 }, rim, brush: look.name === 'brush' ? 1 : 0 });
+    ctx.drawImage(gl.canvas, x0, y0, bw, bh);
   }
   drawFront(ctx, cam, W, H, S);
   if (look.pc98) post.draw(cv);
@@ -240,7 +274,7 @@ function frame() {
   // raymarching runs after this function returns, so timing the function alone sees none of it)
   if (lastFrame && clock.mode !== 'still') {
     frameMs = frameMs * 0.9 + (t0 - lastFrame) * 0.1;
-    if (frameMs > 34) quality = Math.max(0.4, quality - 0.02); else if (frameMs < 20) quality = Math.min(1, quality + 0.01);
+    if (frameMs > 34) quality = Math.max(0.5, quality - 0.02); else if (frameMs < 20) quality = Math.min(1, quality + 0.01);
   }
   lastFrame = t0;
 }
@@ -282,6 +316,11 @@ document.getElementById('look').addEventListener('click', () => { setLook(LOOKS[
 document.getElementById('bench').addEventListener('click', () => document.getElementById('report').toggleAttribute('hidden'));
 
 if (qs.has('silent')) playSilent();
-function loop() { frame(); if (clock.mode !== 'still') requestAnimationFrame(loop); }
+// one bad frame must not stop the show: the loop goes on, and says so once
+let complained = false;
+function loop() {
+  try { frame(); } catch (e) { if (!complained) { complained = true; console.error('pdoom frame', e); } }
+  if (clock.mode !== 'still') requestAnimationFrame(loop);
+}
 loop();
-window.__pdoom = { ready: true, clock, dancers, frame, setLook, get post() { return post; }, get quality() { return quality; } };
+window.__pdoom = { ready: true, clock, dancers, gl, frame, setLook, get post() { return post; }, get quality() { return quality; } };

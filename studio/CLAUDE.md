@@ -238,6 +238,14 @@ When YouTube does not load (blocked, offline), it falls back to the dance withou
   cost seconds a frame).
 - The dancers' resolution follows the time BETWEEN frames, because the GPU's work lands
   after `frame()` returns.
+- **One WebGL context for all five dancers** (`gl` in main.js), drawn into once per dancer and
+  copied out, rebuilt if it is lost. Each dancer had its own before; with the PC-98 pass that
+  was six, a phone dropped them (rotation, memory, a trip to another tab), and a dropped one
+  never drew again: the dancers vanished while the stage played on. The frame loop also
+  survives a bad frame. The canvas sizes itself from its own box (ResizeObserver), not the
+  window's.
+- **On a phone the player never covers the stage**: upright it is a band under the stage,
+  on its side a column beside it (YouTube wants the player at least 200 × 200).
 - **Looks** (the look button, `?look=`): anime, brush (strokes painted on the body: the figure
   rig's `brush` style), and PC-98.
 - The **PC-98 look** (`pc98.js`, `?look=pc98`): a WebGL post-pass over the
