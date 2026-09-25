@@ -891,9 +891,13 @@ goes again; a grant in merged form posts with zero redirects
 (`uploadBlob` then `createRecord`); the moving toggle is switched off with
 both missing scopes named.
 
-**Waiting on `workers/auth`:** the two rpc scopes have to be in
-`RPC_SCOPES` and deployed by its owner (`claude/browser-cad-ideation-ollmd3`)
-before a moving post can be granted. **Not verified:** a real moving post end
+**Unblocked 2026-09-25:** `workers/auth`'s owner added both rpc scopes, and
+`rpc:app.bsky.feed.getFeedSkeleton?aud=*` for the AppView. That was
+deploy-auth run #56 (`b9879d56`), taking the published list from 95 to 98
+tokens with none removed. The moving toggle turns itself back on from the
+live list; checked in Chromium against it. The AppView's `SCOPE` and
+`lib/feedgen.js` moved to the getFeedSkeleton scope in the same pass, since
+they had the same ungrantable token. **Not verified:** a real moving post end
 to end. This Chromium has no H.264 encoder, and nothing here can complete a
 real OAuth round trip.
 

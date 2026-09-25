@@ -40,9 +40,12 @@ export const SCOPE = [
   'repo:app.bsky.feed.like',
   'repo:app.bsky.feed.repost',
   // Not a write. Lets the reader's own PDS mint a short-lived service-auth JWT
-  // so a third-party feed generator can personalise their feed — see
-  // lib/feedgen.js. Already in the auth worker's RPC_SCOPES.
-  'rpc:com.atproto.server.getServiceAuth',
+  // for getFeedSkeleton, so a third-party feed generator can personalise
+  // their feed — see lib/feedgen.js. This used to be
+  // `rpc:com.atproto.server.getServiceAuth`, which can never be granted (an
+  // rpc scope needs an aud) and names the wrong method (getServiceAuth checks
+  // the method being MINTED FOR). In the auth ceiling since 2026-09-25.
+  'rpc:app.bsky.feed.getFeedSkeleton?aud=*',
   // Blobs, for posting pictures. The auth worker's ceiling already declares
   // `blob:image/*` and `blob:video/*`, so this needs no worker change — but a
   // scope is only granted if it is ASKED for, and a session minted before this
