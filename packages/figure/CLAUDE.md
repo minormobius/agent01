@@ -320,6 +320,14 @@ and overshoot. What that found:
 
 The whole song, alive: 5 dancers × 1251 frames, and all 8 checks hold for each.
 
+## Status (2026-09-25): parked
+
+The rig works and its checks hold (studio/pdoom ran it through a whole song, every frame
+green). The anime-human look is parked: five quality passes did not get it out of the
+uncanny valley, and the studio has moved to invented, inhuman casts (see studio/CLAUDE.md,
+P(doom) status). What is worth reusing elsewhere: the checks, choreo.js's compile-and-check
+shape, liveface.js's timing, and the surface coordinates (shader.js `surfaceUV`).
+
 ## Not done yet (the next layers)
 
 Hair

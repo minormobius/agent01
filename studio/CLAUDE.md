@@ -215,6 +215,30 @@ below DPR 2 and 1× at DPR 2 and above, to keep phones fast.
 
 ## Upping My P(doom) (pdoom/)
 
+**Status: a closed experiment (2026-09-25).** It stays up as it is. Nothing more is planned
+for it, and packages/figure's anime look is parked with it. What it established:
+
+- **Technically, it holds.** Five bodies, 86 bars, every frame checked: feet planted, limbs
+  clear of each other, skin inside the clothes, 8/8 checks through the whole song for all five.
+  The choreography compiler (moves on the beat, fitted per body), the springs (overlap,
+  anticipation, breath), the live faces (blinks, eye darts, singing from the vocal band) and a
+  YouTube-clocked page all work, on desktop and (after the fixes below) on a phone.
+- **Artistically, it doesn't, and polish didn't move it.** Five passes (motion, faces, shape,
+  light and line, stylisation) each measurably improved something, and the figures still sat in
+  the valley. Anime-styled people are judged against hand-drawn anime, where an artist cheats
+  every frame (a redrawn face, a moved shoulder); a procedural rig can't cheat per frame, so it
+  loses the comparison. The owner's read of the last pass: "blurry more than style". The PC-98
+  dither and the surface-pinned brush strokes read as degradation, not a look.
+- **The lesson for the next piece: pick a subject with no reference to miss.** Invented,
+  inhuman creatures are judged as themselves. Toys, clay, creatures. That's the stop-motion
+  thesis: meet the renderer where it's strong (solid forms, consistent light), and let the
+  idiom (holds, twos, a handmade roughness) absorb what it can't do.
+- **Carried forward**: the checks (contacts matter more to invented creatures, not less), the
+  choreography compiler's shape (moves on beats, compiled per body, checked every frame),
+  surface coordinates pinned to primitives (texture that sticks to a moving body), one WebGL
+  context per page, and a canvas that sizes from its own box.
+
+
 A music video for Claude-Pop's song (deckard), danced by packages/figure's cast. The song
 is NOT hosted here. It plays in a visible YouTube embed (a re-upload credited to deckard,
 id in `show.js`), and the dance follows the player's clock: an anchor, re-anchored on
