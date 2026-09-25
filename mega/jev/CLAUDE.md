@@ -35,6 +35,7 @@ space onto classifiable axes — had nowhere to live.
 | `/jev/delve/` | **the dungeon**, moved here from the root |
 | `/jev/lab/` | the market harness |
 | `/jev/composer/` | the procgen composer |
+| `/jev/craft/` | **craft** — a headless Minecraft-like on foam's tilings, built for a System 1 / System 2 split (§ craft) |
 
 Things that moved with the dungeon and must stay together: `app.js`,
 `delve.mjs`, `scene.mjs`, `character.mjs`, `memory.mjs`, `telemetry.mjs`,
@@ -253,6 +254,107 @@ answer in `offlineAnswers()` too, or the stand-in test that asserts the
 stand-in answers every question asked will fail — which is the point.
 
 Mind the worker's `MAX_QUESTIONS` cap (12) if the set ever grows.
+
+---
+
+## Craft: a Minecraft-like on foam's tilings (2026-09-25)
+
+**The goal** (the operator's): Jev plays Minecraft as a **System 1** reactive
+engine, choosing from a palette of **macros** that System 2 (Claude) writes.
+The same shape as the dungeon, with a much larger state. Step one was a
+Minecraft that runs headlessly and can still be drawn the usual way. That
+step is built. **Jev is not wired in yet.** The autopilot on the page is a
+scripted baseline, and the page says so.
+
+**Why our own engine and not real Minecraft + Mineflayer:** determinism
+(seeded, replayable, and the selftest is the contract), it runs anywhere with
+no Java server, it deploys as a mega sub-site, and above all **the ground can
+be any of foam's ten tilings**. A column is one tile; `y` stacks prism
+voxels on it. Everything lateral runs on the tile-adjacency graph: walking,
+reach, tree crowns (graph balls), ore veins (graph random walks), zombie
+pathing. A Penrose world is not a skin over a grid; its rules are Penrose.
+
+### Three layers, and which one Jev sees
+
+| layer | file | what it is |
+|---|---|---|
+| 1 world | `craft/sim.mjs` | authoritative, headless, deterministic. Discrete ticks (≈¼ s, one step), actions cost ticks and the world moves under them |
+| 2 stream | `sim.lines` | one JSON line per tick that changed anything, after a header naming the world params. The viewer and replays read only this |
+| 3 perception | *not built yet* | computed facts + a typed `choice` over macros + `noul` interrupts. **This is the only layer Jev will see** |
+
+Jev never sees voxels. That is the compute-first rule again (62.5% → 100%):
+the macros and perception do the pathfinding, counting and searching, and the
+model only decides.
+
+### Files
+
+| file | holds |
+|---|---|
+| `craft/tiling.mjs` | **a port of foam's ten `TILE_SHAPES`**, same constants and centre conventions, plus vertex welding and adjacency. It's a port because mega's assets can't import across surfaces. `craft.selftest` imports `foam/dungeon.mjs` directly and asserts **the same tile centres for every shape**, so if foam changes a tiling, that test breaks. Foam is owned by `claude/foam-dungeon-generator-aoaz0j`; don't edit it from here |
+| `craft/world.mjs` | blocks, recipes (**bags, not shapes**, since a grid recipe means nothing on a Penrose floor), the seeded island generator, `worldSignature`. `CRAFT_VERSION` + per-shape signature pins: moving what a seed generates means bumping the version |
+| `craft/sim.mjs` | the rules, `act()` (one primitive action run to completion; refusals are free and say why), mobs, hunger, day/night, `path` (walk-only BFS), **`digPath`** (Dijkstra where mining costs its ticks, so it tunnels only where tunnelling is cheaper; **never opens a block that touches water**), and `Replay` |
+| `craft/macros.mjs` | the palette, as generators that yield primitive actions: `gather_wood`, `craft` (recursive, places stations), `mine_stone`, `mine_iron`, `dig_in`, `sleep_until_dawn`, `surface`, `fight`, `hunt`, `eat`. Every macro must fail cleanly and hold no mid-sequence state, because it can be interrupted between any two actions |
+| `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
+| `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
+| `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
+| `test/craft.selftest.mjs` | 145 checks, ~3 s, gates the deploy |
+| `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
+
+### The stream
+
+```
+{"t":"craft","v":1,"seed":2,"shape":"truncsq","radius":28,"H":40,"sig":"c16cd73e","spawn":1226,"day":4800,"night":3000}
+{"k":51,"e":[["do","mine",1526,19,6]]}
+{"k":57,"e":[["b",1526,19,0],["inv",{"log":7}]]}
+```
+
+Events: `b` block, `p` moved, `+`/`-` entity in/out, `hp`, `food`, `inv`
+(whole inventory), `do` (the action begun), `hit`, `die`, `note` (macro
+start and end, dusk, dawn, and later Jev's questions and answers). The header
+carries the world signature, so a replay against a drifted generator fails
+loudly instead of drawing a different world.
+
+### Measured: the baseline, headless (2026-09-25)
+
+Wood → wooden pick → stone pick → iron pick, 20 seeds × 10 tilings, three
+in-game days max:
+
+| | |
+|---|---|
+| reached the iron pickaxe | **198 / 200** (the two misses: a pig out of reach, and a boxed-in staircase) |
+| median ticks to iron pick | 640 (rhombitri, truncsq) … 1075 (rhombille) |
+| deaths, over 20 worlds | hex 2 · truncsq 1 · penrose 5 … **snub 35 · kagome 28 · grid 23** |
+
+The death spread is the interesting number. The tiling changes how exposed you
+are: the same policy dies roughly 17× more often on snub than on hex. That is
+a gap for the decision layer to close, not an engine bug. It started at 26 / 50
+and every failure was an engine or macro fault, each fixed at the root:
+spawning on a canopy, walk-only pathing (→ `digPath`), nowhere to set a table
+in a tunnel (→ carve a niche), tunnels flooding below sea level (→ never open
+a water-touching block), a table consuming planks already counted for a
+recipe (→ place the station before counting ingredients).
+
+### What is next
+
+1. **Perception** (`perceive.mjs`): the facts per decision. Nearest reachable
+   tree / stone / pig with path cost in ticks, what can be crafted now, time
+   to dusk, threats with distance, shelter state. **Computed, never raw.**
+2. **The question set**, one call per macro boundary or interrupt: `next` (a
+   `choice` over the macros legal right now, each option carrying what it
+   would cost and yield), plus `noul`s for the interrupts (flee? eat? dig
+   in?) and the self-check (*does the state contain what this needs?*),
+   because escalation is asked for, never inferred.
+3. **The scoreboard**: Jev vs `baselinePolicy` vs random-over-the-same-palette,
+   on the same seeds. Milestone ticks, deaths, and survival across nights.
+   The snub/kagome death rate is the first place a better System 1 should
+   show.
+
+**Before the first deploy that carries new `mega/` work:** `jev-prereg.yml`
+runs from **main's** copy and redeploys mega from whatever branch it names. It
+still names `claude/jev-demo-website-pw3us1` on main, so until this branch's
+repointed copy reaches main, that job republishes mega from the old tree at
+01:25 and 13:25 UTC, and `/jev/craft/` will vanish from the live site each
+time. The fix is a merge to main; see the ownership row above.
 
 ---
 

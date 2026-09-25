@@ -1,0 +1,67 @@
+/* craft.css — a game canvas with a HUD. Same token names as ../style.css; the
+   page is dark by default (it is a sky), with a light variant for daylight
+   readers who ask for it. */
+:root{
+  --panel:rgba(16,19,27,.78); --ink:#E9ECF3; --ink-2:#AEB4C6; --ink-3:#7C8296;
+  --line:rgba(255,255,255,.12); --accent:#4FC3BE; --bad:#E8776A; --warn:#E0A64A; --ok:#6CC282;
+  --body:"Source Sans 3","Source Sans Pro","Segoe UI",system-ui,sans-serif;
+  --mono:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:light){
+  :root:not([data-theme="dark"]){
+    --panel:rgba(255,255,255,.86); --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+    --line:rgba(22,25,35,.14); --accent:#237E7A; --bad:#C0392B; --warn:#B8720C; --ok:#3B8A4A;
+    color-scheme:light;
+  }
+}
+:root[data-theme="light"]{
+  --panel:rgba(255,255,255,.86); --ink:#161923; --ink-2:#4A5063; --ink-3:#7C8296;
+  --line:rgba(22,25,35,.14); --accent:#237E7A; --bad:#C0392B; --warn:#B8720C; --ok:#3B8A4A;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:#0b1020;color:var(--ink);font:14px/1.4 var(--body)}
+#stage{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+a{color:var(--accent)}
+.mono{font-family:var(--mono);font-size:12px}
+.hud{position:fixed;z-index:2}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;backdrop-filter:blur(6px)}
+.eyebrow{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.hint{text-transform:none;letter-spacing:0}
+h1{margin:2px 0 4px;font-size:20px}
+.top-left{top:12px;left:12px;max-width:320px}
+.top-left .sub,.top-left .links{margin:4px 0 0;color:var(--ink-2);font-size:13px}
+.top-right{top:12px;right:12px;display:grid;gap:6px;max-width:360px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+label{display:inline-flex;gap:4px;align-items:center;color:var(--ink-2);font-size:13px}
+input[type=number]{width:64px}
+select,input,button{font:inherit;font-size:13px;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:4px;padding:3px 6px}
+button,.file{cursor:pointer}
+button:hover,.file:hover{border-color:var(--accent)}
+button:disabled{opacity:.4;cursor:default}
+.file{border:1px solid var(--line);border-radius:4px;padding:3px 6px}
+.file input{display:none}
+.check input{margin:0}
+.left{top:200px;left:12px;width:250px;max-height:calc(100vh - 330px);overflow:auto}
+.macros{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.macros button{font-size:12px;padding:2px 6px}
+.macros button.on{border-color:var(--accent);color:var(--accent)}
+.log{list-style:none;margin:4px 0 0;padding:0;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.log li{padding:1px 0;border-top:1px solid var(--line)}
+.log .bad{color:var(--bad)} .log .ok{color:var(--ok)}
+.bottom{left:50%;transform:translateX(-50%);bottom:12px;min-width:min(560px,calc(100vw - 24px));max-width:calc(100vw - 24px)}
+.status{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+#hp,#food{font-family:var(--mono);font-size:13px;letter-spacing:1px}
+#hp{color:var(--bad)} #food{color:var(--warn)}
+.inv{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:22px}
+.chip{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
+.chip i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.chip b{font-family:var(--mono);font-weight:600}
+.bottom-right{right:12px;bottom:12px;width:min(420px,calc(100vw - 24px))}
+.tail{margin:4px 0 0;font:11px/1.35 var(--mono);color:var(--ink-2);white-space:pre;overflow:hidden;max-height:120px}
+@media (max-width:900px){
+  .left,.bottom-right{display:none}
+  .top-left{max-width:calc(100vw - 24px)}
+  .top-right{top:auto;bottom:120px;right:12px;left:12px;max-width:none}
+}

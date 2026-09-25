@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Jev craft</title>
+<meta name="description" content="A headless Minecraft-like on foam's tilings — Penrose, Ammann, sevenfold, snub and more — where every rule runs on the tile graph. The engine emits a text stream of game state; this page renders it.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="craft.css">
+<script type="importmap">{ "imports": { "three": "../delve/vendor/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="stage" aria-label="3D view of the craft world"></canvas>
+
+<header class="hud top-left panel">
+  <div class="eyebrow">jev · craft · <span id="mode">live</span></div>
+  <h1>Jev craft</h1>
+  <p class="links"><a href="../">← all the experiments</a> · <a href="../delve/">the dungeon</a></p>
+  <p class="sub">A Minecraft-like on <b id="shape-name">penrose</b> tiles. The world is simulated headlessly;
+    this page draws the text stream it emits.</p>
+</header>
+
+<section class="hud top-right panel" aria-label="World controls">
+  <div class="row">
+    <label>tiling <select id="shape"></select></label>
+    <label>seed <input id="seed" type="number" min="1" value="3"></label>
+    <button id="regen" type="button">new world</button>
+  </div>
+  <div class="row">
+    <label class="check"><input id="auto" type="checkbox" checked> autopilot</label>
+    <label>speed <input id="speed" type="range" min="1" max="64" value="8"></label>
+    <span id="speed-out" class="mono">8×</span>
+  </div>
+  <div class="row">
+    <label class="check"><input id="pov" type="checkbox"> first person</label>
+    <label class="check"><input id="pause" type="checkbox"> pause</label>
+  </div>
+  <div class="row">
+    <button id="download" type="button">save stream (.jsonl)</button>
+    <label class="file">load stream <input id="load" type="file" accept=".jsonl,.txt,application/x-ndjson"></label>
+  </div>
+</section>
+
+<section class="hud left panel" aria-label="Macros">
+  <div class="eyebrow">macros <span class="hint" id="macro-hint">— autopilot is choosing</span></div>
+  <div id="macros" class="macros"></div>
+  <div class="eyebrow" style="margin-top:8px">log</div>
+  <ol id="log" class="log"></ol>
+</section>
+
+<section class="hud bottom panel" aria-label="Status">
+  <div class="status">
+    <span id="clock" class="mono">day 1 · 06:00</span>
+    <span id="hp" aria-label="health"></span>
+    <span id="food" aria-label="hunger"></span>
+    <span id="doing" class="mono"></span>
+  </div>
+  <div id="inv" class="inv"></div>
+</section>
+
+<section class="hud bottom-right panel" aria-label="The stream">
+  <div class="eyebrow">the stream · <span id="lines" class="mono">0</span> lines</div>
+  <pre id="tail" class="tail"></pre>
+</section>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

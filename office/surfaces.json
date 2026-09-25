@@ -2048,6 +2048,15 @@
    "parent": null
   },
   {
+   "id": "jev craft",
+   "name": "jev craft",
+   "url": "https://mega.mino.mobi/jev/craft/",
+   "cat": "games",
+   "commits": 2,
+   "age": "hot",
+   "parent": null
+  },
+  {
    "id": "jev swarm",
    "name": "jev swarm",
    "url": "https://mega.mino.mobi/jev/swarm/",
@@ -5269,6 +5278,16 @@
    "id": "mega/jev/composer",
    "name": "composer",
    "url": "https://mino.mobi/mega/jev/composer/",
+   "cat": "data",
+   "commits": 0,
+   "age": "cold",
+   "parent": "mega/jev",
+   "discovered": true
+  },
+  {
+   "id": "mega/jev/craft",
+   "name": "craft",
+   "url": "https://mino.mobi/mega/jev/craft/",
    "cat": "data",
    "commits": 0,
    "age": "cold",

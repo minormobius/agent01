@@ -1,0 +1,459 @@
+// craft/app.js — renders a craft stream in three.js.
+//
+// The renderer knows ONLY the stream. In live mode the page runs the Sim and
+// a Driver, drains the JSONL lines they emit, and feeds them to a Replay —
+// exactly as it would a downloaded .jsonl. If something is not in the stream,
+// it cannot be drawn, which is the check that the stream is complete.
+
+import * as THREE from 'three';
+import { OrbitControls } from '../delve/vendor/OrbitControls.js';
+import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
+import { Driver, baselinePolicy } from './runner.mjs';
+import { BLOCKS, B, H, hash01 } from './world.mjs';
+import { SHAPES } from './tiling.mjs';
+
+const $ = (id) => document.getElementById(id);
+const TPS = 4;                        // ticks per second at 1×
+
+// ------------------------------------------------------------- state -------
+let sim = null, driver = null, replay = null;
+let allLines = [];                    // everything emitted, for "save stream"
+let fileLines = null, fileCursor = 0; // replay-from-file mode
+let target = 0;                       // the tick the clock has reached
+let macroLog = [];
+
+// ------------------------------------------------------------- three -------
+const canvas = $('stage');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, 1, 0.05, 400);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI * 0.49;
+const hemi = new THREE.HemisphereLight(0xdfefff, 0x4a3b2a, 0.9);
+const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+sun.position.set(30, 60, 20);
+scene.add(hemi, sun);
+// Underground, everything above the player's head is clipped away so the
+// tunnels can be watched from outside — a cutaway, not x-ray: it hides, it
+// never reveals what the player could not reach.
+renderer.localClippingEnabled = true;
+const cut = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e6);
+const matSolid = new THREE.MeshLambertMaterial({ vertexColors: true, clippingPlanes: [cut] });
+const matWater = new THREE.MeshLambertMaterial({ color: 0x3f76e4, transparent: true, opacity: 0.62, depthWrite: false, clippingPlanes: [cut] });
+// the cap: back faces drawn flat and dark, so rock sliced by the cut reads as
+// solid ground and only the hollows (tunnels, caves) stay open
+const matCap = new THREE.MeshBasicMaterial({ color: 0x5b554e, side: THREE.BackSide, clippingPlanes: [cut] });
+const world = new THREE.Group();
+scene.add(world);
+const entGroup = new THREE.Group();
+scene.add(entGroup);
+
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ------------------------------------------------------------ meshing ------
+// Columns are grouped into 8×8 chunks; a block change rebuilds its chunk and
+// any neighbouring chunk that shares a face with it.
+const CH = 8;
+let chunkOf = null, chunkCols = null, chunkMesh = new Map(), dirty = new Set();
+const col3 = new THREE.Color();
+
+function hexRGB(h) { col3.set(h); return [col3.r, col3.g, col3.b]; }
+const RGB = BLOCKS.map((b) => b.color ? {
+  top: hexRGB(b.top || b.color), side: hexRGB(b.side || b.color), fleck: b.fleck ? hexRGB(b.fleck) : null,
+} : null);
+
+function opaque(r, c, y) {
+  if (y < 0) return true;
+  if (y >= H) return false;
+  const id = r.b[c * H + y];
+  return BLOCKS[id].solid;
+}
+
+function buildChunk(key) {
+  const r = replay, cols = r.world.tiling.cols;
+  const P = [], N = [], C = [], WP = [], WN = [];
+  const tri = (out, nout, a, b, c, n) => {
+    // orient the triangle to its intended normal, whatever the poly winding
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const cx = uy * vz - uz * vy, cy = uz * vx - ux * vz, cz = ux * vy - uy * vx;
+    if (cx * n[0] + cy * n[1] + cz * n[2] < 0) { const t = b; b = c; c = t; }
+    out.push(...a, ...b, ...c);
+    nout.push(...n, ...n, ...n);
+  };
+  const face = (verts, n, rgb, shade) => {
+    const k = P.length;
+    for (let i = 1; i + 1 < verts.length; i++) tri(P, N, verts[0], verts[i], verts[i + 1], n);
+    const cnt = (P.length - k) / 3;
+    for (let i = 0; i < cnt; i++) C.push(rgb[0] * shade, rgb[1] * shade, rgb[2] * shade);
+  };
+  for (const c of chunkCols.get(key)) {
+    const col = cols[c], poly = col.poly, nb = col.nb;
+    for (let y = 0; y < H; y++) {
+      const id = r.b[c * H + y];
+      if (id === B.air || id === B.torch) continue;
+      if (id === B.water) {
+        if (r.b[c * H + y + 1] === B.air || y === H - 1) {
+          const top = poly.map(([x, z]) => [x, y + 0.88, z]);
+          for (let i = 1; i + 1 < top.length; i++) tri(WP, WN, top[0], top[i], top[i + 1], [0, 1, 0]);
+        }
+        continue;
+      }
+      const rgb = RGB[id];
+      const jitter = 0.9 + 0.14 * hash01(c, y, 77);
+      const fleck = rgb.fleck && hash01(c, y, 5) < 0.5;
+      const topRGB = fleck ? rgb.fleck : rgb.top, sideRGB = fleck ? rgb.fleck : rgb.side;
+      if (!opaque(r, c, y + 1)) face(poly.map(([x, z]) => [x, y + 1, z]), [0, 1, 0], topRGB, jitter);
+      // y = 0 gets its underside too: the world's floor is what the cutaway
+      // cap sees through sliced rock
+      if (y === 0 || !opaque(r, c, y - 1)) face(poly.map(([x, z]) => [x, y, z]), [0, -1, 0], rgb.side, jitter * 0.6);
+      for (let e = 0; e < poly.length; e++) {
+        const n = nb[e];
+        if (n >= 0 && opaque(r, n, y)) continue;
+        const a = poly[e], b2 = poly[(e + 1) % poly.length];
+        const ex = b2[0] - a[0], ez = b2[1] - a[1], L = Math.hypot(ex, ez) || 1;
+        // outward normal: away from the tile centre
+        let nx = ez / L, nz = -ex / L;
+        const mx = (a[0] + b2[0]) / 2 - col.x, mz = (a[1] + b2[1]) / 2 - col.z;
+        if (nx * mx + nz * mz < 0) { nx = -nx; nz = -nz; }
+        // grass keeps a green lip on its sides, like the block people know
+        const sRGB = id === B.grass ? rgb.side : sideRGB;
+        face([[a[0], y, a[1]], [b2[0], y, b2[1]], [b2[0], y + 1, b2[1]], [a[0], y + 1, a[1]]], [nx, 0, nz], sRGB, jitter * 0.85);
+        if (id === B.grass) face([[a[0], y + 0.82, a[1]], [b2[0], y + 0.82, b2[1]], [b2[0], y + 1.001, b2[1]], [a[0], y + 1.001, a[1]]].map(([x, yy, z]) => [x + nx * 0.002, yy, z + nz * 0.002]), [nx, 0, nz], rgb.top, jitter * 0.85);
+      }
+    }
+  }
+  const old = chunkMesh.get(key);
+  if (old) { world.remove(old); new Set(old.children.map((m) => m.geometry)).forEach((g) => g.dispose()); }
+  const g = new THREE.Group();
+  if (P.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+    g.add(new THREE.Mesh(geo, matSolid), new THREE.Mesh(geo, matCap));
+  }
+  if (WP.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(WP, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(WN, 3));
+    const m = new THREE.Mesh(geo, matWater);
+    m.renderOrder = 1;
+    g.add(m);
+  }
+  chunkMesh.set(key, g);
+  world.add(g);
+}
+
+function initMeshes() {
+  for (const g of chunkMesh.values()) { world.remove(g); g.children.forEach((m) => m.geometry.dispose()); }
+  chunkMesh = new Map(); dirty = new Set();
+  const cols = replay.world.tiling.cols;
+  chunkOf = new Int32Array(cols.length);
+  chunkCols = new Map();
+  const keys = new Map();
+  cols.forEach((c, i) => {
+    const k = Math.floor(c.x / CH) + ',' + Math.floor(c.z / CH);
+    if (!keys.has(k)) { keys.set(k, keys.size); chunkCols.set(keys.size - 1, []); }
+    chunkOf[i] = keys.get(k);
+    chunkCols.get(chunkOf[i]).push(i);
+  });
+  for (const k of chunkCols.keys()) buildChunk(k);
+  rebuildTorches();
+}
+function markDirty(c) {
+  dirty.add(chunkOf[c]);
+  for (const n of replay.world.tiling.cols[c].adj) dirty.add(chunkOf[n]);
+}
+
+let torchGroup = new THREE.Group();
+scene.add(torchGroup);
+function rebuildTorches() {
+  scene.remove(torchGroup);
+  torchGroup = new THREE.Group();
+  const cols = replay.world.tiling.cols, b = replay.b;
+  const geo = new THREE.BoxGeometry(0.12, 0.6, 0.12);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffd35a });
+  for (let c = 0; c < cols.length; c++) for (let y = 0; y < H; y++) if (b[c * H + y] === B.torch) {
+    const m = new THREE.Mesh(geo, mat);
+    m.position.set(cols[c].x, y + 0.3, cols[c].z);
+    torchGroup.add(m);
+  }
+  scene.add(torchGroup);
+}
+
+// ------------------------------------------------------------ entities -----
+const entMesh = new Map();
+function makeEnt(kind) {
+  const g = new THREE.Group();
+  const box = (w, h, d, color, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color })); m.position.y = y; g.add(m); return m; };
+  if (kind === 'pig') { box(0.8, 0.55, 0.5, 0xf0a3b4, 0.4); box(0.36, 0.36, 0.36, 0xf5b7c5, 0.55).position.x = 0.5; }
+  else {
+    const shirt = kind === 'player' ? 0x2f7fd0 : 0x3b8a4a, skin = kind === 'player' ? 0xd9a57c : 0x6ea35a;
+    box(0.5, 0.75, 0.3, kind === 'player' ? 0x3a3f8f : 0x3a3f8f, 0.375);
+    box(0.55, 0.65, 0.32, shirt, 1.07);
+    box(0.45, 0.45, 0.45, skin, 1.62);
+  }
+  return g;
+}
+function syncEntities(dt) {
+  const cols = replay.world.tiling.cols;
+  for (const [id, m] of entMesh) if (!replay.ents.has(id)) { entGroup.remove(m); entMesh.delete(id); }
+  for (const e of replay.ents.values()) {
+    let m = entMesh.get(e.id);
+    const tx = cols[e.c].x, tz = cols[e.c].z, ty = e.y;
+    if (!m) { m = makeEnt(e.kind); m.position.set(tx, ty, tz); entGroup.add(m); entMesh.set(e.id, m); }
+    const k = Math.min(1, dt * 10);
+    const dx = tx - m.position.x, dz = tz - m.position.z;
+    if (Math.abs(dx) + Math.abs(dz) > 1e-3) m.rotation.y = Math.atan2(-dz, dx);
+    if (Math.hypot(dx, dz) > 6) m.position.set(tx, ty, tz);      // a respawn, not a walk
+    else { m.position.x += dx * k; m.position.z += dz * k; m.position.y += (ty - m.position.y) * k; }
+    if (e.id !== 0) m.visible = ty < cut.constant;
+  }
+}
+
+// ----------------------------------------------------------------- HUD ------
+const ITEM_COLOR = {
+  stick: '#9c7a45', coal: '#222', iron_ingot: '#d8d8d8', apple: '#d33', porkchop: '#f0a3b4', cooked_porkchop: '#b5653d',
+  wooden_pickaxe: '#b8945a', stone_pickaxe: '#8a8a8a', iron_pickaxe: '#d8d8d8', wooden_sword: '#b8945a', stone_sword: '#8a8a8a', iron_sword: '#d8d8d8',
+};
+function hud() {
+  const t = replay.tick, day = Math.floor(t / DAY) + 1, ph = t % DAY;
+  const mins = Math.floor((ph / DAY) * 24 * 60 + 6 * 60) % (24 * 60);
+  $('clock').textContent = `day ${day} · ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}${ph >= NIGHT_START ? ' · night' : ''} · tick ${t}`;
+  $('hp').textContent = '♥'.repeat(Math.ceil(replay.hp / 2)).padEnd(10, '·') + ` ${replay.hp}`;
+  $('food').textContent = '◆'.repeat(Math.ceil(replay.food / 2)).padEnd(10, '·') + ` ${replay.food}`;
+  const inv = $('inv');
+  inv.innerHTML = '';
+  for (const [k, n] of Object.entries(replay.inv)) {
+    const s = document.createElement('span');
+    s.className = 'chip';
+    const blk = BLOCKS[B[k]];
+    s.innerHTML = `<i style="background:${(blk && (blk.top || blk.color)) || ITEM_COLOR[k] || '#777'}"></i>${k.replace(/_/g, ' ')} <b>${n}</b>`;
+    inv.appendChild(s);
+  }
+  $('lines').textContent = allLines.length || (fileLines ? fileLines.length : 0);
+}
+function logMacro(note) {
+  const d = note.data || {};
+  if (note.kind === 'macro_end') macroLog.unshift({ t: note.k, text: `${d.name} — ${d.ok ? 'done' : d.why}`, ok: d.ok });
+  else if (note.kind === 'dusk' || note.kind === 'dawn') macroLog.unshift({ t: note.k, text: note.kind, ok: note.kind === 'dawn' });
+  else return;
+  macroLog = macroLog.slice(0, 14);
+  $('log').innerHTML = macroLog.map((m) => `<li class="${m.ok ? 'ok' : 'bad'}">${m.t} ${m.text}</li>`).join('');
+}
+function tail(lines) {
+  if (!lines.length) return;
+  const el = $('tail');
+  const keep = (el.textContent ? el.textContent.split('\n') : []).concat(lines.map((l) => l.length > 96 ? l.slice(0, 93) + '…' : l));
+  el.textContent = keep.slice(-8).join('\n');
+}
+
+// -------------------------------------------------------------- feed -------
+function feed(lines) {
+  let blocksChanged = false;
+  for (const line of lines) {
+    const evs = replay.apply(line);
+    for (const ev of evs) {
+      if (ev[0] === 'b') { markDirty(ev[1]); blocksChanged = true; }
+      if (ev[0] === 'note') logMacro({ k: replay.tick, kind: ev[1], data: ev[2] });
+      if (ev[0] === 'do') $('doing').textContent = ev.slice(1).join(' ');
+    }
+  }
+  if (blocksChanged) rebuildTorches();
+  tail(lines);
+}
+
+// -------------------------------------------------------------- modes ------
+const MACRO_BUTTONS = [
+  ['gather_wood', { n: 5 }, 'gather wood'], ['craft', { item: 'wooden_pickaxe' }, 'wooden pick'],
+  ['mine_stone', { n: 11 }, 'mine stone'], ['craft', { item: 'stone_pickaxe' }, 'stone pick'],
+  ['mine_iron', { iron: 3, coal: 3 }, 'mine iron'], ['craft', { item: 'iron_pickaxe' }, 'iron pick'],
+  ['craft', { item: 'torch', n: 4 }, 'torches'], ['craft', { item: 'stone_sword' }, 'sword'],
+  ['dig_in', null, 'dig in'], ['sleep_until_dawn', null, 'sleep'], ['surface', null, 'surface'],
+  ['hunt', null, 'hunt'], ['eat', null, 'eat'], ['fight', null, 'fight'],
+];
+function buildMacroButtons() {
+  const box = $('macros');
+  box.innerHTML = '';
+  for (const [name, args, label] of MACRO_BUTTONS) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', () => { if (driver) { $('auto').checked = false; setAuto(); driver.start(name, args); } });
+    box.appendChild(b);
+  }
+}
+function setAuto() {
+  if (!driver) return;
+  const on = $('auto').checked;
+  driver.policy = on ? baselinePolicy : () => null;
+  driver.done = false;
+  $('macro-hint').textContent = on ? '— autopilot is choosing (the scripted baseline Jev must beat)' : '— you are choosing';
+}
+
+function startLive() {
+  const shape = $('shape').value, seed = Math.max(1, parseInt($('seed').value, 10) || 1);
+  location.hash = `shape=${shape}&seed=${seed}`;
+  fileLines = null;
+  sim = new Sim({ shape, seed });
+  driver = new Driver(sim);
+  setAuto();
+  const lines = sim.drain();
+  allLines = lines.slice();
+  replay = new Replay(lines[0]);
+  initMeshes();
+  macroLog = []; $('log').innerHTML = ''; $('tail').textContent = '';
+  feed(lines.slice(1));
+  target = sim.tick;
+  $('mode').textContent = 'live';
+  $('shape-name').textContent = shape;
+  document.querySelectorAll('#macros button').forEach((b) => { b.disabled = false; });
+  snapCamera();
+}
+
+function startFile(text) {
+  const lines = text.split('\n').filter((l) => l.trim());
+  let head;
+  try { head = JSON.parse(lines[0]); } catch { alert('not a craft stream: the first line is not JSON'); return; }
+  if (head.t !== 'craft') { alert('not a craft stream: no craft header'); return; }
+  try { replay = new Replay(lines[0]); } catch (e) { alert(e.message); return; }
+  sim = null; driver = null;
+  fileLines = lines; fileCursor = 1; allLines = [];
+  initMeshes();
+  macroLog = []; $('log').innerHTML = ''; $('tail').textContent = '';
+  target = 0;
+  $('mode').textContent = `replay · ${head.shape} seed ${head.seed}`;
+  $('shape-name').textContent = head.shape;
+  document.querySelectorAll('#macros button').forEach((b) => { b.disabled = true; });
+  snapCamera();
+}
+
+// ------------------------------------------------------------- camera ------
+function playerPos() {
+  const p = entMesh.get(0);
+  return p ? p.position : new THREE.Vector3(0, 20, 0);
+}
+function snapCamera() {
+  const p = playerPos();
+  controls.target.set(p.x, p.y + 1.5, p.z);
+  camera.position.set(p.x + 13, p.y + 13, p.z + 13);
+}
+function underground() {
+  const p = replay.ents.get(0);
+  if (!p) return false;
+  for (let y = p.y + 2; y < H; y++) { const id = replay.b[p.c * H + y]; if (id !== B.air && id !== B.torch) return true; }
+  return false;
+}
+function updateCamera() {
+  const p = playerPos();
+  const pe = replay.ents.get(0);
+  cut.constant = !$('pov').checked && pe && underground() ? pe.y + 2.02 : 1e6;
+  if ($('pov').checked) {
+    const m = entMesh.get(0);
+    controls.enabled = false;
+    const yaw = m ? m.rotation.y : 0;
+    camera.position.set(p.x, p.y + 1.62, p.z);
+    camera.lookAt(p.x + Math.cos(yaw) * 4, p.y + 1.2, p.z - Math.sin(yaw) * 4);
+    if (m) m.visible = false;
+  } else {
+    controls.enabled = true;
+    const m = entMesh.get(0); if (m) m.visible = true;
+    const want = new THREE.Vector3(p.x, p.y + 1.5, p.z);
+    const delta = want.clone().sub(controls.target).multiplyScalar(0.12);
+    controls.target.add(delta); camera.position.add(delta);
+    controls.update();
+  }
+}
+function sky() {
+  const ph = (replay.tick % DAY) / DAY;
+  const n = ph < 0.58 ? 0 : ph < 0.625 ? (ph - 0.58) / 0.045 : ph < 0.955 ? 1 : 1 - (ph - 0.955) / 0.045;
+  const c = new THREE.Color(0x8ec5ff).lerp(new THREE.Color(0x0b1020), n);
+  scene.background = c;
+  scene.fog = new THREE.Fog(c, 40, 110);
+  sun.intensity = 1.4 * (1 - n) + 0.08;
+  hemi.intensity = 0.9 * (1 - n) + 0.25;
+}
+
+// --------------------------------------------------------------- loop -------
+let lastT = performance.now();
+function frame(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000);
+  lastT = now;
+  const speed = +$('speed').value;
+  if (!$('pause').checked) target += dt * TPS * speed;
+  if (sim && driver) {
+    let n = 0;
+    while (sim.tick < target && n++ < 400) {
+      const r = driver.step();
+      if (r && r.done) sim.act({ op: 'wait', ticks: 1 });            // idle: the world keeps turning
+      if (driver.lastAction && driver.lastAction.op === 'wait') target = Math.max(target, sim.tick);
+    }
+    const lines = sim.drain();
+    if (lines.length) { allLines.push(...lines); feed(lines); }
+  } else if (fileLines) {
+    const batch = [];
+    while (fileCursor < fileLines.length) {
+      const L = JSON.parse(fileLines[fileCursor]);
+      if (L.k > target) break;
+      batch.push(fileLines[fileCursor++]);
+    }
+    if (batch.length) feed(batch);
+    if (fileCursor < fileLines.length) {
+      const nextK = JSON.parse(fileLines[fileCursor]).k;
+      if (nextK - target > TPS * speed * 5) target = nextK;           // skip long quiet stretches
+    }
+  }
+  if (replay) {
+    for (const k of dirty) buildChunk(k);
+    dirty.clear();
+    syncEntities(dt);
+    updateCamera();
+    sky();
+    hud();
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+// ------------------------------------------------------------- wiring ------
+for (const s of SHAPES) { const o = document.createElement('option'); o.value = o.textContent = s; $('shape').appendChild(o); }
+const hp = new URLSearchParams(location.hash.slice(1));
+$('shape').value = SHAPES.includes(hp.get('shape')) ? hp.get('shape') : 'penrose';
+if (hp.get('seed')) $('seed').value = hp.get('seed');
+$('regen').addEventListener('click', startLive);
+$('shape').addEventListener('change', startLive);
+$('auto').addEventListener('change', setAuto);
+$('speed').addEventListener('input', () => { $('speed-out').textContent = $('speed').value + '×'; });
+$('download').addEventListener('click', () => {
+  const lines = allLines.length ? allLines : fileLines || [];
+  const head = JSON.parse(lines[0]);
+  const blob = new Blob([lines.join('\n') + '\n'], { type: 'application/x-ndjson' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `craft-${head.shape}-${head.seed}-t${replay.tick}.jsonl`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+$('load').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (f) startFile(await f.text());
+});
+buildMacroButtons();
+startLive();
+requestAnimationFrame(frame);
+
+// the headless harness hook (the __foam / __dungeon / __jev pattern)
+window.__craft = {
+  get sim() { return sim; }, get replay() { return replay; }, get driver() { return driver; },
+  lines: () => allLines.slice(),
+  run(ticks) { if (!sim) return; const end = sim.tick + ticks; while (sim.tick < end) { const r = driver.step(); if (r && r.done) sim.act({ op: 'wait', ticks: 1 }); } target = sim.tick; },
+};
