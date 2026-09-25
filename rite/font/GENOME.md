@@ -169,6 +169,13 @@ where our generator should offer good defaults but expect human correction:
   (PMC6802759). *(Our broad-nib gets this for free from stroke direction — a nice
   validation of the model — but the exact ratio is a judgment.)*
 - **Stroke-thinning at junctions / ink traps** — by eye, per letter.
+- **Weight is not a scale factor.** Bold and black cuts are redrawn, not
+  emboldened: counters are defended by thinning horizontals and opening joins,
+  and the calligraphic angle relaxes as the pen gets heavier. *(We do this with
+  one derived quantity, `heft` = stem ÷ x-height: it straightens the stress,
+  rounds the nib, caps horizontal thickness, and shrinks balls and beaks. The
+  `s` — Knuth's hard letter — gets its terminal reach solved numerically
+  against the drawn ink rather than set by a parameter.)*
 - **Spacing & kerning.** Side-bearings and kerning are "an especially complex art";
   Phinney calls good kerning "one of the very most tedious tasks… a week or more"
   (632 adjustments). Auto-spacers (HT Letterspacer, iKern) "do **not** replace the

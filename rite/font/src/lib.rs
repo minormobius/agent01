@@ -109,3 +109,50 @@ pub fn debug_describe(seed: &str) -> String {
     let s = Style::from_seed(seed);
     format!("{} {} serif={:?} term={:?}", s.archetype, s.style_name, s.serif, s.term)
 }
+
+/// Proofing aid: a glyph's ink outline and its stroke centrelines, as SVG path
+/// data in font units (y up), for overlay renders.
+pub fn debug_skeleton(seed: &str, spec: &str, c: char) -> (String, String) {
+    let st = style_for(seed, spec);
+    let m = build::Metrics::new(&st);
+    let Some(d) = font::draw_char(c, &st, &m) else { return (String::new(), String::new()) };
+    let mut ink = String::new();
+    for p in d.ink.polygons() {
+        for (i, q) in p.iter().enumerate() {
+            ink.push_str(&format!("{}{:.1} {:.1} ", if i == 0 { "M" } else { "L" }, q.x, q.y));
+        }
+        ink.push_str("Z ");
+    }
+    let mut sk = String::new();
+    for s in &d.ink.strokes {
+        for (i, c) in s.segs.iter().enumerate() {
+            if i == 0 {
+                sk.push_str(&format!("M{:.1} {:.1} ", c.p0.x, c.p0.y));
+            }
+            sk.push_str(&format!("C{:.1} {:.1} {:.1} {:.1} {:.1} {:.1} ", c.c1.x, c.c1.y, c.c2.x, c.c2.y, c.p3.x, c.p3.y));
+        }
+    }
+    (ink, sk)
+}
+
+/// Proofing aid: horizontal extents of a glyph's ink above and below a split
+/// height (fraction of the x-height or cap height): (upper x0, x1, lower x0, x1).
+pub fn debug_extent(seed: &str, spec: &str, c: char, split: f64) -> (f64, f64, f64, f64) {
+    let st = style_for(seed, spec);
+    let m = build::Metrics::new(&st);
+    let Some(d) = font::draw_char(c, &st, &m) else { return (0.0, 0.0, 0.0, 0.0) };
+    let h = if c.is_uppercase() { m.cap } else { m.xh } * split;
+    let (mut u0, mut u1, mut l0, mut l1) = (f64::MAX, f64::MIN, f64::MAX, f64::MIN);
+    for p in d.ink.polygons() {
+        for q in p {
+            if q.y > h {
+                u0 = u0.min(q.x);
+                u1 = u1.max(q.x);
+            } else {
+                l0 = l0.min(q.x);
+                l1 = l1.max(q.x);
+            }
+        }
+    }
+    (u0, u1, l0, l1)
+}

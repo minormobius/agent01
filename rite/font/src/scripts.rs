@@ -276,7 +276,7 @@ pub fn cyr_cap(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let (xl, xr) = (hs, w - hs);
             b.stem(xr, 0.0, cap);
             let yj = cap * 0.4;
-            let p = path(v(xl, cap)).line(v(xl, yj + cap * 0.18)).tension(b.t()).to(v(xl + (xr - xl) * 0.42, yj - th * 0.1), RIGHT).to(v(xr, yj + cap * 0.04), dir_to_v(1.0, 0.25)).w(1.0 - s.trap);
+            let p = path(v(xl, cap)).line(v(xl, yj + cap * 0.18)).tension(b.t()).to(v(xl + (xr - xl) * 0.42, yj - th * 0.1), RIGHT).to(v(xr, yj + cap * 0.04), dir_to_v(1.0, 0.25)).w(1.0 - b.trap());
             b.stroke(&p, HCUT, Cap::Butt);
             b.serif(xl, cap, false, true, true);
             b.serif(xr, cap, false, true, true);
@@ -612,7 +612,7 @@ fn greek_lower(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let (xl, xr) = (hs, nw - hs);
             b.stem(xl, -desc, xh);
             b.stem(xr, 0.0, xh);
-            let p = path(v(xl, xh * 0.4)).tension(t).to(v(xl, xh * 0.4), DOWN).to(v((xl + xr) / 2.0, -o * 0.5 + th / 2.0), RIGHT).to(v(xr, xh * 0.3), dir_to_v(0.4, 1.0)).w(1.0 - s.trap);
+            let p = path(v(xl, xh * 0.4)).tension(t).to(v(xl, xh * 0.4), DOWN).to(v((xl + xr) / 2.0, -o * 0.5 + th / 2.0), RIGHT).to(v(xr, xh * 0.3), dir_to_v(0.4, 1.0)).w(1.0 - b.trap());
             b.stroke(&p, Cap::Butt, Cap::Butt);
             b.done(STRAIGHT, STRAIGHT)
         }

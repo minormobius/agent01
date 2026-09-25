@@ -153,11 +153,12 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let cx = w * 0.5;
             let cy = -o + th / 2.0 + ry;
             let a1 = 180.0 + ab * 0.95;
+            // the bowl grows out of the vertical's centreline, cut along it
             let p = path_d(v(xv - w * 0.02, yv), dir_to_v(0.6, 0.55))
                 .tension(t)
                 .to(v(cx - rx * 0.1, cy + ry), RIGHT)
                 .then(b.arc(cx, cy, rx, ry, 70.0, a1 - 360.0));
-            b.stroke(&p, Cap::Butt, b.arc_cap());
+            b.stroke(&p, crate::build::along(v(xv, h), v(xv - w * 0.02, yv - th * 0.2)), b.arc_cap());
             term_ball(&mut b, cx, cy, rx, ry, a1);
             if serif {
                 b.beak(w * 0.94, h, true, 0.6);
@@ -219,7 +220,7 @@ impl<'a> B<'a> {
     pub fn tc_line(&self) -> Cap {
         match self.s.term {
             Term::Round => Cap::Round,
-            Term::Pen => Cap::Pen,
+            Term::Pen => self.tc(),
             _ => HCUT,
         }
     }

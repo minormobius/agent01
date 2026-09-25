@@ -270,3 +270,48 @@ fn italics_are_real_italics() {
     let bytes = minofont::roll_params("ital", "italic=1;slant=0");
     assert!(Face::parse(&bytes, 0).unwrap().is_italic());
 }
+
+#[test]
+fn s_terminals_never_overhang_their_bowls() {
+    // The s's reach is solved, not guessed: each terminal ends at or inside
+    // the opposite bowl's outer edge, in every style and weight.
+    for arch in 0..8 {
+        for stem in [60.0, 95.0, 150.0, 210.0] {
+            let spec = format!("{};stem={stem};slant=0;italic=0", minofont::archetype_spec(arch, 0.0, "ext"));
+            for c in ['s', 'S'] {
+                let (u0, u1, l0, l1) = minofont::debug_extent("ext", &spec, c, 0.5);
+                assert!(u1 - l1 <= 2.0, "archetype {arch} stem {stem}: {c:?} top terminal overhangs by {:.1}", u1 - l1);
+                assert!(u0 - l0 <= 2.0, "archetype {arch} stem {stem}: {c:?} bottom terminal overhangs by {:.1}", u0 - l0);
+            }
+        }
+    }
+}
+
+/// Counts closed contours (outer + counters).
+#[derive(Default)]
+struct Contours(usize);
+impl OutlineBuilder for Contours {
+    fn move_to(&mut self, _: f32, _: f32) {
+        self.0 += 1;
+    }
+    fn line_to(&mut self, _: f32, _: f32) {}
+    fn quad_to(&mut self, _: f32, _: f32, _: f32, _: f32) {}
+    fn curve_to(&mut self, _: f32, _: f32, _: f32, _: f32, _: f32, _: f32) {}
+    fn close(&mut self) {}
+}
+
+#[test]
+fn heavy_weights_keep_their_counters() {
+    // A black weight thins its horizontals and widens its hooks rather than
+    // letting counters close: every bowl letter still has a counter.
+    for arch in 0..8 {
+        let spec = format!("{};stem=215;slant=0;italic=0;ball=0", minofont::archetype_spec(arch, 0.2, "heavy"));
+        let bytes = minofont::roll_params("heavy", &spec);
+        let face = Face::parse(&bytes, 0).unwrap();
+        for c in "eoagbdpqOBDPR".chars() {
+            let mut k = Contours::default();
+            face.outline_glyph(face.glyph_index(c).unwrap(), &mut k);
+            assert!(k.0 >= 2, "archetype {arch} at black weight: {c:?} lost its counter ({} contours)", k.0);
+        }
+    }
+}

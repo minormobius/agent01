@@ -50,11 +50,20 @@ impl Metrics {
         m
     }
     pub fn new(s: &Style) -> Metrics {
-        let p = if s.term == Term::Round { 2.0 } else { s.nib };
+        // A big tilted chisel smears every horizontal diagonally, so bold
+        // old-styles aren't drawn with one: as the weight rises the stress
+        // straightens and the nib rounds out.
+        let heft = ((s.stem / s.xh - 0.2) / 0.22).clamp(0.0, 1.0);
+        let stress = s.stress * (1.0 - heft * 0.65);
+        let nib = 2.0 + (s.nib - 2.0) * (1.0 - heft * 0.8);
+        let p = if s.term == Term::Round { 2.0 } else { nib };
         let ratio = if s.term == Term::Round { s.ratio.max(0.6) } else { s.ratio };
-        let pen = Pen::for_stem(s.stem, ratio, s.stress, p);
+        // heavy weights thin their horizontals: an e or s must fit three
+        // horizontals and two open counters inside the x-height, so the pen
+        // gains contrast (only) as far as that needs
+        let pen = pen_within(s.stem, ratio, stress, p, s.xh * 0.24);
         let ustem = s.stem * 1.09;
-        let upen = Pen::for_stem(ustem, ratio, s.stress, p);
+        let upen = pen_within(ustem, ratio, stress, p, s.cap * 0.19);
         let hth = 2.0 * pen.half_width(UP);
         let uhth = 2.0 * upen.half_width(UP);
         let thin = 2.0 * pen.l.min(pen.s);
@@ -84,6 +93,17 @@ impl Metrics {
             w: s.width,
         }
     }
+}
+
+/// The pen for `stem`, with its horizontal stroke no thicker than `hmax`.
+fn pen_within(stem: f64, ratio: f64, stress: f64, p: f64, hmax: f64) -> Pen {
+    let mut r = ratio;
+    let mut pen = Pen::for_stem(stem, r, stress, p);
+    while 2.0 * pen.half_width(UP) > hmax && r > 0.05 {
+        r *= 0.92;
+        pen = Pen::for_stem(stem, r, stress, p);
+    }
+    pen
 }
 
 /// A drawn glyph before spacing: its ink, the spacing class of each side, and
@@ -137,7 +157,9 @@ impl<'a> B<'a> {
             Term::Horizontal => HCUT,
             Term::Vertical => VCUT,
             Term::Perp => Cap::Square,
-            Term::Pen => Cap::Pen,
+            // the nib's edge: an angled cut at the pen angle (stamping the whole
+            // nib instead would spike wherever a stroke runs along the nib)
+            Term::Pen => Cap::Cut(v(self.pen.ang.cos(), self.pen.ang.sin())),
             Term::Round => Cap::Round,
         }
     }
@@ -181,7 +203,7 @@ impl<'a> B<'a> {
     /// in expansion-contrast styles. The broad-nib pen does this by itself when
     /// the stress is tilted, so the rule fades out as the stress angle grows.
     pub fn thin_w(&self) -> f64 {
-        let k = (1.0 - self.s.ratio) * (1.0 - (self.s.stress.abs() / 28.0).clamp(0.0, 1.0));
+        let k = (1.0 - self.s.ratio) * (1.0 - (self.pen.ang.to_degrees().abs() / 28.0).clamp(0.0, 1.0));
         (1.0 - k * 0.72).max(0.2)
     }
     /// A diagonal: `/` strokes (rising to the right) take the thin weight.
@@ -298,7 +320,7 @@ impl<'a> B<'a> {
         let yb = y0 + self.hth / 2.0;
         let ym = (y0 + y1) / 2.0;
         let t = self.t();
-        let tr = 1.0 - self.s.trap;
+        let tr = 1.0 - self.trap();
         let span = (xf - xs).abs();
         // x of the top/bottom extremes: a bit toward the far side for joins
         let xm = xs + (xf - xs) * 0.5;
@@ -344,7 +366,7 @@ impl<'a> B<'a> {
     /// arch springs lower on the stem and peaks further right, like a pen that
     /// never lifts.
     pub fn arch_path(&self, xl: f64, xr: f64, top: f64, join: f64) -> PathB {
-        let tr = 1.0 - self.s.trap;
+        let tr = 1.0 - self.trap();
         let yt = top - self.hth / 2.0;
         let sq = self.s.sup; // squarer shoulder → lower, flatter
         let ysh = top - (top * (0.52 - (sq - 0.70) * 1.3)).clamp(top * 0.22, top * 0.6);
@@ -360,9 +382,24 @@ impl<'a> B<'a> {
             .w(1.0)
             .to(v(xr, ysh), DOWN)
     }
+    /// How heavy this weight is, 0 (book) … 1 (black): stem over x-height.
+    pub fn heft(&self) -> f64 {
+        ((self.m.stem / self.m.xh - 0.2) / 0.22).clamp(0.0, 1.0)
+    }
+    /// The tightest centreline radius a hook may turn: a pen can't draw a
+    /// curve tighter than its own half-width, and heavy weights widen their
+    /// hooks for exactly that reason.
+    pub fn min_r(&self) -> f64 {
+        self.stem * 0.62 + 4.0
+    }
+    /// Junction thinning, eased off as the weight rises (a heavy trap closes
+    /// into a pinhole).
+    pub fn trap(&self) -> f64 {
+        self.s.trap * (1.0 - self.heft() * 0.8)
+    }
     /// Radii and centre height of an italic exit hook on a stem.
     pub fn exit_geom(&self) -> (f64, f64, f64) {
-        let r = self.m.cn * 0.30 + self.stem * 0.12;
+        let r = (self.m.cn * 0.30 + self.stem * 0.12).max(self.min_r());
         let ry = r * 0.95;
         let cy = -self.m.over * 0.5 + self.hth / 2.0 + ry;
         (r, ry, cy)
@@ -483,9 +520,11 @@ impl<'a> B<'a> {
         let (len, th, _, _) = self.serif_dims();
         let sg = if down { -1.0 } else { 1.0 };
         let case = if self.uc { 1.0 } else { 0.78 };
+        // heavy weights shorten their beaks, or they close the apertures
+        let case = case * (1.0 - self.heft() * 0.55);
         let h = self.hth * 0.9 + (len * 0.95 + th * 0.55) * h_mul * case;
         let (w0, w1) = match self.s.serif {
-            Serif::Slab => (self.stem * 0.5, self.stem * 0.5),
+            Serif::Slab => (self.stem * (0.5 - self.heft() * 0.18), self.stem * (0.5 - self.heft() * 0.18)),
             Serif::Hairline => (self.m.thin * 1.4 + 4.0, self.m.thin * 1.1 + 3.0),
             _ => (self.stem * 0.55, self.stem * 0.26),
         };
@@ -550,7 +589,10 @@ impl<'a> B<'a> {
         self.fill(o);
     }
     pub fn ball_r(&self) -> f64 {
-        (self.stem * 0.56).max(self.hth * 0.9)
+        // heavy weights keep their balls small, or they fill the counters
+        // a ball hangs into a counter, so it is capped by the room there
+        let room = (self.m.xh - 2.0 * self.hth).max(self.hth) * 0.22;
+        (self.stem * 0.56 * (1.0 - self.heft() * 0.35)).min(room.max(self.hth * 0.6)).max(self.m.thin * 1.2)
     }
 }
 

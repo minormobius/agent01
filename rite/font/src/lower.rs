@@ -67,7 +67,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
         }
         'u' if s.italic => {
             let (xl, xr) = (hs, nw - hs);
-            let tr = 1.0 - s.trap;
+            let tr = 1.0 - b.trap();
             let yb = -o * 0.6 + m.hth / 2.0;
             let p = path(v(xl, xh))
                 .line(v(xl, xh * 0.45))
@@ -109,7 +109,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
         }
         'f' if s.italic => {
             // the italic f: a hook above, a stem through the x-height, a hook below
-            let r = cn * 0.36 + st * 0.12;
+            let r = (cn * 0.36 + st * 0.12).max(b.min_r());
             let ry = r * 0.95;
             let xs = r * 1.05 + hs;
             let yt = asc + o * 0.5;
@@ -167,7 +167,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let (xl, xr) = (hs, nw - hs);
             b.stem(xr, 0.0, xh);
             // the inverted arch: down the left stem, round the bottom, up into the right stem
-            let tr = 1.0 - s.trap;
+            let tr = 1.0 - b.trap();
             let yb = -o * 0.6 + m.hth / 2.0;
             let ysh = xh - (xh - (top - xh * (0.52 - (s.sup - 0.70) * 1.3).clamp(0.22, 0.6)));
             let ysh = ysh.min(xh * 0.6);
@@ -233,7 +233,12 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let w = ow * 0.97;
             let (cx, cy, rx, ry) = b.ebox(0.0, w, -o, xh + o);
             let ab = lerp(22.0, 58.0, ap);
-            let ybar = (xh * (s.bar + 0.06)).max(cy + m.hth * 0.1) - m.hth * 0.0;
+            // the bar drops in heavy weights so the eye keeps some height (a
+            // high bar under a thick top stroke closes the eye)
+            let eye_min = xh * 0.13;
+            let ybar = (xh * (s.bar + 0.06))
+                .min(xh + o - m.hth * 1.5 - eye_min)
+                .max(cy + m.hth * 0.1);
             let ybar_c = ybar;
             let t = b.t();
             let (pb, db) = b.ell(cx, cy, rx, ry, 360.0 - ab);
@@ -253,9 +258,9 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             b.done(ROUND, OPEN + 0.12)
         }
         'a' if s.a2 && !s.italic => {
-            let w = lw(s, m, 0.93, 0.86);
+            let w = lw(s, m, 0.93, 0.86).max(st * 2.3 + cn * 0.55);
             let xs = w - hs;
-            let tr = 1.0 - s.trap;
+            let tr = 1.0 - b.trap();
             let t = b.t();
             // hook over the top into the stem
             let ysh = xh * 0.5;
@@ -272,7 +277,13 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             term_ball(&mut b, cx, cy, rx, ry, a0);
             let _ = (tr, t);
             // the bowl
-            let bt = xh * lerp(0.54, 0.60, s.bar - 0.38) - m.hth / 2.0;
+            // the bowl's top sits where both counters (the bowl's, and the
+            // one under the hook) keep a minimum height — in a black weight
+            // three thick horizontals share the x-height
+            let yb0 = -o + m.hth / 2.0;
+            let lo = yb0 + m.hth + xh * 0.14;
+            let hi = top - m.hth * 1.5 - xh * 0.10;
+            let bt = (xh * lerp(0.54, 0.60, s.bar - 0.38) - m.hth / 2.0).clamp(lo.min(hi), hi.max(lo));
             let yb = -o + m.hth / 2.0;
             let xb = hs * 1.04 + st * 0.0;
             let pb = path_d(v(xs, bt), LEFT)
@@ -306,8 +317,8 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let y1 = if c == 'l' { asc } else { xh };
             if c == 'j' {
                 // descender hooking left
-                let rx = cn * 0.30 + st * 0.12;
-                let ry = desc * 0.46;
+                let rx = (cn * 0.30 + st * 0.12).max(b.min_r());
+                let ry = (desc * 0.46).max(b.min_r() * 0.9);
                 let cy = -desc + m.hth / 2.0 + ry;
                 let (at, _) = c_terms(s);
                 let a1 = -(180.0 - at * 0.9);
@@ -335,7 +346,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             }
         }
         'f' => {
-            let r = cn * 0.40 + st * 0.12;
+            let r = (cn * 0.40 + st * 0.12).max(b.min_r());
             let ry = r * lerp(0.95, 0.8, s.sup - 0.68);
             let xs = hs + cn * 0.16;
             let yt = asc + o * 0.5;
@@ -358,7 +369,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             let xs = hs + cn * 0.16;
             let ttop = xh + (asc - xh) * lerp(0.42, 0.55, 1.0 - s.prop * 0.5);
             let yb = xh - m.hth / 2.0;
-            let rx = cn * 0.36;
+            let rx = (cn * 0.36).max(b.min_r());
             if sharp {
                 b.stem(xs, 0.0, ttop);
                 if b.serifed() {
@@ -379,7 +390,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
         'r' => {
             let xl = hs;
             let w = lw(s, m, 0.64, 0.60);
-            let tr = 1.0 - s.trap;
+            let tr = 1.0 - b.trap();
             b.stem(xl, 0.0, xh);
             let cx = xl + (w - xl) * 0.42;
             let rx = w - st * 0.22 - cx;
@@ -398,7 +409,8 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             b.done(STRAIGHT, OPEN * 0.3)
         }
         's' => {
-            let w = lw(s, m, 0.84, 0.74);
+            // a heavy s widens so its counters stay open
+            let w = lw(s, m, 0.84, 0.74).max(st * 2.2 + cn * 0.62);
             draw_s(&mut b, 0.0, w, -o, xh + o, s, m.hth, false);
             b.done(ROUND * 0.95, ROUND * 0.95)
         }
@@ -438,17 +450,19 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
                 let yend = -desc + m.hth / 2.0;
                 if s.tail_y {
                     let xd = w - inset - dx * (xh + desc * 0.55);
+                    // the curl can't be tighter than the pen allows
+                    let cr = (cn * 0.45).max(b.min_r() * 1.1);
                     let p = path(v(w - inset, xh))
                         .line(v(xd + dx * desc * 0.25, -desc * 0.30))
                         .tension(b.t())
                         .to(v(xd - st * 0.2, -desc * 0.72), dir_to_v(-dx * 0.6 - 0.35, -1.0))
-                        .to(v(xd - cn * 0.45, yend), LEFT)
-                        .to(v(xd - cn * 0.8, yend + st * 0.25), dir_to_v(-1.0, 0.7));
+                        .to(v(xd - cr, yend), LEFT)
+                        .to(v(xd - cr * 1.8, yend + st * 0.25), dir_to_v(-1.0, 0.7));
                     let tc = b.tcb();
                     b.stroke(&p, HCUT, tc);
                     if s.ball {
                         let r = b.ball_r();
-                        b.ball(v(xd - cn * 0.8, yend + st * 0.25), v(0.4, 1.0), r);
+                        b.ball(v(xd - cr * 1.8, yend + st * 0.25), v(0.4, 1.0), r);
                     }
                 } else {
                     let xd = w - inset - dx * (xh + desc);
@@ -536,8 +550,8 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
         'g' => {
             let w = ow * 0.99 + st * 0.12;
             let xs = w - hs;
-            let rx = (xs - st * 0.5) * 0.48;
-            let ry = desc * 0.46;
+            let rx = ((xs - st * 0.5) * 0.48).max(b.min_r());
+            let ry = (desc * 0.46).max(b.min_r() * 0.9);
             let cy = -desc + m.hth / 2.0 + ry;
             let (at, _) = c_terms(s);
             let a1 = -(180.0 - at * 0.9);
@@ -617,29 +631,71 @@ pub fn draw_s(b: &mut B, x0: f64, x1: f64, y0: f64, y1: f64, s: &Style, hth: f64
     let wl = w - sw;
     let (cxu, cyu, rxu, ryu) = (x0 + sw / 2.0 + wl - wu / 2.0 - (wl - wu) * 0.55, y1 - hth / 2.0 - hu / 2.0, wu / 2.0, hu / 2.0);
     let (cxl, cyl, rxl, ryl) = (x0 + sw / 2.0 + wl / 2.0, y0 + hth / 2.0 + hl / 2.0, wl / 2.0, hl / 2.0);
-    let (at, ab) = c_terms(s);
-    let at = at * 0.95 + 4.0;
-    let ab = ab * 0.95 + 4.0;
-    let (pt, dt) = b.ell(cxu, cyu, rxu, ryu, at);
     let (ptop, _) = b.ell(cxu, cyu, rxu, ryu, 90.0);
     let (pl, _) = b.ell(cxu, cyu, rxu, ryu, 180.0);
     let (pr, _) = b.ell(cxl, cyl, rxl, ryl, 0.0);
     let (pbot, _) = b.ell(cxl, cyl, rxl, ryl, -90.0);
+    // The terminals' *reach* is what the eye reads, so it is what we set: each
+    // terminal ends a margin inside the opposite bowl's outer edge (flush-ish
+    // for a closed grotesque, further in for an open humanist; more in heavy
+    // weights, whose thick strokes otherwise close the apertures), and the
+    // angle on its ellipse is solved to land there.
+    let margin = w * (0.015 + 0.12 * s.aperture + 0.06 * b.heft());
+    let right_edge = pr.x + sw / 2.0; // lower bowl's outer right
+    let left_edge = pl.x - sw / 2.0; // upper bowl's outer left
+    // measure, don't model: draw the terminal's stretch with its real cap and
+    // read the ink's extreme (a plumb cut ends at the centreline, a level cut
+    // on a sloping stroke reaches well past it)
+    let tc = b.arc_cap();
+    let ink_x = |p: PathB, right: bool| -> f64 {
+        let mut ink = crate::ink::Ink::default();
+        let (c0, c1) = if right { (tc, Cap::Butt) } else { (Cap::Butt, tc) };
+        ink.stroke(crate::ink::Stroke { segs: p.cubics(), closed: false, pen: b.pen, cap0: c0, cap1: c1 });
+        let mut e = if right { f64::MIN } else { f64::MAX };
+        for poly in ink.polygons() {
+            for q in poly {
+                e = if right { e.max(q.x) } else { e.min(q.x) };
+            }
+        }
+        e
+    };
+    let solve = |f: &dyn Fn(f64) -> f64| {
+        // f is monotone on [6°, 88°]; bisect for its root, clamped to the range
+        let (mut lo, mut hi) = (6.0f64, 88.0f64);
+        let (flo, fhi) = (f(lo), f(hi));
+        if flo.signum() == fhi.signum() {
+            return if flo.abs() < fhi.abs() { lo } else { hi };
+        }
+        for _ in 0..14 {
+            let mid = (lo + hi) / 2.0;
+            if f(mid).signum() == flo.signum() {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+        (lo + hi) / 2.0
+    };
+    let at = solve(&|a| ink_x(b.arc(cxu, cyu, rxu, ryu, a, 90.0), true) - (right_edge - margin));
+    let ab = solve(&|a| left_edge + margin - ink_x(b.arc(cxl, cyl, rxl, ryl, -90.0, a - 180.0), false));
+    let (pt, dt) = b.ell(cxu, cyu, rxu, ryu, at);
     let (pb, db) = b.ell(cxl, cyl, rxl, ryl, 180.0 + ab);
     // spine: through the centre, sloped by the bowls' offset
     let mid = v((cxu + cxl) / 2.0, (cyu - ryu * 0.0 + cyl) / 2.0);
     let slope = (pl.y - pr.y) / (pr.x - pl.x).max(1.0);
     let spine = v(1.0, -slope * lerp(1.05, 1.35, s.sup - 0.68)).norm();
-    let _ = spine;
-    let _ = mid;
+    let _ = (spine, mid);
+    // the spine is the s's heaviest stroke in a book weight; in a black one it
+    // gives way, or it would fill both counters
+    let spine = 1.03 - b.heft() * 0.3;
     let p = path_d(pt, dt)
         .tension(t)
         .to(ptop, LEFT)
         .to(pl, DOWN)
-        .w(1.03)
+        .w(spine)
         .tension(t * 0.92)
         .to(pr, DOWN)
-        .w(1.03)
+        .w(spine)
         .tension(t)
         .to(pbot, LEFT)
         .to(pb, -db);
@@ -649,7 +705,8 @@ pub fn draw_s(b: &mut B, x0: f64, x1: f64, y0: f64, y1: f64, s: &Style, hth: f64
         let r = b.ball_r() * if caps { 1.05 } else { 1.0 };
         b.ball(pt, v(cxu - pt.x, cyu - pt.y).norm(), r);
         b.ball(pb, v(cxl - pb.x, cyl - pb.y).norm(), r);
-    } else if b.serifed() {
+    } else if b.serifed() && b.heft() < 0.3 {
+        // (a heavy s has no room for beaks: they would close its apertures)
         b.beak_at(pt, true);
         b.beak_at(pb, false);
     }

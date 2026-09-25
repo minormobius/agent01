@@ -372,7 +372,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             b.done(OPEN * 0.7, OPEN * 0.7)
         }
         'S' => {
-            let w = cw(s, m, 0.90, 0.72);
+            let w = cw(s, m, 0.90, 0.72).max(st * 2.2 + m.ch * 0.6);
             draw_s(&mut b, 0.0, w, -o, cap + o, s, th, true);
             b.done(ROUND * 0.95, ROUND * 0.95)
         }

@@ -183,59 +183,67 @@ impl Stroke {
     /// Filled region of this stroke as i_overlay shapes (outer CCW, holes CW).
     fn shapes(&self) -> Vec<Vec<Poly>> {
         let pen = &self.pen;
-        let mut polys: Vec<Poly> = Vec::new();
-        // walk segments, detecting corners
+        // every piece of ink, tagged with where it sits along the stroke (arc length)
+        let mut items: Vec<(Poly, f64)> = Vec::new();
         let mut prev_end: Option<(V, V, f64)> = None; // (point, dir, w)
         let mut all: Vec<Sample> = Vec::new();
-        for (si, seg) in self.segs.iter().enumerate() {
+        let mut arcs: Vec<f64> = Vec::new();
+        let mut arc = 0.0;
+        for seg in &self.segs {
             let mut ss = Vec::new();
             sample_seg(seg, &mut ss, false);
             if let Some((p, d, w)) = prev_end {
                 let d2 = seg.start_dir();
                 if d.cross(d2).abs() > 0.02 || d.dot(d2) < 0.0 {
-                    polys.push(to_poly(&ccw(pen.outline(p, w))));
+                    items.push((to_poly(&ccw(pen.outline(p, w))), arc));
                 }
             }
             for i in 1..ss.len() {
                 let (a, b) = (&ss[i - 1], &ss[i]);
-                let pa = pen.scaled(a.w);
-                let pb = pen.scaled(b.w);
-                let na = a.t.perp();
-                let nb = b.t.perp();
-                let sa = pa.support(na);
-                let sb = pb.support(nb);
+                let step = (b.c - a.c).len();
+                let sa = pen.scaled(a.w).support(a.t.perp());
+                let sb = pen.scaled(b.w).support(b.t.perp());
                 let h = hull(vec![a.c + sa, a.c - sa, b.c + sb, b.c - sb]);
                 if h.len() >= 3 {
-                    polys.push(to_poly(&h));
+                    items.push((to_poly(&h), arc + step / 2.0));
                 }
+                arc += step;
             }
             prev_end = Some((seg.p3, seg.end_dir(), seg.w1));
-            let _ = si;
+            let mut a = arc - ss.windows(2).map(|w| (w[1].c - w[0].c).len()).sum::<f64>();
+            for (i, smp) in ss.iter().enumerate() {
+                if i > 0 {
+                    a += (smp.c - ss[i - 1].c).len();
+                }
+                arcs.push(a);
+            }
             all.extend(ss);
         }
+        let total = arc;
         if self.closed {
             if let (Some((p, d, w)), Some(first)) = (prev_end, self.segs.first()) {
                 let d2 = first.start_dir();
                 if d.cross(d2).abs() > 0.02 || d.dot(d2) < 0.0 {
-                    polys.push(to_poly(&ccw(pen.outline(p, w))));
+                    items.push((to_poly(&ccw(pen.outline(p, w))), total));
                 }
             }
         }
-        let mut cuts: Vec<Poly> = Vec::new();
+        // terminal cuts: each box trims only the ink within `zone` of its own end
+        // (by arc length) — never a part of the same stroke that merely passes
+        // nearby, like an s's spine under its terminal
+        let mut boxes: [Option<(Poly, f64)>; 2] = [None, None];
         if !self.closed && !all.is_empty() {
             let first = &all[0];
             let last = &all[all.len() - 1];
-            for (s, outward, cap) in [
-                (first, -first.t, self.cap0),
-                (last, last.t, self.cap1),
-            ] {
+            for (end, (s, outward, cap)) in [(first, -first.t, self.cap0), (last, last.t, self.cap1)].into_iter().enumerate() {
+                let at = if end == 0 { 0.0 } else { total };
                 let pw = pen.scaled(s.w);
                 match cap {
                     Cap::Butt => {}
-                    Cap::Pen => polys.push(to_poly(&ccw(pw.outline(s.c, 1.0)))),
+                    Cap::Pen => items.push((to_poly(&ccw(pw.outline(s.c, 1.0))), at)),
                     Cap::Round => {
                         let r = pw.half_width(outward.perp());
-                        polys.push(to_poly(&ccw(Pen::circle(r).outline(s.c, 1.0))));
+                        items.push((to_poly(&ccw(Pen::circle(r).outline(s.c, 1.0))), at));
                     }
                     Cap::Cut(_) | Cap::Square => {
                         let mut d = match cap {
@@ -243,44 +251,98 @@ impl Stroke {
                             Cap::Cut(d) => d.norm(),
                             _ => unreachable!(),
                         };
-                        // a cut running nearly along the stroke is degenerate:
-                        // lean it toward square instead
-                        if d.cross(outward).abs() < 0.5 {
+                        // a cut running nearly along the stroke is ill-posed (it
+                        // leaves a long sliver): the shallower the approach, the
+                        // more the cut leans toward square
+                        let sin0 = d.cross(outward).abs();
+                        if sin0 < 0.75 {
                             let sq = outward.perp();
                             let sq = if sq.dot(d) < 0.0 { -sq } else { sq };
-                            d = (d + sq * 1.4).norm();
+                            let t = ((0.75 - sin0) / 0.75).clamp(0.0, 1.0);
+                            d = (d * (1.0 - t) + sq * t).norm();
                         }
                         // extend past the end along the tangent...
                         let n = outward.perp();
                         let sp = pw.support(n);
                         let hw = sp.dot(n).abs().max(1.0);
                         let sin = d.cross(outward).abs().max(0.3);
-                        let lat = (hw * 1.3 + sp.len() * 0.3) / sin;
+                        // the ink's cross-section along the cut line is hw/sin
+                        // each side of the end point
+                        let lat = hw / sin * 1.15 + 4.0;
                         let ext = lat * 1.2 + hw;
                         let e = s.c + outward * ext;
-                        let h = hull(vec![s.c + sp, s.c - sp, e + sp, e - sp]);
-                        polys.push(to_poly(&h));
+                        items.push((to_poly(&hull(vec![s.c + sp, s.c - sp, e + sp, e - sp])), at));
                         // ...then cut back to the line through the end point: the
-                        // box hugs the stroke (sides along D and the tangent).
-                        // reach past everything the extension and the nib itself
-                        // (a flat nib reaches far along the stroke) could ink
+                        // box hugs the stroke (sides along D and the tangent) and
+                        // reaches past everything the extension and the nib (a
+                        // flat nib reaches far along the stroke) could ink
                         let far = ext + sp.len() + pw.l.max(pw.s) + hw * 2.0 + 2.0;
-                        let bx = vec![
-                            s.c + d * lat,
-                            s.c - d * lat,
-                            s.c - d * lat + outward * far,
-                            s.c + d * lat + outward * far,
-                        ];
-                        cuts.push(to_poly(&ccw(bx)));
+                        let bx = vec![s.c + d * lat, s.c - d * lat, s.c - d * lat + outward * far, s.c + d * lat + outward * far];
+                        // how far back along the stroke the cut may reach: walk
+                        // back from this end until the centreline has cleared
+                        // the cut line (on the near side) by more than the
+                        // ink can reach — only that stretch can cross it
+                        let mut m = d.perp();
+                        if m.dot(outward) < 0.0 {
+                            m = -m;
+                        }
+                        let reach = hw + sp.dot(outward).abs() + 12.0;
+                        let n = all.len();
+                        let mut zone = total;
+                        for k in 0..n {
+                            let i = if end == 0 { k } else { n - 1 - k };
+                            if (all[i].c - s.c).dot(m) <= -reach {
+                                zone = if end == 0 { arcs[i] } else { total - arcs[i] };
+                                break;
+                            }
+                        }
+                        boxes[end] = Some((to_poly(&ccw(bx)), zone + 8.0));
                     }
                 }
             }
         }
-        if cuts.is_empty() {
-            polys.overlay(&Vec::<Poly>::new(), OverlayRule::Subject, FillRule::NonZero)
-        } else {
-            polys.overlay(&cuts, OverlayRule::Difference, FillRule::NonZero)
+        if boxes[0].is_none() && boxes[1].is_none() {
+            let polys: Vec<Poly> = items.into_iter().map(|i| i.0).collect();
+            return polys.overlay(&Vec::<Poly>::new(), OverlayRule::Subject, FillRule::NonZero);
         }
+        // group the pieces by which cuts can reach them
+        let mut groups: [Vec<Poly>; 4] = [Vec::new(), Vec::new(), Vec::new(), Vec::new()];
+        // groups overlap by a margin of arc: separate boolean passes snap to
+        // separate grids, so pieces that merely touched would leave hairline
+        // cracks. The strict copy is far enough from its end to be safe untrimmed.
+        const MARGIN: f64 = 30.0;
+        for (poly, at) in items {
+            let reach = |pad: f64| {
+                let in0 = boxes[0].as_ref().map_or(false, |b| at <= b.1 + pad);
+                let in1 = boxes[1].as_ref().map_or(false, |b| at >= total - b.1 - pad);
+                (in0 as usize) | ((in1 as usize) << 1)
+            };
+            let (loose, strict) = (reach(MARGIN), reach(0.0));
+            if loose != strict {
+                groups[strict].push(poly.clone());
+            }
+            groups[loose].push(poly);
+        }
+        let mut out = Vec::new();
+        for (g, polys) in groups.into_iter().enumerate() {
+            if polys.is_empty() {
+                continue;
+            }
+            let mut clip: Vec<Poly> = Vec::new();
+            if g & 1 != 0 {
+                clip.push(boxes[0].as_ref().unwrap().0.clone());
+            }
+            if g & 2 != 0 {
+                clip.push(boxes[1].as_ref().unwrap().0.clone());
+            }
+            let res = if clip.is_empty() {
+                polys.overlay(&Vec::<Poly>::new(), OverlayRule::Subject, FillRule::NonZero)
+            } else {
+                polys.overlay(&clip, OverlayRule::Difference, FillRule::NonZero)
+            };
+            out.extend(res);
+        }
+        out
     }
 }
 
@@ -359,7 +421,10 @@ impl Ink {
         for shape in res {
             for c in shape {
                 let pts: Vec<V> = c.iter().map(|p| v(p[0], p[1])).collect();
-                if area(&pts).abs() > 6.0 {
+                // drop specks: slivers of ink, and pinholes too small to be a
+                // counter (an ink trap that closed up in a heavy weight)
+                let a = area(&pts);
+                if a > 40.0 || a < -350.0 {
                     out.push(pts);
                 }
             }

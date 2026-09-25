@@ -57,6 +57,18 @@ seed ─xmur3/mulberry32─► Style (the genome: archetype · blend · jitter �
   arm, `k K Ж` arms and legs, `R` legs) ends on the host's centreline, cut
   along the host, so its end face can't poke out. Straight strokes are written
   as single segments.
+- **Heavy weights are drawn, not inflated.** A `heft` (stem ÷ x-height) eases
+  the pen toward level and round as weight rises: stress straightens, the nib
+  rounds, horizontals are capped at a quarter of the x-height so `e a g` keep
+  their counters, hooks never turn tighter than the pen, balls and beaks shrink
+  to the room they have, and junction traps ease off. Terminal cuts are scoped
+  to the end of their own stroke by arc length, so a black `r`, `g` or `e`
+  can't have its cut clip the far side of the same stroke. Old-style terminals
+  are cut along the nib's edge.
+- **The `s` is solved, not guessed.** Its terminals' reach is found by
+  bisection on the drawn ink: each end stops a set margin inside the opposite
+  bowl, at every weight and aperture, so an `s` never overhangs or pinches.
+  `cargo run --example sext` prints the table.
 - **Spaced and kerned.** Sidebearings follow Tracy (straight / round /
   diagonal / open sides), measured from the stroke body so serifs overhang it,
   as they do in real serif faces. Kerning is measured: the white between each
@@ -80,8 +92,9 @@ seed ─xmur3/mulberry32─► Style (the genome: archetype · blend · jitter �
 | `src/font.rs` | Assembly: draw → union → space → kern → shear → refit → `sfnt` |
 | `src/sfnt.rs` | Dependency-free TrueType serializer incl. GPOS and kern |
 | `src/lib.rs` | The wasm API: `roll`, `roll_params`, `roll_subset`, `describe`, `archetype_spec`, `archetypes`, `genes`, `charset` |
-| `tests/valid.rs` | The gate: every promised glyph outlines, aliases share glyphs, kerning is sane, specs round-trip, archetypes and gene extremes stay valid, monospace is monospaced |
+| `tests/valid.rs` | The gate: every promised glyph outlines, aliases share glyphs, kerning is sane, specs round-trip, archetypes and gene extremes stay valid, monospace is monospaced, italics are real, `s`/`S` terminals never overhang, black weights keep their counters |
 | `examples/roll.rs`, `charset.rs` | Proofing: write fonts to disk (`seed@spec`, `N:seed` for archetype N) |
+| `examples/skel.rs`, `sext.rs`, `spec.rs` | Diagnostics: skeleton-over-outline SVG, the `s`-extent table, a spec's resolved genome |
 | `index.html`, `app.js`, `worker.js` | The page (served at `/font`) and its engine worker |
 | `GENOME.md` | The sourced map of the design space |
 | `pkg/` | wasm output (CI-built, gitignored) |
