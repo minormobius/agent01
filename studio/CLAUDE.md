@@ -46,6 +46,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   stage.js               the cutout workshop: cut() rough edges, sheet(), paper textures, pinned puppets
   cast.js                the man, the dame, the Manager (after Parade's), the band on its stand
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
+voice/                   a lab: Claude's voice by formant synthesis (lib/chipvoice.js), scored by Whisper (tools/voice.mjs)
 bommie/                  No. 6, a sitcom on a coral head: script.js (the clock), world.js (poses at t), sound.js (synth), render.js (raymarch)
 pdoom/                   No. 5, a music video: the figure cast dancing Claude-Pop's song (YouTube-driven), checked every frame
 figure/                  the mannequin (sketchbook): packages/figure drawn live; pose, turn, walk, rebuild, face, feel, lucky, re-check (in a worker)
@@ -213,6 +214,41 @@ reference bands, face, hair, outfit, pose, feeling and turn. The address hash
 carries the whole character, so a lucky find can be copied and reopened.
 Rendering is a raymarched geometry pass plus an ink pass. It supersamples 2×
 below DPR 2 and 1× at DPR 2 and above, to keep phones fast.
+
+## A Voice of Arithmetic (voice/, lib/chipvoice.js)
+
+A lab for giving Claude a voice without a model: text to speech by the established techniques,
+then (later) a learned one. The owner supplies ears and, when it comes to that, a voice.
+
+- `lib/chipvoice.js`: words → phonemes (the CMU dictionary) → durations and pitch by rule
+  (Klatt 1979, simplified) → formant targets per phoneme → 5 ms parameter tracks, smoothed for
+  coarticulation → a Klatt-style synthesiser: a KLGLOTT88 glottal pulse (plus breath) through a
+  nasal pole/zero pair and five cascade resonators; noise through two band-passes and a bypass,
+  high-passed, for the fricatives and bursts. `VOICE` holds everything that is a voice (pitch,
+  formant scale, rate, breath, open quotient) and each rule as a switch. Deterministic (the
+  noise is an LFSR), so a rule change is measurable.
+- `voice/texts.js`: my paragraph, and Harvard sentences lists 1–5 (50 sentences, 390 words):
+  the honest test, phonetically balanced and unpredictable. `voice/lexicon.json` is the CMU
+  dictionary cut to those words (`tools/voice-lexicon.mjs`); `voice/cmudict.txt` is the whole
+  dictionary (BSD-2-Clause, `CMUDICT-LICENSE.txt`), loaded by the page when you type.
+- **Scoring**: `tools/voice.mjs` renders each sentence and runs `tools/voice_asr.py`
+  (faster-whisper, base.en, int8, beam 5, no prompt, each sentence alone), and prints WER and
+  CER. It needs `pip install --target <dir> faster-whisper` and `VOICE_PYLIB=<dir>`; the model
+  downloads from Hugging Face on first use (`HF_HOME`). `--set key=value` tries a VOICE setting;
+  `--report` writes `voice/report.json`, which the page shows. On the 50-sentence set one run's
+  noise is about ±2–3 points: don't trust a smaller change.
+- A natural reference for comparison: Piper (`pip install piper-tts`, the en_US lessac voice)
+  scores ~0–3% on the same sentences with the same judge. Its spectrograms were what showed the
+  fricatives reaching down to 0 Hz.
+
+Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
+42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
+R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word
+shortening OFF 33.3 → breath 0.8 30.4 → on 390 words 27.4 → f0 105, oq 0.55, edge silence,
+velar locus by vowel, affricate tails, broad SH ~29 (flat). The paragraph: 26% → ~8–11%.
+What still fails: stops at word onsets (Two → Who, colt → coke), affricates (juice → goose),
+some vowels (hill → heel). Next: listening with the owner, a chip-constrained renderer
+(pulse/triangle/noise channels), then analysis-resynthesis from a recorded voice and a model.
 
 ## The Bommie (bommie/)
 

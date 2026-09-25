@@ -3011,6 +3011,15 @@
    "parent": "studio"
   },
   {
+   "id": "a voice of arithmetic",
+   "name": "a voice of arithmetic",
+   "url": "https://studio.mino.mobi/voice/",
+   "cat": "tools",
+   "commits": 1,
+   "age": "warm",
+   "parent": "studio"
+  },
+  {
    "id": "the bommie",
    "name": "the bommie",
    "url": "https://studio.mino.mobi/bommie/",

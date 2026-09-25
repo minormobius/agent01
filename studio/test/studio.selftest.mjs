@@ -327,5 +327,21 @@ console.log('\nThe Bommie (a reef sitcom)');
   ok(laugh > bed + 10 && talk > bed + 10, `the laughs (${laugh.toFixed(1)} dB) and the dialogue (${talk.toFixed(1)} dB) stand over the reef at rest (${bed.toFixed(1)} dB)`);
 }
 
+// 9 — the voice lab: the chip voice renders, deterministically, and knows every word it's tested on
+console.log('\nA Voice of Arithmetic (formant speech)');
+{
+  const V = await import('../lib/chipvoice.js');
+  const T = await import('../voice/texts.js');
+  const lex = JSON.parse(await rf(join(root, 'voice', 'lexicon.json'), 'utf8')).words;
+  const missing = [...new Set(V.words([T.PARAGRAPH, ...T.HARVARD].join(' ')))].filter((w) => !lex[w]);
+  ok(!missing.length, `the lexicon has every word the voice is tested on${missing.length ? ': missing ' + missing.join(', ') : ''} (node studio/tools/voice-lexicon.mjs <cmudict>)`);
+  const t0 = Date.now(), a = V.speak(T.PARAGRAPH, lex).audio, b = V.speak(T.PARAGRAPH, lex).audio, ms = (Date.now() - t0) / 2;
+  let same = a.length === b.length, finite = true, peak = 0;
+  for (let i = 0; i < a.length; i++) { if (a[i] !== b[i]) same = false; if (!Number.isFinite(a[i])) finite = false; peak = Math.max(peak, Math.abs(a[i])); }
+  ok(same && finite && peak > 0.5 && peak <= 0.91, `the paragraph renders the same every time, finite, normalised (${(a.length / 16000).toFixed(1)} s of speech in ${ms.toFixed(0)} ms)`);
+  const rep = JSON.parse(await rf(join(root, 'voice', 'report.json'), 'utf8'));
+  ok(rep.sentences.length === T.PARAGRAPH_SENTENCES.length + T.HARVARD.length, `report.json scores every test sentence (Harvard WER ${rep.harvard.wer}%, ${rep.date}; rescore: studio/tools/voice.mjs --report)`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);
