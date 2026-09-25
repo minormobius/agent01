@@ -9,6 +9,7 @@
 //   ?silent            the dance without the song (an internal clock)
 //   ?offset=0.12       the song's offset against YouTube's clock, in seconds
 //   ?shot=face         hold one kind of shot (face, bust, full, hand, wide) on Mino
+//   ?look=pc98         the PC-98 look: 16 colours, 400 lines, dithered (pc98.js; the button too)
 
 import { makeRig, solve } from '../vendor/figure/lib/rig.js';
 import { buildBody } from '../vendor/figure/lib/body.js';
@@ -19,6 +20,8 @@ import { EXPRESSIONS } from '../vendor/figure/lib/face.js';
 import { blinkAt, saccadeAt, easedExpression } from '../vendor/figure/lib/liveface.js';
 import { SONG, SECTIONS, CAST, SHOTS } from './show.js';
 import { drawBack, drawFront, PALETTES } from './stage.js';
+import { makePC98 } from './pc98.js';
+import { hairColors } from '../vendor/figure/lib/hair.js';
 
 const qs = new URLSearchParams(location.search);
 // ink darker than the stage's night: the rig's default ink (drawn on paper) is lighter than
@@ -145,6 +148,16 @@ const dpr = Math.min(2, window.devicePixelRatio || 1);
 let quality = 1, frameMs = 16, lastFrame = 0;
 function size() { cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr); }
 size(); addEventListener('resize', size);
+// the PC-98 look: a post-pass over the finished frame, onto a canvas laid over the stage
+let post = null;
+const look = { pc98: qs.get('look') === 'pc98' };
+function setLook(on) {
+  // pinned: the ink, the skin in light and shade, and each dancer's hair; the other 8 follow the stage
+  const fixed = [INK.ink, INK.skin, INK.skinShade, ...new Set(CAST.map((c) => hairColors(c.spec.hair).base))];
+  if (on && !post) { try { post = makePC98(document.getElementById('post'), { fixed }); } catch { post = null; } }
+  look.pc98 = on && !!post;
+  document.body.classList.toggle('pc98', look.pc98);
+}
 
 function poseAt(d, beat) {
   const b = Math.max(0, Math.min(END - 0.01, beat));
@@ -215,6 +228,7 @@ function frame() {
     ctx.drawImage(d.canvas, x0, y0, bw, bh);
   }
   drawFront(ctx, cam, W, H, S);
+  if (look.pc98) post.draw(cv);
   hud(t, beat, sec);
   // hold the frame rate: the dancers' resolution follows the time BETWEEN frames (the GPU's
   // raymarching runs after this function returns, so timing the function alone sees none of it)
@@ -257,9 +271,11 @@ fetch('./report.json').then((r) => r.json()).then((rep) => {
     list.append(li);
   }
 }).catch(() => {});
+setLook(look.pc98);
+document.getElementById('look').addEventListener('click', () => { setLook(!look.pc98); if (clock.mode === 'still') frame(); });
 document.getElementById('bench').addEventListener('click', () => document.getElementById('report').toggleAttribute('hidden'));
 
 if (qs.has('silent')) playSilent();
 function loop() { frame(); if (clock.mode !== 'still') requestAnimationFrame(loop); }
 loop();
-window.__pdoom = { ready: true, clock, dancers, frame, get quality() { return quality; } };
+window.__pdoom = { ready: true, clock, dancers, frame, setLook, get post() { return post; }, get quality() { return quality; } };

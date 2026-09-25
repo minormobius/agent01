@@ -238,6 +238,12 @@ When YouTube does not load (blocked, offline), it falls back to the dance withou
   cost seconds a frame).
 - The dancers' resolution follows the time BETWEEN frames, because the GPU's work lands
   after `frame()` returns.
+- The **PC-98 look** (`pc98.js`, the PC-98 button, `?look=pc98`): a WebGL post-pass over the
+  finished frame, onto `#post` laid over the stage: 400 lines, 16 colours at 4 bits a channel,
+  a 4×4 Bayer dither. Eight colours are pinned (ink, skin light and shade, each dancer's hair),
+  because a fit by area gives the dark stage nearly all of them; the other eight are fitted to
+  each frame (weighted k-means on a 96×54 thumbnail, bright and coloured pixels counting more),
+  starting from the last frame's so the palette doesn't flicker.
 
 ## Export video, and View the score
 
