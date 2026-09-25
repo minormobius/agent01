@@ -33,7 +33,7 @@ _Regenerated 2026-09-25 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-25, 99 members / 336 posts):
+**Neighborhood spark** (bisk 2026-09-25, 99 members / 331 posts):
 - Mood: Fair 🌤 (trust)
 - Distinctive words: jevbot, swe, idk
 - Top post: "I apologize for my earlier article, which did not undergo proper legal review, and will not be able to be present on soc" — @segyges.bsky.social
