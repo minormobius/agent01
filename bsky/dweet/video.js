@@ -24,13 +24,15 @@
  *
  * So the browser talks to the video service DIRECTLY — no relay, and this
  * surface's worker never sees the bytes or the credential. The credential is
- * the reader's own: `com.atproto.server.getServiceAuth` on their PDS mints a
- * short-lived JWT with `aud: did:web:video.bsky.app` and
- * `lxm: com.atproto.repo.uploadBlob`, which is exactly what the official
- * client asks for (`social-app/src/lib/media/video/multipart/upload.ts`).
- * That route is already on the auth worker's `/pds/*` allowlist with
- * `repoScoped: false`, and `rpc:com.atproto.server.getServiceAuth` is already
- * in `RPC_SCOPES` and therefore in the live ceiling. Nothing to deploy.
+ * the reader's own: `com.atproto.server.getServiceAuth` on their PDS mints
+ * short-lived JWTs, one per method, as the official client does
+ * (`social-app/src/lib/media/video/upload.shared.ts`): `getUploadLimits` for
+ * `did:web:video.bsky.app`, and `uploadBlob` for the reader's OWN PDS host,
+ * because the video service spends that one writing the blob into their repo.
+ * The route is on the auth worker's `/pds/*` allowlist. The SCOPES are not
+ * yet in its ceiling: see `scopes.js`, which also records why the scope this
+ * comment used to name (`rpc:com.atproto.server.getServiceAuth`) could never
+ * be granted and looped the sign-in.
  *
  * ─── ffmpeg ────────────────────────────────────────────────────────────────
  *
@@ -416,7 +418,8 @@ export async function awaitJob({
   for (;;) {
     const res = await fetchImpl(
       `${VIDEO_SERVICE}/xrpc/app.bsky.video.getJobStatus?jobId=${encodeURIComponent(jobId)}`,
-      { headers: { Authorization: `Bearer ${token}` } });
+      // No token needed; one is sent only if a caller passes it.
+      { headers: token ? { Authorization: `Bearer ${token}` } : {} });
     const body = await res.json().catch(() => null);
     const out = jobOutcome(body?.jobStatus || body);
     onState?.(out);

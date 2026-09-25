@@ -30,6 +30,12 @@ import { SEEDS } from '/dweet/seeds.js';
 // History and profiles come straight from each poster's own repo. See its
 // header for why the firehose replay alone left the feed empty.
 import { resolveDid, resolveIdentity, listDweets } from '/dweet/repo.js';
+// What sharing asks the authorization server for, and how to read the grant.
+// See its header: the moving post used to ask for a scope that cannot exist.
+import {
+  STILL_SCOPES, VIDEO_SCOPES, LIMITS_LXM, missing, beyondCeiling,
+  recentlyEscalated, markEscalated, clearEscalated, pdsAudience,
+} from '/dweet/scopes.js';
 import { encodeGif } from '/dweet/gif.js';
 import {
   mp4Support, recordMp4, uploadLimits, uploadVideo, awaitJob, videoEmbed, jobLabel,
@@ -37,7 +43,7 @@ import {
 } from '/dweet/video.js';
 import {
   composePost, altText, feedPost, permalink, fromPermalink, pickStill,
-  SHARE_SCOPES, graphemes, POST_MAX,
+  graphemes, POST_MAX,
 } from '/dweet/share.js';
 // The AppView next door already owns handle typeahead, including the abort
 // race and the ARIA roles. Same asset root, same origin, one implementation.
@@ -622,14 +628,22 @@ const STILL_FPS = 1 / 3;        // one candidate every three seconds
 const MAX_BLOB_BYTES = 950_000;
 
 /**
- * Minting a service-auth JWT needs one more scope. It is an RPC, not a write:
- * `com.atproto.server.getServiceAuth` runs on the reader's OWN PDS and returns
- * a token narrowed to one audience and one method, valid for about a minute.
- * It is already in the auth worker's RPC_SCOPES and therefore in the live
- * ceiling, so this needs no deploy of `workers/auth` — but a scope is only
- * granted if it is ASKED for.
+ * The auth worker's ceiling, fetched once. The authorization server grants
+ * nothing outside it, so a mode whose scopes are not listed is switched off
+ * and SAYS why — rather than sending the reader to a consent screen that
+ * cannot give it, which is how the sign-in loop happened.
  */
-const VIDEO_SCOPES = [...SHARE_SCOPES, 'rpc:com.atproto.server.getServiceAuth'];
+let ceilingP = null;
+function authCeiling() {
+  ceilingP ||= fetch('https://auth.mino.mobi/client-metadata.json')
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((m) => String(m.scope || ''))
+    .catch(() => '');
+  return ceilingP;
+}
+
+/** sessionStorage, or null where it throws. The loop breaker tolerates both. */
+const escalationStore = (() => { try { return sessionStorage; } catch { return null; } })();
 
 /** The dweet the share sheet is currently about, and what has been captured. */
 let shareOf = null;
@@ -839,14 +853,6 @@ async function saveGif() {
 }
 
 /**
- * Mint a service-auth JWT for the video service.
- *
- * The credential is the READER's, not ours: their own PDS issues it, bound to
- * one audience (`did:web:video.bsky.app`) and one method
- * (`com.atproto.repo.uploadBlob`), and it lives about a minute. This page
- * never holds a PDS token and the video bytes never touch our worker.
- */
-/**
  * The toggle explains itself rather than sitting greyed out.
  *
  * A disabled control with no reason is the same bug as a control that does
@@ -859,6 +865,18 @@ function paintMovingToggle() {
   const box = $('share-moving');
   box.disabled = !support;
   box.checked = !!support;
+  // A moving post mints two service-auth tokens, and their scopes have to be
+  // in the auth worker's ceiling first. Until they are, say so and post still.
+  if (support) {
+    authCeiling().then((ceiling) => {
+      const lacking = beyondCeiling(ceiling, VIDEO_SCOPES);
+      if (!lacking.length) return;
+      box.disabled = true;
+      box.checked = false;
+      $('share-moving-note').textContent = 'moving posts are switched off until the sign-in service '
+        + `allows video uploads (${lacking.join(', ')}). The still posts now; the GIF is below.`;
+    });
+  }
   $('share-moving-note').textContent = !support
     ? 'this browser cannot record MP4 at all, so a moving post is not available here — the still and the GIF both are'
     : `records ${GIF_SECONDS}s and posts it looping — costs one of your daily video uploads, and takes about half a minute`
@@ -868,11 +886,23 @@ function paintMovingToggle() {
         : '. Your browser did not say which codec it will use; if it is not H.264 this will stop and tell you');
 }
 
-async function videoToken() {
-  const params = new URLSearchParams({ aud: VIDEO_SERVICE_DID, lxm: UPLOAD_LXM });
+/**
+ * A service-auth token for ONE method and ONE audience, minted by the reader's
+ * own PDS. Two are needed, and they do not share an audience — this is what
+ * the official client does (social-app upload.shared.ts):
+ *   getUploadLimits  aud did:web:video.bsky.app
+ *   uploadBlob       aud did:web:<reader's PDS host>, because the video
+ *                    service spends it writing the blob into the reader's repo
+ * This used to mint both for the video service, so the upload would have been
+ * refused by the PDS even after sign-in worked.
+ */
+async function videoToken(lxm, aud, ttlSec) {
+  const params = new URLSearchParams({ aud, lxm });
+  // Integer SECONDS. A fractional exp fails the lexicon's integer check.
+  if (ttlSec) params.set('exp', String(Math.floor(Date.now() / 1000) + ttlSec));
   const res = await auth.request(`/pds/server/getServiceAuth?${params}`);
   if (!res.ok) {
-    throw new Error(`your PDS would not mint an upload token (${res.status})`);
+    throw new Error(`your PDS would not mint a ${lxm.split('.').pop()} token (${res.status})`);
   }
   const token = (await res.json())?.token;
   if (!token) throw new Error('your PDS returned no token');
@@ -889,8 +919,7 @@ async function videoToken() {
  */
 async function makeVideoEmbed(support) {
   shareSay('checking your video quota…');
-  const token = await videoToken();
-  const limits = await uploadLimits({ token });
+  const limits = await uploadLimits({ token: await videoToken(LIMITS_LXM, VIDEO_SERVICE_DID) });
   if (limits?.canUpload === false) {
     throw new Error(limits.message || limits.error || 'your account cannot upload video right now');
   }
@@ -910,13 +939,19 @@ async function makeVideoEmbed(support) {
 
   shareSay(`uploading ${(blob.size / 1024).toFixed(0)} KB…`);
   const me = auth.getUser();
+  // 30 minutes: long enough for a slow upload plus the transcode that spends
+  // it, and inside the PDS's one-hour cap on a method-bound token.
+  const { pds } = await resolveIdentity(me.did);
+  const token = await videoToken(UPLOAD_LXM, pdsAudience(pds), 30 * 60);
   const job = await uploadVideo({
     data: await blob.arrayBuffer(), did: me.did, token,
     name: `${(shareOf.title || 'dweet').replace(/[^\w.-]+/g, '-').slice(0, 40) || 'dweet'}.mp4`,
   });
 
+  // getJobStatus answers without auth (measured: a bad jobId gets 400
+  // "invalid jobId", not 401), so no token is sent to it.
   const ref = await awaitJob({
-    jobId: job.jobId, token,
+    jobId: job.jobId,
     onState: (st) => shareSay(`Bluesky is ${jobLabel(st.state)}${st.progress ? ` (${st.progress}%)` : ''}…`
       + (left != null ? `  ·  ${left - 1} video uploads left today` : '')),
   });
@@ -947,12 +982,29 @@ async function postToBsky() {
   // and escalate BEFORE anything is spent, not between an upload and the
   // record, because a redirect there would leave an orphan blob, burn a video
   // quota slot and lose the author's note.
-  const need = moving ? VIDEO_SCOPES : SHARE_SCOPES;
-  if (!auth.hasScope(need)) {
+  const need = moving ? VIDEO_SCOPES : STILL_SCOPES;
+  const user = auth.getUser();
+  if (!user) { closeSheet('share'); signIn(); return; }
+  // Semantic, not a string compare: a grant may come back in an equivalent
+  // form, and reading that as missing is a loop.
+  const lacking = missing(user.scope, need);
+  if (lacking.length) {
+    // THE LOOP BREAKER. If we already went to the consent screen for exactly
+    // this and came back without it, going again can only get the same
+    // answer. Say what was refused instead, once; the next tap is a
+    // deliberate retry.
+    if (recentlyEscalated(escalationStore, need)) {
+      clearEscalated(escalationStore);
+      shareSay(`Bluesky did not grant ${lacking.join(', ')}.`
+        + (moving ? ' Untick "moving" to post the still, which needs less.' : ' Tap post to try once more.'));
+      return;
+    }
+    markEscalated(escalationStore, need);
     shareSay('this session needs one more consent — redirecting…');
     await auth.ensureScope(need);
     return;
   }
+  clearEscalated(escalationStore);
 
   const btn = $('share-post');
   btn.disabled = true;

@@ -297,6 +297,8 @@ contract than picking a unit.
 | `event.selftest.mjs` | pinned to a payload captured off the live firehose |
 | `repo.js` | history and profiles, read from each poster's own PDS |
 | `repo.selftest.mjs` | identity resolution, `listRecords` paging, the shared validation gate |
+| `scopes.js` | what sharing asks the authorization server for, grant coverage, the loop breaker |
+| `scopes.selftest.mjs` | every rule that decides whether the page redirects |
 | `SKILL.md` · `llms.txt` | the agent's way in — served, and a Claude Code skill |
 | `agent/*.mjs` | the headless tools: `check`, `render`, `link`, `feed`, `publish` |
 | `agent/agent.selftest.mjs` | their exit-code contract, the trust rule, the skill's own claims |
@@ -849,6 +851,51 @@ calls `ensureScope()` **from the click** with whichever set the chosen mode
 needs — before anything is spent, rather than between an upload and the record.
 A redirect in that gap would leave an orphan blob, burn a video quota slot and
 lose the author's text.
+
+## The sign-in loop on "post to Bluesky" (2026-09-25)
+
+Reported as *"infinite auth loop, it won't keep the auth"*. Three bugs, read
+out of the atproto and social-app sources rather than guessed. `scopes.js`
+has the long version and `scopes.selftest.mjs` pins it.
+
+1. **The moving post asked for a scope that cannot exist.**
+   `rpc:com.atproto.server.getServiceAuth` has no `aud`, and `RpcPermission`
+   requires one. The parser returns null, the server leaves it out of the
+   grant, `hasScope` sees it missing and escalates again. Every tap was a
+   round trip to the consent screen.
+2. **It named the wrong method anyway.** The PDS's `getServiceAuth` checks
+   `assertRpc({aud, lxm})` for the token being minted, so the scopes are
+   `rpc:app.bsky.video.getUploadLimits?aud=*` and
+   `rpc:com.atproto.repo.uploadBlob?aud=*`. They use `aud=*` because a scope's
+   `aud` must be `*` or `did#service`, and it is compared exactly with the
+   token's bare-DID `aud`.
+3. **The upload token had the wrong audience.** It was minted for the video
+   service. The official client mints it for the reader's own PDS
+   (`did:web:<pds host>`), because the video service spends it writing the
+   blob into the reader's repo.
+
+The page now:
+
+- **checks the live ceiling** before offering a moving post. Its two rpc
+  scopes are not in `workers/auth`'s ceiling yet, so the toggle is off and
+  says so, and the still posts.
+- **reads the grant semantically.** Merged `lxm` lists and `blob?accept=…`
+  forms count as covered.
+- **breaks the loop.** One escalation per need per ten minutes, recorded in
+  sessionStorage across the redirect. Coming back still short gets a sentence
+  naming what was refused, not another redirect.
+
+Verified in Chromium against a stubbed auth worker and the **live** ceiling:
+one `/oauth/start` and then an explanation, not a second; a deliberate retry
+goes again; a grant in merged form posts with zero redirects
+(`uploadBlob` then `createRecord`); the moving toggle is switched off with
+both missing scopes named.
+
+**Waiting on `workers/auth`:** the two rpc scopes have to be in
+`RPC_SCOPES` and deployed by its owner (`claude/browser-cad-ideation-ollmd3`)
+before a moving post can be granted. **Not verified:** a real moving post end
+to end. This Chromium has no H.264 encoder, and nothing here can complete a
+real OAuth round trip.
 
 ## Posting: shipped
 
