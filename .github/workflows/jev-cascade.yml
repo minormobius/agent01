@@ -9,7 +9,7 @@ name: jev cascade eval
 
 on:
   push:
-    branches: [claude/jev-demo-website-pw3us1]
+    branches: [claude/jev-minecraft-headless-9sbgxk]
     paths:
       - 'mega/jev/cascade.mjs'
       - 'mega/jev/eval/**'

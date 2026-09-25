@@ -2,7 +2,7 @@ name: Deploy Megaproject Dashboard
 
 on:
   push:
-    branches: ['claude/jev-demo-website-pw3us1']
+    branches: ['claude/jev-minecraft-headless-9sbgxk']
     paths:
       - 'mega/**'
       - '.github/workflows/deploy-mega.yml'

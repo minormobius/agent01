@@ -82,7 +82,7 @@ redefined where the surface lived instead of reporting a blocked deploy.)
 | | |
 |---|---|
 | deploys via | `.github/workflows/deploy-mega.yml`, on **`mega/**`** paths |
-| owning branch | `claude/jev-demo-website-pw3us1` — **this branch now owns the whole `mega` surface**, transferred from `claude/integrate-v091-v092-v093-4yie2i`. A surface has exactly one owning branch, and jev cannot deploy unless the branch that owns mega is the one carrying it. |
+| owning branch | `claude/jev-minecraft-headless-9sbgxk` — **this branch owns the whole `mega` surface**, transferred 2026-09-25 from `claude/jev-demo-website-pw3us1` (and before that from `claude/integrate-v091-v092-v093-4yie2i`). `jev-prereg.yml` checks out, commits to and **deploys mega from** the owning branch by name, and it runs from `main`'s copy — so its branch name must match this row *on main*, or it redeploys mega from a stale tree twice a day. A surface has exactly one owning branch, and jev cannot deploy unless the branch that owns mega is the one carrying it. |
 | the API key | a Cloudflare secret on the **`mega`** worker, not a `jev` one |
 | the tests | run from `mega/`, and the worker selftest drives the **real `mega/worker.js`** — so it also asserts that mounting jev has not disturbed `/sprite/api` or `/bees/api` |
 | assets | `mega/.assetsignore` excludes `jev/CLAUDE.md` and `jev/test/`. jev's own `.assetsignore` was deleted; that file only has effect at the root of `assets.directory`, which is `mega/`. |
