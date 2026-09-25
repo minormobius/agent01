@@ -412,6 +412,10 @@ impl<'a> B<'a> {
                 return;
             }
             if !up {
+                // an entry stroke only where the roman had a left serif
+                if !l {
+                    return;
+                }
                 (true, false)
             } else {
                 (l, r)
