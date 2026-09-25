@@ -53,12 +53,12 @@ function audioCtx() {
   ctx.resume();
   return ctx;
 }
-async function say(text) {
+async function say(text, over = null) {
   await small;
   const c = audioCtx();                         // made in the tap, before any await that isn't instant
   const rate = 22050;
   const t0 = performance.now();
-  const { audio, phonemes } = speak(text, lexicon, { rate, voice });
+  const { audio, phonemes } = speak(text, lexicon, { rate, voice: over ? { ...voice, ...over } : voice });
   $('took').textContent = `${audio.length / rate < 10 ? (audio.length / rate).toFixed(1) : Math.round(audio.length / rate)} s of speech made in ${Math.round(performance.now() - t0)} ms`;
   $('phones').textContent = phonemes.filter((p) => !p.pause).map((p) => p.p + (p.stress > 0 ? 'ˈ'.repeat(p.stress === 1 ? 1 : 0) : '')).join(' ');
   if (current) try { current.stop(); } catch {}
@@ -95,6 +95,8 @@ spectrogram();
 // ---- the texts ------------------------------------------------------------------------------
 $('paragraph').textContent = PARAGRAPH;
 $('sayParagraph').addEventListener('click', () => say(PARAGRAPH));
+// the first try at being 2c: everything measured from it, switched on (lib/chipvoice-profile.js)
+$('sayAs2c').addEventListener('click', () => { $('as2cNote').hidden = false; say(PARAGRAPH, { profile: 3, f0: 120, range: 0.35 }); });
 $('sayTyped').addEventListener('click', async () => { await small; await fullLexicon(); say($('typed').value); });
 $('typed').addEventListener('keydown', (e) => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) $('sayTyped').click(); });
 fetch('./report.json').then((r) => r.json()).then((rep) => {
