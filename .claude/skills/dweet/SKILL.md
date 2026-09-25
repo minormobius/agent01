@@ -145,9 +145,11 @@ Two ways, for two kinds of author:
   manifest beside the sources and push it on a `claude/dweet-*` branch:
 
   ```json
-  { "dweets": [ { "file": "train.js", "title": "gears: train", "captureTime": 2000 } ] }
+  { "dweets": [ { "file": "train.dweet.js", "title": "gears: train", "captureTime": 2000 } ] }
   ```
 
+  Name JS sources `*.dweet.js`: they are function bodies, and the AppView's
+  no-undef lint skips that suffix and nothing else.
   `publish-dweet.yml` runs `node agent/publish.mjs <manifest>` with the app
   password from GitHub secrets — the credential never enters the repo or the
   sandbox. `lang` comes from the extension (`.glsl` → glsl). Run it yourself

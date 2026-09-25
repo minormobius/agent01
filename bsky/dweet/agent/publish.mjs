@@ -5,7 +5,7 @@
  *
  * The manifest sits next to the sources it names:
  *
- *   { "dweets": [ { "file": "train.js", "title": "gears: train",
+ *   { "dweets": [ { "file": "train.dweet.js", "title": "gears: train",
  *                   "captureTime": 2000, "remixOf": "at://…" } ] }
  *
  * `lang` is `glsl` for a `.glsl` / `.frag` file and `js` otherwise, unless the

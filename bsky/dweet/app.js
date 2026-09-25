@@ -27,6 +27,9 @@ import {
 // the payload is FLAT, and reading it as nested is silent, total failure.
 import { dweetFromEvent } from '/dweet/event.js';
 import { SEEDS } from '/dweet/seeds.js';
+// History and profiles come straight from each poster's own repo. See its
+// header for why the firehose replay alone left the feed empty.
+import { resolveDid, resolveIdentity, listDweets } from '/dweet/repo.js';
 import { encodeGif } from '/dweet/gif.js';
 import {
   mp4Support, recordMp4, uploadLimits, uploadVideo, awaitJob, videoEmbed, jobLabel,
@@ -125,7 +128,16 @@ function card(d) {
   meta.append(avatar);
   const name = el('span', 'name', d.local ? d.author : (d.did || '').slice(0, 24));
   const handle = el('span', 'handle', d.local ? '' : '');
-  meta.append(name, handle);
+  if (!d.local && d.did) {
+    // The author is a way in to everything else they have made.
+    const who = el('button', 'who');
+    who.title = 'all of their dweets';
+    who.append(avatar, name, handle);
+    who.onclick = () => openProfile(d.did);
+    meta.append(who);
+  } else {
+    meta.append(name, handle);
+  }
   if (d.title) meta.append(el('span', 'name', `· ${d.title}`));
   meta.append(el('span', 'when', d.when ?? (d.local ? 'house' : timeAgo(d.createdAt))));
   root.append(meta);
@@ -238,17 +250,40 @@ async function flushHydrate() {
   }
 }
 
-function addCard(d, { prepend = false, into = 'feed' } = {}) {
+function addCard(d, { prepend = false, sorted = false, into = 'feed' } = {}) {
   const feed = $(into);
   const node = card(d);
-  if (d.uri) cards.set(d.uri, node);
-  if (prepend && feed.firstChild) feed.insertBefore(node, feed.firstChild);
+  // `cards` answers deletes for the FEED. A profile shows the same record in a
+  // second card, and registering that one would orphan the feed's.
+  if (d.uri && into === 'feed') cards.set(d.uri, node);
+  if (sorted) {
+    // Two sources now fill the feed — repos (history) and the firehose (live)
+    // — and they arrive in no useful order relative to each other. So each
+    // card takes its place by createdAt, newest first.
+    const t = Date.parse(d.createdAt) || 0;
+    node.dataset.t = String(t);
+    const after = [...feed.children].find((c) => Number(c.dataset.t || 0) < t);
+    feed.insertBefore(node, after || null);
+  } else if (prepend && feed.firstChild) feed.insertBefore(node, feed.firstChild);
   else feed.append(node);
+}
+
+/** Tear down every frame in a container — a terminated worker frees its thread. */
+function clearCards(into) {
+  const box = $(into);
+  for (const c of [...box.children]) {
+    frames.get(c)?.destroy();
+    visibility.unobserve(c);
+  }
+  box.replaceChildren();
 }
 
 function showSeeds() {
   $('feed-empty').hidden = false;
-  for (const s of SEEDS) addCard(s);
+  for (const s of SEEDS) {
+    addCard(s);
+    $('feed').lastChild.dataset.seed = '1';
+  }
 }
 
 // ── the firehose ──────────────────────────────────────────────────
@@ -268,7 +303,7 @@ function showSeeds() {
  * is filtered to ONE collection, and that collection is new — so "connected
  * and silent" is the normal, correct, expected state, for hours. A status line
  * that can only say live or dead has no way to say that, and silence reads as
- * failure. So it says it: `live · nothing posted yet`.
+ * failure. So it says it: `live · waiting for the next dweet`.
  */
 const RECONNECT_GRACE_MS = 2500;
 
@@ -297,7 +332,7 @@ function connectionStatus() {
       ? `live · ${events.toLocaleString()} dweet${events === 1 ? '' : 's'} seen`
       // The honest empty state. Tailing a brand-new lexicon means a quiet
       // socket, and quiet is not broken.
-      : `live · tailing ${NSID} — nothing posted yet`;
+      : 'live · waiting for the next dweet';
   };
 
   paint();
@@ -329,61 +364,112 @@ function connectionStatus() {
   };
 }
 
+/**
+ * Posters whose repos the feed reads on arrival. The house account, plus
+ * everyone this browser has seen post — so the second visit paints real work
+ * immediately instead of waiting on the firehose. localStorage, capped, and
+ * every access guarded: a private window must still get a working feed.
+ */
+const HOUSE = ['did:plc:yivyyp54vddf7qf2lpsikhe4'];   // morphyx, the house account
+const KNOWN_KEY = 'dweet.authors';
+const KNOWN_MAX = 40;
+function knownAuthors() {
+  let mine = [];
+  try { mine = JSON.parse(localStorage.getItem(KNOWN_KEY) || '[]'); } catch { /* none */ }
+  return [...new Set([...HOUSE, ...(Array.isArray(mine) ? mine : [])])].slice(0, KNOWN_MAX);
+}
+function rememberAuthor(did) {
+  if (!did || HOUSE.includes(did)) return;
+  try {
+    const mine = JSON.parse(localStorage.getItem(KNOWN_KEY) || '[]').filter((d) => d !== did);
+    localStorage.setItem(KNOWN_KEY, JSON.stringify([did, ...mine].slice(0, KNOWN_MAX)));
+  } catch { /* storage unavailable: the feed simply forgets */ }
+}
+
 function startFeed() {
   const status = connectionStatus();
-  let live = 0;
+  let real = 0;
 
-  const client = new JetstreamClient({
+  /** One gate for a dweet from ANY source — repo or firehose. */
+  const accept = (d, { fromWire = false } = {}) => {
+    if (seen.has(d.uri)) return;                   // at-least-once, and two sources
+    seen.set(d.uri, d);
+    if (real === 0) { $('feed-empty').hidden = true; clearSeeds(); }
+    real++;
+    rememberAuthor(d.did);
+    if (fromWire) status.bump();
+    addCard(d, { sorted: true });
+  };
+
+  const onEvent = (payload) => {
+    const d = dweetFromEvent(payload);
+    if (!d) return;
+    if (d.kind === 'delete') {
+      // A deletion is an event like any other, and a feed that ignores one
+      // leaves work on screen that its author has withdrawn.
+      const card = cards.get(d.uri);
+      if (card) {
+        frames.get(card)?.destroy();
+        card.remove();
+        cards.delete(d.uri);
+        seen.delete(d.uri);
+      }
+      return;
+    }
+    accept(d, { fromWire: true });
+  };
+
+  // ── 1. history, from the repos we know about ──
+  // Resolved in parallel and painted as each answers. A poster whose PDS is
+  // down costs that poster's cards and nothing else.
+  for (const did of knownAuthors()) {
+    resolveIdentity(did)
+      .then(({ pds }) => listDweets(pds, did, { limit: 10 }))
+      .then(({ dweets }) => dweets.forEach((d) => accept(d)))
+      .catch(() => {});
+  }
+
+  // ── 2. the LIVE tail — no cursor, so it opens at the tip and is live at once ──
+  // This is the socket the status line reports on. It used to ask for the
+  // whole 36h replay, and for a sparse collection the server scans the entire
+  // network's traffic for that window before it sends a byte: measured
+  // 2026-09-25, 42 seconds of silence before the first dweet. Any idle-socket
+  // reaper on the way (a carrier, a proxy, a phone's radio) kills that, and a
+  // reconnect that never received an event restarts the scan from the same
+  // cursor — so on such a network the page was "reconnecting" forever.
+  const live = new JetstreamClient({
     collections: [NSID],
     // Lowercase. `KIND.COMMIT` is undefined, which the server rejects before
-    // the upgrade with `unknown kind "undefined"` — so this socket NEVER
-    // opened, from the day the surface shipped, and the page said
-    // "disconnected — retrying" forever. Measured against the live host
-    // 2026-09-22; `jetstream.js` now throws on an unknown kind rather than
-    // letting it become a permanently dead connection.
+    // the upgrade with `unknown kind "undefined"` — see ../CLAUDE.md.
     kinds: [KIND.commit],
-    // The whole replay window. A brand-new lexicon has no volume, so asking
-    // for the full 36h costs nothing and is the difference between a feed and
-    // an empty page for anyone who arrives between posts.
-    since: 36,
     onConnect: () => status.onConnect(),
     onDisconnect: () => status.onDisconnect(),
     onError: (err) => status.fault(String(err?.message || err || 'unknown')),
-    // The wire shape lives in event.js, with its own selftest pinned to a
-    // payload captured off the live firehose. This handler used to read
-    // `payload.commit.operation` — the ARCHIVE's shape — so every event was
-    // dropped on the first line. Two bugs, one symptom: fixing the socket
-    // alone would have left the feed just as empty.
-    onEvent: (payload) => {
-      const d = dweetFromEvent(payload);
-      if (!d) return;
-
-      if (d.kind === 'delete') {
-        // A deletion is an event like any other, and a feed that ignores one
-        // leaves work on screen that its author has withdrawn.
-        const card = cards.get(d.uri);
-        if (card) {
-          frames.get(card)?.destroy();
-          card.remove();
-          cards.delete(d.uri);
-          seen.delete(d.uri);
-        }
-        return;
-      }
-
-      if (seen.has(d.uri)) return;                 // delivery is at-least-once
-      seen.set(d.uri, d);
-      if (live === 0) $('feed-empty').hidden = true;
-      live++;
-      status.bump();
-      addCard(d, { prepend: true });
-    },
+    onEvent,
   });
-  client.connect();
+  live.connect();
 
-  // Nothing after a grace period means nothing has ever been posted. Say so
-  // plainly and show the house set rather than leaving a blank column.
-  setTimeout(() => { if (live === 0) showSeeds(); }, 4000);
+  // ── 3. discovery — the 36h replay, quietly ──
+  // Still worth having: it is the only way to find posters we have never seen.
+  // But it no longer drives the status line, and once it has delivered an
+  // event its cursor advances, so a reconnect resumes rather than rescans.
+  const replay = new JetstreamClient({
+    collections: [NSID],
+    kinds: [KIND.commit],
+    since: 36,
+    onEvent,
+  });
+  replay.connect();
+
+  // Nothing from any source after a grace period: show the house set rather
+  // than a blank column. Real work arriving later replaces it.
+  setTimeout(() => { if (real === 0) showSeeds(); }, 4000);
+}
+
+function clearSeeds() {
+  for (const c of [...$('feed').children]) {
+    if (c.dataset.seed) { frames.get(c)?.destroy(); visibility.unobserve(c); c.remove(); }
+  }
 }
 
 // ── composer ──────────────────────────────────────────────────────
@@ -927,15 +1013,95 @@ function closeSheet(id) {
   }
 }
 
-function show(view) {
-  const feed = view === 'feed';
-  $('view-feed').hidden = !feed;
-  $('view-compose').hidden = feed;
-  $('tab-feed').setAttribute('aria-current', feed ? 'page' : 'false');
-  $('tab-compose').setAttribute('aria-current', feed ? 'false' : 'page');
-  if (feed) previewFrame?.stop();
-  else previewFrame?.start();
-  history.replaceState(null, '', feed ? BASE : `${BASE}?compose`);
+function show(view, { url = true } = {}) {
+  $('view-feed').hidden = view !== 'feed';
+  $('view-compose').hidden = view !== 'compose';
+  $('view-profile').hidden = view !== 'profile';
+  $('tab-feed').setAttribute('aria-current', view === 'feed' ? 'page' : 'false');
+  $('tab-compose').setAttribute('aria-current', view === 'compose' ? 'page' : 'false');
+  if (view === 'compose') previewFrame?.start();
+  else previewFrame?.stop();
+  // A profile's frames are torn down on the way out, not paused: they are
+  // rebuilt on the way back in, and a paused worker still holds a thread.
+  if (view !== 'profile') { profileSeq++; clearCards('profile-feed'); }
+  // The profile writes its own URL (it pushes, so back returns to the feed).
+  if (url && view !== 'profile') history.replaceState(null, '', view === 'feed' ? BASE : `${BASE}?compose`);
+}
+
+// ── profiles: one poster's dweets, read from their own repo ──────────
+
+/** Bumped per open, so a slow page for somebody you have left cannot paint. */
+let profileSeq = 0;
+let profileMore = null;
+
+/**
+ * Open a poster's profile. `actor` is a handle, a DID or a bsky.app profile
+ * URL. The records come from THEIR PDS, not from the firehose — so this shows
+ * everything they have ever posted, not just the last 36 hours.
+ */
+async function openProfile(actor, { push = true } = {}) {
+  const my = ++profileSeq;
+  show('profile', { url: false });
+  clearCards('profile-feed');
+  $('profile-more').hidden = true;
+  $('profile-avatar').removeAttribute('src');
+  $('profile-name').textContent = String(actor).replace(/^@/, '');
+  $('profile-handle').textContent = '';
+  const say = (text, on) => {
+    $('profile-status').textContent = text;
+    $('profile-dot').className = on == null ? 'dot' : on ? 'dot on' : 'dot off';
+  };
+  say('finding their repo…');
+  window.scrollTo(0, 0);
+
+  let did, pds, handle;
+  try {
+    did = await resolveDid(actor);
+    ({ pds, handle } = await resolveIdentity(did));
+  } catch (err) {
+    if (my === profileSeq) say(String(err?.message || err), false);
+    return;
+  }
+  if (my !== profileSeq) return;
+  const label = handle || did;
+  if (push) history.pushState({ at: label }, '', `${BASE}?at=${encodeURIComponent(label)}`);
+  else history.replaceState({ at: label }, '', `${BASE}?at=${encodeURIComponent(label)}`);
+  $('profile-name').textContent = handle || did;
+  $('profile-handle').textContent = handle ? `@${handle} · ${did}` : did;
+  getProfiles([did]).then((got) => {
+    const p = got.get?.(did) ?? got[did];
+    if (my !== profileSeq || !p) return;
+    if (p.displayName) $('profile-name').textContent = p.displayName;
+    if (p.avatar) $('profile-avatar').src = p.avatar;
+  }).catch(() => {});
+
+  let shown = 0;
+  let dropped = 0;
+  const page = async (cursor) => {
+    say(`reading ${new URL(pds).host}…`, null);
+    let got;
+    try { got = await listDweets(pds, did, { limit: 25, cursor }); }
+    catch (err) { if (my === profileSeq) say(`their PDS did not answer — ${err.message}`, false); return; }
+    if (my !== profileSeq) return;
+    for (const d of got.dweets) addCard(d, { into: 'profile-feed' });
+    shown += got.dweets.length;
+    dropped += got.dropped;
+    say(shown
+      ? `${shown} dweet${shown === 1 ? '' : 's'}${got.cursor ? ' so far' : ''}, from their repo`
+        + (dropped ? ` · ${dropped} record${dropped === 1 ? '' : 's'} skipped as invalid` : '')
+      : `@${label} has not posted a dweet`, true);
+    profileMore = got.cursor ? () => page(got.cursor) : null;
+    $('profile-more').hidden = !got.cursor;
+  };
+  await page();
+}
+
+/** Where the URL says we are. Runs at boot and on back/forward. */
+function route() {
+  const q = new URLSearchParams(location.search);
+  const at = q.get('at');
+  if (at) return openProfile(at, { push: false });
+  show(q.has('compose') ? 'compose' : 'feed', { url: false });
 }
 
 function paintAuth() {
@@ -995,6 +1161,24 @@ async function doSignIn() {
 function wire() {
   $('tab-feed').onclick = () => show('feed');
   $('tab-compose').onclick = () => show('compose');
+  $('profile-back').onclick = () => show('feed');
+  $('profile-more').onclick = () => { $('profile-more').hidden = true; profileMore?.(); };
+  window.addEventListener('popstate', route);
+
+  // Find a poster. Enter opens what was typed, unless the typeahead has a row
+  // highlighted — then Enter is the typeahead's.
+  const find = $('find-handle');
+  const findTa = attachTypeahead(find, { onPick: (a) => { find.value = a.handle; go(); } });
+  const go = () => {
+    const v = find.value.trim();
+    if (!v) return;
+    findTa.close();   // before navigating: a late suggestion would land on the profile
+    openProfile(v);
+  };
+  $('find-go').onclick = go;
+  find.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !document.querySelector('.ta-menu:not([hidden]) li.on')) go();
+  });
   $('who').onclick = signIn;
   $('lang-js').onclick = () => setLang('js');
   $('lang-glsl').onclick = () => setLang('glsl');
@@ -1077,4 +1261,4 @@ wire();
 openShared();
 startFeed();
 auth.init().then(paintAuth).catch(paintAuth);
-if (location.search.includes('compose')) show('compose');
+route();

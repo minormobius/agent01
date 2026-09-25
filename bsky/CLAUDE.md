@@ -163,7 +163,7 @@ in IndexedDB and the shell is precached, so an installed copy opened with no
 network shows the month of history this browser accumulated rather than a
 dinosaur. Offline is the feature, not a nicety.
 
-`sw.js` has three rules and the first one is not about caching:
+`sw.js` has four rules and the first one is not about caching:
 
 1. **Never touch `/api/*`.** `/api/feedgen` forwards the reader's own
    service-auth JWT and returns **their** personalised feed. Cache Storage is
@@ -181,9 +181,14 @@ dinosaur. Offline is the feature, not a nicety.
    reaches installed readers on next launch; the cache is the offline fallback.
    A navigation carrying a query string (the OAuth callback's `?code=…`) is
    never read from or written to the cache.
+4. **Never touch `/dweet/`.** It is a different app on this origin, inside
+   this scope. Serving its scripts stale-while-revalidate kept readers on a
+   broken dweet build after the fix had shipped. Caching every navigation as
+   `/index.html` also let `/dweet/` overwrite this shell's offline fallback, so
+   only `/` and `/index.html` are cached as the shell now (2026-09-25).
 
 Sub-resources are stale-while-revalidate under a version-named cache
-(`bsky-shell-v1`), purged on `activate`.
+(`bsky-shell-v2` since rule 4), purged on `activate`.
 
 **`/index.html` 307-redirects to `/` in production** (Cloudflare Static Assets
 normalises it) while a plain local file server returns it directly — so the

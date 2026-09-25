@@ -1,9 +1,9 @@
 {
   "dweets": [
-    { "file": "train.js",       "title": "gears: train",      "captureTime": 2000 },
-    { "file": "planetary.js",   "title": "gears: planetary",  "captureTime": 2000 },
+    { "file": "train.dweet.js",       "title": "gears: train",      "captureTime": 2000 },
+    { "file": "planetary.dweet.js",   "title": "gears: planetary",  "captureTime": 2000 },
     { "file": "lattice.glsl",   "title": "gears: lattice",    "captureTime": 2000 },
-    { "file": "spirograph.js",  "title": "gears: spirograph", "captureTime": 17000 },
-    { "file": "reduction.js",   "title": "gears: reduction",  "captureTime": 2000 }
+    { "file": "spirograph.dweet.js",  "title": "gears: spirograph", "captureTime": 17000 },
+    { "file": "reduction.dweet.js",   "title": "gears: reduction",  "captureTime": 2000 }
   ]
 }

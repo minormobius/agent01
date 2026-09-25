@@ -1,16 +1,19 @@
 # gears — dweets about gear systems
 
-Drafts, not records. Each file is a dweet body; open it with
-`node agent/link.mjs gears/<file>` (from `bsky/dweet/`) to get a permalink that
-carries the whole thing, then **remix → post** from the page to publish it.
+Published 2026-09-25 as the house account (morphyx), from `publish.json` by
+`publish-dweet.yml`. See them all at `bsky.mino.mobi/dweet/?at=<morphyx's handle>`.
+Each file is a dweet body; `node agent/link.mjs gears/<file>` (from
+`bsky/dweet/`) prints a permalink that carries the whole thing. JS bodies are
+named `*.dweet.js` so the AppView's no-undef lint skips them: `t S C T R c x`
+are undefined by design.
 
 | file | chars | what it is |
 |---|---|---|
-| `train.js` | 248 | seven spur gears in a line, tooth counts 6…14, each driving the next |
-| `planetary.js` | 256 | sun + three planets + internal ring (18/9/36); the carrier turns, the ring is fixed |
+| `train.dweet.js` | 250 | seven spur gears in a line, tooth counts 6…14, each driving the next |
+| `planetary.dweet.js` | 256 | sun + three planets + internal ring (18/9/36); the carrier turns, the ring is fixed |
 | `lattice.glsl` | 255 | an infinite square lattice where every gear meshes with all four neighbours |
-| `spirograph.js` | 255 | a Spirograph *is* a gear system: 18-tooth planet rolling in a 48-tooth ring, pen tracing the hypotrochoid |
-| `reduction.js` | 224 | a googol-machine: 10→40 compound stages, ×4 slower each; the ninth turns 65 536× slower than the first |
+| `spirograph.dweet.js` | 255 | a Spirograph *is* a gear system: 18-tooth planet rolling in a 48-tooth ring, pen tracing the hypotrochoid |
+| `reduction.dweet.js` | 224 | a googol-machine: 10→40 compound stages, ×4 slower each; the ninth turns 65 536× slower than the first |
 
 ## The one idea all five use
 

@@ -56,7 +56,10 @@ const GLOBALS = [
 ];
 
 const config = join(bsky, '.eslint.undef.mjs');
-writeFileSync(config, `export default [{
+// `*.dweet.js` is a dweet body, not a module: the function body run by the
+// sandbox with `t S C T R c x` pre-bound, so every one of those is undefined
+// here by design (bsky/dweet/gears/, and any later batch).
+writeFileSync(config, `export default [{ ignores: ['**/*.dweet.js'] }, {
   files: ['**/*.js'],
   languageOptions: {
     ecmaVersion: 2023, sourceType: 'module',

@@ -75,6 +75,14 @@ if (/self\.skipWaiting\(\)/.test(sw) && !/e\.data\?\.type === 'SKIP_WAITING'/.te
   bad('sw.js calls skipWaiting() outside the explicit message handler');
 } else ok('no unprompted skipWaiting (mixed module versions)');
 
+if (!/url\.pathname\.startsWith\('\/dweet\/'\)\)\s*return/.test(sw)) {
+  bad('sw.js no longer bypasses /dweet/ — see rule 4, stale dweet builds');
+} else ok('/dweet/ is bypassed (rule 4: another app, never cached as shell)');
+
+if (!/url\.pathname === '\/' \|\| url\.pathname === '\/index\.html'/.test(sw)) {
+  bad('sw.js caches navigations other than the shell under /index.html');
+} else ok('only the shell document is cached as the shell');
+
 // 5. The manifest must point at icons that exist, or the install prompt never
 //    appears and nothing says why.
 const manifest = JSON.parse(readFileSync(join(bsky, 'manifest.json'), 'utf8'));
