@@ -47,6 +47,16 @@ seed ─xmur3/mulberry32─► Style (the genome: archetype · blend · jitter �
 - **Clean outlines.** Strokes are unioned into overlap-free contours, then
   refitted: breaks at corners and at the ends of straight runs, on-curve points
   at extrema, quadratic Béziers within 0.7 units. An `o` is ~24 points.
+- **True italics.** The `italic` gene changes construction, not just slope:
+  stems that end on the baseline (`n m h u a d i l`) flick out in an exit
+  stroke, `a` and `g` go single-story, the arch springs lower, `f` descends
+  with a hook at each end, lowercase counters narrow, and roman feet become
+  entry serifs only. It is named and flagged *Italic*, so it pairs with its
+  roman; **Italic companion** on the page turns any roll into its italic.
+- **Joins are buried.** A stroke that ends inside another (the `y`'s short
+  arm, `k K Ж` arms and legs, `R` legs) ends on the host's centreline, cut
+  along the host, so its end face can't poke out. Straight strokes are written
+  as single segments.
 - **Spaced and kerned.** Sidebearings follow Tracy (straight / round /
   diagonal / open sides), measured from the stroke body so serifs overhang it,
   as they do in real serif faces. Kerning is measured: the white between each
@@ -106,7 +116,8 @@ produces the same `pkg/` plus a `wasm-opt` pass.)
 ## Where it goes next
 
 - Composite glyphs for accented letters (the outlines are duplicated today).
-- True italics (a cursive skeleton set, not just the oblique shear).
+- Italic caps with their own construction (today they are sloped romans, as
+  in most italics) and a cursive `k`, `v`, `w`.
 - A variable-font export across the weight axis.
 - Ligatures (`fi fl ff`) via GSUB.
 - The phylogeny view of a breeding session.

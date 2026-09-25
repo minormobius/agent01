@@ -214,7 +214,9 @@ Knuth's term), `aperture`, `bar` (crossbar height), `join` (arch join depth),
 
 **Discrete genes:** `term` (level / plumb / square cut, pen, round), `serif`
 (none / bracketed / slab / hairline), `ball`, `a2`, `g2`, `tail_y`, `spur`,
-`mono`.
+`mono`, `italic` (cursive construction — exit strokes, single-story a/g,
+descending f, entry-only serifs; independent of `slant`, so an upright
+italic is possible).
 
 **Archetypes, correlated.** A seed picks one of eight named designs —
 Geometric (Futura), Grotesque (Helvetica), Humanist (Gill/Frutiger), Old-style
