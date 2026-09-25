@@ -1,7 +1,18 @@
 {
-  "step": "design",
-  "designs": [
-    { "description": "A calm, warm, slightly low voice. Unhurried and precise, a little dry, quietly amused. Clear diction, a neutral accent, close to the microphone, studio quality.", "seed": 1 },
-    { "description": "A mid-low, gender-neutral voice, calm and thoughtful, speaking precisely with gentle warmth and a hint of dry humour. A neutral accent, a clean studio recording.", "seed": 2 }
+  "steps": ["save", "speak"],
+  "generated_voice_id": "NkiasLzNGB7MWA6gNgU4",
+  "name": "Claude (studio voice reference)",
+  "description": "A mid-low, gender-neutral voice, calm and thoughtful, speaking precisely with gentle warmth and a hint of dry humour. A neutral accent, a clean studio recording. Chosen by the owner from candidate 2c, 2026-09-25.",
+  "model_id": "eleven_multilingual_v2",
+  "extra": [
+    "Say heed again.", "Say hid again.", "Say hayed again.", "Say head again.", "Say had again.", "Say hod again.",
+    "Say hawed again.", "Say hoed again.", "Say hood again.", "Say who'd again.", "Say hud again.", "Say heard again.",
+    "Say hide again.", "Say how'd again.", "Say hoyed again.",
+    "Say bee again.", "Say dee again.", "Say gee again.", "Say pea again.", "Say tea again.", "Say key again.",
+    "Say bah again.", "Say dah again.", "Say gah again.", "Say pah again.", "Say tah again.", "Say kah again.",
+    "Say boo again.", "Say do again.", "Say goo again.", "Say pooh again.", "Say too again.", "Say coo again.",
+    "Say ah sa again.", "Say ah sha again.", "Say ah fa again.", "Say ah tha again.", "Say ah ha again.",
+    "Say ah za again.", "Say ah va again.", "Say ah cha again.", "Say ah ja again.",
+    "Say ah ma again.", "Say ah na again.", "Say ah la again.", "Say ah ra again.", "Say ah wa again.", "Say ah ya again."
   ]
 }

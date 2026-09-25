@@ -23,7 +23,9 @@ import { wav } from '../lib/chipvoice.js';
 const here = dirname(fileURLToPath(import.meta.url)), root = join(here, '..');
 const KEY = process.env.ELEVENLABS_API_KEY;
 if (!KEY) { console.error('ELEVENLABS_API_KEY is not set'); process.exit(1); }
-const req = JSON.parse(readFileSync(join(here, 'voice-ref', 'request.json'), 'utf8'));
+const request = JSON.parse(readFileSync(join(here, 'voice-ref', 'request.json'), 'utf8'));
+// one step, or several in order ({ "steps": ["save", "speak"], … }): the speak step reads the voice the save step wrote
+for (const step of request.steps || [request.step]) await run({ ...request, step });
 
 async function api(path, body) {
   const r = await fetch(`https://api.elevenlabs.io${path}`, { method: 'POST', headers: { 'xi-api-key': KEY, 'content-type': 'application/json' }, body: JSON.stringify(body) });
@@ -32,6 +34,7 @@ async function api(path, body) {
   return JSON.parse(text);
 }
 
+async function run(req) {
 if (req.step === 'design') {
   const dir = join(root, 'voice', 'candidates');
   mkdirSync(dir, { recursive: true });
@@ -70,4 +73,5 @@ if (req.step === 'design') {
   }
 } else {
   throw new Error(`unknown step ${req.step}`);
+}
 }
