@@ -249,3 +249,24 @@ fn straight_strokes_are_single_segments() {
         }
     }
 }
+
+#[test]
+fn italics_are_real_italics() {
+    for arch in 0..8 {
+        let spec = format!("{};italic=1;slant=11", minofont::archetype_spec(arch, 0.4, "ital"));
+        let bytes = minofont::roll_params("ital", &spec);
+        let face = Face::parse(&bytes, 0).unwrap_or_else(|_| panic!("italic archetype {arch} did not parse"));
+        assert!(face.is_italic(), "archetype {arch}: OS/2 must flag the italic");
+        let json = minofont::describe("ital", &spec);
+        assert!(json.contains("Italic"), "archetype {arch}: style name must say Italic");
+        for c in "nmhuadilfkxgáíïñ".chars() {
+            assert!(outlines(&face, c), "italic archetype {arch}: {c:?} empty");
+        }
+        // the italic f descends below the baseline
+        let f = face.glyph_bounding_box(face.glyph_index('f').unwrap()).unwrap();
+        assert!(f.y_min < -50, "archetype {arch}: italic f should descend (y_min {})", f.y_min);
+    }
+    // an upright italic (cursive forms, no slant) is still an italic
+    let bytes = minofont::roll_params("ital", "italic=1;slant=0");
+    assert!(Face::parse(&bytes, 0).unwrap().is_italic());
+}

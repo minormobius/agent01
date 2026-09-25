@@ -73,6 +73,7 @@ pub struct Style {
     pub spacing: f64,
     pub slant: f64, // degrees
     pub mono: bool, // monospaced
+    pub italic: bool, // cursive construction (exit strokes, single-story a/g, …)
 }
 
 /// Continuous genes, in a fixed order (blending + jitter + spec keys).
@@ -262,10 +263,14 @@ impl Style {
             spacing: 1.0,
             slant: 0.0,
             mono: false,
+            italic: false,
         };
         for (i, (k, _, _)) in GENES.iter().enumerate() {
             s.set(k, g[i]);
         }
+        // drawn last so earlier draws (and every upright seed) are undisturbed:
+        // most sloped rolls are true italics, the rest obliques
+        s.italic = s.slant > 2.0 && r.chance(0.7);
         s.name_it(&tag);
         s
     }
@@ -293,7 +298,13 @@ impl Style {
             7..=9 => "Expanded ",
             _ => "",
         };
-        let it = if self.slant.abs() > 2.0 { " Oblique" } else { "" };
+        let it = if self.italic {
+            " Italic"
+        } else if self.slant.abs() > 2.0 {
+            " Oblique"
+        } else {
+            ""
+        };
         self.family = format!("Mino Roll {}", tag);
         self.ps_name = format!("MinoRoll-{}", tag);
         self.style_name = format!("{cond}{wn}{it}").trim().to_string();
@@ -398,6 +409,7 @@ impl Style {
                 "tail_y" => self.tail_y = b(),
                 "spur" => self.spur = b(),
                 "mono" => self.mono = b(),
+                "italic" => self.italic = b(),
                 _ => {
                     if let Ok(f) = val.parse::<f64>() {
                         if f.is_finite() {
@@ -457,7 +469,7 @@ impl Style {
         let mut parts: Vec<String> = GENES.iter().map(|(k, _, _)| format!("{k}={}", fmt(self.get(k)))).collect();
         parts.push(format!("term={}", self.term_key()));
         parts.push(format!("serif={}", self.serif_key()));
-        for (k, b) in [("ball", self.ball), ("a2", self.a2), ("g2", self.g2), ("tail_y", self.tail_y), ("spur", self.spur), ("mono", self.mono)] {
+        for (k, b) in [("ball", self.ball), ("a2", self.a2), ("g2", self.g2), ("tail_y", self.tail_y), ("spur", self.spur), ("mono", self.mono), ("italic", self.italic)] {
             parts.push(format!("{k}={}", b as u8));
         }
         parts.join(";")
@@ -477,7 +489,7 @@ impl Style {
             s.push_str(&format!(",\"{k}\":{}", fmt(self.get(k))));
         }
         s.push_str(&format!(
-            ",\"term\":\"{}\",\"serif\":\"{}\",\"ball\":{},\"a2\":{},\"g2\":{},\"tail_y\":{},\"spur\":{},\"mono\":{}}}",
+            ",\"term\":\"{}\",\"serif\":\"{}\",\"ball\":{},\"a2\":{},\"g2\":{},\"tail_y\":{},\"spur\":{},\"mono\":{},\"italic\":{}}}",
             self.term_key(),
             self.serif_key(),
             self.ball,
@@ -485,7 +497,8 @@ impl Style {
             self.g2,
             self.tail_y,
             self.spur,
-            self.mono
+            self.mono,
+            self.italic
         ));
         s
     }

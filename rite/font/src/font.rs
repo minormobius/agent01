@@ -159,6 +159,7 @@ fn build_chars(s: &Style, only: Option<&str>) -> Vec<u8> {
         weight_class: s.weight_class(),
         width_class: s.width_class(),
         slant_deg: s.slant,
+        italic: s.italic,
         strike: m.hth.max(30.0),
         panose: panose(s),
         mono: s.mono,

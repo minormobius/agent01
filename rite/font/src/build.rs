@@ -61,7 +61,9 @@ impl Metrics {
         let xh = s.xh;
         let k = ((8.0 * s.sup - 4.0) / 3.0).clamp(0.35, 1.0);
         let tension = (0.5523 / k).clamp(0.55, 1.6);
-        let cn = ((xh * 0.585 - (s.stem - 90.0) * 0.22) * s.width).max(s.stem * 0.55).max(40.0);
+        // italics set tighter: narrower lowercase counters
+        let ital = if s.italic { 0.88 } else { 1.0 };
+        let cn = ((xh * 0.585 - (s.stem - 90.0) * 0.22) * s.width * ital).max(s.stem * 0.55).max(40.0);
         let ch = ((s.cap * 0.53 - (ustem - 98.0) * 0.28) * s.width).max(ustem * 0.6).max(60.0);
         Metrics {
             cap: s.cap,
@@ -335,19 +337,52 @@ impl<'a> B<'a> {
     /// The n-arch: from the stem at `xl` (joining at height `yj`) over the
     /// shoulder to the right stem at `xr`, which it then descends to `y_end`.
     pub fn arch(&mut self, xl: f64, xr: f64, top: f64, y_end: f64, join: f64) {
+        let p = self.arch_path(xl, xr, top, join).line(v(xr, y_end));
+        self.stroke(&p, Cap::Butt, HCUT);
+    }
+    /// The arch as far as its right shoulder (heading down at `xr`). An italic
+    /// arch springs lower on the stem and peaks further right, like a pen that
+    /// never lifts.
+    pub fn arch_path(&self, xl: f64, xr: f64, top: f64, join: f64) -> PathB {
         let tr = 1.0 - self.s.trap;
         let yt = top - self.hth / 2.0;
         let sq = self.s.sup; // squarer shoulder → lower, flatter
         let ysh = top - (top * (0.52 - (sq - 0.70) * 1.3)).clamp(top * 0.22, top * 0.6);
-        let xm = xl + (xr - xl) * 0.52;
-        let p = path_d(v(xl, join), dir_to(v(0.5, 1.0)))
+        let (join, xm, rise) = if self.s.italic {
+            (join.min(top * 0.55), xl + (xr - xl) * 0.6, v(0.35, 1.0))
+        } else {
+            (join, xl + (xr - xl) * 0.52, v(0.5, 1.0))
+        };
+        path_d(v(xl, join), dir_to(rise))
             .w(tr)
             .tension(self.t())
             .to(v(xm, yt), RIGHT)
             .w(1.0)
             .to(v(xr, ysh), DOWN)
-            .line(v(xr, y_end));
-        self.stroke(&p, Cap::Butt, HCUT);
+    }
+    /// Radii and centre height of an italic exit hook on a stem.
+    pub fn exit_geom(&self) -> (f64, f64, f64) {
+        let r = self.m.cn * 0.30 + self.stem * 0.12;
+        let ry = r * 0.95;
+        let cy = -self.m.over * 0.5 + self.hth / 2.0 + ry;
+        (r, ry, cy)
+    }
+    /// The exit hook's terminal parameter (degrees) on its ellipse.
+    pub fn exit_angle(&self) -> f64 {
+        let (_, ab) = crate::lower::c_terms(self.s);
+        360.0 - (ab * 0.75).clamp(22.0, 50.0)
+    }
+    /// Continue a path (arriving heading down at `x`) into an italic exit: down
+    /// the stem, round the foot, and out to the right.
+    pub fn exit_tail(&self, p: PathB, x: f64) -> PathB {
+        let (r, ry, cy) = self.exit_geom();
+        p.line(v(x, cy)).then(self.arc(x + r, cy, r, ry, 180.0, self.exit_angle()))
+    }
+    /// An italic stem from `top` that flicks out at the baseline.
+    pub fn exit_stem(&mut self, x: f64, top: f64) {
+        let p = self.exit_tail(path(v(x, top)), x);
+        let tc = self.tc();
+        self.stroke(&p, HCUT, tc);
     }
 
     // ---- serifs ------------------------------------------------------------
@@ -370,6 +405,20 @@ impl<'a> B<'a> {
         if !self.serifed() {
             return;
         }
+        // italic lowercase: no feet on the baseline (the pen runs on), and a
+        // top serif is only an entry stroke from the left
+        let (l, r) = if self.s.italic && !self.uc {
+            if up && y.abs() < 1.0 {
+                return;
+            }
+            if !up {
+                (true, false)
+            } else {
+                (l, r)
+            }
+        } else {
+            (l, r)
+        };
         let (len, th, bw, bh) = self.serif_dims();
         let hs = self.stem / 2.0;
         let sg = if up { 1.0 } else { -1.0 };

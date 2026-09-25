@@ -39,6 +39,98 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
     let ow = o_width(s, m);
     let sharp = s.term == Term::Perp;
     let d: Drawn = match c {
+        // ---- italic constructions: exit strokes replace feet, a and g go
+        // single-story, f descends. Everything else is the roman, sheared.
+        'n' | 'h' | 'm' if s.italic => {
+            let y1 = if c == 'h' { asc } else { xh };
+            let xl = hs;
+            b.stem(xl, 0.0, y1);
+            b.head(xl, y1);
+            let xr = if c == 'm' {
+                let c2 = cn * lerp(0.86, 0.80, s.prop);
+                let xm = hs + st + c2;
+                b.arch(xl, xm, top, 0.0, jn);
+                let xr = xm + st + c2;
+                let p = b.exit_tail(b.arch_path(xm, xr, top, jn), xr);
+                let tc = b.tc();
+                b.stroke(&p, Cap::Butt, tc);
+                xr
+            } else {
+                let xr = nw - hs;
+                let p = b.exit_tail(b.arch_path(xl, xr, top, jn), xr);
+                let tc = b.tc();
+                b.stroke(&p, Cap::Butt, tc);
+                xr
+            };
+            let _ = xr;
+            b.done(STRAIGHT, OPEN * 0.55)
+        }
+        'u' if s.italic => {
+            let (xl, xr) = (hs, nw - hs);
+            let tr = 1.0 - s.trap;
+            let yb = -o * 0.6 + m.hth / 2.0;
+            let p = path(v(xl, xh))
+                .line(v(xl, xh * 0.45))
+                .tension(b.t())
+                .to(v(xl, xh * 0.45), DOWN)
+                .to(v(xl + (xr - xl) * 0.42, yb), RIGHT)
+                .to(v(xr, xh * 0.62), dir_to_v(0.3, 1.0))
+                .w(tr);
+            b.stroke(&p, HCUT, Cap::Butt);
+            b.exit_stem(xr, xh);
+            b.head(xl, xh);
+            b.head(xr, xh);
+            b.done(STRAIGHT, OPEN * 0.55)
+        }
+        'a' | 'd' if s.italic => {
+            let w = ow * 0.99 + st * 0.12;
+            let xs = w - hs;
+            let y1 = if c == 'd' { asc } else { xh };
+            b.exit_stem(xs, y1);
+            b.bowl(xs, 0.0, -o, xh + o, Some(xh * s.join * 0.97), Some(xh * 0.22));
+            if c == 'd' {
+                b.head(xs, y1);
+            }
+            b.done(ROUND, OPEN * 0.55)
+        }
+        'i' | 'l' | 'ı' if s.italic => {
+            let x = hs;
+            let y1 = if c == 'l' { asc } else { xh };
+            b.exit_stem(x, y1);
+            b.head(x, y1);
+            if c == 'i' {
+                let ds = b.dot_size();
+                let dy = (xh + (asc - xh) * 0.62).max(xh + ds * 0.5 + st * 0.55);
+                b.dot(v(x, dy), ds);
+            }
+            let mut d = b.done(STRAIGHT, OPEN * 0.55);
+            d.body = None;
+            d
+        }
+        'f' if s.italic => {
+            // the italic f: a hook above, a stem through the x-height, a hook below
+            let r = cn * 0.36 + st * 0.12;
+            let ry = r * 0.95;
+            let xs = r * 1.05 + hs;
+            let yt = asc + o * 0.5;
+            let (at, _) = c_terms(s);
+            let (cxt, cyt) = (xs + r, yt - m.hth / 2.0 - ry);
+            let cyb = -desc + m.hth / 2.0 + ry;
+            let a1 = -(180.0 - at * 0.9);
+            let p = b
+                .arc(cxt, cyt, r, ry, at, 180.0)
+                .line(v(xs, cyb))
+                .then(b.arc(xs - r, cyb, r, ry, 0.0, a1));
+            let tc = b.tcb();
+            b.stroke(&p, tc, tc);
+            term_ball(&mut b, cxt, cyt, r, ry, at);
+            term_ball(&mut b, xs - r, cyb, r, ry, a1);
+            let yb = xh - m.hth / 2.0;
+            b.bar(xs - hs - cn * 0.26, xs + hs + cn * 0.32, yb, VCUT, VCUT);
+            let mut d = b.done(STRAIGHT * 0.4, NONE);
+            d.body = Some((xs - hs - cn * 0.26, xs + hs + cn * 0.32));
+            d
+        }
         'n' => {
             let (xl, xr) = (hs, nw - hs);
             b.stem(xl, 0.0, xh);
@@ -160,7 +252,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             b.bar(cx - rx, cx + rx, ybar_c - m.hth * 0.0, Cap::Butt, Cap::Butt);
             b.done(ROUND, OPEN + 0.12)
         }
-        'a' if s.a2 => {
+        'a' if s.a2 && !s.italic => {
             let w = lw(s, m, 0.93, 0.86);
             let xs = w - hs;
             let tr = 1.0 - s.trap;
@@ -411,7 +503,7 @@ pub fn draw(c: char, s: &Style, m: &Metrics) -> Option<Drawn> {
             b.beak_m(w - st * 0.1, 0.0, false, 0.55);
             b.done(OPEN * 0.8, OPEN * 0.8)
         }
-        'g' if s.g2 => {
+        'g' if s.g2 && !s.italic => {
             // double-story (looptail): upper bowl, link, lower loop, ear
             let w = ow * 0.95;
             let bh = xh * 0.64;

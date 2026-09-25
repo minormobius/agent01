@@ -19,6 +19,7 @@ pub struct FontInfo {
     pub weight_class: u16,
     pub width_class: u16,
     pub slant_deg: f64,
+    pub italic: bool,
     pub strike: f64,
     pub panose: [u8; 10],
     pub mono: bool,
@@ -461,7 +462,7 @@ fn os2_table(p: &FontInfo, first: u16, last: u16, avg: i16) -> Vec<u8> {
     pu32(&mut b, 0);
     pu32(&mut b, 0);
     b.extend_from_slice(b"MINO"); // achVendID
-    let italic = p.slant_deg > 0.5;
+    let italic = p.italic || p.slant_deg > 0.5;
     let bold = p.weight_class >= 700;
     // fsSelection: ITALIC 0x1, BOLD 0x20, REGULAR 0x40, USE_TYPO_METRICS 0x80
     let mut sel = 0x80u16;
@@ -562,7 +563,7 @@ pub fn build_ttf(glyphs: &[GlyphData], names: &Names, p: &FontInfo, cmap_pairs: 
     pi16(&mut head, gbox.ymin as i16);
     pi16(&mut head, gbox.xmax as i16);
     pi16(&mut head, gbox.ymax as i16);
-    pu16(&mut head, (if p.slant_deg > 0.5 { 0x0002 } else { 0 }) | (if p.weight_class >= 700 { 1 } else { 0 })); // macStyle
+    pu16(&mut head, (if p.italic || p.slant_deg > 0.5 { 0x0002 } else { 0 }) | (if p.weight_class >= 700 { 1 } else { 0 })); // macStyle
     pu16(&mut head, 8); // lowestRecPPEM
     pi16(&mut head, 2); // fontDirectionHint
     pi16(&mut head, 1); // indexToLocFormat: long

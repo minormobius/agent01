@@ -115,7 +115,7 @@ function fullSpec(g) {
   for (const [k] of GENES) o[k] = +(+g[k]).toFixed(4);
   o.term = g.term;
   o.serif = g.serif;
-  for (const b of ["ball", "a2", "g2", "tail_y", "spur", "mono"]) o[b] = !!g[b];
+  for (const b of ["ball", "a2", "g2", "tail_y", "spur", "mono", "italic"]) o[b] = !!g[b];
   return specOf(o);
 }
 
@@ -192,8 +192,24 @@ async function render({ full = true, push = false } = {}) {
   }
 }
 
+/** Flip between this roll and its italic (or roman) companion. */
+function companion() {
+  const g = { ...state.genome };
+  if (g.italic) {
+    g.italic = false;
+    g.slant = 0;
+  } else {
+    g.italic = true;
+    g.slant = Math.max(g.slant, 10);
+  }
+  state.genome = g;
+  state.spec = fullSpec(g);
+  render({ full: true, push: true }).then(() => litter());
+}
+
 function showIdentity() {
   const g = state.genome;
+  $("companion").textContent = g.italic ? "Roman companion" : "Italic companion";
   $("family").textContent = `${g.family} ${g.style}`;
   const contrast = Math.round((1 - g.ratio) * 100);
   const tags = [
@@ -202,7 +218,7 @@ function showIdentity() {
     [`wdth ${Math.round(g.width * 100)}`],
     [`contrast ${contrast}%`],
     [g.serif === "none" ? "sans" : `${g.serif} serif`],
-    [g.slant > 2 ? `slant ${g.slant.toFixed(0)}°` : null],
+    [g.italic ? "italic" : g.slant > 2 ? `oblique ${g.slant.toFixed(0)}°` : null],
     [`seed ${state.seed}`],
   ].filter((t) => t[0]);
   $("tags").innerHTML = tags.map(([t, a]) => `<span class="tag${a ? " accent" : ""}">${esc(t)}</span>`).join("");
@@ -252,6 +268,7 @@ function mutate(g, rate) {
   o.serif = Math.random() < 0.05 * rate ? SERIFS[(Math.random() * SERIFS.length) | 0] : g.serif;
   for (const b of ["ball", "a2", "g2", "tail_y", "spur"]) o[b] = Math.random() < 0.09 * rate ? !g[b] : !!g[b];
   o.mono = !!g.mono;
+  o.italic = !!g.italic;
   return specOf(o);
 }
 
@@ -410,6 +427,7 @@ const GROUPS = [
     note: "spacing and posture",
     keys: [
       ["spacing", "Spacing"],
+      ["italic", "True italic (cursive forms)", "bool"],
       ["slant", "Slant°"],
       ["mono", "Monospaced", "bool"],
     ],
@@ -558,6 +576,7 @@ async function main() {
 
   $("roll").addEventListener("click", roll);
   $("litter").addEventListener("click", litter);
+  $("companion").addEventListener("click", companion);
   $("wander").addEventListener("input", (e) => (state.wander = +e.target.value));
   $("rate").addEventListener("input", (e) => (state.rate = +e.target.value));
   $("reset").addEventListener("click", () => {
