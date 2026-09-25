@@ -9,12 +9,12 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { PARAGRAPH, HARVARD } from '../voice/texts.js';
+import { PARAGRAPH, HARVARD, PHONETIC } from '../voice/texts.js';
 import { words } from '../lib/chipvoice.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const [dictPath, ...extra] = process.argv.slice(2);
-const want = new Set([...words([PARAGRAPH, ...HARVARD].join(' ')), ...extra.map((w) => w.toLowerCase())]);
+const want = new Set([...words([PARAGRAPH, ...HARVARD, ...PHONETIC].join(' ')), ...extra.map((w) => w.toLowerCase())]);
 // keep anything already in the lexicon, so hand additions survive a rebuild
 let old = {};
 try { old = JSON.parse(readFileSync(join(here, '..', 'voice', 'lexicon.json'), 'utf8')).words; } catch {}
@@ -24,6 +24,8 @@ for (const line of readFileSync(dictPath, 'utf8').split('\n')) {
   if (!m || m[2]) continue;                          // the first pronunciation only
   if (want.has(m[1])) out[m[1]] = m[3].trim();
 }
+// hand pronunciations last: words the dictionary lacks, and readings we don't mean ("ja" is not "ya")
+Object.assign(out, JSON.parse(readFileSync(join(here, '..', 'voice', 'lexicon-extra.json'), 'utf8')).words);
 const missing = [...want].filter((w) => !out[w]);
 writeFileSync(join(here, '..', 'voice', 'lexicon.json'), JSON.stringify({
   notice: 'Pronunciations from the CMU Pronouncing Dictionary, Copyright (C) 1993-2015 Carnegie Mellon University. BSD-2-Clause.',

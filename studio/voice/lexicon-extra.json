@@ -1,0 +1,8 @@
+{
+  "note": "Hand pronunciations, applied over the CMU dictionary by tools/voice-lexicon.mjs: words it lacks, and readings it has but we don't mean.",
+  "words": {
+    "hayed": "HH EY1 D", "hod": "HH AA1 D", "hawed": "HH AO1 D", "hoed": "HH OW1 D", "hoyed": "HH OY1 D",
+    "gah": "G AA1", "tah": "T AA1", "dah": "D AA1", "pah": "P AA1", "ja": "JH AA1",
+    "fa": "F AA1", "tha": "TH AA1", "za": "Z AA1", "va": "V AA1"
+  }
+}

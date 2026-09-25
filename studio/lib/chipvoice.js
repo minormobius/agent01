@@ -14,6 +14,8 @@
 // is deterministic (noise from a fixed LFSR), so a change to a rule is a change you can
 // measure: studio/tools/voice.mjs scores it with Whisper.
 
+import { PROFILE } from './chipvoice-profile.js';
+
 // ---- text ----------------------------------------------------------------------------
 /** The words of a text, lowercased, apostrophes kept ("it's"). */
 export function words(text) {
@@ -74,7 +76,15 @@ export const VOICE = {
   functionWords: 0,    // "the", "of", "a" said quickly (off: Whisper lost them, 39% → 33% WER)
   lightDarkL: 1,       // L light before a vowel, dark after
   aspiration: 1,       // longer aspiration into a stressed vowel
+  profile: 0,          // the reference voice (chipvoice-profile.js) over the textbook: 1 its vowels, 2 its durations, 3 both
 };
+/** A phoneme's targets: the textbook's, or where the reference voice was measured, its (in Hz, so unscaled). */
+function phone(p, voice) {
+  const P = PHONES[p], m = (voice.profile & 1) && PROFILE.vowels[p];
+  if (!m) return P;
+  if (P.kind === 'd') return m.F2 ? { ...P, F: m.F.map((f) => f / voice.scale), F2: m.F2.map((f) => f / voice.scale) } : P;
+  return { ...P, F: m.F.map((f) => f / voice.scale) };
+}
 
 /** Pronounce a text: [{ p, stress, word, pause }], pauses as { pause: ms }. Unknown words are spelled with LTS rules. */
 export function phonemize(text, lexicon) {
@@ -111,9 +121,10 @@ function letterToSound(w) {
 export function timing(ph, voice = VOICE) {
   return ph.map((x, i) => {
     if (x.pause) return { ...x, ms: x.pause / voice.rate };
-    const P = PHONES[x.p];
+    const P = PHONES[x.p], md = (voice.profile & 2) && PROFILE.durations[x.p];
     let d = P.dur;
-    if (isVowel(x.p)) d *= x.stress === 1 ? 1.25 : x.stress === 2 ? 1.0 : 0.72;
+    if (md) d = (isVowel(x.p) ? (x.stress === 1 ? md.dur_stressed : x.stress === 0 ? md.dur_unstressed : md.dur) : md.dur) || md.dur || d;
+    else if (isVowel(x.p)) d *= x.stress === 1 ? 1.25 : x.stress === 2 ? 1.0 : 0.72;
     // phrase-final lengthening: the last vowel before a pause, and what follows it
     const nextPause = ph.slice(i + 1).findIndex((y) => y.pause);
     const vowelsToPause = nextPause < 0 ? 99 : ph.slice(i + 1, i + 1 + nextPause).filter((y) => isVowel(y.p)).length;
@@ -151,7 +162,7 @@ export function tracks(timed, voice = VOICE) {
     seg = i;
     const n = Math.max(1, Math.round(x.ms / FRAME));
     if (x.pause) { const F = prevF(i) || [500, 1500, 2500]; push(n, () => ({ F, ...quiet, pause: true, mark: x.mark })); return; }
-    const P = PHONES[x.p];
+    const P = phone(x.p, voice);
     const stressAmp = x.stress === 1 ? 1 : x.stress === 2 ? 0.9 : x.stress === 0 ? 0.75 : 0.85;
     switch (P.kind) {
       case 'v': push(n, () => ({ F: P.F, B: P.B, AV: stressAmp, AH: 0, AF: 0, nasal: 0, stress: x.stress })); break;

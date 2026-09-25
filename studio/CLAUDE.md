@@ -251,6 +251,24 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   does not deploy: the next push from here does. Using its audio to TRAIN a model waits on
   reading ElevenLabs' terms; the owner's own recordings are the clean source for that.
 
+- **The reference, measured** (2026-09-25). The owner picked candidate 2c (ElevenLabs voice
+  `NkiasLzNGB7MWA6gNgU4`); it read the paragraph, the Harvard sentences and a 48-frame phonetics kit
+  (`PHONETIC` in texts.js: h_d vowels, stops before three vowels, consonants between vowels).
+  `tools/voice-align-prep.mjs` renders the same texts with the formant voice, frame-labelled;
+  `tools/voice_measure.py` warps those labels onto each recording by DTW over MFCCs, word by word
+  (word spans from ElevenLabs' character timings), and measures each phoneme. Durations came out
+  realistic. Formants were hard: LPC roots lost F1 (the fundamental is ~20 dB over everything; use
+  0.97 pre-emphasis), band-picking confused back vowels, and even Praat's Burg tracker
+  (parselmouth) read F1 at the pitch on many frames. `tools/voice_profile.py` keeps what passes
+  sanity checks (8 vowels) and the durations and pitch, in `lib/chipvoice-profile.js`.
+  The voice: 120 Hz median, 100–155 Hz, 11.7 phonemes/s, a fronted /u/ (F2 ~1300 Hz).
+  **Result: transplanting it made the formant voice LESS intelligible.** Harvard WER ~29% →
+  vowels 37.4%, durations 48.7%, both 50–58%. Real speech's pace is too fast for a buzzy synthetic
+  voice (the same as the rate sweep), and half a set of measured vowels clashes with the textbook
+  consonants and bandwidths around it: the textbook set is at least consistent. So `VOICE.profile`
+  (1 vowels, 2 durations) stays 0. Using the reference well probably means fitting the whole
+  synthesiser to it at once (analysis by synthesis), or a model.
+
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
 R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word

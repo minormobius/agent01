@@ -69,3 +69,60 @@ export const HARVARD = [
 
 /** The sentences of the paragraph, for scoring one at a time. */
 export const PARAGRAPH_SENTENCES = PARAGRAPH.match(/[^.!?]+[.!?]/g).map((s) => s.trim());
+
+/**
+ * A phonetics kit, as speech labs measure a voice: every vowel in the same h_d frame (heed,
+ * hid, …), every stop before three vowels, the fricatives, affricates, nasals and glides between
+ * vowels. The reference voice reads these (tools/voice-ref.mjs) and tools/voice_measure.py reads
+ * formants, durations and noise spectra off them. Ids x1… in this order.
+ */
+export const PHONETIC = [
+  'Say heed again.',
+  'Say hid again.',
+  'Say hayed again.',
+  'Say head again.',
+  'Say had again.',
+  'Say hod again.',
+  'Say hawed again.',
+  'Say hoed again.',
+  'Say hood again.',
+  'Say who\'d again.',
+  'Say hud again.',
+  'Say heard again.',
+  'Say hide again.',
+  'Say how\'d again.',
+  'Say hoyed again.',
+  'Say bee again.',
+  'Say dee again.',
+  'Say gee again.',
+  'Say pea again.',
+  'Say tea again.',
+  'Say key again.',
+  'Say bah again.',
+  'Say dah again.',
+  'Say gah again.',
+  'Say pah again.',
+  'Say tah again.',
+  'Say kah again.',
+  'Say boo again.',
+  'Say do again.',
+  'Say goo again.',
+  'Say pooh again.',
+  'Say too again.',
+  'Say coo again.',
+  'Say ah sa again.',
+  'Say ah sha again.',
+  'Say ah fa again.',
+  'Say ah tha again.',
+  'Say ah ha again.',
+  'Say ah za again.',
+  'Say ah va again.',
+  'Say ah cha again.',
+  'Say ah ja again.',
+  'Say ah ma again.',
+  'Say ah na again.',
+  'Say ah la again.',
+  'Say ah ra again.',
+  'Say ah wa again.',
+  'Say ah ya again.'
+];
