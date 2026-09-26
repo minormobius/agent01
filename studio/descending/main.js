@@ -33,7 +33,7 @@ function build() {
   const dpr = Math.min(2, window.devicePixelRatio || 1), W = host.clientWidth, H = host.clientHeight;
   canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
   canvas.style.width = `${W}px`; canvas.style.height = `${H}px`;
-  draw = makeRenderer(W, H, dpr);
+  draw = makeRenderer(W, H, dpr).draw;
 }
 new ResizeObserver(() => { build(); if (still !== null) draw(ctx, still); }).observe(host);
 build();

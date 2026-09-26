@@ -1,6 +1,6 @@
 // render.js — the picture: a figure descending a staircase, in planes, after Duchamp (1912).
 //
-//   makeRenderer(W, H, dpr) → draw(ctx, t)
+//   makeRenderer(W, H, dpr) → { draw(ctx, t) }
 //
 // The same function draws the page and the exported video. Everything is a pure function of t:
 // the figure's joints come from figure.js, how far it has come into a body from score.js's embody().
@@ -14,7 +14,7 @@
 
 import { pose, RISE, RUN, WIDTH, STEPS, NOTES } from './figure.js';
 import { embody, cues, duration, sec, B } from './score.js';
-import { POINTS, PARTS, frames, place } from './thought.js';
+import { POINTS, PARTS, LOOSEN, frames, place } from './thought.js';
 import { GLINTS, glintFrom, circuit } from './env.js';
 
 const PAL = {
@@ -34,7 +34,9 @@ const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), pa
 const lerpHex = (a, b, k) => { const A = hex(a), Bc = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (Bc[i] - v) * k)).join(',')})`; };
 const lerp3 = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
 const burnAt = (t) => 1.25 * smooth((t - sec(B(12))) / (sec(B(42)) - sec(B(12))));
-const mathAt = (t) => smooth((t - sec(B(34))) / (sec(B(80)) - sec(B(34))));
+// each part lets go of the surface in its own time, head first, over 30 bars (thought.js LOOSEN)
+const mathParts = (t) => LOOSEN.map((bar) => smooth((t - sec(B(bar))) / (sec(B(bar + 30)) - sec(B(bar)))));
+const mathAt = (t) => { const a = mathParts(t); return a.reduce((x, y) => x + y, 0) / a.length; };
 
 export function makeRenderer(W, H, dpr = 1) {
   const w = W * dpr, h = H * dpr;
@@ -245,11 +247,12 @@ export function makeRenderer(W, H, dpr = 1) {
     const per = Math.ceil(POINTS.length / 3), n = per * SUBS, pos = new Float32Array(n * 3), sing = new Float32Array(n);
     let k = 0, px = 0;
     for (let s = 0; s < SUBS; s++) {
-      const ts = tt - (s / SUBS) * window, m = mathAt(ts), P = pose(ts), F = frames(P);
+      const ts = tt - (s / SUBS) * window, mp = mathParts(ts), P = pose(ts), F = frames(P);
       if (!s) px = P.pelvis[0];
       for (let i = s % 3; i < POINTS.length; i += 3, k++) {
         const isHead = PARTS[POINTS[i].part][0] === 'head';
-        place(i, F, ts, m, (1.15 + 0.55 * m) * (isHead ? 1 + 0.35 * P.mouth : 1), tmp);
+        const mi = mp[POINTS[i].part];
+        place(i, F, ts, mp, (1.15 + 0.55 * mi) * (isHead ? 1 + 0.35 * P.mouth : 1), tmp);
         pos[k * 3] = tmp[0]; pos[k * 3 + 1] = tmp[1]; pos[k * 3 + 2] = tmp[2];
         sing[k] = isHead ? 1 + 1.6 * P.mouth : 1;
       }
@@ -259,14 +262,14 @@ export function makeRenderer(W, H, dpr = 1) {
     if (memo.size > 90) memo.delete(memo.keys().next().value);
     return e;
   }
-  /** One exposure of the figure as points. `m`: how far into its orbits; `bright`, `col`: its light. */
-  function points(P, tt, m, swell, bright, col, stride, streak) {
+  /** The figure now as points. `mp`: each part's way into its orbit; `bright`, `col`: its light. */
+  function points(P, tt, mp, bloom, bright, col, stride) {
     const F = frames(P), sing = 1 + 1.6 * P.mouth;
     for (let i = 0; i < POINTS.length; i += stride) {
-      const isHead = PARTS[POINTS[i].part][0] === 'head', b0 = bright * (isHead ? sing : 1);
-      const sw = isHead ? swell * (1 + 0.35 * P.mouth) : swell;
+      const part = POINTS[i].part, mi = mp[part], isHead = PARTS[part][0] === 'head', b0 = bright * (isHead ? sing : 1);
+      const sw = (1.15 + 0.55 * mi + bloom) * (isHead ? 1 + 0.35 * P.mouth : 1), streak = 1 + Math.round(5 * mi);
       for (let j = 0; j < streak; j++) {
-        place(i, F, tt, m, sw, tmp, j * 0.035);
+        place(i, F, tt, mp, sw, tmp, j * 0.035);
         const s2 = proj(tmp), k = b0 * (1 - j / streak);
         splat(s2[0], s2[1], col[0] * k, col[1] * k, col[2] * k);
       }
@@ -414,7 +417,8 @@ export function makeRenderer(W, H, dpr = 1) {
 
   const shifted = (P, d) => Object.fromEntries(Object.entries(P).map(([k, v]) => [k, Array.isArray(v) && v.length === 3 && typeof v[0] === 'number' && !['fwd', 'left'].includes(k) ? [v[0] + d[0], v[1] + d[1], v[2] + d[2]] : v]));
 
-  return function draw(ctx, t) {
+  // { draw }: the page and the exporter (lib/extras.js calls r.draw) share this shape
+  return { draw: function draw(ctx, t) {
     const e = embody(t);
     const P = pose(t);
     // the camera follows the pelvis, a little behind it and above
@@ -466,7 +470,7 @@ export function makeRenderer(W, H, dpr = 1) {
     }
     const bloom = 0.9 * smooth((t - cues.last) / 2.5);
     const now = 0.3 + 0.8 * burnNow + 0.2 * m;
-    points(P, t, m, 1.15 + 0.55 * m + bloom, now, lerp3([1, 0.62 + 0.2 * (1 - m), 0.42 + 0.14 * (1 - m)], [1, 0.56, 0.2], gradeAt(t)), 1, 1 + Math.round(5 * m));
+    points(P, t, mathParts(t), bloom, now, lerp3([1, 0.62 + 0.2 * (1 - m), 0.42 + 0.14 * (1 - m)], [1, 0.56, 0.2], gradeAt(t)), 1);
     // the last chord: light gathers on the one body (laid into the glow's cells, not a canvas gradient)
     const last = clamp((t - cues.last) / 3);
     if (last > 0) {
@@ -504,6 +508,6 @@ export function makeRenderer(W, H, dpr = 1) {
     ctx.globalAlpha = 1; ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
     if (flick) { ctx.fillStyle = `rgba(10, 6, 3, ${flick})`; ctx.fillRect(0, 0, w, h); }
     ctx.restore();
-  };
+  } };
 }
 

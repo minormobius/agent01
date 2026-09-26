@@ -416,6 +416,12 @@ the picture: a figure descending a staircase in flat planes, after Duchamp (1912
     coda it surrounds it. Each glint lights on its note with a flash, stays, and twinkles; drawn as a
     dash to the next column so harmonics read as lines. The stairs the figure has left turn to points
     (`STAIR` template: edges and faces) as `envAmt` rises (bars 30–100); the floor at the coda.
+  - **The hand-off** (owner: the transition read as a ghost of the mannequin): each part lets go of the
+    surface as its own wood burns (`LOOSEN` in thought.js: head bar 14 … feet bar 36, each over 30 bars;
+    `mathParts(t)`), so the whole mannequin never stands as points: thought takes it from the top down.
+  - **Export**: `makeRenderer` must return `{ draw }` (lib/extras.js calls `r.draw`); a bare function
+    worked on the page and broke Export video. The selftest checks. A square export ran clean in
+    headless Chromium (VP9 route, ~7 min for the piece).
   - **Long exposures** (owner: the trail's trailing edge was faint): each trail exposure (every 0.5 s)
     integrates the points over its whole window (5 instants, every third point), so the trail is
     continuous streaks as bright as the figure's own.
@@ -548,7 +554,7 @@ Both live under a piece's Begin button (`lib/extras.js`), for every piece.
 
 **Export video** (`lib/export.js`). A piece is a pure function of `t` and its music
 is a fixed performance, so the video is RENDERED, not recorded. Each piece has a
-`render.js` exporting `makeRenderer(W, H, dpr)` → `draw(ctx, t)`. The page and the
+`render.js` exporting `makeRenderer(W, H, dpr)` → `{ draw(ctx, t) }`. The page and the
 exporter call the same function, so they cannot drift apart. The audio is re-rendered
 at 48 kHz in the piano worker, then **mediabunny** (vendored, MPL-2.0; see
 `vendor/mediabunny/README.md`) writes the MP4. The **AAC is always ours**: a WebAssembly

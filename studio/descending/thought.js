@@ -57,6 +57,10 @@ export const PARTS = [
   ['upperR', 'shR', 'elbowR', 0.045, 0.038, 'thomas', 0.7], ['foreR', 'elbowR', 'handR', 0.036, 0.028, 'thomas', 0.6],
   ['head', 'head', 'head', 0.1, 0.1, 'aizawa', 1.8],
 ];
+/** The bar each part starts to let go of the surface: as its wood burns (render.js burnAt: bars 12–42,
+ * head first). So it never stands as one complete ghost of the mannequin: where the wood goes, the
+ * thought takes over, from the top down. */
+export const LOOSEN = PARTS.map(([name]) => ({ head: 14, neck: 16, torso: 18, upperL: 22, upperR: 22, foreL: 24, foreR: 24, thighL: 28, thighR: 28, shinL: 32, shinR: 32, footL: 36, footR: 36 })[name]);
 export const POINTS = (() => {
   const total = 3200, share = PARTS.reduce((a, p) => a + p[6], 0), out = [];
   PARTS.forEach((part, pi) => {
@@ -93,8 +97,9 @@ export function frames(P) {
  * Where point i is at time t (seconds, for its orbit) given its part's frame, `m` (0 on the surface,
  * 1 in its orbit) and `swell` (the orbit's reach, as a multiple of the part's radius). Writes into out.
  */
-export function place(i, F, t, m, swell, out, lag = 0) {
+export function place(i, F, t, mAll, swell, out, lag = 0) {
   const q = POINTS[i], f = F[q.part], A = ATTRACTORS[PARTS[q.part][5]];
+  const m = typeof mAll === 'number' ? mAll : mAll[q.part];          // one amount, or one per part
   // on the surface, swirling: the points never sit still; they stream round and along the part
   let sx, sy, sz;
   const tri = (x) => 1 - Math.abs((((x % 2) + 2) % 2) - 1);           // 0..1..0, back and forth
