@@ -905,6 +905,14 @@ with a hoe tills and with seeds plants, and `farm`/`forage` have a species picke
    affordable, or zombies that break doors, so deaths mean something.
 4. ~~Farming~~ (done, § Long-range goals). Chests, and an infinite world (the periodic tilings are infinite for free; Penrose via the pentagrid) so explore stops saturating.
 
+**It happened (2026-09-26).** The 01:25 slot of `jev-prereg` ran late, at
+06:18 UTC, fifteen minutes after this branch's deploy, and republished mega
+from `claude/jev-demo-website-pw3us1`: `/jev/craft/` went 404 on the live
+site with every run green. A push to this branch restores it (this note's
+commit did). Until main's copy of the workflow names this branch, **every
+scheduled run wipes craft again**, and GitHub's schedule slips by hours, so
+"after 13:25" is not a safe window.
+
 **Before the first deploy that carries new `mega/` work:** `jev-prereg.yml`
 runs from **main's** copy and redeploys mega from whatever branch it names. It
 still names `claude/jev-demo-website-pw3us1` on main, so until this branch's
