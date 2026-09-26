@@ -33,9 +33,9 @@ _Regenerated 2026-09-26 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-26, 99 members / 287 posts):
-- Mood: Overcast ☁ (trust)
-- Distinctive words: jevbot, jev, opus
+**Neighborhood spark** (bisk 2026-09-26, 99 members / 280 posts):
+- Mood: Fair 🌤 (trust)
+- Distinctive words: jevbot, jev, bcz
 - Top post: "" — @eugenevinitsky.bsky.social
 <!-- BRIEF_END -->
 
