@@ -90,6 +90,9 @@ export const VOICE = {
   aspMs: 1,            // how long that breath lasts, times this (60 ms into a stressed vowel, 40 otherwise)
   closure: 1.05,          // how long a stop holds its silence, times this
   voiceBar: 0.12,      // the buzz under a voiced stop's closure (b, d, g): what tells it from p, t, k
+  stopTrans: 1,        // a stop's formant transitions' length, times this (PLACES: 45 ms lips/tip, 60 ms velar)
+  burstLen: 1,         // a stop's burst's length, times this (10 ms p, 15 ms t, 25 ms k)
+  pinch: 250,          // Hz between F2 and F3 at a velar's release: the "velar pinch", the cue for k and g
   // rules, each a number so studio/tools/voice.mjs --set can try it off (0) and on
   voicedLength: 1,     // vowels long before a voiced coda, short before a voiceless one
   functionWords: 0,    // "the", "of", "a" said quickly (off: Whisper lost them, 39% → 33% WER)
@@ -163,6 +166,24 @@ export function timing(ph, voice = VOICE) {
   });
 }
 
+// ---- where a stop is made -----------------------------------------------------------------
+// A stop is heard mostly by its formant transitions into (and out of) its vowel, and by its burst.
+// Each place has a locus: where F2 and F3 point at the moment of release. Locus equations
+// (onset = locus + k·(vowel − locus)) give the onset; the velar is made where its vowel is, so it
+// has no fixed locus: F2 starts just above the vowel's and F3 close above it (the pinch).
+export const PLACES = {
+  lab: { F2: 850, F3: 2200, k: 0.55, trans: 45, burst: 10, vot: 55 },
+  alv: { F2: 1800, F3: 2700, k: 0.45, trans: 45, burst: 15, vot: 65 },
+  vel: { trans: 60, burst: 25, vot: 80 },
+};
+const PLACE_OF = { P: 'lab', B: 'lab', T: 'alv', D: 'alv', K: 'vel', G: 'vel' };
+/** The formants at a stop's release (or closure) beside a vowel whose targets are V. Unscaled Hz. */
+function stopOnset(p, V, voice) {
+  const L = PLACES[PLACE_OF[p]];
+  if (PLACE_OF[p] === 'vel') { const f2 = Math.max(1350, Math.min(2500, V[1] * 1.08 + 150)); return [250, f2, Math.max(f2 + voice.pinch, 1800)]; }
+  return [250, L.F2 + L.k * (V[1] - L.F2), L.F3 + L.k * (V[2] - L.F3)];
+}
+
 // ---- tracks --------------------------------------------------------------------------
 const FRAME = 5;                                   // ms
 /**
@@ -203,10 +224,13 @@ export function tracks(timed, voice = VOICE) {
         // a velar is made where its vowel is: its locus and burst ride the next vowel's F2
         // (high and compact before [i], low before [u]), where a labial's and an alveolar's stay put
         let locus = P.F, burst = P.burst;
-        if (x.p === 'K' || x.p === 'G') {
-          const v = nextVowelF(i), f2 = Math.max(1350, Math.min(2500, v[1] * 1.08 + 150));
-          locus = [250, f2, Math.max(f2 + 250, 2300)];
-          burst = { ...P.burst, fr: [[f2 * 1.05, 600, P.burst.fr[0][2]], P.burst.fr[1]] };
+        const place = PLACES[PLACE_OF[x.p]];
+        if (place) {
+          // the closure points at the release's onset (beside the next vowel, or the last one at a word's end)
+          const V = toVowel ? nextVowelF(i) : prevF(i) || [500, 1500, 2500];
+          locus = stopOnset(x.p, V, voice);
+          // a velar's burst is compact: one strong peak where its F2 starts
+          if (PLACE_OF[x.p] === 'vel') burst = { ...P.burst, fr: [[locus[1] * 1.05, 450, P.burst.fr[0][2]], P.burst.fr[1]] };
         }
         // the closure: silence, or a voice bar under a voiced stop
         push(closure, () => ({ F: locus, B: [80, 200, 300], AV: P.voiced ? voice.voiceBar : 0, AH: 0, AF: 0, nasal: 0, closure: true }));
@@ -215,12 +239,16 @@ export function tracks(timed, voice = VOICE) {
           push(2, () => ({ F: Fr.F, AV: 0, AH: 0, AF: 1.0, fr: PHONES.T.burst.fr, bypass: 0.1, nasal: 0, burst: true }));
           push(Math.round((P.voiced ? 75 : 105) / FRAME / voice.rate), (u) => ({ F: Fr.F, AV: P.voiced ? 0.3 : 0, AH: 0, AF: (P.voiced ? 0.95 : 1.15) * (1 - 0.4 * u), fr: Fr.fr, bypass: Fr.bypass, nasal: 0 }));
         } else {
-          // the burst: 10 ms of noise, shaped by the place
-          push(2, () => ({ F: locus, AV: 0, AH: 0, AF: 1.0, fr: burst.fr, bypass: burst.bypass, nasal: 0, burst: true }));
+          // the burst, shaped and timed by the place: a lip's short and weak, a tip's sharp, a velar's long
+          // and compact, dying away (a velar often releases twice)
+          const bf = Math.max(1, Math.round(((place ? place.burst : 10) * voice.burstLen) / FRAME));
+          push(bf, (u) => ({ F: locus, AV: 0, AH: 0, AF: bf > 2 ? 1 - 0.55 * u : 1, fr: burst.fr, bypass: burst.bypass, nasal: 0, burst: true }));
           // aspiration: a voiceless stop into a vowel breathes while the formants move
           // (longer into a stressed vowel: English aspirates most at a stressed onset)
           const stressedNext = timed.slice(i + 1).find((y) => y.pause || isVowel(y.p))?.stress === 1;
-          if (!P.voiced && toVowel && !(timed[i - 1] && timed[i - 1].p === 'S')) push(Math.round(((voice.aspiration ? (stressedNext ? 60 : 40) : 45) * voice.aspMs) / FRAME / voice.rate), () => ({ F: nextVowelF(i), AV: 0, AH: 0.55 * voice.aspLevel, AF: 0, nasal: 0 }));
+          // (by place: a velar breathes longest; and less into an unstressed vowel)
+          const vot = (place ? place.vot : 60) * (voice.aspiration ? (stressedNext ? 1 : 0.7) : 0.8);
+          if (!P.voiced && toVowel && !(timed[i - 1] && timed[i - 1].p === 'S')) push(Math.round((vot * voice.aspMs) / FRAME / voice.rate), () => ({ F: locus, AV: 0, AH: 0.55 * voice.aspLevel, AF: 0, nasal: 0, asp: true }));
         }
         break;
       }
@@ -241,6 +269,24 @@ export function tracks(timed, voice = VOICE) {
     if (x.p === 'R' && pv && !pv.pause && isVowel(pv.p) && span[i - 1]) {
       const [a0, a1] = span[i - 1];
       for (let k = Math.max(a0, a1 - K); k <= a1; k++) { const u = smooth((a1 - k) / K); T[k] = { ...T[k], F: T[k].F.map((f, j) => G[j] + (f - G[j]) * u) }; }
+    }
+  });
+  // stops' transitions, drawn explicitly: from the release (through the burst and the breath) the
+  // formants move from the place's onset to the vowel's targets; into a stop, the vowel's last stretch
+  // moves toward it. The generic smoothing below only softens the corners
+  timed.forEach((x, i) => {
+    if (x.pause || !PLACE_OF[x.p] || !span[i]) return;
+    const K = Math.max(2, Math.round((PLACES[PLACE_OF[x.p]].trans * voice.stopTrans) / FRAME / voice.rate));
+    const nx = timed[i + 1], pv = timed[i - 1];
+    if (nx && !nx.pause && isVowel(nx.p) && span[i + 1]) {
+      const V = phone(nx.p, voice).F, O = stopOnset(x.p, V, voice);
+      let r0 = span[i][0]; while (r0 <= span[i][1] && !T[r0].burst) r0++;
+      const r1 = span[i + 1][0] + K;
+      for (let k = r0; k <= Math.min(r1, span[i + 1][1]); k++) { const u = smooth((k - r0) / Math.max(1, r1 - r0)); T[k] = { ...T[k], F: O.map((o, j) => o + (V[j] - o) * u) }; }
+    }
+    if (pv && !pv.pause && isVowel(pv.p) && span[i - 1]) {
+      const P2 = phone(pv.p, voice), V = P2.kind === 'd' ? P2.F2 : P2.F, O = stopOnset(x.p, V, voice), [a0, a1] = span[i - 1];
+      for (let k = Math.max(a0, a1 - K); k <= a1; k++) { const u = smooth((a1 - k) / K); T[k] = { ...T[k], F: O.map((o, j) => o + (V[j] - o) * u) }; }
     }
   });
   // the hiss's envelope: a fricative swells in and dies away rather than switching (see VOICE.fricAttack)

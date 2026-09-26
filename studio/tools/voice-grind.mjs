@@ -107,6 +107,15 @@ const CONS_PHONE = [
   ['SH', ['fr', 0, 0], 1800, 3500, 250], ['Z', ['amp'], 0.2, 1.2, 0.1], ['F', ['bypass'], 0, 0.4, 0.05], ['TH', ['bypass'], 0, 0.4, 0.05],
   ['T', ['burst', 'fr', 0, 0], 3000, 6000, 300], ['T', ['burst', 'fr', 0, 2], 0.3, 1.5, 0.15], ['P', ['burst', 'bypass'], 0, 0.6, 0.05], ['K', ['burst', 'fr', 0, 2], 0.3, 1.5, 0.15],
 ].map(([p, path, lo, hi, step]) => ({ kind: 'phone', p, path, lo, hi, step, label: `${p} ${path.join('.')}` }));
+// phase 4: the stops' structure (place-based transitions, bursts and breath: chipvoice's PLACES)
+const STOP_VOICE = [
+  ['stopTrans', 0.6, 1.8, 0.15], ['burstLen', 0.5, 2, 0.2], ['pinch', 100, 600, 50], ['aspLevel', 0.3, 2, 0.15],
+  ['aspMs', 0.5, 1.8, 0.15], ['closure', 0.5, 1.5, 0.1], ['voiceBar', 0, 0.4, 0.05],
+].map(([key, lo, hi, step]) => ({ kind: 'voice', key, lo, hi, step, label: key }));
+const STOP_PHONE = [
+  ['K', ['burst', 'fr', 0, 2], 0.3, 1.8, 0.15], ['G', ['burst', 'fr', 0, 2], 0.2, 1.5, 0.15], ['T', ['burst', 'fr', 0, 2], 0.3, 1.5, 0.15],
+  ['D', ['burst', 'fr', 0, 2], 0.2, 1.2, 0.15], ['P', ['burst', 'fr', 0, 2], 0.1, 1, 0.1], ['B', ['burst', 'fr', 0, 2], 0.1, 1, 0.1],
+].map(([p, path, lo, hi, step]) => ({ kind: 'phone', p, path, lo, hi, step, label: `${p} ${path.join('.')}` }));
 const VOWELS = ['IY', 'IH', 'EH', 'AE', 'AA', 'AO', 'UH', 'UW', 'AH', 'ER', 'AX'];
 const VPAR = VOWELS.flatMap((p) => [0, 1].map((k) => ({ kind: 'vowel', p, k, rel: 0.06, label: `${p} F${k + 1}` })));
 const vowelF = (p) => (FITS.whisper[p]?.F || PHONES[p].F);
@@ -135,7 +144,7 @@ function snapshot(r, change) {
   writeFileSync(join(out, `${n}.wav`), wav(audio, SR));
   const vowels = Object.fromEntries(Object.entries(FITS.whisper).filter(([, f]) => f.F).map(([p, f]) => [p, f.F.map(Math.round)]));
   const phones = Object.fromEntries(Object.entries(FITS.whisper).map(([p, f]) => [p, Object.fromEntries(Object.entries(f).filter(([k]) => k !== 'F'))]).filter(([, f]) => Object.keys(f).length));
-  const voiceNow = Object.fromEntries([...GLOBAL, ...CONS_VOICE].map((g) => [g.key, +voice[g.key].toFixed(4)]));
+  const voiceNow = Object.fromEntries([...GLOBAL, ...CONS_VOICE, ...STOP_VOICE].map((g) => [g.key, +voice[g.key].toFixed(4)]));
   progress.push({ n, minute: +minutes().toFixed(1), J: +r.J.toFixed(2), cer: +r.cer.toFixed(1), tone: +r.tone.toFixed(2), pitch: +r.pitch.toFixed(2), change, voice: voiceNow, vowels, phones });
   writeFileSync(join(out, 'progress.json'), JSON.stringify({ text: SNAP, reference: 'ElevenLabs 2c (NkiasLzNGB7MWA6gNgU4)', objective: `CER% + ${W.tone} × tone dB + ${W.pitch} × pitch semitones`, steps: progress }, null, 1));
   writeFileSync(join(here, '..', 'lib', 'chipvoice-fit.js'), readFileSync(join(here, '..', 'lib', 'chipvoice-fit.js'), 'utf8').replace(/\nwhisper: .*,\n/, '\n').replace(/\n};\n$/, `\nwhisper: ${JSON.stringify(FITS.whisper, (k, v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v))},\n};\n`));
@@ -150,13 +159,13 @@ if (argv.includes('--resume')) {
   for (const [p, f] of Object.entries(last.phones || {})) FITS.whisper[p] = { ...(FITS.whisper[p] || {}), ...f };
   progress.push(...prev);
   best = await evaluate(voice);
-  snapshot(best, ONLY === 'consonants' ? 'phase 3: the consonants (the hiss envelope added: s swells in over 60 ms)' : argv.includes('--weights') ? `phase 2: the objective reweighted (tone ×${W.tone}, pitch ×${W.pitch})${ONLY ? ', the voice controls only' : ''}` : 'resumed, with new controls');
+  snapshot(best, ONLY === 'stops' ? 'phase 4: the stops rebuilt (transitions from each place, velar pinch, bursts and breath by place)' : ONLY === 'consonants' ? 'phase 3: the consonants (the hiss envelope added: s swells in over 60 ms)' : argv.includes('--weights') ? `phase 2: the objective reweighted (tone ×${W.tone}, pitch ×${W.pitch})${ONLY ? ', the voice controls only' : ''}` : 'resumed, with new controls');
 } else {
   for (const f of readdirSync(out)) if (/^\d\d\.wav$/.test(f)) writeFileSync(join(out, f), '');   // clear an old run's snapshots
   best = await evaluate(voice);
   snapshot(best, 'the start: the textbook voice');
 }
-const params = ONLY === 'global' ? GLOBAL : ONLY === 'consonants' ? [...CONS_VOICE, ...CONS_PHONE] : [...GLOBAL, ...VPAR];
+const params = ONLY === 'global' ? GLOBAL : ONLY === 'consonants' ? [...CONS_VOICE, ...CONS_PHONE] : ONLY === 'stops' ? [...STOP_VOICE, ...STOP_PHONE] : [...GLOBAL, ...VPAR];
 let scale = 1;
 outer: while (minutes() < MINUTES && scale > 0.12) {
   let moved = 0;

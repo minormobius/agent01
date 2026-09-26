@@ -146,6 +146,12 @@ fetch('./grind/progress.json').then((r) => (r.ok ? r.json() : null)).then((g) =>
     const li = document.createElement('li');
     li.innerHTML = `<span class="n">${s.n}</span><div><div>${s.change}</div><div class="sc">${s.minute} min · CER ${s.cer}% · tone ${s.tone} dB · pitch ${s.pitch} st</div><audio controls preload="none" src="./grind/${s.n}.wav"></audio></div>`;
     $('steps').append(li);
+    // the verdicts: what each phase did on all 50 sentences, the 30 it never tuned on among them
+    for (const v of (g.verdicts || []).filter((v) => v.after === s.n)) {
+      const vi = document.createElement('li');
+      vi.innerHTML = `<span class="n">✓</span><div class="verdict">${v.text}</div>`;
+      $('steps').append(vi);
+    }
   }
 }).catch(() => {});
 window.__voice = { say, voice, phonemize };

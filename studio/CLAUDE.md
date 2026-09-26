@@ -319,6 +319,20 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   Still failing: the velars' place (cow → toe, cool → pool, glue → do, gang → bag: k/g's burst and
   locus don't say "back of the mouth"), some initial t/s (Two → Who, salt → all), some vowels.
 
+- **The stops rebuilt** (2026-09-26): k/g were heard as t/p/d/b. `PLACES` in chipvoice.js: each
+  place's locus and locus-equation weight (lips F2 850, tip 1800; the velar has none: F2 just above
+  its vowel's and F3 `pinch` Hz above that), its transition time (45/45/60 ms), burst (10/15/25 ms,
+  a velar's compact and dying away) and breath (55/65/80 ms). The transitions are drawn explicitly
+  from the release through the breath into the vowel, and into a stop from the vowel before; the
+  generic smoothing only softens them. Untuned: all 50 WER 22.6% → **19.7%**, the 30 never tuned on
+  22.2% → **18.4%** ("the crooked maze" 88% → 0%). Adopted.
+  Then **phase 4, a grind on 13 stop parameters, overfit**: the 20 tuning sentences 22% → 16%, the
+  other 30 18.4% → 23%. Rolled back (chipvoice-fit.js's `whisper` is step 45's again; VOICE's stop
+  controls stay at 1). Phases 1–3 generalised because their moves were broad (warmth, the hiss's
+  envelope); fine-grained parameters on 20 sentences learn the sentences. **Next grind: a held-out
+  check inside the loop** (accept a step only if it doesn't worsen a second set), or more sentences.
+  `grind/progress.json` carries `verdicts`, which the page shows between the steps.
+
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
 R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word
