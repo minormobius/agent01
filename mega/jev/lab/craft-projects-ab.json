@@ -1,0 +1,234 @@
+{
+  "ran": "2026-09-26T05:57:15.948Z",
+  "note": "A/B on one world, 70 decisions per arm: the same Jev with project facts + the project question (with_projects) and without (no_projects). Local arms ran with projects only.",
+  "world": "mixed/penrose/7 size m, hard",
+  "with_projects": [
+    {
+      "kind": "mixed",
+      "shape": "penrose",
+      "seed": 7,
+      "size": "m",
+      "arm": "baseline",
+      "rungs": {
+        "wooden_pickaxe": 52,
+        "stone_pickaxe": 220,
+        "stone_sword": 222,
+        "torches": 223,
+        "iron_pickaxe": 365,
+        "house": 642,
+        "lit_grounds": 652,
+        "iron_sword": 791,
+        "explored": null
+      },
+      "reached": 8,
+      "score": 1418.5555555555557,
+      "deaths": 0,
+      "decisions": 70,
+      "projects": {
+        "tech": "8/8",
+        "grow": "12/16",
+        "explore": "6/8",
+        "grown": 1,
+        "species_here": 5
+      },
+      "project_done": {
+        "tech": 791
+      },
+      "project_picks": {
+        "tech": 1,
+        "grow": 1
+      },
+      "wall_s": 2
+    },
+    {
+      "kind": "mixed",
+      "shape": "penrose",
+      "seed": 7,
+      "size": "m",
+      "arm": "offline",
+      "rungs": {
+        "wooden_pickaxe": 64,
+        "stone_pickaxe": 593,
+        "stone_sword": 595,
+        "torches": 596,
+        "iron_pickaxe": 712,
+        "house": 1082,
+        "lit_grounds": 1091,
+        "iron_sword": 1273,
+        "explored": null
+      },
+      "reached": 8,
+      "score": 1734,
+      "deaths": 0,
+      "decisions": 70,
+      "projects": {
+        "tech": "8/8",
+        "grow": "12/16",
+        "explore": "5/8",
+        "grown": 1,
+        "species_here": 5
+      },
+      "project_done": {
+        "tech": 1273
+      },
+      "project_picks": {
+        "tech": 1,
+        "grow": 1
+      },
+      "wall_s": 2
+    },
+    {
+      "kind": "mixed",
+      "shape": "penrose",
+      "seed": 7,
+      "size": "m",
+      "arm": "random",
+      "rungs": {
+        "wooden_pickaxe": 474,
+        "stone_pickaxe": 1021,
+        "stone_sword": 1073,
+        "torches": 1095,
+        "iron_pickaxe": null,
+        "house": 1128,
+        "lit_grounds": 1842,
+        "iron_sword": null,
+        "explored": null
+      },
+      "reached": 6,
+      "score": 3937,
+      "deaths": 0,
+      "decisions": 70,
+      "projects": {
+        "tech": "6/8",
+        "grow": "8/16",
+        "explore": "4/8",
+        "grown": 1,
+        "species_here": 5
+      },
+      "project_done": {},
+      "project_picks": {
+        "tech": 1
+      },
+      "wall_s": 8
+    },
+    {
+      "kind": "mixed",
+      "shape": "penrose",
+      "seed": 7,
+      "size": "m",
+      "arm": "jev",
+      "rungs": {
+        "wooden_pickaxe": 31,
+        "stone_pickaxe": 561,
+        "stone_sword": 563,
+        "torches": 564,
+        "iron_pickaxe": 895,
+        "house": 942,
+        "lit_grounds": 947,
+        "iron_sword": 1070,
+        "explored": 1949
+      },
+      "reached": 9,
+      "score": 835.7777777777778,
+      "deaths": 0,
+      "decisions": 70,
+      "projects": {
+        "tech": "8/8",
+        "grow": "0/16",
+        "explore": "7/8",
+        "grown": 0,
+        "species_here": 5
+      },
+      "project_done": {
+        "tech": 1070
+      },
+      "project_picks": {
+        "tech": 1,
+        "explore": 1
+      },
+      "mean_confidence": 0.8308571428571428,
+      "below_gate": 13,
+      "errors": 0,
+      "mean_have": 0.6967142857142858,
+      "input_tokens": 231700,
+      "choices": {
+        "gather_wood": 2,
+        "craft_wooden_pickaxe": 1,
+        "mine_stone": 1,
+        "craft_stone_pickaxe": 1,
+        "craft_stone_sword": 1,
+        "craft_torch": 2,
+        "mine_iron": 2,
+        "craft_iron_pickaxe": 1,
+        "build_house": 1,
+        "light_area": 1,
+        "craft_iron_sword": 1,
+        "explore": 43,
+        "go_home": 5,
+        "hunt": 4,
+        "surface": 3,
+        "scout_sunfruit": 1
+      },
+      "wall_s": 149
+    }
+  ],
+  "no_projects": [
+    {
+      "kind": "mixed",
+      "shape": "penrose",
+      "seed": 7,
+      "size": "m",
+      "arm": "jev",
+      "rungs": {
+        "wooden_pickaxe": 31,
+        "stone_pickaxe": 561,
+        "stone_sword": 563,
+        "torches": 564,
+        "iron_pickaxe": 895,
+        "house": 942,
+        "lit_grounds": 947,
+        "iron_sword": 1070,
+        "explored": 2175
+      },
+      "reached": 9,
+      "score": 860.8888888888889,
+      "deaths": 0,
+      "decisions": 70,
+      "projects": {
+        "tech": "8/8",
+        "grow": "0/16",
+        "explore": "7/8",
+        "grown": 0,
+        "species_here": 5
+      },
+      "project_done": {
+        "tech": 1070
+      },
+      "project_picks": {},
+      "mean_confidence": 0.6497142857142856,
+      "below_gate": 20,
+      "errors": 0,
+      "mean_have": 0.5168571428571427,
+      "input_tokens": 212757,
+      "choices": {
+        "gather_wood": 2,
+        "craft_wooden_pickaxe": 1,
+        "mine_stone": 1,
+        "craft_stone_pickaxe": 1,
+        "craft_stone_sword": 1,
+        "craft_torch": 2,
+        "mine_iron": 3,
+        "build_house": 2,
+        "craft_iron_pickaxe": 1,
+        "craft_door": 1,
+        "light_area": 1,
+        "craft_iron_sword": 1,
+        "explore": 38,
+        "hunt": 5,
+        "mine_coal": 9,
+        "eat": 1
+      },
+      "wall_s": 149
+    }
+  ]
+}

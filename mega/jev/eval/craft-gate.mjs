@@ -18,6 +18,7 @@
 import { writeFileSync } from 'node:fs';
 import { Sim } from '../craft/sim.mjs';
 import { playMind, jevDecider, DECIDERS, GOALS } from '../craft/mind.mjs';
+import { projectState, projectScore, PROJECT_NAMES } from '../craft/projects.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
 // a world is shape:seed (the original island), or kind/shape:seed[:size]
@@ -28,6 +29,10 @@ const worlds = arg('worlds', 'penrose:3,hex:2,truncsq:2,kagome:4').split(',').ma
 });
 const ticks = +arg('ticks', 4800), difficulty = arg('difficulty', 'hard'), out = arg('out', null);
 const noJev = process.argv.includes('--no-jev');
+// --no-projects: the control (no project question, no project facts on options)
+// --only jev,baseline: run just these arms
+const noProjects = process.argv.includes('--no-projects');
+const only = arg('only', null)?.split(',');
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
 
 const raw = jevDecider(ENDPOINT);
@@ -50,10 +55,15 @@ const arms = { baseline: DECIDERS.baseline, offline: DECIDERS.offline, random: D
 const results = [];
 for (const w of worlds) {
   for (const [arm, decide] of Object.entries(arms)) {
+    if (only && !only.includes(arm)) continue;
     const sim = new Sim({ ...w, difficulty });
+    if (noProjects) sim.noProjects = true;
     const t0 = Date.now();
     const log = arm === 'jev' && process.env.CRAFT_TRACE;
-    const r = await playMind(sim, decide, { maxTicks: ticks, gate: false, maxDecisions: +arg('max-decisions', 400),
+    // when each long-range project completes (checked at every decision)
+    const projDone = {};
+    const watched = async (s, ...a) => { for (const n of PROJECT_NAMES) if (!(n in projDone) && projectState(s, n).complete) projDone[n] = s.tick; return decide(s, ...a); };
+    const r = await playMind(sim, watched, { maxTicks: ticks, gate: false, maxDecisions: +arg('max-decisions', 400),
       onDecision: log ? (d) => console.log(`  ${String(d.tick).padStart(5)} ${String(d.choice).padEnd(22)} ${d.confidence?.toFixed(2)} ${d.result}${d.error ? ' ERR ' + d.error : ''}`) : undefined });
     const rung = Object.fromEntries(RUNGS.map((g) => [g, r.milestones[`goal:${g}`] ?? null]));
     const conf = r.decisions.map((d) => d.confidence).filter((c) => c != null);
@@ -61,6 +71,8 @@ for (const w of worlds) {
       ...w, arm, rungs: rung, reached: RUNGS.filter((g) => rung[g] != null).length,
       score: RUNGS.reduce((s, g) => s + (rung[g] ?? ticks), 0) / RUNGS.length,
       deaths: r.stats.deaths, decisions: r.decisions.length,
+      projects: projectScore(sim), project_done: projDone,
+      project_picks: r.decisions.reduce((m, d) => { if (d.project) m[d.project] = (m[d.project] || 0) + 1; return m; }, {}),
       ...(arm === 'jev' ? {
         mean_confidence: conf.reduce((a, b) => a + b, 0) / (conf.length || 1),
         below_gate: r.decisions.filter((d) => d.below_gate).length,
@@ -73,7 +85,7 @@ for (const w of worlds) {
     };
     results.push(row);
     console.log(`${w.kind}/${w.shape}/${w.seed} ${arm.padEnd(8)} rungs ${row.reached}/${RUNGS.length}  mean tick-to-rung ${Math.round(row.score)}  deaths ${row.deaths}  decisions ${row.decisions}` +
-      (arm === 'jev' ? `  conf ${row.mean_confidence.toFixed(2)}  below-gate ${row.below_gate}  errors ${row.errors}` : '') + `  ${JSON.stringify(rung)}`);
+      (arm === 'jev' ? `  conf ${row.mean_confidence.toFixed(2)}  below-gate ${row.below_gate}  errors ${row.errors}` : '') + `  ${JSON.stringify(rung)}  projects ${JSON.stringify(row.projects)} done ${JSON.stringify(projDone)}`);
   }
 }
 const summary = {};

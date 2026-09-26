@@ -296,10 +296,12 @@ model only decides.
 | `craft/macros.mjs` | the palette. 18 macros in three modes (below), each a generator that yields primitive actions, with `needs()` saying why it can't run. Also: `goTo` (digs where cheaper), `visible()` (no x-ray: only open-faced blocks in columns the player has seen), `shortfall()` (raw materials missing, all the way down the recipe tree, stations included), `planHouse` / `sealed`. Every macro must fail cleanly and hold no mid-sequence state, because it can be interrupted between any two actions |
 | `craft/mind.mjs` | **layer 3, what Jev sees**: `perceive()` (a ~1 KB state of computed facts: time to dusk, threats, what is in sight and how far, the ladder and what its next rung is short of, a journal of its own last six decisions), `options()` (concrete choices from the legal macros, each labelled with what it yields, roughly how long it takes, what it advances, and whether it goes out among zombies at night), `buildQuestions()` (`next` choice, `danger` score, `have` self-check), `resolve()` (the gate, and the honest source stamp), `playMind()` (the async loop the page and the eval share), and the deciders: `jevDecider` (the proxy), baseline, offline stand-in, random |
 | `craft/party.mjs` | the multiplayer scheduler: several players on one clock, each action a `sim.plan` (§ Multiplayer) |
+| `craft/plants.mjs` | habitats (soil, tile shape, cover), growth conditions, growth checks, harvest drops (§ Long-range goals) |
+| `craft/projects.mjs` | tech / grow / explore as steps with option tokens, the per-option `project` fact, the slow `project` question (§ Long-range goals) |
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 263 checks, ~25 s, gates the deploy (multiplayer included) |
+| `test/craft.selftest.mjs` | 303 checks, ~40 s, gates the deploy (multiplayer, plants and projects included) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -747,6 +749,150 @@ position, inventory and fog of war. "When does splitting the state beat
 sharing it" is runnable here: batched (one call, all slices) against
 per-agent calls.
 
+### Long-range goals: projects, farming and plants that grow on particular tiles (2026-09-26)
+
+The operator's question was *"do these guys have a goal?"* The answer was:
+barely. The goal was a 9-rung ladder, finished on day 1, and then every option
+read "advances nothing". That is part of why confidence sat near 0.40 late in
+a run. Two things were added, and they only work together.
+
+**Projects (`craft/projects.mjs`).** Three long-range goals, each broken into
+steps: **tech** (the ladder: tools, house, light, iron), **grow** (cultivate
+every plant species this world has) and **explore** (see 50/80/95% of it and
+find each species wild). Each step says which **option tokens** advance it (an
+item such as `cobblestone`, or `craft:<item>`, `forage:<sp>`, `farm:<sp>`,
+`harvest`, `explore`, `scout:<what>`) and which token completes it. Every
+option carries one computed `project` fact: *completes the next step of grow:
+plant moonpetal*, *works toward the next step … (short of 2 planks)*, *helps a
+later step*, or *not part of the grow project*. That is the composer's lesson
+(hand over the gap, pre-computed) applied across days, and Jev never has to
+plan. A step that can only wait (a crop growing) is reported as waiting, with
+an ETA, and skipped when naming the next step.
+
+**The project is a slow choice.** A `project` question (a `choice` over the
+three, each carrying progress, next step and what is growing) rides in the
+same call as `next`. It is asked only when there is no project, when the
+current one is complete, or twice a day (`PROJECT_EVERY` 2400 ticks).
+`resolve()` applies it. Deciders that give no answer fall back to their own
+rule: the baseline and the stand-in take the first incomplete project in the
+order tech → grow → explore, and random picks at random. In a swarm, each
+agent gets its own `project_<id>`.
+
+**Plants (`craft/plants.mjs`, world v2).** Five species, three blocks each
+(sprout → growing → plant, and the plant is also what grows wild):
+
+| species | habitat | grows when | use |
+|---|---|---|---|
+| wheat | farmland | light (sun or a torch); ×2 with water within 2 tiles | bread (3 wheat, food 5) |
+| sunfruit | beach sand beside water | sun | food 6 |
+| glowcap | soil, stone or planks **under cover** | always (it needs the cover) | lantern (2 glowcap + stick): light without coal |
+| moonpetal | farmland on **the world's rarest tile shape** | **night**, open sky | food 2, heals 6 |
+| starbloom | farmland on **a tile whose every neighbour is a different shape** | sun | rare |
+
+**The tiling is the ecology.** Tile kind = sides × area to the quarter,
+ranked by frequency (`tileKinds` in `world.mjs`). A starbloom **cannot exist**
+on grid, hex or rhombille (one shape, nothing is isolated). It is common on
+kagome and rhombitri (every tile is isolated) and rare on Penrose. A
+moonpetal on Penrose takes only the thin rhomb. The selftest pins all of this
+against the generated worlds.
+
+**New primitives and macros.** `till` (needs a `wooden_hoe`; grass or dirt →
+farmland) and `plant` (seeds into an empty voxel; refused with the habitat's
+reason, e.g. *"only on the rarest tile shape (four-sided, area 0.5)"*).
+Harvesting is mining: a ripe plant gives produce plus 1–2 seeds, a young one
+its seed back, and a ripe plant someone **planted** counts as *grown* for its
+planter (`player.grown`). Macros: `forage` (take a wild plant in sight for
+seeds), `farm` (sites near home that suit the species and where it will
+actually grow, watered first; a species whose habitat is elsewhere, like the
+beach, is planted where the player stands), `harvest` (reap your own ripe
+plots and replant from their seeds). `scout` also takes a species name.
+Placing a block on a plant picks it first; that was a regression the house
+builder found, when a wild moonpetal sat on its wall line.
+
+**World v2.** Wild plants are hash-placed in their own pass, never drawing on
+the generator's rng. **v1 worlds are still generated byte for byte** when asked
+(`generateWorld({version: 1})`, and a stream header carries `v`), so old
+streams replay and both pin sets are checked. Every species that has any
+habitat in a world gets at least one wild plant (the best-hashed spot), so the
+grow project is never impossible by bad luck, only by geometry. The desert
+grows only sunfruit.
+
+**Measured, headless (no Jev):**
+
+| world | decider | tech done | explore done | grow done | deaths |
+|---|---|---|---|---|---|
+| island/truncsq/3 (s) | baseline | 828 | 1549 | **5322** | 0 |
+| | offline stand-in | 1162 | 1663 | 4869 | 0 |
+| | random | 3286 | 329 | 6952 | 4 |
+| mixed/penrose/7 (m) | baseline | 754 | 5465 | **5060** | 0 |
+| | offline stand-in | 1273 | 5886 | 15/16 at day 4 | 0 |
+| | random | 7102 | 5058 | 11974 | 5 |
+
+Life sweep after all of it (baseline, 3 seeds × 10 tilings × 2 days): iron
+pickaxe 30/30, house 30/30, **0 deaths, 0 stuck**. The baseline grows 4–5 of
+5 species in 3 days on every tiling tried.
+
+**Read the small-island rows carefully: the projects are too easy there.**
+Even random finishes all three on the small truncsq island, and random
+"finishes" explore at tick 329: a 28-radius island at sight 10 is seen in a
+few legs. What still separates deciders is *when* a project completes, not
+*whether*. On a medium world the grow project separates them outright (the
+stand-in and random don't finish in 4 days). **The scoreboard should use m/l
+worlds for projects**, and `eval/craft-gate.mjs` now records `projects`
+(steps done per project, species grown), `project_done` (the tick each
+completed) and, for Jev, `project_picks`.
+
+**Three faults this round found, each fixed:**
+- `harvest` retried a ripe plot it could not reach 96 times in two days, each
+  a full failed path search (27 s of a 32 s run). Unreachable plots are now
+  remembered for 1200 ticks (`player.badPlots`), as unreachable ore is, and
+  the harvest search budget matches `go_home`'s, since a beach plot can be far.
+- **A pit by the sea was a trap.** A 3-layer drop into a sand hole whose walls
+  touch water: the planners (rightly) never dig a block that touches water,
+  so there was no path out and the baseline alternated two zero-tick failures
+  until `play()` called it stuck. `goTo` now has a `climbOut` fallback when
+  no path exists: place a carried block against a wall at foot level, step up
+  onto it, repeat, then plan again. Minecraft players do exactly this.
+- The baseline's anti-stuck rule sent it to `explore`, which fails at once
+  once everything is seen. With the world explored it now walks home.
+
+**Live, the first A/B of the project facts** (`lab/craft-projects-ab.json`):
+one medium world (mixed/penrose/7, hard), 70 decisions per arm. It is the
+same Jev with the project question and facts, and without them
+(`--no-projects`, which sets `sim.noProjects`):
+
+| | with projects | without |
+|---|---|---|
+| mean confidence, tech phase (to the iron sword) | **0.93** (n 15) | 0.64 (n 16) |
+| mean confidence, all 70 | **0.83** | 0.65 |
+| below the 0.45 gate | **13** | 20 |
+| every rung, same tick? | wooden pick 31 … iron sword 1070 | **identical** |
+| after the ladder | project `explore`: 43 × explore at ~0.99 | 9 × mine_coal, 38 × explore |
+| wasted macros | 1 (`mine_stone` boxed in) | 2 (+ `build_house` short of a log) |
+
+**The picks barely changed and the confidence jumped.** That is the shape of
+the "structure beats prose" result above (12 of 12 picks the same, confidence
+0.912 → 0.980): telling it what each option does for the goal did not make it
+choose differently while the choice was obvious. It made the choices read as
+decided, and it gave the post-ladder game a direction instead of a coal habit.
+The only low-confidence picks with projects on (~0.2) are survival moves
+(hunt, go home, surface) that every project labels "not part of the project".
+That is a real gap: survival is not a project, and an option that keeps you
+alive should say so.
+
+Jev chose **tech, then explore**, not grow. That is legitimate, but it means
+this run says nothing about Jev farming. n = 1 world, 70 decisions, and
+the control and treatment are deterministic, so the only way to more n is
+more worlds.
+
+In the viewer, plants are crossed quads in their own double-sided mesh; the
+solid mesh's back-face cap z-fought a zero-thickness quad and drew them grey.
+Their triangles are oriented to their normals, or double-siding flips the
+normal and lights a top face from below. The status bar shows the project
+(`project grow · 5/16 · next: plant moonpetal · wheat is growing: ripe in
+about 800 ticks`). The log shows `project:` and `grown:` notes. Right-click
+with a hoe tills and with seeds plants, and `farm`/`forage` have a species picker.
+
 ### What is next
 
 1. **Held-out worlds** for the scoreboard: 6–8 tilings and seeds the harness
@@ -757,7 +903,7 @@ per-agent calls.
    delay shrinks.
 3. **A difficulty that spreads survival**: first night before a house is
    affordable, or zombies that break doors, so deaths mean something.
-4. Farming and chests for the homestead mode.
+4. ~~Farming~~ (done, § Long-range goals). Chests, and an infinite world (the periodic tilings are infinite for free; Penrose via the pentagrid) so explore stops saturating.
 
 **Before the first deploy that carries new `mega/` work:** `jev-prereg.yml`
 runs from **main's** copy and redeploys mega from whatever branch it names. It

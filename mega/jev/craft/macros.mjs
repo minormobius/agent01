@@ -12,7 +12,8 @@
 // can also abort any macro between two actions (an interrupt), so a macro
 // holds no state that is only valid mid-sequence.
 
-import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags } from './world.mjs';
+import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER } from './world.mjs';
+import { habitat, needsFarmland, wet } from './plants.mjs';
 
 const MAX_STEPS = 400;
 
@@ -24,7 +25,10 @@ export function* goTo(sim, goal, maxNodes = 30000) {
   const p = sim.player;
   for (let attempt = 0; attempt < 5; attempt++) {
     if (goal(p.c, p.y)) return { ok: true };
-    const path = sim.digPath(p, goal, maxNodes);
+    let path = sim.digPath(p, goal, maxNodes);
+    // boxed in (a pit by the sea, where nothing may be dug): build steps out of
+    // carried blocks, one layer at a time, then plan again from higher up
+    if (!path && attempt === 0) { const up = yield* climbOut(sim); if (up) path = sim.digPath(p, goal, maxNodes); }
     if (!path) {
       // the planner routes around mobs, so a pig in a doorway can close the
       // only way: give it a moment before calling the goal unreachable
@@ -51,6 +55,29 @@ export function* goTo(sim, goal, maxNodes = 30000) {
     if (blocked) yield { op: 'wait', ticks: 3 };                     // let a mob wander off
   }
   return { ok: false, why: 'kept getting blocked' };
+}
+
+// Place a carried block against a wall at foot level and step up onto it,
+// up to `max` layers, while that gains height. Returns the layers climbed.
+export function* climbOut(sim, max = 6) {
+  const p = sim.player;
+  let up = 0;
+  for (let k = 0; k < max; k++) {
+    const item = BUILDING.find((b) => sim.has(b));
+    if (!item) break;
+    if (!sim.passable(p.c, p.y + 2)) break;                     // no headroom to climb into
+    // a neighbour that is a wall higher up (so the step leads somewhere) and
+    // open at foot level and above
+    const n = sim.cols[p.c].adj.find((w) => sim.passable(w, p.y) && sim.passable(w, p.y + 1) && sim.passable(w, p.y + 2) && !sim.occupied(w, p.y)
+      && sim.cols[w].adj.some((v) => v !== p.c && sim.solid(v, p.y + 1)));
+    if (n == null) break;
+    const r = yield { op: 'place', c: n, y: p.y, item };
+    if (!r.ok) break;
+    const m = yield { op: 'move', to: n };
+    if (!m.ok || p.c !== n) break;
+    up++;
+  }
+  return up;
 }
 
 // true when a block of one of `ids` is in reach from a body at (c, y)
@@ -403,7 +430,7 @@ export function* hunt(sim) {
 }
 
 export function* eat(sim) {
-  const food = ['cooked_porkchop', 'apple', 'porkchop'].find((k) => sim.has(k));
+  const food = (sim.player.hp <= 12 && sim.has('moonpetal') ? ['moonpetal'] : []).concat(EAT_ORDER).find((k) => sim.has(k));
   if (!food) return { ok: false, why: 'no food' };
   const r = yield { op: 'eat', item: food };
   return r.ok ? { ok: true } : { ok: false, why: r.why };
@@ -535,6 +562,7 @@ export function* explore(sim, steps = 40) {
 
 // Explore until something of a kind is in sight.
 const SCOUT = {
+  ...Object.fromEntries(SPECIES_NAMES.map((sp) => [sp, (sim) => visiblePlants(sim, sp).length > 0])),
   tree: (sim) => visible(sim, [B.log], 20).length > 0,
   pig: (sim) => visiblePigs(sim, 20).length > 0,
   coal: (sim) => visible(sim, [B.coal_ore], 20).length > 0,
@@ -549,6 +577,102 @@ export function* scout(sim, what = 'tree') {
     yield* explore(sim, 30);
   }
   return found(sim) ? { ok: true } : { ok: false, why: `no ${what} found after eight legs` };
+}
+
+// ------------------------------------------------------------- plants -------
+// Mature plants in sight that nobody planted (wild, or abandoned): what
+// foraging takes. Own plots are for harvest().
+export function visiblePlants(sim, sp = null, radius = 30) {
+  const ids = (sp ? [sp] : SPECIES_NAMES).map((k) => B[`${k}_plant`]);
+  return visible(sim, ids, radius).filter(([c, y]) => !sim.cultivated.has(c * H + y));
+}
+const seedsHeld = (sim) => SPECIES_NAMES.filter((sp) => sim.has(`${sp}_seeds`));
+const ownPlots = (sim) => Object.entries(sim.player.plots || {}).map(([k, sp]) => ({ k: +k, c: Math.floor(k / H), y: k % H, sp }));
+// a ripe plot we just failed to reach is left alone for a while (as ore is),
+// or the same hopeless search runs at every decision
+const unreachablePlot = (sim, q) => { const t = (sim.player.badPlots || {})[q.k]; return t != null && sim.tick - t < 1200; };
+export const ripePlots = (sim) => ownPlots(sim).filter((q) => sim.get(q.c, q.y) === B[`${q.sp}_plant`] && !unreachablePlot(sim, q));
+export const growingPlots = (sim) => ownPlots(sim).filter((q) => { const blk = BLOCKS[sim.get(q.c, q.y)]; return blk.plant === q.sp && blk.stage < 2; });
+
+// Take wild plants for their seeds (and produce): the nearest in sight of
+// `sp`, or of any species whose seeds are not yet carried.
+export function* forage(sim, { sp = null, n = 2 } = {}) {
+  let got = 0;
+  for (let k = 0; k < n; k++) {
+    const want = sp ? [sp] : SPECIES_NAMES.filter((x) => !sim.has(`${x}_seeds`));
+    const t = want.flatMap((x) => visiblePlants(sim, x)).sort((a, b) => sim.dist(a[0], sim.player.c) - sim.dist(b[0], sim.player.c))[0];
+    if (!t) break;
+    const r = yield* fetchBlock(sim, t[0], t[1]);
+    if (r.ok) got++;
+    else if (!got && k === n - 1) return { ok: false, why: r.why };
+  }
+  return got ? { ok: true } : { ok: false, why: `no wild ${sp || 'plant'} in sight to take (explore to find one)` };
+}
+
+// Sites for `sp` around a centre: empty voxels whose soil, tile shape and
+// cover suit it (grass and dirt count as farmland-to-be), where it will also
+// actually GROW (sun species out in the open), best first: watered, then near.
+export function farmSites(sim, sp, center, r = 10) {
+  const [c0, y0] = center, out = [];
+  for (const [c, d] of ball(sim, c0, r)) {
+    if (!sim.seen[c]) continue;
+    for (let y = Math.max(2, y0 - 4); y <= Math.min(H - 2, y0 + 4); y++) {
+      if (habitat(sim, sp, c, y, { soilAfterTill: true })) continue;
+      if (sim.protect.has(c * H + y - 1) && needsFarmland(sp) && sim.get(c, y - 1) !== B.farmland) continue;   // do not till the house floor
+      if (sim.cultivated.has(c * H + y) || sim.occupied(c, y)) continue;
+      // glowcaps grow under cover (habitat already demands it); wheat takes
+      // sun or a torch; everything else needs open sky
+      const growsHere = sp === 'glowcap' ? true : sim.skyOpen(c, y) || (sp === 'wheat' && sim.torchNear(c, 4));
+      if (!growsHere) continue;
+      out.push({ c, y, d, wet: needsFarmland(sp) && wet(sim, c, y) });
+    }
+  }
+  return out.sort((a, b) => (b.wet - a.wet) || (a.d - b.d));
+}
+export const farmCenter = (sim) => sim.home && sim.dist(sim.home[0], sim.player.c) < 30 ? sim.home : [sim.player.c, sim.player.y];
+
+// Till and plant up to `n` plots of `sp` near home (or here, with no home).
+export function* farm(sim, { sp, n = 3 } = {}) {
+  sp = sp || seedsHeld(sim)[0];
+  if (!sp) return { ok: false, why: 'no seeds' };
+  let planted = 0;
+  const tried = new Set();
+  for (let k = 0; k < n + 3 && planted < n; k++) {
+    if (!sim.has(`${sp}_seeds`)) break;
+    if (needsFarmland(sp) && !sim.has('wooden_hoe')) return { ok: false, why: 'needs a hoe' };
+    // near home first; a species whose habitat is elsewhere (sunfruit wants a
+    // beach) is planted where the player stands, if it suits
+    const site = farmSites(sim, sp, farmCenter(sim)).find((q) => !tried.has(q.c * H + q.y))
+      || farmSites(sim, sp, [sim.player.c, sim.player.y], 8).find((q) => !tried.has(q.c * H + q.y));
+    if (!site) break;
+    tried.add(site.c * H + site.y);
+    const { c, y } = site;
+    const go = yield* goTo(sim, (pc, py) => pc !== c && sim.reachable(pc, py, c, y) && (!needsFarmland(sp) || sim.reachable(pc, py, c, y - 1)), 12000);
+    if (!go.ok) continue;
+    if (needsFarmland(sp) && sim.get(c, y - 1) !== B.farmland) {
+      const t = yield { op: 'till', c, y: y - 1 };
+      if (!t.ok) continue;
+    }
+    const r = yield { op: 'plant', c, y, item: `${sp}_seeds` };
+    if (r.ok) planted++;
+  }
+  return planted ? { ok: true, planted } : { ok: false, why: `nowhere near home or here suits a ${sp}` };
+}
+
+// Reap every ripe plot of our own, and plant it again from the seeds it gave.
+export function* harvest(sim) {
+  let n = 0, missed = 0;
+  for (const q of ripePlots(sim).sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c))) {
+    if (sim.get(q.c, q.y) !== B[`${q.sp}_plant`]) continue;
+    const go = yield* goTo(sim, (pc, py) => pc !== q.c && sim.reachable(pc, py, q.c, q.y), 40000);   // a beach plot can be far from home
+    if (!go.ok) { (sim.player.badPlots = sim.player.badPlots || {})[q.k] = sim.tick; missed++; continue; }
+    const r = yield { op: 'mine', c: q.c, y: q.y };
+    if (!r.ok) continue;
+    n++;
+    if (sim.has(`${q.sp}_seeds`)) yield { op: 'plant', c: q.c, y: q.y, item: `${q.sp}_seeds` };
+  }
+  if (!n) return { ok: false, why: missed ? 'could not reach the ripe plots' : 'nothing ripe' };
+  return { ok: true, harvested: n };
 }
 
 // ------------------------------------------------------------ homestead ------
@@ -836,7 +960,7 @@ export function* guard(sim, to, ticks = 160) {
 }
 
 // Walk over and hand a teammate what they asked for: wood (logs/planks) or food.
-const GIFTS = { wood: ['log', 'planks'], food: ['cooked_porkchop', 'porkchop', 'apple'], stone: ['cobblestone'], torches: ['torch'] };
+const GIFTS = { wood: ['log', 'planks'], food: ['cooked_porkchop', 'bread', 'sunfruit', 'porkchop', 'apple'], stone: ['cobblestone'], torches: ['torch'] };
 export function* giveItems(sim, to, what = 'wood') {
   const e = mate(sim, to);
   if (!e) return { ok: false, why: 'no such teammate' };
@@ -859,7 +983,7 @@ export function* giveItems(sim, to, what = 'wood') {
 // cannot. That reason is the difference between offering a model a choice and
 // offering it a trap: Jev's `choice` will be built from the legal entries only.
 const hasPick = (sim, t = 1) => sim.pickTier() >= t ? null : `needs a ${['', 'wooden', 'stone', 'iron'][t]} pickaxe`;
-const food = (sim) => ['cooked_porkchop', 'apple', 'porkchop'].some((k) => sim.has(k));
+const food = (sim) => EAT_ORDER.some((k) => sim.has(k));
 export const PALETTE = {
   // mine
   mine_stone:   { mode: 'mine', doc: 'staircase down for cobblestone, taking ore on the way', needs: (s) => hasPick(s), run: (s, a) => mineStone(s, a?.n) },
@@ -872,6 +996,7 @@ export const PALETTE = {
   scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },
   gather_wood:  { mode: 'explore', doc: 'chop the nearest trees', needs: () => null, run: (s, a) => gatherWood(s, a?.n) },
   hunt:         { mode: 'explore', doc: 'chase down a pig in sight for meat', needs: (s) => visiblePigs(s, 24).length ? null : 'no pig in sight (scout for one)', run: (s) => hunt(s) },
+  forage:       { mode: 'explore', doc: 'take a wild plant in sight for its seeds (and fruit)', needs: (s, a) => visiblePlants(s, a?.sp).filter(([c, y]) => !a?.sp ? !s.has(`${BLOCKS[s.get(c, y)].plant}_seeds`) : true).length ? null : `no wild ${a?.sp || 'plant you lack seeds for'} in sight`, run: (s, a) => forage(s, a || {}) },
   go_home:      { mode: 'explore', doc: 'walk back to the house', needs: (s) => s.home ? (atHome(s) ? 'already home' : null) : 'no home yet', run: (s) => goHome(s) },
   // homestead
   craft:        { mode: 'homestead', doc: 'make an item, and whatever it is made of', needs: (s, a) => {
@@ -881,6 +1006,13 @@ export const PALETTE = {
   }, run: (s, a) => craft(s, a.item, a.n) },
   build_house:  { mode: 'homestead', doc: 'a walled, roofed, lit house with a door, on the tile graph', needs: (s) => s.home && s._house ? 'already have a house' : blocksHeld(s) < 30 ? `needs ~30+ building blocks, holding ${blocksHeld(s)}` : null, run: (s) => buildHouse(s) },
   light_area:   { mode: 'homestead', doc: 'torches around home — nothing spawns near light', needs: (s) => s.has('torch') || s.has('coal') || s.has('charcoal') ? null : 'no torches or fuel for them', run: (s, a) => lightArea(s, a?.n) },
+  farm:         { mode: 'homestead', doc: 'till and plant seeds where the species will grow, near home', needs: (s, a) => {
+    const sp = a?.sp || seedsHeld(s)[0];
+    if (!sp || !s.has(`${sp}_seeds`)) return a?.sp ? `no ${a.sp} seeds` : 'no seeds (forage a wild plant)';
+    if (needsFarmland(sp) && !s.has('wooden_hoe')) return 'needs a hoe (craft one)';
+    return null;
+  }, run: (s, a) => farm(s, a || {}) },
+  harvest:      { mode: 'homestead', doc: 'reap your ripe plants and replant them', needs: (s) => ripePlots(s).length ? null : growingPlots(s).length ? 'nothing ripe yet' : 'no plots planted', run: (s) => harvest(s) },
   set_home:     { mode: 'homestead', doc: 'call this spot home', needs: () => null, run: (s) => setHome(s) },
   dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : s.clearCost(s.player.c, s.player.y - 1, s.pickTier()) === Infinity ? 'cannot dig here (water, lava or bedrock below)' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
   sleep_until_dawn: { mode: 'homestead', doc: 'wait out the night where you are', needs: (s) => s.isNight() ? null : 'it is day', run: (s) => sleepUntilDawn(s) },

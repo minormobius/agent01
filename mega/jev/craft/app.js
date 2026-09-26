@@ -11,7 +11,8 @@ import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
 import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE, reuseRanking, Party, batchRequest, fulfil, REQUESTS, applyAsk, offlineAsk } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
-import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags, KINDS } from './world.mjs';
+import { projectState } from './projects.mjs';
+import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags, KINDS, EAT_ORDER, SEEDS, SPECIES, SPECIES_NAMES } from './world.mjs';
 import { SHAPES, columnLocator } from './tiling.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -51,6 +52,7 @@ const matWater = new THREE.MeshLambertMaterial({ color: 0x3f76e4, transparent: t
 // the cap: back faces drawn flat and dark, so rock sliced by the cut reads as
 // solid ground and only the hollows (tunnels, caves) stay open
 const matGlass = new THREE.MeshLambertMaterial({ color: 0xcfe8ef, transparent: true, opacity: 0.35, depthWrite: false, clippingPlanes: [cut] });
+const matPlant = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, clippingPlanes: [cut] });
 const matCap = new THREE.MeshBasicMaterial({ color: 0x5b554e, side: THREE.BackSide, clippingPlanes: [cut] });
 const world = new THREE.Group();
 scene.add(world);
@@ -90,7 +92,7 @@ function opaque(r, c, y) {
 
 function buildChunk(key) {
   const r = replay, cols = r.world.tiling.cols;
-  const P = [], N = [], C = [], WP = [], WN = [], GP = [], GN = [];
+  const P = [], N = [], C = [], WP = [], WN = [], GP = [], GN = [], FP = [], FN = [], FC = [];
   const tri = (out, nout, a, b, c, n) => {
     // orient the triangle to its intended normal, whatever the poly winding
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
@@ -110,7 +112,26 @@ function buildChunk(key) {
     const col = cols[c], poly = col.poly, nb = col.nb;
     for (let y = 0; y < H; y++) {
       const id = r.b[c * H + y];
-      if (id === B.air || id === B.torch) continue;
+      if (id === B.air || id === B.torch || id === B.lantern) continue;
+      if (BLOCKS[id].plant) {
+        // a plant: two crossed quads at the tile centre, taller as it grows
+        // (their own double-sided mesh: the solid mesh's back-face cap would
+        // z-fight a zero-thickness quad)
+        const st = BLOCKS[id].stage, h = [0.3, 0.55, 0.8][st], w = [0.15, 0.25, 0.32][st];
+        const stem = RGB[B[`${BLOCKS[id].plant}_sprout`]].top, head = RGB[id].top, cx = col.x, cz = col.z;
+        const quad = (q, n, rgb) => { tri(FP, FN, q[0], q[1], q[2], n); tri(FP, FN, q[0], q[2], q[3], n); for (let i = 0; i < 6; i++) FC.push(...rgb); };
+        for (const ang of [0.4, 0.4 + Math.PI / 2]) {
+          const dx = Math.cos(ang) * w, dz = Math.sin(ang) * w;
+          quad([[cx - dx, y, cz - dz], [cx + dx, y, cz + dz], [cx + dx, y + h, cz + dz], [cx - dx, y + h, cz - dz]], [-dz / w, 0, dx / w], st === 2 ? stem : head);
+        }
+        if (st === 2) {   // the ripe head, in the species colour
+          const k = 0.18, t = y + h;
+          quad([[cx - k, t, cz - k], [cx + k, t, cz - k], [cx + k, t, cz + k], [cx - k, t, cz + k]], [0, 1, 0], head);
+          quad([[cx - k, t - 0.25, cz], [cx + k, t - 0.25, cz], [cx + k, t + 0.05, cz], [cx - k, t + 0.05, cz]], [0, 0, 1], head);
+          quad([[cx, t - 0.25, cz - k], [cx, t - 0.25, cz + k], [cx, t + 0.05, cz + k], [cx, t + 0.05, cz - k]], [1, 0, 0], head);
+        }
+        continue;
+      }
       if (id === B.water) {
         if (r.b[c * H + y + 1] === B.air || y === H - 1) {
           const top = poly.map(([x, z]) => [x, y + 0.88, z]);
@@ -165,6 +186,13 @@ function buildChunk(key) {
     geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
     g.add(new THREE.Mesh(geo, matSolid), new THREE.Mesh(geo, matCap));
   }
+  if (FP.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(FP, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(FN, 3));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(FC, 3));
+    g.add(new THREE.Mesh(geo, matPlant));
+  }
   if (WP.length) {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(WP, 3));
@@ -213,11 +241,13 @@ function rebuildTorches() {
   scene.remove(torchGroup);
   torchGroup = new THREE.Group();
   const cols = replay.world.tiling.cols, b = replay.b;
-  const geo = new THREE.BoxGeometry(0.12, 0.6, 0.12);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffd35a });
-  for (let c = 0; c < cols.length; c++) for (let y = 0; y < H; y++) if (b[c * H + y] === B.torch) {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(cols[c].x, y + 0.3, cols[c].z);
+  const geo = new THREE.BoxGeometry(0.12, 0.6, 0.12), lgeo = new THREE.BoxGeometry(0.3, 0.36, 0.3);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffd35a }), lmat = new THREE.MeshBasicMaterial({ color: 0x7fe3d0 });
+  for (let c = 0; c < cols.length; c++) for (let y = 0; y < H; y++) {
+    const id = b[c * H + y];
+    if (id !== B.torch && id !== B.lantern) continue;
+    const m = new THREE.Mesh(id === B.torch ? geo : lgeo, id === B.torch ? mat : lmat);
+    m.position.set(cols[c].x, y + (id === B.torch ? 0.3 : 0.18), cols[c].z);
     torchGroup.add(m);
   }
   scene.add(torchGroup);
@@ -281,11 +311,30 @@ function hud() {
     inv.appendChild(s);
   });
 }
+// the current project, for whoever the HUD is following (live only: a
+// replay has the 'project' notes but not the world state behind the steps)
+let projAt = 0;
+function showProject(now) {
+  const el = $('project');
+  if (!sim || now - projAt < 500) return;
+  projAt = now;
+  const e = sim.ents.get(focusId) || sim.players[0];
+  const txt = sim.as(e, () => {
+    if (!sim.project) return null;
+    const st = projectState(sim, sim.project);
+    const next = st.complete ? 'complete' : st.next ? `next: ${st.next.label}` : 'waiting';
+    return `project <b>${sim.project}</b> · ${st.done}/${st.total} · ${next}${st.waiting.length ? ' · ' + st.waiting[0] : ''}`;
+  });
+  el.hidden = !txt;
+  if (txt && el.innerHTML !== txt) el.innerHTML = txt;
+}
 function logMacro(note) {
   const d = note.data || {};
   if (note.kind === 'macro_end') macroLog.unshift({ t: note.k, text: `${d.name} — ${d.ok ? 'done' : d.why}`, ok: d.ok });
   else if (note.kind === 'dusk' || note.kind === 'dawn') macroLog.unshift({ t: note.k, text: note.kind, ok: note.kind === 'dawn' });
   else if (note.kind === 'home') macroLog.unshift({ t: note.k, text: d.house ? 'house built — home' : 'home set here', ok: true });
+  else if (note.kind === 'project') macroLog.unshift({ t: note.k, text: `project: ${d.name}`, ok: true });
+  else if (note.kind === 'grown') macroLog.unshift({ t: note.k, text: `grown: ${d.sp}`, ok: true });
   else return;
   macroLog = macroLog.slice(0, 14);
   $('log').innerHTML = macroLog.map((m) => `<li class="${m.ok ? 'ok' : 'bad'}">${m.t} ${m.text}</li>`).join('');
@@ -323,10 +372,11 @@ const ARGS = {
   gather_wood: { n: 5 }, mine_stone: { n: 11 }, mine_coal: { n: 4 }, mine_iron: { iron: 3, coal: 3 },
   branch_mine: { length: 16 }, explore: { steps: 40 }, light_area: { n: 4 },
 };
-const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick'];
+const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern'];
 function argsFor(name) {
   if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
   if (name === 'scout') return { what: $('scout-what').value };
+  if (name === 'forage' || name === 'farm') { const sp = $(`${name}-sp`).value; return sp ? { sp, n: name === 'farm' ? 2 : 1 } : {}; }
   if (['follow', 'guard', 'give'].includes(name)) {
     const other = sim && sim.players.find((e) => e.id !== focusId);
     return other ? { to: other.id, ...(name === 'give' ? { what: 'wood' } : {}), ...(name === 'guard' ? { ticks: 160 } : {}) } : null;
@@ -358,7 +408,12 @@ function buildMacroButtons() {
       }
       if (name === 'scout') {
         const sel = document.createElement('select'); sel.id = 'scout-what';
-        for (const it of ['tree', 'pig', 'coal', 'iron', 'sand']) { const o = document.createElement('option'); o.value = o.textContent = it; sel.appendChild(o); }
+        for (const it of ['tree', 'pig', 'coal', 'iron', 'sand', ...SPECIES_NAMES]) { const o = document.createElement('option'); o.value = o.textContent = it; sel.appendChild(o); }
+        row.appendChild(sel);
+      }
+      if (name === 'forage' || name === 'farm') {
+        const sel = document.createElement('select'); sel.id = `${name}-sp`;
+        for (const it of ['', ...SPECIES_NAMES]) { const o = document.createElement('option'); o.value = it; o.textContent = it || (name === 'farm' ? 'any seeds' : 'any'); sel.appendChild(o); }
         row.appendChild(sel);
       }
     }
@@ -475,7 +530,8 @@ async function decideParty(members) {
     if (party !== p0) return;                                    // the world was replaced while we waited
     for (const [m, opts] of per) sim.as(m.e, () => {
       const a = resp.answers?.[`next_${m.e.id}`];
-      const one = a ? { source: resp.source || 'typesafe', answers: { next: a } } : { ...DECIDERS.offline(sim, opts), error: resp.error || 'no answer for this agent' };
+      const pj = resp.answers?.[`project_${m.e.id}`];
+      const one = a ? { source: resp.source || 'typesafe', answers: { next: a, ...(pj ? { project: pj } : {}) } } : { ...DECIDERS.offline(sim, opts), error: resp.error || 'no answer for this agent' };
       applyAsk(sim, m.e, a ? resp.answers?.[`ask_${m.e.id}`]?.choice : offlineAsk(sim));
       const { pick, record } = resolve(sim, opts, one, { gate: false });
       record.who = m.e.id; record.source = one.source;
@@ -554,6 +610,7 @@ function showDecision(opts, response, record, pick, who, batchN) {
   $('decision').innerHTML = rows.map((r) => `<div class="opt${r.id === record.choice ? ' pick' : ''}"><span>${r.id.replace(/_/g, ' ')}</span><span class="bar"><i style="width:${Math.round(r.p * 100)}%"></i></span><span class="mono">${r.p ? r.p.toFixed(2) : ''}</span></div>`).join('')
     + `<div class="meta">${opts.length} legal options` + (record.confidence != null ? ` · confidence ${record.confidence.toFixed(2)}` : '')
     + (record.danger != null ? ` · danger ${record.danger.toFixed(1)}/3` : '') + (record.have != null ? ` · have ${record.have.toFixed(2)}` : '') + '</div>'
+    + (record.project ? `<div class="meta">project: ${record.project}${record.project_confidence != null ? ` (${record.project_confidence.toFixed(2)})` : ''}</div>` : '')
     + (record.gated ? `<div class="meta warn">below the ${GATE} gate — the baseline's pick (${record.fallback}) was used instead</div>` : '')
     + (record.error ? `<div class="meta bad">${record.error}</div>` : '')
     + (pick ? `<div class="meta">doing: ${pick.name.replace(/_/g, ' ')}${pick.args ? ' ' + JSON.stringify(pick.args) : ''}</div>` : '');
@@ -811,15 +868,20 @@ canvas.addEventListener('mousedown', (e) => {
   if (e.button === 0) {
     if (a.ent) hands.queue.push({ op: 'attack', id: a.ent.id });
     else hands.queue.push({ op: 'mine', c: a.c, y: a.y });
-  } else if (e.button === 2) {
-    const item = hands.selected();
-    if (!item) return toast('nothing selected');
-    if (FOOD[item]) return hands.queue.push({ op: 'eat', item });
-    if (!PLACEABLE.has(item)) return toast(`${item.replace(/_/g, ' ')} does not place`);
-    if (!a.place) return toast('no room to place there');
-    hands.queue.push({ op: 'place', c: a.place.c, y: a.place.y, item });
-  }
+  } else if (e.button === 2) useSelected(a);
 });
+// the selected item, used on the aimed block: eat food, till with a hoe,
+// plant seeds on the soil you look at, or place a block
+function useSelected(a) {
+  const item = hands.selected();
+  if (!item) return toast('nothing selected');
+  if (FOOD[item]) return hands.queue.push({ op: 'eat', item });
+  if (item === 'wooden_hoe') return hands.queue.push({ op: 'till', c: a.c, y: a.y });
+  if (SEEDS[item]) return hands.queue.push({ op: 'plant', c: a.c, y: a.y + 1, item });
+  if (!PLACEABLE.has(item)) return toast(`${item.replace(/_/g, ' ')} does not place`);
+  if (!a.place) return toast('no room to place there');
+  hands.queue.push({ op: 'place', c: a.place.c, y: a.place.y, item });
+}
 document.addEventListener('mousemove', (e) => {
   if (!locked()) return;
   hands.yaw -= e.movementX * 0.0025;
@@ -837,7 +899,7 @@ document.addEventListener('keydown', (e) => {
   else if (/^Digit[1-9]$/.test(e.code)) hands.sel = +e.code.slice(5) - 1;
   else if (e.code === 'KeyV') hands.third = !hands.third;
   else if (e.code === 'KeyF') {
-    const food = ['cooked_porkchop', 'apple', 'porkchop'].find((k) => replay.inv[k]);
+    const food = EAT_ORDER.find((k) => replay.inv[k]);
     if (food) hands.queue.push({ op: 'eat', item: food }); else toast('no food');
   } else if (e.code === 'KeyC') toggleCrafting();
 });
@@ -925,17 +987,13 @@ canvas.addEventListener('pointerup', (e) => {
   if (!a) return;
   takeOver();
   if (a.ent) return hands.queue.push({ op: 'attack', id: a.ent.id });
-  if (placeMode) {
-    const item = hands.selected();
-    if (!item || !PLACEABLE.has(item)) return toast(item ? `${item.replace(/_/g, ' ')} does not place` : 'nothing selected');
-    if (!a.place) return toast('no room to place there');
-    hands.queue.push({ op: 'place', c: a.place.c, y: a.place.y, item });
-  } else hands.queue.push({ op: 'mine', c: a.c, y: a.y });
+  if (placeMode) useSelected(a);
+  else hands.queue.push({ op: 'mine', c: a.c, y: a.y });
 });
 $('t-go').addEventListener('click', () => { touchOn = true; syncPlayUI(); });
 $('t-place').addEventListener('click', () => { placeMode = !placeMode; $('t-place').classList.toggle('on', placeMode); toast(placeMode ? 'taps place the selected block' : 'taps mine'); });
 $('t-eat').addEventListener('click', () => {
-  const food = ['cooked_porkchop', 'apple', 'porkchop'].find((k) => replay.inv[k]);
+  const food = EAT_ORDER.find((k) => replay.inv[k]);
   if (food) hands.queue.push({ op: 'eat', item: food }); else toast('no food');
 });
 $('t-craft').addEventListener('click', () => toggleCrafting());
@@ -1053,6 +1111,7 @@ function frame(now) {
     updateCamera();
     sky();
     hud();
+    showProject(now);
     renderTeam(now);
     refreshLegal(now);
   }

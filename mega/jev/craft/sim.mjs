@@ -25,11 +25,14 @@
 //   ["hit",from,to,dmg]    melee                  ["die",id]        death
 //   ["note",kind,…]        anything a caller annotates: macro starts/ends,
 //                          Jev's questions and answers (runner.mjs)
+// Crops grow by 'b' events too (sprout → growing → plant), so a replay needs
+// nothing new to show a farm.
 
 import {
-  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD,
+  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD, HEAL, SEEDS,
   generateWorld, worldSignature, mulberry, hash32, blockName,
 } from './world.mjs';
+import { habitat, growCrops, harvestDrop, GROW_EVERY } from './plants.mjs';
 
 export const DAY = 4800;            // ticks per day (~20 min at 4 ticks/s, as Minecraft's)
 export const NIGHT_START = 3000;    // [3000, 4800) is night
@@ -57,10 +60,12 @@ export class Sim {
     this.rng = mulberry(hash32(w.seed, 0x51A));
     this.ents = new Map();
     this.nextId = 0;
-    this.torches = new Set();
+    this.torches = new Set();     // every light (torches, lanterns), by voxel
+    this.crops = new Set();       // voxels holding a plant that is still growing
+    this.cultivated = new Map();  // voxel → { sp, by } for everything a player planted
     this.lines = [];
     this.ev = [];
-    this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0, placed: {} };
+    this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0, placed: {}, planted: {}, harvested: {}, grown: {} };
     this.protect = new Set();     // voxels the planners must not dig (house walls, roof)
     this.players = [];            // every player entity; this.me is the one acting now
     this.lines.push(JSON.stringify({
@@ -126,8 +131,11 @@ export class Sim {
   set(c, y, id) {
     const old = this.b[c * H + y];
     if (old === id) return;
-    if (old === B.torch) this.torches.delete(c * H + y);
-    if (id === B.torch) this.torches.add(c * H + y);
+    const k = c * H + y;
+    if (BLOCKS[old].light) this.torches.delete(k);
+    if (BLOCKS[id].light) this.torches.add(k);
+    if (BLOCKS[id].plant && BLOCKS[id].stage < 2) this.crops.add(k); else this.crops.delete(k);
+    if (!BLOCKS[id].plant) this.cultivated.delete(k);
     this.b[c * H + y] = id;
     this.emit(['b', c, y, id]);
   }
@@ -140,11 +148,11 @@ export class Sim {
   dark(c, y) {
     for (let yy = y + 2; yy < H; yy++) {
       const id = this.get(c, yy);
-      if (id !== B.air && id !== B.torch && id !== B.leaves && id !== B.log && id !== B.glass && id !== B.water) return true;
+      if (id !== B.air && !BLOCKS[id].light && !BLOCKS[id].plant && id !== B.leaves && id !== B.log && id !== B.glass && id !== B.water) return true;
     }
     return false;
   }
-  skyOpen(c, y) { for (let yy = y; yy < H; yy++) if (this.get(c, yy) !== B.air && this.get(c, yy) !== B.torch) return false; return true; }
+  skyOpen(c, y) { for (let yy = y; yy < H; yy++) { const id = this.get(c, yy); if (id !== B.air && !BLOCKS[id].light && !BLOCKS[id].plant) return false; } return true; }
   supported(c, y) { return this.solid(c, y - 1) || this.get(c, y - 1) === B.water || this.get(c, y) === B.water; }
   canStand(c, y, tall = 2, mob = false) {
     if (y < 1 || y + tall > H) return false;
@@ -203,7 +211,11 @@ export class Sim {
       }
       this._near.set(p.c, ring);
     }
-    for (const u of ring) if (!this.seen[u]) { this.seen[u] = 1; this.seenCount++; }
+    for (const u of ring) if (!this.seen[u]) {
+      this.seen[u] = 1; this.seenCount++;
+      // what grows there, noted once per species: the explore project's finds
+      for (let y = 1; y < H; y++) { const blk = BLOCKS[this.b[u * H + y]]; if (blk.plant) { p.found = p.found || {}; if (!p.found[blk.plant]) p.found[blk.plant] = this.tick; } }
+    }
   }
   dist(a, b) { const A = this.cols[a], Bc = this.cols[b]; return Math.hypot(A.x - Bc.x, A.z - Bc.z); }
   adjacentTo(e, t) {
@@ -337,9 +349,13 @@ export class Sim {
         const ticks = Math.max(1, Math.ceil(blk.hard / speed));
         return { ok: true, ticks, pre: () => this.emit(['do', 'mine', c, y, ticks]), post: () => {
           if (this.get(c, y) !== blk.id) return no('block changed while mining');
+          const cult = this.cultivated.get(c * H + y);
           this.set(c, y, this.get(c, y + 1) === B.water || this.cols[c].adj.some((n) => this.get(n, y) === B.water) && y <= SEA ? B.water : B.air);
           this.stats.mined[blk.name] = (this.stats.mined[blk.name] || 0) + 1;
           if (blk.drop) this.give(blk.drop, 1);
+          if (blk.plant) this.reap(blk, cult);
+          // a plant standing on what was just mined falls with it
+          if (BLOCKS[this.get(c, y + 1)].plant) this.set(c, y + 1, B.air);
           if (blk.id === B.leaves && this.rng() < 1 / 6) this.give('apple', 1);
           this.settle();
           return { ok: true };
@@ -351,13 +367,48 @@ export class Sim {
         if (!this.has(item)) return no(`no ${item}`);
         if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
         const cur = this.get(c, y);
-        if (cur !== B.air && cur !== B.water) return no(`occupied by ${blockName(cur)}`);
+        // a plant is in the way of nothing: placing a block on it picks it first
+        if (cur !== B.air && cur !== B.water && !BLOCKS[cur].plant) return no(`occupied by ${blockName(cur)}`);
         if (this.occupied(c, y)) return no('an entity is there');
         return { ok: true, ticks: 1, pre: () => {
           this.emit(['do', 'place', c, y, item]);
+          const was = BLOCKS[this.get(c, y)];
+          if (was.plant) this.reap(was, this.cultivated.get(c * H + y));
           this.take(item, 1);
           this.set(c, y, B[item]);
           this.stats.placed[item] = (this.stats.placed[item] || 0) + 1;
+        } };
+      }
+      case 'till': {
+        // grass or dirt under open air becomes farmland; needs a hoe
+        const { c, y } = a;
+        if (!this.has('wooden_hoe')) return no('needs a hoe');
+        if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
+        const cur = this.get(c, y);
+        if (cur !== B.grass && cur !== B.dirt) return no(`cannot till ${blockName(cur)}`);
+        if (this.get(c, y + 1) !== B.air) return no('something is on top of it');
+        return { ok: true, ticks: 2, pre: () => this.emit(['do', 'till', c, y]), post: () => {
+          if (this.get(c, y) !== cur) return no('the ground changed');
+          this.set(c, y, B.farmland);
+          return { ok: true };
+        } };
+      }
+      case 'plant': {
+        // seeds go into an empty voxel whose soil (and tile, and cover) suit the species
+        const { c, y } = a, sp = SEEDS[a.item];
+        if (!sp) return no(`${a.item} are not seeds`);
+        if (!this.has(a.item)) return no(`no ${a.item}`);
+        if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
+        const why = habitat(this, sp, c, y);
+        if (why) return no(`a ${sp} will not grow there: ${why}`);
+        if (this.occupied(c, y)) return no('an entity is there');
+        return { ok: true, ticks: 1, pre: () => {
+          this.emit(['do', 'plant', c, y, sp]);
+          this.take(a.item, 1);
+          this.set(c, y, B[`${sp}_sprout`]);
+          this.cultivated.set(c * H + y, { sp, by: p.id });
+          (p.plots = p.plots || {})[c * H + y] = sp;
+          this.stats.planted[sp] = (this.stats.planted[sp] || 0) + 1;
         } };
       }
       case 'craft': {
@@ -385,6 +436,7 @@ export class Sim {
           this.take(a.item, 1);
           p.food = Math.min(20, p.food + FOOD[a.item]);
           this.emit(['food', p.food, p.id]);
+          if (HEAL[a.item] && p.hp < 20) { p.hp = Math.min(20, p.hp + HEAL[a.item]); this.emit(['hp', p.id, p.hp]); }
         } };
       }
       case 'attack': {
@@ -429,6 +481,21 @@ export class Sim {
     return done(true);
   }
 
+  // harvesting: a mature plant gives produce and seeds, a young one its seed
+  // back. A mature plant someone planted counts as GROWN, for its planter.
+  reap(blk, cult) {
+    for (const [k, n] of Object.entries(harvestDrop(this, blk))) this.give(k, n);
+    if (blk.stage < 2) return;
+    const sp = blk.plant;
+    this.stats.harvested[sp] = (this.stats.harvested[sp] || 0) + 1;
+    if (cult) {
+      this.stats.grown[sp] = (this.stats.grown[sp] || 0) + 1;
+      const who = this.ents.get(cult.by) || this.me;
+      (who.grown = who.grown || {})[sp] = (who.grown[sp] || 0) + 1;
+      this.emit(['note', 'grown', { sp, by: who.id }]);
+    }
+  }
+
   // anything no longer supported falls (the player after digging under itself)
   settle() {
     for (const e of this.ents.values()) {
@@ -457,6 +524,7 @@ export class Sim {
         else if (q.food >= 18 && q.hp < 20) { q.hp++; this.emit(['hp', q.id, q.hp]); }
       }
     }
+    if (t % GROW_EVERY === 0 && this.crops.size) growCrops(this);
     if (t % DAY === NIGHT_START) this.emit(['note', 'dusk']);
     if (t % DAY === 0) this.emit(['note', 'dawn']);
     // zombies: spawn at night on open ground, away from torches and the player
@@ -672,7 +740,7 @@ export class Sim {
 // these on the sim reaches the CURRENT player (sim.me).
 export const PER_PLAYER = ['seen', 'seenCount', 'home', '_house', '_lit', '_litTried', '_journal', '_outcomes',
   '_heading', '_unreachable', '_lastMacro', '_homeTried', '_round', '_houseFails', '_swordTries', '_explored',
-  '_nightAck', '_branchLeg', 'request', 'role'];
+  '_nightAck', '_branchLeg', 'request', 'role', 'project', '_projectAt'];
 for (const k of PER_PLAYER) {
   Object.defineProperty(Sim.prototype, k, { get() { return this.me[k]; }, set(v) { this.me[k] = v; }, configurable: true });
 }
@@ -683,7 +751,7 @@ export class Replay {
   constructor(header) {
     const h = typeof header === 'string' ? JSON.parse(header) : header;
     this.header = h;
-    this.world = generateWorld({ seed: h.seed, shape: h.shape, radius: h.radius, kind: h.kind || 'island' });
+    this.world = generateWorld({ seed: h.seed, shape: h.shape, radius: h.radius, kind: h.kind || 'island', version: h.v || 1 });
     if (worldSignature(this.world) !== h.sig) throw new Error(`world signature mismatch: stream ${h.sig}, regenerated ${worldSignature(this.world)} — generator version drift`);
     this.b = this.world.blocks;
     this.ents = new Map();

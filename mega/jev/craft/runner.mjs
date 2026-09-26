@@ -11,7 +11,9 @@
 // "Jev played for a day" has a number to be compared against, and so the
 // engine can be shown climbing the tech ladder with no model in the loop.
 
-import { PALETTE, atHome, shortfall } from './macros.mjs';
+import { PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants } from './macros.mjs';
+import { EAT_ORDER } from './world.mjs';
+import { speciesHere, needsFarmland } from './plants.mjs';
 
 // One primitive action per step(), so a caller can interleave rendering
 // (the viewer) or run flat out (play()). Both drive exactly this loop.
@@ -94,11 +96,13 @@ export function baselinePolicy(sim) {
   // a macro that just failed without spending a tick will fail the same way
   // again from the same spot: go somewhere else first
   const last = sim._lastMacro;
-  if (last && !last.ok && last.ticks === 0 && !['explore', 'surface', 'fight', 'eat'].includes(last.name)) {
-    return exposed(sim) ? { name: 'explore' } : { name: 'surface' };
+  if (last && !last.ok && last.ticks === 0 && !['explore', 'surface', 'fight', 'eat', 'go_home'].includes(last.name)) {
+    if (!exposed(sim)) return { name: 'surface' };
+    // with the whole world seen, exploring fails at once too: walk home instead
+    return sim._explored && sim.home && !atHome(sim) ? { name: 'go_home' } : { name: 'explore' };
   }
   if (!exposed(sim) && p.y < sim.surface(p.c) - 6 && n('iron_pickaxe')) return { name: 'surface' };
-  if (p.food < 14 && ['apple', 'porkchop', 'cooked_porkchop'].some((k) => inv[k])) return { name: 'eat' };
+  if (p.food < 14 && EAT_ORDER.some((k) => inv[k])) return { name: 'eat' };
   if (p.food < 8) return { name: 'hunt' };
   if (!n('wooden_pickaxe') && !n('stone_pickaxe') && !n('iron_pickaxe')) {
     return n('log') + n('planks') / 4 < 5 ? { name: 'gather_wood', args: { n: 5 } } : { name: 'craft', args: { item: 'wooden_pickaxe' } };
@@ -126,6 +130,24 @@ export function baselinePolicy(sim) {
     const iron = n('iron_ore') + n('iron_ingot');
     if (iron < 2 || n('coal') < 2) { if (!sim._swordTries || sim._swordTries < 3) { sim._swordTries = (sim._swordTries || 0) + 1; return { name: 'mine_iron', args: { iron: 2, coal: 2 } }; } }
     else return craftIt('iron_sword');
+  }
+  // then growing: reap what is ripe, make a hoe, and for each species not yet
+  // grown, plant the seeds carried or take them from a wild plant in sight
+  // (the daily round's exploring finds the rest)
+  const here = speciesHere(sim);
+  if (here.length) {
+    if (ripePlots(sim).length) return { name: 'harvest' };
+    const tries = (sim.me._growTries = sim.me._growTries || {});
+    const grown = sim.player.grown || {}, plotted = new Set([...ripePlots(sim), ...growingPlots(sim)].map((q) => q.sp));
+    for (const sp of here) {
+      if (grown[sp] || plotted.has(sp) || (tries[sp] || 0) >= 3) continue;
+      if (sim.has(`${sp}_seeds`)) {
+        if (needsFarmland(sp) && !n('wooden_hoe')) return craftIt('wooden_hoe');
+        tries[sp] = (tries[sp] || 0) + 1;
+        return { name: 'farm', args: { sp, n: 2 } };
+      }
+      if (visiblePlants(sim, sp).length) { tries[sp] = (tries[sp] || 0) + 0.5; return { name: 'forage', args: { sp, n: 1 } }; }
+    }
   }
   // the daily round
   const round = ['explore', 'explore', 'hunt', 'branch_mine', 'explore'];

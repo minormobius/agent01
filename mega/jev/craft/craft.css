@@ -57,6 +57,8 @@ button:disabled{opacity:.4;cursor:default}
 .status{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
 #hp,#food{font-family:var(--mono);font-size:13px;letter-spacing:1px}
 #hp{color:var(--bad)} #food{color:var(--warn)}
+.project{margin-top:4px;font-size:11px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.project b{color:var(--accent);font-weight:600}
 .inv{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:22px}
 .chip{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
 .chip i{width:10px;height:10px;border-radius:2px;display:inline-block}

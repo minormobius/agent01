@@ -17,10 +17,12 @@
 // stream says so. Nothing here pretends: every decision is stamped with the
 // source that produced it — typesafe, offline stand-in, random, or baseline.
 
-import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort } from './macros.mjs';
+import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots } from './macros.mjs';
+import { projectState, projectFact, projectDue, projectQuestion, setProject, baselineProject, PROJECT_NAMES, PROJECTS } from './projects.mjs';
+import { speciesHere, needsFarmland } from './plants.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
 import { DAY, NIGHT_START } from './sim.mjs';
-import { B, BUILDING, RECIPES, FOOD } from './world.mjs';
+import { B, BUILDING, RECIPES, FOOD, SPECIES } from './world.mjs';
 
 export const GATE = 0.45;
 
@@ -68,7 +70,7 @@ export function perceive(sim) {
   const underSky = sim.skyOpen(p.c, p.y + 2);
   return {
     objective: {
-      aim: 'Thrive on this island: climb the tech ladder (wood, stone, iron), build a house before night, stay fed, do not die, and explore.',
+      aim: 'Thrive in this world: stay fed and alive, and pursue a long-range project — tech (tools, a house, iron), grow (cultivate every plant species here), or explore (see it all). Every activity says what it does for the current project.',
       rules: [
         'Zombies spawn at night on open ground away from torches, and only hurt you if they reach you.',
         'A house (or a dug-in hole) keeps zombies out; the house is also where you respawn.',
@@ -95,9 +97,20 @@ export function perceive(sim) {
       pigs: pigs.length ? { in_sight: pigs.length, nearest_tiles: Math.round(sim.dist(pigs[0].c, p.c)) } : { in_sight: 0 },
     },
     progress: { reached: reached.length ? reached : ['nothing yet'], next: open },
+    project: projectFacts(sim),
     explored: `${Math.round(100 * sim.seenCount / sim.N)}% of the island`,
     recent: (sim._journal || []).slice(-6),
     ...(sim.players.length > 1 ? { team: teamFacts(sim) } : {}),
+  };
+}
+
+function projectFacts(sim) {
+  if (!sim.project) return { current: 'none chosen yet' };
+  const st = projectState(sim, sim.project);
+  return {
+    current: sim.project, aim: PROJECTS[sim.project].aim, progress: `${st.done} of ${st.total} steps done`,
+    ...(st.complete ? { status: 'COMPLETE' } : { next_step: st.next ? `${st.next.label} (${st.next.detail(sim)})` : 'nothing to do now but wait' }),
+    ...(st.waiting.length ? { waiting_on: st.waiting } : {}),
   };
 }
 
@@ -193,7 +206,9 @@ export function options(sim) {
   const goalsOpen = GOALS.filter(([, f]) => !f(sim)).map(([g]) => g);
   const nextGoal = goalsOpen[0] || 'none — the ladder is climbed';
   const out = [];
-  const add = (id, name, args, facts) => {
+  // sim.noProjects: the control arm for measuring what the project facts do
+  const pst = sim.project && !sim.noProjects ? projectState(sim, sim.project) : null;
+  const add = (id, name, args, facts, tokens = []) => {
     const m = PALETTE[name];
     const leaves = !['craft', 'eat', 'fight', 'sleep_until_dawn', 'dig_in', 'set_home', 'surface'].includes(name) && !(name === 'go_home');
     // the option carries its own last failure. A fact in the journal is not
@@ -206,8 +221,9 @@ export function options(sim) {
     if (last && !last.ok && last.c === p.c && last.y === p.y && sim.tick - last.tick < 300 && sameInv(last.inv, sim.inv)) return;
     const failed = last && !last.ok && sim.tick - last.tick < 2400
       ? { last_tried: `FAILED ${sim.tick - last.tick} ticks ago, after spending ${last.ticks} ticks: ${last.why}` } : {};
-    out.push({ id, name, args, criteria: {
-      activity: m.doc, mode: m.mode, ...facts, ...failed,
+    const pf = projectFact(sim, pst, new Set(tokens));
+    out.push({ id, name, args, tokens, criteria: {
+      activity: m.doc, mode: m.mode, ...facts, ...(pf ? { project: pf } : {}), ...failed,
       ...(night && leaves ? { at_night: 'goes out among zombies' } : {}),
     } });
   };
@@ -217,33 +233,50 @@ export function options(sim) {
   const cob = sim.inv.cobblestone || 0;
   if (legal.has('mine_stone')) add('mine_stone', 'mine_stone', { n: cob + (sim._house ? 16 : Math.max(11, 64 - blocksHeld(sim))) }, {
     yields: 'cobblestone (and any ore on the way)', takes: 'about 100–250 ticks',
-    advances: sim.pickTier() < 2 ? 'stone_pickaxe needs 3 cobblestone' : !sim._house ? `a house needs ~60 building blocks, holding ${blocksHeld(sim)}` : 'nothing on the ladder' });
+    advances: sim.pickTier() < 2 ? 'stone_pickaxe needs 3 cobblestone' : !sim._house ? `a house needs ~60 building blocks, holding ${blocksHeld(sim)}` : 'nothing on the ladder' }, ['cobblestone']);
   if (legal.has('mine_coal')) add('mine_coal', 'mine_coal', { n: (sim.inv.coal || 0) + 3 }, {
     yields: 'coal', takes: visible(sim, [B.coal_ore], 20).length ? 'short — coal is in sight' : 'about 100–300 ticks of digging',
-    advances: sim.has('torch', 4) ? 'fuel for smelting' : 'torches (coal + stick)' });
+    advances: sim.has('torch', 4) ? 'fuel for smelting' : 'torches (coal + stick)' }, ['coal']);
   const ironHeld = (sim.inv.iron_ore || 0) + (sim.inv.iron_ingot || 0);
   if (legal.has('mine_iron')) add('mine_iron', 'mine_iron', { iron: ironHeld + 3, coal: (sim.inv.coal || 0) + 2 }, {
     yields: 'iron ore and coal', takes: 'about 150–400 ticks, deep underground',
-    advances: sim.pickTier() < 3 ? 'iron_pickaxe needs 3 iron + coal to smelt' : !sim.has('iron_sword') ? 'iron_sword needs 2 iron' : 'stockpile only' });
-  if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' });
+    advances: sim.pickTier() < 3 ? 'iron_pickaxe needs 3 iron + coal to smelt' : !sim.has('iron_sword') ? 'iron_sword needs 2 iron' : 'stockpile only' }, ['iron_ore', 'coal']);
+  if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' }, ['coal', 'iron_ore', 'cobblestone']);
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
   const seenPct = Math.round(100 * sim.seenCount / sim.N);
   if (legal.has('explore')) add('explore', 'explore', { steps: 40 }, { yields: 'new ground seen', takes: 'about 40 ticks',
-    advances: goalsOpen.includes('explored') ? `${goalsOpen[0] === 'explored' ? 'the next rung' : 'a rung'}: explored (seen ${seenPct}% of the 80% needed)` : `island seen: ${seenPct}%` });
+    advances: goalsOpen.includes('explored') ? `${goalsOpen[0] === 'explored' ? 'the next rung' : 'a rung'}: explored (seen ${seenPct}% of the 80% needed)` : `island seen: ${seenPct}%` }, ['explore']);
   for (const what of ['tree', 'pig', 'coal', 'iron']) {
     const seen = what === 'pig' ? visiblePigs(sim, 20).length : visible(sim, [{ tree: B.log, coal: B.coal_ore, iron: B.iron_ore }[what]], 20).length;
-    if (!seen) add(`scout_${what}`, 'scout', { what }, { yields: `finds a ${what}`, takes: 'about 40–200 ticks', advances: `none in sight now` });
+    if (!seen) add(`scout_${what}`, 'scout', { what }, { yields: `finds a ${what}`, takes: 'about 40–200 ticks', advances: `none in sight now` }, [`scout:${what}`, ...(what === 'tree' ? ['log'] : what === 'pig' ? ['porkchop'] : [])]);
+  }
+  // plants: forage what is in sight, look for what is not, farm what we hold seeds for, reap what is ripe
+  const here = speciesHere(sim);
+  for (const sp of here) {
+    const inSight = visiblePlants(sim, sp).length, grown = ((p.grown || {})[sp] || 0) > 0;
+    if (inSight) add(`forage_${sp}`, 'forage', { sp, n: 1 }, { yields: `${sp} seeds and ${SPECIES[sp].produce}`, takes: 'about 20–60 ticks, one is in sight',
+      advances: sim.has(`${sp}_seeds`) ? `more ${sp} seeds (holding ${sim.inv[`${sp}_seeds`]})` : `the first ${sp} seeds` }, [`forage:${sp}`, `${sp}_seeds`, SPECIES[sp].produce]);
+    else if (!grown && !sim.has(`${sp}_seeds`)) add(`scout_${sp}`, 'scout', { what: sp }, { yields: `finds a wild ${sp}`, takes: 'about 40–300 ticks',
+      advances: (p.found || {})[sp] ? `${sp} was seen before, not in sight now` : `${sp} not found yet: ${SPECIES[sp].doc}` }, [`scout:${sp}`]);
+    if (sim.has(`${sp}_seeds`) && !PALETTE.farm.needs(sim, { sp })) add(`farm_${sp}`, 'farm', { sp, n: 2 }, { yields: `${sp} planted near home`, takes: 'about 20–80 ticks',
+      advances: `a ${sp} crop — ${SPECIES[sp].doc}` }, [`farm:${sp}`]);
+  }
+  if (legal.has('harvest')) {
+    const ripe = ripePlots(sim);
+    add('harvest', 'harvest', null, { yields: [...new Set(ripe.map((q) => SPECIES[q.sp].produce))].join(', ') + ' and seeds (then replants)', takes: `about ${20 + 15 * ripe.length} ticks`,
+      advances: `${ripe.length} ripe plot${ripe.length > 1 ? 's' : ''}` }, ['harvest', ...ripe.map((q) => SPECIES[q.sp].produce)]);
   }
   if (legal.has('gather_wood')) add('gather_wood', 'gather_wood', { n: (sim.inv.log || 0) + 4 }, {
     yields: 'logs (→ planks, sticks, tables, doors)', takes: visible(sim, [B.log], 20).length ? 'about 30–60 ticks, trees in sight' : 'longer — no tree in sight',
-    advances: !sim.pickTier() ? 'wooden_pickaxe needs wood' : 'planks for doors and sticks' });
-  if (legal.has('hunt')) add('hunt', 'hunt', null, { yields: 'porkchops (food)', takes: visiblePigs(sim, 20).length ? 'about 20–60 ticks, pig in sight' : 'longer — no pig in sight', advances: `food ${p.food}/20` });
+    advances: !sim.pickTier() ? 'wooden_pickaxe needs wood' : 'planks for doors and sticks' }, ['log']);
+  if (legal.has('hunt')) add('hunt', 'hunt', null, { yields: 'porkchops (food)', takes: visiblePigs(sim, 20).length ? 'about 20–60 ticks, pig in sight' : 'longer — no pig in sight', advances: `food ${p.food}/20` }, ['porkchop']);
   if (legal.has('go_home')) {
     const toDusk = NIGHT_START - (sim.tick % DAY), walk = about(sim.dist(sim.home[0], p.c));
     add('go_home', 'go_home', null, { takes: `about ${walk} ticks`,
       advances: night ? 'safety: it is night' : toDusk < walk + 200 ? `safety: dusk in ${toDusk} ticks` : `nothing yet: night is ${toDusk} ticks away, and the walk takes about ${walk}` });
   }
-  for (const item of USEFUL_CRAFTS) {
+  const crafts = [...USEFUL_CRAFTS, ...(here.some(needsFarmland) && !sim.has('wooden_hoe') ? ['wooden_hoe'] : []), ...(sim.has('wheat', 3) ? ['bread'] : []), ...(sim.has('glowcap', 2) ? ['lantern'] : [])];
+  for (const item of crafts) {
     if (Object.keys(shortfall(sim, item, (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1))).length) continue;
     if (item.endsWith('pickaxe') && (sim.inv[item] || sim.pickTier() >= { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3 }[item])) continue;
     if (item.endsWith('sword') && (sim.inv[item] || sim.has('iron_sword'))) continue;
@@ -252,13 +285,13 @@ export function options(sim) {
     const goal = item === 'torch' ? 'torches' : item;
     add(`craft_${item}`, 'craft', { item, n: (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1) }, {
       yields: item.replace(/_/g, ' '), takes: 'short (under 20 ticks)',
-      advances: goal === nextGoal ? `completes the next rung: ${goal}` : goalsOpen.includes(goal) ? `a rung: ${goal}` : item === 'door' && !sim._house ? 'the house needs 2 doors' : 'not on the ladder',
-    });
+      advances: goal === nextGoal ? `completes the next rung: ${goal}` : goalsOpen.includes(goal) ? `a rung: ${goal}` : item === 'door' && !sim._house ? 'the house needs 2 doors' : item === 'wooden_hoe' ? 'farmland for crops' : 'not on the ladder',
+    }, [`craft:${item}`, item]);
   }
   if (legal.has('build_house')) add('build_house', 'build_house', null, {
     yields: 'a sealed, roofed, lit house with a door — home and respawn point', takes: 'about 80–200 ticks',
-    advances: 'the house rung', uses: `~60 building blocks (holding ${blocksHeld(sim)})` });
-  if (legal.has('light_area')) add('light_area', 'light_area', { n: 4 }, { yields: 'torches around home', takes: 'about 40–100 ticks', advances: sim._house && !sim._lit ? 'the lit_grounds rung' : 'fewer zombies nearby' });
+    advances: 'the house rung', uses: `~60 building blocks (holding ${blocksHeld(sim)})` }, ['build_house']);
+  if (legal.has('light_area')) add('light_area', 'light_area', { n: 4 }, { yields: 'torches around home', takes: 'about 40–100 ticks', advances: sim._house && !sim._lit ? 'the lit_grounds rung' : 'fewer zombies nearby' }, ['light_area']);
   if (legal.has('dig_in')) add('dig_in', 'dig_in', null, { yields: 'a one-block emergency shelter', takes: 'about 10 ticks', advances: 'safety, right here' });
   if (legal.has('sleep_until_dawn')) add('sleep_until_dawn', 'sleep_until_dawn', null, { takes: `until dawn (${DAY - (sim.tick % DAY)} ticks)`, advances: inside ? 'safe: you are covered' : 'NOT safe: you are in the open' });
   if (legal.has('eat')) add('eat', 'eat', null, { takes: '4 ticks', advances: `food ${p.food}/20` });
@@ -309,6 +342,8 @@ export function buildQuestions(sim, opts) {
       instructions: 'Does the state contain the information needed to decide what the player should do next?',
       criteria: { true: 'yes, the facts that decide it are in the state', false: 'no, something that decides it is missing' },
     },
+    // the slow choice, only when it is due (none yet, complete, or twice a day)
+    ...(!sim.noProjects && projectDue(sim) ? { project: projectQuestion(sim) } : {}),
   };
 }
 
@@ -319,7 +354,10 @@ export function buildQuestions(sim, opts) {
 // the scripted baseline, expressed as an answer over the SAME option set
 export function baselineAnswer(sim, opts) {
   const pick = baselinePolicy(sim);
-  const hit = pick && opts.find((o) => o.name === pick.name && (!o.args || !pick.args || o.args.item === pick.args.item || o.name !== 'craft'));
+  // the option for the same macro AND the same target (which item, which species, what to scout)
+  const key = (a) => a && (a.item ?? a.sp ?? a.what);
+  const hit = pick && (opts.find((o) => o.name === pick.name && key(o.args) != null && key(o.args) === key(pick.args))
+    || opts.find((o) => o.name === pick.name && (!o.args || !pick.args || key(o.args) == null || !['craft', 'farm', 'forage', 'scout'].includes(o.name))));
   return { source: 'baseline', answers: { next: { choice: hit ? hit.id : opts[0]?.id, confidence: 1, probabilities: {} } }, direct: pick };
 }
 // uniform over the legal options: the control that says whether choosing matters
@@ -363,6 +401,14 @@ export function resolve(sim, opts, response, { gate = true } = {}) {
     pick = b;
   }
   if (response.source === 'baseline') pick = response.direct;
+  // the project: Jev's answer when it gave one, else the decider's own rule
+  if (!sim.noProjects && projectDue(sim)) {
+    const want = response.answers?.project?.choice;
+    const name = PROJECT_NAMES.includes(want) ? want : response.source === 'random' ? PROJECT_NAMES[Math.floor(sim.rng() * PROJECT_NAMES.length)] : baselineProject(sim);
+    setProject(sim, name);
+    record.project = name;
+    if (response.answers?.project?.confidence != null) record.project_confidence = response.answers.project.confidence;
+  }
   return { pick, record };
 }
 
@@ -499,6 +545,7 @@ export function batchRequest(sim, members) {
     const st = perceive(sim), q = buildQuestions(sim, opts);
     agents[`agent_${m.e.id}`] = st;
     questions[`next_${m.e.id}`] = { ...q.next, instructions: { ...q.next.instructions, task: `Choose what agent_${m.e.id} does next (its facts are under agents.agent_${m.e.id}).` } };
+    if (q.project) questions[`project_${m.e.id}`] = { ...q.project, instructions: { task: `${q.project.instructions.task} (This is agent_${m.e.id}.)` } };
     if (sim.players.length > 1) {
       const a = askQuestion(sim);
       questions[`ask_${m.e.id}`] = { ...a, instructions: { ...a.instructions, task: `${a.instructions.task} (This is agent_${m.e.id}; its facts are under agents.agent_${m.e.id}.)` } };
@@ -536,7 +583,7 @@ export async function playParty(sim, party, { maxTicks = DAY, decide, batch, bat
       try { resp = await batch(state, questions); } catch (e) { resp = { error: String(e.message || e), answers: {} }; }
       for (const [m, opts] of per) sim.as(m.e, () => {
         const a = resp.answers?.[`next_${m.e.id}`];
-        const one = a ? { source: resp.source || 'typesafe', answers: { next: a } } : { ...offlineAnswer(sim, opts), error: resp.error || 'no answer' };
+        const one = a ? { source: resp.source || 'typesafe', answers: { next: a, ...(resp.answers?.[`project_${m.e.id}`] ? { project: resp.answers[`project_${m.e.id}`] } : {}) } } : { ...offlineAnswer(sim, opts), error: resp.error || 'no answer' };
         if (sim.players.length > 1) applyAsk(sim, m.e, a ? resp.answers?.[`ask_${m.e.id}`]?.choice : offlineAsk(sim));
         startFrom(sim, party, m, opts, one, decisions, onDecision);
       });
