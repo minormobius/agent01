@@ -293,7 +293,8 @@ export function journal(sim, record, outcome) {
 // be async (a real call) or not (baseline / random / offline). The decision
 // and its answers go into the stream as a 'jev' note, so a replay shows what
 // was chosen and why, not just what happened.
-export async function playMind(sim, decide, { maxTicks = DAY, maxDecisions = 2000, onDecision, gate = true } = {}) {
+export async function playMind(sim, decide, { maxTicks = DAY, maxDecisions = 2000, onDecision, gate = true, reuse = false } = {}) {
+  let lastLive = null;
   const d = new Driver(sim, { policy: () => null });
   const milestones = {}, decisions = [];
   const mark = () => {
@@ -304,11 +305,18 @@ export async function playMind(sim, decide, { maxTicks = DAY, maxDecisions = 200
   while (sim.tick < maxTicks && decisions.length < maxDecisions) {
     const opts = options(sim);
     if (!opts.length) { sim.act({ op: 'wait', ticks: 20 }); continue; }
-    const qs = buildQuestions(sim, opts);
-    const state = perceive(sim);
     let response;
-    try { response = await decide(sim, opts, qs, state); }
-    catch (e) { response = { ...offlineAnswer(sim, opts), source: 'offline', error: String(e.message || e) }; }
+    const again = reuse && reuseRanking(sim, lastLive, opts);
+    if (again) {
+      lastLive.reused++; lastLive.used.add(again.opt.id);
+      response = { source: 'typesafe', reused: true, answers: { next: { choice: again.opt.id, confidence: again.p, probabilities: lastLive.response.answers.next.probabilities } } };
+    } else {
+      const qs = buildQuestions(sim, opts);
+      const state = perceive(sim);
+      try { response = await decide(sim, opts, qs, state); }
+      catch (e) { response = { ...offlineAnswer(sim, opts), source: 'offline', error: String(e.message || e) }; }
+      if (response.source === 'typesafe') lastLive = { tick: sim.tick, response, reused: 0, used: new Set([response.answers?.next?.choice]), interrupted: false };
+    }
     const { pick, record } = resolve(sim, opts, response, { gate });
     if (response.error) record.error = response.error;
     if (response.usage) record.tokens = response.usage.input_tokens;
@@ -320,6 +328,8 @@ export async function playMind(sim, decide, { maxTicks = DAY, maxDecisions = 200
     journal(sim, record, r.ended);
     remember(sim, record.choice, r.ended);
     record.pick = pick.name;
+    if (response.reused) record.reused = true;
+    if (lastLive && r.ended.interrupted) lastLive.interrupted = true;
     record.result = r.ended.ok ? 'ok' : r.ended.why;
     record.ticks = r.ended.ticks;
     decisions.push(record);
@@ -349,4 +359,28 @@ export function jevDecider(endpoint, { fetchImpl = fetch } = {}) {
     if (!res.ok) { const e = new Error(body.error || `HTTP ${res.status}`); e.status = res.status; e.retryAfter = body.retry_after_s; throw e; }
     return body;      // carries source: 'typesafe', stamped by the worker
   };
+}
+
+// ------------------------------------------------------- one call, a plan ---
+// A choice answer ranks EVERY option. When the macro it picked ends quickly
+// and nothing interrupted, the next-ranked option that is still legal is
+// Jev's own preference from moments ago, so use it instead of a new call.
+// Bounded: only within REUSE.ticks of the call, at most REUSE.max times,
+// never across an interrupt or dusk, never below REUSE.floor probability.
+// Stamped source 'typesafe-reused', so the stream says which decisions were
+// fresh calls and which were the same call's ranking.
+export const REUSE = { ticks: 60, max: 2, floor: 0.08 };
+export function reuseRanking(sim, last, opts) {
+  if (!last || last.response.source !== 'typesafe' || last.interrupted) return null;
+  if (sim.tick - last.tick > REUSE.ticks || last.reused >= REUSE.max) return null;
+  if (sim.isNight(last.tick) !== sim.isNight()) return null;
+  const probs = last.response.answers?.next?.probabilities;
+  if (!probs) return null;
+  for (const [id, p] of Object.entries(probs).sort((a, b) => b[1] - a[1])) {
+    if (p < REUSE.floor) break;
+    if (last.used.has(id)) continue;
+    const o = opts.find((x) => x.id === id);
+    if (o) return { opt: o, p };
+  }
+  return null;
 }

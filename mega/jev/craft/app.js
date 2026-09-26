@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { OrbitControls } from '../delve/vendor/OrbitControls.js';
 import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
-import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE } from './mind.mjs';
+import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE, reuseRanking } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
 import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags, KINDS } from './world.mjs';
 import { SHAPES, columnLocator } from './tiling.mjs';
@@ -382,20 +382,51 @@ function setAuto() {
   } else if (locked()) document.exitPointerLock();
   $('macro-hint').textContent = who === 'you' ? '— you are playing: click one to run it' : who === 'jev' ? '— Jev is choosing' : `— the ${who} decider is choosing`;
 }
+// Live calls are paced: at most one every MIN_GAP ms (the proxy allows 30 a
+// minute per visitor), a 429 is waited out and retried, and a quick macro is
+// followed by the same answer's next-ranked option instead of a new call.
+const MIN_GAP = 2200;
+const REUSE_ON = new URLSearchParams(location.hash.slice(1)).get('reuse') === '1';
+let lastCallAt = 0, lastLive = null;
+const callTimes = [];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function askPaced(opts, qs, state) {
+  for (let attempt = 0; ; attempt++) {
+    const wait = MIN_GAP - (performance.now() - lastCallAt);
+    if (wait > 0) await sleep(wait);
+    lastCallAt = performance.now();
+    callTimes.push(lastCallAt);
+    try { return await askLive(sim, opts, qs, state); }
+    catch (e) {
+      if (e.status !== 429 || attempt >= 2) throw e;
+      const secs = e.retryAfter || 5;
+      $('src').textContent = `rate limited — waiting ${secs}s`;
+      await sleep(secs * 1000);
+    }
+  }
+}
 async function decideNow() {
   const who = $('who').value;
   const opts = options(sim);
   if (!opts.length) { sim.act({ op: 'wait', ticks: 10 }); return; }
-  const qs = buildQuestions(sim, opts), state = perceive(sim);
-  let response;
-  if (who === 'jev' && keyConfigured !== false) {
-    try { response = await askLive(sim, opts, qs, state); if (response.source === 'typesafe') liveSeen = true; }
-    catch (e) { response = { ...DECIDERS.offline(sim, opts), error: `live call failed: ${e.message}` }; }
+  let response, reused = null;
+  // reusing a call's ranking saves calls but is unmeasured live — opt-in only
+  if (who === 'jev' && REUSE_ON) reused = reuseRanking(sim, lastLive, opts);
+  if (reused) {
+    lastLive.reused++; lastLive.used.add(reused.opt.id);
+    response = { source: 'typesafe-reused', answers: { next: { choice: reused.opt.id, confidence: reused.p, probabilities: lastLive.response.answers.next.probabilities } } };
+  } else if (who === 'jev' && keyConfigured !== false) {
+    const qs = buildQuestions(sim, opts), state = perceive(sim);
+    try {
+      response = await askPaced(opts, qs, state);
+      if (response.source === 'typesafe') { liveSeen = true; lastLive = { tick: sim.tick, response, reused: 0, used: new Set([response.answers?.next?.choice]), interrupted: false }; }
+    } catch (e) { response = { ...DECIDERS.offline(sim, opts), error: `live call failed: ${e.message}` }; }
   } else if (who === 'jev') {
     response = { ...DECIDERS.offline(sim, opts), error: 'no key configured on the worker — this is the offline stand-in, not Jev' };
   } else response = DECIDERS[who](sim, opts);
   if (!sim || driver.gen) return;                                     // the world was replaced while we waited
-  const { pick, record } = resolve(sim, opts, response);
+  const { pick, record } = resolve(sim, opts, { ...response, source: response.source === 'typesafe-reused' ? 'typesafe' : response.source });
+  record.source = response.source;
   if (response.error) record.error = response.error;
   sim.note('jev', { ...record, pick: pick && pick.name });
   showDecision(opts, response, record, pick);
@@ -406,8 +437,10 @@ function showDecision(opts, response, record, pick) {
   const probs = response.answers?.next?.probabilities || {};
   const rows = opts.map((o) => ({ id: o.id, p: probs[o.id] ?? (o.id === record.choice ? 1 : 0) }))
     .sort((a, b) => b.p - a.p).slice(0, 8);
-  const src = response.source === 'typesafe' ? 'Jev (live)' : response.source === 'offline' ? 'offline stand-in — not the model' : response.source;
-  $('src').textContent = src;
+  const now = performance.now();
+  while (callTimes.length && now - callTimes[0] > 60000) callTimes.shift();
+  const src = response.source === 'typesafe' ? 'Jev (live)' : response.source === 'typesafe-reused' ? 'Jev (same call, next-ranked)' : response.source === 'offline' ? 'offline stand-in — not the model' : response.source;
+  $('src').textContent = src + ($('who').value === 'jev' ? ` · ${callTimes.length} calls/min` : '');
   $('decision').innerHTML = rows.map((r) => `<div class="opt${r.id === record.choice ? ' pick' : ''}"><span>${r.id.replace(/_/g, ' ')}</span><span class="bar"><i style="width:${Math.round(r.p * 100)}%"></i></span><span class="mono">${r.p ? r.p.toFixed(2) : ''}</span></div>`).join('')
     + `<div class="meta">${opts.length} legal options` + (record.confidence != null ? ` · confidence ${record.confidence.toFixed(2)}` : '')
     + (record.danger != null ? ` · danger ${record.danger.toFixed(1)}/3` : '') + (record.have != null ? ` · have ${record.have.toFixed(2)}` : '') + '</div>'
@@ -421,6 +454,7 @@ function startLive() {
   location.hash = `kind=${$('kind').value}&size=${$('size').value}&shape=${shape}&seed=${seed}&who=${$('who').value}&difficulty=${$('difficulty').value}`;
   fileLines = null;
   sim = new Sim({ shape, seed, difficulty: $('difficulty').value, kind: $('kind').value, size: $('size').value });
+  lastLive = null;
   outbox = [];
   pending = null;
   driver = new Driver(sim);
@@ -835,7 +869,10 @@ function frame(now) {
       }
       const r = driver.step();
       if (r && r.done) sim.act({ op: 'wait', ticks: 1 });            // "you", idle: the world keeps turning
-      if (r && r.ended && driver._record) { journal(sim, driver._record, r.ended); remember(sim, driver._record.choice, r.ended); driver._record = null; }
+      if (r && r.ended && driver._record) {
+        journal(sim, driver._record, r.ended); remember(sim, driver._record.choice, r.ended); driver._record = null;
+        if (lastLive && r.ended.interrupted) lastLive.interrupted = true;
+      }
       if (driver.lastAction && driver.lastAction.op === 'wait') target = Math.max(target, sim.tick);
     }
     if (pending) target = sim.tick;

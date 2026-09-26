@@ -640,6 +640,38 @@ a **drawer** behind the dock (world, macros, Jev), and watching Jev on a phone
 works the same way. Checked in an emulated Pixel 7: the stick walked, a tap
 mined into the hotbar, the drawers open. Not checked on a real device.
 
+### How often the page calls Jev, and the rate limit (2026-09-26)
+
+The operator saw "rate limited" a lot. The arithmetic: Jev decides at every
+macro boundary, and the scoreboard traces put that at **~40–70 game ticks per
+decision** on average. Half the macros are short, though (a craft is 1–7
+ticks, a failed macro 0). At the page's default 8× (32 ticks/s) that is ~38
+calls a minute with bursts well above, against the proxy's **30 per minute
+per client**. Over it, the page used to drop that decision to the offline
+stand-in.
+
+Now, in the page:
+- **A wall-clock floor**: at most one live call per `MIN_GAP` = 2.2 s (≤ 27
+  a minute). If a macro ends sooner, play waits, turn-based as before. This
+  changes no decision, only when it happens. Measured against the dev
+  server's stub: 20 calls in 46 s at 8×, 26/min, the count shown in the
+  decision panel.
+- **429s are waited out**: honour `Retry-After`, retry up to twice, and only
+  then fall back to the stand-in (still labelled).
+- **One call, a short ranked plan** (`reuseRanking` in `mind.mjs`, **opt-in
+  with `&reuse=1`**). After a quick, uninterrupted macro, take the same
+  answer's next-ranked legal option instead of calling again (within 60
+  ticks, at most 2 reuses, never across an interrupt or dusk, stamped
+  `typesafe-reused`). It cut calls from one per 64 ticks to one per 100
+  headlessly. **It is off by default because its quality is unmeasured.** The
+  headless check made play much worse (27 → 22 rungs), but that check ranks the
+  runners-up synthetically, so it says nothing about Jev's real second choices.
+  A live A/B is the only way to know; `playMind({ reuse: true })` exists for it.
+
+The eval scripts pace themselves separately (2.15 s, with backoff) and run
+from a different address, so they don't compete with a viewer for the same
+30/minute.
+
 ### What is next
 
 1. **Held-out worlds** for the scoreboard: 6–8 tilings and seeds the harness
