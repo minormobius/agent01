@@ -64,14 +64,16 @@ export function makeLight(w, h, q = w * h > 6e5 ? 0.5 : 1) {
  * Lay an avatar's light into `light` at time t: `F` its parts' frames (avatar.js frames), `proj` world →
  * canvas pixels, `gain` overall brightness. Each streak is a thread: `sub` splats between samples.
  */
-export function drawAvatar(light, A, F, t, proj, { gain = 1, sub = 3, m = A.ch.thought } = {}) {
+export function drawAvatar(light, A, F, t, proj, { gain = 1, sub = 3, m = A.ch.thought, partGain = null } = {}) {
   const tmp = [0, 0, 0], ch = A.ch, n = ch.streak, per = gain * (ch.style === 'threads' ? 0.22 : ch.style === 'dust' ? 0.5 : 0.3);
   for (let i = 0; i < A.points.length; i++) {
-    const col = A.colours[A.points[i].part];
+    const part = A.points[i].part, pg = partGain ? partGain(part) : 1;
+    if (pg < 0.01) continue;
+    const col = A.colours[part];
     let px = 0, py = 0;
     for (let j = 0; j < n; j++) {
       place(A, i, F, t, m, tmp, j * ch.lagStep);
-      const s = proj(tmp), b = per * (1 - j / n);
+      const s = proj(tmp), b = per * pg * (1 - j / n);
       if (j && sub > 1 && Math.abs(s[0] - px) + Math.abs(s[1] - py) < 60) {
         for (let k = 1; k < sub; k++) { const f = k / sub; splat(light, px + (s[0] - px) * f, py + (s[1] - py) * f, col, b); }
       }
@@ -81,3 +83,36 @@ export function drawAvatar(light, A, F, t, proj, { gain = 1, sub = 3, m = A.ch.t
   }
 }
 const splat = (L, x, y, c, b) => L.splat(x, y, c[0] * b, c[1] * b, c[2] * b);
+
+/**
+ * Threads along polylines (fingers, say): `lines` [{ pts: [[x,y,z]…], r }]. Each thread is a few points
+ * streaming along the line, knuckle to tip and round again, wobbling in the line's own attractor `cloud`
+ * scaled to its radius, each drawn with a streak. For detail that only matters close up: `gain` fades it.
+ */
+export function drawThreads(light, lines, t, cloud, col, proj, { gain = 1, per = 7, streak = 14, lagStep = 0.02, speed = 0.35 } = {}) {
+  if (gain < 0.01) return;
+  const P = [0, 0, 0];
+  lines.forEach((ln, li) => {
+    const seg = [], pts = ln.pts;
+    let total = 0;
+    for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1], pts[i][2] - pts[i - 1][2]); seg.push(d); total += d; }
+    const at = (u) => {                                   // the point a fraction u along the line
+      let s = (((u % 1) + 1) % 1) * total, i = 0;
+      while (i < seg.length - 1 && s > seg[i]) { s -= seg[i]; i++; }
+      const f = seg[i] ? s / seg[i] : 0, a = pts[i], b = pts[i + 1];
+      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+    };
+    for (let k = 0; k < per; k++) {
+      const ph = ((li * 7 + k) * 0.618034) % 1, off = ((li * 131 + k * 977) % cloud.n);
+      let px = 0, py = 0;
+      for (let j = 0; j < streak; j++) {
+        const tt = t - j * lagStep, c = at(ph + tt * speed), ci = ((Math.floor(tt * 30) + off) % cloud.n) * 3;
+        P[0] = c[0] + cloud.p[ci] * ln.r * 0.6; P[1] = c[1] + cloud.p[ci + 1] * ln.r * 0.6; P[2] = c[2] + cloud.p[ci + 2] * ln.r * 0.6;
+        const s = proj(P), b = gain * 0.3 * (1 - j / streak);
+        if (j && Math.abs(s[0] - px) + Math.abs(s[1] - py) < 40) for (let q = 1; q < 3; q++) { const f = q / 3; light.splat(px + (s[0] - px) * f, py + (s[1] - py) * f, col[0] * b, col[1] * b, col[2] * b); }
+        light.splat(s[0], s[1], col[0] * b, col[1] * b, col[2] * b);
+        px = s[0]; py = s[1];
+      }
+    }
+  });
+}

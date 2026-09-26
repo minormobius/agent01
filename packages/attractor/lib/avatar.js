@@ -76,6 +76,8 @@ export function character(seed, over = {}) {
     reach: 1 + rnd() * 0.9,             // an orbit's size, in multiples of the part's radius
     speed: 0.6 + rnd() * 1.2,           // how fast the points run their attractors
     swirl: 0.4 + rnd() * 1.2,           // how fast they stream over the surface
+    // the hands at rest (from their own stream, so adding it changed no seed's other choices)
+    gesture: ['relaxed', 'relaxed', 'open', 'flat', 'grip', 'point', 'peace', 'ok'][Math.floor(mulberry32((seed >>> 0) + 0x9e37)() * 8)],
     ...STYLES[style](rnd),
     style,
     ...over,
