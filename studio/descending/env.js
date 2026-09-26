@@ -88,3 +88,36 @@ export const STAIR = (() => {
   for (let i = 0; i < 50; i++) out.push([1, -hash(i, 13), hash(i, 14)]);          // the riser's face
   return out;
 })();
+
+/**
+ * Each tread as a circuit board: traces routed the way a board router does, in runs of 0°, 45° and 90°
+ * on a 1/24 grid, between pads, with vias where a trace changes layer; and gold fingers down the riser
+ * (an edge connector at the nose). Local coordinates as STAIR's. Hashed by tread, so every tread differs
+ * and every frame agrees. { traces: [[x, z]…][], pads: [x, z][], vias: [x, z][], fingers: z[] }
+ */
+export function circuit(j) {
+  const H = (a, b) => hash(j * 131 + a, b), G = 24, snap = (v) => Math.round(v * G) / G;
+  const traces = [], pads = [], vias = [];
+  const n = 7 + Math.floor(H(1, 1) * 6);
+  for (let k = 0; k < n; k++) {
+    // from the nose (an edge finger) or a pad on the face, wandering back across the tread
+    let x = k % 3 === 0 ? 1 : snap(0.2 + 0.7 * H(k, 2)), z = snap(0.06 + 0.88 * H(k, 3));
+    const path = [[x, z]];
+    pads.push([x, z]);
+    const legs = 2 + Math.floor(H(k, 4) * 4);
+    for (let l = 0; l < legs; l++) {
+      const dir = Math.floor(H(k * 7 + l, 5) * 4), len = snap(0.08 + 0.3 * H(k * 7 + l, 6));
+      if (dir === 0) x -= len;                                   // back along the tread
+      else if (dir === 1) { x -= len * 0.7; z += (H(k, 8) < 0.5 ? -1 : 1) * len * 0.7; }   // 45°
+      else if (dir === 2) z += (H(k * 7 + l, 9) < 0.5 ? -1 : 1) * len;   // across
+      else x -= len * 0.5;
+      x = Math.max(0.03, Math.min(1, snap(x))); z = Math.max(0.04, Math.min(0.96, snap(z)));
+      path.push([x, z]);
+      if (H(k * 7 + l, 10) < 0.25) vias.push([x, z]);
+    }
+    pads.push(path[path.length - 1]);
+    traces.push(path);
+  }
+  const fingers = Array.from({ length: 11 }, (_, i) => 0.1 + (0.8 * i) / 10);
+  return { traces, pads, vias, fingers };
+}

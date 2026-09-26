@@ -416,6 +416,18 @@ the picture: a figure descending a staircase in flat planes, after Duchamp (1912
     coda it surrounds it. Each glint lights on its note with a flash, stays, and twinkles; drawn as a
     dash to the next column so harmonics read as lines. The stairs the figure has left turn to points
     (`STAIR` template: edges and faces) as `envAmt` rises (bars 30–100); the floor at the coda.
+  - **Long exposures** (owner: the trail's trailing edge was faint): each trail exposure (every 0.5 s)
+    integrates the points over its whole window (5 instants, every third point), so the trail is
+    continuous streaks as bright as the figure's own.
+  - **Stairs become circuit boards** (`circuit(j)` in env.js: traces routed in 0/45/90° runs on a 1/24
+    grid between pads, vias, gold edge-connector fingers down each riser; hashed per tread). The wood
+    fades into the board as `stairLight` rises: the treads it has left from bar 30, all of them through
+    the last chorus. A pulse runs along each trace once a bar.
+  - **The grade** (`gradeAt`, bars 49–118): muted earth to a hyper-real orange and teal. Background, wall,
+    board and vignette lerp to teal; the figure, trail, copper and the voice's spectrum to hot orange,
+    the piano's spectrum to cyan. A soft-light teal pass goes on BEFORE the light (over the light it
+    turned the orange figure yellow-green), and the light is tone-mapped on its brightest channel
+    (per channel, a bright orange whitened). 22–34 ms a frame on the CPU-only canvas.
   - The light is added up in a Float32 buffer (half resolution above 0.6 MP), tone-mapped v/(1+v) over
     only the box the points touched, and laid on with 'lighter'. The glow is computed in JS (cells a
     quarter the size, blurred, added bilinearly), because a canvas-scaled blurred copy cost up to 200 ms

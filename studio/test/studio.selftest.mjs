@@ -378,6 +378,9 @@ console.log('\nDescending (Daisy Bell, sung by arithmetic)');
   let sorted = true;
   for (let i = 1; i < Env.GLINT_COUNT; i++) if (Env.GLINTS[i * 6] < Env.GLINTS[i * 6 - 6]) { sorted = false; break; }
   ok(sorted && Env.GLINT_COUNT > 10000 && Env.GLINTS.every(Number.isFinite), `the wall: ${Env.GLINT_COUNT} glints of the song's spectrum, sorted along the flight`);
+  const c1 = JSON.stringify(Env.circuit(40)), c2 = JSON.stringify(Env.circuit(40)), cc = Env.circuit(40);
+  const inside = cc.traces.flat().every(([x, z]) => x >= 0 && x <= 1 && z >= 0 && z <= 1);
+  ok(c1 === c2 && inside && c1 !== JSON.stringify(Env.circuit(41)), 'each tread\'s circuit board is the same every time, different from the next, and on the tread');
   ok(Math.abs(end.ankleL[1] - end.ankleR[1]) < 0.01 && end.ankleL[0] > F.STEPS * F.RUN - 0.01, 'it ends with both feet on the floor at the foot of the stairs');
 }
 

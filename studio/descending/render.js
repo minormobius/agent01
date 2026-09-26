@@ -15,7 +15,7 @@
 import { pose, RISE, RUN, WIDTH, STEPS, NOTES } from './figure.js';
 import { embody, cues, duration, sec, B } from './score.js';
 import { POINTS, PARTS, frames, place } from './thought.js';
-import { GLINTS, glintFrom, STAIR } from './env.js';
+import { GLINTS, glintFrom, circuit } from './env.js';
 
 const PAL = {
   ground: '#21160d', ground2: '#3a2716', ink: '#1a1008',
@@ -28,6 +28,11 @@ const smooth = (u) => { u = clamp(u); return u * u * (3 - 2 * u); };
 const hash = (a, b = 0, c = 0) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 2147483647); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
 // the wood burns through the first chorus; the points loose into their orbits through the second
+// the grade: muted earth for the first half, then a hyper-real orange and teal by the end
+const gradeAt = (t) => smooth((t - sec(B(49))) / (sec(B(118)) - sec(B(49))));
+const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const lerpHex = (a, b, k) => { const A = hex(a), Bc = hex(b); return `rgb(${A.map((v, i) => Math.round(v + (Bc[i] - v) * k)).join(',')})`; };
+const lerp3 = (a, b, k) => a.map((v, i) => v + (b[i] - v) * k);
 const burnAt = (t) => 1.25 * smooth((t - sec(B(12))) / (sec(B(42)) - sec(B(12))));
 const mathAt = (t) => smooth((t - sec(B(34))) / (sec(B(80)) - sec(B(34))));
 
@@ -65,28 +70,58 @@ export function makeRenderer(W, H, dpr = 1) {
   }
 
   // ---- the staircase -----------------------------------------------------------------------------
-  function stairs(ctx, p, e) {
+  const boards = new Map();
+  const board = (j) => { let c = boards.get(j); if (!c) { c = circuit(j); boards.set(j, c); } return c; };
+  function stairs(ctx, p, e, t) {
     const j0 = Math.max(0, Math.floor(p) - 9), j1 = Math.min(STEPS, Math.floor(p) + 9);
-    const zf = -WIDTH / 2, zn = WIDTH / 2;
+    const zf = -WIDTH / 2, zn = WIDTH / 2, g = gradeAt(t);
     // the far wall: a dark plane that steps down with the stairs, and the landing's wall at the top
     for (let j = j1; j >= j0; j--) {
       const x0 = j === 0 ? -3 : j * RUN, x1 = j === STEPS ? (j + 40) * RUN : (j + 1) * RUN, y = -j * RISE;
       const fade = clamp(1 - Math.abs(j - p) / 9);
       ctx.globalAlpha = 0.35 + 0.65 * fade;
-      poly(ctx, [proj([x0, y, zf]), proj([x1, y, zf]), proj([x1, y + 2.6, zf]), proj([x0, y + 2.6, zf])], j % 2 ? '#2b1d11' : '#2f2013');
+      poly(ctx, [proj([x0, y, zf]), proj([x1, y, zf]), proj([x1, y + 3.4, zf]), proj([x0, y + 3.4, zf])], lerpHex(j % 2 ? '#2b1d11' : '#2f2013', j % 2 ? '#06262d' : '#082b33', g));
     }
     for (let j = j1; j >= j0; j--) {
       const x0 = j === 0 ? -3 : j * RUN, x1 = j === STEPS ? (j + 40) * RUN : (j + 1) * RUN, y = -j * RISE;
-      const fade = clamp(1 - Math.abs(j - p) / 9);
-      ctx.globalAlpha = (0.3 + 0.7 * fade) * (1 - 0.88 * stairLight(j, lastP, lastT));
-      // the riser below this tread's nose, the tread, the near stringer's face
-      if (j < STEPS) poly(ctx, [proj([x1, y, zf]), proj([x1, y, zn]), proj([x1, y - RISE, zn]), proj([x1, y - RISE, zf])], PAL.riser, PAL.ink, 1);
-      poly(ctx, [proj([x0, y, zf]), proj([x1, y, zf]), proj([x1, y, zn]), proj([x0, y, zn])], PAL.tread, PAL.ink, 1);
-      poly(ctx, [proj([x0, y, zn]), proj([x1, y, zn]), proj([x1, y - 0.5, zn]), proj([x0, y - 0.5, zn])], PAL.stringer, PAL.ink, 0.8);
-      // the tread's light: a lit band along its nose, broken while the picture is
-      const a = proj([x1 - 0.05, y, zf]), b = proj([x1 - 0.05, y, zn]);
-      ctx.strokeStyle = 'rgba(243, 217, 164, 0.18)'; ctx.lineWidth = 2 * dpr * (0.6 + 0.4 * e);
-      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      const fade = clamp(1 - Math.abs(j - p) / 9), L = stairLight(j, p, t), A = 0.3 + 0.7 * fade;
+      const Q = (a, b, c) => proj([a, b, c]);
+      // wood, going
+      if (L < 1) {
+        ctx.globalAlpha = A * (1 - L);
+        if (j < STEPS) poly(ctx, [Q(x1, y, zf), Q(x1, y, zn), Q(x1, y - RISE, zn), Q(x1, y - RISE, zf)], PAL.riser, PAL.ink, 1);
+        poly(ctx, [Q(x0, y, zf), Q(x1, y, zf), Q(x1, y, zn), Q(x0, y, zn)], PAL.tread, PAL.ink, 1);
+        poly(ctx, [Q(x0, y, zn), Q(x1, y, zn), Q(x1, y - 0.5, zn), Q(x0, y - 0.5, zn)], PAL.stringer, PAL.ink, 0.8);
+        const a = Q(x1 - 0.05, y, zf), b = Q(x1 - 0.05, y, zn);
+        ctx.strokeStyle = 'rgba(243, 217, 164, 0.18)'; ctx.lineWidth = 2 * dpr * (0.6 + 0.4 * e);
+        ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+      }
+      // the board, coming: solder mask green going to teal, copper traces, pads, vias, gold fingers
+      if (L > 0) {
+        ctx.globalAlpha = A * L;
+        const mask = lerpHex('#123f33', '#0b4750', g), dark = lerpHex('#0b2a22', '#062d35', g);
+        if (j < STEPS) poly(ctx, [Q(x1, y, zf), Q(x1, y, zn), Q(x1, y - RISE, zn), Q(x1, y - RISE, zf)], dark, '#04140f', 1);
+        poly(ctx, [Q(x0, y, zf), Q(x1, y, zf), Q(x1, y, zn), Q(x0, y, zn)], mask, '#04140f', 1);
+        poly(ctx, [Q(x0, y, zn), Q(x1, y, zn), Q(x1, y - 0.5, zn), Q(x0, y - 0.5, zn)], dark, '#04140f', 0.8);
+        const tiles = j === 0 ? [-2.52, -2.24, -1.96, -1.68, -1.4, -1.12, -0.84, -0.56, -0.28, 0] : j === STEPS ? Array.from({ length: 12 }, (_, i) => (j + i) * RUN) : [j * RUN];
+        const C = board(j), copper = lerpHex('#b87333', '#ff8a2a', g);
+        for (const tx of tiles) {
+          const W3 = (lx, lz) => Q(tx + lx * RUN, y + 0.001, zf + lz * WIDTH);
+          ctx.strokeStyle = copper; ctx.lineWidth = 1.3 * dpr; ctx.lineJoin = 'round';
+          ctx.beginPath();
+          for (const path of C.traces) path.forEach(([lx, lz], i) => { const q = W3(lx, lz); i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]); });
+          ctx.stroke();
+          ctx.fillStyle = copper;
+          for (const [lx, lz] of C.pads) { const q = W3(lx, lz); ctx.fillRect(q[0] - 2 * dpr, q[1] - 1.5 * dpr, 4 * dpr, 3 * dpr); }
+          ctx.fillStyle = '#04140f';
+          for (const [lx, lz] of C.vias) { const q = W3(lx, lz); ctx.beginPath(); ctx.arc(q[0], q[1], 1.2 * dpr, 0, Math.PI * 2); ctx.fill(); }
+        }
+        // the edge connector: gold fingers down the riser
+        if (j < STEPS) {
+          ctx.fillStyle = lerpHex('#c9a24a', '#ffb347', g);
+          for (const fz of C.fingers) poly(ctx, [Q(x1, y - 0.01, zf + (fz - 0.025) * WIDTH), Q(x1, y - 0.01, zf + (fz + 0.025) * WIDTH), Q(x1, y - RISE * 0.55, zf + (fz + 0.025) * WIDTH), Q(x1, y - RISE * 0.55, zf + (fz - 0.025) * WIDTH)], ctx.fillStyle);
+        }
+      }
     }
     ctx.globalAlpha = 1;
   }
@@ -200,18 +235,26 @@ export function makeRenderer(W, H, dpr = 1) {
   // the trail's exposures sit on a fixed grid of times, so each is worked out once (world positions,
   // every other point) and kept: a memo, so the picture is still a pure function of t
   const memo = new Map();
-  function exposure(tt, m) {
+  // Each is a LONG exposure: the points over the whole window back to the one before (5 instants across
+  // it, every third point), so the trail is streaks of light, as bright as the figure's own, not dots.
+  const SUBS = 5;
+  function exposure(tt, window) {
     const key = Math.round(tt * 100);
     let e = memo.get(key);
     if (e) return e;
-    const P = pose(tt), F = frames(P), n = Math.ceil(POINTS.length / 2), pos = new Float32Array(n * 3), sing = new Float32Array(n);
-    for (let i = 0, k = 0; i < POINTS.length; i += 2, k++) {
-      const isHead = PARTS[POINTS[i].part][0] === 'head';
-      place(i, F, tt, m, (1.15 + 0.55 * m) * (isHead ? 1 + 0.35 * P.mouth : 1), tmp);
-      pos[k * 3] = tmp[0]; pos[k * 3 + 1] = tmp[1]; pos[k * 3 + 2] = tmp[2];
-      sing[k] = isHead ? 1 + 1.6 * P.mouth : 1;
+    const per = Math.ceil(POINTS.length / 3), n = per * SUBS, pos = new Float32Array(n * 3), sing = new Float32Array(n);
+    let k = 0, px = 0;
+    for (let s = 0; s < SUBS; s++) {
+      const ts = tt - (s / SUBS) * window, m = mathAt(ts), P = pose(ts), F = frames(P);
+      if (!s) px = P.pelvis[0];
+      for (let i = s % 3; i < POINTS.length; i += 3, k++) {
+        const isHead = PARTS[POINTS[i].part][0] === 'head';
+        place(i, F, ts, m, (1.15 + 0.55 * m) * (isHead ? 1 + 0.35 * P.mouth : 1), tmp);
+        pos[k * 3] = tmp[0]; pos[k * 3 + 1] = tmp[1]; pos[k * 3 + 2] = tmp[2];
+        sing[k] = isHead ? 1 + 1.6 * P.mouth : 1;
+      }
     }
-    e = { pos, sing, n, px: P.pelvis[0] };
+    e = { pos, sing, n: k, px };
     memo.set(key, e);
     if (memo.size > 90) memo.delete(memo.keys().next().value);
     return e;
@@ -246,7 +289,7 @@ export function makeRenderer(W, H, dpr = 1) {
         }
       }
     }
-    // tone-map light + glow (v / (1 + v): soft, never clipping) over the box grown by the glow's reach
+    // tone-map light + glow (soft, never clipping) over the box grown by the glow's reach
     const bx0 = Math.max(0, gx0 * 4), bx1 = Math.min(LW - 1, gx1 * 4 + 3), by0 = Math.max(0, gy0 * 4), by1 = Math.min(LH - 1, gy1 * 4 + 3);
     const d = img.data, GL = 0.06;
     for (let y = by0; y <= by1; y++) {
@@ -258,7 +301,10 @@ export function makeRenderer(W, H, dpr = 1) {
         const gg = G[o + 1] * w00 + G[o + 4] * w10 + G[o + R + 1] * w01 + G[o + R + 4] * w11;
         const gb = G[o + 2] * w00 + G[o + 5] * w10 + G[o + R + 2] * w01 + G[o + R + 5] * w11;
         const r = acc[i] + GL * gr, g = acc[i + 1] + GL * gg, b = acc[i + 2] + GL * gb;
-        d[j] = (255 * r) / (1 + r); d[j + 1] = (255 * g) / (1 + g); d[j + 2] = (255 * b) / (1 + b); d[j + 3] = 255;
+        // tone-mapped on the brightest channel, so a hot orange stays orange (per channel it whitened);
+        // only the very hottest cores run toward white
+        const mx = Math.max(r, g, b), k = 255 / (1 + mx), wh = mx > 3 ? Math.min(0.5, (mx - 3) * 0.08) * 255 : 0;
+        d[j] = r * k + wh; d[j + 1] = g * k + wh; d[j + 2] = b * k + wh; d[j + 3] = 255;
         acc[i] = 0; acc[i + 1] = 0; acc[i + 2] = 0;
       }
     }
@@ -328,41 +374,41 @@ export function makeRenderer(W, H, dpr = 1) {
   const wallAmt = (t) => 0.1 + 0.9 * smooth((t - sec(B(20))) / (sec(B(92)) - sec(B(20))));
   const envAmt = (t) => smooth((t - sec(B(30))) / (sec(B(100)) - sec(B(30))));
   /** How far tread j (the landing is 0, the floor STEPS) has turned to light, with the figure at p. */
-  const stairLight = (j, p, t) => Math.max(envAmt(t) * smooth((p - j - 1) / 3), smooth((t - cues.coda) / 6));
-  let lastP = 0, lastT = 0;
+  // (the ones it has left first, as the change comes; then, through the last chorus, the ones ahead)
+  const stairLight = (j, p, t) => Math.max(envAmt(t) * smooth((p - j - 1) / 3), smooth((t - sec(B(108))) / (cues.coda - sec(B(108)))));
   function worldLight(t, P) {
     const p = P.pelvis[0] / RUN;
-    lastP = p;
     // the wall: every glint of the song heard so far, over the stretch in view
-    const a = P.pelvis[0], k0 = glintFrom(a - (CX / S) * 1.3 - 0.5), k1 = glintFrom(a + ((w - CX) / S) * 1.3 + 0.5), W = wallAmt(t);
+    const a = P.pelvis[0], k0 = glintFrom(a - (CX / S) * 1.3 - 0.5), k1 = glintFrom(a + ((w - CX) / S) * 1.3 + 0.5), W = wallAmt(t), GR = gradeAt(t);
     for (let k = k0; k < k1; k++) {
       const o = k * 6, gt = GLINTS[o + 3];
       if (gt > t) continue;
       const tw = 0.65 + 0.35 * Math.sin(t * 2.3 + k * 1.7) + (hash(k, Math.floor(t * 7)) > 0.985 ? 2.5 : 0);
       const b = 0.65 * GLINTS[o + 4] * W * (1 + 3 * Math.exp(-(t - gt) * 3)) * tw, warm = GLINTS[o + 5];
+      const c = lerp3([1, 0.62 + 0.18 * (1 - warm), 0.42 + 0.3 * (1 - warm)], warm > 0.5 ? [1, 0.5, 0.14] : [0.25, 0.85, 1], GR);
       // a dash along the wall, to the next column: the harmonics read as lines, a spectrogram
       const s2 = proj([GLINTS[o], GLINTS[o + 1], GLINTS[o + 2]]), s3 = proj([GLINTS[o] + RUN / 8, GLINTS[o + 1], GLINTS[o + 2]]);
       for (let i = 0; i < 5; i++) {
         const f = i / 5;
-        splat(s2[0] + (s3[0] - s2[0]) * f, s2[1] + (s3[1] - s2[1]) * f, b, b * (0.62 + 0.18 * (1 - warm)), b * (0.42 + 0.3 * (1 - warm)));
+        splat(s2[0] + (s3[0] - s2[0]) * f, s2[1] + (s3[1] - s2[1]) * f, b * c[0], b * c[1], b * c[2]);
       }
     }
-    // the stairs behind the figure: their edges and faces as points, trembling and catching the light
-    const j0 = Math.max(0, Math.floor(p) - 10), j1 = Math.min(STEPS, Math.floor(p) + 10);
+    // the circuit stairs: a pulse runs along each trace, one lap a bar (the signal on the beat)
+    const j0 = Math.max(0, Math.floor(p) - 10), j1 = Math.min(STEPS, Math.floor(p) + 10), bar = sec(B(2)) - sec(B(1));
     for (let j = j0; j <= j1; j++) {
       const L = stairLight(j, p, t);
-      if (L < 0.01) continue;
-      const y = -j * RISE, tiles = j === 0 ? [-2.52, -2.24, -1.96, -1.68, -1.4, -1.12, -0.84, -0.56, -0.28, 0] : j === STEPS ? Array.from({ length: 16 }, (_, i) => (j + i) * RUN) : [j * RUN];
-      for (const tx of tiles) {
-        for (let i = 0; i < STAIR.length; i++) {
-          const [sx, sy, sz] = STAIR[i], id = j * 977 + i + Math.round(tx * 100);
-          const wob = 0.012 * L;
-          const X = tx + sx * RUN + wob * Math.sin(t * 1.3 + id), Y = y + sy * RISE + wob * Math.sin(t * 1.1 + id * 2.3), Z = -WIDTH / 2 + sz * WIDTH + wob * Math.cos(t * 1.7 + id * 1.3);
-          const tw = 0.6 + 0.4 * Math.sin(t * 3 + id * 2.1) + (hash(id, Math.floor(t * 6)) > 0.97 ? 3 : 0);
-          const b = 0.55 * L * tw, s2 = proj([X, Y, Z]);
-          splat(s2[0], s2[1], b, b * 0.72, b * 0.5);
+      if (L < 0.3) continue;
+      const C = board(j), y = -j * RISE, x0 = j === 0 ? -0.28 : j * RUN;
+      C.traces.forEach((path, k) => {
+        const f = (((t / bar) + hash(j, k)) % 1), seg = f * (path.length - 1), i = Math.min(path.length - 2, Math.floor(seg)), u = seg - i;
+        const a = path[i], bq = path[i + 1];
+        for (let q = 0; q < 4; q++) {
+          const uu = Math.max(0, u - q * 0.06);
+          const X = x0 + (a[0] + (bq[0] - a[0]) * uu) * RUN, Z = -WIDTH / 2 + (a[1] + (bq[1] - a[1]) * uu) * WIDTH, s2 = proj([X, y + 0.002, Z]);
+          const v = 1.4 * L * (1 - q / 4);
+          splat(s2[0], s2[1], v, v * 0.55, v * 0.2);
         }
-      }
+      });
     }
   }
 
@@ -380,11 +426,11 @@ export function makeRenderer(W, H, dpr = 1) {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     const g = ctx.createLinearGradient(0, 0, w * 0.3, h);
-    g.addColorStop(0, PAL.ground2); g.addColorStop(1, PAL.ground);
+    const G0 = gradeAt(t);
+    g.addColorStop(0, lerpHex(PAL.ground2, '#0d3d48', G0)); g.addColorStop(1, lerpHex(PAL.ground, '#03171d', G0));
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     const p = Math.max(0, P.pelvis[0] / RUN - 0.4);
-    lastP = P.pelvis[0] / RUN; lastT = t;
-    stairs(ctx, p, e);
+    stairs(ctx, p, e, t);
     // the world turning to light: the song on the wall, the stairs behind the figure
     worldLight(t, P);
     // every exposure is kept, three a second, at full strength: the wood's (burning head first, the
@@ -405,12 +451,14 @@ export function makeRenderer(W, H, dpr = 1) {
       body(ctx, d ? upStairs(Pt, d) : Pt, 1, bj, j, null);
     }
     body(ctx, P, 1, burnAt(t), 0, spark);
-    for (let j = Math.round(TAIL / DT); j >= 0; j--) {
-      const tt = newest - j * DT, age = t - tt;
-      if (tt < -2 || age < 0.1) continue;
-      const mj = mathAt(tt), X = exposure(tt, mj), dd = drift(age, X.px), dx = -dd * 0.855, dy = dd * 0.519;
-      const b = 0.24 * (0.3 + 0.8 * Math.min(1, burnAt(tt)) + 0.2 * mj), col = [1, 0.55 + 0.15 * (1 - mj), 0.36 + 0.1 * (1 - mj)];
-      const stride = age < 3 ? 1 : 2;                             // older exposures: half the points, twice as bright
+    const LDT = 0.5, lnewest = Math.floor(t / LDT) * LDT, G1 = gradeAt(t);
+    for (let j = Math.round(TAIL / LDT); j >= 0; j--) {
+      const tt = lnewest - j * LDT, age = t - tt;
+      if (tt < -2 || age < 0.05) continue;
+      const mj = mathAt(tt), X = exposure(tt, LDT), dd = drift(age, X.px), dx = -dd * 0.855, dy = dd * 0.519;
+      const b = 0.16 * (0.3 + 0.8 * Math.min(1, burnAt(tt)) + 0.2 * mj);
+      const col = lerp3([1, 0.55 + 0.15 * (1 - mj), 0.36 + 0.1 * (1 - mj)], [1, 0.48, 0.14], G1);
+      const stride = age < 4 ? 1 : 2;                             // older exposures: half the samples, twice as bright
       for (let k = 0; k < X.n; k += stride) {
         const s2 = proj([X.pos[k * 3] + dx, X.pos[k * 3 + 1] + dy, X.pos[k * 3 + 2]]), bb = b * X.sing[k] * stride;
         splat(s2[0], s2[1], col[0] * bb, col[1] * bb, col[2] * bb);
@@ -418,7 +466,7 @@ export function makeRenderer(W, H, dpr = 1) {
     }
     const bloom = 0.9 * smooth((t - cues.last) / 2.5);
     const now = 0.3 + 0.8 * burnNow + 0.2 * m;
-    points(P, t, m, 1.15 + 0.55 * m + bloom, now, [1, 0.62 + 0.2 * (1 - m), 0.42 + 0.14 * (1 - m)], 1, 1 + Math.round(5 * m));
+    points(P, t, m, 1.15 + 0.55 * m + bloom, now, lerp3([1, 0.62 + 0.2 * (1 - m), 0.42 + 0.14 * (1 - m)], [1, 0.56, 0.2], gradeAt(t)), 1, 1 + Math.round(5 * m));
     // the last chord: light gathers on the one body (laid into the glow's cells, not a canvas gradient)
     const last = clamp((t - cues.last) / 3);
     if (last > 0) {
@@ -434,16 +482,25 @@ export function makeRenderer(W, H, dpr = 1) {
       x0 = Math.max(0, Math.min(x0, Math.floor((cx - R) * 4))); x1 = Math.min(LW - 1, Math.max(x1, Math.ceil((cx + R) * 4)));
       y0 = Math.max(0, Math.min(y0, Math.floor((cy - R) * 4))); y1 = Math.min(LH - 1, Math.max(y1, Math.ceil((cy + R) * 4)));
     }
+    // the grade: teal pushed into the scene (before the light goes on, so the light stays orange)
+    if (G0 > 0.01) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'soft-light';
+      ctx.globalAlpha = 0.6 * G0;
+      ctx.fillStyle = '#0a8a9c'; ctx.fillRect(0, 0, w, h);
+      ctx.restore();
+    }
     flushLight(ctx);
     words(ctx, t, e);
     // the tooth over everything, and the vignette
     if (!grainPat) grainPat = ctx.createPattern(grain, 'repeat');
     ctx.globalCompositeOperation = 'multiply';
-    ctx.globalAlpha = 0.5;
+    ctx.globalAlpha = 0.5 - 0.25 * G0;
     ctx.fillStyle = grainPat; ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = 'source-over';
     const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.35, w / 2, h / 2, Math.max(w, h) * 0.75);
-    vg.addColorStop(0, 'rgba(10, 6, 3, 0)'); vg.addColorStop(1, `rgba(10, 6, 3, ${0.7 + flick})`);
+    const vc = lerp3([10, 6, 3], [1, 12, 16], G0).map(Math.round).join(', ');
+    vg.addColorStop(0, `rgba(${vc}, 0)`); vg.addColorStop(1, `rgba(${vc}, ${0.7 + flick})`);
     ctx.globalAlpha = 1; ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
     if (flick) { ctx.fillStyle = `rgba(10, 6, 3, ${flick})`; ctx.fillRect(0, 0, w, h); }
     ctx.restore();
