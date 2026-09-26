@@ -397,20 +397,134 @@ zombies, faster hunger, zombies that break doors, a smaller island) or a
 metric that still spreads: ticks to each milestone, resources at day N, what
 got built. That is a decision to make before running Jev, not after.
 
+### Jev in the seat: the decision layer (2026-09-26)
+
+`mind.mjs` is layer 3. At every macro boundary and every interrupt, one call:
+
+| question | primitive | role |
+|---|---|---|
+| `next` | `choice` over concrete options (`craft_torch`, `scout_pig`, `build_house`, …) built from the **legal** macros | the only answer that acts |
+| `danger` | `score`, 4 ordered levels | telemetry |
+| `have` | `noul` self-check | recorded, never gated on (in a chain it sticks, see "Composition") |
+
+Each option's criteria are **computed facts**: what it yields, roughly how long
+it takes, what it `advances` on the ladder ("completes the next rung:
+stone_pickaxe"), whether it goes out among zombies at night, and `last_tried`
+if it failed recently. The state is ~1 KB (time to dusk, threats, in-sight
+distances, the ladder and what the next rung is short of, the last six
+decisions). A whole request is ~3 KB. The page's decider selector, the
+scoreboard and the selftest all run the same `playMind()`. Every decision goes
+into the stream as a `jev` note stamped with its real source.
+
+**The scoreboard** (`eval/craft-gate.mjs`) runs Jev **ungated** (every pick
+is its own, and `below_gate` counts where the 0.45 gate would have fired),
+the baseline, the offline stand-in, and random, on the same worlds at `hard`.
+The score is mean ticks to each of 9 rungs (unreached = the budget). Live runs
+are paced under the proxy's 30/min: ~100–300 decisions per in-game day.
+
+### What the live runs found (v1 → v2 → v3)
+
+Each run turned up a **harness** fault. The pattern is this file's oldest:
+Jev behaving badly was Jev being handed a bad option set.
+
+1. **The first 12 decisions were coherent.** Wood → wooden pick → stone →
+   stone pick → sword → torches → iron pick at tick 525, level with the
+   baseline's 518, in a sensible order.
+2. **`light_area` chosen six times running, each failing after ~264 ticks.**
+   The player was deep in a mine far from home, and the option still read
+   "advances the lit_grounds rung". Fixed: the macro walks home first, and
+   options carry `last_tried`. The same run found `lit_grounds` could only be
+   earned through the *baseline's own* bookkeeping flag, which no other
+   decider could set.
+3. **`mine_stone` picked 187 times, doing nothing each time.** Its target (60
+   cobblestone) was already held, so it finished instantly, "ok". Confidence
+   sat at ~0.2 because past the ladder every option read "advances nothing".
+   That was the question's fault, the delve lesson again. Fixed: quantities
+   always ask for more than is held, instant no-ops drop off the menu, and
+   goals continue past the ladder (`iron_sword`, `explored`).
+4. **A furnace placed beside the door sealed a house for the rest of the
+   run.** `surface` was chosen 109 times, all "no way up". Fixed: stations
+   never go on the centre or beside the door, the way out is re-checked, and
+   the planner may mine stations.
+5. **Doorways over holes**: you could fall out and never climb back in. The
+   builder now lays a threshold and proves the way back in.
+6. **The most interesting one: an option labelled `last_tried: FAILED …
+   would block the door` was picked 323 times in a row**, confidence
+   0.2–0.49. Putting the failure *on the option* was the fix that worked for
+   the dungeon's rope. **Here it did not change the choice.** So the harness
+   stops offering it: an option that just failed from the same spot with the
+   same inventory is withheld until something changes. Traps are removed,
+   not labelled. (Why the label didn't work is open. The failure reason may
+   read as incidental next to "completes the next rung", which it also
+   carried.)
+
+**v2, 4 worlds × 1 hard day** (after faults 1–3; the baseline arm here
+predates the baseline's own wood-first fix):
+
+| decider | mean ticks-to-rung | rungs | deaths |
+|---|---|---|---|
+| baseline | 872 | 34/36 | 0 |
+| offline stand-in | 1130 | 34/36 | 0 |
+| **Jev** | **1468** | 30/36 | 0 |
+| random | 1974 | 30/36 | 3 |
+
+Per world, Jev was close to or level with the baseline where the harness held:
+hex 841 vs 824, truncsq 945 vs 570, penrose 1167 vs 569. Kagome was fault 6
+(4/9 rungs, 323 wasted picks). Mean confidence 0.36–0.40, and 60–90% of picks
+below the 0.45 gate. Jev is choosing among options it finds close, which is
+still a statement about the option set.
+
+**v3, the same 4 worlds × 1 hard day, after all six fixes**
+(`lab/craft-gate.json`):
+
+| decider | mean ticks-to-rung | rungs | deaths |
+|---|---|---|---|
+| baseline | 872 | 34/36 | 0 |
+| **Jev** | **931** | **36/36** | 0 |
+| offline stand-in | 949 | 36/36 | 0 |
+| random | 1929 | 31/36 | 1 |
+
+| world | baseline | Jev | random |
+|---|---|---|---|
+| penrose/3 | **569** | 808 | 1310 |
+| hex/2 | 824 | **802** | 2296 |
+| truncsq/2 | **570** | 945 | 2320 |
+| kagome/4 | 1527 (7/9) | **1170** | 1790 |
+
+**What this does and does not say.** Jev, choosing zero-shot from a written
+option set, plays within 7% of a policy I hand-wrote for this game, reaches
+every rung the script misses, and roughly halves random's time. It is ahead on
+two worlds and clearly behind on two. Where it is behind, the gap is mostly
+**stone pickaxe at ~610–630 against the baseline's ~200**: Jev spends the
+early game gathering wood and building before it mines. That is a legitimate
+order that the scoring happens to punish.
+
+The caveats outrank the table:
+- **4 worlds, 1 run each.** Jev is deterministic, so a rerun of the same
+  world is the same game. The only way to more n is more worlds.
+- **The harness was fixed in response to these same 4 worlds.** Every fault
+  above was found on them. The next run has to be **held-out worlds**, or
+  this is tuning to the test.
+- The offline stand-in (the baseline's choices, projected onto the same
+  options) scores 949, almost exactly Jev's 931. Being about as good as the
+  script's logic expressed through the menu is a real result, and it is
+  not the same as being better.
+- Confidence stays ~0.40 with 55–70% of picks below 0.45. On kagome (fewer,
+  longer decisions) it was 0.59. The option set still reads as close calls to
+  it, and that is the next thing to work on, per this file's oldest lesson.
+- Survival didn't separate anyone (0–1 deaths everywhere, even on hard).
+
 ### What is next
 
-1. **Perception** (`perceive.mjs`): the facts per decision. Nearest reachable
-   tree / stone / pig with path cost in ticks, what can be crafted now, time
-   to dusk, threats with distance, shelter state. **Computed, never raw.**
-2. **The question set**, one call per macro boundary or interrupt: `next` (a
-   `choice` over `legalMacros()`, each option carrying what it would cost and
-   yield, and `shortfall()` for anything it would craft), plus `noul`s for the interrupts (flee? eat? dig
-   in?) and the self-check (*does the state contain what this needs?*),
-   because escalation is asked for, never inferred.
-3. **The scoreboard**: Jev vs `baselinePolicy` vs random-over-the-same-palette,
-   on the same seeds. Milestone ticks, deaths, and survival across nights.
-   Deaths are zero at this difficulty (see above), so pick the harder
-   setting or the spreading metric first.
+1. **Held-out worlds** for the scoreboard: 6–8 tilings and seeds the harness
+   was never debugged on. It is the only honest next number.
+2. **Why confidence sits at 0.40.** Rewrite `advances` as the gap it closes
+   (the composer's "smallest remaining gap" framing, which took regret from
+   0.717 to 0.020), and test whether confidence rises and the stone-pickaxe
+   delay shrinks.
+3. **A difficulty that spreads survival**: first night before a house is
+   affordable, or zombies that break doors, so deaths mean something.
+4. Farming and chests for the homestead mode.
 
 **Before the first deploy that carries new `mega/` work:** `jev-prereg.yml`
 runs from **main's** copy and redeploys mega from whatever branch it names. It

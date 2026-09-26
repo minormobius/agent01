@@ -155,7 +155,11 @@ export function options(sim) {
     yields: 'logs (→ planks, sticks, tables, doors)', takes: visible(sim, [B.log], 20).length ? 'about 30–60 ticks, trees in sight' : 'longer — no tree in sight',
     advances: !sim.pickTier() ? 'wooden_pickaxe needs wood' : 'planks for doors and sticks' });
   if (legal.has('hunt')) add('hunt', 'hunt', null, { yields: 'porkchops (food)', takes: visiblePigs(sim, 20).length ? 'about 20–60 ticks, pig in sight' : 'longer — no pig in sight', advances: `food ${p.food}/20` });
-  if (legal.has('go_home')) add('go_home', 'go_home', null, { takes: `about ${about(sim.dist(sim.home[0], p.c))} ticks`, advances: 'safety for the night' });
+  if (legal.has('go_home')) {
+    const toDusk = NIGHT_START - (sim.tick % DAY), walk = about(sim.dist(sim.home[0], p.c));
+    add('go_home', 'go_home', null, { takes: `about ${walk} ticks`,
+      advances: night ? 'safety: it is night' : toDusk < walk + 200 ? `safety: dusk in ${toDusk} ticks` : `nothing yet: night is ${toDusk} ticks away, and the walk takes about ${walk}` });
+  }
   for (const item of USEFUL_CRAFTS) {
     if (Object.keys(shortfall(sim, item, (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1))).length) continue;
     if (item.endsWith('pickaxe') && (sim.inv[item] || sim.pickTier() >= { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3 }[item])) continue;
