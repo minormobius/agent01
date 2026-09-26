@@ -12,7 +12,7 @@
 // can also abort any macro between two actions (an interrupt), so a macro
 // holds no state that is only valid mid-sequence.
 
-import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER } from './world.mjs';
+import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS } from './world.mjs';
 import { habitat, needsFarmland, wet } from './plants.mjs';
 
 const MAX_STEPS = 400;
@@ -422,23 +422,23 @@ export function* fight(sim, kind = 'zombie') {
 }
 
 // Chase down the nearest pig for food.
-export function* hunt(sim) {
-  // only pigs you can see: a hunter does not know where the herd is
-  const pig = () => visiblePigs(sim, 24)
+export function* hunt(sim, kind = 'pig') {
+  // only animals you can see: a hunter does not know where the herd is
+  const pig = () => visiblePigs(sim, 24, kind)
     .sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c))[0];
   for (let k = 0; k < 8; k++) {
     let g = pig();
-    if (!g || sim.dist(g.c, sim.player.c) > 24) { yield* scout(sim, 'pig'); g = pig(); }
-    if (!g) return { ok: false, why: 'no pigs' };
+    if (!g || sim.dist(g.c, sim.player.c) > 24) { yield* scout(sim, kind); g = pig(); }
+    if (!g) return { ok: false, why: `no ${kind}s` };
     if (sim.adjacentTo(sim.player, g)) {
-      yield* fight(sim, 'pig');
+      yield* fight(sim, kind);
       if (!sim.ents.has(g.id)) return { ok: true };
       continue;
     }
     const go = yield* goTo(sim, (c, y) => (sim.cols[c].adj.includes(g.c) || c === g.c) && Math.abs(y - g.y) <= 1, 8000);
-    if (!go.ok) return { ok: false, why: 'could not reach a pig' };
+    if (!go.ok) return { ok: false, why: `could not reach a ${kind}` };
   }
-  return { ok: false, why: 'the pig kept moving' };
+  return { ok: false, why: `the ${kind} kept moving` };
 }
 
 export function* eat(sim) {
@@ -465,8 +465,8 @@ export function visible(sim, ids, radius = 24) {
   }
   return out.sort((a, b) => sim.dist(a[0], p.c) - sim.dist(b[0], p.c) || Math.abs(a[1] - p.y) - Math.abs(b[1] - p.y));
 }
-export function visiblePigs(sim, radius = 24) {
-  return [...sim.ents.values()].filter((e) => e.kind === 'pig' && sim.seen[e.c] && sim.dist(e.c, sim.player.c) <= radius);
+export function visiblePigs(sim, radius = 24, kind = 'pig') {
+  return [...sim.ents.values()].filter((e) => e.kind === kind && sim.seen[e.c] && sim.dist(e.c, sim.player.c) <= radius);
 }
 // walk (digging if cheaper) to somewhere a specific voxel is in reach, and mine it
 // (a block we could not get to is remembered, so the next look past it —
@@ -577,6 +577,7 @@ const SCOUT = {
   ...Object.fromEntries(SPECIES_NAMES.map((sp) => [sp, (sim) => visiblePlants(sim, sp).length > 0])),
   tree: (sim) => visible(sim, [B.log], 20).length > 0,
   pig: (sim) => visiblePigs(sim, 20).length > 0,
+  sheep: (sim) => visiblePigs(sim, 20, 'sheep').length > 0,
   coal: (sim) => visible(sim, [B.coal_ore], 20).length > 0,
   iron: (sim) => visible(sim, [B.iron_ore], 20).length > 0,
   sand: (sim) => visible(sim, [B.sand], 20).length > 0,
@@ -724,10 +725,14 @@ const nextBlock = (sim) => BUILDING.find((k) => sim.has(k));
 // stand in). Interior = the ball of radius 1, the ring at hop 2 is the wall,
 // everything gets a roof at g+2 — interior height 2, the player's height,
 // so every block is placeable from inside (reach is feet−1 … head+1).
-export function planHouse(sim, c0) {
-  const d = ball(sim, c0, 3);
+// R is the interior radius: 1 for one player, larger for a team. A house
+// sleeps one player per HOUSE_TILES_PER_PLAYER floor tiles.
+export const HOUSE_TILES_PER_PLAYER = 4;
+export const houseCapacity = (plan) => Math.max(1, Math.floor(plan.interior.length / HOUSE_TILES_PER_PLAYER));
+export function planHouse(sim, c0, R = 1) {
+  const d = ball(sim, c0, R + 2);
   const interior = [], ring = [], outside = [];
-  for (const [c, k] of d) (k <= 1 ? interior : k === 2 ? ring : outside).push(c);
+  for (const [c, k] of d) (k <= R ? interior : k === R + 1 ? ring : outside).push(c);
   const g = groundTop(sim, c0) + 1;
   if (g + 3 >= H) return null;
   let work = 0, blocks = 0;
@@ -755,11 +760,11 @@ export function planHouse(sim, c0) {
   // a door: a ring column with open ground outside it at floor level
   let door = -1;
   for (const c of ring) {
-    const out = sim.cols[c].adj.find((n) => d.get(n) === 3 && sim.canStand(n, g));
+    const out = sim.cols[c].adj.find((n) => d.get(n) === R + 2 && sim.canStand(n, g));
     if (out != null && sim.clearCost(c, g, tier) < Infinity && sim.clearCost(c, g + 1, tier) < Infinity) { door = c; break; }
   }
   if (door < 0) return null;
-  return { c0, g, interior, ring, outside, door, cost: work + blocks, blocks };
+  return { c0, g, R, interior, ring, outside, door, cost: work + blocks, blocks };
 }
 
 // Is it a shelter? No MOB can walk from inside to outside.
@@ -770,6 +775,12 @@ export function sealed(sim, plan) {
 }
 
 export function* buildHouse(sim) {
+  // one builder at a time: a second house for the same team is wasted stone
+  if (sim.team.builder != null && sim.team.builder !== sim.player.id) return { ok: false, why: 'a teammate is already building the house' };
+  sim.team.builder = sim.player.id;
+  try { return yield* buildHouseInner(sim); } finally { if (sim.team.builder === sim.player.id) sim.team.builder = null; }
+}
+function* buildHouseInner(sim) {
   const p = sim.player;
   // choose a site: the cheapest plan among seen columns near us
   // doors first: crafting them may put a table down, and that must happen
@@ -778,13 +789,18 @@ export function* buildHouse(sim) {
     const d = yield* craft(sim, 'door', 2);
     if (!d.ok) return { ok: false, why: `no door: ${d.why}` };
   }
+  // big enough for the whole team: the smallest radius that sleeps everyone
+  const team = sim.players.length;
   const plans = [];
   for (let c = 0; c < sim.N; c++) {
-    if (!sim.seen[c] || sim.dist(c, p.c) > 14) continue;
+    if (!sim.seen[c] || sim.dist(c, p.c) > (team > 1 ? 18 : 14)) continue;
     const top = groundTop(sim, c);
     if (![B.grass, B.dirt, B.sand, B.stone].includes(sim.get(c, top))) continue;
-    const pl = planHouse(sim, c);
+    let pl = null;
+    for (let R = 1; R <= 3 && !pl; R++) { const q = planHouse(sim, c, R); if (q && houseCapacity(q) >= team) pl = q; else if (!q && R > 1) break; }
     if (!pl) continue;
+    // not on top of a teammate: a wall cannot go where someone is standing
+    if (sim.players.some((e) => e !== p && (pl.ring.includes(e.c) || pl.interior.includes(e.c)))) continue;
     pl.score = pl.cost + sim.dist(c, p.c) * 0.5;
     plans.push(pl);
   }
@@ -798,6 +814,11 @@ export function* buildHouse(sim) {
   if (!plan) return { ok: false, why: 'no reachable buildable site' };
   const windows = sim.has('glass', 2) ? plan.ring.filter((c) => c !== plan.door).slice(0, 2) : [];
   const need = Math.ceil(plan.blocks * 1.15) + 6;
+  // short? the team's chest is the pool: take building blocks from it first
+  if (blocksHeld(sim) < need && sim.team.chest != null) {
+    const got = yield* takeFromChest(sim, BUILDING, need - blocksHeld(sim));
+    if (!got.ok && blocksHeld(sim) < need) return { ok: false, why: `needs ~${need} building blocks, holding ${blocksHeld(sim)} (${got.why})` };
+  }
   if (blocksHeld(sim) < need) return { ok: false, why: `needs ~${need} building blocks, holding ${blocksHeld(sim)}` };
   const { c0, g, interior, ring, door } = plan;
   const inside = new Set(interior), wall = new Set(ring);
@@ -815,7 +836,7 @@ export function* buildHouse(sim) {
     // it is penned in by the walls already, it becomes dinner
     for (let w = 0; !r.ok && /entity/.test(r.why) && w < 20; w++) {
       const pig = sim.occupied(c, y);
-      if (pig && pig.kind === 'pig' && sim.adjacentTo(sim.player, pig) && w >= 2) yield { op: 'attack', id: pig.id };
+      if (pig && (pig.kind === 'pig' || pig.kind === 'sheep') && sim.adjacentTo(sim.player, pig) && w >= 2) yield { op: 'attack', id: pig.id };
       else yield { op: 'wait', ticks: 4 };
       r = yield { op: 'place', c, y, item };
     }
@@ -829,7 +850,7 @@ export function* buildHouse(sim) {
   };
   // pigs on the footprint get walled in and block the work: clear them first
   const foot = new Set([...interior, ...ring]);
-  for (const pig of [...sim.ents.values()].filter((e) => e.kind === 'pig' && foot.has(e.c))) {
+  for (const pig of [...sim.ents.values()].filter((e) => (e.kind === 'pig' || e.kind === 'sheep') && foot.has(e.c))) {
     const near = yield* goTo(sim, (pc, py) => (sim.cols[pc].adj.includes(pig.c) || pc === pig.c) && Math.abs(py - pig.y) <= 1, 8000);
     if (near.ok) for (let k = 0; k < 12 && sim.ents.has(pig.id) && sim.adjacentTo(p, pig); k++) yield { op: 'attack', id: pig.id };
   }
@@ -897,11 +918,124 @@ export function* buildHouse(sim) {
   const outSteps = sim.cols[door].adj.filter((n) => plan.outside.includes(n) && sim.canStand(n, sim.surface(n)));
   if (!outSteps.some((n) => sim.path({ c: n, y: sim.surface(n) }, (c, y) => c === c0 && y === g, 3000))) return { ok: false, why: 'built, but there is no way back in through the door' };
   sim.protect.add(door * H + g - 1);
-  sim.home = [c0, g];
-  sim._house = plan;
+  // the house is the TEAM's: everyone's home and respawn point
+  for (const e of sim.players) { e.home = [c0, g]; e._house = plan; }
+  sim.team.house = plan;
   for (const c of ring) for (let y = g; y <= g + 2; y++) sim.protect.add(c * H + y);
   for (const c of interior) { sim.protect.add(c * H + g + 2); sim.protect.add(c * H + g - 1); }
-  sim.note('home', { c: c0, y: g, house: true });
+  sim.note('home', { c: c0, y: g, house: true, sleeps: houseCapacity(plan), team });
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------- the team --
+// A chest is the team's shared pool. The first one placed becomes THE team
+// chest (sim.team.chest); anyone can put into it or take from it, limited only
+// by its 27 stacks.
+export const chestAt = (sim) => sim.team.chest == null ? null : [Math.floor(sim.team.chest / H), sim.team.chest % H];
+export const chestItems = (sim) => sim.team.chest == null ? {} : sim.chests.get(sim.team.chest) || {};
+function* toChest(sim) {
+  const at = chestAt(sim);
+  if (!at) return { ok: false, why: 'no team chest' };
+  const go = yield* goTo(sim, (pc, py) => sim.reachable(pc, py, at[0], at[1]), 40000);
+  return go.ok ? { ok: true, at } : { ok: false, why: `could not reach the chest (${go.why})` };
+}
+// Make a chest and put it at home (inside the house if there is room), or here.
+export function* setUpChest(sim) {
+  if (sim.team.chest != null) return { ok: false, why: 'the team already has a chest' };
+  if (sim.home && sim.dist(sim.player.c, sim.home[0]) > 3) { const h = yield* goHome(sim); if (!h.ok) return { ok: false, why: `could not get home (${h.why})` }; }
+  const r = yield* placeStation(sim, 'chest');
+  if (!r.ok) return r;
+  sim.note('chest', { at: sim.team.chest, by: sim.player.id });
+  return { ok: true };
+}
+// What is surplus, and so belongs in the pool: everything but the tools,
+// a few blocks to cap a hole with, some food, some torches, the seeds for the
+// next planting.
+const KEEP = { cobblestone: 8, dirt: 0, sand: 0, planks: 4, log: 2, torch: 4, stick: 2, coal: 2 };
+export function surplus(sim) {
+  const out = {};
+  for (const [k, n] of Object.entries(sim.inv)) {
+    if (/_(pickaxe|sword|hoe)$/.test(k) || k === 'door' || k === 'bed' || k === 'chest' || k === 'crafting_table' || k === 'furnace') continue;
+    let keep = KEEP[k] ?? 0;
+    if (EAT_ORDER.includes(k)) keep = 3;
+    if (k.endsWith('_seeds')) keep = 2;
+    if ((k === 'wool' || k === 'planks') && !sim.has('bed') && !(sim.player.bedAt && sim.get(sim.player.bedAt[0], sim.player.bedAt[1]) === B.bed)) keep = Math.max(keep, 3);   // still owed a bed
+    if (n > keep) out[k] = n - keep;
+  }
+  return out;
+}
+export function* storeSurplus(sim) {
+  const s0 = surplus(sim);
+  if (!Object.keys(s0).length) return { ok: false, why: 'nothing surplus to store' };
+  const go = yield* toChest(sim);
+  if (!go.ok) return go;
+  let moved = 0, full = false;
+  for (const [item, n] of Object.entries(surplus(sim))) {
+    const before = sim.inv[item] || 0;
+    const r = yield { op: 'store', c: go.at[0], y: go.at[1], item, n };
+    if (!r.ok) { if (/full/.test(r.why)) full = true; continue; }
+    moved += before - (sim.inv[item] || 0);
+  }
+  if (!moved) return { ok: false, why: full ? 'the chest is full (27 stacks)' : 'nothing stored' };
+  return { ok: true, stored: moved, ...(full ? { note: 'chest full' } : {}) };
+}
+// Take up to n of the first of `items` the chest holds.
+export function* takeFromChest(sim, items, n = 64) {
+  items = Array.isArray(items) ? items : [items];
+  const have = chestItems(sim);
+  if (!items.some((k) => have[k])) return { ok: false, why: `the chest has no ${items.join(' or ')}` };
+  const go = yield* toChest(sim);
+  if (!go.ok) return go;
+  let got = 0;
+  for (const item of items) {
+    if (got >= n) break;
+    const avail = chestItems(sim)[item] || 0;
+    if (!avail) continue;
+    const before = sim.inv[item] || 0;
+    const r = yield { op: 'take', c: go.at[0], y: go.at[1], item, n: Math.min(avail, n - got) };
+    if (r.ok) got += (sim.inv[item] || 0) - before;
+  }
+  return got ? { ok: true, took: got } : { ok: false, why: 'took nothing' };
+}
+// Sleep in your bed (placing it first, at home). The night passes only when
+// every player is asleep at once, so this waits in bed until dawn either way.
+export function* sleepInBed(sim) {
+  const p = sim.player;
+  if (!sim.isNight()) return { ok: false, why: 'it is day' };
+  let bed = p.bedAt && sim.get(p.bedAt[0], p.bedAt[1]) === B.bed ? p.bedAt : null;
+  if (!bed) {
+    if (!sim.has('bed')) return { ok: false, why: 'no bed (3 wool + 3 planks)' };
+    if (sim.home && sim.dist(p.c, sim.home[0]) > 3) { const h = yield* goHome(sim); if (!h.ok) return { ok: false, why: `could not get home (${h.why})` }; }
+    // anywhere on the house floor that is free (a bed does not block the way:
+    // you walk over it), else beside us
+    let spot = null;
+    const hs = sim._house;
+    if (hs) {
+      const taken = new Set(sim.players.filter((e) => e.bedAt).map((e) => e.bedAt[0]));
+      const free = hs.interior.filter((c) => c !== hs.door && !taken.has(c) && sim.get(c, hs.g) === B.air && sim.solid(c, hs.g - 1) && !sim.occupied(c, hs.g))
+        .sort((a, b) => (a === hs.c0) - (b === hs.c0) || sim.dist(a, p.c) - sim.dist(b, p.c));
+      for (const c of free) {
+        const go = yield* goTo(sim, (pc, py) => pc !== c && sim.reachable(pc, py, c, hs.g), 4000);
+        if (go.ok) { spot = [c, hs.g]; break; }
+      }
+    }
+    spot = spot || placeSpot(sim);
+    if (!spot) return { ok: false, why: 'nowhere to put the bed' };
+    const r = yield { op: 'place', c: spot[0], y: spot[1], item: 'bed' };
+    if (!r.ok) return { ok: false, why: r.why };
+    bed = p.bedAt = spot;
+  }
+  if (!(p.c === bed[0] && p.y === bed[1])) {
+    const go = yield* goTo(sim, (c, y) => c === bed[0] && y === bed[1], 40000);
+    if (!go.ok) return { ok: false, why: `could not reach the bed (${go.why})` };
+  }
+  for (let k = 0; k < 200 && sim.isNight(); k++) {
+    const r = yield { op: 'sleep', c: bed[0], y: bed[1] };
+    if (!r.ok) {
+      if (/zombies/.test(r.why)) { yield* fight(sim); yield { op: 'wait', ticks: 10 }; continue; }
+      return { ok: false, why: r.why };
+    }
+  }
   return { ok: true };
 }
 
@@ -1007,7 +1141,7 @@ export const PALETTE = {
   explore:      { mode: 'explore', doc: 'walk to the edge of the known and look past it', needs: () => null, run: (s, a) => explore(s, a?.steps) },
   scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },
   gather_wood:  { mode: 'explore', doc: 'chop the nearest trees', needs: () => null, run: (s, a) => gatherWood(s, a?.n) },
-  hunt:         { mode: 'explore', doc: 'chase down a pig in sight for meat', needs: (s) => visiblePigs(s, 24).length ? null : 'no pig in sight (scout for one)', run: (s) => hunt(s) },
+  hunt:         { mode: 'explore', doc: 'chase down a pig (meat) or a sheep (wool, mutton) in sight', needs: (s, a) => visiblePigs(s, 24, a?.kind || 'pig').length ? null : `no ${a?.kind || 'pig'} in sight (scout for one)`, run: (s, a) => hunt(s, a?.kind || 'pig') },
   forage:       { mode: 'explore', doc: 'take a wild plant in sight for its seeds (and fruit)', needs: (s, a) => visiblePlants(s, a?.sp).filter(([c, y]) => !a?.sp ? !s.has(`${BLOCKS[s.get(c, y)].plant}_seeds`) : true).length ? null : `no wild ${a?.sp || 'plant you lack seeds for'} in sight`, run: (s, a) => forage(s, a || {}) },
   go_home:      { mode: 'explore', doc: 'walk back to the house', needs: (s) => s.home ? (atHome(s) ? 'already home' : null) : 'no home yet', run: (s) => goHome(s) },
   // homestead
@@ -1016,7 +1150,7 @@ export const PALETTE = {
     const sh = shortfall(s, a.item, a.n || 1);
     return Object.keys(sh).length ? `short of ${describeShort(sh)}` : null;
   }, run: (s, a) => craft(s, a.item, a.n) },
-  build_house:  { mode: 'homestead', doc: 'a walled, roofed, lit house with a door, on the tile graph', needs: (s) => s.home && s._house ? 'already have a house' : blocksHeld(s) < 30 ? `needs ~30+ building blocks, holding ${blocksHeld(s)}` : null, run: (s) => buildHouse(s) },
+  build_house:  { mode: 'homestead', doc: 'a walled, roofed, lit house with a door, on the tile graph', needs: (s) => { if (s.home && s._house) return 'already have a house'; if (s.team.builder != null && s.team.builder !== s.player.id) return 'a teammate is building it'; const pool = blocksHeld(s) + BUILDING.reduce((n, k) => n + (chestItems(s)[k] || 0), 0); return pool < 30 * Math.min(3, s.players.length) ? `needs ~${30 * Math.min(3, s.players.length)}+ building blocks, holding ${blocksHeld(s)}${s.team.chest != null ? ` (+${pool - blocksHeld(s)} in the chest)` : ''}` : null; }, run: (s) => buildHouse(s) },
   light_area:   { mode: 'homestead', doc: 'torches around home — nothing spawns near light', needs: (s) => s.has('torch') || s.has('coal') || s.has('charcoal') ? null : 'no torches or fuel for them', run: (s, a) => lightArea(s, a?.n) },
   farm:         { mode: 'homestead', doc: 'till and plant seeds where the species will grow, near home', needs: (s, a) => {
     const sp = a?.sp || seedsHeld(s)[0];
@@ -1029,6 +1163,11 @@ export const PALETTE = {
   dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : s.clearCost(s.player.c, s.player.y - 1, s.pickTier()) === Infinity ? 'cannot dig here (water, lava or bedrock below)' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
   sleep_until_dawn: { mode: 'homestead', doc: 'wait out the night where you are', needs: (s) => s.isNight() ? null : 'it is day', run: (s) => sleepUntilDawn(s) },
   eat:          { mode: 'homestead', doc: 'eat the best food carried', needs: (s) => !food(s) ? 'no food' : s.player.food >= 20 ? 'not hungry' : null, run: (s) => eat(s) },
+  // the pool and the beds
+  set_up_chest: { mode: 'homestead', doc: 'make a chest and put it at home: the team\'s shared store', needs: (s) => s.team.chest != null ? 'the team already has a chest' : Object.keys(shortfall(s, 'chest', 1)).length && !s.has('chest') ? `short of ${describeShort(shortfall(s, 'chest', 1))}` : null, run: (s) => setUpChest(s) },
+  store:        { mode: 'homestead', doc: 'put your surplus in the team chest (27 stacks of 64)', needs: (s) => s.team.chest == null ? 'no team chest yet' : !Object.keys(surplus(s)).length ? 'nothing surplus to store' : slotsUsed(chestItems(s)) >= CHEST_SLOTS && !Object.keys(surplus(s)).some((k) => roomFor(chestItems(s), k) > 0) ? 'the chest is full' : null, run: (s) => storeSurplus(s) },
+  take:         { mode: 'homestead', doc: 'take something from the team chest', needs: (s, a) => s.team.chest == null ? 'no team chest yet' : a?.item && !chestItems(s)[a.item] ? `the chest has no ${a.item}` : !Object.keys(chestItems(s)).length ? 'the chest is empty' : null, run: (s, a) => takeFromChest(s, a?.item ? [a.item] : Object.keys(chestItems(s)), a?.n || 64) },
+  sleep_in_bed: { mode: 'homestead', doc: 'sleep in your bed; the night passes when every player is asleep', needs: (s) => !s.isNight() ? 'it is day' : s.player.bedAt && s.get(s.player.bedAt[0], s.player.bedAt[1]) === B.bed ? null : s.has('bed') ? null : 'no bed (3 wool + 3 planks)', run: (s) => sleepInBed(s) },
   // the team (only offered when someone else is in the world)
   follow:       { mode: 'team', doc: 'go to a teammate', needs: (s, a) => mateNeeds(s, a), run: (s, a) => follow(s, a.to) },
   guard:        { mode: 'team', doc: 'stay by a teammate and fight what comes at them', needs: (s, a) => mateNeeds(s, a), run: (s, a) => guard(s, a.to, a.ticks) },

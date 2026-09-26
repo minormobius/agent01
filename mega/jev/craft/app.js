@@ -113,6 +113,16 @@ function buildChunk(key) {
     for (let y = 0; y < H; y++) {
       const id = r.b[c * H + y];
       if (id === B.air || id === B.torch || id === B.lantern) continue;
+      if (id === B.bed) {
+        const hgt = y + 0.45, rgb = RGB[id];
+        face(poly.map(([x, z]) => [x, hgt, z]), [0, 1, 0], rgb.side, 1);
+        for (let e = 0; e < poly.length; e++) {
+          const a = poly[e], b2 = poly[(e + 1) % poly.length];
+          const mx = (a[0] + b2[0]) / 2 - col.x, mz = (a[1] + b2[1]) / 2 - col.z, L = Math.hypot(mx, mz) || 1;
+          face([[a[0], y, a[1]], [b2[0], y, b2[1]], [b2[0], hgt, b2[1]], [a[0], hgt, a[1]]], [mx / L, 0, mz / L], rgb.top, 0.9);
+        }
+        continue;
+      }
       if (BLOCKS[id].plant) {
         // a plant: two crossed quads at the tile centre, taller as it grows
         // (their own double-sided mesh: the solid mesh's back-face cap would
@@ -260,6 +270,7 @@ function makeEnt(kind, id = 0) {
   const g = new THREE.Group();
   const box = (w, h, d, color, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color })); m.position.y = y; g.add(m); return m; };
   if (kind === 'pig') { box(0.8, 0.55, 0.5, 0xf0a3b4, 0.4); box(0.36, 0.36, 0.36, 0xf5b7c5, 0.55).position.x = 0.5; }
+  else if (kind === 'sheep') { box(0.8, 0.6, 0.55, 0xf2efe6, 0.45); box(0.3, 0.32, 0.3, 0x3a3530, 0.55).position.x = 0.5; }
   else {
     const shirt = kind === 'player' ? TEAM_SHIRTS[(sim ? Math.max(0, sim.players.findIndex((e) => e.id === id)) : 0) % TEAM_SHIRTS.length] : 0x3b8a4a, skin = kind === 'player' ? 0xd9a57c : 0x6ea35a;
     box(0.5, 0.75, 0.3, kind === 'player' ? 0x3a3f8f : 0x3a3f8f, 0.375);
@@ -591,7 +602,7 @@ function renderTeam(now) {
   teamAt = now;
   $('team-hint').textContent = human ? (locked() && !touching ? '— Esc frees the mouse to ask' : '— what you ask goes into Jev\'s state') : '— click one to watch it';
   const live = (e) => e.request && sim.tick - e.request.tick < 1600 ? e.request.what : null;
-  const html = party.members.map((m, i) => {
+  let html = party.members.map((m, i) => {
     const e = m.e, who = m.controller === 'human' ? 'you' : `Jev #${e.id}`;
     const doing = m.thinking ? 'thinking…' : (e.doing || 'idle').replace(/_/g, ' ');
     const r = live(e);
@@ -599,6 +610,11 @@ function renderTeam(now) {
       + `<span>${who} <span class="st">${doing}</span>${r ? ` <span class="st ask">asks: ${r}</span>` : ''}</span>`
       + `<span class="st">♥${e.hp} ◆${e.food}</span></button>`;
   }).join('');
+  const pooled = sim.team.chest != null ? (sim.chests.get(sim.team.chest) || {}) : null;
+  const top = pooled ? Object.entries(pooled).sort((a, b) => b[1] - a[1]).slice(0, 5).map(([k, n]) => `${k.replace(/_/g, ' ')} ${n}`).join(' · ') : '';
+  const used = pooled ? Object.entries(pooled).reduce((n, [k, v]) => n + Math.ceil(v / (/_(pickaxe|sword|hoe)$/.test(k) || k === 'bed' ? 1 : k === 'door' ? 16 : 64)), 0) : 0;
+  const pool = pooled ? `<div class="st pool">chest ${used}/27 stacks${top ? ' · ' + top : ' · empty'}${sim.team.house ? ` · house sleeps ${Math.max(1, Math.floor(sim.team.house.interior.length / 4))}` : ''}</div>` : '';
+  html += pool;
   if ($('team-list').dataset.html !== html) { $('team-list').innerHTML = html; $('team-list').dataset.html = html; }   // rewrite only on change, or a click lands on a detached row
   const mine = human && live(human.e);
   for (const b of $('ask-row').querySelectorAll('button')) b.classList.toggle('on', !!mine && b.dataset.ask === mine);

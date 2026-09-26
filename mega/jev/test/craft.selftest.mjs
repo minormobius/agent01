@@ -531,7 +531,9 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const b = new Sim({ seed: 3, shape: 'truncsq' });
   const r = await playMind(b, DECIDERS.baseline, { maxTicks: 4800 * 3, gate: false });
   const score = projectScore(b);
-  ok(score.grown >= 4 && score.tech === '8/8', `the baseline climbs the ladder and grows ${score.grown}/${score.species_here} species in 3 days`);
+  // (a solo sleeper skips every night, and a skipped night grows nothing:
+  // the moonpetal, which grows only at night, is the price of a bed)
+  ok(score.grown >= 3 && score.tech === '9/9', `the baseline climbs the ladder (bed included) and grows ${score.grown}/${score.species_here} species in 3 days`);
   ok(r.decisions.some((d) => d.project === 'grow'), 'and moves on to the grow project');
 }
 
@@ -599,6 +601,53 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   ok(/night, out in the open/.test(JSON.stringify(perceive(s).survival)), 'and the state names it');
   const day = new Sim({ seed: 3, shape: 'truncsq' });
   ok(options(day).every((o) => o.criteria.survival == null), 'with nothing threatening, options carry no survival fact');
+}
+
+// ------------------------------------------------ the team: chest, house, beds
+{
+  // the chest's limits: 27 stacks, 64 a stack, a tool per slot
+  const w = await import('../craft/world.mjs');
+  ok(w.roomFor({}, 'cobblestone') === 27 * 64 && w.roomFor({ cobblestone: 130 }, 'cobblestone') === 62 + 24 * 64, 'a chest holds 27 stacks of 64 (a partial stack fills first)');
+  ok(w.roomFor({}, 'iron_pickaxe') === 27 && w.slotsUsed({ iron_pickaxe: 2, cobblestone: 65 }) === 4, 'tools take a slot each');
+  const s = new Sim({ seed: 3, shape: 'penrose' });
+  const a = s.players[0], b = s.addPlayer(), c = s.addPlayer();
+  ok([...s.ents.values()].filter((e) => e.kind === 'sheep').length > 3, 'sheep graze');
+  s.as(a, () => { s.give('planks', 12); s.give('crafting_table', 1); });
+  ok(s.as(a, () => runMacro(s, 'set_up_chest')).ok && s.team.chest != null, 'a chest set up at home becomes the team chest');
+  const [cc, cy] = [Math.floor(s.team.chest / H), s.team.chest % H];
+  for (const e of [b, c]) s.as(e, () => { s.give('cobblestone', 90); s.give('door', 2); });
+  for (const e of [b, c]) ok(s.as(e, () => runMacro(s, 'store')).ok, `teammate ${e.id} stores its surplus`);
+  ok((s.chests.get(s.team.chest).cobblestone || 0) === 164, 'the pool holds both teammates\' stone');
+  // fill it to the brim: the 28th stack is refused
+  const full = new Sim({ seed: 3, shape: 'penrose' }); full.give('planks', 12); full.give('crafting_table', 1);
+  runMacro(full, 'set_up_chest');
+  const box = full.chests.get(full.team.chest), [fc, fy] = [Math.floor(full.team.chest / H), full.team.chest % H];
+  for (let i = 0; i < 27; i++) box[`thing${i}`] = 64;
+  full.give('cobblestone', 10);
+  const r = full.plan({ op: 'store', c: fc, y: fy, item: 'cobblestone', n: 10 });
+  ok(!r.ok && /full/.test(r.why), 'a full chest refuses a new stack, and says so');
+  // the team house: sized for three, built from the pool, everyone's home
+  s.as(a, () => { s.give('door', 2); s.give('torch', 2); });
+  const built = s.as(a, () => runMacro(s, 'build_house'));
+  const h = s.team.house;
+  ok(built.ok && h && h.R >= 2 && Math.floor(h.interior.length / 4) >= 3, `the house is built big enough for three (R${h && h.R}, ${h && h.interior.length} floor tiles)`);
+  ok(s.players.every((e) => e.home && e.home[0] === h.c0 && e._house === h), 'and it is every player\'s home');
+  ok((s.chests.get(s.team.chest).cobblestone || 0) < 164, 'the builder drew on the pool');
+  ok(s.get(cc, cy) === B.chest && s.clearCost(cc, cy, 3) === Infinity, 'the planner never digs through the chest');
+  // beds: the night passes only when every player is asleep
+  for (const e of s.players) s.as(e, () => s.give('bed', 1));
+  while (!s.isNight()) s.step();
+  const t0 = s.tick;
+  ok(s.as(a, () => runMacro(s, 'sleep_in_bed')).ok && s.tick - t0 >= 1700, 'one sleeper alone waits out the whole night');
+  while (!s.isNight()) s.step();
+  const party = new Party(s), ms = s.players.map((e) => party.join(e, 'mind'));
+  for (const m of ms) party.startMacro(m, 'sleep_in_bed');
+  let steps = 0;
+  for (let k = 0; k < 2500 && ms.some((m) => m.gen); k++) { party.tick(); steps++; }
+  ok(steps < 300 && s.lines.some((l) => l.includes('"slept"')), `all three in bed: the night passes (${steps} ticks run)`);
+  ok(!s.isNight(), 'and it is morning');
+  const rep = new Replay(s.lines[0]); for (const l of s.lines.slice(1)) rep.apply(l);
+  ok(JSON.stringify(rep.chests.get(s.team.chest)) === JSON.stringify(s.chests.get(s.team.chest)), 'the chest\'s contents are in the stream');
 }
 
 // ---------------------------------------------------------------- text ------

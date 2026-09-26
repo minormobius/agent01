@@ -50,6 +50,7 @@ export class Party {
     sim.note('macro_end', { name: m.macro.name, ok: res.ok, ...(res.why ? { why: res.why } : {}), who: m.e.id });
     m.gen = null; m.y = null; m.e.doing = null;
     m.lastEnded = out;
+    sim.as(m.e, () => { sim._lastMacro = out; });   // what the baseline's anti-stuck rules read
     if (m.onEnded) m.onEnded(out);
     return out;
   }

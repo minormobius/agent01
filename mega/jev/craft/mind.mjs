@@ -17,12 +17,12 @@
 // stream says so. Nothing here pretends: every decision is stamped with the
 // source that produced it — typesafe, offline stand-in, random, or baseline.
 
-import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots } from './macros.mjs';
+import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity } from './macros.mjs';
 import { projectState, projectFact, projectDue, projectQuestion, setProject, baselineProject, PROJECT_NAMES, PROJECTS } from './projects.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
 import { DAY, NIGHT_START } from './sim.mjs';
-import { B, BUILDING, RECIPES, FOOD, SPECIES } from './world.mjs';
+import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS } from './world.mjs';
 
 export const GATE = 0.45;
 
@@ -98,6 +98,7 @@ export function perceive(sim) {
     },
     progress: { reached: reached.length ? reached : ['nothing yet'], next: open },
     project: projectFacts(sim),
+    shared: sharedFacts(sim),
     survival: (() => { const ts = sim.noSurvival ? [] : threats(sim); return ts.length ? { threats: ts.map((t) => t.text) } : { threats: 'none right now' }; })(),
     explored: `${Math.round(100 * sim.seenCount / sim.N)}% of the island`,
     recent: (sim._journal || []).slice(-6),
@@ -111,7 +112,7 @@ export function perceive(sim) {
 // options that keep you alive read "not part of the project" and sit at ~0.2
 // confidence (measured live, 2026-09-26). Each threat names the options that
 // relieve it; an option that goes out among zombies at night worsens that one.
-const SHELTER = new Set(['go_home', 'dig_in', 'build_house']);
+const SHELTER = new Set(['go_home', 'dig_in', 'build_house', 'sleep_in_bed']);
 export function threats(sim) {
   const p = sim.player, night = sim.isNight(), out = [];
   const inside = !sim.skyOpen(p.c, p.y + 2) || atHome(sim);
@@ -133,6 +134,17 @@ function survivalFact(ts, o) {
   if (helps.length) return `relieves: ${helps.join(', ')}`;
   if (hurts.length) return `worsens: ${hurts.join(', ')}`;
   return `does nothing about: ${ts.map((t) => t.id).join(', ')}`;
+}
+
+// The team's pool, house and beds: what is everyone's
+const summarise = (items, k = 8) => Object.fromEntries(Object.entries(items).sort((a, b) => b[1] - a[1]).slice(0, k));
+function sharedFacts(sim) {
+  const box = chestItems(sim), inBed = sim.players.filter((e) => e.bedAt && sim.get(e.bedAt[0], e.bedAt[1]) === B.bed).length;
+  return {
+    chest: sim.team.chest == null ? 'none yet: a chest (8 planks) at home is the team\'s shared store' : { stacks_used: `${slotsUsed(box)} of ${CHEST_SLOTS}`, holds: Object.keys(box).length ? summarise(box) : 'nothing' },
+    house: sim.team.house ? `built, sleeps ${houseCapacity(sim.team.house)} (the team is ${sim.players.length})` : sim._house ? 'built' : 'none yet',
+    beds: `${inBed} of ${sim.players.length} players have a bed placed; the night passes only when every player is asleep`,
+  };
 }
 
 function projectFacts(sim) {
@@ -294,6 +306,30 @@ export function options(sim) {
     if (sim.has(`${sp}_seeds`) && !PALETTE.farm.needs(sim, { sp })) add(`farm_${sp}`, 'farm', { sp, n: 2 }, { yields: `${sp} planted near home`, takes: 'about 20–80 ticks',
       advances: `a ${sp} crop — ${SPECIES[sp].doc}` }, [`farm:${sp}`]);
   }
+  // the pool: set it up, fill it, draw on it
+  const box = chestItems(sim);
+  if (legal.has('set_up_chest')) add('set_up_chest', 'set_up_chest', null, { yields: 'a chest at home: the team\'s shared store (27 stacks)', takes: 'about 20–60 ticks', advances: sim.players.length > 1 ? 'pooling: teammates can store and take' : 'somewhere to keep things' }, ['set_up_chest']);
+  if (legal.has('store')) {
+    const sp = surplus(sim);
+    add('store', 'store', null, { yields: `your surplus into the chest: ${describeShort(sp)}`, takes: `about ${about(sim.dist(Math.floor(sim.team.chest / H), p.c)) + 5} ticks`,
+      advances: `the shared pool (${slotsUsed(box)} of ${CHEST_SLOTS} stacks used)` }, ['store', ...Object.keys(sp)]);
+  }
+  if (sim.team.chest != null) {
+    // offer to take what the project's next steps are short of, and what the chest has
+    const wanted = new Set();
+    if (pst && pst.withNeeds) for (const w of pst.withNeeds.slice(0, 3)) for (const t of w.needs) if (box[t]) wanted.add(t);
+    if (!sim._house && BUILDING.some((k) => box[k]) && blocksHeld(sim) < 60) wanted.add(BUILDING.find((k) => box[k]));
+    for (const item of [...wanted].slice(0, 4)) add(`take_${item}`, 'take', { item, n: 64 }, { yields: `${Math.min(64, box[item])} ${item.replace(/_/g, ' ')} from the team chest`, takes: `about ${about(sim.dist(Math.floor(sim.team.chest / H), p.c)) + 3} ticks`, advances: `the chest holds ${box[item]}` }, [item]);
+  }
+  // sheep: wool for beds, mutton for food
+  const sheepSeen = visiblePigs(sim, 24, 'sheep').length;
+  if (sheepSeen) add('hunt_sheep', 'hunt', { kind: 'sheep' }, { yields: 'wool (beds) and mutton', takes: 'about 20–60 ticks, a sheep is in sight', advances: `wool held ${sim.inv.wool || 0} (a bed takes 3)` }, ['wool', 'mutton', 'hunt:sheep']);
+  else if (!sim.has('bed') && !(p.bedAt)) add('scout_sheep', 'scout', { what: 'sheep' }, { yields: 'finds a sheep', takes: 'about 40–200 ticks', advances: 'wool for a bed' }, ['scout:sheep']);
+  if (legal.has('sleep_in_bed')) {
+    const asleep = sim.players.filter((e) => e.asleep).length, others = sim.players.length - 1;
+    add('sleep_in_bed', 'sleep_in_bed', null, { takes: `until dawn (${DAY - (sim.tick % DAY)} ticks)`,
+      advances: others ? `the night passes the moment every player is asleep (${asleep} of ${others} teammates are now); otherwise you wait in bed until dawn` : 'the night passes at once: you are the only player' }, ['sleep']);
+  }
   if (legal.has('harvest')) {
     const ripe = ripePlots(sim);
     add('harvest', 'harvest', null, { yields: [...new Set(ripe.map((q) => SPECIES[q.sp].produce))].join(', ') + ' and seeds (then replants)', takes: `about ${20 + 15 * ripe.length} ticks`,
@@ -308,7 +344,8 @@ export function options(sim) {
     add('go_home', 'go_home', null, { takes: `about ${walk} ticks`,
       advances: night ? 'safety: it is night' : toDusk < walk + 200 ? `safety: dusk in ${toDusk} ticks` : `nothing yet: night is ${toDusk} ticks away, and the walk takes about ${walk}` });
   }
-  const crafts = [...USEFUL_CRAFTS, ...(here.some(needsFarmland) && !sim.has('wooden_hoe') ? ['wooden_hoe'] : []), ...(sim.has('wheat', 3) ? ['bread'] : []), ...(sim.has('glowcap', 2) ? ['lantern'] : [])];
+  const crafts = [...USEFUL_CRAFTS, ...(here.some(needsFarmland) && !sim.has('wooden_hoe') ? ['wooden_hoe'] : []), ...(sim.has('wheat', 3) ? ['bread'] : []), ...(sim.has('glowcap', 2) ? ['lantern'] : []),
+    ...(sim.team.chest == null && !sim.has('chest') ? ['chest'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : [])];
   for (const item of crafts) {
     if (Object.keys(shortfall(sim, item, (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1))).length) continue;
     if (item.endsWith('pickaxe') && (sim.inv[item] || sim.pickTier() >= { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3 }[item])) continue;

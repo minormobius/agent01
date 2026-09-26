@@ -16,7 +16,7 @@
 // 'explore', 'scout:<what>', 'build_house', 'light_area'.
 
 import { B, BUILDING, SPECIES, SPECIES_NAMES } from './world.mjs';
-import { shortfall, describeShort, ripePlots, growingPlots, visiblePlants } from './macros.mjs';
+import { shortfall, describeShort, ripePlots, growingPlots, visiblePlants, chestItems, surplus } from './macros.mjs';
 import { needsFarmland, eta, speciesHere } from './plants.mjs';
 
 const itemStep = (id, item, q = 1, done) => ({
@@ -35,23 +35,40 @@ function vis(s, sp) {
   return (m.by[sp] ??= visiblePlants(s, sp).length);
 }
 const blocksHeld = (s) => BUILDING.reduce((n, k) => n + (s.inv[k] || 0), 0);
+// the team's pool counts: what is in the shared chest is everyone's
+const blocksPooled = (s) => blocksHeld(s) + BUILDING.reduce((n, k) => n + (chestItems(s)[k] || 0), 0);
+const houseNeed = (s) => 30 * Math.min(3, s.players.length);
+const hasBed = (s) => s.has('bed') || !!(s.player.bedAt && s.get(s.player.bedAt[0], s.player.bedAt[1]) === B.bed);
 
-const TECH = [
+const TECH_BASE = [
   itemStep('wooden_pickaxe', 'wooden_pickaxe', 1, (s) => s.pickTier() >= 1),
   itemStep('stone_pickaxe', 'stone_pickaxe', 1, (s) => s.pickTier() >= 2),
   itemStep('stone_sword', 'stone_sword', 1, (s) => s.has('stone_sword') || s.has('iron_sword')),
   itemStep('torches', 'torch', 4, (s) => s.has('torch', 4) || !!s._lit),
   itemStep('iron_pickaxe', 'iron_pickaxe', 1, (s) => s.pickTier() >= 3),
-  { id: 'house', label: 'build a house', done: (s) => !!s._house,
-    needs: (s) => blocksHeld(s) < 30 ? new Set(['cobblestone', 'dirt']) : new Set(['build_house']),
-    complete: (s) => blocksHeld(s) >= 30 ? 'build_house' : null,
-    detail: (s) => blocksHeld(s) < 30 ? `needs ~30+ building blocks, holding ${blocksHeld(s)}` : 'ready to build' },
+  { id: 'house', label: 'build a house for the whole team', done: (s) => !!s._house,
+    needs: (s) => blocksPooled(s) < houseNeed(s) ? new Set(['cobblestone', 'dirt', 'store']) : new Set(['build_house']),
+    complete: (s) => blocksPooled(s) >= houseNeed(s) ? 'build_house' : null,
+    detail: (s) => blocksPooled(s) < houseNeed(s) ? `needs ~${houseNeed(s)}+ building blocks for ${s.players.length}, the team holds ${blocksPooled(s)}` : 'ready to build' },
   { id: 'lit_grounds', label: 'light around the house', done: (s) => !!s._lit,
     needs: (s) => !s._house ? new Set() : s.has('torch') || s.has('coal') || s.has('charcoal') ? new Set(['light_area']) : new Set(['coal']),
     complete: (s) => s._house && (s.has('torch') || s.has('coal')) ? 'light_area' : null,
     detail: (s) => !s._house ? 'needs the house first' : 'torches around home' },
   itemStep('iron_sword', 'iron_sword', 1, (s) => s.has('iron_sword')),
 ];
+// a team also needs its pool; everyone needs a bed (the night only passes
+// when every player is asleep)
+const CHEST_STEP = { id: 'chest', label: 'set up the team chest', done: (s) => s.team.chest != null,
+  needs: (s) => { const sh = shortfall(s, 'chest', 1); return new Set(Object.keys(sh).length && !s.has('chest') ? Object.keys(sh) : ['set_up_chest']); },
+  complete: (s) => Object.keys(shortfall(s, 'chest', 1)).length && !s.has('chest') ? null : 'set_up_chest',
+  detail: (s) => { const sh = shortfall(s, 'chest', 1); return Object.keys(sh).length && !s.has('chest') ? `short of ${describeShort(sh)}` : 'can be made and placed now'; } };
+const BED_STEP = { id: 'bed', label: 'a bed of your own', done: hasBed,
+  needs: (s) => { const sh = shortfall(s, 'bed', 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.wool ? ['hunt:sheep', 'scout:sheep'] : [])] : ['craft:bed']); },
+  complete: (s) => Object.keys(shortfall(s, 'bed', 1)).length ? null : 'craft:bed',
+  detail: (s) => { const sh = shortfall(s, 'bed', 1); return Object.keys(sh).length ? `short of ${describeShort(sh)}${sh.wool ? ' (sheep give wool)' : ''}` : 'can be crafted now'; } };
+const TECH = (sim) => sim.players.length > 1
+  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7]]
+  : [...TECH_BASE, BED_STEP];
 
 function growSteps(sim) {
   const here = speciesHere(sim);
@@ -99,7 +116,7 @@ function exploreSteps(sim) {
 }
 
 export const PROJECTS = {
-  tech: { aim: 'climb the tech ladder: tools, a house, light, iron', steps: () => TECH },
+  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron', steps: (sim) => TECH(sim) },
   grow: { aim: 'find and cultivate every plant species this world has — some grow only on particular tile shapes', steps: growSteps },
   explore: { aim: 'see the whole world and find where each wild plant grows', steps: exploreSteps },
 };

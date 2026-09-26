@@ -11,7 +11,7 @@
 // "Jev played for a day" has a number to be compared against, and so the
 // engine can be shown climbing the tech ladder with no model in the loop.
 
-import { PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants } from './macros.mjs';
+import { PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus } from './macros.mjs';
 import { EAT_ORDER, B } from './world.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 
@@ -75,7 +75,8 @@ export function standardInterrupt(sim, running = null) {
   const p = sim.player;
   if (running !== 'surface' && sim.get(p.c, p.y + 1) === B.water && p.air <= 40 && !sim._airAck) { sim._airAck = true; return 'running out of air'; }
   if (p.air >= 60) sim._airAck = false;
-  if (sim.isNight() && exposed(sim) && !sim._nightAck) { sim._nightAck = true; return 'night fell in the open'; }
+  // (not while already heading for shelter: that is the answer to it)
+  if (sim.isNight() && exposed(sim) && !sim._nightAck && !['go_home', 'dig_in', 'sleep_in_bed', 'sleep_until_dawn'].includes(running)) { sim._nightAck = true; return 'night fell in the open'; }
   if (!sim.isNight()) sim._nightAck = false;
   return null;
 }
@@ -92,7 +93,14 @@ export function baselinePolicy(sim) {
   const blocks = n('cobblestone') + n('dirt') + n('planks') + n('sand');
   if (zombieAdjacent(sim)) return { name: 'fight' };
   if (sim.get(p.c, p.y + 1) === B.water) return { name: 'surface' };
+  // a bed plan that failed tonight is not retried tonight (a zero-tick failure
+  // at the top of the night branch would otherwise repeat every tick)
+  const lm = sim._lastMacro, night0 = Math.floor(sim.tick / 4800);
+  if (lm && !lm.ok && lm.name === 'sleep_in_bed') sim.me._bedFailNight = night0;
+  if (lm && !lm.ok && lm.name === 'go_home' && sim.isNight()) sim.me._homeFailNight = night0;
+  const bedOk = !PALETTE.sleep_in_bed.needs(sim, {}) && sim.me._bedFailNight !== night0;
   if (sim.isNight()) {
+    if (bedOk && (atHome(sim) || (sim.home && sim.dist(p.c, sim.home[0]) < 25 && sim.me._homeFailNight !== night0))) return { name: 'sleep_in_bed' };
     if (atHome(sim)) return { name: 'sleep_until_dawn' };
     if (sim.home && exposed(sim) && sim.dist(p.c, sim.home[0]) < 25 && !sim._homeTried) { sim._homeTried = true; return { name: 'go_home' }; }
     return exposed(sim) ? { name: 'dig_in' } : { name: 'sleep_until_dawn' };
@@ -123,6 +131,21 @@ export function baselinePolicy(sim) {
     if (iron < 3 || n('coal') < 3) return { name: 'mine_iron', args: { iron: 3, coal: 3 } };
     return craftIt('iron_pickaxe');
   }
+  // a team pools: someone sets up the chest, everyone stores stone in it, and
+  // whoever sees enough in the pool builds the house for all of them
+  const team = sim.players.length > 1;
+  if (team && sim.team.chest == null && !sim._house) return n('chest') ? { name: 'set_up_chest' } : craftIt('chest');
+  if (team && !sim._house && sim.team.builder == null && !(sim._houseFails > 2)) {
+    const pooled = blocks + ['cobblestone', 'dirt', 'planks', 'sand'].reduce((a, k) => a + (chestItems(sim)[k] || 0), 0);
+    if (n('door') < 2 && n('log') + n('planks') / 4 < 2) return { name: 'gather_wood', args: { n: 3 } };
+    if (pooled >= 90) { sim._houseFails = (sim._houseFails || 0) + 1; return exposed(sim) ? { name: 'build_house' } : { name: 'surface' }; }
+    if (blocks >= 40) return { name: 'store' };
+    return { name: 'mine_stone', args: { n: n('cobblestone') + 40 } };
+  }
+  if (team && !sim._house) {
+    // someone else is building: keep the pool topped up meanwhile
+    if (blocks >= 40 && sim.team.chest != null) return { name: 'store' };
+  }
   if (!sim._house) {
     if (sim._houseFails > 2) { /* give up on a house; live rough */ }
     else if (!exposed(sim)) return { name: 'surface' };
@@ -131,6 +154,16 @@ export function baselinePolicy(sim) {
     else { sim._houseFails = (sim._houseFails || 0) + 1; return { name: 'build_house' }; }
   }
   if (sim._house && !sim._lit && !sim._litTried) { sim._litTried = true; return { name: 'light_area', args: { n: 4 } }; }
+  // a bed: 3 wool (sheep) + 3 planks. The pool counts; only fruitless
+  // scouting costs a try (sheep are scarce, and teammates want wool too)
+  if (sim._house && !n('bed') && !p.bedAt) {
+    if (n('wool') >= 3) return craftIt('bed');
+    if (n('wool') + (chestItems(sim).wool || 0) >= 3) return { name: 'take', args: { item: 'wool', n: 3 - n('wool') } };
+    if (visiblePigs(sim, 24, 'sheep').length) return { name: 'hunt', args: { kind: 'sheep' } };
+    if ((sim.me._bedTries || 0) < 4) { sim.me._bedTries = (sim.me._bedTries || 0) + 1; return { name: 'scout', args: { what: 'sheep' } }; }
+  }
+  // surplus goes in the pool when we are home anyway
+  if (team && sim.team.chest != null && atHome(sim) && Object.values(surplus(sim)).reduce((a, b) => a + b, 0) >= 32) return { name: 'store' };
   if (!n('iron_sword')) {
     const iron = n('iron_ore') + n('iron_ingot');
     if (iron < 2 || n('coal') < 2) { if (!sim._swordTries || sim._swordTries < 3) { sim._swordTries = (sim._swordTries || 0) + 1; return { name: 'mine_iron', args: { iron: 2, coal: 2 } }; } }

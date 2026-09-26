@@ -301,7 +301,7 @@ model only decides.
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 321 checks, ~45 s, gates the deploy (multiplayer, plants, projects, water and survival included) |
+| `test/craft.selftest.mjs` | 337 checks, ~55 s, gates the deploy (multiplayer, plants, projects, water, survival, chests, team house and beds included) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -982,6 +982,94 @@ drowning and floods are hazards for **you** (and for falls). A Jev agent
 picks the same macros, so it inherits the same caution, and when it does end up
 under water, the `air` threat and the `surface` option's `relieves: air` are
 what it reads.
+
+### The team: a shared chest, a house for everyone, beds that need everyone (2026-09-26)
+
+The operator, watching the swarm: *"these should not be three independent
+players, they should be a team."* Three things turn three players into one
+team, and each one is a real constraint rather than a label.
+
+**The chest is the pool.** A `chest` (8 planks, at a table) holds **27 stacks**.
+A stack is 64 of most things, 16 doors, and one of a tool, a sword or a bed.
+That is Minecraft's limit and the only limit on the pool (`CHEST_SLOTS`,
+`stackSize`, `roomFor` in `world.mjs`). Contents live in `sim.chests` (voxel →
+items) and travel in the stream as `["chest", c, y, {…}]` (null when the chest
+is gone). The first chest a player places is **the team chest**
+(`sim.team.chest`). New primitives `store` and `take` move items between a
+player and a chest in reach, and refuse with the reason (*"the chest is full"*,
+*"the chest has no wool"*). Macros:
+- `set_up_chest`: make one and put it at home, inside the house if there is room.
+- `store`: go to the chest and put in your **surplus**. Everything is surplus
+  but tools, doors, beds and stations, 8 cobblestone, a few planks, logs and
+  sticks, 4 torches, 2 coal, 3 of each food, 2 of each seed, and the wool and
+  planks for a bed if you still lack one.
+- `take {item, n}`: fetch something from the pool.
+
+**The chest is never a shortcut.** The digging planner treated it like any
+other block and tunnelled through it, which empties the whole pool into one
+player's pocket. It was measured: the first 3-day swarm ended with no chest at all.
+`clearCost` now refuses chests.
+
+**The house scales with the team.** `planHouse(sim, c0, R)` takes the interior
+radius. A house sleeps one player per 4 floor tiles (`houseCapacity`), and the
+builder takes the smallest radius that sleeps everyone: radius 1 for one player,
+as before; radius 2 (12–25 tiles depending on the tiling) for three. The builder
+**draws building blocks from the team chest** when it is short, never builds on
+top of a teammate, and only one player builds at a time (`sim.team.builder`,
+released in a `finally`, so an interrupted build frees it). When the house is
+sealed it becomes **every player's** home and respawn point (`sim.team.house`).
+
+**Beds need everyone.** A `bed` is 3 wool + 3 planks. `sleep_in_bed` places
+yours on a free floor tile of the house (you walk over a bed; it does not block
+the way) and lies in it. **The night passes only when every player is asleep
+at once.** Sleep alone and you wait in bed until dawn. The `sleep` primitive
+also refuses with zombies within 6 (*"you may not rest"*), as Minecraft does.
+The skip jumps the clock to dawn, clears the zombies, and notes `slept`. Its
+option says so: *"the night passes the moment every player is asleep (1 of 2
+teammates are now)"*.
+
+**Sheep** graze on grass (their own rng, so pig, zombie and drop sequences are
+unchanged). Killing one gives 1–2 wool and a mutton; `cooked_mutton` is 6 food.
+`hunt {kind: 'sheep'}`, and `scout` takes `sheep`.
+
+**The decision layer.** `perceive().shared`: the chest's stacks used out of 27 and
+its top holdings, whether the house sleeps the team, and how many players
+have a bed. New options: `set_up_chest`, `store` (listing the surplus),
+`take_<item>` for whatever the project's next steps are short of *and* the
+pool holds, `hunt_sheep` / `scout_sheep`, `sleep_in_bed`, and crafts for
+chest, bed and cooked mutton. The tech project gained a **chest** step (team
+only) and a **bed** step. The house step reads *"a house for the whole team"*
+and counts the pool: *"needs ~90+ building blocks for 3, the team holds 164"*.
+
+**The baseline as a team.** Someone sets up the chest first; everyone mines
+stone and stores it; whoever sees ~90 blocks in the pool builds the house for
+all; surplus goes in whenever a player is home; wool comes out of the pool
+when it completes a bed. Two faults found on the way:
+- **A zero-tick failure at the top of the night branch repeated every tick.**
+  `sleep_in_bed` could not find a spot for the bed ("nowhere to put the
+  bed"), failed without spending a tick, and was picked again at once. Each
+  pick ran an expensive failed search, and a 3-day swarm ran for over 7
+  minutes. Fixed: a real bed-spot search over the whole house floor, a failed bed
+  or home plan is not retried the same night, and the party scheduler now
+  records `_lastMacro` (it never did, so no anti-stuck rule could fire in a party).
+- **The pool swallowed a bed.** One player's wool went into the chest as
+  surplus, it never took any back, and the team never slept through a night.
+  Wool is now kept by anyone without a bed, and taken from the pool when that
+  completes one. Only fruitless scouting counts against the bed tries, not hunts.
+
+**Measured, 3 baselines in one party, 3 days** (`playParty`, headless):
+
+| world | house | chest at the end | beds | nights skipped | tech | deaths |
+|---|---|---|---|---|---|---|
+| penrose/3 | R2, 13 tiles, sleeps 3, tick 651 | 768 cobblestone, 192 dirt, 128 sand, 63 coal, 31 iron ore, 49 torches, food | 3 / 3 | **3 of 3** | 10/10 ×3 | 0 |
+| kagome/4 | R2, 16 tiles, sleeps 4, tick 755 | similar | 3 / 3 | 2 of 3 | 10/10 ×3 | 0 |
+
+**One trade-off that falls out and is worth knowing: a skipped night grows
+nothing.** Crops only grow on ticks that are played. A solo player with a bed
+skips every night, so the **moonpetal, which grows only at night, never
+ripens.** The solo baseline's species grown in 3 days fell from 4 to 3 when
+beds arrived. That is not a bug to fix. It is a real choice (sleep, or stay up
+for the moonpetal), and the harness does not yet make it visible to Jev as one.
 
 ### What is next
 

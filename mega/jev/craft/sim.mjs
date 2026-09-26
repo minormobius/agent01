@@ -24,13 +24,14 @@
 //   ["inv",{item:n}]       whole inventory        ["do",op,…]       player action began
 //   ["hit",from,to,dmg]    melee                  ["die",id]        death
 //   ["air",id,n]           breath, in steps of 10 (0 = drowning)
+//   ["chest",c,y,{item:n}] a chest's whole contents (null: it is gone)
 //   ["note",kind,…]        anything a caller annotates: macro starts/ends,
 //                          Jev's questions and answers (runner.mjs)
 // Crops grow by 'b' events too (sprout → growing → plant), so a replay needs
 // nothing new to show a farm.
 
 import {
-  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD, HEAL, SEEDS,
+  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD, HEAL, SEEDS, roomFor,
   generateWorld, worldSignature, mulberry, hash32, blockName,
 } from './world.mjs';
 import { habitat, growCrops, harvestDrop, GROW_EVERY } from './plants.mjs';
@@ -69,6 +70,8 @@ export class Sim {
     this.crops = new Set();       // voxels holding a plant that is still growing
     this.cultivated = new Map();  // voxel → { sp, by } for everything a player planted
     this.flowQ = new Set();       // voxels where water may be about to flow (only ever woken by a change)
+    this.chests = new Map();      // voxel → { item: n } — the shared pool, limited by CHEST_SLOTS stacks
+    this.team = { chest: null };  // the team's chest (the first one a player places), for macros to find
     this.lines = [];
     this.ev = [];
     this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0, placed: {}, planted: {}, harvested: {}, grown: {} };
@@ -87,6 +90,16 @@ export class Sim {
       const y = this.surface(c);
       if (this.get(c, y - 1) !== B.grass) continue;
       this.spawnEnt('pig', c, y, { hp: 10 });
+      k++;
+    }
+    // sheep: their own rng, so every world's pigs, zombies and drops are as they were
+    this.rngSheep = mulberry(hash32(w.seed, 0x5EE9));
+    const sheep = Math.round(this.N / 320);
+    for (let k = 0, tries = 0; k < sheep && tries < sheep * 20; tries++) {
+      const c = Math.floor(this.rngSheep() * this.N);
+      const y = this.surface(c);
+      if (this.get(c, y - 1) !== B.grass || this.occupied(c, y)) continue;
+      this.spawnEnt('sheep', c, y, { hp: 8 });
       k++;
     }
     this.flush();
@@ -142,6 +155,8 @@ export class Sim {
     if (BLOCKS[id].light) this.torches.add(k);
     if (BLOCKS[id].plant && BLOCKS[id].stage < 2) this.crops.add(k); else this.crops.delete(k);
     if (!BLOCKS[id].plant) this.cultivated.delete(k);
+    if (id === B.chest && !this.chests.has(k)) { this.chests.set(k, {}); if (this.team.chest == null) this.team.chest = k; }
+    if (old === B.chest && id !== B.chest) { this.chests.delete(k); if (this.team.chest === k) this.team.chest = [...this.chests.keys()][0] ?? null; }
     // water: standing water is at rest until something changes beside it
     if (y <= SEA && floodable(id)) this.flowQ.add(k);
     if (id === B.water) { if (y > 1) this.flowQ.add(k - 1); for (const n of this.cols[c].adj) this.flowQ.add(n * H + y); }
@@ -187,7 +202,7 @@ export class Sim {
     return e;
   }
   removeEnt(e, why) { this.ents.delete(e.id); this.emit(['-', e.id, why]); }
-  tallOf(e) { return e.kind === 'pig' ? 1 : 2; }
+  tallOf(e) { return e.kind === 'pig' || e.kind === 'sheep' ? 1 : 2; }
   occupied(c, y) {
     for (const e of this.ents.values()) if (e.c === c && y >= e.y && y < e.y + this.tallOf(e)) return e;
     return null;
@@ -253,6 +268,7 @@ export class Sim {
     }
     this.stats.kills[e.kind] = (this.stats.kills[e.kind] || 0) + 1;
     if (e.kind === 'pig' && from && from.kind === 'player') this.giveTo(from, 'porkchop', 1 + Math.floor(this.rng() * 2));
+    if (e.kind === 'sheep' && from && from.kind === 'player') { this.giveTo(from, 'wool', 1 + Math.floor(this.rngSheep() * 2)); this.giveTo(from, 'mutton', 1); }
     this.removeEnt(e, 'killed');
   }
 
@@ -359,10 +375,12 @@ export class Sim {
         return { ok: true, ticks, pre: () => this.emit(['do', 'mine', c, y, ticks]), post: () => {
           if (this.get(c, y) !== blk.id) return no('block changed while mining');
           const cult = this.cultivated.get(c * H + y);
+          const stash = blk.id === B.chest ? { ...(this.chests.get(c * H + y) || {}) } : null;
           this.set(c, y, B.air);        // if it touched water, the flow fills it (and whatever it opens onto)
           this.stats.mined[blk.name] = (this.stats.mined[blk.name] || 0) + 1;
           if (blk.drop) this.give(blk.drop, 1);
           if (blk.plant) this.reap(blk, cult);
+          if (stash) { this.give('chest', 1); for (const [k2, n2] of Object.entries(stash)) this.give(k2, n2); this.emit(['chest', c, y, null]); }
           // a plant standing on what was just mined falls with it
           if (BLOCKS[this.get(c, y + 1)].plant) this.set(c, y + 1, B.air);
           if (blk.id === B.leaves && this.rng() < 1 / 6) this.give('apple', 1);
@@ -419,6 +437,32 @@ export class Sim {
           (p.plots = p.plots || {})[c * H + y] = sp;
           this.stats.planted[sp] = (this.stats.planted[sp] || 0) + 1;
         } };
+      }
+      case 'store':
+      case 'take': {
+        // put items in a chest, or take them out: the team's shared pool
+        const { c, y, item } = a;
+        if (this.get(c, y) !== B.chest) return no('no chest there');
+        if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
+        const box = this.chests.get(c * H + y);
+        const want = Math.max(1, a.n | 0 || 1);
+        const n = a.op === 'store' ? Math.min(want, this.inv[item] || 0, roomFor(box, item)) : Math.min(want, box[item] || 0);
+        if (n <= 0) return no(a.op === 'store' ? (this.has(item) ? 'the chest is full' : `no ${item} to store`) : `the chest has no ${item}`);
+        return { ok: true, ticks: 1, moved: n, pre: () => {
+          this.emit(['do', a.op, c, y, item, n]);
+          if (a.op === 'store') { this.take(item, n); box[item] = (box[item] || 0) + n; }
+          else { box[item] -= n; if (!box[item]) delete box[item]; this.give(item, n); }
+          this.emit(['chest', c, y, { ...box }]);
+        } };
+      }
+      case 'sleep': {
+        // lie in a bed at night. The night passes only when every player is asleep.
+        const { c, y } = a;
+        if (this.get(c, y) !== B.bed) return no('no bed there');
+        if (!this.isNight()) return no('you can only sleep at night');
+        if (!(p.c === c && p.y === y) && !this.reachable(p.c, p.y, c, y)) return no('out of reach');
+        if ([...this.ents.values()].some((e) => e.kind === 'zombie' && this.dist(e.c, p.c) < 6)) return no('you may not rest, there are zombies nearby');
+        return { ok: true, ticks: 20, pre: () => { if (!p.asleep) this.emit(['do', 'sleep', c, y]); p.asleep = true; p.home = [c, y]; }, post: () => { p.asleep = false; return { ok: true }; } };
       }
       case 'craft': {
         const r = RECIPES[a.item];
@@ -521,6 +565,13 @@ export class Sim {
   // ------------------------------------------------------------ the tick ---
   step() {
     this.tick++;
+    // everyone asleep in a bed at night: the night passes (and the zombies with it)
+    if (this.isNight() && this.players.length && this.players.every((q) => q.asleep)) {
+      this.tick = Math.ceil(this.tick / DAY) * DAY;
+      this.emit(['note', 'slept', { players: this.players.length }]);
+      for (const z of [...this.ents.values()]) if (z.kind === 'zombie') this.removeEnt(z, 'dawn');
+      for (const q of this.players) q.asleep = false;
+    }
     const t = this.tick;
     // spawning is anchored to one player per tick, in turn (no RNG spent on
     // choosing, so a one-player world is unchanged by there being a list)
@@ -580,6 +631,7 @@ export class Sim {
       if (e.cd > 0) e.cd--;
       if (e.kind === 'zombie') this.zombieTick(e);
       else if (e.kind === 'pig') this.pigTick(e);
+      else if (e.kind === 'sheep') this.pigTick(e, this.rngSheep);
     }
     this.flush();
   }
@@ -627,11 +679,11 @@ export class Sim {
     if (y === step[1] && !this.occupied(step[0], step[1]) && !this.occupied(step[0], step[1] + 1)) { this.moveEnt(z, step[0], step[1]); z.route.shift(); }
     else z.route = null;
   }
-  pigTick(g) {
-    if (this.tick % 6 || this.rng() < 0.5) return;
+  pigTick(g, rng = this.rng) {
+    if (this.tick % 6 || rng() < 0.5) return;
     const adj = this.cols[g.c].adj;
     if (!adj.length) return;
-    const n = adj[Math.floor(this.rng() * adj.length)];
+    const n = adj[Math.floor(rng() * adj.length)];
     const y = this.stepTarget(g.c, g.y, n, 1, 1, true);
     if (y != null && this.get(n, y - 1) !== B.water && !this.occupied(n, y)) this.moveEnt(g, n, y);
   }
@@ -682,6 +734,7 @@ export class Sim {
     // stations are mineable like anything else: mining one hands it back, so
     // nothing is lost — and a furnace in a doorway must not seal a house
     if (this.protect.has(c * H + y)) return Infinity;   // a house wall: never a shortcut
+    if (id === B.chest) return Infinity;                 // nor the team's pool: digging through it empties it into one pocket
     if (this.bordersWater(c, y)) return Infinity;      // opening it would flood the dig
     return Math.max(1, Math.ceil(blk.hard / (blk.tool ? PICK_SPEED[tier] : 1)));
   }
@@ -795,6 +848,7 @@ export class Replay {
     this.ents = new Map();
     this.tick = 0; this.notes = [];
     this.people = new Map();      // player id → { hp, food, inv }
+    this.chests = new Map();      // voxel → contents, from 'chest' events
     this.focus = 0;               // whose health / food / inventory the HUD shows
   }
   person(id) {
@@ -818,6 +872,7 @@ export class Replay {
         case 'hp': this.person(ev[1]).hp = ev[2]; break;
         case 'food': this.person(ev[2] ?? 0).food = ev[1]; break;
         case 'air': this.person(ev[1]).air = ev[2]; break;
+        case 'chest': if (ev[3]) this.chests.set(ev[1] * H + ev[2], ev[3]); else this.chests.delete(ev[1] * H + ev[2]); break;
         case 'inv': this.person(ev[2] ?? 0).inv = ev[1]; break;
         case 'note': this.notes.push({ k: L.k, kind: ev[1], data: ev[2] }); break;
       }

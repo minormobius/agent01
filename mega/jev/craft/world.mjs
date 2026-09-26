@@ -44,6 +44,8 @@ export const SPECIES_NAMES = Object.keys(SPECIES);
   let id = 21;
   for (const sp of SPECIES_NAMES) for (const st of ['sprout', 'growing', 'plant']) B[`${sp}_${st}`] = id++;
 }
+// the team's furniture: a chest (the shared pool) and a bed
+B.chest = 36; B.bed = 37;
 export const BLOCKS = [];
 const def = (name, o) => { BLOCKS[B[name]] = { id: B[name], name, solid: true, hard: 3, tool: 0, drop: name, color: '#888', ...o }; };
 def('air',            { solid: false, hard: Infinity, drop: null, color: null });
@@ -74,12 +76,29 @@ def('farmland',       { hard: 3, drop: 'dirt', color: '#5b3d22', top: '#4a311b' 
 def('lantern',        { solid: false, hard: 1, color: '#7fe3d0', light: true });
 for (const sp of SPECIES_NAMES) ['sprout', 'growing', 'plant'].forEach((st, i) =>
   def(`${sp}_${st}`, { solid: false, hard: 1, drop: null, plant: sp, stage: i, color: i === 2 ? SPECIES[sp].color : SPECIES[sp].young }));
+// a chest holds CHEST_SLOTS stacks; the team's shared pool (sim.chests)
+def('chest',          { hard: 6, color: '#9a6b32', top: '#b8894a', drop: null });
+// a bed: stand in it at night to sleep; the night passes only when EVERY
+// player is asleep. It is also where you respawn.
+def('bed',            { solid: false, mobSolid: true, hard: 2, color: '#c0392b', top: '#e8e2d6', drop: 'bed' });
 def('lava',           { solid: false, hazard: true, mobSolid: true, hard: Infinity, drop: null, color: '#ff6a1a', top: '#ffb13d' });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
 // Items that place as a block. Everything else is inventory-only.
-export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern']);
+export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed']);
+// Chests: 27 stacks, as Minecraft's. A stack is 64 of most things; a tool,
+// a sword or a bed is a stack of one. That is the whole limit on the pool.
+export const CHEST_SLOTS = 27;
+export const stackSize = (item) => /_(pickaxe|sword|hoe)$/.test(item) || item === 'bed' ? 1 : item === 'door' ? 16 : 64;
+export const slotsUsed = (items) => Object.entries(items).reduce((n, [k, v]) => n + Math.ceil(v / stackSize(k)), 0);
+// how many of `item` still fit in a chest holding `items`
+export function roomFor(items, item) {
+  const ss = stackSize(item), have = items[item] || 0;
+  const partial = have % ss ? ss - (have % ss) : 0;
+  const free = CHEST_SLOTS - slotsUsed(items);
+  return partial + Math.max(0, free) * ss;
+}
 // seeds are planted (the 'plant' op), not placed
 export const SEEDS = Object.fromEntries(SPECIES_NAMES.map((sp) => [`${sp}_seeds`, sp]));
 // what a wall, a floor or a roof can be made of, best first
@@ -108,6 +127,9 @@ export const RECIPES = {
   iron_pickaxe:    { n: 1, need: { iron_ingot: 3, stick: 2 }, at: 'crafting_table' },
   iron_sword:      { n: 1, need: { iron_ingot: 2, stick: 1 }, at: 'crafting_table' },
   wooden_hoe:      { n: 1, need: { planks: 2, stick: 2 }, at: 'crafting_table' },
+  chest:           { n: 1, need: { planks: 8 }, at: 'crafting_table' },
+  bed:             { n: 1, need: { wool: 3, planks: 3 }, at: 'crafting_table' },
+  cooked_mutton:   { n: 1, need: { mutton: 1, coal: 1 }, alt: [{ mutton: 1, charcoal: 1 }, { mutton: 1, planks: 1 }], at: 'furnace' },
   bread:           { n: 1, need: { wheat: 3 } },
   lantern:         { n: 2, need: { glowcap: 2, stick: 1 } },
 };
@@ -117,10 +139,10 @@ export const recipeBags = (r) => [r.need, ...(r.alt || [])];
 export const PICK_TIER = { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3 };
 export const PICK_SPEED = { 0: 1, 1: 2, 2: 4, 3: 6 };
 export const SWORD_DMG = { none: 1, wooden_sword: 4, stone_sword: 5, iron_sword: 6 };
-export const FOOD = { apple: 4, porkchop: 3, cooked_porkchop: 8, bread: 5, sunfruit: 6, moonpetal: 2 };
+export const FOOD = { apple: 4, porkchop: 3, cooked_porkchop: 8, bread: 5, sunfruit: 6, moonpetal: 2, mutton: 3, cooked_mutton: 6 };
 export const HEAL = { moonpetal: 6 };        // eating it also restores health
 // what to eat first (the best meal carried); moonpetal is saved for healing
-export const EAT_ORDER = ['cooked_porkchop', 'bread', 'sunfruit', 'apple', 'porkchop', 'moonpetal'];
+export const EAT_ORDER = ['cooked_porkchop', 'cooked_mutton', 'bread', 'sunfruit', 'apple', 'porkchop', 'mutton', 'moonpetal'];
 
 // ---------------------------------------------------------------- noise -----
 export function hash32(...xs) {
