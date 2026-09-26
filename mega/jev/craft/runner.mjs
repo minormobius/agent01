@@ -119,7 +119,7 @@ export function baselinePolicy(sim) {
     else if (blocks < 70) return { name: 'mine_stone', args: { n: 70 } };
     else { sim._houseFails = (sim._houseFails || 0) + 1; return { name: 'build_house' }; }
   }
-  if (sim._house && !sim._lit) { sim._lit = true; return { name: 'light_area', args: { n: 4 } }; }
+  if (sim._house && !sim._lit && !sim._litTried) { sim._litTried = true; return { name: 'light_area', args: { n: 4 } }; }
   // the daily round
   const round = ['explore', 'explore', 'hunt', 'branch_mine', 'explore'];
   sim._round = ((sim._round ?? -1) + 1) % round.length;

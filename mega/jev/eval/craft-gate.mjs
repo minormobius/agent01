@@ -47,7 +47,9 @@ for (const w of worlds) {
   for (const [arm, decide] of Object.entries(arms)) {
     const sim = new Sim({ ...w, difficulty });
     const t0 = Date.now();
-    const r = await playMind(sim, decide, { maxTicks: ticks, gate: false });
+    const log = arm === 'jev' && process.env.CRAFT_TRACE;
+    const r = await playMind(sim, decide, { maxTicks: ticks, gate: false, maxDecisions: +arg('max-decisions', 400),
+      onDecision: log ? (d) => console.log(`  ${String(d.tick).padStart(5)} ${String(d.choice).padEnd(22)} ${d.confidence?.toFixed(2)} ${d.result}${d.error ? ' ERR ' + d.error : ''}`) : undefined });
     const rung = Object.fromEntries(RUNGS.map((g) => [g, r.milestones[`goal:${g}`] ?? null]));
     const conf = r.decisions.map((d) => d.confidence).filter((c) => c != null);
     const row = {

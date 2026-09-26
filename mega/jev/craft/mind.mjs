@@ -107,8 +107,13 @@ export function options(sim) {
   const add = (id, name, args, facts) => {
     const m = PALETTE[name];
     const leaves = !['craft', 'eat', 'fight', 'sleep_until_dawn', 'dig_in', 'set_home', 'surface'].includes(name) && !(name === 'go_home');
+    // the option carries its own last failure. A fact in the journal is not
+    // a fact on the option being chosen — the dungeon's rope lesson.
+    const last = sim._outcomes && sim._outcomes[id];
+    const failed = last && !last.ok && sim.tick - last.tick < 2400
+      ? { last_tried: `FAILED ${sim.tick - last.tick} ticks ago, after spending ${last.ticks} ticks: ${last.why}` } : {};
     out.push({ id, name, args, criteria: {
-      activity: m.doc, mode: m.mode, ...facts,
+      activity: m.doc, mode: m.mode, ...facts, ...failed,
       ...(night && leaves ? { at_night: 'goes out among zombies' } : {}),
     } });
   };
@@ -243,6 +248,12 @@ export function resolve(sim, opts, response, { gate = true } = {}) {
   return { pick, record };
 }
 
+export function remember(sim, id, ended) {
+  if (!id) return;
+  sim._outcomes = sim._outcomes || {};
+  sim._outcomes[id] = { tick: sim.tick, ok: ended.ok, why: ended.why, ticks: ended.ticks };
+}
+
 // A journal entry per decision, kept short: the model reads its own last six.
 export function journal(sim, record, outcome) {
   sim._journal = sim._journal || [];
@@ -286,6 +297,7 @@ export async function playMind(sim, decide, { maxTicks = DAY, maxDecisions = 200
     let r;
     for (;;) { r = d.step(); if (r && r.ended) break; }
     journal(sim, record, r.ended);
+    remember(sim, record.choice, r.ended);
     record.pick = pick.name;
     record.result = r.ended.ok ? 'ok' : r.ended.why;
     record.ticks = r.ended.ticks;

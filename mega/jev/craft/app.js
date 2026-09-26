@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { OrbitControls } from '../delve/vendor/OrbitControls.js';
 import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
-import { options, buildQuestions, perceive, resolve, journal, DECIDERS, jevDecider, GATE } from './mind.mjs';
+import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
 import { BLOCKS, B, H, hash01, RECIPES } from './world.mjs';
 import { SHAPES } from './tiling.mjs';
@@ -514,7 +514,7 @@ function frame(now) {
       }
       const r = driver.step();
       if (r && r.done) sim.act({ op: 'wait', ticks: 1 });            // "you", idle: the world keeps turning
-      if (r && r.ended && driver._record) { journal(sim, driver._record, r.ended); driver._record = null; }
+      if (r && r.ended && driver._record) { journal(sim, driver._record, r.ended); remember(sim, driver._record.choice, r.ended); driver._record = null; }
       if (driver.lastAction && driver.lastAction.op === 'wait') target = Math.max(target, sim.tick);
     }
     if (pending) target = sim.tick;

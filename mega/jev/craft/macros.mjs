@@ -731,6 +731,11 @@ export function* buildHouse(sim) {
 export function* lightArea(sim, n = 4) {
   if ((sim.inv.torch || 0) < n) yield* craft(sim, 'torch', n);
   if (!sim.has('torch')) return { ok: false, why: 'no torches, and nothing to make them from' };
+  // the grounds are around the house: get there first (from a mine, say)
+  if (sim.home && sim.dist(sim.player.c, sim.home[0]) > 6) {
+    const h = yield* goHome(sim);
+    if (!h.ok) return { ok: false, why: `could not get home to light it (${h.why})` };
+  }
   const [hc] = sim.home || [sim.player.c];
   const d = ball(sim, hc, 5);
   const lit = [];
@@ -746,6 +751,7 @@ export function* lightArea(sim, n = 4) {
     const r = yield { op: 'place', c, y, item: 'torch' };
     if (r.ok) { placed++; lit.push(c); }
   }
+  if (placed && sim._house && sim.home && sim.dist(sim.player.c, sim.home[0]) <= 8) sim._lit = true;   // the rung is earned by doing it, whoever chose it
   return placed ? { ok: true } : { ok: false, why: 'nowhere to put a torch' };
 }
 
