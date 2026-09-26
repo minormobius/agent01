@@ -11,7 +11,7 @@ import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
 import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
-import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags } from './world.mjs';
+import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags, KINDS } from './world.mjs';
 import { SHAPES, columnLocator } from './tiling.mjs';
 
 const $ = (id) => document.getElementById(id);
@@ -418,9 +418,9 @@ function showDecision(opts, response, record, pick) {
 
 function startLive() {
   const shape = $('shape').value, seed = Math.max(1, parseInt($('seed').value, 10) || 1);
-  location.hash = `shape=${shape}&seed=${seed}&who=${$('who').value}&difficulty=${$('difficulty').value}`;
+  location.hash = `kind=${$('kind').value}&size=${$('size').value}&shape=${shape}&seed=${seed}&who=${$('who').value}&difficulty=${$('difficulty').value}`;
   fileLines = null;
-  sim = new Sim({ shape, seed, difficulty: $('difficulty').value });
+  sim = new Sim({ shape, seed, difficulty: $('difficulty').value, kind: $('kind').value, size: $('size').value });
   outbox = [];
   pending = null;
   driver = new Driver(sim);
@@ -547,6 +547,11 @@ const hands = {
 };
 const playing = () => sim && $('who').value === 'you';
 const locked = () => document.pointerLockElement === canvas;
+// touch screens have no pointer lock: "engaged" is locked OR the touch game started
+const touching = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+if (touching) document.body.classList.add('touching');
+let touchOn = false;
+const engaged = () => locked() || (touching && touchOn);
 function toast(msg) {
   const t = $('toast');
   t.textContent = msg; t.hidden = false;
@@ -573,6 +578,7 @@ function moveIntent() {
   const k = hands.keys;
   const f = flatForward(), r = new THREE.Vector3(-f.z, 0, f.x);
   const w = new THREE.Vector3();
+  if (stick.active && Math.hypot(stick.x, stick.y) > 0.35) { w.addScaledVector(f, stick.y).addScaledVector(r, stick.x); }
   if (k.has('KeyW')) w.add(f);
   if (k.has('KeyS')) w.sub(f);
   if (k.has('KeyD')) w.add(r);
@@ -584,11 +590,12 @@ function moveIntent() {
 }
 // Aim: march the view ray through the prism voxels (and past mobs). Returns
 // the first thing hit and the empty voxel just before it (where a block goes).
-function aim() {
+function aim(nx = 0, ny = 0) {
   if (!replay || !locate) return null;
   camera.updateMatrixWorld();                     // the view as set this frame, not the last render
   const o = camera.position.clone(), d = new THREE.Vector3();
-  camera.getWorldDirection(d);
+  if (nx || ny) d.set(nx, ny, 0.5).unproject(camera).sub(o).normalize();   // a tap, not the crosshair
+  else camera.getWorldDirection(d);
   const pe = entMesh.get(0);
   const start = hands.third && pe ? camera.position.distanceTo(new THREE.Vector3(pe.position.x, pe.position.y + 1.62, pe.position.z)) : 0;
   let prev = null;
@@ -701,7 +708,8 @@ function renderRecipes() {
 }
 function syncPlayUI() {
   const on = playing();
-  document.body.classList.toggle('immersed', on && locked());
+  document.body.classList.toggle('immersed', on && engaged());
+  document.body.classList.toggle('play', on && engaged());
   // the crosshair doubles as the progress bar of whatever the hands are doing
   const b = hands.busy;
   if (b && target < b.end) {
@@ -709,10 +717,76 @@ function syncPlayUI() {
     $('crosshair').textContent = '▰'.repeat(n) + '▱'.repeat(8 - n);
   } else { $('crosshair').textContent = '+'; hands.busy = null; }
   $('crosshair').hidden = !(on && locked());
-  $('help').hidden = !(on && !locked()) || !$('craftpanel').hidden;
+  $('help').hidden = !(on && !engaged()) || !$('craftpanel').hidden;
   if (!on && !$('craftpanel').hidden) toggleCrafting(false);
 }
 document.addEventListener('pointerlockchange', syncPlayUI);
+
+// --------------------------------------------------------------- touch ------
+// A thumb stick for walking, a drag anywhere else to look, a tap to mine (or
+// place, with "place" on). Everything funnels into the same hands.queue and
+// moveIntent as the keyboard, so touch play is the same game.
+const stick = { active: false, id: null, x: 0, y: 0 };
+const stickEl = $('stick'), knob = stickEl.querySelector('i');
+function stickMove(e) {
+  const r = stickEl.getBoundingClientRect();
+  let dx = (e.clientX - (r.left + r.width / 2)) / (r.width / 2), dy = (e.clientY - (r.top + r.height / 2)) / (r.height / 2);
+  const L = Math.hypot(dx, dy); if (L > 1) { dx /= L; dy /= L; }
+  stick.x = dx; stick.y = -dy;
+  knob.style.transform = `translate(${dx * 34}px, ${dy * 34}px)`;
+}
+stickEl.addEventListener('pointerdown', (e) => { stick.active = true; stick.id = e.pointerId; try { stickEl.setPointerCapture(e.pointerId); } catch {} stickMove(e); takeOver(); e.preventDefault(); });
+stickEl.addEventListener('pointermove', (e) => { if (stick.active && e.pointerId === stick.id) stickMove(e); });
+const stickEnd = (e) => { if (e.pointerId !== stick.id) return; stick.active = false; stick.x = stick.y = 0; knob.style.transform = ''; };
+stickEl.addEventListener('pointerup', stickEnd); stickEl.addEventListener('pointercancel', stickEnd);
+
+let placeMode = false;
+const look = { id: null, x: 0, y: 0, x0: 0, y0: 0, t0: 0 };
+canvas.addEventListener('pointerdown', (e) => {
+  if (!(playing() && touching && touchOn) || e.pointerType === 'mouse') return;
+  look.id = e.pointerId; look.x = look.x0 = e.clientX; look.y = look.y0 = e.clientY; look.t0 = performance.now();
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId !== look.id) return;
+  hands.yaw -= (e.clientX - look.x) * 0.006;
+  hands.pitch = Math.max(-1.45, Math.min(1.45, hands.pitch - (e.clientY - look.y) * 0.006));
+  look.x = e.clientX; look.y = e.clientY;
+});
+canvas.addEventListener('pointerup', (e) => {
+  if (e.pointerId !== look.id) return;
+  look.id = null;
+  const moved = Math.hypot(e.clientX - look.x0, e.clientY - look.y0), quick = performance.now() - look.t0 < 400;
+  if (moved > 10 || !quick) return;                              // that was a look, not a tap
+  const nx = (e.clientX / innerWidth) * 2 - 1, ny = -(e.clientY / innerHeight) * 2 + 1;
+  const a = aim(nx, ny);
+  hands.aim = a;
+  if (!a) return;
+  takeOver();
+  if (a.ent) return hands.queue.push({ op: 'attack', id: a.ent.id });
+  if (placeMode) {
+    const item = hands.selected();
+    if (!item || !PLACEABLE.has(item)) return toast(item ? `${item.replace(/_/g, ' ')} does not place` : 'nothing selected');
+    if (!a.place) return toast('no room to place there');
+    hands.queue.push({ op: 'place', c: a.place.c, y: a.place.y, item });
+  } else hands.queue.push({ op: 'mine', c: a.c, y: a.y });
+});
+$('t-go').addEventListener('click', () => { touchOn = true; syncPlayUI(); });
+$('t-place').addEventListener('click', () => { placeMode = !placeMode; $('t-place').classList.toggle('on', placeMode); toast(placeMode ? 'taps place the selected block' : 'taps mine'); });
+$('t-eat').addEventListener('click', () => {
+  const food = ['cooked_porkchop', 'apple', 'porkchop'].find((k) => replay.inv[k]);
+  if (food) hands.queue.push({ op: 'eat', item: food }); else toast('no food');
+});
+$('t-craft').addEventListener('click', () => toggleCrafting());
+$('t-view').addEventListener('click', () => { hands.third = !hands.third; });
+
+// the phone dock: each panel is a drawer
+for (const b of document.querySelectorAll('.dock button')) {
+  b.addEventListener('click', () => {
+    const cls = 'show-' + b.dataset.panel, on = !document.body.classList.contains(cls);
+    for (const x of document.querySelectorAll('.dock button')) { document.body.classList.remove('show-' + x.dataset.panel); x.classList.remove('on'); }
+    document.body.classList.toggle(cls, on); b.classList.toggle('on', on);
+  });
+}
 
 // --------------------------------------------------------------- loop -------
 let lastT = performance.now();
@@ -787,7 +861,8 @@ function frame(now) {
     if (i) feed(outbox.splice(0, i));
   }
   if (replay) {
-    hands.aim = playing() && locked() ? aim() : null;
+    if (playing() && locked()) hands.aim = aim();
+    else if (!(playing() && touching && touchOn)) hands.aim = null;       // on touch, the last tap stays aimed
     showAim(hands.aim);
     syncPlayUI();
     for (const k of dirty) buildChunk(k);
@@ -804,11 +879,16 @@ function frame(now) {
 
 // ------------------------------------------------------------- wiring ------
 for (const s of SHAPES) { const o = document.createElement('option'); o.value = o.textContent = s; $('shape').appendChild(o); }
+for (const k of KINDS) { const o = document.createElement('option'); o.value = o.textContent = k; $('kind').appendChild(o); }
 const hp = new URLSearchParams(location.hash.slice(1));
 $('shape').value = SHAPES.includes(hp.get('shape')) ? hp.get('shape') : 'penrose';
 if (hp.get('seed')) $('seed').value = hp.get('seed');
 $('regen').addEventListener('click', startLive);
 $('shape').addEventListener('change', startLive);
+$('kind').addEventListener('change', startLive);
+$('size').addEventListener('change', startLive);
+if (KINDS.includes(hp.get('kind'))) $('kind').value = hp.get('kind');
+if (['s', 'm', 'l'].includes(hp.get('size'))) $('size').value = hp.get('size');
 $('who').addEventListener('change', setAuto);
 $('difficulty').addEventListener('change', startLive);
 if (['jev', 'baseline', 'offline', 'random', 'you'].includes(hp.get('who'))) $('who').value = hp.get('who');
@@ -830,6 +910,19 @@ $('load').addEventListener('change', async (e) => {
   if (f) startFile(await f.text());
 });
 buildMacroButtons();
+// a pasted or edited world link loads that world
+window.addEventListener('hashchange', () => {
+  const q = new URLSearchParams(location.hash.slice(1));
+  const want = `kind=${q.get('kind') || 'island'}&size=${q.get('size') || 's'}&shape=${q.get('shape')}&seed=${q.get('seed')}`;
+  const have = `kind=${$('kind').value}&size=${$('size').value}&shape=${$('shape').value}&seed=${$('seed').value}`;
+  if (want === have) return;
+  if (KINDS.includes(q.get('kind'))) $('kind').value = q.get('kind');
+  if (['s', 'm', 'l'].includes(q.get('size'))) $('size').value = q.get('size');
+  if (SHAPES.includes(q.get('shape'))) $('shape').value = q.get('shape');
+  if (q.get('seed')) $('seed').value = q.get('seed');
+  if (['jev', 'baseline', 'offline', 'random', 'you'].includes(q.get('who'))) $('who').value = q.get('who');
+  startLive();
+});
 startLive();
 requestAnimationFrame(frame);
 

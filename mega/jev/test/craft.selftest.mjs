@@ -15,7 +15,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SHAPES, buildTiling, rawTiles } from '../craft/tiling.mjs';
-import { generateWorld, worldSignature, B, H, CRAFT_VERSION } from '../craft/world.mjs';
+import { generateWorld, worldSignature, B, H, CRAFT_VERSION, KINDS } from '../craft/world.mjs';
 import { Sim, Replay } from '../craft/sim.mjs';
 import { play, runMacro } from '../craft/runner.mjs';
 import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
@@ -320,6 +320,52 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   // a buried block two tiles off is NOT reachable (no mining through walls)
   const buried = (() => { for (const n of sim.reachCols(p.c)) if (!sim.cols[p.c].adj.includes(n)) for (let y = p.y - 1; y <= p.y + 2; y++) if (sim.solid(n, y) && !sim.openFace(n, y)) return [n, y]; return null; })();
   ok(!buried || !sim.reachable(p.c, p.y, ...buried), 'a buried voxel two tiles off is out of reach');
+}
+
+
+// ------------------------------------------------------------ world kinds ---
+{
+  const count = (w, id) => { let n = 0; for (const b of w.blocks) if (b === id) n++; return n; };
+  const land = (w) => [...w.height].filter((h) => h > 14).length / w.height.length;
+  const ws = Object.fromEntries(KINDS.filter((k) => k !== 'mixed').map((k) => [k, generateWorld({ seed: 9, shape: 'hex', kind: k })]));
+  ok(worldSignature(generateWorld({ seed: 1, shape: 'penrose', kind: 'island' })) === PINS.penrose, 'kind island is the original world, byte for byte');
+  ok(land(ws.archipelago) < land(ws.island) - 0.15, `archipelago is mostly sea (land ${(100 * land(ws.archipelago)).toFixed(0)}% vs island ${(100 * land(ws.island)).toFixed(0)}%)`);
+  ok(count(ws.caverns, B.lava) > 100 && count(ws.island, B.lava) === 0, `caverns have lava pools (${count(ws.caverns, B.lava)}), islands none`);
+  ok(ws.desert.trees.length * 3 < ws.island.trees.length && ws.forest.trees.length > ws.island.trees.length * 1.5,
+    `trees: desert ${ws.desert.trees.length} ≪ island ${ws.island.trees.length} ≪ forest ${ws.forest.trees.length}`);
+  ok(Math.max(...ws.highlands.height) > Math.max(...ws.island.height) + 4, 'highlands stand taller than the island');
+  const mixed = generateWorld({ seed: 9, shape: 'hex', kind: 'mixed', size: 'm' });
+  ok(mixed.tiling.cols.length > ws.island.tiling.cols.length * 2 && new Set(mixed.biome).size >= 3, `a medium mixed world is bigger (${mixed.tiling.cols.length} columns) with ${new Set(mixed.biome).size} biomes`);
+  for (const [k, w] of Object.entries(ws)) ok(w.spawn >= 0 && w.height[w.spawn] > 14, `${k}: a dry spawn`);
+  // the stream names the kind, and a replay regenerates the same world
+  const sim = new Sim({ seed: 9, shape: 'hex', kind: 'caverns' });
+  const head = JSON.parse(sim.lines[0]);
+  ok(head.kind === 'caverns' && new Replay(sim.lines[0]).world.kind === 'caverns', 'the header carries the kind and Replay honours it');
+}
+
+// ------------------------------------------------------------- fog of war ---
+{
+  const sim = new Sim({ seed: 3, shape: 'penrose' });
+  const unseen = sim.cols.findIndex((c, i) => !sim.seen[i] && sim.canStand(i, sim.surface(i)));
+  ok(unseen >= 0 && !sim.digPath(sim.player, (c) => c === unseen, 60000), 'the planner will not plan a route to ground the player has never seen');
+  ok(!sim.path(sim.player, (c) => c === unseen, 60000), 'nor will the walking planner');
+  const hidden = [...sim.ents.values()].filter((e) => e.kind === 'pig' && !sim.seen[e.c]).length;
+  ok(hidden > 0, `some pigs start unseen (${hidden})`);
+  const noneInSight = ![...sim.ents.values()].some((e) => e.kind === 'pig' && sim.seen[e.c] && sim.dist(e.c, sim.player.c) <= 24);
+  ok(noneInSight ? /sight/.test(PALETTE.hunt.needs(sim, {}) || '') : PALETTE.hunt.needs(sim, {}) === null, 'hunt is offered only with a pig in sight');
+}
+
+// ----------------------------------------------------------- lava, dark -----
+{
+  const sim = new Sim({ seed: 9, shape: 'hex', kind: 'caverns' });
+  let lavaEdge = null;
+  for (let c = 0; c < sim.N && !lavaEdge; c++) for (let y = 1; y < H - 1; y++) if (sim.get(c, y) === B.stone && sim.get(c, y + 1) === B.lava) { lavaEdge = [c, y]; break; }
+  ok(!!lavaEdge && sim.clearCost(...lavaEdge, 3) === Infinity, 'the planner never opens a block that touches lava');
+  ok(!sim.passable(...(lavaEdge ? [lavaEdge[0], lavaEdge[1] + 1] : [0, 0])), 'lava is not a place anyone steps');
+  const hard = new Sim({ seed: 9, shape: 'hex', kind: 'caverns', difficulty: 'hard' });
+  const r = await playMind(hard, DECIDERS.baseline, { maxTicks: 2400 });
+  const zombiesByDay = hard.drain().filter((l) => l.includes('"zombie"')).some((l) => { const k = JSON.parse(l).k; return k < 3000; });
+  ok(zombiesByDay, 'zombies appear in the dark before the first night (caves, tunnels)');
 }
 
 // ---------------------------------------------------------------- text ------

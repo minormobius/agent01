@@ -71,18 +71,22 @@ button:disabled{opacity:.4;cursor:default}
 .decision .warn{color:var(--warn)} .decision .bad{color:var(--bad)}
 .bottom-right{right:12px;bottom:12px;width:min(420px,calc(100vw - 24px))}
 .tail{margin:4px 0 0;font:11px/1.35 var(--mono);color:var(--ink-2);white-space:pre;overflow:hidden;max-height:120px}
+/* phones and small tablets: every panel becomes a drawer behind a button in
+   the dock, so the world gets the screen */
+.dock{display:none}
 @media (max-width:900px){
-  .left,.right{right:12px;top:268px;width:min(340px,calc(100vw - 24px));max-height:calc(100vh - 470px);overflow:auto}
-.decision{font-size:12px}
-.decision .opt{display:grid;grid-template-columns:1fr 64px 38px;gap:6px;align-items:center;padding:1px 0}
-.decision .opt.pick{font-weight:600;color:var(--accent)}
-.decision .bar{height:6px;border-radius:3px;background:var(--line)}
-.decision .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
-.decision .meta{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
-.decision .warn{color:var(--warn)} .decision .bad{color:var(--bad)}
-.bottom-right{display:none}
-  .top-left{max-width:calc(100vw - 24px)}
-  .top-right{top:auto;bottom:120px;right:12px;left:12px;max-width:none}
+  .dock{display:flex;position:fixed;z-index:5;top:8px;right:8px;gap:6px}
+  .dock button{background:var(--panel);font-size:13px;padding:6px 10px}
+  .dock button.on{border-color:var(--accent);color:var(--accent)}
+  .top-left{top:8px;left:8px;max-width:calc(100vw - 180px);padding:6px 8px}
+  .top-left .sub,.top-left .links{display:none}
+  .top-left h1{font-size:16px;margin:0}
+  .top-right,.left,.right,.bottom-right{display:none;left:8px;right:8px;width:auto;max-width:none;top:60px;max-height:calc(100vh - 220px);overflow:auto}
+  body.show-controls .top-right,body.show-macros .left,body.show-decision .right,body.show-stream .bottom-right{display:block}
+  body.show-controls .top-right{display:grid}
+  .bottom{bottom:8px;min-width:0;width:calc(100vw - 16px);padding:6px 8px}
+  .status{gap:8px;font-size:12px}
+  .help{max-height:calc(100vh - 40px);overflow:auto}
 }
 
 .crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;color:#fff;font:20px/1 var(--mono);text-shadow:0 0 3px #000;pointer-events:none}
@@ -97,3 +101,16 @@ button:disabled{opacity:.4;cursor:default}
 .chip{cursor:pointer}
 /* hands on the controls: only the status bar and hotbar stay */
 body.immersed .top-left,body.immersed .top-right,body.immersed .left,body.immersed .right,body.immersed .bottom-right{display:none}
+
+/* touch controls: a joystick, look by dragging, and big buttons */
+.touch{display:none}
+body.touching.play .touch{display:block}
+.stick{position:fixed;z-index:4;left:18px;bottom:120px;width:120px;height:120px;border-radius:50%;background:rgba(0,0,0,.18);border:2px solid rgba(255,255,255,.35);touch-action:none}
+.stick i{position:absolute;left:50%;top:50%;width:52px;height:52px;margin:-26px 0 0 -26px;border-radius:50%;background:rgba(255,255,255,.55)}
+.tbtns{position:fixed;z-index:4;right:14px;bottom:120px;display:grid;grid-template-columns:repeat(2,64px);gap:8px}
+.tbtns button{height:52px;font-size:13px;background:var(--panel);border-radius:10px}
+.tbtns button.on{border-color:var(--accent);color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.touchhelp{display:none}
+body.touching .touchhelp{display:block}
+body.touching .nontouch{display:none}
+body.touching .crosshair{display:none}

@@ -12,6 +12,22 @@
 <body>
 <canvas id="stage" aria-label="3D view of the craft world"></canvas>
 
+<nav class="dock" aria-label="Panels">
+  <button type="button" data-panel="controls">world</button>
+  <button type="button" data-panel="macros">macros</button>
+  <button type="button" data-panel="decision">Jev</button>
+</nav>
+
+<div class="touch" aria-hidden="true">
+  <div id="stick" class="stick"><i></i></div>
+  <div class="tbtns">
+    <button type="button" id="t-place">place</button>
+    <button type="button" id="t-eat">eat</button>
+    <button type="button" id="t-craft">craft</button>
+    <button type="button" id="t-view">view</button>
+  </div>
+</div>
+
 <header class="hud top-left panel">
   <div class="eyebrow">jev · craft · <span id="mode">live</span></div>
   <h1>Jev craft</h1>
@@ -23,6 +39,8 @@
 
 <section class="hud top-right panel" aria-label="World controls">
   <div class="row">
+    <label>world <select id="kind"></select></label>
+    <label>size <select id="size"><option value="s">small</option><option value="m">medium</option><option value="l">large</option></select></label>
     <label>tiling <select id="shape"></select></label>
     <label>seed <input id="seed" type="number" min="1" value="3"></label>
     <button id="regen" type="button">new world</button>
@@ -81,8 +99,15 @@
 <div id="toast" class="toast" hidden></div>
 <section id="help" class="hud help panel" hidden aria-label="How to play">
   <div class="eyebrow">you are playing</div>
-  <p><b>Click the world to take control.</b></p>
-  <ul>
+  <p class="nontouch"><b>Click the world to take control.</b></p>
+  <ul class="touchhelp">
+    <li><b>left thumb</b>: the stick walks, one tile at a time toward where you look</li>
+    <li><b>drag</b> anywhere else to look · <b>tap</b> a block to mine it (or a mob to hit it)</li>
+    <li><b>place</b> on: taps put down the selected block instead · tap the hotbar to choose</li>
+    <li><b>eat</b> · <b>craft</b> · <b>view</b> switches first / third person</li>
+  </ul>
+  <p class="touchhelp"><button type="button" id="t-go">start playing</button></p>
+  <ul class="nontouch">
     <li><b>W A S D</b> walk: one tile at a time, toward where you look (it works on any tiling)</li>
     <li><b>mouse</b> look · <b>left click</b> mine / hit · <b>right click</b> place the selected block</li>
     <li><b>1–9</b> or <b>scroll</b> pick from your inventory · <b>F</b> eat · <b>C</b> crafting</li>

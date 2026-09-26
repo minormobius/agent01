@@ -102,6 +102,14 @@ export class Sim {
     for (let y = H - 2; y > 0; y--) if (this.solid(c, y - 1) || this.get(c, y - 1) === B.water) return y;
     return 1;
   }
+  // dark: rock, earth or a roof overhead — shade under leaves is not dark
+  dark(c, y) {
+    for (let yy = y + 2; yy < H; yy++) {
+      const id = this.get(c, yy);
+      if (id !== B.air && id !== B.torch && id !== B.leaves && id !== B.log && id !== B.glass && id !== B.water) return true;
+    }
+    return false;
+  }
   skyOpen(c, y) { for (let yy = y; yy < H; yy++) if (this.get(c, yy) !== B.air && this.get(c, yy) !== B.torch) return false; return true; }
   supported(c, y) { return this.solid(c, y - 1) || this.get(c, y - 1) === B.water || this.get(c, y) === B.water; }
   canStand(c, y, tall = 2, mob = false) {
@@ -400,10 +408,11 @@ export class Sim {
       const ring = this._near.get(p.c);
       if (ring && ring.length) {
         const c = ring[Math.floor(this.rng() * ring.length)];
-        if (this.dist(c, p.c) >= 6) {
-          const top = this.surface(c);
-          const y = 1 + Math.floor(this.rng() * Math.max(1, top - 3));
-          if (y < top - 2 && this.canStand(c, y) && !this.skyOpen(c, y) && !this.torchNear(c, 5) && !this.occupied(c, y)) this.spawnEnt('zombie', c, y);
+        if (this.dist(c, p.c) >= 6 && !this.torchNear(c, 5)) {
+          // every dark standing spot in that column (cave floors, tunnels)
+          const top = this.surface(c), spots = [];
+          for (let y = 1; y < top - 2; y++) if (this.canStand(c, y, 2, true) && this.dark(c, y) && !this.occupied(c, y)) spots.push(y);
+          if (spots.length) this.spawnEnt('zombie', c, spots[Math.floor(this.rng() * spots.length)]);
         }
       }
     }
