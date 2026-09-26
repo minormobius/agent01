@@ -636,10 +636,20 @@ Touch play is the same game as keyboard play. A **thumb stick** feeds the same
 looks, a **tap** ray-casts at the tapped point (`aim(nx, ny)`, unprojected
 from NDC) to mine or hit, with **place** mode making taps place, plus
 eat / craft / view buttons. There is no pointer lock on touch, so "engaged"
-is lock *or* the touch game having started. On narrow screens every panel is
-a **drawer** behind the dock (world, macros, Jev), and watching Jev on a phone
-works the same way. Checked in an emulated Pixel 7: the stick walked, a tap
-mined into the hotbar, the drawers open. Not checked on a real device.
+is lock *or* the touch game having started.
+
+**On narrow screens (≤ 900px) the world is never covered** (the operator's
+call, 2026-09-26). The canvas takes the top two thirds (`--split`, in `dvh`)
+and nothing overlaps it. The bottom third is a tab row (world / macros / Jev
+/ team / stream) and a pane under it. With no tab open, the pane shows the
+status line, the hotbar and the thumb controls. An open tab, the help,
+crafting and toasts all go in the pane too. Two code consequences: the
+renderer sizes itself from the canvas's CSS box (a `ResizeObserver`), not the
+window, and a tap's aim is unprojected from the canvas rect, not
+`innerWidth/innerHeight`. Both would silently mis-aim otherwise. Checked in
+an emulated Pixel 7: nothing but the canvas reaches into the top two thirds
+in any state, a tap mined into the hotbar, every tab opens. Not checked on a
+real device.
 
 ### How often the page calls Jev, and the rate limit (2026-09-26)
 
@@ -723,7 +733,7 @@ pauses for Jev in these modes. An agent waiting on its answer just stands
 there while the world goes on, so Jev thinks in real time, like a teammate.
 The headless `playParty()` pauses the world instead, so runs are reproducible.
 
-The team strip (top centre, a drawer-free strip on phones) shows everyone's
+The team strip (top centre; the **team** tab on phones) shows everyone's
 health, food, what they are doing and any request. In a swarm, click a row
 to watch that agent (`replay.focus`, the camera and the HUD follow). Checked
 in Playwright at desktop size and in an emulated Pixel 7, against the stub.
