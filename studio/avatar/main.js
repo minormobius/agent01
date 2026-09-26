@@ -6,11 +6,13 @@
 // as light. The hash carries the seed and any overrides, so a find can be copied and reopened.
 //
 //   #seed=42&style=threads&palette=ember&thought=0.8   (any character field)
+//   #seed=42&plan=quadruped&family=hound               (another body plan: mega/sprite's creatures)
 
 import { makeRig, solve } from '../vendor/figure/lib/rig.js';
 import { walk } from '../vendor/figure/lib/gait.js';
 import { POSES } from '../vendor/figure/lib/poses.js';
-import { character, build, frames, STYLES, PALETTES, PARTS } from '../vendor/attractor/lib/avatar.js';
+import { character, build, frames, bonesAt, boneFrames, STYLES, PALETTES, PARTS } from '../vendor/attractor/lib/avatar.js';
+import { PLANS } from '../vendor/attractor/lib/plans.js';
 import { makeLight, drawAvatar, drawThreads } from '../vendor/attractor/lib/draw.js';
 import { handPose, GESTURES } from '../vendor/figure/lib/hand.js';
 import { discover, dimension, realise } from '../vendor/attractor/lib/space.js';
@@ -18,6 +20,9 @@ import { BESTIARY } from '../vendor/attractor/lib/bestiary.js';
 
 const $ = (id) => document.getElementById(id);
 const MODES = ['walk', 'stand', 'contrapposto', 'reachUp', 'lookBack', 'crouch'].filter((m) => m === 'walk' || POSES[m]);
+const CREATURE_MODES = ['move', 'still'];
+const PLAN_NAMES = ['humanoid', ...Object.keys(PLANS)];
+const human = () => A.ch.plan === 'humanoid';
 const KNOBS = [['thought', 'thought', 0, 1, 0.01], ['reach', 'reach', 0.5, 2.5, 0.01], ['swirl', 'swirl', 0, 2, 0.01], ['speed', 'speed', 0.2, 2.5, 0.01]];
 
 // ---- state: the hash is the truth ------------------------------------------------------------------
@@ -28,7 +33,7 @@ function readHash() {
   state.over = {};
   for (const [k, v] of q) if (!['seed', 'mode'].includes(k)) state.over[k] = isNaN(Number(v)) ? v : Number(v);
   const c = String(q.get('cam') || '').split(',').map(Number);
-  if (c.length === 5 && c.every(Number.isFinite)) [cam.yaw, cam.pitch, cam.zoom, cam.px, cam.py] = c; else Object.assign(cam, CAM0);
+  if (c.length === 5 && c.every(Number.isFinite)) [cam.yaw, cam.pitch, cam.zoom, cam.px, cam.py] = c; else Object.assign(cam, camHome(state.over.plan));
   if (q.get('mode')) state.mode = q.get('mode');
 }
 function writeHash() {
@@ -43,6 +48,8 @@ function rebuild() {
   const ch = character(state.seed, over);
   if (state.over.torsoKey) ch.parts.torso = state.over.torsoKey;
   A = build(ch); rig = makeRig(ch.body); posed = new Map();
+  const modes = human() ? MODES : CREATURE_MODES;
+  if (!modes.includes(state.mode)) state.mode = modes[0];
   writeHash(); info(); controls();
 }
 // the pose, with the character's hands in their gesture (unless the pose places them itself)
@@ -57,6 +64,18 @@ const poseAt = (t) => {
   if (!posed.has(key)) posed.set(key, withHands(POSES[state.mode](rig)));
   return posed.get(key);
 };
+// the body at time t, whatever its plan: its parts' frames, and how to fit it to a w × h stage (the
+// point the camera turns about, pixels per unit at zoom 1)
+function bodyAt(B, t, w, h, still = false) {
+  if (B.ch.plan === 'humanoid') {
+    const r = B === A ? rig : makeRig(B.ch.body), S = solve(r, B === A ? poseAt(t) : POSES.stand(r));
+    return { S, F: frames(S.J, S.F.pelvis.z), root: S.J.pelvis, scale: h / (B.ch.body.heads + 1.3) };
+  }
+  // fit its extent seen from the home pitch: its height and its near half below the floor line, lifted
+  const e = B.extent, cp = Math.cos(CREATURE_PITCH), sp = Math.sin(CREATURE_PITCH);
+  const scale = Math.min((h * 0.84) / (e.ymax * cp + 2 * e.radius * sp), (w * 0.46) / e.radius);
+  return { F: boneFrames(bonesAt(B, still ? 0.3 : t)), root: e.centre, scale, lift: (e.radius * sp * scale) / h };
+}
 // the hands as threads, once they are big enough on screen to be worth it: each finger and the thumb
 // a thread along its bones, knuckle to tip; the palm four threads from the wrist to the knuckles
 function handLines(S, s) {
@@ -79,12 +98,15 @@ new ResizeObserver(size).observe(host); size();
 
 // ---- the camera: orbit (yaw, pitch), zoom about a point, pan. An orthographic view round the pelvis,
 // the floor at 93% of the height at zoom 1. `cam.px/py` are the pan in heights of the stage.
-const CAM0 = { yaw: 0.5, pitch: 0.12, zoom: 1, px: 0, py: 0 };
+const CAM0 = { yaw: 0.5, pitch: 0.12, zoom: 1, px: 0, py: 0 }, CREATURE_PITCH = 0.42;
+// a creature is looked down on a little more (a snake's curves are sideways, a spider's legs splay)
+const camHome = (plan) => (plan && plan !== 'humanoid' ? { ...CAM0, pitch: CREATURE_PITCH } : { ...CAM0 });
 const cam = { ...CAM0 };
+let curLift = 0;                                          // a creature's view is lifted (bodyAt)
 let lastTouch = -1e9;                                     // the auto-turn waits for hands off the glass
-function view(J, t, w, h, scaleHeads, c = cam) {
+function view(root, w, h, scale, c = cam, lift = 0) {
   const cy = Math.cos(c.yaw), sy = Math.sin(c.yaw), cp = Math.cos(c.pitch), sp = Math.sin(c.pitch);
-  const root = J.pelvis, sc = (h / scaleHeads) * c.zoom, ox = w / 2 + c.px * h, oy = h * 0.93 + c.py * h;
+  const sc = scale * c.zoom, ox = w / 2 + c.px * h, oy = h * (0.93 - lift) + c.py * h;
   return (p) => {
     const x = p[0] - root[0], z = p[2] - root[2], X = x * cy + z * sy, Z = -x * sy + z * cy;
     return [ox + X * sc, oy - (p[1] * cp - Z * sp) * sc];
@@ -93,13 +115,13 @@ function view(J, t, w, h, scaleHeads, c = cam) {
 /** Zoom by k keeping the stage point (x, y) (canvas pixels) where it is. */
 function zoomAbout(k, x, y) {
   const z2 = Math.min(12, Math.max(0.5, cam.zoom * k)); k = z2 / cam.zoom;
-  const H = canvas.height, ox = canvas.width / 2 + cam.px * H, oy = H * 0.93 + cam.py * H;
-  cam.px = (x - (x - ox) * k - canvas.width / 2) / H; cam.py = (y - (y - oy) * k - H * 0.93) / H; cam.zoom = z2;
+  const H = canvas.height, f = 0.93 - curLift, ox = canvas.width / 2 + cam.px * H, oy = H * f + cam.py * H;
+  cam.px = (x - (x - ox) * k - canvas.width / 2) / H; cam.py = (y - (y - oy) * k - H * f) / H; cam.zoom = z2;
 }
 function frame(now) {
   requestAnimationFrame(frame);
   if (!A) return;
-  const t = now / 1000, S = solve(rig, poseAt(t)), F = frames(S.J, S.F.pelvis.z);
+  const t = now / 1000, { S, F, root, scale, lift = 0 } = bodyAt(A, t, canvas.width, canvas.height, state.mode === 'still');
   const dt = Math.min(0.1, t - (frame.last ?? t)); frame.last = t;
   if (state.turn && t - lastTouch > 4) cam.yaw += 0.18 * dt;          // a slow turn, when left alone
   ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -107,10 +129,11 @@ function frame(now) {
   g.addColorStop(0, '#120e18'); g.addColorStop(1, '#040306');
   ctx.fillStyle = g; ctx.fillRect(0, 0, canvas.width, canvas.height);
   // the floor: a faint line of light under the feet
-  ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(canvas.width * 0.2, canvas.height * 0.93, canvas.width * 0.6, 1 * dpr);
-  const heads = A.ch.body.heads + 1.3, proj = view(S.J, t, canvas.width, canvas.height, heads), gain = Math.min(1.6, (900 / Math.sqrt(canvas.width * canvas.height)) * 1.2);
+  if (human()) { ctx.fillStyle = 'rgba(255,255,255,0.05)'; ctx.fillRect(canvas.width * 0.2, canvas.height * 0.93, canvas.width * 0.6, 1 * dpr); }
+  curLift = lift;
+  const proj = view(root, canvas.width, canvas.height, scale, cam, lift), gain = Math.min(1.6, (900 / Math.sqrt(canvas.width * canvas.height)) * 1.2);
   // how big a hand is on screen decides its detail: one attractor far off, threads for fingers near
-  const handPx = (canvas.height / heads) * cam.zoom * 0.75, near = Math.max(0, Math.min(1, (handPx - 30 * dpr) / (45 * dpr)));
+  const handPx = scale * cam.zoom * 0.75, near = S ? Math.max(0, Math.min(1, (handPx - 30 * dpr) / (45 * dpr))) : 0;
   drawAvatar(light, A, F, t, proj, { gain, partGain: near ? (i) => (i === HAND || i === HAND_R ? 1 - near : 1) : null });
   if (near > 0.01) for (const s of ['l', 'r']) {
     try { drawThreads(light, handLines(S, s), t, A.clouds[s === 'l' ? HAND : HAND_R], A.colours[HAND], proj, { gain: gain * near * 1.4, per: 6, streak: Math.max(8, A.ch.streak) }); } catch { /* a hand that won't solve: keep the attractor */ }
@@ -124,13 +147,14 @@ function thumbs() {
   const box = $('thumbs'); box.innerHTML = '';
   for (let k = 1; k <= 8; k++) {
     const seed = state.seed + k * 7919, c = document.createElement('canvas'); c.width = 150; c.height = 250;
-    c.title = `seed ${seed}`; c.addEventListener('click', () => { state.seed = seed; state.over = {}; rebuild(); thumbs(); });
+    const over = human() ? {} : { plan: A.ch.plan };                  // the neighbours share the plan
+    c.title = `seed ${seed}`; c.addEventListener('click', () => { state.seed = seed; state.over = { ...over }; rebuild(); thumbs(); });
     box.append(c);
     setTimeout(() => {
-      const ch = character(seed), B = build(ch), r = makeRig(ch.body), S = solve(r, POSES.stand ? POSES.stand(r) : {}), F = frames(S.J, S.F.pelvis.z);
+      const B = build(character(seed, over)), { F, root, scale, lift } = bodyAt(B, 0.3, 150, 250, true);
       const x = c.getContext('2d'), L = makeLight(150, 250, 1);
       x.fillStyle = '#050407'; x.fillRect(0, 0, 150, 250);
-      drawAvatar(L, B, F, 3, view(S.J, 0, 150, 250, ch.body.heads + 1.3, CAM0), { gain: 1.6, sub: 2 });
+      drawAvatar(L, B, F, 3, view(root, 150, 250, scale, camHome(B.ch.plan), lift), { gain: 1.6, sub: 2 });
       L.flush(x, 0.1);
     }, 30 * k);
   }
@@ -139,7 +163,10 @@ function thumbs() {
 // ---- controls and what this one is ---------------------------------------------------------------------
 function controls() {
   const modes = $('modes'); modes.innerHTML = '';
-  for (const m of MODES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = m; b.className = m === state.mode ? 'on' : ''; b.onclick = () => { state.mode = m; writeHash(); controls(); }; modes.append(b); }
+  for (const m of human() ? MODES : CREATURE_MODES) { const b = document.createElement('button'); b.type = 'button'; b.textContent = m; b.className = m === state.mode ? 'on' : ''; b.onclick = () => { state.mode = m; writeHash(); controls(); }; modes.append(b); }
+  $('plan').innerHTML = PLAN_NAMES.map((p) => `<option${p === A.ch.plan ? ' selected' : ''}>${p}</option>`).join('');
+  $('family').innerHTML = human() ? '' : Object.keys(PLANS[A.ch.plan].families).map((f) => `<option${f === A.ch.family ? ' selected' : ''}>${f}</option>`).join('');
+  $('family').hidden = human(); $('gesture').hidden = !human();
   $('style').innerHTML = Object.keys(STYLES).map((s) => `<option${s === A.ch.style ? ' selected' : ''}>${s}</option>`).join('');
   $('gesture').innerHTML = Object.keys(GESTURES).map((g) => `<option${g === A.ch.gesture ? ' selected' : ''}>${g}</option>`).join('');
   $('palette').innerHTML = Object.keys(PALETTES).map((s) => `<option${s === A.ch.palette ? ' selected' : ''}>${s}</option>`).join('');
@@ -153,10 +180,16 @@ function controls() {
   }
 }
 $('style').addEventListener('change', (e) => { const { points, streak, lagStep } = STYLES[e.target.value](() => 0.5); state.over = { ...state.over, style: e.target.value, points, streak, lagStep }; rebuild(); });
+$('plan').addEventListener('change', (e) => { const { family: _f, cam: _c, ...rest } = state.over; state.over = { ...rest, plan: e.target.value }; if (e.target.value === 'humanoid') delete state.over.plan; Object.assign(cam, camHome(state.over.plan)); rebuild(); thumbs(); });
+$('family').addEventListener('change', (e) => { state.over.family = e.target.value; rebuild(); });
 $('palette').addEventListener('change', (e) => { state.over.palette = e.target.value; rebuild(); });
 $('gesture').addEventListener('change', (e) => { state.over.gesture = e.target.value; rebuild(); });
 $('turn').addEventListener('click', (e) => { state.turn = !state.turn; e.target.classList.toggle('on', state.turn); });
-$('lucky').addEventListener('click', () => { state.seed = Math.floor(Math.random() * 1e6); state.over = {}; rebuild(); thumbs(); });
+// lucky: any plan (the humanoid a third of the time), any seed
+$('lucky').addEventListener('click', () => {
+  const plan = Math.random() < 1 / 3 ? 'humanoid' : PLAN_NAMES[1 + Math.floor(Math.random() * (PLAN_NAMES.length - 1))];
+  state.seed = Math.floor(Math.random() * 1e6); state.over = plan === 'humanoid' ? {} : { plan }; Object.assign(cam, camHome(plan)); rebuild(); thumbs();
+});
 window.addEventListener('keydown', (e) => { if (e.key === 'l' || e.key === 'L') $('lucky').click(); });
 // search the space for a brand-new torso, live (a few hundred codes; well under a second on a laptop)
 $('discover').addEventListener('click', () => {
@@ -175,7 +208,8 @@ function info() {
   const line = (cls) => { const k = ch.parts[cls], m = meta(k); return `<b>${cls.padEnd(6)}</b> ${k.length > 12 ? k.slice(0, 12) + '…' : k}  D ${m.dim}  λ ${m.lyap}`; };
   $('info').innerHTML = [
     `<b>seed</b>   ${ch.seed}   <b>style</b> ${ch.style}   <b>palette</b> ${ch.palette}${ch.kin ? '   (one attractor for every limb)' : ''}`,
-    `<b>body</b>   ${b.heads.toFixed(1)} heads, build ${b.build.toFixed(2)}, mass ${b.mass.toFixed(2)}, legs ${b.legs.toFixed(2)}`,
+    human() ? `<b>body</b>   ${b.heads.toFixed(1)} heads, build ${b.build.toFixed(2)}, mass ${b.mass.toFixed(2)}, legs ${b.legs.toFixed(2)}`
+      : `<b>body</b>   ${ch.plan} · ${ch.family}, ${A.parts.length} bones  (${Object.entries(ch.genes).filter(([, v]) => typeof v === 'number' && v !== 0).slice(0, 5).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(', ')})`,
     ...['torso', 'head', 'arm', 'leg', 'end'].map(line),
   ].join('\n');
   // the checks: every part's attractor is strange (dimension ≥ 1.5, Lyapunov > 0), and the two sides match
@@ -188,9 +222,10 @@ readHash(); rebuild(); thumbs();
 window.addEventListener('hashchange', () => { readHash(); rebuild(); thumbs(); });
 /** Centre the camera on a joint (say 'wrist_r') at a zoom. */
 function focusOn(joint, zoom = 4) {
-  const S = solve(rig, poseAt(performance.now() / 1000)), heads = A.ch.body.heads + 1.3;
+  const { S, root, scale } = bodyAt(A, performance.now() / 1000, canvas.width, canvas.height);
+  if (!S) return;
   cam.zoom = zoom;
-  const q = view(S.J, 0, canvas.width, canvas.height, heads)(S.J[joint]);
+  const q = view(root, canvas.width, canvas.height, scale)(S.J[joint]);
   cam.px += (canvas.width / 2 - q[0]) / canvas.height; cam.py += (canvas.height * 0.5 - q[1]) / canvas.height;
 }
 window.__avatar = { get A() { return A; }, PARTS, dimension, realise, focusOn, cam };
@@ -207,7 +242,7 @@ window.__avatar = { get A() { return A; }, PARTS, dimension, realise, focusOn, c
     try { canvas.setPointerCapture(e.pointerId); } catch { /* a synthetic or already-gone pointer */ }
     pts.set(e.pointerId, { p: xy(e), pan: e.shiftKey || e.button === 2 }); lastTouch = performance.now() / 1000;
     if (pts.size === 2) { const [a, b] = [...pts.values()].map((q) => q.p); pinch = { d: Math.hypot(a[0] - b[0], a[1] - b[1]), m: [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] }; }
-    if (pts.size === 1) { const now = performance.now(); if (now - tapAt < 300) { Object.assign(cam, CAM0); delete state.over.cam; writeHash(); } tapAt = now; }
+    if (pts.size === 1) { const now = performance.now(); if (now - tapAt < 300) { Object.assign(cam, camHome(A.ch.plan)); delete state.over.cam; writeHash(); } tapAt = now; }
   });
   canvas.addEventListener('pointermove', (e) => {
     const q = pts.get(e.pointerId); if (!q) return;

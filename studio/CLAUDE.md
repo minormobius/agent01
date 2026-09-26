@@ -457,6 +457,17 @@ README and CLAUDE.md), copied to `vendor/attractor/lib` by `scripts/sync-dataviz
 - **The page**: walk or the figure's named poses, a turning camera, the knobs (thought: surface ↔ orbit,
   reach, swirl, speed), eight neighbour seeds as stills, "discover a torso" (a live search), the hash as
   the character. 50–60 fps in CPU-only Chromium at desktop and phone sizes.
+- **The camera**: one finger orbits, two pinch (zoom about their middle) and pan, the wheel zooms about
+  the cursor, a double tap goes home; kept in the hash as `cam=`. The auto-turn waits 4 s after a touch.
+- **Hands, two levels**: far off each hand is one attractor; once a hand is ~30 px on screen its fingers
+  fade in as threads along packages/figure's finger bones (`handPose`), in the character's gesture.
+- **Other body plans** (`#plan=quadruped&family=hound`): mega/sprite's creatures (polypod, quadruped,
+  radial, axial, isopod, four families each) ported to 3D bones in `packages/attractor/lib/plans.js`, same
+  genes and gaits. mega/ is another branch's surface: port from it, never edit it. A creature's bones use
+  the same five part classes, so the same attractor choices fill them; a bare seed is still the humanoid
+  (no existing link changed). Creatures move or hold still, are looked down on a little more (pitch
+  0.42), and are fitted to the stage by their extent over a gait. Lucky picks a plan a third of the time
+  humanoid; the neighbours share the plan.
 
 ## The Bommie (bommie/)
 

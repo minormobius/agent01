@@ -184,6 +184,9 @@ export function discover(seed, { n = 20000, budget = 20000, dt = 0.02, minDim = 
 /** A named or coded attractor, as a described cloud of n points. */
 export function realise(key, n = 20000) {
   if (NAMED[key]) { const A = NAMED[key]; return { key, ...describe(integrate(A.f, A.x0, A.dt, n, 2000)) }; }
-  const a = fromCode(key), c = integrate(quadratic(a), [0.05, 0.05, 0.05], 0.02, n, 1000, 1e3);
-  return c ? { key, ...describe(c) } : null;
+  // a few bestiary finds are transient chaos: bounded for the search's run, escaping later. Keep the
+  // longest run that stays bounded (a point reads its orbit modulo n, so a shorter cloud just loops)
+  const a = fromCode(key);
+  for (let m = n; m >= 1000; m = Math.floor(m / 2)) { const c = integrate(quadratic(a), [0.05, 0.05, 0.05], 0.02, m, 1000, 1e3); if (c) return { key, ...describe(c) }; }
+  return null;
 }

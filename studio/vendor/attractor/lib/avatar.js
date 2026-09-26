@@ -9,9 +9,14 @@
 //
 // The seed chooses everything (body, attractors, palette, the swirl, how far the orbits reach), so a
 // seed is a character; every choice can be overridden. Pure and deterministic: a function of (seed, t).
+//
+// The humanoid is the default plan. `over.plan` swaps the skeleton for one of plans.js (the mega/sprite
+// creatures: polypod, quadruped, radial, axial, isopod): their bones use the same five classes, so the
+// same attractor choices fill them, and a seed's humanoid is untouched by the others existing.
 
 import { BESTIARY } from './bestiary.js';
 import { realise, mulberry32 } from './space.js';
+import { PLANS, planGenes } from './plans.js';
 
 /** The parts: [name, from joint, to joint, radius at from, radius at to (head heights), class, side]. */
 export const PARTS = [
@@ -80,12 +85,18 @@ export function character(seed, over = {}) {
     gesture: ['relaxed', 'relaxed', 'open', 'flat', 'grip', 'point', 'peace', 'ok'][Math.floor(mulberry32((seed >>> 0) + 0x9e37)() * 8)],
     ...STYLES[style](rnd),
     style,
+    plan: 'humanoid',
     ...over,
+    ...(over.plan && PLANS[over.plan] ? planGenes(over.plan, seed, over) : {}),
   };
 }
 
+/** The bones of a non-humanoid character at time t (plans.js), and their frames. */
+export const bonesAt = (A, t) => PLANS[A.ch.plan].pose(A.rig, t).bones;
+
 /** Make a character drawable: its attractors realised (integrated once) and its points laid out. */
 export function build(ch) {
+  if (ch.plan && ch.plan !== 'humanoid') return buildPlan(ch);
   const cache = {};
   const cloud = (key) => (cache[key] ||= realise(key, 16000));
   const hash = (a, b) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -102,6 +113,32 @@ export function build(ch) {
   const hues = PARTS.map((_, i) => hsv((ch.hue + i * 0.07) % 1, 0.75, 1));
   const colours = PARTS.map((p, i) => (PALETTES[ch.palette] ? PALETTES[ch.palette][p[5] === 'head' ? 1 : 0] : hues[i]));
   return { ch, points, clouds, colours };
+}
+// a creature: the plan's rig, its bones as the parts (their count never changes with t), points by the
+// bone's surface, and its extent over a gait cycle (the camera's fit)
+function buildPlan(ch) {
+  const P = PLANS[ch.plan], rig = P.rig(ch.genes, ch.seed), bones = P.pose(rig, 0).bones, cache = {};
+  const cloud = (key) => (cache[key] ||= realise(key, 16000));
+  const hash = (a, b) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
+  const area = bones.map((b) => (b.ball ? 4 * b.r0 * b.r0 : (b.r0 + b.r1) * (Math.hypot(...sub(b.b, b.a)) + 0.5 * (b.r0 + b.r1))) * (b.cls === 'head' ? 1.3 : 1));
+  const total = area.reduce((a, b) => a + b, 0), points = [];
+  bones.forEach((_, pi) => {
+    const n = Math.max(area[pi] > 1e-3 ? 6 : 0, Math.round((ch.points * area[pi]) / total));
+    for (let k = 0; k < n; k++) {
+      const id = points.length + ch.seed * 7919;
+      points.push({ part: pi, u: hash(id, 1), th: hash(id, 2) * Math.PI * 2, v: hash(id, 5) * 2 - 1, off: Math.floor(hash(id, 3) * 16000), rate: (90 + 60 * hash(id, 4)) * ch.speed, spin: (0.7 + 0.9 * hash(id, 6)) * (hash(id, 8) < 0.5 ? -1 : 1) * ch.swirl, drift: (0.05 + 0.12 * hash(id, 7)) * ch.swirl });
+    }
+  });
+  const clouds = bones.map((b) => cloud(ch.parts[b.cls]));
+  const hues = bones.map((_, i) => hsv((ch.hue + i * (0.5 / bones.length)) % 1, 0.75, 1));
+  const colours = bones.map((b, i) => (PALETTES[ch.palette] ? PALETTES[ch.palette][b.cls === 'head' ? 1 : 0] : hues[i]));
+  let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9, ymin = 1e9, ymax = -1e9;
+  for (let t = 0; t < 2; t += 0.1) for (const b of P.pose(rig, t).bones) for (const p of [b.a, b.b]) {
+    const r = Math.max(b.r0, b.r1);
+    x0 = Math.min(x0, p[0] - r); x1 = Math.max(x1, p[0] + r); z0 = Math.min(z0, p[2] - r); z1 = Math.max(z1, p[2] + r); ymin = Math.min(ymin, p[1] - r); ymax = Math.max(ymax, p[1] + r);
+  }
+  const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+  return { ch, points, clouds, colours, rig, parts: bones.map((b) => [b.name, b.cls, b.side]), extent: { centre: [cx, 0, cz], ymin, ymax, radius: Math.hypot(x1 - cx, z1 - cz) } };
 }
 function hsv(h, s, v) {
   const i = Math.floor(h * 6), f = h * 6 - i, p = v * (1 - s), q = v * (1 - f * s), t = v * (1 - (1 - f) * s);
@@ -125,6 +162,19 @@ export function frames(J, fwd = [0, 0, 1]) {
     const dr = ref[0] * d[0] + ref[1] * d[1] + ref[2] * d[2];
     const e1 = unit([ref[0] - d[0] * dr, ref[1] - d[1] * dr, ref[2] - d[2] * dr]), e2 = cross(d, e1);
     return { o: A, d, L, e1, e2, r0, r1, side };
+  });
+}
+
+/** Frames for plan bones (as `frames` for the humanoid's parts); a `ball` bone is a sphere, like a head. */
+export function boneFrames(bones, fwd = [0, 0, 1]) {
+  return bones.map(({ a, b, r0, r1, side, ball }) => {
+    if (ball) return { o: a, d: [0, 1, 0], L: 0, e1: fwd, e2: unit(cross([0, 1, 0], fwd)), r0, r1, head: true, side };
+    const v = sub(b, a), L = Math.hypot(v[0], v[1], v[2]);
+    const d = L > 1e-6 ? [v[0] / L, v[1] / L, v[2] / L] : [0, 1, 0];
+    const ref = Math.abs(d[0] * fwd[0] + d[1] * fwd[1] + d[2] * fwd[2]) < 0.9 ? fwd : [0, 1, 0];
+    const dr = ref[0] * d[0] + ref[1] * d[1] + ref[2] * d[2];
+    const e1 = unit([ref[0] - d[0] * dr, ref[1] - d[1] * dr, ref[2] - d[2] * dr]), e2 = cross(d, e1);
+    return { o: a, d, L, e1, e2, r0, r1, side };
   });
 }
 

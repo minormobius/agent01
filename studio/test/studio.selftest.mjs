@@ -401,6 +401,23 @@ console.log('\nAttractor Bodies (packages/attractor)');
     for (let i = 0; i < A.points.length; i += 7) { Av.place(A, i, F, 2.5, A.ch.thought, o); if (!o.every(Number.isFinite) || Math.abs(o[1]) > 20) finite = false; count++; }
   }
   ok(finite, `every point of three characters lands finite and near its body (${count} sampled)`);
+  // a key read by the page must realise (some finds are transient chaos: realise keeps a bounded run)
+  const { realise } = await import('../vendor/attractor/lib/space.js');
+  const lost = BESTIARY.filter((b) => !realise(b.key, 16000));
+  ok(!lost.length, `every bestiary attractor realises a bounded cloud${lost.length ? ': not ' + lost.map((b) => b.key.slice(0, 8)).join(', ') : ''}`);
+  // the other body plans: every family's bones keep their count over a gait, and every point lands
+  const { PLANS } = await import('../vendor/attractor/lib/plans.js');
+  const bad = [];
+  for (const plan of Object.keys(PLANS)) for (const family of Object.keys(PLANS[plan].families)) {
+    const A = Av.build(Av.character(31, { plan, family })), o = [0, 0, 0], n = A.parts.length;
+    for (const t of [0, 0.7, 1.9]) {
+      const bones = Av.bonesAt(A, t), F = Av.boneFrames(bones);
+      if (bones.length !== n) bad.push(`${plan}/${family} has ${bones.length} bones at t=${t}, not ${n}`);
+      for (let i = 0; i < A.points.length; i += 5) { Av.place(A, i, F, t, A.ch.thought, o, 0.1); if (!o.every(Number.isFinite)) { bad.push(`${plan}/${family} point ${i}`); break; } }
+    }
+  }
+  ok(!bad.length, `every body plan and family (${Object.keys(PLANS).join(', ')}) keeps its bones and lands every point${bad.length ? ': ' + bad.slice(0, 3).join('; ') : ''}`);
+  ok(JSON.stringify(Av.character(4242, { plan: 'quadruped' }).genes) === JSON.stringify(Av.character(4242, { plan: 'quadruped' }).genes) && Av.character(4242).plan === 'humanoid', 'a creature is its seed too, and a bare seed is still the humanoid');
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');
