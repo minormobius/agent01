@@ -301,7 +301,7 @@ model only decides.
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 303 checks, ~40 s, gates the deploy (multiplayer, plants and projects included) |
+| `test/craft.selftest.mjs` | 321 checks, ~45 s, gates the deploy (multiplayer, plants, projects, water and survival included) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -892,6 +892,96 @@ normal and lights a top face from below. The status bar shows the project
 (`project grow · 5/16 · next: plant moonpetal · wheat is growing: ripe in
 about 800 ticks`). The log shows `project:` and `grown:` notes. Right-click
 with a hoe tills and with seeds plants, and `farm`/`forage` have a species picker.
+
+### Survival, drowning and water that flows (2026-09-26)
+
+**Survival is its own fact, not a project.** The project A/B above left one
+gap: the moves that keep you alive (hunt, go home, surface) read *"not part of
+the project"* and sat at ~0.2 confidence. `threats(sim)` in `mind.mjs` now
+names what is threatening the player **right now**:
+
+| threat | when | relieved by |
+|---|---|---|
+| `air` | head under water | `surface` (which now swims up first) |
+| `zombie` | one is hitting you | `fight`, `dig_in` |
+| `night` | night, out under open sky, not home | `go_home`, `dig_in`, `build_house`, sleeping if covered |
+| `hunger` | food ≤ 6 | `eat` (if food is carried), `hunt`, `harvest`, `craft` bread / cooked porkchop, `forage` sunfruit |
+| `health` | health ≤ 8 | shelter, eating moonpetal (it heals), sleeping covered, fighting what is adjacent |
+
+Every option then carries a `survival` fact: `relieves: night`,
+`worsens: night` (anything that goes out among zombies at night), or
+`does nothing about: hunger`. With nothing threatening, the fact is left out,
+so a calm state stays short. `perceive()` lists the threats. `sim.noSurvival`
+(`--no-survival` in the eval) is the control.
+
+**Drowning.** Every player has `air` (`MAX_AIR` = 60 ticks, ~15 s). It drains
+one per tick while the head voxel is water, and at 0 each 8 ticks costs 2
+health (`stats.drowning` counts the hits). It refills at 4 a tick once the head
+is out. The stream carries it as `["air", id, n]` in steps of 10, plus the
+moments it leaves or reaches full or empty. The HUD shows bubbles only while
+breath is being used. The rules around it:
+- **The walking planner never plans a step with the head under water**
+  (`path(…, dive = false)`). `digPath` already refused water voxels. So
+  macros swim only at the surface, and a script cannot drown itself on a route.
+- `swimUp` (inside `surface`) is the one place allowed to dive: a body in
+  water can rise one layer a step, to the nearest voxel with air for a head.
+- A new interrupt, **running out of air** (head under water, air ≤ 40), stops
+  any macro except `surface` itself. The first version interrupted `surface`
+  too, which stopped the swim up; interrupts now receive the running macro's name.
+- The baseline surfaces first when under water.
+
+**Water flows.** Any air voxel (or torch, lantern or plant: water washes
+them away) at or below sea level that touches water, beside it or above it,
+becomes water, one ring per `FLOW_EVERY` (3) ticks. Breach a sea wall and the
+cave behind it floods (measured: +501 voxels in 300 ticks on a caverns world),
+and a player inside has `MAX_AIR` ticks to get out. All water is sea, so
+nothing flows above `SEA`. Mining now just opens a voxel to air, and the flow
+decides what comes in (it used to fill the mined voxel instantly and stop).
+**Standing water is at rest until something changes beside it.** Generation
+leaves a few cave pockets touching the sea laterally, and they stay dry until
+disturbed, so a world does not flood on its first tick and old seeds play out as before.
+The planners still never open a block that touches water, so the scripts do
+not flood their own tunnels.
+
+**Live A/B of the survival facts: no effect, and a surprise**
+(`lab/craft-survival-ab.json`, the same world as the project A/B, 70
+decisions per arm):
+
+| | with survival facts | without | with, run again |
+|---|---|---|---|
+| mean confidence | 0.87 | 0.89 | — |
+| below the gate | 9 | 8 | — |
+| survival-type picks (hunt, go home, surface, eat …) | 9, mean 0.24 | 1, 0.24 | 12, mean ~0.2 |
+| decisions made **with a threat active** | — | — | **0** |
+
+**The facts never got to act.** In the re-run, which records the active threats
+on every decision, not one of the ~0.2-confidence picks happened under a
+threat. It was day, the player was fed and healthy, no zombie was near. So
+those low picks are not unlabelled survival moves. They are what Jev does when
+**nothing on the menu advances the project and nothing threatens**: a flat
+distribution over options that all read "not part of the explore project". The
+fix is a better menu in that state (the project's next step should always
+have an option offering it), not more labels. The survival facts stay, because they
+are correct and cheap, but this run is no evidence that they help.
+
+**The surprise: two runs of the same configuration diverged at tick 1457.**
+Same world, same code (the re-run only adds a field that is never sent),
+same model name. So live runs here are **not** reproducible run to run, which
+undercuts this file's standing assumption that "Jev is deterministic, so more
+n means more worlds". The earlier measurement (identical calls give identical
+answers) may still hold per call. A divergence then means some call differed:
+a 429 retry landing on a different tick, or an upstream model revision behind
+`jev-latest`. Unresolved. Until it is, treat every single live run here as
+one draw, not as *the* answer for that world.
+
+Measured, headless (baseline): the island life sweep still holds (30/30 iron,
+30/30 houses, 0 deaths, 0 stuck). On archipelago, caverns, highlands and
+mixed at hard (3 tilings each), **0 drowning hits and 0 flooded voxels**: the
+planners' water rules mean the script never dives and never breaches. So
+drowning and floods are hazards for **you** (and for falls). A Jev agent
+picks the same macros, so it inherits the same caution, and when it does end up
+under water, the `air` threat and the `surface` option's `relieves: air` are
+what it reads.
 
 ### What is next
 

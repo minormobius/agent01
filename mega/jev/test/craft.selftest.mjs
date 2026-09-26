@@ -18,10 +18,11 @@ import { SHAPES, buildTiling, rawTiles } from '../craft/tiling.mjs';
 import { generateWorld, worldSignature, B, H, CRAFT_VERSION, KINDS, BLOCKS, tileKinds, SPECIES_NAMES } from '../craft/world.mjs';
 import { habitat, STAGE_TICKS, speciesHere } from '../craft/plants.mjs';
 import { projectState, projectFact, projectQuestion, PROJECT_NAMES, projectScore } from '../craft/projects.mjs';
-import { Sim, Replay } from '../craft/sim.mjs';
+import { Sim, Replay, MAX_AIR } from '../craft/sim.mjs';
+import { SEA } from '../craft/world.mjs';
 import { play, runMacro } from '../craft/runner.mjs';
 import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
-import { perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS } from '../craft/mind.mjs';
+import { threats, perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS } from '../craft/mind.mjs';
 import { renderAscii } from '../craft/ascii.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -532,6 +533,72 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const score = projectScore(b);
   ok(score.grown >= 4 && score.tech === '8/8', `the baseline climbs the ladder and grows ${score.grown}/${score.species_here} species in 3 days`);
   ok(r.decisions.some((d) => d.project === 'grow'), 'and moves on to the grow project');
+}
+
+// ------------------------------------------------- water, air, survival ----
+{
+  // drowning: the head under water uses up breath, then hurts; surface swims up
+  const s = new Sim({ seed: 3, shape: 'penrose' }), p = s.player;
+  let deep = -1, fy = 0;
+  for (let c = 0; c < s.N && deep < 0; c++) {
+    if (s.get(c, SEA) !== B.water) continue;
+    let y = SEA; while (y > 1 && !s.solid(c, y - 1)) y--;
+    if (SEA - y >= 3) { deep = c; fy = y; }
+  }
+  ok(deep >= 0, 'found sea floor three layers down');
+  s.moveEnt(p, deep, fy);
+  ok(threats(s).some((t) => t.id === 'air') && options(s).find((o) => o.name === 'surface')?.criteria.survival === 'relieves: air', 'under water, the threat is named and surfacing says it relieves it');
+  for (let k = 0; k < MAX_AIR; k++) s.step();
+  ok(p.air === 0 && p.hp === 20, 'a full breath lasts MAX_AIR ticks');
+  for (let k = 0; k < 40; k++) s.step();
+  ok(p.hp < 20 && s.stats.drowning > 0, `then drowning hurts (hp ${p.hp})`);
+  const r = runMacro(s, 'surface');
+  ok(r.ok && s.get(p.c, p.y + 1) !== B.water, 'surface swims up until the head is out of the water');
+  for (let k = 0; k < 20; k++) s.step();
+  ok(p.air === MAX_AIR, 'and breath comes back');
+  const rep = new Replay(s.lines[0]); for (const l of s.lines.slice(1)) rep.apply(l);
+  ok(rep.person(p.id).air === MAX_AIR && s.lines.some((l) => l.includes('["air",')), 'breath is in the stream');
+  // the planner never plans a dive
+  const w = new Sim({ seed: 3, shape: 'penrose' });
+  const route = w.path(w.player, (c, y) => w.get(c, y + 1) === B.water, 20000);
+  ok(route === null, 'the walking planner never plans a step with the head under water');
+}
+{
+  // flow: breach a sea wall and the cave behind it floods, ring by ring, only below sea level
+  const f = new Sim({ seed: 9, shape: 'hex', kind: 'caverns' });
+  let wall = null;
+  for (let c = 0; c < f.N && !wall; c++) for (let y = 2; y <= SEA; y++) {
+    if (!f.solid(c, y) || f.get(c, y) === B.bedrock) continue;
+    const dry = f.cols[c].adj.find((n) => f.get(n, y) === B.air);
+    if (f.cols[c].adj.some((n) => f.get(n, y) === B.water) && dry != null) { wall = [c, y, dry]; break; }
+  }
+  ok(!!wall, 'found a sea wall with a cave behind it');
+  const before = f.b.filter((v) => v === B.water).length;
+  f.set(wall[0], wall[1], B.air);
+  f.step(); f.step(); f.step();
+  ok(f.get(wall[0], wall[1]) === B.water && f.get(wall[2], wall[1]) !== B.water, 'the breach fills first, the cave a step later');
+  for (let k = 0; k < 300; k++) f.step();
+  ok(f.get(wall[2], wall[1]) === B.water && f.b.filter((v) => v === B.water).length > before + 50, 'then the cave floods');
+  let above = false;
+  for (let i = 0; i < f.b.length; i++) if (f.b[i] === B.water && i % H > SEA) above = true;
+  ok(!above, 'nothing flows above sea level');
+  const rep = new Replay(f.lines[0]); for (const l of f.lines.slice(1)) rep.apply(l);
+  ok(rep.b.every((v, i) => v === f.b[i]), 'the flood is in the stream, block for block');
+}
+{
+  // survival facts: at night in the open, shelter relieves it and going out worsens it
+  const s = new Sim({ seed: 3, shape: 'truncsq' });
+  while (!s.isNight()) s.step();
+  s.give('cobblestone', 4);
+  const ts = threats(s);
+  ok(ts.some((t) => t.id === 'night'), 'night in the open is a threat');
+  const opts = options(s);
+  const dig = opts.find((o) => o.name === 'dig_in'), ex = opts.find((o) => o.name === 'explore');
+  ok(dig && /relieves: night/.test(dig.criteria.survival), 'dig in: relieves night');
+  ok(ex && /worsens: night/.test(ex.criteria.survival), 'explore at night: worsens it');
+  ok(/night, out in the open/.test(JSON.stringify(perceive(s).survival)), 'and the state names it');
+  const day = new Sim({ seed: 3, shape: 'truncsq' });
+  ok(options(day).every((o) => o.criteria.survival == null), 'with nothing threatening, options carry no survival fact');
 }
 
 // ---------------------------------------------------------------- text ------

@@ -73,7 +73,7 @@ export class Party {
   // feed a finished (or refused) action's result back to its source
   deliver(m, a, res) {
     if (m.gen) {
-      const why = standardInterrupt(this.sim);
+      const why = standardInterrupt(this.sim, m.macro && m.macro.name);
       if (why) { this.endMacro(m, { ok: false, why: `interrupted: ${why}`, interrupted: why }); return; }
       m.y = m.gen.next(res);
       if (m.y.done) this.endMacro(m, m.y.value || { ok: true });   // ends the moment its last action does, not a tick later

@@ -98,10 +98,41 @@ export function perceive(sim) {
     },
     progress: { reached: reached.length ? reached : ['nothing yet'], next: open },
     project: projectFacts(sim),
+    survival: (() => { const ts = sim.noSurvival ? [] : threats(sim); return ts.length ? { threats: ts.map((t) => t.text) } : { threats: 'none right now' }; })(),
     explored: `${Math.round(100 * sim.seenCount / sim.N)}% of the island`,
     recent: (sim._journal || []).slice(-6),
     ...(sim.players.length > 1 ? { team: teamFacts(sim) } : {}),
   };
+}
+
+// ------------------------------------------------------------- survival ---
+// Survival is not a project: it is whatever is threatening the player RIGHT
+// NOW, and every option says what it does about each threat. Without this the
+// options that keep you alive read "not part of the project" and sit at ~0.2
+// confidence (measured live, 2026-09-26). Each threat names the options that
+// relieve it; an option that goes out among zombies at night worsens that one.
+const SHELTER = new Set(['go_home', 'dig_in', 'build_house']);
+export function threats(sim) {
+  const p = sim.player, night = sim.isNight(), out = [];
+  const inside = !sim.skyOpen(p.c, p.y + 2) || atHome(sim);
+  const zNear = [...sim.ents.values()].filter((e) => e.kind === 'zombie' && sim.dist(e.c, p.c) <= 6).length;
+  const adjacent = [...sim.ents.values()].some((e) => e.kind === 'zombie' && sim.adjacentTo(p, e));
+  const foodHeld = Object.keys(FOOD).some((k) => sim.has(k));
+  if (sim.get(p.c, p.y + 1) === B.water) out.push({ id: 'air', text: `under water: air ${p.air}/60, drowning at 0`, relief: (o) => o.name === 'surface' });
+  if (adjacent) out.push({ id: 'zombie', text: 'a zombie is hitting you', relief: (o) => o.name === 'fight' || o.name === 'dig_in' });
+  if (night && !inside) out.push({ id: 'night', text: `night, out in the open (${zNear} zombies within 6)`, relief: (o) => SHELTER.has(o.name) || (o.name === 'sleep_until_dawn' && inside), worse: (o) => o.leaves });
+  if (p.food <= 6) out.push({ id: 'hunger', text: `food ${p.food}/20${p.food === 0 ? ': starving, losing health' : ''}`,
+    relief: (o) => (o.name === 'eat' && foodHeld) || o.name === 'hunt' || (o.name === 'harvest') || (o.name === 'craft' && ['bread', 'cooked_porkchop'].includes(o.args?.item)) || (o.name === 'forage' && o.args?.sp === 'sunfruit') });
+  if (p.hp <= 8) out.push({ id: 'health', text: `health ${p.hp}/20${zNear ? `, ${zNear} zombies near` : ''}`,
+    relief: (o) => SHELTER.has(o.name) || (o.name === 'eat' && sim.has('moonpetal')) || (o.name === 'sleep_until_dawn' && inside) || (adjacent && o.name === 'fight') });
+  return out;
+}
+function survivalFact(ts, o) {
+  if (!ts.length) return null;
+  const helps = ts.filter((t) => t.relief(o)).map((t) => t.id), hurts = ts.filter((t) => t.worse && t.worse(o)).map((t) => t.id);
+  if (helps.length) return `relieves: ${helps.join(', ')}`;
+  if (hurts.length) return `worsens: ${hurts.join(', ')}`;
+  return `does nothing about: ${ts.map((t) => t.id).join(', ')}`;
 }
 
 function projectFacts(sim) {
@@ -208,6 +239,7 @@ export function options(sim) {
   const out = [];
   // sim.noProjects: the control arm for measuring what the project facts do
   const pst = sim.project && !sim.noProjects ? projectState(sim, sim.project) : null;
+  const ts = sim.noSurvival ? [] : threats(sim);
   const add = (id, name, args, facts, tokens = []) => {
     const m = PALETTE[name];
     const leaves = !['craft', 'eat', 'fight', 'sleep_until_dawn', 'dig_in', 'set_home', 'surface'].includes(name) && !(name === 'go_home');
@@ -222,8 +254,9 @@ export function options(sim) {
     const failed = last && !last.ok && sim.tick - last.tick < 2400
       ? { last_tried: `FAILED ${sim.tick - last.tick} ticks ago, after spending ${last.ticks} ticks: ${last.why}` } : {};
     const pf = projectFact(sim, pst, new Set(tokens));
+    const sf = survivalFact(ts, { name, args, leaves: night && leaves });
     out.push({ id, name, args, tokens, criteria: {
-      activity: m.doc, mode: m.mode, ...facts, ...(pf ? { project: pf } : {}), ...failed,
+      activity: m.doc, mode: m.mode, ...facts, ...(sf ? { survival: sf } : {}), ...(pf ? { project: pf } : {}), ...failed,
       ...(night && leaves ? { at_night: 'goes out among zombies' } : {}),
     } });
   };
@@ -392,6 +425,8 @@ export function resolve(sim, opts, response, { gate = true } = {}) {
     confidence: a?.confidence ?? null, danger: response.answers?.danger?.score ?? null, have: response.answers?.have?.noul ?? null,
     options: opts.length,
   };
+  const ts = sim.noSurvival ? [] : threats(sim);
+  if (ts.length) record.threats = ts.map((t) => t.id);
   let pick = opt ? { name: opt.name, args: opt.args || undefined } : null;
   if (response.source === 'typesafe' && opt && (a.confidence ?? 0) < GATE) record.below_gate = true;
   if (response.source === 'typesafe' && (!opt || (gate && (a.confidence ?? 0) < GATE))) {

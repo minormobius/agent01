@@ -32,6 +32,7 @@ const noJev = process.argv.includes('--no-jev');
 // --no-projects: the control (no project question, no project facts on options)
 // --only jev,baseline: run just these arms
 const noProjects = process.argv.includes('--no-projects');
+const noSurvival = process.argv.includes('--no-survival');   // the control for the survival facts
 const only = arg('only', null)?.split(',');
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
 
@@ -58,13 +59,14 @@ for (const w of worlds) {
     if (only && !only.includes(arm)) continue;
     const sim = new Sim({ ...w, difficulty });
     if (noProjects) sim.noProjects = true;
+    if (noSurvival) sim.noSurvival = true;
     const t0 = Date.now();
     const log = arm === 'jev' && process.env.CRAFT_TRACE;
     // when each long-range project completes (checked at every decision)
     const projDone = {};
     const watched = async (s, ...a) => { for (const n of PROJECT_NAMES) if (!(n in projDone) && projectState(s, n).complete) projDone[n] = s.tick; return decide(s, ...a); };
     const r = await playMind(sim, watched, { maxTicks: ticks, gate: false, maxDecisions: +arg('max-decisions', 400),
-      onDecision: log ? (d) => console.log(`  ${String(d.tick).padStart(5)} ${String(d.choice).padEnd(22)} ${d.confidence?.toFixed(2)} ${d.result}${d.error ? ' ERR ' + d.error : ''}`) : undefined });
+      onDecision: log ? (d) => console.log(`  ${String(d.tick).padStart(5)} ${String(d.choice).padEnd(22)} ${d.confidence?.toFixed(2)} ${d.result}${d.threats ? ' [' + d.threats.join(',') + ']' : ''}${d.error ? ' ERR ' + d.error : ''}`) : undefined });
     const rung = Object.fromEntries(RUNGS.map((g) => [g, r.milestones[`goal:${g}`] ?? null]));
     const conf = r.decisions.map((d) => d.confidence).filter((c) => c != null);
     const row = {

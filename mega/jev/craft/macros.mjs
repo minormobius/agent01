@@ -391,8 +391,20 @@ export function* sleepUntilDawn(sim) {
 // Back up to open sky: the digging planner, aimed at any standing spot with
 // nothing overhead. It climbs stairs it cuts itself, so it works from a
 // capped shelter, a staircase, or the far end of a branch mine.
+export const underwater = (sim) => sim.get(sim.player.c, sim.player.y + 1) === B.water;
+// Swim up until the head is out of the water (the walking planner, allowed to
+// dive for this one purpose; a body in water can rise one layer a step).
+export function* swimUp(sim) {
+  const p = sim.player;
+  if (!underwater(sim)) return { ok: true };
+  const path = sim.path(p, (c, y) => sim.get(c, y + 1) !== B.water, 6000, 2, false, true);
+  if (!path) return { ok: false, why: 'no way up out of the water' };
+  for (const [c] of path) { const r = yield { op: 'move', to: c }; if (!r.ok) return { ok: false, why: r.why }; }
+  return underwater(sim) ? { ok: false, why: 'still under water' } : { ok: true };
+}
 export function* surface(sim) {
   const p = sim.player;
+  if (underwater(sim)) { const s = yield* swimUp(sim); if (!s.ok) return s; }
   if (sim.skyOpen(p.c, p.y + 2)) return { ok: true };
   const go = yield* goTo(sim, (c, y) => sim.skyOpen(c, y + 2) && sim.get(c, y - 1) !== B.water, 60000);
   return go.ok ? { ok: true } : { ok: false, why: `no way up (${go.why})` };
@@ -990,7 +1002,7 @@ export const PALETTE = {
   mine_coal:    { mode: 'mine', doc: 'take coal in sight, or dig for it', needs: (s) => hasPick(s), run: (s, a) => mineCoal(s, a?.n) },
   mine_iron:    { mode: 'mine', doc: 'down to the iron band and along it', needs: (s) => hasPick(s, 2), run: (s, a) => mineIron(s, a) },
   branch_mine:  { mode: 'mine', doc: 'a straight tunnel on this layer, torch-lit', needs: (s) => hasPick(s), run: (s, a) => branchMine(s, a?.length) },
-  surface:      { mode: 'mine', doc: 'climb back up to open sky', needs: (s) => s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : atHome(s) ? 'in the house — any outdoor activity walks out the door' : null, run: (s) => surface(s) },
+  surface:      { mode: 'mine', doc: 'climb (or swim) back up to open sky', needs: (s) => underwater(s) ? null : s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : atHome(s) ? 'in the house — any outdoor activity walks out the door' : null, run: (s) => surface(s) },
   // explore
   explore:      { mode: 'explore', doc: 'walk to the edge of the known and look past it', needs: () => null, run: (s, a) => explore(s, a?.steps) },
   scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },

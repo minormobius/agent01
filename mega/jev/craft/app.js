@@ -295,6 +295,10 @@ function hud() {
   $('clock').textContent = `day ${day} · ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}${ph >= NIGHT_START ? ' · night' : ''} · tick ${t}`;
   $('hp').textContent = '♥'.repeat(Math.ceil(replay.hp / 2)).padEnd(10, '·') + ` ${replay.hp}`;
   $('food').textContent = '◆'.repeat(Math.ceil(replay.food / 2)).padEnd(10, '·') + ` ${replay.food}`;
+  // breath, only while it is being used: one bubble per 6 ticks of air
+  const air = replay.air ?? 60;
+  $('air').hidden = air >= 60;
+  if (air < 60) $('air').textContent = '○'.repeat(Math.ceil(air / 6)).padEnd(10, '·') + (air === 0 ? ' drowning' : '');
   $('lines').textContent = allLines.length || (fileLines ? fileLines.length : 0);
   const inv = $('inv');
   const key = JSON.stringify(replay.inv) + hands.sel;
@@ -359,6 +363,7 @@ function feed(lines) {
       if (playing() && ev[0] === 'die' && ev[1] === focusId) toast(homeAt ? 'you died — back home' : 'you died — back at the spawn');
       if (playing() && ev[0] === 'note' && ev[1] === 'dusk') toast('dusk: zombies spawn on open ground');
       if (playing() && ev[0] === 'hit' && ev[2] === focusId && ev[1] >= 0) toast('a zombie hits you');
+      if (playing() && ev[0] === 'air' && ev[1] === focusId && ev[2] === 0) toast('out of air — swim up!');
     }
   }
   if (blocksChanged) rebuildTorches();

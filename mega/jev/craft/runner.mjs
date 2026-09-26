@@ -12,7 +12,7 @@
 // engine can be shown climbing the tech ladder with no model in the loop.
 
 import { PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants } from './macros.mjs';
-import { EAT_ORDER } from './world.mjs';
+import { EAT_ORDER, B } from './world.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 
 // One primitive action per step(), so a caller can interleave rendering
@@ -50,7 +50,7 @@ export class Driver {
     if (++this.n > this.maxActions) return { ended: this.end({ ok: false, why: 'action budget spent' }) };
     const res = this.sim.act(this.last.value);
     this.lastAction = { ...this.last.value, ...res };
-    const why = this.interrupt && this.interrupt(this.sim);
+    const why = this.interrupt && this.interrupt(this.sim, this.cur && this.cur.name);
     if (why) return { ended: this.end({ ok: false, why: `interrupted: ${why}`, interrupted: why }) };
     this.last = this.gen.next(res);
     return null;
@@ -69,8 +69,12 @@ const exposed = (sim) => sim.skyOpen(sim.player.c, sim.player.y + 2);
 
 // Interrupts are facts, not judgements: each names a thing that changed and
 // that the current macro was not written to handle.
-export function standardInterrupt(sim) {
+export function standardInterrupt(sim, running = null) {
   if (zombieAdjacent(sim)) return 'zombie adjacent';
+  // under water with breath running low: whatever the macro was doing, stop
+  const p = sim.player;
+  if (running !== 'surface' && sim.get(p.c, p.y + 1) === B.water && p.air <= 40 && !sim._airAck) { sim._airAck = true; return 'running out of air'; }
+  if (p.air >= 60) sim._airAck = false;
   if (sim.isNight() && exposed(sim) && !sim._nightAck) { sim._nightAck = true; return 'night fell in the open'; }
   if (!sim.isNight()) sim._nightAck = false;
   return null;
@@ -87,6 +91,7 @@ export function baselinePolicy(sim) {
   const craftIt = (item, q = 1) => shortfall(sim, item, q).log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : { name: 'craft', args: { item, ...(q > 1 ? { n: q } : {}) } };
   const blocks = n('cobblestone') + n('dirt') + n('planks') + n('sand');
   if (zombieAdjacent(sim)) return { name: 'fight' };
+  if (sim.get(p.c, p.y + 1) === B.water) return { name: 'surface' };
   if (sim.isNight()) {
     if (atHome(sim)) return { name: 'sleep_until_dawn' };
     if (sim.home && exposed(sim) && sim.dist(p.c, sim.home[0]) < 25 && !sim._homeTried) { sim._homeTried = true; return { name: 'go_home' }; }
