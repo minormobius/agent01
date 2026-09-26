@@ -121,4 +121,31 @@ fetch('./candidates/candidates.json').then((r) => (r.ok ? r.json() : null)).then
     $('candidates').append(li);
   }
 }).catch(() => {});
+// the grind: Whisper in the loop, step by step (studio/tools/voice-grind.mjs writes grind/)
+fetch('./grind/progress.json').then((r) => (r.ok ? r.json() : null)).then((g) => {
+  if (!g || !g.steps?.length) return;
+  $('grind').hidden = false;
+  const S = g.steps, W = 640, H = 200, P = { l: 34, r: 10, t: 12, b: 24 };
+  const tmax = Math.max(...S.map((s) => s.minute), 1);
+  const x = (m) => P.l + ((W - P.l - P.r) * m) / tmax;
+  const series = [['cer', 'Whisper CER %', '#b48cff', 30], ['tone', 'tone dB', '#ffd08a', 10], ['pitch', 'pitch st', '#8fe3a8', 6]];
+  let svg = `<line x1="${P.l}" y1="${H - P.b}" x2="${W - P.r}" y2="${H - P.b}" stroke="rgba(236,235,245,.25)"/>`;
+  const phase = S.find((s) => /phase 2/.test(s.change));
+  if (phase) svg += `<line x1="${x(phase.minute)}" y1="${P.t}" x2="${x(phase.minute)}" y2="${H - P.b}" stroke="rgba(236,235,245,.3)" stroke-dasharray="3 3"/><text x="${x(phase.minute) + 4}" y="${P.t + 10}">phase 2</text>`;
+  series.forEach(([k, label, col, max], i) => {
+    const y = (v) => H - P.b - ((H - P.t - P.b) * Math.min(v, max)) / max;
+    svg += `<polyline fill="none" stroke="${col}" stroke-width="2" points="${S.map((s) => `${x(s.minute).toFixed(1)},${y(s[k]).toFixed(1)}`).join(' ')}"/>`;
+    svg += `<text x="${P.l + 6 + i * 150}" y="${H - 6}" style="fill:${col}">${label} (0–${max})</text>`;
+  });
+  svg += `<text x="${W - P.r}" y="${H - P.b - 4}" text-anchor="end">${tmax.toFixed(0)} min</text>`;
+  $('curve').innerHTML = svg;
+  const li0 = document.createElement('li');
+  li0.innerHTML = `<span class="n">2c</span><div><div>the target: 2c reading the same two sentences</div><audio controls preload="none" src="./grind/2c.wav"></audio></div>`;
+  $('steps').append(li0);
+  for (const s of S) {
+    const li = document.createElement('li');
+    li.innerHTML = `<span class="n">${s.n}</span><div><div>${s.change}</div><div class="sc">${s.minute} min · CER ${s.cer}% · tone ${s.tone} dB · pitch ${s.pitch} st</div><audio controls preload="none" src="./grind/${s.n}.wav"></audio></div>`;
+    $('steps').append(li);
+  }
+}).catch(() => {});
 window.__voice = { say, voice, phonemize };

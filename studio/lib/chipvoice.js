@@ -72,17 +72,23 @@ export const VOICE = {
   rate: 1.0,           // speaking rate: 1 is Klatt's durations
   breath: 0.8,         // aspiration mixed into voicing (a clean buzz is the most robotic thing a voice can do)
   oq: 0.55,            // glottal open quotient: lower is pressed and buzzy, higher breathy
+  tilt: 0,             // 0..0.95: a low-pass on the glottal pulse, darker as it rises (a soft voice's spectrum falls faster)
+  bw: 1,               // every formant bandwidth times this: wider is duller and more natural, narrower ringing
+  jitter: 0,           // cycle-to-cycle pitch wobble (0.01 = 1%): a real larynx is never a clock
+  warmth: 0,           // the glottal flow itself mixed into its derivative: a strong fundamental, a chest voice close to the mic
+  hiss: 1,             // the fricatives' and bursts' level times this
+  bw1: 1,              // F1's bandwidth times this, on top of bw: wider takes the peakiness out of the low mids
   // rules, each a number so studio/tools/voice.mjs --set can try it off (0) and on
   voicedLength: 1,     // vowels long before a voiced coda, short before a voiceless one
   functionWords: 0,    // "the", "of", "a" said quickly (off: Whisper lost them, 39% → 33% WER)
   lightDarkL: 1,       // L light before a vowel, dark after
   aspiration: 1,       // longer aspiration into a stressed vowel
-  fit: 0,              // targets fitted to the reference voice (chipvoice-fit.js): 1 for likeness, 2 for a listener's sake
+  fit: 0,              // targets fitted to the reference voice (chipvoice-fit.js): 1 for likeness, 2 for a listener's sake, 3 by Whisper in the loop
   profile: 0,          // the reference voice (chipvoice-profile.js) over the textbook: 1 its vowels, 2 its durations, 3 both
 };
 /** A phoneme's targets: the textbook's, or where the reference voice was measured, its (in Hz, so unscaled). */
 export function phone(p, voice) {
-  const f = voice.fit && FITS[voice.fit === 2 ? 'classify' : 'likeness'][p], P = f ? { ...PHONES[p], ...f } : PHONES[p], m = (voice.profile & 1) && PROFILE.vowels[p];
+  const f = voice.fit && FITS[['', 'likeness', 'classify', 'whisper'][voice.fit]]?.[p], P = f ? { ...PHONES[p], ...f } : PHONES[p], m = (voice.profile & 1) && PROFILE.vowels[p];
   if (!m) return P;
   if (P.kind === 'd') return m.F2 ? { ...P, F: m.F.map((f) => f / voice.scale), F2: m.F2.map((f) => f / voice.scale) } : P;
   return { ...P, F: m.F.map((f) => f / voice.scale) };
@@ -296,7 +302,8 @@ export function renderFormant(tr, { rate = 16000, voice = VOICE } = {}) {
   R[3].set(3300 * voice.scale, 250); R[4].set(3750 * voice.scale, 200);
   const fb = [new Band(rate), new Band(rate)];
   let hp1 = 0, hpx = 0;          // a one-pole high-pass under the frication: fricatives live above ~1 kHz
-  let lfsr = 0x7fff, phase = 0, flowPrev = 0;
+  let lfsr = 0x7fff, phase = 0, flowPrev = 0, jit = 1, tiltY = 0;
+  const tw = (2 * Math.PI * 500) / rate, tiltGain = voice.tilt ? Math.hypot(1 - voice.tilt * Math.cos(tw), voice.tilt * Math.sin(tw)) / (1 - voice.tilt) : 1;
   const noise = () => { const bit = (lfsr ^ (lfsr >> 1)) & 1; lfsr = (lfsr >> 1) | (bit << 14); return (lfsr / 16384) - 1; };
   let lpNoise = 0;
   for (let i = 0; i < N; i++) {
@@ -305,18 +312,20 @@ export function renderFormant(tr, { rate = 16000, voice = VOICE } = {}) {
     if (i % 16 === 0) {
       // while the glottis is open (aspiration, [h]) F1 is damped: the breath is carried by F2 and F3
       const open = Math.min(1, L('AH') * 1.6);
-      R[0].set(L('F1'), L('B1') + 300 * open); R[1].set(L('F2'), L('B2')); R[2].set(L('F3'), L('B3'));
+      R[0].set(L('F1'), (L('B1') + 300 * open) * voice.bw * voice.bw1); R[1].set(L('F2'), L('B2') * voice.bw); R[2].set(L('F3'), L('B3') * voice.bw);
       const nas = L('nasal');
       NP.set(270, 100); NZ.set(270 + 180 * nas, 100);             // the nasal pair cancels unless nasal
       if (a.fr) { fb[0].set(a.fr[0][0], a.fr[0][1]); fb[1].set(a.fr[1][0], a.fr[1][1]); }
     }
     // voicing: KLGLOTT88's flow (t² − t³ in the open phase), differentiated
     const f0 = L('F0');
-    phase += f0 / rate;
-    if (phase >= 1) phase -= 1;
+    phase += (f0 * jit) / rate;
+    if (phase >= 1) { phase -= 1; jit = 1 + voice.jitter * (((lfsr & 1023) / 511.5) - 1); }   // a new wobble each cycle
     const oq = voice.oq, t = phase / oq;
     const flow = phase < oq ? t * t - t * t * t : 0;
-    const glottal = (flow - flowPrev) * 60; flowPrev = flow;
+    let glottal = (flow - flowPrev) * 60 + voice.warmth * (flow - oq / 12) * 7.2; flowPrev = flow;   // (oq/12: the flow's mean over a cycle, so warmth adds no DC)
+    // tilt: a one-pole low-pass, its gain at 500 Hz held at 1, so it darkens without quietening the vowels' F1
+    if (voice.tilt) { tiltY = tiltY * voice.tilt + glottal * (1 - voice.tilt); glottal = tiltY * tiltGain; }
     const n = noise();
     lpNoise = lpNoise * 0.6 + n * 0.4;
     // aspiration is breath through the tract; a little of it rides every voiced sound, pulsing with the glottis
@@ -332,7 +341,7 @@ export function renderFormant(tr, { rate = 16000, voice = VOICE } = {}) {
       const fr = a.fr || b.fr;
       if (fr) f = fb[0].step(n) * fr[0][2] + fb[1].step(n) * fr[1][2];
       f += n * (a.bypass || 0);
-      f *= AF;
+      f *= AF * voice.hiss;
       // no rumble under a hiss: the tract in front of a constriction passes little below ~1 kHz
       const hp = 0.72 * (hp1 + f - hpx); hpx = f; hp1 = hp; f = hp;
     }

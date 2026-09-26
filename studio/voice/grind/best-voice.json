@@ -1,0 +1,14 @@
+{
+ "warmth": 0,
+ "bw1": 1,
+ "hiss": 0.9,
+ "f0": 113,
+ "range": 0.22,
+ "rate": 1,
+ "scale": 1.03,
+ "oq": 0.55,
+ "breath": 1,
+ "tilt": 0,
+ "bw": 1,
+ "jitter": 0.005
+}
