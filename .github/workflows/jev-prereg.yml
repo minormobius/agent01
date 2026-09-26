@@ -47,7 +47,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: claude/jev-demo-website-pw3us1
+          ref: claude/jev-minecraft-headless-9sbgxk
 
       - uses: actions/setup-node@v4
         with:
@@ -75,7 +75,7 @@ jobs:
             n=$(node -e "console.log(require('./mega/jev/lab/prereg-results.json').verdict.n)")
             git add mega/jev/lab/prereg-results.json
             git commit -m "jev prereg: forward test at n=${n}"
-            git push origin claude/jev-demo-website-pw3us1
+            git push origin claude/jev-minecraft-headless-9sbgxk
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
