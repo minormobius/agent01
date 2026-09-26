@@ -551,8 +551,25 @@ player by a wide margin. Now it is any column whose centre is within
 non-neighbour voxel must have an open face: no mining through a wall to the
 block behind. Houses 60/60 and lives 20/20 still hold, but **the game got
 easier**: the baseline's mean ticks-to-rung went 872 → 573 on the scoreboard
-worlds. The v3 Jev numbers above were played under the old rule. The v4 run
-below is under the new one.
+worlds. The v3 Jev numbers above were played under the old rule.
+
+**v4, the same 4 worlds, the new reach** (`lab/craft-gate.json`):
+
+| world | baseline | offline | Jev | random |
+|---|---|---|---|---|
+| penrose/3 | **545** | 760 | 869 | 2249 (6/9) |
+| hex/2 | **635** | 919 | 721 | 2771 (5/9) |
+| truncsq/2 | **653** | 885 | 850 | 981 |
+| kagome/4 | **456** | 843 | 1143 | 2723 (6/9) |
+| **mean** | **573** | 852 | **896** | 2181 |
+
+All four deciders but random reach every rung. **The easier game helped the
+script far more than it helped Jev**: the baseline went 872 → 573, Jev
+931 → 896. So Jev is now ~55% behind the hand-written policy, level with the
+offline stand-in (the script projected onto the menu), and still ~2.4× faster
+than random. Confidence stayed at ~0.38–0.42 with most picks below the gate.
+The same caveats as v3 apply, doubly: these are the worlds the harness was
+debugged on.
 
 ### What is next
 
