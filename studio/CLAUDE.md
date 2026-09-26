@@ -306,6 +306,19 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   **Result, adopted as VOICE's defaults**: all 50 sentences WER 29.2% → 24.1% (CER 16.7 → 12.9),
   the 30 never tuned on ~23.5%, the paragraph 11.3%, tone 7.7 → 5.5 dB off 2c.
 
+- **Phase 3, the consonants** (2026-09-26, owner: "the noise of s … too sudden with the onset").
+  The hiss had no envelope: it switched on in ~5 ms. 2c's rises: s 120 ms, sh 70, z 55, ch/j 35,
+  f/th/v 15–25 (10–90% of the >2.5 kHz band, from the phonetics kit). Now `shapeFrication` in
+  tracks(): a smoothstep rise (`fricAttack`, 60 ms for a sibilant; ×0.33 f/th/v/dh; ×0.25 an
+  affricate, whose sharp start is its cue) starting a third of the way into the sound before, and a
+  fall (`fricRelease`). New stop controls: `aspLevel`, `aspMs`, `closure`, `voiceBar`. The envelope
+  alone: 24.1% → 23.8%, paragraph 11.3% → 7.5%. Then 55 min of grind on 19 consonant parameters
+  (the envelope, hiss, stops, the s/sh/z/f/th noise, the t/p/k bursts: `--only consonants`): the
+  fall shortened to 22.5 ms, hiss 0.85, closures ×1.05, sh's band up, f's and s's upper noise up.
+  **All 50: WER 22.6%, CER 10.8%; the paragraph 3.8% (2 of 53 words).** Adopted.
+  Still failing: the velars' place (cow → toe, cool → pool, glue → do, gang → bag: k/g's burst and
+  locus don't say "back of the mouth"), some initial t/s (Two → Who, salt → all), some vowels.
+
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
 R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word

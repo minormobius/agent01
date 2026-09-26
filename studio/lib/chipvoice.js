@@ -67,7 +67,8 @@ const isVowel = (p) => p && (PHONES[p].kind === 'v' || PHONES[p].kind === 'd');
 // ---- the voice -------------------------------------------------------------------------
 export const VOICE = {
   // the grind (tools/voice-grind.mjs, 2026-09-26): Whisper in the loop, toward 2c's tone. Harvard WER 29.2% → 24.1%,
-  // tone 7.7 → 5.5 dB off 2c. The textbook starting point is step 00 of voice/grind/progress.json.
+  // tone 7.7 → 5.5 dB off 2c; phase 3 (the consonants, the s's envelope) 24.1% → 22.6%, the paragraph 3.8%.
+  // The textbook starting point is step 00 of voice/grind/progress.json.
   f0: 113,             // Hz, the middle of the voice (lower draws the formants more densely: 118 → 100 Hz was 27% → 24% WER)
   range: 0.4,         // how far stress lifts it (a fraction of f0)
   scale: 1.09,         // formant scale: 1 an adult man, ~1.15 a woman, ~1.3 a child
@@ -78,8 +79,17 @@ export const VOICE = {
   bw: 1.15,               // every formant bandwidth times this: wider is duller and more natural, narrower ringing
   jitter: 0,           // cycle-to-cycle pitch wobble (0.01 = 1%): a real larynx is never a clock
   warmth: 1,           // the glottal flow itself mixed into its derivative: a strong fundamental, a chest voice close to the mic
-  hiss: 0.8,             // the fricatives' and bursts' level times this
+  hiss: 0.85,             // the fricatives' and bursts' level times this
   bw1: 1.5,              // F1's bandwidth times this, on top of bw: wider takes the peakiness out of the low mids
+  // the hiss's envelope (ms, for a sibilant; f/th/v/dh a third of it, an affricate's tail a quarter: its abrupt
+  // start is what makes "ch" not "sh"). A real [s] swells in over ~50–120 ms (2c's: 120); switched on at once it
+  // clicked in. The rise starts a third of the way before the fricative, over the fading vowel, as speech overlaps
+  fricAttack: 60,
+  fricRelease: 22.5,
+  aspLevel: 1,         // the breath after p/t/k and in [h], times this
+  aspMs: 1,            // how long that breath lasts, times this (60 ms into a stressed vowel, 40 otherwise)
+  closure: 1.05,          // how long a stop holds its silence, times this
+  voiceBar: 0.12,      // the buzz under a voiced stop's closure (b, d, g): what tells it from p, t, k
   // rules, each a number so studio/tools/voice.mjs --set can try it off (0) and on
   voicedLength: 1,     // vowels long before a voiced coda, short before a voiceless one
   functionWords: 0,    // "the", "of", "a" said quickly (off: Whisper lost them, 39% → 33% WER)
@@ -185,11 +195,11 @@ export function tracks(timed, voice = VOICE) {
         break;
       }
       case 'n': push(n, () => ({ F: P.F, B: [100, 250, 300], AV: 0.55, AH: 0, AF: 0, nasal: 1 })); break;
-      case 'h': { const F = nextVowelF(i); push(n, () => ({ F, AV: 0, AH: 0.7, AF: 0, nasal: 0 })); break; }
+      case 'h': { const F = nextVowelF(i); push(n, () => ({ F, AV: 0, AH: 0.7 * voice.aspLevel, AF: 0, nasal: 0 })); break; }
       case 'f': push(n, () => ({ F: P.F, AV: P.voiced ? 0.45 : 0, AH: 0, AF: P.amp, fr: P.fr, bypass: P.bypass, nasal: 0 })); break;
       case 's': case 'a': {
         const next = timed[i + 1], toVowel = next && !next.pause && (isVowel(next.p) || PHONES[next.p].kind === 'g');
-        const closure = Math.max(1, n - (P.kind === 'a' ? 0 : 2));
+        const closure = Math.max(1, Math.round((n - (P.kind === 'a' ? 0 : 2)) * voice.closure));
         // a velar is made where its vowel is: its locus and burst ride the next vowel's F2
         // (high and compact before [i], low before [u]), where a labial's and an alveolar's stay put
         let locus = P.F, burst = P.burst;
@@ -199,7 +209,7 @@ export function tracks(timed, voice = VOICE) {
           burst = { ...P.burst, fr: [[f2 * 1.05, 600, P.burst.fr[0][2]], P.burst.fr[1]] };
         }
         // the closure: silence, or a voice bar under a voiced stop
-        push(closure, () => ({ F: locus, B: [80, 200, 300], AV: P.voiced ? 0.12 : 0, AH: 0, AF: 0, nasal: 0, closure: true }));
+        push(closure, () => ({ F: locus, B: [80, 200, 300], AV: P.voiced ? voice.voiceBar : 0, AH: 0, AF: 0, nasal: 0, closure: true }));
         if (P.kind === 'a') {
           const Fr = phone(P.fric, voice);
           push(2, () => ({ F: Fr.F, AV: 0, AH: 0, AF: 1.0, fr: PHONES.T.burst.fr, bypass: 0.1, nasal: 0, burst: true }));
@@ -210,7 +220,7 @@ export function tracks(timed, voice = VOICE) {
           // aspiration: a voiceless stop into a vowel breathes while the formants move
           // (longer into a stressed vowel: English aspirates most at a stressed onset)
           const stressedNext = timed.slice(i + 1).find((y) => y.pause || isVowel(y.p))?.stress === 1;
-          if (!P.voiced && toVowel && !(timed[i - 1] && timed[i - 1].p === 'S')) push(Math.round((voice.aspiration ? (stressedNext ? 60 : 40) : 45) / FRAME / voice.rate), () => ({ F: nextVowelF(i), AV: 0, AH: 0.55, AF: 0, nasal: 0 }));
+          if (!P.voiced && toVowel && !(timed[i - 1] && timed[i - 1].p === 'S')) push(Math.round(((voice.aspiration ? (stressedNext ? 60 : 40) : 45) * voice.aspMs) / FRAME / voice.rate), () => ({ F: nextVowelF(i), AV: 0, AH: 0.55 * voice.aspLevel, AF: 0, nasal: 0 }));
         }
         break;
       }
@@ -233,6 +243,8 @@ export function tracks(timed, voice = VOICE) {
       for (let k = Math.max(a0, a1 - K); k <= a1; k++) { const u = smooth((a1 - k) / K); T[k] = { ...T[k], F: T[k].F.map((f, j) => G[j] + (f - G[j]) * u) }; }
     }
   });
+  // the hiss's envelope: a fricative swells in and dies away rather than switching (see VOICE.fricAttack)
+  shapeFrication(T, timed, voice);
   // coarticulation: formants and bandwidths move smoothly (a 40 ms triangle), amplitudes over 10 ms
   const N = T.length, sm = (get, half) => {
     const out = new Array(N);
@@ -268,6 +280,28 @@ export function tracks(timed, voice = VOICE) {
   return T.map((t, i) => ({ F1: F[0][i], F2: F[1][i], F3: F[2][i], B1: Bw[0][i], B2: Bw[1][i], B3: Bw[2][i], AV: AV[i], AH: AH[i], AF: t.AF, fr: t.fr, bypass: t.bypass || 0, nasal: nasal[i], F0: f0s[i], seg: t.seg, burst: !!t.burst }));
 }
 const smooth = (u) => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+const SIBILANT = new Set(['S', 'Z', 'SH', 'ZH']);
+function shapeFrication(T, timed, voice) {
+  if (!voice.fricAttack && !voice.fricRelease) return;
+  const spans = {};
+  T.forEach((t, k) => { if (t.AF > 0 && !t.burst) (spans[t.seg] = spans[t.seg] || [k, k])[1] = k; });
+  const env = new Float64Array(T.length).fill(1), extra = [];
+  for (const [seg, [a, b]] of Object.entries(spans)) {
+    const P = PHONES[timed[seg].p], k = P.kind === 'a' ? 0.25 : SIBILANT.has(timed[seg].p) ? 1 : 0.33;
+    const A = Math.max(1, Math.round((voice.fricAttack * k) / FRAME)), R = Math.max(1, Math.round((voice.fricRelease * k) / FRAME));
+    const pre = P.kind === 'a' ? 0 : Math.round(A / 3), a0 = Math.max(0, a - pre), a1 = a0 + A, b1 = b + 1, b0 = b1 - R;
+    for (let j = a0; j <= b; j++) {
+      const up = Math.min(1, (j - a0 + 0.5) / A), down = Math.min(1, (b1 - j - 0.5) / R);
+      const e = Math.max(0, Math.min(up, down));
+      const w = e * e * (3 - 2 * e);                                  // smoothstep: no corner at either end
+      if (j < a) extra.push([j, w, T[a]]); else env[j] = Math.min(env[j], w);
+    }
+  }
+  for (let j = 0; j < T.length; j++) if (T[j].AF > 0 && !T[j].burst) T[j] = { ...T[j], AF: T[j].AF * env[j] };
+  // the lead-in: the fricative's hiss over the end of the sound before it
+  for (const [j, w, src] of extra) if (!(T[j].AF > 0) || T[j].AF < src.AF * w) T[j] = { ...T[j], AF: src.AF * w, fr: src.fr, bypass: src.bypass };
+}
+
 // ---- the synthesiser ---------------------------------------------------------------------
 /** Klatt's two-pole resonator; with `anti`, the matching zero pair (an antiresonator). */
 class Resonator {
