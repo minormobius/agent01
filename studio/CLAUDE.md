@@ -47,6 +47,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   cast.js                the man, the dame, the Manager (after Parade's), the band on its stand
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
 voice/                   a lab: Claude's voice by formant synthesis (lib/chipvoice.js), scored by Whisper (tools/voice.mjs)
+avatar/                  Attractor Bodies (sketchbook): packages/attractor (vendor/attractor/lib) on the figure rig
 descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
 bommie/                  No. 6, a sitcom on a coral head: script.js (the clock), world.js (poses at t), sound.js (synth), render.js (raymarch)
 pdoom/                   No. 5, a music video: the figure cast dancing Claude-Pop's song (YouTube-driven), checked every frame
@@ -440,6 +441,22 @@ the picture: a figure descending a staircase in flat planes, after Duchamp (1912
     a frame on a software canvas; the last chord's halo goes into the same cells. Headless Chromium
     (CPU-only): 10–20 ms a frame at 720p and at a phone's 3× DPR.
   - The lyric is lettered in the corner as it is sung. A tall frame puts the figure right of centre.
+
+## Attractor Bodies (avatar/), and packages/attractor
+
+A sketchbook, after Descending's final figure (owner: "the attractor avatar has some juice… a whole field
+of attractors out there to fit a vague humanoid body plan"). The engine is `packages/attractor` (read its
+README and CLAUDE.md), copied to `vendor/attractor/lib` by `scripts/sync-dataviz.mjs --write`.
+
+- **The space**: Sprott's general quadratic flows, 30 coefficients named by a 30-letter code. A find must
+  be bounded, chaotic (Lyapunov > 0.02) AND fractal (correlation dimension ≥ 1.5): Lyapunov alone let
+  limit cycles through. ~1 in 1100 random codes passes; the bestiary holds 240 found + 10 named.
+- **A character** (`character(seed)`): a body spec for packages/figure, an attractor per part class by
+  fit (round head, broad torso, textured limbs; left/right mirrored; sometimes one for every limb: "kin"),
+  a palette, and a style: threads (few points, long streaks: the curves show; the best), dust, ribbons.
+- **The page**: walk or the figure's named poses, a turning camera, the knobs (thought: surface ↔ orbit,
+  reach, swirl, speed), eight neighbour seeds as stills, "discover a torso" (a live search), the hash as
+  the character. 50–60 fps in CPU-only Chromium at desktop and phone sizes.
 
 ## The Bommie (bommie/)
 

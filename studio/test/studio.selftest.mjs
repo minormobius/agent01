@@ -386,5 +386,22 @@ console.log('\nDescending (Daisy Bell, sung by arithmetic)');
   ok(Math.abs(end.ankleL[1] - end.ankleR[1]) < 0.01 && end.ankleL[0] > F.STEPS * F.RUN - 0.01, 'it ends with both feet on the floor at the foot of the stairs');
 }
 
+// 11 — Attractor Bodies: the bestiary is strange, a seed is a character, every point lands --------------
+console.log('\nAttractor Bodies (packages/attractor)');
+{
+  const { BESTIARY } = await import('../vendor/attractor/lib/bestiary.js');
+  const Av = await import('../vendor/attractor/lib/avatar.js');
+  const { makeRig, solve } = await import('../vendor/figure/lib/rig.js');
+  const weak = BESTIARY.filter((b) => !(b.dim >= 1.35 && b.lyap > 0));
+  ok(!weak.length && BESTIARY.length >= 200, `the bestiary: ${BESTIARY.length} attractors, every one chaotic (λ > 0) and fractal (D ≥ 1.35)${weak.length ? ': not ' + weak.map((b) => b.key.slice(0, 8)).join(', ') : ''}`);
+  ok(JSON.stringify(Av.character(4242)) === JSON.stringify(Av.character(4242)) && JSON.stringify(Av.character(4242)) !== JSON.stringify(Av.character(4243)), 'a seed makes the same character every time, and the next seed another');
+  let finite = true, count = 0;
+  for (const seed of [1, 5, 9]) {
+    const A = Av.build(Av.character(seed)), S = solve(makeRig(A.ch.body), {}), F = Av.frames(S.J, S.F.pelvis.z), o = [0, 0, 0];
+    for (let i = 0; i < A.points.length; i += 7) { Av.place(A, i, F, 2.5, A.ch.thought, o); if (!o.every(Number.isFinite) || Math.abs(o[1]) > 20) finite = false; count++; }
+  }
+  ok(finite, `every point of three characters lands finite and near its body (${count} sampled)`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

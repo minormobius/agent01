@@ -4519,6 +4519,23 @@
       ]
     },
     {
+      "n": "attractor bodies",
+      "u": "https://studio.mino.mobi/avatar/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-26",
+      "b": "2026-09-26",
+      "p": "studio",
+      "surface": "studio",
+      "d": "Bodies made of strange attractors: every part a chaotic flow found by searching the space of quadratic equations and fitted to the body by its shape, walking on the studio's figure rig. Every seed a different creature; discover new ones live.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
       "n": "descending",
       "u": "https://studio.mino.mobi/descending/",
       "c": "games",

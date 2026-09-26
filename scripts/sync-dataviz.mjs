@@ -72,6 +72,8 @@ const EXTRA = [
   // .claude/skills/.
   ...["vec.js", "proportion.js", "rig.js", "body.js", "gait.js", "poses.js", "settle.js", "check.js", "shader.js", "face.js", "hair.js", "clothes.js", "ansur2.js", "hand.js", "handref.js", "choreo.js", "liveface.js"].map((f) => [`packages/figure/lib/${f}`, `studio/vendor/figure/lib/${f}`]),
   ["packages/figure/SKILL.md", ".claude/skills/figure/SKILL.md"],
+  // the attractor bodies (packages/attractor) are drawn live by studio.mino.mobi/avatar/, from a copy
+  ...["space.js", "bestiary.js", "avatar.js", "draw.js"].map((f) => [`packages/attractor/lib/${f}`, `studio/vendor/attractor/lib/${f}`]),
   ...["prng.js", "genome.js", "crystal.js", "prism.js", "stack.js", "ico.js", "poly.js", "worms.js", "flux.js", "render.js", "tilings.js"].flatMap((f) => [
     [`packages/bismuth/${f}`, `bismuth/js/${f}`],
     [`packages/bismuth/${f}`, `hopper/js/${f}`],
