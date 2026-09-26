@@ -207,7 +207,12 @@ export function tracks(timed, voice = VOICE) {
     const stressAmp = x.stress === 1 ? 1 : x.stress === 2 ? 0.9 : x.stress === 0 ? 0.75 : 0.85;
     switch (P.kind) {
       case 'v': push(n, () => ({ F: P.F, B: P.B, AV: stressAmp, AH: 0, AF: 0, nasal: 0, stress: x.stress })); break;
-      case 'd': push(n, (u) => ({ F: P.F.map((f, k) => f + (P.F2[k] - f) * smooth(u)), AV: stressAmp, AH: 0, AF: 0, nasal: 0, stress: x.stress })); break;
+      case 'd': {
+        // a sung diphthong holds its first vowel and glides at the end (x.hold: the fraction held; 1 holds it all)
+        const h = x.hold || 0, glide = (u) => (h >= 1 ? 0 : smooth(Math.max(0, (u - h) / (1 - h))));
+        push(n, (u) => ({ F: P.F.map((f, k) => f + (P.F2[k] - f) * glide(u)), AV: stressAmp, AH: 0, AF: 0, nasal: 0, stress: x.stress }));
+        break;
+      }
       case 'g': {
         // L before a vowel is light (a higher F2), after one dark (lower, and vowel-like)
         let F = P.F;
