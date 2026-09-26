@@ -32,7 +32,7 @@ a{color:var(--accent)}
 h1{margin:2px 0 4px;font-size:20px}
 .top-left{top:12px;left:12px;max-width:320px}
 .top-left .sub,.top-left .links{margin:4px 0 0;color:var(--ink-2);font-size:13px}
-.top-right{top:12px;right:12px;display:grid;gap:6px;max-width:360px}
+.top-right{top:12px;right:12px;display:grid;gap:6px;max-width:380px}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 label{display:inline-flex;gap:4px;align-items:center;color:var(--ink-2);font-size:13px}
 input[type=number]{width:64px}
@@ -61,10 +61,26 @@ button:disabled{opacity:.4;cursor:default}
 .chip{display:inline-flex;gap:4px;align-items:center;border:1px solid var(--line);border-radius:4px;padding:1px 6px;font-size:12px}
 .chip i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .chip b{font-family:var(--mono);font-weight:600}
+.right{right:12px;top:268px;width:min(340px,calc(100vw - 24px));max-height:calc(100vh - 470px);overflow:auto}
+.decision{font-size:12px}
+.decision .opt{display:grid;grid-template-columns:1fr 64px 38px;gap:6px;align-items:center;padding:1px 0}
+.decision .opt.pick{font-weight:600;color:var(--accent)}
+.decision .bar{height:6px;border-radius:3px;background:var(--line)}
+.decision .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.decision .meta{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.decision .warn{color:var(--warn)} .decision .bad{color:var(--bad)}
 .bottom-right{right:12px;bottom:12px;width:min(420px,calc(100vw - 24px))}
 .tail{margin:4px 0 0;font:11px/1.35 var(--mono);color:var(--ink-2);white-space:pre;overflow:hidden;max-height:120px}
 @media (max-width:900px){
-  .left,.bottom-right{display:none}
+  .left,.right{right:12px;top:268px;width:min(340px,calc(100vw - 24px));max-height:calc(100vh - 470px);overflow:auto}
+.decision{font-size:12px}
+.decision .opt{display:grid;grid-template-columns:1fr 64px 38px;gap:6px;align-items:center;padding:1px 0}
+.decision .opt.pick{font-weight:600;color:var(--accent)}
+.decision .bar{height:6px;border-radius:3px;background:var(--line)}
+.decision .bar i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.decision .meta{margin-top:6px;font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.decision .warn{color:var(--warn)} .decision .bad{color:var(--bad)}
+.bottom-right{display:none}
   .top-left{max-width:calc(100vw - 24px)}
   .top-right{top:auto;bottom:120px;right:12px;left:12px;max-width:none}
 }

@@ -19,6 +19,7 @@ import { generateWorld, worldSignature, B, H, CRAFT_VERSION } from '../craft/wor
 import { Sim, Replay } from '../craft/sim.mjs';
 import { play, runMacro } from '../craft/runner.mjs';
 import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
+import { perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS } from '../craft/mind.mjs';
 import { renderAscii } from '../craft/ascii.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -237,6 +238,55 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   ok('home' in r.milestones && 'torch' in r.milestones, `penrose/3: the baseline has torches and a house inside a day and a half (house @${r.milestones.home})`);
   ok(r.stats.deaths === 0, `penrose/3: survives the first night (${r.stats.deaths} deaths)`);
   ok(sim.seenCount / sim.N > 0.5, `penrose/3: has seen over half the island (${(100 * sim.seenCount / sim.N).toFixed(0)}%)`);
+}
+
+
+// ------------------------------------------------------ the decision layer --
+// The TypeSafe request contract, written down (the delve selftest's rule):
+// choice criteria is a map whose keys are exactly the options, score criteria
+// an ordered array, noul criteria {true,false}. Every option is legal.
+{
+  const sims = [new Sim({ seed: 3, shape: 'penrose' }), new Sim({ seed: 2, shape: 'hex' })];
+  sims[1].give('log', 3); sims[1].give('cobblestone', 20); sims[1].give('wooden_pickaxe', 1); sims[1].give('coal', 2);
+  for (const sim of sims) {
+    const opts = options(sim), q = buildQuestions(sim, opts), st = perceive(sim);
+    const ids = opts.map((o) => o.id);
+    ok(opts.length >= 3 && new Set(ids).size === ids.length, `${sim.world.shape}: ${opts.length} distinct options (${ids.join(', ')})`);
+    ok(q.next.type === 'choice' && JSON.stringify(Object.keys(q.next.criteria)) === JSON.stringify(ids), `${sim.world.shape}: next is a choice keyed exactly by the options`);
+    ok(q.danger.type === 'score' && Array.isArray(q.danger.criteria) && q.danger.criteria.length >= 2, `${sim.world.shape}: danger is a score over an ordered array`);
+    ok(q.have.type === 'noul' && q.have.criteria.true && q.have.criteria.false, `${sim.world.shape}: have is a noul with {true,false}`);
+    ok(opts.every((o) => !PALETTE[o.name].needs(sim, o.args || {})), `${sim.world.shape}: every option passes its macro's needs() — no traps offered`);
+    const bytes = JSON.stringify({ state: st, questions: q }).length;
+    ok(bytes < 12000, `${sim.world.shape}: request is ${bytes} bytes (well inside the proxy's 96KB and Jev's token budget)`);
+    ok(st.time && st.player && st.progress && st.in_sight && !JSON.stringify(st).includes('"blocks"'), `${sim.world.shape}: the state is facts, not voxels`);
+  }
+  const s2 = sims[1];
+  ok(options(s2).some((o) => o.id === 'craft_stone_pickaxe' && /next rung/.test(o.criteria.advances)), 'a craftable next rung is offered and labelled as the next rung');
+
+  // resolve: sources are honest, the gate falls back visibly
+  const sim = new Sim({ seed: 3, shape: 'penrose' });
+  const opts = options(sim);
+  const live = (choice, confidence) => ({ source: 'typesafe', answers: { next: { choice, confidence, probabilities: {} } } });
+  const hi = resolve(sim, opts, live(opts[0].id, 0.9));
+  ok(hi.pick && hi.pick.name === opts[0].name && !hi.record.gated, 'a confident live answer is acted on');
+  const lo = resolve(sim, opts, live(opts[0].id, GATE - 0.1));
+  ok(lo.record.gated && lo.record.fallback, `below ${GATE}, the baseline decides and the record says so (${lo.record.fallback})`);
+  const raw = resolve(sim, opts, live(opts[0].id, GATE - 0.1), { gate: false });
+  ok(!raw.record.gated && raw.record.below_gate && raw.pick.name === opts[0].name, 'ungated (the scoreboard), the pick is the model\'s and the would-have-gated flag is kept');
+  ok(DECIDERS.offline(sim, opts).source === 'offline' && DECIDERS.random(sim, opts).source === 'random', 'the stand-in and the control are stamped as what they are');
+  const bogus = resolve(sim, opts, live('not_an_option', 0.99));
+  ok(bogus.record.gated, 'an answer outside the option set is never acted on');
+
+  // the loop, with the local deciders: the ladder gets climbed, the control lags
+  const b = await playMind(new Sim({ seed: 2, shape: 'truncsq', difficulty: 'hard' }), DECIDERS.baseline, { maxTicks: 2400 });
+  const r = await playMind(new Sim({ seed: 2, shape: 'truncsq', difficulty: 'hard' }), DECIDERS.random, { maxTicks: 2400 });
+  const rung = (m) => GOALS.filter(([g]) => m[`goal:${g}`] != null).length;
+  ok(rung(b.milestones) >= 6, `baseline through mind.mjs climbs ${rung(b.milestones)}/7 rungs in 2400 ticks on hard`);
+  ok(rung(r.milestones) < rung(b.milestones), `random over the same options climbs fewer (${rung(r.milestones)}) — choosing matters`);
+  const lines = [];
+  const sj = new Sim({ seed: 2, shape: 'truncsq' });
+  await playMind(sj, DECIDERS.offline, { maxTicks: 300 });
+  ok(sj.drain().some((l) => l.includes('"note","jev"') && l.includes('"source":"offline"')), 'every decision goes into the stream as a jev note, with its source');
 }
 
 // ---------------------------------------------------------------- text ------

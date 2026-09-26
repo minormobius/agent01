@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { OrbitControls } from '../delve/vendor/OrbitControls.js';
 import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
+import { options, buildQuestions, perceive, resolve, journal, DECIDERS, jevDecider, GATE } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
 import { BLOCKS, B, H, hash01, RECIPES } from './world.mjs';
 import { SHAPES } from './tiling.mjs';
@@ -324,7 +325,7 @@ function buildMacroButtons() {
       if (m.mode !== mode) continue;
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = name.replace(/_/g, ' '); b.dataset.macro = name; b.title = m.doc;
-      b.addEventListener('click', () => { if (driver) { $('auto').checked = false; setAuto(); driver.start(name, argsFor(name)); } });
+      b.addEventListener('click', () => { if (driver) { $('who').value = 'you'; setAuto(); driver.start(name, argsFor(name)); } });
       row.appendChild(b);
       if (name === 'craft') {
         const sel = document.createElement('select'); sel.id = 'craft-item';
@@ -353,19 +354,57 @@ function refreshLegal(now) {
   }
 }
 
+// who decides. Everything except "you" goes through mind.mjs: the same
+// state, the same options, the same resolve — only the answerer differs.
+let pending = null, keyConfigured = null, liveSeen = false;
+const askLive = jevDecider('../api/ask');
 function setAuto() {
   if (!driver) return;
-  const on = $('auto').checked;
-  driver.policy = on ? baselinePolicy : () => null;
+  driver.policy = () => null;             // decisions are made in the frame loop, below
   driver.done = false;
-  $('macro-hint').textContent = on ? '— autopilot is choosing (the scripted baseline Jev must beat)' : '— you are choosing';
+  const who = $('who').value;
+  $('macro-hint').textContent = who === 'you' ? '— you are choosing' : who === 'jev' ? '— Jev is choosing' : `— the ${who} decider is choosing`;
+}
+async function decideNow() {
+  const who = $('who').value;
+  const opts = options(sim);
+  if (!opts.length) { sim.act({ op: 'wait', ticks: 10 }); return; }
+  const qs = buildQuestions(sim, opts), state = perceive(sim);
+  let response;
+  if (who === 'jev' && keyConfigured !== false) {
+    try { response = await askLive(sim, opts, qs, state); if (response.source === 'typesafe') liveSeen = true; }
+    catch (e) { response = { ...DECIDERS.offline(sim, opts), error: `live call failed: ${e.message}` }; }
+  } else if (who === 'jev') {
+    response = { ...DECIDERS.offline(sim, opts), error: 'no key configured on the worker — this is the offline stand-in, not Jev' };
+  } else response = DECIDERS[who](sim, opts);
+  if (!sim || driver.gen) return;                                     // the world was replaced while we waited
+  const { pick, record } = resolve(sim, opts, response);
+  if (response.error) record.error = response.error;
+  sim.note('jev', { ...record, pick: pick && pick.name });
+  showDecision(opts, response, record, pick);
+  if (pick) { driver.start(pick.name, pick.args); driver._record = record; }
+  else sim.act({ op: 'wait', ticks: 10 });
+}
+function showDecision(opts, response, record, pick) {
+  const probs = response.answers?.next?.probabilities || {};
+  const rows = opts.map((o) => ({ id: o.id, p: probs[o.id] ?? (o.id === record.choice ? 1 : 0) }))
+    .sort((a, b) => b.p - a.p).slice(0, 8);
+  const src = response.source === 'typesafe' ? 'Jev (live)' : response.source === 'offline' ? 'offline stand-in — not the model' : response.source;
+  $('src').textContent = src;
+  $('decision').innerHTML = rows.map((r) => `<div class="opt${r.id === record.choice ? ' pick' : ''}"><span>${r.id.replace(/_/g, ' ')}</span><span class="bar"><i style="width:${Math.round(r.p * 100)}%"></i></span><span class="mono">${r.p ? r.p.toFixed(2) : ''}</span></div>`).join('')
+    + `<div class="meta">${opts.length} legal options` + (record.confidence != null ? ` · confidence ${record.confidence.toFixed(2)}` : '')
+    + (record.danger != null ? ` · danger ${record.danger.toFixed(1)}/3` : '') + (record.have != null ? ` · have ${record.have.toFixed(2)}` : '') + '</div>'
+    + (record.gated ? `<div class="meta warn">below the ${GATE} gate — the baseline's pick (${record.fallback}) was used instead</div>` : '')
+    + (record.error ? `<div class="meta bad">${record.error}</div>` : '')
+    + (pick ? `<div class="meta">doing: ${pick.name.replace(/_/g, ' ')}${pick.args ? ' ' + JSON.stringify(pick.args) : ''}</div>` : '');
 }
 
 function startLive() {
   const shape = $('shape').value, seed = Math.max(1, parseInt($('seed').value, 10) || 1);
-  location.hash = `shape=${shape}&seed=${seed}`;
+  location.hash = `shape=${shape}&seed=${seed}&who=${$('who').value}&difficulty=${$('difficulty').value}`;
   fileLines = null;
-  sim = new Sim({ shape, seed });
+  sim = new Sim({ shape, seed, difficulty: $('difficulty').value });
+  pending = null;
   driver = new Driver(sim);
   setAuto();
   const lines = sim.drain();
@@ -415,7 +454,8 @@ function snapCamera() {
 function underground() {
   const p = replay.ents.get(0);
   if (!p) return false;
-  for (let y = p.y + 2; y < H; y++) { const id = replay.b[p.c * H + y]; if (id !== B.air && id !== B.torch) return true; }
+  // a canopy is not a ceiling: only rock, earth and built blocks count
+  for (let y = p.y + 2; y < H; y++) { const id = replay.b[p.c * H + y]; if (![B.air, B.torch, B.leaves, B.log, B.water].includes(id)) return true; }
   return false;
 }
 function updateCamera() {
@@ -463,11 +503,21 @@ function frame(now) {
   if (!$('pause').checked) target += dt * TPS * speed;
   if (sim && driver) {
     let n = 0;
-    while (sim.tick < target && n++ < 400) {
+    const who = $('who').value;
+    while (sim.tick < target && n++ < 400 && !pending) {
+      if (!driver.gen && who !== 'you') {
+        // a decision is due. The clock stops while it is being made: play is
+        // turn-based at macro boundaries, however long the call takes.
+        const s0 = sim;
+        pending = decideNow().catch((e) => console.error(e)).finally(() => { if (sim === s0) pending = null; });
+        break;
+      }
       const r = driver.step();
-      if (r && r.done) sim.act({ op: 'wait', ticks: 1 });            // idle: the world keeps turning
+      if (r && r.done) sim.act({ op: 'wait', ticks: 1 });            // "you", idle: the world keeps turning
+      if (r && r.ended && driver._record) { journal(sim, driver._record, r.ended); driver._record = null; }
       if (driver.lastAction && driver.lastAction.op === 'wait') target = Math.max(target, sim.tick);
     }
+    if (pending) target = sim.tick;
     const lines = sim.drain();
     if (lines.length) { allLines.push(...lines); feed(lines); }
   } else if (fileLines) {
@@ -503,7 +553,11 @@ $('shape').value = SHAPES.includes(hp.get('shape')) ? hp.get('shape') : 'penrose
 if (hp.get('seed')) $('seed').value = hp.get('seed');
 $('regen').addEventListener('click', startLive);
 $('shape').addEventListener('change', startLive);
-$('auto').addEventListener('change', setAuto);
+$('who').addEventListener('change', setAuto);
+$('difficulty').addEventListener('change', startLive);
+if (['jev', 'baseline', 'offline', 'random', 'you'].includes(hp.get('who'))) $('who').value = hp.get('who');
+if (['normal', 'hard'].includes(hp.get('difficulty'))) $('difficulty').value = hp.get('difficulty');
+fetch('../api/health').then((r) => r.json()).then((h) => { keyConfigured = !!(h.key_configured ?? h.keyConfigured ?? h.configured ?? true); }).catch(() => { keyConfigured = false; });
 $('speed').addEventListener('input', () => { $('speed-out').textContent = $('speed').value + '×'; });
 $('download').addEventListener('click', () => {
   const lines = allLines.length ? allLines : fileLines || [];
@@ -527,5 +581,23 @@ requestAnimationFrame(frame);
 window.__craft = {
   get sim() { return sim; }, get replay() { return replay; }, get driver() { return driver; },
   lines: () => allLines.slice(),
-  run(ticks) { if (!sim) return; const end = sim.tick + ticks; while (sim.tick < end) { const r = driver.step(); if (r && r.done) sim.act({ op: 'wait', ticks: 1 }); } target = sim.tick; },
+  // fast-forward with a LOCAL decider (Jev's calls are never made in a burst)
+  run(ticks, who = 'baseline') {
+    if (!sim) return;
+    const end = sim.tick + ticks;
+    while (sim.tick < end) {
+      if (!driver.gen) {
+        const opts = options(sim);
+        if (!opts.length) { sim.act({ op: 'wait', ticks: 10 }); continue; }
+        const resp = DECIDERS[who](sim, opts);
+        const { pick, record } = resolve(sim, opts, resp);
+        sim.note('jev', { ...record, pick: pick && pick.name });
+        if (pick) driver.start(pick.name, pick.args); else sim.act({ op: 'wait', ticks: 10 });
+        continue;
+      }
+      const r = driver.step();
+      if (r && r.done) sim.act({ op: 'wait', ticks: 1 });
+    }
+    target = sim.tick;
+  },
 };

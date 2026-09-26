@@ -228,6 +228,7 @@ export function* staircase(sim, { floor = 8, until = () => false } = {}) {
       const need = p.y > floor ? [p.y + 1, p.y, p.y - 1] : [p.y + 1, p.y];
       if (need.some((y) => sim.clearCost(n, y, sim.pickTier()) === Infinity)) continue;
       if (p.y > floor && !sim.solid(n, p.y - 2)) continue;    // a stair needs a tread
+      if ([p.y - 1, p.y, p.y + 1].some((y) => sim.occupied(n, y))) continue;   // a pig on the next step: go another way
       // first step: head inland (more ground under us); after that, straight on
       const d = prev < 0 ? -Math.hypot(sim.cols[n].x, sim.cols[n].z) : sim.dist(n, prev);
       if (d > bd) { bd = d; best = n; }

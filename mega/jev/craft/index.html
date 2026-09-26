@@ -27,7 +27,14 @@
     <button id="regen" type="button">new world</button>
   </div>
   <div class="row">
-    <label class="check"><input id="auto" type="checkbox" checked> autopilot</label>
+    <label>who decides <select id="who">
+      <option value="jev">Jev (live)</option>
+      <option value="baseline">scripted baseline</option>
+      <option value="offline">offline stand-in</option>
+      <option value="random">random</option>
+      <option value="you">you</option>
+    </select></label>
+    <label>difficulty <select id="difficulty"><option>normal</option><option>hard</option></select></label>
     <label>speed <input id="speed" type="range" min="1" max="64" value="8"></label>
     <span id="speed-out" class="mono">8×</span>
   </div>
@@ -57,6 +64,11 @@
     <span id="doing" class="mono"></span>
   </div>
   <div id="inv" class="inv"></div>
+</section>
+
+<section class="hud right panel" aria-label="The last decision">
+  <div class="eyebrow">the decision · <span id="src" class="mono">—</span></div>
+  <div id="decision" class="decision"><p class="hint">Waiting for the first choice.</p></div>
 </section>
 
 <section class="hud bottom-right panel" aria-label="The stream">

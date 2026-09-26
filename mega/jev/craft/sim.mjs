@@ -34,11 +34,20 @@ import {
 export const DAY = 4800;            // ticks per day (~20 min at 4 ticks/s, as Minecraft's)
 export const NIGHT_START = 3000;    // [3000, 4800) is night
 export const MAX_ZOMBIES = 6;
+// normal is Minecraft-ish. hard exists because at normal a scripted player
+// with a house, a sword and torches does not die, and a scoreboard where
+// every policy scores zero deaths cannot tell policies apart.
+export const DIFFICULTY = {
+  normal: { maxZombies: 6, spawn: 0.03, zombieDmg: 3, hungerEvery: 480, zombieStep: 2 },
+  hard:   { maxZombies: 14, spawn: 0.1, zombieDmg: 4, hungerEvery: 240, zombieStep: 1 },
+};
 export const SIGHT = 10;            // how far the player sees, in tile edges
 
 export class Sim {
   constructor(opts = {}) {
     this.world = opts.world || generateWorld(opts);
+    this.difficulty = DIFFICULTY[opts.difficulty] ? opts.difficulty : 'normal';
+    this.cfg = DIFFICULTY[this.difficulty];
     const w = this.world;
     this.cols = w.tiling.cols;
     this.b = w.blocks;
@@ -57,7 +66,7 @@ export class Sim {
     this.protect = new Set();     // voxels the planners must not dig (house walls, roof)
     this.lines.push(JSON.stringify({
       t: 'craft', v: w.version, seed: w.seed, shape: w.shape, radius: w.radius, H,
-      sig: worldSignature(w), spawn: w.spawn, day: DAY, night: NIGHT_START,
+      sig: worldSignature(w), spawn: w.spawn, day: DAY, night: NIGHT_START, difficulty: this.difficulty,
     }));
     this.player = this.spawnEnt('player', w.spawn, w.height[w.spawn] + 1, { hp: 20, food: 20, inv: {} });
     this.look();
@@ -333,7 +342,7 @@ export class Sim {
     this.tick++;
     const p = this.player, t = this.tick;
     // hunger
-    if (t % 480 === 0 && p.food > 0) { p.food--; this.emit(['food', p.food]); }
+    if (t % this.cfg.hungerEvery === 0 && p.food > 0) { p.food--; this.emit(['food', p.food]); }
     if (t % 80 === 0) {
       if (p.food === 0) this.hurt(p, 1, null);
       else if (p.food >= 18 && p.hp < 20) { p.hp++; this.emit(['hp', p.id, p.hp]); }
@@ -342,7 +351,7 @@ export class Sim {
     if (t % DAY === 0) this.emit(['note', 'dawn']);
     // zombies: spawn at night on open ground, away from torches and the player
     const zs = [...this.ents.values()].filter((e) => e.kind === 'zombie');
-    if (this.isNight() && zs.length < MAX_ZOMBIES && this.rng() < 0.03) {
+    if (this.isNight() && zs.length < this.cfg.maxZombies && this.rng() < this.cfg.spawn) {
       const c = Math.floor(this.rng() * this.N);
       const y = this.surface(c);
       const d = this.dist(c, p.c);
@@ -368,10 +377,10 @@ export class Sim {
     if (!this.isNight() && this.skyOpen(z.c, z.y + 2) && this.tick % 10 === 0) this.hurt(z, 2, null);
     if (!this.ents.has(z.id)) return;
     if (this.adjacentTo(z, p)) {
-      if (z.cd <= 0) { this.hurt(p, 3, z); z.cd = 10; }
+      if (z.cd <= 0) { this.hurt(p, this.cfg.zombieDmg, z); z.cd = 10; }
       return;
     }
-    if (this.tick % 2 || d > 20) return;           // half the player's speed; loses interest past 20
+    if (this.tick % this.cfg.zombieStep || d > 20) return;   // normal: half the player's speed; loses interest past 20
     const step = this.firstStep(z, (c, y) => this.cols[c].adj.includes(p.c) && Math.abs(y - p.y) <= 1, 300);
     if (step && !this.occupied(step[0], step[1]) && !this.occupied(step[0], step[1] + 1)) this.moveEnt(z, step[0], step[1]);
   }
