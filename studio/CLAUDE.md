@@ -333,6 +333,22 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   check inside the loop** (accept a step only if it doesn't worsen a second set), or more sentences.
   `grind/progress.json` carries `verdicts`, which the page shows between the steps.
 
+- **A corpus, and a grind that checks itself** (2026-09-26). `tools/voice-corpus.mjs` builds
+  `voice/corpus.json` from Moby-Dick (Gutenberg #2701), the Sermon on the Mount (KJV, Matthew 5–7,
+  #10), minimal pairs in "Say ___ again." (velars, initial stops, sibilants), conversational lines
+  and the Harvard sentences: 304 train, 46 validation, 49 test, every word in the CMU dictionary
+  (`tools/voice-lex.mjs` loads the whole dictionary with lexicon.json on top). `voice.mjs --corpus
+  val|test` scores a split by source. The voice as it stood: validation WER 17.6% (convo 2.6%,
+  Moby-Dick 16.8, Sermon 21.6, pairs 37.5), test 20.9% (pairs 54%: "shin" → "soon", "blue" →
+  "boo", "crass" → "dress"; some are homophones: tow/toe). A word alone is the honest consonant test.
+  `voice-grind.mjs --corpus` draws a fresh `--batch` (24) of train each pass, scores validation
+  after each pass (`val` in progress.json, white dots on the page's curve), keeps the best by
+  validation and stops after `--patience` (2) passes without improvement, restoring it.
+  **Phase 5, the stops again** (22 min): each pass improved its batch (11.3 → 8.5, 12.3 → 9.4% CER)
+  and worsened validation (8.3 → 9.6 → 9.8%); stopped and restored the start. The same moves as
+  phase 4 (shorter transitions, stronger voice bar, softer k burst) are noise-fitting. Nothing
+  adopted: the stop controls are at their tuning optimum; the velar/cluster errors need structure.
+
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
 R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word
