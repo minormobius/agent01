@@ -9,12 +9,13 @@ import { FORMATS, plan, inspect, renderAudio, renderOffline, renderRealtime, dra
 
 const CLEF = 'https://clef.mino.mobi/';
 
-export function mountExtras({ slug, title, subtitle, events, seconds, makeRenderer, ink = '#2a2426', onInk = '#f4eee2', piano, band = null }) {
+export function mountExtras({ slug, title, subtitle, events, seconds, makeRenderer, ink = '#2a2426', onInk = '#f4eee2', piano, band = null, score = true }) {
   const card = document.getElementById('card');
   const row = document.createElement('p');
   row.className = 'extras';
   const scoreUrl = new URL(`../${slug}/score.ly`, import.meta.url).href;
-  row.innerHTML = `<a class="x-score" href="${CLEF}#src=${scoreUrl}">View the score</a><span aria-hidden="true"> · </span><button type="button" class="x-export">Export video</button>`;
+  // (score: false for a piece with no score.ly yet: lib/lilypond.js writes 4/4 only)
+  row.innerHTML = `${score ? `<a class="x-score" href="${CLEF}#src=${scoreUrl}">View the score</a><span aria-hidden="true"> · </span>` : ''}<button type="button" class="x-export">Export video</button>`;
   card.querySelector('#go').after(row);
 
   const panel = document.createElement('div');

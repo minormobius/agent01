@@ -343,5 +343,35 @@ console.log('\nA Voice of Arithmetic (formant speech)');
   ok(rep.sentences.length === T.PARAGRAPH_SENTENCES.length + T.HARVARD.length, `report.json scores every test sentence (Harvard WER ${rep.harvard.wer}%, ${rep.date}; rescore: studio/tools/voice.mjs --report)`);
 }
 
+// 10 — Descending: the voice on the beat, the feet on the stairs ------------------------------------
+console.log('\nDescending (Daisy Bell, sung by arithmetic)');
+{
+  const S = await import('../descending/score.js');
+  const F = await import('../descending/figure.js');
+  const { sing } = await import('../lib/chipsing.js');
+  const { LEXICON } = await import('../descending/lexicon.js');
+  const words = [...new Set(S.song.lines.flatMap((l) => l.lyric.toLowerCase().replace(/-/g, '').match(/[a-z']+/g)))];
+  const missing = words.filter((w) => !LEXICON[w]);
+  ok(!missing.length, `lexicon.js has every word sung${missing.length ? ': missing ' + missing.join(', ') : ''} (node studio/tools/descending-lexicon.mjs)`);
+  const t0 = Date.now(), r = sing(S.song, LEXICON, { rate: 8000, embody: S.embody });
+  const off = r.notes.filter((n) => n.midi !== null).map((n) => Math.abs(n.sungAt - n.t) * 1000);
+  ok(Math.max(...off) <= 6, `every sung vowel starts on its beat: worst ${Math.max(...off).toFixed(1)} ms of ${off.length} notes (${((Date.now() - t0) / 1000).toFixed(1)} s to sing)`);
+  ok(S.embody(S.cues.chorus1) === 0 && S.embody(S.cues.coda) === 1, 'the voice starts a chip (embody 0 at chorus 1) and is whole by the coda');
+  const surf = (x) => (x < F.RUN ? 0 : -Math.min(F.STEPS, Math.floor(x / F.RUN)) * F.RISE);
+  let clear = 9, reach = 0, slide = 0, prev = null;
+  for (let t = 0; t < S.duration; t += 1 / 30) {
+    const P = F.pose(t);
+    for (const q of [P.ankleL, P.toeL, P.heelL, P.ankleR, P.toeR, P.heelR]) clear = Math.min(clear, q[1] - surf(q[0]));
+    for (const [h, a] of [[P.hipL, P.ankleL], [P.hipR, P.ankleR]]) if (Math.hypot(h[0] - a[0], h[1] - a[1], h[2] - a[2]) > F.THIGH + F.SHIN - 1e-3) reach++;
+    if (prev) [[0, P.ankleL, prev.ankleL], [1, P.ankleR, prev.ankleR]].forEach(([i, a, b]) => { if (P.planted[i] && prev.planted[i]) slide = Math.max(slide, Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2])); });
+    prev = P;
+  }
+  ok(clear > 0.005, `no foot goes into a tread: the lowest heel or toe clears by ${(clear * 100).toFixed(1)} cm`);
+  ok(reach === 0, 'the legs never have to stretch past their length');
+  ok(slide < 0.001, `a planted foot stays put (${(slide * 1000).toFixed(2)} mm)`);
+  const end = F.pose(S.duration);
+  ok(Math.abs(end.ankleL[1] - end.ankleR[1]) < 0.01 && end.ankleL[0] > F.STEPS * F.RUN - 0.01, 'it ends with both feet on the floor at the foot of the stairs');
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

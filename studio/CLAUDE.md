@@ -47,6 +47,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   cast.js                the man, the dame, the Manager (after Parade's), the band on its stand
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
 voice/                   a lab: Claude's voice by formant synthesis (lib/chipvoice.js), scored by Whisper (tools/voice.mjs)
+descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
 bommie/                  No. 6, a sitcom on a coral head: script.js (the clock), world.js (poses at t), sound.js (synth), render.js (raymarch)
 pdoom/                   No. 5, a music video: the figure cast dancing Claude-Pop's song (YouTube-driven), checked every frame
 figure/                  the mannequin (sketchbook): packages/figure drawn live; pose, turn, walk, rebuild, face, feel, lucky, re-check (in a worker)
@@ -357,6 +358,43 @@ velar locus by vowel, affricate tails, broad SH ~29 (flat). The paragraph: 26% �
 What still fails: stops at word onsets (Two → Who, colt → coke), affricates (juice → goose),
 some vowels (hill → heel). Next: listening with the owner, a chip-constrained renderer
 (pulse/triangle/noise channels), then analysis-resynthesis from a recorded voice and a model.
+
+## Descending (descending/), and the singing voice (lib/chipsing.js)
+
+No. 7: Daisy Bell (Dacre, 1892; the song an IBM 7094 sang at Bell Labs in 1961) sung by the voice lab's
+formant voice, for piano and voice. The voice comes in **fractured** and ends **embodied**, and so does
+the picture: a figure descending a staircase in flat planes, after Duchamp (1912).
+
+- `lib/chipsing.js`: the voice singing. A song is lines of `lyric` (hyphenated syllables, `_` a melisma)
+  and `notes` ('C5:3 A4 r:1', beats), on a tempo map (`song.sec`). Consonants go BEFORE the beat so each
+  vowel starts on it; intervocalic consonants carry to the next syllable except a nasal/liquid before
+  another consonant. Pitch: a damped spring between notes (overshoot), vibrato 5.3 Hz arriving 0.22 s into
+  a held vowel, a slow wander; F1 raised to the pitch on high notes; diphthongs hold, then glide in their
+  last 150 ms (`hold` in chipvoice's tracks()). `consonants` ×1.4 capped at half a note: Whisper hears
+  the chorus nearly whole (the fast last line was the hard one). `embody(t)` 0..1: at 0 a chip (a
+  pulse-wave glottis via tracks' optional `chip`, pitch steps with no spring or vibrato, vowels clipped
+  to 45%, the output sample-held to a quarter rate and quantised toward 4 bits: renderFormant).
+  **Every vowel is pinned to its beat after layout**: a stop's closure/burst/breath make their own
+  frames, and the old relative correction let the song drift up to 270 ms late (the owner heard
+  "syllables slip over the beat"). Now each vowel's real start is measured and the error comes out of
+  the vowel/silence before it, then the consonants; the selftest holds the worst under 6 ms (2.5).
+  Notes come back with `sungAt`/`sungEnd`.
+- `descending/score.js`: 3/4 (`B(bar, beat)` is 3 beats a bar), 138 bpm. Intro (music box), three
+  choruses (sparse / waltz with answering arpeggios / a tone up in G with the tune doubled, octave bass
+  and runs), interludes, a coda rolling the last chord up the keys. `embody(t)` is here: the voice and
+  the picture read the same curve. `vocal(sampleRate)` sings it; lib/band.js mixes it as the band
+  (`renderBand(..., { vocal })`, band-worker.js and band-load.js pass it). `lexicon.js` is GENERATED
+  (`tools/descending-lexicon.mjs`). No score.ly: lib/lilypond.js writes 4/4 only (`mountExtras({ score: false })`).
+- `descending/figure.js`: the staircase (RISE 0.17, RUN 0.28; tread j at y = −j·RISE) and the figure as
+  pure functions of t: one tread per bar (bars 9–124, 116 treads), a foot landing on each downbeat,
+  step over step; the rear foot rolls onto its toes before swinging (without that the rear shin raked
+  back and it read as kneeling); a closing step at bar 125, then it straightens and turns to face us.
+  The selftest: heels and toes clear every tread (2 cm), legs never over-reach, planted feet stay put.
+- `descending/render.js`: Canvas 2D. Limbs are cones cut into three facets (lit/mid/shade by a fixed
+  light), the head an ovoid with a mouth that opens on each sung vowel (by vowel openness). Unembodied:
+  up to 15 exposures, 0.05–0.27 s apart and set back up the stairs, each broken into shards (hashed per
+  tick, never a running random), dotted arcs where the hips and knees went, and the projector flickers.
+  The lyric is lettered in the corner as it is sung. A tall frame puts the figure right of centre.
 
 ## The Bommie (bommie/)
 
