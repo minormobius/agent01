@@ -169,6 +169,48 @@ export function baselinePolicy(sim) {
     if (iron < 2 || n('coal') < 2) { if (!sim._swordTries || sim._swordTries < 3) { sim._swordTries = (sim._swordTries || 0) + 1; return { name: 'mine_iron', args: { iron: 2, coal: 2 } }; } }
     else return craftIt('iron_sword');
   }
+  // the diamond age: iron armor, a diamond pick, a bucket, obsidian, glass, a
+  // beacon at home. Each stage has a try budget: a world with no reachable
+  // lava or diamonds must not trap the script
+  const tries = (k) => (sim.me._ageTries ||= {})[k] || 0;
+  const tried = (k) => { sim.me._ageTries[k] = tries(k) + 1; };
+  const ingots = n('iron_ingot') + n('iron_ore');
+  // the pool counts: a teammate's diamonds are ours to take
+  const pool = (k) => n(k) + (chestItems(sim)[k] || 0);
+  const fetch = (k, q) => n(k) < q && pool(k) >= q ? { name: 'take', args: { item: k, n: q - n(k) } } : null;
+  if (sim._house && n('iron_pickaxe') + n('diamond_pickaxe') && !sim.beacons.size && !sim.isNight()) {
+    if (!n('iron_armor') && !n('diamond_armor') && tries('armor') < 3) {
+      if (ingots >= 8 && n('coal') + n('charcoal') >= 8 - n('iron_ingot')) return craftIt('iron_armor');
+      tried('armor'); return { name: 'mine_iron', args: { iron: 8, coal: 8 } };
+    }
+    if (sim.pickTier() < 4 && tries('diamond') < 4) {
+      if (n('diamond') >= 3) return craftIt('diamond_pickaxe');
+      if (fetch('diamond', 3)) return fetch('diamond', 3);
+      tried('diamond'); return { name: 'mine_diamond', args: { n: 3 - n('diamond') } };
+    }
+    if (sim.pickTier() >= 4 && !n('beacon')) {
+      if (!n('bucket') && !n('water_bucket') && tries('bucket') < 3) {
+        if (ingots >= 3) return craftIt('bucket');
+        tried('bucket'); return { name: 'mine_iron', args: { iron: 3, coal: 3 } };
+      }
+      if (fetch('obsidian', 3)) return fetch('obsidian', 3);
+      if (n('obsidian') < 3 && tries('obsidian') < 6 && (n('bucket') || n('water_bucket'))) {
+        tried('obsidian');
+        // lava comes into sight by seeing more of the world, not by tunnelling
+        return PALETTE.make_obsidian.needs(sim, {}) ? (sim._explored ? { name: 'branch_mine', args: { length: 16 } } : { name: 'explore' }) : { name: 'make_obsidian', args: { n: 3 - n('obsidian') } };
+      }
+      if (n('obsidian') >= 3) {
+        if (fetch('glass', 5)) return fetch('glass', 5);
+        if (n('glass') < 5 && fetch('sand', 5)) return fetch('sand', 5);
+        if (n('glass') < 5 && n('sand') < 5 && tries('sand') < 3) { tried('sand'); return { name: 'dig_sand', args: { n: 5 } }; }
+        if (n('glass') < 5) return craftIt('glass', 5);
+        if (fetch('diamond', 1)) return fetch('diamond', 1);
+        if (n('diamond') < 1 && tries('diamond2') < 3) { tried('diamond2'); return { name: 'mine_diamond', args: { n: 1 } }; }
+        if (n('diamond') >= 1) return craftIt('beacon');
+      }
+    }
+    if (n('beacon') && tries('place') < 3) { tried('place'); return { name: 'place_beacon' }; }
+  }
   // then growing: reap what is ripe, make a hoe, and for each species not yet
   // grown, plant the seeds carried or take them from a wild plant in sight
   // (the daily round's exploring finds the rest)

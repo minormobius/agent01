@@ -327,7 +327,7 @@ export function* staircase(sim, { floor = 8, until = () => false } = {}) {
 export function* grabOre(sim) {
   const ids = [B.coal_ore, B.stone];
   if (sim.pickTier() >= 2) ids.push(B.iron_ore);
-  const ores = sim.reachSet().filter(([c, y]) => [B.coal_ore, B.iron_ore].includes(sim.get(c, y)));
+  const ores = sim.reachSet().filter(([c, y]) => [B.coal_ore, B.iron_ore, ...(sim.pickTier() >= 3 ? [B.diamond_ore] : [])].includes(sim.get(c, y)));
   let got = 0;
   for (const [c, y] of ores) {
     const r = yield { op: 'mine', c, y };
@@ -358,6 +358,81 @@ export function* mineIron(sim, { iron = 3, coal = 3 } = {}) {
     }
   }
   return enough() ? { ok: true } : { ok: false, why: 'the vein ran out' };
+}
+
+// Diamonds sit in the bottom five layers and need an iron pick: diamonds in
+// sight first, else a staircase to layer 4 and a tunnel along it.
+export function* mineDiamond(sim, n = 3) {
+  if (sim.pickTier() < 3) return { ok: false, why: 'diamond needs an iron pickaxe' };
+  const want = (sim.inv.diamond || 0) + n;
+  for (let leg = 0; leg < 10 && (sim.inv.diamond || 0) < want; leg++) {
+    const seen = visible(sim, [B.diamond_ore], 16);
+    if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
+    const r = yield* staircase(sim, { floor: 4, until: () => (sim.inv.diamond || 0) >= want || visible(sim, [B.diamond_ore], 5).length > 0 });
+    if ((sim.inv.diamond || 0) >= want) break;
+    const t0 = sim.tick, b = yield* branchMine(sim, 16);
+    if (!r.ok && !b.ok && sim.tick === t0) return { ok: false, why: `no way down to the diamond layers (${r.why})` };
+  }
+  return (sim.inv.diamond || 0) >= want ? { ok: true } : (sim.inv.diamond || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: 'no diamonds found' };
+}
+
+// Obsidian: carry water to lava. Fill a bucket at the sea, pour it on (or
+// beside) lava in sight, take the water back, and mine the obsidian that
+// formed. Only a diamond pick can mine it.
+export function* fillBucket(sim) {
+  if (sim.has('water_bucket')) return { ok: true };
+  if (!sim.has('bucket')) return { ok: false, why: 'no bucket (3 iron ingots)' };
+  const w = visible(sim, [B.water], 40).filter(([c, y]) => !sim.still.has(c * H + y));
+  if (!w.length) return { ok: false, why: 'no water in sight' };
+  const [c, y] = w[0];
+  const go = yield* goTo(sim, (pc, py) => sim.reachable(pc, py, c, y), 30000);
+  if (!go.ok) return { ok: false, why: `could not reach the water (${go.why})` };
+  const r = yield { op: 'fill', c, y };
+  return r.ok ? { ok: true } : { ok: false, why: r.why };
+}
+export function* makeObsidian(sim, n = 3) {
+  if (sim.pickTier() < 4) return { ok: false, why: 'obsidian can only be mined with a diamond pickaxe' };
+  const want = (sim.inv.obsidian || 0) + n;
+  for (let k = 0; k < n * 3 && (sim.inv.obsidian || 0) < want; k++) {
+    const f = yield* fillBucket(sim);
+    if (!f.ok) return (sim.inv.obsidian || 0) ? { ok: true, partial: true } : f;
+    // lava in sight, with an empty voxel above it or beside it to pour into
+    const lava = visible(sim, [B.lava], 40);
+    let spot = null;
+    for (const [lc, ly] of lava) {
+      const cands = [[lc, ly + 1], ...sim.cols[lc].adj.map((m) => [m, ly])].filter(([c, y]) => sim.get(c, y) === B.air);
+      if (cands.length) { spot = { lc, ly, at: cands[0] }; break; }
+    }
+    if (!spot) return (sim.inv.obsidian || 0) ? { ok: true, partial: true } : { ok: false, why: 'no lava in sight to pour onto' };
+    const [pc, py] = spot.at;
+    const go = yield* goTo(sim, (c, y) => c !== pc && sim.reachable(c, y, pc, py) && sim.reachable(c, y, spot.lc, spot.ly), 60000);   // lava pockets are deep and far
+    if (!go.ok) { (sim._unreachable = sim._unreachable || new Set()).add(spot.lc * H + spot.ly); continue; }
+    const r = yield { op: 'pour', c: pc, y: py };
+    if (!r.ok) continue;
+    yield { op: 'fill', c: pc, y: py };                                  // the water back into the bucket
+    if (sim.get(spot.lc, spot.ly) === B.obsidian) yield { op: 'mine', c: spot.lc, y: spot.ly };
+  }
+  return (sim.inv.obsidian || 0) >= want ? { ok: true } : (sim.inv.obsidian || 0) ? { ok: true, partial: true } : { ok: false, why: 'no obsidian made' };
+}
+// Sand (for glass): take sand in sight until holding n.
+export function* digSand(sim, n = 5) {
+  const want = n;
+  for (let k = 0; k < n * 2 && (sim.inv.sand || 0) < want; k++) {
+    let seen = visible(sim, [B.sand], 30);
+    if (!seen.length) { const sc = yield* scout(sim, 'sand'); if (!sc.ok) return { ok: false, why: sc.why }; seen = visible(sim, [B.sand], 30); if (!seen.length) break; }
+    yield* fetchBlock(sim, ...seen[0]);
+  }
+  return (sim.inv.sand || 0) >= want ? { ok: true } : { ok: false, why: 'could not dig enough sand' };
+}
+// A beacon at home: nothing spawns within 16 of it.
+export function* placeBeacon(sim) {
+  if (!sim.has('beacon')) { const c = yield* craft(sim, 'beacon', 1); if (!c.ok) return c; }
+  // at home if we can get there; if not, here: a beacon guards wherever it stands
+  if (sim.home && sim.dist(sim.player.c, sim.home[0]) > 3) yield* goHome(sim);
+  if (!sim.skyOpen(sim.player.c, sim.player.y + 2)) yield* surface(sim);
+  const r = yield* placeStation(sim, 'beacon');
+  if (r.ok) sim.note('beacon', { by: sim.player.id });
+  return r;
 }
 
 // Dig two layers straight down and cap the hole: a one-block shelter. On any
@@ -955,7 +1030,8 @@ const KEEP = { cobblestone: 8, dirt: 0, sand: 0, planks: 4, log: 2, torch: 4, st
 export function surplus(sim) {
   const out = {};
   for (const [k, n] of Object.entries(sim.inv)) {
-    if (/_(pickaxe|sword|hoe)$/.test(k) || k === 'door' || k === 'bed' || k === 'chest' || k === 'crafting_table' || k === 'furnace') continue;
+    // tools, armor (worn by carrying it) and buckets stay with their owner
+    if (/_(pickaxe|sword|hoe|armor)$/.test(k) || ['door', 'bed', 'chest', 'crafting_table', 'furnace', 'bucket', 'water_bucket', 'beacon'].includes(k)) continue;
     let keep = KEEP[k] ?? 0;
     if (EAT_ORDER.includes(k)) keep = 3;
     if (k.endsWith('_seeds')) keep = 2;
@@ -1163,6 +1239,11 @@ export const PALETTE = {
   dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : s.clearCost(s.player.c, s.player.y - 1, s.pickTier()) === Infinity ? 'cannot dig here (water, lava or bedrock below)' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
   sleep_until_dawn: { mode: 'homestead', doc: 'wait out the night where you are', needs: (s) => s.isNight() ? null : 'it is day', run: (s) => sleepUntilDawn(s) },
   eat:          { mode: 'homestead', doc: 'eat the best food carried', needs: (s) => !food(s) ? 'no food' : s.player.food >= 20 ? 'not hungry' : null, run: (s) => eat(s) },
+  // the diamond age
+  mine_diamond: { mode: 'mine', doc: 'down to the bottom layers for diamonds (needs an iron pick)', needs: (s) => hasPick(s, 3), run: (s, a) => mineDiamond(s, a?.n) },
+  make_obsidian:{ mode: 'mine', doc: 'carry water in a bucket to lava; mine the obsidian (diamond pick)', needs: (s) => s.pickTier() < 4 ? 'needs a diamond pickaxe' : !s.has('bucket') && !s.has('water_bucket') ? 'needs a bucket (3 iron ingots)' : !visible(s, [B.lava], 40).length ? 'no lava in sight' : null, run: (s, a) => makeObsidian(s, a?.n) },
+  dig_sand:     { mode: 'explore', doc: 'dig sand (for glass)', needs: () => null, run: (s, a) => digSand(s, a?.n || (s.inv.sand || 0) + 5) },
+  place_beacon: { mode: 'homestead', doc: 'a beacon at home: nothing spawns within 16', needs: (s) => s.beacons.size ? 'a beacon is already lit' : s.has('beacon') ? null : Object.keys(shortfall(s, 'beacon', 1)).length ? `short of ${describeShort(shortfall(s, 'beacon', 1))}` : null, run: (s) => placeBeacon(s) },
   // the pool and the beds
   set_up_chest: { mode: 'homestead', doc: 'make a chest and put it at home: the team\'s shared store', needs: (s) => s.team.chest != null ? 'the team already has a chest' : Object.keys(shortfall(s, 'chest', 1)).length && !s.has('chest') ? `short of ${describeShort(shortfall(s, 'chest', 1))}` : null, run: (s) => setUpChest(s) },
   store:        { mode: 'homestead', doc: 'put your surplus in the team chest (27 stacks of 64)', needs: (s) => s.team.chest == null ? 'no team chest yet' : !Object.keys(surplus(s)).length ? 'nothing surplus to store' : slotsUsed(chestItems(s)) >= CHEST_SLOTS && !Object.keys(surplus(s)).some((k) => roomFor(chestItems(s), k) > 0) ? 'the chest is full' : null, run: (s) => storeSurplus(s) },

@@ -286,6 +286,12 @@ export function options(sim) {
   if (legal.has('mine_iron')) add('mine_iron', 'mine_iron', { iron: ironHeld + 3, coal: (sim.inv.coal || 0) + 2 }, {
     yields: 'iron ore and coal', takes: 'about 150–400 ticks, deep underground',
     advances: sim.pickTier() < 3 ? 'iron_pickaxe needs 3 iron + coal to smelt' : !sim.has('iron_sword') ? 'iron_sword needs 2 iron' : 'stockpile only' }, ['iron_ore', 'coal']);
+  // the diamond age
+  if (legal.has('mine_diamond') && sim.pickTier() < 4 || legal.has('mine_diamond') && (sim.inv.diamond || 0) < 4) add('mine_diamond', 'mine_diamond', { n: 3 }, { yields: 'diamonds (and coal, iron on the way)', takes: 'about 200–600 ticks, down at the bottom layers',
+    advances: sim.pickTier() < 4 ? `a diamond pickaxe takes 3 diamonds (holding ${sim.inv.diamond || 0})` : `diamonds held ${sim.inv.diamond || 0}` }, ['diamond']);
+  if (legal.has('make_obsidian')) add('make_obsidian', 'make_obsidian', { n: 3 }, { yields: 'obsidian (water poured on lava, then mined)', takes: 'about 60–200 ticks', advances: `obsidian held ${sim.inv.obsidian || 0} (a beacon takes 3)` }, ['make_obsidian', 'obsidian']);
+  if (legal.has('place_beacon')) add('place_beacon', 'place_beacon', null, { yields: 'a beacon at home: no zombie spawns within 16', takes: 'about 20–60 ticks', advances: 'the capstone of the tech ladder' }, ['place_beacon', 'craft:beacon']);
+  if ((sim.inv.sand || 0) < 5 && !sim.beacons.size && sim.pickTier() >= 4) add('dig_sand', 'dig_sand', { n: (sim.inv.sand || 0) + 5 }, { yields: 'sand (→ glass at a furnace)', takes: 'about 20–80 ticks', advances: 'a beacon takes 5 glass' }, ['sand', 'dig_sand']);
   if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' }, ['coal', 'iron_ore', 'cobblestone']);
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
   const seenPct = Math.round(100 * sim.seenCount / sim.N);
@@ -345,11 +351,12 @@ export function options(sim) {
       advances: night ? 'safety: it is night' : toDusk < walk + 200 ? `safety: dusk in ${toDusk} ticks` : `nothing yet: night is ${toDusk} ticks away, and the walk takes about ${walk}` });
   }
   const crafts = [...USEFUL_CRAFTS, ...(here.some(needsFarmland) && !sim.has('wooden_hoe') ? ['wooden_hoe'] : []), ...(sim.has('wheat', 3) ? ['bread'] : []), ...(sim.has('glowcap', 2) ? ['lantern'] : []),
-    ...(sim.team.chest == null && !sim.has('chest') ? ['chest'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : [])];
+    ...(sim.team.chest == null && !sim.has('chest') ? ['chest'] : []), ...(!sim.has('iron_armor') && !sim.has('diamond_armor') ? ['iron_armor'] : []), ...(sim.pickTier() < 4 ? ['diamond_pickaxe'] : []),
+    ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.beacons.size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : [])];
   for (const item of crafts) {
     if (Object.keys(shortfall(sim, item, (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1))).length) continue;
-    if (item.endsWith('pickaxe') && (sim.inv[item] || sim.pickTier() >= { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3 }[item])) continue;
-    if (item.endsWith('sword') && (sim.inv[item] || sim.has('iron_sword'))) continue;
+    if (item.endsWith('pickaxe') && (sim.inv[item] || sim.pickTier() >= { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3, diamond_pickaxe: 4 }[item])) continue;
+    if (item.endsWith('sword') && (sim.inv[item] || sim.has('diamond_sword') || (item !== 'diamond_sword' && sim.has('iron_sword')))) continue;
     if ((item === 'door' && sim.has('door', 2)) || (item === 'furnace' && sim.has('furnace'))) continue;
     if (item === 'glass' && sim.has('glass', 4)) continue;
     const goal = item === 'torch' ? 'torches' : item;

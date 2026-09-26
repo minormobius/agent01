@@ -66,9 +66,20 @@ const BED_STEP = { id: 'bed', label: 'a bed of your own', done: hasBed,
   needs: (s) => { const sh = shortfall(s, 'bed', 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.wool ? ['hunt:sheep', 'scout:sheep'] : [])] : ['craft:bed']); },
   complete: (s) => Object.keys(shortfall(s, 'bed', 1)).length ? null : 'craft:bed',
   detail: (s) => { const sh = shortfall(s, 'bed', 1); return Object.keys(sh).length ? `short of ${describeShort(sh)}${sh.wool ? ' (sheep give wool)' : ''}` : 'can be crafted now'; } };
+// the diamond age: armor, a diamond pick, obsidian (water carried to lava),
+// and the capstone, a beacon at home that keeps every zombie away
+const OBSIDIAN_STEP = { id: 'obsidian', label: 'make 3 obsidian (water on lava, diamond pick)', done: (s) => s.has('obsidian', 3) || s.has('beacon') || s.beacons.size > 0,
+  needs: (s) => s.pickTier() < 4 ? new Set(['diamond', 'craft:diamond_pickaxe']) : !s.has('bucket') && !s.has('water_bucket') ? new Set([...Object.keys(shortfall(s, 'bucket', 1)), 'craft:bucket']) : new Set(['make_obsidian', 'obsidian']),
+  complete: (s) => s.pickTier() >= 4 && (s.has('bucket') || s.has('water_bucket')) ? 'make_obsidian' : null,
+  detail: (s) => s.pickTier() < 4 ? 'needs a diamond pickaxe' : !s.has('bucket') && !s.has('water_bucket') ? 'needs a bucket (3 iron ingots)' : `holding ${s.inv.obsidian || 0}; find lava and pour water on it` };
+const BEACON_STEP = { id: 'beacon', label: 'light a beacon at home (nothing spawns within 16)', done: (s) => s.beacons.size > 0,
+  needs: (s) => { if (s.has('beacon')) return new Set(['place_beacon']); const sh = shortfall(s, 'beacon', 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.sand ? ['dig_sand'] : []), ...(sh.obsidian ? ['make_obsidian'] : [])] : ['craft:beacon', 'place_beacon']); },
+  complete: (s) => s.has('beacon') || !Object.keys(shortfall(s, 'beacon', 1)).length ? 'place_beacon' : null,
+  detail: (s) => { const sh = shortfall(s, 'beacon', 1); return s.has('beacon') ? 'ready to place' : Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be made now'; } };
+const DIAMOND_AGE = [itemStep('iron_armor', 'iron_armor', 1, (s) => s.has('iron_armor') || s.has('diamond_armor')), itemStep('diamond_pickaxe', 'diamond_pickaxe', 1, (s) => s.pickTier() >= 4), OBSIDIAN_STEP, BEACON_STEP];
 const TECH = (sim) => sim.players.length > 1
-  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7]]
-  : [...TECH_BASE, BED_STEP];
+  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7], ...DIAMOND_AGE]
+  : [...TECH_BASE, BED_STEP, ...DIAMOND_AGE];
 
 function growSteps(sim) {
   const here = speciesHere(sim);
@@ -116,7 +127,7 @@ function exploreSteps(sim) {
 }
 
 export const PROJECTS = {
-  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron', steps: (sim) => TECH(sim) },
+  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron, then diamonds, obsidian and a beacon', steps: (sim) => TECH(sim) },
   grow: { aim: 'find and cultivate every plant species this world has — some grow only on particular tile shapes', steps: growSteps },
   explore: { aim: 'see the whole world and find where each wild plant grows', steps: exploreSteps },
 };

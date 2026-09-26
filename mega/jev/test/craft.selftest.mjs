@@ -69,11 +69,15 @@ const PINS = { grid: '0ea3ac67', hex: '23a0117f', penrose: '1776e001', ammann: '
 // when asked for (old streams replay), so both are pinned
 const PINS2 = { grid: 'f3a4daea', hex: '28b88132', penrose: 'eb2ebfcb', ammann: 'fc1d6f30', seven: '4cfabb00',
   rhombille: 'ec981a38', snub: 'd9d67deb', kagome: '730b7258', rhombitri: 'caaa6481', truncsq: 'eb517d47' };
-ok(CRAFT_VERSION === 2, 'CRAFT_VERSION is 2 — re-pin below only together with a bump');
+// v3 added diamonds and deep lava pockets in their own pass
+const PINS3 = { grid: '058a0234', hex: '33d2badb', penrose: '0ebb52d4', ammann: '32d2923b', seven: '7c260abf',
+  rhombille: '73055d18', snub: '612c45bd', kagome: '5f6663b9', rhombitri: '4aed9bb4', truncsq: '821a0a6b' };
+ok(CRAFT_VERSION === 3, 'CRAFT_VERSION is 3 — re-pin below only together with a bump');
 for (const s of SHAPES) {
   ok(worldSignature(generateWorld({ seed: 1, shape: s, version: 1 })) === PINS[s], `${s}: v1 world signature still pinned`);
+  ok(worldSignature(generateWorld({ seed: 1, shape: s, version: 2 })) === PINS2[s], `${s}: v2 world signature still pinned`);
   const w = generateWorld({ seed: 1, shape: s });
-  ok(worldSignature(w) === PINS2[s], `${s}: v2 world signature pinned (got ${worldSignature(w)})`);
+  ok(worldSignature(w) === PINS3[s], `${s}: v3 world signature pinned (got ${worldSignature(w)})`);
   ok(w.blocks[w.spawn * H + w.height[w.spawn]] === B.grass, `${s}: spawn stands on grass`);
   ok(w.trees.length > 10, `${s}: trees grow (${w.trees.length})`);
   const counts = {};
@@ -338,7 +342,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const ws = Object.fromEntries(KINDS.filter((k) => k !== 'mixed').map((k) => [k, generateWorld({ seed: 9, shape: 'hex', kind: k })]));
   ok(worldSignature(generateWorld({ seed: 1, shape: 'penrose', kind: 'island', version: 1 })) === PINS.penrose, 'kind island (v1) is the original world, byte for byte');
   ok(land(ws.archipelago) < land(ws.island) - 0.15, `archipelago is mostly sea (land ${(100 * land(ws.archipelago)).toFixed(0)}% vs island ${(100 * land(ws.island)).toFixed(0)}%)`);
-  ok(count(ws.caverns, B.lava) > 100 && count(ws.island, B.lava) === 0, `caverns have lava pools (${count(ws.caverns, B.lava)}), islands none`);
+  ok(count(ws.caverns, B.lava) > 100 && count(ws.island, B.lava) < 60, `caverns have lava pools (${count(ws.caverns, B.lava)}), islands only small deep pockets (${count(ws.island, B.lava)})`);
   ok(ws.desert.trees.length * 3 < ws.island.trees.length && ws.forest.trees.length > ws.island.trees.length * 1.5,
     `trees: desert ${ws.desert.trees.length} ≪ island ${ws.island.trees.length} ≪ forest ${ws.forest.trees.length}`);
   ok(Math.max(...ws.highlands.height) > Math.max(...ws.island.height) + 4, 'highlands stand taller than the island');
@@ -512,7 +516,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const r = new Replay(sim.lines[0]);
   for (const l of sim.lines.slice(1)) r.apply(l);
   ok(r.b.every((v, i) => v === sim.b[i]), 'a replay of the stream has the same farm, block for block');
-  ok(new Replay(new Sim({ seed: 3, shape: 'truncsq' }).lines[0]).world.version === 2, 'the header carries the world version');
+  ok(new Replay(new Sim({ seed: 3, shape: 'truncsq' }).lines[0]).world.version === CRAFT_VERSION, 'the header carries the world version');
 }
 {
   const sim = new Sim({ seed: 3, shape: 'truncsq' });
@@ -533,7 +537,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const score = projectScore(b);
   // (a solo sleeper skips every night, and a skipped night grows nothing:
   // the moonpetal, which grows only at night, is the price of a bed)
-  ok(score.grown >= 3 && score.tech === '9/9', `the baseline climbs the ladder (bed included) and grows ${score.grown}/${score.species_here} species in 3 days`);
+  ok(score.grown >= 3 && +score.tech.split('/')[0] >= 9, `the baseline climbs the ladder (bed included, tech ${score.tech}) and grows ${score.grown}/${score.species_here} species in 3 days`);
   ok(r.decisions.some((d) => d.project === 'grow'), 'and moves on to the grow project');
 }
 
@@ -648,6 +652,41 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   ok(!s.isNight(), 'and it is morning');
   const rep = new Replay(s.lines[0]); for (const l of s.lines.slice(1)) rep.apply(l);
   ok(JSON.stringify(rep.chests.get(s.team.chest)) === JSON.stringify(s.chests.get(s.team.chest)), 'the chest\'s contents are in the stream');
+}
+
+// ---------------------------------------------------------- the diamond age
+{
+  const w3 = generateWorld({ seed: 1, shape: 'penrose' });
+  ok(w3.blocks.some((v, i) => v === B.diamond_ore && i % H <= 6) && !w3.blocks.some((v, i) => v === B.diamond_ore && i % H > 6), 'diamonds sit only in the bottom layers');
+  ok(w3.blocks.filter((v) => v === B.lava).length > 0, 'every world kind has deep lava pockets now (this is an island)');
+  const s = new Sim({ seed: 3, shape: 'truncsq' });
+  // armor takes its share of a zombie's blow
+  const p = s.player, z = s.spawnEnt('zombie', p.c, p.y, {});
+  s.hurt(p, 4, z); const bare = 20 - p.hp;
+  p.hp = 20; s.give('iron_armor', 1); s.hurt(p, 4, z); const armored = 20 - p.hp;
+  ok(bare === 4 && armored < bare, `iron armor softens a hit (${bare} → ${armored})`);
+  s.removeEnt(z, 'test');
+  // water poured from a bucket onto lava makes obsidian, and does not flow
+  s.give('diamond_pickaxe', 1); s.give('bucket', 1); s.give('cobblestone', 40); s.give('torch', 10);
+  for (let k = 0; k < 10; k++) runMacro(s, 'explore');
+  const water0 = s.b.filter((v) => v === B.water).length;
+  const r = runMacro(s, 'make_obsidian', { n: 1 });
+  ok(r.ok && s.inv.obsidian >= 1, `make_obsidian: bucket to the sea, pour on lava, mine it (${r.why || 'ok'})`);
+  for (let k = 0; k < 30; k++) s.step();
+  ok(Math.abs(s.b.filter((v) => v === B.water).length - water0) <= 1, 'a bucketful of water stays put (it does not flood the mine)');
+  ok(s.has('bucket') || s.has('water_bucket'), 'and the bucket is not lost');
+  // a beacon at home: no zombie spawns within its radius
+  const b = new Sim({ seed: 3, shape: 'penrose', difficulty: 'hard' });
+  b.give('beacon', 1); b.give('planks', 4);
+  ok(runMacro(b, 'place_beacon').ok && b.beacons.size === 1, 'a beacon goes down at home');
+  while (!b.isNight()) b.step();
+  for (let k = 0; k < 1500; k++) b.step();
+  const near = [...b.ents.values()].filter((e) => e.kind === 'zombie' && e.born !== undefined).length;
+  const spawnedNear = b.lines.filter((l) => l.includes('"zombie"')).map((l) => JSON.parse(l).e.filter((e) => e[0] === '+' && e[2] === 'zombie')).flat()
+    .filter((e) => b.beaconNear(e[3])).length;
+  ok(spawnedNear === 0, 'no zombie spawns within 16 of the beacon, all night on hard');
+  const rep = new Replay(b.lines[0]); for (const l of b.lines.slice(1)) rep.apply(l);
+  ok(rep.b.every((v, i) => v === b.b[i]), 'the diamond age is in the stream, block for block');
 }
 
 // ---------------------------------------------------------------- text ------

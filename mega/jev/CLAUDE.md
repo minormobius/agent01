@@ -301,7 +301,7 @@ model only decides.
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 337 checks, ~55 s, gates the deploy (multiplayer, plants, projects, water, survival, chests, team house and beds included) |
+| `test/craft.selftest.mjs` | 356 checks, ~60 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1070,6 +1070,50 @@ skips every night, so the **moonpetal, which grows only at night, never
 ripens.** The solo baseline's species grown in 3 days fell from 4 to 3 when
 beds arrived. That is not a bug to fix. It is a real choice (sleep, or stay up
 for the moonpetal), and the harness does not yet make it visible to Jev as one.
+
+### The diamond age: armor, diamonds, obsidian by bucket, a beacon (2026-09-26)
+
+The tech ladder used to stop at iron. It now runs through a second tier whose
+capstone matters to the whole team, and whose key step uses the water physics.
+
+| step | how |
+|---|---|
+| **iron armor** | 8 iron ingots. Armor is worn by carrying it: a mob's blow is cut 40% (diamond armor 60%, 8 diamonds) |
+| **diamond pickaxe** | 3 diamonds + 2 sticks. `diamond_ore` sits only in the bottom five layers and needs an iron pick. `mine_diamond` takes diamonds in sight, else stairs down to layer 4 and tunnels. Tier 4, speed 8 |
+| **obsidian ×3** | **water carried to lava.** A `bucket` (3 iron) `fill`s at the sea. `pour`ing it on or beside lava turns that lava to obsidian (the hook is in `sim.set`: water meeting lava, beside or below). The bucket takes its water back. Only a diamond pick mines obsidian (hardness 50). `make_obsidian` does the whole chain |
+| **beacon** | 3 obsidian + 5 glass + 1 diamond, placed at home (`place_beacon`). **No zombie spawns within 16** (`BEACON_RADIUS`, `sim.beaconNear`), day or night, in the open or in the dark. Everyone at home benefits |
+
+Also a `diamond_sword` (7), and `dig_sand` for the glass.
+
+**Poured water stays put.** The sea flows (any air at or below sea level that touches
+sea water fills). A bucketful does not: poured voxels go in `sim.still` and never act
+as a flow source, or one bucket would flood the whole mine. Filling the bucket from
+still water takes the voxel back. Sea water stays: the sea gives without end.
+
+**World v3** adds diamonds (about N/180 short veins in layers 1–5) and, in
+**every** world kind, a few sealed lava pockets deep in the rock (a pool with
+air over it, at layers 3–4), so obsidian can be made on an island too. Both use
+their own rng pass. v1 and v2 still generate byte for byte, and all three pin sets
+are checked.
+
+**In a team the pool has to flow back out.** The first 4-day team run ended
+with every ingredient of a beacon in the chest (9 diamonds, 3 obsidian, 11
+glass), plus iron armor, which only works while carried. No beacon: the surplus
+rule stored everything, and no rule took it back. Armor, buckets and beacons are no
+longer surplus, and the diamond pick and beacon steps count the pool and take
+what they are short of from it (as beds already did with wool). After that, both
+3-player runs lit a beacon in 4 days (penrose: 2 of 3 at 14/14; kagome: 1 of 3,
+the others one personal step short), 0 deaths. A place-beacon rule with no try
+budget also once ran 246 times against an unreachable home (317 s). The beacon
+now goes down where the player stands if home is out of reach.
+
+**Measured, baseline solo, 4 days:** the whole 13-step ladder, beacon included,
+on truncsq, penrose, seven and kagome (hex 13/13 as well), 0 deaths. The first
+truncsq run stopped at 11/13 with 19 lava blocks in the world. The obsidian
+macro's path search gave up at 30,000 nodes from far away, and the baseline's
+fallback with no lava in sight was to branch-mine, when **lava comes into
+sight by seeing more of the world, not by tunnelling**. Now: a 60,000-node
+search, and explore first.
 
 ### What is next
 

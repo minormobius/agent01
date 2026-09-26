@@ -31,7 +31,7 @@
 // nothing new to show a farm.
 
 import {
-  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD, HEAL, SEEDS, roomFor,
+  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
   generateWorld, worldSignature, mulberry, hash32, blockName,
 } from './world.mjs';
 import { habitat, growCrops, harvestDrop, GROW_EVERY } from './plants.mjs';
@@ -70,6 +70,8 @@ export class Sim {
     this.crops = new Set();       // voxels holding a plant that is still growing
     this.cultivated = new Map();  // voxel → { sp, by } for everything a player planted
     this.flowQ = new Set();       // voxels where water may be about to flow (only ever woken by a change)
+    this.still = new Set();       // water poured from a bucket: it stays put (the sea flows; a bucketful does not)
+    this.beacons = new Set();     // voxels holding a beacon: nothing spawns within BEACON_RADIUS
     this.chests = new Map();      // voxel → { item: n } — the shared pool, limited by CHEST_SLOTS stacks
     this.team = { chest: null };  // the team's chest (the first one a player places), for macros to find
     this.lines = [];
@@ -159,7 +161,15 @@ export class Sim {
     if (old === B.chest && id !== B.chest) { this.chests.delete(k); if (this.team.chest === k) this.team.chest = [...this.chests.keys()][0] ?? null; }
     // water: standing water is at rest until something changes beside it
     if (y <= SEA && floodable(id)) this.flowQ.add(k);
-    if (id === B.water) { if (y > 1) this.flowQ.add(k - 1); for (const n of this.cols[c].adj) this.flowQ.add(n * H + y); }
+    if (id === B.water) {
+      if (y > 1) this.flowQ.add(k - 1);
+      for (const n of this.cols[c].adj) this.flowQ.add(n * H + y);
+      // water meeting lava turns the lava to obsidian (beside it, and below)
+      const hits = [[c, y - 1], ...this.cols[c].adj.map((n) => [n, y])].filter(([cc, yy]) => yy >= 0 && this.b[cc * H + yy] === B.lava);
+      for (const [cc, yy] of hits) this.set(cc, yy, B.obsidian);
+    }
+    if (old === B.water) this.still.delete(k);
+    if (id === B.beacon) this.beacons.add(k); else if (old === B.beacon) this.beacons.delete(k);
     this.b[c * H + y] = id;
     this.emit(['b', c, y, id]);
   }
@@ -247,6 +257,8 @@ export class Sim {
     return e.c === t.c || this.cols[e.c].adj.includes(t.c);
   }
   hurt(e, dmg, from) {
+    // armor (carried is worn) takes its share of a blow from a mob
+    if (e.kind === 'player' && from) { let a = 0; for (const k in ARMOR) if ((e.inv[k] || 0) > 0) a = Math.max(a, ARMOR[k]); dmg = Math.max(1, Math.round(dmg * (1 - a))); }
     e.hp = Math.max(0, e.hp - dmg);
     this.emit(['hit', from ? from.id : -1, e.id, dmg]);
     this.emit(['hp', e.id, e.hp]);
@@ -438,6 +450,34 @@ export class Sim {
           this.stats.planted[sp] = (this.stats.planted[sp] || 0) + 1;
         } };
       }
+      case 'fill': {
+        // a bucket takes up a water voxel: the sea gives without end, a
+        // poured bucketful goes back into the bucket
+        const { c, y } = a;
+        if (!this.has('bucket')) return no('no empty bucket');
+        if (this.get(c, y) !== B.water) return no('no water there');
+        if (!(p.c === c && Math.abs(p.y - y) <= 1) && !this.reachable(p.c, p.y, c, y)) return no('out of reach');
+        return { ok: true, ticks: 1, pre: () => {
+          this.emit(['do', 'fill', c, y]);
+          if (this.still.has(c * H + y)) this.set(c, y, B.air);
+          this.take('bucket', 1); this.give('water_bucket', 1);
+        } };
+      }
+      case 'pour': {
+        // empty a water bucket into an empty voxel: still water, which does
+        // not flow, but turns any lava beside or below it to obsidian
+        const { c, y } = a;
+        if (!this.has('water_bucket')) return no('no water in a bucket');
+        if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
+        if (this.get(c, y) !== B.air) return no(`occupied by ${blockName(this.get(c, y))}`);
+        if (this.occupied(c, y)) return no('an entity is there');
+        return { ok: true, ticks: 1, pre: () => {
+          this.emit(['do', 'pour', c, y]);
+          this.take('water_bucket', 1); this.give('bucket', 1);
+          this.still.add(c * H + y);
+          this.set(c, y, B.water);
+        } };
+      }
       case 'store':
       case 'take': {
         // put items in a chest, or take them out: the team's shared pool
@@ -604,7 +644,7 @@ export class Sim {
       const c = Math.floor(this.rng() * this.N);
       const y = this.surface(c);
       const d = this.dist(c, p.c);
-      if (d >= 10 && d <= 24 && this.get(c, y - 1) !== B.water && this.skyOpen(c, y) && !this.torchNear(c, 5)
+      if (d >= 10 && d <= 24 && this.get(c, y - 1) !== B.water && this.skyOpen(c, y) && !this.torchNear(c, 5) && !this.beaconNear(c)
           && this.canStand(c, y) && !this.occupied(c, y)) this.spawnEnt('zombie', c, y);
     }
     // ...and in the dark, at any hour: caves and unlit tunnels near the player.
@@ -614,7 +654,7 @@ export class Sim {
       const ring = this._near.get(p.c);
       if (ring && ring.length) {
         const c = ring[Math.floor(this.rng() * ring.length)];
-        if (this.dist(c, p.c) >= 6 && !this.torchNear(c, 5)) {
+        if (this.dist(c, p.c) >= 6 && !this.torchNear(c, 5) && !this.beaconNear(c)) {
           // every dark standing spot in that column (cave floors, tunnels)
           const top = this.surface(c), spots = [];
           for (let y = 1; y < top - 2; y++) if (this.canStand(c, y, 2, true) && this.dark(c, y) && !this.occupied(c, y)) spots.push(y);
@@ -647,10 +687,15 @@ export class Sim {
       if (n >= 400) { this.flowQ.add(k); continue; }
       const c = Math.floor(k / H), y = k % H;
       if (y > SEA || !floodable(this.b[k])) continue;
-      if (this.get(c, y + 1) !== B.water && !this.cols[c].adj.some((m) => this.get(m, y) === B.water)) continue;
+      const src = (cc, yy) => this.get(cc, yy) === B.water && !this.still.has(cc * H + yy);
+      if (!src(c, y + 1) && !this.cols[c].adj.some((m) => src(m, y))) continue;
       n++;
       this.set(c, y, B.water);      // set() wakes what is below and beside it
     }
+  }
+  beaconNear(c) {
+    for (const k of this.beacons) if (this.dist(Math.floor(k / H), c) <= BEACON_RADIUS) return true;
+    return false;
   }
   torchNear(c, r) {
     for (const k of this.torches) if (this.dist(Math.floor(k / H), c) <= r) return true;

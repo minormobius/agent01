@@ -299,6 +299,7 @@ function syncEntities(dt) {
 const ITEM_COLOR = {
   stick: '#9c7a45', coal: '#222', charcoal: '#3a2e25', iron_ingot: '#d8d8d8', apple: '#d33', porkchop: '#f0a3b4', cooked_porkchop: '#b5653d',
   wooden_pickaxe: '#b8945a', stone_pickaxe: '#8a8a8a', iron_pickaxe: '#d8d8d8', wooden_sword: '#b8945a', stone_sword: '#8a8a8a', iron_sword: '#d8d8d8',
+  diamond: '#5ff2e6', diamond_pickaxe: '#5ff2e6', diamond_sword: '#5ff2e6', iron_armor: '#c9c9c9', diamond_armor: '#5ff2e6', bucket: '#b0b0b0', water_bucket: '#3f76e4', wool: '#f2efe6', mutton: '#d9828a', cooked_mutton: '#a0563a',
 };
 function hud() {
   const t = replay.tick, day = Math.floor(t / DAY) + 1, ph = t % DAY;
@@ -388,7 +389,7 @@ const ARGS = {
   gather_wood: { n: 5 }, mine_stone: { n: 11 }, mine_coal: { n: 4 }, mine_iron: { iron: 3, coal: 3 },
   branch_mine: { length: 16 }, explore: { steps: 40 }, light_area: { n: 4 },
 };
-const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern'];
+const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon'];
 function argsFor(name) {
   if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
   if (name === 'scout') return { what: $('scout-what').value };
@@ -899,6 +900,7 @@ function useSelected(a) {
   if (FOOD[item]) return hands.queue.push({ op: 'eat', item });
   if (item === 'wooden_hoe') return hands.queue.push({ op: 'till', c: a.c, y: a.y });
   if (SEEDS[item]) return hands.queue.push({ op: 'plant', c: a.c, y: a.y + 1, item });
+  if (item === 'water_bucket') return a.place ? hands.queue.push({ op: 'pour', c: a.place.c, y: a.place.y }) : toast('no room to pour there');
   if (!PLACEABLE.has(item)) return toast(`${item.replace(/_/g, ' ')} does not place`);
   if (!a.place) return toast('no room to place there');
   hands.queue.push({ op: 'place', c: a.place.c, y: a.place.y, item });
