@@ -57,13 +57,16 @@ scene.add(world);
 const entGroup = new THREE.Group();
 scene.add(entGroup);
 
+// the canvas is sized by CSS (the whole window, or the top two thirds on a
+// phone); the renderer follows whatever box it is given
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = canvas.clientWidth || window.innerWidth, h = canvas.clientHeight || window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
 window.addEventListener('resize', resize);
+if (window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
 resize();
 
 // ------------------------------------------------------------ meshing ------
@@ -521,10 +524,11 @@ $('team-list').addEventListener('click', (ev) => {
 function renderTeam(now) {
   const box = $('team');
   box.hidden = !party;
+  document.body.classList.toggle('party', !!party);
   $('asks').hidden = !human;
   if (!party || now - teamAt < 300) return;
   teamAt = now;
-  $('team-hint').textContent = human ? (locked() ? '— Esc frees the mouse to ask' : '— what you ask goes into Jev\'s state') : '— click one to watch it';
+  $('team-hint').textContent = human ? (locked() && !touching ? '— Esc frees the mouse to ask' : '— what you ask goes into Jev\'s state') : '— click one to watch it';
   const live = (e) => e.request && sim.tick - e.request.tick < 1600 ? e.request.what : null;
   const html = party.members.map((m, i) => {
     const e = m.e, who = m.controller === 'human' ? 'you' : `Jev #${e.id}`;
@@ -914,7 +918,8 @@ canvas.addEventListener('pointerup', (e) => {
   look.id = null;
   const moved = Math.hypot(e.clientX - look.x0, e.clientY - look.y0), quick = performance.now() - look.t0 < 400;
   if (moved > 10 || !quick) return;                              // that was a look, not a tap
-  const nx = (e.clientX / innerWidth) * 2 - 1, ny = -(e.clientY / innerHeight) * 2 + 1;
+  const r = canvas.getBoundingClientRect();
+  const nx = ((e.clientX - r.left) / r.width) * 2 - 1, ny = -((e.clientY - r.top) / r.height) * 2 + 1;
   const a = aim(nx, ny);
   hands.aim = a;
   if (!a) return;

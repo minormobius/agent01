@@ -81,30 +81,6 @@ button:disabled{opacity:.4;cursor:default}
 .asks{margin-top:4px}
 .asks button{font-size:12px;padding:2px 6px}
 .asks button.on{border-color:var(--warn);color:var(--warn)}
-/* phones and small tablets: every panel becomes a drawer behind a button in
-   the dock, so the world gets the screen */
-.dock{display:none}
-@media (max-width:900px){
-  .dock{display:flex;position:fixed;z-index:5;top:8px;right:8px;gap:6px}
-  .dock button{background:var(--panel);font-size:13px;padding:6px 10px}
-  .dock button.on{border-color:var(--accent);color:var(--accent)}
-  .top-left{top:8px;left:8px;max-width:calc(100vw - 180px);padding:6px 8px}
-  .top-left .sub,.top-left .links{display:none}
-  .top-left h1{font-size:16px;margin:0}
-  .team{top:52px;left:8px;right:8px;width:auto;transform:none;padding:4px 8px}
-  body[class*="show-"] .team{display:none}
-  .team .eyebrow .hint{display:none}
-  .asks .mrow{flex-wrap:nowrap;overflow-x:auto}
-  .asks .eyebrow{display:none}
-  .asks button{font-size:12px;padding:3px 7px;flex:none}
-  .top-right,.left,.right,.bottom-right{display:none;left:8px;right:8px;width:auto;max-width:none;top:60px;max-height:calc(100vh - 220px);overflow:auto}
-  body.show-controls .top-right,body.show-macros .left,body.show-decision .right,body.show-stream .bottom-right{display:block}
-  body.show-controls .top-right{display:grid}
-  .bottom{bottom:8px;min-width:0;width:calc(100vw - 16px);padding:6px 8px}
-  .status{gap:8px;font-size:12px}
-  .help{max-height:calc(100vh - 40px);overflow:auto}
-}
-
 .crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;color:#fff;font:20px/1 var(--mono);text-shadow:0 0 3px #000;pointer-events:none}
 .toast{position:fixed;left:50%;top:calc(50% + 36px);transform:translateX(-50%);z-index:3;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:13px;pointer-events:none}
 .help{left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(460px,calc(100vw - 24px));z-index:4}
@@ -116,7 +92,7 @@ button:disabled{opacity:.4;cursor:default}
 .chip.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
 .chip{cursor:pointer}
 /* hands on the controls: only the status bar and hotbar stay */
-body.immersed .top-left,body.immersed .top-right,body.immersed .left,body.immersed .right,body.immersed .bottom-right{display:none}
+@media (min-width:901px){body.immersed .top-left,body.immersed .top-right,body.immersed .left,body.immersed .right,body.immersed .bottom-right{display:none}}
 
 /* touch controls: a joystick, look by dragging, and big buttons */
 .touch{display:none}
@@ -130,3 +106,45 @@ body.touching.play .touch{display:block}
 body.touching .touchhelp{display:block}
 body.touching .nontouch{display:none}
 body.touching .crosshair{display:none}
+
+/* phones and small tablets: the world gets the top two thirds, untouched.
+   Everything else lives in the bottom third: a row of tabs, and under it
+   either the open tab or (none open) the status, hotbar and touch controls. */
+.dock{display:none}
+@media (max-width:900px){
+  :root{--split:66.667vh;--tabs:42px;--pane:#151a25}
+  @media (prefers-color-scheme:light){:root:not([data-theme="dark"]){--pane:#f1f3f7}}
+  :root[data-theme="light"]{--pane:#f1f3f7}
+  @supports (height:1dvh){:root{--split:66.667dvh}}
+  body::before{content:"";position:fixed;top:var(--split);bottom:0;left:0;right:0;background:var(--pane);z-index:1}
+  .panel,.dock{background:var(--pane)}
+  .stick{background:var(--line);border-color:var(--ink-3)}
+  .stick i{background:var(--ink-3)}
+  .tbtns button{background:transparent}
+  #stage{height:var(--split);bottom:auto}
+  .dock{display:flex;position:fixed;z-index:6;top:var(--split);left:0;right:0;height:var(--tabs);gap:4px;padding:4px 6px;background:var(--panel);border-top:1px solid var(--line);overflow-x:auto}
+  .dock button{flex:1 0 auto;background:transparent;font-size:13px;padding:4px 8px}
+  .dock button.on{border-color:var(--accent);color:var(--accent)}
+  .dock button[data-panel="team"]{display:none}
+  body.party .dock button[data-panel="team"]{display:block}
+  .top-left{display:none}
+  /* every panel is a pane in the bottom third */
+  .panel{border-radius:0;backdrop-filter:none}
+  .top-right,.left,.right,.bottom-right,.team,.help,.craftpanel{position:fixed;display:none;top:calc(var(--split) + var(--tabs));bottom:0;left:0;right:0;width:auto;max-width:none;max-height:none;transform:none;overflow:auto;z-index:5;border-left:0;border-right:0;border-bottom:0}
+  body.show-controls .top-right{display:grid;align-content:start}
+  body.show-macros .left,body.show-decision .right,body.show-stream .bottom-right,body.show-team.party .team{display:block}
+  .team[hidden]{display:none!important}
+  .help:not([hidden]),.craftpanel:not([hidden]){display:block;z-index:7}
+  .tail{max-height:none}
+  /* the default pane: status and hotbar on top, thumbs below */
+  .bottom{top:calc(var(--split) + var(--tabs));bottom:auto;left:0;right:0;transform:none;min-width:0;width:auto;max-width:none;padding:4px 8px;border-radius:0;border-left:0;border-right:0;z-index:4}
+  .status{gap:8px;font-size:12px}
+  #hp,#food{font-size:11px;letter-spacing:0}
+  .inv{flex-wrap:nowrap;overflow-x:auto;margin-top:3px;padding-bottom:2px}
+  .chip{flex:none}
+  .stick{left:14px;bottom:10px;width:min(112px,calc(33.333vh - 120px));height:min(112px,calc(33.333vh - 120px))}
+  .tbtns{right:10px;bottom:10px;grid-template-columns:repeat(2,58px);gap:6px}
+  .tbtns button{height:min(46px,calc((33.333vh - 128px) / 2))}
+  .toast{top:calc(var(--split) + var(--tabs) + 58px);z-index:8}
+}
+
