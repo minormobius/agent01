@@ -63,7 +63,9 @@ export const POINTS = (() => {
     const n = Math.round((total * part[6]) / share);
     for (let k = 0; k < n; k++) {
       const id = out.length;
-      out.push({ part: pi, u: hash(id, 1), th: hash(id, 2) * Math.PI * 2, v: hash(id, 5) * 2 - 1, off: Math.floor(hash(id, 3) * N), rate: 90 + 60 * hash(id, 4) });
+      out.push({ part: pi, u: hash(id, 1), th: hash(id, 2) * Math.PI * 2, v: hash(id, 5) * 2 - 1, off: Math.floor(hash(id, 3) * N), rate: 90 + 60 * hash(id, 4),
+        // the swirl over the surface: round the part (faster where it sheers) and along it, back and forth
+        spin: (0.7 + 0.9 * hash(id, 6)) * (pi % 2 ? 1 : -1), drift: 0.05 + 0.12 * hash(id, 7) });
     }
   });
   return out;
@@ -93,15 +95,18 @@ export function frames(P) {
  */
 export function place(i, F, t, m, swell, out, lag = 0) {
   const q = POINTS[i], f = F[q.part], A = ATTRACTORS[PARTS[q.part][5]];
-  // on the surface
+  // on the surface, swirling: the points never sit still; they stream round and along the part
   let sx, sy, sz;
+  const tri = (x) => 1 - Math.abs((((x % 2) + 2) % 2) - 1);           // 0..1..0, back and forth
   if (f.head) {
-    const c = Math.sqrt(1 - q.v * q.v), a = [c * Math.cos(q.th), q.v, c * Math.sin(q.th)];
+    const v = 2 * tri((q.v + 1) / 2 + q.drift * t) - 1, th = q.th + q.spin * t * (1.2 - 0.6 * v * v);
+    const c = Math.sqrt(Math.max(0, 1 - v * v)), a = [c * Math.cos(th), v, c * Math.sin(th)];
     sx = f.o[0] + f.e1[0] * a[0] * 0.09 + f.d[0] * a[1] * 0.115 + f.e2[0] * a[2] * 0.085;
     sy = f.o[1] + f.e1[1] * a[0] * 0.09 + f.d[1] * a[1] * 0.115 + f.e2[1] * a[2] * 0.085;
     sz = f.o[2] + f.e1[2] * a[0] * 0.09 + f.d[2] * a[1] * 0.115 + f.e2[2] * a[2] * 0.085;
   } else {
-    const r = f.r0 + (f.r1 - f.r0) * q.u, c = Math.cos(q.th) * r, s = Math.sin(q.th) * r, l = q.u * f.L;
+    const u = tri(q.u + q.drift * t), th = q.th + q.spin * t * (1 + 0.8 * Math.sin(2 * Math.PI * u));
+    const r = f.r0 + (f.r1 - f.r0) * u, c = Math.cos(th) * r, s = Math.sin(th) * r, l = u * f.L;
     sx = f.o[0] + f.d[0] * l + f.e1[0] * c + f.e2[0] * s;
     sy = f.o[1] + f.d[1] * l + f.e1[1] * c + f.e2[1] * s;
     sz = f.o[2] + f.d[2] * l + f.e1[2] * c + f.e2[2] * s;

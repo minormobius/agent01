@@ -374,6 +374,10 @@ console.log('\nDescending (Daisy Bell, sung by arithmetic)');
   const finite = Object.values(T.ATTRACTORS).every((A) => A.p.every(Number.isFinite));
   const Fr = T.frames(F.pose(130)), a1 = T.place(7, Fr, 130, 0.7, 1.4, [0, 0, 0]), a2 = T.place(7, Fr, 130, 0.7, 1.4, [0, 0, 0]);
   ok(finite && a1.every((v, i) => v === a2[i]) && T.POINTS.length > 3000, `the thought: four attractors integrated finite, ${T.POINTS.length} points, placed the same every time`);
+  const Env = await import('../descending/env.js');
+  let sorted = true;
+  for (let i = 1; i < Env.GLINT_COUNT; i++) if (Env.GLINTS[i * 6] < Env.GLINTS[i * 6 - 6]) { sorted = false; break; }
+  ok(sorted && Env.GLINT_COUNT > 10000 && Env.GLINTS.every(Number.isFinite), `the wall: ${Env.GLINT_COUNT} glints of the song's spectrum, sorted along the flight`);
   ok(Math.abs(end.ankleL[1] - end.ankleR[1]) < 0.01 && end.ankleL[0] > F.STEPS * F.RUN - 0.01, 'it ends with both feet on the floor at the foot of the stairs');
 }
 

@@ -403,8 +403,19 @@ the picture: a figure descending a staircase in flat planes, after Duchamp (1912
     (RK4, ~0.1 s) and read by index (offset + t·rate), so it stays a pure function of t. `mathAt(t)`
     (bars 34–80) moves the points from surface to orbit; the head swells and brightens on each sung
     vowel; the last chord blooms the orbits out.
-  - The trail: ten seconds of history, exposures every 0.2 s on a fixed time grid, memoised (world
-    positions once per exposure), fading with age and drifting back up the stairs even while standing.
+  - The points swirl over the mannequin's surface from the first frame (round each part, faster where
+    it shears, and back and forth along it: closed-form in t), then loose into their orbits.
+  - The trail (owner: "every figure saved at full opacity"): every exposure on a 1/3 s grid for 16 s,
+    the wood's at full opacity, the light's at full strength, memoised per exposure. When the figure
+    stands still (intro, coda) the history drifts up the stairs by how little it has moved, rather than
+    piling onto the body (48 coincident exposures blew the final figure out to a white blob).
+  - The world turns with it (`env.js`): the far wall is the song's **spectrogram**, 23k glints
+    (voice harmonics shaped by each vowel's formants, piano partials by 1/k, a column every eighth of a
+    bar, height by log frequency) written FIVE treads ahead of the figure as each moment is sung. Behind
+    the figure the wall is under its own trail, so the song is written where it is walking to; by the
+    coda it surrounds it. Each glint lights on its note with a flash, stays, and twinkles; drawn as a
+    dash to the next column so harmonics read as lines. The stairs the figure has left turn to points
+    (`STAIR` template: edges and faces) as `envAmt` rises (bars 30–100); the floor at the coda.
   - The light is added up in a Float32 buffer (half resolution above 0.6 MP), tone-mapped v/(1+v) over
     only the box the points touched, and laid on with 'lighter'. The glow is computed in JS (cells a
     quarter the size, blurred, added bilinearly), because a canvas-scaled blurred copy cost up to 200 ms

@@ -15,6 +15,7 @@
 import { pose, RISE, RUN, WIDTH, STEPS, NOTES } from './figure.js';
 import { embody, cues, duration, sec, B } from './score.js';
 import { POINTS, PARTS, frames, place } from './thought.js';
+import { GLINTS, glintFrom, STAIR } from './env.js';
 
 const PAL = {
   ground: '#21160d', ground2: '#3a2716', ink: '#1a1008',
@@ -77,7 +78,7 @@ export function makeRenderer(W, H, dpr = 1) {
     for (let j = j1; j >= j0; j--) {
       const x0 = j === 0 ? -3 : j * RUN, x1 = j === STEPS ? (j + 40) * RUN : (j + 1) * RUN, y = -j * RISE;
       const fade = clamp(1 - Math.abs(j - p) / 9);
-      ctx.globalAlpha = 0.3 + 0.7 * fade;
+      ctx.globalAlpha = (0.3 + 0.7 * fade) * (1 - 0.88 * stairLight(j, lastP, lastT));
       // the riser below this tread's nose, the tread, the near stringer's face
       if (j < STEPS) poly(ctx, [proj([x1, y, zf]), proj([x1, y, zn]), proj([x1, y - RISE, zn]), proj([x1, y - RISE, zf])], PAL.riser, PAL.ink, 1);
       poly(ctx, [proj([x0, y, zf]), proj([x1, y, zf]), proj([x1, y, zn]), proj([x0, y, zn])], PAL.tread, PAL.ink, 1);
@@ -210,7 +211,7 @@ export function makeRenderer(W, H, dpr = 1) {
       pos[k * 3] = tmp[0]; pos[k * 3 + 1] = tmp[1]; pos[k * 3 + 2] = tmp[2];
       sing[k] = isHead ? 1 + 1.6 * P.mouth : 1;
     }
-    e = { pos, sing, n };
+    e = { pos, sing, n, px: P.pelvis[0] };
     memo.set(key, e);
     if (memo.size > 90) memo.delete(memo.keys().next().value);
     return e;
@@ -323,6 +324,48 @@ export function makeRenderer(W, H, dpr = 1) {
     }
   }
 
+  // ---- the world as light: the song's spectrogram on the wall, and the stairs the figure has left ----
+  const wallAmt = (t) => 0.1 + 0.9 * smooth((t - sec(B(20))) / (sec(B(92)) - sec(B(20))));
+  const envAmt = (t) => smooth((t - sec(B(30))) / (sec(B(100)) - sec(B(30))));
+  /** How far tread j (the landing is 0, the floor STEPS) has turned to light, with the figure at p. */
+  const stairLight = (j, p, t) => Math.max(envAmt(t) * smooth((p - j - 1) / 3), smooth((t - cues.coda) / 6));
+  let lastP = 0, lastT = 0;
+  function worldLight(t, P) {
+    const p = P.pelvis[0] / RUN;
+    lastP = p;
+    // the wall: every glint of the song heard so far, over the stretch in view
+    const a = P.pelvis[0], k0 = glintFrom(a - (CX / S) * 1.3 - 0.5), k1 = glintFrom(a + ((w - CX) / S) * 1.3 + 0.5), W = wallAmt(t);
+    for (let k = k0; k < k1; k++) {
+      const o = k * 6, gt = GLINTS[o + 3];
+      if (gt > t) continue;
+      const tw = 0.65 + 0.35 * Math.sin(t * 2.3 + k * 1.7) + (hash(k, Math.floor(t * 7)) > 0.985 ? 2.5 : 0);
+      const b = 0.65 * GLINTS[o + 4] * W * (1 + 3 * Math.exp(-(t - gt) * 3)) * tw, warm = GLINTS[o + 5];
+      // a dash along the wall, to the next column: the harmonics read as lines, a spectrogram
+      const s2 = proj([GLINTS[o], GLINTS[o + 1], GLINTS[o + 2]]), s3 = proj([GLINTS[o] + RUN / 8, GLINTS[o + 1], GLINTS[o + 2]]);
+      for (let i = 0; i < 5; i++) {
+        const f = i / 5;
+        splat(s2[0] + (s3[0] - s2[0]) * f, s2[1] + (s3[1] - s2[1]) * f, b, b * (0.62 + 0.18 * (1 - warm)), b * (0.42 + 0.3 * (1 - warm)));
+      }
+    }
+    // the stairs behind the figure: their edges and faces as points, trembling and catching the light
+    const j0 = Math.max(0, Math.floor(p) - 10), j1 = Math.min(STEPS, Math.floor(p) + 10);
+    for (let j = j0; j <= j1; j++) {
+      const L = stairLight(j, p, t);
+      if (L < 0.01) continue;
+      const y = -j * RISE, tiles = j === 0 ? [-2.52, -2.24, -1.96, -1.68, -1.4, -1.12, -0.84, -0.56, -0.28, 0] : j === STEPS ? Array.from({ length: 16 }, (_, i) => (j + i) * RUN) : [j * RUN];
+      for (const tx of tiles) {
+        for (let i = 0; i < STAIR.length; i++) {
+          const [sx, sy, sz] = STAIR[i], id = j * 977 + i + Math.round(tx * 100);
+          const wob = 0.012 * L;
+          const X = tx + sx * RUN + wob * Math.sin(t * 1.3 + id), Y = y + sy * RISE + wob * Math.sin(t * 1.1 + id * 2.3), Z = -WIDTH / 2 + sz * WIDTH + wob * Math.cos(t * 1.7 + id * 1.3);
+          const tw = 0.6 + 0.4 * Math.sin(t * 3 + id * 2.1) + (hash(id, Math.floor(t * 6)) > 0.97 ? 3 : 0);
+          const b = 0.55 * L * tw, s2 = proj([X, Y, Z]);
+          splat(s2[0], s2[1], b, b * 0.72, b * 0.5);
+        }
+      }
+    }
+  }
+
   const shifted = (P, d) => Object.fromEntries(Object.entries(P).map(([k, v]) => [k, Array.isArray(v) && v.length === 3 && typeof v[0] === 'number' && !['fwd', 'left'].includes(k) ? [v[0] + d[0], v[1] + d[1], v[2] + d[2]] : v]));
 
   return function draw(ctx, t) {
@@ -340,40 +383,42 @@ export function makeRenderer(W, H, dpr = 1) {
     g.addColorStop(0, PAL.ground2); g.addColorStop(1, PAL.ground);
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     const p = Math.max(0, P.pelvis[0] / RUN - 0.4);
+    lastP = P.pelvis[0] / RUN; lastT = t;
     stairs(ctx, p, e);
-    // the wood: exposures a fraction of a second apart, set back up the stairs, burning head first (the
-    // older ones later: the fire runs back along the trail)
-    const u = 1 - e, N = Math.max(1, Math.round(1 + 14 * u ** 1.1)), gap = 0.05 + 0.22 * u ** 1.2, back = 0.045 * u ** 1.5;
+    // the world turning to light: the song on the wall, the stairs behind the figure
+    worldLight(t, P);
+    // every exposure is kept, three a second, at full strength: the wood's (burning head first, the
+    // older ones later, so the fire runs back along the trail) and then the light's. Standing still,
+    // the history still trails away up the stairs.
+    const u = 1 - e, m = mathAt(t), burnNow = Math.min(1, burnAt(t));
+    const DT = 1 / 3, TAIL = 16, newest = Math.floor(t / DT) * DT;
     const upStairs = (P0, metres) => shifted(P0, [-metres * 0.855, metres * 0.519, 0]);    // (RUN, RISE) normalised
-    for (let i = N - 1; i >= 0; i--) {
-      const burnI = burnAt(t - i * gap);
-      if (burnI > 1.2) continue;
-      let Pi = i ? pose(t - i * gap) : P;
-      if (i && back) Pi = upStairs(Pi, back * i * 1.0);
-      body(ctx, Pi, i ? 0.6 * (1 - i / N) ** 1.2 : 1, burnI, i, i === 0 ? spark : null);
-    }
-    // the thought: the figure as points, on the wood's surface and then loosed into their attractors,
-    // with its history trailing back up the stairs, ten seconds of it, off the edge of the frame
-    const m = mathAt(t), burnNow = Math.min(1, burnAt(t));
-    const bloom = 0.9 * smooth((t - cues.last) / 2.5);
-    const swell = 1.15 + 0.55 * m + bloom;
-    const TAIL = 10, DT = 0.2;                                   // discrete exposures, not a smear
-    const newest = Math.floor(t / DT) * DT;
+    // standing still (the intro, the coda), the history still trails away up the stairs, rather than
+    // piling onto the body: drift by how little the figure has moved since
+    const drift = (age, px) => 0.22 * age * Math.max(u ** 1.5, clamp(1 - Math.abs(P.pelvis[0] - px) / (0.2 * age + 1e-6)));
     for (let j = Math.round(TAIL / DT); j >= 0; j--) {
       const tt = newest - j * DT, age = t - tt;
-      if (tt < -2 || age < 0.12) continue;
-      const mj = mathAt(tt), fade = Math.exp(-age / 3.2), X = exposure(tt, mj);
-      const drift = 0.22 * age * u ** 1.5;                       // standing still, the history still trails away
-      const dx = -drift * 0.855, dy = drift * 0.519;
-      const b = (0.1 + 0.22 * Math.min(1, burnAt(tt)) + 0.2 * mj) * fade, col = [0.95, 0.46 + 0.1 * (1 - mj), 0.3];
-      const stride = 1 + (j >> 3);
+      if (tt < -2 || age < 0.1) continue;
+      const bj = burnAt(t - age * 0.35);
+      if (bj > 1.2) continue;
+      const Pt = pose(tt), d = drift(age, Pt.pelvis[0]);
+      body(ctx, d ? upStairs(Pt, d) : Pt, 1, bj, j, null);
+    }
+    body(ctx, P, 1, burnAt(t), 0, spark);
+    for (let j = Math.round(TAIL / DT); j >= 0; j--) {
+      const tt = newest - j * DT, age = t - tt;
+      if (tt < -2 || age < 0.1) continue;
+      const mj = mathAt(tt), X = exposure(tt, mj), dd = drift(age, X.px), dx = -dd * 0.855, dy = dd * 0.519;
+      const b = 0.24 * (0.3 + 0.8 * Math.min(1, burnAt(tt)) + 0.2 * mj), col = [1, 0.55 + 0.15 * (1 - mj), 0.36 + 0.1 * (1 - mj)];
+      const stride = age < 3 ? 1 : 2;                             // older exposures: half the points, twice as bright
       for (let k = 0; k < X.n; k += stride) {
-        const s2 = proj([X.pos[k * 3] + dx, X.pos[k * 3 + 1] + dy, X.pos[k * 3 + 2]]), bb = b * X.sing[k] * stride * 0.5;
+        const s2 = proj([X.pos[k * 3] + dx, X.pos[k * 3 + 1] + dy, X.pos[k * 3 + 2]]), bb = b * X.sing[k] * stride;
         splat(s2[0], s2[1], col[0] * bb, col[1] * bb, col[2] * bb);
       }
     }
+    const bloom = 0.9 * smooth((t - cues.last) / 2.5);
     const now = 0.3 + 0.8 * burnNow + 0.2 * m;
-    points(P, t, m, swell, now, [1, 0.62 + 0.2 * (1 - m), 0.42 + 0.14 * (1 - m)], 1, 1 + Math.round(5 * m));
+    points(P, t, m, 1.15 + 0.55 * m + bloom, now, [1, 0.62 + 0.2 * (1 - m), 0.42 + 0.14 * (1 - m)], 1, 1 + Math.round(5 * m));
     // the last chord: light gathers on the one body (laid into the glow's cells, not a canvas gradient)
     const last = clamp((t - cues.last) / 3);
     if (last > 0) {
