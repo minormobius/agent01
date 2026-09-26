@@ -1,7 +1,7 @@
 {
  "text": "Hello. I am a voice made of three small waves and a little noise.",
  "reference": "ElevenLabs 2c (NkiasLzNGB7MWA6gNgU4)",
- "objective": "CER% + 4 \u00d7 tone dB + 2 \u00d7 pitch semitones",
+ "objective": "CER% + 4 × tone dB + 2 × pitch semitones",
  "steps": [
   {
    "n": "00",
@@ -31,7 +31,7 @@
    "cer": 19.8,
    "tone": 7.51,
    "pitch": 3.57,
-   "change": "f0 105 \u2192 113",
+   "change": "f0 105 → 113",
    "voice": {
     "f0": 113,
     "range": 0.22,
@@ -52,7 +52,7 @@
    "cer": 19.4,
    "tone": 7.58,
    "pitch": 3.57,
-   "change": "breath 0.8 \u2192 1",
+   "change": "breath 0.8 → 1",
    "voice": {
     "f0": 113,
     "range": 0.22,
@@ -73,7 +73,7 @@
    "cer": 18.5,
    "tone": 7.58,
    "pitch": 3.57,
-   "change": "jitter 0 \u2192 0.005",
+   "change": "jitter 0 → 0.005",
    "voice": {
     "f0": 113,
     "range": 0.22,
@@ -94,7 +94,7 @@
    "cer": 18.1,
    "tone": 7.58,
    "pitch": 3.57,
-   "change": "IY F2 2290 \u2192 2153",
+   "change": "IY F2 2290 → 2153",
    "voice": {
     "f0": 113,
     "range": 0.22,
@@ -121,7 +121,7 @@
    "cer": 17.7,
    "tone": 7.58,
    "pitch": 3.57,
-   "change": "IH F2 1990 \u2192 1871",
+   "change": "IH F2 1990 → 1871",
    "voice": {
     "f0": 113,
     "range": 0.22,
@@ -153,7 +153,7 @@
    "cer": 17.5,
    "tone": 7.58,
    "pitch": 3.57,
-   "change": "AX F1 500 \u2192 530",
+   "change": "AX F1 500 → 530",
    "voice": {
     "f0": 113,
     "range": 0.22,
@@ -230,7 +230,7 @@
    "cer": 17,
    "tone": 7.48,
    "pitch": 3.57,
-   "change": "scale 1.06 \u2192 1.03",
+   "change": "scale 1.06 → 1.03",
    "voice": {
     "f0": 113,
     "range": 0.22,
@@ -386,7 +386,7 @@
    "cer": 17,
    "tone": 7.47,
    "pitch": 3.57,
-   "change": "IH F1 390 \u2192 367",
+   "change": "IH F1 390 → 367",
    "voice": {
     "warmth": 0,
     "bw1": 1,
@@ -465,7 +465,7 @@
    "cer": 16.5,
    "tone": 7.46,
    "pitch": 3.57,
-   "change": "EH F2 1840 \u2192 1730",
+   "change": "EH F2 1840 → 1730",
    "voice": {
     "warmth": 0,
     "bw1": 1,
@@ -624,7 +624,7 @@
    "cer": 16.9,
    "tone": 7.46,
    "pitch": 3.57,
-   "change": "hiss 1 \u2192 0.9",
+   "change": "hiss 1 → 0.9",
    "voice": {
     "warmth": 0,
     "bw1": 1,
@@ -704,7 +704,7 @@
    "cer": 16.5,
    "tone": 7.51,
    "pitch": 3.57,
-   "change": "AE F1 660 \u2192 700",
+   "change": "AE F1 660 → 700",
    "voice": {
     "warmth": 0,
     "bw1": 1,
@@ -784,7 +784,7 @@
    "cer": 16.2,
    "tone": 7.47,
    "pitch": 3.57,
-   "change": "AH F1 640 \u2192 602",
+   "change": "AH F1 640 → 602",
    "voice": {
     "warmth": 0,
     "bw1": 1,
@@ -864,7 +864,7 @@
    "cer": 16.2,
    "tone": 7.47,
    "pitch": 3.57,
-   "change": "phase 2: the objective reweighted (tone \u00d74, pitch \u00d72), the voice controls only",
+   "change": "phase 2: the objective reweighted (tone ×4, pitch ×2), the voice controls only",
    "voice": {
     "warmth": 0,
     "bw1": 1,
@@ -944,7 +944,7 @@
    "cer": 17.1,
    "tone": 7.14,
    "pitch": 3.57,
-   "change": "warmth 0 \u2192 0.25",
+   "change": "warmth 0 → 0.25",
    "voice": {
     "warmth": 0.25,
     "bw1": 1,
@@ -1024,7 +1024,7 @@
    "cer": 17,
    "tone": 6.88,
    "pitch": 3.57,
-   "change": "bw1 1 \u2192 1.25",
+   "change": "bw1 1 → 1.25",
    "voice": {
     "warmth": 0.25,
     "bw1": 1.25,
@@ -1104,7 +1104,7 @@
    "cer": 16.7,
    "tone": 6.9,
    "pitch": 3.57,
-   "change": "hiss 0.9 \u2192 0.8",
+   "change": "hiss 0.9 → 0.8",
    "voice": {
     "warmth": 0.25,
     "bw1": 1.25,
@@ -1184,7 +1184,7 @@
    "cer": 16.2,
    "tone": 6.89,
    "pitch": 3.57,
-   "change": "tilt 0 \u2192 0.1",
+   "change": "tilt 0 → 0.1",
    "voice": {
     "warmth": 0.25,
     "bw1": 1.25,
@@ -1264,7 +1264,7 @@
    "cer": 17,
    "tone": 6.37,
    "pitch": 3.57,
-   "change": "warmth 0.25 \u2192 0.5",
+   "change": "warmth 0.25 → 0.5",
    "voice": {
     "warmth": 0.5,
     "bw1": 1.25,
@@ -1344,7 +1344,7 @@
    "cer": 17,
    "tone": 6.31,
    "pitch": 3.57,
-   "change": "hiss 0.8 \u2192 0.9",
+   "change": "hiss 0.8 → 0.9",
    "voice": {
     "warmth": 0.5,
     "bw1": 1.25,
@@ -1424,7 +1424,7 @@
    "cer": 16.6,
    "tone": 6.4,
    "pitch": 3.57,
-   "change": "breath 1 \u2192 1.2",
+   "change": "breath 1 → 1.2",
    "voice": {
     "warmth": 0.5,
     "bw1": 1.25,
@@ -1504,7 +1504,7 @@
    "cer": 16.3,
    "tone": 6.4,
    "pitch": 3.57,
-   "change": "tilt 0.1 \u2192 0",
+   "change": "tilt 0.1 → 0",
    "voice": {
     "warmth": 0.5,
     "bw1": 1.25,
@@ -1584,7 +1584,7 @@
    "cer": 16.1,
    "tone": 6.45,
    "pitch": 3.57,
-   "change": "hiss 0.9 \u2192 0.8",
+   "change": "hiss 0.9 → 0.8",
    "voice": {
     "warmth": 0.5,
     "bw1": 1.25,
@@ -1664,7 +1664,7 @@
    "cer": 16.2,
    "tone": 6.37,
    "pitch": 3.57,
-   "change": "breath 1.2 \u2192 1",
+   "change": "breath 1.2 → 1",
    "voice": {
     "warmth": 0.5,
     "bw1": 1.25,
@@ -1744,7 +1744,7 @@
    "cer": 17.7,
    "tone": 5.99,
    "pitch": 3.57,
-   "change": "warmth 0.5 \u2192 0.75",
+   "change": "warmth 0.5 → 0.75",
    "voice": {
     "warmth": 0.75,
     "bw1": 1.25,
@@ -1824,7 +1824,7 @@
    "cer": 18.1,
    "tone": 5.73,
    "pitch": 3.57,
-   "change": "bw1 1.25 \u2192 1.5",
+   "change": "bw1 1.25 → 1.5",
    "voice": {
     "warmth": 0.75,
     "bw1": 1.5,
@@ -1904,7 +1904,7 @@
    "cer": 17.5,
    "tone": 5.93,
    "pitch": 3.35,
-   "change": "range 0.22 \u2192 0.28",
+   "change": "range 0.22 → 0.28",
    "voice": {
     "warmth": 0.75,
     "bw1": 1.5,
@@ -1984,7 +1984,7 @@
    "cer": 16.6,
    "tone": 5.68,
    "pitch": 3.35,
-   "change": "oq 0.55 \u2192 0.6",
+   "change": "oq 0.55 → 0.6",
    "voice": {
     "warmth": 0.75,
     "bw1": 1.5,
@@ -2064,7 +2064,7 @@
    "cer": 15.5,
    "tone": 5.85,
    "pitch": 3.32,
-   "change": "range 0.28 \u2192 0.34",
+   "change": "range 0.28 → 0.34",
    "voice": {
     "warmth": 0.75,
     "bw1": 1.5,
@@ -2144,7 +2144,7 @@
    "cer": 15.1,
    "tone": 5.87,
    "pitch": 3.32,
-   "change": "scale 1.03 \u2192 1.06",
+   "change": "scale 1.03 → 1.06",
    "voice": {
     "warmth": 0.75,
     "bw1": 1.5,
@@ -2224,7 +2224,7 @@
    "cer": 15.8,
    "tone": 5.69,
    "pitch": 3.32,
-   "change": "bw 1 \u2192 1.15",
+   "change": "bw 1 → 1.15",
    "voice": {
     "warmth": 0.75,
     "bw1": 1.5,
@@ -2304,7 +2304,7 @@
    "cer": 14.6,
    "tone": 5.47,
    "pitch": 3.32,
-   "change": "warmth 0.75 \u2192 1",
+   "change": "warmth 0.75 → 1",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -2384,7 +2384,7 @@
    "cer": 14.6,
    "tone": 5.43,
    "pitch": 3.15,
-   "change": "range 0.34 \u2192 0.4",
+   "change": "range 0.34 → 0.4",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -2464,7 +2464,7 @@
    "cer": 14.2,
    "tone": 5.51,
    "pitch": 3.15,
-   "change": "scale 1.06 \u2192 1.09",
+   "change": "scale 1.06 → 1.09",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -2544,7 +2544,7 @@
    "cer": 13.9,
    "tone": 5.49,
    "pitch": 3.15,
-   "change": "jitter 0.005 \u2192 0",
+   "change": "jitter 0.005 → 0",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -2624,7 +2624,7 @@
    "cer": 13.4,
    "tone": 5.5,
    "pitch": 3.15,
-   "change": "tilt 0 \u2192 0.05",
+   "change": "tilt 0 → 0.05",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -2791,7 +2791,7 @@
    "cer": 12.9,
    "tone": 5.62,
    "pitch": 3.15,
-   "change": "fricRelease 45 \u2192 30",
+   "change": "fricRelease 45 → 30",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -2878,7 +2878,7 @@
    "cer": 12.7,
    "tone": 5.61,
    "pitch": 3.15,
-   "change": "fricRelease 30 \u2192 23",
+   "change": "fricRelease 30 → 23",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -3054,7 +3054,7 @@
    "cer": 12.1,
    "tone": 5.56,
    "pitch": 3.15,
-   "change": "hiss 0.8 \u2192 0.85",
+   "change": "hiss 0.8 → 0.85",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -3230,7 +3230,7 @@
    "cer": 11.8,
    "tone": 5.57,
    "pitch": 3.15,
-   "change": "closure 1 \u2192 1.05",
+   "change": "closure 1 → 1.05",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -3406,7 +3406,7 @@
    "cer": 11.3,
    "tone": 5.56,
    "pitch": 3.15,
-   "change": "SH fr.0.0 2700 \u2192 2825",
+   "change": "SH fr.0.0 2700 → 2825",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -3582,7 +3582,7 @@
    "cer": 11.2,
    "tone": 5.56,
    "pitch": 3.15,
-   "change": "F bypass 0.12 \u2192 0.145",
+   "change": "F bypass 0.12 → 0.145",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -3758,7 +3758,7 @@
    "cer": 10.9,
    "tone": 5.56,
    "pitch": 3.15,
-   "change": "S fr.1.2 0.6 \u2192 0.675",
+   "change": "S fr.1.2 0.6 → 0.675",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -4113,7 +4113,7 @@
    "cer": 10.8,
    "tone": 5.56,
    "pitch": 3.14,
-   "change": "stopTrans 1 \u2192 0.85",
+   "change": "stopTrans 1 → 0.85",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -4292,7 +4292,7 @@
    "cer": 10.2,
    "tone": 5.56,
    "pitch": 3.14,
-   "change": "aspLevel 1 \u2192 1.15",
+   "change": "aspLevel 1 → 1.15",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -4471,7 +4471,7 @@
    "cer": 9,
    "tone": 5.52,
    "pitch": 3.13,
-   "change": "aspMs 1 \u2192 1.15",
+   "change": "aspMs 1 → 1.15",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -4650,7 +4650,7 @@
    "cer": 8.6,
    "tone": 5.51,
    "pitch": 3.13,
-   "change": "K burst.fr.0.2 0.9 \u2192 0.75",
+   "change": "K burst.fr.0.2 0.9 → 0.75",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -4829,7 +4829,7 @@
    "cer": 7.8,
    "tone": 5.51,
    "pitch": 3.13,
-   "change": "G burst.fr.0.2 0.65 \u2192 0.5",
+   "change": "G burst.fr.0.2 0.65 → 0.5",
    "voice": {
     "warmth": 1,
     "bw1": 1.5,
@@ -5017,12 +5017,381 @@
      }
     }
    }
+  },
+  {
+   "n": "52",
+   "minute": 0.4,
+   "J": 42.13,
+   "cer": 11.3,
+   "tone": 5.98,
+   "pitch": 3.45,
+   "change": "phase 5: the stops again, on the corpus: each pass a fresh 24 of 304 sentences (Moby-Dick, the Sermon on the Mount, minimal pairs, Harvard), checked on 46 never tuned on",
+   "voice": {
+    "warmth": 1,
+    "bw1": 1.5,
+    "hiss": 0.85,
+    "f0": 113,
+    "range": 0.4,
+    "rate": 1,
+    "scale": 1.09,
+    "oq": 0.6,
+    "breath": 1,
+    "tilt": 0.05,
+    "bw": 1.15,
+    "jitter": 0,
+    "fricAttack": 60,
+    "fricRelease": 22.5,
+    "aspLevel": 1,
+    "aspMs": 1,
+    "closure": 1.05,
+    "voiceBar": 0.12,
+    "stopTrans": 1,
+    "burstLen": 1,
+    "pinch": 250
+   },
+   "vowels": {
+    "IY": [
+     270,
+     2153,
+     3010
+    ],
+    "IH": [
+     367,
+     1871,
+     2550
+    ],
+    "EH": [
+     530,
+     1730,
+     2480
+    ],
+    "AE": [
+     700,
+     1720,
+     2410
+    ],
+    "AA": [
+     730,
+     1090,
+     2440
+    ],
+    "AO": [
+     570,
+     840,
+     2410
+    ],
+    "UH": [
+     440,
+     1020,
+     2240
+    ],
+    "UW": [
+     300,
+     870,
+     2240
+    ],
+    "AH": [
+     602,
+     1190,
+     2390
+    ],
+    "ER": [
+     490,
+     1350,
+     1690
+    ],
+    "AX": [
+     530,
+     1500,
+     2500
+    ]
+   },
+   "phones": {
+    "S": {
+     "fr": [
+      [
+       4800,
+       1600,
+       0.9
+      ],
+      [
+       6800,
+       1600,
+       0.6749999999999999
+      ]
+     ]
+    },
+    "SH": {
+     "fr": [
+      [
+       2825,
+       1500,
+       1
+      ],
+      [
+       4300,
+       2600,
+       0.75
+      ]
+     ]
+    },
+    "Z": {
+     "amp": 0.6
+    },
+    "F": {
+     "bypass": 0.145
+    },
+    "TH": {
+     "bypass": 0.1
+    },
+    "T": {
+     "burst": {
+      "fr": [
+       [
+        4200,
+        2400,
+        0.85
+       ],
+       [
+        2900,
+        900,
+        0.3
+       ]
+      ],
+      "bypass": 0.1
+     }
+    },
+    "P": {
+     "burst": {
+      "fr": [
+       [
+        900,
+        1500,
+        0.35
+       ],
+       [
+        2500,
+        3000,
+        0.15
+       ]
+      ],
+      "bypass": 0.25
+     }
+    },
+    "K": {
+     "burst": {
+      "fr": [
+       [
+        2100,
+        700,
+        0.9
+       ],
+       [
+        3400,
+        1200,
+        0.35
+       ]
+      ],
+      "bypass": 0.05
+     }
+    }
+   }
+  },
+  {
+   "n": "53",
+   "minute": 2.2,
+   "J": 41.08,
+   "cer": 10.2,
+   "tone": 5.99,
+   "pitch": 3.45,
+   "change": "stopTrans 1 → 0.85",
+   "voice": {
+    "warmth": 1,
+    "bw1": 1.5,
+    "hiss": 0.85,
+    "f0": 113,
+    "range": 0.4,
+    "rate": 1,
+    "scale": 1.09,
+    "oq": 0.6,
+    "breath": 1,
+    "tilt": 0.05,
+    "bw": 1.15,
+    "jitter": 0,
+    "fricAttack": 60,
+    "fricRelease": 22.5,
+    "aspLevel": 1,
+    "aspMs": 1,
+    "closure": 1.05,
+    "voiceBar": 0.12,
+    "stopTrans": 0.85,
+    "burstLen": 1,
+    "pinch": 250
+   },
+   "vowels": {
+    "IY": [
+     270,
+     2153,
+     3010
+    ],
+    "IH": [
+     367,
+     1871,
+     2550
+    ],
+    "EH": [
+     530,
+     1730,
+     2480
+    ],
+    "AE": [
+     700,
+     1720,
+     2410
+    ],
+    "AA": [
+     730,
+     1090,
+     2440
+    ],
+    "AO": [
+     570,
+     840,
+     2410
+    ],
+    "UH": [
+     440,
+     1020,
+     2240
+    ],
+    "UW": [
+     300,
+     870,
+     2240
+    ],
+    "AH": [
+     602,
+     1190,
+     2390
+    ],
+    "ER": [
+     490,
+     1350,
+     1690
+    ],
+    "AX": [
+     530,
+     1500,
+     2500
+    ]
+   },
+   "phones": {
+    "S": {
+     "fr": [
+      [
+       4800,
+       1600,
+       0.9
+      ],
+      [
+       6800,
+       1600,
+       0.6749999999999999
+      ]
+     ]
+    },
+    "SH": {
+     "fr": [
+      [
+       2825,
+       1500,
+       1
+      ],
+      [
+       4300,
+       2600,
+       0.75
+      ]
+     ]
+    },
+    "Z": {
+     "amp": 0.6
+    },
+    "F": {
+     "bypass": 0.145
+    },
+    "TH": {
+     "bypass": 0.1
+    },
+    "T": {
+     "burst": {
+      "fr": [
+       [
+        4200,
+        2400,
+        0.85
+       ],
+       [
+        2900,
+        900,
+        0.3
+       ]
+      ],
+      "bypass": 0.1
+     }
+    },
+    "P": {
+     "burst": {
+      "fr": [
+       [
+        900,
+        1500,
+        0.35
+       ],
+       [
+        2500,
+        3000,
+        0.15
+       ]
+      ],
+      "bypass": 0.25
+     }
+    },
+    "K": {
+     "burst": {
+      "fr": [
+       [
+        2100,
+        700,
+        0.9
+       ],
+       [
+        3400,
+        1200,
+        0.35
+       ]
+      ],
+      "bypass": 0.05
+     }
+    }
+   }
+  }
+ ],
+ "val": [
+  {
+   "after": "52",
+   "minute": 1.3,
+   "J": 38.01,
+   "cer": 8.3,
+   "tone": 5.68,
+   "pitch": 3.49,
+   "label": "the start"
   }
  ],
  "verdicts": [
   {
    "after": "37",
-   "text": "Phases 1\u20132 adopted: all 50 sentences WER 29.2% \u2192 24.1%, tone 7.7 \u2192 5.5 dB off 2c."
+   "text": "Phases 1–2 adopted: all 50 sentences WER 29.2% → 24.1%, tone 7.7 → 5.5 dB off 2c."
   },
   {
    "after": "45",
@@ -5034,7 +5403,7 @@
   },
   {
    "after": "51",
-   "text": "Phase 4 NOT adopted: it learned the 20 tuning sentences (22% \u2192 16%) and lost on the other 30 (18.4% \u2192 23%). Overfit: fine-grained moves on too little data."
+   "text": "Phase 4 NOT adopted: it learned the 20 tuning sentences (22% → 16%) and lost on the other 30 (18.4% → 23%). Overfit: fine-grained moves on too little data."
   }
  ]
 }
