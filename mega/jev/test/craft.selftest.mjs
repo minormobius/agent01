@@ -293,11 +293,33 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const r = await playMind(new Sim({ seed: 2, shape: 'truncsq', difficulty: 'hard' }), DECIDERS.random, { maxTicks: 2400 });
   const rung = (m) => GOALS.filter(([g]) => m[`goal:${g}`] != null).length;
   ok(rung(b.milestones) >= 6, `baseline through mind.mjs climbs ${rung(b.milestones)}/7 rungs in 2400 ticks on hard`);
-  ok(rung(r.milestones) < rung(b.milestones), `random over the same options climbs fewer (${rung(r.milestones)}) — choosing matters`);
+  const score = (m) => GOALS.reduce((t, [g]) => t + (m[`goal:${g}`] ?? 2400), 0) / GOALS.length;
+  ok(score(r.milestones) > score(b.milestones) * 1.3, `random over the same options is slower (mean tick-to-rung ${Math.round(score(r.milestones))} vs ${Math.round(score(b.milestones))}) — choosing matters`);
   const lines = [];
   const sj = new Sim({ seed: 2, shape: 'truncsq' });
   await playMind(sj, DECIDERS.offline, { maxTicks: 300 });
   ok(sj.drain().some((l) => l.includes('"note","jev"') && l.includes('"source":"offline"')), 'every decision goes into the stream as a jev note, with its source');
+}
+
+
+// --------------------------------------------------------------- reach ------
+// Reach is a distance, the same on every tiling, and it does not pass walls.
+{
+  const R = {};
+  for (const shape of ['penrose', 'truncsq', 'grid']) {
+    const sim = new Sim({ seed: 1, shape });
+    const c = sim.player.c, far = sim.reachCols(c).map((n) => sim.dist(n, c));
+    R[shape] = Math.max(...far);
+    ok(sim.cols[c].adj.every((n) => sim.reachCols(c).includes(n)), `${shape}: every neighbour is in reach`);
+  }
+  ok(Object.values(R).every((d) => d <= 2.2 + 1.5), `reach stays near 2.2 tile edges on every tiling (${JSON.stringify(Object.fromEntries(Object.entries(R).map(([k, v]) => [k, +v.toFixed(2)])))})`);
+  const sim = new Sim({ seed: 3, shape: 'penrose' });
+  const p = sim.player;
+  const second = sim.reachCols(p.c).find((n) => !sim.cols[p.c].adj.includes(n));
+  ok(second != null, 'a non-neighbour column is within reach on a rhomb floor');
+  // a buried block two tiles off is NOT reachable (no mining through walls)
+  const buried = (() => { for (const n of sim.reachCols(p.c)) if (!sim.cols[p.c].adj.includes(n)) for (let y = p.y - 1; y <= p.y + 2; y++) if (sim.solid(n, y) && !sim.openFace(n, y)) return [n, y]; return null; })();
+  ok(!buried || !sim.reachable(p.c, p.y, ...buried), 'a buried voxel two tiles off is out of reach');
 }
 
 // ---------------------------------------------------------------- text ------

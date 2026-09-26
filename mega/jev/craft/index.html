@@ -17,7 +17,8 @@
   <h1>Jev craft</h1>
   <p class="links"><a href="../">← all the experiments</a> · <a href="../delve/">the dungeon</a></p>
   <p class="sub">A Minecraft-like on <b id="shape-name">penrose</b> tiles. The world is simulated headlessly;
-    this page draws the text stream it emits.</p>
+    this page draws the text stream it emits. Watch Jev play it, or pick
+    <b>you</b> under “who decides” and play it yourself.</p>
 </header>
 
 <section class="hud top-right panel" aria-label="World controls">
@@ -32,7 +33,7 @@
       <option value="baseline">scripted baseline</option>
       <option value="offline">offline stand-in</option>
       <option value="random">random</option>
-      <option value="you">you</option>
+      <option value="you">you (play it yourself)</option>
     </select></label>
     <label>difficulty <select id="difficulty"><option>normal</option><option>hard</option></select></label>
     <label>speed <input id="speed" type="range" min="1" max="64" value="8"></label>
@@ -74,6 +75,24 @@
 <section class="hud bottom-right panel" aria-label="The stream">
   <div class="eyebrow">the stream · <span id="lines" class="mono">0</span> lines</div>
   <pre id="tail" class="tail"></pre>
+</section>
+
+<div id="crosshair" class="crosshair" hidden>+</div>
+<div id="toast" class="toast" hidden></div>
+<section id="help" class="hud help panel" hidden aria-label="How to play">
+  <div class="eyebrow">you are playing</div>
+  <p><b>Click the world to take control.</b></p>
+  <ul>
+    <li><b>W A S D</b> walk: one tile at a time, toward where you look (it works on any tiling)</li>
+    <li><b>mouse</b> look · <b>left click</b> mine / hit · <b>right click</b> place the selected block</li>
+    <li><b>1–9</b> or <b>scroll</b> pick from your inventory · <b>F</b> eat · <b>C</b> crafting</li>
+    <li><b>V</b> first / third person · <b>Esc</b> let go of the mouse</li>
+    <li>The macros on the left still work: click one and it runs until you move.</li>
+  </ul>
+</section>
+<section id="craftpanel" class="hud craftpanel panel" hidden aria-label="Crafting">
+  <div class="eyebrow">crafting <span class="hint">— C to close</span></div>
+  <div id="recipes" class="recipes"></div>
 </section>
 
 <script type="module" src="app.js"></script>

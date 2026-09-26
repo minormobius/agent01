@@ -11,8 +11,8 @@ import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
 import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
-import { BLOCKS, B, H, hash01, RECIPES } from './world.mjs';
-import { SHAPES } from './tiling.mjs';
+import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags } from './world.mjs';
+import { SHAPES, columnLocator } from './tiling.mjs';
 
 const $ = (id) => document.getElementById(id);
 const TPS = 4;                        // ticks per second at 1×
@@ -21,6 +21,8 @@ const TPS = 4;                        // ticks per second at 1×
 let sim = null, driver = null, replay = null;
 let allLines = [];                    // everything emitted, for "save stream"
 let fileLines = null, fileCursor = 0; // replay-from-file mode
+let outbox = [];                      // live lines not yet shown: revealed as the clock reaches them
+let locate = null;                    // (x, z) → column, for aiming
 let target = 0;                       // the tick the clock has reached
 let macroLog = [];
 
@@ -193,6 +195,7 @@ function initMeshes() {
   });
   for (const k of chunkCols.keys()) buildChunk(k);
   rebuildTorches();
+  locate = columnLocator(replay.world.tiling);
 }
 function markDirty(c) {
   dirty.add(chunkOf[c]);
@@ -238,7 +241,7 @@ function syncEntities(dt) {
     if (!m) { m = makeEnt(e.kind); m.position.set(tx, ty, tz); entGroup.add(m); entMesh.set(e.id, m); }
     const k = Math.min(1, dt * 10);
     const dx = tx - m.position.x, dz = tz - m.position.z;
-    if (Math.abs(dx) + Math.abs(dz) > 1e-3) m.rotation.y = Math.atan2(-dz, dx);
+    if (Math.abs(dx) + Math.abs(dz) > 1e-3 && !(e.id === 0 && playing())) m.rotation.y = Math.atan2(-dz, dx);
     if (Math.hypot(dx, dz) > 6) m.position.set(tx, ty, tz);      // a respawn, not a walk
     else { m.position.x += dx * k; m.position.z += dz * k; m.position.y += (ty - m.position.y) * k; }
     if (e.id !== 0) m.visible = ty < cut.constant;
@@ -256,16 +259,21 @@ function hud() {
   $('clock').textContent = `day ${day} · ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}${ph >= NIGHT_START ? ' · night' : ''} · tick ${t}`;
   $('hp').textContent = '♥'.repeat(Math.ceil(replay.hp / 2)).padEnd(10, '·') + ` ${replay.hp}`;
   $('food').textContent = '◆'.repeat(Math.ceil(replay.food / 2)).padEnd(10, '·') + ` ${replay.food}`;
-  const inv = $('inv');
-  inv.innerHTML = '';
-  for (const [k, n] of Object.entries(replay.inv)) {
-    const s = document.createElement('span');
-    s.className = 'chip';
-    const blk = BLOCKS[B[k]];
-    s.innerHTML = `<i style="background:${(blk && (blk.top || blk.color)) || ITEM_COLOR[k] || '#777'}"></i>${k.replace(/_/g, ' ')} <b>${n}</b>`;
-    inv.appendChild(s);
-  }
   $('lines').textContent = allLines.length || (fileLines ? fileLines.length : 0);
+  const inv = $('inv');
+  const key = JSON.stringify(replay.inv) + hands.sel;
+  if (inv.dataset.key === key) return;
+  inv.dataset.key = key;
+  inv.innerHTML = '';
+  Object.entries(replay.inv).forEach(([k, n], i) => {
+    const s = document.createElement('span');
+    s.className = 'chip' + (k === hands.selected() ? ' sel' : '');
+    s.title = `${i < 9 ? `key ${i + 1} · ` : ''}${PLACEABLE.has(k) ? 'right click places it' : FOOD[k] ? 'F eats it' : ''}`;
+    s.addEventListener('click', () => { hands.sel = i; });
+    const blk = BLOCKS[B[k]];
+    s.innerHTML = `<i style="background:${(blk && (blk.top || blk.color)) || ITEM_COLOR[k] || '#777'}"></i>${i < 9 ? `<span class="mono">${i + 1}</span> ` : ''}${k.replace(/_/g, ' ')} <b>${n}</b>`;
+    inv.appendChild(s);
+  });
 }
 function logMacro(note) {
   const d = note.data || {};
@@ -293,6 +301,9 @@ function feed(lines) {
       if (ev[0] === 'note') logMacro({ k: replay.tick, kind: ev[1], data: ev[2] });
       if (ev[0] === 'note' && ev[1] === 'home') homeAt = ev[2];
       if (ev[0] === 'do') $('doing').textContent = ev.slice(1).join(' ');
+      if (playing() && ev[0] === 'die' && ev[1] === 0) toast(homeAt ? 'you died — back home' : 'you died — back at the spawn');
+      if (playing() && ev[0] === 'note' && ev[1] === 'dusk') toast('dusk: zombies spawn on open ground');
+      if (playing() && ev[0] === 'hit' && ev[2] === 0 && ev[1] >= 0) toast('a zombie hits you');
     }
   }
   if (blocksChanged) rebuildTorches();
@@ -325,7 +336,7 @@ function buildMacroButtons() {
       if (m.mode !== mode) continue;
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = name.replace(/_/g, ' '); b.dataset.macro = name; b.title = m.doc;
-      b.addEventListener('click', () => { if (driver) { $('who').value = 'you'; setAuto(); driver.start(name, argsFor(name)); } });
+      b.addEventListener('click', () => { if (driver) { if ($('who').value !== 'you') { $('who').value = 'you'; setAuto(); } driver.start(name, argsFor(name)); } });
       row.appendChild(b);
       if (name === 'craft') {
         const sel = document.createElement('select'); sel.id = 'craft-item';
@@ -363,7 +374,13 @@ function setAuto() {
   driver.policy = () => null;             // decisions are made in the frame loop, below
   driver.done = false;
   const who = $('who').value;
-  $('macro-hint').textContent = who === 'you' ? '— you are choosing' : who === 'jev' ? '— Jev is choosing' : `— the ${who} decider is choosing`;
+  if (who === 'you') {
+    $('speed').value = 1; $('speed-out').textContent = '1×'; $('pause').checked = false;
+    const f = new THREE.Vector3(); camera.getWorldDirection(f);
+    hands.yaw = Math.atan2(-f.x, -f.z); hands.pitch = -0.15;
+    target = sim ? sim.tick : target;
+  } else if (locked()) document.exitPointerLock();
+  $('macro-hint').textContent = who === 'you' ? '— you are playing: click one to run it' : who === 'jev' ? '— Jev is choosing' : `— the ${who} decider is choosing`;
 }
 async function decideNow() {
   const who = $('who').value;
@@ -404,6 +421,7 @@ function startLive() {
   location.hash = `shape=${shape}&seed=${seed}&who=${$('who').value}&difficulty=${$('difficulty').value}`;
   fileLines = null;
   sim = new Sim({ shape, seed, difficulty: $('difficulty').value });
+  outbox = [];
   pending = null;
   driver = new Driver(sim);
   setAuto();
@@ -461,6 +479,30 @@ function underground() {
 function updateCamera() {
   const p = playerPos();
   const pe = replay.ents.get(0);
+  if (playing()) {
+    // your own eyes (or just behind your shoulder, V)
+    cut.constant = 1e6;
+    controls.enabled = false;
+    const m = entMesh.get(0);
+    camera.rotation.set(hands.pitch, hands.yaw, 0, 'YXZ');
+    const head = new THREE.Vector3(p.x, p.y + 1.62, p.z);
+    if (hands.third) {
+      // behind the shoulder, pulled in to the last open voxel so the camera
+      // never ends up inside a hillside looking at rock
+      camera.updateMatrixWorld();
+      const back = new THREE.Vector3(); camera.getWorldDirection(back); back.negate();
+      let dist = 0.3;
+      for (let t = 0.3; t <= 4.5; t += 0.1) {
+        const q = head.clone().addScaledVector(back, t).add(new THREE.Vector3(0, 0.6 * t / 4.5, 0));
+        const c = locate ? locate(q.x, q.z) : -1, vy = Math.floor(q.y);
+        if (c >= 0 && vy >= 0 && vy < H && BLOCKS[replay.b[c * H + vy]].solid) break;
+        dist = t;
+      }
+      camera.position.copy(head).addScaledVector(back, Math.max(0.3, dist - 0.2)).add(new THREE.Vector3(0, 0.6 * dist / 4.5, 0));
+    } else camera.position.copy(head);
+    if (m) { m.visible = hands.third; m.rotation.y = hands.yaw + Math.PI / 2; }
+    return;
+  }
   cut.constant = !$('pov').checked && !$('homecam').checked && pe && underground() ? pe.y + 2.02 : 1e6;
   if ($('pov').checked) {
     const m = entMesh.get(0);
@@ -494,6 +536,184 @@ function sky() {
   hemi.intensity = 0.9 * (1 - n) + 0.25;
 }
 
+// --------------------------------------------------------------- hands ------
+// Playing it yourself. Every input becomes a primitive sim action — the same
+// act() the macros and Jev use, costing the same ticks — so a human game
+// streams, replays and scores exactly like any other.
+const hands = {
+  yaw: 0, pitch: -0.2, keys: new Set(), queue: [], third: false, sel: 0, aim: null,
+  items() { return replay ? Object.keys(replay.inv) : []; },
+  selected() { const it = this.items(); return it[Math.min(this.sel, it.length - 1)] || null; },
+};
+const playing = () => sim && $('who').value === 'you';
+const locked = () => document.pointerLockElement === canvas;
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast.h); toast.h = setTimeout(() => { t.hidden = true; }, 1800);
+}
+// the forward direction on the ground, from the camera
+function flatForward() {
+  const v = new THREE.Vector3();
+  camera.getWorldDirection(v); v.y = 0;
+  return v.lengthSq() ? v.normalize() : new THREE.Vector3(0, 0, -1);
+}
+// WASD on a tiling: the neighbour whose direction best matches the wanted one
+function stepToward(want) {
+  const p = sim.player, here = sim.cols[p.c];
+  let best = -1, bd = 0.35;
+  for (const n of here.adj) {
+    const dx = sim.cols[n].x - here.x, dz = sim.cols[n].z - here.z, L = Math.hypot(dx, dz) || 1;
+    const d = (dx * want.x + dz * want.z) / L;
+    if (d > bd) { bd = d; best = n; }
+  }
+  return best;
+}
+function moveIntent() {
+  const k = hands.keys;
+  const f = flatForward(), r = new THREE.Vector3(-f.z, 0, f.x);
+  const w = new THREE.Vector3();
+  if (k.has('KeyW')) w.add(f);
+  if (k.has('KeyS')) w.sub(f);
+  if (k.has('KeyD')) w.add(r);
+  if (k.has('KeyA')) w.sub(r);
+  if (!w.lengthSq()) return null;
+  w.normalize();
+  const n = stepToward(w);
+  return n >= 0 ? { op: 'move', to: n } : null;
+}
+// Aim: march the view ray through the prism voxels (and past mobs). Returns
+// the first thing hit and the empty voxel just before it (where a block goes).
+function aim() {
+  if (!replay || !locate) return null;
+  camera.updateMatrixWorld();                     // the view as set this frame, not the last render
+  const o = camera.position.clone(), d = new THREE.Vector3();
+  camera.getWorldDirection(d);
+  const pe = entMesh.get(0);
+  const start = hands.third && pe ? camera.position.distanceTo(new THREE.Vector3(pe.position.x, pe.position.y + 1.62, pe.position.z)) : 0;
+  let prev = null;
+  for (let t = start; t < start + 5.5; t += 0.04) {
+    const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
+    for (const e of replay.ents.values()) {
+      if (e.id === 0) continue;
+      const col = replay.world.tiling.cols[e.c], tall = e.kind === 'pig' ? 1 : 2;
+      if (Math.hypot(x - col.x, z - col.z) < 0.38 && y >= e.y && y <= e.y + tall) return { ent: e };
+    }
+    const c = locate(x, z), vy = Math.floor(y);
+    if (c < 0 || vy < 0 || vy >= H) { prev = null; continue; }
+    const id = replay.b[c * H + vy];
+    if (id !== B.air && id !== B.water) return { c, y: vy, id, place: prev };
+    if (!prev || prev.c !== c || prev.y !== vy) prev = { c, y: vy };
+  }
+  return null;
+}
+// the outline of the aimed voxel: a prism, whatever the tile's shape
+const outline = new THREE.LineSegments(new THREE.BufferGeometry(), new THREE.LineBasicMaterial({ color: 0xffffff }));
+outline.renderOrder = 5; outline.visible = false;
+scene.add(outline);
+function showAim(a) {
+  if (!a || a.ent || !playing()) { outline.visible = false; return; }
+  const key = a.c * H + a.y;
+  if (outline.userData.key !== key) {
+    const poly = replay.world.tiling.cols[a.c].poly, P = [];
+    for (let i = 0; i < poly.length; i++) {
+      const [x1, z1] = poly[i], [x2, z2] = poly[(i + 1) % poly.length];
+      for (const yy of [a.y - 0.002, a.y + 1.002]) P.push(x1, yy, z1, x2, yy, z2);
+      P.push(x1, a.y, z1, x1, a.y + 1, z1);
+    }
+    outline.geometry.dispose();
+    outline.geometry = new THREE.BufferGeometry();
+    outline.geometry.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    outline.userData.key = key;
+  }
+  outline.material.color.set(sim.reachable(sim.player.c, sim.player.y, a.c, a.y) ? 0xffffff : 0xff6b6b);
+  outline.visible = true;
+}
+function takeOver() {
+  // a hand on the controls ends whatever macro was running
+  if (driver && driver.gen) driver.end({ ok: false, why: 'you took over' });
+}
+canvas.addEventListener('click', () => { if (playing() && !locked()) canvas.requestPointerLock?.(); });
+canvas.addEventListener('contextmenu', (e) => { if (playing()) e.preventDefault(); });
+canvas.addEventListener('mousedown', (e) => {
+  if (!playing() || !locked()) return;
+  const a = hands.aim;
+  if (!a) return;
+  takeOver();
+  if (e.button === 0) {
+    if (a.ent) hands.queue.push({ op: 'attack', id: a.ent.id });
+    else hands.queue.push({ op: 'mine', c: a.c, y: a.y });
+  } else if (e.button === 2) {
+    const item = hands.selected();
+    if (!item) return toast('nothing selected');
+    if (FOOD[item]) return hands.queue.push({ op: 'eat', item });
+    if (!PLACEABLE.has(item)) return toast(`${item.replace(/_/g, ' ')} does not place`);
+    if (!a.place) return toast('no room to place there');
+    hands.queue.push({ op: 'place', c: a.place.c, y: a.place.y, item });
+  }
+});
+document.addEventListener('mousemove', (e) => {
+  if (!locked()) return;
+  hands.yaw -= e.movementX * 0.0025;
+  hands.pitch = Math.max(-1.45, Math.min(1.45, hands.pitch - e.movementY * 0.0025));
+});
+canvas.addEventListener('wheel', (e) => {
+  if (!playing() || !locked()) return;
+  const n = hands.items().length || 1;
+  hands.sel = (hands.sel + (e.deltaY > 0 ? 1 : n - 1)) % n;
+  e.preventDefault();
+}, { passive: false });
+document.addEventListener('keydown', (e) => {
+  if (!playing() || e.target.closest?.('select,input')) return;
+  if (['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(e.code)) { hands.keys.add(e.code); takeOver(); e.preventDefault(); }
+  else if (/^Digit[1-9]$/.test(e.code)) hands.sel = +e.code.slice(5) - 1;
+  else if (e.code === 'KeyV') hands.third = !hands.third;
+  else if (e.code === 'KeyF') {
+    const food = ['cooked_porkchop', 'apple', 'porkchop'].find((k) => replay.inv[k]);
+    if (food) hands.queue.push({ op: 'eat', item: food }); else toast('no food');
+  } else if (e.code === 'KeyC') toggleCrafting();
+});
+document.addEventListener('keyup', (e) => hands.keys.delete(e.code));
+window.addEventListener('blur', () => hands.keys.clear());
+
+function toggleCrafting(force) {
+  const p = $('craftpanel');
+  p.hidden = force != null ? !force : !p.hidden;
+  if (!p.hidden) { if (locked()) document.exitPointerLock(); renderRecipes(); }
+}
+function renderRecipes() {
+  const box = $('recipes');
+  box.innerHTML = '';
+  for (const [item, r] of Object.entries(RECIPES)) {
+    const bag = recipeBags(r).find((g) => Object.entries(g).every(([k, n]) => (sim.inv[k] || 0) >= n)) || r.need;
+    const has = Object.entries(bag).every(([k, n]) => (sim.inv[k] || 0) >= n);
+    const station = !r.at || sim.near(B[r.at]);
+    const row = document.createElement('div');
+    row.className = 'recipe';
+    const need = Object.entries(bag).map(([k, n]) => `${n} ${k.replace(/_/g, ' ')}`).join(' + ') + (r.alt ? ' (or alt.)' : '');
+    row.innerHTML = `<b>${r.n > 1 ? r.n + '× ' : ''}${item.replace(/_/g, ' ')}</b><span class="need">${need}${r.at ? ` · at a ${r.at.replace(/_/g, ' ')}${station ? '' : ' (none near)'}` : ''}</span>`;
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = 'craft'; b.disabled = !(has && station);
+    b.addEventListener('click', () => { hands.queue.push({ op: 'craft', item }); setTimeout(renderRecipes, 300); });
+    row.appendChild(b);
+    box.appendChild(row);
+  }
+}
+function syncPlayUI() {
+  const on = playing();
+  document.body.classList.toggle('immersed', on && locked());
+  // the crosshair doubles as the progress bar of whatever the hands are doing
+  const b = hands.busy;
+  if (b && target < b.end) {
+    const f = Math.max(0, Math.min(1, (target - b.start) / (b.end - b.start))), n = Math.round(f * 8);
+    $('crosshair').textContent = '▰'.repeat(n) + '▱'.repeat(8 - n);
+  } else { $('crosshair').textContent = '+'; hands.busy = null; }
+  $('crosshair').hidden = !(on && locked());
+  $('help').hidden = !(on && !locked()) || !$('craftpanel').hidden;
+  if (!on && !$('craftpanel').hidden) toggleCrafting(false);
+}
+document.addEventListener('pointerlockchange', syncPlayUI);
+
 // --------------------------------------------------------------- loop -------
 let lastT = performance.now();
 function frame(now) {
@@ -501,7 +721,34 @@ function frame(now) {
   lastT = now;
   const speed = +$('speed').value;
   if (!$('pause').checked) target += dt * TPS * speed;
-  if (sim && driver) {
+  if (sim && driver && playing()) {
+    // hands-on: the clock runs in real time. An action is taken only when
+    // the sim has caught up with the clock, and its cost in ticks is then
+    // served out in real time before the next — mining stone with a wooden
+    // pick takes two seconds, as it should
+    for (let n = 0; n < 400; n++) {
+      if (driver.gen) {
+        if (sim.tick >= target) break;
+        const r = driver.step();
+        if (r && r.ended) toast(`${r.ended.name.replace(/_/g, ' ')}: ${r.ended.ok ? 'done' : r.ended.why}`);
+        continue;
+      }
+      if (sim.tick <= target) {                      // caught up with the clock, not ahead of it
+        const intent = hands.queue.shift() || moveIntent();
+        if (intent) {
+          const r = sim.act(intent);
+          if (!r.ok && intent.op !== 'move') toast(r.why);
+          if (r.ok && r.ticks > 1) hands.busy = { op: intent.op, start: sim.tick - r.ticks, end: sim.tick };
+          if (r.ok && intent.op === 'craft' && !$('craftpanel').hidden) renderRecipes();
+          if (r.ticks) break;
+          continue;
+        }
+      }
+      if (sim.tick < target) sim.act({ op: 'wait', ticks: 1 }); else break;
+    }
+    const lines = sim.drain();
+    if (lines.length) { allLines.push(...lines); outbox.push(...lines); }
+  } else if (sim && driver) {
     let n = 0;
     const who = $('who').value;
     while (sim.tick < target && n++ < 400 && !pending) {
@@ -519,7 +766,7 @@ function frame(now) {
     }
     if (pending) target = sim.tick;
     const lines = sim.drain();
-    if (lines.length) { allLines.push(...lines); feed(lines); }
+    if (lines.length) { allLines.push(...lines); outbox.push(...lines); }
   } else if (fileLines) {
     const batch = [];
     while (fileCursor < fileLines.length) {
@@ -533,7 +780,16 @@ function frame(now) {
       if (nextK - target > TPS * speed * 5) target = nextK;           // skip long quiet stretches
     }
   }
+  // reveal live lines as the clock reaches their tick
+  if (outbox.length) {
+    let i = 0;
+    while (i < outbox.length && JSON.parse(outbox[i]).k <= target + 0.001) i++;
+    if (i) feed(outbox.splice(0, i));
+  }
   if (replay) {
+    hands.aim = playing() && locked() ? aim() : null;
+    showAim(hands.aim);
+    syncPlayUI();
     for (const k of dirty) buildChunk(k);
     dirty.clear();
     syncEntities(dt);
@@ -580,6 +836,7 @@ requestAnimationFrame(frame);
 // the headless harness hook (the __foam / __dungeon / __jev pattern)
 window.__craft = {
   get sim() { return sim; }, get replay() { return replay; }, get driver() { return driver; },
+  hands, aim, camera, locate: (x, z) => locate(x, z),
   lines: () => allLines.slice(),
   // fast-forward with a LOCAL decider (Jev's calls are never made in a burst)
   run(ticks, who = 'baseline') {

@@ -42,6 +42,7 @@ export const DIFFICULTY = {
   hard:   { maxZombies: 14, spawn: 0.1, zombieDmg: 4, hungerEvery: 240, zombieStep: 1 },
 };
 export const SIGHT = 10;            // how far the player sees, in tile edges
+export const REACH = 2.2;           // how far the player reaches, in tile edges (centre to centre)
 
 export class Sim {
   constructor(opts = {}) {
@@ -203,15 +204,48 @@ export class Sim {
   swordDmg() { let d = SWORD_DMG.none; for (const k in SWORD_DMG) if (k !== 'none' && this.has(k)) d = Math.max(d, SWORD_DMG[k]); return d; }
   isNight(t = this.tick) { return (t % DAY) >= NIGHT_START; }
 
-  // voxels a body at (c, y) can touch: below its feet and above its head in
-  // its own column, and four layers (feet−1 … head+1) in every neighbour.
+  // What a body at (c, y) can touch. REACH is a DISTANCE, not a hop count:
+  // with "neighbours only", an octagon player out-reached a Penrose player by
+  // a wide margin, and looking at the ground a step ahead on a rhomb floor
+  // was already out of reach. Now: its own column below the feet and above
+  // the head, and any column whose centre is within REACH, feet−1 … head+1 —
+  // a neighbour always, a farther one only if the voxel has an open face
+  // (no mining through a wall to the block behind it).
+  reachCols(c) {
+    if (!this._reach) this._reach = new Map();
+    let r = this._reach.get(c);
+    if (r) return r;
+    r = [];
+    const seen = new Set([c]), q = [c], here = this.cols[c];
+    while (q.length) {
+      const u = q.shift();
+      for (const w of this.cols[u].adj) {
+        if (seen.has(w)) continue;
+        seen.add(w);
+        if (Math.hypot(this.cols[w].x - here.x, this.cols[w].z - here.z) <= REACH) { r.push(w); q.push(w); }
+      }
+    }
+    for (const w of here.adj) if (!r.includes(w)) r.push(w);       // a neighbour is always in reach
+    this._reach.set(c, r);
+    return r;
+  }
+  openFace(c, y) {
+    if (this.passable(c, y + 1) || (y > 0 && this.passable(c, y - 1))) return true;
+    for (const n of this.cols[c].adj) if (this.passable(n, y)) return true;
+    return false;
+  }
   reachable(c, y, tc, ty) {
     if (tc === c) return ty === y - 1 || ty === y + 2;
-    return this.cols[c].adj.includes(tc) && ty >= y - 1 && ty <= y + 2;
+    if (ty < y - 1 || ty > y + 2 || ty < 0 || ty >= H) return false;
+    if (this.cols[c].adj.includes(tc)) return true;
+    return this.reachCols(c).includes(tc) && this.openFace(tc, ty);
   }
   reachSet(c = this.player.c, y = this.player.y) {
     const out = [[c, y - 1], [c, y + 2]];
-    for (const n of this.cols[c].adj) for (let yy = y - 1; yy <= y + 2; yy++) out.push([n, yy]);
+    for (const n of this.reachCols(c)) for (let yy = y - 1; yy <= y + 2; yy++) {
+      if (yy < 0 || yy >= H) continue;
+      if (this.cols[c].adj.includes(n) || this.openFace(n, yy)) out.push([n, yy]);
+    }
     return out.filter(([, yy]) => yy >= 0 && yy < H);
   }
   // a station block within two hops, feet−1 … head+1

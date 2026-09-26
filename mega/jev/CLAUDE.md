@@ -298,7 +298,7 @@ model only decides.
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 214 checks, ~17 s, gates the deploy |
+| `test/craft.selftest.mjs` | 222 checks, ~17 s, gates the deploy |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -513,6 +513,46 @@ The caveats outrank the table:
   longer decisions) it was 0.59. The option set still reads as close calls to
   it, and that is the next thing to work on, per this file's oldest lesson.
 - Survival didn't separate anyone (0–1 deaths everywhere, even on hard).
+
+### Playing it yourself (2026-09-26)
+
+"who decides → you (play it yourself)" makes the page a game. **Every input
+is a primitive `sim.act()`**, the same call macros and Jev use, costing the
+same ticks. A human game streams, replays and could be scored exactly like any
+other. Controls: WASD, mouse look (pointer lock), left click mine/hit, right
+click place, 1–9 or scroll for the hotbar, F eat, C crafting panel, V
+first/third person, Esc to let go. The macros stay clickable and run until you
+touch the controls.
+
+Three things that make it work on a tiling, and one that bit:
+- **WASD on a tile graph**: a key steps to the neighbour whose direction best
+  matches the camera-relative wish (cos ≥ 0.35). It works the same on Penrose
+  rhombs and octagons, and step-ups happen automatically (`stepTarget`).
+- **Aiming**: the view ray is marched through the prism voxels in 0.04
+  steps, via `columnLocator`, past mobs' body cylinders. It returns the first
+  thing hit and the empty voxel before it (where a block goes). The aimed
+  prism is outlined, red when out of reach.
+- **Time stays honest**: the clock runs in real time, an action is taken only
+  when the sim has caught up with it, and live stream lines go through an
+  `outbox`, revealed as the clock reaches their tick. A stone block with a
+  wooden pick takes a visible two seconds, and the crosshair becomes its
+  progress bar. This gating applies to every live mode, not just yours.
+- **The bug**: the first "caught up" test was `sim.tick + 0.5 >= target`,
+  which is also true when the sim is *ahead*. Moves then ran at frame rate, the
+  display (clock-gated) lagged seven tiles behind, and the aim ray was cast
+  from where the player appeared to be, not where it was. It is now
+  `sim.tick <= target`.
+
+**Reach became a distance (a rule change for everyone).** "Neighbour columns
+only" meant that looking at the ground one step ahead on a rhomb floor was
+already out of reach. It also meant an octagon player out-reached a Penrose
+player by a wide margin. Now it is any column whose centre is within
+`REACH = 2.2` tile edges (neighbours always), from feet−1 to head+1, and a
+non-neighbour voxel must have an open face: no mining through a wall to the
+block behind. Houses 60/60 and lives 20/20 still hold, but **the game got
+easier**: the baseline's mean ticks-to-rung went 872 → 573 on the scoreboard
+worlds. The v3 Jev numbers above were played under the old rule. The v4 run
+below is under the new one.
 
 ### What is next
 

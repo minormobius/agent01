@@ -84,3 +84,16 @@ button:disabled{opacity:.4;cursor:default}
   .top-left{max-width:calc(100vw - 24px)}
   .top-right{top:auto;bottom:120px;right:12px;left:12px;max-width:none}
 }
+
+.crosshair{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:3;color:#fff;font:20px/1 var(--mono);text-shadow:0 0 3px #000;pointer-events:none}
+.toast{position:fixed;left:50%;top:calc(50% + 36px);transform:translateX(-50%);z-index:3;background:var(--panel);border:1px solid var(--line);border-radius:4px;padding:3px 8px;font-size:13px;pointer-events:none}
+.help{left:50%;top:50%;transform:translate(-50%,-50%);max-width:min(460px,calc(100vw - 24px));z-index:4}
+.help ul{margin:6px 0 0;padding-left:18px;color:var(--ink-2);font-size:13px}
+.craftpanel{left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 24px));max-height:70vh;overflow:auto;z-index:4}
+.recipes{display:grid;gap:4px;margin-top:6px}
+.recipe{display:grid;grid-template-columns:130px 1fr auto;gap:8px;align-items:center;font-size:12px;border-top:1px solid var(--line);padding-top:4px}
+.recipe .need{color:var(--ink-2)}
+.chip.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.chip{cursor:pointer}
+/* hands on the controls: only the status bar and hotbar stay */
+body.immersed .top-left,body.immersed .top-right,body.immersed .left,body.immersed .right,body.immersed .bottom-right{display:none}
