@@ -52,6 +52,8 @@
       <option value="offline">offline stand-in</option>
       <option value="random">random</option>
       <option value="you">you (play it yourself)</option>
+      <option value="coop">you + Jev (co-op)</option>
+      <option value="swarm">Jev swarm (3)</option>
     </select></label>
     <label>difficulty <select id="difficulty"><option>normal</option><option>hard</option></select></label>
     <label>speed <input id="speed" type="range" min="1" max="64" value="8"></label>
@@ -83,6 +85,15 @@
     <span id="doing" class="mono"></span>
   </div>
   <div id="inv" class="inv"></div>
+</section>
+
+<section id="team" class="hud team panel" hidden aria-label="The team">
+  <div class="eyebrow">the team <span class="hint" id="team-hint"></span></div>
+  <div id="team-list" class="team-list"></div>
+  <div id="asks" class="asks" hidden>
+    <div class="eyebrow">ask Jev to…</div>
+    <div class="mrow" id="ask-row"></div>
+  </div>
 </section>
 
 <section class="hud right panel" aria-label="The last decision">

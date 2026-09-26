@@ -19,7 +19,7 @@ import { generateWorld, worldSignature, B, H, CRAFT_VERSION, KINDS } from '../cr
 import { Sim, Replay } from '../craft/sim.mjs';
 import { play, runMacro } from '../craft/runner.mjs';
 import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
-import { perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS } from '../craft/mind.mjs';
+import { perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS } from '../craft/mind.mjs';
 import { renderAscii } from '../craft/ascii.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -366,6 +366,88 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const r = await playMind(hard, DECIDERS.baseline, { maxTicks: 2400 });
   const zombiesByDay = hard.drain().filter((l) => l.includes('"zombie"')).some((l) => { const k = JSON.parse(l).k; return k < 3000; });
   ok(zombiesByDay, 'zombies appear in the dark before the first night (caves, tunnels)');
+}
+
+// ---------------------------------------------------------- multiplayer -----
+// Several players on one clock (party.mjs). What must hold: a party of one is
+// the single-player game exactly; each player's state is its own; the give op
+// moves items; a request travels as data and is cleared by the macro that
+// answers it; a batched call has one next_ (and one ask_) per waiting agent.
+{
+  const seq = [['gather_wood', { n: 5 }], ['craft', { item: 'wooden_pickaxe', n: 1 }], ['mine_stone', { n: 11 }]];
+  const a = new Sim({ seed: 3, shape: 'hex' });
+  for (const [n, g] of seq) runMacro(a, n, g);
+  const b = new Sim({ seed: 3, shape: 'hex' });
+  const party = new Party(b), m = party.join(b.players[0], 'mind');
+  for (const [n, g] of seq) { party.startMacro(m, n, g); while (m.gen || m.pending) party.tick(); }
+  const evs = (sim) => sim.drain().slice(1).flatMap((l) => { const L = JSON.parse(l); return L.e.map((e) => L.k + ' ' + JSON.stringify(e).replace(/,"who":0/g, '')); }).sort();
+  ok(a.tick === b.tick && JSON.stringify(evs(a)) === JSON.stringify(evs(b)), 'a party of one plays a macro sequence exactly as the single-player driver does (same events, same ticks)');
+}
+{
+  const sim = new Sim({ seed: 3, shape: 'penrose' });
+  const p0 = sim.players[0], p1 = sim.addPlayer();
+  ok(sim.players.length === 2 && p1.id !== p0.id && sim.dist(p0.c, p1.c) <= 3, 'a second player joins beside the first');
+  ok(sim.me === p0, 'addPlayer leaves the current player as it was');
+  sim.as(p1, () => sim.give('log', 4));
+  ok(!p0.inv.log && p1.inv.log === 4 && sim.as(p1, () => sim.inv.log) === 4, 'inventories are per player (sim.as switches whose)');
+  sim.as(p1, () => { sim.home = [p1.c, p1.y]; sim._lastMacro = 'x'; });
+  ok(sim.home == null && sim._lastMacro !== 'x' && p1.home && p1._lastMacro === 'x', 'per-player memory (home, journal state) does not leak between players');
+  const pl = sim.as(p1, () => sim.plan({ op: 'give', to: p0.id, item: 'log', n: 3 }));
+  ok(pl.ok || /reach|far|next to/.test(pl.why || ''), `give plans (or is refused for distance): ${pl.why || 'ok'}`);
+  const r = sim.as(p1, () => runMacro(sim, 'give', { to: p0.id, what: 'wood' }));
+  ok(r.ok && p0.inv.log > 0 && p1.inv.log < 4, `the give macro walks over and hands wood across (${JSON.stringify(r.why || 'ok')})`);
+  // a request is data in the other player's state, and options that answer it say so
+  p0.role = 'human'; p0.request = { what: 'wood', tick: sim.tick };
+  const facts = sim.as(p1, () => perceive(sim));
+  ok(facts.team && facts.team.some((t) => /wood/.test(t.request || '')), 'a teammate\'s request appears in perceive().team');
+  sim.as(p1, () => sim.give('log', 4));
+  const opts = sim.as(p1, () => options(sim));
+  const giveOpt = opts.find((o) => o.id === `give_wood_${p0.id}`);
+  ok(giveOpt && JSON.stringify(giveOpt.facts || giveOpt).includes('ANSWERS'), 'the option that answers it is labelled as answering it');
+  const ended = sim.as(p1, () => runMacro(sim, 'give', { to: p0.id, what: 'wood' }));
+  sim.as(p1, () => fulfil(sim, { name: 'give', args: { to: p0.id, what: 'wood' } }, ended));
+  ok(ended.ok && p0.request === null, 'finishing the answering macro clears the request');
+  // asks
+  const q = sim.as(p1, () => askQuestion(sim));
+  ok(q.type === 'choice' && Object.keys(q.criteria).sort().join() === ['none', ...Object.keys(REQUESTS)].sort().join(), 'the ask question is a choice over none + every request');
+  applyAsk(sim, p1, 'defend');
+  ok(p1.request && p1.request.what === 'defend', 'an ask answer sets the request');
+  applyAsk(sim, p1, 'none');
+  ok(p1.request === null, 'and "none" withdraws it');
+  ok(REQUESTS[sim.as(p1, () => offlineAsk(sim))] || sim.as(p1, () => offlineAsk(sim)) === 'none', 'the stand-in asks for something real or nothing');
+}
+{
+  const sim = new Sim({ seed: 4, shape: 'kagome' });
+  sim.addPlayer(); sim.addPlayer();
+  const party = new Party(sim);
+  const ms = sim.players.map((e) => party.join(e, 'mind'));
+  const { state, questions, per } = batchRequest(sim, ms);
+  ok(per.size === 3 && Object.keys(state.agents).length === 3, 'a batch carries one state slice per agent');
+  ok(ms.every((m) => questions[`next_${m.e.id}`]?.type === 'choice' && questions[`ask_${m.e.id}`]?.type === 'choice'), 'and a next_ and an ask_ choice per agent');
+  ok(ms.every((m) => Object.keys(questions[`next_${m.e.id}`].criteria).sort().join() === per.get(m).map((o) => o.id).sort().join()), 'each next_ offers exactly that agent\'s legal options');
+  ok(Object.keys(questions).length <= 12 * 2, 'within the proxy\'s question cap');
+  // a batched, offline swarm: deterministic, and every agent decides
+  const run = async () => {
+    const s = new Sim({ seed: 4, shape: 'kagome' }); s.addPlayer(); s.addPlayer();
+    const pa = new Party(s); s.players.forEach((e) => pa.join(e, 'mind'));
+    let calls = 0;
+    const batch = async (st, qs) => {
+      calls++;
+      const answers = {};
+      for (const k of Object.keys(qs)) {
+        const id = +k.split('_').pop(), e = s.ents.get(id);
+        if (k.startsWith('next_')) { const opts = s.as(e, () => options(s)); answers[k] = DECIDERS.offline.length ? s.as(e, () => DECIDERS.offline(s, opts)).answers.next : null; }
+        else answers[k] = { choice: s.as(e, () => offlineAsk(s)) };
+      }
+      return { source: 'offline', answers };
+    };
+    const { decisions } = await playParty(s, pa, { maxTicks: 900, batch });
+    return { lines: s.drain().join('\n'), decisions, calls, who: new Set(decisions.map((d) => d.who)) };
+  };
+  const r1 = await run(), r2 = await run();
+  ok(r1.lines === r2.lines, 'a batched swarm is deterministic');
+  ok(r1.who.size === 3, 'every agent in the swarm decides');
+  ok(r1.decisions.length / r1.calls > 1.2, `batching folds several agents into one call (${(r1.decisions.length / r1.calls).toFixed(2)} decisions per call)`);
 }
 
 // ---------------------------------------------------------------- text ------

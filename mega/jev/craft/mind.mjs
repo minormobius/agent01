@@ -20,7 +20,7 @@
 import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort } from './macros.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
 import { DAY, NIGHT_START } from './sim.mjs';
-import { B, BUILDING, RECIPES } from './world.mjs';
+import { B, BUILDING, RECIPES, FOOD } from './world.mjs';
 
 export const GATE = 0.45;
 
@@ -74,6 +74,7 @@ export function perceive(sim) {
         'A house (or a dug-in hole) keeps zombies out; the house is also where you respawn.',
         'Food drops by 1 every 480 ticks; at 0 you lose health, at 18+ you heal.',
         'An activity runs until it finishes or something interrupts it — then you choose again.',
+        ...(sim.players.length > 1 ? ['You share this world with teammates (see team). What they ask for is listed, and options that answer a request say so.'] : []),
       ],
     },
     time: {
@@ -96,7 +97,89 @@ export function perceive(sim) {
     progress: { reached: reached.length ? reached : ['nothing yet'], next: open },
     explored: `${Math.round(100 * sim.seenCount / sim.N)}% of the island`,
     recent: (sim._journal || []).slice(-6),
+    ...(sim.players.length > 1 ? { team: teamFacts(sim) } : {}),
   };
+}
+
+// ------------------------------------------------------------------ team ----
+// Teammates, as facts: where they are relative to you, how they are doing,
+// what they are busy with, and what they have ASKED for. A request is data in
+// the state (there is no instruction channel), so it can only matter through
+// the options that answer it — and those say so, computed here.
+export const REQUESTS = {
+  come: 'come to them', wood: 'bring them wood', food: 'bring them food', stone: 'bring them stone',
+  torches: 'bring them torches', defend: 'defend them from zombies',
+};
+export const REQUEST_TTL = 1600;
+const liveRequest = (sim, e) => e.request && sim.tick - e.request.tick < REQUEST_TTL ? e.request : null;
+function teamFacts(sim) {
+  const me = sim.player;
+  return sim.players.filter((e) => e !== me).map((e) => {
+    const r = liveRequest(sim, e);
+    const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, e.c) < 8).length;
+    return {
+      teammate: e.role === 'human' ? `the human player (#${e.id})` : `Jev teammate #${e.id}`,
+      tiles_away: Math.round(sim.dist(e.c, me.c)), health: `${e.hp}/20`, food: `${e.food}/20`,
+      doing: e.doing || 'standing still', zombies_near_them: zs,
+      ...(r ? { request: `${REQUESTS[r.what] || r.what} (asked ${sim.tick - r.tick} ticks ago)` } : {}),
+    };
+  });
+}
+// a finished macro may answer a teammate's request: clear it if so
+export function fulfil(sim, pick, ended) {
+  if (!ended || !ended.ok || !pick || !pick.args || pick.args.to == null) return;
+  const e = sim.ents.get(pick.args.to);
+  if (!e || !e.request) return;
+  const w = e.request.what;
+  if ((pick.name === 'follow' && w === 'come') || (pick.name === 'guard' && w === 'defend') || (pick.name === 'give' && pick.args.what === w)) {
+    sim.note('request_done', { who: e.id, what: w, by: sim.player.id });
+    e.request = null;
+  }
+}
+
+// What a Jev teammate can ASK for: a typed choice riding in the same batched
+// call as its `next` (breadth is free). Every option carries the computed
+// facts that would justify it; none of them is an instruction to anyone.
+export function askQuestion(sim) {
+  const p = sim.player;
+  const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, p.c) < 6).length;
+  const foodHeld = Object.keys(FOOD).reduce((n, k) => n + (p.inv[k] || 0), 0);
+  const mates = sim.players.filter((e) => e !== p);
+  const nearest = mates.length ? Math.round(Math.min(...mates.map((e) => sim.dist(e.c, p.c)))) : null;
+  const cur = liveRequest(sim, p);
+  const criteria = {
+    none: { means: 'ask for nothing: you can manage alone', ...(cur ? { note: `withdraws your standing request (${cur.what})` } : {}) },
+    defend: { means: REQUESTS.defend, zombies_within_6: zs, your_health: `${p.hp}/20` },
+    food: { means: REQUESTS.food, your_food: `${p.food}/20`, food_carried: foodHeld },
+    wood: { means: REQUESTS.wood, wood_carried: (p.inv.log || 0) + (p.inv.planks || 0) },
+    stone: { means: REQUESTS.stone, stone_carried: p.inv.cobblestone || 0 },
+    torches: { means: REQUESTS.torches, torches_carried: p.inv.torch || 0, night: sim.isNight() },
+    come: { means: REQUESTS.come, nearest_teammate_tiles: nearest },
+  };
+  if (cur) criteria[cur.what] = { ...criteria[cur.what], standing: `you already asked for this ${sim.tick - cur.tick} ticks ago` };
+  return {
+    type: 'choice',
+    instructions: { task: 'Should this agent ask its teammates for help right now, and for what? Teammates see the request in their state and may answer it instead of their own work.' },
+    criteria,
+  };
+}
+// set (or clear) a player's request from an ask answer
+export function applyAsk(sim, e, choice) {
+  if (!choice) return;
+  const cur = e.request && e.request.what;
+  if (choice === 'none') { if (cur) { e.request = null; sim.note('request', { who: e.id, what: null }); } return; }
+  if (!REQUESTS[choice] || choice === cur) return;
+  e.request = { what: choice, tick: sim.tick };
+  sim.note('request', { who: e.id, what: choice });
+}
+// the stand-in's rule of thumb for asking
+export function offlineAsk(sim) {
+  const p = sim.player;
+  const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, p.c) < 4).length;
+  const foodHeld = Object.keys(FOOD).reduce((n, k) => n + (p.inv[k] || 0), 0);
+  if (zs && p.hp < 12) return 'defend';
+  if (p.food < 8 && !foodHeld) return 'food';
+  return 'none';
 }
 
 // ---------------------------------------------------------------- options ---
@@ -180,6 +263,21 @@ export function options(sim) {
   if (legal.has('sleep_until_dawn')) add('sleep_until_dawn', 'sleep_until_dawn', null, { takes: `until dawn (${DAY - (sim.tick % DAY)} ticks)`, advances: inside ? 'safe: you are covered' : 'NOT safe: you are in the open' });
   if (legal.has('eat')) add('eat', 'eat', null, { takes: '4 ticks', advances: `food ${p.food}/20` });
   if (legal.has('fight')) add('fight', 'fight', null, { takes: 'a few ticks per hit', advances: 'a zombie is touching you' });
+  // the team: one option per teammate per way of helping
+  for (const e of sim.players) {
+    if (e === p) continue;
+    const r = liveRequest(sim, e), d = Math.round(sim.dist(e.c, p.c));
+    const who = e.role === 'human' ? 'the human player' : `Jev #${e.id}`;
+    const answers = (w) => r && r.what === w ? { request: `ANSWERS what ${who} asked for, ${sim.tick - r.tick} ticks ago` } : {};
+    if (!PALETTE.follow.needs(sim, { to: e.id }) && d > 1.5) add(`follow_${e.id}`, 'follow', { to: e.id }, { takes: `about ${about(d)} ticks`, advances: `be next to ${who}`, ...answers('come') });
+    const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, e.c) < 8).length;
+    if (!PALETTE.guard.needs(sim, { to: e.id }) && (zs || (r && r.what === 'defend') || sim.isNight())) add(`guard_${e.id}`, 'guard', { to: e.id, ticks: 160 }, { takes: 'about 160 ticks', advances: `keep ${who} safe (${zs} zombies near them)`, ...answers('defend') });
+    for (const what of ['wood', 'food', 'stone', 'torches']) {
+      if (PALETTE.give.needs(sim, { to: e.id, what })) continue;
+      if (!(r && r.what === what) && !(what === 'food' && e.food < 10)) continue;   // offer gifts that are wanted
+      add(`give_${what}_${e.id}`, 'give', { to: e.id, what }, { takes: `about ${about(d) + 2} ticks`, advances: `${who} gets half your ${what}` + (what === 'food' ? ` (their food ${e.food}/20)` : ''), ...answers(what) });
+    }
+  }
   return out;
 }
 
@@ -327,6 +425,7 @@ export async function playMind(sim, decide, { maxTicks = DAY, maxDecisions = 200
     for (;;) { r = d.step(); if (r && r.ended) break; }
     journal(sim, record, r.ended);
     remember(sim, record.choice, r.ended);
+    fulfil(sim, pick, r.ended);
     record.pick = pick.name;
     if (response.reused) record.reused = true;
     if (lastLive && r.ended.interrupted) lastLive.interrupted = true;
@@ -384,3 +483,86 @@ export function reuseRanking(sim, last, opts) {
   }
   return null;
 }
+
+// ------------------------------------------------------------ the party -----
+import { Party } from './party.mjs';
+// Several Jevs needing a decision at the same moment share ONE call: the
+// state carries each agent's facts under its name, and each agent gets its
+// own next_<id> question over its own options. Breadth is free; the state is
+// what costs (see "Where the limits actually are"). A swarm of N costs one call
+// per round, not N.
+export function batchRequest(sim, members) {
+  const agents = {}, questions = {}, per = new Map();
+  for (const m of members) sim.as(m.e, () => {
+    const opts = options(sim);
+    if (!opts.length) return;
+    const st = perceive(sim), q = buildQuestions(sim, opts);
+    agents[`agent_${m.e.id}`] = st;
+    questions[`next_${m.e.id}`] = { ...q.next, instructions: { ...q.next.instructions, task: `Choose what agent_${m.e.id} does next (its facts are under agents.agent_${m.e.id}).` } };
+    if (sim.players.length > 1) {
+      const a = askQuestion(sim);
+      questions[`ask_${m.e.id}`] = { ...a, instructions: { ...a.instructions, task: `${a.instructions.task} (This is agent_${m.e.id}; its facts are under agents.agent_${m.e.id}.)` } };
+    }
+    per.set(m, opts);
+  });
+  const shared = members.length ? sim.as(members[0].e, () => ({ time: perceive(sim).time, objective: perceive(sim).objective })) : {};
+  return { state: { ...shared, agents }, questions, per };
+}
+
+// Play a party headlessly. `deciders` maps a member to decide(sim, opts, qs,
+// state) (single) — or pass `batch: ask` to route every mind member through
+// one batched call per round. The world pauses while decisions are made, so
+// runs are reproducible (the page does not pause; Jev thinks in real time).
+export async function playParty(sim, party, { maxTicks = DAY, decide, batch, batchWindow = 12, onDecision } = {}) {
+  const decisions = [];
+  let waiting = [], since = 0;
+  while (sim.tick < maxTicks) {
+    let need = party.tick();
+    // batching: the first agent to need a decision waits up to batchWindow
+    // ticks (idle) for others to finish too, so a round is one call
+    if (batch) {
+      for (const m of need) if (!waiting.includes(m)) waiting.push(m);
+      if (!waiting.length) continue;
+      if (!since) since = sim.tick;
+      const everyone = party.members.filter((m) => m.controller === 'mind').every((m) => waiting.includes(m));
+      if (sim.tick - since < batchWindow && !everyone) continue;
+      need = waiting; waiting = []; since = 0;
+    }
+    if (!need.length) continue;
+    if (batch && need.length) {
+      const { state, questions, per } = batchRequest(sim, need);
+      if (!per.size) continue;
+      let resp;
+      try { resp = await batch(state, questions); } catch (e) { resp = { error: String(e.message || e), answers: {} }; }
+      for (const [m, opts] of per) sim.as(m.e, () => {
+        const a = resp.answers?.[`next_${m.e.id}`];
+        const one = a ? { source: resp.source || 'typesafe', answers: { next: a } } : { ...offlineAnswer(sim, opts), error: resp.error || 'no answer' };
+        if (sim.players.length > 1) applyAsk(sim, m.e, a ? resp.answers?.[`ask_${m.e.id}`]?.choice : offlineAsk(sim));
+        startFrom(sim, party, m, opts, one, decisions, onDecision);
+      });
+    } else {
+      for (const m of need) {
+        const opts = sim.as(m.e, () => options(sim));
+        if (!opts.length) { m.wantsDecision = false; continue; }
+        const qs = sim.as(m.e, () => buildQuestions(sim, opts)), st = sim.as(m.e, () => perceive(sim));
+        let resp;
+        // decide AS that player: a local decider reads the sim (its own inventory, its own map)
+        try { resp = await sim.as(m.e, () => (m.decide || decide)(sim, opts, qs, st)); } catch (e) { resp = { ...sim.as(m.e, () => offlineAnswer(sim, opts)), error: String(e.message || e) }; }
+        sim.as(m.e, () => startFrom(sim, party, m, opts, resp, decisions, onDecision));
+      }
+    }
+  }
+  return { decisions };
+}
+function startFrom(sim, party, m, opts, resp, decisions, onDecision) {
+  const { pick, record } = resolve(sim, opts, resp, { gate: false });
+  record.who = m.e.id;
+  record.pick = pick && pick.name;
+  m.wantsDecision = false;
+  sim.note('jev', { ...record, pick: pick && pick.name, who: m.e.id });
+  decisions.push(record);
+  if (!pick) { m.pending = { a: { op: 'wait' }, pl: { ticks: 10 }, t0: sim.tick, doneAt: sim.tick + 10 }; return; }
+  m.onEnded = (ended) => sim.as(m.e, () => { journal(sim, record, ended); remember(sim, record.choice, ended); fulfil(sim, pick, ended); record.result = ended.ok ? 'ok' : ended.why; onDecision && onDecision(record, ended); });
+  party.startMacro(m, pick.name, pick.args);
+}
+export { Party };

@@ -295,10 +295,11 @@ model only decides.
 | `craft/sim.mjs` | the rules, `act()` (one primitive action run to completion; refusals are free and say why), mobs, hunger, day/night, `path` (walk-only BFS), **`digPath`** (Dijkstra where mining costs its ticks, so it tunnels only where tunnelling is cheaper; **never opens a block that touches water**), and `Replay` |
 | `craft/macros.mjs` | the palette. 18 macros in three modes (below), each a generator that yields primitive actions, with `needs()` saying why it can't run. Also: `goTo` (digs where cheaper), `visible()` (no x-ray: only open-faced blocks in columns the player has seen), `shortfall()` (raw materials missing, all the way down the recipe tree, stations included), `planHouse` / `sealed`. Every macro must fail cleanly and hold no mid-sequence state, because it can be interrupted between any two actions |
 | `craft/mind.mjs` | **layer 3, what Jev sees**: `perceive()` (a ~1 KB state of computed facts: time to dusk, threats, what is in sight and how far, the ladder and what its next rung is short of, a journal of its own last six decisions), `options()` (concrete choices from the legal macros, each labelled with what it yields, roughly how long it takes, what it advances, and whether it goes out among zombies at night), `buildQuestions()` (`next` choice, `danger` score, `have` self-check), `resolve()` (the gate, and the honest source stamp), `playMind()` (the async loop the page and the eval share), and the deciders: `jevDecider` (the proxy), baseline, offline stand-in, random |
+| `craft/party.mjs` | the multiplayer scheduler: several players on one clock, each action a `sim.plan` (§ Multiplayer) |
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 242 checks, ~20 s, gates the deploy |
+| `test/craft.selftest.mjs` | 263 checks, ~25 s, gates the deploy (multiplayer included) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -671,6 +672,70 @@ Now, in the page:
 The eval scripts pace themselves separately (2.15 s, with backoff) and run
 from a different address, so they don't compete with a viewer for the same
 30/minute.
+
+### Multiplayer: you + Jev, and a Jev swarm (2026-09-26)
+
+"who decides" has two more seats: **you + Jev (co-op)** and **Jev swarm (3)**.
+
+**One clock for everyone (`craft/party.mjs`).** `sim.act()` runs one action
+to completion while the world steps under it, which is right for one player
+and wrong for two: your teammate would freeze while you mined. So every
+action is now also a **plan**: `sim.plan(a)` → `{ok, why, ticks, pre, post}`,
+and `act()` is plan, then step × ticks, then post. `Party.tick()` serves each
+member whose last action has finished (from its macro, from the hands queue
+for a human, or by asking for a decision), applies `pre`, steps the world
+**once**, and completes whatever is due. A party of one is the single-player
+game exactly: the selftest plays the same macro sequence both ways and gets
+the same events on the same ticks.
+
+**Per-player state.** `sim.players[]`, and `sim.me` is whoever is acting.
+Everything that was player memory (`seen`, `home`, the journal, outcomes,
+the house, `request`, …, the `PER_PLAYER` list in `sim.mjs`) is an accessor
+onto `sim.me`, so macros, planners and `perceive()` run unchanged inside
+`sim.as(entity, fn)`. Zombies chase the nearest player, spawns anchor round
+the players in turn, and each respawns at its own home.
+
+**Player state influences Jev, as data.** There is no instruction channel, so
+a teammate can only matter through the state and the options:
+- `perceive().team`: each teammate's distance, health, food, what it is
+  doing, zombies near it, and any **request** it has standing.
+- team macros (mode `team`): `follow`, `guard`, `give` (a new `give`
+  primitive hands items across). Their options read e.g. `give_wood_0` and,
+  when they answer a standing request, say `ANSWERS what the human player
+  asked for, 40 ticks ago`. `fulfil()` clears the request when the answering
+  macro finishes.
+- In co-op the **ask Jev to…** buttons (come / wood / food / stone / torches /
+  defend) set your request. Measured live: Jev read a wood request, chose
+  `gather_wood`, then `give_wood_0` at 0.62, and the request was done by tick 37.
+
+**The swarm talks back.** Each Jev agent also gets an `ask_<id>` **choice**
+(none + each request, every option carrying the facts behind it: zombies
+near, health, food carried, wood carried…) in the same call as its `next_<id>`.
+Breadth is free, so asking costs nothing. `applyAsk` sets or withdraws the
+request, and teammates see it on their next decision.
+
+**One call per round, not per agent.** `batchRequest` puts every waiting
+agent in one request: `state.agents.agent_<id>` per agent, `next_<id>` and
+`ask_<id>` per agent. The first agent to need a decision idles for up to
+**12 ticks** (`batchWindow`) so the others can join. Measured: ~2–2.5
+decisions per call on a 3-Jev swarm, still under `MIN_GAP`. The page never
+pauses for Jev in these modes. An agent waiting on its answer just stands
+there while the world goes on, so Jev thinks in real time, like a teammate.
+The headless `playParty()` pauses the world instead, so runs are reproducible.
+
+The team strip (top centre, a drawer-free strip on phones) shows everyone's
+health, food, what they are doing and any request. In a swarm, click a row
+to watch that agent (`replay.focus`, the camera and the HUD follow). Checked
+in Playwright at desktop size and in an emulated Pixel 7, against the stub.
+The stub always picks its top option, so **no browser run exercised Jev
+answering a request**. That was measured headlessly against the live model,
+n = 1 run.
+
+What it opens: the `mappa` idea above (agents with genuinely different
+states) now has a cheaper testbed. Each agent's slice already differs by
+position, inventory and fog of war. "When does splitting the state beat
+sharing it" is runnable here: batched (one call, all slices) against
+per-agent calls.
 
 ### What is next
 

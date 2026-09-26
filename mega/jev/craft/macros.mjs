@@ -798,6 +798,61 @@ export function* lightArea(sim, n = 4) {
   return placed ? { ok: true } : { ok: false, why: 'nowhere to put a torch' };
 }
 
+// ------------------------------------------------------------- the team ----
+// With more than one player: macros that act FOR someone else. `to` is the
+// teammate's entity id.
+const mate = (sim, id) => { const e = sim.ents.get(id); return e && e.kind === 'player' && e !== sim.player ? e : null; };
+const beside = (sim, e) => (c, y) => (c === e.c || sim.cols[c].adj.includes(e.c)) && Math.abs(y - e.y) <= 1;
+
+export function* follow(sim, to) {
+  const e = mate(sim, to);
+  if (!e) return { ok: false, why: 'no such teammate' };
+  for (let k = 0; k < 4; k++) {                           // they may be walking too
+    if (beside(sim, e)(sim.player.c, sim.player.y)) return { ok: true };
+    const go = yield* goTo(sim, beside(sim, e), 20000);
+    if (!go.ok && k > 1) return { ok: false, why: `could not reach them (${go.why})` };
+  }
+  return beside(sim, e)(sim.player.c, sim.player.y) ? { ok: true } : { ok: false, why: 'they kept moving' };
+}
+
+// Stay by a teammate for a while and fight whatever zombie comes at either of you.
+export function* guard(sim, to, ticks = 160) {
+  const e = mate(sim, to);
+  if (!e) return { ok: false, why: 'no such teammate' };
+  const until = sim.tick + ticks;
+  while (sim.tick < until) {
+    const z = [...sim.ents.values()].filter((q) => q.kind === 'zombie' && sim.dist(q.c, e.c) < 8)
+      .sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c))[0];
+    if (z) {
+      if (sim.adjacentTo(sim.player, z)) { yield { op: 'attack', id: z.id }; continue; }
+      const go = yield* goTo(sim, (c, y) => (c === z.c || sim.cols[c].adj.includes(z.c)) && Math.abs(y - z.y) <= 1, 6000);
+      if (!go.ok) yield { op: 'wait', ticks: 4 };
+      continue;
+    }
+    if (!beside(sim, e)(sim.player.c, sim.player.y)) { const f = yield* follow(sim, to); if (!f.ok) yield { op: 'wait', ticks: 4 }; }
+    else yield { op: 'wait', ticks: 4 };
+  }
+  return { ok: true };
+}
+
+// Walk over and hand a teammate what they asked for: wood (logs/planks) or food.
+const GIFTS = { wood: ['log', 'planks'], food: ['cooked_porkchop', 'porkchop', 'apple'], stone: ['cobblestone'], torches: ['torch'] };
+export function* giveItems(sim, to, what = 'wood') {
+  const e = mate(sim, to);
+  if (!e) return { ok: false, why: 'no such teammate' };
+  const items = (GIFTS[what] || [what]).filter((k) => sim.has(k));
+  if (!items.length) return { ok: false, why: `holding no ${what}` };
+  const f = yield* follow(sim, to);
+  if (!f.ok) return f;
+  let gave = 0;
+  for (const item of items) {
+    const n = Math.max(1, Math.ceil((sim.inv[item] || 0) / 2));   // share half, keep half
+    const r = yield { op: 'give', to, item, n };
+    if (r.ok) gave += n;
+  }
+  return gave ? { ok: true } : { ok: false, why: 'could not hand anything over' };
+}
+
 // ------------------------------------------------------------- palette -------
 // The palette as DATA. Each entry: the mode it belongs to, one line of what it
 // does, and needs(sim, args) → null when it can run now, or the reason it
@@ -830,7 +885,16 @@ export const PALETTE = {
   dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : s.clearCost(s.player.c, s.player.y - 1, s.pickTier()) === Infinity ? 'cannot dig here (water, lava or bedrock below)' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
   sleep_until_dawn: { mode: 'homestead', doc: 'wait out the night where you are', needs: (s) => s.isNight() ? null : 'it is day', run: (s) => sleepUntilDawn(s) },
   eat:          { mode: 'homestead', doc: 'eat the best food carried', needs: (s) => !food(s) ? 'no food' : s.player.food >= 20 ? 'not hungry' : null, run: (s) => eat(s) },
+  // the team (only offered when someone else is in the world)
+  follow:       { mode: 'team', doc: 'go to a teammate', needs: (s, a) => mateNeeds(s, a), run: (s, a) => follow(s, a.to) },
+  guard:        { mode: 'team', doc: 'stay by a teammate and fight what comes at them', needs: (s, a) => mateNeeds(s, a), run: (s, a) => guard(s, a.to, a.ticks) },
+  give:         { mode: 'team', doc: 'walk over and hand a teammate wood, food, stone or torches', needs: (s, a) => mateNeeds(s, a) || ((GIFTS[a?.what || 'wood'] || []).some((k) => s.has(k)) ? null : `holding no ${a?.what || 'wood'}`), run: (s, a) => giveItems(s, a.to, a.what) },
   fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent', needs: (s) => [...s.ents.values()].some((e) => e.kind === 'zombie' && s.adjacentTo(s.player, e)) ? null : 'nothing adjacent to fight', run: (s) => fight(s) },
 };
-export const MODES = ['mine', 'explore', 'homestead'];
-export const legalMacros = (sim) => Object.entries(PALETTE).filter(([n, m]) => n !== 'craft' && !m.needs(sim, {})).map(([n]) => n);
+export const MODES = ['mine', 'explore', 'homestead', 'team'];
+function mateNeeds(s, a) {
+  if (s.players.length < 2) return 'nobody else is here';
+  if (a && a.to != null && !mate(s, a.to)) return 'no such teammate';
+  return null;
+}
+export const legalMacros = (sim) => Object.entries(PALETTE).filter(([n, m]) => n !== 'craft' && m.mode !== 'team' && !m.needs(sim, {})).map(([n]) => n);

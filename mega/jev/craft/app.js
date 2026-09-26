@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { OrbitControls } from '../delve/vendor/OrbitControls.js';
 import { Sim, Replay, DAY, NIGHT_START } from './sim.mjs';
 import { Driver, baselinePolicy } from './runner.mjs';
-import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE, reuseRanking } from './mind.mjs';
+import { options, buildQuestions, perceive, resolve, journal, remember, DECIDERS, jevDecider, GATE, reuseRanking, Party, batchRequest, fulfil, REQUESTS, applyAsk, offlineAsk } from './mind.mjs';
 import { PALETTE, MODES } from './macros.mjs';
 import { BLOCKS, B, H, hash01, RECIPES, PLACEABLE, FOOD, recipeBags, KINDS } from './world.mjs';
 import { SHAPES, columnLocator } from './tiling.mjs';
@@ -21,7 +21,9 @@ const TPS = 4;                        // ticks per second at 1×
 let sim = null, driver = null, replay = null;
 let allLines = [];                    // everything emitted, for "save stream"
 let fileLines = null, fileCursor = 0; // replay-from-file mode
-let outbox = [];                      // live lines not yet shown: revealed as the clock reaches them
+let outbox = [];
+let focusId = 0;                      // whose eyes, HUD and hands: you, or the agent you are watching
+let party = null, human = null;       // multiplayer: a Party, and the member you control (if any)                      // live lines not yet shown: revealed as the clock reaches them
 let locate = null;                    // (x, z) → column, for aiming
 let target = 0;                       // the tick the clock has reached
 let macroLog = [];
@@ -220,12 +222,13 @@ function rebuildTorches() {
 
 // ------------------------------------------------------------ entities -----
 const entMesh = new Map();
-function makeEnt(kind) {
+const TEAM_SHIRTS = [0x2f7fd0, 0x1fa39a, 0xd9822b, 0x8e5bd0, 0xc94f6d];
+function makeEnt(kind, id = 0) {
   const g = new THREE.Group();
   const box = (w, h, d, color, y) => { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshLambertMaterial({ color })); m.position.y = y; g.add(m); return m; };
   if (kind === 'pig') { box(0.8, 0.55, 0.5, 0xf0a3b4, 0.4); box(0.36, 0.36, 0.36, 0xf5b7c5, 0.55).position.x = 0.5; }
   else {
-    const shirt = kind === 'player' ? 0x2f7fd0 : 0x3b8a4a, skin = kind === 'player' ? 0xd9a57c : 0x6ea35a;
+    const shirt = kind === 'player' ? TEAM_SHIRTS[(sim ? Math.max(0, sim.players.findIndex((e) => e.id === id)) : 0) % TEAM_SHIRTS.length] : 0x3b8a4a, skin = kind === 'player' ? 0xd9a57c : 0x6ea35a;
     box(0.5, 0.75, 0.3, kind === 'player' ? 0x3a3f8f : 0x3a3f8f, 0.375);
     box(0.55, 0.65, 0.32, shirt, 1.07);
     box(0.45, 0.45, 0.45, skin, 1.62);
@@ -238,13 +241,13 @@ function syncEntities(dt) {
   for (const e of replay.ents.values()) {
     let m = entMesh.get(e.id);
     const tx = cols[e.c].x, tz = cols[e.c].z, ty = e.y;
-    if (!m) { m = makeEnt(e.kind); m.position.set(tx, ty, tz); entGroup.add(m); entMesh.set(e.id, m); }
+    if (!m) { m = makeEnt(e.kind, e.id); m.position.set(tx, ty, tz); entGroup.add(m); entMesh.set(e.id, m); }
     const k = Math.min(1, dt * 10);
     const dx = tx - m.position.x, dz = tz - m.position.z;
-    if (Math.abs(dx) + Math.abs(dz) > 1e-3 && !(e.id === 0 && playing())) m.rotation.y = Math.atan2(-dz, dx);
+    if (Math.abs(dx) + Math.abs(dz) > 1e-3 && !(e.id === focusId && playing())) m.rotation.y = Math.atan2(-dz, dx);
     if (Math.hypot(dx, dz) > 6) m.position.set(tx, ty, tz);      // a respawn, not a walk
     else { m.position.x += dx * k; m.position.z += dz * k; m.position.y += (ty - m.position.y) * k; }
-    if (e.id !== 0) m.visible = ty < cut.constant;
+    if (e.id !== focusId) m.visible = ty < cut.constant;
   }
 }
 
@@ -301,9 +304,9 @@ function feed(lines) {
       if (ev[0] === 'note') logMacro({ k: replay.tick, kind: ev[1], data: ev[2] });
       if (ev[0] === 'note' && ev[1] === 'home') homeAt = ev[2];
       if (ev[0] === 'do') $('doing').textContent = ev.slice(1).join(' ');
-      if (playing() && ev[0] === 'die' && ev[1] === 0) toast(homeAt ? 'you died — back home' : 'you died — back at the spawn');
+      if (playing() && ev[0] === 'die' && ev[1] === focusId) toast(homeAt ? 'you died — back home' : 'you died — back at the spawn');
       if (playing() && ev[0] === 'note' && ev[1] === 'dusk') toast('dusk: zombies spawn on open ground');
-      if (playing() && ev[0] === 'hit' && ev[2] === 0 && ev[1] >= 0) toast('a zombie hits you');
+      if (playing() && ev[0] === 'hit' && ev[2] === focusId && ev[1] >= 0) toast('a zombie hits you');
     }
   }
   if (blocksChanged) rebuildTorches();
@@ -321,6 +324,10 @@ const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_swo
 function argsFor(name) {
   if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
   if (name === 'scout') return { what: $('scout-what').value };
+  if (['follow', 'guard', 'give'].includes(name)) {
+    const other = sim && sim.players.find((e) => e.id !== focusId);
+    return other ? { to: other.id, ...(name === 'give' ? { what: 'wood' } : {}), ...(name === 'guard' ? { ticks: 160 } : {}) } : null;
+  }
   return ARGS[name] || null;
 }
 function buildMacroButtons() {
@@ -336,7 +343,10 @@ function buildMacroButtons() {
       if (m.mode !== mode) continue;
       const b = document.createElement('button');
       b.type = 'button'; b.textContent = name.replace(/_/g, ' '); b.dataset.macro = name; b.title = m.doc;
-      b.addEventListener('click', () => { if (driver) { if ($('who').value !== 'you') { $('who').value = 'you'; setAuto(); } driver.start(name, argsFor(name)); } });
+      b.addEventListener('click', () => {
+      if (party && human) { party.startMacro(human, name, argsFor(name)); return; }
+      if (driver) { if ($('who').value !== 'you') { $('who').value = 'you'; setAuto(); } driver.start(name, argsFor(name)); }
+    });
       row.appendChild(b);
       if (name === 'craft') {
         const sel = document.createElement('select'); sel.id = 'craft-item';
@@ -358,7 +368,7 @@ function refreshLegal(now) {
   legalAt = now;
   for (const b of document.querySelectorAll('#macros button')) {
     const m = PALETTE[b.dataset.macro];
-    const why = m.needs(sim, argsFor(b.dataset.macro) || {});
+    const why = party && !human ? 'a swarm has no human seat' : human ? sim.as(human.e, () => m.needs(sim, argsFor(b.dataset.macro) || {})) : m.needs(sim, argsFor(b.dataset.macro) || {});
     b.disabled = !!why;
     b.title = why ? `${m.doc} — can't: ${why}` : m.doc;
     b.classList.toggle('on', driver && driver.gen && driver.cur && driver.cur.name === b.dataset.macro);
@@ -369,18 +379,21 @@ function refreshLegal(now) {
 // state, the same options, the same resolve — only the answerer differs.
 let pending = null, keyConfigured = null, liveSeen = false;
 const askLive = jevDecider('../api/ask');
+let lastMode = null, partyWaiting = [], partySince = 0;
+const isParty = (w) => w === 'coop' || w === 'swarm';
 function setAuto() {
   if (!driver) return;
+  if (lastMode && isParty($('who').value) !== isParty(lastMode) || (isParty($('who').value) && $('who').value !== lastMode)) { startLive(); return; }
   driver.policy = () => null;             // decisions are made in the frame loop, below
   driver.done = false;
   const who = $('who').value;
-  if (who === 'you') {
+  if (who === 'you' || who === 'coop') {
     $('speed').value = 1; $('speed-out').textContent = '1×'; $('pause').checked = false;
     const f = new THREE.Vector3(); camera.getWorldDirection(f);
     hands.yaw = Math.atan2(-f.x, -f.z); hands.pitch = -0.15;
     target = sim ? sim.tick : target;
   } else if (locked()) document.exitPointerLock();
-  $('macro-hint').textContent = who === 'you' ? '— you are playing: click one to run it' : who === 'jev' ? '— Jev is choosing' : `— the ${who} decider is choosing`;
+  $('macro-hint').textContent = who === 'you' ? '— you are playing: click one to run it' : who === 'coop' ? '— click one to run it for you; Jev chooses its own' : who === 'swarm' ? '— three Jevs are choosing' : who === 'jev' ? '— Jev is choosing' : `— the ${who} decider is choosing`;
 }
 // Live calls are paced: at most one every MIN_GAP ms (the proxy allows 30 a
 // minute per visitor), a 429 is waited out and retried, and a quick macro is
@@ -433,14 +446,107 @@ async function decideNow() {
   if (pick) { driver.start(pick.name, pick.args); driver._record = record; }
   else sim.act({ op: 'wait', ticks: 10 });
 }
-function showDecision(opts, response, record, pick) {
+// Multiplayer decisions: every Jev member waiting for a decision goes into
+// ONE batched call (mind.batchRequest), at most one call per MIN_GAP. While
+// it is in flight the world keeps running — the waiting agents stand still.
+let partyBusy = false;
+async function decideParty(members) {
+  partyBusy = true;
+  const p0 = party;
+  try {
+    const { state, questions, per } = batchRequest(sim, members);
+    if (!per.size) { for (const m of members) { m.wantsDecision = false; m.thinking = false; } return; }
+    let resp;
+    if (keyConfigured === false) resp = { error: 'no key configured on the worker — this is the offline stand-in, not Jev', answers: {} };
+    else try {
+      const wait = MIN_GAP - (performance.now() - lastCallAt);
+      if (wait > 0) await sleep(wait);
+      lastCallAt = performance.now(); callTimes.push(lastCallAt);
+      const r = await fetch('../api/ask', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ state, questions }) });
+      resp = await r.json().catch(() => ({ error: 'unreadable response' }));
+      if (!r.ok) throw Object.assign(new Error(resp.error || `HTTP ${r.status}`), { retryAfter: resp.retry_after_s });
+    } catch (e) {
+      resp = { error: `live call failed: ${e.message}`, answers: {} };
+      if (e.retryAfter) await sleep(e.retryAfter * 1000);
+    }
+    if (party !== p0) return;                                    // the world was replaced while we waited
+    for (const [m, opts] of per) sim.as(m.e, () => {
+      const a = resp.answers?.[`next_${m.e.id}`];
+      const one = a ? { source: resp.source || 'typesafe', answers: { next: a } } : { ...DECIDERS.offline(sim, opts), error: resp.error || 'no answer for this agent' };
+      applyAsk(sim, m.e, a ? resp.answers?.[`ask_${m.e.id}`]?.choice : offlineAsk(sim));
+      const { pick, record } = resolve(sim, opts, one, { gate: false });
+      record.who = m.e.id; record.source = one.source;
+      if (one.error) record.error = one.error;
+      m.wantsDecision = false; m.thinking = false;
+      sim.note('jev', { ...record, pick: pick && pick.name, who: m.e.id });
+      if (m.e.id === focusId || $('who').value === 'coop') showDecision(opts, one, record, pick, m.e.id, per.size);
+      if (!pick) { m.pending = { a: { op: 'wait' }, pl: { ticks: 10 }, t0: sim.tick, doneAt: sim.tick + 10 }; return; }
+      m.onEnded = (ended) => sim.as(m.e, () => { journal(sim, record, ended); remember(sim, record.choice, ended); fulfil(sim, pick, ended); });
+      party.startMacro(m, pick.name, pick.args);
+    });
+  } finally { partyBusy = false; }
+}
+
+// The team strip: everyone's health, food and what they are doing, and any
+// request standing. In a swarm, click a row to watch that agent. In co-op,
+// the ask buttons set YOUR player's request, which every Jev teammate sees
+// in its state (perceive → team) and answers with follow / guard / give.
+let teamAt = 0;
+function buildAsks() {
+  const row = $('ask-row');
+  row.innerHTML = '';
+  for (const [what, label] of Object.entries(REQUESTS)) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = what; b.title = label; b.dataset.ask = what;
+    b.addEventListener('click', () => ask(what));
+    row.appendChild(b);
+  }
+  const x = document.createElement('button');
+  x.type = 'button'; x.textContent = 'never mind'; x.dataset.ask = '';
+  x.addEventListener('click', () => ask(null));
+  row.appendChild(x);
+}
+function ask(what) {
+  if (!human || !sim) return;
+  const cur = human.e.request && human.e.request.what;
+  if (!what || what === cur) { human.e.request = null; sim.note('request', { who: human.e.id, what: null }); toast('request withdrawn'); }
+  else { human.e.request = { what, tick: sim.tick }; sim.note('request', { who: human.e.id, what }); toast(`asked Jev to ${REQUESTS[what]}`); }
+  teamAt = 0;
+}
+$('team-list').addEventListener('click', (ev) => {
+  const b = ev.target.closest('.tm');
+  if (!b || human) return;                   // in co-op your eyes stay yours
+  focusId = +b.dataset.id; if (replay) replay.focus = focusId; teamAt = 0;
+});
+function renderTeam(now) {
+  const box = $('team');
+  box.hidden = !party;
+  $('asks').hidden = !human;
+  if (!party || now - teamAt < 300) return;
+  teamAt = now;
+  $('team-hint').textContent = human ? (locked() ? '— Esc frees the mouse to ask' : '— what you ask goes into Jev\'s state') : '— click one to watch it';
+  const live = (e) => e.request && sim.tick - e.request.tick < 1600 ? e.request.what : null;
+  const html = party.members.map((m, i) => {
+    const e = m.e, who = m.controller === 'human' ? 'you' : `Jev #${e.id}`;
+    const doing = m.thinking ? 'thinking…' : (e.doing || 'idle').replace(/_/g, ' ');
+    const r = live(e);
+    return `<button type="button" class="tm${e.id === focusId ? ' focus' : ''}" data-id="${e.id}"><i style="background:#${TEAM_SHIRTS[i % TEAM_SHIRTS.length].toString(16).padStart(6, '0')}"></i>`
+      + `<span>${who} <span class="st">${doing}</span>${r ? ` <span class="st ask">asks: ${r}</span>` : ''}</span>`
+      + `<span class="st">♥${e.hp} ◆${e.food}</span></button>`;
+  }).join('');
+  if ($('team-list').dataset.html !== html) { $('team-list').innerHTML = html; $('team-list').dataset.html = html; }   // rewrite only on change, or a click lands on a detached row
+  const mine = human && live(human.e);
+  for (const b of $('ask-row').querySelectorAll('button')) b.classList.toggle('on', !!mine && b.dataset.ask === mine);
+}
+
+function showDecision(opts, response, record, pick, who, batchN) {
   const probs = response.answers?.next?.probabilities || {};
   const rows = opts.map((o) => ({ id: o.id, p: probs[o.id] ?? (o.id === record.choice ? 1 : 0) }))
     .sort((a, b) => b.p - a.p).slice(0, 8);
   const now = performance.now();
   while (callTimes.length && now - callTimes[0] > 60000) callTimes.shift();
   const src = response.source === 'typesafe' ? 'Jev (live)' : response.source === 'typesafe-reused' ? 'Jev (same call, next-ranked)' : response.source === 'offline' ? 'offline stand-in — not the model' : response.source;
-  $('src').textContent = src + ($('who').value === 'jev' ? ` · ${callTimes.length} calls/min` : '');
+  $('src').textContent = src + (who != null ? ` · agent #${who}` : '') + (batchN > 1 ? ` · 1 call for ${batchN}` : '') + (['jev', 'coop', 'swarm'].includes($('who').value) ? ` · ${callTimes.length} calls/min` : '');
   $('decision').innerHTML = rows.map((r) => `<div class="opt${r.id === record.choice ? ' pick' : ''}"><span>${r.id.replace(/_/g, ' ')}</span><span class="bar"><i style="width:${Math.round(r.p * 100)}%"></i></span><span class="mono">${r.p ? r.p.toFixed(2) : ''}</span></div>`).join('')
     + `<div class="meta">${opts.length} legal options` + (record.confidence != null ? ` · confidence ${record.confidence.toFixed(2)}` : '')
     + (record.danger != null ? ` · danger ${record.danger.toFixed(1)}/3` : '') + (record.have != null ? ` · have ${record.have.toFixed(2)}` : '') + '</div>'
@@ -457,11 +563,27 @@ function startLive() {
   lastLive = null;
   outbox = [];
   pending = null;
+  party = null; human = null; focusId = sim.players[0].id; partyWaiting = []; partySince = 0;
+  const who = $('who').value;
+  if (who === 'coop' || who === 'swarm') {
+    // multiplayer: everyone shares one clock (party.mjs); Jev thinks in real time
+    const extra = who === 'coop' ? 1 : 2;
+    for (let i = 0; i < extra; i++) sim.addPlayer();
+    party = new Party(sim);
+    sim.players.forEach((e, i) => {
+      if (who === 'coop' && i === 0) {
+        human = party.join(e, 'human', { queue: hands.queue, intent: () => moveIntent(), onResult: (a, r) => { if (!r.ok && a.op !== 'move') toast(r.why); if (r.ok && r.ticks > 1) hands.busy = { op: a.op, start: sim.tick - r.ticks, end: sim.tick }; } });
+        e.role = 'human';
+      } else party.join(e, 'mind');
+    });
+  }
+  lastMode = who;
   driver = new Driver(sim);
   setAuto();
   const lines = sim.drain();
   allLines = lines.slice();
   replay = new Replay(lines[0]);
+  replay.focus = focusId;
   initMeshes();
   macroLog = []; $('log').innerHTML = ''; $('tail').textContent = ''; homeAt = null;
   feed(lines.slice(1));
@@ -495,7 +617,7 @@ function playerPos() {
     const c = replay.world.tiling.cols[homeAt.c];
     return new THREE.Vector3(c.x, homeAt.y, c.z);
   }
-  const p = entMesh.get(0);
+  const p = entMesh.get(focusId);
   return p ? p.position : new THREE.Vector3(0, 20, 0);
 }
 function snapCamera() {
@@ -504,7 +626,7 @@ function snapCamera() {
   camera.position.set(p.x + 13, p.y + 13, p.z + 13);
 }
 function underground() {
-  const p = replay.ents.get(0);
+  const p = replay.ents.get(focusId);
   if (!p) return false;
   // a canopy is not a ceiling: only rock, earth and built blocks count
   for (let y = p.y + 2; y < H; y++) { const id = replay.b[p.c * H + y]; if (![B.air, B.torch, B.leaves, B.log, B.water].includes(id)) return true; }
@@ -512,12 +634,12 @@ function underground() {
 }
 function updateCamera() {
   const p = playerPos();
-  const pe = replay.ents.get(0);
+  const pe = replay.ents.get(focusId);
   if (playing()) {
     // your own eyes (or just behind your shoulder, V)
     cut.constant = 1e6;
     controls.enabled = false;
-    const m = entMesh.get(0);
+    const m = entMesh.get(focusId);
     camera.rotation.set(hands.pitch, hands.yaw, 0, 'YXZ');
     const head = new THREE.Vector3(p.x, p.y + 1.62, p.z);
     if (hands.third) {
@@ -539,7 +661,7 @@ function updateCamera() {
   }
   cut.constant = !$('pov').checked && !$('homecam').checked && pe && underground() ? pe.y + 2.02 : 1e6;
   if ($('pov').checked) {
-    const m = entMesh.get(0);
+    const m = entMesh.get(focusId);
     controls.enabled = false;
     const yaw = m ? m.rotation.y : 0;
     camera.position.set(p.x, p.y + 1.62, p.z);
@@ -547,7 +669,7 @@ function updateCamera() {
     if (m) m.visible = false;
   } else {
     controls.enabled = true;
-    const m = entMesh.get(0); if (m) m.visible = true;
+    const m = entMesh.get(focusId); if (m) m.visible = true;
     const want = new THREE.Vector3(p.x, p.y + 1.5, p.z);
     const delta = want.clone().sub(controls.target).multiplyScalar(0.12);
     controls.target.add(delta); camera.position.add(delta);
@@ -579,7 +701,7 @@ const hands = {
   items() { return replay ? Object.keys(replay.inv) : []; },
   selected() { const it = this.items(); return it[Math.min(this.sel, it.length - 1)] || null; },
 };
-const playing = () => sim && $('who').value === 'you';
+const playing = () => sim && ($('who').value === 'you' || $('who').value === 'coop');
 const locked = () => document.pointerLockElement === canvas;
 // touch screens have no pointer lock: "engaged" is locked OR the touch game started
 const touching = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
@@ -630,13 +752,13 @@ function aim(nx = 0, ny = 0) {
   const o = camera.position.clone(), d = new THREE.Vector3();
   if (nx || ny) d.set(nx, ny, 0.5).unproject(camera).sub(o).normalize();   // a tap, not the crosshair
   else camera.getWorldDirection(d);
-  const pe = entMesh.get(0);
+  const pe = entMesh.get(focusId);
   const start = hands.third && pe ? camera.position.distanceTo(new THREE.Vector3(pe.position.x, pe.position.y + 1.62, pe.position.z)) : 0;
   let prev = null;
   for (let t = start; t < start + 5.5; t += 0.04) {
     const x = o.x + d.x * t, y = o.y + d.y * t, z = o.z + d.z * t;
     for (const e of replay.ents.values()) {
-      if (e.id === 0) continue;
+      if (e.id === focusId) continue;
       const col = replay.world.tiling.cols[e.c], tall = e.kind === 'pig' ? 1 : 2;
       if (Math.hypot(x - col.x, z - col.z) < 0.38 && y >= e.y && y <= e.y + tall) return { ent: e };
     }
@@ -672,6 +794,7 @@ function showAim(a) {
 }
 function takeOver() {
   // a hand on the controls ends whatever macro was running
+  if (party && human) { party.takeOver(human); return; }
   if (driver && driver.gen) driver.end({ ok: false, why: 'you took over' });
 }
 canvas.addEventListener('click', () => { if (playing() && !locked()) canvas.requestPointerLock?.(); });
@@ -829,7 +952,24 @@ function frame(now) {
   lastT = now;
   const speed = +$('speed').value;
   if (!$('pause').checked) target += dt * TPS * speed;
-  if (sim && driver && playing()) {
+  if (sim && party) {
+    // multiplayer: one shared clock; your hands feed your member's queue,
+    // Jev members wait (idle) for a batched decision while the world runs
+    for (let n = 0; n < 400 && sim.tick < target; n++) {
+      const need = party.tick();
+      for (const m of need) if (!partyWaiting.includes(m)) { partyWaiting.push(m); m.thinking = true; m.wantsDecision = false; }
+      if (partyWaiting.length && !partySince) partySince = sim.tick;
+      if (human && hands.queue.length === 0 && !moveIntent() && !human.gen && !human.pending) { /* you are idle: the clock still runs */ }
+      if (human && (hands.queue.length || moveIntent()) && sim.tick >= target - 0.5) break;   // your action lands on the clock
+    }
+    const minds = party.members.filter((m) => m.controller === 'mind');
+    if (partyWaiting.length && !partyBusy && (sim.tick - partySince >= 12 || minds.every((m) => partyWaiting.includes(m)))) {
+      const batch = partyWaiting; partyWaiting = []; partySince = 0;
+      decideParty(batch).catch((e) => console.error(e));
+    }
+    const lines = sim.drain();
+    if (lines.length) { allLines.push(...lines); outbox.push(...lines); }
+  } else if (sim && driver && playing()) {
     // hands-on: the clock runs in real time. An action is taken only when
     // the sim has caught up with the clock, and its cost in ticks is then
     // served out in real time before the next — mining stone with a wooden
@@ -908,6 +1048,7 @@ function frame(now) {
     updateCamera();
     sky();
     hud();
+    renderTeam(now);
     refreshLegal(now);
   }
   renderer.render(scene, camera);
@@ -928,7 +1069,7 @@ if (KINDS.includes(hp.get('kind'))) $('kind').value = hp.get('kind');
 if (['s', 'm', 'l'].includes(hp.get('size'))) $('size').value = hp.get('size');
 $('who').addEventListener('change', setAuto);
 $('difficulty').addEventListener('change', startLive);
-if (['jev', 'baseline', 'offline', 'random', 'you'].includes(hp.get('who'))) $('who').value = hp.get('who');
+if (['jev', 'baseline', 'offline', 'random', 'you', 'coop', 'swarm'].includes(hp.get('who'))) $('who').value = hp.get('who');
 if (['normal', 'hard'].includes(hp.get('difficulty'))) $('difficulty').value = hp.get('difficulty');
 fetch('../api/health').then((r) => r.json()).then((h) => { keyConfigured = !!(h.key_configured ?? h.keyConfigured ?? h.configured ?? true); }).catch(() => { keyConfigured = false; });
 $('speed').addEventListener('input', () => { $('speed-out').textContent = $('speed').value + '×'; });
@@ -947,6 +1088,7 @@ $('load').addEventListener('change', async (e) => {
   if (f) startFile(await f.text());
 });
 buildMacroButtons();
+buildAsks();
 // a pasted or edited world link loads that world
 window.addEventListener('hashchange', () => {
   const q = new URLSearchParams(location.hash.slice(1));
@@ -957,7 +1099,7 @@ window.addEventListener('hashchange', () => {
   if (['s', 'm', 'l'].includes(q.get('size'))) $('size').value = q.get('size');
   if (SHAPES.includes(q.get('shape'))) $('shape').value = q.get('shape');
   if (q.get('seed')) $('seed').value = q.get('seed');
-  if (['jev', 'baseline', 'offline', 'random', 'you'].includes(q.get('who'))) $('who').value = q.get('who');
+  if (['jev', 'baseline', 'offline', 'random', 'you', 'coop', 'swarm'].includes(q.get('who'))) $('who').value = q.get('who');
   startLive();
 });
 startLive();
@@ -965,7 +1107,7 @@ requestAnimationFrame(frame);
 
 // the headless harness hook (the __foam / __dungeon / __jev pattern)
 window.__craft = {
-  get sim() { return sim; }, get replay() { return replay; }, get driver() { return driver; },
+  get sim() { return sim; }, get replay() { return replay; }, get driver() { return driver; }, get party() { return party; }, get focus() { return focusId; },
   hands, aim, camera, locate: (x, z) => locate(x, z),
   lines: () => allLines.slice(),
   // fast-forward with a LOCAL decider (Jev's calls are never made in a burst)

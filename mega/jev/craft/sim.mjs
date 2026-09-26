@@ -61,15 +61,13 @@ export class Sim {
     this.lines = [];
     this.ev = [];
     this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0, placed: {} };
-    this.seen = new Uint8Array(this.cols.length);
-    this.seenCount = 0;
-    this.home = null;             // [c, y] once a house is built or a home is set
     this.protect = new Set();     // voxels the planners must not dig (house walls, roof)
+    this.players = [];            // every player entity; this.me is the one acting now
     this.lines.push(JSON.stringify({
       t: 'craft', v: w.version, seed: w.seed, shape: w.shape, radius: w.radius, kind: w.kind, H,
       sig: worldSignature(w), spawn: w.spawn, day: DAY, night: NIGHT_START, difficulty: this.difficulty,
     }));
-    this.player = this.spawnEnt('player', w.spawn, w.height[w.spawn] + 1, { hp: 20, food: 20, inv: {} });
+    this.me = this.newPlayer(w.spawn, w.height[w.spawn] + 1);
     this.look();
     // pigs: scattered on grass, a few per hundred columns
     const pigs = Math.round(this.N / 220);
@@ -81,6 +79,42 @@ export class Sim {
       k++;
     }
     this.flush();
+  }
+
+  // ----------------------------------------------------------- players -----
+  // Several players share one world. Everything personal — the body, the
+  // inventory, the map in your head (seen), your home, your journal and the
+  // macros' bookkeeping — lives ON the player entity, and `this.me` says whose
+  // turn it is. The accessors below make `sim.player`, `sim.inv`, `sim.seen`,
+  // `sim.home`, `sim._house`… mean "the current player's", so every macro and
+  // planner written for one player works unchanged for any of them.
+  newPlayer(c, y, extra = {}) {
+    const e = this.spawnEnt('player', c, y, { hp: 20, food: 20, inv: {}, seen: new Uint8Array(this.N), seenCount: 0, home: null, ...extra });
+    this.players.push(e);
+    return e;
+  }
+  get player() { return this.me; }
+  // A second (third…) player: stands on the nearest free spot next to the first.
+  addPlayer(extra = {}) {
+    const first = this.players[0];
+    const ring = [first.c, ...this.cols[first.c].adj, ...this.cols[first.c].adj.flatMap((n) => this.cols[n].adj)];
+    for (const c of ring) {
+      const y = this.surface(c);
+      if (this.canStand(c, y) && !this.occupied(c, y) && !this.occupied(c, y + 1)) {
+        const e = this.newPlayer(c, y, extra);
+        this.as(e, () => this.look());
+        this.flush();
+        return e;
+      }
+    }
+    throw new Error('no room next to the first player');
+  }
+  // run fn as player e (and put the previous one back)
+  as(e, fn) { const prev = this.me; this.me = e; try { return fn(); } finally { this.me = prev; } }
+  nearestPlayer(c) {
+    let best = null, bd = Infinity;
+    for (const e of this.players) { const d = this.dist(e.c, c); if (d < bd) { bd = d; best = e; } }
+    return best;
   }
 
   // ------------------------------------------------------------ voxels -----
@@ -145,7 +179,7 @@ export class Sim {
     if (e.c === c && e.y === y) return;
     e.c = c; e.y = y;
     this.emit(['p', e.id, c, y]);
-    if (e === this.player) this.look();
+    if (e.kind === 'player') this.as(e, () => this.look());
   }
   // What the player has seen: every column within SIGHT of where it has
   // stood. Derived from positions alone, so it needs no stream events — a
@@ -180,15 +214,16 @@ export class Sim {
     e.hp = Math.max(0, e.hp - dmg);
     this.emit(['hit', from ? from.id : -1, e.id, dmg]);
     this.emit(['hp', e.id, e.hp]);
-    if (e === this.player) this.stats.damageTaken += dmg;
+    if (e.kind === 'player') this.stats.damageTaken += dmg;
     if (e.hp > 0) return;
     this.emit(['die', e.id]);
-    if (e === this.player) {
+    if (e.kind === 'player') {
       this.stats.deaths++;
+      e.deaths = (e.deaths || 0) + 1;
       e.inv = {}; e.hp = 20; e.food = 20;
-      this.emit(['inv', {}]); this.emit(['hp', e.id, 20]); this.emit(['food', 20]);
-      // respawn at home if there is one (the house is the bed), else at spawn
-      if (this.home && this.canStand(this.home[0], this.home[1])) { this.moveEnt(e, this.home[0], this.home[1]); return; }
+      this.emit(['inv', {}, e.id]); this.emit(['hp', e.id, 20]); this.emit(['food', 20, e.id]);
+      // respawn at their own home if there is one (the house is the bed), else at spawn
+      if (e.home && this.canStand(e.home[0], e.home[1])) { this.moveEnt(e, e.home[0], e.home[1]); return; }
       const s = this.world.spawn;
       let sy = this.world.height[s] + 1;
       while (sy < H - 2 && !this.canStand(s, sy)) sy++;
@@ -196,18 +231,19 @@ export class Sim {
       return;
     }
     this.stats.kills[e.kind] = (this.stats.kills[e.kind] || 0) + 1;
-    if (e.kind === 'pig' && from === this.player) this.give('porkchop', 1 + Math.floor(this.rng() * 2));
+    if (e.kind === 'pig' && from && from.kind === 'player') this.giveTo(from, 'porkchop', 1 + Math.floor(this.rng() * 2));
     this.removeEnt(e, 'killed');
   }
 
   // ------------------------------------------------------------- player ----
-  get inv() { return this.player.inv; }
+  get inv() { return this.me.inv; }
   has(item, n = 1) { return (this.inv[item] || 0) >= n; }
-  give(item, n) { this.inv[item] = (this.inv[item] || 0) + n; this.emit(['inv', { ...this.inv }]); }
+  give(item, n) { this.giveTo(this.me, item, n); }
+  giveTo(e, item, n) { e.inv[item] = (e.inv[item] || 0) + n; this.emit(['inv', { ...e.inv }, e.id]); }
   take(item, n) {
     this.inv[item] -= n;
     if (this.inv[item] <= 0) delete this.inv[item];
-    this.emit(['inv', { ...this.inv }]);
+    this.emit(['inv', { ...this.inv }, this.me.id]);
   }
   pickTier() { let t = 0; for (const k in PICK_TIER) if (this.has(k)) t = Math.max(t, PICK_TIER[k]); return t; }
   swordDmg() { let d = SWORD_DMG.none; for (const k in SWORD_DMG) if (k !== 'none' && this.has(k)) d = Math.max(d, SWORD_DMG[k]); return d; }
@@ -269,102 +305,128 @@ export class Sim {
     return false;
   }
 
-  // Run one primitive action to completion. Returns { ok, ticks, why? }.
-  // Refusals cost nothing and change nothing — the answer says why.
-  act(a) {
-    const p = this.player, t0 = this.tick;
-    const done = (ok, why) => { this.flush(); return { ok, ticks: this.tick - t0, ...(why ? { why } : {}) }; };
+  // One primitive action, as a PLAN: validate now (a refusal costs nothing
+  // and changes nothing), `pre` applies when it starts, it lasts `ticks`, and
+  // `post` applies when it completes — re-checked then, because in a shared
+  // world someone else may have mined that block in the meantime. act() runs
+  // a plan synchronously (one player); party.mjs runs several side by side.
+  plan(a) {
+    const p = this.player;
+    const no = (why) => ({ ok: false, why });
     switch (a.op) {
       case 'move': {
-        if (!this.cols[p.c].adj.includes(a.to)) return done(false, 'not a neighbour');
+        if (!this.cols[p.c].adj.includes(a.to)) return no('not a neighbour');
         const y = this.stepTarget(p.c, p.y, a.to, 2, 20);
-        if (y == null) return done(false, 'blocked');
-        if (this.occupied(a.to, y) || this.occupied(a.to, y + 1)) return done(false, 'occupied');
-        this.emit(['do', 'move', a.to]);
-        const fall = p.y - y;
-        this.moveEnt(p, a.to, y);
-        if (fall > 3) this.hurt(p, fall - 3, null);
-        this.step();
-        return done(true);
+        if (y == null) return no('blocked');
+        if (this.occupied(a.to, y) || this.occupied(a.to, y + 1)) return no('occupied');
+        return { ok: true, ticks: 1, pre: () => {
+          this.emit(['do', 'move', a.to]);
+          const fall = p.y - y;
+          this.moveEnt(p, a.to, y);
+          if (fall > 3) this.hurt(p, fall - 3, null);
+        } };
       }
       case 'mine': {
         const { c, y } = a;
-        if (!this.reachable(p.c, p.y, c, y)) return done(false, 'out of reach');
+        if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
         const blk = BLOCKS[this.get(c, y)];
-        if (blk.hard === Infinity) return done(false, `${blk.name} cannot be mined`);
+        if (blk.hard === Infinity) return no(`${blk.name} cannot be mined`);
         const tier = this.pickTier();
-        if (blk.tool > tier) return done(false, `${blk.name} needs a ${['', 'wooden', 'stone', 'iron'][blk.tool]} pickaxe or better`);
+        if (blk.tool > tier) return no(`${blk.name} needs a ${['', 'wooden', 'stone', 'iron'][blk.tool]} pickaxe or better`);
         const speed = blk.tool ? PICK_SPEED[tier] : 1;
         const ticks = Math.max(1, Math.ceil(blk.hard / speed));
-        this.emit(['do', 'mine', c, y, ticks]);
-        for (let k = 0; k < ticks; k++) this.step();
-        if (this.get(c, y) !== blk.id) return done(false, 'block changed while mining');
-        this.set(c, y, this.get(c, y + 1) === B.water || this.cols[c].adj.some((n) => this.get(n, y) === B.water) && y <= SEA ? B.water : B.air);
-        this.stats.mined[blk.name] = (this.stats.mined[blk.name] || 0) + 1;
-        if (blk.drop) this.give(blk.drop, 1);
-        if (blk.id === B.leaves && this.rng() < 1 / 6) this.give('apple', 1);
-        this.settle();
-        return done(true);
+        return { ok: true, ticks, pre: () => this.emit(['do', 'mine', c, y, ticks]), post: () => {
+          if (this.get(c, y) !== blk.id) return no('block changed while mining');
+          this.set(c, y, this.get(c, y + 1) === B.water || this.cols[c].adj.some((n) => this.get(n, y) === B.water) && y <= SEA ? B.water : B.air);
+          this.stats.mined[blk.name] = (this.stats.mined[blk.name] || 0) + 1;
+          if (blk.drop) this.give(blk.drop, 1);
+          if (blk.id === B.leaves && this.rng() < 1 / 6) this.give('apple', 1);
+          this.settle();
+          return { ok: true };
+        } };
       }
       case 'place': {
         const { c, y, item } = a;
-        if (!PLACEABLE.has(item)) return done(false, `${item} does not place`);
-        if (!this.has(item)) return done(false, `no ${item}`);
-        if (!this.reachable(p.c, p.y, c, y)) return done(false, 'out of reach');
+        if (!PLACEABLE.has(item)) return no(`${item} does not place`);
+        if (!this.has(item)) return no(`no ${item}`);
+        if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
         const cur = this.get(c, y);
-        if (cur !== B.air && cur !== B.water) return done(false, `occupied by ${blockName(cur)}`);
-        if (this.occupied(c, y)) return done(false, 'an entity is there');
-        this.emit(['do', 'place', c, y, item]);
-        this.take(item, 1);
-        this.set(c, y, B[item]);
-        this.stats.placed[item] = (this.stats.placed[item] || 0) + 1;
-        this.step();
-        return done(true);
+        if (cur !== B.air && cur !== B.water) return no(`occupied by ${blockName(cur)}`);
+        if (this.occupied(c, y)) return no('an entity is there');
+        return { ok: true, ticks: 1, pre: () => {
+          this.emit(['do', 'place', c, y, item]);
+          this.take(item, 1);
+          this.set(c, y, B[item]);
+          this.stats.placed[item] = (this.stats.placed[item] || 0) + 1;
+        } };
       }
       case 'craft': {
         const r = RECIPES[a.item];
-        if (!r) return done(false, `no recipe for ${a.item}`);
-        if (r.at && !this.near(B[r.at])) return done(false, `needs a ${r.at} nearby`);
+        if (!r) return no(`no recipe for ${a.item}`);
+        if (r.at && !this.near(B[r.at])) return no(`needs a ${r.at} nearby`);
         const bag = recipeBags(r).find((g) => Object.entries(g).every(([k, n]) => this.has(k, n)));
         if (!bag) {
           const [k, n] = Object.entries(r.need).find(([k2, n2]) => !this.has(k2, n2));
-          return done(false, `needs ${n} ${k}` + (r.alt ? ' (or an alternative)' : ''));
+          return no(`needs ${n} ${k}` + (r.alt ? ' (or an alternative)' : ''));
         }
-        this.emit(['do', 'craft', a.item]);
-        for (const [k, n] of Object.entries(bag)) this.take(k, n);
-        this.give(a.item, r.n);
-        this.stats.crafted[a.item] = (this.stats.crafted[a.item] || 0) + r.n;
-        this.step();
-        return done(true);
+        return { ok: true, ticks: 1, pre: () => {
+          this.emit(['do', 'craft', a.item]);
+          for (const [k, n] of Object.entries(bag)) this.take(k, n);
+          this.give(a.item, r.n);
+          this.stats.crafted[a.item] = (this.stats.crafted[a.item] || 0) + r.n;
+        } };
       }
       case 'eat': {
-        if (!FOOD[a.item]) return done(false, `${a.item} is not food`);
-        if (!this.has(a.item)) return done(false, `no ${a.item}`);
-        if (p.food >= 20) return done(false, 'not hungry');
-        this.emit(['do', 'eat', a.item]);
-        this.take(a.item, 1);
-        p.food = Math.min(20, p.food + FOOD[a.item]);
-        this.emit(['food', p.food]);
-        for (let k = 0; k < 4; k++) this.step();
-        return done(true);
+        if (!FOOD[a.item]) return no(`${a.item} is not food`);
+        if (!this.has(a.item)) return no(`no ${a.item}`);
+        if (p.food >= 20) return no('not hungry');
+        return { ok: true, ticks: 4, pre: () => {
+          this.emit(['do', 'eat', a.item]);
+          this.take(a.item, 1);
+          p.food = Math.min(20, p.food + FOOD[a.item]);
+          this.emit(['food', p.food, p.id]);
+        } };
       }
       case 'attack': {
         const t = this.ents.get(a.id);
-        if (!t || t === p) return done(false, 'no such target');
-        if (!this.adjacentTo(p, t)) return done(false, 'not adjacent');
-        this.emit(['do', 'attack', t.id]);
-        this.hurt(t, this.swordDmg(), p);
-        this.step(); this.step();
-        return done(true);
+        if (!t || t === p) return no('no such target');
+        if (t.kind === 'player') return no('not attacking a teammate');
+        if (!this.adjacentTo(p, t)) return no('not adjacent');
+        return { ok: true, ticks: 2, pre: () => { this.emit(['do', 'attack', t.id]); this.hurt(t, this.swordDmg(), p); } };
+      }
+      case 'give': {
+        // hand items to another player standing next to you
+        const t = this.ents.get(a.to);
+        if (!t || t.kind !== 'player' || t === p) return no('no such teammate');
+        if (!this.adjacentTo(p, t)) return no('not next to them');
+        const n = Math.max(1, a.n | 0 || 1);
+        if (!this.has(a.item, n)) return no(`not holding ${n} ${a.item}`);
+        return { ok: true, ticks: 1, pre: () => {
+          this.emit(['do', 'give', a.item, n, t.id]);
+          this.take(a.item, n);
+          this.giveTo(t, a.item, n);
+        } };
       }
       case 'wait': {
         const n = Math.max(1, Math.min(DAY, a.ticks | 0 || 1));
-        for (let k = 0; k < n; k++) this.step();
-        return done(true);
+        return { ok: true, ticks: n };
       }
       default:
-        return done(false, `unknown op ${a.op}`);
+        return no(`unknown op ${a.op}`);
     }
+  }
+
+  // Run one primitive action to completion (one player; the world steps under it).
+  act(a) {
+    const t0 = this.tick;
+    const done = (ok, why) => { this.flush(); return { ok, ticks: this.tick - t0, ...(why ? { why } : {}) }; };
+    const pl = this.plan(a);
+    if (!pl.ok) return done(false, pl.why);
+    if (pl.pre) pl.pre();
+    for (let k = 0; k < pl.ticks; k++) this.step();
+    const r = pl.post ? pl.post() : null;
+    if (r && !r.ok) return done(false, r.why);
+    return done(true);
   }
 
   // anything no longer supported falls (the player after digging under itself)
@@ -383,12 +445,17 @@ export class Sim {
   // ------------------------------------------------------------ the tick ---
   step() {
     this.tick++;
-    const p = this.player, t = this.tick;
-    // hunger
-    if (t % this.cfg.hungerEvery === 0 && p.food > 0) { p.food--; this.emit(['food', p.food]); }
-    if (t % 80 === 0) {
-      if (p.food === 0) this.hurt(p, 1, null);
-      else if (p.food >= 18 && p.hp < 20) { p.hp++; this.emit(['hp', p.id, p.hp]); }
+    const t = this.tick;
+    // spawning is anchored to one player per tick, in turn (no RNG spent on
+    // choosing, so a one-player world is unchanged by there being a list)
+    const p = this.players[t % this.players.length];
+    // hunger, for everyone
+    for (const q of this.players) {
+      if (t % this.cfg.hungerEvery === 0 && q.food > 0) { q.food--; this.emit(['food', q.food, q.id]); }
+      if (t % 80 === 0) {
+        if (q.food === 0) this.hurt(q, 1, null);
+        else if (q.food >= 18 && q.hp < 20) { q.hp++; this.emit(['hp', q.id, q.hp]); }
+      }
     }
     if (t % DAY === NIGHT_START) this.emit(['note', 'dusk']);
     if (t % DAY === 0) this.emit(['note', 'dawn']);
@@ -421,7 +488,7 @@ export class Sim {
       if (this.get(e.c, e.y) === B.lava || this.get(e.c, e.y + 1) === B.lava) this.hurt(e, 4, null);
     }
     for (const e of [...this.ents.values()]) {
-      if (e === p || !this.ents.has(e.id)) continue;
+      if (e.kind === 'player' || !this.ents.has(e.id)) continue;
       if (e.cd > 0) e.cd--;
       if (e.kind === 'zombie') this.zombieTick(e);
       else if (e.kind === 'pig') this.pigTick(e);
@@ -433,7 +500,7 @@ export class Sim {
     return false;
   }
   zombieTick(z) {
-    const p = this.player;
+    const p = this.nearestPlayer(z.c);        // zombies go for whoever is closest
     const d = this.dist(z.c, p.c);
     if (d > 40) return this.removeEnt(z, 'despawn');
     if (!this.isNight() && this.skyOpen(z.c, z.y + 2) && this.tick % 10 === 0) this.hurt(z, 2, null);
@@ -601,6 +668,15 @@ export class Sim {
   drain() { const out = this.lines; this.lines = []; return out; }
 }
 
+// What belongs to a player, not to the world. Reading or writing any of
+// these on the sim reaches the CURRENT player (sim.me).
+export const PER_PLAYER = ['seen', 'seenCount', 'home', '_house', '_lit', '_litTried', '_journal', '_outcomes',
+  '_heading', '_unreachable', '_lastMacro', '_homeTried', '_round', '_houseFails', '_swordTries', '_explored',
+  '_nightAck', '_branchLeg', 'request', 'role'];
+for (const k of PER_PLAYER) {
+  Object.defineProperty(Sim.prototype, k, { get() { return this.me[k]; }, set(v) { this.me[k] = v; }, configurable: true });
+}
+
 // Replay a stream onto a freshly generated world: the viewer's model, and the
 // selftest's proof that the stream carries everything a renderer needs.
 export class Replay {
@@ -611,8 +687,17 @@ export class Replay {
     if (worldSignature(this.world) !== h.sig) throw new Error(`world signature mismatch: stream ${h.sig}, regenerated ${worldSignature(this.world)} — generator version drift`);
     this.b = this.world.blocks;
     this.ents = new Map();
-    this.tick = 0; this.hp = 20; this.food = 20; this.inv = {}; this.notes = [];
+    this.tick = 0; this.notes = [];
+    this.people = new Map();      // player id → { hp, food, inv }
+    this.focus = 0;               // whose health / food / inventory the HUD shows
   }
+  person(id) {
+    if (!this.people.has(id)) this.people.set(id, { hp: 20, food: 20, inv: {} });
+    return this.people.get(id);
+  }
+  get hp() { return this.person(this.focus).hp; }
+  get food() { return this.person(this.focus).food; }
+  get inv() { return this.person(this.focus).inv; }
   apply(line) {
     const L = typeof line === 'string' ? JSON.parse(line) : line;
     if (L.t) return [];
@@ -623,9 +708,9 @@ export class Replay {
         case '+': this.ents.set(ev[1], { id: ev[1], kind: ev[2], c: ev[3], y: ev[4] }); break;
         case '-': this.ents.delete(ev[1]); break;
         case 'p': { const e = this.ents.get(ev[1]); if (e) { e.c = ev[2]; e.y = ev[3]; } break; }
-        case 'hp': if (ev[1] === 0) this.hp = ev[2]; break;
-        case 'food': this.food = ev[1]; break;
-        case 'inv': this.inv = ev[1]; break;
+        case 'hp': this.person(ev[1]).hp = ev[2]; break;
+        case 'food': this.person(ev[2] ?? 0).food = ev[1]; break;
+        case 'inv': this.person(ev[2] ?? 0).inv = ev[1]; break;
         case 'note': this.notes.push({ k: L.k, kind: ev[1], data: ev[2] }); break;
       }
     }

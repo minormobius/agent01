@@ -71,6 +71,16 @@ button:disabled{opacity:.4;cursor:default}
 .decision .warn{color:var(--warn)} .decision .bad{color:var(--bad)}
 .bottom-right{right:12px;bottom:12px;width:min(420px,calc(100vw - 24px))}
 .tail{margin:4px 0 0;font:11px/1.35 var(--mono);color:var(--ink-2);white-space:pre;overflow:hidden;max-height:120px}
+.team{top:12px;left:50%;transform:translateX(-50%);width:min(360px,calc(100vw - 24px));padding:6px 10px}
+.team-list{display:grid;gap:2px;margin-top:2px}
+.tm{display:grid;grid-template-columns:14px 1fr auto;gap:6px;align-items:center;font-size:12px;border:1px solid transparent;border-radius:4px;padding:1px 4px;background:transparent;text-align:left;color:var(--ink)}
+.tm.focus{border-color:var(--accent)}
+.tm i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.tm .st{font-family:var(--mono);font-size:11px;color:var(--ink-2)}
+.tm .ask{color:var(--warn)}
+.asks{margin-top:4px}
+.asks button{font-size:12px;padding:2px 6px}
+.asks button.on{border-color:var(--warn);color:var(--warn)}
 /* phones and small tablets: every panel becomes a drawer behind a button in
    the dock, so the world gets the screen */
 .dock{display:none}
@@ -81,6 +91,12 @@ button:disabled{opacity:.4;cursor:default}
   .top-left{top:8px;left:8px;max-width:calc(100vw - 180px);padding:6px 8px}
   .top-left .sub,.top-left .links{display:none}
   .top-left h1{font-size:16px;margin:0}
+  .team{top:52px;left:8px;right:8px;width:auto;transform:none;padding:4px 8px}
+  body[class*="show-"] .team{display:none}
+  .team .eyebrow .hint{display:none}
+  .asks .mrow{flex-wrap:nowrap;overflow-x:auto}
+  .asks .eyebrow{display:none}
+  .asks button{font-size:12px;padding:3px 7px;flex:none}
   .top-right,.left,.right,.bottom-right{display:none;left:8px;right:8px;width:auto;max-width:none;top:60px;max-height:calc(100vh - 220px);overflow:auto}
   body.show-controls .top-right,body.show-macros .left,body.show-decision .right,body.show-stream .bottom-right{display:block}
   body.show-controls .top-right{display:grid}
