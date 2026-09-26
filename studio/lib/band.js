@@ -377,7 +377,7 @@ function freeverb(input, sr, room = 0.84, damp = 0.3) {
  * Render every band event (anything that is not the piano) to stereo.
  * `wet(t)` is the reverb send by time: the room the story is in.
  */
-export function renderBand(events, sampleRate, { seconds, wet = () => 0.2, slap = () => 0 } = {}) {
+export function renderBand(events, sampleRate, { seconds, wet = () => 0.2, slap = () => 0, vocal = null } = {}) {
   const sr = sampleRate;
   const n = Math.ceil(seconds * sr);
   const L = new Float32Array(n), R = new Float32Array(n), send = new Float32Array(n), slapSend = new Float32Array(n);
@@ -399,6 +399,16 @@ export function renderBand(events, sampleRate, { seconds, wet = () => 0.2, slap 
       slapSend[start + i] += v * g * sl;
     }
   });
+  // a voice rendered whole (a piece's vocal(): lib/chipsing.js), a little left of centre and in the room
+  if (vocal) {
+    const g = vocal.gain ?? 0.5, start = Math.round(vocal.at * sr), w = vocal.wet ?? 0.25;
+    for (let i = 0; i < vocal.audio.length; i++) {
+      const j = start + i;
+      if (j < 0 || j >= n) continue;
+      const v = vocal.audio[i] * g;
+      L[j] += v * 1.05; R[j] += v * 0.95; send[j] += v * w;
+    }
+  }
   const [wl, wr] = freeverb(send, sr);
   // the street's slapback: one echo off the buildings across the way
   const d = Math.round(0.11 * sr);

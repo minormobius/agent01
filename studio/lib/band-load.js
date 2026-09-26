@@ -12,7 +12,7 @@ export function loadBand(score, sampleRate, seconds, { signal } = {}) {
       try {
         await new Promise((ok) => setTimeout(ok, 0));
         const S = await import(score);
-        resolve(renderBand(S.bandEvents, sampleRate, { seconds, wet: S.wet, slap: S.slap }));
+        resolve(renderBand(S.bandEvents, sampleRate, { seconds, wet: S.wet, slap: S.slap, vocal: S.vocal ? S.vocal(sampleRate) : null }));
       } catch (err) { reject(err); }
     };
     let w;

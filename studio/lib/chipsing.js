@@ -28,7 +28,8 @@ export const SINGER = {
   damping: 0.62,
   wander: 0.07,          // semitones of slow drift
   f1Tune: 1,             // raise F1 to the pitch's first harmonic when a note climbs above it
-  consonants: 0.9,       // consonants' natural lengths, times this
+  consonants: 1.4,       // consonants' natural lengths, times this
+  consCap: 0.5,          // but no more than this share of a note (a quick note's consonants squeeze)
 };
 
 const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -66,9 +67,11 @@ function syllables(word, parts, lexicon) {
 
 /** A song's notes and syllables on its clock: [{ t, dur, midi, syl }] (rests have midi null). */
 export function schedule(song, lexicon) {
-  const beat = 60 / song.bpm, out = [];
-  let t = song.pickup ? -song.pickup * beat : 0;
+  // the clock: the song's own tempo map (song.sec: beat → seconds), or a steady song.bpm
+  const sec = song.sec || ((b) => (b * 60) / song.bpm), out = [];
+  let b = song.pickup ? -song.pickup : 0;
   for (const line of song.lines) {
+    if (line.beat !== undefined) b = line.beat;
     const notes = line.notes.trim().split(/\s+/).filter((n) => n !== '|').map((n) => { const [p, b] = n.split(':'); return { p, beats: b ? Number(b) : 1 }; });
     // the lyric's syllables, in order; '_' extends the last over a note
     const sylls = [];
@@ -80,12 +83,12 @@ export function schedule(song, lexicon) {
     }
     let si = 0;
     for (const n of notes) {
-      const dur = n.beats * beat;
-      if (n.p === 'r') { out.push({ t, dur, midi: null }); t += dur; continue; }
+      const t = sec(b), dur = sec(b + n.beats) - t;
+      if (n.p === 'r') { out.push({ t, dur, beat: b, midi: null }); b += n.beats; continue; }
       const s = sylls[si++];
       if (!s) throw new Error(`more notes than syllables in "${line.lyric}"`);
-      out.push({ t, dur, midi: midi(n.p) + (song.transpose || 0), syl: s.hold ? null : s, hold: !!s.hold });
-      t += dur;
+      out.push({ t, dur, beat: b, beats: n.beats, name: n.p, midi: midi(n.p) + (song.transpose || 0), syl: s.hold ? null : s, hold: !!s.hold, line: song.lines.indexOf(line) });
+      b += n.beats;
     }
     if (si !== sylls.length) throw new Error(`${sylls.length} syllables but ${si} notes in "${line.lyric}"`);
   }
@@ -94,7 +97,10 @@ export function schedule(song, lexicon) {
 
 const FRAME = 5;
 /** Sing a song: { audio, rate, notes, tracks }. */
-export function sing(song, lexicon, { rate = 22050, voice = VOICE, singer = SINGER } = {}) {
+// embody(t), 0..1 on the song's clock: how far the voice has come into a body. At 0 it is a chip: a
+// bare pulse wave, pitches that jump and hold dead still, syllables clipped short, 4 bits at a low
+// sample rate. At 1 it is the whole singer. Between, every one of those moves continuously.
+export function sing(song, lexicon, { rate = 22050, voice = VOICE, singer = SINGER, embody = () => 1 } = {}) {
   const notes = schedule(song, lexicon);
   const t0 = Math.min(0, notes[0].t) - 0.4;               // a moment of silence before the first consonant
   const cdur = (p, cluster) => PHONES[p].dur * (cluster ? 0.8 : 1) * singer.consonants / 1000;
@@ -106,7 +112,7 @@ export function sing(song, lexicon, { rate = 22050, voice = VOICE, singer = SING
     if (n.midi === null) return;
     const next = notes[i + 1];
     const avail = n.dur;
-    const scaleC = (len) => Math.min(1, (0.35 * avail) / Math.max(1e-6, len));
+    const scaleC = (len) => Math.min(1, (singer.consCap * avail) / Math.max(1e-6, len));
     // the onset: before the beat
     if (!n.hold) {
       const on = n.syl.onset, len = onsetLen(n) * scaleC(onsetLen(n));
@@ -118,8 +124,9 @@ export function sing(song, lexicon, { rate = 22050, voice = VOICE, singer = SING
     const lastOfSyl = !(next && next.hold);
     const coda = lastOfSyl ? syl.coda : [];
     const codaLen = coda.reduce((a, p) => a + cdur(p, coda.length > 1), 0);
-    const nextOn = next && next.midi !== null ? onsetLen(next) * Math.min(1, (0.35 * next.dur) / Math.max(1e-6, onsetLen(next))) : 0;
-    const room = Math.max(0.06, avail - nextOn - codaLen * scaleC(codaLen));
+    const nextOn = next && next.midi !== null ? onsetLen(next) * Math.min(1, (singer.consCap * next.dur) / Math.max(1e-6, onsetLen(next))) : 0;
+    // (unembodied, a syllable is a shard: its vowel stops halfway and leaves a gap)
+    const room = Math.max(0.06, avail - nextOn - codaLen * scaleC(codaLen)) * (0.45 + 0.55 * Math.min(1, embody(n.t)));
     const vEnd = n.t + room;
     segs.push({ p: syl.vowel, start: n.t, end: vEnd, note: i, kind: 'vowel', lastOfSyl });
     let s = vEnd;
@@ -177,10 +184,13 @@ export function sing(song, lexicon, { rate = 22050, voice = VOICE, singer = SING
       const grow = Math.max(0, Math.min(1, (since - singer.vibDelay) / singer.vibRise));
       if (n.dur > 0.35) s += singer.vibDepth * grow * Math.sin(2 * Math.PI * singer.vibRate * since);
     }
-    st[k] = s;
+    // unembodied: the note itself, nothing else
+    const e = Math.min(1, Math.max(0, embody(frameT(k))));
+    st[k] = target[k] + e * (s - target[k]);
   }
   tr.forEach((f, k) => {
     f.F0 = hz(st[k]);
+    f.chip = 1 - Math.min(1, Math.max(0, embody(frameT(k))));
     // an open vowel for a high note: F1 no lower than the pitch
     if (singer.f1Tune && f.AV > 0.3 && f.F1 < f.F0 * 1.08) f.F1 = f.F0 * 1.08;
   });

@@ -41,7 +41,7 @@ if (S0.bandEvents) {
   const { renderBand, mix } = await import('../lib/band.js');
   const tb = performance.now();
   const n = Math.ceil(duration * SR);
-  const band = renderBand(S0.bandEvents, SR, { seconds: duration, wet: S0.wet, slap: S0.slap });
+  const band = renderBand(S0.bandEvents, SR, { seconds: duration, wet: S0.wet, slap: S0.slap, vocal: S0.vocal ? S0.vocal(SR) : null });
   const L = new Float32Array(n), R = new Float32Array(n);
   for (let i = 0; i < n && i * 2 < pcm.length; i++) { L[i] = pcm[2 * i]; R[i] = pcm[2 * i + 1]; }
   mix(L, R, band);
@@ -73,7 +73,7 @@ console.log(`${piece}: ${events.length} notes, score ${duration.toFixed(1)} s, r
 console.log(`peak ${peak.toFixed(3)} (${(20 * Math.log10(peak)).toFixed(1)} dBFS), ${(100 * over9 / pcm.length).toFixed(3)}% of samples past 0.9, non-finite ${nan}`);
 // Sections come from the score's own notation, so every piece reports alike.
 const S = await import(join(here, '..', piece, 'score.js'));
-const secs0 = S.notation.sections.map(([bar, name]) => [name, S.sec((bar - 1) * 4)]);
+const secs0 = S.notation.sections.map(([bar, name]) => [name, S.sec((bar - 1) * (S.BEATS_PER_BAR || 4))]);
 const marks = secs0.map(([name, a], k) => [name, a, secs0[k + 1]?.[1] ?? secs]);
 for (const [name, a, b] of marks) {
   console.log(`  ${name.padEnd(12)} ${a.toFixed(1).padStart(5)}–${b.toFixed(1).padEnd(5)}  rms ${rms(a, b).toFixed(1).padStart(6)} dB  peak ${pk(a, b).toFixed(1).padStart(6)} dB`);

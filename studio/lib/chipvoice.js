@@ -392,7 +392,7 @@ export function renderFormant(tr, { rate = 16000, voice = VOICE } = {}) {
   let lfsr = 0x7fff, phase = 0, flowPrev = 0, jit = 1, tiltY = 0;
   const tw = (2 * Math.PI * 500) / rate, tiltGain = voice.tilt ? Math.hypot(1 - voice.tilt * Math.cos(tw), voice.tilt * Math.sin(tw)) / (1 - voice.tilt) : 1;
   const noise = () => { const bit = (lfsr ^ (lfsr >> 1)) & 1; lfsr = (lfsr >> 1) | (bit << 14); return (lfsr / 16384) - 1; };
-  let lpNoise = 0;
+  let lpNoise = 0, chipAt = null;
   for (let i = 0; i < N; i++) {
     const fi = i / spf, k = Math.min(tr.length - 1, Math.floor(fi)), k2 = Math.min(tr.length - 1, k + 1), u = fi - k;
     const a = tr[k], b = tr[k2], L = (key) => a[key] + (b[key] - a[key]) * u;
@@ -413,10 +413,13 @@ export function renderFormant(tr, { rate = 16000, voice = VOICE } = {}) {
     let glottal = (flow - flowPrev) * 60 + voice.warmth * (flow - oq / 12) * 7.2; flowPrev = flow;   // (oq/12: the flow's mean over a cycle, so warmth adds no DC)
     // tilt: a one-pole low-pass, its gain at 500 Hz held at 1, so it darkens without quietening the vowels' F1
     if (voice.tilt) { tiltY = tiltY * voice.tilt + glottal * (1 - voice.tilt); glottal = tiltY * tiltGain; }
+    // a chip (tracks' optional chip, 0..1: chipsing's unembodied voice): a bare pulse wave for the glottis
+    const chip = a.chip === undefined ? 0 : L('chip');
+    if (chip > 0) glottal = glottal * (1 - chip) + (phase < 0.25 ? 0.75 : -0.25) * chip * 0.9;
     const n = noise();
     lpNoise = lpNoise * 0.6 + n * 0.4;
     // aspiration is breath through the tract; a little of it rides every voiced sound, pulsing with the glottis
-    const breath = lpNoise * (L('AH') + voice.breath * L('AV') * (phase < oq ? 1 : 0.3));
+    const breath = lpNoise * (L('AH') + voice.breath * (1 - chip) * L('AV') * (phase < oq ? 1 : 0.3));
     // (noise through the resonators is far louder than the pulse: 0.13 puts an [h] ~12 dB under a vowel)
     let x = glottal * L('AV') + breath * 0.2;
     x = NZ.step(NP.step(x));
@@ -433,10 +436,22 @@ export function renderFormant(tr, { rate = 16000, voice = VOICE } = {}) {
       const hp = 0.72 * (hp1 + f - hpx); hpx = f; hp1 = hp; f = hp;
     }
     out[i] = x * 0.5 + f * 0.9;
+    if (chip > 0) (chipAt ||= new Float32Array(N))[i] = chip;
   }
   // level: to a peak of 0.9
   let pk = 0; for (let i = 0; i < N; i++) pk = Math.max(pk, Math.abs(out[i]));
   if (pk > 0) for (let i = 0; i < N; i++) out[i] *= 0.9 / pk;
+  // the chip's converter: samples held (down to a quarter of the rate) and quantised (down to 4 bits)
+  if (chipAt) {
+    let held = 0;
+    for (let i = 0; i < N; i++) {
+      const c = chipAt[i];
+      if (c < 0.02) continue;
+      const hold = 1 + Math.round(c * 3), levels = 2 ** (4 + (1 - c) * 10);
+      if (i % hold === 0) held = Math.round(out[i] * levels) / levels;
+      out[i] = out[i] * (1 - c) + held * c;
+    }
+  }
   return out;
 }
 
