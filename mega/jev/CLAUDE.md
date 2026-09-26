@@ -298,7 +298,7 @@ model only decides.
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 222 checks, ~17 s, gates the deploy |
+| `test/craft.selftest.mjs` | 242 checks, ~20 s, gates the deploy |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -570,6 +570,75 @@ offline stand-in (the script projected onto the menu), and still ~2.4× faster
 than random. Confidence stayed at ~0.38–0.42 with most picks below the gate.
 The same caveats as v3 apply, doubly: these are the worlds the harness was
 debugged on.
+
+### Worlds nobody planned for (2026-09-26)
+
+The operator's objection to v4 was right: *"of course Jev does worse than your
+script, you know where everything is."* Two ways that was true, both fixed:
+
+- **The planners were omniscient.** `digPath` and the walking BFS planned
+  across terrain the player had never seen, and `hunt` chased pigs anywhere on
+  the island. Now the player's planners only use `sim.seen` columns (mobs
+  still see everything), and `hunt` needs a pig in sight. This binds every
+  decider equally, since Jev and the script share the macros.
+- **The script was written against the four scoreboard worlds.** So:
+  **world kinds** (`KINDS` in `world.mjs`, `kind` in the stream header).
+  `island` is byte-identical to before, and its pins hold.
+
+| kind | what it does to you |
+|---|---|
+| `archipelago` | ~35% land in islets; little rock above the sea line |
+| `highlands` | tall and **terraced**: 3-high cliffs a walker cannot climb; caves |
+| `caverns` | worm caves (two noise fields both near their middle), **lava** pooling at y ≤ 4 |
+| `desert` | sand, one oasis of trees, almost no wood elsewhere |
+| `forest` | dense trees, 3× the island's |
+| `mixed` | biomes by region, height blended into highlands; for sizes `m` (44) / `l` (64), up to ~16k columns |
+
+Rules that came with them: **lava** (a `hazard`: impassable to every planner,
+burns 4 every 5 ticks, and a block touching it is never opened), and
+**zombies spawn in the dark at any hour**: a column near the player with rock,
+earth or a roof overhead, not a canopy (`sim.dark`), away from torches.
+
+**Held-out scoreboard**: 6 worlds, each a kind × tiling × seed nobody had
+played, hard, fog of war (`lab/craft-gate-heldout.json`):
+
+| world | baseline | offline | **Jev** | random |
+|---|---|---|---|---|
+| desert/seven/301 | **522** | 1455 (8/9) | 844 | 2432 (6/9) |
+| caverns/snub/302 | **528** | 1647 (7/9) | 777 | 2482 (6/9) |
+| highlands/rhombitri/303 | **488** | 880 | 846 | 2587 (6/9) |
+| archipelago/kagome/304 | 2738 (**4/9**) | 925 | 1148 | 1246 |
+| forest/ammann/305 | **603** | 1039 | 782 | 2833 (5/9) |
+| mixed/hex/306 (m) | 892 (8/9) | 1106 (8/9) | 939 | 2097 (7/9) |
+| **mean** | 962 (48/54) | 1175 (50/54) | **889 (54/54)** | 2279 (39/54) |
+
+**Read it carefully.** Jev is the only decider that reached every rung on
+every world, and its mean beats the script's. But **world by world the script
+is still faster on four of six**, and the mean is carried by one collapse. On
+the archipelago the script's `mine_iron` failed four times ("the vein ran
+out": islets have too little rock), it had nothing else to try, and it burned
+most of the day in eleven decisions. **That collapse did not reproduce after
+the dark-spawn fix**: the fix shifts the RNG, the game unfolds differently,
+and the same script climbs all 9 rungs by tick 1369. So the honest reading:
+a fixed script is brittle in a way that depends on the trajectory, and it can
+stall outright on a world it wasn't written for. Jev, choosing every time,
+degraded but never stalled: 54/54, worst world 1148. It also beat the
+offline stand-in (the script's logic squeezed through the same menu) on 5
+of 6. Off the home worlds the menu-projected script falls apart, and Jev does
+not. n = 1 per world, and the run predates the spawn fix. The next number
+worth having is a held-out rerun on current code with more seeds.
+
+### Mobile (2026-09-26)
+
+Touch play is the same game as keyboard play. A **thumb stick** feeds the same
+`moveIntent` (tile-stepping toward where you look), a **drag** anywhere else
+looks, a **tap** ray-casts at the tapped point (`aim(nx, ny)`, unprojected
+from NDC) to mine or hit, with **place** mode making taps place, plus
+eat / craft / view buttons. There is no pointer lock on touch, so "engaged"
+is lock *or* the touch game having started. On narrow screens every panel is
+a **drawer** behind the dock (world, macros, Jev), and watching Jev on a phone
+works the same way. Checked in an emulated Pixel 7: the stick walked, a tap
+mined into the hotbar, the drawers open. Not checked on a real device.
 
 ### What is next
 
