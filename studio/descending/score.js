@@ -85,10 +85,10 @@ const VOICING = {
 };
 const UP = { F: 'G', Bb: 'C', C7: 'D7', Gm: 'Am', Gm7: 'Am7', Dm: 'Em' };
 const PEDAL = [];
-/** The waltz: bass on one, the chord on two and three. `sparse`: the bass alone, and a chime on three. */
-function waltz(bar, sym, vel, { sparse = false } = {}) {
-  const [root, fifth, chord] = VOICING[sym];
-  n(bar, 0, sparse ? 3 : 1, bar % 2 ? root : fifth, vel + 0.06, 'bass');
+/** The waltz: bass on one, the chord on two and three. `sparse`: the bass alone, and a chime on three; `octave`: the bass doubled below. */
+function waltz(bar, sym, vel, { sparse = false, octave = false } = {}) {
+  const [root, fifth, chord] = VOICING[sym], bass = bar % 2 ? root : fifth;
+  n(bar, 0, sparse ? 3 : 1, octave ? [bass, shift(bass, -12)].filter((x) => m(x) >= m('A0')) : bass, vel + 0.06, 'bass');
   if (sparse) n(bar, 2, 1, shift(chord[2], 12), vel - 0.04, 'chime');
   else { n(bar, 1, 0.8, chord, vel - 0.05, 'chord'); n(bar, 2, 0.8, chord, vel - 0.08, 'chord'); }
   PEDAL.push([B(bar), B(bar) + (sparse ? 3 : 1)]);
@@ -100,24 +100,65 @@ LINES[0][1].split(/\s+/).reduce((b, tok) => {
   return b + beats;
 }, 0);
 for (let bar = 1; bar <= 8; bar++) { n(bar, 0, 3, bar === 5 || bar === 6 ? ['Bb1', 'F2'] : ['F2', 'C3'], 0.16, 'bass'); PEDAL.push([B(bar), B(bar + 1)]); }
-// the choruses
+// the tune as written, per chorus: [{ bar, beat, beats, name }] (the voice sings it an octave lower)
+const tune = (c) => {
+  const out = [];
+  let b = B(CHORUS[c]);
+  for (const [, notes] of LINES) for (const tok of notes.split(/\s+/)) {
+    const [p, d] = tok.split(':'), beats = d ? Number(d) : 1;
+    if (p !== 'r') out.push({ bar: CHORUS[c] + Math.floor((b - B(CHORUS[c])) / 3), beat: (b - B(CHORUS[c])) % 3, beats, name: shift(p, KEY[c]) });
+    b += beats;
+  }
+  return out;
+};
+// a bar where the voice sings nothing new (a held note or a rest) is the piano's to answer in
+const heldBars = (c) => { const t = tune(c); return CHORDS.map((_, k) => CHORUS[c] + k).filter((bar) => !t.some((x) => x.bar === bar)); };
+/** An answer in a held bar: the chord's tones rising in eighths from beat one-and, the last held. */
+function arpeggio(bar, sym, vel, top = 5) {
+  const [, , chord] = VOICING[sym];
+  const up = [...chord.map((c) => shift(c, 12 * (top - 4))), shift(chord[0], 12 * (top - 3))];
+  up.forEach((nm, j) => n(bar, 0.5 + j * 0.5, j === up.length - 1 ? 3 - (0.5 + j * 0.5) : 0.5, nm, vel - 0.02 * j + (j === up.length - 1 ? 0.03 : 0), 'fill'));
+}
+/** A run: a scale from one note to another in even steps across `beats` from (bar, beat). */
+function run(bar, beat, beats, from, to, vel, scale = [0, 2, 4, 5, 7, 9, 11]) {
+  const a = m(from), z = m(to), dir = Math.sign(z - a), notes = [];
+  for (let v = a; dir > 0 ? v <= z : v >= z; v += dir) if (scale.includes(((v % 12) + 12) % 12)) notes.push(v);
+  const d = beats / notes.length;
+  notes.forEach((v, j) => raw.push({ beat: B(bar, beat) + j * d, dur: d, midi: v, name: '', vel: vel + (0.08 * j) / notes.length, tag: 'run' }));
+}
+// the choruses: 1 the bass and a chime; 2 the waltz, answering the held notes; 3 the waltz in octaves,
+// the tune doubled above the voice, and runs where it holds
 CHORUS.forEach((start, c) => {
+  const held = new Set(heldBars(c));
   CHORDS.forEach((sym, k) => {
-    const bar = start + k, s = c === 2 ? UP[sym] || sym : sym;
-    const vel = [0.2, 0.26, 0.3][c] + (k >= 26 ? 0.03 : 0);
-    waltz(bar, s, vel, { sparse: c === 0 });
+    const bar = start + k, sy = c === 2 ? UP[sym] || sym : sym;
+    const vel = [0.2, 0.25, 0.29][c] + (k >= 26 ? 0.03 : 0);
+    waltz(bar, sy, vel, { sparse: c === 0, octave: c === 2 });
+    if (c === 1 && held.has(bar)) arpeggio(bar, sy, 0.22, 5);
+    if (c === 2 && held.has(bar) && k < 34) {
+      if (k % 2) arpeggio(bar, sy, 0.26, 5);
+      else run(bar, 0.5, 2.5, VOICING[sy][2][2].replace(/\d/, '5'), VOICING[sy][2][2].replace(/\d/, '6'), 0.2, [0, 2, 4, 5, 7, 9, 11].map((x) => (x + 7) % 12));
+    }
   });
+  if (c === 2) for (const x of tune(2)) n(x.bar, x.beat, x.beats * 0.95, x.name, 0.27 + (x.beats >= 3 ? 0.03 : 0), 'tune');
 });
-// 45–48 and 85–88: interludes
+// 45–48 and 85–88: interludes. The first answers the chorus's last line; the second climbs to G
 ['F', 'Bb', 'F', 'C7'].forEach((s, k) => waltz(45 + k, s, 0.24));
-['F', 'Bb', 'Am7', 'D7'].forEach((s, k) => waltz(85 + k, s, 0.27));
-// the last phrase's tune in the right hand under the voice's last line, and the coda
+[['A5', 0, 1], ['Bb5', 1, 1], ['C6', 2, 1], ['A5', 0, 2], ['F5', 2, 1], ['G5', 0, 3], ['C5', 0, 2], ['E5', 2, 1]].forEach(([p, beat, dur], k) => n(45 + [0, 0, 0, 1, 1, 2, 3, 3][k], beat, dur, p, 0.24, 'answer'));
+['F', 'Bb', 'Am7', 'D7'].forEach((s, k) => waltz(85 + k, s, 0.27, { octave: k >= 2 }));
+arpeggio(85, 'F', 0.24, 5); arpeggio(86, 'Bb', 0.26, 5);
+run(87, 0, 3, 'E4', 'E5', 0.22);
+run(88, 0, 2.5, 'D5', 'D6', 0.26, [0, 2, 4, 6, 7, 9, 11]);       // G major's scale: into the new key
+// the coda: the last phrase in octaves over the waltz, then the chord rolled up the keyboard
 [['B4', 0, 1], ['C5', 1, 1], ['D5', 2, 1], ['B4', 0, 2], ['G4', 2, 1], ['A4', 0, 3], ['D4', 0, 3], ['G4', 0, 3]].forEach(([p, beat, dur], k) => {
   const bar = 125 + [0, 0, 0, 1, 1, 2, 3, 4][k];
-  n(bar, beat, dur, p, 0.24 - k * 0.008, 'coda');
+  n(bar, beat, dur, [p, shift(p, 12)], 0.3 - k * 0.01, 'coda');
 });
-[['G', 125], ['G', 126], ['Am7', 127], ['D7', 128]].forEach(([s, bar]) => waltz(bar, s, 0.2));
-n(129, 0, 6, ['G1', 'D2', 'G2', 'B3', 'D4', 'G4'], 0.22, 'last');
+[['G', 125], ['Em', 126], ['Am7', 127], ['D7', 128]].forEach(([s, bar]) => waltz(bar, s, 0.22, { octave: true }));
+arpeggio(126, 'Em', 0.2, 5);
+run(128, 1, 2, 'A5', 'C5', 0.22, [0, 2, 4, 6, 7, 9, 11]);
+n(129, 0, 6, ['G1', 'G2'], 0.26, 'last');
+['D3', 'G3', 'B3', 'D4', 'G4', 'B4', 'D5', 'G5', 'B5', 'D6', 'G6'].forEach((nm, j) => n(129, 0.02 + j * 0.16, 6 - j * 0.16, nm, 0.2 + (j === 10 ? 0.05 : 0) - 0.004 * j, 'last'));
 PEDAL.push([B(129), B(131)]);
 
 export const events = perform(raw, sec, PEDAL, 0xda15);

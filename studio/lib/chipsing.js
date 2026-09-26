@@ -149,16 +149,33 @@ export function sing(song, lexicon, { rate = 22050, voice = VOICE, singer = SING
   // tracks() lays out each segment in frames, but a stop's closure, burst and breath make their own:
   // measure what each segment came to and take the difference out of the vowel (or silence) before it
   const run = () => tracks(timed.map((x) => (x.pause ? { pause: x.frames * FRAME, mark: x.mark, ms: x.frames * FRAME } : { ...x, ms: x.frames * FRAME })), voice);
-  let tr = run();
-  const got = new Array(timed.length).fill(0);
-  for (const f of tr) got[f.seg]++;
-  let off = false;
-  timed.forEach((x, i) => {
-    const d = got[i] - x.frames;
-    if (!d || x.pause || isVowel(x.p)) return;
-    for (let j = i - 1; j >= 0; j--) if (timed[j].pause || isVowel(timed[j].p)) { if (timed[j].frames - d >= 2) { timed[j].frames -= d; off = true; } break; }
-  });
-  if (off) tr = run();
+  // tracks() lays out each segment in frames, but a stop's closure, burst and breath make their own
+  // length. So pin every vowel to its beat: measure where each one starts, and take the error out of
+  // the vowel (or silence) before it, or, when that is too short to give, out of the consonants between
+  const vowels = timed.map((x, i) => (x.kind === 'vowel' ? i : -1)).filter((i) => i >= 0);
+  let tr;
+  for (let pass = 0; pass < 6; pass++) {
+    tr = run();
+    const start = new Array(timed.length).fill(-1);
+    tr.forEach((f, k) => { if (start[f.seg] < 0) start[f.seg] = k; });
+    let shift = 0, moved = false;
+    for (const i of vowels) {
+      const e = start[i] - fr(notes[timed[i].note].t) + shift;       // + shift: what this pass already moved
+      if (!e) continue;
+      // the vowel or silence before, then (only if it can't give enough) the consonants between
+      let j = i - 1; while (j > 0 && !timed[j].pause && !isVowel(timed[j].p)) j--;
+      const order = [j, ...Array.from({ length: i - 1 - j }, (_, k) => i - 1 - k)];
+      let left = e;
+      for (const q of order) {
+        if (!left || q < 0) break;
+        const x = timed[q], floor = x.pause || isVowel(x.p) ? 1 : 3;
+        const give = left > 0 ? Math.min(left, x.frames - floor) : left;   // (lengthening: the first takes it all)
+        if (give > 0 || left < 0) { x.frames -= give; left -= give; }
+      }
+      shift -= e - left; if (e !== left) moved = true;
+    }
+    if (!moved) break;
+  }
   // ---- the pitch, frame by frame, in semitones
   const N = tr.length, target = new Float64Array(N), noteAt = new Int32Array(N).fill(-1);
   const frameT = (k) => t0 + (k * FRAME) / 1000;
@@ -194,6 +211,8 @@ export function sing(song, lexicon, { rate = 22050, voice = VOICE, singer = SING
     // an open vowel for a high note: F1 no lower than the pitch
     if (singer.f1Tune && f.AV > 0.3 && f.F1 < f.F0 * 1.08) f.F1 = f.F0 * 1.08;
   });
+  // where each note's vowel really starts and ends (the picture's mouth reads these)
+  tr.forEach((f, k) => { const x = timed[f.seg]; if (x && x.kind === 'vowel') { const n = notes[x.note]; if (n.sungAt === undefined) n.sungAt = frameT(k); n.sungEnd = frameT(k + 1); } });
   const audio = renderFormant(tr, { rate, voice });
   return { audio, rate, t0, notes, tracks: tr };
 }
