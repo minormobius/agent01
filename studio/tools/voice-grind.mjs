@@ -16,6 +16,14 @@
 //
 // Every accepted step writes studio/voice/grind/NN.wav (the paragraph's opening, 16 kHz) and a line
 // in grind/progress.json; the voice page plays them in order. Touch grind/STOP to end it early.
+//
+// --corpus (after phase 4 overfit the 20 fixed sentences): tune on voice/corpus.json instead. Each
+// pass draws a fresh minibatch of --batch (24) sentences from its 304 training ones (literature,
+// minimal pairs, Harvard), so no sentence's quirks can be learned; a step is kept if it helps that
+// batch. After every pass the voice is scored on the 46 validation sentences, which are never tuned
+// on; the run keeps the voice that did best THERE, stops when validation hasn't improved for
+// --patience (2) passes, and ends by restoring that voice. It starts from the voice as it is in the
+// lib (VOICE, chipvoice-fit.js), and numbers its steps on from grind/progress.json.
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join, dirname } from 'node:path';
@@ -23,6 +31,7 @@ import { fileURLToPath } from 'node:url';
 import { speak, tracks, timing, phonemize, wav, VOICE, PHONES } from '../lib/chipvoice.js';
 import { FITS } from '../lib/chipvoice-fit.js';
 import { HARVARD, PARAGRAPH_SENTENCES } from '../voice/texts.js';
+import { fullLexicon, corpus } from './voice-lex.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2), refDir = argv[0];
@@ -33,9 +42,17 @@ const ONLY = argv.includes('--only') ? argv[argv.indexOf('--only') + 1] : null;
 const MINUTES = Number(argv.includes('--minutes') ? argv[argv.indexOf('--minutes') + 1] : 110);
 const out = join(here, '..', 'voice', 'grind'), tmp = '/tmp/voice-grind';
 mkdirSync(out, { recursive: true }); mkdirSync(tmp, { recursive: true });
-const lex = JSON.parse(readFileSync(join(here, '..', 'voice', 'lexicon.json'), 'utf8')).words;
+const CORPUS = argv.includes('--corpus');
+const opt = (k, d) => Number(argv.includes(k) ? argv[argv.indexOf(k) + 1] : d);
+const BATCH = opt('--batch', 24), PATIENCE = opt('--patience', 2);
+const lex = CORPUS ? fullLexicon() : JSON.parse(readFileSync(join(here, '..', 'voice', 'lexicon.json'), 'utf8')).words;
 const SR = 16000;
-const EVAL = HARVARD.map((t, i) => ({ id: `h${i + 1}`, t })).filter((_, i) => i % 2 === 1 && i < 40);   // h2, h4 … h40
+const HARV = HARVARD.map((t, i) => ({ id: `h${i + 1}`, t }));
+const EVAL = HARV.filter((_, i) => i % 2 === 1 && i < 40);   // h2, h4 … h40
+const C = CORPUS ? corpus() : null;
+let seed = 20260927;
+const rnd = () => { seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+const minibatch = () => { const a = [...C.train]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a.slice(0, BATCH); };
 const SNAP = `${PARAGRAPH_SENTENCES[0]} ${PARAGRAPH_SENTENCES[1]}`;
 
 // ---- Whisper, warm ------------------------------------------------------------------------------
@@ -67,20 +84,21 @@ function ltas(chunks) {
   const db = Array.from(acc, (p) => 10 * Math.log10(p + 1e-12)), m = db.reduce((a, b) => a + b) / db.length;
   return db.map((v) => v - m);
 }
-const REF_LTAS = ltas(EVAL.map((s) => readWav(join(refDir, `${s.id}.wav`))));
+// the reference's spectrum: the sentences tuned on, or (--corpus: other texts are spoken) all 50 of 2c's
+const REF_LTAS = ltas((CORPUS ? HARV : EVAL).map((s) => readWav(join(refDir, `${s.id}.wav`))));
 const REF_F0 = 120.3, REF_RATIO = 155.3 / 99.8;                  // measured from 2c (voice_measure.py)
 
-async function evaluate(voice) {
+async function evaluate(voice, set = EVAL) {
   const chunks = [];
-  const files = EVAL.map((s) => { const { audio } = speak(s.t, lex, { rate: SR, voice }); chunks.push(Float64Array.from(audio)); const f = join(tmp, `${s.id}.wav`); writeFileSync(f, wav(audio, SR)); return f; });
+  const files = set.map((s) => { const { audio } = speak(s.t, lex, { rate: SR, voice }); chunks.push(Float64Array.from(audio)); const f = join(tmp, `${s.id}.wav`); writeFileSync(f, wav(audio, SR)); return f; });
   const { texts } = await ask({ files });
   let e = 0, n = 0;
-  EVAL.forEach((s, i) => { const r = norm(s.t), h = norm(texts[i]); e += edit(r, h); n += r.length; });
+  set.forEach((s, i) => { const r = norm(s.t), h = norm(texts[i]); e += edit(r, h); n += r.length; });
   const cer = (100 * e) / n;
   const L = ltas(chunks), tone = Math.sqrt(L.reduce((s, v, i) => s + (v - REF_LTAS[i]) ** 2, 0) / L.length);
   // pitch: the voiced frames' F0 from the tracks the synthesiser plays
   const f0s = [];
-  for (const s of EVAL) for (const t of tracks(timing(phonemize(s.t, lex), voice), voice)) if (t.AV > 0.3) f0s.push(t.F0);
+  for (const s of set) for (const t of tracks(timing(phonemize(s.t, lex), voice), voice)) if (t.AV > 0.3) f0s.push(t.F0);
   f0s.sort((a, b) => a - b);
   const q = (p) => f0s[Math.floor(p * (f0s.length - 1))], med = q(0.5), ratio = q(0.9) / q(0.1);
   const pitch = Math.abs(12 * Math.log2(med / REF_F0)) + Math.abs(12 * Math.log2(ratio / REF_RATIO));
@@ -137,7 +155,8 @@ const fmt = (q, v) => (q.kind !== 'vowel' ? (Math.abs(v) < 10 ? v.toFixed(3).rep
 
 // ---- the grind ----------------------------------------------------------------------------------
 const t0 = Date.now() - (argv.includes('--resume') ? 60000 * JSON.parse(readFileSync(join(out, 'progress.json'), 'utf8')).steps.slice(-1)[0].minute : 0), minutes = () => (Date.now() - t0) / 60000;
-const progress = [];
+const progress = [], valLog = [];
+let verdicts = [];
 function snapshot(r, change) {
   const n = String(progress.length).padStart(2, '0');
   const { audio } = speak(SNAP, lex, { rate: SR, voice });
@@ -146,13 +165,17 @@ function snapshot(r, change) {
   const phones = Object.fromEntries(Object.entries(FITS.whisper).map(([p, f]) => [p, Object.fromEntries(Object.entries(f).filter(([k]) => k !== 'F'))]).filter(([, f]) => Object.keys(f).length));
   const voiceNow = Object.fromEntries([...GLOBAL, ...CONS_VOICE, ...STOP_VOICE].map((g) => [g.key, +voice[g.key].toFixed(4)]));
   progress.push({ n, minute: +minutes().toFixed(1), J: +r.J.toFixed(2), cer: +r.cer.toFixed(1), tone: +r.tone.toFixed(2), pitch: +r.pitch.toFixed(2), change, voice: voiceNow, vowels, phones });
-  writeFileSync(join(out, 'progress.json'), JSON.stringify({ text: SNAP, reference: 'ElevenLabs 2c (NkiasLzNGB7MWA6gNgU4)', objective: `CER% + ${W.tone} × tone dB + ${W.pitch} × pitch semitones`, steps: progress }, null, 1));
+  writeFileSync(join(out, 'progress.json'), JSON.stringify({ text: SNAP, reference: 'ElevenLabs 2c (NkiasLzNGB7MWA6gNgU4)', objective: `CER% + ${W.tone} × tone dB + ${W.pitch} × pitch semitones`, steps: progress, val: valLog, verdicts }, null, 1));
   writeFileSync(join(here, '..', 'lib', 'chipvoice-fit.js'), readFileSync(join(here, '..', 'lib', 'chipvoice-fit.js'), 'utf8').replace(/\nwhisper: .*,\n/, '\n').replace(/\n};\n$/, `\nwhisper: ${JSON.stringify(FITS.whisper, (k, v) => (typeof v === 'number' ? Math.round(v * 1000) / 1000 : v))},\n};\n`));
   console.log(`[${n}] ${minutes().toFixed(1)} min  J ${r.J.toFixed(2)} = CER ${r.cer.toFixed(1)}% + ${W.tone}×tone ${r.tone.toFixed(2)} dB + ${W.pitch}×pitch ${r.pitch.toFixed(2)} st   ${change}`);
 }
 // --resume: carry on from the last step of grind/progress.json (the voice, the vowels, the numbering)
 let best;
-if (argv.includes('--resume')) {
+if (CORPUS) {
+  // carry on the numbering and the record; the voice is the lib's as it stands
+  const prev = JSON.parse(readFileSync(join(out, 'progress.json'), 'utf8'));
+  progress.push(...prev.steps); valLog.push(...(prev.val || [])); verdicts = prev.verdicts || [];
+} else if (argv.includes('--resume')) {
   const prev = JSON.parse(readFileSync(join(out, 'progress.json'), 'utf8')).steps, last = prev[prev.length - 1];
   Object.assign(voice, last.voice);
   for (const [p, F] of Object.entries(last.vowels)) FITS.whisper[p] = { F };
@@ -167,8 +190,26 @@ if (argv.includes('--resume')) {
 }
 const params = ONLY === 'global' ? GLOBAL : ONLY === 'consonants' ? [...CONS_VOICE, ...CONS_PHONE] : ONLY === 'stops' ? [...STOP_VOICE, ...STOP_PHONE] : [...GLOBAL, ...VPAR];
 let scale = 1;
+// --corpus: the validation score after each pass, and the best voice by it (a checkpoint)
+const snap = () => ({ voice: { ...voice }, fits: JSON.parse(JSON.stringify(FITS.whisper)) });
+let bestVal = null, checkpoint = null, stale = 0, pass = 0, batch = null;
+async function validate(label) {
+  const r = await evaluate(voice, C.val);
+  const at = progress[progress.length - 1].n;
+  valLog.push({ after: at, minute: +minutes().toFixed(1), J: +r.J.toFixed(2), cer: +r.cer.toFixed(1), tone: +r.tone.toFixed(2), pitch: +r.pitch.toFixed(2), label });
+  const better = !bestVal || r.J < bestVal.J - 0.05;
+  if (better) { bestVal = r; checkpoint = { ...snap(), at }; stale = 0; } else stale++;
+  console.log(`   validation (${C.val.length} never tuned on) after ${label}: J ${r.J.toFixed(2)}, CER ${r.cer.toFixed(1)}%${better ? '  ← best so far' : `  (no better: ${stale} of ${PATIENCE})`}`);
+  return r;
+}
+if (CORPUS) {
+  batch = minibatch(); best = await evaluate(voice, batch);
+  snapshot(best, `${ONLY === 'stops' ? 'phase 5: the stops again' : `phase 5${ONLY ? ` (${ONLY})` : ''}`}, on the corpus: each pass a fresh ${BATCH} of ${C.train.length} sentences (Moby-Dick, the Sermon on the Mount, minimal pairs, Harvard), checked on ${C.val.length} never tuned on`);
+  await validate('the start');
+}
 outer: while (minutes() < MINUTES && scale > 0.12) {
   let moved = 0;
+  if (CORPUS && pass++ > 0) { batch = minibatch(); best = await evaluate(voice, batch); console.log(`— pass ${pass}: a fresh batch, J ${best.J.toFixed(2)} (CER ${best.cer.toFixed(1)}%)`); }
   for (const q of params) {
     if (minutes() >= MINUTES || existsSync(join(out, 'STOP'))) break outer;
     const v0 = getP(q);
@@ -177,12 +218,19 @@ outer: while (minutes() < MINUTES && scale > 0.12) {
       if (q.kind !== 'vowel') v = Math.min(q.hi, Math.max(q.lo, v));
       if (Math.abs(v - v0) < 1e-9) continue;
       if (!setP(q, v)) { setP(q, v0); continue; }
-      const r = await evaluate(voice);
+      const r = await evaluate(voice, batch || EVAL);
       if (r.J < best.J - 0.05) { best = r; moved++; snapshot(r, `${q.label} ${fmt(q, v0)} → ${fmt(q, v)}`); break; }
       setP(q, v0);
     }
   }
   if (!moved) { scale /= 2; console.log(`— a pass found nothing: steps halved (×${scale})`); }
+  if (CORPUS && moved) { await validate(`pass ${pass}`); if (stale >= PATIENCE) { console.log(`— validation hasn't improved for ${PATIENCE} passes: stopping`); break; } }
+}
+if (CORPUS && checkpoint && checkpoint.at !== progress[progress.length - 1].n) {
+  Object.assign(voice, checkpoint.voice); FITS.whisper = checkpoint.fits;
+  snapshot({ ...bestVal }, `restored the best voice on validation (step ${checkpoint.at})`);
+  progress[progress.length - 1].restored = checkpoint.at;
+  best = bestVal;
 }
 console.log(`done after ${minutes().toFixed(1)} min: J ${best.J.toFixed(2)} (CER ${best.cer.toFixed(1)}%, tone ${best.tone.toFixed(2)} dB, pitch ${best.pitch.toFixed(2)} st)`);
 writeFileSync(join(out, 'best-voice.json'), JSON.stringify(Object.fromEntries(GLOBAL.map((g) => [g.key, +voice[g.key].toFixed(4)])), null, 1));

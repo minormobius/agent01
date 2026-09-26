@@ -130,13 +130,21 @@ fetch('./grind/progress.json').then((r) => (r.ok ? r.json() : null)).then((g) =>
   const x = (m) => P.l + ((W - P.l - P.r) * m) / tmax;
   const series = [['cer', 'Whisper CER %', '#b48cff', 30], ['tone', 'tone dB', '#ffd08a', 10], ['pitch', 'pitch st', '#8fe3a8', 6]];
   let svg = `<line x1="${P.l}" y1="${H - P.b}" x2="${W - P.r}" y2="${H - P.b}" stroke="rgba(236,235,245,.25)"/>`;
-  const phase = S.find((s) => /phase 2/.test(s.change));
-  if (phase) svg += `<line x1="${x(phase.minute)}" y1="${P.t}" x2="${x(phase.minute)}" y2="${H - P.b}" stroke="rgba(236,235,245,.3)" stroke-dasharray="3 3"/><text x="${x(phase.minute) + 4}" y="${P.t + 10}">phase 2</text>`;
+  for (const phase of S.filter((s) => /^phase \d/.test(s.change))) {
+    const name = phase.change.match(/^phase \d/)[0];
+    svg += `<line x1="${x(phase.minute)}" y1="${P.t}" x2="${x(phase.minute)}" y2="${H - P.b}" stroke="rgba(236,235,245,.3)" stroke-dasharray="3 3"/><text x="${x(phase.minute) + 3}" y="${P.t + 22}" transform="rotate(90 ${x(phase.minute) + 3} ${P.t + 22})">${name}</text>`;
+  }
   series.forEach(([k, label, col, max], i) => {
     const y = (v) => H - P.b - ((H - P.t - P.b) * Math.min(v, max)) / max;
     svg += `<polyline fill="none" stroke="${col}" stroke-width="2" points="${S.map((s) => `${x(s.minute).toFixed(1)},${y(s[k]).toFixed(1)}`).join(' ')}"/>`;
     svg += `<text x="${P.l + 6 + i * 150}" y="${H - 6}" style="fill:${col}">${label} (0–${max})</text>`;
   });
+  // phase 5 on: the score on the validation sentences (never tuned on) after each pass, as dots
+  for (const v of g.val || []) {
+    const y = H - P.b - ((H - P.t - P.b) * Math.min(v.cer, 30)) / 30;
+    svg += `<circle cx="${x(v.minute).toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#fff" stroke="#b48cff"><title>validation CER ${v.cer}% after ${v.label}</title></circle>`;
+  }
+  if (g.val?.length) svg += `<text x="${P.l + 6}" y="${P.t + 10}" style="fill:#fff">● validation CER (never tuned on)</text>`;
   svg += `<text x="${W - P.r}" y="${H - P.b - 4}" text-anchor="end">${tmax.toFixed(0)} min</text>`;
   $('curve').innerHTML = svg;
   const li0 = document.createElement('li');
@@ -147,6 +155,11 @@ fetch('./grind/progress.json').then((r) => (r.ok ? r.json() : null)).then((g) =>
     li.innerHTML = `<span class="n">${s.n}</span><div><div>${s.change}</div><div class="sc">${s.minute} min · CER ${s.cer}% · tone ${s.tone} dB · pitch ${s.pitch} st</div><audio controls preload="none" src="./grind/${s.n}.wav"></audio></div>`;
     $('steps').append(li);
     // the verdicts: what each phase did on all 50 sentences, the 30 it never tuned on among them
+    for (const v of (g.val || []).filter((v) => v.after === s.n)) {
+      const vi = document.createElement('li');
+      vi.innerHTML = `<span class="n">val</span><div class="sc">validation after ${v.label}: CER ${v.cer}% · tone ${v.tone} dB · pitch ${v.pitch} st (46 sentences never tuned on)</div>`;
+      $('steps').append(vi);
+    }
     for (const v of (g.verdicts || []).filter((v) => v.after === s.n)) {
       const vi = document.createElement('li');
       vi.innerHTML = `<span class="n">✓</span><div class="verdict">${v.text}</div>`;
