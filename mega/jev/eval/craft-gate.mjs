@@ -20,7 +20,12 @@ import { Sim } from '../craft/sim.mjs';
 import { playMind, jevDecider, DECIDERS, GOALS } from '../craft/mind.mjs';
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const worlds = arg('worlds', 'penrose:3,hex:2,truncsq:2,kagome:4').split(',').map((w) => { const [shape, seed] = w.split(':'); return { shape, seed: +seed }; });
+// a world is shape:seed (the original island), or kind/shape:seed[:size]
+const worlds = arg('worlds', 'penrose:3,hex:2,truncsq:2,kagome:4').split(',').map((w) => {
+  const [head, seed, size] = w.split(':');
+  const [kind, shape] = head.includes('/') ? head.split('/') : ['island', head];
+  return { kind, shape, seed: +seed, ...(size ? { size } : {}) };
+});
 const ticks = +arg('ticks', 4800), difficulty = arg('difficulty', 'hard'), out = arg('out', null);
 const noJev = process.argv.includes('--no-jev');
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
@@ -67,7 +72,7 @@ for (const w of worlds) {
       wall_s: Math.round((Date.now() - t0) / 1000),
     };
     results.push(row);
-    console.log(`${w.shape}/${w.seed} ${arm.padEnd(8)} rungs ${row.reached}/${RUNGS.length}  mean tick-to-rung ${Math.round(row.score)}  deaths ${row.deaths}  decisions ${row.decisions}` +
+    console.log(`${w.kind}/${w.shape}/${w.seed} ${arm.padEnd(8)} rungs ${row.reached}/${RUNGS.length}  mean tick-to-rung ${Math.round(row.score)}  deaths ${row.deaths}  decisions ${row.decisions}` +
       (arm === 'jev' ? `  conf ${row.mean_confidence.toFixed(2)}  below-gate ${row.below_gate}  errors ${row.errors}` : '') + `  ${JSON.stringify(rung)}`);
   }
 }

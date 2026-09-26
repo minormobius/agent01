@@ -23,7 +23,7 @@ export const SEA = 14;        // water fills air at y <= SEA
 export const B = {
   air: 0, bedrock: 1, stone: 2, dirt: 3, grass: 4, sand: 5, water: 6, log: 7, leaves: 8,
   coal_ore: 9, iron_ore: 10, planks: 11, cobblestone: 12, crafting_table: 13, furnace: 14, torch: 15,
-  door: 16, glass: 17,
+  door: 16, glass: 17, lava: 18,
 };
 export const BLOCKS = [];
 const def = (name, o) => { BLOCKS[B[name]] = { id: B[name], name, solid: true, hard: 3, tool: 0, drop: name, color: '#888', ...o }; };
@@ -47,6 +47,9 @@ def('torch',          { solid: false, hard: 1, color: '#ffd35a' });
 // makes a house a shelter rather than a box you cannot leave
 def('door',           { solid: false, mobSolid: true, hard: 4, color: '#7a5530', top: '#8f6a3a' });
 def('glass',          { hard: 1, drop: null, color: '#cfe8ef', clear: true });
+// lava: nobody walks into it on purpose (planners treat it as a wall, mobs
+// too), and whatever ends up inside it burns. It pools at the bottom of caves.
+def('lava',           { solid: false, hazard: true, mobSolid: true, hard: Infinity, drop: null, color: '#ff6a1a', top: '#ffb13d' });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
@@ -121,18 +124,31 @@ function fbm(seed, x, z, oct = 4) {
 }
 
 // ------------------------------------------------------------- generator ----
-export const DEFAULTS = { seed: 1, shape: 'penrose', radius: 28 };
+export const DEFAULTS = { seed: 1, shape: 'penrose', radius: 28, kind: 'island' };
+
+// World kinds. `island` is the original and is byte-identical to it (its
+// signatures are pinned). The others exist so the harness meets situations it
+// was not written against: wood you have to walk for, cliffs you have to cut
+// stairs up, caves with lava and zombies in the dark at noon, water between
+// you and everything else. `mixed` blends biomes by region, for big worlds.
+export const KINDS = ['island', 'archipelago', 'highlands', 'caverns', 'desert', 'forest', 'mixed'];
+export const SIZES = { s: 28, m: 44, l: 64 };
+const smooth = (a, b, t) => { const u = Math.max(0, Math.min(1, (t - a) / (b - a))); return u * u * (3 - 2 * u); };
 
 export function generateWorld(opts = {}) {
-  const { seed, shape, radius } = { ...DEFAULTS, ...opts };
+  const o = { ...DEFAULTS, ...opts };
+  const { seed, shape, kind } = o;
+  const radius = o.size && SIZES[o.size] ? SIZES[o.size] : o.radius;
+  if (!KINDS.includes(kind)) throw new Error(`unknown world kind '${kind}' — one of ${KINDS.join(', ')}`);
   const tiling = buildTiling(shape, radius);
   const cols = tiling.cols, N = cols.length;
   const blocks = new Uint8Array(N * H);
   const height = new Int16Array(N);
+  const biome = new Uint8Array(N);          // 0 plains, 1 desert, 2 forest, 3 highlands
   const rng = mulberry(hash32(seed, 0xC0FFEE));
 
-  // terrain: an island. fbm hills, pulled under the sea toward the rim so the
-  // world's edge is ocean rather than a cliff into nothing.
+  // terrain. Every kind is still an island at heart — pulled under the sea
+  // toward the rim so the world's edge is ocean rather than a cliff into nothing.
   for (let c = 0; c < N; c++) {
     const { x, z } = cols[c];
     const r = Math.hypot(x, z) / radius;
@@ -140,18 +156,59 @@ export function generateWorld(opts = {}) {
     const ridge = fbm(seed + 31, x / 7, z / 7);
     const fall = Math.max(0, (r - 0.55) / 0.45);
     let h = 11 + hills * 16 + ridge * 4 - fall * fall * 16;
-    h = Math.max(3, Math.min(H - 12, Math.round(h)));
+    let bio = 0;
+    if (kind === 'archipelago') {
+      // low ground: most of it under the sea, islets where the noise peaks
+      const isl = fbm(seed + 77, x / 9, z / 9);
+      h = 2 + isl * 22 + ridge * 3 - fall * fall * 10;
+    } else if (kind === 'highlands') {
+      // tall, and TERRACED: steps of 3 are cliffs a walker cannot climb
+      const m = Math.pow(fbm(seed + 5, x / 20, z / 20), 1.4);
+      h = 12 + m * 30 + ridge * 5 - fall * fall * 22;
+      if (h > SEA + 2) h = SEA + 2 + Math.round((h - SEA - 2) / 3) * 3;
+      bio = 3;
+    } else if (kind === 'desert') bio = 1;
+    else if (kind === 'forest') bio = 2;
+    else if (kind === 'mixed') {
+      const b = fbm(seed + 911, x / 34, z / 34);
+      const high = Math.pow(fbm(seed + 5, x / 20, z / 20), 1.4) * 30 + 12 + ridge * 5 - fall * fall * 22;
+      h = h + (high - h) * smooth(0.58, 0.7, b);
+      bio = b < 0.4 ? 1 : b < 0.5 ? 0 : b < 0.62 ? 2 : 3;
+    }
+    h = Math.max(3, Math.min(H - (bio === 3 ? 8 : 12), Math.round(h)));
     height[c] = h;
+    biome[c] = bio;
     const beach = h <= SEA + 1;
+    const sandy = beach || bio === 1;
     for (let y = 0; y <= h; y++) {
       let b;
       if (y === 0) b = B.bedrock;
       else if (y < h - 3) b = B.stone;
-      else if (y < h) b = beach ? B.sand : B.dirt;
-      else b = beach ? B.sand : (h < SEA ? B.dirt : B.grass);
+      else if (y < h) b = sandy ? B.sand : B.dirt;
+      else b = sandy ? B.sand : (h < SEA ? B.dirt : bio === 3 && h > SEA + 14 ? B.stone : B.grass);
       blocks[c * H + y] = b;
     }
     for (let y = h + 1; y <= SEA; y++) blocks[c * H + y] = B.water;
+  }
+
+  // caves (caverns, highlands and mixed): tunnels where two noise fields both
+  // sit near their middle — worm-like, and they open to the surface here and
+  // there. Lava pools in whatever cave space lies at the bottom.
+  if (kind === 'caverns' || kind === 'highlands' || kind === 'mixed') {
+    const wide = kind === 'caverns' ? 0.075 : 0.05;
+    for (let c = 0; c < N; c++) {
+      const { x, z } = cols[c];
+      const h = height[c];
+      for (let y = 2; y <= h - (kind === 'caverns' ? 1 : 3); y++) {
+        const a = fbm(seed + 401, x / 7 + y * 0.31, z / 7 - y * 0.17, 3);
+        const b2 = fbm(seed + 733, x / 7 - y * 0.23, z / 7 + y * 0.29, 3);
+        if (Math.abs(a - 0.5) < wide && Math.abs(b2 - 0.5) < wide * 1.4) {
+          const i = c * H + y;
+          if (blocks[i] === B.water || blocks[i + 1] === B.water) continue;
+          blocks[i] = y <= 4 ? B.lava : B.air;
+        }
+      }
+    }
   }
 
   // ore veins: a graph random walk from a seed voxel, replacing stone only.
@@ -193,10 +250,17 @@ export function generateWorld(opts = {}) {
   };
   const treeless = new Uint8Array(N);
   const trees = [];
+  // desert: one oasis of trees somewhere, and almost nothing else
+  const oasis = kind === 'desert' ? cols[Math.floor(rng() * N)] : null;
   for (let c = 0; c < N; c++) {
     const h = height[c];
-    if (blocks[c * H + h] !== B.grass || treeless[c]) continue;
-    if (hash01(seed, c, 0x7EE) > 0.045) continue;
+    const onSand = biome[c] === 1 && blocks[c * H + h] === B.sand && h > SEA;
+    if ((blocks[c * H + h] !== B.grass && !onSand) || treeless[c]) continue;
+    let p = 0.045;
+    if (biome[c] === 2) p = 0.16;
+    else if (biome[c] === 3) p = 0.02;
+    else if (biome[c] === 1) p = oasis && Math.hypot(cols[c].x - oasis.x, cols[c].z - oasis.z) < 6 ? 0.2 : 0.002;
+    if (hash01(seed, c, 0x7EE) > p) continue;
     const tall = 4 + (hash32(seed, c, 0x7AA) % 2);
     if (h + tall + 2 >= H) continue;
     for (const [u] of ball(c, 3)) treeless[u] = 1;
@@ -211,15 +275,19 @@ export function generateWorld(opts = {}) {
     trees.push(c);
   }
 
-  // spawn: the grass column nearest the centre
+  // spawn: the grass column nearest the centre (sand, in a desert)
   let spawn = -1, best = Infinity;
-  for (let c = 0; c < N; c++) {
-    if (blocks[c * H + height[c]] !== B.grass) continue;
-    if (blocks[c * H + height[c] + 1] !== B.air) continue;
-    const d = Math.hypot(cols[c].x, cols[c].z);
-    if (d < best) { best = d; spawn = c; }
+  const ground = kind === 'desert' ? [B.sand, B.grass] : [B.grass];
+  for (let pass = 0; pass < 2 && spawn < 0; pass++) {
+    for (let c = 0; c < N; c++) {
+      const top = blocks[c * H + height[c]];
+      if (!(pass ? [B.grass, B.sand, B.dirt, B.stone] : ground).includes(top) || height[c] <= SEA) continue;
+      if (blocks[c * H + height[c] + 1] !== B.air) continue;
+      const d = Math.hypot(cols[c].x, cols[c].z);
+      if (d < best) { best = d; spawn = c; }
+    }
   }
-  return { version: CRAFT_VERSION, seed, shape, radius, H, tiling, blocks, height, spawn, trees };
+  return { version: CRAFT_VERSION, seed, shape, radius, kind, H, tiling, blocks, height, biome, spawn, trees };
 }
 
 // FNV over the block array — the world's fingerprint, pinned per shape.

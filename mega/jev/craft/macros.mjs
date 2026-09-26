@@ -384,7 +384,8 @@ export function* fight(sim, kind = 'zombie') {
 
 // Chase down the nearest pig for food.
 export function* hunt(sim) {
-  const pig = () => [...sim.ents.values()].filter((e) => e.kind === 'pig')
+  // only pigs you can see: a hunter does not know where the herd is
+  const pig = () => visiblePigs(sim, 24)
     .sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c))[0];
   for (let k = 0; k < 8; k++) {
     let g = pig();
@@ -815,7 +816,7 @@ export const PALETTE = {
   explore:      { mode: 'explore', doc: 'walk to the edge of the known and look past it', needs: () => null, run: (s, a) => explore(s, a?.steps) },
   scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },
   gather_wood:  { mode: 'explore', doc: 'chop the nearest trees', needs: () => null, run: (s, a) => gatherWood(s, a?.n) },
-  hunt:         { mode: 'explore', doc: 'chase down a pig for meat', needs: (s) => [...s.ents.values()].some((e) => e.kind === 'pig') ? null : 'no pigs left', run: (s) => hunt(s) },
+  hunt:         { mode: 'explore', doc: 'chase down a pig in sight for meat', needs: (s) => visiblePigs(s, 24).length ? null : 'no pig in sight (scout for one)', run: (s) => hunt(s) },
   go_home:      { mode: 'explore', doc: 'walk back to the house', needs: (s) => s.home ? (atHome(s) ? 'already home' : null) : 'no home yet', run: (s) => goHome(s) },
   // homestead
   craft:        { mode: 'homestead', doc: 'make an item, and whatever it is made of', needs: (s, a) => {
@@ -826,7 +827,7 @@ export const PALETTE = {
   build_house:  { mode: 'homestead', doc: 'a walled, roofed, lit house with a door, on the tile graph', needs: (s) => s.home && s._house ? 'already have a house' : blocksHeld(s) < 30 ? `needs ~30+ building blocks, holding ${blocksHeld(s)}` : null, run: (s) => buildHouse(s) },
   light_area:   { mode: 'homestead', doc: 'torches around home — nothing spawns near light', needs: (s) => s.has('torch') || s.has('coal') || s.has('charcoal') ? null : 'no torches or fuel for them', run: (s, a) => lightArea(s, a?.n) },
   set_home:     { mode: 'homestead', doc: 'call this spot home', needs: () => null, run: (s) => setHome(s) },
-  dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
+  dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : s.clearCost(s.player.c, s.player.y - 1, s.pickTier()) === Infinity ? 'cannot dig here (water, lava or bedrock below)' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
   sleep_until_dawn: { mode: 'homestead', doc: 'wait out the night where you are', needs: (s) => s.isNight() ? null : 'it is day', run: (s) => sleepUntilDawn(s) },
   eat:          { mode: 'homestead', doc: 'eat the best food carried', needs: (s) => !food(s) ? 'no food' : s.player.food >= 20 ? 'not hungry' : null, run: (s) => eat(s) },
   fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent', needs: (s) => [...s.ents.values()].some((e) => e.kind === 'zombie' && s.adjacentTo(s.player, e)) ? null : 'nothing adjacent to fight', run: (s) => fight(s) },

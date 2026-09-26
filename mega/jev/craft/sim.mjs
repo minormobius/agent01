@@ -38,8 +38,8 @@ export const MAX_ZOMBIES = 6;
 // with a house, a sword and torches does not die, and a scoreboard where
 // every policy scores zero deaths cannot tell policies apart.
 export const DIFFICULTY = {
-  normal: { maxZombies: 6, spawn: 0.03, zombieDmg: 3, hungerEvery: 480, zombieStep: 2 },
-  hard:   { maxZombies: 14, spawn: 0.1, zombieDmg: 4, hungerEvery: 240, zombieStep: 1 },
+  normal: { maxZombies: 6, spawn: 0.03, darkSpawn: 0.004, zombieDmg: 3, hungerEvery: 480, zombieStep: 2 },
+  hard:   { maxZombies: 14, spawn: 0.1, darkSpawn: 0.012, zombieDmg: 4, hungerEvery: 240, zombieStep: 1 },
 };
 export const SIGHT = 10;            // how far the player sees, in tile edges
 export const REACH = 2.2;           // how far the player reaches, in tile edges (centre to centre)
@@ -66,7 +66,7 @@ export class Sim {
     this.home = null;             // [c, y] once a house is built or a home is set
     this.protect = new Set();     // voxels the planners must not dig (house walls, roof)
     this.lines.push(JSON.stringify({
-      t: 'craft', v: w.version, seed: w.seed, shape: w.shape, radius: w.radius, H,
+      t: 'craft', v: w.version, seed: w.seed, shape: w.shape, radius: w.radius, kind: w.kind, H,
       sig: worldSignature(w), spawn: w.spawn, day: DAY, night: NIGHT_START, difficulty: this.difficulty,
     }));
     this.player = this.spawnEnt('player', w.spawn, w.height[w.spawn] + 1, { hp: 20, food: 20, inv: {} });
@@ -87,7 +87,8 @@ export class Sim {
   get(c, y) { return y < 0 ? B.bedrock : y >= H ? B.air : this.b[c * H + y]; }
   solid(c, y) { return BLOCKS[this.get(c, y)].solid; }
   // mob = true for anything that is not the player: a door stops it
-  passable(c, y, mob = false) { const k = BLOCKS[this.get(c, y)]; return !(k.solid || (mob && k.mobSolid)); }
+  // lava is a hazard: nobody plans a step into it (it burns what falls in)
+  passable(c, y, mob = false) { const k = BLOCKS[this.get(c, y)]; return !(k.solid || k.hazard || (mob && k.mobSolid)); }
   set(c, y, id) {
     const old = this.b[c * H + y];
     if (old === id) return;
@@ -392,6 +393,24 @@ export class Sim {
       if (d >= 10 && d <= 24 && this.get(c, y - 1) !== B.water && this.skyOpen(c, y) && !this.torchNear(c, 5)
           && this.canStand(c, y) && !this.occupied(c, y)) this.spawnEnt('zombie', c, y);
     }
+    // ...and in the dark, at any hour: caves and unlit tunnels near the player.
+    // Candidates come from what the player can see (this._near), so the cost
+    // stays local however big the world is.
+    if (zs.length < this.cfg.maxZombies && this.rng() < this.cfg.darkSpawn && this._near) {
+      const ring = this._near.get(p.c);
+      if (ring && ring.length) {
+        const c = ring[Math.floor(this.rng() * ring.length)];
+        if (this.dist(c, p.c) >= 6) {
+          const top = this.surface(c);
+          const y = 1 + Math.floor(this.rng() * Math.max(1, top - 3));
+          if (y < top - 2 && this.canStand(c, y) && !this.skyOpen(c, y) && !this.torchNear(c, 5) && !this.occupied(c, y)) this.spawnEnt('zombie', c, y);
+        }
+      }
+    }
+    // lava burns whatever is in it
+    if (t % 5 === 0) for (const e of [...this.ents.values()]) {
+      if (this.get(e.c, e.y) === B.lava || this.get(e.c, e.y + 1) === B.lava) this.hurt(e, 4, null);
+    }
     for (const e of [...this.ents.values()]) {
       if (e === p || !this.ents.has(e.id)) continue;
       if (e.cd > 0) e.cd--;
@@ -452,6 +471,7 @@ export class Sim {
         return out.reverse();
       }
       for (const n of this.cols[c].adj) {
+        if (!mob && !this.seen[n]) continue;              // the player plans only over ground it has seen
         const yy = this.stepTarget(c, y, n, tall, 3, mob);
         if (yy == null) continue;
         const k = key(n, yy);
@@ -460,9 +480,11 @@ export class Sim {
     }
     return null;
   }
+  // opening this voxel would let water (or lava) in
   bordersWater(c, y) {
-    if (this.get(c, y + 1) === B.water) return true;
-    for (const n of this.cols[c].adj) if (this.get(n, y) === B.water) return true;
+    const liquid = (id) => id === B.water || id === B.lava;
+    if (liquid(this.get(c, y + 1))) return true;
+    for (const n of this.cols[c].adj) if (liquid(this.get(n, y))) return true;
     return false;
   }
 
@@ -473,7 +495,7 @@ export class Sim {
     if (y < 0 || y >= H) return Infinity;
     const id = this.get(c, y);
     const blk = BLOCKS[id];
-    if (!blk.solid) return id === B.water ? Infinity : 0;
+    if (!blk.solid) return id === B.water || blk.hazard ? Infinity : 0;
     if (blk.hard === Infinity || blk.tool > tier) return Infinity;
     // stations are mineable like anything else: mining one hands it back, so
     // nothing is lost — and a furnace in a doorway must not seal a house
@@ -533,6 +555,7 @@ export class Sim {
           if (t > 0) { cost += t; list.push([mc, my]); }
         }
         if (occ.has(nc * H + ny) || occ.has(nc * H + ny + 1)) return;   // route around mobs, not through them
+        if (!this.seen[nc]) return;                                       // fog of war: no plans through the unseen
         const k = key(nc, ny), nd = d + cost;
         if (nd < (dist.get(k) ?? Infinity)) { dist.set(k, nd); prev.set(k, u); how.set(k, { c: nc, y: ny, mine: list }); push(nd, k); }
       };
@@ -575,7 +598,7 @@ export class Replay {
   constructor(header) {
     const h = typeof header === 'string' ? JSON.parse(header) : header;
     this.header = h;
-    this.world = generateWorld({ seed: h.seed, shape: h.shape, radius: h.radius });
+    this.world = generateWorld({ seed: h.seed, shape: h.shape, radius: h.radius, kind: h.kind || 'island' });
     if (worldSignature(this.world) !== h.sig) throw new Error(`world signature mismatch: stream ${h.sig}, regenerated ${worldSignature(this.world)} — generator version drift`);
     this.b = this.world.blocks;
     this.ents = new Map();
