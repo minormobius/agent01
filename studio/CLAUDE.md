@@ -286,6 +286,26 @@ then (later) a learned one. The owner supplies ears and, when it comes to that, 
   Lesson: only a real listener should steer it. Next: Whisper in the loop (slow: ~20 s an
   evaluation), on few parameters, with the formants' order kept (F1 < F2 < F3).
 
+- **The grind: Whisper in the loop** (`tools/voice-grind.mjs`, 2026-09-26, 109 min). Coordinate
+  descent on CER% (Whisper base.en, 20 Harvard sentences, a warm `tools/voice_asr_server.py`) +
+  tone (dB RMS between the long-term spectrum's shape, third-octave bands, and 2c's recordings of
+  the same sentences) + pitch (semitones off 2c's median and melody range). Every kept step writes
+  `voice/grind/NN.wav` + `progress.json`; the page's "The grind" section draws the curve and plays
+  them (`2c.wav` is the target). `--resume` carries on from the last step; touch `grind/STOP` to end.
+  What it found, in order:
+  - the fits so far moved only formant targets, and every voice sounded alike: **tone is the source
+    and the prosody**. The tone gap was two things: 2c has ~17 dB more at 125–160 Hz (a chest voice
+    close to the mic) and ~11 dB less at 500–800 Hz (a peaky F1). New controls: `warmth` (the glottal
+    flow mixed into its derivative: a fundamental), `bw1` (F1's width), `hiss`, `tilt`, `bw`,
+    `jitter`. `warmth` was first scaled 8× too weak (a step moved nothing the grind could see).
+  - **the objective is chaotic at fine scales**: rounding a formant by <1 Hz flipped words (Whisper
+    itself is repeatable on identical audio). Small gains can be luck; big moves are trustworthy.
+  - at tone ×1.5 the grind spent its time on vowel nudges; phase 2 (tone ×4, pitch ×2, the voice's
+    controls only) moved tone 7.5 → 5.5 dB, and warmth + a wider F1 made it MORE intelligible too.
+  - raising pitch toward 2c's 120 Hz always cost Whisper more than it gained (113 Hz stayed).
+  **Result, adopted as VOICE's defaults**: all 50 sentences WER 29.2% → 24.1% (CER 16.7 → 12.9),
+  the 30 never tuned on ~23.5%, the paragraph 11.3%, tone 7.7 → 5.5 dB off 2c.
+
 Harvard WER through the first session (base.en; 80 words until the set grew to 240, then 390):
 42.5% first render → +[h] 17 dB quieter 45 (noise) → slow glides out of R/W/Y 42 (R heard as
 R) → on 240 words 40.4 → fricatives high-passed, F1 damped in aspiration 36.7 → function-word

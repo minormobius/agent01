@@ -1,14 +1,14 @@
 {
- "warmth": 0,
- "bw1": 1,
- "hiss": 0.9,
+ "warmth": 1,
+ "bw1": 1.5,
+ "hiss": 0.8,
  "f0": 113,
- "range": 0.22,
+ "range": 0.4,
  "rate": 1,
- "scale": 1.03,
- "oq": 0.55,
+ "scale": 1.09,
+ "oq": 0.6,
  "breath": 1,
- "tilt": 0,
- "bw": 1,
- "jitter": 0.005
+ "tilt": 0.05,
+ "bw": 1.15,
+ "jitter": 0
 }

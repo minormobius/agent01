@@ -66,24 +66,26 @@ const isVowel = (p) => p && (PHONES[p].kind === 'v' || PHONES[p].kind === 'd');
 
 // ---- the voice -------------------------------------------------------------------------
 export const VOICE = {
-  f0: 105,             // Hz, the middle of the voice (lower draws the formants more densely: 118 → 100 Hz was 27% → 24% WER)
-  range: 0.22,         // how far stress lifts it (a fraction of f0)
-  scale: 1.06,         // formant scale: 1 an adult man, ~1.15 a woman, ~1.3 a child
-  rate: 1.0,           // speaking rate: 1 is Klatt's durations
-  breath: 0.8,         // aspiration mixed into voicing (a clean buzz is the most robotic thing a voice can do)
-  oq: 0.55,            // glottal open quotient: lower is pressed and buzzy, higher breathy
-  tilt: 0,             // 0..0.95: a low-pass on the glottal pulse, darker as it rises (a soft voice's spectrum falls faster)
-  bw: 1,               // every formant bandwidth times this: wider is duller and more natural, narrower ringing
+  // the grind (tools/voice-grind.mjs, 2026-09-26): Whisper in the loop, toward 2c's tone. Harvard WER 29.2% → 24.1%,
+  // tone 7.7 → 5.5 dB off 2c. The textbook starting point is step 00 of voice/grind/progress.json.
+  f0: 113,             // Hz, the middle of the voice (lower draws the formants more densely: 118 → 100 Hz was 27% → 24% WER)
+  range: 0.4,         // how far stress lifts it (a fraction of f0)
+  scale: 1.09,         // formant scale: 1 an adult man, ~1.15 a woman, ~1.3 a child
+  rate: 1,           // speaking rate: 1 is Klatt's durations
+  breath: 1,         // aspiration mixed into voicing (a clean buzz is the most robotic thing a voice can do)
+  oq: 0.6,            // glottal open quotient: lower is pressed and buzzy, higher breathy
+  tilt: 0.05,             // 0..0.95: a low-pass on the glottal pulse, darker as it rises (a soft voice's spectrum falls faster)
+  bw: 1.15,               // every formant bandwidth times this: wider is duller and more natural, narrower ringing
   jitter: 0,           // cycle-to-cycle pitch wobble (0.01 = 1%): a real larynx is never a clock
-  warmth: 0,           // the glottal flow itself mixed into its derivative: a strong fundamental, a chest voice close to the mic
-  hiss: 1,             // the fricatives' and bursts' level times this
-  bw1: 1,              // F1's bandwidth times this, on top of bw: wider takes the peakiness out of the low mids
+  warmth: 1,           // the glottal flow itself mixed into its derivative: a strong fundamental, a chest voice close to the mic
+  hiss: 0.8,             // the fricatives' and bursts' level times this
+  bw1: 1.5,              // F1's bandwidth times this, on top of bw: wider takes the peakiness out of the low mids
   // rules, each a number so studio/tools/voice.mjs --set can try it off (0) and on
   voicedLength: 1,     // vowels long before a voiced coda, short before a voiceless one
   functionWords: 0,    // "the", "of", "a" said quickly (off: Whisper lost them, 39% → 33% WER)
   lightDarkL: 1,       // L light before a vowel, dark after
   aspiration: 1,       // longer aspiration into a stressed vowel
-  fit: 0,              // targets fitted to the reference voice (chipvoice-fit.js): 1 for likeness, 2 for a listener's sake, 3 by Whisper in the loop
+  fit: 3,              // targets fitted to the reference voice (chipvoice-fit.js): 1 for likeness, 2 for a listener's sake, 3 by Whisper in the loop
   profile: 0,          // the reference voice (chipvoice-profile.js) over the textbook: 1 its vowels, 2 its durations, 3 both
 };
 /** A phoneme's targets: the textbook's, or where the reference voice was measured, its (in Hz, so unscaled). */
