@@ -370,6 +370,10 @@ console.log('\nDescending (Daisy Bell, sung by arithmetic)');
   ok(reach === 0, 'the legs never have to stretch past their length');
   ok(slide < 0.001, `a planted foot stays put (${(slide * 1000).toFixed(2)} mm)`);
   const end = F.pose(S.duration);
+  const T = await import('../descending/thought.js');
+  const finite = Object.values(T.ATTRACTORS).every((A) => A.p.every(Number.isFinite));
+  const Fr = T.frames(F.pose(130)), a1 = T.place(7, Fr, 130, 0.7, 1.4, [0, 0, 0]), a2 = T.place(7, Fr, 130, 0.7, 1.4, [0, 0, 0]);
+  ok(finite && a1.every((v, i) => v === a2[i]) && T.POINTS.length > 3000, `the thought: four attractors integrated finite, ${T.POINTS.length} points, placed the same every time`);
   ok(Math.abs(end.ankleL[1] - end.ankleR[1]) < 0.01 && end.ankleL[0] > F.STEPS * F.RUN - 0.01, 'it ends with both feet on the floor at the foot of the stairs');
 }
 

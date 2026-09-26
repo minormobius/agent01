@@ -390,11 +390,27 @@ the picture: a figure descending a staircase in flat planes, after Duchamp (1912
   step over step; the rear foot rolls onto its toes before swinging (without that the rear shin raked
   back and it read as kneeling); a closing step at bar 125, then it straightens and turns to face us.
   The selftest: heels and toes clear every tread (2 cm), legs never over-reach, planted feet stay put.
-- `descending/render.js`: Canvas 2D. Limbs are cones cut into three facets (lit/mid/shade by a fixed
-  light), the head an ovoid with a mouth that opens on each sung vowel (by vowel openness). Unembodied:
-  up to 15 exposures, 0.05–0.27 s apart and set back up the stairs, each broken into shards (hashed per
-  tick, never a running random), dotted arcs where the hips and knees went, and the projector flickers.
-  The lyric is lettered in the corner as it is sung. A tall frame puts the figure right of centre.
+- `descending/render.js` + `thought.js`: **the figure goes from wood to thought** (owner, 2026-09-26: don't
+  draw attention to the mannequin's exact shape; keep the long tail throughout; a self-portrait). The
+  voice and the picture move opposite ways: the sound gains a body while the body becomes math.
+  - The wood: limbs are cones in three flat facets. Up to 15 exposures a fraction of a second apart,
+    set back up the stairs. `burnAt(t)` (bars 12–42) burns each facet at its moment (head first, feet
+    last, a hash): it chars, shrinks to its middle with an ember edge, throws sparks into the light, and
+    is gone. Older exposures burn later: the fire runs back along the trail.
+  - The thought (`thought.js`): 3200 points, each anchored on a part's surface and given a place in a
+    strange attractor fitted to that part (its longest axis along the bone): Lorenz the torso, Aizawa
+    the head, Thomas the limbs, Halvorsen the hands and feet. The attractors are integrated ONCE at load
+    (RK4, ~0.1 s) and read by index (offset + t·rate), so it stays a pure function of t. `mathAt(t)`
+    (bars 34–80) moves the points from surface to orbit; the head swells and brightens on each sung
+    vowel; the last chord blooms the orbits out.
+  - The trail: ten seconds of history, exposures every 0.2 s on a fixed time grid, memoised (world
+    positions once per exposure), fading with age and drifting back up the stairs even while standing.
+  - The light is added up in a Float32 buffer (half resolution above 0.6 MP), tone-mapped v/(1+v) over
+    only the box the points touched, and laid on with 'lighter'. The glow is computed in JS (cells a
+    quarter the size, blurred, added bilinearly), because a canvas-scaled blurred copy cost up to 200 ms
+    a frame on a software canvas; the last chord's halo goes into the same cells. Headless Chromium
+    (CPU-only): 10–20 ms a frame at 720p and at a phone's 3× DPR.
+  - The lyric is lettered in the corner as it is sung. A tall frame puts the figure right of centre.
 
 ## The Bommie (bommie/)
 
