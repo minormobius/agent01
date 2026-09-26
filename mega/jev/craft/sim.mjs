@@ -381,8 +381,17 @@ export class Sim {
       return;
     }
     if (this.tick % this.cfg.zombieStep || d > 20) return;   // normal: half the player's speed; loses interest past 20
-    const step = this.firstStep(z, (c, y) => this.cols[c].adj.includes(p.c) && Math.abs(y - p.y) <= 1, 300);
-    if (step && !this.occupied(step[0], step[1]) && !this.occupied(step[0], step[1] + 1)) this.moveEnt(z, step[0], step[1]);
+    // a route, reused for up to 10 ticks: re-searching every tick for every
+    // zombie was most of the cost of a night on hard
+    if (!z.route || !z.route.length || this.tick - z.routeAt >= 10) {
+      z.route = this.path(z, (c, y) => this.cols[c].adj.includes(p.c) && Math.abs(y - p.y) <= 1, 300, 2, true) || [];
+      z.routeAt = this.tick;
+    }
+    const step = z.route[0];
+    if (!step) return;
+    const y = this.stepTarget(z.c, z.y, step[0], 2, 3, true);
+    if (y === step[1] && !this.occupied(step[0], step[1]) && !this.occupied(step[0], step[1] + 1)) { this.moveEnt(z, step[0], step[1]); z.route.shift(); }
+    else z.route = null;
   }
   pigTick(g) {
     if (this.tick % 6 || this.rng() < 0.5) return;
@@ -432,7 +441,8 @@ export class Sim {
     const blk = BLOCKS[id];
     if (!blk.solid) return id === B.water ? Infinity : 0;
     if (blk.hard === Infinity || blk.tool > tier) return Infinity;
-    if (id === B.crafting_table || id === B.furnace) return Infinity;
+    // stations are mineable like anything else: mining one hands it back, so
+    // nothing is lost — and a furnace in a doorway must not seal a house
     if (this.protect.has(c * H + y)) return Infinity;   // a house wall: never a shortcut
     if (this.bordersWater(c, y)) return Infinity;      // opening it would flood the dig
     return Math.max(1, Math.ceil(blk.hard / (blk.tool ? PICK_SPEED[tier] : 1)));
@@ -465,6 +475,10 @@ export class Sim {
       return top;
     };
     const solidUnder = (c, y) => this.solid(c, y - 1);
+    // mob bodies, once per search — checking every entity on every relax was
+    // the single biggest cost in the planner
+    const occ = new Set();
+    for (const e of this.ents.values()) if (e !== from) for (let k = 0; k < this.tallOf(e); k++) occ.add(e.c * H + e.y + k);
     let settled = 0;
     while (heap.length && settled < maxNodes) {
       const [d, u] = pop();
@@ -484,8 +498,7 @@ export class Sim {
           if (t === Infinity) return;
           if (t > 0) { cost += t; list.push([mc, my]); }
         }
-        const occ = this.occupied(nc, ny) || this.occupied(nc, ny + 1);
-        if (occ && occ !== from) return;                 // route around mobs, not through them
+        if (occ.has(nc * H + ny) || occ.has(nc * H + ny + 1)) return;   // route around mobs, not through them
         const k = key(nc, ny), nd = d + cost;
         if (nd < (dist.get(k) ?? Infinity)) { dist.set(k, nd); prev.set(k, u); how.set(k, { c: nc, y: ny, mine: list }); push(nd, k); }
       };

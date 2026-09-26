@@ -81,6 +81,8 @@ export function standardInterrupt(sim) {
 export function baselinePolicy(sim) {
   const p = sim.player, inv = sim.inv;
   const n = (k) => inv[k] || 0;
+  // every craft goes through here: short of wood → fetch wood first
+  const craftIt = (item, q = 1) => shortfall(sim, item, q).log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : { name: 'craft', args: { item, ...(q > 1 ? { n: q } : {}) } };
   const blocks = n('cobblestone') + n('dirt') + n('planks') + n('sand');
   if (zombieAdjacent(sim)) return { name: 'fight' };
   if (sim.isNight()) {
@@ -102,15 +104,15 @@ export function baselinePolicy(sim) {
     return n('log') + n('planks') / 4 < 5 ? { name: 'gather_wood', args: { n: 5 } } : { name: 'craft', args: { item: 'wooden_pickaxe' } };
   }
   if (!n('stone_pickaxe') && !n('iron_pickaxe')) {
-    return n('cobblestone') < 11 ? { name: 'mine_stone', args: { n: 11 } } : { name: 'craft', args: { item: 'stone_pickaxe' } };
+    return n('cobblestone') < 11 ? { name: 'mine_stone', args: { n: 11 } } : craftIt('stone_pickaxe');
   }
-  if (!n('stone_sword') && !n('iron_sword')) return n('cobblestone') >= 2 ? { name: 'craft', args: { item: 'stone_sword' } } : { name: 'mine_stone', args: { n: 4 } };
+  if (!n('stone_sword') && !n('iron_sword')) return n('cobblestone') >= 2 ? craftIt('stone_sword') : { name: 'mine_stone', args: { n: 4 } };
   if (n('torch') < 4 && n('coal') < 1) return { name: 'mine_coal', args: { n: 3 } };
-  if (n('torch') < 4) return shortfall(sim, 'torch', 4).log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : { name: 'craft', args: { item: 'torch', n: 4 } };
+  if (n('torch') < 4) return craftIt('torch', 4);
   if (!n('iron_pickaxe')) {
     const iron = n('iron_ore') + n('iron_ingot');
     if (iron < 3 || n('coal') < 3) return { name: 'mine_iron', args: { iron: 3, coal: 3 } };
-    return shortfall(sim, 'iron_pickaxe', 1).log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : { name: 'craft', args: { item: 'iron_pickaxe' } };
+    return craftIt('iron_pickaxe');
   }
   if (!sim._house) {
     if (sim._houseFails > 2) { /* give up on a house; live rough */ }
@@ -120,6 +122,11 @@ export function baselinePolicy(sim) {
     else { sim._houseFails = (sim._houseFails || 0) + 1; return { name: 'build_house' }; }
   }
   if (sim._house && !sim._lit && !sim._litTried) { sim._litTried = true; return { name: 'light_area', args: { n: 4 } }; }
+  if (!n('iron_sword')) {
+    const iron = n('iron_ore') + n('iron_ingot');
+    if (iron < 2 || n('coal') < 2) { if (!sim._swordTries || sim._swordTries < 3) { sim._swordTries = (sim._swordTries || 0) + 1; return { name: 'mine_iron', args: { iron: 2, coal: 2 } }; } }
+    else return craftIt('iron_sword');
+  }
   // the daily round
   const round = ['explore', 'explore', 'hunt', 'branch_mine', 'explore'];
   sim._round = ((sim._round ?? -1) + 1) % round.length;

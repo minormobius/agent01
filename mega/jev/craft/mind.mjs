@@ -33,9 +33,14 @@ export const GOALS = [
   ['iron_pickaxe', (s) => s.pickTier() >= 3],
   ['house', (s) => !!s._house],
   ['lit_grounds', (s) => !!s._lit],
+  // past the ladder there must still be somewhere to go, or every option
+  // reads "advances nothing" and the answer is a coin toss (measured: the
+  // first live run spread to ~0.2 confidence exactly there)
+  ['iron_sword', (s) => s.has('iron_sword')],
+  ['explored', (s) => s.seenCount / s.N >= 0.8],
 ];
 // what each rung is made of, for the short-of lines
-const GOAL_ITEM = { wooden_pickaxe: 'wooden_pickaxe', stone_pickaxe: 'stone_pickaxe', stone_sword: 'stone_sword', torches: 'torch', iron_pickaxe: 'iron_pickaxe' };
+const GOAL_ITEM = { wooden_pickaxe: 'wooden_pickaxe', stone_pickaxe: 'stone_pickaxe', stone_sword: 'stone_sword', torches: 'torch', iron_pickaxe: 'iron_pickaxe', iron_sword: 'iron_sword' };
 
 const clock = (t) => {
   const ph = t % DAY, mins = Math.floor((ph / DAY) * 24 * 60 + 6 * 60) % (24 * 60);
@@ -56,6 +61,7 @@ export function perceive(sim) {
   const open = GOALS.filter(([, f]) => !f(sim)).slice(0, 2).map(([g]) => {
     if (g === 'house') return { goal: g, needs: `about 60 building blocks (holding ${blocksHeld(sim)}) and 2 doors (6 planks)` };
     if (g === 'lit_grounds') return { goal: g, needs: 'a house, then 4 torches' };
+    if (g === 'explored') return { goal: g, needs: `see 80% of the island (seen ${Math.round(100 * sim.seenCount / sim.N)}%)` };
     const sh = shortfall(sim, GOAL_ITEM[g], g === 'torches' ? 4 : 1);
     return { goal: g, short_of: Object.keys(sh).length ? describeShort(sh) : 'nothing — can be crafted now' };
   });
@@ -110,6 +116,11 @@ export function options(sim) {
     // the option carries its own last failure. A fact in the journal is not
     // a fact on the option being chosen — the dungeon's rope lesson.
     const last = sim._outcomes && sim._outcomes[id];
+    if (last && last.ok && last.ticks === 0 && sim.tick - last.tick < 50) return;   // it just did nothing: not a real option now
+    // it just FAILED from this very spot: it would fail the same way again. A
+    // label saying so was not enough — measured: 323 consecutive picks of an
+    // option carrying "FAILED … would block the door". Traps are not offered.
+    if (last && !last.ok && last.c === p.c && last.y === p.y && sim.tick - last.tick < 300 && sameInv(last.inv, sim.inv)) return;
     const failed = last && !last.ok && sim.tick - last.tick < 2400
       ? { last_tried: `FAILED ${sim.tick - last.tick} ticks ago, after spending ${last.ticks} ticks: ${last.why}` } : {};
     out.push({ id, name, args, criteria: {
@@ -118,19 +129,24 @@ export function options(sim) {
     } });
   };
   const legal = new Set(legalMacros(sim));
-  const cobbleNeed = !sim.pickTier() ? 0 : sim.pickTier() < 2 ? 3 : 60;
-  if (legal.has('mine_stone')) add('mine_stone', 'mine_stone', { n: Math.max(11, cobbleNeed) }, {
+  // every quantity asks for MORE than is held: a macro whose target is already
+  // met finishes at once, "ok", having done nothing — and gets picked again
+  const cob = sim.inv.cobblestone || 0;
+  if (legal.has('mine_stone')) add('mine_stone', 'mine_stone', { n: cob + (sim._house ? 16 : Math.max(11, 64 - blocksHeld(sim))) }, {
     yields: 'cobblestone (and any ore on the way)', takes: 'about 100–250 ticks',
     advances: sim.pickTier() < 2 ? 'stone_pickaxe needs 3 cobblestone' : !sim._house ? `a house needs ~60 building blocks, holding ${blocksHeld(sim)}` : 'nothing on the ladder' });
-  if (legal.has('mine_coal')) add('mine_coal', 'mine_coal', { n: 4 }, {
+  if (legal.has('mine_coal')) add('mine_coal', 'mine_coal', { n: (sim.inv.coal || 0) + 3 }, {
     yields: 'coal', takes: visible(sim, [B.coal_ore], 20).length ? 'short — coal is in sight' : 'about 100–300 ticks of digging',
     advances: sim.has('torch', 4) ? 'fuel for smelting' : 'torches (coal + stick)' });
-  if (legal.has('mine_iron')) add('mine_iron', 'mine_iron', { iron: 3, coal: 3 }, {
+  const ironHeld = (sim.inv.iron_ore || 0) + (sim.inv.iron_ingot || 0);
+  if (legal.has('mine_iron')) add('mine_iron', 'mine_iron', { iron: ironHeld + 3, coal: (sim.inv.coal || 0) + 2 }, {
     yields: 'iron ore and coal', takes: 'about 150–400 ticks, deep underground',
-    advances: sim.pickTier() < 3 ? 'iron_pickaxe needs 3 iron + coal to smelt' : 'nothing on the ladder' });
+    advances: sim.pickTier() < 3 ? 'iron_pickaxe needs 3 iron + coal to smelt' : !sim.has('iron_sword') ? 'iron_sword needs 2 iron' : 'stockpile only' });
   if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' });
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
-  if (legal.has('explore')) add('explore', 'explore', { steps: 40 }, { yields: 'new ground seen', takes: 'about 40 ticks', advances: `island seen: ${Math.round(100 * sim.seenCount / sim.N)}%` });
+  const seenPct = Math.round(100 * sim.seenCount / sim.N);
+  if (legal.has('explore')) add('explore', 'explore', { steps: 40 }, { yields: 'new ground seen', takes: 'about 40 ticks',
+    advances: goalsOpen.includes('explored') ? `${goalsOpen[0] === 'explored' ? 'the next rung' : 'a rung'}: explored (seen ${seenPct}% of the 80% needed)` : `island seen: ${seenPct}%` });
   for (const what of ['tree', 'pig', 'coal', 'iron']) {
     const seen = what === 'pig' ? visiblePigs(sim, 20).length : visible(sim, [{ tree: B.log, coal: B.coal_ore, iron: B.iron_ore }[what]], 20).length;
     if (!seen) add(`scout_${what}`, 'scout', { what }, { yields: `finds a ${what}`, takes: 'about 40–200 ticks', advances: `none in sight now` });
@@ -248,10 +264,11 @@ export function resolve(sim, opts, response, { gate = true } = {}) {
   return { pick, record };
 }
 
+const sameInv = (a, inv) => a === JSON.stringify(inv);
 export function remember(sim, id, ended) {
   if (!id) return;
   sim._outcomes = sim._outcomes || {};
-  sim._outcomes[id] = { tick: sim.tick, ok: ended.ok, why: ended.why, ticks: ended.ticks };
+  sim._outcomes[id] = { tick: sim.tick, ok: ended.ok, why: ended.why, ticks: ended.ticks, c: sim.player.c, y: sim.player.y, inv: JSON.stringify(sim.inv) };
 }
 
 // A journal entry per decision, kept short: the model reads its own last six.

@@ -188,15 +188,44 @@ export function* placeStation(sim, name) {
     const wall = carveSpot(sim);
     if (wall) { const m = yield { op: 'mine', c: wall[0], y: wall[1] }; if (m.ok) spot = wall; }
   }
+  // indoors with no safe tile: set it up outside, by the door (measured: a
+  // house with no room for a table made every crafting option a trap)
+  const hs = sim._house;
+  if (!spot && hs && hs.interior.includes(sim.player.c)) {
+    const out = new Set(hs.outside);
+    const ex = yield* goTo(sim, (c) => out.has(c), 8000);
+    if (ex.ok) spot = placeSpot(sim);
+  }
   if (!spot) return { ok: false, why: `nowhere to put the ${name}` };
   const r = yield { op: 'place', c: spot[0], y: spot[1], item: name };
-  return r.ok ? { ok: true } : { ok: false, why: r.why };
+  if (!r.ok) return { ok: false, why: r.why };
+  // indoors: prove the way out survived, or take the station back
+  const h = sim._house;
+  if (h && h.interior.includes(sim.player.c) && !sim.path(sim.player, (c) => h.outside.includes(c), 4000)) {
+    yield { op: 'mine', c: spot[0], y: spot[1] };
+    const out = new Set(h.outside);
+    const ex = yield* goTo(sim, (c) => out.has(c), 8000);
+    const again = ex.ok && placeSpot(sim);
+    if (!again) return { ok: false, why: `a ${name} there would block the door` };
+    const r2 = yield { op: 'place', c: again[0], y: again[1], item: name };
+    return r2.ok ? { ok: true } : { ok: false, why: r2.why };
+  }
+  return { ok: true };
 }
 // an air voxel in reach with something solid under it. In a tunnel there is
 // none, so carve one out of the wall first (the caller mines it).
+// Inside a house, the centre and the tiles beside the door are the way out:
+// never put a station there (measured: a furnace beside the door once sealed
+// the player in for the rest of the run).
+function keepsWayOut(sim, c) {
+  const h = sim._house;
+  if (!h || !h.interior.includes(c)) return true;
+  return c !== h.c0 && !sim.cols[c].adj.includes(h.door);
+}
 function placeSpot(sim) {
   const p = sim.player;
   for (const y of [p.y, p.y + 1, p.y - 1]) for (const n of sim.cols[p.c].adj) {
+    if (!keepsWayOut(sim, n)) continue;
     const here = sim.get(n, y);
     if ((here === B.air || here === B.water) && sim.solid(n, y - 1) && !sim.occupied(n, y)) return [n, y];
   }
@@ -205,6 +234,7 @@ function placeSpot(sim) {
 function carveSpot(sim) {
   const p = sim.player;
   for (const n of sim.cols[p.c].adj) {
+    if (!keepsWayOut(sim, n)) continue;
     if (sim.solid(n, p.y - 1) && sim.clearCost(n, p.y, sim.pickTier()) < Infinity && sim.get(n, p.y) !== B.air) return [n, p.y];
   }
   return null;
@@ -388,10 +418,10 @@ export function exposed(sim, c, y) {
   return false;
 }
 export function visible(sim, ids, radius = 24) {
-  const p = sim.player, out = [];
+  const p = sim.player, out = [], bad = sim._unreachable;
   for (let c = 0; c < sim.N; c++) {
     if (!sim.seen[c] || sim.dist(c, p.c) > radius) continue;
-    for (let y = 0; y < H; y++) if (ids.includes(sim.get(c, y)) && exposed(sim, c, y)) out.push([c, y]);
+    for (let y = 0; y < H; y++) if (ids.includes(sim.get(c, y)) && exposed(sim, c, y) && !(bad && bad.has(c * H + y))) out.push([c, y]);
   }
   return out.sort((a, b) => sim.dist(a[0], p.c) - sim.dist(b[0], p.c) || Math.abs(a[1] - p.y) - Math.abs(b[1] - p.y));
 }
@@ -399,9 +429,11 @@ export function visiblePigs(sim, radius = 24) {
   return [...sim.ents.values()].filter((e) => e.kind === 'pig' && sim.seen[e.c] && sim.dist(e.c, sim.player.c) <= radius);
 }
 // walk (digging if cheaper) to somewhere a specific voxel is in reach, and mine it
+// (a block we could not get to is remembered, so the next look past it —
+// otherwise the same unreachable ore is retried, one failed search at a time)
 function* fetchBlock(sim, c, y) {
   const go = yield* goTo(sim, (pc, py) => sim.reachable(pc, py, c, y), 12000);
-  if (!go.ok) return { ok: false, why: go.why };
+  if (!go.ok) { (sim._unreachable = sim._unreachable || new Set()).add(c * H + y); return { ok: false, why: go.why }; }
   const r = yield { op: 'mine', c, y };
   return r.ok ? { ok: true } : { ok: false, why: r.why };
 }
@@ -707,6 +739,12 @@ export function* buildHouse(sim) {
   const nextToDoor = interior.find((c) => sim.cols[c].adj.includes(door));
   const g4 = yield* goTo(sim, (pc, py) => pc === nextToDoor && py === g, 3000);
   if (!g4.ok) return { ok: false, why: 'could not reach the doorway' };
+  // a threshold: ground under the door. A doorway over a hole lets you fall
+  // out and never climb back in (measured — go_home failed with no path).
+  if (!sim.solid(door, g - 1)) {
+    const item = nextBlock(sim);
+    if (item) { const f = yield { op: 'place', c: door, y: g - 1, item }; if (!f.ok) return { ok: false, why: `threshold: ${f.why}` }; }
+  }
   for (const y of [g, g + 1]) if (sim.get(door, y) !== B.door) {
     yield* clear(door, y);
     let r = yield { op: 'place', c: door, y, item: 'door' };
@@ -718,6 +756,10 @@ export function* buildHouse(sim) {
     if (spot != null) yield { op: 'place', c: spot, y: g, item: 'torch' };
   }
   if (!sealed(sim, plan)) return { ok: false, why: 'built, but a mob could still walk in' };
+  // and the way back in must exist: from each open outside step, a walk to the centre
+  const outSteps = sim.cols[door].adj.filter((n) => plan.outside.includes(n) && sim.canStand(n, sim.surface(n)));
+  if (!outSteps.some((n) => sim.path({ c: n, y: sim.surface(n) }, (c, y) => c === c0 && y === g, 3000))) return { ok: false, why: 'built, but there is no way back in through the door' };
+  sim.protect.add(door * H + g - 1);
   sim.home = [c0, g];
   sim._house = plan;
   for (const c of ring) for (let y = g; y <= g + 2; y++) sim.protect.add(c * H + y);
@@ -768,7 +810,7 @@ export const PALETTE = {
   mine_coal:    { mode: 'mine', doc: 'take coal in sight, or dig for it', needs: (s) => hasPick(s), run: (s, a) => mineCoal(s, a?.n) },
   mine_iron:    { mode: 'mine', doc: 'down to the iron band and along it', needs: (s) => hasPick(s, 2), run: (s, a) => mineIron(s, a) },
   branch_mine:  { mode: 'mine', doc: 'a straight tunnel on this layer, torch-lit', needs: (s) => hasPick(s), run: (s, a) => branchMine(s, a?.length) },
-  surface:      { mode: 'mine', doc: 'climb back up to open sky', needs: (s) => s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : null, run: (s) => surface(s) },
+  surface:      { mode: 'mine', doc: 'climb back up to open sky', needs: (s) => s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : atHome(s) ? 'in the house — any outdoor activity walks out the door' : null, run: (s) => surface(s) },
   // explore
   explore:      { mode: 'explore', doc: 'walk to the edge of the known and look past it', needs: () => null, run: (s, a) => explore(s, a?.steps) },
   scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },

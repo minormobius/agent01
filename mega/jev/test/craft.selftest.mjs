@@ -260,6 +260,17 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
     ok(bytes < 12000, `${sim.world.shape}: request is ${bytes} bytes (well inside the proxy's 96KB and Jev's token budget)`);
     ok(st.time && st.player && st.progress && st.in_sight && !JSON.stringify(st).includes('"blocks"'), `${sim.world.shape}: the state is facts, not voxels`);
   }
+  // no traps: an option that just failed from this very spot is not offered again
+  {
+    const t = new Sim({ seed: 2, shape: 'hex' });
+    t.give('log', 3); t.give('cobblestone', 20); t.give('wooden_pickaxe', 1);
+    const before = options(t).map((o) => o.id);
+    const victim = before.find((o) => o.startsWith('craft_')) || before[0];
+    t._outcomes = { [victim]: { tick: t.tick, ok: false, why: 'test', ticks: 7, c: t.player.c, y: t.player.y, inv: JSON.stringify(t.inv) } };
+    ok(!options(t).some((o) => o.id === victim), `an option that just failed here is withheld (${victim})`);
+    t.give('log', 1);
+    ok(options(t).some((o) => o.id === victim), 'and offered again once something changed (the inventory)');
+  }
   const s2 = sims[1];
   ok(options(s2).some((o) => o.id === 'craft_stone_pickaxe' && /next rung/.test(o.criteria.advances)), 'a craftable next rung is offered and labelled as the next rung');
 
