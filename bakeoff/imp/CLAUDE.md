@@ -106,6 +106,10 @@ cold compile of Imp and its deps takes ~2.5 min on 4 cores.
 - **Usage is what the provider reports** through ReqLLM, per desk question.
   `route` runs in `Imp.evaluate`'s worker processes, outside the usage frame,
   so its tokens are not counted.
+- **Every rule the key applies must be stated to the agent** (instructions or
+  a tool description). imp-02 scored P-208 against "returned orders are not
+  eligible" without saying so anywhere, and both models that ran it lost the
+  point; desk_hard numbers before imp-03 are not comparable with later ones.
 - **GEPA's budget is `max_metric_calls`, checked between iterations**, so an
   iteration that starts may finish past it (Imp's pinned-DSPy semantics).
 - **A saved program carries no key**, and one built on the scripted model

@@ -161,13 +161,17 @@ defmodule ImpBench.DeskHard do
             %{"error" => "no customer with that email"},
             &(&1["email"] == email |> String.trim() |> String.downcase())
           )
-        end, schema: obj(%{"email" => %{"type" => "string"}}, ["email"])),
+        end,
+        schema: obj(%{"email" => %{"type" => "string"}}, ["email"])
+      ),
       Imp.tool(
         :list_customers,
         "List every customer: id, email, tier and country.",
         fn _ ->
           %{"customers" => Enum.map(@customers, &Map.take(&1, ~w(id email tier country)))}
-        end, schema: obj(%{}, [])),
+        end,
+        schema: obj(%{}, [])
+      ),
       Imp.tool(
         :list_orders,
         "List a customer's order ids, oldest first.",
@@ -187,7 +191,8 @@ defmodule ImpBench.DeskHard do
         "The refund policy that governs an order, from its category, the customer's tier and the ORDER date. " <>
           "Returns the policy version, the refund window in days (counted from delivery), the percent of the price refunded, " <>
           "and the restocking fee (percent of the price) charged when the item was opened. " <>
-          "An order not yet delivered can always be cancelled for 100% of its price with no fee.",
+          "An order not yet delivered can always be cancelled for 100% of its price with no fee. " <>
+          "A returned or cancelled order is not eligible (its refund is 0).",
         fn %{"category" => cat, "tier" => tier, "order_date" => od} ->
           with {:ok, d} <- Date.from_iso8601(String.trim(od)),
                v = version(d),
@@ -228,7 +233,9 @@ defmodule ImpBench.DeskHard do
             {:ok, d} -> %{"today" => Date.to_iso8601(@today), "days" => Date.diff(@today, d)}
             _ -> %{"error" => "date must be YYYY-MM-DD"}
           end
-        end, schema: obj(%{"date" => %{"type" => "string"}}, ["date"])),
+        end,
+        schema: obj(%{"date" => %{"type" => "string"}}, ["date"])
+      ),
       Imp.tool(
         :convert,
         "Convert a USD amount to USD, EUR, GBP or JPY (or pass a country code for its currency).",

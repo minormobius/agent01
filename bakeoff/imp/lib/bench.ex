@@ -227,39 +227,57 @@ defmodule ImpBench do
       {reflection_lm, reflection_key, max_calls} ->
         IO.puts("   GEPA: reflection #{reflection_key}, max_metric_calls #{max_calls}")
 
+        # Imp's defaults give each row and each reflection 30 s. A whole
+        # desk_hard agent run, or a reflection by a thinking model, can take
+        # longer; imp-02's first attempt died of exactly that.
         gepa =
           Imp.Optimizer.GEPA.new(DeskHard.metric(),
             reflection_lm: reflection_lm,
             max_metric_calls: max_calls,
             num_threads: 4,
-            seed: 20_260_927
+            seed: 20_260_927,
+            timeout: 300_000,
+            proposal_timeout: 300_000
           )
 
-        {optimized, gepa_secs} =
-          timed(fn ->
-            Imp.optimize!(agent, gepa, DeskHard.examples(train), DeskHard.examples(val))
-          end)
+        try do
+          {optimized, gepa_secs} =
+            timed(fn ->
+              Imp.optimize!(agent, gepa, DeskHard.examples(train), DeskHard.examples(val))
+            end)
 
-        {opt_arm, opt_rows} = run_agent(optimized, test)
-        File.write!(Path.join(out, "hard.gepa.traces.md"), traces_md(opt_rows))
-        save_program(optimized, Path.join(out, "hard.gepa.program.json"))
+          {opt_arm, opt_rows} = run_agent(optimized, test)
+          File.write!(Path.join(out, "hard.gepa.traces.md"), traces_md(opt_rows))
+          save_program(optimized, Path.join(out, "hard.gepa.program.json"))
 
-        before = Imp.ProgramParameters.values(agent)
-        after_ = Imp.ProgramParameters.values(optimized)
+          before = Imp.ProgramParameters.values(agent)
+          after_ = Imp.ProgramParameters.values(optimized)
 
-        changed =
-          for {id, v} <- after_, before[id] != v, into: %{} do
-            {inspect(id), %{before: text(before[id]), after: text(v)}}
-          end
+          changed =
+            for {id, v} <- after_, before[id] != v, into: %{} do
+              {inspect(id), %{before: text(before[id]), after: text(v)}}
+            end
 
-        result
-        |> put_in([:arms, "react_gepa"], Map.put(opt_arm, :optimize_seconds, gepa_secs))
-        |> Map.put(:gepa, %{
-          reflection: reflection_key,
-          max_metric_calls: max_calls,
-          changed: changed
-        })
-        |> Map.put(:rows_gepa, Enum.map(opt_rows, &Map.drop(&1, [:steps])))
+          result
+          |> put_in([:arms, "react_gepa"], Map.put(opt_arm, :optimize_seconds, gepa_secs))
+          |> Map.put(:gepa, %{
+            reflection: reflection_key,
+            max_metric_calls: max_calls,
+            changed: changed
+          })
+          |> Map.put(:rows_gepa, Enum.map(opt_rows, &Map.drop(&1, [:steps])))
+        rescue
+          # A failed optimization is a finding, not a reason to lose the baseline.
+          e ->
+            msg = Exception.message(e) |> String.slice(0, 2000)
+            IO.puts("   GEPA failed: " <> msg)
+
+            Map.put(result, :gepa, %{
+              reflection: reflection_key,
+              max_metric_calls: max_calls,
+              error: msg
+            })
+        end
     end
   end
 

@@ -103,7 +103,7 @@ for (const { dir, cell } of cells) {
     if (h.gepa) {
       const changed = Object.entries(h.gepa.changed || {});
       lines.push('', `**GEPA** (reflection model \`${h.gepa.reflection}\`, max_metric_calls ${h.gepa.max_metric_calls}): ` +
-        (changed.length ? `rewrote ${changed.length} parameter(s).` : 'kept the original program (no candidate beat it).'));
+        (h.gepa.error ? `**failed**: \`${h.gepa.error.slice(0, 400)}\`` : changed.length ? `rewrote ${changed.length} parameter(s).` : 'kept the original program (no candidate beat it).'));
       for (const [id, c] of changed) {
         lines.push('', `<details><summary>${id}</summary>`, '', '**before**', '', '```', c.before, '```', '', '**after**', '', '```', c.after, '```', '', '</details>');
       }
