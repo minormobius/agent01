@@ -446,5 +446,30 @@ console.log('\nAccretion (packages/attractor/lib/shell.js)');
   ok(far > 40 && inside && finite && lost > 0 && eaten > 0, `a hungry flow moves on by itself (${far.toFixed(0)} units), all stay in the world and finite, and mineral cycles (grazed ${eaten.toFixed(0)}, ${lost} crystals dissolved)`);
 }
 
+// 13 — Grown: bodies grown from programs; each hand-written one must work before evolution may begin --
+console.log('\nGrown (packages/attractor/lib/organism.js)');
+{
+  const { World, GENOMES, develop } = await import('../vendor/attractor/lib/organism.js');
+  ok(JSON.stringify(develop(GENOMES.swimmer)) === JSON.stringify(develop(GENOMES.swimmer)) && develop(GENOMES.grazer).length === 6, 'a program develops the same plan every time (the grazer: 6 organs)');
+  // each alone in three worlds, from the richest place, 3000 steps
+  const life = {};
+  for (const [name, g] of Object.entries(GENOMES)) {
+    life[name] = [1, 2, 3].map((seed) => {
+      const W = new World(seed, { cap: 1 }), B = W.add(g, W.richest(), 0.3, 3); W.run(3000);
+      // how fast it CAN swim: the same body with its appetite off (it never idles), 1500 steps
+      const W2 = new World(seed, { cap: 1 }), B2 = W2.add({ ...g, beat: { ...g.beat, rest: 0 } }, W2.richest(), 0.3, 3); W2.run(1500);
+      return { alive: B.alive, grown: B.grown === B.plan.length, speed: B2.travelled / B2.age, armour: B.crystals.length };
+    });
+  }
+  const all = (n, f) => life[n].every(f), mean = (n) => life[n].reduce((a, x) => a + x.speed, 0) / 3;
+  ok(Object.keys(GENOMES).every((n) => all(n, (x) => x.alive && x.grown)), 'every hand-written body grows its whole plan and lives 3000 steps, alone, in three worlds');
+  ok(mean('swimmer') > 1.3 * mean('grazer') && mean('grazer') > 0.01 && mean('reef') < 0.002, `fins swim: swimmer ${mean('swimmer').toFixed(3)} > grazer ${mean('grazer').toFixed(3)} > reef ${mean('reef').toFixed(4)} units a step`);
+  ok(all('reef', (x) => x.armour > 20) && all('grazer', (x) => x.armour === 0), 'shells grow armour (the reef-builder), and only shells do');
+  // together: they breed (buds), compete, and some starve; the world is the same every time
+  const run = () => { const W = new World(1, { cap: 60 }); ['grazer', 'reef', 'swimmer'].forEach((n, i) => { for (let k = 0; k < 3; k++) { const a = (i * 3 + k) / 9 * 6.283; W.add(GENOMES[n], [80 + Math.cos(a) * 45, 32, 80 + Math.sin(a) * 45], a, 4); } }); return W.run(5000); };
+  const A = run(), B2 = run(), born = A.next - 9;
+  ok(born > 20 && A.dead.length > 0 && A.bodies.length === B2.bodies.length && A.bodies.every((b, i) => b.p.every((v, q) => v === B2.bodies[i].p[q])), `together they bud (${born} born) and some starve (${A.dead.length} dead), the same every time`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

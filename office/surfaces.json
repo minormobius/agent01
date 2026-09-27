@@ -3020,6 +3020,15 @@
    "parent": "studio"
   },
   {
+   "id": "grown",
+   "name": "grown",
+   "url": "https://studio.mino.mobi/grown/",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": "studio"
+  },
+  {
    "id": "accretion",
    "name": "accretion",
    "url": "https://studio.mino.mobi/accretion/",

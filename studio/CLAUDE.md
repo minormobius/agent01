@@ -48,6 +48,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
 voice/                   a lab: Claude's voice by formant synthesis (lib/chipvoice.js), scored by Whisper (tools/voice.mjs)
 avatar/                  Attractor Bodies (sketchbook): packages/attractor (vendor/attractor/lib) on the figure rig
+grown/                   Grown (sketchbook): bodies grown organ by organ from a program (packages/attractor lib/organism.js); gl.js WebGL
 accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
 descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
 bommie/                  No. 6, a sitcom on a coral head: script.js (the clock), world.js (poses at t), sound.js (synth), render.js (raymarch)
@@ -511,6 +512,41 @@ shapes it next.
   The camera frames the whole world or follows one creature. `#seed=N&n=3&at=S` grows S steps first.
 - Measured only in SwiftShader here (CPU raster, meaningless for a GPU). Real-device frame rate is
   unverified.
+
+## Grown (grown/), and packages/attractor/lib/organism.js
+
+A sketchbook (owner, 2026-09-27: "the interesting thing would be to grow novel body plans… you'd need
+bodily functions that get grown"). Accretion's creatures all share one plan (a flow and its house);
+here the PLAN is what varies. Stage 1 (this): the organs and the developmental program, proven with
+three hand-written bodies. Stage 2 (next): mutation on, run headless for hours, keep a bestiary of
+lineages. No fitness function, ever: what feeds buds, what doesn't starves.
+
+- **Organs** (`ORGANS`, each an attractor from the bestiary chosen per genome, with a build cost and an
+  upkeep): mouth (grazes its medium cell and the six round it), gut (capacity), fin (swings about its
+  root; the power stroke bites 4× the recovery, so a beating fin thrusts; off-centre fins turn the body),
+  sense (the medium's gradient over 3–9 units; steers by beating the far side's fins harder), shell
+  (crystal armour from spare energy: mass and drag), bud (a child with half the energy when the gut is
+  full and the plan is complete). A full body idles its fins (`beat.rest`, a gene): without that the
+  swimmer beat itself to death.
+- **The genome is a program**: a root organ and rules `{ p, c, az, el, len, size, mirror, phase }`, and
+  a beat `{ amp, period, steer, rest }`. `develop()` runs the rules breadth-first (depth ≤ 4, ≤ 18 organs,
+  no organ in another's place) into a PLAN; the body grows along it only when it can pay the next
+  organ's build cost and keep a margin. So a body starts as one mouth and grows as it eats. `mutate()`
+  (stage 2) nudges a rule, copies, drops or retypes one, or retunes the beat.
+- **Physics**: rigid body (organs where development put them) plus swinging fins; linear drag; yaw from
+  fin torque; pitch eased toward the sense's vertical gradient. The world (`WX×WY×WZ` 160×64×160) has a
+  medium in seeded veins that diffuses and regrows slowly (`regrow`), and `hard` scales upkeep: at 1
+  nothing ever died and grazers filled the cap; at 3 there is competition (in the mixed world the
+  swimmers die out first and the reef-builders slowly gain on the grazers). A dead body's organs go
+  back into the medium; its armour stays as reef, which erodes back very slowly.
+- **The three hand-written bodies** (selftest, alone from the richest place in three worlds, 3000 steps:
+  all grow their whole plan and live): grazer (mouth, sense, gut, two fins, bud: cruises), reef
+  (big mouth, gut, four shells, bud: never moves, grows ~55 armour crystals), swimmer (small mouth, long
+  sense, gut, four fins, bud: twice the grazer's top speed). The first swimmer had a fin→fin rule that
+  recursed into 12 fins it could not feed: exactly what evolution should prune.
+- **The page**: organs as their attractors in their colours, bonds as threads, armour and reef as
+  crystals, the medium as dim motes; follow one body to read its organs, energy, age and children.
+  30 steps a second at 1×. ~0.4 ms a step for ~60 bodies in node. Real-device frame rate unverified.
 
 ## The Bommie (bommie/)
 
