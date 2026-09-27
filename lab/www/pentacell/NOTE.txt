@@ -1,0 +1,1 @@
+242 neighbours concentrate so tightly the grid's density evolves almost as one number — solved for an exact predicted 2-cycle (Population pulse) instead of guessing. Also: the shipped default likely dies from its own fill %.

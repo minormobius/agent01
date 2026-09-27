@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pentacell — a cellular automaton on a five-dimensional torus</title>
+<meta name="description" content="Conway's Game of Life, generalized to five dimensions: a real 5D Moore neighbourhood (242 neighbours per cell, not 8), birth/survival rules scaled to that density, and a nested-grid view that shows all five axes at once by tiling the extra dimensions and letting you scrub the fifth.">
+<meta property="og:title" content="Pentacell">
+<meta property="og:description" content="Conway's Game of Life, generalized to five dimensions: a real 5D Moore neighbourhood (242 neighbours per cell, not 8), birth/survival rules scaled to that density, and a nested-grid view that shows all five axes at once by tiling the extra dimensions and letting you scrub the fifth.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  #stage { display: flex; flex-direction: column; align-items: center; gap: .6rem; margin: 1rem 0; }
+  #board {
+    width: 100%; max-width: 480px; aspect-ratio: 1/1;
+    background: #000; border: 1px solid var(--border); border-radius: var(--radius);
+    touch-action: manipulation;
+  }
+  .stat { font-size: .8rem; color: var(--muted); text-align: center; }
+  .stat b { color: var(--accent); }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .6rem 0; }
+  .row label { font-size: .8rem; color: var(--muted); flex: 0 0 9rem; }
+  .row input[type=range] { flex: 1 1 140px; min-width: 120px; accent-color: var(--accent); height: 44px; }
+  .row input[type=number] {
+    width: 4.2rem; padding: .5rem; font: inherit; font-size: 16px;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .row .val { font-size: .8rem; color: var(--accent); min-width: 3rem; text-align: right; }
+  select {
+    min-height: 44px; font: inherit; font-size: 16px; background: var(--bg); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: .4rem .6rem;
+  }
+  .btnRow { display: flex; flex-wrap: wrap; gap: .6rem; }
+  .btnRow button { min-height: 44px; flex: 1 1 auto; }
+  h2 { color: var(--fg); }
+  .ruleGrid { display: grid; grid-template-columns: 1fr; gap: .4rem; }
+  .presetList { display: grid; grid-template-columns: 1fr; gap: .6rem; }
+  @media (min-width: 620px) { .presetList { grid-template-columns: 1fr 1fr; } }
+  .presetBtn {
+    text-align: left; min-height: 44px; padding: .6rem .8rem; font: inherit;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+    border-radius: var(--radius); cursor: pointer;
+  }
+  .presetBtn strong { display: block; color: var(--accent); margin-bottom: .2rem; }
+  .presetBtn span { font-size: .78rem; color: var(--muted); }
+  .presetBtn:hover, .presetBtn:focus-visible { border-color: var(--accent); }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  .keyline { font-size: .75rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Pentacell</h1>
+  <p class="sub">Conway's rule, taken literally into five dimensions. A cell has
+    <b id="neighTotal">242</b> neighbours here, not 8 — the full 5D Moore
+    neighbourhood (3<sup>5</sup>&minus;1), wrapped on a torus in every axis. Two
+    of the five axes (<code>x</code>, <code>y</code>) are the grid you see in
+    each tile; two more (<code>z</code>, <code>w</code>) are shown by tiling
+    those grids into a meta-grid; the fifth (<code>v</code>) is a hyperplane you
+    scrub with the slider below — the simulation runs on the full 5D volume the
+    whole time, the slider only chooses which slice is drawn.</p>
+
+  <div id="err" class="err hidden" role="alert"></div>
+
+  <div id="stage">
+    <canvas id="board" width="480" height="480"></canvas>
+    <p class="stat">gen <b id="genOut">0</b> &middot; alive <b id="popOut">0</b>
+      / <b id="totalOut">0</b> (<b id="densOut">0%</b>)</p>
+  </div>
+
+  <div class="panel">
+    <div class="btnRow">
+      <button id="playBtn" type="button">Play</button>
+      <button id="stepBtn" type="button">Step</button>
+      <button id="randBtn" type="button">Randomize</button>
+      <button id="clearBtn" type="button">Clear</button>
+    </div>
+    <div class="row">
+      <label for="nSize">grid size per axis</label>
+      <select id="nSize">
+        <option value="4">4 (1,024 cells)</option>
+        <option value="5" selected>5 (3,125 cells)</option>
+        <option value="6">6 (7,776 cells)</option>
+      </select>
+    </div>
+    <div class="row">
+      <label for="vSlider">hyperplane v</label>
+      <input type="range" id="vSlider" min="0" max="4" value="0" step="1">
+      <span class="val" id="vVal">0 / 4</span>
+    </div>
+    <div class="row">
+      <label for="speed">step interval</label>
+      <input type="range" id="speed" min="60" max="1000" value="220" step="20">
+      <span class="val" id="speedVal">220 ms</span>
+    </div>
+    <div class="row">
+      <label for="fillPct">random fill</label>
+      <input type="range" id="fillPct" min="1" max="60" value="22" step="1">
+      <span class="val" id="fillVal">22%</span>
+    </div>
+    <p class="keyline">tap/click a cell in the visible slice to toggle it by hand.</p>
+  </div>
+
+  <div class="panel">
+    <h2>rule — birth / survival by neighbour density</h2>
+    <p class="keyline">B3/S23 doesn't carry over: 3 live neighbours out of 8 is a
+      density of 37.5%, but 3 out of 242 is nothing. So this rule is stated as a
+      density band (fraction of the 242 neighbours alive) instead of a fixed
+      count — the only way to give "the same rule" a meaning that survives a
+      change of dimension. The defaults below are centred on classic Life's own
+      density (birth at ~3/8, survival at 2/8&ndash;3/8); they are not proven
+      special in 5D the way B3/S23 is in 2D, and are yours to retune.</p>
+    <div class="ruleGrid">
+      <div class="row">
+        <label for="bMin">birth min %</label>
+        <input type="range" id="bMin" min="0" max="100" value="33" step="1">
+        <input type="number" id="bMinN" min="0" max="100" value="33">
+      </div>
+      <div class="row">
+        <label for="bMax">birth max %</label>
+        <input type="range" id="bMax" min="0" max="100" value="45" step="1">
+        <input type="number" id="bMaxN" min="0" max="100" value="45">
+      </div>
+      <div class="row">
+        <label for="sMin">survive min %</label>
+        <input type="range" id="sMin" min="0" max="100" value="24" step="1">
+        <input type="number" id="sMinN" min="0" max="100" value="24">
+      </div>
+      <div class="row">
+        <label for="sMax">survive max %</label>
+        <input type="range" id="sMax" min="0" max="100" value="45" step="1">
+        <input type="number" id="sMaxN" min="0" max="100" value="45">
+      </div>
+    </div>
+    <p class="keyline" id="ruleReadout"></p>
+  </div>
+
+  <div class="panel">
+    <h2>why presets, and why they're a prediction</h2>
+    <p class="keyline">242 neighbours is a lot to average over. At a 22% global
+      density the fraction any one cell sees is spread only about
+      &plusmn;2.7 percentage points from cell to cell (&radic;(p(1&minus;p)/242));
+      2D Life's 8 neighbours spread by tens of points at the same density. So
+      almost every cell sees close to the <em>whole grid's</em> density, not its
+      own neighbourhood's — the birth/survival bands act less like a local rule
+      and more like a threshold on one number. The five presets below are what
+      that threshold-on-a-number picture predicts for each band placement, worked
+      out by hand, not by watching them run &mdash; this build has no browser.
+      Load one, hit Randomize, then Play, and see if the population readout
+      does what its description says.</p>
+    <div class="presetList" id="presetList">
+      <button type="button" class="presetBtn" data-b-min="33" data-b-max="45" data-s-min="24" data-s-max="45">
+        <strong>Life echo</strong>
+        <span>the shipped default, ratio-matched to 2D Life's own density. Its
+          survive floor (24%) sits just above the default 22% random fill —
+          predicted to fade fast from a fresh Randomize. If the board goes
+          empty, that's why: nudge survive-min down a few points, or bump
+          random fill up past 24% first.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="45" data-b-max="70" data-s-min="15" data-s-max="35">
+        <strong>Stable plateau</strong>
+        <span>survival covers the default fill (22%), birth sits well above it
+          — a density inside survive and outside birth is self-consistent.
+          Predicted: population holds roughly flat once it settles, while the
+          actual live cells keep turning over underneath.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="15" data-b-max="85" data-s-min="90" data-s-max="100">
+        <strong>Population pulse</strong>
+        <span>the one with real arithmetic behind it: birth covers roughly
+          15&ndash;85%, survive only 90&ndash;100%. From 22% alive, birth flips
+          nearly every dead cell (&rarr;78% alive); at 78%, birth no longer
+          applies and 78% isn't in the survive band either, so it flips back
+          (&rarr;22%). Predicted: population bounces between about a fifth and
+          four-fifths alive, every single generation, forever &mdash; watch the
+          readout, not just the picture.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="10" data-b-max="100" data-s-min="10" data-s-max="100">
+        <strong>Takeover</strong>
+        <span>both bands cover almost any density above near-zero, so birth
+          and survival both fire together and stay fired at full (100%).
+          Predicted: swallows the grid within a handful of generations and
+          holds there solid.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="60" data-b-max="90" data-s-min="60" data-s-max="90">
+        <strong>Extinction</strong>
+        <span>thresholds set above anything a random fill produces. Predicted:
+          flatlines to empty almost immediately &mdash; a sanity check that the
+          sliders actually reach the engine, not a rule worth lingering on.</span>
+      </button>
+    </div>
+  </div>
+
+  <footer class="foot">five dimensions, one torus, no shortcuts on the neighbour count.</footer>
+</main>
+
+<script>
+kit.crumb();
+
+var els = {
+  board: document.getElementById('board'),
+  playBtn: document.getElementById('playBtn'),
+  stepBtn: document.getElementById('stepBtn'),
+  randBtn: document.getElementById('randBtn'),
+  clearBtn: document.getElementById('clearBtn'),
+  nSize: document.getElementById('nSize'),
+  vSlider: document.getElementById('vSlider'),
+  vVal: document.getElementById('vVal'),
+  speed: document.getElementById('speed'),
+  speedVal: document.getElementById('speedVal'),
+  fillPct: document.getElementById('fillPct'),
+  fillVal: document.getElementById('fillVal'),
+  genOut: document.getElementById('genOut'),
+  popOut: document.getElementById('popOut'),
+  totalOut: document.getElementById('totalOut'),
+  densOut: document.getElementById('densOut'),
+  neighTotal: document.getElementById('neighTotal'),
+  ruleReadout: document.getElementById('ruleReadout'),
+  bMin: document.getElementById('bMin'), bMinN: document.getElementById('bMinN'),
+  bMax: document.getElementById('bMax'), bMaxN: document.getElementById('bMaxN'),
+  sMin: document.getElementById('sMin'), sMinN: document.getElementById('sMinN'),
+  sMax: document.getElementById('sMax'), sMaxN: document.getElementById('sMaxN'),
+};
+var ctx = els.board.getContext('2d');
+
+// The full 5D Moore neighbourhood: every offset in {-1,0,1}^5 except the zero
+// vector. 3^5 - 1 = 242, computed once and reused every generation.
+var OFFSETS = [];
+(function buildOffsets() {
+  for (var dx = -1; dx <= 1; dx++)
+    for (var dy = -1; dy <= 1; dy++)
+      for (var dz = -1; dz <= 1; dz++)
+        for (var dw = -1; dw <= 1; dw++)
+          for (var dv = -1; dv <= 1; dv++)
+            if (dx || dy || dz || dw || dv) OFFSETS.push([dx, dy, dz, dw, dv]);
+})();
+
+var state = {
+  N: 5,
+  grid: null,
+  generation: 0,
+  viewV: 0,
+  playing: false,
+  timer: null,
+  intervalMs: 220,
+  birthMin: .33, birthMax: .45, surviveMin: .24, surviveMax: .45,
+};
+
+function idx(x, y, z, w, v, N) {
+  return ((((x * N + y) * N + z) * N + w) * N + v);
+}
+
+function allocGrid(N) {
+  return new Uint8Array(N * N * N * N * N);
+}
+
+function randomize(N, pct) {
+  var g = allocGrid(N);
+  for (var i = 0; i < g.length; i++) g[i] = Math.random() < pct ? 1 : 0;
+  return g;
+}
+
+function setN(N) {
+  state.N = N;
+  state.grid = allocGrid(N);
+  state.generation = 0;
+  els.vSlider.max = N - 1;
+  if (state.viewV > N - 1) state.viewV = 0;
+  els.vSlider.value = state.viewV;
+  updateVLabel();
+  updateStats();
+  render();
+}
+
+function updateVLabel() {
+  els.vVal.textContent = state.viewV + ' / ' + (state.N - 1);
+}
+
+function updateRuleReadout() {
+  var total = OFFSETS.length;
+  var f = function (p) { return Math.round(p * total); };
+  els.ruleReadout.textContent =
+    'birth: ' + f(state.birthMin) + '–' + f(state.birthMax) + ' of ' + total +
+    ' live neighbours · survive: ' + f(state.surviveMin) + '–' + f(state.surviveMax) + ' of ' + total;
+}
+
+function updateStats() {
+  var N = state.N, total = state.grid.length, pop = 0;
+  for (var i = 0; i < total; i++) pop += state.grid[i];
+  els.genOut.textContent = state.generation;
+  els.popOut.textContent = pop;
+  els.totalOut.textContent = total;
+  els.densOut.textContent = (100 * pop / total).toFixed(1) + '%';
+}
+
+function step() {
+  var N = state.N, cur = state.grid, next = allocGrid(N);
+  var total = OFFSETS.length;
+  var bMin = state.birthMin, bMax = state.birthMax, sMin = state.surviveMin, sMax = state.surviveMax;
+  for (var x = 0; x < N; x++) {
+    for (var y = 0; y < N; y++) {
+      for (var z = 0; z < N; z++) {
+        for (var w = 0; w < N; w++) {
+          for (var v = 0; v < N; v++) {
+            var count = 0;
+            for (var k = 0; k < total; k++) {
+              var off = OFFSETS[k];
+              var nx = x + off[0]; if (nx < 0) nx += N; else if (nx >= N) nx -= N;
+              var ny = y + off[1]; if (ny < 0) ny += N; else if (ny >= N) ny -= N;
+              var nz = z + off[2]; if (nz < 0) nz += N; else if (nz >= N) nz -= N;
+              var nw = w + off[3]; if (nw < 0) nw += N; else if (nw >= N) nw -= N;
+              var nv = v + off[4]; if (nv < 0) nv += N; else if (nv >= N) nv -= N;
+              count += cur[idx(nx, ny, nz, nw, nv, N)];
+            }
+            var density = count / total;
+            var i = idx(x, y, z, w, v, N);
+            var alive = cur[i];
+            var willLive = alive
+              ? (density >= sMin && density <= sMax)
+              : (density >= bMin && density <= bMax);
+            next[i] = willLive ? 1 : 0;
+          }
+        }
+      }
+    }
+  }
+  state.grid = next;
+  state.generation++;
+  updateStats();
+  render();
+}
+
+// Layout: outer meta-grid tiles z (columns) by w (rows); each tile is an x,y
+// grid at the currently selected v. Simulation state is untouched by which
+// slice is drawn — scrubbing v just re-renders.
+function render() {
+  var N = state.N, v = state.viewV, grid = state.grid;
+  var W = els.board.width, H = els.board.height;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, W, H);
+  var gap = Math.max(1, Math.floor(Math.min(W, H) / (N * N * 8)));
+  var cell = Math.floor((Math.min(W, H) - (N - 1) * gap) / (N * N));
+  if (cell < 1) cell = 1;
+  var tile = N * cell;
+  var accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#e8a33d';
+  ctx.fillStyle = accent;
+  for (var z = 0; z < N; z++) {
+    for (var w = 0; w < N; w++) {
+      var tx = z * (tile + gap), ty = w * (tile + gap);
+      for (var x = 0; x < N; x++) {
+        for (var y = 0; y < N; y++) {
+          if (grid[idx(x, y, z, w, v, N)]) {
+            ctx.fillRect(tx + x * cell, ty + y * cell, cell, cell);
+          }
+        }
+      }
+    }
+  }
+  // faint separators between meta-tiles so z/w boundaries read as structure
+  ctx.strokeStyle = 'rgba(232,163,61,.25)';
+  ctx.lineWidth = 1;
+  for (var zz = 1; zz < N; zz++) {
+    var gx = zz * (tile + gap) - gap / 2;
+    ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, N * (tile + gap)); ctx.stroke();
+  }
+  for (var ww = 1; ww < N; ww++) {
+    var gy = ww * (tile + gap) - gap / 2;
+    ctx.beginPath(); ctx.moveTo(0, gy); ctx.lineTo(N * (tile + gap), gy); ctx.stroke();
+  }
+  els.board._layout = { N: N, cell: cell, gap: gap, tile: tile };
+}
+
+function pauseSim() {
+  state.playing = false;
+  els.playBtn.textContent = 'Play';
+  if (state.timer) { clearInterval(state.timer); state.timer = null; }
+}
+
+function playSim() {
+  state.playing = true;
+  els.playBtn.textContent = 'Pause';
+  if (state.timer) clearInterval(state.timer);
+  state.timer = setInterval(step, state.intervalMs);
+}
+
+els.playBtn.addEventListener('click', function () {
+  if (state.playing) pauseSim(); else playSim();
+});
+els.stepBtn.addEventListener('click', function () { pauseSim(); step(); });
+els.randBtn.addEventListener('click', function () {
+  pauseSim();
+  var pct = els.fillPct.value / 100;
+  state.grid = randomize(state.N, pct);
+  state.generation = 0;
+  updateStats(); render();
+});
+els.clearBtn.addEventListener('click', function () {
+  pauseSim();
+  state.grid = allocGrid(state.N);
+  state.generation = 0;
+  updateStats(); render();
+});
+els.nSize.addEventListener('change', function () {
+  pauseSim();
+  setN(parseInt(els.nSize.value, 10));
+});
+els.vSlider.addEventListener('input', function () {
+  state.viewV = parseInt(els.vSlider.value, 10);
+  updateVLabel();
+  render();
+});
+els.speed.addEventListener('input', function () {
+  state.intervalMs = parseInt(els.speed.value, 10);
+  els.speedVal.textContent = state.intervalMs + ' ms';
+  if (state.playing) playSim();
+});
+els.fillPct.addEventListener('input', function () {
+  els.fillVal.textContent = els.fillPct.value + '%';
+});
+
+function wireRulePair(rangeEl, numEl, key) {
+  rangeEl.addEventListener('input', function () {
+    numEl.value = rangeEl.value;
+    state[key] = rangeEl.value / 100;
+    updateRuleReadout();
+  });
+  numEl.addEventListener('input', function () {
+    var v = Math.max(0, Math.min(100, parseInt(numEl.value, 10) || 0));
+    rangeEl.value = v;
+    state[key] = v / 100;
+    updateRuleReadout();
+  });
+}
+wireRulePair(els.bMin, els.bMinN, 'birthMin');
+wireRulePair(els.bMax, els.bMaxN, 'birthMax');
+wireRulePair(els.sMin, els.sMinN, 'surviveMin');
+wireRulePair(els.sMax, els.sMaxN, 'surviveMax');
+
+function applyPreset(bMin, bMax, sMin, sMax) {
+  els.bMin.value = bMin; els.bMinN.value = bMin; state.birthMin = bMin / 100;
+  els.bMax.value = bMax; els.bMaxN.value = bMax; state.birthMax = bMax / 100;
+  els.sMin.value = sMin; els.sMinN.value = sMin; state.surviveMin = sMin / 100;
+  els.sMax.value = sMax; els.sMaxN.value = sMax; state.surviveMax = sMax / 100;
+  updateRuleReadout();
+}
+document.getElementById('presetList').addEventListener('click', function (ev) {
+  var btn = ev.target.closest('.presetBtn');
+  if (!btn) return;
+  applyPreset(
+    parseInt(btn.dataset.bMin, 10), parseInt(btn.dataset.bMax, 10),
+    parseInt(btn.dataset.sMin, 10), parseInt(btn.dataset.sMax, 10)
+  );
+});
+
+els.board.addEventListener('click', function (ev) {
+  var layout = els.board._layout;
+  if (!layout) return;
+  var rect = els.board.getBoundingClientRect();
+  var scaleX = els.board.width / rect.width, scaleY = els.board.height / rect.height;
+  var px = (ev.clientX - rect.left) * scaleX;
+  var py = (ev.clientY - rect.top) * scaleY;
+  var N = layout.N, cell = layout.cell, gap = layout.gap, tile = layout.tile;
+  var period = tile + gap;
+  var z = Math.floor(px / period), w = Math.floor(py / period);
+  if (z < 0 || z >= N || w < 0 || w >= N) return;
+  var localX = px - z * period, localY = py - w * period;
+  if (localX >= tile || localY >= tile) return; // hit the gap
+  var x = Math.floor(localX / cell), y = Math.floor(localY / cell);
+  if (x < 0 || x >= N || y < 0 || y >= N) return;
+  var i = idx(x, y, z, w, state.viewV, N);
+  state.grid[i] = state.grid[i] ? 0 : 1;
+  updateStats();
+  render();
+});
+
+els.neighTotal.textContent = OFFSETS.length;
+updateRuleReadout();
+setN(5);
+</script>
+</body>
+</html>

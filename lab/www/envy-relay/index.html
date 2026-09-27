@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Envy Relay — a delegated fair-division puzzle</title>
+<meta property="og:title" content="Envy Relay — a delegated fair-division puzzle">
+<meta property="og:description" content="Split donated goods across three pantries, then across each pantry's two members, until nobody envies anyone in their own group. A small playable build of a 2026 fair-division paper on delegated allocation.">
+<meta property="og:type" content="website">
+<meta name="description" content="Split donated goods across three pantries, then across each pantry's two members, until nobody envies anyone in their own group.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main.game { max-width: 56rem; }
+  .lede { font-size: .85rem; color: var(--muted); }
+  .lede a { color: var(--accent); }
+
+  .heat-wrap { overflow-x: auto; margin: 1rem 0 1.5rem; }
+  table.heat { border-collapse: collapse; width: 100%; font-size: .72rem; }
+  table.heat th, table.heat td { padding: .4rem .3rem; text-align: center; border: 1px solid var(--border); white-space: nowrap; }
+  table.heat th { color: var(--muted); font-weight: normal; }
+  table.heat td.rowlabel { text-align: left; color: var(--fg); font-weight: 600; }
+  table.heat tr.center-start td, table.heat tr.center-start th { border-top: 2px solid var(--accent); }
+
+  .board { margin: 1.5rem 0; }
+  .zone-label { display: block; font-size: .68rem; color: var(--muted); margin-bottom: .3rem; letter-spacing: .02em; text-transform: uppercase; }
+  .zone {
+    min-height: 56px; border: 1px dashed var(--border); border-radius: var(--radius);
+    padding: .5rem; display: flex; flex-wrap: wrap; gap: .4rem; align-content: flex-start;
+  }
+  .zone.pool { min-height: 72px; background: rgba(255,255,255,.02); }
+
+  .centers { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: .9rem; margin-top: 1rem; }
+  @media (max-width: 720px) { .centers { grid-template-columns: 1fr; } }
+  .center-panel { border: 1px solid var(--border); border-radius: var(--radius); padding: .8rem; background: rgba(255,255,255,.015); }
+  .center-panel h3 { margin: 0 0 .6rem; font-size: 1rem; color: var(--fg); }
+  .members { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .5rem; }
+
+  .chip {
+    display: inline-flex; align-items: center; gap: .35rem;
+    min-height: 44px; padding: .4rem .65rem;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    font-size: .82rem; color: var(--fg); cursor: grab; touch-action: none; user-select: none;
+  }
+  .chip.ghost { opacity: .9; box-shadow: 0 6px 20px rgba(0,0,0,.5); cursor: grabbing; }
+
+  .checker { margin: 1.5rem 0; }
+  .checker h2 { margin-bottom: .6rem; }
+  .checker-grid { display: grid; grid-template-columns: 1fr; gap: .4rem; }
+  @media (min-width: 680px) { .checker-grid { grid-template-columns: 1fr 1fr; } }
+  .check-row {
+    display: flex; gap: .5rem; align-items: baseline; font-size: .78rem;
+    padding: .45rem .6rem; border-radius: var(--radius);
+    background: var(--bg-raised); border: 1px solid var(--border); color: var(--muted);
+  }
+  .check-row.ok { border-color: var(--ok); }
+  .check-row.bad { border-color: var(--error); color: var(--error); }
+  .check-icon { flex: none; }
+
+  .status {
+    margin: 1.25rem 0; padding: .8rem 1rem; border-radius: var(--radius);
+    background: var(--bg-raised); border: 1px solid var(--border); font-size: .85rem;
+  }
+  .status.solved { border-color: var(--ok); color: var(--ok); }
+
+  .controls { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+  #timer { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<main class="game">
+<div id="crumb"></div>
+
+<h1>Envy Relay</h1>
+<p class="sub">A drag-and-drop puzzle built from a real fair-division paper.</p>
+
+<p class="lede">
+  <a href="https://arxiv.org/abs/2607.27743" target="_blank" rel="noopener">Deligkas, Fasoulakis, Ioannidis, Mancho &amp; Markakis (2026), &ldquo;Delegated Fair Division&rdquo;</a>
+  studies allocation through a middle layer of <strong>centers</strong> &mdash; think of a
+  charity delegating food donations to local pantries, which then split them among their
+  own members. Fairness has to hold at <em>both</em> levels at once: pantries shouldn't envy
+  each other, and inside a pantry, nobody should envy their fellow member.
+</p>
+<p class="lede">
+  Below: 3 pantries, 2 members each, 6 donated goods. Every member secretly values each
+  good differently &mdash; you get to see the whole grid, because you're playing the
+  allocator, not a participant. Drag each good onto a pantry, then onto one of that
+  pantry's two members. The checker below updates live.
+</p>
+<p class="lede">
+  <strong>This build plays the <em>intra-fairness</em> mode</strong>: members only compare
+  themselves against their own pantry-mate, never against people in other pantries.
+  Pantries are checked against each other using the paper's <em>item-based potential</em>
+  value &mdash; a pantry judges another pantry's goods by imagining it split them optimally
+  between its own two members, regardless of how that pantry actually split them.
+</p>
+
+<div class="heat-wrap">
+<table class="heat" id="heatTable" aria-label="Each member's value for each good"></table>
+</div>
+
+<div class="board">
+  <span class="zone-label">Unassigned goods</span>
+  <div class="zone pool" id="pool" data-zone="pool"></div>
+
+  <div class="centers" id="centers"></div>
+</div>
+
+<div class="controls">
+  <button id="resetBtn" type="button">reset</button>
+  <span>elapsed: <span id="timer">0:00</span></span>
+</div>
+
+<div class="status" id="status"></div>
+
+<div class="checker">
+  <h2>live fairness checker</h2>
+  <div class="checker-grid" id="checkerGrid"></div>
+</div>
+
+<p class="lede">
+  Goods held by a pantry but not yet given to a member don't count toward any member's
+  bundle, but they <em>do</em> already count toward that pantry's own valuation of what it
+  holds &mdash; item-based potential value only cares which pantry a good belongs to.
+</p>
+</main>
+
+<script>
+(function () {
+  document.getElementById('crumb').innerHTML = kit.crumb('envy relay');
+
+  var CENTERS = ['Riverside Pantry', 'Harbor Pantry', 'Cedar Pantry'];
+  var MEMBER_NAMES = ['Member 1', 'Member 2'];
+  var GOODS = [
+    { name: 'Rice',      emoji: '🍚' },
+    { name: 'Bread',     emoji: '🍞' },
+    { name: 'Milk',      emoji: '🥛' },
+    { name: 'Beans',     emoji: '🫘' },
+    { name: 'Apples',    emoji: '🍎' },
+    { name: 'Blankets',  emoji: '🧣' }
+  ];
+  // rows: Riverside-1, Riverside-2, Harbor-1, Harbor-2, Cedar-1, Cedar-2
+  // cols match GOODS order
+  var VALUES = [
+    [8, 3, 5, 2, 6, 1],
+    [2, 7, 4, 6, 3, 8],
+    [5, 5, 8, 3, 2, 6],
+    [6, 2, 3, 8, 5, 4],
+    [3, 6, 2, 5, 8, 7],
+    [7, 4, 6, 1, 4, 3]
+  ];
+
+  function agentIdx(c, m) { return c * 2 + m; }
+  function contrib(c, g) { return Math.max(VALUES[agentIdx(c, 0)][g], VALUES[agentIdx(c, 1)][g]); }
+
+  // assignment[g] = { center: 0|1|2|null, member: 0|1|null }
+  var assignment = GOODS.map(function () { return { center: null, member: null }; });
+
+  var startTime = null, solvedTime = null, timerInt = null;
+
+  // ---------------- heatmap ----------------
+  function renderHeatmap() {
+    var t = document.getElementById('heatTable');
+    var html = '<tr><th></th>';
+    GOODS.forEach(function (gd) { html += '<th>' + gd.emoji + '<br>' + gd.name + '</th>'; });
+    html += '</tr>';
+    CENTERS.forEach(function (cname, c) {
+      MEMBER_NAMES.forEach(function (mname, m) {
+        var first = (m === 0);
+        html += '<tr' + (first ? ' class="center-start"' : '') + '>';
+        html += '<td class="rowlabel">' + (first ? cname + ' — ' : '') + mname + '</td>';
+        var row = VALUES[agentIdx(c, m)];
+        for (var g = 0; g < GOODS.length; g++) {
+          var v = row[g];
+          var alpha = 0.12 + 0.8 * (v - 1) / 8;
+          var color = alpha > 0.5 ? '#1a1206' : 'var(--fg)';
+          html += '<td style="background:rgba(232,163,61,' + alpha.toFixed(2) + ');color:' + color + '">' + v + '</td>';
+        }
+        html += '</tr>';
+      });
+    });
+    t.innerHTML = html;
+  }
+
+  // ---------------- board ----------------
+  function renderBoard() {
+    var centersEl = document.getElementById('centers');
+    if (!centersEl.dataset.built) {
+      var html = '';
+      CENTERS.forEach(function (cname, c) {
+        html += '<div class="center-panel"><h3>' + cname + '</h3>' +
+          '<span class="zone-label">received, not yet split</span>' +
+          '<div class="zone" id="center-' + c + '" data-zone="center" data-center="' + c + '"></div>' +
+          '<div class="members">';
+        MEMBER_NAMES.forEach(function (mname, m) {
+          html += '<div><span class="zone-label">' + mname + '</span>' +
+            '<div class="zone" id="member-' + c + '-' + m + '" data-zone="member" data-center="' + c + '" data-member="' + m + '"></div></div>';
+        });
+        html += '</div></div>';
+      });
+      centersEl.innerHTML = html;
+      centersEl.dataset.built = '1';
+    }
+
+    // clear all zones
+    document.getElementById('pool').innerHTML = '';
+    CENTERS.forEach(function (cname, c) {
+      document.getElementById('center-' + c).innerHTML = '';
+      MEMBER_NAMES.forEach(function (mname, m) {
+        document.getElementById('member-' + c + '-' + m).innerHTML = '';
+      });
+    });
+
+    GOODS.forEach(function (gd, g) {
+      var a = assignment[g];
+      var zoneEl;
+      if (a.center === null) zoneEl = document.getElementById('pool');
+      else if (a.member === null) zoneEl = document.getElementById('center-' + a.center);
+      else zoneEl = document.getElementById('member-' + a.center + '-' + a.member);
+      zoneEl.appendChild(makeChip(g));
+    });
+  }
+
+  function makeChip(g) {
+    var gd = GOODS[g];
+    var chip = document.createElement('div');
+    chip.className = 'chip';
+    chip.dataset.good = g;
+    chip.textContent = gd.emoji + ' ' + gd.name;
+    chip.addEventListener('pointerdown', onPointerDown);
+    return chip;
+  }
+
+  var dragging = null;
+
+  function onPointerDown(e) {
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
+    e.preventDefault();
+    var chip = e.currentTarget;
+    var goodIdx = +chip.dataset.good;
+    var ghost = chip.cloneNode(true);
+    ghost.classList.add('ghost');
+    ghost.style.position = 'fixed';
+    ghost.style.pointerEvents = 'none';
+    ghost.style.zIndex = 9999;
+    ghost.style.left = (e.clientX - 24) + 'px';
+    ghost.style.top = (e.clientY - 24) + 'px';
+    document.body.appendChild(ghost);
+    chip.style.opacity = '.25';
+    dragging = { goodIdx: goodIdx, ghost: ghost, sourceChip: chip };
+  }
+
+  document.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    dragging.ghost.style.left = (e.clientX - 24) + 'px';
+    dragging.ghost.style.top = (e.clientY - 24) + 'px';
+  });
+
+  function endDrag(e) {
+    if (!dragging) return;
+    var el = document.elementFromPoint(e.clientX, e.clientY);
+    var zone = el && el.closest('.zone');
+    if (zone) applyDrop(dragging.goodIdx, zone);
+    dragging.ghost.remove();
+    dragging = null;
+    render();
+  }
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', function () {
+    if (dragging) { dragging.ghost.remove(); dragging.sourceChip.style.opacity = ''; dragging = null; }
+  });
+
+  function applyDrop(g, zoneEl) {
+    var type = zoneEl.dataset.zone;
+    var before = JSON.stringify(assignment);
+    if (type === 'pool') assignment[g] = { center: null, member: null };
+    else if (type === 'center') assignment[g] = { center: +zoneEl.dataset.center, member: null };
+    else if (type === 'member') assignment[g] = { center: +zoneEl.dataset.center, member: +zoneEl.dataset.member };
+    if (JSON.stringify(assignment) !== before) maybeStartTimer();
+  }
+
+  // ---------------- checks ----------------
+  function centerGoods(c) {
+    var out = [];
+    assignment.forEach(function (a, g) { if (a.center === c) out.push(g); });
+    return out;
+  }
+  function memberGoods(c, m) {
+    var out = [];
+    assignment.forEach(function (a, g) { if (a.center === c && a.member === m) out.push(g); });
+    return out;
+  }
+
+  function computeChecks() {
+    var centerPairs = [];
+    for (var i = 0; i < 3; i++) {
+      for (var j = 0; j < 3; j++) {
+        if (i === j) continue;
+        var Bi = centerGoods(i), Bj = centerGoods(j);
+        var viOwn = Bi.reduce(function (s, g) { return s + contrib(i, g); }, 0);
+        var viOther = Bj.reduce(function (s, g) { return s + contrib(i, g); }, 0);
+        var ok;
+        if (viOwn >= viOther) ok = true;
+        else {
+          var maxC = Bj.reduce(function (m, g) { return Math.max(m, contrib(i, g)); }, 0);
+          ok = viOwn >= (viOther - maxC);
+        }
+        centerPairs.push({ i: i, j: j, ok: ok });
+      }
+    }
+    var agentPairs = [];
+    for (var c = 0; c < 3; c++) {
+      for (var m = 0; m < 2; m++) {
+        var other = 1 - m;
+        var own = memberGoods(c, m), theirs = memberGoods(c, other);
+        var av = agentIdx(c, m);
+        var ownVal = own.reduce(function (s, g) { return s + VALUES[av][g]; }, 0);
+        var otherVal = theirs.reduce(function (s, g) { return s + VALUES[av][g]; }, 0);
+        var ok2;
+        if (ownVal >= otherVal) ok2 = true;
+        else {
+          var maxItem = theirs.reduce(function (mx, g) { return Math.max(mx, VALUES[av][g]); }, 0);
+          ok2 = ownVal >= (otherVal - maxItem);
+        }
+        agentPairs.push({ c: c, m: m, other: other, ok: ok2 });
+      }
+    }
+    var allPlaced = assignment.every(function (a) { return a.center !== null && a.member !== null; });
+    return { centerPairs: centerPairs, agentPairs: agentPairs, allPlaced: allPlaced };
+  }
+
+  function renderChecker(checks) {
+    var grid = document.getElementById('checkerGrid');
+    var html = '';
+    checks.centerPairs.forEach(function (p) {
+      html += '<div class="check-row ' + (p.ok ? 'ok' : 'bad') + '">' +
+        '<span class="check-icon">' + (p.ok ? '✅' : '❌') + '</span>' +
+        '<span>' + CENTERS[p.i] + ' vs ' + CENTERS[p.j] + ' (center EF1)</span></div>';
+    });
+    checks.agentPairs.forEach(function (p) {
+      html += '<div class="check-row ' + (p.ok ? 'ok' : 'bad') + '">' +
+        '<span class="check-icon">' + (p.ok ? '✅' : '❌') + '</span>' +
+        '<span>' + CENTERS[p.c] + ': ' + MEMBER_NAMES[p.m] + ' vs ' + MEMBER_NAMES[p.other] + ' (intra-EF1)</span></div>';
+    });
+    grid.innerHTML = html;
+  }
+
+  function renderStatus(checks) {
+    var el = document.getElementById('status');
+    var total = checks.centerPairs.length + checks.agentPairs.length;
+    var passing = checks.centerPairs.filter(function (p) { return p.ok; }).length +
+                  checks.agentPairs.filter(function (p) { return p.ok; }).length;
+    var placed = assignment.filter(function (a) { return a.center !== null && a.member !== null; }).length;
+
+    var solved = checks.allPlaced && passing === total;
+    if (solved) {
+      if (solvedTime === null) { solvedTime = Date.now(); clearInterval(timerInt); }
+      el.className = 'status solved';
+      el.textContent = '✅ Envy-free at both levels — solved in ' + formatElapsed(solvedTime - startTime) + '.';
+    } else {
+      el.className = 'status';
+      el.textContent = placed + '/6 goods given to a member · ' + passing + '/' + total + ' fairness checks passing.';
+    }
+  }
+
+  function formatElapsed(ms) {
+    var s = Math.floor(ms / 1000);
+    return Math.floor(s / 60) + ':' + (s % 60 < 10 ? '0' : '') + (s % 60);
+  }
+
+  function maybeStartTimer() {
+    if (startTime === null) {
+      startTime = Date.now();
+      timerInt = setInterval(function () {
+        if (solvedTime !== null) return;
+        document.getElementById('timer').textContent = formatElapsed(Date.now() - startTime);
+      }, 250);
+    }
+  }
+
+  function render() {
+    renderBoard();
+    var checks = computeChecks();
+    renderChecker(checks);
+    renderStatus(checks);
+  }
+
+  document.getElementById('resetBtn').addEventListener('click', function () {
+    assignment.forEach(function (a) { a.center = null; a.member = null; });
+    startTime = null; solvedTime = null;
+    clearInterval(timerInt);
+    document.getElementById('timer').textContent = '0:00';
+    render();
+  });
+
+  renderHeatmap();
+  render();
+})();
+</script>
+</body>
+</html>

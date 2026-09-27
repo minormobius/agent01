@@ -1,0 +1,1 @@
+Added palm reading as a real second mode (toggle above draw), defaulting to it — heart/head/life/fate/sun lines onto the same five lanes tarot used. Kept the tarot deck too; flip the toggle to compare.
