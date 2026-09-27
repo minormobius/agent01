@@ -27,6 +27,8 @@ export class Party {
     const m = { e: entity, controller, gen: null, y: null, pending: null, macro: null, queue: [], wantsDecision: false, thinking: false, ...extra };
     entity.role = controller;
     this.members.push(m);
+    // a human seat is marked in the stream, so a recorded game says whose hands were whose
+    if (controller === 'human') this.sim.note('seat', { who: entity.id, role: 'human' });
     return m;
   }
   member(id) { return this.members.find((m) => m.e.id === id); }

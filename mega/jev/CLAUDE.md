@@ -301,7 +301,9 @@ model only decides.
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 378 checks, ~70 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether) |
+| `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
+| `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
+| `test/craft.selftest.mjs` | 393 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home mine, the segmenter) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1222,6 +1224,122 @@ already reached inside two days.
 **Not measured:** Jev in the nether. The options, facts and project steps
 exist, and the selftest checks what Jev would be offered there. No live run
 has happened yet.
+
+### Towards System 2: the bail, one mine or many, and reading a human (2026-09-27)
+
+The endgame the operator described: an agent gets a blank sheet and some
+goals, writes macros zero-shot, and Jev picks among them, **with the right to
+bail when nothing fits**. Three pieces of that are now built.
+
+**The bail.** A typed choice cannot abstain from a set you defined (the
+Lisbon-weather result above), so `next` now carries its own way out: a `bail`
+option (`BAIL_CRITERIA` in `mind.mjs`) saying *none of these: hand this
+decision up to the planner*, to be chosen only when every option would fail,
+does nothing useful here, or the thing needed is not offered. A bail does three
+things:
+- It logs what a planner needs to see into `sim.bails`: where, health, food,
+  threats, the project's next step, every option offered with its project fact
+  and last failure, the recent journal, confidence, the self-check and the top
+  probabilities. It also puts a `bail` note in the stream.
+- It asks `sim.escalate(sim, entry)` for the move. **That is the hook System 2
+  plugs into.**
+- With no planner attached, the baseline answers, stamped *standing in for
+  the planner*.
+
+`sim.noBail` (`--no-bail` in the eval) is the control. The self-check's own
+vote (`have` < 0.5) is recorded on every decision as `low_have`, not acted on.
+
+**The first live bails found a harness fault, the way this file keeps finding
+them** (`lab/craft-bail-live.json`, mixed/penrose/7, hard, 70 decisions): Jev
+bailed 4 times. Three of those were at 0.78–0.81 confidence, at 4 health with
+3 zombies near, **with `fight` and `dig_in` missing from the menu**. They had
+been taken away by two rules working together:
+- The zombie-adjacent interrupt fired *during* `fight`, so every swing ended
+  as "interrupted".
+- The rule that withholds an option which just failed from the same spot
+  counted that interruption as a failure.
+
+So the answer to the threat was withheld, and the bail was the right answer to
+the menu it was given. Fixed:
+- The interrupt spares `fight`, `dig_in` and `guard`.
+- An interruption no longer withholds anything.
+
+Same world, same 70 decisions, afterwards: **0 bails**, deaths 3 → 1, and each
+fight resolves in one decision instead of five. The bail's first job turned out
+to be a **trap detector for the harness**, which is what a planner reading
+`sim.bails` needs it to be.
+
+The same change exposed a real dimension bug: dying in the nether woke the
+player at home, but the solo sim's current world stayed the nether. A tick now
+ends in the acting player's world.
+
+**One mine, or a new dig every time?** Every mining macro starts from wherever
+the player stands. The alternative a strategist would build is `mine_home`
+(`homeMine`): one staircase near the house door to the ore layer (iron 7,
+diamond 5, above the lava pockets), a lit hub, and branches on golden-angle
+headings. The team shares it (`sim.team.mines`), and each later trip walks
+down to the newest branch end and tunnels on. A mine that can't be got back
+into, or whose hub opens nowhere, is abandoned and dug again.
+
+Measured head to head (both arms start from the same saved moment: house
+built, the right pick in hand; then 6 trips from home, over 6 worlds):
+
+| | fresh dig each trip | the home mine |
+|---|---|---|
+| iron: ticks per ore | **119** (91 ore) | 197 (68 ore) |
+| diamond: ticks per ore | **578** (41 ore) | 1063 (17 ore) |
+| health lost, diamond trips | 60 | **18** |
+
+**On these worlds a new dig is right, and the reason is geology.** Ore is found
+by exposing rock faces, and a tunnel's cost per exposed face is the same
+whether it is new or an extension. What a mine saves is the descent: ~13
+blocks a trip, small next to the 50–100 dug to find ore. And iron veins are
+short and spread evenly over layers 1–12, so one layer crosses few of them,
+while a staircase samples every layer on the way down. On kagome, ~400 tiles of
+branch at layer 7 found 4 iron. What would flip it: ore concentrated in a
+band, a deeper world (a longer descent), or a surface that is dangerous to
+cross. **The mine is safer**, lit and known, so it stays in the palette with
+that fact on it. The baseline keeps digging fresh. In the live run Jev chose
+the mine 8 times, apparently for the safety label.
+
+**Reading a human's game (`craft/segment.mjs`).** A human plays in
+primitives, and nothing in the stream says *now I am mining for iron*. The
+segmenter:
+1. Gives each action a cue: a log mined → wood, iron ore → mine_iron, a block
+   below the feet → going down, a torch placed → light, and so on.
+2. Lets walking borrow the cue of the work it leads to.
+3. Absorbs a torch or a block placed mid-tunnel into the tunnel.
+4. Cuts runs into episodes, and names each one afterwards from what it did:
+   the best ore it turned up, whether it went down or up, and for a walk,
+   whether it ended at home.
+
+Each episode carries what was mined, placed and crafted, and its depth.
+`score()` checks it against a macro-played stream, whose macro notes are
+ground truth. Counting each macro run once, it names the right **family** for
+**~80%** of runs (truncsq, penrose, kagome: 80 / 82 / 81%) and the exact macro
+for ~50%. Most name misses can't be fixed from outside: a staircase that
+happens to turn up iron reads as `mine_iron` whatever it was for, and
+`surface` often reads as the mining it did on the way up.
+
+Two stream changes make human play attributable:
+- With more than one player, every `do` event names its actor (a trailing
+  `{by}`). One-player streams are byte-identical to before.
+- A human seat is marked with a `seat` note, in co-op at join and solo when
+  "you" takes the seat.
+
+The page's **save stream (.jsonl)** is the export, and
+`node mega/jev/test/craft-segment.mjs run.jsonl` reads it back. Actions no
+macro claimed are the human's (`[hands]`).
+
+**What this sets up.** A planner gets three inputs: goals, the bail log (what
+Jev couldn't do with the menu it had), and, from a human's game, episodes in
+the palette's own vocabulary to learn macros from. The planner loop itself
+(write a macro, check it headlessly, add it, rerun on held-out worlds) is not
+built. It spends model budget and waits for the go-ahead.
+
+**Still true, found again this round:** the solo baseline reaches the nether
+on 17 of 20 worlds. snub/1 still ends stuck on day 3 in a sea-walled pit (older
+than all of this).
 
 ### What is next
 

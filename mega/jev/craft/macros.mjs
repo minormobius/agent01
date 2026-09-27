@@ -588,7 +588,13 @@ export function* branchMine(sim, length = 16) {
     if (!down.ok) return { ok: false, why: `could not get down to layer ${floor} (${down.why})` };
   }
   const a = sim.rng() * Math.PI * 2;
-  const dir = [Math.cos(a), Math.sin(a)];
+  return yield* tunnelAlong(sim, [Math.cos(a), Math.sin(a)], length);
+}
+// A straight torch-lit tunnel on this layer, along a heading: each step to the
+// unwalked neighbour best aligned with it. Stops at water, lava, drops and
+// anything else it may not open. Returns how far it got and where it ended.
+export function* tunnelAlong(sim, dir, length, { torchEvery = 6 } = {}) {
+  const p = sim.player;
   const walked = new Set([p.c]);
   let since = 0, dug = 0;
   for (let k = 0; k < length; k++) {
@@ -603,18 +609,75 @@ export function* branchMine(sim, length = 16) {
       const sc = (dx * dir[0] + dz * dir[1]) / L;
       if (sc > bs) { bs = sc; best = n; }
     }
-    if (best < 0) return dug ? { ok: true, why: 'the tunnel hit water or a drop' } : { ok: false, why: 'nowhere to tunnel' };
-    for (const y of [p.y + 1, p.y]) if (sim.solid(best, y)) { const r = yield { op: 'mine', c: best, y }; if (!r.ok) return { ok: false, why: r.why }; }
+    if (best < 0) return dug ? { ok: true, dug, blocked: true, why: 'the tunnel hit water or a drop' } : { ok: false, dug, blocked: true, why: 'nowhere to tunnel' };
+    for (const y of [p.y + 1, p.y]) if (sim.solid(best, y)) { const r = yield { op: 'mine', c: best, y }; if (!r.ok) return { ok: false, dug, why: r.why }; }
     const from = p.c;
     const m = yield { op: 'move', to: best };
-    if (!m.ok) return { ok: false, why: m.why };
+    if (!m.ok) return { ok: false, dug, why: m.why };
     walked.add(best); dug++;
-    if (++since >= 6 && sim.has('torch') && sim.get(from, p.y) === B.air) {
+    if (++since >= torchEvery && sim.has('torch') && sim.get(from, p.y) === B.air) {
       const t = yield { op: 'place', c: from, y: p.y, item: 'torch' };
       if (t.ok) since = 0;
     }
   }
-  return { ok: true };
+  return { ok: true, dug };
+}
+
+// ------------------------------------------------------------ the home mine --
+// Every other mining macro starts a new dig from wherever the player stands:
+// a staircase down, a tunnel out, paid for in full every trip. A strategist
+// digs ONE mine near home instead: a staircase to the ore layer, a lit hub,
+// and branches that radiate from it (golden-angle headings, so no two reveal
+// the same rock). Each later trip is a walk down known, lit tunnels to the end
+// of the newest branch, then more tunnel. Shared by the team (sim.team.mines,
+// one per layer) and entirely made of blocks, so the planner walks it for free.
+export const MINE_LEVEL = { iron: 7, coal: 9, diamond: 5 };   // diamond above the lava pockets at 3–4; its walls see down to 4
+const MINE_ORE = { iron: ['iron_ore', B.iron_ore, 2], coal: ['coal', B.coal_ore, 1], diamond: ['diamond', B.diamond_ore, 3] };
+const BRANCH_LEN = 36, LEG = 10;
+export const homeMineAt = (sim, ore = 'iron') => (sim.team.mines || {})[MINE_LEVEL[ore]] || null;
+export function* homeMine(sim, { ore = 'iron', n = 3 } = {}) {
+  const [item, oreId, tier] = MINE_ORE[ore] || MINE_ORE.iron;
+  if (sim.pickTier() < tier) return { ok: false, why: `${ore} needs a ${['', 'wooden', 'stone', 'iron'][tier]} pickaxe` };
+  if (sim.dim !== 'overworld') return { ok: false, why: 'the mine is in the overworld' };
+  const p = sim.player, level = MINE_LEVEL[ore];
+  const want = (sim.inv[item] || 0) + n, enough = () => (sim.inv[item] || 0) >= want;
+  const mines = (sim.team.mines ||= {});
+  let mine = mines[level];
+  // a mine that cannot be got back into (flooded, cut off) or whose hub opens
+  // nowhere is abandoned, and a new one dug
+  if (mine && mine.branches.length >= 3 && mine.branches.every((b) => b.done && b.len === 0)) { mine.abandoned = true; mine = null; }
+  if (mine) {
+    const go = yield* goTo(sim, (c, y) => c === mine.hub[0] && y === mine.hub[1], 60000);
+    if (!go.ok) { mine.abandoned = true; mine = null; }
+  }
+  if (!mine) {
+    // the entrance: just outside the house door (or here), then a staircase to the layer
+    if (sim._house) { const out = new Set(sim._house.outside); const ex = yield* goTo(sim, (c) => out.has(c) && sim.dist(c, sim._house.door) <= 2, 20000); if (!ex.ok) return { ok: false, why: `could not get out to dig (${ex.why})` }; }
+    const entry = [p.c, p.y];
+    const st = yield* staircase(sim, { floor: level, until: () => p.y <= level });
+    if (p.y > level) return { ok: false, why: `could not dig down to layer ${level} (${st.why || 'boxed in'})` };
+    mine = mines[level] = { entry, hub: [p.c, p.y], branches: [], trips: 0, dug: 0 };
+    if (sim.has('torch')) { const at = sim.cols[p.c].adj.find((c) => sim.get(c, p.y) === B.air); if (at != null) yield { op: 'place', c: at, y: p.y, item: 'torch' }; }
+    sim.note('mine', { level, at: mine.hub, by: p.id });
+  }
+  mine.trips++;
+  for (let leg = 0; leg < 8 && !enough(); leg++) {
+    // ore showing on the tunnel walls first (the mine keeps revealing it)
+    const seen = visible(sim, [oreId], 16).filter(([c, y]) => !(sim._unreachable && sim._unreachable.has(c * H + y)));
+    if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
+    // the newest open branch, or a new one on the next golden-angle heading
+    let br = mine.branches.find((b) => !b.done);
+    if (!br) { const a = mine.branches.length * 2.39996; br = { dir: [Math.cos(a), Math.sin(a)], end: [...mine.hub], len: 0, done: false }; mine.branches.push(br); }
+    if (p.c !== br.end[0] || p.y !== br.end[1]) {
+      const go = yield* goTo(sim, (c, y) => c === br.end[0] && y === br.end[1], 60000);
+      if (!go.ok) { br.done = true; continue; }
+    }
+    const t = yield* tunnelAlong(sim, br.dir, LEG, { torchEvery: 5 });
+    br.end = [p.c, p.y]; br.len += t.dug || 0; mine.dug += t.dug || 0;
+    if (t.blocked || !t.ok || br.len >= BRANCH_LEN) br.done = true;
+    if (mine.branches.length > 12 && mine.branches.every((b) => b.done)) break;
+  }
+  return enough() ? { ok: true } : (sim.inv[item] || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: `the mine turned up no ${ore}` };
 }
 
 // -------------------------------------------------------------- explore ------
@@ -1318,6 +1381,7 @@ export const PALETTE = {
   mine_stone:   { mode: 'mine', doc: 'staircase down for cobblestone, taking ore on the way', needs: (s) => hasPick(s), run: (s, a) => mineStone(s, a?.n) },
   mine_coal:    { mode: 'mine', doc: 'take coal in sight, or dig for it', needs: (s) => hasPick(s), run: (s, a) => mineCoal(s, a?.n) },
   mine_iron:    { mode: 'mine', doc: 'down to the iron band and along it', needs: (s) => hasPick(s, 2), run: (s, a) => mineIron(s, a) },
+  mine_home:    { mode: 'mine', doc: 'the team\'s mine near home: dig it once (a staircase to the ore layer, a lit hub), then walk down it and extend a branch', needs: (s, a) => hasPick(s, MINE_ORE[a?.ore || 'iron']?.[2] || 2), run: (s, a) => homeMine(s, a || {}) },
   branch_mine:  { mode: 'mine', doc: 'a straight tunnel on this layer, torch-lit', needs: (s) => hasPick(s), run: (s, a) => branchMine(s, a?.length) },
   surface:      { mode: 'mine', doc: 'climb (or swim) back up to open sky', needs: (s) => underwater(s) ? null : s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : atHome(s) ? 'in the house — any outdoor activity walks out the door' : null, run: (s) => surface(s) },
   // explore
@@ -1370,7 +1434,7 @@ export const PALETTE = {
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
 // Which world each macro works in. The overworld's are about its sky, soil,
 // sea, ore bands, the house and the chest; the nether has none of those.
-const OVERWORLD_ONLY = new Set(['mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
+const OVERWORLD_ONLY = new Set(['mine_home', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
   'farm', 'harvest', 'set_home', 'sleep_until_dawn', 'mine_diamond', 'make_obsidian', 'dig_sand', 'place_beacon', 'build_portal', 'set_up_chest', 'store', 'take', 'sleep_in_bed']);
 const NETHER_ONLY = new Set(['mine_glowstone', 'mine_quartz']);
 for (const [name, m] of Object.entries(PALETTE)) {

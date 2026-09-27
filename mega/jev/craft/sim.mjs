@@ -681,7 +681,9 @@ export class Sim {
     this.useDim('overworld');
     if (t % DAY === NIGHT_START) this.emit(['note', 'dusk']);
     if (t % DAY === 0) this.emit(['note', 'dawn']);
-    this.useDim(back);
+    // back to the acting player's world, which is where it WAS unless the tick
+    // moved it (dying in the nether wakes you in the overworld)
+    this.useDim(this.me && this.me.dim ? this.me.dim : back);
     this.flush();
   }
   // one dimension's share of a tick (this.dim is set)
@@ -1044,7 +1046,9 @@ export class Sim {
   firstStep(e, goal, maxNodes) { const p = this.path(e, goal, maxNodes, this.tallOf(e), e.kind !== 'player'); return p && p.length ? p[0] : null; }
 
   // --------------------------------------------------------------- stream --
-  emit(ev) { this.ev.push(ev); }
+  // with more than one player, an action names who took it (a trailing
+  // {by}); one-player streams are unchanged
+  emit(ev) { if (ev[0] === 'do' && this.players && this.players.length > 1 && this.me) ev.push({ by: this.me.id }); this.ev.push(ev); }
   note(kind, data) { this.emit(data === undefined ? ['note', kind] : ['note', kind, data]); this.flush(); }
   // one stream line per dimension that changed; nether lines carry "d"
   flush() {

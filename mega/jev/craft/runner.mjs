@@ -71,7 +71,8 @@ const inNetherNow = (sim) => sim.dim === 'nether';
 // Interrupts are facts, not judgements: each names a thing that changed and
 // that the current macro was not written to handle.
 export function standardInterrupt(sim, running = null) {
-  if (zombieAdjacent(sim)) return inNetherNow(sim) ? 'blaze adjacent' : 'zombie adjacent';
+  // (not while fighting it or digging away from it: that is the answer to it)
+  if (zombieAdjacent(sim) && !['fight', 'dig_in', 'guard'].includes(running)) return inNetherNow(sim) ? 'blaze adjacent' : 'zombie adjacent';
   // under water with breath running low: whatever the macro was doing, stop
   const p = sim.player;
   if (running !== 'surface' && sim.get(p.c, p.y + 1) === B.water && p.air <= 40 && !sim._airAck) { sim._airAck = true; return 'running out of air'; }

@@ -408,7 +408,7 @@ function feed(lines) {
       if (ev[0] === 'note' && ev[1] === 'dim_enter' && ev[2].who === focusId && playing()) toast(ev[2].dim === 'nether' ? 'the nether: blazes, glowstone, quartz — the portal is the way home' : 'back in the overworld');
       if (ev[0] === 'note') logMacro({ k: replay.tick, kind: ev[1], data: ev[2] });
       if (ev[0] === 'note' && ev[1] === 'home') homeAt = ev[2];
-      if (ev[0] === 'do') $('doing').textContent = ev.slice(1).join(' ');
+      if (ev[0] === 'do') $('doing').textContent = ev.slice(1).filter((x) => typeof x !== 'object').join(' ');
       if (playing() && ev[0] === 'die' && ev[1] === focusId) toast(homeAt ? 'you died — back home' : 'you died — back at the spawn');
       if (playing() && ev[0] === 'note' && ev[1] === 'dusk') toast('dusk: zombies spawn on open ground');
       if (playing() && ev[0] === 'hit' && ev[2] === focusId && ev[1] >= 0) toast('a zombie hits you');
@@ -501,6 +501,8 @@ function setAuto() {
   driver.policy = () => null;             // decisions are made in the frame loop, below
   driver.done = false;
   const who = $('who').value;
+  // a solo human seat is marked in the stream too (co-op marks it at join)
+  if (who === 'you' && sim && !party && !sim._seatNoted) { sim._seatNoted = true; sim.note('seat', { who: sim.player.id, role: 'human' }); }
   if (who === 'you' || who === 'coop') {
     $('speed').value = 1; $('speed-out').textContent = '1×'; $('pause').checked = false;
     const f = new THREE.Vector3(); camera.getWorldDirection(f);
@@ -662,7 +664,7 @@ function renderTeam(now) {
 
 function showDecision(opts, response, record, pick, who, batchN) {
   const probs = response.answers?.next?.probabilities || {};
-  const rows = opts.map((o) => ({ id: o.id, p: probs[o.id] ?? (o.id === record.choice ? 1 : 0) }))
+  const rows = [...opts, ...(probs.bail != null || record.bailed ? [{ id: 'bail' }] : [])].map((o) => ({ id: o.id, p: probs[o.id] ?? (o.id === record.choice ? 1 : 0) }))
     .sort((a, b) => b.p - a.p).slice(0, 8);
   const now = performance.now();
   while (callTimes.length && now - callTimes[0] > 60000) callTimes.shift();
@@ -672,6 +674,7 @@ function showDecision(opts, response, record, pick, who, batchN) {
     + `<div class="meta">${opts.length} legal options` + (record.confidence != null ? ` · confidence ${record.confidence.toFixed(2)}` : '')
     + (record.danger != null ? ` · danger ${record.danger.toFixed(1)}/3` : '') + (record.have != null ? ` · have ${record.have.toFixed(2)}` : '') + '</div>'
     + (record.project ? `<div class="meta">project: ${record.project}${record.project_confidence != null ? ` (${record.project_confidence.toFixed(2)})` : ''}</div>` : '')
+    + (record.bailed ? `<div class="meta warn">Jev bailed: no option fit. The baseline, standing in for a planner, chose ${record.fallback}</div>` : '')
     + (record.gated ? `<div class="meta warn">below the ${GATE} gate — the baseline's pick (${record.fallback}) was used instead</div>` : '')
     + (record.error ? `<div class="meta bad">${record.error}</div>` : '')
     + (pick ? `<div class="meta">doing: ${pick.name.replace(/_/g, ' ')}${pick.args ? ' ' + JSON.stringify(pick.args) : ''}</div>` : '');

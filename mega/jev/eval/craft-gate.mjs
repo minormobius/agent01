@@ -33,6 +33,7 @@ const noJev = process.argv.includes('--no-jev');
 // --only jev,baseline: run just these arms
 const noProjects = process.argv.includes('--no-projects');
 const noSurvival = process.argv.includes('--no-survival');   // the control for the survival facts
+const noBail = process.argv.includes('--no-bail');           // the control for the bail option
 const only = arg('only', null)?.split(',');
 const ENDPOINT = process.env.JEV_ENDPOINT || 'https://mega.mino.mobi/jev/api/ask';
 
@@ -60,13 +61,14 @@ for (const w of worlds) {
     const sim = new Sim({ ...w, difficulty });
     if (noProjects) sim.noProjects = true;
     if (noSurvival) sim.noSurvival = true;
+    if (noBail) sim.noBail = true;
     const t0 = Date.now();
     const log = arm === 'jev' && process.env.CRAFT_TRACE;
     // when each long-range project completes (checked at every decision)
     const projDone = {};
     const watched = async (s, ...a) => { for (const n of PROJECT_NAMES) if (!(n in projDone) && projectState(s, n).complete) projDone[n] = s.tick; return decide(s, ...a); };
     const r = await playMind(sim, watched, { maxTicks: ticks, gate: false, maxDecisions: +arg('max-decisions', 400),
-      onDecision: log ? (d) => console.log(`  ${String(d.tick).padStart(5)} ${String(d.choice).padEnd(22)} ${d.confidence?.toFixed(2)} ${d.result}${d.threats ? ' [' + d.threats.join(',') + ']' : ''}${d.error ? ' ERR ' + d.error : ''}`) : undefined });
+      onDecision: log ? (d) => console.log(`  ${String(d.tick).padStart(5)} ${String(d.choice).padEnd(22)} ${d.confidence?.toFixed(2)} ${d.bailed ? ' BAIL→' + d.fallback : ''} ${d.result}${d.threats ? ' [' + d.threats.join(',') + ']' : ''}${d.error ? ' ERR ' + d.error : ''}`) : undefined });
     const rung = Object.fromEntries(RUNGS.map((g) => [g, r.milestones[`goal:${g}`] ?? null]));
     const conf = r.decisions.map((d) => d.confidence).filter((c) => c != null);
     const row = {
@@ -78,6 +80,9 @@ for (const w of worlds) {
       ...(arm === 'jev' ? {
         mean_confidence: conf.reduce((a, b) => a + b, 0) / (conf.length || 1),
         below_gate: r.decisions.filter((d) => d.below_gate).length,
+        bails: r.decisions.filter((d) => d.bailed).length,
+        low_have: r.decisions.filter((d) => d.low_have).length,
+        bail_log: sim.bails || [],
         errors: r.decisions.filter((d) => d.error).length,
         mean_have: r.decisions.reduce((a, d) => a + (d.have ?? 0), 0) / (r.decisions.length || 1),
         input_tokens: r.decisions.reduce((a, d) => a + (d.tokens || 0), 0),
@@ -87,7 +92,7 @@ for (const w of worlds) {
     };
     results.push(row);
     console.log(`${w.kind}/${w.shape}/${w.seed} ${arm.padEnd(8)} rungs ${row.reached}/${RUNGS.length}  mean tick-to-rung ${Math.round(row.score)}  deaths ${row.deaths}  decisions ${row.decisions}` +
-      (arm === 'jev' ? `  conf ${row.mean_confidence.toFixed(2)}  below-gate ${row.below_gate}  errors ${row.errors}` : '') + `  ${JSON.stringify(rung)}  projects ${JSON.stringify(row.projects)} done ${JSON.stringify(projDone)}`);
+      (arm === 'jev' ? `  conf ${row.mean_confidence.toFixed(2)}  below-gate ${row.below_gate}  bails ${row.bails}  low-have ${row.low_have}  errors ${row.errors}` : '') + `  ${JSON.stringify(rung)}  projects ${JSON.stringify(row.projects)} done ${JSON.stringify(projDone)}`);
   }
 }
 const summary = {};

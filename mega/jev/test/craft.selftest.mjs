@@ -22,7 +22,8 @@ import { Sim, Replay, MAX_AIR } from '../craft/sim.mjs';
 import { SEA } from '../craft/world.mjs';
 import { play, runMacro } from '../craft/runner.mjs';
 import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse } from '../craft/macros.mjs';
-import { threats, perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS } from '../craft/mind.mjs';
+import { threats, perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS, BAIL } from '../craft/mind.mjs';
+import { segment, score as segScore, actions as segActions } from '../craft/segment.mjs';
 import { renderAscii } from '../craft/ascii.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -264,7 +265,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
     const opts = options(sim), q = buildQuestions(sim, opts), st = perceive(sim);
     const ids = opts.map((o) => o.id);
     ok(opts.length >= 3 && new Set(ids).size === ids.length, `${sim.world.shape}: ${opts.length} distinct options (${ids.join(', ')})`);
-    ok(q.next.type === 'choice' && JSON.stringify(Object.keys(q.next.criteria)) === JSON.stringify(ids), `${sim.world.shape}: next is a choice keyed exactly by the options`);
+    ok(q.next.type === 'choice' && JSON.stringify(Object.keys(q.next.criteria)) === JSON.stringify([...ids, BAIL]), `${sim.world.shape}: next is a choice keyed exactly by the options (and the way out)`);
     ok(q.danger.type === 'score' && Array.isArray(q.danger.criteria) && q.danger.criteria.length >= 2, `${sim.world.shape}: danger is a score over an ordered array`);
     ok(q.have.type === 'noul' && q.have.criteria.true && q.have.criteria.false, `${sim.world.shape}: have is a noul with {true,false}`);
     ok(opts.every((o) => !PALETTE[o.name].needs(sim, o.args || {})), `${sim.world.shape}: every option passes its macro's needs() — no traps offered`);
@@ -436,7 +437,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const { state, questions, per } = batchRequest(sim, ms);
   ok(per.size === 3 && Object.keys(state.agents).length === 3, 'a batch carries one state slice per agent');
   ok(ms.every((m) => questions[`next_${m.e.id}`]?.type === 'choice' && questions[`ask_${m.e.id}`]?.type === 'choice'), 'and a next_ and an ask_ choice per agent');
-  ok(ms.every((m) => Object.keys(questions[`next_${m.e.id}`].criteria).sort().join() === per.get(m).map((o) => o.id).sort().join()), 'each next_ offers exactly that agent\'s legal options');
+  ok(ms.every((m) => Object.keys(questions[`next_${m.e.id}`].criteria).sort().join() === [...per.get(m).map((o) => o.id), BAIL].sort().join()), 'each next_ offers exactly that agent\'s legal options (and the way out)');
   ok(Object.keys(questions).length <= 12 * 2, 'within the proxy\'s question cap');
   // a batched, offline swarm: deterministic, and every agent decides
   const run = async () => {
@@ -702,7 +703,8 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
 
   // build a portal (6 obsidian and a torch), cross, mine glowstone, come home
   const s = new Sim({ seed: 3, shape: 'penrose' });
-  s.give('diamond_pickaxe', 1); s.give('obsidian', 6); s.give('torch', 4); s.give('cooked_porkchop', 8); s.give('cobblestone', 20);
+  // equipped as the ladder equips you by then: blazes hit hard, and dying empties your pockets
+  s.give('diamond_pickaxe', 1); s.give('diamond_sword', 1); s.give('iron_armor', 1); s.give('obsidian', 6); s.give('torch', 4); s.give('cooked_porkchop', 8); s.give('cobblestone', 20);
   for (let k = 0; k < 3; k++) runMacro(s, 'explore');
   ok(PALETTE.mine_glowstone.needs(s, {}) === 'only in the nether', 'nether macros are refused in the overworld');
   const p = s.player;
@@ -749,6 +751,53 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   const zp = z.player;
   z.hurt(zp, 40, null);
   ok(zp.dim === 'overworld' && z.dims.overworld.ents.has(zp.id) === true && !(z.dims.nether.ents.has(zp.id)), 'dying in the nether wakes you in the overworld');
+}
+
+// ------------------------------------------- bail, the home mine, segmenting
+{
+  // the bail: an explicit way out of the option set, logged for the planner
+  const s = new Sim({ seed: 3, shape: 'penrose' });
+  const opts = options(s), qs = buildQuestions(s, opts);
+  ok(qs.next.criteria[BAIL] && !opts.some((o) => o.id === BAIL), 'the next question carries a bail option, apart from the real options');
+  const probs = Object.fromEntries(opts.map((o) => [o.id, 0.05])); probs[BAIL] = 0.4;
+  const bailed = resolve(s, opts, { source: 'typesafe', answers: { next: { choice: BAIL, confidence: 0.4, probabilities: probs }, have: { noul: 0.2 } } });
+  ok(bailed.record.bailed && bailed.pick && bailed.record.escalated_to.startsWith('baseline'), `a bail hands the decision up (to the baseline, standing in: ${bailed.pick && bailed.pick.name})`);
+  ok(s.bails.length === 1 && s.bails[0].offered.length === opts.length && s.bails[0].have === 0.2 && s.lines.some((l) => l.includes('"bail"')), 'and is logged with what was offered, the self-check, and a stream note');
+  s.escalate = () => ({ name: 'explore' });
+  const up = resolve(s, opts, { source: 'typesafe', answers: { next: { choice: BAIL, confidence: 0.4 } } });
+  ok(up.pick.name === 'explore' && up.record.escalated_to === 'planner', 'with a planner attached (sim.escalate), the planner answers');
+  s.noBail = true;
+  ok(!buildQuestions(s, opts).next.criteria[BAIL], 'noBail is the control: no way out offered');
+  ok(resolve(s, opts, { source: 'typesafe', answers: { next: { choice: 'x', confidence: 0.9, probabilities: {} }, have: { noul: 0.3 } } }).record.low_have, 'a low self-check is recorded on every decision, not acted on');
+
+  // the home mine: dug once, walked back into, extended
+  const m = new Sim({ seed: 3, shape: 'penrose' });
+  m.give('stone_pickaxe', 1); m.give('torch', 20); m.give('cooked_porkchop', 6);
+  runMacro(m, 'mine_home', { ore: 'iron', n: 1 });
+  const mine = m.team.mines && m.team.mines[7];
+  ok(mine && mine.hub[1] === 7, `mine_home digs a staircase to layer 7 and marks a hub (${mine && mine.hub})`);
+  runMacro(m, 'surface');
+  const dug0 = mine.dug;
+  const again = runMacro(m, 'mine_home', { ore: 'iron', n: 1 });
+  ok(mine.trips === 2 && m.team.mines[7] === mine && (mine.dug > dug0 || again.ok), `a second trip walks back into the same mine and extends it (${again.why || 'ok'})`);
+  ok(PALETTE.mine_home.needs(m, { ore: 'diamond' }) !== null, 'diamonds from the mine need an iron pick');
+
+  // actions name who took them once there are two players; one-player streams are unchanged
+  ok(!m.lines.some((l) => JSON.parse(l).e?.some((e) => e[0] === 'do' && typeof e[e.length - 1] === 'object')), 'a one-player stream has no actor tags');
+  const two = new Sim({ seed: 4, shape: 'kagome' }); const b2 = two.addPlayer();
+  const pty = new Party(two); pty.join(two.players[0], 'mind'); pty.join(b2, 'human', { queue: [] });
+  ok(two.lines.some((l) => l.includes('"seat"')), 'a human seat is marked in the stream');
+  two.as(b2, () => two.act({ op: 'move', to: two.cols[b2.c].adj[0] }));
+  const acts = segActions(two.lines);
+  ok(acts.some((a) => a.who === b2.id && a.op === 'move' && a.seat === 'human'), 'with two players, each action names its actor, and the human seat is known');
+
+  // the segmenter, scored against the macros that really took each action
+  const g = new Sim({ seed: 3, shape: 'truncsq' });
+  play(g, undefined, { maxTicks: 4800, maxMacros: 800 });
+  const sc = segScore(g.lines), eps = segment(g.lines);
+  ok(eps.length > 10 && eps.every((e) => e.label && e.family), `a macro-played day segments into named episodes (${eps.length})`);
+  ok(sc.run_family >= 0.65, `the segmenter names the right family for most macro runs (${(100 * sc.run_family).toFixed(0)}% of ${sc.runs})`);
+  ok(eps.some((e) => e.label === 'gather_wood') && eps.some((e) => e.label === 'craft'), 'it finds wood-gathering and crafting in a first day');
 }
 
 // ---------------------------------------------------------------- text ------

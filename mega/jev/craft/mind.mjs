@@ -17,7 +17,7 @@
 // stream says so. Nothing here pretends: every decision is stamped with the
 // source that produced it — typesafe, offline stand-in, random, or baseline.
 
-import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN } from './macros.mjs';
+import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN, homeMineAt } from './macros.mjs';
 import { projectState, projectFact, projectDue, projectQuestion, setProject, baselineProject, PROJECT_NAMES, PROJECTS } from './projects.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
@@ -267,7 +267,8 @@ export function options(sim) {
     // it just FAILED from this very spot: it would fail the same way again. A
     // label saying so was not enough — measured: 323 consecutive picks of an
     // option carrying "FAILED … would block the door". Traps are not offered.
-    if (last && !last.ok && last.c === p.c && last.y === p.y && sim.tick - last.tick < 300 && sameInv(last.inv, sim.inv)) return;
+    // (an interruption is not that: the world moved, not the option failing)
+    if (last && !last.ok && !String(last.why).startsWith('interrupted') && last.c === p.c && last.y === p.y && sim.tick - last.tick < 300 && sameInv(last.inv, sim.inv)) return;
     const failed = last && !last.ok && sim.tick - last.tick < 2400
       ? { last_tried: `FAILED ${sim.tick - last.tick} ticks ago, after spending ${last.ticks} ticks: ${last.why}` } : {};
     const pf = projectFact(sim, pst, new Set(tokens));
@@ -304,6 +305,13 @@ export function options(sim) {
   if (legal.has('mine_quartz')) { const v = visible(sim, [B.quartz_ore], 30).length; add('mine_quartz', 'mine_quartz', { n: 4 }, { yields: 'quartz (4 make a quartz block)', takes: v ? 'about 20–60 ticks, quartz is in sight' : 'longer — none in sight', advances: `quartz held ${sim.inv.quartz || 0}` }, ['quartz']); }
   if (legal.has('place_beacon')) add('place_beacon', 'place_beacon', null, { yields: 'a beacon at home: no zombie spawns within 16', takes: 'about 20–60 ticks', advances: 'the capstone of the tech ladder' }, ['place_beacon', 'craft:beacon']);
   if ((sim.inv.sand || 0) < 5 && !sim.ow('beacons').size && sim.pickTier() >= 4) add('dig_sand', 'dig_sand', { n: (sim.inv.sand || 0) + 5 }, { yields: 'sand (→ glass at a furnace)', takes: 'about 20–80 ticks', advances: 'a beacon takes 5 glass' }, ['sand', 'dig_sand']);
+  // the team's mine: slower per ore than a fresh dig on these worlds (measured,
+  // 2026-09-27), but lit and known, so it is the safe way to mine
+  if (legal.has('mine_home') && sim.pickTier() >= 2) {
+    const m = homeMineAt(sim, 'iron');
+    add('mine_home_iron', 'mine_home', { ore: 'iron', n: 3 }, { yields: 'iron ore (and coal) from the team mine at layer 7', takes: m ? `a walk down the mine (${m.dug} tiles dug so far), then 100–300 ticks of tunnel` : 'digs the mine first: a staircase to layer 7 near home, then 100–300 ticks',
+      safety: 'lit, known tunnels: fewer hits taken than a fresh dig', advances: 'iron, safely; a fresh mine_iron finds ore faster' }, ['iron_ore', 'coal']);
+  }
   if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' }, ['coal', 'iron_ore', 'cobblestone']);
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
   const seenPct = Math.round(100 * sim.seenCount / sim.N);
@@ -405,9 +413,22 @@ export function options(sim) {
 }
 
 // -------------------------------------------------------------- questions ---
+// The way out. A typed choice cannot abstain from a set you defined (measured:
+// the weather in Lisbon routed to "sales" at 0.69), so the set carries its own
+// escape. Choosing it hands the decision up: to System 2 when there is one
+// (sim.escalate), to the baseline standing in for it when there is not, and
+// either way into sim.bails, which is what a planner reads to write better
+// macros. sim.noBail is the control arm.
+export const BAIL = 'bail';
+export const BAIL_CRITERIA = {
+  activity: 'none of these: hand this decision up to the planner, who can write a new activity',
+  when: 'only when no option fits the situation: every one would fail, does nothing useful here, or the thing that is needed is not offered',
+  cost: 'the planner is slow and expensive; a fitting option is always better',
+};
 export function buildQuestions(sim, opts) {
   const criteria = {};
   for (const o of opts) criteria[o.id] = o.criteria;
+  if (!sim.noBail) criteria[BAIL] = BAIL_CRITERIA;
   return {
     next: {
       type: 'choice',
@@ -484,6 +505,8 @@ export function resolve(sim, opts, response, { gate = true } = {}) {
   };
   const ts = sim.noSurvival ? [] : threats(sim);
   if (ts.length) record.threats = ts.map((t) => t.id);
+  if (record.have != null && record.have < 0.5) record.low_have = true;     // the self-check's own vote, recorded, not acted on
+  if (a?.choice === BAIL && !sim.noBail) return { pick: bail(sim, opts, response, record, ts), record };
   let pick = opt ? { name: opt.name, args: opt.args || undefined } : null;
   if (response.source === 'typesafe' && opt && (a.confidence ?? 0) < GATE) record.below_gate = true;
   if (response.source === 'typesafe' && (!opt || (gate && (a.confidence ?? 0) < GATE))) {
@@ -502,6 +525,31 @@ export function resolve(sim, opts, response, { gate = true } = {}) {
     if (response.answers?.project?.confidence != null) record.project_confidence = response.answers.project.confidence;
   }
   return { pick, record };
+}
+
+// A bail: log what the planner needs to see, and ask it (or its stand-in) for the move.
+function bail(sim, opts, response, record, ts) {
+  const p = sim.player, pst = sim.project ? projectState(sim, sim.project) : null;
+  const entry = {
+    tick: sim.tick, who: p.id, dim: sim.dim, at: [p.c, p.y],
+    health: p.hp, food: p.food, night: sim.isNight(),
+    project: pst ? { name: pst.name, next: pst.next ? `${pst.next.label} (${pst.next.detail(sim)})` : null, waiting: pst.waiting } : null,
+    threats: ts.map((t) => t.text),
+    offered: opts.map((o) => ({ id: o.id, does: o.criteria.activity, ...(o.criteria.project ? { project: o.criteria.project } : {}), ...(o.criteria.last_tried ? { last_tried: o.criteria.last_tried } : {}) })),
+    recent: (sim._journal || []).slice(-4),
+    confidence: record.confidence, have: record.have,
+    ...(response.answers?.next?.probabilities ? { top: topK(response.answers.next.probabilities, 4) } : {}),
+  };
+  (sim.bails = sim.bails || []).push(entry);
+  if (sim.bails.length > 500) sim.bails.shift();
+  sim.note('bail', { who: p.id, options: opts.length, confidence: record.confidence, have: record.have, next_step: entry.project?.next ?? null });
+  record.bailed = true;
+  const up = sim.escalate ? sim.escalate(sim, entry) : null;
+  const pick = up || baselinePolicy(sim);
+  record.escalated_to = up ? 'planner' : 'baseline (standing in for the planner)';
+  record.fallback = pick ? pick.name : null;
+  entry.answered = record.fallback;
+  return pick;
 }
 
 const sameInv = (a, inv) => a === JSON.stringify(inv);
