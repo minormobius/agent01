@@ -33,10 +33,10 @@ _Regenerated 2026-09-27 by build-brief.mjs — do not edit by hand._
 
 **Catalog saturation** (sites per category): .
 
-**Neighborhood spark** (bisk 2026-09-27, 99 members / 207 posts):
-- Mood: Fair 🌤 (trust)
-- Distinctive words: jevbot, jev, norvid
-- Top post: "The earring is a little topaz tetrahedron dangling from a thin gold wire. When worn, it whispers in the wearer’s ear: “Y" — @gracekind.net
+**Neighborhood spark** (bisk 2026-09-27, 99 members / 194 posts):
+- Mood: Overcast ☁ (trust)
+- Distinctive words: llm, opus, jev
+- Top post: "this is posting" — @hailey.at
 <!-- BRIEF_END -->
 
 ## Step 1 — Load context
