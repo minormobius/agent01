@@ -66,7 +66,7 @@ jobs:
             const models = cfg.models?.length ? cfg.models : Object.keys(cells.models);
             for (const m of models) if (!cells.models[m]) { console.error(`::error::unknown model ${m}`); process.exit(1); }
             const tasks = (cfg.tasks?.length ? cfg.tasks : ["route", "desk"]);
-            for (const t of tasks) if (!["route", "desk", "desk_hard"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
+            for (const t of tasks) if (!["route", "desk", "desk_hard", "trec"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
             // GEPA: {"models": [...], "reflection": "<model>", "maxMetricCalls": N}. It spends
             // far more than a baseline, so it runs only for the models named here.
             const gepa = cfg.gepa || {};
@@ -108,12 +108,24 @@ jobs:
             bakeoff/imp/deps
             bakeoff/imp/_build
           key: imp-bench-${{ runner.os }}-otp28-ex119-${{ hashFiles('bakeoff/imp/mix.lock') }}
-      - name: Compile
-        run: mix deps.get && mix compile
+      # Imp 0.5.0's GEPA crashes on an improper list in a trajectory, which real
+      # provider data carries; patch_imp.exs says why and refuses to guess if
+      # the upstream source has moved. The check below proves the patch took.
+      - name: Compile (with the GEPA improper-list patch)
+        run: |
+          mix deps.get
+          elixir patch_imp.exs deps/imp
+          mix deps.compile imp --force
+          mix compile
+      - name: GEPA survives an improper list (the patch's regression check)
+        run: mix run checks/gepa_improper_list.exs
       - name: The rig's own test (scripted model, no key, no spend)
         run: |
           IMP_BENCH_MODEL=static IMP_BENCH_TASKS=route,desk,desk_hard IMP_BENCH_GEPA=static \
             IMP_BENCH_GEPA_CALLS=30 BAKEOFF_OUT=/tmp/static mix run -e 'ImpBench.main()'
+          # the same through Imp's real HTTP/ReqLLM path, against a local fake endpoint
+          IMP_BENCH_MODEL=fake IMP_BENCH_TASKS=trec,desk_hard IMP_BENCH_GEPA=fake \
+            IMP_BENCH_GEPA_CALLS=30 BAKEOFF_OUT=/tmp/fake mix run -e 'ImpBench.main()'
       - name: Run cell
         env:
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}

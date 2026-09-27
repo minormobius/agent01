@@ -17,6 +17,16 @@ beside: [`../CLAUDE.md`](../CLAUDE.md).
 | `route` | `Imp.predict`, `ticket -> team: enum[atlas,harbor,beacon,quill]` | Imp's own `priv/tutorial/support_tickets.json`, 20 train / 20 test | zero-shot; `LabeledFewShot(k: 8)` |
 | `desk` | `Imp.react` over six Elixir tools (`lib/desk.ex`) | 24 generated questions, 8 train / 16 test | ReAct zero-shot |
 | `desk_hard` | `Imp.react` over seven tools (`lib/desk_hard.ex`) | 36 generated questions, 9 train / 9 validation / 18 test | ReAct zero-shot; + GEPA |
+| `trec` | `Imp.predict`, `text -> route: enum[K11,K47]` (`lib/trec.ex`) | Imp's matched-GEPA TREC splits, 20 train / 40 selection / 80 held out, **fetched at run time** | baseline; + GEPA |
+
+`trec` is Imp's own `research/matched_instruction_optimizers_trec` re-run on
+our models: two **opaque** codes the program is never told the meaning of,
+learned from feedback on the train rows only (selection rows give a score, no
+feedback). Every model starts near chance, so it has headroom however strong
+the model is. Imp's result on it: GEPA +0.40 held-out on gpt-5.4-mini (R3).
+The rows are **not committed** — Imp records the TREC corpus license as
+unknown — so `Trec.rows/0` fetches them from deepfates/imp at a pinned commit,
+checks each file's sha256, and caches them in the gitignored `data/`.
 
 `route` is the configuration behind rows R1/R2 of Imp's `research/RESULTS.md`
 (gpt-5.4-mini: 0.30–0.40 → 0.90–0.95), so our numbers sit next to a published one.
@@ -84,6 +94,27 @@ One runner per model. Results land on a `bakeoff/<run-id>` branch as
 `<model>.traces.md` (every tool call, its arguments, what it returned) and
 `<model>.route.program.json` (the compiled router, as Imp saves it — instructions
 and demos you can read and diff).
+
+## The Imp patch
+
+`patch_imp.exs` patches Imp 0.5.0's GEPA before every CI compile. Its
+`find_operational_safety/1` (in `gepa/engine.ex` and `gepa/program_adapter.ex`)
+walks every trajectory after each batch and recurses into lists with
+`Enum.find_value/2`, which raises `FunctionClauseError` on an improper list.
+Real provider data carries one somewhere: imp-02 and imp-03 both lost GEPA to
+it against DeepSeek, while the scripted model never produced one. A metric
+whose metadata holds `["a" | "b"]` reproduces it with no model at all;
+`checks/gepa_improper_list.exs` is that reproduction, and CI runs it after the
+patch. The patch walks cons cells instead. It refuses to run if the upstream
+clause has changed, so an Imp upgrade must re-check it (and can drop it once
+Imp fixes the walker).
+
+## Two test models
+
+- `IMP_BENCH_MODEL=static` — `Imp.LM.Static` with a script (`lib/scripted.ex`). Fast, but skips HTTP and
+  response parsing entirely.
+- `IMP_BENCH_MODEL=fake` — a local OpenAI-compatible server (`lib/fake_openai.ex`, Plug.Cowboy on :4077)
+  that Imp reaches through ReqLLM like a real provider, including tool calls and `reasoning_content`.
 
 ## Installing BEAM in the sandbox
 

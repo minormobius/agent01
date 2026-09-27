@@ -157,7 +157,9 @@ defmodule ImpBench.Desk do
           Enum.find_value(@customers, %{"error" => "no customer with that email"}, fn {_, c} ->
             if String.downcase(c["email"]) == String.downcase(String.trim(email)), do: c
           end)
-        end, schema: obj(%{"email" => %{"type" => "string"}}, ["email"])),
+        end,
+        schema: obj(%{"email" => %{"type" => "string"}}, ["email"])
+      ),
       Imp.tool(
         :list_orders,
         "List a customer's order ids, oldest first.",
@@ -169,7 +171,9 @@ defmodule ImpBench.Desk do
         "Read one order: customer, date, category, price in USD and status.",
         fn %{"order_id" => id} ->
           Map.get(@orders, String.trim(id), %{"error" => "no such order"})
-        end, schema: obj(%{"order_id" => %{"type" => "string"}}, ["order_id"])),
+        end,
+        schema: obj(%{"order_id" => %{"type" => "string"}}, ["order_id"])
+      ),
       Imp.tool(
         :refund_policy,
         "Refund window (days) and percent refunded for a product category and customer tier.",
@@ -204,7 +208,9 @@ defmodule ImpBench.Desk do
             {:ok, d} -> %{"today" => Date.to_iso8601(@today), "days" => Date.diff(@today, d)}
             _ -> %{"error" => "date must be YYYY-MM-DD"}
           end
-        end, schema: obj(%{"date" => %{"type" => "string"}}, ["date"])),
+        end,
+        schema: obj(%{"date" => %{"type" => "string"}}, ["date"])
+      ),
       Imp.tool(
         :convert,
         "Convert a USD amount to a currency (USD, EUR or GBP), and the country's currency if you pass a country code instead.",

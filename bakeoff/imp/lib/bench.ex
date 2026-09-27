@@ -18,7 +18,7 @@ defmodule ImpBench do
 
   alias ImpBench.Desk
 
-  @tasks ~w(route desk desk_hard)
+  @tasks ~w(route desk desk_hard trec)
 
   def main do
     model_key = System.get_env("IMP_BENCH_MODEL") || raise "IMP_BENCH_MODEL is required"
@@ -71,6 +71,14 @@ defmodule ImpBench do
   # ─── models ─────────────────────────────────────────────────────────
 
   def lm_for("static"), do: {:ok, ImpBench.Scripted.lm(), %{model: "scripted", base_url: nil}}
+
+  def lm_for("fake") do
+    base = ImpBench.FakeOpenAI.start(4077)
+    spec = %{provider: :openai, id: "fake", model: "fake", base_url: base}
+
+    {:ok, Imp.req_llm(spec, api_key: "fake", cache: false, temperature: 0.0, max_tokens: 256),
+     %{model: "fake", base_url: base}}
+  end
 
   def lm_for(key) do
     cells = Path.expand("../cells.json", File.cwd!()) |> File.read!() |> Jason.decode!()
@@ -268,6 +276,102 @@ defmodule ImpBench do
           |> Map.put(:rows_gepa, Enum.map(opt_rows, &Map.drop(&1, [:steps])))
         rescue
           # A failed optimization is a finding, not a reason to lose the baseline.
+          e ->
+            msg = Exception.message(e) |> String.slice(0, 2000)
+            IO.puts("   GEPA failed: " <> msg)
+
+            Map.put(result, :gepa, %{
+              reflection: reflection_key,
+              max_metric_calls: max_calls,
+              error: msg
+            })
+        end
+    end
+  end
+
+  # trec: Imp's matched GEPA experiment (see ImpBench.Trec) — baseline on the
+  # 80 held-out rows, then, for models named in IMP_BENCH_GEPA, GEPA on
+  # 20 train (with feedback) / 40 selection (score only), re-scored on the 80.
+  defp run("trec", lm, out) do
+    alias ImpBench.Trec
+    %{train: train, selection: selection, held_out: held_out} = Trec.rows()
+    program = Trec.program(lm)
+    test = Trec.examples(held_out, false)
+    metric = Trec.metric()
+
+    {base, t0} =
+      timed(fn -> Imp.evaluate(program, test, metric, num_threads: 8, timeout: 180_000) end)
+
+    result = %{
+      n_test: length(test),
+      source: Trec.source().commit,
+      arms: %{
+        "baseline" => %{
+          score: base.score,
+          errors: length(base.errors),
+          seconds: t0,
+          error_samples: error_samples(base)
+        }
+      }
+    }
+
+    case gepa_for(lm) do
+      nil ->
+        result
+
+      {reflection_lm, reflection_key, max_calls} ->
+        IO.puts("   GEPA: reflection #{reflection_key}, max_metric_calls #{max_calls}")
+
+        gepa =
+          Imp.Optimizer.GEPA.new(metric,
+            reflection_lm: reflection_lm,
+            max_metric_calls: max_calls,
+            use_merge: false,
+            num_threads: 4,
+            seed: 2_026_072_602,
+            timeout: 300_000,
+            proposal_timeout: 300_000
+          )
+
+        try do
+          {optimized, gepa_secs} =
+            timed(fn ->
+              Imp.optimize!(
+                program,
+                gepa,
+                Trec.examples(train, true),
+                Trec.examples(selection, false)
+              )
+            end)
+
+          {opt, t1} =
+            timed(fn ->
+              Imp.evaluate(optimized, test, metric, num_threads: 8, timeout: 180_000)
+            end)
+
+          save_program(optimized, Path.join(out, "trec.gepa.program.json"))
+
+          before = Imp.ProgramParameters.values(program)
+          after_ = Imp.ProgramParameters.values(optimized)
+
+          changed =
+            for {id, v} <- after_, before[id] != v, into: %{} do
+              {inspect(id), %{before: text(before[id]), after: text(v)}}
+            end
+
+          result
+          |> put_in([:arms, "gepa"], %{
+            score: opt.score,
+            errors: length(opt.errors),
+            seconds: t1,
+            optimize_seconds: gepa_secs
+          })
+          |> Map.put(:gepa, %{
+            reflection: reflection_key,
+            max_metric_calls: max_calls,
+            changed: changed
+          })
+        rescue
           e ->
             msg = Exception.message(e) |> String.slice(0, 2000)
             IO.puts("   GEPA failed: " <> msg)

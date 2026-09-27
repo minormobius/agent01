@@ -47,18 +47,21 @@ lines.push(
   'restocking fees, undelivered orders, scans across customers, five currencies). `+GEPA`: the same agent after',
   'GEPA rewrote its instructions from 9 train / 9 validation questions.',
   '',
-  '| model | route zero-shot | route few-shot (k=8) | desk | desk_hard | desk_hard +GEPA | wall |',
-  '|---|---|---|---|---|---|---|',
+  '`trec`: Imp\'s matched GEPA experiment — route 80 held-out TREC questions to two opaque codes the program',
+  'is never told the meaning of; GEPA learns them from feedback on 20 train rows (Imp R3: +0.40 on gpt-5.4-mini).',
+  '',
+  '| model | route zero-shot | route few-shot (k=8) | desk | desk_hard | desk_hard +GEPA | trec | trec +GEPA | wall |',
+  '|---|---|---|---|---|---|---|---|---|',
 );
 
 for (const { cell } of cells) {
   if (cell.status !== 'ran') {
-    lines.push(`| ${cell.model} | skipped: ${cell.reason} | | | | | |`);
+    lines.push(`| ${cell.model} | skipped: ${cell.reason} | | | | | | | |`);
     continue;
   }
-  const r = cell.tasks.route, d = cell.tasks.desk, h = cell.tasks.desk_hard;
+  const r = cell.tasks.route, d = cell.tasks.desk, h = cell.tasks.desk_hard, tr = cell.tasks.trec;
   const cellPct = (t, arm) => (t?.arms?.[arm] ? pct(t.arms[arm].score) : '—');
-  lines.push(`| ${cell.model} (\`${cell.model_id}\`) | ${cellPct(r, 'zero_shot')} | ${cellPct(r, 'few_shot_k8')} | ${cellPct(d, 'react')} | ${cellPct(h, 'react')} | ${cellPct(h, 'react_gepa')} | ${cell.seconds}s |`);
+  lines.push(`| ${cell.model} (\`${cell.model_id}\`) | ${cellPct(r, 'zero_shot')} | ${cellPct(r, 'few_shot_k8')} | ${cellPct(d, 'react')} | ${cellPct(h, 'react')} | ${cellPct(h, 'react_gepa')} | ${cellPct(tr, 'baseline')} | ${cellPct(tr, 'gepa')} | ${cell.seconds}s |`);
 }
 
 for (const { dir, cell } of cells) {
@@ -109,6 +112,24 @@ for (const { dir, cell } of cells) {
       }
       const p = path.join(dir, 'hard.gepa.program.json');
       if (fs.existsSync(p)) fs.copyFileSync(p, path.join(outDir, `${slug}.hard.gepa.program.json`));
+    }
+  }
+  const tr = cell.tasks.trec;
+  if (tr) {
+    const a = tr.arms;
+    lines.push('', `**trec** (80 held out, rows from deepfates/imp@${String(tr.source).slice(0, 8)}): baseline ${pct(a.baseline.score)}` +
+      (a.baseline.errors ? ` (${a.baseline.errors} errors)` : '') +
+      (a.gepa ? ` → GEPA ${pct(a.gepa.score)}${a.gepa.errors ? ` (${a.gepa.errors} errors)` : ''}, optimizing took ${a.gepa.optimize_seconds}s` : ''));
+    for (const e of a.baseline.error_samples || []) lines.push(`> baseline error: \`${e.slice(0, 200).replace(/`/g, "'")}\``);
+    if (tr.gepa) {
+      const changed = Object.entries(tr.gepa.changed || {});
+      lines.push('', `GEPA (reflection \`${tr.gepa.reflection}\`, max_metric_calls ${tr.gepa.max_metric_calls}): ` +
+        (tr.gepa.error ? `**failed**: \`${tr.gepa.error.slice(0, 400)}\`` : changed.length ? `rewrote ${changed.length} parameter(s).` : 'kept the original program.'));
+      for (const [id, c] of changed) {
+        lines.push('', `<details><summary>${id}</summary>`, '', '**before**', '', '```', c.before, '```', '', '**after**', '', '```', c.after, '```', '', '</details>');
+      }
+      const p = path.join(dir, 'trec.gepa.program.json');
+      if (fs.existsSync(p)) fs.copyFileSync(p, path.join(outDir, `${slug}.trec.gepa.program.json`));
     }
   }
   const r = cell.tasks.route;
