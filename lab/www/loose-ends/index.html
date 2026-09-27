@@ -44,6 +44,7 @@
 
   .btnRow { display: flex; flex-wrap: wrap; gap: .6rem; margin: .6rem 0; }
   .btnRow button { min-height: 44px; flex: 1 1 auto; }
+  #btnAuto[aria-pressed="true"] { background: var(--accent); color: var(--bg); border-color: var(--accent); }
   .status { font-size: .8rem; color: var(--muted); text-align: center; margin: .4rem 0; }
   .status b { color: var(--accent); }
   #instr { font-size: .9rem; margin: .6rem 0; min-height: 1.4em; }
@@ -84,6 +85,12 @@
     you chose.</p>
     <p>Dots that glow are untouched and tappable. Dim dots are already used. A small
     perpendicular tick marks a T-junction, same idea as segment 2's contact.</p>
+    <p><b>Run automatically</b> does the same thing the tapping does, just picked by the
+    tool: it repeatedly searches for a random valid pair of untouched endpoints and a
+    random pair of extensions, and places whichever one it finds first. It's a search,
+    not a proof — if it stops early saying it couldn't find a move, that means it tried
+    hundreds of random combinations and failed, not that none exist. Stop it any time
+    and keep going by hand.</p>
   </div>
 
   <div class="stage-wrap">
@@ -98,6 +105,7 @@
   <div id="stuckMsg" class="stuck hidden"></div>
 
   <div class="btnRow">
+    <button id="btnAuto" aria-pressed="false">Run automatically</button>
     <button id="btnReroll">Reroll (start over)</button>
     <button id="btnFit">Fit view</button>
     <button id="btnZoomOut" aria-label="zoom out">−</button>
@@ -213,6 +221,8 @@
   let previewCandidate = null;
   const view = { x: -3, y: -3, w: 6, h: 6 };
   const MIN_W = 0.5, MAX_W = 40;
+  let autoRunning = false, autoTimer = null, autoNote = '';
+  const AUTO_EXT_MAX = 2, AUTO_ATTEMPTS = 400, AUTO_MAX_SEGMENTS = 250, AUTO_DELAY_MS = 450;
 
   const svg = document.getElementById('stageSvg');
   const svgContent = document.getElementById('svgContent');
@@ -227,6 +237,7 @@
   const extBSlider = document.getElementById('extBSlider');
   const extBNum = document.getElementById('extBNum');
   const btnPlace = document.getElementById('btnPlace');
+  const btnAuto = document.getElementById('btnAuto');
 
   function segById(id) { return segments.find((s) => s.id === id); }
   function tip(s, idx) { return idx === 0 ? s.p1 : s.p2; }
@@ -234,6 +245,8 @@
   function randRange(lo, hi) { return lo + Math.random() * (hi - lo); }
 
   function reroll() {
+    stopAutoRun();
+    autoNote = '';
     segments = []; ticks = []; nextId = 0;
     selectedA = null; selectedB = null; previewCandidate = null;
     const s1 = { id: nextId++, p1: { x: -0.5, y: 0 }, p2: { x: 0.5, y: 0 }, touched: [false, false] };
@@ -260,6 +273,7 @@
   function activeSegments() { return segments.filter((s) => !s.touched[0] || !s.touched[1]); }
 
   function onTipClick(segId, tipIndex) {
+    if (autoRunning) return;
     const s = segById(segId);
     if (!s || s.touched[tipIndex]) return;
     if (!selectedA) {
@@ -321,12 +335,12 @@
     render();
   }
 
-  function commitSegment() {
-    if (!previewCandidate || !previewCandidate.ok) return;
-    const sa = segById(selectedA.segId), sb = segById(selectedB.segId);
-    sa.touched[selectedA.tipIndex] = true;
-    sb.touched[selectedB.tipIndex] = true;
-    const cand = previewCandidate;
+  /** Shared by manual placement and auto-run: marks the two welded tips
+   *  touched, adds the new segment, and records a T-tick for any weld that
+   *  landed mid-body rather than on the new segment's own tip. */
+  function finalizePlacement(sa, tipA, sb, tipB, cand) {
+    sa.touched[tipA] = true;
+    sb.touched[tipB] = true;
     const newSeg = { id: nextId++, p1: cand.p1, p2: cand.p2, touched: [false, false] };
     const EPS = 1e-3;
     if (cand.tA <= EPS) newSeg.touched[0] = true;
@@ -334,9 +348,85 @@
     if (cand.tB >= 1 - EPS) newSeg.touched[1] = true;
     else if (cand.tB > EPS) ticks.push({ segId: newSeg.id, point: cand.B });
     segments.push(newSeg);
+  }
+
+  function commitSegment() {
+    if (!previewCandidate || !previewCandidate.ok) return;
+    autoNote = '';
+    const sa = segById(selectedA.segId), sb = segById(selectedB.segId);
+    finalizePlacement(sa, selectedA.tipIndex, sb, selectedB.tipIndex, previewCandidate);
     closePairPanel();
     fitView();
     saveLocal();
+  }
+
+  // ------------------------------------------------------------------ auto-run
+  function freeTips() {
+    const list = [];
+    for (const s of segments) {
+      if (!s.touched[0]) list.push({ seg: s, tipIndex: 0 });
+      if (!s.touched[1]) list.push({ seg: s, tipIndex: 1 });
+    }
+    return list;
+  }
+
+  /** Randomised search for one legal weld: samples endpoint pairs from two
+   *  different segments and random extensions past each, and commits the
+   *  first candidate that clears checkValidity. Not exhaustive — see
+   *  BRIEF.md on why a real proof-of-no-move is a harder, separate thing. */
+  function autoStep() {
+    const free = freeTips();
+    const segIds = new Set(free.map(function (f) { return f.seg.id; }));
+    if (segIds.size < 2) return false;
+    for (let attempt = 0; attempt < AUTO_ATTEMPTS; attempt++) {
+      const fa = free[Math.floor(Math.random() * free.length)];
+      const fb = free[Math.floor(Math.random() * free.length)];
+      if (fa.seg.id === fb.seg.id) continue;
+      const A = tip(fa.seg, fa.tipIndex), B = tip(fb.seg, fb.tipIndex);
+      const extA = randRange(0, AUTO_EXT_MAX), extB = randRange(0, AUTO_EXT_MAX);
+      const cand = buildCandidate(A, B, extA, extB);
+      if (!cand) continue;
+      const check = checkValidity(cand, segments, fa.seg.id, fb.seg.id);
+      if (!check.ok) continue;
+      finalizePlacement(fa.seg, fa.tipIndex, fb.seg, fb.tipIndex, { ...cand, A, B });
+      fitView();
+      saveLocal();
+      return true;
+    }
+    return false;
+  }
+
+  function autoTick() {
+    if (!autoRunning) return;
+    if (activeSegments().length < 2) { stopAutoRun(); return; }
+    if (segments.length >= AUTO_MAX_SEGMENTS) {
+      autoNote = 'Auto-run stopped at ' + AUTO_MAX_SEGMENTS + ' segments (a safety cap, not a dead end) — reroll to grow a fresh one, or keep placing by hand.';
+      stopAutoRun();
+      return;
+    }
+    if (!autoStep()) {
+      autoNote = 'Auto-run stopped: could not find a legal weld in ' + AUTO_ATTEMPTS + ' random tries. That does not prove none exists — try a manual placement, or reroll.';
+      stopAutoRun();
+    }
+  }
+
+  function startAutoRun() {
+    if (autoRunning) return;
+    closePairPanel();
+    autoNote = '';
+    autoRunning = true;
+    btnAuto.textContent = 'Stop';
+    btnAuto.setAttribute('aria-pressed', 'true');
+    autoTick();
+    if (autoRunning) autoTimer = setInterval(autoTick, AUTO_DELAY_MS);
+  }
+
+  function stopAutoRun() {
+    autoRunning = false;
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    btnAuto.textContent = 'Run automatically';
+    btnAuto.setAttribute('aria-pressed', 'false');
+    updateStatus();
   }
 
   // --------------------------------------------------------------- view/pan/zoom
@@ -427,6 +517,7 @@
   });
   document.getElementById('btnFit').addEventListener('click', fitView);
   document.getElementById('btnReroll').addEventListener('click', reroll);
+  btnAuto.addEventListener('click', function () { if (autoRunning) stopAutoRun(); else startAutoRun(); });
   document.getElementById('btnCancelPair').addEventListener('click', function () { closePairPanel(); render(); });
   document.getElementById('btnPlace').addEventListener('click', commitSegment);
   document.getElementById('btnRandomizeExt').addEventListener('click', function () {
@@ -504,12 +595,14 @@
 
   function updateStatus() {
     statusEl.innerHTML = 'Segments: <b>' + segments.length + '</b> · untouched endpoints: <b>' + untouchedCount() + '</b>';
-    if (selectedA && selectedB) {
+    if (autoRunning) {
+      instrEl.textContent = 'Running automatically — placing a new segment every ' + (AUTO_DELAY_MS / 1000).toFixed(2) + 's. Tap Stop to take over.';
+    } else if (selectedA && selectedB) {
       instrEl.textContent = '';
     } else if (selectedA) {
       instrEl.textContent = 'Now tap an untouched endpoint on a DIFFERENT segment.';
     } else {
-      instrEl.textContent = 'Tap a glowing endpoint to start a new segment.';
+      instrEl.textContent = 'Tap a glowing endpoint to start a new segment, or run it automatically.';
     }
     const active = activeSegments();
     if (active.length < 2 && !(selectedA && selectedB)) {
@@ -517,6 +610,9 @@
       stuckEl.textContent = active.length === 0
         ? 'Every endpoint has been used — this construction has run its course. Reroll to start a new one.'
         : 'Only one segment still has a free endpoint, and a new segment needs two DIFFERENT segments to touch. This branch has terminated — reroll to start a new one.';
+    } else if (autoNote) {
+      stuckEl.classList.remove('hidden');
+      stuckEl.textContent = autoNote;
     } else {
       stuckEl.classList.add('hidden');
     }

@@ -549,6 +549,20 @@ pair/extension is blocked — worth watching for a follow-up pushing on that
 specific rigor, same shape as the sudoku-uniqueness and quartic-solver
 flags already in this file.
 
+Follow-up on the thirty-second request (2026-09-27, same thread), on
+loose-ends/Loose Ends: after shipping a manual tap-two-endpoints builder,
+came back with "kinda wanted it to just run automatically." Read as: for a
+step-by-step manual construction tool, expect a request for a hands-off
+"run it" mode even when the original spec never asked for automation —
+worth offering an automatic/autoplay toggle by default alongside the manual
+control on future step-by-step generator/construction builds, rather than
+waiting for this exact follow-up again. Implemented as a genuinely
+randomised search (not a scripted replay) that reuses the exact same
+validity check the manual path uses, and said explicitly, on-page and in
+NOTE.txt, that "auto-run gave up" is a weaker claim than "no move exists" —
+consistent with the standing habit of flagging when a shortcut (a search,
+not a proof) stands in for something more rigorous.
+
 Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
 phrased with pre-emptive, joking defiance ("chess but its modular forms...
 don't you dare tell me this doesn't make sense just make modular group

@@ -1,3 +1,35 @@
+## Turn 2 update (2026-09-27)
+
+Request this turn: "kinda wanted it to just run automatically" — a follow-up on
+turn 1's manual tap-two-endpoints tool. Added a **"Run automatically"** toggle
+button next to Reroll/Fit: while on, it runs a fixed-interval loop
+(`autoTick`, every 450ms) that calls `autoStep()` — a randomised search over
+free-endpoint pairs and random extension lengths, committing the first
+candidate that passes the exact same `checkValidity` the manual path uses —
+via a new shared `finalizePlacement()` that both `commitSegment()` (manual)
+and `autoStep()` (auto) now call, instead of duplicating the touched-flags/
+tick-recording logic. Manual endpoint-tapping is disabled while auto-run is
+on (`onTipClick` early-returns) so the two input paths can't collide; Reroll
+stops auto-run first.
+
+Auto-run stops itself on three distinct conditions, each with its own message
+(folded into the existing `stuckMsg` box via a new `autoNote` string so
+`updateStatus()` has one place that decides what to show): genuine terminal
+state (reused from turn 1, unchanged), a **safety cap at 250 segments**
+(arbitrary, just to stop an unattended run growing forever), and — the
+common case — 400 random attempts in a row all rejected. That third one is
+explicitly worded as "couldn't find a move," not "no move exists": this is a
+randomised search, not the exhaustive proof turn 1's BRIEF already flagged as
+unbuilt (see plan item 1 below, still unbuilt, still the same reason). Said
+this on-page too, in the rules panel, not just here — the standing pattern
+in the profile for anything with a resolved ambiguity or an honest
+approximation.
+
+Didn't add a speed control or attempt count display — turn budget went to
+making the loop itself correct and non-colliding with manual mode. Worth
+adding if a follow-up wants control over the pace or wants to see how many
+tries a stuck-search actually took.
+
 ## What this is
 
 The request: "place a line segment, unit length, and another segment at a
@@ -76,16 +108,17 @@ static diagram:
 
 ## The plan (not built yet, in order)
 
-1. **No proof of "no valid pair exists."** The stuck-detector only checks
-   "fewer than two segments have a free endpoint" — a real dead end. It
-   does NOT search whether, with ≥2 active segments, every possible
-   pair/extension still crosses something (that's a much harder
-   combinatorial check, potentially expensive on a large construction).
-   Right now a visitor in that situation just keeps trying pairs and
-   extensions and gets live rejection reasons; worth a "try all pairs,
-   report if literally none work" button if a future request asks for it,
-   but it's a real search (every free-endpoint pair × a continuous
-   extension range), not a one-line fix.
+1. **No proof of "no valid pair exists."** Turn 2 added a *heuristic*
+   version of this (auto-run's "couldn't find a move in 400 tries" message)
+   but that is still a randomised search, not a proof — it can and will give
+   up on constructions that do have a valid move somewhere it didn't happen
+   to sample, especially once extensions need to be long or narrowly ranged
+   to clear everything. A real proof needs, per free-endpoint pair, the
+   actual set of extension values that stay valid (each other segment
+   excludes some interval via the line intersection, so it's an interval-
+   subtraction problem per pair, not a sample) — and only if EVERY pair's
+   surviving interval is empty is the construction actually stuck. That's
+   the real fix, still not built.
 2. **No keyboard path to pick endpoints.** Selection is pointer-only
    (pointerdown on an SVG hit-circle) — a screen-reader/keyboard user can
    read the rules and status via the live region, but cannot actually place

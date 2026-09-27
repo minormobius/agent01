@@ -1,1 +1,1 @@
-Segments 1-2 auto-place (unit length, then random angle/length/contact) since only #2's angle was called random. From #3 on the direction is forced by the two endpoints you weld -- you just pick the pair and how far each side extends past them.
+Added "Run automatically" — it repeats the same weld search you'd do by hand until it's stuck or hits a safety cap. It's a random search, not a proof, so "no move found" isn't quite the same as "stuck."
