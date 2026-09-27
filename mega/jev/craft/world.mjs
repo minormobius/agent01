@@ -60,33 +60,33 @@ const def = (name, o) => { BLOCKS[B[name]] = { id: B[name], name, solid: true, h
 def('air',            { solid: false, hard: Infinity, drop: null, color: null });
 def('bedrock',        { hard: Infinity, drop: null, color: '#3a3a3a' });
 def('stone',          { hard: 15, tool: 1, drop: 'cobblestone', color: '#8a8a8a' });
-def('dirt',           { hard: 3, color: '#86603e' });
-def('grass',          { hard: 3, drop: 'dirt', color: '#5fa53a', side: '#86603e' });
-def('sand',           { hard: 3, color: '#dccf8f' });
+def('dirt',           { by: 'shovel', hard: 3, color: '#86603e' });
+def('grass',          { by: 'shovel', hard: 3, drop: 'dirt', color: '#5fa53a', side: '#86603e' });
+def('sand',           { by: 'shovel', hard: 3, color: '#dccf8f' });
 def('water',          { solid: false, hard: Infinity, drop: null, color: '#3f76e4' });
-def('log',            { hard: 6, color: '#6b4f2a', top: '#a1824c' });
+def('log',            { by: 'axe', hard: 6, color: '#6b4f2a', top: '#a1824c' });
 def('leaves',         { hard: 1, drop: null, color: '#3c8a2e' });
 def('coal_ore',       { hard: 15, tool: 1, drop: 'coal', color: '#595959', fleck: '#1b1b1b' });
 def('iron_ore',       { hard: 18, tool: 2, drop: 'iron_ore', color: '#8a8a8a', fleck: '#d8af93' });
-def('planks',         { hard: 6, color: '#b8945a' });
+def('planks',         { by: 'axe', hard: 6, color: '#b8945a' });
 def('cobblestone',    { hard: 15, tool: 1, color: '#7a7a7a' });
-def('crafting_table', { hard: 6, color: '#8f6a3a', top: '#b8945a' });
+def('crafting_table', { by: 'axe', hard: 6, color: '#8f6a3a', top: '#b8945a' });
 def('furnace',        { hard: 15, tool: 1, color: '#6f6f6f', top: '#8a8a8a' });
 def('torch',          { solid: false, hard: 1, color: '#ffd35a', light: true });
 // a door is open to the player and shut to every mob: the one block that
 // makes a house a shelter rather than a box you cannot leave
-def('door',           { solid: false, mobSolid: true, hard: 4, color: '#7a5530', top: '#8f6a3a' });
+def('door',           { by: 'axe', solid: false, mobSolid: true, hard: 4, color: '#7a5530', top: '#8f6a3a' });
 def('glass',          { hard: 1, drop: null, color: '#cfe8ef', clear: true });
 // lava: nobody walks into it on purpose (planners treat it as a wall, mobs
 // too), and whatever ends up inside it burns. It pools at the bottom of caves.
 // farmland: tilled soil, where most crops go
-def('farmland',       { hard: 3, drop: 'dirt', color: '#5b3d22', top: '#4a311b' });
+def('farmland',       { by: 'shovel', hard: 3, drop: 'dirt', color: '#5b3d22', top: '#4a311b' });
 // a lantern: a glowcap light. Placeable, and keeps zombies off like a torch
 def('lantern',        { solid: false, hard: 1, color: '#7fe3d0', light: true });
 for (const sp of SPECIES_NAMES) ['sprout', 'growing', 'plant'].forEach((st, i) =>
   def(`${sp}_${st}`, { solid: false, hard: 1, drop: null, plant: sp, stage: i, color: i === 2 ? SPECIES[sp].color : SPECIES[sp].young }));
 // a chest holds CHEST_SLOTS stacks; the team's shared pool (sim.chests)
-def('chest',          { hard: 6, color: '#9a6b32', top: '#b8894a', drop: null });
+def('chest',          { by: 'axe', hard: 6, color: '#9a6b32', top: '#b8894a', drop: null });
 // a bed: stand in it at night to sleep; the night passes only when EVERY
 // player is asleep. It is also where you respawn.
 def('bed',            { solid: false, mobSolid: true, hard: 2, color: '#c0392b', top: '#e8e2d6', drop: 'bed' });
@@ -98,7 +98,7 @@ def('beacon',         { hard: 6, color: '#bff7f2', top: '#e9fffd', light: true, 
 def('netherrack',     { hard: 4, tool: 1, color: '#6e2a2a', top: '#7d3232' });
 def('glowstone',      { hard: 3, drop: 'glowstone_dust', dropN: 2, color: '#f6d77a', top: '#ffe9a3', light: true });
 def('quartz_ore',     { hard: 8, tool: 1, drop: 'quartz', color: '#6e2a2a', fleck: '#efe8df' });
-def('soul_sand',      { hard: 3, color: '#56443a' });
+def('soul_sand',      { by: 'shovel', hard: 3, color: '#56443a' });
 // a lit portal: step in and travel. It cannot be mined; break the frame.
 def('portal',         { solid: false, hard: Infinity, drop: null, color: '#8e3fd6', top: '#b06cf0', clear: true });
 def('quartz_block',   { hard: 8, tool: 1, color: '#efe8df' });
@@ -111,7 +111,7 @@ export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone'
 // Chests: 27 stacks, as Minecraft's. A stack is 64 of most things; a tool,
 // a sword or a bed is a stack of one. That is the whole limit on the pool.
 export const CHEST_SLOTS = 27;
-export const stackSize = (item) => /_(pickaxe|sword|hoe|armor)$/.test(item) || item === 'bed' || item === 'bucket' || item === 'water_bucket' ? 1 : item === 'door' ? 16 : 64;
+export const stackSize = (item) => /_(pickaxe|shovel|axe|sword|hoe|armor)$/.test(item) || item === 'shears' || item === 'bed' || item === 'bucket' || item === 'water_bucket' ? 1 : item === 'door' ? 16 : 64;
 export const slotsUsed = (items) => Object.entries(items).reduce((n, [k, v]) => n + Math.ceil(v / stackSize(k)), 0);
 // how many of `item` still fit in a chest holding `items`
 export function roomFor(items, item) {
@@ -148,6 +148,17 @@ export const RECIPES = {
   iron_pickaxe:    { n: 1, need: { iron_ingot: 3, stick: 2 }, at: 'crafting_table' },
   iron_sword:      { n: 1, need: { iron_ingot: 2, stick: 1 }, at: 'crafting_table' },
   wooden_hoe:      { n: 1, need: { planks: 2, stick: 2 }, at: 'crafting_table' },
+  // shovels (dirt, sand, grass) and axes (logs and wood): 1 and 3 of the material, 2 sticks
+  wooden_shovel:   { n: 1, need: { planks: 1, stick: 2 }, at: 'crafting_table' },
+  stone_shovel:    { n: 1, need: { cobblestone: 1, stick: 2 }, at: 'crafting_table' },
+  iron_shovel:     { n: 1, need: { iron_ingot: 1, stick: 2 }, at: 'crafting_table' },
+  diamond_shovel:  { n: 1, need: { diamond: 1, stick: 2 }, at: 'crafting_table' },
+  wooden_axe:      { n: 1, need: { planks: 3, stick: 2 }, at: 'crafting_table' },
+  stone_axe:       { n: 1, need: { cobblestone: 3, stick: 2 }, at: 'crafting_table' },
+  iron_axe:        { n: 1, need: { iron_ingot: 3, stick: 2 }, at: 'crafting_table' },
+  diamond_axe:     { n: 1, need: { diamond: 3, stick: 2 }, at: 'crafting_table' },
+  // shears: wool from a sheep without killing it; it grows back
+  shears:          { n: 1, need: { iron_ingot: 2 } },
   chest:           { n: 1, need: { planks: 8 }, at: 'crafting_table' },
   bed:             { n: 1, need: { wool: 3, planks: 3 }, at: 'crafting_table' },
   diamond_pickaxe: { n: 1, need: { diamond: 3, stick: 2 }, at: 'crafting_table' },
@@ -167,6 +178,18 @@ export const recipeBags = (r) => [r.need, ...(r.alt || [])];
 
 export const PICK_TIER = { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3, diamond_pickaxe: 4 };
 export const PICK_SPEED = { 0: 1, 1: 2, 2: 4, 3: 6, 4: 8 };
+// every tool by what it speeds and how good it is. A block's class is `tool`
+// (a pick is required) or `by` (a shovel or an axe only speeds it); the best
+// held tool of that class is the one used, and the one that wears.
+const MATS = ['wooden', 'stone', 'iron', 'diamond'];
+export const TOOLS = {};
+for (const [i, m] of MATS.entries()) for (const kind of ['pickaxe', 'shovel', 'axe']) TOOLS[`${m}_${kind}`] = { kind: kind === 'pickaxe' ? 'pick' : kind, tier: i + 1 };
+export const toolClass = (blk) => (blk.tool ? 'pick' : blk.by || null);
+// Durability, Minecraft's numbers: uses before it breaks. A use is a block
+// mined with it (only blocks of its class), a hit with a sword, a till with a
+// hoe, a sheep shorn. The stack's top item wears; a spare is a second item.
+export const DURABILITY = { wooden: 60, stone: 132, iron: 251, diamond: 1562, shears: 238 };
+export const durability = (item) => item === 'shears' ? DURABILITY.shears : /_(pickaxe|shovel|axe|sword|hoe)$/.test(item) ? DURABILITY[item.split('_')[0]] ?? null : null;
 export const SWORD_DMG = { none: 1, wooden_sword: 4, stone_sword: 5, iron_sword: 6, diamond_sword: 7 };
 // armor is worn by carrying it: the share of every hit it takes
 export const ARMOR = { iron_armor: 0.4, diamond_armor: 0.6 };

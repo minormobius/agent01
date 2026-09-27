@@ -31,7 +31,7 @@
 // nothing new to show a farm.
 
 import {
-  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
+  B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, TOOLS, toolClass, durability, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
   generateWorld, generateNether, worldSignature, mulberry, hash32, blockName, HOSTILE, NETHER_LAVA,
 } from './world.mjs';
 import { habitat, growCrops, harvestDrop, GROW_EVERY } from './plants.mjs';
@@ -47,6 +47,7 @@ export const DIFFICULTY = {
   hard:   { maxZombies: 14, spawn: 0.1, darkSpawn: 0.012, zombieDmg: 4, hungerEvery: 240, zombieStep: 1 },
 };
 export const SIGHT = 10;
+export const WOOL_REGROW = 1200;    // ticks until a shorn sheep has wool again
 export const MAX_AIR = 60;          // ticks of breath with the head under water (~15 s, as Minecraft's)
 export const FLOW_EVERY = 3;        // water spreads one voxel every this many ticks
 // what water may flow into (and wash away): open air, torches, lanterns, plants
@@ -316,6 +317,50 @@ export class Sim {
   }
   pickTier() { let t = 0; for (const k in PICK_TIER) if (this.has(k)) t = Math.max(t, PICK_TIER[k]); return t; }
   swordDmg() { let d = SWORD_DMG.none; for (const k in SWORD_DMG) if (k !== 'none' && this.has(k)) d = Math.max(d, SWORD_DMG[k]); return d; }
+  // the best held tool of a class ('pick' | 'shovel' | 'axe'), and its tier
+  toolFor(kind) { let best = null, bt = 0; for (const k in TOOLS) if (TOOLS[k].kind === kind && TOOLS[k].tier > bt && this.has(k)) { best = k; bt = TOOLS[k].tier; } return best; }
+  toolTier(kind) { const t = this.toolFor(kind); return t ? TOOLS[t].tier : 0; }
+  // The pick a block is mined with: the CHEAPEST held that is good enough for
+  // it (and not wood when better is held), so an iron pick wears only on what
+  // needs iron and a diamond pick on obsidian. Tools wear out, so saving the
+  // good pick is worth the slower stone (measured: iron picks broke ~10 times
+  // a run when the best pick did all the digging).
+  // A player may choose `pickChoice: 'best'` instead: all speed, and it wears the best pick.
+  pickFor(blk) {
+    const need = Math.max(blk.tool || 0, 1);
+    if (this.me && this.me.pickChoice === 'best') { const k = this.toolFor('pick'); return k && PICK_TIER[k] >= need ? k : null; }
+    let best = null, bt = Infinity;
+    const floor = this.pickTier() >= 2 ? 2 : 1;
+    for (const k in PICK_TIER) { const t = PICK_TIER[k]; if (this.has(k) && t >= Math.max(need, floor) && t < bt) { best = k; bt = t; } }
+    return best;
+  }
+  // ticks to mine a block with what is held. `tier` caps the pick (the
+  // planner asks "with what I have"); the pick used is pickFor's choice.
+  mineTicks(blk, tier = this.pickTier()) {
+    const kind = toolClass(blk);
+    let t = 0;
+    if (kind === 'pick') { const k = this.pickFor(blk); t = k ? Math.min(PICK_TIER[k], tier) : tier; }
+    else if (kind) t = this.toolTier(kind);
+    return Math.max(1, Math.ceil(blk.hard / (kind ? PICK_SPEED[t] : 1)));
+  }
+  // one use off a tool. The stack's top item wears; at zero it breaks and is gone
+  wear(item, n = 1) {
+    if (!item || !this.has(item)) return;
+    const d = durability(item);
+    if (d == null) return;
+    const p = this.me, w = (p.wear ||= {});
+    const left = (w[item] ?? d) - n;
+    if (left <= 0) {
+      delete w[item];
+      this.take(item, 1);
+      this.emit(['wear', p.id, item, null]);
+      this.emit(['note', 'broke', { item, who: p.id }]);
+      return;
+    }
+    w[item] = left;
+    if (left % Math.ceil(d / 10) === 0 || left <= 5) this.emit(['wear', p.id, item, left]);
+  }
+  swordItem() { let best = null, d = 0; for (const k in SWORD_DMG) if (k !== 'none' && this.has(k) && SWORD_DMG[k] > d) { best = k; d = SWORD_DMG[k]; } return best; }
   isNight(t = this.tick) { return (t % DAY) >= NIGHT_START; }
 
   // What a body at (c, y) can touch. REACH is a DISTANCE, not a hop count:
@@ -402,14 +447,15 @@ export class Sim {
         if (blk.hard === Infinity) return no(`${blk.name} cannot be mined`);
         const tier = this.pickTier();
         if (blk.tool > tier) return no(`${blk.name} needs a ${['', 'wooden', 'stone', 'iron', 'diamond'][blk.tool]} pickaxe or better`);
-        const speed = blk.tool ? PICK_SPEED[tier] : 1;
-        const ticks = Math.max(1, Math.ceil(blk.hard / speed));
+        const ticks = this.mineTicks(blk, tier);
+        const used = toolClass(blk) === 'pick' ? this.pickFor(blk) : toolClass(blk) && this.toolFor(toolClass(blk));
         return { ok: true, ticks, pre: () => this.emit(['do', 'mine', c, y, ticks]), post: () => {
           if (this.get(c, y) !== blk.id) return no('block changed while mining');
           const cult = this.cultivated.get(c * H + y);
           const stash = blk.id === B.chest ? { ...(this.chests.get(c * H + y) || {}) } : null;
           this.set(c, y, B.air);        // if it touched water, the flow fills it (and whatever it opens onto)
           this.stats.mined[blk.name] = (this.stats.mined[blk.name] || 0) + 1;
+          this.wear(used);
           if (blk.drop) this.give(blk.drop, blk.dropN || 1);
           if (blk.plant) this.reap(blk, cult);
           if (stash) { this.give('chest', 1); for (const [k2, n2] of Object.entries(stash)) this.give(k2, n2); this.emit(['chest', c, y, null]); }
@@ -450,6 +496,7 @@ export class Sim {
         return { ok: true, ticks: 2, pre: () => this.emit(['do', 'till', c, y]), post: () => {
           if (this.get(c, y) !== cur) return no('the ground changed');
           this.set(c, y, B.farmland);
+          this.wear('wooden_hoe');
           return { ok: true };
         } };
       }
@@ -585,7 +632,23 @@ export class Sim {
         if (!t || t === p) return no('no such target');
         if (t.kind === 'player') return no('not attacking a teammate');
         if (!this.adjacentTo(p, t)) return no('not adjacent');
-        return { ok: true, ticks: 2, pre: () => { this.emit(['do', 'attack', t.id]); this.hurt(t, this.swordDmg(), p); } };
+        return { ok: true, ticks: 2, pre: () => { this.emit(['do', 'attack', t.id]); const sw = this.swordItem(); this.hurt(t, this.swordDmg(), p); this.wear(sw); } };
+      }
+      case 'shear': {
+        // shears on a sheep beside you: 1-3 wool, and the sheep lives; it grows back
+        const t = this.ents.get(a.id);
+        if (!this.has('shears')) return no('needs shears (2 iron ingots)');
+        if (!t || t.kind !== 'sheep') return no('no such sheep');
+        if (!this.adjacentTo(p, t)) return no('not adjacent');
+        if (t.shorn) return no('already shorn: the wool grows back');
+        return { ok: true, ticks: 2, pre: () => this.emit(['do', 'shear', t.id]), post: () => {
+          if (!this.ents.has(t.id) || t.shorn) return no('the sheep got away');
+          this.give('wool', 1 + Math.floor(this.rngSheep() * 3));
+          t.shorn = this.tick + WOOL_REGROW;
+          this.emit(['shorn', t.id, 1]);
+          this.wear('shears');
+          return { ok: true };
+        } };
       }
       case 'give': {
         // hand items to another player standing next to you
@@ -752,7 +815,7 @@ export class Sim {
       if (e.cd > 0) e.cd--;
       if (HOSTILE.has(e.kind)) this.zombieTick(e);
       else if (e.kind === 'pig') this.pigTick(e);
-      else if (e.kind === 'sheep') this.pigTick(e, this.rngSheep);
+      else if (e.kind === 'sheep') { if (e.shorn && t >= e.shorn) { e.shorn = 0; this.emit(['shorn', e.id, 0]); } this.pigTick(e, this.rngSheep); }
     }
   }
 
@@ -965,7 +1028,7 @@ export class Sim {
     if (id === B.chest) return Infinity;                 // nor the team's pool: digging through it empties it into one pocket
     if (id === B.beacon) return Infinity;                // nor a lit beacon (it guards everyone at home)
     if (this.bordersWater(c, y)) return Infinity;      // opening it would flood the dig
-    return Math.max(1, Math.ceil(blk.hard / (blk.tool ? PICK_SPEED[tier] : 1)));
+    return this.mineTicks(blk, tier);
   }
 
   // Dijkstra over standing states where a step may MINE its way through:
@@ -1128,6 +1191,8 @@ export class Replay {
         case 'hp': this.person(ev[1]).hp = ev[2]; break;
         case 'food': this.person(ev[2] ?? 0).food = ev[1]; break;
         case 'air': this.person(ev[1]).air = ev[2]; break;
+        case 'wear': { const w = (this.person(ev[1]).wear ||= {}); if (ev[3] == null) delete w[ev[2]]; else w[ev[2]] = ev[3]; break; }
+        case 'shorn': { const e = D.ents.get(ev[1]); if (e) e.shorn = !!ev[2]; break; }
         case 'chest': if (ev[3]) D.chests.set(ev[1] * H + ev[2], ev[3]); else D.chests.delete(ev[1] * H + ev[2]); break;
         case 'inv': this.person(ev[2] ?? 0).inv = ev[1]; break;
         case 'note': this.notes.push({ k: L.k, kind: ev[1], data: ev[2], d: L.d || 'overworld' }); break;

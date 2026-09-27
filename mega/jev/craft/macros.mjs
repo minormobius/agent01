@@ -12,10 +12,28 @@
 // can also abort any macro between two actions (an interrupt), so a macro
 // holds no state that is only valid mid-sequence.
 
-import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS, HOSTILE, blockName } from './world.mjs';
+import { durability, B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS, HOSTILE, blockName } from './world.mjs';
 import { habitat, needsFarmland, wet } from './plants.mjs';
 
 const MAX_STEPS = 400;
+
+// Tools wear out. The last pick nearly worn through is the one moment a miner
+// must stop digging down and head up: a pick that breaks at the bottom of the
+// world strands you there (measured: players found at bedrock with none left).
+// 48 uses digs a way out from layer 1 with room to spare.
+export const PICK_RESERVE = 48;
+export function pickLow(sim) {
+  const picks = Object.keys(PICK_TIER).filter((k) => sim.has(k));
+  const count = picks.reduce((n, k) => n + sim.inv[k], 0);
+  if (count !== 1) return count === 0;
+  const k = picks[0];
+  // (a wooden pick has 60 uses in all: its reserve is 30% of that, not 48)
+  return ((sim.player.wear && sim.player.wear[k]) ?? durability(k)) < Math.min(PICK_RESERVE, Math.floor(durability(k) * 0.3));
+}
+
+// ...but only deep down: near the surface a low pick can still mine the three
+// stones its replacement needs (without this, 1000 refusals in a row)
+export const deepAndLow = (sim) => pickLow(sim) && !sim.skyOpen(sim.player.c, sim.player.y + 2) && sim.surface(sim.player.c) - sim.player.y > 6;
 
 // ------------------------------------------------------------ movement ------
 // Get to the nearest standing state that satisfies goal — walking where it
@@ -274,6 +292,7 @@ export function* staircase(sim, { floor = 8, until = () => false } = {}) {
   const p = sim.player;
   let prev = -1;
   for (let k = 0; k < 60 && !until(); k++) {
+    if (deepAndLow(sim)) return { ok: false, why: 'the last pick is nearly worn out: time to head up' };
     yield* grabOre(sim);
     if (until()) break;
     // the next column: the neighbour farthest from where we came from, so the
@@ -325,6 +344,7 @@ export function* staircase(sim, { floor = 8, until = () => false } = {}) {
 
 // mine every ore in reach the pick can take
 export function* grabOre(sim) {
+  if (deepAndLow(sim)) return 0;
   const ids = [B.coal_ore, B.stone];
   if (sim.pickTier() >= 2) ids.push(B.iron_ore);
   const ores = sim.reachSet().filter(([c, y]) => [B.coal_ore, B.iron_ore, ...(sim.pickTier() >= 3 ? [B.diamond_ore] : [])].includes(sim.get(c, y)));
@@ -346,6 +366,7 @@ export function* mineIron(sim, { iron = 3, coal = 3 } = {}) {
   if (sim.pickTier() < 2) return { ok: false, why: 'iron needs a stone pickaxe' };
   const enough = () => (sim.inv.iron_ore || 0) + (sim.inv.iron_ingot || 0) >= iron && (sim.inv.coal || 0) >= coal;
   for (let leg = 0; leg < 10 && !enough(); leg++) {
+    if (deepAndLow(sim)) break;                           // the last pick: stop here, and head up
     // ore in sight first — a cave wall, a cliff, the side of our own stair
     const want = [...((sim.inv.iron_ore || 0) + (sim.inv.iron_ingot || 0) < iron ? [B.iron_ore] : []), ...((sim.inv.coal || 0) < coal ? [B.coal_ore] : [])];
     const seen = visible(sim, want, 16);
@@ -366,6 +387,7 @@ export function* mineDiamond(sim, n = 3) {
   if (sim.pickTier() < 3) return { ok: false, why: 'diamond needs an iron pickaxe' };
   const want = (sim.inv.diamond || 0) + n;
   for (let leg = 0; leg < 10 && (sim.inv.diamond || 0) < want; leg++) {
+    if (deepAndLow(sim)) break;                           // the last pick: stop here, and head up
     const seen = visible(sim, [B.diamond_ore], 16);
     if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
     const r = yield* staircase(sim, { floor: 4, until: () => (sim.inv.diamond || 0) >= want || visible(sim, [B.diamond_ore], 5).length > 0 });
@@ -496,6 +518,19 @@ export function* fight(sim, kind = null) {
   return { ok: false, why: 'fight dragged on' };
 }
 
+// Shear a sheep in sight: wool, and the sheep lives (it grows back).
+export function* shear(sim, n = 3) {
+  if (!sim.has('shears')) return { ok: false, why: 'needs shears (2 iron ingots)' };
+  const want = (sim.inv.wool || 0) + n;
+  for (let k = 0; k < 8 && (sim.inv.wool || 0) < want && sim.has('shears'); k++) {
+    const s = visiblePigs(sim, 24, 'sheep').filter((e) => !e.shorn).sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c))[0];
+    if (!s) return (sim.inv.wool || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: 'no sheep with wool in sight' };
+    if (!sim.adjacentTo(sim.player, s)) { const go = yield* goTo(sim, (c, y) => sim.cols[c].adj.includes(s.c) && Math.abs(y - s.y) <= 1, 8000); if (!go.ok) continue; }
+    if (sim.adjacentTo(sim.player, s)) yield { op: 'shear', id: s.id };
+  }
+  return (sim.inv.wool || 0) >= want ? { ok: true } : { ok: false, why: 'could not shear enough' };
+}
+
 // Chase down the nearest pig for food.
 export function* hunt(sim, kind = 'pig') {
   // only animals you can see: a hunter does not know where the herd is
@@ -598,6 +633,7 @@ export function* tunnelAlong(sim, dir, length, { torchEvery = 6 } = {}) {
   const walked = new Set([p.c]);
   let since = 0, dug = 0;
   for (let k = 0; k < length; k++) {
+    if (deepAndLow(sim)) return { ok: dug > 0, dug, blocked: true, why: 'the last pick is nearly worn out' };
     yield* grabOre(sim);
     const here = sim.cols[p.c];
     let best = -1, bs = -Infinity;
@@ -662,6 +698,7 @@ export function* homeMine(sim, { ore = 'iron', n = 3 } = {}) {
   }
   mine.trips++;
   for (let leg = 0; leg < 8 && !enough(); leg++) {
+    if (deepAndLow(sim)) break;                           // the last pick: stop here, and head up
     // ore showing on the tunnel walls first (the mine keeps revealing it)
     const seen = visible(sim, [oreId], 16).filter(([c, y]) => !(sim._unreachable && sim._unreachable.has(c * H + y)));
     if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
@@ -759,6 +796,7 @@ export function* gridMine(sim, { ore = 'iron', n = 3, returnDig = false, R = 18 
     return true;
   };
   for (let k = 0; k < 120 && !enough(); k++) {
+    if (deepAndLow(sim)) break;
     const seen = visible(sim, [oreId], 8).filter(([c, y]) => Math.abs(y - level) <= 3 && !(sim._unreachable && sim._unreachable.has(c * H + y)));
     if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
     // the next tile of the layout: undug, beside the dug network, nearest to
@@ -1208,7 +1246,7 @@ export function surplus(sim) {
   const out = {};
   for (const [k, n] of Object.entries(sim.inv)) {
     // tools, armor (worn by carrying it) and buckets stay with their owner
-    if (/_(pickaxe|sword|hoe|armor)$/.test(k) || ['door', 'bed', 'chest', 'crafting_table', 'furnace', 'bucket', 'water_bucket', 'beacon', 'glowstone'].includes(k)) continue;
+    if (/_(pickaxe|shovel|axe|sword|hoe|armor)$/.test(k) || k === 'shears' || ['door', 'bed', 'chest', 'crafting_table', 'furnace', 'bucket', 'water_bucket', 'beacon', 'glowstone'].includes(k)) continue;
     let keep = KEEP[k] ?? 0;
     if (EAT_ORDER.includes(k)) keep = 3;
     if (k.endsWith('_seeds')) keep = 2;
@@ -1470,6 +1508,7 @@ export function* usePortal(sim) {
 function* mineSight(sim, id, item, n) {
   const want = (sim.inv[item] || 0) + n;
   for (let leg = 0; leg < n * 3 && (sim.inv[item] || 0) < want; leg++) {
+    if (deepAndLow(sim)) break;                           // the last pick: stop here, and head up
     const seen = visible(sim, [id], 30).filter(([c, y]) => !(sim._unreachable && sim._unreachable.has(c * H + y)));
     if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
     const t0 = sim.tick, e = yield* explore(sim);
@@ -1502,6 +1541,7 @@ export const PALETTE = {
   scout:        { mode: 'explore', doc: 'explore until a tree / pig / coal / iron / sand is in sight', needs: () => null, run: (s, a) => scout(s, a?.what) },
   gather_wood:  { mode: 'explore', doc: 'chop the nearest trees', needs: () => null, run: (s, a) => gatherWood(s, a?.n) },
   hunt:         { mode: 'explore', doc: 'chase down a pig (meat) or a sheep (wool, mutton) in sight', needs: (s, a) => visiblePigs(s, 24, a?.kind || 'pig').length ? null : `no ${a?.kind || 'pig'} in sight (scout for one)`, run: (s, a) => hunt(s, a?.kind || 'pig') },
+  shear:        { mode: 'explore', doc: 'shear a sheep in sight: wool without killing it, and it grows back', needs: (s) => !s.has('shears') ? 'needs shears (2 iron ingots)' : visiblePigs(s, 24, 'sheep').some((e) => !e.shorn) ? null : 'no sheep with wool in sight', run: (s, a) => shear(s, a?.n) },
   forage:       { mode: 'explore', doc: 'take a wild plant in sight for its seeds (and fruit)', needs: (s, a) => visiblePlants(s, a?.sp).filter(([c, y]) => !a?.sp ? !s.has(`${BLOCKS[s.get(c, y)].plant}_seeds`) : true).length ? null : `no wild ${a?.sp || 'plant you lack seeds for'} in sight`, run: (s, a) => forage(s, a || {}) },
   go_home:      { mode: 'explore', doc: 'walk back to the house', needs: (s) => s.home ? (atHome(s) ? 'already home' : null) : 'no home yet', run: (s) => goHome(s) },
   // homestead
@@ -1547,7 +1587,7 @@ export const PALETTE = {
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
 // Which world each macro works in. The overworld's are about its sky, soil,
 // sea, ore bands, the house and the chest; the nether has none of those.
-const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
+const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'shear', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
   'farm', 'harvest', 'set_home', 'sleep_until_dawn', 'mine_diamond', 'make_obsidian', 'dig_sand', 'place_beacon', 'build_portal', 'set_up_chest', 'store', 'take', 'sleep_in_bed']);
 const NETHER_ONLY = new Set(['mine_glowstone', 'mine_quartz']);
 for (const [name, m] of Object.entries(PALETTE)) {

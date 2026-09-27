@@ -303,7 +303,7 @@ model only decides.
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
 | `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
 | `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
-| `test/craft.selftest.mjs` | 397 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter) |
+| `test/craft.selftest.mjs` | 407 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1351,6 +1351,42 @@ pattern ran dry by trip 20, and the grid got the most (51) because it saw
 every stone within 18 tiles on three layers. What would make a loop pay: a
 slower walk (hazards, water), or a better pick, which makes digging cheaper
 relative to walking.
+
+**Tools: shovels, axes, durability, shears (2026-09-27).** A block's class
+decides which tool speeds it:
+- `tool` means a pick is required;
+- `by: 'shovel'` covers dirt, grass, sand, farmland and soul sand;
+- `by: 'axe'` covers logs, planks, tables, chests and doors.
+
+Shovels and axes come in wood, stone, iron and diamond (1 or 3 of the
+material, 2 sticks).
+
+**Every tool wears out**, with Minecraft's numbers: wood 60 uses, stone 132,
+iron 251, diamond 1562, shears 238. A use is a block of its class mined, a
+sword hit, a till, a shearing. The top item of a stack wears, so a second one
+is a spare. Wear is in the stream (`["wear", id, item, left]`, and a `broke`
+note). Shears give 1–3 wool, the sheep lives, and the wool grows back in 1200
+ticks.
+
+Durability broke the baseline three ways, each fixed:
+- **Stranding.** A pick that broke at the bottom of the world left the
+  player at bedrock with nothing to dig with, and `gather_wood` failed 120+
+  times. The baseline now always keeps a spare stone pick. Mining macros stop
+  and head up when the last pick drops below its reserve (`pickLow` /
+  `deepAndLow`: 30% of its durability, at most 48).
+- **A fixed reserve** called a 60-use wooden pick "worn out" after 12 uses and
+  looped 1000 times. The reserve now scales with the tool.
+- **The best pick did all the digging**, so iron picks broke ~10 times a run and
+  the diamond age stalled. Now the **cheapest good-enough pick is used**
+  (`pickFor`): stone for stone and iron ore, iron for diamonds, diamond only for
+  obsidian. `pickChoice: 'best'` on a player trades that wear for speed.
+
+Measured after all three (baseline solo, 20 worlds, 5 days): 15 / 20 reach the
+nether, 13 finish the ladder, 0 deaths, 0 stuck. That's against 17 / 15 before
+wear: **wear costs about two worlds and ~1100 ticks to the crossing**, a real
+price rather than a bug. Life sweep 30 / 30, 0 deaths, 0 stuck. Jev sees
+`tools_uses_left`, and a worn tool's craft option reads *a replacement: yours
+has 12 uses left*.
 
 **Reading a human's game (`craft/segment.mjs`).** A human plays in
 primitives, and nothing in the stream says *now I am mining for iron*. The

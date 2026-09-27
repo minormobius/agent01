@@ -22,7 +22,7 @@ import { projectState, projectFact, projectDue, projectQuestion, setProject, bas
 import { speciesHere, needsFarmland } from './plants.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
 import { DAY, NIGHT_START } from './sim.mjs';
-import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS, HOSTILE } from './world.mjs';
+import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS, HOSTILE, TOOLS, PICK_SPEED, durability } from './world.mjs';
 
 export const GATE = 0.45;
 
@@ -94,6 +94,7 @@ export function perceive(sim) {
       home: sim.home ? { exists: true, walk_ticks_about: about(sim.dist(sim.home[0], p.c)), is_house: !!sim._house } : { exists: false },
     },
     inventory: { ...sim.inv },
+    ...(() => { const t = Object.keys(sim.inv).filter((k) => durability(k)); return t.length ? { tools_uses_left: Object.fromEntries(t.map((k) => [k, (p.wear && p.wear[k]) ?? durability(k)])) } : {}; })(),
     threats: zs.slice(0, 4).map((z) => ({ kind: z.kind, tiles_away: Math.round(sim.dist(z.c, p.c)), touching: sim.adjacentTo(p, z) })),
     in_sight: neth ? { glowstone: near([B.glowstone]), quartz: near([B.quartz_ore]), lava: near([B.lava]), portal } : {
       ...(sim.ow('portals').size ? { portal } : {}),
@@ -356,6 +357,7 @@ export function options(sim) {
   }
   // sheep: wool for beds, mutton for food
   const sheepSeen = visiblePigs(sim, 24, 'sheep').length;
+  if (sim.has('shears') && visiblePigs(sim, 24, 'sheep').some((e) => !e.shorn)) add('shear', 'shear', { n: 3 }, { yields: 'wool (1–3 a sheep), and the sheep lives', takes: 'about 20–60 ticks, a sheep is in sight', advances: `wool held ${sim.inv.wool || 0} (a bed takes 3)` }, ['wool', 'shear']);
   if (sheepSeen) add('hunt_sheep', 'hunt', { kind: 'sheep' }, { yields: 'wool (beds) and mutton', takes: 'about 20–60 ticks, a sheep is in sight', advances: `wool held ${sim.inv.wool || 0} (a bed takes 3)` }, ['wool', 'mutton', 'hunt:sheep']);
   else if (!sim.has('bed') && !(p.bedAt)) add('scout_sheep', 'scout', { what: 'sheep' }, { yields: 'finds a sheep', takes: 'about 40–200 ticks', advances: 'wool for a bed' }, ['scout:sheep']);
   if (legal.has('sleep_in_bed')) {
@@ -380,17 +382,26 @@ export function options(sim) {
   const crafts = [...USEFUL_CRAFTS, ...(here.some(needsFarmland) && !sim.has('wooden_hoe') ? ['wooden_hoe'] : []), ...(sim.has('wheat', 3) ? ['bread'] : []), ...(sim.has('glowcap', 2) ? ['lantern'] : []),
     ...(sim.team.chest == null && !sim.has('chest') ? ['chest'] : []), ...(!sim.has('iron_armor') && !sim.has('diamond_armor') ? ['iron_armor'] : []), ...(sim.pickTier() < 4 ? ['diamond_pickaxe'] : []),
     ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.ow('beacons').size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : []),
-    ...(sim.has('glowstone_dust', 4) && !sim.has('glowstone') ? ['glowstone'] : []), ...(sim.has('quartz', 4) ? ['quartz_block'] : [])];
+    ...(sim.has('glowstone_dust', 4) && !sim.has('glowstone') ? ['glowstone'] : []), ...(sim.has('quartz', 4) ? ['quartz_block'] : []),
+    // axes and shovels one tier above what is held, shears once
+    ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : [])];
+  // a tool nearly worn out may be made again (a spare), and the option says how worn it is
+  const usesLeft = (item) => (p.wear && p.wear[item]) ?? durability(item);
+  const worn = (item) => sim.inv[item] === 1 && durability(item) && usesLeft(item) <= 0.2 * durability(item);
   for (const item of crafts) {
     if (Object.keys(shortfall(sim, item, (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1))).length) continue;
-    if (item.endsWith('pickaxe') && (sim.inv[item] || sim.pickTier() >= { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3, diamond_pickaxe: 4 }[item])) continue;
+    if (TOOLS[item]) { const { kind, tier } = TOOLS[item], held = sim.toolTier(kind); if (held > tier || (held === tier && !worn(item))) continue; }
     if (item.endsWith('sword') && (sim.inv[item] || sim.has('diamond_sword') || (item !== 'diamond_sword' && sim.has('iron_sword')))) continue;
     if ((item === 'door' && sim.has('door', 2)) || (item === 'furnace' && sim.has('furnace'))) continue;
     if (item === 'glass' && sim.has('glass', 4)) continue;
     const goal = item === 'torch' ? 'torches' : item;
     add(`craft_${item}`, 'craft', { item, n: (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1) }, {
       yields: item.replace(/_/g, ' '), takes: 'short (under 20 ticks)',
-      advances: goal === nextGoal ? `completes the next rung: ${goal}` : goalsOpen.includes(goal) ? `a rung: ${goal}` : item === 'door' && !sim._house ? 'the house needs 2 doors' : item === 'wooden_hoe' ? 'farmland for crops' : 'not on the ladder',
+      advances: worn(item) ? `a replacement: yours has ${usesLeft(item)} uses left before it breaks`
+        : TOOLS[item]?.kind === 'axe' ? `chops logs and wood faster: a log in ${Math.ceil(6 / PICK_SPEED[TOOLS[item].tier])} ticks instead of ${Math.ceil(6 / PICK_SPEED[sim.toolTier('axe')])}`
+        : TOOLS[item]?.kind === 'shovel' ? `digs dirt, sand and grass faster: ${Math.ceil(3 / PICK_SPEED[TOOLS[item].tier])} ticks a block instead of ${Math.ceil(3 / PICK_SPEED[sim.toolTier('shovel')])}`
+        : item === 'shears' ? 'wool from a sheep without killing it; it grows back'
+        : goal === nextGoal ? `completes the next rung: ${goal}` : goalsOpen.includes(goal) ? `a rung: ${goal}` : item === 'door' && !sim._house ? 'the house needs 2 doors' : item === 'wooden_hoe' ? 'farmland for crops' : 'not on the ladder',
     }, [`craft:${item}`, item]);
   }
   if (legal.has('build_house')) add('build_house', 'build_house', null, {

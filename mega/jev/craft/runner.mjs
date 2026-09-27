@@ -11,8 +11,8 @@
 // "Jev played for a day" has a number to be compared against, and so the
 // engine can be shown climbing the tech ladder with no model in the loop.
 
-import { PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
-import { EAT_ORDER, B, HOSTILE } from './world.mjs';
+import { pickLow, PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
+import { EAT_ORDER, B, HOSTILE, durability } from './world.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 
 // One primitive action per step(), so a caller can interleave rendering
@@ -138,6 +138,19 @@ export function baselinePolicy(sim) {
     return n('cobblestone') < 11 ? { name: 'mine_stone', args: { n: 11 } } : craftIt('stone_pickaxe');
   }
   if (!n('stone_sword') && !n('iron_sword')) return n('cobblestone') >= 2 ? craftIt('stone_sword') : { name: 'mine_stone', args: { n: 4 } };
+  // an axe and a shovel: logs and dirt go 2-3x faster, for 4 cobblestone
+  if (!sim.toolFor('axe')) return n('cobblestone') >= 3 ? craftIt('stone_axe') : { name: 'mine_stone', args: { n: n('cobblestone') + 3 } };
+  if (!sim.toolFor('shovel')) return n('cobblestone') >= 1 ? craftIt('stone_shovel') : { name: 'mine_stone', args: { n: n('cobblestone') + 1 } };
+  // tools wear out: make the next pick before this one breaks, when all it lacks is wood
+  const worn = (k) => n(k) === 1 && ((p.wear && p.wear[k]) ?? durability(k)) <= 0.15 * durability(k);
+  // the last pick worn low: up to where the wood is, then make another
+  if (pickLow(sim) && sim.pickTier() > 0 && !exposed(sim)) return { name: 'surface' };
+  const best = sim.toolFor('pick');
+  // and always a spare stone pick: one that breaks underground strands you
+  // (measured: without it, 8 of 20 worlds reached the nether, not 17)
+  const spares = best === 'stone_pickaxe' ? 2 : 1;
+  if (sim.pickTier() >= 2 && n('stone_pickaxe') < spares) return n('cobblestone') >= 3 ? craftIt('stone_pickaxe', n('stone_pickaxe') + 1) : { name: 'mine_stone', args: { n: n('cobblestone') + 3 } };
+  if (best && worn(best) && Object.keys(shortfall(sim, best, 2)).every((x) => ['stick', 'planks', 'log'].includes(x))) return craftIt(best, 2);
   if (n('torch') < 4 && n('coal') < 1) return { name: 'mine_coal', args: { n: 3 } };
   if (n('torch') < 4) return craftIt('torch', 4);
   if (!n('iron_pickaxe')) {
@@ -173,6 +186,7 @@ export function baselinePolicy(sim) {
   if (sim._house && !n('bed') && !p.bedAt) {
     if (n('wool') >= 3) return craftIt('bed');
     if (n('wool') + (chestItems(sim).wool || 0) >= 3) return { name: 'take', args: { item: 'wool', n: 3 - n('wool') } };
+    if (n('shears') && visiblePigs(sim, 24, 'sheep').some((e) => !e.shorn)) return { name: 'shear', args: { n: 3 - n('wool') } };
     if (visiblePigs(sim, 24, 'sheep').length) return { name: 'hunt', args: { kind: 'sheep' } };
     if ((sim.me._bedTries || 0) < 4) { sim.me._bedTries = (sim.me._bedTries || 0) + 1; return { name: 'scout', args: { what: 'sheep' } }; }
   }

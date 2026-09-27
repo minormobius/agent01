@@ -131,7 +131,7 @@ for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   const head = JSON.parse(a.lines[0]);
   ok(head.t === 'craft' && head.shape === shape && head.seed === seed && head.sig, `${shape}/${seed}: header names the world`);
   let mono = true, kinds = true, last = -1;
-  const KINDS = new Set(['b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
+  const KINDS = new Set(['wear', 'shorn', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
   for (const l of a.lines.slice(1)) {
     const L = JSON.parse(l);
     if (!(L.k >= last) || !Array.isArray(L.e) || !L.e.length) mono = false;
@@ -772,7 +772,7 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
 
   // the home mine: dug once, walked back into, extended
   const m = new Sim({ seed: 3, shape: 'penrose' });
-  m.give('stone_pickaxe', 1); m.give('torch', 20); m.give('cooked_porkchop', 6);
+  m.give('stone_pickaxe', 3); m.give('torch', 20); m.give('cooked_porkchop', 6);   // spares: a stone pick wears out after 132 blocks
   runMacro(m, 'mine_home', { ore: 'iron', n: 1 });
   const mine = m.team.mines && m.team.mines[7];
   ok(mine && mine.hub[1] === 7, `mine_home digs a staircase to layer 7 and marks a hub (${mine && mine.hub})`);
@@ -811,6 +811,42 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   ok(eps.length > 10 && eps.every((e) => e.label && e.family), `a macro-played day segments into named episodes (${eps.length})`);
   ok(sc.run_family >= 0.65, `the segmenter names the right family for most macro runs (${(100 * sc.run_family).toFixed(0)}% of ${sc.runs})`);
   ok(eps.some((e) => e.label === 'gather_wood') && eps.some((e) => e.label === 'craft'), 'it finds wood-gathering and crafting in a first day');
+}
+
+// ------------------------------------------------------ tools, wear, shears
+{
+  const s = new Sim({ seed: 3, shape: 'truncsq' });
+  const logBlk = BLOCKS[B.log], dirtBlk = BLOCKS[B.dirt], stoneBlk = BLOCKS[B.stone];
+  const bare = [s.mineTicks(logBlk), s.mineTicks(dirtBlk)];
+  s.give('stone_axe', 1); s.give('stone_shovel', 1);
+  ok(s.mineTicks(logBlk) < bare[0] && s.mineTicks(dirtBlk) < bare[1], `an axe chops logs faster (${bare[0]} → ${s.mineTicks(logBlk)}), a shovel digs dirt faster (${bare[1]} → ${s.mineTicks(dirtBlk)})`);
+  s.give('stone_pickaxe', 1); s.give('diamond_pickaxe', 1);
+  ok(s.pickFor(stoneBlk) === 'stone_pickaxe' && s.pickFor(BLOCKS[B.obsidian]) === 'diamond_pickaxe', 'the cheapest good-enough pick is used: stone for stone, diamond only for obsidian');
+  s.player.pickChoice = 'best';
+  ok(s.pickFor(stoneBlk) === 'diamond_pickaxe' && s.mineTicks(stoneBlk) < 4, 'pickChoice "best" trades the diamond pick\'s wear for speed');
+  s.player.pickChoice = undefined;
+  // wear: a wooden pick breaks after 60 blocks, and the stream says so
+  const w = new Sim({ seed: 3, shape: 'truncsq' });
+  w.give('wooden_pickaxe', 1);
+  for (let k = 0; k < 60; k++) w.wear('wooden_pickaxe');
+  ok(!w.has('wooden_pickaxe') && w.player.wear.wooden_pickaxe === undefined, 'a wooden pick breaks after 60 uses and is gone');
+  w.flush();
+  ok(w.lines.some((l) => l.includes('"broke"')) && w.lines.some((l) => l.includes('"wear"')), 'wear and breaking are in the stream');
+  const rp = new Replay(w.lines[0]); for (const l of w.lines.slice(1)) rp.apply(l);
+  ok(!rp.inv.wooden_pickaxe, 'and the replay agrees');
+  // a spare: the top item wears, the second is untouched
+  w.give('stone_pickaxe', 2);
+  for (let k = 0; k < 10; k++) w.wear('stone_pickaxe');
+  ok(w.inv.stone_pickaxe === 2 && w.player.wear.stone_pickaxe === 122, 'a stack of two wears one at a time');
+  // shears: wool, the sheep lives, the wool grows back
+  const sh = new Sim({ seed: 4, shape: 'kagome' });
+  const sp = sh.player, sheep = sh.spawnEnt('sheep', sh.cols[sp.c].adj[0], sp.y, {});
+  sh.give('shears', 1);
+  const r = sh.act({ op: 'shear', id: sheep.id });
+  ok(r.ok && sh.inv.wool >= 1 && sh.ents.has(sheep.id) && sheep.shorn, `shears give wool and the sheep lives (${sh.inv.wool} wool)`);
+  ok(!sh.act({ op: 'shear', id: sheep.id }).ok, 'a shorn sheep has no wool to give');
+  for (let k = 0; k < 1300; k++) sh.step();
+  ok(!sheep.shorn || !sh.ents.has(sheep.id), 'the wool grows back');
 }
 
 // ---------------------------------------------------------------- text ------
