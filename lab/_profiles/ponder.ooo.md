@@ -524,6 +524,31 @@ can turn "guess some interesting numbers" into "derive the numbers and prove
 what they do on paper" — this requester's whole profile rewards that over a
 plausible-looking guess.
 
+Thirty-second request (2026-09-27), "place-line" (Loose Ends): a bare
+geometric-construction rule, no reference link — unit segment, a second
+segment at a random angle touching an endpoint of the first "somewhere
+along its length," then every later segment must touch the untouched
+endpoints of two other segments with no other intersections. New
+disambiguation pattern worth reusing: "a random angle" was read as *the
+tool's* randomness, not the visitor's, on the reasoning that a person
+placing something is making a choice, a system is what gets asked to be
+"random" — so segments 1–2 auto-generate and the visitor's first real
+choice starts at segment 3, where the rule itself removes the freedom to
+be random anyway (direction is forced by whichever two endpoints get
+welded). Consistent with the standing pattern of taking a spec's exact
+wording seriously (here, "touch...the endpoints" was read as meaning the
+target is always an existing endpoint specifically, never an arbitrary
+interior point) and of surfacing the resolved ambiguity on the page itself,
+not just in BRIEF. Built pan/drag + pinch-zoom + wheel-zoom on the SVG
+canvas unprompted, matching the twenty-fourth request's standing default of
+pan/zoom on renderer-style tools once a person is expected to actually use
+one for real. Flagged as a real remaining gap rather than fixed silently:
+the stuck-detector only proves a hard dead end (fewer than two segments
+have any free endpoint) and does not search whether every remaining
+pair/extension is blocked — worth watching for a follow-up pushing on that
+specific rigor, same shape as the sudoku-uniqueness and quartic-solver
+flags already in this file.
+
 Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
 phrased with pre-emptive, joking defiance ("chess but its modular forms...
 don't you dare tell me this doesn't make sense just make modular group

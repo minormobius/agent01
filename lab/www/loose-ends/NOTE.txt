@@ -1,0 +1,1 @@
+Segments 1-2 auto-place (unit length, then random angle/length/contact) since only #2's angle was called random. From #3 on the direction is forced by the two endpoints you weld -- you just pick the pair and how far each side extends past them.

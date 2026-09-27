@@ -1,0 +1,601 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loose Ends — weld line segments without ever crossing one</title>
+<meta name="description" content="Start from one unit segment and a second one hitting it at a random angle. From then on you pick two untouched endpoints from two different segments and weld a new straight segment across them — no other segment may be touched or crossed.">
+<meta property="og:title" content="Loose Ends">
+<meta property="og:description" content="Start from one unit segment and a second one hitting it at a random angle. From then on you pick two untouched endpoints from two different segments and weld a new straight segment across them — no other segment may be touched or crossed.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .panel {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+    padding: 1rem 1.1rem;
+    margin: 1rem 0;
+  }
+  .rules { font-size: .85rem; color: var(--muted); }
+  .rules b { color: var(--fg); }
+  .stage-wrap {
+    width: 100%; max-width: 620px; aspect-ratio: 1/1; margin: 1rem auto;
+    background: #08080a; border: 1px solid var(--border); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .stage-svg { width: 100%; height: 100%; display: block; touch-action: none; }
+  .seg { stroke: var(--muted); stroke-width: 2.5; fill: none; }
+  .seg.unit { stroke: var(--accent); stroke-width: 3.5; }
+  .tick { stroke: var(--muted); stroke-width: 2; opacity: .85; }
+  .tick.preview { stroke: var(--fg); opacity: .6; }
+  .preview-line { fill: none; stroke-width: 3; stroke-dasharray: 7 6; }
+  .preview-line.ok { stroke: var(--ok); }
+  .preview-line.bad { stroke: var(--error); }
+  .dot.untouched { fill: var(--accent); }
+  .dot.untouched.selected { fill: var(--fg); stroke: var(--accent); stroke-width: 2px; }
+  .dot.touched { fill: var(--muted); opacity: .55; }
+  .hit { fill: transparent; pointer-events: all; cursor: pointer; }
+  @media (prefers-reduced-motion: no-preference) {
+    .dot.untouched { animation: pl-pulse 1.7s ease-in-out infinite; }
+  }
+  @keyframes pl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+
+  .btnRow { display: flex; flex-wrap: wrap; gap: .6rem; margin: .6rem 0; }
+  .btnRow button { min-height: 44px; flex: 1 1 auto; }
+  .status { font-size: .8rem; color: var(--muted); text-align: center; margin: .4rem 0; }
+  .status b { color: var(--accent); }
+  #instr { font-size: .9rem; margin: .6rem 0; min-height: 1.4em; }
+  .row { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; margin: .6rem 0; }
+  .row label { font-size: .8rem; color: var(--muted); flex: 0 0 9rem; }
+  .row input[type=range] { flex: 1 1 140px; min-width: 120px; accent-color: var(--accent); height: 44px; }
+  .row input[type=number] {
+    width: 4.4rem; padding: .5rem; font: inherit; font-size: 16px;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .stuck { background: var(--accent-dim); border: 1px solid var(--accent); color: var(--fg);
+           border-radius: var(--radius); padding: .8rem 1rem; font-size: .85rem; margin: .6rem 0; }
+  footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
+  #pdsSignedOut { display: flex; gap: .6rem; flex-wrap: wrap; }
+  #pdsSignedOut input { flex: 1 1 200px; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Loose Ends</h1>
+  <p class="sub">Weld line segments end to end, one straight piece at a time, without ever letting two of them cross.</p>
+
+  <div class="panel rules">
+    <p><b>The rule, exactly as read:</b> the first segment is unit length. The second
+    gets a random angle and touches an endpoint of the first <b>somewhere along its
+    own length</b> — a T, not a joint. Every segment after that must touch the
+    <b>still-untouched</b> endpoints of <b>two other</b> segments, and touch nothing
+    else at all.</p>
+    <p><b>How that's built here, spelled out because the request left it to be
+    resolved:</b> the first two segments are placed by the tool, not by you — "a
+    random angle" reads as the tool's choice, so segment 2's angle, length and where
+    along it the contact falls are all randomised. From segment 3 on there is no
+    random angle left to give: the direction is <i>forced</i> by whichever two open
+    endpoints you weld together, so the only freedom is which pair to pick and how
+    far the new piece runs past each of them (0 uses that end up too). The tool
+    refuses any placement that crosses or touches anything besides the two endpoints
+    you chose.</p>
+    <p>Dots that glow are untouched and tappable. Dim dots are already used. A small
+    perpendicular tick marks a T-junction, same idea as segment 2's contact.</p>
+  </div>
+
+  <div class="stage-wrap">
+    <svg id="stageSvg" class="stage-svg" viewBox="-3 -3 6 6" preserveAspectRatio="xMidYMid meet"
+         role="img" aria-label="the current line-segment construction">
+      <g id="svgContent"></g>
+    </svg>
+  </div>
+
+  <div class="status" id="statusLine">Segments: 0 · untouched endpoints: 0</div>
+  <div id="instr" aria-live="polite">Loading…</div>
+  <div id="stuckMsg" class="stuck hidden"></div>
+
+  <div class="btnRow">
+    <button id="btnReroll">Reroll (start over)</button>
+    <button id="btnFit">Fit view</button>
+    <button id="btnZoomOut" aria-label="zoom out">−</button>
+    <button id="btnZoomIn" aria-label="zoom in">+</button>
+  </div>
+
+  <div class="panel hidden" id="pairPanel">
+    <p id="pairInfo"></p>
+    <div class="row">
+      <label for="extASlider">Extend past A</label>
+      <input type="range" id="extASlider" min="0" max="4" step="0.01">
+      <input type="number" id="extANum" min="0" max="4" step="0.01">
+    </div>
+    <div class="row">
+      <label for="extBSlider">Extend past B</label>
+      <input type="range" id="extBSlider" min="0" max="4" step="0.01">
+      <input type="number" id="extBNum" min="0" max="4" step="0.01">
+    </div>
+    <div id="pairMsg" class="err hidden"></div>
+    <div class="btnRow">
+      <button id="btnRandomizeExt">Randomize extensions</button>
+      <button id="btnPlace" disabled>Place segment</button>
+      <button id="btnCancelPair">Cancel</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Keep this construction</h2>
+    <p class="rules">This browser already remembers your place automatically. Signing in
+    additionally saves one snapshot to your own Bluesky repo, so you can reload it on
+    another device — entirely optional.</p>
+    <div id="pdsSignedOut">
+      <input id="handleInput" type="text" placeholder="your handle, e.g. alice.bsky.social" autocomplete="off">
+      <button id="btnSignIn">Sign in with Bluesky</button>
+    </div>
+    <div id="pdsSignedIn" class="hidden">
+      <p class="rules">Signed in as <b id="pdsWho"></b>.
+        <button id="btnSignOut">Sign out</button></p>
+      <div class="btnRow">
+        <button id="btnSaveRepo">Save snapshot to my repo</button>
+        <button id="btnLoadRepo">Load my saved snapshot</button>
+      </div>
+    </div>
+    <div id="pdsMsg" class="err hidden"></div>
+  </div>
+
+  <footer class="foot">One straight segment per move. No CDN, no server — everything
+  above runs in this page, and the only thing ever written off this device is the
+  optional snapshot in your own repository.</footer>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('place-line');
+
+  // ---------------------------------------------------------------- geometry
+  function sub(a, b) { return { x: a.x - b.x, y: a.y - b.y }; }
+  function cross(a, b) { return a.x * b.y - a.y * b.x; }
+  function dot(a, b) { return a.x * b.x + a.y * b.y; }
+
+  /** Straight-segment intersection. Returns null (no contact), {point} (a
+   *  single touch/crossing), or {colinear:true} (they run along the same
+   *  line and overlap for more than one point — never a legal "touch"). */
+  function segSegIntersection(a1, a2, b1, b2) {
+    const EPS = 1e-7;
+    const d1 = sub(a2, a1), d2 = sub(b2, b1);
+    const denom = cross(d1, d2);
+    if (Math.abs(denom) > EPS) {
+      const t = cross(sub(b1, a1), d2) / denom;
+      const u = cross(sub(b1, a1), d1) / denom;
+      if (t < -EPS || t > 1 + EPS || u < -EPS || u > 1 + EPS) return null;
+      return { point: { x: a1.x + t * d1.x, y: a1.y + t * d1.y } };
+    }
+    // parallel — colinear only if b1 also lies on line a1->a2
+    const d1len2 = dot(d1, d1) || 1;
+    if (Math.abs(cross(d1, sub(b1, a1))) > EPS * Math.sqrt(d1len2)) return null;
+    const tb1 = dot(sub(b1, a1), d1) / d1len2;
+    const tb2 = dot(sub(b2, a1), d1) / d1len2;
+    const lo = Math.max(0, Math.min(tb1, tb2));
+    const hi = Math.min(1, Math.max(tb1, tb2));
+    if (lo > hi + 1e-6) return null;
+    if (hi - lo < 1e-4) return { point: { x: a1.x + lo * d1.x, y: a1.y + lo * d1.y } };
+    return { colinear: true };
+  }
+
+  function buildCandidate(A, B, extA, extB) {
+    const dx = B.x - A.x, dy = B.y - A.y;
+    const L = Math.hypot(dx, dy);
+    if (L < 1e-6) return null;
+    const ux = dx / L, uy = dy / L;
+    const p1 = { x: A.x - ux * extA, y: A.y - uy * extA };
+    const p2 = { x: B.x + ux * extB, y: B.y + uy * extB };
+    const total = extA + L + extB;
+    return { p1, p2, tA: extA / total, tB: (extA + L) / total };
+  }
+
+  function checkValidity(cand, segments, saId, sbId) {
+    for (const s of segments) {
+      const r = segSegIntersection(cand.p1, cand.p2, s.p1, s.p2);
+      if (!r) continue;
+      if (r.colinear) return { ok: false, reason: 'runs along the same line as segment #' + (s.id + 1) + ' — that is an overlap, not a touch' };
+      if (s.id === saId || s.id === sbId) continue; // the two designated welds
+      return { ok: false, reason: 'would touch or cross segment #' + (s.id + 1) };
+    }
+    return { ok: true };
+  }
+
+  // -------------------------------------------------------------------- state
+  let segments = [];   // {id, p1:{x,y}, p2:{x,y}, touched:[bool,bool]}
+  let ticks = [];       // {segId, point} — T-junction marks
+  let nextId = 0;
+  let selectedA = null, selectedB = null; // {segId, tipIndex}
+  let previewCandidate = null;
+  const view = { x: -3, y: -3, w: 6, h: 6 };
+  const MIN_W = 0.5, MAX_W = 40;
+
+  const svg = document.getElementById('stageSvg');
+  const svgContent = document.getElementById('svgContent');
+  const instrEl = document.getElementById('instr');
+  const statusEl = document.getElementById('statusLine');
+  const stuckEl = document.getElementById('stuckMsg');
+  const pairPanel = document.getElementById('pairPanel');
+  const pairInfo = document.getElementById('pairInfo');
+  const pairMsg = document.getElementById('pairMsg');
+  const extASlider = document.getElementById('extASlider');
+  const extANum = document.getElementById('extANum');
+  const extBSlider = document.getElementById('extBSlider');
+  const extBNum = document.getElementById('extBNum');
+  const btnPlace = document.getElementById('btnPlace');
+
+  function segById(id) { return segments.find((s) => s.id === id); }
+  function tip(s, idx) { return idx === 0 ? s.p1 : s.p2; }
+
+  function randRange(lo, hi) { return lo + Math.random() * (hi - lo); }
+
+  function reroll() {
+    segments = []; ticks = []; nextId = 0;
+    selectedA = null; selectedB = null; previewCandidate = null;
+    const s1 = { id: nextId++, p1: { x: -0.5, y: 0 }, p2: { x: 0.5, y: 0 }, touched: [false, false] };
+    segments.push(s1);
+
+    const angle = randRange(0, Math.PI * 2);
+    const length2 = randRange(0.6, 1.6);
+    const tipIdx = Math.random() < 0.5 ? 0 : 1;
+    const anchor = tip(s1, tipIdx);
+    const t2 = randRange(0.15, 0.85);
+    const ux = Math.cos(angle), uy = Math.sin(angle);
+    const p1 = { x: anchor.x - ux * length2 * t2, y: anchor.y - uy * length2 * t2 };
+    const p2 = { x: anchor.x + ux * length2 * (1 - t2), y: anchor.y + uy * length2 * (1 - t2) };
+    const s2 = { id: nextId++, p1, p2, touched: [false, false] };
+    segments.push(s2);
+    s1.touched[tipIdx] = true;
+    ticks.push({ segId: s2.id, point: { x: anchor.x, y: anchor.y } });
+
+    closePairPanel();
+    fitView();
+    saveLocal();
+  }
+
+  function activeSegments() { return segments.filter((s) => !s.touched[0] || !s.touched[1]); }
+
+  function onTipClick(segId, tipIndex) {
+    const s = segById(segId);
+    if (!s || s.touched[tipIndex]) return;
+    if (!selectedA) {
+      selectedA = { segId, tipIndex };
+      render();
+      return;
+    }
+    if (selectedA.segId === segId && selectedA.tipIndex === tipIndex) {
+      selectedA = null; render(); return; // tap again to deselect
+    }
+    if (selectedA.segId === segId) {
+      kit.showError(pairMsg, 'Pick the second endpoint from a DIFFERENT segment — that one is on the same segment as the first pick.');
+      pairPanel.classList.remove('hidden');
+      return;
+    }
+    selectedB = { segId, tipIndex };
+    openPairPanel();
+  }
+
+  function openPairPanel() {
+    const extA = Math.round(randRange(0.15, 0.55) * 100) / 100;
+    const extB = Math.round(randRange(0.15, 0.55) * 100) / 100;
+    extASlider.value = extA; extANum.value = extA;
+    extBSlider.value = extB; extBNum.value = extB;
+    pairPanel.classList.remove('hidden');
+    updatePairInfo();
+    recomputeCandidate();
+  }
+
+  function closePairPanel() {
+    selectedA = null; selectedB = null; previewCandidate = null;
+    pairPanel.classList.add('hidden');
+    kit.clear(pairMsg);
+  }
+
+  function updatePairInfo() {
+    pairInfo.textContent = 'Welding endpoint of segment #' + (selectedA.segId + 1) +
+      ' to endpoint of segment #' + (selectedB.segId + 1) + '.';
+  }
+
+  function recomputeCandidate() {
+    if (!selectedA || !selectedB) return;
+    const sa = segById(selectedA.segId), sb = segById(selectedB.segId);
+    const A = tip(sa, selectedA.tipIndex), B = tip(sb, selectedB.tipIndex);
+    const extA = parseFloat(extASlider.value) || 0;
+    const extB = parseFloat(extBSlider.value) || 0;
+    const cand = buildCandidate(A, B, extA, extB);
+    if (!cand) { previewCandidate = null; render(); return; }
+    const check = checkValidity(cand, segments, sa.id, sb.id);
+    previewCandidate = { ...cand, ok: check.ok, A, B };
+    if (check.ok) {
+      pairMsg.className = 'ok'; pairMsg.hidden = false;
+      pairMsg.textContent = 'Clear — touches only the two endpoints you picked.';
+      btnPlace.disabled = false;
+    } else {
+      kit.showError(pairMsg, check.reason);
+      btnPlace.disabled = true;
+    }
+    render();
+  }
+
+  function commitSegment() {
+    if (!previewCandidate || !previewCandidate.ok) return;
+    const sa = segById(selectedA.segId), sb = segById(selectedB.segId);
+    sa.touched[selectedA.tipIndex] = true;
+    sb.touched[selectedB.tipIndex] = true;
+    const cand = previewCandidate;
+    const newSeg = { id: nextId++, p1: cand.p1, p2: cand.p2, touched: [false, false] };
+    const EPS = 1e-3;
+    if (cand.tA <= EPS) newSeg.touched[0] = true;
+    else if (cand.tA < 1 - EPS) ticks.push({ segId: newSeg.id, point: cand.A });
+    if (cand.tB >= 1 - EPS) newSeg.touched[1] = true;
+    else if (cand.tB > EPS) ticks.push({ segId: newSeg.id, point: cand.B });
+    segments.push(newSeg);
+    closePairPanel();
+    fitView();
+    saveLocal();
+  }
+
+  // --------------------------------------------------------------- view/pan/zoom
+  function svgRect() { return svg.getBoundingClientRect(); }
+  function screenToWorld(cx, cy) {
+    const r = svgRect();
+    return { x: view.x + ((cx - r.left) / r.width) * view.w, y: view.y + ((cy - r.top) / r.height) * view.h };
+  }
+  function applyView() {
+    svg.setAttribute('viewBox', view.x + ' ' + view.y + ' ' + view.w + ' ' + view.h);
+    render();
+  }
+  function zoomAt(cx, cy, factor) {
+    const before = screenToWorld(cx, cy);
+    const newW = Math.min(MAX_W, Math.max(MIN_W, view.w * factor));
+    const newH = Math.min(MAX_W, Math.max(MIN_W, view.h * factor));
+    view.w = newW; view.h = newH;
+    const r = svgRect();
+    view.x = before.x - ((cx - r.left) / r.width) * view.w;
+    view.y = before.y - ((cy - r.top) / r.height) * view.h;
+    applyView();
+  }
+  function fitView() {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const s of segments) for (const p of [s.p1, s.p2]) {
+      minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+    }
+    if (!isFinite(minX)) { minX = -1; maxX = 1; minY = -1; maxY = 1; }
+    const w = Math.max(maxX - minX, 0.6), h = Math.max(maxY - minY, 0.6);
+    const size = Math.max(w, h) * 1.5 + 0.6;
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+    view.w = size; view.h = size; view.x = cx - size / 2; view.y = cy - size / 2;
+    applyView();
+  }
+
+  const pointers = new Map();
+  let panState = null, pinchDist = null;
+  function distOf(pts) { const [a, b] = pts; return Math.hypot(a.x - b.x, a.y - b.y); }
+  function midOf(pts) { const [a, b] = pts; return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+
+  svg.addEventListener('pointerdown', function (e) {
+    const t = e.target;
+    if (t.dataset && t.dataset.tip !== undefined) {
+      e.stopPropagation(); e.preventDefault();
+      onTipClick(parseInt(t.dataset.seg, 10), parseInt(t.dataset.tip, 10));
+      return;
+    }
+    e.preventDefault();
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) panState = { x: e.clientX, y: e.clientY };
+    else if (pointers.size === 2) { pinchDist = distOf([...pointers.values()]); panState = null; }
+  });
+  window.addEventListener('pointermove', function (e) {
+    if (!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1 && panState) {
+      const r = svgRect();
+      const dx = (e.clientX - panState.x) * (view.w / r.width);
+      const dy = (e.clientY - panState.y) * (view.h / r.height);
+      view.x -= dx; view.y -= dy;
+      panState = { x: e.clientX, y: e.clientY };
+      applyView();
+    } else if (pointers.size === 2) {
+      const pts = [...pointers.values()];
+      const d = distOf(pts), mid = midOf(pts);
+      if (pinchDist) zoomAt(mid.x, mid.y, pinchDist / d);
+      pinchDist = d;
+    }
+  });
+  function endPointer(e) {
+    pointers.delete(e.pointerId);
+    if (pointers.size < 2) pinchDist = null;
+    if (pointers.size === 0) panState = null;
+  }
+  window.addEventListener('pointerup', endPointer);
+  window.addEventListener('pointercancel', endPointer);
+  svg.addEventListener('wheel', function (e) {
+    e.preventDefault();
+    zoomAt(e.clientX, e.clientY, e.deltaY > 0 ? 1.12 : 0.89);
+  }, { passive: false });
+
+  document.getElementById('btnZoomIn').addEventListener('click', function () {
+    const r = svgRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 0.8);
+  });
+  document.getElementById('btnZoomOut').addEventListener('click', function () {
+    const r = svgRect(); zoomAt(r.left + r.width / 2, r.top + r.height / 2, 1.25);
+  });
+  document.getElementById('btnFit').addEventListener('click', fitView);
+  document.getElementById('btnReroll').addEventListener('click', reroll);
+  document.getElementById('btnCancelPair').addEventListener('click', function () { closePairPanel(); render(); });
+  document.getElementById('btnPlace').addEventListener('click', commitSegment);
+  document.getElementById('btnRandomizeExt').addEventListener('click', function () {
+    extASlider.value = Math.round(randRange(0.05, 1.2) * 100) / 100; extANum.value = extASlider.value;
+    extBSlider.value = Math.round(randRange(0.05, 1.2) * 100) / 100; extBNum.value = extBSlider.value;
+    recomputeCandidate();
+  });
+  [[extASlider, extANum], [extBSlider, extBNum]].forEach(function (pair) {
+    const [slider, num] = pair;
+    slider.addEventListener('input', function () { num.value = slider.value; recomputeCandidate(); });
+    num.addEventListener('input', function () {
+      const v = Math.max(0, Math.min(4, parseFloat(num.value) || 0));
+      slider.value = v; recomputeCandidate();
+    });
+  });
+
+  // ------------------------------------------------------------------- render
+  function render() {
+    const r = svgRect();
+    const scale = (r.width || 300) / view.w;
+    const dotR = 8 / scale, hitR = 22 / scale, touchedR = 4.5 / scale, tickLen = 9 / scale;
+    let html = '';
+    for (const s of segments) {
+      html += '<line x1="' + s.p1.x + '" y1="' + s.p1.y + '" x2="' + s.p2.x + '" y2="' + s.p2.y +
+        '" class="seg' + (s.id === 0 ? ' unit' : '') + '" vector-effect="non-scaling-stroke"></line>';
+    }
+    for (const tk of ticks) {
+      html += tickMarkup(tk.segId, tk.point, tickLen, false);
+    }
+    if (previewCandidate) {
+      const c = previewCandidate;
+      html += '<line x1="' + c.p1.x + '" y1="' + c.p1.y + '" x2="' + c.p2.x + '" y2="' + c.p2.y +
+        '" class="preview-line ' + (c.ok ? 'ok' : 'bad') + '" vector-effect="non-scaling-stroke"></line>';
+      const EPS = 1e-3;
+      if (c.tA > EPS && c.tA < 1 - EPS) html += tickMarkupOnLine(c.p1, c.p2, c.A, tickLen, true);
+      if (c.tB > EPS && c.tB < 1 - EPS) html += tickMarkupOnLine(c.p1, c.p2, c.B, tickLen, true);
+    }
+    for (const s of segments) {
+      [[s.p1, 0], [s.p2, 1]].forEach(function (pair) {
+        const p = pair[0], idx = pair[1];
+        const touched = s.touched[idx];
+        if (touched) {
+          html += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + touchedR + '" class="dot touched"></circle>';
+        } else {
+          const isSel = (selectedA && selectedA.segId === s.id && selectedA.tipIndex === idx) ||
+                        (selectedB && selectedB.segId === s.id && selectedB.tipIndex === idx);
+          html += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + dotR + '" class="dot untouched' + (isSel ? ' selected' : '') + '"></circle>';
+          html += '<circle cx="' + p.x + '" cy="' + p.y + '" r="' + hitR + '" class="hit" data-seg="' + s.id + '" data-tip="' + idx + '"></circle>';
+        }
+      });
+    }
+    svgContent.innerHTML = html;
+    updateStatus();
+  }
+
+  function tickMarkup(segId, point, tickLen, preview) {
+    const s = segById(segId);
+    if (!s) return '';
+    return tickMarkupOnLine(s.p1, s.p2, point, tickLen, preview);
+  }
+  function tickMarkupOnLine(p1, p2, point, tickLen, preview) {
+    const dx = p2.x - p1.x, dy = p2.y - p1.y;
+    const L = Math.hypot(dx, dy) || 1;
+    const nx = -dy / L, ny = dx / L;
+    return '<line x1="' + (point.x - nx * tickLen) + '" y1="' + (point.y - ny * tickLen) +
+      '" x2="' + (point.x + nx * tickLen) + '" y2="' + (point.y + ny * tickLen) +
+      '" class="tick' + (preview ? ' preview' : '') + '" vector-effect="non-scaling-stroke"></line>';
+  }
+
+  function untouchedCount() {
+    let n = 0;
+    for (const s of segments) { if (!s.touched[0]) n++; if (!s.touched[1]) n++; }
+    return n;
+  }
+
+  function updateStatus() {
+    statusEl.innerHTML = 'Segments: <b>' + segments.length + '</b> · untouched endpoints: <b>' + untouchedCount() + '</b>';
+    if (selectedA && selectedB) {
+      instrEl.textContent = '';
+    } else if (selectedA) {
+      instrEl.textContent = 'Now tap an untouched endpoint on a DIFFERENT segment.';
+    } else {
+      instrEl.textContent = 'Tap a glowing endpoint to start a new segment.';
+    }
+    const active = activeSegments();
+    if (active.length < 2 && !(selectedA && selectedB)) {
+      stuckEl.classList.remove('hidden');
+      stuckEl.textContent = active.length === 0
+        ? 'Every endpoint has been used — this construction has run its course. Reroll to start a new one.'
+        : 'Only one segment still has a free endpoint, and a new segment needs two DIFFERENT segments to touch. This branch has terminated — reroll to start a new one.';
+    } else {
+      stuckEl.classList.add('hidden');
+    }
+  }
+
+  // --------------------------------------------------------------- persistence
+  const LS_KEY = 'place-line:v1';
+  function saveLocal() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ segments, ticks, nextId })); } catch (e) { /* private mode: fine to lose this */ }
+  }
+  function loadLocal() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return false;
+      const data = JSON.parse(raw);
+      if (!Array.isArray(data.segments) || !data.segments.length) return false;
+      segments = data.segments; ticks = data.ticks || []; nextId = data.nextId || segments.length;
+      return true;
+    } catch (e) { return false; }
+  }
+
+  window.placeLineApp = {
+    getSnapshot: function () { return { segments, ticks, nextId }; },
+    loadSnapshot: function (snap) {
+      if (!snap || !Array.isArray(snap.segments) || !snap.segments.length) throw new Error('that snapshot has no segments in it');
+      segments = snap.segments; ticks = snap.ticks || []; nextId = snap.nextId || segments.length;
+      closePairPanel(); fitView(); saveLocal();
+    },
+  };
+
+  if (!loadLocal()) reroll();
+  fitView();
+  window.addEventListener('resize', function () { render(); });
+})();
+</script>
+<script type="module">
+import { labPds } from '../_kit/pds.js';
+(async function () {
+  const store = labPds();
+  await store.ready();
+  const signedOutEl = document.getElementById('pdsSignedOut');
+  const signedInEl = document.getElementById('pdsSignedIn');
+  const whoEl = document.getElementById('pdsWho');
+  const msgEl = document.getElementById('pdsMsg');
+  const handleEl = document.getElementById('handleInput');
+  kit.handleInput(handleEl, { onPick: function (h) { handleEl.value = h; } });
+
+  function refresh() {
+    const u = store.user();
+    if (u) { signedOutEl.classList.add('hidden'); signedInEl.classList.remove('hidden'); whoEl.textContent = '@' + u.handle; }
+    else { signedOutEl.classList.remove('hidden'); signedInEl.classList.add('hidden'); }
+  }
+  refresh();
+  store.onChange(refresh);
+
+  document.getElementById('btnSignIn').addEventListener('click', async function () {
+    kit.clear(msgEl);
+    const h = handleEl.value.trim();
+    if (!h) { kit.showError(msgEl, 'Type your handle first.'); return; }
+    try { await store.signIn(h); } catch (e) { kit.showError(msgEl, 'Could not start sign-in: ' + e.message); }
+  });
+  document.getElementById('btnSignOut').addEventListener('click', function () { store.signOut(); });
+  document.getElementById('btnSaveRepo').addEventListener('click', async function () {
+    kit.clear(msgEl);
+    try {
+      await store.save('construction', window.placeLineApp.getSnapshot(), { kind: 'place-line-construction' });
+      msgEl.className = 'ok'; msgEl.hidden = false; msgEl.textContent = 'Saved to your repo.';
+    } catch (e) { kit.showError(msgEl, 'Save failed: ' + e.message); }
+  });
+  document.getElementById('btnLoadRepo').addEventListener('click', async function () {
+    kit.clear(msgEl);
+    try {
+      const snap = await store.load('construction');
+      if (!snap) { kit.showError(msgEl, 'Nothing saved yet.'); return; }
+      window.placeLineApp.loadSnapshot(snap);
+      msgEl.className = 'ok'; msgEl.hidden = false; msgEl.textContent = 'Loaded from your repo.';
+    } catch (e) { kit.showError(msgEl, 'Load failed: ' + e.message); }
+  });
+})();
+</script>
+</body>
+</html>
