@@ -457,6 +457,29 @@ first pass, not just the correct core mechanic in miniature. A rigorous
 one-piece demo of a group action reads to this requester as an unfinished
 game, not a minimal one.
 
+Thirtieth request (2026-09-27), "ponderbrot" (that-shows): another bare-formula
+math ask carried mostly through thread context rather than a direct spec —
+"off the top of your head which of these points would you say meet that
+criterion" plus "i bet my own ponderbrot would be waaaaay worse than jev's"
+plus a passing "maybe atproto-based somehow?" about storage, with the actual
+mathematical definition (z→z²+c from z=0) supplied by someone else in the
+thread, not the requester. Consistent with the standing pattern of taking a
+bare formula completely literally: built real escape-time ground truth (not
+a lookup table or a coarse precomputed image), and read "a bunch of
+coordinates... no visual cues" as an actual constraint on the UI — the rating
+phase shows only the two raw floating-point numbers, no plot, no axes, until
+after a guess is locked in. New data point: when the ask itself implies a
+uniform-random sample would be uninteresting (most random points in the
+viewport trivially escape in one step), deviated from literal uniform
+sampling toward one biased at the boundary, and said so explicitly on the
+page — same "flag the shortcut" habit, applied to a sampling choice rather
+than a solver choice this time. Also treated a throwaway aside ("maybe
+atproto-based somehow?") as a real feature request worth answering: wired
+labPds scoring plus a named-handle lookup, so the "worse than jev's" joke is
+now literally checkable against any handle typed in — reading a passing
+wondering-aloud as an implicit ask is new; watch whether future requests
+confirm this pays off or whether it over-delivers on a rhetorical aside.
+
 Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
 phrased with pre-emptive, joking defiance ("chess but its modular forms...
 don't you dare tell me this doesn't make sense just make modular group

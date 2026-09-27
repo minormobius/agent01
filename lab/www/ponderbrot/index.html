@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ponderbrot — rate raw coordinates, no picture, and watch your own Mandelbrot set emerge</title>
+<meta name="description" content="You get two floating-point numbers and nothing else — no plot, no axes. Guess how likely that point is to stay bounded under z→z²+c. Do it enough times and the app builds a fractal purely out of your gut feel, next to the real one, so you can see exactly where your intuition and the actual set disagree.">
+<meta property="og:title" content="Ponderbrot — rate raw coordinates, no picture, and watch your own Mandelbrot set emerge">
+<meta property="og:description" content="You get two floating-point numbers and nothing else — no plot, no axes. Guess how likely that point is to stay bounded under z→z²+c. Do it enough times and the app builds a fractal purely out of your gut feel, next to the real one, so you can see exactly where your intuition and the actual set disagree.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 56rem; }
+  .box { background: var(--bg-raised); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 0 0 20px; }
+  .honest { border-color: var(--accent); background: var(--accent-dim); }
+  .honest h2 { margin-top: 0; color: var(--accent); }
+  .honest p, .honest li { color: var(--fg); font-size: .85rem; }
+  .honest code { background: rgba(0,0,0,.25); padding: .1em .35em; border-radius: 3px; }
+
+  #rate .box { text-align: center; }
+  .progress { font-size: .78rem; color: var(--muted); margin-bottom: .6rem; }
+  .coord {
+    font-size: clamp(1.15rem, 4.6vw, 1.7rem); font-weight: 700; color: var(--fg);
+    letter-spacing: -.01em; margin: .4rem 0 1.1rem; word-break: break-all;
+    font-variant-numeric: tabular-nums;
+  }
+  .coord .im { color: var(--accent); }
+  .guessrow label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: .5rem; }
+  .guessrow .readout { font-size: 1.4rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; height: 44px; accent-color: var(--accent); background: transparent; }
+  .scale-ends { display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); margin-top: -.3rem; }
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; justify-content: center; }
+  button { min-height: 44px; }
+  .btn-row button { flex: 1 1 160px; max-width: 260px; }
+  .btn-shiny {
+    background: linear-gradient(135deg, var(--accent), #fff2d6);
+    color: #201200; border: none; font-weight: 700;
+    box-shadow: 0 0 0 1px rgba(232,163,61,.5), 0 0 18px rgba(232,163,61,.35);
+  }
+  .btn-shiny:hover { background: linear-gradient(135deg, #fff2d6, var(--accent)); color: #201200; }
+  .btn-shiny:disabled { opacity: .45; box-shadow: none; cursor: default; }
+
+  .canvases { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  @media (min-width: 700px) { .canvases { grid-template-columns: 1fr 1fr; } }
+  .canvas-wrap { background: #050506; border-radius: 8px; overflow: hidden; }
+  canvas { width: 100%; height: auto; display: block; image-rendering: pixelated; }
+  .cap { text-align: center; font-size: .74rem; color: var(--muted); margin: 6px 0 0; }
+  .legend { display: flex; gap: 14px; justify-content: center; font-size: .72rem; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+  .legend span { display: inline-flex; align-items: center; gap: .35em; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  .stat-row { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0 4px; }
+  .stat { flex: 1 1 140px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .stat .k { font-size: .7rem; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .stat .v { font-size: 1.5rem; font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .stat .v small { font-size: .8rem; color: var(--muted); font-weight: 400; }
+
+  .authstate { font-size: .82rem; color: var(--muted); margin-bottom: .6rem; }
+  .authstate b { color: var(--fg); }
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; }
+  .row input[type=text] { flex: 1 1 12rem; min-width: 0; font-size: 16px; }
+  .compare-out { font-size: .85rem; margin-top: .6rem; }
+  .compare-out .v { color: var(--accent); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+<script>document.write(kit.crumb('ponderbrot'));</script>
+
+<h1>Ponderbrot</h1>
+<p class="sub">Two raw floating-point numbers, no plot. Guess whether that point stays bounded forever under <var>z ↦ z² + c</var> — enough guesses and the app renders your own personal Mandelbrot set out of nothing but your gut, next to the real one.</p>
+
+<div class="box honest">
+  <h2>What this actually shows</h2>
+  <p>The Mandelbrot set is every <var>c</var> such that the sequence <code>z₀=0, z_{n+1}=z_n²+c</code> stays bounded forever. Nobody can iterate forever, so "ground truth" here is the standard computable stand-in: escaped if <code>|z_n|&gt;2</code> within 500 iterations, otherwise called bounded. That's an approximation, not a hedge — it's what every Mandelbrot renderer actually computes, and it's exact for every point except the vanishingly thin shell right on the true boundary.</p>
+  <p>Points aren't sampled uniformly. A point picked at random from the visible window is very likely to be so far outside that it escapes in one or two steps — trivially obvious, not a real test of intuition. So points that escape in under 6 iterations get thrown back most (not all) of the time, biasing what you see toward the boundary region where a guess is actually a guess. Said here rather than left silent, since it means the ratings aren't a uniform sample of the plane.</p>
+  <p>Your personal brot is built by <strong>inverse-distance weighting</strong>: every pixel's shade is a weighted average of every rating you've given, weight <code>1/(distance² + ε)</code> — literally "trust the guess at the nearest points you actually made, more than one far away." No modelling beyond that; it's exactly as good, or as patchy, as your ratings make it.</p>
+</div>
+
+<section id="rate">
+  <div class="box">
+    <p class="progress" id="progress">rated 0 points</p>
+    <div class="coord" id="coord">—</div>
+    <div class="guessrow">
+      <label for="guess">how likely is <var>c</var> to stay bounded forever? <span class="readout" id="readout">50%</span></label>
+      <input type="range" id="guess" min="0" max="100" value="50" step="1">
+      <div class="scale-ends"><span>0 — definitely escapes</span><span>100 — definitely bounded</span></div>
+    </div>
+    <div class="btn-row">
+      <button type="button" class="btn-shiny" id="next-btn">lock it in, next point</button>
+      <button type="button" id="view-btn" disabled>see my personal brot (need 30)</button>
+    </div>
+  </div>
+</section>
+
+<section id="result" class="hidden">
+  <div class="canvases">
+    <div>
+      <div class="canvas-wrap"><canvas id="cv-personal" width="260" height="260"></canvas></div>
+      <p class="cap">your personal brot — built from <span id="n-ratings">0</span> ratings, nothing else</p>
+    </div>
+    <div>
+      <div class="canvas-wrap"><canvas id="cv-truth" width="260" height="260"></canvas></div>
+      <p class="cap">the real thing, your rated points marked by whether you were right</p>
+      <div class="legend">
+        <span><i class="dot" style="background:#5fd68f"></i> your guess agreed</span>
+        <span><i class="dot" style="background:#ff6b6b"></i> your guess disagreed</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat"><div class="k">agreement with ground truth</div><div class="v" id="stat-acc">—</div></div>
+    <div class="stat"><div class="k">brier score <small>(0 = perfect, 0.25 = coin flip)</small></div><div class="v" id="stat-brier">—</div></div>
+    <div class="stat"><div class="k">points rated</div><div class="v" id="stat-n">—</div></div>
+  </div>
+
+  <div class="btn-row">
+    <button type="button" id="rate-more-btn">rate more points</button>
+  </div>
+
+  <div class="box" style="margin-top:20px">
+    <h2 style="margin-top:0">keep it, or size someone else's up</h2>
+    <p class="authstate" id="authstate">checking sign-in…</p>
+    <div class="row" id="signin-row">
+      <input type="text" id="handle-input" placeholder="you.bsky.social" autocomplete="off">
+      <button type="button" id="signin-btn">sign in with Bluesky</button>
+    </div>
+    <div class="row hidden" id="signedin-row" style="margin-top:.6rem">
+      <button type="button" id="post-btn">post my score to my repo</button>
+      <button type="button" id="signout-btn">sign out</button>
+    </div>
+    <p id="pds-msg" class="hidden"></p>
+
+    <div class="row" style="margin-top:1rem">
+      <input type="text" id="rival-input" placeholder="a handle you want to check — e.g. jev's">
+      <button type="button" id="rival-btn">look up their posted score</button>
+    </div>
+    <p class="compare-out hidden" id="rival-out"></p>
+  </div>
+</section>
+
+</main>
+
+<script type="module">
+import { labPds } from '../_kit/pds.js';
+
+const BOUNDS = { reMin: -2.5, reMax: 1, imMin: -1.25, imMax: 1.25 };
+const MAX_ITER = 500;
+const MIN_RATINGS = 30;
+const STORE_KEY = 'ponderbrot_ratings_v1';
+
+function $(sel) { return document.querySelector(sel); }
+
+function escapeInfo(cre, cim, maxIter) {
+  let zre = 0, zim = 0;
+  for (let i = 0; i < maxIter; i++) {
+    const zre2 = zre * zre, zim2 = zim * zim;
+    if (zre2 + zim2 > 4) return { escaped: true, iter: i };
+    const nzim = 2 * zre * zim + cim;
+    zre = zre2 - zim2 + cre;
+    zim = nzim;
+  }
+  return { escaped: false, iter: maxIter };
+}
+
+function sampleC() {
+  for (let tries = 0; tries < 200; tries++) {
+    const re = BOUNDS.reMin + Math.random() * (BOUNDS.reMax - BOUNDS.reMin);
+    const im = BOUNDS.imMin + Math.random() * (BOUNDS.imMax - BOUNDS.imMin);
+    const info = escapeInfo(re, im, MAX_ITER);
+    if (info.escaped && info.iter < 6 && Math.random() < 0.85) continue;
+    return { re, im, escaped: info.escaped };
+  }
+  const re = BOUNDS.reMin + Math.random() * (BOUNDS.reMax - BOUNDS.reMin);
+  const im = BOUNDS.imMin + Math.random() * (BOUNDS.imMax - BOUNDS.imMin);
+  return { re, im, escaped: escapeInfo(re, im, MAX_ITER).escaped };
+}
+
+function loadRatings() {
+  try { return JSON.parse(localStorage.getItem(STORE_KEY) || '[]'); }
+  catch { return []; }
+}
+function saveRatings(list) {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); } catch { /* private mode, etc — session still works */ }
+}
+
+let ratings = loadRatings();
+let current = sampleC();
+
+function fmtCoord(p) {
+  return 're(c) = ' + p.re + '<br>im(c) = <span class="im">' + (p.im < 0 ? '−' + Math.abs(p.im) : p.im) + '</span>';
+}
+
+function renderRatePhase() {
+  $('#progress').textContent = 'rated ' + ratings.length + ' point' + (ratings.length === 1 ? '' : 's');
+  $('#coord').innerHTML = fmtCoord(current);
+  const left = Math.max(0, MIN_RATINGS - ratings.length);
+  const vb = $('#view-btn');
+  vb.disabled = left > 0;
+  vb.textContent = left > 0 ? 'see my personal brot (need ' + left + ' more)' : 'see my personal brot';
+}
+
+$('#guess').addEventListener('input', () => { $('#readout').textContent = $('#guess').value + '%'; });
+
+$('#next-btn').addEventListener('click', () => {
+  const guess = Number($('#guess').value);
+  ratings.push({ re: current.re, im: current.im, guess, bounded: !current.escaped });
+  saveRatings(ratings);
+  current = sampleC();
+  $('#guess').value = 50;
+  $('#readout').textContent = '50%';
+  renderRatePhase();
+});
+
+$('#view-btn').addEventListener('click', () => {
+  $('#rate').classList.add('hidden');
+  $('#result').classList.remove('hidden');
+  renderResult();
+});
+$('#rate-more-btn').addEventListener('click', () => {
+  $('#result').classList.add('hidden');
+  $('#rate').classList.remove('hidden');
+  renderRatePhase();
+});
+
+function mapXY(x, y, w, h) {
+  return {
+    re: BOUNDS.reMin + (x / (w - 1)) * (BOUNDS.reMax - BOUNDS.reMin),
+    im: BOUNDS.imMax - (y / (h - 1)) * (BOUNDS.imMax - BOUNDS.imMin),
+  };
+}
+
+function renderPersonalCanvas(canvas, pts) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const img = ctx.createImageData(w, h);
+  const vals = pts.map((r) => ({ re: r.re, im: r.im, v: r.guess / 100 }));
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const { re, im } = mapXY(x, y, w, h);
+      let num = 0, den = 0;
+      for (const p of vals) {
+        const dre = re - p.re, dim = im - p.im;
+        const wgt = 1 / (dre * dre + dim * dim + 1e-4);
+        num += wgt * p.v; den += wgt;
+      }
+      const val = den > 0 ? num / den : 0.5;
+      const g = Math.max(0, Math.min(255, Math.round(val * 255)));
+      const idx = (y * w + x) * 4;
+      img.data[idx] = g; img.data[idx + 1] = g; img.data[idx + 2] = g; img.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function renderTruthCanvas(canvas, pts) {
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width, h = canvas.height;
+  const img = ctx.createImageData(w, h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const { re, im } = mapXY(x, y, w, h);
+      const info = escapeInfo(re, im, 300);
+      const g = info.escaped ? Math.max(0, Math.min(0.92, info.iter / 40)) * 255 : 255;
+      const idx = (y * w + x) * 4;
+      img.data[idx] = g; img.data[idx + 1] = g; img.data[idx + 2] = g; img.data[idx + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  for (const p of pts) {
+    const guessedBounded = p.guess >= 50;
+    const correct = guessedBounded === p.bounded;
+    const x = Math.round(((p.re - BOUNDS.reMin) / (BOUNDS.reMax - BOUNDS.reMin)) * (w - 1));
+    const y = Math.round(((BOUNDS.imMax - p.im) / (BOUNDS.imMax - BOUNDS.imMin)) * (h - 1));
+    ctx.beginPath();
+    ctx.fillStyle = correct ? 'rgba(95,214,143,.95)' : 'rgba(255,107,107,.95)';
+    ctx.arc(x, y, 2.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function computeStats(pts) {
+  if (!pts.length) return { acc: 0, brier: 0 };
+  let correct = 0, sq = 0;
+  for (const p of pts) {
+    const guessedBounded = p.guess >= 50;
+    if (guessedBounded === p.bounded) correct++;
+    const t = p.bounded ? 1 : 0;
+    const g = p.guess / 100;
+    sq += (g - t) * (g - t);
+  }
+  return { acc: correct / pts.length, brier: sq / pts.length };
+}
+
+let lastAccuracy = 0, lastN = 0;
+
+function renderResult() {
+  renderPersonalCanvas($('#cv-personal'), ratings);
+  renderTruthCanvas($('#cv-truth'), ratings);
+  const { acc, brier } = computeStats(ratings);
+  lastAccuracy = acc; lastN = ratings.length;
+  $('#n-ratings').textContent = String(ratings.length);
+  $('#stat-acc').textContent = Math.round(acc * 100) + '%';
+  $('#stat-brier').textContent = brier.toFixed(3);
+  $('#stat-n').textContent = String(ratings.length);
+}
+
+renderRatePhase();
+
+// --- atproto: optional save/compare, per the requester's own "maybe
+// atproto-based somehow?" aside. Sign-in is never required to use the page. ---
+const store = labPds();
+kit.handleInput($('#handle-input'), { onPick: (h) => { $('#handle-input').value = h; } });
+kit.handleInput($('#rival-input'), { onPick: (h) => { $('#rival-input').value = h; } });
+
+function renderAuth() {
+  const u = store.user();
+  $('#authstate').innerHTML = u ? 'signed in as <b>@' + escapeHtml(u.handle) + '</b>' : 'not signed in — scores post under your own handle, nothing is required to look at anyone else’s';
+  $('#signin-row').classList.toggle('hidden', !!u);
+  $('#signedin-row').classList.toggle('hidden', !u);
+}
+function escapeHtml(s) { return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+$('#signin-btn').addEventListener('click', async () => {
+  const h = $('#handle-input').value.trim();
+  if (!h) return;
+  try { await store.signIn(h, { scores: true }); }
+  catch (e) { kit.showError($('#pds-msg'), 'sign-in failed: ' + e.message); $('#pds-msg').classList.remove('hidden'); }
+});
+$('#signout-btn').addEventListener('click', async () => { await store.signOut(); renderAuth(); });
+$('#post-btn').addEventListener('click', async () => {
+  if (!lastN) { kit.showError($('#pds-msg'), 'rate at least one point and view your brot first'); $('#pds-msg').classList.remove('hidden'); return; }
+  try {
+    await store.postScore(Math.round(lastAccuracy * 1000), {
+      unit: 'agreement ‰ with ground truth',
+      higherIsBetter: true,
+      detail: 'n=' + lastN,
+      game: 'ponderbrot',
+    });
+    kit.clear($('#pds-msg'));
+    $('#pds-msg').textContent = 'posted.'; $('#pds-msg').className = 'ok'; $('#pds-msg').classList.remove('hidden');
+  } catch (e) {
+    kit.showError($('#pds-msg'), 'post failed: ' + e.message); $('#pds-msg').classList.remove('hidden');
+  }
+});
+$('#rival-btn').addEventListener('click', async () => {
+  const h = $('#rival-input').value.trim();
+  const out = $('#rival-out');
+  if (!h) return;
+  out.classList.remove('hidden');
+  out.textContent = 'looking up @' + h + '…';
+  try {
+    const scores = await store.scoresOf(h);
+    if (!scores.length) { out.textContent = '@' + h + ' has not posted a ponderbrot score.'; return; }
+    const best = store.rank(scores)[0];
+    out.innerHTML = '@' + escapeHtml(h) + '’s best posted agreement: <span class="v">' + (best.value / 10).toFixed(1) + '%</span> (' + escapeHtml(best.detail || '') + ')';
+  } catch (e) {
+    out.textContent = 'could not look that up: ' + e.message;
+  }
+});
+
+(async () => {
+  try {
+    await store.ready();
+    store.onChange(renderAuth);
+    renderAuth();
+  } catch { /* auth is optional — the page works fully signed out */ }
+})();
+</script>
+</body>
+</html>
