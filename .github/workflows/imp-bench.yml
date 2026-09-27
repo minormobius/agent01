@@ -1,0 +1,163 @@
+name: Imp bench (model × task)
+# Score Imp programs — a typed router and a tool-using ReAct agent — on every
+# model in bakeoff/cells.json, one runner per model, and collect the results.
+# bakeoff/imp/CLAUDE.md says what is measured and why.
+#
+# DELIBERATE ONLY, same as bakeoff.yml: this spends real tokens, so the only
+# ways in are workflow_dispatch and the bakeoff/imp/RUN sentinel. An agent
+# session cannot dispatch (the App token gets 403) but can push, so committing
+# RUN is how a run is asked for, and the commit says who asked and why.
+#
+# THE BRANCH GUARD IS LOAD-BEARING. A path filter alone fires on any branch
+# that first *receives* the file (a merge candidate, its merge into main), and
+# each would start a paid run nobody asked for. Keep this list to the branch
+# that owns the Imp bench.
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Label for this run (results directory name)'
+        required: false
+        default: ''
+  push:
+    branches:
+      - 'claude/friends-project-planning-cags5l'
+    paths:
+      - 'bakeoff/imp/RUN'
+
+permissions:
+  contents: write
+
+jobs:
+  # A push counts as a request only when its TIP commit is a non-merge commit
+  # that itself changes bakeoff/imp/RUN — not a sync that happens to carry it.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.plan.outputs.go }}
+      run_id: ${{ steps.plan.outputs.run_id }}
+      tasks: ${{ steps.plan.outputs.tasks }}
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: plan
+        env:
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          GO=true
+          if [ "$EVENT" = "push" ]; then
+            MERGES=$(git rev-list --no-walk --count --merges HEAD)
+            CHANGED=$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")
+            if [ "$MERGES" != "0" ] || ! echo "$CHANGED" | grep -qx 'bakeoff/imp/RUN'; then
+              echo "::notice::head commit does not itself change bakeoff/imp/RUN — not a run request"
+              GO=false
+            fi
+          fi
+          echo "go=$GO" >> "$GITHUB_OUTPUT"
+          node -e '
+            const fs = require("fs");
+            const cells = JSON.parse(fs.readFileSync("bakeoff/cells.json", "utf8"));
+            const cfg = JSON.parse(fs.readFileSync("bakeoff/imp/RUN", "utf8"));
+            const models = cfg.models?.length ? cfg.models : Object.keys(cells.models);
+            for (const m of models) if (!cells.models[m]) { console.error(`::error::unknown model ${m}`); process.exit(1); }
+            const tasks = (cfg.tasks?.length ? cfg.tasks : ["route", "desk"]);
+            for (const t of tasks) if (!["route", "desk"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
+            if (models.length > 8) { console.error("::error::more than 8 models looks like a mistake"); process.exit(1); }
+            const runId = process.env.INPUT_RUN_ID || cfg.runId || `imp-${Date.now()}`;
+            const out = process.env.GITHUB_OUTPUT;
+            fs.appendFileSync(out, `run_id=${runId}\ntasks=${tasks.join(",")}\nmatrix=${JSON.stringify({ model: models })}\n`);
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+              `## Imp bench \`${runId}\`\n\n${cfg.note || ""}\n\nmodels: ${models.join(", ")} · tasks: ${tasks.join(", ")}\n`);
+          '
+
+  cell:
+    needs: plan
+    if: needs.plan.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    defaults:
+      run:
+        working-directory: bakeoff/imp
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: '28'
+          elixir-version: '1.19'
+      - uses: actions/cache@v4
+        with:
+          path: |
+            bakeoff/imp/deps
+            bakeoff/imp/_build
+          key: imp-bench-${{ runner.os }}-otp28-ex119-${{ hashFiles('bakeoff/imp/mix.lock') }}
+      - name: Compile
+        run: mix deps.get && mix compile
+      - name: The rig's own test (scripted model, no key, no spend)
+        run: IMP_BENCH_MODEL=static BAKEOFF_OUT=/tmp/static mix run -e 'ImpBench.main()'
+      - name: Run cell
+        env:
+          MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
+          IMP_BENCH_MODEL: ${{ matrix.model }}
+          IMP_BENCH_TASKS: ${{ needs.plan.outputs.tasks }}
+          BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.model }}
+        run: mix run -e 'ImpBench.main()'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-${{ matrix.model }}
+          path: ${{ github.workspace }}/cellout/${{ matrix.model }}
+          retention-days: 30
+          if-no-files-found: warn
+
+  collect:
+    needs: [plan, cell]
+    if: always() && needs.plan.outputs.go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ github.workspace }}/cells
+          pattern: imp-*
+      - name: Build the report
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ needs.plan.outputs.run_id }}"
+          NOTE=$(node -e 'console.log(JSON.parse(require("fs").readFileSync("bakeoff/imp/RUN","utf8")).note || "")')
+          node bakeoff/imp/report.mjs "$RUN_ID" --from "${{ github.workspace }}/cells" --note "$NOTE" >> "$GITHUB_STEP_SUMMARY"
+      # No deploy workflow matches bakeoff/**, so this publishes nothing.
+      - name: Push results to a results branch
+        run: |
+          set -euo pipefail
+          RUN_ID="${{ needs.plan.outputs.run_id }}"
+          git config user.name "mino bakeoff"
+          git config user.email "bakeoff@mino.mobi"
+          BRANCH="bakeoff/$RUN_ID"
+          git checkout -b "$BRANCH"
+          git add bakeoff/results
+          git diff --cached --quiet && { echo "no results"; exit 0; }
+          git commit -m "imp bench: results for $RUN_ID"
+          for i in 1 2 3 4; do
+            git push -u origin "$BRANCH" && exit 0
+            sleep $((2 ** i))
+          done
+          exit 1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: imp-bench-report
+          path: bakeoff/results
+          retention-days: 90
