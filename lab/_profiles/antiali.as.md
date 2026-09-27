@@ -20,6 +20,15 @@ future requests ask for these again.
 ## Said no to
 Nothing yet — first build.
 
+## `what-your` (tubersona generator) — confirms the pattern
+Second generator-style build for this requester, again no Bluesky account
+involved and no login — reused turn-venn's exact shape wholesale: seeded/
+reproducible state, state-in-URL sharing, PNG download, compose-intent share
+button. This is now a confirmed standing pattern for this requester's
+generator/meme requests, not a one-off: default to it without re-deriving,
+unless a request specifically needs identity (a leaderboard, a saved
+gallery).
+
 ## Second pass on `turn-venn`
 The follow-up wasn't from this requester directly — it was the standing
 "always be viral" directive to add a Bluesky share CTA to every lab app.
