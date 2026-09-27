@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>the pay cliff</title>
+<meta property="og:title" content="the pay cliff">
+<meta property="og:description" content="A histogram of estimated lifetime earnings across six pro sports, with a line showing how few of the people seriously chasing each one ever earn enough to do it full time.">
+<meta property="og:type" content="website">
+<meta name="description" content="Six sports, one question: of everyone seriously chasing it, what share ever earns enough to make it a full-time job? Drag the line yourself.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  @keyframes rainbow-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+  body {
+    background: linear-gradient(115deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 400% 400%;
+    animation: rainbow-shift 22s ease infinite;
+  }
+  main {
+    background: var(--bg);
+    border-radius: 16px;
+    padding: 1.75rem 1.5rem 2.5rem;
+    border: 3px solid transparent;
+    background-image:
+      linear-gradient(var(--bg), var(--bg)),
+      linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+  h1 {
+    background: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 200% auto;
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    animation: rainbow-shift 8s linear infinite;
+  }
+  h2 {
+    border-bottom: 2px solid;
+    border-image: linear-gradient(90deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa) 1;
+    padding-bottom: .4rem;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    body, h1 { animation: none; }
+  }
+
+  .thresholdBox {
+    border: 2px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(100deg, #ff5f6d, #ffc371, #6dd5ed, #a26bfa);
+    background-origin: border-box; background-clip: padding-box, border-box;
+    padding: 1.1rem 1.25rem 1.25rem; margin: 1.5rem 0;
+  }
+  .thresholdBox label { display: block; font-size: .85rem; color: var(--fg); margin-bottom: .6rem; }
+  .thresholdBox .val { color: var(--accent); font-weight: 700; }
+  input[type=range] {
+    width: 100%; height: 30px; -webkit-appearance: none; appearance: none;
+    background: transparent; cursor: pointer; touch-action: pan-y;
+  }
+  input[type=range]::-webkit-slider-runnable-track {
+    height: 8px; border-radius: 4px;
+    background: linear-gradient(90deg, #6dd5ed, #a26bfa, #ff5f6d);
+  }
+  input[type=range]::-moz-range-track {
+    height: 8px; border-radius: 4px;
+    background: linear-gradient(90deg, #6dd5ed, #a26bfa, #ff5f6d);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; margin-top: -9px;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #fff; border: 3px solid var(--accent);
+    box-shadow: 0 0 8px 2px rgba(232,163,61,.55);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: #fff; border: 3px solid var(--accent);
+    box-shadow: 0 0 8px 2px rgba(232,163,61,.55);
+  }
+  .thresholdNote { font-size: .78rem; color: var(--muted); margin: .6rem 0 0; }
+
+  .panel { margin: 1.75rem 0 0; }
+  .panelhead { display: flex; align-items: baseline; flex-wrap: wrap; gap: .5rem; margin-bottom: .4rem; }
+  .swatch { display: inline-block; width: .85em; height: .85em; border-radius: 2px; flex: none; }
+  .panelhead b { color: var(--fg); font-size: .95rem; }
+  .clearpct { margin-left: auto; font-size: .82rem; color: var(--ok); font-weight: 700; white-space: nowrap; }
+  canvas.hist {
+    display: block; width: 100%; height: auto;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    touch-action: pan-y;
+  }
+  .readout { font-size: .78rem; color: var(--muted); margin: .35rem 0 0; min-height: 1.2em; }
+
+  .axisRow { position: relative; height: 1.1rem; margin: .3rem 0 0; font-size: .68rem; color: var(--muted); }
+  .axisRow span { position: absolute; transform: translateX(-50%); }
+  .axisRow span:first-child { transform: translateX(0); }
+  .axisRow span:last-child { transform: translateX(-100%); }
+
+  @keyframes toggle-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(162,107,250,.6); }
+    50%      { box-shadow: 0 0 14px 4px rgba(162,107,250,.55); }
+  }
+  .togglerow { text-align: center; margin: 1.75rem 0 0; display: flex; gap: .75rem; flex-wrap: wrap; justify-content: center; }
+  .switchrow {
+    display: inline-flex; align-items: center; gap: .6rem; cursor: pointer;
+    font-size: .95rem; font-weight: 700; color: #0e0e11; padding: .85rem 1.3rem;
+    min-height: 44px; box-sizing: border-box; border-radius: 999px;
+    border: none;
+    background: linear-gradient(120deg, #ff5f6d, #ffc371, #f9f871, #6dd5ed, #a26bfa, #ff5f6d);
+    background-size: 220% 220%;
+    animation: rainbow-shift 8s ease infinite, toggle-glow 2.2s ease-in-out infinite;
+  }
+  .switchrow:hover { filter: brightness(1.1); }
+  .switchrow:has(input:checked) { animation: none; box-shadow: none; }
+  @media (prefers-reduced-motion: reduce) { .switchrow { animation: none; } }
+  .switchrow input { width: 1.3rem; height: 1.3rem; accent-color: #0e0e11; cursor: pointer; flex: none; }
+
+  .revealBox {
+    border: 2px solid transparent; border-radius: var(--radius);
+    background-image:
+      linear-gradient(var(--bg-raised), var(--bg-raised)),
+      linear-gradient(100deg, #6dd5ed, #a26bfa, #ff5f6d, #ffc371);
+    background-origin: border-box; background-clip: padding-box, border-box;
+    padding: 1.1rem 1.25rem 1.35rem; margin: 1rem 0 0;
+  }
+  .revealBox h2 { margin-top: 0; }
+  .revealBox > p, .revealBox li { font-size: .85rem; }
+
+  table.dataTable { width: 100%; border-collapse: collapse; font-size: .72rem; margin-top: .5rem; }
+  table.dataTable caption { text-align: left; font-size: .78rem; color: var(--muted); margin-bottom: .5rem; }
+  table.dataTable th, table.dataTable td { border: 1px solid var(--border); padding: .35rem .4rem; text-align: right; }
+  table.dataTable th:first-child, table.dataTable td:first-child { text-align: left; color: var(--fg); }
+  table.dataTable th { color: var(--fg); font-weight: 700; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>the pay cliff</h1>
+  <p class="sub">a histogram of who actually gets paid to do this</p>
+
+  <p>A thread about which careers are safe from AI landed, half-joking, on
+     competitive sports — the reasoning being something like "not enough
+     humans can do that at all, AI or not." That's closer to true than the
+     AI part of the argument. Below are six sports, each as a histogram of
+     roughly where the people <em>seriously chasing</em> it — tour cards,
+     minor-league contracts, national squads, not weekend hobbyists — land
+     on estimated lifetime earnings. The dashed line marks a rough
+     "full-time" threshold. Drag it and watch how few bars clear it in some
+     of these, before AI ever enters the picture.</p>
+
+  <div class="thresholdBox">
+    <label for="thresholdSlider">"makes it full time" threshold: <span class="val" id="thresholdVal">$250,000</span> lifetime</label>
+    <input type="range" id="thresholdSlider" min="0" max="12" step="1" value="4" aria-label="Full-time earnings threshold">
+    <p class="thresholdNote">Rough stand-in for what a multi-year career needs to clear, after training and travel costs, to beat working a normal job instead of being subsidized by one. Not a researched figure — move it and judge for yourself.</p>
+  </div>
+
+  <div id="panels"></div>
+
+  <div class="axisRow" id="axisRow"></div>
+
+  <div class="togglerow">
+    <label class="switchrow">
+      <input type="checkbox" id="tableToggle">
+      <span>Show the numbers as a table</span>
+    </label>
+    <label class="switchrow">
+      <input type="checkbox" id="methodToggle">
+      <span>How these were estimated</span>
+    </label>
+  </div>
+
+  <div class="revealBox" id="tableBox" hidden>
+    <h2>Full breakdown, by bin</h2>
+    <div id="tableHost"></div>
+  </div>
+
+  <div class="revealBox" id="methodBox" hidden>
+    <h2>What this is (and isn't)</h2>
+    <p>This build has no network access and no real per-athlete earnings
+       dataset to query. Every bar here is a hand-built approximation shaped
+       to match well-known, publicly reported facts about each sport's pay
+       cliff — league minimums, tour-card cutoffs, stipend levels, the gap
+       between headline star money and everyone else — not a measurement of
+       real individuals. Treat the shapes as roughly right and the exact
+       percentages as illustrative, not cited figures.</p>
+    <p>The population modeled for each sport is people competing at a
+       serious, competitive level (tour rankings, minor-league or reserve
+       contracts, national training squads) — not casual participants, and
+       not a literal headcount. Lifetime earnings are on-field/on-court
+       prize money and salary only in most bins; a handful of sports also
+       fold in the endorsement money that drives their extreme top tail.</p>
+     <p>The "clears the line" percentage for a bin straddling the threshold
+       is interpolated assuming earnings are spread evenly across that bin
+       on a <em>log</em> scale — a simplification, not a real income curve.</p>
+  </div>
+
+  <p class="thresholdNote" style="margin-top:2rem;">Estimates only — see
+     "How these were estimated" above before citing anything here as fact.</p>
+</main>
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('create-histogram');
+
+  // Log-spaced bin edges in dollars, $1k to $100M — one shared scale so
+  // every sport's panel and the threshold line line up visually.
+  var EDGES = [1e3, 3e3, 1e4, 3e4, 1e5, 3e5, 1e6, 3e6, 1e7, 3e7, 1e8];
+  var BIN_LABELS = [
+    '$1k–3k', '$3k–10k', '$10k–30k', '$30k–100k',
+    '$100k–300k', '$300k–1M', '$1M–3M', '$3M–10M',
+    '$10M–30M', '$30M+'
+  ];
+  var LOG0 = Math.log10(EDGES[0]);
+  var LOGN = Math.log10(EDGES[EDGES.length - 1]);
+  function logPos(dollar) { return (Math.log10(dollar) - LOG0) / (LOGN - LOG0); }
+
+  // Illustrative distributions — see "How these were estimated". Each sums
+  // to ~100 across the 10 bins above.
+  var SPORTS = [
+    { key: 'tennis',   name: 'Tennis (ATP/WTA tour level)',        color: '#3987e5',
+      dist: [8, 15, 22, 20, 15, 10, 6, 3, 0.8, 0.2] },
+    { key: 'golf',     name: 'Golf (PGA/Korn Ferry level)',        color: '#d95926',
+      dist: [10, 18, 20, 18, 14, 10, 6, 3, 0.8, 0.2] },
+    { key: 'basketball', name: 'Basketball (G League → NBA)', color: '#199e70',
+      dist: [5, 10, 18, 22, 18, 12, 8, 5, 1.5, 0.5] },
+    { key: 'soccer',   name: 'Soccer (pro-contract level, global)', color: '#c98500',
+      dist: [15, 20, 20, 17, 12, 8, 5, 2, 0.8, 0.2] },
+    { key: 'mma',      name: 'MMA (regional → UFC roster)',    color: '#d55181',
+      dist: [20, 25, 20, 15, 10, 5, 3, 1.5, 0.4, 0.1] },
+    { key: 'diving',   name: 'Olympic diving & track & field',      color: '#008300',
+      dist: [26, 30, 20, 12, 7, 3, 1.8, 0.15, 0.04, 0.01] }
+  ];
+
+  var MAX_PCT = 32; // shared y-scale headroom across every panel
+
+  var THRESHOLDS = [50000, 100000, 150000, 200000, 250000, 300000, 400000,
+    500000, 750000, 1000000, 1500000, 2000000, 3000000];
+  var slider = document.getElementById('thresholdSlider');
+  var thresholdVal = document.getElementById('thresholdVal');
+
+  function fmtDollar(v) {
+    if (v >= 1000000) return '$' + (v / 1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M';
+    return '$' + Math.round(v / 1000) + 'k';
+  }
+
+  function fractionClearing(dist, threshold) {
+    var total = 0;
+    for (var i = 0; i < dist.length; i++) {
+      var lo = EDGES[i], hi = EDGES[i + 1];
+      if (hi <= threshold) continue;
+      if (lo >= threshold) { total += dist[i]; continue; }
+      var frac = (Math.log10(hi) - Math.log10(threshold)) / (Math.log10(hi) - Math.log10(lo));
+      total += dist[i] * frac;
+    }
+    return total;
+  }
+
+  // Build the panels once.
+  var panelsHost = document.getElementById('panels');
+  var canvases = {};
+  SPORTS.forEach(function (sport) {
+    var panel = document.createElement('div');
+    panel.className = 'panel';
+    panel.innerHTML =
+      '<div class="panelhead">' +
+        '<span class="swatch" style="background:' + sport.color + '"></span>' +
+        '<b>' + sport.name + '</b>' +
+        '<span class="clearpct" id="clear-' + sport.key + '"></span>' +
+      '</div>' +
+      '<canvas class="hist" id="chart-' + sport.key + '" width="640" height="140" ' +
+        'role="img" aria-label="Histogram of estimated lifetime earnings for ' + sport.name + '"></canvas>' +
+      '<div class="readout" id="readout-' + sport.key + '">Hover or tap a bar for detail.</div>';
+    panelsHost.appendChild(panel);
+    canvases[sport.key] = panel.querySelector('canvas');
+  });
+
+  // Shared axis row under the last panel.
+  var TICKS = [1e3, 1e4, 1e5, 1e6, 1e7, 1e8];
+  var TICK_LABELS = ['$1k', '$10k', '$100k', '$1M', '$10M', '$100M'];
+  var axisRow = document.getElementById('axisRow');
+  TICKS.forEach(function (t, i) {
+    var span = document.createElement('span');
+    span.style.left = (logPos(t) * 100) + '%';
+    span.textContent = TICK_LABELS[i];
+    axisRow.appendChild(span);
+  });
+
+  function drawPanel(sport, thresholdDollar) {
+    var canvas = canvases[sport.key];
+    var ctx = canvas.getContext('2d');
+    var W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    var tx = logPos(thresholdDollar) * W;
+    ctx.fillStyle = 'rgba(12,163,12,.16)';
+    ctx.fillRect(tx, 0, W - tx, H);
+
+    for (var i = 0; i < sport.dist.length; i++) {
+      var x0 = logPos(EDGES[i]) * W;
+      var x1 = logPos(EDGES[i + 1]) * W;
+      var bw = Math.max(1, x1 - x0 - 2);
+      var h = (sport.dist[i] / MAX_PCT) * (H - 4);
+      ctx.fillStyle = sport.color;
+      ctx.fillRect(x0 + 1, H - h, bw, h);
+    }
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(tx, 0); ctx.lineTo(tx, H);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  function binIndexAtFraction(frac) {
+    for (var i = 0; i < EDGES.length - 1; i++) {
+      if (frac >= logPos(EDGES[i]) && frac <= logPos(EDGES[i + 1])) return i;
+    }
+    return frac < 0 ? 0 : EDGES.length - 2;
+  }
+
+  function redraw() {
+    var threshold = THRESHOLDS[Number(slider.value)];
+    thresholdVal.textContent = fmtDollar(threshold);
+    SPORTS.forEach(function (sport) {
+      drawPanel(sport, threshold);
+      var pct = fractionClearing(sport.dist, threshold);
+      document.getElementById('clear-' + sport.key).textContent =
+        '≈ ' + (pct < 1 ? pct.toFixed(1) : Math.round(pct)) + '% clear it';
+    });
+    buildTable(threshold);
+  }
+
+  slider.addEventListener('input', redraw);
+
+  // Hover / tap readout per panel.
+  SPORTS.forEach(function (sport) {
+    var canvas = canvases[sport.key];
+    var readout = document.getElementById('readout-' + sport.key);
+    function handle(e) {
+      var rect = canvas.getBoundingClientRect();
+      var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      var frac = (clientX - rect.left) / rect.width;
+      if (frac < 0 || frac > 1) return;
+      var i = binIndexAtFraction(frac);
+      readout.textContent = BIN_LABELS[i] + ' lifetime — ≈ ' +
+        sport.dist[i] + '% of ' + sport.name.split(' (')[0] + ' pursuers land here.';
+    }
+    canvas.addEventListener('pointermove', handle);
+    canvas.addEventListener('pointerdown', handle);
+  });
+
+  // Toggles.
+  var tableToggle = document.getElementById('tableToggle');
+  var tableBox = document.getElementById('tableBox');
+  tableToggle.addEventListener('change', function () { tableBox.hidden = !tableToggle.checked; });
+
+  var methodToggle = document.getElementById('methodToggle');
+  var methodBox = document.getElementById('methodBox');
+  methodToggle.addEventListener('change', function () { methodBox.hidden = !methodToggle.checked; });
+
+  function buildTable(threshold) {
+    var host = document.getElementById('tableHost');
+    var html = '<table class="dataTable"><caption>% of each sport’s serious pursuers landing in each lifetime-earnings bin (illustrative estimate). “Clears line” uses the current ' + fmtDollar(threshold) + ' threshold.</caption><thead><tr><th>Sport</th>';
+    BIN_LABELS.forEach(function (l) { html += '<th>' + l + '</th>'; });
+    html += '<th>Clears line</th></tr></thead><tbody>';
+    SPORTS.forEach(function (sport) {
+      html += '<tr><td>' + sport.name.split(' (')[0] + '</td>';
+      sport.dist.forEach(function (v) { html += '<td>' + v + '%</td>'; });
+      var pct = fractionClearing(sport.dist, threshold);
+      html += '<td>≈ ' + (pct < 1 ? pct.toFixed(1) : Math.round(pct)) + '%</td></tr>';
+    });
+    html += '</tbody></table>';
+    host.innerHTML = html;
+  }
+
+  redraw();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1 @@
+Shipped the honest heuristic, not the paper's real monotone-GNE solver — that's next if wanted. Each bidder's spend target scales 1/N, so 'population' is the literal diffuse limit. Try N=2, then N~1500.

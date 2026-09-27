@@ -1,0 +1,1 @@
+Slowed the drag another ~10x (same eventual pull, just takes longer to arrive), doubled the flow's punch so it shows up well before max slider, and pinned the piece that just moved so it can never be dragged off its own target square.

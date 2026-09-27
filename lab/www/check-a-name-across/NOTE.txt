@@ -1,0 +1,1 @@
+Lab pages can only reach Bluesky's API, not a registrar, so a real availability check isn't possible here. Built an honest format-only TLD preview instead, with the banner and a second button both pointing straight at domain-gen.com for the real thing.

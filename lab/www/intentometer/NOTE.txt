@@ -1,0 +1,1 @@
+That last message wasn't a build ask, so I worked the open plan instead: added a two-handle compare mode using the same scoring as everything else here. History/trend and thread mode are still unbuilt.
