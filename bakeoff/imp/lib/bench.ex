@@ -18,12 +18,15 @@ defmodule ImpBench do
 
   alias ImpBench.Desk
 
-  @tasks ~w(route desk)
+  @tasks ~w(route desk desk_hard)
 
   def main do
     model_key = System.get_env("IMP_BENCH_MODEL") || raise "IMP_BENCH_MODEL is required"
     tasks = "IMP_BENCH_TASKS" |> System.get_env("route,desk") |> String.split(",", trim: true)
-    Enum.each(tasks, fn t -> t in @tasks || raise "unknown task #{t}; known: #{Enum.join(@tasks, ", ")}" end)
+
+    Enum.each(tasks, fn t ->
+      t in @tasks || raise "unknown task #{t}; known: #{Enum.join(@tasks, ", ")}"
+    end)
 
     out = System.get_env("BAKEOFF_OUT") || Path.join("out", model_key)
     File.mkdir_p!(out)
@@ -31,7 +34,12 @@ defmodule ImpBench do
     case lm_for(model_key) do
       {:skip, reason} ->
         IO.puts("skipping #{model_key}: #{reason}")
-        write_json(Path.join(out, "cell.json"), %{model: model_key, status: "skipped", reason: reason})
+
+        write_json(Path.join(out, "cell.json"), %{
+          model: model_key,
+          status: "skipped",
+          reason: reason
+        })
 
       {:ok, lm, meta} ->
         started = System.monotonic_time(:millisecond)
@@ -74,14 +82,22 @@ defmodule ImpBench do
     else
       spec = %{provider: :openai, id: m["model"], model: m["model"], base_url: m["openaiBase"]}
 
-      lm =
-        Imp.req_llm(spec,
-          api_key: api_key,
-          cache: false,
-          temperature: 0.0,
-          max_tokens: 2048,
-          receive_timeout: 120_000
+      # bakeoff/imp/models.json may override the defaults per model; a null
+      # value drops the option (a thinking model may reject `temperature`).
+      overrides =
+        case File.read("models.json") do
+          {:ok, body} -> body |> Jason.decode!() |> Map.get(key, %{})
+          _ -> %{}
+        end
+
+      opts =
+        [temperature: 0.0, max_tokens: 2048]
+        |> Keyword.merge(
+          for {k, v} <- overrides, k != "$comment", do: {String.to_existing_atom(k), v}
         )
+        |> Enum.reject(fn {_, v} -> is_nil(v) end)
+
+      lm = Imp.req_llm(spec, [api_key: api_key, cache: false, receive_timeout: 180_000] ++ opts)
 
       {:ok, lm, %{model: m["model"], base_url: m["openaiBase"]}}
     end
@@ -111,27 +127,55 @@ defmodule ImpBench do
   # the configuration behind rows R1/R2 of Imp's research/RESULTS.md, so these
   # numbers sit next to a published gpt-5.4-mini result.
   defp run("route", lm, out) do
-    data = Application.app_dir(:imp, "priv/tutorial/support_tickets.json") |> File.read!() |> Jason.decode!()
-    to_ex = fn rows -> Enum.map(rows, &(Imp.example(%{ticket: &1["ticket"], team: &1["team"]}) |> Imp.with_inputs([:ticket]))) end
+    data =
+      Application.app_dir(:imp, "priv/tutorial/support_tickets.json")
+      |> File.read!()
+      |> Jason.decode!()
+
+    to_ex = fn rows ->
+      Enum.map(
+        rows,
+        &(Imp.example(%{ticket: &1["ticket"], team: &1["team"]}) |> Imp.with_inputs([:ticket]))
+      )
+    end
+
     {train, test} = {to_ex.(data["train"]), to_ex.(data["test"])}
 
     router =
       "ticket -> team: enum[atlas,harbor,beacon,quill]"
-      |> Imp.signature("Route a support ticket to the team that owns it.\n" <> Enum.join(data["conventions"], "\n"))
+      |> Imp.signature(
+        "Route a support ticket to the team that owns it.\n" <>
+          Enum.join(data["conventions"], "\n")
+      )
       |> Imp.predict(lm: lm)
 
     metric = Imp.exact_match(:team)
-    {zero, t0} = timed(fn -> Imp.evaluate(router, test, metric, num_threads: 4, timeout: 180_000) end)
+
+    {zero, t0} =
+      timed(fn -> Imp.evaluate(router, test, metric, num_threads: 4, timeout: 180_000) end)
+
     compiled = Imp.optimize!(router, Imp.Optimizer.LabeledFewShot.new(k: 8, sample: false), train)
-    {few, t1} = timed(fn -> Imp.evaluate(compiled, test, metric, num_threads: 4, timeout: 180_000) end)
+
+    {few, t1} =
+      timed(fn -> Imp.evaluate(compiled, test, metric, num_threads: 4, timeout: 180_000) end)
 
     save_program(compiled, Path.join(out, "route.program.json"))
 
     %{
       n_test: length(test),
       arms: %{
-        "zero_shot" => %{score: zero.score, errors: length(zero.errors), seconds: t0, error_samples: error_samples(zero)},
-        "few_shot_k8" => %{score: few.score, errors: length(few.errors), seconds: t1, error_samples: error_samples(few)}
+        "zero_shot" => %{
+          score: zero.score,
+          errors: length(zero.errors),
+          seconds: t0,
+          error_samples: error_samples(zero)
+        },
+        "few_shot_k8" => %{
+          score: few.score,
+          errors: length(few.errors),
+          seconds: t1,
+          error_samples: error_samples(few)
+        }
       },
       misses: misses(zero, :team),
       misses_few_shot: misses(few, :team)
@@ -147,27 +191,153 @@ defmodule ImpBench do
 
     agent =
       "question -> answer: string, work: string"
-      |> Imp.signature(Desk.instructions() <> "\nIn `work`, say in one line which looked-up values you used.")
+      |> Imp.signature(
+        Desk.instructions() <> "\nIn `work`, say in one line which looked-up values you used."
+      )
       |> Imp.react(Desk.tools(), lm: lm, max_iters: 12)
 
+    {arm, rows} = run_agent(agent, test)
+    File.write!(Path.join(out, "traces.md"), traces_md(rows))
+    agent_result(test, %{"react" => arm}, rows)
+  end
+
+  # desk_hard: a ReAct baseline on the 18 test questions, and — when this model
+  # is named in IMP_BENCH_GEPA — GEPA on the 9 train / 9 validation questions,
+  # with IMP_BENCH_REFLECTION's model reading the failed runs and rewriting the
+  # agent's instructions, then the optimized agent on the same 18.
+  defp run("desk_hard", lm, out) do
+    alias ImpBench.DeskHard
+    {train, val, test} = DeskHard.split()
+
+    agent =
+      "question -> answer: string, work: string"
+      |> Imp.signature(
+        DeskHard.instructions() <> "\nIn `work`, say in one line which looked-up values you used."
+      )
+      |> Imp.react(DeskHard.tools(), lm: lm, max_iters: 16)
+
+    {base_arm, base_rows} = run_agent(agent, test)
+    File.write!(Path.join(out, "hard.traces.md"), traces_md(base_rows))
+    result = agent_result(test, %{"react" => base_arm}, base_rows)
+
+    case gepa_for(lm) do
+      nil ->
+        result
+
+      {reflection_lm, reflection_key, max_calls} ->
+        IO.puts("   GEPA: reflection #{reflection_key}, max_metric_calls #{max_calls}")
+
+        gepa =
+          Imp.Optimizer.GEPA.new(DeskHard.metric(),
+            reflection_lm: reflection_lm,
+            max_metric_calls: max_calls,
+            num_threads: 4,
+            seed: 20_260_927
+          )
+
+        {optimized, gepa_secs} =
+          timed(fn ->
+            Imp.optimize!(agent, gepa, DeskHard.examples(train), DeskHard.examples(val))
+          end)
+
+        {opt_arm, opt_rows} = run_agent(optimized, test)
+        File.write!(Path.join(out, "hard.gepa.traces.md"), traces_md(opt_rows))
+        save_program(optimized, Path.join(out, "hard.gepa.program.json"))
+
+        before = Imp.ProgramParameters.values(agent)
+        after_ = Imp.ProgramParameters.values(optimized)
+
+        changed =
+          for {id, v} <- after_, before[id] != v, into: %{} do
+            {inspect(id), %{before: text(before[id]), after: text(v)}}
+          end
+
+        result
+        |> put_in([:arms, "react_gepa"], Map.put(opt_arm, :optimize_seconds, gepa_secs))
+        |> Map.put(:gepa, %{
+          reflection: reflection_key,
+          max_metric_calls: max_calls,
+          changed: changed
+        })
+        |> Map.put(:rows_gepa, Enum.map(opt_rows, &Map.drop(&1, [:steps])))
+    end
+  end
+
+  defp gepa_for(_lm) do
+    targets = "IMP_BENCH_GEPA" |> System.get_env("") |> String.split(",", trim: true)
+    me = System.get_env("IMP_BENCH_MODEL")
+
+    if me in targets do
+      rkey =
+        if System.get_env("IMP_BENCH_REFLECTION") in [nil, ""],
+          do: me,
+          else: System.get_env("IMP_BENCH_REFLECTION")
+
+      calls =
+        case System.get_env("IMP_BENCH_GEPA_CALLS") do
+          v when v in [nil, ""] -> 150
+          v -> String.to_integer(v)
+        end
+
+      reflection_lm =
+        case lm_for(rkey) do
+          {:ok, rlm, _} -> rlm
+          {:skip, why} -> raise "reflection model #{rkey} unavailable: #{why}"
+        end
+
+      {reflection_lm, rkey, calls}
+    end
+  end
+
+  defp text(v) when is_binary(v), do: v
+  defp text(v), do: inspect(v, limit: 50, printable_limit: 4000)
+
+  defp run_agent(agent, questions) do
     {rows, secs} =
       timed(fn ->
-        test
-        |> Task.async_stream(&ask(agent, &1), max_concurrency: 4, timeout: 300_000, on_timeout: :kill_task)
-        |> Enum.zip(test)
+        questions
+        |> Task.async_stream(&ask(agent, &1),
+          max_concurrency: 4,
+          timeout: 400_000,
+          on_timeout: :kill_task
+        )
+        |> Enum.zip(questions)
         |> Enum.map(fn
-          {{:ok, row}, _q} -> row
-          {{:exit, reason}, q} -> %{id: q.id, question: q.question, expected: q.answer, got: nil, score: 0.0, error: "timeout: #{inspect(reason)}", steps: []}
+          {{:ok, row}, _q} ->
+            row
+
+          {{:exit, reason}, q} ->
+            %{
+              id: q.id,
+              question: q.question,
+              expected: q.answer,
+              got: nil,
+              score: 0.0,
+              error: "timeout: #{inspect(reason)}",
+              steps: []
+            }
         end)
       end)
 
-    File.write!(Path.join(out, "traces.md"), traces_md(rows))
+    calls = rows |> Enum.flat_map(& &1.steps) |> Enum.flat_map(& &1.calls)
 
+    arm = %{
+      score: mean(Enum.map(rows, & &1.score)),
+      errors: Enum.count(rows, & &1[:error]),
+      seconds: secs,
+      tool_calls: length(calls),
+      usage: rows |> Enum.map(&(&1[:usage] || %{})) |> Enum.reduce(%{}, &sum_usage/2)
+    }
+
+    {arm, rows}
+  end
+
+  defp agent_result(test, arms, rows) do
     calls = rows |> Enum.flat_map(& &1.steps) |> Enum.flat_map(& &1.calls)
 
     %{
       n_test: length(test),
-      arms: %{"react" => %{score: mean(Enum.map(rows, & &1.score)), errors: Enum.count(rows, & &1[:error]), seconds: secs}},
+      arms: arms,
       tool_calls: length(calls),
       tool_calls_by_name: calls |> Enum.frequencies_by(& &1.name),
       terminations: rows |> Enum.frequencies_by(&to_string(&1[:termination] || "error")),
@@ -191,13 +361,23 @@ defmodule ImpBench do
           work: Imp.get(pred, :work),
           score: Desk.score(q.answer, to_string(got || "")),
           termination: pred.metadata[:termination_reason],
-          termination_cause: pred.metadata[:termination_cause] && inspect(pred.metadata[:termination_cause], limit: 12, printable_limit: 400),
+          termination_cause:
+            pred.metadata[:termination_cause] &&
+              inspect(pred.metadata[:termination_cause], limit: 12, printable_limit: 400),
           usage: flatten_usage(usage),
           steps: steps(pred)
         }
 
       {:error, reason} ->
-        %{id: q.id, question: q.question, expected: q.answer, got: nil, score: 0.0, error: inspect(reason, limit: 20), steps: []}
+        %{
+          id: q.id,
+          question: q.question,
+          expected: q.answer,
+          got: nil,
+          score: 0.0,
+          error: inspect(reason, limit: 20),
+          steps: []
+        }
     end
   end
 
@@ -215,7 +395,11 @@ defmodule ImpBench do
         thought: get_in_any(msg, [:next_thought]),
         calls:
           for c <- calls do
-            %{name: to_string(field(c, :name)), args: field(c, :arguments), result: Map.get(results, field(c, :id))}
+            %{
+              name: to_string(field(c, :name)),
+              args: field(c, :arguments),
+              result: Map.get(results, field(c, :id))
+            }
           end
       }
     end
@@ -224,8 +408,14 @@ defmodule ImpBench do
   defp results_by_id(nil), do: %{}
 
   defp results_by_id(results) do
-    list = if is_map(results) and Map.has_key?(results, :results), do: results.results, else: List.wrap(results)
-    for r <- list, into: %{}, do: {field(r, :id) || field(r, :call_id), field(r, :result) || field(r, :content) || r}
+    list =
+      if is_map(results) and Map.has_key?(results, :results),
+        do: results.results,
+        else: List.wrap(results)
+
+    for r <- list,
+        into: %{},
+        do: {field(r, :id) || field(r, :call_id), field(r, :result) || field(r, :content) || r}
   rescue
     _ -> %{}
   end
@@ -283,7 +473,11 @@ defmodule ImpBench do
   defp save_program(program, path) do
     Imp.Saving.save!(program, path)
   rescue
-    e -> File.write!(path, Jason.encode!(%{error: "could not save program: " <> Exception.message(e)}))
+    e ->
+      File.write!(
+        path,
+        Jason.encode!(%{error: "could not save program: " <> Exception.message(e)})
+      )
   end
 
   defp timed(fun) do
@@ -323,6 +517,7 @@ defmodule ImpBench do
 
   defp short(nil), do: "∅"
   defp short(v) when is_binary(v), do: String.slice(v, 0, 160)
+
   defp short(v) do
     v |> Jason.encode!() |> String.slice(0, 160)
   rescue

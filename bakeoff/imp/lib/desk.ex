@@ -18,21 +18,101 @@ defmodule ImpBench.Desk do
   @today ~D[2026-09-27]
 
   @customers %{
-    "C1" => %{"id" => "C1", "email" => "ana@example.com", "name" => "Ana Ruiz", "tier" => "gold", "country" => "ES"},
-    "C2" => %{"id" => "C2", "email" => "ben@example.com", "name" => "Ben Okafor", "tier" => "standard", "country" => "GB"},
-    "C3" => %{"id" => "C3", "email" => "chen@example.com", "name" => "Chen Wei", "tier" => "standard", "country" => "US"},
-    "C4" => %{"id" => "C4", "email" => "dara@example.com", "name" => "Dara Kim", "tier" => "gold", "country" => "US"}
+    "C1" => %{
+      "id" => "C1",
+      "email" => "ana@example.com",
+      "name" => "Ana Ruiz",
+      "tier" => "gold",
+      "country" => "ES"
+    },
+    "C2" => %{
+      "id" => "C2",
+      "email" => "ben@example.com",
+      "name" => "Ben Okafor",
+      "tier" => "standard",
+      "country" => "GB"
+    },
+    "C3" => %{
+      "id" => "C3",
+      "email" => "chen@example.com",
+      "name" => "Chen Wei",
+      "tier" => "standard",
+      "country" => "US"
+    },
+    "C4" => %{
+      "id" => "C4",
+      "email" => "dara@example.com",
+      "name" => "Dara Kim",
+      "tier" => "gold",
+      "country" => "US"
+    }
   }
 
   @orders %{
-    "O-101" => %{"id" => "O-101", "customer_id" => "C1", "date" => "2026-08-02", "category" => "electronics", "amount_usd" => 240.0, "status" => "delivered"},
-    "O-102" => %{"id" => "O-102", "customer_id" => "C1", "date" => "2026-09-10", "category" => "apparel", "amount_usd" => 80.0, "status" => "delivered"},
-    "O-103" => %{"id" => "O-103", "customer_id" => "C2", "date" => "2026-09-01", "category" => "electronics", "amount_usd" => 500.0, "status" => "delivered"},
-    "O-104" => %{"id" => "O-104", "customer_id" => "C2", "date" => "2026-09-20", "category" => "books", "amount_usd" => 30.0, "status" => "shipped"},
-    "O-105" => %{"id" => "O-105", "customer_id" => "C3", "date" => "2026-07-15", "category" => "apparel", "amount_usd" => 120.0, "status" => "delivered"},
-    "O-106" => %{"id" => "O-106", "customer_id" => "C3", "date" => "2026-09-18", "category" => "electronics", "amount_usd" => 60.0, "status" => "returned"},
-    "O-107" => %{"id" => "O-107", "customer_id" => "C4", "date" => "2026-09-05", "category" => "furniture", "amount_usd" => 900.0, "status" => "delivered"},
-    "O-108" => %{"id" => "O-108", "customer_id" => "C4", "date" => "2026-09-22", "category" => "books", "amount_usd" => 45.0, "status" => "delivered"}
+    "O-101" => %{
+      "id" => "O-101",
+      "customer_id" => "C1",
+      "date" => "2026-08-02",
+      "category" => "electronics",
+      "amount_usd" => 240.0,
+      "status" => "delivered"
+    },
+    "O-102" => %{
+      "id" => "O-102",
+      "customer_id" => "C1",
+      "date" => "2026-09-10",
+      "category" => "apparel",
+      "amount_usd" => 80.0,
+      "status" => "delivered"
+    },
+    "O-103" => %{
+      "id" => "O-103",
+      "customer_id" => "C2",
+      "date" => "2026-09-01",
+      "category" => "electronics",
+      "amount_usd" => 500.0,
+      "status" => "delivered"
+    },
+    "O-104" => %{
+      "id" => "O-104",
+      "customer_id" => "C2",
+      "date" => "2026-09-20",
+      "category" => "books",
+      "amount_usd" => 30.0,
+      "status" => "shipped"
+    },
+    "O-105" => %{
+      "id" => "O-105",
+      "customer_id" => "C3",
+      "date" => "2026-07-15",
+      "category" => "apparel",
+      "amount_usd" => 120.0,
+      "status" => "delivered"
+    },
+    "O-106" => %{
+      "id" => "O-106",
+      "customer_id" => "C3",
+      "date" => "2026-09-18",
+      "category" => "electronics",
+      "amount_usd" => 60.0,
+      "status" => "returned"
+    },
+    "O-107" => %{
+      "id" => "O-107",
+      "customer_id" => "C4",
+      "date" => "2026-09-05",
+      "category" => "furniture",
+      "amount_usd" => 900.0,
+      "status" => "delivered"
+    },
+    "O-108" => %{
+      "id" => "O-108",
+      "customer_id" => "C4",
+      "date" => "2026-09-22",
+      "category" => "books",
+      "amount_usd" => 45.0,
+      "status" => "delivered"
+    }
   }
 
   # window in days from the order date; percent of the price refunded, by tier
@@ -70,27 +150,41 @@ defmodule ImpBench.Desk do
 
   def tools do
     [
-      Imp.tool(:find_customer, "Look up a customer by email. Returns id, name, tier and country.",
+      Imp.tool(
+        :find_customer,
+        "Look up a customer by email. Returns id, name, tier and country.",
         fn %{"email" => email} ->
           Enum.find_value(@customers, %{"error" => "no customer with that email"}, fn {_, c} ->
             if String.downcase(c["email"]) == String.downcase(String.trim(email)), do: c
           end)
-        end,
-        schema: obj(%{"email" => %{"type" => "string"}}, ["email"])
-      ),
-      Imp.tool(:list_orders, "List a customer's order ids, oldest first.",
+        end, schema: obj(%{"email" => %{"type" => "string"}}, ["email"])),
+      Imp.tool(
+        :list_orders,
+        "List a customer's order ids, oldest first.",
         fn %{"customer_id" => id} -> %{"order_ids" => order_ids(id)} end,
         schema: obj(%{"customer_id" => %{"type" => "string"}}, ["customer_id"])
       ),
-      Imp.tool(:get_order, "Read one order: customer, date, category, price in USD and status.",
-        fn %{"order_id" => id} -> Map.get(@orders, String.trim(id), %{"error" => "no such order"}) end,
-        schema: obj(%{"order_id" => %{"type" => "string"}}, ["order_id"])
-      ),
-      Imp.tool(:refund_policy, "Refund window (days) and percent refunded for a product category and customer tier.",
+      Imp.tool(
+        :get_order,
+        "Read one order: customer, date, category, price in USD and status.",
+        fn %{"order_id" => id} ->
+          Map.get(@orders, String.trim(id), %{"error" => "no such order"})
+        end, schema: obj(%{"order_id" => %{"type" => "string"}}, ["order_id"])),
+      Imp.tool(
+        :refund_policy,
+        "Refund window (days) and percent refunded for a product category and customer tier.",
         fn %{"category" => cat, "tier" => tier} ->
           case @policy[cat] do
-            nil -> %{"error" => "no policy for that category"}
-            p -> %{"category" => cat, "tier" => tier, "window_days" => p["window_days"], "percent" => p["percent"][tier]}
+            nil ->
+              %{"error" => "no policy for that category"}
+
+            p ->
+              %{
+                "category" => cat,
+                "tier" => tier,
+                "window_days" => p["window_days"],
+                "percent" => p["percent"][tier]
+              }
           end
         end,
         schema:
@@ -102,26 +196,39 @@ defmodule ImpBench.Desk do
             ["category", "tier"]
           )
       ),
-      Imp.tool(:days_since, "Days from a date (YYYY-MM-DD) to today.",
+      Imp.tool(
+        :days_since,
+        "Days from a date (YYYY-MM-DD) to today.",
         fn %{"date" => date} ->
           case Date.from_iso8601(String.trim(date)) do
             {:ok, d} -> %{"today" => Date.to_iso8601(@today), "days" => Date.diff(@today, d)}
             _ -> %{"error" => "date must be YYYY-MM-DD"}
           end
-        end,
-        schema: obj(%{"date" => %{"type" => "string"}}, ["date"])
-      ),
-      Imp.tool(:convert, "Convert a USD amount to a currency (USD, EUR or GBP), and the country's currency if you pass a country code instead.",
+        end, schema: obj(%{"date" => %{"type" => "string"}}, ["date"])),
+      Imp.tool(
+        :convert,
+        "Convert a USD amount to a currency (USD, EUR or GBP), and the country's currency if you pass a country code instead.",
         fn args ->
           to = args["to"] |> to_string() |> String.upcase()
           to = Map.get(@currency, to, to)
 
           case @usd_to[to] do
-            nil -> %{"error" => "unknown currency"}
-            rate -> %{"amount" => round2(num(args["amount_usd"]) * rate), "currency" => to, "rate" => rate}
+            nil ->
+              %{"error" => "unknown currency"}
+
+            rate ->
+              %{
+                "amount" => round2(num(args["amount_usd"]) * rate),
+                "currency" => to,
+                "rate" => rate
+              }
           end
         end,
-        schema: obj(%{"amount_usd" => %{"type" => "number"}, "to" => %{"type" => "string"}}, ["amount_usd", "to"])
+        schema:
+          obj(%{"amount_usd" => %{"type" => "number"}, "to" => %{"type" => "string"}}, [
+            "amount_usd",
+            "to"
+          ])
       )
     ]
   end
@@ -133,7 +240,9 @@ defmodule ImpBench.Desk do
     refund_q =
       for id <- Map.keys(@orders) |> Enum.sort() do
         c = @customers[@orders[id]["customer_id"]]
-        {"How much would #{c["email"]} be refunded for order #{id}, in their local currency?", {:refund, id}}
+
+        {"How much would #{c["email"]} be refunded for order #{id}, in their local currency?",
+         {:refund, id}}
       end
 
     window_q =
@@ -154,12 +263,15 @@ defmodule ImpBench.Desk do
 
     count_q =
       for cid <- ~w(C2 C3) do
-        {"How many of #{@customers[cid]["email"]}'s orders are eligible for a refund today?", {:count, cid}}
+        {"How many of #{@customers[cid]["email"]}'s orders are eligible for a refund today?",
+         {:count, cid}}
       end
 
     (refund_q ++ window_q ++ priciest_q ++ total_q ++ count_q)
     |> Enum.with_index(1)
-    |> Enum.map(fn {{q, key}, i} -> %{id: "d#{String.pad_leading("#{i}", 2, "0")}", question: q, answer: solve(key), key: key} end)
+    |> Enum.map(fn {{q, key}, i} ->
+      %{id: "d#{String.pad_leading("#{i}", 2, "0")}", question: q, answer: solve(key), key: key}
+    end)
   end
 
   @doc "Deterministic split: every third question trains, the rest are held out."
@@ -179,10 +291,16 @@ defmodule ImpBench.Desk do
     money(usd, cid)
   end
 
-  def solve({:count, cid}), do: cid |> order_ids() |> Enum.count(&eligible?/1) |> Integer.to_string()
+  def solve({:count, cid}),
+    do: cid |> order_ids() |> Enum.count(&eligible?/1) |> Integer.to_string()
 
   defp order_ids(cid),
-    do: @orders |> Map.values() |> Enum.filter(&(&1["customer_id"] == cid)) |> Enum.sort_by(& &1["date"]) |> Enum.map(& &1["id"])
+    do:
+      @orders
+      |> Map.values()
+      |> Enum.filter(&(&1["customer_id"] == cid))
+      |> Enum.sort_by(& &1["date"])
+      |> Enum.map(& &1["id"])
 
   defp eligible?(id) do
     o = @orders[id]
@@ -193,7 +311,10 @@ defmodule ImpBench.Desk do
   defp refund_usd(id) do
     o = @orders[id]
     tier = @customers[o["customer_id"]]["tier"]
-    if eligible?(id), do: o["amount_usd"] * @policy[o["category"]]["percent"][tier] / 100, else: 0.0
+
+    if eligible?(id),
+      do: o["amount_usd"] * @policy[o["category"]]["percent"][tier] / 100,
+      else: 0.0
   end
 
   # Convert per order and round at the end, exactly as `convert` would on the summed USD.
@@ -227,23 +348,36 @@ defmodule ImpBench.Desk do
       |> String.replace("€", " eur ")
       |> String.replace("£", " gbp ")
       |> String.replace("$", " usd ")
+      |> String.replace("¥", " jpy ")
+      |> String.replace("yen", "jpy")
       |> String.replace(~r/[`*,]/, "")
       |> String.trim()
 
     cond do
-      m = Regex.run(~r/\bo-\d+\b/, s) -> {:order, hd(m)}
-      m = Regex.run(~r/^(yes|no)\b/, s) -> {:bool, Enum.at(m, 1)}
+      m = Regex.run(~r/[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]+/, s) ->
+        {:email, hd(m)}
+
+      m = Regex.run(~r/\b[a-z]-\d+\b/, s) ->
+        {:order, hd(m)}
+
+      m = Regex.run(~r/^(yes|no)\b/, s) ->
+        {:bool, Enum.at(m, 1)}
+
       m = Regex.run(~r/(usd|eur|gbp)?\s*(\d+(?:\.\d+)?)\s*(usd|eur|gbp)?/, s) ->
         cur = Enum.find([Enum.at(m, 1), Enum.at(m, 3)], &(&1 not in [nil, ""]))
         v = Float.round(num(Enum.at(m, 2)), 2)
         if cur, do: {:money, v, cur}, else: {:num, v}
-      true -> {:text, s}
+
+      true ->
+        {:text, s}
     end
   end
 
   # ─── helpers ────────────────────────────────────────────────────────
 
-  defp obj(props, required), do: %{"type" => "object", "properties" => props, "required" => required}
+  defp obj(props, required),
+    do: %{"type" => "object", "properties" => props, "required" => required}
+
   defp round2(x), do: Float.round(x * 1.0, 2)
   defp num(n) when is_number(n), do: n * 1.0
 

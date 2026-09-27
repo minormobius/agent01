@@ -43,7 +43,11 @@ lines.push(
   'zero-shot vs. 8 labelled examples (Imp `LabeledFewShot`). `desk`: 16 questions a ReAct agent can only',
   'answer through six Elixir tools; the answer key is computed from the same data the tools read.',
   '',
-  '| model | route zero-shot | route few-shot (k=8) | desk (ReAct + tools) | tool calls | desk tokens | wall |',
+  '`desk_hard`: 18 held-out questions on a harder desk (policy versions by order date, windows from delivery,',
+  'restocking fees, undelivered orders, scans across customers, five currencies). `+GEPA`: the same agent after',
+  'GEPA rewrote its instructions from 9 train / 9 validation questions.',
+  '',
+  '| model | route zero-shot | route few-shot (k=8) | desk | desk_hard | desk_hard +GEPA | wall |',
   '|---|---|---|---|---|---|---|',
 );
 
@@ -52,9 +56,9 @@ for (const { cell } of cells) {
     lines.push(`| ${cell.model} | skipped: ${cell.reason} | | | | | |`);
     continue;
   }
-  const r = cell.tasks.route, d = cell.tasks.desk;
-  const tok = d?.usage ? (d.usage.total_tokens ?? ((d.usage.prompt_tokens || 0) + (d.usage.completion_tokens || 0))) : null;
-  lines.push(`| ${cell.model} (\`${cell.model_id}\`) | ${pct(r?.arms.zero_shot.score)} | ${pct(r?.arms.few_shot_k8.score)} | ${pct(d?.arms.react.score)} | ${d?.tool_calls ?? ''} | ${tok ?? ''} | ${cell.seconds}s |`);
+  const r = cell.tasks.route, d = cell.tasks.desk, h = cell.tasks.desk_hard;
+  const cellPct = (t, arm) => (t?.arms?.[arm] ? pct(t.arms[arm].score) : '—');
+  lines.push(`| ${cell.model} (\`${cell.model_id}\`) | ${cellPct(r, 'zero_shot')} | ${cellPct(r, 'few_shot_k8')} | ${cellPct(d, 'react')} | ${cellPct(h, 'react')} | ${cellPct(h, 'react_gepa')} | ${cell.seconds}s |`);
 }
 
 for (const { dir, cell } of cells) {
@@ -76,6 +80,36 @@ for (const { dir, cell } of cells) {
     );
     const t = path.join(dir, 'traces.md');
     if (fs.existsSync(t)) fs.copyFileSync(t, path.join(outDir, `${slug}.traces.md`));
+  }
+  if (cell.probe) lines.push(`probe: \`${String(cell.probe).slice(0, 300).replace(/`/g, "'")}\``, '');
+  const h = cell.tasks.desk_hard;
+  if (h) {
+    const tok = (u) => (u ? (u.total_tokens ?? (u.input_tokens || 0) + (u.output_tokens || 0)) : 0);
+    lines.push('', `**desk_hard:** ${Object.entries(h.arms).map(([k, a]) => `${k} ${pct(a.score)} (${a.tool_calls} tool calls, ${tok(a.usage)} tokens, ${a.seconds}s${a.optimize_seconds != null ? `; optimizing took ${a.optimize_seconds}s` : ''})`).join(' · ')}`, '');
+    const g = new Map((h.rows_gepa || []).map((x) => [x.id, x]));
+    lines.push(`| q | expected | react | ${g.size ? '+GEPA |' : ''}`, `|---|---|---|${g.size ? '---|' : ''}`);
+    for (const x of h.rows) {
+      const y = g.get(x.id);
+      const show = (z) => `\`${String(z.got ?? '').replace(/\|/g, '/').slice(0, 40)}\` ${z.score === 1 ? '✓' : '✗'}`;
+      lines.push(`| ${x.id} | \`${x.expected}\` | ${show(x)} | ${y ? show(y) + ' |' : ''}`);
+    }
+    for (const [f, label] of [['hard.traces.md', 'baseline'], ['hard.gepa.traces.md', 'after GEPA']]) {
+      const src = path.join(dir, f);
+      if (fs.existsSync(src)) {
+        fs.copyFileSync(src, path.join(outDir, `${slug}.${f}`));
+        lines.push('', `Traces (${label}): [\`${slug}.${f}\`](${slug}.${f})`);
+      }
+    }
+    if (h.gepa) {
+      const changed = Object.entries(h.gepa.changed || {});
+      lines.push('', `**GEPA** (reflection model \`${h.gepa.reflection}\`, max_metric_calls ${h.gepa.max_metric_calls}): ` +
+        (changed.length ? `rewrote ${changed.length} parameter(s).` : 'kept the original program (no candidate beat it).'));
+      for (const [id, c] of changed) {
+        lines.push('', `<details><summary>${id}</summary>`, '', '**before**', '', '```', c.before, '```', '', '**after**', '', '```', c.after, '```', '', '</details>');
+      }
+      const p = path.join(dir, 'hard.gepa.program.json');
+      if (fs.existsSync(p)) fs.copyFileSync(p, path.join(outDir, `${slug}.hard.gepa.program.json`));
+    }
   }
   const r = cell.tasks.route;
   if (r) {

@@ -16,6 +16,7 @@ beside: [`../CLAUDE.md`](../CLAUDE.md).
 |---|---|---|---|
 | `route` | `Imp.predict`, `ticket -> team: enum[atlas,harbor,beacon,quill]` | Imp's own `priv/tutorial/support_tickets.json`, 20 train / 20 test | zero-shot; `LabeledFewShot(k: 8)` |
 | `desk` | `Imp.react` over six Elixir tools (`lib/desk.ex`) | 24 generated questions, 8 train / 16 test | ReAct zero-shot |
+| `desk_hard` | `Imp.react` over seven tools (`lib/desk_hard.ex`) | 36 generated questions, 9 train / 9 validation / 18 test | ReAct zero-shot; + GEPA |
 
 `route` is the configuration behind rows R1/R2 of Imp's `research/RESULTS.md`
 (gpt-5.4-mini: 0.30–0.40 → 0.90–0.95), so our numbers sit next to a published one.
@@ -27,6 +28,22 @@ is computed by `Desk.solve/1` from the same data the tools read**, never typed
 by hand. Scoring (`Desk.score/2`) is lenient on form and strict on value:
 `€73.6` matches `73.60 EUR`; `73.60 USD` does not; money gets a 1-cent tolerance
 so summing before or after converting can't cost a point.
+
+`desk` hit the ceiling on imp-01 (both DeepSeek models 16/16), so it stays as
+the easy control and `desk_hard` carries the traps a real policy has: the
+policy **version** follows the ORDER date (v1 before 2026-09-01; v2 cut the
+electronics window 30 → 21 and raised furniture's to 45), windows run from
+**delivery**, undelivered orders **cancel for 100%**, opened electronics pay a
+**restocking fee** after the tier percent, some questions **scan** every
+customer, and JPY joins the currencies. P-205 is refundable only under v1 and
+P-213 only under v2, so an agent that reads today's policy gets both wrong.
+
+Its metric returns feedback as well as a score: on a miss, the reference
+solver's derivation ("P-205 ordered 2026-08-29 → policy v1; delivered 25 days
+ago, within 30; standard 90% of 250.00 → 225.00 USD"). That is what GEPA's
+reflection model reads, beside the whole failed run (every tool call and
+result), when it rewrites the agent's instructions. The report prints the
+instruction before and after in full.
 
 ## Running
 
@@ -51,8 +68,16 @@ endpoint and id the harness cells use. Imp reaches them as
 `.github/workflows/imp-bench.yml`'s trigger):
 
 ```json
-{ "runId": "imp-01", "models": ["ds4-flash", "kimi3"], "tasks": ["route", "desk"], "note": "why" }
+{ "runId": "imp-02", "models": ["ds4-flash", "kimi3"], "tasks": ["route", "desk_hard"],
+  "gepa": { "models": ["ds4-flash"], "reflection": "ds4-pro", "maxMetricCalls": 150 },
+  "note": "why" }
 ```
+
+`gepa` is optional and runs only for the models it names (it costs roughly
+`maxMetricCalls` whole agent runs plus the reflection calls; the plan step
+refuses more than 400). `models.json` overrides LM options per model — `null`
+drops one; `kimi3` sends no `temperature` and a 16k `max_tokens`, because
+kimi-k3 always thinks.
 
 One runner per model. Results land on a `bakeoff/<run-id>` branch as
 `bakeoff/results/<run-id>/`: `report.md`, `results.json`, each model's
@@ -81,6 +106,8 @@ cold compile of Imp and its deps takes ~2.5 min on 4 cores.
 - **Usage is what the provider reports** through ReqLLM, per desk question.
   `route` runs in `Imp.evaluate`'s worker processes, outside the usage frame,
   so its tokens are not counted.
-- **No optimizer arm on `desk` yet.** The train split is reserved for GEPA,
-  which needs a reflection model and a budget — the next run, once the
-  baseline says where agents fail.
+- **GEPA's budget is `max_metric_calls`, checked between iterations**, so an
+  iteration that starts may finish past it (Imp's pinned-DSPy semantics).
+- **A saved program carries no key**, and one built on the scripted model
+  cannot be saved at all (`Imp.LM.Static` is not portable) — expected in the
+  self-test, where `*.program.json` holds that error instead.

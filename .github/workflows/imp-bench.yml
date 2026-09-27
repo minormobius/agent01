@@ -37,6 +37,7 @@ jobs:
       go: ${{ steps.plan.outputs.go }}
       run_id: ${{ steps.plan.outputs.run_id }}
       tasks: ${{ steps.plan.outputs.tasks }}
+      gepa: ${{ steps.plan.outputs.gepa }}
       matrix: ${{ steps.plan.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
@@ -65,11 +66,19 @@ jobs:
             const models = cfg.models?.length ? cfg.models : Object.keys(cells.models);
             for (const m of models) if (!cells.models[m]) { console.error(`::error::unknown model ${m}`); process.exit(1); }
             const tasks = (cfg.tasks?.length ? cfg.tasks : ["route", "desk"]);
-            for (const t of tasks) if (!["route", "desk"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
+            for (const t of tasks) if (!["route", "desk", "desk_hard"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
+            // GEPA: {"models": [...], "reflection": "<model>", "maxMetricCalls": N}. It spends
+            // far more than a baseline, so it runs only for the models named here.
+            const gepa = cfg.gepa || {};
+            for (const m of [...(gepa.models || []), ...(gepa.reflection ? [gepa.reflection] : [])])
+              if (!cells.models[m]) { console.error(`::error::unknown GEPA model ${m}`); process.exit(1); }
+            const calls = Number(gepa.maxMetricCalls ?? 150);
+            if (!(calls > 0 && calls <= 400)) { console.error(`::error::maxMetricCalls ${calls} is outside 1..400`); process.exit(1); }
             if (models.length > 8) { console.error("::error::more than 8 models looks like a mistake"); process.exit(1); }
             const runId = process.env.INPUT_RUN_ID || cfg.runId || `imp-${Date.now()}`;
             const out = process.env.GITHUB_OUTPUT;
             fs.appendFileSync(out, `run_id=${runId}\ntasks=${tasks.join(",")}\nmatrix=${JSON.stringify({ model: models })}\n`);
+            fs.appendFileSync(out, `gepa=${JSON.stringify({ models: (gepa.models || []).join(","), reflection: gepa.reflection || "", calls })}\n`);
             fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
               `## Imp bench \`${runId}\`\n\n${cfg.note || ""}\n\nmodels: ${models.join(", ")} · tasks: ${tasks.join(", ")}\n`);
           '
@@ -78,7 +87,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.go == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -102,13 +111,18 @@ jobs:
       - name: Compile
         run: mix deps.get && mix compile
       - name: The rig's own test (scripted model, no key, no spend)
-        run: IMP_BENCH_MODEL=static BAKEOFF_OUT=/tmp/static mix run -e 'ImpBench.main()'
+        run: |
+          IMP_BENCH_MODEL=static IMP_BENCH_TASKS=route,desk,desk_hard IMP_BENCH_GEPA=static \
+            IMP_BENCH_GEPA_CALLS=30 BAKEOFF_OUT=/tmp/static mix run -e 'ImpBench.main()'
       - name: Run cell
         env:
           MOONSHOT_API_KEY: ${{ secrets.MOONSHOT_API_KEY || secrets.MOONSHOT_KEY || secrets.KIMI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY || secrets.DEEPSEEK_KEY || secrets.DS_API_KEY || secrets.DEEPSEEK }}
           IMP_BENCH_MODEL: ${{ matrix.model }}
           IMP_BENCH_TASKS: ${{ needs.plan.outputs.tasks }}
+          IMP_BENCH_GEPA: ${{ fromJSON(needs.plan.outputs.gepa).models }}
+          IMP_BENCH_REFLECTION: ${{ fromJSON(needs.plan.outputs.gepa).reflection }}
+          IMP_BENCH_GEPA_CALLS: ${{ fromJSON(needs.plan.outputs.gepa).calls }}
           BAKEOFF_OUT: ${{ github.workspace }}/cellout/${{ matrix.model }}
         run: mix run -e 'ImpBench.main()'
       - uses: actions/upload-artifact@v4
