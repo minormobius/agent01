@@ -3020,6 +3020,15 @@
    "parent": "studio"
   },
   {
+   "id": "accretion",
+   "name": "accretion",
+   "url": "https://studio.mino.mobi/accretion/",
+   "cat": "games",
+   "commits": 1,
+   "age": "hot",
+   "parent": "studio"
+  },
+  {
    "id": "attractor bodies",
    "name": "attractor bodies",
    "url": "https://studio.mino.mobi/avatar/",

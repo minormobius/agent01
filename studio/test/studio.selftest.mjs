@@ -420,5 +420,27 @@ console.log('\nAttractor Bodies (packages/attractor)');
   ok(JSON.stringify(Av.character(4242, { plan: 'quadruped' }).genes) === JSON.stringify(Av.character(4242, { plan: 'quadruped' }).genes) && Av.character(4242).plan === 'humanoid', 'a creature is its seed too, and a bare seed is still the humanoid');
 }
 
+// 12 — Accretion: a creature grows the same house every time, keeps its flow free, and wanders ---------
+console.log('\nAccretion (packages/attractor/lib/shell.js)');
+{
+  const { Creature, pose, liveHalf } = await import('../vendor/attractor/lib/shell.js');
+  const a = new Creature(7).run(700), b = new Creature(7).run(700);
+  ok(a.digest() === b.digest() && a.count > 200, `a seed grows the same house every time (${a.count} crystals after 700 steps)`);
+  // the tips stop short of the flow: almost no tip sits where the current would dissolve it
+  const P = pose(a.g, a.s); let tips = 0, wet = 0, inward = 0;
+  for (let i = 0; i < a.n; i++) if (a.alive[i]) {
+    const L = a.len[i], f = a.field(P, a.base[i * 3] + a.dir[i * 3] * L, a.base[i * 3 + 1] + a.dir[i * 3 + 1] * L, a.base[i * 3 + 2] + a.dir[i * 3 + 2] * L);
+    tips++; if (f.current > a.g.channel * 1.5) wet++;
+    const v = [P.c[0] - a.base[i * 3], P.c[1] - a.base[i * 3 + 1], P.c[2] - a.base[i * 3 + 2]], l = Math.hypot(...v) || 1;
+    inward += (v[0] * a.dir[i * 3] + v[1] * a.dir[i * 3 + 1] + v[2] * a.dir[i * 3 + 2]) / l;
+  }
+  ok(wet / tips < 0.03 && inward / tips > 0.3, `the crystals point in at the flow (mean cos ${(inward / tips).toFixed(2)}) and stop short of it (${wet} of ${tips} tips in its current)`);
+  const c0 = pose(a.g, a.g.grow).c, c1 = pose(a.g, a.g.grow + 1500).c, moved = Math.hypot(c1[0] - c0[0], c1[2] - c0[2]);
+  ok(moved > 10 && liveHalf(10) > 0, `after growing it wanders (${moved.toFixed(1)} units in 1500 steps)`);
+  const late = new Creature(3).run(2400); let finite = true;
+  for (let i = 0; i < late.n; i++) if (late.alive[i] && !(Number.isFinite(late.len[i]) && late.len[i] > 0 && Number.isFinite(late.base[i * 3]))) finite = false;
+  ok(finite && late.lost > 0, `a long life stays finite, and dissolves as well as grows (grown ${late.laid}, dissolved ${late.lost})`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

@@ -4519,6 +4519,23 @@
       ]
     },
     {
+      "n": "accretion",
+      "u": "https://studio.mino.mobi/accretion/",
+      "c": "games",
+      "k": 1,
+      "a": "hot",
+      "t": "2026-09-27",
+      "b": "2026-09-27",
+      "p": "studio",
+      "surface": "studio",
+      "d": "A creature that is a strange attractor's flow and the crystal house it grows round itself: crystals nucleate where the flow feeds them, point in toward it, and dissolve wherever the orbit runs, so the flow carves a geode fitted to its shape. Then it wanders and leaves its old houses as reef.",
+      "tags": [
+        "generative",
+        "animation",
+        "math"
+      ]
+    },
+    {
       "n": "attractor bodies",
       "u": "https://studio.mino.mobi/avatar/",
       "c": "games",

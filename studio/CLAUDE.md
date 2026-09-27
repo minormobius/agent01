@@ -48,6 +48,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
 voice/                   a lab: Claude's voice by formant synthesis (lib/chipvoice.js), scored by Whisper (tools/voice.mjs)
 avatar/                  Attractor Bodies (sketchbook): packages/attractor (vendor/attractor/lib) on the figure rig
+accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
 descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
 bommie/                  No. 6, a sitcom on a coral head: script.js (the clock), world.js (poses at t), sound.js (synth), render.js (raymarch)
 pdoom/                   No. 5, a music video: the figure cast dancing Claude-Pop's song (YouTube-driven), checked every frame
@@ -468,6 +469,36 @@ README and CLAUDE.md), copied to `vendor/attractor/lib` by `scripts/sync-dataviz
   (no existing link changed). Creatures move or hold still, are looked down on a little more (pitch
   0.42), and are fitted to the stage by their extent over a gait. Lucky picks a plan a third of the time
   humanoid; the neighbours share the plan.
+
+## Accretion (accretion/), and packages/attractor/lib/shell.js
+
+A sketchbook (owner, 2026-09-27, after a Cryptic from Stormlight: "that mixture of morphing and
+crystalline… creatures grown then lived in… I see us as some kind of hybrid organism"). Our own thing,
+not a Cryptic: a creature that is a FLOW (a bestiary attractor, its orbit running) and a HOUSE of
+crystals the flow grows round itself. The flow is the process; the crystal is what it leaves, and what
+shapes it next.
+
+- **The rules** (shell.js): the orbit's density, blurred, is the nutrient; close in it is the current.
+  Crystals nucleate on a band of nutrient (fed, but out of the flow's way), more readily beside others
+  (a druse clusters), pointing up the nutrient's gradient: in, at the flow. A tip grows while fed and is
+  dissolved back where the current runs, so the tips stop short of the orbit and carve a room fitted to
+  it. After `grow` steps it wanders a slow closed path; the house is re-grown ahead, and what is left
+  unfed bleaches and erodes very slowly: a reef, which the flow carves through when it comes round.
+- **Genes**: the attractor, size, halo/wall/channel (where it feeds, how close crystals may come),
+  girth, reach, habit (a pull to the cube's axes and diagonals), clustering, the mineral (bismuth's
+  thin film, quartz, amethyst, obsidian, citrine: `MINERALS`), the path's pace.
+- **Deterministic**: every decision is a hash of (thing, step); the state after n steps is a function
+  of (seed, n). The selftest checks the house is the same twice, the tips point in and stay out of the
+  current, it wanders, and a long life stays finite. ~0.3 ms a step in node.
+- **The page** (gl.js, WebGL1): each crystal a hexagonal prism and point, flat-shaded, with a knobbly
+  lump of rind rock at its base, so the whole reads as a geode; **cut open** (a plane through the
+  creature square to the view discards the near half) shows the druse and the flow inside. Glass
+  minerals are lit from inside by the flow's colour; bismuth takes the oxide film. Two meshes: the reef
+  (crystals outside `liveHalf(k)`, re-meshed every 3 s) and the live house (re-meshed as it grows,
+  ~12 ms at 5000 crystals). The flow is additive points, drawn again faintly behind the crystals
+  (glow through). 15 steps a second at 1×; `#seed=N&at=S` grows S steps first.
+- Measured only in SwiftShader here (CPU raster: ~1–7 fps, meaningless for a GPU). Real-device frame
+  rate is unverified.
 
 ## The Bommie (bommie/)
 
