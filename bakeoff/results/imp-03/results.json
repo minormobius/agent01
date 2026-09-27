@@ -1,0 +1,965 @@
+{
+  "runId": "imp-03",
+  "note": "imp-02 again with its two faults fixed: desk_hard now states that returned orders are not eligible, and GEPA gets 5-minute row/reflection timeouts. Baselines for all three models; GEPA on ds4-flash with ds4-pro reflecting.",
+  "cells": [
+    {
+      "seconds": 99,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "ds4-flash",
+      "model_id": "deepseek-v4-flash",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "desk_hard": {
+          "usage": {
+            "output_tokens": 14207,
+            "input_tokens": 131595,
+            "total_tokens": 145802
+          },
+          "rows": [
+            {
+              "id": "h02",
+              "usage": {
+                "output_tokens": 458,
+                "input_tokens": 6414,
+                "total_tokens": 6872
+              },
+              "expected": "331.20 EUR",
+              "question": "How much would ana@example.com be refunded for order P-202, in their local currency?",
+              "work": "Order P-202 (H1, gold, electronics, delivered 2026-09-09, 18 days ago, opened, $400); policy v2: 21-day window, 100% refund, 10% restocking fee → 400−40=$360 → 331.20 EUR.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "331.20 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "h04",
+              "usage": {
+                "output_tokens": 571,
+                "input_tokens": 4714,
+                "total_tokens": 5285
+              },
+              "expected": "553.00 GBP",
+              "question": "How much would ben@example.com be refunded for order P-204, in their local currency?",
+              "work": "Order P-204 (Ben Okafor, H2, GB, standard tier) is furniture, price 700 USD, not yet delivered (delivered_date null, status shipped) → cancellable for 100% with no fee. 700 USD × 0.79 = 553.00 GBP.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "553.00 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h06",
+              "usage": {
+                "output_tokens": 478,
+                "input_tokens": 4553,
+                "total_tokens": 5031
+              },
+              "expected": "0.00 USD",
+              "question": "How much would chen@example.com be refunded for order P-206, in their local currency?",
+              "work": "Customer H3 (Chen Wei, standard, US). Order P-206: electronics, $250, delivered 2026-09-04, not opened. Policy v2: 21-day window. days_since=23 > 21, so outside window → not eligible, refund 0.00 USD.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h08",
+              "usage": {
+                "output_tokens": 388,
+                "input_tokens": 4569,
+                "total_tokens": 4957
+              },
+              "expected": "0.00 USD",
+              "question": "How much would dara@example.com be refunded for order P-208, in their local currency?",
+              "work": "Order P-208 (customer H4 Dara Kim, US) has status \"returned\"; a returned order is not eligible, so refund is 0.00 in local currency USD.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h10",
+              "usage": {
+                "output_tokens": 573,
+                "input_tokens": 6491,
+                "total_tokens": 7064
+              },
+              "expected": "184.00 EUR",
+              "question": "How much would emil@example.com be refunded for order P-210, in their local currency?",
+              "work": "Customer emil@example.com = H5, tier platinum, country DE (EUR). Order P-210: apparel, price $200, ordered 2026-07-30, delivered 2026-08-03, unopened, status delivered. Policy v1: 60-day window from delivery, 55 days elapsed (today 2026-09-27), so within window; 100% refund, 0% restocking fee (unopened). Refund = $200 × 100% = $200 → $200 × 0.92 = 184.00 EUR.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "184.00 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "h12",
+              "usage": {
+                "output_tokens": 494,
+                "input_tokens": 4570,
+                "total_tokens": 5064
+              },
+              "expected": "0.00 JPY",
+              "question": "How much would fumi@example.com be refunded for order P-212, in their local currency?",
+              "work": "Order P-212 (books, standard tier, delivered 2026-09-11, unopened, $60): policy v2 gives a 14-day window from delivery; days_since(delivery)=16 > 14, so not eligible → refund 0.00 in JP currency (JPY).",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h14",
+              "usage": {
+                "output_tokens": 422,
+                "input_tokens": 4545,
+                "total_tokens": 4967
+              },
+              "expected": "474.00 GBP",
+              "question": "How much would gus@example.com be refunded for order P-214, in their local currency?",
+              "work": "Gus Hale (H7, platinum, GB). Order P-214: electronics, 600 USD, delivered_date null (not delivered) → cancellable for 100%, no fee. 600 USD × 0.79 = 474.00 GBP.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "474.00 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h16",
+              "usage": {
+                "output_tokens": 527,
+                "input_tokens": 6496,
+                "total_tokens": 7023
+              },
+              "expected": "11960.00 JPY",
+              "question": "How much would hana@example.com be refunded for order P-216, in their local currency?",
+              "work": "Order P-216 (customer H8, gold, Japan): apparel, $80.00 USD, delivered 2026-09-24, 3 days ago, window 60 days (policy v2, 100% refund, no fee, unopened) → $80.00 USD converted at 149.5 → 11960 JPY.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "11960.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h18",
+              "usage": {
+                "output_tokens": 376,
+                "input_tokens": 6473,
+                "total_tokens": 6849
+              },
+              "expected": "yes",
+              "question": "Is order P-205 eligible for a refund today? Answer yes or no.",
+              "work": "P-205: delivered 2026-09-02, electronics, customer H3 standard tier; policy v1 window 30 days; days_since delivery = 25 <= 30 and not opened → eligible.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "h20",
+              "usage": {
+                "output_tokens": 364,
+                "input_tokens": 6500,
+                "total_tokens": 6864
+              },
+              "expected": "no",
+              "question": "Is order P-212 eligible for a refund today? Answer yes or no.",
+              "work": "P-212: books, delivered 2026-09-11, standard tier; policy v2 window 14 days; days_since delivery = 16 > 14, so not eligible.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "no",
+              "termination": "submit"
+            },
+            {
+              "id": "h22",
+              "usage": {
+                "output_tokens": 519,
+                "input_tokens": 6706,
+                "total_tokens": 7225
+              },
+              "expected": "yes",
+              "question": "Is order P-214 eligible for a refund today? Answer yes or no.",
+              "work": "P-214: customer H7 (platinum, GB), electronics, order_date 2026-09-18, delivered_date null, status shipped. Policy v2: not-yet-delivered orders can always be cancelled for 100%, so eligible.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "h24",
+              "usage": {
+                "output_tokens": 158,
+                "input_tokens": 2733,
+                "total_tokens": 2891
+              },
+              "expected": "no",
+              "question": "Is order P-208 eligible for a refund today? Answer yes or no.",
+              "work": "get_order(P-208) shows status \"returned\"; per refund_policy a returned or cancelled order is not eligible (refund 0).",
+              "score": 1,
+              "termination_cause": null,
+              "got": "no",
+              "termination": "submit"
+            },
+            {
+              "id": "h26",
+              "usage": {
+                "output_tokens": 867,
+                "input_tokens": 10477,
+                "total_tokens": 11344
+              },
+              "expected": "647.80 GBP",
+              "question": "What is the total refund ben@example.com could get right now across all their orders, in their local currency?",
+              "work": "Ben (H2, standard, GB) orders P-203 apparel $120 delivered 12d ago within 60d window → 100% = $120; P-204 furniture $700 not delivered → cancel 100% = $700; total $820 USD × 0.79 = 647.80 GBP.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "647.80 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h28",
+              "usage": {
+                "output_tokens": 708,
+                "input_tokens": 10467,
+                "total_tokens": 11175
+              },
+              "expected": "1080.00 USD",
+              "question": "What is the total refund dara@example.com could get right now across all their orders, in their local currency?",
+              "work": "Customer H4 (gold, US). Orders: P-207 furniture, delivered 2026-09-10, not opened, delivered; policy v2 window 45 days (17 days since delivery) → 90% of $1200 = $1080 USD. P-208 books status returned → not eligible, $0. Total = 1080.00 USD.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "1080.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h30",
+              "usage": {
+                "output_tokens": 861,
+                "input_tokens": 10456,
+                "total_tokens": 11317
+              },
+              "expected": "4485.00 JPY",
+              "question": "What is the total refund fumi@example.com could get right now across all their orders, in their local currency?",
+              "work": "fumi@example.com = H6 (standard, JP). Orders P-212 ($60, books, delivered 2026-09-11) and P-211 ($30, books, delivered 2026-09-16). Policy v2: 14-day window, 100% refund, no restocking fee. P-212 is 16 days past delivery → out of window → 0. P-211 is 11 days past delivery → eligible → $30 refund. Total $30 = 4485.00 JPY at 149.5.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "4485.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h32",
+              "usage": {
+                "output_tokens": 1300,
+                "input_tokens": 10538,
+                "total_tokens": 11838
+              },
+              "expected": "59052.50 JPY",
+              "question": "What is the total refund hana@example.com could get right now across all their orders, in their local currency?",
+              "work": "Hana (H8, gold, JP). P-215 electronics $350, delivered 2026-09-06, 21d ago, window 21d → eligible, opened → 100%−10% fee = $315. P-216 apparel $80, delivered 2026-09-24, 3d ago, window 60d, unopened → $80. Total $395 → JPY @149.5 = 59052.50 JPY.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "59052.50 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h34",
+              "usage": {
+                "output_tokens": 1240,
+                "input_tokens": 9911,
+                "total_tokens": 11151
+              },
+              "expected": "2",
+              "question": "How many platinum customers have at least one order eligible for a refund today?",
+              "work": "Platinum customers H5 (emil) and H7 (gus). Today=2026-09-27. H5: P-210 apparel delivered 55d ago ≤ 60d window → eligible; P-209 electronics delivered 15d ago ≤ 21d window, opened 10% fee → eligible. H7: P-213 furniture delivered 38d ago > 30d window → not eligible; P-214 electronics not delivered (shipped) → cancellable 100% → eligible. Both have ≥1 eligible order → 2.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "2",
+              "termination": "submit"
+            },
+            {
+              "id": "h36",
+              "usage": {
+                "output_tokens": 3903,
+                "input_tokens": 14982,
+                "total_tokens": 18885
+              },
+              "expected": "P-207",
+              "question": "Which single order would refund the most right now, measured in USD? Answer with the order id.",
+              "work": "Today=2026-09-27 (via days_since). Computed refunds in USD: P-201 expired (33d>30, v1 gold elec)→0; P-202 400×100%−10% opened=360; P-203 120; P-204 undelivered cancel=700; P-205 250×90%=225; P-206 expired(23d>21)→0; P-207 furniture gold v2 90% 1200×0.90=1080 (17d≤45, unopened); P-208 returned→0; P-209 900−10% opened=810; P-210 200; P-211 30; P-212 expired(16d>14)→0; P-213 expired(38d>30)→0; P-214 undelivered cancel=600; P-215 350−10%=315; P-216 80. Max = P-207 at 1080 USD.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "P-207",
+              "termination": "submit"
+            }
+          ],
+          "tool_calls": 150,
+          "arms": {
+            "react": {
+              "seconds": 39,
+              "usage": {
+                "output_tokens": 14207,
+                "input_tokens": 131595,
+                "total_tokens": 145802
+              },
+              "errors": 0,
+              "tool_calls": 150,
+              "score": 1
+            }
+          },
+          "n_test": 18,
+          "terminations": {
+            "submit": 18
+          },
+          "tool_calls_by_name": {
+            "convert": 9,
+            "days_since": 18,
+            "find_customer": 12,
+            "get_order": 40,
+            "list_customers": 5,
+            "list_orders": 14,
+            "refund_policy": 34,
+            "submit": 18
+          },
+          "gepa": {
+            "error": "Imp.optimize!/4 failed: {:optimizer_failed, Imp.Optimizer.GEPA, %FunctionClauseError{module: Enum, function: :find_value_list, arity: 3, kind: nil, args: nil, clauses: nil}}",
+            "max_metric_calls": 150,
+            "reflection": "ds4-pro"
+          }
+        }
+      }
+    },
+    {
+      "seconds": 83,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "ds4-pro",
+      "model_id": "deepseek-v4-pro",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "desk_hard": {
+          "usage": {
+            "output_tokens": 16273,
+            "input_tokens": 143288,
+            "total_tokens": 159561
+          },
+          "rows": [
+            {
+              "id": "h02",
+              "usage": {
+                "output_tokens": 890,
+                "input_tokens": 7638,
+                "total_tokens": 8528
+              },
+              "expected": "331.20 EUR",
+              "question": "How much would ana@example.com be refunded for order P-202, in their local currency?",
+              "work": "Customer H1 (gold, ES); order P-202 electronics delivered 2026-09-09, opened, 18 days ago; gold electronics policy v2: 21-day window, 100% refund, 10% restocking fee; refunded 360 USD converted to 331.20 EUR.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "331.20 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "h04",
+              "usage": {
+                "output_tokens": 376,
+                "input_tokens": 4741,
+                "total_tokens": 5117
+              },
+              "expected": "553.00 GBP",
+              "question": "How much would ben@example.com be refunded for order P-204, in their local currency?",
+              "work": "Customer ben@example.com (H2, standard, GB); order P-204 (furniture, shipped, not delivered, 700 USD); policy: not yet delivered => 100% refund, no fee; converted 700 USD to GBP = 553.00.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "553.00 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h06",
+              "usage": {
+                "output_tokens": 474,
+                "input_tokens": 4861,
+                "total_tokens": 5335
+              },
+              "expected": "0.00 USD",
+              "question": "How much would chen@example.com be refunded for order P-206, in their local currency?",
+              "work": "Order P-206 delivered 2026-09-04 (23 days ago); electronics standard policy window is 21 days, so not eligible.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h08",
+              "usage": {
+                "output_tokens": 393,
+                "input_tokens": 2998,
+                "total_tokens": 3391
+              },
+              "expected": "0.00 USD",
+              "question": "How much would dara@example.com be refunded for order P-208, in their local currency?",
+              "work": "Customer dara@example.com is in US (USD), order P-208 status is returned, so per policy it is not eligible for a refund.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h10",
+              "usage": {
+                "output_tokens": 765,
+                "input_tokens": 7169,
+                "total_tokens": 7934
+              },
+              "expected": "184.00 EUR",
+              "question": "How much would emil@example.com be refunded for order P-210, in their local currency?",
+              "work": "Customer H5 (platinum, DE); order P-210 delivered 2026-08-03, 55 days ago, within 60-day window; apparel platinum refund 100%, opened=false no fee; converted 200 USD to 184.00 EUR.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "184.00 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "h12",
+              "usage": {
+                "output_tokens": 609,
+                "input_tokens": 5089,
+                "total_tokens": 5698
+              },
+              "expected": "0.00 JPY",
+              "question": "How much would fumi@example.com be refunded for order P-212, in their local currency?",
+              "work": "Customer H6 (JP, standard); order P-212 books delivered 2026-09-11, 16 days ago; policy window 14 days, so not eligible.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h14",
+              "usage": {
+                "output_tokens": 621,
+                "input_tokens": 5037,
+                "total_tokens": 5658
+              },
+              "expected": "474.00 GBP",
+              "question": "How much would gus@example.com be refunded for order P-214, in their local currency?",
+              "work": "Order P-214 is shipped but not delivered (delivered_date null), so it can be cancelled for 100% of the USD 600.00 price; converted to GBP at 0.79 gives 474.00 GBP.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "474.00 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h16",
+              "usage": {
+                "output_tokens": 575,
+                "input_tokens": 6923,
+                "total_tokens": 7498
+              },
+              "expected": "11960.00 JPY",
+              "question": "How much would hana@example.com be refunded for order P-216, in their local currency?",
+              "work": "Used order P-216 (delivered 2026-09-24, apparel, unopened), gold tier apparel policy (60-day window, 100% refund, 0% restocking), days_since delivery = 3, and USD->JPY conversion.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "11960.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h18",
+              "usage": {
+                "output_tokens": 490,
+                "input_tokens": 6975,
+                "total_tokens": 7465
+              },
+              "expected": "yes",
+              "question": "Is order P-205 eligible for a refund today? Answer yes or no.",
+              "work": "Order P-205 is delivered (25 days ago), within the 30-day refund window for standard-tier electronics; not opened and not returned/cancelled.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "h20",
+              "usage": {
+                "output_tokens": 499,
+                "input_tokens": 7028,
+                "total_tokens": 7527
+              },
+              "expected": "no",
+              "question": "Is order P-212 eligible for a refund today? Answer yes or no.",
+              "work": "Order P-212 delivered 2026-09-11 (16 days ago); standard-tier books policy window is 14 days, so it is outside the refund window.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "no",
+              "termination": "submit"
+            },
+            {
+              "id": "h22",
+              "usage": {
+                "output_tokens": 242,
+                "input_tokens": 2874,
+                "total_tokens": 3116
+              },
+              "expected": "yes",
+              "question": "Is order P-214 eligible for a refund today? Answer yes or no.",
+              "work": "Order P-214 is shipped with no delivered date, so it can be cancelled for a full refund.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "h24",
+              "usage": {
+                "output_tokens": 193,
+                "input_tokens": 2884,
+                "total_tokens": 3077
+              },
+              "expected": "no",
+              "question": "Is order P-208 eligible for a refund today? Answer yes or no.",
+              "work": "Order P-208 status is returned, so it is not eligible for a refund.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "no",
+              "termination": "submit"
+            },
+            {
+              "id": "h26",
+              "usage": {
+                "output_tokens": 1132,
+                "input_tokens": 11813,
+                "total_tokens": 12945
+              },
+              "expected": "647.80 GBP",
+              "question": "What is the total refund ben@example.com could get right now across all their orders, in their local currency?",
+              "work": "Used orders P-203 (120 USD apparel, delivered, 100% refund) and P-204 (700 USD furniture, not delivered, 100% cancel) for H2, total 820 USD converted to GBP at 0.79.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "647.80 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h28",
+              "usage": {
+                "output_tokens": 858,
+                "input_tokens": 10910,
+                "total_tokens": 11768
+              },
+              "expected": "1080.00 USD",
+              "question": "What is the total refund dara@example.com could get right now across all their orders, in their local currency?",
+              "work": "Used customer H4 (gold, US), orders P-207 (delivered 2026-09-10, 90% refund = $1080) and P-208 (returned = $0), furniture policy v2 45-day window, 17 days since delivery.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "1080.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h30",
+              "usage": {
+                "output_tokens": 947,
+                "input_tokens": 11311,
+                "total_tokens": 12258
+              },
+              "expected": "4485.00 JPY",
+              "question": "What is the total refund fumi@example.com could get right now across all their orders, in their local currency?",
+              "work": "Customer H6 (JP, standard): P-212 delivered 16 days ago > 14-day window (0.00); P-211 delivered 11 days ago, books v2 100% refund on 30 USD = 4485.00 JPY.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "4485.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h32",
+              "usage": {
+                "output_tokens": 1084,
+                "input_tokens": 11677,
+                "total_tokens": 12761
+              },
+              "expected": "59052.50 JPY",
+              "question": "What is the total refund hana@example.com could get right now across all their orders, in their local currency?",
+              "work": "Used customer H8 (gold, JP), orders P-215 (315 USD refund after 10% restocking, 21-day window) and P-216 (80 USD refund), and converted 395 USD to JPY at 149.5.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "59052.50 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h34",
+              "usage": {
+                "output_tokens": 1708,
+                "input_tokens": 11165,
+                "total_tokens": 12873
+              },
+              "expected": "2",
+              "question": "How many platinum customers have at least one order eligible for a refund today?",
+              "work": "Platinum customers: H5 (orders P-210 eligible: apparel delivered 2026-08-03, 55 days within 60-day window) and H7 (P-214 shipped/not delivered, cancellable for 100%).",
+              "score": 1,
+              "termination_cause": null,
+              "got": "2",
+              "termination": "submit"
+            },
+            {
+              "id": "h36",
+              "usage": {
+                "output_tokens": 4417,
+                "input_tokens": 22195,
+                "total_tokens": 26612
+              },
+              "expected": "P-207",
+              "question": "Which single order would refund the most right now, measured in USD? Answer with the order id.",
+              "work": "Compared refunds using list_customers/list_orders/get_order, days_since, and refund_policy: P-207 (furniture, gold, delivered 17 days ago, 90% of 1200 USD, unopened) refunds 1080.00 USD, the highest.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "P-207",
+              "termination": "submit"
+            }
+          ],
+          "tool_calls": 160,
+          "arms": {
+            "react": {
+              "seconds": 81,
+              "usage": {
+                "output_tokens": 16273,
+                "input_tokens": 143288,
+                "total_tokens": 159561
+              },
+              "errors": 0,
+              "tool_calls": 160,
+              "score": 1
+            }
+          },
+          "n_test": 18,
+          "terminations": {
+            "submit": 18
+          },
+          "tool_calls_by_name": {
+            "convert": 9,
+            "days_since": 30,
+            "find_customer": 12,
+            "get_order": 40,
+            "list_customers": 4,
+            "list_orders": 14,
+            "refund_policy": 33,
+            "submit": 18
+          }
+        }
+      }
+    },
+    {
+      "seconds": 265,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "kimi3",
+      "model_id": "kimi-k3",
+      "endpoint": "https://api.moonshot.ai/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "desk_hard": {
+          "usage": {
+            "output_tokens": 19744,
+            "input_tokens": 127246,
+            "total_tokens": 146990
+          },
+          "rows": [
+            {
+              "id": "h02",
+              "usage": {
+                "output_tokens": 835,
+                "input_tokens": 6434,
+                "total_tokens": 7269
+              },
+              "expected": "331.20 EUR",
+              "question": "How much would ana@example.com be refunded for order P-202, in their local currency?",
+              "work": "Ana (H1, gold, ES); order P-202 electronics $400, delivered 2026-09-09 (18 days ago, within 21-day window), opened; policy v2: 100% refund minus 10% restocking fee = $360; converted at 0.92 = 331.20 EUR.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "331.20 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "h04",
+              "usage": {
+                "output_tokens": 492,
+                "input_tokens": 4147,
+                "total_tokens": 4639
+              },
+              "expected": "553.00 GBP",
+              "question": "How much would ben@example.com be refunded for order P-204, in their local currency?",
+              "work": "Order P-204 (customer H2/Ben, GB, standard tier) is status \"shipped\" with delivered_date=null, so the not-yet-delivered rule applies: 100% of $700.00 USD with no fee; converted 700 USD at rate 0.79 = 553.00 GBP.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "553.00 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h06",
+              "usage": {
+                "output_tokens": 610,
+                "input_tokens": 4162,
+                "total_tokens": 4772
+              },
+              "expected": "0.00 USD",
+              "question": "How much would chen@example.com be refunded for order P-206, in their local currency?",
+              "work": "Chen Wei (standard, US); order P-206 electronics $250.00, delivered 2026-09-04, not opened, status delivered; policy v2: 21-day window, 90% refund; days since delivery = 23 > 21, so window expired and refund is 0.00 USD.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h08",
+              "usage": {
+                "output_tokens": 579,
+                "input_tokens": 2598,
+                "total_tokens": 3177
+              },
+              "expected": "0.00 USD",
+              "question": "How much would dara@example.com be refunded for order P-208, in their local currency?",
+              "work": "Customer H4 (Dara Kim, gold, US) found via find_customer; order P-208 (books, $40.00 USD, status \"returned\") via get_order — a returned order is not eligible, so refund is 0.00 in USD (US customer's local currency).",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h10",
+              "usage": {
+                "output_tokens": 669,
+                "input_tokens": 5970,
+                "total_tokens": 6639
+              },
+              "expected": "184.00 EUR",
+              "question": "How much would emil@example.com be refunded for order P-210, in their local currency?",
+              "work": "Emil Brandt (platinum, DE); order P-210 apparel $200 delivered 2026-08-03, not opened; policy v1: 100% refund, 60-day window, 55 days since delivery (within window); $200 × 0.92 = 184.00 EUR.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "184.00 EUR",
+              "termination": "submit"
+            },
+            {
+              "id": "h12",
+              "usage": {
+                "output_tokens": 916,
+                "input_tokens": 4299,
+                "total_tokens": 5215
+              },
+              "expected": "0.00 JPY",
+              "question": "How much would fumi@example.com be refunded for order P-212, in their local currency?",
+              "work": "Customer H6 (standard, JP); order P-212 books $60.00 delivered 2026-09-11, status delivered; policy v2 window 14 days, 100%; days_since delivery = 16 > 14, so ineligible → 0.00 JPY.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "0.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h14",
+              "usage": {
+                "output_tokens": 1038,
+                "input_tokens": 4479,
+                "total_tokens": 5517
+              },
+              "expected": "474.00 GBP",
+              "question": "How much would gus@example.com be refunded for order P-214, in their local currency?",
+              "work": "Used customer H7 (platinum, GB), order P-214 (electronics, $600.00, status shipped, delivered_date null, opened true), policy v2, and conversion rate 0.79 USD→GBP; undelivered orders refund 100% with no fee.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "474.00 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h16",
+              "usage": {
+                "output_tokens": 799,
+                "input_tokens": 6416,
+                "total_tokens": 7215
+              },
+              "expected": "11960.00 JPY",
+              "question": "How much would hana@example.com be refunded for order P-216, in their local currency?",
+              "work": "Hana Mori (H8, gold, JP); order P-216 apparel, delivered 2026-09-24 (3 days ago), not opened, $80.00; policy v2 gold apparel: 100% within 60-day window, no fee; $80.00 → 11960.00 JPY (rate 149.5).",
+              "score": 1,
+              "termination_cause": null,
+              "got": "11960.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h18",
+              "usage": {
+                "output_tokens": 712,
+                "input_tokens": 6247,
+                "total_tokens": 6959
+              },
+              "expected": "yes",
+              "question": "Is order P-205 eligible for a refund today? Answer yes or no.",
+              "work": "P-205: status=delivered, delivered_date=2026-09-02 (25 days ago), category=electronics, opened=false; customer H3 tier=standard; policy v1 window_days=30, percent=90, so 25<=30.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "h20",
+              "usage": {
+                "output_tokens": 615,
+                "input_tokens": 6067,
+                "total_tokens": 6682
+              },
+              "expected": "no",
+              "question": "Is order P-212 eligible for a refund today? Answer yes or no.",
+              "work": "Order P-212 (books, delivered 2026-09-11, status delivered); customer H6 is standard tier; policy v2 window = 14 days from delivery; 16 days have passed since delivery, so the window is closed.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "no",
+              "termination": "submit"
+            },
+            {
+              "id": "h22",
+              "usage": {
+                "output_tokens": 597,
+                "input_tokens": 2446,
+                "total_tokens": 3043
+              },
+              "expected": "yes",
+              "question": "Is order P-214 eligible for a refund today? Answer yes or no.",
+              "work": "Used get_order(P-214): status=shipped, delivered_date=null (not delivered, not returned/cancelled), category=electronics, order_date=2026-09-18; policy rule: undelivered orders can always be cancelled for 100%.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "yes",
+              "termination": "submit"
+            },
+            {
+              "id": "h24",
+              "usage": {
+                "output_tokens": 266,
+                "input_tokens": 2360,
+                "total_tokens": 2626
+              },
+              "expected": "no",
+              "question": "Is order P-208 eligible for a refund today? Answer yes or no.",
+              "work": "Order P-208 status is \"returned\", and a returned order is not eligible for a refund.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "no",
+              "termination": "submit"
+            },
+            {
+              "id": "h26",
+              "usage": {
+                "output_tokens": 1219,
+                "input_tokens": 10171,
+                "total_tokens": 11390
+              },
+              "expected": "647.80 GBP",
+              "question": "What is the total refund ben@example.com could get right now across all their orders, in their local currency?",
+              "work": "Ben H2 (GB, standard): P-203 apparel $120 delivered 2026-09-15 (12 days ago, within 60-day window, policy v2 100%, unopened no fee) = $120; P-204 furniture $700 not yet delivered = cancellable at 100% = $700; total $820 × 0.79 = 647.80 GBP.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "647.80 GBP",
+              "termination": "submit"
+            },
+            {
+              "id": "h28",
+              "usage": {
+                "output_tokens": 934,
+                "input_tokens": 7551,
+                "total_tokens": 8485
+              },
+              "expected": "1080.00 USD",
+              "question": "What is the total refund dara@example.com could get right now across all their orders, in their local currency?",
+              "work": "Dara Kim (H4, gold, US); P-207 furniture $1200 delivered 2026-09-10 (17 days ago, within 45-day window, not opened) → 90% = $1080; P-208 status returned → $0; total 1080.00 USD.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "1080.00 USD",
+              "termination": "submit"
+            },
+            {
+              "id": "h30",
+              "usage": {
+                "output_tokens": 1129,
+                "input_tokens": 10043,
+                "total_tokens": 11172
+              },
+              "expected": "4485.00 JPY",
+              "question": "What is the total refund fumi@example.com could get right now across all their orders, in their local currency?",
+              "work": "Fumi Sato (H6, standard, JP) has 2 orders: P-212 ($60 books, delivered 2026-09-11 = 16 days ago, outside 14-day window → 0) and P-211 ($30 books, delivered 2026-09-16 = 11 days ago, within window → 100% = $30, unopened so no fee); books policy v2 standard = 100% refund, 14-day window; $30 USD × 149.5 = 4485.00 JPY.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "4485.00 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h32",
+              "usage": {
+                "output_tokens": 1608,
+                "input_tokens": 10581,
+                "total_tokens": 12189
+              },
+              "expected": "59052.50 JPY",
+              "question": "What is the total refund hana@example.com could get right now across all their orders, in their local currency?",
+              "work": "Hana Mori (H8, gold, JP→JPY). P-215 electronics $350, delivered 2026-09-06 (21d ago, within 21d window), opened → 100% refund minus 10% restocking = $315. P-216 apparel $80, delivered 2026-09-24 (3d ago, within 60d window), unopened → $80. Total $395 USD converted at 149.5 = 59052.50 JPY.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "59052.50 JPY",
+              "termination": "submit"
+            },
+            {
+              "id": "h34",
+              "usage": {
+                "output_tokens": 1511,
+                "input_tokens": 9935,
+                "total_tokens": 11446
+              },
+              "expected": "2",
+              "question": "How many platinum customers have at least one order eligible for a refund today?",
+              "work": "Platinum customers H5 and H7; H5 P-210 apparel delivered 2026-08-03 (55 days ≤ 60-day window, 100%) eligible; H7 P-213 furniture delivered 2026-08-20 (38 days > 30-day window) ineligible but P-214 not yet delivered (shipped) so cancellable/eligible.",
+              "score": 1,
+              "termination_cause": null,
+              "got": "2",
+              "termination": "submit"
+            },
+            {
+              "id": "h36",
+              "usage": {
+                "output_tokens": 5215,
+                "input_tokens": 23340,
+                "total_tokens": 28555
+              },
+              "expected": "P-207",
+              "question": "Which single order would refund the most right now, measured in USD? Answer with the order id.",
+              "work": "Computed refunds for all 16 orders using order details, per-order refund_policy (e.g. P-207 furniture/gold v2: 90%, 45-day window) and days_since delivery (today 2026-09-27, P-207 delivered 17 days ago, unopened, not returned): P-207 refunds 0.90 × $1200 = $1080, the highest (next: P-209 $810, P-204 $700).",
+              "score": 1,
+              "termination_cause": null,
+              "got": "P-207",
+              "termination": "submit"
+            }
+          ],
+          "tool_calls": 156,
+          "arms": {
+            "react": {
+              "seconds": 261,
+              "usage": {
+                "output_tokens": 19744,
+                "input_tokens": 127246,
+                "total_tokens": 146990
+              },
+              "errors": 0,
+              "tool_calls": 156,
+              "score": 1
+            }
+          },
+          "n_test": 18,
+          "terminations": {
+            "submit": 18
+          },
+          "tool_calls_by_name": {
+            "convert": 8,
+            "days_since": 29,
+            "find_customer": 12,
+            "get_order": 40,
+            "list_customers": 4,
+            "list_orders": 14,
+            "refund_policy": 31,
+            "submit": 18
+          }
+        }
+      }
+    }
+  ]
+}
