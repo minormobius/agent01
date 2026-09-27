@@ -1,7 +1,7 @@
 {
-  "runId": "imp-03",
+  "runId": "imp-04",
   "models": ["ds4-flash", "ds4-pro", "kimi3"],
-  "tasks": ["desk_hard"],
-  "gepa": { "models": ["ds4-flash"], "reflection": "ds4-pro", "maxMetricCalls": 150 },
-  "note": "imp-02 again with its two faults fixed: desk_hard now states that returned orders are not eligible, and GEPA gets 5-minute row/reflection timeouts. Baselines for all three models; GEPA on ds4-flash with ds4-pro reflecting."
+  "tasks": ["trec"],
+  "gepa": { "models": ["ds4-flash", "ds4-pro", "kimi3"], "reflection": "ds4-pro", "maxMetricCalls": 200 },
+  "note": "The optimizer test the tool tasks could not give: Imp's matched TREC experiment (two opaque codes, meanings only in train feedback) on all three models, GEPA on each with ds4-pro reflecting, Imp's GEPA improper-list crash patched. Imp's own result for comparison: +0.40 held-out on gpt-5.4-mini."
 }
