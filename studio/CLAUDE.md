@@ -480,25 +480,37 @@ shapes it next.
 
 - **The rules** (shell.js): the orbit's density, blurred, is the nutrient; close in it is the current.
   Crystals nucleate on a band of nutrient (fed, but out of the flow's way), more readily beside others
-  (a druse clusters), pointing up the nutrient's gradient: in, at the flow. A tip grows while fed and is
-  dissolved back where the current runs, so the tips stop short of the orbit and carve a room fitted to
-  it. After `grow` steps it wanders a slow closed path; the house is re-grown ahead, and what is left
-  unfed bleaches and erodes very slowly: a reef, which the flow carves through when it comes round.
-- **Genes**: the attractor, size, halo/wall/channel (where it feeds, how close crystals may come),
-  girth, reach, habit (a pull to the cube's axes and diagonals), clustering, the mineral (bismuth's
-  thin film, quartz, amethyst, obsidian, citrine: `MINERALS`), the path's pace.
-- **Deterministic**: every decision is a hash of (thing, step); the state after n steps is a function
-  of (seed, n). The selftest checks the house is the same twice, the tips point in and stay out of the
-  current, it wanders, and a long life stays finite. ~0.3 ms a step in node.
+  (anyone's: a druse clusters), pointing up the nutrient's gradient: in, at the flow. A tip grows while
+  fed and is dissolved back where a current runs, so the tips stop short of the orbit and carve a room.
+- **An ecosystem, not a script** (owner, 2026-09-27: "what compels the attractor to translate… better if
+  it emerged… rather than the geode strictly following the flow"). The first version wandered a fixed
+  Lissajous path. Now a `World` holds a MEDIUM of dissolved mineral in seeded veins (a 4-unit grid) and
+  1–5 creatures. A flow grazes the medium where its orbit runs; crystals are built out of it (nucleation
+  and growth need it and take it); a dissolved crystal gives its mineral back, and so does eroding reef;
+  the medium diffuses and seeps back to its veins slowly. Motion is forces, integrated with damping:
+  HUNGER (up the medium's gradient, sensed 2.2k away, scaled by how eaten-out its own place is),
+  CROWDING (a tip in a flow's current pushes it along the crystal: its own house closing in, or another's
+  reef), a little distance between flows, the walls. It turns slowly to face its way and the house is
+  re-grown to fit. Any flow's halo feeds (keeps alive) any crystal; any flow's current carves any crystal.
+  So: a creature grows while its place is rich, eats it out, climbs toward richer water, and leaves a
+  reef that stores the mineral until it erodes back. A creature born somewhere poor barely grows and
+  goes looking (the selftest's world 1: 126 units in 3000 steps).
+- **Genes**: the attractor, size, halo/wall/channel, girth, reach, habit (a pull to the cube's axes and
+  diagonals), clustering, appetite, restlessness, the mineral (bismuth's thin film, quartz, amethyst,
+  obsidian, citrine: `MINERALS`).
+- **Deterministic**: every decision is a hash of (thing, step); creatures step in a fixed order (all
+  grow, all carve, all move); the world after n steps is a function of (seed, count, n). The selftest
+  checks the world is the same twice, tips point in and stay out of their current, a hungry flow moves
+  on by itself, everything stays finite and in the world, and mineral cycles. ~0.6 ms a step for three.
 - **The page** (gl.js, WebGL1): each crystal a hexagonal prism and point, flat-shaded, with a knobbly
-  lump of rind rock at its base, so the whole reads as a geode; **cut open** (a plane through the
-  creature square to the view discards the near half) shows the druse and the flow inside. Glass
-  minerals are lit from inside by the flow's colour; bismuth takes the oxide film. Two meshes: the reef
-  (crystals outside `liveHalf(k)`, re-meshed every 3 s) and the live house (re-meshed as it grows,
-  ~12 ms at 5000 crystals). The flow is additive points, drawn again faintly behind the crystals
-  (glow through). 15 steps a second at 1×; `#seed=N&at=S` grows S steps first.
-- Measured only in SwiftShader here (CPU raster: ~1–7 fps, meaningless for a GPU). Real-device frame
-  rate is unverified.
+  lump of rind rock at its base, so a house reads as a geode; **cut open** (a plane through what the
+  camera looks at, square to the view) shows the druse and the flow inside. Toggles: **rind** off, and
+  **lit reef** (a crystal no flow feeds keeps its light instead of bleaching: a wake of gems; with the
+  rind off it reads as glowing gem clusters). Glass minerals are lit by their own flow's colour; bismuth
+  takes the oxide film. Per creature, two meshes: reef (crystals near no flow, every 3 s) and live.
+  The camera frames the whole world or follows one creature. `#seed=N&n=3&at=S` grows S steps first.
+- Measured only in SwiftShader here (CPU raster, meaningless for a GPU). Real-device frame rate is
+  unverified.
 
 ## The Bommie (bommie/)
 

@@ -1,34 +1,44 @@
-// shell.js — a flow that grows its own house of crystals and lives in it.
+// shell.js — flows that grow their own houses of crystals, live in them, and share a world.
 //
-// A creature here is two things: a FLOW (a strange attractor from the bestiary, its orbit running
-// forever) and a HOUSE (crystals, a druse, like the inside of a geode). The flow feeds the crystals
-// and the crystals are shaped by the flow:
+// A creature is two things: a FLOW (a strange attractor from the bestiary, its orbit running forever)
+// and a HOUSE (crystals, a druse, like the inside of a geode). The flow feeds the crystals and the
+// crystals are shaped by the flow:
 //
-//   - the flow's orbit density, blurred, is the NUTRIENT. Crystals nucleate on a band of it (the
+//   - the flow's orbit density, blurred, is its NUTRIENT field. Crystals nucleate on a band of it (the
 //     halo round the orbit: fed, but not in the flow's way), more readily beside crystals already
-//     there (a druse grows in clusters), and point up the nutrient's gradient: toward the flow;
+//     there (anyone's: a druse clusters), and point up its gradient: in, at the flow;
 //   - a crystal grows at its tip while the tip is fed, the longer the slower;
-//   - the density close in is the CURRENT: a tip that reaches where the orbit actually runs is
-//     dissolved back. So the crystals stop just short of the flow, and their tips carve a room
-//     fitted to its shape, with the flow running free inside.
+//   - the density close in is the CURRENT: a tip that reaches where the orbit runs is dissolved back,
+//     so the crystals stop short of the flow and their tips carve a room fitted to its shape.
 //
-// Then it LIVES: after the growing it wanders (a slow closed path), turning to face its way. The
-// house does not move; it is re-grown. Crystals nucleate ahead, tips in the way of the swinging
-// current dissolve, and the crystals behind are no longer fed: they stop, bleach, and only very
-// slowly erode. So a creature leaves a reef of its old houses, and carves through it when its path
-// comes round again.
+// And a WORLD round them: a MEDIUM of dissolved mineral, in veins (seeded), which everything is made
+// of. A flow grazes it where its orbit runs; a crystal is built out of it where it grows; a crystal
+// the current dissolves gives its mineral back, and so, slowly, does a reef that erodes. The medium
+// seeps back toward its veins, slowly. Nothing is scripted about where a creature goes:
 //
-// Deterministic: the state after step n is a function of (seed, n) alone. Every random decision is a
-// hash of (something, step), never a running stream.
+//   - HUNGER: a flow is drawn up the medium's gradient, harder the more it has eaten round itself.
+//     So it sits and grows while its place is rich, and sets off when it has eaten it out;
+//   - CROWDING: a crystal tip that reaches into a flow's current pushes it (along the crystal, away),
+//     its own house or anyone's; and flows keep a little distance from each other;
+//   - it turns, slowly, to face the way it is going, and its house is re-grown to fit.
+//
+// So a creature grows while it is fed, is pushed by its own house as the house closes in, leaves the
+// house when it has eaten its place out, and the house it leaves is a store of mineral: a reef that
+// bleaches, erodes, and feeds the medium back. Another flow's halo keeps a reef it passes alive (a
+// crystal is fed by any flow), and its current carves through it. That is the ecosystem.
+//
+// Deterministic: the world after n steps is a function of (seed, count, n). Every random decision
+// is a hash of (thing, step), never a running stream; the creatures step in a fixed order.
 
 import { BESTIARY } from './bestiary.js';
 import { realise, mulberry32 } from './space.js';
 
-/** The half-width of the box round the creature where anything can be fed (attractor units × k). */
-export const liveHalf = (k) => 1.45 * k;
-export const GX = 112, GY = 72, GZ = 112;          // the world's box (x, z the floor plan, y up)
+export const GX = 160, GY = 72, GZ = 160;          // the world's box (x, z the floor plan, y up)
 const TN = 48, TU = 1.7;                          // the templates: TN³ cells over [-TU, TU]³ attractor units
 const CELL = 2, NX = GX / CELL, NY = GY / CELL, NZ = GZ / CELL;   // the crowding grid
+const MC = 4, MX = GX / MC, MY = GY / MC, MZ = GZ / MC;          // the medium's grid
+/** The half-width of the box round a creature where anything can be fed (attractor units × k). */
+export const liveHalf = (k) => 1.45 * k;
 
 const hash = (a, b) => { let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263); h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
@@ -41,7 +51,7 @@ export const MINERALS = {
   citrine: { base: [0.95, 0.66, 0.25], iri: 0.1, glass: 0.6, spec: 0.9 },
 };
 
-/** The genome a seed makes: which attractor, how big, how its crystals grow, how it wanders. */
+/** The genome a seed makes: which attractor, how big, how its crystals grow, how it moves. */
 export function genome(seed, over = {}) {
   const rnd = mulberry32((seed >>> 0) * 2246822519 + 3);
   const pool = BESTIARY.filter((b) => b.fill > 0.08 && b.dim > 1.6);
@@ -49,7 +59,7 @@ export function genome(seed, over = {}) {
   const minerals = Object.keys(MINERALS);
   return {
     seed, key: b.key,
-    scale: 12 + rnd() * 5,                         // world units an attractor unit
+    scale: 11 + rnd() * 5,                         // world units an attractor unit
     halo: 0.05 + rnd() * 0.05,                     // nutrient needed to nucleate
     wall: 2 + rnd() * 2,                            // above halo × wall is too close: the flow's room
     channel: 0.03 + rnd() * 0.05,                  // current that dissolves a tip
@@ -57,8 +67,8 @@ export function genome(seed, over = {}) {
     reach: 3 + rnd() * 6,                           // how long a crystal can grow
     habit: rnd() < 0.5 ? rnd() * 0.8 : 0,          // pull toward the cube's axes and diagonals (0: free)
     cluster: 0.5 + rnd() * 2,                       // how much a crystal favours growing by others
-    grow: 420 + Math.floor(rnd() * 240),           // steps of growing before it wanders
-    pace: 0.6 + rnd() * 0.6,                       // how fast it wanders
+    appetite: 0.6 + rnd() * 0.8,                   // how hard the flow grazes
+    restless: 0.6 + rnd() * 0.8,                   // how strongly hunger moves it
     tilt: (rnd() - 0.5) * 0.8, roll: (rnd() - 0.5) * 0.8,
     mineral: minerals[Math.floor(rnd() * minerals.length)],
     hue: rnd(),                                     // the film's offset (bismuth's colours)
@@ -66,17 +76,6 @@ export function genome(seed, over = {}) {
   };
 }
 
-/** Where the creature is at step s (continuous): its centre, its turn (a rotation matrix), its size. */
-export function pose(g, s) {
-  const cx = GX / 2, cy = GY / 2, cz = GZ / 2, A = 26;
-  const w = Math.max(0, s - g.grow) * 0.0009 * g.pace;          // the phase along its path
-  const ease = Math.min(1, Math.max(0, s - g.grow) / 300);       // it sets off gently
-  const x = cx + A * Math.sin(w) * ease, z = cz + A * 0.7 * (Math.sin(2 * w + 0.6) - Math.sin(0.6)) * ease;
-  const y = cy + 2 * Math.sin(s * 0.004);
-  const vx = Math.cos(w), vz = 1.4 * Math.cos(2 * w + 0.6);
-  const head = Math.atan2(vx, vz) * ease + (1 - ease) * Math.atan2(1, 1.4 * Math.cos(0.6));
-  return { c: [x, y, z], R: rot(head + 0.03 * Math.sin(s * 0.007), g.tilt + 0.1 * Math.sin(s * 0.005), g.roll), k: g.scale * (1 + 0.04 * Math.sin(s * 0.011)) };
-}
 function rot(yaw, pitch, roll) {
   const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
   const Rz = [[cr, -sr, 0], [sr, cr, 0], [0, 0, 1]], Rx = [[1, 0, 0], [0, cp, -sp], [0, sp, cp]], Ry = [[cy, 0, sy], [0, 1, 0], [-sy, 0, cy]];
@@ -126,19 +125,27 @@ for (const d of [[1, 0, 0], [0, 1, 0], [0, 0, 1], [1, 1, 0], [1, -1, 0], [1, 0, 
   const l = Math.hypot(...d); HABIT.push(d.map((v) => v / l), d.map((v) => -v / l));
 }
 const COLUMNS = [['base', Float32Array, 3], ['dir', Float32Array, 3], ['len', Float32Array, 1], ['born', Uint32Array, 1], ['fedAt', Uint32Array, 1], ['alive', Uint8Array, 1], ['spin', Float32Array, 1]];
+const MAXV = 0.05;                                 // a flow's top speed, world units a step
 
-/** A creature: its genome, its flow (the realised attractor) and its house, stepped by `step()`. */
+/** A creature: its genome, its flow (the realised attractor), where it is, and its house. */
 export class Creature {
-  constructor(seed, over = {}) {
+  constructor(world, index, seed, at, yaw, over = {}) {
+    this.world = world; this.index = index;
     this.g = genome(seed, over);
     this.cloud = realise(this.g.key, 16000);
     const T = templates(this.cloud); this.near = T.near; this.far = T.far;
-    // crystals, as columns: base (x, y, z), direction (unit), length, born, fed, alive, spin
     this.cap = 2048; this.n = 0;
     for (const [k, A, w] of COLUMNS) this[k] = new A(this.cap * w);
-    this.crowd = new Uint16Array(NX * NY * NZ);    // live crystal bases per cell
-    this.s = 0; this.count = 0; this.laid = 0; this.lost = 0; this.version = 0;
-    this.epoch = 0;                                 // bumps when the columns are compacted (indices move)
+    this.c = at.slice(); this.v = [0, 0, 0]; this.yaw = yaw; this.prev = { c: at.slice(), yaw };
+    this.count = 0; this.laid = 0; this.lost = 0; this.epoch = 0; this.eaten = 0; this.travelled = 0;
+    this.push = [0, 0, 0];
+  }
+  /** Where it is, a fraction f of the way from the last step to this one: centre, turn, size. */
+  poseAt(f = 1, s = this.world.s) {
+    const c = [0, 1, 2].map((q) => this.prev.c[q] + (this.c[q] - this.prev.c[q]) * f);
+    let dy = this.yaw - this.prev.yaw; dy = Math.atan2(Math.sin(dy), Math.cos(dy));
+    const t = s - 1 + f, g = this.g;
+    return { c, R: rot(this.prev.yaw + dy * f + 0.03 * Math.sin(t * 0.007 + this.index), g.tilt + 0.1 * Math.sin(t * 0.005 + this.index * 2), g.roll), k: g.scale * (1 + 0.04 * Math.sin(t * 0.011 + this.index)) };
   }
   local(P, x, y, z, out) {          // world → the attractor's frame, at pose P
     const px = x - P.c[0], py = y - P.c[1], pz = z - P.c[2], R = P.R, ik = 1 / P.k;
@@ -147,12 +154,6 @@ export class Creature {
   }
   /** The current and the nutrient at a world point, at pose P. */
   field(P, x, y, z) { const u = this.local(P, x, y, z, [0, 0, 0]); return { current: sample(this.near, u[0], u[1], u[2]), nutrient: sample(this.far, u[0], u[1], u[2]) }; }
-  cell(x, y, z) { const i = Math.floor(x / CELL), j = Math.floor(y / CELL), k = Math.floor(z / CELL); return i >= 0 && j >= 0 && k >= 0 && i < NX && j < NY && k < NZ ? (j * NZ + k) * NX + i : -1; }
-  near3(x, y, z) {                    // live crystals in the 3×3×3 cells round a point
-    const i0 = Math.floor(x / CELL), j0 = Math.floor(y / CELL), k0 = Math.floor(z / CELL); let n = 0;
-    for (let j = j0 - 1; j <= j0 + 1; j++) for (let k = k0 - 1; k <= k0 + 1; k++) for (let i = i0 - 1; i <= i0 + 1; i++) if (i >= 0 && j >= 0 && k >= 0 && i < NX && j < NY && k < NZ) n += this.crowd[(j * NZ + k) * NX + i];
-    return n;
-  }
   /** Room for more: drop the dead (the living keep their order), then grow the columns if still full. */
   room() {
     let j = 0;
@@ -163,64 +164,180 @@ export class Creature {
     this.n = j; this.epoch++;
     if (this.n > this.cap * 0.7) { this.cap *= 2; for (const [k, A, w] of COLUMNS) { const B = new A(this.cap * w); B.set(this[k]); this[k] = B; } }
   }
-  /** One step: nucleation on the halo, growth at the tips, the current's dissolving, the reef's erosion. */
-  step() {
-    const g = this.g, s = ++this.s, P = pose(g, s), u = [0, 0, 0], R = P.R, k = P.k;
+  kill(i) {
+    const W = this.world; this.alive[i] = 0; this.count--;
+    const x = this.base[i * 3], y = this.base[i * 3 + 1], z = this.base[i * 3 + 2];
+    const ci = W.cell(x, y, z); if (ci >= 0 && W.crowd[ci]) W.crowd[ci]--;
+    W.give(x, y, z, this.len[i] * 0.05);                     // its mineral, back into the medium
+  }
+
+  /** Grow: nucleation on the halo, the flow grazing, tips growing. (Its current on crystals is `carve`.) */
+  grow(s, P) {
+    const g = this.g, W = this.world, R = P.R, k = P.k, u = [0, 0, 0];
     if (this.n > this.cap - 120) this.room();
-    let laid = 0, lost = 0;
-    // nucleation: candidate points in the creature's box; a crystal where the halo is, pointing inward
+    let laid = 0;
     for (let t = 0; t < 320; t++) {
-      const lu = (hash(s, t * 3 + 1) * 2 - 1) * TU, lv = (hash(s, t * 3 + 2) * 2 - 1) * TU, lw = (hash(s, t * 3 + 3) * 2 - 1) * TU;
+      const hs = s * 8 + this.index;
+      const lu = (hash(hs, t * 3 + 1) * 2 - 1) * TU, lv = (hash(hs, t * 3 + 2) * 2 - 1) * TU, lw = (hash(hs, t * 3 + 3) * 2 - 1) * TU;
       const nut = sample(this.far, lu, lv, lw);
       if (nut < g.halo || nut > g.halo * g.wall || sample(this.near, lu, lv, lw) > g.channel * 0.3) continue;
       const x = P.c[0] + (R[0][0] * lu + R[0][1] * lv + R[0][2] * lw) * k, y = P.c[1] + (R[1][0] * lu + R[1][1] * lv + R[1][2] * lw) * k, z = P.c[2] + (R[2][0] * lu + R[2][1] * lv + R[2][2] * lw) * k;
       if (x < 2 || y < 2 || z < 2 || x > GX - 2 || y > GY - 2 || z > GZ - 2) continue;
-      const crowd = this.near3(x, y, z);
-      if (crowd > 12) continue;                                                  // no room
-      const p = (0.035 + 0.35 * Math.min(1, (nut - g.halo) / g.halo)) * (0.25 + g.cluster * Math.min(3, crowd)) / (1 + g.cluster);
-      if (hash(s, t * 3 + 7777) > p) continue;
-      // the nutrient's gradient (in the attractor's frame, turned to the world): toward the flow
+      const crowd = W.near3(x, y, z), med = W.mediumAt(x, y, z);
+      if (crowd > 12 || med < 0.08) continue;                                   // no room; nothing to build with
+      const p = (0.035 + 0.35 * Math.min(1, (nut - g.halo) / g.halo)) * (0.25 + g.cluster * Math.min(3, crowd)) / (1 + g.cluster) * Math.min(1, med * 1.5);
+      if (hash(hs, t * 3 + 7777) > p) continue;
       const e = 0.06, gu = sample(this.far, lu + e, lv, lw) - sample(this.far, lu - e, lv, lw), gv = sample(this.far, lu, lv + e, lw) - sample(this.far, lu, lv - e, lw), gw = sample(this.far, lu, lv, lw + e) - sample(this.far, lu, lv, lw - e);
       let d = [R[0][0] * gu + R[0][1] * gv + R[0][2] * gw, R[1][0] * gu + R[1][1] * gv + R[1][2] * gw, R[2][0] * gu + R[2][1] * gv + R[2][2] * gw];
       let l = Math.hypot(...d); if (l < 1e-6) continue;
-      d = d.map((v, q) => v / l + (hash(s, t * 5 + q + 900) - 0.5) * 0.7);     // splayed, as a druse is
+      d = d.map((v, q) => v / l + (hash(hs, t * 5 + q + 900) - 0.5) * 0.7);     // splayed, as a druse is
       if (g.habit > 0) {
         let best = HABIT[0], bd = -2; for (const h of HABIT) { const dd = h[0] * d[0] + h[1] * d[1] + h[2] * d[2]; if (dd > bd) { bd = dd; best = h; } }
         const m = Math.hypot(...d); d = d.map((v, q) => v + (best[q] * m - v) * g.habit);
       }
       l = Math.hypot(...d); d = d.map((v) => v / l);
       const i = this.n++;
-      this.base.set([x, y, z], i * 3); this.dir.set(d, i * 3); this.len[i] = 0.3; this.born[i] = s; this.fedAt[i] = s; this.alive[i] = 1; this.spin[i] = hash(i + s * 7, 5) * 6.283;
-      const ci = this.cell(x, y, z); if (ci >= 0) this.crowd[ci]++;
+      this.base.set([x, y, z], i * 3); this.dir.set(d, i * 3); this.len[i] = 0.3; this.born[i] = s; this.fedAt[i] = s; this.alive[i] = 1; this.spin[i] = hash(i + hs * 7, 5) * 6.283;
+      const ci = W.cell(x, y, z); if (ci >= 0) W.crowd[ci]++;
+      W.take(x, y, z, 0.015);
       this.count++; laid++;
     }
-    // every crystal: fed at its tip, it grows; in the current, it dissolves back; unfed long, it erodes
+    // tips grow where they are fed and there is mineral to build with
     const box = liveHalf(k);
     for (let i = 0; i < this.n; i++) {
       if (!this.alive[i]) continue;
       const bx = this.base[i * 3], by = this.base[i * 3 + 1], bz = this.base[i * 3 + 2];
-      if (Math.abs(bx - P.c[0]) > box || Math.abs(by - P.c[1]) > box || Math.abs(bz - P.c[2]) > box) {
-        if (s - this.fedAt[i] > 1500 && hash(i + this.born[i], s) < 0.0008) { this.kill(i); lost++; }   // reef: erodes, rarely
-        continue;
-      }
-      const L = this.len[i];
-      this.local(P, bx + this.dir[i * 3] * L, by + this.dir[i * 3 + 1] * L, bz + this.dir[i * 3 + 2] * L, u);
-      const cur = sample(this.near, u[0], u[1], u[2]), nut = sample(this.far, u[0], u[1], u[2]);
-      if (cur > g.channel) {
-        this.len[i] = L - (0.08 + 0.6 * (cur - g.channel));                     // dissolved back by the current
-        if (this.len[i] < 0.25) { this.kill(i); lost++; }
-        continue;
-      }
-      if (nut > g.halo * 0.5) {
-        this.fedAt[i] = s;
-        if (L < g.reach) this.len[i] = L + 0.035 * Math.min(2, nut / g.halo) / (1 + L * g.girth * 1.5);
+      if (Math.abs(bx - P.c[0]) > box || Math.abs(by - P.c[1]) > box || Math.abs(bz - P.c[2]) > box) continue;
+      const L = this.len[i], tx = bx + this.dir[i * 3] * L, ty = by + this.dir[i * 3 + 1] * L, tz = bz + this.dir[i * 3 + 2] * L;
+      this.local(P, tx, ty, tz, u);
+      const nut = sample(this.far, u[0], u[1], u[2]);
+      if (nut > g.halo * 0.5 && L < g.reach && sample(this.near, u[0], u[1], u[2]) <= g.channel) {
+        const med = W.mediumAt(tx, ty, tz); if (med < 0.03) continue;
+        const dL = 0.035 * Math.min(2, nut / g.halo) / (1 + L * g.girth * 1.5) * Math.min(1, med * 2);
+        this.len[i] = L + dL; W.take(tx, ty, tz, dL * 0.05);
       }
     }
-    this.laid += laid; this.lost += lost; this.version++;
-    return { laid, lost };
+    // the flow grazes: the medium where its orbit runs (a few cells a step, by hash)
+    for (let t = 0; t < 40; t++) {
+      const q = Math.floor(hash(s * 8 + this.index, 50000 + t) * this.cloud.n), a = this.cloud.p[q * 3] * k, b = this.cloud.p[q * 3 + 1] * k, c = this.cloud.p[q * 3 + 2] * k;
+      const x = P.c[0] + R[0][0] * a + R[0][1] * b + R[0][2] * c, y = P.c[1] + R[1][0] * a + R[1][1] * b + R[1][2] * c, z = P.c[2] + R[2][0] * a + R[2][1] * b + R[2][2] * c;
+      this.eaten += W.take(x, y, z, 0.014 * g.appetite);
+    }
+    this.laid += laid;
+    return laid;
   }
-  kill(i) { this.alive[i] = 0; this.count--; const ci = this.cell(this.base[i * 3], this.base[i * 3 + 1], this.base[i * 3 + 2]); if (ci >= 0 && this.crowd[ci]) this.crowd[ci]--; }
-  run(n) { for (let k = 0; k < n; k++) this.step(); return this; }
-  /** A hash of the house (for determinism checks). */
+
+  /** This flow's current on every crystal near it (anyone's): it feeds them, dissolves tips in its way, and is pushed by them. */
+  carve(s, P) {
+    const g = this.g, W = this.world, u = [0, 0, 0], box = liveHalf(P.k); let lost = 0;
+    for (const B of W.creatures) {
+      for (let i = 0; i < B.n; i++) {
+        if (!B.alive[i]) continue;
+        const bx = B.base[i * 3], by = B.base[i * 3 + 1], bz = B.base[i * 3 + 2];
+        if (Math.abs(bx - P.c[0]) > box || Math.abs(by - P.c[1]) > box || Math.abs(bz - P.c[2]) > box) continue;
+        const L = B.len[i], dx = B.dir[i * 3], dy = B.dir[i * 3 + 1], dz = B.dir[i * 3 + 2];
+        this.local(P, bx + dx * L, by + dy * L, bz + dz * L, u);
+        const cur = sample(this.near, u[0], u[1], u[2]);
+        if (sample(this.far, u[0], u[1], u[2]) > g.halo * 0.5) B.fedAt[i] = s;   // any flow feeds a crystal it bathes
+        if (cur > g.channel) {
+          const d = 0.08 + 0.6 * (cur - g.channel);
+          B.len[i] = L - d; W.give(bx + dx * L, by + dy * L, bz + dz * L, d * 0.05);
+          // the tip pushes the flow: along the crystal, away from its base
+          const f = Math.min(0.3, cur - g.channel) * 0.0035; this.push[0] += dx * f; this.push[1] += dy * f; this.push[2] += dz * f;
+          if (B.len[i] < 0.25) { B.kill(i); lost++; }
+        }
+      }
+    }
+    this.lost += lost;
+    return lost;
+  }
+
+  /** Move: up the medium's gradient as it gets hungry, pushed by the tips in its way, apart from others, off the walls. */
+  move(s, P) {
+    const W = this.world, g = this.g, r = P.k * 2.2, c = this.c;
+    const m0 = W.mediumAt(c[0], c[1], c[2]), gr = [0, 1, 2].map((q) => { const a = c.slice(), b = c.slice(); a[q] += r; b[q] -= r; return (W.mediumAt(...a) - W.mediumAt(...b)) / (2 * r); });
+    gr[1] *= 0.4;                                                            // it prefers to roam level
+    const gl = Math.hypot(...gr), hunger = Math.max(0, Math.min(1, 1.3 - m0 / 0.3));
+    const acc = [0, 0, 0];
+    if (gl > 1e-5) for (let q = 0; q < 3; q++) acc[q] += (gr[q] / gl) * Math.min(1, gl * 400) * hunger * 0.0014 * g.restless;
+    for (let q = 0; q < 3; q++) { acc[q] += this.push[q]; this.push[q] = 0; }
+    for (const B of W.creatures) if (B !== this) {                          // a little distance from other flows
+      const d = [c[0] - B.c[0], c[1] - B.c[1], c[2] - B.c[2]], l = Math.hypot(...d) || 1, near = (g.scale + B.g.scale) * 1.6;
+      if (l < near) for (let q = 0; q < 3; q++) acc[q] += (d[q] / l) * 0.0015 * (1 - l / near);
+    }
+    const lo = [P.k * 1.2, P.k * 1.1, P.k * 1.2], hi = [GX - lo[0], GY - lo[1], GZ - lo[2]];
+    for (let q = 0; q < 3; q++) { if (c[q] < lo[q]) acc[q] += 0.002 * (lo[q] - c[q]) / P.k; if (c[q] > hi[q]) acc[q] -= 0.002 * (c[q] - hi[q]) / P.k; }
+    this.prev = { c: c.slice(), yaw: this.yaw };
+    for (let q = 0; q < 3; q++) this.v[q] = this.v[q] * 0.97 + acc[q];
+    const sp = Math.hypot(...this.v); if (sp > MAXV) for (let q = 0; q < 3; q++) this.v[q] *= MAXV / sp;
+    for (let q = 0; q < 3; q++) c[q] += this.v[q];
+    this.travelled += Math.min(sp, MAXV);
+    // it turns to face its way, slowly (its house is re-grown to fit)
+    const hs = Math.hypot(this.v[0], this.v[2]);
+    if (hs > 0.004) { let d = Math.atan2(this.v[0], this.v[2]) - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); this.yaw += Math.max(-0.006, Math.min(0.006, d)) * Math.min(1, hs / 0.02); }
+    this.hunger = hunger;
+  }
+  /** Reef: crystals no flow has fed for a long time erode, rarely, giving back their mineral. */
+  erode(s) {
+    let lost = 0;
+    for (let i = 0; i < this.n; i++) if (this.alive[i] && s - this.fedAt[i] > 1500 && hash(i + this.born[i], s * 4 + this.index) < 0.0008) { this.kill(i); lost++; }
+    this.lost += lost;
+  }
+  run(n) { this.world.run(n); return this; }
   digest() { let h = 0; for (let i = 0; i < this.n; i++) if (this.alive[i]) h = (Math.imul(h, 31) + Math.round(this.len[i] * 100) + Math.round(this.base[i * 3] * 10)) | 0; return h >>> 0; }
+}
+
+/** A world: the medium, the crowding grid, and its creatures, stepped together. */
+export class World {
+  constructor(seed, count = 3) {
+    this.seed = seed; this.s = 0; this.version = 0;
+    this.crowd = new Uint16Array(NX * NY * NZ);
+    // the medium: veins of dissolved mineral (a few seeded blobs and a floor), which it seeps back toward
+    const rnd = mulberry32((seed >>> 0) * 747796405 + 11), veins = Array.from({ length: 9 }, () => ({ x: rnd() * GX, y: GY * (0.3 + 0.4 * rnd()), z: rnd() * GZ, r: 14 + rnd() * 26, a: 0.5 + rnd() * 0.6 }));
+    this.base0 = new Float32Array(MX * MY * MZ); this.medium = new Float32Array(MX * MY * MZ);
+    for (let j = 0; j < MY; j++) for (let k = 0; k < MZ; k++) for (let i = 0; i < MX; i++) {
+      const x = (i + 0.5) * MC, y = (j + 0.5) * MC, z = (k + 0.5) * MC; let v = 0.12;
+      for (const b of veins) v += b.a * Math.exp(-((x - b.x) ** 2 + ((y - b.y) * 1.6) ** 2 + (z - b.z) ** 2) / (b.r * b.r));
+      this.base0[(j * MZ + k) * MX + i] = Math.min(1.2, v);
+    }
+    this.medium.set(this.base0);
+    this.creatures = [];
+    for (let n = 0; n < count; n++) {
+      const a = (n / count) * Math.PI * 2 + rnd() * 0.8, rr = count > 1 ? 34 + rnd() * 10 : 0;
+      this.creatures.push(new Creature(this, n, (Math.imul(seed >>> 0, 2654435761) + n * 40503) >>> 0 || 1, [GX / 2 + Math.cos(a) * rr, GY / 2 + (rnd() - 0.5) * 8, GZ / 2 + Math.sin(a) * rr], rnd() * Math.PI * 2));
+    }
+  }
+  cell(x, y, z) { const i = Math.floor(x / CELL), j = Math.floor(y / CELL), k = Math.floor(z / CELL); return i >= 0 && j >= 0 && k >= 0 && i < NX && j < NY && k < NZ ? (j * NZ + k) * NX + i : -1; }
+  near3(x, y, z) {                    // live crystals (anyone's) in the 3×3×3 cells round a point
+    const i0 = Math.floor(x / CELL), j0 = Math.floor(y / CELL), k0 = Math.floor(z / CELL); let n = 0;
+    for (let j = j0 - 1; j <= j0 + 1; j++) for (let k = k0 - 1; k <= k0 + 1; k++) for (let i = i0 - 1; i <= i0 + 1; i++) if (i >= 0 && j >= 0 && k >= 0 && i < NX && j < NY && k < NZ) n += this.crowd[(j * NZ + k) * NX + i];
+    return n;
+  }
+  mcell(x, y, z) { const i = Math.floor(x / MC), j = Math.floor(y / MC), k = Math.floor(z / MC); return i >= 0 && j >= 0 && k >= 0 && i < MX && j < MY && k < MZ ? (j * MZ + k) * MX + i : -1; }
+  mediumAt(x, y, z) { const m = this.mcell(x, y, z); return m < 0 ? 0 : this.medium[m]; }
+  take(x, y, z, a) { const m = this.mcell(x, y, z); if (m < 0) return 0; const t = Math.min(a, this.medium[m]); this.medium[m] -= t; return t; }
+  give(x, y, z, a) { const m = this.mcell(x, y, z); if (m >= 0) this.medium[m] += a; }
+  /** The medium seeps: a little diffusion, and back toward its veins, slowly. */
+  seep() {
+    const M = this.medium, B = this.base0, out = this.seepBuf ||= new Float32Array(M.length), SX = 1, SZ = MX, SY = MX * MZ;
+    for (let j = 0; j < MY; j++) for (let k = 0; k < MZ; k++) for (let i = 0; i < MX; i++) {
+      const o = (j * MZ + k) * MX + i; let s = 0, n = 0;
+      if (i > 0) { s += M[o - SX]; n++; } if (i < MX - 1) { s += M[o + SX]; n++; } if (k > 0) { s += M[o - SZ]; n++; } if (k < MZ - 1) { s += M[o + SZ]; n++; } if (j > 0) { s += M[o - SY]; n++; } if (j < MY - 1) { s += M[o + SY]; n++; }
+      const v = M[o] + 0.12 * (s / n - M[o]);
+      out[o] = v + (B[o] - v) * 0.0008;
+    }
+    M.set(out);
+  }
+  step() {
+    const s = ++this.s, poses = this.creatures.map((C) => C.poseAt(1, s));
+    this.creatures.forEach((C, i) => C.grow(s, poses[i]));
+    this.creatures.forEach((C, i) => C.carve(s, poses[i]));
+    this.creatures.forEach((C, i) => C.move(s, poses[i]));
+    if (s % 4 === 0) this.seep();
+    if (s % 8 === 0) this.creatures.forEach((C) => C.erode(s));
+    this.version++;
+  }
+  run(n) { for (let k = 0; k < n; k++) this.step(); return this; }
+  get count() { return this.creatures.reduce((a, C) => a + C.count, 0); }
+  digest() { return this.creatures.reduce((h, C) => (Math.imul(h, 31) + C.digest()) | 0, 0) >>> 0; }
 }

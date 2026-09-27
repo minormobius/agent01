@@ -420,26 +420,30 @@ console.log('\nAttractor Bodies (packages/attractor)');
   ok(JSON.stringify(Av.character(4242, { plan: 'quadruped' }).genes) === JSON.stringify(Av.character(4242, { plan: 'quadruped' }).genes) && Av.character(4242).plan === 'humanoid', 'a creature is its seed too, and a bare seed is still the humanoid');
 }
 
-// 12 — Accretion: a creature grows the same house every time, keeps its flow free, and wanders ---------
+// 12 — Accretion: a world grows the same every time, flows stay free, and they move by themselves ----
 console.log('\nAccretion (packages/attractor/lib/shell.js)');
 {
-  const { Creature, pose, liveHalf } = await import('../vendor/attractor/lib/shell.js');
-  const a = new Creature(7).run(700), b = new Creature(7).run(700);
-  ok(a.digest() === b.digest() && a.count > 200, `a seed grows the same house every time (${a.count} crystals after 700 steps)`);
-  // the tips stop short of the flow: almost no tip sits where the current would dissolve it
-  const P = pose(a.g, a.s); let tips = 0, wet = 0, inward = 0;
-  for (let i = 0; i < a.n; i++) if (a.alive[i]) {
-    const L = a.len[i], f = a.field(P, a.base[i * 3] + a.dir[i * 3] * L, a.base[i * 3 + 1] + a.dir[i * 3 + 1] * L, a.base[i * 3 + 2] + a.dir[i * 3 + 2] * L);
-    tips++; if (f.current > a.g.channel * 1.5) wet++;
-    const v = [P.c[0] - a.base[i * 3], P.c[1] - a.base[i * 3 + 1], P.c[2] - a.base[i * 3 + 2]], l = Math.hypot(...v) || 1;
-    inward += (v[0] * a.dir[i * 3] + v[1] * a.dir[i * 3 + 1] + v[2] * a.dir[i * 3 + 2]) / l;
+  const { World } = await import('../vendor/attractor/lib/shell.js');
+  const a = new World(7, 3).run(700), b = new World(7, 3).run(700);
+  ok(a.digest() === b.digest() && a.count > 200, `a seed grows the same world every time (${a.count} crystals, 3 creatures, 700 steps)`);
+  // the tips stop short of their flow: almost none sits where its own current would dissolve it
+  let tips = 0, wet = 0, inward = 0;
+  for (const C of a.creatures) {
+    const P = C.poseAt(1);
+    for (let i = 0; i < C.n; i++) if (C.alive[i]) {
+      const L = C.len[i], f = C.field(P, C.base[i * 3] + C.dir[i * 3] * L, C.base[i * 3 + 1] + C.dir[i * 3 + 1] * L, C.base[i * 3 + 2] + C.dir[i * 3 + 2] * L);
+      if (f.nutrient < C.g.halo * 0.5) continue;                     // (someone else's reef, or its own left behind)
+      tips++; if (f.current > C.g.channel * 1.5) wet++;
+      const v = [P.c[0] - C.base[i * 3], P.c[1] - C.base[i * 3 + 1], P.c[2] - C.base[i * 3 + 2]], l = Math.hypot(...v) || 1;
+      inward += (v[0] * C.dir[i * 3] + v[1] * C.dir[i * 3 + 1] + v[2] * C.dir[i * 3 + 2]) / l;
+    }
   }
-  ok(wet / tips < 0.03 && inward / tips > 0.3, `the crystals point in at the flow (mean cos ${(inward / tips).toFixed(2)}) and stop short of it (${wet} of ${tips} tips in its current)`);
-  const c0 = pose(a.g, a.g.grow).c, c1 = pose(a.g, a.g.grow + 1500).c, moved = Math.hypot(c1[0] - c0[0], c1[2] - c0[2]);
-  ok(moved > 10 && liveHalf(10) > 0, `after growing it wanders (${moved.toFixed(1)} units in 1500 steps)`);
-  const late = new Creature(3).run(2400); let finite = true;
-  for (let i = 0; i < late.n; i++) if (late.alive[i] && !(Number.isFinite(late.len[i]) && late.len[i] > 0 && Number.isFinite(late.base[i * 3]))) finite = false;
-  ok(finite && late.lost > 0, `a long life stays finite, and dissolves as well as grows (grown ${late.laid}, dissolved ${late.lost})`);
+  ok(wet / tips < 0.03 && inward / tips > 0.25, `crystals point in at their flow (mean cos ${(inward / tips).toFixed(2)}) and stop short of it (${wet} of ${tips} tips in its current)`);
+  // nothing scripts the motion: a long life moves them (by hunger and crowding), stays in the world and finite, and cycles mineral
+  const L = new World(1, 3).run(3000), inside = L.creatures.every((C) => C.c.every((v, q) => v > 0 && v < [160, 72, 160][q]));
+  let finite = true; for (const C of L.creatures) for (let i = 0; i < C.n; i++) if (C.alive[i] && !(Number.isFinite(C.len[i]) && Number.isFinite(C.base[i * 3]))) finite = false;
+  const far = Math.max(...L.creatures.map((C) => C.travelled)), lost = L.creatures.reduce((x, C) => x + C.lost, 0), eaten = L.creatures.reduce((x, C) => x + C.eaten, 0);
+  ok(far > 40 && inside && finite && lost > 0 && eaten > 0, `a hungry flow moves on by itself (${far.toFixed(0)} units), all stay in the world and finite, and mineral cycles (grazed ${eaten.toFixed(0)}, ${lost} crystals dissolved)`);
 }
 
 console.log(failed ? `\n${failed} failed` : '\nall passed');

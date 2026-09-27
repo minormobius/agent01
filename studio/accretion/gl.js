@@ -18,18 +18,19 @@ const FS = `
 precision highp float;
 varying vec3 vN; varying vec3 vW; varying float vAge; varying float vStarve; varying float vV;
 uniform vec3 uEye; uniform vec3 uKey; uniform float uHue; uniform vec3 uFlow; uniform vec3 uCentre;
-uniform vec3 uBase; uniform float uIri; uniform float uGlass; uniform float uSpec; uniform vec4 uCut;
+uniform vec3 uBase; uniform float uIri; uniform float uGlass; uniform float uSpec; uniform vec4 uCut; uniform float uCrust; uniform float uTrail;
 vec3 film(float d, float ct) {
   float st = sqrt(1.0 - ct * ct) / 2.4, c = sqrt(1.0 - st * st);
   return 0.5 + 0.5 * cos(12.566 * 2.4 * d * c / vec3(620.0, 540.0, 455.0) + vec3(0.0, 0.4, 0.9));
 }
 void main() {
   if (dot(vW, uCut.xyz) > uCut.w) discard;                                     // cut open, like a geode
+  if (vV < -0.5 && uCrust < 0.5) discard;                                      // the rind, off
   vec3 N = normalize(vN), V = normalize(uEye - vW);
   if (dot(N, V) < 0.0) N = -N;
   vec3 L = normalize(uKey), H = normalize(L + V);
   float ct = max(0.04, dot(N, V)), fres = pow(1.0 - ct, 4.0);
-  float bleach = smoothstep(250.0, 1100.0, vStarve);
+  float bleach = smoothstep(250.0, 1100.0, vStarve) * (1.0 - uTrail);
   // metal: the film over the base; glass: the base, dim, lit from inside by the flow
   float d = 90.0 + 300.0 * (1.0 - exp(-vAge / 700.0)) + 220.0 * uHue + 60.0 * vV;
   vec3 metal = mix(uBase, film(d, ct) * (0.4 + 0.6 * uBase * 1.4), uIri);
@@ -40,12 +41,15 @@ void main() {
   col += pow(max(0.0, dot(N, H)), 70.0) * uSpec * (1.0 - 0.6 * bleach) + fres * mix(vec3(0.5, 0.55, 0.65), uFlow, 0.4) * 0.6;
   col = mix(col, vec3(0.8, 0.77, 0.7) * (0.35 + 0.45 * diff), bleach * 0.85);
   col += vec3(1.0, 0.92, 0.8) * 1.4 * exp(-vAge / 30.0) * max(0.0, vV);              // born hot, at the tip
+  // the lit trail: a crystal no flow feeds keeps its light, as a gem holds it (the reef as a wake of gems)
+  float gone = smoothstep(250.0, 1100.0, vStarve) * uTrail * step(-0.5, vV);
+  col = mix(col, (mix(uBase, film(d, ct), uIri) * 0.9 + uFlow * 0.35) * (0.55 + 0.6 * vV) * 1.3 + pow(max(0.0, dot(N, H)), 40.0), gone);
   if (vV < -0.5) {                                                          // the rind: matte rock
     vec3 rock = mix(vec3(0.2, 0.17, 0.15), uBase * 0.35, 0.3) * (0.8 + 0.4 * fract(sin(dot(floor(vW * 1.3), vec3(12.9, 78.2, 37.7))) * 43758.5));
     col = rock * (diff * 0.9 + hemi * 0.25) + fres * 0.08;
     col = mix(col, vec3(0.62, 0.6, 0.56) * (0.3 + 0.5 * diff), bleach * 0.8);
   }
-  col *= 1.0 - smoothstep(70.0, 170.0, length(vW - uEye)) * 0.6;
+  col *= 1.0 - smoothstep(110.0, 320.0, length(vW - uEye)) * 0.6;
   gl_FragColor = vec4(col / (1.0 + 0.3 * max(col.r, max(col.g, col.b))) * 1.2, 1.0);
 }`;
 const PVS = `
@@ -74,8 +78,11 @@ export function makeRenderer(canvas) {
   const pbo = gl.createBuffer(), PER = 84 * 9;            // floats a crystal (84 vertices of 9)
   // two meshes: the reef (crystals away from the creature: they change rarely, re-meshed every few
   // seconds) and the live house round it (re-meshed as it grows). A crystal is in exactly one.
-  const parts = { reef: { vbo: gl.createBuffer(), buf: new Float32Array(PER * 1024), nv: 0 }, live: { vbo: gl.createBuffer(), buf: new Float32Array(PER * 1024), nv: 0 } };
-  let inReef = new Uint8Array(0), reefEpoch = -1, pts = new Float32Array(4 * 30000);
+  // per creature (a world holds several): { reef, live, inReef, epoch }
+  const sets = new Map();
+  const setOf = (C) => { let m = sets.get(C); if (!m) sets.set(C, m = { reef: { vbo: gl.createBuffer(), buf: new Float32Array(PER * 256), nv: 0 }, live: { vbo: gl.createBuffer(), buf: new Float32Array(PER * 256), nv: 0 }, inReef: new Uint8Array(0), epoch: -1 }); return m; };
+  const forget = () => { for (const m of sets.values()) { gl.deleteBuffer(m.reef.vbo); gl.deleteBuffer(m.live.vbo); } sets.clear(); };
+  let pts = new Float32Array(4 * 30000);
   const HC = Array.from({ length: 6 }, (_, k) => Math.cos((k * Math.PI) / 3)), HS = Array.from({ length: 6 }, (_, k) => Math.sin((k * Math.PI) / 3));
   const V = new Float32Array(3 * 20);                     // scratch vertices: lo 0–5, hi 6–11, tip 12, rim 13–17, up 18, dn 19
 
@@ -125,58 +132,67 @@ export function makeRenderer(canvas) {
     gl.bindBuffer(gl.ARRAY_BUFFER, part.vbo); gl.bufferData(gl.ARRAY_BUFFER, part.buf.subarray(0, o), gl.DYNAMIC_DRAW);
   }
   /** Re-mesh the reef: every crystal outside the creature's box (c, half) at this moment. */
-  function meshReef(C, c, half) {
-    if (inReef.length < C.cap) inReef = new Uint8Array(C.cap);
-    inReef.fill(0);
-    for (let i = 0; i < C.n; i++) if (C.alive[i] && (Math.abs(C.base[i * 3] - c[0]) > half || Math.abs(C.base[i * 3 + 1] - c[1]) > half || Math.abs(C.base[i * 3 + 2] - c[2]) > half)) inReef[i] = 1;
-    reefEpoch = C.epoch;
-    fill(parts.reef, C, (i) => inReef[i]);
+  // (a crystal is live if ANY flow is near it: another's current carves it, another's halo feeds it)
+  function meshReef(C, near) {
+    const m = setOf(C);
+    if (m.inReef.length < C.cap) m.inReef = new Uint8Array(C.cap);
+    m.inReef.fill(0);
+    for (let i = 0; i < C.n; i++) if (C.alive[i] && !near(C.base[i * 3], C.base[i * 3 + 1], C.base[i * 3 + 2])) m.inReef[i] = 1;
+    m.epoch = C.epoch;
+    fill(m.reef, C, (i) => m.inReef[i]);
   }
   /** Re-mesh the live house (everything the reef mesh doesn't hold). */
-  function meshLive(C, c, half) {
-    if (reefEpoch !== C.epoch) meshReef(C, c, half);
-    fill(parts.live, C, (i) => i >= inReef.length || !inReef[i]);
+  function meshLive(C, near) {
+    const m = setOf(C);
+    if (m.epoch !== C.epoch) meshReef(C, near);
+    fill(m.live, C, (i) => i >= m.inReef.length || !m.inReef[i]);
   }
-  const mesh = (C, c, half) => { meshReef(C, c, half); meshLive(C, c, half); };
 
-  /** Draw: `view` { eye, target, fov }, s the (continuous) step, flow points [x,y,z,b]… */
-  function draw(view, s, g, flow, nflow, look) {
+  /** Draw a world: `view` { eye, target, fov }, s the (continuous) step, flows [{ buf, n, col, centre }]. */
+  function draw(view, s, W, flows, look) {
     const w = canvas.width, h = canvas.height;
     gl.viewport(0, 0, w, h);
     gl.clearColor(0.018, 0.016, 0.026, 1); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    const PV = mul(persp(view.fov, w / h, 0.5, 600), lookAt(view.eye, view.target));
-    if (look.shell && parts.reef.nv + parts.live.nv) {
+    const PV = mul(persp(view.fov, w / h, 0.5, 900), lookAt(view.eye, view.target));
+    if (look.shell) {
       gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LEQUAL); gl.depthMask(true); gl.disable(gl.BLEND); gl.disable(gl.CULL_FACE);
       gl.useProgram(S.p);
-      const M = MINERALS[g.mineral] || MINERALS.bismuth;
-      gl.uniformMatrix4fv(S.loc.uPV, false, PV); gl.uniform1f(S.loc.uS, s); gl.uniform3fv(S.loc.uEye, view.eye);
-      gl.uniform3fv(S.loc.uKey, [0.5, 0.9, 0.35]); gl.uniform1f(S.loc.uHue, g.hue); gl.uniform3fv(S.loc.uFlow, look.flowCol); gl.uniform3fv(S.loc.uCentre, look.centre || view.target);
-      gl.uniform3fv(S.loc.uBase, M.base); gl.uniform1f(S.loc.uIri, M.iri); gl.uniform1f(S.loc.uGlass, M.glass); gl.uniform1f(S.loc.uSpec, M.spec);
-      // the cut: a plane through the creature, square to the view (the near half is gone)
-      const c = look.centre || view.target, n = [view.eye[0] - c[0], 0, view.eye[2] - c[2]], nl = Math.hypot(...n) || 1;
+      gl.uniformMatrix4fv(S.loc.uPV, false, PV); gl.uniform1f(S.loc.uS, s); gl.uniform3fv(S.loc.uEye, view.eye); gl.uniform3fv(S.loc.uKey, [0.5, 0.9, 0.35]);
+      gl.uniform1f(S.loc.uCrust, look.crust ? 1 : 0); gl.uniform1f(S.loc.uTrail, look.glow ? 1 : 0);
+      // the cut: a plane through what the camera looks at, square to the view (the near half is gone)
+      const c = view.target, n = [view.eye[0] - c[0], 0, view.eye[2] - c[2]], nl = Math.hypot(...n) || 1;
       if (look.cut) gl.uniform4f(S.loc.uCut, n[0] / nl, 0, n[2] / nl, (n[0] * c[0] + n[2] * c[2]) / nl + 1.5); else gl.uniform4f(S.loc.uCut, 0, 0, 0, 1);
-      for (const part of [parts.reef, parts.live]) {
-        if (!part.nv) continue;
-        gl.bindBuffer(gl.ARRAY_BUFFER, part.vbo);
-        for (const [name, n, off] of [['aPos', 3, 0], ['aNrm', 3, 12], ['aBorn', 1, 24], ['aFed', 1, 28], ['aV', 1, 32]]) { gl.enableVertexAttribArray(S.loc[name]); gl.vertexAttribPointer(S.loc[name], n, gl.FLOAT, false, 36, off); }
-        gl.drawArrays(gl.TRIANGLES, 0, part.nv);
-      }
+      W.creatures.forEach((C, ci) => {
+        const m = sets.get(C); if (!m) return;
+        const M = MINERALS[C.g.mineral] || MINERALS.bismuth;
+        gl.uniform1f(S.loc.uHue, C.g.hue); gl.uniform3fv(S.loc.uFlow, flows[ci].col); gl.uniform3fv(S.loc.uCentre, flows[ci].centre);
+        gl.uniform3fv(S.loc.uBase, M.base); gl.uniform1f(S.loc.uIri, M.iri); gl.uniform1f(S.loc.uGlass, M.glass); gl.uniform1f(S.loc.uSpec, M.spec);
+        for (const part of [m.reef, m.live]) {
+          if (!part.nv) continue;
+          gl.bindBuffer(gl.ARRAY_BUFFER, part.vbo);
+          for (const [name, k, off] of [['aPos', 3, 0], ['aNrm', 3, 12], ['aBorn', 1, 24], ['aFed', 1, 28], ['aV', 1, 32]]) { gl.enableVertexAttribArray(S.loc[name]); gl.vertexAttribPointer(S.loc[name], k, gl.FLOAT, false, 36, off); }
+          gl.drawArrays(gl.TRIANGLES, 0, part.nv);
+        }
+      });
       for (const name of ['aPos', 'aNrm', 'aBorn', 'aFed', 'aV']) gl.disableVertexAttribArray(S.loc[name]);
     }
-    if (look.flow && nflow) {
-      gl.useProgram(P.p); gl.bindBuffer(gl.ARRAY_BUFFER, pbo); gl.bufferData(gl.ARRAY_BUFFER, flow.subarray(0, nflow * 4), gl.STREAM_DRAW);
-      gl.enableVertexAttribArray(P.loc.aPos); gl.vertexAttribPointer(P.loc.aPos, 3, gl.FLOAT, false, 16, 0);
-      gl.enableVertexAttribArray(P.loc.aB); gl.vertexAttribPointer(P.loc.aB, 1, gl.FLOAT, false, 16, 12);
-      gl.uniformMatrix4fv(P.loc.uPV, false, PV); gl.uniform3fv(P.loc.uCol, look.flowCol);
-      gl.uniform1f(P.loc.uSize, h * 0.3 * look.pointSize);
+    if (look.flow) {
+      gl.useProgram(P.p); gl.uniformMatrix4fv(P.loc.uPV, false, PV); gl.uniform1f(P.loc.uSize, h * 0.3 * look.pointSize);
       gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE); gl.depthMask(false);
-      if (look.shell) { gl.depthFunc(gl.GREATER); gl.uniform1f(P.loc.uGain, 0.1 * look.xray); gl.drawArrays(gl.POINTS, 0, nflow); }   // behind the crystal: through it
-      gl.depthFunc(gl.LEQUAL); gl.uniform1f(P.loc.uGain, 0.55); gl.drawArrays(gl.POINTS, 0, nflow);
+      for (const F of flows) {
+        if (!F.n) continue;
+        gl.bindBuffer(gl.ARRAY_BUFFER, pbo); gl.bufferData(gl.ARRAY_BUFFER, F.buf.subarray(0, F.n * 4), gl.STREAM_DRAW);
+        gl.enableVertexAttribArray(P.loc.aPos); gl.vertexAttribPointer(P.loc.aPos, 3, gl.FLOAT, false, 16, 0);
+        gl.enableVertexAttribArray(P.loc.aB); gl.vertexAttribPointer(P.loc.aB, 1, gl.FLOAT, false, 16, 12);
+        gl.uniform3fv(P.loc.uCol, F.col);
+        if (look.shell) { gl.depthFunc(gl.GREATER); gl.uniform1f(P.loc.uGain, 0.1 * look.xray); gl.drawArrays(gl.POINTS, 0, F.n); }   // behind the crystal: through it
+        gl.depthFunc(gl.LEQUAL); gl.uniform1f(P.loc.uGain, 0.55); gl.drawArrays(gl.POINTS, 0, F.n);
+      }
       gl.depthMask(true); gl.disable(gl.BLEND);
       gl.disableVertexAttribArray(P.loc.aPos); gl.disableVertexAttribArray(P.loc.aB);
     }
   }
-  return { gl, mesh, meshReef, meshLive, draw, get crystals() { return (parts.reef.nv + parts.live.nv) / 84; }, points: (n) => (pts.length < n * 4 ? (pts = new Float32Array(n * 4)) : pts) };
+  return { gl, meshReef, meshLive, forget, draw, get crystals() { let n = 0; for (const m of sets.values()) n += m.reef.nv + m.live.nv; return n / 84; }, points: (n) => (pts.length < n * 4 ? (pts = new Float32Array(n * 4)) : pts) };
 }
 
 // ---- matrices (column-major) ----
