@@ -480,6 +480,27 @@ now literally checkable against any handle typed in — reading a passing
 wondering-aloud as an implicit ask is new; watch whether future requests
 confirm this pays off or whether it over-delivers on a rhetorical aside.
 
+Thirty-first request (2026-09-27), "conways-game": another bare-formula ask,
+no reference link, no thread context needed — "conways game of life in 5
+dimensions." Consistent with the standing fourth/fifth/fifteenth/etc. pattern
+of taking a literal bound seriously: built a genuine 5D torus with the real
+5D Moore neighbourhood (3^5-1 = 242 neighbours per cell), not a 3D demo with
+a "5D" label or a neighbourhood count quietly capped for compute. New
+mechanical problem this request posed that earlier ones hadn't: the classic
+rule (B3/S23) is stated as fixed neighbour *counts*, which have no meaning
+once the neighbourhood size itself changes with dimension — resolved by
+restating the rule as a density band (fraction of neighbours alive) instead,
+flagged explicitly on-page as an extension with no proven-special defaults
+the way B3/S23 is proven in 2D. Same "name it, don't take the trademarked
+name" move as tube-tetris: titled it "Pentacell," kept "Game of Life" out of
+title/headings/share-card, used it freely in body copy. Visualization choice
+worth remembering: nested grid-of-grids (2 axes as the cell grid, 2 more as
+tiles of that grid, the 5th as a slider that only changes what's drawn, not
+what's simulated) rather than reaching for three.js — for a "show N
+dimensions on a 2D screen" request, tiling is more literal and legible than
+a fake 3D projection, and is worth trying again before defaulting to 3D for
+future high-dimension asks.
+
 Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
 phrased with pre-emptive, joking defiance ("chess but its modular forms...
 don't you dare tell me this doesn't make sense just make modular group

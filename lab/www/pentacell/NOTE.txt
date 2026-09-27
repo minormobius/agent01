@@ -1,0 +1,1 @@
+5D Moore neighbourhood, 242 neighbours — B3/S23 doesn't scale, so birth/survival are live density-band sliders instead. Defaults are a guess, not proven special like 2D's. Named it Pentacell, not Game of Life, on purpose.
