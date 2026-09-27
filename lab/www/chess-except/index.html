@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess, Except</title>
+<meta property="og:title" content="Chess, Except">
+<meta property="og:description" content="Real chess rules, but you don't choose where a piece goes: tap it and it stumbles through random legal moves — capturing anything in its path — until it's stuck, then the other side goes.">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  main { max-width: 34rem; }
+  #status { display: flex; align-items: center; gap: .6rem; font-size: .95rem; margin-bottom: .25rem; }
+  #status .dot { width: .8rem; height: .8rem; border-radius: 50%; flex: none; border: 1px solid var(--border); }
+  #status .dot.w { background: #eee; }
+  #status .dot.b { background: #3f6fb0; }
+  #message { min-height: 1.4rem; font-size: .85rem; color: var(--accent); margin-bottom: .75rem; }
+  #message.err { color: var(--error); }
+  .board {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    grid-template-rows: repeat(12, 1fr);
+    width: clamp(352px, 92vw, 480px);
+    aspect-ratio: 2 / 3;
+    margin: 0 auto 1.25rem;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  .sq {
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(1.5rem, 6.5vw, 2.4rem);
+    cursor: pointer; user-select: none; position: relative;
+    line-height: 1;
+  }
+  .sq.light { background: var(--bg-raised); }
+  .sq.dark  { background: #0a0a0d; }
+  .sq .p.w { color: #f2efe9; }
+  .sq .p.b { color: #6fa3e0; }
+  .sq.active { box-shadow: inset 0 0 0 3px var(--accent); }
+  .controls { display: flex; gap: .6rem; align-items: center; margin: 1rem 0; flex-wrap: wrap; }
+  .legend { font-size: .8rem; color: var(--muted); }
+  .rules { margin-top: 2rem; }
+  .rules li { margin: .3rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Chess, Except</h1>
+  <p class="sub">You still pick the piece. The piece picks the moves — a whole random walk of them, one legal step after another, until it's got nowhere left to go.</p>
+
+  <div id="status"><span class="dot w" id="turn-dot"></span><span id="turn-text">White to move — tap one of your pieces</span></div>
+  <div id="lives" class="legend"></div>
+  <div id="message"></div>
+  <div class="board" id="board" role="grid" aria-label="Chess board"></div>
+
+  <div class="controls">
+    <button id="new-game">New game</button>
+    <span class="legend">white ♙♘♗♖♕♔ &middot; blue ♟♞♝♜♛♚</span>
+  </div>
+
+  <div class="rules">
+    <h2>the except part</h2>
+    <ul>
+      <li>Tap a piece with a legal move. It moves — then, from wherever it lands, moves again, and again, choosing uniformly at random among its own legal moves each time, until it has none left. Then it's the other side's turn.</li>
+      <li>A walk can chain captures: land on an enemy piece, take it, and keep walking from that square if there's still somewhere legal to go.</li>
+      <li>No pawn promotion — a pawn that reaches the back rank is just a pawn that reached the back rank. It often has no legal move left there, which ends the walk on its own.</li>
+      <li>No castling, no en passant, no check or checkmate — this variant doesn't track attack squares.</li>
+      <li>Kings can capture pawns, and only pawns — every other occupied square, including the enemy king, is still off-limits to a king.</li>
+      <li>Kings get 3 lives: the first two pieces that land a capture on a king are destroyed instead of completing it, and the king loses one life each time. The third hit actually takes the king and ends the game.</li>
+      <li>Knight, bishop, rook and queen can't be captured at all — attack one and it destroys the attacker instead, every single time, and the turn ends right there. Only pawns and kings actually die.</li>
+      <li>The board is 8 wide and 12 tall, with two ranks of pawns on each side instead of one — the back rank's pawns are boxed in until the front rank moves.</li>
+      <li>A walk has no step limit — it runs until the piece has nowhere legal left to go, and steps play out quickly. New game abandons the current one at any point.</li>
+      <li>The game also ends if a side has no legal move anywhere on its turn (a draw).</li>
+    </ul>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('chess except');
+
+  const GLYPH = {
+    w: { k: '♔', q: '♕', r: '♖', b: '♗', n: '♘', p: '♙' },
+    b: { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' },
+  };
+  const STEP_DELAY = 50;
+  const ROWS = 12, COLS = 8;
+  const KING_LIVES = 3;
+  const BLACK_PAWN_ROWS = [1, 2];
+  const WHITE_PAWN_ROWS = [ROWS - 3, ROWS - 2];
+  const PIECE_NAME = { p: 'pawn', n: 'knight', b: 'bishop', r: 'rook', q: 'queen', k: 'king' };
+
+  const boardEl = document.getElementById('board');
+  const turnDot = document.getElementById('turn-dot');
+  const turnText = document.getElementById('turn-text');
+  const messageEl = document.getElementById('message');
+  const livesEl = document.getElementById('lives');
+
+  let board, current, gameOver, walking, stepCount, activeSquare, walkId;
+
+  function backPiece(color, type) {
+    return type === 'k' ? { color, type, lives: KING_LIVES } : { color, type };
+  }
+
+  function freshBoard() {
+    const b = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
+    const back = ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'];
+    for (let c = 0; c < COLS; c++) {
+      b[0][c] = backPiece('b', back[c]);
+      for (const r of BLACK_PAWN_ROWS) b[r][c] = { color: 'b', type: 'p' };
+      for (const r of WHITE_PAWN_ROWS) b[r][c] = { color: 'w', type: 'p' };
+      b[ROWS - 1][c] = backPiece('w', back[c]);
+    }
+    return b;
+  }
+
+  function findKing(color) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const p = board[r][c];
+        if (p && p.color === color && p.type === 'k') return p;
+      }
+    }
+    return null;
+  }
+
+  function inBounds(r, c) { return r >= 0 && r < ROWS && c >= 0 && c < COLS; }
+
+  function slide(r, c, dirs, color, moves) {
+    for (const [dr, dc] of dirs) {
+      let nr = r + dr, nc = c + dc;
+      while (inBounds(nr, nc)) {
+        const t = board[nr][nc];
+        if (!t) { moves.push([nr, nc]); }
+        else { if (t.color !== color) moves.push([nr, nc]); break; }
+        nr += dr; nc += dc;
+      }
+    }
+  }
+
+  const DIAG = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+  const ORTH = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+  const KNIGHT = [[1, 2], [1, -2], [-1, 2], [-1, -2], [2, 1], [2, -1], [-2, 1], [-2, -1]];
+
+  function legalMoves(r, c) {
+    const p = board[r][c];
+    if (!p) return [];
+    const moves = [];
+    const color = p.color;
+    switch (p.type) {
+      case 'p': {
+        const dir = color === 'w' ? -1 : 1;
+        const startRows = color === 'w' ? WHITE_PAWN_ROWS : BLACK_PAWN_ROWS;
+        if (inBounds(r + dir, c) && !board[r + dir][c]) {
+          moves.push([r + dir, c]);
+          if (startRows.includes(r) && inBounds(r + 2 * dir, c) && !board[r + 2 * dir][c]) moves.push([r + 2 * dir, c]);
+        }
+        for (const dc of [-1, 1]) {
+          const nr = r + dir, nc = c + dc;
+          if (inBounds(nr, nc) && board[nr][nc] && board[nr][nc].color !== color) moves.push([nr, nc]);
+        }
+        break;
+      }
+      case 'n':
+        for (const [dr, dc] of KNIGHT) {
+          const nr = r + dr, nc = c + dc;
+          if (inBounds(nr, nc) && (!board[nr][nc] || board[nr][nc].color !== color)) moves.push([nr, nc]);
+        }
+        break;
+      case 'b': slide(r, c, DIAG, color, moves); break;
+      case 'r': slide(r, c, ORTH, color, moves); break;
+      case 'q': slide(r, c, DIAG.concat(ORTH), color, moves); break;
+      case 'k':
+        for (const [dr, dc] of DIAG.concat(ORTH)) {
+          const nr = r + dr, nc = c + dc;
+          if (!inBounds(nr, nc)) continue;
+          const t = board[nr][nc];
+          if (!t) moves.push([nr, nc]);
+          else if (t.color !== color && t.type === 'p') moves.push([nr, nc]);
+        }
+        break;
+    }
+    return moves;
+  }
+
+  function hasAnyLegalMove(color) {
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const p = board[r][c];
+        if (p && p.color === color && legalMoves(r, c).length) return true;
+      }
+    }
+    return false;
+  }
+
+  function setMessage(text, isErr) {
+    messageEl.textContent = text || '';
+    messageEl.className = isErr ? 'err' : '';
+  }
+
+  function render() {
+    boardEl.textContent = '';
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const sq = document.createElement('div');
+        sq.className = 'sq ' + ((r + c) % 2 === 0 ? 'light' : 'dark');
+        if (activeSquare && activeSquare[0] === r && activeSquare[1] === c) sq.className += ' active';
+        const p = board[r][c];
+        if (p) {
+          const span = document.createElement('span');
+          span.className = 'p ' + p.color;
+          span.textContent = GLYPH[p.color][p.type];
+          sq.appendChild(span);
+        }
+        sq.dataset.r = r; sq.dataset.c = c;
+        sq.addEventListener('click', onSquareClick);
+        boardEl.appendChild(sq);
+      }
+    }
+    turnDot.className = 'dot ' + current;
+    turnText.textContent = gameOver
+      ? 'Game over — see below'
+      : (current === 'w' ? 'White' : 'Black') + ' to move — tap one of your pieces';
+    const wk = findKing('w'), bk = findKing('b');
+    livesEl.textContent = '♔ lives: ' + (wk ? wk.lives : 0) + '   ♚ lives: ' + (bk ? bk.lives : 0);
+  }
+
+  function onSquareClick(e) {
+    if (gameOver || walking) return;
+    const r = Number(e.currentTarget.dataset.r), c = Number(e.currentTarget.dataset.c);
+    const p = board[r][c];
+    if (!p || p.color !== current) {
+      setMessage('Select one of your own pieces.', true);
+      return;
+    }
+    const moves = legalMoves(r, c);
+    if (moves.length === 0) {
+      setMessage('That piece has no legal move — pick another.', true);
+      return;
+    }
+    setMessage('');
+    walking = true;
+    stepCount = 0;
+    const id = ++walkId;
+    walkStep(r, c, id);
+  }
+
+  function walkStep(r, c, id) {
+    if (id !== walkId) return;
+    activeSquare = [r, c];
+    render();
+    const moves = legalMoves(r, c);
+    if (moves.length === 0) {
+      walking = false;
+      activeSquare = null;
+      endTurn();
+      return;
+    }
+    setTimeout(function () {
+      if (id !== walkId) return;
+      const [nr, nc] = moves[Math.floor(Math.random() * moves.length)];
+      const target = board[nr][nc];
+      const attacker = board[r][c];
+      const attackerName = PIECE_NAME[attacker.type];
+      const targetColorName = target && target.color === 'w' ? 'white' : 'black';
+      const targetName = target ? PIECE_NAME[target.type] : '';
+      if (target && target.type === 'k') {
+        target.lives--;
+        if (target.lives <= 0) {
+          board[nr][nc] = attacker;
+          board[r][c] = null;
+          stepCount++;
+          walking = false;
+          gameOver = true;
+          activeSquare = [nr, nc];
+          render();
+          setMessage((current === 'w' ? 'White' : 'Black') + ' wins — the ' + targetColorName + ' king is out of lives.');
+          return;
+        }
+        board[r][c] = null;
+        stepCount++;
+        walking = false;
+        activeSquare = null;
+        render();
+        setMessage('The ' + targetColorName + ' king kills the attacking ' + attackerName + ' — ' + target.lives + ' life' + (target.lives === 1 ? '' : 's') + ' left.');
+        endTurn();
+        return;
+      }
+      if (target && target.type !== 'p') {
+        board[r][c] = null;
+        stepCount++;
+        walking = false;
+        activeSquare = null;
+        render();
+        setMessage('The ' + targetColorName + ' ' + targetName + " can't be captured — it destroys the attacking " + attackerName + ', ending the turn.');
+        endTurn();
+        return;
+      }
+      board[nr][nc] = board[r][c];
+      board[r][c] = null;
+      stepCount++;
+      setTimeout(function () { walkStep(nr, nc, id); }, STEP_DELAY);
+    }, STEP_DELAY);
+  }
+
+  function endTurn() {
+    current = current === 'w' ? 'b' : 'w';
+    if (!hasAnyLegalMove(current)) {
+      gameOver = true;
+      setMessage((current === 'w' ? 'White' : 'Black') + ' has no legal move anywhere — game drawn.');
+    }
+    render();
+  }
+
+  function newGame() {
+    board = freshBoard();
+    current = 'w';
+    gameOver = false;
+    walking = false;
+    stepCount = 0;
+    activeSquare = null;
+    walkId = (walkId || 0) + 1;
+    setMessage('');
+    render();
+  }
+
+  document.getElementById('new-game').addEventListener('click', newGame);
+  newGame();
+})();
+</script>
+</body>
+</html>

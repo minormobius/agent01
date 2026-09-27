@@ -1,0 +1,632 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sapper Stack — solve, sweep, stack</title>
+<meta property="og:title" content="Sapper Stack">
+<meta property="og:description" content="A sudoku where each cell doubles as a minesweeper square — solve the digit to unlock it, then clear or flag it. Clear a mine and nothing explodes: it drops your current falling piece straight into the tower next to the board.">
+<meta name="description" content="Sudoku plus minesweeper plus a falling-block tower. Solve a cell's digit to unlock it, then clear or flag it. Hitting a mine doesn't end the run — it force-drops your current piece into the tower instead.">
+<meta property="og:type" content="website">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  :root { --box-line: rgba(232,163,61,.55); }
+
+  .sub { margin-bottom: 1.5rem; }
+
+  .gamewrap { display: flex; flex-direction: column; gap: 2rem; align-items: center; }
+  @media (min-width: 760px) {
+    .gamewrap { flex-direction: row; align-items: flex-start; justify-content: center; }
+    .board-panel { flex: 0 0 440px; }
+    .tetris-panel { flex: 0 0 260px; }
+  }
+
+  .board-panel, .tetris-panel { width: 100%; max-width: 440px; }
+
+  .sudoku-board {
+    display: grid; grid-template-columns: repeat(9, 1fr);
+    width: min(94vw, 420px); aspect-ratio: 1; gap: 1px;
+    margin: 0 auto; background: var(--border);
+    border: 2px solid var(--box-line); border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .cell {
+    background: var(--bg-raised); color: var(--fg);
+    display: flex; align-items: center; justify-content: center;
+    font-size: clamp(.8rem, 3.6vw, 1.15rem); font-family: var(--mono);
+    border: none; padding: 0; margin: 0; cursor: pointer; position: relative;
+  }
+  .cell.box-right { border-right: 2px solid var(--box-line); }
+  .cell.box-bottom { border-bottom: 2px solid var(--box-line); }
+  .cell.given { color: var(--muted); font-weight: 700; cursor: default; }
+  .cell.solved { color: var(--accent); outline: 2px solid var(--accent); outline-offset: -2px; }
+  .cell.cleared { color: var(--fg); }
+  .cell.cleared.mine { color: var(--error); }
+  .cell.flagged { color: var(--ok); }
+  .cell.selected { background: var(--accent-dim); }
+  .cell .count { position: absolute; bottom: 1px; right: 3px; font-size: .5em; color: var(--muted); }
+  .cell.given .count { color: var(--muted); }
+  @keyframes wrongflash { 0%, 100% { background: var(--bg-raised); } 50% { background: var(--error-bg); } }
+  .cell.wrong { animation: wrongflash .35s ease; }
+
+  .numpad {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem;
+    width: min(94vw, 420px); margin: 1rem auto 0;
+  }
+  .numpad button { min-height: 44px; font-size: 1.05rem; }
+  .numpad button:disabled, .actions button:disabled { opacity: .4; cursor: not-allowed; }
+  .actions { display: flex; gap: .6rem; width: min(94vw, 420px); margin: .75rem auto 0; }
+  .actions button { flex: 1; min-height: 46px; }
+  #flagBtn { background: transparent; color: var(--ok); border-color: var(--ok); }
+  #flagBtn:hover:not(:disabled) { background: var(--ok); color: #04140a; }
+
+  .stats-row {
+    width: min(94vw, 420px); margin: .9rem auto 0; display: flex;
+    justify-content: space-between; font-size: .78rem; color: var(--muted);
+  }
+
+  #sudokuMsg { width: min(94vw, 420px); margin: .75rem auto 0; }
+
+  .tetris-panel { text-align: center; }
+  #tetrisCanvas {
+    width: 100%; max-width: 260px; display: block; margin: 0 auto;
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    image-rendering: pixelated;
+  }
+  .tetris-controls {
+    display: grid; grid-template-columns: 1fr 1fr; gap: .5rem;
+    max-width: 260px; margin: .9rem auto 0;
+  }
+  .tetris-controls button { min-height: 46px; font-size: .82rem; }
+  #dropBtn { grid-column: 1 / 3; }
+  .tetris-stats { margin-top: .8rem; font-size: .8rem; color: var(--muted); }
+  .tetris-stats b { color: var(--accent); }
+  .kbd-hint { margin-top: .8rem; font-size: .72rem; color: var(--muted); line-height: 1.5; }
+
+  .overlay {
+    position: fixed; inset: 0; background: rgba(6,6,8,.82);
+    display: flex; align-items: center; justify-content: center; padding: 1.5rem; z-index: 20;
+  }
+  .overlay.hidden { display: none; }
+  .overlay .box {
+    background: var(--bg-raised); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 2rem 1.75rem; max-width: 24rem; text-align: center;
+  }
+  .overlay h2 { font-size: 1.3rem; color: var(--accent); margin: 0 0 .6rem; }
+  .overlay p { font-size: .85rem; margin: 0 0 1.2rem; }
+  .overlay button { width: 100%; min-height: 46px; }
+
+  .rules { margin-top: 2.5rem; font-size: .8rem; }
+  .rules li { margin: .4rem 0; }
+</style>
+</head>
+<body>
+<main>
+  <div id="crumb"></div>
+  <h1>Sapper Stack</h1>
+  <p class="sub">A sudoku grid where every cell is also a minesweeper square. Tap a blank
+    cell, then a digit below to solve it — you only get to <b>clear</b> or <b>flag</b> a
+    cell once its digit is right. Clear a mine and nothing explodes: it force-drops
+    whatever piece is currently falling into the tower on the right instead.</p>
+
+  <div class="gamewrap">
+    <div class="board-panel">
+      <div class="sudoku-board" id="board" role="group" aria-label="sudoku minesweeper board"></div>
+      <div class="numpad" id="numpad"></div>
+      <div class="actions">
+        <button type="button" id="clearBtn" disabled>Clear</button>
+        <button type="button" id="flagBtn" disabled>Flag as mine</button>
+      </div>
+      <div id="sudokuMsg" class="err hidden" role="status"></div>
+      <div class="stats-row">
+        <span id="cellStats">0 / 0 cells resolved</span>
+        <span id="mineStats">Flags: 0 / 0</span>
+      </div>
+    </div>
+
+    <div class="tetris-panel">
+      <canvas id="tetrisCanvas" width="240" height="480" aria-label="tower of dropped pieces"></canvas>
+      <div class="tetris-controls">
+        <button type="button" id="rotateBtn">↻ Rotate</button>
+        <button type="button" id="leftBtn">← Left</button>
+        <button type="button" id="rightBtn">Right →</button>
+        <button type="button" id="downBtn">↓ Soft</button>
+        <button type="button" id="dropBtn">⤓ Hard drop</button>
+      </div>
+      <p class="tetris-stats">Lines cleared: <b id="linesStat">0</b></p>
+      <p class="kbd-hint">Keyboard: arrows to move &amp; drop, ↑ to rotate, space for hard
+        drop, 1–9 to fill the selected sudoku cell, Esc to deselect.</p>
+    </div>
+  </div>
+
+  <ul class="rules">
+    <li><b>Solve</b> — tap an unsolved cell, then tap the digit you think belongs there.
+      Wrong guesses just flash; there's no penalty besides trying again.</li>
+    <li><b>Clear</b> — once a cell is solved you can reveal it. Safe cells show the count
+      of mines touching them, exactly like ordinary minesweeper.</li>
+    <li><b>Flag</b> — mark a solved cell as a mine instead. Flagging a cell that turns out
+      to be safe is rejected — clear it instead.</li>
+    <li><b>Hit a mine</b> and the tower gets an uninvited piece: whatever is currently
+      falling locks in place immediately. The run only ends if the tower tops out.</li>
+    <li><b>Win</b> by resolving every non-given cell (cleared or flagged) before that
+      happens.</li>
+  </ul>
+</main>
+
+<div id="overlay" class="overlay hidden">
+  <div class="box">
+    <h2 id="overlayTitle"></h2>
+    <p id="overlayMsg"></p>
+    <button type="button" id="playAgainBtn">Play again</button>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  document.getElementById('crumb').innerHTML = kit.crumb('Sapper Stack');
+
+  // ---------------------------------------------------------------------
+  // Sudoku generation
+  // ---------------------------------------------------------------------
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function isValid(grid, r, c, v) {
+    for (let i = 0; i < 9; i++) {
+      if (grid[r][i] === v) return false;
+      if (grid[i][c] === v) return false;
+    }
+    const br = Math.floor(r / 3) * 3, bc = Math.floor(c / 3) * 3;
+    for (let i = 0; i < 3; i++) for (let j = 0; j < 3; j++) {
+      if (grid[br + i][bc + j] === v) return false;
+    }
+    return true;
+  }
+
+  function fillGrid(grid) {
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (grid[r][c] === 0) {
+          const nums = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+          for (const v of nums) {
+            if (isValid(grid, r, c, v)) {
+              grid[r][c] = v;
+              if (fillGrid(grid)) return true;
+              grid[r][c] = 0;
+            }
+          }
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  function generateSolvedGrid() {
+    const g = Array.from({ length: 9 }, () => Array(9).fill(0));
+    fillGrid(g);
+    return g;
+  }
+
+  // ---------------------------------------------------------------------
+  // Shared run state
+  // ---------------------------------------------------------------------
+  const GIVENS = 32, MINES = 10;
+  let cells = [];        // flat 81, index = r*9+c
+  let selectedIdx = null;
+  let runState = 'playing'; // 'playing' | 'won' | 'lost'
+
+  const boardEl = document.getElementById('board');
+  const numpadEl = document.getElementById('numpad');
+  const clearBtn = document.getElementById('clearBtn');
+  const flagBtn = document.getElementById('flagBtn');
+  const sudokuMsg = document.getElementById('sudokuMsg');
+  const cellStatsEl = document.getElementById('cellStats');
+  const mineStatsEl = document.getElementById('mineStats');
+  const overlay = document.getElementById('overlay');
+  const overlayTitle = document.getElementById('overlayTitle');
+  const overlayMsg = document.getElementById('overlayMsg');
+
+  let cellEls = [];
+  let numpadBtns = [];
+
+  function createBoardDom() {
+    boardEl.innerHTML = '';
+    cellEls = [];
+    for (let i = 0; i < 81; i++) {
+      const r = Math.floor(i / 9), c = i % 9;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cell';
+      btn.setAttribute('aria-label', 'row ' + (r + 1) + ' column ' + (c + 1));
+      if ((c + 1) % 3 === 0 && c !== 8) btn.classList.add('box-right');
+      if ((r + 1) % 3 === 0 && r !== 8) btn.classList.add('box-bottom');
+      btn.addEventListener('click', function () { selectCell(i); });
+      boardEl.appendChild(btn);
+      cellEls.push(btn);
+    }
+  }
+
+  function createNumpadDom() {
+    numpadEl.innerHTML = '';
+    numpadBtns = [];
+    for (let v = 1; v <= 9; v++) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = String(v);
+      btn.disabled = true;
+      btn.addEventListener('click', function () { numpadDigit(v); });
+      numpadEl.appendChild(btn);
+      numpadBtns.push(btn);
+    }
+  }
+
+  function setupPuzzle() {
+    const solution = generateSolvedGrid();
+    const idxs = shuffle(Array.from({ length: 81 }, (_, i) => i));
+    const givenSet = new Set(idxs.slice(0, GIVENS));
+    const nonGiven = idxs.slice(GIVENS);
+    const mineSet = new Set(shuffle(nonGiven.slice()).slice(0, MINES));
+
+    cells = [];
+    for (let i = 0; i < 81; i++) {
+      const r = Math.floor(i / 9), c = i % 9;
+      cells.push({
+        r: r, c: c,
+        value: solution[r][c],
+        given: givenSet.has(i),
+        isMine: mineSet.has(i),
+        state: givenSet.has(i) ? 'given' : 'hidden',
+        adj: 0
+      });
+    }
+    for (let i = 0; i < 81; i++) {
+      const r = cells[i].r, c = cells[i].c;
+      let n = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const rr = r + dr, cc = c + dc;
+          if (rr < 0 || rr > 8 || cc < 0 || cc > 8) continue;
+          if (mineSet.has(rr * 9 + cc)) n++;
+        }
+      }
+      cells[i].adj = n;
+    }
+  }
+
+  function selectCell(i) {
+    if (runState !== 'playing') return;
+    const cell = cells[i];
+    if (cell.given || cell.state === 'cleared' || cell.state === 'flagged') {
+      selectedIdx = null;
+    } else {
+      selectedIdx = i;
+    }
+    renderAll();
+  }
+
+  function flashWrong(i) {
+    const el = cellEls[i];
+    el.classList.remove('wrong');
+    void el.offsetWidth;
+    el.classList.add('wrong');
+    setTimeout(function () { el.classList.remove('wrong'); }, 350);
+  }
+
+  function numpadDigit(v) {
+    if (runState !== 'playing' || selectedIdx == null) return;
+    const cell = cells[selectedIdx];
+    if (cell.given || cell.state !== 'hidden') return;
+    if (v === cell.value) {
+      cell.state = 'solved';
+      kit.clear(sudokuMsg);
+      renderAll();
+    } else {
+      flashWrong(selectedIdx);
+      kit.showError(sudokuMsg, 'Not quite — check the row, column and 3×3 box.');
+    }
+  }
+
+  function doClear() {
+    if (runState !== 'playing' || selectedIdx == null) return;
+    const idx = selectedIdx, cell = cells[idx];
+    if (cell.state !== 'solved') return;
+    cell.state = 'cleared';
+    selectedIdx = null;
+    kit.clear(sudokuMsg);
+    if (cell.isMine) tetrisForceDrop();
+    renderAll();
+    checkWin();
+  }
+
+  function doFlag() {
+    if (runState !== 'playing' || selectedIdx == null) return;
+    const idx = selectedIdx, cell = cells[idx];
+    if (cell.state !== 'solved') return;
+    if (cell.isMine) {
+      cell.state = 'flagged';
+      selectedIdx = null;
+      kit.clear(sudokuMsg);
+      renderAll();
+      checkWin();
+    } else {
+      kit.showError(sudokuMsg, "That cell isn't a mine — clear it instead.");
+    }
+  }
+
+  function checkWin() {
+    const done = cells.every(function (c) {
+      return c.given || c.state === 'cleared' || c.state === 'flagged';
+    });
+    if (done) endRun(true);
+  }
+
+  function updateCellDisplay(i) {
+    const cell = cells[i], el = cellEls[i];
+    el.classList.remove('given', 'solved', 'cleared', 'flagged', 'mine', 'selected');
+    el.innerHTML = '';
+    if (i === selectedIdx) el.classList.add('selected');
+
+    if (cell.given) {
+      el.classList.add('given');
+      el.textContent = cell.value;
+      const badge = document.createElement('span');
+      badge.className = 'count'; badge.textContent = cell.adj;
+      el.appendChild(badge);
+    } else if (cell.state === 'solved') {
+      el.classList.add('solved');
+      el.textContent = cell.value;
+    } else if (cell.state === 'cleared') {
+      el.classList.add('cleared');
+      if (cell.isMine) el.classList.add('mine');
+      el.textContent = cell.value;
+      const badge = document.createElement('span');
+      badge.className = 'count';
+      badge.textContent = cell.isMine ? '\u{1F4A3}' : cell.adj;
+      el.appendChild(badge);
+    } else if (cell.state === 'flagged') {
+      el.classList.add('flagged');
+      el.textContent = cell.value;
+      const badge = document.createElement('span');
+      badge.className = 'count'; badge.textContent = '\u{1F6A9}';
+      el.appendChild(badge);
+    } else {
+      el.textContent = '';
+    }
+  }
+
+  function updateActionButtons() {
+    const cell = selectedIdx != null ? cells[selectedIdx] : null;
+    const solved = !!cell && cell.state === 'solved';
+    const hiddenSel = !!cell && cell.state === 'hidden';
+    clearBtn.disabled = !solved || runState !== 'playing';
+    flagBtn.disabled = !solved || runState !== 'playing';
+    numpadBtns.forEach(function (b) { b.disabled = !hiddenSel || runState !== 'playing'; });
+  }
+
+  function updateStats() {
+    const totalHidden = cells.filter(function (c) { return !c.given; }).length;
+    const resolved = cells.filter(function (c) {
+      return !c.given && (c.state === 'cleared' || c.state === 'flagged');
+    }).length;
+    const flagged = cells.filter(function (c) { return c.state === 'flagged'; }).length;
+    cellStatsEl.textContent = resolved + ' / ' + totalHidden + ' cells resolved';
+    mineStatsEl.textContent = 'Flags: ' + flagged + ' / ' + MINES;
+  }
+
+  function renderAll() {
+    for (let i = 0; i < 81; i++) updateCellDisplay(i);
+    updateActionButtons();
+    updateStats();
+  }
+
+  // ---------------------------------------------------------------------
+  // Tetris — the tower
+  // ---------------------------------------------------------------------
+  const COLS = 10, ROWS = 20, CELL = 24;
+  const canvas = document.getElementById('tetrisCanvas');
+  const ctx = canvas.getContext('2d');
+  const linesStat = document.getElementById('linesStat');
+
+  const SHAPES = {
+    I: { m: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]], color: '#5ec8d8' },
+    O: { m: [[1,1],[1,1]], color: '#e8c34d' },
+    T: { m: [[0,1,0],[1,1,1],[0,0,0]], color: '#b98ce0' },
+    S: { m: [[0,1,1],[1,1,0],[0,0,0]], color: '#79d17e' },
+    Z: { m: [[1,1,0],[0,1,1],[0,0,0]], color: '#e37a8d' },
+    J: { m: [[1,0,0],[1,1,1],[0,0,0]], color: '#6f9de3' },
+    L: { m: [[0,0,1],[1,1,1],[0,0,0]], color: '#d98a4f' }
+  };
+  const SHAPE_KEYS = Object.keys(SHAPES);
+
+  let board = [];
+  let piece = null;
+  let linesCleared = 0;
+  let dropTimer = null;
+
+  function newBoard() { return Array.from({ length: ROWS }, function () { return Array(COLS).fill(null); }); }
+  function cloneMatrix(m) { return m.map(function (row) { return row.slice(); }); }
+
+  function rotateCW(m) {
+    const n = m.length;
+    const res = Array.from({ length: n }, function () { return Array(n).fill(0); });
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) res[c][n - 1 - r] = m[r][c];
+    return res;
+  }
+
+  function collide(matrix, px, py) {
+    for (let r = 0; r < matrix.length; r++) {
+      for (let c = 0; c < matrix[r].length; c++) {
+        if (!matrix[r][c]) continue;
+        const bx = px + c, by = py + r;
+        if (bx < 0 || bx >= COLS || by >= ROWS) return true;
+        if (by >= 0 && board[by][bx]) return true;
+      }
+    }
+    return false;
+  }
+
+  function spawnPiece() {
+    const key = SHAPE_KEYS[Math.floor(Math.random() * SHAPE_KEYS.length)];
+    const shape = SHAPES[key];
+    const m = cloneMatrix(shape.m);
+    const x = Math.floor((COLS - m[0].length) / 2);
+    piece = { matrix: m, color: shape.color, x: x, y: 0 };
+    if (collide(piece.matrix, piece.x, piece.y)) {
+      endRun(false);
+    }
+  }
+
+  function clearLines() {
+    let cleared = 0;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r].every(function (cell) { return cell; })) {
+        board.splice(r, 1);
+        board.unshift(Array(COLS).fill(null));
+        cleared++;
+        r++;
+      }
+    }
+    if (cleared) { linesCleared += cleared; linesStat.textContent = String(linesCleared); }
+  }
+
+  function lockPiece() {
+    for (let r = 0; r < piece.matrix.length; r++) {
+      for (let c = 0; c < piece.matrix[r].length; c++) {
+        if (!piece.matrix[r][c]) continue;
+        const bx = piece.x + c, by = piece.y + r;
+        if (by >= 0 && by < ROWS && bx >= 0 && bx < COLS) board[by][bx] = piece.color;
+      }
+    }
+    clearLines();
+    spawnPiece();
+    drawTetris();
+  }
+
+  function moveLeft() { if (runState !== 'playing') return; if (!collide(piece.matrix, piece.x - 1, piece.y)) { piece.x--; drawTetris(); } }
+  function moveRight() { if (runState !== 'playing') return; if (!collide(piece.matrix, piece.x + 1, piece.y)) { piece.x++; drawTetris(); } }
+  function softDrop() {
+    if (runState !== 'playing') return;
+    if (!collide(piece.matrix, piece.x, piece.y + 1)) { piece.y++; drawTetris(); }
+    else { lockPiece(); }
+  }
+  function hardDrop() {
+    if (runState !== 'playing') return;
+    while (!collide(piece.matrix, piece.x, piece.y + 1)) piece.y++;
+    lockPiece();
+  }
+  function rotatePiece() {
+    if (runState !== 'playing') return;
+    const rotated = rotateCW(piece.matrix);
+    const kicks = [0, -1, 1, -2, 2];
+    for (const k of kicks) {
+      if (!collide(rotated, piece.x + k, piece.y)) { piece.matrix = rotated; piece.x += k; drawTetris(); return; }
+    }
+  }
+
+  // Called when a mine is cleared: the piece that is currently falling
+  // locks in place right now, exactly like a hard drop, instead of the
+  // run ending. Reuses the same lock path as an ordinary hard drop.
+  function tetrisForceDrop() { hardDrop(); }
+
+  function autoTick() { if (runState === 'playing') softDrop(); }
+
+  function drawCell(cx, cy, color) {
+    if (cy < 0) return;
+    ctx.fillStyle = color;
+    ctx.fillRect(cx * CELL + 1, cy * CELL + 1, CELL - 2, CELL - 2);
+  }
+
+  function drawTetris() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = 'rgba(255,255,255,.05)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= COLS; x++) { ctx.beginPath(); ctx.moveTo(x * CELL, 0); ctx.lineTo(x * CELL, ROWS * CELL); ctx.stroke(); }
+    for (let y = 0; y <= ROWS; y++) { ctx.beginPath(); ctx.moveTo(0, y * CELL); ctx.lineTo(COLS * CELL, y * CELL); ctx.stroke(); }
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) if (board[r][c]) drawCell(c, r, board[r][c]);
+    if (piece && runState === 'playing') {
+      for (let r = 0; r < piece.matrix.length; r++) {
+        for (let c = 0; c < piece.matrix[r].length; c++) {
+          if (piece.matrix[r][c]) drawCell(piece.x + c, piece.y + r, piece.color);
+        }
+      }
+    }
+  }
+
+  function startTetris() {
+    board = newBoard();
+    linesCleared = 0;
+    linesStat.textContent = '0';
+    clearInterval(dropTimer);
+    spawnPiece();
+    drawTetris();
+    dropTimer = setInterval(autoTick, 800);
+  }
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { clearInterval(dropTimer); }
+    else if (runState === 'playing') { dropTimer = setInterval(autoTick, 800); }
+  });
+
+  // ---------------------------------------------------------------------
+  // Run lifecycle
+  // ---------------------------------------------------------------------
+  function endRun(won) {
+    if (runState !== 'playing') return;
+    runState = won ? 'won' : 'lost';
+    clearInterval(dropTimer);
+    overlayTitle.textContent = won ? 'Board cleared!' : 'Tower topped out';
+    overlayMsg.textContent = won
+      ? ('Every cell solved and resolved. Lines cleared along the way: ' + linesCleared + '.')
+      : ('The tower reached the top after ' + linesCleared + ' line(s) cleared. The sudoku was not finished.');
+    overlay.classList.remove('hidden');
+    renderAll();
+    drawTetris();
+  }
+
+  function newRun() {
+    runState = 'playing';
+    overlay.classList.add('hidden');
+    setupPuzzle();
+    selectedIdx = null;
+    renderAll();
+    startTetris();
+  }
+
+  // ---------------------------------------------------------------------
+  // Wiring
+  // ---------------------------------------------------------------------
+  createBoardDom();
+  createNumpadDom();
+  clearBtn.addEventListener('click', doClear);
+  flagBtn.addEventListener('click', doFlag);
+  document.getElementById('rotateBtn').addEventListener('click', rotatePiece);
+  document.getElementById('leftBtn').addEventListener('click', moveLeft);
+  document.getElementById('rightBtn').addEventListener('click', moveRight);
+  document.getElementById('downBtn').addEventListener('click', softDrop);
+  document.getElementById('dropBtn').addEventListener('click', hardDrop);
+  document.getElementById('playAgainBtn').addEventListener('click', newRun);
+
+  window.addEventListener('keydown', function (e) {
+    if (e.key === 'ArrowLeft') { e.preventDefault(); moveLeft(); }
+    else if (e.key === 'ArrowRight') { e.preventDefault(); moveRight(); }
+    else if (e.key === 'ArrowDown') { e.preventDefault(); softDrop(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); rotatePiece(); }
+    else if (e.key === ' ' || e.key === 'Spacebar') { e.preventDefault(); hardDrop(); }
+    else if (e.key === 'Escape') { selectedIdx = null; renderAll(); }
+    else if (e.key >= '1' && e.key <= '9') { numpadDigit(Number(e.key)); }
+  });
+
+  newRun();
+})();
+</script>
+</body>
+</html>

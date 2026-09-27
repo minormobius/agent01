@@ -1,0 +1,1 @@
+Cut the intro from five paragraphs to two, and moved the carry-trade deep dive into its own toggle: not free (you pay the yen rate), not infinite (it's leveraged), why the rate was near zero, and why that's changing now.
