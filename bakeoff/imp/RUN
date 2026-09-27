@@ -1,6 +1,7 @@
 {
-  "runId": "imp-01",
+  "runId": "imp-02",
   "models": ["ds4-flash", "ds4-pro", "kimi3"],
-  "tasks": ["route", "desk"],
-  "note": "First live Imp run: does a typed router lift with 8 examples on these models the way it did on gpt-5.4-mini (Imp R1/R2), and how well does a ReAct agent use six Elixir tools to answer refund-desk questions with exact answers? Baseline only; GEPA on desk comes next."
+  "tasks": ["route", "desk_hard"],
+  "gepa": { "models": ["ds4-flash"], "reflection": "ds4-pro", "maxMetricCalls": 150 },
+  "note": "desk_hard baseline on all three models, then GEPA on ds4-flash with ds4-pro as the reflection model: can a rewritten instruction teach the cheap model the policy-version and delivery-window rules it gets wrong? kimi3 retried without temperature and with 16k max_tokens; route re-run for kimi3's sake."
 }
