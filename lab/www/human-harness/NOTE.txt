@@ -1,0 +1,1 @@
+Built it real, not just a bit: task queue, tool-approval prompts, mid-task steering banner, token-efficiency score (chars/4, labeled an estimate). LocalStorage only, no sign-in. Next: export/import, optional save-to-repo for cross-device.

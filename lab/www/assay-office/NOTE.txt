@@ -1,0 +1,1 @@
+Took "dupes ranked best to worst" literally: paste text or a handle's posts, repeated words get graded bullion/sterling/alloy by count. Singletons excluded — not a dupe of anything. No stemming; plurals count separately.

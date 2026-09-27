@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>monopath — cover every vertex with monochromatic paths, try to beat r</title>
+<meta name="description" content="An r-edge-coloured complete graph. Cover every vertex with vertex-disjoint monochromatic paths, one colour per path, built by clicking. Gyárfás conjectured r paths always suffice — it's false for large r. Try to beat r on this graph.">
+<meta property="og:title" content="monopath">
+<meta property="og:description" content="Cover every vertex of a coloured complete graph with vertex-disjoint monochromatic paths. A conjecture said r colours, r paths would always be enough — it turned out false. Can you do it in r here?">
+<link rel="stylesheet" href="../_kit/tokens.css">
+<script src="../_kit/kit.js"></script>
+<style>
+  .toolbar { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0; }
+  .toolbar.utility { margin-top: 0; }
+  button.mode-btn[aria-pressed="true"] { background: var(--accent); color: #000; }
+  #hint { font-size: .9rem; color: var(--fg); min-height: 2.6em; margin: .5rem 0 1rem; }
+  .graph-wrap { width: 100%; max-width: 420px; margin: 0 auto; }
+  svg#g { width: 100%; height: auto; display: block; background: var(--bg-raised);
+          border: 1px solid var(--border); border-radius: var(--radius); touch-action: manipulation; }
+  .panel { margin-top: 1.5rem; padding: 1rem; border: 1px solid var(--border); border-radius: var(--radius); }
+  .panel h2 { margin-top: 0; }
+  .pathline { font-size: .85rem; margin: .25rem 0; }
+  .legend { display: flex; flex-wrap: wrap; gap: .9rem; font-size: .78rem; color: var(--muted); margin-top: .75rem; }
+  .legend span { display: inline-flex; align-items: center; gap: .35rem; }
+  .swatch { width: 14px; height: 14px; border-radius: 50%; display: inline-block; flex: none; }
+  .counter { font-size: 1.05rem; margin: .5rem 0; }
+  .counter strong { font-size: 1.3rem; }
+  .win { border-color: var(--accent); }
+  .win.over { border-color: var(--error, #f2777a); }
+  .caveat { font-size: .8rem; color: var(--muted); border-left: 3px solid var(--border); padding-left: .75rem; margin: 1rem 0; }
+  #instanceLabel { font-size: .8rem; color: var(--muted); margin: .25rem 0 0; }
+</style>
+</head>
+<body>
+<main>
+<div class="crumb"><a href="https://mino.mobi">mino.mobi</a> / <a href="../">lab</a> / monopath</div>
+<h1>monopath</h1>
+<p class="sub">Cover every vertex with vertex-disjoint monochromatic paths — one colour per
+path, built by clicking. Try to do it in <strong>r</strong> paths or fewer.</p>
+
+<p>Gyárfás conjectured in 1989 that any complete graph with its edges coloured in
+<var>r</var> colours can always have every vertex covered by at most <var>r</var> vertex-disjoint
+paths, each one a single colour. Pokrovskiy proved it true for <var>r</var> = 3 and 4 — the
+instance below is one of those solvable cases, so a clean win really is on the table. But
+for large <var>r</var> the conjecture is <strong>false</strong>: there are colourings that need at
+least (1&minus;o(1))&middot;<var>r</var>&middot;log&nbsp;log&nbsp;<var>r</var> paths, a count that
+keeps growing faster than <var>r</var> however big <var>r</var> gets.</p>
+
+<p class="caveat">Said plainly: log&nbsp;log&nbsp;<var>r</var> grows so slowly that no graph
+that fits in a browser tab will visibly show that gap — you will not <em>watch</em> the
+disproof happen here. What this page can honestly offer is the other half: try to cover
+this graph in <var>r</var> paths, on instances small enough that <var>r</var> is provably
+achievable (r=3, r=4) and larger ones where nobody — including this page — knows the true
+minimum. Finding it is a real, unsolved-per-instance search problem, not a demo.</p>
+
+<div class="toolbar" role="group" aria-label="instance size">
+  <button class="mode-btn" data-r="3" aria-pressed="true">r = 3 (solvable)</button>
+  <button class="mode-btn" data-r="4">r = 4 (solvable)</button>
+  <button class="mode-btn" data-r="5">r = 5 (open)</button>
+</div>
+<div class="toolbar utility">
+  <button id="reshuffleBtn" type="button">new colouring, same r</button>
+  <button id="resetPlayBtn" type="button">clear my paths</button>
+</div>
+<p id="instanceLabel"></p>
+
+<p id="hint">Tap a vertex to start a new monochromatic path.</p>
+
+<div class="graph-wrap">
+  <svg id="g" viewBox="0 0 320 320" role="img" aria-label="edge-coloured complete graph"></svg>
+</div>
+
+<div class="toolbar utility">
+  <button id="finishBtn" type="button">finish path</button>
+  <button id="cancelBtn" type="button">cancel path</button>
+</div>
+
+<div class="panel" id="statusPanel">
+  <h2>progress</h2>
+  <p class="counter">paths used: <strong id="pathCount">0</strong> — target r = <strong id="rTarget">3</strong></p>
+  <p class="counter">covered: <strong id="coveredCount">0</strong> / <strong id="totalCount">6</strong> vertices</p>
+  <div id="pathList"></div>
+  <p id="winMsg"></p>
+  <p id="bestMsg"></p>
+</div>
+
+<div class="legend" id="legend"></div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var svg = document.getElementById('g');
+  var VB = 320;
+  var CX = 160, CY = 160, RADIUS = 120;
+
+  var COLORS = ['#e8a33d', '#5fb3d9', '#c98bdb', '#7ac387', '#f2777a'];
+  var COLOR_NAMES = ['amber', 'sky', 'violet', 'green', 'coral'];
+
+  var n = 6, r = 3;
+  var verts = [];           // {id, x, y}
+  var edgeColor = new Map(); // "a-b" -> color index
+  var usedVertices = new Set();
+  var committedPaths = [];   // {vertices: [ids], color: idx|null}
+  var currentPath = null;
+  var currentColor = null;
+  var instanceTag = 'fixed-r3';
+  var sessionBest = null;
+
+  function ekey(a, b) { return a < b ? a + '-' + b : b + '-' + a; }
+
+  function mulberry32(seed) {
+    return function () {
+      seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+      var t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  function layout(count) {
+    verts = [];
+    for (var i = 0; i < count; i++) {
+      var ang = (i / count) * Math.PI * 2 - Math.PI / 2;
+      verts.push({ id: i, x: CX + Math.cos(ang) * RADIUS, y: CY + Math.sin(ang) * RADIUS });
+    }
+  }
+
+  function colorGraph(count, colours, rng) {
+    edgeColor = new Map();
+    for (var a = 0; a < count; a++) {
+      for (var b = a + 1; b < count; b++) {
+        edgeColor.set(ekey(a, b), Math.floor(rng() * colours));
+      }
+    }
+  }
+
+  function resetPlay() {
+    usedVertices = new Set();
+    committedPaths = [];
+    currentPath = null;
+    currentColor = null;
+    document.getElementById('winMsg').textContent = '';
+    document.getElementById('statusPanel').className = 'panel';
+    updateHint();
+    updateCounts();
+    render();
+  }
+
+  function loadBest() {
+    if (instanceTag === 'fixed-r3') {
+      var v = localStorage.getItem('monopath.best.fixed-r3');
+      sessionBest = v ? parseInt(v, 10) : null;
+    } else {
+      sessionBest = null;
+    }
+    updateBestMsg();
+  }
+
+  function saveBestIfBetter(count) {
+    if (sessionBest === null || count < sessionBest) {
+      sessionBest = count;
+      if (instanceTag === 'fixed-r3') {
+        localStorage.setItem('monopath.best.fixed-r3', String(count));
+      }
+    }
+    updateBestMsg();
+  }
+
+  function updateBestMsg() {
+    var el = document.getElementById('bestMsg');
+    el.textContent = sessionBest !== null
+      ? 'Your best on this instance: ' + sessionBest + ' path' + (sessionBest === 1 ? '' : 's') + '.'
+      : '';
+  }
+
+  function setupInstance(newR, count, seedRng, tag) {
+    r = newR; n = count; instanceTag = tag;
+    layout(n);
+    colorGraph(n, r, seedRng);
+    document.getElementById('rTarget').textContent = r;
+    document.getElementById('totalCount').textContent = n;
+    document.getElementById('instanceLabel').textContent =
+      tag === 'fixed-r3'
+        ? 'The standard instance — K6, 3 colours, provably solvable in r = 3.'
+        : (tag.indexOf('fixed-r4') === 0
+          ? 'K8, 4 colours, provably solvable in r = 4.'
+          : 'A fresh random colouring, K' + n + ', ' + r + ' colours — nobody has proven the true minimum for this one.');
+    buildLegend();
+    resetPlay();
+    loadBest();
+  }
+
+  function buildLegend() {
+    var leg = document.getElementById('legend');
+    leg.innerHTML = '';
+    for (var i = 0; i < r; i++) {
+      var span = document.createElement('span');
+      var sw = document.createElement('span');
+      sw.className = 'swatch';
+      sw.style.background = COLORS[i];
+      span.appendChild(sw);
+      span.appendChild(document.createTextNode(COLOR_NAMES[i]));
+      leg.appendChild(span);
+    }
+  }
+
+  function updateHint() {
+    var hint = document.getElementById('hint');
+    if (!currentPath) {
+      hint.textContent = 'Tap a vertex to start a new monochromatic path.';
+    } else if (currentPath.length === 1) {
+      hint.textContent = 'Tap any other unused vertex — the edge you pick sets this path\'s colour.';
+    } else {
+      hint.textContent = 'Continue along ' + COLOR_NAMES[currentColor] + ' edges only, or tap Finish path.';
+    }
+  }
+
+  function updateCounts() {
+    document.getElementById('pathCount').textContent = committedPaths.length;
+    document.getElementById('coveredCount').textContent = usedVertices.size;
+    var list = document.getElementById('pathList');
+    list.innerHTML = '';
+    committedPaths.forEach(function (p, i) {
+      var div = document.createElement('div');
+      div.className = 'pathline';
+      div.style.color = p.color !== null ? COLORS[p.color] : 'var(--muted)';
+      div.textContent = 'path ' + (i + 1) + ' (' + (p.color !== null ? COLOR_NAMES[p.color] : 'trivial') + '): ' +
+        p.vertices.join(' → ');
+      list.appendChild(div);
+    });
+  }
+
+  function checkWin() {
+    if (usedVertices.size !== n) return;
+    var count = committedPaths.length;
+    var panel = document.getElementById('statusPanel');
+    var msg = document.getElementById('winMsg');
+    if (count <= r) {
+      panel.className = 'panel win';
+      msg.textContent = 'Covered! ' + count + ' ≤ r = ' + r +
+        ' — you matched the conjecture\'s bound on this instance.';
+    } else {
+      panel.className = 'panel win over';
+      msg.textContent = 'Covered in ' + count + ' paths, more than r = ' + r +
+        ' — you just rediscovered, by hand, why the conjecture needed more paths than r.';
+    }
+    saveBestIfBetter(count);
+  }
+
+  function handleVertexClick(id) {
+    if (currentPath === null) {
+      if (usedVertices.has(id)) { flashHint('That vertex is already covered.'); return; }
+      currentPath = [id];
+      currentColor = null;
+      updateHint();
+      render();
+      return;
+    }
+    var last = currentPath[currentPath.length - 1];
+    if (id === last) return;
+    if (usedVertices.has(id) || currentPath.indexOf(id) !== -1) {
+      flashHint('That vertex is already used by a path.');
+      return;
+    }
+    var c = edgeColor.get(ekey(last, id));
+    if (currentPath.length === 1) {
+      currentColor = c;
+      currentPath.push(id);
+    } else if (c !== currentColor) {
+      flashHint('That edge is ' + COLOR_NAMES[c] + ', not ' + COLOR_NAMES[currentColor] +
+        ' — a path must stay one colour. Tap Finish or Cancel, or pick a matching neighbour.');
+      return;
+    } else {
+      currentPath.push(id);
+    }
+    updateHint();
+    render();
+  }
+
+  function flashHint(text) {
+    document.getElementById('hint').textContent = text;
+  }
+
+  function finishPath() {
+    if (!currentPath || currentPath.length < 1) return;
+    committedPaths.push({ vertices: currentPath.slice(), color: currentColor });
+    currentPath.forEach(function (v) { usedVertices.add(v); });
+    currentPath = null;
+    currentColor = null;
+    updateHint();
+    updateCounts();
+    checkWin();
+    render();
+  }
+
+  function cancelPath() {
+    currentPath = null;
+    currentColor = null;
+    updateHint();
+    render();
+  }
+
+  function pathEdgeSet(vertices) {
+    var s = new Set();
+    for (var i = 0; i < vertices.length - 1; i++) s.add(ekey(vertices[i], vertices[i + 1]));
+    return s;
+  }
+
+  function render() {
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var ns = 'http://www.w3.org/2000/svg';
+
+    var overlayEdges = new Set();
+    var overlayColor = new Map();
+    committedPaths.forEach(function (p) {
+      if (p.color === null) return;
+      pathEdgeSet(p.vertices).forEach(function (k) { overlayEdges.add(k); overlayColor.set(k, p.color); });
+    });
+    if (currentPath && currentPath.length > 1) {
+      pathEdgeSet(currentPath).forEach(function (k) { overlayEdges.add(k); overlayColor.set(k, currentColor); });
+    }
+
+    // base edges
+    for (var a = 0; a < n; a++) {
+      for (var b = a + 1; b < n; b++) {
+        var va = verts[a], vb = verts[b];
+        var line = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', va.x); line.setAttribute('y1', va.y);
+        line.setAttribute('x2', vb.x); line.setAttribute('y2', vb.y);
+        line.setAttribute('stroke', COLORS[edgeColor.get(ekey(a, b))]);
+        line.setAttribute('stroke-width', '1.4');
+        line.setAttribute('opacity', '0.45');
+        svg.appendChild(line);
+      }
+    }
+    // overlay (path) edges, on top, thicker
+    overlayEdges.forEach(function (k) {
+      var ids = k.split('-').map(Number);
+      var va = verts[ids[0]], vb = verts[ids[1]];
+      var line = document.createElementNS(ns, 'line');
+      line.setAttribute('x1', va.x); line.setAttribute('y1', va.y);
+      line.setAttribute('x2', vb.x); line.setAttribute('y2', vb.y);
+      line.setAttribute('stroke', COLORS[overlayColor.get(k)]);
+      line.setAttribute('stroke-width', '5');
+      line.setAttribute('stroke-linecap', 'round');
+      svg.appendChild(line);
+    });
+
+    verts.forEach(function (v) {
+      var g = document.createElementNS(ns, 'g');
+      g.setAttribute('data-id', v.id);
+
+      var hit = document.createElementNS(ns, 'circle');
+      hit.setAttribute('cx', v.x); hit.setAttribute('cy', v.y);
+      hit.setAttribute('r', n > 8 ? 18 : 24);
+      hit.setAttribute('fill', 'transparent');
+      g.appendChild(hit);
+
+      var dot = document.createElementNS(ns, 'circle');
+      dot.setAttribute('cx', v.x); dot.setAttribute('cy', v.y);
+      dot.setAttribute('r', 9);
+
+      var fillColor = '#16161b';
+      var stroke = '#3a3844';
+      var sw = 2;
+      var committedOwner = committedPaths.find(function (p) { return p.vertices.indexOf(v.id) !== -1; });
+      if (committedOwner) {
+        fillColor = committedOwner.color !== null ? COLORS[committedOwner.color] : '#8b8792';
+        stroke = '#fff';
+        sw = 2.5;
+      }
+      if (currentPath && currentPath.indexOf(v.id) !== -1) {
+        fillColor = '#fff';
+        stroke = currentColor !== null ? COLORS[currentColor] : 'var(--accent)';
+        sw = 3;
+      }
+      dot.setAttribute('fill', fillColor);
+      dot.setAttribute('stroke', stroke);
+      dot.setAttribute('stroke-width', sw);
+      g.appendChild(dot);
+
+      var label = document.createElementNS(ns, 'text');
+      label.setAttribute('x', v.x); label.setAttribute('y', v.y - 15);
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('font-size', '9');
+      label.setAttribute('fill', '#8b8792');
+      label.textContent = v.id;
+      g.appendChild(label);
+
+      svg.appendChild(g);
+    });
+  }
+
+  svg.addEventListener('click', function (e) {
+    var g = e.target.closest && e.target.closest('[data-id]');
+    if (g) handleVertexClick(parseInt(g.getAttribute('data-id'), 10));
+  });
+
+  document.querySelectorAll('.mode-btn[data-r]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('.mode-btn[data-r]').forEach(function (x) {
+        x.setAttribute('aria-pressed', x === b ? 'true' : 'false');
+      });
+      var rr = parseInt(b.dataset.r, 10);
+      if (rr === 3) {
+        setupInstance(3, 6, mulberry32(2026081103), 'fixed-r3');
+      } else if (rr === 4) {
+        setupInstance(4, 8, mulberry32(2026081104), 'fixed-r4');
+      } else {
+        setupInstance(5, 10, Math.random, 'r5-' + Date.now());
+      }
+    });
+  });
+
+  document.getElementById('reshuffleBtn').addEventListener('click', function () {
+    var pressed = document.querySelector('.mode-btn[data-r][aria-pressed="true"]');
+    var rr = pressed ? parseInt(pressed.dataset.r, 10) : r;
+    var count = rr === 3 ? 6 : (rr === 4 ? 8 : 10);
+    setupInstance(rr, count, Math.random, (rr === 5 ? 'r5-' : 'shuffled-r' + rr + '-') + Date.now());
+  });
+
+  document.getElementById('resetPlayBtn').addEventListener('click', resetPlay);
+  document.getElementById('finishBtn').addEventListener('click', finishPath);
+  document.getElementById('cancelBtn').addEventListener('click', cancelPath);
+
+  setupInstance(3, 6, mulberry32(2026081103), 'fixed-r3');
+})();
+</script>
+</body>
+</html>

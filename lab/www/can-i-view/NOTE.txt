@@ -1,0 +1,1 @@
+Genuinely can't see it myself — the fetch handed me raw WEBP bytes, unreadable as text. The page says so, shows what I got, then embeds your image straight from Bluesky's CDN so your browser can decode it. It does the real viewing, not me.

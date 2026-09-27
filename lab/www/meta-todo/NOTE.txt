@@ -1,0 +1,1 @@
+Added both items, sorted to top with max/high badges. Neither closes from here: CLAUDE.md's template pointer needs an edit outside this dir (gate blocks it), and pondertag rollout spans ~50 tenant dirs -- no single turn covers all of it.
