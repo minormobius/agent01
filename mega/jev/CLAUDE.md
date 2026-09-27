@@ -301,7 +301,7 @@ model only decides.
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
-| `test/craft.selftest.mjs` | 356 checks, ~60 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age) |
+| `test/craft.selftest.mjs` | 378 checks, ~70 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1114,6 +1114,114 @@ macro's path search gave up at 30,000 nodes from far away, and the baseline's
 fallback with no lava in sight was to branch-mine, when **lava comes into
 sight by seeing more of the world, not by tunnelling**. Now: a 60,000-node
 search, and explore first.
+
+### The nether: a second world on the same tiling (2026-09-27)
+
+The ladder now runs three steps past the beacon: **build and light a portal,
+cross into the nether, and bring back a glowstone lamp**. The solo tech
+project is 16 steps (17 for a team).
+
+**The same tiling, a different world.** The nether is generated from the
+overworld's own seed and tiling (`generateNether` in `world.mjs`), so **tile c
+there is tile c here**, and a portal leads to the same tile on the other side.
+It is a cavern: a netherrack floor and ceiling, pillars, a lava sea at layer
+8 and below (`NETHER_LAVA`), soul-sand patches, quartz veins in the rock, and
+glowstone in mounds on dry floor and clusters under low ceilings. There is no
+water and no sky, and it is always dark. Glowstone gives 2 dust a block
+(`dropN`), and 4 dust make a glowstone lamp.
+
+**A dimension is a swap, not a second engine.** Everything a world holds of
+its own (blocks, mobs, lights, crops, water queue, chests, beacons,
+protected voxels, portals, pending events) is listed in `DIM_FIELDS` in
+`sim.mjs`, and `useDim(name)` swaps those fields. Every player carries its
+`dim`, and `sim.as(e, fn)` switches to the player's dimension as well as to
+the player. So macros, planners and `perceive()` run unchanged in either world.
+A tick steps the overworld always, and the nether only while someone is in
+it. `sim.ow(field)` reads the overworld's live copy from either world (the team
+chest, the beacon and home all live there). What a player has seen is per
+dimension. `crossTo` moves a player across: out of one world's entities and
+into the other's, arriving in the portal there or building one, as Minecraft
+does.
+
+**A portal on a tile graph.** `portalFrameOk`: the doorway column has obsidian
+under and over it, and two of its neighbours are obsidian two layers up. That
+is 6 obsidian on any tiling. A torch lights it (`light` op: two portal
+blocks), and standing in it for 16 ticks crosses (`travel` op). The frame goes
+into `sim.protect`, so no planner digs through it.
+
+**The stream carries both worlds.** A nether line is the same line with
+`"d":"nether"`. Overworld lines carry nothing new, so old streams replay
+unchanged. The overworld's stream announces the nether with a `dim` note
+carrying its signature. `Replay` generates the nether lazily when the note
+arrives and checks it against that signature. `replay.view` picks which world
+the `world`/`b`/`ents`/`chests` getters read, and `dimOf(id)` says where a
+player is. The viewer follows the watched player through a portal
+(`followView`: switch the view, rebuild the meshes) and draws the nether as a
+dim red cavern with the cutaway cap in netherrack red. Portal blocks are a
+translucent violet prism.
+
+**Blazes, not zombies.** `HOSTILE = {zombie, blaze}`, and every "is something
+hostile here" check (fight, threats, interrupts, `perceive`) reads it. Blazes
+spawn near a player in the nether, away from torches and glowstone, and
+hit 2 harder than a zombie. They do not burn: zombies only burn under the
+overworld's sky. Dying in the nether wakes you at home in the overworld.
+
+**What each world allows.** `OVERWORLD_ONLY` / `NETHER_ONLY` in `macros.mjs`
+wrap every palette entry's `needs()`. The nether refuses the sky's, soil's,
+sea's and home's macros (farming, the house, beds, the chest, sand, obsidian,
+scouting, hunting) with *"not in the nether"*. Pouring water is refused
+("water boils away"), and so is sleeping. New macros: `build_portal` (a site
+near home whose doorway, two flanks and front stand on one floor, **never on
+the house or its doorstep**), `use_portal`, `mine_glowstone`, `mine_quartz`.
+`go_home` from the nether goes back through the portal first. Jev's options
+in the nether are only the ones that work there, `perceive()` says
+`world: THE NETHER`, and `in_sight` lists glowstone, quartz, lava and the portal.
+
+**Three faults this round found, each fixed:**
+- **The arrival portal was a trap.** The first far-side portal went on a
+  ledge one layer over the lava sea. The planners never step beside lava, so
+  there was no path off it, and `mine_glowstone` gave up at once, crossing
+  after crossing. The far side now takes dry floor above the lava with room
+  to walk off (`portalSpot(c, strict)`), and only falls back to anywhere it
+  fits when there is none.
+- **A portal sealed a house.** The frame is obsidian, protected, and went
+  on the doorstep: the player could never get home, and `dig_in` failed on
+  water 5 times in a row until `play()` called it stuck. Sites now keep clear
+  of the house and two hops round its door.
+- **Older bugs the longer runs exposed:** `branch_mine` tunnelled through the
+  lit beacon, **three times in one run** (the planner now refuses beacons as it
+  refuses chests). The baseline tried to craft a bucket ~980 times in two days,
+  because the iron was counted but the coal to smelt it had gone into torches
+  (short of coal now means *dig coal*, as short of logs already meant *gather
+  wood*). And a chest placed in the nether could have become the team chest.
+
+**Measured, baseline solo, 5 days, 10 tilings × 2 seeds:**
+
+| | |
+|---|---|
+| reached the nether and brought back glowstone | **17 / 20** |
+| whole 16-step ladder | 15 / 20 |
+| crossing, median tick | 5272 (day 2) |
+| deaths | **0** (none in the nether either) |
+| stuck | 1 (snub/1, day 3, after the whole ladder: a pit whose sand walls touch the sea. The planners never dig beside water, so there is no way out. Older than the nether, and not fixed here) |
+
+The three short: penrose/2 never lit a beacon (the diamond age stalls
+there); kagome/1 ran the world's reachable lava out one obsidian short of a
+frame (5/6); truncsq/1 got 2 obsidian before it lost its way home.
+
+**A team of 3 baselines, 5 days:** on penrose/3 and kagome/4, 2 of each 3
+players crossed and came back with glowstone (4 crossings each run), 0
+deaths. One portal serves the team: whoever builds it first, the others use
+it.
+
+Life sweep after all of it (baseline, 3 seeds × 10 tilings × 2 days): iron
+pickaxe 30/30, house 30/30, 0 deaths, 0 stuck. The penrose, rhombille
+and truncsq rows now show *"interrupted: blaze adjacent"*: the nether is
+already reached inside two days.
+
+**Not measured:** Jev in the nether. The options, facts and project steps
+exist, and the selftest checks what Jev would be offered there. No live run
+has happened yet.
 
 ### What is next
 

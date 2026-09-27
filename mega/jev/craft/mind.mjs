@@ -17,12 +17,12 @@
 // stream says so. Nothing here pretends: every decision is stamped with the
 // source that produced it — typesafe, offline stand-in, random, or baseline.
 
-import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity } from './macros.mjs';
+import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN } from './macros.mjs';
 import { projectState, projectFact, projectDue, projectQuestion, setProject, baselineProject, PROJECT_NAMES, PROJECTS } from './projects.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
 import { DAY, NIGHT_START } from './sim.mjs';
-import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS } from './world.mjs';
+import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS, HOSTILE } from './world.mjs';
 
 export const GATE = 0.45;
 
@@ -55,7 +55,7 @@ const about = (d) => Math.round(d * 1.3);           // tiles → walking ticks, 
 // --------------------------------------------------------------- perceive ---
 export function perceive(sim) {
   const p = sim.player, t = sim.tick, ph = t % DAY, night = ph >= NIGHT_START;
-  const zs = [...sim.ents.values()].filter((e) => e.kind === 'zombie' && sim.dist(e.c, p.c) <= 16)
+  const zs = [...sim.ents.values()].filter((e) => HOSTILE.has(e.kind) && sim.dist(e.c, p.c) <= 16)
     .sort((a, b) => sim.dist(a.c, p.c) - sim.dist(b.c, p.c));
   const near = (ids) => { const v = visible(sim, ids, 30); return v.length ? { in_sight: v.length, nearest_tiles: Math.round(sim.dist(v[0][0], p.c)) } : { in_sight: 0 }; };
   const pigs = visiblePigs(sim, 30).sort((a, b) => sim.dist(a.c, p.c) - sim.dist(b.c, p.c));
@@ -67,7 +67,8 @@ export function perceive(sim) {
     const sh = shortfall(sim, GOAL_ITEM[g], g === 'torches' ? 4 : 1);
     return { goal: g, short_of: Object.keys(sh).length ? describeShort(sh) : 'nothing — can be crafted now' };
   });
-  const underSky = sim.skyOpen(p.c, p.y + 2);
+  const underSky = sim.skyOpen(p.c, p.y + 2), neth = inNether(sim);
+  const portal = (() => { const ps = portalsHere(sim).filter(([c]) => sim.seen[c]); return ps.length ? { lit: true, walk_ticks_about: about(sim.dist(ps[0][0], p.c)) } : { lit: false }; })();
   return {
     objective: {
       aim: 'Thrive in this world: stay fed and alive, and pursue a long-range project — tech (tools, a house, iron), grow (cultivate every plant species here), or explore (see it all). Every activity says what it does for the current project.',
@@ -76,6 +77,7 @@ export function perceive(sim) {
         'A house (or a dug-in hole) keeps zombies out; the house is also where you respawn.',
         'Food drops by 1 every 480 ticks; at 0 you lose health, at 18+ you heal.',
         'An activity runs until it finishes or something interrupts it — then you choose again.',
+        ...(neth || sim.ow('portals').size || sim.ow('beacons').size ? ['The nether, through a portal: always dark, no sky and no water, blazes spawn near you away from light (they hit harder than zombies), glowstone and quartz. Tile for tile it lies under the overworld; home is back through the portal; dying there wakes you at home.'] : []),
         ...(sim.players.length > 1 ? ['You share this world with teammates (see team). What they ask for is listed, and options that answer a request say so.'] : []),
       ],
     },
@@ -85,14 +87,16 @@ export function perceive(sim) {
     },
     player: {
       health: `${p.hp}/20`, food: `${p.food}/20`,
-      where: atHome(sim) ? 'inside the house' : underSky ? 'outside, under open sky' : 'underground or covered',
-      depth_below_surface: Math.max(0, sim.surface(p.c) - p.y),
+      world: neth ? 'THE NETHER' : 'the overworld',
+      where: neth ? 'in the nether\'s cavern' : atHome(sim) ? 'inside the house' : underSky ? 'outside, under open sky' : 'underground or covered',
+      ...(neth ? {} : { depth_below_surface: Math.max(0, sim.surface(p.c) - p.y) }),
       pickaxe: tier(sim), sword: sim.has('iron_sword') ? 'iron' : sim.has('stone_sword') ? 'stone' : sim.has('wooden_sword') ? 'wooden' : 'none',
       home: sim.home ? { exists: true, walk_ticks_about: about(sim.dist(sim.home[0], p.c)), is_house: !!sim._house } : { exists: false },
     },
     inventory: { ...sim.inv },
-    threats: zs.slice(0, 4).map((z) => ({ kind: 'zombie', tiles_away: Math.round(sim.dist(z.c, p.c)), touching: sim.adjacentTo(p, z) })),
-    in_sight: {
+    threats: zs.slice(0, 4).map((z) => ({ kind: z.kind, tiles_away: Math.round(sim.dist(z.c, p.c)), touching: sim.adjacentTo(p, z) })),
+    in_sight: neth ? { glowstone: near([B.glowstone]), quartz: near([B.quartz_ore]), lava: near([B.lava]), portal } : {
+      ...(sim.ow('portals').size ? { portal } : {}),
       trees: near([B.log]), coal: near([B.coal_ore]), iron: near([B.iron_ore]), sand: near([B.sand]),
       pigs: pigs.length ? { in_sight: pigs.length, nearest_tiles: Math.round(sim.dist(pigs[0].c, p.c)) } : { in_sight: 0 },
     },
@@ -100,7 +104,7 @@ export function perceive(sim) {
     project: projectFacts(sim),
     shared: sharedFacts(sim),
     survival: (() => { const ts = sim.noSurvival ? [] : threats(sim); return ts.length ? { threats: ts.map((t) => t.text) } : { threats: 'none right now' }; })(),
-    explored: `${Math.round(100 * sim.seenCount / sim.N)}% of the island`,
+    explored: `${Math.round(100 * sim.seenCount / sim.N)}% of the ${neth ? 'nether' : 'island'}`,
     recent: (sim._journal || []).slice(-6),
     ...(sim.players.length > 1 ? { team: teamFacts(sim) } : {}),
   };
@@ -116,11 +120,11 @@ const SHELTER = new Set(['go_home', 'dig_in', 'build_house', 'sleep_in_bed']);
 export function threats(sim) {
   const p = sim.player, night = sim.isNight(), out = [];
   const inside = !sim.skyOpen(p.c, p.y + 2) || atHome(sim);
-  const zNear = [...sim.ents.values()].filter((e) => e.kind === 'zombie' && sim.dist(e.c, p.c) <= 6).length;
-  const adjacent = [...sim.ents.values()].some((e) => e.kind === 'zombie' && sim.adjacentTo(p, e));
+  const zNear = [...sim.ents.values()].filter((e) => HOSTILE.has(e.kind) && sim.dist(e.c, p.c) <= 6).length;
+  const adjacent = [...sim.ents.values()].some((e) => HOSTILE.has(e.kind) && sim.adjacentTo(p, e));
   const foodHeld = Object.keys(FOOD).some((k) => sim.has(k));
   if (sim.get(p.c, p.y + 1) === B.water) out.push({ id: 'air', text: `under water: air ${p.air}/60, drowning at 0`, relief: (o) => o.name === 'surface' });
-  if (adjacent) out.push({ id: 'zombie', text: 'a zombie is hitting you', relief: (o) => o.name === 'fight' || o.name === 'dig_in' });
+  if (adjacent) out.push({ id: 'zombie', text: 'something hostile is hitting you', relief: (o) => o.name === 'fight' || o.name === 'dig_in' });
   if (night && !inside) out.push({ id: 'night', text: `night, out in the open (${zNear} zombies within 6)`, relief: (o) => SHELTER.has(o.name) || (o.name === 'sleep_until_dawn' && inside), worse: (o) => o.leaves });
   if (p.food <= 6) out.push({ id: 'hunger', text: `food ${p.food}/20${p.food === 0 ? ': starving, losing health' : ''}`,
     relief: (o) => (o.name === 'eat' && foodHeld) || o.name === 'hunt' || (o.name === 'harvest') || (o.name === 'craft' && ['bread', 'cooked_porkchop'].includes(o.args?.item)) || (o.name === 'forage' && o.args?.sp === 'sunfruit') });
@@ -172,7 +176,7 @@ function teamFacts(sim) {
   const me = sim.player;
   return sim.players.filter((e) => e !== me).map((e) => {
     const r = liveRequest(sim, e);
-    const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, e.c) < 8).length;
+    const zs = [...sim.ents.values()].filter((z) => HOSTILE.has(z.kind) && sim.dist(z.c, e.c) < 8).length;
     return {
       teammate: e.role === 'human' ? `the human player (#${e.id})` : `Jev teammate #${e.id}`,
       tiles_away: Math.round(sim.dist(e.c, me.c)), health: `${e.hp}/20`, food: `${e.food}/20`,
@@ -198,7 +202,7 @@ export function fulfil(sim, pick, ended) {
 // facts that would justify it; none of them is an instruction to anyone.
 export function askQuestion(sim) {
   const p = sim.player;
-  const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, p.c) < 6).length;
+  const zs = [...sim.ents.values()].filter((z) => HOSTILE.has(z.kind) && sim.dist(z.c, p.c) < 6).length;
   const foodHeld = Object.keys(FOOD).reduce((n, k) => n + (p.inv[k] || 0), 0);
   const mates = sim.players.filter((e) => e !== p);
   const nearest = mates.length ? Math.round(Math.min(...mates.map((e) => sim.dist(e.c, p.c)))) : null;
@@ -231,7 +235,7 @@ export function applyAsk(sim, e, choice) {
 // the stand-in's rule of thumb for asking
 export function offlineAsk(sim) {
   const p = sim.player;
-  const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, p.c) < 4).length;
+  const zs = [...sim.ents.values()].filter((z) => HOSTILE.has(z.kind) && sim.dist(z.c, p.c) < 4).length;
   const foodHeld = Object.keys(FOOD).reduce((n, k) => n + (p.inv[k] || 0), 0);
   if (zs && p.hp < 12) return 'defend';
   if (p.food < 8 && !foodHeld) return 'food';
@@ -254,6 +258,7 @@ export function options(sim) {
   const ts = sim.noSurvival ? [] : threats(sim);
   const add = (id, name, args, facts, tokens = []) => {
     const m = PALETTE[name];
+    if (inNether(sim) && m.needs(sim, args || {}) === 'not in the nether') return;
     const leaves = !['craft', 'eat', 'fight', 'sleep_until_dawn', 'dig_in', 'set_home', 'surface'].includes(name) && !(name === 'go_home');
     // the option carries its own last failure. A fact in the journal is not
     // a fact on the option being chosen — the dungeon's rope lesson.
@@ -289,9 +294,16 @@ export function options(sim) {
   // the diamond age
   if (legal.has('mine_diamond') && sim.pickTier() < 4 || legal.has('mine_diamond') && (sim.inv.diamond || 0) < 4) add('mine_diamond', 'mine_diamond', { n: 3 }, { yields: 'diamonds (and coal, iron on the way)', takes: 'about 200–600 ticks, down at the bottom layers',
     advances: sim.pickTier() < 4 ? `a diamond pickaxe takes 3 diamonds (holding ${sim.inv.diamond || 0})` : `diamonds held ${sim.inv.diamond || 0}` }, ['diamond']);
-  if (legal.has('make_obsidian')) add('make_obsidian', 'make_obsidian', { n: 3 }, { yields: 'obsidian (water poured on lava, then mined)', takes: 'about 60–200 ticks', advances: `obsidian held ${sim.inv.obsidian || 0} (a beacon takes 3)` }, ['make_obsidian', 'obsidian']);
+  if (legal.has('make_obsidian')) add('make_obsidian', 'make_obsidian', { n: 3 }, { yields: 'obsidian (water poured on lava, then mined)', takes: 'about 60–200 ticks', advances: `obsidian held ${sim.inv.obsidian || 0} (${sim.ow('beacons').size || sim.has('beacon') ? `a portal frame takes ${PORTAL_OBSIDIAN}` : `a beacon takes 3, a portal frame ${PORTAL_OBSIDIAN}`})` }, ['make_obsidian', 'obsidian']);
+  // the nether
+  if (legal.has('build_portal')) add('build_portal', 'build_portal', null, { yields: 'a lit portal near home: a door to the nether', takes: 'about 30–100 ticks', advances: `uses ${PORTAL_OBSIDIAN} obsidian and a torch` }, ['build_portal']);
+  if (legal.has('use_portal')) add('use_portal', 'use_portal', null, inNether(sim)
+    ? { yields: 'back to the overworld, by the portal', takes: `about ${about(sim.dist(portalsHere(sim)[0][0], p.c)) + 16} ticks`, advances: 'the way home' }
+    : { yields: 'the nether: glowstone and quartz; always dark, blazes spawn there', takes: `about ${about(sim.dist(portalsHere(sim)[0][0], p.c)) + 16} ticks`, advances: p.visitedNether ? 'back to the nether' : 'the first crossing' }, ['use_portal']);
+  if (legal.has('mine_glowstone')) { const v = visible(sim, [B.glowstone], 30).length; add('mine_glowstone', 'mine_glowstone', { n: 4 }, { yields: 'glowstone dust (2 a block; 4 dust make a glowstone lamp)', takes: v ? 'about 20–60 ticks, glowstone is in sight' : 'longer — none in sight, walks the cavern', advances: `dust held ${sim.inv.glowstone_dust || 0}` }, ['glowstone_dust', 'mine_glowstone']); }
+  if (legal.has('mine_quartz')) { const v = visible(sim, [B.quartz_ore], 30).length; add('mine_quartz', 'mine_quartz', { n: 4 }, { yields: 'quartz (4 make a quartz block)', takes: v ? 'about 20–60 ticks, quartz is in sight' : 'longer — none in sight', advances: `quartz held ${sim.inv.quartz || 0}` }, ['quartz']); }
   if (legal.has('place_beacon')) add('place_beacon', 'place_beacon', null, { yields: 'a beacon at home: no zombie spawns within 16', takes: 'about 20–60 ticks', advances: 'the capstone of the tech ladder' }, ['place_beacon', 'craft:beacon']);
-  if ((sim.inv.sand || 0) < 5 && !sim.beacons.size && sim.pickTier() >= 4) add('dig_sand', 'dig_sand', { n: (sim.inv.sand || 0) + 5 }, { yields: 'sand (→ glass at a furnace)', takes: 'about 20–80 ticks', advances: 'a beacon takes 5 glass' }, ['sand', 'dig_sand']);
+  if ((sim.inv.sand || 0) < 5 && !sim.ow('beacons').size && sim.pickTier() >= 4) add('dig_sand', 'dig_sand', { n: (sim.inv.sand || 0) + 5 }, { yields: 'sand (→ glass at a furnace)', takes: 'about 20–80 ticks', advances: 'a beacon takes 5 glass' }, ['sand', 'dig_sand']);
   if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' }, ['coal', 'iron_ore', 'cobblestone']);
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
   const seenPct = Math.round(100 * sim.seenCount / sim.N);
@@ -346,13 +358,14 @@ export function options(sim) {
     advances: !sim.pickTier() ? 'wooden_pickaxe needs wood' : 'planks for doors and sticks' }, ['log']);
   if (legal.has('hunt')) add('hunt', 'hunt', null, { yields: 'porkchops (food)', takes: visiblePigs(sim, 20).length ? 'about 20–60 ticks, pig in sight' : 'longer — no pig in sight', advances: `food ${p.food}/20` }, ['porkchop']);
   if (legal.has('go_home')) {
-    const toDusk = NIGHT_START - (sim.tick % DAY), walk = about(sim.dist(sim.home[0], p.c));
-    add('go_home', 'go_home', null, { takes: `about ${walk} ticks`,
+    const toDusk = NIGHT_START - (sim.tick % DAY), walk = inNether(sim) && portalsHere(sim).length ? about(sim.dist(portalsHere(sim)[0][0], p.c)) + 16 + about(sim.dist(sim.home[0], portalsHere(sim)[0][0])) : about(sim.dist(sim.home[0], p.c));
+    add('go_home', 'go_home', null, { takes: `about ${walk} ticks${inNether(sim) ? ', back through the portal' : ''}`,
       advances: night ? 'safety: it is night' : toDusk < walk + 200 ? `safety: dusk in ${toDusk} ticks` : `nothing yet: night is ${toDusk} ticks away, and the walk takes about ${walk}` });
   }
   const crafts = [...USEFUL_CRAFTS, ...(here.some(needsFarmland) && !sim.has('wooden_hoe') ? ['wooden_hoe'] : []), ...(sim.has('wheat', 3) ? ['bread'] : []), ...(sim.has('glowcap', 2) ? ['lantern'] : []),
     ...(sim.team.chest == null && !sim.has('chest') ? ['chest'] : []), ...(!sim.has('iron_armor') && !sim.has('diamond_armor') ? ['iron_armor'] : []), ...(sim.pickTier() < 4 ? ['diamond_pickaxe'] : []),
-    ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.beacons.size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : [])];
+    ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.ow('beacons').size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : []),
+    ...(sim.has('glowstone_dust', 4) && !sim.has('glowstone') ? ['glowstone'] : []), ...(sim.has('quartz', 4) ? ['quartz_block'] : [])];
   for (const item of crafts) {
     if (Object.keys(shortfall(sim, item, (sim.inv[item] || 0) + (item === 'torch' ? 4 : 1))).length) continue;
     if (item.endsWith('pickaxe') && (sim.inv[item] || sim.pickTier() >= { wooden_pickaxe: 1, stone_pickaxe: 2, iron_pickaxe: 3, diamond_pickaxe: 4 }[item])) continue;
@@ -372,7 +385,7 @@ export function options(sim) {
   if (legal.has('dig_in')) add('dig_in', 'dig_in', null, { yields: 'a one-block emergency shelter', takes: 'about 10 ticks', advances: 'safety, right here' });
   if (legal.has('sleep_until_dawn')) add('sleep_until_dawn', 'sleep_until_dawn', null, { takes: `until dawn (${DAY - (sim.tick % DAY)} ticks)`, advances: inside ? 'safe: you are covered' : 'NOT safe: you are in the open' });
   if (legal.has('eat')) add('eat', 'eat', null, { takes: '4 ticks', advances: `food ${p.food}/20` });
-  if (legal.has('fight')) add('fight', 'fight', null, { takes: 'a few ticks per hit', advances: 'a zombie is touching you' });
+  if (legal.has('fight')) add('fight', 'fight', null, { takes: 'a few ticks per hit', advances: 'something hostile is touching you' });
   // the team: one option per teammate per way of helping
   for (const e of sim.players) {
     if (e === p) continue;
@@ -380,7 +393,7 @@ export function options(sim) {
     const who = e.role === 'human' ? 'the human player' : `Jev #${e.id}`;
     const answers = (w) => r && r.what === w ? { request: `ANSWERS what ${who} asked for, ${sim.tick - r.tick} ticks ago` } : {};
     if (!PALETTE.follow.needs(sim, { to: e.id }) && d > 1.5) add(`follow_${e.id}`, 'follow', { to: e.id }, { takes: `about ${about(d)} ticks`, advances: `be next to ${who}`, ...answers('come') });
-    const zs = [...sim.ents.values()].filter((z) => z.kind === 'zombie' && sim.dist(z.c, e.c) < 8).length;
+    const zs = [...sim.ents.values()].filter((z) => HOSTILE.has(z.kind) && sim.dist(z.c, e.c) < 8).length;
     if (!PALETTE.guard.needs(sim, { to: e.id }) && (zs || (r && r.what === 'defend') || sim.isNight())) add(`guard_${e.id}`, 'guard', { to: e.id, ticks: 160 }, { takes: 'about 160 ticks', advances: `keep ${who} safe (${zs} zombies near them)`, ...answers('defend') });
     for (const what of ['wood', 'food', 'stone', 'torches']) {
       if (PALETTE.give.needs(sim, { to: e.id, what })) continue;

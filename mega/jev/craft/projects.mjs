@@ -68,18 +68,29 @@ const BED_STEP = { id: 'bed', label: 'a bed of your own', done: hasBed,
   detail: (s) => { const sh = shortfall(s, 'bed', 1); return Object.keys(sh).length ? `short of ${describeShort(sh)}${sh.wool ? ' (sheep give wool)' : ''}` : 'can be crafted now'; } };
 // the diamond age: armor, a diamond pick, obsidian (water carried to lava),
 // and the capstone, a beacon at home that keeps every zombie away
-const OBSIDIAN_STEP = { id: 'obsidian', label: 'make 3 obsidian (water on lava, diamond pick)', done: (s) => s.has('obsidian', 3) || s.has('beacon') || s.beacons.size > 0,
+const OBSIDIAN_STEP = { id: 'obsidian', label: 'make 3 obsidian (water on lava, diamond pick)', done: (s) => s.has('obsidian', 3) || s.has('beacon') || s.ow('beacons').size > 0,
   needs: (s) => s.pickTier() < 4 ? new Set(['diamond', 'craft:diamond_pickaxe']) : !s.has('bucket') && !s.has('water_bucket') ? new Set([...Object.keys(shortfall(s, 'bucket', 1)), 'craft:bucket']) : new Set(['make_obsidian', 'obsidian']),
   complete: (s) => s.pickTier() >= 4 && (s.has('bucket') || s.has('water_bucket')) ? 'make_obsidian' : null,
   detail: (s) => s.pickTier() < 4 ? 'needs a diamond pickaxe' : !s.has('bucket') && !s.has('water_bucket') ? 'needs a bucket (3 iron ingots)' : `holding ${s.inv.obsidian || 0}; find lava and pour water on it` };
-const BEACON_STEP = { id: 'beacon', label: 'light a beacon at home (nothing spawns within 16)', done: (s) => s.beacons.size > 0,
+const BEACON_STEP = { id: 'beacon', label: 'light a beacon at home (nothing spawns within 16)', done: (s) => s.ow('beacons').size > 0,
   needs: (s) => { if (s.has('beacon')) return new Set(['place_beacon']); const sh = shortfall(s, 'beacon', 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.sand ? ['dig_sand'] : []), ...(sh.obsidian ? ['make_obsidian'] : [])] : ['craft:beacon', 'place_beacon']); },
   complete: (s) => s.has('beacon') || !Object.keys(shortfall(s, 'beacon', 1)).length ? 'place_beacon' : null,
   detail: (s) => { const sh = shortfall(s, 'beacon', 1); return s.has('beacon') ? 'ready to place' : Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be made now'; } };
 const DIAMOND_AGE = [itemStep('iron_armor', 'iron_armor', 1, (s) => s.has('iron_armor') || s.has('diamond_armor')), itemStep('diamond_pickaxe', 'diamond_pickaxe', 1, (s) => s.pickTier() >= 4), OBSIDIAN_STEP, BEACON_STEP];
+// the nether: a portal of 6 obsidian (after the beacon's 3), the crossing,
+// and glowstone brought back (4 dust make a lamp: light without coal or fire)
+const PORTAL_STEP = { id: 'portal', label: 'build and light a nether portal (6 obsidian and a torch)', done: (s) => s.ow('portals').size > 0,
+  needs: (s) => (s.inv.obsidian || 0) < 6 ? new Set(['make_obsidian', 'obsidian']) : new Set(['build_portal']),
+  complete: (s) => (s.inv.obsidian || 0) >= 6 ? 'build_portal' : null,
+  detail: (s) => (s.inv.obsidian || 0) < 6 ? `holding ${s.inv.obsidian || 0} of 6 obsidian` : 'ready to build' };
+const NETHER_STEP = { id: 'nether', label: 'cross into the nether', done: (s) => !!s.player.visitedNether,
+  needs: () => new Set(['use_portal']), complete: (s) => s.dim !== 'nether' ? 'use_portal' : null,
+  detail: () => 'step into the lit portal' };
+const GLOW_STEP = { ...itemStep('glowstone', 'glowstone', 1, (s) => s.has('glowstone') || !!s.player.glowPlaced), label: 'make a glowstone lamp (4 dust from the nether)' };
+const NETHER = [PORTAL_STEP, NETHER_STEP, GLOW_STEP];
 const TECH = (sim) => sim.players.length > 1
-  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7], ...DIAMOND_AGE]
-  : [...TECH_BASE, BED_STEP, ...DIAMOND_AGE];
+  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7], ...DIAMOND_AGE, ...NETHER]
+  : [...TECH_BASE, BED_STEP, ...DIAMOND_AGE, ...NETHER];
 
 function growSteps(sim) {
   const here = speciesHere(sim);
@@ -127,7 +138,7 @@ function exploreSteps(sim) {
 }
 
 export const PROJECTS = {
-  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron, then diamonds, obsidian and a beacon', steps: (sim) => TECH(sim) },
+  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron, then diamonds, obsidian, a beacon, and a portal to the nether for glowstone', steps: (sim) => TECH(sim) },
   grow: { aim: 'find and cultivate every plant species this world has — some grow only on particular tile shapes', steps: growSteps },
   explore: { aim: 'see the whole world and find where each wild plant grows', steps: exploreSteps },
 };

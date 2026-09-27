@@ -12,7 +12,7 @@
 // can also abort any macro between two actions (an interrupt), so a macro
 // holds no state that is only valid mid-sequence.
 
-import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS } from './world.mjs';
+import { B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS, HOSTILE, blockName } from './world.mjs';
 import { habitat, needsFarmland, wet } from './plants.mjs';
 
 const MAX_STEPS = 400;
@@ -486,9 +486,9 @@ export function* surface(sim) {
 }
 
 // Hit the nearest adjacent hostile until it dies or we must stop.
-export function* fight(sim, kind = 'zombie') {
+export function* fight(sim, kind = null) {
   for (let k = 0; k < 20; k++) {
-    const t = [...sim.ents.values()].find((e) => e.kind === kind && sim.adjacentTo(sim.player, e));
+    const t = [...sim.ents.values()].find((e) => (kind ? e.kind === kind : HOSTILE.has(e.kind)) && sim.adjacentTo(sim.player, e));
     if (!t) return { ok: true };
     const r = yield { op: 'attack', id: t.id };
     if (!r.ok) return { ok: false, why: r.why };
@@ -774,6 +774,8 @@ export function* setHome(sim) {
 }
 export function* goHome(sim) {
   if (!sim.home) return { ok: false, why: 'no home yet' };
+  // home is in the overworld: from the nether, the way home is the portal
+  if (inNether(sim)) { const u = yield* usePortal(sim); if (!u.ok) return { ok: false, why: `no way back (${u.why})` }; }
   const [hc, hy] = sim.home;
   return yield* goTo(sim, (c, y) => c === hc && y === hy, 40000);
 }
@@ -1007,7 +1009,7 @@ function* buildHouseInner(sim) {
 // chest (sim.team.chest); anyone can put into it or take from it, limited only
 // by its 27 stacks.
 export const chestAt = (sim) => sim.team.chest == null ? null : [Math.floor(sim.team.chest / H), sim.team.chest % H];
-export const chestItems = (sim) => sim.team.chest == null ? {} : sim.chests.get(sim.team.chest) || {};
+export const chestItems = (sim) => sim.team.chest == null ? {} : sim.ow('chests').get(sim.team.chest) || {};
 function* toChest(sim) {
   const at = chestAt(sim);
   if (!at) return { ok: false, why: 'no team chest' };
@@ -1031,10 +1033,12 @@ export function surplus(sim) {
   const out = {};
   for (const [k, n] of Object.entries(sim.inv)) {
     // tools, armor (worn by carrying it) and buckets stay with their owner
-    if (/_(pickaxe|sword|hoe|armor)$/.test(k) || ['door', 'bed', 'chest', 'crafting_table', 'furnace', 'bucket', 'water_bucket', 'beacon'].includes(k)) continue;
+    if (/_(pickaxe|sword|hoe|armor)$/.test(k) || ['door', 'bed', 'chest', 'crafting_table', 'furnace', 'bucket', 'water_bucket', 'beacon', 'glowstone'].includes(k)) continue;
     let keep = KEEP[k] ?? 0;
     if (EAT_ORDER.includes(k)) keep = 3;
     if (k.endsWith('_seeds')) keep = 2;
+    if (k === 'obsidian' && !sim.ow('portals').size) keep = PORTAL_OBSIDIAN;          // a portal frame's worth
+    if (k === 'glowstone_dust' && !sim.has('glowstone')) keep = 4;
     if ((k === 'wool' || k === 'planks') && !sim.has('bed') && !(sim.player.bedAt && sim.get(sim.player.bedAt[0], sim.player.bedAt[1]) === B.bed)) keep = Math.max(keep, 3);   // still owed a bed
     if (n > keep) out[k] = n - keep;
   }
@@ -1167,7 +1171,7 @@ export function* guard(sim, to, ticks = 160) {
   if (!e) return { ok: false, why: 'no such teammate' };
   const until = sim.tick + ticks;
   while (sim.tick < until) {
-    const z = [...sim.ents.values()].filter((q) => q.kind === 'zombie' && sim.dist(q.c, e.c) < 8)
+    const z = [...sim.ents.values()].filter((q) => HOSTILE.has(q.kind) && sim.dist(q.c, e.c) < 8)
       .sort((a, b) => sim.dist(a.c, sim.player.c) - sim.dist(b.c, sim.player.c))[0];
     if (z) {
       if (sim.adjacentTo(sim.player, z)) { yield { op: 'attack', id: z.id }; continue; }
@@ -1199,12 +1203,115 @@ export function* giveItems(sim, to, what = 'wood') {
   return gave ? { ok: true } : { ok: false, why: 'could not hand anything over' };
 }
 
+// -------------------------------------------------------------- the nether --
+// A portal is a frame on the tile graph (sim.portalFrameOk): the doorway
+// column with obsidian under and over it, and two of its neighbours obsidian
+// two layers up — 6 obsidian on any tiling, lit with a torch. Tile c in the
+// nether is tile c here, so a portal leads to the same tile on the other side
+// (the far side is built on arrival if there is none, as in Minecraft).
+export const inNether = (sim) => sim.dim === 'nether';
+export const PORTAL_OBSIDIAN = 6;
+const FRAME_BAD = new Set([B.water, B.lava, B.bedrock, B.chest, B.bed, B.portal, B.beacon, B.door]);
+// the lit portals of this dimension (the standing voxel of each)
+export function portalsHere(sim) {
+  const out = [];
+  for (const k of sim.portals) { const c = Math.floor(k / H), y = k % H; if (sim.get(c, y - 1) !== B.portal) out.push([c, y]); }
+  return out.sort((a, b) => sim.dist(a[0], sim.player.c) - sim.dist(b[0], sim.player.c));
+}
+// Where a frame fits near c0: a doorway whose two flanks and front all stand on
+// the doorway's floor. Cheapest (fewest blocks to clear, then nearest) first.
+export function portalSite(sim, c0, r = 10) {
+  let best = null;
+  const tier = sim.pickTier();
+  // never on the house or its doorstep: the frame is obsidian and protected,
+  // so a portal across the way in would seal the house for good
+  const h = sim._house, keep = new Set();
+  if (h) { for (const c of ball(sim, h.c0, h.R + 2).keys()) keep.add(c); for (const c of ball(sim, h.door, 2).keys()) keep.add(c); }
+  for (const [pc, hop] of ball(sim, c0, r)) {
+    if (!sim.seen[pc] || sim.cols[pc].nb.includes(-1) || keep.has(pc)) continue;
+    const g = groundTop(sim, pc) + 1;
+    if (g < 3 || g > H - 4) continue;
+    const under = sim.get(pc, g - 1);
+    if (FRAME_BAD.has(under) || sim.protect.has(pc * H + g - 1) || sim.clearCost(pc, g - 1, tier) === Infinity) continue;
+    if (![g, g + 1, g + 2].every((y) => sim.get(pc, y) === B.air || BLOCKS[sim.get(pc, y)].plant)) continue;
+    const adj = sim.cols[pc].adj;
+    const front = adj.find((n) => groundTop(sim, n) + 1 === g && sim.passable(n, g) && sim.passable(n, g + 1) && !sim.cols[n].nb.includes(-1));
+    if (front == null) continue;
+    const flanks = adj.filter((n) => n !== front && !keep.has(n) && ![g, g + 1].some((y) => FRAME_BAD.has(sim.get(n, y)) || sim.protect.has(n * H + y) || (sim.solid(n, y) && sim.clearCost(n, y, tier) === Infinity)));
+    if (flanks.length < 2) continue;
+    const f2 = flanks.sort((a, b) => [g, g + 1].filter((y) => sim.solid(a, y)).length - [g, g + 1].filter((y) => sim.solid(b, y)).length).slice(0, 2);
+    const cost = f2.reduce((n, f) => n + [g, g + 1].filter((y) => sim.solid(f, y)).length, 0) + hop;
+    if (!best || cost < best.cost) best = { pc, g, front, flanks: f2, cost };
+  }
+  return best;
+}
+// get within reach of (c, y) without standing in the frame, then make it obsidian
+function* setObsidian(sim, c, y, frameCols) {
+  if (sim.get(c, y) === B.obsidian) return { ok: true };
+  if (!sim.reachable(sim.player.c, sim.player.y, c, y)) {
+    const go = yield* goTo(sim, (pc, py) => !frameCols.has(pc) && sim.reachable(pc, py, c, y), 8000);
+    if (!go.ok) return { ok: false, why: `could not reach the frame (${go.why})` };
+  }
+  if (sim.solid(c, y)) { const m = yield { op: 'mine', c, y }; if (!m.ok) return { ok: false, why: m.why }; }
+  const r = yield { op: 'place', c, y, item: 'obsidian' };
+  return r.ok ? { ok: true } : { ok: false, why: r.why };
+}
+// Build a portal frame of 6 obsidian near home and light it with a torch.
+export function* buildPortal(sim) {
+  if (inNether(sim)) return { ok: false, why: 'already in the nether' };
+  if ((sim.inv.obsidian || 0) < PORTAL_OBSIDIAN) return { ok: false, why: `a frame takes ${PORTAL_OBSIDIAN} obsidian, holding ${sim.inv.obsidian || 0}` };
+  if (!sim.has('torch')) { const t = yield* craft(sim, 'torch', 1); if (!t.ok) return { ok: false, why: `needs a torch to light it (${t.why})` }; }
+  const c0 = sim.home && sim.dist(sim.home[0], sim.player.c) < 40 ? sim.home[0] : sim.player.c;
+  const site = portalSite(sim, c0) || portalSite(sim, sim.player.c, 6);
+  if (!site) return { ok: false, why: 'nowhere flat enough for a frame' };
+  const { pc, g, front, flanks } = site;
+  const frameCols = new Set([pc, ...flanks]);
+  const go = yield* goTo(sim, (c, y) => c === front && y === g, 40000);
+  if (!go.ok) return { ok: false, why: `could not get to the site (${go.why})` };
+  for (const [c, y] of [[pc, g - 1], ...flanks.flatMap((f) => [[f, g], [f, g + 1]]), [pc, g + 2]]) {
+    const r = yield* setObsidian(sim, c, y, frameCols);
+    if (!r.ok) return r;
+  }
+  if (!sim.reachable(sim.player.c, sim.player.y, pc, g)) { const b = yield* goTo(sim, (c, y) => c === front && y === g, 8000); if (!b.ok) return { ok: false, why: b.why }; }
+  const l = yield { op: 'light', c: pc, y: g };
+  if (!l.ok) return { ok: false, why: l.why };
+  // nobody mines through a portal's frame by accident
+  for (const [c, y] of [[pc, g - 1], [pc, g + 2], ...flanks.flatMap((f) => [[f, g], [f, g + 1]])]) sim.protect.add(c * H + y);
+  sim.team.portal = [pc, g];
+  return { ok: true };
+}
+// Walk into the nearest lit portal and cross.
+export function* usePortal(sim) {
+  const ps = portalsHere(sim).filter(([c]) => sim.seen[c]);
+  if (!ps.length) return { ok: false, why: 'no lit portal known here' };
+  const [pc, py] = ps[0];
+  const go = yield* goTo(sim, (c, y) => c === pc && y === py, 60000);
+  if (!go.ok) return { ok: false, why: `could not reach the portal (${go.why})` };
+  const r = yield { op: 'travel' };
+  return r.ok ? { ok: true } : { ok: false, why: r.why };
+}
+// Nether mining: glowstone (dust, 2 a block: 4 make a lamp) and quartz, in
+// sight first, else walk the cavern until some comes into view.
+function* mineSight(sim, id, item, n) {
+  const want = (sim.inv[item] || 0) + n;
+  for (let leg = 0; leg < n * 3 && (sim.inv[item] || 0) < want; leg++) {
+    const seen = visible(sim, [id], 30).filter(([c, y]) => !(sim._unreachable && sim._unreachable.has(c * H + y)));
+    if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
+    const t0 = sim.tick, e = yield* explore(sim);
+    if (!e.ok && sim.tick === t0) break;
+  }
+  return (sim.inv[item] || 0) >= want ? { ok: true } : (sim.inv[item] || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: `no ${blockName(id)} found` };
+}
+export const mineGlowstone = (sim, n = 4) => mineSight(sim, B.glowstone, 'glowstone_dust', n);
+export const mineQuartz = (sim, n = 4) => mineSight(sim, B.quartz_ore, 'quartz', n);
+
+
 // ------------------------------------------------------------- palette -------
 // The palette as DATA. Each entry: the mode it belongs to, one line of what it
 // does, and needs(sim, args) → null when it can run now, or the reason it
 // cannot. That reason is the difference between offering a model a choice and
 // offering it a trap: Jev's `choice` will be built from the legal entries only.
-const hasPick = (sim, t = 1) => sim.pickTier() >= t ? null : `needs a ${['', 'wooden', 'stone', 'iron'][t]} pickaxe`;
+const hasPick = (sim, t = 1) => sim.pickTier() >= t ? null : `needs a ${['', 'wooden', 'stone', 'iron', 'diamond'][t]} pickaxe`;
 const food = (sim) => EAT_ORDER.some((k) => sim.has(k));
 export const PALETTE = {
   // mine
@@ -1243,7 +1350,12 @@ export const PALETTE = {
   mine_diamond: { mode: 'mine', doc: 'down to the bottom layers for diamonds (needs an iron pick)', needs: (s) => hasPick(s, 3), run: (s, a) => mineDiamond(s, a?.n) },
   make_obsidian:{ mode: 'mine', doc: 'carry water in a bucket to lava; mine the obsidian (diamond pick)', needs: (s) => s.pickTier() < 4 ? 'needs a diamond pickaxe' : !s.has('bucket') && !s.has('water_bucket') ? 'needs a bucket (3 iron ingots)' : !visible(s, [B.lava], 40).length ? 'no lava in sight' : null, run: (s, a) => makeObsidian(s, a?.n) },
   dig_sand:     { mode: 'explore', doc: 'dig sand (for glass)', needs: () => null, run: (s, a) => digSand(s, a?.n || (s.inv.sand || 0) + 5) },
-  place_beacon: { mode: 'homestead', doc: 'a beacon at home: nothing spawns within 16', needs: (s) => s.beacons.size ? 'a beacon is already lit' : s.has('beacon') ? null : Object.keys(shortfall(s, 'beacon', 1)).length ? `short of ${describeShort(shortfall(s, 'beacon', 1))}` : null, run: (s) => placeBeacon(s) },
+  place_beacon: { mode: 'homestead', doc: 'a beacon at home: nothing spawns within 16', needs: (s) => s.ow('beacons').size ? 'a beacon is already lit' : s.has('beacon') ? null : Object.keys(shortfall(s, 'beacon', 1)).length ? `short of ${describeShort(shortfall(s, 'beacon', 1))}` : null, run: (s) => placeBeacon(s) },
+  // the nether
+  build_portal: { mode: 'homestead', doc: 'a frame of 6 obsidian near home, lit with a torch: a door to the nether', needs: (s) => portalsHere(s).length ? 'a portal is already lit' : (s.inv.obsidian || 0) < PORTAL_OBSIDIAN ? `a frame takes ${PORTAL_OBSIDIAN} obsidian, holding ${s.inv.obsidian || 0}` : !s.has('torch') && Object.keys(shortfall(s, 'torch', 1)).length ? 'needs a torch to light it' : null, run: (s) => buildPortal(s) },
+  use_portal:   { mode: 'explore', doc: 'walk into the lit portal and cross to the other side', needs: (s) => portalsHere(s).some(([c]) => s.seen[c]) ? null : inNether(s) ? 'no portal known here (the one you came through?)' : 'no lit portal yet', run: (s) => usePortal(s) },
+  mine_glowstone: { mode: 'mine', doc: 'glowstone in sight (2 dust a block; 4 dust make a lamp), else walk the cavern for it', needs: () => null, run: (s, a) => mineGlowstone(s, a?.n) },
+  mine_quartz:  { mode: 'mine', doc: 'quartz ore in the netherrack, in sight or found by walking', needs: (s) => hasPick(s), run: (s, a) => mineQuartz(s, a?.n) },
   // the pool and the beds
   set_up_chest: { mode: 'homestead', doc: 'make a chest and put it at home: the team\'s shared store', needs: (s) => s.team.chest != null ? 'the team already has a chest' : Object.keys(shortfall(s, 'chest', 1)).length && !s.has('chest') ? `short of ${describeShort(shortfall(s, 'chest', 1))}` : null, run: (s) => setUpChest(s) },
   store:        { mode: 'homestead', doc: 'put your surplus in the team chest (27 stacks of 64)', needs: (s) => s.team.chest == null ? 'no team chest yet' : !Object.keys(surplus(s)).length ? 'nothing surplus to store' : slotsUsed(chestItems(s)) >= CHEST_SLOTS && !Object.keys(surplus(s)).some((k) => roomFor(chestItems(s), k) > 0) ? 'the chest is full' : null, run: (s) => storeSurplus(s) },
@@ -1253,9 +1365,18 @@ export const PALETTE = {
   follow:       { mode: 'team', doc: 'go to a teammate', needs: (s, a) => mateNeeds(s, a), run: (s, a) => follow(s, a.to) },
   guard:        { mode: 'team', doc: 'stay by a teammate and fight what comes at them', needs: (s, a) => mateNeeds(s, a), run: (s, a) => guard(s, a.to, a.ticks) },
   give:         { mode: 'team', doc: 'walk over and hand a teammate wood, food, stone or torches', needs: (s, a) => mateNeeds(s, a) || ((GIFTS[a?.what || 'wood'] || []).some((k) => s.has(k)) ? null : `holding no ${a?.what || 'wood'}`), run: (s, a) => giveItems(s, a.to, a.what) },
-  fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent', needs: (s) => [...s.ents.values()].some((e) => e.kind === 'zombie' && s.adjacentTo(s.player, e)) ? null : 'nothing adjacent to fight', run: (s) => fight(s) },
+  fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent', needs: (s) => [...s.ents.values()].some((e) => HOSTILE.has(e.kind) && s.adjacentTo(s.player, e)) ? null : 'nothing adjacent to fight', run: (s) => fight(s) },
 };
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
+// Which world each macro works in. The overworld's are about its sky, soil,
+// sea, ore bands, the house and the chest; the nether has none of those.
+const OVERWORLD_ONLY = new Set(['mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
+  'farm', 'harvest', 'set_home', 'sleep_until_dawn', 'mine_diamond', 'make_obsidian', 'dig_sand', 'place_beacon', 'build_portal', 'set_up_chest', 'store', 'take', 'sleep_in_bed']);
+const NETHER_ONLY = new Set(['mine_glowstone', 'mine_quartz']);
+for (const [name, m] of Object.entries(PALETTE)) {
+  const need = m.needs;
+  m.needs = (s, a) => inNether(s) ? (OVERWORLD_ONLY.has(name) ? 'not in the nether' : need(s, a)) : NETHER_ONLY.has(name) ? 'only in the nether' : need(s, a);
+}
 function mateNeeds(s, a) {
   if (s.players.length < 2) return 'nobody else is here';
   if (a && a.to != null && !mate(s, a.to)) return 'no such teammate';

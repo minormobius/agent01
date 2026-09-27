@@ -51,6 +51,10 @@ export const SPECIES_NAMES = Object.keys(SPECIES);
 B.chest = 36; B.bed = 37;
 // the diamond age
 B.obsidian = 38; B.diamond_ore = 39; B.beacon = 40;
+// the nether
+B.netherrack = 41; B.glowstone = 42; B.quartz_ore = 43; B.soul_sand = 44; B.portal = 45; B.quartz_block = 46;
+// hostile mobs: zombies above, blazes below
+export const HOSTILE = new Set(['zombie', 'blaze']);
 export const BLOCKS = [];
 const def = (name, o) => { BLOCKS[B[name]] = { id: B[name], name, solid: true, hard: 3, tool: 0, drop: name, color: '#888', ...o }; };
 def('air',            { solid: false, hard: Infinity, drop: null, color: null });
@@ -91,12 +95,19 @@ def('obsidian',       { hard: 50, tool: 4, color: '#2b1d3d', top: '#3a2852' });
 def('diamond_ore',    { hard: 20, tool: 3, drop: 'diamond', color: '#8a8a8a', fleck: '#5ff2e6' });
 // a beacon: 3 obsidian, 5 glass, a diamond. Nothing spawns within BEACON_RADIUS of one.
 def('beacon',         { hard: 6, color: '#bff7f2', top: '#e9fffd', light: true, clear: true });
+def('netherrack',     { hard: 4, tool: 1, color: '#6e2a2a', top: '#7d3232' });
+def('glowstone',      { hard: 3, drop: 'glowstone_dust', dropN: 2, color: '#f6d77a', top: '#ffe9a3', light: true });
+def('quartz_ore',     { hard: 8, tool: 1, drop: 'quartz', color: '#6e2a2a', fleck: '#efe8df' });
+def('soul_sand',      { hard: 3, color: '#56443a' });
+// a lit portal: step in and travel. It cannot be mined; break the frame.
+def('portal',         { solid: false, hard: Infinity, drop: null, color: '#8e3fd6', top: '#b06cf0', clear: true });
+def('quartz_block',   { hard: 8, tool: 1, color: '#efe8df' });
 def('lava',           { solid: false, hazard: true, mobSolid: true, hard: Infinity, drop: null, color: '#ff6a1a', top: '#ffb13d' });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
 // Items that place as a block. Everything else is inventory-only.
-export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon']);
+export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block']);
 // Chests: 27 stacks, as Minecraft's. A stack is 64 of most things; a tool,
 // a sword or a bed is a stack of one. That is the whole limit on the pool.
 export const CHEST_SLOTS = 27;
@@ -112,7 +123,7 @@ export function roomFor(items, item) {
 // seeds are planted (the 'plant' op), not placed
 export const SEEDS = Object.fromEntries(SPECIES_NAMES.map((sp) => [`${sp}_seeds`, sp]));
 // what a wall, a floor or a roof can be made of, best first
-export const BUILDING = ['cobblestone', 'planks', 'dirt', 'sand', 'log'];
+export const BUILDING = ['cobblestone', 'planks', 'dirt', 'sand', 'log', 'netherrack', 'quartz_block'];
 
 // Recipes are bags, not shapes: a grid-shaped recipe means nothing on a
 // Penrose floor, and the agent should be deciding WHAT to make, not where.
@@ -145,6 +156,8 @@ export const RECIPES = {
   diamond_armor:   { n: 1, need: { diamond: 8 }, at: 'crafting_table' },
   bucket:          { n: 1, need: { iron_ingot: 3 }, at: 'crafting_table' },
   beacon:          { n: 1, need: { obsidian: 3, glass: 5, diamond: 1 }, at: 'crafting_table' },
+  glowstone:       { n: 1, need: { glowstone_dust: 4 } },
+  quartz_block:    { n: 1, need: { quartz: 4 } },
   cooked_mutton:   { n: 1, need: { mutton: 1, coal: 1 }, alt: [{ mutton: 1, charcoal: 1 }, { mutton: 1, planks: 1 }], at: 'furnace' },
   bread:           { n: 1, need: { wheat: 3 } },
   lantern:         { n: 2, need: { glowcap: 2, stick: 1 } },
@@ -448,6 +461,50 @@ export function tileKinds(tiling) {
   cols.forEach((c, i) => { isolated[i] = c.adj.length && c.adj.every((n) => kind[n] !== kind[i]) ? 1 : 0; });
   const describe = (k) => { const [n, a] = ranked[k].split(':'); return `${{ 3: 'triangle', 4: 'four-sided', 6: 'hexagon', 8: 'octagon' }[n] || n + '-sided'} (area ${a})`; };
   return (tiling._kinds = { kind, isolated, n: ranked.length, rarest: ranked.length - 1, names: ranked.map((_, k) => describe(k)), count: ranked.map((k) => count.get(k)) });
+}
+
+// The nether: a second world on the SAME tiling (the same columns, so a
+// portal on tile c leads to tile c on the other side), generated from the
+// same seed. A cavern: netherrack floor and ceiling, a lava sea below layer
+// NETHER_LAVA, pillars, glowstone mounds and hanging clusters, quartz in the
+// rock, soul sand on the floor. Always dark: no sky.
+export const NETHER_LAVA = 8;
+export function generateNether({ seed, shape, tiling, radius, version = CRAFT_VERSION }) {
+  const cols = tiling.cols, N = cols.length;
+  const blocks = new Uint8Array(N * H), height = new Int16Array(N);
+  const rng = mulberry(hash32(seed, 0x4E7));
+  for (let c = 0; c < N; c++) {
+    const { x, z } = cols[c];
+    const floor = Math.round(2 + fbm(seed + 1301, x / 11, z / 11) * 14);
+    const ceil = Math.round(22 + fbm(seed + 1303, x / 13, z / 13) * 10);
+    const pillar = fbm(seed + 1307, x / 5, z / 5) > 0.74;
+    for (let y = 0; y < H; y++) {
+      let id = B.air;
+      if (y === 0 || y === H - 1) id = B.bedrock;
+      else if (y <= floor || y >= ceil || pillar) id = B.netherrack;
+      else if (y <= NETHER_LAVA) id = B.lava;
+      blocks[c * H + y] = id;
+    }
+    if (floor > NETHER_LAVA && !pillar && fbm(seed + 1311, x / 6, z / 6) > 0.62) blocks[c * H + floor] = B.soul_sand;
+    height[c] = floor;
+  }
+  // quartz veins in the rock
+  for (let v = 0; v < Math.round(N / 40); v++) {
+    let c = Math.floor(rng() * N), y = 2 + Math.floor(rng() * (H - 4));
+    for (let k = 0; k < 4; k++) {
+      if (blocks[c * H + y] === B.netherrack) blocks[c * H + y] = B.quartz_ore;
+      if (cols[c].adj.length) c = cols[c].adj[Math.floor(rng() * cols[c].adj.length)];
+    }
+  }
+  // glowstone: mounds on dry floor (reachable), and clusters hanging from low ceilings
+  for (let c = 0; c < N; c++) {
+    const f = height[c];
+    if (f <= NETHER_LAVA || blocks[c * H + f + 1] !== B.air) continue;
+    if (hash01(seed, c, 0x610) < 0.012) { blocks[c * H + f + 1] = B.glowstone; if (hash01(seed, c, 0x611) < 0.5 && blocks[c * H + f + 2] === B.air) blocks[c * H + f + 2] = B.glowstone; }
+    let ce = f + 1; while (ce < H - 1 && blocks[c * H + ce] === B.air) ce++;
+    if (ce - f <= 6 && hash01(seed, c, 0x612) < 0.05 && blocks[c * H + ce - 1] === B.air) blocks[c * H + ce - 1] = B.glowstone;
+  }
+  return { version, seed, shape, radius, kind: 'nether', H, tiling, blocks, height, biome: new Uint8Array(N), spawn: -1, trees: [], wild: {} };
 }
 
 // FNV over the block array — the world's fingerprint, pinned per shape.

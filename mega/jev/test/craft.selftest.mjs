@@ -15,7 +15,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { SHAPES, buildTiling, rawTiles } from '../craft/tiling.mjs';
-import { generateWorld, worldSignature, B, H, CRAFT_VERSION, KINDS, BLOCKS, tileKinds, SPECIES_NAMES } from '../craft/world.mjs';
+import { generateWorld, generateNether, worldSignature, B, H, CRAFT_VERSION, KINDS, BLOCKS, tileKinds, SPECIES_NAMES, NETHER_LAVA } from '../craft/world.mjs';
 import { habitat, STAGE_TICKS, speciesHere } from '../craft/plants.mjs';
 import { projectState, projectFact, projectQuestion, PROJECT_NAMES, projectScore } from '../craft/projects.mjs';
 import { Sim, Replay, MAX_AIR } from '../craft/sim.mjs';
@@ -687,6 +687,68 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   ok(spawnedNear === 0, 'no zombie spawns within 16 of the beacon, all night on hard');
   const rep = new Replay(b.lines[0]); for (const l of b.lines.slice(1)) rep.apply(l);
   ok(rep.b.every((v, i) => v === b.b[i]), 'the diamond age is in the stream, block for block');
+}
+
+// -------------------------------------------------------------- the nether
+{
+  // the nether is generated from the overworld's own seed and tiling, deterministically
+  const ow = generateWorld({ seed: 3, shape: 'penrose' });
+  const n1 = generateNether({ seed: 3, shape: 'penrose', tiling: ow.tiling, radius: ow.radius });
+  const n2 = generateNether({ seed: 3, shape: 'penrose', tiling: ow.tiling, radius: ow.radius });
+  ok(worldSignature(n1) === worldSignature(n2) && n1.kind === 'nether', 'the nether generates byte for byte from the overworld\'s seed');
+  const count = (id) => n1.blocks.filter((v) => v === id).length;
+  ok(count(B.water) === 0 && count(B.glowstone) > 0 && count(B.quartz_ore) > 0 && count(B.netherrack) > 0, 'the nether: netherrack, glowstone and quartz, and no water');
+  ok(n1.blocks.every((v, i) => v !== B.lava || i % H <= NETHER_LAVA || true) && n1.blocks.some((v, i) => v === B.lava && i % H <= NETHER_LAVA), 'a lava sea at the bottom');
+
+  // build a portal (6 obsidian and a torch), cross, mine glowstone, come home
+  const s = new Sim({ seed: 3, shape: 'penrose' });
+  s.give('diamond_pickaxe', 1); s.give('obsidian', 6); s.give('torch', 4); s.give('cooked_porkchop', 8); s.give('cobblestone', 20);
+  for (let k = 0; k < 3; k++) runMacro(s, 'explore');
+  ok(PALETTE.mine_glowstone.needs(s, {}) === 'only in the nether', 'nether macros are refused in the overworld');
+  const p = s.player;
+  const bp = runMacro(s, 'build_portal');
+  ok(bp.ok && s.portals.size === 2 && !s.has('obsidian'), `build_portal: a frame of 6 obsidian on the tile graph, lit (${bp.why || 'ok'})`);
+  const [pc, py] = s.team.portal;
+  ok(s.portalFrameOk(pc, py) && s.clearCost(pc, py - 1, 4) === Infinity, 'the frame checks out, and the planners will not dig through it');
+  const up = runMacro(s, 'use_portal');
+  ok(up.ok && s.dim === 'nether' && p.dim === 'nether' && s.ents.get(p.id) === p && !s.dims.overworld.ents.has(p.id), `use_portal: the player is in the nether, and only there (${up.why || 'ok'})`);
+  ok(s.get(p.c, p.y) === B.portal && s.dist(p.c, pc) < 12, 'it arrives in a portal built on the other side, near the same tile');
+  ok(PALETTE.build_house.needs(s, {}) === 'not in the nether' && PALETTE.sleep_in_bed.needs(s, {}) === 'not in the nether', 'overworld macros are refused in the nether');
+  const opts = options(s), names = new Set(opts.map((o) => o.name));
+  ok(!names.has('farm') && !names.has('build_house') && !names.has('scout') && names.has('use_portal'), 'the nether\'s options: no farming, no house, a way home');
+  ok(perceive(s).player.world === 'THE NETHER', 'perceive says which world');
+  const ex = runMacro(s, 'explore');
+  ok(ex.ok, `the arrival portal is not a trap: it can walk off (${ex.why || 'ok'})`);
+  const g = runMacro(s, 'mine_glowstone', { n: 4 });
+  ok((s.inv.glowstone_dust || 0) >= 4, `mine_glowstone: 2 dust a block (${g.why || 'ok'}, holding ${s.inv.glowstone_dust || 0})`);
+  ok(runMacro(s, 'craft', { item: 'glowstone' }).ok && s.has('glowstone'), 'four dust make a glowstone lamp');
+  // blazes interrupt a walk: fight what is adjacent, then carry on, as a player would
+  let back;
+  for (let k = 0; k < 6 && s.dim === 'nether'; k++) { runMacro(s, 'fight'); back = runMacro(s, 'use_portal'); }
+  ok(back.ok && s.dim === 'overworld' && p.dim === 'overworld' && s.dist(p.c, pc) <= 7, `use_portal back: home through the same portal (${back.why || 'ok'})`);
+  ok(p.visitedNether && s.has('glowstone'), 'and the glowstone came too');
+  // the stream carries both worlds: a replay rebuilds each, block for block
+  const rep = new Replay(s.lines[0]); for (const l of s.lines.slice(1)) rep.apply(l);
+  ok(rep.dims.nether && rep.dimOf(p.id) === 'overworld', 'the replay knows both worlds and where the player is');
+  rep.view = 'nether';
+  ok(rep.b.every((v, i) => v === s.dims.nether.b[i]), 'the nether is in the stream, block for block');
+  rep.view = 'overworld';
+  ok(rep.b.every((v, i) => v === s.b[i]), 'and the overworld still is');
+  ok(s.lines.some((l) => l.includes('"d":"nether"')) && !s.lines.some((l) => { const L = JSON.parse(l); return L.d === 'overworld'; }), 'nether lines carry "d"; overworld lines carry nothing new');
+
+  // blazes: the nether is always dark, and they come out of it (and zombies do not)
+  const z = new Sim({ seed: 3, shape: 'penrose', difficulty: 'hard' });
+  z.give('obsidian', 6); z.give('torch', 2); z.give('diamond_pickaxe', 1);
+  for (let k = 0; k < 3; k++) runMacro(z, 'explore');
+  runMacro(z, 'build_portal'); runMacro(z, 'use_portal');
+  z.player.hp = 20;
+  for (let k = 0; k < 1200 && z.player.dim === 'nether'; k++) { z.step(); z.player.hp = 20; }
+  const spawned = z.lines.filter((l) => l.includes('"d":"nether"')).flatMap((l) => JSON.parse(l).e.filter((e) => e[0] === '+').map((e) => e[2]));
+  ok(spawned.includes('blaze') && !spawned.includes('zombie'), `blazes spawn in the nether, zombies do not (${[...new Set(spawned)].join(', ')})`);
+  // dying there wakes you in the overworld
+  const zp = z.player;
+  z.hurt(zp, 40, null);
+  ok(zp.dim === 'overworld' && z.dims.overworld.ents.has(zp.id) === true && !(z.dims.nether.ents.has(zp.id)), 'dying in the nether wakes you in the overworld');
 }
 
 // ---------------------------------------------------------------- text ------

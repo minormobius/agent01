@@ -11,8 +11,8 @@
 // "Jev played for a day" has a number to be compared against, and so the
 // engine can be shown climbing the tech ladder with no model in the loop.
 
-import { PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus } from './macros.mjs';
-import { EAT_ORDER, B } from './world.mjs';
+import { PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
+import { EAT_ORDER, B, HOSTILE } from './world.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 
 // One primitive action per step(), so a caller can interleave rendering
@@ -64,13 +64,14 @@ export function runMacro(sim, name, args, opts = {}) {
   for (;;) { const r = d.step(); if (r && r.ended) return r.ended; }
 }
 
-const zombieAdjacent = (sim) => [...sim.ents.values()].some((e) => e.kind === 'zombie' && sim.adjacentTo(sim.player, e));
+const zombieAdjacent = (sim) => [...sim.ents.values()].some((e) => HOSTILE.has(e.kind) && sim.adjacentTo(sim.player, e));
 const exposed = (sim) => sim.skyOpen(sim.player.c, sim.player.y + 2);
+const inNetherNow = (sim) => sim.dim === 'nether';
 
 // Interrupts are facts, not judgements: each names a thing that changed and
 // that the current macro was not written to handle.
 export function standardInterrupt(sim, running = null) {
-  if (zombieAdjacent(sim)) return 'zombie adjacent';
+  if (zombieAdjacent(sim)) return inNetherNow(sim) ? 'blaze adjacent' : 'zombie adjacent';
   // under water with breath running low: whatever the macro was doing, stop
   const p = sim.player;
   if (running !== 'surface' && sim.get(p.c, p.y + 1) === B.water && p.air <= 40 && !sim._airAck) { sim._airAck = true; return 'running out of air'; }
@@ -89,10 +90,22 @@ export function baselinePolicy(sim) {
   const p = sim.player, inv = sim.inv;
   const n = (k) => inv[k] || 0;
   // every craft goes through here: short of wood → fetch wood first
-  const craftIt = (item, q = 1) => shortfall(sim, item, q).log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : { name: 'craft', args: { item, ...(q > 1 ? { n: q } : {}) } };
+  // (and short of coal → dig coal: smelting iron for a bucket once spent the
+  // coal torches had just used, and the craft failed ~980 times in two days)
+  const craftIt = (item, q = 1) => { const sh = shortfall(sim, item, q); return sh.log ? { name: 'gather_wood', args: { n: n('log') + 2 } } : sh.coal ? { name: 'mine_coal', args: { n: n('coal') + sh.coal + 2 } } : { name: 'craft', args: { item, ...(q > 1 ? { n: q } : {}) } }; };
   const blocks = n('cobblestone') + n('dirt') + n('planks') + n('sand');
   if (zombieAdjacent(sim)) return { name: 'fight' };
   if (sim.get(p.c, p.y + 1) === B.water) return { name: 'surface' };
+  const tries = (k) => (sim.me._ageTries ||= {})[k] || 0;
+  const tried = (k) => { sim.me._ageTries[k] = tries(k) + 1; };
+  // in the nether: glowstone, a lamp, and back through the portal
+  if (inNether(sim)) {
+    if (p.food < 12 && EAT_ORDER.some((k) => inv[k])) return { name: 'eat' };
+    if (!n('glowstone') && n('glowstone_dust') < 4 && tries('glow') < 4) { tried('glow'); return { name: 'mine_glowstone', args: { n: 4 - n('glowstone_dust') } }; }
+    if (!n('glowstone') && n('glowstone_dust') >= 4) return { name: 'craft', args: { item: 'glowstone' } };
+    if (tries('back') < 4) { tried('back'); return { name: 'use_portal' }; }
+    return { name: 'explore' };
+  }
   // a bed plan that failed tonight is not retried tonight (a zero-tick failure
   // at the top of the night branch would otherwise repeat every tick)
   const lm = sim._lastMacro, night0 = Math.floor(sim.tick / 4800);
@@ -172,13 +185,11 @@ export function baselinePolicy(sim) {
   // the diamond age: iron armor, a diamond pick, a bucket, obsidian, glass, a
   // beacon at home. Each stage has a try budget: a world with no reachable
   // lava or diamonds must not trap the script
-  const tries = (k) => (sim.me._ageTries ||= {})[k] || 0;
-  const tried = (k) => { sim.me._ageTries[k] = tries(k) + 1; };
   const ingots = n('iron_ingot') + n('iron_ore');
   // the pool counts: a teammate's diamonds are ours to take
   const pool = (k) => n(k) + (chestItems(sim)[k] || 0);
   const fetch = (k, q) => n(k) < q && pool(k) >= q ? { name: 'take', args: { item: k, n: q - n(k) } } : null;
-  if (sim._house && n('iron_pickaxe') + n('diamond_pickaxe') && !sim.beacons.size && !sim.isNight()) {
+  if (sim._house && n('iron_pickaxe') + n('diamond_pickaxe') && !sim.ow('beacons').size && !sim.isNight()) {
     if (!n('iron_armor') && !n('diamond_armor') && tries('armor') < 3) {
       if (ingots >= 8 && n('coal') + n('charcoal') >= 8 - n('iron_ingot')) return craftIt('iron_armor');
       tried('armor'); return { name: 'mine_iron', args: { iron: 8, coal: 8 } };
@@ -210,6 +221,18 @@ export function baselinePolicy(sim) {
       }
     }
     if (n('beacon') && tries('place') < 3) { tried('place'); return { name: 'place_beacon' }; }
+  }
+  // the nether: 6 more obsidian, a portal near home (one for the team), a
+  // crossing, and glowstone brought back
+  if (sim._house && sim.ow('beacons').size && sim.pickTier() >= 4 && !sim.isNight() && !n('glowstone') && !p.glowPlaced) {
+    if (!portalsHere(sim).length) {
+      if (fetch('obsidian', PORTAL_OBSIDIAN)) return fetch('obsidian', PORTAL_OBSIDIAN);
+      if (n('obsidian') < PORTAL_OBSIDIAN && tries('obsidian2') < 16 && (n('bucket') || n('water_bucket'))) {
+        tried('obsidian2');
+        return PALETTE.make_obsidian.needs(sim, {}) ? (sim._explored ? { name: 'branch_mine', args: { length: 16 } } : { name: 'explore' }) : { name: 'make_obsidian', args: { n: PORTAL_OBSIDIAN - n('obsidian') } };
+      }
+      if (n('obsidian') >= PORTAL_OBSIDIAN && tries('portal') < 3) { tried('portal'); return { name: 'build_portal' }; }
+    } else if (tries('cross') < 4) { tried('cross'); sim.me._ageTries.glow = 0; sim.me._ageTries.back = 0; return { name: 'use_portal' }; }
   }
   // then growing: reap what is ripe, make a hoe, and for each species not yet
   // grown, plant the seeds carried or take them from a wild plant in sight

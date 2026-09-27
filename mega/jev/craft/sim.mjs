@@ -32,7 +32,7 @@
 
 import {
   B, BLOCKS, H, SEA, RECIPES, PLACEABLE, recipeBags, PICK_TIER, PICK_SPEED, SWORD_DMG, FOOD, HEAL, SEEDS, roomFor, ARMOR, BEACON_RADIUS,
-  generateWorld, worldSignature, mulberry, hash32, blockName,
+  generateWorld, generateNether, worldSignature, mulberry, hash32, blockName, HOSTILE, NETHER_LAVA,
 } from './world.mjs';
 import { habitat, growCrops, harvestDrop, GROW_EVERY } from './plants.mjs';
 
@@ -52,6 +52,9 @@ export const FLOW_EVERY = 3;        // water spreads one voxel every this many t
 // what water may flow into (and wash away): open air, torches, lanterns, plants
 const floodable = (id) => id === B.air || (!BLOCKS[id].solid && !BLOCKS[id].hazard && id !== B.water && !BLOCKS[id].mobSolid);            // how far the player sees, in tile edges
 export const REACH = 2.2;           // how far the player reaches, in tile edges (centre to centre)
+
+// what each dimension has of its own (swapped by useDim)
+const DIM_FIELDS = ['world', 'b', 'ents', 'torches', 'crops', 'cultivated', 'flowQ', 'still', 'beacons', 'chests', 'protect', 'portals', 'ev'];
 
 export class Sim {
   constructor(opts = {}) {
@@ -78,6 +81,9 @@ export class Sim {
     this.ev = [];
     this.stats = { deaths: 0, mined: {}, crafted: {}, kills: {}, damageTaken: 0, placed: {}, planted: {}, harvested: {}, grown: {} };
     this.protect = new Set();     // voxels the planners must not dig (house walls, roof)
+    this.portals = new Set();     // lit portal voxels
+    this.dim = 'overworld';
+    this.dims = { overworld: {} };
     this.players = [];            // every player entity; this.me is the one acting now
     this.lines.push(JSON.stringify({
       t: 'craft', v: w.version, seed: w.seed, shape: w.shape, radius: w.radius, kind: w.kind, H,
@@ -136,10 +142,15 @@ export class Sim {
     throw new Error('no room next to the first player');
   }
   // run fn as player e (and put the previous one back)
-  as(e, fn) { const prev = this.me; this.me = e; try { return fn(); } finally { this.me = prev; } }
+  as(e, fn) {
+    const prev = this.me, prevDim = this.dim;
+    this.me = e; this.useDim(e.dim || 'overworld');
+    try { return fn(); } finally { this.me = prev; this.useDim(prevDim); }
+  }
   nearestPlayer(c) {
     let best = null, bd = Infinity;
-    for (const e of this.players) { const d = this.dist(e.c, c); if (d < bd) { bd = d; best = e; } }
+    for (const e of this.players) {
+      if ((e.dim || 'overworld') !== this.dim) continue; const d = this.dist(e.c, c); if (d < bd) { bd = d; best = e; } }
     return best;
   }
 
@@ -157,8 +168,8 @@ export class Sim {
     if (BLOCKS[id].light) this.torches.add(k);
     if (BLOCKS[id].plant && BLOCKS[id].stage < 2) this.crops.add(k); else this.crops.delete(k);
     if (!BLOCKS[id].plant) this.cultivated.delete(k);
-    if (id === B.chest && !this.chests.has(k)) { this.chests.set(k, {}); if (this.team.chest == null) this.team.chest = k; }
-    if (old === B.chest && id !== B.chest) { this.chests.delete(k); if (this.team.chest === k) this.team.chest = [...this.chests.keys()][0] ?? null; }
+    if (id === B.chest && !this.chests.has(k)) { this.chests.set(k, {}); if (this.team.chest == null && this.dim === 'overworld') this.team.chest = k; }
+    if (old === B.chest && id !== B.chest) { this.chests.delete(k); if (this.team.chest === k && this.dim === 'overworld') this.team.chest = [...this.chests.keys()][0] ?? null; }
     // water: standing water is at rest until something changes beside it
     if (y <= SEA && floodable(id)) this.flowQ.add(k);
     if (id === B.water) {
@@ -170,6 +181,7 @@ export class Sim {
     }
     if (old === B.water) this.still.delete(k);
     if (id === B.beacon) this.beacons.add(k); else if (old === B.beacon) this.beacons.delete(k);
+    if (id === B.portal) this.portals.add(k); else if (old === B.portal) this.portals.delete(k);
     this.b[c * H + y] = id;
     this.emit(['b', c, y, id]);
   }
@@ -269,6 +281,14 @@ export class Sim {
       this.stats.deaths++;
       e.deaths = (e.deaths || 0) + 1;
       e.inv = {}; e.hp = 20; e.food = 20; e.air = MAX_AIR;
+      // death in the nether: you wake up in the overworld
+      if ((e.dim || 'overworld') !== 'overworld') {
+        this.emit(['inv', {}, e.id]); this.emit(['hp', e.id, 20]); this.emit(['food', 20, e.id]);
+        this.crossTo(e, 'overworld', e.home ? e.home[0] : this.dims.overworld.world.spawn);
+        this.useDim('overworld');
+        if (e.home && this.canStand(e.home[0], e.home[1])) this.moveEnt(e, e.home[0], e.home[1]);
+        return;
+      }
       this.emit(['inv', {}, e.id]); this.emit(['hp', e.id, 20]); this.emit(['food', 20, e.id]);
       // respawn at their own home if there is one (the house is the bed), else at spawn
       if (e.home && this.canStand(e.home[0], e.home[1])) { this.moveEnt(e, e.home[0], e.home[1]); return; }
@@ -381,7 +401,7 @@ export class Sim {
         const blk = BLOCKS[this.get(c, y)];
         if (blk.hard === Infinity) return no(`${blk.name} cannot be mined`);
         const tier = this.pickTier();
-        if (blk.tool > tier) return no(`${blk.name} needs a ${['', 'wooden', 'stone', 'iron'][blk.tool]} pickaxe or better`);
+        if (blk.tool > tier) return no(`${blk.name} needs a ${['', 'wooden', 'stone', 'iron', 'diamond'][blk.tool]} pickaxe or better`);
         const speed = blk.tool ? PICK_SPEED[tier] : 1;
         const ticks = Math.max(1, Math.ceil(blk.hard / speed));
         return { ok: true, ticks, pre: () => this.emit(['do', 'mine', c, y, ticks]), post: () => {
@@ -390,7 +410,7 @@ export class Sim {
           const stash = blk.id === B.chest ? { ...(this.chests.get(c * H + y) || {}) } : null;
           this.set(c, y, B.air);        // if it touched water, the flow fills it (and whatever it opens onto)
           this.stats.mined[blk.name] = (this.stats.mined[blk.name] || 0) + 1;
-          if (blk.drop) this.give(blk.drop, 1);
+          if (blk.drop) this.give(blk.drop, blk.dropN || 1);
           if (blk.plant) this.reap(blk, cult);
           if (stash) { this.give('chest', 1); for (const [k2, n2] of Object.entries(stash)) this.give(k2, n2); this.emit(['chest', c, y, null]); }
           // a plant standing on what was just mined falls with it
@@ -416,6 +436,7 @@ export class Sim {
           this.take(item, 1);
           this.set(c, y, B[item]);
           this.stats.placed[item] = (this.stats.placed[item] || 0) + 1;
+          if (item === 'glowstone') p.glowPlaced = true;
         } };
       }
       case 'till': {
@@ -468,6 +489,7 @@ export class Sim {
         // not flow, but turns any lava beside or below it to obsidian
         const { c, y } = a;
         if (!this.has('water_bucket')) return no('no water in a bucket');
+        if (this.dim === 'nether') return no('water boils away in the nether');
         if (!this.reachable(p.c, p.y, c, y)) return no('out of reach');
         if (this.get(c, y) !== B.air) return no(`occupied by ${blockName(this.get(c, y))}`);
         if (this.occupied(c, y)) return no('an entity is there');
@@ -476,6 +498,31 @@ export class Sim {
           this.take('water_bucket', 1); this.give('bucket', 1);
           this.still.add(c * H + y);
           this.set(c, y, B.water);
+        } };
+      }
+      case 'light': {
+        // light a finished frame with a torch: the portal opens
+        const { c, y } = a;
+        if (!this.has('torch')) return no('needs a torch to light it');
+        if (!this.reachable(p.c, p.y, c, y) && !(p.c !== c && this.cols[p.c].adj.includes(c))) return no('out of reach');
+        if (this.get(c, y) !== B.air || this.get(c, y + 1) !== B.air) return no('the doorway is not empty');
+        if (!this.portalFrameOk(c, y)) return no('the frame is not finished (obsidian under, over, and two layers up on two sides)');
+        return { ok: true, ticks: 2, pre: () => {
+          this.emit(['do', 'light', c, y]);
+          this.take('torch', 1);
+          this.set(c, y, B.portal); this.set(c, y + 1, B.portal);
+          this.emit(['note', 'portal', { c, y, dim: this.dim, by: p.id }]);
+        } };
+      }
+      case 'travel': {
+        // stand in a lit portal a moment, and cross to the other side
+        const here = this.get(p.c, p.y) === B.portal;
+        if (!here) return no('not standing in a portal');
+        const to = this.dim === 'nether' ? 'overworld' : 'nether';
+        return { ok: true, ticks: 16, pre: () => this.emit(['do', 'travel', to]), post: () => {
+          if (this.get(p.c, p.y) !== B.portal || p.hp <= 0) return no('stepped out of the portal');
+          this.crossTo(p, to, p.c);
+          return { ok: true };
         } };
       }
       case 'store':
@@ -498,10 +545,11 @@ export class Sim {
       case 'sleep': {
         // lie in a bed at night. The night passes only when every player is asleep.
         const { c, y } = a;
+        if (this.dim === 'nether') return no('beds do not work in the nether');
         if (this.get(c, y) !== B.bed) return no('no bed there');
         if (!this.isNight()) return no('you can only sleep at night');
         if (!(p.c === c && p.y === y) && !this.reachable(p.c, p.y, c, y)) return no('out of reach');
-        if ([...this.ents.values()].some((e) => e.kind === 'zombie' && this.dist(e.c, p.c) < 6)) return no('you may not rest, there are zombies nearby');
+        if ([...this.ents.values()].some((e) => HOSTILE.has(e.kind) && this.dist(e.c, p.c) < 6)) return no('you may not rest, there are zombies nearby');
         return { ok: true, ticks: 20, pre: () => { if (!p.asleep) this.emit(['do', 'sleep', c, y]); p.asleep = true; p.home = [c, y]; }, post: () => { p.asleep = false; return { ok: true }; } };
       }
       case 'craft': {
@@ -604,6 +652,10 @@ export class Sim {
 
   // ------------------------------------------------------------ the tick ---
   step() {
+    // the world ticks as one clock; each dimension that has a player in it
+    // (and the overworld always) runs its own mobs, water, crops and spawns
+    const back = this.dim;
+    this.useDim('overworld');
     this.tick++;
     // everyone asleep in a bed at night: the night passes (and the zombies with it)
     if (this.isNight() && this.players.length && this.players.every((q) => q.asleep)) {
@@ -613,19 +665,33 @@ export class Sim {
       for (const q of this.players) q.asleep = false;
     }
     const t = this.tick;
-    // spawning is anchored to one player per tick, in turn (no RNG spent on
-    // choosing, so a one-player world is unchanged by there being a list)
-    const p = this.players[t % this.players.length];
-    // hunger, for everyone
+    // hunger, for everyone, wherever they are
     for (const q of this.players) {
       if (t % this.cfg.hungerEvery === 0 && q.food > 0) { q.food--; this.emit(['food', q.food, q.id]); }
       if (t % 80 === 0) {
-        if (q.food === 0) this.hurt(q, 1, null);
+        if (q.food === 0) this.as(q, () => this.hurt(q, 1, null));
         else if (q.food >= 18 && q.hp < 20) { q.hp++; this.emit(['hp', q.id, q.hp]); }
       }
     }
+    for (const d of Object.keys(this.dims)) {
+      if (d !== 'overworld' && !this.players.some((q) => (q.dim || 'overworld') === d)) continue;
+      this.useDim(d);
+      this.stepDim(t);
+    }
+    this.useDim('overworld');
+    if (t % DAY === NIGHT_START) this.emit(['note', 'dusk']);
+    if (t % DAY === 0) this.emit(['note', 'dawn']);
+    this.useDim(back);
+    this.flush();
+  }
+  // one dimension's share of a tick (this.dim is set)
+  stepDim(t) {
+    const here = this.players.filter((q) => (q.dim || 'overworld') === this.dim);
+    // spawning is anchored to one player per tick, in turn (no RNG spent on
+    // choosing, so a one-player world is unchanged by there being a list)
+    const p = here.length ? here[t % here.length] : null;
     // breath: the head under water uses it up, then drowning hurts
-    for (const q of this.players) {
+    for (const q of here) {
       const before = q.air;
       if (this.get(q.c, q.y + 1) === B.water) {
         q.air = Math.max(0, q.air - 1);
@@ -636,29 +702,42 @@ export class Sim {
     }
     if (t % FLOW_EVERY === 0 && this.flowQ.size) this.flow();
     if (t % GROW_EVERY === 0 && this.crops.size) growCrops(this);
-    if (t % DAY === NIGHT_START) this.emit(['note', 'dusk']);
-    if (t % DAY === 0) this.emit(['note', 'dawn']);
-    // zombies: spawn at night on open ground, away from torches and the player
-    const zs = [...this.ents.values()].filter((e) => e.kind === 'zombie');
-    if (this.isNight() && zs.length < this.cfg.maxZombies && this.rng() < this.cfg.spawn) {
-      const c = Math.floor(this.rng() * this.N);
-      const y = this.surface(c);
-      const d = this.dist(c, p.c);
-      if (d >= 10 && d <= 24 && this.get(c, y - 1) !== B.water && this.skyOpen(c, y) && !this.torchNear(c, 5) && !this.beaconNear(c)
-          && this.canStand(c, y) && !this.occupied(c, y)) this.spawnEnt('zombie', c, y);
-    }
-    // ...and in the dark, at any hour: caves and unlit tunnels near the player.
-    // Candidates come from what the player can see (this._near), so the cost
-    // stays local however big the world is.
-    if (zs.length < this.cfg.maxZombies && this.rng() < this.cfg.darkSpawn && this._near) {
-      const ring = this._near.get(p.c);
-      if (ring && ring.length) {
-        const c = ring[Math.floor(this.rng() * ring.length)];
-        if (this.dist(c, p.c) >= 6 && !this.torchNear(c, 5) && !this.beaconNear(c)) {
-          // every dark standing spot in that column (cave floors, tunnels)
-          const top = this.surface(c), spots = [];
-          for (let y = 1; y < top - 2; y++) if (this.canStand(c, y, 2, true) && this.dark(c, y) && !this.occupied(c, y)) spots.push(y);
-          if (spots.length) this.spawnEnt('zombie', c, spots[Math.floor(this.rng() * spots.length)]);
+    const zs = [...this.ents.values()].filter((e) => HOSTILE.has(e.kind));
+    if (this.dim === 'nether') {
+      // the nether is always dark: blazes come out of it near whoever is there
+      if (p && zs.length < this.cfg.maxZombies && this.rng() < this.cfg.spawn * 0.6 && this._near) {
+        const ring = this._near.get(p.c);
+        if (ring && ring.length) {
+          const c = ring[Math.floor(this.rng() * ring.length)];
+          if (this.dist(c, p.c) >= 6 && !this.torchNear(c, 5) && !this.beaconNear(c)) {
+            const spots = [];
+            for (let y = 2; y < H - 3; y++) if (this.canStand(c, y, 2, true) && !this.occupied(c, y) && this.get(c, y - 1) !== B.lava) spots.push(y);
+            if (spots.length) this.spawnEnt('blaze', c, spots[Math.floor(this.rng() * spots.length)]);
+          }
+        }
+      }
+    } else if (p) {
+      // zombies: spawn at night on open ground, away from torches and the player
+      if (this.isNight() && zs.length < this.cfg.maxZombies && this.rng() < this.cfg.spawn) {
+        const c = Math.floor(this.rng() * this.N);
+        const y = this.surface(c);
+        const d = this.dist(c, p.c);
+        if (d >= 10 && d <= 24 && this.get(c, y - 1) !== B.water && this.skyOpen(c, y) && !this.torchNear(c, 5) && !this.beaconNear(c)
+            && this.canStand(c, y) && !this.occupied(c, y)) this.spawnEnt('zombie', c, y);
+      }
+      // ...and in the dark, at any hour: caves and unlit tunnels near the player.
+      // Candidates come from what the player can see (this._near), so the cost
+      // stays local however big the world is.
+      if (zs.length < this.cfg.maxZombies && this.rng() < this.cfg.darkSpawn && this._near) {
+        const ring = this._near.get(p.c);
+        if (ring && ring.length) {
+          const c = ring[Math.floor(this.rng() * ring.length)];
+          if (this.dist(c, p.c) >= 6 && !this.torchNear(c, 5) && !this.beaconNear(c)) {
+            // every dark standing spot in that column (cave floors, tunnels)
+            const top = this.surface(c), spots = [];
+            for (let y = 1; y < top - 2; y++) if (this.canStand(c, y, 2, true) && this.dark(c, y) && !this.occupied(c, y)) spots.push(y);
+            if (spots.length) this.spawnEnt('zombie', c, spots[Math.floor(this.rng() * spots.length)]);
+          }
         }
       }
     }
@@ -669,12 +748,113 @@ export class Sim {
     for (const e of [...this.ents.values()]) {
       if (e.kind === 'player' || !this.ents.has(e.id)) continue;
       if (e.cd > 0) e.cd--;
-      if (e.kind === 'zombie') this.zombieTick(e);
+      if (HOSTILE.has(e.kind)) this.zombieTick(e);
       else if (e.kind === 'pig') this.pigTick(e);
       else if (e.kind === 'sheep') this.pigTick(e, this.rngSheep);
     }
-    this.flush();
   }
+
+  // ----------------------------------------------------------- dimensions ---
+  // The overworld and the nether share one tiling (so tile c here is tile c
+  // there) and nothing else: each has its own blocks, mobs, lights, water,
+  // chests and portals. Switching is a swap of these fields, as sim.as() swaps
+  // the player; every player carries its `dim`.
+  useDim(name) {
+    if (name === this.dim) return;
+    const cur = this.dims[this.dim];
+    for (const f of DIM_FIELDS) cur[f] = this[f];
+    if (!this.dims[name]) this.dims[name] = this.makeDim(name);
+    const nd = this.dims[name];
+    for (const f of DIM_FIELDS) this[f] = nd[f];
+    this.dim = name;
+  }
+  // a field of the overworld, live, from whichever dimension is current (the
+  // team's chest, its beacons and home all live there)
+  ow(f) { return this.dim === 'overworld' ? this[f] : this.dims.overworld[f]; }
+  makeDim(name) {
+    if (name !== 'nether') throw new Error(`no dimension ${name}`);
+    const ow = this.dims.overworld.world || this.world;
+    const w = generateNether({ seed: ow.seed, shape: ow.shape, tiling: ow.tiling, radius: ow.radius, version: ow.version });
+    const d = { world: w, b: w.blocks, ents: new Map(), torches: new Set(), crops: new Set(), cultivated: new Map(), flowQ: new Set(), still: new Set(),
+      beacons: new Set(), chests: new Map(), protect: new Set(), portals: new Set(), ev: [] };
+    for (let k = 0; k < w.blocks.length; k++) if (BLOCKS[w.blocks[k]].light) d.torches.add(k);
+    // announced in the overworld's stream, with its fingerprint, so a replay can build and check it
+    this.dims.overworld.ev.push(['note', 'dim', { name, sig: worldSignature(w) }]);
+    return d;
+  }
+  // a lit portal's frame on a tile graph: obsidian under and over the portal
+  // column, and obsidian both layers up in at least two neighbouring columns
+  portalFrameOk(c, y) {
+    if (this.get(c, y - 1) !== B.obsidian || this.get(c, y + 2) !== B.obsidian) return false;
+    return this.cols[c].adj.filter((n) => this.get(n, y) === B.obsidian && this.get(n, y + 1) === B.obsidian).length >= 2;
+  }
+  // Move a player to another dimension, arriving at column c's portal there (or
+  // building one, as Minecraft does, on the nearest spot that can take it).
+  crossTo(e, to, c) {
+    const from = e.dim || 'overworld';
+    this.useDim(from);
+    this.ents.delete(e.id);
+    this.emit(['-', e.id, 'portal']);
+    this.useDim(to);
+    let at = this.findPortal(c) || this.buildPortalNear(c);
+    e.dim = to;
+    this.ents.set(e.id, e);
+    e.c = at[0]; e.y = at[1];
+    this.emit(['+', e.id, 'player', e.c, e.y]);
+    // what a player has seen is per dimension
+    e.seenDims = e.seenDims || {};
+    e.seenDims[from] = { seen: e.seen, seenCount: e.seenCount };
+    const sd = e.seenDims[to] || { seen: new Uint8Array(this.N), seenCount: 0 };
+    e.seen = sd.seen; e.seenCount = sd.seenCount;
+    if (to === 'nether') e.visitedNether = true;
+    this.as(e, () => this.look());
+    this.emit(['note', 'dim_enter', { who: e.id, dim: to, c: e.c, y: e.y }]);
+  }
+  findPortal(c) {
+    let best = null, bd = 7;
+    for (const k of this.portals) {
+      const pc = Math.floor(k / H), py = k % H;
+      if (this.get(pc, py - 1) === B.portal) continue;          // the lower portal voxel is the standing one
+      const d = this.dist(pc, c);
+      if (d < bd) { bd = d; best = [pc, py]; }
+    }
+    return best;
+  }
+  // the nearest column (from c outward) where a portal and its frame fit
+  buildPortalNear(c) {
+    return this.portalSpot(c, true) || this.portalSpot(c, false);
+  }
+  // strict: on dry floor with room to walk off it (a ledge over the lava sea is
+  // a trap: the planners never step beside lava); loose: anywhere it fits
+  portalSpot(c, strict) {
+    const order = [c], seenC = new Set([c]);
+    for (let i = 0; i < order.length && order.length < 600; i++) for (const n of this.cols[order[i]].adj) if (!seenC.has(n)) { seenC.add(n); order.push(n); }
+    const hard = (cc, y) => { const id = this.get(cc, y); return id === B.bedrock || id === B.lava || id === B.water || id === B.portal; };
+    const stand = (cc, y) => this.solid(cc, y - 1) && !hard(cc, y - 1) && !this.solid(cc, y) && !this.solid(cc, y + 1) && !hard(cc, y) && !this.cols[cc].adj.some((m) => this.get(m, y) === B.lava || this.get(m, y - 1) === B.lava);
+    for (const pc of order) {
+      if (this.cols[pc].nb.includes(-1)) continue;
+      const flanks = this.cols[pc].adj.slice(0, 2);
+      if (flanks.length < 2) continue;
+      const front = this.cols[pc].adj.find((n) => !flanks.includes(n));
+      if (front == null) continue;
+      for (let y = 3; y < H - 4; y++) {
+        const vox = [[pc, y - 1], [pc, y], [pc, y + 1], [pc, y + 2], ...flanks.flatMap((f) => [[f, y], [f, y + 1]]), [front, y], [front, y + 1], [front, y - 1]];
+        if (vox.some(([cc, yy]) => hard(cc, yy))) continue;
+        // prefer a spot with air already (a cave floor): no more than 4 solid voxels to clear
+        if ([[pc, y], [pc, y + 1], [front, y], [front, y + 1]].filter(([cc, yy]) => this.solid(cc, yy)).length > 2) continue;
+        if (strict && ((this.dim === 'nether' && y <= NETHER_LAVA + 1) || !stand(front, y) || this.cols[front].adj.filter((m) => m !== pc && stand(m, y)).length < 2)) continue;
+        this.set(pc, y - 1, B.obsidian); this.set(pc, y + 2, B.obsidian);
+        for (const f of flanks) { this.set(f, y, B.obsidian); this.set(f, y + 1, B.obsidian); }
+        this.set(front, y, B.air); this.set(front, y + 1, B.air);
+        if (!this.solid(front, y - 1)) this.set(front, y - 1, B.obsidian);
+        this.set(pc, y, B.portal); this.set(pc, y + 1, B.portal);
+        return [pc, y];
+      }
+    }
+    if (strict) return null;
+    throw new Error('nowhere to put a portal');
+  }
+
   // Water flows: every air voxel at or below sea level that touches water
   // (beside it or above it) fills, one ring per FLOW_EVERY ticks, so breaching a
   // sea wall floods the cave behind it. All water here is sea, so nothing
@@ -703,12 +883,13 @@ export class Sim {
   }
   zombieTick(z) {
     const p = this.nearestPlayer(z.c);        // zombies go for whoever is closest
+    if (!p) return;
     const d = this.dist(z.c, p.c);
     if (d > 40) return this.removeEnt(z, 'despawn');
-    if (!this.isNight() && this.skyOpen(z.c, z.y + 2) && this.tick % 10 === 0) this.hurt(z, 2, null);
+    if (z.kind === 'zombie' && this.dim === 'overworld' && !this.isNight() && this.skyOpen(z.c, z.y + 2) && this.tick % 10 === 0) this.hurt(z, 2, null);
     if (!this.ents.has(z.id)) return;
     if (this.adjacentTo(z, p)) {
-      if (z.cd <= 0) { this.hurt(p, this.cfg.zombieDmg, z); z.cd = 10; }
+      if (z.cd <= 0) { this.hurt(p, this.cfg.zombieDmg + (z.kind === 'blaze' ? 2 : 0), z); z.cd = 10; }
       return;
     }
     if (this.tick % this.cfg.zombieStep || d > 20) return;   // normal: half the player's speed; loses interest past 20
@@ -780,6 +961,7 @@ export class Sim {
     // nothing is lost — and a furnace in a doorway must not seal a house
     if (this.protect.has(c * H + y)) return Infinity;   // a house wall: never a shortcut
     if (id === B.chest) return Infinity;                 // nor the team's pool: digging through it empties it into one pocket
+    if (id === B.beacon) return Infinity;                // nor a lit beacon (it guards everyone at home)
     if (this.bordersWater(c, y)) return Infinity;      // opening it would flood the dig
     return Math.max(1, Math.ceil(blk.hard / (blk.tool ? PICK_SPEED[tier] : 1)));
   }
@@ -864,10 +1046,15 @@ export class Sim {
   // --------------------------------------------------------------- stream --
   emit(ev) { this.ev.push(ev); }
   note(kind, data) { this.emit(data === undefined ? ['note', kind] : ['note', kind, data]); this.flush(); }
+  // one stream line per dimension that changed; nether lines carry "d"
   flush() {
-    if (!this.ev.length) return;
-    this.lines.push(JSON.stringify({ k: this.tick, e: this.ev }));
-    this.ev = [];
+    this.dims[this.dim].ev = this.ev;
+    for (const [name, d] of Object.entries(this.dims)) {
+      if (!d.ev || !d.ev.length) continue;
+      this.lines.push(JSON.stringify(name === 'overworld' ? { k: this.tick, e: d.ev } : { k: this.tick, d: name, e: d.ev }));
+      d.ev = [];
+    }
+    this.ev = this.dims[this.dim].ev;
   }
   drain() { const out = this.lines; this.lines = []; return out; }
 }
@@ -883,19 +1070,38 @@ for (const k of PER_PLAYER) {
 
 // Replay a stream onto a freshly generated world: the viewer's model, and the
 // selftest's proof that the stream carries everything a renderer needs.
+// Replay a stream onto freshly generated worlds: the viewer's model, and the
+// selftest's proof that the stream carries everything a renderer needs. Each
+// dimension has its own blocks, entities and chests; `view` picks which one the
+// b / world / ents / chests getters show (the viewer follows its player).
 export class Replay {
   constructor(header) {
     const h = typeof header === 'string' ? JSON.parse(header) : header;
     this.header = h;
-    this.world = generateWorld({ seed: h.seed, shape: h.shape, radius: h.radius, kind: h.kind || 'island', version: h.v || 1 });
-    if (worldSignature(this.world) !== h.sig) throw new Error(`world signature mismatch: stream ${h.sig}, regenerated ${worldSignature(this.world)} — generator version drift`);
-    this.b = this.world.blocks;
-    this.ents = new Map();
+    const world = generateWorld({ seed: h.seed, shape: h.shape, radius: h.radius, kind: h.kind || 'island', version: h.v || 1 });
+    if (worldSignature(world) !== h.sig) throw new Error(`world signature mismatch: stream ${h.sig}, regenerated ${worldSignature(world)} — generator version drift`);
+    this.dims = { overworld: { world, b: world.blocks, ents: new Map(), chests: new Map() } };
+    this.view = 'overworld';
     this.tick = 0; this.notes = [];
-    this.people = new Map();      // player id → { hp, food, inv }
-    this.chests = new Map();      // voxel → contents, from 'chest' events
+    this.people = new Map();      // player id → { hp, food, inv } (players carry these across dimensions)
     this.focus = 0;               // whose health / food / inventory the HUD shows
   }
+  dimState(name) {
+    if (!this.dims[name]) {
+      const ow = this.dims.overworld.world, h = this.header;
+      const world = generateNether({ seed: h.seed, shape: h.shape, tiling: ow.tiling, radius: h.radius, version: h.v || 1 });
+      const want = this.notes.find((n) => n.kind === 'dim' && n.data?.name === name)?.data?.sig;
+      if (want && worldSignature(world) !== want) throw new Error(`${name} signature mismatch: stream ${want}, regenerated ${worldSignature(world)}`);
+      this.dims[name] = { world, b: world.blocks, ents: new Map(), chests: new Map() };
+    }
+    return this.dims[name];
+  }
+  get world() { return this.dims[this.view].world; }
+  get b() { return this.dims[this.view].b; }
+  get ents() { return this.dims[this.view].ents; }
+  get chests() { return this.dims[this.view].chests; }
+  // which dimension an entity is in (null: none)
+  dimOf(id) { for (const [n, d] of Object.entries(this.dims)) if (d.ents.has(id)) return n; return null; }
   person(id) {
     if (!this.people.has(id)) this.people.set(id, { hp: 20, food: 20, air: MAX_AIR, inv: {} });
     return this.people.get(id);
@@ -908,18 +1114,19 @@ export class Replay {
     const L = typeof line === 'string' ? JSON.parse(line) : line;
     if (L.t) return [];
     this.tick = L.k;
+    const D = this.dimState(L.d || 'overworld');
     for (const ev of L.e) {
       switch (ev[0]) {
-        case 'b': this.b[ev[1] * H + ev[2]] = ev[3]; break;
-        case '+': this.ents.set(ev[1], { id: ev[1], kind: ev[2], c: ev[3], y: ev[4] }); break;
-        case '-': this.ents.delete(ev[1]); break;
-        case 'p': { const e = this.ents.get(ev[1]); if (e) { e.c = ev[2]; e.y = ev[3]; } break; }
+        case 'b': D.b[ev[1] * H + ev[2]] = ev[3]; break;
+        case '+': D.ents.set(ev[1], { id: ev[1], kind: ev[2], c: ev[3], y: ev[4] }); break;
+        case '-': D.ents.delete(ev[1]); break;
+        case 'p': { const e = D.ents.get(ev[1]); if (e) { e.c = ev[2]; e.y = ev[3]; } break; }
         case 'hp': this.person(ev[1]).hp = ev[2]; break;
         case 'food': this.person(ev[2] ?? 0).food = ev[1]; break;
         case 'air': this.person(ev[1]).air = ev[2]; break;
-        case 'chest': if (ev[3]) this.chests.set(ev[1] * H + ev[2], ev[3]); else this.chests.delete(ev[1] * H + ev[2]); break;
+        case 'chest': if (ev[3]) D.chests.set(ev[1] * H + ev[2], ev[3]); else D.chests.delete(ev[1] * H + ev[2]); break;
         case 'inv': this.person(ev[2] ?? 0).inv = ev[1]; break;
-        case 'note': this.notes.push({ k: L.k, kind: ev[1], data: ev[2] }); break;
+        case 'note': this.notes.push({ k: L.k, kind: ev[1], data: ev[2], d: L.d || 'overworld' }); break;
       }
     }
     return L.e;

@@ -52,6 +52,7 @@ const matWater = new THREE.MeshLambertMaterial({ color: 0x3f76e4, transparent: t
 // the cap: back faces drawn flat and dark, so rock sliced by the cut reads as
 // solid ground and only the hollows (tunnels, caves) stay open
 const matGlass = new THREE.MeshLambertMaterial({ color: 0xcfe8ef, transparent: true, opacity: 0.35, depthWrite: false, clippingPlanes: [cut] });
+const matPortal = new THREE.MeshBasicMaterial({ color: 0xa254f0, transparent: true, opacity: 0.6, depthWrite: false, side: THREE.DoubleSide, clippingPlanes: [cut] });
 const matPlant = new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, clippingPlanes: [cut] });
 const matCap = new THREE.MeshBasicMaterial({ color: 0x5b554e, side: THREE.BackSide, clippingPlanes: [cut] });
 const world = new THREE.Group();
@@ -92,7 +93,7 @@ function opaque(r, c, y) {
 
 function buildChunk(key) {
   const r = replay, cols = r.world.tiling.cols;
-  const P = [], N = [], C = [], WP = [], WN = [], GP = [], GN = [], FP = [], FN = [], FC = [];
+  const P = [], N = [], C = [], WP = [], WN = [], GP = [], GN = [], FP = [], FN = [], FC = [], PP = [], PN = [];
   const tri = (out, nout, a, b, c, n) => {
     // orient the triangle to its intended normal, whatever the poly winding
     const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
@@ -146,6 +147,20 @@ function buildChunk(key) {
         if (r.b[c * H + y + 1] === B.air || y === H - 1) {
           const top = poly.map(([x, z]) => [x, y + 0.88, z]);
           for (let i = 1; i + 1 < top.length; i++) tri(WP, WN, top[0], top[i], top[i + 1], [0, 1, 0]);
+        }
+        continue;
+      }
+      if (id === B.portal) {
+        // a lit portal: a translucent glowing prism, drawn where it meets anything but more portal
+        const isP = (cc, yy) => r.b[cc * H + yy] === B.portal;
+        if (!isP(c, y + 1)) { const t = poly.map(([x, z]) => [x, y + 1, z]); for (let i = 1; i + 1 < t.length; i++) tri(PP, PN, t[0], t[i], t[i + 1], [0, 1, 0]); }
+        for (let e = 0; e < poly.length; e++) {
+          const n = nb[e];
+          if (n >= 0 && isP(n, y)) continue;
+          const a = poly[e], b2 = poly[(e + 1) % poly.length];
+          const q = [[a[0], y, a[1]], [b2[0], y, b2[1]], [b2[0], y + 1, b2[1]], [a[0], y + 1, a[1]]];
+          const mx = (a[0] + b2[0]) / 2 - col.x, mz = (a[1] + b2[1]) / 2 - col.z, L = Math.hypot(mx, mz) || 1;
+          tri(PP, PN, q[0], q[1], q[2], [mx / L, 0, mz / L]); tri(PP, PN, q[0], q[2], q[3], [mx / L, 0, mz / L]);
         }
         continue;
       }
@@ -209,6 +224,14 @@ function buildChunk(key) {
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(WN, 3));
     const m = new THREE.Mesh(geo, matWater);
     m.renderOrder = 1;
+    g.add(m);
+  }
+  if (PP.length) {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(PP, 3));
+    geo.setAttribute('normal', new THREE.Float32BufferAttribute(PN, 3));
+    const m = new THREE.Mesh(geo, matPortal);
+    m.renderOrder = 2;
     g.add(m);
   }
   if (GP.length) {
@@ -300,11 +323,12 @@ const ITEM_COLOR = {
   stick: '#9c7a45', coal: '#222', charcoal: '#3a2e25', iron_ingot: '#d8d8d8', apple: '#d33', porkchop: '#f0a3b4', cooked_porkchop: '#b5653d',
   wooden_pickaxe: '#b8945a', stone_pickaxe: '#8a8a8a', iron_pickaxe: '#d8d8d8', wooden_sword: '#b8945a', stone_sword: '#8a8a8a', iron_sword: '#d8d8d8',
   diamond: '#5ff2e6', diamond_pickaxe: '#5ff2e6', diamond_sword: '#5ff2e6', iron_armor: '#c9c9c9', diamond_armor: '#5ff2e6', bucket: '#b0b0b0', water_bucket: '#3f76e4', wool: '#f2efe6', mutton: '#d9828a', cooked_mutton: '#a0563a',
+  glowstone_dust: '#f6d77a', quartz: '#efe8df',
 };
 function hud() {
   const t = replay.tick, day = Math.floor(t / DAY) + 1, ph = t % DAY;
   const mins = Math.floor((ph / DAY) * 24 * 60 + 6 * 60) % (24 * 60);
-  $('clock').textContent = `day ${day} · ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}${ph >= NIGHT_START ? ' · night' : ''} · tick ${t}`;
+  $('clock').textContent = `day ${day} · ${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}${replay.view === 'nether' ? ' · in the nether' : ph >= NIGHT_START ? ' · night' : ''} · tick ${t}`;
   $('hp').textContent = '♥'.repeat(Math.ceil(replay.hp / 2)).padEnd(10, '·') + ` ${replay.hp}`;
   $('food').textContent = '◆'.repeat(Math.ceil(replay.food / 2)).padEnd(10, '·') + ` ${replay.food}`;
   // breath, only while it is being used: one bubble per 6 ticks of air
@@ -363,12 +387,25 @@ function tail(lines) {
 }
 
 // -------------------------------------------------------------- feed -------
+// the view shows the world the watched player is in; a portal switches it
+function followView() {
+  const d = replay.dimOf(focusId);
+  if (!d || d === replay.view) return false;
+  replay.view = d;
+  for (const m of entMesh.values()) entGroup.remove(m);
+  entMesh.clear();
+  initMeshes();
+  return true;
+}
 function feed(lines) {
-  let blocksChanged = false;
+  let blocksChanged = false, moved = false;
   for (const line of lines) {
     const evs = replay.apply(line);
+    const here = (JSON.parse(line).d || 'overworld') === replay.view;
     for (const ev of evs) {
-      if (ev[0] === 'b') { markDirty(ev[1]); blocksChanged = true; }
+      if (ev[0] === 'b' && here) { markDirty(ev[1]); blocksChanged = true; }
+      if (ev[0] === '+' && ev[1] === focusId) moved = true;
+      if (ev[0] === 'note' && ev[1] === 'dim_enter' && ev[2].who === focusId && playing()) toast(ev[2].dim === 'nether' ? 'the nether: blazes, glowstone, quartz — the portal is the way home' : 'back in the overworld');
       if (ev[0] === 'note') logMacro({ k: replay.tick, kind: ev[1], data: ev[2] });
       if (ev[0] === 'note' && ev[1] === 'home') homeAt = ev[2];
       if (ev[0] === 'do') $('doing').textContent = ev.slice(1).join(' ');
@@ -378,6 +415,8 @@ function feed(lines) {
       if (playing() && ev[0] === 'air' && ev[1] === focusId && ev[2] === 0) toast('out of air — swim up!');
     }
   }
+  // the camera follows its player through a portal: draw the world it is now in
+  if (moved && followView()) blocksChanged = false;
   if (blocksChanged) rebuildTorches();
   tail(lines);
 }
@@ -389,7 +428,7 @@ const ARGS = {
   gather_wood: { n: 5 }, mine_stone: { n: 11 }, mine_coal: { n: 4 }, mine_iron: { iron: 3, coal: 3 },
   branch_mine: { length: 16 }, explore: { steps: 40 }, light_area: { n: 4 },
 };
-const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon'];
+const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon', 'glowstone', 'quartz_block'];
 function argsFor(name) {
   if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
   if (name === 'scout') return { what: $('scout-what').value };
@@ -592,7 +631,7 @@ function ask(what) {
 $('team-list').addEventListener('click', (ev) => {
   const b = ev.target.closest('.tm');
   if (!b || human) return;                   // in co-op your eyes stay yours
-  focusId = +b.dataset.id; if (replay) replay.focus = focusId; teamAt = 0;
+  focusId = +b.dataset.id; if (replay) { replay.focus = focusId; followView(); } teamAt = 0;
 });
 function renderTeam(now) {
   const box = $('team');
@@ -766,6 +805,15 @@ function updateCamera() {
   }
 }
 function sky() {
+  if (replay.view === 'nether') {
+    // no sun and no day: a dim red cavern
+    const c = new THREE.Color(0x2a0c0a);
+    scene.background = c;
+    if (!scene.fog || scene.fog.color.getHex() !== c.getHex()) scene.fog = new THREE.Fog(c, 18, 70);
+    sun.intensity = 0.15; hemi.intensity = 0.75; hemi.color.set(0xff9a6a); hemi.groundColor.set(0x3a0a06); matCap.color.set(0x4a1c16);
+    return;
+  }
+  hemi.color.set(0xdfefff); hemi.groundColor.set(0x4a3b2a); matCap.color.set(0x5b554e);
   const ph = (replay.tick % DAY) / DAY;
   const n = ph < 0.58 ? 0 : ph < 0.625 ? (ph - 0.58) / 0.045 : ph < 0.955 ? 1 : 1 - (ph - 0.955) / 0.045;
   const c = new THREE.Color(0x8ec5ff).lerp(new THREE.Color(0x0b1020), n);
