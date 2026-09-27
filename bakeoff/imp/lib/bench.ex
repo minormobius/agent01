@@ -35,6 +35,8 @@ defmodule ImpBench do
 
       {:ok, lm, meta} ->
         started = System.monotonic_time(:millisecond)
+        probe = probe(lm)
+        IO.puts("probe: " <> probe)
 
         results =
           for task <- tasks, into: %{} do
@@ -49,6 +51,7 @@ defmodule ImpBench do
           status: "ran",
           imp_version: to_string(Application.spec(:imp, :vsn)),
           seconds: div(System.monotonic_time(:millisecond) - started, 1000),
+          probe: probe,
           tasks: results
         }
 
@@ -84,6 +87,23 @@ defmodule ImpBench do
     end
   end
 
+  # One plain typed call, so a model that cannot answer at all says why in the
+  # log before twenty identical failures hide the reason.
+  defp probe(lm) do
+    program = "question -> answer" |> Imp.signature("Answer in one word.") |> Imp.predict(lm: lm)
+
+    case Imp.call(program, %{question: "What colour is a clear daytime sky?"}) do
+      {:ok, pred} -> "ok: " <> inspect(Imp.get(pred, :answer))
+      {:error, reason} -> "error: " <> inspect(reason, limit: 20, printable_limit: 1200)
+    end
+  rescue
+    e -> "raised: " <> Exception.message(e)
+  end
+
+  defp error_samples(%Imp.Evaluate.Result{errors: errors}) do
+    errors |> Enum.take(3) |> Enum.map(&inspect(&1, limit: 12, printable_limit: 600))
+  end
+
   # ─── task: route ────────────────────────────────────────────────────
 
   # Imp's own tutorial set (priv/tutorial, 20 train / 20 dev / 20 test tickets,
@@ -110,8 +130,8 @@ defmodule ImpBench do
     %{
       n_test: length(test),
       arms: %{
-        "zero_shot" => %{score: zero.score, errors: length(zero.errors), seconds: t0},
-        "few_shot_k8" => %{score: few.score, errors: length(few.errors), seconds: t1}
+        "zero_shot" => %{score: zero.score, errors: length(zero.errors), seconds: t0, error_samples: error_samples(zero)},
+        "few_shot_k8" => %{score: few.score, errors: length(few.errors), seconds: t1, error_samples: error_samples(few)}
       },
       misses: misses(zero, :team),
       misses_few_shot: misses(few, :team)
@@ -171,6 +191,7 @@ defmodule ImpBench do
           work: Imp.get(pred, :work),
           score: Desk.score(q.answer, to_string(got || "")),
           termination: pred.metadata[:termination_reason],
+          termination_cause: pred.metadata[:termination_cause] && inspect(pred.metadata[:termination_cause], limit: 12, printable_limit: 400),
           usage: flatten_usage(usage),
           steps: steps(pred)
         }
