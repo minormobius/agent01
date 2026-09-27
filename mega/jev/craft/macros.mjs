@@ -680,6 +680,118 @@ export function* homeMine(sim, { ore = 'iron', n = 3 } = {}) {
   return enough() ? { ok: true } : (sim.inv[item] || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: `the mine turned up no ${ore}` };
 }
 
+// ------------------------------------------------------------- the grid mine --
+// A mine laid out to SEE EVERY STONE. Minecraft's answer on a square grid is
+// a tunnel every third block; on a tiling the same idea is a set of tunnel
+// tiles that is connected (you can walk all of it) and dominating (every tile
+// on the layer is a tunnel or next to one, so every stone's face is shown
+// once). That is a connected dominating set on the tile graph, planned
+// greedily here: grow from the hub, always adding the tile that newly exposes
+// the most. A permanent staircase makes the descent free after the first trip,
+// and the layout is dug in the order that keeps it connected, nearest first.
+// `returnDig`: the trip home digs a new tunnel back towards the shaft instead
+// of walking an old one, so the return also reveals rock.
+export function gridPlan(sim, hub, level, R) {
+  const tier = Math.max(1, sim.pickTier());
+  const okCol = (c) => !sim.cols[c].nb.includes(-1) && sim.solid(c, level - 1)
+    && [level, level + 1].every((y) => !sim.solid(c, y) || sim.clearCost(c, y, tier) < Infinity) && !sim.bordersWater(c, level);
+  const hops = ball(sim, hub, R);
+  const ok = new Set([...hops.keys()].filter(okCol));
+  ok.add(hub);
+  const plan = new Set([hub]), dom = new Set([hub, ...sim.cols[hub].adj.filter((n) => ok.has(n))]);
+  const gain = (c) => [c, ...sim.cols[c].adj].filter((n) => ok.has(n) && !dom.has(n)).length;
+  for (;;) {
+    let best = -1, bg = 0;
+    for (const p of plan) for (const c of sim.cols[p].adj) {
+      if (!ok.has(c) || plan.has(c)) continue;
+      const g = gain(c);
+      if (g > bg || (g === bg && g > 0 && hops.get(c) < hops.get(best))) { bg = g; best = c; }
+    }
+    if (best < 0 || bg === 0) break;
+    plan.add(best);
+    for (const n of [best, ...sim.cols[best].adj]) if (ok.has(n)) dom.add(n);
+  }
+  // hop distance to the hub through the plan (the way home underground)
+  const home = new Map([[hub, 0]]), q = [hub];
+  while (q.length) { const u = q.shift(); for (const w of sim.cols[u].adj) if (plan.has(w) && !home.has(w)) { home.set(w, home.get(u) + 1); q.push(w); } }
+  return { plan, home, covers: dom.size, ok: ok.size };
+}
+// Layers in the order they are opened: each tunnel shows the band from a layer
+// below it to a layer above, so these four between them show layers 0–12, all
+// of the iron band (and the diamonds, from layer 1).
+export const GRID_LEVELS = { iron: [7, 4, 10, 1], coal: [9, 12, 6, 3], diamond: [4, 1] };
+export function* gridMine(sim, { ore = 'iron', n = 3, returnDig = false, R = 18 } = {}) {
+  const [item, oreId, tier] = MINE_ORE[ore] || MINE_ORE.iron;
+  if (sim.pickTier() < tier) return { ok: false, why: `${ore} needs a ${['', 'wooden', 'stone', 'iron'][tier]} pickaxe` };
+  if (sim.dim !== 'overworld') return { ok: false, why: 'the mine is in the overworld' };
+  const p = sim.player;
+  const want = (sim.inv[item] || 0) + n, enough = () => (sim.inv[item] || 0) >= want;
+  const grids = (sim.team.grids ||= {});
+  // the current layer: the first in the order whose layout is not all dug
+  const levels = GRID_LEVELS[ore] || GRID_LEVELS.iron;
+  const level = levels.find((l) => !(grids[l] && (grids[l].done || grids[l].abandoned)));
+  if (level == null) return { ok: false, why: 'every layer of the mine is dug out' };
+  const prev = levels.slice(0, levels.indexOf(level)).map((l) => grids[l]).filter((x) => x && !x.abandoned).pop();
+  let g = grids[level];
+  if (g) { const go = yield* goTo(sim, (c, y) => c === g.hub[0] && y === g.hub[1], 60000); if (!go.ok) { g.abandoned = true; return { ok: false, why: `could not get back into the mine (${go.why})` }; } }
+  if (!g) {
+    if (prev) {
+      // a new layer: from the last hub, stairs up or down to it
+      const go = yield* goTo(sim, (c, y) => c === prev.hub[0] && y === prev.hub[1], 60000);
+      if (go.ok) yield* goTo(sim, (c, y) => y === level && sim.dist(c, prev.hub[0]) <= 4, 30000);
+    } else {
+      if (sim._house) { const out = new Set(sim._house.outside); const ex = yield* goTo(sim, (c) => out.has(c) && sim.dist(c, sim._house.door) <= 2, 20000); if (!ex.ok) return { ok: false, why: `could not get out to dig (${ex.why})` }; }
+      yield* staircase(sim, { floor: level, until: () => p.y <= level });
+    }
+    if (p.y !== level) { grids[level] = { abandoned: true }; return { ok: false, why: `could not reach layer ${level}` }; }
+    const { plan, home, covers, ok } = gridPlan(sim, p.c, level, R);
+    g = grids[level] = { hub: [p.c, p.y], plan, home, dug: new Set([p.c]), covers, ok, trips: 0, tiles: 0 };
+    sim.note('mine', { level, at: g.hub, by: p.id, layout: plan.size, covers, of: ok });
+  }
+  g.trips++;
+  let since = 0;
+  const digInto = function* (t) {
+    for (const y of [level + 1, level]) if (sim.solid(t, y)) { const r = yield { op: 'mine', c: t, y }; if (!r.ok) return false; }
+    const from = p.c, m = yield { op: 'move', to: t };
+    if (!m.ok || p.c !== t) return false;
+    g.dug.add(t); g.tiles++;
+    if (++since >= 5 && sim.has('torch') && sim.get(from, level) === B.air) { const r = yield { op: 'place', c: from, y: level, item: 'torch' }; if (r.ok) since = 0; }
+    return true;
+  };
+  for (let k = 0; k < 120 && !enough(); k++) {
+    const seen = visible(sim, [oreId], 8).filter(([c, y]) => Math.abs(y - level) <= 3 && !(sim._unreachable && sim._unreachable.has(c * H + y)));
+    if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
+    // the next tile of the layout: undug, beside the dug network, nearest to
+    // here. Digging a loop, go DEEP first (the tile beside us farthest from the
+    // hub), so the tiles alongside the corridor are left for the way back
+    let t = -1, td = Infinity;
+    if (returnDig && p.y === level) {
+      const deeper = sim.cols[p.c].adj.filter((c) => g.plan.has(c) && !g.dug.has(c) && (g.home.get(c) ?? 0) > (g.home.get(p.c) ?? 0));
+      if (deeper.length) t = deeper.sort((a2, b2) => g.home.get(b2) - g.home.get(a2))[0];
+    }
+    if (t < 0) for (const c of g.plan) {
+      if (g.dug.has(c) || !sim.cols[c].adj.some((n) => g.dug.has(n))) continue;
+      const d = sim.dist(c, p.c);
+      if (d < td) { td = d; t = c; }
+    }
+    if (t < 0) { g.done = true; break; }
+    const from = sim.cols[t].adj.filter((n) => g.dug.has(n)).sort((a, b) => sim.dist(a, p.c) - sim.dist(b, p.c))[0];
+    if (p.c !== from || p.y !== level) { const go = yield* goTo(sim, (c, y) => c === from && y === level, 30000); if (!go.ok) { g.plan.delete(t); continue; } }
+    if (!(yield* digInto(t))) g.plan.delete(t);
+  }
+  // home: dig a new way back through the layout, or walk the one there is
+  if (returnDig) {
+    // back onto the layer first if an ore fetch took us off it
+    if (p.y !== level) yield* goTo(sim, (c, y) => y === level && g.dug.has(c), 8000);
+    for (let k = 0; k < 60 && p.y === level && p.c !== g.hub[0]; k++) {
+      const here = g.home.get(p.c) ?? Infinity;
+      const next = sim.cols[p.c].adj.filter((c) => g.plan.has(c) && !g.dug.has(c) && (g.home.get(c) ?? Infinity) < here)[0];
+      if (next == null || !(yield* digInto(next))) break;
+    }
+  }
+  return enough() ? { ok: true } : (sim.inv[item] || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: g.done ? 'the layout is all dug' : `the mine turned up no ${ore}` };
+}
+
 // -------------------------------------------------------------- explore ------
 
 // Walk to the edge of what has been seen and look past it. Keeps a heading
@@ -1382,6 +1494,7 @@ export const PALETTE = {
   mine_coal:    { mode: 'mine', doc: 'take coal in sight, or dig for it', needs: (s) => hasPick(s), run: (s, a) => mineCoal(s, a?.n) },
   mine_iron:    { mode: 'mine', doc: 'down to the iron band and along it', needs: (s) => hasPick(s, 2), run: (s, a) => mineIron(s, a) },
   mine_home:    { mode: 'mine', doc: 'the team\'s mine near home: dig it once (a staircase to the ore layer, a lit hub), then walk down it and extend a branch', needs: (s, a) => hasPick(s, MINE_ORE[a?.ore || 'iron']?.[2] || 2), run: (s, a) => homeMine(s, a || {}) },
+  mine_grid:    { mode: 'mine', doc: 'a mine laid out to see every stone: tunnels every other tile on the layer, from a permanent staircase', needs: (s, a) => hasPick(s, MINE_ORE[a?.ore || 'iron']?.[2] || 2), run: (s, a) => gridMine(s, a || {}) },
   branch_mine:  { mode: 'mine', doc: 'a straight tunnel on this layer, torch-lit', needs: (s) => hasPick(s), run: (s, a) => branchMine(s, a?.length) },
   surface:      { mode: 'mine', doc: 'climb (or swim) back up to open sky', needs: (s) => underwater(s) ? null : s.skyOpen(s.player.c, s.player.y + 2) ? 'already under open sky' : atHome(s) ? 'in the house — any outdoor activity walks out the door' : null, run: (s) => surface(s) },
   // explore
@@ -1434,7 +1547,7 @@ export const PALETTE = {
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
 // Which world each macro works in. The overworld's are about its sky, soil,
 // sea, ore bands, the house and the chest; the nether has none of those.
-const OVERWORLD_ONLY = new Set(['mine_home', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
+const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
   'farm', 'harvest', 'set_home', 'sleep_until_dawn', 'mine_diamond', 'make_obsidian', 'dig_sand', 'place_beacon', 'build_portal', 'set_up_chest', 'store', 'take', 'sleep_in_bed']);
 const NETHER_ONLY = new Set(['mine_glowstone', 'mine_quartz']);
 for (const [name, m] of Object.entries(PALETTE)) {

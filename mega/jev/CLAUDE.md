@@ -303,7 +303,7 @@ model only decides.
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
 | `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
 | `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
-| `test/craft.selftest.mjs` | 393 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home mine, the segmenter) |
+| `test/craft.selftest.mjs` | 397 checks, ~75 s, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter) |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1299,8 +1299,58 @@ while a staircase samples every layer on the way down. On kagome, ~400 tiles of
 branch at layer 7 found 4 iron. What would flip it: ore concentrated in a
 band, a deeper world (a longer descent), or a surface that is dangerous to
 cross. **The mine is safer**, lit and known, so it stays in the palette with
-that fact on it. The baseline keeps digging fresh. In the live run Jev chose
+that fact on it. The baseline keeps digging fresh. **That holds for a handful
+of trips only; over forty it reverses (below).** In the live run Jev chose
 the mine 8 times, apparently for the safety label.
+
+**The long run reverses it** (the operator's challenge: *a fresh dig pays the
+descent every trip and saturates; the classic pattern sees every stone*).
+`mine_grid` (`gridMine`) is the mine laid out to see every stone. On a square
+grid that's Minecraft's tunnel every third block. On a tiling the same idea is
+a **connected dominating set** on the layer's tile graph: tunnel tiles you can
+walk between, with every tile on the layer a tunnel or next to one. It's
+planned greedily (`gridPlan`: grow from the hub, always adding the tile that
+newly exposes the most). The result is under half the layer dug and every
+stone's face shown. It uses a permanent staircase, and layers are opened in
+the order 7, 4, 10, 1, which between them show layers 0–12. Its **loop**
+variant (`returnDig`, the operator's down-shaft-and-up-shaft idea) digs deep
+along one corridor on the way out and digs a new way back through the tiles
+beside it, so the return also uncovers rock.
+
+40 trips from home, 3 iron wanted per trip, all four arms from the same saved
+moment, medium worlds (`lab/craft-mining-long.json`):
+
+| world | fresh dig | hub mine | grid | loop |
+|---|---|---|---|---|
+| penrose/3 | 60 ore, 20 trips failed | 39, 24 | 91, 8 | 96, 4 |
+| kagome/4 | 19, 34 | 44, 25 | 108, 3 | 113, 1 |
+| truncsq/3 | 6, 38 | 40, 26 | 116, 1 | 117, 2 |
+| hex/2 | 18, 34 | 18, 33 | 105, 3 | 106, 3 |
+
+- **The fresh dig runs dry by trip 10–20.** It stops finding iron within reach
+  of home and fails trip after trip. It also took all the damage (21–27
+  health, a death on every world).
+- **The radial hub mine runs dry by trip 20–30.** Its branches head ever
+  farther out along one layer.
+- **The grid mine is still finding ore at trip 40**, at a steady cost (truncsq
+  113 ticks per ore over trips 1–10, 64 over trips 31–40), with 2–6× the ore
+  and no damage. Early on it is often dearer than a fresh dig (penrose 401
+  vs 241 ticks per ore over the first 10 trips): the crossover comes within
+  the first 10–20 trips.
+- **The loop matched the grid** (136 vs 146 ticks per ore on kagome, 253 vs 242
+  on penrose). The arithmetic explains it: with a stone pick a tunnel tile
+  costs ~9 ticks (2 blocks at 15 / 4, plus the step) and walking one costs
+  1. So the walk back is 10–15% of a trip, and digging a new way back costs
+  9× walking the old one unless the new rock pays for itself. It roughly
+  does, and no more.
+
+**So: the operator was right about the long run.** The fresh dig's per-trip
+descent and its saturation make it the worst pattern past the first few
+trips, and seeing every stone wins. On the small island (242 iron) every
+pattern ran dry by trip 20, and the grid got the most (51) because it saw
+every stone within 18 tiles on three layers. What would make a loop pay: a
+slower walk (hazards, water), or a better pick, which makes digging cheaper
+relative to walking.
 
 **Reading a human's game (`craft/segment.mjs`).** A human plays in
 primitives, and nothing in the stream says *now I am mining for iron*. The

@@ -312,6 +312,13 @@ export function options(sim) {
     add('mine_home_iron', 'mine_home', { ore: 'iron', n: 3 }, { yields: 'iron ore (and coal) from the team mine at layer 7', takes: m ? `a walk down the mine (${m.dug} tiles dug so far), then 100–300 ticks of tunnel` : 'digs the mine first: a staircase to layer 7 near home, then 100–300 ticks',
       safety: 'lit, known tunnels: fewer hits taken than a fresh dig', advances: 'iron, safely; a fresh mine_iron finds ore faster' }, ['iron_ore', 'coal']);
   }
+  // the grid mine: slower than a fresh dig for the first trips, and the only
+  // pattern still finding ore after 40 (measured, 2026-09-27)
+  if (legal.has('mine_grid') && sim.pickTier() >= 2) {
+    const g = sim.team.grids && Object.values(sim.team.grids).find((x) => x.plan && !x.done);
+    add('mine_grid_iron', 'mine_grid', { ore: 'iron', n: 3 }, { yields: 'iron ore (and coal) from the team\'s grid mine, laid out to show every stone on its layers', takes: g ? `a walk down (${g.dug.size} of ${g.plan.size} tunnel tiles dug on this layer), then 100–300 ticks` : 'digs the staircase first, then 100–300 ticks',
+      advances: 'iron for the long run: slower than a fresh dig at first, and still finding ore when fresh digs near home have run dry' }, ['iron_ore', 'coal']);
+  }
   if (legal.has('branch_mine')) add('branch_mine', 'branch_mine', { length: 14 }, { yields: 'ore along a tunnel', takes: 'about 60–150 ticks', advances: 'resources, no rung' }, ['coal', 'iron_ore', 'cobblestone']);
   if (legal.has('surface')) add('surface', 'surface', null, { takes: `about ${Math.max(5, (sim.surface(p.c) - p.y) * 4)} ticks`, advances: 'back to open ground' });
   const seenPct = Math.round(100 * sim.seenCount / sim.N);

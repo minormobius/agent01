@@ -782,6 +782,19 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
   ok(mine.trips === 2 && m.team.mines[7] === mine && (mine.dug > dug0 || again.ok), `a second trip walks back into the same mine and extends it (${again.why || 'ok'})`);
   ok(PALETTE.mine_home.needs(m, { ore: 'diamond' }) !== null, 'diamonds from the mine need an iron pick');
 
+  // the grid mine: its layout on each layer is connected and shows every tile
+  const gm = new Sim({ seed: 3, shape: 'kagome' });
+  gm.give('stone_pickaxe', 1); gm.give('torch', 20); gm.give('cooked_porkchop', 6);
+  runMacro(gm, 'mine_grid', { ore: 'iron', n: 1 });
+  const grid = gm.team.grids && gm.team.grids[7];
+  ok(grid && grid.plan && grid.hub[1] === 7, 'mine_grid digs to layer 7 and plans a layout');
+  const reached = new Set([grid.hub[0]]), q = [grid.hub[0]];
+  while (q.length) { const u = q.shift(); for (const w of gm.cols[u].adj) if (grid.plan.has(w) && !reached.has(w)) { reached.add(w); q.push(w); } }
+  ok(reached.size === grid.plan.size, `the layout is connected: all ${grid.plan.size} tunnel tiles walkable from the hub`);
+  ok(grid.covers === grid.ok && grid.plan.size < grid.ok / 2, `and dominating: every tile of the layer is a tunnel or beside one (${grid.covers}/${grid.ok}), with under half of them dug`);
+  for (let k = 0; k < 3 && grid.dug.size <= 1; k++) runMacro(gm, 'mine_grid', { ore: 'iron', n: 4 });
+  ok(grid.dug.size > 1, `trips dig the layout out (${grid.dug.size} tiles)`);
+
   // actions name who took them once there are two players; one-player streams are unchanged
   ok(!m.lines.some((l) => JSON.parse(l).e?.some((e) => e[0] === 'do' && typeof e[e.length - 1] === 'object')), 'a one-player stream has no actor tags');
   const two = new Sim({ seed: 4, shape: 'kagome' }); const b2 = two.addPlayer();
