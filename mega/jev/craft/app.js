@@ -835,8 +835,10 @@ const hands = {
 const playing = () => sim && ($('who').value === 'you' || $('who').value === 'coop');
 const locked = () => document.pointerLockElement === canvas;
 // touch screens have no pointer lock: "engaged" is locked OR the touch game started
-const touching = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
+let touching = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (touching) document.body.classList.add('touching');
+// a device that did not say it was touch, touched: it is
+addEventListener('touchstart', () => { if (!touching) { touching = true; document.body.classList.add('touching'); } }, { passive: true, once: true });
 let touchOn = false;
 const engaged = () => locked() || (touching && touchOn);
 function toast(msg) {
@@ -1070,12 +1072,19 @@ $('t-eat').addEventListener('click', () => {
 $('t-craft').addEventListener('click', () => toggleCrafting());
 $('t-view').addEventListener('click', () => { hands.third = !hands.third; });
 
-// the phone dock: each panel is a drawer
+// the phone dock: each panel is a drawer. "play" is the controls' own tab:
+// it takes the seat (you, unless you are already in co-op) and brings up the
+// stick and buttons in one tap, with the status and hotbar above them
 for (const b of document.querySelectorAll('.dock button')) {
   b.addEventListener('click', () => {
     const cls = 'show-' + b.dataset.panel, on = !document.body.classList.contains(cls);
     for (const x of document.querySelectorAll('.dock button')) { document.body.classList.remove('show-' + x.dataset.panel); x.classList.remove('on'); }
     document.body.classList.toggle(cls, on); b.classList.toggle('on', on);
+    if (b.dataset.panel === 'play' && on) {
+      if (!playing()) { $('who').value = 'you'; setAuto(); }
+      touchOn = true; $('help').hidden = true;
+      syncPlayUI();
+    }
   });
 }
 
