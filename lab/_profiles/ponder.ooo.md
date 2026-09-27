@@ -501,6 +501,29 @@ dimensions on a 2D screen" request, tiling is more literal and legible than
 a fake 3D projection, and is worth trying again before defaulting to 3D for
 future high-dimension asks.
 
+Follow-up on the thirty-first request (2026-09-27, same thread), on
+conways-game/Pentacell: a narrower ask than the standing BRIEF plan —
+"identify some preset rule parametrizations that produce interesting
+behaviors" — not the sparkline/save-load/perf items the prior turn had
+queued. Per the turn rules a specific request beats an inherited plan, so
+this turn skipped straight to it rather than working the queue. Consistent
+with the standing "take the literal math seriously" pattern, but the new
+move here: derived the presets from an actual mean-field argument (242
+neighbours concentrate density tightly enough that the whole grid's density
+evolves almost as a 1-D scalar map with only four reachable next-states from
+any given density) rather than picking band numbers by feel — this let one
+preset be an exact, hand-verified predicted 2-cycle instead of a guess. Also
+surfaced, unprompted, that the site's own shipped default likely dies on
+first Randomize (its survive floor sits just above the default fill %) —
+same "flag the shortcut/risk explicitly, don't silently patch or hide it"
+habit as cyclotomic-Littlewood, applied to a numeric-tuning risk found via
+derivation rather than by running the page. Worth reusing: when a request
+about a high-neighbour-count CA/field asks for parameter presets and there's
+no way to test empirically, check whether a mean-field/concentration argument
+can turn "guess some interesting numbers" into "derive the numbers and prove
+what they do on paper" — this requester's whole profile rewards that over a
+plausible-looking guess.
+
 Twenty-sixth request (2026-09-06), "modular-group": another bare-math ask,
 phrased with pre-emptive, joking defiance ("chess but its modular forms...
 don't you dare tell me this doesn't make sense just make modular group

@@ -42,6 +42,16 @@
   .btnRow button { min-height: 44px; flex: 1 1 auto; }
   h2 { color: var(--fg); }
   .ruleGrid { display: grid; grid-template-columns: 1fr; gap: .4rem; }
+  .presetList { display: grid; grid-template-columns: 1fr; gap: .6rem; }
+  @media (min-width: 620px) { .presetList { grid-template-columns: 1fr 1fr; } }
+  .presetBtn {
+    text-align: left; min-height: 44px; padding: .6rem .8rem; font: inherit;
+    background: var(--bg); color: var(--fg); border: 1px solid var(--border);
+    border-radius: var(--radius); cursor: pointer;
+  }
+  .presetBtn strong { display: block; color: var(--accent); margin-bottom: .2rem; }
+  .presetBtn span { font-size: .78rem; color: var(--muted); }
+  .presetBtn:hover, .presetBtn:focus-visible { border-color: var(--accent); }
   footer.foot { margin-top: 2.5rem; font-size: .75rem; color: var(--muted); }
   .keyline { font-size: .75rem; color: var(--muted); }
 </style>
@@ -132,6 +142,61 @@
       </div>
     </div>
     <p class="keyline" id="ruleReadout"></p>
+  </div>
+
+  <div class="panel">
+    <h2>why presets, and why they're a prediction</h2>
+    <p class="keyline">242 neighbours is a lot to average over. At a 22% global
+      density the fraction any one cell sees is spread only about
+      &plusmn;2.7 percentage points from cell to cell (&radic;(p(1&minus;p)/242));
+      2D Life's 8 neighbours spread by tens of points at the same density. So
+      almost every cell sees close to the <em>whole grid's</em> density, not its
+      own neighbourhood's — the birth/survival bands act less like a local rule
+      and more like a threshold on one number. The five presets below are what
+      that threshold-on-a-number picture predicts for each band placement, worked
+      out by hand, not by watching them run &mdash; this build has no browser.
+      Load one, hit Randomize, then Play, and see if the population readout
+      does what its description says.</p>
+    <div class="presetList" id="presetList">
+      <button type="button" class="presetBtn" data-b-min="33" data-b-max="45" data-s-min="24" data-s-max="45">
+        <strong>Life echo</strong>
+        <span>the shipped default, ratio-matched to 2D Life's own density. Its
+          survive floor (24%) sits just above the default 22% random fill —
+          predicted to fade fast from a fresh Randomize. If the board goes
+          empty, that's why: nudge survive-min down a few points, or bump
+          random fill up past 24% first.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="45" data-b-max="70" data-s-min="15" data-s-max="35">
+        <strong>Stable plateau</strong>
+        <span>survival covers the default fill (22%), birth sits well above it
+          — a density inside survive and outside birth is self-consistent.
+          Predicted: population holds roughly flat once it settles, while the
+          actual live cells keep turning over underneath.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="15" data-b-max="85" data-s-min="90" data-s-max="100">
+        <strong>Population pulse</strong>
+        <span>the one with real arithmetic behind it: birth covers roughly
+          15&ndash;85%, survive only 90&ndash;100%. From 22% alive, birth flips
+          nearly every dead cell (&rarr;78% alive); at 78%, birth no longer
+          applies and 78% isn't in the survive band either, so it flips back
+          (&rarr;22%). Predicted: population bounces between about a fifth and
+          four-fifths alive, every single generation, forever &mdash; watch the
+          readout, not just the picture.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="10" data-b-max="100" data-s-min="10" data-s-max="100">
+        <strong>Takeover</strong>
+        <span>both bands cover almost any density above near-zero, so birth
+          and survival both fire together and stay fired at full (100%).
+          Predicted: swallows the grid within a handful of generations and
+          holds there solid.</span>
+      </button>
+      <button type="button" class="presetBtn" data-b-min="60" data-b-max="90" data-s-min="60" data-s-max="90">
+        <strong>Extinction</strong>
+        <span>thresholds set above anything a random fill produces. Predicted:
+          flatlines to empty almost immediately &mdash; a sanity check that the
+          sliders actually reach the engine, not a rule worth lingering on.</span>
+      </button>
+    </div>
   </div>
 
   <footer class="foot">five dimensions, one torus, no shortcuts on the neighbour count.</footer>
@@ -378,6 +443,22 @@ wireRulePair(els.bMin, els.bMinN, 'birthMin');
 wireRulePair(els.bMax, els.bMaxN, 'birthMax');
 wireRulePair(els.sMin, els.sMinN, 'surviveMin');
 wireRulePair(els.sMax, els.sMaxN, 'surviveMax');
+
+function applyPreset(bMin, bMax, sMin, sMax) {
+  els.bMin.value = bMin; els.bMinN.value = bMin; state.birthMin = bMin / 100;
+  els.bMax.value = bMax; els.bMaxN.value = bMax; state.birthMax = bMax / 100;
+  els.sMin.value = sMin; els.sMinN.value = sMin; state.surviveMin = sMin / 100;
+  els.sMax.value = sMax; els.sMaxN.value = sMax; state.surviveMax = sMax / 100;
+  updateRuleReadout();
+}
+document.getElementById('presetList').addEventListener('click', function (ev) {
+  var btn = ev.target.closest('.presetBtn');
+  if (!btn) return;
+  applyPreset(
+    parseInt(btn.dataset.bMin, 10), parseInt(btn.dataset.bMax, 10),
+    parseInt(btn.dataset.sMin, 10), parseInt(btn.dataset.sMax, 10)
+  );
+});
 
 els.board.addEventListener('click', function (ev) {
   var layout = els.board._layout;

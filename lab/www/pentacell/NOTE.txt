@@ -1,1 +1,1 @@
-5D Moore neighbourhood, 242 neighbours — B3/S23 doesn't scale, so birth/survival are live density-band sliders instead. Defaults are a guess, not proven special like 2D's. Named it Pentacell, not Game of Life, on purpose.
+242 neighbours concentrate so tightly the grid's density evolves almost as one number — solved for an exact predicted 2-cycle (Population pulse) instead of guessing. Also: the shipped default likely dies from its own fill %.

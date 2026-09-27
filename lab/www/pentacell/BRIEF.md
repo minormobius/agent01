@@ -56,6 +56,52 @@ cellular automaton, not a themed 3D demo or a lookup-table shortcut:
   chart would be a nice-to-have, not a second angle on the same object the
   way the knot/complex-map sites needed one.
 
+## This turn (2026-09-27)
+
+Request was narrower than the standing plan: "identify some preset rule
+parametrizations that produce interesting behaviors." Per the turn rules, a
+specific request beats the inherited plan, so this turn didn't touch the
+sparkline/save-load/perf items below — it added a **"why presets, and why
+they're a prediction" panel** with five preset buttons (Life echo / Stable
+plateau / Population pulse / Takeover / Extinction) that set the four rule
+sliders in one click.
+
+The presets aren't guesses — they come from an actual mean-field argument,
+because it's the mathematically honest way to pick them with no browser to
+run the sim in: with 242 neighbours, the fraction any single cell sees is
+tightly concentrated around the *global* density (std &approx;
+&radic;(p(1&minus;p)/242), only ~2.7 points at p=0.22 — versus tens of points
+for 2D Life's 8 neighbours). So to first approximation the whole grid's
+density evolves as **one scalar map** p&prime; = p&middot;S(p) + (1&minus;p)&middot;B(p),
+where S/B are the survive/birth band indicators — not as a field of locally
+varying shapes the way 2D Life is. That collapses the achievable outputs from
+a given p to just {0, p, 1&minus;p, 1}, which is what let me *design* an exact
+predicted 2-cycle (0.22 &harr; 0.78) for "Population pulse" rather than just
+guess at something that oscillates: solve B(p)=1,S(p)=0 at both 0.22 and 0.78
+simultaneously (birth band 15&ndash;85, survive band 90&ndash;100 does it), and
+verify by hand-iterating the map twice.
+
+Same reasoning explains a real, previously-unflagged risk in the **existing
+shipped default**: birth 33&ndash;45 / survive 24&ndash;45 with the default 22%
+random fill. 22% is *below* the survive floor of 24% — mean field predicts
+the default configuration nearly dies on the first Randomize+Play, which
+matches the prior agent's hedge in this file ("if dead, nudge sliders") but
+now with an actual cause rather than a shrug. Deliberately did NOT change the
+shipped default numbers this turn (minimal-change principle — that pairing
+was a considered design choice tied to 2D Life's own density ratios, not
+mine to override for a hunch) — flagged it in the "Life echo" preset's own
+description instead, which is the fix a visitor can apply in one click if the
+board looks dead.
+
+**Caveat to flag if a follow-up asks to verify this empirically**: the
+mean-field argument assumes each cell's local neighbourhood is close to an
+independent random sample at the *current* global density, which is only
+exactly true at t=0 from a uniform random fill. As the system evolves,
+correlations build up (blocks of same-state cells cluster spatially even in
+5D), so the real trajectory can and will drift from the 4-outcome
+{0,p,1&minus;p,1} idealization over many generations — the presets are a
+starting hypothesis to test against the real engine, not a proof about it.
+
 ## The plan (not built yet, in order)
 
 1. **A population-over-time sparkline** next to the stat line — cheap, and
@@ -99,6 +145,12 @@ cellular automaton, not a themed 3D demo or a lookup-table shortcut:
   visible slice — that would silently turn this into a 4D (or worse) CA
   wearing a 5D label, which is exactly the kind of shortcut this requester
   has called out before when found unannounced.
+- Preset buttons use `data-b-min`/`data-b-max`/`data-s-min`/`data-s-max`
+  attributes read via `.dataset.bMin` etc (browser auto-camelCases hyphenated
+  data attributes) — keep that naming if you add more presets, and read them
+  from `.closest('.presetBtn')` on a delegated click listener on
+  `#presetList`, not per-button listeners, so a future preset just needs a new
+  `<button>` in the markup and nothing in the JS.
 - Untested in an actual browser by me (no network/shell in this sandbox);
   the harness screenshot pass is the first real look at layout and whether
   the default rule bands produce anything visually interesting rather than
