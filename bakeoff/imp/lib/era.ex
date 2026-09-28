@@ -46,9 +46,12 @@ defmodule ImpBench.Era do
       Req.get!("https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle",
         params: [handle: @handle],
         retry: :transient
-      ).body["did"]
+      ).body
+      |> json()
+      |> Map.fetch!("did")
 
-    doc = Req.get!("https://plc.directory/#{did}", retry: :transient).body
+    # plc.directory answers application/did+ld+json, which Req does not decode.
+    doc = Req.get!("https://plc.directory/#{did}", retry: :transient).body |> json()
     pds = Enum.find(doc["service"], &(&1["id"] == "#atproto_pds"))["serviceEndpoint"]
 
     Stream.unfold(:start, fn
@@ -88,6 +91,9 @@ defmodule ImpBench.Era do
 
   @doc "The filter, public so a cache can be seeded from an outside fetch."
   def candidates(raw), do: raw |> Enum.filter(&keep?/1) |> Enum.map(&Map.drop(&1, [:reply]))
+
+  defp json(body) when is_binary(body), do: Jason.decode!(body)
+  defp json(body), do: body
 
   defp keep?(p) do
     not p.reply and p.year in @years and String.length(p.text) >= 60 and

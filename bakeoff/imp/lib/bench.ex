@@ -66,7 +66,18 @@ defmodule ImpBench do
             IO.puts("== #{model_key} · #{task}")
             Process.put(:imp_bench_done, done)
             Process.put(:imp_bench_task, task)
-            done = Map.put(done, task, run(task, lm, out))
+            # A task that raises is that task's result, not the end of the cell.
+            result =
+              try do
+                run(task, lm, out)
+              rescue
+                e ->
+                  msg = Exception.format(:error, e, __STACKTRACE__) |> String.slice(0, 3000)
+                  IO.puts("   #{task} raised:\n" <> msg)
+                  %{error: msg, arms: %{}, n_test: 0}
+              end
+
+            done = Map.put(done, task, result)
             checkpoint(done)
             done
           end)

@@ -31,7 +31,7 @@ document.getElementById('theme').addEventListener('click', () => {
 
 const { runs } = await (await fetch('runs/index.json')).json();
 const run = (id) => runs.find((r) => r.id === id);
-const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
+const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.baseline);
 
 // ─── tiles ────────────────────────────────────────────────────────────
 {
@@ -222,10 +222,10 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec);
 
 // ─── era: minormobius's posts ─────────────────────────────────────────
 {
-  const eraRun = [...runs].reverse().find((r) => r.cells.some((c) => c.tasks.era));
+  const eraRun = [...runs].reverse().find((r) => r.cells.some((c) => c.tasks.era?.arms?.baseline));
   if (eraRun) {
     document.getElementById('era').hidden = false;
-    const cells = byModel(eraRun.cells).filter((c) => c.tasks.era);
+    const cells = byModel(eraRun.cells).filter((c) => c.tasks.era?.arms?.baseline);
     const ARMS = [['baseline', 'zero-shot'], ['few_shot_k16', '16 examples'], ['gepa', 'GEPA']];
 
     const tbl = el('table');

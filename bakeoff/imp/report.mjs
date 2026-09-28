@@ -32,7 +32,8 @@ const walk = (dir, depth) => {
     else if (e.name === 'cell.json') cells.push({ dir, cell: JSON.parse(fs.readFileSync(p, 'utf8')) });
   }
 };
-walk(path.resolve(from), 0);
+if (fs.existsSync(path.resolve(from))) walk(path.resolve(from), 0);
+else console.error(`no cells at ${from} — every cell failed before writing a result`);
 cells.sort((a, b) => a.cell.model.localeCompare(b.cell.model));
 
 const pct = (x) => (x == null ? 'n/a' : `${Math.round(x * 1000) / 10}%`);
@@ -133,7 +134,10 @@ for (const { dir, cell } of cells) {
       if (fs.existsSync(p)) fs.copyFileSync(p, path.join(outDir, `${slug}.trec.gepa.program.json`));
     }
   }
-  const er = cell.tasks.era;
+  for (const [t, v] of Object.entries(cell.tasks || {})) {
+    if (v.error) lines.push('', `**${t} raised** — no result: \`${String(v.error).split('\n')[0].slice(0, 300)}\``);
+  }
+  const er = cell.tasks.era?.error ? null : cell.tasks.era;
   if (er) {
     const a = er.arms;
     lines.push('', `**era** — ${er.n_test} held-out posts by ${er.handle}, four years (chance 25%):`, '',
