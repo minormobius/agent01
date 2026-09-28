@@ -64,7 +64,7 @@ jobs:
             const cells = JSON.parse(fs.readFileSync("bakeoff/cells.json", "utf8"));
             const cfg = JSON.parse(fs.readFileSync("bakeoff/imp/RUN", "utf8"));
             const models = cfg.models?.length ? cfg.models : Object.keys(cells.models);
-            // "jev" is TypeSafe's decision model, not an LLM: the rig calls it directly.
+            // "jev" is the TypeSafe decision model, not an LLM: the rig calls it directly.
             for (const m of models) if (!cells.models[m] && m !== "jev") { console.error(`::error::unknown model ${m}`); process.exit(1); }
             const tasks = (cfg.tasks?.length ? cfg.tasks : ["route", "desk"]);
             for (const t of tasks) if (!["route", "desk", "desk_hard", "trec", "era"].includes(t)) { console.error(`::error::unknown task ${t}`); process.exit(1); }
