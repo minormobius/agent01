@@ -1,0 +1,54 @@
+{
+  "runId": "imp-05",
+  "note": "era: from one of minormobius.bsky.social's posts alone, guess the year (2023–2026). Zero-shot, 16 labelled examples, and GEPA with the true year as train feedback — can an optimizer write down one person's eras? (Re-run: the first attempt failed in every cell on an undecoded plc.directory response.)",
+  "cells": [
+    {
+      "seconds": 663,
+      "status": "ran",
+      "probe": "ok: \"blue\"",
+      "model": "ds4-flash",
+      "model_id": "deepseek-v4-flash",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "era": {
+          "error": "** (FunctionClauseError) no function clause matching in Imp.Example.get/3\n    (imp 0.5.0) lib/imp/example.ex:48: Imp.Example.get(nil, :rkey, nil)\n    (imp_bench 0.1.0) lib/era.ex:178: anonymous fn/2 in ImpBench.Era.summarize/2\n    (elixir 1.19.6) lib/enum.ex:1688: Enum.\"-map/2-lists^map/1-1-\"/2\n    (elixir 1.19.6) lib/enum.ex:1688: Enum.\"-map/2-lists^map/1-1-\"/2\n    (imp_bench 0.1.0) lib/era.ex:176: ImpBench.Era.summarize/2\n    (imp_bench 0.1.0) lib/bench.ex:432: anonymous fn/3 in ImpBench.run/3\n    (imp_bench 0.1.0) lib/bench.ex:445: ImpBench.run/3\n    (imp_bench 0.1.0) lib/bench.ex:72: anonymous fn/5 in ImpBench.main/0\n",
+          "arms": {},
+          "n_test": 0
+        }
+      }
+    },
+    {
+      "seconds": 1563,
+      "status": "ran",
+      "probe": "ok: \"blue\"",
+      "model": "ds4-pro",
+      "model_id": "deepseek-v4-pro",
+      "endpoint": "https://api.deepseek.com/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "era": {
+          "error": "** (FunctionClauseError) no function clause matching in Imp.Example.get/3\n    (imp 0.5.0) lib/imp/example.ex:48: Imp.Example.get(nil, :rkey, nil)\n    (imp_bench 0.1.0) lib/era.ex:178: anonymous fn/2 in ImpBench.Era.summarize/2\n    (elixir 1.19.6) lib/enum.ex:1688: Enum.\"-map/2-lists^map/1-1-\"/2\n    (elixir 1.19.6) lib/enum.ex:1688: Enum.\"-map/2-lists^map/1-1-\"/2\n    (imp_bench 0.1.0) lib/era.ex:176: ImpBench.Era.summarize/2\n    (imp_bench 0.1.0) lib/bench.ex:432: anonymous fn/3 in ImpBench.run/3\n    (imp_bench 0.1.0) lib/bench.ex:445: ImpBench.run/3\n    (imp_bench 0.1.0) lib/bench.ex:72: anonymous fn/5 in ImpBench.main/0\n",
+          "arms": {},
+          "n_test": 0
+        }
+      }
+    },
+    {
+      "seconds": 1172,
+      "status": "ran",
+      "probe": "ok: \"Blue\"",
+      "model": "kimi3",
+      "model_id": "kimi-k3",
+      "endpoint": "https://api.moonshot.ai/v1",
+      "imp_version": "0.5.0",
+      "tasks": {
+        "era": {
+          "error": "** (FunctionClauseError) no function clause matching in Imp.Example.get/3\n    (imp 0.5.0) lib/imp/example.ex:48: Imp.Example.get(nil, :rkey, nil)\n    (imp_bench 0.1.0) lib/era.ex:178: anonymous fn/2 in ImpBench.Era.summarize/2\n    (elixir 1.19.6) lib/enum.ex:1688: Enum.\"-map/2-lists^map/1-1-\"/2\n    (elixir 1.19.6) lib/enum.ex:1688: Enum.\"-map/2-lists^map/1-1-\"/2\n    (imp_bench 0.1.0) lib/era.ex:176: ImpBench.Era.summarize/2\n    (imp_bench 0.1.0) lib/bench.ex:432: anonymous fn/3 in ImpBench.run/3\n    (imp_bench 0.1.0) lib/bench.ex:445: ImpBench.run/3\n    (imp_bench 0.1.0) lib/bench.ex:72: anonymous fn/5 in ImpBench.main/0\n",
+          "arms": {},
+          "n_test": 0
+        }
+      }
+    }
+  ]
+}
