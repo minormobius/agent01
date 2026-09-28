@@ -1,5 +1,5 @@
 {
- "ran": "2026-09-28T17:30:05.849Z",
+ "ran": "2026-09-28T18:45:14.695Z",
  "seeds": [
   3,
   5
@@ -16,8 +16,8 @@
   "smelter_ticks_mean": 124.65,
   "rail_built": 10,
   "rides_ok": 10,
-  "saved_per_round_trip_mean": 33.2,
-  "break_even_mean": 4.61
+  "saved_per_round_trip_mean": 33.1,
+  "break_even_mean": 4.57
  },
  "rows": [
   {
@@ -258,14 +258,14 @@
    "hand_smelting_ticks": 120,
    "rail": true,
    "rail_tiles": 38,
-   "rail_build_ticks": 161,
+   "rail_build_ticks": 160,
    "ride_home": 20,
    "ride_out": 20,
    "rides_ok": true,
    "walk_out": 38,
    "walk_home": 38,
    "saved_per_round_trip": 36,
-   "break_even_round_trips": 4.5
+   "break_even_round_trips": 4.4
   },
   {
    "shape": "rhombille",
@@ -307,9 +307,9 @@
    "ride_out": 19,
    "rides_ok": true,
    "walk_out": 35,
-   "walk_home": 35,
-   "saved_per_round_trip": 32,
-   "break_even_round_trips": 4.3
+   "walk_home": 34,
+   "saved_per_round_trip": 31,
+   "break_even_round_trips": 4.5
   },
   {
    "shape": "snub",
@@ -346,14 +346,14 @@
    "hand_smelting_ticks": 120,
    "rail": true,
    "rail_tiles": 36,
-   "rail_build_ticks": 163,
+   "rail_build_ticks": 161,
    "ride_home": 19,
    "ride_out": 19,
    "rides_ok": true,
    "walk_out": 35,
    "walk_home": 37,
    "saved_per_round_trip": 34,
-   "break_even_round_trips": 4.8
+   "break_even_round_trips": 4.7
   },
   {
    "shape": "kagome",
@@ -390,14 +390,14 @@
    "hand_smelting_ticks": 120,
    "rail": true,
    "rail_tiles": 38,
-   "rail_build_ticks": 175,
+   "rail_build_ticks": 161,
    "ride_home": 20,
    "ride_out": 20,
    "rides_ok": true,
    "walk_out": 36,
    "walk_home": 35,
    "saved_per_round_trip": 31,
-   "break_even_round_trips": 5.6
+   "break_even_round_trips": 5.2
   },
   {
    "shape": "rhombitri",

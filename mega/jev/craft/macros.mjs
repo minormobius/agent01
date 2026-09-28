@@ -623,10 +623,17 @@ export function* fight(sim, kind = null) {
     // (a creeper too, now that a blow knocks it back out of its fuse's reach)
     const t = [...sim.ents.values()].find((e) => (kind ? e.kind === kind : HOSTILE.has(e.kind)) && sim.adjacentTo(sim.player, e));
     if (!t) {
-      const sk = !kind && [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, sim.player.c) <= 7 && sim.los(sim.player, e));
+      // an archer shooting from range, or a creeper close by (a blow knocks it back
+      // out of its fuse's reach): close in on it
+      const sk = !kind && ([...sim.ents.values()].find((e) => e.kind === 'creeper' && sim.dist(e.c, sim.player.c) <= 2.5 && sim.player.hp > 10)
+        || [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, sim.player.c) <= 7 && sim.los(sim.player, e)));
       if (!sk) return { ok: true };
       const go = yield* goTo(sim, (c, y) => sim.cols[c].adj.includes(sk.c) && Math.abs(y - sk.y) <= 1, 3000);
-      if (!go.ok) return { ok: false, why: `could not close in on the skeleton (${go.why})` };
+      if (!go.ok) {
+        // a creeper we can't reach is one to step away from, not to try again
+        if (sk.kind === 'creeper') return yield* flee(sim);
+        return { ok: false, why: `could not close in on the ${sk.kind} (${go.why})` };
+      }
       continue;
     }
     const r = yield { op: 'attack', id: t.id };

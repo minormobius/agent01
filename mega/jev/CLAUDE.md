@@ -1640,6 +1640,10 @@ The faults, one per fix:
 - Two lured cows swapped places with each other every tick, for ever.
 - Lured animals moved at a third of walking pace and got left behind.
 - A chicken camped in the gateway.
+- **The player caged itself in its own pen**, three ways, found in the life sweeps after the late game moved:
+  - The digging planner routed round every mob, so a cow on the one tile joining the gate walled the player in. The planner now charges `ANIMAL_DETOUR` (20) to go through a passive animal, since the player shoves it.
+  - When a full pen left the cow nowhere to be shoved, the move was refused. The player now trades places with it instead.
+  - A chest and a block placed later outside the gate left no step down from it. The gate's outside tile is now reserved and its ground protected.
 
 **Measured** (`lab/craft-machines.json`, 10 tilings × 2 seeds):
 - Pens: built 20/20, and both cows are still inside 1,200 ticks later on 20/20.
@@ -1750,11 +1754,15 @@ The self-harvesting cane farm is the answer to the roadmap's phase 4 question in
 | a cane farm | 2 / 20 |
 | an anvil used | 0 / 20 |
 
-Five days is too short for the late game: the machines come at the end of a long ladder. A 10-day sweep is §-noted below.
+Five days is too short for the late game: the machines come at the end of a long ladder. Over 10 days (the same 20 worlds, run before the last combat fixes below) it goes: the nether 15 / 20, enchanted 12 / 20, a pen 19 / 20 (16 with two animals), a smelter 3 / 20, a cane farm 1 / 20, an anvil 0 / 20, with 6 deaths and 0 stuck. The smelter and cane farm still come last, behind a long iron and redstone bill, and the anvil never comes up because a tool rarely wears far enough while a spare is cheaper.
+
+Life sweep after all of it (baseline, 3 seeds × 10 tilings × 3 days): iron pickaxe 30/30, house 30/30, 3 deaths, 0 stuck, and no macro failing more than 25 times in a run.
 
 **Combat changed for everyone: knockback.** A blow knocks a hostile back two tiles, straight away from the attacker, and a creeper knocked past 2.5 tiles fizzles.
 - `fight` now takes on creepers, as Minecraft players do.
 - Without this, a creeper stalking the player at night made a `flee` / `sleep_in_bed` loop, 15 of each in one night. The segmenter test caught it, because 30 of 71 macro runs were that loop.
+- **Skeletons are not knocked back.** Knocking an archer two tiles out gave it room to shoot: one run lost a player to a skeleton on day 1. A skeleton now stays where it's hit.
+- `fight` closes in on a creeper within 2.5 tiles while health is over 10, and steps away (`flee`) when it can't reach it. Without that fallback, the baseline chose `fight` 216 times in a row on one snub world against a creeper it had no path to.
 - `dig_in` now walls in the player's column as well as capping it. At the bottom of a tunnel on bedrock there's no digging down, and a skeleton down the tunnel shot a sleeping player.
 
 **What Jev sees.**

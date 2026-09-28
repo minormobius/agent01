@@ -201,7 +201,10 @@ export function* buildPen(sim) {
   const gap = plan.fences.find(([u, y]) => ![B.fence, B.fence_gate, B.fence_gate_open].includes(sim.get(u, y)) || !sim.solid(u, y - 1));
   if (gap) return { ok: false, why: `a gap in the fence at ${gap[0]},${gap[1]}` };
   protectAll(sim, plan.fences);
-  reserve(sim, [...plan.interior, ...plan.ring]);
+  // and the step outside the gate: a chest set down there later walled the
+  // player into its own pen (measured, hex/3, 116 failed macros in a row)
+  reserve(sim, [...plan.interior, ...plan.ring, plan.out]);
+  protectAll(sim, [[plan.out, plan.gate[1] - 1]]);
   sim.team.pen = plan;
   sim.note('pen', { c: plan.c0, y: plan.g, tiles: plan.interior.length, fences: plan.fences.length });
   return { ok: true };

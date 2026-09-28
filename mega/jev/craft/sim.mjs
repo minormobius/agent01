@@ -55,6 +55,7 @@ export const WOOL_REGROW = 1200;
 export const ITEM_DESPAWN = 1200;
 export const TREE_TICKS = 1600;
 export const SWIM = 3;               // ticks to swim a tile (a boat: 1, walking: 1)
+export const ANIMAL_DETOUR = 20;     // what the digging planner charges to route a player through a passive animal (it gets shoved aside)
 export const GROW_UP = 1200;         // ticks for a young animal to grow up
 export const LOVE = 600;             // ticks an animal stays ready to breed after being fed      // a sapling in the light becomes a tree in about this many ticks   // ticks an item on the ground lasts (5 minutes, as Minecraft's)    // ticks until a shorn sheep has wool again
 export const MAX_AIR = 60;          // ticks of breath with the head under water (~15 s, as Minecraft's)
@@ -653,6 +654,9 @@ export class Sim {
           if (!ANIMALS.includes(o.kind)) return no('occupied');
           shove = this.cols[o.c].adj.filter((n) => n !== p.c).map((n) => [n, this.stepTarget(o.c, o.y, n, this.tallOf(o), 3, true)])
             .find(([n, yy]) => yy != null && !this.occupied(n, yy) && !this.occupied(n, yy + 1) && this.get(n, yy - 1) !== B.water && !BLOCKS[this.get(n, yy)].rail);
+          // nowhere to shove it: squeeze past, trading places (in a full pen
+          // an animal with no room to step aside otherwise walled the gate shut)
+          if (!shove && this.canStand(p.c, p.y, this.tallOf(o), true) && this.get(p.c, p.y - 1) !== B.water) shove = [p.c, p.y];
           if (!shove) return no('occupied');
         }
         // water: swimming is slow; a boat carried is got into at the water's
@@ -944,7 +948,9 @@ export class Sim {
           const sw = this.swordItem(); const sh = this.enchOf(sw, 'sharpness');
           this.hurt(t, this.swordDmg() + (sh ? Math.round(0.5 * sh + 0.5) : 0), p);
           this.wear(sw);
-          if (this.ents.has(t.id) && HOSTILE.has(t.kind)) this.knockBack(t, p);
+          // (not a skeleton: knocked back, an archer just shoots again — measured, one killed a player
+          // on day 1 who had to close the gap after every blow)
+          if (this.ents.has(t.id) && HOSTILE.has(t.kind) && t.kind !== 'skeleton') this.knockBack(t, p);
         } };
       }
       case 'shoot': {
@@ -1695,7 +1701,11 @@ export class Sim {
     // mob bodies, once per search — checking every entity on every relax was
     // the single biggest cost in the planner
     const occ = new Set();
-    for (const e of this.ents.values()) if (e !== from) for (let k = 0; k < this.tallOf(e); k++) occ.add(e.c * H + e.y + k);
+    // A player shoulders a passive animal aside, so to a player an animal is a
+    // detour, not a wall (a cow on the only tile out of a pen caged the player
+    // that penned it). The detour is priced, so routes still go round when they can.
+    const shoves = from.kind === 'player', beast = new Set();
+    for (const e of this.ents.values()) if (e !== from) for (let k = 0; k < this.tallOf(e); k++) (shoves && ANIMALS.includes(e.kind) ? beast : occ).add(e.c * H + e.y + k);
     let settled = 0;
     while (heap.length && settled < maxNodes) {
       const [d, u] = pop();
@@ -1716,6 +1726,7 @@ export class Sim {
           if (t > 0) { cost += t; list.push([mc, my]); }
         }
         if (occ.has(nc * H + ny) || occ.has(nc * H + ny + 1)) return;   // route around mobs, not through them
+        if (beast.has(nc * H + ny) || beast.has(nc * H + ny + 1)) cost += ANIMAL_DETOUR;
         if (!this.seen[nc]) return;                                       // fog of war: no plans through the unseen
         const k = key(nc, ny), nd = d + cost;
         if (nd < (dist.get(k) ?? Infinity)) { dist.set(k, nd); prev.set(k, u); how.set(k, { c: nc, y: ny, mine: list }); push(nd, k); }

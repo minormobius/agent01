@@ -102,6 +102,11 @@ export function baselinePolicy(sim) {
   if (pick && ['explore', 'scout'].includes(pick.name) && last && !last.ok && last.ticks === 0 && ['explore', 'scout'].includes(last.name)) {
     return sim.home && !atHome(sim) ? { name: 'go_home' } : { name: 'branch_mine', args: { length: 14 } };
   }
+  // likewise a surface with no way up (a pen under a tree's crown: measured 207
+  // in a row): walk somewhere else rather than plan the same climb again
+  if (pick && pick.name === 'surface' && last && !last.ok && last.name === 'surface' && sim.get(sim.player.c, sim.player.y + 1) !== B.water) {
+    return sim.home && !atHome(sim) ? { name: 'go_home' } : { name: 'explore' };
+  }
   return pick;
 }
 function baselinePick(sim) {
@@ -118,7 +123,7 @@ function baselinePick(sim) {
   // shoot back if armed, close in if healthy, take cover if not
   // a creeper close: with a sword and the health to take a blast, hit it (each blow
   // knocks it back out of its fuse's reach); otherwise get away
-  if (creeperNear(sim) && sim.dist(creeperNear(sim).c, p.c) <= 2) return sim.swordItem() && p.hp > 10 && sim.adjacentTo(p, creeperNear(sim)) ? { name: 'fight' } : { name: 'flee' };
+  if (creeperNear(sim) && sim.dist(creeperNear(sim).c, p.c) <= 2) return sim.swordItem() && p.hp > 10 ? { name: 'fight' } : { name: 'flee' };
   if (zombieAdjacent(sim)) return { name: 'fight' };
   const skel = [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, p.c) <= 7 && sim.los(p, e));
   if (skel) {
