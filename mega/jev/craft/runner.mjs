@@ -12,6 +12,7 @@
 // engine can be shown climbing the tech ladder with no model in the loop.
 
 import { creeperNear, targetsInSight, houseHoles, itemsInSight, lostThings, pickLow, PALETTE, atHome, shortfall, ripePlots, growingPlots, visiblePlants, visiblePigs, chestItems, surplus, inNether, portalsHere, PORTAL_OBSIDIAN } from './macros.mjs';
+import { penSite, penFences, penned, canesInSight, stationAt, smelterState, caneFarmHolds } from './builds.mjs';
 import { EAT_ORDER, B, HOSTILE, durability } from './world.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
 
@@ -72,7 +73,7 @@ const inNetherNow = (sim) => sim.dim === 'nether';
 // that the current macro was not written to handle.
 export function standardInterrupt(sim, running = null) {
   // a creeper hissing beside you: whatever you were doing, step away (not if that is what you are doing)
-  if (running !== 'flee' && [...sim.ents.values()].some((e) => e.kind === 'creeper' && e.fuse && sim.dist(e.c, sim.player.c) <= 2.5)) return 'a creeper is hissing';
+  if (running !== 'flee' && running !== 'fight' && [...sim.ents.values()].some((e) => e.kind === 'creeper' && e.fuse && sim.dist(e.c, sim.player.c) <= 2.5)) return 'a creeper is hissing';
   // a skeleton shooting at you, the first time it is seen (acknowledged like nightfall)
   const sk = [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, sim.player.c) <= 7);
   if (sk && !sim._skAck && !['fight', 'shoot', 'flee', 'go_home', 'dig_in'].includes(running) && sim.los(sim.player, sk)) { sim._skAck = true; return 'a skeleton is shooting'; }
@@ -94,6 +95,16 @@ export function standardInterrupt(sim, running = null) {
 // round of exploring, mining and hunting, home by dusk. One fixed if-ladder
 // over the same palette Jev will choose from — the bar, not the ceiling.
 export function baselinePolicy(sim) {
+  const pick = baselinePick(sim);
+  // exploring a world already seen fails at once; picking it again after such a
+  // failure is a loop (measured: 6 in a row ended a run as stuck)
+  const last = sim._lastMacro;
+  if (pick && ['explore', 'scout'].includes(pick.name) && last && !last.ok && last.ticks === 0 && ['explore', 'scout'].includes(last.name)) {
+    return sim.home && !atHome(sim) ? { name: 'go_home' } : { name: 'branch_mine', args: { length: 14 } };
+  }
+  return pick;
+}
+function baselinePick(sim) {
   const p = sim.player, inv = sim.inv;
   const n = (k) => inv[k] || 0;
   // every craft goes through here: short of wood → fetch wood first
@@ -105,7 +116,9 @@ export function baselinePolicy(sim) {
   const tried = (k) => { sim.me._ageTries[k] = tries(k) + 1; };
   // the new threats: a creeper close means get away; a skeleton in sight means
   // shoot back if armed, close in if healthy, take cover if not
-  if (creeperNear(sim) && sim.dist(creeperNear(sim).c, p.c) <= 2) return { name: 'flee' };
+  // a creeper close: with a sword and the health to take a blast, hit it (each blow
+  // knocks it back out of its fuse's reach); otherwise get away
+  if (creeperNear(sim) && sim.dist(creeperNear(sim).c, p.c) <= 2) return sim.swordItem() && p.hp > 10 && sim.adjacentTo(p, creeperNear(sim)) ? { name: 'fight' } : { name: 'flee' };
   if (zombieAdjacent(sim)) return { name: 'fight' };
   const skel = [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, p.c) <= 7 && sim.los(p, e));
   if (skel) {
@@ -125,6 +138,8 @@ export function baselinePolicy(sim) {
     if (p.food < 12 && EAT_ORDER.some((k) => inv[k])) return { name: 'eat' };
     if (!n('glowstone') && n('glowstone_dust') < 4 && tries('glow') < 4) { tried('glow'); return { name: 'mine_glowstone', args: { n: 4 - n('glowstone_dust') } }; }
     if (!n('glowstone') && n('glowstone_dust') >= 4) return { name: 'craft', args: { item: 'glowstone' } };
+    // quartz for observers (the cane farm), while here
+    if (n('quartz') < 2 && tries('quartz') < 2) { tried('quartz'); return { name: 'mine_quartz', args: { n: 2 - n('quartz') } }; }
     if (tries('back') < 4) { tried('back'); return { name: 'use_portal' }; }
     return { name: 'explore' };
   }
@@ -138,7 +153,9 @@ export function baselinePolicy(sim) {
     if (bedOk && (atHome(sim) || (sim.home && sim.dist(p.c, sim.home[0]) < 25 && sim.me._homeFailNight !== night0))) return { name: 'sleep_in_bed' };
     if (atHome(sim)) return { name: 'sleep_until_dawn' };
     if (sim.home && exposed(sim) && sim.dist(p.c, sim.home[0]) < 25 && !sim._homeTried) { sim._homeTried = true; return { name: 'go_home' }; }
-    return exposed(sim) ? { name: 'dig_in' } : { name: 'sleep_until_dawn' };
+    // away from home, a tunnel is no shelter from an archer: dig in (once a night), then sleep
+    if (sim.me._dugNight !== night0 && !PALETTE.dig_in.needs(sim, {})) { sim.me._dugNight = night0; return { name: 'dig_in' }; }
+    return exposed(sim) && !PALETTE.dig_in.needs(sim, {}) ? { name: 'dig_in' } : { name: 'sleep_until_dawn' };
   }
   sim._homeTried = false;
   // a macro that just failed without spending a tick will fail the same way
@@ -285,6 +302,82 @@ export function baselinePolicy(sim) {
       }
       if (n('obsidian') >= PORTAL_OBSIDIAN && tries('portal') < 3) { tried('portal'); return { name: 'build_portal' }; }
     } else if (tries('cross') < 4) { tried('cross'); sim.me._ageTries.glow = 0; sim.me._ageTries.back = 0; return { name: 'use_portal' }; }
+  }
+  // Phase 3 and 4, after the nether: a pen, an enchanted pick, an anvil to
+  // keep it mended, a smelter, a cane farm. Each stage has a try budget.
+  const late = sim._house && !sim.isNight() && (p.glowPlaced || n('glowstone') || tries('cross') >= 4 || !sim.ow('beacons').size && tries('diamond') >= 4);
+  // a pen near home, and animals led into it (then the breeding finds them there).
+  // After the nether: built on day 1, pens cost 4-5 of 20 worlds the nether (measured)
+  if (late && !sim.noPen) {
+    const day0 = Math.floor(sim.tick / 4800);
+    if (!sim.team.pen && tries('pen') < 3) {
+      const pl = penSite(sim);
+      if (pl) {
+        const need = penFences(pl);
+        if (n('fence') < need || !n('fence_gate')) { const sh = { ...shortfall(sim, 'fence', need), ...(n('fence_gate') ? {} : shortfall(sim, 'fence_gate', 1)) }; if (sh.log || sh.planks) return { name: 'gather_wood', args: { n: n('log') + Math.ceil(need / 2) + 2 } }; }
+        tried('pen'); return { name: 'build_pen' };
+      }
+    }
+    if (sim.team.pen && penned(sim).length < 2 && tries('penning@' + day0) < 1) {
+      const k = ['cow', 'sheep', 'chicken', 'pig'].find((kind) => !PALETTE.pen_animals.needs(sim, { kind }));
+      if (k) { tried('penning@' + day0); return { name: 'pen_animals', args: { kind: k, n: 2 } }; }
+    }
+  }
+  if (late) {
+    // the enchanting table: a book (3 paper of sugar cane, a leather), 2 diamonds, 4 obsidian
+    if (!sim.team.table && tries('table') < 8) {
+      if (n('enchanting_table')) { tried('table'); return { name: 'set_up_enchanting' }; }
+      const sh = shortfall(sim, 'enchanting_table', 1);
+      if (!Object.keys(sh).length) { tried('table'); return craftIt('enchanting_table'); }
+      if (sh.leather && tries('leather') < 3) { tried('leather'); return visiblePigs(sim, 24, 'cow').length ? { name: 'hunt', args: { kind: 'cow' } } : { name: 'scout', args: { what: 'cow' } }; }
+      if ((sh.sugar_cane || sh.paper || sh.book) && tries('cane') < 4) { tried('cane'); return canesInSight(sim, 30).length ? { name: 'harvest_cane', args: { n: 3 } } : { name: 'scout', args: { what: 'sugar_cane' } }; }
+      if (sh.diamond && tries('diamond3') < 3) { tried('diamond3'); return { name: 'mine_diamond', args: { n: sh.diamond } }; }
+      if (sh.obsidian && tries('obsidian3') < 4 && (n('bucket') || n('water_bucket'))) { tried('obsidian3'); return PALETTE.make_obsidian.needs(sim, {}) ? { name: 'explore' } : { name: 'make_obsidian', args: { n: sh.obsidian } }; }
+      tried('table');
+    }
+    // then enchant the best pick, with lapis from the deep
+    const pick = ['diamond_pickaxe', 'iron_pickaxe'].find((k) => n(k));
+    if (sim.team.table && pick && !(p.ench || {})[pick]) {
+      if (!PALETTE.enchant.needs(sim, { item: pick }) && tries('enchant@' + Math.floor(sim.tick / 1200)) < 2) { tried('enchant@' + Math.floor(sim.tick / 1200)); return { name: 'enchant', args: { item: pick } }; }
+      if (n('lapis') < 3 && tries('lapis') < 3) { tried('lapis'); return { name: 'mine_ore', args: { ore: 'lapis', n: 6 } }; }
+    }
+    // an anvil, when the enchanted pick is worn and iron is plentiful
+    const worn = (k) => ((p.wear || {})[k] ?? durability(k)) < 0.5 * durability(k);
+    if (pick && (p.ench || {})[pick] && worn(pick)) {
+      if (!stationAt(sim, 'anvil') && tries('anvil') < 3) {
+        const sh = shortfall(sim, 'anvil', 1);
+        if (!Object.keys(sh).length || n('anvil')) { tried('anvil'); return { name: 'set_up', args: { station: 'anvil' } }; }
+        tried('anvil'); return { name: 'mine_iron', args: { iron: 31, coal: 31 } };
+      }
+      if (stationAt(sim, 'anvil') && !PALETTE.repair.needs(sim, { item: pick })) return { name: 'repair', args: { item: pick } };
+    }
+    // a smelter, once iron is plentiful; loaded whenever ore is carried home
+    // (wood runs short this late: the trees round home are long gone, so a
+    // failed chop scouts for more, and each material has its own budget)
+    const wood = (k) => { tried(k); return lm && !lm.ok && lm.name === 'gather_wood' ? { name: 'scout', args: { what: 'tree' } } : { name: 'gather_wood', args: { n: n('log') + 8 } }; };
+    if (!sim.team.smelter && tries('smelter') < 2) {
+      const sh = shortfall(sim, 'hopper', 3);
+      if (!Object.keys(sh).length) { tried('smelter'); return { name: 'build_smelter' }; }
+      if ((sh.iron_ore || sh.iron_ingot) && tries('smelter-iron') < 3) { tried('smelter-iron'); return { name: 'mine_iron', args: { iron: n('iron_ore') + n('iron_ingot') + (sh.iron_ore || 0) + (sh.iron_ingot || 0), coal: 16 } }; }
+      if ((sh.log || sh.planks) && tries('smelter-wood') < 4) return wood('smelter-wood');
+      if (!(sh.iron_ore || sh.iron_ingot || sh.log || sh.planks)) tried('smelter');
+    }
+    if (sim.team.smelter && atHome(sim) && n('iron_ore') + n('gold_ore') >= 3 && tries('smelt@' + Math.floor(sim.tick / 1200)) < 1) { tried('smelt@' + Math.floor(sim.tick / 1200)); return { name: 'use_smelter' }; }
+    if (sim.team.smelter && Object.keys(smelterState(sim).done).length && tries('smeltget@' + Math.floor(sim.tick / 2400)) < 1) { tried('smeltget@' + Math.floor(sim.tick / 2400)); return { name: 'use_smelter' }; }
+    // sugar cane that harvests itself: quartz from the nether, redstone from the deep
+    if (!sim.team.caneFarm && n('quartz') >= 2 && tries('canefarm') < 3) {
+      if (n('redstone') < 8 && tries('redstone') < 3) { tried('redstone'); return { name: 'mine_ore', args: { ore: 'redstone', n: 8 } }; }
+      if (!n('sugar_cane') && canesInSight(sim, 30).length && tries('cane2') < 3) { tried('cane2'); return { name: 'harvest_cane', args: { n: 2 } }; }
+      if (n('sugar_cane') && (n('bucket') || n('water_bucket'))) {
+        const miss = ['observer', 'piston', 'hopper'].flatMap((k) => Object.keys(shortfall(sim, k, 2)));
+        if (!miss.length) { tried('canefarm'); return { name: 'build_cane_farm', args: { units: 2 } }; }
+        if ((miss.includes('iron_ingot') || miss.includes('iron_ore')) && tries('cane-iron') < 3) { tried('cane-iron'); return { name: 'mine_iron', args: { iron: 14, coal: 14 } }; }
+        if ((miss.includes('log') || miss.includes('planks')) && tries('cane-wood') < 4) return wood('cane-wood');
+        if (miss.includes('cobblestone')) return { name: 'mine_stone', args: { n: n('cobblestone') + 20 } };
+        tried('canefarm');
+      }
+    }
+    if (sim.team.caneFarm && caneFarmHolds(sim) >= 6 && tries('canecollect@' + Math.floor(sim.tick / 2400)) < 1) { tried('canecollect@' + Math.floor(sim.tick / 2400)); return { name: 'collect_cane' }; }
   }
   // then growing: reap what is ripe, make a hoe, and for each species not yet
   // grown, plant the seeds carried or take them from a wild plant in sight

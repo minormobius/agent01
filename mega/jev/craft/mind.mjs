@@ -20,6 +20,9 @@
 import { PALETTE, legalMacros, shortfall, visible, visiblePigs, atHome, describeShort, visiblePlants, ripePlots, growingPlots, chestItems, surplus, houseCapacity, portalsHere, inNether, PORTAL_OBSIDIAN, homeMineAt, lostThings, itemsInSight, treeSpots, houseHoles, targetsInSight, creeperNear } from './macros.mjs';
 import { projectState, projectFact, projectDue, projectQuestion, setProject, baselineProject, PROJECT_NAMES, PROJECTS } from './projects.mjs';
 import { speciesHere, needsFarmland } from './plants.mjs';
+import { penned, inPen, penSite, penFences, enchantQuote, tablePower, repairQuote, stationAt, canesInSight, caneSpots, smelterState, caneFarmHolds } from './builds.mjs';
+import { DEEP_ORES } from './macros.mjs';
+import { itemKind, xpToNext } from './world.mjs';
 import { baselinePolicy, Driver, MILESTONES } from './runner.mjs';
 import { DAY, NIGHT_START } from './sim.mjs';
 import { B, H, BUILDING, RECIPES, FOOD, SPECIES, slotsUsed, CHEST_SLOTS, HOSTILE, TOOLS, PICK_SPEED, durability, BREED_FOOD, ANIMALS } from './world.mjs';
@@ -92,6 +95,8 @@ export function perceive(sim) {
       ...(neth ? {} : { depth_below_surface: Math.max(0, sim.surface(p.c) - p.y) }),
       pickaxe: tier(sim), sword: sim.has('iron_sword') ? 'iron' : sim.has('stone_sword') ? 'stone' : sim.has('wooden_sword') ? 'wooden' : 'none',
       home: sim.home ? { exists: true, walk_ticks_about: about(sim.dist(sim.home[0], p.c)), is_house: !!sim._house } : { exists: false },
+      experience: { level: p.level || 0, points_to_next_level: xpToNext(p.level || 0) - (p.xp || 0), spent_on: 'enchanting (1–3 levels) and the anvil' },
+      ...(p.ench && Object.keys(p.ench).length ? { enchanted: Object.fromEntries(Object.entries(p.ench).map(([k, v]) => [k, Object.entries(v).map(([e, n]) => `${e} ${n}`).join(', ')])) } : {}),
     },
     inventory: { ...sim.inv },
     ...(() => { const t = Object.keys(sim.inv).filter((k) => durability(k)); return t.length ? { tools_uses_left: Object.fromEntries(t.map((k) => [k, (p.wear && p.wear[k]) ?? durability(k)])) } : {}; })(),
@@ -99,16 +104,34 @@ export function perceive(sim) {
     in_sight: neth ? { glowstone: near([B.glowstone]), quartz: near([B.quartz_ore]), lava: near([B.lava]), portal } : {
       ...(sim.ow('portals').size ? { portal } : {}),
       trees: near([B.log]), coal: near([B.coal_ore]), iron: near([B.iron_ore]), sand: near([B.sand]),
+      ...(sim.pickTier() >= 2 ? { lapis: near([B.lapis_ore]) } : {}), ...(sim.pickTier() >= 3 ? { gold: near([B.gold_ore]), redstone: near([B.redstone_ore]) } : {}),
+      sugar_cane: (() => { const cs = canesInSight(sim, 30); return cs.length ? { plants: cs.length, tall_enough_to_cut: cs.filter(([, , h]) => h >= 2).length } : { plants: 0 }; })(),
       pigs: pigs.length ? { in_sight: pigs.length, nearest_tiles: Math.round(sim.dist(pigs[0].c, p.c)) } : { in_sight: 0 },
     },
     progress: { reached: reached.length ? reached : ['nothing yet'], next: open },
     project: projectFacts(sim),
     shared: sharedFacts(sim),
+    works: worksFacts(sim),
     survival: (() => { const ts = sim.noSurvival ? [] : threats(sim); return ts.length ? { threats: ts.map((t) => t.text) } : { threats: 'none right now' }; })(),
     explored: `${Math.round(100 * sim.seenCount / sim.N)}% of the ${neth ? 'nether' : 'island'}`,
     recent: (sim._journal || []).slice(-6),
     ...(sim.players.length > 1 ? { team: teamFacts(sim) } : {}),
   };
+}
+
+// What is built at home and working: the pen, the enchanting table, the
+// anvil, the smelter, the cane farm, the railway.
+function worksFacts(sim) {
+  const out = {};
+  if (sim.team.pen) out.pen = { animals: penned(sim).map((e) => e.kind).join(', ') || 'none', tiles: sim.team.pen.interior.length };
+  if (sim.team.table) out.enchanting_table = { power: `${tablePower(sim)} of 15 (bookshelves near it)` };
+  const st = sim.team.stations || {};
+  for (const k of Object.keys(st)) out[k] = 'at home';
+  const sm = smelterState(sim);
+  if (sm) out.smelter = { waiting: describeShort(sm.waiting) || 'nothing', done: describeShort(sm.done) || 'nothing', fuel: describeShort(sm.fuel) || 'none' };
+  if (sim.team.caneFarm) out.cane_farm = { plants: sim.team.caneFarm.units.length, cut_and_waiting: caneFarmHolds(sim) };
+  if ((sim.team.lines || []).length) out.railway = sim.team.lines.map((l) => `${l.length} tiles`).join(', ');
+  return Object.keys(out).length ? out : 'nothing yet';
 }
 
 // ------------------------------------------------------------- survival ---
@@ -405,7 +428,10 @@ export function options(sim) {
     ...(!sim.has('diamond_sword') ? ['diamond_sword'] : []), ...(!sim.has('bucket') && !sim.has('water_bucket') ? ['bucket'] : []), ...(!sim.ow('beacons').size && !sim.has('beacon') ? ['beacon'] : []), ...(!sim.has('diamond_armor') ? ['diamond_armor'] : []), ...(!sim.has('bed') && !p.bedAt ? ['bed'] : []), ...(sim.has('mutton') ? ['cooked_mutton'] : []), ...(sim.has('beef') ? ['cooked_beef'] : []), ...(sim.has('chicken') ? ['cooked_chicken'] : []),
     ...(sim.has('glowstone_dust', 4) && !sim.has('glowstone') ? ['glowstone'] : []), ...(sim.has('quartz', 4) ? ['quartz_block'] : []),
     // axes and shovels one tier above what is held, shears once
-    ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : []), ...(!sim.has('boat') && !p.boat ? ['boat'] : []), ...(!sim.has('bow') ? ['bow'] : []), ...(sim.has('bow') ? ['arrow'] : []), ...(!sim.has('shield') ? ['shield'] : [])];
+    ...['axe', 'shovel'].map((k) => ['stone', 'iron', 'diamond'][Math.max(0, sim.toolTier(k) - 1)] + '_' + k).filter((it) => TOOLS[it]), ...(!sim.has('shears') ? ['shears'] : []), ...(!sim.has('boat') && !p.boat ? ['boat'] : []), ...(!sim.has('bow') ? ['bow'] : []), ...(sim.has('bow') ? ['arrow'] : []), ...(!sim.has('shield') ? ['shield'] : []),
+    // books and the enchanting table
+    ...(sim.has('sugar_cane', 3) ? ['paper'] : []), ...(sim.has('paper', 3) && sim.has('leather') ? ['book'] : []), ...(sim.has('book', 3) ? ['bookshelf'] : []),
+    ...(!sim.team.table && !sim.has('enchanting_table') ? ['enchanting_table'] : []), ...(sim.has('gold_ingot', 8) && sim.has('apple') ? ['golden_apple'] : []), ...(sim.has('gold_ore') ? ['gold_ingot'] : [])];
   // a tool nearly worn out may be made again (a spare), and the option says how worn it is
   const usesLeft = (item) => (p.wear && p.wear[item]) ?? durability(item);
   const worn = (item) => sim.inv[item] === 1 && durability(item) && usesLeft(item) <= 0.2 * durability(item);
@@ -426,9 +452,52 @@ export function options(sim) {
         : item === 'arrow' ? `4 arrows (holding ${sim.inv.arrow || 0})`
         : item === 'shield' ? 'halves the damage of arrows and blasts'
         : item === 'boat' ? 'crosses water at a tick a tile (swimming takes 3); got into at the water\'s edge, picked up on the far shore'
+        : item === 'paper' ? '3 paper and a leather make a book' : item === 'book' ? 'books make an enchanting table (1) and bookshelves (3)' : item === 'bookshelf' ? 'round the enchanting table, shelves make its offers better (15 at most)'
+        : item === 'enchanting_table' ? 'enchanting: spend levels and lapis on a better tool' : item === 'golden_apple' ? 'food that heals 10' : item === 'gold_ingot' ? 'gold: powered rails, golden apples'
         : goal === nextGoal ? `completes the next rung: ${goal}` : goalsOpen.includes(goal) ? `a rung: ${goal}` : item === 'door' && !sim._house ? 'the house needs 2 doors' : item === 'wooden_hoe' ? 'farmland for crops' : 'not on the ladder',
     }, [`craft:${item}`, item]);
   }
+  // ------------------------------------------------ phase 3 and 4 options
+  const home = !inNether(sim);
+  if (home && legal.has('build_pen') && sim._house) { const pl = penSite(sim); if (pl) add('build_pen', 'build_pen', null, { yields: `a fenced pen of ${pl.interior.length} tiles near home, with a gate`, takes: 'about 60–150 ticks', uses: `${penFences(pl)} fences (4 planks + 2 sticks make 3) and a gate`, advances: 'animals kept at home: breeding and meat without scouting for them' }, ['build_pen']); }
+  if (home && sim.team.pen) for (const kind of ANIMALS) {
+    if (PALETTE.pen_animals.needs(sim, { kind })) continue;
+    add(`pen_${kind}`, 'pen_animals', { kind, n: 2 }, { yields: `${kind}s led into the pen (${penned(sim, kind).length} there now)`, takes: 'about 40–150 ticks', uses: `${BREED_FOOD[kind].replace(/_/g, ' ')} held out (not eaten)`, advances: 'a herd at home' }, ['pen_animals']);
+  }
+  for (const [ore, o] of Object.entries(DEEP_ORES)) {
+    if (!home || !legal.has('mine_ore') || sim.pickTier() < o.tier) continue;
+    const have = sim.inv[o.item] || 0, enough = ore === 'lapis' ? 9 : ore === 'redstone' ? 12 : 8;
+    if (have >= enough) continue;
+    const v = visible(sim, [o.block], 20).length;
+    add(`mine_${ore}`, 'mine_ore', { ore, n: 4 }, { yields: o.doc, takes: v ? 'shorter: some is in sight' : 'about 200–500 ticks, down near the bottom', advances: `${o.item.replace(/_/g, ' ')} held ${have}` }, [o.item, `mine_ore:${ore}`, 'xp']);
+  }
+  if (home && legal.has('harvest_cane')) add('harvest_cane', 'harvest_cane', { n: 3 }, { yields: 'sugar cane (3 make 3 paper; 3 paper and a leather make a book)', takes: 'about 20–60 ticks', advances: `sugar cane held ${sim.inv.sugar_cane || 0}` }, ['sugar_cane', 'harvest_cane']);
+  if (home && legal.has('plant_cane') && !sim.team.caneFarm) add('plant_cane', 'plant_cane', { n: 3 }, { yields: 'sugar cane planted by water near home', takes: 'about 20–60 ticks', advances: 'cane near home that grows back' }, ['plant_cane']);
+  if (home && legal.has('set_up_enchanting')) add('set_up_enchanting', 'set_up_enchanting', null, sim.team.table
+    ? { yields: `${sim.inv.bookshelf} bookshelves round the table`, takes: 'about 20–60 ticks', advances: `table power ${tablePower(sim)} of 15: better offers` }
+    : { yields: 'an enchanting table near home (bookshelves round it make the offers better)', takes: 'about 30–80 ticks', advances: 'enchanting: tools that mine faster, last longer, hit harder' }, ['set_up_enchanting']);
+  for (const item of Object.keys(sim.inv)) {
+    if (!home || !itemKind(item) || (p.ench || {})[item]) continue;
+    const q = enchantQuote(sim, item);
+    if (!q || !q.best) continue;
+    const e = Object.entries(q.best.ench).map(([k, v]) => `${k} ${v}`).join(', ');
+    add(`enchant_${item}`, 'enchant', { item }, { yields: `your ${item.replace(/_/g, ' ')} enchanted: ${e}`, costs: `${q.best.cost} levels and ${q.best.cost} lapis (you are level ${p.level || 0}, holding ${sim.inv.lapis || 0} lapis)`,
+      other_offers: q.offers.filter((o) => o !== q.best).map((o) => `level ${o.level}: ${Object.entries(o.ench).map(([k, v]) => `${k} ${v}`).join(', ')}`).join('; '), takes: 'short, at the table' }, ['enchant']);
+  }
+  for (const st of ['anvil', 'blast_furnace', 'smoker']) if (home && !PALETTE.set_up.needs(sim, { station: st })) add(`set_up_${st}`, 'set_up', { station: st }, {
+    yields: `a ${st.replace(/_/g, ' ')} at home`, takes: 'about 20–60 ticks',
+    advances: st === 'anvil' ? 'mending worn tools with their material, for levels (an enchanted tool is worth mending)' : st === 'smoker' ? 'food cooked twice as fast' : 'ores smelted twice as fast' }, [`set_up:${st}`]);
+  for (const item of Object.keys(sim.inv)) {
+    if (!home || PALETTE.repair.needs(sim, { item })) continue;
+    const q = repairQuote(sim, item);
+    add(`repair_${item}`, 'repair', { item }, { yields: `your ${item.replace(/_/g, ' ')} mended by ${q.gain} uses (it has ${q.left})`, costs: `${q.units} ${q.mat.replace(/_/g, ' ')} and ${q.cost} levels${(p.work || {})[item] ? ' (dearer each time)' : ''}`, takes: 'short, at the anvil' }, ['repair']);
+  }
+  if (home && legal.has('build_smelter') && sim._house) add('build_smelter', 'build_smelter', null, { yields: 'an automatic smelter near home: load ore and raw food, and it smelts while you are away', takes: 'about 60–150 ticks, once',
+    uses: '3 hoppers (5 iron + a chest each), 3 chests, a furnace', advances: 'no more standing at the furnace: 10 ticks an item saved' }, ['build_smelter']);
+  if (home && legal.has('use_smelter')) { const st = smelterState(sim); add('use_smelter', 'use_smelter', null, { yields: `collects ${describeShort(st.done) || 'nothing yet'}; loads ${['iron_ore', 'gold_ore', 'porkchop', 'beef', 'mutton', 'chicken'].filter((k) => sim.has(k)).join(', ') || 'spare coal'}`, takes: `about ${about(sim.dist(sim.team.smelter.stand[0], p.c)) + 6} ticks` }, ['use_smelter', 'iron_ingot']); }
+  if (home && legal.has('build_cane_farm')) add('build_cane_farm', 'build_cane_farm', { units: 2 }, { yields: 'sugar cane that harvests itself into a chest (about 4 a day a plant)', takes: 'about 80–200 ticks, once',
+    uses: 'per plant: an observer (needs nether quartz), a piston, a hopper, a chest, some redstone; a bucket of water', advances: 'paper and books with nobody cutting cane' }, ['build_cane_farm']);
+  if (home && legal.has('collect_cane')) add('collect_cane', 'collect_cane', null, { yields: `${caneFarmHolds(sim)} sugar cane from the farm's chests`, takes: 'about 20–40 ticks' }, ['sugar_cane', 'collect_cane']);
   if (legal.has('build_house')) add('build_house', 'build_house', null, {
     yields: 'a sealed, roofed, lit house with a door — home and respawn point', takes: 'about 80–200 ticks',
     advances: 'the house rung', uses: `~60 building blocks (holding ${blocksHeld(sim)})` }, ['build_house']);

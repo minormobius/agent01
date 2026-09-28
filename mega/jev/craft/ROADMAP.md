@@ -47,8 +47,8 @@ flatten them:
 | ~1000 blocks | 48 | partial | most don't matter to decisions; the ones below do |
 | saplings; trees regrow; leaves decay | trees are finite; leaves never decay | **missing** | **wood runs out on a long run** (seen: `gather_wood: no reachable tree`, 120+ times). A renewable base is the precondition for 10-day runs. **S** |
 | gravel/flint, clay, snow, ice, cactus | none | missing | flint & steel (the real portal lighter), bricks. **S** each |
-| gold, copper, lapis, redstone ore, emerald | coal, iron, diamond, quartz | partial | more ore types make mining choose. Redstone and lapis gate automation and enchanting. **S** |
-| stairs, slabs, fences, gates, panes | none | missing | building with cheaper materials; fences pen animals (breeding). **S** |
+| gold, copper, lapis, redstone ore, emerald | coal, iron, diamond, quartz, gold, redstone, lapis (world v4) | **have** (phase 3; no copper, emerald) | — |
+| stairs, slabs, fences, gates, panes | fences and gates (pens) | partial (fences done) | stairs and slabs: building with cheaper materials. **S** |
 | decorative stone variants, deepslate | none | missing | low value here |
 
 ### Tools, items and combat
@@ -56,14 +56,14 @@ flatten them:
 | Minecraft | here | status | what it would test |
 |---|---|---|---|
 | pick / shovel / axe / sword / hoe in wood → netherite | pick, shovel, axe, sword in wood → diamond; wooden hoe only | have (no gold, netherite; one hoe) | — |
-| durability, repair (anvil, crafting two together), mending | durability, spares, a reserve rule; no repair | partial | repair is the durability sink a long run needs. **S** |
-| enchanting (XP, lapis), books | none | missing | a spend-now-or-save decision (XP) that Jev reads. **M** |
+| durability, repair (anvil, crafting two together), mending | durability, spares, a reserve rule; anvil repair with the tool's material, dearer each time | **have** (phase 3; no two-tool combining, no mending) | — |
+| enchanting (XP, lapis), books | the table, bookshelves (power), three offers per item, efficiency / unbreaking / fortune / sharpness / power / protection | **have** (phase 3; no enchanted books) | Jev's choices with XP on the menu: not measured yet |
 | bow, arrows, crossbow, trident; shield | bow, arrows, shield (no crossbow, trident) | **have** (phase 2) | — |
 | armor slots (helmet … boots) | one "armor" item, 40 / 60% | partial | fine as is |
 | flint & steel, fishing rod, compass, clock, map | torch lights portals; none of the others | missing | a map is what a human uses to navigate; our planners use the seen set. **S** each |
-| boats, minecarts, horses, elytra | boats (swimming costs 3, a boat 1), ladders, drops, portals | partial (boats done) | minecarts are the long-run transport the mining experiments keep circling. **M–L** |
+| boats, minecarts, horses, elytra | boats, minecarts on rails (2 tiles a tick), ladders, drops, portals | partial (no horses, elytra) | — |
 | death drops items where you fell, recoverable for 5 min | the same: items on the ground, `recover`, `collect` | **have** (phase 1) | — |
-| XP, levels | none | missing | feeds enchanting and repair. **S** |
+| XP, levels | Minecraft's curve; from ores, kills, breeding, smelting; some dropped on death | **have** (phase 3) | — |
 
 ### Mobs
 
@@ -75,7 +75,7 @@ flatten them:
 | spider (climbs walls) | climbs 3, neutral by day | **have** (phase 2) | — |
 | enderman, drowned, witch, slime, phantom | none | missing | enderman gates the End (pearls); phantom punishes not sleeping. **S–M** each |
 | cows, chickens (leather, beef, eggs, feathers → arrows) | pigs, sheep, cows, chickens (no eggs) | **have** (phase 1) | — |
-| **breeding** (wheat, carrots…), baby animals | feed two, a young one grows up; no fences | **have** (phase 1, no pens) | fences and pens on a graph. **S** |
+| **breeding** (wheat, carrots…), baby animals | feed two, a young one grows up; pens with gates; animals follow their food | **have** | — |
 | wolves (tame), cats, horses | none | missing | allies change survival maths. **M** |
 | villagers, trading, iron golems, raids | none | missing | an economy: a second currency (emeralds) and a planning horizon. **L** |
 | blaze | blaze: nether spawns, hits harder | have (no ranged fireballs, no blaze rods) | blaze rods → brewing, eyes of ender. **S** |
@@ -97,7 +97,7 @@ flatten them:
 |---|---|---|---|
 | shaped recipes in a 3×3 grid | bags (a grid means nothing on a Penrose floor) | deliberate | keep |
 | furnace fuel: coal smelts 8, a log 1.5, lava bucket 100 | coal and charcoal 8, planks 1, lava bucket 100, fuel credit | **have** (phase 1) | — |
-| smoker, blast furnace, stonecutter, loom, anvil, grindstone, smithing, brewing stand, enchanting table | crafting table, furnace | missing | each is a station that turns a resource into a choice. **S–M** each |
+| smoker, blast furnace, stonecutter, loom, anvil, grindstone, smithing, brewing stand, enchanting table | crafting table, furnace, smoker, blast furnace, anvil, enchanting table | partial (phase 3) | the loom, the grindstone, brewing. **S–M** each |
 
 ### Farming
 
@@ -105,19 +105,19 @@ flatten them:
 |---|---|---|---|
 | wheat, carrots, potatoes, beetroot, pumpkin, melon, sugar cane, cocoa, nether wart | 5 species, 3 of them bound to tile shapes; water bonus; light rules | have (different, and richer on the graph) | — |
 | bone meal, composter | none | missing | a speed-up worth spending on. **S** |
-| sugar cane → paper → books | none | missing | enchanting's feedstock. **S** |
+| sugar cane → paper → books | the same; cane grows 3 tall by water | **have** (phase 3) | — |
 | skipped nights don't grow crops | same | have | the moonpetal trade-off: sleep, or stay up for it |
 
 ### Automation (redstone)
 
 | Minecraft | here | status | what it would test |
 |---|---|---|---|
-| redstone dust (15 blocks, signal decays), torches, repeaters, comparators | none | **missing** | **a natural fit for a graph**: signal strength decays by hop along tile adjacency, and a circuit's shape depends on the tiling. **L** |
-| levers, buttons, pressure plates, observers | none | missing | — |
-| pistons, sticky pistons | none | missing | moving blocks is a new kind of action. **M** |
-| hoppers, droppers, dispensers | none | missing | **item pipes: chests that fill themselves.** Automation is a macro made physical, and it outlasts the player. **M** |
-| rails, powered rails, minecarts | none | missing | transport that beats walking on long runs. **M** |
-| auto-farms (water, observers, pistons) | none | missing | the ultimate S2 test: design a machine, not a macro. **L** |
+| redstone dust (15 blocks, signal decays), torches, repeaters, comparators | dust decaying by hop on the tile graph, redstone torches (always on), repeaters, lamps; no comparators, no torch inversion | **have** (phase 4) | inverters and clocks on a tiling. **M** |
+| levers, buttons, pressure plates, observers | all four | **have** (phase 4) | — |
+| pistons, sticky pistons | pistons (push 12, straight on along the tiling; plants break and drop past) | partial (no sticky) | — |
+| hoppers, droppers, dispensers | hoppers between chests and furnaces (input from above, fuel from the side), locked by power | partial (no droppers, dispensers) | — |
+| rails, powered rails, minecarts | all three; powered rails placed by the cart's momentum arithmetic | **have** (phase 4) | — |
+| auto-farms (water, observers, pistons) | a sugar-cane farm (observer, piston, wire, hopper, chest per plant), laid out by a site search on every tiling; an automatic smelter | partial (written by System 2 by hand, not designed by a planner) | the planner loop: design one from a blank sheet. **L** |
 
 ### Dimensions
 
@@ -172,7 +172,7 @@ a movement-cost decision (flat steps 1, climbing 2, falls free?) re-measured
 against the life sweep; one planner-loop round on one goal (iron armor from
 scratch).
 
-**Phase 1: a world that renews. DONE (2026-09-28, no fences).** Saplings and regrowing trees, leaf decay,
+**Phase 1: a world that renews. DONE (2026-09-28; fences and pens after).** Saplings and regrowing trees, leaf decay,
 cows and chickens, **breeding** and fences, fuel values (coal smelts 8), items
 dropped on death and recoverable, saturation. *Unlocks: 10-day runs that don't
 starve. Measure: a 10-day life sweep.*
@@ -182,11 +182,11 @@ starve. Measure: a 10-day life sweep.*
 shield. *Unlocks: survival that separates policies, the gap open since round two.
 Measure: deaths and damage across deciders at the same difficulty.*
 
-**Phase 3: resources and tiers.** Gold, redstone ore, lapis; XP and levels;
+**Phase 3: resources and tiers. DONE (2026-09-28).** Gold, redstone ore, lapis; XP and levels;
 anvil repair; enchanting; smoker and blast furnace. *Unlocks: durability sinks
 and a spend-or-save currency. Measure: Jev's choices with XP on the menu.*
 
-**Phase 4: automation on a graph.** Redstone dust with hop-decay along tile
+**Phase 4: automation on a graph. DONE (2026-09-28): the parts, and two machines written by hand.** Redstone dust with hop-decay along tile
 adjacency; levers, buttons, plates; hoppers between chests; pistons; rails and
 minecarts. *Unlocks: machines that outlast the player, the physical form of a
 macro. Measure: can System 2 design an auto-farm on Penrose?*

@@ -14,6 +14,8 @@
 
 import { durability, B, BLOCKS, H, RECIPES, PICK_TIER, BUILDING, recipeBags, FUEL, fuelKey, SPECIES, SPECIES_NAMES, EAT_ORDER, roomFor, slotsUsed, CHEST_SLOTS, HOSTILE, blockName, BREED_FOOD } from './world.mjs';
 import { habitat, needsFarmland, wet } from './plants.mjs';
+import { buildPen, penAnimals, penSite, penFences, penned, inPen, setUpStation, stationAt, repairTool, repairQuote, setUpEnchanting, enchantItem, enchantQuote, tablePower,
+  harvestCane, plantCane, canesInSight, caneSpots, buildSmelter, useSmelter, smelterState, buildCaneFarm, collectCane, caneFarmHolds, buildRail, rideRail } from './builds.mjs';
 
 const MAX_STEPS = 400;
 
@@ -359,7 +361,7 @@ function carveSpot(sim) {
 export function* staircase(sim, { floor = 8, until = () => false } = {}) {
   if (sim.pickTier() < 1) return { ok: false, why: 'needs a pickaxe' };
   const p = sim.player;
-  let prev = -1;
+  let prev = -1, blockedTurns = 0;
   for (let k = 0; k < 60 && !until(); k++) {
     if (deepAndLow(sim)) return { ok: false, why: 'the last pick is nearly worn out: time to head up' };
     yield* grabOre(sim);
@@ -405,6 +407,8 @@ export function* staircase(sim, { floor = 8, until = () => false } = {}) {
     const from = p.c;
     let m = yield { op: 'move', to: best };
     for (let w = 0; !m.ok && m.why === 'occupied' && w < 4; w++) { yield { op: 'wait', ticks: 3 }; m = yield { op: 'move', to: best }; }
+    // something standing on the next stair: go another way (a few times), not give up
+    if (!m.ok && m.why === 'occupied' && (blockedTurns = (blockedTurns || 0) + 1) <= 3) { prev = best; continue; }
     if (!m.ok) return { ok: false, why: m.why };
     prev = from;
   }
@@ -416,7 +420,7 @@ export function* grabOre(sim) {
   if (deepAndLow(sim)) return 0;
   const ids = [B.coal_ore, B.stone];
   if (sim.pickTier() >= 2) ids.push(B.iron_ore);
-  const ores = sim.reachSet().filter(([c, y]) => [B.coal_ore, B.iron_ore, ...(sim.pickTier() >= 3 ? [B.diamond_ore] : [])].includes(sim.get(c, y)));
+  const ores = sim.reachSet().filter(([c, y]) => [B.coal_ore, B.iron_ore, ...(sim.pickTier() >= 2 ? [B.lapis_ore] : []), ...(sim.pickTier() >= 3 ? [B.diamond_ore, B.gold_ore, B.redstone_ore] : [])].includes(sim.get(c, y)));
   let got = 0;
   for (const [c, y] of ores) {
     const r = yield { op: 'mine', c, y };
@@ -465,6 +469,31 @@ export function* mineDiamond(sim, n = 3) {
     if (!r.ok && !b.ok && sim.tick === t0) return { ok: false, why: `no way down to the diamond layers (${r.why})` };
   }
   return (sim.inv.diamond || 0) >= want ? { ok: true } : (sim.inv.diamond || 0) > want - n ? { ok: true, partial: true } : { ok: false, why: 'no diamonds found' };
+}
+
+// Gold, redstone and lapis: the deep ores. The same shape as diamonds — what
+// is in sight first, else a staircase down to their band and a tunnel along it.
+export const DEEP_ORES = {
+  gold:     { block: B.gold_ore, item: 'gold_ore', tier: 3, floor: 5, doc: 'gold ore (layers 1–10, iron pick): ingots for powered rails and golden apples' },
+  redstone: { block: B.redstone_ore, item: 'redstone', tier: 3, floor: 3, doc: 'redstone (layers 1–6, iron pick, 4 a block): power, and the parts that use it' },
+  lapis:    { block: B.lapis_ore, item: 'lapis', tier: 2, floor: 5, doc: 'lapis (layers 1–10, stone pick, 5 a block): what enchanting costs' },
+};
+export function* mineDeep(sim, ore = 'gold', n = 4) {
+  const o = DEEP_ORES[ore];
+  if (!o) return { ok: false, why: `no ore called ${ore}` };
+  if (sim.pickTier() < o.tier) return { ok: false, why: `${ore} needs ${o.tier === 3 ? 'an iron' : 'a stone'} pickaxe` };
+  const want = (sim.inv[o.item] || 0) + n;
+  for (let leg = 0; leg < 10 && (sim.inv[o.item] || 0) < want; leg++) {
+    if (deepAndLow(sim)) break;
+    const seen = visible(sim, [o.block], 16);
+    if (seen.length) { yield* fetchBlock(sim, ...seen[0]); continue; }
+    const r = yield* staircase(sim, { floor: o.floor, until: () => (sim.inv[o.item] || 0) >= want || visible(sim, [o.block], 5).length > 0 });
+    if ((sim.inv[o.item] || 0) >= want) break;
+    const t0 = sim.tick, b = yield* branchMine(sim, 16);
+    if (!r.ok && !b.ok && sim.tick === t0) return { ok: false, why: `no way down to the ${ore} layers (${r.why})` };
+  }
+  const got = (sim.inv[o.item] || 0) - (want - n);
+  return got >= n ? { ok: true } : got > 0 ? { ok: true, partial: true } : { ok: false, why: `no ${ore} found` };
 }
 
 // Obsidian: carry water to lava. Fill a bucket at the sea, pour it on (or
@@ -542,6 +571,16 @@ export function* digIn(sim) {
     const r = yield { op: 'place', c: p.c, y: p.y + 2, item };
     if (!r.ok) return { ok: false, why: r.why };
   }
+  // and wall off whatever still opens onto it (at the bottom of a tunnel, where
+  // there is no digging down, that is the whole of the shelter: an archer
+  // down the tunnel otherwise shoots a sleeper)
+  for (const n of sim.cols[p.c].adj) for (const y of [p.y, p.y + 1]) {
+    if (!sim.passable(n, y)) continue;
+    const b = ['dirt', 'cobblestone', 'planks', 'sand', 'log', 'netherrack'].find((k) => sim.has(k));
+    if (!b) return { ok: false, why: 'ran out of blocks to wall in with' };
+    const r = yield { op: 'place', c: n, y, item: b };
+    if (!r.ok && r.why !== 'an entity is there') continue;
+  }
   return { ok: true };
 }
 
@@ -581,7 +620,8 @@ export function* surface(sim) {
 // shooting from a few tiles off is charged: closing in stops the arrows)
 export function* fight(sim, kind = null) {
   for (let k = 0; k < 20; k++) {
-    const t = [...sim.ents.values()].find((e) => (kind ? e.kind === kind : HOSTILE.has(e.kind) && e.kind !== 'creeper') && sim.adjacentTo(sim.player, e));
+    // (a creeper too, now that a blow knocks it back out of its fuse's reach)
+    const t = [...sim.ents.values()].find((e) => (kind ? e.kind === kind : HOSTILE.has(e.kind)) && sim.adjacentTo(sim.player, e));
     if (!t) {
       const sk = !kind && [...sim.ents.values()].find((e) => e.kind === 'skeleton' && sim.dist(e.c, sim.player.c) <= 7 && sim.los(sim.player, e));
       if (!sk) return { ok: true };
@@ -1170,6 +1210,7 @@ const SCOUT = {
   coal: (sim) => visible(sim, [B.coal_ore], 20).length > 0,
   iron: (sim) => visible(sim, [B.iron_ore], 20).length > 0,
   sand: (sim) => visible(sim, [B.sand], 20).length > 0,
+  sugar_cane: (sim) => canesInSight(sim, 20).length > 0,
 };
 export function* scout(sim, what = 'tree') {
   const found = SCOUT[what];
@@ -1866,7 +1907,7 @@ export const PALETTE = {
   }, run: (s, a) => farm(s, a || {}) },
   harvest:      { mode: 'homestead', doc: 'reap your ripe plants and replant them', needs: (s) => ripePlots(s).length ? null : growingPlots(s).length ? 'nothing ripe yet' : 'no plots planted', run: (s) => harvest(s) },
   set_home:     { mode: 'homestead', doc: 'call this spot home', needs: () => null, run: (s) => setHome(s) },
-  dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter, dug straight down', needs: (s) => atHome(s) ? 'already sheltered in the house' : s.clearCost(s.player.c, s.player.y - 1, s.pickTier()) === Infinity ? 'cannot dig here (water, lava or bedrock below)' : BUILDING.some((k) => s.has(k)) ? null : 'nothing to cap the hole with', run: (s) => digIn(s) },
+  dig_in:       { mode: 'homestead', doc: 'a one-block emergency shelter: dug straight down, capped, walled in', needs: (s) => atHome(s) ? 'already sheltered in the house' : s.clearCost(s.player.c, s.player.y - 1, s.pickTier()) === Infinity && s.get(s.player.c, s.player.y - 1) !== B.bedrock ? 'cannot dig here (water or lava below)' : BUILDING.reduce((n, k) => n + (s.inv[k] || 0), 0) >= 4 ? null : 'too few blocks to cap and wall it', run: (s) => digIn(s) },
   sleep_until_dawn: { mode: 'homestead', doc: 'wait out the night where you are', needs: (s) => s.isNight() ? null : 'it is day', run: (s) => sleepUntilDawn(s) },
   eat:          { mode: 'homestead', doc: 'eat the best food carried', needs: (s) => !food(s) ? 'no food' : s.player.food >= 20 ? 'not hungry' : null, run: (s) => eat(s) },
   // the diamond age
@@ -1891,12 +1932,30 @@ export const PALETTE = {
   flee:         { mode: 'explore', doc: 'get away from a creeper (it blows up beside you) or whatever is closest', needs: (s) => creeperNear(s) || [...s.ents.values()].some((e) => HOSTILE.has(e.kind) && s.dist(e.c, s.player.c) <= 3) ? null : 'nothing to run from', run: (s) => flee(s) },
   shoot:        { mode: 'homestead', doc: 'shoot the nearest hostile in sight with the bow (6 damage, up to 8 tiles)', needs: (s) => !s.has('bow') ? 'no bow (3 sticks, 3 string)' : !s.has('arrow') ? 'no arrows' : targetsInSight(s).length ? null : 'nothing in sight and range', run: (s) => shootAt(s) },
   repair_house: { mode: 'homestead', doc: 'put back the walls, roof and door a blast took out', needs: (s) => !s._house ? 'no house' : !houseHoles(s).length ? 'the house is whole' : null, run: (s) => repairHouse(s) },
-  fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent (and charge a skeleton shooting at you)', needs: (s) => [...s.ents.values()].some((e) => HOSTILE.has(e.kind) && e.kind !== 'creeper' && s.adjacentTo(s.player, e)) || [...s.ents.values()].some((e) => e.kind === 'skeleton' && s.dist(e.c, s.player.c) <= 7 && s.los(s.player, e)) ? null : 'nothing to fight', run: (s) => fight(s) },
+  // pens
+  build_pen:    { mode: 'homestead', doc: 'fence a patch of ground near home, with a gate: somewhere to keep animals', needs: (s) => s.team.pen ? 'the team already has a pen' : !s.home ? 'no home yet' : null, run: (s) => buildPen(s) },
+  pen_animals:  { mode: 'homestead', doc: 'lead animals into the pen, holding out their food, and shut the gate', needs: (s, a) => { const k = a?.kind || 'cow', f = BREED_FOOD[k]; return !s.team.pen ? 'no pen yet' : !s.has(f) ? `needs ${f.replace(/_/g, ' ')} to lead ${k}s` : !visiblePigs(s, 30, k).some((e) => !inPen(s, e) && !e.young) ? `no ${k} in sight outside the pen` : null; }, run: (s, a) => penAnimals(s, a || {}) },
+  // phase 3: the deep ores, sugar cane and books, the enchanting table, the anvil, faster furnaces
+  mine_ore:     { mode: 'mine', doc: 'down to the deep ores: gold, redstone or lapis', needs: (s, a) => { const o = DEEP_ORES[a?.ore || 'gold']; return !o ? 'no such ore' : hasPick(s, o.tier); }, run: (s, a) => mineDeep(s, a?.ore || 'gold', a?.n || 4) },
+  harvest_cane: { mode: 'explore', doc: 'cut sugar cane in sight above its bottom piece (it grows back): paper, then books', needs: (s) => canesInSight(s).some(([, , h]) => h >= 2) || (!s.has('sugar_cane') && canesInSight(s).length) ? null : 'no sugar cane worth cutting in sight', run: (s, a) => harvestCane(s, a?.n || 3) },
+  plant_cane:   { mode: 'homestead', doc: 'plant sugar cane by water near home (it grows 3 tall in about 2400 ticks)', needs: (s) => !s.has('sugar_cane') ? 'no sugar cane' : !caneSpots(s).length ? 'no ground beside water near home' : null, run: (s, a) => plantCane(s, a?.n || 3) },
+  set_up_enchanting: { mode: 'homestead', doc: 'an enchanting table near home, with bookshelves round it (more shelves, better offers)', needs: (s) => s.team.table ? (s.has('bookshelf') ? null : 'the table is set up (no bookshelves to add)') : Object.keys(shortfall(s, 'enchanting_table', 1)).length && !s.has('enchanting_table') ? `short of ${describeShort(shortfall(s, 'enchanting_table', 1))}` : null, run: (s) => setUpEnchanting(s) },
+  enchant:      { mode: 'homestead', doc: 'enchant a tool at the table: costs levels and lapis', needs: (s, a) => { if (!s.team.table) return 'no enchanting table'; const q = enchantQuote(s, a?.item); return !q ? `cannot enchant ${a?.item || 'that'}` : !q.best ? `offers need level ${q.offers.map((o) => o.level).join('/')} (at ${s.player.level || 0}), lapis ${s.inv.lapis || 0}` : null; }, run: (s, a) => enchantItem(s, a.item) },
+  set_up:       { mode: 'homestead', doc: 'a station kept at home: an anvil (repairs), a smoker (food, twice as fast), a blast furnace (ores, twice as fast)', needs: (s, a) => { const n = a?.station; if (!['anvil', 'smoker', 'blast_furnace'].includes(n)) return 'no such station'; if (stationAt(s, n)) return `already have a ${n.replace(/_/g, ' ')}`; const sh = shortfall(s, n, 1); return Object.keys(sh).length && !s.has(n) ? `short of ${describeShort(sh)}` : null; }, run: (s, a) => setUpStation(s, a.station) },
+  repair:       { mode: 'homestead', doc: 'mend a worn tool at the anvil with its material: costs levels', needs: (s, a) => { if (!stationAt(s, 'anvil')) return 'no anvil'; const q = repairQuote(s, a?.item); return !q ? 'nothing to repair' : !q.units ? `needs ${q.mat.replace(/_/g, ' ')}` : q.tooExpensive ? 'too expensive: repaired too often' : (s.player.level || 0) < q.cost ? `needs ${q.cost} levels (at ${s.player.level || 0})` : null; }, run: (s, a) => repairTool(s, a.item) },
+  // phase 4: machines that work while you are away
+  build_smelter:{ mode: 'homestead', doc: 'an automatic smelter near home: chests and hoppers round a furnace; load ore, come back to ingots', needs: (s) => s.team.smelter ? 'the team already has one' : !s.home ? 'no home yet' : null, run: (s) => buildSmelter(s) },
+  use_smelter:  { mode: 'homestead', doc: 'collect what the smelter made; load ore, raw food and spare coal', needs: (s) => { const st = smelterState(s); if (!st) return 'no smelter'; const load = ['iron_ore', 'gold_ore', 'porkchop', 'beef', 'mutton', 'chicken'].some((k) => s.has(k)) || (s.inv.coal || 0) > 4; return load || Object.keys(st.done).length ? null : 'nothing to load or collect'; }, run: (s) => useSmelter(s) },
+  build_cane_farm: { mode: 'homestead', doc: 'sugar cane that harvests itself: an observer sees it grow, a piston cuts it, a hopper carries it to a chest', needs: (s) => s.team.caneFarm ? 'the team already has one' : !s.has('sugar_cane') ? 'no sugar cane to plant' : !s.has('bucket') && !s.has('water_bucket') ? 'needs a bucket' : null, run: (s, a) => buildCaneFarm(s, a || {}) },
+  collect_cane: { mode: 'homestead', doc: 'take the cut cane from the farm\'s chests', needs: (s) => !s.team.caneFarm ? 'no cane farm' : caneFarmHolds(s) ? null : 'the farm\'s chests are empty', run: (s) => collectCane(s) },
+  build_rail:   { mode: 'homestead', doc: 'a railway from home to a place: rails, powered rails every 24 tiles, a torch by each', needs: (s, a) => !a?.to ? 'no destination' : null, run: (s, a) => buildRail(s, a || {}) },
+  ride_rail:    { mode: 'explore', doc: 'ride the railway in a minecart, twice walking pace', needs: (s) => !(s.team.lines || []).length ? 'no railway' : !s.has('minecart') && !s.player.cart ? 'no minecart (5 iron ingots)' : null, run: (s, a) => rideRail(s, a || {}) },
+  fight:        { mode: 'homestead', doc: 'hit whatever hostile is adjacent (and charge a skeleton shooting at you)', needs: (s) => [...s.ents.values()].some((e) => HOSTILE.has(e.kind) && s.adjacentTo(s.player, e)) || [...s.ents.values()].some((e) => e.kind === 'skeleton' && s.dist(e.c, s.player.c) <= 7 && s.los(s.player, e)) ? null : 'nothing to fight', run: (s) => fight(s) },
 };
 export const MODES = ['mine', 'explore', 'homestead', 'team'];
 // Which world each macro works in. The overworld's are about its sky, soil,
 // sea, ore bands, the house and the chest; the nether has none of those.
-const OVERWORLD_ONLY = new Set(['mine_home', 'mine_grid', 'shear', 'build_access', 'plant_trees', 'breed', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
+const OVERWORLD_ONLY = new Set(['build_pen', 'pen_animals', 'harvest_cane', 'plant_cane', 'set_up_enchanting', 'enchant', 'set_up', 'repair', 'build_smelter', 'use_smelter', 'build_cane_farm', 'collect_cane', 'build_rail', 'ride_rail', 'mine_ore', 'mine_home', 'mine_grid', 'shear', 'build_access', 'plant_trees', 'breed', 'mine_stone', 'mine_coal', 'mine_iron', 'surface', 'scout', 'gather_wood', 'hunt', 'forage', 'build_house', 'light_area',
   'farm', 'harvest', 'set_home', 'sleep_until_dawn', 'mine_diamond', 'make_obsidian', 'dig_sand', 'place_beacon', 'build_portal', 'set_up_chest', 'store', 'take', 'sleep_in_bed']);
 const NETHER_ONLY = new Set(['mine_glowstone', 'mine_quartz']);
 for (const [name, m] of Object.entries(PALETTE)) {

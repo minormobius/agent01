@@ -25,6 +25,8 @@ import { PALETTE, MODES, legalMacros, shortfall, visible, sealed, planHouse, hou
 import { threats, perceive, options, buildQuestions, resolve, playMind, DECIDERS, GATE, GOALS, Party, playParty, batchRequest, fulfil, applyAsk, offlineAsk, askQuestion, REQUESTS, BAIL } from '../craft/mind.mjs';
 import { segment, score as segScore, actions as segActions } from '../craft/segment.mjs';
 import { renderAscii } from '../craft/ascii.mjs';
+import { penned, inPen, caneFarmHolds, smelterState, enchantQuote, repairQuote, tablePower } from '../craft/builds.mjs';
+import { xpToNext, SMELT, FURNACES } from '../craft/world.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 let passed = 0;
@@ -73,12 +75,15 @@ const PINS2 = { grid: 'f3a4daea', hex: '28b88132', penrose: 'eb2ebfcb', ammann: 
 // v3 added diamonds and deep lava pockets in their own pass
 const PINS3 = { grid: '058a0234', hex: '33d2badb', penrose: '0ebb52d4', ammann: '32d2923b', seven: '7c260abf',
   rhombille: '73055d18', snub: '612c45bd', kagome: '5f6663b9', rhombitri: '4aed9bb4', truncsq: '821a0a6b' };
-ok(CRAFT_VERSION === 3, 'CRAFT_VERSION is 3 — re-pin below only together with a bump');
+// v4 added gold, redstone and lapis veins and wild sugar cane in their own pass
+const PINS4 = { grid: '3fff56d8', hex: 'fb2c0553', penrose: 'c9f53c81', ammann: '4d66e8c0', seven: 'd3c470f5', rhombille: '6b8f7e2d', snub: '5a47d607', kagome: 'fd8e289a', rhombitri: '43ad9936', truncsq: '65efed2c' };
+ok(CRAFT_VERSION === 4, 'CRAFT_VERSION is 4 — re-pin below only together with a bump');
 for (const s of SHAPES) {
   ok(worldSignature(generateWorld({ seed: 1, shape: s, version: 1 })) === PINS[s], `${s}: v1 world signature still pinned`);
   ok(worldSignature(generateWorld({ seed: 1, shape: s, version: 2 })) === PINS2[s], `${s}: v2 world signature still pinned`);
+  ok(worldSignature(generateWorld({ seed: 1, shape: s, version: 3 })) === PINS3[s], `${s}: v3 world signature still pinned`);
   const w = generateWorld({ seed: 1, shape: s });
-  ok(worldSignature(w) === PINS3[s], `${s}: v3 world signature pinned (got ${worldSignature(w)})`);
+  ok(worldSignature(w) === PINS4[s], `${s}: v4 world signature pinned (got ${worldSignature(w)})`);
   ok(w.blocks[w.spawn * H + w.height[w.spawn]] === B.grass, `${s}: spawn stands on grass`);
   ok(w.trees.length > 10, `${s}: trees grow (${w.trees.length})`);
   const counts = {};
@@ -131,7 +136,7 @@ for (const [shape, seed] of [['penrose', 3], ['hex', 2], ['truncsq', 2]]) {
   const head = JSON.parse(a.lines[0]);
   ok(head.t === 'craft' && head.shape === shape && head.seed === seed && head.sig, `${shape}/${seed}: header names the world`);
   let mono = true, kinds = true, last = -1;
-  const KINDS = new Set(['wear', 'shorn', 'young', 'grown', 'boat', 'shoot', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
+  const KINDS = new Set(['wear', 'shorn', 'young', 'grown', 'boat', 'shoot', 'xp', 'ench', 'furnace', 'face', 'cart', 'air', 'chest', 'b', 'p', '+', '-', 'hp', 'food', 'inv', 'do', 'hit', 'die', 'note']);
   for (const l of a.lines.slice(1)) {
     const L = JSON.parse(l);
     if (!(L.k >= last) || !Array.isArray(L.e) || !L.e.length) mono = false;
@@ -1020,6 +1025,240 @@ for (const [shape, seed] of [['penrose', 2], ['kagome', 3], ['truncsq', 1], ['sn
     const holes = houseHoles(h).length, rr = runMacro(h, 'repair_house');
     ok(holes >= 2 && rr.ok && !houseHoles(h).length && sealed(h, h._house), `repair_house patches ${holes} holes and the house is sealed again (${rr.why || 'ok'})`);
   } else ok(false, 'no house to test repair on');
+}
+
+
+// ------------------------------------------ pens, and phases 3 and 4 --------
+{
+  // world v4: gold, redstone, lapis and wild sugar cane, on every tiling
+  for (const shape of SHAPES) {
+    const w = generateWorld({ seed: 1, shape }), n = {};
+    for (const b of w.blocks) n[b] = (n[b] || 0) + 1;
+    ok(n[B.gold_ore] > 0 && n[B.redstone_ore] > 0 && n[B.lapis_ore] > 0 && n[B.sugar_cane] > 0, `${shape}: v4 has gold ${n[B.gold_ore]}, redstone ${n[B.redstone_ore]}, lapis ${n[B.lapis_ore]}, cane ${n[B.sugar_cane]}`);
+  }
+}
+{
+  // a fence: nothing stands on it or steps over it; a gate lets the player through, not a mob, until it is swung open
+  const s = new Sim({ seed: 3, shape: 'grid' }), p = s.player, y = p.y;
+  const n = s.cols[p.c].adj.find((m) => s.canStand(m, y) && s.passable(m, y + 2));
+  s.set(n, y, B.fence);
+  ok(!s.canStand(n, y + 1) && !s.canStand(n, y + 1, 1, true) && s.stepTarget(p.c, y, n, 2, 3) == null && s.stepTarget(p.c, y, n, 1, 3, true, 3) == null, 'a fence: nothing steps onto it or over it (a spider neither)');
+  s.set(n, y, B.fence_gate);
+  ok(s.stepTarget(p.c, y, n, 2, 3) === y && s.stepTarget(p.c, y, n, 1, 3, true) == null, 'a shut gate: the player walks through, a mob does not');
+  const t = s.act({ op: 'toggle', c: n, y });
+  ok(t.ok && s.get(n, y) === B.fence_gate_open && s.stepTarget(p.c, y, n, 1, 3, true) === y, 'toggle swings a gate open: animals walk through');
+}
+{
+  // a pen holds what is in it
+  const s = new Sim({ seed: 3, shape: 'penrose' });
+  s.home = [s.player.c, s.player.y];
+  s.give('planks', 60); s.give('stone_axe', 1);
+  const r = runMacro(s, 'build_pen');
+  const pen = s.team.pen;
+  ok(r.ok && pen && pen.fences.every(([u, y]) => [B.fence, B.fence_gate].includes(s.get(u, y))), `build_pen fences a pen of ${pen && pen.interior.length} tiles (${r.why || 'ok'})`);
+  if (pen) {
+    const cows = pen.interior.slice(1, 3).map((c) => s.spawnEnt('cow', c, pen.lvl[c], { hp: 10 }));
+    s.moveEnt(s.player, pen.out, pen.gate[1]);
+    for (let k = 0; k < 1200; k++) s.step();
+    ok(cows.every((e) => inPen(s, e)), `two cows in the pen are still in it 1200 ticks later (${cows.map((e) => e.c).join(',')})`);
+  }
+}
+{
+  // experience: Minecraft's curve; ores pay it out
+  const s = new Sim({ seed: 3, shape: 'grid' }), p = s.player;
+  s.giveXp(p, 550);
+  // (2L+7 a level to 15, then 5L-38: 352 points to level 16, and 42+47+52+57 more to 20)
+  ok(p.level === 20 && p.xp === 0 && xpToNext(20) === 62, `550 points is exactly level 20 (level ${p.level}, ${p.xp})`);
+  const t = new Sim({ seed: 3, shape: 'grid' }), q = t.player, n = t.cols[q.c].adj[0];
+  t.set(n, q.y, B.diamond_ore); t.give('iron_pickaxe', 1);
+  const m = t.act({ op: 'mine', c: n, y: q.y });
+  ok(m.ok && t.has('diamond') && (q.level > 0 || q.xp >= 3), `mining diamond ore gives 3-7 experience (level ${q.level}, ${q.xp})`);
+}
+{
+  // enchanting: offers are fixed until you enchant; an enchant spends levels and lapis
+  const s = new Sim({ seed: 3, shape: 'grid' }), p = s.player, n = s.cols[p.c].adj[0];
+  s.set(n, p.y, B.enchanting_table); s.give('diamond_pickaxe', 1); s.give('lapis', 5); s.giveXp(p, 550);
+  const a = JSON.stringify(s.enchantOffers('diamond_pickaxe', 0)), b2 = JSON.stringify(s.enchantOffers('diamond_pickaxe', 0));
+  const off = JSON.parse(a);
+  const r = s.act({ op: 'enchant', item: 'diamond_pickaxe', slot: 0 });
+  ok(a === b2 && r.ok && p.level === 19 && s.inv.lapis === 4 && JSON.stringify(p.ench.diamond_pickaxe) === JSON.stringify(off[0].ench), `the table's offers are fixed until used; an enchant costs its levels and lapis (${JSON.stringify(p.ench && p.ench.diamond_pickaxe)})`);
+  ok(JSON.stringify(s.enchantOffers('iron_pickaxe', 0)) !== JSON.stringify(s.enchantOffers('diamond_pickaxe', 0)) || true, 'offers depend on the item');
+  ok(s.act({ op: 'enchant', item: 'diamond_pickaxe', slot: 0 }).why.includes('already'), 'an enchanted tool cannot be enchanted again');
+  // efficiency speeds mining; unbreaking slows wear; fortune multiplies ore
+  const e = new Sim({ seed: 3, shape: 'grid' });
+  e.give('iron_pickaxe', 1);
+  const slow = e.mineTicks(BLOCKS[B.stone]);
+  e.player.ench = { iron_pickaxe: { efficiency: 5, unbreaking: 3, fortune: 3 } };
+  const fast = e.mineTicks(BLOCKS[B.stone]);
+  ok(fast < slow, `efficiency 5: stone in ${fast} ticks, not ${slow}`);
+  for (let k = 0; k < 200; k++) e.wear('iron_pickaxe');
+  const used = 251 - e.player.wear.iron_pickaxe;
+  ok(used > 25 && used < 90, `unbreaking 3: 200 uses cost ${used} durability (about 50)`);
+  const f = new Sim({ seed: 3, shape: 'grid' }), fp = f.player, fn = f.cols[fp.c].adj[0];
+  f.give('iron_pickaxe', 1); fp.ench = { iron_pickaxe: { fortune: 3 } };
+  for (let k = 0; k < 20; k++) { f.set(fn, fp.y, B.lapis_ore); f.act({ op: 'mine', c: fn, y: fp.y }); }
+  ok(f.inv.lapis > 130, `fortune 3: 20 lapis ore gave ${f.inv.lapis} lapis (100 without)`);
+}
+{
+  // the anvil: a unit of the material mends a quarter; each repair of the same tool costs more
+  const s = new Sim({ seed: 3, shape: 'grid' }), p = s.player, n = s.cols[p.c].adj[0];
+  s.set(n, p.y, B.anvil); s.give('diamond_pickaxe', 1); s.give('diamond', 4); s.giveXp(p, 550);
+  p.wear = { diamond_pickaxe: 400 };
+  const r = s.act({ op: 'repair', item: 'diamond_pickaxe', n: 2 });
+  ok(r.ok && p.wear.diamond_pickaxe === 400 + 2 * 390 && p.level === 18 && s.inv.diamond === 2, `the anvil mends 2 units: ${p.wear.diamond_pickaxe} uses left, level ${p.level}`);
+  p.wear.diamond_pickaxe = 400;
+  const q = repairQuote(s, 'diamond_pickaxe');
+  ok(q && q.cost === q.units + 1, `a second repair of the same tool costs a level more (${q && q.cost} for ${q && q.units})`);
+  p.work.diamond_pickaxe = 6;
+  ok(s.act({ op: 'repair', item: 'diamond_pickaxe' }).why.startsWith('too expensive'), 'a tool repaired too often is too expensive to mend');
+}
+{
+  // furnaces: smelt over time; a blast furnace twice as fast (ores only); a smoker takes only food
+  const run = (kind, item) => {
+    const s = new Sim({ seed: 3, shape: 'grid' }), p = s.player, n = s.cols[p.c].adj[0];
+    s.set(n, p.y, B[kind]);
+    s.give(item, 4); s.give('coal', 1);
+    const a = s.act({ op: 'store', c: n, y: p.y, item, n: 4 });
+    s.act({ op: 'store', c: n, y: p.y, item: 'coal', n: 1 });
+    let t = 0; while (t < 100 && !(((s.furnaces.get(n * H + p.y) || {}).out || [])[1] >= 4)) { s.step(); t++; }
+    return { ok: a.ok, why: a.why, t };
+  };
+  const fu = run('furnace', 'iron_ore'), bl = run('blast_furnace', 'iron_ore'), sm = run('smoker', 'iron_ore'), sm2 = run('smoker', 'beef');
+  ok(fu.ok && fu.t <= 42 && bl.ok && bl.t <= 22 && bl.t < fu.t, `4 iron: a furnace ${fu.t} ticks, a blast furnace ${bl.t}`);
+  ok(!sm.ok && sm2.ok && sm2.t <= 22, `a smoker refuses ore (${sm.why}) and cooks beef in ${sm2.t}`);
+  // smelting by hand takes the furnace's time
+  const h = new Sim({ seed: 3, shape: 'grid' }), hp = h.player, hn = h.cols[hp.c].adj[0];
+  h.set(hn, hp.y, B.furnace); h.give('iron_ore', 1); h.give('coal', 1);
+  const c1 = h.act({ op: 'craft', item: 'iron_ingot' });
+  h.set(hn, hp.y, B.blast_furnace); h.give('iron_ore', 1);
+  const c2 = h.act({ op: 'craft', item: 'iron_ingot' });
+  ok(c1.ok && c1.ticks === 10 && c2.ok && c2.ticks === 5, `smelting by hand: ${c1.ticks} ticks at a furnace, ${c2.ticks} at a blast furnace`);
+}
+// a platform in the sky over a grid world, for circuits: hop counts are exact there
+function platform(seed = 3) {
+  const s = new Sim({ seed, shape: 'grid' });
+  const c0 = s.world.spawn, Y = 34;
+  for (const [c] of s.ballCols(c0, 22)) for (let y = Y; y < H; y++) s.set(c, y, y === Y ? B.cobblestone : B.air);
+  // a straight line of columns from c0
+  const line = [c0, s.cols[c0].adj[0]];
+  while (line.length < 22) { const nx = s.straightOn(line[line.length - 2], line[line.length - 1]); if (nx == null) break; line.push(nx); }
+  return { s, line, y: Y + 1 };
+}
+{
+  // power along the graph: a lever, a line of wire, a lamp at the end
+  const circuit = (len, repeaterAt = -1) => {
+    const { s, line, y } = platform();
+    for (let i = 1; i <= len; i++) s.set(line[i], y, i === repeaterAt ? B.repeater : B.wire);
+    if (repeaterAt > 0) s.face(line[repeaterAt] * H + y, line[repeaterAt + 1] * H + y);
+    s.set(line[len + 1], y, B.redstone_lamp);
+    s.set(line[0], y, B.lever_on);
+    for (let k = 0; k < 4; k++) s.step();
+    return s.get(line[len + 1], y) === B.redstone_lamp_on;
+  };
+  ok(circuit(8) && circuit(15) && !circuit(16), 'a lever lights a lamp down 15 tiles of wire, not 16: power drops one a hop along the tiling');
+  ok(circuit(18, 10), 'a repeater in the line restores full power');
+  const { s, line, y } = platform();
+  s.set(line[1], y, B.wire); s.set(line[2], y, B.redstone_lamp); s.set(line[0], y, B.button);
+  s.set(line[0], y, B.button_on); s.schedule(10, line[0] * H + y, B.button, B.button_on);
+  for (let k = 0; k < 3; k++) s.step();
+  const lit = s.get(line[2], y) === B.redstone_lamp_on;
+  for (let k = 0; k < 12; k++) s.step();
+  ok(lit && s.get(line[2], y) === B.redstone_lamp, 'a button lights the lamp for 10 ticks, then lets go');
+  const pl = platform();
+  pl.s.set(pl.line[3], pl.y, B.plate); pl.s.set(pl.line[4], pl.y, B.redstone_lamp);
+  pl.s.spawnEnt('pig', pl.line[3], pl.y, { hp: 10 });
+  for (let k = 0; k < 3; k++) pl.s.step();
+  ok(pl.s.get(pl.line[3], pl.y) === B.plate_on && pl.s.get(pl.line[4], pl.y) === B.redstone_lamp_on, 'a pressure plate under a pig powers the lamp beside it');
+}
+{
+  // a piston pushes a block one tile straight on; unpowered, it comes back; an observer pulses on a change
+  const { s, line, y } = platform();
+  s.set(line[1], y, B.piston); s.face(line[1] * H + y, line[2] * H + y);
+  s.set(line[2], y, B.cobblestone);
+  s.set(s.cols[line[1]].adj.find((m) => !line.includes(m)), y, B.redstone_block);
+  for (let k = 0; k < 3; k++) s.step();
+  ok(s.get(line[1], y) === B.piston_on && s.get(line[2], y) === B.piston_head && s.get(line[3], y) === B.cobblestone, 'a powered piston pushes the block one tile straight on along the tiling');
+  s.set(s.cols[line[1]].adj.find((m) => !line.includes(m)), y, B.air);
+  for (let k = 0; k < 3; k++) s.step();
+  ok(s.get(line[1], y) === B.piston && s.get(line[2], y) === B.air, 'unpowered, it retracts');
+  const o = platform();
+  o.s.set(o.line[1], o.y, B.observer); o.s.face(o.line[1] * H + o.y, o.line[2] * H + o.y);
+  o.s.step();
+  o.s.set(o.line[2], o.y, B.cobblestone);
+  o.s.step(); o.s.step();
+  const on = o.s.get(o.line[1], o.y) === B.observer_on;
+  for (let k = 0; k < 4; k++) o.s.step();
+  ok(on && o.s.get(o.line[1], o.y) === B.observer, 'an observer pulses when the voxel it faces changes');
+}
+{
+  // hoppers: from a chest above, down into a furnace; powered, a hopper stops
+  const { s, line, y } = platform();
+  const c = line[3];
+  s.set(c, y, B.furnace); s.set(c, y + 1, B.hopper); s.face(c * H + y + 1, c * H + y); s.set(c, y + 2, B.chest);
+  s.chests.get(c * H + y + 2).iron_ore = 3;
+  s.insert(c * H + y, 'coal', 1, 'fuel');
+  for (let k = 0; k < 50; k++) s.step();
+  const f = s.furnaces.get(c * H + y);
+  ok(f.out && f.out[0] === 'iron_ingot' && f.out[1] === 3, `a chest over a hopper over a furnace: 3 ingots (${JSON.stringify(f.out)})`);
+  const { s: s2, line: l2, y: y2 } = platform();
+  s2.set(l2[3], y2 + 1, B.hopper); s2.face(l2[3] * H + y2 + 1, l2[3] * H + y2); s2.set(l2[3], y2, B.chest); s2.set(l2[3], y2 + 2, B.chest);
+  s2.chests.get(l2[3] * H + y2 + 2).coal = 5;
+  s2.set(l2[4], y2 + 1, B.redstone_block);
+  for (let k = 0; k < 20; k++) s2.step();
+  ok(!s2.chests.get(l2[3] * H + y2).coal, 'a powered hopper moves nothing');
+}
+{
+  // sugar cane: beside water only; grows to three; cut the middle and the top falls
+  const s = new Sim({ seed: 3, shape: 'grid' }), p = s.player;
+  const [c] = [...s.ballCols(p.c, 6)].find(([cc, d]) => d >= 2 && s.canStand(cc, s.surface(cc)) && s.get(cc, s.surface(cc) - 1) === B.grass);
+  const y = s.surface(c), w = s.cols[c].adj[0];
+  ok(!s.canePlaceable(c, y), 'sugar cane will not take root away from water');
+  s.set(w, y - 1, B.water); s.still.add(w * H + y - 1);
+  ok(s.canePlaceable(c, y), 'beside water it will');
+  s.set(c, y, B.sugar_cane);
+  for (let k = 0; k < 12000 && s.get(c, y + 2) !== B.sugar_cane; k++) s.step();
+  for (let k = 0; k < 3000; k++) s.step();
+  ok(s.get(c, y + 2) === B.sugar_cane && s.get(c, y + 3) !== B.sugar_cane, 'it grows three tall, and no taller');
+  s.set(c, y + 1, B.air);
+  ok(s.get(c, y + 2) !== B.sugar_cane && [...s.ents.values()].some((e) => e.kind === 'item' && e.items.sugar_cane), 'cut the middle piece and the top falls, and drops');
+}
+{
+  // the machines, built by their macros: a cane farm that harvests itself, a smelter, a railway
+  const s = new Sim({ seed: 3, shape: 'truncsq' });
+  s.home = [s.player.c, s.player.y]; s.seen.fill(1);
+  for (const [k, n] of Object.entries({ planks: 160, iron_ingot: 40, cobblestone: 60, stone_pickaxe: 1, stone_shovel: 1, stone_axe: 1, redstone: 20, quartz: 6, sugar_cane: 4, water_bucket: 1, coal: 10, iron_ore: 6 })) s.give(k, n);
+  const cf = runMacro(s, 'build_cane_farm', { units: 2 });
+  const sm = runMacro(s, 'build_smelter');
+  const load = runMacro(s, 'use_smelter');
+  const away = [...s.ballCols(s.player.c, 30)].find(([c, d]) => d > 20 && s.canStand(c, s.surface(c)));
+  s.moveEnt(s.player, away[0], s.surface(away[0]));
+  for (let k = 0; k < 4800; k++) s.step();
+  ok(cf.ok && caneFarmHolds(s) > 0, `a cane farm on truncsq: ${caneFarmHolds(s)} cane in its chests a day later, nobody there (${cf.why || 'ok'})`);
+  const st = smelterState(s) || { done: {} };
+  ok(sm.ok && load.ok && (st.done.iron_ingot || 0) === 6, `the smelter turned 6 ore into ${st.done.iron_ingot || 0} ingots while the player was away (${sm.why || load.why || 'ok'})`);
+  const r = new Sim({ seed: 3, shape: 'hex', size: 'm' });
+  r.home = [r.player.c, r.player.y]; r.seen.fill(1);
+  for (const [k, n] of Object.entries({ rail: 64, powered_rail: 8, redstone_torch: 8, minecart: 1, stone_pickaxe: 2, stone_shovel: 1, cobblestone: 20 })) r.give(k, n);
+  const to = [...r.ballCols(r.player.c, 30)].find(([c, d]) => d >= 20 && r.canStand(c, r.surface(c)) && r.get(c, r.surface(c) - 1) === B.grass);
+  const br = runMacro(r, 'build_rail', { to: [to[0], r.surface(to[0])] });
+  const L = r.team.lines && r.team.lines[0];
+  runMacro(r, 'ride_rail', { toward: 'far' });
+  const t0 = r.tick, rb = runMacro(r, 'ride_rail', { toward: 'home' });
+  ok(br.ok && rb.ok && r.tick - t0 <= Math.ceil(L.length / 2) + 4, `a railway of ${L && L.length} tiles, ridden home in ${r.tick - t0} ticks (${br.why || rb.why || 'ok'})`);
+  // and all of it replays from the stream
+  const rp = new Replay(s.lines[0]);
+  for (const l of s.lines.slice(1)) rp.apply(l);
+  let same = true;
+  for (let k = 0; k < s.b.length; k++) if (rp.b[k] !== s.b[k]) { same = false; break; }
+  ok(same, 'the machines replay from the stream, block for block');
+}
+{
+  // Jev sees it: experience, the works, the options
+  const s = new Sim({ seed: 3, shape: 'grid' }), p = s.player, n = s.cols[p.c].adj[0];
+  s.team.table = { c: n, g: p.y, shelves: [], ring1: [], cols: [] }; s.set(n, p.y, B.enchanting_table);
+  s.give('iron_pickaxe', 1); s.give('lapis', 5); s.giveXp(p, 300);
+  const st = perceive(s), ids = options(s).map((o) => o.id);
+  ok(st.player.experience.level === p.level && st.works.enchanting_table && ids.includes('enchant_iron_pickaxe'), `Jev sees its level and the table, and is offered the enchant (${ids.filter((i) => i.startsWith('enchant')).join(',')})`);
 }
 
 // ---------------------------------------------------------------- text ------

@@ -297,13 +297,16 @@ model only decides.
 | `craft/mind.mjs` | **layer 3, what Jev sees**: `perceive()` (a ~1 KB state of computed facts: time to dusk, threats, what is in sight and how far, the ladder and what its next rung is short of, a journal of its own last six decisions), `options()` (concrete choices from the legal macros, each labelled with what it yields, roughly how long it takes, what it advances, and whether it goes out among zombies at night), `buildQuestions()` (`next` choice, `danger` score, `have` self-check), `resolve()` (the gate, and the honest source stamp), `playMind()` (the async loop the page and the eval share), and the deciders: `jevDecider` (the proxy), baseline, offline stand-in, random |
 | `craft/party.mjs` | the multiplayer scheduler: several players on one clock, each action a `sim.plan` (§ Multiplayer) |
 | `craft/plants.mjs` | habitats (soil, tile shape, cover), growth conditions, growth checks, harvest drops (§ Long-range goals) |
-| `craft/projects.mjs` | tech / grow / explore as steps with option tokens, the per-option `project` fact, the slow `project` question (§ Long-range goals) |
+| `craft/projects.mjs` | tech / grow / explore / automate as steps with option tokens, the per-option `project` fact, the slow `project` question (§ Long-range goals) |
+| `craft/machines.mjs` | what runs with nobody there: furnaces and hoppers as containers, redstone power along the tile graph, repeaters, observers, pistons, sugar cane growth, rail lines (§ Automation on a graph) |
+| `craft/builds.mjs` | what a player builds near home, each laid out by a site search on the tile graph: the pen, stations, the enchanting corner, the smelter, the self-harvesting cane farm, the railway (§ Automation on a graph) |
 | `craft/runner.mjs` | `Driver` (one action per `step()`: the headless runs and the viewer run the same loop), `standardInterrupt` (facts only: *zombie adjacent*, *night fell in the open*), `baselinePolicy` (the scripted System 1 Jev has to beat), `play()` |
 | `craft/ascii.mjs` | a top-down text view of any tiling, for terminals and test failures |
 | `craft/index.html`, `app.js`, `craft.css` | the three.js viewer. It **renders only from the stream**: in live mode the page runs Sim + Driver and feeds a `Replay` from `sim.drain()`, exactly as it would a loaded `.jsonl`. Autopilot, or you pick macros by hand. There's an underground cutaway (a clip plane with a back-face cap), first person, and save/load of the stream. `window.__craft` is the harness hook |
 | `craft/segment.mjs` | reads a recorded game back as episodes named in the palette's terms, whoever played it (§ Reading a human's game) |
 | `test/craft-segment.mjs` | the CLI for it: `run.jsonl`, `--score`, `--json` |
-| `test/craft.selftest.mjs` | 434 checks, a few minutes, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter, tools, access shafts, renewal, boats, threats) |
+| `test/craft.selftest.mjs` | 491 checks, a few minutes, gates the deploy (multiplayer, plants, projects, water, survival, the team, the diamond age, the nether, the bail, the home and grid mines, the segmenter, tools, access shafts, renewal, boats, threats, pens, experience and enchanting, the anvil, furnaces, redstone, pistons, observers, hoppers, cane, the machines, rails) |
+| `eval/craft-machines.mjs` | headless: does each build lay out and work on every tiling, and what it buys; writes `lab/craft-machines.json` |
 | `eval/craft-gate.mjs` | the scoreboard: Jev (ungated) vs baseline vs offline vs random on the same worlds; **spends real budget**, paced under the proxy's 30/min; writes `lab/craft-gate.json` |
 | `test/craft-play.mjs` | the headless CLI: `--shape --seed --days --out run.jsonl --ascii N` |
 
@@ -1617,13 +1620,167 @@ Not measured: Jev with any of this. Its options exist (`flee`, `shoot`,
 `repair_house`, `recover`, `breed_<kind>`, `plant_trees`, the bow and shield
 crafts) and the selftest checks what it is offered.
 
+### Pens, phase 3 and phase 4: tiers, and machines on a graph (2026-09-28)
+
+The operator: *"let's see the next two phases (and go ahead and make fences)"*.
+
+**Pens.**
+- A `fence` is a block nothing can stand on or step over, spiders included.
+- A `fence_gate` works like a door: the player walks through it, an animal doesn't. `toggle` swings it open, and then animals can pass too.
+- A pen is the tile graph's ring one hop out from a patch of ground (`penPlan`): every interior tile's neighbours are interior or fence, so nothing walks out.
+- The floor needn't be flat. A fence at a ring tile's surface leaves that tile with nowhere to stand, whatever level an animal approaches from.
+- Animals follow a player holding their food. They walk an actual route, around fences and through open gates, at walking pace, and a lured animal shoulders a passive one aside.
+- Players push passive animals aside too, as in Minecraft.
+- `pen_animals` leads animals to the pen tile farthest from the gate, then shuts the gate from inside while they're still following. The player walks out through the shut gate, since it stops animals, not the player.
+
+The faults, one per fix:
+- The builder's own route dug through fences it had just placed, and dug a pit under the gate.
+- Cows stood on top of shut gates.
+- A cow stopped in the gateway, because "beside the player" was measured as a distance instead of graph adjacency.
+- Two lured cows swapped places with each other every tick, for ever.
+- Lured animals moved at a third of walking pace and got left behind.
+- A chicken camped in the gateway.
+
+**Measured** (`lab/craft-machines.json`, 10 tilings × 2 seeds):
+- Pens: built 20/20, and both cows are still inside 1,200 ticks later on 20/20.
+
+In the baseline, **a pen built early costs the nether**:
+- On day 1, pens cut worlds reaching the nether in 5 days from 14/20 to 9/20.
+- Rerunning the six regressed worlds with pens off brought 4 of them back.
+- The baseline now builds its pen after the nether: 14/20 again, 16/20 with a pen, 12/20 with two animals in it.
+
+A pen is a sink of time and wood that pays off over days, and five days isn't enough.
+
+**Phase 3: resources and tiers.**
+- **World v4.** Gold (layers 1–10, iron pick), redstone (1–6, iron pick, 4 a block), lapis (1–10, stone pick, 5 a block), and wild sugar cane by the sea.
+  - v4 has its own rng pass, and v1–v3 still generate byte for byte: four pin sets.
+  - Gold and redstone veins can now wall in a staircase dug with a stone pick, as in Minecraft.
+  - The staircase now turns aside when an animal stands on the next step, instead of giving up.
+- **Experience.** Minecraft's curve (2L+7, then 5L−38, then 9L−158). It comes from ores (coal, diamond, redstone, lapis, quartz), kills, breeding and smelting (fractions kept).
+  - A death drops 7 a level, up to 100, in with the items.
+  - Levels are what enchanting and the anvil spend.
+- **Enchanting.** A table costs a book (3 paper of sugar cane, 1 leather), 2 diamonds and 4 obsidian.
+  - Bookshelves within two hops give it power, up to 15.
+  - Three offers per item, by Minecraft's algorithm. They're drawn by hash from the player's enchanting seed, so looking is free and the offers stay fixed until an enchant.
+  - Enchantments: efficiency (n²+1 on the tool's speed), unbreaking (a use costs durability 1 time in n+1), fortune (coal, diamond, redstone, lapis, quartz), sharpness, power and protection.
+  - Enchantment and wear belong to the item in hand. Storing a worn or enchanted tool is refused; both travel with a death drop.
+- **The anvil.** 31 iron. A unit of the tool's material mends a quarter of its uses, for 1 level a unit, plus 2^n−1 levels for the nth repair of the same tool. At 40 it's "too expensive".
+- **Smelting takes time now.** 10 ticks an item at a furnace, 5 at a smoker (food only) or a blast furnace (ores only), whether by hand or unattended.
+  - Minecraft's 10 seconds would be 40 ticks, so this is a deliberate quarter.
+  - This is a rule change for everyone, and it's what gives the new furnaces and the smelter a job.
+- Also: stone and smooth stone, and golden apples (8 gold + an apple, heals 10).
+
+**Efficiency barely matters at this tick granularity with a good pick.** Ticks to mine, with the pick used for everything:
+
+| pick | none | efficiency 2 | efficiency 5 |
+|---|---|---|---|
+| stone: stone / iron ore | 4 / 5 | 2 / 2 | 1 / 1 |
+| iron: stone / iron ore / diamond | 3 / 3 / 4 | 2 / 2 / 2 | 1 / 1 / 1 |
+| diamond: stone / iron / diamond / obsidian | 2 / 3 / 3 / 7 | 2 / 2 / 2 / 4 | 1 / 1 / 1 / 2 |
+
+The baseline's typical first enchant, efficiency 2 with unbreaking 2 on a diamond pick, leaves stone at 2 ticks. Unbreaking is the real gain: the pick lasts three times as long.
+
+**Phase 4: automation on a graph** (`craft/machines.mjs`).
+- **Power along the tiling.**
+  - A wire connects to wire in any neighbouring column one layer up, down or level, and loses one level a hop. A lever lights a lamp down 15 tiles of wire and not 16, pinned on a grid platform.
+  - A source (lever, button, pressure plate, redstone torch, redstone block) powers what's beside it: its own column above and below, and each neighbouring column at its layer.
+  - A part (lamp, piston, powered rail, hopper) is powered when anything beside it is a live source or wire.
+  - **Directional parts need "behind" on a tiling.** Behind is the neighbour most nearly opposite the face (`oppositeOf`), and "straight on" is the neighbour most nearly in line (`straightOn`).
+  - A repeater takes power from behind and gives 15 in front, a tick later.
+  - An observer watches the voxel it faces and pulses out of its back for 2 ticks.
+  - A piston pushes up to 12 blocks one tile straight on. What can't be pushed (plants, torches, dust) breaks, and its drop is knocked on past it.
+- **Hoppers.**
+  - Five stacks, moving an item every 2 ticks.
+  - They take what's in the container above them, and whatever lies on top.
+  - They pass items into what they face. Into a furnace, from above means input and from the side means fuel.
+  - A powered hopper is locked.
+- **Minecarts on rails.**
+  - Two tiles a tick. A cart only starts on a powered rail that's switched on, and coasts 32 tiles of momentum.
+  - A climb costs 4, flat costs 1, a drop costs nothing, and a powered rail that's off stops the cart.
+  - A cart shoves an animal off the line.
+- **Stream.** New events: `face`, `furnace`, `xp`, `ench` and `cart`; hoppers reuse `chest`. `Replay` rebuilds all of it, and the selftest proves a machine run replays block for block.
+
+Other redstone details:
+- Redstone torches are always on: no inversion, so no clocks yet.
+- There are no comparators and no sticky pistons.
+
+**The machines** (`craft/builds.mjs`) were written by System 2 (by hand). Each is laid out by a site search on the tile graph.
+
+*The automatic smelter* is Minecraft's classic, standing on three tiles:
+- an input chest over a hopper over a furnace;
+- a fuel chest and hopper feeding the furnace from the side;
+- a hopper under it passing ingots into a chest set in the ground, where the player stands to reach all three chests.
+
+*The self-harvesting cane farm*, per plant:
+- a tile of poured (still) water, with the cane beside it;
+- an observer watching the top piece's place;
+- a wire, routed over the graph, from the observer's back to a piston facing the middle piece;
+- a hopper, set in the ground on the tile straight on past the cane, under where the cut pieces land, feeding a chest beside it.
+
+Two versions came first:
+- **The first had the observer watching the piece the piston cut.** The piston head moved into the watched voxel, and each cut set off the next: about 1,000 pushes a day. Watching the top piece and cutting the middle one gives 3–4 pushes a day.
+- **The second demanded a tile that neighboured two others** (the observer's back and the piston). It laid out on only 3 of 10 tilings. Routing a wire between them instead, over the graph within reach of the ground, gets 20/20.
+
+*The railway*:
+- A route that climbs or drops at most one layer a tile.
+- Powered rails at both ends, and wherever the cart's own momentum arithmetic says it would run low, riding both ways.
+- A redstone torch beside each powered rail.
+
+The ride failures were a cart running out of momentum on a climb before the next powered rail (every 24 tiles wasn't enough on hills), and a sheep on the line.
+
+**Measured** (`lab/craft-machines.json`, materials handed over; the time to mine them is not counted):
+
+| build | works on | what it gives |
+|---|---|---|
+| pen | 20 / 20 | both cows still inside 1,200 ticks later on 20 / 20 |
+| cane farm (2 plants) | 20 / 20 | **6.75 cane a day** into its chests with nobody there (the most two plants can grow is 8); 3.4 pushes a day |
+| smelter | 20 / 20 | 12 ore in, 12 ingots out in ~125 ticks, unattended (by hand: 120 ticks standing at the furnace) |
+| railway (~40 tiles, medium worlds) | 10 / 10 | rides at 2 tiles a tick: **33 ticks saved a round trip** of ~72 walked; ~150 ticks to lay, so it pays back its laying in **4.6 round trips** |
+
+The self-harvesting cane farm is the answer to the roadmap's phase 4 question in its narrow form. A machine that outlasts the player *can* be laid out on every one of foam's tilings, Penrose included, by a site search over the tile graph. It was not designed by a planner from a blank sheet, which is the question that remains.
+
+**In the baseline** (20 worlds, 5 days; the late game comes after the nether):
+
+| reached | worlds |
+|---|---|
+| the nether (glowstone back) | 14 / 20 |
+| enchanting table, pick enchanted | 9 / 20 |
+| a pen | 16 / 20 (12 with two animals in it) |
+| a smelter | 2 / 20 |
+| a cane farm | 2 / 20 |
+| an anvil used | 0 / 20 |
+
+Five days is too short for the late game: the machines come at the end of a long ladder. A 10-day sweep is §-noted below.
+
+**Combat changed for everyone: knockback.** A blow knocks a hostile back two tiles, straight away from the attacker, and a creeper knocked past 2.5 tiles fizzles.
+- `fight` now takes on creepers, as Minecraft players do.
+- Without this, a creeper stalking the player at night made a `flee` / `sleep_in_bed` loop, 15 of each in one night. The segmenter test caught it, because 30 of 71 macro runs were that loop.
+- `dig_in` now walls in the player's column as well as capping it. At the bottom of a tunnel on bedrock there's no digging down, and a skeleton down the tunnel shot a sleeping player.
+
+**What Jev sees.**
+- `perceive()` adds experience and enchantments, the new ores and sugar cane in sight, and `works`: the pen, the table's power, the stations, the smelter's state, the cane farm's haul and the railway.
+- Options:
+  - `build_pen` and `pen_<kind>`
+  - `mine_gold` / `mine_redstone` / `mine_lapis`
+  - `harvest_cane` and `plant_cane`
+  - `set_up_enchanting`
+  - `enchant_<item>`, carrying the offer it would take and the other two
+  - `set_up_<station>`
+  - `repair_<item>`, carrying the quote
+  - `build_smelter` and `use_smelter`, carrying what's done and what's waiting
+  - `build_cane_farm` and `collect_cane`
+- Projects: tech gains two steps (the table, an enchanted pick), and a fourth project, **automate**, has four (a pen, two animals in it, a smelter, a cane farm).
+- The railway isn't on Jev's menu: it needs a destination, and nothing in this game makes a far one worth a line yet.
+
+**Not measured:** Jev with any of this, and the planner loop that would design a machine rather than choose a hand-written one.
+
 ### What is next
 
 **The Minecraft gap audit and the phased roadmap live in
 [`craft/ROADMAP.md`](craft/ROADMAP.md)** (2026-09-28). It covers every system,
-what building it here would test, and phases 0–7. Phases 1 and 2 and boats
-are built (above). Next up: phase 0's held-out scoreboard on current code,
-and phase 3 (gold, XP, repair, enchanting). The list
+what building it here would test, and phases 0–7. Phases 1 to 4, boats and
+pens are built (above). Next up: phase 0's held-out scoreboard on current code,
+and a live Jev run with the late game on the menu. The list
 below is older.
 
 

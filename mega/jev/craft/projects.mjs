@@ -17,6 +17,8 @@
 
 import { B, BUILDING, SPECIES, SPECIES_NAMES } from './world.mjs';
 import { shortfall, describeShort, ripePlots, growingPlots, visiblePlants, chestItems, surplus } from './macros.mjs';
+import { penned, enchantQuote, penFences, penSite } from './builds.mjs';
+import { PICK_TIER } from './world.mjs';
 import { needsFarmland, eta, speciesHere } from './plants.mjs';
 
 const itemStep = (id, item, q = 1, done) => ({
@@ -88,9 +90,40 @@ const NETHER_STEP = { id: 'nether', label: 'cross into the nether', done: (s) =>
   detail: () => 'step into the lit portal' };
 const GLOW_STEP = { ...itemStep('glowstone', 'glowstone', 1, (s) => s.has('glowstone') || !!s.player.glowPlaced), label: 'make a glowstone lamp (4 dust from the nether)' };
 const NETHER = [PORTAL_STEP, NETHER_STEP, GLOW_STEP];
+// enchanting: a table (a book: 3 paper of sugar cane, 1 leather; 2 diamonds, 4
+// obsidian), then a pickaxe enchanted with the levels mining has earned
+const shortSet = (s, item, extra = []) => { const sh = shortfall(s, item, 1); return new Set(Object.keys(sh).length ? [...Object.keys(sh), ...(sh.sugar_cane || sh.paper || sh.book ? ['harvest_cane', 'sugar_cane'] : []), ...(sh.leather ? ['hunt:cow', 'leather'] : []), ...extra] : [`craft:${item}`, ...extra]); };
+const TABLE_STEP = { id: 'enchanting_table', label: 'set up an enchanting table (a book, 2 diamonds, 4 obsidian)', done: (s) => !!s.team.table,
+  needs: (s) => s.has('enchanting_table') ? new Set(['set_up_enchanting']) : shortSet(s, 'enchanting_table', ['set_up_enchanting']),
+  complete: (s) => s.has('enchanting_table') || !Object.keys(shortfall(s, 'enchanting_table', 1)).length ? 'set_up_enchanting' : null,
+  detail: (s) => { const sh = shortfall(s, 'enchanting_table', 1); return s.has('enchanting_table') ? 'ready to set up' : Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be made now'; } };
+const pickEnchanted = (s) => Object.keys(PICK_TIER).some((k) => s.has(k) && (s.player.ench || {})[k]);
+const bestPick = (s) => Object.keys(PICK_TIER).filter((k) => s.has(k)).sort((a, b) => PICK_TIER[b] - PICK_TIER[a])[0];
+const ENCHANT_STEP = { id: 'enchant_pick', label: 'enchant a pickaxe (levels from mining, and lapis)', done: pickEnchanted,
+  needs: (s) => { const q = bestPick(s) && enchantQuote(s, bestPick(s)); return q && q.best ? new Set(['enchant']) : new Set(['lapis', 'mine_ore:lapis', 'xp']); },
+  complete: (s) => { const q = bestPick(s) && enchantQuote(s, bestPick(s)); return q && q.best ? 'enchant' : null; },
+  detail: (s) => { const q = bestPick(s) && enchantQuote(s, bestPick(s)); return !q ? 'needs the table and a pickaxe' : q.best ? `the table offers ${Object.entries(q.best.ench).map(([k, v]) => k + ' ' + v).join(', ')} for ${q.best.cost} levels` : `level ${s.player.level || 0}, the offers need ${q.offers.map((o) => o.level).join('/')}; lapis ${s.inv.lapis || 0}`; } };
+const ENCHANTING = [TABLE_STEP, ENCHANT_STEP];
 const TECH = (sim) => sim.players.length > 1
-  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7], ...DIAMOND_AGE, ...NETHER]
-  : [...TECH_BASE, BED_STEP, ...DIAMOND_AGE, ...NETHER];
+  ? [...TECH_BASE.slice(0, 5), CHEST_STEP, ...TECH_BASE.slice(5, 7), BED_STEP, TECH_BASE[7], ...DIAMOND_AGE, ...NETHER, ...ENCHANTING]
+  : [...TECH_BASE, BED_STEP, ...DIAMOND_AGE, ...NETHER, ...ENCHANTING];
+
+// automate: the things that work while you are away
+const AUTOMATE = [
+  { id: 'pen', label: 'fence a pen near home (fences and a gate)', done: (s) => !!s.team.pen,
+    needs: (s) => { const pl = penSite(s); const n = pl ? penFences(pl) : 12; const sh = shortfall(s, 'fence', n); return new Set(Object.keys(sh).length ? [...Object.keys(sh), 'log'] : ['build_pen']); },
+    complete: (s) => s._house ? 'build_pen' : null, detail: (s) => s._house ? 'fences from planks and sticks' : 'needs a home first' },
+  { id: 'penned', label: 'two animals in the pen', done: (s) => !!s.team.pen && penned(s).length >= 2,
+    needs: (s) => new Set(['pen_animals', 'wheat', 'wheat_seeds', 'apple']), complete: () => 'pen_animals',
+    detail: (s) => `${s.team.pen ? penned(s).length : 0} in the pen; they follow their food (cows and sheep wheat, chickens seeds, pigs apples)` },
+  { id: 'smelter', label: 'an automatic smelter (3 hoppers, 3 chests, a furnace)', done: (s) => !!s.team.smelter,
+    needs: (s) => { const sh = shortfall(s, 'hopper', 3); return new Set(Object.keys(sh).length ? [...Object.keys(sh), 'iron_ore'] : ['build_smelter']); },
+    complete: (s) => Object.keys(shortfall(s, 'hopper', 3)).length ? null : 'build_smelter', detail: (s) => { const sh = shortfall(s, 'hopper', 3); return Object.keys(sh).length ? `short of ${describeShort(sh)}` : 'can be built now'; } },
+  { id: 'cane_farm', label: 'sugar cane that harvests itself (an observer, a piston, a hopper per plant)', done: (s) => !!s.team.caneFarm,
+    needs: (s) => { const miss = ['observer', 'piston', 'hopper'].flatMap((k) => Object.keys(shortfall(s, k, 2))); return new Set(miss.length ? [...new Set(miss), ...(miss.includes('quartz') ? ['use_portal'] : []), ...(miss.includes('redstone') ? ['mine_ore:redstone'] : [])] : [s.has('sugar_cane') ? 'build_cane_farm' : 'harvest_cane']); },
+    complete: (s) => ['observer', 'piston', 'hopper'].every((k) => !Object.keys(shortfall(s, k, 2)).length) && s.has('sugar_cane') ? 'build_cane_farm' : null,
+    detail: (s) => { const miss = {}; for (const k of ['observer', 'piston', 'hopper']) for (const [a, n] of Object.entries(shortfall(s, k, 2))) miss[a] = (miss[a] || 0) + n; return Object.keys(miss).length ? `short of ${describeShort(miss)}` : s.has('sugar_cane') ? 'can be built now' : 'needs a piece of sugar cane to plant'; } },
+];
 
 function growSteps(sim) {
   const here = speciesHere(sim);
@@ -138,9 +171,10 @@ function exploreSteps(sim) {
 }
 
 export const PROJECTS = {
-  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron, then diamonds, obsidian, a beacon, and a portal to the nether for glowstone', steps: (sim) => TECH(sim) },
+  tech: { aim: 'climb the tech ladder: tools, a house for the team, its shared chest, light, beds, iron, then diamonds, obsidian, a beacon, a portal to the nether for glowstone, and an enchanted pickaxe', steps: (sim) => TECH(sim) },
   grow: { aim: 'find and cultivate every plant species this world has — some grow only on particular tile shapes', steps: growSteps },
   explore: { aim: 'see the whole world and find where each wild plant grows', steps: exploreSteps },
+  automate: { aim: 'build what works while you are away: a pen of animals, an automatic smelter, sugar cane that harvests itself', steps: () => AUTOMATE },
 };
 export const PROJECT_NAMES = Object.keys(PROJECTS);
 

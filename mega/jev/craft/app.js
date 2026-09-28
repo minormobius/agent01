@@ -113,7 +113,57 @@ function buildChunk(key) {
     const col = cols[c], poly = col.poly, nb = col.nb;
     for (let y = 0; y < H; y++) {
       const id = r.b[c * H + y];
-      if (id === B.air || id === B.torch || id === B.lantern || id === B.ladder) continue;   // drawn with the torches
+      if (id === B.air || id === B.torch || id === B.lantern || id === B.ladder || id === B.redstone_torch) continue;   // drawn with the torches
+      // the small parts: a prism shrunk toward the tile centre (s), between two heights
+      const prism = (s, base, hgt, rgb, shade = 1) => {
+        const pts = poly.map(([x, z]) => [col.x + (x - col.x) * s, col.z + (z - col.z) * s]);
+        face(pts.map(([x, z]) => [x, hgt, z]), [0, 1, 0], rgb.top, shade);
+        if (base > y) face(pts.map(([x, z]) => [x, base, z]), [0, -1, 0], rgb.side, shade * 0.6);
+        for (let e = 0; e < pts.length; e++) {
+          const a = pts[e], b2 = pts[(e + 1) % pts.length];
+          const mx = (a[0] + b2[0]) / 2 - col.x, mz = (a[1] + b2[1]) / 2 - col.z, L = Math.hypot(mx, mz) || 1;
+          face([[a[0], base, a[1]], [b2[0], base, b2[1]], [b2[0], hgt, b2[1]], [a[0], hgt, a[1]]], [mx / L, 0, mz / L], rgb.side, shade * 0.85);
+        }
+      };
+      // a bar from this tile's centre toward a neighbour's, at a height (fence rails)
+      const bar = (n, lo, hi, rgb) => {
+        const o = cols[n], dx = (o.x - col.x) / 2, dz = (o.z - col.z) / 2, L = Math.hypot(dx, dz) || 1, w = 0.05, px = -dz / L * w, pz = dx / L * w;
+        const q = (h) => [[col.x + px, h, col.z + pz], [col.x + dx + px, h, col.z + dz + pz], [col.x + dx - px, h, col.z + dz - pz], [col.x - px, h, col.z - pz]];
+        face(q(hi), [0, 1, 0], rgb.top, 0.95);
+        face([[col.x + px, lo, col.z + pz], [col.x + dx + px, lo, col.z + dz + pz], [col.x + dx + px, hi, col.z + dz + pz], [col.x + px, hi, col.z + pz]], [px / w, 0, pz / w], rgb.side, 0.85);
+        face([[col.x - px, lo, col.z - pz], [col.x + dx - px, lo, col.z + dz - pz], [col.x + dx - px, hi, col.z + dz - pz], [col.x - px, hi, col.z - pz]], [-px / w, 0, -pz / w], rgb.side, 0.85);
+      };
+      const FENCEISH = (k) => k === B.fence || k === B.fence_gate || k === B.fence_gate_open;
+      if (id === B.fence) {
+        // a post, and rails to every neighbouring fence or gate: the ring reads as a fence on any tiling
+        prism(0.22, y, y + 1.3, RGB[id]);
+        for (const n of col.adj) if (FENCEISH(r.b[n * H + y])) { bar(n, y + 0.45, y + 0.6, RGB[id]); bar(n, y + 0.95, y + 1.1, RGB[id]); }
+        continue;
+      }
+      if (id === B.fence_gate || id === B.fence_gate_open) {
+        prism(0.16, y, y + 1.2, RGB[id]);
+        if (id === B.fence_gate) for (const n of col.adj) if (FENCEISH(r.b[n * H + y])) { bar(n, y + 0.35, y + 0.5, RGB[id]); bar(n, y + 0.75, y + 0.9, RGB[id]); }
+        continue;
+      }
+      if (id === B.sugar_cane) {
+        // sugar cane: a cluster of thin green stalks, a piece a voxel
+        for (const [ox, oz] of [[-0.12, -0.08], [0.1, -0.1], [0, 0.12]]) {
+          const pts = poly.map(([x, z]) => [col.x + ox + (x - col.x) * 0.08, col.z + oz + (z - col.z) * 0.08]);
+          for (let e = 0; e < pts.length; e++) {
+            const a = pts[e], b2 = pts[(e + 1) % pts.length];
+            const mx = (a[0] + b2[0]) / 2 - col.x - ox, mz = (a[1] + b2[1]) / 2 - col.z - oz, L = Math.hypot(mx, mz) || 1;
+            face([[a[0], y, a[1]], [b2[0], y, b2[1]], [b2[0], y + 1, b2[1]], [a[0], y + 1, a[1]]], [mx / L, 0, mz / L], RGB[id].side, 0.9);
+          }
+        }
+        continue;
+      }
+      if (id === B.wire) { prism(0.45, y, y + 0.05, RGB[id]); for (const n of col.adj) for (const yy of [y, y - 1, y + 1]) if (r.b[n * H + yy] === B.wire) { bar(n, y, y + 0.05, RGB[id]); break; } continue; }
+      if (id === B.rail || id === B.powered_rail || id === B.powered_rail_on) { prism(0.8, y, y + 0.08, RGB[id]); continue; }
+      if (id === B.plate || id === B.plate_on) { prism(0.7, y, y + (id === B.plate_on ? 0.03 : 0.07), RGB[id]); continue; }
+      if (id === B.button || id === B.button_on) { prism(0.25, y, y + 0.18, RGB[id]); continue; }
+      if (id === B.lever || id === B.lever_on) { prism(0.3, y, y + 0.12, { top: RGB[B.cobblestone].top, side: RGB[B.cobblestone].side }); prism(0.1, y + 0.12, y + 0.6, RGB[id]); continue; }
+      if (id === B.repeater || id === B.repeater_on) { prism(0.85, y, y + 0.14, RGB[id]); prism(0.12, y + 0.14, y + 0.35, { top: RGB[id].top, side: RGB[id].top }); continue; }
+      if (id === B.enchanting_table) { prism(1, y, y + 0.75, RGB[id]); continue; }
       if (id === B.bed || id === B.trapdoor) {
         // a bed is a low slab; a trapdoor a thin one at the top of its voxel (a door in the floor)
         const hgt = id === B.bed ? y + 0.45 : y + 1, base = id === B.bed ? y : y + 0.82, rgb = RGB[id];
@@ -286,11 +336,12 @@ function rebuildTorches() {
   torchGroup = new THREE.Group();
   const cols = replay.world.tiling.cols, b = replay.b;
   const geo = new THREE.BoxGeometry(0.12, 0.6, 0.12), lgeo = new THREE.BoxGeometry(0.3, 0.36, 0.3);
-  const mat = new THREE.MeshBasicMaterial({ color: 0xffd35a }), lmat = new THREE.MeshBasicMaterial({ color: 0x7fe3d0 });
+  const mat = new THREE.MeshBasicMaterial({ color: 0xffd35a }), lmat = new THREE.MeshBasicMaterial({ color: 0x7fe3d0 }), rmat = new THREE.MeshBasicMaterial({ color: 0xff3a2e });
   const railGeo = new THREE.BoxGeometry(0.06, 1, 0.06), rungGeo = new THREE.BoxGeometry(0.5, 0.05, 0.05), ladMat = new THREE.MeshLambertMaterial({ color: 0x9c7a45 });
   for (let c = 0; c < cols.length; c++) for (let y = 0; y < H; y++) {
     const id = b[c * H + y];
-    if (id !== B.torch && id !== B.lantern && id !== B.ladder) continue;
+    if (id !== B.torch && id !== B.lantern && id !== B.ladder && id !== B.redstone_torch) continue;
+    if (id === B.redstone_torch) { const m = new THREE.Mesh(geo, rmat); m.position.set(cols[c].x, y + 0.3, cols[c].z); torchGroup.add(m); continue; }
     if (id === B.ladder) {
       // a ladder: two rails and three rungs up the middle of its tile
       for (const dx of [-0.22, 0.22]) { const r = new THREE.Mesh(railGeo, ladMat); r.position.set(cols[c].x + dx, y + 0.5, cols[c].z); torchGroup.add(r); }
@@ -335,6 +386,8 @@ function syncEntities(dt) {
     if (!m) { m = makeEnt(e.kind, e.id); m.position.set(tx, ty, tz); entGroup.add(m); entMesh.set(e.id, m); }
     m.scale.setScalar(e.young ? 0.55 : 1);
     // a player in a boat: a hull under them
+    // a player in a minecart: a grey tub under them
+    if (e.kind === 'player') { let cart = m.userData.cart; if (e.cart && !cart) { cart = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.45, 0.7), new THREE.MeshLambertMaterial({ color: 0x6f6f6f })); cart.position.y = 0.1; m.add(cart); m.userData.cart = cart; } if (cart) cart.visible = !!e.cart; }
     if (e.kind === 'player') { let hull = m.userData.hull; if (e.boat && !hull) { hull = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.25, 0.6), new THREE.MeshLambertMaterial({ color: 0x8f6a3a })); hull.position.y = -0.05; m.add(hull); m.userData.hull = hull; } if (hull) hull.visible = !!e.boat; }
     const k = Math.min(1, dt * 10);
     const dx = tx - m.position.x, dz = tz - m.position.z;
@@ -456,7 +509,9 @@ const ARGS = {
   gather_wood: { n: 5 }, mine_stone: { n: 11 }, mine_coal: { n: 4 }, mine_iron: { iron: 3, coal: 3 },
   branch_mine: { length: 16 }, explore: { steps: 40 }, light_area: { n: 4 },
 };
-const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon', 'glowstone', 'quartz_block', 'stone_axe', 'stone_shovel', 'iron_axe', 'iron_shovel', 'diamond_axe', 'diamond_shovel', 'shears', 'ladder', 'trapdoor', 'boat', 'cooked_beef', 'cooked_chicken'];
+const CRAFTABLE = ['wooden_pickaxe', 'stone_pickaxe', 'iron_pickaxe', 'stone_sword', 'iron_sword', 'torch', 'door', 'glass', 'furnace', 'crafting_table', 'charcoal', 'iron_ingot', 'cooked_porkchop', 'planks', 'stick', 'wooden_hoe', 'bread', 'lantern', 'chest', 'bed', 'iron_armor', 'diamond_pickaxe', 'diamond_sword', 'diamond_armor', 'bucket', 'beacon', 'glowstone', 'quartz_block', 'stone_axe', 'stone_shovel', 'iron_axe', 'iron_shovel', 'diamond_axe', 'diamond_shovel', 'shears', 'ladder', 'trapdoor', 'boat', 'cooked_beef', 'cooked_chicken',
+  'fence', 'fence_gate', 'paper', 'book', 'bookshelf', 'enchanting_table', 'iron_block', 'anvil', 'smoker', 'blast_furnace', 'stone', 'smooth_stone', 'gold_ingot', 'golden_apple',
+  'lever', 'button', 'plate', 'redstone_torch', 'repeater', 'redstone_lamp', 'observer', 'piston', 'hopper', 'rail', 'powered_rail', 'minecart', 'redstone_block'];
 function argsFor(name) {
   if (name === 'craft') { const item = $('craft-item').value; return { item, n: item === 'torch' ? 4 : 1 }; }
   if (name === 'scout') return { what: $('scout-what').value };

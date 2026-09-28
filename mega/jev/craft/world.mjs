@@ -18,7 +18,9 @@ import { buildTiling } from './tiling.mjs';
 // v3 (2026-09-26): diamonds near bedrock, and a few deep lava pockets in
 // every kind of world (so obsidian can be made anywhere). v1 and v2 still
 // generate byte for byte when asked for.
-export const CRAFT_VERSION = 3;
+// v4 (2026-09-28): gold, redstone and lapis in the rock, and wild sugar cane
+// by the water. Their own rng pass, so v1–v3 still generate byte for byte.
+export const CRAFT_VERSION = 4;
 export const H = 40;          // layers per column
 export const SEA = 14;        // water fills air at y <= SEA
 
@@ -57,6 +59,20 @@ B.netherrack = 41; B.glowstone = 42; B.quartz_ore = 43; B.soul_sand = 44; B.port
 B.ladder = 47; B.trapdoor = 48;
 // a world that renews: saplings grow into trees
 B.sapling = 49;
+// pens: a fence nothing climbs or stands on, and a gate (open to the player,
+// shut to animals until it is swung open)
+B.fence = 50; B.fence_gate = 51; B.fence_gate_open = 52;
+// phase 3, resources and tiers: new ores, sugar cane (paper, books), the
+// enchanting table and its bookshelves, the anvil, faster furnaces
+B.gold_ore = 53; B.redstone_ore = 54; B.lapis_ore = 55; B.sugar_cane = 56; B.bookshelf = 57; B.enchanting_table = 58;
+B.anvil = 59; B.smoker = 60; B.blast_furnace = 61; B.smooth_stone = 62;
+// phase 4, automation on a graph: power along tile adjacency, and the parts
+// that use it. Two ids where a part has two states, so a state change is an
+// ordinary 'b' event in the stream.
+B.wire = 63; B.lever = 64; B.lever_on = 65; B.button = 66; B.button_on = 67; B.plate = 68; B.plate_on = 69;
+B.redstone_torch = 70; B.repeater = 71; B.repeater_on = 72; B.redstone_lamp = 73; B.redstone_lamp_on = 74;
+B.observer = 75; B.observer_on = 76; B.piston = 77; B.piston_on = 78; B.piston_head = 79; B.hopper = 80;
+B.rail = 81; B.powered_rail = 82; B.powered_rail_on = 83; B.redstone_block = 84; B.iron_block = 85;
 // hostile mobs: zombies above, blazes below
 export const HOSTILE = new Set(['zombie', 'blaze', 'skeleton', 'spider', 'creeper']);
 // what spawns in the overworld's dark, and how often (a zombie is still the common case)
@@ -117,15 +133,82 @@ def('trapdoor',       { by: 'axe', solid: false, mobSolid: true, hard: 3, color:
 // a sapling: plant it on grass or dirt under the sky and it grows into a tree
 def('sapling',        { solid: false, hard: 1, drop: 'sapling', sapling: true, color: '#4f9a36', top: '#6fbf4a' });
 def('lava',           { solid: false, hazard: true, mobSolid: true, hard: Infinity, drop: null, color: '#ff6a1a', top: '#ffb13d' });
+// a fence: a wall a body cannot step onto or over (Minecraft's is a block and
+// a half tall). Nothing stands on top of one, so a ring of them holds animals.
+def('fence',          { by: 'axe', hard: 4, fence: true, clear: true, color: '#9c7a45', top: '#b8945a' });
+// a gate: shut, it is a door (the player walks through, an animal does not);
+// swung open, anything walks through. 'toggle' swings it.
+def('fence_gate',     { by: 'axe', solid: false, mobSolid: true, fence: true, hard: 4, color: '#8f6a3a', top: '#a47a45' });
+def('fence_gate_open',{ by: 'axe', solid: false, fence: true, hard: 4, drop: 'fence_gate', color: '#8f6a3a', top: '#a47a45' });
+def('gold_ore',       { hard: 18, tool: 3, color: '#8a8a8a', fleck: '#f2d45a' });
+def('redstone_ore',   { hard: 18, tool: 3, drop: 'redstone', dropN: 4, color: '#8a8a8a', fleck: '#d4231c' });
+def('lapis_ore',      { hard: 18, tool: 2, drop: 'lapis', dropN: 5, color: '#8a8a8a', fleck: '#2a54c9' });
+// sugar cane: on sand, dirt or grass beside water; grows up to 3 tall; cut a
+// piece and everything above it comes down too
+def('sugar_cane',     { solid: false, hard: 1, cane: true, color: '#8fcf6a', top: '#a9e07f' });
+def('bookshelf',      { by: 'axe', hard: 6, drop: 'bookshelf', color: '#8f6a3a', top: '#b8945a', fleck: '#c04a3a' });
+def('enchanting_table',{ hard: 25, tool: 1, color: '#3a2852', top: '#c0392b' });
+def('anvil',          { hard: 25, tool: 1, color: '#4a4a4a', top: '#5f5f5f' });
+def('smoker',         { hard: 15, tool: 1, color: '#5a4a3a', top: '#6f6f6f' });
+def('blast_furnace',  { hard: 15, tool: 1, color: '#5f5f6a', top: '#8a8a8a' });
+def('smooth_stone',   { hard: 15, tool: 1, color: '#9e9e9e' });
+// redstone. Dust ('wire') carries power from a source, one less a hop along
+// the tile graph; what sits beside a powered wire or source is powered.
+def('wire',           { solid: false, hard: 1, drop: 'redstone', redstone: 'wire', color: '#8a1a14', top: '#b3261e' });
+def('lever',          { solid: false, hard: 1, redstone: 'source', color: '#6b6b6b', top: '#8a6a3a' });
+def('lever_on',       { solid: false, hard: 1, drop: 'lever', redstone: 'source', on: true, color: '#6b6b6b', top: '#d4231c' });
+def('button',         { solid: false, hard: 1, redstone: 'source', color: '#9e9e9e' });
+def('button_on',      { solid: false, hard: 1, drop: 'button', redstone: 'source', on: true, color: '#d4231c' });
+def('plate',          { solid: false, hard: 1, redstone: 'source', color: '#9e9e9e' });
+def('plate_on',       { solid: false, hard: 1, drop: 'plate', redstone: 'source', on: true, color: '#c9a0a0' });
+def('redstone_torch', { solid: false, hard: 1, redstone: 'source', on: true, light: true, color: '#d4231c' });
+def('repeater',       { solid: false, hard: 1, redstone: 'repeater', facing: true, color: '#9e9e9e', top: '#8a1a14' });
+def('repeater_on',    { solid: false, hard: 1, drop: 'repeater', redstone: 'repeater', on: true, facing: true, color: '#9e9e9e', top: '#ff3a2e' });
+def('redstone_lamp',  { hard: 2, redstone: 'consumer', color: '#6b4a2a', top: '#7a5a3a' });
+def('redstone_lamp_on',{ hard: 2, drop: 'redstone_lamp', redstone: 'consumer', on: true, light: true, color: '#ffd35a', top: '#ffe9a3' });
+// an observer watches the voxel it faces and gives a short pulse out of its
+// back whenever that voxel changes (sugar cane growing into it, say)
+def('observer',       { hard: 15, tool: 1, redstone: 'observer', facing: true, color: '#5f5f5f', top: '#3a3a3a' });
+def('observer_on',    { hard: 15, tool: 1, drop: 'observer', redstone: 'observer', on: true, facing: true, color: '#5f5f5f', top: '#d4231c' });
+// a piston pushes the blocks it faces one tile along (a line on a tiling
+// runs to the neighbour most nearly straight on); what cannot be pushed, a
+// plant, a torch, dust, breaks and drops
+def('piston',         { hard: 6, redstone: 'consumer', facing: true, color: '#7a7a7a', top: '#b8945a' });
+def('piston_on',      { hard: 6, drop: 'piston', redstone: 'consumer', on: true, facing: true, color: '#7a7a7a', top: '#b8945a' });
+def('piston_head',    { hard: 6, drop: null, color: '#b8945a' });
+// a hopper: 5 stacks; takes what lies on it or sits in the container above,
+// and passes it into the container it faces (down, or a neighbour), an item
+// every 2 ticks. Powered, it stops.
+def('hopper',         { hard: 15, tool: 1, redstone: 'consumer', facing: true, color: '#3f3f3f', top: '#2a2a2a' });
+def('rail',           { solid: false, hard: 2, rail: true, color: '#8a8a8a', top: '#6b5030' });
+def('powered_rail',   { solid: false, hard: 2, rail: true, redstone: 'consumer', color: '#8a8a8a', top: '#9a7a20' });
+def('powered_rail_on',{ solid: false, hard: 2, drop: 'powered_rail', rail: true, redstone: 'consumer', on: true, color: '#8a8a8a', top: '#f2c14a' });
+def('redstone_block', { hard: 15, tool: 1, redstone: 'source', on: true, color: '#b3261e' });
+def('iron_block',     { hard: 15, tool: 2, color: '#d8d8d8' });
 
 export const blockName = (id) => BLOCKS[id]?.name ?? '?';
 
 // Items that place as a block. Everything else is inventory-only.
-export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block', 'ladder', 'trapdoor', 'sapling']);
+export const PLACEABLE = new Set(['dirt', 'sand', 'log', 'planks', 'cobblestone', 'crafting_table', 'furnace', 'torch', 'door', 'glass', 'lantern', 'chest', 'bed', 'obsidian', 'beacon', 'netherrack', 'glowstone', 'quartz_block', 'ladder', 'trapdoor', 'sapling',
+  'fence', 'fence_gate', 'sugar_cane', 'bookshelf', 'enchanting_table', 'anvil', 'smoker', 'blast_furnace', 'stone', 'smooth_stone', 'iron_block',
+  'redstone', 'lever', 'button', 'plate', 'redstone_torch', 'repeater', 'redstone_lamp', 'observer', 'piston', 'hopper', 'rail', 'powered_rail', 'redstone_block']);
+// an item that places as a differently named block (redstone dust is 'wire' once laid)
+export const PLACE_AS = { redstone: 'wire' };
+// blocks placed facing somewhere: the op names the voxel they face
+export const FACING = new Set(['repeater', 'observer', 'piston', 'hopper']);
+// what the furnaces make, one item from one (a furnace smelts everything; a
+// smoker only food, twice as fast; a blast furnace only ores, twice as fast)
+export const SMELT = { iron_ore: 'iron_ingot', gold_ore: 'gold_ingot', sand: 'glass', cobblestone: 'stone', stone: 'smooth_stone', log: 'charcoal',
+  porkchop: 'cooked_porkchop', beef: 'cooked_beef', mutton: 'cooked_mutton', chicken: 'cooked_chicken' };
+export const SMELT_KIND = { iron_ore: 'ore', gold_ore: 'ore', porkchop: 'food', beef: 'food', mutton: 'food', chicken: 'food' };
+export const FURNACES = { furnace: { ticks: 10, does: null }, smoker: { ticks: 5, does: 'food' }, blast_furnace: { ticks: 5, does: 'ore' } };
+export const SMELT_TICKS = 10;
+// can this furnace kind smelt this input?
+export const smeltsIn = (kind, input) => !!SMELT[input] && (!FURNACES[kind].does || FURNACES[kind].does === SMELT_KIND[input]);
 // Chests: 27 stacks, as Minecraft's. A stack is 64 of most things; a tool,
 // a sword or a bed is a stack of one. That is the whole limit on the pool.
 export const CHEST_SLOTS = 27;
-export const stackSize = (item) => /_(pickaxe|shovel|axe|sword|hoe|armor)$/.test(item) || item === 'shears' || item === 'bow' || item === 'shield' || item === 'bed' || item === 'bucket' || item === 'water_bucket' ? 1 : item === 'door' ? 16 : 64;
+export const stackSize = (item) => /_(pickaxe|shovel|axe|sword|hoe|armor)$/.test(item) || item === 'shears' || item === 'bow' || item === 'shield' || item === 'bed' || item === 'bucket' || item === 'water_bucket' || item === 'minecart' ? 1 : item === 'door' ? 16 : 64;
 export const slotsUsed = (items) => Object.entries(items).reduce((n, [k, v]) => n + Math.ceil(v / stackSize(k)), 0);
 // how many of `item` still fit in a chest holding `items`
 export function roomFor(items, item) {
@@ -196,7 +279,40 @@ export const RECIPES = {
   cooked_chicken:  { n: 1, need: { chicken: 1, coal: 1 }, alt: [{ chicken: 1, charcoal: 1 }, { chicken: 1, planks: 1 }], at: 'furnace' },
   bread:           { n: 1, need: { wheat: 3 } },
   lantern:         { n: 2, need: { glowcap: 2, stick: 1 } },
+  // pens
+  fence:           { n: 3, need: { planks: 4, stick: 2 }, at: 'crafting_table' },
+  fence_gate:      { n: 1, need: { planks: 2, stick: 4 }, at: 'crafting_table' },
+  // phase 3: gold, books and the enchanting table, the anvil, faster furnaces
+  gold_ingot:      { n: 1, need: { gold_ore: 1, coal: 1 }, alt: [{ gold_ore: 1, charcoal: 1 }], at: 'furnace' },
+  golden_apple:    { n: 1, need: { gold_ingot: 8, apple: 1 }, at: 'crafting_table' },
+  paper:           { n: 3, need: { sugar_cane: 3 }, at: 'crafting_table' },
+  book:            { n: 1, need: { paper: 3, leather: 1 } },
+  bookshelf:       { n: 1, need: { planks: 6, book: 3 }, at: 'crafting_table' },
+  enchanting_table:{ n: 1, need: { book: 1, diamond: 2, obsidian: 4 }, at: 'crafting_table' },
+  iron_block:      { n: 1, need: { iron_ingot: 9 }, at: 'crafting_table' },
+  anvil:           { n: 1, need: { iron_block: 3, iron_ingot: 4 }, at: 'crafting_table' },
+  stone:           { n: 1, need: { cobblestone: 1, coal: 1 }, alt: [{ cobblestone: 1, charcoal: 1 }, { cobblestone: 1, planks: 1 }], at: 'furnace' },
+  smooth_stone:    { n: 1, need: { stone: 1, coal: 1 }, alt: [{ stone: 1, charcoal: 1 }, { stone: 1, planks: 1 }], at: 'furnace' },
+  smoker:          { n: 1, need: { furnace: 1, log: 4 }, at: 'crafting_table' },
+  blast_furnace:   { n: 1, need: { furnace: 1, iron_ingot: 5, smooth_stone: 3 }, at: 'crafting_table' },
+  // phase 4: redstone parts, hoppers, rails
+  lever:           { n: 1, need: { stick: 1, cobblestone: 1 } },
+  button:          { n: 1, need: { stone: 1 } },
+  plate:           { n: 1, need: { stone: 2 }, at: 'crafting_table' },
+  redstone_torch:  { n: 1, need: { redstone: 1, stick: 1 } },
+  repeater:        { n: 1, need: { redstone_torch: 2, redstone: 1, stone: 3 }, at: 'crafting_table' },
+  redstone_lamp:   { n: 1, need: { redstone: 4, glowstone: 1 }, at: 'crafting_table' },
+  observer:        { n: 1, need: { cobblestone: 6, redstone: 2, quartz: 1 }, at: 'crafting_table' },
+  piston:          { n: 1, need: { planks: 3, cobblestone: 4, iron_ingot: 1, redstone: 1 }, at: 'crafting_table' },
+  hopper:          { n: 1, need: { iron_ingot: 5, chest: 1 }, at: 'crafting_table' },
+  rail:            { n: 16, need: { iron_ingot: 6, stick: 1 }, at: 'crafting_table' },
+  powered_rail:    { n: 6, need: { gold_ingot: 6, stick: 1, redstone: 1 }, at: 'crafting_table' },
+  minecart:        { n: 1, need: { iron_ingot: 5 }, at: 'crafting_table' },
+  redstone_block:  { n: 1, need: { redstone: 9 } },
 };
+// the furnace family: a recipe `at: 'furnace'` may be made at any furnace
+// that smelts its input (ores at a blast furnace, food at a smoker)
+export const smeltInput = (r, bag) => r.at === 'furnace' ? Object.keys(bag).find((k) => SMELT[k]) || null : null;
 
 export const recipeBags = (r) => [r.need, ...(r.alt || [])];
 // Furnace fuel, in smelts: one coal or charcoal smelts 8 batches, a log 2,
@@ -225,16 +341,52 @@ export const SWORD_DMG = { none: 1, wooden_sword: 4, stone_sword: 5, iron_sword:
 // armor is worn by carrying it: the share of every hit it takes
 export const ARMOR = { iron_armor: 0.4, diamond_armor: 0.6 };
 export const BEACON_RADIUS = 16;
-export const FOOD = { apple: 4, porkchop: 3, cooked_porkchop: 8, bread: 5, sunfruit: 6, moonpetal: 2, mutton: 3, cooked_mutton: 6, beef: 3, cooked_beef: 8, chicken: 2, cooked_chicken: 6 };
+export const FOOD = { golden_apple: 4, apple: 4, porkchop: 3, cooked_porkchop: 8, bread: 5, sunfruit: 6, moonpetal: 2, mutton: 3, cooked_mutton: 6, beef: 3, cooked_beef: 8, chicken: 2, cooked_chicken: 6 };
 // saturation: hidden food that hunger drains first (Minecraft's values, rounded).
 // Cooked meat keeps you fed far longer than an apple.
-export const SATURATION = { apple: 2, porkchop: 2, cooked_porkchop: 13, bread: 6, sunfruit: 4, moonpetal: 1, mutton: 1, cooked_mutton: 10, beef: 2, cooked_beef: 13, chicken: 1, cooked_chicken: 7 };
-export const HEAL = { moonpetal: 6 };        // eating it also restores health
+export const SATURATION = { golden_apple: 10, apple: 2, porkchop: 2, cooked_porkchop: 13, bread: 6, sunfruit: 4, moonpetal: 1, mutton: 1, cooked_mutton: 10, beef: 2, cooked_beef: 13, chicken: 1, cooked_chicken: 7 };
+export const HEAL = { moonpetal: 6, golden_apple: 10 };        // eating it also restores health
 // what to eat first (the best meal carried); moonpetal is saved for healing
 export const EAT_ORDER = ['cooked_porkchop', 'cooked_beef', 'cooked_mutton', 'cooked_chicken', 'bread', 'sunfruit', 'apple', 'porkchop', 'beef', 'mutton', 'chicken', 'moonpetal'];
 // what each animal is bred with (two adults fed, a young one appears); pigs take apples here, having no carrots
 export const BREED_FOOD = { cow: 'wheat', sheep: 'wheat', chicken: 'wheat_seeds', pig: 'apple' };
 export const ANIMALS = ['pig', 'sheep', 'cow', 'chicken'];
+
+// ------------------------------------------------ experience and enchanting --
+// Experience, Minecraft's numbers. Points come from mining some ores, killing,
+// breeding and smelting; a level takes 2L+7 points (5L-38 from 16, 9L-158 from
+// 31). Levels are the currency: enchanting and the anvil spend them.
+export const xpToNext = (L) => L < 16 ? 2 * L + 7 : L < 31 ? 5 * L - 38 : 9 * L - 158;
+export const XP_MINE = { coal_ore: [0, 2], diamond_ore: [3, 7], redstone_ore: [1, 5], lapis_ore: [2, 5], quartz_ore: [2, 5] };
+export const XP_SMELT = { iron_ingot: 0.7, gold_ingot: 1, glass: 0.1, charcoal: 0.15, stone: 0.1, smooth_stone: 0.1, cooked_porkchop: 0.35, cooked_beef: 0.35, cooked_mutton: 0.35, cooked_chicken: 0.35 };
+export const XP_KILL = { zombie: 5, skeleton: 5, spider: 5, creeper: 5, blaze: 10, pig: 2, sheep: 2, cow: 2, chicken: 2 };
+// what an item is, for enchanting: pick / shovel / axe / sword / bow / armor / shears
+export function itemKind(item) {
+  if (TOOLS[item]) return TOOLS[item].kind;
+  if (/_sword$/.test(item)) return 'sword';
+  if (item in ARMOR) return 'armor';
+  if (item === 'bow' || item === 'shears') return item;
+  return null;
+}
+// Each enchantment: what it goes on, its top level, the least enchanting
+// level each of its levels needs (Minecraft's), and how often it is drawn.
+export const ENCH = {
+  efficiency: { on: ['pick', 'shovel', 'axe', 'shears'], max: 5, min: (n) => 1 + 10 * (n - 1), weight: 10, doc: 'mines faster' },
+  unbreaking: { on: ['pick', 'shovel', 'axe', 'sword', 'bow', 'shears'], max: 3, min: (n) => 5 + 8 * (n - 1), weight: 5, doc: 'wears slower' },
+  fortune:    { on: ['pick'], max: 3, min: (n) => 15 + 9 * (n - 1), weight: 2, doc: 'more from coal, diamond, redstone, lapis, quartz' },
+  sharpness:  { on: ['sword'], max: 5, min: (n) => 1 + 11 * (n - 1), weight: 10, doc: 'hits harder' },
+  power:      { on: ['bow'], max: 5, min: (n) => 1 + 10 * (n - 1), weight: 10, doc: 'arrows hit harder' },
+  protection: { on: ['armor'], max: 4, min: (n) => 1 + 11 * (n - 1), weight: 10, doc: 'takes 4% off every blow a level' },
+};
+// how readily a material takes an enchantment (Minecraft's enchantability)
+export const ENCHANTABILITY = { wooden: 15, stone: 5, iron: 14, diamond: 10, bow: 1, shears: 1, iron_armor: 9, diamond_armor: 10 };
+export const enchantability = (item) => ENCHANTABILITY[item] ?? ENCHANTABILITY[item.split('_')[0]] ?? 1;
+// the anvil: the material that mends each tool, a quarter of its uses a unit
+export const REPAIR_WITH = { wooden: 'planks', stone: 'cobblestone', iron: 'iron_ingot', diamond: 'diamond', shears: 'iron_ingot', bow: 'string', shield: 'planks' };
+export const repairMaterial = (item) => REPAIR_WITH[item] ?? REPAIR_WITH[item.split('_')[0]] ?? null;
+export const TOO_EXPENSIVE = 40;
+// the enchanting table's power: bookshelves near it, 15 at most
+export const MAX_SHELVES = 15;
 
 // ---------------------------------------------------------------- noise -----
 export function hash32(...xs) {
@@ -436,6 +588,7 @@ export function generateWorld(opts = {}) {
     }
   }
   if (version >= 3) deepPass({ seed, tiling, blocks, height });
+  if (version >= 4) orePass({ seed, tiling, blocks, height });
   const wild = version >= 2 ? sowWild({ seed, tiling, blocks, height, biome, radius }) : {};
   return { version, seed, shape, radius, kind, H, tiling, blocks, height, biome, spawn, trees, wild };
 }
@@ -460,6 +613,44 @@ function deepPass({ seed, tiling, blocks, height }) {
     if (!pool.every((c) => at(c, 2) === B.stone && at(c, 3) === B.stone && at(c, 4) === B.stone && at(c, 5) === B.stone)) continue;
     for (const c of pool) { blocks[c * H + 3] = B.lava; blocks[c * H + 4] = B.air; }
   }
+}
+
+// v4: gold (layers 1–10), redstone (1–6) and lapis (1–10) veins, and sugar
+// cane on beach sand, dirt or grass beside the sea. Its own rng.
+function orePass({ seed, tiling, blocks, height }) {
+  const cols = tiling.cols, N = cols.length, rng = mulberry(hash32(seed, 0x60D));
+  const walk = (c, y, id, len) => {
+    for (let k = 0; k < len; k++) {
+      if (blocks[c * H + y] === B.stone) blocks[c * H + y] = id;
+      const roll = rng();
+      if (roll < 0.2 && y > 1) y--;
+      else if (roll < 0.35 && y < H - 1) y++;
+      else if (cols[c].adj.length) c = cols[c].adj[Math.floor(rng() * cols[c].adj.length)];
+    }
+  };
+  for (const [id, per, top, len0, len1] of [[B.gold_ore, 90, 10, 3, 5], [B.redstone_ore, 80, 6, 4, 7], [B.lapis_ore, 150, 10, 2, 4]]) {
+    for (let v = 0; v < Math.round(N / per); v++) {
+      const c = Math.floor(rng() * N);
+      const hi = Math.min(top, height[c] - 5);
+      if (hi < 1) continue;
+      walk(c, 1 + Math.floor(rng() * hi), id, len0 + Math.floor(rng() * (len1 - len0 + 1)));
+    }
+  }
+  // sugar cane: the soil's own layer has water beside it
+  const spots = [];
+  for (let c = 0; c < N; c++) {
+    const h = height[c], soil = blocks[c * H + h];
+    if (![B.sand, B.grass, B.dirt].includes(soil) || blocks[c * H + h + 1] !== B.air) continue;
+    if (!cols[c].adj.some((n) => blocks[n * H + h] === B.water)) continue;
+    spots.push(c);
+  }
+  let n = 0, best = -1, bh = 2;
+  for (const c of spots) {
+    const r = hash01(seed, c, 0xCA4E);
+    if (r < bh) { bh = r; best = c; }
+    if (r < 0.08) { const tall = 1 + (hash32(seed, c, 0xCA4F) % 3); for (let k = 1; k <= tall && height[c] + k < H; k++) blocks[c * H + height[c] + k] = B.sugar_cane; n++; }
+  }
+  if (!n && best >= 0) blocks[best * H + height[best] + 1] = B.sugar_cane;
 }
 
 // Wild plants (v2). Hash-placed, never drawing on the generator's rng, so
