@@ -1,8 +1,7 @@
 {
-  "runId": "imp-10",
+  "runId": "imp-11",
   "models": ["ds4-flash", "ds4-pro"],
-  "tasks": ["trec", "era"],
+  "tasks": ["build"],
   "maxTokens": 8192,
-  "gepa": { "models": ["ds4-flash", "ds4-pro"], "reflection": "ds4-pro", "maxMetricCalls": 200 },
-  "note": "trec and era again with an 8,192-token reply budget. Hypothesis under test: the DeepSeek 'parse errors' (trec baseline 64/80 and 31/80 in imp-04; era 95/120 in imp-06) are not format failures but replies whose whole 2,048-token budget went to hidden reasoning, leaving no answer — the failure mega/jev recorded for Kimi. If errors collapse here, the imp-04 and imp-06 baselines were measuring the budget, not the models."
+  "note": "build with append_file and a ~250-line limit per call. imp-09 (the first clean baseline: Flash 0.34, Pro 0.63) lost five Flash builds and one Pro build to replies cut off while writing a whole file at once; this run measures how much of that the harness change recovers. Same eight requests, same scoring."
 }
