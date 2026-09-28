@@ -520,5 +520,24 @@ console.log('\nGrown, the sound (grown/sound.js)');
   ok(L.every(Number.isFinite) && dB(L, sr * 2, sr * 10) > -40 && got.bite + got.bud > 0, `a world heard for 10 s: ${dB(L, sr * 2, sr * 10).toFixed(1)} dB, ${got.bud} buds, ${got.bite} bites, ${got.new} new plans, ${got.eaten} kills`);
 }
 
+// 16 — Nobody Drew It (No. 8): one evolved history, replayed and sung --------------------------------
+console.log('\nNobody Drew It (nobody/)');
+{
+  const S = await import('../nobody/score.js');
+  const { LEXICON } = await import('../nobody/lexicon.js');
+  const { sing } = await import('../lib/chipsing.js');
+  const r = sing(S.song, LEXICON, { rate: 16000 });
+  ok(r.notes.length > 90 && S.lyric.every((l) => l.to > l.from) && S.duration > 140 && S.duration < 150, `the song sings: ${r.notes.length} notes, ${S.lyric.length} lines, ${S.duration.toFixed(0)} s`);
+  const { Replay, choir, CHAPTERS } = await import('../nobody/world.js');
+  const { SNAPSHOTS } = await import('../nobody/history.js');
+  const last = {}; for (const b of SNAPSHOTS[2].bodies) { const n = SNAPSHOTS[2].genomes[b.g].name; last[n] = (last[n] || 0) + 1; }
+  const top = Object.entries(last).sort((a, b) => b[1] - a[1])[0];
+  ok(top[0] === 'Quul' && SNAPSHOTS[0].bodies.length === 9, `the history: nine founders, and at step 950,000 the commonest plan is ${top[0]} (${top[1]} of ${SNAPSHOTS[2].bodies.length})`);
+  const a = new Replay(), b = new Replay(); a.at(100); b.at(80); b.at(100);
+  ok(JSON.stringify(a.W.bodies.map((x) => x.p)) === JSON.stringify(b.W.bodies.map((x) => x.p)), 'the replay is the same however it is reached (straight to 100 s, or through 80 s)');
+  const c = choir(8000), dB = (t0, t1) => { let e = 0; for (let i = t0 * 8000; i < t1 * 8000; i++) e += c[i] * c[i]; return 10 * Math.log10(e / ((t1 - t0) * 8000) + 1e-12); };
+  ok(c.every(Number.isFinite) && dB(92, 118) > dB(1, 9) + 5, `the choir: finite, and Quul's world (${dB(92, 118).toFixed(1)} dB) sings over the title's bass alone (${dB(1, 9).toFixed(1)} dB)`);
+}
+
 console.log(failed ? `\n${failed} failed` : '\nall passed');
 process.exit(failed ? 1 : 0);

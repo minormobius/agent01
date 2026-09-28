@@ -372,6 +372,36 @@ export class World {
     this.version++;
   }
   run(n) { for (let k = 0; k < n; k++) this.step(); return this; }
+  /**
+   * The world as data, to be restored exactly (`World.restore`): every body (genomes shared by index),
+   * the medium (as 16-bit fixed point: a restored world continues deterministically from the restored
+   * state, not bit-for-bit as the original would have), the newest reef, the book's names.
+   */
+  snapshot({ reef = 600 } = {}) {
+    const genomes = [], gi = new Map(), idx = (g) => { if (!gi.has(g)) { gi.set(g, genomes.length); genomes.push(g); } return gi.get(g); };
+    const KEYS = ['id', 'lineage', 'parent', 'grown', 'p', 'v', 'yaw', 'pitch', 'spin', 'prev', 'E', 'age', 'eaten', 'travelled', 'children', 'crystals', 'bitten', 'preyed'];
+    const bodies = this.bodies.map((B) => { const o = { g: idx(B.genome) }; for (const k of KEYS) if (B[k] !== undefined) o[k] = B[k]; return o; });
+    const q = new Uint16Array(this.medium.length); for (let i = 0; i < q.length; i++) q[i] = Math.min(65535, Math.round(this.medium[i] * 20000));
+    let bin = ''; const u8 = new Uint8Array(q.buffer); for (let i = 0; i < u8.length; i += 8192) bin += String.fromCharCode(...u8.subarray(i, i + 8192));
+    const b64 = typeof btoa === 'function' ? btoa(bin) : Buffer.from(u8).toString('base64');
+    return { seed: this.seed, s: this.s, next: this.next, mutants: this.mutants, opts: { cap: this.cap, mutate: this.mutate, hard: this.hard, regrow: this.regrow, lifespan: this.lifespan, predation: this.predation, drift: this.drift }, genomes, bodies, medium: b64, reef: this.reef.slice(-reef), names: Object.fromEntries(Object.entries(this.book).map(([sig, r]) => [sig, r.name])) };
+  }
+  static restore(snap) {
+    const W = new World(snap.seed, snap.opts);
+    W.s = snap.s; W.next = snap.next; W.mutants = snap.mutants; W.lay(snap.s);
+    const bin = typeof atob === 'function' ? atob(snap.medium) : Buffer.from(snap.medium, 'base64').toString('binary');
+    const u8 = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    const q = new Uint16Array(u8.buffer); for (let i = 0; i < q.length; i++) W.medium[i] = q[i] / 20000;
+    const genomes = snap.genomes.map((g) => JSON.parse(JSON.stringify(g)));
+    for (const o of snap.bodies) {
+      const B = new Body(W, o.id, genomes[o.g], o.p, o.yaw, o.E, o.lineage);
+      for (const [k, v] of Object.entries(o)) if (k !== 'g') B[k] = JSON.parse(JSON.stringify(v));
+      W.bodies.push(B);
+    }
+    W.reef = JSON.parse(JSON.stringify(snap.reef));
+    for (const [sig, name] of Object.entries(snap.names)) W.book[sig] = { sig, name, first: 0, peak: 0, lives: 0, genome: null };
+    return W;
+  }
   richest() { let best = 0, bi = 0; for (let i = 0; i < this.base0.length; i++) if (this.base0[i] > best) { best = this.base0[i]; bi = i; } const x = bi % MX, k = Math.floor(bi / MX) % MZ, j = Math.floor(bi / (MX * MZ)); return [(x + 0.5) * MC, (j + 0.5) * MC, (k + 0.5) * MC]; }
 }
 

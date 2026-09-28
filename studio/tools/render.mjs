@@ -41,7 +41,7 @@ if (S0.bandEvents) {
   const { renderBand, mix } = await import('../lib/band.js');
   const tb = performance.now();
   const n = Math.ceil(duration * SR);
-  const band = renderBand(S0.bandEvents, SR, { seconds: duration, wet: S0.wet, slap: S0.slap, vocal: S0.vocal ? S0.vocal(SR) : null });
+  const band = renderBand(S0.bandEvents, SR, { seconds: duration, wet: S0.wet, slap: S0.slap, vocal: S0.vocal ? await S0.vocal(SR) : null });
   const L = new Float32Array(n), R = new Float32Array(n);
   for (let i = 0; i < n && i * 2 < pcm.length; i++) { L[i] = pcm[2 * i]; R[i] = pcm[2 * i + 1]; }
   mix(L, R, band);

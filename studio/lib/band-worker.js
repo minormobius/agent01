@@ -10,7 +10,7 @@ self.onmessage = async (ev) => {
   const { score, sampleRate, seconds } = ev.data;
   try {
     const S = await import(score);
-    const vocal = S.vocal ? S.vocal(sampleRate) : null;
+    const vocal = S.vocal ? await S.vocal(sampleRate) : null;
     const { L, R } = renderBand(S.bandEvents, sampleRate, { seconds, wet: S.wet, slap: S.slap, vocal });
     self.postMessage({ type: 'band', L: L.buffer, R: R.buffer }, [L.buffer, R.buffer]);
   } catch (err) {

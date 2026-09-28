@@ -48,6 +48,7 @@ speakeasy/               No. 4: a noir in cut paper, for piano, band and noisema
   render.js              the theatre: street, lobby, lift shaft, club, shot, raid, curtain, typewriter strip
 voice/                   a lab: Claude's voice by formant synthesis (lib/chipvoice.js), scored by Whisper (tools/voice.mjs)
 avatar/                  Attractor Bodies (sketchbook): packages/attractor (vendor/attractor/lib) on the figure rig
+nobody/                  No. 8, Nobody Drew It: one evolved Grown history replayed (world.js, history.js GENERATED), sung by the world's choir, a voice and piano
 grown/                   Grown (sketchbook): bodies grown organ by organ from a program (packages/attractor lib/organism.js); gl.js WebGL
 accretion/               Accretion (sketchbook): a flow that grows a geode round itself (packages/attractor lib/shell.js); gl.js WebGL
 descending/              No. 7, Daisy Bell sung by the formant voice (lib/chipsing.js); a figure descending, after Duchamp
@@ -512,6 +513,40 @@ shapes it next.
   The camera frames the whole world or follows one creature. `#seed=N&n=3&at=S` grows S steps first.
 - Measured only in SwiftShader here (CPU raster, meaningless for a GPU). Real-device frame rate is
   unverified.
+
+## Nobody Drew It (nobody/), No. 8
+
+The owner, after Grown: "what are we leading toward… various organisms singing how-to videos in chorus".
+The answer tried here: a piece people watch and listen to (a game is a later, bigger bet). One real
+evolved history, replayed as it happened, sung by the world itself.
+
+- `score.js`: the clock. 96 bpm in 4/4 (a bar 2.5 s), 57 bars, ~146 s. The chords are the world's own
+  (grown/sound.js CHORDS: Dm, Bb, F, C, two bars each, from bar 1), so the choir and the song agree.
+  Title (1–4), founders (5–8), verse 1 (9–16), time-lapse (17–20), the biters (21–24), verse 2 (25–32),
+  time-lapse (33–36), Quul (37–40), verse 3 (41–48), coda (49–56), the last chord (57). The lyric is the
+  world's rules ("A mouth grows a gut, a gut grows a fin; what eats will bud, what starves goes back in"),
+  each line two bars, sung by lib/chipsing.js and lettered on screen as it is sung (the voice is ~20%
+  word errors: the words are always shown). `lexicon.js` is GENERATED (`tools/nobody-lexicon.mjs`).
+  `vocal()` is async (it replays the world): lib/band-worker.js, band-load.js and tools/render.mjs now
+  await it. It returns the voice and the choir mixed into one track.
+- `history.js` is GENERATED (`tools/nobody-history.mjs`, ~17 min): Grown's world, seed 1, founders ×3,
+  mutation 0.3, predation and drift on, run to step 950,000 with snapshots at 0, 300,000 and 950,000
+  (`World.snapshot()` / `World.restore()`: the medium as 16-bit fixed point; a restored world continues
+  deterministically) and a census every 2000 steps (the 18 species that filled the most of it, and the
+  rest). Quul already led at 300,000 (28 of 60) and had 46 of 60 at 950,000.
+- `world.js`: `Replay` restores a chapter's snapshot at its first second and steps it 30 times a second
+  (seeking back restores again; the selftest checks two routes to 100 s agree). The camera's target is
+  smoothed per step, so it is the same at any frame rate; in Quul's chapter it follows one Quul.
+  `choir(sampleRate)` hears the same replay through grown/sound.js's conductor; in the time-lapses the
+  named species sing from the census, and each that first appears there enters with its chime. ~8 s for
+  the whole film in node.
+- `render.js`: the replayed world (grown/gl.js and grown/scene.js, shared with the sketchbook, drawn into
+  an offscreen WebGL canvas and copied onto the frame), the time-lapses as a streamgraph of the history
+  (every band a body plan, as wide as how many were alive; names at each band's widest point so far; a
+  sweep and the step), the title, each chapter's name, the lyric, and the live census (names and organ
+  trees in organ colours). Vertical, square and wide all frame: the camera backs off on a tall frame.
+- Not verified here: the audio in a browser end to end (the band worker path ran in node only), and
+  the video export on a real device (this sandbox's Chromium has no H.264 encoder).
 
 ## Grown (grown/), and packages/attractor/lib/organism.js
 
