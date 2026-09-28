@@ -31,7 +31,15 @@ document.getElementById('theme').addEventListener('click', () => {
 
 const { runs } = await (await fetch('runs/index.json')).json();
 const run = (id) => runs.find((r) => r.id === id);
-const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.baseline);
+// Per model, the most trustworthy TREC run: imp-10 re-ran the DeepSeek models
+// with an 8,192-token reply budget after imp-04's 2,048 starved them (their
+// "parse errors" were hidden reasoning that used the whole budget); Kimi K3's
+// imp-04 run was clean.
+const TREC_RUN = { 'ds4-flash': 'imp-10', 'ds4-pro': 'imp-10', kimi3: 'imp-04' };
+const trec = ORDER.map((m) => {
+  const c = run(TREC_RUN[m])?.cells.find((x) => x.model === m && x.tasks.trec?.arms?.baseline);
+  return c && { ...c, run: TREC_RUN[m] };
+}).filter(Boolean);
 
 // ─── tiles ────────────────────────────────────────────────────────────
 {
@@ -93,7 +101,7 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
       const name = svgEl('text', { class: 'row-lab', x: 0, y: narrow ? y - 34 : y - 2 });
       name.textContent = modelName(c.model);
       const sub = svgEl('text', { class: 'row-sub', x: narrow ? W : 0, y: narrow ? y - 34 : y + 14, 'text-anchor': narrow ? 'end' : 'start' });
-      sub.textContent = `${a.baseline.errors} → ${a.gepa.errors} parse errors`;
+      sub.textContent = `${c.run} · ${a.baseline.errors} → ${a.gepa.errors} failed calls`;
       svg.append(name, sub);
       svg.append(svgEl('line', { class: 'link', x1: x(a.baseline.score), x2: x(a.gepa.score), y1: y, y2: y }));
 
@@ -105,7 +113,7 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
         svg.append(val);
         const hit = svgEl('circle', { class: 'hit', cx: x(v), cy: y, r: 16 });
         const extra = arm === 'gepa' ? `<br>optimizing took ${Math.round(a.gepa.optimize_seconds / 60)} min` : '';
-        const html = `<b>${modelName(c.model)}</b> · ${label}<br>${pct(v)} of 80 held out · ${a[arm].errors} parse errors${extra}`;
+        const html = `<b>${modelName(c.model)}</b> · ${label} · run ${c.run}<br>${pct(v)} of 80 held out · ${a[arm].errors} failed calls${extra}`;
         hit.addEventListener('mousemove', (e) => show(e, html));
         hit.addEventListener('mouseleave', hide);
         svg.append(hit);
@@ -118,13 +126,14 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
 
   // table view of the same numbers
   const tbl = el('table');
-  tbl.innerHTML = '<thead><tr><th>model</th><th class="num">baseline</th><th class="num">after GEPA</th><th class="num">gain</th><th class="num">parse errors before → after</th><th class="num">optimize</th></tr></thead>';
+  tbl.innerHTML = '<thead><tr><th>model</th><th>run</th><th class="num">baseline</th><th class="num">after GEPA</th><th class="num">gain</th><th class="num">failed calls before → after</th><th class="num">optimize</th></tr></thead>';
   const tb = el('tbody');
   for (const c of trec) {
     const a = c.tasks.trec.arms;
     const tr = el('tr');
     for (const [v, num] of [
       [modelName(c.model), false],
+      [c.run, false],
       [pct(a.baseline.score), true],
       [pct(a.gepa.score), true],
       [`+${Math.round((a.gepa.score - a.baseline.score) * 1000) / 10} pts`, true],
@@ -222,24 +231,33 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
 
 // ─── era: minormobius's posts ─────────────────────────────────────────
 {
-  const eraRun = [...runs].reverse().find((r) => r.cells.some((c) => c.tasks.era?.arms?.baseline));
+  // Per model, the latest era run whose baseline mostly got answers: imp-06's
+  // DeepSeek baselines were starved by a 2,048-token budget, and imp-10's
+  // DeepSeek Pro cell hit an exhausted provider balance (402) partway.
+  const clean = (c) => { const b = c.tasks.era?.arms?.baseline; return b && b.errors < 0.3 * (c.tasks.era.n_test || 120); };
+  const eraCells = ORDER.map((m) => {
+    const r = [...runs].reverse().find((r) => r.cells.some((c) => c.model === m && clean(c)));
+    const c = r?.cells.find((c) => c.model === m && clean(c));
+    return c && { ...c, run: r.id };
+  }).filter(Boolean);
+  const eraRun = eraCells.length ? run(eraCells[0].run) : null;
   if (eraRun) {
     document.getElementById('era').hidden = false;
-    const cells = byModel(eraRun.cells).filter((c) => c.tasks.era?.arms?.baseline);
+    const cells = eraCells;
     const ARMS = [['baseline', 'zero-shot'], ['few_shot_k16', '16 examples'], ['gepa', 'GEPA']];
 
     const tbl = el('table');
-    tbl.innerHTML = '<thead><tr><th>model</th>' + ARMS.map(([, l]) => `<th class="num">${l}</th>`).join('') + '<th class="num">GEPA, within a year</th></tr></thead>';
+    tbl.innerHTML = '<thead><tr><th>model</th><th>run</th>' + ARMS.map(([, l]) => `<th class="num">${l}</th>`).join('') + '<th class="num">zero-shot, within a year</th></tr></thead>';
     const tb = el('tbody');
     for (const c of cells) {
       const a = c.tasks.era.arms;
-      const tr = el('tr', {}, el('td', { text: modelName(c.model) }));
+      const tr = el('tr', {}, el('td', { text: modelName(c.model) }), el('td', { text: c.run }));
       for (const [k] of ARMS) tr.append(el('td', { class: 'num', text: a[k] ? pct(a[k].score) + (a[k].errors ? ` (${a[k].errors} err)` : '') : '—' }));
-      tr.append(el('td', { class: 'num', text: a.gepa ? pct(a.gepa.within_one) : '—' }));
+      tr.append(el('td', { class: 'num', text: pct(a.baseline.within_one) }));
       tb.append(tr);
     }
     tbl.append(tb);
-    document.getElementById('era-table').append(tbl, el('p', { class: 'row-sub', text: `run ${eraRun.id} · 120 held-out posts · chance 25% exact, 62.5% within a year for a uniform guesser` }));
+    document.getElementById('era-table').append(tbl, el('p', { class: 'row-sub', text: `120 held-out posts · chance 25% exact, 62.5% within a year for a uniform guesser · DeepSeek V4 Pro is left out: its baseline was starved of tokens in imp-06, and in imp-10 its account ran out of credit partway (HTTP 402), so neither run measures the model.` }));
 
     // confusion matrix, per model and arm
     const years = ['2023', '2024', '2025', '2026'];
@@ -276,8 +294,11 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
       b.addEventListener('click', () => { drawMatrix(c, k); for (const x of armBtns) x.setAttribute('aria-selected', String(x === b)); });
       armBtns.push(b); mTabs.append(b);
     }
-    const best = cells.map((c) => [c, c.tasks.era.arms.gepa?.score ?? 0]).sort((a, b) => b[1] - a[1])[0]?.[0] || cells[0];
-    const first = armBtns.find((b) => b.textContent === `${modelName(best.model)} · GEPA`) || armBtns[0];
+    // the model and arm that dated best, for the default matrix and the samples
+    const bestArm = (c) => Object.entries(c.tasks.era.arms).filter(([, x]) => x && x.score != null).sort((p, q) => q[1].score - p[1].score)[0]?.[0];
+    const best = cells.map((c) => [c, c.tasks.era.arms[bestArm(c)]?.score ?? 0]).sort((a, b) => b[1] - a[1])[0]?.[0] || cells[0];
+    const armLabel = Object.fromEntries(ARMS);
+    const first = armBtns.find((b) => b.textContent === `${modelName(best.model)} · ${armLabel[bestArm(best)]}`) || armBtns[0];
     first?.click();
 
     // instructions
@@ -298,11 +319,20 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
       iTabs.append(b);
     }
     if (withGepa.length) drawInstr(withGepa.find((c) => c.model === best.model) || withGepa[0]);
+    const g = withGepa[0];
+    if (g) {
+      const ga = g.tasks.era.arms;
+      document.getElementById('era-gepa-note').textContent =
+        `This one did not help. ${modelName(g.model)} after GEPA scored ${pct(ga.gepa?.score)} against ${pct(ga.baseline?.score)} zero-shot` +
+        (ga.gepa?.errors ? `, and ${ga.gepa.errors} of its 120 calls ran out of room before answering — the longer instruction invites longer reasoning` : '') +
+        `. Told only the true year of 32 posts, the reflection model reached for what it already knew — the platform's own history, invite codes, the 2024 opening — rather than this one person's drift. Chance-level baselines and a best of ${pct(Math.max(...cells.flatMap((c) => Object.values(c.tasks.era.arms).map((x) => x?.score ?? 0))))} say the same thing: from a single post, these years are hard to tell apart.`;
+    }
 
     // samples: from runs/<id>/results.json (rows are not in index.json)
-    fetch(`runs/${eraRun.id}/results.json`).then((r) => r.json()).then((full) => {
+    fetch(`runs/${best.run}/results.json`).then((r) => r.json()).then((full) => {
       const cell = full.cells.find((c) => c.model === best.model);
-      const rows = cell?.tasks?.era?.rows?.gepa || cell?.tasks?.era?.rows?.baseline || [];
+      const armKey = bestArm(best);
+      const rows = cell?.tasks?.era?.rows?.[armKey] || cell?.tasks?.era?.rows?.baseline || [];
       const pick = [...rows.filter((r) => r.predicted === r.year).slice(0, 4), ...rows.filter((r) => r.predicted !== r.year).slice(0, 4)];
       const t = el('table');
       t.innerHTML = '<thead><tr><th>post</th><th>written</th><th>guessed</th></tr></thead>';
@@ -316,7 +346,7 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
           el('td', {}, el('span', { class: ok ? 'ok' : 'no', text: `${r.predicted ?? 'error'} ${ok ? '✓' : '✗'}` }))));
       }
       t.append(b);
-      document.getElementById('era-samples').append(t, el('p', { class: 'row-sub', text: `${modelName(best.model)}, ${cell?.tasks?.era?.rows?.gepa ? 'after GEPA' : 'zero-shot'} — four right, four wrong, in held-out order.` }));
+      document.getElementById('era-samples').append(t, el('p', { class: 'row-sub', text: `${modelName(best.model)}, ${armLabel[armKey] || armKey} (run ${best.run}) — four right, four wrong, in held-out order.` }));
     });
   }
 }
@@ -349,14 +379,66 @@ const trec = byModel(run('imp-04').cells).filter((c) => c.tasks.trec?.arms?.base
 
     const note = document.getElementById('jev-note');
     note.append(
-      el('p', {}, el('b', { text: `The program GEPA wrote for an LLM made a 150 ms decision model score ${pct(a.jev_learned?.score)} — above every LLM that program was written for. ` }),
+      el('p', {}, el('b', { text: (() => {
+        const gap = Math.round(((a.jev_learned?.score ?? 0) - llmBest) * 80);
+        return `The program GEPA wrote for an LLM made a 150 ms decision model score ${pct(a.jev_learned?.score)}` +
+          (gap > 0 ? ` — above every LLM, by ${gap} answer${gap === 1 ? '' : 's'} of 80. ` : gap === 0 ? ' — level with the best LLM. ' : ` — within ${-gap} answer${gap === -1 ? '' : 's'} of the best LLM after GEPA (${pct(llmBest)}). `);
+      })() }),
         `Bare, Jev is at a coin flip, exactly like the LLM baselines: nothing in the codes says what they mean. Given the instruction GEPA distilled from Kimi K3's failures, it is confident on ${a.jev_learned?.confident} of 80 and right on ${pct(a.jev_learned?.confident_accuracy)} of those. Tuned directly — Optimize Anything rewriting Jev's own strings, with DeepSeek V4 Pro reading the misses — it rediscovered the same mapping on its own.`),
-      el('p', {}, `One run each on 80 questions: ${pct(a.jev_learned?.score)} against ${pct(llmBest)} is a gap of ${Math.round((a.jev_learned?.score - llmBest) * 80)} answers, so read it as "at least as good", not "better". The cascade is the production shape: Jev keeps what it is sure of (${a.cascade?.kept_by_jev} of 80, ${pct(a.cascade?.kept_accuracy)} right) and hands the rest to an LLM, saving ${a.cascade?.llm_calls_saved} LLM calls for ${pct(a.cascade?.score)} overall.`),
+      el('p', {}, `One run each on 80 questions, so read the ranking loosely: what holds is that the program transfers, from an LLM that writes to a model that only decides. The cascade is the production shape: Jev keeps what it is sure of (${a.cascade?.kept_by_jev} of 80, ${pct(a.cascade?.kept_accuracy)} right) and hands the rest to an LLM, saving ${a.cascade?.llm_calls_saved} LLM calls for ${pct(a.cascade?.score)} overall.`),
     );
     document.getElementById('jev-program').textContent = JSON.stringify(a.jev_optimized?.program ?? {}, null, 2);
     const route = jevRun.cells.find((c) => c.model === 'jev').tasks.route?.arms?.jev_bare;
     document.getElementById('jev-foot').textContent =
       `run ${jevRun.id} · 80 held-out TREC questions · Jev input tokens for the transplanted arm: ${(a.jev_learned?.input_tokens ?? 0).toLocaleString()} (about $${((a.jev_learned?.input_tokens ?? 0) * 0.042 / 1e6).toFixed(4)} at $0.042 per million)` +
       (route ? ` · on the support-ticket router Jev scored ${pct(route.score)} with the same instructions the LLMs had` : '');
+  }
+}
+
+// ─── builds: the build-a-bot's requests ───────────────────────────────
+{
+  const buildRuns = runs.filter((r) => r.cells.some((c) => c.tasks.build?.arms?.react));
+  if (buildRuns.length) {
+    document.getElementById('builds').hidden = false;
+    const tbl = el('table');
+    tbl.innerHTML = '<thead><tr><th>run</th><th>model</th><th class="num">mean score</th><th class="num">tokens</th><th class="num">median per build</th></tr></thead>';
+    const tb = el('tbody');
+    for (const r of buildRuns) {
+      for (const c of byModel(r.cells)) {
+        const b = c.tasks.build;
+        if (!b?.arms?.react) continue;
+        const a = b.arms.react;
+        const tok = a.usage?.total_tokens ?? ((a.usage?.input_tokens || 0) + (a.usage?.output_tokens || 0));
+        tb.append(el('tr', {},
+          el('td', { text: r.id }),
+          el('td', { text: modelName(c.model) }),
+          el('td', { class: 'num', text: a.score == null ? '—' : a.score.toFixed(2) }),
+          el('td', { class: 'num', text: tok ? `${(tok / 1e6).toFixed(1)}M` : '—' }),
+          el('td', { class: 'num', text: a.median_seconds ? `${Math.round(a.median_seconds / 60)} min` : '—' })));
+      }
+    }
+    tbl.append(tb);
+    document.getElementById('builds-table').append(tbl);
+    // per-request scores come from each run's results.json (rows are not in index.json)
+    Promise.all(buildRuns.map((r) => fetch(`runs/${r.id}/results.json`).then((x) => x.json()).then((full) => [r.id, full]))).then((all) => {
+      const slugs = [];
+      const cellsBy = [];
+      for (const [id, full] of all) for (const c of byModel(full.cells)) {
+        const rows = c.tasks.build?.rows;
+        if (!rows) continue;
+        for (const row of rows) if (!slugs.includes(row.slug)) slugs.push(row.slug);
+        cellsBy.push([`${id} · ${modelName(c.model)}`, Object.fromEntries(rows.map((row) => [row.slug, row.score]))]);
+      }
+      const t = el('table');
+      t.innerHTML = '<thead><tr><th>request</th>' + cellsBy.map(([k]) => `<th class="num">${k}</th>`).join('') + '</tr></thead>';
+      const b = el('tbody');
+      for (const slug of slugs) {
+        const tr = el('tr', {}, el('td', { text: slug }));
+        for (const [, m] of cellsBy) tr.append(el('td', { class: 'num', text: m[slug] == null ? '—' : m[slug].toFixed(2) }));
+        b.append(tr);
+      }
+      t.append(b);
+      document.getElementById('builds-table').append(el('p', { class: 'row-sub', text: 'Per request, per run and model (0 = nothing usable built):' }), t);
+    });
   }
 }

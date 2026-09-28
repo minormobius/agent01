@@ -27,7 +27,8 @@ const OUT = path.join(ROOT, 'imp', 'runs');
 const args = process.argv.slice(2);
 const fromDirAt = args.indexOf('--from-dir');
 const fromDir = fromDirAt >= 0 ? path.resolve(args[fromDirAt + 1]) : null;
-const ids = args.filter((a, i) => a !== '--from-dir' && i !== fromDirAt + 1);
+// (the value after --from-dir is not an id; with no --from-dir, nothing is skipped)
+const ids = args.filter((a, i) => a !== '--from-dir' && !(fromDirAt >= 0 && i === fromDirAt + 1));
 if (!ids.length || (fromDir && ids.length !== 1)) {
   console.error('usage: build-imp.mjs <run-id> ...   (reads origin/bakeoff/<run-id>)\n       build-imp.mjs --from-dir <dir> <run-id>');
   process.exit(2);

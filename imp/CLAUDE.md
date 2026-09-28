@@ -38,9 +38,19 @@ That is an import, not a generator preflight re-derives (its source is branches,
 after each new bench run, review the diff, commit. Every text file passes through `landing.mjs`
 `scrubText`, the repo's redaction layer, because this directory is served as-is.
 
-**The headline copy is hand-written against specific runs** (imp-04 for TREC, imp-03 for desk_hard,
-imp-01/02 for routing). A new run does not update the prose — re-read the numbers in `index.html` and
-`imp.js` (the tool-task table picks runs by id) when you import one.
+**Which run feeds which section** (hand-picked in `imp.js`, because not every run measures the model):
+
+| section | runs | why |
+|---|---|---|
+| TREC chart | DeepSeek from imp-10, Kimi from imp-04 (`TREC_RUN`) | imp-04's 2,048-token replies starved the DeepSeek models: their hidden reasoning used the budget and ~64/80 calls returned no answer. imp-10 re-ran at 8,192. The page says so, as a correction. |
+| Jev | latest run with a `jev` cell (imp-12) | |
+| era | per model, the latest run whose baseline mostly answered | DeepSeek Pro is left out: starved in imp-06, out of provider credit (HTTP 402) in imp-10 |
+| builds | every run with a `build` task (imp-09, imp-11) | imp-07/08 were harness failures (a 2,048 cap; scratch dirs shared with the self-test) and are not imported |
+| tool tasks | imp-01/02/03 by id | |
+
+A new run does not update the prose — re-read the numbers in `index.html` and `imp.js` when you import one.
+`build-imp.mjs --from-dir` imports a run whose results branch never landed (build it with
+`bakeoff/imp/report.mjs` from the downloaded cell artifacts).
 
 ## What must stay true
 

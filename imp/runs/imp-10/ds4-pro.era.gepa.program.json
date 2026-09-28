@@ -1,0 +1,908 @@
+{
+  "artifact_type": "imp_program_artifact",
+  "payload": {
+    "adapter": "Elixir.Imp.Adapter.Chat",
+    "config": [],
+    "demos": [],
+    "dynamic_adapter": true,
+    "dynamic_lm": false,
+    "lm": {
+      "model": {
+        "base_url": "https://api.deepseek.com/v1",
+        "id": "deepseek-v4-pro",
+        "model": "deepseek-v4-pro",
+        "provider": "openai"
+      },
+      "opts": [
+        [
+          "cache",
+          false
+        ],
+        [
+          "receive_timeout",
+          180000
+        ],
+        [
+          "temperature",
+          0.0
+        ],
+        [
+          "max_tokens",
+          8192
+        ]
+      ],
+      "provider": "req_llm"
+    },
+    "metadata": {
+      "__imp_type__": "map",
+      "entries": [
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_report"
+          },
+          {
+            "__imp_type__": "optimizer_report",
+            "best_score": 0.020833333333333332,
+            "candidate_count": 1,
+            "candidates": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "id"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "score"
+                    },
+                    0.020833333333333332
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "scores"
+                    },
+                    [
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      1.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0,
+                      0.0
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "mutation"
+                    },
+                    "baseline"
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parent_id"
+                    },
+                    {
+                      "__imp_type__": "atom",
+                      "value": "nil"
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "parameters"
+                    },
+                    {
+                      "__imp_type__": "map",
+                      "entries": [
+                        [
+                          {
+                            "__imp_type__": "atom",
+                            "value": "main"
+                          },
+                          "A post by one Bluesky user. Guess the year they wrote it."
+                        ]
+                      ]
+                    }
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cd428e56-b738-4f8c-a77f-470c770513a1)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 619041b3-e1e7-47f0-a6fc-633e756aa37a)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b7f33ec1-b850-4104-9cd1-9e0de4d068de)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: e806206b-e1d0-4db7-8078-ab5893c7f705)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b8ac2272-01a8-4d96-be2b-0cbe9f106ec7)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: aff2368f-7c4b-44a2-bcac-d12d286e78d5)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 1dc16fde-13f8-4a52-a4cd-4af2ade73ead)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 5870051f-052e-4fe8-b093-390b07cf1d5b)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: c3b72fd8-7495-40f0-98e8-9f29108cc112)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 4ea64ea6-da97-42c4-981b-cc3d576d1986)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: fb408dfa-26d5-49f2-bc9e-153225390695)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: baf38259-03ae-4c47-a6b1-8b264b144c23)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: e40cc40c-4c1b-44f9-b376-f24d6fb3f023)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 11d25755-83eb-4bd0-a9be-dd0b9f672f95)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cad9f9be-31a2-4414-ab22-1ea506d67088)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cf6c84dd-f18b-4436-8c3a-c895a2b8acef)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 9c5873c9-bbf0-4833-a484-ce0b4f1c32a6)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b82ceebf-58c5-4975-b43c-45a40e86c3f6)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b0bccd0d-2cbb-4b32-800b-5a7eb791182f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 1c10ddfa-e0e1-4cff-a607-b4d161ff6320)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: c1a7b78a-9b45-45c9-af87-82f7db77506f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 35f1a7b1-3e0b-4e7c-8710-87eee1648716)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: fe96b007-4b03-4483-b048-afaac996c6a4)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 8f7bbe47-3269-436e-9c55-1b7229f65bb5)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: d11541b7-e0c3-45c8-b5e9-877466d817b0)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 22f40297-d899-4b36-8ad5-8eaf3ce1d540)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cdb6aea4-5e39-44e9-8709-a4fc22aee543)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: c8ff967f-7d7f-4d3d-a1c4-585cbc3de9f9)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: f2164830-4496-41b0-97ea-01a3f12d5bca)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: f2b78e77-7be8-4d17-be8b-fb2945bcb256)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: efb35f18-d314-4499-bc84-41dee293b774)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: a2401dc2-2bb8-4385-8c09-2696a66ac7dd)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 6f56e470-10b8-495a-895c-aa7c678c41bc)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 8cc0db86-96ad-49ea-b3fe-8e30134abf30)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 4c652c5e-9997-4d69-b326-20c229120a40)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: f25c6175-cc1f-486b-ab7c-95e7c0978b3d)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: e7ea6359-50ed-490e-933b-b3d920c0ea14)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 82b34228-ad4f-40b4-b937-272d3006bfb6)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 197e4db0-4353-4cce-b156-ef9b5347c9ca)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: ce08e6e3-b7c1-429c-8c55-7ca3be9fd6b5)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b19e7b6e-2004-4a64-a727-c2f574c52016)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: aa05f722-9817-49d0-80a1-a803840fad13)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 9dd5bf55-9e1f-465d-9818-8c321a554693)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 4af5889a-66e0-4d0e-8e7f-4b4fa90a9f24)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: d78962c0-8828-460f-8407-df0c01c9027f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 71f8af0e-01ab-448c-a9bb-e1c382876c7f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "instruction"
+                    },
+                    "A post by one Bluesky user. Guess the year they wrote it."
+                  ]
+                ]
+              }
+            ],
+            "errors": [
+              {
+                "__imp_type__": "map",
+                "entries": [
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "diagnostics"
+                    },
+                    [
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cd428e56-b738-4f8c-a77f-470c770513a1)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 619041b3-e1e7-47f0-a6fc-633e756aa37a)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b7f33ec1-b850-4104-9cd1-9e0de4d068de)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: e806206b-e1d0-4db7-8078-ab5893c7f705)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b8ac2272-01a8-4d96-be2b-0cbe9f106ec7)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: aff2368f-7c4b-44a2-bcac-d12d286e78d5)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 1dc16fde-13f8-4a52-a4cd-4af2ade73ead)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 5870051f-052e-4fe8-b093-390b07cf1d5b)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: c3b72fd8-7495-40f0-98e8-9f29108cc112)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 4ea64ea6-da97-42c4-981b-cc3d576d1986)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: fb408dfa-26d5-49f2-bc9e-153225390695)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: baf38259-03ae-4c47-a6b1-8b264b144c23)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: e40cc40c-4c1b-44f9-b376-f24d6fb3f023)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 11d25755-83eb-4bd0-a9be-dd0b9f672f95)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cad9f9be-31a2-4414-ab22-1ea506d67088)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cf6c84dd-f18b-4436-8c3a-c895a2b8acef)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 9c5873c9-bbf0-4833-a484-ce0b4f1c32a6)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b82ceebf-58c5-4975-b43c-45a40e86c3f6)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b0bccd0d-2cbb-4b32-800b-5a7eb791182f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 1c10ddfa-e0e1-4cff-a607-b4d161ff6320)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: c1a7b78a-9b45-45c9-af87-82f7db77506f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 35f1a7b1-3e0b-4e7c-8710-87eee1648716)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: fe96b007-4b03-4483-b048-afaac996c6a4)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 8f7bbe47-3269-436e-9c55-1b7229f65bb5)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: d11541b7-e0c3-45c8-b5e9-877466d817b0)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 22f40297-d899-4b36-8ad5-8eaf3ce1d540)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: cdb6aea4-5e39-44e9-8709-a4fc22aee543)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: c8ff967f-7d7f-4d3d-a1c4-585cbc3de9f9)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: f2164830-4496-41b0-97ea-01a3f12d5bca)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: f2b78e77-7be8-4d17-be8b-fb2945bcb256)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: efb35f18-d314-4499-bc84-41dee293b774)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: a2401dc2-2bb8-4385-8c09-2696a66ac7dd)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 6f56e470-10b8-495a-895c-aa7c678c41bc)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 8cc0db86-96ad-49ea-b3fe-8e30134abf30)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 4c652c5e-9997-4d69-b326-20c229120a40)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: f25c6175-cc1f-486b-ab7c-95e7c0978b3d)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: e7ea6359-50ed-490e-933b-b3d920c0ea14)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 82b34228-ad4f-40b4-b937-272d3006bfb6)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 197e4db0-4353-4cce-b156-ef9b5347c9ca)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: ce08e6e3-b7c1-429c-8c55-7ca3be9fd6b5)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: b19e7b6e-2004-4a64-a727-c2f574c52016)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: aa05f722-9817-49d0-80a1-a803840fad13)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 9dd5bf55-9e1f-465d-9818-8c321a554693)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 4af5889a-66e0-4d0e-8e7f-4b4fa90a9f24)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: d78962c0-8828-460f-8407-df0c01c9027f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res...",
+                      "%Imp.LMError{message: \"API request failed (402): Provider response error (402): Openai API error: Insufficient Balance (request_id: 71f8af0e-01ab-448c-a9bb-e1c382876c7f)\", status: 402, reason: %ReqLLM.Error.API.Request{reason: \"Provider res..."
+                    ]
+                  ],
+                  [
+                    {
+                      "__imp_type__": "atom",
+                      "value": "candidate_id"
+                    },
+                    "baseline"
+                  ]
+                ]
+              }
+            ],
+            "metadata": {
+              "__imp_type__": "map",
+              "entries": [
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "combee"
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "enabled"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "false"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout"
+                        },
+                        300000
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "identity"
+                        },
+                        "18f7f74a7ec17bb4e3a83527f7555dcc146368a04ed7fc3d02b8abc05f7f6043"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "aggregations"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency"
+                        },
+                        1
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "batch_controller"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "timeout_requested"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "duplication_factor"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "nil"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "effective_batch_size"
+                        },
+                        3
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "max_concurrency_requested"
+                        },
+                        1
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "engine"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA.Engine"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "status"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "with_errors"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "feedback"
+                  },
+                  "Use observed examples carefully. Training examples available: 32."
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "generations"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "stop_reason"
+                  },
+                  {
+                    "__imp_type__": "tuple",
+                    "items": [
+                      {
+                        "__imp_type__": "atom",
+                        "value": "stopper"
+                      },
+                      [
+                        {
+                          "__imp_type__": "tuple",
+                          "items": [
+                            {
+                              "__imp_type__": "atom",
+                              "value": "max_metric_calls"
+                            },
+                            201,
+                            200
+                          ]
+                        }
+                      ]
+                    ]
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "metric_calls"
+                  },
+                  201
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_size"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "frontier_type"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "instance"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rng_algorithm"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "python_v3"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "implementation"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "Elixir.Imp.Optimizer.GEPA"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_iterations"
+                  },
+                  51
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "minibatch_size"
+                  },
+                  3
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_concurrency"
+                  },
+                  4
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merges_accepted"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full_evaluations"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_metric_calls"
+                  },
+                  200
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_candidates"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_timeout"
+                  },
+                  300000
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_calls"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "strict_improvement"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "evaluation_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "full"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "execution_profile"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "sampling_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "single"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "component_feedback"
+                  },
+                  []
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "all_improvements"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_cost"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "nil"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "rejected_candidates"
+                  },
+                  0
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_full_evaluations"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "infinity"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "max_reflection_calls"
+                  },
+                  102
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "proposal_concurrency"
+                  },
+                  1
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_record_mode"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "merge_acceptance_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "equal_or_better"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "reflection_failure_policy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "gepa_v0_1_4_batch_then_single_retry"
+                  }
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "operational_metric_call_cap"
+                  },
+                  252
+                ],
+                [
+                  {
+                    "__imp_type__": "atom",
+                    "value": "candidate_selection_strategy"
+                  },
+                  {
+                    "__imp_type__": "atom",
+                    "value": "pareto"
+                  }
+                ]
+              ]
+            },
+            "optimizer": {
+              "__imp_type__": "atom",
+              "value": "gepa"
+            }
+          }
+        ],
+        [
+          {
+            "__imp_type__": "atom",
+            "value": "optimizer_parameter_set"
+          },
+          {
+            "__imp_type__": "map",
+            "entries": [
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "id"
+                },
+                "program/Elixir.Imp.Predict"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "hash"
+                },
+                "02e19a3dab5d21365e684335a2450496d1a6dab4f661eeebc4efd04564d2f461"
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "revision"
+                },
+                1
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parameters"
+                },
+                [
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/config"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "config"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        {}
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "e9b519a59e741acfbe48d69c652b5946da47a761199c79de3ac78b55c888a33d"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/demos"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "demos"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        []
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "1938e7793b670ca3436c5f93e9c9e4d1f887f66959285d11c30150945a8690eb"
+                      ]
+                    ]
+                  },
+                  {
+                    "__imp_type__": "map",
+                    "entries": [
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "id"
+                        },
+                        "predictor/main/instruction"
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "kind"
+                        },
+                        {
+                          "__imp_type__": "atom",
+                          "value": "instruction"
+                        }
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "value"
+                        },
+                        "A post by one Bluesky user. Guess the year they wrote it."
+                      ],
+                      [
+                        {
+                          "__imp_type__": "atom",
+                          "value": "digest"
+                        },
+                        "f463fd5834b8c16bdf36fbfe06a16882084561fbc044c27be024b8b87f4513d8"
+                      ]
+                    ]
+                  }
+                ]
+              ],
+              [
+                {
+                  "__imp_type__": "atom",
+                  "value": "parent_hash"
+                },
+                "77588c0e42e448d68b49b9e5d94a42d3b5d8b79627dc744d3622cc35dec2fa02"
+              ]
+            ]
+          }
+        ]
+      ]
+    },
+    "signature": {
+      "inputs": [
+        {
+          "desc": null,
+          "kind": "input",
+          "metadata": {},
+          "name": "post",
+          "prefix": "Post:",
+          "type": "string"
+        }
+      ],
+      "instructions": "A post by one Bluesky user. Guess the year they wrote it.",
+      "metadata": {},
+      "outputs": [
+        {
+          "desc": null,
+          "kind": "output",
+          "metadata": {
+            "constraints": {
+              "enum": [
+                "2023",
+                "2024",
+                "2025",
+                "2026"
+              ]
+            }
+          },
+          "name": "year",
+          "prefix": "Year:",
+          "type": "string"
+        }
+      ]
+    },
+    "type": "predict"
+  },
+  "payload_sha256": "sha256:ec569b878371ce8530509147c24fc6a4b5ca60175f4d6b98a3cb0712014ccd2d",
+  "schema_version": 1
+}

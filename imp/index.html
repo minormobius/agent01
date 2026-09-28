@@ -51,17 +51,23 @@
   </div>
   <svg id="trec-svg" role="img" aria-labelledby="trec-cap"></svg>
   <div class="tip" id="tip"></div>
-  <figcaption id="trec-cap">Held-out accuracy on 80 TREC questions, before and after GEPA, per model (run imp-04). One question is 1.25 points; these are single runs.</figcaption>
+  <figcaption id="trec-cap">Held-out accuracy on 80 TREC questions, before and after GEPA, per model (DeepSeek from run imp-10, Kimi K3 from imp-04). One question is 1.25 points; these are single runs.</figcaption>
 </figure>
 <details><summary>The same numbers as a table</summary><div class="tbl-wrap" id="trec-table"></div></details>
 
 <div class="note">
-  <p><b>Read the low baselines carefully.</b> Most of the DeepSeek baseline misses were not wrong codes but
-  replies with no <code>route</code> field at all — Imp rejects those as parse errors and they score 0.
-  Of Flash's 16 baseline answers that did parse, 5 were right. So for the DeepSeek models the lift is two
-  lessons at once: what the codes mean, and how to answer in the required shape. <b>Kimi K3</b> is the clean
-  comparison: few parse errors, a baseline of exactly 50%, and +44 points after GEPA — in line with the
-  +40 Imp itself reports for gpt-5.4-mini on this task (Imp <code>RESULTS.md</code>, R3).</p>
+  <p><b>A correction, and what it taught us.</b> This page first reported DeepSeek V4 Flash going from
+  6.3% to 93.8%, and called most of the baseline misses format failures — replies with no
+  <code>route</code> field. That was wrong. Every call then had a 2,048-token reply budget, and the DeepSeek
+  models reason out of sight before they answer: on a question with no obvious answer the reasoning used the
+  whole budget and nothing was left for the reply. Re-run with 8,192 tokens (run imp-10), Flash's baseline
+  failures fell from 64 of 80 to 9 and its baseline rose to 46% — a coin flip, as it should be — and GEPA
+  took it to 95%. The chart now shows those runs for both DeepSeek models.</p>
+  <p>The honest reading is the same for every model: a baseline at chance, and GEPA teaching it what the codes
+  mean. <b>Kimi K3</b> (50% → 94%) and <b>DeepSeek Flash</b> (46% → 95%) agree with the +40 Imp itself
+  reports for gpt-5.4-mini (Imp <code>RESULTS.md</code>, R3). <b>DeepSeek Pro</b> reached 80 of 80; its
+  baseline still lost 26 calls to time-outs and a crowded connection pool, so its starting point is
+  understated.</p>
 </div>
 
 <h3>What the optimizer wrote</h3>
@@ -127,6 +133,31 @@ agent =
 5. convert({"amount_usd":480,"to":"GBP"})             → 379.20
 6. submit({"answer":"379.20 GBP", "work":"…"})        ✓ expected 379.20 GBP</code></pre>
 <p>Every turn of every run: <span id="trace-links"></span></p>
+
+<section id="builds" hidden>
+<h2>A long task: the build-a-bot's requests</h2>
+<p>
+  On Bluesky, a mention to the build-a-bot becomes a small website at <code>minomobi.com/&lt;name&gt;/</code>,
+  built by an agent with file tools, no network and the lab's shared kit. Here an Imp ReAct agent gets eight of
+  minormobius's own requests — "odyssey trail where it's a terminal game you're sailing around the Aegean", a
+  Kansas City history, a Stirling-engine applet — the same constraints, and a <code>check_site</code> tool that
+  runs the factory's real smoke test (a headless browser under the production CSP) and content gate. A build
+  scores 0–1: the page exists (0.15), passes the gate (0.20), loads clean (0.35), and Jev judges that it does
+  what was asked (0.30). The sites stay private: model-written HTML is not published here.
+</p>
+<div class="tbl-wrap" id="builds-table"></div>
+<div class="note">
+  <p><b>What a long task costs, and why it needs repeats.</b> A build is dozens of tool calls and minutes of
+  wall clock, and the history is re-sent every step, so input tokens dominate. Two harness fixes between runs
+  (a way to write long files in pieces; resuming a turn that stalled on a cut-off reply) moved DeepSeek Flash
+  from 0.34 to 0.56 — while DeepSeek Pro, on the same fixes, went from 0.63 to 0.41. The same request can
+  score 0 in one run and 0.97 in the next. One run of eight builds measures the harness as much as the model;
+  an optimizer pointed at this task will need repeats, and a hard budget.</p>
+  <p>Jev earned its place as the judge. In an early run a bug scored real builders on a page the test model had
+  left behind: the smoke test and the gate passed it, and only Jev's "does this do what was asked" (0.01)
+  said it was the wrong page.</p>
+</div>
+</section>
 
 <h2 id="findings">Findings</h2>
 
@@ -224,9 +255,10 @@ Imp.optimize!(agent, Imp.Optimizer.GEPA.new(metric, reflection_lm: lm, max_metri
 <div class="tabs" id="era-tabs" role="tablist"></div>
 <div id="era-matrix"></div>
 <h3>The eras, as GEPA wrote them down</h3>
+<p id="era-gepa-note"></p>
 <div class="tabs" id="era-itabs" role="tablist"></div>
 <div class="pair" id="era-instr"></div>
-<h3>Some held-out posts, and what the optimized program said</h3>
+<h3>Some held-out posts, and what the best dater said</h3>
 <div class="tbl-wrap" id="era-samples"></div>
 </section>
 
